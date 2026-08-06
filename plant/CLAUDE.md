@@ -150,6 +150,45 @@ refused, not clamped** — same call `placement.mjs` made, for the same reason.
 no dragging toward the answer), the direct alternative to `levels/level1.mjs`'s
 continuous ore-rate slider. `test/level2.selftest.mjs` pins it.
 
+`campaign.mjs` — **the six levels as one game**, and the half of vision item 1
+that is not the page: `start()`, `move(value)`, `verdict()`, `next()`,
+`state()`, no DOM, no events, no randomness, so `test/campaign.selftest.mjs`
+plays the whole thing through in node.
+
+Each level declares a **knob**: the *finite* set of settings the player is
+offered, and an `apply` that turns one of them into a level. Every `apply`
+calls the level's own helper (`withSourceRate` / `withProcessorCapacity`,
+`SMELTER_OPTIONS`, each level's `withShareA`) — no level mutation is
+reimplemented here.
+
+**The play order is COMPUTED, not written down.** `ORDER` sorts the six by
+`winFraction` — of all the settings offered, what proportion win — descending,
+ties by id. `vision.md` suggests ordering by feasibility margin and **that
+measure is wrong**: LEVEL_1 ships at margin 0.02 *by design* ("barely
+satisfiable") and LEVEL_6 at 0, so shipped margin makes the tutorial the
+hardest level in the game. Shipped margin measures how taut the designer left
+the knob; win fraction measures how much of the player's own domain wins. The
+computed answer is `level1, level4, level3, level2, level5, level6`, and the
+gate **pins it as a literal** so retuning a level cannot silently reshuffle the
+game.
+
+Two things to know before changing it. **A knob's `samples` is exactly the range
+and step of that level's control in `index.html` today** — that is what keeps
+the measure honest rather than chosen, and the follow-up that wires the page
+must take its control bounds *from here* instead of keeping a second copy.
+And **`won` is `ok && moves > 0`**: five of the six levels open already fed, and
+a level you win by arriving is not a level.
+
+Not imported by `index.html` yet — turning the page into one-level-at-a-time is
+the follow-up, and this module was deliberately built first so that work is
+wiring rather than design.
+
+> `withSourceRate` and `withProcessorCapacity` are **pure level transforms that
+> happen to live in `level-view.js`**, a view file. `campaign.mjs`, `level2`,
+> `level3` and `level4`'s gates all import them from there. Moving them
+> somewhere more honest is a real (small) ticket of its own — it touches five
+> importers — and it was deliberately **not** done here.
+
 ### `tools/` is PARKED WORK, not part of the game — and it is waiting on a human
 
 `tools/loop-brief.mjs` + `tools/loop-brief.selftest.mjs` are **loop

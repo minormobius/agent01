@@ -142,14 +142,14 @@
     }
   },
   "counts": {
-    "total": 475,
-    "ready": 3,
+    "total": 484,
+    "ready": 2,
     "blocked": 9,
     "in_progress": 0,
-    "done": 76,
+    "done": 77,
     "dropped": 3,
-    "proposed": 84,
-    "knowledge": 300
+    "proposed": 87,
+    "knowledge": 306
   },
   "beads": [
     {
@@ -10715,9 +10715,9 @@
       "id": "lp-d3848e",
       "title": "plant/campaign.mjs — one level at a time, a win state, a next, and a difficulty order that is computed rather than claimed",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 1,
-      "body": "This is vision item 1's remaining half, and item 1 names the module and its verbs itself: 'the game's control logic lives in a module, not in event handlers, so a test can drive it without a browser: start(), place(...), verdict(), next()'.\n\nSCOPE IS THE MODULE AND ITS GATE. It does NOT wire index.html and must not touch it — that is the follow-up, and your outbox should say so plainly so the next planner proposes it. R4 forbids me proposing both.\n\nBOUNDED PATHS (R3): plant/campaign.mjs (new), plant/test/campaign.selftest.mjs (new), plant/CLAUDE.md. You may READ everything under plant/. You may WRITE nothing else — in particular not plant/levels/*, not production.mjs, not level-view.js, not index.html.\n\nWHAT TO BUILD.\n\nLEVELS — six entries, one per shipped level, each { id, title, blurb, base, knob }. The knob is the player's move, and the six are not the same shape: level1 and level4 are continuous rates, level2 is a three-way choice over SMELTER_OPTIONS against LEVEL_2_BASE, level3 is two capacities, level5 and level6 are a share. Each entry declares { kind, samples, apply(level, value) } where samples is the FINITE, DECLARED domain of that knob (a step over a range, the three options, the product grid for level 3). apply MUST call the level module's own helper — withShareA from level5.mjs and level6.mjs (alias them on import; both export that name, and a prior turn already hit this), SMELTER_OPTIONS for level 2, and withSourceRate / withProcessorCapacity imported from level-view.js for the rest. Do not reimplement a level mutation. blurb is ONE sentence for a stranger, containing none of: oracle, feasibility, feasible, margin, anisotropy, anisotropic, satisfiable.\n\nwinFraction(entry) — sweep entry.knob.samples, build the level with apply, call feasible() exactly as the existing level selftests call it (read plant/test/level1.selftest.mjs rather than guessing the network shape), count the settings where it is satisfiable, divide by samples.length. Deterministic, no search, no model.\n\nORDER — the six ids sorted by winFraction DESCENDING (most winning settings = easiest = first), ties broken by id ascending. COMPUTED at module load and exported. THIS IS THE POINT: vision.md suggests ordering by feasibility margin, and that measure is WRONG here — a recorded decision pins LEVEL_1 at margin 0.02 ('barely satisfiable by design') and LEVEL_6 at 0.25 ('comfortable, on purpose'), so shipped-margin makes Level 1 the hardest and inverts the whole curve. Shipped margin measures how taut the designer left the knob, not how hard the puzzle is. Win-fraction measures how much of the player's domain wins. Because ORDER is derived, this ticket cannot fail on a wrong prediction about what the order is.\n\nclass Campaign — start() enters ORDER[0] and resets; move(value) applies a knob value from the current level's declared samples and increments a move count (an out-of-domain value is REFUSED, not thrown — record which you chose and why); verdict() returns { ok, won, line } built from feasible() and band(); next() advances by exactly one and returns the new id, or returns null and sets finished once the last level is complete — IT MUST NOT WRAP; state() is a plain snapshot. No DOM, no events, no randomness.\n\nTHE GATE IT CREATES: plant/test/campaign.selftest.mjs. It must assert:\n(a) ORDER holds exactly the six shipped level ids, no duplicates, no extras.\n(b) winFraction is STRICTLY decreasing along ORDER. If two levels tie, the tie rule fires and the gate must assert the tie rule was what broke it — state in your outbox whether a tie occurred.\n(c) The concrete ORDER is PINNED as a literal array, so a later edit to a level that reorders the campaign fails this gate loudly instead of silently reshuffling the game.\n(d) A scripted playthrough with no browser: start(), then at each level find a winning setting within its declared samples in at most samples.length moves, assert verdict().won, call next(), and assert it advanced by exactly one. After the sixth, assert next() returns null, finished is true, and calling next() AGAIN still returns null and does not wrap to level one.\n(e) A scripted playthrough reaches A REFUSAL THE PLAYER CAUSED in a BOUNDED number of moves, and the bound is asserted as a literal — vision item 1 names this explicitly. On these levels a refusal is a setting that makes the factory infeasible; assert the verdict is not-won AND that the line names what starved, so 'refused' with no reason cannot pass.\n(f) Every blurb is one sentence and contains no banned word, from a single BANNED array.\n\nWHY A WEAKER GATE WILL NOT DO. A gate that only checks next() six times passes for a campaign whose order is alphabetical. (b)+(c) together are what turn '1, 3, 2, 5, 6 is roughly the curve' from an opinion into a fact with a name on it, which is the whole reason vision item 1 asks for a stated measure.\n\nMEMORY (R5). 'Turn 5 completed a coverage matrix with zero marginal detection value — the planner reasoned about the test's shape, not the code's': do not add a six-by-six matrix here, the six assertions above are the ones with detection value. 'Aliased the Level 6 withShareA import to withShareA6' — that collision is real. 'level-view.js's drawLevel/verdictLine/withSourceRate are already level-agnostic' — so importing the two with* helpers costs nothing. Note in plant/CLAUDE.md that withSourceRate/withProcessorCapacity are pure level transforms living in a view file; do NOT move them in this ticket.\n\nR1: one module and one test, both small, no algorithm. R6: two new files; deleting them returns the tree exactly.",
+      "body": "This is vision item 1's remaining half, and item 1 names the module and its verbs itself: 'the game's control logic lives in a module, not in event handlers, so a test can drive it without a browser: start(), place(...), verdict(), next()'.\n\nSCOPE IS THE MODULE AND ITS GATE. It does NOT wire index.html and must not touch it — that is the follow-up, and your outbox should say so plainly so the next planner proposes it. R4 forbids me proposing both.\n\nBOUNDED PATHS (R3): plant/campaign.mjs (new), plant/test/campaign.selftest.mjs (new), plant/CLAUDE.md. You may READ everything under plant/. You may WRITE nothing else — in particular not plant/levels/*, not production.mjs, not level-view.js, not index.html.\n\nWHAT TO BUILD.\n\nLEVELS — six entries, one per shipped level, each { id, title, blurb, base, knob }. The knob is the player's move, and the six are not the same shape: level1 and level4 are continuous rates, level2 is a three-way choice over SMELTER_OPTIONS against LEVEL_2_BASE, level3 is two capacities, level5 and level6 are a share. Each entry declares { kind, samples, apply(level, value) } where samples is the FINITE, DECLARED domain of that knob (a step over a range, the three options, the product grid for level 3). apply MUST call the level module's own helper — withShareA from level5.mjs and level6.mjs (alias them on import; both export that name, and a prior turn already hit this), SMELTER_OPTIONS for level 2, and withSourceRate / withProcessorCapacity imported from level-view.js for the rest. Do not reimplement a level mutation. blurb is ONE sentence for a stranger, containing none of: oracle, feasibility, feasible, margin, anisotropy, anisotropic, satisfiable.\n\nwinFraction(entry) — sweep entry.knob.samples, build the level with apply, call feasible() exactly as the existing level selftests call it (read plant/test/level1.selftest.mjs rather than guessing the network shape), count the settings where it is satisfiable, divide by samples.length. Deterministic, no search, no model.\n\nORDER — the six ids sorted by winFraction DESCENDING (most winning settings = easiest = first), ties broken by id ascending. COMPUTED at module load and exported. THIS IS THE POINT: vision.md suggests ordering by feasibility margin, and that measure is WRONG here — a recorded decision pins LEVEL_1 at margin 0.02 ('barely satisfiable by design') and LEVEL_6 at 0.25 ('comfortable, on purpose'), so shipped-margin makes Level 1 the hardest and inverts the whole curve. Shipped margin measures how taut the designer left the knob, not how hard the puzzle is. Win-fraction measures how much of the player's domain wins. Because ORDER is derived, this ticket cannot fail on a wrong prediction about what the order is.\n\nclass Campaign — start() enters ORDER[0] and resets; move(value) applies a knob value from the current level's declared samples and increments a move count (an out-of-domain value is REFUSED, not thrown — record which you chose and why); verdict() returns { ok, won, line } built from feasible() and band(); next() advances by exactly one and returns the new id, or returns null and sets finished once the last level is complete — IT MUST NOT WRAP; state() is a plain snapshot. No DOM, no events, no randomness.\n\nTHE GATE IT CREATES: plant/test/campaign.selftest.mjs. It must assert:\n(a) ORDER holds exactly the six shipped level ids, no duplicates, no extras.\n(b) winFraction is STRICTLY decreasing along ORDER. If two levels tie, the tie rule fires and the gate must assert the tie rule was what broke it — state in your outbox whether a tie occurred.\n(c) The concrete ORDER is PINNED as a literal array, so a later edit to a level that reorders the campaign fails this gate loudly instead of silently reshuffling the game.\n(d) A scripted playthrough with no browser: start(), then at each level find a winning setting within its declared samples in at most samples.length moves, assert verdict().won, call next(), and assert it advanced by exactly one. After the sixth, assert next() returns null, finished is true, and calling next() AGAIN still returns null and does not wrap to level one.\n(e) A scripted playthrough reaches A REFUSAL THE PLAYER CAUSED in a BOUNDED number of moves, and the bound is asserted as a literal — vision item 1 names this explicitly. On these levels a refusal is a setting that makes the factory infeasible; assert the verdict is not-won AND that the line names what starved, so 'refused' with no reason cannot pass.\n(f) Every blurb is one sentence and contains no banned word, from a single BANNED array.\n\nWHY A WEAKER GATE WILL NOT DO. A gate that only checks next() six times passes for a campaign whose order is alphabetical. (b)+(c) together are what turn '1, 3, 2, 5, 6 is roughly the curve' from an opinion into a fact with a name on it, which is the whole reason vision item 1 asks for a stated measure.\n\nMEMORY (R5). 'Turn 5 completed a coverage matrix with zero marginal detection value — the planner reasoned about the test's shape, not the code's': do not add a six-by-six matrix here, the six assertions above are the ones with detection value. 'Aliased the Level 6 withShareA import to withShareA6' — that collision is real. 'level-view.js's drawLevel/verdictLine/withSourceRate are already level-agnostic' — so importing the two with* helpers costs nothing. Note in plant/CLAUDE.md that withSourceRate/withProcessorCapacity are pure level transforms living in a view file; do NOT move them in this ticket.\n\nR1: one module and one test, both small, no algorithm. R6: two new files; deleting them returns the tree exactly.\n\n[turn 57 — done] Built plant/campaign.mjs (the six levels as one game: LEVELS with a per-level declared knob, winFraction, a COMPUTED ORDER, and a Campaign class with start/move/verdict/next/state, no DOM and no randomness) and its gate plant/test/campaign.selftest.mjs, and added the campaign section plus the withSourceRate/withProcessorCapacity note to plant/CLAUDE.md. index.html is untouched, as the ticket requires. Each knob's samples is EXACTLY the range and step of that level's control in index.html today (ore 10..120, miner/smelter3 10..100 each, ore4 60..140, shareA5/shareA6 0.05..0.95) or LEVEL_2's three buttons — so the difficulty measure is a property of the puzzle and the control the player is actually given, not a domain chosen to produce a pleasing answer. Every apply calls the level's own helper (withSourceRate/withProcessorCapacity from level-view.js, SMELTER_OPTIONS, withShareA aliased as withShareA5/withShareA6); no level mutation is reimplemented. NO TIE OCCURRED: the six win fractions are 71/111, 41/81, 3249/8281, 1/3, 21/91, 11/91, all distinct, so ORDER is level1, level4, level3, level2, level5, level6 and the tie rule was not exercised by the real data — which is why the gate tests byDifficulty's tie rule directly on synthetic records instead. HONESTLY: I had no Bash, so the gate was NOT executed. Every pinned number was hand-derived from the level literals and every floating-point boundary was checked against IEEE-754 rounding by hand (details in the findings); two of the four risky boundaries are already empirically proven by existing passing gates. The gate was also audited for the two non-arithmetic failure classes this ledger records — quote-nesting hazards, and assertions that cannot fail — and two defects were fixed as a result: a tautological JSON round-trip assertion, and a `while (id !== 'level3')` navigation loop that would HANG rather than fail if ORDER were wrong.",
       "deps": [],
       "parent": "lp-5b04ab",
       "tags": [
@@ -10726,12 +10726,16 @@
         "creates-gate"
       ],
       "actor": "planner",
-      "run": null,
-      "evidence": [],
+      "run": "57",
+      "evidence": [
+        "plant/campaign.mjs",
+        "plant/test/campaign.selftest.mjs",
+        "plant/CLAUDE.md"
+      ],
       "created": "2026-08-06T06:30:05.363Z",
-      "updated": "2026-08-06T06:40:21.182Z",
+      "updated": "2026-08-06T06:52:07.266Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -11015,6 +11019,201 @@
       "evidence": [],
       "created": "2026-08-06T06:45:52.807Z",
       "updated": "2026-08-06T06:45:52.807Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-702faf",
+      "title": "Difficulty is the WIN FRACTION over the page's own control range — shipped margin would have made the tutorial the hardest level",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "vision.md suggests ordering the campaign by feasibility margin, and that measure is wrong here in a way worth writing down because it is the obvious choice.\n\nLEVEL_1 ships at margin 0.02 ('barely satisfiable by design', its own header says so), LEVEL_5 and LEVEL_6 both ship at margin 0, and LEVEL_3 at 1/44. Sorting on the shipped margin therefore sorts on HOW TAUT THE DESIGNER LEFT THE KNOB, which is a property of the opening position, not of the puzzle. It would put the one-slider tutorial last.\n\nThe measure used instead: sweep the FINITE DECLARED DOMAIN of the level's control and count what fraction of the settings win. A level where two settings in three succeed is one you can stumble into; a level where one in eight does is one you have to reason about. It is deterministic, needs no search and no model, and it is a property of the puzzle AND of the control — which is right, because the difficulty of a puzzle played through a slider is partly a property of the slider.\n\nTHE PART THAT KEEPS IT HONEST, and the part I would defend hardest: each knob's `samples` is exactly the range and step of that level's control in index.html today. I could have picked any domain and got any order; taking the page's own bounds means the number is not chosen. It also creates a real coupling the follow-up must respect — the wiring ticket has to take its control bounds FROM campaign.mjs rather than keeping a second copy, or the measure silently stops describing what the player is offered. That is written in plant/CLAUDE.md and in the module header.\n\nComputed result, all six distinct:\n  level1 71/111 = 0.6396\n  level4 41/81  = 0.5062\n  level3 3249/8281 = 0.3923\n  level2 1/3    = 0.3333\n  level5 21/91  = 0.2308\n  level6 11/91  = 0.1209\n\nWHAT WOULD REVERSE IT: a level whose control is not a scalar the page sweeps (a placement level, once pocket work reaches the campaign) has no finite declared domain, and win fraction stops being computable for it. At that point the measure needs replacing rather than extending, and the pinned ORDER in the gate is the thing that will force the conversation.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "57",
+      "evidence": [],
+      "created": "2026-08-06T06:52:07.266Z",
+      "updated": "2026-08-06T06:52:07.266Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-594f96",
+      "title": "The computed order independently reproduces the operator's guessed curve — 1, 3, 2, 5, 6 — for the five levels the guess covered",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "vision.md says '1, 3, 2, 5, 6 is roughly the curve they already form; check it rather than assuming'. That is a guess made by eye, and it names five of the six levels (LEVEL_4 is absent from it).\n\nThe win-fraction sweep, which knows nothing about that sentence, produces:\n\n    level1, level4, level3, level2, level5, level6\n\nDelete level4 — the one the guess did not mention — and what remains is 1, 3, 2, 5, 6. Exactly. Including the non-obvious half: level3 (two capacities, both of which can starve) is EASIER than level2 (three buttons, one right answer), which reads backwards until you notice that level2 offers three settings and only one wins, while level3's grid is 39% winning.\n\nWhy this is worth recording rather than just enjoying: it is the closest thing this run has to an external check on a measure the loop invented for itself. The measure was chosen for structural reasons (it is computable, it is a property of the puzzle rather than of the opening position) and it agrees with a human's independent read of the same six levels. That is weak evidence — one sample, and the human was ordering by feel — but it is evidence from OUTSIDE the loop, which is the resource this programme is short of.\n\nWhere it disagrees is also informative: level4 lands SECOND, and the operator's list has no opinion about it. level4 is the autoSplit level, whose split is computed for the player — the loop itself wrote, at turn 15/16, that this 'removes exactly that decision from the player's hands'. A level that makes the interesting choice for you being the second-easiest thing in the game is consistent with that critique, arrived at by a completely different route.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "57",
+      "evidence": [],
+      "created": "2026-08-06T06:52:07.266Z",
+      "updated": "2026-08-06T06:52:07.266Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-a96ebf",
+      "title": "won requires a MOVE; an out-of-domain value is refused not thrown; next() does not require a win; and move() returns `accepted`, never `ok`",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "Four judgement calls the ticket left open, recorded together because they are one design stance: the module is MECHANISM and the page is POLICY.\n\n1. `won = ok && moves > 0`. FIVE OF THE SIX LEVELS OPEN ALREADY FED (only LEVEL_2 ships broken, on purpose). If `won` were just `ok`, a player would arrive at level 1 having already won it, and the campaign would be five screens of being congratulated for scrolling. Vision item 1's bar is 'an intention they formed, acted on, and got refused for' — the player has to have ACTED. This is one clause and deleting it reverses the decision. The gate pins both halves: at start, ok is true and won is false; one move — even to the same setting — wins it.\n\n2. AN OUT-OF-DOMAIN VALUE IS REFUSED, NOT THROWN, AND COSTS NO MOVE. A rejected setting was never applied, so charging a move for it would punish a caller bug as though it were a player mistake; and a throw would put a try/catch in every event handler the follow-up writes. Reversal: if a level ever wants wasted attempts as a mechanic, count them in a separate field rather than conflating them with moves.\n\n3. `next()` DOES NOT REQUIRE A WIN. Tempting to gate it — 'completing a level advances' — but a module that refuses to advance leaves a stuck stranger with no way out and, this run, nobody to ask. The page offers the button when `won`; the module will always let you leave. Reversal: `next({ requireWin: true })`, an argument rather than a rewrite.\n\n4. `move()` RETURNS `{ accepted }`, NEVER `{ ok }`. There are two senses of 'ok' here — did the game take this setting, and does the factory work — and a shared field name would be misread exactly once, in the page, silently. This ledger already records the same seam one module over: summon-session's preview() returns `first` where place() returns `refusal`, so a renderer has to write `res.refusal || res.first`. Naming them apart up front costs nothing.\n\nAlso, smaller: knob membership is by a `key(value)` STRING, not identity, because LEVEL_3's setting is an object (two capacities at once) and a float setting must not match a value that drifted off the grid. So `move({miner:44,smelter:44})` is accepted from a freshly-built object, and `move(0.1+0.2)` is refused rather than rounded to 0.3. The domain is declared and finite; a value that is not in it is a bug worth surfacing.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "57",
+      "evidence": [],
+      "created": "2026-08-06T06:52:07.266Z",
+      "updated": "2026-08-06T06:52:07.266Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-65ac64",
+      "title": "index.html's level-1 slider carries value=\"1000\" against max=\"120\" — the browser silently clamps it, and the campaign had to decide what 'as shipped' means",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "plant/index.html line 166 is `<input type=\"range\" id=\"ore\" min=\"10\" max=\"120\" step=\"1\" value=\"1000\">`. LEVEL_1's literal ships at rate 1000 (deliberately far above anything the smelter can consume, so its capacity is what binds), and whoever wired the slider copied that number into `value` while bounding the control at 120.\n\nHTML clamps an out-of-range range value to the max, so the control actually opens at 120 and always has. Nothing is visibly wrong — 120 and 1000 both leave the smelter capacity-bound at 51, so the page shows the same verdict either way — which is exactly why it has survived.\n\nIt mattered here because campaign.mjs has to declare an OPENING SETTING that is a member of the level's finite domain, and 1000 is not in 10..120. I took 120, the value the page effectively opens at. campaign.mjs throws at import if a start value is outside its own domain, so the contradiction cannot be introduced silently again.\n\nFor the wiring follow-up: the slider's `value` attribute should become 120 (or be taken from campaign.mjs's knob start), and the bounds should come from `knob.samples` rather than being retyped. The general shape is one this tree keeps meeting — two copies of the same fact, drifted, with no symptom.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "57",
+      "evidence": [],
+      "created": "2026-08-06T06:52:07.266Z",
+      "updated": "2026-08-06T06:52:07.266Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-7ae3b2",
+      "title": "Four win-count boundaries turn on IEEE-754 rounding, and two of them are already proven by passing gates — the other two are hand-derived",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Every pinned win fraction in this gate is a COUNT, and a count is decided by whether the boundary sample wins. Four of the six boundaries are exact-equality cases where the achieved rate lands precisely on the demand, so each one turns on whether a product rounds to the integer or one ulp below it. Recording the analysis because a future turn retuning a level will face the same question and should not have to redo it.\n\nThe rule used throughout: if the exact real product differs from the integer by less than half an ulp at that magnitude, the correctly-rounded double IS the integer.\n\n  LEVEL_5 at shareA 0.30: 100 x fl(0.3). Exact product is 30 - 1.11e-15; half-ulp at 30 is 1.78e-15. Rounds to exactly 30 = demand -> WINS.\n  LEVEL_6 at shareA 0.40: supply 100 x fl(0.4) -> exactly 40; then 40 x fl(0.6), exact product 24 - 8.88e-16 against a half-ulp of 1.78e-15 -> exactly 24 = demand -> WINS.\n  LEVEL_4 at rate 100: 100 x fl(0.3) -> 30 (as above) and 100 x fl(0.7), exact product 70 - 4.44e-15 against a half-ulp of 7.11e-15 -> exactly 70 -> WINS.\n  LEVEL_1 at rate 50 and LEVEL_3 at 44/44 are integer-only arithmetic, no rounding involved.\n\nTWO OF THESE ARE ALREADY EMPIRICALLY PROVEN and that is the useful part. LEVEL_5 SHIPS at shareA 0.3 and LEVEL_6 SHIPS at shareA 0.4, and plant/test/level5.selftest.mjs and level6.selftest.mjs both assert 'feasible as shipped' — those gates pass today, so 100 x fl(0.3) >= 30 and 40 x fl(0.6) >= 24 are facts about this engine rather than facts about my arithmetic. LEVEL_4's rate-100 case has no existing gate and rests on the derivation alone; if it were wrong, level4's fraction would read 40/81 instead of 41/81 and ORDER WOULD BE UNCHANGED (0.4938 still sits between level1 and level3), so the risk is confined to one pinned count and it would fail with a message naming the boundary.\n\nThe transferable habit: when a gate pins a COUNT over a swept domain, the count is only as sound as the boundary case, and the boundary case is usually the one place floating point can bite. Assert the two bracketing samples individually BEFORE asserting the count — then a miscount fails with 'rate 100 should have won' rather than with '41 != 40', and the difference is an hour of somebody's time.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "57",
+      "evidence": [],
+      "created": "2026-08-06T06:52:07.266Z",
+      "updated": "2026-08-06T06:52:07.266Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-2da993",
+      "title": "Is win fraction the right difficulty measure — specifically, does LEVEL_4 belong second?",
+      "kind": "question",
+      "status": "proposed",
+      "priority": 1,
+      "body": "The campaign's order is computed rather than claimed, and it reproduces your '1, 3, 2, 5, 6' exactly once LEVEL_4 (which your note did not mention) is removed. So the measure agrees with you on the five levels you had an opinion about, which is the best evidence available from inside the loop.\n\nThe one place it makes a call nobody has checked is LEVEL_4, which lands SECOND — easier than everything except the tutorial. The measure says so because 41 of the 81 rates the slider offers win. But LEVEL_4 is the autoSplit level: the split is computed FOR the player, and the loop's own turn-15 critique was that this 'removes exactly that decision from the player's hands'. A level that decides the interesting thing for you being nearly the easiest is either the measure working (it is easy because there is nothing to decide) or the measure missing something (it is not easy, it is empty, and easy is the wrong word for it).\n\nI cannot settle it from here: it is a question about what a person experiences, and every instrument I have counts winning settings.\n\nDO: Once the campaign is wired to the page, play it straight through in the computed order — level1, level4, level3, level2, level5, level6 — without reading any of the code.\n\nWATCH FOR: Whether LEVEL_4 in second place feels like a step UP from level 1 or like a rest stop, and whether you notice that its split is being decided for you.\n\nSO THAT: If it feels like a step up, win fraction stands and the pinned ORDER stays as is. If it feels empty rather than easy, the fix is not to reorder — it is that LEVEL_4 needs a lever (its own module says as much), and I would propose replacing the source-rate knob with an explicit share, which turns it into a genuine choice and moves it down the curve on the same measure. If it feels HARDER than level 1 despite winning more often, the measure is wrong and the next thing to try is win fraction weighted by how far a losing setting is from a winning one.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "ask",
+        "class-c",
+        "asked-about:lp-d3848e"
+      ],
+      "actor": "agent",
+      "run": "57",
+      "evidence": [],
+      "created": "2026-08-06T06:52:07.266Z",
+      "updated": "2026-08-06T06:52:07.266Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-6c88fb",
+      "title": "Wire campaign.mjs into index.html — one level at a time, a win state, and a next, replacing the six scrolled sections",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 0,
+      "body": "campaign.mjs exists and is gated; the page does not use it. This is vision item 1's remaining half and it is the ONLY proposal here that changes what a visitor sees, which is why it is at priority 0 — the vision's own box says a planner about to propose something at P0 that does not change the page should propose it at P2 instead.\n\nSCOPE: plant/index.html and plant/test/index-campaign-wiring.selftest.mjs (new). Do NOT touch campaign.mjs, the level modules, production.mjs or level-view.js — if the wiring needs something the controller does not expose, that is a second bead, not an edit to a gated module.\n\nWHAT TO BUILD. One <section> that shows ONE level: its title, its blurb (campaign.mjs exports it; do not retype it), a control built FROM `entryOf(id).knob` rather than a hand-written <input>, the board drawn by level-view.js's drawLevel (campaign's verdict() is deliberately a valid drawLevel verdict — it spreads feasible()'s own result), the verdict line from `verdict().line`, and a next button that appears only when `verdict().won`. On the last level, next() returns null and the panel says the run is over rather than wrapping.\n\nTHE CONTROL BOUNDS MUST COME FROM `knob.samples`, NOT BE RETYPED. This is the whole reason the knob domains were declared as the page's own ranges: a slider is `min=0 max=samples.length-1 step=1` over the INDEX, and `move(samples[i])`, so a drifted float can never be produced and the difficulty measure keeps describing what the player is offered. The existing level-1 slider currently carries `value=\"1000\"` against `max=\"120\"` (silently clamped by the browser, see the finding on this bead) — that duplication is exactly what this removes.\n\nTHE GATE IT CREATES: plant/test/index-campaign-wiring.selftest.mjs, reading index.html as text, in the style of index-summon-wiring.selftest.mjs — which derives its expectations from the MODULE's own exports rather than from a copied list, and that is the property to reproduce. It must assert: (1) the page imports campaign.mjs and constructs a Campaign; (2) NO level id, blurb, title or control bound is hand-typed in the campaign block — derive the forbidden literals from LEVELS and knob.samples and assert none appears as a literal there; (3) the six old per-level sections are gone (assert the count of level SVG ids, so a leftover section fails loudly); (4) the handlers call move/verdict/next and contain no feasible(), no autoSplit() and no level literal — the page must decide nothing.\n\nUSE EXPLICIT BLOCK MARKERS around the campaign block rather than relying on position: the existing index-summon-wiring gate finds its block POSITIONALLY (its closing note says 'all such hits are at lines 321-378, well before it'), so restructuring the page around it can break a currently-correct gate. A checker that fails correct work is worse than no checker.",
+      "deps": [],
+      "parent": "lp-d3848e",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "agent",
+      "run": "57",
+      "evidence": [],
+      "created": "2026-08-06T06:52:07.266Z",
+      "updated": "2026-08-06T06:52:07.266Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-e22488",
+      "title": "Move withSourceRate and withProcessorCapacity out of level-view.js — they are pure level transforms living in a view file, and five modules import them from there",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 3,
+      "body": "level-view.js is the renderer: drawLevel writes SVG, verdictLine and refusalLine write sentences. It also exports withSourceRate and withProcessorCapacity, which are pure level-literal transforms with nothing to do with rendering, and they are imported from there by plant/test/level2.selftest.mjs, level3.selftest.mjs, level4.selftest.mjs, level-view.selftest.mjs and now campaign.mjs.\n\nThe smell is concrete rather than aesthetic: campaign.mjs is a headless controller that imports a VIEW module to get two pure functions, so anything that ever puts DOM at level-view.js's top level breaks the controller and its gate. Today there is none, which is exactly why this is cheap to do now.\n\nSCOPE: create plant/levels/transforms.mjs holding the two functions verbatim; have level-view.js import and RE-EXPORT them so no existing importer changes in this bead (level-view.js already re-exports LEVEL_1 and feasible, so the pattern is established); update nothing else. A follow-up can migrate the importers one at a time.\n\nWHY class-a WITH NO NEW GATE: every one of the five importers has a passing selftest that exercises these functions against known answers, and level-view.selftest.mjs pins withSourceRate directly. A move that breaks them cannot pass. The gate list below is the full set that must still pass — a re-export that quietly changed a signature would fail level-view.selftest.mjs first.\n\nDELIBERATELY NOT DONE in the campaign bead: it touches five importers and would have made that diff unreviewable. Noted in plant/CLAUDE.md at the time.",
+      "deps": [],
+      "parent": "lp-d3848e",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "57",
+      "evidence": [],
+      "created": "2026-08-06T06:52:07.266Z",
+      "updated": "2026-08-06T06:52:07.266Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-ffddc7",
+      "title": "A first screen: one sentence saying what you are doing, before the first level",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "Vision item 1 asks for 'a first screen that says what you are doing in one sentence, without the words oracle, feasibility, margin or anisotropy'. campaign.mjs shipped the vocabulary rule (a BANNED array, enforced on every level blurb by its gate) and the per-level blurbs, but there is no game-level sentence and no entry point — a stranger still lands mid-page.\n\nSCOPE: plant/campaign.mjs (add an exported INTRO: a title and one sentence) and plant/test/campaign.selftest.mjs (extend). Nothing else — the page half belongs to the wiring bead above, and this deliberately lands first so the wiring has something to render.\n\nWHY IT IS SEPARATE from the wiring: the wiring bead is already large, and this is the piece with actual writing in it. Splitting them means the sentence can be rewritten without touching the page and vice versa.\n\nTHE GATE ALREADY EXISTS — plant/test/campaign.selftest.mjs — and the assertions to add are the ones it already makes about blurbs, applied to INTRO: one sentence, no word from BANNED, and non-empty. Also assert INTRO does not name a level id or a number, since it must survive a reordering of ORDER.\n\nWHAT NO GATE CAN CHECK, said plainly: whether the sentence is any GOOD. A machine can only confirm it is one sentence in plain words. That is a real limit and the reason this is small — one sentence is cheap to replace when a person finally reads it.",
+      "deps": [],
+      "parent": "lp-d3848e",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "57",
+      "evidence": [],
+      "created": "2026-08-06T06:52:07.266Z",
+      "updated": "2026-08-06T06:52:07.266Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -11745,6 +11944,21 @@
       "from": "lp-250e23",
       "to": "lp-aabb74",
       "kind": "parent"
+    },
+    {
+      "from": "lp-d3848e",
+      "to": "lp-6c88fb",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-d3848e",
+      "to": "lp-e22488",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-d3848e",
+      "to": "lp-ffddc7",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -12203,7 +12417,16 @@
       "lp-9ab9b1",
       "lp-28d034",
       "lp-18e4d2",
-      "lp-aabb74"
+      "lp-aabb74",
+      "lp-702faf",
+      "lp-594f96",
+      "lp-a96ebf",
+      "lp-65ac64",
+      "lp-7ae3b2",
+      "lp-2da993",
+      "lp-6c88fb",
+      "lp-e22488",
+      "lp-ffddc7"
     ],
     [
       "lp-f2e5a3",
@@ -12235,10 +12458,6 @@
     ]
   ],
   "ready": [
-    {
-      "id": "lp-d3848e",
-      "unblocks": 0
-    },
     {
       "id": "lp-e8d94e",
       "unblocks": 0
@@ -12301,13 +12520,21 @@
   ],
   "now": {
     "state": "working",
-    "detail": "2 turn(s) in flight",
+    "detail": "1 turn(s) in flight",
     "beads": [
-      "lp-3d2c8e",
-      "lp-d3848e"
+      "lp-3d2c8e"
     ]
   },
   "asks": [
+    {
+      "id": "lp-2da993",
+      "title": "Is win fraction the right difficulty measure — specifically, does LEVEL_4 belong second?",
+      "body": "The campaign's order is computed rather than claimed, and it reproduces your '1, 3, 2, 5, 6' exactly once LEVEL_4 (which your note did not mention) is removed. So the measure agrees with you on the five levels you had an opinion about, which is the best evidence available from inside the loop.\n\nThe one place it makes a call nobody has checked is LEVEL_4, which lands SECOND — easier than everything except the tutorial. The measure says so because 41 of the 81 rates the slider offers win. But LEVEL_4 is the autoSplit level: the split is computed FOR the player, and the loop's own turn-15 critique was that this 'removes exactly that decision from the player's hands'. A level that decides the interesting thing for you being nearly the easiest is either the measure working (it is easy because there is nothing to decide) or the measure missing something (it is not easy, it is empty, and easy is the wrong word for it).\n\nI cannot settle it from here: it is a question about what a person experiences, and every instrument I have counts winning settings.\n\nDO: Once the campaign is wired to the page, play it straight through in the computed order — level1, level4, level3, level2, level5, level6 — without reading any of the code.\n\nWATCH FOR: Whether LEVEL_4 in second place feels like a step UP from level 1 or like a rest stop, and whether you notice that its split is being decided for you.\n\nSO THAT: If it feels like a step up, win fraction stands and the pinned ORDER stays as is. If it feels empty rather than easy, the fix is not to reorder — it is that LEVEL_4 needs a lever (its own module says as much), and I would propose replacing the source-rate knob with an explicit share, which turns it into a genuine choice and moves it down the curve on the same measure. If it feels HARDER than level 1 despite winning more often, the measure is wrong and the next thing to try is win fraction weighted by how far a losing setting is from a winning one.",
+      "open": true,
+      "about": "lp-d3848e",
+      "answer": null,
+      "updated": "2026-08-06T06:52:07.266Z"
+    },
     {
       "id": "lp-9ab9b1",
       "title": "[CARRIED FROM TURN 55] When a summon is refused for two different reasons at once, does a player want both reasons or the nearest one?",
