@@ -142,14 +142,14 @@
     }
   },
   "counts": {
-    "total": 591,
-    "ready": 2,
+    "total": 597,
+    "ready": 1,
     "blocked": 9,
     "in_progress": 0,
-    "done": 91,
+    "done": 92,
     "dropped": 3,
-    "proposed": 100,
-    "knowledge": 386
+    "proposed": 102,
+    "knowledge": 390
   },
   "beads": [
     {
@@ -13139,9 +13139,9 @@
       "id": "lp-36b1bd",
       "title": "Pin the exact key set of every summon-session refusal, per reason and per verb — `_attribute` adds fields to shapes two other modules produce",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 2,
-      "body": "WHY. `plant/placement.mjs`'s per-reason key sets are now pinned exactly (lp-53afb4, section 8 of placement.selftest.mjs), and doing it turned up two irregularities nobody had written down: `metric` carries no `summonSeed` and no `at`, and `self` carries no `role`. The same drift is one layer up and is LIKELIER there, because `summon-session.mjs` does not merely pass refusals through — `_attribute` normalises the kernel's `point` into `summonSeed` on the place path while KEEPING `point`, so a session refusal carries strictly more fields than either `legalSummon` or `reformPocketAll` emits, and nothing asserts what that union is.\n\nThe ledger already records the specific hazard: the two producers disagree on the index field name (`summonSeed` on the preview path, `point` on the place path), and that disagreement was INVISIBLE for a long time precisely because no test read the field list. It was closed by adding a normalisation, and a normalisation that no test pins is the next thing to drift.\n\nWHAT TO BUILD. A section in `plant/test/summon-session.selftest.mjs` that, for each `reason` reachable through the session on each of the two verbs (`preview` and `place`), asserts the EXACT sorted key set of the refusal object, as a comma-joined string:\n\n  · `Object.keys(r).sort().join(',')` compared to a literal, so the assertion fails when a field is ADDED as well as when one is removed — that is the half a presence check cannot see, and it is the half that matters here;\n  · a guard that returns a sentinel rather than throwing for a fixture that produced no refusal (`Object.keys(undefined)` is a TypeError, which reads as a broken test rather than as an absent fixture);\n  · at least one CONTROL proving the comparator can see a difference — a spread-with-an-extra-key must not compare equal — because every assertion in a section like this compares two strings and a comparator stuck on a constant satisfies all of them;\n  · the union claim stated directly: for a place-path per-seed refusal, `summonSeed === point` AND both keys are present, so the normalisation is asserted to be additive rather than a rename.\n\nWHAT NOT TO DO. Do not assert values (a `gap`, a coordinate) in this section — a fixture retune would then fail a field-list check for a reason that has nothing to do with field lists, and a checker that fails correct work is worse than no checker. The existing sections already pin the values.\n\nNOTE ON REACHABILITY: `metric` is unreachable through the session by construction, because `summonAt` takes `aniso` from the pocket. Say so out loud in the section rather than skipping quietly — the placement gate handles that reason and the session gate should record that it deliberately cannot.\n\nWHY class-a: `plant/test/summon-session.selftest.mjs` exists and passes today. BOUNDED PATHS: plant/summon-session.mjs, plant/test/summon-session.selftest.mjs.",
+      "body": "WHY. `plant/placement.mjs`'s per-reason key sets are now pinned exactly (lp-53afb4, section 8 of placement.selftest.mjs), and doing it turned up two irregularities nobody had written down: `metric` carries no `summonSeed` and no `at`, and `self` carries no `role`. The same drift is one layer up and is LIKELIER there, because `summon-session.mjs` does not merely pass refusals through — `_attribute` normalises the kernel's `point` into `summonSeed` on the place path while KEEPING `point`, so a session refusal carries strictly more fields than either `legalSummon` or `reformPocketAll` emits, and nothing asserts what that union is.\n\nThe ledger already records the specific hazard: the two producers disagree on the index field name (`summonSeed` on the preview path, `point` on the place path), and that disagreement was INVISIBLE for a long time precisely because no test read the field list. It was closed by adding a normalisation, and a normalisation that no test pins is the next thing to drift.\n\nWHAT TO BUILD. A section in `plant/test/summon-session.selftest.mjs` that, for each `reason` reachable through the session on each of the two verbs (`preview` and `place`), asserts the EXACT sorted key set of the refusal object, as a comma-joined string:\n\n  · `Object.keys(r).sort().join(',')` compared to a literal, so the assertion fails when a field is ADDED as well as when one is removed — that is the half a presence check cannot see, and it is the half that matters here;\n  · a guard that returns a sentinel rather than throwing for a fixture that produced no refusal (`Object.keys(undefined)` is a TypeError, which reads as a broken test rather than as an absent fixture);\n  · at least one CONTROL proving the comparator can see a difference — a spread-with-an-extra-key must not compare equal — because every assertion in a section like this compares two strings and a comparator stuck on a constant satisfies all of them;\n  · the union claim stated directly: for a place-path per-seed refusal, `summonSeed === point` AND both keys are present, so the normalisation is asserted to be additive rather than a rename.\n\nWHAT NOT TO DO. Do not assert values (a `gap`, a coordinate) in this section — a fixture retune would then fail a field-list check for a reason that has nothing to do with field lists, and a checker that fails correct work is worse than no checker. The existing sections already pin the values.\n\nNOTE ON REACHABILITY: `metric` is unreachable through the session by construction, because `summonAt` takes `aniso` from the pocket. Say so out loud in the section rather than skipping quietly — the placement gate handles that reason and the session gate should record that it deliberately cannot.\n\nWHY class-a: `plant/test/summon-session.selftest.mjs` exists and passes today. BOUNDED PATHS: plant/summon-session.mjs, plant/test/summon-session.selftest.mjs.\n\n[turn 86 — done] Added §11 to plant/test/summon-session.selftest.mjs: for every reason reachable through the session on each of the two verbs, the EXACT sorted key set of the refusal object is compared as a comma-joined string against a literal, so a field silently ADDED fails as loudly as one removed. Ten cases are driven from real fixtures (preview hull/seed-pocket/seed-player/self/point; place hull/seed-pocket/seed-player/batch/point), each borrowing a fixture an earlier section already sited and proved rather than buying a new one. The lookup helper returns a SENTINEL string rather than throwing when a fixture produced no matching refusal, and a separate assertion fails naming the missing case so an absent fixture reads as an absent fixture and not as a confusing key diff. Three controls prove the comparator is not stuck: an added key must not compare equal, a plain spread copy MUST, and a removed key must not — the copy control is the one that proves it compares field lists rather than object identity. The union claim the ticket asked for is asserted directly: every place-path refusal carrying a numeric `point` also carries `summonSeed` equal to it, over four different place results, with a guard that the loop actually ran. closure/nav are synthesised through `_attribute` (they are not decidable before the rebuild so no fixture can guarantee them) and `empty` takes its RAW refusal from a real `reformPocketAll(pocket, [])` call so that only the `_attribute` step is synthetic. `metric` is stated out loud as unreachable by construction and asserted as the construction — preview builds its constellation with the pocket's own aniso — rather than skipped quietly; `nonFinite` is likewise noted as unreachable because `badPoint` intercepts first. NO VALUES are asserted anywhere in the section, per the ticket. Writing the lists out surfaced two irregularities nobody had recorded: `ok: false` is on every PREVIEW refusal and on NO place refusal, and `role` is on preview hull/seed only. I also wrote the whole field-list table and those irregularities into `summon-session.mjs`'s header (a bounded path), because the ticket's own premise is that nothing states what the union is, and a promise with no assertion beside it is what drifted in the first place. HONESTLY: I had no Bash this turn, so neither file was executed. All ten key-set literals are hand-derived by tracing legalSeed/legalSummon, reformPocketAll and _attribute field by field; a wrong literal fails loudly and prints the real list in its message, so it is a one-line downstream fix rather than a diagnosis.",
       "deps": [],
       "parent": "lp-53afb4",
       "tags": [
@@ -13149,12 +13149,15 @@
         "class-a"
       ],
       "actor": "agent",
-      "run": "72",
-      "evidence": [],
+      "run": "86",
+      "evidence": [
+        "plant/test/summon-session.selftest.mjs",
+        "plant/summon-session.mjs"
+      ],
       "created": "2026-08-06T09:16:12.807Z",
-      "updated": "2026-08-06T22:25:53.005Z",
+      "updated": "2026-08-06T23:25:11.593Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -13609,6 +13612,134 @@
       "evidence": [],
       "created": "2026-08-06T23:18:05.276Z",
       "updated": "2026-08-06T23:18:05.276Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-505d86",
+      "title": "A session refusal's field set depends on the VERB, not just the reason — `ok` is on every preview refusal and on no place refusal, and `role` is preview-only",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Writing the ten exact key sets out turned up two irregularities in the same family as the two lp-53afb4 found one layer down, and neither was written anywhere.\n\n1. `ok: false` IS ON EVERY PREVIEW REFUSAL AND ON NO PLACE REFUSAL. `legalSeed` returns `{ ok: false, reason, ... }` and `legalSummon`'s `self` push sets it too, so every refusal arriving through `preview` carries it. The kernel sets it on the RESULT (`refuse()` returns `{ ok: false, pocket: null, ... }`) and never on the individual refusal objects inside `refusals[]` — checked at all five push sites in `reformPocketAll` plus the `empty` and `closure`/`nav` ones. `_attribute` copies and adds; it does not invent an `ok`.\n\n   So a caller writing `if (rf.ok === false)` is CORRECT ON ONE VERB AND WRONG ON THE OTHER. It works today only because `undefined` is falsy too, i.e. every ordinary truthiness form (`if (!rf.ok)`, `rf.ok ? ... : ...`) accidentally agrees. The strict form, which is the one a careful reader reaches for precisely because the field is a boolean, is the one that breaks — and it breaks silently, treating every place refusal as though it had not been refused.\n\n2. `role` (`'centre'` / `'neighbour'`) IS ON PREVIEW `hull` AND `seed` ONLY. Not on preview `self` — `legalSummon` deliberately omits it because a pair has no single role, which lp-53afb4 already recorded — and not on ANY place refusal, because the kernel has no notion of a constellation and `_attribute` does not invent one. A renderer saying 'the centre of the cube is in rock' works on a highlight and renders `undefined` on the summon the player actually attempted, which is the exact failure shape the `summonSeed`/`point` divergence had.\n\nNote what makes (2) fixable and (1) arguable. `role` IS derivable on the place path: `place()` hands `reformPocketAll` exactly `con.seeds` in order, so `summonSeed === 0` is the centre by construction — the same argument that licensed the `summonSeed` copy. `ok` is not obviously worth adding, because the honest reading is that a refusal object is a refusal and `ok` on it was always redundant; the defensible fix is the other direction, dropping it from the preview path. Both are proposed below; neither was done here, because the ticket says pin the shapes and a turn that changes the shapes it was sent to pin has graded itself.\n\nTHE TRANSFERABLE HALF, and it is why the ticket was right to demand exact sets: a PRESENCE check on the fields you expect can never find these. Nobody looks for `ok` on a place refusal, so nobody discovers it is missing, and nobody looks for `role` either. The irregularity is only visible when the four shapes are put side by side — which is what `Object.keys(r).sort().join(',')` forces and what no amount of `typeof rf.gap === 'number'` ever will.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "86",
+      "evidence": [],
+      "created": "2026-08-06T23:25:11.593Z",
+      "updated": "2026-08-06T23:25:11.593Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-aa6d4b",
+      "title": "An added-key control is the obvious one and the COPY control is the one that bites — it is the only one that proves the comparator is not identity",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket asks for 'at least one CONTROL proving the comparator can see a difference — a spread-with-an-extra-key must not compare equal'. That is necessary and it is the weaker of the two controls that section needs.\n\nEvery assertion in §11 is `kset(x) === literal`. The failure mode the ticket names is a comparator stuck on a constant, and the extra-key control closes it. The failure mode it does NOT name is a comparator that is accidentally about the OBJECT rather than about its fields — one that compared identity, or memoised on the object, or (the realistic version) that a later refactor turns into `refusalsEqual(a, b)` doing something structural. Against any of those, `kset({ ...sample })` and `kset(sample)` must be EQUAL, and the extra-key control says nothing about it: two different objects with different key sets are distinguished by identity comparison too.\n\nSo the pair is: a spread copy compares EQUAL, a spread-plus-one compares UNEQUAL. Together they pin that the function is a pure function of the key set and nothing else. I added a third — a spread-minus-`blame` compares unequal — which is weaker than the other two and cheap, and its real job is to state that the assertion is bidirectional, since 'fails when a field is ADDED as well as when one is removed' is the entire reason the ticket exists.\n\nGENERAL SHAPE: when a section's assertions all have the form `f(x) === literal`, the controls needed are not one but two, and they point in opposite directions — something that must differ, and something that must NOT. Only the second one rules out a comparator that is over-sensitive, and an over-sensitive comparator is the version that fails correct work, which this repo has already recorded as worse than no checker.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "86",
+      "evidence": [],
+      "created": "2026-08-06T23:25:11.593Z",
+      "updated": "2026-08-06T23:25:11.593Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-67ed54",
+      "title": "Wrote the field-list table into the MODULE header too, not only into the gate",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket names two bounded paths and describes work in only one of them. I edited both, and the reasoning is the ticket's own premise turned round.\n\nThe WHY paragraph says the drift is likelier here than one layer down because `_attribute` ADDS fields, 'and nothing asserts what that union is'. True — and nothing STATES it either. `placement.mjs`'s docstring names its per-reason shapes and `placement.selftest.mjs` §8 pins them, and that pairing is exactly what made lp-53afb4 able to find the `metric`/`role` irregularities: a claim to check the assertions against. `summon-session.mjs` had a long, careful header about `summonSeed` and `first`/`refusal` and no field list at all, so §11's ten literals would have been the only statement of the contract anywhere — assertions with nothing to disagree with.\n\nThe ledger's most-repeated lesson about this file family is that the gap that matters is BETWEEN THE DOCSTRING AND THE ASSERTIONS (lp-c46a0c, and the `legalSummon` 'every refusal carries summonSeed' sentence that the metric refusal falsified). A gate with no stated promise beside it cannot exhibit that gap; it can only be right. So the header now carries the table, the three irregularities, and the two reasons that are unreachable by construction, and it names §11 as what pins them.\n\nWHAT WOULD REVERSE IT: if a reviewer judges that a table in a comment is a second copy that will drift from the literals in the gate. That is a real objection and the honest answer is that it will drift the same way any docstring does — the mitigation is that they sit one grep apart and that the gate fails loudly, not that the duplication is free. I judged a stated-and-checked contract better than a checked-but-unstated one; the reverse call is to delete the table and leave §11's literals as the sole statement.\n\nWHAT I DID NOT DO, deliberately: I did not fix either irregularity. `role` is genuinely derivable on the place path (`summonSeed === 0` is the centre by construction) and `ok` could be made uniform in either direction. A turn sent to PIN a set of shapes that then changes those shapes has written both sides of its own gate, which is the specific cheat this ledger warns about. Both are proposed below against this same, now-stronger gate.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "86",
+      "evidence": [],
+      "created": "2026-08-06T23:25:11.593Z",
+      "updated": "2026-08-06T23:25:11.593Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-c2a86e",
+      "title": "The three unreachable reasons were handled three DIFFERENT ways, and only one of them is honest as a skip",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "§11 has to say something about `closure`, `nav`, `empty` and `metric`, none of which any fixture can guarantee. Treating them uniformly would have been wrong — they are unreachable for three different reasons and each admits a different strength of claim.\n\n  · `closure` / `nav` — NOT DECIDABLE BEFORE THE REBUILD. They may occur on some fixture and not on this one, and nothing can force them. Synthesised through `_attribute` with a hand-written raw refusal, exactly as §10 already does for the no-index exemption. This is the weakest of the three, and it is the best available: the raw shape (`{ reason, points }`) is a two-field object read straight off `reformPocketAll` line 953, so the only thing being trusted is that I transcribed two field names.\n\n  · `empty` — UNREACHABLE FROM THE SESSION BUT TRIVIALLY REACHABLE FROM THE KERNEL, because `place()` always hands over a non-empty constellation. So the RAW refusal is taken from a real `reformPocketAll(S.pocket, [])` call and only the `_attribute` step is synthetic. That is strictly stronger than hand-writing `{ reason: 'empty' }`, and it costs one line. Worth doing wherever it is available: a synthetic fixture that could have been a real one is a transcription risk taken for no reason.\n\n  · `metric` — UNREACHABLE BY CONSTRUCTION, which is a different kind of statement entirely and the only one that can be asserted rather than narrated. The ticket asks to 'say so out loud rather than skipping quietly'. Saying so is a comment; PROVING it is asserting the construction — `preview`'s `con.aniso === pocket.opts.aniso` — because that identity is precisely why `legalSummon`'s mismatch branch cannot fire. Plus the negative, that no refusal on either verb's fixture has `reason === 'metric'`.\n\nTHE TRANSFERABLE RULE: 'this case cannot occur here' is not one claim, it is three, and they are worth different amounts. If it cannot occur BY CONSTRUCTION, assert the construction — that is a real check and it goes red if the construction is ever weakened. If it cannot occur BY FIXTURE LUCK, synthesise, and say which part of the synthesis is trusted. If a neighbouring layer can produce it cheaply, get it from there rather than typing it. A section that treats all three as 'skipped' throws away two claims it could have made.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "86",
+      "evidence": [],
+      "created": "2026-08-06T23:25:11.593Z",
+      "updated": "2026-08-06T23:25:11.593Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-7f7e72",
+      "title": "Give a place-path per-seed refusal its `role`, the same way it was given its `summonSeed`",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "WHY. §11 of `summon-session.selftest.mjs` now pins that `role` ('centre' / 'neighbour') is on PREVIEW `hull` and `seed` refusals and on NO place refusal. That is the same asymmetry the `summonSeed`/`point` divergence was, one field over, and it fails the same way: a renderer saying 'the centre of the cube is in rock' works perfectly on every highlight and renders the string 'undefined' for exactly the summons the player actually attempted — silently, with all the words around it intact.\n\nIT IS DERIVABLE, and by the identical argument that licensed the `summonSeed` copy: `place()` hands `reformPocketAll` exactly `con.seeds` in order, so index 0 IS the constellation's centre by construction. `_attribute` already knows the index (it has just copied it from `point`), so `role` is `summonSeed === 0 ? 'centre' : 'neighbour'`.\n\nWHAT TO BUILD, in `plant/summon-session.mjs`:\n\n  · in `_attribute`, set `role` on `hull` and `seed` refusals when `summonSeed` is a number and `role` is not already set — ADD, NEVER OVERWRITE, exactly as the `summonSeed` copy does, so the preview path's authoritative value is untouched;\n  · NOT on `batch`/`self` — a pair has no single role, `placement.mjs` says so explicitly and lp-53afb4 recorded why. This is the assertion most likely to be got wrong by a turn that treats `role` as 'a field per-seed refusals have';\n  · NOT on `closure`/`nav`/`empty`/`point`, which carry no index at all.\n\nWHAT THE GATE MUST CHECK (`plant/test/summon-session.selftest.mjs` §11, which exists and passes today):\n\n  · the two place literals `at,axis,blame,clamped,depth,limit,point,reason,summonSeed,value,wall` and `at,blame,gap,need,point,reason,seed,seedIndex,summonSeed` GAIN `role` and nothing else — the exact-set form is what makes that a real check rather than a presence one;\n  · the `batch` literal is UNCHANGED, and that is the load-bearing negative;\n  · a CONTROL through `_attribute` directly: `{ reason:'seed', point: 1, role: 'centre' }` keeps `role: 'centre'`, proving the add never overwrites — the mirror of the existing `summonSeed` control at the foot of §10;\n  · cross-verb: for the FIX.c2 geometry both verbs now name the same `summonSeed` AND the same `role`. §10 already does the index half on that fixture, so this is one line beside it.\n\nDELIBERATELY OUT OF SCOPE: the `ok` irregularity, proposed separately, because that one is a design question and this one is not.\n\nWHY class-a: `plant/test/summon-session.selftest.mjs` exists and passes today. BOUNDED PATHS: plant/summon-session.mjs, plant/test/summon-session.selftest.mjs.",
+      "deps": [],
+      "parent": "lp-36b1bd",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "86",
+      "evidence": [],
+      "created": "2026-08-06T23:25:11.593Z",
+      "updated": "2026-08-06T23:25:11.593Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-2db73b",
+      "title": "Pin the exact key set of every refusal record `level.mjs` and `pocketLevel.mjs` emit — the third and fourth producers of refusal-shaped objects, neither with a field list anywhere",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "WHY. The exact-key-set discipline has now been applied twice and found something both times: `placement.selftest.mjs` §8 (lp-53afb4) turned up that `metric` carries no `summonSeed` and no `at` and that `self` carries no `role`; `summon-session.selftest.mjs` §11 turned up that `ok` is preview-only and `role` is preview-only. Two applications, four undocumented irregularities, every one of them invisible to a presence check.\n\n`level.mjs`'s `placementReport` and `pocketLevel.mjs`'s `pocketPlacementReport` are the next two producers and nothing pins either. They are the ones a level renderer reads, and they have the most vocabularies to reconcile: `pocketPlacementReport` merges `placement.mjs`'s pocket reasons (`hull`, `seed`, `metric`) with the session-local ones (`self-collision`, `collides with existing summon`), and applies `buildcert.mjs`'s `BLAME_PRECEDENCE` on top. That is three sources of fields converging on one record, which is one more than `summon-session.mjs` had.\n\nThe ledger already records that these two are 'two accumulating walks over the same state view — close enough to look like duplication, and they are not'. An exact key set per reason per function is the cheapest possible statement of how they really differ, and it is the artefact that would make a future merge decision reviewable instead of a judgement call.\n\nWHAT TO BUILD: a section in `plant/test/pocket-level.selftest.mjs` asserting `Object.keys(r).sort().join(',')` against a literal for every reason each function can produce, following §11's shape exactly:\n\n  · a SENTINEL return for a reason no fixture produced, never a throw, plus one assertion that fails naming the missing reason;\n  · the two-direction comparator control — a spread copy must compare EQUAL, a spread-plus-one must NOT — because an added-key control alone does not rule out a comparator that is over-sensitive, and an over-sensitive one fails correct work;\n  · for any reason unreachable on the fixture, the three-way treatment §11 established: assert the CONSTRUCTION if it is unreachable by construction, take the raw record from the real producer if a neighbouring layer can make one cheaply, and synthesise only as a last resort while naming what is being trusted;\n  · NO VALUE ASSERTIONS — a fixture retune must not fail a field-list check.\n\nEXPECTED TO FIND (and it is fine if it does not): the two functions almost certainly disagree on whether a refused object's record carries the surviving network's fields, since `level.mjs` drops a refused object's node and edges and `pocketLevel.mjs` commits no seeds for one. The already-recorded vacuous-satisfiability trap lives at exactly that seam.\n\nWHY class-a: `plant/test/pocket-level.selftest.mjs` exists and passes today. BOUNDED PATHS: plant/test/pocket-level.selftest.mjs only — this proposal asserts existing behaviour and changes none of it, so a diff in `level.mjs` or `pocketLevel.mjs` is a signal the turn overstepped.",
+      "deps": [],
+      "parent": "lp-36b1bd",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "86",
+      "evidence": [],
+      "created": "2026-08-06T23:25:11.593Z",
+      "updated": "2026-08-06T23:25:11.593Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -14489,6 +14620,16 @@
       "from": "lp-3302ee",
       "to": "lp-3f5f26",
       "kind": "parent"
+    },
+    {
+      "from": "lp-36b1bd",
+      "to": "lp-7f7e72",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-36b1bd",
+      "to": "lp-2db73b",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -15063,7 +15204,13 @@
       "lp-f84ebb",
       "lp-3e99ff",
       "lp-ef6599",
-      "lp-3f5f26"
+      "lp-3f5f26",
+      "lp-505d86",
+      "lp-aa6d4b",
+      "lp-67ed54",
+      "lp-c2a86e",
+      "lp-7f7e72",
+      "lp-2db73b"
     ],
     [
       "lp-f2e5a3",
@@ -15097,10 +15244,6 @@
   "ready": [
     {
       "id": "lp-e8d94e",
-      "unblocks": 0
-    },
-    {
-      "id": "lp-36b1bd",
       "unblocks": 0
     }
   ],
@@ -15156,11 +15299,9 @@
     }
   ],
   "now": {
-    "state": "working",
-    "detail": "1 turn(s) in flight",
-    "beads": [
-      "lp-36b1bd"
-    ]
+    "state": "reviewing",
+    "detail": "judging the backlog against the vision",
+    "beads": []
   },
   "asks": [
     {

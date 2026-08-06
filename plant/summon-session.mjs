@@ -140,6 +140,53 @@
 // that failed its Euler gate or lost its floor cannot be blamed on one seed.
 // They get no `summonSeed`, and the gate asserts they still have none.
 //
+// ------------------------------------------------- a refusal's FIELD LIST ----
+//
+// A session refusal is the UNION of what its producer emitted and what
+// `_attribute` added, and it is NOT uniform — a caller walking `refusals` must
+// branch on `reason` AND know which verb it called. Written out because a field
+// list nobody states is a field list that drifts, which is how the
+// `summonSeed`/`point` divergence above survived for as long as it did.
+// `summon-session.selftest.mjs` §11 pins every one of these EXACTLY, so a field
+// silently ADDED fails the gate as loudly as one removed.
+//
+//   preview  hull   ok reason at axis wall depth value limit clamped
+//                   summonSeed role blame
+//   preview  seed   ok reason at seedIndex seed gap need summonSeed role blame
+//   preview  self   ok reason summonSeed otherSummonSeed gap need blame
+//   preview  point  reason at blame
+//   place    hull   reason point at axis wall depth value limit clamped
+//                   summonSeed blame
+//   place    seed   reason point at seedIndex seed gap need summonSeed blame
+//   place    batch  reason point otherPoint at other gap need
+//                   summonSeed otherSummonSeed blame
+//   place    point  reason at blame
+//   either   closure/nav   reason points blame
+//
+// A `seed` refusal blamed on the PLAYER carries three more — `blameMove`,
+// `blameSolid`, `blameCentre` — and one blamed on the pocket carries none of
+// them, because nobody placed it.
+//
+// THREE IRREGULARITIES, all deliberate, none previously written down:
+//
+//   · `ok: false` is on every PREVIEW refusal and on NO PLACE refusal.
+//     `legalSeed`/`legalSummon` set it; the kernel does not, and `_attribute`
+//     does not invent it. `if (rf.ok === false)` is therefore right on one verb
+//     and wrong on the other; it works today only because `undefined` is falsy.
+//   · `role` (`'centre'`/`'neighbour'`) is on PREVIEW `hull` and `seed` only.
+//     Not on `self` — a pair has no single role — and not on any place refusal,
+//     because the kernel has no notion of a constellation.
+//   · `point` is on every place refusal and no preview one. `summonSeed` is on
+//     both, which is the fix described above; the pinned lists are what stop it
+//     quietly becoming a rename.
+//
+// TWO THINGS NEVER APPEAR ON A SESSION REFUSAL, both by construction rather
+// than by luck: `metric`, because both verbs build the constellation with
+// `this.pocket.opts.aniso` so the mismatch cannot arise, and `nonFinite`,
+// because `badPoint` refuses a non-finite point as `reason:'point'` before
+// `placement.mjs` or the kernel is ever reached. `placement.selftest.mjs` §8
+// owns both of those reasons.
+//
 // ------------------------------------------------- what is NOT here ----------
 //
 // `undo()`. It looks like one line — keep the old pocket, swap it back — and it

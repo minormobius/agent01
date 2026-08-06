@@ -82,6 +82,31 @@
 //       are exempt and must stay exempt — they name the whole batch, and an
 //       invented index would be a lie a renderer would then highlight.
 //
+//   (g) THE EXACT FIELD LIST OF EVERY REFUSAL, PER REASON AND PER VERB. §10
+//       pins the field list of the two verbs' RESULTS; §11 pins the field list
+//       of the refusal OBJECTS inside them, which is a different claim and the
+//       one that has drifted twice.
+//
+//       It matters more here than one layer down, because the session does not
+//       pass refusals through: `_attribute` COPIES the object and ADDS to it —
+//       `blame` always, `blameMove`/`blameSolid`/`blameCentre` when the player
+//       is at fault, `summonSeed`/`otherSummonSeed` when only the kernel
+//       answered. So a session refusal carries strictly MORE fields than either
+//       `legalSummon` or `reformPocketAll` emits, and until §11 nothing anywhere
+//       asserted what that union is.
+//
+//       Asserted as `Object.keys(r).sort().join(',')` against a literal, so the
+//       check fails when a field is ADDED as well as when one is removed. That
+//       is the half a presence check cannot see, and it is the half that
+//       matters: the `summonSeed`/`point` divergence survived for a long time
+//       precisely because every test read the fields it expected and none read
+//       the list.
+//
+//       NO VALUES ARE ASSERTED IN §11, deliberately. A fixture retune would
+//       then fail a field-list check for a reason that has nothing to do with
+//       field lists, and a checker that fails correct work is worse than no
+//       checker. Sections 4, 7, 8 and 10 already pin the values.
+//
 // Every blame value in the taxonomy is exercised against a real fixture —
 // 'player', 'pocket', 'hull', 'self', 'caller' — because a classifier that is
 // only ever shown one class is not a classifier.
@@ -754,6 +779,181 @@ if (FIX) {
       ok(raw.refusals.every((rf) => typeof rf.point === 'number'),
          'fields control: …while every one of them does carry `point`, which is the field being normalised');
     }
+  }
+}
+
+// ------------------------------------------- 11. the exact key set, per reason
+// §10 pins the field list of the two verbs' RESULTS. This pins the field list of
+// the REFUSAL OBJECTS inside them, which is a different claim and the one that
+// has drifted twice already.
+//
+// WHY IT IS LIKELIER TO DRIFT HERE THAN ONE LAYER DOWN. `placement.mjs`'s
+// per-reason key sets are pinned in `placement.selftest.mjs` §8, and the kernel's
+// are visible in `reformPocketAll`. Neither is what a caller of this file sees:
+// `_attribute` copies the raw refusal and ADDS to it — `blame` unconditionally,
+// `blameMove`/`blameSolid`/`blameCentre` when the player is at fault,
+// `summonSeed`/`otherSummonSeed` when only the kernel answered. So a session
+// refusal is the UNION of a producer's fields and the session's own, and nothing
+// asserted what that union is.
+//
+// The comparison is `Object.keys(r).sort().join(',')` against a literal, so it
+// fails when a field is ADDED as well as when one is removed. That is the half a
+// presence check cannot see, and it is exactly how the `summonSeed`/`point`
+// divergence survived: every test read the fields it expected, none read the list.
+//
+// THREE IRREGULARITIES THE LISTS MAKE VISIBLE, none of which was written down
+// anywhere before this section existed:
+//
+//   · `ok: false` is on every PREVIEW refusal and on NO PLACE refusal.
+//     `legalSeed` and `legalSummon` set it; the kernel never does. A caller
+//     writing `if (rf.ok === false)` is right on one verb and wrong on the
+//     other — it works today only because `undefined` is falsy too.
+//   · `role` ('centre' / 'neighbour') is on PREVIEW hull and seed refusals only.
+//     Not on `self` (a pair has no single role — `placement.mjs` says so), and
+//     not on ANY place refusal, because the kernel has no notion of a
+//     constellation and `_attribute` does not invent one.
+//   · `point` is on every place refusal and no preview one; `summonSeed` is now
+//     on both. That asymmetry is the fix this file already carries, and the key
+//     lists are what stop it silently reverting to a rename.
+//
+// NO VALUES ARE ASSERTED HERE. A fixture retune must not fail a field-list check.
+//
+// `metric` IS UNREACHABLE THROUGH THIS SESSION, BY CONSTRUCTION, and that is said
+// out loud rather than skipped quietly: both verbs build the constellation with
+// `this.pocket.opts.aniso`, so `con.aniso !== pocket.opts.aniso` can never hold.
+// `placement.selftest.mjs` §8 owns that reason. `nonFinite` likewise never
+// appears on a session refusal — `badPoint` catches a non-finite point before
+// `summonAt` or the kernel is reached, and returns `reason:'point'` instead.
+if (FIX && TINY_AT) {
+  const NONE = '(no refusal matched — the fixture produced none)';
+  const kset = (o) => Object.keys(o).sort().join(',');
+  // The guard the ticket asks for: a sentinel, never a throw.
+  // `Object.keys(undefined)` is a TypeError, which reads as a broken test rather
+  // than as an absent fixture, and the two want opposite responses.
+  const ksetOf = (res, pred) => {
+    const rf = res && res.refusals ? res.refusals.find(pred) : null;
+    return rf ? kset(rf) : NONE;
+  };
+  const reason = (r, blame) => (rf) => rf.reason === r && (blame === undefined || rf.blame === blame);
+
+  const HULL_AT = [0.5, 18.9, 38];
+  const ON_SEED = clampSeed(S.pocket, S.pocket.seeds[10]);
+  const BAD_AT = [NaN, 18, 40];
+
+  const pvHull = S.preview(HULL_AT, { solid: 'cube' });
+  const plHull = S.place('cube', HULL_AT);
+  const pvPocket = S.preview(ON_SEED, { solid: 'cube' });
+  const plPocket = S.place('cube', ON_SEED);
+  const pvPlayer = S.preview(FIX.c2, { solid: 'cube' });
+  const plPlayer = S.place('cube', FIX.c2);
+  const pvSelf = S.preview(TINY_AT, { solid: 'cube', r: 0.5 });
+  const plBatch = S.place('cube', TINY_AT, { r: 0.5 });
+  const pvPoint = S.preview(BAD_AT, { solid: 'cube' });
+  const plPoint = S.place('cube', BAD_AT);
+
+  const KEYS = [
+    // ---- preview: `legalSummon`'s fields, plus the session's ----------------
+    { name: "preview 'hull'", got: ksetOf(pvHull, reason('hull')),
+      want: 'at,axis,blame,clamped,depth,limit,ok,reason,role,summonSeed,value,wall' },
+    { name: "preview 'seed' blamed on the pocket", got: ksetOf(pvPocket, reason('seed', 'pocket')),
+      want: 'at,blame,gap,need,ok,reason,role,seed,seedIndex,summonSeed' },
+    { name: "preview 'seed' blamed on the player", got: ksetOf(pvPlayer, reason('seed', 'player')),
+      want: 'at,blame,blameCentre,blameMove,blameSolid,gap,need,ok,reason,role,seed,seedIndex,summonSeed' },
+    { name: "preview 'self'", got: ksetOf(pvSelf, reason('self')),
+      want: 'blame,gap,need,ok,otherSummonSeed,reason,summonSeed' },
+    { name: "preview 'point'", got: ksetOf(pvPoint, reason('point')),
+      want: 'at,blame,reason' },
+
+    // ---- place: the kernel's fields, plus the normalisation, plus the session
+    { name: "place 'hull'", got: ksetOf(plHull, reason('hull')),
+      want: 'at,axis,blame,clamped,depth,limit,point,reason,summonSeed,value,wall' },
+    { name: "place 'seed' blamed on the pocket", got: ksetOf(plPocket, reason('seed', 'pocket')),
+      want: 'at,blame,gap,need,point,reason,seed,seedIndex,summonSeed' },
+    { name: "place 'seed' blamed on the player", got: ksetOf(plPlayer, reason('seed', 'player')),
+      want: 'at,blame,blameCentre,blameMove,blameSolid,gap,need,point,reason,seed,seedIndex,summonSeed' },
+    { name: "place 'batch'", got: ksetOf(plBatch, reason('batch')),
+      want: 'at,blame,gap,need,other,otherPoint,otherSummonSeed,point,reason,summonSeed' },
+    { name: "place 'point'", got: ksetOf(plPoint, reason('point')),
+      want: 'at,blame,reason' },
+  ];
+
+  for (const c of KEYS) {
+    ok(c.got === c.want, `keys: ${c.name} carries EXACTLY [${c.want}] — got [${c.got}]`);
+  }
+  // A missing fixture would otherwise fail above as a confusing key diff. This
+  // makes it fail as what it is.
+  ok(KEYS.every((c) => c.got !== NONE),
+     `keys fixture: every reason under test was actually produced (${KEYS.filter((c) => c.got === NONE).map((c) => c.name).join(', ') || 'all present'})`);
+
+  // THE COMPARATOR CONTROL. Every assertion above compares two strings, and a
+  // comparator stuck on a constant — or a `kset` that dropped the sort, or read
+  // the wrong object — satisfies all ten. So: the same refusal with ONE extra
+  // key must NOT compare equal, and the same refusal copied must.
+  {
+    const sample = pvPlayer.refusals.find(reason('seed', 'player'));
+    ok(sample !== undefined, 'keys control fixture: a real refusal object to perturb');
+    if (sample) {
+      ok(kset({ ...sample, zzExtraField: 1 }) !== kset(sample),
+         'keys control: the comparator SEES an added field — without this, every assertion above passes for a comparator stuck on one value');
+      ok(kset({ ...sample }) === kset(sample),
+         'keys control: …and does not see a mere copy, so it is comparing field lists rather than identity');
+      const { blame, ...dropped } = sample;
+      ok(kset(dropped) !== kset(sample),
+         'keys control: …and SEES a removed field too — an added-field control alone cannot prove that');
+    }
+  }
+
+  // THE UNION CLAIM, stated directly. The key lists above already prove both
+  // names are PRESENT on every place-path indexed refusal; this proves the
+  // normalisation is ADDITIVE rather than a rename — `point` kept its value and
+  // `summonSeed` is a copy of it, not a recomputation that could drift.
+  {
+    let pairs = 0;
+    for (const res of [plHull, plPocket, plPlayer, plBatch]) {
+      for (const rf of res.refusals) {
+        if (typeof rf.point !== 'number') continue;
+        pairs++;
+        ok(rf.summonSeed === rf.point,
+           `keys union: a place '${rf.reason}' refusal keeps `
+           + `point ${rf.point} AND carries summonSeed ${rf.summonSeed} — additive, not a rename`);
+      }
+    }
+    ok(pairs > 0, `keys union: the loop actually ran against indexed place refusals (${pairs})`);
+  }
+
+  // THE THREE REASONS NO FIXTURE CAN REACH, synthesised through `_attribute`
+  // from the shape their real producer emits, and labelled as such. Skipping
+  // them quietly would leave the section claiming coverage it does not have.
+  //
+  //   'closure' / 'nav' — not decidable before the rebuild, so they may not
+  //                       occur on any fixture. They name the whole batch and
+  //                       must gain NO index (§10 pins that; this pins the list).
+  //   'empty'          — `place()` always hands over a non-empty constellation,
+  //                       so the kernel's own no-op guard is unreachable from
+  //                       here. The RAW refusal is taken from the kernel rather
+  //                       than hand-written, so only `_attribute` is synthetic.
+  {
+    for (const r of ['closure', 'nav']) {
+      ok(kset(S._attribute({ reason: r, points: [[1, 2, 3], [4, 5, 6]] })) === 'blame,points,reason',
+         `keys: a '${r}' refusal carries EXACTLY [blame,points,reason] — no index, because a failed rebuild cannot be blamed on one seed`);
+    }
+    const rawEmpty = reformPocketAll(S.pocket, []);
+    ok(kset(rawEmpty.first) === 'reason',
+       `keys: the kernel’s own 'empty' refusal carries only [reason] — got [${kset(rawEmpty.first)}]`);
+    ok(kset(S._attribute(rawEmpty.first)) === 'blame,reason',
+       'keys: …and the session adds nothing to it but blame');
+  }
+
+  // AND THE ONE THAT IS UNREACHABLE BY CONSTRUCTION rather than by fixture luck.
+  // Asserted as the construction, not as an absence: both verbs take `aniso`
+  // from the pocket, so the mismatch `legalSummon` refuses on cannot arise.
+  {
+    const pv = S.preview(FIX.c1, { solid: 'cube' });
+    ok(pv.con === null || pv.con.aniso === S.pocket.opts.aniso,
+       'keys: preview builds its constellation with the POCKET metric, which is what makes a metric refusal unreachable here');
+    ok(!pvHull.refusals.some((rf) => rf.reason === 'metric')
+       && !plHull.refusals.some((rf) => rf.reason === 'metric'),
+       'keys: …so no session refusal is ever a metric refusal — placement.selftest.mjs §8 owns that reason');
   }
 }
 
