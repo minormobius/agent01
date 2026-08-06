@@ -37,7 +37,13 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { Campaign, LEVELS, ORDER, WIN_FRACTION, BANNED, LINES, grade } from '../campaign.mjs';
+// BANNED is deliberately NOT imported any more. Its only consumer here was
+// section (8)'s check on the page's own intro paragraph, and the page no longer
+// owns one — the rule now runs against `INTRO` itself in campaign.selftest.mjs
+// §2b, which is the stronger home for it. A block-wide BANNED sweep is NOT the
+// replacement and must not be added: this file's own comments discuss the
+// oracle by name, so such a check would fail on prose and be deleted.
+import { Campaign, LEVELS, ORDER, WIN_FRACTION, INTRO, LINES, grade } from '../campaign.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const html = readFileSync(join(here, '..', 'index.html'), 'utf8');
@@ -228,16 +234,71 @@ console.log('\n(7) the six scrolled sections are GONE — the move happened, it 
     draws.length === 1, `${draws.length} calls`);
 }
 
-console.log('\n(8) the first screen speaks plainly — BANNED comes from campaign.mjs, not from here');
+console.log('\n(8) the first screen’s words are the MODULE’s — rendered by reference, never typed here');
 {
-  const m = html.match(/id="gameIntro"[^>]*>([\s\S]*?)<\/p>/);
-  ok('an intro paragraph exists', !!m);
-  const intro = m ? m[1] : '';
-  ok('it is one or two sentences, not a page', intro.trim().length > 0 && intro.length < 400,
-    `${intro.length} chars`);
-  for (const w of BANNED) {
-    ok(`the intro does not say "${w}"`, !new RegExp(`\\b${w}\\b`, 'i').test(intro));
-  }
+  // WHAT THIS SECTION USED TO BE, AND WHY IT IS REPLACED RATHER THAN EXTENDED.
+  // It extracted the paragraph with a regex and asserted things the text was
+  // LIKE: non-empty, under 400 characters, no BANNED word. Every one of those is
+  // a property the string has ON ITS OWN, so all of them pass for an intro
+  // describing a completely different game, or naming a level that reordering
+  // has since moved. There was nothing external to compare it to, because the
+  // page owned the words. Those four rules are not lost and are not weakened:
+  // campaign.selftest.mjs §2b asserts every one of them — one sentence, no
+  // banned word, no level id, counts nothing — against `INTRO` itself.
+  //
+  // WHAT REPLACES THEM IS IDENTITY BY CONSTRUCTION, WHICH IS STRONGER THAN THE
+  // RUNTIME EQUALITY A DOM TEST WOULD GIVE. There is no DOM here, so
+  // `intro.textContent === INTRO.blurb` is not available — but it is also not
+  // what you want: it compares two strings and passes for a page that hardcoded
+  // a byte-identical copy. Rendering `INTRO.blurb` BY REFERENCE makes the
+  // equality hold by construction, so the only things left to check are that the
+  // reference is there and that no copy is. That is this tree's standing rule
+  // for relocation work: absence at the source, presence at the destination.
+  ok('the page imports INTRO from the module it already imports the game from',
+    /import\s*\{[^}]*\bINTRO\b[^}]*\}\s*from\s*['"]\.\/campaign\.mjs['"]/.test(block));
+
+  // ARRIVAL — both fields, by reference. The title matters as much as the blurb:
+  // INTRO's two fields are a LEVELS entry's shape on purpose, so a page that
+  // rendered only the sentence would leave the heading hand-typed and the
+  // asymmetry this ticket closes would simply have moved up one line.
+  ok('the block renders INTRO.title by reference',
+    /\$\('gameIntroTitle'\)\.textContent\s*=\s*INTRO\.title\s*;/.test(block));
+  ok('the block renders INTRO.blurb by reference',
+    /\$\('gameIntro'\)\.textContent\s*=\s*INTRO\.blurb\s*;/.test(block));
+
+  // DEPARTURE (i) — both mounts ship EMPTY in source, so nothing is showing
+  // before the module fills them and there is no second copy to drift.
+  ok('the intro title mount ships empty — filled from the module',
+    /<h2[^>]*id="gameIntroTitle"[^>]*><\/h2>/.test(html));
+  ok('the intro paragraph mount ships empty — filled from the module',
+    /<p[^>]*id="gameIntro"[^>]*><\/p>/.test(html));
+
+  // DEPARTURE (ii) — and nothing QUOTED is ever written into either mount. This
+  // is the hole the presence checks above cannot see: a page that renders a
+  // different string into the right element satisfies every one of them. It is
+  // the same check §(9b) makes for LINES, for the same reason.
+  ok('no quoted string is written into the intro paragraph',
+    !/\$\('gameIntro'\)\.textContent\s*=\s*['"`]/.test(block));
+  ok('no quoted string is written into the intro title',
+    !/\$\('gameIntroTitle'\)\.textContent\s*=\s*['"`]/.test(block));
+
+  // DEPARTURE (iii) — the words themselves have LEFT the page, derived from the
+  // export rather than from a copy of the old paragraph typed into this file.
+  // A wiring turn that "wires" this by pasting the module's sentence into the
+  // markup passes everything above and fails here, which is the specific wrong
+  // way to do this ticket.
+  ok('INTRO.blurb is nowhere in the page source', !html.includes(INTRO.blurb), INTRO.blurb);
+  ok('INTRO.title is nowhere in the page source', !html.includes(INTRO.title), INTRO.title);
+
+  // CONTROL. Four of this section's assertions are NEGATIONS — the two
+  // quoted-string checks and the two `includes` checks — and a negation passes
+  // silently over an empty subject: a mis-sliced `block`, or an `INTRO` field
+  // that came back undefined would satisfy all four while checking nothing. The
+  // marker section already pins `block.length`; this pins the other subject, so
+  // `!html.includes(…)` is a claim about real strings rather than a tautology.
+  ok('the control: INTRO’s two fields are non-empty strings, so the absence checks mean something',
+    typeof INTRO.title === 'string' && INTRO.title.length > 0
+    && typeof INTRO.blurb === 'string' && INTRO.blurb.length > 0);
 }
 
 console.log('\n(9) a win advances and the last level ENDS — the rule the button renders');
