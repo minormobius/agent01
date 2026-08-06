@@ -16098,8 +16098,8 @@
     }
   ],
   "now": {
-    "state": "idle",
-    "detail": "nothing in flight",
+    "state": "planning",
+    "detail": "writing requirements",
     "beads": []
   },
   "asks": [
@@ -17553,6 +17553,21 @@
       },
       "score": null,
       "note": "judge uncalibrated — probes only, score withheld"
+    },
+    {
+      "turn": 91,
+      "bead": "lp-2db73b",
+      "artifact": null,
+      "at": "2026-08-06T23:59:00.356Z",
+      "gateFailed": false,
+      "infra": false,
+      "signals": {
+        "probes": 0.8,
+        "rubric": null,
+        "adversarial": null
+      },
+      "score": null,
+      "note": "judge uncalibrated — probes only, score withheld"
     }
   ],
   "curve": [],
@@ -18130,6 +18145,13 @@
       "gateFailed": false,
       "bead": "lp-ef6599",
       "at": "2026-08-06T23:47:18.455Z"
+    },
+    {
+      "turn": 91,
+      "probes": 0.8,
+      "gateFailed": false,
+      "bead": "lp-2db73b",
+      "at": "2026-08-06T23:59:00.356Z"
     }
   ]
 }
