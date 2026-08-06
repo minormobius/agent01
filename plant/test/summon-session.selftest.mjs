@@ -344,24 +344,37 @@ if (FIX) {
      `taxonomy: …the kernel calls the same thing 'batch', and the session blames both on 'self' (got ${pl.refusal && pl.refusal.reason})`);
 
   // 'caller' — a point that is not three finite numbers. See the module header:
-  // this guard is load-bearing, not tidiness.
+  // the layers below refuse it too, so this guard is not compensating for a
+  // divergence any more. What it still does — and what nothing below it can do —
+  // is call the refusal the CALLER'S, which is a different claim from "outside
+  // the hull" and is the whole of the session's contract here.
   const before = S.moves;
+  const pocketBefore = S.pocket;
   for (const bad of [[NaN, 18, 40], [1, 2], 'nowhere', null, [1, Infinity, 3]]) {
     const b1 = S.preview(bad, { solid: 'cube' }), b2 = S.place('cube', bad);
     ok(!b1.ok && b1.first.reason === 'point' && b1.first.blame === 'caller', `taxonomy: preview refuses ${JSON.stringify(bad)}`);
-    ok(!b2.ok && b2.refusal.reason === 'point' && b2.move === null, `taxonomy: …and place refuses it without counting it as a move`);
+    ok(!b2.ok && b2.refusal.reason === 'point' && b2.refusal.blame === 'caller'
+       && b2.move === null && b2.pocketChanged === false && b2.pocket === pocketBefore,
+       `taxonomy: …and place refuses ${JSON.stringify(bad)} as the caller’s bug — `
+       + `move:${b2.move} blame:${b2.refusal && b2.refusal.blame} pocketChanged:${b2.pocketChanged}`);
   }
   ok(S.moves === before, `taxonomy: a bad argument never advanced the move count (${before} → ${S.moves})`);
+  ok(S.pocket === pocketBefore, 'taxonomy: …and never swapped the pocket for a new one');
 
-  // …and the guard really is doing work: the kernel refuses a NaN point, while
-  // the predicate it wraps does NOT. Only the kernel's answer is asserted —
-  // pinning `placement.mjs`'s behaviour here would turn a future fix of it into
-  // a red gate. The predicate's answer is logged instead.
-  ok(reformPocketAll(S.pocket, [[NaN, 18, 40]]).first.reason === 'hull',
+  // BOTH LAYERS BELOW REFUSE IT NOW, and this used to be a console.log saying
+  // the opposite. `legalSeed` once answered ok:true for a NaN point — every
+  // ordered comparison against NaN is false, so there was no hull violation and
+  // no seed gap — while the kernel refused the same point by a different route
+  // (`clampSeed`, then `c[i] === p[i]`, which NaN fails). `placement.mjs` closed
+  // that hole with an explicit `Number.isFinite` test, so what is pinned here is
+  // AGREEMENT rather than a logged disagreement: three layers, three
+  // vocabularies, one verdict.
+  const kn = reformPocketAll(S.pocket, [[NaN, 18, 40]]);
+  ok(kn.first.reason === 'hull',
      'taxonomy: the kernel itself refuses a NaN coordinate (as a hull violation)');
-  console.log(`  · note: legalSeed([NaN,…]).ok === ${legalSeed(S.pocket, [NaN, 18, 40]).ok} — `
-    + 'every comparison against NaN is false, so the predicate has no hull violation and no seed gap. '
-    + 'That is why summon-session guards the point itself.');
+  const pn = legalSeed(S.pocket, [NaN, 18, 40]);
+  ok(!pn.ok && pn.reason === 'hull' && pn.axis === 'x' && pn.nonFinite === true,
+     `taxonomy: …and so does the predicate, naming the non-finite axis (got ok=${pn.ok} ${pn.reason}/${pn.axis}/nonFinite=${pn.nonFinite})`);
 
   // every blame the session ever emits is in the published vocabulary
   const seen = new Set();

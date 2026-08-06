@@ -104,6 +104,19 @@ somewhere else, and a summon whose centre moved is not the solid that was
 verified — so out-of-hull is a refusal here. `test/placement.selftest.mjs` pins
 it against real inserts.
 
+The hull check also owns the **finiteness contract**, and it did not always:
+`legalSeed(pocket, [NaN, 18, 40]).ok` was once `true`, because NaN does not
+*fail* a range check — every ordered comparison against it is false, so a chain
+of `<`/`>` falls through to the final `else`, and the final else in a validator
+is almost always "fine". `undefined` (a point with too few coordinates) and an
+un-coerced string went through the same hole. `hullViolation` now tests
+`Number.isFinite` explicitly and refuses with `nonFinite: true` at
+`depth: Infinity`, naming the axis and the wall; §7 of the selftest pins all
+three cases against the kernel's independent answer. `summon-session.mjs` keeps
+its own guard on top — not because the predicate is still wrong, but because
+only the session can say `blame:'caller'`, which is "a bug in the code" rather
+than "a move the player made", and a bad point must not count as a move.
+
 `level.mjs` — the bridge. `production.mjs` knows about rates and `solids.mjs`
 knows about geometry; nothing called both against **one ordered list of
 placements**, so "I put a source next to a processor — does that work?" had no

@@ -337,6 +337,14 @@ ok(verdicts.every((k) => k.v.ok || k.v.refusals.every((r) => r.reason === 'seed'
     { name: '-Infinity', v: -Infinity },
   ];
   const AXIS = ['x', 'y', 'z'];
+  // WHICH WALL a non-finite coordinate is blamed on, pinned as a literal and
+  // not only against the kernel. `low = v < lo` is false for NaN, +∞, undefined
+  // and an un-coerced string, so all of those name the HIGH wall; only −∞
+  // compares low. The kernel-agreement assertion below is the stronger check of
+  // the two, but two implementations agreeing on a WRONG wall is still a wrong
+  // wall, and `wall` is the field a UI highlights.
+  const HI = { x: 'B5', y: 'B3', z: 'B1' };
+  const LO = { x: 'B4', y: 'B2', z: 'B0' };
 
   for (const { name, v } of BAD) {
     for (let i = 0; i < 3; i++) {
@@ -350,6 +358,9 @@ ok(verdicts.every((k) => k.v.ok || k.v.refusals.every((r) => r.reason === 'seed'
          `finite: ${name} on ${axis} — a hull refusal naming ${axis} (got ${r.reason}/${r.axis})`);
       ok(r.nonFinite === true && r.depth === Infinity,
          `finite: ${name} on ${axis} — flagged nonFinite at unbounded depth (got ${r.nonFinite}/${r.depth})`);
+      const expectWall = name === '-Infinity' ? LO[axis] : HI[axis];
+      ok(r.wall === expectWall,
+         `finite: ${name} on ${axis} — names wall ${expectWall} (got ${r.wall})`);
 
       // AGREEMENT with the transaction that does the planting: same verdict,
       // same reason, same axis, same wall.
@@ -396,8 +407,11 @@ ok(verdicts.every((k) => k.v.ok || k.v.refusals.every((r) => r.reason === 'seed'
   const missing = legalSeed(P, [40, 18]);
   ok(!missing.ok && missing.reason === 'hull' && missing.axis === 'z' && missing.nonFinite === true,
      `finite: a two-element point is refused on its missing z (got ${missing.ok}/${missing.axis})`);
+  ok(missing.wall === HI.z, `finite: …naming the z wall ${HI.z} (got ${missing.wall})`);
   const str = legalSeed(P, [40, 18, '40']);
   ok(!str.ok && str.nonFinite === true, `finite: a string coordinate is refused rather than coerced (got ok=${str.ok})`);
+  ok(str.reason === 'hull' && str.axis === 'z' && str.wall === HI.z,
+     `finite: …as a hull violation on z/${HI.z}, even though '40' would have COMPARED fine (got ${str.reason}/${str.axis}/${str.wall})`);
 
   // …and it propagates through the summon, which is the call a UI actually
   // makes: every seed of a cube centred on NaN inherits the NaN x, so every one

@@ -62,17 +62,33 @@
 // ------------------------------------------------- a non-finite point --------
 //
 // `preview` and `place` REFUSE a point that is not three finite numbers, with
-// `reason:'point'`. That guard is load-bearing rather than defensive tidiness:
-// `placement.mjs`'s `hullViolation` compares with `<` and `>`, and every
-// comparison against NaN is false, so a NaN coordinate produces no hull
-// violation; `nearestSeed` then returns a gap of NaN and `NaN < 1.5` is false
-// too. **`legalSeed` therefore ACCEPTS a NaN point.** The kernel does not — its
-// clamp comparison catches it (`NaN !== NaN`) and calls it a hull refusal — so
-// without this guard the predicate and the transaction would disagree on
-// exactly the input a UI is most likely to hand over: a raycast that missed.
-// The guard is here rather than in `placement.mjs` because this ticket's bounded
-// paths do not include that file; fixing it there would be strictly better and
-// would make this guard redundant rather than wrong.
+// `reason:'point'` and `blame:'caller'`.
+//
+// **`placement.mjs` refuses it too, and this guard no longer compensates for
+// anything.** `hullViolation` tests `Number.isFinite` explicitly and returns a
+// hull refusal carrying `nonFinite:true` and `depth:Infinity`, naming the axis
+// and the wall — so the predicate, the kernel and this session all agree that a
+// raycast which missed is not somewhere to build. THIS GUARD PREDATES THAT FIX:
+// it was written when `legalSeed` still answered `ok:true` for a NaN point,
+// because every ordered comparison against NaN is false and a chain of `<`/`>`
+// falls through to "fine".
+//
+// It is kept, and not on the grounds that two checks are safer than one. It is
+// kept because the two layers answer DIFFERENT QUESTIONS. `placement.mjs` says
+// the point is outside the hull — true, and useless to a player. Only the
+// session can say `blame:'caller'`: a malformed point is a BUG IN THE CALLER
+// rather than a move somebody made, so it must not advance `moves` and must not
+// be rendered as a refusal the player caused. No hull refusal can express that,
+// and it is the distinction this file exists to make. The guard also catches
+// what `placement.mjs` structurally cannot — a `null` or a non-array passed as
+// the WHOLE point, which `legalSeed` would throw a TypeError on.
+//
+// Both halves are pinned, so the paragraph above cannot quietly become a lie
+// again: `placement.selftest.mjs` §7 asserts the predicate's refusal (reason,
+// axis, wall, `nonFinite`) for NaN, ±Infinity, a missing coordinate and an
+// un-coerced string; `summon-session.selftest.mjs` §8 asserts this session's
+// own contract — `move:null`, `blame:'caller'`, `reason:'point'`,
+// `pocketChanged:false`.
 //
 // An unknown solid name THROWS instead, and the asymmetry is deliberate: the
 // solid comes from a fixed enum in the program, a point comes from the world.
