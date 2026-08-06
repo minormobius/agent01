@@ -30,6 +30,15 @@
 // only then asserts that the accumulating one says no, names the earlier object,
 // and reports the independently recomputed gap.
 //
+// §6 is a different kind of claim and is deliberately last: the exact KEY SET
+// of every record these two functions emit, one literal per reason. It asserts
+// no VALUES at all, so retuning a fixture cannot fail it — and it is the only
+// thing in the tree that states how `level.mjs`'s report and `pocketLevel.mjs`'s
+// really differ, which the ledger records as "close enough to look like
+// duplication, and they are not". The inner `refusals[]` elements are
+// `legalSummon`'s own and are pinned by `placement.selftest.mjs` §8; only the
+// two fields `classify()` ADDS to them are pinned here, differentially.
+//
 // TWO HOUSE RULES, from the ledger:
 //   · every gap this file grades against is recomputed from `reformPocket`'s own
 //     formula below, never read back from `seedGap`/`pairGap`. An assertion that
@@ -43,7 +52,12 @@ import { generatePocket } from '../foamworld.js';
 import { constellation } from '../solids.mjs';
 import { legalSummon, MIN_SEED_GAP } from '../placement.mjs';
 import { feasible } from '../production.mjs';
-import { pocketPlacementReport, pocketLevelVerdict } from '../pocketLevel.mjs';
+import { pocketPlacementReport, pocketLevelVerdict, REASON_OF } from '../pocketLevel.mjs';
+// §6 only. `placementReport` is `level.mjs`'s session-local walk and its own gate
+// is `level.selftest.mjs`; it is imported HERE because the claim §6 makes is a
+// COMPARISON between the two reports, and a comparison has to live in one file.
+import { placementReport } from '../level.mjs';
+import { BLAME_PRECEDENCE } from '../buildcert.mjs';
 
 let checks = 0, failures = 0;
 const ok = (cond, msg) => { checks++; if (!cond) { failures++; console.error('  ✗ ' + msg); } };
@@ -387,6 +401,197 @@ console.log('\n5. the two vocabularies meet — level.mjs\'s words and placement
     P, [{ id: 'src', con: cube(roomy.c), node: SRC }], [{ from: 'src', to: 'typo' }],
   )) || '').includes('unknown node'),
     'CONTROL: an edge naming a non-object is NOT swallowed — feasible() still raises it');
+}
+
+// ============================== 6. THE FIELD LIST — an exact key set per reason
+console.log('\n6. the exact key set of every record these two functions emit');
+{
+  // WHY EXACT SETS RATHER THAN PRESENCE CHECKS. A presence check can only find a
+  // field you already expected to be there, so it can never find an
+  // IRREGULARITY — a field on three shapes out of four. Nobody looks for
+  // `nonFinite` on an entry, so nobody discovers it is missing. Putting the
+  // shapes side by side is what makes the odd one out visible, and it is what
+  // turned up the two findings at the foot of this section.
+  //
+  // NOTHING HERE ASSERTS A VALUE, except where a value decides WHICH shape is
+  // under test (the two `blame` checks in the non-finite block, commented
+  // there). A fixture retune must not fail a field-list check.
+  const keysOf = (o) => Object.keys(o).sort();
+  const kset = (o) => keysOf(o).join(',');
+  /** Keys of `a` that `b` does not have. Sorted, so the result is stable. */
+  const missingFrom = (a, b) => { const s = new Set(Object.keys(b)); return keysOf(a).filter((k) => !s.has(k)); };
+
+  // ---- fixtures, one per reason. Each is a shape some earlier section already
+  // proves routes the way it says: §5 for metric and self, §3 for hull, §2 for
+  // the pocket seed, §4 for step. They are rebuilt here rather than shared so a
+  // later edit to one section cannot silently change what this one measures.
+  const CON_LEGAL = cube(roomy.c);
+  const CON_METRIC = constellation('cube', { centre: roomy.c, r: R, aniso: 3.5 });
+  const CON_HULL = cube([2, 18, 40]);
+  const CON_SELF = constellation('icosahedron', { centre: roomy.c, r: 0.35, aniso: ANISO });
+  const seedSpot = P.seeds
+    .map((s, i) => ({ s, i }))
+    .filter(({ s }) => s[0] >= 8 && s[0] <= P.W - 8 && s[1] >= 6 && s[1] <= P.H - 6
+      && s[2] >= 8 && s[2] <= P.D - 8)[0];
+  // Fall back to a legal centre rather than throwing: a missing fixture must
+  // surface as the SENTINEL below naming the reason it could not produce, not as
+  // a TypeError that kills every remaining assertion in the file.
+  const CON_POCKET = seedSpot ? cube(seedSpot.s) : CON_LEGAL;
+
+  // Keyed by the entry's OWN verdict, never by which fixture produced it — so a
+  // fixture that routes somewhere unexpected reports itself as a missing reason
+  // instead of as a confusing literal mismatch.
+  const ENTRY = new Map();
+  const record = (e) => {
+    const k = e.ok ? 'legal' : (e.blame ?? 'refused');
+    if (!ENTRY.has(k)) ENTRY.set(k, e);
+  };
+  for (const con of [CON_LEGAL, CON_METRIC, CON_HULL, CON_SELF, CON_POCKET]) {
+    record(pocketPlacementReport(P, [{ id: 'a', con }])[0]);
+  }
+  record(pocketPlacementReport(P, [
+    { id: 'a', con: cube(roomy.c) }, { id: 'b', con: cube(NUDGE(roomy.c)) },
+  ])[1]);
+
+  const SHAPE = {
+    legal: 'first,id,ok,reason,refusals,seedIndices',
+    metric: 'blame,blames,conAniso,first,id,ok,pocketAniso,reason,refusals',
+    hull: 'at,axis,blame,blames,clamped,depth,first,id,limit,ok,reason,refusals,role,summonSeed,value,wall',
+    self: 'blame,blames,first,gap,id,need,ok,otherSummonSeed,reason,refusals,summonSeed',
+    pocket: 'blame,blames,first,gap,id,need,ok,reason,refusals,role,seed,seedIndex,summonSeed',
+    step: 'blame,blames,blockedBy,blockers,first,gap,id,need,ok,reason,refusals,seedIndex,summonSeed',
+  };
+  for (const k of Object.keys(SHAPE)) {
+    // THE SENTINEL, and it is a returned string rather than a throw on purpose:
+    // one missing fixture must cost one named assertion, not the whole section.
+    ok(ENTRY.has(k), `a fixture produced a "${k}" entry — without one, its shape below is unchecked`);
+    const got = ENTRY.has(k) ? kset(ENTRY.get(k)) : `<NO FIXTURE PRODUCED "${k}">`;
+    ok(got === SHAPE[k], `pocketPlacementReport "${k}" key set — want [${SHAPE[k]}] got [${got}]`);
+  }
+
+  // ---- level.mjs's own report, the session-local one this file's subject wraps.
+  const LEV = new Map();
+  const recordLev = (e) => LEV.set(e.ok ? 'legal' : e.reason, e);
+  for (const e of placementReport([
+    { id: 'a', con: cube(roomy.c) }, { id: 'b', con: cube(NUDGE(roomy.c)) },
+  ])) recordLev(e);
+  for (const e of placementReport([{ id: 't', con: CON_SELF }])) recordLev(e);
+
+  const LEVEL_SHAPE = {
+    legal: 'id,ok,reason',
+    'self-collision': 'id,ok,reason',
+    'collides with existing summon': 'blockedBy,gap,id,ok,reason',
+  };
+  for (const k of Object.keys(LEVEL_SHAPE)) {
+    ok(LEV.has(k), `a fixture produced level.mjs's "${k}" entry`);
+    const got = LEV.has(k) ? kset(LEV.get(k)) : `<NO FIXTURE PRODUCED "${k}">`;
+    ok(got === LEVEL_SHAPE[k], `placementReport "${k}" key set — want [${LEVEL_SHAPE[k]}] got [${got}]`);
+  }
+  // A legal entry and a self-collision are INDISTINGUISHABLE BY SHAPE in
+  // level.mjs — the same three fields, differing only in value. Asserted against
+  // the two OBSERVED entries, never against the two literals above: comparing
+  // `LEVEL_SHAPE.legal` to `LEVEL_SHAPE['self-collision']` compares two strings
+  // I typed in the same object and cannot fail, whatever level.mjs does.
+  ok(LEV.has('legal') && LEV.has('self-collision')
+    && kset(LEV.get('legal')) === kset(LEV.get('self-collision')),
+    'level.mjs tells a legal object from a self-colliding one by VALUE only, never by shape');
+
+  // ---- THE COMPARISON, which is the whole reason both live in one section.
+  // pocketLevel.mjs's docstring claims every entry carries "level.mjs's shape,
+  // plus more". That is a checkable claim and nothing checked it.
+  console.log('  the two reports compared — pocketLevel is a strict superset, per its own docstring');
+  for (const [pk, lk] of [['legal', 'legal'], ['self', 'self-collision'],
+    ['step', 'collides with existing summon']]) {
+    if (!ENTRY.has(pk) || !LEV.has(lk)) { ok(false, `the superset check needs both "${pk}" and "${lk}"`); continue; }
+    const extra = missingFrom(LEV.get(lk), ENTRY.get(pk));
+    ok(extra.length === 0,
+      `pocketLevel's "${pk}" entry carries every field level.mjs's "${lk}" does (missing: ${extra.join(',') || 'nothing'})`);
+    // …and STRICTLY more, or "plus more" is a restatement rather than a claim.
+    ok(keysOf(ENTRY.get(pk)).length > keysOf(LEV.get(lk)).length,
+      `…and strictly more of them (${keysOf(ENTRY.get(pk)).length} vs ${keysOf(LEV.get(lk)).length})`);
+  }
+
+  // ---- FINDING 1: the entry silently drops `nonFinite`.
+  // A point with a NaN coordinate refuses for `hull` — but the reason a UI needs
+  // is not "2.2 m outside the west wall", it is "this position is not a number",
+  // which is a bug in the caller rather than a move the player made.
+  // `summon-session.mjs` treats exactly that distinction as blame:'caller'.
+  // `hullViolation` flags it with `nonFinite: true`; `classify` copies nine named
+  // fields and that is not one of them.
+  console.log('  a non-finite coordinate — the entry cannot tell it from an ordinary wall');
+  {
+    const nanCon = { ...CON_LEGAL, seeds: CON_LEGAL.seeds.map((s) => [NaN, s[1], s[2]]) };
+    const nanEntry = pocketPlacementReport(P, [{ id: 'a', con: nanCon }])[0];
+    // The only two VALUE assertions in this section. They decide WHICH shape is
+    // under test; without them the comparison below is between two unknowns.
+    ok(nanEntry.ok === false, 'a constellation with a non-finite coordinate is refused');
+    ok(nanEntry.blame === 'hull', '…and blamed on the hull, so it is comparable with the ordinary case');
+
+    ok(kset(nanEntry) === SHAPE.hull,
+      `…with the SAME entry key set as an ordinary out-of-hull refusal (got [${kset(nanEntry)}])`);
+    // KNOWN GAP, pinned deliberately rather than logged. A key-set gate exists
+    // precisely so that changing a field list is a decision somebody makes on
+    // purpose — so if you are here because you just taught `classify` to carry
+    // `nonFinite`, that is the right fix: flip this to `in` and add the field to
+    // SHAPE.hull. A log would have gone stale silently; this says what to do.
+    ok(!('nonFinite' in nanEntry),
+      'KNOWN GAP: the entry does NOT carry `nonFinite` — the flag is dropped on the way out');
+
+    if (ENTRY.has('hull')) {
+      const finiteInner = ENTRY.get('hull').first;
+      const nanInner = nanEntry.first;
+      const gained = missingFrom(nanInner, finiteInner);
+      ok(gained.join(',') === 'nonFinite',
+        `the INNER refusal does carry it, and it is the only difference (got [${gained.join(',') || 'nothing'}])`);
+      ok(missingFrom(finiteInner, nanInner).length === 0,
+        '…and the finite inner refusal has no field the non-finite one lacks — the difference is one-directional');
+    }
+  }
+
+  // ---- FINDING 2: two names for one thing, one field apart.
+  // The entry says `blockedBy`; the refusal inside it says `blockedByNode`. Both
+  // are the id of the earlier object whose seed was hit. This is the same shape
+  // the ledger already records for preview's `first` versus place's `refusal`,
+  // and it fails the same way: a renderer that walks `refusals` and reaches for
+  // `blockedBy` gets undefined, silently, with every word around it intact.
+  if (ENTRY.has('step')) {
+    const e = ENTRY.get('step');
+    ok('blockedBy' in e && !('blockedByNode' in e), 'the step ENTRY names the blocker `blockedBy`, and only that');
+    const inner = e.refusals.find((r) => r.blame === 'step');
+    ok(!!inner, 'the step entry carries at least one step-blamed refusal to inspect');
+    ok(!!inner && 'blockedByNode' in inner && !('blockedBy' in inner),
+      '…and the refusal inside it names the same thing `blockedByNode` — two names, one field apart');
+    ok(Array.isArray(e.blockers) && e.blockers.length > 0
+      && kset(e.blockers[0]) === 'gap,id,need,seedIndex,summonSeed',
+      `a blockers[] entry key set (got [${Array.isArray(e.blockers) && e.blockers[0] ? kset(e.blockers[0]) : 'none'}])`);
+  }
+
+  // ---- THE UNREACHABLE SHAPE, asserted by CONSTRUCTION rather than skipped.
+  // `classify` falls through to `reason: 'refused'` with NO detail fields at all
+  // when a blame is not in BLAME_PRECEDENCE. No fixture can produce it, and it is
+  // unreachable BY CONSTRUCTION: the blames `classify` mints are exactly
+  // REASON_OF's keys. So assert the construction — that is a real check, and it
+  // goes red the day somebody adds a reason to one list and not the other.
+  console.log('  the fallback shape is unreachable BY CONSTRUCTION — so the construction is what is asserted');
+  ok(Object.keys(REASON_OF).sort().join(',') === [...BLAME_PRECEDENCE].sort().join(','),
+    'REASON_OF and BLAME_PRECEDENCE name the same blames — diverge and classify() emits reason "refused" with no detail at all');
+  ok([...ENTRY.keys()].every((k) => k === 'legal' || BLAME_PRECEDENCE.includes(k)),
+    `every blame any fixture produced is in BLAME_PRECEDENCE (saw ${[...ENTRY.keys()].join(',')})`);
+  ok(!ENTRY.has('refused'), 'and no fixture reached the fallback shape');
+
+  // ---- THE COMPARATOR, in BOTH directions. An added-key control alone does not
+  // rule out a comparator that is over-sensitive, and one that fails correct work
+  // is worse than no comparator. A spread copy MUST compare equal.
+  console.log('  CONTROL — the comparator sees a real difference and does not invent one');
+  {
+    const sample = ENTRY.get('pocket') ?? ENTRY.get('legal');
+    ok(kset({ ...sample }) === kset(sample),
+      'CONTROL: a spread COPY compares EQUAL — the comparator is about fields, not object identity');
+    ok(kset({ ...sample, probeKey: 1 }) !== kset(sample), 'CONTROL: one ADDED key compares unequal');
+    const fewer = { ...sample };
+    delete fewer.reason;
+    ok(kset(fewer) !== kset(sample), 'CONTROL: one REMOVED key compares unequal — it bites in both directions');
+  }
 }
 
 // ================================================================ determinism
