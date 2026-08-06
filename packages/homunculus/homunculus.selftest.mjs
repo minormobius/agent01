@@ -14,6 +14,7 @@ import { census, verdict } from './census.mjs';
 import { decodeCbor, readVarint, parseCar, readRepo } from './car.mjs';
 import { toRow, LOG_FILE } from './log-prompt.mjs';
 import { detectShape, extract } from './chatlog.mjs';
+import { distil, provenanceMode } from './capture-session.mjs';
 
 const ROWS = [
   // 13 words of prose, top-level. Root of the one self-thread.
@@ -306,6 +307,57 @@ await extract(blockExport, tmp);
 check('normalises user→human',
   JSON.parse(readFileSync(tmp, 'utf8').trim().split('\n')[0]).role, 'human');
 rmSync(tmp, { force: true });
+
+
+// ─── session capture ─────────────────────────────────────────────
+//
+// The trap: skills and slash commands inject their whole body as a user turn.
+// One /update-config load arrived as 15,354 words against 148 the principal
+// actually typed. `origin: {kind:'human'}` separates them — where the
+// transcript has that field at all.
+
+console.log('\nsession capture — provenance');
+const L = (o) => JSON.stringify(o);
+const modern = [
+  L({ type: 'user', origin: { kind: 'human' }, timestamp: 't1', gitBranch: 'b',
+      message: { role: 'user', content: 'download the car instead of paging' } }),
+  L({ type: 'assistant', message: { role: 'assistant', content: [
+      { type: 'text', text: 'Good call, one request.' },
+      { type: 'tool_use', name: 'Bash', input: {} }] } }),
+  L({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', content: 'ok' }] } }),
+  // A skill body: no origin, enormous, must be dropped.
+  L({ type: 'user', message: { role: 'user', content: '# Some Skill\n' + 'word '.repeat(500) } }),
+  'not json at all',
+  '',
+];
+
+check('detects origin mode', provenanceMode(modern.filter(Boolean).map((l) => {
+  try { return JSON.parse(l); } catch { return {}; } })), 'origin');
+check('detects shape mode', provenanceMode([{ type: 'user' }]), 'shape');
+
+const d = distil(modern);
+check('mode applied', d.stats.mode, 'origin');
+check('keeps real prompt', d.stats.prompts, 1);
+check('drops injected skill', d.stats.injected, 1);
+check('drops tool result', d.stats.toolResults, 1);
+check('keeps assistant text', d.stats.replies, 1);
+check('prompt words', d.stats.promptWords, 6);
+check('survives torn line', d.stats.records, 4);
+check('assistant drops tool_use',
+  d.turns.find((t) => t.role === 'assistant').text, 'Good call, one request.');
+check('principal labelled', d.turns[0].role, 'principal');
+check('keeps branch', d.turns[0].branch, 'b');
+
+// Older transcripts have no origin anywhere: fall back to content shape
+// rather than rejecting every turn.
+const legacy = [
+  L({ type: 'user', message: { role: 'user', content: 'an older typed prompt here' } }),
+  L({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', content: 'x' }] } }),
+];
+const dl = distil(legacy);
+check('legacy falls back', dl.stats.mode, 'shape');
+check('legacy keeps prompt', dl.stats.prompts, 1);
+check('legacy drops tool result', dl.stats.toolResults, 1);
 
 console.log(failures ? `\n${failures} failure(s)\n` : '\nall passed\n');
 process.exit(failures ? 1 : 0);
