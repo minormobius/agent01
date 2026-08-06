@@ -1,0 +1,12 @@
+{
+  "reason": "empty ready queue",
+  "detail": "2 bead(s) are ready but none is class A — the fleet may only take class A (LOOP-WBS §2.3) — but 5 proposal(s) await review, so a review seat is being staffed to judge them",
+  "pending": [
+    "lp-55f48e",
+    "lp-269c08",
+    "lp-b27cc4",
+    "lp-000596",
+    "lp-ccec5b"
+  ],
+  "at": "2026-08-06T08:37:55.552Z"
+}
