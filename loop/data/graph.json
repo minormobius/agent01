@@ -15310,9 +15310,11 @@
     }
   ],
   "now": {
-    "state": "reviewing",
-    "detail": "judging the backlog against the vision",
-    "beads": []
+    "state": "working",
+    "detail": "1 turn(s) in flight",
+    "beads": [
+      "lp-3f5f26"
+    ]
   },
   "asks": [
     {
