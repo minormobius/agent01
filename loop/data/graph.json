@@ -10171,13 +10171,16 @@
       "parent": "lp-1921ff",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "54",
-      "evidence": [],
+      "evidence": [
+        "rejected: REJECTED AS A TURN, NOT AS A CLAIM — the claim is correct and I confirmed every part of it. plant/summon-session.mjs:62-75 does assert '**legalSeed therefore ACCEPTS a NaN point.**' and placement.mjs:114/131-142 shows lp-1921ff made that false (hullViolation now tests Number.isFinite explicitly and returns nonFinite:true at depth Infinity). The console.log at plant/test/summon-session.selftest.mjs"
+      ],
       "created": "2026-08-06T06:19:14.669Z",
-      "updated": "2026-08-06T06:19:14.669Z",
+      "updated": "2026-08-06T06:22:40.992Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -10193,13 +10196,16 @@
       "parent": "lp-1921ff",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "54",
-      "evidence": [],
+      "evidence": [
+        "rejected: REJECTED ON THE VISION, and on reachability — which is the stronger reason, so take that one first. I verified the defect is real: plant/foamworld.js:792 ranks with `rec.depth > worst.depth` over a `depth` that is NaN (line 791), so attribution degrades to first-wins, exactly as the body says. But NO PLAYER CAN PRODUCE THAT INPUT. summon-session.place() refuses a non-finite point at line 318 via b"
+      ],
       "created": "2026-08-06T06:19:14.669Z",
-      "updated": "2026-08-06T06:19:14.669Z",
+      "updated": "2026-08-06T06:22:40.930Z",
       "blocked": false,
       "ready": false,
       "unmet": []
