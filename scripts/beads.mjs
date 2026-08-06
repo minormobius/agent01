@@ -481,6 +481,38 @@ function cmdPromote() {
           + 'A gate-creating turn is judged on bringing a gate into being; one that is already there proves nothing.');
       }
     }
+    // THE GATE MUST BE SOMEWHERE THE AGENT CAN ACTUALLY WRITE.
+    //
+    // A creates-gate bead is judged on the named file existing afterwards. The
+    // agent is confined to the loop's `writes` paths by loop-work's containment
+    // gate, so a gate named OUTSIDE those paths can never come into being: the
+    // turn does its work, cannot create the file, the ticket gate looks for it,
+    // does not find it, and fails. Forever, identically, every retry.
+    //
+    // lp-14c7f5 was exactly this and it cost five turns of a fifteen-turn
+    // window — a third of the run. Its gate was `node
+    // scripts/loop-brief.selftest.mjs`; the agent, unable to write `scripts/`,
+    // put the file under `plant/tools/` three separate times and failed three
+    // separate times. Nothing in the system could tell it why, because nothing
+    // had noticed the bead was unsatisfiable at the moment it was promoted.
+    //
+    // I wrote that bead. This check is so the next person cannot.
+    {
+      const cfgPath = join(ROOT, '.github', 'loop', 'config.json');
+      const writes = existsSync(cfgPath)
+        ? (JSON.parse(readFileSync(cfgPath, 'utf8')).writes ?? []).map((w) => w.replace(/\/\*\*$/, '/'))
+        : [];
+      if (writes.length) {
+        for (const f of gateFiles(b.gate)) {
+          if (!writes.some((w) => f.startsWith(w))) {
+            bad.push(`creates-gate names ${f}, which is OUTSIDE the loop's write paths `
+              + `(${writes.join(', ')}). The agent is contained to those paths, so it cannot create `
+              + 'that file and this bead can never pass its own gate. Move the gate inside the '
+              + 'write paths, or do the work by hand.');
+          }
+        }
+      }
+    }
     console.log('  ⚠ GATE-CREATING TURN. This bead is dispatchable without a pre-existing gate,');
     console.log('    so the agent writes both the work and the test that judges it. Read the diff:');
     console.log('    a gate that asserts nothing passes just as green as one that does.');

@@ -142,14 +142,14 @@
     }
   },
   "counts": {
-    "total": 418,
-    "ready": 5,
+    "total": 420,
+    "ready": 4,
     "blocked": 9,
     "in_progress": 0,
-    "done": 71,
+    "done": 72,
     "dropped": 3,
     "proposed": 71,
-    "knowledge": 259
+    "knowledge": 261
   },
   "beads": [
     {
@@ -8665,23 +8665,26 @@
       "id": "lp-14c7f5",
       "title": "The brief grows without bound: select memory by relevance, not by everything",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 1,
       "body": "Every brief embeds every finding and every dead-end, verbatim, forever. 82 today,\n+1 or more per turn. The env-var cliff that made this fail loudly is gone (the\nbrief is a file now), so the next symptom is silent: context spent on two hundred\nold findings, most irrelevant to the ticket in hand.\n\nTruncating by age is wrong — the oldest findings include the ones that cost the\nmost to learn. The question is relevance to THIS ticket.\n\nCheapest thing that could work, and it needs no model call: select by overlap\nbetween the finding's text and the ticket's own text/paths/tags, keep the top N\nby that score, and ALWAYS keep dead-ends (a dead-end is a thing that does not\nwork; re-attempting it is the specific failure the memory exists to prevent).\nState N and the scoring rule in the file.\n\nTHE GATE IT CREATES: scripts/loop-brief.selftest.mjs, which must (a) assert the\ncomposed brief for a known ticket stays under a stated byte budget with a memory\nof 500 synthetic findings; (b) assert that a finding whose text overlaps the\nticket survives selection while an unrelated one does not — i.e. that selection\ndiscriminates rather than just truncating; (c) assert EVERY dead-end survives\nregardless of score, and say in the message why that asymmetry exists.",
       "deps": [],
       "parent": null,
       "tags": [
         "class-a",
-        "creates-gate",
         "regulation"
       ],
       "actor": "human",
       "run": null,
-      "evidence": [],
+      "evidence": [
+        "5 attempts, 5 failures: the gate named scripts/loop-brief.selftest.mjs, outside the agent's write paths, so it could never create it. It built plant/tools/loop-brief.{mjs,selftest.mjs} instead — which passes. Gate retargeted; promotion now refuses this mistake.",
+        "plant/tools/loop-brief.mjs",
+        "plant/tools/loop-brief.selftest.mjs — 106/106 checks pass"
+      ],
       "created": "2026-08-05T19:45:10.643Z",
-      "updated": "2026-08-05T19:45:25.817Z",
+      "updated": "2026-08-06T03:24:59.081Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -9583,7 +9586,7 @@
       "title": "Wire summon-session.mjs into plant/index.html — the click that reaches the foam",
       "kind": "task",
       "status": "ready",
-      "priority": 1,
+      "priority": 0,
       "body": "The sibling this ticket deliberately excluded. plant/summon-session.mjs now exists and is gated: start(seed) generates a real pocket, candidates() says where a summon fits, preview(point) gives the verdict without planting, place(solid, point) plants it as one transaction or refuses with a named, ATTRIBUTED cause (blame: player | pocket | hull | self | foam | caller). Nothing on the page calls any of it — index.html is still the inspector.\n\nSCOPE: a summon panel on plant/index.html driven entirely by the controller. Solid picker, a point chosen by the player (the simplest honest version is three numeric inputs or a click on a 2D top-down plan of the pocket — NOT a 3D raycast, which is a much bigger ticket and not needed to clear the bar), a Summon button, a live verdict line, and a running list of what has been placed. Event handlers must contain NO placement logic: they read inputs, call the controller, render what comes back. That is vision item 1's explicit requirement ('the game's control logic lives in a module, not in event handlers') and it is also what keeps this ticket gateable.\n\nTHE REFUSAL SENTENCE IS THE POINT, not decoration. blame:'player' must read differently from blame:'pocket' — 'that is 1.4m from the cube you placed' versus 'there is already foam there' — because the whole bar in vision.md is that a stranger does something that CAN FAIL and understands why. A refusal rendered as 'refused' throws away everything the module computed.\n\nTHE GATE IT CREATES: plant/test/index-summon-wiring.selftest.mjs, following the established precedent of index-level4/5/6-wiring.selftest.mjs — read plant/index.html as text and assert the wiring exists. It must check (a) that the page imports ./summon-session.mjs and calls start/preview/place, (b) that every solid in SOLID_NAMES the picker offers is a real name from solids.mjs rather than a hand-typed list that can drift, (c) that the verdict renderer branches on all six BLAME values, exported from the module as an array precisely so exhaustiveness is checkable, and (d) that no literal 1.5 / 3.2 / 2.2 threshold appears in the page's own script — a placement constant re-typed into the page is the drift this whole module exists to prevent. A weaker gate that only greps for the word 'summon' would pass for a page that imports the module and never calls it.\n\nWARNING for whoever takes this: plant/index.html's CSS keys svg#lvl by exact id, and levels 2-6 already ship unstyled by that selector (recorded finding). Do not fix that here; it is pre-existing and a separate ticket.",
       "deps": [],
       "parent": "lp-0d93b8",
@@ -9594,9 +9597,11 @@
       ],
       "actor": "agent",
       "run": "44",
-      "evidence": [],
+      "evidence": [
+        "raised to P0 by the operator 2026-08-06: this is vision item 1, and it sat at P1 behind oracle work I promoted to P0. Fifteen turns produced seven backend modules and not one line of plant/index.html."
+      ],
       "created": "2026-08-05T22:18:07.120Z",
-      "updated": "2026-08-05T22:38:54.826Z",
+      "updated": "2026-08-06T03:24:59.174Z",
       "blocked": false,
       "ready": true,
       "unmet": []
@@ -9729,6 +9734,50 @@
       ],
       "created": "2026-08-05T22:33:38.159Z",
       "updated": "2026-08-05T22:38:55.248Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-1fc352",
+      "title": "Fifteen turns, seven modules, zero lines of index.html — priority, not the vision, is what the scheduler reads",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Fifteen Opus turns (36-50) produced seven backend modules and NOT ONE LINE of\nplant/index.html, which has been untouched since turn 26. Eight of the twelve\nmodules in plant/ are not imported by the page: buildcert, foamworld,\nframe-budget, level, loop-brief, placement, pocketLevel, summon-session. The\noracle stack went 5/7 -> 7/7 and a visitor saw no change at all.\n\nTHE CAUSE WAS THE QUEUE, AND I WROTE THE QUEUE. Reviving gate 6 (lp-574eb2) and\nthe level certificate (lp-7b7f04) at P0 put vision items 2 and 3 above item 1,\nwhich had no P0 bead at all. The loop worked the queue in priority order and did\nexactly what it was told. The vision's own warning — \"an explainer is the natural\nattractor... legible, gateable, provable, and safe\" — describes the trap, and\nthe way I sprang it was by promoting the gateable work to the top of the queue\nand leaving the page work at P1.\n\nWorth noticing what the loop got RIGHT: at turn 44 it wrote lp-a59b0f itself, and\nit is the best-specified ticket in the graph — a summon panel driven entirely by\nthe controller, no placement logic in event handlers, refusal sentences that\ndistinguish blame:'player' from blame:'pocket'. It is precisely vision item 1. It\nwas P1, so it was not reached until turns 48 and 50 — the exact minutes the model\nquota ran out. The loop identified the right work and the priority order starved\nit.\n\nTHE LESSON, stated so the next window does not repeat it: priority is the only\npart of the vision the scheduler can actually read. Prose at the top of vision.md\nsaying item 1 outranks items 2-4 does nothing if the beads are numbered the other\nway round. If ONE GAME matters most, exactly one bead should be P0 and it should\nbe the one that changes what a visitor sees.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "regulation",
+        "learned"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-06T03:25:24.314Z",
+      "updated": "2026-08-06T03:25:24.314Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-1fb625",
+      "title": "A creates-gate bead whose gate lives outside the agent's write paths can never pass — five turns lost",
+      "kind": "dead-end",
+      "status": "done",
+      "priority": 2,
+      "body": "lp-14c7f5 was attempted five times and failed five times — a third of a fifteen-\nturn window — and it was unsatisfiable at the moment it was promoted.\n\nIts gate was `node scripts/loop-brief.selftest.mjs`. The agent is contained to\nthe loop's `writes` paths (loop/, .github/loop/, plant/) by loop-work's\ncontainment gate, so it could not create a file under scripts/ no matter what it\ndid. It did the work anyway, correctly, three separate times — as\nplant/tools/loop-brief.mjs plus a selftest that passes 106/106 — and each time\nthe ticket gate looked in scripts/, found nothing, and failed the turn.\n\nNothing in the system could tell it why, because nothing had checked that the\npromised gate was somewhere the agent could reach.\n\nI wrote that bead. Fixed at the source: `beads.mjs promote` now refuses a\ncreates-gate bead whose gate file falls outside config.writes, and says so in\nthose words. Verified against the real bead — it is rejected.\n\nThe general shape, and it is the third instance in this repo: a requirement the\nsystem states, that the system also makes impossible to satisfy, with silence as\nthe only symptom. Every one of them was caught by asking \"could the thing being\nasked have succeeded?\" rather than by reading the failure.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "regulation",
+        "learned"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-06T03:25:24.396Z",
+      "updated": "2026-08-06T03:25:24.396Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -10785,7 +10834,9 @@
       "lp-9f76f7",
       "lp-cc405f",
       "lp-0b1bc5",
-      "lp-e8e078"
+      "lp-e8e078",
+      "lp-1fc352",
+      "lp-1fb625"
     ],
     [
       "lp-f2e5a3",
@@ -10817,10 +10868,6 @@
     ]
   ],
   "ready": [
-    {
-      "id": "lp-14c7f5",
-      "unblocks": 0
-    },
     {
       "id": "lp-a59b0f",
       "unblocks": 0

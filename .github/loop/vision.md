@@ -48,6 +48,23 @@ turn that polishes the inspector is a turn that scores well and moves nothing.
 ordered so that a window spent on item 1 is worth more than a window spent on
 item 3, and so that a planner reading this knows which it is working on.
 
+> ### PRIORITY IS THE ONLY PART OF THIS FILE THE SCHEDULER READS.
+>
+> Turns 36-50 produced seven backend modules and **not one line of
+> `plant/index.html`**. The oracle stack went 5/7 to 7/7 and a visitor saw no
+> change whatsoever. Eight of the twelve modules in `plant/` are not imported by
+> the page at all.
+>
+> Nothing went wrong mechanically. The queue said oracles first, because gate 6
+> and the level certificate were promoted to P0 and the page work sat at P1 —
+> and the fleet works the queue in priority order. Prose here saying "item 1
+> outranks items 2-4" is invisible to the scheduler.
+>
+> **So: exactly one bead is P0, `lp-a59b0f`, and it changes what a visitor
+> sees.** If you are a planner and you are about to propose something at P0 that
+> does not change the page, propose it at P2. If you are the reviewer and you are
+> about to promote oracle work above item 1, don't.
+>
 > ### THERE IS NO HUMAN IN THE LOOP FOR THIS RUN. DECIDE.
 >
 > The operator has said plainly that they will not be running feedback during
