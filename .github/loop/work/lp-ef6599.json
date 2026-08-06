@@ -4,10 +4,6 @@
   "artifact": null,
   "priority": 1,
   "unblocks": 0,
-  "turn": 88,
-<<<<<<< HEAD
-  "issued": "2026-08-06T23:36:36.751Z"
-=======
-  "issued": "2026-08-06T23:37:08.973Z"
->>>>>>> 1dc62c8 (loop: starved with proposals — staffing a review seat)
+  "turn": 90,
+  "issued": "2026-08-06T23:39:13.419Z"
 }
