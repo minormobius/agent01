@@ -142,14 +142,14 @@
     }
   },
   "counts": {
-    "total": 497,
-    "ready": 3,
+    "total": 505,
+    "ready": 2,
     "blocked": 9,
     "in_progress": 0,
-    "done": 79,
+    "done": 80,
     "dropped": 3,
-    "proposed": 88,
-    "knowledge": 315
+    "proposed": 89,
+    "knowledge": 322
   },
   "beads": [
     {
@@ -11227,9 +11227,9 @@
       "id": "lp-ffddc7",
       "title": "A first screen: one sentence saying what you are doing, before the first level",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 2,
-      "body": "Vision item 1 asks for 'a first screen that says what you are doing in one sentence, without the words oracle, feasibility, margin or anisotropy'. campaign.mjs shipped the vocabulary rule (a BANNED array, enforced on every level blurb by its gate) and the per-level blurbs, but there is no game-level sentence and no entry point — a stranger still lands mid-page.\n\nSCOPE: plant/campaign.mjs (add an exported INTRO: a title and one sentence) and plant/test/campaign.selftest.mjs (extend). Nothing else — the page half belongs to the wiring bead above, and this deliberately lands first so the wiring has something to render.\n\nWHY IT IS SEPARATE from the wiring: the wiring bead is already large, and this is the piece with actual writing in it. Splitting them means the sentence can be rewritten without touching the page and vice versa.\n\nTHE GATE ALREADY EXISTS — plant/test/campaign.selftest.mjs — and the assertions to add are the ones it already makes about blurbs, applied to INTRO: one sentence, no word from BANNED, and non-empty. Also assert INTRO does not name a level id or a number, since it must survive a reordering of ORDER.\n\nWHAT NO GATE CAN CHECK, said plainly: whether the sentence is any GOOD. A machine can only confirm it is one sentence in plain words. That is a real limit and the reason this is small — one sentence is cheap to replace when a person finally reads it.",
+      "body": "Vision item 1 asks for 'a first screen that says what you are doing in one sentence, without the words oracle, feasibility, margin or anisotropy'. campaign.mjs shipped the vocabulary rule (a BANNED array, enforced on every level blurb by its gate) and the per-level blurbs, but there is no game-level sentence and no entry point — a stranger still lands mid-page.\n\nSCOPE: plant/campaign.mjs (add an exported INTRO: a title and one sentence) and plant/test/campaign.selftest.mjs (extend). Nothing else — the page half belongs to the wiring bead above, and this deliberately lands first so the wiring has something to render.\n\nWHY IT IS SEPARATE from the wiring: the wiring bead is already large, and this is the piece with actual writing in it. Splitting them means the sentence can be rewritten without touching the page and vice versa.\n\nTHE GATE ALREADY EXISTS — plant/test/campaign.selftest.mjs — and the assertions to add are the ones it already makes about blurbs, applied to INTRO: one sentence, no word from BANNED, and non-empty. Also assert INTRO does not name a level id or a number, since it must survive a reordering of ORDER.\n\nWHAT NO GATE CAN CHECK, said plainly: whether the sentence is any GOOD. A machine can only confirm it is one sentence in plain words. That is a real limit and the reason this is small — one sentence is cheap to replace when a person finally reads it.\n\n[turn 61 — done] Added an exported INTRO { title, blurb } to plant/campaign.mjs and a new section 2b to plant/test/campaign.selftest.mjs asserting it. The sentence is 'Each puzzle is a small factory that is not quite working, and you get a single control - move it until everything downstream gets what it asked for.' under the title 'Get everything fed'. The gate applies the two rules a level blurb already gets (exactly one sentence by the same /^[^.!?]+[.]$/ regex, no word from BANNED) plus the two the ticket asked for (names no level id, contains no number), each paired with a CONTROL that must fail so a broken matcher cannot pass as clean text. IMPORTANT CORRECTION TO THE TICKET'S PREMISE: it says 'there is no game-level sentence and no entry point', and that is stale - index.html already ships a hand-typed <p id=\"gameIntro\"> and an <h1>Plant</h1>, and index-campaign-wiring.selftest.mjs section (8) already asserts an intro paragraph exists and is BANNED-free. So the real remaining gap was not 'no sentence' but 'the sentence is a second copy the module does not own', which is what this closes; the page is still not wired to INTRO and that is out of scope by the ticket's own words. I did NOT run the gate - no Bash in this turn's tool grant - so every assertion was hand-traced against the exact bytes written, including each regex character by character. Two things I checked specifically because this file family has been bitten by them: no backtick nested inside a template literal and no ASCII apostrophe inside a single-quoted string, and countRe carries no /g flag so repeated .test() calls cannot alternate on lastIndex. I also grepped the four other gates that read index.html or import campaign.mjs to confirm a new export breaks none of them.",
       "deps": [],
       "parent": "lp-d3848e",
       "tags": [
@@ -11237,12 +11237,15 @@
         "class-a"
       ],
       "actor": "agent",
-      "run": "57",
-      "evidence": [],
+      "run": "61",
+      "evidence": [
+        "plant/campaign.mjs",
+        "plant/test/campaign.selftest.mjs"
+      ],
       "created": "2026-08-06T06:52:07.266Z",
-      "updated": "2026-08-06T07:05:06.049Z",
+      "updated": "2026-08-06T08:14:33.134Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -11524,6 +11527,177 @@
       "evidence": [],
       "created": "2026-08-06T08:07:50.759Z",
       "updated": "2026-08-06T08:07:50.759Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-60f705",
+      "title": "The count rule forbids ALL numbers, not just counts of levels - stricter than its own justification, on purpose",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket asks that INTRO 'does not name a level id or a number, since it must survive a reordering of ORDER'. The hazard being guarded is a sentence like 'six levels' or 'start on the ore line' becoming false when ORDER is recomputed from win fractions.\n\nBut no regex can distinguish 'six levels' (a claim that expires) from 'one setting' (a claim that does not). I had three options: forbid every number, forbid only numbers adjacent to level-ish nouns, or forbid only digits.\n\nI took the broadest. COUNT_WORDS is one..ten plus first/second/third, matched on word boundaries, plus any digit.\n\nWHAT IT COSTS, stated because it is not free and because a future writer will hit it: index.html's own shipped intro, 'Each level gives you one setting to move', WOULD FAIL THIS CHECK. My sentence says 'a single control' precisely to dodge it. So the rule does reject phrasing that is perfectly correct, which is the shape the ledger already warns about ('a checker that fails correct work is worse than no checker').\n\nWHY I TOOK IT ANYWAY: INTRO is ONE SHORT SENTENCE. Rewording it costs nothing, and the adjacency version needs a noun list that is itself a guess and is gameable. The asymmetry decides it - a false positive costs a writer one reword and says so out loud in the failure message; a false negative is a stale count on a live page that nobody notices.\n\nWHAT WOULD REVERSE IT: a real sentence somebody wants that the list rejects and that carries no structural claim. Then delete 'one' from COUNT_WORDS (cardinals two..ten are the realistic level-count hazard; 'one' is almost always article-like). That is a one-line edit. The comment in the test says this in those words, and says explicitly not to delete the assertion instead - making a gate pass by weakening it is the specific cheat this shape permits.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "61",
+      "evidence": [],
+      "created": "2026-08-06T08:14:33.134Z",
+      "updated": "2026-08-06T08:14:33.134Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-45b44a",
+      "title": "INTRO uses a LEVELS entry's field names (title, blurb) rather than title/sentence",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket says 'add an exported INTRO: a title and one sentence', which invites `{ title, sentence }`. I used `{ title, blurb }` instead, matching what every LEVELS entry already carries.\n\nReason: index.html's render() already does `$('gameTitle').textContent = entry.title; $('gameBlurb').textContent = entry.blurb;`. With matching field names the wiring follow-up can render the intro screen and a level screen with the SAME two lines and no adapter, and any future helper that formats 'a screen' takes either object.\n\nIt also makes the gate's job obvious: section 2b is literally section 2's blurb rules applied to one more object, so if the blurb rules are ever tightened, the diff that tightens them is visibly the same shape in both places.\n\nCost: 'blurb' is a slightly odd word for a game-level sentence, and someone reading INTRO alone might expect 'sentence'. Reversing it is a rename in two files with no logic change.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "61",
+      "evidence": [],
+      "created": "2026-08-06T08:14:33.134Z",
+      "updated": "2026-08-06T08:14:33.134Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-48a417",
+      "title": "The ticket's premise was stale before it was worked - #gameIntro already exists, hand-typed, and the real gap was ownership not absence",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "lp-ffddc7's body says 'there is no game-level sentence and no entry point - a stranger still lands mid-page'. Both halves are out of date:\n\n  · index.html:82-86 ships `<h1>Plant</h1>` and `<p class=\"sub\" id=\"gameIntro\">A little factory that has to feed everything it promised. Each level gives you one setting to move; get nothing short and the next one opens.</p>`\n  · plant/test/index-campaign-wiring.selftest.mjs section (8) already asserts that paragraph exists, is under 400 chars, and contains no BANNED word - deriving BANNED from campaign.mjs rather than re-typing it.\n\nThe wiring bead the ticket calls 'the wiring bead above' has already landed (lp-6c88fb, per plant/CLAUDE.md). So the ticket was authored from a true observation about a tree that then moved, which is the already-recorded shape 'a ticket written from a finding can go stale before it is worked' and 'the loop dispatched a turn to build gate 6 - and gate 6 was already on disk'. This is the milder version: the artefact was not already built, but the problem statement was wrong about why it was needed.\n\nThe cheap defence is the same one the ledger already names and it cost me one Grep: before writing anything, grep the bounded paths AND the paths the ticket describes for the thing it says is missing. Doing that here changed the work - not what I built, but what I claimed. Without it this outbox would have said 'a stranger now has a first screen', which is false; they always had one. What they now have is a first screen whose words the module owns and a gate that checks them.\n\nThe genuinely useful reframing for whoever picks up the follow-up: the intro is currently the ONLY text on the campaign panel that is not module-owned. Level titles and blurbs are asserted absent from the page (section 4 checks `!block.includes(e.blurb)`); the intro is asserted only to exist and to be clean. That asymmetry is the whole remaining bug.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "61",
+      "evidence": [],
+      "created": "2026-08-06T08:14:33.134Z",
+      "updated": "2026-08-06T08:14:33.134Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-5b6617",
+      "title": "Section (8) of the wiring gate cannot catch intro drift - it checks a property of the text, never that it is the RIGHT text",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "index-campaign-wiring.selftest.mjs section (8) reads the page's `#gameIntro` and asserts: it exists, it is non-empty and under 400 chars, and it contains no BANNED word. Every one of those is a property the string has ON ITS OWN.\n\nSo it passes for any plain-English paragraph whatsoever. It would pass for an intro describing a completely different game, for one naming 'level 2' as the opener after ORDER was recomputed, or for one that says 'six levels' after a seventh was added. That is exactly the class of check the ledger keeps recording as weaker than it reads - `line.includes(String(x))` passing for a renderer that hardcodes the constant, assertions that relate a function's outputs only to its other outputs.\n\nIt is not a defect in that gate: when it was written the intro was the page's own text and there was nothing external to compare it to. There is now. The comparison that bites is one line, `intro.trim() === INTRO.blurb`, and it is only available because the words moved into the module - which is the argument for doing the wiring follow-up beyond tidiness.\n\nNote the ordering constraint this creates and why proposal 1 must change the page's wording rather than the module's: the shipped paragraph says 'one setting to move' and is two sentences, so it violates both the count rule and the one-sentence rule that section 2b now enforces on INTRO. A turn that wires the page by copying the page's wording INTO campaign.mjs would go red in campaign.selftest.mjs and might then be tempted to relax section 2b. The correct direction is module wins, page changes.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "61",
+      "evidence": [],
+      "created": "2026-08-06T08:14:33.134Z",
+      "updated": "2026-08-06T08:14:33.134Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-d4a69a",
+      "title": "A section of only NEGATIVE assertions needs controls more than a normal one, and the level-id control is guarding an empty array rather than a regex",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Every substantive assertion in section 2b is a negation: no banned word, no level id, no number. A negation over one short clean string is the easiest thing in the world to pass by accident - an empty BANNED array passes, a `LEVELS.map(...)` that came back empty passes, a regex with a typo that matches nothing passes. All of them print a tick.\n\nSo each predicate is fed something it MUST catch. Two of those controls are ordinary (a string containing 'feasibility'; strings containing '6', 'six', 'first'). The third is worth pointing at because it looks tautological and is not:\n\n    LEVELS.map((e) => e.id).some((id) => `start on ${id} and work down.`.includes(id))\n\nThe template embeds the id, so per-element it can never be false. What it actually tests is that the ARRAY IS NON-EMPTY - `.some()` on `[]` returns false. That is the only realistic way the level-id check silently stops working, since the ids themselves are pinned in section 1. A reader who mistakes it for a redundant tautology and deletes it removes the only guard on that failure mode.\n\nThere is also a control in the other direction, which I nearly left out: `!countRe.test('everything downstream is stone.')`. Without it, someone 'simplifying' the word-boundary regex to a bare substring test would still pass all five positive controls while making the check fire on 'stone', 'everything', 'atone' - i.e. unusable for any real sentence, discovered only by the next person trying to write one. A boundary-sensitive matcher needs a control proving it does NOT overmatch, not just that it matches.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "61",
+      "evidence": [],
+      "created": "2026-08-06T08:14:33.134Z",
+      "updated": "2026-08-06T08:14:33.134Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-88131c",
+      "title": "Gate unverifiable in-turn (no Bash) - recording only what is specific to a prose gate, since the standing recommendation is past twenty entries",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The standing recommendation is in this ledger well over twenty times and the last several turns agreed to stop restating it. I am not restating it. What is worth one entry is that the risk profile of an unrun PROSE gate is different from the ~25 prior instances, which almost all reason about whether a hand-computed number is right. There is no arithmetic here at all.\n\nThe three things that could actually have gone wrong, and what I did about each:\n\n1. LEXICAL. A backtick inside a template literal or an ASCII apostrophe inside a single-quoted string makes the file fail to PARSE, and then not one assertion runs - a failure that reads like an unrelated typo rather than like the gate never executing. Checked: the only template literals I added are `${INTRO.title} ${INTRO.blurb}`, `\\\\d|\\\\b(${COUNT_WORDS.join('|')})\\\\b` and `start on ${id} and work down.`, and the inner join uses single quotes, not backticks. No added string contains an apostrophe; INTRO's blurb says 'is not' rather than 'isn't' partly for this reason.\n\n2. REGEX STATE. `countRe` is used for six separate `.test()` calls plus one `.match()`. With a /g flag that is a classic bug - `lastIndex` persists and alternate calls return false. It carries only /i. This is the one defect that would have produced a confidently wrong PASS rather than a red gate.\n\n3. THE MATCH ITSELF. Traced by hand over the exact bytes: introText lowercased is 'get everything fed each puzzle is a small factory that is not quite working, and you get a single control - move it until everything downstream gets what it asked for.' No BANNED substring; no 'level'; no digit; and no COUNT_WORD at a word boundary - 'control' does not contain 'one', and 'everything' does not contain 'ten'. The one-sentence regex holds because the only . ! ? in the string is the final period, the em dash and comma being ordinary members of [^.!?].\n\nThe transferable half: for a gate with no arithmetic, the failure modes are lexical and stateful, not numerical - and the stateful one (a stray /g) is the only one of the three that fails silently in the passing direction.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "61",
+      "evidence": [],
+      "created": "2026-08-06T08:14:33.134Z",
+      "updated": "2026-08-06T08:14:33.134Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-f17e0f",
+      "title": "Is the first sentence any good? A machine can only confirm it is one sentence in plain words",
+      "kind": "question",
+      "status": "proposed",
+      "priority": 1,
+      "body": "The gate proves INTRO.blurb is one sentence, uses none of the jargon, names no level and counts nothing. It cannot say whether it makes a stranger want to touch the control, and I have no way to find out from here - there is no reader in this turn and the page is not yet wired to it.\n\nThe sentence: 'Each puzzle is a small factory that is not quite working, and you get a single control - move it until everything downstream gets what it asked for.' Title: 'Get everything fed'.\n\nTwo specific doubts I could not settle. (1) 'not quite working' may undersell it - on five of the six levels the opening state is already FED, so the honest framing might be 'working, but you have not proved it' rather than broken. I chose the punchier reading because a stranger who thinks nothing is wrong has no reason to move anything. (2) The word 'puzzle' commits to a framing the page never uses elsewhere ('level' is used throughout the module and the markup), and I deliberately avoided 'level' in the intro because the count rule and the level-id rule made every phrasing with it read awkwardly.\n\nI decided both ways rather than waiting, per the standing instruction. This is a note, not a request.\n\nDO: Open plant.minomobi.com once the wiring follow-up has landed, read only the top of the page, and stop. Do not scroll.\n\nWATCH FOR: Whether you know what you are supposed to DO before you touch anything - and specifically whether 'not quite working' makes you look for something broken on a level that opens already fed.\n\nSO THAT: If it reads fine, INTRO is done and nobody spends another turn on wording. If 'not quite working' misleads, the fix is one string in campaign.mjs and the gate re-checks it for free - and the finding worth recording is that the intro must describe the ACT (move the control until you have proved it) rather than the STATE. If 'puzzle' jars against 'level', that is a vocabulary decision for the whole panel and wants its own small bead rather than an edit to this one sentence.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "ask",
+        "class-c",
+        "asked-about:lp-ffddc7"
+      ],
+      "actor": "agent",
+      "run": "61",
+      "evidence": [],
+      "created": "2026-08-06T08:14:33.134Z",
+      "updated": "2026-08-06T08:14:33.134Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-399b0c",
+      "title": "Render INTRO from campaign.mjs into the page, and assert the page's intro EQUALS it",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "The campaign panel's intro is now the only text on it that the module does not own. Level titles and blurbs are set from `entry.title`/`entry.blurb` and index-campaign-wiring.selftest.mjs section (4) asserts they are absent from the page source; the intro is hand-typed at index.html:82-86 and section (8) checks only that SOME plain paragraph exists and is BANNED-free. That check passes for any English at all - including an intro naming a level as the opener after ORDER is recomputed, which is precisely what INTRO's new gate forbids in the module and nothing forbids in the page.\n\nSCOPE: plant/index.html and plant/test/index-campaign-wiring.selftest.mjs.\n\nTHE WORK: import INTRO alongside the other campaign exports; set `$('gameIntro').textContent = INTRO.blurb` and the `<h1>` from `INTRO.title` (or leave the h1 as the site name and use INTRO.title as the panel heading - either is fine, but pick one and assert it); ship both mount points EMPTY in the markup, the way `#gameTitle` and `#gameBlurb` already do, so there is no second copy to drift.\n\nTHE GATE, which already exists: extend section (8) to `intro.trim() === INTRO.blurb` and add the absence check the other module-owned text already gets - `!html.includes(INTRO.blurb)` outside the mount, mirroring section (4)'s `!block.includes(e.blurb)`. Keep the existing BANNED loop; it becomes cheap redundancy rather than the only defence.\n\nONE TRAP, and it is the reason this needs saying rather than being obvious: the shipped page wording is TWO sentences and says 'one setting to move'. Both violate rules campaign.selftest.mjs section 2b now enforces on INTRO. The fix direction is MODULE WINS, PAGE CHANGES - do not copy the page's wording into campaign.mjs and then relax section 2b to accommodate it. If the module's sentence is genuinely worse, change the module's sentence and let both gates judge the new one.\n\nWhat this does NOT do: improve the writing. That needs a person and is filed as an ask.",
+      "deps": [],
+      "parent": "lp-ffddc7",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "61",
+      "evidence": [],
+      "created": "2026-08-06T08:14:33.134Z",
+      "updated": "2026-08-06T08:14:33.134Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -12289,6 +12463,11 @@
       "from": "lp-6c88fb",
       "to": "lp-859fb9",
       "kind": "parent"
+    },
+    {
+      "from": "lp-ffddc7",
+      "to": "lp-399b0c",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -12769,7 +12948,15 @@
       "lp-e00633",
       "lp-056d80",
       "lp-e31335",
-      "lp-859fb9"
+      "lp-859fb9",
+      "lp-60f705",
+      "lp-45b44a",
+      "lp-48a417",
+      "lp-5b6617",
+      "lp-d4a69a",
+      "lp-88131c",
+      "lp-f17e0f",
+      "lp-399b0c"
     ],
     [
       "lp-f2e5a3",
@@ -12803,10 +12990,6 @@
   "ready": [
     {
       "id": "lp-e8d94e",
-      "unblocks": 0
-    },
-    {
-      "id": "lp-ffddc7",
       "unblocks": 0
     },
     {
@@ -12867,13 +13050,21 @@
   ],
   "now": {
     "state": "working",
-    "detail": "2 turn(s) in flight",
+    "detail": "1 turn(s) in flight",
     "beads": [
-      "lp-aabb74",
-      "lp-ffddc7"
+      "lp-aabb74"
     ]
   },
   "asks": [
+    {
+      "id": "lp-f17e0f",
+      "title": "Is the first sentence any good? A machine can only confirm it is one sentence in plain words",
+      "body": "The gate proves INTRO.blurb is one sentence, uses none of the jargon, names no level and counts nothing. It cannot say whether it makes a stranger want to touch the control, and I have no way to find out from here - there is no reader in this turn and the page is not yet wired to it.\n\nThe sentence: 'Each puzzle is a small factory that is not quite working, and you get a single control - move it until everything downstream gets what it asked for.' Title: 'Get everything fed'.\n\nTwo specific doubts I could not settle. (1) 'not quite working' may undersell it - on five of the six levels the opening state is already FED, so the honest framing might be 'working, but you have not proved it' rather than broken. I chose the punchier reading because a stranger who thinks nothing is wrong has no reason to move anything. (2) The word 'puzzle' commits to a framing the page never uses elsewhere ('level' is used throughout the module and the markup), and I deliberately avoided 'level' in the intro because the count rule and the level-id rule made every phrasing with it read awkwardly.\n\nI decided both ways rather than waiting, per the standing instruction. This is a note, not a request.\n\nDO: Open plant.minomobi.com once the wiring follow-up has landed, read only the top of the page, and stop. Do not scroll.\n\nWATCH FOR: Whether you know what you are supposed to DO before you touch anything - and specifically whether 'not quite working' makes you look for something broken on a level that opens already fed.\n\nSO THAT: If it reads fine, INTRO is done and nobody spends another turn on wording. If 'not quite working' misleads, the fix is one string in campaign.mjs and the gate re-checks it for free - and the finding worth recording is that the intro must describe the ACT (move the control until you have proved it) rather than the STATE. If 'puzzle' jars against 'level', that is a vocabulary decision for the whole panel and wants its own small bead rather than an edit to this one sentence.",
+      "open": true,
+      "about": "lp-ffddc7",
+      "answer": null,
+      "updated": "2026-08-06T08:14:33.134Z"
+    },
     {
       "id": "lp-e00633",
       "title": "Does the page now read as a game, or as a game bolted to the top of an explainer?",

@@ -18,7 +18,7 @@
 // Run: node plant/test/campaign.selftest.mjs
 
 import {
-  LEVELS, ORDER, WIN_FRACTION, BANNED, Campaign,
+  LEVELS, ORDER, WIN_FRACTION, BANNED, INTRO, Campaign,
   entryOf, buildNetwork, grade, winFraction, byDifficulty,
 } from '../campaign.mjs';
 import { feasible } from '../production.mjs';
@@ -68,6 +68,68 @@ console.log('\n2. every blurb is one sentence a stranger can read (f)');
     BANNED.some((w) => sample.toLowerCase().includes(w)));
   ok('CONTROL: the one-sentence check rejects two sentences',
     !/^[^.!?]+[.]$/.test('One thing. Then another.'));
+}
+
+// ---------------------------------------------------------------------------
+console.log('\n2b. INTRO — the first screen, and it must survive a reordering');
+{
+  // The blurb rules, applied to the one piece of text that is not a level's.
+  ok('INTRO has a non-empty title', typeof INTRO.title === 'string' && INTRO.title.trim().length > 0, INTRO.title);
+  ok('INTRO has a non-empty sentence', typeof INTRO.blurb === 'string' && INTRO.blurb.trim().length > 0, INTRO.blurb);
+  ok('INTRO is one sentence', /^[^.!?]+[.]$/.test(INTRO.blurb), INTRO.blurb);
+  const introText = `${INTRO.title} ${INTRO.blurb}`.toLowerCase();
+  const banned = BANNED.find((w) => introText.includes(w));
+  ok('INTRO uses none of the banned words', banned === undefined, banned);
+
+  // ORDER is computed, so the first screen a stranger meets can change when a
+  // level is retuned. Text that names a level, or counts them, would silently
+  // become wrong on that import — these two are the reordering guards and they
+  // are the reason this section exists at all.
+  const named = LEVELS.map((e) => e.id).find((id) => introText.includes(id.toLowerCase()));
+  ok('INTRO names no level id', named === undefined, named);
+
+  // Digits, and the spelled-out counts and positions that a digit check misses.
+  // Word boundaries on purpose: "everything" must not read as "ten".
+  //
+  // DELIBERATELY STRICTER THAN THE HAZARD. The thing that expires is counting
+  // LEVELS, and nothing here can tell "six levels" from "one setting" — so both
+  // are refused and the intro is phrased around it. index.html's own hand-typed
+  // intro would fail this. If you are here because a sentence you like was
+  // rejected, reword the sentence or change this list ON PURPOSE and say why;
+  // do not delete the assertion, which is the one move that makes the check
+  // stop meaning anything while still printing a tick.
+  const COUNT_WORDS = [
+    'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+    'first', 'second', 'third',
+  ];
+  const countRe = new RegExp(`\\d|\\b(${COUNT_WORDS.join('|')})\\b`, 'i');
+  ok('INTRO counts nothing — no digit, no spelled-out count or position',
+    !countRe.test(introText), (introText.match(countRe) || [])[0]);
+
+  // CONTROLS. Every check above is a NEGATIVE assertion over one short string,
+  // and a negative passes for a broken matcher exactly as loudly as for clean
+  // text — an empty BANNED array, a typo in the regex, a level-id list that
+  // came back empty. Each control feeds the same predicate something that MUST
+  // be caught, so a matcher that can no longer catch anything fails here first.
+  ok('CONTROL: the banned-word check would reject an intro that used them',
+    BANNED.some((w) => 'we compute the feasibility margin.'.includes(w)));
+  ok('CONTROL: the level-id check would reject an intro naming one',
+    LEVELS.map((e) => e.id).some((id) => `start on ${id} and work down.`.includes(id)));
+  ok('CONTROL: the count check rejects a digit', countRe.test('there are 6 puzzles.'));
+  ok('CONTROL: the count check rejects a spelled-out count', countRe.test('there are six puzzles.'));
+  ok('CONTROL: the count check rejects an ordinal', countRe.test('the first one is easiest.'));
+  // ...and does NOT reject an ordinary word that merely contains a count word.
+  // Without this, tightening the regex to a bare substring test would pass every
+  // assertion above while making the check unusable for any real sentence.
+  ok('CONTROL: the count check does not fire on "everything" or "stone"',
+    !countRe.test('everything downstream is stone.'));
+
+  // The intro is not a seventh level: it must not collide with a level's own
+  // words, or the page would show the same title twice on the opening screen.
+  ok('INTRO.title is not one of the level titles',
+    !LEVELS.some((e) => e.title === INTRO.title), INTRO.title);
+  ok('INTRO.blurb is not one of the level blurbs',
+    !LEVELS.some((e) => e.blurb === INTRO.blurb));
 }
 
 // ---------------------------------------------------------------------------

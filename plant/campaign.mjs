@@ -74,6 +74,48 @@ export const BANNED = Object.freeze([
   'oracle', 'feasibility', 'feasible', 'margin', 'anisotropy', 'anisotropic', 'satisfiable',
 ]);
 
+/**
+ * THE FIRST SCREEN. One title and one sentence for someone who has never seen
+ * this, answering vision item 1's "a first screen that says what you are doing
+ * in one sentence, without the words oracle, feasibility, margin or
+ * anisotropy". The module owns the words; the page renders them.
+ *
+ * It is held to the same two rules as a level blurb — one sentence, no BANNED
+ * word — and to two MORE, because it is the one piece of text in this file that
+ * is not attached to a level:
+ *
+ *   · it names no level id, and
+ *   · it counts nothing.
+ *
+ * ORDER is COMPUTED from win fractions rather than written down, so retuning a
+ * level can change which screen a stranger meets first. A sentence saying "six
+ * levels" or "start on the ore line" would become a lie on that import, with
+ * nothing to catch it — the gate forbids both shapes rather than trusting
+ * whoever rewrites this to remember.
+ *
+ * THE COUNT RULE IS STRICTER THAN ITS OWN JUSTIFICATION, and that is a choice
+ * rather than an oversight. The hazard is counting LEVELS; the gate forbids
+ * counting ANYTHING, because no regex can tell "six levels" (a claim that
+ * expires) from "one setting" (a claim that does not). index.html's own
+ * hand-typed intro — "Each level gives you one setting to move" — would fail
+ * this check, which is the honest way to say what it costs: a writer has to
+ * reach for "a single control" instead. Rewording one sentence is cheap;
+ * discovering a stale count on a live page is not, and loosening this rule
+ * later is a one-line edit if it ever bites something real.
+ *
+ * The field names are a LEVELS entry's (`title`, `blurb`) on purpose, so the
+ * page can render the intro screen and a level screen with the same two lines.
+ *
+ * WHAT NO GATE CAN CHECK, said plainly: whether the sentence is any GOOD. A
+ * machine can confirm it is one sentence in plain words and nothing beyond
+ * that. Which is exactly why it is ONE sentence — cheap to throw away when a
+ * person finally reads it.
+ */
+export const INTRO = Object.freeze({
+  title: 'Get everything fed',
+  blurb: 'Each puzzle is a small factory that is not quite working, and you get a single control — move it until everything downstream gets what it asked for.',
+});
+
 const intRange = (lo, hi) => {
   const out = [];
   for (let v = lo; v <= hi; v++) out.push(v);
