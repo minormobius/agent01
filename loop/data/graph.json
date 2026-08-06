@@ -143,12 +143,12 @@
   },
   "counts": {
     "total": 489,
-    "ready": 1,
+    "ready": 4,
     "blocked": 9,
     "in_progress": 0,
     "done": 78,
     "dropped": 3,
-    "proposed": 88,
+    "proposed": 85,
     "knowledge": 310
   },
   "beads": [
@@ -10700,13 +10700,16 @@
       "tags": [
         "proposed-by-agent",
         "class-a",
-        "creates-gate"
+        "creates-gate",
+        "rejected-by-review"
       ],
       "actor": "planner",
       "run": null,
-      "evidence": [],
+      "evidence": [
+        "rejected: REJECTED ON A ONE-LINE MECHANICAL FAULT, NOT ON MERIT — the content is good and it should be revived. It is tagged class-a + creates-gate, and its gate is `node plant/test/index-intro.selftest.mjs && node plant/test/index-summon-wiring.selftest.mjs`. scripts/beads.mjs:421-428 pulls EVERY path-shaped token out of the gate command, and :477-483 refuses a creates-gate bead if ANY named gate file alre"
+      ],
       "created": "2026-08-06T06:30:05.363Z",
-      "updated": "2026-08-06T06:30:05.363Z",
+      "updated": "2026-08-06T06:59:51.244Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -10973,13 +10976,16 @@
       "tags": [
         "proposed-by-agent",
         "class-a",
-        "creates-gate"
+        "creates-gate",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "56",
-      "evidence": [],
+      "evidence": [
+        "rejected: Fails R3, and the ticket says so itself. Its gate is `node scripts/loop-verdict.selftest.mjs` and its bounded paths are .github/workflows/loop-work.yml plus scripts/loop-*.mjs — all outside the loop's write paths. scripts/beads.mjs:500-514 refuses exactly this at promotion, and the comment there names lp-14c7f5, which burned five turns of a fifteen-turn window failing this way. So this is not mere"
+      ],
       "created": "2026-08-06T06:45:52.807Z",
-      "updated": "2026-08-06T06:45:52.807Z",
+      "updated": "2026-08-06T06:59:51.312Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -10995,13 +11001,16 @@
       "parent": "lp-250e23",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "56",
-      "evidence": [],
+      "evidence": [
+        "rejected: Rejected for this round only, on a red I cannot clear, and the ticket volunteers it: 'that gate has not yet been observed to pass — turn 55's run of it failed for a cause nobody has identified — so whoever promotes this should confirm it is green first, or this ticket inherits an unknown red.' I have no shell this turn, so I cannot confirm it, and approving work whose entire class-a claim rests on"
+      ],
       "created": "2026-08-06T06:45:52.807Z",
-      "updated": "2026-08-06T06:45:52.807Z",
+      "updated": "2026-08-06T06:59:51.385Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -11010,7 +11019,7 @@
       "id": "lp-aabb74",
       "title": "[CARRIED FROM TURN 55] summon-session's two verbs name the same field differently — preview() returns `first`, place() returns `refusal`",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 3,
       "body": "`preview()` returns `{ ok, solid, centre, r, con, refusals, first }`. `place()` returns `{ ok, move, solid, centre, con, pocket, pocketChanged, planted, refusals, refusal }`. Both fields mean 'the first refusal, or null'. Any renderer that wants one function for both verdicts must write `res.refusal || res.first`, which is precisely what `summonSentence` now does, and which is silently wrong the moment either verb gains the other's field — the `||` would pick the stale one with no error anywhere.\n\nThis is already recorded as a finding in the ledger; it is proposed as work now because lp-250e23 made a SECOND consumer of the asymmetry (the module, on top of the page), and because anything built next on the session — an undo, a level driven by it, the multi-refusal rendering proposed alongside this — inherits the same `||`.\n\nSCOPE, and it is deliberately the conservative half: have BOTH verbs set BOTH fields to the same value. Nothing that reads either name today breaks, no caller has to be found and changed, and the `||` in summon-view.js becomes redundant rather than load-bearing. A rename that misses a caller is strictly worse than the asymmetry, which is why the ticket should say plainly that removing either name is NOT in scope.\n\nBOUNDED PATHS: plant/summon-session.mjs, plant/test/summon-session.selftest.mjs.\n\nWHAT THE GATE MUST CHECK: for a real session (not hand-built objects), assert on a preview refusal AND on a place refusal AND on both success paths that `res.first === res.refusal` — including that both are `null` together on a success, which is the case an implementation setting only the failure path would get wrong. Also assert the value is the SAME OBJECT or deep-equal to `res.refusals[0]`, so the two names cannot drift to two different refusals. A per-verb field-list assertion would be worth adding at the same time: the ledger records that `placement.mjs`'s docstring claims 'every refusal carries summonSeed' while the metric refusal does not, and a field list no test reads is a field list that drifts.\n\nWHY class-a: plant/test/summon-session.selftest.mjs already exists and passes, so this is certified against an existing gate; the taker adds assertions to it.",
       "deps": [],
@@ -11023,9 +11032,9 @@
       "run": "56",
       "evidence": [],
       "created": "2026-08-06T06:45:52.807Z",
-      "updated": "2026-08-06T06:45:52.807Z",
+      "updated": "2026-08-06T06:59:51.155Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -11160,7 +11169,7 @@
       "id": "lp-6c88fb",
       "title": "Wire campaign.mjs into index.html — one level at a time, a win state, and a next, replacing the six scrolled sections",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 0,
       "body": "campaign.mjs exists and is gated; the page does not use it. This is vision item 1's remaining half and it is the ONLY proposal here that changes what a visitor sees, which is why it is at priority 0 — the vision's own box says a planner about to propose something at P0 that does not change the page should propose it at P2 instead.\n\nSCOPE: plant/index.html and plant/test/index-campaign-wiring.selftest.mjs (new). Do NOT touch campaign.mjs, the level modules, production.mjs or level-view.js — if the wiring needs something the controller does not expose, that is a second bead, not an edit to a gated module.\n\nWHAT TO BUILD. One <section> that shows ONE level: its title, its blurb (campaign.mjs exports it; do not retype it), a control built FROM `entryOf(id).knob` rather than a hand-written <input>, the board drawn by level-view.js's drawLevel (campaign's verdict() is deliberately a valid drawLevel verdict — it spreads feasible()'s own result), the verdict line from `verdict().line`, and a next button that appears only when `verdict().won`. On the last level, next() returns null and the panel says the run is over rather than wrapping.\n\nTHE CONTROL BOUNDS MUST COME FROM `knob.samples`, NOT BE RETYPED. This is the whole reason the knob domains were declared as the page's own ranges: a slider is `min=0 max=samples.length-1 step=1` over the INDEX, and `move(samples[i])`, so a drifted float can never be produced and the difficulty measure keeps describing what the player is offered. The existing level-1 slider currently carries `value=\"1000\"` against `max=\"120\"` (silently clamped by the browser, see the finding on this bead) — that duplication is exactly what this removes.\n\nTHE GATE IT CREATES: plant/test/index-campaign-wiring.selftest.mjs, reading index.html as text, in the style of index-summon-wiring.selftest.mjs — which derives its expectations from the MODULE's own exports rather than from a copied list, and that is the property to reproduce. It must assert: (1) the page imports campaign.mjs and constructs a Campaign; (2) NO level id, blurb, title or control bound is hand-typed in the campaign block — derive the forbidden literals from LEVELS and knob.samples and assert none appears as a literal there; (3) the six old per-level sections are gone (assert the count of level SVG ids, so a leftover section fails loudly); (4) the handlers call move/verdict/next and contain no feasible(), no autoSplit() and no level literal — the page must decide nothing.\n\nUSE EXPLICIT BLOCK MARKERS around the campaign block rather than relying on position: the existing index-summon-wiring gate finds its block POSITIONALLY (its closing note says 'all such hits are at lines 321-378, well before it'), so restructuring the page around it can break a currently-correct gate. A checker that fails correct work is worse than no checker.",
       "deps": [],
@@ -11174,9 +11183,9 @@
       "run": "57",
       "evidence": [],
       "created": "2026-08-06T06:52:07.266Z",
-      "updated": "2026-08-06T06:52:07.266Z",
+      "updated": "2026-08-06T06:59:51.021Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -11190,13 +11199,16 @@
       "parent": "lp-d3848e",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "57",
-      "evidence": [],
+      "evidence": [
+        "rejected: Fails the vision's own test for what does not matter right now: it produces a new module that nothing imports (level-view.js re-exports, so all five callers keep their current import) and changes no observable behaviour. The stated motivation — 'anything that ever puts DOM at level-view.js's top level breaks the controller and its gate' — is hypothetical, and the ticket concedes there is none toda"
+      ],
       "created": "2026-08-06T06:52:07.266Z",
-      "updated": "2026-08-06T06:52:07.266Z",
+      "updated": "2026-08-06T06:59:51.454Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -11205,7 +11217,7 @@
       "id": "lp-ffddc7",
       "title": "A first screen: one sentence saying what you are doing, before the first level",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 2,
       "body": "Vision item 1 asks for 'a first screen that says what you are doing in one sentence, without the words oracle, feasibility, margin or anisotropy'. campaign.mjs shipped the vocabulary rule (a BANNED array, enforced on every level blurb by its gate) and the per-level blurbs, but there is no game-level sentence and no entry point — a stranger still lands mid-page.\n\nSCOPE: plant/campaign.mjs (add an exported INTRO: a title and one sentence) and plant/test/campaign.selftest.mjs (extend). Nothing else — the page half belongs to the wiring bead above, and this deliberately lands first so the wiring has something to render.\n\nWHY IT IS SEPARATE from the wiring: the wiring bead is already large, and this is the piece with actual writing in it. Splitting them means the sentence can be rewritten without touching the page and vice versa.\n\nTHE GATE ALREADY EXISTS — plant/test/campaign.selftest.mjs — and the assertions to add are the ones it already makes about blurbs, applied to INTRO: one sentence, no word from BANNED, and non-empty. Also assert INTRO does not name a level id or a number, since it must survive a reordering of ORDER.\n\nWHAT NO GATE CAN CHECK, said plainly: whether the sentence is any GOOD. A machine can only confirm it is one sentence in plain words. That is a real limit and the reason this is small — one sentence is cheap to replace when a person finally reads it.",
       "deps": [],
@@ -11218,9 +11230,9 @@
       "run": "57",
       "evidence": [],
       "created": "2026-08-06T06:52:07.266Z",
-      "updated": "2026-08-06T06:52:07.266Z",
+      "updated": "2026-08-06T06:59:51.090Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -12580,7 +12592,19 @@
   ],
   "ready": [
     {
+      "id": "lp-6c88fb",
+      "unblocks": 0
+    },
+    {
       "id": "lp-e8d94e",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-ffddc7",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-aabb74",
       "unblocks": 0
     }
   ],
