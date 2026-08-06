@@ -8684,10 +8684,10 @@
         "plant/tools/loop-brief.selftest.mjs",
         "plant/tools/loop-brief.mjs",
         "plant/CLAUDE.md",
-        "rejected: R3, and it is now the most expensive lesson in the ledger. This is loop infrastructure, not plant/, and its remaining work is a move into scripts/ plus three workflow edits — paths no agent seat can write. THREE turns have already been spent proving that from the inside, and each one's outbox was committed and never applied because loop-work only applies an outbox when the ticket gate passes. A fo"
+        "rejected: R3, and it is not close: the deliverable is that the loop's briefs are COMPOSED by this module, which requires editing .github/workflows/loop-work.yml, loop-plan.yml and loop-review.yml, all outside the loop's write paths. Three fleet turns have now landed on it and all three ended blocked; the module and its 13-section test are already complete and parked at plant/tools/, so a fourth turn has not"
       ],
       "created": "2026-08-05T19:45:10.643Z",
-      "updated": "2026-08-06T06:35:04.598Z",
+      "updated": "2026-08-06T06:40:21.331Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -10474,10 +10474,10 @@
       "actor": "planner",
       "run": null,
       "evidence": [
-        "rejected: R3, self-declared and correct: 'this touches scripts/ and .github/workflows/, both outside the fleet's write scope. NO AGENT SEAT CAN DO IT.' I agree with the ticket about itself, so approving it would be me overruling its own precondition and buying lp-14c7f5's fourth wasted turn. This is the best-specified thing in the batch and it is the wrong queue: two git mv, three inline `node -e` blocks re"
+        "rejected: R3, stated by the ticket itself: 'this touches scripts/ and .github/workflows/, both outside the fleet's write scope. NO AGENT SEAT CAN DO IT.' A proposal whose own body says the fleet cannot execute it does not belong in a queue the fleet works. It is an excellent operator checklist and a bad ticket, and it is the same work as lp-14c7f5, so approving it would buy a fourth blocked turn on a second"
       ],
       "created": "2026-08-06T06:30:05.339Z",
-      "updated": "2026-08-06T06:35:04.667Z",
+      "updated": "2026-08-06T06:40:21.391Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -10500,10 +10500,10 @@
       "actor": "planner",
       "run": null,
       "evidence": [
-        "rejected: R3, self-declared: '.github/workflows/ and scripts/ ... the change is its own blocker.' Same wall as its two siblings. It is also the one with an open judgement inside it — whether containment widens to match config.writes (adding loop/**) or writes narrows to match containment — and the body correctly says that call is the reviewer's. Since I am rejecting it on dispatchability I will make the cal"
+        "rejected: R3, again self-declared: it edits .github/workflows/loop-work.yml and creates scripts/loop-containment.selftest.mjs, and it is a ticket ABOUT the containment gate that forbids it — 'the change is its own blocker', in its own words. Also R2 in a way that would be caught anyway: as creates-gate, scripts/beads.mjs:500-515 refuses a gate file outside `writes`, so promotion cannot succeed. The diagnosi"
       ],
       "created": "2026-08-06T06:30:05.339Z",
-      "updated": "2026-08-06T06:35:04.794Z",
+      "updated": "2026-08-06T06:40:21.453Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -10525,10 +10525,10 @@
       "actor": "planner",
       "run": null,
       "evidence": [
-        "rejected: R3, self-declared: touches scripts/loop-tick.mjs. Rejecting this is the one that costs me something, because the diagnosis is right and it is the highest-leverage safety fix proposed this round — a bead whose gate names a file outside the containment scope is unsatisfiable before dispatch, three such dispatches trip stop.repeatedGateFailures, and the fleet HALTS with the log blaming the agent. Its"
+        "rejected: R3: scripts/loop-tick.selftest.mjs and the reactor's own logic, outside plant/. The reasoning is sound and half of it has already been implemented elsewhere — scripts/beads.mjs:500-515 now refuses a creates-gate bead whose gate lies outside `writes`, with lp-14c7f5 named in the comment as the case that cost five turns — so the first half is partly done at promotion rather than at dispatch. The sec"
       ],
       "created": "2026-08-06T06:30:05.339Z",
-      "updated": "2026-08-06T06:35:04.731Z",
+      "updated": "2026-08-06T06:40:21.515Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -10723,7 +10723,7 @@
       "run": null,
       "evidence": [],
       "created": "2026-08-06T06:30:05.363Z",
-      "updated": "2026-08-06T06:35:04.443Z",
+      "updated": "2026-08-06T06:40:21.182Z",
       "blocked": false,
       "ready": true,
       "unmet": []
@@ -10771,7 +10771,7 @@
       "run": null,
       "evidence": [],
       "created": "2026-08-06T06:30:05.363Z",
-      "updated": "2026-08-06T06:35:04.507Z",
+      "updated": "2026-08-06T06:40:21.241Z",
       "blocked": false,
       "ready": true,
       "unmet": []
