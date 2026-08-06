@@ -14990,9 +14990,10 @@
   ],
   "now": {
     "state": "working",
-    "detail": "1 turn(s) in flight",
+    "detail": "2 turn(s) in flight",
     "beads": [
-      "lp-3302ee"
+      "lp-3302ee",
+      "lp-36b1bd"
     ]
   },
   "asks": [
