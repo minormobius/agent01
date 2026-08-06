@@ -17,8 +17,9 @@
  * rate-limit or a dropped connection costs you one page, not the whole run.
  */
 
-import { createWriteStream, existsSync, readFileSync } from 'node:fs';
+import { createWriteStream, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolveHandle, resolvePds } from '../atproto/pds.js';
+import { readRepo } from './car.mjs';
 
 const PUBLIC_API = 'https://public.api.bsky.app';
 const PAGE_SIZE = 100; // listRecords ceiling
@@ -81,13 +82,13 @@ function readQuote(embed) {
 }
 
 /** Collapse a raw PDS record into the flat training-facing shape. */
-function normalise(record, did) {
-  const v = record.value ?? {};
+function normalise(uri, value, did) {
+  const v = value ?? {};
   const embedType = v.embed?.$type?.replace('app.bsky.embed.', '') ?? null;
 
   return {
-    uri: record.uri,
-    rkey: record.uri.split('/').pop(),
+    uri,
+    rkey: uri.split('/').pop(),
     author: did,
     text: v.text ?? '',
     createdAt: v.createdAt ?? null,
@@ -145,7 +146,7 @@ export async function harvest(actor, out, { onPage } = {}) {
     for (const record of records) {
       if (seen.has(record.uri)) continue;
       seen.add(record.uri);
-      sink.write(JSON.stringify(normalise(record, did)) + '\n');
+      sink.write(JSON.stringify(normalise(record.uri, record.value, did)) + '\n');
       added++;
     }
 
@@ -157,6 +158,52 @@ export async function harvest(actor, out, { onPage } = {}) {
 
   await new Promise((resolve) => sink.end(resolve));
   return { did, pds, fetched, added };
+}
+
+// ─── Pass 1, the fast way: whole-repo CAR export ─────────────────
+
+/**
+ * Download the principal's entire repository as a CAR.
+ *
+ * One request for everything, versus one per hundred records. On a 50k-post
+ * repo this is ~90MB in a few seconds against several minutes of paging, and
+ * it leaves a local file you can re-parse without touching the PDS again.
+ */
+export async function fetchCar(actor, out) {
+  const did = actor.startsWith('did:') ? actor : await resolveHandle(actor);
+  const pds = await resolvePds(did);
+
+  const url = `${pds}/xrpc/com.atproto.sync.getRepo?did=${encodeURIComponent(did)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText} fetching repo for ${did}`);
+
+  const buf = Buffer.from(await res.arrayBuffer());
+  writeFileSync(out, buf);
+  return { did, pds, bytes: buf.length };
+}
+
+/**
+ * Normalise the posts out of a CAR export into the same JSONL shape the
+ * paged harvester produces, so --hydrate and the census cannot tell which
+ * route the corpus arrived by.
+ *
+ * The other collections are counted and returned but not written: likes and
+ * reposts are preference signal rather than text, and belong to a later
+ * stage than this one.
+ */
+export function harvestFromCar(carPath, out) {
+  const repo = readRepo(new Uint8Array(readFileSync(carPath)));
+  const posts = repo.collections.get(POSTS) ?? [];
+
+  const sink = createWriteStream(out, { flags: 'w' });
+  for (const { rkey, value } of posts) {
+    const uri = `at://${repo.did}/${POSTS}/${rkey}`;
+    sink.write(JSON.stringify(normalise(uri, value, repo.did)) + '\n');
+  }
+  sink.end();
+
+  const counts = [...repo.collections].map(([name, rs]) => [name, rs.length]);
+  return { did: repo.did, rev: repo.rev, posts: posts.length, records: repo.total, counts };
 }
 
 // ─── Pass 2: hydrate reply parents ───────────────────────────────
@@ -231,10 +278,12 @@ export async function hydrate(path, out, { onBatch } = {}) {
 // ─── CLI ─────────────────────────────────────────────────────────
 
 function parseArgs(argv) {
-  const args = { actor: null, out: 'corpus.jsonl', hydrate: false };
+  const args = { actor: null, out: 'corpus.jsonl', car: null, hydrate: false, paged: false };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--out') args.out = argv[++i];
+    else if (argv[i] === '--car') args.car = argv[++i];
     else if (argv[i] === '--hydrate') args.hydrate = true;
+    else if (argv[i] === '--paged') args.paged = true;
     else if (!args.actor) args.actor = argv[i];
   }
   return args;
@@ -242,16 +291,39 @@ function parseArgs(argv) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const args = parseArgs(process.argv.slice(2));
-  if (!args.actor) {
-    console.error('usage: node harvest.mjs <handle-or-did> [--out FILE] [--hydrate]');
+  if (!args.actor && !args.car) {
+    console.error(
+      'usage: node harvest.mjs <handle-or-did> [--out FILE] [--hydrate]\n' +
+        '       --car FILE   reuse (or write) a CAR export instead of refetching\n' +
+        '       --paged      page listRecords instead of pulling the whole repo'
+    );
     process.exit(1);
   }
 
-  const result = await harvest(args.actor, args.out, {
-    onPage: ({ fetched, added }) =>
-      process.stderr.write(`\r  harvest: ${fetched} seen, ${added} new`),
-  });
-  process.stderr.write(`\n  ${result.did} via ${result.pds}\n`);
+  if (args.paged) {
+    const result = await harvest(args.actor, args.out, {
+      onPage: ({ fetched, added }) =>
+        process.stderr.write(`\r  harvest: ${fetched} seen, ${added} new`),
+    });
+    process.stderr.write(`\n  ${result.did} via ${result.pds}\n`);
+  } else {
+    // Default: one request for the whole repository.
+    const car = args.car ?? `${args.out.replace(/\.jsonl$/, '')}.car`;
+    if (!existsSync(car)) {
+      const f = await fetchCar(args.actor, car);
+      process.stderr.write(
+        `  fetched ${(f.bytes / 1e6).toFixed(1)}MB from ${f.pds}\n`
+      );
+    } else {
+      process.stderr.write(`  reusing ${car}\n`);
+    }
+
+    const r = harvestFromCar(car, args.out);
+    process.stderr.write(`  ${r.did} @ ${r.rev} — ${r.records} records, ${r.posts} posts\n`);
+    for (const [name, count] of r.counts.sort((a, b) => b[1] - a[1]).slice(0, 6)) {
+      process.stderr.write(`    ${name.padEnd(28)} ${String(count).padStart(8)}\n`);
+    }
+  }
 
   if (args.hydrate) {
     const h = await hydrate(args.out, args.out, {
