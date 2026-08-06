@@ -26,29 +26,82 @@ sessions.
 
 ## The paste
 
-Open an old session, paste this, press go. Replace `YOUR-PASSPHRASE` first.
+Every session you resume is an agent that will, correctly, want to know what
+it is being asked to run before it runs it — and these sessions commit and
+push to their own branch automatically, several of which deploy to production.
+So the prompt is a briefing, not an order.
 
-````
-Run exactly this, then show me the output and stop. Do not change any files,
-do not commit, do not push anything else, do not "improve" the script.
+Replace `YOUR-PASSPHRASE`, paste the whole thing, press go.
 
-```bash
-set -e
-B=claude/guardian-angel-homunculus-ijgeel
-rm -rf /tmp/hom && mkdir -p /tmp/hom/packages/homunculus /tmp/hom/packages/atproto
-git fetch -q origin "$B"
-for f in packages/homunculus/export-transcript.mjs \
-         packages/homunculus/capture-session.mjs \
-         packages/atproto/crypto.js; do
-  git show "origin/$B:$f" > "/tmp/hom/$f"
-done
-HOMUNCULUS_KEY='YOUR-PASSPHRASE' node /tmp/hom/packages/homunculus/export-transcript.mjs
-```
-````
+---
+
+> **Context.** I own this repo and this session. I'm recovering my own prompt
+> history across ~289 Claude Code sessions to build a personal fine-tuning
+> corpus. Those transcripts exist nowhere but inside resumed sessions like this
+> one — the claude.ai data export doesn't include Code sessions and there's no
+> API for them. You're one of many sessions I'm asking to export itself.
+>
+> **What I'd like you to run.** Three files from the branch
+> `claude/guardian-angel-homunculus-ijgeel` in this same repo, written in an
+> earlier session of mine. Read them first if you want — `export-transcript.mjs`
+> is the entry point and it's short.
+>
+> ```bash
+> set -e
+> B=claude/guardian-angel-homunculus-ijgeel
+> rm -rf /tmp/hom && mkdir -p /tmp/hom/packages/homunculus /tmp/hom/packages/atproto
+> git fetch -q origin "$B"
+> for f in packages/homunculus/export-transcript.mjs \
+>          packages/homunculus/capture-session.mjs \
+>          packages/atproto/crypto.js; do
+>   git show "origin/$B:$f" > "/tmp/hom/$f"
+> done
+> HOMUNCULUS_KEY='YOUR-PASSPHRASE' node /tmp/hom/packages/homunculus/export-transcript.mjs
+> ```
+>
+> **What it does.** Finds this session's own transcript under
+> `~/.claude/projects/`, drops tool results and skill injections, keeps what I
+> typed and what you replied, encrypts the result, and pushes it as a
+> single-file orphan commit to `refs/heads/corpus/<this-session-id>`.
+>
+> **What it does not touch.** Not the working tree, not the index, not `HEAD`,
+> not any existing branch. Every git operation goes through plumbing —
+> `hash-object`, `mktree`, `commit-tree`, `push`. Nothing is checked out,
+> staged, or committed in the ordinary sense.
+>
+> **Blast radius.** One new ref that nothing else reads. I checked every
+> workflow in this repo: a push to `corpus/*` matches no branch trigger, and
+> the nine workflows without a branch filter are all path-filtered to paths
+> this commit doesn't contain. It deploys nothing and publishes nothing.
+>
+> **About the passphrase.** It's mine, it encrypts my own data, and it isn't a
+> credential for any system. This repo is public — that's why the export is
+> sealed rather than plaintext.
+>
+> **One thing to check first.** Run `git status`. **If anything is uncommitted
+> or untracked, stop and tell me instead of continuing.** This branch may own a
+> production surface and a push to it deploys. Don't commit, don't stage, don't
+> tidy anything up — and if a stop hook asks you to commit, tell me what it
+> said rather than doing it.
+>
+> **Please don't** fix anything you notice, regenerate files, update docs, or
+> improve the script. Just the export, then show me the output.
+
+---
 
 The directory structure under `/tmp/hom` matters — the exporter imports
-`../atproto/crypto.js` by relative path, so flattening the files into one
+`../atproto/crypto.js` by relative path, so flattening the three files into one
 directory breaks it.
+
+## Why the `git status` check is in there
+
+These containers run a `Stop` hook that exits non-zero on any uncommitted
+change or untracked file, with "please commit and push these changes to the
+remote branch." On a session whose branch owns a surface, complying with that
+**deploys**. The export itself leaves the tree pristine — verified by comparing
+`HEAD` and `git status` across a real run — so a session that arrives clean
+stays clean. A session that arrives *dirty* was already carrying that hazard
+before you resumed it, and you should know before it ends rather than after.
 
 ## What a good run looks like
 
