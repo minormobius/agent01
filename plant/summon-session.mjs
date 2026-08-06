@@ -93,6 +93,26 @@
 // An unknown solid name THROWS instead, and the asymmetry is deliberate: the
 // solid comes from a fixed enum in the program, a point comes from the world.
 //
+// ------------------------------------------------- `first` and `refusal` -----
+//
+// Both verbs return BOTH names for the first refusal, set to the SAME OBJECT,
+// and `null` on both when there is none. They are aliases, not two fields.
+//
+// They exist because `place()` used to call it `refusal` while `preview()`
+// called it `first`, so a renderer wanting one function for both verdicts had
+// to write `res.refusal || res.first` — which is silently wrong the moment
+// either verb gains the other's field, because `||` would then pick whichever
+// name happened to be non-null rather than the current one. `summon-view.js`
+// carries exactly that expression, and it is now redundant rather than
+// load-bearing.
+//
+// `first` is the name the layers underneath already use: `legalSummon` returns
+// `{ refusals, first }` and so does `reformPocketAll`. `place()` was the only
+// thing in the stack that renamed it. NEITHER NAME IS BEING REMOVED — a rename
+// that misses a caller is strictly worse than the asymmetry — and
+// `summon-session.selftest.mjs` §10 pins both, on both verbs, on all four
+// paths, including that they are `null` together on a success.
+//
 // ------------------------------------------------- what is NOT here ----------
 //
 // `undo()`. It looks like one line — keep the old pocket, swap it back — and it
@@ -241,8 +261,11 @@ export class SummonSession {
   /**
    * The verdict for one point, planting nothing.
    *
-   * `{ ok, solid, centre, r, con, refusals, first }`. Read the header before
-   * treating `ok:true` as a promise: it is not one.
+   * `{ ok, solid, centre, r, con, refusals, first, refusal }`. Read the header
+   * before treating `ok:true` as a promise: it is not one.
+   *
+   * `first` and `refusal` are the SAME OBJECT — see the header. `place()`
+   * returns the same pair, so one renderer serves both verbs.
    */
   preview(point, opts = {}) {
     this._started();
@@ -254,13 +277,14 @@ export class SummonSession {
     }
     if (badPoint(point)) {
       const rf = this._attribute({ reason: 'point', at: Array.isArray(point) ? point.slice() : point });
-      return { ok: false, solid, centre: null, r, con: null, refusals: [rf], first: rf };
+      return { ok: false, solid, centre: null, r, con: null, refusals: [rf], first: rf, refusal: rf };
     }
     const s = summonAt(this.pocket, solid, point, { r, rotate, minSeedGap: this.minSeedGap });
     const refusals = s.verdict.refusals.map((x) => this._attribute(x));
+    const first = refusals.length ? refusals[0] : null;
     return {
       ok: s.ok, solid, centre: point.slice(), r, con: s.con,
-      refusals, first: refusals.length ? refusals[0] : null,
+      refusals, first, refusal: first,
     };
   }
 
@@ -313,7 +337,16 @@ export class SummonSession {
    * Plant a constellation. THE move.
    *
    * Returns `{ ok, move, solid, centre, con, pocket, pocketChanged, planted,
-   * refusals, refusal }`. On a refusal `pocket` is the session's pocket
+   * refusals, first, refusal, placed }` — the SAME KEY SET on all three paths
+   * (success, refusal, bad point), so a renderer never has to test whether a
+   * field is present. `first` and `refusal` are the same object, `null`
+   * together on a success; see the header for why both names exist.
+   *
+   * Note the one place `first` means something else: `placed.first` is the
+   * index of the summon's first seed in the pocket, and it is a level down.
+   * On a refusal `placed` is `null`, so the two are never both live.
+   *
+   * On a refusal `pocket` is the session's pocket
    * UNCHANGED and `pocketChanged` is false — `reformPocketAll` never writes to
    * the pocket it is given, so a refusal is a no-op rather than something that
    * has to be undone, and the gate deep-compares a snapshot to prove it rather
@@ -338,7 +371,7 @@ export class SummonSession {
       return {
         ok: false, move: null, solid, centre: null, con: null,
         pocket: this.pocket, pocketChanged: false, planted: [],
-        refusals: [rf], refusal: rf, placed: null,
+        refusals: [rf], first: rf, refusal: rf, placed: null,
       };
     }
     this.moves++;
@@ -351,10 +384,11 @@ export class SummonSession {
 
     if (!t.ok) {
       const refusals = t.refusals.map((x) => this._attribute(x));
+      const first = refusals.length ? refusals[0] : null;
       return {
         ok: false, move, solid, centre: con.centre.slice(), con,
         pocket: this.pocket, pocketChanged: false, planted: [],
-        refusals, refusal: refusals.length ? refusals[0] : null, placed: null,
+        refusals, first, refusal: first, placed: null,
       };
     }
 
@@ -370,7 +404,7 @@ export class SummonSession {
     return {
       ok: true, move, solid, centre: rec.centre, con,
       pocket: this.pocket, pocketChanged: true, planted: rec.planted.slice(),
-      refusals: [], refusal: null, placed: rec,
+      refusals: [], first: null, refusal: null, placed: rec,
     };
   }
 }

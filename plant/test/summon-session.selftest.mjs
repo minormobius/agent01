@@ -58,6 +58,18 @@
 //       the same reason. The converse is NOT asserted and must not be; the
 //       rebuild can still fail on closure or nav, neither decidable in advance.
 //
+//   (e) THE TWO VERBS RETURN THE SAME SHAPE. `preview` used to name the first
+//       refusal `first` and `place` used to name it `refusal`, so a renderer
+//       serving both had to write `res.refusal || res.first` — an expression
+//       that goes silently wrong the moment either verb gains the other name.
+//       Both now set both, to the same object, and §10 asserts it on a preview
+//       refusal, a place refusal, a bad point on each verb, AND BOTH SUCCESS
+//       PATHS — the last being the case an alias applied only to the failure
+//       branches would get wrong while passing everything else. The field-list
+//       assertion beside it is not tidiness: `first === refusal` passes for an
+//       implementation that sets NEITHER, so the key set is the only check that
+//       the names exist at all.
+//
 // Every blame value in the taxonomy is exercised against a real fixture —
 // 'player', 'pocket', 'hull', 'self', 'caller' — because a classifier that is
 // only ever shown one class is not a classifier.
@@ -387,6 +399,10 @@ if (FIX) {
      `taxonomy: and five of the six classes were reached by a real fixture (${[...seen].sort().join(', ')})`);
 }
 
+// §10 needs a REAL successful place() result, and a success costs a rebuild, so
+// it borrows the one section 9 already paid for rather than buying a second.
+let LANDED = null;
+
 // ------------------------------------------------- 9. a refusal is not fatal --
 // The session must remain usable after being told no. A controller that
 // corrupted its pocket on a refusal would pass sections 4-5 (which only compare
@@ -401,7 +417,7 @@ if (FIX && M2) {
   for (const c of far.filter((_, i) => i % spread === 0).slice(0, 3)) {
     n++;
     const r = G.place('cube', c.centre);
-    if (r.ok) { landed = r; break; }
+    if (r.ok) { landed = r; LANDED = r; break; }
   }
   ok(landed !== null, `recovery: a legal summon still lands after a refused one (tried ${n})`);
   if (landed) {
@@ -411,6 +427,116 @@ if (FIX && M2) {
     ok(G.ownerOf(M1.placed.first).move === 1, 'recovery: …and still resolves for the first one, so indices did not shift');
     ok(landed.planted.every((ix, i) => G.pocket.seeds[ix].every((v, k) => v === landed.con.seeds[i][k])),
        'recovery: and the second summon also landed exactly where it was asked');
+  }
+}
+
+// ------------------------------------------------ 10. first === refusal ------
+// The two verbs used to name the first refusal DIFFERENTLY: `preview` returned
+// `first`, `place` returned `refusal`. Any renderer serving both had to write
+// `res.refusal || res.first` — and that expression is silently wrong the moment
+// either verb gains the other name, because `||` picks whichever is non-null
+// rather than the one this verb actually set. `summon-view.js` carries exactly
+// that expression. Both verbs now set BOTH names, to the same object.
+//
+// TWO THINGS MAKE THIS SECTION MORE THAN A TAUTOLOGY, and neither is obvious:
+//
+//   · `res.first === res.refusal` PASSES FOR AN IMPLEMENTATION THAT SETS
+//     NEITHER — `undefined === undefined`. So the field-list assertion is
+//     load-bearing rather than tidiness: it is the only check here that the
+//     names exist at all, and on a refusal `first.reason` is asserted to be a
+//     real string so the identity is not two undefineds agreeing.
+//
+//   · THE SUCCESS PATHS ARE THE INTERESTING ONES. An implementation that
+//     aliased only the failure branches passes every refusal case below and
+//     leaves `first` undefined on a landed summon — where `undefined || null`
+//     is still null and nothing looks wrong, right up until a stale refusal is
+//     sitting in the other name. Both are asserted `null` TOGETHER.
+if (FIX) {
+  // Neither verb changes its shape between paths, so a renderer never has to
+  // test whether a field is present. A field list no test reads is a field list
+  // that drifts — which is how this ticket happened.
+  const PREVIEW_KEYS = ['centre', 'con', 'first', 'ok', 'r', 'refusal', 'refusals', 'solid'].join(',');
+  const PLACE_KEYS = ['centre', 'con', 'first', 'move', 'ok', 'placed', 'planted',
+    'pocket', 'pocketChanged', 'refusal', 'refusals', 'solid'].join(',');
+  const keys = (o) => Object.keys(o).sort().join(',');
+
+  // A spot that still previews legal on S. Section 9 proved such spots exist on
+  // G, and S holds a SUBSET of G's seeds — both grew from pocket seed 2, S has
+  // only cube A, G has cube A plus the one section 9 landed — so legal-on-G
+  // implies legal-on-S and the same filter is reused rather than a new fixture
+  // invented.
+  const openS = CAND.list
+    .filter((c) => Math.hypot(c.centre[0] - FIX.c1[0], c.centre[1] - FIX.c1[1], c.centre[2] - FIX.c1[2]) > 14)
+    .filter((c) => S.preview(c.centre, { solid: 'cube' }).ok);
+  ok(openS.length > 0, `alias fixture: spots that still preview legal on S (${openS.length})`);
+
+  const CASES = [
+    { verb: 'preview', name: 'a player-blocked spot', refused: true,
+      res: S.preview(FIX.c2, { solid: 'cube' }) },
+    { verb: 'preview', name: 'a non-finite point', refused: true,
+      res: S.preview([NaN, 18, 40], { solid: 'cube' }) },
+    { verb: 'preview', name: 'A SUCCESS', refused: false,
+      res: openS.length ? S.preview(openS[0].centre, { solid: 'cube' }) : null },
+    { verb: 'place', name: 'a player-blocked spot', refused: true,
+      res: S.place('cube', FIX.c2) },
+    { verb: 'place', name: 'a non-finite point', refused: true,
+      res: S.place('cube', [NaN, 18, 40]) },
+    { verb: 'place', name: 'A SUCCESS', refused: false, res: LANDED },
+  ];
+
+  for (const c of CASES) {
+    const res = c.res;
+    ok(res !== null && res !== undefined, `alias: a real ${c.verb}() result for ${c.name} was obtained`);
+    if (!res) continue;
+
+    ok(keys(res) === (c.verb === 'preview' ? PREVIEW_KEYS : PLACE_KEYS),
+       `alias: ${c.verb}() ${c.name} returns the published field list — got ${keys(res)}`);
+    ok(res.ok === !c.refused,
+       `alias fixture: ${c.verb}() ${c.name} is ${c.refused ? 'refused' : 'ok'} (got ok=${res.ok})`);
+    ok(res.first === res.refusal,
+       `alias: ${c.verb}() ${c.name} — first and refusal are the SAME value `
+       + `(first ${res.first === null ? 'null' : typeof res.first}, refusal ${res.refusal === null ? 'null' : typeof res.refusal})`);
+
+    const expect = res.refusals.length ? res.refusals[0] : null;
+    ok(res.first === expect,
+       `alias: ${c.verb}() ${c.name} — and that value is refusals[0] ITSELF, so the two names cannot drift to two different refusals`);
+
+    if (c.refused) {
+      ok(res.first && typeof res.first.reason === 'string' && BLAME.includes(res.first.blame),
+         `alias: ${c.verb}() ${c.name} really carries a refusal, so the identity above is not two undefineds agreeing `
+         + `(reason ${res.first && res.first.reason}, blame ${res.first && res.first.blame})`);
+    } else {
+      // THE CASE A FAILURE-PATH-ONLY ALIAS GETS WRONG.
+      ok(res.first === null && res.refusal === null,
+         `alias: a successful ${c.verb}() sets BOTH names to null — not one null and one undefined`);
+      ok(res.refusals.length === 0, `alias: …and a success reports no refusals at all`);
+    }
+  }
+
+  // WHICH NAME carries "which part of the shape" is a SECOND asymmetry, and this
+  // ticket deliberately does not fix it: `preview` reports `summonSeed` (the
+  // index within con.seeds, from legalSummon) while `place` reports `point` (the
+  // index within the batch, from reformPocketAll). Pinned here so it cannot
+  // drift silently and so a later ticket has something to point at rather than
+  // rediscovering it from a renderer that lit up nothing.
+  {
+    const pv = S.preview(FIX.c2, { solid: 'cube' });
+    const pl = S.place('cube', FIX.c2);
+    let pvSeen = 0, plSeen = 0;
+    for (const rf of pv.refusals) {
+      if (!['hull', 'seed', 'self'].includes(rf.reason)) continue;
+      pvSeen++;
+      ok(typeof rf.summonSeed === 'number' && rf.point === undefined,
+         `fields: a preview '${rf.reason}' refusal names summonSeed and NOT point (summonSeed ${rf.summonSeed}, point ${rf.point})`);
+    }
+    for (const rf of pl.refusals) {
+      if (!['hull', 'seed', 'batch'].includes(rf.reason)) continue;
+      plSeen++;
+      ok(typeof rf.point === 'number' && rf.summonSeed === undefined,
+         `fields: a place '${rf.reason}' refusal names point and NOT summonSeed (point ${rf.point}, summonSeed ${rf.summonSeed})`);
+    }
+    ok(pvSeen > 0 && plSeen > 0,
+       `fields: both loops actually ran against a refusal — otherwise they assert nothing (${pvSeen} preview, ${plSeen} place)`);
   }
 }
 
