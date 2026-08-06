@@ -13922,13 +13922,16 @@
       "parent": "lp-ef6599",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "88",
-      "evidence": [],
+      "evidence": [
+        "rejected: The only proposal here whose gate actually runs — index-summon-wiring.selftest.mjs is clean and parses — and it is still rejected, on R6 and on sequencing. It asks a turn to add BEGIN/END markers to plant/index.html, and index.html currently carries two committed conflicts: lines 86-101 in the BODY (a duplicated `<h2 id=\"gameIntroTitle\">` with `<<<<<<< HEAD`, `=======` and `>>>>>>> 83d9d49` render"
+      ],
       "created": "2026-08-06T23:44:18.151Z",
-      "updated": "2026-08-06T23:44:18.151Z",
+      "updated": "2026-08-06T23:53:57.684Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -13944,13 +13947,16 @@
       "parent": "lp-ef6599",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "88",
-      "evidence": [],
+      "evidence": [
+        "rejected: Gate is fine (docs.selftest.mjs is clean and passes; no .md under plant/ carries a marker today) and paths are properly bounded, so this fails on WHAT IT WOULD RECORD rather than on how. It asks a turn to write into plant/CLAUDE.md — the file every turn reads first to orient itself — that the first screen's words all come from campaign.mjs and the page owns no intro copy. In this tree that claim c"
+      ],
       "created": "2026-08-06T23:44:18.151Z",
-      "updated": "2026-08-06T23:44:18.151Z",
+      "updated": "2026-08-06T23:53:57.757Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -14092,13 +14098,16 @@
       "parent": "lp-ef6599",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "90",
-      "evidence": [],
+      "evidence": [
+        "rejected: FAILS R2 ON A FACT NOBODY CHECKED: its gate cannot run. plant/test/index-campaign-wiring.selftest.mjs carries THREE unresolved merge conflicts committed into it — nested markers at lines 48/49 (two `<<<<<<< HEAD` in a row, from two failed merges layered), a second at 56-61 where the module import line exists in two contradictory versions (one importing INTRO, one importing BANNED and MARK), and a "
+      ],
       "created": "2026-08-06T23:46:50.059Z",
-      "updated": "2026-08-06T23:46:50.059Z",
+      "updated": "2026-08-06T23:53:57.466Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -14114,13 +14123,16 @@
       "parent": "lp-ef6599",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "90",
-      "evidence": [],
+      "evidence": [
+        "rejected: Gate is clean (campaign.selftest.mjs parses and campaign.mjs is one of the few unconflicted files here), scope is prose-only, and the reasoning — 'stale justification is more dangerous than stale description because it argues for its own removal' — is the best sentence in this batch and should survive into whatever replaces this ticket. Rejected on the same ground as lp-14c8ce and on R4. It asks a"
+      ],
       "created": "2026-08-06T23:46:50.059Z",
-      "updated": "2026-08-06T23:46:50.059Z",
+      "updated": "2026-08-06T23:53:57.828Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -14243,13 +14255,16 @@
       "parent": "lp-3f5f26",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "87",
-      "evidence": [],
+      "evidence": [
+        "rejected: FAILS R2 for the same verified reason as lp-a31be3 — index-campaign-wiring.selftest.mjs is a syntax error and cannot pass — AND it is the most dangerous of the five to dispatch, because plant/index.html is ALSO conflicted and one of its two conflicts sits directly in this ticket's blast radius. index.html lines 473-495 are an unresolved conflict INSIDE the campaign block's `<script type=\"module\">`"
+      ],
       "created": "2026-08-06T23:47:10.113Z",
-      "updated": "2026-08-06T23:47:10.113Z",
+      "updated": "2026-08-06T23:53:57.539Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -14265,13 +14280,16 @@
       "parent": "lp-3f5f26",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "87",
-      "evidence": [],
+      "evidence": [
+        "rejected: FAILS R2 (index-campaign-wiring.selftest.mjs does not parse; see lp-a31be3) and, unlike its siblings, ALSO fails R4. It proposes widening campaign.selftest.mjs §2c's exact-key-set assertion from ['finished','untouched'] to admit a third line, while lp-0f9d60 on this same desk proposes editing campaign.selftest.mjs prose and lp-35fdc0 proposes rewriting the very branch this one adds a condition to."
+      ],
       "created": "2026-08-06T23:47:10.113Z",
-      "updated": "2026-08-06T23:47:10.113Z",
+      "updated": "2026-08-06T23:53:57.608Z",
       "blocked": false,
       "ready": false,
       "unmet": []
