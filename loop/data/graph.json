@@ -16098,8 +16098,8 @@
     }
   ],
   "now": {
-    "state": "planning",
-    "detail": "writing requirements",
+    "state": "reviewing",
+    "detail": "judging the backlog against the vision",
     "beads": []
   },
   "asks": [
