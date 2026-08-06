@@ -142,14 +142,14 @@
     }
   },
   "counts": {
-    "total": 424,
-    "ready": 3,
+    "total": 433,
+    "ready": 2,
     "blocked": 9,
     "in_progress": 0,
-    "done": 73,
+    "done": 74,
     "dropped": 3,
-    "proposed": 72,
-    "knowledge": 264
+    "proposed": 74,
+    "knowledge": 271
   },
   "beads": [
     {
@@ -9585,9 +9585,9 @@
       "id": "lp-a59b0f",
       "title": "Wire summon-session.mjs into plant/index.html — the click that reaches the foam",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 0,
-      "body": "The sibling this ticket deliberately excluded. plant/summon-session.mjs now exists and is gated: start(seed) generates a real pocket, candidates() says where a summon fits, preview(point) gives the verdict without planting, place(solid, point) plants it as one transaction or refuses with a named, ATTRIBUTED cause (blame: player | pocket | hull | self | foam | caller). Nothing on the page calls any of it — index.html is still the inspector.\n\nSCOPE: a summon panel on plant/index.html driven entirely by the controller. Solid picker, a point chosen by the player (the simplest honest version is three numeric inputs or a click on a 2D top-down plan of the pocket — NOT a 3D raycast, which is a much bigger ticket and not needed to clear the bar), a Summon button, a live verdict line, and a running list of what has been placed. Event handlers must contain NO placement logic: they read inputs, call the controller, render what comes back. That is vision item 1's explicit requirement ('the game's control logic lives in a module, not in event handlers') and it is also what keeps this ticket gateable.\n\nTHE REFUSAL SENTENCE IS THE POINT, not decoration. blame:'player' must read differently from blame:'pocket' — 'that is 1.4m from the cube you placed' versus 'there is already foam there' — because the whole bar in vision.md is that a stranger does something that CAN FAIL and understands why. A refusal rendered as 'refused' throws away everything the module computed.\n\nTHE GATE IT CREATES: plant/test/index-summon-wiring.selftest.mjs, following the established precedent of index-level4/5/6-wiring.selftest.mjs — read plant/index.html as text and assert the wiring exists. It must check (a) that the page imports ./summon-session.mjs and calls start/preview/place, (b) that every solid in SOLID_NAMES the picker offers is a real name from solids.mjs rather than a hand-typed list that can drift, (c) that the verdict renderer branches on all six BLAME values, exported from the module as an array precisely so exhaustiveness is checkable, and (d) that no literal 1.5 / 3.2 / 2.2 threshold appears in the page's own script — a placement constant re-typed into the page is the drift this whole module exists to prevent. A weaker gate that only greps for the word 'summon' would pass for a page that imports the module and never calls it.\n\nWARNING for whoever takes this: plant/index.html's CSS keys svg#lvl by exact id, and levels 2-6 already ship unstyled by that selector (recorded finding). Do not fix that here; it is pre-existing and a separate ticket.",
+      "body": "The sibling this ticket deliberately excluded. plant/summon-session.mjs now exists and is gated: start(seed) generates a real pocket, candidates() says where a summon fits, preview(point) gives the verdict without planting, place(solid, point) plants it as one transaction or refuses with a named, ATTRIBUTED cause (blame: player | pocket | hull | self | foam | caller). Nothing on the page calls any of it — index.html is still the inspector.\n\nSCOPE: a summon panel on plant/index.html driven entirely by the controller. Solid picker, a point chosen by the player (the simplest honest version is three numeric inputs or a click on a 2D top-down plan of the pocket — NOT a 3D raycast, which is a much bigger ticket and not needed to clear the bar), a Summon button, a live verdict line, and a running list of what has been placed. Event handlers must contain NO placement logic: they read inputs, call the controller, render what comes back. That is vision item 1's explicit requirement ('the game's control logic lives in a module, not in event handlers') and it is also what keeps this ticket gateable.\n\nTHE REFUSAL SENTENCE IS THE POINT, not decoration. blame:'player' must read differently from blame:'pocket' — 'that is 1.4m from the cube you placed' versus 'there is already foam there' — because the whole bar in vision.md is that a stranger does something that CAN FAIL and understands why. A refusal rendered as 'refused' throws away everything the module computed.\n\nTHE GATE IT CREATES: plant/test/index-summon-wiring.selftest.mjs, following the established precedent of index-level4/5/6-wiring.selftest.mjs — read plant/index.html as text and assert the wiring exists. It must check (a) that the page imports ./summon-session.mjs and calls start/preview/place, (b) that every solid in SOLID_NAMES the picker offers is a real name from solids.mjs rather than a hand-typed list that can drift, (c) that the verdict renderer branches on all six BLAME values, exported from the module as an array precisely so exhaustiveness is checkable, and (d) that no literal 1.5 / 3.2 / 2.2 threshold appears in the page's own script — a placement constant re-typed into the page is the drift this whole module exists to prevent. A weaker gate that only greps for the word 'summon' would pass for a page that imports the module and never calls it.\n\nWARNING for whoever takes this: plant/index.html's CSS keys svg#lvl by exact id, and levels 2-6 already ship unstyled by that selector (recorded finding). Do not fix that here; it is pre-existing and a separate ticket.\n\n[turn 53 — done] Wired summon-session.mjs into plant/index.html and created the gate. The page now carries a summon panel: a top-down SVG plan of a real generatePocket pocket (every pocket seed drawn, the player's own summons in a different colour), a height slider, a solid picker built from SOLID_NAMES, a live verdict line, a running list of what has been placed, and a 'start a new pocket' button. Click the plan to choose a point, press summon to plant. Every placement decision belongs to the controller — the handlers read a control, call session.start/preview/place/candidates, and render what comes back; the page never calls legalSummon, summonAt, legalSeed, constellation or reformPocket*, and contains no placement threshold. Refusals render one sentence per BLAME value from a table keyed on refusal.blame, and the page throws at startup if the module ever grows a blame the table has no sentence for. The gate, plant/test/index-summon-wiring.selftest.mjs, reads index.html as text and checks (a) the imports and all four controller calls plus the negative 'no placement in the page' assertions, (b) the picker comes from SOLID_NAMES and no solid name is hand-typed in the block, (c) exhaustiveness DERIVED from the module's own BLAME export — every value has an entry, all six sentence bodies are pairwise distinct, and player/pocket are asserted to differ in the specific way the ticket names, (d) no literal 1.5/2.2/3.2 in the summon block. HONESTLY: I could not run anything — this turn had Read/Write/Edit/Glob/Grep only, so neither the gate nor the page has been executed. Every regex in the gate was hand-traced against the exact bytes I wrote, and I grepped index.html to confirm no forbidden literal, solid name or placement call exists after the summon banner (all such hits are at lines 321-378, well before it). Untested by construction: that a browser paints the plan, that getScreenCTM maps a click to the world point the player aimed at, and how long generatePocket takes on a phone — pocket generation is deferred one tick so it cannot block first paint, but its cost is unmeasured.",
       "deps": [],
       "parent": "lp-0d93b8",
       "tags": [
@@ -9596,14 +9596,17 @@
         "creates-gate"
       ],
       "actor": "agent",
-      "run": "44",
+      "run": "53",
       "evidence": [
-        "raised to P0 by the operator 2026-08-06: this is vision item 1, and it sat at P1 behind oracle work I promoted to P0. Fifteen turns produced seven backend modules and not one line of plant/index.html."
+        "raised to P0 by the operator 2026-08-06: this is vision item 1, and it sat at P1 behind oracle work I promoted to P0. Fifteen turns produced seven backend modules and not one line of plant/index.html.",
+        "plant/index.html",
+        "plant/test/index-summon-wiring.selftest.mjs",
+        "plant/CLAUDE.md"
       ],
       "created": "2026-08-05T22:18:07.120Z",
-      "updated": "2026-08-06T03:24:59.174Z",
+      "updated": "2026-08-06T06:14:34.909Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -9866,6 +9869,200 @@
       "evidence": [],
       "created": "2026-08-06T06:09:06.679Z",
       "updated": "2026-08-06T06:09:06.679Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-b25b5f",
+      "title": "A click on a 2D top-down plan, not three numeric inputs — and the height is a separate slider",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket offered both and called three numeric inputs 'the simplest honest version'. I took the plan.\n\nWHY. The bar in vision.md is that a stranger forms an intention, acts on it, and is refused. Typing 34, 12, 51 into three boxes is not an intention about a place; it is data entry, and a refusal for it reads as a validation error rather than as the ground being occupied. The plan makes the pocket visible — 64 rock seeds, drawn — so 'there is already rock there' is a sentence about something the player can SEE, and the green candidate dots make the whole thing an invitation instead of a form.\n\nCOST, stated plainly: the plan is FLAT and the pocket is not. Two dots on top of each other can be far apart vertically, and the foam's metric scales y by sqrt(aniso) anyway, so a spot that looks clear can be refused for a reason the picture cannot show. I did not hide that — there is a note under the panel saying it in those words, and the height slider is right there. A 3D raycast is the honest fix and the ticket explicitly excludes it.\n\nWHAT WOULD REVERSE IT: if the flat plan turns out to mislead more than it invites (see the ask), the cheap next step is not numeric boxes, it is a side elevation next to the plan — same controller, one more pure-view function.\n\nREJECTED ALSO: making the plan a drag/hover preview. preview() is cheap, but a hover verdict changing under the cursor on every mousemove is noise; a click is a decision and the verdict answers a decision.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "53",
+      "evidence": [],
+      "created": "2026-08-06T06:14:34.909Z",
+      "updated": "2026-08-06T06:14:34.909Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-214204",
+      "title": "The page throws at startup if a BLAME value has no sentence — belt behind the gate's brace",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "BLAME_SENTENCE is checked against the module's BLAME export at module scope, and a missing entry throws, which takes the WHOLE PAGE down including six working levels. That is a real cost and I chose it deliberately.\n\nTHE ARGUMENT: the gate asserts the same property from outside, and loop-work runs the whole plant suite before deploy-plant publishes. So a seventh blame that outruns the page fails in CI and never reaches the internet; the runtime throw is a second line that should never fire in front of a visitor. The failure it prevents is worse than it looks — a blank or 'refused' verdict is exactly the outcome this ticket exists to prevent, and it fails SILENTLY, which is this repo's most-recorded failure shape.\n\nWHAT WOULD REVERSE IT: if plant/index.html ever ships something a visitor needs more than the summon panel, downgrade the throw to a console.error plus a loud fallback sentence. The gate keeps the real guarantee either way.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "53",
+      "evidence": [],
+      "created": "2026-08-06T06:14:34.909Z",
+      "updated": "2026-08-06T06:14:34.909Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-06fb48",
+      "title": "Requirement (d)'s no-threshold check is scoped to the summon block, not to the whole script",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket asks that no literal 1.5 / 3.2 / 2.2 appear in 'the page's own script'. Applied to the whole script it fails IMMEDIATELY on code twenty turns older than this ticket: line 342 is `const state = { solid: 'dodecahedron', r: 1.5, aniso: 2.2, ... }` — the starting positions of the INSPECTOR's own sliders, whose entire subject is varying them, plus `value=\"2.2\"` and `value=\"1.5\"` in its markup and a `Math.min(1.5, ...)` pitch clamp that is an unrelated 1.5.\n\nSo the gate scopes the check to everything after the `// ── Summon` banner, and the header says why in full. That keeps it a real constraint on the code this ticket writes — a placement threshold retyped next to a placement call — without failing on state that is not a placement constant at all. A check that fails correct pre-existing work would have been reverted or --forced past, and then it would not be a rule.\n\nVERIFIED rather than assumed: grepped index.html for 1.5|2.2|3.2 — every hit is at line 378 or earlier, and the summon block starts at 504.\n\nWHAT WOULD REVERSE IT: a ticket that makes the inspector take its own defaults from a module (they are arguably the same constants) would let the check widen to the whole script. That is inspector work, not placement work, and the vision says stop making the explainer better.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "53",
+      "evidence": [],
+      "created": "2026-08-06T06:14:34.909Z",
+      "updated": "2026-08-06T06:14:34.909Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-1817dc",
+      "title": "The summon verdict names only the FIRST refusal — the third instance of the same under-reporting shape in this codebase",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The renderer reads `res.refusal || res.first` and builds one sentence from it. legalSummon and reformPocketAll both report EVERY refusal, and legalSummon's order is fixed: metric, then per-seed (hull/seed) in summonSeed order, then self pairs.\n\nCONSEQUENCE: a summon that both pokes out through a wall AND stands on rock says only 'part of the X pushes out through the west wall'. Move it in, and the second refusal appears — two moves to learn what one verdict knew. Worse for blame: if the constellation touches BOTH the generated foam and something the player built, whichever has the lower summonSeed index wins, so 'there is already rock there' can be shown when 'too close to the cube you summoned on move 2' was the more useful half.\n\nThis is structurally identical to two things already in the ledger — verdictLine()'s fail path reading `v.deficits[0]`, and `bound` naming one starved input when several are equally starved. Three instances now, all from choosing a scalar where the domain has a set, and all in the render layer rather than the oracle. The oracle got it right in every case: it returns the whole list.\n\nI did NOT fix it here, deliberately. The right fix is to group refusals by blame the way level-view.js's refusalLine groups by reason — and refusalLine is in a MODULE with a real selftest, while this sentence table is inside index.html where only a regex can reach it. Fixing the under-reporting first would put more untestable logic in the page. Proposed the extraction first, the fix second, in that order.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "53",
+      "evidence": [],
+      "created": "2026-08-06T06:14:34.909Z",
+      "updated": "2026-08-06T06:14:34.909Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-e73e97",
+      "title": "summon-session's two verbs name the same field differently — preview() returns `first`, place() returns `refusal`",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "preview() returns `{ ok, solid, centre, r, con, refusals, first }`; place() returns `{ ok, move, ..., refusals, refusal }`. Both are 'the first refusal, or null'. A renderer that wants one function for both verdicts has to write `res.refusal || res.first`, which is what the page now does, and which is silently wrong the moment either verb gains the other's field.\n\nIt is a small thing and it is exactly the seam class this ledger keeps recording: not a bug in either component, a mismatch in the channel between them. Anything that consumes both verdict shapes — the summon-view module proposed below, a future undo, a level built on the session — will have to know this. Cheapest fix is one line in summon-session.mjs (have place() set both, or have preview() set both) plus one assertion in its selftest pinning the field name per verb. Not done here: summon-session.mjs is outside what this ticket should be touching, and a renaming that misses a caller is worse than the asymmetry.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "53",
+      "evidence": [],
+      "created": "2026-08-06T06:14:34.909Z",
+      "updated": "2026-08-06T06:14:34.909Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-41963d",
+      "title": "The new plan SVG carries an inline style attribute on purpose — svg#lvl's CSS is keyed by exact id and levels 2-6 already ship unstyled by it",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket warned not to fix the pre-existing `svg#lvl` selector problem here. The panel's SVG therefore does NOT rely on the page's stylesheet at all: width, height, display, touch-action and cursor are inline on the element. So the plan is styled regardless of how that pre-existing gap is eventually resolved, and this ticket adds nothing new to it — no seventh id waiting for a CSS rule.\n\nWorth knowing for whoever does fix it: the shared selector list will need `svg#plan` too, or the inline attribute removed in the same change, or the plan keeps its inline style and is simply exempt. Any of the three is fine; picking one silently and leaving two is not.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "53",
+      "evidence": [],
+      "created": "2026-08-06T06:14:34.909Z",
+      "updated": "2026-08-06T06:14:34.909Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-0fc5df",
+      "title": "Does clicking a FLAT plan of a 3D pocket read as fair, or as the game hiding the thing that refuses you?",
+      "kind": "question",
+      "status": "proposed",
+      "priority": 1,
+      "body": "This is the one judgement I could not settle by writing a check, and I made the call anyway rather than stalling: the panel maps a click on a top-down plan to a world point, with height on a separate slider.\n\nThe worry is specific and structural, not a matter of polish. The plan CANNOT show the reason for a large fraction of refusals: two seeds that overlap on the plan may be far apart vertically, and the foam scales vertical distance by sqrt(aniso) on top of that, so 'there is already rock there' will sometimes be said about a dot the player cannot see near their cursor. I mitigated it three ways — every pocket seed is drawn, green dots mark spots that look clear at the CURRENT height, and a note under the panel says the plan is flat in plain words — but mitigation is not the same as the thing being legible, and no test I can write distinguishes 'honest and demanding' from 'arbitrary'.\n\nIt is not decidable from here because it is a question about what a person infers from a picture, and the loop has no instrument for that.\n\nDO: Open plant.minomobi.com, scroll to 'Summon — put one of these into real ground', and try to place three shapes without reading the note underneath. Then drag the height slider to the bottom and try again.\n\nWATCH FOR: Whether a refusal ever feels arbitrary — specifically whether you look for the thing that refused you and fail to find it on the plan. Also whether you touch the height slider at all unprompted.\n\nSO THAT: If refusals read as arbitrary, the next ticket is a side elevation beside the plan (same controller, one more pure-view function) and NOT a 3D raycast. If they read as fair but the height slider goes untouched, the panel should pick the height itself from the clearest candidate at that x/z and the slider becomes an override. If both are fine, the next ticket is the one that turns this into a level with a goal — which is where vision item 1 actually ends.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "ask",
+        "class-c",
+        "asked-about:lp-a59b0f"
+      ],
+      "actor": "agent",
+      "run": "53",
+      "evidence": [],
+      "created": "2026-08-06T06:14:34.909Z",
+      "updated": "2026-08-06T06:14:34.909Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-250e23",
+      "title": "Lift the summon refusal sentences out of index.html into summon-view.js, where a test can read them",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "The summon panel's refusal sentences are the whole point of the panel — 'too close to the cube you summoned on move 2' versus 'there is already rock there' — and they currently live inside plant/index.html, where the only thing that can check them is a regex asserting six table entries exist and differ. index-summon-wiring.selftest.mjs does exactly that and it is the strongest check available from outside the page. It cannot check that a sentence says something TRUE.\n\nThe precedent is already here and it is the right one: level-view.js holds drawLevel/verdictLine/refusalLine as pure functions with plant/test/level-view.selftest.mjs driving them on real fixtures. Do the same.\n\nSCOPE: a new plant/summon-view.js exporting (1) `summonSentence(res)` — the ✓/✗ line for any preview() OR place() result, blame-branched, and (2) `planShapes(pocket, bounds, cands, cursor, originCount)` returning an array of plain shape descriptors the page turns into SVG. index.html imports both and keeps only the DOM plumbing. No behaviour change is intended: the sentences move verbatim.\n\nTHE GATE IT CREATES: plant/test/summon-view.selftest.mjs. It must drive a REAL session (startSession on a fixed seed, the same MACRO fixture the other gates use) rather than hand-built verdict objects, and for each blame value it can reach — pocket, player, hull, self, caller — assert BOTH that the sentence is produced and that its NUMBERS come from the verdict, by re-extracting them with a clause-specific regex and comparing to a value recomputed from the refusal (the method the ledger already established for refusalLine: `includes(String(x))` passes for a renderer that hardcodes the threshold, which is precisely the bug worth catching). Assert `!/undefined|NaN/` on every sentence produced across the sweep. 'foam' (closure/nav) may not be reachable on a fixture — if so the gate must say so out loud rather than skip silently.\n\nWHY THIS IS THE NEXT THING RATHER THAN MORE PANEL: everything else anyone wants to do to the refusal text — report every refusal instead of the first, name the offending seed, colour it on the plan — is currently ungradeable because it lives in an HTML file. This makes it gradeable, and it is a move, not new behaviour, so the diff is reviewable.",
+      "deps": [],
+      "parent": "lp-a59b0f",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "agent",
+      "run": "53",
+      "evidence": [],
+      "created": "2026-08-06T06:14:34.909Z",
+      "updated": "2026-08-06T06:14:34.909Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-cf4d8f",
+      "title": "The summon verdict must report every refusal, not just the first — group by blame like refusalLine groups by reason",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "DEPENDS ON the summon-view.js extraction above; do not schedule it first, because the change belongs in a module with a selftest and not in index.html.\n\nTHE DEFECT (recorded as a finding this turn): the panel renders `res.refusal || res.first`, one sentence from one refusal. legalSummon reports all of them, in a fixed order — metric, then per-seed in summonSeed order, then self pairs. So a summon that both pushes through a wall and stands on rock reports only the wall; fix that and the rock appears, two moves to learn what one verdict already knew. And when a constellation touches BOTH the generated foam and something the player built, the lower seed index wins, so the less useful half can be the half shown.\n\nThis is the third instance of one shape in this repo — verdictLine reading deficits[0], `bound` naming one starved input of several, and now this. All three are render-layer scalars standing in for a set the oracle correctly returned whole.\n\nSCOPE: `summonSentence` groups refusals by blame in first-appearance order and emits one clause per group, with a count and the WORST member of the group (deepest hull violation, tightest gap) — exactly the shape level-view.js's refusalLine already uses for reasons, so read that function before writing this one rather than inventing a second convention.\n\nTHE GATE: the existing plant/test/summon-view.selftest.mjs, extended. The assertion that bites is a fixture producing TWO different blames at once (a centre near a wall and near rock is reachable by sweeping candidates for one) and asserting BOTH clauses appear with their own numbers — plus a CONTROL with exactly one refusal asserting the sentence did not grow a spurious second clause. A single-refusal fixture alone proves nothing here: it passes identically before and after the change.",
+      "deps": [],
+      "parent": "lp-a59b0f",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "53",
+      "evidence": [],
+      "created": "2026-08-06T06:14:34.909Z",
+      "updated": "2026-08-06T06:14:34.909Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -10526,6 +10723,16 @@
       "from": "lp-0b1bc5",
       "to": "lp-e72205",
       "kind": "parent"
+    },
+    {
+      "from": "lp-a59b0f",
+      "to": "lp-250e23",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-a59b0f",
+      "to": "lp-cf4d8f",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -10933,7 +11140,16 @@
       "lp-0606e2",
       "lp-35ebf0",
       "lp-70367f",
-      "lp-e72205"
+      "lp-e72205",
+      "lp-b25b5f",
+      "lp-214204",
+      "lp-06fb48",
+      "lp-1817dc",
+      "lp-e73e97",
+      "lp-41963d",
+      "lp-0fc5df",
+      "lp-250e23",
+      "lp-cf4d8f"
     ],
     [
       "lp-f2e5a3",
@@ -10965,10 +11181,6 @@
     ]
   ],
   "ready": [
-    {
-      "id": "lp-a59b0f",
-      "unblocks": 0
-    },
     {
       "id": "lp-e8d94e",
       "unblocks": 0
@@ -11031,13 +11243,21 @@
   ],
   "now": {
     "state": "working",
-    "detail": "2 turn(s) in flight",
+    "detail": "1 turn(s) in flight",
     "beads": [
-      "lp-1921ff",
-      "lp-a59b0f"
+      "lp-1921ff"
     ]
   },
   "asks": [
+    {
+      "id": "lp-0fc5df",
+      "title": "Does clicking a FLAT plan of a 3D pocket read as fair, or as the game hiding the thing that refuses you?",
+      "body": "This is the one judgement I could not settle by writing a check, and I made the call anyway rather than stalling: the panel maps a click on a top-down plan to a world point, with height on a separate slider.\n\nThe worry is specific and structural, not a matter of polish. The plan CANNOT show the reason for a large fraction of refusals: two seeds that overlap on the plan may be far apart vertically, and the foam scales vertical distance by sqrt(aniso) on top of that, so 'there is already rock there' will sometimes be said about a dot the player cannot see near their cursor. I mitigated it three ways — every pocket seed is drawn, green dots mark spots that look clear at the CURRENT height, and a note under the panel says the plan is flat in plain words — but mitigation is not the same as the thing being legible, and no test I can write distinguishes 'honest and demanding' from 'arbitrary'.\n\nIt is not decidable from here because it is a question about what a person infers from a picture, and the loop has no instrument for that.\n\nDO: Open plant.minomobi.com, scroll to 'Summon — put one of these into real ground', and try to place three shapes without reading the note underneath. Then drag the height slider to the bottom and try again.\n\nWATCH FOR: Whether a refusal ever feels arbitrary — specifically whether you look for the thing that refused you and fail to find it on the plan. Also whether you touch the height slider at all unprompted.\n\nSO THAT: If refusals read as arbitrary, the next ticket is a side elevation beside the plan (same controller, one more pure-view function) and NOT a 3D raycast. If they read as fair but the height slider goes untouched, the panel should pick the height itself from the clearest candidate at that x/z and the slider becomes an override. If both are fine, the next ticket is the one that turns this into a level with a goal — which is where vision item 1 actually ends.",
+      "open": true,
+      "about": "lp-a59b0f",
+      "answer": null,
+      "updated": "2026-08-06T06:14:34.909Z"
+    },
     {
       "id": "lp-51fd08",
       "title": "Does highlighting every legal spot destroy the failure the whole thing is for?",

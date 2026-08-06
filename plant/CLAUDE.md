@@ -58,6 +58,17 @@ is why that bug is dangerous. `view.js` is its renderer and
 wireframe is the right polyhedron (against Euler, not a copied table) and that
 the 22° is real and the cube really is exempt.
 
+It also carries the **summon panel** — the first thing on this page that
+touches real foam rather than a diagram. A top-down plan of a `generatePocket`
+pocket; click it, pick a solid and a height, press summon, and the constellation
+lands or is refused with a sentence that says *what it hit*. Every decision in
+it belongs to `summon-session.mjs`: the handlers read a control, call the
+session, and render what comes back — there is no threshold, no legality test
+and no pocket arithmetic in the page, which is what
+`test/index-summon-wiring.selftest.mjs` asserts (it reads `index.html` as text,
+derives the six blame branches from the module's own `BLAME` export, and fails
+on a placement constant re-typed into the page).
+
 This page is scaffolding and you may replace it. What it must keep doing is
 make the work **judgeable by a stranger in thirty seconds** — that is its only
 requirement, and a prettier page that fails it is worse.

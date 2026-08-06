@@ -112,6 +112,42 @@
   Drag to orbit.
 </p>
 
+<h2>Summon — put one of these into real ground</h2>
+<p>
+  Everything above is a shape in empty space. Below is a <strong>pocket</strong>: a real chunk of the
+  foam, seen from above, with every seed in it drawn as a dot. Click anywhere on the plan to choose a
+  spot, then press <em>summon</em>. It either lands whole or it is refused, and the refusal tells you
+  what it hit — the rock that was already there, a wall, or something you put down yourself.
+  Green dots are spots that look clear at the current height; you do not have to use them.
+</p>
+
+<div class="stage">
+  <div>
+    <svg id="plan" viewBox="0 0 640 320" preserveAspectRatio="xMidYMid meet"
+         style="width:100%;height:20rem;display:block;touch-action:none;cursor:crosshair"
+         aria-label="Top-down plan of the pocket; click to choose where to summon"></svg>
+    <div class="lvl-verdict" id="summonVerdict"></div>
+  </div>
+  <div class="ctl">
+    <label for="summonSolid">Solid</label>
+    <select id="summonSolid"></select>
+
+    <label for="summonY">Height <span class="val" id="summonYV"></span></label>
+    <input type="range" id="summonY" min="0" max="1" step="0.01" value="0.5">
+
+    <button id="summonGo" class="lvl-btn">summon here</button>
+    <button id="summonReset" class="lvl-btn">start a new pocket</button>
+    <p class="legend" id="summonPlaced" style="margin-top:.9rem"></p>
+  </div>
+</div>
+
+<p class="note" style="margin-top:1.2rem">
+  The plan is flat and the pocket is not — two dots on top of each other may be a long way apart
+  vertically, and the foam measures up-and-down differently from side-to-side anyway. So a spot that
+  looks clear can still be refused, and the sentence underneath is the only honest account of why.
+  Is that frustrating or is it the puzzle? Nobody here can tell you.
+</p>
+
 <h2>Level 1 — the first thing here you can break</h2>
 <p>
   Everything above is a <em>primitive</em>. This is a level: a source, a processor, a sink, and a
@@ -464,6 +500,194 @@ $('shareA6').value = String(SHIPPED_SHAREA6);
 $('shareA6').addEventListener('input', drawLvl6);
 $('lvl6Reset').addEventListener('click', () => { $('shareA6').value = String(SHIPPED_SHAREA6); drawLvl6(); });
 drawLvl6();
+
+// ── Summon — the click that reaches the foam ───────────────────────────────
+//
+// THE CONTROLLER OWNS EVERY PLACEMENT DECISION. Nothing below decides whether
+// a summon is legal, how close is too close, or what went wrong: the handlers
+// read a control, hand a point to the session, and render what comes back.
+// That is vision item 1's requirement ("the control logic lives in a module,
+// not in event handlers") and it is what makes this wiring checkable from a
+// test with no browser — index-summon-wiring.selftest.mjs asserts it.
+//
+// In particular there is NO THRESHOLD IN THIS FILE. The seed gap, the hull
+// margins and the pocket's anisotropy all have exactly one home each, and a
+// number re-typed here would be a second copy free to drift away from the one
+// the foam actually enforces. `hullBounds()` is imported for the same reason:
+// the plan's coordinate map is derived from the kernel's own clamp, not from
+// bounds guessed to match it.
+import { SummonSession, BLAME } from './summon-session.mjs';
+import { hullBounds } from './placement.mjs';
+
+const plan = $('plan');
+const session = new SummonSession({ solid: SOLID_NAMES[0] });
+
+let cursor = null;      // the world point the player last clicked, or null
+let bounds = null;      // hullBounds of the current pocket — null until started
+let cands = [];         // candidate centres at the current height, for the plan
+let pocketSeed = 1;
+
+const PLAN = { w: 640, h: 320, pad: 18 };
+const SWEEP = { step: 6, limit: 200 };
+
+// ---- sentences -----------------------------------------------------------
+// One per BLAME value, and they must READ DIFFERENTLY: "there is already rock
+// there" and "that is too close to the one you just put down" are the same
+// refusal to the foam and completely different news to a player. A refusal
+// rendered as the word "refused" throws away everything the module computed.
+const WALL_WORDS = {
+  B0: 'the north wall', B1: 'the south wall', B2: 'the floor',
+  B3: 'the ceiling', B4: 'the west wall', B5: 'the east wall',
+};
+// Never renders "NaN" or "undefined": a missing number reads as vague prose
+// rather than as a broken sentence, which is the failure a player would see.
+const m = (v) => (Number.isFinite(v) ? `${v.toFixed(2)} m` : 'some way');
+
+const BLAME_SENTENCE = {
+  player: (rf, res) => `Too close to the ${rf.blameSolid || 'shape'} you summoned on move ${rf.blameMove} — ${m(rf.gap)} apart, and it needs ${m(rf.need)}.`,
+  pocket: (rf, res) => `There is already rock there — ${m(rf.gap)} to the nearest of it, and a summon needs ${m(rf.need)} of clear ground.`,
+  hull:   (rf, res) => `Part of the ${res.solid} pushes out through ${WALL_WORDS[rf.wall] || 'the wall'}, by ${m(rf.depth)}. Bring it back inside.`,
+  self:   (rf, res) => `This ${res.solid} is too small to hold itself apart — two of its own points are ${m(rf.need - rf.gap)} too close. No spot would fix that.`,
+  foam:   (rf, res) => `The foam would not close around the ${res.solid} there. Nothing you did was wrong; it needs somewhere with more room.`,
+  caller: (rf, res) => `Pick a spot on the plan first — there is nowhere to put the ${res.solid} yet.`,
+};
+
+// Exhaustiveness, enforced rather than commented: if the module ever grows a
+// seventh blame this page stops loudly instead of rendering a blank refusal.
+// The gate asserts the same thing from outside, and the whole suite runs
+// before deploy-plant publishes — so this throw is the belt behind that brace
+// and should never fire in front of a visitor.
+for (const b of BLAME) {
+  if (typeof BLAME_SENTENCE[b] !== 'function') {
+    throw new Error(`summon: blame "${b}" has no sentence — a refusal would render blank`);
+  }
+}
+
+function sentence(res) {
+  const rf = res.refusal || res.first;
+  if (!rf) return '✗ Refused, and nothing said why — that is a bug, please report it.';
+  const write = BLAME_SENTENCE[rf.blame];
+  const body = write ? write(rf, res) : `The ${res.solid} cannot go there.`;
+  return `✗ ${body}`;
+}
+
+function say(res) {
+  const el = $('summonVerdict');
+  if (!res) { el.textContent = 'Click the plan to choose a spot.'; el.className = 'lvl-verdict'; return; }
+  // `pocketChanged` is how a landed summon differs from a spot that merely
+  // looks clear — only `place()` sets it, and only when the foam committed.
+  const won = res.pocketChanged
+    ? `✓ the ${res.solid} landed — ${res.planted.length} seeds, move ${res.move}`
+    : `✓ the ${res.solid} fits here — press summon`;
+  el.textContent = res.ok ? won : sentence(res);
+  el.className = 'lvl-verdict ' + (res.ok ? 'ok' : 'bad');
+}
+
+// ---- the plan ------------------------------------------------------------
+// Pure view: world x → across, world z → down, both stretched to the box the
+// kernel will actually accept a seed in.
+const span = (ax) => bounds[ax][1] - bounds[ax][0];
+const toPlan = (p) => [
+  PLAN.pad + (p[0] - bounds.x[0]) / span('x') * (PLAN.w - 2 * PLAN.pad),
+  PLAN.pad + (p[2] - bounds.z[0]) / span('z') * (PLAN.h - 2 * PLAN.pad),
+];
+const height = () => bounds.y[0] + Number($('summonY').value) * span('y');
+
+function pointFromEvent(e) {
+  const ctm = plan.getScreenCTM();
+  if (!ctm || !bounds) return null;
+  const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+  return [
+    bounds.x[0] + (q.x - PLAN.pad) / (PLAN.w - 2 * PLAN.pad) * span('x'),
+    height(),
+    bounds.z[0] + (q.y - PLAN.pad) / (PLAN.h - 2 * PLAN.pad) * span('z'),
+  ];
+}
+
+const dot = (p, r, fill, extra = '') => {
+  const [x, y] = toPlan(p);
+  return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${r}" fill="${fill}"${extra}/>`;
+};
+
+function drawPlan() {
+  if (!bounds) { plan.innerHTML = ''; return; }
+  const st = session.state();
+  const parts = [`<rect x="1" y="1" width="${PLAN.w - 2}" height="${PLAN.h - 2}" fill="none" stroke="var(--line)"/>`];
+  for (const c of cands) parts.push(dot(c.centre, 3, 'var(--ok)', ' opacity=".45"'));
+  session.pocket.seeds.forEach((s, i) => {
+    const mine = i >= st.originCount;
+    parts.push(dot(s, mine ? 5 : 4, mine ? 'var(--centre)' : 'var(--seed-back)'));
+  });
+  if (cursor) {
+    const [x, y] = toPlan(cursor);
+    parts.push(`<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="9" fill="none" stroke="var(--accent)" stroke-width="2"/>`);
+  }
+  plan.innerHTML = parts.join('');
+}
+
+function drawPlaced() {
+  const st = session.state();
+  const lines = st.placed.map((p) =>
+    `${p.move}. ${p.solid} at ${p.centre.map((v) => v.toFixed(0)).join(', ')} — ${p.count} seeds`);
+  $('summonPlaced').innerHTML = lines.length
+    ? `<b>${st.moves} moves, ${lines.length} landed</b><br>${lines.join('<br>')}`
+    : `<b>${st.moves} moves, none landed yet</b>`;
+}
+
+function refresh() {
+  if (!bounds) return;                      // the pocket is still being dug
+  $('summonYV').textContent = `${height().toFixed(1)} m`;
+  cands = session.candidates({ ys: [height()], step: SWEEP.step, limit: SWEEP.limit }).list;
+  drawPlan();
+}
+
+// ---- handlers: read a control, call the session, render the answer --------
+$('summonSolid').innerHTML = SOLID_NAMES.map((n) =>
+  `<option value="${n}"${n === session.solid ? ' selected' : ''}>${n}</option>`).join('');
+
+// Every one of these guards on `bounds`: until the pocket exists there is
+// nothing to be legal or illegal about, and the session throws rather than
+// guess — see its `_started()`.
+$('summonSolid').addEventListener('change', (e) => {
+  session.select(e.target.value);
+  if (!bounds) return;
+  refresh();
+  say(cursor ? session.preview(cursor) : null);
+});
+$('summonY').addEventListener('input', () => {
+  if (!bounds) return;
+  if (cursor) cursor = [cursor[0], height(), cursor[2]];
+  refresh();
+  say(cursor ? session.preview(cursor) : null);
+});
+plan.addEventListener('click', (e) => {
+  const p = pointFromEvent(e);
+  if (!p) return;
+  cursor = p;
+  drawPlan();
+  say(session.preview(cursor));
+});
+$('summonGo').addEventListener('click', () => {
+  if (!bounds) return;
+  const res = session.place(session.solid, cursor);
+  say(res);
+  refresh();
+  drawPlaced();
+});
+$('summonReset').addEventListener('click', () => { pocketSeed++; startSummon(); });
+
+function startSummon() {
+  session.start(pocketSeed);
+  bounds = hullBounds(session.pocket);
+  cursor = null;
+  refresh();
+  drawPlaced();
+  say(null);
+}
+// Deferred one tick: generating a pocket is the most expensive thing on this
+// page and it must not sit in front of the first paint.
+$('summonVerdict').textContent = 'Digging a pocket…';
+setTimeout(startSummon, 0);
 </script>
 </div>
 </body>
