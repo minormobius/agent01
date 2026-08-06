@@ -70,6 +70,18 @@
 //       implementation that sets NEITHER, so the key set is the only check that
 //       the names exist at all.
 //
+//   (f) …AND THEY NAME THE SAME PART OF THE SHAPE. A second asymmetry, and a
+//       worse one, because it produced no suspicious expression anywhere: a
+//       preview refusal carried `summonSeed` and a place refusal carried
+//       `point`. A renderer doing `highlight(rf.summonSeed)` worked on every
+//       preview and highlighted `undefined` — nothing at all, with no error —
+//       for exactly the summons the player actually attempted. `_attribute` now
+//       copies the kernel's index into `summonSeed` while keeping `point`, and
+//       §10 asserts the claim a per-verb field check CANNOT make: one geometry
+//       through BOTH verbs, and they name the same index. `closure` and `nav`
+//       are exempt and must stay exempt — they name the whole batch, and an
+//       invented index would be a lie a renderer would then highlight.
+//
 // Every blame value in the taxonomy is exercised against a real fixture —
 // 'player', 'pocket', 'hull', 'self', 'caller' — because a classifier that is
 // only ever shown one class is not a classifier.
@@ -329,6 +341,11 @@ if (FIX) {
      'agreement: the hull refusal still names its wall, so a UI can highlight the face');
 }
 
+// §10 needs a real `batch` refusal, which costs a fixture sweep to site. It
+// borrows the one section 8 already pays for, the same way it borrows section
+// 9's landed summon.
+let TINY_AT = null;
+
 // ------------------------------------------------- 8. the rest of the taxonomy
 if (FIX) {
   // 'self' — a solid so small its own seeds are inside each other's gap. Both
@@ -344,7 +361,7 @@ if (FIX) {
   // in x/z and 1.0·√2.2 = 1.483m in y, and 3.5 − 1.483 = 2.02 > 1.5.
   const ROOMY = S.candidates({ solid: 'cube', clear: 3.5 });
   ok(ROOMY.list.length > 0, `taxonomy fixture: spots 3.5m clear of every seed exist (${ROOMY.list.length})`);
-  const TINY_AT = ROOMY.list.length ? ROOMY.list[0].centre : FIX.c1;
+  TINY_AT = ROOMY.list.length ? ROOMY.list[0].centre : FIX.c1;
   ok(S.preview(TINY_AT, { solid: 'cube' }).ok, 'taxonomy fixture: …and at full size that spot is perfectly legal, so only `r` is doing the work below');
 
   const tiny = { r: 0.5 };
@@ -513,30 +530,160 @@ if (FIX) {
     }
   }
 
-  // WHICH NAME carries "which part of the shape" is a SECOND asymmetry, and this
-  // ticket deliberately does not fix it: `preview` reports `summonSeed` (the
-  // index within con.seeds, from legalSummon) while `place` reports `point` (the
-  // index within the batch, from reformPocketAll). Pinned here so it cannot
-  // drift silently and so a later ticket has something to point at rather than
-  // rediscovering it from a renderer that lit up nothing.
+  // WHICH PART OF THE SHAPE was a SECOND asymmetry, and it was worse than the
+  // first because it was invisible. `preview` named it `summonSeed` (from
+  // `legalSummon`); `place` named it `point` (from `reformPocketAll`). The
+  // `first`/`refusal` split above produced a suspicious `res.refusal || res.first`
+  // the moment anyone wrote a shared renderer. THIS ONE PRODUCED NOTHING:
+  // `highlight(rf.summonSeed)` worked on every preview and highlighted
+  // `undefined` — nothing at all, with no error — for exactly the summons the
+  // player actually attempted.
+  //
+  // The assertions are ordered weakest-first, because only the last one could not
+  // have been made by a per-verb field check:
+  //
+  //   · every indexed refusal, on BOTH verbs, carries a numeric `summonSeed`
+  //     inside `[0, con.seeds.length)`;
+  //   · on the place path it EQUALS its own `point`, so the normalisation is a
+  //     copy and not a recomputation that could drift;
+  //   · AND BOTH VERBS NAME THE SAME INDEX FOR THE SAME GEOMETRY. That is the
+  //     claim a renderer actually rests on, and it is the reason this section
+  //     runs one fixture through both verbs rather than checking each alone.
   {
     const pv = S.preview(FIX.c2, { solid: 'cube' });
     const pl = S.place('cube', FIX.c2);
-    let pvSeen = 0, plSeen = 0;
-    for (const rf of pv.refusals) {
-      if (!['hull', 'seed', 'self'].includes(rf.reason)) continue;
-      pvSeen++;
-      ok(typeof rf.summonSeed === 'number' && rf.point === undefined,
-         `fields: a preview '${rf.reason}' refusal names summonSeed and NOT point (summonSeed ${rf.summonSeed}, point ${rf.point})`);
+    const INDEXED = ['hull', 'seed', 'self', 'batch'];
+    const nSeeds = pv.con ? pv.con.seeds.length : -1;
+    ok(nSeeds === 7 && pl.con && pl.con.seeds.length === nSeeds,
+       `fields fixture: both verbs built the same 7-seed cube for the same point (${nSeeds}/${pl.con && pl.con.seeds.length})`);
+
+    const idx = { preview: [], place: [] };
+    for (const [verb, res] of [['preview', pv], ['place', pl]]) {
+      for (const rf of res.refusals) {
+        if (!INDEXED.includes(rf.reason)) continue;
+        idx[verb].push(rf.summonSeed);
+        ok(Number.isInteger(rf.summonSeed) && rf.summonSeed >= 0 && rf.summonSeed < nSeeds,
+           `fields: a ${verb} '${rf.reason}' refusal names summonSeed inside [0,${nSeeds}) (got ${rf.summonSeed})`);
+      }
     }
+    // THE INVERTED ASSERTIONS, rewritten rather than deleted. `place` used to be
+    // pinned as naming `point` and NOT `summonSeed`; it now names both, and they
+    // agree. `preview` still gains no batch index, which pins that the
+    // normalisation only ever runs on the side that needed it.
     for (const rf of pl.refusals) {
-      if (!['hull', 'seed', 'batch'].includes(rf.reason)) continue;
-      plSeen++;
-      ok(typeof rf.point === 'number' && rf.summonSeed === undefined,
-         `fields: a place '${rf.reason}' refusal names point and NOT summonSeed (point ${rf.point}, summonSeed ${rf.summonSeed})`);
+      if (!INDEXED.includes(rf.reason)) continue;
+      ok(rf.summonSeed === rf.point,
+         `fields: a place '${rf.reason}' refusal names BOTH, and they agree (summonSeed ${rf.summonSeed}, point ${rf.point})`);
     }
-    ok(pvSeen > 0 && plSeen > 0,
-       `fields: both loops actually ran against a refusal — otherwise they assert nothing (${pvSeen} preview, ${plSeen} place)`);
+    for (const rf of pv.refusals) {
+      if (!INDEXED.includes(rf.reason)) continue;
+      ok(rf.point === undefined,
+         `fields: a preview '${rf.reason}' refusal gains no batch index — only the kernel side is normalised (point ${rf.point})`);
+    }
+    ok(idx.preview.length > 0 && idx.place.length > 0,
+       `fields: both loops actually ran against a refusal — otherwise they assert nothing (${idx.preview.length} preview, ${idx.place.length} place)`);
+
+    // THE CROSS-VERB ASSERTION. Same pocket, same centre, same constellation:
+    // section 4 derived by hand that exactly one pair is under 1.5m and that it
+    // is B’s −x neighbour, index 2. Both verbs must say so.
+    ok(snap(idx.preview.slice().sort()) === snap(idx.place.slice().sort()),
+       `fields: preview and place name THE SAME part of the shape for the same geometry `
+       + `(preview [${idx.preview}], place [${idx.place}])`);
+    ok(snap(idx.preview) === snap([2]) && snap(idx.place) === snap([2]),
+       `fields: …and that part is index 2, B’s −x neighbour, exactly as section 4 derived `
+       + `(preview [${idx.preview}], place [${idx.place}])`);
+
+    // `hull` is the third indexed reason and the fixture is section 7’s: a cube
+    // centred at x=0.5, whose centre (index 0) and −x neighbour (index 2, at
+    // 0.5 − 3.2 = −2.7) both sit outside the x ≥ 1 wall. Compared as SETS rather
+    // than as lists, and the difference is not fussiness: `legalSeed` reports
+    // only the NEAREST colliding pocket seed per summon seed, while the kernel
+    // reports EVERY colliding pair, so the two verbs can legitimately differ in
+    // MULTIPLICITY on a point that is both out of hull and near foam. They must
+    // never differ in WHICH parts of the shape they blame.
+    {
+      const HULL_AT = [0.5, 18.9, 38];
+      const hpv = S.preview(HULL_AT, { solid: 'cube' });
+      const hpl = S.place('cube', HULL_AT);
+      const named = (res) => [...new Set(res.refusals
+        .filter((rf) => INDEXED.includes(rf.reason))
+        .map((rf) => rf.summonSeed))].sort();
+      const hullOf = (res) => [...new Set(res.refusals
+        .filter((rf) => rf.reason === 'hull').map((rf) => rf.summonSeed))].sort();
+      ok(!hpv.ok && !hpl.ok, 'fields fixture: the out-of-hull cube is refused by both verbs');
+      ok(snap(hullOf(hpv)) === snap([0, 2]) && snap(hullOf(hpl)) === snap([0, 2]),
+         `fields: both verbs blame the SAME parts for the hull — the centre and the −x neighbour `
+         + `(preview [${hullOf(hpv)}], place [${hullOf(hpl)}])`);
+      ok(snap(named(hpv)) === snap(named(hpl)),
+         `fields: …and the full set of blamed parts agrees across the two verbs `
+         + `(preview [${named(hpv)}], place [${named(hpl)}])`);
+      for (const rf of hpl.refusals) {
+        if (rf.reason !== 'hull') continue;
+        ok(rf.summonSeed === rf.point && typeof rf.wall === 'string',
+           `fields: a place hull refusal names both indices and still names its wall (${rf.summonSeed}/${rf.point}, ${rf.wall})`);
+      }
+    }
+
+    // A `batch` refusal is the only place `otherPoint` occurs. Section 8’s tiny
+    // cube — a solid so small its own seeds are inside each other’s gap — is the
+    // fixture, borrowed rather than sited a second time.
+    if (TINY_AT) {
+      const tinyPl = S.place('cube', TINY_AT, { r: 0.5 });
+      const tinyPv = S.preview(TINY_AT, { solid: 'cube', r: 0.5 });
+      const batch = tinyPl.refusals.filter((rf) => rf.reason === 'batch');
+      ok(batch.length > 0, `fields fixture: the tiny cube really produces 'batch' refusals to check (${batch.length})`);
+      for (const rf of batch) {
+        ok(rf.summonSeed === rf.point && rf.otherSummonSeed === rf.otherPoint,
+           `fields: a batch refusal names BOTH ends in both vocabularies `
+           + `(${rf.summonSeed}/${rf.point} and ${rf.otherSummonSeed}/${rf.otherPoint})`);
+        ok(Number.isInteger(rf.otherSummonSeed) && rf.otherSummonSeed !== rf.summonSeed
+           && rf.otherSummonSeed < nSeeds,
+           `fields: …and the two ends are distinct seeds of the same summon (${rf.summonSeed}, ${rf.otherSummonSeed})`);
+      }
+      // The self-collision case, cross-verb: `placement.mjs` says 'self' and the
+      // kernel says 'batch', and after normalisation they must name the same
+      // PAIRS — not merely the same count.
+      const pairs = (list) => list.map((rf) => `${rf.summonSeed}-${rf.otherSummonSeed}`).sort();
+      const selfPairs = pairs(tinyPv.refusals.filter((rf) => rf.reason === 'self'));
+      const batchPairs = pairs(batch);
+      ok(selfPairs.length > 0 && snap(selfPairs) === snap(batchPairs),
+         `fields: 'self' and 'batch' name the SAME pairs of the shape (${selfPairs.join(' ')} | ${batchPairs.join(' ')})`);
+    }
+
+    // THE EXEMPTION, asserted directly rather than left to a fixture that may
+    // never produce it. `closure` and `nav` are not decidable before the rebuild,
+    // so they may not occur here at all — and they must gain NO index, because a
+    // rebuild that failed its Euler gate cannot honestly be blamed on one seed
+    // and an invented index is a lie a renderer would then highlight.
+    for (const reason of ['closure', 'nav']) {
+      const a = S._attribute({ reason, points: [[1, 2, 3], [4, 5, 6]] });
+      ok(a.summonSeed === undefined && a.otherSummonSeed === undefined && a.blame === 'foam',
+         `fields: a '${reason}' refusal gains no summonSeed — it names the whole batch (got ${a.summonSeed}, blame ${a.blame})`);
+    }
+    let foamSeen = 0;
+    for (const res of [pv, pl]) {
+      for (const rf of res.refusals) {
+        if (rf.reason !== 'closure' && rf.reason !== 'nav') continue;
+        foamSeen++;
+        ok(rf.summonSeed === undefined && Array.isArray(rf.points),
+           `fields: a real '${rf.reason}' refusal carries points and no index`);
+      }
+    }
+    console.log(`  · fields: ${foamSeen} closure/nav refusal(s) arose on this fixture; the exemption is pinned against _attribute regardless`);
+
+    // CONTROLS ON THE NORMALISATION ITSELF. Without these, an implementation
+    // that recomputed the index rather than copying it, or that clobbered the
+    // preview path’s authoritative one, passes every assertion above.
+    const copied = S._attribute({ reason: 'batch', point: 3, otherPoint: 5 });
+    ok(copied.summonSeed === 3 && copied.otherSummonSeed === 5
+       && copied.point === 3 && copied.otherPoint === 5,
+       'fields control: the kernel’s indices are COPIED, and both original names keep their values — nothing was renamed');
+    const kept = S._attribute({ reason: 'seed', point: 1, summonSeed: 9 });
+    ok(kept.summonSeed === 9 && kept.point === 1,
+       'fields control: an existing summonSeed is never overwritten — the preview path’s is authoritative');
+    const bare = S._attribute({ reason: 'point', at: null });
+    ok(bare.summonSeed === undefined && bare.otherSummonSeed === undefined,
+       'fields control: a refusal that carries no index gains none');
   }
 }
 

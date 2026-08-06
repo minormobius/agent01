@@ -113,6 +113,33 @@
 // `summon-session.selftest.mjs` §10 pins both, on both verbs, on all four
 // paths, including that they are `null` together on a success.
 //
+// ------------------------------------------------- `summonSeed` --------------
+//
+// THE SECOND ASYMMETRY, and it was worse than the first because it was
+// invisible. `preview`'s refusals came from `legalSummon` and named the
+// offending part of the shape `summonSeed`; `place`'s came from
+// `reformPocketAll` and named it `point`. A renderer doing
+// `highlight(rf.summonSeed)` worked perfectly on every preview and highlighted
+// `undefined` — nothing at all, with no error — for exactly the summons the
+// player actually attempted. `placement.mjs`'s own docstring promises "every
+// refusal carries `summonSeed`", and for the place path that promise was broken.
+//
+// They mean the identical thing: the index within `con.seeds`, 0 being the
+// centre. `place()` hands `con.seeds` to the kernel in order and the kernel
+// indexes the array it was given, so the two indices are the same number by
+// construction — not by coincidence, and §10 asserts it on one geometry through
+// both verbs rather than trusting the argument.
+//
+// So `_attribute` SETS `summonSeed` from `point` (and `otherSummonSeed` from
+// `otherPoint` on a `batch` refusal) when the kernel answered. Both original
+// names keep their values: a rename that misses a caller is strictly worse than
+// an alias, which is the same call `first`/`refusal` made above.
+//
+// ONE REFUSAL CLASS IS EXEMPT AND MUST STAY EXEMPT: `closure` and `nav` carry
+// `points` — plural, the whole batch — and no index at all, because a rebuild
+// that failed its Euler gate or lost its floor cannot be blamed on one seed.
+// They get no `summonSeed`, and the gate asserts they still have none.
+//
 // ------------------------------------------------- what is NOT here ----------
 //
 // `undo()`. It looks like one line — keep the old pocket, swap it back — and it
@@ -236,6 +263,30 @@ export class SummonSession {
    *  caller should not have to know which layer answered. */
   _attribute(rf) {
     const out = { ...rf };
+
+    // WHICH PART OF THE SHAPE — normalised to `summonSeed` on both verbs.
+    //
+    // `placement.mjs` calls it `summonSeed` (the index within `con.seeds`, 0
+    // being the centre); the kernel calls it `point` (the index within the batch
+    // it was handed). They are THE SAME INDEX, because `place()` gives
+    // `reformPocketAll` exactly `con.seeds`, in order, and the kernel indexes the
+    // array it was given. See the header.
+    //
+    // ADD, NEVER RENAME. `point` and `otherPoint` keep their values and their
+    // meanings, so nothing that reads them breaks and no caller had to be found.
+    // An existing `summonSeed` is never overwritten: the preview path already
+    // carries the authoritative one.
+    if (typeof out.point === 'number' && out.summonSeed === undefined) {
+      out.summonSeed = out.point;
+    }
+    if (typeof out.otherPoint === 'number' && out.otherSummonSeed === undefined) {
+      out.otherSummonSeed = out.otherPoint;
+    }
+    // `closure` and `nav` are DELIBERATELY left with no index. They carry
+    // `points` — plural, the whole batch — because a rebuild that failed its
+    // Euler or nav gate cannot honestly be attributed to one seed, and inventing
+    // an index for them would be a lie a renderer would then highlight.
+
     if (rf.reason === 'seed') {
       const owner = this.ownerOf(rf.seedIndex);
       out.blame = owner ? 'player' : 'pocket';

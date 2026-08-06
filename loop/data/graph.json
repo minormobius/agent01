@@ -13634,11 +13634,9 @@
     }
   ],
   "now": {
-    "state": "working",
-    "detail": "1 turn(s) in flight",
-    "beads": [
-      "lp-fcf387"
-    ]
+    "state": "reviewing",
+    "detail": "judging the backlog against the vision",
+    "beads": []
   },
   "asks": [
     {
