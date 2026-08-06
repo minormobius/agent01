@@ -70,6 +70,9 @@
   svg#gameBoard .ls.bad { fill: var(--bad); }
   .lvl-verdict { margin-top:.6rem; font: 14px ui-monospace, Menlo, monospace; }
   .lvl-verdict.ok { color: var(--ok); } .lvl-verdict.bad { color: var(--bad); }
+  /* Sets no `display`, so the UA's `[hidden] { display: none }` is unopposed and
+     the element really disappears when the page hides it. */
+  #gameNudge { margin: .5rem 0 0; color: var(--dim); font-size: .9rem; }
   .lvl-btn { margin-top:.8rem; width:100%; background:var(--bg); color:var(--fg);
     border:1px solid var(--line); border-radius:4px; padding:.4rem; font:inherit; font-size:.85rem; cursor:pointer; }
   .lvl-btn:hover { border-color: var(--accent); }
@@ -92,6 +95,7 @@
     <svg id="gameBoard" viewBox="0 0 640 150" preserveAspectRatio="xMidYMid meet"
          aria-label="This level's production network"></svg>
     <div class="lvl-verdict" id="gameLine"></div>
+    <p id="gameNudge" hidden></p>
   </div>
   <div class="ctl">
     <label for="gameKnob"><span id="gameKnobKind"></span> <span class="val" id="gameKnobV"></span></label>
@@ -384,6 +388,21 @@ function paint() {
   const next = $('gameNext');
   next.textContent = more ? 'next level' : 'finish';
   next.hidden = !(v.won && !st.finished);
+
+  // A GREEN TICK WITH NO WAY FORWARD READS AS A BROKEN PAGE. Most levels open
+  // already fed, so the sentence above says everything is fine while the button
+  // beside it stays hidden, and a stranger who has not played yet is given no
+  // account of the difference. The controller already draws it — `ok` is the
+  // FACTORY, `won` is the GAME — so the page renders those two fields and
+  // computes nothing: no move count, no level id, no second verdict. Keeping it
+  // out of the module's own sentence() is deliberate, because that function
+  // speaks about the factory and this line is about the game.
+  const nudge = $('gameNudge');
+  const untouched = v.ok && !v.won;
+  nudge.hidden = !untouched;
+  nudge.textContent = untouched
+    ? 'The factory already works. Move the control and find out what breaks it.'
+    : '';
 
   $('gameProgress').textContent =
     `${st.index + 1} of ${st.total} · ${st.moves} change${st.moves === 1 ? '' : 's'}`;

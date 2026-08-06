@@ -37,7 +37,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { Campaign, LEVELS, ORDER, WIN_FRACTION, BANNED } from '../campaign.mjs';
+import { Campaign, LEVELS, ORDER, WIN_FRACTION, BANNED, grade } from '../campaign.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const html = readFileSync(join(here, '..', 'index.html'), 'utf8');
@@ -270,6 +270,79 @@ console.log('\n(9) a win advances and the last level ENDS — the rule the butto
   ok('past the last level next() returns null rather than wrapping', game.next() === null);
   ok('…and the game latches finished', game.state().finished === true);
   ok('…and stays finished on every further call', game.next() === null && game.state().finished);
+}
+
+console.log('\n(9b) a fed level nobody has touched SAYS SO — the state where the tick shows and the button does not');
+{
+  // THE STATE THIS EXISTS FOR IS THE OPENING STATE OF MOST OF THE GAME. Five of
+  // the six levels open already fed, so `verdict()` comes back `ok: true` with
+  // `won: false` before a stranger has done anything: a green tick reading
+  // "Everything is fed" beside a next button that section (9) correctly hides.
+  // Read cold, that is a broken page rather than an unplayed level.
+  //
+  // THREE THINGS ARE ASSERTED AND EACH COVERS A HOLE IN THE OTHER TWO. The
+  // sentence alone would pass for a string that never renders. The branch alone
+  // would pass for a branch on a state nothing can reach. And the reachability
+  // alone says nothing about the page. So: the controller really produces the
+  // state, the page really branches on it, and what it branches on is ONLY the
+  // two fields the verdict already carried.
+
+  // (i) the state is REACHABLE — driven, not asserted about.
+  const fresh = new Campaign();
+  const v0 = fresh.verdict();
+  ok('the first level a stranger meets opens with the factory already fed', v0.ok === true);
+  ok('…and NOT won, because nothing has been changed yet', v0.won === false);
+  ok('…so `v.ok && !v.won` is a state the page is entered in, not a corner case',
+    v0.ok && !v0.won);
+  // THE CONTROL, and without it every assertion above is satisfied by a page
+  // that shows the line whenever the factory works: after one real change to a
+  // winning setting, `ok` is still true and the state is GONE. `grade` is used
+  // to CHOOSE the setting so nothing is moved while searching — a predicate
+  // with a side effect on the game it is searching is a trap, and the game is
+  // read again immediately afterwards.
+  const k = fresh.entry.knob;
+  const win = k.samples.find((s) => k.key(s) !== k.key(k.start) && grade(fresh.entry, s).ok);
+  ok('the first level has a winning setting that is NOT the one it opens on',
+    win !== undefined);
+  ok('…and one accepted move to it leaves the untouched state, still fed',
+    fresh.move(win).accepted && fresh.verdict().ok === true && fresh.verdict().won === true);
+
+  // (ii) the page branches on it — and the CONDITION IS CAPTURED AND READ, not
+  // merely searched for. A `.includes('!v.won')` would pass for a page that
+  // ALSO consulted `st.moves`, and `st.moves` is sitting two lines below in the
+  // progress line, so "the block never mentions moves" cannot be the check.
+  const m = block.match(/const\s+untouched\s*=\s*([^;]+);/);
+  ok('the block derives the untouched state from the verdict it already has', !!m);
+  const cond = m ? m[1].trim() : '';
+  ok('…branching on v.ok — the FACTORY’s answer', /\bv\.ok\b/.test(cond), cond);
+  ok('…and on !v.won — the GAME’s answer, from the same one call',
+    /!\s*v\.won\b/.test(cond), cond);
+  ok('…and on NOTHING else: no move count, no index, no total, no threshold',
+    /^v\.ok\s*&&\s*!\s*v\.won$/.test(cond), cond);
+  for (const e of LEVELS) {
+    ok(`…and it names no level ("${e.id}")`, !new RegExp(`\\b${e.id}\\b`).test(cond));
+  }
+
+  // (iii) it is rendered, into a mount point that ships hidden.
+  ok('the markup carries the mount point id="gameNudge"', /id="gameNudge"/.test(html));
+  ok('…and it ships HIDDEN, so the state is entered rather than left showing',
+    /<p[^>]*id="gameNudge"[^>]*\shidden[^>]*>/.test(html));
+  ok('the block shows and hides it from that one condition and no other',
+    /\bnudge\.hidden\s*=\s*!\s*untouched\b/.test(block));
+
+  // The words are the page's, so the only thing assertable about them is what
+  // section (8) asserts about the intro: plain language, no vocabulary from
+  // inside this repository. BANNED is campaign.mjs's, not a list copied here.
+  const s = block.match(/untouched\s*\?\s*'([^']+)'/);
+  ok('there is a sentence, and it is the page’s own', !!s);
+  const said = s ? s[1] : '';
+  ok('…and it is a sentence, not a paragraph', said.length > 20 && said.length < 200,
+    `${said.length} chars`);
+  for (const w of BANNED) {
+    ok(`…and it does not say "${w}"`, !new RegExp(`\\b${w}\\b`, 'i').test(said));
+  }
+  ok('…and it is CLEARED when the state does not hold, rather than left lingering',
+    /untouched\s*\?\s*'[^']+'\s*:\s*''/.test(block));
 }
 
 console.log('\n(10) the control the page builds can actually be got wrong AND got right');
