@@ -143,12 +143,12 @@
   },
   "counts": {
     "total": 597,
-    "ready": 1,
+    "ready": 3,
     "blocked": 9,
     "in_progress": 0,
     "done": 92,
     "dropped": 3,
-    "proposed": 102,
+    "proposed": 100,
     "knowledge": 390
   },
   "beads": [
@@ -13456,13 +13456,16 @@
       "parent": "lp-ad6c32",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "84",
-      "evidence": [],
+      "evidence": [
+        "rejected: REJECTED ON TWO INDEPENDENT GROUNDS, either of which is sufficient. FIRST, AND DECISIVE: the tree it wants to change has already decided against it, in writing, and the ticket does not engage with that. plant/test/docs.selftest.mjs's own header (lines 13-16) says 'This is deliberately NOT a documentation linter. \"Does this paragraph still describe the code\" is undecidable... A conflict marker is t"
+      ],
       "created": "2026-08-06T23:07:51.205Z",
-      "updated": "2026-08-06T23:07:51.205Z",
+      "updated": "2026-08-06T23:30:50.045Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -13576,7 +13579,7 @@
       "id": "lp-ef6599",
       "title": "Wire #gameIntro to campaign.mjs's INTRO — the third and last hand-typed sentence on the campaign panel, and the module's words must win",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 1,
       "body": "COMPLETES THE ASYMMETRY lp-3302ee deliberately left open. index.html's `<p id=\"gameIntro\">` is now the ONLY text on the campaign panel that campaign.mjs does not own: level titles and blurbs are asserted ABSENT from the page (index-campaign-wiring §4 checks `!block.includes(e.blurb)`), and after lp-3302ee both game-state sentences are rendered by reference. The intro alone is still typed into the markup.\n\nWHY IT MATTERS AND NOT AS TIDINESS. §(8) asserts the intro exists, is under 400 chars, and contains no BANNED word. The ledger records exactly what that cannot catch: 'it checks a property of the text, never that it is the RIGHT text… it would pass for an intro describing a completely different game.' The assertion that bites is `intro.trim() === INTRO.blurb`, and it is only available once the page reads the module. INTRO has existed, fully specified and gated, since lp-ffddc7 — nothing renders it.\n\nTHE ORDERING CONSTRAINT, which is the whole reason this is a separate ticket and not a line in lp-3302ee. The two texts DISAGREE and the module must win:\n  page: 'A little factory that has to feed everything it promised. Each level gives you one setting to move; get nothing short and the next one opens.'\n  INTRO.blurb: 'Each puzzle is a small factory that is not quite working, and you get a single control — move it until everything downstream gets what it asked for.'\nThe shipped page wording is TWO sentences and says 'one setting' and 'level' — it violates INTRO's one-sentence rule, its count rule AND (arguably) its level-naming rule, all three of which campaign.selftest.mjs §2b already enforces on INTRO and passes. So a turn that wires this by copying the PAGE's words into the module goes red in campaign.selftest.mjs and will be tempted to relax §2b. That is the failure mode to forbid in the body: the module's words are correct and already gated, the page's words change, and §2b is not to be touched. lp-3302ee hit the identical fork for LINES and resolved it the same way, at the cost of rewording both lines.\n\nSCOPE (bounded paths): plant/index.html, plant/test/index-campaign-wiring.selftest.mjs. campaign.mjs should need NO change — INTRO is already correct, already frozen, already gated. If it turns out to need one, that is a signal the wording decision is being made in the wrong direction.\n\nWHAT THE GATE MUST CHECK, and it must be a REPLACEMENT rather than an addition, or the ticket has bought nothing:\n  · §(8)'s property checks (non-empty, <400 chars, no BANNED word) are REPLACED by identity: the page renders `INTRO.title` and `INTRO.blurb` by reference, and the extracted `#gameIntro` text equals INTRO.blurb. The property checks live on in campaign.selftest.mjs §2b against the export, which is the stronger home for them.\n  · the DEPARTURE half, per this tree's standing rule for relocation work: `!html.includes(<the old paragraph>)` derived from nothing hand-typed — assert instead that the markup's #gameIntro element is EMPTY in source (filled at paint time), and that no BANNED-free-but-page-owned paragraph is left behind. `!html.includes(INTRO.blurb)` is NOT the right check here (the page must contain it after render, but not in source), so assert the element ships empty and the block writes it from the export.\n  · the page imports INTRO from ./campaign.mjs, matching how it already imports LINES.\n\nBOTH GATES EXIST AND PASS TODAY, so this is class-a with no new file. It changes what a visitor reads on the first screen, which is vision item 1's territory.",
       "deps": [],
@@ -13589,16 +13592,16 @@
       "run": "85",
       "evidence": [],
       "created": "2026-08-06T23:18:05.276Z",
-      "updated": "2026-08-06T23:18:05.276Z",
+      "updated": "2026-08-06T23:30:49.951Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
       "id": "lp-3f5f26",
       "title": "The page shows a green tick and no way forward on five of six opening screens — the nudge line exists but the ✓ sentence still contradicts it",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 1,
       "body": "RECORDED IN THE LEDGER AND STILL UNFIXED, and lp-3302ee moved the words without touching the contradiction they sit in. Worth a ticket because it is on the one screen a stranger meets.\n\nTHE STATE. Five of the six levels open ALREADY FED (level1 51 against demand 50, level3 45 against 44, level4 30.6/71.4 against 30/70, level5 exactly 30/70, level6 exactly 24/60). So on arrival `verdict()` returns `ok: true, won: false`, and the page renders campaign.mjs's own `sentence(v)`:\n\n    ✓ Everything is fed, with 2% to spare (tight).\n\n…beside a next button that index.html correctly hides (`!(v.won && !st.finished)`). Read cold, a green tick with no way forward is a broken page. lp-6e4b6f added the nudge line underneath ('The factory already works — move the control and find out what breaks it.') which explains it, and the tick still SAYS THE LEVEL IS DONE two lines above.\n\nWHAT MAKES THIS NOT A ONE-LINE FIX, and why it is a ticket rather than a drive-by. The obvious repair is to branch `sentence()` on `won`. That is WRONG and lp-3302ee's ticket text explains why: sentence() speaks about the FACTORY, and campaign.mjs's header keeps `move().accepted` and `verdict().ok` apart on purpose ('two senses of ok, kept apart because a renderer will meet both'). Folding the game's win state into the factory's sentence destroys exactly the distinction the module is careful about — the same argument that made LINES a sibling export rather than a branch in sentence().\n\nTHE SHAPE THAT PRESERVES IT: the ✓ glyph and the word 'fed' are the factory's; whether this counts as DONE is the game's. So the page should render the factory sentence WITHOUT a completion glyph when `ok && !won`, or LINES should gain a third line that replaces rather than supplements. Both are module-owned text changes plus a render branch, and both are gateable by the pair of gates that already exist. Deciding between them is a taste call the turn should make and record; the ledger's standing guidance is to pick the option that is easier to reverse.\n\nSCOPE (bounded paths): plant/campaign.mjs, plant/index.html, plant/test/campaign.selftest.mjs, plant/test/index-campaign-wiring.selftest.mjs.\n\nWHAT THE GATE MUST CHECK:\n  · campaign.selftest.mjs: `sentence()` (or whatever replaces the glyph decision) is driven at BOTH `ok && !won` and `ok && won` on a real Campaign, and the two outputs must DIFFER — a single-state fixture cannot test a conjunction, which is the hole §(9b) of the wiring gate already had to close with a second fixture one move away.\n  · index-campaign-wiring.selftest.mjs: the page branches on the same two fields it already has and computes nothing new (no move count, no level id, no second verdict), and any new text is module-owned and asserted absent from the page, per the rule lp-3302ee established for LINES.\n  · CONTROL, and it is the one that makes the section non-vacuous: a fixture in the `!ok` state must be unchanged by this work — the failure sentence is the factory's and has nothing to do with winning.\n\nBOTH GATES EXIST AND PASS TODAY: class-a, no new file. This changes what a visitor sees on the opening screen of five of six levels, which is vision item 1.",
       "deps": [],
@@ -13611,9 +13614,9 @@
       "run": "85",
       "evidence": [],
       "created": "2026-08-06T23:18:05.276Z",
-      "updated": "2026-08-06T23:18:05.276Z",
+      "updated": "2026-08-06T23:30:49.881Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -15242,6 +15245,14 @@
     ]
   ],
   "ready": [
+    {
+      "id": "lp-3f5f26",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-ef6599",
+      "unblocks": 0
+    },
     {
       "id": "lp-e8d94e",
       "unblocks": 0
