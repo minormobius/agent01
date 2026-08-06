@@ -64,7 +64,7 @@ async function cardBlob(svg) {
 }
 
 // ── what the post says ───────────────────────────────────────────────────────
-export function cardText(scored, handle, postCount) {
+export function cardText(scored, handle, postCount, arch = null) {
   const url = `https://b.mino.mobi/palm/?u=${encodeURIComponent(handle)}`;
   const lines = scored.axes.map((a) => `${a.label.toLowerCase()} ${a.pct === null ? '—' : Math.round(a.pct)}`).join(' · ');
   const n = postCount.toLocaleString('en-US');
@@ -72,22 +72,25 @@ export function cardText(scored, handle, postCount) {
   // Longest first; fall back as the grapheme budget runs out. A truncated
   // disclaimer is worse than a shorter post, so the "not a detector" clause is
   // the last thing dropped and the link is never dropped at all.
+  const head = arch ? `${scored.composite} — ${scored.band.name}. ${arch.name}.` : `${scored.composite} — ${scored.band.name}.`;
   const candidates = [
-    `${scored.composite} — ${scored.band.name}.\n\n${lines}\n\nSix lines read off all ${n} of my posts. A percentile among ${scored.pool} accounts, not an AI detector.\n\n${url}`,
-    `${scored.composite} — ${scored.band.name}.\n\n${lines}\n\nRead off all ${n} of my posts. A percentile, not an AI detector.\n\n${url}`,
-    `${scored.composite} — ${scored.band.name}.\n\n${lines}\n\nA percentile, not an AI detector.\n\n${url}`,
+    `${head}\n\n${lines}\n\nSix lines read off all ${n} of my posts. A percentile among ${scored.pool} accounts, not an AI detector.\n\n${url}`,
+    `${head}\n\n${lines}\n\nRead off all ${n} of my posts. A percentile, not an AI detector.\n\n${url}`,
+    `${head}\n\n${lines}\n\nA percentile, not an AI detector.\n\n${url}`,
+    `${head}\n\n${lines}\n\n${url}`,
     `${scored.composite} — ${scored.band.name}.\n\n${url}`,
   ];
   return candidates.find((t) => textLength(t) <= POST_MAX) || candidates[candidates.length - 1];
 }
 
 /** Alt text carries the same numbers, and the same caveat, for anyone who cannot see the card. */
-export function cardAlt(scored, handle) {
+export function cardAlt(scored, handle, arch = null) {
   const spokes = scored.axes
     .map((a) => `${a.label} (${a.gloss}) ${a.pct === null ? 'unmeasured' : Math.round(a.pct) + 'th percentile'}`)
     .join('; ');
   return `A six-spoke radar chart of stylometric readings for @${handle}. ${spokes}. `
-    + `Composite ${scored.composite} of 100, "${scored.band.name}". `
+    + `Composite ${scored.composite} of 100, "${scored.band.name}"`
+    + (arch ? `, archetype "${arch.name}" — ${arch.read} (${arch.spread}). ` : '. ')
     + `The scale runs from Pan (least machine-like) to the Loom (most). `
     + `These are percentiles among ${scored.pool} real accounts, not a probability that anything was machine-written.`;
 }
@@ -123,7 +126,7 @@ export async function signIn(handle) {
  * Post the card. Refuses unless the signed-in DID is the DID that was read.
  * @returns {Promise<{uri, cid, blobBytes, size}>}
  */
-export async function postCard({ svg, scored, handle, did, postCount }) {
+export async function postCard({ svg, scored, handle, did, postCount, arch = null }) {
   const auth = await getAuth();
 
   const user = auth.getUser();
@@ -137,7 +140,7 @@ export async function postCard({ svg, scored, handle, did, postCount }) {
   if (blob.size > BLOB_MAX) throw new Error('the card came out too large to upload');
 
   const blobRef = await auth.pds.uploadBlob(await blob.arrayBuffer(), 'image/png');
-  const text = cardText(scored, handle, postCount);
+  const text = cardText(scored, handle, postCount, arch);
 
   const record = {
     $type: 'app.bsky.feed.post',
@@ -147,7 +150,7 @@ export async function postCard({ svg, scored, handle, did, postCount }) {
     embed: {
       $type: 'app.bsky.embed.images',
       images: [{
-        alt: cardAlt(scored, handle),
+        alt: cardAlt(scored, handle, arch),
         image: blobRef,
         aspectRatio: { width: size, height: size },
       }],

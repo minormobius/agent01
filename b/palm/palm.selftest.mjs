@@ -20,11 +20,21 @@
 //   THE FIXED BUDGETS. `lexicon` and `echo` are only comparable across accounts
 //   because their fit range and trigram count are pinned. Take the pins out and
 //   the percentiles silently start measuring who posts the most.
+//
+//   THE FLAT DIAL. Averaging six near-uniform percentiles piles up around 50 —
+//   measured across the pool, 80% of accounts landed in two of seven bands and
+//   two bands were reached by nobody. The composite is therefore a percentile OF
+//   the pool's means, and the assertions below pin both that and the fact that
+//   every band is reachable, because the failure looks like a working dial.
+//
+//   A MISSING MATRIX CELL. 30 ordered pairs name the reading; a gap is not a
+//   crash, it is an account that gets no archetype at all. All thirty are walked.
 
 import { createReader, readCar, uvarint, decode } from './car-stream.js';
 import { cadence, vigil, lexicon, echo, drift, chorus, polish, AXES, LEX_WORDS, ECHO_TRIGRAMS } from './axes.js';
 import { percentile, band, score, BANDS } from './baseline.js';
 import { cardText, cardAlt } from './share.js';
+import { MATRIX, archetype } from './matrix.js';
 import { linkFacets, textLength } from '../coin/compose.js';
 
 let failures = 0;
@@ -257,6 +267,70 @@ const at = (iso, extra = {}) => ({ text: 'a post with several ordinary words in 
   eq(s.axes.find((a) => a.key === 'drift').soft, true, 'the short axis is marked soft for the card to draw hollow');
 }
 
+// ── the matrix ───────────────────────────────────────────────────────────────
+// A missing cell is not a crash, it is a real account that gets no reading at
+// all — so every ordered pair is walked rather than spot-checked.
+{
+  const keys = AXES.map((a) => a.key);
+  let missing = 0, blank = 0;
+  const names = new Set();
+  for (const dom of keys) {
+    for (const rec of keys) {
+      if (dom === rec) continue;
+      const cell = MATRIX[`${dom}>${rec}`];
+      if (!cell) { missing++; continue; }
+      if (!cell.name || !cell.read) blank++;
+      names.add(cell.name);
+    }
+  }
+  eq(missing, 0, 'every one of the 30 ordered pairs has an archetype');
+  eq(blank, 0, 'and every one has both a name and a line');
+  eq(Object.keys(MATRIX).length, 30, 'the matrix has exactly 30 cells — no self-pairs, no strays');
+  eq(names.size, 30, 'and all 30 names are distinct, so the name identifies the pair');
+
+  // Selection: highest is dominant, lowest is recessive.
+  const mk = (pcts) => AXES.map((a, i) => ({ key: a.key, label: a.label, pct: pcts[i], soft: false }));
+  const a = archetype(mk([28, 33, 10, 57, 43, 88]));         // chorus high, lexicon low
+  eq(a.dominant, 'chorus', 'the highest percentile is the dominant line');
+  eq(a.recessive, 'lexicon', 'and the lowest is the recessive one');
+  eq(a.name, MATRIX['chorus>lexicon'].name, 'which selects the matching cell');
+  ok(a.spread.includes('88') && a.spread.includes('10'), 'the spread names both numbers');
+
+  // A soft axis must never become someone's headline.
+  const withSoft = mk([28, 33, 10, 57, 43, 88]);
+  withSoft[5].soft = true;                                    // chorus, the would-be dominant
+  eq(archetype(withSoft).dominant !== 'chorus', true, 'a soft axis cannot be the dominant line');
+  eq(archetype(mk([50, 50, 50, 50, 50, 50])), null, 'a perfectly flat hand has no pair to name');
+  ok(archetype(mk([1, 2, 3, 4, 5, 6])) !== null, 'and any hand with a spread does');
+}
+
+// ── the composite is a percentile, not a mean ────────────────────────────────
+// The regression this guards: averaging six near-uniform percentiles clusters
+// hard around 50, which left two of seven bands unreachable by anybody. If the
+// composite table ever goes missing from baseline.json, scoring must still work
+// but must SAY it is unnormalised rather than quietly flattening the dial.
+{
+  const flat = Object.fromEntries(AXES.map((a) => [a.key, Array.from({ length: 101 }, (_, i) => i / 100)]));
+  const rd = { meta: { posts: 1000 }, axes: Object.fromEntries(AXES.map((a) => [a.key, { raw: 0.9 }])) };
+
+  const bare = score(rd, { n: 80, quantiles: { ...flat } });
+  eq(bare.normalised, false, 'a baseline with no composite table scores unnormalised');
+  eq(bare.composite, 90, 'and falls back to the raw mean rather than refusing');
+
+  // A composite table that maps 90 -> the very top of the dial.
+  const table = Array.from({ length: 101 }, (_, i) => i * 0.9);
+  const norm = score(rd, { n: 80, quantiles: { ...flat, __composite: table } });
+  eq(norm.normalised, true, 'a baseline with the table scores normalised');
+  eq(norm.composite, 100, 'and the raw mean is re-read against the pool of means');
+  eq(norm.rawMean, 90, 'while the raw mean is still reported, so the two are comparable');
+
+  // Every band must be reachable from some composite — the bug that started this.
+  const reached = new Set();
+  for (let i = 0; i <= 100; i++) reached.add(band(i).name);
+  eq(reached.size, BANDS.length, 'every band on the dial is reachable by some score');
+  eq(BANDS[BANDS.length - 1].max, 100, 'and the dial runs all the way to 100');
+}
+
 // ── the shared card ──────────────────────────────────────────────────────────
 // The post has to fit 300 GRAPHEMES, and the two things that must never be lost
 // to that budget are the link back and the "not a detector" caveat. A silently
@@ -293,4 +367,4 @@ if (failures) {
   console.error(`\n✗ palm selftest FAILED — ${failures} assertion(s)\n`);
   process.exit(1);
 }
-console.log('✓ palm selftest passed — CAR streaming (like trap, chunk boundaries, MST prefix compression), the six readings, the percentile comparison, and the shared card\'s grapheme budget and link facets');
+console.log('✓ palm selftest passed — CAR streaming (like trap, chunk boundaries, MST prefix compression), the six readings, the two-stage percentile and a reachable dial, all 30 matrix cells, and the shared card\'s grapheme budget and link facets');

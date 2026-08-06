@@ -8,9 +8,12 @@
 // The card's colour IS the verdict — hue runs from teal at the animal end to
 // amber at the machine end — so it reads at thumbnail size, before any label.
 
+// The radar sits a little high and a little small so the archetype has room to
+// breathe underneath it. The name is the part people screenshot; a composite of
+// 26 is not a thing anyone repeats, but "The Crier" is.
 const SIZE = 1080;
-const CX = SIZE / 2, CY = SIZE / 2 - 26;
-const R = 300;
+const CX = SIZE / 2, CY = SIZE / 2 - 52;
+const R = 262;
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -33,7 +36,7 @@ function polygon(vals, n) {
  * @param {object} scored  the result of baseline.score()
  * @param {object} opts    { handle, subtitle }
  */
-export function radarSvg(scored, { handle = '', subtitle = '' } = {}) {
+export function radarSvg(scored, { handle = '', subtitle = '', arch = null } = {}) {
   const axes = scored.axes;
   const n = axes.length;
   const c = accent(scored.composite ?? 50);
@@ -89,9 +92,12 @@ export function radarSvg(scored, { handle = '', subtitle = '' } = {}) {
   <circle cx="${CX}" cy="${CY}" r="112" fill="#0a0a0c" fill-opacity="0.82" stroke="${c.dim}" stroke-width="1.5"/>
   <text x="${CX}" y="${CY + 4}" text-anchor="middle" fill="#f4f1ea" font-size="92" font-weight="700">${score}</text>
   <text x="${CX}" y="${CY + 40}" text-anchor="middle" fill="${c.mid}" font-size="19" font-weight="600" letter-spacing="2">${esc(bandName.toUpperCase())}</text>
-  <text x="${CX}" y="${SIZE - 112}" text-anchor="middle" fill="#f4f1ea" font-size="34">${esc(handle)}</text>
-  <text x="${CX}" y="${SIZE - 74}" text-anchor="middle" fill="#8a8578" font-size="21">${esc(subtitle)}</text>
-  <text x="${CX}" y="${SIZE - 34}" text-anchor="middle" fill="#5c584f" font-size="20" letter-spacing="2">b.mino.mobi/palm · percentile among ${scored.pool} accounts, not a probability</text>
+  ${arch ? `<text x="${CX}" y="${SIZE - 166}" text-anchor="middle" fill="${c.glow}" font-size="46" font-weight="700">${esc(arch.name)}</text>
+  <text x="${CX}" y="${SIZE - 132}" text-anchor="middle" fill="#a8a294" font-size="23" font-style="italic">${esc(arch.read)}</text>
+  <text x="${CX}" y="${SIZE - 100}" text-anchor="middle" fill="#6e6a5f" font-size="19" letter-spacing="1">${esc(arch.spread)}</text>` : ''}
+  <text x="${CX}" y="${SIZE - 62}" text-anchor="middle" fill="#f4f1ea" font-size="30">${esc(handle)}</text>
+  <text x="${CX}" y="${SIZE - 34}" text-anchor="middle" fill="#8a8578" font-size="19">${esc(subtitle)}</text>
+  <text x="${CX}" y="${SIZE - 11}" text-anchor="middle" fill="#5c584f" font-size="17" letter-spacing="1">b.mino.mobi/palm · percentile among ${scored.pool} accounts, not a probability</text>
 </svg>`;
 }
 

@@ -73,6 +73,12 @@ button.ghost { background: none; color: var(--sky); }
 
 .verdict { text-align: center; margin: 1.8rem 0 0.4rem; }
 .verdict .blurb { color: var(--muted); font-size: 1.05rem; max-width: 46ch; margin: 0 auto; }
+.verdict .arch { margin: 0.9rem auto 0; max-width: 46ch; font-size: 1.05rem; }
+.verdict .arch b { color: var(--gold); font-size: 1.25rem; }
+.verdict .spread {
+  font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted);
+}
 
 table { width: 100%; border-collapse: collapse; margin: 2rem 0 0; font-size: 0.92rem; }
 th { text-align: left; font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.12em;
@@ -138,7 +144,10 @@ td.poles { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
 
 <div id="out" class="hidden">
   <div id="card"></div>
-  <div class="verdict"><p class="blurb" id="blurb"></p></div>
+  <div class="verdict">
+    <p class="blurb" id="blurb"></p>
+    <p class="arch" id="arch"></p>
+  </div>
   <div class="actions">
     <button class="ghost" id="save">save as PNG</button>
     <button class="ghost" id="copy">copy image</button>
@@ -158,7 +167,26 @@ td.poles { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
   <h2>what this is</h2>
   <p>
     Six stylometric measurements over your whole archive, each oriented so that a high
-    number is the more machine-like end. The composite is their mean.
+    number is the more machine-like end.
+  </p>
+  <h2>how the reading is put together</h2>
+  <p>
+    A number on its own is a thin thing to hand someone: two people who both land on 43
+    have nothing in common except 43. So the reading is a <b>pair</b>, the way a chart is —
+    which line runs furthest toward the machine, and which furthest toward the animal.
+    Six lines give thirty ordered pairs, each with its own name, and with seven bands that
+    is <b>210 distinct readings</b> rather than seven. The pair is about the shape of your
+    own hand, not the absolute numbers: someone at 12 and someone at 88 can both be
+    Switchboards.
+  </p>
+  <p>
+    The composite is a <b>percentile of a percentile</b>, and that is deliberate. Averaging
+    six roughly independent percentiles is the central limit theorem applied to your own
+    dial — the mean piles up near 50, and measured across the pool it did exactly that:
+    80% of accounts fell in two of the seven bands, and <i>Wholly Pan</i> and <i>The Loom</i>
+    were reached by nobody at all. So the mean goes back through the same treatment the
+    axes got, against the pool's distribution of means. Every band is now reachable, and
+    each band's width is honestly its share of the population.
   </p>
   <div class="caveat">
     <b>It is not an AI detector, and it cannot be one.</b> Bluesky caps a post at 300

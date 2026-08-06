@@ -8,6 +8,7 @@ import { resolveHandle, fetchProfile } from '../lib/identity.js';
 import { createReader } from './car-stream.js';
 import { readings, AXES } from './axes.js';
 import { score } from './baseline.js';
+import { archetype } from './matrix.js';
 import { radarSvg, svgToPng } from './radar.js';
 import * as store from './store.js';
 import { postCard, signIn, takeIntent, getAuth, PALM_SCOPE } from './share.js';
@@ -113,12 +114,16 @@ async function run(input, { fresh = false } = {}) {
 function render(scored, read, ctx) {
   const span = Math.round(read.meta.span);
   const subtitle = `${num(read.meta.posts)} posts over ${num(span)} days`;
-  const svg = radarSvg(scored, { handle: '@' + ctx.handle, subtitle });
+  const arch = archetype(scored.axes);
+  const svg = radarSvg(scored, { handle: '@' + ctx.handle, subtitle, arch });
   $('card').innerHTML = svg;
-  lastCard = { svg, handle: ctx.handle, did: ctx.did, scored, postCount: read.meta.posts };
+  lastCard = { svg, handle: ctx.handle, did: ctx.did, scored, arch, postCount: read.meta.posts };
   renderShare();
 
   $('blurb').textContent = scored.band ? scored.band.blurb : 'Too little history to read.';
+  $('arch').innerHTML = arch
+    ? `<b>${arch.name}</b> — ${arch.read}<br><span class="spread">${arch.spread}</span>`
+    : '';
 
   $('rows').innerHTML = scored.axes.map((a) => {
     const d = a.detail;
@@ -224,7 +229,7 @@ async function doPost() {
   setShare('rendering and uploading the card…');
   try {
     const res = await postCard({
-      svg: lastCard.svg, scored: lastCard.scored,
+      svg: lastCard.svg, scored: lastCard.scored, arch: lastCard.arch,
       handle: lastCard.handle, did: lastCard.did, postCount: lastCard.postCount,
     });
     const rkey = String(res.uri).split('/').pop();

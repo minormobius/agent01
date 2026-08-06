@@ -135,6 +135,51 @@ than five honest ones, so `drift` replaced it and echo survives as a footnote.
 The correlation matrix ships in `baseline.json` precisely so the next person can
 run the same check — regenerate it whenever an axis changes.
 
+### The dial was flat, and the fix is two percentiles
+
+The composite started as the plain mean of the six percentiles, and that is the
+central limit theorem applied to your own dial. Averaging six roughly
+independent U(0,100) values gives a standard deviation near 12 rather than 29, so
+it piles up at 50. **Measured across the pool: 80% of accounts fell into two of
+the seven bands, and `Wholly Pan` and `The Loom` were reached by nobody at all** —
+two verdicts that existed only in the source code.
+
+So the mean is put back through the same treatment the axes got, against the
+pool's distribution *of means* (`quantiles.__composite`, built by the second pass
+in `build-baseline.mjs`). It is deliberately circular — the pool normalised
+against itself — which is precisely what makes the output uniform on 0..100.
+After: **sd 12.2 → 30.0, all seven bands reached, min 0 max 100.**
+
+Two consequences worth holding onto:
+
+- **Band widths are now population shares.** `BANDS` says 4/12/17/33/17/12/5, so
+  4% of people are Wholly Pan. Editing a boundary is choosing how rare a verdict
+  is, not just where a line sits.
+- **`score()` still works against an older baseline** with no `__composite` key —
+  it falls back to the raw mean and reports `normalised: false`, because a flat
+  dial beats no dial. The selftest pins both branches.
+
+Re-run `build-baseline.mjs` after ANY axis change: the composite table is derived
+from the per-axis tables, so a stale one silently mis-reads the dial.
+
+### The matrix — 30 archetypes, so the reading is not just a number
+
+Two people who both score 43 have nothing in common except 43. `matrix.js` names
+the **pair**: the line running furthest toward the machine (dominant) and the one
+furthest toward the animal (recessive). Six axes give 6 × 5 = 30 ordered pairs,
+and with seven bands that is **210 distinct readings**. Across 85 real accounts,
+28 of the 30 cells were hit.
+
+The pair is about the *shape* of a hand, not its magnitude — someone at 12 and
+someone at 88 can both be Switchboards, and that is the point. Soft axes are
+excluded from the selection so an axis that could not be measured comparably
+never becomes someone's headline, and ties break on `AXES` order so a refresh
+never changes the verdict.
+
+Every cell must exist: a gap is not a crash, it is an account that gets no
+reading. `palm.selftest.mjs` walks all thirty and asserts the names are distinct.
+The names are pure editorial — rename them freely.
+
 ### Posting the card — the one rule worth knowing
 
 `palm/share.js` posts the card through the shared OAuth worker, scope

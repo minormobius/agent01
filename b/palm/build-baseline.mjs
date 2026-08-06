@@ -135,6 +135,43 @@ for (const a of AXES) {
   });
 }
 
+// ── the composite table ──────────────────────────────────────────────────────
+// A SECOND pass, and the reason is in baseline.js: the mean of six near-uniform
+// percentiles clusters hard around 50, so without this the dial only ever uses
+// its middle and two of the seven bands are unreachable. Each pool member is
+// scored against the per-axis tables just built, and the distribution of THEIR
+// means becomes the table the composite is read against.
+//
+// It is deliberately circular — the pool is normalised against itself — which is
+// exactly what makes the output uniform. Anything else would need a second
+// population nobody has.
+const composites = [];
+for (const r of results) {
+  const usable = AXES
+    .map((a) => quantilePct(r.axes[a.key].raw, quantiles[a.key]))
+    .filter((p) => p !== null);
+  if (usable.length) composites.push(usable.reduce((s, p) => s + p, 0) / usable.length);
+}
+composites.sort((a, b) => a - b);
+quantiles.__composite = Array.from({ length: 101 }, (_, i) => {
+  const pos = (i / 100) * (composites.length - 1);
+  const lo = Math.floor(pos), hi = Math.ceil(pos);
+  return +(composites[lo] + (composites[hi] - composites[lo]) * (pos - lo)).toFixed(6);
+});
+
+function quantilePct(raw, table) {
+  if (raw === null || raw === undefined) return null;
+  if (raw <= table[0]) return 0;
+  if (raw >= table[100]) return 100;
+  for (let i = 1; i <= 100; i++) {
+    if (raw <= table[i]) {
+      const span = table[i] - table[i - 1];
+      return (i - 1) + (span === 0 ? 0 : (raw - table[i - 1]) / span);
+    }
+  }
+  return 100;
+}
+
 // ── how orthogonal are these really? ─────────────────────────────────────────
 // "Six orthogonal readings" is a claim, so measure it rather than assert it.
 // Pearson r between every pair of axes across the pool, shipped with the table
