@@ -143,12 +143,12 @@
   },
   "counts": {
     "total": 529,
-    "ready": 2,
+    "ready": 4,
     "blocked": 9,
     "in_progress": 0,
     "done": 83,
     "dropped": 3,
-    "proposed": 92,
+    "proposed": 90,
     "knowledge": 340
   },
   "beads": [
@@ -12022,7 +12022,7 @@
       "id": "lp-b27cc4",
       "title": "plant/CLAUDE.md still says the campaign control is built over knob.samples by index — LEVEL_3's is not, since lp-056d80",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 2,
       "body": "plant/CLAUDE.md's campaign paragraph describes the page as carrying 'a control built over `knob.samples` **by index**'. Since lp-056d80 that is true of five levels and not of LEVEL_3, whose knob declares `parts` and whose control is one index slider per component composed by the knob's own `compose`. The paragraph's load-bearing claim — that an off-grid setting is unrepresentable — is still exactly true and should be kept; what is missing is the branch, and the sentence a reader most needs: a knob with `parts` DERIVES its `samples` from the product and refuses to be given both, so `parts` is a presentation of the same finite domain and nothing about the win fraction or the play order moves when a knob gains one.\n\nSCOPE: plant/CLAUDE.md only. Two or three sentences in the existing campaign section, plus a line in the 'two things to know before changing it' note.\n\nWHAT THE GATE CAN AND CANNOT DO, said plainly because it is the honest half of this ticket: NO GATE CAN CHECK THAT PROSE IS TRUE. The named gates certify only that the described behaviour still holds — that `parts` still derives, still refuses a double declaration, and that the page still types no bound — so a wrong sentence would pass. This is a documentation ticket graded on no-regression, and anyone promoting it should know that rather than discover it. It is proposed at P2 for that reason. The alternative — leaving the file to drift — is what this ledger has recorded twice as a debt nothing collects (summon-session.mjs's header still describing a fixed NaN bug in the present tense), and prose that describes a tree the code has left is worse than no prose because it is trusted.",
       "deps": [],
@@ -12035,9 +12035,9 @@
       "run": "63",
       "evidence": [],
       "created": "2026-08-06T08:31:12.934Z",
-      "updated": "2026-08-06T08:31:12.934Z",
+      "updated": "2026-08-06T08:42:11.517Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -12193,7 +12193,7 @@
       "id": "lp-000596",
       "title": "A level must be WON by changing something: make `won` require a value different from the opening setting",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 1,
       "body": "Five of the six levels open in a winning state (level1 51/50, level3 45/44, level4 30.6 and 71.4 of 30 and 70, level5 exactly 30/70, level6 exactly 24/60); only level2 opens broken. The only thing that stops a stranger completing them by arriving is Campaign's `won = ok && moves > 0`, and campaign.selftest.mjs §12 pins that a move TO THE SAME SETTING satisfies it. plant/test/playthrough.selftest.mjs now measures the consequence: a blind player finishes the entire campaign in 7 moves, and on level1 the winning move is literally re-selecting the rate it opened on, because the opening sits at the top of the domain and the up-policy clamps.\n\nThe vision's bar is 'an intention they formed, acted on, and got refused for'. The refusal half is in good shape — that gate proves one move reaches a refusal on all six levels. The win half is satisfied on a technicality.\n\nTHE CHANGE, and it is one clause: in campaign.mjs, `won` becomes `ok && moves > 0 && knob.key(value) !== knob.key(knob.start)` — the player must have moved to a setting that is not the one they were given. Keep `moves > 0` as well; a level entered, changed, and changed back is not a win either, and dropping the move count would make that pass.\n\nWHY IT IS SATISFIABLE TODAY, checked before proposing: every level has a winning setting different from its opening — level1 rate 119, level3 {70,46}, level4 103, level5 0.31, level6 0.41, level2 golden. So no level becomes unwinnable.\n\nWHAT IT WILL BREAK, said up front so it is not a surprise. (1) campaign.selftest.mjs §12 asserts 'one move — even to the same setting — is enough to win it'; that assertion is the OLD contract and must be inverted, with a new one proving a changed setting does win. (2) playthrough.selftest.mjs's UP_TO_WIN table changes: level1's STEP_UP clamps at the ceiling and would no longer win at all, which is the real finding here rather than an obstacle — either level1's opening moves off the top of its domain, or its win policy has to be STEP_DOWN. Whichever is chosen, say which in the body of the change. (3) index-campaign-wiring.selftest.mjs may assert the next button appears on `won`; the field is unchanged, only its rule.\n\nGATE: `node plant/test/campaign.selftest.mjs` and `node plant/test/playthrough.selftest.mjs`, both of which exist and pass today. This is class-a rather than creates-gate: no new file is needed, and the work is precisely that both existing gates must be brought to the new contract and still pass. Do NOT weaken an assertion to make them pass — §12's same-setting case must be REPLACED by its opposite, not deleted.\n\nDeliberately NOT proposed as part of this: changing any level's opening numbers. Each level header argues for its own opening and that is a separate design conversation.",
       "deps": [],
@@ -12206,9 +12206,9 @@
       "run": "64",
       "evidence": [],
       "created": "2026-08-06T08:36:59.145Z",
-      "updated": "2026-08-06T08:36:59.145Z",
+      "updated": "2026-08-06T08:42:11.451Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -12222,13 +12222,16 @@
       "parent": "lp-e31335",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "64",
-      "evidence": [],
+      "evidence": [
+        "rejected: REJECTED ON A STALE PREMISE, and the prescribed change would break a live control rather than fix one. Two independent failures. (1) THE PREMISE IS NO LONGER TRUE. The ticket says level3's knob is `grid(intRange(10,100), intRange(10,100), ...)` and that the page builds one index slider over it. Since lp-056d80 the knob declares `parts` (campaign.mjs:318-321) and index.html:337-342 sets `slider.hid"
+      ],
       "created": "2026-08-06T08:36:59.145Z",
-      "updated": "2026-08-06T08:36:59.145Z",
+      "updated": "2026-08-06T08:42:11.609Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -13574,11 +13577,19 @@
   ],
   "ready": [
     {
+      "id": "lp-000596",
+      "unblocks": 0
+    },
+    {
       "id": "lp-e8d94e",
       "unblocks": 0
     },
     {
       "id": "lp-fcf387",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-b27cc4",
       "unblocks": 0
     }
   ],
@@ -13635,8 +13646,9 @@
   ],
   "now": {
     "state": "working",
-    "detail": "1 turn(s) in flight",
+    "detail": "2 turn(s) in flight",
     "beads": [
+      "lp-000596",
       "lp-fcf387"
     ]
   },
