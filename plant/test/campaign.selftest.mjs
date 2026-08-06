@@ -19,7 +19,7 @@
 
 import {
   LEVELS, ORDER, WIN_FRACTION, BANNED, INTRO, Campaign,
-  entryOf, buildNetwork, grade, winFraction, byDifficulty,
+  entryOf, buildNetwork, grade, winFraction, byDifficulty, knob,
 } from '../campaign.mjs';
 import { feasible } from '../production.mjs';
 
@@ -176,6 +176,149 @@ console.log('\n5. LEVEL_3 — a 91x91 grid; win iff min(miner, smelter) >= deman
   ok('44 x 44 achieved is exactly 44', Math.abs(grade(e, { miner: 44, smelter: 44 }).achieved.depot - 44) < 1e-12);
   // wins = both capacities in 44..100 = 57 x 57 = 3249 of 8281.
   ok('win fraction is 3249/8281', WIN_FRACTION.level3 === 3249 / 8281, `${WIN_FRACTION.level3}`);
+}
+
+console.log('\n5b. LEVEL_3 is a MULTI-PART knob — two controls over ONE declared domain');
+{
+  const e = entryOf('level3');
+  const k = e.knob;
+
+  ok('the knob declares two parts', Array.isArray(k.parts) && k.parts.length === 2,
+    `${k.parts && k.parts.length}`);
+  ok('named for the two machines the player moves',
+    k.parts.map((p) => p.name).join(',') === 'miner,smelter', String(k.parts.map((p) => p.name)));
+  for (const p of k.parts) {
+    ok(`${p.name}: 91 integer capacities`, p.samples.length === 91, `${p.samples.length}`);
+    ok(`${p.name}: runs 10..100 inclusive`, p.samples[0] === 10 && p.samples[90] === 100);
+  }
+
+  // (a) THE DOMAIN DID NOT CHANGE, and this is the assertion the ticket asked
+  // for — in the only form that can fail. `samples` is DERIVED from `parts`, so
+  // "the product of the parts equals samples" is true by construction and
+  // asserting it would relate the module's output to itself. What bites is a
+  // product recomputed HERE, from a double loop over literals typed in this
+  // file, compared as a SET: that catches a wrong compose, a swapped part
+  // order, a truncated part domain and a changed key function alike, none of
+  // which the structural version could see.
+  const expected = new Set();
+  for (let miner = 10; miner <= 100; miner++) {
+    for (let smelter = 10; smelter <= 100; smelter++) expected.add(`${miner}x${smelter}`);
+  }
+  ok('the hand-built expectation is the 91x91 grid', expected.size === 8281, `${expected.size}`);
+  // CONTROL — a set that swallowed everything, or one built over the wrong
+  // range, would satisfy every comparison below while asserting nothing.
+  ok('CONTROL: the expectation excludes settings outside 10..100',
+    !expected.has('9x9') && !expected.has('101x100') && !expected.has('44x9'));
+
+  const got = new Set(k.samples.map(k.key));
+  ok('the derived domain still holds 8281 settings', k.samples.length === 8281, `${k.samples.length}`);
+  ok('...all distinct under the knob’s own key', got.size === k.samples.length, `${got.size}`);
+  ok('...and it is EXACTLY the hand-built product, as a set',
+    got.size === expected.size && [...expected].every((s) => got.has(s)));
+
+  // ORDER, pinned. The page's control is an INDEX into `samples`, so this is
+  // not cosmetic: it is what makes a position mean the same setting before and
+  // after this change, and it is the convention `positions()` inverts by
+  // arithmetic rather than by searching the tuples.
+  ok('samples[0] is the low corner', k.key(k.samples[0]) === '10x10', k.key(k.samples[0]));
+  ok('samples[1] moves the LAST part — the odometer order',
+    k.key(k.samples[1]) === '10x11', k.key(k.samples[1]));
+  ok('samples[91] is where the first part finally moves',
+    k.key(k.samples[91]) === '11x10', k.key(k.samples[91]));
+  ok('samples[8280] is the high corner', k.key(k.samples[8280]) === '100x100', k.key(k.samples[8280]));
+
+  // compose and positions are inverses in index space — which is the whole
+  // contract the page needs, and neither half is useful without the other.
+  ok('compose builds a setting from one member of each part',
+    k.key(k.compose([44, 45])) === '44x45', k.key(k.compose([44, 45])));
+  for (const v of [{ miner: 70, smelter: 45 }, { miner: 10, smelter: 10 },
+    { miner: 100, smelter: 100 }, { miner: 44, smelter: 44 }]) {
+    const at = k.positions(v);
+    ok(`positions(${k.key(v)}) round-trips back through compose`,
+      at !== null && k.key(k.compose(k.parts.map((p, i) => p.samples[at[i]]))) === k.key(v),
+      JSON.stringify(at));
+  }
+  // ...and the indices are the ones hand arithmetic gives: 70 is the 61st
+  // member of 10..100 and 45 is the 36th, so the flat index is 60*91 + 35.
+  ok('positions({miner 70, smelter 45}) is [60, 35]',
+    JSON.stringify(k.positions({ miner: 70, smelter: 45 })) === '[60,35]',
+    JSON.stringify(k.positions({ miner: 70, smelter: 45 })));
+  ok('...which is flat index 5495', k.key(k.samples[5495]) === '70x45', k.key(k.samples[5495]));
+
+  // A non-member has NO position. Returning [0, 0] instead would open both
+  // controls at the bottom of their range and read as a legitimate setting —
+  // the page would then show a stop that is not where the game is.
+  ok('positions of an off-grid setting is null', k.positions({ miner: 44.5, smelter: 44 }) === null);
+  ok('positions of null is null rather than a throw', k.positions(null) === null);
+
+  // (b) THE MEASURE MUST NOT MOVE. §5 pins WIN_FRACTION.level3 at 3249/8281
+  // against the flat domain; this recounts it by sweeping the two PART domains
+  // directly, so a part that quietly offered fewer members would change the
+  // fraction here even if `samples.length` somehow still looked right. Roughly
+  // 8281 more feasible() calls, which is the same order as the sweep the module
+  // already runs at import.
+  let wins = 0;
+  for (const m of k.parts[0].samples) {
+    for (const s of k.parts[1].samples) if (grade(e, { miner: m, smelter: s }).ok) wins++;
+  }
+  ok('a win count swept over the PARTS reproduces the exported fraction exactly',
+    wins / (k.parts[0].samples.length * k.parts[1].samples.length) === WIN_FRACTION.level3,
+    `${wins} of 8281`);
+  ok('...and it is still the pinned 3249/8281', WIN_FRACTION.level3 === 3249 / 8281);
+
+  ok('exactly one level has parts, so the single-control path is still exercised',
+    LEVELS.filter((x) => x.knob.parts).length === 1);
+  for (const other of LEVELS.filter((x) => x.id !== 'level3')) {
+    ok(`${other.id}: no parts, no compose, no positions`,
+      other.knob.parts === null && other.knob.compose === null && other.knob.positions === null);
+  }
+}
+
+console.log('\n5c. knob() refuses a multi-part declaration that could offer the wrong domain');
+{
+  const two = [{ name: 'a', samples: [1, 2] }, { name: 'b', samples: [3, 4] }];
+  const base = { kind: 'test', start: { a: 1, b: 3 }, apply: (l) => l, key: (v) => `${v.a}x${v.b}` };
+
+  ok('a well-formed multi-part knob is accepted', !throws(() => knob({ ...base, parts: two })));
+  ok('...and derives all four combinations', knob({ ...base, parts: two }).samples.length === 4);
+
+  // Requirement (a) ENFORCED rather than checked: two declarations of one
+  // domain is the drift, so the declaration is refused instead of reconciled.
+  ok('declaring BOTH parts and samples throws',
+    throws(() => knob({ ...base, parts: two, samples: [{ a: 1, b: 3 }] })));
+  ok('a compose with no parts to compose throws', throws(() => knob({
+    kind: 'test', samples: [1, 2], start: 1, apply: (l) => l, compose: (v) => v[0],
+  })));
+  ok('a part with an empty domain throws',
+    throws(() => knob({ ...base, parts: [two[0], { name: 'b', samples: [] }] })));
+  ok('a part with no name throws',
+    throws(() => knob({ ...base, parts: [two[0], { samples: [3, 4] }] })));
+  ok('a single part throws — that is an ordinary knob wearing a costume',
+    throws(() => knob({
+      kind: 'test', parts: [two[0]], start: { a: 1 }, apply: (l) => l, key: (v) => String(v.a),
+    })));
+  ok('an opening setting outside the product throws',
+    throws(() => knob({ ...base, parts: two, start: { a: 9, b: 9 } })));
+
+  // A key that cannot tell two declared settings apart makes `samples.length` —
+  // the DENOMINATOR of every win fraction — count settings the player can never
+  // reach, and the play order is computed from those fractions.
+  ok('a key function that collides two settings throws', throws(() => knob({
+    kind: 'test', samples: [1, 2], start: 1, apply: (l) => l, key: () => 'same',
+  })));
+  ok('CONTROL: the same declaration with a distinguishing key is accepted',
+    !throws(() => knob({ kind: 'test', samples: [1, 2], start: 1, apply: (l) => l })));
+
+  // A setting need not be an object of its part names — `compose` decides, and
+  // `positions` inverts whatever it decided.
+  const pair = knob({
+    kind: 'test', parts: two, start: '1/3', apply: (l) => l,
+    compose: (values) => `${values[0]}/${values[1]}`,
+  });
+  ok('a custom compose decides the setting shape',
+    pair.samples.join(',') === '1/3,1/4,2/3,2/4', pair.samples.join(','));
+  ok('...and positions still inverts it', JSON.stringify(pair.positions('2/3')) === '[1,0]',
+    JSON.stringify(pair.positions('2/3')));
 }
 
 console.log('\n6. LEVEL_4 — fan-out; autoSplit fills 0.3/0.7, so win iff rate >= 100');

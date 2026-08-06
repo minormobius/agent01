@@ -160,6 +160,55 @@ console.log('\n(6) the control is built over knob.samples, by index');
   ok('the next control is wired', /\$\('gameNext'\)\.addEventListener\('click',/.test(block));
 }
 
+console.log('\n(6b) a multi-part knob gets one control PER COMPONENT, built from knob.parts');
+{
+  // LEVEL_3 moves two capacities at once and the page rendered that as a single
+  // slider with 8281 stops sweeping the product lexicographically. `parts` is a
+  // presentation of the SAME declared domain; the page iterates it and falls
+  // back to the single control when a knob has none.
+  const multi = LEVELS.filter((e) => e.knob.parts);
+  ok('at least one level declares parts, so this section is not vacuous',
+    multi.length > 0, `${multi.length}`);
+  ok('…and at least one does not, so the single-control path still ships',
+    LEVELS.some((e) => !e.knob.parts));
+
+  ok('the markup carries the part container id="gameParts"', /id="gameParts"/.test(html));
+  ok('…and it ships EMPTY — every part control is built from the module',
+    /<div id="gameParts"><\/div>/.test(html));
+
+  ok('the block branches on knob.parts', /\.parts\b/.test(block));
+  ok('one range input per part, bounded by that PART’s own domain — not by the product',
+    /max="\$\{p\.samples\.length\s*-\s*1\}"/.test(block));
+  ok('each part control is labelled with the module’s own name for it', /\$\{p\.name\}/.test(block));
+  ok('a part move is COMPOSED by the knob, never assembled by the page',
+    /\.compose\s*\(/.test(block));
+  ok('the controls open where the game is, via the knob’s own positions()',
+    /\.positions\s*\(/.test(block));
+  ok('the part controls are wired', /\$\('gameParts'\)\.addEventListener\('input',/.test(block));
+
+  // Part NAMES are level knowledge exactly as ids, titles and bounds are, and
+  // section (5) cannot cover them: it derives its forbidden set from sample
+  // VALUES, and a part's name never appears in one.
+  for (const e of multi) {
+    for (const p of e.knob.parts) {
+      ok(`no part name "${p.name}" typed into the block`,
+        !new RegExp(`['"\`]${p.name}['"\`]`).test(block), p.name);
+    }
+  }
+
+  // The reason the ticket exists, asserted rather than assumed: each control is
+  // an index slider, and what makes one usable is how many stops it has.
+  for (const e of multi) {
+    const flat = e.knob.samples.length;
+    const worst = Math.max(...e.knob.parts.map((p) => p.samples.length));
+    ok(`${e.id}: the widest part control is far shorter than the flat domain (${worst} vs ${flat})`,
+      worst * 4 < flat);
+    ok(`${e.id}: every combination the controls can reach is a declared setting`,
+      e.knob.samples.length
+        === e.knob.parts.reduce((n, p) => n * p.samples.length, 1), `${flat}`);
+  }
+}
+
 console.log('\n(7) the six scrolled sections are GONE — the move happened, it was not duplicated');
 {
   const mounts = html.match(/id="lvl\d*"/g) || [];

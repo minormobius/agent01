@@ -59,6 +59,11 @@
 // SMELTER_OPTIONS from level2.mjs, withShareA from level5.mjs and level6.mjs).
 // No level mutation is reimplemented here; if a level changes how it is played,
 // it changes in one place.
+//
+// A knob whose setting has independently-movable components declares `parts`
+// instead of `samples` and the product is DERIVED — see knob() below. That is a
+// presentation of the same finite domain, so nothing about the win fraction,
+// the play order or `move()`'s refusal changes when a knob gains parts.
 
 import { feasible, band, autoSplit } from './production.mjs';
 import { withSourceRate, withProcessorCapacity } from './level-view.js';
@@ -125,11 +130,22 @@ const intRange = (lo, hi) => {
 /** `lo/100 .. hi/100` inclusive — built from integers so no error accumulates. */
 const pctRange = (lo, hi) => intRange(lo, hi).map((p) => p / 100);
 
-const grid = (as, bs, f) => {
-  const out = [];
-  for (const a of as) for (const b of bs) out.push(f(a, b));
-  return out;
-};
+/**
+ * The cartesian product of a list of domains, **last varying fastest** — the
+ * odometer order, and the same order the hand-written double loop it replaced
+ * produced (`for a of as { for b of bs }`), so a knob that gains `parts` does
+ * not reshuffle its own domain and every slider index keeps its meaning.
+ *
+ * `positions()` below inverts this arithmetically rather than by searching the
+ * tuples, so the two must agree about the convention. They do because both are
+ * written from this sentence; neither is derived from the other's output, which
+ * is what makes the gate's independent recomputation of the product worth
+ * running.
+ */
+const product = (lists) => lists.reduce(
+  (acc, list) => acc.flatMap((tuple) => list.map((v) => [...tuple, v])),
+  [[]],
+);
 
 /**
  * A knob: the finite declared domain of one level's control, plus how a member
@@ -143,16 +159,106 @@ const grid = (as, bs, f) => {
  * a caller should pass a member of `samples` (a slider gives an index), and a
  * value that drifted off the grid is a bug worth refusing rather than rounding.
  *
+ * ------------------------------------------------------ a multi-part knob
+ *
+ * LEVEL_3 moves two capacities at once, and a page that may not know which
+ * level it is showing rendered that as ONE slider with 8281 stops sweeping the
+ * product lexicographically — playable, and the worst control on the page.
+ * `parts` is the fix and it is a PRESENTATION of the same domain, not a new
+ * one: an array of `{ name, samples }`, one per component the player may move
+ * independently.
+ *
+ * **A knob with `parts` DERIVES `samples` and refuses to be given them.** That
+ * is the whole of requirement (a) — "a `parts` that offers fewer combinations
+ * than the domain silently removes settings the difficulty measure counted" —
+ * answered by construction rather than by a check, because two declarations of
+ * one domain is the shape this tree keeps paying for (the level-1 slider
+ * shipped `value="1000"` against `max="120"` for weeks). There is one domain,
+ * `parts` is its factorisation, and `compose` is how a tuple becomes a setting.
+ *
+ * Two functions come back on the knob so a renderer needs no arithmetic of its
+ * own and no knowledge of which level it is drawing:
+ *
+ *   · `compose(values)`  — one member of each part's domain -> a setting.
+ *     Defaults to an object keyed by the part names, which is what every
+ *     multi-part level so far wants; override it for a setting that is not a
+ *     flat object of its parts.
+ *   · `positions(value)` — a setting -> the array of per-part INDICES, or
+ *     `null` if the value is not in the domain. The inverse of `compose` in
+ *     index space, so a slider per part can be opened at the right stop.
+ *
+ * `positions` finds the flat index with the knob's own `key`, so it agrees with
+ * `move()`'s membership test by construction — an O(|samples|) scan, run once
+ * per control build rather than per drag, which for the 8281-member grid is
+ * nothing next to the win-fraction sweep this module already does at import.
+ *
  * Throws at module load if `start` is not itself in the domain — an opening
  * setting the player could not have chosen is a contradiction, and the cheapest
- * place to find out is import time.
+ * place to find out is import time. Also throws if `key` cannot tell two
+ * declared settings apart: `samples.length` is the denominator of the win
+ * fraction and `keys` is what the player can actually reach, so a collision
+ * would make the difficulty measure count settings the game refuses.
  */
-function knob({ kind, samples, start, apply, key = String }) {
+export function knob({ kind, samples, start, apply, key = String, parts, compose }) {
+  if (parts) {
+    if (samples) {
+      throw new Error(`campaign: the ${kind} knob has parts, so it DERIVES its samples — do not declare both`);
+    }
+    if (!Array.isArray(parts) || parts.length < 2) {
+      throw new Error(`campaign: the ${kind} knob's parts must be two or more components`);
+    }
+    for (const p of parts) {
+      if (!p || typeof p.name !== 'string' || p.name.length === 0) {
+        throw new Error(`campaign: every part of the ${kind} knob needs a name`);
+      }
+      if (!Array.isArray(p.samples) || p.samples.length === 0) {
+        throw new Error(`campaign: part ${p.name} of the ${kind} knob has an empty domain`);
+      }
+    }
+    compose = compose
+      || ((values) => Object.fromEntries(parts.map((p, i) => [p.name, values[i]])));
+    // `.map((t) => compose(t))`, never `.map(compose)`: map hands its callback
+    // three arguments, and a compose that took a second parameter for anything
+    // would silently receive the tuple's index. That is `['1','2'].map(parseInt)`
+    // wearing a different hat, and it would corrupt the domain rather than throw.
+    samples = product(parts.map((p) => p.samples)).map((t) => compose(t));
+  } else if (compose) {
+    throw new Error(`campaign: the ${kind} knob has a compose and no parts for it to compose`);
+  }
+
   const keys = new Set(samples.map(key));
+  if (keys.size !== samples.length) {
+    throw new Error(
+      `campaign: the ${kind} domain declares ${samples.length} settings but its key function `
+      + `can only tell ${keys.size} of them apart`,
+    );
+  }
   if (!keys.has(key(start))) {
     throw new Error(`campaign: start value ${key(start)} is not in the declared ${kind} domain`);
   }
-  return { kind, samples, start, apply, key, keys };
+
+  let positions = null;
+  if (parts) {
+    // The odometer, read backwards. `product` above varies the LAST part
+    // fastest, so the flat index divides down through the radices from the
+    // right — the inverse of how it was built, by arithmetic rather than by
+    // searching the tuples for a match.
+    const radices = parts.map((p) => p.samples.length);
+    positions = (value) => {
+      let at = samples.findIndex((s) => key(s) === key(value));
+      if (at < 0) return null;
+      const out = new Array(radices.length);
+      for (let i = radices.length - 1; i >= 0; i--) {
+        out[i] = at % radices[i];
+        at = Math.floor(at / radices[i]);
+      }
+      return out;
+    };
+  }
+
+  return {
+    kind, samples, start, apply, key, keys, parts: parts || null, compose: compose || null, positions,
+  };
 }
 
 const optionById = (id) => SMELTER_OPTIONS.find((o) => o.id === id);
@@ -204,7 +310,15 @@ export const LEVELS = Object.freeze([
     base: LEVEL_3,
     knob: knob({
       kind: 'capacities',
-      samples: grid(intRange(10, 100), intRange(10, 100), (miner, smelter) => ({ miner, smelter })),
+      // TWO SLIDERS, ONE DOMAIN. `samples` is derived from these — the 91x91
+      // product, last varying fastest, which is byte-for-byte the grid this
+      // used to declare by hand. So the win fraction, the play order and every
+      // pinned number below are unmoved; what changed is that the page can now
+      // offer the player two controls instead of one 8281-stop index.
+      parts: [
+        { name: 'miner', samples: intRange(10, 100) },
+        { name: 'smelter', samples: intRange(10, 100) },
+      ],
       start: { miner: 70, smelter: 45 },
       // Defensive on purpose: `move(null)` must be REFUSED, and a key function
       // that reads a property off its argument would throw instead.

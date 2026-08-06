@@ -96,6 +96,7 @@
   <div class="ctl">
     <label for="gameKnob"><span id="gameKnobKind"></span> <span class="val" id="gameKnobV"></span></label>
     <input type="range" id="gameKnob">
+    <div id="gameParts"></div>
     <div id="gameChoice"></div>
     <p class="legend" id="gameProgress" style="margin-top:.9rem"></p>
     <button id="gameNext" class="lvl-btn" hidden></button>
@@ -299,20 +300,58 @@ const showValue = (v) => (v && typeof v === 'object'
 
 const knobOf = () => entryOf(game.state().id).knob;
 
+/** One slider per component, for a knob that declares `parts`. Still a POSITION
+ *  per part, so every reachable combination is a member of the declared domain
+ *  and no move from these controls can be refused. The page reads `name` and
+ *  the length of each part's own domain and knows nothing else about it. */
+function buildParts(k, host) {
+  const pos = k.positions(game.state().value) || k.parts.map(() => 0);
+  host.innerHTML = k.parts.map((p, i) =>
+    `<label>${p.name} <span class="val" data-v="${i}"></span></label>`
+    + `<input type="range" data-p="${i}" min="0" max="${p.samples.length - 1}" step="1"`
+    + ` value="${pos[i]}" aria-label="${p.name}">`).join('');
+}
+
+/** The part sliders' own read-outs. Each shows the member its position selects,
+ *  which is the only way a stop on an index slider means anything. */
+function paintParts() {
+  const k = knobOf();
+  const host = $('gameParts');
+  if (!k.parts) return;
+  for (const el of host.querySelectorAll('input[data-p]')) {
+    const i = Number(el.dataset.p);
+    const out = host.querySelector(`[data-v="${i}"]`);
+    if (out) out.textContent = String(k.parts[i].samples[Number(el.value)]);
+  }
+}
+
 function buildControl() {
   const k = knobOf();
   const slider = $('gameKnob');
   const choice = $('gameChoice');
-  const discrete = k.samples.length <= ALL_AT_ONCE;
+  const host = $('gameParts');
+  // Three control shapes, and the page picks between them on the SHAPE OF THE
+  // KNOB rather than on which level it is: a knob with components gets one
+  // slider each, a domain small enough to see all of gets a button each, and
+  // anything else gets the single index slider.
+  const multi = !!k.parts;
+  const discrete = !multi && k.samples.length <= ALL_AT_ONCE;
   $('gameKnobKind').textContent = k.kind;
-  slider.hidden = discrete;
+  slider.hidden = discrete || multi;
   choice.hidden = !discrete;
+  host.hidden = !multi;
   if (discrete) {
+    host.innerHTML = '';
     choice.innerHTML = k.samples.map((s, j) =>
       `<button class="lvl-btn" data-i="${j}">${showValue(s)}</button>`).join('');
     return;
   }
   choice.innerHTML = '';
+  if (multi) {
+    buildParts(k, host);
+    return;
+  }
+  host.innerHTML = '';
   // `key` is the knob's own membership function, so finding where the current
   // setting sits works for a float and for an object alike.
   const at = k.samples.findIndex((s) => k.key(s) === k.key(game.state().value));
@@ -328,6 +367,7 @@ function paint() {
   $('gameTitle').textContent = entry.title;
   $('gameBlurb').textContent = entry.blurb;
   $('gameKnobV').textContent = showValue(st.value);
+  paintParts();
 
   // `verdict()` spreads the oracle's own result, so it IS a valid verdict for
   // drawLevel — the board and the sentence come from one call, not two.
@@ -356,7 +396,18 @@ function choose(at) {
   paint();
 }
 
+/** Read every part slider's POSITION, ask the knob to compose them, and move.
+ *  The page never builds the setting itself — `compose` is the knob's, so a
+ *  setting whose shape is not an object of its part names still works here. */
+function chooseParts() {
+  const k = knobOf();
+  const idx = [...$('gameParts').querySelectorAll('input[data-p]')].map((el) => Number(el.value));
+  if (!game.move(k.compose(k.parts.map((p, i) => p.samples[idx[i]]))).accepted) return;
+  paint();
+}
+
 $('gameKnob').addEventListener('input', (e) => choose(Number(e.target.value)));
+$('gameParts').addEventListener('input', chooseParts);
 $('gameChoice').addEventListener('click', (e) => {
   const at = e.target.dataset.i;
   if (at !== undefined) choose(Number(at));
