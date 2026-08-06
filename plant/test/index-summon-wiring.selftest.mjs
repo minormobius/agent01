@@ -221,17 +221,29 @@ console.log('\nthe panel has mount points and handlers — a visitor can actuall
   ok('a new pocket can be started', /\$\('summonReset'\)\.addEventListener\('click',/.test(block));
 }
 
-console.log('\nlevels 1-6 are untouched — this ticket only adds a panel');
+console.log('\nlevels 1-6 have MOVED behind campaign.mjs — the summon panel is what is untouched');
 {
-  ok('LEVEL_1 wiring still present',
-    /import\s*\{[^}]*LEVEL_1[^}]*\}\s*from\s*['"]\.\/level-view\.js['"]/.test(html));
-  ok('LEVEL_2 wiring still present', /from\s*['"]\.\/levels\/level2\.mjs['"]/.test(html));
-  ok('LEVEL_3 wiring still present', /from\s*['"]\.\/levels\/level3\.mjs['"]/.test(html));
-  ok('LEVEL_4 wiring still present', /from\s*['"]\.\/levels\/level4\.mjs['"]/.test(html));
-  ok('LEVEL_5 wiring still present',
-    /import\s*\{\s*LEVEL_5\s*,\s*withShareA\s*\}\s*from\s*['"]\.\/levels\/level5\.mjs['"]/.test(html));
-  ok('LEVEL_6 wiring still present',
-    /import\s*\{\s*LEVEL_6\s*,\s*withShareA\s+as\s+withShareA6\s*\}\s*from\s*['"]\.\/levels\/level6\.mjs['"]/.test(html));
+  // THIS SECTION USED TO ASSERT SIX DIRECT LEVEL IMPORTS, and it was right to:
+  // its job was to prove the summon panel disturbed nothing next to it.
+  // lp-6c88fb replaced the six scrolled sections with one campaign panel, so
+  // those imports are gone BY DESIGN, and asserting their presence would fail
+  // correct work — a checker that does that is worse than no checker.
+  //
+  // Rewritten to assert the RELOCATION rather than deleted: absence at the
+  // source, presence at the destination. That is a strictly stronger claim
+  // than the one it replaces, because a half-done move — one section left
+  // behind, or a level module still imported — now fails, where before it
+  // could not be seen at all. The destination is owned in full by
+  // index-campaign-wiring.selftest.mjs; this only checks that the levels left.
+  ok('the page imports the campaign controller',
+    /import\s*\{[^}]*\bCampaign\b[^}]*\}\s*from\s*['"]\.\/campaign\.mjs['"]/.test(html));
+  ok('no LEVEL_1 import left in the page', !/\bLEVEL_1\b/.test(html));
+  for (const n of [2, 3, 4, 5, 6]) {
+    ok(`no direct ./levels/level${n}.mjs import left in the page`,
+      !new RegExp(`levels/level${n}\\.mjs`).test(html));
+  }
+  ok('level-view.js is still imported — for drawLevel, by the campaign block',
+    /import\s*\{[^}]*\bdrawLevel\b[^}]*\}\s*from\s*['"]\.\/level-view\.js['"]/.test(html));
   ok('the inspector\'s own SOLID_NAMES import still present',
     /import\s*\{\s*SOLID_NAMES\s*\}\s*from\s*['"]\.\/solids\.mjs['"]/.test(html));
 }

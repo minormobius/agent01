@@ -1,28 +1,31 @@
 #!/usr/bin/env node
-// Presence check for LEVEL_5's wiring into plant/index.html (lp-d8ba07).
+// LEVEL_5 reaches the page through campaign.mjs (originally lp-2c1f0e-era
+// level-5 wiring; rewritten by lp-6c88fb when the six per-level sections were
+// replaced by one campaign panel).
 //
-// WHAT THIS PROVES, AND WHAT IT DOES NOT. Same house style as
-// index-level4-wiring.selftest.mjs, which this file's structure mirrors
-// almost verbatim: index.html has no DOM/browser test, so this reads the
-// file as TEXT (fs.readFileSync, no jsdom, no headless browser) and asserts
-// by substring/regex that the module imports LEVEL_5 and withShareA, feeds
-// the split network straight into feasible() with NO autoSplit() call (this
-// level's shares are always explicit and already sum to 1 — see
-// levels/level5.mjs's header and level5.selftest.mjs's no-throw-invariant
-// case), and renders the result via drawLevel() and verdictLine(). That
-// proves the wiring exists SYNTACTICALLY: the right names are imported and
-// called in the right places. It does NOT prove a browser renders it
-// pixel-correct, that the slider actually fires the handler, or that the
-// SVG paints — a real assertion would need a DOM.
+// WHY THIS FILE WAS REWRITTEN RATHER THAN LEFT ALONE — see the same note in
+// index-level4-wiring.selftest.mjs. Its previous form asserted, against
+// index.html, that the page imports LEVEL_5 and its `withShareA`, calls
+// feasible() and renders into `id="lvl5"`. All of that was correct until the
+// page stopped having six per-level sections; asserting it now would fail
+// correct work.
 //
-// House style matches the other selftests in this directory: every check is
-// named, failures are counted and printed, exit code carries the verdict.
+// THE CLAIM THAT MATTERED IS PRESERVED AND MADE EXECUTABLE. The old gate's
+// distinctive check was NEGATIVE: this level must never be routed through
+// autoSplit(), because its edges already carry explicit shares that sum to 1,
+// and reaching for autoSplit here would mean the LEVEL_4 block had been copied
+// instead of adapted. That is now asserted where it lives — on the campaign
+// entry (`autoSplit` flag absent) and on the level itself (the oracle accepts
+// it with no split step, which the old regex could only imply).
 //
 // Run: node plant/test/index-level5-wiring.selftest.mjs
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { LEVEL_5 } from '../levels/level5.mjs';
+import { entryOf, buildNetwork, grade, LEVELS, ORDER } from '../campaign.mjs';
+import { feasible } from '../production.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const html = readFileSync(join(here, '..', 'index.html'), 'utf8');
@@ -33,54 +36,62 @@ const ok = (name, cond, detail = '') => {
   failed++; console.log(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-console.log('\nLEVEL_5 and withShareA are imported from their own module, not redefined inline');
+const ID = 'level5';
+const entry = entryOf(ID);
+
+console.log('\nLEVEL_5 is carried by campaign.mjs — the entry IS the module literal, not a copy');
 {
-  ok('imports LEVEL_5 and withShareA from ./levels/level5.mjs',
-    /import\s*\{\s*LEVEL_5\s*,\s*withShareA\s*\}\s*from\s*['"]\.\/levels\/level5\.mjs['"]/.test(html));
+  ok('campaign.mjs declares an entry for this level', !!entry);
+  ok('its base is LEVEL_5 itself, by identity', entry.base === LEVEL_5);
+  ok('the level is in the play order', ORDER.includes(ID));
 }
 
-console.log('\nthe split is fed straight to feasible() — no autoSplit(), since LEVEL_5\'s shares are always explicit');
+console.log('\nno split step — this level’s shares are always explicit');
 {
-  ok('calls withShareA(LEVEL_5, ...) to apply the player\'s lever',
-    /withShareA\(\s*LEVEL_5\s*,/.test(html));
-  // A wiring mistake for this level specifically would be routing it through
-  // autoSplit() the way LEVEL_4 is — LEVEL_5's edges already carry explicit
-  // shares that sum to 1, so autoSplit() has nothing to do here and its
-  // presence anywhere near the LEVEL_5 block would signal the wrong call
-  // order was copied from the Level 4 section instead of adapted from it.
-  const lvl5Block = html.slice(html.indexOf('// ── Level 5'));
-  ok('does NOT call autoSplit anywhere in the Level 5 block — this level\'s shares are always explicit',
-    !/autoSplit/.test(lvl5Block));
+  ok('the entry is NOT flagged autoSplit', !entry.autoSplit);
+
+  // The old gate asserted "autoSplit does not appear near the Level 5 block".
+  // This asserts the reason that mattered: the level is valid oracle input on
+  // its own, which is exactly what makes a split step unnecessary rather than
+  // merely absent.
+  let threw = false;
+  try { feasible(entry.knob.apply(entry.base, entry.knob.start)); } catch { threw = true; }
+  ok('the oracle ACCEPTS this level with no split step', !threw);
+
+  const net = buildNetwork(entry, entry.knob.start);
+  const counts = new Map();
+  for (const e of net.edges) counts.set(e.from, (counts.get(e.from) || 0) + 1);
+  const fanned = net.edges.filter((e) => counts.get(e.from) > 1);
+  ok('the level really does fan out', fanned.length > 1, `${fanned.length} edges`);
+  ok('every fan-out edge already carries an explicit numeric share',
+    fanned.every((e) => typeof e.share === 'number'));
+  const sum = fanned.reduce((a, e) => a + e.share, 0);
+  ok('the shares of the group sum to 1', Math.abs(sum - 1) < 1e-9, String(sum));
+  ok('the level is winnable as shipped', grade(entry, entry.knob.start).ok === true);
 }
 
-console.log('\nthe split network is graded by feasible() and rendered like every other level');
+console.log('\na visitor still has a lever — the page builds it from this knob');
 {
-  const lvl5Block = html.slice(html.indexOf('// ── Level 5'));
-  ok('calls feasible(...) on the shared level', /feasible\(\s*lvl\s*\)/.test(lvl5Block));
-  ok('renders via drawLevel(...) into an svg element', /drawLevel\(\s*\$\('lvl5'\)/.test(lvl5Block));
-  ok('reports the outcome via verdictLine(...)', /verdictLine\(\s*v\s*\)/.test(lvl5Block));
+  ok('the knob declares more than one setting', entry.knob.samples.length > 1,
+    `${entry.knob.samples.length}`);
+  ok('the opening setting is a member of the declared domain',
+    entry.knob.keys.has(entry.knob.key(entry.knob.start)));
 }
 
-console.log('\na visitor has a lever: a share-A control wired to a handler that redraws the level');
+console.log('\nthe page no longer does any of this itself — the move happened');
 {
-  ok('a slider control with id="shareA5" exists in the markup', /id="shareA5"/.test(html));
-  ok('the lvl5 svg mount point exists in the markup', /id="lvl5"/.test(html));
-  ok('the lvl5 verdict mount point exists in the markup', /id="lvl5Verdict"/.test(html));
-  ok('the shareA5 slider is wired to an input handler that redraws the level',
-    /\$\('shareA5'\)\.addEventListener\('input',\s*drawLvl5\)/.test(html));
-  ok('a reset control returns the slider to the shipped share', /id="lvl5Reset"/.test(html));
-  ok('the reset control is wired to a click handler',
-    /\$\('lvl5Reset'\)\.addEventListener\('click',/.test(html));
+  ok('index.html no longer imports ./levels/level5.mjs', !/levels\/level5\.mjs/.test(html));
+  ok('index.html no longer applies a share itself', !/\bwithShareA/.test(html));
+  ok('index.html imports the campaign controller instead',
+    /import\s*\{[^}]*\bCampaign\b[^}]*\}\s*from\s*['"]\.\/campaign\.mjs['"]/.test(html));
+  ok('and renders every level through the one shared board',
+    /\bdrawLevel\s*\(\s*\$\('gameBoard'\)/.test(html));
 }
 
-console.log('\nlevels 1-4\'s existing wiring is still intact — this ticket only adds a fifth block');
+console.log('\nno level was lost in the move');
 {
-  ok('LEVEL_1 wiring still present', /import\s*\{[^}]*LEVEL_1[^}]*\}\s*from\s*['"]\.\/level-view\.js['"]/.test(html));
-  ok('LEVEL_2 wiring still present', /from\s*['"]\.\/levels\/level2\.mjs['"]/.test(html));
-  ok('LEVEL_3 wiring still present', /from\s*['"]\.\/levels\/level3\.mjs['"]/.test(html));
-  ok('LEVEL_4 wiring still present', /from\s*['"]\.\/levels\/level4\.mjs['"]/.test(html));
-  ok('LEVEL_4\'s autoSplit import is unaffected by the LEVEL_5 block',
-    /import\s*\{\s*autoSplit\s*\}\s*from\s*['"]\.\/production\.mjs['"]/.test(html));
+  ok('every declared level is in the play order',
+    LEVELS.every((e) => ORDER.includes(e.id)) && ORDER.length === LEVELS.length);
 }
 
 console.log('');

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>plant — the summon inspector</title>
-<meta name="description" content="Platonic cells summoned into an anisotropic foam. Drag to orbit; flip the metric and watch the shapes go wrong.">
+<title>plant — feed the factory</title>
+<meta name="description" content="Six small factories, one setting each. Get nothing short and the next one opens.">
 <style>
   :root {
     --bg: #0f1113; --fg: #e8e6e1; --dim: #8b8b86; --line: #26292d;
@@ -60,22 +60,57 @@
   .legend { font-size: .8rem; color: var(--dim); margin-top: .8rem; }
   .legend b { color: var(--fg); font-weight: normal; }
   .note { border-left: 2px solid var(--accent); padding-left: .9rem; color: var(--dim); }
-  svg#lvl { width:100%; height:150px; display:block; }
-  svg#lvl .ln { font: 600 14px ui-serif, Georgia, serif; fill: var(--fg); }
-  svg#lvl .ls { font: 12px ui-monospace, Menlo, monospace; fill: var(--dim); }
-  svg#lvl .ls.bad { fill: var(--bad); }
+  /* The one board on the page. It used to be `svg#lvl`, matching exactly one of
+     six per-level mounts — so levels 2-6 rendered unstyled by these rules for
+     five levels' worth of turns. One level at a time makes that impossible
+     rather than fixed: there is one id and it is this one. */
+  svg#gameBoard { width:100%; height:150px; display:block; }
+  svg#gameBoard .ln { font: 600 14px ui-serif, Georgia, serif; fill: var(--fg); }
+  svg#gameBoard .ls { font: 12px ui-monospace, Menlo, monospace; fill: var(--dim); }
+  svg#gameBoard .ls.bad { fill: var(--bad); }
   .lvl-verdict { margin-top:.6rem; font: 14px ui-monospace, Menlo, monospace; }
   .lvl-verdict.ok { color: var(--ok); } .lvl-verdict.bad { color: var(--bad); }
   .lvl-btn { margin-top:.8rem; width:100%; background:var(--bg); color:var(--fg);
     border:1px solid var(--line); border-radius:4px; padding:.4rem; font:inherit; font-size:.85rem; cursor:pointer; }
   .lvl-btn:hover { border-color: var(--accent); }
+  #gameNext { border-color: var(--ok); color: var(--ok); }
 </style>
 </head>
 <body>
 <div class="wrap">
 
-<h1>The summon inspector</h1>
-<p class="sub">
+<h1>Plant</h1>
+<p class="sub" id="gameIntro">
+  A little factory that has to feed everything it promised. Each level gives you one setting to move;
+  get nothing short and the next one opens.
+</p>
+
+<div class="stage" id="game">
+  <div>
+    <h2 id="gameTitle" style="margin:.1rem 0 .35rem"></h2>
+    <p id="gameBlurb" style="margin:0 0 .9rem; color:var(--dim)"></p>
+    <svg id="gameBoard" viewBox="0 0 640 150" preserveAspectRatio="xMidYMid meet"
+         aria-label="This level's production network"></svg>
+    <div class="lvl-verdict" id="gameLine"></div>
+  </div>
+  <div class="ctl">
+    <label for="gameKnob"><span id="gameKnobKind"></span> <span class="val" id="gameKnobV"></span></label>
+    <input type="range" id="gameKnob">
+    <div id="gameChoice"></div>
+    <p class="legend" id="gameProgress" style="margin-top:.9rem"></p>
+    <button id="gameNext" class="lvl-btn" hidden></button>
+  </div>
+</div>
+
+<p class="note" style="margin-top:1.2rem">
+  The verdict under the board is not a description of the factory — it is the same check CI runs,
+  called live on the same level the tests grade. If it says something is short here, the test says
+  the same thing. Whether being two units short <em>feels</em> fair is the part no test can answer,
+  and it is the reason this page exists at all.
+</p>
+
+<h2>The summon inspector</h2>
+<p>
   A cell in the foam is the intersection of half-spaces, one per neighbouring seed — so a cell's faces
   <em>are</em> its bisectors, and its face normals <em>are</em> its neighbour directions. Put a seed in the
   middle and one along each face normal of a Platonic solid, and the foam grows that solid. These are not
@@ -147,167 +182,6 @@
   looks clear can still be refused, and the sentence underneath is the only honest account of why.
   Is that frustrating or is it the puzzle? Nobody here can tell you.
 </p>
-
-<h2>Level 1 — the first thing here you can break</h2>
-<p>
-  Everything above is a <em>primitive</em>. This is a level: a source, a processor, a sink, and a
-  constraint that bites. The verdict underneath is not a description — it is
-  <code>feasible()</code>, the same oracle CI runs, called on the same level the test grades.
-  If it says infeasible here, the gate says infeasible.
-</p>
-
-<div class="stage">
-  <div>
-    <svg id="lvl" viewBox="0 0 640 150" preserveAspectRatio="xMidYMid meet" aria-label="Level 1 production network"></svg>
-    <div class="lvl-verdict" id="lvlVerdict"></div>
-  </div>
-  <div class="ctl">
-    <label for="ore">Ore supply <span class="val" id="oreV"></span></label>
-    <input type="range" id="ore" min="10" max="120" step="1" value="1000">
-    <p class="legend" style="margin-top:.9rem">
-      Drag it down. The smelter can only run at capacity 51, so the depot&rsquo;s demand of 50 has
-      almost no slack — somewhere around 50 the whole chain stops being satisfiable, and the
-      verdict tells you which link starved and by how much.
-    </p>
-    <button id="oreReset" class="lvl-btn">reset to the shipped level</button>
-  </div>
-</div>
-
-<p class="note" style="margin-top:1.2rem">
-  Does that failure feel <em>fair</em>? A puzzle whose margin is 2% is either taut and satisfying or
-  fiddly and mean, and no test can tell the difference. That is the kind of question this project
-  has to ask people rather than machines — the loop that built this can prove the level is
-  satisfiable and cannot tell you whether it is any good.
-</p>
-
-<h2>Level 2 — pick the machine</h2>
-<p>
-  Level 1 is a slider: ease the ore rate down and watch a label go from green to red. This is not
-  that. Three smelters, one choice each, no dragging toward the answer — you pick one, the factory
-  either runs or it does not.
-</p>
-
-<div class="stage">
-  <div>
-    <svg id="lvl2" viewBox="0 0 640 150" preserveAspectRatio="xMidYMid meet" aria-label="Level 2 production network"></svg>
-    <div class="lvl-verdict" id="lvl2Verdict"></div>
-  </div>
-  <div class="ctl">
-    <label>Smelter</label>
-    <div id="lvl2Btns"></div>
-    <p class="legend" style="margin-top:.9rem">
-      The ore mine only supplies 55/tick and the depot demands 50 — the smelter's own capacity
-      number is not the only thing that can bottleneck it.
-    </p>
-  </div>
-</div>
-
-<h2>Level 3 — two knobs, either one can break it</h2>
-<p>
-  Level 1 is one slider. Level 2 is one choice. Both have exactly one thing that can ever be the
-  bottleneck. This is two capacities, set independently — the miner and the smelter each cap the
-  chain on their own, and starving either one starves the depot.
-</p>
-
-<div class="stage">
-  <div>
-    <svg id="lvl3" viewBox="0 0 640 150" preserveAspectRatio="xMidYMid meet" aria-label="Level 3 production network"></svg>
-    <div class="lvl-verdict" id="lvl3Verdict"></div>
-  </div>
-  <div class="ctl">
-    <label for="miner">Miner capacity <span class="val" id="minerV"></span></label>
-    <input type="range" id="miner" min="10" max="100" step="1" value="70">
-    <label for="smelter3">Smelter capacity <span class="val" id="smelter3V"></span></label>
-    <input type="range" id="smelter3" min="10" max="100" step="1" value="45">
-    <p class="legend" style="margin-top:.9rem">
-      The ore mine supplies far more than either machine can ever use — the depot demands 44, and
-      dragging <em>either</em> capacity below that starves it. Neither knob is safe to ignore.
-    </p>
-    <button id="lvl3Reset" class="lvl-btn">reset to the shipped level</button>
-  </div>
-</div>
-
-<h2>Level 4 — one source, two sinks, and no favourites</h2>
-<p>
-  Levels 1-3 are a straight line: one thing to starve, however you get there. This is the loop's
-  first <strong>fan-out</strong> — one ore source feeding two stockpiles at once, split
-  automatically in proportion to what each one demands (<code>autoSplit()</code>, not a hand-picked
-  ratio). Drag the source down and watch <strong>both</strong> stockpiles go short together, by
-  different amounts, because the split does not pick a favourite.
-</p>
-
-<div class="stage">
-  <div>
-    <svg id="lvl4" viewBox="0 0 640 150" preserveAspectRatio="xMidYMid meet" aria-label="Level 4 production network"></svg>
-    <div class="lvl-verdict" id="lvl4Verdict"></div>
-  </div>
-  <div class="ctl">
-    <label for="ore4">Ore supply <span class="val" id="ore4V"></span></label>
-    <input type="range" id="ore4" min="60" max="140" step="1" value="102">
-    <p class="legend" style="margin-top:.9rem">
-      stockpileA demands 30, stockpileB demands 70 — 100 total. The shipped rate of 102 clears both
-      by 2%, proportionally split. Drop it below 100 and both stockpiles fall short at once, by the
-      same percentage but not the same number of units.
-    </p>
-    <button id="ore4Reset" class="lvl-btn">reset to the shipped level</button>
-  </div>
-</div>
-
-<h2>Level 5 — the split itself is the lever</h2>
-<p>
-  Level 4's fan-out split automatically, in proportion to demand &mdash; <code>autoSplit()</code>,
-  no lever a player could touch. This is the first level where the split <em>is</em> the choice: one
-  well feeding two fields, and you decide how much of it goes to each. Push <strong>share A</strong>
-  below 0.30 and fieldA starves while fieldB sits on slack; push it above 0.50 and fieldB starves
-  while fieldA sits on slack &mdash; two distinct, opposite failure directions from one lever. The
-  fair-split optimum &mdash; equal margin on both fields &mdash; sits at 0.375, splitting the margin
-  evenly rather than favouring either side.
-</p>
-
-<div class="stage">
-  <div>
-    <svg id="lvl5" viewBox="0 0 640 150" preserveAspectRatio="xMidYMid meet" aria-label="Level 5 production network"></svg>
-    <div class="lvl-verdict" id="lvl5Verdict"></div>
-  </div>
-  <div class="ctl">
-    <label for="shareA5">Share to fieldA <span class="val" id="shareA5V"></span></label>
-    <input type="range" id="shareA5" min="0.05" max="0.95" step="0.01" value="0.3">
-    <p class="legend" style="margin-top:.9rem">
-      fieldA demands 30, fieldB demands 50, out of a well that supplies 100 &mdash; always split
-      between them, never both at once. The shipped share of 0.30 meets fieldA exactly and leaves
-      fieldB with slack; drag toward 0.375 and both improve together, past it the trade reverses.
-    </p>
-    <button id="lvl5Reset" class="lvl-btn">reset to the shipped level</button>
-  </div>
-</div>
-
-<h2>Level 6 — the split decides which recipe wins</h2>
-<p>
-  Level 5's split chose which <em>stockpile</em> got fed. This is the first level where the split
-  decides which <em>recipe</em> gets more of the ore &mdash; one source feeding two smelters with
-  different yields, smelterA turning ore into ingot at 0.6/ore and smelterB at 1.0/ore, each feeding
-  its own depot. The window is real but tight: push <strong>share A</strong> below 0.40 and depotA
-  starves; push it above 0.50 and depotB starves. The fair point &mdash; equal margin on both depots
-  &mdash; sits at 4/9, a narrower band than Level 5's because the yields, not just the demands, are
-  unequal.
-</p>
-
-<div class="stage">
-  <div>
-    <svg id="lvl6" viewBox="0 0 640 150" preserveAspectRatio="xMidYMid meet" aria-label="Level 6 production network"></svg>
-    <div class="lvl-verdict" id="lvl6Verdict"></div>
-  </div>
-  <div class="ctl">
-    <label for="shareA6">Share to smelterA <span class="val" id="shareA6V"></span></label>
-    <input type="range" id="shareA6" min="0.05" max="0.95" step="0.01" value="0.4">
-    <p class="legend" style="margin-top:.9rem">
-      depotA demands 24 via smelterA's 0.6 yield, depotB demands 50 via smelterB's 1.0 yield, out of
-      an ore source that supplies 100 &mdash; always split between the two smelters, never both at
-      once. The shipped share of 0.40 meets depotA exactly and leaves depotB with slack.
-    </p>
-    <button id="lvl6Reset" class="lvl-btn">reset to the shipped level</button>
-  </div>
-</div>
 
 <h2>What to look at</h2>
 <p>
@@ -382,124 +256,120 @@ for (const ev of ['pointerup', 'pointercancel']) view.addEventListener(ev, () =>
 addEventListener('resize', draw);
 draw();
 
-// ── Level 1 ────────────────────────────────────────────────────────────────
-import { LEVEL_1, feasible, drawLevel, verdictLine, withSourceRate, withProcessorCapacity } from './level-view.js';
-const SHIPPED = LEVEL_1.nodes.find(n => n.kind === 'source').rate;
-function drawLvl() {
-  const rate = Number($('ore').value);
-  const lvl = withSourceRate(LEVEL_1, rate);
-  const v = feasible(lvl);
-  drawLevel($('lvl'), lvl, v);
-  $('oreV').textContent = rate === SHIPPED ? `${rate} (shipped)` : rate;
-  const el = $('lvlVerdict');
-  el.textContent = verdictLine(v);
-  el.className = 'lvl-verdict ' + (v.ok ? 'ok' : 'bad');
-}
-$('ore').max = String(SHIPPED);
-$('ore').value = String(SHIPPED);
-$('ore').addEventListener('input', drawLvl);
-$('oreReset').addEventListener('click', () => { $('ore').value = String(SHIPPED); drawLvl(); });
-drawLvl();
+// CAMPAIGN BLOCK BEGIN ─ the game: one level at a time ──────────────────────
+//
+// This replaced six scrolled sections, each with its own slider, its own call
+// to the oracle and its own copy of a level's bounds. The page now knows
+// NOTHING about any level: `campaign.mjs` owns the order, the titles, the
+// blurbs, the domains and the verdict sentence, and everything below reads
+// them. `index-campaign-wiring.selftest.mjs` asserts that by deriving the
+// forbidden literals from the module's own exports.
+//
+// THE CONTROL IS BUILT OVER `knob.samples`, BY INDEX. A slider whose value is
+// a POSITION in the declared domain cannot emit a setting the domain does not
+// contain — a drifted float is unrepresentable rather than merely unlikely —
+// and the win-fraction measure that computed the play order therefore keeps
+// describing exactly what the player is offered. The old page had the other
+// arrangement and it had already drifted: the first level's slider shipped an
+// opening value far above its own maximum, silently clamped by the browser and
+// visible to nobody. That is what two copies of a bound always come to.
+//
+// NOTHING HERE DECIDES ANYTHING. The page never grades a network, never
+// resolves a fan-out split, and names no level and no threshold: the handlers
+// move the game, ask it for a verdict, and render what comes back. That is
+// vision item 1's requirement that the control logic live in a module rather
+// than in event handlers, and it is the only form of it a test with no browser
+// can check.
+import { Campaign, entryOf } from './campaign.mjs';
+import { drawLevel } from './level-view.js';
 
-// ── Level 2 ────────────────────────────────────────────────────────────────
-import { LEVEL_2_BASE, SMELTER_OPTIONS } from './levels/level2.mjs';
-function drawLvl2(capacity) {
-  const lvl = withProcessorCapacity(LEVEL_2_BASE, 'smelter', capacity);
-  const v = feasible(lvl);
-  drawLevel($('lvl2'), lvl, v);
-  const el = $('lvl2Verdict');
-  el.textContent = verdictLine(v);
-  el.className = 'lvl-verdict ' + (v.ok ? 'ok' : 'bad');
+const game = new Campaign();
+
+// The page's ONE judgement about a control, and it is about SIZE rather than
+// about which level it is: a domain small enough to see all of gets a button
+// per setting, anything larger gets a slider. A future level offering four
+// options is laid out as buttons without editing this line.
+const ALL_AT_ONCE = 8;
+
+/** A setting as words. Objects print `name value`, so a multi-part knob needs
+ *  no special case here and no knowledge of which parts it has. */
+const showValue = (v) => (v && typeof v === 'object'
+  ? Object.entries(v).map(([n, x]) => `${n} ${x}`).join(' · ')
+  : String(v));
+
+const knobOf = () => entryOf(game.state().id).knob;
+
+function buildControl() {
+  const k = knobOf();
+  const slider = $('gameKnob');
+  const choice = $('gameChoice');
+  const discrete = k.samples.length <= ALL_AT_ONCE;
+  $('gameKnobKind').textContent = k.kind;
+  slider.hidden = discrete;
+  choice.hidden = !discrete;
+  if (discrete) {
+    choice.innerHTML = k.samples.map((s, j) =>
+      `<button class="lvl-btn" data-i="${j}">${showValue(s)}</button>`).join('');
+    return;
+  }
+  choice.innerHTML = '';
+  // `key` is the knob's own membership function, so finding where the current
+  // setting sits works for a float and for an object alike.
+  const at = k.samples.findIndex((s) => k.key(s) === k.key(game.state().value));
+  slider.min = String(0);
+  slider.max = String(k.samples.length - 1);
+  slider.step = String(1);
+  slider.value = String(at);
 }
-$('lvl2Btns').innerHTML = SMELTER_OPTIONS.map((o) =>
-  `<button class="lvl-btn" data-capacity="${o.capacity}">${o.label} (cap ${o.capacity})</button>`).join('');
-$('lvl2Btns').addEventListener('click', (e) => {
-  const cap = e.target.dataset.capacity;
-  if (cap) drawLvl2(Number(cap));
+
+function paint() {
+  const st = game.state();
+  const entry = entryOf(st.id);
+  $('gameTitle').textContent = entry.title;
+  $('gameBlurb').textContent = entry.blurb;
+  $('gameKnobV').textContent = showValue(st.value);
+
+  // `verdict()` spreads the oracle's own result, so it IS a valid verdict for
+  // drawLevel — the board and the sentence come from one call, not two.
+  const v = game.verdict();
+  drawLevel($('gameBoard'), v.network, v);
+
+  const line = $('gameLine');
+  line.textContent = st.finished
+    ? `${v.line} That was the last one — there is nothing after it.`
+    : v.line;
+  line.className = 'lvl-verdict ' + (v.ok ? 'ok' : 'bad');
+
+  const more = st.index < st.total - 1;
+  const next = $('gameNext');
+  next.textContent = more ? 'next level' : 'finish';
+  next.hidden = !(v.won && !st.finished);
+
+  $('gameProgress').textContent =
+    `${st.index + 1} of ${st.total} · ${st.moves} change${st.moves === 1 ? '' : 's'}`;
+}
+
+/** Take a POSITION in the declared domain. A refused move repaints nothing —
+ *  the game did not change, so neither should the screen. */
+function choose(at) {
+  if (!game.move(knobOf().samples[at]).accepted) return;
+  paint();
+}
+
+$('gameKnob').addEventListener('input', (e) => choose(Number(e.target.value)));
+$('gameChoice').addEventListener('click', (e) => {
+  const at = e.target.dataset.i;
+  if (at !== undefined) choose(Number(at));
 });
-drawLvl2(LEVEL_2_BASE.nodes.find((n) => n.id === 'smelter').capacity);
-
-// ── Level 3 ────────────────────────────────────────────────────────────────
-import { LEVEL_3 } from './levels/level3.mjs';
-const SHIPPED_MINER = LEVEL_3.nodes.find((n) => n.id === 'miner').capacity;
-const SHIPPED_SMELTER = LEVEL_3.nodes.find((n) => n.id === 'smelter').capacity;
-function drawLvl3() {
-  const minerCap = Number($('miner').value);
-  const smelterCap = Number($('smelter3').value);
-  const lvl = withProcessorCapacity(withProcessorCapacity(LEVEL_3, 'miner', minerCap), 'smelter', smelterCap);
-  const v = feasible(lvl);
-  drawLevel($('lvl3'), lvl, v);
-  $('minerV').textContent = minerCap === SHIPPED_MINER ? `${minerCap} (shipped)` : minerCap;
-  $('smelter3V').textContent = smelterCap === SHIPPED_SMELTER ? `${smelterCap} (shipped)` : smelterCap;
-  const el = $('lvl3Verdict');
-  el.textContent = verdictLine(v);
-  el.className = 'lvl-verdict ' + (v.ok ? 'ok' : 'bad');
-}
-$('miner').value = String(SHIPPED_MINER);
-$('smelter3').value = String(SHIPPED_SMELTER);
-$('miner').addEventListener('input', drawLvl3);
-$('smelter3').addEventListener('input', drawLvl3);
-$('lvl3Reset').addEventListener('click', () => {
-  $('miner').value = String(SHIPPED_MINER);
-  $('smelter3').value = String(SHIPPED_SMELTER);
-  drawLvl3();
+$('gameNext').addEventListener('click', () => {
+  game.next();          // returns null on the last level and latches `finished`
+  buildControl();
+  paint();
 });
-drawLvl3();
 
-// ── Level 4 ────────────────────────────────────────────────────────────────
-import { LEVEL_4 } from './levels/level4.mjs';
-import { autoSplit } from './production.mjs';
-const SHIPPED_ORE4 = LEVEL_4.nodes.find((n) => n.kind === 'source').rate;
-function drawLvl4() {
-  const rate = Number($('ore4').value);
-  const lvl = autoSplit(withSourceRate(LEVEL_4, rate));
-  const v = feasible(lvl);
-  drawLevel($('lvl4'), lvl, v);
-  $('ore4V').textContent = rate === SHIPPED_ORE4 ? `${rate} (shipped)` : rate;
-  const el = $('lvl4Verdict');
-  el.textContent = verdictLine(v);
-  el.className = 'lvl-verdict ' + (v.ok ? 'ok' : 'bad');
-}
-$('ore4').value = String(SHIPPED_ORE4);
-$('ore4').addEventListener('input', drawLvl4);
-$('ore4Reset').addEventListener('click', () => { $('ore4').value = String(SHIPPED_ORE4); drawLvl4(); });
-drawLvl4();
-
-// ── Level 5 ────────────────────────────────────────────────────────────────
-import { LEVEL_5, withShareA } from './levels/level5.mjs';
-const SHIPPED_SHAREA5 = LEVEL_5.edges.find((e) => e.to === 'fieldA').share;
-function drawLvl5() {
-  const shareA = Number($('shareA5').value);
-  const lvl = withShareA(LEVEL_5, shareA);
-  const v = feasible(lvl);
-  drawLevel($('lvl5'), lvl, v);
-  $('shareA5V').textContent = shareA === SHIPPED_SHAREA5 ? `${shareA} (shipped)` : shareA;
-  const el = $('lvl5Verdict');
-  el.textContent = verdictLine(v);
-  el.className = 'lvl-verdict ' + (v.ok ? 'ok' : 'bad');
-}
-$('shareA5').value = String(SHIPPED_SHAREA5);
-$('shareA5').addEventListener('input', drawLvl5);
-$('lvl5Reset').addEventListener('click', () => { $('shareA5').value = String(SHIPPED_SHAREA5); drawLvl5(); });
-drawLvl5();
-
-// ── Level 6 ────────────────────────────────────────────────────────────────
-import { LEVEL_6, withShareA as withShareA6 } from './levels/level6.mjs';
-const SHIPPED_SHAREA6 = LEVEL_6.edges.find((e) => e.to === 'smelterA').share;
-function drawLvl6() {
-  const shareA = Number($('shareA6').value);
-  const lvl = withShareA6(LEVEL_6, shareA);
-  const v = feasible(lvl);
-  drawLevel($('lvl6'), lvl, v);
-  $('shareA6V').textContent = shareA === SHIPPED_SHAREA6 ? `${shareA} (shipped)` : shareA;
-  const el = $('lvl6Verdict');
-  el.textContent = verdictLine(v);
-  el.className = 'lvl-verdict ' + (v.ok ? 'ok' : 'bad');
-}
-$('shareA6').value = String(SHIPPED_SHAREA6);
-$('shareA6').addEventListener('input', drawLvl6);
-$('lvl6Reset').addEventListener('click', () => { $('shareA6').value = String(SHIPPED_SHAREA6); drawLvl6(); });
-drawLvl6();
+buildControl();
+paint();
+// CAMPAIGN BLOCK END ────────────────────────────────────────────────────────
 
 // ── Summon — the click that reaches the foam ───────────────────────────────
 //

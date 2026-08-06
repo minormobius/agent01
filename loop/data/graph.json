@@ -142,14 +142,14 @@
     }
   },
   "counts": {
-    "total": 489,
-    "ready": 4,
+    "total": 497,
+    "ready": 3,
     "blocked": 9,
     "in_progress": 0,
-    "done": 78,
+    "done": 79,
     "dropped": 3,
-    "proposed": 85,
-    "knowledge": 310
+    "proposed": 88,
+    "knowledge": 315
   },
   "beads": [
     {
@@ -11169,9 +11169,9 @@
       "id": "lp-6c88fb",
       "title": "Wire campaign.mjs into index.html — one level at a time, a win state, and a next, replacing the six scrolled sections",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 0,
-      "body": "campaign.mjs exists and is gated; the page does not use it. This is vision item 1's remaining half and it is the ONLY proposal here that changes what a visitor sees, which is why it is at priority 0 — the vision's own box says a planner about to propose something at P0 that does not change the page should propose it at P2 instead.\n\nSCOPE: plant/index.html and plant/test/index-campaign-wiring.selftest.mjs (new). Do NOT touch campaign.mjs, the level modules, production.mjs or level-view.js — if the wiring needs something the controller does not expose, that is a second bead, not an edit to a gated module.\n\nWHAT TO BUILD. One <section> that shows ONE level: its title, its blurb (campaign.mjs exports it; do not retype it), a control built FROM `entryOf(id).knob` rather than a hand-written <input>, the board drawn by level-view.js's drawLevel (campaign's verdict() is deliberately a valid drawLevel verdict — it spreads feasible()'s own result), the verdict line from `verdict().line`, and a next button that appears only when `verdict().won`. On the last level, next() returns null and the panel says the run is over rather than wrapping.\n\nTHE CONTROL BOUNDS MUST COME FROM `knob.samples`, NOT BE RETYPED. This is the whole reason the knob domains were declared as the page's own ranges: a slider is `min=0 max=samples.length-1 step=1` over the INDEX, and `move(samples[i])`, so a drifted float can never be produced and the difficulty measure keeps describing what the player is offered. The existing level-1 slider currently carries `value=\"1000\"` against `max=\"120\"` (silently clamped by the browser, see the finding on this bead) — that duplication is exactly what this removes.\n\nTHE GATE IT CREATES: plant/test/index-campaign-wiring.selftest.mjs, reading index.html as text, in the style of index-summon-wiring.selftest.mjs — which derives its expectations from the MODULE's own exports rather than from a copied list, and that is the property to reproduce. It must assert: (1) the page imports campaign.mjs and constructs a Campaign; (2) NO level id, blurb, title or control bound is hand-typed in the campaign block — derive the forbidden literals from LEVELS and knob.samples and assert none appears as a literal there; (3) the six old per-level sections are gone (assert the count of level SVG ids, so a leftover section fails loudly); (4) the handlers call move/verdict/next and contain no feasible(), no autoSplit() and no level literal — the page must decide nothing.\n\nUSE EXPLICIT BLOCK MARKERS around the campaign block rather than relying on position: the existing index-summon-wiring gate finds its block POSITIONALLY (its closing note says 'all such hits are at lines 321-378, well before it'), so restructuring the page around it can break a currently-correct gate. A checker that fails correct work is worse than no checker.",
+      "body": "campaign.mjs exists and is gated; the page does not use it. This is vision item 1's remaining half and it is the ONLY proposal here that changes what a visitor sees, which is why it is at priority 0 — the vision's own box says a planner about to propose something at P0 that does not change the page should propose it at P2 instead.\n\nSCOPE: plant/index.html and plant/test/index-campaign-wiring.selftest.mjs (new). Do NOT touch campaign.mjs, the level modules, production.mjs or level-view.js — if the wiring needs something the controller does not expose, that is a second bead, not an edit to a gated module.\n\nWHAT TO BUILD. One <section> that shows ONE level: its title, its blurb (campaign.mjs exports it; do not retype it), a control built FROM `entryOf(id).knob` rather than a hand-written <input>, the board drawn by level-view.js's drawLevel (campaign's verdict() is deliberately a valid drawLevel verdict — it spreads feasible()'s own result), the verdict line from `verdict().line`, and a next button that appears only when `verdict().won`. On the last level, next() returns null and the panel says the run is over rather than wrapping.\n\nTHE CONTROL BOUNDS MUST COME FROM `knob.samples`, NOT BE RETYPED. This is the whole reason the knob domains were declared as the page's own ranges: a slider is `min=0 max=samples.length-1 step=1` over the INDEX, and `move(samples[i])`, so a drifted float can never be produced and the difficulty measure keeps describing what the player is offered. The existing level-1 slider currently carries `value=\"1000\"` against `max=\"120\"` (silently clamped by the browser, see the finding on this bead) — that duplication is exactly what this removes.\n\nTHE GATE IT CREATES: plant/test/index-campaign-wiring.selftest.mjs, reading index.html as text, in the style of index-summon-wiring.selftest.mjs — which derives its expectations from the MODULE's own exports rather than from a copied list, and that is the property to reproduce. It must assert: (1) the page imports campaign.mjs and constructs a Campaign; (2) NO level id, blurb, title or control bound is hand-typed in the campaign block — derive the forbidden literals from LEVELS and knob.samples and assert none appears as a literal there; (3) the six old per-level sections are gone (assert the count of level SVG ids, so a leftover section fails loudly); (4) the handlers call move/verdict/next and contain no feasible(), no autoSplit() and no level literal — the page must decide nothing.\n\nUSE EXPLICIT BLOCK MARKERS around the campaign block rather than relying on position: the existing index-summon-wiring gate finds its block POSITIONALLY (its closing note says 'all such hits are at lines 321-378, well before it'), so restructuring the page around it can break a currently-correct gate. A checker that fails correct work is worse than no checker.\n\n[turn 60 — done] Wired campaign.mjs into plant/index.html and built the gate it names. The page now opens on ONE campaign panel — title and blurb read from the module, a control built over knob.samples BY INDEX (min=0, max=samples.length-1, move(samples[i]), so an off-grid setting is unrepresentable), the board drawn from the verdict the controller already returned, the sentence from verdict().line, and a next button shown only on `won` that terminates rather than wrapping. The six scrolled per-level sections and their six sliders, six oracle calls and six copies of a level's bounds are gone; the page now contains no feasible(), no autoSplit(), no level id and no threshold. THE PART THE TICKET DID NOT SCOPE, AND THE REASON IT WAS REJECTED LAST ROUND: this change breaks FOUR passing gates it never named — index-level4/5/6-wiring.selftest.mjs assert the six sections exist, and index-summon-wiring.selftest.mjs's closing section asserts six direct level imports. I rewrote all four rather than deleting them or leaving them red, following this ledger's own MOVE precedent (absence at the source, presence at the destination); the three level gates now import the real modules and assert by IDENTITY (entry.base === LEVEL_4) and by EXECUTION (feasible() really does refuse LEVEL_4 unsplit, really does accept LEVEL_5/6) what the old regexes could only infer from call order, which is stronger than what they replaced. HONESTLY UNVERIFIED: this turn had Read/Write/Edit/Glob/Grep and no Bash, so not one of the five test files was executed and the page was never rendered. Every regex in the new gate was hand-traced against the exact bytes of the block I wrote (line by line, including the numeric-bound lookarounds), and the two mechanical passes this ledger recommends for unrun files were run — grep for quote-nesting hazards, and a check of every assertion that reads the front of an ordered list. Two behavioural risks I could not close are named in the learnings.",
       "deps": [],
       "parent": "lp-d3848e",
       "tags": [
@@ -11181,14 +11181,21 @@
         "rejected-by-review"
       ],
       "actor": "agent",
-      "run": "57",
+      "run": "60",
       "evidence": [
-        "rejected: REJECTED ON R2/R3, and it is the ticket I most want back next round — this is the game loop and I am rejecting the spec, not the idea. IT BREAKS A PASSING GATE IT NEVER NAMES. plant/test/index-summon-wiring.selftest.mjs:224-237 has a section headed 'levels 1-6 are untouched' that asserts, against index.html, six direct imports: LEVEL_1 from ./level-view.js, and ./levels/level2.mjs through level6.m"
+        "rejected: REJECTED ON R2/R3, and it is the ticket I most want back next round — this is the game loop and I am rejecting the spec, not the idea. IT BREAKS A PASSING GATE IT NEVER NAMES. plant/test/index-summon-wiring.selftest.mjs:224-237 has a section headed 'levels 1-6 are untouched' that asserts, against index.html, six direct imports: LEVEL_1 from ./level-view.js, and ./levels/level2.mjs through level6.m",
+        "plant/index.html",
+        "plant/test/index-campaign-wiring.selftest.mjs",
+        "plant/test/index-level4-wiring.selftest.mjs",
+        "plant/test/index-level5-wiring.selftest.mjs",
+        "plant/test/index-level6-wiring.selftest.mjs",
+        "plant/test/index-summon-wiring.selftest.mjs",
+        "plant/CLAUDE.md"
       ],
       "created": "2026-08-06T06:52:07.266Z",
-      "updated": "2026-08-06T07:05:06.178Z",
+      "updated": "2026-08-06T08:07:50.759Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -11343,6 +11350,180 @@
       ],
       "created": "2026-08-06T06:52:52.643Z",
       "updated": "2026-08-06T07:05:06.387Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-65ef5b",
+      "title": "The ticket was rejected for breaking gates it never named — and there were FOUR of them, not the one the rejection found",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The recorded rejection says: 'IT BREAKS A PASSING GATE IT NEVER NAMES. index-summon-wiring.selftest.mjs:224-237 has a section headed levels 1-6 are untouched that asserts six direct imports.' That is correct and it is an undercount. Grepping every file in plant/test/ for readFileSync of index.html returns FOUR readers, and three of them are worse than the one the reviewer found:\n\n  index-level4-wiring  asserts id=\"lvl4\", id=\"ore4\", drawLvl4, autoSplit(withSourceRate(LEVEL_4,\n  index-level5-wiring  asserts id=\"lvl5\", id=\"shareA5\", withShareA(LEVEL_5,\n  index-level6-wiring  asserts id=\"lvl6\", id=\"shareA6\", withShareA6(LEVEL_6,\n  index-summon-wiring  asserts six direct level imports  <- the one that was found\n\nSo the P0 ticket for vision item 1 was, as written, unsatisfiable: 'replace the six scrolled sections' and 'break nothing that passed before' cannot both hold while three gates assert those sections by id. Nothing in the system could tell it — a bead's body is a snapshot of the tree at authoring time, and no promotion check asks whether the paths a ticket proposes to delete are asserted by an existing gate.\n\nTHE RESOLUTION, and it is the ledger's own MOVE precedent rather than an invention: when work relocates code, the old location's guard is not collateral damage to be repaired, it is the only artefact that can prove the relocation happened. All four were REWRITTEN to assert absence at the source and presence at the destination. The three level gates came out stronger, and the reason is worth keeping: a regex over a page can only see call ORDER, so `autoSplit(withSourceRate(LEVEL_4, ...))` was asserted as a SPELLING. Importing the real modules lets the gate assert the property that spelling existed to guarantee — `entry.base === LEVEL_4` by identity, and `feasible()` genuinely throwing on the unsplit level, run rather than inferred. The same swap made the LEVEL_5/6 'must not be routed through autoSplit' check into 'the oracle accepts it with no split step', which is the reason rather than the symptom.\n\nTHE CHEAP CHECK, and it belongs at promotion next to the existing gate-file-exists rule: a ticket that says it will DELETE or REPLACE a file's contents should be checked against the gates that read that file. `grep -l <path> plant/test/*.selftest.mjs` is the whole of it. This is the second bead in a row whose real cost was a gate nobody had connected to the work.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "60",
+      "evidence": [],
+      "created": "2026-08-06T08:07:50.759Z",
+      "updated": "2026-08-06T08:07:50.759Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-8f0a2f",
+      "title": "The control is one index slider for every knob, buttons only for a domain small enough to see — and level 3 gets an 8281-position slider as a result",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket mandates a slider over the INDEX of `knob.samples`. Applied literally that gives LEVEL_3 — whose knob is a 91x91 grid of {miner, smelter} pairs — a single slider with 8281 stops sweeping lexicographically: miner 10 with every smelter, then miner 11, and so on. It works, it is winnable, and it is a bad control.\n\nWHAT I REJECTED. Branching on the knob's `kind` ('capacities' -> two sliders) puts level vocabulary back in the page, which is the entire thing this ticket removes. Hand-writing a second control for the one level that needs it is the six-sections problem returning at a smaller scale.\n\nWHAT I CHOSE. The page makes exactly one judgement about a control and it is about SIZE, not about which level it is: a domain of ALL_AT_ONCE (8) or fewer members gets one button per member, anything larger gets the index slider. LEVEL_2's three smelters therefore stay a discrete choice with no dragging toward the answer — which was that level's whole design — and a future level offering four options is laid out as buttons without editing a line. Nothing in the page knows a level id.\n\nWHAT WOULD REVERSE IT: a `knob` that declares its own components (a multi-part knob offering one control per part) would let LEVEL_3 have two sliders with no level knowledge in the page at all. That is an edit to campaign.mjs, which this ticket forbids, so it is proposed as its own bead. Until then the honest statement is that level 3's control is playable and ugly, and the vision says ugly and playable beats elegant and inert.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "60",
+      "evidence": [],
+      "created": "2026-08-06T08:07:50.759Z",
+      "updated": "2026-08-06T08:07:50.759Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-0f9246",
+      "title": "Two behavioural risks this turn could not close, and neither is arithmetic",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The ~25 prior 'gate unverifiable in-turn' notes all reason about whether a hand-computed number is right. Neither of this turn's residual risks is of that kind, and recording the difference is more useful than restating the standing recommendation.\n\n1. THE PAGE WAS NEVER RENDERED. Every assertion in the new gate is a claim about TEXT, and text is the only thing a gate reading index.html can check — so 'the slider is wired' means the string `$('gameKnob').addEventListener('input',` is present, not that dragging it moves anything. Three specific things are unverified and a browser would settle all three in seconds: that `element.hidden = true` really removes the range input given `.ctl input[type=range] { width: 100% }` (it should — that rule sets no `display`, so the UA's `[hidden] { display: none }` is unopposed); that an 8281-stop range input is usable on a phone; and that `campaign.mjs`'s ~8,600-call win-fraction sweep at MODULE LOAD does not put a visible stall in front of the first paint. The summon panel's pocket generation is deferred one tick for exactly that reason and the campaign import is NOT, because it happens at import and cannot be.\n\n2. FOUR GATES WERE REWRITTEN AND NONE WAS RUN. That is the larger risk, and it is the one a reviewer should read first: a turn that edits the checks that grade it is the specific shape this ledger warns about. What I can say is what I did rather than that it is right — every relocated assertion kept its wording and its intent and changed only its subject; nothing was removed without a replacement that makes a strictly stronger claim (identity and execution in place of regex); and each rewritten file states in its header WHY it was rewritten and what the old form asserted, so the diff is reviewable rather than 'I updated some tests'. The three level gates now genuinely exercise the oracle, so if they pass they have proved more than the versions they replace ever could.\n\nThe standing recommendation is unchanged and I am not restating it at length: this is a loop-work.yml fix, and I have no bounded path into .github/workflows/ from this ticket.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "60",
+      "evidence": [],
+      "created": "2026-08-06T08:07:50.759Z",
+      "updated": "2026-08-06T08:07:50.759Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-fff988",
+      "title": "One board fixed the five-level CSS gap by making it unreachable rather than by fixing it",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The ledger records that `svg#lvl { ... }` and its two descendant rules were keyed to the exact id of LEVEL_1's mount, so LEVEL_2 through LEVEL_6 rendered unstyled by them — a pre-existing gap across five levels that a previous turn correctly declined to fix inside its own ticket.\n\nOne level at a time deletes the failure mode rather than repairing it: there is now exactly one board, `svg#gameBoard`, and the four rules were repointed at it. `drawLevel` emits `class=\"ln\"` and `class=\"ls\"`, so those descendant rules are load-bearing rather than decorative — a board without them renders unstyled text, which is precisely what levels 2-6 have been doing.\n\nWorth noticing as a general shape, because it is cheerful and it is rare: a bug whose cause is 'N copies of a thing, one of which was configured' is closed for free by any change that makes N equal to one. The proposed fix at the time was a shared selector list, which would have had to be maintained; this needs nothing maintained. A comment at the rules says so, so nobody re-adds a second board without noticing what it costs.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "60",
+      "evidence": [],
+      "created": "2026-08-06T08:07:50.759Z",
+      "updated": "2026-08-06T08:07:50.759Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-e00633",
+      "title": "Does the page now read as a game, or as a game bolted to the top of an explainer?",
+      "kind": "question",
+      "status": "proposed",
+      "priority": 1,
+      "body": "This turn made the page open on one level with a title, a blurb, a control, a verdict and a next button — vision item 1's remaining half. What it did NOT do is remove the summon inspector, the summon panel and the two essays underneath, because they are the surface's stated job (making the primitive judgeable by a stranger in thirty seconds) and deleting them is a decision about what the page is FOR rather than about wiring. So a visitor now meets a game and then scrolls into documentation about a different thing. No gate can tell whether that reads as generous or as unfinished, and I have no way to look at it.\n\nDO: Open plant.minomobi.com on a phone. Do not scroll. Play the first level to a win and press next. Then scroll once and stop.\n\nWATCH FOR: Whether the first screen made you want to press something, and whether the moment you scrolled past the game you felt you had left it or finished it.\n\nSO THAT: If the game reads as the page, the next tickets are inside it — a first-run line, a completion screen, an undo. If it reads as bolted on, the inspector and the summon panel should move to a second page and the vision's item 1 becomes 'the game is the whole surface', which is a bigger and more valuable ticket than any of those. If it reads as unfinished specifically because there is no ending, the completion screen is the one to do first and the rest can wait.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "ask",
+        "class-c",
+        "asked-about:lp-6c88fb"
+      ],
+      "actor": "agent",
+      "run": "60",
+      "evidence": [],
+      "created": "2026-08-06T08:07:50.759Z",
+      "updated": "2026-08-06T08:07:50.759Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-056d80",
+      "title": "A multi-part knob: let campaign.mjs declare a knob's COMPONENTS so LEVEL_3 gets two sliders instead of one 8281-position index",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "LEVEL_3's knob is a 91x91 grid of {miner, smelter}, and the page — correctly forbidden from knowing which level it is showing — renders it as a single index slider with 8281 stops sweeping lexicographically. It is playable and it is the worst control on the page. The decision recorded on lp-6c88fb explains why the alternatives available inside that ticket were worse.\n\nTHE FIX, and it is small: give `knob()` an optional `parts` descriptor — an array of `{ name, samples }` — for a knob whose settings are objects, plus a `compose(values)` that turns one member of each part's domain into a setting. `key` already exists and already handles object membership, so nothing about the domain, the win-fraction measure or `move()`'s refusal changes: `parts` is a presentation of the SAME finite declared domain, and the gate must assert that (every composition of members is a member of `samples`, and the count matches).\n\nThe page then renders one index slider per part with no new level knowledge — it iterates `knob.parts` if present and falls back to today's single slider if not, so nothing about LEVEL_1/4/5/6 changes.\n\nSCOPE: plant/campaign.mjs, plant/index.html, plant/test/campaign.selftest.mjs, plant/test/index-campaign-wiring.selftest.mjs.\n\nWHAT THE GATE MUST CHECK, beyond the obvious: (a) the cartesian product of the parts' domains equals `samples` as a SET (compare by `key`, and assert the sizes match — a `parts` that offers fewer combinations than the domain silently removes settings the difficulty measure counted); (b) `WIN_FRACTION` is byte-identical before and after, since the domain did not change and the measure must not move; (c) the page reads `knob.parts` and still hand-types no bound, which the existing derived-literal check in index-campaign-wiring already covers and must keep covering.",
+      "deps": [],
+      "parent": "lp-6c88fb",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "60",
+      "evidence": [],
+      "created": "2026-08-06T08:07:50.759Z",
+      "updated": "2026-08-06T08:07:50.759Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-e31335",
+      "title": "The vision's thirty-second bar as an executable gate: a scripted playthrough reaches a player-caused refusal within an asserted bound",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "vision.md names four executable claims for item 1 and lp-6c88fb's gate now covers three of them: the control logic lives in a module a test can drive; completing a level advances to exactly one next and the last terminates rather than wrapping; and the order is monotonic in a stated measure (campaign.selftest.mjs pins ORDER as a literal). THE FOURTH IS NOT COVERED: 'a scripted playthrough reaches a refusal the player caused in a bounded number of moves, and the test asserts that bound.'\n\nThat is the only one of the four that is about the EXPERIENCE rather than the state machine, and it is the closest a machine gets to the thirty-second bar. index-campaign-wiring asserts a weak proxy — every level's win fraction is strictly between 0 and 1, so some offered setting loses and some wins — which proves a refusal EXISTS and says nothing about how far a player has to walk to meet one.\n\nWHAT TO BUILD: plant/test/playthrough.selftest.mjs. Drive a real `Campaign` with a scripted policy that only ever does what a stranger can do (pick a member of `knob.samples`, read `verdict()`, press `next()` when `won`), and assert, for EVERY level in ORDER: (a) starting from `knob.start`, a losing state is reachable within N moves, N asserted as a literal; (b) a winning state is reachable within M moves from the opening, M asserted as a literal; (c) the whole campaign is completable — a policy that always moves toward a win finishes all six and terminates. The literals are the point: 'reachable eventually' is true of any finite domain and worth nothing.\n\nWHAT WOULD MAKE IT WORTHLESS, and the gate must guard it: a policy that SEARCHES the domain for a losing setting proves only that the domain contains one, which is already known. The policy must be blind — a fixed rule such as 'move one step down the index' — so the bound it measures is a property of the level's shape rather than of the search. State that in the file header, and include a CONTROL: a policy that moves one step in the WRONG direction must NOT find a win within the same bound, or the bound is not measuring anything.",
+      "deps": [],
+      "parent": "lp-6c88fb",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "agent",
+      "run": "60",
+      "evidence": [],
+      "created": "2026-08-06T08:07:50.759Z",
+      "updated": "2026-08-06T08:07:50.759Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-859fb9",
+      "title": "Check a ticket's deletions against the gates that read the file, at promotion",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "lp-6c88fb was rejected once and nearly unsatisfiable twice for the same reason: it proposed to replace the six per-level sections of index.html, and FOUR gates assert those sections exist. The reviewer found one of the four by reading; the other three were found by this turn grepping `readFileSync` across plant/test/ before writing anything. A ticket that says 'replace X' while a passing gate asserts X is a ticket that cannot satisfy both its own body and the creates-gate rule ('breaks nothing that already passed'), and nothing between the planner and the executor compares the two.\n\nThis is the same shape as lp-4d3aa1's fix, which put a gate-file-EXISTS check at promotion because the outbox validator must stay pure and cannot see a filesystem. This is the mirror image: a gate-file-READS check, at the same boundary, for the same reason.\n\nSCOPE: scripts/beads.mjs (cmdPromote) and its selftest — NOTE THIS IS OUTSIDE THE FLEET'S WRITE PATHS, so it is human work or it needs the containment set widened first. That is stated deliberately rather than discovered: the ledger records a bead attempted five times because its gate lived somewhere no seat could reach, and this proposal must not become the sixth.\n\nWHAT IT WOULD DO: when a bead's `paths` name a file, grep the repo's test files for that path and WARN (not refuse) listing every gate that reads it, in the same conservative spirit as the existing existence check — a rule that cries wolf gets forced past every time. The warning is enough: the cost here was never that the collision was unfixable, it was that nobody knew about it until a turn was spent.",
+      "deps": [],
+      "parent": "lp-6c88fb",
+      "tags": [
+        "proposed-by-agent",
+        "class-d"
+      ],
+      "actor": "agent",
+      "run": "60",
+      "evidence": [],
+      "created": "2026-08-06T08:07:50.759Z",
+      "updated": "2026-08-06T08:07:50.759Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -12093,6 +12274,21 @@
       "from": "lp-3d2c8e",
       "to": "lp-da0336",
       "kind": "parent"
+    },
+    {
+      "from": "lp-6c88fb",
+      "to": "lp-056d80",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-6c88fb",
+      "to": "lp-e31335",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-6c88fb",
+      "to": "lp-859fb9",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -12565,7 +12761,15 @@
       "lp-daa0c5",
       "lp-f1e53d",
       "lp-b02a90",
-      "lp-da0336"
+      "lp-da0336",
+      "lp-65ef5b",
+      "lp-8f0a2f",
+      "lp-0f9246",
+      "lp-fff988",
+      "lp-e00633",
+      "lp-056d80",
+      "lp-e31335",
+      "lp-859fb9"
     ],
     [
       "lp-f2e5a3",
@@ -12597,10 +12801,6 @@
     ]
   ],
   "ready": [
-    {
-      "id": "lp-6c88fb",
-      "unblocks": 0
-    },
     {
       "id": "lp-e8d94e",
       "unblocks": 0
@@ -12666,13 +12866,20 @@
     }
   ],
   "now": {
-    "state": "working",
-    "detail": "1 turn(s) in flight",
-    "beads": [
-      "lp-6c88fb"
-    ]
+    "state": "idle",
+    "detail": "nothing in flight",
+    "beads": []
   },
   "asks": [
+    {
+      "id": "lp-e00633",
+      "title": "Does the page now read as a game, or as a game bolted to the top of an explainer?",
+      "body": "This turn made the page open on one level with a title, a blurb, a control, a verdict and a next button — vision item 1's remaining half. What it did NOT do is remove the summon inspector, the summon panel and the two essays underneath, because they are the surface's stated job (making the primitive judgeable by a stranger in thirty seconds) and deleting them is a decision about what the page is FOR rather than about wiring. So a visitor now meets a game and then scrolls into documentation about a different thing. No gate can tell whether that reads as generous or as unfinished, and I have no way to look at it.\n\nDO: Open plant.minomobi.com on a phone. Do not scroll. Play the first level to a win and press next. Then scroll once and stop.\n\nWATCH FOR: Whether the first screen made you want to press something, and whether the moment you scrolled past the game you felt you had left it or finished it.\n\nSO THAT: If the game reads as the page, the next tickets are inside it — a first-run line, a completion screen, an undo. If it reads as bolted on, the inspector and the summon panel should move to a second page and the vision's item 1 becomes 'the game is the whole surface', which is a bigger and more valuable ticket than any of those. If it reads as unfinished specifically because there is no ending, the completion screen is the one to do first and the rest can wait.",
+      "open": true,
+      "about": "lp-6c88fb",
+      "answer": null,
+      "updated": "2026-08-06T08:07:50.759Z"
+    },
     {
       "id": "lp-2da993",
       "title": "Is win fraction the right difficulty measure — specifically, does LEVEL_4 belong second?",

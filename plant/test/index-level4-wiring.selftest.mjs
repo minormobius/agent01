@@ -1,27 +1,37 @@
 #!/usr/bin/env node
-// Presence check for LEVEL_4's wiring into plant/index.html (lp-194a16).
+// LEVEL_4 reaches the page through campaign.mjs (originally lp-194a16;
+// rewritten by lp-6c88fb when the six per-level sections were replaced).
 //
-// WHAT THIS PROVES, AND WHAT IT DOES NOT. index.html has no DOM/browser test
-// today — none of LEVEL_1/2/3's wiring blocks do either — so this reads the
-// file as TEXT (fs.readFileSync, no jsdom, no headless browser) and asserts
-// by substring/regex that the module imports LEVEL_4, threads it through
-// autoSplit() and feasible(), and renders the result via drawLevel() and
-// verdictLine(). That proves the wiring exists SYNTACTICALLY: the right
-// names are imported and called in the right places. It does NOT prove a
-// browser renders it pixel-correct, that the slider actually fires the
-// handler, or that the SVG paints — a real assertion would need a DOM.
-// Recorded here rather than implied by a green run, per the ticket's own
-// instruction to say plainly that this is a weaker gate than a rendered
-// check would be.
+// WHY THIS FILE WAS REWRITTEN RATHER THAN LEFT ALONE. Its previous form
+// asserted, against index.html, that the page imports LEVEL_4, wraps it in
+// autoSplit(), grades it with feasible() and renders it into `id="lvl4"`.
+// Every one of those was correct until the page stopped having six per-level
+// sections. lp-6c88fb moved all six behind `campaign.mjs`, so the old
+// assertions became guaranteed failures that say nothing about a regression —
+// and a checker that fails correct work is worse than no checker.
 //
-// House style matches the other selftests in this directory: every check is
-// named, failures are counted and printed, exit code carries the verdict.
+// WHAT REPLACED THEM, AND WHY IT IS STRONGER. The old checks were regexes over
+// a page, and a regex can only see call ORDER. This file imports the real
+// modules and asserts the PROPERTY that call order existed to guarantee:
+//
+//   · the campaign entry's `base` IS the LEVEL_4 literal, by identity — not a
+//     copy, not a re-declaration, checked with === rather than with a name;
+//   · the oracle genuinely REFUSES the level until the split is filled, run
+//     rather than asserted from the shape of a line of source;
+//   · `buildNetwork` really does fill every fan-out share, and they sum to 1.
+//
+// It keeps two text checks, and only two, both about the DEPARTURE: the page
+// must no longer import level4.mjs and must no longer resolve the split
+// itself. A half-done move fails here rather than passing twice.
 //
 // Run: node plant/test/index-level4-wiring.selftest.mjs
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { LEVEL_4 } from '../levels/level4.mjs';
+import { entryOf, buildNetwork, grade, LEVELS, ORDER } from '../campaign.mjs';
+import { feasible } from '../production.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const html = readFileSync(join(here, '..', 'index.html'), 'utf8');
@@ -32,46 +42,63 @@ const ok = (name, cond, detail = '') => {
   failed++; console.log(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-console.log('\nLEVEL_4 is imported from its own module, not redefined inline');
+const ID = 'level4';
+const entry = entryOf(ID);
+
+console.log('\nLEVEL_4 is carried by campaign.mjs — the entry IS the module literal, not a copy');
 {
-  ok('imports LEVEL_4 from ./levels/level4.mjs',
-    /import\s*\{\s*LEVEL_4\s*\}\s*from\s*['"]\.\/levels\/level4\.mjs['"]/.test(html));
+  ok('campaign.mjs declares an entry for this level', !!entry);
+  ok('its base is LEVEL_4 itself, by identity', entry.base === LEVEL_4);
+  ok('the level is in the play order', ORDER.includes(ID));
 }
 
-console.log('\nthe fan-out is resolved with autoSplit(), matching the oracle levels 1-3 also call');
+console.log('\nthe fan-out is still resolved before grading — now once, by the controller');
 {
-  ok('imports autoSplit from ./production.mjs',
-    /import\s*\{\s*autoSplit\s*\}\s*from\s*['"]\.\/production\.mjs['"]/.test(html));
-  // autoSplit must wrap LEVEL_4 (directly or via withSourceRate(LEVEL_4, ...))
-  // before it reaches feasible() — feeding LEVEL_4 to feasible() unsplit
-  // throws, per production.mjs's own refusal and level4.selftest.mjs's first
-  // assertion, so this is the one call order that can possibly work.
-  ok('calls autoSplit(...LEVEL_4...) — the level is split before use',
-    /autoSplit\(\s*withSourceRate\(\s*LEVEL_4\s*,/.test(html) || /autoSplit\(\s*LEVEL_4\s*\)/.test(html));
+  ok('the entry is flagged autoSplit', entry.autoSplit === true);
+
+  // The old gate asserted `autoSplit(withSourceRate(LEVEL_4, ...))` by regex.
+  // This runs the unsplit level instead: the refusal is the whole reason that
+  // call order was mandatory, and it is a fact rather than a spelling.
+  let threw = false;
+  try { feasible(entry.knob.apply(entry.base, entry.knob.start)); } catch { threw = true; }
+  ok('the oracle REFUSES this level until its shares are filled', threw);
+
+  const net = buildNetwork(entry, entry.knob.start);
+  const counts = new Map();
+  for (const e of net.edges) counts.set(e.from, (counts.get(e.from) || 0) + 1);
+  const fanned = net.edges.filter((e) => counts.get(e.from) > 1);
+  ok('the built network really does fan out', fanned.length > 1, `${fanned.length} edges`);
+  ok('every fan-out edge carries a numeric share',
+    fanned.every((e) => typeof e.share === 'number'));
+  const sum = fanned.reduce((a, e) => a + e.share, 0);
+  ok('the shares of the group sum to 1', Math.abs(sum - 1) < 1e-9, String(sum));
+  ok('and the filled network grades without throwing',
+    typeof grade(entry, entry.knob.start).ok === 'boolean');
 }
 
-console.log('\nthe split network is graded by feasible() and rendered like every other level');
+console.log('\na visitor still has a lever — the page builds it from this knob');
 {
-  ok('calls feasible(...) on the split LEVEL_4 network', /feasible\(\s*lvl\s*\)/.test(html));
-  ok('renders via drawLevel(...) into an svg element', /drawLevel\(\s*\$\('lvl4'\)/.test(html));
-  ok('reports the outcome via verdictLine(...)', /verdictLine\(\s*v\s*\)/.test(html));
+  ok('the knob declares more than one setting', entry.knob.samples.length > 1,
+    `${entry.knob.samples.length}`);
+  ok('the opening setting is a member of the declared domain',
+    entry.knob.keys.has(entry.knob.key(entry.knob.start)));
 }
 
-console.log('\na visitor has a lever: a source-rate control wired to a handler that redraws the level');
+console.log('\nthe page no longer does any of this itself — the move happened');
 {
-  ok('a slider control with id="ore4" exists in the markup', /id="ore4"/.test(html));
-  ok('the ore4 svg mount point exists in the markup', /id="lvl4"/.test(html));
-  ok('the ore4 verdict mount point exists in the markup', /id="lvl4Verdict"/.test(html));
-  ok('the ore4 slider is wired to an input handler that redraws the level',
-    /\$\('ore4'\)\.addEventListener\('input',\s*drawLvl4\)/.test(html));
-  ok('a reset control returns the slider to the shipped rate', /id="ore4Reset"/.test(html));
+  ok('index.html no longer imports ./levels/level4.mjs',
+    !/levels\/level4\.mjs/.test(html));
+  ok('index.html no longer resolves a split itself', !/\bautoSplit\b/.test(html));
+  ok('index.html imports the campaign controller instead',
+    /import\s*\{[^}]*\bCampaign\b[^}]*\}\s*from\s*['"]\.\/campaign\.mjs['"]/.test(html));
+  ok('and renders every level through the one shared board',
+    /\bdrawLevel\s*\(\s*\$\('gameBoard'\)/.test(html));
 }
 
-console.log('\nlevels 1-3\'s existing wiring is still intact — this ticket only adds a fourth block');
+console.log('\nno level was lost in the move');
 {
-  ok('LEVEL_1 wiring still present', /import\s*\{[^}]*LEVEL_1[^}]*\}\s*from\s*['"]\.\/level-view\.js['"]/.test(html));
-  ok('LEVEL_2 wiring still present', /from\s*['"]\.\/levels\/level2\.mjs['"]/.test(html));
-  ok('LEVEL_3 wiring still present', /from\s*['"]\.\/levels\/level3\.mjs['"]/.test(html));
+  ok('every declared level is in the play order',
+    LEVELS.every((e) => ORDER.includes(e.id)) && ORDER.length === LEVELS.length);
 }
 
 console.log('');

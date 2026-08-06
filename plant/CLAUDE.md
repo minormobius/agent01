@@ -50,7 +50,9 @@ loop push would fire `deploy-lab.yml` and republish every tenant site. A
 
 ### What is served
 
-`index.html` — the summon inspector. Drag to orbit a constellation; push the
+`index.html` — **the game first, then the inspector.** The page opens on the
+campaign panel (see `campaign.mjs` below); everything after it explains the
+primitive. Drag to orbit a constellation; push the
 anisotropy up and watch the space stretch while the shape stays exact; tick
 *naive placement* to see the 22°, then try it on a cube and see nothing, which
 is why that bug is dangerous. `view.js` is its renderer and
@@ -192,9 +194,24 @@ must take its control bounds *from here* instead of keeping a second copy.
 And **`won` is `ok && moves > 0`**: five of the six levels open already fed, and
 a level you win by arriving is not a level.
 
-Not imported by `index.html` yet — turning the page into one-level-at-a-time is
-the follow-up, and this module was deliberately built first so that work is
-wiring rather than design.
+**It now drives the page** (`lp-6c88fb`). `index.html` carries one campaign
+panel where six scrolled sections used to be: one level at a time, its title
+and blurb read from the module, a control built over `knob.samples` **by
+index** so an off-grid setting is unrepresentable, the board drawn from the
+verdict the controller already returned, and a *next* button that appears only
+on `won` and terminates rather than wrapping. The page decides nothing — no
+`feasible()`, no split, no level id, no bound — and
+`test/index-campaign-wiring.selftest.mjs` asserts that by deriving the
+forbidden literals from `LEVELS` and `knob.samples` at run time.
+
+That move invalidated four presence checks that were entirely correct, because
+their subject was the six sections. `index-level4/5/6-wiring.selftest.mjs` and
+`index-summon-wiring.selftest.mjs`'s closing section were **rewritten, not
+deleted**, to assert the relocation — absence at the source, presence at the
+destination. The three level gates now import the real modules and assert by
+identity (`entry.base === LEVEL_4`) and by execution (the oracle really does
+refuse LEVEL_4 unsplit, and really does accept LEVEL_5/6) what the old regexes
+could only infer from call order.
 
 > `withSourceRate` and `withProcessorCapacity` are **pure level transforms that
 > happen to live in `level-view.js`**, a view file. `campaign.mjs`, `level2`,
