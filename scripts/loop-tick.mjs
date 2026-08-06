@@ -126,10 +126,57 @@ export function decide({ config, beads, turns = [], runs = [], now = new Date().
   //    gate three weeks ago is history, three in a row right now is a loop
   //    banging on a door.
   if (stop.repeatedGateFailures != null) {
+    // INFRASTRUCTURE FAILURES DO NOT COUNT, and skipping them is what stops this
+    // brake from becoming a deadlock.
+    //
+    // A model refusal — usage limit, outage — exits non-zero in about two
+    // seconds having written nothing, and was recorded as an ordinary gate
+    // failure. Four of them inside two minutes (turns 47-50, on two perfectly
+    // good beads) tripped this brake and halted the loop. Correctly, on the
+    // evidence it had.
+    //
+    // But this brake reads the TAIL of runs.jsonl, and that tail cannot change
+    // while the loop is halted: no dispatch, no turn, no new record. So an hour
+    // of quota exhaustion stopped the loop PERMANENTLY. It sat halted for four
+    // and a half hours after the outage ended and would have sat there until a
+    // human noticed, with the heartbeat faithfully ticking and halting every
+    // twenty minutes.
+    //
+    // Skipped rather than counted-and-forgiven: an infra run carries no
+    // information about the work, so it should neither break the streak nor
+    // extend it. Three real gate failures still halt, whatever is interleaved.
     let streak = 0;
-    for (let i = runs.length - 1; i >= 0 && runs[i].gateFailed; i--) streak++;
+    for (let i = runs.length - 1; i >= 0; i--) {
+      if (runs[i].infra) continue;          // not evidence either way
+      if (!runs[i].gateFailed) break;
+      streak++;
+    }
     if (streak >= stop.repeatedGateFailures) {
       return halt('repeated gate failure', `${streak} consecutive runs failed a gate`);
+    }
+  }
+
+  // 5b. THE MODEL IS REFUSING — BACK OFF RATHER THAN HAMMER.
+  //
+  // A refusal costs almost no tokens (the request is rejected before any are
+  // generated) but it is not free: each attempt is a dispatch commit, a work
+  // run, a verdict, a judge run and a tick — five workflow runs to learn the
+  // same thing again. At a twenty-minute heartbeat that is a couple of hundred
+  // runs across a night of quota exhaustion.
+  //
+  // So when the most recent run was a refusal, wait before trying again. This
+  // is DERIVED, not stored: there is no "backing off" flag to get stuck in, and
+  // the very next successful turn ends it. That matters more than the saving —
+  // the last brake that could not clear itself is what deadlocked this loop for
+  // four and a half hours.
+  const lastRun = runs[runs.length - 1];
+  const backoffMin = stop.infraBackoffMinutes ?? 30;
+  if (lastRun?.infra && lastRun.at) {
+    const waited = (Date.parse(now) - Date.parse(lastRun.at)) / 60000;
+    if (Number.isFinite(waited) && waited < backoffMin) {
+      return halt('model unavailable — backing off',
+        `last turn was refused ${Math.round(waited)} min ago; retrying after ${backoffMin} min. `
+        + 'This clears itself the moment a turn succeeds.');
     }
   }
 

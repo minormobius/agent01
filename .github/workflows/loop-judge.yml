@@ -157,6 +157,13 @@ jobs:
               artifact: v.artifact ?? null,
               at: new Date().toISOString(),
               gateFailed: v.gate !== "passed",
+              // INFRASTRUCTURE, NOT A VERDICT. A model refusal (quota, outage)
+              // exits non-zero in seconds having written nothing, and used to be
+              // recorded as an ordinary gate failure. Four of them in two minutes
+              // tripped repeatedGateFailures and halted the loop — a halt that
+              // reads the tail of THIS file and therefore could not clear itself
+              // once the quota came back. Carried through so the brake can skip it.
+              infra: v.infra === true,
               signals: { probes: probes.score, rubric: null, adversarial: null },
               // NULL UNTIL CALIBRATED. See the header of this file.
               score: calibrated ? probes.score : null,

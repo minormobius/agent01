@@ -11719,7 +11719,8 @@
         "adversarial": null
       },
       "score": null,
-      "note": "judge uncalibrated — probes only, score withheld"
+      "note": "backfilled infra=true 2026-08-06: verdict shows exit 1 with no outbox and the job log shows the agent step ran under 3s — a model refusal, not a verdict on the ticket",
+      "infra": true
     },
     {
       "turn": 49,
@@ -11747,7 +11748,8 @@
         "adversarial": null
       },
       "score": null,
-      "note": "judge uncalibrated — probes only, score withheld"
+      "note": "backfilled infra=true 2026-08-06: verdict shows exit 1 with no outbox and the job log shows the agent step ran under 3s — a model refusal, not a verdict on the ticket",
+      "infra": true
     }
   ],
   "curve": [],

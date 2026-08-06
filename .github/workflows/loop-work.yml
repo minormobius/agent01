@@ -266,9 +266,14 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # BEAD is read below to check for an outbox. `set -u` is on, so an
+          # unset variable here would abort the step — which would look exactly
+          # like the agent crashing.
+          BEAD: ${{ steps.order.outputs.bead }}
         run: |
           set +e
           set -uo pipefail
+          STARTED=$(date +%s)
           claude -p < /tmp/brief.txt \
             --model claude-opus-5 \
             --max-turns 60 \
@@ -277,7 +282,8 @@ jobs:
             --allowedTools "Read" "Write" "Edit" "Glob" "Grep" \
             --disallowedTools "Bash" "WebFetch" "WebSearch" "Task" "NotebookEdit" \
             --output-format stream-json --verbose | tee /tmp/agent.jsonl
-          echo "agent_exit=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+          AGENT_RC=${PIPESTATUS[0]}
+          echo "agent_exit=${AGENT_RC}" >> "$GITHUB_OUTPUT"
 
           # DID THE AGENT ACTUALLY RUN? An empty transcript means it did not,
           # and that must never again look like a turn.
@@ -298,6 +304,37 @@ jobs:
             echo "ran=false" >> "$GITHUB_OUTPUT"
           else
             echo "ran=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          # WAS THE MODEL REFUSED, OR WAS THE WORK WRONG? These must not be
+          # recorded the same way, and until now they were.
+          #
+          # When the account's usage limit is reached the CLI exits non-zero in
+          # about two seconds having emitted an error and nothing else. That is
+          # INFRASTRUCTURE, not a verdict on the ticket: turns 47-50 were four
+          # such refusals inside two minutes, on two perfectly good beads, and
+          # they were written into runs.jsonl as four consecutive gate failures.
+          #
+          # The consequence was a DEADLOCK, not just noise. repeatedGateFailures
+          # halted the loop — correctly, on the evidence it had — and that halt
+          # reads the tail of runs.jsonl, which cannot change while the loop is
+          # halted. A quota outage lasting an hour therefore stopped the loop
+          # permanently, and it stayed stopped for four and a half hours until a
+          # human looked.
+          #
+          # The signature is unambiguous and does not depend on CLI internals: a
+          # non-zero exit, in under a minute, having written no outbox. A real
+          # turn that fails takes minutes and leaves something behind.
+          ELAPSED=$(( $(date +%s) - STARTED ))
+          echo "agent ran for ${ELAPSED}s, exit ${AGENT_RC}"
+          if [ "$AGENT_RC" != "0" ] && [ "$ELAPSED" -lt 60 ] \
+             && [ ! -f ".github/loop/outbox/${BEAD}.json" ]; then
+            echo "::warning::MODEL UNAVAILABLE — exit ${AGENT_RC} after ${ELAPSED}s with no outbox."
+            echo "::warning::Recording this as infrastructure, NOT as a gate failure, so it cannot"
+            echo "::warning::trip the quality brake and deadlock the loop. The heartbeat will retry."
+            echo "infra=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "infra=false" >> "$GITHUB_OUTPUT"
           fi
 
       # ── Gate: containment ──────────────────────────────────────────────────
@@ -472,6 +509,7 @@ jobs:
           BEAD: ${{ steps.order.outputs.bead }}
           GATE: ${{ steps.ticketgate.outputs.ticketgate == 'failed' && 'failed' || steps.gate.outputs.gate }}
           OUTBOX_VALID: ${{ steps.outbox.outputs.valid }}
+          INFRA: ${{ steps.agent.outputs.infra }}
           AGENT_EXIT: ${{ steps.agent.outputs.agent_exit }}
         run: |
           if [ -z "$GH_TOKEN" ]; then
@@ -487,6 +525,9 @@ jobs:
               gate: process.env.GATE,
               outboxValid: process.env.OUTBOX_VALID === "true",
               agentExit: process.env.AGENT_EXIT ?? null,
+    // The model was refused, not the work. loop-tick excludes these from the
+    // gate-failure streak so a quota outage cannot deadlock the loop.
+    infra: process.env.INFRA === "true",
               at: new Date().toISOString(),
             }, null, 2) + "\n");
           '
