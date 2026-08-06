@@ -4,10 +4,6 @@
   "artifact": null,
   "priority": 1,
   "unblocks": 0,
-  "turn": 73,
-<<<<<<< HEAD
-  "issued": "2026-08-06T09:18:57.455Z"
-=======
-  "issued": "2026-08-06T09:19:24.485Z"
->>>>>>> d788dbd (loop: dispatch lp-a42828.json)
+  "turn": 75,
+  "issued": "2026-08-06T09:50:37.761Z"
 }
