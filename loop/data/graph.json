@@ -15321,9 +15321,10 @@
   ],
   "now": {
     "state": "working",
-    "detail": "1 turn(s) in flight",
+    "detail": "2 turn(s) in flight",
     "beads": [
-      "lp-3f5f26"
+      "lp-3f5f26",
+      "lp-ef6599"
     ]
   },
   "asks": [
