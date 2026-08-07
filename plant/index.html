@@ -83,7 +83,6 @@
 <div class="wrap">
 
 <h1>Plant</h1>
-<<<<<<< HEAD
 <!-- The first screen's two lines are campaign.mjs's INTRO, filled at boot
      (lp-ef6599). They ship EMPTY on purpose: a sentence typed here is a second
      copy of the module's words that nothing can keep in step, and a gate
@@ -92,13 +91,7 @@
      the RIGHT sentence, because there would be nothing to compare it to. The
      mounts are a title and a blurb because that is a LEVELS entry's shape, so
      the intro screen and a level screen render through the same two lines. -->
-<h2 id="gameIntroTitle" style="margin:0 0 .3rem"></h2>
-=======
-<!-- Both of these ship EMPTY on purpose: the words are campaign.mjs's `INTRO`
-     and the campaign block writes them at startup. See the note beside that
-     code, and (8) of test/index-campaign-wiring.selftest.mjs. -->
 <h2 id="gameIntroTitle" style="margin:.2rem 0 .4rem; font-size:1.15rem"></h2>
->>>>>>> 83d9d49 (loop: turn 90 on lp-ef6599 — awaiting verdict)
 <p class="sub" id="gameIntro"></p>
 
 <div class="stage" id="game">
@@ -126,6 +119,26 @@
   the same thing. Whether being two units short <em>feels</em> fair is the part no test can answer,
   and it is the reason this page exists at all.
 </p>
+
+<!-- The pocket factory. Every word in it is pocket-game.mjs's, filled at boot,
+     for the same reason the intro's are: a gate reading this file as text can
+     assert a sentence exists and never that it is the RIGHT one. -->
+<h2 id="pgTitle" style="margin:2rem 0 .3rem"></h2>
+<p class="sub" id="pgBlurb"></p>
+
+<div class="stage">
+  <div>
+    <svg id="pgPlan" viewBox="0 0 640 320" preserveAspectRatio="xMidYMid meet"
+         style="width:100%;height:20rem;display:block;touch-action:none;cursor:crosshair"
+         aria-label="Top-down plan of the pocket; click to put the selected machine down"></svg>
+    <div class="lvl-verdict" id="pgLine"></div>
+  </div>
+  <div class="ctl">
+    <div id="pgPalette"></div>
+    <button id="pgReset" class="lvl-btn">clear it and start again</button>
+    <p class="legend" id="pgPlaced" style="margin-top:.9rem"></p>
+  </div>
+</div>
 
 <h2>The summon inspector</h2>
 <p>
@@ -470,14 +483,6 @@ $('gameNext').addEventListener('click', () => {
   paint();
 });
 
-<<<<<<< HEAD
-// THE FIRST SCREEN'S WORDS ARE THE MODULE'S (lp-ef6599), and they are rendered
-// ONCE rather than from paint(): the intro does not change with the game's
-// state, so repainting it on every move would be work that can only ever write
-// the same two strings. This is the same argument as `LINES` above, one screen
-// earlier — the page owned this paragraph and a text gate could only assert
-// what it was LIKE. By reference, page and module cannot disagree at all.
-=======
 // THE FIRST SCREEN'S WORDS ARE THE MODULE'S TOO (lp-ef6599). This paragraph was
 // typed into the markup, and a gate reading the page as text could then only
 // check what the string was LIKE — non-empty, short, none of this repository's
@@ -492,13 +497,133 @@ $('gameNext').addEventListener('click', () => {
 //
 // Written once at startup rather than inside paint(), because the first screen
 // says the same thing whatever the game is doing.
->>>>>>> 83d9d49 (loop: turn 90 on lp-ef6599 — awaiting verdict)
 $('gameIntroTitle').textContent = INTRO.title;
 $('gameIntro').textContent = INTRO.blurb;
 
 buildControl();
 paint();
 // CAMPAIGN BLOCK END ────────────────────────────────────────────────────────
+
+// POCKET GAME BLOCK BEGIN ─ build a factory in the rock ─────────────────────
+//
+// THE CONTROLLER OWNS EVERY DECISION, exactly as the campaign and summon blocks
+// do. Nothing here works out whether a machine fits, what is short, or what a
+// refusal should say: the handlers read a control, hand a point to `pg`, and
+// render what comes back. There is no threshold, no rate and no capacity in
+// this block — pocket-game.selftest.mjs derives the forbidden literals from
+// OBJECTIVE at run time and fails on any of them re-typed here.
+//
+// The block is delimited by MARKERS rather than found by position, so it can be
+// moved without breaking its own gate — the lesson index-campaign-wiring learnt.
+//
+// Aliased imports: this whole <script> is ONE module, and the summon block below
+// already binds `hullBounds`, `planShapes` and `PLAN`. Re-importing those names
+// would be a duplicate declaration and a syntax error that kills the entire
+// page, so they are bound under their own names here.
+import { PocketGame, OBJECTIVE, entryOf } from './pocket-game.mjs';
+import { hullBounds as pgHullBounds } from './placement.mjs';
+import { planShapes as pgPlanShapes, PLAN as PG_PLAN } from './summon-view.js';
+
+const pg = new PocketGame();
+let pgBounds = null;      // hullBounds of the pocket — null until it is dug
+let pgRes = null;         // the preview the plan is currently illustrating
+
+// The words are the module's, rendered by reference and written ONCE: the title
+// and blurb do not change with the state, so repainting them per move could only
+// ever write the same two strings.
+$('pgTitle').textContent = OBJECTIVE.title;
+$('pgBlurb').textContent = OBJECTIVE.blurb;
+
+// One button per palette entry, built FROM THE OBJECTIVE — a hand-typed list of
+// four labels would be a second copy of the palette free to drift from it.
+$('pgPalette').innerHTML = OBJECTIVE.palette.map((p) =>
+  `<button class="lvl-btn" data-key="${p.key}">${p.label}</button>`).join('');
+
+// The plan draws the pristine pocket's seeds PLUS every seed the player has
+// placed, as one list, with `originCount` marking the boundary. That is exactly
+// what `planShapes` already means by `mine`, so a placed machine renders as the
+// player's own ground with no new drawing code and no second rule.
+function pgDisplayPocket(st) {
+  return { ...pg.pocket, seeds: [...pg.pocket.seeds, ...st.placed.flatMap((p) => p.seeds)] };
+}
+
+const pgSvgOf = (s) => {
+  if (s.kind === 'frame') {
+    return `<rect x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}" fill="none" stroke="var(--line)"/>`;
+  }
+  const c = `cx="${s.cx.toFixed(2)}" cy="${s.cy.toFixed(2)}" r="${s.r}"`;
+  if (s.kind === 'cursor') return `<circle ${c} fill="none" stroke="var(--accent)" stroke-width="2"/>`;
+  if (s.kind === 'summon') {
+    const stroke = s.blamed ? 'var(--bad)' : 'var(--ok)';
+    return `<circle ${c} fill="none" stroke="${stroke}" stroke-width="${s.blamed ? 3 : 1}"/>`;
+  }
+  const fill = s.mine ? 'var(--centre)' : 'var(--seed-back)';
+  return `<circle ${c} fill="${fill}"/>`;
+};
+
+function pgPaint() {
+  if (!pgBounds) return;
+  const st = pg.state();
+  const v = pg.verdict();
+  // `pgRes` is shaped for `planShapes`: the inner refusals are the ones carrying
+  // `summonSeed`, which is how the offending part of a shape gets lit up.
+  $('pgPlan').innerHTML = pgPlanShapes(pgDisplayPocket(st), pgBounds, [], null,
+    pg.pocket.seeds.length, pgRes).map(pgSvgOf).join('');
+  const el = $('pgLine');
+  el.textContent = pg.line(v);
+  el.className = 'lvl-verdict' + (v.won ? ' ok' : (st.placed.length ? ' bad' : ''));
+  $('pgPlaced').innerHTML = st.placed.length
+    ? `<b>${st.moves} moves</b><br>${st.placed.map((p) => p.label).join('<br>')}`
+    : `<b>${st.moves} moves</b>`;
+  for (const b of $('pgPalette').querySelectorAll('button')) {
+    b.disabled = st.placed.some((p) => p.key === b.dataset.key);
+    b.style.outline = b.dataset.key === st.selected ? '2px solid var(--accent)' : '';
+  }
+}
+
+function pgPointFrom(e) {
+  const ctm = $('pgPlan').getScreenCTM();
+  if (!ctm || !pgBounds) return null;
+  const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+  const sp = (ax) => pgBounds[ax][1] - pgBounds[ax][0];
+  return [
+    pgBounds.x[0] + (q.x - PG_PLAN.pad) / (PG_PLAN.w - 2 * PG_PLAN.pad) * sp('x'),
+    pgBounds.y[0] + 0.5 * sp('y'),
+    pgBounds.z[0] + (q.y - PG_PLAN.pad) / (PG_PLAN.h - 2 * PG_PLAN.pad) * sp('z'),
+  ];
+}
+
+$('pgPalette').addEventListener('click', (e) => {
+  const key = e.target.dataset && e.target.dataset.key;
+  if (!key || !pgBounds) return;
+  pg.select(key);
+  pgRes = null;
+  pgPaint();
+});
+$('pgPlan').addEventListener('click', (e) => {
+  const p = pgPointFrom(e);
+  if (!p || !pg.state().selected) return;
+  const r = pg.place(p);
+  // A refused move still shows its shape and what it hit — that is the whole
+  // point of a refusal being news rather than nothing happening.
+  const pv = r.accepted ? null : pg.preview(p);
+  pgRes = pv && pv.con
+    ? { ok: pv.ok, con: pv.con, refusals: pv.refusal ? pv.refusal.refusals : [] }
+    : null;
+  pgPaint();
+});
+$('pgReset').addEventListener('click', () => { pg.reset(); pgRes = null; pgPaint(); });
+
+// Deferred a tick for the same reason the summon panel is: digging a pocket is
+// expensive and must not sit in front of the first paint.
+$('pgLine').textContent = 'Digging a pocket…';
+setTimeout(() => {
+  pg.start();
+  pgBounds = pgHullBounds(pg.pocket);
+  pg.select(OBJECTIVE.palette[0].key);
+  pgPaint();
+}, 0);
+// POCKET GAME BLOCK END ─────────────────────────────────────────────────────
 
 // ── Summon — the click that reaches the foam ───────────────────────────────
 //

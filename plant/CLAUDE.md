@@ -148,6 +148,35 @@ seeds, no node and no edge. Read `ok: true` as `placement.mjs` reads it — no
 proves the accumulation is real by first asserting that `legalSummon` on the
 static pocket would have said yes.
 
+`pocket-game.mjs` — **the pocket factory, and the first thing on this page a
+stranger can lose.** `pocketLevel.mjs` was built, gated and documented, and
+*imported by nothing*; this is that wiring. One frozen `OBJECTIVE` — a vein, two
+smelters of different capacity, a depot — and a `PocketGame` with the same
+module-not-event-handlers discipline as `campaign.mjs`: `start()`, `select(key)`,
+`preview(point)`, `place(point)`, `remove(id)`, `reset()`, `verdict()`,
+`state()`, so `test/pocket-game.selftest.mjs` plays it through in node.
+
+**The pocket is held pristine and never planted into.** Every verdict is
+recomputed from the ordered list, because `pocketPlacementReport` already
+accumulates — which makes `remove()` a splice rather than an undo of a lattice
+rebuild. That is also why it does **not** use a `SummonSession`: that class
+really plants, so feeding its grown pocket to `pocketLevelVerdict` would append
+the same seeds a second time and check each object against a copy of itself — a
+wrong answer, not a crash. The cost is that the lattice does not visibly reform
+under a placed machine; ask `lp-2fadad` is open on whether that reform is the
+point, and switching is a change inside this one file.
+
+Two ways to lose, from the two halves of one verdict: **geometry** (the hull,
+the rock, or a machine you placed two moves ago) and **production** (everything
+legal and the depot still short, because you took the small smelter). And a
+third door onto the vacuous-satisfiability trap the ledger already records
+twice: **an empty factory certifies `ok: true`** — no placement is illegal and
+no demand is unmet when there are none of either — so `won` is `complete && ok`,
+where `complete` is a property of the objective's *slots* rather than of the
+certificate. The gate asserts the empty state has `ok: true` and `won: false`
+together, so an implementation reading the certificate's `ok` as the win
+condition fails on the first frame.
+
 `foamworld.js` — the ported pocket kernel, **and no longer byte-identical to
 foam's**. It gained `reformPocketAll`, the atomic multi-insert: `reformPocket`
 plants one seed, a summon is 5–21 of them, and planting them one at a time lets
