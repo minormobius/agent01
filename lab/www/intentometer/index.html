@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Intentometer — mino.mobi lab</title>
 <meta property="og:title" content="Intentometer">
-<meta property="og:description" content="Type what you're about to do (or point it at a Bluesky handle) and get a quick, blunt read on whether it sounds like talk or like they mean it — plus the goal patterns it spotted, fitness, money, quitting something, learning something, and how deep each one sounds. A word-pattern heuristic, honestly labelled as one — not sentiment AI.">
+<meta property="og:description" content="Type what you're about to do (or point it at a Bluesky handle, or two to compare) and get a quick, blunt read on whether it sounds like talk or like they mean it — plus the goal patterns it spotted, fitness, money, quitting something, learning something, and how deep each one sounds. A word-pattern heuristic, honestly labelled as one — not sentiment AI.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
@@ -70,6 +70,13 @@
     font-size: .8rem; font-weight: 700;
   }
   .post-text { color: var(--fg); font-size: .82rem; line-height: 1.5; }
+  .compare-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .8rem; margin-top: .9rem; }
+  .compare-side { background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius); padding: .8rem .9rem; }
+  .compare-handle { font-weight: 700; font-size: .88rem; color: var(--fg); word-break: break-word; }
+  .compare-quick { display: flex; align-items: center; gap: .4rem; font-weight: 700; font-size: .95rem; margin-top: .45rem; }
+  .compare-score { font-size: .78rem; color: var(--muted); margin-top: .2rem; }
+  .compare-patterns { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .55rem; }
+  .compare-verdict { text-align: center; font-size: .82rem; color: var(--fg); margin-top: .9rem; }
   footer.note { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
   button[disabled] { opacity: .6; cursor: default; }
   button, input, textarea { min-height: 44px; }
@@ -135,6 +142,19 @@
     </div>
     <div class="reading" id="reading-feed" hidden></div>
     <ul id="feed-list"></ul>
+  </section>
+
+  <section class="card">
+    <h2>Compare two</h2>
+    <p class="muted" style="margin-top:0">Two handles you name, read side by side — never a
+    handle picked for you, same rule as everything else on this page.</p>
+    <div class="row">
+      <input id="compare-a" placeholder="first.bsky.social" autocomplete="off">
+      <input id="compare-b" placeholder="second.bsky.social" autocomplete="off">
+      <button id="compare-btn">compare</button>
+    </div>
+    <div class="err" id="compare-error" hidden></div>
+    <div id="compare-result" hidden></div>
   </section>
 
   <footer class="note">
@@ -388,6 +408,42 @@
   });
   runBtn.addEventListener('click', function () { runFeed(handleInput.value); });
 
+  // Shared by the single-handle feed and compare mode — resolve, fetch, score.
+  // Rejects with a plain Error; .friendly means the message is already visitor-safe.
+  function loadHandleReading(handle, didHint) {
+    var didPromise = didHint ? Promise.resolve(didHint) :
+      kit.bskyGet('com.atproto.identity.resolveHandle', { handle: handle }).then(function (r) { return r.did; });
+
+    return didPromise
+      .then(function (did) { return kit.bskyGet('app.bsky.feed.getAuthorFeed', { actor: did, limit: 30 }); })
+      .then(function (feed) {
+        var posts = kit.visible(feed.feed || []).filter(function (item) {
+          return !item.reason && item.post && item.post.record &&
+                 item.post.record.text && item.post.record.text.trim().length > 2;
+        }).slice(0, 15);
+
+        if (!posts.length) {
+          var err = new Error('no recent text posts to read for @' + handle);
+          err.friendly = true;
+          throw err;
+        }
+
+        var scored = posts.map(function (item) {
+          var r = scoreIntent(item.post.record.text);
+          return { text: item.post.record.text, score: r.score };
+        });
+        var avg = Math.round(scored.reduce(function (a, b) { return a + b.score; }, 0) / scored.length);
+        var patterns = aggregatePatterns(scored);
+        return { handle: handle, scored: scored, avg: avg, patterns: patterns };
+      });
+  }
+
+  function feedErrorMessage(e, handle) {
+    if (e && e.friendly) return e.message;
+    if (e && e.message === 'HTTP 400') return 'could not find @' + handle;
+    return (e && e.message) || 'something went wrong';
+  }
+
   function runFeed(raw, didHint) {
     var handle = (raw || '').trim().replace(/^@/, '');
     kit.clear(feedError);
@@ -401,54 +457,101 @@
     var was = runBtn.textContent;
     runBtn.disabled = true; runBtn.textContent = 'reading…';
 
-    var didPromise = didHint ? Promise.resolve(didHint) :
-      kit.bskyGet('com.atproto.identity.resolveHandle', { handle: handle }).then(function (r) { return r.did; });
-
-    didPromise
-      .then(function (did) { return kit.bskyGet('app.bsky.feed.getAuthorFeed', { actor: did, limit: 30 }); })
-      .then(function (feed) {
-        var posts = kit.visible(feed.feed || []).filter(function (item) {
-          return !item.reason && item.post && item.post.record &&
-                 item.post.record.text && item.post.record.text.trim().length > 2;
-        }).slice(0, 15);
-
-        if (!posts.length) {
-          kit.showError(feedError, 'no recent text posts to read for @' + handle);
-          return;
-        }
-
-        var scored = posts.map(function (item) {
-          var r = scoreIntent(item.post.record.text);
-          return { text: item.post.record.text, score: r.score };
-        });
-        var avg = Math.round(scored.reduce(function (a, b) { return a + b.score; }, 0) / scored.length);
-        var patterns = aggregatePatterns(scored);
-
+    loadHandleReading(handle, didHint)
+      .then(function (reading) {
         quickreadFeed.hidden = false;
-        quickreadFeed.innerHTML = quickReadHtml(avg);
+        quickreadFeed.innerHTML = quickReadHtml(reading.avg);
         patternsFeed.hidden = false;
-        patternsFeed.innerHTML = '<div class="patterns-heading">patterns across @' + escapeHtml(handle) + '’s last ' + scored.length + ' posts</div>' +
-          patternCardsHtml(patterns, 'no recognisable goal patterns in these posts — could be a quiet stretch, or just not that kind of account');
+        patternsFeed.innerHTML = '<div class="patterns-heading">patterns across @' + escapeHtml(handle) + '’s last ' + reading.scored.length + ' posts</div>' +
+          patternCardsHtml(reading.patterns, 'no recognisable goal patterns in these posts — could be a quiet stretch, or just not that kind of account');
         scoreLabelFeed.hidden = false;
 
-        gaugeFeed.set(avg);
+        gaugeFeed.set(reading.avg);
         readingFeed.hidden = false;
-        readingFeed.innerHTML = '<strong>' + avg + '/100</strong> — ' + categoryFor(avg) +
-          ' <span class="muted">(average of last ' + scored.length + ' text posts)</span>';
+        readingFeed.innerHTML = '<strong>' + reading.avg + '/100</strong> — ' + categoryFor(reading.avg) +
+          ' <span class="muted">(average of last ' + reading.scored.length + ' text posts)</span>';
 
-        feedList.innerHTML = scored.map(function (s) {
+        feedList.innerHTML = reading.scored.map(function (s) {
           return '<li><span class="post-score">' + s.score + '</span>' +
                  '<span class="post-text">' + escapeHtml(truncate(s.text, 140)) + '</span></li>';
         }).join('');
       })
-      .catch(function (e) {
-        var msg = e && e.message === 'HTTP 400' ? 'could not find @' + handle : ((e && e.message) || 'something went wrong');
-        kit.showError(feedError, msg);
-      })
+      .catch(function (e) { kit.showError(feedError, feedErrorMessage(e, handle)); })
       .finally(function () {
         runBtn.disabled = false; runBtn.textContent = was;
       });
   }
+
+  function compareSideHtml(reading) {
+    var q = quickReadInfo(reading.avg);
+    var top = reading.patterns.slice(0, 3);
+    return '<div class="compare-side">' +
+      '<div class="compare-handle">@' + escapeHtml(reading.handle) + '</div>' +
+      '<div class="compare-quick" style="color:' + q.color + '"><span class="qi">' + q.icon + '</span><span>' + escapeHtml(q.text) + '</span></div>' +
+      '<div class="compare-score">' + reading.avg + '/100 · last ' + reading.scored.length + ' posts</div>' +
+      (top.length ?
+        '<div class="compare-patterns">' + top.map(function (p) {
+          return '<span class="chip" style="border-color:' + p.color + ';color:' + p.color + '">' + p.icon + ' ' + escapeHtml(p.label) + '</span>';
+        }).join('') + '</div>' :
+        '<div class="muted" style="font-size:.72rem;margin-top:.5rem">no goal pattern spotted</div>') +
+    '</div>';
+  }
+
+  // Diffs under this width read as noise given the scoring is a rough heuristic
+  // over a handful of posts — same spirit as QUICKREADS' banding, applied to a gap.
+  var COMPARE_TIE_MARGIN = 8;
+  function compareVerdictHtml(a, b) {
+    var diff = a.avg - b.avg;
+    if (Math.abs(diff) < COMPARE_TIE_MARGIN) {
+      return '<div class="compare-verdict">about the same energy — wording alone doesn’t call this one</div>';
+    }
+    var winner = diff > 0 ? a : b, loser = diff > 0 ? b : a;
+    return '<div class="compare-verdict"><strong>@' + escapeHtml(winner.handle) + '</strong> reads more locked in than ' +
+      '<strong>@' + escapeHtml(loser.handle) + '</strong> right now — wording only, not a prediction</div>';
+  }
+
+  var compareA = document.getElementById('compare-a');
+  var compareB = document.getElementById('compare-b');
+  var compareBtn = document.getElementById('compare-btn');
+  var compareError = document.getElementById('compare-error');
+  var compareResult = document.getElementById('compare-result');
+
+  kit.handleInput(compareA);
+  kit.handleInput(compareB);
+
+  function runCompare() {
+    var a = (compareA.value || '').trim().replace(/^@/, '');
+    var b = (compareB.value || '').trim().replace(/^@/, '');
+    kit.clear(compareError);
+    compareResult.hidden = true; compareResult.innerHTML = '';
+    if (!a || !b) { kit.showError(compareError, 'type two handles to compare'); return; }
+    if (a.toLowerCase() === b.toLowerCase()) { kit.showError(compareError, 'those are the same handle'); return; }
+
+    var was = compareBtn.textContent;
+    compareBtn.disabled = true; compareBtn.textContent = 'comparing…';
+
+    Promise.all([loadHandleReading(a), loadHandleReading(b)])
+      .then(function (readings) {
+        compareResult.hidden = false;
+        compareResult.innerHTML =
+          '<div class="compare-grid">' + compareSideHtml(readings[0]) + compareSideHtml(readings[1]) + '</div>' +
+          compareVerdictHtml(readings[0], readings[1]);
+      })
+      .catch(function (e) {
+        var msg = e && e.friendly ? e.message :
+          (e && e.message === 'HTTP 400' ? 'could not find one of those handles' : ((e && e.message) || 'something went wrong'));
+        kit.showError(compareError, msg);
+      })
+      .finally(function () {
+        compareBtn.disabled = false; compareBtn.textContent = was;
+      });
+  }
+  compareBtn.addEventListener('click', runCompare);
+  [compareA, compareB].forEach(function (el) {
+    el.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); runCompare(); }
+    });
+  });
 })();
 </script>
 </body>
