@@ -187,14 +187,30 @@ const GEOMETRY_WORDS = Object.freeze({
 });
 
 /**
- * One sentence for a refusal entry from `pocketPlacementReport`, or for the
- * whole verdict. Every branch reads a FIELD off the argument; nothing here
- * re-types a threshold or a rate, so a sentence cannot drift away from the
- * verdict it describes.
+ * One sentence for a refusal. Every branch reads a FIELD off the argument;
+ * nothing here re-types a threshold or a rate, so a sentence cannot drift away
+ * from the verdict it describes.
+ *
+ * It accepts EITHER shape a caller has to hand: a `pocketPlacementReport` entry
+ * (which carries `blame`) or a `preview()` result (which carries that entry
+ * under `refusal`, and which is what `place()` remembers). Taking both is not
+ * politeness — the only refusal a player can ever see is the second shape, and
+ * requiring callers to reach inside it first is how the first version of this
+ * function ended up unreachable.
  */
 export function refusalLine(entry) {
   if (!entry) return null;
-  const what = GEOMETRY_WORDS[entry.blame] || 'it will not go there';
+  // A SLOT refusal is a rule of the OBJECTIVE, not a fact about the rock, and it
+  // is decided before any geometry exists — so it carries no `blame`. Falling
+  // through to the geometry words would tell a player the ground was in the way
+  // when what actually happened is that they already own the machine.
+  if (entry.reason === 'slot' || entry.slotTaken) {
+    const had = entryOf(entry.slotTaken);
+    return `No — you have already built the ${had ? had.label : entry.slotTaken}. `
+      + 'Take that back first if you want the other one.';
+  }
+  const e = entry.blame ? entry : (entry.refusal || entry);
+  const what = GEOMETRY_WORDS[e.blame] || 'it will not go there';
   return `No — ${what}.`;
 }
 
@@ -206,6 +222,10 @@ export class PocketGame {
     this.placed = [];          // ordered { id, key, con, node }
     this.selected = null;
     this.moves = 0;
+    // THE LAST REFUSED ATTEMPT, and it has to be held here because nothing else
+    // remembers it. A refusal is by definition NOT in `placed`, so it is not in
+    // the verdict either — see `line()`.
+    this.lastRefusal = null;
   }
 
   // ------------------------------------------------------------- lifecycle ---
@@ -217,6 +237,7 @@ export class PocketGame {
     this.placed = [];
     this.selected = null;
     this.moves = 0;
+    this.lastRefusal = null;
     return this.state();
   }
 
@@ -226,6 +247,7 @@ export class PocketGame {
     this._started();
     this.placed = [];
     this.moves = 0;
+    this.lastRefusal = null;
     return this.state();
   }
 
@@ -238,6 +260,10 @@ export class PocketGame {
   select(key) {
     if (!entryOf(key)) throw new Error(`pocket-game: unknown palette key "${key}"`);
     this.selected = key;
+    // Picking something else clears the last refusal: it was about the PREVIOUS
+    // selection, and leaving it up would explain a machine the player is no
+    // longer holding.
+    this.lastRefusal = null;
     return this.selected;
   }
 
@@ -311,8 +337,17 @@ export class PocketGame {
     this._started();
     const p = this.preview(point);
     if (!p) return { accepted: false, refusal: null, id: null };
-    this.moves++;
-    if (!p.ok) return { accepted: false, refusal: p.refusal || p, id: null };
+    // A SLOT refusal never reached the rock — `preview` returns it before any
+    // geometry is computed — so it is not a move, which is what this method's
+    // contract already said and what the counter did not do. It still becomes
+    // `lastRefusal`: a rule the player has just run into is news whether or not
+    // it cost them a move.
+    if (p.reason !== 'slot') this.moves++;
+    if (!p.ok) {
+      this.lastRefusal = p;
+      return { accepted: false, refusal: p.refusal || p, id: null };
+    }
+    this.lastRefusal = null;
     this.placed.push({ id: p.key, key: p.key, con: p.con, node: p.entry.node });
     return { accepted: true, refusal: null, id: p.key };
   }
@@ -324,6 +359,10 @@ export class PocketGame {
     const i = this.placed.findIndex((p) => p.id === id);
     if (i < 0) return false;
     this.placed.splice(i, 1);
+    // Taking something back is very often the FIX for the refusal on screen
+    // (a slot freed, a machine moved out of the way), so the sentence explaining
+    // it must not outlive it.
+    this.lastRefusal = null;
     return true;
   }
 
@@ -368,6 +407,21 @@ export class PocketGame {
    */
   line(v = this.verdict()) {
     if (v.won) return LINES.won;
+    // THE LAST REFUSAL COMES FIRST, and it is the only route by which a player
+    // ever sees a refusal sentence at all.
+    //
+    // The first version of this method looked for the refusal in the verdict —
+    // `v.placement.find((r) => !r.ok)` — and that find is STRUCTURALLY ALWAYS
+    // UNDEFINED, so all five geometry sentences were unreachable and a refused
+    // click said nothing. The invariant, which the gate now asserts rather than
+    // this method defending against: `placed` only ever holds objects `place()`
+    // ACCEPTED, and `remove()` can only delete seeds, which strictly increases
+    // every later object's clearance. So every entry in `v.placement` is legal,
+    // always. A refusal is not in the verdict because it was never placed.
+    //
+    // It is ahead of the empty check on purpose: a first move that is refused
+    // must say why, not fall back to "pick something and click".
+    if (this.lastRefusal) return refusalLine(this.lastRefusal);
     if (!this.placed.length) return LINES.empty;
     // `deficits` is `{ sinkId, resource, demand, achieved }` — the shortfall is
     // NOT a field on it, so it is subtracted here from the two numbers that are.
@@ -376,8 +430,6 @@ export class PocketGame {
       return `The ${short.sinkId} is ${short.demand - short.achieved} ${short.resource} short `
         + `of the ${short.demand} it asked for.`;
     }
-    const bad = v.placement.find((r) => !r.ok);
-    if (bad) return refusalLine(bad);
     return 'Something is still missing — the vein, a smelter or the depot.';
   }
 
@@ -391,6 +443,17 @@ export class PocketGame {
       moves: this.moves,
       originCount: this.pocket ? this.pocket.seeds.length : 0,
       complete: this.pocket ? this.complete() : false,
+      // Flat and all-primitive on purpose: a renderer wants to know THAT the
+      // last attempt was refused and what to blame, and copying the refusal
+      // object itself would alias `pocketPlacementReport`'s own arrays into a
+      // snapshot this method promises is detached.
+      lastRefusal: this.lastRefusal ? {
+        key: this.lastRefusal.key,
+        reason: this.lastRefusal.reason,
+        blame: this.lastRefusal.refusal ? this.lastRefusal.refusal.blame : null,
+        blockedBy: this.lastRefusal.refusal ? (this.lastRefusal.refusal.blockedBy ?? null) : null,
+        slotTaken: this.lastRefusal.slotTaken,
+      } : null,
       placed: this.placed.map((p) => ({
         id: p.id, key: p.key, label: entryOf(p.key).label,
         centre: p.con.centre.slice(),

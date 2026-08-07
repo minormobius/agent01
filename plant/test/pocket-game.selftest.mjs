@@ -29,7 +29,7 @@
 import { generatePocket } from '../foamworld.js';
 import { constellation } from '../solids.mjs';
 import { MIN_SEED_GAP } from '../placement.mjs';
-import { PocketGame, OBJECTIVE, LINES, entryOf } from '../pocket-game.mjs';
+import { PocketGame, OBJECTIVE, LINES, entryOf, refusalLine } from '../pocket-game.mjs';
 
 let checks = 0, failures = 0;
 const ok = (msg, cond, detail = '') => {
@@ -50,6 +50,22 @@ const clearOf = (con) => {
   return m;
 };
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+// A serializer that can actually SEE a change, at module scope because §4 and §8
+// both compare with it. JSON.stringify renders a Map as {} and Infinity as null,
+// so a comparator built on it is blind to whole classes of mutation while
+// reading like the strictest check in the file. §4 carries the CONTROL proving
+// this one is not stuck on "equal".
+const ser = (v) => {
+  if (v instanceof Map) return `Map[${[...v.entries()].map(([k, x]) => `${k}:${ser(x)}`).join(',')}]`;
+  if (v instanceof Set) return `Set[${[...v].map(ser).join(',')}]`;
+  if (Array.isArray(v)) return `[${v.map(ser).join(',')}]`;
+  if (typeof v === 'number') return Object.is(v, -0) ? '-0' : String(v);
+  if (v && typeof v === 'object') {
+    return `{${Object.keys(v).sort().map((k) => `${k}:${ser(v[k])}`).join(',')}}`;
+  }
+  return String(v);
+};
 const conFor = (key, c) => {
   const e = entryOf(key);
   return constellation(e.solid, { centre: c, r: e.r, aniso: ANISO });
@@ -222,26 +238,17 @@ console.log('\n(4) a REFUSED place changes nothing');
   g.place(A);
   g.select('depot');
 
-  // A serializer that can actually SEE a change. JSON.stringify renders a Map as
-  // {} and Infinity as null, so a comparator built on it is blind to whole
-  // classes of mutation while reading like the strictest check in the file.
-  const ser = (v) => {
-    if (v instanceof Map) return `Map[${[...v.entries()].map(([k, x]) => `${k}:${ser(x)}`).join(',')}]`;
-    if (v instanceof Set) return `Set[${[...v].map(ser).join(',')}]`;
-    if (Array.isArray(v)) return `[${v.map(ser).join(',')}]`;
-    if (typeof v === 'number') return Object.is(v, -0) ? '-0' : String(v);
-    if (v && typeof v === 'object') {
-      return `{${Object.keys(v).sort().map((k) => `${k}:${ser(v[k])}`).join(',')}}`;
-    }
-    return String(v);
-  };
-
-  // `moves` is the ONE field a refusal is allowed to change — a refused summon
-  // is a move the player made and must show up as one. It is normalised out of
-  // the snapshot and asserted separately, so everything else can be compared
-  // for exact equality rather than field by field.
-  const zeroMoves = (s) => ser({ ...s, moves: 0 });
-  const beforeState = zeroMoves(g.state());
+  // `moves` and `lastRefusal` are the ONLY fields a refusal is allowed to
+  // change — a refused summon is a move the player made and must show up as
+  // one, and it must be REMEMBERED or nothing can render a sentence for it
+  // (lp-16d590; see §8). Both are normalised out of the snapshot and asserted
+  // SEPARATELY below, so everything else is still compared for exact equality
+  // rather than field by field. Widening an exemption without asserting what
+  // was exempted is how a rollback test quietly stops testing rollback.
+  const norm = (s) => ser({ ...s, moves: 0, lastRefusal: null });
+  const beforeState = norm(g.state());
+  ok('nothing is refused yet, so there is no refusal to remember',
+    g.state().lastRefusal === null);
   const beforeSeeds = ser(g.pocket.seeds);
   const beforeCount = g.pocket.seeds.length;
   const beforeVerdict = ser(g.verdict().placement);
@@ -252,9 +259,15 @@ console.log('\n(4) a REFUSED place changes nothing');
   ok('the move really WAS refused', r.accepted === false && r.refusal !== null);
   ok('…and it was counted as a move the player made', g.moves === 2);
 
-  ok('state() is byte-identical across the refusal, but for the move count',
-    zeroMoves(g.state()) === beforeState);
+  ok('state() is byte-identical across the refusal, but for the two exempt fields',
+    norm(g.state()) === beforeState);
   ok('nothing was appended to the placed list', g.state().placed.length === 1);
+
+  // THE EXEMPTED FIELD, asserted rather than merely excused.
+  const lr = g.state().lastRefusal;
+  ok('…and the refusal WAS remembered', lr !== null);
+  ok('…naming what it hit', lr && lr.blame === 'step', lr ? String(lr.blame) : 'null');
+  ok('…and which earlier machine', lr && lr.blockedBy === 'vein', lr ? String(lr.blockedBy) : 'null');
 
   // The comparisons that matter:
   ok('THE POCKET IS UNTOUCHED — seed for seed', ser(g.pocket.seeds) === beforeSeeds);
@@ -382,6 +395,130 @@ console.log('\n(7) CONTROL for (6): the negations have a subject');
   ok('the palette is not empty', OBJECTIVE.palette.length === 4);
   ok('every slot names at least one palette key',
     OBJECTIVE.slots.every((s) => s.length > 0 && s.every((k) => entryOf(k) !== null)));
+}
+
+// ---------------------------------------------------------------------------
+console.log('\n(8) A REFUSED CLICK SAYS WHY — the sentences are reachable at all');
+{
+  // WHAT THIS SECTION EXISTS FOR (lp-16d590). `line()` used to look for the
+  // refusal in the verdict: `v.placement.find((r) => !r.ok)`. That find is
+  // STRUCTURALLY ALWAYS UNDEFINED — `place()` appends only what it accepted, so
+  // every entry in the report is legal — and the five geometry sentences were
+  // therefore dead code. A refused click drew a red shape and said nothing.
+  //
+  // Asserting "the line names the collision" is NOT enough on its own: it would
+  // pass for a build that never had the bug. The discriminating fixture is TWO
+  // GAMES WITH IDENTICAL PLACED LISTS AND IDENTICAL VERDICTS, differing only in
+  // whether a refusal happened. Everything the old code could see is equal
+  // between them, so any difference in the line is the refusal and nothing else.
+
+  const g = new PocketGame(); g.start();
+  const h = new PocketGame(); h.start();
+  for (const q of [g, h]) { q.select('vein'); q.place(A); }
+
+  g.select('depot');
+  const rr = g.place(A);                       // straight onto the vein
+  ok('the refusal really happened', rr.accepted === false);
+
+  const gv = g.verdict();
+  ok('CONTROL — THE DEFECT IS EXHIBITED: the verdict still reports every '
+    + 'placement legal, so a line built on it cannot see this refusal',
+    gv.placement.every((r) => r.ok) === true && gv.placement.length === 1);
+  ok('…and the two games agree on everything the verdict knows',
+    ser(gv.placement) === ser(h.verdict().placement)
+    && gv.network.ok === h.verdict().network.ok);
+
+  const gl = g.line(), hl = h.line();
+  ok('THE LINES DIFFER — the refusal is the only difference between them', gl !== hl);
+  ok('…the unrefused game says what is still missing', /missing/i.test(hl), hl);
+  ok('…and the refused one refuses, in words', /^No —/.test(gl), gl);
+  ok('…naming what was actually hit: an earlier machine, not rock and not a wall',
+    gl.includes('already built'), gl);
+  ok('a refusal line is never one of the resting lines',
+    gl !== LINES.empty && gl !== LINES.won);
+
+  // A FIRST-MOVE refusal must say why rather than falling back to "pick
+  // something and click" — which is why the refusal branch is ahead of the
+  // empty check. This is the state a stranger is most likely to reach first.
+  const occupied = CANDS.find((k) => k.clear < MIN_SEED_GAP);
+  ok('the sweep found an occupied centre to stand on', !!occupied);
+  if (occupied) {
+    const q = new PocketGame(); q.start(); q.select('bigSmelter');
+    ok('the first move into rock is refused', q.place(occupied.c).accepted === false);
+    ok('…and blamed on the pocket’s own rock', q.state().lastRefusal.blame === 'pocket',
+      String(q.state().lastRefusal.blame));
+    ok('…and it SAYS SO instead of resting on the empty line',
+      q.line() !== LINES.empty && /rock/.test(q.line()), q.line());
+    ok('…and the rock sentence differs from the earlier-machine one', q.line() !== gl);
+  }
+
+  // THE SLOT REFUSAL. It has no `blame` at all — it is refused before any
+  // geometry exists — so it fell through to the generic words. It now names the
+  // machine that fills the slot, which is the only thing that tells a player
+  // what to do about it.
+  const s = new PocketGame(); s.start();
+  s.select('smelter');
+  ok('the small smelter lands', s.place(A).accepted === true);
+  const movesBefore = s.moves;
+  s.select('bigSmelter');
+  ok('preview does NOT remember a refusal — only place() is a move',
+    s.preview(C).ok === false && s.state().lastRefusal === null);
+  const sr = s.place(C);
+  ok('the other smelter is refused', sr.accepted === false);
+  const slotLine = s.line();
+  ok('…and the sentence names the machine already in the slot',
+    slotLine.includes(entryOf('smelter').label), slotLine);
+  ok('…and it did NOT cost a move: it never reached the rock',
+    s.moves === movesBefore, `${movesBefore} → ${s.moves}`);
+  ok('…and it is not the generic fallback — a slot is not a collision',
+    slotLine !== gl && /^No —/.test(slotLine), slotLine);
+
+  // CLEARING. A sentence that outlives what it describes is worse than none.
+  s.select('depot');
+  ok('choosing something else clears the refusal', s.state().lastRefusal === null);
+  s.select('bigSmelter');
+  s.place(C);
+  ok('remove() clears it — taking the machine back is usually the FIX',
+    s.remove('smelter') === true && s.state().lastRefusal === null);
+  {
+    const t = new PocketGame(); t.start();
+    t.select('vein'); t.place(A);
+    t.select('depot'); t.place(A);
+    ok('a refusal is pending', t.state().lastRefusal !== null);
+    ok('…an ACCEPTED place clears it', t.place(C).accepted === true
+      && t.state().lastRefusal === null);
+    t.select('depot');
+    t.place(A);
+    ok('reset() clears it', t.reset().lastRefusal === null && t.state().lastRefusal === null);
+  }
+
+  // THE INVARIANT the dead branch used to stand on, asserted rather than
+  // defended against: removing an object can only DELETE seeds, so every
+  // surviving object keeps at least the clearance it was accepted with.
+  {
+    const u = new PocketGame(); u.start();
+    for (const [k, at] of [['vein', A], ['bigSmelter', B], ['depot', C]]) { u.select(k); u.place(at); }
+    ok('every placement is legal before a removal', u.verdict().placement.every((r) => r.ok));
+    u.remove('vein');
+    ok('…and STILL legal after one — a removal cannot make a survivor illegal',
+      u.verdict().placement.every((r) => r.ok) && u.verdict().placement.length === 2);
+  }
+
+  // Vocabulary and non-vacuity. The sentences were captured WHILE LIVE — reading
+  // them back here would collect whatever the game says now, which after the
+  // clearing assertions above is no longer a refusal at all.
+  ok('refusalLine(null) is null — not "", not an empty box in the UI',
+    refusalLine(null) === null);
+  const sentences = [gl, slotLine];
+  ok('CONTROL: there are real sentences to check',
+    sentences.every((x) => typeof x === 'string' && x.length > 12));
+  ok('…and they are distinct, so the vocabulary sweep is not one string twice',
+    new Set(sentences).size === sentences.length);
+  for (const line of sentences) {
+    for (const w of ['oracle', 'feasib', 'margin', 'anisotrop', 'summonseed']) {
+      ok(`no refusal sentence says "${w}"`, !line.toLowerCase().includes(w), line);
+    }
+  }
 }
 
 console.log(`\n${checks - failures}/${checks} checks passed`);

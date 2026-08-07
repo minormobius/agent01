@@ -4,6 +4,7 @@ window.SPEC_DATA = {
  "generated": {
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
   "commit": "172e01e",
 =======
   "commit": "e4738d8",
@@ -11,6 +12,9 @@ window.SPEC_DATA = {
 =======
   "commit": "7f5ba18",
 >>>>>>> 9837477 (loop: turn 94 on lp-89f9c8 — awaiting verdict)
+=======
+  "commit": "d489967",
+>>>>>>> f2a466f (loop: turn 95 on lp-16d590 — awaiting verdict)
   "date": "2026-08-07"
  },
  "trunk": "main",

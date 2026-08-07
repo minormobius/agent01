@@ -16790,11 +16790,9 @@
     }
   ],
   "now": {
-    "state": "working",
-    "detail": "1 turn(s) in flight",
-    "beads": [
-      "lp-16d590"
-    ]
+    "state": "idle",
+    "detail": "nothing in flight",
+    "beads": []
   },
   "asks": [
     {
