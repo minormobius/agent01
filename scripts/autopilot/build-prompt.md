@@ -33,9 +33,9 @@ _Regenerated 2026-08-07 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 79, bluesky 73, data 57, tools 56, work 8.
 
-**Neighborhood spark** (bisk 2026-08-07, 99 members / 269 posts):
+**Neighborhood spark** (bisk 2026-08-07, 99 members / 268 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: bisks, bluesky, openai
+- Distinctive words: bluesky, openai, bisks
 - Top post: "Have known since grad school that I write better prose if I stop every 40 minutes, go for a 4-block walk, and come back " — @tedunderwood.com
 <!-- BRIEF_END -->
 
