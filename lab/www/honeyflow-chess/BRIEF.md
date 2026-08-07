@@ -1,5 +1,52 @@
 # BRIEF — others-induce (Honeyflow Chess)
 
+## This turn (2026-08-07): speed, self-immunity, potency
+
+**Request, verbatim: "Yes piece moves are about 10x the speed they should
+be. It's a blink and you miss it sort of affair. Also the piece that
+induces the flow field shouldn't be effected by the flow field, the piece
+that moves should always hit its target. Also I'm seeing real effects not
+start until flow at four."** Three asks, three independent fixes, all in
+`index.html` and mirrored into `headless-test.mjs`:
+
+1. **~10x slower.** `RESTORE` 0.95 → 0.995, `DRAG` 0.5 → 0.05, together —
+   see the comment on the recurrence right above the constants. The pair
+   was chosen so the steady-state offset a piece eventually reaches is
+   *unchanged* (~2%) from what shipped last turn, while the number of ticks
+   it takes to get there is ~10x longer (~20 → ~200 ticks, ~0.3s → ~3.3s at
+   60fps). Purely a TIME change, not a "how far" change — same shape as last
+   turn's fix, just apparently not enough of one.
+2. **The piece that just moved is now immune to the flow field it just
+   released.** A single `lastMovedSq = {r, c}` (set in `doMove()`, checked
+   first thing in `updatePiecePhysics()`) pins that one square's offset at
+   exactly `{0,0}` every tick — it cannot wobble or slide — until the
+   *next* `doMove()` reassigns which square is immune. So a piece always
+   lands dead-centre on its target and stays there for as long as it's the
+   opponent's move to make, and only becomes vulnerable to flow again once
+   a fresh move — and a fresh impulse — begins. Deliberately NOT extended
+   to pieces `resolveFlowSlides()` relocates: the request named the piece
+   that *induces* a flow, and flow-carried neighbours are the mechanic
+   itself, not a bug to fix.
+3. **Roughly doubled flow potency.** `FLOW_VEL_MULT` (was an inline `0.045`
+   in `injectFlow()`, now a named constant) 0.045 → 0.09. The steady-state
+   drag offset scales linearly with this number, so at the old value the
+   default `flowStrength` (2.6 of a 0.4–4 range) landed below
+   `SLIDE_THRESHOLD` and only the top of the slider ever produced a real
+   square change — exactly "real effects not start until flow at four".
+   Doubling it moves that same effect down to roughly the default setting.
+
+All three numbers are **reasoned from the recurrence and from linear
+scaling, not measured in a browser** — same constraint as every turn before
+this one. Worked example in the `FLOW_VEL_MULT`/`DRAG` comments: at the new
+constants, a default-flowStrength pawn push should reach `SLIDE_THRESHOLD`
+(0.55) at roughly tick 240 (~4s), and a max-flowStrength push at roughly
+tick 100 (~1.7s) — both comfortably slower than "blink and miss" (which
+would be single-digit ticks), and neither instant nor sluggish by
+construction of the math, but **this is arithmetic, not a screen**. Running
+`headless-test.mjs` (now defaulting to 600 ticks and a DRAG sweep centred on
+the new 0.05, both updated to match) is the next agent's first move if this
+still doesn't feel right.
+
 ## What this is
 
 A Bluesky thread asked for a chess board made of honey where every move
@@ -107,17 +154,22 @@ changes, both shipped:
 
 ## The plan (not built yet, roughly in order)
 
-1. **Run `headless-test.mjs` and read the new `slides=` column, against the
-   new RESTORE=0.95/DRAG=0.5.** Same load-bearing unknown as before, now
-   against different constants: does a normal move still produce slides, how
-   many, how fast, do they cascade further than intended — and does the
-   slower approach (the point of this turn) actually read as "flowing" over
-   ~2x as many frames, or does it start to feel sluggish rather than
-   deliberate? If `slides` drops to ~0 where it wasn't before, the "hold
-   steady-state" reasoning above was wrong and DRAG needs to come back up a
-   little. If a single move still produces a long cascade, `SLIDE_THRESHOLD`
-   is too low relative to how much the field decays, or viscosity needs to
-   damp faster.
+1. **Run `headless-test.mjs` and read the new `slides=` column, against
+   RESTORE=0.995/DRAG=0.05/FLOW_VEL_MULT=0.09 — this turn's numbers, still
+   completely unrun.** Same load-bearing unknown as every turn before this
+   one, now three constants deep: does a normal move at default
+   `flowStrength` now produce a slide at all (the whole point of doubling
+   `FLOW_VEL_MULT`), does it take a plausible number of ticks to get there
+   (the worked example in the `DRAG` comment predicts ~240 ticks / ~4s), and
+   does the *no-slide* case (immune square) actually stay put across a long
+   run rather than leaking through some path that doesn't check
+   `lastMovedSq`. If `slides` is still 0 at the default flow setting, the
+   potency fix wasn't enough and `FLOW_VEL_MULT` needs another pass. If a
+   single move still produces a long cascade, `SLIDE_THRESHOLD` is too low
+   relative to how much the field decays, or viscosity needs to damp faster.
+   If it now feels sluggish rather than deliberate, `RESTORE` overshot —
+   dial back the exponent (RESTORE^(1/k) for k somewhat less than 10) rather
+   than guessing a new number from scratch.
 2. **Consider a per-piece cooldown or a slide budget per move-event**, if
    the sweep shows unbounded cascades. Not built because it's not yet known
    to be needed — don't add complexity for a problem that might not exist.
@@ -133,37 +185,46 @@ changes, both shipped:
    resistance. Not requested explicitly.
 6. **Knight leap / impact ripple**, floated early in the thread but not
    part of this turn's request.
-7. **Vector field tuning is un-run, same as the slide mechanic was last
-   turn.** `FIELD_REFSPEED` (0.01) and `FIELD_EPS` (0.0005) were picked to
-   match the old streamline code's own thresholds (it broke a trace at
-   speed<0.0006 and saturated alpha around speed*90≈1), not measured against
-   the new RESTORE/DRAG values in a browser. If the board looks bare after a
-   move, lower `FIELD_REFSPEED` or `FIELD_EPS`; if it's a solid wall of white
-   arrows, raise them.
+7. **Vector field tuning is un-run, and now stale against a THIRD set of
+   RESTORE/DRAG values.** `FIELD_REFSPEED` (0.01) and `FIELD_EPS` (0.0005)
+   were picked against the streamline code two turns ago and never
+   revisited. `FLOW_VEL_MULT` doubling this turn means the underlying field
+   itself carries more energy at a given `flowStrength` than when those two
+   were picked — the arrows may now read as busier/whiter than intended even
+   though nothing about the vector-field code changed. If the board looks
+   bare after a move, lower `FIELD_REFSPEED` or `FIELD_EPS`; if it's a solid
+   wall of white arrows, raise them.
 8. Tap targets are ~42px at 360px viewport width, just under the 44px
    guideline. Untouched.
+9. **`lastMovedSq` immunity is scoped to exactly one square at a time.** If
+   a future turn wants captures, en passant, or castling, check whether
+   those need their own immunity handling (a captured square's old occupant
+   obviously doesn't need it, but a castling rook landing at the same time
+   as the king would — right now only one square can be immune, whichever
+   `doMove()` sets last).
 
 ## Gotchas
 
 - **`headless-test.mjs` and `index.html`'s solver/physics are two copies of
-  the same code, not one shared module.** `resolveFlowSlides()` was mirrored
-  into both an earlier turn, and this turn's `RESTORE`/`DRAG` change was
-  mirrored too (`headless-test.mjs` doesn't have its own `DRAG` constant —
-  it's a CLI arg — but its recommended-value log string was updated to
-  match). The rendering change (streamlines → vector field) was NOT
-  mirrored, and doesn't need to be: `headless-test.mjs` never draws anything,
-  it only measures the solver and the board array. Keep that split in mind —
-  physics constants need mirroring, rendering constants don't.
+  the same code, not one shared module.** `resolveFlowSlides()`,
+  `RESTORE`/`DRAG`, `FLOW_VEL_MULT`, and now `lastMovedSq`-style immunity
+  (mirrored inline in `runScenario()` since the test rig only ever plays one
+  move, so there's no second `doMove()` to reassign it away) have all been
+  mirrored across both files at some point. The rendering change
+  (streamlines → vector field, an earlier turn) was NOT mirrored, and
+  doesn't need to be: `headless-test.mjs` never draws anything, it only
+  measures the solver and the board array. Keep that split in mind — physics
+  constants need mirroring, rendering constants don't.
 - **This build agent has no Bash, no WebFetch, no WebSearch, and no browser** —
-  a permanent constraint of this tenant's build role, not a one-off gap. Both
-  this turn's changes shipped un-run: the slower RESTORE/DRAG and the entire
-  vector-field renderer have never been seen moving. The harness's post-build
-  screenshot will show a single frame — whether arrows are present at all,
-  roughly how dense, whether colour/contrast reads against the honey board —
-  but not whether "a flow field develop" actually reads as development over
-  time, or whether the slower pieces feel deliberate rather than sluggish.
-  Only `headless-test.mjs`, run by a human or a differently-privileged agent,
-  or an actual browser, can confirm either.
+  a permanent constraint of this tenant's build role, not a one-off gap, and
+  true again this turn: the ~10x slower RESTORE/DRAG, the doubled
+  `FLOW_VEL_MULT`, and the `lastMovedSq` immunity have never been seen
+  moving. The harness's post-build screenshot will show a single frame —
+  whether the moved piece and the board otherwise look sane — but not
+  whether a neighbour's drag now visibly takes ~4 seconds to build, or
+  whether the immune piece actually looks "pinned" rather than just
+  coincidentally still. Only `headless-test.mjs`, run by a human or a
+  differently-privileged agent, or an actual browser, can confirm either.
 - **A slide can now happen on ANY occupied square, every tick, independent
   of whose turn it is.** This was already true of the drag-wobble, but now
   it changes `board[][]` — meaning the position a player sees can differ
@@ -182,7 +243,15 @@ changes, both shipped:
   coordinate space anywhere in the code — every touchpoint converts board
   coords (0..8) to sim coords (1..N-2) explicitly. Unchanged this turn.
 
-## Post-build screenshot check (2026-08-07, this turn's code)
+## Post-build screenshot check
+
+This session had no screenshot tool and never saw one — the entries below
+were written by earlier turns that apparently did. This turn's changes
+(speed, `lastMovedSq` immunity, `FLOW_VEL_MULT`) ship unverified by any
+image; whatever the harness's own post-build pass finds is the first look
+anyone gets. Left as-is below for whoever reads this next.
+
+### Turn before this one (vector-field rewrite)
 
 1200×800 static screenshot under production CSP, taken against the
 vector-field rewrite (streamlines removed): title, description text
@@ -196,7 +265,7 @@ slower RESTORE/DRAG reads as deliberate rather than sluggish — those are
 still only checkable by `headless-test.mjs` or a real browser, per the
 Gotchas above.
 
-### Superseded note (previous turn, before the rendering rewrite)
+### Superseded note (older turn still, before the rendering rewrite)
 
 Left for the record only — described the old streamline renderer, which no
 longer exists.

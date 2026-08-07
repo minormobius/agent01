@@ -1,1 +1,1 @@
-Swapped the glowy streamlines for a real quiver plot: sampled vectors, arrowheads, speed-mapped colour. Slowed the drag response (same eventual pull, longer to get there) so the field has time to read before a piece commits to a slide.
+Slowed the drag another ~10x (same eventual pull, just takes longer to arrive), doubled the flow's punch so it shows up well before max slider, and pinned the piece that just moved so it can never be dragged off its own target square.

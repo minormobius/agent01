@@ -20,7 +20,12 @@
 // SLIDE_THRESHOLD now actually changes which square it occupies in `board`,
 // not just its visual offset — "if they're wiggling now they should be
 // moving tiles" was the request. Mirrored here too, and slides are now
-// tracked and reported alongside peak offsets.
+// tracked and reported alongside peak offsets. THIS turn: RESTORE/DRAG
+// retuned for a ~10x slower approach at the same steady-state offset,
+// FLOW_VEL_MULT doubled so a normal move produces a real effect well below
+// max flowStrength, and the piece that just moved is now immune to its own
+// flow (mirrors index.html's lastMovedSq) so it always lands on target.
+// See BRIEF.md for the derivations.
 //
 // What it does:
 //   1. Sets up an 8x8 board with the standard opening position.
@@ -41,7 +46,7 @@
 // Usage:
 //   node headless-test.mjs                    # default scenario, DRAG sweep
 //   node headless-test.mjs --move=d2d4        # a different opening push
-//   node headless-test.mjs --drag=1.4         # single DRAG value, verbose trace
+//   node headless-test.mjs --drag=0.05        # single DRAG value, verbose trace
 
 'use strict';
 
@@ -189,6 +194,7 @@ Fluid.prototype.sampleVel = function (bx, by) {
 };
 
 const SPREAD_RADIUS = 14; // must match index.html
+const FLOW_VEL_MULT = 0.09; // must match index.html — doubled this turn, see its comment
 
 function injectFlow(fluid, flowStrength, fx, fy, tx, ty, dist) {
   if (dist < 1e-4) return;
@@ -202,7 +208,7 @@ function injectFlow(fluid, flowStrength, fx, fy, tx, ty, dist) {
     const bx = fx + dx * t, by = fy + dy * t;
     const sx = 1 + bx * (N - 2) / 8, sy = 1 + by * (N - 2) / 8;
     const fall = Math.max(0.2, 1 - Math.abs(t - 0.5) * 1.3);
-    fluid.splatVelocity(sx, sy, ux * base * fall * 0.045, uy * base * fall * 0.045, SPREAD_RADIUS);
+    fluid.splatVelocity(sx, sy, ux * base * fall * FLOW_VEL_MULT, uy * base * fall * FLOW_VEL_MULT, SPREAD_RADIUS);
     fluid.splatDensity(sx, sy, base * fall * 3.0, SPREAD_RADIUS);
   }
 }
@@ -212,12 +218,13 @@ function injectFlow(fluid, flowStrength, fx, fy, tx, ty, dist) {
 // from index.html.
 // ---------------------------------------------------------------------
 const PIECE_MASS = { P: 1, N: 2.2, B: 2.2, R: 3.4, Q: 5.2, K: 4 };
-// RESTORE 0.90 -> 0.95 this turn (mirrors index.html): "pieces move more
-// slowly" moved the settle time, not the eventual displacement — see that
-// file's comment on the recurrence. DRAG stays a CLI arg here, not a
-// constant, but index.html now ships 0.5 (was 1.0); rerun the sweep below
-// against both before trusting its numbers for the shipped defaults.
-const RESTORE = 0.95;
+// RESTORE 0.95 -> 0.995 this turn (mirrors index.html): "piece moves are
+// about 10x the speed they should be" — see that file's comment on the
+// recurrence for the RESTORE'^10 = RESTORE derivation. DRAG stays a CLI arg
+// here, not a constant, but index.html now ships 0.05 (was 0.5); rerun the
+// sweep below against both before trusting its numbers for the shipped
+// defaults.
+const RESTORE = 0.995;
 // MAX_OFFSET/SLIDE_THRESHOLD mirror index.html's "pieces should actually
 // change squares, not just wiggle" turn — see BRIEF.md. MAX_VISUAL_OFFSET
 // doesn't matter here (this rig never renders a transform), kept only as a
@@ -316,6 +323,11 @@ function runScenario(moveStr, drag, flowStrength, ticks, verbose) {
         const p = board[r][c];
         const st = offsets[r][c];
         if (!p) { st.ox = 0; st.oy = 0; continue; }
+        // mirrors index.html's lastMovedSq: the piece that just made THIS
+        // move is immune to the flow it induced, for the whole scenario
+        // (there is no "next move" here to lift it) — always hits its
+        // target, per this turn's request.
+        if (r === tr && c === tc) { st.ox = 0; st.oy = 0; continue; }
         const bx = c + 0.5 + st.ox, by = r + 0.5 + st.oy;
         const v = fluid.sampleVel(bx, by);
         const fvx = v[0] * 8, fvy = v[1] * 8;
@@ -351,8 +363,11 @@ const args = Object.fromEntries(process.argv.slice(2).map(a => {
 }));
 
 const MOVE = args.move || 'e2e4';
-const TICKS = Number(args.ticks) || 240; // ~4s at 60fps
-const FLOW = Number(args.flow) || 2.6;   // matches the page's new default
+// 600, not 240: this turn's RESTORE=0.995 pushed the settle time constant to
+// ~200 ticks (was ~20), so 240 ticks was barely one time constant — nowhere
+// near enough to see whether a slide fires at all. ~10s at 60fps instead.
+const TICKS = Number(args.ticks) || 600;
+const FLOW = Number(args.flow) || 2.6;   // matches the page's default
 
 console.log('Honeyflow Chess — headless play tester');
 console.log('move=' + MOVE + '  ticks=' + TICKS + '  flowStrength=' + FLOW);
@@ -387,7 +402,10 @@ if (args.drag) {
 // number that answers this turn's actual request — whether neighbours are
 // materially crossing into a square, not just leaning towards one.
 const TARGET_MIN = 0.08, TARGET_MAX = 0.18;
-const sweep = [0.4, 0.6, 0.8, 1.0, 1.2, 1.6, 2.0, 2.6];
+// Shifted ~10x down this turn to bracket the new DRAG=0.05 default (was
+// 0.5) — the old sweep values would all have sat roughly 10x too strong
+// against the new RESTORE/FLOW_VEL_MULT.
+const sweep = [0.02, 0.03, 0.04, 0.05, 0.06, 0.08, 0.1, 0.13, 0.16, 0.2, 0.26];
 console.log('DRAG sweep — peak forward |oy| on the two immediate lateral neighbours, plus how many flow-carried slides that DRAG produced:');
 console.log('(neighbours of e2e4 are d2 and f2; adjust by hand for other openings)');
 let best = null;
@@ -399,7 +417,7 @@ for (const drag of sweep) {
   const mags = nbSquares.map(sq => Math.abs((peak[sq] || { oy: 0 }).oy));
   const peakMag = Math.max(...mags, 0);
   const inWindow = peakMag >= TARGET_MIN && peakMag <= TARGET_MAX;
-  console.log('  DRAG=' + drag.toFixed(1).padStart(4) + '  sane=' + sane +
+  console.log('  DRAG=' + drag.toFixed(2).padStart(5) + '  sane=' + sane +
     '  slides=' + slides.length +
     '  ' + nbSquares.map((sq, i) => sq + '=' + mags[i].toFixed(3)).join('  ') +
     (inWindow ? '   <-- in target window' : ''));
@@ -409,4 +427,4 @@ console.log('');
 console.log(best
   ? 'Recommended DRAG: ' + best + ' (first sweep value landing in the ' + TARGET_MIN + '-' + TARGET_MAX + ' window)'
   : 'No swept value landed in the ' + TARGET_MIN + '-' + TARGET_MAX + ' window — widen the sweep array above, or the window is wrong for what "barely" should mean here.');
-console.log('index.html currently ships DRAG=0.5 (RESTORE=0.95, mirrored above) — rerun with --drag=0.5 (add --move/--ticks/--flow as needed) for that value\'s full per-square trace.');
+console.log('index.html currently ships DRAG=0.05 (RESTORE=0.995, FLOW_VEL_MULT=0.09, mirrored above) — rerun with --drag=0.05 (add --move/--ticks/--flow as needed) for that value\'s full per-square trace.');

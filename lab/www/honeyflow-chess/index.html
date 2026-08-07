@@ -85,16 +85,18 @@
   <h1>Honeyflow Chess</h1>
   <p class="lede">The board is a shallow pan of honey. Play a normal game — moving a piece
     doesn't just relocate it, it drags a laminar impulse through the fluid underneath, scaled
-    to how far the piece travelled. Any other piece sitting near that current gets caught in
-    it too: every square is sampled against the live velocity field each frame and nudged
-    along it, tethered back to its own square by the honey's stiffness — heavier pieces resist
-    more, and everything now responds more slowly than before, so there's time to watch the
-    field build before anything commits to a new square. Drag a piece far enough off its square's centre and it
-    doesn't just sway back: it actually slides into the neighbouring square, a real change to
-    the position, not a wobble — blocked if that square is already occupied. High viscosity
-    keeps everything creeping and smooth: no turbulence, no vortices, just honey settling back
-    to rest. The grid stays put; the arrows plotted over it are a live vector field, sampled
-    fresh each frame — not a sketched line — sized and coloured by local speed.</p>
+    to how far the piece travelled. The piece that made the move always lands exactly on its
+    target square and stays there, immune to the very current it just released, for as long
+    as it's the other side's move to make. Every OTHER occupied square is sampled against the
+    live velocity field each frame and nudged along it, tethered back to its own square by the
+    honey's stiffness — heavier pieces resist more, and the pull now takes a good few seconds
+    to build, so there's real time to watch the field develop before anything commits to a new
+    square. Drag a piece far enough off its square's centre and it doesn't just sway back: it
+    actually slides into the neighbouring square, a real change to the position, not a wobble —
+    blocked if that square is already occupied. High viscosity keeps everything creeping and
+    smooth: no turbulence, no vortices, just honey settling back to rest. The grid stays put;
+    the arrows plotted over it are a live vector field, sampled fresh each frame — not a
+    sketched line — sized and coloured by local speed.</p>
 
   <div class="status-row">
     <span class="turn w" id="turnLabel">White to move</span>
@@ -324,7 +326,7 @@
     wK:'♔', wQ:'♕', wR:'♖', wB:'♗', wN:'♘', wP:'♙',
     bK:'♚', bQ:'♛', bR:'♜', bB:'♝', bN:'♞', bP:'♟',
   };
-  let board, turn, sel, legal, offsetGrid;
+  let board, turn, sel, legal, offsetGrid, lastMovedSq;
 
   function freshOffsetGrid() {
     const g = [];
@@ -340,6 +342,7 @@
     board = START.map(row => row.slice());
     turn = 'w'; sel = null; legal = [];
     offsetGrid = freshOffsetGrid();
+    lastMovedSq = null;
     fluid.reset();
     document.getElementById('lastmove').textContent = '';
     updateTurnLabel();
@@ -457,6 +460,20 @@
     // someone else's wake — land it dead-centre on its new square.
     offsetGrid[tr][tc] = { ox: 0, oy: 0 };
     offsetGrid[fr][fc] = { ox: 0, oy: 0 };
+    // "the piece that induces the flow field shouldn't be effected by the
+    // flow field, the piece that moves should always hit its target" — the
+    // mover's own impulse (and anything else already moving) would
+    // otherwise start dragging it around on the very next physics tick,
+    // same as any other occupied square. lastMovedSq exempts ONE square —
+    // the current mover's destination — from updatePiecePhysics() entirely,
+    // until the next doMove() reassigns it. So it's pinned exactly on its
+    // square for the rest of this "turn" (any number of physics ticks while
+    // the other player thinks), but becomes draggable again like every
+    // other piece as soon as a fresh move — and a fresh flow — begins.
+    // Deliberately NOT extended to resolveFlowSlides() targets below: the
+    // request named the piece that INDUCES a flow, not every piece a flow
+    // relocates, and flow-carried pieces are the mechanic, not the bug.
+    lastMovedSq = { r: tr, c: tc };
 
     const dx = tc - fc, dy = tr - fr;
     const dist = Math.hypot(dx, dy);
@@ -481,6 +498,16 @@
   // fades out by ~2-3 squares — this is meant to move an adjacent piece,
   // not shudder the whole board.
   const SPREAD_RADIUS = 14;
+  // "I'm seeing real effects not start until flow at four" (the slider's
+  // max) — the steady-state drag offset a neighbour actually reaches scales
+  // linearly with this multiplier (see DRAG/RESTORE above), so at the old
+  // 0.045 the default flowStrength (2.6, ~65% of the 0.4-4 range) landed
+  // below SLIDE_THRESHOLD and only the top of the slider ever produced a
+  // real square change. Doubled so the same "real effect" that used to need
+  // the slider near its max now shows up around the default — reasoned by
+  // linear scaling, not measured; rerun headless-test.mjs's sweep (it
+  // mirrors this constant) before trusting the new default's feel.
+  const FLOW_VEL_MULT = 0.09;
 
   function injectFlow(fx, fy, tx, ty, dist) {
     if (dist < 1e-4) return;
@@ -510,7 +537,7 @@
       // to hit) stays closer to where "more dramatic streamlines" left it.
       // This number is reasoned, not measured — see BRIEF.md and rerun
       // headless-test.mjs's sweep against this new kernel before trusting it.
-      fluid.splatVelocity(sx, sy, ux * base * fall * 0.045, uy * base * fall * 0.045, SPREAD_RADIUS);
+      fluid.splatVelocity(sx, sy, ux * base * fall * FLOW_VEL_MULT, uy * base * fall * FLOW_VEL_MULT, SPREAD_RADIUS);
       fluid.splatDensity(sx, sy, base * fall * 3.0, SPREAD_RADIUS);
     }
   }
@@ -526,20 +553,27 @@
   // sandbox doesn't have — relaxation is stable at any coefficient.
   // ---------------------------------------------------------------------
   const PIECE_MASS = { P: 1, N: 2.2, B: 2.2, R: 3.4, Q: 5.2, K: 4 };
-  // DRAG/RESTORE this turn: "the pieces move more slowly to accentuate the
-  // flow field" — a request about TIME, not distance. This relaxation is a
-  // linear low-pass filter (st_new = RESTORE*st + RESTORE*DRAG*v/m); its
-  // settling time is governed by RESTORE alone (~1/(1-RESTORE) ticks) and is
-  // independent of DRAG, which only scales the eventual displacement. So
-  // RESTORE moved 0.90 -> 0.95 (settle time roughly doubles, ~10 ticks to
-  // ~20) to actually slow the motion, and DRAG was halved (1.0 -> 0.5) to
-  // hold the steady-state offset — and therefore how often a slide still
-  // fires — roughly where it was before this turn, rather than also
-  // weakening the mechanic the previous turn tuned. Reasoned from the
-  // recurrence, not measured in a browser — rerun headless-test.mjs's sweep
-  // against both new values before trusting them.
-  const DRAG = 0.5;       // how hard the current pulls a tracer, per tick
-  const RESTORE = 0.95;   // fraction of displacement kept each tick
+  // DRAG/RESTORE this turn: "piece moves are about 10x the speed they
+  // should be... a blink and you miss it sort of affair" — the previous
+  // turn's RESTORE=0.95/DRAG=0.5 slowed things down, evidently not nearly
+  // enough. The recurrence is st_new = RESTORE*(st + DRAG*v/m); its
+  // steady-state asymptote is st_inf = RESTORE*DRAG*v/(m*(1-RESTORE)), and
+  // the number of ticks to close any given FRACTION of the gap to that
+  // asymptote scales with 1/(1-RESTORE). To make the approach take ~10x as
+  // many ticks while landing on the SAME st_inf (so "how far" doesn't also
+  // change, only "how long it takes to get there"): shrinking (1-RESTORE)
+  // by 10x alone would multiply st_inf by ~10x too, so DRAG has to shrink by
+  // the matching ~10x alongside it. RESTORE 0.95 -> 0.995 (RESTORE^(1/10),
+  // solved from RESTORE'^10 = RESTORE so the same fraction-of-asymptote is
+  // reached at 10x the tick count) and DRAG 0.5 -> 0.05, together, holds
+  // st_inf to within ~2% of its old value while multiplying settle time by
+  // ~10x (~20 ticks to ~200, i.e. ~0.3s to ~3.3s at 60fps). See
+  // FLOW_VEL_MULT below for the separate (orthogonal) fix to how STRONG
+  // that asymptote is. Reasoned from the recurrence, not measured in a
+  // browser — rerun headless-test.mjs's sweep against these new values
+  // before trusting them.
+  const DRAG = 0.05;      // how hard the current pulls a tracer, per tick
+  const RESTORE = 0.995;  // fraction of displacement kept each tick
   // MAX_OFFSET is now a PHYSICS ceiling, not a rendering one — split from
   // MAX_VISUAL_OFFSET below this turn. Previously the same 0.3 did both
   // jobs at once (stop the sim exploding, AND keep the CSS transform off a
@@ -563,6 +597,7 @@
         const p = board[r][c];
         const st = offsetGrid[r][c];
         if (!p) { st.ox = 0; st.oy = 0; continue; }
+        if (lastMovedSq && lastMovedSq.r === r && lastMovedSq.c === c) { st.ox = 0; st.oy = 0; continue; }
         const bx = c + 0.5 + st.ox, by = r + 0.5 + st.oy;
         const v = fluid.sampleVel(bx, by);
         // sim velocity -> board-units/tick: the same (N-2)/8 scale used
