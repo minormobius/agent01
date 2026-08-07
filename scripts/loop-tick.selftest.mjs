@@ -401,5 +401,30 @@ console.log('\nthe process contract — stdout, exit code, side effects');
 }
 
 console.log('');
+
+// ── THE ATTEMPT CAP ─────────────────────────────────────────────────────────
+// Replayed against the real ledger, this would have recovered 15 of the first
+// 99 turns. lp-a42828 was dispatched twelve times.
+{
+  const b = bead({ id: 'lp-CAPPED', tags: ['class-a'], status: 'ready', gate: ['node x.mjs'] });
+  const cfg = { ...CONFIG, enabled: true, budget: { ...CONFIG.budget, maxAttemptsPerBead: 3 } };
+  const turnsFor = (n) => Array.from({ length: n }, (_, i) => ({ turn: i + 1, bead: 'lp-CAPPED', at: '2026-01-01T00:00:00Z' }));
+
+  const under = decide({ config: cfg, beads: [b], turns: turnsFor(2), runs: [] });
+  ok('under the cap the bead is still dispatchable', under.act === 'dispatch', under.reason);
+
+  const at = decide({ config: cfg, beads: [b], turns: turnsFor(3), runs: [] });
+  ok('at the cap it is withheld', at.act === 'halt', at.act);
+  ok('and the halt names the bead and its count',
+    /lp-CAPPED/.test(at.detail) && /3 attempts/.test(at.detail), at.detail);
+
+  // CONTROL: the cap must not be what stops an ordinary first dispatch, or the
+  // assertion above would pass for the wrong reason.
+  const fresh = decide({ config: cfg, beads: [b], turns: [], runs: [] });
+  ok('CONTROL: a never-attempted bead dispatches', fresh.act === 'dispatch', fresh.reason);
+}
+
+
+
 if (failed) { console.log(`✗ loop-tick selftest: ${failed} failing\n`); process.exit(1); }
 console.log('✓ loop-tick selftest passed\n');

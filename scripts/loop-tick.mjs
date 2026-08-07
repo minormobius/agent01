@@ -96,7 +96,29 @@ export function decide({ config, beads, turns = [], runs = [], now = new Date().
   // worse rather than better: both still run, and the second silently overwrites
   // the first's work. Found by rehearsing two ticks in a row.
   const issuedTo = new Set(openOrders);
-  const queue = readyQueue(graph, { dispatchableOnly: true }).filter((b) => !issuedTo.has(b.id));
+
+  // THE ATTEMPT CAP. A bead the loop keeps taking and keeps not finishing is
+  // the single largest waste this system has produced, and nothing was
+  // counting it. Across 99 turns, 12 beads were dispatched more than once and
+  // together they consumed 39 turns — 39% of the run. lp-a42828 alone was
+  // dispatched TEN times, passing its gate every time and never closing,
+  // because passing a gate is not the same as an outbox marking it done.
+  //
+  // Capped rather than dropped: exceeding the cap means the bead is BLOCKED ON
+  // A HUMAN, not that it is worthless. It stays in the graph, it stops eating
+  // the fleet, and the reason is printed. `attempts` is counted from turns.jsonl
+  // — the meter at the point of spend — so a bead that is merely slow to close
+  // is treated the same as one that is impossible, which is correct: from the
+  // scheduler's side those are the same observation.
+  const attempts = new Map();
+  for (const t of turns) if (t.bead) attempts.set(t.bead, (attempts.get(t.bead) ?? 0) + 1);
+  const cap = budget.maxAttemptsPerBead ?? 3;
+  const exhausted = [...attempts.entries()].filter(([, n]) => n >= cap).map(([id]) => id);
+  const exhaustedSet = new Set(exhausted);
+
+  const queue = readyQueue(graph, { dispatchableOnly: true })
+    .filter((b) => !issuedTo.has(b.id))
+    .filter((b) => !exhaustedSet.has(b.id));
 
   // 2. THE HARD STOP. A controller with a bug is still a loop; this is the
   //    backstop that does not depend on the controller being right.
@@ -185,6 +207,14 @@ export function decide({ config, beads, turns = [], runs = [], now = new Date().
   //    has no gate; see beads.mjs on why `proposed` is not `ready`.
   if (!queue.length) {
     const readyButNotDispatchable = readyQueue(graph).length;
+    const capped = readyQueue(graph, { dispatchableOnly: true }).filter((b) => exhaustedSet.has(b.id));
+    if (capped.length) {
+      return halt('every dispatchable bead has hit the attempt cap',
+        `${capped.map((b) => `${b.id} (${attempts.get(b.id)} attempts)`).join(', ')} — `
+        + `maxAttemptsPerBead is ${cap}. These are blocked on a human, not on the fleet: `
+        + 'a bead taken repeatedly and never closed is a bead whose ticket is wrong, '
+        + 'whose gate is unreachable, or whose done-condition nobody can satisfy.');
+    }
     const why = readyButNotDispatchable
       ? `${readyButNotDispatchable} bead(s) are ready but none is class A — the fleet may only take class A (LOOP-WBS §2.3)`
       : 'nothing is schedulable';

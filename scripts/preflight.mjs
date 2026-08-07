@@ -302,6 +302,32 @@ console.log('\nworkflow shell');
       record('the tick issues no more orders than a turn can consume', why === '', why);
     }
 
+    // THE COP MUST STAY OUT OF THE FLEET'S REACH.
+    //
+    // scripts/loop-capability.mjs is the only signal in this system that is not
+    // the fleet's own homework: every other gate is a test the fleet wrote. That
+    // is worth exactly as much as the fleet's inability to edit it.
+    //
+    // loop-work's containment gate reverts any diff outside config.writes, so
+    // the guarantee holds as long as the cop lives outside those paths. Moving
+    // it under plant/ or loop/ would not fail anything at runtime — it would
+    // quietly convert a measurement into a self-report, which is the failure
+    // this repo is least able to detect from the outside. So: assert it.
+    {
+      const cfgPath = join(ROOT, '.github', 'loop', 'config.json');
+      const COP = 'scripts/loop-capability.mjs';
+      let why = '';
+      if (existsSync(cfgPath)) {
+        const writes = (JSON.parse(readFileSync(cfgPath, 'utf8')).writes ?? [])
+          .map((w) => w.replace(/\/\*\*$/, '/'));
+        if (!existsSync(join(ROOT, COP))) why = `${COP} is missing — the only non-self-graded signal is gone`;
+        else if (writes.some((w) => COP.startsWith(w))) {
+          why = `${COP} is INSIDE the loop's write paths (${writes.join(', ')}) — the fleet could edit its own scorer`;
+        }
+      }
+      record('the capability cop is outside the loop\'s write paths', why === '', why);
+    }
+
     record('every seat that changes the queue wakes the reactor',
       missing.length === 0,
       missing.length ? `${missing.join(', ')} never writes .github/loop/wake — it would propose into silence` : '');

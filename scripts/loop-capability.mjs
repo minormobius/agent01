@@ -98,7 +98,7 @@ const asJson = process.argv.includes('--json');
 // because the pocket game has its own words. A scorer whose denominator is a
 // guess about someone else's wording reads zero forever and looks like a
 // permanent failure. Count what the page distinguishes, not what I expected.
-const TARGET = { refusals: 5, verdicts: 4, placed: 3, moves: 4, controls: 6 };
+export const TARGET = { refusals: 5, verdicts: 4, placed: 3, moves: 4, controls: 6 };
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.svg': 'image/svg+xml' };
 
@@ -238,7 +238,7 @@ async function play(page, url) {
 /** One number in [0,1], from five capped ratios. Capped so a page cannot buy a
  *  high score by being extravagant on one axis — the vision wants a visitor who
  *  can act, fail, understand and continue, not one who can fail brilliantly. */
-function score(m) {
+export function score(m) {
   const cap = (x, t) => Math.max(0, Math.min(1, x / t));
   const speed = m.movesToFirstFail === null ? 0 : cap(TARGET.moves / m.movesToFirstFail, 1);
   const parts = {
@@ -299,4 +299,7 @@ async function main() {
   console.log('');
 }
 
-main();
+// GUARDED, because the selftest imports `score` and `TARGET` from this file.
+// An unguarded main() would launch a browser and play the page every time the
+// selftest ran — the same scar loop-tick.mjs carries at the bottom of its file.
+if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) main();

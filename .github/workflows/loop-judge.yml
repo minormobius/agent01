@@ -128,6 +128,32 @@ jobs:
       # Disagreement between the three IS the data (CLOSED-LOOP.md §6.2) — which
       # is only true if all three are real. One real signal plus two invented
       # ones is not a triangulation, it is one signal wearing a hat.
+      # ── Signal 2: CAPABILITY — what a visitor can actually do ──────────────
+      # The one signal that is not the fleet's own homework. Everything else
+      # here is a test the fleet wrote; this drives the real page in a real
+      # browser and counts states a simulated player reached.
+      #
+      # It is allowed to be ABSENT. If chromium cannot launch the cop reports
+      # available:false and no number, and this step records the signal as
+      # missing rather than as zero — an infrastructure failure that renders as
+      # a capability collapse is how four dead turns got banked as real ones.
+      - name: Capability signal
+        id: cap
+        if: steps.pick.outputs.found == 'true'
+        continue-on-error: true
+        timeout-minutes: 6
+        run: |
+          npm i --no-save playwright >/dev/null 2>&1 || true
+          npx playwright install --with-deps chromium >/dev/null 2>&1 || true
+          node scripts/loop-capability.mjs --json > /tmp/cap.json 2>/dev/null || echo '{"available":false,"why":"the cop did not run"}' > /tmp/cap.json
+          cat /tmp/cap.json
+          node -e '
+            const c = require("/tmp/cap.json");
+            const fs = require("fs");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT,
+              `available=${c.available === true}\nscore=${c.available === true ? c.score : ""}\n`);
+          '
+
       - name: Rubric and adversarial signals
         id: model
         if: steps.pick.outputs.found == 'true'
@@ -144,6 +170,12 @@ jobs:
       - name: Append the run record
         id: record
         if: steps.pick.outputs.found == 'true'
+        env:
+          # Read from the environment, not interpolated into the -e string: the
+          # cop's output is data, and data belongs in env vars. This repo has
+          # already paid for the other habit twice.
+          CAP_AVAILABLE: ${{ steps.cap.outputs.available }}
+          CAP_SCORE: ${{ steps.cap.outputs.score }}
         run: |
           node -e '
             const fs = require("fs");
@@ -164,10 +196,35 @@ jobs:
               // reads the tail of THIS file and therefore could not clear itself
               // once the quota came back. Carried through so the brake can skip it.
               infra: v.infra === true,
-              signals: { probes: probes.score, rubric: null, adversarial: null },
-              // NULL UNTIL CALIBRATED. See the header of this file.
-              score: calibrated ? probes.score : null,
-              note: calibrated ? "" : "judge uncalibrated — probes only, score withheld",
+              signals: {
+                probes: probes.score,
+                // A MEASUREMENT, not an opinion — which is why it can score a
+                // turn while `judge.calibrated` is still false. Calibration
+                // exists because a model grading prose needs a human to anchor
+                // it. Counting what a player reached in a browser needs nobody.
+                capability: process.env.CAP_AVAILABLE === "true" ? Number(process.env.CAP_SCORE) : null,
+                rubric: null,
+                adversarial: null,
+              },
+              // THE SCORE IS THE CAPABILITY NUMBER WHEN THERE IS ONE.
+              //
+              // This file used to withhold a score entirely until the judge was
+              // calibrated, and after 99 turns that left 0 of 89 runs scored —
+              // so the curve was empty, the ranking term that spends where a
+              // score is still climbing was always 0, and the plateau brake had
+              // nothing to hold. The whole controller was inert and the loop
+              // was, in effect, a priority queue graded by its own tests.
+              //
+              // Capability is not a judge opinion needing a human anchor; it is
+              // a count of what a player reached. So it can carry the curve now.
+              // `scoreBasis` says which it is, because a number whose meaning is
+              // implicit is a number somebody will misread later.
+              score: process.env.CAP_AVAILABLE === "true" ? Number(process.env.CAP_SCORE)
+                : (calibrated ? probes.score : null),
+              scoreBasis: process.env.CAP_AVAILABLE === "true" ? "capability"
+                : (calibrated ? "probes" : null),
+              note: process.env.CAP_AVAILABLE === "true" ? "score = capability (what a visitor can do)"
+                : (calibrated ? "" : "judge uncalibrated and capability unmeasured — no score"),
             };
             const f = ".github/loop/runs.jsonl";
             const cur = fs.existsSync(f) ? fs.readFileSync(f, "utf8") : "";
