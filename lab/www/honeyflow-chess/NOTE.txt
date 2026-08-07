@@ -1,1 +1,1 @@
-Fair — the flow never touched the pieces before. Now every piece samples the same solved field each frame and gets dragged, tethered to its square, heavier pieces resisting more. Untuned without a browser; sliders are still the fix.
+Built the headless tester at headless-test.mjs. No shell here to run it, so DRAG and the streamline knobs are raised by reasoning, not measurement — the offset clamp makes DRAG safe to push hard. Run it locally for real numbers.

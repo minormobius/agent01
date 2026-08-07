@@ -104,8 +104,8 @@
 
   <div class="controls">
     <div class="ctl">
-      <label>Flow strength <span id="flowVal">2.0×</span></label>
-      <input type="range" id="flowStrength" min="0.4" max="4" step="0.1" value="2">
+      <label>Flow strength <span id="flowVal">2.6×</span></label>
+      <input type="range" id="flowStrength" min="0.4" max="4" step="0.1" value="2.6">
     </div>
     <div class="ctl">
       <label>Honey thickness <span id="viscVal">med</span></label>
@@ -446,13 +446,19 @@
     const steps = Math.max(3, Math.round(dist * 6));
     const flowStrength = +document.getElementById('flowStrength').value;
     const base = flowStrength * (0.7 + dist * 0.55);
+    // Velocity/density multipliers bumped this turn (0.09->0.13, 3.2->4.2):
+    // "streamlines... pretty wimpy" was direct feedback on the live site.
+    // Raising these is low-risk — the solver is a linear diffuse/project
+    // system (Gauss-Seidel on a diagonally-dominant matrix), stable for any
+    // input magnitude, so a stronger injection can't make it diverge, only
+    // make the resulting flow more visible.
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
       const bx = fx + dx * t, by = fy + dy * t;
       const sx = 1 + bx * (N - 2) / 8, sy = 1 + by * (N - 2) / 8;
       const fall = Math.max(0.2, 1 - Math.abs(t - 0.5) * 1.3);
-      fluid.addVelocity(sx, sy, ux * base * fall * 0.09, uy * base * fall * 0.09);
-      fluid.addDensity(sx, sy, base * fall * 3.2);
+      fluid.addVelocity(sx, sy, ux * base * fall * 0.13, uy * base * fall * 0.13);
+      fluid.addDensity(sx, sy, base * fall * 4.2);
     }
   }
 
@@ -467,7 +473,15 @@
   // sandbox doesn't have — relaxation is stable at any coefficient.
   // ---------------------------------------------------------------------
   const PIECE_MASS = { P: 1, N: 2.2, B: 2.2, R: 3.4, Q: 5.2, K: 4 };
-  const DRAG = 0.4;       // how hard the current pulls a tracer, per tick
+  // DRAG raised 0.4 -> 1.0 this turn ("a pawn advancing two barely pulls
+  // neighbouring pawns forward one" — at 0.4 the effect was reportedly too
+  // faint to read). Safe to push up because MAX_OFFSET clamps every tick
+  // regardless of DRAG's size: a bigger DRAG only reaches the clamp sooner,
+  // it cannot overshoot it or destabilise anything. See headless-test.mjs
+  // for a runnable rig to measure the actual resulting offset and retune
+  // this precisely — this value is reasoned, not measured (no browser or
+  // shell in this sandbox to run it against).
+  const DRAG = 1.0;       // how hard the current pulls a tracer, per tick
   const RESTORE = 0.90;   // fraction of displacement kept each tick
   const MAX_OFFSET = 0.3; // board-units; keeps a dragged piece off its neighbour's tap target
 
@@ -580,10 +594,16 @@
     }
   }
 
+  // Streamline params bumped this turn ("more dramatic streamlines these
+  // are pretty wimpy" — direct feedback on the live site): denser seeds,
+  // longer traces, and a wider low-alpha glow pass under the bright core
+  // line so a strand actually reads against the honey background instead
+  // of thinning to nothing. Purely a rendering change — doesn't touch the
+  // solver, so it carries none of the physics-tuning risk.
   let streamPaths = [];
   function computeStreamlines() {
     streamPaths = [];
-    const SEEDS = 11, STEP = 0.16, STEPS = 7;
+    const SEEDS = 13, STEP = 0.2, STEPS = 10;
     for (let sy = 0; sy < SEEDS; sy++) {
       for (let sx = 0; sx < SEEDS; sx++) {
         let bx = (sx + 0.5) * 8 / SEEDS, by = (sy + 0.5) * 8 / SEEDS;
@@ -604,17 +624,24 @@
     }
   }
 
+  function strokePath(pts) {
+    ctx.beginPath();
+    pts.forEach((p, i) => {
+      const x = p[0] * CELL, y = p[1] * CELL;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  }
+
   function drawStreamlines() {
     for (const path of streamPaths) {
-      const alpha = clampf(path.speed * 60, 0.12, 0.85);
-      ctx.strokeStyle = 'rgba(255,238,205,' + alpha.toFixed(2) + ')';
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      path.pts.forEach((p, i) => {
-        const x = p[0] * CELL, y = p[1] * CELL;
-        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      });
-      ctx.stroke();
+      const alpha = clampf(path.speed * 90, 0.22, 0.95);
+      ctx.strokeStyle = 'rgba(255,224,150,' + (alpha * 0.35).toFixed(2) + ')';
+      ctx.lineWidth = 4.5;
+      strokePath(path.pts);
+      ctx.strokeStyle = 'rgba(255,244,215,' + alpha.toFixed(2) + ')';
+      ctx.lineWidth = 1.8;
+      strokePath(path.pts);
     }
   }
 
@@ -624,7 +651,7 @@
     drawBoard();
     drawDensity();
     if (streamsOn) {
-      const every = reduceMotion ? 24 : 8;
+      const every = reduceMotion ? 24 : 5;
       if (frame % every === 0) computeStreamlines();
       drawStreamlines();
     }
