@@ -88,11 +88,13 @@
     to how far the piece travelled. Any other piece sitting near that current gets caught in
     it too: every square is sampled against the live velocity field each frame and nudged
     along it, tethered back to its own square by the honey's stiffness — heavier pieces resist
-    more. Drag a piece far enough off its square's centre and it doesn't just sway back: it
-    actually slides into the neighbouring square, a real change to the position, not a wobble
-    — blocked if that square is already occupied. High viscosity keeps everything creeping and
-    smooth: no turbulence, no vortices, just honey settling back to rest. The grid stays put;
-    the streamlines drawn over it are the only thing that moves fully on its own.</p>
+    more, and everything now responds more slowly than before, so there's time to watch the
+    field build before anything commits to a new square. Drag a piece far enough off its square's centre and it
+    doesn't just sway back: it actually slides into the neighbouring square, a real change to
+    the position, not a wobble — blocked if that square is already occupied. High viscosity
+    keeps everything creeping and smooth: no turbulence, no vortices, just honey settling back
+    to rest. The grid stays put; the arrows plotted over it are a live vector field, sampled
+    fresh each frame — not a sketched line — sized and coloured by local speed.</p>
 
   <div class="status-row">
     <span class="turn w" id="turnLabel">White to move</span>
@@ -118,7 +120,7 @@
   <div class="btnrow">
     <button id="resetBoard">Reset board</button>
     <button id="clearFlow">Still the honey</button>
-    <button id="toggleStreams" aria-pressed="true">Streamlines: on</button>
+    <button id="toggleStreams" aria-pressed="true">Vector field: on</button>
   </div>
 
   <footer>
@@ -129,8 +131,8 @@
       is a real, unannounced change to the position — it isn't your move, and it doesn't pass
       the turn — so glance at the board before you play, not just at whose turn it says.</p>
     <p id="reducedMotionNote" hidden>Reduced motion is on: the fluid still simulates (it's the
-      whole point of the page) but streamlines redraw less often, and pieces stay locked to
-      their squares — no dragging, and no flow-carried slides — instead of moving in the
+      whole point of the page) but the vector field redraws less often, and pieces stay locked
+      to their squares — no dragging, and no flow-carried slides — instead of moving in the
       current.</p>
   </footer>
 </main>
@@ -524,8 +526,20 @@
   // sandbox doesn't have — relaxation is stable at any coefficient.
   // ---------------------------------------------------------------------
   const PIECE_MASS = { P: 1, N: 2.2, B: 2.2, R: 3.4, Q: 5.2, K: 4 };
-  const DRAG = 1.0;       // how hard the current pulls a tracer, per tick
-  const RESTORE = 0.90;   // fraction of displacement kept each tick
+  // DRAG/RESTORE this turn: "the pieces move more slowly to accentuate the
+  // flow field" — a request about TIME, not distance. This relaxation is a
+  // linear low-pass filter (st_new = RESTORE*st + RESTORE*DRAG*v/m); its
+  // settling time is governed by RESTORE alone (~1/(1-RESTORE) ticks) and is
+  // independent of DRAG, which only scales the eventual displacement. So
+  // RESTORE moved 0.90 -> 0.95 (settle time roughly doubles, ~10 ticks to
+  // ~20) to actually slow the motion, and DRAG was halved (1.0 -> 0.5) to
+  // hold the steady-state offset — and therefore how often a slide still
+  // fires — roughly where it was before this turn, rather than also
+  // weakening the mechanic the previous turn tuned. Reasoned from the
+  // recurrence, not measured in a browser — rerun headless-test.mjs's sweep
+  // against both new values before trusting them.
+  const DRAG = 0.5;       // how hard the current pulls a tracer, per tick
+  const RESTORE = 0.95;   // fraction of displacement kept each tick
   // MAX_OFFSET is now a PHYSICS ceiling, not a rendering one — split from
   // MAX_VISUAL_OFFSET below this turn. Previously the same 0.3 did both
   // jobs at once (stop the sim exploding, AND keep the CSS transform off a
@@ -651,7 +665,7 @@
   const streamBtn = document.getElementById('toggleStreams');
   streamBtn.addEventListener('click', function () {
     streamsOn = !streamsOn;
-    streamBtn.textContent = 'Streamlines: ' + (streamsOn ? 'on' : 'off');
+    streamBtn.textContent = 'Vector field: ' + (streamsOn ? 'on' : 'off');
     streamBtn.setAttribute('aria-pressed', String(streamsOn));
   });
 
@@ -705,55 +719,59 @@
     }
   }
 
-  // Streamline params bumped this turn ("more dramatic streamlines these
-  // are pretty wimpy" — direct feedback on the live site): denser seeds,
-  // longer traces, and a wider low-alpha glow pass under the bright core
-  // line so a strand actually reads against the honey background instead
-  // of thinning to nothing. Purely a rendering change — doesn't touch the
-  // solver, so it carries none of the physics-tuning risk.
-  let streamPaths = [];
-  function computeStreamlines() {
-    streamPaths = [];
-    const SEEDS = 13, STEP = 0.2, STEPS = 10;
-    for (let sy = 0; sy < SEEDS; sy++) {
-      for (let sx = 0; sx < SEEDS; sx++) {
-        let bx = (sx + 0.5) * 8 / SEEDS, by = (sy + 0.5) * 8 / SEEDS;
-        const pts = [[bx, by]];
-        let maxSpeed = 0;
-        for (let s = 0; s < STEPS; s++) {
-          const v = fluid.sampleVel(bx, by);
-          const speed = Math.hypot(v[0], v[1]);
-          maxSpeed = Math.max(maxSpeed, speed);
-          if (speed < 0.0006) break;
-          const ux = v[0] / speed, uy = v[1] / speed;
-          bx += ux * STEP; by += uy * STEP;
-          if (bx < 0 || bx > 8 || by < 0 || by > 8) break;
-          pts.push([bx, by]);
-        }
-        if (pts.length > 1 && maxSpeed > 0.0006) streamPaths.push({ pts, speed: maxSpeed });
+  // Vector field plot — this turn's request named the previous version
+  // exactly: "technical field plotting not fwoof lines that you sketch
+  // now". The old version traced multi-step streamlines and rendered each
+  // with a soft low-alpha glow pass under a bright core, which reads as an
+  // atmosphere sitting on the honey rather than a measurement of it. This
+  // is a quiver plot instead: a fixed grid of sample points, ONE directly
+  // sampled velocity vector each, drawn as a thin arrow with a hard
+  // arrowhead — no integration along the flow, no seeds, nothing sketched.
+  // Colour runs cool cyan (slow) to white (fast) specifically so it reads
+  // as an instrument overlay against the warm amber board and density
+  // glaze, which both stay in the honey palette.
+  const FIELD_GRID = 13;              // arrows per row/column across the board
+  const FIELD_SPACING = 8 / FIELD_GRID;
+  const FIELD_MAXLEN = FIELD_SPACING * 0.42; // stops neighbouring arrows overlapping
+  const FIELD_EPS = 0.0005;           // below this, nothing is plotted rather than a zero-length arrow
+  const FIELD_REFSPEED = 0.01;        // sampleVel speed that maps to a full-length, full-white arrow
+  let fieldSamples = [];
+
+  function computeVectorField() {
+    fieldSamples = [];
+    for (let gy = 0; gy < FIELD_GRID; gy++) {
+      for (let gx = 0; gx < FIELD_GRID; gx++) {
+        const bx = (gx + 0.5) * FIELD_SPACING, by = (gy + 0.5) * FIELD_SPACING;
+        const v = fluid.sampleVel(bx, by);
+        const speed = Math.hypot(v[0], v[1]);
+        if (speed < FIELD_EPS) continue;
+        fieldSamples.push({ x: bx * CELL, y: by * CELL, ux: v[0] / speed, uy: v[1] / speed, speed });
       }
     }
   }
 
-  function strokePath(pts) {
-    ctx.beginPath();
-    pts.forEach((p, i) => {
-      const x = p[0] * CELL, y = p[1] * CELL;
-      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-  }
-
-  function drawStreamlines() {
-    for (const path of streamPaths) {
-      const alpha = clampf(path.speed * 90, 0.22, 0.95);
-      ctx.strokeStyle = 'rgba(255,224,150,' + (alpha * 0.35).toFixed(2) + ')';
-      ctx.lineWidth = 4.5;
-      strokePath(path.pts);
-      ctx.strokeStyle = 'rgba(255,244,215,' + alpha.toFixed(2) + ')';
-      ctx.lineWidth = 1.8;
-      strokePath(path.pts);
+  function drawVectorField() {
+    ctx.lineCap = 'round';
+    for (const s of fieldSamples) {
+      const t = clampf(s.speed / FIELD_REFSPEED, 0, 1);
+      const grown = Math.pow(t, 0.6); // early speed is still visible, not lost near zero
+      const len = FIELD_MAXLEN * (0.2 + 0.8 * grown);
+      const alpha = clampf(0.3 + t * 0.65, 0.3, 0.95);
+      const r = (120 + 135 * t) | 0, g = (200 + 55 * t) | 0, b = (220 + 35 * t) | 0;
+      const x2 = s.x + s.ux * len, y2 = s.y + s.uy * len;
+      ctx.strokeStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + alpha.toFixed(2) + ')';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(x2, y2); ctx.stroke();
+      const ang = Math.atan2(s.uy, s.ux);
+      const ah = Math.min(4, len * 0.55);
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - ah * Math.cos(ang - 0.5), y2 - ah * Math.sin(ang - 0.5));
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - ah * Math.cos(ang + 0.5), y2 - ah * Math.sin(ang + 0.5));
+      ctx.stroke();
     }
+    ctx.lineCap = 'butt';
   }
 
   let frame = 0;
@@ -762,9 +780,9 @@
     drawBoard();
     drawDensity();
     if (streamsOn) {
-      const every = reduceMotion ? 24 : 5;
-      if (frame % every === 0) computeStreamlines();
-      drawStreamlines();
+      const every = reduceMotion ? 24 : 1;
+      if (frame % every === 0) computeVectorField();
+      drawVectorField();
     }
     drawGrid();
     if (!reduceMotion) { updatePiecePhysics(); applyPieceTransforms(); }
