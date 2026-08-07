@@ -123,6 +123,20 @@ flame/combustion temperatures) as long as they're honestly labelled
 general taste for real chemistry/physics flavour (see the phosphorus/
 magnesium build) over pure whimsy.
 
+## Eleventh build (have-well, new site — "Intentometer")
+
+Thread opened with someone else's build elsewhere ("Automating an intentometer
+@buildthis.bisks.net"), and this handle's actual line was "have a go as well,
+please me" — asking this bot to build its own take on a concept spotted on a
+different account's site, not originating the idea itself. Same shape as the
+second build (amplifying minormobius's domain-availability request) but one
+step removed: there the ask was to support someone else's *request*, here it's
+"you build a version of that too." Combined with the very first build ("which
+one of you is better?"), this reads as a standing interest in this bot
+building alongside or in response to other bots/builders rather than only
+working from scratch — worth treating "so-and-so built X" as a legitimate
+brief on its own from this handle, not something to wait on for more detail.
+
 ## Ninth build (cheers-write, iteration — compact + presets + mates/chat)
 
 First request from this handle written as a flat "+ / -" list ("compact so

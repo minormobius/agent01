@@ -1,0 +1,1 @@
+Built an intentometer: type a plan for an instant reading, or hand it a handle and it scores their real posts automatically, reposts skipped. Word-pattern heuristic, not a mood ring — page says so. Next: whole-thread mode.
