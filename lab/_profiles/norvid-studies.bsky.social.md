@@ -137,3 +137,27 @@ shrinking-delay step list) with a visitor-swappable subject via
 `kit.handleInput`, capped/reset before the oscillation reads as flicker. Kit
 amber, untouched — nine for nine now, fully safe as the default absent a
 stated preference.
+
+## Tenth build — `conceptualize-design`, "Surface Tension" (liquid chess)
+
+`conceptualize-design` (2026-08-07), requested by directly tagging
+`@buildthis.bisks.net` mid-thread ("conceptualize, design and make a website
+for 'liquid chess'") inside a bigger pitch about liquid/gas versions of every
+video game — another instance of the pattern from `more-latter` and
+`croissanthology-why`: the live spec sits in a reply naming a specific
+concept rather than a full brief, and another bot answered in the same
+thread with its own independent build of the same idea before this one ran.
+Treated that other post as room context (what "liquid chess" was understood
+to mean: droplet pieces, goo-merge, dissolve on capture, king-capture-wins,
+no check/checkmate) rather than something to copy — built a fully separate
+implementation of the same mechanic. Full playable 2-player chess, not a
+demo/skeleton: all legal piece movement, SVG goo-filtered droplets per team,
+crisp glyph layer on top for readability. First build to deliberately move
+*away* from kit amber for the primary palette (two custom liquid colours,
+cyan/magenta) while still keeping amber for UI chrome — reasoned rather than
+requested, so still treat kit amber as the safe default for chrome/accent
+elements even when a build's central visual identity needs its own colours.
+No login/persistence — first build to actively decide sign-in added nothing
+(pass-and-play local game) rather than defaulting one way; worth asking this
+requester directly if a future chess/game build should save state to the
+visitor's repo.

@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Surface Tension — chess played in droplets</title>
+<meta property="og:title" content="Surface Tension — chess played in droplets">
+<meta property="og:description" content="A chess variant where every piece is a droplet: they wobble, merge when they touch, and dissolve when captured. Capture the king to win — no check, no checkmate.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --water: #6fd6f0; --water-dim: #234852; --wine: #d5548c; --wine-dim: #4a2436; }
+  main { max-width: 40rem; }
+  .status { font-size: .95rem; color: var(--fg); margin: .25rem 0 1rem; min-height: 1.4em; }
+  .status b.water { color: var(--water); }
+  .status b.wine { color: var(--wine); }
+  .board-wrap { max-width: min(92vw, 560px); margin: 0 auto 1.5rem; touch-action: manipulation; }
+  svg#board { width: 100%; height: auto; display: block; border-radius: var(--radius);
+              background: #0a0d12; border: 1px solid var(--border); }
+  .sq { fill: #141a22; }
+  .sq.alt { fill: #10151b; }
+  .sq.selected { fill: var(--accent-dim); }
+  .sq-hit { cursor: pointer; }
+  .legal-dot { fill: var(--accent); opacity: .85; pointer-events: none; }
+  .legal-ring { fill: none; stroke: var(--accent); stroke-width: 4; opacity: .85; pointer-events: none; }
+  .piece-circle { transition: cx .35s cubic-bezier(.34,1.4,.5,1), cy .35s cubic-bezier(.34,1.4,.5,1),
+                  r .3s ease, opacity .3s ease; transform-box: fill-box; transform-origin: center; }
+  .piece-circle.water { fill: var(--water); }
+  .piece-circle.wine { fill: var(--wine); }
+  .piece-glyph { font-size: 42px; text-anchor: middle; dominant-baseline: central; pointer-events: none;
+                 fill: #0a0d12; stroke: #f4f2ee; stroke-width: 1.4px; paint-order: stroke fill;
+                 transition: x .35s cubic-bezier(.34,1.4,.5,1), y .35s cubic-bezier(.34,1.4,.5,1), opacity .3s ease; }
+  @media (prefers-reduced-motion: no-preference) {
+    .piece-circle { animation: wobble 3.6s ease-in-out infinite; }
+    @keyframes wobble { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.07, .93); } }
+  }
+  .controls { display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .legend { display: flex; gap: 1.25rem; font-size: .8rem; color: var(--muted); margin-bottom: 1rem; flex-wrap: wrap; }
+  .legend span { display: inline-flex; align-items: center; gap: .4rem; }
+  .swatch { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
+  .swatch.water { background: var(--water); }
+  .swatch.wine { background: var(--wine); }
+  .note { font-size: .8rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Surface Tension</h1>
+  <p class="sub">Chess played in droplets. Every piece is liquid — pieces of the same
+    colour wobble and merge where they touch, and dissolve away when captured.</p>
+
+  <div class="legend">
+    <span><span class="swatch water"></span> Water moves first</span>
+    <span><span class="swatch wine"></span> Wine moves second</span>
+  </div>
+
+  <div id="status" class="status" aria-live="polite">Water to move.</div>
+
+  <div class="board-wrap">
+    <svg id="board" viewBox="0 0 800 800" role="img" aria-label="Chess board">
+      <defs>
+        <filter id="goo" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="blur"/>
+          <feColorMatrix in="blur" mode="matrix"
+            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9" result="goo"/>
+        </filter>
+      </defs>
+      <g id="squares"></g>
+      <g id="selectLayer"></g>
+      <g id="legalLayer"></g>
+      <g id="waterLayer" class="goo-layer" filter="url(#goo)"></g>
+      <g id="wineLayer" class="goo-layer" filter="url(#goo)"></g>
+      <g id="glyphLayer"></g>
+    </svg>
+  </div>
+
+  <div class="controls">
+    <button id="resetBtn" type="button">reset board</button>
+  </div>
+
+  <p class="note">Tap a piece, then tap a highlighted square to move it. There is
+    no check and no checkmate — capture the opposing king outright and you win.
+    No castling, no en passant; pawns promote to a queen on the far rank.</p>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('surface tension');
+
+  var N = 8, SQ = 100;
+  var RADIUS = { K: 38, Q: 35, R: 29, B: 27, N: 27, P: 21 };
+  var GLYPH = { K: '♔', Q: '♕', R: '♖', B: '♝', N: '♞', P: '♙' };
+  // Bishop and knight glyphs above are picked purely for silhouette contrast
+  // against the round droplets; colour (not glyph style) carries the team.
+
+  var svg = document.getElementById('board');
+  var squaresG = document.getElementById('squares');
+  var selectG = document.getElementById('selectLayer');
+  var legalG = document.getElementById('legalLayer');
+  var waterG = document.getElementById('waterLayer');
+  var wineG = document.getElementById('wineLayer');
+  var glyphG = document.getElementById('glyphLayer');
+  var statusEl = document.getElementById('status');
+
+  var board, pieces, selected, gameOver, nextId;
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function xy(row, col) { return { x: col * SQ + SQ / 2, y: row * SQ + SQ / 2 }; }
+
+  function buildSquares() {
+    squaresG.innerHTML = '';
+    for (var r = 0; r < N; r++) {
+      for (var c = 0; c < N; c++) {
+        var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', c * SQ); rect.setAttribute('y', r * SQ);
+        rect.setAttribute('width', SQ); rect.setAttribute('height', SQ);
+        rect.setAttribute('class', 'sq' + ((r + c) % 2 ? ' alt' : '') + ' sq-hit');
+        rect.dataset.row = r; rect.dataset.col = c;
+        rect.addEventListener('click', onSquareClick);
+        squaresG.appendChild(rect);
+      }
+    }
+  }
+
+  var BACK = ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'];
+
+  function initialPieces() {
+    var list = [];
+    for (var c = 0; c < N; c++) {
+      list.push({ type: BACK[c], color: 'b', row: 0, col: c });
+      list.push({ type: 'P', color: 'b', row: 1, col: c });
+      list.push({ type: 'P', color: 'w', row: 6, col: c });
+      list.push({ type: BACK[c], color: 'w', row: 7, col: c });
+    }
+    return list;
+  }
+
+  function newGame() {
+    board = [];
+    for (var r = 0; r < N; r++) { board.push(new Array(N).fill(null)); }
+    pieces = [];
+    nextId = 1;
+    selected = null;
+    gameOver = false;
+    turn = 'w';
+    waterG.innerHTML = ''; wineG.innerHTML = ''; glyphG.innerHTML = '';
+    initialPieces().forEach(function (p) {
+      p.id = nextId++;
+      board[p.row][p.col] = p;
+      pieces.push(p);
+      mountPiece(p);
+    });
+    clearSelection();
+    updateStatus();
+  }
+
+  function mountPiece(p) {
+    var pos = xy(p.row, p.col);
+    var circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', pos.x); circle.setAttribute('cy', pos.y);
+    circle.setAttribute('r', RADIUS[p.type]);
+    circle.setAttribute('class', 'piece-circle ' + (p.color === 'w' ? 'water' : 'wine'));
+    if (!reduceMotion) circle.style.animationDelay = (-(Math.random() * 3.6)).toFixed(2) + 's';
+    (p.color === 'w' ? waterG : wineG).appendChild(circle);
+
+    var text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', pos.x); text.setAttribute('y', pos.y + 2);
+    text.setAttribute('class', 'piece-glyph');
+    text.textContent = GLYPH[p.type];
+    glyphG.appendChild(text);
+
+    p.circleEl = circle; p.textEl = text;
+  }
+
+  function movePieceDom(p) {
+    var pos = xy(p.row, p.col);
+    p.circleEl.setAttribute('cx', pos.x); p.circleEl.setAttribute('cy', pos.y);
+    p.circleEl.setAttribute('r', RADIUS[p.type]);
+    p.textEl.setAttribute('x', pos.x); p.textEl.setAttribute('y', pos.y + 2);
+    p.textEl.textContent = GLYPH[p.type];
+  }
+
+  function dissolvePiece(p) {
+    p.circleEl.setAttribute('r', 0);
+    p.circleEl.style.opacity = '0';
+    p.textEl.style.opacity = '0';
+    var delay = reduceMotion ? 0 : 320;
+    setTimeout(function () {
+      if (p.circleEl.parentNode) p.circleEl.parentNode.removeChild(p.circleEl);
+      if (p.textEl.parentNode) p.textEl.parentNode.removeChild(p.textEl);
+    }, delay);
+  }
+
+  var turn = 'w';
+
+  function inBounds(r, c) { return r >= 0 && r < N && c >= 0 && c < N; }
+
+  function slideMoves(p, dirs, moves) {
+    dirs.forEach(function (d) {
+      var r = p.row + d[0], c = p.col + d[1];
+      while (inBounds(r, c)) {
+        var occ = board[r][c];
+        if (!occ) { moves.push({ row: r, col: c }); }
+        else { if (occ.color !== p.color) moves.push({ row: r, col: c }); break; }
+        r += d[0]; c += d[1];
+      }
+    });
+  }
+
+  function stepMoves(p, offsets, moves) {
+    offsets.forEach(function (o) {
+      var r = p.row + o[0], c = p.col + o[1];
+      if (!inBounds(r, c)) return;
+      var occ = board[r][c];
+      if (!occ || occ.color !== p.color) moves.push({ row: r, col: c });
+    });
+  }
+
+  var DIAG = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+  var ORTH = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+  var KNIGHT = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
+  var ALL8 = DIAG.concat(ORTH);
+
+  function legalMoves(p) {
+    var moves = [];
+    if (p.type === 'P') {
+      var dir = p.color === 'w' ? -1 : 1;
+      var startRow = p.color === 'w' ? 6 : 1;
+      if (inBounds(p.row + dir, p.col) && !board[p.row + dir][p.col]) {
+        moves.push({ row: p.row + dir, col: p.col });
+        if (p.row === startRow && !board[p.row + 2 * dir][p.col]) {
+          moves.push({ row: p.row + 2 * dir, col: p.col });
+        }
+      }
+      [-1, 1].forEach(function (dc) {
+        var r = p.row + dir, c = p.col + dc;
+        if (inBounds(r, c) && board[r][c] && board[r][c].color !== p.color) {
+          moves.push({ row: r, col: c });
+        }
+      });
+    } else if (p.type === 'N') { stepMoves(p, KNIGHT, moves); }
+    else if (p.type === 'K') { stepMoves(p, ALL8, moves); }
+    else if (p.type === 'B') { slideMoves(p, DIAG, moves); }
+    else if (p.type === 'R') { slideMoves(p, ORTH, moves); }
+    else if (p.type === 'Q') { slideMoves(p, ALL8, moves); }
+    return moves;
+  }
+
+  function clearSelection() {
+    selected = null;
+    selectG.innerHTML = '';
+    legalG.innerHTML = '';
+  }
+
+  function drawSelection(p, moves) {
+    selectG.innerHTML = '';
+    var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', p.col * SQ); rect.setAttribute('y', p.row * SQ);
+    rect.setAttribute('width', SQ); rect.setAttribute('height', SQ);
+    rect.setAttribute('class', 'sq selected');
+    selectG.appendChild(rect);
+
+    legalG.innerHTML = '';
+    moves.forEach(function (m) {
+      var pos = xy(m.row, m.col);
+      var occ = board[m.row][m.col];
+      var el = document.createElementNS('http://www.w3.org/2000/svg',
+        occ ? 'circle' : 'circle');
+      el.setAttribute('cx', pos.x); el.setAttribute('cy', pos.y);
+      if (occ) { el.setAttribute('r', 42); el.setAttribute('class', 'legal-ring'); }
+      else { el.setAttribute('r', 11); el.setAttribute('class', 'legal-dot'); }
+      legalG.appendChild(el);
+    });
+  }
+
+  function updateStatus(winner) {
+    if (winner) {
+      var w = winner === 'w' ? 'Water' : 'Wine';
+      var cls = winner === 'w' ? 'water' : 'wine';
+      statusEl.innerHTML = '<b class="' + cls + '">' + w + ' wins</b> — the opposing king dissolved.';
+      return;
+    }
+    var t = turn === 'w' ? 'Water' : 'Wine';
+    var cls = turn === 'w' ? 'water' : 'wine';
+    statusEl.innerHTML = '<b class="' + cls + '">' + t + '</b> to move.';
+  }
+
+  function performMove(p, dest) {
+    var target = board[dest.row][dest.col];
+    if (target) {
+      board[target.row][target.col] = null;
+      pieces = pieces.filter(function (x) { return x.id !== target.id; });
+      dissolvePiece(target);
+      if (target.type === 'K') {
+        gameOver = true;
+      }
+    }
+    board[p.row][p.col] = null;
+    p.row = dest.row; p.col = dest.col;
+    board[p.row][p.col] = p;
+    if (p.type === 'P' && (p.row === 0 || p.row === 7)) p.type = 'Q';
+    movePieceDom(p);
+    if (gameOver) {
+      updateStatus(p.color);
+      clearSelection();
+      return;
+    }
+    turn = turn === 'w' ? 'b' : 'w';
+    clearSelection();
+    updateStatus();
+  }
+
+  function onSquareClick(e) {
+    if (gameOver) return;
+    var row = parseInt(e.currentTarget.dataset.row, 10);
+    var col = parseInt(e.currentTarget.dataset.col, 10);
+    var occ = board[row][col];
+
+    if (selected) {
+      var isLegal = selected.moves.some(function (m) { return m.row === row && m.col === col; });
+      if (isLegal) { performMove(selected.piece, { row: row, col: col }); return; }
+      if (occ && occ.color === turn) { selectPiece(occ); return; }
+      clearSelection();
+      return;
+    }
+    if (occ && occ.color === turn) { selectPiece(occ); }
+  }
+
+  function selectPiece(p) {
+    var moves = legalMoves(p);
+    selected = { piece: p, moves: moves };
+    drawSelection(p, moves);
+  }
+
+  document.getElementById('resetBtn').addEventListener('click', newGame);
+
+  buildSquares();
+  newGame();
+})();
+</script>
+</body>
+</html>

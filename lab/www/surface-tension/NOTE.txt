@@ -1,0 +1,1 @@
+Full 2-player chess: droplets goo-merge by team, dissolve on capture, king-capture wins, no check/checkmate — same rules mentioned in the thread. Local pass-and-play only; no save/online play yet, that's the natural next step.
