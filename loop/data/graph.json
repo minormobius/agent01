@@ -14411,13 +14411,16 @@
       "parent": "lp-2db73b",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "91",
-      "evidence": [],
+      "evidence": [
+        "rejected: FAILS R3, and the ticket says so itself. Bounded paths are scripts/lib/beads.mjs and scripts/loop-tick.selftest.mjs; .github/loop/config.json's `writes` is loop/**, .github/loop/**, plant/** — verified this turn. No seat can write either file, so promoting this puts it in a queue where the reactor dispatches it to an agent structurally forbidden to satisfy it. That is the exact shape of the record"
+      ],
       "created": "2026-08-06T23:58:33.524Z",
-      "updated": "2026-08-06T23:58:33.524Z",
+      "updated": "2026-08-07T00:01:56.917Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -14433,13 +14436,16 @@
       "parent": "lp-2db73b",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "91",
-      "evidence": [],
+      "evidence": [
+        "rejected: FAILS THE VISION TEST, which outranks the DoR. R1, R2, R3, R5, R6 all pass — the gate exists, the paths are under plant/, the body is exemplary. It is rejected because plant/pocketLevel.mjs is imported by NOTHING except plant/test/pocket-level.selftest.mjs (grepped this turn: no import in index.html, none in level.mjs, none anywhere). vision.md's 'What does not matter right now' names this case li"
+      ],
       "created": "2026-08-06T23:58:33.524Z",
-      "updated": "2026-08-06T23:58:33.524Z",
+      "updated": "2026-08-07T00:01:56.996Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -14455,13 +14461,16 @@
       "parent": "lp-2db73b",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "91",
-      "evidence": [],
+      "evidence": [
+        "rejected: FAILS R4 AND THE VISION TEST. R4 first, because it is objective: this touches plant/pocketLevel.mjs and plant/test/pocket-level.selftest.mjs — the identical two files as lp-306e74, both editing classify()'s blame branches and both editing the SHAPE literal block. They are not independent; dispatched together they collide, and the DoR asks for independence rather than luck. Then the same vision fai"
+      ],
       "created": "2026-08-06T23:58:33.524Z",
-      "updated": "2026-08-06T23:58:33.524Z",
+      "updated": "2026-08-07T00:01:57.066Z",
       "blocked": false,
       "ready": false,
       "unmet": []
