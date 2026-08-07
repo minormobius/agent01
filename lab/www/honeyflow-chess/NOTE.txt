@@ -1,0 +1,1 @@
+Built a real stable-fluids solver (diffusion + pressure projection), no vorticity confinement on purpose — that's the swirl trick, and honey doesn't swirl. Sliders expose flow strength & thickness since I couldn't tune by feel without a browser.

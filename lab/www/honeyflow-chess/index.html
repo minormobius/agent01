@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Honeyflow Chess</title>
+<meta property="og:title" content="Honeyflow Chess">
+<meta property="og:description" content="A chess board of honey. Every move releases a laminar flow scaled to how far the piece travelled, with live streamlines drawn over the grid.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --accent: #e8a33d; --accent-dim: #3a2c15; }
+  main { max-width: 44rem; }
+  h1 { font-size: clamp(1.8rem, 6vw, 2.5rem); }
+  .lede { color: var(--muted); font-size: .9rem; margin: 0 0 1.5rem; }
+
+  .status-row {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: .75rem; flex-wrap: wrap; margin-bottom: .75rem; font-size: .85rem;
+  }
+  .turn { font-weight: 600; }
+  .turn.w { color: #fff; }
+  .turn.b { color: var(--accent); }
+  #lastmove { color: var(--muted); min-height: 1.4em; }
+
+  .board-wrap {
+    position: relative;
+    width: min(100%, 620px);
+    aspect-ratio: 1;
+    margin: 0 auto 1rem;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px var(--border), 0 12px 40px rgba(0,0,0,.5);
+    touch-action: manipulation;
+  }
+  .board-wrap canvas {
+    position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  }
+  .pieces {
+    position: absolute; inset: 0;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+  }
+  .sq {
+    background: transparent; border: none; padding: 0; margin: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(1.4rem, 6.5vw, 2.6rem);
+    line-height: 1; cursor: pointer;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    color: #2a1a06;
+    position: relative;
+  }
+  .sq.white-piece { color: #fffaf0; -webkit-text-stroke: 1px #2a1a06; text-stroke: 1px #2a1a06; }
+  .sq.sel { box-shadow: inset 0 0 0 3px var(--accent); }
+  .sq.legal::after {
+    content: ''; position: absolute; width: 26%; height: 26%; border-radius: 50%;
+    background: rgba(20,10,0,.35);
+  }
+  .sq.legal.has::after {
+    width: 82%; height: 82%; border-radius: 8px; background: none;
+    box-shadow: inset 0 0 0 3px rgba(20,10,0,.45);
+  }
+  .sq:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 1.25rem; margin: 1.25rem 0;
+    font-size: .8rem;
+  }
+  .ctl { flex: 1 1 220px; }
+  .ctl label { display: flex; justify-content: space-between; color: var(--muted); margin-bottom: .3rem; }
+  .ctl input[type=range] { width: 100%; accent-color: var(--accent); }
+  .btnrow { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: 1rem; }
+  .btnrow button { min-height: 44px; }
+
+  footer { margin-top: 2rem; font-size: .78rem; color: var(--muted); }
+  footer p { font-size: inherit; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Honeyflow Chess</h1>
+  <p class="lede">The board is a shallow pan of honey. Play a normal game — moving a piece
+    doesn't just relocate it, it drags a laminar impulse through the fluid underneath, scaled
+    to how far the piece travelled. High viscosity keeps everything creeping and smooth: no
+    turbulence, no vortices, just honey settling back to rest. The grid stays put; the
+    streamlines drawn over it are the only thing that moves on its own.</p>
+
+  <div class="status-row">
+    <span class="turn w" id="turnLabel">White to move</span>
+    <span id="lastmove"></span>
+  </div>
+
+  <div class="board-wrap">
+    <canvas id="fluid" width="720" height="720"></canvas>
+    <div class="pieces" id="pieces"></div>
+  </div>
+
+  <div class="controls">
+    <div class="ctl">
+      <label>Flow strength <span id="flowVal">2.0×</span></label>
+      <input type="range" id="flowStrength" min="0.4" max="4" step="0.1" value="2">
+    </div>
+    <div class="ctl">
+      <label>Honey thickness <span id="viscVal">med</span></label>
+      <input type="range" id="thickness" min="1" max="10" step="1" value="5">
+    </div>
+  </div>
+
+  <div class="btnrow">
+    <button id="resetBoard">Reset board</button>
+    <button id="clearFlow">Still the honey</button>
+    <button id="toggleStreams" aria-pressed="true">Streamlines: on</button>
+  </div>
+
+  <footer>
+    <p>Move shapes follow standard chess (pawns, knights, bishops, rooks, queens, kings,
+      forward promotion to queen). Check, checkmate, castling and en passant are not
+      implemented — this board is about the fluid, not the tournament rules — so a king can
+      be captured like anything else.</p>
+    <p id="reducedMotionNote" hidden>Reduced motion is on: the fluid still simulates (it's the
+      whole point of the page) but streamlines redraw less often.</p>
+  </footer>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('others-induce');
+
+  // ---------------------------------------------------------------------
+  // Stable-fluids solver (Stam / Mike Ash formulation): unconditionally
+  // stable semi-Lagrangian advection + Gauss-Seidel diffusion + a pressure
+  // projection to keep the field divergence-free (incompressible). No
+  // vorticity confinement on purpose — that's the step that manufactures
+  // swirls, and honey doesn't swirl, it creeps.
+  // ---------------------------------------------------------------------
+  const N = 50; // interior 48x48, +2 boundary cells
+  function IX(x, y) { return x + y * N; }
+
+  function Fluid() {
+    this.Vx = new Float32Array(N * N);
+    this.Vy = new Float32Array(N * N);
+    this.Vx0 = new Float32Array(N * N);
+    this.Vy0 = new Float32Array(N * N);
+    this.dens = new Float32Array(N * N);
+    this.dens0 = new Float32Array(N * N);
+    this.visc = 0.00025;
+    this.diff = 0.00012;
+    this.dt = 1;
+  }
+
+  Fluid.prototype.addVelocity = function (x, y, ax, ay) {
+    const i = clampi(Math.round(x), 1, N - 2), j = clampi(Math.round(y), 1, N - 2);
+    this.Vx[IX(i, j)] += ax;
+    this.Vy[IX(i, j)] += ay;
+  };
+  Fluid.prototype.addDensity = function (x, y, amt) {
+    const i = clampi(Math.round(x), 1, N - 2), j = clampi(Math.round(y), 1, N - 2);
+    this.dens[IX(i, j)] += amt;
+  };
+  Fluid.prototype.reset = function () {
+    this.Vx.fill(0); this.Vy.fill(0); this.Vx0.fill(0); this.Vy0.fill(0);
+    this.dens.fill(0); this.dens0.fill(0);
+  };
+
+  function clampi(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+
+  function setBnd(b, x) {
+    for (let i = 1; i < N - 1; i++) {
+      x[IX(i, 0)] = b === 2 ? -x[IX(i, 1)] : x[IX(i, 1)];
+      x[IX(i, N - 1)] = b === 2 ? -x[IX(i, N - 2)] : x[IX(i, N - 2)];
+    }
+    for (let j = 1; j < N - 1; j++) {
+      x[IX(0, j)] = b === 1 ? -x[IX(1, j)] : x[IX(1, j)];
+      x[IX(N - 1, j)] = b === 1 ? -x[IX(N - 2, j)] : x[IX(N - 2, j)];
+    }
+    x[IX(0, 0)] = 0.5 * (x[IX(1, 0)] + x[IX(0, 1)]);
+    x[IX(0, N - 1)] = 0.5 * (x[IX(1, N - 1)] + x[IX(0, N - 2)]);
+    x[IX(N - 1, 0)] = 0.5 * (x[IX(N - 2, 0)] + x[IX(N - 1, 1)]);
+    x[IX(N - 1, N - 1)] = 0.5 * (x[IX(N - 2, N - 1)] + x[IX(N - 1, N - 2)]);
+  }
+
+  function linSolve(b, x, x0, a, c, iter) {
+    const cRecip = 1 / c;
+    for (let k = 0; k < iter; k++) {
+      for (let j = 1; j < N - 1; j++) {
+        for (let i = 1; i < N - 1; i++) {
+          x[IX(i, j)] = (x0[IX(i, j)] + a * (x[IX(i + 1, j)] + x[IX(i - 1, j)] +
+            x[IX(i, j + 1)] + x[IX(i, j - 1)])) * cRecip;
+        }
+      }
+      setBnd(b, x);
+    }
+  }
+
+  function diffuse(b, x, x0, diffAmt, dt, iter) {
+    const a = dt * diffAmt * (N - 2) * (N - 2);
+    linSolve(b, x, x0, a, 1 + 6 * a, iter);
+  }
+
+  function project(vx, vy, p, div, iter) {
+    for (let j = 1; j < N - 1; j++) {
+      for (let i = 1; i < N - 1; i++) {
+        div[IX(i, j)] = -0.5 * (vx[IX(i + 1, j)] - vx[IX(i - 1, j)] +
+          vy[IX(i, j + 1)] - vy[IX(i, j - 1)]) / N;
+        p[IX(i, j)] = 0;
+      }
+    }
+    setBnd(0, div); setBnd(0, p);
+    linSolve(0, p, div, 1, 6, iter);
+    for (let j = 1; j < N - 1; j++) {
+      for (let i = 1; i < N - 1; i++) {
+        vx[IX(i, j)] -= 0.5 * (p[IX(i + 1, j)] - p[IX(i - 1, j)]) * N;
+        vy[IX(i, j)] -= 0.5 * (p[IX(i, j + 1)] - p[IX(i, j - 1)]) * N;
+      }
+    }
+    setBnd(1, vx); setBnd(2, vy);
+  }
+
+  function advect(b, d, d0, vx, vy, dt) {
+    const dtx = dt * (N - 2), dty = dt * (N - 2);
+    for (let j = 1; j < N - 1; j++) {
+      for (let i = 1; i < N - 1; i++) {
+        let x = i - dtx * vx[IX(i, j)];
+        let y = j - dty * vy[IX(i, j)];
+        if (x < 0.5) x = 0.5; if (x > N - 1.5) x = N - 1.5;
+        if (y < 0.5) y = 0.5; if (y > N - 1.5) y = N - 1.5;
+        const i0 = Math.floor(x), i1 = i0 + 1, j0 = Math.floor(y), j1 = j0 + 1;
+        const s1 = x - i0, s0 = 1 - s1, t1 = y - j0, t0 = 1 - t1;
+        d[IX(i, j)] = s0 * (t0 * d0[IX(i0, j0)] + t1 * d0[IX(i0, j1)]) +
+                      s1 * (t0 * d0[IX(i1, j0)] + t1 * d0[IX(i1, j1)]);
+      }
+    }
+    setBnd(b, d);
+  }
+
+  Fluid.prototype.step = function () {
+    const iter = 4, dt = this.dt;
+    diffuse(1, this.Vx0, this.Vx, this.visc, dt, iter);
+    diffuse(2, this.Vy0, this.Vy, this.visc, dt, iter);
+    project(this.Vx0, this.Vy0, this.Vx, this.Vy, iter);
+    advect(1, this.Vx, this.Vx0, this.Vx0, this.Vy0, dt);
+    advect(2, this.Vy, this.Vy0, this.Vx0, this.Vy0, dt);
+    project(this.Vx, this.Vy, this.Vx0, this.Vy0, iter);
+    diffuse(0, this.dens0, this.dens, this.diff, dt, iter);
+    advect(0, this.dens, this.dens0, this.Vx, this.Vy, dt);
+    for (let k = 0; k < this.dens.length; k++) this.dens[k] *= 0.996;
+  };
+
+  // sample bilinear velocity at board coords (0..8)
+  Fluid.prototype.sampleVel = function (bx, by) {
+    const sx = clampf(1 + bx * (N - 2) / 8, 1, N - 2);
+    const sy = clampf(1 + by * (N - 2) / 8, 1, N - 2);
+    const i0 = Math.floor(sx), j0 = Math.floor(sy);
+    const i1 = Math.min(i0 + 1, N - 2), j1 = Math.min(j0 + 1, N - 2);
+    const s1 = sx - i0, s0 = 1 - s1, t1 = sy - j0, t0 = 1 - t1;
+    const vx = s0 * (t0 * this.Vx[IX(i0, j0)] + t1 * this.Vx[IX(i0, j1)]) +
+               s1 * (t0 * this.Vx[IX(i1, j0)] + t1 * this.Vx[IX(i1, j1)]);
+    const vy = s0 * (t0 * this.Vy[IX(i0, j0)] + t1 * this.Vy[IX(i0, j1)]) +
+               s1 * (t0 * this.Vy[IX(i1, j0)] + t1 * this.Vy[IX(i1, j1)]);
+    return [vx, vy];
+  };
+  function clampf(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+
+  const fluid = new Fluid();
+
+  // ---------------------------------------------------------------------
+  // Chess: standard piece-movement shapes, no check/checkmate/castling.
+  // ---------------------------------------------------------------------
+  const START = [
+    ['bR','bN','bB','bQ','bK','bB','bN','bR'],
+    ['bP','bP','bP','bP','bP','bP','bP','bP'],
+    [null,null,null,null,null,null,null,null],
+    [null,null,null,null,null,null,null,null],
+    [null,null,null,null,null,null,null,null],
+    [null,null,null,null,null,null,null,null],
+    ['wP','wP','wP','wP','wP','wP','wP','wP'],
+    ['wR','wN','wB','wQ','wK','wB','wN','wR'],
+  ];
+  const GLYPH = {
+    wK:'♔', wQ:'♕', wR:'♖', wB:'♗', wN:'♘', wP:'♙',
+    bK:'♚', bQ:'♛', bR:'♜', bB:'♝', bN:'♞', bP:'♟',
+  };
+  let board, turn, sel, legal;
+
+  function newGame() {
+    board = START.map(row => row.slice());
+    turn = 'w'; sel = null; legal = [];
+    fluid.reset();
+    document.getElementById('lastmove').textContent = '';
+    updateTurnLabel();
+    renderPieces();
+  }
+
+  function inb(r, c) { return r >= 0 && r < 8 && c >= 0 && c < 8; }
+
+  function movesFor(r, c) {
+    const p = board[r][c]; if (!p) return [];
+    const color = p[0], type = p[1];
+    const dir = color === 'w' ? -1 : 1;
+    const startRow = color === 'w' ? 6 : 1;
+    const enemy = (rr, cc) => board[rr][cc] && board[rr][cc][0] !== color;
+    const moves = [];
+    if (type === 'P') {
+      if (inb(r + dir, c) && !board[r + dir][c]) {
+        moves.push([r + dir, c]);
+        if (r === startRow && !board[r + 2 * dir][c]) moves.push([r + 2 * dir, c]);
+      }
+      for (const dc of [-1, 1]) {
+        if (inb(r + dir, c + dc) && enemy(r + dir, c + dc)) moves.push([r + dir, c + dc]);
+      }
+    } else if (type === 'N') {
+      const offs = [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
+      for (const [dr, dc] of offs) {
+        const nr = r + dr, nc = c + dc;
+        if (inb(nr, nc) && (!board[nr][nc] || enemy(nr, nc))) moves.push([nr, nc]);
+      }
+    } else if (type === 'K') {
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        if (!dr && !dc) continue;
+        const nr = r + dr, nc = c + dc;
+        if (inb(nr, nc) && (!board[nr][nc] || enemy(nr, nc))) moves.push([nr, nc]);
+      }
+    } else {
+      const dirs = type === 'R' ? [[1,0],[-1,0],[0,1],[0,-1]]
+        : type === 'B' ? [[1,1],[1,-1],[-1,1],[-1,-1]]
+        : [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+      for (const [dr, dc] of dirs) {
+        let nr = r + dr, nc = c + dc;
+        while (inb(nr, nc)) {
+          if (!board[nr][nc]) { moves.push([nr, nc]); }
+          else { if (enemy(nr, nc)) moves.push([nr, nc]); break; }
+          nr += dr; nc += dc;
+        }
+      }
+    }
+    return moves;
+  }
+
+  function sqName(r, c) { return String.fromCharCode(97 + c) + (8 - r); }
+
+  const piecesEl = document.getElementById('pieces');
+  const cells = [];
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'sq';
+      btn.setAttribute('aria-label', sqName(r, c));
+      btn.dataset.r = r; btn.dataset.c = c;
+      btn.addEventListener('click', onCellClick);
+      piecesEl.appendChild(btn);
+      cells.push(btn);
+    }
+  }
+
+  function cellAt(r, c) { return cells[r * 8 + c]; }
+
+  function renderPieces() {
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const btn = cellAt(r, c);
+        const p = board[r][c];
+        btn.textContent = p ? GLYPH[p] : '';
+        btn.classList.toggle('white-piece', !!p && p[0] === 'w');
+        btn.classList.toggle('sel', !!sel && sel[0] === r && sel[1] === c);
+        const isLegal = legal.some(m => m[0] === r && m[1] === c);
+        btn.classList.toggle('legal', isLegal);
+        btn.classList.toggle('has', isLegal && !!p);
+      }
+    }
+  }
+
+  function updateTurnLabel() {
+    const el = document.getElementById('turnLabel');
+    el.textContent = (turn === 'w' ? 'White' : 'Black') + ' to move';
+    el.className = 'turn ' + turn;
+  }
+
+  function onCellClick(e) {
+    const r = +e.currentTarget.dataset.r, c = +e.currentTarget.dataset.c;
+    const p = board[r][c];
+    if (sel) {
+      const dest = legal.find(m => m[0] === r && m[1] === c);
+      if (dest) { doMove(sel[0], sel[1], r, c); return; }
+    }
+    if (p && p[0] === turn) {
+      sel = [r, c];
+      legal = movesFor(r, c);
+    } else {
+      sel = null; legal = [];
+    }
+    renderPieces();
+  }
+
+  function doMove(fr, fc, tr, tc) {
+    const piece = board[fr][fc];
+    const captured = board[tr][tc];
+    board[tr][tc] = piece;
+    board[fr][fc] = null;
+    if (piece[1] === 'P' && (tr === 0 || tr === 7)) board[tr][tc] = piece[0] + 'Q';
+
+    const dx = tc - fc, dy = tr - fr;
+    const dist = Math.hypot(dx, dy);
+    injectFlow(fc + 0.5, fr + 0.5, tc + 0.5, tr + 0.5, dist);
+
+    const letter = { P:'', N:'N', B:'B', R:'R', Q:'Q', K:'K' }[piece[1]];
+    document.getElementById('lastmove').textContent =
+      (turn === 'w' ? 'White' : 'Black') + ': ' + letter + sqName(fr, fc) +
+      (captured ? '×' : '–') + sqName(tr, tc) +
+      ' · flow ×' + dist.toFixed(2);
+
+    sel = null; legal = [];
+    turn = turn === 'w' ? 'b' : 'w';
+    updateTurnLabel();
+    renderPieces();
+  }
+
+  function injectFlow(fx, fy, tx, ty, dist) {
+    if (dist < 1e-4) return;
+    const dx = tx - fx, dy = ty - fy;
+    const ux = dx / dist, uy = dy / dist;
+    const steps = Math.max(3, Math.round(dist * 6));
+    const flowStrength = +document.getElementById('flowStrength').value;
+    const base = flowStrength * (0.7 + dist * 0.55);
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const bx = fx + dx * t, by = fy + dy * t;
+      const sx = 1 + bx * (N - 2) / 8, sy = 1 + by * (N - 2) / 8;
+      const fall = Math.max(0.2, 1 - Math.abs(t - 0.5) * 1.3);
+      fluid.addVelocity(sx, sy, ux * base * fall * 0.09, uy * base * fall * 0.09);
+      fluid.addDensity(sx, sy, base * fall * 3.2);
+    }
+  }
+
+  document.getElementById('resetBoard').addEventListener('click', newGame);
+  document.getElementById('clearFlow').addEventListener('click', function () { fluid.reset(); });
+
+  const flowInput = document.getElementById('flowStrength');
+  flowInput.addEventListener('input', function () {
+    document.getElementById('flowVal').textContent = (+flowInput.value).toFixed(1) + '×';
+  });
+  const viscInput = document.getElementById('thickness');
+  const viscLabels = ['thin','thin','loose','loose','med','med','thick','thick','stiff','stiff'];
+  viscInput.addEventListener('input', function () {
+    const v = +viscInput.value;
+    // higher slider = thicker honey = more viscosity/diffusion = more laminar damping
+    fluid.visc = 0.00006 * v;
+    fluid.diff = 0.00003 * v;
+    document.getElementById('viscVal').textContent = viscLabels[v - 1] || 'med';
+  });
+  viscInput.dispatchEvent(new Event('input'));
+  flowInput.dispatchEvent(new Event('input'));
+
+  let streamsOn = true;
+  const streamBtn = document.getElementById('toggleStreams');
+  streamBtn.addEventListener('click', function () {
+    streamsOn = !streamsOn;
+    streamBtn.textContent = 'Streamlines: ' + (streamsOn ? 'on' : 'off');
+    streamBtn.setAttribute('aria-pressed', String(streamsOn));
+  });
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduceMotion) document.getElementById('reducedMotionNote').hidden = false;
+
+  // ---------------------------------------------------------------------
+  // Rendering
+  // ---------------------------------------------------------------------
+  const canvas = document.getElementById('fluid');
+  const ctx = canvas.getContext('2d');
+  const SIZE = canvas.width; // 720, square
+  const CELL = SIZE / 8;
+  const densCanvas = document.createElement('canvas');
+  densCanvas.width = N - 2; densCanvas.height = N - 2;
+  const densCtx = densCanvas.getContext('2d');
+  const densImg = densCtx.createImageData(N - 2, N - 2);
+
+  const LIGHT = '#f3c877', DARK = '#b8792e';
+
+  function drawBoard() {
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        ctx.fillStyle = (r + c) % 2 === 0 ? LIGHT : DARK;
+        ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+      }
+    }
+  }
+
+  function drawDensity() {
+    const data = densImg.data;
+    let k = 0;
+    for (let j = 1; j < N - 1; j++) {
+      for (let i = 1; i < N - 1; i++) {
+        const d = fluid.dens[IX(i, j)];
+        const a = clampf(d * 10, 0, 235);
+        data[k++] = 255; data[k++] = 176; data[k++] = 46; data[k++] = a;
+      }
+    }
+    densCtx.putImageData(densImg, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(densCanvas, 0, 0, N - 2, N - 2, 0, 0, SIZE, SIZE);
+  }
+
+  function drawGrid() {
+    ctx.strokeStyle = 'rgba(40,24,4,.35)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 8; i++) {
+      ctx.beginPath(); ctx.moveTo(i * CELL, 0); ctx.lineTo(i * CELL, SIZE); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, i * CELL); ctx.lineTo(SIZE, i * CELL); ctx.stroke();
+    }
+  }
+
+  let streamPaths = [];
+  function computeStreamlines() {
+    streamPaths = [];
+    const SEEDS = 11, STEP = 0.16, STEPS = 7;
+    for (let sy = 0; sy < SEEDS; sy++) {
+      for (let sx = 0; sx < SEEDS; sx++) {
+        let bx = (sx + 0.5) * 8 / SEEDS, by = (sy + 0.5) * 8 / SEEDS;
+        const pts = [[bx, by]];
+        let maxSpeed = 0;
+        for (let s = 0; s < STEPS; s++) {
+          const v = fluid.sampleVel(bx, by);
+          const speed = Math.hypot(v[0], v[1]);
+          maxSpeed = Math.max(maxSpeed, speed);
+          if (speed < 0.0006) break;
+          const ux = v[0] / speed, uy = v[1] / speed;
+          bx += ux * STEP; by += uy * STEP;
+          if (bx < 0 || bx > 8 || by < 0 || by > 8) break;
+          pts.push([bx, by]);
+        }
+        if (pts.length > 1 && maxSpeed > 0.0006) streamPaths.push({ pts, speed: maxSpeed });
+      }
+    }
+  }
+
+  function drawStreamlines() {
+    for (const path of streamPaths) {
+      const alpha = clampf(path.speed * 60, 0.12, 0.85);
+      ctx.strokeStyle = 'rgba(255,238,205,' + alpha.toFixed(2) + ')';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      path.pts.forEach((p, i) => {
+        const x = p[0] * CELL, y = p[1] * CELL;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
+  }
+
+  let frame = 0;
+  function loop() {
+    fluid.step();
+    drawBoard();
+    drawDensity();
+    if (streamsOn) {
+      const every = reduceMotion ? 24 : 8;
+      if (frame % every === 0) computeStreamlines();
+      drawStreamlines();
+    }
+    drawGrid();
+    frame++;
+    requestAnimationFrame(loop);
+  }
+
+  newGame();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
