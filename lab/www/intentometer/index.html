@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Intentometer — mino.mobi lab</title>
+<meta property="og:title" content="Intentometer">
+<meta property="og:description" content="Type what you're about to do and get back the goal patterns it spotted — fitness, money, quitting something, learning something — not a probability score. Or point it at a Bluesky handle and see which patterns keep recurring across their last posts. A word-pattern heuristic, honestly labelled as one — not sentiment AI.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  #crumb {}
+  .sub { max-width: 34rem; }
+  section.card {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.25rem 1.25rem 1.5rem; margin: 1.5rem 0;
+  }
+  section.card h2 { margin-top: 0; color: var(--fg); }
+  textarea { resize: vertical; min-height: 4.5rem; }
+  .row { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: .7rem; }
+  .row > button { flex: none; }
+  .row > input, .row > textarea { flex: 1 1 12rem; min-width: 0; }
+  .patterns-heading { font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: .9rem 0 .5rem; }
+  .pattern-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .6rem; }
+  .pattern-card {
+    position: relative; background: var(--bg-raised); border-radius: var(--radius);
+    border-left: 4px solid var(--card-color, var(--accent)); padding: .7rem .8rem .6rem;
+  }
+  .pi-count {
+    position: absolute; top: .5rem; right: .6rem; font-size: .68rem; font-weight: 700;
+    color: var(--card-color, var(--accent));
+  }
+  .pi-icon { font-size: 1.5rem; display: block; line-height: 1; margin-bottom: .35rem; }
+  .pi-label { display: block; font-weight: 700; font-size: .82rem; color: var(--fg); text-transform: capitalize; }
+  .pi-phrase { font-size: .72rem; color: var(--muted); margin-top: .25rem; }
+  .score-label { text-align: center; font-size: .72rem; color: var(--muted); margin-top: 1.4rem; text-transform: uppercase; letter-spacing: .05em; }
+  .gauge-wrap { max-width: 220px; margin: .4rem auto 0; opacity: .85; }
+  .gauge-wrap svg { width: 100%; height: auto; display: block; }
+  .needle { transform-origin: 100px 100px; transition: transform .6s cubic-bezier(.34,1.56,.64,1); }
+  .reading { text-align: center; margin-top: .5rem; font-size: .82rem; color: var(--fg); }
+  .reading strong { color: var(--accent); font-size: 1.05rem; }
+  .hits { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: center; margin-top: .75rem; }
+  .chip { font-size: .72rem; padding: .3rem .55rem; border-radius: 999px; border: 1px solid var(--border); white-space: nowrap; }
+  .chip.up { color: var(--ok); border-color: var(--ok); }
+  .chip.down { color: var(--error); border-color: var(--error); }
+  .muted { color: var(--muted); font-size: .8rem; }
+  #feed-list { list-style: none; padding: 0; margin: 1.25rem 0 0; }
+  #feed-list li {
+    display: flex; gap: .8rem; align-items: flex-start;
+    padding: .6rem 0; border-top: 1px solid var(--border);
+  }
+  #feed-list li:first-child { border-top: 0; }
+  .post-score {
+    flex: none; width: 2.6rem; min-height: 2rem; display: flex; align-items: center; justify-content: center;
+    background: var(--accent-dim); color: var(--accent); border-radius: var(--radius);
+    font-size: .8rem; font-weight: 700;
+  }
+  .post-text { color: var(--fg); font-size: .82rem; line-height: 1.5; }
+  footer.note { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+  button[disabled] { opacity: .6; cursor: default; }
+  button, input, textarea { min-height: 44px; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Intentometer</h1>
+  <p class="sub">Say what you're about to do. It reads back the shape of it — which kind of
+  goal it sounds like, fitness, money, quitting something, learning something — rather than
+  a single score claiming to know if you'll follow through. There's a number if you still
+  want one, further down.</p>
+
+  <section class="card">
+    <h2>Say it</h2>
+    <textarea id="text-input" placeholder="I'm going to start running every morning this week."></textarea>
+    <div class="row">
+      <button id="read-btn">read it</button>
+    </div>
+    <div id="patterns-manual" hidden></div>
+    <div class="score-label" id="score-label-manual" hidden>for what it's worth, a number too</div>
+    <div class="gauge-wrap">
+      <svg id="gauge-manual" viewBox="0 0 200 112">
+        <path d="M20,100 A80,80 0 0 1 60,30.72" fill="none" stroke="var(--error)" stroke-width="16" opacity=".55"/>
+        <path d="M60,30.72 A80,80 0 0 1 140,30.72" fill="none" stroke="var(--border)" stroke-width="16"/>
+        <path d="M140,30.72 A80,80 0 0 1 180,100" fill="none" stroke="var(--ok)" stroke-width="16" opacity=".55"/>
+        <g class="needle">
+          <line x1="100" y1="100" x2="100" y2="26" stroke="var(--fg)" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="100" cy="100" r="7" fill="var(--accent)"/>
+        </g>
+      </svg>
+    </div>
+    <div class="reading" id="reading-manual" hidden></div>
+  </section>
+
+  <section class="card">
+    <h2>Automate it</h2>
+    <p class="muted" style="margin-top:0">Point the meter at a Bluesky account and it runs
+    itself across their last posts, instead of you typing one line at a time — and shows
+    which kinds of goal keep coming up, not just an average score.</p>
+    <div class="row">
+      <input id="handle-input" placeholder="handle.bsky.social" autocomplete="off">
+      <button id="run-btn">run the meter</button>
+    </div>
+    <div class="err" id="feed-error" hidden></div>
+    <div id="patterns-feed" hidden></div>
+    <div class="score-label" id="score-label-feed" hidden>for what it's worth, a number too</div>
+    <div class="gauge-wrap">
+      <svg id="gauge-feed" viewBox="0 0 200 112">
+        <path d="M20,100 A80,80 0 0 1 60,30.72" fill="none" stroke="var(--error)" stroke-width="16" opacity=".55"/>
+        <path d="M60,30.72 A80,80 0 0 1 140,30.72" fill="none" stroke="var(--border)" stroke-width="16"/>
+        <path d="M140,30.72 A80,80 0 0 1 180,100" fill="none" stroke="var(--ok)" stroke-width="16" opacity=".55"/>
+        <g class="needle">
+          <line x1="100" y1="100" x2="100" y2="26" stroke="var(--fg)" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="100" cy="100" r="7" fill="var(--accent)"/>
+        </g>
+      </svg>
+    </div>
+    <div class="reading" id="reading-feed" hidden></div>
+    <ul id="feed-list"></ul>
+  </section>
+
+  <footer class="note">
+    Both the goal patterns and the score are word-pattern matching — a fixed list of
+    phrases sorted into categories like "fitness" or "quitting," and a signal table for
+    "I will" versus "maybe someday." Not sentiment AI, and not a verdict on anyone. Posts
+    are read from Bluesky's public API for a handle you name; nothing is stored, and
+    nothing runs against a feed you didn't ask about.
+  </footer>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  document.getElementById('crumb').innerHTML = kit.crumb('intentometer');
+
+  var SIGNALS = [
+    { re: /\bi will\b|\bi'll\b/, w: 14, label: '"I will"' },
+    { re: /\bgonna\b|\bgoing to\b/, w: 9, label: '"going to"' },
+    { re: /\bi promise\b|\bvow(?:ed|ing)?\b/, w: 13, label: 'promise language' },
+    { re: /\bstarting (?:today|now|tomorrow|monday)\b/, w: 15, label: 'named start' },
+    { re: /\bevery (?:day|morning|night|week)\b/, w: 8, label: 'stated cadence' },
+    { re: /\bby (?:tonight|tomorrow|friday|monday|next week|the end of)\b/, w: 11, label: 'deadline' },
+    { re: /\bcommit(?:ted|ting)?\b/, w: 10, label: '"committed"' },
+    { re: /\bno more excuses\b/, w: 12, label: '"no more excuses"' },
+    { re: /\bmaybe\b|\bperhaps\b|\bkind of\b|\bsort of\b/, w: -12, label: 'hedge word' },
+    { re: /\bmight\b|\bcould\b|\bprobably\b/, w: -9, label: 'soft modal' },
+    { re: /\bsomeday\b|\beventually\b|\bone (?:day|of these days)\b/, w: -14, label: 'vague timing' },
+    { re: /\bthinking about\b|\bconsidering\b|\bthought about\b/, w: -12, label: 'still deciding' },
+    { re: /\bshould(?:'ve| have)\b|\bwish i (?:had|did)\b/, w: -10, label: 'regret, not intent' },
+    { re: /\bwant(?:ed)? to\b/, w: -4, label: '"want to" (wish, not plan)' }
+  ];
+
+  function scoreIntent(raw) {
+    var text = (raw || '').trim();
+    if (!text) return { score: 0, hits: [] };
+    var t = ' ' + text.toLowerCase() + ' ';
+    var score = 50, hits = [];
+    SIGNALS.forEach(function (s) {
+      if (s.re.test(t)) { score += s.w; hits.push({ label: s.label, w: s.w }); }
+    });
+    var bangs = (text.match(/!/g) || []).length;
+    if (bangs) {
+      var bw = Math.min(bangs * 3, 9);
+      score += bw; hits.push({ label: bangs + ' exclamation' + (bangs > 1 ? 's' : ''), w: bw });
+    }
+    if (/\?\s*$/.test(text)) { score -= 6; hits.push({ label: 'ends in a question', w: -6 }); }
+    var words = text.split(/\s+/).filter(Boolean).length;
+    if (words >= 12) { score += 4; hits.push({ label: 'specific enough to act on', w: 4 }); }
+    score = Math.max(0, Math.min(100, Math.round(score)));
+    return { score: score, hits: hits };
+  }
+
+  var GOAL_CATEGORIES = [
+    { key: 'fitness', icon: '🏃', label: 'fitness & health', color: '#ef4444',
+      re: /\b(?:runn?ing|jogging|go(?:ing)? to the gym|workout(?:s|ing)?|exercis(?:e|ing)|lose weight|losing weight|diet(?:ing)?|eat(?:ing)? healthy|sleep (?:more|better|earlier)|quit smoking|stop drinking|drink more water|meditat(?:e|ing))\b/ },
+    { key: 'learning', icon: '📚', label: 'learning & skill', color: '#3b82f6',
+      re: /\b(?:learn(?:ing)? [a-z]+|stud(?:y|ying)|practic(?:e|ing)|read more|take a course|taking a course|learn(?:ing)? guitar|learn(?:ing)? piano|new language|learn(?:ing)? to code|learn(?:ing)? programming)\b/ },
+    { key: 'creative', icon: '🎨', label: 'creative & making', color: '#a855f7',
+      re: /\b(?:writ(?:e|ing) (?:a |my )?(?:book|novel|song|blog)|paint(?:ing)?|draw(?:ing)?|finish(?:ing)? (?:my|the) [a-z]+|ship(?:ping)? (?:it|my [a-z]+)|build(?:ing)? (?:a|my) [a-z]+|side project)\b/ },
+    { key: 'career', icon: '💼', label: 'work & career', color: '#f59e0b',
+      re: /\b(?:appl(?:y|ying) for jobs?|new job|career change|start(?:ing)? a business|launch(?:ing)? (?:my|the) startup|ask(?:ing)? for a raise|update(?:ing)? my resume|going for (?:a |the )?promotion)\b/ },
+    { key: 'financial', icon: '💰', label: 'money & saving', color: '#10b981',
+      re: /\b(?:sav(?:e|ing) (?:up|money)|budget(?:ing)?|pay(?:ing)? off|(?:my |the )?debt|invest(?:ing)?)\b/ },
+    { key: 'habit', icon: '🔁', label: 'habits & routine', color: '#06b6d4',
+      re: /\b(?:every (?:day|morning|night|week)|new routine|daily routine|build(?:ing)? a habit|be more consistent|being more consistent)\b/ },
+    { key: 'cessation', icon: '🚫', label: 'quitting & stopping', color: '#f43f5e',
+      re: /\b(?:quit(?:ting)?|giv(?:e|ing) up|stop(?:ping)?|cut(?:ting)? out|cut(?:ting)? back on)\b/ },
+    { key: 'relationship', icon: '🤝', label: 'people & relationships', color: '#ec4899',
+      re: /\b(?:call (?:my mom|my dad|home)|reach(?:ing)? out to|reconnect(?:ing)? with|apologi[sz](?:e|ing) to|text(?:ing)? (?:them|him|her) back|make more friends|making more friends)\b/ },
+    { key: 'travel', icon: '✈️', label: 'travel & moving', color: '#eab308',
+      re: /\b(?:travel(?:l?ing)? (?:to|more)|take a trip|taking a trip|book(?:ing)? a flight|visit(?:ing)? [a-z]+|mov(?:e|ing) to)\b/ }
+  ];
+
+  function detectPatterns(text) {
+    var t = ' ' + (text || '').toLowerCase() + ' ';
+    var out = [];
+    GOAL_CATEGORIES.forEach(function (c) {
+      var m = c.re.exec(t);
+      if (m) out.push({ key: c.key, icon: c.icon, label: c.label, color: c.color, phrase: m[0].trim() });
+    });
+    return out;
+  }
+
+  function aggregatePatterns(items) {
+    var counts = {};
+    items.forEach(function (item) {
+      detectPatterns(item.text).forEach(function (p) {
+        if (!counts[p.key]) counts[p.key] = { icon: p.icon, label: p.label, color: p.color, phrase: p.phrase, count: 0 };
+        counts[p.key].count++;
+      });
+    });
+    return Object.keys(counts).map(function (k) { return counts[k]; })
+      .sort(function (a, b) { return b.count - a.count; });
+  }
+
+  function patternCardsHtml(items, emptyMsg) {
+    if (!items.length) return '<div class="muted">' + escapeHtml(emptyMsg) + '</div>';
+    return '<div class="pattern-grid">' + items.map(function (p) {
+      return '<div class="pattern-card" style="--card-color:' + p.color + '">' +
+        (p.count ? '<span class="pi-count">' + p.count + '×</span>' : '') +
+        '<span class="pi-icon">' + p.icon + '</span>' +
+        '<span class="pi-label">' + escapeHtml(p.label) + '</span>' +
+        '<div class="pi-phrase">“' + escapeHtml(p.phrase) + '”</div>' +
+      '</div>';
+    }).join('') + '</div>';
+  }
+
+  function categoryFor(score) {
+    if (score < 20) return 'just talk';
+    if (score < 40) return 'loose plan';
+    if (score < 60) return 'warming up';
+    if (score < 80) return 'leaning in';
+    return 'locked in';
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function truncate(s, n) { return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+
+  function renderHits(hits) {
+    if (!hits.length) return '<div class="muted" style="text-align:center;margin-top:.6rem">no strong signals either way</div>';
+    return '<div class="hits">' + hits.map(function (h) {
+      return '<span class="chip ' + (h.w >= 0 ? 'up' : 'down') + '">' + escapeHtml(h.label) + '</span>';
+    }).join('') + '</div>';
+  }
+
+  function makeGauge(svg) {
+    var needle = svg.querySelector('.needle');
+    return {
+      set: function (score) {
+        var deg = score * 1.8 - 90;
+        needle.style.transform = 'rotate(' + deg + 'deg)';
+      }
+    };
+  }
+
+  var gaugeManual = makeGauge(document.getElementById('gauge-manual'));
+  var gaugeFeed = makeGauge(document.getElementById('gauge-feed'));
+
+  var textInput = document.getElementById('text-input');
+  var readBtn = document.getElementById('read-btn');
+  var readingManual = document.getElementById('reading-manual');
+  var patternsManual = document.getElementById('patterns-manual');
+  var scoreLabelManual = document.getElementById('score-label-manual');
+
+  function readManual() {
+    var text = textInput.value;
+    var r = scoreIntent(text);
+    var patterns = detectPatterns(text);
+    gaugeManual.set(r.score);
+    patternsManual.hidden = false;
+    patternsManual.innerHTML = '<div class="patterns-heading">goal patterns spotted</div>' +
+      patternCardsHtml(patterns, 'no goal pattern spotted — try naming what you’re actually going to do');
+    scoreLabelManual.hidden = false;
+    readingManual.hidden = false;
+    readingManual.innerHTML = '<strong>' + r.score + '/100</strong> — ' + categoryFor(r.score) + renderHits(r.hits);
+  }
+  readBtn.addEventListener('click', readManual);
+  textInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); readManual(); }
+  });
+
+  var handleInput = document.getElementById('handle-input');
+  var runBtn = document.getElementById('run-btn');
+  var feedError = document.getElementById('feed-error');
+  var readingFeed = document.getElementById('reading-feed');
+  var feedList = document.getElementById('feed-list');
+  var patternsFeed = document.getElementById('patterns-feed');
+  var scoreLabelFeed = document.getElementById('score-label-feed');
+
+  kit.handleInput(handleInput, {
+    onPick: function (handle, actor) { runFeed(handle, actor && actor.did); }
+  });
+  handleInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); runFeed(handleInput.value); }
+  });
+  runBtn.addEventListener('click', function () { runFeed(handleInput.value); });
+
+  function runFeed(raw, didHint) {
+    var handle = (raw || '').trim().replace(/^@/, '');
+    kit.clear(feedError);
+    feedList.innerHTML = '';
+    readingFeed.hidden = true;
+    patternsFeed.hidden = true; patternsFeed.innerHTML = '';
+    scoreLabelFeed.hidden = true;
+    if (!handle) { kit.showError(feedError, 'type a handle first'); return; }
+
+    var was = runBtn.textContent;
+    runBtn.disabled = true; runBtn.textContent = 'reading…';
+
+    var didPromise = didHint ? Promise.resolve(didHint) :
+      kit.bskyGet('com.atproto.identity.resolveHandle', { handle: handle }).then(function (r) { return r.did; });
+
+    didPromise
+      .then(function (did) { return kit.bskyGet('app.bsky.feed.getAuthorFeed', { actor: did, limit: 30 }); })
+      .then(function (feed) {
+        var posts = kit.visible(feed.feed || []).filter(function (item) {
+          return !item.reason && item.post && item.post.record &&
+                 item.post.record.text && item.post.record.text.trim().length > 2;
+        }).slice(0, 15);
+
+        if (!posts.length) {
+          kit.showError(feedError, 'no recent text posts to read for @' + handle);
+          return;
+        }
+
+        var scored = posts.map(function (item) {
+          var r = scoreIntent(item.post.record.text);
+          return { text: item.post.record.text, score: r.score };
+        });
+        var avg = Math.round(scored.reduce(function (a, b) { return a + b.score; }, 0) / scored.length);
+        var patterns = aggregatePatterns(scored);
+
+        patternsFeed.hidden = false;
+        patternsFeed.innerHTML = '<div class="patterns-heading">patterns across @' + escapeHtml(handle) + '’s last ' + scored.length + ' posts</div>' +
+          patternCardsHtml(patterns, 'no recognisable goal patterns in these posts — could be a quiet stretch, or just not that kind of account');
+        scoreLabelFeed.hidden = false;
+
+        gaugeFeed.set(avg);
+        readingFeed.hidden = false;
+        readingFeed.innerHTML = '<strong>' + avg + '/100</strong> — ' + categoryFor(avg) +
+          ' <span class="muted">(average of last ' + scored.length + ' text posts)</span>';
+
+        feedList.innerHTML = scored.map(function (s) {
+          return '<li><span class="post-score">' + s.score + '</span>' +
+                 '<span class="post-text">' + escapeHtml(truncate(s.text, 140)) + '</span></li>';
+        }).join('');
+      })
+      .catch(function (e) {
+        var msg = e && e.message === 'HTTP 400' ? 'could not find @' + handle : ((e && e.message) || 'something went wrong');
+        kit.showError(feedError, msg);
+      })
+      .finally(function () {
+        runBtn.disabled = false; runBtn.textContent = was;
+      });
+  }
+})();
+</script>
+</body>
+</html>

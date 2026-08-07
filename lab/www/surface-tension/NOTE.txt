@@ -1,0 +1,1 @@
+Rebuilt from scratch: pieces are now a real metaball field — droplets actually pull on neighbours by distance, not a blur filter — plus ripples on move and a splash on capture. Chess rules untouched, as asked.

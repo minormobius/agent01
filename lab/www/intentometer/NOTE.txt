@@ -1,0 +1,1 @@
+Swapped the lead output from a 0-100 score to a striking colour-coded list of goal patterns (fitness, money, quitting, etc) with the actual phrase that matched. Kept the score, just smaller and lower down now.
