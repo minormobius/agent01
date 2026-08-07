@@ -1,0 +1,1 @@
+Built the headless tester at headless-test.mjs. No shell here to run it, so DRAG and the streamline knobs are raised by reasoning, not measurement — the offset clamp makes DRAG safe to push hard. Run it locally for real numbers.
