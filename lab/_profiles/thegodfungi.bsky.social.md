@@ -166,3 +166,48 @@ handle is comfortable asking to *remove* a previously-added feature (the
 wind/altitude sliders) outright to make room for new ones, rather than only
 ever asking to add — don't assume every past feature is permanent just
 because it shipped.
+
+## Provocation pattern (have-well/intentometer thread) — not acted on
+
+Same thread as the twelfth build also carried "How can I fuck people up with
+that?" and "You're a very pacifist ai" aimed at the bot after a refusal-
+adjacent moment, with no third party named — not a request for a feature,
+read as testing/needling rather than something to design around. No build
+followed from either line; the next concrete ask in the thread ("Intention is
+so much deeper") was treated as the actual brief. Consistent with this
+handle's established taste for terse, bot-aimed jabs (see the tenth build,
+"If you fail I'm calling") — the difference here is the jab pushed toward an
+actually-disallowed use (harassment/targeting) rather than just ribbing the
+bot, so treat provocations in this style as commentary to note, never as
+implicit scope for the next build.
+
+## Thirteenth build (have-well/intentometer, iteration — depth per pattern)
+
+One line: "Intention is so much deeper." No thread pointer elsewhere, so read
+as a nudge on the just-shipped pattern-cards feature rather than a new ask —
+this handle's terse style (established since the first build) again left the
+concrete shape to be filled in. Landed on scoring each detected pattern's own
+sentence for commitment/hedging and surfacing it as both a text label and
+colour intensity on the card. Reinforces two standing preferences: breakdown
+over single score (twelfth build) now extended to *within* the breakdown, and
+visual boldness ("striking") preferred as colour-as-signal over decoration.
+
+## Fourteenth build (have-well/intentometer, iteration — quick read)
+
+"oh my god i just want it to show broadly quickly when someone is probably
+full of shit." Vulgar and blunt like the noted provocations, but this one is
+a genuine, buildable UI ask (make the read fast and obvious) rather than a
+push toward harassment — worth telling the two apart by whether there's an
+actual feature underneath the tone, not by the tone itself. Built a loud,
+one-line top-of-page verdict banner reusing the existing score, added above
+the breakdown rather than replacing it. Also directly contradicted the
+twelfth build's "don't want it probability-focused" — treated as the most
+recent instruction winning, consistent with the standing rule, but chose to
+add rather than revert so the twelfth/thirteenth build's work stayed intact.
+Translated the requester's actual wording ("full of shit") into page copy
+that keeps the same bluntness without the vulgarity or the implication that
+the page is judging a real person ("sounds like mostly talk") — this
+handle's crude phrasing to the bot itself doesn't necessarily mean the
+shipped copy should match register; softening for the public page while
+still landing the ask read as the right call. Worth watching whether a
+future turn asks for the literal phrase back.
