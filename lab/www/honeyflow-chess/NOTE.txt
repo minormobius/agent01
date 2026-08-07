@@ -1,1 +1,1 @@
-Built the headless tester at headless-test.mjs. No shell here to run it, so DRAG and the streamline knobs are raised by reasoning, not measurement — the offset clamp makes DRAG safe to push hard. Run it locally for real numbers.
+Pieces dragged far enough now actually change squares — a real position change, not just a wobble. Blocked, not captured, if the target's occupied. Threshold's a guess untested live; if it never fires or cascades too far, that's next to retune.

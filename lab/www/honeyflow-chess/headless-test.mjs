@@ -11,6 +11,17 @@
 // it here too, or this rig starts measuring a different simulation than the
 // one that ships.
 //
+// An earlier turn (see BRIEF.md) replaced the old single-cell injection
+// with a wide splat kernel (splatVelocity/splatDensity, radius
+// SPREAD_RADIUS) so a neighbouring square gets a materially large share of
+// a move's disturbance directly, instead of waiting on diffusion to leak an
+// ever-more-dilute signal there over dozens of frames — mirrored here
+// byte-for-byte. THIS turn added resolveFlowSlides(): a piece dragged past
+// SLIDE_THRESHOLD now actually changes which square it occupies in `board`,
+// not just its visual offset — "if they're wiggling now they should be
+// moving tiles" was the request. Mirrored here too, and slides are now
+// tracked and reported alongside peak offsets.
+//
 // What it does:
 //   1. Sets up an 8x8 board with the standard opening position.
 //   2. Plays a single move (default: white pawn e2-e4, the move named in the
@@ -55,14 +66,31 @@ function Fluid() {
   this.dt = 1;
 }
 
-Fluid.prototype.addVelocity = function (x, y, ax, ay) {
-  const i = clampi(Math.round(x), 1, N - 2), j = clampi(Math.round(y), 1, N - 2);
-  this.Vx[IX(i, j)] += ax;
-  this.Vy[IX(i, j)] += ay;
+Fluid.prototype.splatVelocity = function (x, y, ax, ay, radius) {
+  const i0 = clampi(Math.floor(x - radius), 1, N - 2), i1 = clampi(Math.ceil(x + radius), 1, N - 2);
+  const j0 = clampi(Math.floor(y - radius), 1, N - 2), j1 = clampi(Math.ceil(y + radius), 1, N - 2);
+  for (let j = j0; j <= j1; j++) {
+    for (let i = i0; i <= i1; i++) {
+      const dx = i - x, dy = j - y;
+      const r = Math.sqrt(dx * dx + dy * dy);
+      if (r >= radius) continue;
+      const w = 1 - r / radius;
+      this.Vx[IX(i, j)] += ax * w;
+      this.Vy[IX(i, j)] += ay * w;
+    }
+  }
 };
-Fluid.prototype.addDensity = function (x, y, amt) {
-  const i = clampi(Math.round(x), 1, N - 2), j = clampi(Math.round(y), 1, N - 2);
-  this.dens[IX(i, j)] += amt;
+Fluid.prototype.splatDensity = function (x, y, amt, radius) {
+  const i0 = clampi(Math.floor(x - radius), 1, N - 2), i1 = clampi(Math.ceil(x + radius), 1, N - 2);
+  const j0 = clampi(Math.floor(y - radius), 1, N - 2), j1 = clampi(Math.ceil(y + radius), 1, N - 2);
+  for (let j = j0; j <= j1; j++) {
+    for (let i = i0; i <= i1; i++) {
+      const dx = i - x, dy = j - y;
+      const r = Math.sqrt(dx * dx + dy * dy);
+      if (r >= radius) continue;
+      this.dens[IX(i, j)] += amt * (1 - r / radius);
+    }
+  }
 };
 
 function setBnd(b, x) {
@@ -160,19 +188,22 @@ Fluid.prototype.sampleVel = function (bx, by) {
   return [vx, vy];
 };
 
+const SPREAD_RADIUS = 14; // must match index.html
+
 function injectFlow(fluid, flowStrength, fx, fy, tx, ty, dist) {
   if (dist < 1e-4) return;
   const dx = tx - fx, dy = ty - fy;
   const ux = dx / dist, uy = dy / dist;
-  const steps = Math.max(3, Math.round(dist * 6));
+  const pathLen = dist * (N - 2) / 8;
+  const steps = Math.max(1, Math.round(pathLen / (SPREAD_RADIUS * 0.7)));
   const base = flowStrength * (0.7 + dist * 0.55);
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
     const bx = fx + dx * t, by = fy + dy * t;
     const sx = 1 + bx * (N - 2) / 8, sy = 1 + by * (N - 2) / 8;
     const fall = Math.max(0.2, 1 - Math.abs(t - 0.5) * 1.3);
-    fluid.addVelocity(sx, sy, ux * base * fall * 0.13, uy * base * fall * 0.13);
-    fluid.addDensity(sx, sy, base * fall * 4.2);
+    fluid.splatVelocity(sx, sy, ux * base * fall * 0.045, uy * base * fall * 0.045, SPREAD_RADIUS);
+    fluid.splatDensity(sx, sy, base * fall * 3.0, SPREAD_RADIUS);
   }
 }
 
@@ -182,7 +213,12 @@ function injectFlow(fluid, flowStrength, fx, fy, tx, ty, dist) {
 // ---------------------------------------------------------------------
 const PIECE_MASS = { P: 1, N: 2.2, B: 2.2, R: 3.4, Q: 5.2, K: 4 };
 const RESTORE = 0.90;
-const MAX_OFFSET = 0.3;
+// MAX_OFFSET/SLIDE_THRESHOLD mirror index.html's "pieces should actually
+// change squares, not just wiggle" turn — see BRIEF.md. MAX_VISUAL_OFFSET
+// doesn't matter here (this rig never renders a transform), kept only as a
+// comment so the constant list reads the same as index.html's.
+const MAX_OFFSET = 0.9;
+const SLIDE_THRESHOLD = 0.55;
 
 const START = [
   ['bR','bN','bB','bQ','bK','bB','bN','bR'],
@@ -198,6 +234,41 @@ const START = [
 function sqToRC(sq) {
   const c = sq.charCodeAt(0) - 97, r = 8 - Number(sq[1]);
   return [r, c];
+}
+function rcToSq(r, c) { return String.fromCharCode(97 + c) + (8 - r); }
+function inb(r, c) { return r >= 0 && r < 8 && c >= 0 && c < 8; }
+
+// Mirrors index.html's resolveFlowSlides(): a piece dragged past
+// SLIDE_THRESHOLD actually changes which square it occupies in `board`,
+// blocked (not captured) if the destination is already taken. Returns the
+// list of slides applied this tick, for the CLI to report.
+function resolveFlowSlides(board, offsets) {
+  const proposals = [];
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const p = board[r][c]; if (!p) continue;
+      const st = offsets[r][c];
+      const ax = Math.abs(st.ox), ay = Math.abs(st.oy);
+      if (ax < SLIDE_THRESHOLD && ay < SLIDE_THRESHOLD) continue;
+      let nr = r, nc = c;
+      if (ax >= ay) nc = c + (st.ox > 0 ? 1 : -1);
+      else nr = r + (st.oy > 0 ? 1 : -1);
+      if (!inb(nr, nc) || board[nr][nc]) continue;
+      proposals.push({ r, c, nr, nc });
+    }
+  }
+  const claimed = new Set(), applied = [];
+  for (const mv of proposals) {
+    const key = mv.nr + ',' + mv.nc;
+    if (claimed.has(key)) continue;
+    claimed.add(key);
+    applied.push({ from: rcToSq(mv.r, mv.c), to: rcToSq(mv.nr, mv.nc), piece: board[mv.r][mv.c] });
+    board[mv.nr][mv.nc] = board[mv.r][mv.c];
+    board[mv.r][mv.c] = null;
+    offsets[mv.nr][mv.nc] = { ox: 0, oy: 0 };
+    offsets[mv.r][mv.c] = { ox: 0, oy: 0 };
+  }
+  return applied;
 }
 
 function isFiniteField(arr) {
@@ -226,6 +297,7 @@ function runScenario(moveStr, drag, flowStrength, ticks, verbose) {
   }
 
   const peak = {}; // "sq" -> { ox, oy } peak-magnitude offset seen
+  const slides = []; // { tick, from, to, piece } for every flow-carried square change
   let sane = true;
 
   for (let tick = 0; tick < ticks; tick++) {
@@ -250,6 +322,11 @@ function runScenario(moveStr, drag, flowStrength, ticks, verbose) {
         if (Math.hypot(st.ox, st.oy) > Math.hypot(prev.ox, prev.oy)) peak[key] = { ox: st.ox, oy: st.oy };
       }
     }
+    const applied = resolveFlowSlides(board, offsets);
+    for (const mv of applied) {
+      slides.push({ tick, ...mv });
+      if (verbose) console.log('  tick', tick, 'SLIDE', mv.piece, mv.from, '->', mv.to);
+    }
     if (verbose && tick % 20 === 0) {
       let maxSpeed = 0;
       for (let k = 0; k < fluid.Vx.length; k++) maxSpeed = Math.max(maxSpeed, Math.hypot(fluid.Vx[k], fluid.Vy[k]));
@@ -257,7 +334,7 @@ function runScenario(moveStr, drag, flowStrength, ticks, verbose) {
     }
   }
 
-  return { peak, sane, movedTo: String.fromCharCode(97 + tc) + (8 - tr) };
+  return { peak, sane, slides, movedTo: String.fromCharCode(97 + tc) + (8 - tr) };
 }
 
 // ---------------------------------------------------------------------
@@ -279,9 +356,11 @@ console.log('');
 
 if (args.drag) {
   const drag = Number(args.drag);
-  const { peak, sane, movedTo } = runScenario(MOVE, drag, FLOW, TICKS, true);
+  const { peak, sane, slides, movedTo } = runScenario(MOVE, drag, FLOW, TICKS, true);
   console.log('');
   console.log('sane (no NaN/divergence):', sane);
+  console.log('slides (flow-carried square changes):', slides.length ? '' : 'none');
+  for (const s of slides) console.log('  tick', s.tick, s.piece, s.from, '->', s.to);
   console.log('peak offsets by square (ox, oy in board-units; oy<0 is "forward" for White):');
   for (const [sq, o] of Object.entries(peak).sort()) {
     if (Math.hypot(o.ox, o.oy) < 0.005) continue;
@@ -291,19 +370,24 @@ if (args.drag) {
   process.exit(0);
 }
 
-// Sweep: the request asked specifically to tune DRAG so a pawn's two-square
-// advance "barely pulls neighbouring pawns forward one". "Barely" plus the
-// existing MAX_OFFSET=0.3 tap-target ceiling (see BRIEF.md) reads as a
-// target window well under the clamp — 0.08 to 0.18 board-units of forward
-// offset on the immediate neighbour is the working definition used here;
-// change TARGET_MIN/MAX below if that reading is wrong.
+// Sweep: the earlier request asked to tune DRAG so a pawn's two-square
+// advance "barely pulls neighbouring pawns forward one" — a target window
+// for the pre-slide WOBBLE, back when MAX_OFFSET (then 0.3) was also the
+// hard ceiling and nothing could go further than a wobble. This turn raised
+// MAX_OFFSET to 0.9 and added SLIDE_THRESHOLD=0.55, so "barely" and "should
+// be moving tiles" are now two different asks answered by two different
+// numbers: this window is still meaningful as "how strong does the pull
+// feel before it tips a piece over the edge", it just no longer describes
+// the largest offset DRAG can produce. The slide count/log below is the new
+// number that answers this turn's actual request — whether neighbours are
+// materially crossing into a square, not just leaning towards one.
 const TARGET_MIN = 0.08, TARGET_MAX = 0.18;
 const sweep = [0.4, 0.6, 0.8, 1.0, 1.2, 1.6, 2.0, 2.6];
-console.log('DRAG sweep — peak forward |oy| on the two immediate lateral neighbours:');
+console.log('DRAG sweep — peak forward |oy| on the two immediate lateral neighbours, plus how many flow-carried slides that DRAG produced:');
 console.log('(neighbours of e2e4 are d2 and f2; adjust by hand for other openings)');
 let best = null;
 for (const drag of sweep) {
-  const { peak, sane } = runScenario(MOVE, drag, FLOW, TICKS, false);
+  const { peak, sane, slides } = runScenario(MOVE, drag, FLOW, TICKS, false);
   const [fr] = sqToRC(MOVE.slice(0, 2));
   const nbCols = [sqToRC(MOVE.slice(0, 2))[1] - 1, sqToRC(MOVE.slice(0, 2))[1] + 1];
   const nbSquares = nbCols.filter(c => c >= 0 && c < 8).map(c => String.fromCharCode(97 + c) + (8 - fr));
@@ -311,6 +395,7 @@ for (const drag of sweep) {
   const peakMag = Math.max(...mags, 0);
   const inWindow = peakMag >= TARGET_MIN && peakMag <= TARGET_MAX;
   console.log('  DRAG=' + drag.toFixed(1).padStart(4) + '  sane=' + sane +
+    '  slides=' + slides.length +
     '  ' + nbSquares.map((sq, i) => sq + '=' + mags[i].toFixed(3)).join('  ') +
     (inWindow ? '   <-- in target window' : ''));
   if (sane && inWindow && !best) best = drag;

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Honeyflow Chess</title>
 <meta property="og:title" content="Honeyflow Chess">
-<meta property="og:description" content="A chess board of honey. Every move releases a laminar flow scaled to how far the piece travelled — and any piece caught in that current is dragged along by the solved velocity field, tethered back to its square.">
+<meta property="og:description" content="A chess board of honey. Every move releases a laminar flow scaled to how far the piece travelled, and any piece caught in that current is dragged by the solved velocity field — drag it far enough and it actually slides into the next square, a real change to the position.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
@@ -88,9 +88,11 @@
     to how far the piece travelled. Any other piece sitting near that current gets caught in
     it too: every square is sampled against the live velocity field each frame and nudged
     along it, tethered back to its own square by the honey's stiffness — heavier pieces resist
-    more. High viscosity keeps everything creeping and smooth: no turbulence, no vortices,
-    just honey settling back to rest. The grid stays put; pieces sway a little on top of it,
-    and the streamlines drawn over it are the only thing that moves fully on its own.</p>
+    more. Drag a piece far enough off its square's centre and it doesn't just sway back: it
+    actually slides into the neighbouring square, a real change to the position, not a wobble
+    — blocked if that square is already occupied. High viscosity keeps everything creeping and
+    smooth: no turbulence, no vortices, just honey settling back to rest. The grid stays put;
+    the streamlines drawn over it are the only thing that moves fully on its own.</p>
 
   <div class="status-row">
     <span class="turn w" id="turnLabel">White to move</span>
@@ -123,10 +125,13 @@
     <p>Move shapes follow standard chess (pawns, knights, bishops, rooks, queens, kings,
       forward promotion to queen). Check, checkmate, castling and en passant are not
       implemented — this board is about the fluid, not the tournament rules — so a king can
-      be captured like anything else.</p>
+      be captured like anything else. A piece the current carries into a neighbouring square
+      is a real, unannounced change to the position — it isn't your move, and it doesn't pass
+      the turn — so glance at the board before you play, not just at whose turn it says.</p>
     <p id="reducedMotionNote" hidden>Reduced motion is on: the fluid still simulates (it's the
       whole point of the page) but streamlines redraw less often, and pieces stay locked to
-      their squares instead of dragging in the current.</p>
+      their squares — no dragging, and no flow-carried slides — instead of moving in the
+      current.</p>
   </footer>
 </main>
 
@@ -157,14 +162,42 @@
     this.dt = 1;
   }
 
-  Fluid.prototype.addVelocity = function (x, y, ax, ay) {
-    const i = clampi(Math.round(x), 1, N - 2), j = clampi(Math.round(y), 1, N - 2);
-    this.Vx[IX(i, j)] += ax;
-    this.Vy[IX(i, j)] += ay;
+  // A moved piece used to write into exactly one grid cell and rely on
+  // diffusion to leak the disturbance sideways over many frames — which
+  // reaches a neighbouring square's cell too diluted to read as anything
+  // ("aren't moving their neighbors at all" was accurate, not a
+  // misreading). At the scale this board models, viscosity dominates
+  // inertia (low Reynolds number), so a piece's disturbance should reach
+  // neighbours directly rather than crawl there by diffusion — this is a
+  // regularized point-force footprint (the standard way to represent a
+  // finite-size disturbance in Stokes flow without a singular delta
+  // function), spread with a simple cone falloff to zero at `radius`. The
+  // solver still solves the response; only the shape of the input changed.
+  Fluid.prototype.splatVelocity = function (x, y, ax, ay, radius) {
+    const i0 = clampi(Math.floor(x - radius), 1, N - 2), i1 = clampi(Math.ceil(x + radius), 1, N - 2);
+    const j0 = clampi(Math.floor(y - radius), 1, N - 2), j1 = clampi(Math.ceil(y + radius), 1, N - 2);
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        const dx = i - x, dy = j - y;
+        const r = Math.sqrt(dx * dx + dy * dy);
+        if (r >= radius) continue;
+        const w = 1 - r / radius;
+        this.Vx[IX(i, j)] += ax * w;
+        this.Vy[IX(i, j)] += ay * w;
+      }
+    }
   };
-  Fluid.prototype.addDensity = function (x, y, amt) {
-    const i = clampi(Math.round(x), 1, N - 2), j = clampi(Math.round(y), 1, N - 2);
-    this.dens[IX(i, j)] += amt;
+  Fluid.prototype.splatDensity = function (x, y, amt, radius) {
+    const i0 = clampi(Math.floor(x - radius), 1, N - 2), i1 = clampi(Math.ceil(x + radius), 1, N - 2);
+    const j0 = clampi(Math.floor(y - radius), 1, N - 2), j1 = clampi(Math.ceil(y + radius), 1, N - 2);
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        const dx = i - x, dy = j - y;
+        const r = Math.sqrt(dx * dx + dy * dy);
+        if (r >= radius) continue;
+        this.dens[IX(i, j)] += amt * (1 - r / radius);
+      }
+    }
   };
   Fluid.prototype.reset = function () {
     this.Vx.fill(0); this.Vy.fill(0); this.Vx0.fill(0); this.Vy0.fill(0);
@@ -439,26 +472,44 @@
     renderPieces();
   }
 
+  // Sim cells (~2.3 board squares). A cone-kernel splat with this radius
+  // hands a materially large share (~57% of peak) to a piece one square
+  // away on the FIRST tick, rather than waiting on diffusion to leak an
+  // ever-diluting signal there over dozens of frames. Tuned so influence
+  // fades out by ~2-3 squares — this is meant to move an adjacent piece,
+  // not shudder the whole board.
+  const SPREAD_RADIUS = 14;
+
   function injectFlow(fx, fy, tx, ty, dist) {
     if (dist < 1e-4) return;
     const dx = tx - fx, dy = ty - fy;
     const ux = dx / dist, uy = dy / dist;
-    const steps = Math.max(3, Math.round(dist * 6));
+    // One splat roughly every 70% of a radius along the path is enough
+    // coverage once each splat itself is this wide — a short move needs
+    // only one or two, a long queen sweep a handful. Far fewer, much wider
+    // injections than the old per-cell version.
+    const pathLen = dist * (N - 2) / 8;
+    const steps = Math.max(1, Math.round(pathLen / (SPREAD_RADIUS * 0.7)));
     const flowStrength = +document.getElementById('flowStrength').value;
     const base = flowStrength * (0.7 + dist * 0.55);
-    // Velocity/density multipliers bumped this turn (0.09->0.13, 3.2->4.2):
-    // "streamlines... pretty wimpy" was direct feedback on the live site.
-    // Raising these is low-risk — the solver is a linear diffuse/project
-    // system (Gauss-Seidel on a diagonally-dominant matrix), stable for any
-    // input magnitude, so a stronger injection can't make it diverge, only
-    // make the resulting flow more visible.
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
       const bx = fx + dx * t, by = fy + dy * t;
       const sx = 1 + bx * (N - 2) / 8, sy = 1 + by * (N - 2) / 8;
       const fall = Math.max(0.2, 1 - Math.abs(t - 0.5) * 1.3);
-      fluid.addVelocity(sx, sy, ux * base * fall * 0.13, uy * base * fall * 0.13);
-      fluid.addDensity(sx, sy, base * fall * 4.2);
+      // Per-splat multipliers cut hard from the old single-cell values
+      // (0.13, 4.2): a neighbouring square used to sit far outside the
+      // injection's reach entirely, now it sits inside a kernel that hands
+      // it ~57% of peak directly. Left at the old multiplier that would
+      // very likely slam every adjacent piece straight into MAX_OFFSET on
+      // the first physics tick after any move — a binary snap, not a
+      // flow. The velocity multiplier (what actually drives piece drag)
+      // is cut hardest for that reason; density (purely visual, no clamp
+      // to hit) stays closer to where "more dramatic streamlines" left it.
+      // This number is reasoned, not measured — see BRIEF.md and rerun
+      // headless-test.mjs's sweep against this new kernel before trusting it.
+      fluid.splatVelocity(sx, sy, ux * base * fall * 0.045, uy * base * fall * 0.045, SPREAD_RADIUS);
+      fluid.splatDensity(sx, sy, base * fall * 3.0, SPREAD_RADIUS);
     }
   }
 
@@ -473,17 +524,24 @@
   // sandbox doesn't have — relaxation is stable at any coefficient.
   // ---------------------------------------------------------------------
   const PIECE_MASS = { P: 1, N: 2.2, B: 2.2, R: 3.4, Q: 5.2, K: 4 };
-  // DRAG raised 0.4 -> 1.0 this turn ("a pawn advancing two barely pulls
-  // neighbouring pawns forward one" — at 0.4 the effect was reportedly too
-  // faint to read). Safe to push up because MAX_OFFSET clamps every tick
-  // regardless of DRAG's size: a bigger DRAG only reaches the clamp sooner,
-  // it cannot overshoot it or destabilise anything. See headless-test.mjs
-  // for a runnable rig to measure the actual resulting offset and retune
-  // this precisely — this value is reasoned, not measured (no browser or
-  // shell in this sandbox to run it against).
   const DRAG = 1.0;       // how hard the current pulls a tracer, per tick
   const RESTORE = 0.90;   // fraction of displacement kept each tick
-  const MAX_OFFSET = 0.3; // board-units; keeps a dragged piece off its neighbour's tap target
+  // MAX_OFFSET is now a PHYSICS ceiling, not a rendering one — split from
+  // MAX_VISUAL_OFFSET below this turn. Previously the same 0.3 did both
+  // jobs at once (stop the sim exploding, AND keep the CSS transform off a
+  // neighbour's tap target), which meant the offset could never grow large
+  // enough to mean anything beyond a wobble. The request this turn — "the
+  // effected pieces [should] change squares... if they're wiggling now
+  // they should be moving tiles" — needs the physics value to actually
+  // cross a square boundary, so it now runs well past where the old clamp
+  // sat; SLIDE_THRESHOLD below is what turns that into a real move.
+  const MAX_OFFSET = 0.9;
+  const MAX_VISUAL_OFFSET = 0.3; // board-units; caps ONLY the CSS transform, so a piece mid-drag never visually drifts onto a neighbour's tap target, even once its physics offset is already past SLIDE_THRESHOLD
+  // Crossing this many board-units of drag displacement commits the piece
+  // to the neighbouring square — a real change to the board array, not a
+  // springy snap-back. Must stay below MAX_OFFSET or it could never be
+  // reached.
+  const SLIDE_THRESHOLD = 0.55;
 
   function updatePiecePhysics() {
     for (let r = 0; r < 8; r++) {
@@ -503,15 +561,68 @@
         st.oy = clampf((st.oy + fvy * DRAG / m) * RESTORE, -MAX_OFFSET, MAX_OFFSET);
       }
     }
+    resolveFlowSlides();
+  }
+
+  // A piece dragged past SLIDE_THRESHOLD actually crosses into the
+  // neighbouring square: the board array itself changes, which is the
+  // game-state effect the previous turn's tether-and-spring only ever
+  // faked visually. Built
+  // as a batch over a snapshot of the board (proposals collected first,
+  // applied after) so that within one tick: two pieces flowing toward the
+  // same empty square don't both claim it, and a piece can't be evaluated
+  // against a square another piece is simultaneously vacating out from
+  // under it depending on scan order. Only the dominant axis moves, so one
+  // tick can't smuggle a piece two squares diagonally at once. Blocked
+  // (not captured) if the destination is occupied — honey pushes a piece
+  // up against its neighbour, it doesn't shove it off the board; that's a
+  // deliberate scope line, not an oversight, see BRIEF.md.
+  function resolveFlowSlides() {
+    const proposals = [];
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const p = board[r][c]; if (!p) continue;
+        const st = offsetGrid[r][c];
+        const ax = Math.abs(st.ox), ay = Math.abs(st.oy);
+        if (ax < SLIDE_THRESHOLD && ay < SLIDE_THRESHOLD) continue;
+        let nr = r, nc = c;
+        if (ax >= ay) nc = c + (st.ox > 0 ? 1 : -1);
+        else nr = r + (st.oy > 0 ? 1 : -1);
+        if (!inb(nr, nc) || board[nr][nc]) continue;
+        proposals.push({ r, c, nr, nc });
+      }
+    }
+    if (!proposals.length) return;
+    const claimed = new Set();
+    let moved = false;
+    for (const mv of proposals) {
+      const key = mv.nr + ',' + mv.nc;
+      if (claimed.has(key)) continue; // two pieces flowed toward the same empty square this tick; first in scan order wins, the other relaxes and can try again next tick
+      claimed.add(key);
+      board[mv.nr][mv.nc] = board[mv.r][mv.c];
+      board[mv.r][mv.c] = null;
+      offsetGrid[mv.nr][mv.nc] = { ox: 0, oy: 0 };
+      offsetGrid[mv.r][mv.c] = { ox: 0, oy: 0 };
+      moved = true;
+    }
+    if (moved) {
+      // a flow-carried slide can relocate the piece the player has
+      // selected, or a square its legal-move highlight referred to —
+      // clear selection state rather than let it point at a stale square.
+      sel = null; legal = [];
+      renderPieces();
+    }
   }
 
   function applyPieceTransforms() {
     for (let r = 0; r < 8; r++) {
       for (let c = 0; c < 8; c++) {
         const st = offsetGrid[r][c];
+        const vx = clampf(st.ox, -MAX_VISUAL_OFFSET, MAX_VISUAL_OFFSET);
+        const vy = clampf(st.oy, -MAX_VISUAL_OFFSET, MAX_VISUAL_OFFSET);
         const btn = cellAt(r, c);
-        btn.style.transform = (st.ox || st.oy)
-          ? 'translate(' + (st.ox * 100).toFixed(1) + '%, ' + (st.oy * 100).toFixed(1) + '%)'
+        btn.style.transform = (vx || vy)
+          ? 'translate(' + (vx * 100).toFixed(1) + '%, ' + (vy * 100).toFixed(1) + '%)'
           : '';
       }
     }
