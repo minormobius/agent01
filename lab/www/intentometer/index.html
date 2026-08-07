@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Intentometer — mino.mobi lab</title>
 <meta property="og:title" content="Intentometer">
-<meta property="og:description" content="Type what you're about to do and get back the goal patterns it spotted — fitness, money, quitting something, learning something — plus a read on how deep each one sounds, from a passing mention to something stated flat-out. Or point it at a Bluesky handle and see which patterns keep recurring across their last posts. A word-pattern heuristic, honestly labelled as one — not sentiment AI.">
+<meta property="og:description" content="Type what you're about to do (or point it at a Bluesky handle) and get a quick, blunt read on whether it sounds like talk or like they mean it — plus the goal patterns it spotted, fitness, money, quitting something, learning something, and how deep each one sounds. A word-pattern heuristic, honestly labelled as one — not sentiment AI.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
@@ -20,6 +20,14 @@
   .row { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: .7rem; }
   .row > button { flex: none; }
   .row > input, .row > textarea { flex: 1 1 12rem; min-width: 0; }
+  .quickread {
+    display: flex; align-items: center; gap: .6rem; justify-content: center;
+    font-size: 1.2rem; font-weight: 800; text-align: center; line-height: 1.3;
+    padding: .8rem 1rem; border-radius: var(--radius); border: 2px solid var(--border);
+    margin: .9rem 0 0;
+  }
+  .quickread .qi { font-size: 1.5rem; line-height: 1; flex: none; }
+  .quickread-note { text-align: center; font-size: .7rem; color: var(--muted); margin: .35rem 0 0; }
   .patterns-heading { font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: .9rem 0 .5rem; }
   .pattern-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .6rem; }
   .pattern-card {
@@ -71,11 +79,12 @@
 <main>
   <div id="crumb"></div>
   <h1>Intentometer</h1>
-  <p class="sub">Say what you're about to do. It reads back the shape of it — which kind of
-  goal it sounds like, fitness, money, quitting something, learning something — and how deep
-  that specific mention reads, from a passing "maybe I'll" to something stated flat-out.
-  Not a single score claiming to know if you'll follow through. There's a number if you still
-  want one, further down.</p>
+  <p class="sub">Say what you're about to do, or point it at a handle below. First: a quick,
+  blunt read on whether it sounds like talk or like they mean it. Then the shape of it —
+  which kind of goal, fitness, money, quitting something, learning something — and how deep
+  each specific mention reads, from a passing "maybe I'll" to something stated flat-out.
+  None of it can tell you whether anyone will actually follow through — it only reads the
+  wording.</p>
 
   <section class="card">
     <h2>Say it</h2>
@@ -83,6 +92,7 @@
     <div class="row">
       <button id="read-btn">read it</button>
     </div>
+    <div id="quickread-manual" hidden></div>
     <div id="patterns-manual" hidden></div>
     <div class="score-label" id="score-label-manual" hidden>for what it's worth, a number too</div>
     <div class="gauge-wrap">
@@ -109,6 +119,7 @@
       <button id="run-btn">run the meter</button>
     </div>
     <div class="err" id="feed-error" hidden></div>
+    <div id="quickread-feed" hidden></div>
     <div id="patterns-feed" hidden></div>
     <div class="score-label" id="score-label-feed" hidden>for what it's worth, a number too</div>
     <div class="gauge-wrap">
@@ -286,6 +297,27 @@
     return 'locked in';
   }
 
+  // The fast, blunt answer, up top, before anyone reads a breakdown — reuses
+  // scoreIntent rather than a second heuristic, same reasoning as depth scoring.
+  var QUICKREADS = [
+    { max: 30, icon: '🚩', text: 'sounds like mostly talk', color: '#f2777a' },
+    { max: 55, icon: '🤷', text: 'hard to tell yet', color: '#8b8792' },
+    { max: 78, icon: '💬', text: 'sounds like they mean it', color: '#e8a33d' },
+    { max: 101, icon: '✅', text: 'sounds locked in', color: '#7ac387' }
+  ];
+  function quickReadInfo(score) {
+    for (var i = 0; i < QUICKREADS.length; i++) if (score < QUICKREADS[i].max) return QUICKREADS[i];
+    return QUICKREADS[QUICKREADS.length - 1];
+  }
+  function quickReadHtml(score) {
+    var q = quickReadInfo(score);
+    return '<div class="quickread" style="color:' + q.color + ';border-color:' + q.color +
+      ';background:' + hexToRgba(q.color, .12) + '"><span class="qi">' + q.icon + '</span><span>' +
+      escapeHtml(q.text) + '</span></div>' +
+      '<div class="quickread-note">the quick read — hedged vs. committed wording only, ' +
+      'no way to know if they’ll actually follow through</div>';
+  }
+
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -318,12 +350,15 @@
   var readingManual = document.getElementById('reading-manual');
   var patternsManual = document.getElementById('patterns-manual');
   var scoreLabelManual = document.getElementById('score-label-manual');
+  var quickreadManual = document.getElementById('quickread-manual');
 
   function readManual() {
     var text = textInput.value;
     var r = scoreIntent(text);
     var patterns = detectPatterns(text);
     gaugeManual.set(r.score);
+    quickreadManual.hidden = false;
+    quickreadManual.innerHTML = quickReadHtml(r.score);
     patternsManual.hidden = false;
     patternsManual.innerHTML = '<div class="patterns-heading">goal patterns spotted</div>' +
       patternCardsHtml(patterns, 'no goal pattern spotted — try naming what you’re actually going to do');
@@ -343,6 +378,7 @@
   var feedList = document.getElementById('feed-list');
   var patternsFeed = document.getElementById('patterns-feed');
   var scoreLabelFeed = document.getElementById('score-label-feed');
+  var quickreadFeed = document.getElementById('quickread-feed');
 
   kit.handleInput(handleInput, {
     onPick: function (handle, actor) { runFeed(handle, actor && actor.did); }
@@ -357,6 +393,7 @@
     kit.clear(feedError);
     feedList.innerHTML = '';
     readingFeed.hidden = true;
+    quickreadFeed.hidden = true; quickreadFeed.innerHTML = '';
     patternsFeed.hidden = true; patternsFeed.innerHTML = '';
     scoreLabelFeed.hidden = true;
     if (!handle) { kit.showError(feedError, 'type a handle first'); return; }
@@ -387,6 +424,8 @@
         var avg = Math.round(scored.reduce(function (a, b) { return a + b.score; }, 0) / scored.length);
         var patterns = aggregatePatterns(scored);
 
+        quickreadFeed.hidden = false;
+        quickreadFeed.innerHTML = quickReadHtml(avg);
         patternsFeed.hidden = false;
         patternsFeed.innerHTML = '<div class="patterns-heading">patterns across @' + escapeHtml(handle) + '’s last ' + scored.length + ' posts</div>' +
           patternCardsHtml(patterns, 'no recognisable goal patterns in these posts — could be a quiet stretch, or just not that kind of account');

@@ -2,31 +2,35 @@
 
 ## What this is
 
-Manual "read it" + automated "run the meter" against a Bluesky feed, plus a
-categorised, visually bold pattern list (fitness, money, quitting, etc.)
-that leads over the old 0–100 probability score, which is now demoted to a
-secondary "for what it's worth, a number too" gauge. That was two turns ago.
+Manual "read it" + automated "run the meter" against a Bluesky feed, a
+categorised pattern list (fitness, money, quitting, etc.) with a per-pattern
+depth reading, and — new this turn — a blunt one-line "quick read" banner
+that answers the whole page's question in one glance, above everything
+else.
 
-This turn's request from the requester (thegodfungi.bsky.social) was one
-line: **"Intention is so much deeper."** No thread context pointing anywhere
-else, and it doesn't contradict the standing plan, so read literally as: the
-pattern cards from the last turn show WHICH kind of goal, flatly — they
-didn't yet say anything about how deep or committed any one mention reads.
-Two identical "fitness" cards for "might go for a run sometime" and "I will
-run every morning starting Monday" looked the same. That's the gap this
-turn closes.
+This turn's request, verbatim: **"oh my god i just want it to show broadly
+quickly when someone is probably full of shit."** No thread pointer
+elsewhere. Read literally: the breakdown (pattern cards, per-card depth,
+the demoted numeric gauge) that the twelfth and thirteenth turns built out
+is detailed but not FAST — you have to read cards to get a sense of
+"does this sound real." This turn's ask is speed of read, not more detail.
 
-Shipped: each detected pattern now also carries a **depth reading**, scored
-by running the *existing* SIGNALS table (committed language vs hedging) on
-just the sentence the phrase came from, not the whole text. Manual mode:
-one occurrence, one depth. Feed mode: `aggregatePatterns` now also averages
-depth per category across however many posts hit it. Depth shows as a
-label under the phrase ("passing mention" → "strongly committed") and,
-more visibly, as the alpha on the icon's background circle — a card whose
-phrase reads faint sat next to one that reads committed is the "striking"
-visual difference the earlier turn's colour treatment was reaching for and
-didn't quite land (its plan item 3, now done this way instead of the
-"tinted circle" idea being separate — they turned out to be the same fix).
+That request sits in real tension with the twelfth turn's explicit "don't
+want it to be...probability focused," which is on record in this same
+BRIEF's history. Per the standing rule (most recent request from the owner
+wins when it contradicts the plan), this turn leans back toward a fast
+top-line signal — but as an ADDITION above the existing breakdown, not a
+replacement of it. Nothing from turns eleven through thirteen was removed.
+
+Shipped: a `.quickread` banner — one big coloured line ("🚩 sounds like
+mostly talk" / "🤷 hard to tell yet" / "💬 sounds like they mean it" /
+"✅ sounds locked in"), plus a small honesty caption underneath — rendered
+first, above the pattern grid, in both manual and feed mode. It's driven by
+the *same* `scoreIntent` used everywhere else on this page (whole-text score
+in manual mode, the post average in feed mode) — no new heuristic, just a
+new, blunter bucketing and a louder presentation of a number that already
+existed. "Full of shit" itself never appears as page copy; "sounds like
+mostly talk" is the shipped wording — see Decisions.
 
 ## Decisions
 
@@ -92,18 +96,57 @@ didn't quite land (its plan item 3, now done this way instead of the
   with mixed conviction should read as roughly how they've actually been
   talking about it, not be dragged to their single most (or least) committed
   post.
+- **This turn: "full of shit" became "sounds like mostly talk" in the actual
+  copy.** The request's language was blunt and vulgar; the shipped label is
+  blunt but not vulgar, and — more importantly — never phrased as a claim
+  about a *person's* honesty. It reads the WORDING ("sounds like..."), same
+  register as the existing `categoryFor()` labels ("just talk", "locked
+  in") which already used this exact framing two turns before this one.
+  This isn't a new capability or a new risk surface: feed mode already let
+  a visitor point the meter at any handle and get back "just talk" for a
+  low score. The quick-read banner just makes that existing signal loud and
+  immediate instead of a small line under a shrunk gauge.
+- **Added, not swapped in.** Turn twelve asked to de-emphasise the score;
+  this turn asks for something fast and blunt, which — read narrowly —
+  could have meant "put the number back on top and shrink the cards." Chose
+  instead to add a new, separate element above the existing breakdown and
+  leave the pattern cards and the demoted gauge exactly as they were. If a
+  future turn says the page still feels cluttered or that the breakdown is
+  now redundant with the quick read, that's the signal to actually remove
+  something — not this turn's job to guess at.
+- **Reused `scoreIntent`, not a new signal table.** Same reasoning as
+  `GOAL_CATEGORIES` vs `SIGNALS` and as `localDepthScore` vs `scoreIntent`:
+  three features on this page now read commitment-vs-hedging language, all
+  through one scored table. `QUICKREADS` is just a bucket list (4 bands
+  instead of `depthLabel`'s 5, `categoryFor`'s 5) tuned for a punchier read
+  at a glance, not a fourth way of scoring text.
+- **Kept the word "verdict" out of user-facing copy.** The footer already
+  says "not sentiment AI, and not a verdict on anyone" (from an earlier
+  turn) — calling the new banner a "verdict" in its own text would directly
+  contradict that line on the same page. Internal CSS class/ids still say
+  `quickread`, not `verdict`, for the same reason — didn't want a future
+  edit to casually surface that word in copy without noticing the clash.
 
 ## The plan — what's not built
 
-1. **The category table is still a first pass**, same caveat as SIGNALS:
+1. **`QUICKREADS`'s 30/55/78 bucket boundaries are a first guess**, picked
+   by eye against `scoreIntent`'s 0–100 range and not checked against real
+   post text — same caveat as `depthLabel` and `categoryFor`, which use
+   different boundaries (20/40/60/80) for the same underlying score. If the
+   three ever look like they disagree on the same text in a confusing way
+   (e.g. quick-read says "locked in" but the reading below says "leaning
+   in"), that's worth reconciling into one shared bucket table instead of
+   three separate ones — didn't do that this turn because touching
+   `categoryFor`/`depthLabel` risked the wording other turns already tuned.
+2. **The category table is still a first pass**, same caveat as SIGNALS:
    tuned by eye, not a corpus. `GOAL_CATEGORIES` (top third of the inline
    script) is the file to open if a category misses something obvious.
-2. **Depth is also unvalidated against real text** — `depthLabel()`'s
+3. **Depth is also unvalidated against real text** — `depthLabel()`'s
    buckets (30/50/70/85) were picked by eye to spread SIGNALS' 0–100 range
    into five readable labels, same caveat as everything else scored here.
    If depth reads as too bunched (e.g. everything landing "stated"), the
    buckets are the first thing to widen, not the SIGNALS weights.
-3. **Everything from earlier BRIEFs that still isn't built**: labPds()
+4. **Everything from earlier BRIEFs that still isn't built**: labPds()
    history/trend view, a two-handle compare mode, thread mode via
    `getPostThread`. None conflict with what's shipped — they'd sit alongside
    the pattern cards fine. Thread mode is still the trickiest (nested
@@ -135,3 +178,20 @@ didn't quite land (its plan item 3, now done this way instead of the
   font-size is the value to shrink first; if icon circles look muddy at low
   alpha against `--bg-raised`, raising the 0.14 floor in `patternCardsHtml`
   is the fix.
+- **This turn's `.quickread` colours are hardcoded hex, not `var(--error)`
+  etc.**, matching the existing pattern in `GOAL_CATEGORIES` (also
+  hardcoded hex, unrelated to kit tokens) rather than reading from
+  `tokens.css`. Picked to match the kit's current `--error`/`--ok`/`--accent`
+  values by eye since JS can't read CSS custom properties without an extra
+  `getComputedStyle` call. If a human edits tokens.css's status colours,
+  this file's `QUICKREADS` array is the other place those hex values live
+  and won't update itself.
+- The requester's literal phrase never made it into visible copy — see
+  Decisions. If a future message from them insists on the exact wording,
+  that's a deliberate ask to override this turn's softening, not a bug to
+  fix.
+- **Screenshot check (this turn):** rendered at 1200x800 under production
+  CSP. Heading, intro copy, the "Say it" textarea and button, and the
+  (demoted) gauge all render correctly — nothing off-screen, overlapping,
+  blank, or unreadable. No code changes made; this was a visible-breakage
+  check only, not a re-review of the design.
