@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Surface Tension — chess played in droplets</title>
 <meta property="og:title" content="Surface Tension — chess played in droplets">
-<meta property="og:description" content="A chess variant where every piece is a droplet: they wobble, merge when they touch, and dissolve when captured. Capture the king to win — no check, no checkmate.">
+<meta property="og:description" content="Chess where every piece is real liquid: metaball droplets that wobble, merge and ripple as they move, and burst into a splash when captured. Capture the king to win — no check, no checkmate.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
@@ -14,26 +14,22 @@
   .status { font-size: .95rem; color: var(--fg); margin: .25rem 0 1rem; min-height: 1.4em; }
   .status b.water { color: var(--water); }
   .status b.wine { color: var(--wine); }
-  .board-wrap { max-width: min(92vw, 560px); margin: 0 auto 1.5rem; touch-action: manipulation; }
-  svg#board { width: 100%; height: auto; display: block; border-radius: var(--radius);
-              background: #0a0d12; border: 1px solid var(--border); }
+  .board-wrap {
+    position: relative; max-width: min(92vw, 560px); margin: 0 auto 1.5rem;
+    touch-action: manipulation; border-radius: var(--radius); overflow: hidden;
+    background: radial-gradient(120% 140% at 30% 10%, #16303c 0%, #0a0d12 72%);
+    border: 1px solid var(--border);
+  }
+  #board { display: block; width: 100%; height: auto; }
+  #liquid, #overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
   .sq { fill: #141a22; }
   .sq.alt { fill: #10151b; }
   .sq.selected { fill: var(--accent-dim); }
   .sq-hit { cursor: pointer; }
-  .legal-dot { fill: var(--accent); opacity: .85; pointer-events: none; }
-  .legal-ring { fill: none; stroke: var(--accent); stroke-width: 4; opacity: .85; pointer-events: none; }
-  .piece-circle { transition: cx .35s cubic-bezier(.34,1.4,.5,1), cy .35s cubic-bezier(.34,1.4,.5,1),
-                  r .3s ease, opacity .3s ease; transform-box: fill-box; transform-origin: center; }
-  .piece-circle.water { fill: var(--water); }
-  .piece-circle.wine { fill: var(--wine); }
-  .piece-glyph { font-size: 42px; text-anchor: middle; dominant-baseline: central; pointer-events: none;
-                 fill: #0a0d12; stroke: #f4f2ee; stroke-width: 1.4px; paint-order: stroke fill;
-                 transition: x .35s cubic-bezier(.34,1.4,.5,1), y .35s cubic-bezier(.34,1.4,.5,1), opacity .3s ease; }
-  @media (prefers-reduced-motion: no-preference) {
-    .piece-circle { animation: wobble 3.6s ease-in-out infinite; }
-    @keyframes wobble { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.07, .93); } }
-  }
+  .legal-dot { fill: var(--accent); opacity: .85; }
+  .legal-ring { fill: none; stroke: var(--accent); stroke-width: 4; opacity: .85; }
+  .piece-glyph { font-size: 42px; text-anchor: middle; dominant-baseline: central;
+                 fill: #0a0d12; stroke: #f4f2ee; stroke-width: 1.4px; paint-order: stroke fill; }
   .controls { display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
   .legend { display: flex; gap: 1.25rem; font-size: .8rem; color: var(--muted); margin-bottom: 1rem; flex-wrap: wrap; }
   .legend span { display: inline-flex; align-items: center; gap: .4rem; }
@@ -47,8 +43,9 @@
 <main>
   <div id="crumb"></div>
   <h1>Surface Tension</h1>
-  <p class="sub">Chess played in droplets. Every piece is liquid — pieces of the same
-    colour wobble and merge where they touch, and dissolve away when captured.</p>
+  <p class="sub">Chess played in real liquid. Every piece is a metaball droplet —
+    same-colour pieces wobble and merge where they touch, ripple when they move,
+    and burst apart when captured.</p>
 
   <div class="legend">
     <span><span class="swatch water"></span> Water moves first</span>
@@ -59,18 +56,12 @@
 
   <div class="board-wrap">
     <svg id="board" viewBox="0 0 800 800" role="img" aria-label="Chess board">
-      <defs>
-        <filter id="goo" x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="blur"/>
-          <feColorMatrix in="blur" mode="matrix"
-            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9" result="goo"/>
-        </filter>
-      </defs>
       <g id="squares"></g>
+    </svg>
+    <canvas id="liquid" aria-hidden="true"></canvas>
+    <svg id="overlay" viewBox="0 0 800 800" aria-hidden="true">
       <g id="selectLayer"></g>
       <g id="legalLayer"></g>
-      <g id="waterLayer" class="goo-layer" filter="url(#goo)"></g>
-      <g id="wineLayer" class="goo-layer" filter="url(#goo)"></g>
       <g id="glyphLayer"></g>
     </svg>
   </div>
@@ -92,22 +83,40 @@
   var N = 8, SQ = 100;
   var RADIUS = { K: 38, Q: 35, R: 29, B: 27, N: 27, P: 21 };
   var GLYPH = { K: '♔', Q: '♕', R: '♖', B: '♝', N: '♞', P: '♙' };
-  // Bishop and knight glyphs above are picked purely for silhouette contrast
-  // against the round droplets; colour (not glyph style) carries the team.
+  var WATER_RGB = [111, 214, 240], WINE_RGB = [213, 84, 140];
 
-  var svg = document.getElementById('board');
   var squaresG = document.getElementById('squares');
   var selectG = document.getElementById('selectLayer');
   var legalG = document.getElementById('legalLayer');
-  var waterG = document.getElementById('waterLayer');
-  var wineG = document.getElementById('wineLayer');
   var glyphG = document.getElementById('glyphLayer');
   var statusEl = document.getElementById('status');
+  var canvas = document.getElementById('liquid');
+  var ctx = canvas.getContext('2d');
 
-  var board, pieces, selected, gameOver, nextId;
   var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = 800 * dpr; canvas.height = 800 * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.imageSmoothingEnabled = true;
+  if ('imageSmoothingQuality' in ctx) ctx.imageSmoothingQuality = 'high';
+
+  // Low-res scalar field, upscaled with bilinear smoothing onto the main
+  // canvas — that upscale IS the soft liquid edge, no separate blur needed.
+  var FIELD_RES = 80, CELL = 800 / FIELD_RES;
+  var fieldCanvas = document.createElement('canvas');
+  fieldCanvas.width = FIELD_RES; fieldCanvas.height = FIELD_RES;
+  var fieldCtx = fieldCanvas.getContext('2d');
+  var fieldImg = fieldCtx.createImageData(FIELD_RES, FIELD_RES);
+
+  var board, pieces, selected, gameOver, nextId, turn;
+  var dissolving = [], ripples = [], particles = [];
 
   function xy(row, col) { return { x: col * SQ + SQ / 2, y: row * SQ + SQ / 2 }; }
+  function now() { return performance.now(); }
+  function smoothstep(a, b, v) {
+    if (v <= a) return 0; if (v >= b) return 1;
+    var t = (v - a) / (b - a); return t * t * (3 - 2 * t);
+  }
 
   function buildSquares() {
     squaresG.innerHTML = '';
@@ -139,13 +148,10 @@
 
   function newGame() {
     board = [];
-    for (var r = 0; r < N; r++) { board.push(new Array(N).fill(null)); }
-    pieces = [];
-    nextId = 1;
-    selected = null;
-    gameOver = false;
-    turn = 'w';
-    waterG.innerHTML = ''; wineG.innerHTML = ''; glyphG.innerHTML = '';
+    for (var r = 0; r < N; r++) board.push(new Array(N).fill(null));
+    pieces = []; nextId = 1; selected = null; gameOver = false; turn = 'w';
+    dissolving = []; ripples = []; particles = [];
+    glyphG.innerHTML = '';
     initialPieces().forEach(function (p) {
       p.id = nextId++;
       board[p.row][p.col] = p;
@@ -154,46 +160,57 @@
     });
     clearSelection();
     updateStatus();
+    settle();
   }
 
   function mountPiece(p) {
     var pos = xy(p.row, p.col);
-    var circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    circle.setAttribute('cx', pos.x); circle.setAttribute('cy', pos.y);
-    circle.setAttribute('r', RADIUS[p.type]);
-    circle.setAttribute('class', 'piece-circle ' + (p.color === 'w' ? 'water' : 'wine'));
-    if (!reduceMotion) circle.style.animationDelay = (-(Math.random() * 3.6)).toFixed(2) + 's';
-    (p.color === 'w' ? waterG : wineG).appendChild(circle);
-
+    p.vis = { x: pos.x, y: pos.y };
+    p.phase = Math.random() * Math.PI * 2;
     var text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     text.setAttribute('x', pos.x); text.setAttribute('y', pos.y + 2);
     text.setAttribute('class', 'piece-glyph');
     text.textContent = GLYPH[p.type];
     glyphG.appendChild(text);
-
-    p.circleEl = circle; p.textEl = text;
+    p.textEl = text;
   }
 
   function movePieceDom(p) {
-    var pos = xy(p.row, p.col);
-    p.circleEl.setAttribute('cx', pos.x); p.circleEl.setAttribute('cy', pos.y);
-    p.circleEl.setAttribute('r', RADIUS[p.type]);
-    p.textEl.setAttribute('x', pos.x); p.textEl.setAttribute('y', pos.y + 2);
+    if (reduceMotion) {
+      var pos = xy(p.row, p.col);
+      p.vis.x = pos.x; p.vis.y = pos.y;
+      p.textEl.setAttribute('x', pos.x); p.textEl.setAttribute('y', pos.y + 2);
+    }
     p.textEl.textContent = GLYPH[p.type];
   }
 
-  function dissolvePiece(p) {
-    p.circleEl.setAttribute('r', 0);
-    p.circleEl.style.opacity = '0';
-    p.textEl.style.opacity = '0';
-    var delay = reduceMotion ? 0 : 320;
-    setTimeout(function () {
-      if (p.circleEl.parentNode) p.circleEl.parentNode.removeChild(p.circleEl);
-      if (p.textEl.parentNode) p.textEl.parentNode.removeChild(p.textEl);
-    }, delay);
+  function startDissolve(p) {
+    var rgb = p.color === 'w' ? WATER_RGB : WINE_RGB;
+    if (p.textEl && p.textEl.parentNode) p.textEl.parentNode.removeChild(p.textEl);
+    if (reduceMotion) return;
+    dissolving.push({ x: p.vis.x, y: p.vis.y, color: p.color, r0: RADIUS[p.type], t0: now(), duration: 420 });
+    spawnSplash(p.vis.x, p.vis.y, rgb);
   }
 
-  var turn = 'w';
+  function spawnSplash(x, y, rgb) {
+    for (var i = 0; i < 10; i++) {
+      var a = Math.random() * Math.PI * 2, speed = 0.06 + Math.random() * 0.10;
+      particles.push({
+        x: x, y: y, vx: Math.cos(a) * speed * 100, vy: Math.sin(a) * speed * 100,
+        r: 4 + Math.random() * 4, rgb: rgb, t0: now(), duration: 500 + Math.random() * 200
+      });
+    }
+  }
+
+  function addRipple(x, y, rgb) {
+    if (reduceMotion) return;
+    ripples.push({ x: x, y: y, rgb: rgb, t0: now(), duration: 550 });
+  }
+
+  var DIAG = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+  var ORTH = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+  var KNIGHT = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
+  var ALL8 = DIAG.concat(ORTH);
 
   function inBounds(r, c) { return r >= 0 && r < N && c >= 0 && c < N; }
 
@@ -217,11 +234,6 @@
       if (!occ || occ.color !== p.color) moves.push({ row: r, col: c });
     });
   }
-
-  var DIAG = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
-  var ORTH = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-  var KNIGHT = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
-  var ALL8 = DIAG.concat(ORTH);
 
   function legalMoves(p) {
     var moves = [];
@@ -266,8 +278,7 @@
     moves.forEach(function (m) {
       var pos = xy(m.row, m.col);
       var occ = board[m.row][m.col];
-      var el = document.createElementNS('http://www.w3.org/2000/svg',
-        occ ? 'circle' : 'circle');
+      var el = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       el.setAttribute('cx', pos.x); el.setAttribute('cy', pos.y);
       if (occ) { el.setAttribute('r', 42); el.setAttribute('class', 'legal-ring'); }
       else { el.setAttribute('r', 11); el.setAttribute('class', 'legal-dot'); }
@@ -292,24 +303,26 @@
     if (target) {
       board[target.row][target.col] = null;
       pieces = pieces.filter(function (x) { return x.id !== target.id; });
-      dissolvePiece(target);
-      if (target.type === 'K') {
-        gameOver = true;
-      }
+      startDissolve(target);
+      if (target.type === 'K') gameOver = true;
     }
     board[p.row][p.col] = null;
     p.row = dest.row; p.col = dest.col;
     board[p.row][p.col] = p;
     if (p.type === 'P' && (p.row === 0 || p.row === 7)) p.type = 'Q';
     movePieceDom(p);
+    var landed = xy(p.row, p.col);
+    addRipple(landed.x, landed.y, p.color === 'w' ? WATER_RGB : WINE_RGB);
     if (gameOver) {
       updateStatus(p.color);
       clearSelection();
+      settle();
       return;
     }
     turn = turn === 'w' ? 'b' : 'w';
     clearSelection();
     updateStatus();
+    settle();
   }
 
   function onSquareClick(e) {
@@ -336,8 +349,120 @@
 
   document.getElementById('resetBtn').addEventListener('click', newGame);
 
+  // --- liquid rendering: a real scalar field, not a blur filter ---
+
+  function teamList(color, t) {
+    var list = pieces.filter(function (p) { return p.color === color; })
+      .map(function (p) { return { x: p.vis.x, y: p.vis.y, r: RADIUS[p.type], phase: p.phase }; });
+    dissolving.forEach(function (g) {
+      if (g.color !== color) return;
+      var frac = Math.min(1, (t - g.t0) / g.duration);
+      var r = g.r0 * (1 - frac);
+      if (r > 0.5) list.push({ x: g.x, y: g.y, r: r, phase: 0 });
+    });
+    return list;
+  }
+
+  function paintField(list, rgb, t) {
+    var data = fieldImg.data;
+    for (var j = 0; j < FIELD_RES; j++) {
+      var py = j * CELL + CELL / 2;
+      for (var i = 0; i < FIELD_RES; i++) {
+        var px = i * CELL + CELL / 2;
+        var field = 0;
+        for (var k = 0; k < list.length; k++) {
+          var it = list[k];
+          var wob = reduceMotion ? 1 : (1 + 0.09 * Math.sin(t * 0.0018 + it.phase));
+          var r = it.r * wob;
+          var dx = px - it.x, dy = py - it.y;
+          var d2 = dx * dx + dy * dy + 1;
+          field += (r * r * 2.2) / d2;
+        }
+        var a = smoothstep(0.55, 1.05, field);
+        var idx = (j * FIELD_RES + i) * 4;
+        data[idx] = rgb[0]; data[idx + 1] = rgb[1]; data[idx + 2] = rgb[2];
+        data[idx + 3] = Math.round(a * 255);
+      }
+    }
+    fieldCtx.putImageData(fieldImg, 0, 0);
+    ctx.drawImage(fieldCanvas, 0, 0, FIELD_RES, FIELD_RES, 0, 0, 800, 800);
+  }
+
+  function drawHighlights() {
+    pieces.forEach(function (p) {
+      var r = RADIUS[p.type];
+      var g = ctx.createRadialGradient(
+        p.vis.x - r * 0.32, p.vis.y - r * 0.35, 0,
+        p.vis.x - r * 0.32, p.vis.y - r * 0.35, r * 0.6);
+      g.addColorStop(0, 'rgba(255,255,255,.38)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(p.vis.x, p.vis.y, r * 0.62, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  function drawRipples(t) {
+    ripples = ripples.filter(function (r) { return t - r.t0 < r.duration; });
+    ripples.forEach(function (r) {
+      var p = (t - r.t0) / r.duration;
+      var rad = 8 + p * 60;
+      ctx.beginPath();
+      ctx.arc(r.x, r.y, rad, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(' + r.rgb[0] + ',' + r.rgb[1] + ',' + r.rgb[2] + ',' + ((1 - p) * 0.55) + ')';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    });
+  }
+
+  function drawParticles(t) {
+    particles = particles.filter(function (pt) { return t - pt.t0 < pt.duration; });
+    particles.forEach(function (pt) {
+      var p = (t - pt.t0) / pt.duration;
+      var elapsed = t - pt.t0;
+      var x = pt.x + pt.vx * (elapsed / 1000);
+      var y = pt.y + pt.vy * (elapsed / 1000);
+      var r = Math.max(0, pt.r * (1 - p));
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(' + pt.rgb[0] + ',' + pt.rgb[1] + ',' + pt.rgb[2] + ',' + ((1 - p) * 0.85) + ')';
+      ctx.fill();
+    });
+  }
+
+  function draw(t) {
+    ctx.clearRect(0, 0, 800, 800);
+    paintField(teamList('w', t), WATER_RGB, t);
+    paintField(teamList('b', t), WINE_RGB, t);
+    drawHighlights();
+    drawRipples(t);
+    drawParticles(t);
+    dissolving = dissolving.filter(function (g) { return t - g.t0 < g.duration; });
+  }
+
+  function updateVisualPositions() {
+    var k = reduceMotion ? 1 : 0.22;
+    pieces.forEach(function (p) {
+      var target = xy(p.row, p.col);
+      p.vis.x += (target.x - p.vis.x) * k;
+      p.vis.y += (target.y - p.vis.y) * k;
+    });
+  }
+
+  function settle() {
+    if (reduceMotion) { updateVisualPositions(); draw(now()); }
+  }
+
+  function loop(t) {
+    updateVisualPositions();
+    draw(t);
+    requestAnimationFrame(loop);
+  }
+
   buildSquares();
   newGame();
+  if (!reduceMotion) requestAnimationFrame(loop);
 })();
 </script>
 </body>

@@ -1,1 +1,1 @@
-Full 2-player chess: droplets goo-merge by team, dissolve on capture, king-capture wins, no check/checkmate — same rules mentioned in the thread. Local pass-and-play only; no save/online play yet, that's the natural next step.
+Rebuilt from scratch: pieces are now a real metaball field — droplets actually pull on neighbours by distance, not a blur filter — plus ripples on move and a splash on capture. Chess rules untouched, as asked.

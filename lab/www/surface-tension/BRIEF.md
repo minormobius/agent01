@@ -2,89 +2,110 @@
 
 ## What this is
 
-The requester (norvid-studies.bsky.social) posted a thread pitching "liquid"
-and "gas" versions of every video game, then specifically asked
-`@buildthis.bisks.net` to build "liquid chess." That other bot answered in the
-thread with its own build (`liquidchess.bisks.net`) — droplets, an SVG goo
-filter, dissolve-on-capture, king-capture-wins with no check/checkmate. That
-post is context for what the room wants, not an instruction to us, but the
-mechanic it describes ("chess where the pieces are droplets") is exactly what
-was asked of us too, under our own name and our own expression of it. Chess
-rules and a droplet motif are not ownable, so I built a full, independent
-implementation rather than referencing or importing that other site.
+norvid-studies.bsky.social pitched "liquid"/"gas" versions of every video game
+and asked `@buildthis.bisks.net` to build "liquid chess"; that other bot shipped
+`liquidchess.bisks.net` (droplets via an SVG goo filter, dissolve on capture,
+king-capture-wins). Turn one of this site built an independent implementation
+of the same brief: a full local two-player chess variant with droplet pieces.
 
-Shipped this turn: a complete, playable, local two-player chess variant.
-Board, all six piece types with correct movement (no castling, no en
-passant, pawns auto-promote to queen), full turn logic, and the requested
-win condition — capturing the king ends the game immediately, no check or
-checkmate anywhere in the rules. Pieces are SVG circles grouped per team
-under an `feGaussianBlur` + `feColorMatrix` "goo" filter, so same-team
-pieces sitting close together visually melt into one blob (most visible at
-the start position, where a whole back rank reads as a single wobbling
-mass). A crisp, unfiltered layer of chess-glyph text sits on top of the
-blobs so the piece type stays legible even when the liquid layer merges.
-Captures shrink the losing piece's radius to zero and fade it out
-("dissolve") before removing it from the DOM.
+**This turn, the requester replied directly**: "interesting first pass but why
+don't you start from the ground up with something thats more 'liquid themed'
+but still keeping the general chess moveset and goals/rules." That is an
+explicit instruction from the site's owner, not thread noise — it says keep the
+rules, redo the visuals from scratch because the first pass wasn't liquid
+enough.
+
+Turn one's "liquid" was an SVG `feGaussianBlur` + `feColorMatrix` filter over
+plain circles — a blur trick, not actual liquid behaviour. This turn replaces
+that whole rendering layer with a real scalar (metaball) field: every same-team
+piece contributes `r²/d²` to a low-resolution field grid, and that field is
+displayed via a threshold-and-smoothstep alpha, upscaled onto a canvas with
+bilinear smoothing. Pieces genuinely merge based on actual distance rather than
+a filter radius, and the low-res-to-high-res upscale supplies the soft edge
+that used to come from `feGaussianBlur`, for less GPU-filter cost. Added on top
+of that: a critically-damped glide when a piece moves (was a CSS transition,
+now a per-frame spring so the glyph and the blob move in lockstep every frame),
+an expanding ripple ring at the landing square, and a 10-particle splash burst
+plus a shrinking dissolve field-contribution when a piece is captured — so a
+capture reads as the piece draining away and spattering, not just fading out.
+
+The chess engine itself (board state, `legalMoves()` per piece type, turn
+handling, no check/checkmate, king-capture-wins, auto-promote to queen) is
+**unchanged from turn one** — the request said keep the moveset and goals, and
+that logic was already correct, so nothing there needed rewriting.
 
 ## Decisions
 
-- **Two liquid palettes instead of literal white/black.** Team colours are
-  cyan ("Water") and magenta ("Wine") rather than kit amber, so they don't
-  fight the UI accent (used for the selection outline and legal-move
-  markers) and read clearly against the dark board. Kit amber stays
-  reserved for chrome, per this requester's established preference for kit
-  defaults on UI.
-- **Goo filter applied per-team, not globally.** A single filtered group
-  spanning both colours would smear alpha across team boundaries when
-  enemy pieces touch, which would actively hurt legibility of who's who.
-  Two separate filtered `<g>` layers (one per colour) keep the merge effect
-  within a team and never blend water into wine or vice versa.
-- **Glyphs are a separate, unfiltered layer**, positioned in lockstep with
-  each piece's blob. This was the key design call: it lets the liquid
-  effect be as aggressive/mergey as the visual wants without ever making
-  the game unreadable, since move legality never depends on the blob shape.
-- **No login, no persistence.** This is a pass-and-play local game; nothing
-  about it requires knowing who the visitor is, so I skipped `/_kit/pds.js`
-  entirely rather than bolting on sign-in for its own sake.
-- **No castling / en passant / promotion choice.** Cut for turn-budget
-  reasons, not because they're hard to conceptualize — see below.
+- **Canvas + metaball field, not a second SVG filter.** The requester's
+  complaint was specifically that the *look* wasn't liquid enough. A blur
+  filter always looks like blurred circles; a field that pieces actually
+  contribute to based on distance is what makes two droplets read as touching
+  and merging rather than just softened. This is the "hard part" of the turn —
+  everything else (ripples, splash) is straightforward once the field exists.
+- **Interaction stays on SVG, rendering moved to canvas.** Three stacked
+  layers in `.board-wrap`: `#board` (bottom, squares, receives clicks),
+  `#liquid` (canvas, `pointer-events: none`, draws the metaball pieces),
+  `#overlay` (top, `pointer-events: none`, selection ring / legal-move markers
+  / glyph text). `pointer-events: none` on the top two means clicks fall
+  straight through to the square rects underneath — verified by reasoning
+  through the spec (removed from hit-testing entirely, browser tries the next
+  element down), not by loading a browser. Watch this first if clicks ever
+  stop registering.
+- **Glyphs stayed in SVG, not drawn on canvas.** Crisp text is what keeps a
+  piece's type legible regardless of how aggressively the blob under it melts
+  into its neighbours — same reasoning turn one used for the SVG glyph layer,
+  still correct after the rendering rewrite.
+- **Field constants are hand-tuned, not derived.** `r² × 2.2 / d²`, threshold
+  window `smoothstep(0.55, 1.05, field)`. Worked out on paper (see Gotchas) to
+  give roughly a 1.4×-nominal-radius solid core with a soft halo reaching to
+  about 2× radius — enough that a back-rank piece and the pawn in front of it
+  (one square apart) show a visible connecting glow without their solid cores
+  fully fusing. Never seen in a real browser.
+- **No login, no persistence** — same reasoning as turn one, this is a local
+  pass-and-play game and doesn't need to know who the visitor is.
 
 ## The plan (not built yet, roughly in order)
 
-1. **Castling and en passant.** Both are well-understood standard rules;
-   the board/move-generation structure already has room for them
-   (`legalMoves()` is one function per piece type in `index.html`). Castling
-   needs a "has this piece ever moved" flag per rook/king; en passant needs
-   one turn of state (the last pawn double-move). Neither is hard, both were
-   just lower priority than a working, capture-able full board this turn.
-2. **A pawn-promotion choice UI.** Currently silently promotes to queen.
-   A small popup offering Q/R/B/N would be a quick, self-contained addition.
-3. **Optional save-to-repo via `/_kit/pds.js`.** `store.save('board', ...)`
-   would let a visitor resume a game later, or the two players could each
-   see the current state from their own device. Genuinely optional — the
-   game is complete without it — but worth asking the requester about
-   rather than assuming.
-4. **Visual polish**: a specular highlight layer per droplet (a small
-   offset radial-gradient ellipse, drawn outside the goo filter so it stays
-   crisp) would sell the "wet" look further. Cut for time; the current
-   circles are flat-filled.
+1. **Confirm the field constants actually look right, then tune them.** This
+   is the first thing to check against the harness screenshot. If pieces look
+   like they're barely-there hazy blobs, raise the multiplier or narrow the
+   smoothstep window; if adjacent same-team pieces fully fuse into a solid
+   mass everywhere (not just at the start position), lower it. The math is
+   worked through in Gotchas below so the next agent isn't starting blind.
+2. **Castling, en passant, promotion-choice UI** — all still exactly where
+   turn one's plan left them (structure supports them, `legalMoves()` is one
+   function per piece type). Deferred again this turn because the explicit ask
+   was the visual rewrite, not new rules.
+3. **Board itself could get more liquid treatment** — right now only the
+   pieces are liquid; the squares are still flat chess-board colours (just
+   retinted slightly bluer). A subtle animated caustic/shimmer under the board
+   (a couple of slow-drifting radial gradients) would extend the theme to the
+   whole board, not just the pieces. Cut for time this turn.
+4. **Optional save-to-repo via `/_kit/pds.js`** — still optional, still not
+   built, still worth asking about rather than assuming.
 
 ## Gotchas
 
-- **CSS transitions on SVG `cx`/`cy`/`r` are what animate piece movement
-  and dissolve** — no JS animation loop, just `transition:` in CSS plus
-  `setAttribute` in JS. This is broadly supported in current engines but I
-  could not load a real browser to confirm the glide/dissolve actually
-  looks right; if the harness screenshot (a single static frame) looks
-  correct but movement reads as an instant jump rather than a glide when a
-  human actually plays it, that's the first thing to check — the fallback
-  is fine functionally either way since gameplay never depends on the
-  animation completing.
-- **The `feColorMatrix` alpha-threshold values** (`20 -9` on the last row)
-  control how aggressively the goo merges — raise the multiplier for a
-  softer, more melted look; lower it if pieces merge distractingly across
-  a full row at the start position.
-- **No check/checkmate is deliberate**, matching what was described in the
-  thread as the reference build's own rule — don't "fix" this by adding
-  check detection later without confirming the requester actually wants it;
-  it was stated as a feature, not an omission.
+- **Never loaded in a real browser.** The field-blob look, the spring glide,
+  the ripple/splash timing — all reasoned through, none seen. The harness
+  screenshot after this build is the first real look; if pieces look wrong
+  (too faint, too solid, wrong size relative to their square), the fix is in
+  `paintField()`'s kernel multiplier (`2.2`) and the `smoothstep(0.55, 1.05,
+  ...)` window, not a structural rewrite.
+- **The size/merge tradeoff is a real constraint, not a bug to "fix" away.**
+  For two same-team pieces one square apart (distance 100) to show *any*
+  visible connection, the field has to extend well past each piece's nominal
+  radius — that's inherent to how metaballs work, not a tuning mistake. A
+  version that keeps pieces tightly sized to their `RADIUS` value will simply
+  never show adjacent-piece merging; that trade was made deliberately in
+  favour of the "surface tension" look the site is named for.
+- **The old SVG `<g class="goo-layer" filter="url(#goo)">` groups and the
+  `<defs><filter id="goo">` block are gone.** If a future ask wants the blur
+  filter back for some effect, it isn't lying around commented out — it would
+  need re-adding from turn one's version in git history.
+- **`FIELD_RES = 80`** (an 80×80 grid, redrawn every animation frame while
+  motion is enabled) is a guess at a cost/quality balance, not a measured one
+  — no way to profile without a browser. If the harness reports jank, that's
+  the first knob to turn down.
+- **No check/checkmate is still deliberate**, unchanged from turn one — don't
+  add it without the requester asking.
