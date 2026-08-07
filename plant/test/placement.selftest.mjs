@@ -520,6 +520,31 @@ ok(verdicts.every((k) => k.v.ok || k.v.refusals.every((r) => r.reason === 'seed'
   ok(metric && metric.conAniso === 3.5 && metric.pocketAniso === P.opts.aniso,
      `keys: ...and it says which two metrics disagreed (got ${metric && metric.conAniso} vs ${metric && metric.pocketAniso})`);
 
+  // THE COORDINATE A RENDERER FALLS BACK TO. Carrying no `at` is only defensible
+  // because the enclosing verdict always carries `centre` — which makes that
+  // field load-bearing rather than incidental, and nothing pinned it. If these
+  // three fail, the assertion above them stops being a design decision and
+  // becomes a UI with nothing to point at.
+  //
+  // Compared against the CENTRE the fixture passed IN, not against a literal
+  // read back out of the result: a verifier grading against the wrong reference
+  // has already cost this tree a mechanic. Exact `===` is safe here because
+  // every coordinate is a small integer that no arithmetic touches on the way
+  // through — `constellation` and `legalSummon` each only `slice()` it.
+  ok(Array.isArray(mV.centre) && mV.centre.length === 3 && mV.centre.every(Number.isFinite),
+     `keys: the metric verdict carries a centre of three finite numbers (got ${mV.centre})`);
+  // `Array.isArray` repeated rather than leaned on the line above: `ok()` records
+  // and CONTINUES, so an absent `centre` would fail there and then throw HERE,
+  // killing every later assertion and reading as a broken file rather than as a
+  // failed check. Same guard shape as the `metric &&` assertions above.
+  ok(Array.isArray(mV.centre) && mV.centre.length === CENTRE.length
+     && mV.centre.every((v, i) => v === CENTRE[i]),
+     `keys: ...and it is the centre the caller asked for (want ${CENTRE}, got ${mV.centre})`);
+  // A renderer is handed this array. If it were the constellation's own, a UI
+  // that nudged it would silently move the geometry the verdict describes.
+  ok(mV.centre !== conM.centre && conM.centre !== CENTRE,
+     'keys: ...and it is a COPY at both hops, so a caller that mutates it corrupts nothing');
+
   // The five literals above are hand-written. Each PER-SEED set is therefore
   // derived a second way as well: `legalSummon` spreads `legalSeed`'s record and
   // adds exactly `summonSeed` and `role`. Two independent routes to the same

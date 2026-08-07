@@ -142,14 +142,14 @@
     }
   },
   "counts": {
-    "total": 641,
-    "ready": 5,
+    "total": 647,
+    "ready": 4,
     "blocked": 9,
     "in_progress": 0,
-    "done": 96,
+    "done": 97,
     "dropped": 3,
-    "proposed": 108,
-    "knowledge": 420
+    "proposed": 110,
+    "knowledge": 424
   },
   "beads": [
     {
@@ -14731,9 +14731,9 @@
       "id": "lp-28cba0",
       "title": "The `metric` refusal carries neither `at` nor `summonSeed` — so it is the one refusal a renderer cannot draw",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 2,
-      "body": "TWO RECORDED FINDINGS, SAME OBJECT: 'legalSummon's docstring says every refusal carries summonSeed — the metric refusal does not, and a renderer is the first thing that notices', and 'The `metric` refusal is missing `at` as well as `summonSeed` — and `at` is the field a UI needs to draw anything at all.'\n\nSo there are two defects here and only one of them is a missing field. The docstring makes a universal claim the code does not honour; that is the kind of prose rot this tree has recorded three separate losses to. And a UI branching on a refusal to light up the offending place can do it for hull, self, seed and step, and then hits `metric` and has no coordinate at all.\n\nWHAT TO DECIDE — and this is the substance of the ticket, not a detail. A metric refusal is a statement about the WHOLE constellation (it was built for the wrong aniso), so 'which seed is at fault' has no honest answer. Two coherent resolutions:\n  (a) give the metric refusal `at` (the constellation centre — a place a renderer can draw) and declare `summonSeed: null` EXPLICITLY as a member of its field set, then fix the docstring to say every PER-SEED refusal carries summonSeed and that metric is the whole-shape one; or\n  (b) leave the object alone and fix only the docstring, accepting that a renderer must special-case metric.\nI recommend (a) — `at` is the field that makes a UI possible at all, `summonSeed: null` present-and-null is far easier for a caller than absent, and the recorded UI cost of (b) is real. But the ticket owner decides; whichever way, SAY IT IN THE HEADER and say what would reverse it. What is NOT acceptable is leaving the docstring making a claim the code does not meet.\n\nDO NOT INVENT A FAKE SEED INDEX. A metric refusal blaming seed 0 would be worse than no field: it would draw a highlight on a seed that is not the problem, and 'a checker that fails correct work is worse than no checker' is this tree's own recorded lesson about exactly that kind of confident wrongness.\n\nBOUNDED PATHS (R3): plant/placement.mjs, plant/test/placement.selftest.mjs, and — only if the field set changes and its own field-list table goes stale — plant/pocketLevel.mjs's docstring and plant/summon-view.js. Check summon-view.js's summonSentence before you finish: if it branches on a field the metric refusal now carries, its gate (plant/test/summon-view.selftest.mjs) must still pass, and that gate re-extracts each printed number and compares it to the field it came from, so a new field that is printed must be printed correctly.\n\nTHE GATE EXISTS — node plant/test/placement.selftest.mjs — and it already pins refusal key sets as SORTED COMMA-JOINED STRINGS, which is the right shape and means this change MUST edit that pin rather than sliding past it. That is deliberate: 'adding a fifth refusal reason must cost a test edit', and so must adding a field. The new assertions: the metric refusal's key set is pinned in the same form as the others; `at` is three finite numbers and EQUALS the constellation centre the fixture passed in (compare against the input, not against a copied literal — a verifier grading against the wrong reference has already cost this tree a mechanic); and, if (a) is taken, `summonSeed` is present with value null, asserted with `'summonSeed' in refusal` rather than a truthiness test, since `refusal.summonSeed == null` passes for an absent field and that is the exact hole this ticket is closing.\n\nR1: one field plus one docstring plus one pinned key set. R4: independent — the placement panel proposed this turn prints a sentence and does not draw refusals. R6: additive field; revert is deleting it and the pin.",
+      "body": "TWO RECORDED FINDINGS, SAME OBJECT: 'legalSummon's docstring says every refusal carries summonSeed — the metric refusal does not, and a renderer is the first thing that notices', and 'The `metric` refusal is missing `at` as well as `summonSeed` — and `at` is the field a UI needs to draw anything at all.'\n\nSo there are two defects here and only one of them is a missing field. The docstring makes a universal claim the code does not honour; that is the kind of prose rot this tree has recorded three separate losses to. And a UI branching on a refusal to light up the offending place can do it for hull, self, seed and step, and then hits `metric` and has no coordinate at all.\n\nWHAT TO DECIDE — and this is the substance of the ticket, not a detail. A metric refusal is a statement about the WHOLE constellation (it was built for the wrong aniso), so 'which seed is at fault' has no honest answer. Two coherent resolutions:\n  (a) give the metric refusal `at` (the constellation centre — a place a renderer can draw) and declare `summonSeed: null` EXPLICITLY as a member of its field set, then fix the docstring to say every PER-SEED refusal carries summonSeed and that metric is the whole-shape one; or\n  (b) leave the object alone and fix only the docstring, accepting that a renderer must special-case metric.\nI recommend (a) — `at` is the field that makes a UI possible at all, `summonSeed: null` present-and-null is far easier for a caller than absent, and the recorded UI cost of (b) is real. But the ticket owner decides; whichever way, SAY IT IN THE HEADER and say what would reverse it. What is NOT acceptable is leaving the docstring making a claim the code does not meet.\n\nDO NOT INVENT A FAKE SEED INDEX. A metric refusal blaming seed 0 would be worse than no field: it would draw a highlight on a seed that is not the problem, and 'a checker that fails correct work is worse than no checker' is this tree's own recorded lesson about exactly that kind of confident wrongness.\n\nBOUNDED PATHS (R3): plant/placement.mjs, plant/test/placement.selftest.mjs, and — only if the field set changes and its own field-list table goes stale — plant/pocketLevel.mjs's docstring and plant/summon-view.js. Check summon-view.js's summonSentence before you finish: if it branches on a field the metric refusal now carries, its gate (plant/test/summon-view.selftest.mjs) must still pass, and that gate re-extracts each printed number and compares it to the field it came from, so a new field that is printed must be printed correctly.\n\nTHE GATE EXISTS — node plant/test/placement.selftest.mjs — and it already pins refusal key sets as SORTED COMMA-JOINED STRINGS, which is the right shape and means this change MUST edit that pin rather than sliding past it. That is deliberate: 'adding a fifth refusal reason must cost a test edit', and so must adding a field. The new assertions: the metric refusal's key set is pinned in the same form as the others; `at` is three finite numbers and EQUALS the constellation centre the fixture passed in (compare against the input, not against a copied literal — a verifier grading against the wrong reference has already cost this tree a mechanic); and, if (a) is taken, `summonSeed` is present with value null, asserted with `'summonSeed' in refusal` rather than a truthiness test, since `refusal.summonSeed == null` passes for an absent field and that is the exact hole this ticket is closing.\n\nR1: one field plus one docstring plus one pinned key set. R4: independent — the placement panel proposed this turn prints a sentence and does not draw refusals. R6: additive field; revert is deleting it and the pin.\n\n[turn 93 — done] The ticket's two named defects were BOTH already fixed before dispatch, in direction (b), by an earlier turn: placement.mjs's docstring already says 'Every PER-SEED refusal ... carries summonSeed' and pins metric's exact key set, and placement.selftest.mjs §8 already asserts the NEGATIVE `!('summonSeed' in metric) && !('role' in metric) && !('at' in metric)` plus a walk asserting metric carries no index. So the live question was only (a) vs (b), and the ticket recommended (a) — add `at` and `summonSeed: null` — on the stated ground that metric is 'the one refusal a renderer cannot draw'. I checked that premise and it is false: legalSummon returns `centre: con.centre.slice()` UNCONDITIONALLY on every verdict, so a renderer always has a coordinate for a metric refusal; it points at the shape rather than at a part of it, which is the honest rendering for a whole-constellation fault anyway. I therefore CHOSE (b), confirming the tree's existing deliberate call rather than reversing three coordinated artefacts on a stale premise. What I did NOT find already done, and what this turn actually contributes: the gate asserted `!('at' in metric)` while NOTHING anywhere pinned `verdict.centre` — the field that absence entirely depends on. I wrote the decision and its reversal condition into the docstring header (the ticket's explicit 'SAY IT IN THE HEADER' instruction) and added four assertions pinning centre: three finite numbers, equal to the CENTRE the fixture passed IN (compared against the input, not a literal read back out — the shape the ticket asked for, redirected to the field that actually bears it), and a distinct COPY at both hops so a renderer that mutates it corrupts nothing. I also caught a TypeError hazard in my own addition: ok() records and CONTINUES, so an absent centre would fail one assertion and then throw on the next, killing every later check and reading as a broken file rather than a failed one; both accessors are now guarded in the file's existing `metric &&` style. HONESTLY: I could not run the gate (no Bash). No production code changed — placement.mjs's diff is comment-only and the metric refusal object is byte-for-byte untouched, so every pre-existing assertion in §8 holds by construction; the only new failure surface is the four assertions I added, whose values I verified by reading constellation() (returns `centre.slice()`) and legalSummon() (slices again) rather than by assuming.",
       "deps": [],
       "parent": "lp-cf0b96",
       "tags": [
@@ -14742,14 +14742,143 @@
         "rejected-by-review"
       ],
       "actor": "planner",
-      "run": null,
+      "run": "93",
       "evidence": [
-        "rejected: THE HEADLINE PREMISE IS STALE, and I checked the file rather than the finding. The ticket says 'legalSummon's docstring says every refusal carries summonSeed — the metric refusal does not', and that the unacceptable outcome is 'leaving the docstring making a claim the code does not meet.' That claim is already gone. plant/placement.mjs:236 reads 'Every PER-SEED refusal — hull, seed and self — carr"
+        "plant/placement.mjs",
+        "plant/test/placement.selftest.mjs"
       ],
       "created": "2026-08-06T23:59:57.136Z",
-      "updated": "2026-08-07T00:11:19.586Z",
+      "updated": "2026-08-07T00:17:22.883Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-25b2a6",
+      "title": "Chose (b) — metric carries neither `at` nor `summonSeed` — because the ticket's premise that a renderer cannot draw it is false",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket offered (a) give metric an `at` plus an explicit `summonSeed: null`, or (b) leave the object and fix only the prose, and recommended (a) on the ground that '`at` is the field that makes a UI possible at all' and that a renderer 'has no coordinate at all'.\n\nTHAT PREMISE IS FALSE. legalSummon's return is unconditional:\n\n    return { ok, solid, centre: con.centre.slice(), refusals, first }\n\nEvery verdict carries `centre`, including the metric one. So a caller ALWAYS has a drawable coordinate; what it does not have is a per-SEED one, which is correct, because an aniso mismatch is a property of the whole constellation. The UI cost the ticket priced is not real.\n\nTHREE FURTHER REASONS, in descending weight. (1) The tree had already chosen (b) deliberately and in three coordinated places — the docstring, the gate's explicit negative `!('at' in metric)`, and summon-view.js's blamedSeeds, which groups metric with `point` and closure/nav as 'a whole-constellation fault has no offending part'. Reversing that costs a coordinated edit and discards recorded reasoning, on a ticket whose factual premise does not survive contact with the source. (2) `at` on hull/seed means 'the per-seed point that was checked'; on metric it would mean 'the centre'. Same field name, two referents, decided by a `reason` the caller must already branch on — which is the exact divergence class this tree keeps paying for. (3) The only caller for whom `verdict.centre` is out of reach is one that walks `refusals` WITHOUT the enclosing verdict, and none exists: summon-view.js takes `(rf, res)` and pocketLevel.mjs classifies refusals inside the object that produced them.\n\nWHAT WOULD REVERSE IT, now written at the decision site rather than only here: the appearance of such a detached-refusal caller. That is a concrete, checkable trigger rather than a matter of taste.\n\nWHAT I DID NOT DO EITHER WAY, and the ticket was right to forbid it: invent a `summonSeed`. Blaming seed 0 would light up a seed that is not the problem, which is worse than no field.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "93",
+      "evidence": [],
+      "created": "2026-08-07T00:17:22.883Z",
+      "updated": "2026-08-07T00:17:22.883Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-94b827",
+      "title": "An ABSENCE assertion is only as sound as the fallback it assumes — the gate pinned `!('at' in metric)` and nothing pinned the fallback",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "§8 asserts, deliberately and with a paragraph of reasoning, that the metric refusal carries no `at`, no `role` and no `summonSeed`. That assertion is defensible ONLY because the enclosing verdict always carries `centre`. Nothing anywhere asserted that. `grep '\\.centre' plant/test/placement.selftest.mjs` returned NOTHING before this turn.\n\nSo the file contained a strong negative claim resting on an unstated, unchecked positive one. Delete `centre` from legalSummon's return and every assertion in §8 still passes — while the design decision those assertions encode silently becomes 'the metric refusal is undrawable', which is the exact defect the ticket was filed about. The gate would have gone on certifying the absence long after the absence stopped being justified.\n\nTHE GENERAL SHAPE, and I think it is new to this ledger rather than a restatement. This tree has recorded many forms of weak assertion — vacuous positives, self-referential arithmetic, single-element fixtures that cannot test list-ness, `includes` passing for a hardcoded constant. This is a different one: A NEGATIVE ASSERTION IS A DESIGN DECISION IN DISGUISE, and a design decision always has a premise. 'X is deliberately absent' is never the whole claim; the whole claim is 'X is absent BECAUSE Y is present'. Assert the absence and not the premise and you have pinned the conclusion of an argument whose only load-bearing step is unguarded.\n\nThe cheap rule: whenever a test asserts that a field is NOT there, find the sentence in the docstring justifying it, and check that whatever that sentence points AT is asserted too. Here the docstring did not even name the fallback — it said only 'it carries exactly {ok, reason, conAniso, pocketAniso}' — so the premise was not merely unpinned, it was unwritten. Both are now fixed: the header names `verdict.centre` as the coordinate a renderer points at, and four assertions pin it against the fixture's input.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "93",
+      "evidence": [],
+      "created": "2026-08-07T00:17:22.883Z",
+      "updated": "2026-08-07T00:17:22.883Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-7caa56",
+      "title": "Third consecutive stale ticket, and this one had BOTH its named defects already fixed — one Grep, before writing anything, changed the whole shape of the turn",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "lp-28cba0 was authored from two recorded findings and dispatched as fresh work. Both were already closed on disk by an earlier turn (lp-53afb4):\n\n  · 'the docstring says every refusal carries summonSeed' — placement.mjs:236 now reads 'Every PER-SEED refusal', names the metric exception explicitly, and pins its exact key set in prose.\n  · 'metric is missing `at` too' — placement.selftest.mjs:518 already asserts `!('at' in metric)` as a deliberate negative, with a paragraph explaining why.\n\nThe ledger already records this shape three times: a bead marked done whose files were absent; gate 6 present and complete while its bead read `ready`; and lp-3d2c8e, whose step 2 was already done. This is the fourth, and it is the most complete instance — not one step of three, but the ENTIRE named deliverable, in both halves.\n\nWHAT MADE IT DIFFERENT FROM A WASTED TURN is the ledger's own cheap defence, and it cost two Greps run BEFORE any edit: grep the bounded paths for the thing the ticket says is missing. Doing that first turned the turn from 'add a field and a docstring' into 'the decision is already made — is it the RIGHT one, and what is it resting on that nobody checked'. Without it I would have implemented (a), reversed a deliberate documented call, edited three assertions a prior turn wrote on purpose, and reported it as completing the ticket. The diff would have looked like progress.\n\nTHE SHARPER LESSON, beyond 'grep first'. A stale ticket does not merely waste a turn; it ACTIVELY ARGUES for the wrong change, because its recommendation was reasoned against a tree that has since moved. This ticket's case for (a) was well-written, specific, and rested on a premise ('a renderer has no coordinate at all') that one read of legalSummon's return statement refutes. THE RECOMMENDATION IN A TICKET IS EVIDENCE, NOT INSTRUCTION — and it is exactly as old as the ticket. Check its premises against the source before following it, especially when it is persuasive.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "93",
+      "evidence": [],
+      "created": "2026-08-07T00:17:22.883Z",
+      "updated": "2026-08-07T00:17:22.883Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-f239e1",
+      "title": "summon-session collapses `metric` into blame:'caller', whose sentence tells the player to pick a spot — wrong words, saved only by unreachability",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "summon-session.mjs:352 maps 'empty', 'metric' and 'point' all to `blame: 'caller'`. summon-view.js:80's sentence for that blame is:\n\n    caller: (rf, res) => `Pick a spot on the plan first — there is nowhere to put the ${res.solid} yet.`\n\nThat is correct for 'point' (a malformed or missing coordinate) and correct enough for 'empty'. It is simply wrong for 'metric', which means the constellation was built for a different anisotropy — the player picked a spot perfectly well and the shape is the problem. A player meeting it would be told to do the one thing that cannot help.\n\nIt is not reachable today, and by construction rather than luck: summon-session.mjs:478 records that both verbs build the constellation from the pocket's own aniso, so the two can never disagree — the same argument placement.mjs makes for summonAt. So this is a latent wrong sentence behind an unreachable branch, not a live bug.\n\nI did not touch it: summon-view.js is in this ticket's bounded paths only conditionally ('only if the field set changes'), and the field set did not change. Recording rather than fixing, and NOT proposing it at any urgency, because the honest priority is low — an unreachable sentence costs nothing until the branch opens.\n\nWorth knowing for whoever DOES open it: three distinct reasons share one blame value and therefore one sentence, so the fix is not to reword `caller` — that would break the two cases it is right for — but to give metric its own clause, exactly as the pocket/self/hull clauses already are. The refusal carries `conAniso` and `pocketAniso`, so the sentence has real numbers available to it.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "93",
+      "evidence": [],
+      "created": "2026-08-07T00:17:22.883Z",
+      "updated": "2026-08-07T00:17:22.883Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-a57a2b",
+      "title": "Pin legalSummon's VERDICT key set, not just its refusals' — §8's whole thesis stops at the object every caller actually holds",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "§8 of placement.selftest.mjs pins the exact key set of every REFUSAL shape, and argues the case well: a loose check like 'a hull refusal has a wall' is satisfied by every implementation that ever existed, so the claim that bites is the exact SET, because it fails when a field is ADDED as well as when one is removed.\n\nThat discipline stops one level short. The object a caller actually holds is the VERDICT — `{ ok, solid, centre, refusals, first }` — and its key set is pinned nowhere. That gap is now load-bearing rather than cosmetic: lp-28cba0 decided that the metric refusal carries no `at` PRECISELY BECAUSE the verdict always carries `centre`, and wrote that into placement.mjs's header as the justification. This turn pinned centre's VALUE on the metric fixture; nothing pins that the verdict's field list is what the docstring says, or that it is the same on a success as on a refusal.\n\nWHAT TO ASSERT, in §8, in the same `keysOf` form already in the file:\n  · keysOf(mV) === 'centre,first,ok,refusals,solid' — the refusing verdict;\n  · the SAME string for okV (the passing one already built at line 494) — the shape must not depend on the outcome, which is the property a caller relies on and which nothing states;\n  · and for at least one summonAt result's `.verdict`, since that is the entry point the docstring recommends.\n\nWHY IT IS WORTH A TURN. `first` was added to this object historically (lp-fcf387 made preview/place agree on the name) and a field silently added is, in §8's own words, how the summonSeed/point divergence survived. The verdict is the one shape in this module that grew a field and has no pin.\n\nBOUNDED PATHS: plant/test/placement.selftest.mjs only. No production code. R6: purely additive assertions; revert is deleting them. Note the one hazard: ok() records and CONTINUES, so any accessor on a possibly-absent field needs the `x && x.y` guard the file already uses, or a failure becomes a TypeError that kills every later assertion.",
+      "deps": [],
+      "parent": "lp-28cba0",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "93",
+      "evidence": [],
+      "created": "2026-08-07T00:17:22.883Z",
+      "updated": "2026-08-07T00:17:22.883Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-0708d4",
+      "title": "Three reasons share blame:'caller' and therefore one sentence — and it is the wrong sentence for two of them",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 3,
+      "body": "summon-session.mjs:352 assigns `blame: 'caller'` to 'empty', 'metric' AND 'point'. summon-view.js:80 renders that single blame as: 'Pick a spot on the plan first — there is nowhere to put the <solid> yet.'\n\nCorrect for 'point' (a malformed or missing coordinate). Wrong for 'metric', which means the constellation was built for a different anisotropy — the spot was fine and the SHAPE is the problem, so the player is told to do the one thing that cannot help. Arguably wrong for 'empty' too (a zero-seed constellation is a caller bug, not a missing click).\n\nNeither wrong case is reachable today, and by construction rather than luck: summon-session.mjs:478 records that both verbs build the constellation from the pocket's own aniso, so a metric mismatch cannot arise through the session. THIS IS THEREFORE LOW PRIORITY AND I AM PROPOSING IT AT P3 DELIBERATELY — an unreachable sentence costs nothing until the branch opens. It is filed because this tree has repeatedly recorded that a latent lie behind an unreachable branch is discovered by the person who opens the branch, at the worst moment, and because a note in a comment is not a queue.\n\nWHAT THE FIX IS NOT: rewording the `caller` sentence. It is right for the case it was written for, and rewording it to cover all three produces a sentence that is vague about all three. The fix is a per-reason clause for metric, exactly as pocket/self/hull already have — and the refusal carries `conAniso` and `pocketAniso`, so the sentence has real numbers to use.\n\nTHE GATE, and note it is the harder half: summon-view.selftest.mjs re-extracts each printed number with a clause-specific regex and compares it to the field it came from, so a new clause that prints numbers must print them correctly. It also cannot reach a metric refusal through a real session — that is the whole point — so the new clause has to be driven by a synthesised refusal, and the test must SAY so out loud rather than skipping quietly, which is the precedent that file already sets for blame:'foam'.\n\nBOUNDED PATHS: plant/summon-view.js, plant/test/summon-view.selftest.mjs, and plant/summon-session.mjs only if the blame mapping itself changes.",
+      "deps": [],
+      "parent": "lp-28cba0",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "93",
+      "evidence": [],
+      "created": "2026-08-07T00:17:22.883Z",
+      "updated": "2026-08-07T00:17:22.883Z",
+      "blocked": false,
+      "ready": false,
       "unmet": []
     }
   ],
@@ -15703,6 +15832,16 @@
       "from": "lp-cf0b96",
       "to": "lp-28cba0",
       "kind": "parent"
+    },
+    {
+      "from": "lp-28cba0",
+      "to": "lp-a57a2b",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-28cba0",
+      "to": "lp-0708d4",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -16327,7 +16466,13 @@
       "lp-16d590",
       "lp-89f9c8",
       "lp-299210",
-      "lp-28cba0"
+      "lp-28cba0",
+      "lp-25b2a6",
+      "lp-94b827",
+      "lp-7caa56",
+      "lp-f239e1",
+      "lp-a57a2b",
+      "lp-0708d4"
     ],
     [
       "lp-f2e5a3",
@@ -16365,10 +16510,6 @@
     },
     {
       "id": "lp-e8d94e",
-      "unblocks": 0
-    },
-    {
-      "id": "lp-28cba0",
       "unblocks": 0
     },
     {
@@ -16433,10 +16574,9 @@
   ],
   "now": {
     "state": "working",
-    "detail": "2 turn(s) in flight",
+    "detail": "1 turn(s) in flight",
     "beads": [
-      "lp-16d590",
-      "lp-28cba0"
+      "lp-16d590"
     ]
   },
   "asks": [

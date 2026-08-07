@@ -240,10 +240,30 @@ export function legalSeed(pocket, p, { minSeedGap = MIN_SEED_GAP } = {}) {
  * `otherSummonSeed`, and carries no `role` because neither of the two is more
  * to blame than the other.
  *
- * `metric` DOES NOT carry `summonSeed`, and that is correct rather than an
- * oversight: an aniso mismatch is a property of the whole constellation and
- * there is no single seed to blame. It carries exactly
- * `{ ok, reason, conAniso, pocketAniso }`.
+ * `metric` CARRIES NEITHER `summonSeed` NOR `at`, and both absences are
+ * deliberate rather than oversights: an aniso mismatch is a property of the
+ * WHOLE constellation, so there is no single seed to blame and no per-seed
+ * point to draw. It carries exactly `{ ok, reason, conAniso, pocketAniso }`.
+ *
+ * THE COORDINATE A RENDERER POINTS AT FOR A `metric` REFUSAL IS
+ * `verdict.centre`, not anything on the refusal. Every verdict this function
+ * returns carries `centre` — a defensive copy — whatever the outcome, so a UI
+ * is never left with nothing to draw; it just points at the shape instead of at
+ * a part of it, which is the honest rendering anyway. "This was built for the
+ * wrong metric" is a sentence about the summon, not about a seed.
+ *
+ * WHAT WOULD REVERSE THIS (`lp-28cba0` weighed giving `metric` an `at` of the
+ * centre plus an explicit `summonSeed: null`, and chose not to). Add `at` if a
+ * caller turns up that walks `refusals` WITHOUT the enclosing verdict in hand —
+ * that is the one shape for which `verdict.centre` is out of reach. None exists
+ * today: `summon-view.js` takes `(rf, res)` and `pocketLevel.mjs` classifies
+ * refusals inside the object that produced them. The cost to weigh against it
+ * is that `at` would then mean two different things by reason — a per-seed
+ * point for `hull`/`seed`, the whole-shape centre for `metric`.
+ *
+ * A FAKE `summonSeed` IS NOT ON THE TABLE either way: blaming seed 0 would
+ * light up a seed that is not the problem, and a checker that is confidently
+ * wrong is worse than one that is absent.
  *
  * So a caller walking `refusals` must branch on `reason` before reading
  * `summonSeed`. `refusals.map((r) => highlight(r.summonSeed))` lights up
