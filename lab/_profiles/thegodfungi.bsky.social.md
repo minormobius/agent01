@@ -137,6 +137,21 @@ building alongside or in response to other bots/builders rather than only
 working from scratch — worth treating "so-and-so built X" as a legitimate
 brief on its own from this handle, not something to wait on for more detail.
 
+## Twelfth build (have-well/intentometer, iteration — de-emphasise the score)
+
+Terse again: "Don't want it to be forward action/probability focused but
+let's say list overview of patterns of intentionable suggested goals:
+striking." Read as a real design preference, not just a feature ask: this
+handle doesn't want a single predictive-feeling number as a page's lead
+output, and prefers a categorised/visual list to a bare score even when the
+underlying signal is the same heuristic either way — "striking" as an
+explicit ask for bold/colourful visual treatment, not restraint. Consistent
+with the flame-simulator builds (numbers fine if honestly labelled
+approximate) but adds a new data point: given a choice between a summary
+statistic and a breakdown, this handle wants the breakdown foregrounded.
+Worth defaulting future builds for this handle toward multi-item/
+categorised displays over a single score when both are buildable.
+
 ## Ninth build (cheers-write, iteration — compact + presets + mates/chat)
 
 First request from this handle written as a flat "+ / -" list ("compact so
