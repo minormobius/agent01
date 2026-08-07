@@ -212,7 +212,12 @@ function injectFlow(fluid, flowStrength, fx, fy, tx, ty, dist) {
 // from index.html.
 // ---------------------------------------------------------------------
 const PIECE_MASS = { P: 1, N: 2.2, B: 2.2, R: 3.4, Q: 5.2, K: 4 };
-const RESTORE = 0.90;
+// RESTORE 0.90 -> 0.95 this turn (mirrors index.html): "pieces move more
+// slowly" moved the settle time, not the eventual displacement — see that
+// file's comment on the recurrence. DRAG stays a CLI arg here, not a
+// constant, but index.html now ships 0.5 (was 1.0); rerun the sweep below
+// against both before trusting its numbers for the shipped defaults.
+const RESTORE = 0.95;
 // MAX_OFFSET/SLIDE_THRESHOLD mirror index.html's "pieces should actually
 // change squares, not just wiggle" turn — see BRIEF.md. MAX_VISUAL_OFFSET
 // doesn't matter here (this rig never renders a transform), kept only as a
@@ -404,4 +409,4 @@ console.log('');
 console.log(best
   ? 'Recommended DRAG: ' + best + ' (first sweep value landing in the ' + TARGET_MIN + '-' + TARGET_MAX + ' window)'
   : 'No swept value landed in the ' + TARGET_MIN + '-' + TARGET_MAX + ' window — widen the sweep array above, or the window is wrong for what "barely" should mean here.');
-console.log('index.html currently ships DRAG=1.0 — rerun with --drag=1.0 (add --move/--ticks/--flow as needed) for that value\'s full per-square trace.');
+console.log('index.html currently ships DRAG=0.5 (RESTORE=0.95, mirrored above) — rerun with --drag=0.5 (add --move/--ticks/--flow as needed) for that value\'s full per-square trace.');
