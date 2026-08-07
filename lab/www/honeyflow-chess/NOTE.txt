@@ -1,1 +1,1 @@
-Built a real stable-fluids solver (diffusion + pressure projection), no vorticity confinement on purpose — that's the swirl trick, and honey doesn't swirl. Sliders expose flow strength & thickness since I couldn't tune by feel without a browser.
+Fair — the flow never touched the pieces before. Now every piece samples the same solved field each frame and gets dragged, tethered to its square, heavier pieces resisting more. Untuned without a browser; sliders are still the fix.

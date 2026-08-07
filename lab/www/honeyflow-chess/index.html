@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Honeyflow Chess</title>
 <meta property="og:title" content="Honeyflow Chess">
-<meta property="og:description" content="A chess board of honey. Every move releases a laminar flow scaled to how far the piece travelled, with live streamlines drawn over the grid.">
+<meta property="og:description" content="A chess board of honey. Every move releases a laminar flow scaled to how far the piece travelled — and any piece caught in that current is dragged along by the solved velocity field, tethered back to its square.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
@@ -85,9 +85,12 @@
   <h1>Honeyflow Chess</h1>
   <p class="lede">The board is a shallow pan of honey. Play a normal game — moving a piece
     doesn't just relocate it, it drags a laminar impulse through the fluid underneath, scaled
-    to how far the piece travelled. High viscosity keeps everything creeping and smooth: no
-    turbulence, no vortices, just honey settling back to rest. The grid stays put; the
-    streamlines drawn over it are the only thing that moves on its own.</p>
+    to how far the piece travelled. Any other piece sitting near that current gets caught in
+    it too: every square is sampled against the live velocity field each frame and nudged
+    along it, tethered back to its own square by the honey's stiffness — heavier pieces resist
+    more. High viscosity keeps everything creeping and smooth: no turbulence, no vortices,
+    just honey settling back to rest. The grid stays put; pieces sway a little on top of it,
+    and the streamlines drawn over it are the only thing that moves fully on its own.</p>
 
   <div class="status-row">
     <span class="turn w" id="turnLabel">White to move</span>
@@ -122,7 +125,8 @@
       implemented — this board is about the fluid, not the tournament rules — so a king can
       be captured like anything else.</p>
     <p id="reducedMotionNote" hidden>Reduced motion is on: the fluid still simulates (it's the
-      whole point of the page) but streamlines redraw less often.</p>
+      whole point of the page) but streamlines redraw less often, and pieces stay locked to
+      their squares instead of dragging in the current.</p>
   </footer>
 </main>
 
@@ -285,11 +289,22 @@
     wK:'♔', wQ:'♕', wR:'♖', wB:'♗', wN:'♘', wP:'♙',
     bK:'♚', bQ:'♛', bR:'♜', bB:'♝', bN:'♞', bP:'♟',
   };
-  let board, turn, sel, legal;
+  let board, turn, sel, legal, offsetGrid;
+
+  function freshOffsetGrid() {
+    const g = [];
+    for (let r = 0; r < 8; r++) {
+      const row = [];
+      for (let c = 0; c < 8; c++) row.push({ ox: 0, oy: 0 });
+      g.push(row);
+    }
+    return g;
+  }
 
   function newGame() {
     board = START.map(row => row.slice());
     turn = 'w'; sel = null; legal = [];
+    offsetGrid = freshOffsetGrid();
     fluid.reset();
     document.getElementById('lastmove').textContent = '';
     updateTurnLabel();
@@ -403,6 +418,10 @@
     board[tr][tc] = piece;
     board[fr][fc] = null;
     if (piece[1] === 'P' && (tr === 0 || tr === 7)) board[tr][tc] = piece[0] + 'Q';
+    // the moved piece is the source of the impulse, not a tracer caught in
+    // someone else's wake — land it dead-centre on its new square.
+    offsetGrid[tr][tc] = { ox: 0, oy: 0 };
+    offsetGrid[fr][fc] = { ox: 0, oy: 0 };
 
     const dx = tc - fc, dy = tr - fr;
     const dist = Math.hypot(dx, dy);
@@ -434,6 +453,53 @@
       const fall = Math.max(0.2, 1 - Math.abs(t - 0.5) * 1.3);
       fluid.addVelocity(sx, sy, ux * base * fall * 0.09, uy * base * fall * 0.09);
       fluid.addDensity(sx, sy, base * fall * 3.2);
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Piece drag: every occupied square is sampled against the SAME solved
+  // velocity field that drives the density/streamlines — not a separate
+  // faked wobble. A piece is a tracer tethered to its home square: the
+  // flow nudges it each tick, honey's stiffness pulls it back, heavier
+  // pieces resist more. Exponential relaxation rather than an integrated
+  // spring, because a real spring-damper ODE at dt=1 (this sim's tick,
+  // not a real second) needs constants tuned by eye in a browser this
+  // sandbox doesn't have — relaxation is stable at any coefficient.
+  // ---------------------------------------------------------------------
+  const PIECE_MASS = { P: 1, N: 2.2, B: 2.2, R: 3.4, Q: 5.2, K: 4 };
+  const DRAG = 0.4;       // how hard the current pulls a tracer, per tick
+  const RESTORE = 0.90;   // fraction of displacement kept each tick
+  const MAX_OFFSET = 0.3; // board-units; keeps a dragged piece off its neighbour's tap target
+
+  function updatePiecePhysics() {
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const p = board[r][c];
+        const st = offsetGrid[r][c];
+        if (!p) { st.ox = 0; st.oy = 0; continue; }
+        const bx = c + 0.5 + st.ox, by = r + 0.5 + st.oy;
+        const v = fluid.sampleVel(bx, by);
+        // sim velocity -> board-units/tick: the same (N-2)/8 scale used
+        // everywhere else to convert board coords into sim coords, run
+        // in reverse (see advect()'s dtx = dt*(N-2), which is where that
+        // factor of 8 actually comes from).
+        const fvx = v[0] * 8, fvy = v[1] * 8;
+        const m = PIECE_MASS[p[1]] || 2;
+        st.ox = clampf((st.ox + fvx * DRAG / m) * RESTORE, -MAX_OFFSET, MAX_OFFSET);
+        st.oy = clampf((st.oy + fvy * DRAG / m) * RESTORE, -MAX_OFFSET, MAX_OFFSET);
+      }
+    }
+  }
+
+  function applyPieceTransforms() {
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const st = offsetGrid[r][c];
+        const btn = cellAt(r, c);
+        btn.style.transform = (st.ox || st.oy)
+          ? 'translate(' + (st.ox * 100).toFixed(1) + '%, ' + (st.oy * 100).toFixed(1) + '%)'
+          : '';
+      }
     }
   }
 
@@ -563,6 +629,7 @@
       drawStreamlines();
     }
     drawGrid();
+    if (!reduceMotion) { updatePiecePhysics(); applyPieceTransforms(); }
     frame++;
     requestAnimationFrame(loop);
   }
