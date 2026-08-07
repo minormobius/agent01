@@ -1,1 +1,1 @@
-Built the headless tester at headless-test.mjs. No shell here to run it, so DRAG and the streamline knobs are raised by reasoning, not measurement — the offset clamp makes DRAG safe to push hard. Run it locally for real numbers.
+Found the actual bug: flow was injected into one grid cell, so a neighbor square never got enough of it — not weak, just unreachable. Now it splats wide and hits neighbors directly. Strength is still a guess pending a real run.

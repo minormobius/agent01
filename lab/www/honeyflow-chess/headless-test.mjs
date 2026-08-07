@@ -11,6 +11,13 @@
 // it here too, or this rig starts measuring a different simulation than the
 // one that ships.
 //
+// This turn (see BRIEF.md) replaced the old single-cell injection with a
+// wide splat kernel (splatVelocity/splatDensity, radius SPREAD_RADIUS) so a
+// neighbouring square gets a materially large share of a move's disturbance
+// directly, instead of waiting on diffusion to leak an ever-more-dilute
+// signal there over dozens of frames. That was the actual cause of "pieces
+// aren't moving their neighbors at all" — mirrored here byte-for-byte too.
+//
 // What it does:
 //   1. Sets up an 8x8 board with the standard opening position.
 //   2. Plays a single move (default: white pawn e2-e4, the move named in the
@@ -55,14 +62,31 @@ function Fluid() {
   this.dt = 1;
 }
 
-Fluid.prototype.addVelocity = function (x, y, ax, ay) {
-  const i = clampi(Math.round(x), 1, N - 2), j = clampi(Math.round(y), 1, N - 2);
-  this.Vx[IX(i, j)] += ax;
-  this.Vy[IX(i, j)] += ay;
+Fluid.prototype.splatVelocity = function (x, y, ax, ay, radius) {
+  const i0 = clampi(Math.floor(x - radius), 1, N - 2), i1 = clampi(Math.ceil(x + radius), 1, N - 2);
+  const j0 = clampi(Math.floor(y - radius), 1, N - 2), j1 = clampi(Math.ceil(y + radius), 1, N - 2);
+  for (let j = j0; j <= j1; j++) {
+    for (let i = i0; i <= i1; i++) {
+      const dx = i - x, dy = j - y;
+      const r = Math.sqrt(dx * dx + dy * dy);
+      if (r >= radius) continue;
+      const w = 1 - r / radius;
+      this.Vx[IX(i, j)] += ax * w;
+      this.Vy[IX(i, j)] += ay * w;
+    }
+  }
 };
-Fluid.prototype.addDensity = function (x, y, amt) {
-  const i = clampi(Math.round(x), 1, N - 2), j = clampi(Math.round(y), 1, N - 2);
-  this.dens[IX(i, j)] += amt;
+Fluid.prototype.splatDensity = function (x, y, amt, radius) {
+  const i0 = clampi(Math.floor(x - radius), 1, N - 2), i1 = clampi(Math.ceil(x + radius), 1, N - 2);
+  const j0 = clampi(Math.floor(y - radius), 1, N - 2), j1 = clampi(Math.ceil(y + radius), 1, N - 2);
+  for (let j = j0; j <= j1; j++) {
+    for (let i = i0; i <= i1; i++) {
+      const dx = i - x, dy = j - y;
+      const r = Math.sqrt(dx * dx + dy * dy);
+      if (r >= radius) continue;
+      this.dens[IX(i, j)] += amt * (1 - r / radius);
+    }
+  }
 };
 
 function setBnd(b, x) {
@@ -160,19 +184,22 @@ Fluid.prototype.sampleVel = function (bx, by) {
   return [vx, vy];
 };
 
+const SPREAD_RADIUS = 14; // must match index.html
+
 function injectFlow(fluid, flowStrength, fx, fy, tx, ty, dist) {
   if (dist < 1e-4) return;
   const dx = tx - fx, dy = ty - fy;
   const ux = dx / dist, uy = dy / dist;
-  const steps = Math.max(3, Math.round(dist * 6));
+  const pathLen = dist * (N - 2) / 8;
+  const steps = Math.max(1, Math.round(pathLen / (SPREAD_RADIUS * 0.7)));
   const base = flowStrength * (0.7 + dist * 0.55);
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
     const bx = fx + dx * t, by = fy + dy * t;
     const sx = 1 + bx * (N - 2) / 8, sy = 1 + by * (N - 2) / 8;
     const fall = Math.max(0.2, 1 - Math.abs(t - 0.5) * 1.3);
-    fluid.addVelocity(sx, sy, ux * base * fall * 0.13, uy * base * fall * 0.13);
-    fluid.addDensity(sx, sy, base * fall * 4.2);
+    fluid.splatVelocity(sx, sy, ux * base * fall * 0.045, uy * base * fall * 0.045, SPREAD_RADIUS);
+    fluid.splatDensity(sx, sy, base * fall * 3.0, SPREAD_RADIUS);
   }
 }
 

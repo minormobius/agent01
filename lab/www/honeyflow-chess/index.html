@@ -157,14 +157,42 @@
     this.dt = 1;
   }
 
-  Fluid.prototype.addVelocity = function (x, y, ax, ay) {
-    const i = clampi(Math.round(x), 1, N - 2), j = clampi(Math.round(y), 1, N - 2);
-    this.Vx[IX(i, j)] += ax;
-    this.Vy[IX(i, j)] += ay;
+  // A moved piece used to write into exactly one grid cell and rely on
+  // diffusion to leak the disturbance sideways over many frames — which
+  // reaches a neighbouring square's cell too diluted to read as anything
+  // ("aren't moving their neighbors at all" was accurate, not a
+  // misreading). At the scale this board models, viscosity dominates
+  // inertia (low Reynolds number), so a piece's disturbance should reach
+  // neighbours directly rather than crawl there by diffusion — this is a
+  // regularized point-force footprint (the standard way to represent a
+  // finite-size disturbance in Stokes flow without a singular delta
+  // function), spread with a simple cone falloff to zero at `radius`. The
+  // solver still solves the response; only the shape of the input changed.
+  Fluid.prototype.splatVelocity = function (x, y, ax, ay, radius) {
+    const i0 = clampi(Math.floor(x - radius), 1, N - 2), i1 = clampi(Math.ceil(x + radius), 1, N - 2);
+    const j0 = clampi(Math.floor(y - radius), 1, N - 2), j1 = clampi(Math.ceil(y + radius), 1, N - 2);
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        const dx = i - x, dy = j - y;
+        const r = Math.sqrt(dx * dx + dy * dy);
+        if (r >= radius) continue;
+        const w = 1 - r / radius;
+        this.Vx[IX(i, j)] += ax * w;
+        this.Vy[IX(i, j)] += ay * w;
+      }
+    }
   };
-  Fluid.prototype.addDensity = function (x, y, amt) {
-    const i = clampi(Math.round(x), 1, N - 2), j = clampi(Math.round(y), 1, N - 2);
-    this.dens[IX(i, j)] += amt;
+  Fluid.prototype.splatDensity = function (x, y, amt, radius) {
+    const i0 = clampi(Math.floor(x - radius), 1, N - 2), i1 = clampi(Math.ceil(x + radius), 1, N - 2);
+    const j0 = clampi(Math.floor(y - radius), 1, N - 2), j1 = clampi(Math.ceil(y + radius), 1, N - 2);
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        const dx = i - x, dy = j - y;
+        const r = Math.sqrt(dx * dx + dy * dy);
+        if (r >= radius) continue;
+        this.dens[IX(i, j)] += amt * (1 - r / radius);
+      }
+    }
   };
   Fluid.prototype.reset = function () {
     this.Vx.fill(0); this.Vy.fill(0); this.Vx0.fill(0); this.Vy0.fill(0);
@@ -439,26 +467,44 @@
     renderPieces();
   }
 
+  // Sim cells (~2.3 board squares). A cone-kernel splat with this radius
+  // hands a materially large share (~57% of peak) to a piece one square
+  // away on the FIRST tick, rather than waiting on diffusion to leak an
+  // ever-diluting signal there over dozens of frames. Tuned so influence
+  // fades out by ~2-3 squares — this is meant to move an adjacent piece,
+  // not shudder the whole board.
+  const SPREAD_RADIUS = 14;
+
   function injectFlow(fx, fy, tx, ty, dist) {
     if (dist < 1e-4) return;
     const dx = tx - fx, dy = ty - fy;
     const ux = dx / dist, uy = dy / dist;
-    const steps = Math.max(3, Math.round(dist * 6));
+    // One splat roughly every 70% of a radius along the path is enough
+    // coverage once each splat itself is this wide — a short move needs
+    // only one or two, a long queen sweep a handful. Far fewer, much wider
+    // injections than the old per-cell version.
+    const pathLen = dist * (N - 2) / 8;
+    const steps = Math.max(1, Math.round(pathLen / (SPREAD_RADIUS * 0.7)));
     const flowStrength = +document.getElementById('flowStrength').value;
     const base = flowStrength * (0.7 + dist * 0.55);
-    // Velocity/density multipliers bumped this turn (0.09->0.13, 3.2->4.2):
-    // "streamlines... pretty wimpy" was direct feedback on the live site.
-    // Raising these is low-risk — the solver is a linear diffuse/project
-    // system (Gauss-Seidel on a diagonally-dominant matrix), stable for any
-    // input magnitude, so a stronger injection can't make it diverge, only
-    // make the resulting flow more visible.
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
       const bx = fx + dx * t, by = fy + dy * t;
       const sx = 1 + bx * (N - 2) / 8, sy = 1 + by * (N - 2) / 8;
       const fall = Math.max(0.2, 1 - Math.abs(t - 0.5) * 1.3);
-      fluid.addVelocity(sx, sy, ux * base * fall * 0.13, uy * base * fall * 0.13);
-      fluid.addDensity(sx, sy, base * fall * 4.2);
+      // Per-splat multipliers cut hard from the old single-cell values
+      // (0.13, 4.2): a neighbouring square used to sit far outside the
+      // injection's reach entirely, now it sits inside a kernel that hands
+      // it ~57% of peak directly. Left at the old multiplier that would
+      // very likely slam every adjacent piece straight into MAX_OFFSET on
+      // the first physics tick after any move — a binary snap, not a
+      // flow. The velocity multiplier (what actually drives piece drag)
+      // is cut hardest for that reason; density (purely visual, no clamp
+      // to hit) stays closer to where "more dramatic streamlines" left it.
+      // This number is reasoned, not measured — see BRIEF.md and rerun
+      // headless-test.mjs's sweep against this new kernel before trusting it.
+      fluid.splatVelocity(sx, sy, ux * base * fall * 0.045, uy * base * fall * 0.045, SPREAD_RADIUS);
+      fluid.splatDensity(sx, sy, base * fall * 3.0, SPREAD_RADIUS);
     }
   }
 
@@ -473,14 +519,16 @@
   // sandbox doesn't have — relaxation is stable at any coefficient.
   // ---------------------------------------------------------------------
   const PIECE_MASS = { P: 1, N: 2.2, B: 2.2, R: 3.4, Q: 5.2, K: 4 };
-  // DRAG raised 0.4 -> 1.0 this turn ("a pawn advancing two barely pulls
-  // neighbouring pawns forward one" — at 0.4 the effect was reportedly too
-  // faint to read). Safe to push up because MAX_OFFSET clamps every tick
-  // regardless of DRAG's size: a bigger DRAG only reaches the clamp sooner,
-  // it cannot overshoot it or destabilise anything. See headless-test.mjs
-  // for a runnable rig to measure the actual resulting offset and retune
-  // this precisely — this value is reasoned, not measured (no browser or
-  // shell in this sandbox to run it against).
+  // DRAG itself is untouched this turn (still 1.0, raised from 0.4 the
+  // turn before) — the fix for "pieces aren't moving their neighbours at
+  // all" this time is injectFlow's spread kernel, not this constant. Left
+  // alone rather than retuned together because two unmeasured changes at
+  // once make headless-test.mjs's sweep (see BRIEF.md) harder to read: if
+  // the next run shows the field still too weak, raise this first — it's
+  // safe to push up since MAX_OFFSET clamps every tick regardless of
+  // DRAG's size, so a bigger DRAG only reaches the clamp sooner and can't
+  // destabilise anything. If it's now too strong (every neighbour snapping
+  // straight to MAX_OFFSET), lower this before touching the kernel.
   const DRAG = 1.0;       // how hard the current pulls a tracer, per tick
   const RESTORE = 0.90;   // fraction of displacement kept each tick
   const MAX_OFFSET = 0.3; // board-units; keeps a dragged piece off its neighbour's tap target

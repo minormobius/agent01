@@ -514,6 +514,26 @@ BRIEF.md rather than silently substituting.
 ## `honeyflow-chess` (2026-08-07): wants simulations solved and verified, not eyeballed — and will ask for the tooling to make that possible
 Earlier in this same thread: "you can't cheat the flow it's gotta be solved not guessed" (about a physics coupling). This turn's follow-up, after seeing the shipped result: "build a headless play tester and tune defaults... maybe more dramatic streamlines these are pretty wimpy" — a direct ask for verification tooling (a script that measures the actual effect), not just a request to change numbers by feel. Consistent with the `that-2`/Sixfold "how do you know you've solved it?" catch and the general close-reading pattern (see `arch-brainstorm`, `take-escher` entries) — this requester distrusts a plausible-looking result until it's actually measured. Durable: for any future site involving a solver/simulation where a constant is being tuned "by feel" because there's no browser to test in, consider building (or at least stubbing) a small headless/Node-runnable harness alongside the reasoning-based tuning, even without being asked explicitly — it's the kind of artifact this requester will value and may ask for again on a different simulation-heavy site.
 
+## `honeyflow-chess` (2026-08-07), turn 3: a physical-scale hint is a literal modeling instruction, and "not at all" means check reach before retuning strength
+Follow-up after the tuning turn above: "my pieces aren't moving their
+neighbors at all... the physics will work better if you think of them like
+1um scale pieces" — this requester again gave a concrete physical framing
+(micron scale → low Reynolds number → viscosity-dominated, long-range flow)
+rather than a vague "make it stronger," same instinct as the `arch-
+brainstorm` viewpoint/steepness entries where a physical/geometric word was
+meant literally, not as a vibe. Worth checking the actual mechanism before
+just raising a magnitude constant again: here the previous turn's fix
+(`DRAG` up) couldn't have worked regardless of its value, because the
+injection only ever wrote into a single grid cell and a neighbouring square
+depended on slow multi-frame diffusion to receive any of it — "not at all"
+was a structurally accurate bug report, not underselling a "weak" effect.
+Durable: when this requester reports an effect isn't happening **at all**
+(vs. "could be stronger"), check whether the mechanism can geometrically
+reach the claimed case before retuning a strength constant — and when they
+name a physical scale or regime (micron-scale, low-Re, etc.), treat it as an
+instruction about which physics applies (here: wide/direct coupling instead
+of local/diffusive), not flavour text.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
