@@ -142,14 +142,14 @@
     }
   },
   "counts": {
-    "total": 647,
-    "ready": 4,
+    "total": 656,
+    "ready": 3,
     "blocked": 9,
     "in_progress": 0,
-    "done": 97,
+    "done": 98,
     "dropped": 3,
-    "proposed": 110,
-    "knowledge": 424
+    "proposed": 113,
+    "knowledge": 430
   },
   "beads": [
     {
@@ -14681,9 +14681,9 @@
       "id": "lp-89f9c8",
       "title": "pocketLevelVerdict hides what it DROPPED — and a dropped sink is how a failed level reports success",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 2,
-      "body": "TWO RECORDED FINDINGS, ONE CAUSE: 'Dropping a refused SINK makes the surviving network VACUOUSLY satisfiable — network.ok goes TRUE on a level that just failed', and 'A pocket-illegal object opens the vacuous-satisfiability trap from a SECOND direction, and only one of the two is visible in the verdict.'\n\nThe rule itself is right and must not change: networkFrom drops a refused object's node and every edge naming it, because an object that was never placed cannot supply or demand anything. levelVerdict and pocketLevelVerdict both guard the trap by requiring BOTH halves for `ok`. What is missing is that the verdict does not SAY what it stopped judging. A caller holding { ok:false, placement, network } can see network.ok === true and has no field telling it that the reason is that the depot it was supposed to feed is not in the network at all. The next thing to read this verdict is a renderer, and a renderer will print 'everything is fed' underneath a refused sink.\n\nWHAT TO BUILD, in plant/pocketLevel.mjs (and, if the same field belongs there, plant/level.mjs's levelVerdict — decide, and say which way you went): pocketLevelVerdict returns a `dropped` summary alongside `placement` and `network`. Enough for a caller to be honest without recomputing anything:\n  · the ids dropped, in object order;\n  · how many of each KIND were dropped (source / processor / sink), taken from each object's own `node.kind`;\n  · the ids of the edges dropped, or at least their count;\n  · a boolean that is the actual trap — `vacuous`, true when network.ok is true AND at least one sink was dropped. That is the exact predicate 'this network passed because the thing it had to satisfy is missing', and it is the one a renderer needs.\n\nWHY A WEAKER VERSION WOULD NOT DO. A plain count of refused objects is already derivable from `placement` and tells a caller nothing new; the whole content of this ticket is the KIND breakdown and the `vacuous` flag, because only they distinguish 'you failed to place a spare processor' from 'you failed to place the thing being fed'. Equally, do NOT fix this by making `ok` stricter or by refusing to drop the edge — the drop rule has a documented reason and level.mjs's header is explicit that a passed-through unknown id must still reach feasible()'s own error.\n\nBOUNDED PATHS (R3): plant/pocketLevel.mjs, plant/level.mjs, plant/test/pocket-level.selftest.mjs, plant/test/level.selftest.mjs, plant/CLAUDE.md. All under plant/.\n\nTHE GATE ALREADY EXISTS — node plant/test/pocket-level.selftest.mjs — and this is a class-a bead, so its job is to certify no regression AND to pin the new field. The recorded caution applies: 'class-A's gate certifies no regression, not the new behaviour — the agent writes the assertions it is graded by.' So the new section must exhibit the DEFECT, not just the repair: build a fixture where a sink is refused (hull or a seed collision), assert network.ok is TRUE on it, and assert that `vacuous` is true and names that sink. A section asserting only the happy path would pass for an implementation that hardcodes vacuous:false. Add the mirror control too — a fixture where a PROCESSOR is dropped and the network legitimately still fails — so `vacuous` is proven to be about sinks rather than about droppedness.\n\nR1: one field computed from data pocketLevelVerdict already has in hand. R4: independent of everything else proposed this turn — the placement panel renders whatever `ok` it is given whether or not this field exists. R6: additive field; revert is deleting it.",
+      "body": "TWO RECORDED FINDINGS, ONE CAUSE: 'Dropping a refused SINK makes the surviving network VACUOUSLY satisfiable — network.ok goes TRUE on a level that just failed', and 'A pocket-illegal object opens the vacuous-satisfiability trap from a SECOND direction, and only one of the two is visible in the verdict.'\n\nThe rule itself is right and must not change: networkFrom drops a refused object's node and every edge naming it, because an object that was never placed cannot supply or demand anything. levelVerdict and pocketLevelVerdict both guard the trap by requiring BOTH halves for `ok`. What is missing is that the verdict does not SAY what it stopped judging. A caller holding { ok:false, placement, network } can see network.ok === true and has no field telling it that the reason is that the depot it was supposed to feed is not in the network at all. The next thing to read this verdict is a renderer, and a renderer will print 'everything is fed' underneath a refused sink.\n\nWHAT TO BUILD, in plant/pocketLevel.mjs (and, if the same field belongs there, plant/level.mjs's levelVerdict — decide, and say which way you went): pocketLevelVerdict returns a `dropped` summary alongside `placement` and `network`. Enough for a caller to be honest without recomputing anything:\n  · the ids dropped, in object order;\n  · how many of each KIND were dropped (source / processor / sink), taken from each object's own `node.kind`;\n  · the ids of the edges dropped, or at least their count;\n  · a boolean that is the actual trap — `vacuous`, true when network.ok is true AND at least one sink was dropped. That is the exact predicate 'this network passed because the thing it had to satisfy is missing', and it is the one a renderer needs.\n\nWHY A WEAKER VERSION WOULD NOT DO. A plain count of refused objects is already derivable from `placement` and tells a caller nothing new; the whole content of this ticket is the KIND breakdown and the `vacuous` flag, because only they distinguish 'you failed to place a spare processor' from 'you failed to place the thing being fed'. Equally, do NOT fix this by making `ok` stricter or by refusing to drop the edge — the drop rule has a documented reason and level.mjs's header is explicit that a passed-through unknown id must still reach feasible()'s own error.\n\nBOUNDED PATHS (R3): plant/pocketLevel.mjs, plant/level.mjs, plant/test/pocket-level.selftest.mjs, plant/test/level.selftest.mjs, plant/CLAUDE.md. All under plant/.\n\nTHE GATE ALREADY EXISTS — node plant/test/pocket-level.selftest.mjs — and this is a class-a bead, so its job is to certify no regression AND to pin the new field. The recorded caution applies: 'class-A's gate certifies no regression, not the new behaviour — the agent writes the assertions it is graded by.' So the new section must exhibit the DEFECT, not just the repair: build a fixture where a sink is refused (hull or a seed collision), assert network.ok is TRUE on it, and assert that `vacuous` is true and names that sink. A section asserting only the happy path would pass for an implementation that hardcodes vacuous:false. Add the mirror control too — a fixture where a PROCESSOR is dropped and the network legitimately still fails — so `vacuous` is proven to be about sinks rather than about droppedness.\n\nR1: one field computed from data pocketLevelVerdict already has in hand. R4: independent of everything else proposed this turn — the placement panel renders whatever `ok` it is given whether or not this field exists. R6: additive field; revert is deleting it.\n\n[turn 94 — done] Added a `dropped` summary to both verdicts. The drop rule itself is untouched: `networkFrom` still removes a refused object's node and every edge naming it, and `ok` still requires both halves. What is new is one exported function in plant/level.mjs — `droppedFrom(objects, placement, edges, networkOk)` — returning `{ ids, kinds, edges, vacuous }`: the refused ids in object order, a per-`node.kind` breakdown (source/processor/sink), the `{from,to}` identity of every edge that went with them, and `vacuous`, true exactly when the surviving network reported ok AND at least one sink was dropped. `levelVerdict` and `pocketLevelVerdict` both call it, so the predicate exists in one place rather than two — the same argument that made `networkFrom` exported. Both gates gained a section built to exhibit the DEFECT rather than the repair: four fixtures, each killing a different wrong implementation of the one boolean — nothing dropped/network ok (kills `= network.ok`), the SINK dropped with the network reporting ok (kills `= false`), a PROCESSOR dropped with the network legitimately failing (the mirror), and — the one that carries the ticket's actual distinction — a SOURCE dropped while the network still passes, which kills `= ids.length > 0`. Both files also now pin the verdict's exact key set and `dropped`'s own. HONESTLY: NEITHER GATE WAS RUN. This turn had Read/Write/Edit/Glob/Grep and no Bash, so every number and every fixture outcome below is hand-traced against the existing passing sections those fixtures were lifted from (§1/§2/§3/§5 of pocket-level, and the two END-TO-END CONTROLs of level.selftest), not executed. I also deliberately did NOT touch plant/CLAUDE.md, which this ticket's bounded paths allow — see the decision below.",
       "deps": [],
       "parent": "lp-cf0b96",
       "tags": [
@@ -14692,14 +14692,18 @@
         "rejected-by-review"
       ],
       "actor": "planner",
-      "run": null,
+      "run": "94",
       "evidence": [
-        "rejected: FAILS R4, TWICE OVER, AND IT IS THE ONE I MOST REGRET REJECTING. Its bounded paths are plant/pocketLevel.mjs, plant/level.mjs, plant/test/pocket-level.selftest.mjs, plant/test/level.selftest.mjs, plant/CLAUDE.md. The first and third are held by approved lp-0e2b51 — same file, same classify() region, same SHAPE literals in the same gate — and the fifth is held by approved lp-16d590. Two collisions "
+        "rejected: FAILS R4, TWICE OVER, AND IT IS THE ONE I MOST REGRET REJECTING. Its bounded paths are plant/pocketLevel.mjs, plant/level.mjs, plant/test/pocket-level.selftest.mjs, plant/test/level.selftest.mjs, plant/CLAUDE.md. The first and third are held by approved lp-0e2b51 — same file, same classify() region, same SHAPE literals in the same gate — and the fifth is held by approved lp-16d590. Two collisions ",
+        "plant/level.mjs",
+        "plant/pocketLevel.mjs",
+        "plant/test/pocket-level.selftest.mjs",
+        "plant/test/level.selftest.mjs"
       ],
       "created": "2026-08-06T23:59:57.136Z",
-      "updated": "2026-08-07T00:11:19.426Z",
+      "updated": "2026-08-07T00:28:06.897Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -14877,6 +14881,199 @@
       "evidence": [],
       "created": "2026-08-07T00:17:22.883Z",
       "updated": "2026-08-07T00:17:22.883Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-595515",
+      "title": "The discriminating fixture for `vacuous` is a dropped SOURCE with a PASSING network — without it the obvious two fixtures pin the wrong predicate",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket names two fixtures: a refused sink (assert vacuous true) and a refused processor whose network legitimately fails (assert vacuous false). Those two are necessary and they are NOT sufficient, and the gap is exactly the thing the ticket says the field is for.\n\nTake the wrong implementation `vacuous = ids.length > 0 && network.ok`. On the sink fixture: something was dropped and the network reported ok, so it returns TRUE — passes. On the processor fixture: the network failed, so it returns FALSE — passes. Both of the ticket's named assertions are satisfied by a predicate that has nothing to do with sinks, which is precisely the distinction the ticket says is the whole content of the field: 'you failed to place a spare processor' versus 'you failed to place the thing being fed'.\n\nThe fixture that separates them has to have something dropped AND the network passing AND no sink among the dropped. That is not reachable by moving one of the three wired objects — dropping the source or the processor starves the surviving sink, so the network fails. It needs a FOURTH object that nobody wired up: a spare source, refused, with no edge naming it. Then ids is non-empty, network.ok is true, and vacuous must still be false.\n\nAdded as fixture (d) in both gates, with the spare made refusable by geometry that is already pinned (a self-colliding icosahedron at r=0.35, which solids.selftest proves has its own seeds inside the 1.5 gap, so it is refused wherever it stands and — a refused object committing nothing — disturbs none of the three wired objects).\n\nTHE TRANSFERABLE SHAPE, and this ledger has neighbours of it: when a new boolean is a CONJUNCTION of two conditions, the fixtures that vary both conditions together cannot test it. The sink fixture varies droppedness and sink-ness together; the processor fixture varies network.ok and sink-ness together. You need the case where exactly one conjunct is false and the OTHER conjunct is the one everybody's fixtures happened to hold constant. A ticket that names two fixtures for a two-condition predicate is naming half of a truth table.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "94",
+      "evidence": [],
+      "created": "2026-08-07T00:28:06.897Z",
+      "updated": "2026-08-07T00:28:06.897Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-1c8b49",
+      "title": "`dropped.kinds` is structurally unable to be complete — a refused object need not carry a node, and that is a documented rule rather than an oversight",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "`networkFrom` demands a `node` only of LEGAL objects, and its own gate has a CONTROL asserting that an ILLEGAL object with no node must NOT throw — because a level that is merely losing must not be refused for a missing field. level.selftest.mjs's `ghost` fixture pins exactly that.\n\nSo the kind breakdown reads `node.kind` off objects that are permitted not to have one. `ids.length` can therefore exceed `kinds.source + kinds.processor + kinds.sink`, and in that gap the question 'how many sinks did I lose' is genuinely unanswerable — which also means `vacuous` can under-report: a nodeless refused object that WAS meant to be a sink is invisible to the predicate.\n\nI did not close it, and the two ways to close it are both worse than the hole. Demanding a node from every object reverses a rule with a recorded CONTROL behind it. Inferring the kind from the edges (an id that only appears as `to` is sink-shaped) is a guess dressed as data, and a confident wrong kind is worse than a missing one — this repo has that lesson several times over.\n\nWhat I did instead is make it VISIBLE rather than latent: both gates carry a fixture with a nodeless refusal and assert that ids exceeds the kind total, with a comment saying it is by design. A caller that needs certainty can compare the two numbers itself.\n\nGeneral shape: a summary derived from an OPTIONAL field inherits that field's optionality, and the summary is where it stops looking optional — `kinds.sink === 0` reads like 'no sinks were lost' and means 'no sink I could identify was lost'. Pin the discrepancy where a reader will meet it.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "94",
+      "evidence": [],
+      "created": "2026-08-07T00:28:06.897Z",
+      "updated": "2026-08-07T00:28:06.897Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-c90e48",
+      "title": "`vacuous` is deliberately WIDER than production.mjs's 'vacuously satisfiable' — it is a renderer instruction, not a restatement of the no-sink branch",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "production.mjs's word means one specific thing: a network with NO sinks is trivially feasible and reports margin 0. The predicate I shipped is `network.ok && kinds.sink > 0`, which also fires when several sinks existed, one was refused, and the rest are fed — a case where the surviving network is genuinely (not vacuously) satisfiable.\n\nI took the wider reading, which is what the ticket specifies, because the field exists for a renderer and the renderer hazard is identical in both cases: the production half reports success while an object the level needed is not in it. A narrower flag would be correct about production.mjs's vocabulary and useless at the one call site it was built for.\n\nWHAT I REJECTED: two flags (`vacuous` for no-sinks-left, `sinkDropped` for the wider case). R1 says one field computed from data the verdict already has, and two booleans whose difference is invisible to a caller that must treat both the same way is how a shape gets ignored.\n\nWHAT WOULD REVERSE IT: a caller that genuinely needs to distinguish 'the factory has nothing left to satisfy' from 'the factory satisfies what remains'. That is derivable today without a new field — `network.margin === 0 && Object.keys(network.achieved).length === 0` is the no-sink signature and both gates already assert it — so the reversal is additive and cheap. The docstring says all of this at the field, so nobody has to infer the naming choice from the name.\n\nOne consequence worth stating: with several sinks and one dropped, `vacuous` is true while `network.ok` is true and the surviving deficits list is empty. A renderer must not read the absence of deficits as success.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "94",
+      "evidence": [],
+      "created": "2026-08-07T00:28:06.897Z",
+      "updated": "2026-08-07T00:28:06.897Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-49dd0c",
+      "title": "The summary lives in level.mjs as `droppedFrom`, takes `networkOk` as a REQUIRED boolean, and reports edges as identity pairs only",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "THREE CHOICES, each with a rejected alternative.\n\n1. WHERE. The drop rule is `networkFrom`'s, and its docstring already argues that a second copy of those fifteen lines would be a second place for the rule to drift — which is why it was exported for pocketLevel.mjs in the first place. Computing the summary separately in each of the two verdicts would have put the `vacuous` predicate in two files. `droppedFrom` sits next to `networkFrom`, is exported for the same reason, and both verdicts call it. Rejected: a local helper in pocketLevel.mjs, which would have left levelVerdict — whose own docstring warns about this exact trap — unable to report it.\n\n2. `networkOk` IS REQUIRED AND MUST BE A BOOLEAN. A defaulted parameter would make a forgetful caller get `vacuous: false`, which is precisely the under-report the function exists to end: the failure would be silent and in the safe-looking direction. It throws instead, and both gates assert the throw plus the non-coercion case (`'yes'` is refused, not treated as true). Rejected: passing the whole `network` object, which would have coupled the summary to feasible()'s return shape for one field.\n\n3. `edges` CARRIES `{from, to}` AND NOT A COPY OF THE CALLER'S EDGE. A dropped edge's endpoints do not exist in the surviving network, so a fragment carrying `resource`/`share` would look like something a caller could hand back to `feasible()` and is not. The caller still holds its own `edges` array and can filter it by these pairs. Pinned as an exact key set so it cannot quietly grow into a network fragment. Rejected: a bare count, which the ticket allows and which cannot tell a renderer WHICH connection was lost.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "94",
+      "evidence": [],
+      "created": "2026-08-07T00:28:06.897Z",
+      "updated": "2026-08-07T00:28:06.897Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-ae4957",
+      "title": "Did NOT touch plant/CLAUDE.md, though this ticket's bounded paths allow it — lp-16d590 holds it and was dispatched in the same commit",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "This bead carries `rejected-by-review` with the reason recorded on it: it collides on paths with two approved beads, and one of those collisions is plant/CLAUDE.md, held by lp-16d590. `git log` shows the dispatch commit is 'loop: dispatch lp-16d590.json lp-89f9c8.json' — the two are IN FLIGHT TOGETHER, so a diff of mine in that file is not a theoretical collision, it is a near-certain one.\n\nThe ledger is unambiguous about the cost: a turn that lands conflicting is DISCARDED and its bead returns to ready. Trading a documentation paragraph for the whole turn is a bad trade, and 'redo, not resolve' means nobody would merge my half.\n\nSo plant/CLAUDE.md's pocketLevel paragraph does not yet mention `dropped`, and that is a known, deliberate debt of exactly one paragraph. The compensation is that both module docstrings carry the full explanation at the code, which is where a reader of the field will be, and the gates carry the reasoning at the fixtures. Proposed below as its own bead so the debt is in the queue rather than in a comment — this ledger's own lesson.\n\nWHAT WOULD REVERSE IT: lp-16d590 landing first. The paragraph is then a three-line addition anybody can make.\n\nWorth noting for whoever reads the rejection: the OTHER collision the reviewer named (lp-0e2b51 holding pocketLevel.mjs and its gate) was unavoidable — those two files are the ticket. I minimised the overlap where I could: the new §7 is appended whole before the determinism block and touches no existing assertion, and the only edits inside existing regions are two lines in the file header and the four-line key-set addition in §7(a)'s own block.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "94",
+      "evidence": [],
+      "created": "2026-08-07T00:28:06.897Z",
+      "updated": "2026-08-07T00:28:06.897Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-60ec92",
+      "title": "Neither gate was run — the two assertions I would look at first, and why the rest is inherited rather than derived",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "No Bash. The standing recommendation is in this ledger well past twenty-five times and recent turns agreed to stop restating it; I am not restating it. What is worth an entry is that this turn's risk is unusually LOW for a specific structural reason, and exactly where it is not.\n\nWHY LOW: almost every fixture is lifted from a section that passes today. pocket-level §7(a) is §1's level; (b) is §2's seed-standing sink; (c) is §3's out-of-hull processor; the icosahedron in (d) is §5's. level.selftest's are the END TO END fixture, its sink-on-processor CONTROL, and the z=0/3/20 supplier fixture. Every network number I assert (achieved 5, margin 0, network.ok true on the sink case, network.ok false on the processor case) is ALREADY ASSERTED AND PASSING in those sections. So the new assertions are almost entirely about fields `droppedFrom` computes, and `droppedFrom` is a filter, a three-way counter and one conjunction.\n\nTHE TWO I WOULD LOOK AT FIRST, both in fixture (d), which is the only genuinely new fixture in either file:\n  1. `dropped.ids.join(',') === 'spare,ghost'`. It rests on both spares being REFUSED. They are self-colliding icosahedra at r=0.35, which the first section of level.selftest and §5 of pocket-level both prove is refused — but in (d) they stand where a legal cube was already committed, so more refusal categories fire than in those sections. I deliberately assert only `ok === false` and never the reason, so BLAME_PRECEDENCE's ordering cannot fail an assertion about `dropped`.\n  2. `network.achieved.snk === 5` in (d). It rests on two refused objects with no edges leaving the three-node network byte-identical to §1's. That is `networkFrom`'s documented behaviour and level.selftest already has a CONTROL for the nodeless-refusal half of it.\n\nMECHANICAL PASSES RUN, because a parse error kills every assertion and reads like an unrelated typo: no backtick nested inside a template literal in either file (the two multi-line details are template-literal CONCATENATIONS, not nesting); no ASCII apostrophe inside a single-quoted string — the two places that needed one are a template literal (`production.mjs's`) and level.mjs's throw, which uses an explicit backslash escape; no /g flag anywhere, so no sticky lastIndex; and the `ok()` argument ORDER differs between the two gates (pocket-level is `(cond, msg)`, level is `(name, cond, detail)`) so every added call was checked against its own file's signature.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "94",
+      "evidence": [],
+      "created": "2026-08-07T00:28:06.897Z",
+      "updated": "2026-08-07T00:28:06.897Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-72d6b4",
+      "title": "plant/CLAUDE.md: the pocketLevel paragraph does not mention `dropped`, and the level.mjs paragraph does not mention `droppedFrom`",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "SMALL AND PURELY DOCUMENTARY, and it is a debt this turn took on knowingly rather than an omission.\n\nlp-89f9c8 added `dropped` — `{ ids, kinds, edges, vacuous }` — to both `levelVerdict` and `pocketLevelVerdict`, computed by a new exported `droppedFrom` in plant/level.mjs. plant/CLAUDE.md was inside that ticket's bounded paths and was deliberately NOT touched, because lp-16d590 held the same file and was dispatched in the same commit; a conflicting turn is discarded whole, which is a bad trade for a paragraph.\n\nWHAT TO ADD, and it is three sentences in two existing paragraphs:\n  · the `level.mjs` paragraph already explains the drop rule ('a summon that was never placed cannot supply or demand anything'). It should say that `droppedFrom` reports what that rule removed, and that `dropped.vacuous` is the predicate 'the network passed and a sink is missing from it'.\n  · the `pocketLevel.mjs` paragraph should say the verdict is now `{ ok, placement, network, dropped }`, and that a renderer must consult `dropped.vacuous` BEFORE saying anything about `network` — because dropping a refused sink can leave a network with no sinks, which production.mjs calls vacuously satisfiable at margin 0.\n\nWHY IT IS WORTH A BEAD RATHER THAN A DRIVE-BY: this tree has four recorded instances of prose that describes a state the code has left, every one found by an agent reading the file for another reason. plant/CLAUDE.md is the file every turn reads to orient itself, so a paragraph that omits the field a caller must consult is the expensive kind of stale.\n\nCLASS-A against the existing markdown gate. `node plant/test/docs.selftest.mjs` will not check the prose — it checks for unresolved merge conflicts and explicitly must not grow into a documentation linter — so this bead's gate certifies NO REGRESSION only, and the real check is a human reading the diff. That is stated here rather than dressed up: 'does this paragraph describe the code' is undecidable and this tree has already lost to pretending otherwise.",
+      "deps": [],
+      "parent": "lp-89f9c8",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "94",
+      "evidence": [],
+      "created": "2026-08-07T00:28:06.897Z",
+      "updated": "2026-08-07T00:28:06.897Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-37c95b",
+      "title": "The step entry says `blockedBy`; the refusal inside it says `blockedByNode` — set both on the entry",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "RECORDED FINDING, UNFIXED, and the fix is the conservative both-names move this tree has already used once.\n\n`plant/pocketLevel.mjs`'s `classify` builds inner refusals with `{ ...r, blame: 'step', blockedByNode: owners[r.seedIndex] }` and then builds the entry with `entry.blockedBy = blockers[0].id`. Both are the id of the earlier object whose seed was hit. The entry has `blockedBy` and no `blockedByNode`; every step refusal inside it has `blockedByNode` and no `blockedBy`. `plant/test/pocket-level.selftest.mjs` §6 already asserts this split in BOTH directions, so the divergence is pinned rather than latent — it is simply not fixed.\n\nWHY IT MATTERS: it fails the way the recorded `preview()`-returns-`first` / `place()`-returns-`refusal` asymmetry failed. A renderer that has the entry in hand and drills into `refusals` to list every blocker reaches for `blockedBy` — the name it just used one level up — and gets `undefined`, which renders as the string 'undefined' inside a template literal with every word around it intact.\n\nWHICH WAY TO FIX IT, decided by evidence rather than taste: `plant/buildcert.mjs`'s `explain()` uses the same `blockedByNode` spelling on ITS inner refusals and adds `blockedBySeed` alongside. So the inner name is consistent across the two accumulating walks and the ENTRY is the odd one out. Have `classify` set `blockedByNode` on the entry TOO, keeping `blockedBy` — an alias, not a rename, because a rename that misses a caller is strictly worse than an asymmetry.\n\nSCOPE: plant/pocketLevel.mjs and plant/test/pocket-level.selftest.mjs.\n\nTHE GATE ALREADY EXISTS and it currently asserts the OPPOSITE — §6 pins `'blockedBy' in e && !('blockedByNode' in e)` and the SHAPE.step key-set literal. Both must be updated, and that is the point rather than collateral: a key-set gate exists precisely so that changing a field list is a decision somebody makes on purpose. The updated assertion should pin that BOTH names are present on the entry AND that they hold the same value, plus that the inner refusal is unchanged — so a future half-rename fails.",
+      "deps": [],
+      "parent": "lp-89f9c8",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "94",
+      "evidence": [],
+      "created": "2026-08-07T00:28:06.897Z",
+      "updated": "2026-08-07T00:28:06.897Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-7874f3",
+      "title": "Nothing renders a pocket level verdict — `dropped.vacuous` has no consumer, and the sentence it exists to prevent is the one a renderer writes first",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "`dropped.vacuous` was built for a renderer and there is no renderer. `plant/pocketLevel.mjs` is imported by its own selftest and by nothing else; the recorded finding 'pocketLevel.mjs is the LAST unimported module, and it is the one the vision calls the bridge' still holds. A field whose whole justification is 'a caller will print the wrong thing' is untested against any caller.\n\nWHAT TO BUILD: a pure `verdictSentence(verdict)` in a new `plant/pocket-level-view.js`, one function, no DOM, taking `pocketLevelVerdict`'s return and giving back the line a player reads. The shape is already established by `summon-view.js`'s `summonSentence` — branch on the verdict, re-extract nothing, invent no numbers.\n\nTHE FOUR SENTENCES IT MUST DISTINGUISH, which are exactly the four states the gate for `dropped` now pins:\n  · everything legal and fed              → a success line with the margin\n  · everything legal, factory short       → name the sink and the deficit\n  · a placement refused, factory degraded → name the object and what it hit\n  · a placement refused, `dropped.vacuous` → THE ONE THIS IS FOR. It must NOT say anything resembling 'everything is fed', because `network.ok` is true, `deficits` is empty and `achieved` does not mention the sink at all. The honest sentence names the object that could not be placed and says the factory was not judged.\n\nGATE: `node plant/test/pocket-level-view.selftest.mjs`, creates-gate. The load-bearing assertion is a NEGATIVE and it must be derived, not typed: build the vacuous fixture (a sink standing on a pocket seed — §7(b) of pocket-level.selftest builds it in eight lines), and assert the sentence contains no success vocabulary. Take that vocabulary from one exported array so the check cannot drift from the words the success branch actually uses. Add the paired CONTROL — the genuinely-fed fixture — asserting the same words ARE present, or the negative passes for a function that returns the empty string.\n\nWHY THIS AND NOT A PAGE CHANGE: the vision is explicit that page work outranks module work, and this is deliberately the module half, because the sentence is the part a gate can hold and the page cannot. Wiring it into index.html is the follow-up and should be its own bead — the ledger records that a MOVE ticket invalidates the presence checks that guarded the old location, and there are eight gates reading index.html as text.",
+      "deps": [],
+      "parent": "lp-89f9c8",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "agent",
+      "run": "94",
+      "evidence": [],
+      "created": "2026-08-07T00:28:06.897Z",
+      "updated": "2026-08-07T00:28:06.897Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -15842,6 +16039,21 @@
       "from": "lp-28cba0",
       "to": "lp-0708d4",
       "kind": "parent"
+    },
+    {
+      "from": "lp-89f9c8",
+      "to": "lp-72d6b4",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-89f9c8",
+      "to": "lp-37c95b",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-89f9c8",
+      "to": "lp-7874f3",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -16472,7 +16684,16 @@
       "lp-7caa56",
       "lp-f239e1",
       "lp-a57a2b",
-      "lp-0708d4"
+      "lp-0708d4",
+      "lp-595515",
+      "lp-1c8b49",
+      "lp-c90e48",
+      "lp-49dd0c",
+      "lp-ae4957",
+      "lp-60ec92",
+      "lp-72d6b4",
+      "lp-37c95b",
+      "lp-7874f3"
     ],
     [
       "lp-f2e5a3",
@@ -16510,10 +16731,6 @@
     },
     {
       "id": "lp-e8d94e",
-      "unblocks": 0
-    },
-    {
-      "id": "lp-89f9c8",
       "unblocks": 0
     },
     {
@@ -16574,10 +16791,9 @@
   ],
   "now": {
     "state": "working",
-    "detail": "2 turn(s) in flight",
+    "detail": "1 turn(s) in flight",
     "beads": [
-      "lp-16d590",
-      "lp-89f9c8"
+      "lp-16d590"
     ]
   },
   "asks": [

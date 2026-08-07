@@ -39,6 +39,14 @@
 // `legalSummon`'s own and are pinned by `placement.selftest.mjs` §8; only the
 // two fields `classify()` ADDS to them are pinned here, differentially.
 //
+// §7 is the `dropped` summary — what the verdict stopped judging. It is the only
+// section here that is about a claim the verdict makes rather than about one it
+// merely guards: `ok` has always been false when a sink was refused, and
+// `dropped.vacuous` is the first field that says WHY the production half looks
+// happy. Four fixtures, each killing a different wrong implementation of that
+// one boolean; the reasoning is at the head of the section rather than here,
+// because it is about the fixtures and not about the file.
+//
 // TWO HOUSE RULES, from the ledger:
 //   · every gap this file grades against is recomputed from `reformPocket`'s own
 //     formula below, never read back from `seedGap`/`pairGap`. An assertion that
@@ -591,6 +599,149 @@ console.log('\n6. the exact key set of every record these two functions emit');
     const fewer = { ...sample };
     delete fewer.reason;
     ok(kset(fewer) !== kset(sample), 'CONTROL: one REMOVED key compares unequal — it bites in both directions');
+  }
+}
+
+// ============================ 7. WHAT THE VERDICT STOPPED JUDGING — `dropped`
+console.log('\n7. `dropped` — the verdict says what it left out, and names the vacuous trap');
+{
+  // WHY THIS SECTION IS SHAPED LIKE THIS. `dropped.vacuous` is one boolean, and
+  // a boolean is the easiest thing in the world to assert vacuously: a section
+  // that only ever showed a level with nothing dropped would pass for
+  // `vacuous: false` hardcoded, and one that only ever showed the trap would pass
+  // for `vacuous = network.ok`. So there are FOUR fixtures and each rules out a
+  // different wrong implementation:
+  //
+  //   (a) nothing dropped, network passes   → vacuous FALSE   kills `= network.ok`
+  //   (b) the SINK dropped, network passes   → vacuous TRUE    kills `= false`
+  //   (c) a PROCESSOR dropped, network fails → vacuous FALSE   the mirror
+  //   (d) a SOURCE dropped, network PASSES   → vacuous FALSE   kills
+  //                                                            `= ids.length > 0`
+  //
+  // (d) is the one that carries the ticket's actual distinction — "you failed to
+  // place a spare processor" versus "you failed to place the thing being fed" —
+  // and without it (b) and (c) together are satisfied by "something was dropped
+  // and the network passed", which is a different and wrong predicate.
+  const KIND_KEYS = 'processor,sink,source';
+  const kindKeys = (d) => Object.keys(d.kinds).sort().join(',');
+  const kindSum = (d) => d.kinds.source + d.kinds.processor + d.kinds.sink;
+
+  console.log('  (a) nothing refused — `dropped` is empty and the passing network is NOT vacuous');
+  {
+    const v = pocketLevelVerdict(P, level(roomy.c, FAR1.c, FAR2.c), EDGES);
+    ok(v.network.ok === true && v.ok === true, 'the §1 level still passes both halves');
+    ok(Array.isArray(v.dropped.ids) && v.dropped.ids.length === 0,
+      `nothing was dropped (got ${JSON.stringify(v.dropped.ids)})`);
+    ok(kindKeys(v.dropped) === KIND_KEYS,
+      `the kind breakdown carries exactly the three node kinds (got [${kindKeys(v.dropped)}])`);
+    ok(kindSum(v.dropped) === 0, `…all zero (got ${JSON.stringify(v.dropped.kinds)})`);
+    ok(Array.isArray(v.dropped.edges) && v.dropped.edges.length === 0, 'and no edge went with them');
+    // §6's discipline applied to the VERDICT rather than to a report entry. A
+    // presence check cannot find a field that is missing from one shape out of
+    // several; here it cannot find a field that was quietly added or renamed
+    // either, and every caller of this module reads these four names.
+    ok(Object.keys(v).sort().join(',') === 'dropped,network,ok,placement',
+      `the verdict's exact key set (got [${Object.keys(v).sort().join(',')}])`);
+    ok(Object.keys(v.dropped).sort().join(',') === 'edges,ids,kinds,vacuous',
+      `and dropped's own (got [${Object.keys(v.dropped).sort().join(',')}])`);
+    // THE DISCRIMINATOR against `vacuous = network.ok`: the network is ok here.
+    ok(v.dropped.vacuous === false,
+      'vacuous is FALSE on a level that passes — so it is not a copy of network.ok');
+  }
+
+  console.log('  (b) THE DEFECT — the SINK is refused, the network reports ok, and vacuous says so');
+  {
+    // §2's fixture, rebuilt here so an edit to that section cannot silently
+    // change what this one measures. The sink stands on a pocket seed.
+    const seedSpot = P.seeds
+      .map((s, i) => ({ s, i }))
+      .filter(({ s }) => s[0] >= 8 && s[0] <= P.W - 8 && s[1] >= 6 && s[1] <= P.H - 6
+        && s[2] >= 8 && s[2] <= P.D - 8)[0];
+    // A returned sentinel rather than a throw: a missing fixture must cost one
+    // named assertion, not every assertion after it.
+    ok(!!seedSpot, 'fixture: a comfortably-interior pocket seed to stand the sink on');
+    if (seedSpot) {
+      const v = pocketLevelVerdict(P, level(roomy.c, FAR1.c, seedSpot.s), EDGES);
+      ok(v.placement[2].ok === false, 'the sink is refused');
+      ok(v.placement[0].ok && v.placement[1].ok, '…and the source and processor are not');
+
+      // EXHIBIT THE DEFECT, not just the repair. Without these two the `vacuous`
+      // assertion below is a claim about a situation nobody has shown exists.
+      ok(v.network.ok === true,
+        'THE DEFECT: the surviving network reports ok — every sink it has is fed, because it has none');
+      ok(v.network.margin === 0, `…at production.mjs's documented no-sink margin 0 (got ${v.network.margin})`);
+      ok(!('snk' in v.network.achieved), '…and the refused sink is absent from achieved entirely');
+
+      ok(v.dropped.ids.join(',') === 'snk', `dropped.ids names the sink (got ${JSON.stringify(v.dropped.ids)})`);
+      ok(v.dropped.kinds.sink === 1 && v.dropped.kinds.source === 0 && v.dropped.kinds.processor === 0,
+        `…and the KIND breakdown says a sink went, not a spare (got ${JSON.stringify(v.dropped.kinds)})`);
+      // `?? {}` so a wrong count fails with the named assertion above rather
+      // than with a TypeError that kills every assertion after it.
+      const e0 = v.dropped.edges[0] ?? {};
+      ok(v.dropped.edges.length === 1 && e0.from === 'proc' && e0.to === 'snk',
+        `the one edge naming it went too (got ${JSON.stringify(v.dropped.edges)})`);
+      ok(Object.keys(e0).sort().join(',') === 'from,to',
+        `a dropped edge is IDENTITY ONLY — its endpoints do not exist, so it is not a network `
+        + `fragment (got [${Object.keys(e0).sort().join(',')}])`);
+
+      // THE ASSERTION THE TICKET IS FOR.
+      ok(v.dropped.vacuous === true,
+        'VACUOUS: the network passed and a sink is missing from it — a renderer must not say "everything is fed"');
+      ok(v.ok === false, 'and the verdict itself is still false, as it always was — `ok` was never the gap');
+    }
+  }
+
+  console.log('  (c) THE MIRROR — a PROCESSOR is refused, the network legitimately fails, vacuous is false');
+  {
+    // §3's fixture: centre x = 2 puts the cube's −x neighbour outside the hull.
+    const v = pocketLevelVerdict(P, level(roomy.c, [2, 18, 40], FAR1.c), EDGES);
+    ok(v.placement[1].ok === false && v.placement[1].reason === 'hull', 'the processor is refused for the hull');
+    ok(v.network.ok === false, 'the surviving network genuinely fails — the sink is still there and starved');
+    ok(v.dropped.ids.join(',') === 'proc', `dropped.ids names the processor (got ${JSON.stringify(v.dropped.ids)})`);
+    ok(v.dropped.kinds.processor === 1 && v.dropped.kinds.sink === 0,
+      `…and no sink was dropped (got ${JSON.stringify(v.dropped.kinds)})`);
+    ok(v.dropped.edges.length === 2, `BOTH edges named it and both went (got ${JSON.stringify(v.dropped.edges)})`);
+    ok(v.dropped.vacuous === false, 'vacuous is false — the network failed on its own merits');
+  }
+
+  console.log('  (d) THE DISCRIMINATOR — a SOURCE is refused, the network still passes, and it is STILL not vacuous');
+  {
+    // Two spare objects nobody wired up. Both are self-colliding icosahedra
+    // (solids.selftest pins r=0.35 as having its own seeds inside the 1.5 gap),
+    // so both are refused wherever they stand and neither disturbs the three
+    // wired objects — a refused object commits nothing, which §4 already proves.
+    const tiny = () => constellation('icosahedron', { centre: roomy.c, r: 0.35, aniso: ANISO });
+    const objects = [
+      ...level(roomy.c, FAR1.c, FAR2.c),
+      { id: 'spare', con: tiny(), node: { kind: 'source', id: 'spare', resource: 'coal', rate: 1 } },
+      { id: 'ghost', con: tiny() },   // deliberately NO node — see below
+    ];
+    const v = pocketLevelVerdict(P, objects, EDGES);
+
+    ok(v.placement[3].ok === false && v.placement[4].ok === false, 'both spares are refused');
+    ok(v.placement[0].ok && v.placement[1].ok && v.placement[2].ok, 'and the three wired objects are untouched');
+    ok(v.network.ok === true && Math.abs(v.network.achieved.snk - 5) < 1e-12,
+      `so the factory still passes with the §1 numbers (got ${v.network.achieved.snk})`);
+
+    ok(v.dropped.ids.join(',') === 'spare,ghost',
+      `dropped.ids is in OBJECT order (got ${JSON.stringify(v.dropped.ids)})`);
+    ok(v.dropped.edges.length === 0, 'no edge named either of them, so none was dropped');
+    // THE ASSERTION THIS FIXTURE EXISTS FOR. Something was dropped AND the
+    // network passed, and it is still not vacuous — so `vacuous` is about SINKS
+    // and not about droppedness. (b) and (c) alone cannot say this.
+    ok(v.dropped.vacuous === false,
+      'DISCRIMINATOR: a dropped SOURCE with a passing network is NOT vacuous — losing a spare is not losing the depot');
+    ok(v.ok === false, 'the verdict is still false, because a placement failed');
+
+    // A refused object need not carry a node at all — `networkFrom` demands one
+    // only of LEGAL objects, deliberately, so a merely-losing level is not
+    // refused for a missing field. `ghost` is therefore in `ids` and in no kind
+    // bucket, and the sum is UNDER the count. That is documented, not a bug, and
+    // it is the one case where "how many sinks did I lose" is unanswerable.
+    ok(v.dropped.kinds.source === 1 && v.dropped.kinds.processor === 0 && v.dropped.kinds.sink === 0,
+      `only the one with a node is counted (got ${JSON.stringify(v.dropped.kinds)})`);
+    ok(v.dropped.ids.length === 2 && kindSum(v.dropped) === 1,
+      `…so ids (${v.dropped.ids.length}) exceeds the kind total (${kindSum(v.dropped)}) — a nodeless refusal has no kind`);
   }
 }
 

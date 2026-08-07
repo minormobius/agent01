@@ -164,6 +164,73 @@ export function networkFrom(objects, placement, edges = []) {
 }
 
 /**
+ * WHAT `networkFrom` LEFT OUT, said out loud.
+ *
+ * The drop rule above is right and must not change. What it cannot do is tell a
+ * caller what it stopped judging, and that omission has a specific, recorded
+ * failure: dropping a refused SINK can leave a network with no sinks at all,
+ * which `production.mjs` documents as vacuously satisfiable at margin 0. So
+ * `network.ok` reads TRUE on a level whose depot is standing inside a rock, and
+ * the next thing to read a verdict is a renderer, which will print "everything
+ * is fed" underneath the object it failed to place.
+ *
+ * `{ ids, kinds, edges, vacuous }`, computed from data the verdict already has:
+ *
+ *   ids      the refused objects' ids, in OBJECT ORDER (`placement` is in that
+ *            order and this is a filter of it).
+ *   kinds    how many of each `node.kind` went with them. Only `'source'`,
+ *            `'processor'` and `'sink'` are counted, and a refused object need
+ *            NOT carry a node at all — `networkFrom` demands one only of LEGAL
+ *            objects, deliberately, so that a level which is merely losing is
+ *            not refused for a missing field. **`ids.length` can therefore
+ *            exceed the sum of `kinds`**, and that is not a bug; it is the one
+ *            case where "how many sinks did I lose" is genuinely unanswerable.
+ *   edges    the `{ from, to }` of every edge dropped with them, in edge order.
+ *            Identity only, not a shallow copy of the caller's edge: these
+ *            endpoints do not exist in the surviving network, so a fragment
+ *            carrying `resource`/`share` would invite a caller to hand it back
+ *            to `feasible()`. The caller still holds its own `edges` array.
+ *   vacuous  THE TRAP, as one predicate: the network passed AND at least one
+ *            sink is missing from it. Note it is deliberately not restricted to
+ *            "no sinks remain" — with several sinks, losing one and feeding the
+ *            rest still reports `ok`, and the renderer hazard is identical. Read
+ *            it as "do not print a success sentence", not as `production.mjs`'s
+ *            narrower no-sink case.
+ *
+ * `networkOk` is `feasible()`'s own `ok` over the SURVIVING network, and it is
+ * required rather than defaulted: an absent argument would silently produce
+ * `vacuous: false`, which is exactly the under-report this function exists to
+ * end. Malformed input throws, as everywhere else here.
+ *
+ * Exported for the same reason `networkFrom` is: `pocketLevel.mjs` computes a
+ * different placement report and needs this exact summary of it. A second copy
+ * would be a second place for the `vacuous` predicate to drift.
+ */
+export function droppedFrom(objects, placement, edges = [], networkOk) {
+  if (typeof networkOk !== 'boolean') {
+    throw new Error('level: droppedFrom needs the surviving network\'s own ok, as a boolean');
+  }
+  const byId = new Map(objects.map((o) => [o.id, o]));
+  const ids = placement.filter((r) => !r.ok).map((r) => r.id);
+  const gone = new Set(ids);
+
+  const kinds = { source: 0, processor: 0, sink: 0 };
+  for (const id of ids) {
+    const kind = byId.get(id)?.node?.kind;
+    // Named explicitly rather than by lookup: `kinds[kind]` would treat
+    // 'constructor' as a live bucket, and a level literal with a typo'd kind
+    // must land nowhere rather than somewhere surprising.
+    if (kind === 'source' || kind === 'processor' || kind === 'sink') kinds[kind] += 1;
+  }
+
+  const dropped = edges
+    .filter((e) => gone.has(e.from) || gone.has(e.to))
+    .map((e) => ({ from: e.from, to: e.to }));
+
+  return { ids, kinds, edges: dropped, vacuous: networkOk === true && kinds.sink > 0 };
+}
+
+/**
  * The full certificate: is this level buildable AND winnable?
  *
  * `objects` is `placementReport`'s input, plus — on every object that turns out
@@ -174,12 +241,14 @@ export function networkFrom(objects, placement, edges = []) {
  * in terms of those same ids. Refused objects and their edges are dropped by
  * `networkFrom` above; read its docstring for why.
  *
- * Returns `{ ok, placement, network }`, where `network` is `feasible()`'s full
- * result over the surviving subset. `ok` requires BOTH halves: every placement
- * legal and every sink fed. Note the asymmetry that follows and is deliberate —
- * dropping a refused sink can make `network.ok` vacuously TRUE (a network with
- * no sinks is trivially satisfiable), so `network.ok` alone is never the
- * verdict.
+ * Returns `{ ok, placement, network, dropped }`, where `network` is
+ * `feasible()`'s full result over the surviving subset. `ok` requires BOTH
+ * halves: every placement legal and every sink fed. Note the asymmetry that
+ * follows and is deliberate — dropping a refused sink can make `network.ok`
+ * vacuously TRUE (a network with no sinks is trivially satisfiable), so
+ * `network.ok` alone is never the verdict. `dropped` is what makes that sayable
+ * rather than merely guarded: see `droppedFrom` above, and read `dropped.vacuous`
+ * before rendering anything about `network`.
  *
  * Throws whatever `feasible()` throws (cycles, unknown nodes, unshared edge
  * resources, un-split fan-out); this layer adds no error handling of its own,
@@ -188,6 +257,7 @@ export function networkFrom(objects, placement, edges = []) {
 export function levelVerdict(objects, edges = [], minSeedGap = MIN_SEED_GAP) {
   const placement = placementReport(objects, minSeedGap);
   const network = feasible(networkFrom(objects, placement, edges));
+  const dropped = droppedFrom(objects, placement, edges, network.ok);
 
-  return { ok: placement.every((r) => r.ok) && network.ok, placement, network };
+  return { ok: placement.every((r) => r.ok) && network.ok, placement, network, dropped };
 }

@@ -70,7 +70,7 @@
 
 import { legalSummon, MIN_SEED_GAP } from './placement.mjs';
 import { BLAME_PRECEDENCE } from './buildcert.mjs';
-import { networkFrom } from './level.mjs';
+import { networkFrom, droppedFrom } from './level.mjs';
 import { feasible } from './production.mjs';
 
 /**
@@ -273,9 +273,11 @@ function classify(id, verdict, owners, base, placedAt, minSeedGap) {
  * `id` equals the object's. `edges` is `production.mjs`'s edge array over those
  * same ids.
  *
- * Returns `{ ok, placement, network }`. `network` is `feasible()`'s full result
- * over the surviving subset, assembled by `level.mjs`'s `networkFrom` — the
- * drop-the-refused-object rule is that function's, not a second copy of it.
+ * Returns `{ ok, placement, network, dropped }`. `network` is `feasible()`'s
+ * full result over the surviving subset, assembled by `level.mjs`'s
+ * `networkFrom` — the drop-the-refused-object rule is that function's, not a
+ * second copy of it — and `dropped` is `level.mjs`'s `droppedFrom` over the same
+ * three inputs, for the same reason.
  *
  * `ok` REQUIRES BOTH HALVES and `network.ok` is never the verdict on its own.
  * The trap is sharper here than it looks: dropping a refused SINK can leave a
@@ -287,6 +289,15 @@ function classify(id, verdict, owners, base, placedAt, minSeedGap) {
  * asserting only the verdict passes for an implementation that reached it by
  * accident.
  *
+ * GUARDING THE TRAP WAS NEVER THE SAME AS REPORTING IT. `ok` has always been
+ * false here; what a caller could not do was find out WHY, because the verdict
+ * said nothing about what it had stopped judging. `dropped.vacuous` is that
+ * predicate — "the network passed and a sink is missing from it" — and it is the
+ * field a renderer must consult before printing anything about `network`.
+ * `dropped.kinds` is what distinguishes "you failed to place a spare processor"
+ * from "you failed to place the thing being fed"; a plain count of refusals is
+ * already derivable from `placement` and separates neither.
+ *
  * Throws whatever `feasible()` and `networkFrom` throw — including
  * `networkFrom`'s messages, which say `level:` because they are `level.mjs`'s
  * checks and nothing is gained by re-badging them.
@@ -294,6 +305,7 @@ function classify(id, verdict, owners, base, placedAt, minSeedGap) {
 export function pocketLevelVerdict(pocket, objects, edges = [], opts = {}) {
   const placement = pocketPlacementReport(pocket, objects, opts);
   const network = feasible(networkFrom(objects, placement, edges));
+  const dropped = droppedFrom(objects, placement, edges, network.ok);
 
-  return { ok: placement.every((r) => r.ok) && network.ok, placement, network };
+  return { ok: placement.every((r) => r.ok) && network.ok, placement, network, dropped };
 }

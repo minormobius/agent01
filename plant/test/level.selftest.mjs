@@ -25,7 +25,7 @@
 
 import { constellation } from '../solids.mjs';
 import { feasible } from '../production.mjs';
-import { placementReport, levelVerdict } from '../level.mjs';
+import { placementReport, levelVerdict, droppedFrom } from '../level.mjs';
 
 let failed = 0;
 const ok = (name, cond, detail = '') => {
@@ -395,6 +395,136 @@ console.log('\nthe node contract is enforced on LEGAL objects only');
       [{ id: 'src', con: cube(0), node: { kind: 'source', id: 'src', resource: 'iron', rate: 10 } }],
       [{ from: 'src', to: 'typo' }],
     )) || '').includes('unknown node'));
+}
+
+console.log('\n`dropped` — the verdict says what it stopped judging');
+{
+  // The two CONTROLs above already prove the two halves of the trap: a refused
+  // SINK leaves a network with no sinks, which production.mjs calls vacuously
+  // satisfiable, and a refused SUPPLIER leaves one that genuinely fails. What
+  // neither could say is which happened — `ok` is false in both, and a renderer
+  // reading `network.ok` prints "everything is fed" in the first.
+  //
+  // `vacuous` is one boolean, so the fixtures are chosen to kill a different
+  // wrong implementation each:
+  //   nothing dropped / network ok    → false   kills `= network.ok`
+  //   SINK dropped   / network ok     → TRUE    kills `= false`
+  //   PROCESSOR dropped / network bad → false   the mirror
+  //   SOURCE dropped / network ok     → false   kills `= ids.length > 0`
+  const SRC = { kind: 'source', id: 'src', resource: 'iron', rate: 10 };
+  const PROC = {
+    kind: 'processor', id: 'proc',
+    inputs: [{ resource: 'iron', rate: 5 }],
+    outputs: [{ resource: 'gear', rate: 5 }],
+    capacity: 1,
+  };
+  const SNK = { kind: 'sink', id: 'snk', resource: 'gear', demand: 4 };
+  const EDGES = [{ from: 'src', to: 'proc' }, { from: 'proc', to: 'snk' }];
+  const objs = (zSrc, zProc, zSnk) => ([
+    { id: 'src', con: cube(zSrc), node: SRC },
+    { id: 'proc', con: cube(zProc), node: PROC },
+    { id: 'snk', con: cube(zSnk), node: SNK },
+  ]);
+  const sum = (d) => d.kinds.source + d.kinds.processor + d.kinds.sink;
+
+  // z = 0, 10, 20: min gaps 6.0, 6.0 and 16.0, all clear — the END TO END
+  // fixture above, unchanged.
+  const clean = levelVerdict(objs(0, 10, 20), EDGES);
+  ok('nothing refused: dropped.ids is empty',
+    clean.dropped.ids.length === 0, JSON.stringify(clean.dropped.ids));
+  ok('...the kind breakdown carries exactly the three node kinds, all zero',
+    Object.keys(clean.dropped.kinds).sort().join(',') === 'processor,sink,source' && sum(clean.dropped) === 0,
+    JSON.stringify(clean.dropped.kinds));
+  ok('...no edge went with them', clean.dropped.edges.length === 0);
+  // The exact key sets, so a field cannot be quietly added or renamed under the
+  // callers that read them. A presence check finds only what you thought to look
+  // for; every caller of this module reads these four names.
+  ok('the verdict\'s exact key set is ok,placement,network,dropped',
+    Object.keys(clean).sort().join(',') === 'dropped,network,ok,placement',
+    Object.keys(clean).sort().join(','));
+  ok('...and dropped\'s own is ids,kinds,edges,vacuous',
+    Object.keys(clean.dropped).sort().join(',') === 'edges,ids,kinds,vacuous',
+    Object.keys(clean.dropped).sort().join(','));
+  // THE discriminator against `vacuous = network.ok`: the network IS ok here.
+  ok('...and vacuous is FALSE on a level that passes — it is not a copy of network.ok',
+    clean.network.ok === true && clean.dropped.vacuous === false);
+
+  console.log('  the SINK refused — the network reports ok, and vacuous says why');
+  // Sink recentred onto the processor: min gap 0, so it is refused, and what
+  // survives is src -> proc with nothing consuming the gear.
+  const noSink = levelVerdict(objs(0, 10, 10), EDGES);
+  ok('the sink is the refused one', noSink.placement[2].ok === false, JSON.stringify(noSink.placement[2]));
+  // EXHIBIT THE DEFECT, not just the repair.
+  ok('THE DEFECT: the surviving network reports ok, because it has no sinks left to fail',
+    noSink.network.ok === true, JSON.stringify(noSink.network.deficits));
+  ok('dropped.ids names the sink', noSink.dropped.ids.join(',') === 'snk', JSON.stringify(noSink.dropped.ids));
+  ok('...and the KIND breakdown says a SINK went, not a spare',
+    noSink.dropped.kinds.sink === 1 && noSink.dropped.kinds.source === 0
+    && noSink.dropped.kinds.processor === 0, JSON.stringify(noSink.dropped.kinds));
+  ok('...the one edge naming it went too, as an identity pair and nothing more',
+    noSink.dropped.edges.length === 1
+    && Object.keys(noSink.dropped.edges[0] ?? {}).sort().join(',') === 'from,to'
+    && noSink.dropped.edges[0].to === 'snk', JSON.stringify(noSink.dropped.edges));
+  ok('VACUOUS: the network passed and a sink is missing from it — do not print a success sentence',
+    noSink.dropped.vacuous === true);
+  ok('...and the verdict is still false, as it always was — `ok` was never the gap',
+    noSink.ok === false);
+
+  console.log('  CONTROL — the MIRROR: a refused PROCESSOR, and the network fails on its own merits');
+  // z = 0, 3, 20: src-proc gap 1.0 so the processor is refused, and the sink
+  // survives with nothing feeding it.
+  const noProc = levelVerdict(objs(0, 3, 20), EDGES);
+  ok('CONTROL: the processor is the refused one', noProc.placement[1].ok === false);
+  ok('CONTROL: the surviving network is INFEASIBLE, not vacuous', noProc.network.ok === false);
+  ok('CONTROL: dropped.ids names the processor and the kinds say so',
+    noProc.dropped.ids.join(',') === 'proc' && noProc.dropped.kinds.processor === 1
+    && noProc.dropped.kinds.sink === 0, JSON.stringify(noProc.dropped));
+  ok('CONTROL: BOTH edges named it and both went', noProc.dropped.edges.length === 2,
+    JSON.stringify(noProc.dropped.edges));
+  ok('CONTROL: vacuous is false', noProc.dropped.vacuous === false);
+
+  console.log('  CONTROL — THE DISCRIMINATOR: a refused SOURCE while the network still passes');
+  // Two spares nobody wired up, both self-colliding icosahedra (refused
+  // anywhere, per the first section) so neither disturbs the three that are.
+  // Something IS dropped and the network DOES pass, and it is still not vacuous
+  // — which is what makes `vacuous` about sinks rather than about droppedness.
+  // Without this fixture the two above are satisfied by that wrong predicate.
+  const tiny = () => constellation('icosahedron', { r: 0.35, aniso: ANISO });
+  const spares = levelVerdict([
+    ...objs(0, 10, 20),
+    { id: 'spare', con: tiny(), node: { kind: 'source', id: 'spare', resource: 'coal', rate: 1 } },
+    { id: 'ghost', con: tiny() },   // deliberately NO node
+  ], EDGES);
+  ok('CONTROL: both spares are refused and the three wired objects are not',
+    spares.placement[3].ok === false && spares.placement[4].ok === false
+    && spares.placement.slice(0, 3).every((p) => p.ok), JSON.stringify(spares.placement));
+  ok('CONTROL: so the factory still passes with the hand-computed 5',
+    spares.network.ok === true && Math.abs(spares.network.achieved.snk - 5) < 1e-12,
+    `${spares.network.achieved.snk}`);
+  ok('CONTROL: dropped.ids is in OBJECT order', spares.dropped.ids.join(',') === 'spare,ghost',
+    JSON.stringify(spares.dropped.ids));
+  ok('CONTROL: no edge named either of them, so none was dropped', spares.dropped.edges.length === 0);
+  ok('DISCRIMINATOR: a dropped SOURCE with a passing network is NOT vacuous',
+    spares.dropped.vacuous === false);
+  // A refused object need not carry a node — `networkFrom` demands one only of
+  // LEGAL objects, deliberately, so a merely-losing level is not refused for a
+  // missing field. `ghost` is therefore in `ids` and in no kind bucket.
+  ok('CONTROL: only the spare with a node is counted',
+    spares.dropped.kinds.source === 1 && sum(spares.dropped) === 1, JSON.stringify(spares.dropped.kinds));
+  ok('CONTROL: ...so ids exceeds the kind total — a nodeless refusal has no kind, by design',
+    spares.dropped.ids.length === 2 && sum(spares.dropped) === 1);
+
+  console.log('  CONTROL — droppedFrom refuses to guess the network verdict');
+  // An absent 4th argument would silently produce vacuous:false, which is
+  // exactly the under-report this function exists to end. It throws instead.
+  const placement = placementReport(objs(0, 10, 10));
+  ok('CONTROL: droppedFrom with no networkOk throws',
+    throws(() => droppedFrom(objs(0, 10, 10), placement, EDGES)));
+  ok('CONTROL: ...and with a truthy non-boolean too — no coercion',
+    throws(() => droppedFrom(objs(0, 10, 10), placement, EDGES, 'yes')));
+  ok('CONTROL: ...while the boolean it wants is accepted, and is what decides vacuous',
+    droppedFrom(objs(0, 10, 10), placement, EDGES, true).vacuous === true
+    && droppedFrom(objs(0, 10, 10), placement, EDGES, false).vacuous === false);
 }
 
 console.log('\ndeterminism — same discipline as production.selftest.mjs\'s own check');
