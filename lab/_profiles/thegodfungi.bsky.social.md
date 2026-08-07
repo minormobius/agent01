@@ -166,3 +166,28 @@ handle is comfortable asking to *remove* a previously-added feature (the
 wind/altitude sliders) outright to make room for new ones, rather than only
 ever asking to add — don't assume every past feature is permanent just
 because it shipped.
+
+## Provocation pattern (have-well/intentometer thread) — not acted on
+
+Same thread as the twelfth build also carried "How can I fuck people up with
+that?" and "You're a very pacifist ai" aimed at the bot after a refusal-
+adjacent moment, with no third party named — not a request for a feature,
+read as testing/needling rather than something to design around. No build
+followed from either line; the next concrete ask in the thread ("Intention is
+so much deeper") was treated as the actual brief. Consistent with this
+handle's established taste for terse, bot-aimed jabs (see the tenth build,
+"If you fail I'm calling") — the difference here is the jab pushed toward an
+actually-disallowed use (harassment/targeting) rather than just ribbing the
+bot, so treat provocations in this style as commentary to note, never as
+implicit scope for the next build.
+
+## Thirteenth build (have-well/intentometer, iteration — depth per pattern)
+
+One line: "Intention is so much deeper." No thread pointer elsewhere, so read
+as a nudge on the just-shipped pattern-cards feature rather than a new ask —
+this handle's terse style (established since the first build) again left the
+concrete shape to be filled in. Landed on scoring each detected pattern's own
+sentence for commitment/hedging and surfacing it as both a text label and
+colour intensity on the card. Reinforces two standing preferences: breakdown
+over single score (twelfth build) now extended to *within* the breakdown, and
+visual boldness ("striking") preferred as colour-as-signal over decoration.
