@@ -15,7 +15,7 @@ import { census, verdict } from './census.mjs';
 import { decodeCbor, readVarint, parseCar, readRepo } from './car.mjs';
 import { toRow, LOG_FILE } from './log-prompt.mjs';
 import { detectShape, extract } from './chatlog.mjs';
-import { distil, provenanceMode } from './capture-session.mjs';
+import { distil, provenanceMode, redact, isRecoveryPrompt } from './capture-session.mjs';
 import { findOwnTranscript } from './export-transcript.mjs';
 
 const ROWS = [
@@ -386,6 +386,37 @@ check('id strips extension', located?.id.endsWith('.jsonl'), false);
 check('ignores non-jsonl', located?.path.endsWith('live-session.jsonl'), true);
 check('missing dir returns null', findOwnTranscript('/nowhere/at/all', fakeHome), null);
 rmSync(fakeHome, { recursive: true, force: true });
+
+
+// ─── secret hygiene ──────────────────────────────────────────────
+//
+// The recovery briefing carries the passphrase and is pasted into every
+// session — landing in the very transcript the export is about to ship.
+
+console.log('\nsecret hygiene');
+check('redacts the secret', redact('key is hunter2 ok', 'hunter2'), 'key is [REDACTED-KEY] ok');
+check('redacts every copy', redact('a b a', 'a'), '[REDACTED-KEY] b [REDACTED-KEY]');
+check('no secret is a no-op', redact('untouched', undefined), 'untouched');
+check('empty secret is a no-op', redact('untouched', ''), 'untouched');
+check('spots the briefing',
+  isRecoveryPrompt('run HOMUNCULUS_KEY=x node ... guardian-angel-homunculus-ijgeel'), true);
+check('one marker is not enough', isRecoveryPrompt('please set HOMUNCULUS_KEY'), false);
+check('ordinary prompt is safe', isRecoveryPrompt('just download the car'), false);
+
+const leaky = [
+  L({ type: 'user', origin: { kind: 'human' },
+      message: { role: 'user', content: 'export with HOMUNCULUS_KEY on guardian-angel-homunculus-ijgeel' } }),
+  L({ type: 'user', origin: { kind: 'human' },
+      message: { role: 'user', content: 'my passphrase is swordfish, use it' } }),
+  L({ type: 'assistant', message: { role: 'assistant', content: [
+      { type: 'text', text: 'Understood, using swordfish.' }] } }),
+];
+const dr = distil(leaky, { secret: 'swordfish' });
+check('briefing dropped', dr.stats.recovery, 1);
+check('real prompt kept', dr.stats.prompts, 1);
+check('secret gone from prompt', dr.turns[0].text.includes('swordfish'), false);
+check('secret gone from reply', dr.turns[1].text.includes('swordfish'), false);
+check('redaction marked', dr.turns[0].text.includes('[REDACTED-KEY]'), true);
 
 console.log(failures ? `\n${failures} failure(s)\n` : '\nall passed\n');
 process.exit(failures ? 1 : 0);

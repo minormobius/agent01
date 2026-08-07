@@ -83,10 +83,32 @@ function isPrincipal(rec, mode) {
 }
 
 /**
- * Reduce a transcript to alternating principal/assistant turns.
- * Exported for the selftest.
+ * The recovery pass pastes the same briefing into every session, and that
+ * briefing carries the passphrase. Both then land in the transcript the very
+ * script is about to export — so without this, the corpus would contain 289
+ * copies of a form letter I wrote, each with the key in clear text.
+ *
+ * A turn is the recovery prompt if it names both the env var and the branch;
+ * no genuine prompt does.
  */
-export function distil(lines) {
+const RECOVERY_MARKERS = ['HOMUNCULUS_KEY', 'guardian-angel-homunculus'];
+
+export function isRecoveryPrompt(text) {
+  return RECOVERY_MARKERS.every((m) => text.includes(m));
+}
+
+/** Blank a literal secret wherever it appears. */
+export function redact(text, secret) {
+  if (!secret) return text;
+  return text.split(secret).join('[REDACTED-KEY]');
+}
+
+/**
+ * Reduce a transcript to alternating principal/assistant turns.
+ *
+ * `secret` is scrubbed from every surviving turn. Exported for the selftest.
+ */
+export function distil(lines, { secret } = {}) {
   const records = [];
   for (const line of lines) {
     if (!line.trim()) continue;
@@ -106,6 +128,7 @@ export function distil(lines) {
     replies: 0,
     toolResults: 0,
     injected: 0,
+    recovery: 0,
     promptWords: 0,
   };
 
@@ -123,7 +146,12 @@ export function distil(lines) {
         stats.injected++; // A skill or slash-command body, not the principal.
         continue;
       }
-      const words = text.split(/\s+/).filter(Boolean).length;
+      if (isRecoveryPrompt(text)) {
+        stats.recovery++; // The briefing that started this export. Not a prompt.
+        continue;
+      }
+      const clean = redact(text, secret);
+      const words = clean.split(/\s+/).filter(Boolean).length;
       stats.prompts++;
       stats.promptWords += words;
       turns.push({
@@ -132,11 +160,13 @@ export function distil(lines) {
         branch: rec.gitBranch ?? null,
         source: rec.promptSource ?? null,
         words,
-        text,
+        text: clean,
       });
     } else if (rec.type === 'assistant') {
-      const text = assistantText(msg.content);
-      if (!text) continue; // A pure tool-call turn says nothing.
+      const raw = assistantText(msg.content);
+      if (!raw) continue; // A pure tool-call turn says nothing.
+      // The assistant quotes the prompt back often enough to matter.
+      const text = redact(raw, secret);
       stats.replies++;
       turns.push({
         role: 'assistant',

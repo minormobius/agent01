@@ -126,14 +126,14 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(1);
   }
 
-  const { turns, stats } = distil(readFileSync(found.path, 'utf8').split('\n'));
+  const key = process.env.HOMUNCULUS_KEY;
+  const { turns, stats } = distil(readFileSync(found.path, 'utf8').split('\n'), { secret: key });
   if (!stats.prompts) {
     console.error(`Transcript found (${stats.records} records) but no principal turns in it.`);
     process.exit(1);
   }
 
   const payload = turns.map((t) => JSON.stringify(t)).join('\n') + '\n';
-  const key = process.env.HOMUNCULUS_KEY;
   const body = key ? await seal(payload, key) : payload;
   const name = key ? `${found.id}.jsonl.enc` : `${found.id}.jsonl`;
 
@@ -149,6 +149,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   console.log(`  records       ${stats.records}  (mode: ${stats.mode})`);
   console.log(`  tool results  ${stats.toolResults} cut`);
   console.log(`  injected      ${stats.injected} cut`);
+  console.log(`  recovery      ${stats.recovery} cut (this briefing)`);
   console.log(`  your prompts  ${stats.prompts}`);
   console.log(`  your words    ${stats.promptWords}`);
   console.log(`  assistant     ${stats.replies}`);
