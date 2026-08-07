@@ -1,6 +1,6 @@
 {
   "$generated": "scripts/gen-loop-data.mjs — do not edit by hand",
-  "enabled": true,
+  "enabled": false,
   "branch": "claude/loop-graph-ticketing-surface-7qxu7c",
   "budget": {
     "$comment": [
@@ -16790,11 +16790,9 @@
     }
   ],
   "now": {
-    "state": "working",
-    "detail": "1 turn(s) in flight",
-    "beads": [
-      "lp-16d590"
-    ]
+    "state": "idle",
+    "detail": "nothing in flight",
+    "beads": []
   },
   "asks": [
     {

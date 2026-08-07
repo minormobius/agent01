@@ -73,7 +73,7 @@
     "push loop (lp-95423f). Fixed; this restart resumes at turn 5 on lp-687d8d,",
     "the last of the three promoted."
   ],
-  "enabled": true,
+  "enabled": false,
   "branch": "claude/loop-graph-ticketing-surface-7qxu7c",
   "writes": [
     "loop/**",
