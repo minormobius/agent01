@@ -143,12 +143,12 @@
   },
   "counts": {
     "total": 641,
-    "ready": 4,
+    "ready": 5,
     "blocked": 9,
     "in_progress": 0,
     "done": 96,
     "dropped": 3,
-    "proposed": 109,
+    "proposed": 108,
     "knowledge": 420
   },
   "beads": [
@@ -14672,7 +14672,7 @@
       "run": null,
       "evidence": [],
       "created": "2026-08-06T23:59:57.136Z",
-      "updated": "2026-08-07T00:08:04.900Z",
+      "updated": "2026-08-07T00:11:19.359Z",
       "blocked": false,
       "ready": true,
       "unmet": []
@@ -14681,7 +14681,7 @@
       "id": "lp-89f9c8",
       "title": "pocketLevelVerdict hides what it DROPPED — and a dropped sink is how a failed level reports success",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 2,
       "body": "TWO RECORDED FINDINGS, ONE CAUSE: 'Dropping a refused SINK makes the surviving network VACUOUSLY satisfiable — network.ok goes TRUE on a level that just failed', and 'A pocket-illegal object opens the vacuous-satisfiability trap from a SECOND direction, and only one of the two is visible in the verdict.'\n\nThe rule itself is right and must not change: networkFrom drops a refused object's node and every edge naming it, because an object that was never placed cannot supply or demand anything. levelVerdict and pocketLevelVerdict both guard the trap by requiring BOTH halves for `ok`. What is missing is that the verdict does not SAY what it stopped judging. A caller holding { ok:false, placement, network } can see network.ok === true and has no field telling it that the reason is that the depot it was supposed to feed is not in the network at all. The next thing to read this verdict is a renderer, and a renderer will print 'everything is fed' underneath a refused sink.\n\nWHAT TO BUILD, in plant/pocketLevel.mjs (and, if the same field belongs there, plant/level.mjs's levelVerdict — decide, and say which way you went): pocketLevelVerdict returns a `dropped` summary alongside `placement` and `network`. Enough for a caller to be honest without recomputing anything:\n  · the ids dropped, in object order;\n  · how many of each KIND were dropped (source / processor / sink), taken from each object's own `node.kind`;\n  · the ids of the edges dropped, or at least their count;\n  · a boolean that is the actual trap — `vacuous`, true when network.ok is true AND at least one sink was dropped. That is the exact predicate 'this network passed because the thing it had to satisfy is missing', and it is the one a renderer needs.\n\nWHY A WEAKER VERSION WOULD NOT DO. A plain count of refused objects is already derivable from `placement` and tells a caller nothing new; the whole content of this ticket is the KIND breakdown and the `vacuous` flag, because only they distinguish 'you failed to place a spare processor' from 'you failed to place the thing being fed'. Equally, do NOT fix this by making `ok` stricter or by refusing to drop the edge — the drop rule has a documented reason and level.mjs's header is explicit that a passed-through unknown id must still reach feasible()'s own error.\n\nBOUNDED PATHS (R3): plant/pocketLevel.mjs, plant/level.mjs, plant/test/pocket-level.selftest.mjs, plant/test/level.selftest.mjs, plant/CLAUDE.md. All under plant/.\n\nTHE GATE ALREADY EXISTS — node plant/test/pocket-level.selftest.mjs — and this is a class-a bead, so its job is to certify no regression AND to pin the new field. The recorded caution applies: 'class-A's gate certifies no regression, not the new behaviour — the agent writes the assertions it is graded by.' So the new section must exhibit the DEFECT, not just the repair: build a fixture where a sink is refused (hull or a seed collision), assert network.ok is TRUE on it, and assert that `vacuous` is true and names that sink. A section asserting only the happy path would pass for an implementation that hardcodes vacuous:false. Add the mirror control too — a fixture where a PROCESSOR is dropped and the network legitimately still fails — so `vacuous` is proven to be about sinks rather than about droppedness.\n\nR1: one field computed from data pocketLevelVerdict already has in hand. R4: independent of everything else proposed this turn — the placement panel renders whatever `ok` it is given whether or not this field exists. R6: additive field; revert is deleting it.",
       "deps": [],
@@ -14697,9 +14697,9 @@
         "rejected: FAILS R4, TWICE OVER, AND IT IS THE ONE I MOST REGRET REJECTING. Its bounded paths are plant/pocketLevel.mjs, plant/level.mjs, plant/test/pocket-level.selftest.mjs, plant/test/level.selftest.mjs, plant/CLAUDE.md. The first and third are held by approved lp-0e2b51 — same file, same classify() region, same SHAPE literals in the same gate — and the fifth is held by approved lp-16d590. Two collisions "
       ],
       "created": "2026-08-06T23:59:57.136Z",
-      "updated": "2026-08-07T00:08:05.213Z",
+      "updated": "2026-08-07T00:11:19.426Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -14719,10 +14719,10 @@
       "actor": "planner",
       "run": null,
       "evidence": [
-        "rejected: REJECTED ON THE VISION FIRST AND R4 SECOND, and the vision reason is the one that matters. PRIORITY IS THE ONLY PART OF vision.md THE SCHEDULER READS, and the box says plainly: do not promote oracle work above item 1. This window has exactly one bead that changes what a visitor sees, and this is not it — it is an enumeration change inside summon-session.mjs whose stated victims are (a) selftests t"
+        "rejected: The defect is real — candidates() at plant/summon-session.mjs:403-429 enumerates x-then-z-then-y and truncates by prefix, so a truncated list is one column — but this ticket FAILS R3, and it fails it in the way that has already cost this loop a turn. Its bounded paths are plant/summon-session.mjs, its selftest and plant/CLAUDE.md. Changing the enumeration order moves list[0] for every existing con"
       ],
       "created": "2026-08-06T23:59:57.136Z",
-      "updated": "2026-08-07T00:08:05.366Z",
+      "updated": "2026-08-07T00:11:19.518Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -14738,13 +14738,16 @@
       "parent": "lp-cf0b96",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "planner",
       "run": null,
-      "evidence": [],
+      "evidence": [
+        "rejected: THE HEADLINE PREMISE IS STALE, and I checked the file rather than the finding. The ticket says 'legalSummon's docstring says every refusal carries summonSeed — the metric refusal does not', and that the unacceptable outcome is 'leaving the docstring making a claim the code does not meet.' That claim is already gone. plant/placement.mjs:236 reads 'Every PER-SEED refusal — hull, seed and self — carr"
+      ],
       "created": "2026-08-06T23:59:57.136Z",
-      "updated": "2026-08-07T00:08:05.050Z",
+      "updated": "2026-08-07T00:11:19.586Z",
       "blocked": false,
       "ready": true,
       "unmet": []
@@ -16366,6 +16369,10 @@
     },
     {
       "id": "lp-28cba0",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-89f9c8",
       "unblocks": 0
     },
     {
