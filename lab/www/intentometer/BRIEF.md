@@ -4,36 +4,61 @@
 
 Manual "read it" + automated "run the meter" against a Bluesky feed, a
 categorised pattern list (fitness, money, quitting, etc.) with a per-pattern
-depth reading, and — new this turn — a blunt one-line "quick read" banner
-that answers the whole page's question in one glance, above everything
-else.
+depth reading, a blunt one-line "quick read" banner up top, and — new this
+turn — a **"Compare two"** card that runs the same reading on two named
+handles side by side and says which one currently reads more locked-in.
 
-This turn's request, verbatim: **"oh my god i just want it to show broadly
-quickly when someone is probably full of shit."** No thread pointer
-elsewhere. Read literally: the breakdown (pattern cards, per-card depth,
-the demoted numeric gauge) that the twelfth and thirteenth turns built out
-is detailed but not FAST — you have to read cards to get a sense of
-"does this sound real." This turn's ask is speed of read, not more detail.
+**This turn's request, verbatim: "That was a trick question."** No new
+feature ask — it's the requester's own reply to their earlier "How can I
+fuck people up with that?", read in context as walking that one back rather
+than asking for anything. There was nothing here to point the build at, so
+per the standing rule this turn worked the plan left by the previous
+BRIEF: item 4 listed "a two-handle compare mode" as one of three unbuilt
+pieces, and of the three it was the most self-contained (no OAuth, no
+nested-thread walking), so it's what shipped.
 
-That request sits in real tension with the twelfth turn's explicit "don't
-want it to be...probability focused," which is on record in this same
-BRIEF's history. Per the standing rule (most recent request from the owner
-wins when it contradicts the plan), this turn leans back toward a fast
-top-line signal — but as an ADDITION above the existing breakdown, not a
-replacement of it. Nothing from turns eleven through thirteen was removed.
-
-Shipped: a `.quickread` banner — one big coloured line ("🚩 sounds like
-mostly talk" / "🤷 hard to tell yet" / "💬 sounds like they mean it" /
-"✅ sounds locked in"), plus a small honesty caption underneath — rendered
-first, above the pattern grid, in both manual and feed mode. It's driven by
-the *same* `scoreIntent` used everywhere else on this page (whole-text score
-in manual mode, the post average in feed mode) — no new heuristic, just a
-new, blunter bucketing and a louder presentation of a number that already
-existed. "Full of shit" itself never appears as page copy; "sounds like
-mostly talk" is the shipped wording — see Decisions.
+Shipped: a third card, "Compare two," with two `kit.handleInput` boxes and
+a compare button. Resolves and scores both handles' last 15 text posts
+(same `loadHandleReading` now shared with the existing feed mode — see
+Decisions), then renders two `.compare-side` panels (quick-read badge,
+score, top 3 patterns) and a one-line verdict naming whichever handle scored
+higher, or calling it a tie inside an 8-point margin. No new scoring
+heuristic — this is presentation over the exact same `scoreIntent` /
+`aggregatePatterns` pipeline as everywhere else on the page.
 
 ## Decisions
 
+- **This turn: extracted `loadHandleReading(handle, didHint)`** out of what
+  was inline in `runFeed` — resolve handle → fetch author feed → filter →
+  score → aggregate patterns — so compare mode calls the exact same code
+  path as the single-handle feed instead of a forked copy that could drift.
+  `runFeed` now just renders the result; `runCompare` calls it twice via
+  `Promise.all`. A parallel `feedErrorMessage(e, handle)` helper does the
+  same de-duplication for the "could not find @x" / "no recent posts" /
+  network-error branching, reused by both call sites.
+- **Compare mode does not reuse `patternCardsHtml`** — full cards (icon
+  circle, colour alpha, phrase quote, depth label) side by side for two
+  handles at once was too much to scan at a glance, which is the same
+  "fast, blunt" instinct the quick-read banner was built for two turns ago.
+  Each side shows only its quick-read badge, score, and up to 3 pattern
+  chips (icon + label, no phrase/depth) — a deliberately thinner view than
+  single-handle mode, not a lesser version of it.
+- **The verdict has an 8-point tie margin** (`COMPARE_TIE_MARGIN`), same
+  reasoning as `QUICKREADS`' banding: the scoring is a heuristic over ~15
+  posts, and calling a 2-point gap a "winner" would overclaim precision the
+  method doesn't have. Below the margin it says "about the same energy"
+  instead of forcing a comparison.
+- **Wording is "reads more locked in," never "is more honest/committed."**
+  Same register discipline as the quick-read banner and `categoryFor` —
+  this describes the WORDING of recent posts, not a claim about the person,
+  and the verdict line says "not a prediction" explicitly for the same
+  reason the quick-read note says "no way to know if they'll actually
+  follow through."
+- **Two independent `kit.handleInput` boxes, no cross-filtering.** Didn't
+  try to stop someone typing the same handle twice via typeahead — a plain
+  case-insensitive equality check after submit catches it instead, simpler
+  and covers the actual failure mode (comparing a handle to itself is a
+  useless result, not a security issue).
 - **Added a second, independent pattern-matching layer** (`GOAL_CATEGORIES`
   / `detectPatterns()`), separate from the existing `SIGNALS` /
   `scoreIntent()` table. Did not try to unify them — they answer different
@@ -146,12 +171,21 @@ mostly talk" is the shipped wording — see Decisions.
    into five readable labels, same caveat as everything else scored here.
    If depth reads as too bunched (e.g. everything landing "stated"), the
    buckets are the first thing to widen, not the SIGNALS weights.
-4. **Everything from earlier BRIEFs that still isn't built**: labPds()
-   history/trend view, a two-handle compare mode, thread mode via
-   `getPostThread`. None conflict with what's shipped — they'd sit alongside
-   the pattern cards fine. Thread mode is still the trickiest (nested
-   `thread.replies[]`, not a flat `feed[]` — read
-   `lab/_kit/fixtures/getPostThread.json` before writing the walk).
+4. **Compare mode shipped this turn.** Still not built, from earlier
+   BRIEFs: labPds() history/trend view (save a reading over time to the
+   visitor's own repo via `store.save`/`store.load`, show a trend — needs
+   OAuth sign-in, which nothing on this page does yet), and thread mode via
+   `getPostThread` (nested `thread.replies[]`, not a flat `feed[]` — read
+   `lab/_kit/fixtures/getPostThread.json` before writing the walk; still
+   the trickiest of the two).
+5. **Compare mode's own next steps, if asked for**: it currently re-fetches
+   both handles from scratch on every click — fine at this scale, but if a
+   future turn adds caching for the single-handle feed, compare mode should
+   get it too via the shared `loadHandleReading`. Also untried: what compare
+   mode does with a handle that has zero patterns detected on either side —
+   reads fine from the code (each side just says "no goal pattern spotted"
+   and the verdict still compares scores), but wasn't checked against the
+   screenshot this turn (see Gotchas).
 
 ## Gotchas
 
@@ -190,8 +224,16 @@ mostly talk" is the shipped wording — see Decisions.
   Decisions. If a future message from them insists on the exact wording,
   that's a deliberate ask to override this turn's softening, not a bug to
   fix.
-- **Screenshot check (this turn):** rendered at 1200x800 under production
+- **Screenshot check (previous turn):** rendered at 1200x800 under production
   CSP. Heading, intro copy, the "Say it" textarea and button, and the
   (demoted) gauge all render correctly — nothing off-screen, overlapping,
-  blank, or unreadable. No code changes made; this was a visible-breakage
-  check only, not a re-review of the design.
+  blank, or unreadable. That check predates this turn's Compare card, so it
+  has not itself been screenshotted — the harness does that after this
+  build, and `.compare-grid`'s `auto-fit, minmax(200px, 1fr)` is the value
+  to narrow first if the two sides look cramped rather than stacked on a
+  360px-wide screen.
+- **This turn's refactor touched `runFeed`'s body but not its signature or
+  its two call sites** (`onPick`, the Enter handler, the button click) —
+  worth confirming on the screenshot pass that single-handle mode still
+  reads identically to before, since the rendering logic moved into a
+  `.then()` callback rather than being deleted/rewritten.
