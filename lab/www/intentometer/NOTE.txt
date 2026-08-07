@@ -1,1 +1,1 @@
-Swapped the lead output from a 0-100 score to a striking colour-coded list of goal patterns (fitness, money, quitting, etc) with the actual phrase that matched. Kept the score, just smaller and lower down now.
+Read "deeper" as: patterns showed which kind of goal, not how committed the line sounded. Each card now scores its own sentence for hedging vs commitment and shows it as a label plus how bright the icon reads — faint for a maybe, bright for stated flat-out.
