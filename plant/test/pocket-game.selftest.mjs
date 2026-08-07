@@ -390,8 +390,15 @@ console.log('\n(7) CONTROL for (6): the negations have a subject');
   ok('OBJECTIVE.blurb is a real string', nonEmpty(OBJECTIVE.blurb));
   ok('LINES.empty is a real string', nonEmpty(LINES.empty));
   ok('LINES.won is a real string', nonEmpty(LINES.won));
+  // A SEPARATE PREDICATE FOR LABELS, and the length threshold is the reason.
+  // `nonEmpty` demands more than 8 characters, which is a fine proxy for a
+  // title or a blurb accidentally being `undefined`. It is wrong for a label:
+  // "depot" is five characters and "ore vein" is exactly eight, and both are
+  // real names a player reads on a button. The control was failing on correct
+  // content, which is the worst kind of red — it trains you to ignore it.
+  const realLabel = (v) => typeof v === 'string' && v.trim().length > 0;
   ok('every palette entry has a real label',
-    OBJECTIVE.palette.every((p) => nonEmpty(p.label)));
+    OBJECTIVE.palette.every((p) => realLabel(p.label)));
   ok('the palette is not empty', OBJECTIVE.palette.length === 4);
   ok('every slot names at least one palette key',
     OBJECTIVE.slots.every((s) => s.length > 0 && s.every((k) => entryOf(k) !== null)));

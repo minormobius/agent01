@@ -520,7 +520,15 @@ paint();
 // already binds `hullBounds`, `planShapes` and `PLAN`. Re-importing those names
 // would be a duplicate declaration and a syntax error that kills the entire
 // page, so they are bound under their own names here.
-import { PocketGame, OBJECTIVE, entryOf } from './pocket-game.mjs';
+// entryOf is DELIBERATELY NOT IMPORTED HERE, and re-adding it breaks the page.
+// This file is ONE module scope (a single <script type="module">), campaign.mjs
+// already binds entryOf at the top, and a second bare binding is a duplicate
+// declaration — a SyntaxError that stops the ENTIRE script executing, so the
+// inspector, the campaign and this panel all go dead at once and the page
+// renders as inert HTML. Nothing in this block ever used it.
+// Turn 92 added it; all 18 selftests still passed, because they import the
+// modules in node and NOTHING EVER LOADED THIS PAGE AS A BROWSER MODULE.
+import { PocketGame, OBJECTIVE } from './pocket-game.mjs';
 import { hullBounds as pgHullBounds } from './placement.mjs';
 import { planShapes as pgPlanShapes, PLAN as PG_PLAN } from './summon-view.js';
 

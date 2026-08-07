@@ -45,20 +45,18 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-<<<<<<< HEAD
-<<<<<<< HEAD
 // BANNED is deliberately NOT imported any more. Its only consumer here was
 // section (8)'s check on the page's own intro paragraph, and the page no longer
 // owns one — the rule now runs against `INTRO` itself in campaign.selftest.mjs
 // §2b, which is the stronger home for it. A block-wide BANNED sweep is NOT the
 // replacement and must not be added: this file's own comments discuss the
 // oracle by name, so such a check would fail on prose and be deleted.
-=======
->>>>>>> 83d9d49 (loop: turn 90 on lp-ef6599 — awaiting verdict)
-import { Campaign, LEVELS, ORDER, WIN_FRACTION, INTRO, LINES, grade } from '../campaign.mjs';
-=======
-import { Campaign, LEVELS, ORDER, WIN_FRACTION, BANNED, LINES, MARK, grade } from '../campaign.mjs';
->>>>>>> ff7d2d9 (loop: turn 87 on lp-3f5f26 — awaiting verdict)
+// RESOLVED BY HAND 2026-08-07. Turns 87 and 90 raced and the push-retry path
+// staged the conflict markers instead of a resolution, twice, nested. The
+// import list below is the UNION of what this file actually references — the
+// HEAD side had dropped BANNED and MARK while the body still used both, so
+// taking either side alone leaves a ReferenceError.
+import { Campaign, LEVELS, ORDER, WIN_FRACTION, INTRO, BANNED, MARK, LINES, grade } from '../campaign.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const html = readFileSync(join(here, '..', 'index.html'), 'utf8');
@@ -249,7 +247,6 @@ console.log('\n(7) the six scrolled sections are GONE — the move happened, it 
     draws.length === 1, `${draws.length} calls`);
 }
 
-<<<<<<< HEAD
 console.log('\n(8) the first screen’s words are the MODULE’s — rendered by reference, never typed here');
 {
   // WHAT THIS SECTION USED TO BE, AND WHY IT IS REPLACED RATHER THAN EXTENDED.
@@ -315,67 +312,6 @@ console.log('\n(8) the first screen’s words are the MODULE’s — rendered by
   ok('the control: INTRO’s two fields are non-empty strings, so the absence checks mean something',
     typeof INTRO.title === 'string' && INTRO.title.length > 0
     && typeof INTRO.blurb === 'string' && INTRO.blurb.length > 0);
-=======
-console.log('\n(8) the first screen is the MODULE’s words — rendered by reference, not typed here');
-{
-  // WHAT THIS REPLACED, AND WHY IT IS A REPLACEMENT RATHER THAN AN ADDITION
-  // (lp-ef6599). This section used to extract the page's own hand-typed
-  // paragraph and assert what it was LIKE: non-empty, under 400 characters, no
-  // BANNED word. Every one of those is a property the string has ON ITS OWN, so
-  // all of them pass for an intro describing a completely different game —
-  // there was nothing external to compare it against. Those prose rules did not
-  // go away; they live in campaign.selftest.mjs's own INTRO section, against
-  // the export, which is the stronger home for them because there is one owner
-  // and the rule is checked once.
-  //
-  // WHAT IS ASSERTED INSTEAD is the wiring plus the DEPARTURE, which is this
-  // tree's standing rule for relocation work: absence at the source, presence
-  // at the destination, or the diff is not reviewable. Note which check is NOT
-  // available here: `html.includes(INTRO.blurb)` would be WRONG as the arrival
-  // half, because a page that renders by reference contains the words only
-  // after paint and never in source. So the arrival is "the mount ships empty
-  // and the block fills it from the export", and the departure is that neither
-  // string appears in the file at all.
-  //
-  // Rendering by reference is also STRONGER than the runtime equality a DOM
-  // test would assert. `intro.textContent === INTRO.blurb` compares two strings
-  // and passes for a page carrying a byte-identical hand-typed copy; a page
-  // that reads the export cannot hold a different sentence at all.
-  ok('the page imports INTRO from the module it already imports the game from',
-    /import\s*\{[^}]*\bINTRO\b[^}]*\}\s*from\s*['"]\.\/campaign\.mjs['"]/.test(block));
-
-  // Arrival. Both mounts, because INTRO carries a title as well as a sentence —
-  // its field names are a LEVELS entry's on purpose, and the level screen's two
-  // mounts are already asserted empty in section (6) for the same reason.
-  ok('the intro sentence mount ships EMPTY — filled from the module at paint time',
-    /<p[^>]*id="gameIntro"[^>]*><\/p>/.test(html));
-  ok('the intro title mount ships EMPTY too',
-    /<h2[^>]*id="gameIntroTitle"[^>]*><\/h2>/.test(html));
-  ok('the block writes the sentence from INTRO.blurb, by reference',
-    /\$\('gameIntro'\)\.textContent\s*=\s*INTRO\.blurb\b/.test(block));
-  ok('…and the title from INTRO.title, by reference',
-    /\$\('gameIntroTitle'\)\.textContent\s*=\s*INTRO\.title\b/.test(block));
-  // The negative that `includes` cannot see: a DIFFERENT sentence assigned to
-  // the same element would satisfy every check above except this one.
-  ok('no first-screen text is quoted into either assignment',
-    !/\$\('gameIntro(?:Title)?'\)\.textContent\s*=\s*['"`]/.test(block));
-
-  // Departure, derived from the export rather than from the old paragraph
-  // hand-copied into this file — so a reworded INTRO is covered the day it
-  // lands, and a page that kept its own copy of EITHER wording fails: the old
-  // one is not INTRO.blurb, and asserting the element ships empty catches it.
-  ok('the module’s sentence is nowhere in the page source',
-    !html.includes(INTRO.blurb), INTRO.blurb);
-  ok('…nor is its title',
-    !html.includes(INTRO.title), INTRO.title);
-  // CONTROL. Both departure checks are negations over a needle that comes from
-  // the module, and a short or empty needle would make them meaningless — an
-  // empty string is `includes`d by every file. They fail closed rather than
-  // passing vacuously, but say so out loud so nobody has to work it out.
-  ok('…and the needles are substantial, so those two are not vacuous',
-    INTRO.title.length > 8 && INTRO.blurb.length > 40,
-    `${INTRO.title.length} / ${INTRO.blurb.length} chars`);
->>>>>>> 83d9d49 (loop: turn 90 on lp-ef6599 — awaiting verdict)
 }
 
 console.log('\n(9) a win advances and the last level ENDS — the rule the button renders');
