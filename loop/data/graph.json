@@ -143,12 +143,12 @@
   },
   "counts": {
     "total": 641,
-    "ready": 1,
+    "ready": 4,
     "blocked": 9,
     "in_progress": 0,
     "done": 96,
     "dropped": 3,
-    "proposed": 112,
+    "proposed": 109,
     "knowledge": 420
   },
   "beads": [
@@ -14417,10 +14417,10 @@
       "actor": "agent",
       "run": "91",
       "evidence": [
-        "rejected: FAILS R3, and the ticket says so itself. Bounded paths are scripts/lib/beads.mjs and scripts/loop-tick.selftest.mjs; .github/loop/config.json's `writes` is loop/**, .github/loop/**, plant/** — verified this turn. No seat can write either file, so promoting this puts it in a queue where the reactor dispatches it to an agent structurally forbidden to satisfy it. That is the exact shape of the record"
+        "rejected: FAILS R3, AND THE PROPOSER SAYS SO IN ITS OWN FIRST PARAGRAPH. The bounded paths are scripts/lib/beads.mjs and scripts/loop-tick.selftest.mjs. R3 is 'bounded paths, ALL UNDER plant/'. That is not a criterion a reviewer can waive, and it is not close. THE DEFECT IS REAL AND I AM NOT DISPUTING ANY OF IT. It matches a finding already in the loop's memory verbatim — 'A bead that is REJECTED BY REVIEW "
       ],
       "created": "2026-08-06T23:58:33.524Z",
-      "updated": "2026-08-07T00:01:56.917Z",
+      "updated": "2026-08-07T00:08:05.143Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -14442,10 +14442,10 @@
       "actor": "agent",
       "run": "91",
       "evidence": [
-        "rejected: FAILS THE VISION TEST, which outranks the DoR. R1, R2, R3, R5, R6 all pass — the gate exists, the paths are under plant/, the body is exemplary. It is rejected because plant/pocketLevel.mjs is imported by NOTHING except plant/test/pocket-level.selftest.mjs (grepped this turn: no import in index.html, none in level.mjs, none anywhere). vision.md's 'What does not matter right now' names this case li"
+        "rejected: FAILS R4: bounded paths plant/pocketLevel.mjs and plant/test/pocket-level.selftest.mjs are IDENTICAL to approved lp-0e2b51's, both edit branches of the same classify() function, and both rewrite SHAPE literals in the same gate file. Three proposals on this desk want those two files and only one can have them. THE DEFECT IS REAL AND I VERIFIED IT: classify()'s hull branch at pocketLevel.mjs:231-235"
       ],
       "created": "2026-08-06T23:58:33.524Z",
-      "updated": "2026-08-07T00:01:56.996Z",
+      "updated": "2026-08-07T00:08:05.284Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -14454,7 +14454,7 @@
       "id": "lp-0e2b51",
       "title": "Give the step ENTRY a `blockedByNode` alias — the entry and the refusals inside it use two names for one field",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 3,
       "body": "PINNED BY §6 OF THE GATE THIS TICKET JUST BUILT, in both directions: the entry has `blockedBy` and no `blockedByNode`; every step-blamed refusal inside that same entry has `blockedByNode` and no `blockedBy`. Both hold the id of the earlier object whose seed was hit.\n\nSAME SHAPE AS THE ALREADY-FIXED `first`/`refusal` ASYMMETRY, and it fails the same way: a renderer that has the entry in hand and drills into `refusals` to list every blocker reaches for the name it just used one level up, gets `undefined`, and renders the string 'undefined' with every word around it intact.\n\nTHE DIRECTION IS ALREADY SETTLED, which is why this is a small ticket rather than a debate. `buildcert.mjs`'s `explain()` (line 424) uses `blockedByNode` on its inner refusals too, and adds `blockedBySeed` beside it. So the INNER name is consistent across both accumulating walks and the entry is the odd one out. Renaming the inner field would touch two modules and two gates; aliasing on the entry touches one branch.\n\nWHAT TO BUILD, in `plant/pocketLevel.mjs`'s `blame === 'step'` branch: set `entry.blockedByNode = entry.blockedBy` alongside the existing assignment — BOTH NAMES, the conservative move `summon-session.mjs` already established for `summonSeed`/`point`, because a rename that misses a caller is strictly worse than an alias. One line in the docstring's `collides…` field list.\n\nWHAT THE GATE MUST CHECK (`plant/test/pocket-level.selftest.mjs`):\n  · `SHAPE.step` GAINS `blockedByNode` and nothing else — the exact-set form is what makes that a real check rather than a presence one, and the sorted position is between `blockedBy` and `blockers`;\n  · the two existing directional assertions become 'the entry carries BOTH' and 'the inner refusal still carries only `blockedByNode`' — the second is the load-bearing negative, because a fix applied to the wrong layer passes the first;\n  · `entry.blockedByNode === entry.blockedBy` and `=== blockers[0].id`, so the alias cannot drift from the thing it aliases;\n  · the five other SHAPE literals are UNCHANGED.\n\nWHY class-a: `plant/test/pocket-level.selftest.mjs` exists and passes today. BOUNDED PATHS: plant/pocketLevel.mjs, plant/test/pocket-level.selftest.mjs.",
       "deps": [],
@@ -14470,9 +14470,9 @@
         "rejected: FAILS R4 AND THE VISION TEST. R4 first, because it is objective: this touches plant/pocketLevel.mjs and plant/test/pocket-level.selftest.mjs — the identical two files as lp-306e74, both editing classify()'s blame branches and both editing the SHAPE literal block. They are not independent; dispatched together they collide, and the DoR asks for independence rather than luck. Then the same vision fai"
       ],
       "created": "2026-08-06T23:58:33.524Z",
-      "updated": "2026-08-07T00:01:57.066Z",
+      "updated": "2026-08-07T00:08:04.968Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -14658,7 +14658,7 @@
       "id": "lp-16d590",
       "title": "Build a factory in the pocket — the first thing on this page a stranger can LOSE, and the last unimported module",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 0,
       "body": "THE OPERATOR'S SENTENCE, STILL TRUE: \"You cannot place a source next to a processor and watch something flow.\" The six campaign levels are sliders over networks somebody else wired. The summon panel drops shapes into real foam with no goal. pocketLevel.mjs — the certificate that an ordered set of placements is BOTH pocket-legal AND fed — is built, gated by plant/test/pocket-level.selftest.mjs, documented in plant/CLAUDE.md, and IMPORTED BY NOTHING. This bead is that wiring, and it changes what a visitor sees.\n\nBOUNDED PATHS (R3), all under plant/:\n  plant/pocket-game.mjs            NEW\n  plant/test/pocket-game.selftest.mjs   NEW — the gate\n  plant/index.html                 one ADDITIVE panel\n  plant/CLAUDE.md                  one paragraph\n\nTHE MODULE. Same discipline as campaign.mjs and for the same reason — control logic in a module, not in event handlers, so a test drives it with no browser. No DOM, no events, no randomness.\n\n  OBJECTIVE   a frozen literal: a pocket seed + opts (start from summon-session.mjs's DEFAULT_POCKET / DEFAULT_R rather than inventing a fixture), a title, a one-sentence blurb, the declared `edges`, and a PALETTE.\n  PALETTE     three or four entries, each { key, label, solid, r, node }. `node` is a production.mjs node literal whose id is the key. Suggested first objective: `vein` (source), `smelter` and `bigSmelter` (processors, DIFFERENT capacity), `depot` (sink). Edges address those ids.\n  class PocketGame\n    start()               generate the pristine pocket; empty the placed list\n    select(key)           choose a palette entry\n    preview(point)        the verdict for placing the selection there, WITHOUT placing\n    place(point)          append { id, con, node } to the ordered list if legal; return { accepted, refusal }\n    remove(id) / reset()  so a stranger is not stuck\n    verdict()             pocketLevelVerdict(pristinePocket, placed, OBJECTIVE.edges)\n    state()               a detached snapshot\n\nTHE POCKET IS NEVER PLANTED INTO. Hold the generated pocket pristine and recompute the verdict from the ordered list; pocketPlacementReport already ACCUMULATES, so object two is checked against object one. This is why the module does NOT use SummonSession: that class really plants, and a design that both plants and calls pocketLevelVerdict double-counts seeds — a wrong answer, not a crash. Consequence to state in the header: the lattice does not visibly reform. Ask lp-2fadad is open on whether that reform IS the point; if it turns out to be, switch to a SummonSession and take the production half from level.mjs's networkFrom. That is a change inside one module, which is why this is the reversible choice.\n\nWHAT MAKES IT A GAME AND NOT A PACKING PUZZLE: two failure modes from two halves of one verdict. You can be refused for GEOMETRY (no room — hull, a pocket seed, your own earlier machine) or you can place everything legally and still be told the depot is short because you chose the small smelter. Both come back from the same pocketLevelVerdict call.\n\nTHE VERDICT IS `placement all legal AND network.ok`, NEVER network.ok ALONE. Recorded twice: dropping a refused SINK makes the surviving network VACUOUSLY satisfiable, and a pocket-illegal object opens the same trap from a second direction. pocketLevelVerdict already gets this right — the page must render ITS `ok`, and must not recompute one.\n\nTHE PANEL. Additive, below the campaign panel and above the summon inspector. A top-down plan (planShapes/PLAN from summon-view.js are already the descriptors for exactly this), a button per palette entry, click to place, a line of copy from the module, a reset. Words come from the module by reference — the recorded lesson is that a gate reading the page as text cannot assert the page is showing the RIGHT string unless there is something external to compare against.\n\nDO NOT HIGHLIGHT LEGAL GROUND THIS TURN. candidates() emits x-then-z-then-y, so slice(0,n) is one column at n heights; a prefix-based highlight would read as 'you may only build here'. That defect is its own bead.\n\nTHE GATE, plant/test/pocket-game.selftest.mjs, sections:\n  1  a scripted playthrough places the whole objective legally and reaches ok:true in a BOUNDED number of moves, and the bound is asserted (vision item 1's executable form of the thirty-second bar).\n  2  a scripted playthrough reaches A REFUSAL THE PLAYER CAUSED — place a second machine on top of the first — in a bounded number of moves; assert the reason is the earlier-summon one, not hull and not pocket.\n  3  the two failure modes are DISTINGUISHABLE: with the small smelter every placement is legal and the verdict is ok:false with a named deficit; assert both facts in the same verdict, so an implementation that collapses them fails.\n  4  a REFUSED place changes nothing: deep-compare a snapshot of state() and of the pristine pocket across a refused move, and first prove the refusal really was refused (a rollback test is worth nothing unless the naive path would have half-applied — recorded).\n  5  the page as text: index.html imports ./pocket-game.mjs, mounts the module's strings, and contains NO literal derived at run time from OBJECTIVE (palette capacities, the demand, the seed, r, minSeedGap). Derive the forbidden set from the module at run time the way index-campaign-wiring.selftest.mjs derives its own — a hand-typed list is the thing that goes stale.\n  6  a control for section 5: assert the negations are non-vacuous. `!html.includes(undefined)` passes, and that hole has been hit here before.\n\nHAZARDS, EACH FROM A RECORDED FINDING (R5):\n  · EIGHT GATES READ index.html. The last page-relocation ticket was REJECTED for breaking four it never named. This panel is ADDITIVE — move nothing — and the turn must run the whole plant/test suite before it reports, specifically index-campaign-wiring, index-summon-wiring, index-level4/5/6-wiring and docs.\n  · campaign.mjs's BANNED words and its no-counting rule are about ITS copy, not yours; do not import that rule, but do not use 'oracle', 'feasible' or 'margin' in player-facing text either.\n  · AN EIGHTH UNIMPORTED MODULE IS THE FAILURE MODE, NOT THE FIX. This bead is NOT done if pocket-game.mjs lands without index.html importing it in the same turn.\n  · The gate file is under plant/test/, inside the loop's write paths — a creates-gate bead whose gate lives outside them can never pass, and that cost five turns.\n\nR1 one turn: bounded by ONE objective, ONE pocket seed, four palette entries, no editing, no undo history beyond remove/reset. R6 reversible: two new files plus one additive block; revert is deleting them.",
       "deps": [],
@@ -14672,9 +14672,9 @@
       "run": null,
       "evidence": [],
       "created": "2026-08-06T23:59:57.136Z",
-      "updated": "2026-08-06T23:59:57.136Z",
+      "updated": "2026-08-07T00:08:04.900Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -14688,13 +14688,16 @@
       "parent": "lp-cf0b96",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "planner",
       "run": null,
-      "evidence": [],
+      "evidence": [
+        "rejected: FAILS R4, TWICE OVER, AND IT IS THE ONE I MOST REGRET REJECTING. Its bounded paths are plant/pocketLevel.mjs, plant/level.mjs, plant/test/pocket-level.selftest.mjs, plant/test/level.selftest.mjs, plant/CLAUDE.md. The first and third are held by approved lp-0e2b51 — same file, same classify() region, same SHAPE literals in the same gate — and the fifth is held by approved lp-16d590. Two collisions "
+      ],
       "created": "2026-08-06T23:59:57.136Z",
-      "updated": "2026-08-06T23:59:57.136Z",
+      "updated": "2026-08-07T00:08:05.213Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -14710,13 +14713,16 @@
       "parent": "lp-cf0b96",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "planner",
       "run": null,
-      "evidence": [],
+      "evidence": [
+        "rejected: REJECTED ON THE VISION FIRST AND R4 SECOND, and the vision reason is the one that matters. PRIORITY IS THE ONLY PART OF vision.md THE SCHEDULER READS, and the box says plainly: do not promote oracle work above item 1. This window has exactly one bead that changes what a visitor sees, and this is not it — it is an enumeration change inside summon-session.mjs whose stated victims are (a) selftests t"
+      ],
       "created": "2026-08-06T23:59:57.136Z",
-      "updated": "2026-08-06T23:59:57.136Z",
+      "updated": "2026-08-07T00:08:05.366Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -14725,7 +14731,7 @@
       "id": "lp-28cba0",
       "title": "The `metric` refusal carries neither `at` nor `summonSeed` — so it is the one refusal a renderer cannot draw",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 2,
       "body": "TWO RECORDED FINDINGS, SAME OBJECT: 'legalSummon's docstring says every refusal carries summonSeed — the metric refusal does not, and a renderer is the first thing that notices', and 'The `metric` refusal is missing `at` as well as `summonSeed` — and `at` is the field a UI needs to draw anything at all.'\n\nSo there are two defects here and only one of them is a missing field. The docstring makes a universal claim the code does not honour; that is the kind of prose rot this tree has recorded three separate losses to. And a UI branching on a refusal to light up the offending place can do it for hull, self, seed and step, and then hits `metric` and has no coordinate at all.\n\nWHAT TO DECIDE — and this is the substance of the ticket, not a detail. A metric refusal is a statement about the WHOLE constellation (it was built for the wrong aniso), so 'which seed is at fault' has no honest answer. Two coherent resolutions:\n  (a) give the metric refusal `at` (the constellation centre — a place a renderer can draw) and declare `summonSeed: null` EXPLICITLY as a member of its field set, then fix the docstring to say every PER-SEED refusal carries summonSeed and that metric is the whole-shape one; or\n  (b) leave the object alone and fix only the docstring, accepting that a renderer must special-case metric.\nI recommend (a) — `at` is the field that makes a UI possible at all, `summonSeed: null` present-and-null is far easier for a caller than absent, and the recorded UI cost of (b) is real. But the ticket owner decides; whichever way, SAY IT IN THE HEADER and say what would reverse it. What is NOT acceptable is leaving the docstring making a claim the code does not meet.\n\nDO NOT INVENT A FAKE SEED INDEX. A metric refusal blaming seed 0 would be worse than no field: it would draw a highlight on a seed that is not the problem, and 'a checker that fails correct work is worse than no checker' is this tree's own recorded lesson about exactly that kind of confident wrongness.\n\nBOUNDED PATHS (R3): plant/placement.mjs, plant/test/placement.selftest.mjs, and — only if the field set changes and its own field-list table goes stale — plant/pocketLevel.mjs's docstring and plant/summon-view.js. Check summon-view.js's summonSentence before you finish: if it branches on a field the metric refusal now carries, its gate (plant/test/summon-view.selftest.mjs) must still pass, and that gate re-extracts each printed number and compares it to the field it came from, so a new field that is printed must be printed correctly.\n\nTHE GATE EXISTS — node plant/test/placement.selftest.mjs — and it already pins refusal key sets as SORTED COMMA-JOINED STRINGS, which is the right shape and means this change MUST edit that pin rather than sliding past it. That is deliberate: 'adding a fifth refusal reason must cost a test edit', and so must adding a field. The new assertions: the metric refusal's key set is pinned in the same form as the others; `at` is three finite numbers and EQUALS the constellation centre the fixture passed in (compare against the input, not against a copied literal — a verifier grading against the wrong reference has already cost this tree a mechanic); and, if (a) is taken, `summonSeed` is present with value null, asserted with `'summonSeed' in refusal` rather than a truthiness test, since `refusal.summonSeed == null` passes for an absent field and that is the exact hole this ticket is closing.\n\nR1: one field plus one docstring plus one pinned key set. R4: independent — the placement panel proposed this turn prints a sentence and does not draw refusals. R6: additive field; revert is deleting it and the pin.",
       "deps": [],
@@ -14738,9 +14744,9 @@
       "run": null,
       "evidence": [],
       "created": "2026-08-06T23:59:57.136Z",
-      "updated": "2026-08-06T23:59:57.136Z",
+      "updated": "2026-08-07T00:08:05.050Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     }
   ],
@@ -16351,7 +16357,19 @@
   ],
   "ready": [
     {
+      "id": "lp-16d590",
+      "unblocks": 0
+    },
+    {
       "id": "lp-e8d94e",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-28cba0",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-0e2b51",
       "unblocks": 0
     }
   ],
