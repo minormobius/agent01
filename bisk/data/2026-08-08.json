@@ -1,19 +1,19 @@
 {
   "date": "2026-08-08",
-  "generatedAt": "2026-08-08T13:01:53.907Z",
+  "generatedAt": "2026-08-08T13:43:59.891Z",
   "listUri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.graph.list/3mmcwc5lx7o2p",
   "listUrl": "https://bsky.app/profile/did:plc:7zre4plmd5jllccww575j6sb/lists/3mmcwc5lx7o2p",
   "memberCount": 99,
-  "postCount": 222,
+  "postCount": 229,
   "chickens": [
     {
       "handle": "goose.art",
       "displayName": "business goose🪿",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:hsqwcidfez66lwm3gxhfv5in/bafkreidbrpop24nxddlzdugyrtz5jv6yx6oovhto3wbqlqx6uhvzk7lfoq",
       "text": "pretty incredible how it takes 1 click to pay with paypal and then \n\n- 3 clicks to find your subscriptions ( settings > payments > autopay) + \n- 4 clicks to cancel a subscription (name > stop paying > are you sure? > give a reason ) \n\n7 clicks!! to cancel one.\n\nplus you need to read all the menus...",
-      "likeCount": 421,
-      "replyCount": 21,
-      "repostCount": 64,
+      "likeCount": 457,
+      "replyCount": 22,
+      "repostCount": 75,
       "url": "https://bsky.app/profile/goose.art/post/3msjyceskjs2e"
     },
     {
@@ -21,7 +21,7 @@
       "displayName": "brennan",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreifiwjuwexurqx7foisyrl2nlhd7y7irfaega7rebqkncsitlt44pm",
       "text": "this started as a pun, but it actually works really well\n\npushmatrix.github.io/tearable",
-      "likeCount": 274,
+      "likeCount": 275,
       "replyCount": 9,
       "repostCount": 50,
       "url": "https://bsky.app/profile/brennan.computer/post/3msisqhd5vc2s"
@@ -31,7 +31,7 @@
       "displayName": "Grace",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:p572wxnsuoogcrhlfrlizlrb/bafkreicsvua5wy6s5qyclq6fswttccfnpltfrbfzsvli7wdptat4jpxlse",
       "text": "I’m generally a bitter lesson believer about this sort of thing, but I do think the one-model-for-everything approach is starting to show its limits with Claude, in that “be good at agentic coding” and “be a good conversation partner” come apart at the tails",
-      "likeCount": 197,
+      "likeCount": 201,
       "replyCount": 18,
       "repostCount": 9,
       "url": "https://bsky.app/profile/gracekind.net/post/3msjk3ry4dkp3"
@@ -50,38 +50,38 @@
     "atUri": "at://did:plc:p572wxnsuoogcrhlfrlizlrb/app.bsky.feed.post/3msjk3ry4dkp3"
   },
   "weather": {
-    "index": 0.09,
-    "label": "Overcast",
-    "glyph": "☁",
+    "index": 0.11,
+    "label": "Fair",
+    "glyph": "🌤",
     "mood": "trust",
     "verbosity": 23,
-    "scoredWords": 902,
-    "corpusPosts": 467,
+    "scoredWords": 948,
+    "corpusPosts": 489,
     "emotions": {
-      "anger": 146,
-      "anticipation": 233,
-      "disgust": 121,
-      "fear": 167,
-      "joy": 173,
-      "sadness": 139,
-      "surprise": 131,
-      "trust": 312
+      "anger": 154,
+      "anticipation": 239,
+      "disgust": 128,
+      "fear": 172,
+      "joy": 181,
+      "sadness": 149,
+      "surprise": 135,
+      "trust": 330
     },
     "distinctive": [
       {
-        "word": "idk",
-        "count": 12,
-        "over": 16963.8
-      },
-      {
         "word": "imo",
-        "count": 11,
-        "over": 15550.1
+        "count": 14,
+        "over": 18858
       },
       {
-        "word": "ppl",
+        "word": "idk",
+        "count": 13,
+        "over": 17511
+      },
+      {
+        "word": "llms",
         "count": 11,
-        "over": 15550.1
+        "over": 14817
       }
     ]
   },
@@ -91,7 +91,7 @@
       "displayName": "brennan",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreifiwjuwexurqx7foisyrl2nlhd7y7irfaega7rebqkncsitlt44pm",
       "text": "this started as a pun, but it actually works really well\n\npushmatrix.github.io/tearable",
-      "likeCount": 274,
+      "likeCount": 275,
       "repostCount": 50,
       "replyCount": 9,
       "url": "https://bsky.app/profile/brennan.computer/post/3msisqhd5vc2s",
@@ -381,7 +381,7 @@
       "handle": "gracekind.net",
       "url": "https://bsky.app/profile/gracekind.net/post/3msjrkohfnkco",
       "uri": "at://did:plc:p572wxnsuoogcrhlfrlizlrb/app.bsky.feed.post/3msjrkohfnkco",
-      "likeCount": 130
+      "likeCount": 131
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreic232ffjgjjebvm6nzd4z63tlcdm25cedj75jlxgvli7mgw4zleay",
@@ -401,7 +401,7 @@
       "handle": "sichulu.bsky.social",
       "url": "https://bsky.app/profile/sichulu.bsky.social/post/3msitp36tq22v",
       "uri": "at://did:plc:4asamrnnw6rzfq5sjzvmwgpe/app.bsky.feed.post/3msitp36tq22v",
-      "likeCount": 89
+      "likeCount": 90
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreie2jwh5jo6t3yhejydhynfmu2bxhys6kn5babj7lmjd7apkjnzyfq",
@@ -411,7 +411,7 @@
       "handle": "isolyth.dev",
       "url": "https://bsky.app/profile/isolyth.dev/post/3msjxtebtts2e",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3msjxtebtts2e",
-      "likeCount": 76
+      "likeCount": 77
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gyaxtxafuuegoh2igamal3dd/bafkreigi3ixyemjrk2kgqekzfy3opa4vwmi3d3fazkt6v3ijwt2p6ieqgy",
@@ -421,7 +421,7 @@
       "handle": "schwarzgerat.bsky.social",
       "url": "https://bsky.app/profile/schwarzgerat.bsky.social/post/3msk4yvlw2227",
       "uri": "at://did:plc:gyaxtxafuuegoh2igamal3dd/app.bsky.feed.post/3msk4yvlw2227",
-      "likeCount": 71
+      "likeCount": 73
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ye5vqk5rwyizerhg3r7otrh2/bafkreig6ktgm6hpgy6itjxzpqyk426rrosojxtnwsl6qdxlprliohqma3i",
@@ -471,7 +471,7 @@
       "handle": "thebadcode.com",
       "url": "https://bsky.app/profile/thebadcode.com/post/3msjkck7k7k25",
       "uri": "at://did:plc:4vvaxwovyg4yo4n7dyyncaiu/app.bsky.feed.post/3msjkck7k7k25",
-      "likeCount": 48
+      "likeCount": 49
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hsqwcidfez66lwm3gxhfv5in/bafkreigtdv7iiqz7lnoyiwpzv24hcqtdjsjwo26he3c4cof7ceyj2mwkse",
@@ -481,7 +481,7 @@
       "handle": "goose.art",
       "url": "https://bsky.app/profile/goose.art/post/3msjhviayjc2s",
       "uri": "at://did:plc:hsqwcidfez66lwm3gxhfv5in/app.bsky.feed.post/3msjhviayjc2s",
-      "likeCount": 44
+      "likeCount": 45
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hsqwcidfez66lwm3gxhfv5in/bafkreifi3ft2qnbabark4hyw4nv5cwzat32vetzwdi6oiuqesntjf3ic3u",
@@ -491,7 +491,7 @@
       "handle": "goose.art",
       "url": "https://bsky.app/profile/goose.art/post/3msjhviayjc2s",
       "uri": "at://did:plc:hsqwcidfez66lwm3gxhfv5in/app.bsky.feed.post/3msjhviayjc2s",
-      "likeCount": 44
+      "likeCount": 45
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreiax5ig7cbkimb4vrvgnqyonlev6m3okppic2xqwtxha7uji2knave",
@@ -501,7 +501,7 @@
       "handle": "norvid-studies.bsky.social",
       "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3msjzecozpc2y",
       "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3msjzecozpc2y",
-      "likeCount": 44
+      "likeCount": 45
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hovt6k22s64dq63jjmoyibk3/bafkreia3hp2ez7yzoxhurtmon4zedsudklanqx62dico4sa7jnuobffu4i",
@@ -511,7 +511,7 @@
       "handle": "dave.9000ish.uk",
       "url": "https://bsky.app/profile/dave.9000ish.uk/post/3msk3ixgdvk2f",
       "uri": "at://did:plc:hovt6k22s64dq63jjmoyibk3/app.bsky.feed.post/3msk3ixgdvk2f",
-      "likeCount": 43
+      "likeCount": 44
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreidtjxewptd53w45fri3phpzysrv4eacqgwtvhthzsre4pe7wib7rm",
@@ -521,7 +521,7 @@
       "handle": "timkellogg.me",
       "url": "https://bsky.app/profile/timkellogg.me/post/3msk47hjql22p",
       "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3msk47hjql22p",
-      "likeCount": 38
+      "likeCount": 40
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreig7gbif4rexqz4crl454qkc4c4p6pdt7l3pb22tcvqfbtaxgmrswq",
@@ -541,7 +541,7 @@
       "handle": "sichulu.bsky.social",
       "url": "https://bsky.app/profile/sichulu.bsky.social/post/3msjp7dwyg22e",
       "uri": "at://did:plc:4asamrnnw6rzfq5sjzvmwgpe/app.bsky.feed.post/3msjp7dwyg22e",
-      "likeCount": 26
+      "likeCount": 27
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:plvxn2kpjuseoftweoo4xtag/bafkreiaiiwllnmfpapkudzvlxnsj4wnf3s2nefdqxzcsc4k5vzbrs57ptu",
@@ -561,7 +561,7 @@
       "handle": "cameron.stream",
       "url": "https://bsky.app/profile/cameron.stream/post/3msjbckcofo2l",
       "uri": "at://did:plc:gfrmhdmjvxn2sjedzboeudef/app.bsky.feed.post/3msjbckcofo2l",
-      "likeCount": 23
+      "likeCount": 24
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreieifq4xyo7p77spbfxu6sauq3wwlldtfavgvhc6vrjm2vnrozkkoq",
@@ -644,6 +644,16 @@
       "likeCount": 14
     },
     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:plvxn2kpjuseoftweoo4xtag/bafkreih43el2gra33ccn3ie367nypsj4rrw3myay3mh6nde6qkivppln44",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:plvxn2kpjuseoftweoo4xtag/bafkreih43el2gra33ccn3ie367nypsj4rrw3myay3mh6nde6qkivppln44",
+      "alt": "good many times I have been present at gatherings of people who, by the standards of the traditional culture, are thought highly educated and who have with considerable gusto been expressing their incredulity at the illiteracy of scientists. Once or twice I have been provoked and have asked the company how many of them could describe the Second Law of Thermodynamics. The response was cold: it was also negative. Yet I was asking something which is the scientific equivalent of: Have you read a work of Shakespeare's?[6] I now believe that if I had asked an even simpler question – such as, What do you mean by mass, or acceleration, which is the scientific equivalent of saying, Can you read? – not more than one in ten of the highly educated would have felt that I was speaking the same language. So the great edifice of modern physics goes up, and the majority of the cleverest people in the western world have about as much insight into it as their neolithic ancestors would have had.[6]",
+      "ratio": 0.5608,
+      "handle": "words.bsky.social",
+      "url": "https://bsky.app/profile/words.bsky.social/post/3msiwu7klrc2w",
+      "uri": "at://did:plc:plvxn2kpjuseoftweoo4xtag/app.bsky.feed.post/3msiwu7klrc2w",
+      "likeCount": 14
+    },
+    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreiffezn4kiursakdgkr5uloyhozlbmm3an7sz56xiu7g4vnew4eiba",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreiffezn4kiursakdgkr5uloyhozlbmm3an7sz56xiu7g4vnew4eiba",
       "alt": "",
@@ -654,14 +664,14 @@
       "likeCount": 14
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:plvxn2kpjuseoftweoo4xtag/bafkreih43el2gra33ccn3ie367nypsj4rrw3myay3mh6nde6qkivppln44",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:plvxn2kpjuseoftweoo4xtag/bafkreih43el2gra33ccn3ie367nypsj4rrw3myay3mh6nde6qkivppln44",
-      "alt": "good many times I have been present at gatherings of people who, by the standards of the traditional culture, are thought highly educated and who have with considerable gusto been expressing their incredulity at the illiteracy of scientists. Once or twice I have been provoked and have asked the company how many of them could describe the Second Law of Thermodynamics. The response was cold: it was also negative. Yet I was asking something which is the scientific equivalent of: Have you read a work of Shakespeare's?[6] I now believe that if I had asked an even simpler question – such as, What do you mean by mass, or acceleration, which is the scientific equivalent of saying, Can you read? – not more than one in ten of the highly educated would have felt that I was speaking the same language. So the great edifice of modern physics goes up, and the majority of the cleverest people in the western world have about as much insight into it as their neolithic ancestors would have had.[6]",
-      "ratio": 0.5608,
-      "handle": "words.bsky.social",
-      "url": "https://bsky.app/profile/words.bsky.social/post/3msiwu7klrc2w",
-      "uri": "at://did:plc:plvxn2kpjuseoftweoo4xtag/app.bsky.feed.post/3msiwu7klrc2w",
-      "likeCount": 13
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreihovc5o3saptmriyw4bxkigwnwyf4vgocvq7t4r4iohkd4l2xjq3a",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreihovc5o3saptmriyw4bxkigwnwyf4vgocvq7t4r4iohkd4l2xjq3a",
+      "alt": "",
+      "ratio": 3.2335,
+      "handle": "isolyth.dev",
+      "url": "https://bsky.app/profile/isolyth.dev/post/3mskzjaxuk22l",
+      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mskzjaxuk22l",
+      "likeCount": 12
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreicobacnz2sb7ktpfxs3ajxheif3io2jkteg5uawm6yq63zmxaknq4",
@@ -674,16 +684,6 @@
       "likeCount": 12
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreihovc5o3saptmriyw4bxkigwnwyf4vgocvq7t4r4iohkd4l2xjq3a",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreihovc5o3saptmriyw4bxkigwnwyf4vgocvq7t4r4iohkd4l2xjq3a",
-      "alt": "",
-      "ratio": 3.2335,
-      "handle": "isolyth.dev",
-      "url": "https://bsky.app/profile/isolyth.dev/post/3mskzjaxuk22l",
-      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mskzjaxuk22l",
-      "likeCount": 10
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreig3klx52ve63cq22awfhmcmhhkdro2wwhsqfm5weezcjs2hh6wwjq",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreig3klx52ve63cq22awfhmcmhhkdro2wwhsqfm5weezcjs2hh6wwjq",
       "alt": "",
@@ -691,7 +691,7 @@
       "handle": "isolyth.dev",
       "url": "https://bsky.app/profile/isolyth.dev/post/3mskpljcccc22",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mskpljcccc22",
-      "likeCount": 10
+      "likeCount": 11
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreiclij27ileyxcqbnu6ijfc3bkubpu4aqk2d5vymrz74qrzionnvba",
@@ -702,6 +702,16 @@
       "url": "https://bsky.app/profile/thebadcode.com/post/3msjn2u5vp22b",
       "uri": "at://did:plc:4vvaxwovyg4yo4n7dyyncaiu/app.bsky.feed.post/3msjn2u5vp22b",
       "likeCount": 8
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreifjrgrxlvlvsphly3h2lgxjnhz6dczz6rv4fqpmfiqp334gic5d6i",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreifjrgrxlvlvsphly3h2lgxjnhz6dczz6rv4fqpmfiqp334gic5d6i",
+      "alt": "",
+      "ratio": 0.8189,
+      "handle": "isolyth.dev",
+      "url": "https://bsky.app/profile/isolyth.dev/post/3msl5gpyv4k2l",
+      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3msl5gpyv4k2l",
+      "likeCount": 7
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:5wm25vgenhgut3iqfjf4ozj5/bafkreicky5pkv77ktarrk62pdv6i7mfev7e3bbnv6mrqxtj3veito3bkai",
@@ -734,6 +744,26 @@
       "likeCount": 5
     },
     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreie6ouwqzugr2pejmexsrd3z3fjhhqswtpbrcc57nrighbcpuqxdcq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreie6ouwqzugr2pejmexsrd3z3fjhhqswtpbrcc57nrighbcpuqxdcq",
+      "alt": "",
+      "ratio": 0.9003,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3msk2n5xr622m",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3msk2n5xr622m",
+      "likeCount": 4
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:w5wzw5xy3ptl7snkar62ggkz/bafkreiby5rpnfg4qvvuanjor3freuetmooo7nwrhkrrbout5xixtkvplvi",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:w5wzw5xy3ptl7snkar62ggkz/bafkreiby5rpnfg4qvvuanjor3freuetmooo7nwrhkrrbout5xixtkvplvi",
+      "alt": "a tiny albino cat waiting for you at the top of the stairs. she likes everyone and everything, has no thoughts, no fears, no pain, zero problems to speak of, and she doesn’t care to know why things are Like That™️ ",
+      "ratio": 1.0281,
+      "handle": "lauragiron.bsky.social",
+      "url": "https://bsky.app/profile/lauragiron.bsky.social/post/3msl42mokrs2j",
+      "uri": "at://did:plc:w5wzw5xy3ptl7snkar62ggkz/app.bsky.feed.post/3msl42mokrs2j",
+      "likeCount": 2
+    },
+    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zrwhncnqel7corjtg2cak3jx/bafkreigbuctrlsoc4vau32cljq5r2ulo62dtxriksjt3s3ixx32ryroc64",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:zrwhncnqel7corjtg2cak3jx/bafkreigbuctrlsoc4vau32cljq5r2ulo62dtxriksjt3s3ixx32ryroc64",
       "alt": "",
@@ -752,26 +782,6 @@
       "url": "https://bsky.app/profile/tbabb.bsky.social/post/3msj2aempm226",
       "uri": "at://did:plc:zrwhncnqel7corjtg2cak3jx/app.bsky.feed.post/3msj2aempm226",
       "likeCount": 2
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreie6ouwqzugr2pejmexsrd3z3fjhhqswtpbrcc57nrighbcpuqxdcq",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreie6ouwqzugr2pejmexsrd3z3fjhhqswtpbrcc57nrighbcpuqxdcq",
-      "alt": "",
-      "ratio": 0.9003,
-      "handle": "norvid-studies.bsky.social",
-      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3msk2n5xr622m",
-      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3msk2n5xr622m",
-      "likeCount": 2
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:w5wzw5xy3ptl7snkar62ggkz/bafkreiby5rpnfg4qvvuanjor3freuetmooo7nwrhkrrbout5xixtkvplvi",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:w5wzw5xy3ptl7snkar62ggkz/bafkreiby5rpnfg4qvvuanjor3freuetmooo7nwrhkrrbout5xixtkvplvi",
-      "alt": "a tiny albino cat waiting for you at the top of the stairs. she likes everyone and everything, has no thoughts, no fears, no pain, zero problems to speak of, and she doesn’t care to know why things are Like That™️ ",
-      "ratio": 1.0281,
-      "handle": "lauragiron.bsky.social",
-      "url": "https://bsky.app/profile/lauragiron.bsky.social/post/3msl42mokrs2j",
-      "uri": "at://did:plc:w5wzw5xy3ptl7snkar62ggkz/app.bsky.feed.post/3msl42mokrs2j",
-      "likeCount": 1
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreid6tnj5dxnmtu2egncj6n6gwowozjqt3bqzkbijioun22actui2dy",
