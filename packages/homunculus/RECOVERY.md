@@ -33,9 +33,9 @@ in that pattern. Trying to make it safe is what made it look worst.
 | no encryption | nothing needs hiding when nothing is being shipped |
 | no code fetched from a branch | the whole script is visible in the prompt |
 | no passphrase | so it can't leak into 289 transcripts |
-| only the principal's own typed messages | not tool output, not file contents, not assistant replies |
+| conversation turns only | not tool output, not file contents, not command results |
 
-The result is ~3KB per session instead of 1.6MB, and every step is legible.
+The result is ~67KB per session instead of 1.6MB, and every step is legible.
 
 ---
 
@@ -108,9 +108,10 @@ session into wherever you keep files.
 
 ## If the session can't send files
 
-Ask it to `cat /tmp/my-prompts.json` and copy the output by hand. Small
-sessions are a few KB; a long one may be too much to copy comfortably, in which
-case skip it and come back with a machine.
+Ask it to `cat /tmp/my-session.json` and copy the output by hand — or, if
+that's too long, ask for only your own turns by dropping the `else if` branch
+from the snippet, which gets it back to a few KB. Prefer the full version where
+you can; the context is what makes the prompts mean anything.
 
 ## What can go wrong
 
