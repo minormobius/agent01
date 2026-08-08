@@ -410,21 +410,29 @@ writeFileSync(`${inDir}/a.json`, JSON.stringify({ session: 's1', messages: [
   { ts: '2026-01-03T00:00:00Z', text: '   ' },                                   // empty
 ]}));
 writeFileSync(`${inDir}/b.json`, JSON.stringify([{ ts: '2026-01-04T00:00:00Z', prompt: 'bare array, prompt key' }]));
+writeFileSync(`${inDir}/c.json`, JSON.stringify({ session: 's3', turns: [
+  { ts: '2026-01-05T00:00:00Z', role: 'claude', text: 'I will page through the records' },
+  { ts: '2026-01-06T00:00:00Z', role: 'me', text: 'just download the car' },
+]}));
 writeFileSync(`${inDir}/broken.json`, '{ not json');
 writeFileSync(`${inDir}/ignored.txt`, 'not a json file');
 
 const outFile = `${inDir}/merged.jsonl`;
 const ir = ingest(inDir, outFile);
-check('files read', ir.files, 3);
-check('sessions counted', ir.sessions, 2);
-check('prompts kept', ir.prompts, 3);
+check('files read', ir.files, 4);
+check('sessions counted', ir.sessions, 3);
+check('prompts kept', ir.prompts, 4);
+check('context turns kept', ir.replies, 1);
+check('context words', ir.replyWords, 6);
 check('duplicate dropped', ir.duplicates, 1);
 check('unreadable named', ir.bad.join(','), 'broken.json');
-check('words summed', ir.words, 12); // 5 + 3 + 4
+check('words summed', ir.words, 16); // 5 + 3 + 4 + 4
 
 const merged = readFileSync(outFile, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 check('sorted by time', merged[0].text, 'earliest of all');
 check('bare array session from filename', merged[2].session, 'b');
+check('claude role normalised', merged[3].role, 'assistant');
+check('me role normalised', merged[4].role, 'principal');
 rmSync(inDir, { recursive: true, force: true });
 
 console.log(failures ? `\n${failures} failure(s)\n` : '\nall passed\n');

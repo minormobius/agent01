@@ -55,28 +55,53 @@ hook will ask you to commit and push on exit, which would deploy. Don't commit
 or push anything; just tell me what you see.
 
 Then this, which reads the transcript this session already keeps on disk and
-writes out only the messages I typed — no tool output, no file contents, no
-replies:
+writes out our conversation — my messages and your replies, nothing else. No
+tool output, no file contents, no command results:
 
     node -e '
     const fs=require("fs"),os=require("os"),p=require("path");
     const dir=p.join(os.homedir(),".claude","projects",process.cwd().replace(/[/.]/g,"-"));
     const f=fs.readdirSync(dir).filter(x=>x.endsWith(".jsonl"))
       .map(x=>({x,m:fs.statSync(p.join(dir,x)).mtimeMs})).sort((a,b)=>b.m-a.m)[0].x;
-    const mine=[];
+    const turns=[];
     for(const line of fs.readFileSync(p.join(dir,f),"utf8").split("\n")){
       if(!line.trim())continue; let r; try{r=JSON.parse(line)}catch{continue}
       const c=r.message&&r.message.content;
       if(r.type==="user"&&typeof c==="string"&&r.origin&&r.origin.kind==="human")
-        mine.push({ts:r.timestamp,text:c});
+        turns.push({role:"me",ts:r.timestamp,text:c});
+      else if(r.type==="assistant"&&Array.isArray(c)){
+        const t=c.filter(b=>b.type==="text").map(b=>b.text).join("\n").trim();
+        if(t) turns.push({role:"claude",ts:r.timestamp,text:t});
+      }
     }
-    fs.writeFileSync("/tmp/my-prompts.json",JSON.stringify({session:f.replace(/\.jsonl$/,""),messages:mine},null,1));
-    console.log(mine.length+" of my messages → /tmp/my-prompts.json");
+    fs.writeFileSync("/tmp/my-session.json",JSON.stringify({session:f.replace(/\.jsonl$/,""),turns},null,1));
+    const me=turns.filter(t=>t.role==="me").length;
+    console.log(turns.length+" turns ("+me+" mine) → /tmp/my-session.json");
     '
 
-Then send me /tmp/my-prompts.json as a file so I can save it. Nothing else
+Then send me /tmp/my-session.json as a file so I can save it. Nothing else
 please — don't fix anything you notice, don't regenerate files, don't commit.
 ```
+
+### Why both sides
+
+An earlier version kept only the principal's turns, on the reasoning that the
+assistant's words are not the principal's and would contaminate a voice
+finetune. That was half right and wrong in effect.
+
+Most prompts here are *reactions* — "just download the car instead of paging"
+carries almost nothing without the turn it answers. Stripped of context they
+are fragments. This is the same reason `harvest.mjs --hydrate` attaches reply
+parents to Bluesky posts, and dropping it here contradicted that.
+
+The real distinction is between **what goes in the corpus** and **what you
+compute loss on**. Both sides go in; loss is masked to the principal's turns.
+Measured on one real session: 15 principal turns / 364 words against 93
+assistant turns / 9,048 words — **25:1**. Train on that flat and you get a
+model of the assistant.
+
+The file grows from ~3KB to ~67KB per session. Still 24× smaller than the raw
+transcript, and about 19MB across all 289.
 
 The session sends you the file; you save it. On a phone that means one save per
 session into wherever you keep files.
@@ -91,7 +116,7 @@ case skip it and come back with a machine.
 
 | symptom | meaning |
 |---|---|
-| the `node -e` reports `0 of my messages` | the transcript is there but has no `origin` field — an older session. Report it; the filter needs a fallback for that vintage |
+| the `node -e` reports 0 turns of mine | the transcript is there but has no `origin` field — an older session. Report it; the filter needs a fallback for that vintage |
 | a stack trace about `readdirSync` | no transcript directory — the session didn't rehydrate. Report it, don't improvise |
 | `git status` shows changes | **stop.** That session was already carrying a deploy hazard before you resumed it |
 
