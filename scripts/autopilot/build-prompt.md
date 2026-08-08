@@ -33,9 +33,9 @@ _Regenerated 2026-08-08 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 79, bluesky 73, data 57, tools 56, work 8.
 
-**Neighborhood spark** (bisk 2026-08-08, 99 members / 222 posts):
-- Mood: Overcast ☁ (trust)
-- Distinctive words: idk, imo, ppl
+**Neighborhood spark** (bisk 2026-08-08, 99 members / 229 posts):
+- Mood: Fair 🌤 (trust)
+- Distinctive words: imo, idk, llms
 - Top post: "pretty incredible how it takes 1 click to pay with paypal and then - 3 clicks to find your subscriptions ( settings > pa" — @goose.art
 <!-- BRIEF_END -->
 
