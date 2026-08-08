@@ -1,1 +1,1 @@
-Fresh solver — drag anywhere to stir it, works before any chess happens. Speed/threshold numbers are reasoned from the relaxation math, not seen moving; nudge the sliders if a push feels instant or dead. Knight-leap ripples are the obvious next turn.
+Added six fixed vents that pump/drain fluid every frame, so the board never sits still — pieces sway constantly and drift squares when the current's strong. Drags add on top. Flow-strength also scales the storm now.

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Stokes Chess</title>
 <meta property="og:title" content="Stokes Chess">
-<meta property="og:description" content="A real grid-based fluid solver (semi-Lagrangian advection, pressure projection) you can stir with a finger, with a chess set standing in the fluid. Every move injects a current; every other piece is dragged by the live velocity field, tethered back to its own square, and slides into the next one if the drag wins.">
+<meta property="og:description" content="A real grid-based fluid solver (semi-Lagrangian advection, pressure projection) with six permanent pump/drain vents keeping every cell in motion, plus a chess set standing in the fluid. Pieces sway constantly like ships in a storm and slide a square when the current under them is strong enough; every move injects its own current on top.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
@@ -136,18 +136,24 @@
     This is a real fluid solver first: a 48&times;48 grid running Jos Stam's
     stable-fluids method &mdash; semi-Lagrangian advection, a pressure
     projection so the flow stays (nearly) incompressible, and real viscosity.
-    <strong>Drag anywhere on the board to stir it</strong> and watch a current
-    actually develop and decay, independent of any chess piece. Then the chess
-    set stands in it: each piece behaves like a micron-scale object in a very
-    viscous fluid &mdash; no coasting, no inertia, it just gets carried while
-    the local current pushes and stops the instant it doesn't. Moving a piece
-    releases a current scaled to how far it travelled. The piece that just
-    moved is immune to its own wake and always lands dead-centre on its
-    target; every other occupied square samples the live velocity field each
-    frame, sways, and slides into the next square if the drag wins &mdash;
-    blocked, not captured, if that square is occupied. Movement shapes only:
-    no check, checkmate, castling or en passant, and pawns auto-promote to a
-    queen.
+    Six fixed vents around the centre &mdash; alternating pump and drain, each
+    wobbling on its own slow schedule &mdash; keep pumping fluid in and
+    draining it out permanently, so the board is never still: every cell
+    carries some current at all times, the way water never actually stops
+    moving in a storm. <strong>Drag anywhere to stir on top of that</strong>
+    and watch your current join the ambient one and decay back into it. The
+    chess set stands in the middle of all this: each piece behaves like a
+    micron-scale object in a very viscous fluid &mdash; no coasting, no
+    inertia, it just gets carried while the local current pushes and stops
+    the instant it doesn't &mdash; so pieces sway constantly, like ships
+    riding a swell, and drift a square when the current under them is strong
+    enough. Moving a piece also releases its own current scaled to how far it
+    travelled. The piece that just moved is immune to its own wake and always
+    lands dead-centre on its target; every other occupied square samples the
+    live velocity field each frame, sways, and slides into the next square if
+    the drag wins &mdash; blocked, not captured, if that square is occupied.
+    Movement shapes only: no check, checkmate, castling or en passant, and
+    pawns auto-promote to a queen.
   </p>
 
   <div id="gameOver" class="hidden"></div>
@@ -165,7 +171,7 @@
   <div class="panel"><div class="panel-inner">
     <div class="controls">
       <div class="ctl">
-        <label>Flow strength <span id="flowVal">2.5&times;</span></label>
+        <label>Flow strength (storm &amp; moves) <span id="flowVal">2.5&times;</span></label>
         <input type="range" id="flowStrength" min="0.5" max="6" step="0.25" value="2.5">
       </div>
       <div class="ctl">
@@ -192,17 +198,24 @@
       threshold, that piece's board position actually changes &mdash; a real
       move, not a wobble &mdash; and its offset resets to zero. The arrows
       drawn over the board are a live vector field, one direct sample per
-      grid point, not a traced or sketched line.
+      grid point, not a traced or sketched line. Six fixed points around the
+      board's centre call <code>addVelocity</code>/<code>addDensity</code>
+      every frame &mdash; alternating pump (positive) and drain (density
+      clamped at zero, so it empties rather than going negative) &mdash; each
+      wobbling in strength and angle on its own slow, irregular sine
+      schedule. That is the permanent storm; a drag adds a second, temporary
+      current on top of it.
     </div>
   </div></div>
 
   <footer>
     <p>Approximate on purpose: 4 Jacobi iterations per projection (not a
       true divergence-free solve, cheap enough to run every frame on a
-      phone), and the flow-strength/viscosity numbers were reasoned from the
-      relaxation's settle-time math rather than measured in a browser &mdash;
-      this build has neither. Move the sliders if a push feels instant or
-      inert; that is what they are for. Nothing here is saved between visits.</p>
+      phone), and the flow-strength/viscosity/storm numbers were reasoned
+      from the relaxation's settle-time math rather than measured in a
+      browser &mdash; this build has neither. Move the sliders if a push (or
+      the permanent storm) feels instant or inert; that is what they are for.
+      Nothing here is saved between visits.</p>
   </footer>
 </main>
 
@@ -320,7 +333,9 @@
   Fluid.prototype.addDensity = function (x, y, amt) {
     x = Math.round(x); y = Math.round(y);
     if (x < 1 || x > N - 2 || y < 1 || y > N - 2) return;
-    this.dens[IX(x, y)] += amt;
+    var i = IX(x, y);
+    this.dens[i] += amt;
+    if (this.dens[i] < 0) this.dens[i] = 0;
   };
   Fluid.prototype.addVelocity = function (x, y, ax, ay) {
     x = Math.round(x); y = Math.round(y);
@@ -351,6 +366,43 @@
   }
 
   var fluid = new Fluid();
+
+  // ---------- ambient storm: permanent pump/drain vents ----------
+  // "give every cell a constant flow, as though fluid is being pumped in
+  // and drained out" — six fixed points on a ring around the board centre,
+  // alternating pump/drain, each wobbling in strength and angle on its own
+  // slow, irregular schedule so the whole grid stays in motion even when
+  // nobody is touching the board. Diffusion carries it out to every cell;
+  // it does not force each cell directly.
+  var VENTS = (function () {
+    var list = [], n = 6, cx = 1 + (GRID_INNER - 2) * 0.5, cy = cx;
+    var rad = (GRID_INNER - 2) * 0.36;
+    for (var i = 0; i < n; i++) {
+      var ang = (i / n) * Math.PI * 2;
+      list.push({
+        gx: cx + Math.cos(ang) * rad,
+        gy: cy + Math.sin(ang) * rad,
+        ang: ang,
+        drain: i % 2 === 1,
+        phase: i * 1.91 + i * i * 0.37
+      });
+    }
+    return list;
+  })();
+  var simTime = 0;
+  function currentFlowStrength() { return parseFloat(document.getElementById('flowStrength').value); }
+  function applyAmbientFlow() {
+    simTime += params.dt;
+    var storm = STORM_BASE * (currentFlowStrength() / 2.5);
+    for (var i = 0; i < VENTS.length; i++) {
+      var v = VENTS[i];
+      var wobble = Math.sin(simTime * 0.21 + v.phase) * 0.6 + Math.sin(simTime * 0.073 + v.phase * 1.7) * 0.4;
+      var dirAng = v.ang + (v.drain ? Math.PI : 0) + wobble;
+      var amt = storm * (0.55 + 0.45 * Math.sin(simTime * 0.13 + v.phase * 2.3));
+      fluid.addVelocity(v.gx, v.gy, Math.cos(dirAng) * amt, Math.sin(dirAng) * amt);
+      fluid.addDensity(v.gx, v.gy, v.drain ? -5 : 6);
+    }
+  }
 
   // ---------- chess ----------
   var GLYPH = {
@@ -489,6 +541,7 @@
   }
 
   var RESTORE = 0.99, DRAG = 0.7, SLIDE_THRESHOLD = 0.5, MAX_OFFSET = 0.9, MAX_VISUAL_OFFSET = 0.34;
+  var STORM_BASE = 0.08;
 
   function stepPiecePhysics() {
     var pending = [];
@@ -732,6 +785,7 @@
 
   // ---------- main loop ----------
   function loop() {
+    applyAmbientFlow();
     fluid.step();
     stepPiecePhysics();
     renderFluid();

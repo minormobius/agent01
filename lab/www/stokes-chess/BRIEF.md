@@ -1,5 +1,57 @@
 # BRIEF — Stokes Chess (start-over)
 
+## Turn 2 — ambient storm forcing (this turn)
+
+The request this turn was explicit: "give every cell a constant flow as
+though fluid is being pumped into and draining out of the system — the
+pieces should be constantly moving around like ships on the ocean during a
+storm." Turn 1 (below) only moved fluid in response to a drag or a piece
+move; left alone, the board went dead still. This turn adds a permanent
+forcing term so it never does:
+
+- Six fixed vent points on a ring around the board's centre, alternating
+  pump (positive `addVelocity`/`addDensity`) and drain (`addVelocity`
+  pointing outward-turned-180°, `addDensity` negative — see the new clamp on
+  `Fluid.addDensity`, which now floors density at 0 so a drain empties a
+  spot rather than driving it negative). Each vent's strength and angle
+  wobble on a **sum of two out-of-phase sines with a per-vent phase
+  offset**, not one clean sine, so the six of them never pulse in sync and
+  the pattern doesn't read as a metronome.
+- Called once per frame from `loop()`, before `fluid.step()`, so it's
+  subject to the same pause / `prefers-reduced-motion` gate as everything
+  else — reduced-motion visitors still get a still board by default.
+- Wired to the existing "Flow strength" slider (now relabelled "storm &
+  moves") rather than adding a new, unlabelled constant — `STORM_BASE`
+  (0.08) is the base amplitude at the slider's default of 2.5×, scaled
+  linearly with it. One slider now controls both how hard a move pushes and
+  how strong the permanent storm is.
+- Copy updated throughout (lede, slider label, reveal panel, footer,
+  og:description) to describe the storm rather than just drag-to-stir.
+
+### Decisions
+
+- **Diffusion carries the forcing to every cell; nothing forces each cell
+  directly.** "Give every cell a constant flow" reads two ways — literally
+  (inject noise at all 46×46 interior cells) or as the emergent result of a
+  few real sources/sinks spreading through the solver's own diffuse/project
+  steps. Went with the second: it's what an actual pump/drain system looks
+  like (a handful of vents, not uniform noise everywhere), it's what "pumped
+  in and drained out" describes literally, and per-cell independent noise
+  would mostly cancel under the incompressible projection anyway rather than
+  reading as directional current.
+- **Six vents, ring layout, alternating pump/drain.** Enough points that the
+  whole 8×8 board sees some current without one vent's local field dominating
+  a whole quadrant; a ring rather than edges/corners so no vent sits on a
+  board edge where `setBnd` reflection would fight it.
+- **Did not touch `RESTORE`/`DRAG`/the global 0.999 velocity decay.** Those
+  were already tuned (unverified, but tuned) for how a piece answers a
+  *drag* or a *move*-splat; changing them to accommodate the new ambient
+  term would un-tune that as much as tune this. Instead the new term's own
+  amplitude (`STORM_BASE`) is the only new knob, kept deliberately small —
+  see the gotcha below for why it has to be.
+
+## Turn 1 — original build
+
 ## What this is
 
 A Bluesky thread asked for "liquid chess," a previous build agent iterated it
@@ -77,6 +129,22 @@ Shipped this turn, all in one `index.html`:
 
 ## The plan (not built yet, roughly in order)
 
+0. **The ambient storm (Turn 2) has never been seen moving either**, and the
+   offset-relaxation gain analysis below suggests it may be too aggressive:
+   at steady state `off_ss ≈ RESTORE·drag·v / (1 − RESTORE)`, which with
+   RESTORE=0.99 is a **~50–100× gain** — meaning almost any nonzero sampled
+   velocity `v` (order 0.01) pushes a piece's offset straight past
+   `SLIDE_THRESHOLD` (0.5). Turn 1's board was stable at rest only because
+   `v` was *exactly* zero everywhere between drags. Now it never is. If the
+   next screenshot shows the whole board in permanent chaos (every piece
+   sliding every tick) rather than swaying-with-occasional-drift, the fix is
+   almost certainly to lower `STORM_BASE` further (it's already been cut
+   from an initial 0.11 to 0.08 on paper reasoning alone, no measurement)
+   — or, better, to give the relaxation its own separate, gentler gain for
+   ambient-sourced velocity vs. drag/move-sourced velocity, since right now
+   both go through the same `off = RESTORE·off + RESTORE·drag·v` line and
+   there's no way to make the storm merely *sway* pieces without also making
+   deliberate drags feel weaker.
 1. **This has never been seen moving.** No browser, no screenshot tool in
    this session — only the harness's post-build pass will show a single
    frame. The physics constants (RESTORE=0.99, DRAG=0.7, SLIDE_THRESHOLD=0.5,
@@ -134,3 +202,17 @@ Shipped this turn, all in one `index.html`:
   neither move** (both pre-tick snapshots see the other square as occupied).
   Same known quirk as honeyflow, reads as the flow failing to swap them
   rather than as a bug, but worth knowing if it looks odd while testing.
+- **`Fluid.addDensity` now clamps at zero** (it used to let `dens` go
+  negative with no visible effect other than making the rendered colour
+  slightly *darker* than the background, since the render math never
+  clamped the low end either). The vent drains rely on this clamp to read as
+  "the dye empties out here" rather than "this cell goes into dye debt and
+  looks faintly wrong forever." If you add another negative-density caller,
+  this clamp now applies to it too — check that's what you want.
+- **The offset-relaxation gain is roughly 50–100× at steady state** (see The
+  Plan, item 0) — this was derived on paper this turn, not discovered by
+  testing, and is the single most important number to sanity-check once a
+  screenshot exists. It's why `STORM_BASE` is as small as 0.08 while a
+  drag-stir's per-frame velocity add can be several units: the two aren't
+  meant to be comparable in raw magnitude, only in how they read once run
+  through that gain.
