@@ -78,6 +78,11 @@ export const TOOLS = [
     desc: 'Phrases only they’ve ever posted — bigrams/trigrams a handle used exactly once that nobody else on Bluesky has. Free once-used pre-filter, then a streamed parallel search fan-out.',
     chips: ['worker fan-out', 'service token', 'NDJSON stream'], data: 'PDS listRecords + authed searchPosts' },
 
+  { id: 'knot', name: 'knot', glyph: '❈', district: 'graph', tier: 2, status: 'up',
+    url: '/knot/',
+    desc: 'The dense core of an account\u2019s mutual follows, without downloading the follow graph. Reads rows best-first by in-degree and reports a genuine k-core from a fraction of them \u2014 anytime, and never wrong.',
+    chips: ['anytime k-core', 'listRecords', 'IndexedDB cache'], data: 'PDS listRecords + AppView followers' },
+
   { id: 'palm', name: 'palm', glyph: '☙', district: 'commons', tier: 2, status: 'up',
     url: '/palm/',
     desc: 'Six stylometric lines read off a whole repository — cadence, vigil, lexicon, polish, drift, chorus — placed against a curated mutual-follow cluster and drawn as a radar card with one of 30 named archetypes. /palm/corpus tiles the whole reference pool. A percentile, never a verdict.',

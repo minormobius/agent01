@@ -56,6 +56,68 @@ what a post of more than four pictures became and which every reader here was
 blind to) and `sleuth/sleuth.selftest.mjs` (the TF-IDF ranking, and the temporal
 buckets the dossier is built on).
 
+## knot — the graph problem, and why it is not a fetching problem
+
+`/knot` finds the dense core of an account's mutual follows. `minormobius` has
+**1,329 mutuals**, and knowing who among them follows whom means 1,329 follow
+lists — about **20,000 paginated requests, eleven minutes** at good concurrency.
+`cluster` (on the root surface) waits for all of it. Nobody waits eleven minutes,
+so the fix had to be algorithmic.
+
+### What was measured before building anything
+
+| route | records | requests | bytes | time |
+|---|---|---|---|---|
+| MST subtree walk via `getBlocks` | 1,707 | 35 | 432 KB | 6.1 s |
+| `getFollows` (what `cluster` uses) | 1,509 | 18 | 957 KB | 2.6 s |
+| `listRecords` on the collection | 1,707 | 19 | 464 KB | **1.1 s** |
+
+- **`listRecords` wins and is also more correct.** It returned **1,707 records
+  where `getFollows` returned 1,509** — the AppView silently drops follows to
+  deactivated, deleted and blocked accounts, so any graph built on `getFollows`
+  is missing ~12% of its edges.
+- **The clever route loses.** The MST is sorted by `collection/rkey`, so all
+  follow records are contiguous and `com.atproto.sync.getBlocks` can fetch a
+  subtree. Built and measured: slower. `getBlocks` caps near 200 CIDs per URL
+  (the CIDs ride in the query string) and the tree is 9 levels deep, so the
+  descent alone costs 21 round trips. **Do not rebuild it.**
+- **`limit` is hard-capped at 100** on `listRecords`, `getFollows` and
+  `getFollowers` alike — `limit=200` is `InvalidRequest`. There is no bulk read.
+- **`getRelationships` does 30 pairs in one request**, so all-pairs over M
+  accounts costs `M·⌈(M−1)/30⌉` against `M·⌈F/100⌉` for full rows. Crossover at
+  **M ≈ 0.3F**; with F ≈ 1,700 that is M ≈ 510. At 1,329 mutuals full rows win,
+  which is why `knot` does not use it — but below a few hundred it is the right tool.
+
+### The idea that makes stopping early legitimate
+
+Reading one account's follow list yields a **complete row** of the adjacency
+matrix, not a sample, so a mutual edge is confirmed once both endpoints are read.
+Find a set where everyone has ≥ k mutuals inside it: every edge is real, and
+unread accounts can only *add* degree to its members. **So the group on screen is
+a genuine k-core of the full graph, from a fraction of it.** More reading can
+raise k; it can never invalidate what is already shown. That is the whole
+product — `knot.selftest.mjs` asserts it by revealing a known graph row by row
+and checking every intermediate core against the full adjacency.
+
+Steering: an unread account's in-degree from already-read rows is a free
+centrality estimate. Read highest-first and the core assembles early. On a
+planted graph that is **80 rows against 389** for blind ordering, and the
+selftest fails if that advantage disappears — otherwise a refactor could turn
+the clever crawl into a slow one with every other test still green.
+
+**A k-core, not a clique, deliberately.** Maximum-clique is NP-hard and brittle
+(one missing follow splits the group); "everyone here has ≥ k mutuals here" is
+linear, survives a missing edge, and describes a community better.
+
+### `b/lib/graph.js`
+
+Shared, and the place to add graph reads rather than a fourth copy: `followsOf`
+(listRecords, 6h IndexedDB cache), `followersOf` (AppView — your followers are
+other people's records, so there is no repo to read), `mutualsOf`,
+`relationships` (batched at 30), `pdsFor` (cached with **no expiry** — one
+plc.directory lookup per DID would otherwise be 1,300 extra requests), and
+`pool()` for bounded concurrency.
+
 ## palm — six readings, and the third CAR path
 
 `/palm` takes a handle, streams its **entire** repository, and reads six
