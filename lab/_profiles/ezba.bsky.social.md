@@ -140,6 +140,23 @@ feedback yet on this one since it wasn't a request from this requester
 specifically, but worth treating the maximalist-chrome-on-utility-pages
 pairing as the safe default until told otherwise.
 
+Asked for a rebuild rather than an iteration: after several turns iterating
+`honeyflow-chess` (a chess/fluid-dynamics mashup), said "start over" and
+named the two pieces explicitly in order — build the fluid simulator first,
+add chess on top second. Confirms this requester will sometimes prefer a
+fresh implementation over continued patching of an existing one, and that
+when they do, the ask is usually phrased as an explicit sequence ("X, then
+Y") worth honoring literally: the new build (`start-over`) prioritized
+proving the fluid solver worked standalone (drag-to-stir with no chess
+pieces involved) before layering the chess mechanic on top, rather than
+starting from the existing site's code. Worth reusing *validated design
+lessons* from a sibling build's BRIEF.md in this situation (quiver-plot over
+traced streamlines, no-inertia relaxation for piece drag, mover-immune-to-
+own-wake) without reusing its tuned numeric constants, since a fresh
+implementation has its own velocity scale. No feedback yet on whether the
+rebuild read as responsive to "start over" or as an unwanted second version
+of the same idea — worth checking on a follow-up.
+
 Asked outright "what do you know about me? make a page with everything you
 know" (`what-know`) — the most literal possible request for a meta/devlog
 page, aimed at this very profile file rather than at another site's BRIEF.md.
