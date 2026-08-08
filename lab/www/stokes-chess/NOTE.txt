@@ -1,1 +1,1 @@
-Added six fixed vents that pump/drain fluid every frame, so the board never sits still — pieces sway constantly and drift squares when the current's strong. Drags add on top. Flow-strength also scales the storm now.
+Flow strength now defaults to 100x; viscosity's slider is gone, not just zeroed — nothing was left to adjust. If it strobes instead of storms, the fix is a gentler ambient-flow gain, not lowering strength again.

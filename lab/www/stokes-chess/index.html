@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Stokes Chess</title>
 <meta property="og:title" content="Stokes Chess">
-<meta property="og:description" content="A real grid-based fluid solver (semi-Lagrangian advection, pressure projection) with six permanent pump/drain vents keeping every cell in motion, plus a chess set standing in the fluid. Pieces sway constantly like ships in a storm and slide a square when the current under them is strong enough; every move injects its own current on top.">
+<meta property="og:description" content="A real grid-based fluid solver (semi-Lagrangian advection, pressure projection, viscosity off) with six permanent pump/drain vents keeping every cell in violent motion, plus a chess set standing in the fluid. Pieces sway constantly like ships in a storm and slide a square when the current under them is strong enough; every move injects its own current on top.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
@@ -135,12 +135,14 @@
   <p class="lede">
     This is a real fluid solver first: a 48&times;48 grid running Jos Stam's
     stable-fluids method &mdash; semi-Lagrangian advection, a pressure
-    projection so the flow stays (nearly) incompressible, and real viscosity.
-    Six fixed vents around the centre &mdash; alternating pump and drain, each
-    wobbling on its own slow schedule &mdash; keep pumping fluid in and
-    draining it out permanently, so the board is never still: every cell
-    carries some current at all times, the way water never actually stops
-    moving in a storm. <strong>Drag anywhere to stir on top of that</strong>
+    projection so the flow stays (nearly) incompressible, and viscosity
+    switched off entirely, so nothing damps a current except the solver's own
+    numerical decay. Flow strength defaults to a violent 100&times;. Six fixed
+    vents around the centre &mdash; alternating pump and drain, each wobbling
+    on its own slow schedule &mdash; keep pumping fluid in and draining it out
+    permanently, so the board is never still: every cell carries a strong
+    current at all times, the way water never actually stops moving in a
+    storm. <strong>Drag anywhere to stir on top of that</strong>
     and watch your current join the ambient one and decay back into it. The
     chess set stands in the middle of all this: each piece behaves like a
     micron-scale object in a very viscous fluid &mdash; no coasting, no
@@ -171,12 +173,8 @@
   <div class="panel"><div class="panel-inner">
     <div class="controls">
       <div class="ctl">
-        <label>Flow strength (storm &amp; moves) <span id="flowVal">2.5&times;</span></label>
-        <input type="range" id="flowStrength" min="0.5" max="6" step="0.25" value="2.5">
-      </div>
-      <div class="ctl">
-        <label>Viscosity (thickness) <span id="viscVal">honey</span></label>
-        <input type="range" id="thickness" min="1" max="10" step="1" value="6">
+        <label>Flow strength (storm &amp; moves) <span id="flowVal">100&times;</span></label>
+        <input type="range" id="flowStrength" min="0.5" max="200" step="0.5" value="100">
       </div>
     </div>
     <div class="btnrow">
@@ -211,11 +209,13 @@
   <footer>
     <p>Approximate on purpose: 4 Jacobi iterations per projection (not a
       true divergence-free solve, cheap enough to run every frame on a
-      phone), and the flow-strength/viscosity/storm numbers were reasoned
-      from the relaxation's settle-time math rather than measured in a
-      browser &mdash; this build has neither. Move the sliders if a push (or
-      the permanent storm) feels instant or inert; that is what they are for.
-      Nothing here is saved between visits.</p>
+      phone), and the flow-strength/storm numbers were reasoned from the
+      relaxation's settle-time math rather than measured in a browser
+      &mdash; this build has neither. Viscosity is fixed at zero, so nothing
+      in the solver itself damps the current; only its own numerical decay
+      and the piece drag do. Move the slider if a push (or the permanent
+      storm) feels instant or inert; that is what it is for. Nothing here is
+      saved between visits.</p>
   </footer>
 </main>
 
@@ -312,7 +312,10 @@
   }
 
   var ITER = 4;
-  var params = { visc: 0.00024, diff: 0.00003, dt: 0.13 };
+  // viscosity removed by request: fixed at zero rather than slider-driven,
+  // so diffuse()'s Jacobi solve degenerates to a no-op and nothing damps
+  // velocity except the per-frame numerical decay in Fluid.prototype.step
+  var params = { visc: 0, diff: 0.00003, dt: 0.13 };
 
   Fluid.prototype.step = function () {
     diffuse(1, this.Vx0, this.Vx, params.visc, params.dt, ITER);
@@ -758,15 +761,10 @@
 
   // ---------- controls ----------
   var flowRange = document.getElementById('flowStrength'), flowVal = document.getElementById('flowVal');
-  flowRange.addEventListener('input', function () { flowVal.textContent = (+flowRange.value).toFixed(2) + '×'; });
-  var viscRange = document.getElementById('thickness'), viscVal = document.getElementById('viscVal');
-  var viscLabels = ['water', 'water', 'thin oil', 'thin oil', 'oil', 'honey', 'honey', 'thick honey', 'tar', 'tar'];
-  viscRange.addEventListener('input', function () {
-    var v = +viscRange.value;
-    params.visc = 0.00004 * v * v;
-    viscVal.textContent = viscLabels[v - 1] || 'honey';
+  flowRange.addEventListener('input', function () {
+    var v = +flowRange.value;
+    flowVal.textContent = (v < 10 ? v.toFixed(2) : Math.round(v)) + '×';
   });
-  viscRange.dispatchEvent(new Event('input'));
 
   var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var paused = reduceMotion;

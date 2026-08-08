@@ -1,6 +1,83 @@
 # BRIEF — Stokes Chess (start-over)
 
-## Turn 2 — ambient storm forcing (this turn)
+## Turn 3 — flow strength to 100×, viscosity removed (this turn)
+
+The request this turn was two explicit, literal instructions from the
+requester: "Increase default flow strength to 100x. Remove viscosity
+altogether (i.e. make it zero or effectively zero)." Both were implemented
+directly rather than reasoned about — this is not the moment to second-guess
+with a gentler default, the person who owns the site asked for the extreme
+version and named a number.
+
+- **Flow strength slider**: default raised from `2.5` to `100`, range widened
+  from `0.5–6` to `0.5–200` (step `0.5`, was `0.25`) so 100 sits comfortably
+  inside the range rather than at a clipped edge. `STORM_BASE` and `FLOW_BASE`
+  themselves are untouched — both formulas already scale linearly off the
+  slider's raw value (`storm = STORM_BASE * (v / 2.5)`, `mag = FLOW_BASE * v *
+  dist`), so raising the *value* the slider defaults to was enough; at 100 the
+  storm amplitude is ~3.2 (was 0.08) and a one-square move's splat magnitude
+  is ~85 (was ~2.1) — both roughly 40× turn 2's defaults, not literally 100×
+  turn 2's, because "100×" describes the slider's own displayed units, not a
+  multiplier on the old default. Said plainly in case that reads as a
+  discrepancy: it isn't one, it's what "set flow strength to 100×" means once
+  you take the UI's own label literally.
+- **Viscosity removed, not just zeroed via the slider.** Deleted the
+  "Viscosity (thickness)" control, its label, its `viscLabels` array
+  (water/oil/honey/tar) and its input listener entirely, and hardcoded
+  `params.visc = 0` at the solver's parameter object. A slider that always
+  reads zero would have been a dead control left on the page for no reason;
+  removing it is the more honest UI once there's nothing left to adjust.
+  `visc = 0` makes `diffuse()`'s Jacobi solve degenerate to `a = 0, c = 1`,
+  i.e. an identity copy each iteration — confirmed by reading the algebra, not
+  by running it (still no browser). No divide-by-zero risk (`cRecip = 1/1`).
+- Updated the lede, reveal panel, footer and `og:description` to describe
+  viscosity as off and flow strength as defaulting to 100× rather than
+  describing a "thickness" control that no longer exists.
+
+### Decisions
+
+- **Did not recalibrate `STORM_BASE`'s `/ 2.5` divisor to `/ 100`.** Leaving
+  it as-is means the same formula that was tuned (on paper) at the old
+  default now simply outputs 40× more at the new default — which is exactly
+  what "raise the default" should do to a linear scale. Changing the divisor
+  too would have silently re-normalized back to roughly the old storm
+  strength at the new slider position, defeating the request without
+  looking like it did.
+- **Did not add a velocity clamp or extra damping to guard against the much
+  larger flow.** The system is still linearly damped (the existing 0.999
+  per-frame decay in `Fluid.prototype.step`, present since turn 1/2), so it
+  cannot diverge to infinity or NaN regardless of injection magnitude — it
+  reaches a (much higher) bounded steady state instead. Adding a safety
+  clamp nobody asked for, on a turn whose entire point was "make it more
+  extreme," would be second-guessing the request. If the screenshot shows
+  the board in total chaos rather than dramatic-but-readable motion, that
+  may still be correct per the ask — see the next section before damping it
+  back down.
+- **Did not touch `MAX_OFFSET`, `SLIDE_THRESHOLD`, `RESTORE`, `DRAG`, or the
+  0.999 velocity decay.** Same reasoning as turn 2: those are the existing
+  safety valves (offset clamp, slide threshold) and the piece-drag tuning,
+  none of which the request touched, and all of which now matter *more* at
+  100× — they're what stands between "pieces sway dramatically" and "pieces
+  teleport every frame in a way that reads as broken rather than stormy."
+
+### What to check first, next turn
+
+This build still has never been seen in a browser (no Bash, no
+screenshot tool available to this agent). The single largest open question
+left by this turn: **at flow=100 with visc=0, does the board read as
+"dramatic storm" or as "unreadable strobing"?** The offset-relaxation gain
+math from turn 2 (`off_ss ≈ RESTORE·drag·v / (1−RESTORE)`, ~50–100× gain at
+RESTORE=0.99) was already flagged as likely to saturate `SLIDE_THRESHOLD`
+almost immediately at *any* nonzero ambient velocity — at 40× the ambient
+velocity turn 2 was already worried about, expect near-constant sliding on
+lightweight pieces (pawns, mass 1) unless the screenshot says otherwise. If
+the harness screenshot shows every piece flickering between squares every
+frame rather than swaying-with-occasional-slides, the fix is almost
+certainly a *separate*, much gentler gain for how offset responds to
+ambient/storm-sourced velocity vs. move-sourced velocity — not turning flow
+strength back down, which would undo this turn's actual request.
+
+## Turn 2 — ambient storm forcing
 
 The request this turn was explicit: "give every cell a constant flow as
 though fluid is being pumped into and draining out of the system — the
