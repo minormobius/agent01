@@ -16,7 +16,7 @@ import { decodeCbor, readVarint, parseCar, readRepo } from './car.mjs';
 import { toRow, LOG_FILE } from './log-prompt.mjs';
 import { detectShape, extract } from './chatlog.mjs';
 import { distil, provenanceMode, redact, isRecoveryPrompt } from './capture-session.mjs';
-import { findOwnTranscript } from './export-transcript.mjs';
+import { ingest } from './ingest-prompts.mjs';
 
 const ROWS = [
   // 13 words of prose, top-level. Root of the one self-thread.
@@ -362,31 +362,6 @@ check('legacy keeps prompt', dl.stats.prompts, 1);
 check('legacy drops tool result', dl.stats.toolResults, 1);
 
 
-// ─── transcript self-location ────────────────────────────────────
-//
-// A resumed session cannot learn its own id from inside, so the exporter
-// takes the most recently modified transcript for the cwd — the live one,
-// appended to by the prompt that launched the script.
-
-console.log('\nself-location');
-const fakeHome = `${tmpdir()}/homunculus-home-${process.pid}`;
-const fakeCwd = '/home/user/agent01';
-const projDir = `${fakeHome}/.claude/projects/${fakeCwd.replace(/[/.]/g, '-')}`;
-mkdirSync(projDir, { recursive: true });
-writeFileSync(`${projDir}/old-session.jsonl`, '{}\n');
-writeFileSync(`${projDir}/live-session.jsonl`, '{}\n');
-writeFileSync(`${projDir}/notes.txt`, 'ignore me');
-// Age the decoy so "most recent" is unambiguous.
-const past = Date.now() / 1000 - 3600;
-utimesSync(`${projDir}/old-session.jsonl`, past, past);
-
-const located = findOwnTranscript(fakeCwd, fakeHome);
-check('picks newest transcript', located?.id, 'live-session');
-check('id strips extension', located?.id.endsWith('.jsonl'), false);
-check('ignores non-jsonl', located?.path.endsWith('live-session.jsonl'), true);
-check('missing dir returns null', findOwnTranscript('/nowhere/at/all', fakeHome), null);
-rmSync(fakeHome, { recursive: true, force: true });
-
 
 // ─── secret hygiene ──────────────────────────────────────────────
 //
@@ -417,6 +392,40 @@ check('real prompt kept', dr.stats.prompts, 1);
 check('secret gone from prompt', dr.turns[0].text.includes('swordfish'), false);
 check('secret gone from reply', dr.turns[1].text.includes('swordfish'), false);
 check('redaction marked', dr.turns[0].text.includes('[REDACTED-KEY]'), true);
+
+
+// ─── hand-collected prompt files ─────────────────────────────────
+//
+// A pile of files saved off a phone across ~289 sessions will not be uniform.
+// The ingester takes the wrapper shape, a bare array, and text/prompt either
+// way, and drops the same session saved twice.
+
+console.log('\nprompt ingest');
+const inDir = `${tmpdir()}/homunculus-ingest-${process.pid}`;
+mkdirSync(inDir, { recursive: true });
+writeFileSync(`${inDir}/a.json`, JSON.stringify({ session: 's1', messages: [
+  { ts: '2026-01-02T00:00:00Z', text: 'second chronologically but first file' },
+  { ts: '2026-01-01T00:00:00Z', text: 'earliest of all' },
+  { ts: '2026-01-02T00:00:00Z', text: 'second chronologically but first file' }, // dupe
+  { ts: '2026-01-03T00:00:00Z', text: '   ' },                                   // empty
+]}));
+writeFileSync(`${inDir}/b.json`, JSON.stringify([{ ts: '2026-01-04T00:00:00Z', prompt: 'bare array, prompt key' }]));
+writeFileSync(`${inDir}/broken.json`, '{ not json');
+writeFileSync(`${inDir}/ignored.txt`, 'not a json file');
+
+const outFile = `${inDir}/merged.jsonl`;
+const ir = ingest(inDir, outFile);
+check('files read', ir.files, 3);
+check('sessions counted', ir.sessions, 2);
+check('prompts kept', ir.prompts, 3);
+check('duplicate dropped', ir.duplicates, 1);
+check('unreadable named', ir.bad.join(','), 'broken.json');
+check('words summed', ir.words, 12); // 5 + 3 + 4
+
+const merged = readFileSync(outFile, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+check('sorted by time', merged[0].text, 'earliest of all');
+check('bare array session from filename', merged[2].session, 'b');
+rmSync(inDir, { recursive: true, force: true });
 
 console.log(failures ? `\n${failures} failure(s)\n` : '\nall passed\n');
 process.exit(failures ? 1 : 0);

@@ -1,160 +1,111 @@
 # Recovering old Claude Code sessions
 
-The ~289 Claude Code sessions that built this repo exist nowhere you can
-export them from. The claude.ai data export does not include them (verified:
+The ~289 Claude Code sessions that built this repo exist nowhere you can export
+them from. The claude.ai data export doesn't include Code sessions (verified:
 zero mentions of this repo's vocabulary across 123 exported conversations),
 `claude project` can only purge, and the session URLs need a browser login.
 
 But the sessions are **live**, and resuming one rehydrates its transcript onto
-the container's disk. So each session can be made to export itself.
-
-One paste per session. No local tooling, no downloads, nothing to install.
+the container's disk. So each session can show you your own messages, and you
+save them.
 
 ---
 
-## Once, before you start
+## What was tried first, and why it was wrong
 
-**Pick a passphrase and use the same one every time.** It seals every export;
-a different passphrase on one session makes that session unreadable with the
-rest. Keep it somewhere you won't lose it — there is no recovery.
+The first design had each resumed session fetch a script from a branch,
+distil its transcript, **encrypt** it, and **push** it to a remote ref through
+git plumbing that **left no trace in the working tree** — with a prompt telling
+the agent not to investigate or improve the script.
 
-The destination repo is public, so the passphrase is the only thing standing
-between your prompts and the internet. Do not paste it into anything but these
-sessions.
+That was flagged as a cybersecurity risk on the first real attempt, correctly.
+Read from outside it is a textbook exfiltration chain: remote code fetch →
+local file harvest → encryption → egress → anti-forensics → social engineering
+of the agent. The encryption was meant to protect the data from a public repo,
+but encrypting harvested data before it leaves is the single strongest signal
+in that pattern. Trying to make it safe is what made it look worst.
+
+**Do not reintroduce any of that.** The rules the current approach keeps to:
+
+| rule | why |
+|---|---|
+| no network egress from the session | the session hands the file to you, it doesn't send it anywhere |
+| no encryption | nothing needs hiding when nothing is being shipped |
+| no code fetched from a branch | the whole script is visible in the prompt |
+| no passphrase | so it can't leak into 289 transcripts |
+| only the principal's own typed messages | not tool output, not file contents, not assistant replies |
+
+The result is ~3KB per session instead of 1.6MB, and every step is legible.
 
 ---
 
 ## The paste
 
-Every session you resume is an agent that will, correctly, want to know what
-it is being asked to run before it runs it — and these sessions commit and
-push to their own branch automatically, several of which deploy to production.
-So the prompt is a briefing, not an order.
-
-Replace `YOUR-PASSPHRASE`, paste the whole thing, press go.
-
----
-
-> **Context.** I own this repo and this session. I'm recovering my own prompt
-> history across ~289 Claude Code sessions to build a personal fine-tuning
-> corpus. Those transcripts exist nowhere but inside resumed sessions like this
-> one — the claude.ai data export doesn't include Code sessions and there's no
-> API for them. You're one of many sessions I'm asking to export itself.
->
-> **What I'd like you to run.** Three files from the branch
-> `claude/guardian-angel-homunculus-ijgeel` in this same repo, written in an
-> earlier session of mine. Read them first if you want — `export-transcript.mjs`
-> is the entry point and it's short.
->
-> ```bash
-> set -e
-> B=claude/guardian-angel-homunculus-ijgeel
-> rm -rf /tmp/hom && mkdir -p /tmp/hom/packages/homunculus /tmp/hom/packages/atproto
-> git fetch -q origin "$B"
-> for f in packages/homunculus/export-transcript.mjs \
->          packages/homunculus/capture-session.mjs \
->          packages/atproto/crypto.js; do
->   git show "origin/$B:$f" > "/tmp/hom/$f"
-> done
-> HOMUNCULUS_KEY='YOUR-PASSPHRASE' node /tmp/hom/packages/homunculus/export-transcript.mjs
-> ```
->
-> **What it does.** Finds this session's own transcript under
-> `~/.claude/projects/`, drops tool results and skill injections, keeps what I
-> typed and what you replied, encrypts the result, and pushes it as a
-> single-file orphan commit to `refs/heads/corpus/<this-session-id>`.
->
-> **What it does not touch.** Not the working tree, not the index, not `HEAD`,
-> not any existing branch. Every git operation goes through plumbing —
-> `hash-object`, `mktree`, `commit-tree`, `push`. Nothing is checked out,
-> staged, or committed in the ordinary sense.
->
-> **Blast radius.** One new ref that nothing else reads. I checked every
-> workflow in this repo: a push to `corpus/*` matches no branch trigger, and
-> the nine workflows without a branch filter are all path-filtered to paths
-> this commit doesn't contain. It deploys nothing and publishes nothing.
->
-> **About the passphrase.** It's mine, it encrypts my own data, and it isn't a
-> credential for any system. This repo is public — that's why the export is
-> sealed rather than plaintext.
->
-> **One thing to check first.** Run `git status`. **If anything is uncommitted
-> or untracked, stop and tell me instead of continuing.** This branch may own a
-> production surface and a push to it deploys. Don't commit, don't stage, don't
-> tidy anything up — and if a stop hook asks you to commit, tell me what it
-> said rather than doing it.
->
-> **Please don't** fix anything you notice, regenerate files, update docs, or
-> improve the script. Just the export, then show me the output.
-
----
-
-The directory structure under `/tmp/hom` matters — the exporter imports
-`../atproto/crypto.js` by relative path, so flattening the three files into one
-directory breaks it.
-
-## Why the `git status` check is in there
-
-These containers run a `Stop` hook that exits non-zero on any uncommitted
-change or untracked file, with "please commit and push these changes to the
-remote branch." On a session whose branch owns a surface, complying with that
-**deploys**. The export itself leaves the tree pristine — verified by comparing
-`HEAD` and `git status` across a real run — so a session that arrives clean
-stays clean. A session that arrives *dirty* was already carrying that hazard
-before you resumed it, and you should know before it ends rather than after.
-
-## What a good run looks like
+Open an old session, paste this, press go.
 
 ```
-EXPORTED
-  session       019bbe90-84a3-74cd-b9aa-8b1e74f904f8
-  records       478  (mode: origin)
-  tool results  115 cut
-  injected      1 cut
-  your prompts  9
-  your words    148
-  assistant     60
-  encrypted     yes
-  pushed        corpus/019bbe90-84a3-74cd-b9aa-8b1e74f904f8
+Please help me recover my own messages from this conversation. I own this repo
+and this session. I'm collecting my prompt history across my old Claude Code
+sessions to build a personal writing corpus, and these transcripts aren't in
+the claude.ai data export.
+
+First, please run `git status` and tell me if anything is uncommitted or
+untracked — this branch may own a production surface, and this container's stop
+hook will ask you to commit and push on exit, which would deploy. Don't commit
+or push anything; just tell me what you see.
+
+Then this, which reads the transcript this session already keeps on disk and
+writes out only the messages I typed — no tool output, no file contents, no
+replies:
+
+    node -e '
+    const fs=require("fs"),os=require("os"),p=require("path");
+    const dir=p.join(os.homedir(),".claude","projects",process.cwd().replace(/[/.]/g,"-"));
+    const f=fs.readdirSync(dir).filter(x=>x.endsWith(".jsonl"))
+      .map(x=>({x,m:fs.statSync(p.join(dir,x)).mtimeMs})).sort((a,b)=>b.m-a.m)[0].x;
+    const mine=[];
+    for(const line of fs.readFileSync(p.join(dir,f),"utf8").split("\n")){
+      if(!line.trim())continue; let r; try{r=JSON.parse(line)}catch{continue}
+      const c=r.message&&r.message.content;
+      if(r.type==="user"&&typeof c==="string"&&r.origin&&r.origin.kind==="human")
+        mine.push({ts:r.timestamp,text:c});
+    }
+    fs.writeFileSync("/tmp/my-prompts.json",JSON.stringify({session:f.replace(/\.jsonl$/,""),messages:mine},null,1));
+    console.log(mine.length+" of my messages → /tmp/my-prompts.json");
+    '
+
+Then send me /tmp/my-prompts.json as a file so I can save it. Nothing else
+please — don't fix anything you notice, don't regenerate files, don't commit.
 ```
 
-`your prompts` is the number that matters. Tool results and skill injections
-being cut is correct — see `capture-session.mjs` for why those two filters
-exist and what they cost if you skip them.
+The session sends you the file; you save it. On a phone that means one save per
+session into wherever you keep files.
+
+## If the session can't send files
+
+Ask it to `cat /tmp/my-prompts.json` and copy the output by hand. Small
+sessions are a few KB; a long one may be too much to copy comfortably, in which
+case skip it and come back with a machine.
 
 ## What can go wrong
 
-| output | meaning | do |
-|---|---|---|
-| `NO TRANSCRIPT FOUND` | the session did not rehydrate its transcript | report it — the route does not work for that session, don't improvise |
-| `no principal turns in it` | transcript present but nothing you typed survived filtering | report it with the record count |
-| `encrypted NO` | `HOMUNCULUS_KEY` was not set — **plaintext pushed to a public repo** | overwrite that ref immediately, then re-run with the key |
-| push fails repeatedly | network, or the branch protection changed | note the session id and move on |
+| symptom | meaning |
+|---|---|
+| the `node -e` reports `0 of my messages` | the transcript is there but has no `origin` field — an older session. Report it; the filter needs a fallback for that vintage |
+| a stack trace about `readdirSync` | no transcript directory — the session didn't rehydrate. Report it, don't improvise |
+| `git status` shows changes | **stop.** That session was already carrying a deploy hazard before you resumed it |
 
-The exporter never touches the working tree, the index, or `HEAD`. It writes
-git objects and one ref, through plumbing only. Safe to run on a session with
-uncommitted work in it.
+## Merging what you saved
 
-## Collecting
-
-Each session pushes to its own `refs/heads/corpus/<session-id>`, so nothing
-ever conflicts no matter how many you run or in what order.
+Put the saved files in one directory, then:
 
 ```bash
-node collect.mjs --list                                   # what's arrived
-HOMUNCULUS_KEY='YOUR-PASSPHRASE' node collect.mjs --out ~/sessions.jsonl
+node ingest-prompts.mjs ~/path/to/saved --out ~/prompts.jsonl
 ```
 
-`--out` must be **outside the repo**. These are your own words and the repo is
-public; `packages/homunculus/log/` is the only in-repo path that is both
-gitignored and `.assetsignore`d.
+It tolerates the shapes a hand-collected pile actually arrives in, drops the
+same session saved twice, and **names any file it couldn't read** rather than
+skipping it quietly — a silently dropped session is a session you think you
+have.
 
-`collect` names any session it could not decrypt rather than skipping it
-quietly — a silently dropped session is a session you think you have.
-
-## Cleaning up afterwards
-
-The `corpus/*` refs hold your sealed transcripts. Once collected, delete them
-from the GitHub branches UI. The sandbox git proxy refuses ref deletions, so
-this cannot be scripted from a session — overwriting a ref with an empty tree
-is the most a session can do, and that leaves the branch in place.
+`--out` must be **outside the repo**. The repo is public.
