@@ -1,0 +1,1 @@
+Matched the reply text literally (trimmed, case-insensitive) rather than parsing mention facets, and capped the scan at 4000 posts for safety. If the account has replied more than that many times, older matches past the cap won't show yet.

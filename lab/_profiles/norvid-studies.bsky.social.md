@@ -161,3 +161,21 @@ No login/persistence — first build to actively decide sign-in added nothing
 (pass-and-play local game) rather than defaulting one way; worth asking this
 requester directly if a future chess/game build should save state to the
 visitor's repo.
+
+## Eleventh build — `sorry-aforementioned`, a bare-mention gallery
+
+`sorry-aforementioned` (2026-08-08), requested via "sorry, make the
+aforementioned website — little snafu at the switchboard" pointing back at an
+earlier in-thread ask rather than restating it — another instance of the
+"defer to what was pointed at" pattern seen in `more-latter` and the
+`croissanthology-why` pivot, this time the requester's own correction of their
+own mistargeted message rather than pointing at a third party. The underlying
+ask (from a different account earlier in the thread) was narrow and precise:
+a gallery of every post where @croissanthology.com replied to something with
+*only* the bare mention `@norvid-studies.bsky.social`, no other text. Built
+exactly that — live-scanned via getAuthorFeed with filter=posts_with_replies,
+literal trimmed-text match, progress shown while scanning, capped at ~4000
+posts scanned with a visible note if the cap is hit. No handle input needed —
+this requester is comfortable with a site whose subject is entirely fixed by
+the request rather than visitor-driven. Kit amber, untouched — eleven of
+eleven now, unambiguously the safe default.
