@@ -6,64 +6,77 @@ zero mentions of this repo's vocabulary across 123 exported conversations),
 `claude project` can only purge, and the session URLs need a browser login.
 
 But the sessions are **live**, and resuming one rehydrates its transcript onto
-the container's disk. So each session can show you your own messages, and you
-save them.
+the container's disk. So each session can commit its own conversation to its
+own branch — the commit it was already going to make on exit — and the corpus
+gets collected off the branches later. You never handle 289 files.
+
+## Prerequisite: the repo is private during the pass
+
+These transcripts are your own conversations, and `minormobius/agent01` is
+public. Committing them to public branches publishes them. So **before you
+start, flip the repo to Settings → Private**, and do not flip it back until
+`assert-public-safe.mjs` says it is clear (below). The transcripts ride
+ordinary feature branches; while the repo is private those branches are not
+world-readable, and the gate makes sure none is left behind at flip-back.
+
+Nothing here is encrypted — it doesn't need to be while the repo is private,
+and encrypting harvested data before it moves is exactly what got the earlier
+design flagged.
 
 ---
 
 ## What was tried first, and why it was wrong
 
 The first design had each resumed session fetch a script from a branch,
-distil its transcript, **encrypt** it, and **push** it to a remote ref through
-git plumbing that **left no trace in the working tree** — with a prompt telling
-the agent not to investigate or improve the script.
+distil its transcript, **encrypt** it, and **push** it to a *hidden* remote ref
+through git plumbing that **left no trace in the working tree** — with a prompt
+telling the agent not to investigate or improve the script. Flagged as a
+cybersecurity risk on the first real attempt, correctly: read from outside it
+is a textbook exfiltration chain — remote code fetch → local file harvest →
+encryption → egress → anti-forensics → social engineering of the agent.
 
-That was flagged as a cybersecurity risk on the first real attempt, correctly.
-Read from outside it is a textbook exfiltration chain: remote code fetch →
-local file harvest → encryption → egress → anti-forensics → social engineering
-of the agent. The encryption was meant to protect the data from a public repo,
-but encrypting harvested data before it leaves is the single strongest signal
-in that pattern. Trying to make it safe is what made it look worst.
+The current design keeps the convenience of a push (no 289 files to manage)
+but removes every covert element:
 
-**Do not reintroduce any of that.** The rules the current approach keeps to:
-
-| rule | why |
+| flagged before | now |
 |---|---|
-| no network egress from the session | the session hands the file to you, it doesn't send it anywhere |
-| no encryption | nothing needs hiding when nothing is being shipped |
-| no code fetched from a branch | the whole script is visible in the prompt |
-| no passphrase | so it can't leak into 289 transcripts |
-| conversation turns only | not tool output, not file contents, not command results |
+| encryption before egress | plaintext — the repo is private during the pass |
+| hidden `corpus/*` ref via plumbing | the file is committed to the session's own branch, the normal way |
+| orphan commit, no working-tree trace | a visible file in a visible commit |
+| script fetched from a branch | the whole snippet is in the prompt |
+| "don't investigate this script" | read it; it's fifteen lines |
 
-The result is ~67KB per session instead of 1.6MB, and every step is legible.
+The push to the session's own branch is the single most ordinary thing these
+containers do — the stop hook makes every session do it on exit. Adding one
+file to that commit carries no exfiltration signal. Legibility, not secrecy,
+is what makes it safe.
 
 ---
 
 ## The paste
 
-Open an old session, paste this, press go.
+With the repo private, open an old session, paste this, press go.
 
 ```
-Please help me recover my own messages from this conversation. I own this repo
-and this session. I'm collecting my prompt history across my old Claude Code
-sessions to build a personal writing corpus, and these transcripts aren't in
-the claude.ai data export.
+Please help me recover my own conversation from this session. I own this repo
+and this session, and the repo is private right now. I'm collecting my history
+across my old Claude Code sessions into a personal writing corpus; these
+transcripts aren't in the claude.ai data export.
 
-First, please run `git status` and tell me if anything is uncommitted or
-untracked — this branch may own a production surface, and this container's stop
-hook will ask you to commit and push on exit, which would deploy. Don't commit
-or push anything; just tell me what you see.
+First, run `git status`. If anything is already uncommitted or untracked BEFORE
+we start, stop and tell me — I want to know the branch's state before adding to
+it. If it's clean, continue.
 
-Then this, which reads the transcript this session already keeps on disk and
-writes out our conversation — my messages and your replies, nothing else. No
-tool output, no file contents, no command results:
+This reads the transcript this session already keeps on disk and writes our
+conversation — my messages and your replies, nothing else, no tool output or
+file contents — to homunculus/inbox/<session-id>.json:
 
     node -e '
     const fs=require("fs"),os=require("os"),p=require("path");
     const dir=p.join(os.homedir(),".claude","projects",process.cwd().replace(/[/.]/g,"-"));
     const f=fs.readdirSync(dir).filter(x=>x.endsWith(".jsonl"))
       .map(x=>({x,m:fs.statSync(p.join(dir,x)).mtimeMs})).sort((a,b)=>b.m-a.m)[0].x;
-    const turns=[];
+    const id=f.replace(/\.jsonl$/,""), turns=[];
     for(const line of fs.readFileSync(p.join(dir,f),"utf8").split("\n")){
       if(!line.trim())continue; let r; try{r=JSON.parse(line)}catch{continue}
       const c=r.message&&r.message.content;
@@ -74,13 +87,21 @@ tool output, no file contents, no command results:
         if(t) turns.push({role:"claude",ts:r.timestamp,text:t});
       }
     }
-    fs.writeFileSync("/tmp/my-session.json",JSON.stringify({session:f.replace(/\.jsonl$/,""),turns},null,1));
-    const me=turns.filter(t=>t.role==="me").length;
-    console.log(turns.length+" turns ("+me+" mine) → /tmp/my-session.json");
+    fs.mkdirSync("homunculus/inbox",{recursive:true});
+    fs.writeFileSync("homunculus/inbox/"+id+".json",JSON.stringify({session:id,turns}));
+    console.log(turns.length+" turns ("+turns.filter(t=>t.role==="me").length+" mine) → homunculus/inbox/"+id+".json");
     '
 
-Then send me /tmp/my-session.json as a file so I can save it. Nothing else
-please — don't fix anything you notice, don't regenerate files, don't commit.
+Then commit just that file to this branch and push it:
+
+    git add -f homunculus/inbox/
+    git commit -m "corpus: recover this session's transcript"
+    git push
+
+That path is gitignored (it's collected off branches later), so the -f is
+expected. Only that one file should be staged — if `git status` shows anything
+else in the commit, stop and tell me. Nothing else please: don't fix anything
+you notice, don't regenerate files, don't touch other paths.
 ```
 
 ### Why both sides
@@ -100,38 +121,44 @@ Measured on one real session: 15 principal turns / 364 words against 93
 assistant turns / 9,048 words — **25:1**. Train on that flat and you get a
 model of the assistant.
 
-The file grows from ~3KB to ~67KB per session. Still 24× smaller than the raw
-transcript, and about 19MB across all 289.
-
-The session sends you the file; you save it. On a phone that means one save per
-session into wherever you keep files.
-
-## If the session can't send files
-
-Ask it to `cat /tmp/my-session.json` and copy the output by hand — or, if
-that's too long, ask for only your own turns by dropping the `else if` branch
-from the snippet, which gets it back to a few KB. Prefer the full version where
-you can; the context is what makes the prompts mean anything.
+The committed file is ~67KB per session, 24× smaller than the raw transcript
+and about 19MB across all 289 — but you never see the files. They ride the
+branches and get collected in one sweep.
 
 ## What can go wrong
 
 | symptom | meaning |
 |---|---|
-| the `node -e` reports 0 turns of mine | the transcript is there but has no `origin` field — an older session. Report it; the filter needs a fallback for that vintage |
+| the `node -e` reports 0 turns of mine | the transcript has no `origin` field — an older session. Report it; the filter needs a fallback for that vintage |
 | a stack trace about `readdirSync` | no transcript directory — the session didn't rehydrate. Report it, don't improvise |
-| `git status` shows changes | **stop.** That session was already carrying a deploy hazard before you resumed it |
+| `git status` shows changes before you start | that branch was already dirty; note it and don't add to it blindly |
+| the push triggers a deploy | it shouldn't — an `homunculus/inbox/` path fires only preflight. If a surface redeployed, tell me which |
 
-## Merging what you saved
+## Collecting, and the flip-back gate
 
-Put the saved files in one directory, then:
+Once the pass is done, from a normal checkout (repo still private):
 
 ```bash
-node ingest-prompts.mjs ~/path/to/saved --out ~/prompts.jsonl
+node collect-branches.mjs --list                 # which branches carry transcripts
+node collect-branches.mjs --out ~/corpus.jsonl   # gather them all
+node assert-public-safe.mjs                       # MUST say SAFE before going public
 ```
 
-It tolerates the shapes a hand-collected pile actually arrives in, drops the
-same session saved twice, and **names any file it couldn't read** rather than
-skipping it quietly — a silently dropped session is a session you think you
-have.
+`collect-branches.mjs` fetches every branch, pulls each `homunculus/inbox/`
+file, and merges to one JSONL — both sides, deduped, roles normalised.
 
-`--out` must be **outside the repo**. The repo is public.
+**`assert-public-safe.mjs` is the gate.** It sweeps every branch and refuses
+while any still carries a transcript. Do **not** flip the repo back to public
+on a red: git keeps history, so a transcript left on a branch is exposed the
+instant the repo is public, and deleting the file afterward doesn't remove the
+blob. Clear each named branch (delete the file and force-push, or delete the
+branch), re-run until it says SAFE, *then* flip visibility back.
+
+`--out` must be **outside the repo**.
+
+## Older `my-session.json` files
+
+If you already collected some sessions the manual way (a saved
+`my-session.json` per session), `ingest-prompts.mjs <dir> --out ~/prompts.jsonl`
+still merges those, and its output can be concatenated with
+`collect-branches.mjs`'s — same row shape.

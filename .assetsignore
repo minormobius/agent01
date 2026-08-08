@@ -8,3 +8,9 @@ lab/
 # repo, so this directory must stay unserved. preflight asserts this line is
 # here — see the "prompt log stays unserved" check.
 packages/homunculus/log/
+
+# Session transcripts collected during a recovery pass live here on feature
+# branches while the repo is temporarily private. Never served, and never
+# merged to main — see scripts/assert-public-safe.mjs and the merge-candidate
+# flow in CLAUDE.md.
+homunculus/inbox/

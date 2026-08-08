@@ -59,6 +59,37 @@ candidate** and merged to `main`; that is how pull requests are made here.
 4. `node scripts/preflight.mjs` — must pass.
 5. Push, open the PR, and state what could not be verified from the sandbox.
 
+### Corpus-recovery passes
+
+Occasionally the repo runs a **recovery pass**: old `claude/*` sessions are
+resumed and each commits its own conversation transcript to
+`homunculus/inbox/<session>.json` on its own branch, to be collected into a
+personal training corpus. This is the principal recovering their own data; the
+tooling and rationale live in [`packages/homunculus/`](packages/homunculus/)
+(`RECOVERY.md`). Two rules bind the merge flow while a pass is live:
+
+- **The repo is private for the duration.** The transcripts are the
+  principal's own conversations; they sit on public branches only if someone
+  forgets to flip visibility back correctly, which is what the gate below
+  prevents.
+- **`homunculus/inbox/` never reaches `main`.** It is gitignored and
+  `.assetsignore`d, and preflight fails on `main` if one is tracked. When
+  assembling a candidate, drop the dir before squashing — collection reads it
+  off the feature branches, `main` never needs it.
+
+Collect and gate:
+
+```bash
+node packages/homunculus/collect-branches.mjs --out ~/corpus.jsonl  # gather from all branches
+node packages/homunculus/assert-public-safe.mjs                     # MUST say SAFE before going public
+```
+
+`assert-public-safe.mjs` sweeps every branch and exits non-zero while any still
+carries a transcript. **Do not flip the repo back to public on a red.** Git
+keeps history: a transcript left on a branch at flip-back is exposed, and
+deleting the file afterward does not remove the blob — delete the file and
+force-push, or delete the branch, until the gate is green.
+
 ### Preflight
 
 ```bash

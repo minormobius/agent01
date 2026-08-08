@@ -17,6 +17,8 @@ import { toRow, LOG_FILE } from './log-prompt.mjs';
 import { detectShape, extract } from './chatlog.mjs';
 import { distil, provenanceMode, redact, isRecoveryPrompt } from './capture-session.mjs';
 import { ingest } from './ingest-prompts.mjs';
+import { remoteBranches, inboxOnBranch, branchesWithInbox, readInbox } from './branch-corpus.mjs';
+import { rowsFrom } from './collect-branches.mjs';
 
 const ROWS = [
   // 13 words of prose, top-level. Root of the one self-thread.
@@ -434,6 +436,59 @@ check('bare array session from filename', merged[2].session, 'b');
 check('claude role normalised', merged[3].role, 'assistant');
 check('me role normalised', merged[4].role, 'principal');
 rmSync(inDir, { recursive: true, force: true });
+
+
+// ─── branch sweep ────────────────────────────────────────────────
+//
+// The flip-back gate depends on this finding every transcript on every
+// branch. A fake git lets the scan be tested without a repo: the safety
+// property (no false "all clear") is exactly what must not regress.
+
+console.log('\nbranch sweep');
+const fakeRepo = {
+  'ls-remote': 'sha1\trefs/heads/claude/feature-a\nsha2\trefs/heads/claude/feature-b\nsha3\trefs/heads/main',
+  trees: {
+    'claude/feature-a': ['homunculus/inbox/019a.json', 'hoop/index.html'],
+    'claude/feature-b': ['hoop/quests.js'],                       // clean
+    'main': [],
+  },
+  files: {
+    'claude/feature-a:homunculus/inbox/019a.json':
+      JSON.stringify({ session: '019a', turns: [
+        { role: 'me', ts: 't1', text: 'download the car' },
+        { role: 'claude', ts: 't2', text: 'One request instead of five hundred.' },
+      ] }),
+  },
+};
+const fakeGit = (args) => {
+  if (args[0] === 'ls-remote') return fakeRepo['ls-remote'];
+  if (args[0] === 'ls-tree') {
+    const branch = args[3].replace('origin/', '');
+    const prefix = args[4];
+    return (fakeRepo.trees[branch] ?? []).filter((f) => f.startsWith(prefix)).join('\n');
+  }
+  if (args[0] === 'show') return fakeRepo.files[args[1].replace('origin/', '')] ?? (() => { throw new Error('missing'); })();
+  throw new Error('unexpected git ' + args.join(' '));
+};
+
+check('lists remote branches', remoteBranches(fakeGit).length, 3);
+check('finds inbox on a branch', inboxOnBranch('claude/feature-a', fakeGit).length, 1);
+check('clean branch has none', inboxOnBranch('claude/feature-b', fakeGit).length, 0);
+const carrying = branchesWithInbox(fakeGit);
+check('only carrying branches listed', carrying.length, 1);
+check('names the right branch', carrying[0].branch, 'claude/feature-a');
+const read = readInbox('claude/feature-a', fakeGit);
+check('reads and parses inbox', read[0].data.session, '019a');
+
+console.log('\ncollect flattening');
+const crows = rowsFrom(read[0].data, '019a');
+check('both turns flattened', crows.length, 2);
+check('me → principal', crows[0].role, 'principal');
+check('claude → assistant', crows[1].role, 'assistant');
+check('counts words', crows[0].words, 3);
+// prompts-only shape still works
+check('messages shape', rowsFrom({ messages: [{ text: 'hi there friend' }] }, 'x')[0].role, 'principal');
+check('bare array shape', rowsFrom(['just a string'], 'x')[0].text, 'just a string');
 
 console.log(failures ? `\n${failures} failure(s)\n` : '\nall passed\n');
 process.exit(failures ? 1 : 0);

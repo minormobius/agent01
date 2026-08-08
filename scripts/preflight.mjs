@@ -146,6 +146,29 @@ console.log('\nredaction');
   const logIgnored = assetsIgnore.includes(LOG_DIR);
   record('prompt log stays unserved', logIgnored,
     logIgnored ? '' : `${LOG_DIR} missing from .assetsignore`);
+
+  const INBOX_DIR = 'homunculus/inbox/';
+  record('inbox stays unserved', assetsIgnore.includes(INBOX_DIR),
+    assetsIgnore.includes(INBOX_DIR) ? '' : `${INBOX_DIR} missing from .assetsignore`);
+
+  // Recovery-pass transcripts ride feature branches while the repo is
+  // temporarily private, and must never reach main — the permanent public
+  // trunk. The network-wide gate is scripts/../assert-public-safe.mjs; this is
+  // the local backstop that keeps a merge candidate from carrying one in.
+  // Scoped to main so it does not fire on the feature branches that carry the
+  // files on purpose during a pass.
+  let branch = '';
+  try {
+    branch = execFileSync('git', ['branch', '--show-current'], { cwd: ROOT }).toString().trim();
+  } catch { /* detached HEAD in CI — fall through */ }
+  if (branch === 'main') {
+    let tracked = '';
+    try {
+      tracked = execFileSync('git', ['ls-files', INBOX_DIR], { cwd: ROOT }).toString().trim();
+    } catch { /* none */ }
+    record('no transcripts on main', tracked === '',
+      tracked ? `${INBOX_DIR} committed to main — strip before merging` : '');
+  }
 }
 
 // -------------------------------------------- 4b. workflow shell parses -----
