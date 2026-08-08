@@ -9,7 +9,20 @@
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
-  #status { font-size: .85rem; color: var(--muted); margin: 1rem 0; min-height: 1.2em; }
+  #status {
+    display: flex; align-items: center; gap: .6rem;
+    font-size: 1rem; color: var(--fg); margin: 1.2rem 0; min-height: 1.6em;
+  }
+  #status.done, #status.idle { color: var(--muted); font-size: .85rem; }
+  .spinner {
+    width: 18px; height: 18px; flex: none; border-radius: 50%;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    animation: kit-spin 0.8s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .spinner { animation: none; border-top-color: var(--border); }
+  }
+  @keyframes kit-spin { to { transform: rotate(360deg); } }
   #err { margin: 1rem 0; }
   #gallery {
     display: grid;
@@ -62,7 +75,10 @@
     name. Read live off the public feed, scanned in full, no cache.
   </p>
 
-  <div id="status" role="status" aria-live="polite"></div>
+  <div id="status" class="idle" role="status" aria-live="polite">
+    <span id="statusSpin" class="spinner" hidden></span>
+    <span id="statusText"></span>
+  </div>
   <div id="err" class="err hidden"></div>
 
   <div id="gallery" hidden></div>
@@ -73,7 +89,7 @@
 <script>
 (function () {
   'use strict';
-  document.getElementById('crumb').innerHTML = kit.crumb('sorry-aforementioned');
+  document.getElementById('crumb').innerHTML = kit.crumb('just-the-mention');
 
   var TARGET_HANDLE = 'croissanthology.com';
   var REPLY_HANDLE = 'norvid-studies.bsky.social';
@@ -81,10 +97,19 @@
   var MAX_PAGES = 40; // safety cap: 40 * 100 = up to 4000 posts scanned
 
   var statusEl = document.getElementById('status');
+  var statusText = document.getElementById('statusText');
+  var statusSpin = document.getElementById('statusSpin');
   var errEl = document.getElementById('err');
   var galleryEl = document.getElementById('gallery');
   var emptyEl = document.getElementById('empty');
   var cappedEl = document.getElementById('capped');
+
+  function setStatus(msg, opts) {
+    opts = opts || {};
+    statusText.textContent = msg;
+    statusSpin.hidden = !opts.spinning;
+    statusEl.className = opts.spinning ? '' : (opts.done ? 'done' : 'idle');
+  }
 
   function escapeHtml(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -135,18 +160,18 @@
   function plural(n) { return n === 1 ? '' : 'es'; }
 
   async function run() {
-    statusEl.textContent = 'resolving @' + TARGET_HANDLE + '…';
+    setStatus('resolving @' + TARGET_HANDLE + '…', { spinning: true });
     var did;
     try {
       var r = await kit.bskyGet('com.atproto.identity.resolveHandle', { handle: TARGET_HANDLE });
       did = r.did;
     } catch (e) {
-      statusEl.textContent = '';
+      setStatus('');
       kit.showError(errEl, 'Could not resolve @' + TARGET_HANDLE + ': ' + e.message);
       return;
     }
 
-    var cursor, pages = 0, scanned = 0, matched = 0;
+    var cursor, pages = 0, scanned = 0, matched = 0, skipped = 0;
     var seen = {};
 
     do {
@@ -166,33 +191,44 @@
       for (var i = 0; i < items.length; i++) {
         var item = items[i];
         scanned++;
-        if (item.reason) continue; // a repost of someone else, not authored here
-        var post = item.post;
-        if (!post || !post.record || !post.author) continue;
-        if (post.author.did !== did) continue;
-        var rec = post.record;
-        if (!rec.reply) continue; // must be a reply
-        var text = (rec.text || '').trim();
-        if (text.toLowerCase() !== MATCH_TEXT.toLowerCase()) continue;
-        if (seen[post.uri]) continue;
-        seen[post.uri] = true;
-        matched++;
-        addCard(item);
+        try {
+          if (item.reason) continue; // a repost of someone else, not authored here
+          var post = item.post;
+          if (!post || !post.uri || !post.record || !post.author) continue;
+          if (post.author.did !== did) continue;
+          var rec = post.record;
+          if (!rec.reply) continue; // must be a reply
+          var text = (rec.text || '').trim();
+          if (text.toLowerCase() !== MATCH_TEXT.toLowerCase()) continue;
+          if (seen[post.uri]) continue;
+          seen[post.uri] = true;
+          matched++;
+          addCard(item);
+        } catch (e) {
+          // One oddly-shaped post must not take the whole scan down with it.
+          skipped++;
+        }
       }
 
-      statusEl.textContent = 'scanning — ' + scanned + ' post' + plural(scanned) + ' read, ' +
-        matched + ' match' + plural(matched) + ' found so far (page ' + pages + ')…';
+      setStatus('scanning @' + TARGET_HANDLE + ' — ' + scanned + ' post' + plural(scanned) + ' read, ' +
+        matched + ' match' + plural(matched) + ' found so far (page ' + pages + ' of up to ' + MAX_PAGES +
+        ') — this can take a little while for a long posting history', { spinning: true });
       cursor = page.cursor;
     } while (cursor && pages < MAX_PAGES);
 
     if (matched === 0) {
-      statusEl.textContent = '';
+      setStatus('');
       emptyEl.hidden = false;
       emptyEl.textContent = 'Scanned ' + scanned + ' post' + plural(scanned) + ' from @' + TARGET_HANDLE +
         '. None of them were a reply containing only @' + REPLY_HANDLE + '.';
     } else {
-      statusEl.textContent = 'done — scanned ' + scanned + ' post' + plural(scanned) + ', ' +
-        matched + ' match' + plural(matched) + '.';
+      setStatus('done — scanned ' + scanned + ' post' + plural(scanned) + ', ' +
+        matched + ' match' + plural(matched) + '.', { done: true });
+    }
+
+    if (skipped > 0) {
+      kit.showError(errEl, skipped + ' post' + plural(skipped) + ' had an unexpected shape and ' +
+        (skipped === 1 ? 'was' : 'were') + ' skipped rather than shown — the rest of the scan continued.');
     }
 
     if (cursor && pages >= MAX_PAGES) {
@@ -202,7 +238,11 @@
     }
   }
 
-  run();
+  run().catch(function (e) {
+    setStatus('');
+    kit.showError(errEl, 'Something went wrong while scanning: ' + (e && e.message ? e.message : e) +
+      ' — this is a bug, not a sign there are no matches.');
+  });
 })();
 </script>
 </body>
