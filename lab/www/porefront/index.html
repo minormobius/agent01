@@ -54,6 +54,13 @@
   .btn-shiny:hover { background: linear-gradient(135deg, #ffce9e, var(--invaded)); color: #2b1204; }
   .btn-shiny:disabled { opacity: .5; box-shadow: none; cursor: default; }
 
+  .view-toggle { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; }
+  .view-btn {
+    flex: 1 1 100px; min-height: 44px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--bg-raised); color: var(--fg); font-size: .85rem;
+  }
+  .view-btn[aria-pressed="true"] { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+
   .stats { list-style: none; margin: 0; padding: 0; }
   .stats li { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: .85rem; color: var(--fg); }
   .stats li:last-child { border-bottom: 0; }
@@ -80,10 +87,16 @@
   <div>
     <div class="box">
       <h2>Run it</h2>
+      <div class="view-toggle" role="group" aria-label="how to view this run">
+        <button type="button" class="view-btn" data-view="network" aria-pressed="true">network</button>
+        <button type="button" class="view-btn" data-view="field" aria-pressed="false">field</button>
+        <button type="button" class="view-btn" data-view="throats" aria-pressed="false">throats</button>
+      </div>
+
       <div class="canvas-wrap">
         <canvas id="grid" width="900" height="640" role="img" aria-label="Pore network, colored by invasion state at the current pressure"></canvas>
       </div>
-      <div class="rails"><span>← pressure applied here</span><span>fluid escapes here →</span></div>
+      <div class="rails" id="rails"><span>← pressure applied here</span><span>fluid escapes here →</span></div>
 
       <div class="legend">
         <span><span class="swatch" style="background:var(--defending)"></span>defending fluid</span>
@@ -119,6 +132,7 @@
     <div class="box">
       <h2>how to read it</h2>
       <p>Blue is defending fluid that hasn't been touched. Orange is fluid that got invaded at or below the current pressure. Purple is fluid that's <em>proven</em> stuck — its whole remaining pocket lost every path to the drain, so it can never be pushed out no matter how far you raise the pressure. Drag the slider slowly near a purple patch forming and you can watch the exact throat that seals it.</p>
+      <p><strong>network</strong> is the node-and-edge graph above. <strong>field</strong> is the same run as a solid mosaic of tiles — easier to read as one continuous shape rather than individual pores. <strong>throats</strong> stops showing pores altogether and instead bins every throat by its own resistance, so you can see which resistances have been crossed, which are walled inside a trapped pocket, and which the front simply hasn't reached yet — all three colored the same way as the pores, and all three still move as you drag the slider.</p>
     </div>
   </div>
 </div>
@@ -247,26 +261,137 @@
     return 'defending';
   }
 
-  function draw(P) {
-    ctx.clearRect(0, 0, CW, CH);
-    ctx.fillStyle = '#0a0a0d';
-    ctx.fillRect(0, 0, CW, CH);
+  // A throat's own state is read off the two pores it joins: if either side
+  // is a proven-trapped pocket the throat is walled in with it; if both
+  // sides are invaded the throat itself carried the front through; otherwise
+  // it's still on the defending side, whatever its own resistance is.
+  function throatStateOf(e, P) {
+    var as = stateOf(e.a, P), bs = stateOf(e.b, P);
+    if (as === 'trapped' || bs === 'trapped') return 'trapped';
+    if (as === 'invaded' && bs === 'invaded') return 'invaded';
+    return 'defending';
+  }
 
+  function colors() {
+    return { defending: getVar('--defending'), invaded: getVar('--invaded'), trapped: getVar('--trapped') };
+  }
+
+  function drawNetwork(P) {
+    var col = colors();
     ctx.strokeStyle = 'rgba(255,255,255,.08)';
     ctx.lineWidth = 1;
     for (var i = 0; i < lat.edges.length; i++) {
       var e = lat.edges[i], pa = pos(e.a), pb = pos(e.b);
       ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
     }
-
-    var colors = { defending: getVar('--defending'), invaded: getVar('--invaded'), trapped: getVar('--trapped') };
     for (var n = 0; n < N; n++) {
       var st = stateOf(n, P), p = pos(n);
       ctx.beginPath();
       ctx.arc(p.x, p.y, nodeR, 0, Math.PI * 2);
-      ctx.fillStyle = colors[st];
+      ctx.fillStyle = col[st];
       ctx.fill();
     }
+  }
+
+  // Same data as the network view, but as a solid mosaic of tiles rather
+  // than circles-on-lines — reads as one continuous field instead of a
+  // graph, which is easier to eyeball a trapped pocket's shape against.
+  function drawField(P) {
+    var col = colors(), gap = 2;
+    for (var n = 0; n < N; n++) {
+      var st = stateOf(n, P), p = pos(n);
+      ctx.fillStyle = col[st];
+      ctx.fillRect(p.x - spX / 2, p.y - spY / 2, Math.max(1, spX - gap), Math.max(1, spY - gap));
+    }
+  }
+
+  var THROAT_BINS = 40;
+
+  // A histogram of throat resistance, not pore position: every throat lands
+  // in one bin by its own random threshold, stacked by whether it's carried
+  // the front, sealed a pocket in, or hasn't been reached at all yet.
+  function drawThroats(P) {
+    var col = colors();
+    var counts = [];
+    for (var i = 0; i < THROAT_BINS; i++) counts.push({ defending: 0, invaded: 0, trapped: 0 });
+    for (i = 0; i < lat.edges.length; i++) {
+      var e = lat.edges[i];
+      var bin = Math.min(THROAT_BINS - 1, Math.floor(e.t * THROAT_BINS));
+      counts[bin][throatStateOf(e, P)]++;
+    }
+    var maxTotal = 0;
+    for (i = 0; i < THROAT_BINS; i++) {
+      var c = counts[i];
+      maxTotal = Math.max(maxTotal, c.defending + c.invaded + c.trapped);
+    }
+
+    var marginL = 44, marginR = 12, marginT = 14, marginB = 34;
+    var barAreaW = CW - marginL - marginR, barAreaH = CH - marginT - marginB;
+    var barW = barAreaW / THROAT_BINS;
+    var order = ['defending', 'invaded', 'trapped'];
+
+    for (i = 0; i < THROAT_BINS; i++) {
+      var x = marginL + i * barW;
+      var yCursor = marginT + barAreaH;
+      for (var k = 0; k < order.length; k++) {
+        var st = order[k], count = counts[i][st];
+        var hFull = maxTotal > 0 ? (count / maxTotal) * barAreaH : 0;
+        if (hFull > 0.5) {
+          var h = Math.max(0, hFull - 2);
+          ctx.fillStyle = col[st];
+          ctx.fillRect(x + 1, yCursor - hFull, Math.max(1, barW - 2), h);
+        }
+        yCursor -= hFull;
+      }
+    }
+
+    var muted = getVar('--muted');
+    ctx.strokeStyle = 'rgba(255,255,255,.25)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(marginL, marginT + barAreaH + 0.5);
+    ctx.lineTo(CW - marginR, marginT + barAreaH + 0.5);
+    ctx.stroke();
+
+    ctx.fillStyle = muted;
+    ctx.font = '11px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    for (var t = 0; t <= 4; t++) {
+      var v = t / 4;
+      var tx = marginL + v * barAreaW;
+      ctx.fillText(v.toFixed(2), tx, CH - 12);
+    }
+    ctx.textAlign = 'left';
+    ctx.fillText('throat resistance →', marginL, CH - 2);
+    ctx.save();
+    ctx.translate(12, marginT + barAreaH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.fillText('throats in bin', 0, 0);
+    ctx.restore();
+  }
+
+  var viewMode = 'network';
+  var railsEl = document.getElementById('rails');
+
+  var RAILS = {
+    network: ['← pressure applied here', 'fluid escapes here →'],
+    field: ['← pressure applied here', 'fluid escapes here →'],
+    throats: ['← weaker throats', 'stronger throats →']
+  };
+  var ARIA = {
+    network: 'Pore network, colored by invasion state at the current pressure',
+    field: 'Pore field as a mosaic of tiles, colored by invasion state at the current pressure',
+    throats: 'Histogram of throat resistance, colored by invasion state at the current pressure'
+  };
+
+  function draw(P) {
+    ctx.clearRect(0, 0, CW, CH);
+    ctx.fillStyle = '#0a0a0d';
+    ctx.fillRect(0, 0, CW, CH);
+    if (viewMode === 'network') drawNetwork(P);
+    else if (viewMode === 'field') drawField(P);
+    else drawThroats(P);
   }
 
   var varCache = {};
@@ -304,6 +429,22 @@
     draw(P);
     updateStats(P);
     copyBtn.disabled = false;
+    var rails = RAILS[viewMode];
+    railsEl.innerHTML = '';
+    var s1 = document.createElement('span'); s1.textContent = rails[0];
+    var s2 = document.createElement('span'); s2.textContent = rails[1];
+    railsEl.appendChild(s1); railsEl.appendChild(s2);
+    canvas.setAttribute('aria-label', ARIA[viewMode]);
+  }
+
+  var viewBtns = document.querySelectorAll('.view-btn');
+  for (var vb = 0; vb < viewBtns.length; vb++) {
+    viewBtns[vb].addEventListener('click', function (ev) {
+      var btn = ev.currentTarget;
+      viewMode = btn.getAttribute('data-view');
+      for (var j = 0; j < viewBtns.length; j++) viewBtns[j].setAttribute('aria-pressed', String(viewBtns[j] === btn));
+      render();
+    });
   }
 
   function regenerate() {

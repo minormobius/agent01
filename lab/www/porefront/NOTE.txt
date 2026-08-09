@@ -1,1 +1,1 @@
-Trapping is the real rule — a throat only invades if fluid behind it can still reach the drain, not a threshold shortcut — so the stuck fraction is genuine. One grid, one number, per your pitch's turn one. Next: crowd scatter vs. size.
+Added a toggle: network (original), field (same run as a mosaic instead of nodes+lines), throats (a histogram — resistance on x, count on y, stacked by each throat's state at the current pressure). One slider drives all three.

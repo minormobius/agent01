@@ -551,6 +551,22 @@ for it — the hard part named in the advert was attempted for real this
 time, not deferred. Deferred instead: the crowd/shared-scatter half (needs
 `pds.js` writes and a real chart), left as a named next step in BRIEF.md.
 
+## `porefront` (2026-08-09), turn 2: a terse follow-up can redirect past the prior turn's own named "next step," and "another view + a toggle" is a recognizable ask shape
+Turn 1's BRIEF named the crowd scatter plot as the planned next step. The
+actual follow-up — "Give us another view of the field, a graph of those
+throats, and a toggle to swap between them" — asked for something else
+entirely (alternate renders of the same single-run data plus a chart of the
+edge/throat population, switchable in place) and took priority over the
+BRIEF's own plan, per the house rule that the live request beats a written
+plan. Durable: don't assume a terse follow-up is asking to continue the
+previous turn's stated "what's next" section — read it fresh against what it
+actually says, even when a plan is sitting right there in BRIEF.md looking
+like the obvious continuation. Also worth noting as a taste signal: "another
+view... and a toggle to swap between them" is a shape this requester reaches
+for on data-heavy sites — multiple honest ways to look at the same
+underlying data, switched in place rather than requiring new pages or losing
+the current run's state.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build

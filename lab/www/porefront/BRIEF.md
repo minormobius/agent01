@@ -16,8 +16,43 @@ a "drain it" auto-play, "new random grid" to resample, and a "copy image"
 button on the canvas (per this requester's standing preference for a
 prominent copy action on any diagram — see the profile).
 
+**Turn two shipped what the requester actually asked for on the thread**
+("Give us another view of the field, a graph of those throats, and a toggle
+to swap between them"), which supersedes turn one's own BRIEF plan (the crowd
+scatter plot below) rather than continuing it — the request wins per the
+house rule. Added a three-way `.view-toggle` above the canvas, all three
+sharing the one `<canvas>` and driven by the same slider/`sim`:
+
+- **network** — the original node-and-edge render, untouched.
+- **field** — the same per-pore state as a gapless mosaic of rectangles
+  (`drawField`) instead of circles-on-lines — "another view of the field,"
+  reading as one continuous shape rather than a graph.
+- **throats** — an actual histogram (`drawThroats`), 40 bins of throat
+  resistance on the x-axis, throat *count* on the y-axis, each bar stacked
+  and colored by that throat's own state (`throatStateOf`) at the current
+  pressure. This is "a graph of those throats" literally — it's throat data,
+  not pore data, and it updates live off the same slider.
+
 ## Decisions
 
+- **A throat's state is derived from its two pores' states, not tracked
+  independently.** `throatStateOf(e, P)` reads `stateOf` on both endpoints:
+  trapped if either side is trapped, invaded if both sides are invaded,
+  defending otherwise. I considered giving throats their own first-class
+  state during `simulate()` (recording exactly which edge each invasion step
+  crossed) and rejected it as unnecessary — the two-endpoint read produces
+  the identical partition with zero changes to the solver, and the solver is
+  the part of this codebase most worth not touching twice (see GOTCHAS on
+  turn one below, still true).
+- **One canvas, one toggle, three draw functions** (`drawNetwork`/
+  `drawField`/`drawThroats`), not three separate `<canvas>` elements. Keeps
+  `copy image` working unmodified for whichever view is showing, and keeps
+  the stats panel (which is view-independent — it's always about the pores)
+  from needing to know which view is active.
+- **The histogram bins by the throat's own resistance, not by anything
+  spatial.** That's what makes it a different axis of the same data rather
+  than a fourth way to draw the same picture — "field" already covers "a
+  different spatial view."
 - **The trapping rule is the real algorithm, not an approximation.** I
   considered "recompute connectivity fresh at each pressure P" (simple: BFS
   from inlet using edges with threshold ≤ P) and rejected it — it gives zero
@@ -56,6 +91,13 @@ prominent copy action on any diagram — see the profile).
 
 ## The plan — what's not built yet, in order
 
+0. **Not started this turn, still worth doing eventually: a hover tooltip on
+   the throats histogram.** Right now it's read-only — bars, no per-bin
+   detail. A mousemove handler over the canvas mapping x back to a bin index
+   and showing "bin 0.42–0.45: 6 invaded, 1 trapped, 2 defending" in a small
+   overlay would follow the dataviz skill's "hover layer by default" rule,
+   which this turn skipped for time. Straightforward: `x → bin` is just the
+   inverse of the `marginL + i*barW` math already in `drawThroats`.
 1. **The crowd scatter plot (the actual point of the paper).** Every visitor's
    run is one (grid size, trapped fraction) sample. Add: a size selector (a
    few fixed sizes, not a continuous slider — say 8×8, 16×16, 32×32, 64×64,
@@ -111,3 +153,17 @@ prominent copy action on any diagram — see the profile).
   crossed so far required. Getting this backwards makes the slider reveal
   order look right early on and then desync from the true "pressure so far"
   once the front backfills a lower-threshold throat it skipped past.
+- The **field** view's tiles are centered on `pos(node)` at full `spX`/`spY`
+  width, so the outer half-tile of the edge columns/rows draws past the
+  canvas's own margin and gets silently clipped by the canvas edge. Looks
+  fine — the mosaic reads as flush to the frame — but if a future edit adds
+  anything *outside* the canvas bounds keyed off those same tile rects (e.g.
+  a border), account for that overhang first.
+- The **throats** histogram's bar heights are normalized to `maxTotal`, the
+  single tallest bin's *stacked* total, recomputed every frame at the
+  current pressure. That's deliberate — bin heights are only ever compared
+  to each other at a fixed P, never across different P — but it does mean
+  the y-axis scale silently rescales as you drag the slider (a bin near the
+  inlet resistance floor will visually shrink relative to the frame as more
+  distant bins fill in). No axis number is shown for it, on purpose, so
+  nothing on screen claims a scale that's actually moving.
