@@ -33,10 +33,10 @@ _Regenerated 2026-08-09 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 79, bluesky 73, data 57, tools 56, work 8.
 
-**Neighborhood spark** (bisk 2026-08-09, 99 members / 220 posts):
+**Neighborhood spark** (bisk 2026-08-09, 99 members / 213 posts):
 - Mood: Fair 🌤 (trust)
 - Distinctive words: bluesky, emoji, llm
-- Top post: "initially seems good, but the more you use a tool like this, the more you lose your own ability to forecast cylones" — @tedunderwood.com
+- Top post: "an llm wrote the blocked bot when no such thing existed previously" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
