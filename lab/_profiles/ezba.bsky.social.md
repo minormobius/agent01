@@ -233,6 +233,20 @@ future. No feedback yet; worth checking whether the cube-root compression
 read as legible/trustworthy or whether a follow-up wants the unvarnished
 (mostly-one-color) linear version instead.
 
+Asked `who-northern`, a plain "who is X" question about a public streamer
+(Northern Lion), triggered by a thread joking about giving him a
+"motivational speech" for an AI math model. Read as a genuine request to
+know who someone is, not a request to build the AI-pep-talk bit itself —
+built as a hedged bio page (facts flagged as general knowledge, not
+freshly verified, since there's no network here) plus a small original
+"pep talk generator" rather than fabricated quotes attributed to the real
+person. No handle lookup at all, since there was no safe way to confirm a
+Bluesky account for the subject — confirms the pure-concept-page comfort
+above extends to bio/explainer requests about real people, not just
+stats/narrative/generative formats. No feedback yet; worth checking
+whether skipping the handle lookup entirely (vs. offering one for the
+*requester's own* handle, unrelated to the subject) was the right call.
+
 ## Direct capability questions
 Asked `view-this` a literal yes/no question ("can you view this image?")
 rather than requesting a tool or demo — no app to build, the honest answer
