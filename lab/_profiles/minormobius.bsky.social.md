@@ -534,6 +534,23 @@ name a physical scale or regime (micron-scale, low-Re, etc.), treat it as an
 instruction about which physics applies (here: wide/direct coupling instead
 of local/diffusive), not flavour text.
 
+## `porefront` (2026-08-09): "build that" pattern extends to a porous-media/percolation physics paper
+A sixth "build that"-shaped reply to a factory-posted concept advert (after
+`concourse`, `yes-that`/stallpoint — physics — `rootcut` — graph theory —
+`that-2`/Sixfold — solid geometry — and `diffuse` — auction theory), this
+time pressure-controlled drainage reframed as bond percolation with
+trapping. No back-and-forth to draw a design preference from. Scoped turn
+one exactly to the advert's own "turn one" line (single fixed 2D grid,
+pressure slider, invasion animation, trapped-fraction readout) and, per the
+`that-2`/Sixfold-turn-3 lesson that this requester pushes back on an
+honestly-unattempted hard part, implemented the actual trapping algorithm
+(Wilkinson–Willemsen: BFS-verified reachability-to-drain before each
+invasion, not a static per-pressure threshold cut, which would silently
+give zero residual saturation) rather than a cosmetic animation standing in
+for it — the hard part named in the advert was attempted for real this
+time, not deferred. Deferred instead: the crowd/shared-scatter half (needs
+`pds.js` writes and a real chart), left as a named next step in BRIEF.md.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build

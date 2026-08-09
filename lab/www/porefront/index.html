@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Porefront — drain a pore network and see what stays stuck</title>
+<meta name="description" content="A grid of pores, connected by throats of random resistance. Drag the pressure slider and watch invading fluid push the defending fluid out — except for the pockets it seals off along the way, which stay stuck forever. Read off the trapped fraction at full drainage.">
+<meta property="og:title" content="Porefront — drain a pore network and see what stays stuck">
+<meta property="og:description" content="A grid of pores, connected by throats of random resistance. Drag the pressure slider and watch invading fluid push the defending fluid out — except for the pockets it seals off along the way, which stay stuck forever. Read off the trapped fraction at full drainage.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root {
+    --accent: #46c2b5;
+    --accent-dim: #12302d;
+    --accent-rgb: 70, 194, 181;
+    --invaded: #e8763d;
+    --invaded-dim: #3a2413;
+    --defending: #4f8fe8;
+    --trapped: #b370cf;
+  }
+  body { max-width: 980px; margin: 0 auto; padding: 16px 16px 64px; }
+  h1 { font-size: clamp(1.4rem, 4.2vw, 2.1rem); margin: 8px 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: .92rem; }
+  .box {
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; margin: 0 0 18px;
+  }
+  .honest { border-color: var(--accent); background: var(--accent-dim); }
+  .honest h2 { margin-top: 0; color: var(--accent); }
+  .honest p, .honest li { color: var(--fg); }
+  h2 { font-size: 1rem; margin: 0 0 10px; }
+  .layout { display: grid; grid-template-columns: 1fr; gap: 18px; }
+  @media (min-width: 820px) { .layout { grid-template-columns: 1.3fr .7fr; } }
+
+  .canvas-wrap { position: relative; border-radius: 8px; overflow: hidden; background: #0a0a0d; }
+  canvas { width: 100%; height: auto; display: block; }
+  .rails { display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); margin: 6px 2px 14px; }
+
+  .slider-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 4px 0 14px; }
+  .slider-row label { font-size: .85rem; color: var(--muted); flex: none; }
+  input[type=range] { flex: 1 1 200px; min-width: 160px; width: 100%; height: 44px; accent-color: var(--invaded); background: transparent; }
+  #pLabel { font-weight: 700; color: var(--invaded); min-width: 4.5ch; text-align: right; }
+
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0 4px; }
+  button { min-height: 44px; }
+  .btn-row button { flex: 1 1 140px; }
+  .btn-shiny {
+    background: linear-gradient(135deg, var(--invaded), #ffce9e);
+    color: #2b1204; border: none; font-weight: 700;
+    box-shadow: 0 0 0 1px rgba(232, 118, 61, .5), 0 0 18px rgba(232, 118, 61, .4);
+  }
+  .btn-shiny:hover { background: linear-gradient(135deg, #ffce9e, var(--invaded)); color: #2b1204; }
+  .btn-shiny:disabled { opacity: .5; box-shadow: none; cursor: default; }
+
+  .stats { list-style: none; margin: 0; padding: 0; }
+  .stats li { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: .85rem; color: var(--fg); }
+  .stats li:last-child { border-bottom: 0; }
+  .stats .k { color: var(--muted); }
+  .swatch { display: inline-block; width: .8em; height: .8em; border-radius: 50%; margin-right: .4em; vertical-align: -.05em; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .78rem; color: var(--muted); margin: 4px 0 14px; }
+
+  code, pre { color: var(--accent); }
+</style>
+</head>
+<body>
+<script>document.write(kit.crumb('porefront'));</script>
+
+<h1>Porefront</h1>
+<p class="sub">A square lattice of pores linked by throats, each with its own random resistance. Raise the pressure and the invading fluid claims every throat it can reach at that pressure — but some pockets of the fluid it's displacing get walled in as the front passes, and no amount of extra pressure ever gets them out.</p>
+
+<div class="box honest">
+  <h2>What this actually shows</h2>
+  <p>This models pressure-controlled drainage as bond percolation with trapping: throat resistances are drawn uniform at random, the invading fluid enters from the left and can only cross a throat once the pressure exceeds that throat's resistance <em>and</em> the throat is reachable from fluid already inside — and a throat is never crossed if doing so would seal off defending fluid with no path left to the right-hand drain. That sealed-off fluid is <strong>residual saturation</strong>: stuck at full drainage, not almost-invaded.</p>
+  <p>One grid here is one noisy sample. The paper this is drawn from finds that as the network grows, the trapped fraction settles onto a fixed limiting value — but slowly, with the gap shrinking as a power law (exponent ≈0.25 in 2D, ≈0.75 in 3D — small 3D samples land much closer to the true answer than small 2D ones do). A single run below can't show that curve; it can only give you one point on it. See the plan at the bottom for turning many visitors' runs into that scatter plot live.</p>
+</div>
+
+<div class="layout">
+  <div>
+    <div class="box">
+      <h2>Run it</h2>
+      <div class="canvas-wrap">
+        <canvas id="grid" width="900" height="640" role="img" aria-label="Pore network, colored by invasion state at the current pressure"></canvas>
+      </div>
+      <div class="rails"><span>← pressure applied here</span><span>fluid escapes here →</span></div>
+
+      <div class="legend">
+        <span><span class="swatch" style="background:var(--defending)"></span>defending fluid</span>
+        <span><span class="swatch" style="background:var(--invaded)"></span>invaded</span>
+        <span><span class="swatch" style="background:var(--trapped)"></span>trapped (residual)</span>
+      </div>
+
+      <div class="slider-row">
+        <label for="pSlider">pressure</label>
+        <input type="range" id="pSlider" min="0" max="1" step="0.002" value="0">
+        <span id="pLabel">0.00</span>
+      </div>
+
+      <div class="btn-row">
+        <button id="playBtn" class="btn-shiny" type="button">drain it</button>
+        <button id="regenBtn" type="button">new random grid</button>
+        <button id="copyBtn" class="btn-shiny" type="button" disabled>copy image</button>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="box">
+      <h2>this run</h2>
+      <ul class="stats">
+        <li><span class="k">grid size</span><span id="statSize">—</span></li>
+        <li><span class="k">invaded, at this pressure</span><span id="statInvaded">—</span></li>
+        <li><span class="k">trapped, at this pressure</span><span id="statTrapped">—</span></li>
+        <li><span class="k">breakthrough pressure</span><span id="statBreak">—</span></li>
+        <li><span class="k">trapped at full drainage</span><span id="statFinal">—</span></li>
+      </ul>
+    </div>
+    <div class="box">
+      <h2>how to read it</h2>
+      <p>Blue is defending fluid that hasn't been touched. Orange is fluid that got invaded at or below the current pressure. Purple is fluid that's <em>proven</em> stuck — its whole remaining pocket lost every path to the drain, so it can never be pushed out no matter how far you raise the pressure. Drag the slider slowly near a purple patch forming and you can watch the exact throat that seals it.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var COLS = 26, ROWS = 18, N = COLS * ROWS;
+  var REDUCE = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function idx(c, r) { return r * COLS + c; }
+  function colOf(node) { return node % COLS; }
+
+  function buildLattice() {
+    var edges = [];
+    for (var r = 0; r < ROWS; r++) {
+      for (var c = 0; c < COLS; c++) {
+        if (c < COLS - 1) edges.push({ a: idx(c, r), b: idx(c + 1, r), t: Math.random() });
+        if (r < ROWS - 1) edges.push({ a: idx(c, r), b: idx(c, r + 1), t: Math.random() });
+      }
+    }
+    var adj = [];
+    for (var i = 0; i < N; i++) adj.push([]);
+    edges.forEach(function (e, ei) { adj[e.a].push(ei); adj[e.b].push(ei); });
+    return { edges: edges, adj: adj };
+  }
+
+  // Invasion percolation with trapping: grow the invaded cluster from the
+  // inlet, always crossing the lowest-resistance reachable throat next, but
+  // never crossing one that would seal a defending pocket off from the drain.
+  function simulate(lat) {
+    var edges = lat.edges, adj = lat.adj;
+    var invaded = new Uint8Array(N), blocked = new Uint8Array(N);
+    var invPressure = new Float64Array(N).fill(-1);
+    var trapPressure = new Float64Array(N).fill(-1);
+    var frontier = [], inFrontier = new Uint8Array(edges.length);
+
+    function pushFrontier(node) {
+      var es = adj[node];
+      for (var k = 0; k < es.length; k++) {
+        var ei = es[k];
+        if (inFrontier[ei]) continue;
+        var e = edges[ei];
+        var other = e.a === node ? e.b : e.a;
+        if (invaded[other] || blocked[other]) continue;
+        inFrontier[ei] = 1;
+        frontier.push(ei);
+      }
+    }
+
+    for (var r = 0; r < ROWS; r++) { var n0 = idx(0, r); invaded[n0] = 1; invPressure[n0] = 0; }
+    for (r = 0; r < ROWS; r++) pushFrontier(idx(0, r));
+
+    var runningMax = 0, breakthrough = -1;
+
+    function reach(start) {
+      var seen = new Uint8Array(N), list = [start];
+      seen[start] = 1;
+      var hitsOutlet = colOf(start) === COLS - 1;
+      var head = 0;
+      while (head < list.length) {
+        var u = list[head++];
+        if (colOf(u) === COLS - 1) hitsOutlet = true;
+        var es = adj[u];
+        for (var k = 0; k < es.length; k++) {
+          var e = edges[es[k]];
+          var v = e.a === u ? e.b : e.a;
+          if (seen[v] || invaded[v] || blocked[v]) continue;
+          seen[v] = 1; list.push(v);
+        }
+      }
+      return { hitsOutlet: hitsOutlet, list: list };
+    }
+
+    while (frontier.length) {
+      var w = 0, bestPos = -1, bestT = Infinity;
+      for (var i = 0; i < frontier.length; i++) {
+        var ei = frontier[i], e = edges[ei];
+        var aInv = invaded[e.a], bInv = invaded[e.b];
+        if (aInv === bInv) { inFrontier[ei] = 0; continue; }
+        var other = aInv ? e.b : e.a;
+        if (blocked[other]) { inFrontier[ei] = 0; continue; }
+        frontier[w] = ei;
+        if (e.t < bestT) { bestT = e.t; bestPos = w; }
+        w++;
+      }
+      frontier.length = w;
+      if (bestPos === -1) break;
+      var chosenEi = frontier[bestPos], ce = edges[chosenEi];
+      var v = invaded[ce.a] ? ce.b : ce.a;
+      frontier[bestPos] = frontier[frontier.length - 1];
+      frontier.length -= 1;
+      inFrontier[chosenEi] = 0;
+
+      var res = reach(v);
+      if (res.hitsOutlet) {
+        runningMax = Math.max(runningMax, ce.t);
+        invaded[v] = 1;
+        invPressure[v] = runningMax;
+        if (breakthrough < 0 && colOf(v) === COLS - 1) breakthrough = runningMax;
+        pushFrontier(v);
+      } else {
+        var pAt = Math.max(runningMax, ce.t);
+        for (var j = 0; j < res.list.length; j++) { blocked[res.list[j]] = 1; trapPressure[res.list[j]] = pAt; }
+      }
+    }
+
+    var trappedCount = 0;
+    for (i = 0; i < N; i++) if (blocked[i]) trappedCount++;
+    return { invaded: invaded, blocked: blocked, invPressure: invPressure, trapPressure: trapPressure,
+              trappedCount: trappedCount, breakthrough: breakthrough };
+  }
+
+  var canvas = document.getElementById('grid'), ctx = canvas.getContext('2d');
+  var CW = canvas.width, CH = canvas.height;
+  var marginX = CW * 0.045, marginY = CH * 0.06;
+  var spX = (CW - 2 * marginX) / (COLS - 1), spY = (CH - 2 * marginY) / (ROWS - 1);
+  function pos(node) { return { x: marginX + colOf(node) * spX, y: marginY + Math.floor(node / COLS) * spY }; }
+  var nodeR = Math.max(2.4, Math.min(spX, spY) * 0.32);
+
+  var lat = null, sim = null;
+
+  function stateOf(node, P) {
+    if (sim.blocked[node]) return sim.trapPressure[node] <= P ? 'trapped' : 'defending';
+    if (sim.invaded[node] && sim.invPressure[node] <= P) return 'invaded';
+    return 'defending';
+  }
+
+  function draw(P) {
+    ctx.clearRect(0, 0, CW, CH);
+    ctx.fillStyle = '#0a0a0d';
+    ctx.fillRect(0, 0, CW, CH);
+
+    ctx.strokeStyle = 'rgba(255,255,255,.08)';
+    ctx.lineWidth = 1;
+    for (var i = 0; i < lat.edges.length; i++) {
+      var e = lat.edges[i], pa = pos(e.a), pb = pos(e.b);
+      ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
+    }
+
+    var colors = { defending: getVar('--defending'), invaded: getVar('--invaded'), trapped: getVar('--trapped') };
+    for (var n = 0; n < N; n++) {
+      var st = stateOf(n, P), p = pos(n);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, nodeR, 0, Math.PI * 2);
+      ctx.fillStyle = colors[st];
+      ctx.fill();
+    }
+  }
+
+  var varCache = {};
+  function getVar(name) {
+    if (!varCache[name]) varCache[name] = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return varCache[name];
+  }
+
+  var pSlider = document.getElementById('pSlider'), pLabel = document.getElementById('pLabel');
+  var playBtn = document.getElementById('playBtn'), regenBtn = document.getElementById('regenBtn'), copyBtn = document.getElementById('copyBtn');
+  var statSize = document.getElementById('statSize'), statInvaded = document.getElementById('statInvaded');
+  var statTrapped = document.getElementById('statTrapped'), statBreak = document.getElementById('statBreak'), statFinal = document.getElementById('statFinal');
+
+  var animId = null;
+
+  function cancelAnim() { if (animId) { cancelAnimationFrame(animId); animId = null; } }
+
+  function updateStats(P) {
+    var invadedN = 0, trappedN = 0;
+    for (var n = 0; n < N; n++) {
+      var st = stateOf(n, P);
+      if (st === 'invaded') invadedN++;
+      else if (st === 'trapped') trappedN++;
+    }
+    statSize.textContent = COLS + ' × ' + ROWS + ' (' + N + ' pores)';
+    statInvaded.textContent = (100 * invadedN / N).toFixed(1) + '%';
+    statTrapped.textContent = (100 * trappedN / N).toFixed(1) + '%';
+    statBreak.textContent = sim.breakthrough >= 0 ? sim.breakthrough.toFixed(3) : 'none this run';
+    statFinal.textContent = (100 * sim.trappedCount / N).toFixed(1) + '% of all pores';
+  }
+
+  function render() {
+    var P = Number(pSlider.value);
+    pLabel.textContent = P.toFixed(3);
+    draw(P);
+    updateStats(P);
+    copyBtn.disabled = false;
+  }
+
+  function regenerate() {
+    cancelAnim();
+    lat = buildLattice();
+    sim = simulate(lat);
+    pSlider.value = '0';
+    render();
+  }
+
+  pSlider.addEventListener('input', function () { cancelAnim(); render(); });
+
+  playBtn.addEventListener('click', function () {
+    cancelAnim();
+    if (REDUCE) { pSlider.value = '1'; render(); return; }
+    var start = Number(pSlider.value);
+    if (start >= 0.999) start = 0;
+    var t0 = null, DUR = 5500;
+    function step(ts) {
+      if (t0 === null) t0 = ts;
+      var frac = Math.min(1, (ts - t0) / DUR);
+      pSlider.value = String(start + (1 - start) * frac);
+      render();
+      if (frac < 1) animId = requestAnimationFrame(step);
+      else animId = null;
+    }
+    animId = requestAnimationFrame(step);
+  });
+
+  regenBtn.addEventListener('click', regenerate);
+
+  copyBtn.addEventListener('click', function () {
+    var was = copyBtn.textContent;
+    canvas.toBlob(function (blob) {
+      if (!blob) { copyBtn.textContent = 'copy failed'; setTimeout(function () { copyBtn.textContent = was; }, 1200); return; }
+      if (navigator.clipboard && window.isSecureContext && window.ClipboardItem) {
+        navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function () {
+          copyBtn.textContent = 'copied';
+        }).catch(function () {
+          copyBtn.textContent = 'copy failed';
+        }).finally(function () { setTimeout(function () { copyBtn.textContent = was; }, 1200); });
+      } else {
+        copyBtn.textContent = 'no image clipboard — long-press the grid instead';
+        setTimeout(function () { copyBtn.textContent = was; }, 2000);
+      }
+    }, 'image/png');
+  });
+
+  regenerate();
+})();
+</script>
+</body>
+</html>
