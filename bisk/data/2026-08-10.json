@@ -1,17 +1,17 @@
 {
   "date": "2026-08-10",
-  "generatedAt": "2026-08-10T13:01:31.103Z",
+  "generatedAt": "2026-08-10T14:19:48.583Z",
   "listUri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.graph.list/3mmcwc5lx7o2p",
   "listUrl": "https://bsky.app/profile/did:plc:7zre4plmd5jllccww575j6sb/lists/3mmcwc5lx7o2p",
   "memberCount": 99,
-  "postCount": 246,
+  "postCount": 249,
   "chickens": [
     {
       "handle": "hailey.at",
       "displayName": "hailey",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreic5hxsvugj4yanvd53cngk4ak24iy56r6fnwmw377i5s26hsnlh6i",
       "text": "lol basically none of the people replying or quote posting this have even a basic understanding of how bad the situation actually is for child safety online. its fucking grim man and is only getting worse. \"dont post photos of your kids online\" is actually a _very_ good suggestion.",
-      "likeCount": 658,
+      "likeCount": 665,
       "replyCount": 20,
       "repostCount": 115,
       "url": "https://bsky.app/profile/hailey.at/post/3msoqwej4v22u"
@@ -21,7 +21,7 @@
       "displayName": "SE Gyges",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiempgjkhvjq2dobqkmd5pqd6lcbkhgejasfwh3zoygncjpwgqc7te",
       "text": "",
-      "likeCount": 486,
+      "likeCount": 494,
       "replyCount": 3,
       "repostCount": 79,
       "url": "https://bsky.app/profile/segyges.bsky.social/post/3msobe2thtk2p"
@@ -31,7 +31,7 @@
       "displayName": "Eris",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreigkw75td5hyhqo3cp7khyomcg72tejfjshkxvvi4law4bxkm22ymy",
       "text": "Agent who just REALLY wants you to lift, bro",
-      "likeCount": 325,
+      "likeCount": 332,
       "replyCount": 13,
       "repostCount": 31,
       "url": "https://bsky.app/profile/isolyth.dev/post/3msomxqv4ms2s"
@@ -50,38 +50,38 @@
     "atUri": "at://did:plc:4vvaxwovyg4yo4n7dyyncaiu/app.bsky.feed.post/3msodzxwows2z"
   },
   "weather": {
-    "index": 0.16,
+    "index": 0.177,
     "label": "Fair",
     "glyph": "🌤",
     "mood": "trust",
-    "verbosity": 21,
-    "scoredWords": 847,
-    "corpusPosts": 560,
+    "verbosity": 22,
+    "scoredWords": 861,
+    "corpusPosts": 561,
     "emotions": {
-      "anger": 162,
-      "anticipation": 316,
-      "disgust": 113,
-      "fear": 200,
-      "joy": 225,
-      "sadness": 165,
-      "surprise": 133,
-      "trust": 367
+      "anger": 155,
+      "anticipation": 322,
+      "disgust": 111,
+      "fear": 199,
+      "joy": 229,
+      "sadness": 163,
+      "surprise": 135,
+      "trust": 378
     },
     "distinctive": [
       {
         "word": "idk",
-        "count": 9,
-        "over": 10785.2
-      },
-      {
-        "word": "bluesky",
-        "count": 8,
-        "over": 9586.8
+        "count": 10,
+        "over": 11876.7
       },
       {
         "word": "llms",
-        "count": 7,
-        "over": 8388.5
+        "count": 8,
+        "over": 9501.3
+      },
+      {
+        "word": "piranesi",
+        "count": 8,
+        "over": 9501.3
       }
     ]
   },
@@ -362,7 +362,7 @@
       "handle": "segyges.bsky.social",
       "url": "https://bsky.app/profile/segyges.bsky.social/post/3msobe2thtk2p",
       "uri": "at://did:plc:vszw3ess46odfhnzdsy4huae/app.bsky.feed.post/3msobe2thtk2p",
-      "likeCount": 486
+      "likeCount": 494
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreienqqj7q55nh2fh4rjpmdj2vzxvi4mrlnexgshmf6h4ncoe5kgzai",
@@ -372,7 +372,7 @@
       "handle": "isolyth.dev",
       "url": "https://bsky.app/profile/isolyth.dev/post/3msomxqv4ms2s",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3msomxqv4ms2s",
-      "likeCount": 325
+      "likeCount": 332
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:dzvxvsiy3maw4iarpvizsj67/bafkreieff7ongayfsoqko6y6vcbbtc2qgq2lcbobxptm3qw5to7mtpvh24",
@@ -382,7 +382,7 @@
       "handle": "dollspace.gay",
       "url": "https://bsky.app/profile/dollspace.gay/post/3msojguode22s",
       "uri": "at://did:plc:dzvxvsiy3maw4iarpvizsj67/app.bsky.feed.post/3msojguode22s",
-      "likeCount": 88
+      "likeCount": 89
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreif24t3rpgqdtcmgszcwpcgh3smzavpuzgthjisnb4swjsbirz45sa",
@@ -405,16 +405,6 @@
       "likeCount": 74
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreic6s4hianh3swfshtfhpxauqpzx3xrhruwnfd7hxlfwrmfiw7qzqu",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreic6s4hianh3swfshtfhpxauqpzx3xrhruwnfd7hxlfwrmfiw7qzqu",
-      "alt": "",
-      "ratio": 3.5644,
-      "handle": "vibe-coded.com",
-      "url": "https://bsky.app/profile/vibe-coded.com/post/3msox64shw22c",
-      "uri": "at://did:plc:dxr2kibhxyzrvhsjz4uahpmg/app.bsky.feed.post/3msox64shw22c",
-      "likeCount": 60
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:wamidydbgu3u6fk3yckaglnz/bafkreiggfl6pqt4s5opvomir7fiqb33xpftk3hq2pxw6h3cahkoji3ttou",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:wamidydbgu3u6fk3yckaglnz/bafkreiggfl6pqt4s5opvomir7fiqb33xpftk3hq2pxw6h3cahkoji3ttou",
       "alt": "output from DeepSeek V4 Flash 0731 where it's thought itself into a loop of \"Execute. NOW. Done. Yes. GO. Press. DO IT.\", presumably because its inference has broken and it can't emit an end-of-statement token",
@@ -422,7 +412,17 @@
       "handle": "philpax.me",
       "url": "https://bsky.app/profile/philpax.me/post/3msotwddo6k2x",
       "uri": "at://did:plc:wamidydbgu3u6fk3yckaglnz/app.bsky.feed.post/3msotwddo6k2x",
-      "likeCount": 58
+      "likeCount": 62
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreic6s4hianh3swfshtfhpxauqpzx3xrhruwnfd7hxlfwrmfiw7qzqu",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreic6s4hianh3swfshtfhpxauqpzx3xrhruwnfd7hxlfwrmfiw7qzqu",
+      "alt": "",
+      "ratio": 3.5644,
+      "handle": "vibe-coded.com",
+      "url": "https://bsky.app/profile/vibe-coded.com/post/3msox64shw22c",
+      "uri": "at://did:plc:dxr2kibhxyzrvhsjz4uahpmg/app.bsky.feed.post/3msox64shw22c",
+      "likeCount": 61
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:u5stolpomsfbkgqfopef6jio/bafkreid5el53ucczssmazliu2hkaghxclrnzaskhqpflvm7ftvdjo52xly",
@@ -432,7 +432,7 @@
       "handle": "keytryer.net",
       "url": "https://bsky.app/profile/keytryer.net/post/3msnuwe6xr22a",
       "uri": "at://did:plc:u5stolpomsfbkgqfopef6jio/app.bsky.feed.post/3msnuwe6xr22a",
-      "likeCount": 57
+      "likeCount": 58
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreidm7vd2cwufqmieqvfsriytvchmnharwyjfpgylj5beckhp6yjvxa",
@@ -445,6 +445,16 @@
       "likeCount": 53
     },
     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:wamidydbgu3u6fk3yckaglnz/bafkreibvbvqv6wpt5trvoimtmdnnbx4eqn6a2khslbc5ktl4ysx5zqn2bu",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:wamidydbgu3u6fk3yckaglnz/bafkreibvbvqv6wpt5trvoimtmdnnbx4eqn6a2khslbc5ktl4ysx5zqn2bu",
+      "alt": "quoted image but with \"I bought this [controller] before [Steam] [doxxed me]\" with the Steam logo",
+      "ratio": 3.8314,
+      "handle": "philpax.me",
+      "url": "https://bsky.app/profile/philpax.me/post/3mspuii7lcc2l",
+      "uri": "at://did:plc:wamidydbgu3u6fk3yckaglnz/app.bsky.feed.post/3mspuii7lcc2l",
+      "likeCount": 52
+    },
+    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreiekso2e3j4j6nc7kd3sew2hpklulpznz3hcdegfwihe6c6wqjzd3u",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreiekso2e3j4j6nc7kd3sew2hpklulpznz3hcdegfwihe6c6wqjzd3u",
       "alt": "",
@@ -452,7 +462,7 @@
       "handle": "isolyth.dev",
       "url": "https://bsky.app/profile/isolyth.dev/post/3msp5dmbmk22p",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3msp5dmbmk22p",
-      "likeCount": 51
+      "likeCount": 52
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreifthdlya7bggajafqd6rsdch2btrlxsa6p6buesum6jujscxn26ie",
@@ -462,7 +472,17 @@
       "handle": "hailey.at",
       "url": "https://bsky.app/profile/hailey.at/post/3msodijtvik2b",
       "uri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3msodijtvik2b",
-      "likeCount": 48
+      "likeCount": 49
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreifkkugrr7pmzweawrjz7fk2wk75z6tbja6pknyaimqw5xfxpegcoe",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreifkkugrr7pmzweawrjz7fk2wk75z6tbja6pknyaimqw5xfxpegcoe",
+      "alt": "",
+      "ratio": 2.5605,
+      "handle": "vibe-coded.com",
+      "url": "https://bsky.app/profile/vibe-coded.com/post/3msobt6x2ck2n",
+      "uri": "at://did:plc:dxr2kibhxyzrvhsjz4uahpmg/app.bsky.feed.post/3msobt6x2ck2n",
+      "likeCount": 49
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreici3zolvylenbphckotmdnujyavo4d4k5av2g4nf3b2ycasqs6lsq",
@@ -475,16 +495,6 @@
       "likeCount": 48
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreifkkugrr7pmzweawrjz7fk2wk75z6tbja6pknyaimqw5xfxpegcoe",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreifkkugrr7pmzweawrjz7fk2wk75z6tbja6pknyaimqw5xfxpegcoe",
-      "alt": "",
-      "ratio": 2.5605,
-      "handle": "vibe-coded.com",
-      "url": "https://bsky.app/profile/vibe-coded.com/post/3msobt6x2ck2n",
-      "uri": "at://did:plc:dxr2kibhxyzrvhsjz4uahpmg/app.bsky.feed.post/3msobt6x2ck2n",
-      "likeCount": 48
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vw4e7blkwzdokanwp24k3igr/bafkreieu2txemnfapegrvbm6lx4n6wa7nntpmv2hxhuy4kiu4lb6wcrcci",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:vw4e7blkwzdokanwp24k3igr/bafkreieu2txemnfapegrvbm6lx4n6wa7nntpmv2hxhuy4kiu4lb6wcrcci",
       "alt": "Lovecraft with a speech bubble",
@@ -492,7 +502,7 @@
       "handle": "huwupy.kawaii.social",
       "url": "https://bsky.app/profile/huwupy.kawaii.social/post/3msop2m26oc2z",
       "uri": "at://did:plc:vw4e7blkwzdokanwp24k3igr/app.bsky.feed.post/3msop2m26oc2z",
-      "likeCount": 40
+      "likeCount": 42
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreid5zwqepdobhs5yb4kuplmm6p67ndawbxj5onuoqrd764tugcvfla",
@@ -502,17 +512,17 @@
       "handle": "timkellogg.me",
       "url": "https://bsky.app/profile/timkellogg.me/post/3msosf4a44k2w",
       "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3msosf4a44k2w",
-      "likeCount": 37
+      "likeCount": 38
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:wamidydbgu3u6fk3yckaglnz/bafkreibvbvqv6wpt5trvoimtmdnnbx4eqn6a2khslbc5ktl4ysx5zqn2bu",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:wamidydbgu3u6fk3yckaglnz/bafkreibvbvqv6wpt5trvoimtmdnnbx4eqn6a2khslbc5ktl4ysx5zqn2bu",
-      "alt": "quoted image but with \"I bought this [controller] before [Steam] [doxxed me]\" with the Steam logo",
-      "ratio": 3.8314,
-      "handle": "philpax.me",
-      "url": "https://bsky.app/profile/philpax.me/post/3mspuii7lcc2l",
-      "uri": "at://did:plc:wamidydbgu3u6fk3yckaglnz/app.bsky.feed.post/3mspuii7lcc2l",
-      "likeCount": 36
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreifjgwdib6tv7qsleww6okath5mxbzq4rycij5bvfxzztwqfrwkc7u",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreifjgwdib6tv7qsleww6okath5mxbzq4rycij5bvfxzztwqfrwkc7u",
+      "alt": "Alexandr Wang @alexandr_wang\nX.com\n4/ to achieve maximum memory efficiency, we quantize model weights to ~4-bit, getting the language model under 20GB with room for the kv cache, perception encoder, and drafter alongside it. a dflash drafter proposes blocks of tokens the main model verifies in parallel, so it stays responsive.",
+      "ratio": 0.7748,
+      "handle": "timkellogg.me",
+      "url": "https://bsky.app/profile/timkellogg.me/post/3mspyycemoc27",
+      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mspyycemoc27",
+      "likeCount": 37
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:wamidydbgu3u6fk3yckaglnz/bafkreievou4qpds7hh3aw3nm6kzxhtgxyo7pthrryismfnx34o4cerzlci",
@@ -522,7 +532,7 @@
       "handle": "philpax.me",
       "url": "https://bsky.app/profile/philpax.me/post/3msoxdh263k2m",
       "uri": "at://did:plc:wamidydbgu3u6fk3yckaglnz/app.bsky.feed.post/3msoxdh263k2m",
-      "likeCount": 30
+      "likeCount": 33
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hu35oubkccqrxl4ldgczpgw7/bafkreicsictxowr4utiv4yxxuunnizsdpntzwj3qtwt25zrcrkkqcma4cm",
@@ -532,7 +542,7 @@
       "handle": "shibbi.me",
       "url": "https://bsky.app/profile/shibbi.me/post/3msnujsfdgc23",
       "uri": "at://did:plc:hu35oubkccqrxl4ldgczpgw7/app.bsky.feed.post/3msnujsfdgc23",
-      "likeCount": 27
+      "likeCount": 28
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreihub6qryomqrcmajsdveqioxhjwqkry3px4wnfjnzemz5uiu4vu7i",
@@ -543,16 +553,6 @@
       "url": "https://bsky.app/profile/abeliansoup.bsky.social/post/3msnrypiqjk2p",
       "uri": "at://did:plc:kbdtfnqrqpwwf62f6eekr7m2/app.bsky.feed.post/3msnrypiqjk2p",
       "likeCount": 26
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreifjgwdib6tv7qsleww6okath5mxbzq4rycij5bvfxzztwqfrwkc7u",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreifjgwdib6tv7qsleww6okath5mxbzq4rycij5bvfxzztwqfrwkc7u",
-      "alt": "Alexandr Wang @alexandr_wang\nX.com\n4/ to achieve maximum memory efficiency, we quantize model weights to ~4-bit, getting the language model under 20GB with room for the kv cache, perception encoder, and drafter alongside it. a dflash drafter proposes blocks of tokens the main model verifies in parallel, so it stays responsive.",
-      "ratio": 0.7748,
-      "handle": "timkellogg.me",
-      "url": "https://bsky.app/profile/timkellogg.me/post/3mspyycemoc27",
-      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mspyycemoc27",
-      "likeCount": 24
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gyaxtxafuuegoh2igamal3dd/bafkreidtrk6xw3dycj3bkwfvtjijisxqvjndctso43zscckze57puq7she",
@@ -622,17 +622,7 @@
       "handle": "timkellogg.me",
       "url": "https://bsky.app/profile/timkellogg.me/post/3msoxzf44ak2w",
       "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3msoxzf44ak2w",
-      "likeCount": 19
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreihrvicge2kzmzbpwjfxlib6d37bpxtehb3imezqyudja25ten7caq",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreihrvicge2kzmzbpwjfxlib6d37bpxtehb3imezqyudja25ten7caq",
-      "alt": "",
-      "ratio": 0.5685,
-      "handle": "norvid-studies.bsky.social",
-      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3msp4pdvzos2h",
-      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3msp4pdvzos2h",
-      "likeCount": 17
+      "likeCount": 20
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hsqwcidfez66lwm3gxhfv5in/bafkreieovwmfra5sparepie7qwxfxukiylaphxe25svvofq2jtg7tzhuha",
@@ -642,7 +632,17 @@
       "handle": "goose.art",
       "url": "https://bsky.app/profile/goose.art/post/3mspchj3xr22c",
       "uri": "at://did:plc:hsqwcidfez66lwm3gxhfv5in/app.bsky.feed.post/3mspchj3xr22c",
-      "likeCount": 16
+      "likeCount": 18
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreieesoxnpqfu5wytyl6pmp5xfnfyxgb7nby7nu2irzic7qt5mo7fpm",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreieesoxnpqfu5wytyl6pmp5xfnfyxgb7nby7nu2irzic7qt5mo7fpm",
+      "alt": "",
+      "ratio": 2.3242,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3msq6haf7rc26",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3msq6haf7rc26",
+      "likeCount": 18
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h25avmes6g7fgcddc3xj7qmg/bafkreibaedh25ji7j6oxjnmysehljjsfl55zfkssmdlvusiirw2t37klmm",
@@ -655,6 +655,16 @@
       "likeCount": 15
     },
     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreibaj2l3yy2agqqn5lxggsfrxarh7o4nvvgchhzupjirroidtfevvu",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreibaj2l3yy2agqqn5lxggsfrxarh7o4nvvgchhzupjirroidtfevvu",
+      "alt": "",
+      "ratio": 0.901,
+      "handle": "abeliansoup.bsky.social",
+      "url": "https://bsky.app/profile/abeliansoup.bsky.social/post/3msq5d7n6rk2l",
+      "uri": "at://did:plc:kbdtfnqrqpwwf62f6eekr7m2/app.bsky.feed.post/3msq5d7n6rk2l",
+      "likeCount": 15
+    },
+    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vw4e7blkwzdokanwp24k3igr/bafkreicm5xc65cg4g4j2ugbq5ccuffftwpqzlud2td47efpawywqd6t4j4",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:vw4e7blkwzdokanwp24k3igr/bafkreicm5xc65cg4g4j2ugbq5ccuffftwpqzlud2td47efpawywqd6t4j4",
       "alt": "weird creatures made of three spheres and noodle legs stand in a strange room. on a wall are two white boards that say \"hi friends\" and \"butt\"",
@@ -662,7 +672,7 @@
       "handle": "huwupy.kawaii.social",
       "url": "https://bsky.app/profile/huwupy.kawaii.social/post/3msp7zq4jyc2s",
       "uri": "at://did:plc:vw4e7blkwzdokanwp24k3igr/app.bsky.feed.post/3msp7zq4jyc2s",
-      "likeCount": 13
+      "likeCount": 14
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:wamidydbgu3u6fk3yckaglnz/bafkreiea6pgkvbqmhmoc22lmghtivsl2vsrl2trph5sx6nbd6iqxgvqmlm",
@@ -672,7 +682,47 @@
       "handle": "philpax.me",
       "url": "https://bsky.app/profile/philpax.me/post/3mspx4jy2n22u",
       "uri": "at://did:plc:wamidydbgu3u6fk3yckaglnz/app.bsky.feed.post/3mspx4jy2n22u",
-      "likeCount": 11
+      "likeCount": 14
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreihrqmi2s5nns45g5vwgz3qcsf4rfluklds2iok6gglnzbrlh47bjq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreihrqmi2s5nns45g5vwgz3qcsf4rfluklds2iok6gglnzbrlh47bjq",
+      "alt": "",
+      "ratio": 1.6989,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3msq2tesmc22a",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3msq2tesmc22a",
+      "likeCount": 14
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:5hhbgkktcpofpw4ovz6kjjau/bafkreie56xbeytatk4rauvsawtbzrlnr4plnhdyikvxzgs4fgckpjgcjxe",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:5hhbgkktcpofpw4ovz6kjjau/bafkreie56xbeytatk4rauvsawtbzrlnr4plnhdyikvxzgs4fgckpjgcjxe",
+      "alt": "ChatGPT transcript:\n\nAbstract\n\nObjectives: To compare quality-of-life (QoL) outcomes at 6 months between men with advanced prostate cancer receiving either transdermal oestradiol (tE2) or luteinising hormone-releasing hormone agonists (LHRHa) for androgen-deprivation therapy (ADT).\n\nPatients and methods: Men with locally advanced or metastatic prostate cancer participating in an ongoing randomised, multicentre UK trial comparing tE2 versus LHRHa for ADT were enrolled into a QoL sub-study. tE2 was delivered via three or four transcutaneous patches containing oestradiol 100 μg/24 h. LHRHa was administered as per local practice. Patients completed questionnaires based on the European Organisation for Research and Treatment of Cancer quality of life questionnaire 30-item core (EORTC QLQ-C30) with prostate-specific module QLQ PR25. The primary outcome measure was global QoL score at 6 months, compared between randomised arms.\n\nResults: In all, 727 men were enrolled between August 2007 and October 2015 (412 tE2, 315 LHRHa) with QoL questionnaires completed at both baseline and 6 months. Baseline clinical characteristics were similar between arms: median (interquartile range) age of 74 (68–79) years and PSA level of 44 (19–119) ng/mL, and 40% (294/727) had metastatic disease. At 6 months, patients on tE2 reported higher global QoL than those on LHRHa (mean difference +4.2, 95% confidence interval 1.2–7.1; P = 0.006), less fatigue, and improved physical function. Men in the tE2 arm were less likely to experience hot flushes (8% vs 46%), and report a lack of sexual interest (59% vs 74%) and sexual activity, but had higher rates of significant gynaecomastia (37% vs 5%).",
+      "ratio": 0.5286,
+      "handle": "jdp.extropian.net",
+      "url": "https://bsky.app/profile/jdp.extropian.net/post/3mspoaqeq5227",
+      "uri": "at://did:plc:5hhbgkktcpofpw4ovz6kjjau/app.bsky.feed.post/3mspoaqeq5227",
+      "likeCount": 13
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:5hhbgkktcpofpw4ovz6kjjau/bafkreigooj5cezxsj5ydw4jkgmtv4ekbdm24dq3nocgskwv2qcibx5kkqu",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:5hhbgkktcpofpw4ovz6kjjau/bafkreigooj5cezxsj5ydw4jkgmtv4ekbdm24dq3nocgskwv2qcibx5kkqu",
+      "alt": "ChatGPT transcript:\n\nSex steroids and affect in the surgical menopause: a double-blind, cross-over study\n\nBarbara B. Sherwin, Morrie M. Gelfand\n\nAbstract\n\nThe effect of estrogen and/or androgen on mood in surgically menopausal women was investigated with a prospective; double-blind, cross-over design. Oophorectomized women who received either estrogen (E), androgen (A), or a combined estrogen-androgen preparation (E-A) parenterally attained lower depression scores during both treatment phases compared to a placebo group (PL), coincident with their higher plasma estrogen and testosterone levels. When steroids were withdrawn, depression scores of all oophorectomized women were significantly higher than those of a hysterectomized control group with intact ovaries (CON). The A group also had higher hostility scores than the E, PL, and CON groups. These data provide evidence of a covariation between circulating levels of estrogen and testosterone and certain affects in healthy women.",
+      "ratio": 0.522,
+      "handle": "jdp.extropian.net",
+      "url": "https://bsky.app/profile/jdp.extropian.net/post/3mspoaqeq5227",
+      "uri": "at://did:plc:5hhbgkktcpofpw4ovz6kjjau/app.bsky.feed.post/3mspoaqeq5227",
+      "likeCount": 13
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreici3vv5maocjzb4rhsirnkqdwotqj6yy62wzh7lahqqfdqomnzf5i",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreici3vv5maocjzb4rhsirnkqdwotqj6yy62wzh7lahqqfdqomnzf5i",
+      "alt": "",
+      "ratio": 1.7887,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3msq7ar4xjc2l",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3msq7ar4xjc2l",
+      "likeCount": 13
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:3dor7kagwyswq4ogboxeqo42/bafkreibm56oanedra4siifv4inarvxv2yokckrxiljis7p57dqi57mct3u",
@@ -682,7 +732,17 @@
       "handle": "fleetingbits.bsky.social",
       "url": "https://bsky.app/profile/fleetingbits.bsky.social/post/3mspcmohtm22t",
       "uri": "at://did:plc:3dor7kagwyswq4ogboxeqo42/app.bsky.feed.post/3mspcmohtm22t",
-      "likeCount": 10
+      "likeCount": 11
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreiaufuqg7ffiybzmg56lqtwhqjaxrt4rskc5t2mej7kyyr76s6okxu",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreiaufuqg7ffiybzmg56lqtwhqjaxrt4rskc5t2mej7kyyr76s6okxu",
+      "alt": "",
+      "ratio": 0.7528,
+      "handle": "hikikomorphism.bsky.social",
+      "url": "https://bsky.app/profile/hikikomorphism.bsky.social/post/3mspq7qkkh22s",
+      "uri": "at://did:plc:qvywnipfiyrd6v4qdf4x27wy/app.bsky.feed.post/3mspq7qkkh22s",
+      "likeCount": 11
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreiatjnuemaofceq5xzfmfvub4iduqebwlaqh4dpy5w74re3ytkpvny",
@@ -693,36 +753,6 @@
       "url": "https://bsky.app/profile/isolyth.dev/post/3msoesj236k2g",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3msoesj236k2g",
       "likeCount": 9
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:5hhbgkktcpofpw4ovz6kjjau/bafkreie56xbeytatk4rauvsawtbzrlnr4plnhdyikvxzgs4fgckpjgcjxe",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:5hhbgkktcpofpw4ovz6kjjau/bafkreie56xbeytatk4rauvsawtbzrlnr4plnhdyikvxzgs4fgckpjgcjxe",
-      "alt": "ChatGPT transcript:\n\nAbstract\n\nObjectives: To compare quality-of-life (QoL) outcomes at 6 months between men with advanced prostate cancer receiving either transdermal oestradiol (tE2) or luteinising hormone-releasing hormone agonists (LHRHa) for androgen-deprivation therapy (ADT).\n\nPatients and methods: Men with locally advanced or metastatic prostate cancer participating in an ongoing randomised, multicentre UK trial comparing tE2 versus LHRHa for ADT were enrolled into a QoL sub-study. tE2 was delivered via three or four transcutaneous patches containing oestradiol 100 μg/24 h. LHRHa was administered as per local practice. Patients completed questionnaires based on the European Organisation for Research and Treatment of Cancer quality of life questionnaire 30-item core (EORTC QLQ-C30) with prostate-specific module QLQ PR25. The primary outcome measure was global QoL score at 6 months, compared between randomised arms.\n\nResults: In all, 727 men were enrolled between August 2007 and October 2015 (412 tE2, 315 LHRHa) with QoL questionnaires completed at both baseline and 6 months. Baseline clinical characteristics were similar between arms: median (interquartile range) age of 74 (68–79) years and PSA level of 44 (19–119) ng/mL, and 40% (294/727) had metastatic disease. At 6 months, patients on tE2 reported higher global QoL than those on LHRHa (mean difference +4.2, 95% confidence interval 1.2–7.1; P = 0.006), less fatigue, and improved physical function. Men in the tE2 arm were less likely to experience hot flushes (8% vs 46%), and report a lack of sexual interest (59% vs 74%) and sexual activity, but had higher rates of significant gynaecomastia (37% vs 5%).",
-      "ratio": 0.5286,
-      "handle": "jdp.extropian.net",
-      "url": "https://bsky.app/profile/jdp.extropian.net/post/3mspoaqeq5227",
-      "uri": "at://did:plc:5hhbgkktcpofpw4ovz6kjjau/app.bsky.feed.post/3mspoaqeq5227",
-      "likeCount": 9
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:5hhbgkktcpofpw4ovz6kjjau/bafkreigooj5cezxsj5ydw4jkgmtv4ekbdm24dq3nocgskwv2qcibx5kkqu",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:5hhbgkktcpofpw4ovz6kjjau/bafkreigooj5cezxsj5ydw4jkgmtv4ekbdm24dq3nocgskwv2qcibx5kkqu",
-      "alt": "ChatGPT transcript:\n\nSex steroids and affect in the surgical menopause: a double-blind, cross-over study\n\nBarbara B. Sherwin, Morrie M. Gelfand\n\nAbstract\n\nThe effect of estrogen and/or androgen on mood in surgically menopausal women was investigated with a prospective; double-blind, cross-over design. Oophorectomized women who received either estrogen (E), androgen (A), or a combined estrogen-androgen preparation (E-A) parenterally attained lower depression scores during both treatment phases compared to a placebo group (PL), coincident with their higher plasma estrogen and testosterone levels. When steroids were withdrawn, depression scores of all oophorectomized women were significantly higher than those of a hysterectomized control group with intact ovaries (CON). The A group also had higher hostility scores than the E, PL, and CON groups. These data provide evidence of a covariation between circulating levels of estrogen and testosterone and certain affects in healthy women.",
-      "ratio": 0.522,
-      "handle": "jdp.extropian.net",
-      "url": "https://bsky.app/profile/jdp.extropian.net/post/3mspoaqeq5227",
-      "uri": "at://did:plc:5hhbgkktcpofpw4ovz6kjjau/app.bsky.feed.post/3mspoaqeq5227",
-      "likeCount": 9
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreiaufuqg7ffiybzmg56lqtwhqjaxrt4rskc5t2mej7kyyr76s6okxu",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreiaufuqg7ffiybzmg56lqtwhqjaxrt4rskc5t2mej7kyyr76s6okxu",
-      "alt": "",
-      "ratio": 0.7528,
-      "handle": "hikikomorphism.bsky.social",
-      "url": "https://bsky.app/profile/hikikomorphism.bsky.social/post/3mspq7qkkh22s",
-      "uri": "at://did:plc:qvywnipfiyrd6v4qdf4x27wy/app.bsky.feed.post/3mspq7qkkh22s",
-      "likeCount": 8
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreiengpddsi2lzfbsx5zlsc2kp5rocjn3jiedcwwwibz6egsophbbpi",
@@ -765,16 +795,6 @@
       "likeCount": 7
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreihrqmi2s5nns45g5vwgz3qcsf4rfluklds2iok6gglnzbrlh47bjq",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreihrqmi2s5nns45g5vwgz3qcsf4rfluklds2iok6gglnzbrlh47bjq",
-      "alt": "",
-      "ratio": 1.6989,
-      "handle": "norvid-studies.bsky.social",
-      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3msq2tesmc22a",
-      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3msq2tesmc22a",
-      "likeCount": 7
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:7zre4plmd5jllccww575j6sb/bafkreid3ty47nkutb26ic74yd54tb3uauptby2k3ruo5zknsf5wm3jmhwy",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:7zre4plmd5jllccww575j6sb/bafkreid3ty47nkutb26ic74yd54tb3uauptby2k3ruo5zknsf5wm3jmhwy",
       "alt": "",
@@ -795,23 +815,13 @@
       "likeCount": 6
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreibaj2l3yy2agqqn5lxggsfrxarh7o4nvvgchhzupjirroidtfevvu",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreibaj2l3yy2agqqn5lxggsfrxarh7o4nvvgchhzupjirroidtfevvu",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreicurlqsomtgplcmuglknasbo4qg6oqr2gk4pelmwkxzfif4uxcqla",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreicurlqsomtgplcmuglknasbo4qg6oqr2gk4pelmwkxzfif4uxcqla",
       "alt": "",
-      "ratio": 0.901,
+      "ratio": 1.041,
       "handle": "abeliansoup.bsky.social",
-      "url": "https://bsky.app/profile/abeliansoup.bsky.social/post/3msq5d7n6rk2l",
-      "uri": "at://did:plc:kbdtfnqrqpwwf62f6eekr7m2/app.bsky.feed.post/3msq5d7n6rk2l",
-      "likeCount": 6
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreicosxulyefmdouogvsycf5v33haur3g2vjcpbfsugve23f36wbddq",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreicosxulyefmdouogvsycf5v33haur3g2vjcpbfsugve23f36wbddq",
-      "alt": "",
-      "ratio": 0.6614,
-      "handle": "norvid-studies.bsky.social",
-      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3msp54jrlzc2z",
-      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3msp54jrlzc2z",
+      "url": "https://bsky.app/profile/abeliansoup.bsky.social/post/3msq5m2gb3k2v",
+      "uri": "at://did:plc:kbdtfnqrqpwwf62f6eekr7m2/app.bsky.feed.post/3msq5m2gb3k2v",
       "likeCount": 6
     },
     {
@@ -845,6 +855,46 @@
       "likeCount": 4
     },
     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreiaryykjlxuvs2k5fsrasflg64ypdjc5izpqxghsvrd4biqb2ys3yi",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreiaryykjlxuvs2k5fsrasflg64ypdjc5izpqxghsvrd4biqb2ys3yi",
+      "alt": "",
+      "ratio": 1,
+      "handle": "abeliansoup.bsky.social",
+      "url": "https://bsky.app/profile/abeliansoup.bsky.social/post/3msq6v4j42224",
+      "uri": "at://did:plc:kbdtfnqrqpwwf62f6eekr7m2/app.bsky.feed.post/3msq6v4j42224",
+      "likeCount": 4
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreidgc2fovqmlu7t64lifd466rq74665lfeixrtvsr6qlyzzqotxixi",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreidgc2fovqmlu7t64lifd466rq74665lfeixrtvsr6qlyzzqotxixi",
+      "alt": "",
+      "ratio": 1,
+      "handle": "abeliansoup.bsky.social",
+      "url": "https://bsky.app/profile/abeliansoup.bsky.social/post/3msq6v4j42224",
+      "uri": "at://did:plc:kbdtfnqrqpwwf62f6eekr7m2/app.bsky.feed.post/3msq6v4j42224",
+      "likeCount": 4
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreideosgdxiecqoadg3h5lskdoxk2jlsjjkw3plxrtcficf6vpjt3di",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreideosgdxiecqoadg3h5lskdoxk2jlsjjkw3plxrtcficf6vpjt3di",
+      "alt": "",
+      "ratio": 1,
+      "handle": "abeliansoup.bsky.social",
+      "url": "https://bsky.app/profile/abeliansoup.bsky.social/post/3msq6v4j42224",
+      "uri": "at://did:plc:kbdtfnqrqpwwf62f6eekr7m2/app.bsky.feed.post/3msq6v4j42224",
+      "likeCount": 4
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreiaqitxeyll4r32nwzbva7m3jwr3ldjybpkmhstabtrag7hdslb5te",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreiaqitxeyll4r32nwzbva7m3jwr3ldjybpkmhstabtrag7hdslb5te",
+      "alt": "",
+      "ratio": 1,
+      "handle": "abeliansoup.bsky.social",
+      "url": "https://bsky.app/profile/abeliansoup.bsky.social/post/3msq6v4j42224",
+      "uri": "at://did:plc:kbdtfnqrqpwwf62f6eekr7m2/app.bsky.feed.post/3msq6v4j42224",
+      "likeCount": 4
+    },
+    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreici3vbfvs4qgidyz67jp3a6fl3gq67ocyv72kqdjgcqpujdmrhbou",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreici3vbfvs4qgidyz67jp3a6fl3gq67ocyv72kqdjgcqpujdmrhbou",
       "alt": "",
@@ -853,6 +903,36 @@
       "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3msq455nk3222",
       "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3msq455nk3222",
       "likeCount": 4
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:27u6urclrgh6uijeiqb2wcts/bafkreiftzgipvzctti6qwehyv3ceg4fj72jm7gkjf6wb3iqefy44ve5oni",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:27u6urclrgh6uijeiqb2wcts/bafkreiftzgipvzctti6qwehyv3ceg4fj72jm7gkjf6wb3iqefy44ve5oni",
+      "alt": "Wiktinoary Article anemoai\nEtymology\nCoined by American author and neologist John Koenig in 2012, whose project, The Dictionary of Obscure Sorrows, aims to come up with new words for emotions that currently lack words. From Ancient Greek ἄνεμος (ánemos, “wind”) + -oia, extracted from loanwords like paranoia where -νοια (-noia) refers to a certain state of mind.",
+      "ratio": 3.2323,
+      "handle": "carbonadoks.com",
+      "url": "https://bsky.app/profile/carbonadoks.com/post/3mspprlwfbs2m",
+      "uri": "at://did:plc:27u6urclrgh6uijeiqb2wcts/app.bsky.feed.post/3mspprlwfbs2m",
+      "likeCount": 3
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:w5wzw5xy3ptl7snkar62ggkz/bafkreia4g4ihtfd3iw5i4xeed5pibbotxhbkd57gzffnyh5ipa2hnbauli",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:w5wzw5xy3ptl7snkar62ggkz/bafkreia4g4ihtfd3iw5i4xeed5pibbotxhbkd57gzffnyh5ipa2hnbauli",
+      "alt": "Screenshot of test results with tattooed bearded guy with big gauged earlobes\n\n “Your hidden gem - you were more into this person than most people were:”\n\nNo shit Sherlock this is my hidden gem ",
+      "ratio": 1.0699,
+      "handle": "lauragiron.bsky.social",
+      "url": "https://bsky.app/profile/lauragiron.bsky.social/post/3msq74lfg7c2z",
+      "uri": "at://did:plc:w5wzw5xy3ptl7snkar62ggkz/app.bsky.feed.post/3msq74lfg7c2z",
+      "likeCount": 3
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreieuq5fneexjn6rav3iuqunimzckqeau7wsrn7xneqpi42t5p6ba4q",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreieuq5fneexjn6rav3iuqunimzckqeau7wsrn7xneqpi42t5p6ba4q",
+      "alt": "",
+      "ratio": 1.2387,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3msqbkzyay225",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3msqbkzyay225",
+      "likeCount": 3
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:5clan7z4wsuvaffihedjv6fu/bafkreicyh3ixhx6bfckgvbeeorue4ebhsrffxpb5isrmqp73ldot5b7wim",
@@ -873,86 +953,6 @@
       "url": "https://bsky.app/profile/funferall.bsky.social/post/3msoytvuj2k23",
       "uri": "at://did:plc:gjqw6pjl2wvndjlmatxpenkz/app.bsky.feed.post/3msoytvuj2k23",
       "likeCount": 2
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gjqw6pjl2wvndjlmatxpenkz/bafkreibpdjbwrrsfoschau36ogggxcys2ldfhmjdvnsrs4qasr3v6oto44",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gjqw6pjl2wvndjlmatxpenkz/bafkreibpdjbwrrsfoschau36ogggxcys2ldfhmjdvnsrs4qasr3v6oto44",
-      "alt": "James's reading works because the outlex is an outlaw — Shem's coinage is a positional refusal of lexical authority, and, as your summary puts it, both Joyce and Woolf are responding to imperial and patriarchal enclosures of language. The neologism is aimed at something. There's a dictionary to be outside of, and being outside it is the point.\n\nNothing in the model case is aimed. The drift is a gradient-descent artifact — compression pressure in a long context, jargon-density as a local optimum for token efficiency. It's not defying the lexicon; the lexicon is its prior and it's sliding off it without noticing. That's not outlawry, it's erosion. Shem writes on his own body in his own ink deliberately; this is closer to how any closed shop — a lab, a subreddit, a two-person codebase — grows shorthand nobody outside can parse, except without even the social bonding that usually motivates it.\n\n\"Syntacticist\" is sharper but I don't think it lands either. The arrow-chains are a genuine syntactic innovation — replacing predication with topology, relation-without-verb — so there's something to it. But the bulk of the complaints are lexical and notational: coined nouns, compressed abstractions, private terms of art. It's vocabulary drift wearing a notation.",
-      "ratio": 2.1462,
-      "handle": "funferall.bsky.social",
-      "url": "https://bsky.app/profile/funferall.bsky.social/post/3msoytvuj2k23",
-      "uri": "at://did:plc:gjqw6pjl2wvndjlmatxpenkz/app.bsky.feed.post/3msoytvuj2k23",
-      "likeCount": 2
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreic3lpxjkiai4picsp6br5relusy7hvjfp26f3hejokeiemlpiq7au",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreic3lpxjkiai4picsp6br5relusy7hvjfp26f3hejokeiemlpiq7au",
-      "alt": "",
-      "ratio": 0.7062,
-      "handle": "isolyth.dev",
-      "url": "https://bsky.app/profile/isolyth.dev/post/3mspmj44du22o",
-      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mspmj44du22o",
-      "likeCount": 2
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreib6aneacfvni22uv4jrcad65dbcslgzd2bfn2tp7lyzvztbccfziq",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreib6aneacfvni22uv4jrcad65dbcslgzd2bfn2tp7lyzvztbccfziq",
-      "alt": "",
-      "ratio": 2.0637,
-      "handle": "isolyth.dev",
-      "url": "https://bsky.app/profile/isolyth.dev/post/3mso6vtmd2k2w",
-      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mso6vtmd2k2w",
-      "likeCount": 2
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:avmom3x7xo4ii6tte7rlre5h/bafkreicdn4e6rmsdujwmqbqkc2i4yshbvsgbawzaoqjp5rs54s2fvd4yl4",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:avmom3x7xo4ii6tte7rlre5h/bafkreicdn4e6rmsdujwmqbqkc2i4yshbvsgbawzaoqjp5rs54s2fvd4yl4",
-      "alt": "",
-      "ratio": 30.3651,
-      "handle": "eternalism-when.bsky.social",
-      "url": "https://bsky.app/profile/eternalism-when.bsky.social/post/3mso4axgtok25",
-      "uri": "at://did:plc:avmom3x7xo4ii6tte7rlre5h/app.bsky.feed.post/3mso4axgtok25",
-      "likeCount": 1
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gyaxtxafuuegoh2igamal3dd/bafkreibeuay26cxxuawjyeg5q2355c5cnenpm77vcdevzpjibfy7yir7mq",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gyaxtxafuuegoh2igamal3dd/bafkreibeuay26cxxuawjyeg5q2355c5cnenpm77vcdevzpjibfy7yir7mq",
-      "alt": "",
-      "ratio": 0.7502,
-      "handle": "schwarzgerat.bsky.social",
-      "url": "https://bsky.app/profile/schwarzgerat.bsky.social/post/3msnyilhjvk25",
-      "uri": "at://did:plc:gyaxtxafuuegoh2igamal3dd/app.bsky.feed.post/3msnyilhjvk25",
-      "likeCount": 1
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreicurlqsomtgplcmuglknasbo4qg6oqr2gk4pelmwkxzfif4uxcqla",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreicurlqsomtgplcmuglknasbo4qg6oqr2gk4pelmwkxzfif4uxcqla",
-      "alt": "",
-      "ratio": 1.041,
-      "handle": "abeliansoup.bsky.social",
-      "url": "https://bsky.app/profile/abeliansoup.bsky.social/post/3msq5m2gb3k2v",
-      "uri": "at://did:plc:kbdtfnqrqpwwf62f6eekr7m2/app.bsky.feed.post/3msq5m2gb3k2v",
-      "likeCount": 1
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreidc4ywwcmsb22pugjim5dtjgnbjcxlq4jl2jysxxrjchcepbuji64",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreidc4ywwcmsb22pugjim5dtjgnbjcxlq4jl2jysxxrjchcepbuji64",
-      "alt": "",
-      "ratio": 0.9287,
-      "handle": "norvid-studies.bsky.social",
-      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3msp4ytv5bc2f",
-      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3msp4ytv5bc2f",
-      "likeCount": 1
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:27u6urclrgh6uijeiqb2wcts/bafkreiftzgipvzctti6qwehyv3ceg4fj72jm7gkjf6wb3iqefy44ve5oni",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:27u6urclrgh6uijeiqb2wcts/bafkreiftzgipvzctti6qwehyv3ceg4fj72jm7gkjf6wb3iqefy44ve5oni",
-      "alt": "Wiktinoary Article anemoai\nEtymology\nCoined by American author and neologist John Koenig in 2012, whose project, The Dictionary of Obscure Sorrows, aims to come up with new words for emotions that currently lack words. From Ancient Greek ἄνεμος (ánemos, “wind”) + -oia, extracted from loanwords like paranoia where -νοια (-noia) refers to a certain state of mind.",
-      "ratio": 3.2323,
-      "handle": "carbonadoks.com",
-      "url": "https://bsky.app/profile/carbonadoks.com/post/3mspprlwfbs2m",
-      "uri": "at://did:plc:27u6urclrgh6uijeiqb2wcts/app.bsky.feed.post/3mspprlwfbs2m",
-      "likeCount": 0
     }
   ]
 }
