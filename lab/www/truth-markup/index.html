@@ -87,11 +87,18 @@
 
   .gallery-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
   .gallery-head-actions { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
-  #export-btn { min-height: 44px; background: transparent; color: var(--muted); border-color: var(--border); }
-  #export-btn:hover:not(:disabled) { background: var(--bg-raised); color: var(--fg); }
-  #export-btn:disabled { opacity: .5; cursor: default; }
+  #export-btn, #animate-btn { min-height: 44px; background: transparent; color: var(--muted); border-color: var(--border); }
+  #export-btn:hover:not(:disabled), #animate-btn:hover:not(:disabled) { background: var(--bg-raised); color: var(--fg); }
+  #export-btn:disabled, #animate-btn:disabled { opacity: .5; cursor: default; }
   #export-status { font-size: .78rem; color: var(--muted); }
   #export-status.ok { color: var(--ok); }
+
+  .anim-wrap { display: flex; flex-direction: column; align-items: center; gap: .4rem; margin: 0 0 1rem; }
+  #anim-canvas {
+    display: block; width: 100%; max-width: 220px; aspect-ratio: 1;
+    border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg-raised);
+  }
+  .anim-caption { font-size: .78rem; color: var(--muted); text-align: center; margin: 0; min-height: 1.2em; }
   #gallery {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
     gap: .6rem; margin: 1rem 0 2rem; padding: 0; list-style: none;
@@ -110,8 +117,8 @@
   .versus-row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin-bottom: .5rem; }
   .versus-row input { flex: 1 1 12rem; min-height: 44px; }
   .versus-row button { min-height: 44px; white-space: nowrap; }
-  #versus-status { font-size: .78rem; color: var(--muted); }
-  #versus-status.ok { color: var(--ok); }
+  #versus-status, #challenge-status { font-size: .78rem; color: var(--muted); }
+  #versus-status.ok, #challenge-status.ok { color: var(--ok); }
   #versus-result p { margin: .3rem 0; font-size: .9rem; }
   #versus-result strong { color: var(--fg); }
 
@@ -198,14 +205,23 @@
       <p><strong>you:</strong> <span id="versus-you"></span></p>
       <p><strong id="versus-rival-label"></strong> <span id="versus-rival"></span></p>
     </div>
+    <div class="versus-row">
+      <button id="challenge-btn" type="button">Copy a challenge to paste anywhere</button>
+    </div>
+    <p id="challenge-status"></p>
   </section>
 
   <div class="gallery-head">
     <h2>the discarded, kept as art</h2>
     <div class="gallery-head-actions">
       <button id="export-btn" type="button" disabled>Save gallery as one image</button>
+      <button id="animate-btn" type="button" disabled>Animate the gallery</button>
       <span id="export-status"></span>
     </div>
+  </div>
+  <div class="anim-wrap" id="anim-wrap" hidden>
+    <canvas id="anim-canvas" aria-hidden="true"></canvas>
+    <p class="anim-caption" id="anim-caption"></p>
   </div>
   <p id="save-status-line"><span id="save-status"></span></p>
   <div class="signin-row" id="signin-row">
@@ -231,9 +247,16 @@
     gallery — only the gallery — saves to your own Bluesky repo, so it
     survives; signed out, it's gone when you leave. "Save gallery as one
     image" works either way, signed in or not — it composites whatever
-    tiles are on screen into a single PNG you can download. Racing a rival
-    needs you signed in to post your own score; looking someone else's up
-    never does — that just reads their public repo.
+    tiles are on screen into a single PNG you can download. "Animate the
+    gallery" is the moving version of the same idea — it crossfades through
+    the same tiles in your browser; there's no file to save from it, since
+    building a GIF or video needs an encoder this page has no way to fetch.
+    Racing a rival needs you signed in to post your own score; looking
+    someone else's up never does — that just reads their public repo. Signed
+    in status itself is meant to persist across visits (up to 30 days, kept
+    alive automatically while you're active) — if it isn't sticking for you,
+    that's most likely the browser or app you're viewing this in clearing its
+    storage between visits, not something toggled per-visit here.
   </footer>
 </main>
 
@@ -626,10 +649,117 @@ import { labPds } from '/_kit/pds.js';
 
   var exportBtn = document.getElementById('export-btn');
   var exportStatus = document.getElementById('export-status');
+  var animateBtn = document.getElementById('animate-btn');
+  var animWrap = document.getElementById('anim-wrap');
+  var animCanvas = document.getElementById('anim-canvas');
+  var animCtx = animCanvas.getContext('2d');
+  var animCaption = document.getElementById('anim-caption');
 
   function updateExportState() {
-    exportBtn.disabled = tiles.length === 0;
+    var empty = tiles.length === 0;
+    exportBtn.disabled = empty;
+    animateBtn.disabled = empty;
+    if (empty) { stopAnim(); animWrap.hidden = true; animIndex = 0; }
   }
+
+  // ---- animate the gallery: a crossfading slideshow through the same tile
+  // canvases the grid already painted (no repainting). "Compressed" is the
+  // static PNG export above; this is the "and animated" half of the same
+  // request — a moving view, not a downloadable one (no GIF/APNG encoder is
+  // available client-side with no network to fetch one from). ----
+  var animIndex = 0;
+  var animFrame = 0;
+  var animRaf = null;
+  var ANIM_HOLD = 55;  // frames holding one tile still, ~0.9s at 60fps
+  var ANIM_FADE = 20;  // frames crossfading into the next
+
+  function resizeAnim() {
+    var rect = animCanvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    animCanvas.width = Math.max(1, Math.round(rect.width * dpr));
+    animCanvas.height = Math.max(1, Math.round(rect.height * dpr));
+    animCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function animCanvases() {
+    return Array.prototype.slice.call(gallery.querySelectorAll('canvas'));
+  }
+
+  // tiles[] and the gallery's <canvas> children stay in the same
+  // newest-first order (every place that changes one changes the other), so
+  // index i here is caption text for the same tile canvases[i] paints.
+  function updateAnimCaption(i) {
+    var tile = tiles[i];
+    if (!tile) { animCaption.textContent = ''; return; }
+    var asset = findAsset(tile.key);
+    if (!asset) { animCaption.textContent = ''; return; }
+    animCaption.textContent = asset.name + ' — was low by ' + fmt(tile.removed, asset);
+  }
+
+  function drawAnimFrame() {
+    var canvases = animCanvases();
+    if (!canvases.length) { stopAnim(); return; }
+    if (animIndex >= canvases.length) animIndex = 0;
+    var rect = animCanvas.getBoundingClientRect();
+    var w = rect.width, h = rect.height;
+    var cur = canvases[animIndex];
+    var next = canvases[(animIndex + 1) % canvases.length];
+    var cycle = ANIM_HOLD + ANIM_FADE;
+    var f = animFrame % cycle;
+    animCtx.clearRect(0, 0, w, h);
+    if (canvases.length === 1 || f < ANIM_HOLD) {
+      animCtx.globalAlpha = 1;
+      animCtx.drawImage(cur, 0, 0, w, h);
+    } else {
+      var frac = (f - ANIM_HOLD) / ANIM_FADE;
+      animCtx.globalAlpha = 1 - frac;
+      animCtx.drawImage(cur, 0, 0, w, h);
+      animCtx.globalAlpha = frac;
+      animCtx.drawImage(next, 0, 0, w, h);
+      animCtx.globalAlpha = 1;
+    }
+    updateAnimCaption(animIndex);
+    animFrame++;
+    if (canvases.length > 1 && f === cycle - 1) animIndex = (animIndex + 1) % canvases.length;
+    animRaf = requestAnimationFrame(drawAnimFrame);
+  }
+
+  function startAnim() {
+    if (!animCanvases().length) return;
+    animWrap.hidden = false;
+    resizeAnim();
+    animFrame = 0;
+    animateBtn.textContent = 'Pause the loop';
+    drawAnimFrame();
+  }
+  function stopAnim() {
+    if (animRaf) cancelAnimationFrame(animRaf);
+    animRaf = null;
+    animateBtn.textContent = reducedMotion ? 'Show the next tile' : 'Animate the gallery';
+  }
+
+  // reduced motion: no self-running loop — one static tile per click,
+  // matching this page's existing "redraw once per interaction" pattern
+  // (the ninja fx and the purity redraw both work the same way).
+  function stepAnimStatic() {
+    var canvases = animCanvases();
+    if (!canvases.length) return;
+    animWrap.hidden = false;
+    resizeAnim();
+    animIndex = (animIndex + 1) % canvases.length;
+    var rect = animCanvas.getBoundingClientRect();
+    animCtx.clearRect(0, 0, rect.width, rect.height);
+    animCtx.globalAlpha = 1;
+    animCtx.drawImage(canvases[animIndex], 0, 0, rect.width, rect.height);
+    updateAnimCaption(animIndex);
+  }
+
+  animateBtn.addEventListener('click', function () {
+    if (reducedMotion) { stepAnimStatic(); return; }
+    if (animRaf) stopAnim(); else startAnim();
+  });
+  stopAnim(); // sets the correct initial label for the motion mode, without starting anything
 
   // Composites every tile currently on screen — the same <canvas> elements
   // the gallery already painted, no repainting — into one PNG and offers it
@@ -770,6 +900,26 @@ import { labPds } from '/_kit/pds.js';
     if (e.key === 'Enter') { e.preventDefault(); compareRival(rivalInput.value); }
   });
 
+  // "challenge people": text worth pasting into wherever the visitor actually
+  // wants to send it — this site has no notification API and never will (see
+  // the build brief), so the only honest version of "challenge someone" is a
+  // string they copy and paste themselves, aimed at whoever they pick.
+  var challengeBtn = document.getElementById('challenge-btn');
+  var challengeStatus = document.getElementById('challenge-status');
+  function challengeText() {
+    var url = location.href.split(/[?#]/)[0];
+    if (myBestDispels !== null) {
+      return 'I got every price on Truth Markup honest in ' + dispelWord(myBestDispels) + '. Beat it: ' + url;
+    }
+    return 'Truth Markup — five prices held down by misinformation. Dispel the lies, see what they were really worth: ' + url;
+  }
+  challengeBtn.addEventListener('click', function () {
+    kit.copy(challengeText(), challengeBtn).then(function (ok) {
+      challengeStatus.textContent = ok ? '' : 'could not copy — select and copy the address bar instead';
+      challengeStatus.className = ok ? 'ok' : '';
+    });
+  });
+
   // ---- interaction ----
   var dispelBtn = document.getElementById('dispel');
   var resetBtn = document.getElementById('reset');
@@ -821,7 +971,10 @@ import { labPds } from '/_kit/pds.js';
     if (reducedMotion) { stepHistory(); drawChart(); updateBreakdown(); }
   });
 
-  window.addEventListener('resize', function () { resizeCanvas(); resizeFx(); if (reducedMotion) drawChart(); });
+  window.addEventListener('resize', function () {
+    resizeCanvas(); resizeFx(); if (reducedMotion) drawChart();
+    if (!animWrap.hidden) resizeAnim();
+  });
 
   // ---- sign in / save: optional. Only the gallery persists — the price
   // simulation itself always starts fresh, see the footer note. ----

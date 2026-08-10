@@ -316,6 +316,61 @@ in five words. NOTE.txt asks back with one concrete shape (mirror this page's
 structure onto a second commodity set) so the next reply can just confirm or
 redirect.
 
+Turn 13 shipped in response to "It logs out after every session, can the repo
+be compressed and animated now? Challenge people?" — three separate things,
+handled separately.
+
+**"It logs out after every session":** investigated, not fixed, because there
+is nothing in this tenant's power to fix. Read `lab/_kit/auth.js` closely:
+sign-in already persists a token in `localStorage` (not `sessionStorage`),
+carries a `.mino.mobi` SSO cookie as a fallback, and slides the session
+forward once a day so an active visitor's 30-day session never actually
+expires from use. Nothing in this page's own code signs anyone out early —
+there's no stray `store.signOut()` call, no token cleared on a timer. The
+most likely explanation is the browsing environment, not this page: an
+in-app browser (Bluesky's own webview is the obvious candidate, since that's
+how most visitors arrive) or a privacy mode that clears storage between
+visits would produce exactly this symptom, and it would do it to every site
+on `*.mino.mobi`, not just this one. `auth.js` lives in `lab/_kit/`, which
+this tenant is not allowed to write to even if the fix belonged here. Said so
+plainly in the footer and in NOTE.txt rather than guessing at a workaround
+that might not even be the right problem.
+
+**"compressed and animated"**: read as confirming the ambiguity turn 4's own
+plan flagged — "if the next request confirms 'moving' was literal, start
+there." It did. Built an "Animate the gallery" toggle next to "Save gallery
+as one image": a small canvas (`#anim-canvas`, up to 220px, centered) that
+crossfades through the *same* `<canvas>` elements already painted in the
+gallery grid — no repainting, reusing `paintArt`'s output exactly like the
+static export does. 55 frames holding each tile, 20 frames crossfading into
+the next (`ANIM_HOLD`/`ANIM_FADE`), looping via `requestAnimationFrame`, with
+a plain-text caption underneath naming the current tile (never painted on the
+canvas — the standing "no text on the canvas surface" rule). Play/pause is a
+toggle on the one button; it does not autoplay on load, only on the first
+click, so — like every self-running loop already on this page — motion only
+starts from a deliberate tap.
+
+**No download for the animation, and the footer says so.** "Compressed" was
+already built (turn 4's static PNG composite); "and animated" is a second,
+separate view, not a GIF that replaces the static one — there's no GIF/APNG
+encoder available client-side with no network to fetch one from, and writing
+one from scratch wasn't a good use of a 20-minute turn against three
+requests. If a future request specifically asks for a downloadable moving
+file, that's real work: either a from-scratch GIF encoder (LZW + a
+frame-quantizing palette, all in JS, no library) or shipping an animated PNG
+by hand-writing the `acTL`/`fcTL`/`fdAT` chunks around the existing PNG
+export — both buildable, neither started here.
+
+**"Challenge people?":** added a "Copy a challenge to paste anywhere" button
+in the Versus section. Builds one line of text — your best score if you've
+finished ("I got every price honest in N dispels. Beat it: <url>") or a plain
+invite if you haven't — and puts it on the clipboard via `kit.copy`. This is
+the only honest version of "challenge someone" available here: the site has
+no notification API (the build brief blocks it outright, and for a reason
+that generalizes — one tenant's push permission would be every tenant's), so
+the visitor pastes it themselves, at whoever they actually want to challenge,
+rather than this page messaging anyone on their behalf.
+
 ## The plan (not built yet, roughly in order)
 
 1. ~~Save the gallery to the visitor's own repo~~ — done turn 2.
@@ -373,6 +428,14 @@ redirect.
     structure onto a different commodity set" as the shape to build if asked
     — do not guess the specific market from silence; wait for a name (energy,
     labour, real estate, whatever it turns out to be).
+13. **A downloadable animation**, if a follow-up asks specifically for a file
+    rather than the in-browser loop shipped this turn (turn 13). Two real
+    options, neither started: a hand-written GIF encoder (LZW compression,
+    a per-frame or global colour-quantized palette — gallery art is flat
+    circles/lines on a few `--dram`/`--nand`/etc colours, so quantization
+    should be cheap), or an animated PNG built by hand-assembling `acTL`/
+    `fcTL`/`fdAT` chunks around frames the existing `toDataURL` path already
+    produces. Both are real work, not a tweak.
 
 10. ~~Demand rises with supply of dispelled truth~~ — done turn 9, as a
     global `demandFactor()` pushing every price up to ~40% past "true value"
@@ -422,6 +485,33 @@ script, same pattern), and the five chart lines should sit lower in the
 `.stage` box than turn 8's screenshot showed, since `AXIS_MAX` grew ~34%
 (`1.1` → `1 + 0.4) * 1.05 = 1.47`) — if they still hug the top of the box,
 the axis-headroom math isn't taking effect.
+
+## Screenshot review (turn 13)
+
+Not yet verified — the "Animate the gallery" toggle, the anim canvas/caption,
+and the "Copy a challenge" button have never been rendered. Worth a specific
+look next time a screenshot comes back: `#anim-wrap` should stay `hidden`
+(no empty bordered box) until the button is pressed and at least one tile
+exists; pressing "Animate the gallery" should reveal a square canvas roughly
+the width of one gallery tile enlarged, centered, with the button's label
+switching to "Pause the loop"; the crossfade itself won't show in a still
+screenshot (a static frame mid-fade would look like two overlapping tiles,
+not a bug), but a *persistently blank* canvas after the button was clicked
+would mean `resizeAnim()` ran before `animWrap.hidden = false` took effect —
+check `getBoundingClientRect()` isn't still returning `0` at that point.
+"Copy a challenge" needs no rendering check beyond existing — it should sit
+as a normal-height button below the versus result, not overlapping it.
+
+### Quality-qualifier pass, turn 13
+
+The 1200x800 screenshot only captured the top of the page — header, lede,
+chart and legend — which is above where any of turn 13's own additions live
+(animate toggle, anim canvas, "Copy a challenge" button are all further down,
+past the gallery). What's visible rendered cleanly: title, breadcrumb, lede
+paragraph, the five-line chart sitting in distinct log-scale bands, and the
+legend, none of it off-screen, overlapping or unreadable. Made no changes —
+nothing in frame was broken, and the turn 13 elements this pass was meant to
+check remain unverified, same gap noted above.
 
 ## Gotchas
 

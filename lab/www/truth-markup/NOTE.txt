@@ -1,1 +1,1 @@
-Added a plain-English line under each asset name (DRAM/NAND/HBM/etc) since that was the concrete ask. "Different areas of the market" - didn't guess which; if you name one (energy, real estate, whatever), I'll mirror this page's structure onto it.
+Added an animated crossfade through the art gallery and a copy-a-challenge button. On the logout: sign-in already persists ~30 days here — looks like your browser/app clears storage between visits, not something this page controls.
