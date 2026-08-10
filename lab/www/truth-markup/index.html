@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Truth Markup — prices rise as the misinformation clears</title>
+<meta property="og:title" content="Truth Markup — prices rise as the misinformation clears">
+<meta property="og:description" content="A small simulation: DRAM, NAND, HBM, bandwidth and supply all carry a price suppressed by bad information. Dispel a lie and watch the true price surface — while the noise you removed gets kept as tiny art, to gawk at.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root {
+    --dram: #e8a33d; --nand: #7ac387; --hbm: #f2777a;
+    --transfer: #7fb2e8; --supply: #c48ce8;
+  }
+  main { max-width: 42rem; }
+  .lede { color: var(--muted); font-size: .9rem; margin: 0 0 1.5rem; }
+  .lede b { color: var(--fg); }
+
+  .stage {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: .75rem; margin-bottom: .75rem;
+  }
+  #chart { display: block; width: 100%; height: 220px; }
+
+  .legend {
+    display: flex; gap: .9rem; flex-wrap: wrap; font-size: .78rem;
+    color: var(--muted); margin-bottom: 1.5rem;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: .35rem; }
+  .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+
+  .controls { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; margin-bottom: .5rem; }
+  #dispel { min-height: 44px; }
+  #dispel:disabled { opacity: .5; cursor: default; }
+  #dispel:disabled:hover { background: var(--accent-dim); color: var(--accent); }
+  #reset { min-height: 44px; background: transparent; color: var(--muted); border-color: var(--border); }
+  #reset:hover { background: var(--bg-raised); color: var(--fg); }
+  .purity-wrap { flex: 1 1 12rem; min-width: 10rem; }
+  .purity-label { font-size: .78rem; color: var(--muted); margin-bottom: .3rem; display: flex; justify-content: space-between; }
+  .purity-bar { height: 10px; border-radius: 6px; background: var(--bg-raised); border: 1px solid var(--border); overflow: hidden; }
+  .purity-fill { height: 100%; background: linear-gradient(90deg, var(--accent-dim), var(--accent)); width: 0%; transition: width .4s ease; }
+  @media (prefers-reduced-motion: reduce) { .purity-fill { transition: none; } }
+
+  table.breakdown { width: 100%; border-collapse: collapse; margin: 1.75rem 0; font-size: .85rem; }
+  table.breakdown caption { text-align: left; font-size: .95rem; color: var(--fg); margin-bottom: .6rem; font-weight: 600; }
+  table.breakdown th, table.breakdown td { text-align: left; padding: .5rem .5rem; border-bottom: 1px solid var(--border); }
+  table.breakdown th { color: var(--muted); font-weight: 400; font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
+  table.breakdown td.name { display: flex; align-items: center; gap: .5rem; color: var(--fg); }
+  table.breakdown td.num { font-variant-numeric: tabular-nums; color: var(--fg); }
+  td.delta.up { color: var(--ok); }
+  td.delta.zero { color: var(--muted); }
+  .mini-bar { width: 60px; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; display: inline-block; vertical-align: middle; }
+  .mini-fill { height: 100%; }
+
+  .gallery-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+  #gallery {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+    gap: .6rem; margin: 1rem 0 2rem; padding: 0; list-style: none;
+  }
+  #gallery li { margin: 0; }
+  #gallery canvas {
+    width: 100%; aspect-ratio: 1; display: block; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--bg-raised);
+  }
+  #gallery figcaption { font-size: .68rem; color: var(--muted); margin-top: .3rem; line-height: 1.3; }
+  #gallery-empty { color: var(--muted); font-size: .85rem; }
+
+  footer.note { font-size: .78rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: 1rem; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Truth Markup</h1>
+  <p class="sub">what a price does once the lies stop covering for it</p>
+  <p class="lede">
+    Five things people move around all day — <b>DRAM</b>, <b>NAND</b>,
+    <b>HBM</b>, <b>transfer</b> bandwidth, <b>supply</b> capacity — are all
+    priced a little low, because some of what everyone believes about them
+    is wrong. Dispel a lie below. The suppressed price rises toward what the
+    thing actually costs, and whatever misinformation you removed doesn't
+    vanish — it gets kept, shrunk down to the tiniest piece of art, in the
+    gallery underneath.
+  </p>
+
+  <div class="stage"><canvas id="chart" aria-hidden="true"></canvas></div>
+  <ul class="legend" id="legend"></ul>
+
+  <div class="controls">
+    <button id="dispel" type="button">Dispel a lie</button>
+    <button id="reset" type="button">Reset the record</button>
+    <div class="purity-wrap">
+      <div class="purity-label"><span>informational purity</span><span id="purity-pct">0%</span></div>
+      <div class="purity-bar"><div class="purity-fill" id="purity-fill"></div></div>
+    </div>
+  </div>
+
+  <table class="breakdown" id="breakdown">
+    <caption>what each thing is actually worth</caption>
+    <thead>
+      <tr><th>asset</th><th>true value</th><th>current price</th><th>gap closed</th></tr>
+    </thead>
+    <tbody id="breakdown-body"></tbody>
+  </table>
+
+  <div class="gallery-head">
+    <h2>the discarded, kept as art</h2>
+  </div>
+  <p id="gallery-empty">Nothing dispelled yet — click above to shed the first one.</p>
+  <ul id="gallery"></ul>
+
+  <footer class="note">
+    This is a small illustrative simulation, not a live price feed — the
+    "true values" are approximate, honestly-labelled stand-ins for real
+    DRAM/NAND/HBM economics, not sourced from any market data. Nothing here
+    is saved; refresh and the record resets. Runs entirely in this tab, no
+    network calls.
+  </footer>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var ASSETS = [
+    { key: 'dram',     name: 'DRAM',              unit: '$/GB',    truth: 3.40,  floor: 1.55, color: 'var(--dram)' },
+    { key: 'nand',     name: 'NAND flash',        unit: '$/GB',    truth: 0.085, floor: 0.04, color: 'var(--nand)' },
+    { key: 'hbm',      name: 'HBM stacks',        unit: '$/GB',    truth: 21.0,  floor: 9.5,  color: 'var(--hbm)' },
+    { key: 'transfer', name: 'transfer capacity', unit: '$/Gbps',  truth: 4.2,   floor: 1.8,  color: 'var(--transfer)' },
+    { key: 'supply',   name: 'supply capacity',   unit: '$/slot',  truth: 12.5,  floor: 5.6,  color: 'var(--supply)' },
+  ];
+
+  var reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var purity = 0; // 0..1, global — how much misinformation has been dispelled
+  var t = 0;
+  var HIST_LEN = 140;
+  ASSETS.forEach(function (a) {
+    a.phase = Math.random() * Math.PI * 2;
+    a.freq = 0.008 + Math.random() * 0.01;
+    a.hist = [];
+  });
+
+  function priceOf(a) {
+    var span = a.truth - a.floor;
+    var base = a.floor + span * purity;
+    var noiseAmp = span * 0.22 * (1 - purity);
+    var jitter = Math.sin(t * a.freq + a.phase) * noiseAmp
+               + (Math.sin(t * a.freq * 2.7 + a.phase) * noiseAmp * 0.35);
+    return Math.max(a.floor * 0.5, base + jitter);
+  }
+
+  // ---- chart ----
+  var canvas = document.getElementById('chart');
+  var ctx = canvas.getContext('2d');
+
+  function resizeCanvas() {
+    var rect = canvas.getBoundingClientRect();
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.max(1, Math.round(rect.width * dpr));
+    canvas.height = Math.max(1, Math.round(rect.height * dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name.replace('var(', '').replace(')', '')).trim();
+  }
+
+  function drawChart() {
+    var rect = canvas.getBoundingClientRect();
+    var w = rect.width, h = rect.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // reference grid — decoration, no numbers
+    ctx.strokeStyle = cssVar('--border');
+    ctx.lineWidth = 1;
+    for (var g = 1; g < 4; g++) {
+      var gy = (h / 4) * g;
+      ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
+    }
+
+    ASSETS.forEach(function (a) {
+      var dispMin = a.floor * 0.75, dispMax = a.truth * 1.1;
+      var color = cssVar(a.color);
+      ctx.beginPath();
+      for (var i = 0; i < a.hist.length; i++) {
+        var frac = i / (HIST_LEN - 1);
+        var x = frac * w;
+        var norm = (a.hist[i] - dispMin) / (dispMax - dispMin);
+        var y = h - Math.max(0, Math.min(1, norm)) * (h - 8) - 4;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    });
+  }
+
+  function stepHistory() {
+    ASSETS.forEach(function (a) {
+      var p = priceOf(a);
+      a.hist.push(p);
+      if (a.hist.length > HIST_LEN) a.hist.shift();
+    });
+  }
+
+  // ---- legend ----
+  var legend = document.getElementById('legend');
+  ASSETS.forEach(function (a) {
+    var span = document.createElement('span');
+    var sw = document.createElement('span');
+    sw.className = 'swatch';
+    sw.style.background = a.color;
+    span.appendChild(sw);
+    span.appendChild(document.createTextNode(a.name));
+    legend.appendChild(span);
+  });
+
+  // ---- breakdown table ----
+  var tbody = document.getElementById('breakdown-body');
+  var rows = {};
+  ASSETS.forEach(function (a) {
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td class="name"><span class="swatch" style="background:' + a.color + '"></span>' + a.name + '</td>' +
+      '<td class="num">' + fmt(a.truth, a) + '</td>' +
+      '<td class="num" data-role="price">' + fmt(a.floor, a) + '</td>' +
+      '<td class="delta zero" data-role="gap"><span class="mini-bar"><span class="mini-fill" style="width:0%;background:' + a.color + '"></span></span></td>';
+    tbody.appendChild(tr);
+    rows[a.key] = tr;
+  });
+
+  function fmt(v, a) {
+    return (v < 1 ? v.toFixed(3) : v.toFixed(2)) + ' ' + a.unit;
+  }
+
+  function updateBreakdown() {
+    ASSETS.forEach(function (a) {
+      var p = priceOf(a);
+      var gapClosed = (p - a.floor) / (a.truth - a.floor);
+      gapClosed = Math.max(0, Math.min(1, gapClosed));
+      var tr = rows[a.key];
+      var priceCell = tr.querySelector('[data-role="price"]');
+      var gapCell = tr.querySelector('[data-role="gap"]');
+      priceCell.textContent = fmt(p, a);
+      gapCell.className = 'delta ' + (gapClosed > 0.02 ? 'up' : 'zero');
+      var fill = gapCell.querySelector('.mini-fill');
+      fill.style.width = Math.round(gapClosed * 100) + '%';
+    });
+  }
+
+  // ---- purity control ----
+  var purityPct = document.getElementById('purity-pct');
+  var purityFill = document.getElementById('purity-fill');
+  function updatePurityUI() {
+    var pct = Math.round(purity * 100);
+    purityPct.textContent = pct + '%';
+    purityFill.style.width = pct + '%';
+  }
+
+  // ---- gallery: what got dispelled, kept as tiny art ----
+  var gallery = document.getElementById('gallery');
+  var galleryEmpty = document.getElementById('gallery-empty');
+  var GALLERY_MAX = 30;
+
+  function paintArt(cv, seedColor, magnitude) {
+    var g = cv.getContext('2d');
+    var w = cv.width, h = cv.height;
+    g.clearRect(0, 0, w, h);
+    var n = 5 + Math.floor(Math.random() * 5);
+    for (var i = 0; i < n; i++) {
+      var r = (0.06 + Math.random() * 0.22 * magnitude) * Math.min(w, h);
+      var cx = Math.random() * w, cy = Math.random() * h;
+      g.beginPath();
+      g.arc(cx, cy, Math.max(2, r), 0, Math.PI * 2);
+      g.fillStyle = seedColor;
+      g.globalAlpha = 0.18 + Math.random() * 0.35;
+      g.fill();
+    }
+    g.globalAlpha = 1;
+    g.strokeStyle = seedColor;
+    g.lineWidth = 1.5;
+    g.beginPath();
+    var px = Math.random() * w, py = Math.random() * h;
+    g.moveTo(px, py);
+    for (var j = 0; j < 3; j++) {
+      px = Math.random() * w; py = Math.random() * h;
+      g.lineTo(px, py);
+    }
+    g.stroke();
+  }
+
+  function addArtwork(asset, removedAmount) {
+    galleryEmpty.hidden = true;
+    var li = document.createElement('li');
+    var cv = document.createElement('canvas');
+    cv.width = 96; cv.height = 96;
+    var fig = document.createElement('figure');
+    fig.style.margin = '0';
+    var cap = document.createElement('figcaption');
+    cap.textContent = asset.name + ' misprice, dispelled — was low by ' + fmt(removedAmount, asset);
+    fig.appendChild(cv);
+    fig.appendChild(cap);
+    li.appendChild(fig);
+    gallery.insertBefore(li, gallery.firstChild);
+    paintArt(cv, cssVar(asset.color), Math.min(1, removedAmount / (asset.truth - asset.floor) + 0.3));
+    while (gallery.children.length > GALLERY_MAX) gallery.removeChild(gallery.lastChild);
+  }
+
+  // ---- interaction ----
+  var dispelBtn = document.getElementById('dispel');
+  var resetBtn = document.getElementById('reset');
+
+  dispelBtn.addEventListener('click', function () {
+    if (purity >= 1) return;
+    var before = purity;
+    purity = Math.min(1, purity + 0.05 + Math.random() * 0.09);
+    updatePurityUI();
+
+    // credit the artwork to a random asset, weighted by how much
+    // misinformation it started with — HBM has more to shed than NAND
+    var totalSpan = ASSETS.reduce(function (s, a) { return s + (a.truth - a.floor); }, 0);
+    var pick = Math.random() * totalSpan;
+    var picked = ASSETS[ASSETS.length - 1];
+    for (var k = 0; k < ASSETS.length; k++) {
+      pick -= (ASSETS[k].truth - ASSETS[k].floor);
+      if (pick <= 0) { picked = ASSETS[k]; break; }
+    }
+    var removed = (picked.truth - picked.floor) * (purity - before);
+    addArtwork(picked, removed);
+
+    if (reducedMotion) { stepHistory(); drawChart(); updateBreakdown(); }
+    if (purity >= 1) { dispelBtn.textContent = 'Nothing left to dispel'; dispelBtn.disabled = true; }
+  });
+
+  resetBtn.addEventListener('click', function () {
+    purity = 0;
+    updatePurityUI();
+    dispelBtn.textContent = 'Dispel a lie';
+    dispelBtn.disabled = false;
+    ASSETS.forEach(function (a) { a.hist = []; });
+    if (reducedMotion) { stepHistory(); drawChart(); updateBreakdown(); }
+  });
+
+  window.addEventListener('resize', function () { resizeCanvas(); if (reducedMotion) drawChart(); });
+
+  // ---- run ----
+  document.getElementById('crumb').innerHTML = kit.crumb('data-real');
+  resizeCanvas();
+  updatePurityUI();
+
+  if (reducedMotion) {
+    for (var i = 0; i < HIST_LEN; i++) { t++; stepHistory(); }
+    drawChart();
+    updateBreakdown();
+  } else {
+    (function loop() {
+      t++;
+      stepHistory();
+      drawChart();
+      updateBreakdown();
+      requestAnimationFrame(loop);
+    })();
+  }
+})();
+</script>
+</body>
+</html>
