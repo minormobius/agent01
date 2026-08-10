@@ -1,1 +1,1 @@
-Added one line under the legend explaining the chart shares a log-scale axis — NAND's cent moves and HBM's dollar moves were both real, the flat-looking NAND line just needed saying so, in text, not painted on the canvas.
+Centered the main Dispel button above the rest of the controls, and gave every dispel control — that one plus each row's own "Go" — a white lightning flash on click, not just the first. Untested on screen; tell me if the glow or layout look off.

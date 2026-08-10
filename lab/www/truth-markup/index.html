@@ -33,13 +33,31 @@
   .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; }
   .chart-note { color: var(--muted); font-size: .78rem; margin: 0 0 1.5rem; }
 
-  .controls { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; margin-bottom: .5rem; }
-  #dispel { min-height: 44px; }
+  .controls { margin-bottom: .5rem; }
+  .dispel-row { display: flex; justify-content: center; margin-bottom: .75rem; }
+  #dispel { min-height: 44px; font-size: 1rem; padding: .9rem 1.8rem; }
   #dispel:disabled { opacity: .5; cursor: default; }
   #dispel:disabled:hover { background: var(--accent-dim); color: var(--accent); }
+  .controls-secondary { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; }
   #reset { min-height: 44px; background: transparent; color: var(--muted); border-color: var(--border); }
   #reset:hover { background: var(--bg-raised); color: var(--fg); }
   .purity-wrap { flex: 1 1 12rem; min-width: 10rem; }
+
+  /* Lightning flash: every button that triggers a dispel (the global one and
+     each per-asset "Go") gets this on click. tokens.css already caps animation
+     duration to .01ms under prefers-reduced-motion, so this needs no separate
+     reduced-motion branch — it just resolves near-instantly there instead of
+     looping, matching the "no self-running animation" rule without a second
+     code path for what is already a one-shot, interaction-triggered effect. */
+  @keyframes lightning-flash {
+    0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0); filter: brightness(1); }
+    15%  { box-shadow: 0 0 20px 5px #fff; filter: brightness(2.2); }
+    30%  { box-shadow: 0 0 2px 0 rgba(255,255,255,0); filter: brightness(1); }
+    45%  { box-shadow: 0 0 24px 7px #fff; filter: brightness(2.4); }
+    65%  { box-shadow: 0 0 0 0 rgba(255,255,255,0); filter: brightness(1); }
+    100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); filter: brightness(1); }
+  }
+  .lightning-flash { animation: lightning-flash .55s ease-out; }
   .purity-label { font-size: .78rem; color: var(--muted); margin-bottom: .3rem; display: flex; justify-content: space-between; }
   .purity-bar { height: 10px; border-radius: 6px; background: var(--bg-raised); border: 1px solid var(--border); overflow: hidden; }
   .purity-fill { height: 100%; background: linear-gradient(90deg, var(--accent-dim), var(--accent)); width: 0%; transition: width .4s ease; }
@@ -140,12 +158,16 @@
   </p>
 
   <div class="controls">
-    <button id="dispel" type="button">Dispel a lie</button>
-    <button id="reset" type="button">Reset the record</button>
-    <div class="purity-wrap">
-      <div class="purity-label"><span>informational purity</span><span id="purity-pct">0%</span></div>
-      <div class="purity-bar"><div class="purity-fill" id="purity-fill"></div></div>
-      <p class="demand-line">demand for truth: <span id="demand-pct">+0%</span> above true value</p>
+    <div class="dispel-row">
+      <button id="dispel" type="button">Dispel a lie</button>
+    </div>
+    <div class="controls-secondary">
+      <button id="reset" type="button">Reset the record</button>
+      <div class="purity-wrap">
+        <div class="purity-label"><span>informational purity</span><span id="purity-pct">0%</span></div>
+        <div class="purity-bar"><div class="purity-fill" id="purity-fill"></div></div>
+        <p class="demand-line">demand for truth: <span id="demand-pct">+0%</span> above true value</p>
+      </div>
     </div>
   </div>
 
@@ -473,13 +495,23 @@ import { labPds } from '/_kit/pds.js';
     assetButtons[a.key] = tr.querySelector('.asset-dispel');
   });
 
+  // one flash per dispel, on whichever button the visitor actually pressed —
+  // the global button and every per-asset "Go" all use this, so every
+  // instance of a dispel control flashes, not just one of them.
+  function flashLightning(el) {
+    if (!el) return;
+    el.classList.remove('lightning-flash');
+    void el.offsetWidth; // restart the animation even if it's already mid-flash
+    el.classList.add('lightning-flash');
+  }
+
   // one button per asset, for dispelling a specific one instead of a random
   // weighted pick — the global button below still does the weighted pick.
   tbody.addEventListener('click', function (e) {
     var btn = e.target.closest ? e.target.closest('.asset-dispel') : null;
     if (!btn || btn.disabled) return;
     var asset = findAsset(btn.getAttribute('data-key'));
-    if (asset) doDispel(asset);
+    if (asset) { flashLightning(btn); doDispel(asset); }
   });
 
   function updateAssetButtonStates() {
@@ -763,6 +795,7 @@ import { labPds } from '/_kit/pds.js';
       pick -= (candidates[k].truth - candidates[k].floor) * (1 - candidates[k].purity);
       if (pick <= 0) { picked = candidates[k]; break; }
     }
+    flashLightning(dispelBtn);
     doDispel(picked);
   });
 

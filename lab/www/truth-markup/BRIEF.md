@@ -247,6 +247,42 @@ so the two sit closer together as a unit and `.chart-note` carries the
 `1.5rem` bottom margin instead — same total spacing before the controls row,
 just split between two elements now. No JS touched.
 
+Turn 11 shipped in response to "Center the dispel button and make it flash like
+lightning for every instance" — a direct, concrete ask naming two specific
+changes (unlike turns 2/3/7/8/10's opaque riffs), so it was built now rather
+than worked off the plan.
+
+Two changes, both pure CSS/markup/JS, no new state:
+
+1. **Centered the dispel button.** The `.controls` row used to lay the global
+   "Dispel a lie" button, "Reset the record" and the purity bar out side by
+   side, left-aligned as a group. Split it into `.dispel-row` (just the
+   button, `justify-content: center`, its own row) sitting above
+   `.controls-secondary` (reset + purity bar, same flex-wrap row as before).
+   Reads as: the one button that matters most is now the visual centerpiece,
+   everything else sits secondary underneath it.
+2. **Lightning flash on every dispel control.** Read "for every instance" as
+   "every button that can trigger a dispel" — the global button *and* each of
+   the five per-asset "Go" buttons in the breakdown table, not just the first
+   click. Added a `lightning-flash` CSS keyframe (white glow via `box-shadow`
+   + `filter: brightness()`, no colour dependency so it reads the same
+   regardless of which asset's row it's on) and a `flashLightning(el)` helper
+   that toggles the class with a forced reflow so a rapid double-click
+   restarts the animation instead of no-opping. Called from both click sites:
+   the global `dispelBtn` handler and the delegated `.asset-dispel` handler in
+   `tbody`'s click listener — both already had a direct reference to the
+   button that was actually pressed, so no new lookup was needed.
+
+**No separate reduced-motion branch was needed for the flash**, unlike the
+ninja fx or the chart. `tokens.css`'s global rule caps every CSS
+`animation-duration` to `.01ms` under `prefers-reduced-motion: reduce`, and
+this is a one-shot, interaction-triggered `@keyframes` animation (not a
+self-running loop) — exactly the case that rule is written to leave alone. So
+under reduced motion the flash still fires but resolves to its end state
+almost instantly instead of visibly animating, which matches the site's
+existing pattern of "redraw once per interaction, never animate on its own"
+without writing a second code path for it.
+
 ## The plan (not built yet, roughly in order)
 
 1. ~~Save the gallery to the visitor's own repo~~ — done turn 2.
@@ -442,6 +478,19 @@ sit as a single muted line directly under the legend, wrapping normally at
 360px wide (it's a plain `<p>` in the normal flow, no special narrow-width
 handling written), and it should read clearly against `--bg` since it's
 outside `.stage` (not drawn over `--bg-raised` like the chart itself).
+
+## Screenshot review (turn 11)
+
+Not re-verified this turn — the centered dispel button and the lightning flash
+have never been rendered. Worth a specific look next time a screenshot comes
+back: the "Dispel a lie" button should sit centered above "Reset the record"
+and the purity bar (not still in a single left-aligned row with them — if it
+is, `.dispel-row`/`.controls-secondary` didn't take), and a screenshot taken
+mid-click should show a bright white glow around whichever button was pressed
+(the `.lightning-flash` `box-shadow`/`filter` — a static screenshot has good
+odds of missing a .55s animation entirely, so absence of a visible glow isn't
+necessarily a bug; a *persistent* glow that never fades, or a glow with the
+wrong colour cast, would be).
 
 ## Screenshot review (turn 6)
 
