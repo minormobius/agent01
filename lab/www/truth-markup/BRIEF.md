@@ -81,33 +81,60 @@ empty.
   (dispel/reset) still redraws once per click so the page isn't frozen, it's
   just not animating on its own.
 
+Turn 4 shipped in response to "Nice, could those tidbits of art be comparted
+into an imaging mover" — garbled phrasing, read as "composite the [gallery]
+tiles into one movable/downloadable image." Added a "Save gallery as one
+image" button next to the gallery heading: it grabs every `<canvas>` element
+currently in `#gallery` (no repainting — reuses the DOM tiles as-is), lays
+them into a grid on one offscreen canvas with a `--bg-raised` background and
+rounded-rect clipping per tile (feature-detected via `ctx.roundRect`), and
+triggers a `download`-attribute link with `toDataURL('image/png')`. Disabled
+while the gallery is empty; `updateExportState()` is called from every place
+`tiles` changes (`addArtwork`, the clear-gallery handler, and the
+sign-in/merge chain) to keep that in sync. Works signed in or out, since it
+only reads what's already painted — no repo round-trip involved.
+
+NOTE.txt flags the ambiguity: if the requester actually meant an *animated*
+image (a GIF-like flipbook cycling through tiles, matching "imaging mover"
+read as "a moving image" rather than "a movable image"), that's a different
+and bigger build — no GIF encoder is available client-side, so it'd mean a
+canvas loop cycling frames, which is buildable but wasn't started this turn
+since the static-composite reading felt more likely given no other signal in
+the thread. If the next request confirms "moving" was literal, start there
+rather than treating this turn's export as *it* just needing to loop.
+
 ## The plan (not built yet, roughly in order)
 
 1. ~~Save the gallery to the visitor's own repo~~ — done turn 2.
 2. ~~Merge a signed-out session's tiles into an account on sign-in~~ — done
-   this turn (turn 3).
-3. ~~A "clear my saved gallery" control~~ — done this turn (turn 3).
-4. **A `scoresOf`/leaderboard angle** is plausible ("who dispelled the most
+   turn 3.
+3. ~~A "clear my saved gallery" control~~ — done turn 3.
+4. ~~Composite the gallery into one downloadable image~~ — done this turn
+   (turn 4). See note above about the animated-image alternate reading if a
+   follow-up asks for it explicitly.
+5. **A `scoresOf`/leaderboard angle** is plausible ("who dispelled the most
    misinformation") but only if a future ask actually wants competition —
    don't add it speculatively; this requester's profile shows they'll ask
    for versus/competitive mechanics explicitly when they want them (see the
    flame-simulator "Flame Wars" build).
-5. **Per-asset dispel** (five small buttons instead of one) if a follow-up
+6. **Per-asset dispel** (five small buttons instead of one) if a follow-up
    wants finer control — straightforward, `priceOf`/`ASSETS` already have
    the per-asset state, just needs per-asset `purity` instead of one global
    number.
-6. Chart currently normalizes each line independently within its own
+7. Chart currently normalizes each line independently within its own
    `[floor*0.75, truth*1.1]` band for display — fine for "the noise is
    calming down" but doesn't let you compare absolute scale across assets.
    If a future ask wants that, it needs a real shared axis and probably a
    log scale (HBM at $21/GB dwarfs NAND at $0.085/GB).
-7. **Not built:** the merge (item 2, above) is untested past reading the
-   code carefully — there's no way to exercise an OAuth round-trip from this
-   sandbox. If a future screenshot/report shows the gallery empty right
-   after a first sign-in-with-existing-tiles, check `sessionStorage` isn't
-   being cleared by the redirect itself in some browser before the read-back
-   runs (it shouldn't be — same tab, same origin — but it's the one part of
-   this turn that couldn't be verified end to end).
+8. **Not built:** the sign-in merge (item 2, above) is still untested past
+   reading the code carefully — there's no way to exercise an OAuth
+   round-trip from this sandbox. Same for this turn's export button: the
+   composite math (grid layout, `roundRect` clipping, the download link) is
+   correct on paper but has never actually run in a browser. If a
+   screenshot/report shows a blank or malformed download, check
+   `canvas.toDataURL` isn't throwing on a tainted canvas first — it
+   shouldn't be, every source canvas is drawn by this page's own script, not
+   loaded from any origin — before suspecting the grid math.
 
 ## Gotchas
 
@@ -168,3 +195,12 @@ first `drawChart()`/`requestAnimationFrame` call, for both the reduced-motion
 and normal paths, so the chart opens full instead of growing one point per
 frame from empty. `reducedMotion` no longer needs its own fill loop since the
 shared pre-fill covers it; it just skips starting the rAF loop afterward.
+
+## Screenshot review (turn 4)
+
+Not re-verified this turn — the export button and its composite canvas were
+added but never seen rendered. Worth a specific look next time a screenshot
+comes back: does the button sit sensibly next to "the discarded, kept as
+art" heading at narrow widths (it's in a `flex-wrap` row so it should stack,
+but hasn't been confirmed), and does it stay disabled-looking (not just
+disabled) before any tile exists.
