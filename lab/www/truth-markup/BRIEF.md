@@ -123,6 +123,27 @@ mark drawn once per click at a random point, matching the existing
 reduced-motion pattern of "redraw once per interaction, never animate on
 its own." Reset clears both the effect queue and the fx canvas.
 
+Turn 6 shipped in response to "Induce with flame wars" — read against
+minormobius's "you can just tell this guy to build it" reply and this
+requester's own established pattern (see the profile's eighth build, "Flame
+Wars" battle mode on the flame simulator: they ask for versus/competitive
+mechanics explicitly, by name, when they want them). Turn 5's own plan (item
+5) already flagged this exact trigger and said not to build it speculatively
+— this request is that trigger arriving, so it's built now.
+
+Read "flame wars" as "bring over that site's competitive-mechanic pattern,"
+not literally — this page is about dispelling misinformation with a
+shuriken, not fire, so the feature is named on its own terms ("race a rival
+to full purity") rather than importing the other site's name. Added a new
+"Versus" section between the breakdown table and the gallery: reaching full
+purity (100%) scores the number of "Dispel a lie" clicks it took
+(`store.postScore`, `unit: 'dispels'`, `higherIsBetter: false` — fewer is
+better, it's a race). A handle box (`kit.handleInput`) below it looks up
+that handle's own posted scores via `store.scoresOf` + `store.rank` and
+shows their best against yours. Posting needs sign-in (uses the existing
+optional sign-in already on the page); looking a rival up never does, since
+`scoresOf` reads their public repo unauthenticated.
+
 ## The plan (not built yet, roughly in order)
 
 1. ~~Save the gallery to the visitor's own repo~~ — done turn 2.
@@ -132,11 +153,15 @@ its own." Reset clears both the effect queue and the fx canvas.
 4. ~~Composite the gallery into one downloadable image~~ — done this turn
    (turn 4). See note above about the animated-image alternate reading if a
    follow-up asks for it explicitly.
-5. **A `scoresOf`/leaderboard angle** is plausible ("who dispelled the most
-   misinformation") but only if a future ask actually wants competition —
-   don't add it speculatively; this requester's profile shows they'll ask
-   for versus/competitive mechanics explicitly when they want them (see the
-   flame-simulator "Flame Wars" build).
+5. ~~A `scoresOf`/leaderboard angle~~ — done this turn (turn 6), as the
+   "race a rival to full purity" versus section, scored in dispel-clicks.
+   **Not built as part of it, and worth doing next if this line continues:**
+   the score only ever fires once, at full purity — there's no way to see a
+   rival's score without already knowing their handle, and no "recent
+   racers" list (deliberately: the lexicon rule is a leaderboard built from
+   named handles only, never a global scoreboard query, so there's no
+   `getAll`-style call to add even if asked — the honest answer to "show me
+   everyone who's played" is that this factory has no way to do that).
 6. **Per-asset dispel** (five small buttons instead of one) if a follow-up
    wants finer control — straightforward, `priceOf`/`ASSETS` already have
    the per-asset state, just needs per-asset `purity` instead of one global
@@ -199,6 +224,17 @@ its own." Reset clears both the effect queue and the fx canvas.
   survives the OAuth round trip (same tab) but clears itself once that tab
   closes, which is the right lifetime for "notes to self about to redirect,"
   and it won't leak into a different tab's signed-out session.
+- `store.postScore` throws `TypeError` on a non-integer value — `dispelCount`
+  is a plain click counter (always an integer) so this is safe here, but it's
+  the reason the score is "clicks to full purity" rather than something
+  derived from `purity` (a 0..1 float) without rounding it first.
+- `postScore` is append-only and calls `ensureScope` itself if the visitor
+  only granted the doc scope during the existing gallery sign-in — so the
+  first score post after an existing sign-in may trigger a second, separate
+  OAuth consent screen for `repo:com.minomobi.lab.score`. That's expected,
+  not a bug; didn't request the scores scope upfront in `doSignIn` because
+  most visits won't finish a run, and asking for a permission unused that
+  session makes the consent screen longer for no benefit.
 - `#fx`'s `top:0;left:0;right:0` is relative to `.stage`'s **padding box**,
   not its border box, because `.stage` is the nearest `position: relative`
   ancestor and that's how CSS defines the containing block for an
@@ -247,3 +283,14 @@ comes back: does the button sit sensibly next to "the discarded, kept as
 art" heading at narrow widths (it's in a `flex-wrap` row so it should stack,
 but hasn't been confirmed), and does it stay disabled-looking (not just
 disabled) before any tile exists.
+
+## Screenshot review (turn 6)
+
+Not re-verified this turn — the new "Versus" section (handle input, Compare
+button, and the two result lines) was added but never seen rendered. Since
+`#versus-result` starts `hidden`, a fresh screenshot should show only the
+lede, the input row and an empty status line above the gallery heading — if
+the result lines are visible before any comparison, the `hidden` attribute
+toggle didn't take. Also worth checking the input+button row wraps cleanly
+at 360px wide like the existing sign-in row does (same CSS pattern, but not
+independently confirmed for this one).

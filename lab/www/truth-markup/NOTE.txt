@@ -1,1 +1,1 @@
-Made it tangible: each dispel now throws a spinning shuriken across the chart, trailing sparks — a canvas shape, not an image. Want it bigger, a whole animated figure? Say so and I'll push further.
+Read "flame wars" as your usual versus ask, not literal fire: finish a run and it scores your dispel-clicks, fewer is better. Type a rival's handle to see if they beat it. No global board — only handles you name, like everywhere else here.

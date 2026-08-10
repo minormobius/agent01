@@ -74,6 +74,17 @@
   #gallery figcaption { font-size: .68rem; color: var(--muted); margin-top: .3rem; line-height: 1.3; }
   #gallery-empty { color: var(--muted); font-size: .85rem; }
 
+  #versus { margin: 1.75rem 0; }
+  #versus h2 { margin-bottom: .4rem; }
+  .versus-lede { margin: 0 0 .75rem; }
+  .versus-row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin-bottom: .5rem; }
+  .versus-row input { flex: 1 1 12rem; min-height: 44px; }
+  .versus-row button { min-height: 44px; white-space: nowrap; }
+  #versus-status { font-size: .78rem; color: var(--muted); }
+  #versus-status.ok { color: var(--ok); }
+  #versus-result p { margin: .3rem 0; font-size: .9rem; }
+  #versus-result strong { color: var(--fg); }
+
   .signin-row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin: -.5rem 0 1rem; }
   .signin-row input { flex: 1 1 12rem; min-height: 44px; }
   .signin-row button { min-height: 44px; white-space: nowrap; }
@@ -126,6 +137,25 @@
     <tbody id="breakdown-body"></tbody>
   </table>
 
+  <section id="versus">
+    <h2>race a rival to full purity</h2>
+    <p class="lede versus-lede">
+      Every dispel you click while signed in counts toward one score: how many
+      it took you to get every price honest. Fewer is better. Type someone
+      else's handle to see how many it took them — only if they've finished
+      it here too.
+    </p>
+    <div class="versus-row">
+      <input id="rival-input" type="text" placeholder="rivalhandle.bsky.social" aria-label="Bluesky handle to compare against">
+      <button id="compare-btn" type="button">Compare</button>
+    </div>
+    <p id="versus-status"></p>
+    <div id="versus-result" hidden>
+      <p><strong>you:</strong> <span id="versus-you"></span></p>
+      <p><strong id="versus-rival-label"></strong> <span id="versus-rival"></span></p>
+    </div>
+  </section>
+
   <div class="gallery-head">
     <h2>the discarded, kept as art</h2>
     <div class="gallery-head-actions">
@@ -154,7 +184,9 @@
     gallery — only the gallery — saves to your own Bluesky repo, so it
     survives; signed out, it's gone when you leave. "Save gallery as one
     image" works either way, signed in or not — it composites whatever
-    tiles are on screen into a single PNG you can download.
+    tiles are on screen into a single PNG you can download. Racing a rival
+    needs you signed in to post your own score; looking someone else's up
+    never does — that just reads their public repo.
   </footer>
 </main>
 
@@ -549,12 +581,87 @@ import { labPds } from '/_kit/pds.js';
     persistGallery();
   }
 
+  // ---- versus: race a rival to full purity, scored in dispel-clicks ----
+  // "dispels" is append-only per store.postScore's own contract, so it only
+  // posts once per completed run (scorePosted), not once per click.
+  var dispelCount = 0;
+  var scorePosted = false;
+  var myBestDispels = null; // lowest dispelCount across completed runs this visit
+
+  var versusStatus = document.getElementById('versus-status');
+  var versusResult = document.getElementById('versus-result');
+  var versusYou = document.getElementById('versus-you');
+  var versusRivalLabel = document.getElementById('versus-rival-label');
+  var versusRival = document.getElementById('versus-rival');
+  var rivalInput = document.getElementById('rival-input');
+  var compareBtn = document.getElementById('compare-btn');
+
+  function dispelWord(n) { return n + (n === 1 ? ' dispel' : ' dispels'); }
+
+  function youText() {
+    if (myBestDispels !== null) return dispelWord(myBestDispels) + ' to full purity';
+    if (purity >= 1) return dispelWord(dispelCount) + ' to full purity — not posted (sign in above to save it)';
+    return 'still dispelling — ' + Math.round(purity * 100) + '% so far';
+  }
+
+  function updateVersusYou() {
+    if (versusResult.hidden) return;
+    versusYou.textContent = youText();
+  }
+
+  function maybePostScore() {
+    if (purity < 1 || scorePosted) return;
+    scorePosted = true;
+    if (myBestDispels === null || dispelCount < myBestDispels) myBestDispels = dispelCount;
+    updateVersusYou();
+    if (!store.user()) return;
+    store.postScore(dispelCount, {
+      unit: 'dispels', higherIsBetter: false,
+      detail: 'clicks of "Dispel a lie" to reach full purity'
+    }).then(function () {
+      versusStatus.textContent = 'score posted: ' + dispelWord(dispelCount) + ' to full purity';
+      versusStatus.className = 'ok';
+    }).catch(function (err) {
+      kit.showError(versusStatus, 'could not post your score: ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  function compareRival(handle) {
+    handle = (handle || '').trim();
+    if (!handle) return;
+    versusStatus.textContent = 'looking up @' + handle + '…';
+    versusStatus.className = '';
+    versusResult.hidden = true;
+    store.scoresOf(handle).then(function (scores) {
+      versusStatus.textContent = '';
+      versusResult.hidden = false;
+      versusYou.textContent = youText();
+      versusRivalLabel.textContent = '@' + handle + ':';
+      if (!scores.length) {
+        versusRival.textContent = 'no score posted yet — they haven’t reached full purity signed in here';
+        return;
+      }
+      var best = store.rank(scores)[0];
+      versusRival.textContent = dispelWord(best.value) + ' to full purity';
+    }).catch(function (err) {
+      versusResult.hidden = true;
+      kit.showError(versusStatus, 'could not look up @' + handle + ': ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  kit.handleInput(rivalInput, { onPick: function (handle) { compareRival(handle); } });
+  compareBtn.addEventListener('click', function () { compareRival(rivalInput.value); });
+  rivalInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); compareRival(rivalInput.value); }
+  });
+
   // ---- interaction ----
   var dispelBtn = document.getElementById('dispel');
   var resetBtn = document.getElementById('reset');
 
   dispelBtn.addEventListener('click', function () {
     if (purity >= 1) return;
+    dispelCount++;
     var before = purity;
     purity = Math.min(1, purity + 0.05 + Math.random() * 0.09);
     updatePurityUI();
@@ -573,7 +680,7 @@ import { labPds } from '/_kit/pds.js';
 
     if (reducedMotion) { stepHistory(); drawChart(); updateBreakdown(); drawStaticNinja(); }
     else { spawnNinja(); }
-    if (purity >= 1) { dispelBtn.textContent = 'Nothing left to dispel'; dispelBtn.disabled = true; }
+    if (purity >= 1) { dispelBtn.textContent = 'Nothing left to dispel'; dispelBtn.disabled = true; maybePostScore(); }
   });
 
   resetBtn.addEventListener('click', function () {
@@ -581,6 +688,8 @@ import { labPds } from '/_kit/pds.js';
     updatePurityUI();
     dispelBtn.textContent = 'Dispel a lie';
     dispelBtn.disabled = false;
+    dispelCount = 0;
+    scorePosted = false;
     ASSETS.forEach(function (a) { a.hist = []; });
     effects = [];
     fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
@@ -648,6 +757,7 @@ import { labPds } from '/_kit/pds.js';
     signinRow.style.display = 'none';
     signedInRow.style.display = 'flex';
     signedInAs.textContent = 'saving as @' + user.handle;
+    maybePostScore(); // covers signing in after already reaching full purity
   }
   store.onChange(function (user) { if (user) showSignedIn(user); else showSignedOut(); });
 

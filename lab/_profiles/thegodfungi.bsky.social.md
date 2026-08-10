@@ -233,6 +233,20 @@ the bot build it" pattern (minormobius: "you can just tell this guy to build
 it") — same shape as the second build, but here it's amplifying the
 requester's *own* earlier post rather than someone else's ask.
 
+## Eighteenth build (data-real/truth-markup, iteration — "Induce with flame wars")
+
+Confirms a cross-site callback: this handle will name a feature from a
+*different* one of their own sites ("Flame Wars", the versus mode added to
+the flame simulator/cheers-write) as shorthand for "add that kind of
+mechanic here," rather than describing the mechanic itself. Not a literal
+request for fire or flames on a page about DRAM pricing — read as "bring the
+competitive/versus pattern over," which the previous turn's own BRIEF.md had
+already flagged as the natural next step and specifically named this exact
+build ("Flame Wars") as the trigger to watch for. Worth generalising: when
+this handle references one of their own past builds by name on a different
+site, treat it as pointing at the *pattern*, not asking to literally import
+that site's theme.
+
 ## Sixteenth/seventeenth builds (data-real/truth-markup, iterations)
 
 Two follow-up turns in a row landed opaque one-liners with nothing to parse
