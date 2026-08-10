@@ -33,9 +33,9 @@ _Regenerated 2026-08-10 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 79, bluesky 73, data 57, tools 56, work 8.
 
-**Neighborhood spark** (bisk 2026-08-10, 99 members / 246 posts):
+**Neighborhood spark** (bisk 2026-08-10, 99 members / 249 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: idk, bluesky, llms
+- Distinctive words: idk, llms, piranesi
 - Top post: "lol basically none of the people replying or quote posting this have even a basic understanding of how bad the situation" — @hailey.at
 <!-- BRIEF_END -->
 
