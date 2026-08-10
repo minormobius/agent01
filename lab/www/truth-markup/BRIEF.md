@@ -283,6 +283,39 @@ almost instantly instead of visibly animating, which matches the site's
 existing pattern of "redraw once per interaction, never animate on its own"
 without writing a second code path for it.
 
+Turn 12 shipped in response to "Very cool - got any improvement ideas, perhaps
+for 'different areas of the market'? I don't actually know yet how NAND and
+HBM translate to English" — two things bundled in one message, and only one
+of them is a concrete, buildable ask this turn. "I don't actually know how
+NAND and HBM translate to English" is literal and actionable: the page had
+been using jargon (DRAM, NAND, HBM, "transfer capacity", "supply capacity")
+with no plain-English gloss anywhere. "got any improvement ideas, perhaps for
+different areas of the market" is the requester asking ME for ideas, not
+commanding a specific build — so it's answered as a suggestion (in NOTE.txt
+and the plan below), not built.
+
+Added a `gloss` field to every entry in `ASSETS` — one plain-English sentence
+each, e.g. HBM's is `'"High Bandwidth Memory" — chips stacked and wired
+straight onto AI/graphics processors, built to feed them fast enough to keep
+up'`. Rendered as a permanent second line under each asset's name in the
+breakdown table (`.name-stack` / `.asset-gloss`, `.7rem`, muted), not a
+tooltip or hover state — this requester's page already has zero
+hover-dependent UI (mobile-first rule in the build brief), and a `?` icon
+needing a tap-to-reveal would've been one more control for five words of
+text that's cheaper to just always show. Table caption got one clause added
+("with what it actually is, under the name") so a first-time reader notices
+the gloss line exists rather than skimming past it as a caption/subtitle.
+
+**Not built:** a second market area (energy, real estate, labour — whatever
+"different areas of the market" turns out to mean). Deliberately left as an
+open question rather than guessed at, since the requester phrased it as
+"got any improvement ideas" rather than naming one — building a whole second
+five-asset market on a guess risks building the wrong one when a follow-up
+could just say "yes, energy prices" or "no, I meant this page but for stocks"
+in five words. NOTE.txt asks back with one concrete shape (mirror this page's
+structure onto a second commodity set) so the next reply can just confirm or
+redirect.
+
 ## The plan (not built yet, roughly in order)
 
 1. ~~Save the gallery to the visitor's own repo~~ — done turn 2.
@@ -333,6 +366,14 @@ without writing a second code path for it.
    direction (more particles, a bigger burst, a full "cut" animation on the
    gallery tile itself when it's created), that's the next step in this
    line rather than a new one.
+11. **Plain-English glossary** — done turn 12: a one-sentence gloss under
+    each asset name in the breakdown table (`a.gloss`, `.asset-gloss`).
+12. **Possibly: a second market area**, if a follow-up names one concretely.
+    NOTE.txt this turn floats "mirror this page's five-asset/one-purity-lever
+    structure onto a different commodity set" as the shape to build if asked
+    — do not guess the specific market from silence; wait for a name (energy,
+    labour, real estate, whatever it turns out to be).
+
 10. ~~Demand rises with supply of dispelled truth~~ — done turn 9, as a
     global `demandFactor()` pushing every price up to ~40% past "true value"
     at full purity. **Not built, worth doing next if this line continues:**
@@ -491,6 +532,18 @@ mid-click should show a bright white glow around whichever button was pressed
 odds of missing a .55s animation entirely, so absence of a visible glow isn't
 necessarily a bug; a *persistent* glow that never fades, or a glow with the
 wrong colour cast, would be).
+
+## Screenshot review (turn 12)
+
+Not re-verified this turn — the glossary line under each asset name has never
+been rendered. Worth a specific look next time a screenshot comes back: each
+breakdown-table row should show the asset name and, directly beneath it in
+smaller muted text, one sentence of plain English (not truncated or
+overflowing the "name" column into "true value"), and the table should still
+fit at 360px wide without horizontal scroll now that the name column holds
+two lines instead of one — if the row height barely changed, the gloss span
+likely isn't actually breaking onto its own line (check `.name-stack`'s
+`flex-direction: column` took).
 
 ## Screenshot review (turn 6)
 

@@ -1,1 +1,1 @@
-Centered the main Dispel button above the rest of the controls, and gave every dispel control — that one plus each row's own "Go" — a white lightning flash on click, not just the first. Untested on screen; tell me if the glow or layout look off.
+Added a plain-English line under each asset name (DRAM/NAND/HBM/etc) since that was the concrete ask. "Different areas of the market" - didn't guess which; if you name one (energy, real estate, whatever), I'll mirror this page's structure onto it.
