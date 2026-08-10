@@ -42,6 +42,8 @@
   .purity-label { font-size: .78rem; color: var(--muted); margin-bottom: .3rem; display: flex; justify-content: space-between; }
   .purity-bar { height: 10px; border-radius: 6px; background: var(--bg-raised); border: 1px solid var(--border); overflow: hidden; }
   .purity-fill { height: 100%; background: linear-gradient(90deg, var(--accent-dim), var(--accent)); width: 0%; transition: width .4s ease; }
+  .demand-line { font-size: .72rem; color: var(--muted); margin: .35rem 0 0; }
+  .demand-line span { color: var(--fg); }
   @media (prefers-reduced-motion: reduce) { .purity-fill { transition: none; } }
 
   table.breakdown { width: 100%; border-collapse: collapse; margin: 1.75rem 0; font-size: .85rem; }
@@ -118,7 +120,11 @@
     thing actually costs, and whatever misinformation you removed doesn't
     vanish — it gets kept, shrunk down to the tiniest piece of art, in the
     gallery underneath. Each dispel sends a shuriken cutting across the
-    chart — the lie actually getting cut, not just a number moving.
+    chart — the lie actually getting cut, not just a number moving. Prices
+    don't stop rising once they catch up to "true," either — the more of
+    this gets dispelled, the more the market actually wants the honest
+    number, so demand for truth keeps climbing past it rather than settling
+    once supply catches up.
   </p>
 
   <div class="stage">
@@ -133,6 +139,7 @@
     <div class="purity-wrap">
       <div class="purity-label"><span>informational purity</span><span id="purity-pct">0%</span></div>
       <div class="purity-bar"><div class="purity-fill" id="purity-fill"></div></div>
+      <p class="demand-line">demand for truth: <span id="demand-pct">+0%</span> above true value</p>
     </div>
   </div>
 
@@ -186,7 +193,10 @@
   <footer class="note">
     This is a small illustrative simulation, not a live price feed — the
     "true values" are approximate, honestly-labelled stand-ins for real
-    DRAM/NAND/HBM economics, not sourced from any market data. The price
+    DRAM/NAND/HBM economics, not sourced from any market data. "True value"
+    is a floor here, not a ceiling: once purity is high enough, demand for
+    the honest number pushes prices above it, deliberately inverted from the
+    usual rule that more supply cools price. The price
     simulation itself always resets on refresh. Sign in above and the
     gallery — only the gallery — saves to your own Bluesky repo, so it
     survives; signed out, it's gone when you leave. "Save gallery as one
@@ -238,8 +248,17 @@ import { labPds } from '/_kit/pds.js';
   // shared log-scale axis: fixed once from every asset's own display band, so
   // all five lines share one y-axis and their absolute scale is comparable
   // (HBM at ~$21/GB vs NAND at ~$0.085/GB needs log, not linear, to coexist).
+  // demand: as more of the market's misinformation gets dispelled
+  // (overallPurity rising), demand for the honest number keeps climbing too
+  // — the inverse of the usual econ-101 read where more supply cools price.
+  // Applies globally off overallPurity, not per-asset purity, so even an
+  // asset nobody has touched yet gets a little pricier once its neighbours
+  // have mostly been dispelled — one restructuring event, not five isolated
+  // ones, matching the rest of this page's "one lever" framing.
+  var DEMAND_STRENGTH = 0.4; // max premium over "true value" once everything is fully dispelled
+
   var AXIS_MIN = Math.min.apply(null, ASSETS.map(function (a) { return a.floor * 0.75; }));
-  var AXIS_MAX = Math.max.apply(null, ASSETS.map(function (a) { return a.truth * 1.1; }));
+  var AXIS_MAX = Math.max.apply(null, ASSETS.map(function (a) { return a.truth * (1 + DEMAND_STRENGTH) * 1.05; }));
   var LOG_AXIS_MIN = Math.log(AXIS_MIN);
   var LOG_AXIS_MAX = Math.log(AXIS_MAX);
 
@@ -251,6 +270,9 @@ import { labPds } from '/_kit/pds.js';
   function allFull() {
     return ASSETS.every(function (a) { return a.purity >= 1; });
   }
+  function demandFactor() {
+    return 1 + overallPurity() * DEMAND_STRENGTH;
+  }
 
   function priceOf(a) {
     var span = a.truth - a.floor;
@@ -258,7 +280,7 @@ import { labPds } from '/_kit/pds.js';
     var noiseAmp = span * 0.22 * (1 - a.purity);
     var jitter = Math.sin(t * a.freq + a.phase) * noiseAmp
                + (Math.sin(t * a.freq * 2.7 + a.phase) * noiseAmp * 0.35);
-    return Math.max(a.floor * 0.5, base + jitter);
+    return Math.max(a.floor * 0.5, (base + jitter) * demandFactor());
   }
 
   // ---- chart ----
@@ -485,10 +507,12 @@ import { labPds } from '/_kit/pds.js';
   // ---- purity control ----
   var purityPct = document.getElementById('purity-pct');
   var purityFill = document.getElementById('purity-fill');
+  var demandPctEl = document.getElementById('demand-pct');
   function updatePurityUI() {
     var pct = Math.round(overallPurity() * 100);
     purityPct.textContent = pct + '%';
     purityFill.style.width = pct + '%';
+    demandPctEl.textContent = '+' + Math.round((demandFactor() - 1) * 100) + '%';
   }
 
   // ---- gallery: what got dispelled, kept as tiny art ----

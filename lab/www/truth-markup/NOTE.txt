@@ -1,1 +1,1 @@
-Gave the chart one shared log axis across all five assets instead of each line filling its own band, so absolute scale is finally comparable — NAND now sits low and flat because it genuinely is tiny next to HBM, not a bug.
+Read "demand for truths go up as supply increases" as: more dispelled → more demand, not less. So "true value" stopped being a ceiling — prices now run up to 40% past it at full purity, shown as a new "demand for truth" line under the purity bar.

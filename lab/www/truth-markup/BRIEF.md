@@ -194,6 +194,36 @@ change, just compressed by NAND's small absolute range). Left everything else
 on the page untouched — this was a pure math swap inside `drawChart`, no new
 UI, no new controls.
 
+Turn 9 shipped in response to "Demand for truths go up as supply increases" —
+unlike turns 2/3/7's opaque riffs, this names the site's own core concept
+(price, supply, demand) directly and proposes a concrete inversion of normal
+econ-101 (more supply usually cools price; here, more supply of dispelled
+truth should raise demand for more of it), so it was read as a direct ask and
+built now rather than treated as a reaction to work the plan against.
+
+Added a global `demandFactor()` = `1 + overallPurity() * DEMAND_STRENGTH`
+(`DEMAND_STRENGTH = 0.4`), multiplied into every asset's price in `priceOf()`
+after the existing floor→truth interpolation and noise. Because it reads
+`overallPurity()` (the average across all five) rather than each asset's own
+`a.purity`, dispelling lies about DRAM now nudges NAND's price up a little
+too, even before anyone has touched NAND specifically — one market-wide
+restructuring event, matching this page's existing "one lever, not five"
+framing (see Decisions above). At full purity every price sits ~40% above its
+"true value," not capped at it — "true value" is now a floor the market can
+run past, not a ceiling. Surfaced as a new line under the purity bar
+("demand for truth: +N% above true value") and one sentence each added to
+the lede and footer — the footer sentence is the honest-labelling pattern
+this requester responds to (see Decisions): stating plainly that this is a
+deliberate inversion of the normal rule, not an error.
+
+`AXIS_MAX` (the shared log-scale ceiling from turn 8) had to move from
+`truth * 1.1` to `truth * (1 + DEMAND_STRENGTH) * 1.05`, since the old 10%
+headroom no longer covers a price that can run 40% over truth at full
+purity — worked out algebraically (max price occurs exactly at `allFull()`,
+where every `a.purity` and `overallPurity()` are simultaneously 1, so the
+provable worst case is `truth * (1 + DEMAND_STRENGTH)` with no need to search
+over partial-purity states), not just bumped until it looked right.
+
 ## The plan (not built yet, roughly in order)
 
 1. ~~Save the gallery to the visitor's own repo~~ — done turn 2.
@@ -248,6 +278,17 @@ UI, no new controls.
    direction (more particles, a bigger burst, a full "cut" animation on the
    gallery tile itself when it's created), that's the next step in this
    line rather than a new one.
+10. ~~Demand rises with supply of dispelled truth~~ — done turn 9, as a
+    global `demandFactor()` pushing every price up to ~40% past "true value"
+    at full purity. **Not built, worth doing next if this line continues:**
+    demand currently only ever rises (it's a pure function of `overallPurity`,
+    which never decreases except on Reset) — there's no cooling-off, no sense
+    that unmet demand could fade if a visitor stops dispelling for a while.
+    If a request asks for that, it needs its own decaying state variable
+    (something like `demandMomentum`, ticked down slowly in the rAF loop,
+    separate from `overallPurity` which should probably stay a pure function
+    of dispel state) rather than turning `demandFactor` itself into something
+    with memory.
 
 ## Screenshot review (turn 7)
 
@@ -273,6 +314,18 @@ before, the shared-axis math isn't taking effect (check `LOG_AXIS_MIN`/
 `LOG_AXIS_MAX` are computed after `ASSETS` exists and before first
 `drawChart()` call, and that the pre-fill loop at the bottom of the script
 runs after both are defined).
+
+## Screenshot review (turn 9)
+
+Not re-verified this turn — the demand line under the purity bar and the
+demand-inflated chart ceiling have never been rendered. Worth a specific look
+next time a screenshot comes back: at 0% purity `demand-pct` should read
+`+0%` (not blank or `NaN%`, which would mean `demandPctEl` was queried before
+the DOM element existed — it's declared right after `purity-fill` in the
+script, same pattern), and the five chart lines should sit lower in the
+`.stage` box than turn 8's screenshot showed, since `AXIS_MAX` grew ~34%
+(`1.1` → `1 + 0.4) * 1.05 = 1.47`) — if they still hug the top of the box,
+the axis-headroom math isn't taking effect.
 
 ## Gotchas
 
