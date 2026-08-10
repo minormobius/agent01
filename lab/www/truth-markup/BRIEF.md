@@ -167,6 +167,33 @@ asset already finished off by its own button stops eating picks meant for
 the others. `dispelCount`/scoring is unaffected — it still increments once
 per dispel, from either control, so the versus race is unchanged.
 
+Turn 8 shipped in response to "Push it to the fullest" — no new concept named
+on the page, same shape as turns 2/3/16/17 (per the profile: an opaque
+one-liner that doesn't parse as a literal instruction and doesn't point
+anywhere else), so it worked the plan rather than guessing a feature. Built
+plan item 7: the chart now shares one y-axis across all five assets instead
+of each line normalizing independently within its own `[floor*0.75,
+truth*1.1]` band. Added `AXIS_MIN`/`AXIS_MAX` (the min floor and max truth
+across all five assets, each with the same 0.75/1.1 padding the old per-asset
+bands used) computed once at load from the static `ASSETS` table, and switched
+the normalization in `drawChart` to `(Math.log(price) - LOG_AXIS_MIN) /
+(LOG_AXIS_MIN - LOG_AXIS_MAX)`* — log rather than linear, because HBM
+(~$21/GB) and NAND (~$0.085/GB) are almost 250x apart and a linear shared
+axis would flatten NAND to a barely-visible line at the bottom.
+
+*(written as `(LOG_AXIS_MAX - LOG_AXIS_MIN)` in the actual code — see below.)
+
+This is a real behavior change, not just internal math: NAND now sits in a
+narrow band near the bottom of the chart and HBM near the top, for the whole
+run, rather than each line individually filling the full height of the
+`.stage` box. That's the intended reading of item 7 ("doesn't let you compare
+absolute scale") — the tradeoff is that a visitor watching only the NAND line
+sees less vertical travel than before, even though the same proportional
+noise/dispel movement is still there (log scale preserves proportional
+change, just compressed by NAND's small absolute range). Left everything else
+on the page untouched — this was a pure math swap inside `drawChart`, no new
+UI, no new controls.
+
 ## The plan (not built yet, roughly in order)
 
 1. ~~Save the gallery to the visitor's own repo~~ — done turn 2.
@@ -188,11 +215,15 @@ per dispel, from either control, so the versus race is unchanged.
 6. ~~Per-asset dispel~~ — done turn 7. Each breakdown-table row has its own
    "Go" button; the global button still exists and picks randomly, weighted
    by *remaining* gap among assets not yet full.
-7. Chart currently normalizes each line independently within its own
-   `[floor*0.75, truth*1.1]` band for display — fine for "the noise is
-   calming down" but doesn't let you compare absolute scale across assets.
-   If a future ask wants that, it needs a real shared axis and probably a
-   log scale (HBM at $21/GB dwarfs NAND at $0.085/GB).
+7. ~~Shared, comparable axis across assets~~ — done turn 8, as a shared
+   log-scale y-axis (`AXIS_MIN`/`AXIS_MAX`, fixed once from all five assets'
+   own floor/truth values). **Next if this line continues:** there is still
+   no visible indication anywhere on the page that the axis is logarithmic
+   or shared — no gridline labels, per the standing "no text on the canvas"
+   rule — so a visitor has no way to know NAND's flat-looking band and HBM's
+   flat-looking band mean the same *proportional* noise. If a future request
+   asks for that legibility, it has to be HTML text near the chart (e.g. a
+   small caption under the legend), not anything painted on `#chart` itself.
 8. **Not built:** the sign-in merge (item 2, above) is still untested past
    reading the code carefully — there's no way to exercise an OAuth
    round-trip from this sandbox. Same for this turn's export button: the
@@ -229,6 +260,19 @@ other four compress, rather than wrapping or forcing horizontal scroll at
 360px), and is each button actually ≥44px tall (`min-height: 44px` on
 `.asset-dispel` — should be, but table cell padding/line-height stacking
 with it hasn't been seen in a browser).
+
+## Screenshot review (turn 8)
+
+Not re-verified this turn — the shared log-axis math has never been rendered.
+Worth a specific look next time a screenshot comes back: the five lines
+should sit in distinct, mostly non-overlapping vertical bands ordered by
+absolute price (NAND lowest, then DRAM/transfer overlapping in the middle,
+then supply, then HBM highest), not all still spanning the full chart height
+independently — if every line still fills the box top-to-bottom the same as
+before, the shared-axis math isn't taking effect (check `LOG_AXIS_MIN`/
+`LOG_AXIS_MAX` are computed after `ASSETS` exists and before first
+`drawChart()` call, and that the pre-fill loop at the bottom of the script
+runs after both are defined).
 
 ## Gotchas
 

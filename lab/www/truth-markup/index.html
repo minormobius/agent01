@@ -235,6 +235,14 @@ import { labPds } from '/_kit/pds.js';
     a.purity = 0; // 0..1, per-asset — how much misinformation has been dispelled about THIS one
   });
 
+  // shared log-scale axis: fixed once from every asset's own display band, so
+  // all five lines share one y-axis and their absolute scale is comparable
+  // (HBM at ~$21/GB vs NAND at ~$0.085/GB needs log, not linear, to coexist).
+  var AXIS_MIN = Math.min.apply(null, ASSETS.map(function (a) { return a.floor * 0.75; }));
+  var AXIS_MAX = Math.max.apply(null, ASSETS.map(function (a) { return a.truth * 1.1; }));
+  var LOG_AXIS_MIN = Math.log(AXIS_MIN);
+  var LOG_AXIS_MAX = Math.log(AXIS_MAX);
+
   function overallPurity() {
     var s = 0;
     ASSETS.forEach(function (a) { s += a.purity; });
@@ -384,13 +392,12 @@ import { labPds } from '/_kit/pds.js';
     }
 
     ASSETS.forEach(function (a) {
-      var dispMin = a.floor * 0.75, dispMax = a.truth * 1.1;
       var color = cssVar(a.color);
       ctx.beginPath();
       for (var i = 0; i < a.hist.length; i++) {
         var frac = i / (HIST_LEN - 1);
         var x = frac * w;
-        var norm = (a.hist[i] - dispMin) / (dispMax - dispMin);
+        var norm = (Math.log(a.hist[i]) - LOG_AXIS_MIN) / (LOG_AXIS_MAX - LOG_AXIS_MIN);
         var y = h - Math.max(0, Math.min(1, norm)) * (h - 8) - 4;
         if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       }

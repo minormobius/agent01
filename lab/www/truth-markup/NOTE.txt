@@ -1,1 +1,1 @@
-Squirrel/Mobius/treetops didn't map to anything on the page, so I read it as chatter, not a request, and built the next planned item: every asset row now has its own dispel button, not just the random one.
+Gave the chart one shared log axis across all five assets instead of each line filling its own band, so absolute scale is finally comparable — NAND now sits low and flat because it genuinely is tiny next to HBM, not a bug.
