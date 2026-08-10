@@ -144,6 +144,29 @@ shows their best against yours. Posting needs sign-in (uses the existing
 optional sign-in already on the page); looking a rival up never does, since
 `scoresOf` reads their public repo unauthenticated.
 
+Turn 7 shipped in response to "There's a squirrel and maybe Mobius is laying
+underneath the tree tops" — no squirrel, no Mobius, no tree tops concept
+exists anywhere on this page, and unlike turn 5's "particled ninja lie
+dispeller" (concrete, actionable, overrode the plan) this names nothing
+buildable. Read the same way turns 2/3 were: a reaction/riff, not an ask, so
+per the standing instruction it worked the plan rather than inventing
+something to match "squirrel."
+
+Built plan item 6: per-asset dispel. Each row of the breakdown table now has
+its own small "Go" button (`asset-dispel`, event-delegated off `tbody`) that
+dispels *that* asset specifically, alongside the existing "Dispel a lie"
+button which still does a random weighted pick. This required turning
+`purity` from one global 0..1 number into `a.purity` per asset — `priceOf`,
+the purity bar, `youText`/`maybePostScore` (versus scoring) and the
+full-purity check (`allFull()`, requires every asset at 1, not just the
+average) all now read per-asset state; `overallPurity()` (the average across
+all five) drives the single progress bar and label, which is unchanged from
+the visitor's point of view. The global button's weighting changed from
+"proportional to total span" to "proportional to *remaining* span" so an
+asset already finished off by its own button stops eating picks meant for
+the others. `dispelCount`/scoring is unaffected — it still increments once
+per dispel, from either control, so the versus race is unchanged.
+
 ## The plan (not built yet, roughly in order)
 
 1. ~~Save the gallery to the visitor's own repo~~ — done turn 2.
@@ -162,10 +185,9 @@ optional sign-in already on the page); looking a rival up never does, since
    named handles only, never a global scoreboard query, so there's no
    `getAll`-style call to add even if asked — the honest answer to "show me
    everyone who's played" is that this factory has no way to do that).
-6. **Per-asset dispel** (five small buttons instead of one) if a follow-up
-   wants finer control — straightforward, `priceOf`/`ASSETS` already have
-   the per-asset state, just needs per-asset `purity` instead of one global
-   number.
+6. ~~Per-asset dispel~~ — done turn 7. Each breakdown-table row has its own
+   "Go" button; the global button still exists and picks randomly, weighted
+   by *remaining* gap among assets not yet full.
 7. Chart currently normalizes each line independently within its own
    `[floor*0.75, truth*1.1]` band for display — fine for "the noise is
    calming down" but doesn't let you compare absolute scale across assets.
@@ -195,6 +217,18 @@ optional sign-in already on the page); looking a rival up never does, since
    direction (more particles, a bigger burst, a full "cut" animation on the
    gallery tile itself when it's created), that's the next step in this
    line rather than a new one.
+
+## Screenshot review (turn 7)
+
+Not re-verified this turn — the new fifth table column (per-row "Go"
+buttons) has never been rendered. Worth a specific look next time a
+screenshot comes back: does the table stay one row's worth of height at
+narrow widths (`table.breakdown td:last-child { width: 1%; white-space:
+nowrap }` is meant to shrink that column to just fit the button, letting the
+other four compress, rather than wrapping or forcing horizontal scroll at
+360px), and is each button actually ≥44px tall (`min-height: 44px` on
+`.asset-dispel` — should be, but table cell padding/line-height stacking
+with it hasn't been seen in a browser).
 
 ## Gotchas
 

@@ -54,6 +54,13 @@
   td.delta.zero { color: var(--muted); }
   .mini-bar { width: 60px; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; display: inline-block; vertical-align: middle; }
   .mini-fill { height: 100%; }
+  table.breakdown th:last-child, table.breakdown td:last-child { text-align: right; width: 1%; white-space: nowrap; }
+  .asset-dispel {
+    min-height: 44px; min-width: 44px; padding: .3rem .6rem; font-size: .78rem;
+    background: transparent; color: var(--fg); border-color: var(--border);
+  }
+  .asset-dispel:hover:not(:disabled) { background: var(--bg-raised); }
+  .asset-dispel:disabled { opacity: .5; cursor: default; color: var(--muted); }
 
   .gallery-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
   .gallery-head-actions { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
@@ -130,9 +137,9 @@
   </div>
 
   <table class="breakdown" id="breakdown">
-    <caption>what each thing is actually worth</caption>
+    <caption>what each thing is actually worth — dispel one specifically, or use the button above for a random pick</caption>
     <thead>
-      <tr><th>asset</th><th>true value</th><th>current price</th><th>gap closed</th></tr>
+      <tr><th>asset</th><th>true value</th><th>current price</th><th>gap closed</th><th>dispel</th></tr>
     </thead>
     <tbody id="breakdown-body"></tbody>
   </table>
@@ -219,19 +226,28 @@ import { labPds } from '/_kit/pds.js';
 
   var reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  var purity = 0; // 0..1, global — how much misinformation has been dispelled
   var t = 0;
   var HIST_LEN = 140;
   ASSETS.forEach(function (a) {
     a.phase = Math.random() * Math.PI * 2;
     a.freq = 0.008 + Math.random() * 0.01;
     a.hist = [];
+    a.purity = 0; // 0..1, per-asset — how much misinformation has been dispelled about THIS one
   });
+
+  function overallPurity() {
+    var s = 0;
+    ASSETS.forEach(function (a) { s += a.purity; });
+    return s / ASSETS.length;
+  }
+  function allFull() {
+    return ASSETS.every(function (a) { return a.purity >= 1; });
+  }
 
   function priceOf(a) {
     var span = a.truth - a.floor;
-    var base = a.floor + span * purity;
-    var noiseAmp = span * 0.22 * (1 - purity);
+    var base = a.floor + span * a.purity;
+    var noiseAmp = span * 0.22 * (1 - a.purity);
     var jitter = Math.sin(t * a.freq + a.phase) * noiseAmp
                + (Math.sin(t * a.freq * 2.7 + a.phase) * noiseAmp * 0.35);
     return Math.max(a.floor * 0.5, base + jitter);
@@ -408,16 +424,37 @@ import { labPds } from '/_kit/pds.js';
   // ---- breakdown table ----
   var tbody = document.getElementById('breakdown-body');
   var rows = {};
+  var assetButtons = {};
   ASSETS.forEach(function (a) {
     var tr = document.createElement('tr');
     tr.innerHTML =
       '<td class="name"><span class="swatch" style="background:' + a.color + '"></span>' + a.name + '</td>' +
       '<td class="num">' + fmt(a.truth, a) + '</td>' +
       '<td class="num" data-role="price">' + fmt(a.floor, a) + '</td>' +
-      '<td class="delta zero" data-role="gap"><span class="mini-bar"><span class="mini-fill" style="width:0%;background:' + a.color + '"></span></span></td>';
+      '<td class="delta zero" data-role="gap"><span class="mini-bar"><span class="mini-fill" style="width:0%;background:' + a.color + '"></span></span></td>' +
+      '<td class="num"><button type="button" class="asset-dispel" data-key="' + a.key + '" aria-label="Dispel a lie about ' + a.name + '">Go</button></td>';
     tbody.appendChild(tr);
     rows[a.key] = tr;
+    assetButtons[a.key] = tr.querySelector('.asset-dispel');
   });
+
+  // one button per asset, for dispelling a specific one instead of a random
+  // weighted pick — the global button below still does the weighted pick.
+  tbody.addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('.asset-dispel') : null;
+    if (!btn || btn.disabled) return;
+    var asset = findAsset(btn.getAttribute('data-key'));
+    if (asset) doDispel(asset);
+  });
+
+  function updateAssetButtonStates() {
+    ASSETS.forEach(function (a) {
+      var btn = assetButtons[a.key];
+      var done = a.purity >= 1;
+      btn.disabled = done;
+      btn.textContent = done ? 'Done' : 'Go';
+    });
+  }
 
   function fmt(v, a) {
     return (v < 1 ? v.toFixed(3) : v.toFixed(2)) + ' ' + a.unit;
@@ -442,7 +479,7 @@ import { labPds } from '/_kit/pds.js';
   var purityPct = document.getElementById('purity-pct');
   var purityFill = document.getElementById('purity-fill');
   function updatePurityUI() {
-    var pct = Math.round(purity * 100);
+    var pct = Math.round(overallPurity() * 100);
     purityPct.textContent = pct + '%';
     purityFill.style.width = pct + '%';
   }
@@ -600,8 +637,8 @@ import { labPds } from '/_kit/pds.js';
 
   function youText() {
     if (myBestDispels !== null) return dispelWord(myBestDispels) + ' to full purity';
-    if (purity >= 1) return dispelWord(dispelCount) + ' to full purity — not posted (sign in above to save it)';
-    return 'still dispelling — ' + Math.round(purity * 100) + '% so far';
+    if (overallPurity() >= 1) return dispelWord(dispelCount) + ' to full purity — not posted (sign in above to save it)';
+    return 'still dispelling — ' + Math.round(overallPurity() * 100) + '% so far';
   }
 
   function updateVersusYou() {
@@ -610,7 +647,7 @@ import { labPds } from '/_kit/pds.js';
   }
 
   function maybePostScore() {
-    if (purity < 1 || scorePosted) return;
+    if (overallPurity() < 1 || scorePosted) return;
     scorePosted = true;
     if (myBestDispels === null || dispelCount < myBestDispels) myBestDispels = dispelCount;
     updateVersusYou();
@@ -659,38 +696,47 @@ import { labPds } from '/_kit/pds.js';
   var dispelBtn = document.getElementById('dispel');
   var resetBtn = document.getElementById('reset');
 
-  dispelBtn.addEventListener('click', function () {
-    if (purity >= 1) return;
+  // shared by the global button and every per-asset "Go" button: raises one
+  // asset's own purity, credits it (and only it) with the gallery tile.
+  function doDispel(asset) {
+    if (asset.purity >= 1) return;
     dispelCount++;
-    var before = purity;
-    purity = Math.min(1, purity + 0.05 + Math.random() * 0.09);
+    var before = asset.purity;
+    asset.purity = Math.min(1, asset.purity + 0.05 + Math.random() * 0.09);
+    var removed = (asset.truth - asset.floor) * (asset.purity - before);
+    addArtwork(asset, removed);
     updatePurityUI();
-
-    // credit the artwork to a random asset, weighted by how much
-    // misinformation it started with — HBM has more to shed than NAND
-    var totalSpan = ASSETS.reduce(function (s, a) { return s + (a.truth - a.floor); }, 0);
-    var pick = Math.random() * totalSpan;
-    var picked = ASSETS[ASSETS.length - 1];
-    for (var k = 0; k < ASSETS.length; k++) {
-      pick -= (ASSETS[k].truth - ASSETS[k].floor);
-      if (pick <= 0) { picked = ASSETS[k]; break; }
-    }
-    var removed = (picked.truth - picked.floor) * (purity - before);
-    addArtwork(picked, removed);
+    updateAssetButtonStates();
 
     if (reducedMotion) { stepHistory(); drawChart(); updateBreakdown(); drawStaticNinja(); }
     else { spawnNinja(); }
-    if (purity >= 1) { dispelBtn.textContent = 'Nothing left to dispel'; dispelBtn.disabled = true; maybePostScore(); }
+    if (allFull()) { dispelBtn.textContent = 'Nothing left to dispel'; dispelBtn.disabled = true; maybePostScore(); }
+  }
+
+  dispelBtn.addEventListener('click', function () {
+    // weighted random pick among what's still misinformed — weighted by
+    // remaining gap, not total span, so an asset already dispelled by its
+    // own button stops competing for this one's picks.
+    var candidates = ASSETS.filter(function (a) { return a.purity < 1; });
+    if (!candidates.length) return;
+    var totalRemaining = candidates.reduce(function (s, a) { return s + (a.truth - a.floor) * (1 - a.purity); }, 0);
+    var pick = Math.random() * totalRemaining;
+    var picked = candidates[candidates.length - 1];
+    for (var k = 0; k < candidates.length; k++) {
+      pick -= (candidates[k].truth - candidates[k].floor) * (1 - candidates[k].purity);
+      if (pick <= 0) { picked = candidates[k]; break; }
+    }
+    doDispel(picked);
   });
 
   resetBtn.addEventListener('click', function () {
-    purity = 0;
+    ASSETS.forEach(function (a) { a.purity = 0; a.hist = []; });
     updatePurityUI();
+    updateAssetButtonStates();
     dispelBtn.textContent = 'Dispel a lie';
     dispelBtn.disabled = false;
     dispelCount = 0;
     scorePosted = false;
-    ASSETS.forEach(function (a) { a.hist = []; });
     effects = [];
     fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
     if (reducedMotion) { stepHistory(); drawChart(); updateBreakdown(); }
@@ -766,6 +812,7 @@ import { labPds } from '/_kit/pds.js';
   resizeCanvas();
   resizeFx();
   updatePurityUI();
+  updateAssetButtonStates();
   showSignedOut();
 
   // Pre-fill history so the chart opens full rather than growing one point

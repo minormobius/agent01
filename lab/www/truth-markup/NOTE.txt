@@ -1,1 +1,1 @@
-Read "flame wars" as your usual versus ask, not literal fire: finish a run and it scores your dispel-clicks, fewer is better. Type a rival's handle to see if they beat it. No global board — only handles you name, like everywhere else here.
+Squirrel/Mobius/treetops didn't map to anything on the page, so I read it as chatter, not a request, and built the next planned item: every asset row now has its own dispel button, not just the random one.
