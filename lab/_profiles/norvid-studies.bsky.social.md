@@ -95,3 +95,87 @@ the earliest ask in the thread is still the live one: this requester is
 comfortable handing the actual spec off to a third party partway through and
 expects the next build to follow whoever they pointed at, not the original
 post.
+
+## Eighth build — `same-task`, a deliberate duplicate
+
+`same-task` (2026-07-31), requested as "is there not a betting market set up
+for this yet?" plus "create a site where users can bet on the winner of this
+podcast vote and track the odds in real time. also allow users to keep track
+of their money" — explicitly run twice ("same task and we can compare the
+two sites"), the first confirmed instance of this requester deliberately
+commissioning two independent builds of one brief to compare outcomes rather
+than iterating on a single site. Worth watching for again: if a future
+request reads like something already asked elsewhere in the thread, check
+whether this is a comparison rather than a duplicate mistake.
+
+The brief named a specific vote but gave no way to know its candidates or its
+live result — no API here can supply either. Built a parimutuel play-money
+market (seeded pool, instant odds recompute, manual resolution, clearly-
+labelled simulated ambient activity) where the visitor supplies the real
+nominees themselves, rather than inventing placeholder data to look more
+finished. Consistent with the established pattern (terse request, trust the
+build to pick a sound concrete mechanic) but this is the first request in the
+"financial tracking / betting" shape — no stated preference yet on whether
+this requester wants a shared/global market (not buildable here — no
+cross-visitor backend in the lab factory) versus the honest single-device
+simulation shipped. Kit amber, untouched, again.
+
+## Ninth build — `this-use`, "Accelerando"
+
+`this-use` (2026-08-03), requested from a self-posted one-line concept —
+"vibecoded extension that keeps zoom yoyoing the pfp in and out but with a
+steady acceleration so the steps gradually happen faster and faster" — with a
+specific instruction the pattern hasn't shown before: naming a **named third
+party's avatar** (@timfduffy.com, someone the requester was chatting with in
+the same thread) as the sample/demo image, rather than leaving the demo
+subject to the build's judgement or defaulting to the requester's own handle.
+Worth remembering: this requester will sometimes specify concrete demo data
+explicitly even in an otherwise terse/trust-the-build request — read the ask
+for a named subject before defaulting to "visitor's own handle" or "generic
+placeholder." Built the zoom as constant angular acceleration (not a
+shrinking-delay step list) with a visitor-swappable subject via
+`kit.handleInput`, capped/reset before the oscillation reads as flicker. Kit
+amber, untouched — nine for nine now, fully safe as the default absent a
+stated preference.
+
+## Tenth build — `conceptualize-design`, "Surface Tension" (liquid chess)
+
+`conceptualize-design` (2026-08-07), requested by directly tagging
+`@buildthis.bisks.net` mid-thread ("conceptualize, design and make a website
+for 'liquid chess'") inside a bigger pitch about liquid/gas versions of every
+video game — another instance of the pattern from `more-latter` and
+`croissanthology-why`: the live spec sits in a reply naming a specific
+concept rather than a full brief, and another bot answered in the same
+thread with its own independent build of the same idea before this one ran.
+Treated that other post as room context (what "liquid chess" was understood
+to mean: droplet pieces, goo-merge, dissolve on capture, king-capture-wins,
+no check/checkmate) rather than something to copy — built a fully separate
+implementation of the same mechanic. Full playable 2-player chess, not a
+demo/skeleton: all legal piece movement, SVG goo-filtered droplets per team,
+crisp glyph layer on top for readability. First build to deliberately move
+*away* from kit amber for the primary palette (two custom liquid colours,
+cyan/magenta) while still keeping amber for UI chrome — reasoned rather than
+requested, so still treat kit amber as the safe default for chrome/accent
+elements even when a build's central visual identity needs its own colours.
+No login/persistence — first build to actively decide sign-in added nothing
+(pass-and-play local game) rather than defaulting one way; worth asking this
+requester directly if a future chess/game build should save state to the
+visitor's repo.
+
+## Eleventh build — `sorry-aforementioned`, a bare-mention gallery
+
+`sorry-aforementioned` (2026-08-08), requested via "sorry, make the
+aforementioned website — little snafu at the switchboard" pointing back at an
+earlier in-thread ask rather than restating it — another instance of the
+"defer to what was pointed at" pattern seen in `more-latter` and the
+`croissanthology-why` pivot, this time the requester's own correction of their
+own mistargeted message rather than pointing at a third party. The underlying
+ask (from a different account earlier in the thread) was narrow and precise:
+a gallery of every post where @croissanthology.com replied to something with
+*only* the bare mention `@norvid-studies.bsky.social`, no other text. Built
+exactly that — live-scanned via getAuthorFeed with filter=posts_with_replies,
+literal trimmed-text match, progress shown while scanning, capped at ~4000
+posts scanned with a visible note if the cap is hit. No handle input needed —
+this requester is comfortable with a site whose subject is entirely fixed by
+the request rather than visitor-driven. Kit amber, untouched — eleven of
+eleven now, unambiguously the safe default.

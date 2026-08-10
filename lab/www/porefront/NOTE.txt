@@ -1,0 +1,1 @@
+Added a toggle: network (original), field (same run as a mosaic instead of nodes+lines), throats (a histogram — resistance on x, count on y, stacked by each throat's state at the current pressure). One slider drives all three.
