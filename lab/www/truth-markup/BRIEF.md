@@ -224,6 +224,29 @@ where every `a.purity` and `overallPurity()` are simultaneously 1, so the
 provable worst case is `truth * (1 + DEMAND_STRENGTH)` with no need to search
 over partial-purity states), not just bumped until it looked right.
 
+Turn 10 shipped in response to "It's gr8" — a positive reaction naming nothing
+on the page (no "session instances"/"squirrel"-style riff either, just a
+compliment), the same shape as turns 2/3/7/8's opaque one-liners, so it worked
+the plan rather than inventing a feature to match "gr8."
+
+Built the follow-up named at the end of plan item 7 (turn 8's shared log-axis
+work): a one-sentence caption under the legend, in HTML (not painted on
+`#chart` — the standing "no text on the canvas" rule), saying plainly that all
+five lines share one log-scale axis and why that matters (NAND's cent-level
+moves vs. HBM's ten-dollar moves would otherwise read as "NAND is just flat").
+Picked this over item 9's ninja-effect follow-up or item 10's demand-decay
+follow-up because both of those are explicitly gated on "if a future request
+pushes further in that direction" — a request specific to that line — and "gr8"
+isn't specific to anything, so the plan item with no such gate (item 7's) is
+the one that's actually next in line rather than waiting on a trigger that
+hasn't arrived.
+
+Pure addition: one `<p class="chart-note">` between the legend and the
+controls row, `.legend`'s own `margin-bottom` shrunk from `1.5rem` to `.5rem`
+so the two sit closer together as a unit and `.chart-note` carries the
+`1.5rem` bottom margin instead — same total spacing before the controls row,
+just split between two elements now. No JS touched.
+
 ## The plan (not built yet, roughly in order)
 
 1. ~~Save the gallery to the visitor's own repo~~ — done turn 2.
@@ -247,13 +270,9 @@ over partial-purity states), not just bumped until it looked right.
    by *remaining* gap among assets not yet full.
 7. ~~Shared, comparable axis across assets~~ — done turn 8, as a shared
    log-scale y-axis (`AXIS_MIN`/`AXIS_MAX`, fixed once from all five assets'
-   own floor/truth values). **Next if this line continues:** there is still
-   no visible indication anywhere on the page that the axis is logarithmic
-   or shared — no gridline labels, per the standing "no text on the canvas"
-   rule — so a visitor has no way to know NAND's flat-looking band and HBM's
-   flat-looking band mean the same *proportional* noise. If a future request
-   asks for that legibility, it has to be HTML text near the chart (e.g. a
-   small caption under the legend), not anything painted on `#chart` itself.
+   own floor/truth values). ~~Axis legibility caption~~ — done turn 10: one
+   `<p class="chart-note">` under the legend, plain HTML, explaining the
+   shared log axis in one sentence.
 8. **Not built:** the sign-in merge (item 2, above) is still untested past
    reading the code carefully — there's no way to exercise an OAuth
    round-trip from this sandbox. Same for this turn's export button: the
@@ -414,6 +433,15 @@ comes back: does the button sit sensibly next to "the discarded, kept as
 art" heading at narrow widths (it's in a `flex-wrap` row so it should stack,
 but hasn't been confirmed), and does it stay disabled-looking (not just
 disabled) before any tile exists.
+
+## Screenshot review (turn 10)
+
+Not re-verified this turn — the new chart-note caption has never been
+rendered. Worth a specific look next time a screenshot comes back: it should
+sit as a single muted line directly under the legend, wrapping normally at
+360px wide (it's a plain `<p>` in the normal flow, no special narrow-width
+handling written), and it should read clearly against `--bg` since it's
+outside `.stage` (not drawn over `--bg-raised` like the chart itself).
 
 ## Screenshot review (turn 6)
 

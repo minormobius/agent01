@@ -1,1 +1,1 @@
-Read "demand for truths go up as supply increases" as: more dispelled → more demand, not less. So "true value" stopped being a ceiling — prices now run up to 40% past it at full purity, shown as a new "demand for truth" line under the purity bar.
+Added one line under the legend explaining the chart shares a log-scale axis — NAND's cent moves and HBM's dollar moves were both real, the flat-looking NAND line just needed saying so, in text, not painted on the canvas.

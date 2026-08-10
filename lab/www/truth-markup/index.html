@@ -27,10 +27,11 @@
 
   .legend {
     display: flex; gap: .9rem; flex-wrap: wrap; font-size: .78rem;
-    color: var(--muted); margin-bottom: 1.5rem;
+    color: var(--muted); margin-bottom: .5rem;
   }
   .legend span { display: inline-flex; align-items: center; gap: .35rem; }
   .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+  .chart-note { color: var(--muted); font-size: .78rem; margin: 0 0 1.5rem; }
 
   .controls { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; margin-bottom: .5rem; }
   #dispel { min-height: 44px; }
@@ -132,6 +133,11 @@
     <canvas id="fx" aria-hidden="true"></canvas>
   </div>
   <ul class="legend" id="legend"></ul>
+  <p class="chart-note">
+    All five lines share one price axis, drawn on a log scale — NAND moves in
+    cents and HBM moves in tens of dollars, and without that the cheap line
+    would look flat at the bottom no matter how much noise it actually had.
+  </p>
 
   <div class="controls">
     <button id="dispel" type="button">Dispel a lie</button>
