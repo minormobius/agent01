@@ -567,6 +567,21 @@ for on data-heavy sites — multiple honest ways to look at the same
 underlying data, switched in place rather than requiring new pages or losing
 the current run's state.
 
+## `site-3`/Superelastic (2026-08-10): "build that" pattern extends to active-matter physics
+A seventh "build that"-shaped reply to a factory-posted concept advert (after
+`concourse`, `yes-that`/stallpoint, `rootcut`, `that-2`/Sixfold, `diffuse`,
+`porefront`) — this time a motility-induced-phase-separation paper reframed
+as super-elastic collisions among non-motile buzzing particles. No
+back-and-forth to draw a preference from. Consistent with `diffuse` and
+`porefront`: deviated from the advert's own suggested reuse (`g/`'s WebGPU
+shelf — a different origin, not actually importable into a `lab/www/`
+tenant) and built plain canvas2D physics instead, said so in BRIEF.md rather
+than silently substituting. Scoped turn one exactly to the advert's own
+named turn-one line (two dials, canvas, live quiet/buzzing readout) and left
+crystallization + the recipe leaderboard as the next named steps, per this
+requester's established tolerance for an honest scoped turn one over a
+shakier full attempt.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
