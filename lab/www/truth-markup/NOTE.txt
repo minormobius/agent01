@@ -1,1 +1,1 @@
-Built as a simulation, not a live feed -- nobody has real "true DRAM price" data. Five rows, not one score, each with its own gap. Dispelled lies become kept tiny paintings below rather than vanishing. Next: save the gallery to your own repo.
+Added save: sign in and the gallery survives across visits, in your own repo — nothing else does. Optional; the sim still runs without it. Next: carrying tiles made right before sign-in, which the redirect currently drops.

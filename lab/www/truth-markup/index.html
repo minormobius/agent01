@@ -66,6 +66,14 @@
   #gallery figcaption { font-size: .68rem; color: var(--muted); margin-top: .3rem; line-height: 1.3; }
   #gallery-empty { color: var(--muted); font-size: .85rem; }
 
+  .signin-row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin: -.5rem 0 1rem; }
+  .signin-row input { flex: 1 1 12rem; min-height: 44px; }
+  .signin-row button { min-height: 44px; white-space: nowrap; }
+  #save-status { font-size: .78rem; color: var(--muted); }
+  #save-status.ok { color: var(--ok); }
+  #signed-in-row { display: none; align-items: center; gap: .6rem; flex-wrap: wrap; margin: -.5rem 0 1rem; font-size: .82rem; color: var(--muted); }
+  #signed-in-row button { min-height: 44px; background: transparent; color: var(--muted); border-color: var(--border); padding: .4rem .8rem; }
+
   footer.note { font-size: .78rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: 1rem; margin-top: 2rem; }
 </style>
 </head>
@@ -106,6 +114,15 @@
 
   <div class="gallery-head">
     <h2>the discarded, kept as art</h2>
+    <span id="save-status"></span>
+  </div>
+  <div class="signin-row" id="signin-row">
+    <input id="handle-input" type="text" placeholder="yourhandle.bsky.social" aria-label="Bluesky handle, to save your gallery">
+    <button id="signin-btn" type="button">Sign in to save your gallery</button>
+  </div>
+  <div id="signed-in-row">
+    <span id="signed-in-as"></span>
+    <button id="signout-btn" type="button">Sign out</button>
   </div>
   <p id="gallery-empty">Nothing dispelled yet — click above to shed the first one.</p>
   <ul id="gallery"></ul>
@@ -113,15 +130,31 @@
   <footer class="note">
     This is a small illustrative simulation, not a live price feed — the
     "true values" are approximate, honestly-labelled stand-ins for real
-    DRAM/NAND/HBM economics, not sourced from any market data. Nothing here
-    is saved; refresh and the record resets. Runs entirely in this tab, no
-    network calls.
+    DRAM/NAND/HBM economics, not sourced from any market data. The price
+    simulation itself always resets on refresh. Sign in above and the
+    gallery — only the gallery — saves to your own Bluesky repo, so it
+    survives; signed out, it's gone when you leave.
   </footer>
 </main>
 
-<script>
+<script type="module">
+import { labPds } from '/_kit/pds.js';
 (function () {
   'use strict';
+
+  var store = labPds();
+
+  // Deterministic PRNG so a saved tile's seed reproduces the exact same art
+  // on repaint, instead of storing pixels. https://github.com/bryc/code (public domain)
+  function mulberry32(seed) {
+    var s = seed >>> 0;
+    return function () {
+      s = (s + 0x6D2B79F5) | 0;
+      var t = Math.imul(s ^ (s >>> 15), 1 | s);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
 
   var ASSETS = [
     { key: 'dram',     name: 'DRAM',              unit: '$/GB',    truth: 3.40,  floor: 1.55, color: 'var(--dram)' },
@@ -264,35 +297,48 @@
   var gallery = document.getElementById('gallery');
   var galleryEmpty = document.getElementById('gallery-empty');
   var GALLERY_MAX = 30;
+  var saveStatus = document.getElementById('save-status');
 
-  function paintArt(cv, seedColor, magnitude) {
+  function paintArt(cv, seedColor, magnitude, rng) {
     var g = cv.getContext('2d');
     var w = cv.width, h = cv.height;
     g.clearRect(0, 0, w, h);
-    var n = 5 + Math.floor(Math.random() * 5);
+    var n = 5 + Math.floor(rng() * 5);
     for (var i = 0; i < n; i++) {
-      var r = (0.06 + Math.random() * 0.22 * magnitude) * Math.min(w, h);
-      var cx = Math.random() * w, cy = Math.random() * h;
+      var r = (0.06 + rng() * 0.22 * magnitude) * Math.min(w, h);
+      var cx = rng() * w, cy = rng() * h;
       g.beginPath();
       g.arc(cx, cy, Math.max(2, r), 0, Math.PI * 2);
       g.fillStyle = seedColor;
-      g.globalAlpha = 0.18 + Math.random() * 0.35;
+      g.globalAlpha = 0.18 + rng() * 0.35;
       g.fill();
     }
     g.globalAlpha = 1;
     g.strokeStyle = seedColor;
     g.lineWidth = 1.5;
     g.beginPath();
-    var px = Math.random() * w, py = Math.random() * h;
+    var px = rng() * w, py = rng() * h;
     g.moveTo(px, py);
     for (var j = 0; j < 3; j++) {
-      px = Math.random() * w; py = Math.random() * h;
+      px = rng() * w; py = rng() * h;
       g.lineTo(px, py);
     }
     g.stroke();
   }
 
-  function addArtwork(asset, removedAmount) {
+  function findAsset(key) {
+    for (var i = 0; i < ASSETS.length; i++) if (ASSETS[i].key === key) return ASSETS[i];
+    return null;
+  }
+
+  // tiles are the durable form of the gallery: {key, removed, seed} per tile,
+  // newest first — small enough to save as one record, and seed reproduces
+  // the exact same painted art on repaint instead of storing pixels.
+  var tiles = [];
+
+  function renderTile(tile, prepend) {
+    var asset = findAsset(tile.key);
+    if (!asset) return;
     galleryEmpty.hidden = true;
     var li = document.createElement('li');
     var cv = document.createElement('canvas');
@@ -300,13 +346,34 @@
     var fig = document.createElement('figure');
     fig.style.margin = '0';
     var cap = document.createElement('figcaption');
-    cap.textContent = asset.name + ' misprice, dispelled — was low by ' + fmt(removedAmount, asset);
+    cap.textContent = asset.name + ' misprice, dispelled — was low by ' + fmt(tile.removed, asset);
     fig.appendChild(cv);
     fig.appendChild(cap);
     li.appendChild(fig);
-    gallery.insertBefore(li, gallery.firstChild);
-    paintArt(cv, cssVar(asset.color), Math.min(1, removedAmount / (asset.truth - asset.floor) + 0.3));
+    if (prepend) gallery.insertBefore(li, gallery.firstChild); else gallery.appendChild(li);
+    var rng = mulberry32(tile.seed);
+    paintArt(cv, cssVar(asset.color), Math.min(1, tile.removed / (asset.truth - asset.floor) + 0.3), rng);
+  }
+
+  function persistGallery() {
+    if (!store.user()) return;
+    store.save('gallery', tiles, { kind: 'gallery' }).then(function () {
+      saveStatus.textContent = 'gallery saved to your repo';
+      saveStatus.className = 'ok';
+    }).catch(function () {
+      saveStatus.textContent = 'save failed — will retry on the next dispel';
+      saveStatus.className = '';
+    });
+  }
+
+  function addArtwork(asset, removedAmount) {
+    var seed = (Math.random() * 0xffffffff) >>> 0;
+    var tile = { key: asset.key, removed: removedAmount, seed: seed };
+    tiles.unshift(tile);
+    if (tiles.length > GALLERY_MAX) tiles.length = GALLERY_MAX;
+    renderTile(tile, true);
     while (gallery.children.length > GALLERY_MAX) gallery.removeChild(gallery.lastChild);
+    persistGallery();
   }
 
   // ---- interaction ----
@@ -346,10 +413,50 @@
 
   window.addEventListener('resize', function () { resizeCanvas(); if (reducedMotion) drawChart(); });
 
+  // ---- sign in / save: optional. Only the gallery persists — the price
+  // simulation itself always starts fresh, see the footer note. ----
+  var signinRow = document.getElementById('signin-row');
+  var signedInRow = document.getElementById('signed-in-row');
+  var signedInAs = document.getElementById('signed-in-as');
+  var handleInput = document.getElementById('handle-input');
+  var signinBtn = document.getElementById('signin-btn');
+  var signoutBtn = document.getElementById('signout-btn');
+
+  kit.handleInput(handleInput, { onPick: function (handle) { doSignIn(handle); } });
+
+  function doSignIn(handle) {
+    handle = (handle || handleInput.value || '').trim();
+    if (!handle) return;
+    saveStatus.textContent = 'redirecting to Bluesky…';
+    saveStatus.className = '';
+    store.signIn(handle).catch(function (err) {
+      kit.showError(saveStatus, err && err.message ? err.message : 'sign-in failed');
+    });
+  }
+  signinBtn.addEventListener('click', function () { doSignIn(); });
+  handleInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); doSignIn(); }
+  });
+  signoutBtn.addEventListener('click', function () { store.signOut(); showSignedOut(); });
+
+  function showSignedOut() {
+    signinRow.style.display = 'flex';
+    signedInRow.style.display = 'none';
+    saveStatus.textContent = '';
+    saveStatus.className = '';
+  }
+  function showSignedIn(user) {
+    signinRow.style.display = 'none';
+    signedInRow.style.display = 'flex';
+    signedInAs.textContent = 'saving as @' + user.handle;
+  }
+  store.onChange(function (user) { if (user) showSignedIn(user); else showSignedOut(); });
+
   // ---- run ----
-  document.getElementById('crumb').innerHTML = kit.crumb('data-real');
+  document.getElementById('crumb').innerHTML = kit.crumb('truth-markup');
   resizeCanvas();
   updatePurityUI();
+  showSignedOut();
 
   if (reducedMotion) {
     for (var i = 0; i < HIST_LEN; i++) { t++; stepHistory(); }
@@ -364,6 +471,22 @@
       requestAnimationFrame(loop);
     })();
   }
+
+  // Pick up a returning session (including right after the OAuth redirect
+  // back from Bluesky) and, if there is one, repaint the saved gallery from
+  // its stored seeds rather than starting empty.
+  store.ready().then(function (user) {
+    if (!user) return;
+    showSignedIn(user);
+    return store.load('gallery');
+  }).then(function (saved) {
+    if (!saved || !saved.length) return;
+    tiles = saved.slice(0, GALLERY_MAX);
+    gallery.innerHTML = '';
+    tiles.forEach(function (tile) { renderTile(tile, false); });
+  }).catch(function (err) {
+    kit.showError(saveStatus, 'could not load your saved gallery: ' + (err && err.message ? err.message : err));
+  });
 })();
 </script>
 </body>
