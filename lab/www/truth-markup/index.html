@@ -73,6 +73,7 @@
   #save-status.ok { color: var(--ok); }
   #signed-in-row { display: none; align-items: center; gap: .6rem; flex-wrap: wrap; margin: -.5rem 0 1rem; font-size: .82rem; color: var(--muted); }
   #signed-in-row button { min-height: 44px; background: transparent; color: var(--muted); border-color: var(--border); padding: .4rem .8rem; }
+  #signed-in-row span#signed-in-as { margin-right: auto; }
 
   footer.note { font-size: .78rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: 1rem; margin-top: 2rem; }
 </style>
@@ -122,6 +123,7 @@
   </div>
   <div id="signed-in-row">
     <span id="signed-in-as"></span>
+    <button id="clear-gallery-btn" type="button">Clear saved gallery</button>
     <button id="signout-btn" type="button">Sign out</button>
   </div>
   <p id="gallery-empty">Nothing dispelled yet — click above to shed the first one.</p>
@@ -421,18 +423,40 @@ import { labPds } from '/_kit/pds.js';
   var handleInput = document.getElementById('handle-input');
   var signinBtn = document.getElementById('signin-btn');
   var signoutBtn = document.getElementById('signout-btn');
+  var clearGalleryBtn = document.getElementById('clear-gallery-btn');
 
   kit.handleInput(handleInput, { onPick: function (handle) { doSignIn(handle); } });
+
+  // `auth.login` navigates away to Bluesky and back, so anything painted
+  // signed-out is gone from memory once the page reloads. Stash it here right
+  // before the redirect so it can be merged with the saved gallery on return.
+  var PENDING_KEY = 'truth-markup:pending-tiles';
 
   function doSignIn(handle) {
     handle = (handle || handleInput.value || '').trim();
     if (!handle) return;
     saveStatus.textContent = 'redirecting to Bluesky…';
     saveStatus.className = '';
+    try {
+      if (tiles.length) sessionStorage.setItem(PENDING_KEY, JSON.stringify(tiles));
+    } catch (e) { /* private browsing may refuse sessionStorage — losing the pre-signin tiles beats crashing */ }
     store.signIn(handle).catch(function (err) {
       kit.showError(saveStatus, err && err.message ? err.message : 'sign-in failed');
     });
   }
+
+  clearGalleryBtn.addEventListener('click', function () {
+    if (!store.user()) return;
+    store.remove('gallery').then(function () {
+      tiles = [];
+      gallery.innerHTML = '';
+      galleryEmpty.hidden = false;
+      saveStatus.textContent = 'saved gallery cleared';
+      saveStatus.className = 'ok';
+    }).catch(function (err) {
+      kit.showError(saveStatus, err && err.message ? err.message : 'could not clear the saved gallery');
+    });
+  });
   signinBtn.addEventListener('click', function () { doSignIn(); });
   handleInput.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); doSignIn(); }
@@ -458,10 +482,14 @@ import { labPds } from '/_kit/pds.js';
   updatePurityUI();
   showSignedOut();
 
+  // Pre-fill history so the chart opens full rather than growing one point
+  // per frame from an empty canvas.
+  for (var i0 = 0; i0 < HIST_LEN; i0++) { t++; stepHistory(); }
+  drawChart();
+  updateBreakdown();
+
   if (reducedMotion) {
-    for (var i = 0; i < HIST_LEN; i++) { t++; stepHistory(); }
-    drawChart();
-    updateBreakdown();
+    // static: already drawn above, no loop.
   } else {
     (function loop() {
       t++;
@@ -480,10 +508,19 @@ import { labPds } from '/_kit/pds.js';
     showSignedIn(user);
     return store.load('gallery');
   }).then(function (saved) {
-    if (!saved || !saved.length) return;
-    tiles = saved.slice(0, GALLERY_MAX);
+    var pending = null;
+    try {
+      var raw = sessionStorage.getItem(PENDING_KEY);
+      if (raw) { pending = JSON.parse(raw); sessionStorage.removeItem(PENDING_KEY); }
+    } catch (e) { /* ignore — nothing to merge */ }
+    var merged = (pending || []).concat(saved || []);
+    if (!merged.length) return;
+    tiles = merged.slice(0, GALLERY_MAX);
     gallery.innerHTML = '';
     tiles.forEach(function (tile) { renderTile(tile, false); });
+    // the pending tiles were never saved (they were made before sign-in), so
+    // write the merged set back — otherwise they vanish again on next visit.
+    if (pending && pending.length) persistGallery();
   }).catch(function (err) {
     kit.showError(saveStatus, 'could not load your saved gallery: ' + (err && err.message ? err.message : err));
   });

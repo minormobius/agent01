@@ -232,3 +232,16 @@ HTML below). Also another instance of the "someone else tells them to have
 the bot build it" pattern (minormobius: "you can just tell this guy to build
 it") — same shape as the second build, but here it's amplifying the
 requester's *own* earlier post rather than someone else's ask.
+
+## Sixteenth/seventeenth builds (data-real/truth-markup, iterations)
+
+Two follow-up turns in a row landed opaque one-liners with nothing to parse
+literally — "u are funny", then "cool how session instances react to fine
+touch" (no "session instances" or "touch" concept exists on the page). Both
+treated as pure reactions and resolved by working the standing BRIEF.md plan
+rather than guessing a literal feature. Strengthens the established pattern
+(reactions need reading, not literal parsing) with the clearest case yet:
+when a follow-up doesn't parse as an instruction AND doesn't point at
+anything buildable on the page, defaulting to "keep executing the plan the
+last turn already laid out" is the safe read for this handle, not a
+last resort.

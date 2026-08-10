@@ -1,1 +1,1 @@
-Added save: sign in and the gallery survives across visits, in your own repo — nothing else does. Optional; the sim still runs without it. Next: carrying tiles made right before sign-in, which the redirect currently drops.
+Wasn't sure what to build from "session instances react to fine touch" here, so I kept working the plan from last time: signing in mid-visit no longer drops what you'd already dispelled, and there's a button to clear your saved gallery.
