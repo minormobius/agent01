@@ -20,8 +20,10 @@
   .stage {
     background: var(--bg-raised); border: 1px solid var(--border);
     border-radius: var(--radius); padding: .75rem; margin-bottom: .75rem;
+    position: relative;
   }
   #chart { display: block; width: 100%; height: 220px; }
+  #fx { display: block; position: absolute; top: 0; left: 0; right: 0; height: 220px; pointer-events: none; }
 
   .legend {
     display: flex; gap: .9rem; flex-wrap: wrap; font-size: .78rem;
@@ -97,10 +99,14 @@
     is wrong. Dispel a lie below. The suppressed price rises toward what the
     thing actually costs, and whatever misinformation you removed doesn't
     vanish — it gets kept, shrunk down to the tiniest piece of art, in the
-    gallery underneath.
+    gallery underneath. Each dispel sends a shuriken cutting across the
+    chart — the lie actually getting cut, not just a number moving.
   </p>
 
-  <div class="stage"><canvas id="chart" aria-hidden="true"></canvas></div>
+  <div class="stage">
+    <canvas id="chart" aria-hidden="true"></canvas>
+    <canvas id="fx" aria-hidden="true"></canvas>
+  </div>
   <ul class="legend" id="legend"></ul>
 
   <div class="controls">
@@ -213,6 +219,107 @@ import { labPds } from '/_kit/pds.js';
 
   function cssVar(name) {
     return getComputedStyle(document.documentElement).getPropertyValue(name.replace('var(', '').replace(')', '')).trim();
+  }
+
+  // ---- fx: a shuriken cuts across the chart each time a lie is dispelled ----
+  var fxCanvas = document.getElementById('fx');
+  var fxCtx = fxCanvas.getContext('2d');
+  var effects = []; // in-flight shurikens, normal-motion path only
+
+  function resizeFx() {
+    var rect = fxCanvas.getBoundingClientRect();
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    fxCanvas.width = Math.max(1, Math.round(rect.width * dpr));
+    fxCanvas.height = Math.max(1, Math.round(rect.height * dpr));
+    fxCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function drawShuriken(g, x, y, r, rot, color) {
+    g.save();
+    g.translate(x, y);
+    g.rotate(rot);
+    g.beginPath();
+    for (var i = 0; i < 4; i++) {
+      var a0 = (Math.PI / 2) * i;
+      var outX = Math.cos(a0) * r, outY = Math.sin(a0) * r;
+      var inA = a0 + Math.PI / 4;
+      var inX = Math.cos(inA) * r * 0.35, inY = Math.sin(inA) * r * 0.35;
+      if (i === 0) g.moveTo(outX, outY); else g.lineTo(outX, outY);
+      g.lineTo(inX, inY);
+    }
+    g.closePath();
+    g.fillStyle = color;
+    g.fill();
+    g.beginPath();
+    g.arc(0, 0, r * 0.18, 0, Math.PI * 2);
+    g.fillStyle = cssVar('--bg-raised') || '#141414';
+    g.fill();
+    g.restore();
+  }
+
+  // one shuriken flies edge-to-edge over ~22 frames, leaving a short fading
+  // trail of dots behind it — the "cut" through the noise on that asset.
+  function spawnNinja() {
+    var rect = fxCanvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    var fromLeft = Math.random() < 0.5;
+    effects.push({
+      x: fromLeft ? -24 : rect.width + 24,
+      y: rect.height * (0.15 + Math.random() * 0.6),
+      vx: (fromLeft ? 1 : -1) * (rect.width + 48) / 22,
+      rot: 0,
+      rotSpeed: (fromLeft ? 1 : -1) * (0.8 + Math.random() * 0.3),
+      life: 0,
+      maxLife: 22,
+      trail: []
+    });
+  }
+
+  function updateAndDrawFx() {
+    var rect = fxCanvas.getBoundingClientRect();
+    if (!effects.length) return;
+    fxCtx.clearRect(0, 0, rect.width, rect.height);
+    var color = cssVar('--fg') || '#eee';
+    effects = effects.filter(function (fx) {
+      fx.x += fx.vx;
+      fx.rot += fx.rotSpeed;
+      fx.life++;
+      fx.trail.push({ x: fx.x, y: fx.y });
+      if (fx.trail.length > 8) fx.trail.shift();
+      return fx.life < fx.maxLife;
+    });
+    effects.forEach(function (fx) {
+      fx.trail.forEach(function (p, i) {
+        fxCtx.beginPath();
+        fxCtx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+        fxCtx.fillStyle = color;
+        fxCtx.globalAlpha = (i / fx.trail.length) * 0.3;
+        fxCtx.fill();
+      });
+      fxCtx.globalAlpha = 1;
+      drawShuriken(fxCtx, fx.x, fx.y, 11, fx.rot, color);
+    });
+  }
+
+  // reduced-motion path: no flight, just one static cut-mark per click.
+  function drawStaticNinja() {
+    var rect = fxCanvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    fxCtx.clearRect(0, 0, rect.width, rect.height);
+    var color = cssVar('--fg') || '#eee';
+    var x = rect.width * (0.3 + Math.random() * 0.4);
+    var y = rect.height * (0.3 + Math.random() * 0.4);
+    fxCtx.strokeStyle = color;
+    fxCtx.globalAlpha = 0.35;
+    for (var i = 0; i < 6; i++) {
+      var a = (Math.PI * 2 / 6) * i;
+      fxCtx.beginPath();
+      fxCtx.moveTo(x, y);
+      fxCtx.lineTo(x + Math.cos(a) * 18, y + Math.sin(a) * 18);
+      fxCtx.stroke();
+    }
+    fxCtx.globalAlpha = 1;
+    drawShuriken(fxCtx, x, y, 12, Math.PI / 6, color);
   }
 
   function drawChart() {
@@ -464,7 +571,8 @@ import { labPds } from '/_kit/pds.js';
     var removed = (picked.truth - picked.floor) * (purity - before);
     addArtwork(picked, removed);
 
-    if (reducedMotion) { stepHistory(); drawChart(); updateBreakdown(); }
+    if (reducedMotion) { stepHistory(); drawChart(); updateBreakdown(); drawStaticNinja(); }
+    else { spawnNinja(); }
     if (purity >= 1) { dispelBtn.textContent = 'Nothing left to dispel'; dispelBtn.disabled = true; }
   });
 
@@ -474,10 +582,12 @@ import { labPds } from '/_kit/pds.js';
     dispelBtn.textContent = 'Dispel a lie';
     dispelBtn.disabled = false;
     ASSETS.forEach(function (a) { a.hist = []; });
+    effects = [];
+    fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
     if (reducedMotion) { stepHistory(); drawChart(); updateBreakdown(); }
   });
 
-  window.addEventListener('resize', function () { resizeCanvas(); if (reducedMotion) drawChart(); });
+  window.addEventListener('resize', function () { resizeCanvas(); resizeFx(); if (reducedMotion) drawChart(); });
 
   // ---- sign in / save: optional. Only the gallery persists — the price
   // simulation itself always starts fresh, see the footer note. ----
@@ -544,6 +654,7 @@ import { labPds } from '/_kit/pds.js';
   // ---- run ----
   document.getElementById('crumb').innerHTML = kit.crumb('truth-markup');
   resizeCanvas();
+  resizeFx();
   updatePurityUI();
   showSignedOut();
 
@@ -561,6 +672,7 @@ import { labPds } from '/_kit/pds.js';
       stepHistory();
       drawChart();
       updateBreakdown();
+      updateAndDrawFx();
       requestAnimationFrame(loop);
     })();
   }

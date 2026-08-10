@@ -103,6 +103,26 @@ since the static-composite reading felt more likely given no other signal in
 the thread. If the next request confirms "moving" was literal, start there
 rather than treating this turn's export as *it* just needing to loop.
 
+Turn 5 shipped in response to "Tangible - yes, want a particled ninja lie
+dispeller" — read as a direct, concrete ask (unlike turns 2/3's "u are funny"
+/ "cool how session instances react to fine touch", which named nothing on
+the page and were worked as reactions), so it overrode the standing plan per
+"if the request contradicts the plan, the request wins." Added a `#fx`
+canvas absolutely positioned exactly over `#chart` inside `.stage`
+(`position: relative` on `.stage`, `top:0;left:0;right:0;height:220px` on
+`#fx` — same content box as `#chart`, no manual `.75rem` offset needed
+because an absolutely-positioned child's containing block is the padding
+box of its positioned ancestor). Every "Dispel a lie" click now spawns a
+four-pointed shuriken (`drawShuriken`, a canvas path — no image asset) that
+flies edge-to-edge across the chart over ~22 frames, entering from a random
+side at a random height, rotating, dragging a short fading dot-trail behind
+it (`spawnNinja`/`updateAndDrawFx`, folded into the existing rAF `loop()`
+rather than a second loop). `prefers-reduced-motion` gets its own path
+(`drawStaticNinja`): no flight, just one static shuriken-plus-burst-lines
+mark drawn once per click at a random point, matching the existing
+reduced-motion pattern of "redraw once per interaction, never animate on
+its own." Reset clears both the effect queue and the fx canvas.
+
 ## The plan (not built yet, roughly in order)
 
 1. ~~Save the gallery to the visitor's own repo~~ — done turn 2.
@@ -136,6 +156,21 @@ rather than treating this turn's export as *it* just needing to loop.
    shouldn't be, every source canvas is drawn by this page's own script, not
    loaded from any origin — before suspecting the grid math.
 
+8. **The fx canvas is untested in a browser.** The composite math (edge
+   entry, rotation, trail fade, `roundRect`-free path drawing) is correct on
+   paper — watch the screenshot for whether the shuriken is visible against
+   `--bg-raised` (color is `cssVar('--fg')`, should have plenty of
+   contrast) and whether it's positioned over the chart rather than offset
+   from it, which would mean the "containing block is the padding box"
+   assumption above was wrong for the actual browser.
+9. "Tangible" reads like it was answering an earlier question — possibly
+   from the harness or a DM not present in the captured thread — about
+   whether the requester wanted this abstract (numbers only) or physical
+   (something rendered/moving). If a follow-up pushes further in that
+   direction (more particles, a bigger burst, a full "cut" animation on the
+   gallery tile itself when it's created), that's the next step in this
+   line rather than a new one.
+
 ## Gotchas
 
 - `kit.crumb(name)` returns the whole `<div class="crumb">…</div>` markup —
@@ -164,6 +199,14 @@ rather than treating this turn's export as *it* just needing to loop.
   survives the OAuth round trip (same tab) but clears itself once that tab
   closes, which is the right lifetime for "notes to self about to redirect,"
   and it won't leak into a different tab's signed-out session.
+- `#fx`'s `top:0;left:0;right:0` is relative to `.stage`'s **padding box**,
+  not its border box, because `.stage` is the nearest `position: relative`
+  ancestor and that's how CSS defines the containing block for an
+  absolutely-positioned descendant — so it lines up with `#chart` (also
+  inside that padding box) without adding `.stage`'s `.75rem` padding by
+  hand. Don't "fix" a perceived offset by adding padding to `#fx`'s inset
+  values; if it's actually offset, the bug is more likely `.stage` losing
+  `position: relative` or a DPR scaling mismatch between the two canvases.
 
 ## Screenshot review (turn 1, no changes made — not re-verified this turn)
 

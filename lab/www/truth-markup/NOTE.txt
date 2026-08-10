@@ -1,1 +1,1 @@
-Read "comparted into an imaging mover" as: turn the tiles into one downloadable image. Added a "Save gallery as one image" button — stitches the tiles into a single PNG. Meant an animated/moving image instead? Say so and that's the next build.
+Made it tangible: each dispel now throws a spinning shuriken across the chart, trailing sparks — a canvas shape, not an image. Want it bigger, a whole animated figure? Say so and I'll push further.
