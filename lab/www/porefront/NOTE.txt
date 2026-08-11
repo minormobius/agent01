@@ -1,1 +1,1 @@
-Added a toggle: network (original), field (same run as a mosaic instead of nodes+lines), throats (a histogram — resistance on x, count on y, stacked by each throat's state at the current pressure). One slider drives all three.
+Water fills from the bottom now; a gravity slider actually re-runs the solver (higher throats cost more to reach), not just relabels the picture. Turn it up to watch the front flatten like a real water table in sand.

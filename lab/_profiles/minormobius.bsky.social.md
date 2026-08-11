@@ -582,6 +582,23 @@ crystallization + the recipe leaderboard as the next named steps, per this
 requester's established tolerance for an honest scoped turn one over a
 shakier full attempt.
 
+## `porefront` (2026-08-11), turn 3: "take gravity into consideration" means feed the solver, not relabel the picture — confirms the pattern across sites
+Follow-up: "pin the invading fluid as water, the retreating fluid as air. Let's
+fill from below and take gravity into consideration. I'd like to turn this
+into a model of filling granular media." Same instinct as the
+`honeyflow-chess`/`arch-brainstorm` entries above (a physical-scale or
+physical-mechanism word is a literal modeling instruction), but this is the
+first confirmation it generalizes to a *different* site/thread, not just
+repeated asks within one conversation. Read "take gravity into consideration"
+as: gravity must change which pore/cell gets processed next inside the actual
+solver (here, an added height-weighted term in invasion percolation's
+threshold-selection, which reorders the whole simulation), not just a cosmetic
+top/bottom relabel or a decorative arrow. Durable: on any simulation site,
+when a follow-up names a physical force/effect by its real name (gravity,
+viscosity, pressure, diffusion), treat it as a request to route that quantity
+through wherever the model actually makes decisions, and change the UI/labels
+to match only as a consequence of that, not as a substitute for it.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
