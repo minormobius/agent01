@@ -371,6 +371,57 @@ that generalizes — one tenant's push permission would be every tenant's), so
 the visitor pastes it themselves, at whoever they actually want to challenge,
 rather than this page messaging anyone on their behalf.
 
+Turn 14 shipped in response to "That was indeed 'chatter' but, you almost never
+know!" — a meta-comment on the "reaction, not an ask" framing this BRIEF has
+used since turn 2, not itself a new ask, and it names nothing on the page. Read
+the same way turns 2/3/7/8/10 were. Checked the plan for the next un-gated
+item first, and there isn't one this time: everything left (§9 ninja, §12
+second market, §13 downloadable animation, the demand-decay note under §10)
+is explicitly conditioned on a specific future request naming it, and §5's
+recent-racers list is a **never build** per the lexicon rule, not a "not yet."
+
+So this turn did what turn 13's own "Quality-qualifier pass" subsection did:
+reread the code closely for a real defect rather than inventing a feature, since
+there was nothing left to build without guessing. Found one.
+
+**The bug:** `maybePostScore()` set `scorePosted = true` unconditionally the
+first time `overallPurity()` reached 1, *before* checking `store.user()`. That
+guard is what `showSignedIn()`'s own comment ("covers signing in after already
+reaching full purity") relies on to retry the post once a persisted sign-in is
+confirmed — but by the time that retry call happens, `scorePosted` already
+reads `true` from the first (unauthenticated) completion, so the guard at the
+top of the function (`if (... || scorePosted) return;`) blocks it forever. The
+realistic trigger isn't the mid-session "click Sign in" flow (that's a full
+OAuth-redirect page reload, which wipes all this in-memory state anyway) — it's
+a **returning visitor with a persisted session**: `store.ready()` is async, the
+price simulation and dispel buttons are live immediately, so a fast visitor (or
+one revisiting a run they'd nearly finished) can reach full purity before
+`store.ready()` resolves and calls `showSignedIn()`. When it then does resolve,
+the retry silently no-ops and the score never reaches the repo — with no error
+shown, since the code path that would have surfaced one never runs either.
+
+Same read turned up a second, smaller issue in the same function: `myBestDispels`
+was also being set unconditionally on first completion, which meant the
+`youText()` branch that says "— not posted (sign in above to save it)" could
+never actually display — `myBestDispels !== null` was always true by the time
+that check ran, so the caller always hit the other branch instead. Dead code
+since whenever it was written.
+
+**Fix:** split "record my best" from "attempt to post" inside
+`maybePostScore()` — `myBestDispels` still updates unconditionally (that's
+correct; it's a pure "best local run" fact, not tied to auth), but
+`scorePosted` is now only set `true` right before the actual `store.postScore`
+call, gated on `scorePosted || !store.user()`, and reset back to `false` in the
+`.catch` so a failed post can retry on the next call. `youText()` now reads
+`scorePosted` directly for the caveat instead of inferring it from
+`myBestDispels`, so "not posted" shows exactly when it's true and clears once
+the post actually succeeds (`updateVersusYou()` added to the `.then`).
+
+No other defect found on this pass — the rest of turns 11–13's additions
+(lightning flash, glossary, animate toggle, challenge button) read correctly
+against their own stated intent on rereading; none of them are exercised by
+this fix.
+
 ## The plan (not built yet, roughly in order)
 
 1. ~~Save the gallery to the visitor's own repo~~ — done turn 2.

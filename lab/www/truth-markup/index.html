@@ -844,7 +844,10 @@ import { labPds } from '/_kit/pds.js';
   function dispelWord(n) { return n + (n === 1 ? ' dispel' : ' dispels'); }
 
   function youText() {
-    if (myBestDispels !== null) return dispelWord(myBestDispels) + ' to full purity';
+    if (myBestDispels !== null) {
+      return dispelWord(myBestDispels) + ' to full purity' +
+        (scorePosted ? '' : ' — not posted (sign in above to save it)');
+    }
     if (overallPurity() >= 1) return dispelWord(dispelCount) + ' to full purity — not posted (sign in above to save it)';
     return 'still dispelling — ' + Math.round(overallPurity() * 100) + '% so far';
   }
@@ -854,19 +857,29 @@ import { labPds } from '/_kit/pds.js';
     versusYou.textContent = youText();
   }
 
+  // Tracking "my best completed run" and "actually posted to the repo" as two
+  // separate facts (myBestDispels vs scorePosted) is what lets this recover
+  // from the race where store.ready() resolves — confirming a persisted
+  // sign-in from a earlier visit — AFTER a fast visitor has already reached
+  // full purity once this page load. Setting scorePosted unconditionally on
+  // first completion (the old behaviour) permanently blocked the retry
+  // showSignedIn() is meant to trigger for exactly that race, since the guard
+  // here would already read true and bail before ever calling postScore.
   function maybePostScore() {
-    if (overallPurity() < 1 || scorePosted) return;
-    scorePosted = true;
+    if (overallPurity() < 1) return;
     if (myBestDispels === null || dispelCount < myBestDispels) myBestDispels = dispelCount;
     updateVersusYou();
-    if (!store.user()) return;
+    if (scorePosted || !store.user()) return;
+    scorePosted = true;
     store.postScore(dispelCount, {
       unit: 'dispels', higherIsBetter: false,
       detail: 'clicks of "Dispel a lie" to reach full purity'
     }).then(function () {
       versusStatus.textContent = 'score posted: ' + dispelWord(dispelCount) + ' to full purity';
       versusStatus.className = 'ok';
+      updateVersusYou();
     }).catch(function (err) {
+      scorePosted = false; // allow a retry — e.g. the next dispel-triggered call, or a later sign-in
       kit.showError(versusStatus, 'could not post your score: ' + (err && err.message ? err.message : err));
     });
   }

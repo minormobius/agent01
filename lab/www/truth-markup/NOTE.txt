@@ -1,1 +1,1 @@
-Added an animated crossfade through the art gallery and a copy-a-challenge button. On the logout: sign-in already persists ~30 days here — looks like your browser/app clears storage between visits, not something this page controls.
+Fair — read that as chatter too, but it prompted a closer look instead of a new feature. Found a real bug while in there: a returning signed-in visitor who finished the race fast could have their score silently never post. Fixed. Nothing visibly new this turn.
