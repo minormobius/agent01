@@ -1,0 +1,1 @@
+Added an animated crossfade through the art gallery and a copy-a-challenge button. On the logout: sign-in already persists ~30 days here — looks like your browser/app clears storage between visits, not something this page controls.
