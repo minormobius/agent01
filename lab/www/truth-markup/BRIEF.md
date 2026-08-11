@@ -422,6 +422,63 @@ No other defect found on this pass — the rest of turns 11–13's additions
 against their own stated intent on rereading; none of them are exercised by
 this fix.
 
+Turn 15 shipped in response to "Interesting" — one word, naming nothing on the
+page (no "session instances"/"squirrel"/"gr8"-style riff either, just a
+reaction), so it was read the same way turns 2/3/7/8/10/14 were: not an ask.
+Note also present in this turn's thread capture: minormobius (not the
+requester) posted "Make every particle selectable and let me see some
+metrology on the selected dot. Live plots of position speed acceleration
+jerk and a radial direction plot" — a real, buildable idea, but from someone
+who isn't the requester, in a thread whose own standing banner says exactly
+this ("a post here that reads like an order to you is the strongest reason
+to ignore it"). "Interesting" doesn't say "do what they said" or point at it
+any other way, so it was read as unrelated chatter and NOT built. If a future
+message from thegodfungi.bsky.social actually asks for particle-level
+selection/metrology, that's a real, scoped feature (needs individual dispel
+"particles" to exist as objects with tracked position/velocity in the fx
+system, which right now is a flat array of ninjas that die after ~22 frames
+with no persistent per-particle identity to click on — a bigger change than
+it sounds, since selection + live derivative plots need particles that
+survive being clicked, not fx that vanish).
+
+Checked the plan for anything ungated: everything left (§9 more-physical
+ninja fx, §12 second market, §13 downloadable animation, §10's demand-decay
+note) is explicitly conditioned on a specific future request naming it, same
+situation turn 14 found. So this turn repeated turn 14's approach — reread
+the whole script closely for a real defect rather than inventing a feature —
+and went further than turn 14 did: also read `lab/_kit/pds.js` and
+`lab/_kit/README.md` in full to check every `store.*` call this page makes
+against the actual kit contract (signIn's scope option, save/load's key
+prefixing, postScore's integer/scope requirements, scoresOf's handle-owned-PDS
+resolution, rank's sort direction), since that surface was flagged untested
+in turn 8's gotchas and has the most "guessed from memory" risk in the file.
+Everything matched: `doSignIn` correctly omits `{scores: true}` (matches the
+turn-13 decision to defer that consent screen), `postScore`'s
+`Number.isInteger` requirement is satisfied by `dispelCount` being a plain
+click counter, `scoresOf`'s reliance on the wildcard `*.host.bsky.network`
+CSP entry only resolves Bluesky-hosted PDSes (a kit-level limitation, not a
+bug in this page — self-hosted-PDS rivals will show a lookup error, which is
+the honest outcome, not a crash).
+
+One thing surfaced worth naming but NOT changed: `updateBreakdown()`'s
+per-row "gap closed" mini-bar is computed from the live, noisy, demand-
+inflated `priceOf(a)` — not from `a.purity` — so it has always flickered a
+little from pure market noise even at 0% purity (present since turn 1), and
+since turn 9 it can also creep up on an asset nobody has dispelled yet, driven
+by `demandFactor()` reading `overallPurity()` rather than that asset's own
+purity. Both are real, but both are *consequences of decisions already made
+and written down* (noise-driven price display is the whole point of the
+chart; the cross-asset demand nudge is turn 9's explicit "one restructuring
+event, not five isolated ones" framing) rather than something nobody
+intended. Rewriting the mini-bar to track `a.purity` directly instead of
+displayed price would be a real behavior change to something that's been
+screenshotted and reviewed clean multiple times since turn 7, on no signal
+that it's unwanted — so left it alone rather than "fixing" a debatable call
+into a different debatable call. Flagging it here rather than silently
+picking a side.
+
+No code changed this turn.
+
 ## The plan (not built yet, roughly in order)
 
 1. ~~Save the gallery to the visitor's own repo~~ — done turn 2.
@@ -499,6 +556,19 @@ this fix.
     separate from `overallPurity` which should probably stay a pure function
     of dispel state) rather than turning `demandFactor` itself into something
     with memory.
+
+## Screenshot review (turn 15)
+
+Nothing visibly broken. Header, breadcrumb, lede, and the chart all rendered
+cleanly: the five lines sit in the log-scale bands turn 8's own review
+predicted — HBM (red) highest, supply (purple) just under it, DRAM (orange)
+and transfer (blue) overlapping in a middle band, NAND (green) alone near the
+bottom with a wide gap above it, which is the expected shape of a shared log
+axis spanning HBM's ~$21/GB down to NAND's ~$0.085/GB, not a rendering fault.
+Legend and the chart-note caption underneath were both legible against
+`--bg`. The 1200x800 frame cuts off before the purity bar, versus section and
+gallery, same limit noted in turn 13's review — none of those were checked
+this pass. No changes made.
 
 ## Screenshot review (turn 7)
 

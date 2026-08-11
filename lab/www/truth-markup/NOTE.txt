@@ -1,1 +1,1 @@
-Fair — read that as chatter too, but it prompted a closer look instead of a new feature. Found a real bug while in there: a returning signed-in visitor who finished the race fast could have their score silently never post. Fixed. Nothing visibly new this turn.
+Read "Interesting" as a reaction, not a new ask, so I reread the whole page plus the pds.js backend for a real bug instead of guessing a feature — found none this time. Everything left in the plan needs a specific ask to build safely.
