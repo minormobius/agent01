@@ -479,6 +479,26 @@ picking a side.
 
 No code changed this turn.
 
+Turn 16 shipped in response to "I know that, tell me: how foolish would it be
+to act an asshole with something like llm?" — a question addressed to the
+bot/agent, not a feature request; nothing it names ("asshole", "llm") exists
+on this page or maps onto anything buildable here. Read the same way turns
+2/3/7/8/10/14/15 were: chatter, not an ask. Checked the plan for an ungated
+item first — there still isn't one; everything left (§9 ninja follow-up, §12
+second market, §13 downloadable animation, §10's demand-decay note) is
+explicitly conditioned on a specific future request naming it. Spot-checked
+the areas most likely to have drifted since turn 14/15's full pass (per-asset
+purity/button state, `demandFactor`'s bound against `AXIS_MAX`, the
+`scorePosted`/`myBestDispels` split) rather than re-reading the whole file a
+third time, since two prior turns already did that exhaustively with nothing
+outstanding. Nothing found. No code changed.
+
+If a future message from thegodfungi.bsky.social does turn out to be about
+LLM etiquette rather than this page (e.g. "build something about being rude
+to a bot"), that's a real, buildable idea on its own terms — but guessing it
+from one ambiguous line risks building something nobody asked for, so it
+wasn't started.
+
 ## The plan (not built yet, roughly in order)
 
 1. ~~Save the gallery to the visitor's own repo~~ — done turn 2.
@@ -556,6 +576,15 @@ No code changed this turn.
     separate from `overallPurity` which should probably stay a pure function
     of dispel state) rather than turning `demandFactor` itself into something
     with memory.
+
+## Screenshot review (turn 16)
+
+Same frame as turn 15's review — no code changed this turn, so no new
+surface to check. Header, breadcrumb, lede, the five-line chart sitting in
+its log-scale bands (HBM/red highest, supply/purple just under, DRAM/orange
+and transfer/blue overlapping mid-band, NAND/green alone near the bottom),
+legend, and the chart-note caption all rendered cleanly at 1200x800. Nothing
+off-screen, overlapping, or unreadable. No changes made.
 
 ## Screenshot review (turn 15)
 
