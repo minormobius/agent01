@@ -599,6 +599,21 @@ viscosity, pressure, diffusion), treat it as a request to route that quantity
 through wherever the model actually makes decisions, and change the UI/labels
 to match only as a consequence of that, not as a substitute for it.
 
+## `monopath` (2026-08-11): "build that" pattern extends to a combinatorics/graph-colouring paper pitch
+An eighth "build that"-shaped reply to a factory-posted concept advert (after
+`concourse`, `yes-that`/stallpoint, `rootcut`, `that-2`/Sixfold, `diffuse`,
+`porefront`, `site-4`/Superelastic), this time a Gyárfás-conjecture disproof
+(monochromatic vertex-disjoint path covers). No back-and-forth to draw a
+design preference from. Followed the `diffuse`/`porefront` precedent of
+deviating from one line of the advert itself — the advert's "leaderboard of
+best partition counts for a shared hard colouring" isn't buildable as a true
+global leaderboard against this kit's `pds.js` (no global scoreboard query,
+only per-named-handle lookups) — and shipped `localStorage`-only best-score
+tracking on the one fixed/seeded instance, deferring the real friend-compare
+leaderboard (`kit.handleInput` + `store.scoresOf`) to BRIEF.md as the named
+next step, consistent with this requester's tolerance for an honest scoped
+turn one over a shakier full attempt.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
