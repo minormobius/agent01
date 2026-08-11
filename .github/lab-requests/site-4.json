@@ -1,0 +1,14 @@
+{
+  "slug": "site-4",
+  "task": "Build it",
+  "thread_root": "at://did:plc:gd6m4mw3km2betcnbbs6362q/app.bsky.feed.post/3mssocn4x6v2z",
+  "requester": "minormobius.bsky.social",
+  "named": "no",
+  "root_uri": "at://did:plc:gd6m4mw3km2betcnbbs6362q/app.bsky.feed.post/3mssocn4x6v2z",
+  "root_cid": "bafyreigcgel47qlarwlj2hryygblhgru3pzwjztruoa4oixqxzkfstrkxe",
+  "parent_uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3mssqotkdck2u",
+  "parent_cid": "bafyreif7d5vuyu5vzdqrwiqrgjgbvaccc4gkhcqtvyxgp34cqg35gs7vrq",
+  "refs_from": "Build it",
+  "from_idea": "at://did:plc:gd6m4mw3km2betcnbbs6362q/app.bsky.feed.post/3mssocn4x6v2z",
+  "requestedAt": "2026-08-11T13:44:14.545Z"
+}
