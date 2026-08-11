@@ -33,9 +33,9 @@ _Regenerated 2026-08-11 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 79, bluesky 73, data 57, tools 56, work 8.
 
-**Neighborhood spark** (bisk 2026-08-11, 99 members / 274 posts):
-- Mood: Fair 🌤 (trust)
-- Distinctive words: llm, imo, openai
+**Neighborhood spark** (bisk 2026-08-11, 99 members / 275 posts):
+- Mood: Overcast ☁ (trust)
+- Distinctive words: llm, openai, letta
 - Top post: "This and the million-line Bun rust rewrite are indicators that AI rewards insane overconfidence, which is a bitter pill " — @gracekind.net
 <!-- BRIEF_END -->
 
