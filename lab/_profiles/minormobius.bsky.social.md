@@ -614,6 +614,26 @@ leaderboard (`kit.handleInput` + `store.scoresOf`) to BRIEF.md as the named
 next step, consistent with this requester's tolerance for an honest scoped
 turn one over a shakier full attempt.
 
+## `sketch-out` (2026-08-11): a "pitch deck" request wants an argument plus one live, checkable proof, not prose alone
+Asked to "sketch out a pitch deck of agentic atproto, where's the value
+captured and why is it the users" from a thread of others riffing (ATProto
+as free infra, small single-purpose products, a joke about portable-data
+DMs) — no direct back-and-forth to draw a correction from yet. Built a
+short numbered-slide argument page, but per the `arch-brainstorm` pattern
+("build a small working proof of the hardest/most load-bearing piece, not
+only a written breakdown"), added one live demo backing the deck's actual
+claim: type a handle, watch it really resolve to its DID and its real PDS
+host via `plc.directory`, off both this domain and bsky.app. Worth
+defaulting to for future argument/essay/"pitch"-shaped requests from this
+requester: find the one claim the piece is actually resting on and make it
+independently checkable on the page itself, not just asserted in prose.
+Also continued the deliberate-rectilinear-as-contrast move from
+`daily-digital`'s "no rectilinear by default" rule: used a literal walled
+box for the "old, locked-in" model specifically to contrast against open
+rings for the "portable" model, i.e. breaking the no-rectilinear default is
+fine when the rectilinear shape is itself making the argument (a wall),
+not just the easy layout.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
