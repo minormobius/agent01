@@ -1,13 +1,13 @@
 {
   "slug": "porefront",
-  "task": "Give us another view of the field, a graph of those throats, and a toggle to swap between them\n\n--- earlier in this thread, from the person who asked (oldest first) ---\n\nBuild it",
+  "task": "Additional functionality now required. Let’s pin the invading fluid as water, the retreating fluid as air . Let’s fill from below and take gravity into consideration. I’d like to turn this into a model of filling granular media and I think these guys have the right framework for it\n\n--- earlier in this thread, from the person who asked (oldest first) ---\n\nBuild it\n\nGive us another view of the field, a graph of those throats, and a toggle to swap between them",
   "thread_root": "at://did:plc:gd6m4mw3km2betcnbbs6362q/app.bsky.feed.post/3msmltokv7h2x",
   "requester": "minormobius.bsky.social",
   "named": "no",
   "root_uri": "at://did:plc:gd6m4mw3km2betcnbbs6362q/app.bsky.feed.post/3msmltokv7h2x",
   "root_cid": "bafyreibkkisxdswiy6423qec7cnr3p4v4pildcockl6ixqvb6bq4yqj5re",
-  "parent_uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3msmphe4lkk2u",
-  "parent_cid": "bafyreiapeybeskaiffteqfjjd7fwvxuuazfq7wwfwzkg3rqsunfq6ok6eq",
-  "refs_from": "Give us another view of the field, a graph of those throats, and a toggle to swap between them\nBuild it",
-  "requestedAt": "2026-08-09T04:06:05.396Z"
+  "parent_uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3msrmw2dnzs2u",
+  "parent_cid": "bafyreian7gzcucqfgyf4frm6axsqgnlc35fe7v5xd355k5hf7d7ravxdpu",
+  "refs_from": "Additional functionality now required. Let’s pin the invading fluid as water, the retreating fluid as air . Let’s fill from below and take gravity into consideration. I’d like to turn this into a model of filling granular media and I think these guys have the right framework for it\nBuild it\nGive us another view of the field, a graph of those throats, and a toggle to swap between them",
+  "requestedAt": "2026-08-11T03:03:55.577Z"
 }
