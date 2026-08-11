@@ -1,0 +1,12 @@
+# Not part of the site: internal instructions for whoever works on this
+# surface. assets.directory is this dir, so without this line the file is
+# served at the surface's public URL.
+CLAUDE.md
+# Tests are tests, not pages; the rest is deploy-time debris if wrangler is
+# ever npm-installed in-dir.
+test
+node_modules
+.wrangler
+package.json
+package-lock.json
+wrangler.jsonc

@@ -1,0 +1,58 @@
+name: Deploy farm (Harvestipol)
+
+# farm.mino.mobi — Harvestipol, farming on ATProto. Static assets behind a thin
+# Worker: no build, no D1, no secrets. Auth and storage are the player's own
+# PDS via auth.mino.mobi; friends' farms are keyless public reads. The vendored
+# kernels (hoop garden/alch, oauth-client) are committed, so there is no
+# vendor step here — re-sync by hand per farm/CLAUDE.md when the sources move.
+
+on:
+  push:
+    branches:
+      - 'claude/farmville-atproto-game-745mcr'
+    paths:
+      - 'farm/**'
+      - '.github/workflows/deploy-farm.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Kernel selftests (state · mine · achievements · social)
+        run: |
+          node farm/test/state.selftest.mjs
+          node farm/test/mine.selftest.mjs
+          node farm/test/achievements.selftest.mjs
+          node farm/test/social.selftest.mjs
+
+      - name: Deploy worker + assets
+        working-directory: farm
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Green is not proof: check the domain actually serves this build.
+      # See docs/DEPLOYS.md §4 — the log above must bind '(custom domain)'.
+      - name: Verify the custom domain serves the app
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            BODY=$(curl -fsS https://farm.mino.mobi/ || true)
+            if echo "$BODY" | grep -q 'Harvestipol'; then
+              echo "farm.mino.mobi is serving the app"
+              curl -fsS -o /dev/null -w "lexicon -> %{http_code}\n" \
+                https://farm.mino.mobi/lexicons/com.minomobi.farm.plot.json || true
+              exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 4
+          done
+          echo "farm.mino.mobi did not serve the expected page within 20s — check that the deploy log bound '(custom domain)'."

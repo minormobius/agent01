@@ -1,0 +1,29 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.farm.gift",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A gift left at a friend's gate — written to the GIVER's repo (rkey tid), addressed by DID. The recipient's client discovers it by scanning the repos of people they follow, and folds it into their own plot record exactly once (the claim ledger lives in the recipient's save; the gift record itself is never mutated). Different players' trade desks deal different biomes, so seeds travel between pools no coin can buy across.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["to", "item", "createdAt"],
+        "properties": {
+          "to": { "type": "string", "format": "did", "description": "Recipient DID." },
+          "item": {
+            "type": "object",
+            "required": ["kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["seed", "coins"], "description": "What travels." },
+              "id": { "type": "string", "maxLength": 64, "description": "Crop id (kind=seed)." },
+              "qty": { "type": "integer", "minimum": 1, "maximum": 50 }
+            }
+          },
+          "note": { "type": "string", "maxLength": 280 },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

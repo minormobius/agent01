@@ -24,6 +24,7 @@
 | photo | `photo/src/lib/auth.js` is a thin wrapper around `AuthClient` — exports the function-shaped API (`init`, `login`, `logout`, `authFetch`, etc.) so call sites are unchanged |
 | wave | `wave/src/lib/auth.ts` is the same wrapper pattern in TS (`authInit`, `authLogin`, `authLogout`, `authFetch`, `AuthUser`) |
 | wiki | `wiki/src/lib/auth.ts` is the same wrapper pattern in TS |
+| farm | vendors `auth.js` verbatim (`farm/vendor/auth.js`, hoop's committed-copy pattern); `farm/js/store.js` calls `new AuthClient()` directly with the narrow `com.minomobi.farm.*` scope, escalating to `repo:app.bsky.feed.post` only on share |
 
 Why a wrapper instead of changing every call site to `new AuthClient()` directly? Diff minimization, stable surface area inside the project, and a single place to swap the implementation if the shared lib's API evolves. New projects should still call `new AuthClient()` directly — the wrapper is a migration aid for projects with existing call sites.
 

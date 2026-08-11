@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "farm",
+  "compatibility_date": "2026-08-01",
+  // farm.mino.mobi — Harvestipol, farming on ATProto. Assets-only Worker: no
+  // server side at all. Every write goes browser → auth.mino.mobi → the
+  // player's own PDS; every read of ANOTHER player's farm is a keyless public
+  // XRPC call straight to their PDS. Nothing here holds state, no database to
+  // migrate, no secret to rotate.
+  //
+  // `directory: "."` deliberately publishes lexicons/ too — a lexicon nobody
+  // can fetch is not much of a schema. Everything that is NOT part of the site
+  // (CLAUDE.md, tests, build artifacts) is listed in .assetsignore; add to
+  // that file before adding anything here.
+  "assets": {
+    "directory": "."
+  },
+  "routes": [
+    { "pattern": "farm.mino.mobi", "custom_domain": true }
+  ]
+}

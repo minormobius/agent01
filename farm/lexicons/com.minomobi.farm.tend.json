@@ -1,0 +1,21 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.farm.tend",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "One friend watering another's plant — written to the TENDER's repo (rkey tid), naming the farm owner (subject) and the plant. Growth math counts DISTINCT friends per plant: each cuts total growth time 10%, capped at five (50%). Both sides are public records, so the boost is verifiable by anyone recomputing growthOf(). Clients honour a courtesy budget of 3 tends per friend per day; the records make overspending auditable rather than enforceable.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["subject", "plantId", "createdAt"],
+        "properties": {
+          "subject": { "type": "string", "format": "did", "description": "The farm owner's DID." },
+          "plantId": { "type": "string", "maxLength": 32, "description": "The plant id inside the subject's plot record." },
+          "verb": { "type": "string", "enum": ["water", "bless"], "description": "Flavour of the tend (mechanically identical in v1)." },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

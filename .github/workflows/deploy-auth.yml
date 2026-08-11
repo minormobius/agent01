@@ -2,7 +2,7 @@ name: Deploy Auth Worker
 
 on:
   push:
-    branches: ['claude/atproto-infinite-whiteboard-usdpzx']
+    branches: ['claude/farmville-atproto-game-745mcr']
     paths:
       - 'workers/auth/**'
       - '.github/workflows/deploy-auth.yml'
