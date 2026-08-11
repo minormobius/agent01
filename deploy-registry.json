@@ -1293,7 +1293,7 @@
       "provides": null,
       "op": "create",
       "status": "NEW — first deploy pending. Worker `farm` + custom_domain route (farm.mino.mobi); wrangler creates the subdomain itself on run #1 (neuro/board precedent). Requires the auth worker deployed with the com.minomobi.farm.* collections FIRST (same branch owns both; auth deploys on the same push).",
-      "note": "Harvestipol — farming on ATProto (the board pattern: no backend, the player's PDS is the database). Real-organism crops vendored from the hoop ag pack, wall-clock growth, gacha seed desk per-DID biome, a planetary-metals mine, the Galenic alchemy bench, public achievement records with one-tap bsky share, and friend-to-friend tends/gifts as public records in each side's own repo. (full description: farm/CLAUDE.md)",
+      "note": "Harvestople — farming on ATProto (the board pattern: no backend, the player's PDS is the database). Real-organism crops vendored from the hoop ag pack, wall-clock growth, gacha seed desk per-DID biome, a planetary-metals mine, the Galenic alchemy bench, public achievement records with one-tap bsky share, and friend-to-friend tends/gifts as public records in each side's own repo. (full description: farm/CLAUDE.md)",
       "paths": [
         "farm/**",
         ".github/workflows/deploy-farm.yml"

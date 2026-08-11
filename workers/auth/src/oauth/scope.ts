@@ -168,7 +168,7 @@ const WRITE_COLLECTIONS = [
   // this surface (2026-08-11); carried here so the union rule holds (the ceiling
   // only ever grows — check-auth-scope.mjs flagged it, we keep it).
   'com.minomobi.loop.answer',
-  // farm (farm.mino.mobi) — Harvestipol. plot = the whole save (rkey self);
+  // farm (farm.mino.mobi) — Harvestople. plot = the whole save (rkey self);
   // achievement/gift/tend are small public one-shots that make deeds bragable
   // and friend-to-friend growth boosts verifiable from public records alone.
   'com.minomobi.farm.plot',

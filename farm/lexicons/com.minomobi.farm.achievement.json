@@ -4,7 +4,7 @@
   "defs": {
     "main": {
       "type": "record",
-      "description": "A deed earned on a Harvestipol farm — public, in the player's own repo. rkey = the achievement id, so a deed can never double-mint. The public farm viewer lists these; the (optional, one tap, never automatic) share is a plain app.bsky.feed.post linking the viewer.",
+      "description": "A deed earned on a Harvestople farm — public, in the player's own repo. rkey = the achievement id, so a deed can never double-mint. The public farm viewer lists these; the (optional, one tap, never automatic) share is a plain app.bsky.feed.post linking the viewer.",
       "key": "any",
       "record": {
         "type": "object",

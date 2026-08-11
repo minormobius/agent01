@@ -1,6 +1,6 @@
-name: Deploy farm (Harvestipol)
+name: Deploy farm (Harvestople)
 
-# farm.mino.mobi — Harvestipol, farming on ATProto. Static assets behind a thin
+# farm.mino.mobi — Harvestople, farming on ATProto. Static assets behind a thin
 # Worker: no build, no D1, no secrets. Auth and storage are the player's own
 # PDS via auth.mino.mobi; friends' farms are keyless public reads. The vendored
 # kernels (hoop garden/alch, oauth-client) are committed, so there is no
@@ -47,7 +47,7 @@ jobs:
         run: |
           for attempt in 1 2 3 4 5; do
             BODY=$(curl -fsS https://farm.mino.mobi/ || true)
-            if echo "$BODY" | grep -q 'Harvestipol'; then
+            if echo "$BODY" | grep -q 'Harvestople'; then
               echo "farm.mino.mobi is serving the app"
               curl -fsS -o /dev/null -w "lexicon -> %{http_code}\n" \
                 https://farm.mino.mobi/lexicons/com.minomobi.farm.plot.json || true

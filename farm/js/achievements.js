@@ -50,7 +50,7 @@ export function markEarned(farm, ids, now) {
 // to the public read-only viewer, so the post IS a live window on the bragger's bed.
 export function shareText(ach, handle) {
   const link = 'https://farm.mino.mobi/?u=' + encodeURIComponent(handle || '');
-  return ach.emoji + ' ' + ach.name + ' — ' + ach.desc.toLowerCase() + ', on my Harvestipol farm.\n\n' + link;
+  return ach.emoji + ' ' + ach.name + ' — ' + ach.desc.toLowerCase() + ', on my Harvestople farm.\n\n' + link;
 }
 
 export default { ACHIEVEMENTS, byId, evaluate, markEarned, shareText };

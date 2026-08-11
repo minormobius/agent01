@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "farm",
   "compatibility_date": "2026-08-01",
-  // farm.mino.mobi — Harvestipol, farming on ATProto. Assets-only Worker: no
+  // farm.mino.mobi — Harvestople, farming on ATProto. Assets-only Worker: no
   // server side at all. Every write goes browser → auth.mino.mobi → the
   // player's own PDS; every read of ANOTHER player's farm is a keyless public
   // XRPC call straight to their PDS. Nothing here holds state, no database to

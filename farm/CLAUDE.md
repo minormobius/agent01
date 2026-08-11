@@ -1,10 +1,10 @@
-# farm — farm.mino.mobi (Harvestipol)
+# farm — farm.mino.mobi (Harvestople)
 
 Farming on ATProto: tend a bed of real organisms, mine the seven planetary
 metals, brew Galenic alchemy from what you harvest, gift seeds to Bluesky
 friends, and post your deeds. **There is no backend.** The player's own PDS is
 the database (the board.mino.mobi pattern); friends' farms are keyless public
-reads straight off their PDS. The working name is *Harvestipol* — it lives in
+reads straight off their PDS. The working name is *Harvestople* — it lives in
 `index.html`'s `<title>`, the header, and `achievements.js`'s share text if it
 ever needs changing.
 
@@ -122,7 +122,7 @@ finishes and the metadata cache turns over (~1 min; see workers/auth/CLAUDE.md
 for the cache trap and the PAR verification one-liner).
 
 Verify a farm deploy by the golden rule: the log must bind
-`farm.mino.mobi (custom domain)`; then check `/` serves "Harvestipol" and
+`farm.mino.mobi (custom domain)`; then check `/` serves "Harvestople" and
 `/lexicons/com.minomobi.farm.plot.json` is 200.
 
 ## Invariants — do not break
