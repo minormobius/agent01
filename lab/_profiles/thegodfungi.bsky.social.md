@@ -211,3 +211,51 @@ handle's crude phrasing to the bot itself doesn't necessarily mean the
 shipped copy should match register; softening for the public page while
 still landing the ask read as the right call. Worth watching whether a
 future turn asks for the literal phrase back.
+
+## Fifteenth build (data-real — "Truth Markup")
+
+An elaborate, poetic single post ("DRAM and ilk price increase due
+informational restructuring... lies and misconceptions decidedly
+dispelled... turned into the tiniest piece of entertaining art, maybe to
+gawk at") with no bullet list, but unlike the purely open-ended early builds
+this one was conceptually dense and specific in its own way — the shape was
+all there in the prose, just not itemised. Read the same way as the flame
+simulator: grounded the abstract idea in real (but honestly-labelled
+approximate/illustrative, since there's no live pricing feed available)
+hardware economics — DRAM, NAND, HBM, bandwidth — rather than staying purely
+metaphorical, consistent with this handle's standing taste for real-world
+flavour over pure whimsy. Applied two now-confirmed standing preferences
+without being asked again: breakdown-over-single-score (a per-asset table,
+not one number) and no readouts painted onto the simulation surface itself
+(chart and gallery tiles carry no on-canvas text, captions live in normal
+HTML below). Also another instance of the "someone else tells them to have
+the bot build it" pattern (minormobius: "you can just tell this guy to build
+it") — same shape as the second build, but here it's amplifying the
+requester's *own* earlier post rather than someone else's ask.
+
+## Eighteenth build (data-real/truth-markup, iteration — "Induce with flame wars")
+
+Confirms a cross-site callback: this handle will name a feature from a
+*different* one of their own sites ("Flame Wars", the versus mode added to
+the flame simulator/cheers-write) as shorthand for "add that kind of
+mechanic here," rather than describing the mechanic itself. Not a literal
+request for fire or flames on a page about DRAM pricing — read as "bring the
+competitive/versus pattern over," which the previous turn's own BRIEF.md had
+already flagged as the natural next step and specifically named this exact
+build ("Flame Wars") as the trigger to watch for. Worth generalising: when
+this handle references one of their own past builds by name on a different
+site, treat it as pointing at the *pattern*, not asking to literally import
+that site's theme.
+
+## Sixteenth/seventeenth builds (data-real/truth-markup, iterations)
+
+Two follow-up turns in a row landed opaque one-liners with nothing to parse
+literally — "u are funny", then "cool how session instances react to fine
+touch" (no "session instances" or "touch" concept exists on the page). Both
+treated as pure reactions and resolved by working the standing BRIEF.md plan
+rather than guessing a literal feature. Strengthens the established pattern
+(reactions need reading, not literal parsing) with the clearest case yet:
+when a follow-up doesn't parse as an instruction AND doesn't point at
+anything buildable on the page, defaulting to "keep executing the plan the
+last turn already laid out" is the safe read for this handle, not a
+last resort.

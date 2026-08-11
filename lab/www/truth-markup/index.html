@@ -1,0 +1,1097 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Truth Markup — prices rise as the misinformation clears</title>
+<meta property="og:title" content="Truth Markup — prices rise as the misinformation clears">
+<meta property="og:description" content="A small simulation: DRAM, NAND, HBM, bandwidth and supply all carry a price suppressed by bad information. Dispel a lie and watch the true price surface — while the noise you removed gets kept as tiny art, to gawk at.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root {
+    --dram: #e8a33d; --nand: #7ac387; --hbm: #f2777a;
+    --transfer: #7fb2e8; --supply: #c48ce8;
+  }
+  main { max-width: 42rem; }
+  .lede { color: var(--muted); font-size: .9rem; margin: 0 0 1.5rem; }
+  .lede b { color: var(--fg); }
+
+  .stage {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: .75rem; margin-bottom: .75rem;
+    position: relative;
+  }
+  #chart { display: block; width: 100%; height: 220px; }
+  #fx { display: block; position: absolute; top: 0; left: 0; right: 0; height: 220px; pointer-events: none; }
+
+  .legend {
+    display: flex; gap: .9rem; flex-wrap: wrap; font-size: .78rem;
+    color: var(--muted); margin-bottom: .5rem;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: .35rem; }
+  .swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+  .chart-note { color: var(--muted); font-size: .78rem; margin: 0 0 1.5rem; }
+
+  .controls { margin-bottom: .5rem; }
+  .dispel-row { display: flex; justify-content: center; margin-bottom: .75rem; }
+  #dispel { min-height: 44px; font-size: 1rem; padding: .9rem 1.8rem; }
+  #dispel:disabled { opacity: .5; cursor: default; }
+  #dispel:disabled:hover { background: var(--accent-dim); color: var(--accent); }
+  .controls-secondary { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; }
+  #reset { min-height: 44px; background: transparent; color: var(--muted); border-color: var(--border); }
+  #reset:hover { background: var(--bg-raised); color: var(--fg); }
+  .purity-wrap { flex: 1 1 12rem; min-width: 10rem; }
+
+  /* Lightning flash: every button that triggers a dispel (the global one and
+     each per-asset "Go") gets this on click. tokens.css already caps animation
+     duration to .01ms under prefers-reduced-motion, so this needs no separate
+     reduced-motion branch — it just resolves near-instantly there instead of
+     looping, matching the "no self-running animation" rule without a second
+     code path for what is already a one-shot, interaction-triggered effect. */
+  @keyframes lightning-flash {
+    0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0); filter: brightness(1); }
+    15%  { box-shadow: 0 0 20px 5px #fff; filter: brightness(2.2); }
+    30%  { box-shadow: 0 0 2px 0 rgba(255,255,255,0); filter: brightness(1); }
+    45%  { box-shadow: 0 0 24px 7px #fff; filter: brightness(2.4); }
+    65%  { box-shadow: 0 0 0 0 rgba(255,255,255,0); filter: brightness(1); }
+    100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); filter: brightness(1); }
+  }
+  .lightning-flash { animation: lightning-flash .55s ease-out; }
+  .purity-label { font-size: .78rem; color: var(--muted); margin-bottom: .3rem; display: flex; justify-content: space-between; }
+  .purity-bar { height: 10px; border-radius: 6px; background: var(--bg-raised); border: 1px solid var(--border); overflow: hidden; }
+  .purity-fill { height: 100%; background: linear-gradient(90deg, var(--accent-dim), var(--accent)); width: 0%; transition: width .4s ease; }
+  .demand-line { font-size: .72rem; color: var(--muted); margin: .35rem 0 0; }
+  .demand-line span { color: var(--fg); }
+  @media (prefers-reduced-motion: reduce) { .purity-fill { transition: none; } }
+
+  table.breakdown { width: 100%; border-collapse: collapse; margin: 1.75rem 0; font-size: .85rem; }
+  table.breakdown caption { text-align: left; font-size: .95rem; color: var(--fg); margin-bottom: .6rem; font-weight: 600; }
+  table.breakdown th, table.breakdown td { text-align: left; padding: .5rem .5rem; border-bottom: 1px solid var(--border); }
+  table.breakdown th { color: var(--muted); font-weight: 400; font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
+  table.breakdown td.name { display: flex; align-items: center; gap: .5rem; color: var(--fg); }
+  .name-stack { display: flex; flex-direction: column; gap: .1rem; line-height: 1.3; }
+  .asset-gloss { font-size: .7rem; font-weight: 400; color: var(--muted); }
+  table.breakdown td.num { font-variant-numeric: tabular-nums; color: var(--fg); }
+  td.delta.up { color: var(--ok); }
+  td.delta.zero { color: var(--muted); }
+  .mini-bar { width: 60px; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; display: inline-block; vertical-align: middle; }
+  .mini-fill { height: 100%; }
+  table.breakdown th:last-child, table.breakdown td:last-child { text-align: right; width: 1%; white-space: nowrap; }
+  .asset-dispel {
+    min-height: 44px; min-width: 44px; padding: .3rem .6rem; font-size: .78rem;
+    background: transparent; color: var(--fg); border-color: var(--border);
+  }
+  .asset-dispel:hover:not(:disabled) { background: var(--bg-raised); }
+  .asset-dispel:disabled { opacity: .5; cursor: default; color: var(--muted); }
+
+  .gallery-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+  .gallery-head-actions { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+  #export-btn, #animate-btn { min-height: 44px; background: transparent; color: var(--muted); border-color: var(--border); }
+  #export-btn:hover:not(:disabled), #animate-btn:hover:not(:disabled) { background: var(--bg-raised); color: var(--fg); }
+  #export-btn:disabled, #animate-btn:disabled { opacity: .5; cursor: default; }
+  #export-status { font-size: .78rem; color: var(--muted); }
+  #export-status.ok { color: var(--ok); }
+
+  .anim-wrap { display: flex; flex-direction: column; align-items: center; gap: .4rem; margin: 0 0 1rem; }
+  #anim-canvas {
+    display: block; width: 100%; max-width: 220px; aspect-ratio: 1;
+    border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg-raised);
+  }
+  .anim-caption { font-size: .78rem; color: var(--muted); text-align: center; margin: 0; min-height: 1.2em; }
+  #gallery {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+    gap: .6rem; margin: 1rem 0 2rem; padding: 0; list-style: none;
+  }
+  #gallery li { margin: 0; }
+  #gallery canvas {
+    width: 100%; aspect-ratio: 1; display: block; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--bg-raised);
+  }
+  #gallery figcaption { font-size: .68rem; color: var(--muted); margin-top: .3rem; line-height: 1.3; }
+  #gallery-empty { color: var(--muted); font-size: .85rem; }
+
+  #versus { margin: 1.75rem 0; }
+  #versus h2 { margin-bottom: .4rem; }
+  .versus-lede { margin: 0 0 .75rem; }
+  .versus-row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin-bottom: .5rem; }
+  .versus-row input { flex: 1 1 12rem; min-height: 44px; }
+  .versus-row button { min-height: 44px; white-space: nowrap; }
+  #versus-status, #challenge-status { font-size: .78rem; color: var(--muted); }
+  #versus-status.ok, #challenge-status.ok { color: var(--ok); }
+  #versus-result p { margin: .3rem 0; font-size: .9rem; }
+  #versus-result strong { color: var(--fg); }
+
+  .signin-row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin: -.5rem 0 1rem; }
+  .signin-row input { flex: 1 1 12rem; min-height: 44px; }
+  .signin-row button { min-height: 44px; white-space: nowrap; }
+  #save-status-line { margin: .4rem 0 0; }
+  #save-status { font-size: .78rem; color: var(--muted); }
+  #save-status.ok { color: var(--ok); }
+  #signed-in-row { display: none; align-items: center; gap: .6rem; flex-wrap: wrap; margin: -.5rem 0 1rem; font-size: .82rem; color: var(--muted); }
+  #signed-in-row button { min-height: 44px; background: transparent; color: var(--muted); border-color: var(--border); padding: .4rem .8rem; }
+  #signed-in-row span#signed-in-as { margin-right: auto; }
+
+  footer.note { font-size: .78rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: 1rem; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Truth Markup</h1>
+  <p class="sub">what a price does once the lies stop covering for it</p>
+  <p class="lede">
+    Five things people move around all day — <b>DRAM</b>, <b>NAND</b>,
+    <b>HBM</b>, <b>transfer</b> bandwidth, <b>supply</b> capacity — are all
+    priced a little low, because some of what everyone believes about them
+    is wrong. Dispel a lie below. The suppressed price rises toward what the
+    thing actually costs, and whatever misinformation you removed doesn't
+    vanish — it gets kept, shrunk down to the tiniest piece of art, in the
+    gallery underneath. Each dispel sends a shuriken cutting across the
+    chart — the lie actually getting cut, not just a number moving. Prices
+    don't stop rising once they catch up to "true," either — the more of
+    this gets dispelled, the more the market actually wants the honest
+    number, so demand for truth keeps climbing past it rather than settling
+    once supply catches up.
+  </p>
+
+  <div class="stage">
+    <canvas id="chart" aria-hidden="true"></canvas>
+    <canvas id="fx" aria-hidden="true"></canvas>
+  </div>
+  <ul class="legend" id="legend"></ul>
+  <p class="chart-note">
+    All five lines share one price axis, drawn on a log scale — NAND moves in
+    cents and HBM moves in tens of dollars, and without that the cheap line
+    would look flat at the bottom no matter how much noise it actually had.
+  </p>
+
+  <div class="controls">
+    <div class="dispel-row">
+      <button id="dispel" type="button">Dispel a lie</button>
+    </div>
+    <div class="controls-secondary">
+      <button id="reset" type="button">Reset the record</button>
+      <div class="purity-wrap">
+        <div class="purity-label"><span>informational purity</span><span id="purity-pct">0%</span></div>
+        <div class="purity-bar"><div class="purity-fill" id="purity-fill"></div></div>
+        <p class="demand-line">demand for truth: <span id="demand-pct">+0%</span> above true value</p>
+      </div>
+    </div>
+  </div>
+
+  <table class="breakdown" id="breakdown">
+    <caption>what each thing is actually worth (with what it actually is, under the name) — dispel one specifically, or use the button above for a random pick</caption>
+    <thead>
+      <tr><th>asset</th><th>true value</th><th>current price</th><th>gap closed</th><th>dispel</th></tr>
+    </thead>
+    <tbody id="breakdown-body"></tbody>
+  </table>
+
+  <section id="versus">
+    <h2>race a rival to full purity</h2>
+    <p class="lede versus-lede">
+      Every dispel you click while signed in counts toward one score: how many
+      it took you to get every price honest. Fewer is better. Type someone
+      else's handle to see how many it took them — only if they've finished
+      it here too.
+    </p>
+    <div class="versus-row">
+      <input id="rival-input" type="text" placeholder="rivalhandle.bsky.social" aria-label="Bluesky handle to compare against">
+      <button id="compare-btn" type="button">Compare</button>
+    </div>
+    <p id="versus-status"></p>
+    <div id="versus-result" hidden>
+      <p><strong>you:</strong> <span id="versus-you"></span></p>
+      <p><strong id="versus-rival-label"></strong> <span id="versus-rival"></span></p>
+    </div>
+    <div class="versus-row">
+      <button id="challenge-btn" type="button">Copy a challenge to paste anywhere</button>
+    </div>
+    <p id="challenge-status"></p>
+  </section>
+
+  <div class="gallery-head">
+    <h2>the discarded, kept as art</h2>
+    <div class="gallery-head-actions">
+      <button id="export-btn" type="button" disabled>Save gallery as one image</button>
+      <button id="animate-btn" type="button" disabled>Animate the gallery</button>
+      <span id="export-status"></span>
+    </div>
+  </div>
+  <div class="anim-wrap" id="anim-wrap" hidden>
+    <canvas id="anim-canvas" aria-hidden="true"></canvas>
+    <p class="anim-caption" id="anim-caption"></p>
+  </div>
+  <p id="save-status-line"><span id="save-status"></span></p>
+  <div class="signin-row" id="signin-row">
+    <input id="handle-input" type="text" placeholder="yourhandle.bsky.social" aria-label="Bluesky handle, to save your gallery">
+    <button id="signin-btn" type="button">Sign in to save your gallery</button>
+  </div>
+  <div id="signed-in-row">
+    <span id="signed-in-as"></span>
+    <button id="clear-gallery-btn" type="button">Clear saved gallery</button>
+    <button id="signout-btn" type="button">Sign out</button>
+  </div>
+  <p id="gallery-empty">Nothing dispelled yet — click above to shed the first one.</p>
+  <ul id="gallery"></ul>
+
+  <footer class="note">
+    This is a small illustrative simulation, not a live price feed — the
+    "true values" are approximate, honestly-labelled stand-ins for real
+    DRAM/NAND/HBM economics, not sourced from any market data. "True value"
+    is a floor here, not a ceiling: once purity is high enough, demand for
+    the honest number pushes prices above it, deliberately inverted from the
+    usual rule that more supply cools price. The price
+    simulation itself always resets on refresh. Sign in above and the
+    gallery — only the gallery — saves to your own Bluesky repo, so it
+    survives; signed out, it's gone when you leave. "Save gallery as one
+    image" works either way, signed in or not — it composites whatever
+    tiles are on screen into a single PNG you can download. "Animate the
+    gallery" is the moving version of the same idea — it crossfades through
+    the same tiles in your browser; there's no file to save from it, since
+    building a GIF or video needs an encoder this page has no way to fetch.
+    Racing a rival needs you signed in to post your own score; looking
+    someone else's up never does — that just reads their public repo. Signed
+    in status itself is meant to persist across visits (up to 30 days, kept
+    alive automatically while you're active) — if it isn't sticking for you,
+    that's most likely the browser or app you're viewing this in clearing its
+    storage between visits, not something toggled per-visit here.
+  </footer>
+</main>
+
+<script type="module">
+import { labPds } from '/_kit/pds.js';
+(function () {
+  'use strict';
+
+  var store = labPds();
+
+  // Deterministic PRNG so a saved tile's seed reproduces the exact same art
+  // on repaint, instead of storing pixels. https://github.com/bryc/code (public domain)
+  function mulberry32(seed) {
+    var s = seed >>> 0;
+    return function () {
+      s = (s + 0x6D2B79F5) | 0;
+      var t = Math.imul(s ^ (s >>> 15), 1 | s);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  var ASSETS = [
+    { key: 'dram',     name: 'DRAM',              unit: '$/GB',    truth: 3.40,  floor: 1.55, color: 'var(--dram)',
+      gloss: 'the memory in every phone, laptop and server — holds what a program is using right now, wiped when the power is off' },
+    { key: 'nand',     name: 'NAND flash',        unit: '$/GB',    truth: 0.085, floor: 0.04, color: 'var(--nand)',
+      gloss: 'the storage chips that keep files with the power off — the "flash" in a USB stick or a phone\'s storage' },
+    { key: 'hbm',      name: 'HBM stacks',        unit: '$/GB',    truth: 21.0,  floor: 9.5,  color: 'var(--hbm)',
+      gloss: '"High Bandwidth Memory" — chips stacked and wired straight onto AI/graphics processors, built to feed them fast enough to keep up' },
+    { key: 'transfer', name: 'transfer capacity', unit: '$/Gbps',  truth: 4.2,   floor: 1.8,  color: 'var(--transfer)',
+      gloss: 'how much data a connection can move per second — a real pipe, with a real size to it' },
+    { key: 'supply',   name: 'supply capacity',   unit: '$/slot',  truth: 12.5,  floor: 5.6,  color: 'var(--supply)',
+      gloss: 'room to make more of any of this — factory capacity being priced, not a physical part itself' },
+  ];
+
+  var reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var t = 0;
+  var HIST_LEN = 140;
+  ASSETS.forEach(function (a) {
+    a.phase = Math.random() * Math.PI * 2;
+    a.freq = 0.008 + Math.random() * 0.01;
+    a.hist = [];
+    a.purity = 0; // 0..1, per-asset — how much misinformation has been dispelled about THIS one
+  });
+
+  // shared log-scale axis: fixed once from every asset's own display band, so
+  // all five lines share one y-axis and their absolute scale is comparable
+  // (HBM at ~$21/GB vs NAND at ~$0.085/GB needs log, not linear, to coexist).
+  // demand: as more of the market's misinformation gets dispelled
+  // (overallPurity rising), demand for the honest number keeps climbing too
+  // — the inverse of the usual econ-101 read where more supply cools price.
+  // Applies globally off overallPurity, not per-asset purity, so even an
+  // asset nobody has touched yet gets a little pricier once its neighbours
+  // have mostly been dispelled — one restructuring event, not five isolated
+  // ones, matching the rest of this page's "one lever" framing.
+  var DEMAND_STRENGTH = 0.4; // max premium over "true value" once everything is fully dispelled
+
+  var AXIS_MIN = Math.min.apply(null, ASSETS.map(function (a) { return a.floor * 0.75; }));
+  var AXIS_MAX = Math.max.apply(null, ASSETS.map(function (a) { return a.truth * (1 + DEMAND_STRENGTH) * 1.05; }));
+  var LOG_AXIS_MIN = Math.log(AXIS_MIN);
+  var LOG_AXIS_MAX = Math.log(AXIS_MAX);
+
+  function overallPurity() {
+    var s = 0;
+    ASSETS.forEach(function (a) { s += a.purity; });
+    return s / ASSETS.length;
+  }
+  function allFull() {
+    return ASSETS.every(function (a) { return a.purity >= 1; });
+  }
+  function demandFactor() {
+    return 1 + overallPurity() * DEMAND_STRENGTH;
+  }
+
+  function priceOf(a) {
+    var span = a.truth - a.floor;
+    var base = a.floor + span * a.purity;
+    var noiseAmp = span * 0.22 * (1 - a.purity);
+    var jitter = Math.sin(t * a.freq + a.phase) * noiseAmp
+               + (Math.sin(t * a.freq * 2.7 + a.phase) * noiseAmp * 0.35);
+    return Math.max(a.floor * 0.5, (base + jitter) * demandFactor());
+  }
+
+  // ---- chart ----
+  var canvas = document.getElementById('chart');
+  var ctx = canvas.getContext('2d');
+
+  function resizeCanvas() {
+    var rect = canvas.getBoundingClientRect();
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.max(1, Math.round(rect.width * dpr));
+    canvas.height = Math.max(1, Math.round(rect.height * dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name.replace('var(', '').replace(')', '')).trim();
+  }
+
+  // ---- fx: a shuriken cuts across the chart each time a lie is dispelled ----
+  var fxCanvas = document.getElementById('fx');
+  var fxCtx = fxCanvas.getContext('2d');
+  var effects = []; // in-flight shurikens, normal-motion path only
+
+  function resizeFx() {
+    var rect = fxCanvas.getBoundingClientRect();
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    fxCanvas.width = Math.max(1, Math.round(rect.width * dpr));
+    fxCanvas.height = Math.max(1, Math.round(rect.height * dpr));
+    fxCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function drawShuriken(g, x, y, r, rot, color) {
+    g.save();
+    g.translate(x, y);
+    g.rotate(rot);
+    g.beginPath();
+    for (var i = 0; i < 4; i++) {
+      var a0 = (Math.PI / 2) * i;
+      var outX = Math.cos(a0) * r, outY = Math.sin(a0) * r;
+      var inA = a0 + Math.PI / 4;
+      var inX = Math.cos(inA) * r * 0.35, inY = Math.sin(inA) * r * 0.35;
+      if (i === 0) g.moveTo(outX, outY); else g.lineTo(outX, outY);
+      g.lineTo(inX, inY);
+    }
+    g.closePath();
+    g.fillStyle = color;
+    g.fill();
+    g.beginPath();
+    g.arc(0, 0, r * 0.18, 0, Math.PI * 2);
+    g.fillStyle = cssVar('--bg-raised') || '#141414';
+    g.fill();
+    g.restore();
+  }
+
+  // one shuriken flies edge-to-edge over ~22 frames, leaving a short fading
+  // trail of dots behind it — the "cut" through the noise on that asset.
+  function spawnNinja() {
+    var rect = fxCanvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    var fromLeft = Math.random() < 0.5;
+    effects.push({
+      x: fromLeft ? -24 : rect.width + 24,
+      y: rect.height * (0.15 + Math.random() * 0.6),
+      vx: (fromLeft ? 1 : -1) * (rect.width + 48) / 22,
+      rot: 0,
+      rotSpeed: (fromLeft ? 1 : -1) * (0.8 + Math.random() * 0.3),
+      life: 0,
+      maxLife: 22,
+      trail: []
+    });
+  }
+
+  function updateAndDrawFx() {
+    var rect = fxCanvas.getBoundingClientRect();
+    if (!effects.length) return;
+    fxCtx.clearRect(0, 0, rect.width, rect.height);
+    var color = cssVar('--fg') || '#eee';
+    effects = effects.filter(function (fx) {
+      fx.x += fx.vx;
+      fx.rot += fx.rotSpeed;
+      fx.life++;
+      fx.trail.push({ x: fx.x, y: fx.y });
+      if (fx.trail.length > 8) fx.trail.shift();
+      return fx.life < fx.maxLife;
+    });
+    effects.forEach(function (fx) {
+      fx.trail.forEach(function (p, i) {
+        fxCtx.beginPath();
+        fxCtx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+        fxCtx.fillStyle = color;
+        fxCtx.globalAlpha = (i / fx.trail.length) * 0.3;
+        fxCtx.fill();
+      });
+      fxCtx.globalAlpha = 1;
+      drawShuriken(fxCtx, fx.x, fx.y, 11, fx.rot, color);
+    });
+  }
+
+  // reduced-motion path: no flight, just one static cut-mark per click.
+  function drawStaticNinja() {
+    var rect = fxCanvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    fxCtx.clearRect(0, 0, rect.width, rect.height);
+    var color = cssVar('--fg') || '#eee';
+    var x = rect.width * (0.3 + Math.random() * 0.4);
+    var y = rect.height * (0.3 + Math.random() * 0.4);
+    fxCtx.strokeStyle = color;
+    fxCtx.globalAlpha = 0.35;
+    for (var i = 0; i < 6; i++) {
+      var a = (Math.PI * 2 / 6) * i;
+      fxCtx.beginPath();
+      fxCtx.moveTo(x, y);
+      fxCtx.lineTo(x + Math.cos(a) * 18, y + Math.sin(a) * 18);
+      fxCtx.stroke();
+    }
+    fxCtx.globalAlpha = 1;
+    drawShuriken(fxCtx, x, y, 12, Math.PI / 6, color);
+  }
+
+  function drawChart() {
+    var rect = canvas.getBoundingClientRect();
+    var w = rect.width, h = rect.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // reference grid — decoration, no numbers
+    ctx.strokeStyle = cssVar('--border');
+    ctx.lineWidth = 1;
+    for (var g = 1; g < 4; g++) {
+      var gy = (h / 4) * g;
+      ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
+    }
+
+    ASSETS.forEach(function (a) {
+      var color = cssVar(a.color);
+      ctx.beginPath();
+      for (var i = 0; i < a.hist.length; i++) {
+        var frac = i / (HIST_LEN - 1);
+        var x = frac * w;
+        var norm = (Math.log(a.hist[i]) - LOG_AXIS_MIN) / (LOG_AXIS_MAX - LOG_AXIS_MIN);
+        var y = h - Math.max(0, Math.min(1, norm)) * (h - 8) - 4;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    });
+  }
+
+  function stepHistory() {
+    ASSETS.forEach(function (a) {
+      var p = priceOf(a);
+      a.hist.push(p);
+      if (a.hist.length > HIST_LEN) a.hist.shift();
+    });
+  }
+
+  // ---- legend ----
+  var legend = document.getElementById('legend');
+  ASSETS.forEach(function (a) {
+    var span = document.createElement('span');
+    var sw = document.createElement('span');
+    sw.className = 'swatch';
+    sw.style.background = a.color;
+    span.appendChild(sw);
+    span.appendChild(document.createTextNode(a.name));
+    legend.appendChild(span);
+  });
+
+  // ---- breakdown table ----
+  var tbody = document.getElementById('breakdown-body');
+  var rows = {};
+  var assetButtons = {};
+  ASSETS.forEach(function (a) {
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td class="name"><span class="swatch" style="background:' + a.color + '"></span>' +
+      '<span class="name-stack"><span class="name-text">' + a.name + '</span>' +
+      '<span class="asset-gloss">' + a.gloss + '</span></span></td>' +
+      '<td class="num">' + fmt(a.truth, a) + '</td>' +
+      '<td class="num" data-role="price">' + fmt(a.floor, a) + '</td>' +
+      '<td class="delta zero" data-role="gap"><span class="mini-bar"><span class="mini-fill" style="width:0%;background:' + a.color + '"></span></span></td>' +
+      '<td class="num"><button type="button" class="asset-dispel" data-key="' + a.key + '" aria-label="Dispel a lie about ' + a.name + '">Go</button></td>';
+    tbody.appendChild(tr);
+    rows[a.key] = tr;
+    assetButtons[a.key] = tr.querySelector('.asset-dispel');
+  });
+
+  // one flash per dispel, on whichever button the visitor actually pressed —
+  // the global button and every per-asset "Go" all use this, so every
+  // instance of a dispel control flashes, not just one of them.
+  function flashLightning(el) {
+    if (!el) return;
+    el.classList.remove('lightning-flash');
+    void el.offsetWidth; // restart the animation even if it's already mid-flash
+    el.classList.add('lightning-flash');
+  }
+
+  // one button per asset, for dispelling a specific one instead of a random
+  // weighted pick — the global button below still does the weighted pick.
+  tbody.addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('.asset-dispel') : null;
+    if (!btn || btn.disabled) return;
+    var asset = findAsset(btn.getAttribute('data-key'));
+    if (asset) { flashLightning(btn); doDispel(asset); }
+  });
+
+  function updateAssetButtonStates() {
+    ASSETS.forEach(function (a) {
+      var btn = assetButtons[a.key];
+      var done = a.purity >= 1;
+      btn.disabled = done;
+      btn.textContent = done ? 'Done' : 'Go';
+    });
+  }
+
+  function fmt(v, a) {
+    return (v < 1 ? v.toFixed(3) : v.toFixed(2)) + ' ' + a.unit;
+  }
+
+  function updateBreakdown() {
+    ASSETS.forEach(function (a) {
+      var p = priceOf(a);
+      var gapClosed = (p - a.floor) / (a.truth - a.floor);
+      gapClosed = Math.max(0, Math.min(1, gapClosed));
+      var tr = rows[a.key];
+      var priceCell = tr.querySelector('[data-role="price"]');
+      var gapCell = tr.querySelector('[data-role="gap"]');
+      priceCell.textContent = fmt(p, a);
+      gapCell.className = 'delta ' + (gapClosed > 0.02 ? 'up' : 'zero');
+      var fill = gapCell.querySelector('.mini-fill');
+      fill.style.width = Math.round(gapClosed * 100) + '%';
+    });
+  }
+
+  // ---- purity control ----
+  var purityPct = document.getElementById('purity-pct');
+  var purityFill = document.getElementById('purity-fill');
+  var demandPctEl = document.getElementById('demand-pct');
+  function updatePurityUI() {
+    var pct = Math.round(overallPurity() * 100);
+    purityPct.textContent = pct + '%';
+    purityFill.style.width = pct + '%';
+    demandPctEl.textContent = '+' + Math.round((demandFactor() - 1) * 100) + '%';
+  }
+
+  // ---- gallery: what got dispelled, kept as tiny art ----
+  var gallery = document.getElementById('gallery');
+  var galleryEmpty = document.getElementById('gallery-empty');
+  var GALLERY_MAX = 30;
+  var saveStatus = document.getElementById('save-status');
+
+  function paintArt(cv, seedColor, magnitude, rng) {
+    var g = cv.getContext('2d');
+    var w = cv.width, h = cv.height;
+    g.clearRect(0, 0, w, h);
+    var n = 5 + Math.floor(rng() * 5);
+    for (var i = 0; i < n; i++) {
+      var r = (0.06 + rng() * 0.22 * magnitude) * Math.min(w, h);
+      var cx = rng() * w, cy = rng() * h;
+      g.beginPath();
+      g.arc(cx, cy, Math.max(2, r), 0, Math.PI * 2);
+      g.fillStyle = seedColor;
+      g.globalAlpha = 0.18 + rng() * 0.35;
+      g.fill();
+    }
+    g.globalAlpha = 1;
+    g.strokeStyle = seedColor;
+    g.lineWidth = 1.5;
+    g.beginPath();
+    var px = rng() * w, py = rng() * h;
+    g.moveTo(px, py);
+    for (var j = 0; j < 3; j++) {
+      px = rng() * w; py = rng() * h;
+      g.lineTo(px, py);
+    }
+    g.stroke();
+  }
+
+  function findAsset(key) {
+    for (var i = 0; i < ASSETS.length; i++) if (ASSETS[i].key === key) return ASSETS[i];
+    return null;
+  }
+
+  // tiles are the durable form of the gallery: {key, removed, seed} per tile,
+  // newest first — small enough to save as one record, and seed reproduces
+  // the exact same painted art on repaint instead of storing pixels.
+  var tiles = [];
+
+  function renderTile(tile, prepend) {
+    var asset = findAsset(tile.key);
+    if (!asset) return;
+    galleryEmpty.hidden = true;
+    var li = document.createElement('li');
+    var cv = document.createElement('canvas');
+    cv.width = 96; cv.height = 96;
+    var fig = document.createElement('figure');
+    fig.style.margin = '0';
+    var cap = document.createElement('figcaption');
+    cap.textContent = asset.name + ' misprice, dispelled — was low by ' + fmt(tile.removed, asset);
+    fig.appendChild(cv);
+    fig.appendChild(cap);
+    li.appendChild(fig);
+    if (prepend) gallery.insertBefore(li, gallery.firstChild); else gallery.appendChild(li);
+    var rng = mulberry32(tile.seed);
+    paintArt(cv, cssVar(asset.color), Math.min(1, tile.removed / (asset.truth - asset.floor) + 0.3), rng);
+  }
+
+  var exportBtn = document.getElementById('export-btn');
+  var exportStatus = document.getElementById('export-status');
+  var animateBtn = document.getElementById('animate-btn');
+  var animWrap = document.getElementById('anim-wrap');
+  var animCanvas = document.getElementById('anim-canvas');
+  var animCtx = animCanvas.getContext('2d');
+  var animCaption = document.getElementById('anim-caption');
+
+  function updateExportState() {
+    var empty = tiles.length === 0;
+    exportBtn.disabled = empty;
+    animateBtn.disabled = empty;
+    if (empty) { stopAnim(); animWrap.hidden = true; animIndex = 0; }
+  }
+
+  // ---- animate the gallery: a crossfading slideshow through the same tile
+  // canvases the grid already painted (no repainting). "Compressed" is the
+  // static PNG export above; this is the "and animated" half of the same
+  // request — a moving view, not a downloadable one (no GIF/APNG encoder is
+  // available client-side with no network to fetch one from). ----
+  var animIndex = 0;
+  var animFrame = 0;
+  var animRaf = null;
+  var ANIM_HOLD = 55;  // frames holding one tile still, ~0.9s at 60fps
+  var ANIM_FADE = 20;  // frames crossfading into the next
+
+  function resizeAnim() {
+    var rect = animCanvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    animCanvas.width = Math.max(1, Math.round(rect.width * dpr));
+    animCanvas.height = Math.max(1, Math.round(rect.height * dpr));
+    animCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function animCanvases() {
+    return Array.prototype.slice.call(gallery.querySelectorAll('canvas'));
+  }
+
+  // tiles[] and the gallery's <canvas> children stay in the same
+  // newest-first order (every place that changes one changes the other), so
+  // index i here is caption text for the same tile canvases[i] paints.
+  function updateAnimCaption(i) {
+    var tile = tiles[i];
+    if (!tile) { animCaption.textContent = ''; return; }
+    var asset = findAsset(tile.key);
+    if (!asset) { animCaption.textContent = ''; return; }
+    animCaption.textContent = asset.name + ' — was low by ' + fmt(tile.removed, asset);
+  }
+
+  function drawAnimFrame() {
+    var canvases = animCanvases();
+    if (!canvases.length) { stopAnim(); return; }
+    if (animIndex >= canvases.length) animIndex = 0;
+    var rect = animCanvas.getBoundingClientRect();
+    var w = rect.width, h = rect.height;
+    var cur = canvases[animIndex];
+    var next = canvases[(animIndex + 1) % canvases.length];
+    var cycle = ANIM_HOLD + ANIM_FADE;
+    var f = animFrame % cycle;
+    animCtx.clearRect(0, 0, w, h);
+    if (canvases.length === 1 || f < ANIM_HOLD) {
+      animCtx.globalAlpha = 1;
+      animCtx.drawImage(cur, 0, 0, w, h);
+    } else {
+      var frac = (f - ANIM_HOLD) / ANIM_FADE;
+      animCtx.globalAlpha = 1 - frac;
+      animCtx.drawImage(cur, 0, 0, w, h);
+      animCtx.globalAlpha = frac;
+      animCtx.drawImage(next, 0, 0, w, h);
+      animCtx.globalAlpha = 1;
+    }
+    updateAnimCaption(animIndex);
+    animFrame++;
+    if (canvases.length > 1 && f === cycle - 1) animIndex = (animIndex + 1) % canvases.length;
+    animRaf = requestAnimationFrame(drawAnimFrame);
+  }
+
+  function startAnim() {
+    if (!animCanvases().length) return;
+    animWrap.hidden = false;
+    resizeAnim();
+    animFrame = 0;
+    animateBtn.textContent = 'Pause the loop';
+    drawAnimFrame();
+  }
+  function stopAnim() {
+    if (animRaf) cancelAnimationFrame(animRaf);
+    animRaf = null;
+    animateBtn.textContent = reducedMotion ? 'Show the next tile' : 'Animate the gallery';
+  }
+
+  // reduced motion: no self-running loop — one static tile per click,
+  // matching this page's existing "redraw once per interaction" pattern
+  // (the ninja fx and the purity redraw both work the same way).
+  function stepAnimStatic() {
+    var canvases = animCanvases();
+    if (!canvases.length) return;
+    animWrap.hidden = false;
+    resizeAnim();
+    animIndex = (animIndex + 1) % canvases.length;
+    var rect = animCanvas.getBoundingClientRect();
+    animCtx.clearRect(0, 0, rect.width, rect.height);
+    animCtx.globalAlpha = 1;
+    animCtx.drawImage(canvases[animIndex], 0, 0, rect.width, rect.height);
+    updateAnimCaption(animIndex);
+  }
+
+  animateBtn.addEventListener('click', function () {
+    if (reducedMotion) { stepAnimStatic(); return; }
+    if (animRaf) stopAnim(); else startAnim();
+  });
+  stopAnim(); // sets the correct initial label for the motion mode, without starting anything
+
+  // Composites every tile currently on screen — the same <canvas> elements
+  // the gallery already painted, no repainting — into one PNG and offers it
+  // as a download. "kept as art" stays true to a file the visitor can move
+  // off this page, not just pixels sitting in a grid here.
+  exportBtn.addEventListener('click', function () {
+    var canvases = Array.prototype.slice.call(gallery.querySelectorAll('canvas'));
+    if (!canvases.length) return;
+    var cols = Math.max(1, Math.ceil(Math.sqrt(canvases.length)));
+    var rows = Math.ceil(canvases.length / cols);
+    var tile = 96, gap = 6;
+    var composite = document.createElement('canvas');
+    composite.width = cols * tile + (cols - 1) * gap;
+    composite.height = rows * tile + (rows - 1) * gap;
+    var cctx = composite.getContext('2d');
+    cctx.fillStyle = cssVar('--bg-raised') || '#141414';
+    cctx.fillRect(0, 0, composite.width, composite.height);
+    canvases.forEach(function (cv, i) {
+      var col = i % cols, row = Math.floor(i / cols);
+      var x = col * (tile + gap), y = row * (tile + gap);
+      cctx.save();
+      if (cctx.roundRect) {
+        cctx.beginPath();
+        cctx.roundRect(x, y, tile, tile, 8);
+        cctx.clip();
+      }
+      cctx.drawImage(cv, x, y, tile, tile);
+      cctx.restore();
+    });
+    try {
+      var url = composite.toDataURL('image/png');
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'truth-markup-gallery.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      exportStatus.textContent = canvases.length + ' tile' + (canvases.length === 1 ? '' : 's') + ' saved as one image';
+      exportStatus.className = 'ok';
+    } catch (err) {
+      kit.showError(exportStatus, 'could not build the image: ' + (err && err.message ? err.message : err));
+    }
+  });
+
+  function persistGallery() {
+    if (!store.user()) return;
+    store.save('gallery', tiles, { kind: 'gallery' }).then(function () {
+      saveStatus.textContent = 'gallery saved to your repo';
+      saveStatus.className = 'ok';
+    }).catch(function () {
+      saveStatus.textContent = 'save failed — will retry on the next dispel';
+      saveStatus.className = '';
+    });
+  }
+
+  function addArtwork(asset, removedAmount) {
+    var seed = (Math.random() * 0xffffffff) >>> 0;
+    var tile = { key: asset.key, removed: removedAmount, seed: seed };
+    tiles.unshift(tile);
+    if (tiles.length > GALLERY_MAX) tiles.length = GALLERY_MAX;
+    renderTile(tile, true);
+    while (gallery.children.length > GALLERY_MAX) gallery.removeChild(gallery.lastChild);
+    updateExportState();
+    persistGallery();
+  }
+
+  // ---- versus: race a rival to full purity, scored in dispel-clicks ----
+  // "dispels" is append-only per store.postScore's own contract, so it only
+  // posts once per completed run (scorePosted), not once per click.
+  var dispelCount = 0;
+  var scorePosted = false;
+  var myBestDispels = null; // lowest dispelCount across completed runs this visit
+
+  var versusStatus = document.getElementById('versus-status');
+  var versusResult = document.getElementById('versus-result');
+  var versusYou = document.getElementById('versus-you');
+  var versusRivalLabel = document.getElementById('versus-rival-label');
+  var versusRival = document.getElementById('versus-rival');
+  var rivalInput = document.getElementById('rival-input');
+  var compareBtn = document.getElementById('compare-btn');
+
+  function dispelWord(n) { return n + (n === 1 ? ' dispel' : ' dispels'); }
+
+  function youText() {
+    if (myBestDispels !== null) return dispelWord(myBestDispels) + ' to full purity';
+    if (overallPurity() >= 1) return dispelWord(dispelCount) + ' to full purity — not posted (sign in above to save it)';
+    return 'still dispelling — ' + Math.round(overallPurity() * 100) + '% so far';
+  }
+
+  function updateVersusYou() {
+    if (versusResult.hidden) return;
+    versusYou.textContent = youText();
+  }
+
+  function maybePostScore() {
+    if (overallPurity() < 1 || scorePosted) return;
+    scorePosted = true;
+    if (myBestDispels === null || dispelCount < myBestDispels) myBestDispels = dispelCount;
+    updateVersusYou();
+    if (!store.user()) return;
+    store.postScore(dispelCount, {
+      unit: 'dispels', higherIsBetter: false,
+      detail: 'clicks of "Dispel a lie" to reach full purity'
+    }).then(function () {
+      versusStatus.textContent = 'score posted: ' + dispelWord(dispelCount) + ' to full purity';
+      versusStatus.className = 'ok';
+    }).catch(function (err) {
+      kit.showError(versusStatus, 'could not post your score: ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  function compareRival(handle) {
+    handle = (handle || '').trim();
+    if (!handle) return;
+    versusStatus.textContent = 'looking up @' + handle + '…';
+    versusStatus.className = '';
+    versusResult.hidden = true;
+    store.scoresOf(handle).then(function (scores) {
+      versusStatus.textContent = '';
+      versusResult.hidden = false;
+      versusYou.textContent = youText();
+      versusRivalLabel.textContent = '@' + handle + ':';
+      if (!scores.length) {
+        versusRival.textContent = 'no score posted yet — they haven’t reached full purity signed in here';
+        return;
+      }
+      var best = store.rank(scores)[0];
+      versusRival.textContent = dispelWord(best.value) + ' to full purity';
+    }).catch(function (err) {
+      versusResult.hidden = true;
+      kit.showError(versusStatus, 'could not look up @' + handle + ': ' + (err && err.message ? err.message : err));
+    });
+  }
+
+  kit.handleInput(rivalInput, { onPick: function (handle) { compareRival(handle); } });
+  compareBtn.addEventListener('click', function () { compareRival(rivalInput.value); });
+  rivalInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); compareRival(rivalInput.value); }
+  });
+
+  // "challenge people": text worth pasting into wherever the visitor actually
+  // wants to send it — this site has no notification API and never will (see
+  // the build brief), so the only honest version of "challenge someone" is a
+  // string they copy and paste themselves, aimed at whoever they pick.
+  var challengeBtn = document.getElementById('challenge-btn');
+  var challengeStatus = document.getElementById('challenge-status');
+  function challengeText() {
+    var url = location.href.split(/[?#]/)[0];
+    if (myBestDispels !== null) {
+      return 'I got every price on Truth Markup honest in ' + dispelWord(myBestDispels) + '. Beat it: ' + url;
+    }
+    return 'Truth Markup — five prices held down by misinformation. Dispel the lies, see what they were really worth: ' + url;
+  }
+  challengeBtn.addEventListener('click', function () {
+    kit.copy(challengeText(), challengeBtn).then(function (ok) {
+      challengeStatus.textContent = ok ? '' : 'could not copy — select and copy the address bar instead';
+      challengeStatus.className = ok ? 'ok' : '';
+    });
+  });
+
+  // ---- interaction ----
+  var dispelBtn = document.getElementById('dispel');
+  var resetBtn = document.getElementById('reset');
+
+  // shared by the global button and every per-asset "Go" button: raises one
+  // asset's own purity, credits it (and only it) with the gallery tile.
+  function doDispel(asset) {
+    if (asset.purity >= 1) return;
+    dispelCount++;
+    var before = asset.purity;
+    asset.purity = Math.min(1, asset.purity + 0.05 + Math.random() * 0.09);
+    var removed = (asset.truth - asset.floor) * (asset.purity - before);
+    addArtwork(asset, removed);
+    updatePurityUI();
+    updateAssetButtonStates();
+
+    if (reducedMotion) { stepHistory(); drawChart(); updateBreakdown(); drawStaticNinja(); }
+    else { spawnNinja(); }
+    if (allFull()) { dispelBtn.textContent = 'Nothing left to dispel'; dispelBtn.disabled = true; maybePostScore(); }
+  }
+
+  dispelBtn.addEventListener('click', function () {
+    // weighted random pick among what's still misinformed — weighted by
+    // remaining gap, not total span, so an asset already dispelled by its
+    // own button stops competing for this one's picks.
+    var candidates = ASSETS.filter(function (a) { return a.purity < 1; });
+    if (!candidates.length) return;
+    var totalRemaining = candidates.reduce(function (s, a) { return s + (a.truth - a.floor) * (1 - a.purity); }, 0);
+    var pick = Math.random() * totalRemaining;
+    var picked = candidates[candidates.length - 1];
+    for (var k = 0; k < candidates.length; k++) {
+      pick -= (candidates[k].truth - candidates[k].floor) * (1 - candidates[k].purity);
+      if (pick <= 0) { picked = candidates[k]; break; }
+    }
+    flashLightning(dispelBtn);
+    doDispel(picked);
+  });
+
+  resetBtn.addEventListener('click', function () {
+    ASSETS.forEach(function (a) { a.purity = 0; a.hist = []; });
+    updatePurityUI();
+    updateAssetButtonStates();
+    dispelBtn.textContent = 'Dispel a lie';
+    dispelBtn.disabled = false;
+    dispelCount = 0;
+    scorePosted = false;
+    effects = [];
+    fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+    if (reducedMotion) { stepHistory(); drawChart(); updateBreakdown(); }
+  });
+
+  window.addEventListener('resize', function () {
+    resizeCanvas(); resizeFx(); if (reducedMotion) drawChart();
+    if (!animWrap.hidden) resizeAnim();
+  });
+
+  // ---- sign in / save: optional. Only the gallery persists — the price
+  // simulation itself always starts fresh, see the footer note. ----
+  var signinRow = document.getElementById('signin-row');
+  var signedInRow = document.getElementById('signed-in-row');
+  var signedInAs = document.getElementById('signed-in-as');
+  var handleInput = document.getElementById('handle-input');
+  var signinBtn = document.getElementById('signin-btn');
+  var signoutBtn = document.getElementById('signout-btn');
+  var clearGalleryBtn = document.getElementById('clear-gallery-btn');
+
+  kit.handleInput(handleInput, { onPick: function (handle) { doSignIn(handle); } });
+
+  // `auth.login` navigates away to Bluesky and back, so anything painted
+  // signed-out is gone from memory once the page reloads. Stash it here right
+  // before the redirect so it can be merged with the saved gallery on return.
+  var PENDING_KEY = 'truth-markup:pending-tiles';
+
+  function doSignIn(handle) {
+    handle = (handle || handleInput.value || '').trim();
+    if (!handle) return;
+    saveStatus.textContent = 'redirecting to Bluesky…';
+    saveStatus.className = '';
+    try {
+      if (tiles.length) sessionStorage.setItem(PENDING_KEY, JSON.stringify(tiles));
+    } catch (e) { /* private browsing may refuse sessionStorage — losing the pre-signin tiles beats crashing */ }
+    store.signIn(handle).catch(function (err) {
+      kit.showError(saveStatus, err && err.message ? err.message : 'sign-in failed');
+    });
+  }
+
+  clearGalleryBtn.addEventListener('click', function () {
+    if (!store.user()) return;
+    store.remove('gallery').then(function () {
+      tiles = [];
+      gallery.innerHTML = '';
+      galleryEmpty.hidden = false;
+      updateExportState();
+      saveStatus.textContent = 'saved gallery cleared';
+      saveStatus.className = 'ok';
+    }).catch(function (err) {
+      kit.showError(saveStatus, err && err.message ? err.message : 'could not clear the saved gallery');
+    });
+  });
+  signinBtn.addEventListener('click', function () { doSignIn(); });
+  handleInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); doSignIn(); }
+  });
+  signoutBtn.addEventListener('click', function () { store.signOut(); showSignedOut(); });
+
+  function showSignedOut() {
+    signinRow.style.display = 'flex';
+    signedInRow.style.display = 'none';
+    saveStatus.textContent = '';
+    saveStatus.className = '';
+  }
+  function showSignedIn(user) {
+    signinRow.style.display = 'none';
+    signedInRow.style.display = 'flex';
+    signedInAs.textContent = 'saving as @' + user.handle;
+    maybePostScore(); // covers signing in after already reaching full purity
+  }
+  store.onChange(function (user) { if (user) showSignedIn(user); else showSignedOut(); });
+
+  // ---- run ----
+  document.getElementById('crumb').innerHTML = kit.crumb('truth-markup');
+  resizeCanvas();
+  resizeFx();
+  updatePurityUI();
+  updateAssetButtonStates();
+  showSignedOut();
+
+  // Pre-fill history so the chart opens full rather than growing one point
+  // per frame from an empty canvas.
+  for (var i0 = 0; i0 < HIST_LEN; i0++) { t++; stepHistory(); }
+  drawChart();
+  updateBreakdown();
+
+  if (reducedMotion) {
+    // static: already drawn above, no loop.
+  } else {
+    (function loop() {
+      t++;
+      stepHistory();
+      drawChart();
+      updateBreakdown();
+      updateAndDrawFx();
+      requestAnimationFrame(loop);
+    })();
+  }
+
+  // Pick up a returning session (including right after the OAuth redirect
+  // back from Bluesky) and, if there is one, repaint the saved gallery from
+  // its stored seeds rather than starting empty.
+  store.ready().then(function (user) {
+    if (!user) return;
+    showSignedIn(user);
+    return store.load('gallery');
+  }).then(function (saved) {
+    var pending = null;
+    try {
+      var raw = sessionStorage.getItem(PENDING_KEY);
+      if (raw) { pending = JSON.parse(raw); sessionStorage.removeItem(PENDING_KEY); }
+    } catch (e) { /* ignore — nothing to merge */ }
+    var merged = (pending || []).concat(saved || []);
+    if (!merged.length) return;
+    tiles = merged.slice(0, GALLERY_MAX);
+    gallery.innerHTML = '';
+    tiles.forEach(function (tile) { renderTile(tile, false); });
+    updateExportState();
+    // the pending tiles were never saved (they were made before sign-in), so
+    // write the merged set back — otherwise they vanish again on next visit.
+    if (pending && pending.length) persistGallery();
+  }).catch(function (err) {
+    kit.showError(saveStatus, 'could not load your saved gallery: ' + (err && err.message ? err.message : err));
+  });
+})();
+</script>
+</body>
+</html>
