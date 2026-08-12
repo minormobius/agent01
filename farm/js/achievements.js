@@ -30,6 +30,11 @@ export const ACHIEVEMENTS = [
   { id: 'first-deed',    emoji: '📜', name: 'Deed of Sale',       desc: 'Buy your first neighbouring parcel',          test: (f) => (f.parcels || []).length >= 2 },
   { id: 'estate-6',      emoji: '🏡', name: 'Land Baron',         desc: 'Own six parcels',                             test: (f) => (f.parcels || []).length >= 6 },
   { id: 'whole-map',     emoji: '🧭', name: 'Horizon to Horizon', desc: 'Own all twenty-five parcels',                 test: (f) => (f.parcels || []).length >= 25 },
+  { id: 'first-tech',    emoji: '📐', name: 'The Better Way',     desc: 'Research your first waterworks craft',        test: (f) => Object.keys(f.tech || {}).length >= 1 },
+  { id: 'deep-well',     emoji: '⛲', name: 'Never Thirsty',      desc: 'Sink the deep well',                          test: (f) => !!(f.tech || {}).deepwell },
+  { id: 'organic-25',    emoji: '🌿', name: 'Certified Organic',  desc: 'Bring in 25 organic harvests',                test: (f) => (f.stats.organicHarvests | 0) >= 25 },
+  { id: 'organic-100',   emoji: '🏵️', name: 'Soil and Soul',      desc: 'Bring in 100 organic harvests',               test: (f) => (f.stats.organicHarvests | 0) >= 100 },
+  { id: 'bug-war',       emoji: '🐛', name: 'The Beetle Wars',    desc: 'Treat ten infestations',                      test: (f) => (f.stats.pestsTreated | 0) >= 10 },
   { id: 'all-lands',     emoji: '🌐', name: 'The Whole Ark',      desc: 'Unlock every ecosystem pack',                 test: (f, ark) => (f.packs || []).length >= ((ark && ark.biomes) || []).length && (f.packs || []).length > 1 },
 ];
 

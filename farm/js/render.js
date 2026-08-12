@@ -38,7 +38,7 @@ export function drawFarm(canvas, farm, ark, now, tendCounts = {}) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const items = farm.bed.plants.map((p, i) => {
     const crop = cropById(ark, p.seedId);
-    const g = growthOf(p, crop, now, tendCounts[p.id] || 0);
+    const g = growthOf(farm, p, crop, now, tendCounts[p.id] || 0);
     return { x: p.x, y: p.y, model: crop ? modelFor(p, crop, g.stage) : null, ready: g.ready, idx: i, plantId: p.id };
   });
   renderBed(ctx, w, h, {

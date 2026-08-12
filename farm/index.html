@@ -52,6 +52,8 @@
   .chip.seed { cursor:pointer; }
   .chip.reagent.live { border-color:#5a4a6a; cursor:pointer; } .chip.reagent.dead { opacity:.55; cursor:pointer; }
   .chip.metal { color:#c6cede; }
+  .chip.organic { border-color:#3a5a44; } .chip.conv { border-color:#5a4a3a; opacity:.85; }
+  #craftbar .tool.locked { opacity:.5; }
   .dim { color:var(--dim); font-size:12px; } .warn { color:var(--warn); }
   .biomecard { background:var(--panel); border:1px solid; border-radius:10px; padding:12px 16px; margin-bottom:12px; }
   .biomecard h3 { margin:0 0 4px; }
@@ -134,6 +136,13 @@
     <div id="friendlist"></div>
     <div id="giftbox"></div>
     <div id="visitbox"></div>
+  </div>
+
+  <div class="pane" id="tab-mill">
+    <div class="panehead"><h2>🌬️ waterworks</h2><button class="mini closepane">✕ back to the farm</button></div>
+    <div class="hint">watering is the chore; this building is how it stops being one. Research eases irrigation at scale — sprinklers, channels, the wind pump, the deep well — and deepens the organic craft.</div>
+    <div id="millstats"></div>
+    <div class="row"><h3>the tree</h3><div id="techs"></div></div>
   </div>
 
   <div class="pane" id="tab-deeds">

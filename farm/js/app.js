@@ -10,7 +10,10 @@ import {
   applyBrew, usePreparation, cropById, sellPrice, DAY_MS, PREP_METAL, PULL_COST, fromPlotRecord,
   touchStreak, recordShare, SHARE_COINS,
   plantableTile, tileAt, buildingAt, terraform, moveBuilding, TERRA_COST, BUILDING_KINDS,
-  packList, unlockPack, setActiveBiome, pondAdjacent, FIELD_T, inWorld,
+  packList, unlockPack, setActiveBiome, FIELD_T, inWorld,
+  waterPlant, isWatered, isInfested, irrigated, fertilizePlant, treatPest, buySupply,
+  TECHS, techChecks, research, hasTech, placeSprinkler, SUPPLY_COST, SPRINKLER_COST,
+  sellPriceOrganic, ORGANIC_PREMIUM, WATER_MS,
   parcelOf, ownsParcel, buyableParcels, buyParcel, parcelTerrain,
 } from './state.js';
 import * as Mine from './mine.js';
@@ -57,6 +60,7 @@ const CRAFT_TOOLS = [
   { key: 'clear',   emoji: '🪨', label: 'clear',   hint: 'roll a boulder away' },
   { key: 'flatten', emoji: '⛰️', label: 'flatten', hint: 'level a hill — the terrain the cheap parcels came with' },
   { key: 'meadow',  emoji: '🌿', label: 'meadow',  hint: 'give a tile back to the grass' },
+  { key: 'sprinkler', emoji: '🌀', label: 'sprinkler', hint: 'place a sprinkler (40◈ + 1 tin) — tap one to pull it up', tech: 'sprinklers' },
   { key: 'move',    emoji: '✋', label: 'move',    hint: 'tap a building, then tap where it goes' },
 ];
 let pendingBuy = null;   // { key, at } — a FOR-SALE parcel tapped once, awaiting its confirming tap
@@ -140,6 +144,14 @@ function onFieldTap({ bx, by, tx, ty, plantIdx, building }) {
     commit(r.farm); redrawBed();
     return;
   }
+  if (craftTool === 'sprinkler') {
+    const r = placeSprinkler(farm, tx, ty, now());
+    if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+    commit(r.farm);
+    toast(r.removed ? '🌀 sprinkler pulled up (+' + Math.floor(SPRINKLER_COST.coins / 2) + '◈)' : '🌀 sprinkler set — its ring stays watered', 'ok');
+    redrawBed();
+    return;
+  }
   if (craftTool) {
     const r = terraform(farm, tx, ty, craftTool, now());
     if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
@@ -148,7 +160,18 @@ function onFieldTap({ bx, by, tx, ty, plantIdx, building }) {
   }
   // play mode: buildings are the rooms — tap one to step inside
   if (building) { openPanel(BUILDING_KINDS[building.kind].panel); return; }
-  if (plantIdx >= 0) { tryHarvest(farm.bed.plants[plantIdx].id); return; }
+  if (plantIdx >= 0) {
+    // ripe → harvest; thirsty → WATER (the task); otherwise say how it's doing
+    const p = farm.bed.plants[plantIdx];
+    const c = cropById(ark, p.seedId);
+    const g = growthOf(farm, p, c, now(), tends[p.id] || 0);
+    if (g.ready) { tryHarvest(p.id); return; }
+    const r = waterPlant(farm, p.id, now());
+    if (r.ok) { commit(r.farm); toast('💧 watered — holds 6h', 'ok'); redrawBed(); return; }
+    toast(esc(c ? c.common : p.seedId) + ': ' + Math.round(g.stage * 100) + '% · ' + fmtMs(g.msLeft) +
+      (irrigated(farm, p) ? ' · 🌊 irrigated' : ' · 💧 damp'), 'ok');
+    return;
+  }
   if (!plantingCrop) return;
   const r = plantSeed(farm, bx, by, plantingCrop, ark, now());
   if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
@@ -161,6 +184,7 @@ function onFieldTap({ bx, by, tx, ty, plantIdx, building }) {
 // what the hover preview asks: does the current tool land on (tx,ty)?
 function toolCheckAt(tx, ty) {
   if (craftTool === 'move') return movingBuilding ? moveBuilding(farm, movingBuilding, tx, ty, 0).ok : !!buildingAt(farm, tx, ty);
+  if (craftTool === 'sprinkler') return placeSprinkler(farm, tx, ty, 0).ok;
   if (craftTool) return terraform(farm, tx, ty, craftTool, 0).ok;
   if (plantingCrop) return plantableTile(farm, (tx + 0.5) / FIELD_T, (ty + 0.5) / FIELD_T);
   return false;
@@ -225,6 +249,7 @@ function openPanel(name) {
   if (name === 'bench') renderBench();
   if (name === 'friends') renderFriends();
   if (name === 'deeds') renderDeeds();
+  if (name === 'mill') renderMill();
 }
 function closePanel() { $$('.pane').forEach((p) => p.classList.remove('on')); redrawBed(); }
 
@@ -233,9 +258,12 @@ function renderCraftBar() {
   const bar = $('#craftbar');
   const on = craftTool != null;
   bar.innerHTML = '<button id="craft" class="' + (on ? 'on' : '') + '">🔨 craft</button>' +
-    (on ? CRAFT_TOOLS.map((t) =>
-      '<button class="tool ' + (craftTool === t.key ? 'on' : '') + '" data-tool="' + t.key + '" title="' + esc(t.hint) + '">' +
-      t.emoji + ' ' + t.label + (TERRA_COST[t.key] ? ' <i>' + TERRA_COST[t.key] + '◈</i>' : '') + '</button>').join('') : '');
+    (on ? CRAFT_TOOLS.map((t) => {
+      const locked = t.tech && !hasTech(farm, t.tech);
+      const cost = TERRA_COST[t.key] ? TERRA_COST[t.key] + '◈' : t.key === 'sprinkler' ? SPRINKLER_COST.coins + '◈+' + SPRINKLER_COST.tin + '♃' : '';
+      return '<button class="tool ' + (craftTool === t.key ? 'on' : '') + (locked ? ' locked' : '') + '" data-tool="' + t.key + '" ' + (locked ? 'disabled title="research at the waterworks"' : 'title="' + esc(t.hint) + '"') + '>' +
+        (locked ? '🔒 ' : t.emoji + ' ') + t.label + (cost ? ' <i>' + cost + '</i>' : '') + '</button>';
+    }).join('') : '');
   $('#craft').onclick = () => {
     craftTool = on ? null : 'till';
     movingBuilding = null; plantingCrop = null;
@@ -261,6 +289,7 @@ function redrawBed() {
     tool: craftTool || (plantingCrop ? 'plant' : null),
     toolCheck: toolCheckAt,
     movingBuilding,
+    sprinklerReach: hasTech(farm, 'windpump') ? 2 : 1,
   });
   renderSeedBag(); renderPantry(); renderPlantInfo();
 }
@@ -288,33 +317,81 @@ function renderSeedBag() {
 
 function renderPantry() {
   const el = $('#pantry');
-  const entries = Object.entries(farm.pantry);
-  el.innerHTML = entries.length
-    ? entries.map(([id, n]) => {
+  const org = Object.entries(farm.pantry);
+  const conv = Object.entries(farm.pantryC || {});
+  el.innerHTML = (org.length || conv.length)
+    ? org.map(([id, n]) => {
       const c = cropById(ark, id) || { common: id, seedCost: 10 };
-      return '<span class="chip">' + esc(c.common) + ' ×' + n +
-        ' <button class="mini" data-sell="' + esc(id) + '">sell @' + sellPrice(c) + '◈</button></span>';
+      return '<span class="chip organic">🌿 ' + esc(c.common) + ' ×' + n +
+        ' <button class="mini" data-sell="' + esc(id) + '" data-grade="organic">sell @' + sellPriceOrganic(c) + '◈</button></span>';
+    }).join('') + conv.map(([id, n]) => {
+      const c = cropById(ark, id) || { common: id, seedCost: 10 };
+      return '<span class="chip conv">🧪 ' + esc(c.common) + ' ×' + n +
+        ' <button class="mini" data-sell="' + esc(id) + '" data-grade="conv">sell @' + sellPrice(c) + '◈</button></span>';
     }).join('')
     : '<span class="dim">pantry empty</span>';
   $$('#pantry [data-sell]').forEach((b) => b.onclick = () => {
-    const r = sellProduce(farm, b.dataset.sell, farm.pantry[b.dataset.sell], ark, now());
-    if (r.ok) { commit(r.farm); toast('+' + r.coins + '◈' + (r.warded ? ' (warded market)' : ''), 'ok'); renderPantry(); }
+    const grade = b.dataset.grade;
+    const pool = grade === 'conv' ? farm.pantryC : farm.pantry;
+    const r = sellProduce(farm, b.dataset.sell, pool[b.dataset.sell], ark, now(), grade);
+    if (r.ok) { commit(r.farm); toast('+' + r.coins + '◈' + (r.organic ? ' 🌿 organic premium' : '') + (r.warded ? ' (warded)' : ''), 'ok'); renderPantry(); }
   });
 }
 
 function renderPlantInfo() {
   const el = $('#plants');
   if (!farm.bed.plants.length) { el.innerHTML = '<span class="dim">nothing in the ground yet</span>'; return; }
+  const dry = [];
   el.innerHTML = farm.bed.plants.map((p) => {
     const c = cropById(ark, p.seedId);
-    const pond = pondAdjacent(farm, p);
-    const g = growthOf(p, c, now(), tends[p.id] || 0, pond);
+    const g = growthOf(farm, p, c, now(), tends[p.id] || 0);
     const tendN = tends[p.id] || 0;
-    return '<span class="chip ' + (g.ready ? 'ripe' : '') + '" data-plant="' + esc(p.id) + '">' +
+    const bug = isInfested(farm, p, now());
+    const irr = irrigated(farm, p);
+    if (!g.ready && !g.watered) dry.push(p.id);
+    return '<span class="chip ' + (g.ready ? 'ripe' : '') + (p.syn ? ' conv' : '') + '" data-plant="' + esc(p.id) + '">' +
       esc(c ? c.common : p.seedId) + ' — ' + (g.ready ? '✓ ripe' : Math.round(g.stage * 100) + '% · ' + fmtMs(g.msLeft)) +
-      (tendN ? ' 💧×' + tendN : '') + (pond ? ' 🌊' : '') + (p.spd > 1 ? ' ⚡' : '') + '</span>';
-  }).join('');
-  $$('#plants [data-plant]').forEach((s) => s.onclick = () => tryHarvest(s.dataset.plant));
+      (irr ? ' 🌊' : g.watered ? ' 💧' : ' <b class="warn">🏜 dry</b>') +
+      (bug ? ' 🐛' : '') + (p.syn ? ' 🧪' : '') + (tendN ? ' 🤝×' + tendN : '') + (p.spd > 1 ? ' ⚡' : '') +
+      (!g.ready && !g.watered && !irr ? ' <button class="mini" data-water="' + esc(p.id) + '">💧 water</button>' : '') +
+      (bug ? ' <button class="mini" data-spray="' + esc(p.id) + '">🧴 spray</button><button class="mini" data-remedy="' + esc(p.id) + '">⚗️ remedy</button>' : '') +
+      (!g.ready && (p.fertN | 0) < 2 && (farm.supplies.fert | 0) > 0 ? ' <button class="mini" data-fert="' + esc(p.id) + '">🧪 fert</button>' : '') +
+      '</span>';
+  }).join('') +
+  (dry.length > 1 ? ' <button class="mini" id="waterall">💧 water all (' + dry.length + ' thirsty)</button>' : '');
+  $$('#plants [data-plant]').forEach((s) => s.onclick = (e) => { if (e.target.closest('button')) return; tryHarvest(s.dataset.plant); });
+  $$('#plants [data-water]').forEach((b) => b.onclick = () => {
+    const r = waterPlant(farm, b.dataset.water, now());
+    if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+    commit(r.farm); redrawBed();
+  });
+  const wa = $('#waterall');
+  if (wa) wa.onclick = () => {
+    let f = farm, n = 0;
+    for (const id of dry) { const r = waterPlant(f, id, now()); if (r.ok) { f = r.farm; n++; } }
+    if (n) { commit(f); toast('💧 watered ' + n + ' plants — one can at a time, mind', 'ok'); redrawBed(); }
+  };
+  $$('#plants [data-fert]').forEach((b) => b.onclick = () => {
+    const r = fertilizePlant(farm, b.dataset.fert, ark, now());
+    if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+    commit(r.farm);
+    toast('🧪 fed — +25% growth banked. <b>This plant is conventional now</b>: plain price, no bench.', 'warn', 8000);
+    redrawBed();
+  });
+  $$('#plants [data-spray]').forEach((b) => b.onclick = () => {
+    const r = treatPest(farm, b.dataset.spray, 'spray', now());
+    if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+    commit(r.farm);
+    toast('🧴 sprayed — long immunity, <b>but the plant is conventional now</b>', 'warn', 7000);
+    redrawBed();
+  });
+  $$('#plants [data-remedy]').forEach((b) => b.onclick = () => {
+    const r = treatPest(farm, b.dataset.remedy, 'remedy', now());
+    if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+    commit(r.farm);
+    toast('⚗️ caustic remedy — the beetles flee, the plant stays 🌿 organic', 'ok');
+    redrawBed();
+  });
 }
 
 function tryHarvest(plantId) {
@@ -322,8 +399,43 @@ function tryHarvest(plantId) {
   if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
   commit(r.farm);
   const c = cropById(ark, r.cropId);
-  toast('🧺 ' + r.yield + '× ' + esc(c.common) + ' + ' + r.seeds + ' seed', 'ok');
+  toast('🧺 ' + r.yield + '× ' + esc(c.common) + (r.organic ? ' 🌿' : ' 🧪') + ' + ' + r.seeds + ' seed' +
+    (r.bitten ? ' — <b class="warn">the beetles took their share</b>' : ''), r.bitten ? 'warn' : 'ok');
   redrawBed();
+}
+
+// ── MILL panel (the waterworks: irrigation overview + the tech tree) ─────────────────────────────
+function renderMill() {
+  let watered = 0, dryN = 0, irrN = 0;
+  for (const p of farm.bed.plants) {
+    const c = cropById(ark, p.seedId);
+    const g = growthOf(farm, p, c, now(), tends[p.id] || 0);
+    if (g.ready) continue;
+    if (irrigated(farm, p)) irrN++;
+    else if (g.watered) watered++;
+    else dryN++;
+  }
+  $('#millstats').innerHTML =
+    '<span class="chip">🌊 irrigated ×' + irrN + '</span> <span class="chip">💧 hand-watered ×' + watered + '</span> ' +
+    '<span class="chip ' + (dryN ? 'warn' : '') + '">🏜 dry ×' + dryN + '</span> <span class="chip">🌀 sprinklers ×' + (farm.fixtures || []).length + '</span>' +
+    '<div class="dim">a watered plant grows full speed for 6h, a dry one at half. Hand-watering is free — and does not scale. That is what this building is for.</div>';
+  $('#techs').innerHTML = TECHS.map((t) => {
+    if (hasTech(farm, t.id)) {
+      return '<div class="pack" style="--foil:#59c7cf"><b style="color:#59c7cf">' + t.emoji + ' ' + esc(t.name) + '</b> <span class="dim">' + esc(t.desc) + '</span> <span class="dim">✓ built</span></div>';
+    }
+    const checks = techChecks(farm, t);
+    const can = checks.every((c) => c.met);
+    return '<div class="pack locked next"><b>' + t.emoji + ' ' + esc(t.name) + '</b> <span class="dim">' + esc(t.desc) + '</span>' +
+      '<div class="reqs">' + checks.map((c) => '<span class="' + (c.met ? 'met' : 'unmet') + '">' + (c.met ? '✓ ' : '✗ ') + esc(c.label) + '</span>').join(' · ') + '</div>' +
+      (can ? '<button class="mini" data-research="' + t.id + '">research — ' + t.cost.coins + '◈</button>' : '') + '</div>';
+  }).join('');
+  $$('#techs [data-research]').forEach((b) => b.onclick = () => {
+    const r = research(farm, b.dataset.research, now());
+    if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+    commit(r.farm);
+    toast(r.tech.emoji + ' <b>' + esc(r.tech.name) + '</b> — ' + esc(r.tech.desc), 'ach', 9000);
+    renderMill(); renderCraftBar();
+  });
 }
 
 // ── DESK panel (gacha + the ecosystem-pack ladder) ────────────────────────────────────────────────
@@ -372,7 +484,11 @@ function renderDesk() {
     '<h3 style="color:' + esc(biome.foil) + '">' + esc(biome.name) + '</h3>' +
     '<p class="dim">' + esc(biome.blurb) + (active.id === farm.biomeId ? ' · your home biome (drawn from your DID — a friend\'s desk deals a different pool, which is what makes seed gifts worth sending)' : '') + '</p>' +
     '<p>collection: <b>' + prog.have + '/' + prog.total + '</b>' + (prog.complete ? ' 🌍 CLOSED' : '') + '</p>' +
-    '<button id="pull" class="big">🎴 pull seeds — ' + cost + '</button></div>' +
+    '<button id="pull" class="big">🎴 pull seeds — ' + cost + '</button>' +
+    '<div class="row"><h3>supplies</h3>' +
+    '<button class="mini" data-supply="fert">🧪 fertilizer — ' + SUPPLY_COST.fert + '◈ (have ' + (farm.supplies.fert | 0) + ')</button> ' +
+    '<button class="mini" data-supply="pest">🧴 pesticide — ' + SUPPLY_COST.pest + '◈ (have ' + (farm.supplies.pest | 0) + ')</button>' +
+    '<div class="dim">cheap and instant — and one squirt marks the plant 🧪 conventional for life: plain price at market (organic sells ×' + ORGANIC_PREMIUM + '), and the bench refuses it. The organic road: water by hand, treat pests with a caustic brew.</div></div></div>' +
     '<div class="cropgrid">' + biome.crops.map((c) => {
       const owned = farm.owned.includes(c.id);
       return '<div class="crop ' + (owned ? 'owned' : 'unknown') + '" style="--foil:' + esc(TIER_FOIL[c.rarity] || '#888') + '" title="' + esc(c.sciName) + '">' +
@@ -388,6 +504,12 @@ function renderDesk() {
       (r.progress.complete ? ' — 🌍 biome closed!' : ''), r.isNew ? 'ach' : 'ok');
     renderDesk(); renderSeedBag();
   };
+  $$('#desk [data-supply]').forEach((b) => b.onclick = () => {
+    const r = buySupply(farm, b.dataset.supply, 1, now());
+    if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+    commit(r.farm);
+    renderDesk();
+  });
 }
 
 // ── MINE tab ──────────────────────────────────────────────────────────────────────────────────────
@@ -586,7 +708,7 @@ async function visitFarm(did) {
   visitIso.update({ farm: theirFarm, ark, now: now(), tends: {}, readOnly: true });
   $('#visitplants').innerHTML = theirFarm.bed.plants.map((pl) => {
     const c = cropById(ark, pl.seedId);
-    const g = growthOf(pl, c, now());
+    const g = growthOf(theirFarm, pl, c, now());
     return '<span class="chip">' + esc(c ? c.common : pl.seedId) + ' ' + (g.ready ? '✓' : Math.round(g.stage * 100) + '%') +
       (store.user && left > 0 && !g.ready ? ' <button class="mini" data-tend="' + esc(pl.id) + '">💧 tend</button>' : '') + '</span>';
   }).join('') || '<span class="dim">nothing planted</span>';
@@ -643,7 +765,7 @@ async function bootVisitor(u) {
     paint();
     $('#plants').innerHTML = theirFarm.bed.plants.map((pl) => {
       const c = cropById(ark, pl.seedId);
-      const g = growthOf(pl, c, now());
+      const g = growthOf(theirFarm, pl, c, now());
       return '<span class="chip">' + esc(c ? c.common : pl.seedId) + ' ' + (g.ready ? '✓ ripe' : Math.round(g.stage * 100) + '%') + '</span>';
     }).join('');
     $('#seedrow').style.display = 'none';

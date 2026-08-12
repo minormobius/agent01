@@ -61,11 +61,22 @@ foreign records read by the viewer.
 
 Two consequences worth internalising:
 
-1. **Growth is a pure function** `growthOf(plant, crop, now, tendCount)` —
-   1 ark growthDay = 30 real minutes (`DAY_MS`), each distinct tending friend
-   cuts total time 10% (cap 5). No ticks, no cron: the public viewer, the
-   owner's client and a skeptic all recompute the same field from the same
-   records.
+1. **Growth is a pure function** `growthOf(farm, plant, crop, now, tendCount)`
+   — 1 ark growthDay = 30 real minutes (`DAY_MS`); each distinct tending
+   friend cuts total time 10% (cap 5). Since v4 it is the SETTLE MODEL:
+   `grownMs` banks effective time as of `calcAt`, and the live tail runs
+   piecewise — full rate while watered (`wateredAt + WATER_MS`, or irrigated
+   by pond/sprinkler/tech), `DRY_RATE` (half) after. Watering is the TASK;
+   the waterworks tech tree (sprinkler fixtures → channels → wind pump →
+   deep well, paid in coins + planetary metals) is how it stops being one.
+   Pests roll in deterministic 4h windows (`isInfested`) and bite the
+   harvest unless treated — synthetic spray or a caustic brew. SYNTHETICS
+   MARK THE PLANT CONVENTIONAL FOR LIFE (`syn`): its produce lands in
+   `pantryC`, sells plain (organic sells ×1.75), and the bench refuses it —
+   the alchemy pantry is the organic pantry, by construction. No ticks, no
+   cron: the public viewer, the owner's client and a skeptic all recompute
+   the same field, the same irrigation map, and the same beetle verdicts
+   from the same records.
 2. **Friend discovery is scan-based, not inbox-based.** Your client walks the
    repos of people YOU follow (`social.js scanFriends`, capped, all keyless)
    for tends/gifts naming you. A tend from someone you don't follow back is

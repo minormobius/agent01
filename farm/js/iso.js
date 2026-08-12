@@ -17,7 +17,7 @@
 
 import { drawPlant } from '../vendor/plot-render.js';
 import {
-  growthOf, cropById, pondAdjacent, tileAt, FIELD_T, WORLD_MIN, WORLD_MAX, BUILDING_KINDS,
+  growthOf, cropById, isWatered, isInfested, tileAt, FIELD_T, WORLD_MIN, WORLD_MAX, BUILDING_KINDS,
   parcelOf, ownsParcel, buyableParcels,
 } from './state.js';
 import { modelFor } from './render.js';
@@ -195,7 +195,7 @@ export function createIso(canvas, { onTap } = {}) {
     farm.bed.plants.forEach((p, i) => {
       const crop = cropById(ark, p.seedId);
       if (!crop) return;
-      const g = growthOf(p, crop, now, (tends || {})[p.id] || 0, pondAdjacent(farm, p));
+      const g = growthOf(farm, p, crop, now, (tends || {})[p.id] || 0);
       sprites.push({ sum: p.x * FIELD_T + p.y * FIELD_T, draw: () => {
         const c = toScreen(p.x * FIELD_T, p.y * FIELD_T);
         if (c.x < -u || c.x > W + u || c.y < -u * 1.4 || c.y > H + u) return;
@@ -203,12 +203,24 @@ export function createIso(canvas, { onTap } = {}) {
         ctx.beginPath(); ctx.ellipse(c.x, c.y, u * 0.1 + g.stage * u * 0.08, th() * 0.16, 0, 0, 7); ctx.fill();
         const m = modelFor(p, crop, g.stage);
         try { drawPlant(ctx, m, c.x, c.y, u * 0.6); } catch (e) { /* one bad model must not blank the field */ }
+        const bug = isInfested(farm, p, now);
         if (g.ready) {
           ctx.fillStyle = '#8fe0a0'; ctx.font = `${Math.max(10, 13 * cam.zoom) | 0}px "JetBrains Mono", ui-monospace, monospace`;
-          ctx.textAlign = 'center'; ctx.fillText('✓', c.x, c.y - m.height * u * 0.6 - 8);
-        } else if (g.stage > 0.02) {   // growth arc at the base
-          ctx.strokeStyle = 'rgba(143,224,160,0.8)'; ctx.lineWidth = 2;
+          ctx.textAlign = 'center'; ctx.fillText(bug ? '✓🐛' : '✓', c.x, c.y - m.height * u * 0.6 - 8);
+        } else if (g.stage > 0.02) {   // growth arc at the base: green while watered, parched orange when dry
+          ctx.strokeStyle = g.watered ? 'rgba(143,224,160,0.8)' : 'rgba(224,150,80,0.9)';
+          ctx.lineWidth = 2;
+          if (!g.watered) ctx.setLineDash([4, 3]);
           ctx.beginPath(); ctx.ellipse(c.x, c.y, u * 0.13, th() * 0.2, 0, -Math.PI / 2, -Math.PI / 2 + g.stage * Math.PI * 2); ctx.stroke();
+          ctx.setLineDash([]);
+          if (!g.watered) {   // the thirst marker — this is the TASK calling
+            ctx.fillStyle = '#e09650'; ctx.font = `${Math.max(9, 12 * cam.zoom) | 0}px system-ui, sans-serif`;
+            ctx.textAlign = 'center'; ctx.fillText('💧', c.x + u * 0.14, c.y - m.height * u * 0.6 - 6);
+          }
+          if (bug) {
+            ctx.font = `${Math.max(9, 12 * cam.zoom) | 0}px system-ui, sans-serif`;
+            ctx.textAlign = 'center'; ctx.fillText('🐛', c.x - u * 0.14, c.y - m.height * u * 0.6 - 6);
+          }
         }
       } });
     });
@@ -216,6 +228,29 @@ export function createIso(canvas, { onTap } = {}) {
       const def = BUILDING_KINDS[b.kind]; if (!def) continue;
       const moving = state.movingBuilding === b.id;
       sprites.push({ sum: b.tx + 0.5 + b.ty + 0.5, draw: () => drawBuilding(b, def, moving) });
+    }
+    // sprinklers: a small post with a spinning head; faint reach diamond while crafting
+    for (const f of farm.fixtures || []) {
+      if (f.kind !== 'sprinkler') continue;
+      sprites.push({ sum: f.tx + 0.5 + f.ty + 0.5, draw: () => {
+        const c = toScreen(f.tx + 0.5, f.ty + 0.5);
+        if (c.x < -tw() || c.x > W + tw() || c.y < -th() * 3 || c.y > H + th()) return;
+        if (state.tool === 'sprinkler') {
+          const R = state.sprinklerReach || 1;
+          ctx.fillStyle = 'rgba(90,169,216,0.13)';
+          diamond(c.x, c.y, tw() * (2 * R + 1), th() * (2 * R + 1)); ctx.fill();
+        }
+        ctx.strokeStyle = '#8a8f96'; ctx.lineWidth = Math.max(1.5, 2 * cam.zoom);
+        ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(c.x, c.y - th() * 0.9); ctx.stroke();
+        const spin = (now / 400) % (Math.PI * 2);
+        ctx.strokeStyle = '#59c7cf';
+        for (const a of [spin, spin + Math.PI * 2 / 3, spin + Math.PI * 4 / 3]) {
+          ctx.beginPath(); ctx.moveTo(c.x, c.y - th() * 0.9);
+          ctx.lineTo(c.x + Math.cos(a) * tw() * 0.12, c.y - th() * 0.9 + Math.sin(a) * th() * 0.12); ctx.stroke();
+        }
+        ctx.fillStyle = 'rgba(90,199,207,0.6)';
+        ctx.beginPath(); ctx.arc(c.x, c.y - th() * 0.9, Math.max(1.5, 2 * cam.zoom), 0, 7); ctx.fill();
+      } });
     }
     sprites.sort((a, b) => a.sum - b.sum);
     for (const s of sprites) s.draw();
@@ -266,7 +301,7 @@ export function createIso(canvas, { onTap } = {}) {
     state.farm.bed.plants.forEach((p, i) => {
       const c = toScreen(p.x * FIELD_T, p.y * FIELD_T);
       const crop = cropById(state.ark, p.seedId);
-      const g = growthOf(p, crop, state.now, (state.tends || {})[p.id] || 0, pondAdjacent(state.farm, p));
+      const g = growthOf(state.farm, p, crop, state.now, (state.tends || {})[p.id] || 0);
       const m = crop ? modelFor(p, crop, g.stage) : null;
       const halfW = Math.max(14, (m ? m.footprint : 0.2) * u * 0.45 + 8);
       const top = c.y - (m ? m.height : 0.3) * u * 0.6 - 10;
