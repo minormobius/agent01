@@ -11,22 +11,33 @@ pattern); friends' farms are keyless public reads straight off their PDS. The
 working name is *Harvestople* — it lives in `index.html`'s `<title>`, the
 header, and `achievements.js`'s share text if it ever needs changing.
 
-## The world model (v2 saves)
+## The world model (v3 saves — the parcel world)
 
-The farm is a 24×24 tile world (`WORLD_MIN..WORLD_MAX`); the seeded starting
-field is tiles `[0, FIELD_T)²` where the bed seed lays soil, a pond, stones
-and a trodden path (the old keep-outs, sampled at tile centres by
-`baseTile`). Everything else is meadow. `farm.terra` is a sparse
-`"tx,ty" → kind` override layer written by `terraform()` (till / pond / path /
-clear / meadow, priced by `TERRA_COST`) — so the visible world is always
-`tileAt(farm, tx, ty)` = override-or-baseline, and reverting a tile to its
-baseline deletes the key. Plants keep bed-normalized coords (tile/FIELD_T);
-on reclaimed meadow they simply fall outside [0,1]. A plant beside any pond
-tile grows `POND_CUT` faster (`pondAdjacent` — terraforming with teeth).
-`farm.buildings` are the five stations, movable via `moveBuilding` (never
-onto water, a plant, or each other). `fromPlotRecord` migrates v1 records to
-v2 in place (all-additive defaults), including foreign records read by the
-viewer.
+The world is a **5×5 grid of parcels** (each `FIELD_T`² tiles → 60×60 world;
+the cities-skylines model). A fresh farm owns the home parcel `0,0` — the
+seeded field where the bed seed lays soil, a pond, stones and a trodden path
+(`baseTile`, the old keep-outs sampled at tile centres). Every OTHER parcel
+rolls a terrain archetype from `(seed, px, py)` (`parcelTerrain`, memoized):
+**hills** (raised, unplantable, `flatten` at 60◈/tile), **lake** (pond blob —
+shorelines are prime `POND_CUT` real estate), **road** (an old lane cutting
+through; till it over or keep it), **boulders**, or **fertile** flats.
+Purchases (`buyParcel`) require orthogonal adjacency to owned land and cost
+`200◈ × purchases-so-far × chebyshev ring`; unowned land renders fogged with
+FOR SALE signs on the adjacent-buyable ring, and the first tap quotes the
+deed + terrain before the second tap signs it.
+
+`farm.terra` is a sparse `"tx,ty" → kind` override layer written by
+`terraform()` (till / pond / path / clear / flatten / meadow, priced by
+`TERRA_COST`) — the visible world is always `tileAt(farm, tx, ty)` =
+override-or-baseline, reverting to baseline deletes the key, and every tool,
+plant and building placement is gated on `ownsTile`. Plants keep
+bed-normalized coords (tile/FIELD_T); on bought land they fall outside [0,1].
+A plant beside any pond tile grows `POND_CUT` faster (`pondAdjacent`).
+`farm.buildings` are the five stations (deterministic in-parcel defaults via
+`defaultBuildings(seed)`), movable via `moveBuilding` (never onto water,
+hills, a plant, or each other). `fromPlotRecord` migrates v1→v2→v3 in place
+(v2's outside-the-field furniture is pulled home / refunded), including
+foreign records read by the viewer.
 
 ## Facts
 

@@ -17,14 +17,42 @@ import { bedKeepouts, inKeepout, plantNear, MIN_SPACING } from '../vendor/garden
 import { pull as gachaPull, pullRng, biomeForKey, biomeById, PULL_COST, progress } from '../vendor/gacha.js';
 import { gradeOf } from '../vendor/alchemy.js';
 
-// ── THE WORLD GRID ────────────────────────────────────────────────────────────────────────────────
-// The farm is a tile world. The seeded starting field is tiles [0, FIELD_T)²; a meadow apron
-// stretches to the WORLD bounds and is TILLABLE — terraforming meadow into soil is how the farm
-// grows. Plant coordinates stay bed-normalized (world tile / FIELD_T), so a plant on reclaimed
-// meadow simply has x or y outside [0,1] — old saves need no coordinate rewrite.
+// ── THE WORLD GRID — PARCELS (the cities-skylines model) ─────────────────────────────────────────
+// The world is a 5×5 grid of PARCELS, each FIELD_T×FIELD_T tiles; you start owning the middle one
+// (your seeded field) and BUY neighbours outward. Every other parcel rolls a terrain archetype from
+// (seed, px, py) — hills to flatten, a lake to live with or drain, an old road cutting through,
+// boulder fields, or a lucky fertile flat — so expansion is buying PROBLEMS worth solving, not just
+// blank meadow. Plant coordinates stay bed-normalized (world tile / FIELD_T); a plant on bought
+// land simply has x or y outside [0,1].
 export const FIELD_T = 12;
-export const WORLD_MIN = -6, WORLD_MAX = 17;   // inclusive tile range on both axes (24×24)
+export const PARCEL_R = 2;                                     // parcel ring radius → px,py ∈ [-2, 2]
+export const WORLD_MIN = -PARCEL_R * FIELD_T;                  // -24
+export const WORLD_MAX = (PARCEL_R + 1) * FIELD_T - 1;         // 35 (inclusive) — 60×60 tiles
 export const inWorld = (tx, ty) => tx >= WORLD_MIN && tx <= WORLD_MAX && ty >= WORLD_MIN && ty <= WORLD_MAX;
+export const parcelOf = (tx, ty) => [Math.floor(tx / FIELD_T), Math.floor(ty / FIELD_T)];
+export const parcelKey = (px, py) => px + ',' + py;
+export const inGrid = (px, py) => Math.abs(px) <= PARCEL_R && Math.abs(py) <= PARCEL_R;
+export const ownsParcel = (farm, px, py) => (farm.parcels || ['0,0']).includes(parcelKey(px, py));
+export const ownsTile = (farm, tx, ty) => inWorld(tx, ty) && ownsParcel(farm, ...parcelOf(tx, ty));
+
+// the price of the n-th purchase, scaled by how far the parcel sits from home (chebyshev ring):
+// first neighbour 200◈, and it climbs with every deed of sale — land is the long game's coin sink.
+export const parcelPrice = (farm, px, py) => {
+  const n = (farm.parcels || ['0,0']).length;                  // purchases so far, home included
+  const ring = Math.max(1, Math.max(Math.abs(px), Math.abs(py)));
+  return 200 * n * ring;
+};
+// buyable = unowned, in the grid, orthogonally adjacent to owned land (the CS rule)
+export function buyableParcels(farm) {
+  const owned = new Set(farm.parcels || ['0,0']);
+  const out = [];
+  for (let px = -PARCEL_R; px <= PARCEL_R; px++) for (let py = -PARCEL_R; py <= PARCEL_R; py++) {
+    if (owned.has(parcelKey(px, py))) continue;
+    const adj = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => owned.has(parcelKey(px + dx, py + dy)));
+    if (adj) out.push({ px, py, price: parcelPrice(farm, px, py) });
+  }
+  return out;
+}
 
 export const DAY_MS = 30 * 60 * 1000;      // one ark growthDay = 30 real minutes (fast crops ≈ 2h, epics a day+)
 export const START_COINS = 30;
@@ -39,7 +67,7 @@ export const SELL_FLOOR = 2;
 export const PREP_METAL = { tonic: 'silver', elixir: 'gold', balm: 'copper', smoke: 'tin', oil: 'quicksilver' };
 
 // terraforming price list (coins). Tools apply to one tile; guards in terraform().
-export const TERRA_COST = { till: 15, pond: 30, path: 5, clear: 40, meadow: 5 };
+export const TERRA_COST = { till: 15, pond: 30, path: 5, clear: 40, meadow: 5, flatten: 60 };
 export const POND_CUT = 0.10;          // a plant beside water grows this much faster (need ×0.9)
 
 // the five station buildings — the game's rooms, standing on the map. Default spots ring the field.
@@ -50,13 +78,29 @@ export const BUILDING_KINDS = {
   gate:  { emoji: '📮', name: 'friend gate', panel: 'friends' },
   sign:  { emoji: '🪧', name: 'deeds sign',  panel: 'deeds' },
 };
-export const defaultBuildings = () => ([
-  { id: 'desk',  kind: 'desk',  tx: 13, ty: 3 },
-  { id: 'mine',  kind: 'mine',  tx: 13, ty: 9 },
-  { id: 'bench', kind: 'bench', tx: 3,  ty: 13 },
-  { id: 'gate',  kind: 'gate',  tx: -2, ty: 6 },
-  { id: 'sign',  kind: 'sign',  tx: 9,  ty: 13 },
-]);
+// default stations live INSIDE the home parcel (the only land a fresh farm owns). Wanted spots ring
+// the field edge; each slides along a deterministic probe order until it clears the seeded keep-outs.
+export function defaultBuildings(seed) {
+  const wanted = [
+    { id: 'desk',  kind: 'desk',  tx: 10, ty: 1 },
+    { id: 'mine',  kind: 'mine',  tx: 10, ty: 10 },
+    { id: 'bench', kind: 'bench', tx: 1,  ty: 10 },
+    { id: 'gate',  kind: 'gate',  tx: 1,  ty: 1 },
+    { id: 'sign',  kind: 'sign',  tx: 6,  ty: 11 },
+  ];
+  const used = new Set();
+  return wanted.map((w) => {
+    let { tx, ty } = w;
+    for (let step = 0; step < FIELD_T * FIELD_T; step++) {
+      const t = baseTile(seed >>> 0, tx, ty);
+      if (t !== 'pond' && t !== 'stone' && !used.has(tx + ',' + ty)) break;
+      tx = (tx + 1) % FIELD_T;                      // deterministic slide, row-major
+      if (tx === 0) ty = (ty + 1) % FIELD_T;
+    }
+    used.add(tx + ',' + ty);
+    return { id: w.id, kind: w.kind, tx, ty };
+  });
+}
 
 // ecosystem-pack ladder: unlocking the (i+2)-th biome (home is free) needs ALL of the row. Explicit
 // and checkable — the desk renders exactly this table with live ✓/✗ so "how do I unlock" is never
@@ -93,12 +137,13 @@ export function newFarm(did, ark, now = 0) {
   const fast = ((biome && biome.crops) || []).slice().sort((a, b) => a.growthDays - b.growthDays || a.id.localeCompare(b.id)).slice(0, 2);
   for (const c of fast) seeds[c.id] = 3;
   return {
-    v: 2, seed,
+    v: 3, seed,
     biomeId: biome ? biome.id : null,
     activeBiome: biome ? biome.id : null,   // which unlocked pack the desk pulls from
     packs: biome ? [biome.id] : [],         // unlocked ecosystem packs (home is free)
+    parcels: ['0,0'],                       // owned land (parcel keys); neighbours bought outward
     terra: {},                              // "tx,ty" → tile-kind overrides on the seeded baseline
-    buildings: defaultBuildings(),          // the five stations, movable in craft mode
+    buildings: defaultBuildings(seed),      // the five stations, movable in craft mode
     coins: START_COINS,
     bed: { seed, plants: [], nextId: 0 },
     seeds,                       // cropId → count (plantable)
@@ -119,11 +164,76 @@ export function newFarm(did, ark, now = 0) {
 
 const clone = (f) => JSON.parse(JSON.stringify(f));
 
+// ── PARCEL TERRAIN — the seeded archetype roll ────────────────────────────────────────────────────
+// Each non-home parcel gets terrain from (seed, px, py): hills / lake / road / boulders / fertile.
+// Deterministic and memoized (a 12×12 kind-map per parcel), so every viewer sees the same land and
+// the estate re-rolls identically forever. Guaranteed workable: features are budgeted so most of a
+// parcel is always meadow.
+const _terrainCache = new Map();
+function parcelRng(seed, px, py) {
+  let h = (seed >>> 0) ^ 0x51ed2701;
+  for (const ch of 'parcel:' + px + ',' + py) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  let s = h >>> 0;
+  return () => { s = (Math.imul(s ^ (s >>> 15), 1 | s) + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 7), 1 | t); t ^= t + Math.imul(t ^ (t >>> 13), 61 | t); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+export function parcelTerrain(seed, px, py) {
+  const key = seed + ':' + px + ',' + py;
+  if (_terrainCache.has(key)) return _terrainCache.get(key);
+  const rng = parcelRng(seed, px, py);
+  const map = new Array(FIELD_T * FIELD_T).fill('meadow');
+  const put = (x, y, k) => { if (x >= 0 && y >= 0 && x < FIELD_T && y < FIELD_T) map[y * FIELD_T + x] = k; };
+  const roll = rng();
+  const archetype = roll < 0.25 ? 'hills' : roll < 0.5 ? 'lake' : roll < 0.7 ? 'road' : roll < 0.85 ? 'boulders' : 'fertile';
+  if (archetype === 'hills') {
+    // 2–3 ridges: drunken walks that pile HILL tiles (unplantable until flattened, 60◈ each)
+    const ridges = 2 + (rng() < 0.5 ? 1 : 0);
+    for (let r = 0; r < ridges; r++) {
+      let x = 1 + Math.floor(rng() * (FIELD_T - 2)), y = 1 + Math.floor(rng() * (FIELD_T - 2));
+      const len = 5 + Math.floor(rng() * 5);
+      for (let i = 0; i < len; i++) {
+        put(x, y, 'hill');
+        if (rng() < 0.5) put(x + 1, y, 'hill');
+        x += rng() < 0.5 ? 1 : 0; y += rng() < 0.6 ? 1 : -0;
+        if (rng() < 0.3) y -= 1;
+        x = Math.max(0, Math.min(FIELD_T - 1, x)); y = Math.max(0, Math.min(FIELD_T - 1, y));
+      }
+    }
+  } else if (archetype === 'lake') {
+    // one honest lake: an ellipse of water (shoreline rows are prime pond-boost real estate)
+    const cx = 3 + rng() * 6, cy = 3 + rng() * 6, rx = 1.6 + rng() * 1.8, ry = 1.4 + rng() * 1.6;
+    for (let y = 0; y < FIELD_T; y++) for (let x = 0; x < FIELD_T; x++) {
+      if (((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1) put(x, y, 'pond');
+    }
+  } else if (archetype === 'road') {
+    // an old road cutting straight through (till it over at 15◈ a tile, or keep it as a lane)
+    const vertical = rng() < 0.5, at = 2 + Math.floor(rng() * (FIELD_T - 4));
+    for (let i = 0; i < FIELD_T; i++) vertical ? put(at, i, 'road') : put(i, at, 'road');
+    if (rng() < 0.4) { const branch = 2 + Math.floor(rng() * (FIELD_T - 4)); for (let i = 0; i < FIELD_T / 2; i++) vertical ? put(at + i, branch, 'road') : put(branch, at + i, 'road'); }
+  } else if (archetype === 'boulders') {
+    const n = 6 + Math.floor(rng() * 5);
+    for (let i = 0; i < n; i++) put(Math.floor(rng() * FIELD_T), Math.floor(rng() * FIELD_T), 'stone');
+  } // fertile: nothing but the stray stones below
+  // every parcel gets a couple of stray stones for texture
+  const strays = 1 + Math.floor(rng() * 2);
+  for (let i = 0; i < strays; i++) {
+    const x = Math.floor(rng() * FIELD_T), y = Math.floor(rng() * FIELD_T);
+    if (map[y * FIELD_T + x] === 'meadow') put(x, y, 'stone');
+  }
+  const out = { archetype, map };
+  _terrainCache.set(key, out);
+  return out;
+}
+
 // ── TILES: seeded baseline + terraform overrides ──────────────────────────────────────────────────
-// baseline: inside the starting field the bed seed decides soil vs the keep-outs (pond / stones /
-// trodden path, exactly the old geometry, sampled at tile centres); outside it is meadow.
+// baseline: the home parcel is the seeded field (soil + the pond/stones/path keep-outs, exactly the
+// old geometry, sampled at tile centres); every other parcel shows its terrain roll.
 export function baseTile(seed, tx, ty) {
-  if (tx < 0 || ty < 0 || tx >= FIELD_T || ty >= FIELD_T) return 'meadow';
+  const [px, py] = parcelOf(tx, ty);
+  if (px !== 0 || py !== 0) {
+    if (!inGrid(px, py)) return 'meadow';
+    const t = parcelTerrain(seed, px, py);
+    return t.map[(ty - py * FIELD_T) * FIELD_T + (tx - px * FIELD_T)];
+  }
   const keepouts = bedKeepouts(seed);
   const nx = (tx + 0.5) / FIELD_T, ny = (ty + 0.5) / FIELD_T;
   if (!inKeepout(keepouts, nx, ny)) return 'soil';
@@ -143,6 +253,7 @@ const plantOnTile = (farm, tx, ty) => farm.bed.plants.some((p) => Math.floor(p.x
 export function plantableTile(farm, x, y) {
   const tx = Math.floor(x * FIELD_T), ty = Math.floor(y * FIELD_T);
   if (!inWorld(tx, ty)) return false;
+  if (!ownsTile(farm, tx, ty)) return false;
   if (tileAt(farm, tx, ty) !== 'soil') return false;
   if (buildingAt(farm, tx, ty)) return false;
   for (const p of farm.bed.plants) if ((p.x - x) ** 2 + (p.y - y) ** 2 < MIN_SPACING * MIN_SPACING) return false;
@@ -354,16 +465,18 @@ export function usePreparation(farm, itemId, now) {
 //   meadow  soil/path/pond → meadow   (give a tile back to the grass)
 // Never under a plant or a building; always inside the world; each tile-write costs TERRA_COST.
 const TERRA_OK = {
-  till:   { from: ['meadow', 'path'], to: 'soil' },
-  pond:   { from: ['soil', 'meadow', 'path'], to: 'pond' },
-  path:   { from: ['soil', 'meadow', 'pond'], to: 'path' },
-  clear:  { from: ['stone'], to: 'soil' },
-  meadow: { from: ['soil', 'path', 'pond'], to: 'meadow' },
+  till:    { from: ['meadow', 'path', 'road'], to: 'soil' },
+  pond:    { from: ['soil', 'meadow', 'path', 'road'], to: 'pond' },
+  path:    { from: ['soil', 'meadow', 'pond', 'road'], to: 'path' },
+  clear:   { from: ['stone'], to: 'soil' },
+  flatten: { from: ['hill'], to: 'meadow' },   // the expensive one — hills are why the parcel was cheap
+  meadow:  { from: ['soil', 'path', 'pond', 'road'], to: 'meadow' },
 };
 export function terraform(farm, tx, ty, tool, now) {
   const rule = TERRA_OK[tool];
   if (!rule) return { ok: false, reason: 'unknown tool' };
   if (!inWorld(tx, ty)) return { ok: false, reason: 'beyond the world’s edge' };
+  if (!ownsTile(farm, tx, ty)) return { ok: false, reason: 'not your land — buy the parcel first' };
   const cur = tileAt(farm, tx, ty);
   if (!rule.from.includes(cur)) return { ok: false, reason: 'cannot ' + tool + ' ' + cur };
   if (plantOnTile(farm, tx, ty)) return { ok: false, reason: 'a plant is rooted there — harvest it first' };
@@ -385,8 +498,10 @@ export function moveBuilding(farm, id, tx, ty, now) {
   const idx = (farm.buildings || []).findIndex((b) => b.id === id);
   if (idx < 0) return { ok: false, reason: 'no such building' };
   if (!inWorld(tx, ty)) return { ok: false, reason: 'beyond the world’s edge' };
+  if (!ownsTile(farm, tx, ty)) return { ok: false, reason: 'not your land — buy the parcel first' };
   const t = tileAt(farm, tx, ty);
   if (t === 'pond') return { ok: false, reason: 'it would sink' };
+  if (t === 'hill') return { ok: false, reason: 'flatten the hill first' };
   if (plantOnTile(farm, tx, ty)) return { ok: false, reason: 'a plant is rooted there' };
   const other = buildingAt(farm, tx, ty);
   if (other && other.id !== id) return { ok: false, reason: other.id + ' already stands there' };
@@ -395,6 +510,20 @@ export function moveBuilding(farm, id, tx, ty, now) {
   next.stats.movedBuildings = (next.stats.movedBuildings | 0) + 1;
   next.updatedAt = now;
   return { ok: true, farm: next };
+}
+
+// buy the neighbouring plot (the CS rule: adjacent to owned land, price scales with purchases + ring)
+export function buyParcel(farm, px, py, now) {
+  if (!inGrid(px, py)) return { ok: false, reason: 'beyond the survey maps' };
+  if (ownsParcel(farm, px, py)) return { ok: false, reason: 'already yours' };
+  const offer = buyableParcels(farm).find((b) => b.px === px && b.py === py);
+  if (!offer) return { ok: false, reason: 'not adjacent to your land — the estate grows outward' };
+  if (farm.coins < offer.price) return { ok: false, reason: 'the deed costs ' + offer.price + '◈' };
+  const next = clone(farm);
+  next.coins -= offer.price;
+  next.parcels.push(parcelKey(px, py));
+  next.updatedAt = now;
+  return { ok: true, farm: next, price: offer.price, terrain: parcelTerrain(farm.seed, px, py).archetype };
 }
 
 // ── ECOSYSTEM PACKS ───────────────────────────────────────────────────────────────────────────────
@@ -492,15 +621,36 @@ export function toPlotRecord(farm, now) {
 }
 export function fromPlotRecord(value) {
   const f = value && value.farm;
-  if (!f || (f.v !== 1 && f.v !== 2)) return null;
+  if (!f || f.v < 1 || f.v > 3) return null;
   if (f.v === 1) {   // v1 → v2: the map-first fields, all additive, defaults deterministic
     f.v = 2;
     f.terra = f.terra || {};
-    f.buildings = f.buildings || defaultBuildings();
+    f.buildings = f.buildings || defaultBuildings(f.seed);
     f.packs = f.packs || (f.biomeId ? [f.biomeId] : []);
     f.activeBiome = f.activeBiome || f.biomeId;
     f.stats.terraforms = f.stats.terraforms | 0;
     f.stats.movedBuildings = f.stats.movedBuildings | 0;
+  }
+  if (f.v === 2) {   // v2 → v3: the parcel world. v2's free 24×24 apron becomes owned-land-only.
+    f.v = 3;
+    f.parcels = f.parcels || ['0,0'];
+    // buildings used to default to the meadow ring OUTSIDE the home parcel — pull any stranded
+    // station back onto owned land (same deterministic placement a fresh farm gets).
+    const fresh = defaultBuildings(f.seed);
+    f.buildings = (f.buildings || fresh).map((b) => ownsTile(f, b.tx, b.ty) ? b : (fresh.find((d) => d.id === b.id) || b));
+    // terraform overrides on land the player no longer owns: refund and drop (v2 shipped for a day;
+    // the till price comes back so nobody is out of pocket).
+    for (const key of Object.keys(f.terra || {})) {
+      const [tx, ty] = key.split(',').map(Number);
+      if (!ownsTile(f, tx, ty)) { delete f.terra[key]; f.coins += TERRA_COST.till; }
+    }
+    // plants rooted beyond owned land go back into the seed bag, one seed each
+    const keep = [];
+    for (const p of f.bed.plants) {
+      if (ownsTile(f, Math.floor(p.x * FIELD_T), Math.floor(p.y * FIELD_T))) keep.push(p);
+      else f.seeds[p.seedId] = (f.seeds[p.seedId] || 0) + 1;
+    }
+    f.bed.plants = keep;
   }
   return f;
 }

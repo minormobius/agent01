@@ -8,6 +8,7 @@ import {
   touchStreak, recordShare, STREAK_CAP, STREAK_DEW_MIN, SHARE_COINS,
   baseTile, tileAt, plantableTile, terraform, moveBuilding, buildingAt, TERRA_COST, POND_CUT,
   packList, unlockPack, setActiveBiome, pondAdjacent, defaultBuildings, FIELD_T, WORLD_MIN, WORLD_MAX,
+  PARCEL_R, parcelTerrain, buyParcel, buyableParcels, ownsTile,
 } from '../js/state.js';
 import { prepare } from '../vendor/alchemy.js';
 
@@ -131,46 +132,108 @@ ok(ward.ok && ward.farm.effects.wardUntil > T0, 'sedate → market ward');
 const oil = usePreparation(mk({ deliver: 'touch', lubricant: { chassis: 'servo' } }), 'z', T0);
 ok(oil.ok && oil.farm.mine.picksBonus === 1, 'oil → tempered picks');
 
-// ── the tile world: baseline, terraforming, buildings ──
-ok(baseTile(f1.seed, -1, 5) === 'meadow' && baseTile(f1.seed, 5, FIELD_T) === 'meadow', 'outside the field is meadow');
-ok(['soil', 'path', 'pond', 'stone'].includes(baseTile(f1.seed, 5, 5)), 'inside the field the seed decides');
+// ── the parcel world: baseline, purchase, terraforming, buildings ──
+ok(['soil', 'path', 'pond', 'stone'].includes(baseTile(f1.seed, 5, 5)), 'inside the home field the seed decides');
 ok(tileAt(f1, 5, 5) === baseTile(f1.seed, 5, 5), 'no override → baseline');
-// till the meadow → the farm grows outward
-const rich2 = JSON.parse(JSON.stringify(f1)); rich2.coins = 500;
-const till = terraform(rich2, FIELD_T + 1, 6, 'till', T0);
-ok(till.ok && till.farm.coins === 500 - TERRA_COST.till, 'tilling meadow costs its price');
-ok(tileAt(till.farm, FIELD_T + 1, 6) === 'soil', 'tilled tile reads soil');
-const outPlant = plantSeed(till.farm, (FIELD_T + 1.5) / FIELD_T, 6.5 / FIELD_T, starterCrop, ark, T0);
-ok(outPlant.ok, 'a seed goes into reclaimed meadow');
-ok(!terraform(rich2, WORLD_MAX + 1, 0, 'till', T0).ok, 'no terraforming beyond the world');
-ok(!terraform(rich2, FIELD_T + 1, 6, 'clear', T0).ok, 'clear needs a stone');
-const poor = JSON.parse(JSON.stringify(f1)); poor.coins = 3;
-ok(!terraform(poor, FIELD_T + 1, 6, 'till', T0).ok, 'no coins → no till');
-// never under a plant or building
-ok(!terraform(outPlant.farm, FIELD_T + 1, 6, 'pond', T0).ok, 'no terraforming under a plant');
-const bTile = f1.buildings[0];
-ok(!terraform(rich2, bTile.tx, bTile.ty, 'pond', T0).ok, 'no terraforming under a building');
-// ponds water the neighbours
-const pond = terraform(rich2, 14, 7, 'pond', T0);
-ok(pond.ok, 'pond digs in meadow');
-const till2 = terraform(pond.farm, 14, 8, 'till', T0);
-const wet = plantSeed(till2.farm, 14.5 / FIELD_T, 8.5 / FIELD_T, starterCrop, ark, T0);
+ok(f1.parcels.length === 1 && f1.parcels[0] === '0,0', 'a fresh farm owns the home parcel only');
+// terrain rolls: deterministic, varied, mostly workable
+const seen = new Set();
+for (let px = -PARCEL_R; px <= PARCEL_R; px++) for (let py = -PARCEL_R; py <= PARCEL_R; py++) {
+  if (px === 0 && py === 0) continue;
+  const t = parcelTerrain(f1.seed, px, py);
+  ok(JSON.stringify(t.map) === JSON.stringify(parcelTerrain(f1.seed, px, py).map), 'terrain is deterministic');
+  seen.add(t.archetype);
+  const meadow = t.map.filter((k) => k === 'meadow').length;
+  ok(meadow >= FIELD_T * FIELD_T * 0.4, 'a parcel is mostly workable (' + t.archetype + ': ' + meadow + ' meadow)');
+}
+ok(seen.size >= 3, 'terrain archetypes vary across the estate (' + [...seen].join(', ') + ')');
+// buying: adjacency, price scaling, funds
+ok(!buyParcel(f1, 2, 2, T0).ok, 'a far corner is not adjacent — refused');
+ok(!buyParcel(JSON.parse(JSON.stringify(f1)), 1, 0, T0).ok, '30◈ does not buy land');
+const rich2 = JSON.parse(JSON.stringify(f1)); rich2.coins = 5000;
+const buy1 = buyParcel(rich2, 1, 0, T0);
+ok(buy1.ok && buy1.price === 200 && buy1.farm.coins === 4800, 'first neighbour costs 200◈');
+ok(buy1.farm.parcels.includes('1,0'), 'the deed is recorded');
+ok(!buyParcel(buy1.farm, 1, 0, T0).ok, 'cannot buy it twice');
+const buy2 = buyParcel(buy1.farm, 0, 1, T0);
+ok(buy2.ok && buy2.price === 400, 'second purchase costs more (200 × n)');
+const buyRing2 = buyParcel(buy1.farm, 2, 0, T0);
+ok(buyRing2.ok && buyRing2.price === 800, 'ring-2 land costs double its row (200 × n × ring)');
+// terraforming: only on owned land
+ok(!terraform(rich2, FIELD_T + 1, 6, 'till', T0).ok, 'no terraforming on unowned land');
+ok(!plantSeed(rich2, (FIELD_T + 1.5) / FIELD_T, 6.5 / FIELD_T, starterCrop, ark, T0).ok, 'no planting on unowned land');
+ok(!moveBuilding(rich2, 'desk', FIELD_T + 1, 6, T0).ok, 'no buildings on unowned land');
+// on the bought parcel: find meadow, till it, plant in it
+const owned1 = buy1.farm;
+const terr1 = parcelTerrain(f1.seed, 1, 0);
+const mIdx = terr1.map.findIndex((k) => k === 'meadow');
+const mTx = FIELD_T + (mIdx % FIELD_T), mTy = Math.floor(mIdx / FIELD_T);
+const till = terraform(owned1, mTx, mTy, 'till', T0);
+ok(till.ok && till.farm.coins === owned1.coins - TERRA_COST.till, 'tilling bought meadow costs its price');
+ok(tileAt(till.farm, mTx, mTy) === 'soil', 'tilled tile reads soil');
+const outPlant = plantSeed(till.farm, (mTx + 0.5) / FIELD_T, (mTy + 0.5) / FIELD_T, starterCrop, ark, T0);
+ok(outPlant.ok, 'a seed goes into the new parcel');
+ok(!terraform(outPlant.farm, mTx, mTy, 'pond', T0).ok, 'no terraforming under a plant');
+ok(!terraform(owned1, WORLD_MAX + 1, 0, 'till', T0).ok, 'no terraforming beyond the world');
+ok(!terraform(owned1, mTx, mTy, 'clear', T0).ok, 'clear needs a stone');
+// hills: find one across the estate, flatten it (after buying everything)
+let allLand = JSON.parse(JSON.stringify(rich2)); allLand.coins = 1e9;
+for (let guard = 0; guard < 30; guard++) {
+  const market = buyableParcels(allLand);
+  if (!market.length) break;
+  const r = buyParcel(allLand, market[0].px, market[0].py, T0);
+  ok(r.ok, 'an on-market parcel always sells (' + market[0].px + ',' + market[0].py + ')');
+  allLand = r.farm;
+}
+ok(allLand.parcels.length === (2 * PARCEL_R + 1) ** 2, 'buying outward reaches the whole map');
+let hillTile = null;
+for (let ty = WORLD_MIN; ty <= WORLD_MAX && !hillTile; ty++) for (let tx = WORLD_MIN; tx <= WORLD_MAX && !hillTile; tx++) {
+  if (tileAt(allLand, tx, ty) === 'hill') hillTile = { tx, ty };
+}
+ok(!!hillTile, 'somewhere on the estate there are hills');
+ok(!plantSeed(allLand, (hillTile.tx + 0.5) / FIELD_T, (hillTile.ty + 0.5) / FIELD_T, starterCrop, ark, T0).ok, 'hills refuse the plough');
+ok(!moveBuilding(allLand, 'desk', hillTile.tx, hillTile.ty, T0).ok, 'buildings refuse hills');
+const flat = terraform(allLand, hillTile.tx, hillTile.ty, 'flatten', T0);
+ok(flat.ok && tileAt(flat.farm, hillTile.tx, hillTile.ty) === 'meadow' && allLand.coins - flat.farm.coins === TERRA_COST.flatten, 'flatten levels a hill for 60◈');
+// roads: tillable straight over
+let roadTile = null;
+for (let ty = WORLD_MIN; ty <= WORLD_MAX && !roadTile; ty++) for (let tx = WORLD_MIN; tx <= WORLD_MAX && !roadTile; tx++) {
+  if (tileAt(allLand, tx, ty) === 'road') roadTile = { tx, ty };
+}
+ok(!!roadTile, 'somewhere an old road crosses the estate');
+const overRoad = terraform(allLand, roadTile.tx, roadTile.ty, 'till', T0);
+ok(overRoad.ok && tileAt(overRoad.farm, roadTile.tx, roadTile.ty) === 'soil', 'an old road tills over');
+// ponds water the neighbours (dig beside the tilled tile — pick a diggable neighbour)
+const digAt = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => [mTx + dx, mTy + dy])
+  .find(([x, y]) => ownsTile(till.farm, x, y) && ['soil', 'meadow', 'path', 'road'].includes(tileAt(till.farm, x, y)));
+ok(!!digAt, 'a diggable neighbour exists');
+const pond = terraform(till.farm, digAt[0], digAt[1], 'pond', T0);
+ok(pond.ok, 'pond digs on owned land');
+const wet = plantSeed(pond.farm, (mTx + 0.5) / FIELD_T, (mTy + 0.5) / FIELD_T, starterCrop, ark, T0);
 ok(wet.ok && pondAdjacent(wet.farm, wet.farm.bed.plants.at(-1)), 'plant beside the dug pond is watered');
 const dryG = growthOf(wet.farm.bed.plants.at(-1), cropById(ark, starterCrop), T0 + 1, 0, false);
 const wetG = growthOf(wet.farm.bed.plants.at(-1), cropById(ark, starterCrop), T0 + 1, 0, true);
 ok(Math.abs(wetG.needMs - dryG.needMs * (1 - POND_CUT)) < 2, 'pond adjacency cuts growth need by POND_CUT');
 // reverting to baseline drops the override key
-const t3 = terraform(rich2, 15, 2, 'till', T0), t3b = terraform(t3.farm, 15, 2, 'meadow', T0 + 1);
-ok(t3b.ok && !('15,2' in t3b.farm.terra), 'reverting to baseline drops the override');
-// buildings: move rules
-const mv = moveBuilding(rich2, 'desk', 15, 15, T0);
-ok(mv.ok && buildingAt(mv.farm, 15, 15), 'building moves');
+const t3 = terraform(owned1, mTx, mTy, 'till', T0), t3b = terraform(t3.farm, mTx, mTy, 'meadow', T0 + 1);
+ok(t3b.ok && !((mTx + ',' + mTy) in t3b.farm.terra), 'reverting to baseline drops the override');
+// buildings: move rules (inside the home parcel)
+const bTile = f1.buildings[0];
+ok(!terraform(rich2, bTile.tx, bTile.ty, 'pond', T0).ok, 'no terraforming under a building');
+let spot = null;
+for (let ty = 0; ty < FIELD_T && !spot; ty++) for (let tx = 0; tx < FIELD_T && !spot; tx++) {
+  const t = tileAt(f1, tx, ty);
+  if (t !== 'pond' && !buildingAt(f1, tx, ty) && !f1.bed.plants.some((p) => Math.floor(p.x * FIELD_T) === tx && Math.floor(p.y * FIELD_T) === ty)) spot = { tx, ty };
+}
+const mv = moveBuilding(rich2, 'desk', spot.tx, spot.ty, T0);
+ok(mv.ok && buildingAt(mv.farm, spot.tx, spot.ty), 'building moves');
 ok(moveBuilding(rich2, 'desk', bTile.tx, bTile.ty, T0).ok, 'setting a building back on its own tile is fine');
-const mv2 = moveBuilding(mv.farm, 'mine', 15, 15, T0);
-ok(!mv2.ok, 'two buildings cannot share a tile');
-const pondFarm = pond.farm;
-ok(!moveBuilding(pondFarm, 'desk', 14, 7, T0).ok, 'a building will not stand in water');
-ok(defaultBuildings().length === 5, 'five stations');
+ok(!moveBuilding(mv.farm, 'mine', spot.tx, spot.ty, T0).ok, 'two buildings cannot share a tile');
+const stations = defaultBuildings(f1.seed);
+ok(stations.length === 5, 'five stations');
+ok(stations.every((b) => b.tx >= 0 && b.tx < FIELD_T && b.ty >= 0 && b.ty < FIELD_T), 'stations start on home land');
+ok(new Set(stations.map((b) => b.tx + ',' + b.ty)).size === 5, 'stations never stack');
+ok(stations.every((b) => !['pond', 'stone'].includes(baseTile(f1.seed, b.tx, b.ty))), 'stations avoid water and boulders');
 
 // ── ecosystem packs: visible ladder, ordered unlocks ──
 const pl0 = packList(f1, ark);
@@ -190,11 +253,25 @@ const swap = setActiveBiome(un1.farm, f1.biomeId, T0);
 ok(swap.ok && swap.farm.activeBiome === f1.biomeId, 'switch back to home pool');
 ok(!setActiveBiome(f1, pl0[2].id, T0).ok, 'cannot deal from a locked pack');
 
-// ── v1 → v2 migration ──
+// ── migrations: v1 → v3 and v2 → v3 ──
 const v1rec = { $type: 'com.minomobi.farm.plot', v: 1, farm: JSON.parse(JSON.stringify(f1)), updatedAt: 'x' };
-v1rec.farm.v = 1; delete v1rec.farm.terra; delete v1rec.farm.buildings; delete v1rec.farm.packs; delete v1rec.farm.activeBiome;
+v1rec.farm.v = 1; delete v1rec.farm.terra; delete v1rec.farm.buildings; delete v1rec.farm.packs; delete v1rec.farm.activeBiome; delete v1rec.farm.parcels;
 const migrated = fromPlotRecord(v1rec);
-ok(migrated.v === 2 && migrated.buildings.length === 5 && migrated.packs[0] === f1.biomeId && migrated.activeBiome === f1.biomeId, 'v1 record migrates to the map world');
+ok(migrated.v === 3 && migrated.buildings.length === 5 && migrated.packs[0] === f1.biomeId && migrated.parcels[0] === '0,0', 'v1 record migrates all the way to the parcel world');
+ok(migrated.buildings.every((b) => ownsTile(migrated, b.tx, b.ty)), 'migrated stations stand on owned land');
+// v2 save with the old outside-the-field furniture: stranded building, outside terra, outside plant
+const v2rec = { $type: 'com.minomobi.farm.plot', v: 2, farm: JSON.parse(JSON.stringify(f1)), updatedAt: 'x' };
+const vf = v2rec.farm; vf.v = 2; delete vf.parcels;
+vf.buildings = [{ id: 'desk', kind: 'desk', tx: 13, ty: 3 }, ...vf.buildings.slice(1)];
+vf.terra = { '13,6': 'soil' };
+vf.coins = 100;
+vf.bed.plants.push({ id: 'pX', x: 13.5 / FIELD_T, y: 6.5 / FIELD_T, seedId: starterCrop, at: T0, spd: 1, boost: 0 });
+const seedsBefore = vf.seeds[starterCrop] | 0;
+const mig2 = fromPlotRecord(v2rec);
+ok(mig2.v === 3, 'v2 record migrates');
+ok(mig2.buildings.every((b) => ownsTile(mig2, b.tx, b.ty)), 'stranded desk pulled back onto home land');
+ok(!('13,6' in mig2.terra) && mig2.coins === 100 + TERRA_COST.till, 'outside terraform dropped, till price refunded');
+ok(!mig2.bed.plants.some((p) => p.id === 'pX') && (mig2.seeds[starterCrop] | 0) === seedsBefore + 1, 'outside plant returns to the seed bag');
 
 // ── streaks: one grant per UTC day, consecutive days extend, gaps reset, dew capped ──
 const DAY = 86400000;

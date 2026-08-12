@@ -16,13 +16,16 @@
 // building stays in render.js (modelFor). No fetch, no game mutations.
 
 import { drawPlant } from '../vendor/plot-render.js';
-import { growthOf, cropById, pondAdjacent, tileAt, FIELD_T, WORLD_MIN, WORLD_MAX, BUILDING_KINDS } from './state.js';
+import {
+  growthOf, cropById, pondAdjacent, tileAt, FIELD_T, WORLD_MIN, WORLD_MAX, BUILDING_KINDS,
+  parcelOf, ownsParcel, buyableParcels,
+} from './state.js';
 import { modelFor } from './render.js';
 
 export { FIELD_T };
 const TW = 72, TH = 36;               // base tile diamond (2:1) at zoom 1
 const DRAG_PX = 6;                    // a press that moves less than this is a tap
-const ZMIN = 0.55, ZMAX = 1.8;
+const ZMIN = 0.3, ZMAX = 1.8;         // zoomed right out you can survey the whole estate
 
 // seeded per-tile shade (fnv mix — house family)
 function tileHash(seed, tx, ty) {
@@ -78,41 +81,100 @@ export function createIso(canvas, { onTap } = {}) {
     const ty0 = Math.max(WORLD_MIN, Math.floor(Math.min(...corners.map((c) => c.wy)) - 1));
     const ty1 = Math.min(WORLD_MAX, Math.ceil(Math.max(...corners.map((c) => c.wy)) + 1));
 
+    // parcels for sale this frame (adjacent to owned land) — signs + lighter fog
+    const forSale = new Map(buyableParcels(farm).map((b) => [b.px + ',' + b.py, b]));
+
     // ── ground pass (painter order: sum ascending draws back → front) ──
     for (let s = tx0 + ty0; s <= tx1 + ty1; s++) {
       for (let tx = tx0; tx <= tx1; tx++) {
         const ty = s - tx; if (ty < ty0 || ty > ty1) continue;
         const kind = tileAt(farm, tx, ty);   // terraform-aware: overrides first, seeded baseline under
         const c = toScreen(tx + 0.5, ty + 0.5);
-        if (c.x < -tw() || c.x > W + tw() || c.y < -th() * 2 || c.y > H + th()) continue;
+        if (c.x < -tw() || c.x > W + tw() || c.y < -th() * 3 || c.y > H + th()) continue;
+        const [ppx, ppy] = parcelOf(tx, ty);
+        const owned = ownsParcel(farm, ppx, ppy);
+        const saleable = !owned && forSale.has(ppx + ',' + ppy);
         const r = tileHash(farm.bed.seed, tx, ty);
         let fill;
-        if (kind === 'meadow') fill = `rgb(${26 + r * 8 | 0},${34 + r * 10 | 0},${20 + r * 6 | 0})`;
+        if (kind === 'meadow' || kind === 'hill') fill = `rgb(${26 + r * 8 | 0},${34 + r * 10 | 0},${20 + r * 6 | 0})`;
         else if (kind === 'soil') fill = `rgb(${56 + r * 14 | 0},${41 + r * 10 | 0},${26 + r * 7 | 0})`;
         else if (kind === 'path') fill = `rgb(${96 + r * 12 | 0},${82 + r * 10 | 0},${58 + r * 8 | 0})`;
+        else if (kind === 'road') fill = `rgb(${72 + r * 8 | 0},${68 + r * 8 | 0},${62 + r * 8 | 0})`;
         else if (kind === 'pond') fill = `rgb(${20 + r * 6 | 0},${52 + r * 10 | 0},${72 + r * 12 | 0})`;
         else fill = `rgb(${56 + r * 14 | 0},${41 + r * 10 | 0},${26 + r * 7 | 0})`;   // stone sits ON soil
-        ctx.fillStyle = fill;
-        diamond(c.x, c.y, tw(), th()); ctx.fill();
-        // furrow grid on the tillable soil only — reads as "you can plant here"
-        if (kind === 'soil') { ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 1; diamond(c.x, c.y, tw(), th()); ctx.stroke(); }
-        if (kind === 'pond') {   // water sheen
-          ctx.fillStyle = `rgba(180,220,235,${0.06 + 0.05 * Math.sin(now / 900 + tx * 2.1 + ty * 1.3)})`;
-          diamond(c.x, c.y, tw() * 0.7, th() * 0.7); ctx.fill();
+
+        if (kind === 'hill') {
+          // a raised block: side skirts up to a lifted cap — the terrain you paid less because of
+          const lift = th() * 0.55;
+          ctx.fillStyle = 'rgba(0,0,0,0.4)';   // shadow at the foot
+          diamond(c.x, c.y, tw(), th()); ctx.fill();
+          ctx.fillStyle = `rgb(${38 + r * 8 | 0},${40 + r * 8 | 0},${30 + r * 6 | 0})`;   // left skirt
+          ctx.beginPath(); ctx.moveTo(c.x - tw() / 2, c.y); ctx.lineTo(c.x, c.y + th() / 2); ctx.lineTo(c.x, c.y + th() / 2 - lift); ctx.lineTo(c.x - tw() / 2, c.y - lift); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = `rgb(${30 + r * 6 | 0},${32 + r * 6 | 0},${24 + r * 5 | 0})`;   // right skirt
+          ctx.beginPath(); ctx.moveTo(c.x + tw() / 2, c.y); ctx.lineTo(c.x, c.y + th() / 2); ctx.lineTo(c.x, c.y + th() / 2 - lift); ctx.lineTo(c.x + tw() / 2, c.y - lift); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = `rgb(${52 + r * 10 | 0},${56 + r * 10 | 0},${40 + r * 8 | 0})`;   // grassy cap
+          diamond(c.x, c.y - lift, tw(), th()); ctx.fill();
+          ctx.fillStyle = `rgba(120,116,100,0.5)`;   // rocky flecks
+          ctx.beginPath(); ctx.ellipse(c.x + (r - 0.5) * tw() * 0.3, c.y - lift, tw() * 0.08, th() * 0.1, 0, 0, 7); ctx.fill();
+        } else {
+          ctx.fillStyle = fill;
+          diamond(c.x, c.y, tw(), th()); ctx.fill();
+          // furrow grid on the tillable soil only — reads as "you can plant here"
+          if (kind === 'soil') { ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 1; diamond(c.x, c.y, tw(), th()); ctx.stroke(); }
+          if (kind === 'pond') {   // water sheen
+            ctx.fillStyle = `rgba(180,220,235,${0.06 + 0.05 * Math.sin(now / 900 + tx * 2.1 + ty * 1.3)})`;
+            diamond(c.x, c.y, tw() * 0.7, th() * 0.7); ctx.fill();
+          }
+          if (kind === 'road') {   // faded centre-line dashes
+            ctx.strokeStyle = 'rgba(220,210,170,0.28)'; ctx.lineWidth = Math.max(1, 1.5 * cam.zoom); ctx.setLineDash([tw() * 0.14, tw() * 0.12]);
+            ctx.beginPath(); ctx.moveTo(c.x - tw() * 0.25, c.y - th() * 0.12); ctx.lineTo(c.x + tw() * 0.25, c.y + th() * 0.12); ctx.stroke();
+            ctx.setLineDash([]);
+          }
+          if (kind === 'stone') {   // a boulder resting on the tile
+            const rw = tw() * 0.26, rh = th() * 0.5;
+            ctx.fillStyle = '#6b6455'; ctx.beginPath(); ctx.ellipse(c.x, c.y - rh * 0.4, rw, rh, 0, Math.PI, 0); ctx.fill();
+            ctx.fillStyle = '#575044'; ctx.beginPath(); ctx.ellipse(c.x, c.y - rh * 0.4, rw, rh * 0.45, 0, 0, Math.PI); ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.beginPath(); ctx.ellipse(c.x - rw * 0.35, c.y - rh * 0.75, rw * 0.35, rh * 0.3, 0, 0, 7); ctx.fill();
+          }
         }
-        if (kind === 'stone') {   // a boulder resting on the tile
-          const rw = tw() * 0.26, rh = th() * 0.5;
-          ctx.fillStyle = '#6b6455'; ctx.beginPath(); ctx.ellipse(c.x, c.y - rh * 0.4, rw, rh, 0, Math.PI, 0); ctx.fill();
-          ctx.fillStyle = '#575044'; ctx.beginPath(); ctx.ellipse(c.x, c.y - rh * 0.4, rw, rh * 0.45, 0, 0, Math.PI); ctx.fill();
-          ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.beginPath(); ctx.ellipse(c.x - rw * 0.35, c.y - rh * 0.75, rw * 0.35, rh * 0.3, 0, 0, 7); ctx.fill();
+
+        // fog of ownership: unowned land dims — parcels on the market a little less than the rest
+        if (!owned) {
+          ctx.fillStyle = saleable ? 'rgba(5,6,10,0.38)' : 'rgba(5,6,10,0.62)';
+          const lift = kind === 'hill' ? th() * 0.55 : 0;
+          diamond(c.x, c.y - lift, tw(), th()); ctx.fill();
         }
       }
     }
 
-    // field edge — a soft rim so the tillable square reads at a glance
+    // parcel survey lines + the home field's golden rim
+    ctx.strokeStyle = 'rgba(200,190,160,0.12)'; ctx.lineWidth = 1;
+    for (let p = -2; p <= 3; p++) {
+      const a = toScreen(p * FIELD_T, WORLD_MIN), b = toScreen(p * FIELD_T, WORLD_MAX + 1);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      const a2 = toScreen(WORLD_MIN, p * FIELD_T), b2 = toScreen(WORLD_MAX + 1, p * FIELD_T);
+      ctx.beginPath(); ctx.moveTo(a2.x, a2.y); ctx.lineTo(b2.x, b2.y); ctx.stroke();
+    }
     const e0 = toScreen(0, 0), e1 = toScreen(FIELD_T, 0), e2 = toScreen(FIELD_T, FIELD_T), e3 = toScreen(0, FIELD_T);
     ctx.strokeStyle = 'rgba(244,191,98,0.28)'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(e0.x, e0.y); ctx.lineTo(e1.x, e1.y); ctx.lineTo(e2.x, e2.y); ctx.lineTo(e3.x, e3.y); ctx.closePath(); ctx.stroke();
+
+    // FOR SALE signs at the centre of each on-market parcel
+    for (const [, b] of forSale) {
+      const c = toScreen(b.px * FIELD_T + FIELD_T / 2, b.py * FIELD_T + FIELD_T / 2);
+      if (c.x < -80 || c.x > W + 80 || c.y < -60 || c.y > H + 60) continue;
+      ctx.strokeStyle = '#7a6a4a'; ctx.lineWidth = Math.max(1.5, 2 * cam.zoom);
+      ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(c.x, c.y - th() * 1.3); ctx.stroke();
+      const label = 'FOR SALE · ' + b.price + '◈';
+      ctx.font = `bold ${Math.max(9, 11 * cam.zoom) | 0}px "JetBrains Mono", ui-monospace, monospace`;
+      const wd = ctx.measureText(label).width + 12;
+      ctx.fillStyle = '#241f15';
+      ctx.fillRect(c.x - wd / 2, c.y - th() * 1.3 - 16 * cam.zoom - 4, wd, 16 * cam.zoom + 6);
+      ctx.strokeStyle = '#f4bf62'; ctx.lineWidth = 1;
+      ctx.strokeRect(c.x - wd / 2, c.y - th() * 1.3 - 16 * cam.zoom - 4, wd, 16 * cam.zoom + 6);
+      ctx.fillStyle = '#f4bf62'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(label, c.x, c.y - th() * 1.3 - (16 * cam.zoom + 4) / 2 + 1);
+    }
 
     // hover tile (action aid): green = the current tool lands here, red = it doesn't. The tool is
     // whatever the host set — 'plant' when a seed is picked, a terraform verb in craft mode, 'move'

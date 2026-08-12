@@ -11,6 +11,7 @@ import {
   touchStreak, recordShare, SHARE_COINS,
   plantableTile, tileAt, buildingAt, terraform, moveBuilding, TERRA_COST, BUILDING_KINDS,
   packList, unlockPack, setActiveBiome, pondAdjacent, FIELD_T, inWorld,
+  parcelOf, ownsParcel, buyableParcels, buyParcel, parcelTerrain,
 } from './state.js';
 import * as Mine from './mine.js';
 import { ACHIEVEMENTS, byId as achById, evaluate as evalAch, markEarned, shareText } from './achievements.js';
@@ -50,13 +51,15 @@ let craftTool = null;       // craft mode: 'till'|'pond'|'path'|'clear'|'meadow'
 let movingBuilding = null;  // building id currently in hand (craft 'move')
 
 const CRAFT_TOOLS = [
-  { key: 'till',   emoji: '🪏', label: 'till',   hint: 'meadow → tilled soil (grow the farm outward)' },
-  { key: 'pond',   emoji: '💧', label: 'pond',   hint: 'dig water — plants beside it grow 10% faster' },
-  { key: 'path',   emoji: '🧱', label: 'path',   hint: 'lay a walkway' },
-  { key: 'clear',  emoji: '🪨', label: 'clear',  hint: 'roll a boulder away' },
-  { key: 'meadow', emoji: '🌿', label: 'meadow', hint: 'give a tile back to the grass' },
-  { key: 'move',   emoji: '✋', label: 'move',   hint: 'tap a building, then tap where it goes' },
+  { key: 'till',    emoji: '🪏', label: 'till',    hint: 'meadow (or an old road) → tilled soil' },
+  { key: 'pond',    emoji: '💧', label: 'pond',    hint: 'dig water — plants beside it grow 10% faster' },
+  { key: 'path',    emoji: '🧱', label: 'path',    hint: 'lay a walkway' },
+  { key: 'clear',   emoji: '🪨', label: 'clear',   hint: 'roll a boulder away' },
+  { key: 'flatten', emoji: '⛰️', label: 'flatten', hint: 'level a hill — the terrain the cheap parcels came with' },
+  { key: 'meadow',  emoji: '🌿', label: 'meadow',  hint: 'give a tile back to the grass' },
+  { key: 'move',    emoji: '✋', label: 'move',    hint: 'tap a building, then tap where it goes' },
 ];
+let pendingBuy = null;   // { key, at } — a FOR-SALE parcel tapped once, awaiting its confirming tap
 
 async function boot() {
   ark = await (await fetch('./vendor/ark.json')).json();
@@ -92,7 +95,37 @@ async function boot() {
   if (store.user) refreshFriends();   // background: tends boost + gifts at the gate
 }
 
+const TERRAIN_BLURB = {
+  hills: 'hilly — ridges to flatten (60◈ a tile) before the plough goes in',
+  lake: 'lakeland — half of it water, but every shore tile waters its neighbours',
+  road: 'an old road runs through it — till it over, or keep the lane',
+  boulders: 'a boulder field — clearing stones is 40◈ apiece',
+  fertile: 'fertile flats — barely a stone on it. A find.',
+};
+
 function onFieldTap({ bx, by, tx, ty, plantIdx, building }) {
+  // land on the market: first tap quotes the deed (terrain included), second tap signs it
+  const [ppx, ppy] = parcelOf(tx, ty);
+  if (inWorld(tx, ty) && !ownsParcel(farm, ppx, ppy)) {
+    const offer = buyableParcels(farm).find((b) => b.px === ppx && b.py === ppy);
+    if (!offer) { toast('that land is not adjacent to yours — the estate grows outward', 'warn'); return; }
+    const key = ppx + ',' + ppy;
+    if (pendingBuy && pendingBuy.key === key && now() - pendingBuy.at < 6000) {
+      pendingBuy = null;
+      const r = buyParcel(farm, ppx, ppy, now());
+      if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+      commit(r.farm);
+      toast('📜 deed signed — <b>' + esc(r.terrain) + '</b> land, ' + r.price + '◈. Craft mode shapes it.', 'ach', 9000);
+      redrawBed();
+    } else {
+      pendingBuy = { key, at: now() };
+      const terr = parcelTerrain(farm.seed, ppx, ppy);
+      toast('🪧 ' + offer.price + '◈ — ' + esc(TERRAIN_BLURB[terr.archetype] || terr.archetype) +
+        (farm.coins >= offer.price ? ' <b>tap again to buy</b>' : ' <i>(you have ' + farm.coins + '◈)</i>'), 'ok', 6000);
+    }
+    return;
+  }
+  pendingBuy = null;
   // craft mode: the tap is a tool stroke
   if (craftTool === 'move') {
     if (!movingBuilding) {
@@ -638,6 +671,6 @@ function toast(html, kind = 'ok', ms = 5000) {
 // ── wire the chrome ──────────────────────────────────────────────────────────────────────────────
 document.addEventListener('click', (e) => { if (e.target.closest('.closepane')) closePanel(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel(); });
-window.harvestople = { openPanel, closePanel };   // console/smoke-test handle — the map is still the front door
+window.harvestople = { openPanel, closePanel, state: () => farm };   // console/smoke-test handle — the map is still the front door
 $('#vessel')?.addEventListener('change', () => renderBench());
 boot().catch((e) => { console.error(e); toast('⚠ boot failed: ' + esc(e.message), 'warn', 20000); });

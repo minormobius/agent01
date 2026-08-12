@@ -27,6 +27,9 @@ export const ACHIEVEMENTS = [
   { id: 'first-terra',   emoji: '🪏', name: 'Landshaper',         desc: 'Terraform your first tile',                   test: (f) => (f.stats.terraforms | 0) >= 1 },
   { id: 'terra-20',      emoji: '🏞️', name: 'The Farm You Meant', desc: 'Terraform twenty tiles',                      test: (f) => (f.stats.terraforms | 0) >= 20 },
   { id: 'new-lands',     emoji: '🗺️', name: 'New Lands',          desc: 'Unlock a second ecosystem pack',              test: (f) => (f.packs || []).length >= 2 },
+  { id: 'first-deed',    emoji: '📜', name: 'Deed of Sale',       desc: 'Buy your first neighbouring parcel',          test: (f) => (f.parcels || []).length >= 2 },
+  { id: 'estate-6',      emoji: '🏡', name: 'Land Baron',         desc: 'Own six parcels',                             test: (f) => (f.parcels || []).length >= 6 },
+  { id: 'whole-map',     emoji: '🧭', name: 'Horizon to Horizon', desc: 'Own all twenty-five parcels',                 test: (f) => (f.parcels || []).length >= 25 },
   { id: 'all-lands',     emoji: '🌐', name: 'The Whole Ark',      desc: 'Unlock every ecosystem pack',                 test: (f, ark) => (f.packs || []).length >= ((ark && ark.biomes) || []).length && (f.packs || []).length > 1 },
 ];
 
