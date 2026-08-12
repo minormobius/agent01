@@ -15,6 +15,8 @@ import {
   TECHS, techChecks, research, hasTech, placeSprinkler, SUPPLY_COST, SPRINKLER_COST,
   sellPriceOrganic, ORGANIC_PREMIUM, WATER_MS,
   parcelOf, ownsParcel, buyableParcels, buyParcel, parcelTerrain,
+  ANIMALS, GOOD_EMOJI, animalCap, buyAnimal, feedAnimal, petAnimal, collectAnimal, sellGood,
+  animalFed, animalProducing, animalById, forage, grantWildseed,
 } from './state.js';
 import * as Mine from './mine.js';
 import { ACHIEVEMENTS, byId as achById, evaluate as evalAch, markEarned, shareText } from './achievements.js';
@@ -123,7 +125,8 @@ const TERRAIN_BLURB = {
   fertile: 'fertile flats — barely a stone on it. A find.',
 };
 
-function onFieldTap({ bx, by, tx, ty, plantIdx, building }) {
+function onFieldTap(tap) {
+  const { bx, by, tx, ty, plantIdx, building, animal, sparkle } = tap;
   // land on the market: first tap quotes the deed (terrain included), second tap signs it
   const [ppx, ppy] = parcelOf(tx, ty);
   if (inWorld(tx, ty) && !ownsParcel(farm, ppx, ppy)) {
@@ -146,6 +149,47 @@ function onFieldTap({ bx, by, tx, ty, plantIdx, building }) {
     return;
   }
   pendingBuy = null;
+  // a sparkle is always the first prize — the whole point of the hunt
+  if (sparkle && !craftTool) {
+    const spot = sparkle;
+    const r = forage(farm, spot.i, now());
+    if (r.ok) {
+      let f2 = r.farm, msg;
+      if (r.prize.kind === 'coins') { msg = '+' + r.prize.qty + '◈'; isoMain.burst(spot.tx / FIELD_T + 0.04, spot.ty / FIELD_T + 0.04, '+' + r.prize.qty + '◈'); }
+      else if (r.prize.kind === 'shard') { msg = '✧ a quintessence shard!'; isoMain.burst(spot.tx / FIELD_T, spot.ty / FIELD_T, '✧', '#e0d08f'); }
+      else {
+        const g = grantWildseed(f2, ark, now());
+        f2 = g.farm;
+        msg = g.crop ? '🌱 wildseed: ' + esc(g.crop.common) : '🌱 a wildseed';
+        isoMain.burst(spot.tx / FIELD_T, spot.ty / FIELD_T, '🌱', '#93e6a4');
+      }
+      commit(f2);
+      toast('✨ ' + msg, 'ok', 3500);
+      redrawBed();
+    }
+    return;
+  }
+  // animals: collect if ready, else pet, else feed hint — one tap does the right thing
+  if (animal && !craftTool) {
+    const a = animal;
+    const def = ANIMALS[a.kind];
+    const c = collectAnimal(farm, a.id, now());
+    if (c.ok) {
+      commit(c.farm);
+      isoMain.burst(bx, by, def.goodEmoji + (c.petted ? '×2' : ''), '#f7c66a');
+      toast(def.emoji + ' ' + def.goodEmoji + ' ×' + c.qty + (c.organic ? ' 🌿' : ' 🧪') + (c.petted ? ' — the pets paid off' : ''), 'ok');
+      redrawBed(); return;
+    }
+    const p = petAnimal(farm, a.id, now());
+    if (p.ok) {
+      commit(p.farm);
+      isoMain.burst(bx, by, '💕', '#e89ac8');
+      toast(def.emoji + ' happy ' + def.name + ' — next collect is doubled', 'ok');
+      redrawBed(); return;
+    }
+    toast(def.emoji + ' ' + esc(c.reason) + ' — the barn 🐄 manages the herd', 'ok');
+    return;
+  }
   // craft mode: the tap is a tool stroke
   if (craftTool === 'move') {
     if (!movingBuilding) {
@@ -270,6 +314,7 @@ function openPanel(name) {
   if (name === 'deeds') renderDeeds();
   if (name === 'mill') renderMill();
   if (name === 'skins') renderSkins();
+  if (name === 'barn') renderBarn();
 }
 function closePanel() { $$('.pane').forEach((p) => p.classList.remove('on')); redrawBed(); }
 
@@ -416,9 +461,11 @@ function renderPlantInfo() {
 }
 
 function tryHarvest(plantId) {
+  const p0 = farm.bed.plants.find((p) => p.id === plantId);
   const r = harvestPlant(farm, plantId, ark, now(), tends);
   if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
   commit(r.farm);
+  if (p0 && isoMain) isoMain.burst(p0.x, p0.y, '+' + r.yield + ' 🧺', '#93e6a4');
   const c = cropById(ark, r.cropId);
   toast('🧺 ' + r.yield + '× ' + esc(c.common) + (r.organic ? ' 🌿' : ' 🧪') + ' + ' + r.seeds + ' seed' +
     (r.bitten ? ' — <b class="warn">the beetles took their share</b>' : ''), r.bitten ? 'warn' : 'ok');
@@ -480,6 +527,62 @@ function renderSkins() {
     applySkin(farm);
     toast(r.skin.emoji + ' <b>' + esc(r.skin.name) + '</b> — the farm wears it now, and so does your public page', 'ach', 7000);
     renderSkins(); redrawBed();
+  });
+}
+
+// ── BARN panel (the herd) ─────────────────────────────────────────────────────────────────────────
+function renderBarn() {
+  const cap = animalCap(farm);
+  $('#barnstats').innerHTML = '<span class="chip">herd ' + (farm.animals || []).length + '/' + cap + '</span>' +
+    ' <span class="dim">each parcel carries two animals — buy land, grow the herd. Goods inherit the FEED: organic-fed animals give 🌿 goods (×1.75 at market).</span>';
+  $('#stable').innerHTML = Object.entries(ANIMALS).map(([k, d]) =>
+    '<button class="chip" data-buy-animal="' + k + '">' + d.emoji + ' ' + d.name + ' — ' + d.cost + '◈' +
+    ' <i>' + d.goodEmoji + ' every ' + Math.round(d.everyMs / 3600000) + 'h' +
+    (d.feedUnits ? ' · eats ' + d.feedUnits + ' produce/day' : ' · feeds itself among ≥' + d.needsPlants + ' plants') +
+    (d.needsPond ? ' · needs a pond' : '') + '</i></button>').join('');
+  $$('#stable [data-buy-animal]').forEach((b) => b.onclick = () => {
+    const r = buyAnimal(farm, b.dataset.buyAnimal, now());
+    if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+    commit(r.farm);
+    toast(r.def.emoji + ' a ' + r.def.name + ' joins the farm — find it wandering the fields', 'ach', 7000);
+    renderBarn(); redrawBed();
+  });
+  $('#herd').innerHTML = (farm.animals || []).length ? farm.animals.map((a) => {
+    const d = ANIMALS[a.kind];
+    const fed = animalFed(a, now());
+    const ready = animalProducing(farm, a, now()) && now() - (a.lastCollect || a.at) >= d.everyMs;
+    return '<div class="giftrow">' + d.emoji + ' <b>' + d.name + '</b> ' +
+      (ready ? d.goodEmoji + ' ready — tap it on the map' : fed || !d.feedUnits ? '<span class="dim">grazing (' + (a.feedGrade === 'conv' ? '🧪 fed' : '🌿 fed') + ')</span>' : '<b class="warn">hungry</b>') +
+      (!fed && d.feedUnits ? Object.keys(farm.pantry).slice(0, 3).map((id) =>
+        ' <button class="mini" data-feed="' + a.id + '" data-crop="' + esc(id) + '">feed ' + esc((cropById(ark, id) || {}).common || id) + ' 🌿</button>').join('') +
+        Object.keys(farm.pantryC || {}).slice(0, 2).map((id) =>
+        ' <button class="mini" data-feed="' + a.id + '" data-crop="' + esc(id) + '">feed ' + esc((cropById(ark, id) || {}).common || id) + ' 🧪</button>').join('') : '') +
+      '</div>';
+  }).join('') : '<span class="dim">no animals yet — the stable above sells them</span>';
+  $$('#herd [data-feed]').forEach((b) => b.onclick = () => {
+    const r = feedAnimal(farm, b.dataset.feed, b.dataset.crop, now());
+    if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+    commit(r.farm);
+    toast('🍽️ fed' + (r.organic ? ' 🌿 — its goods stay organic' : ' 🧪 — its goods go conventional'), r.organic ? 'ok' : 'warn');
+    renderBarn();
+  });
+  const goods = Object.entries(farm.goods || {}), goodsC = Object.entries(farm.goodsC || {});
+  $('#goods').innerHTML = (goods.length || goodsC.length)
+    ? goods.map(([k, n]) => {
+      const d = Object.values(ANIMALS).find((x) => x.good === k);
+      return '<span class="chip organic">' + GOOD_EMOJI[k] + ' ' + k + ' ×' + n +
+        ' <button class="mini" data-sellgood="' + k + '" data-grade="organic">sell @' + Math.round(d.price * ORGANIC_PREMIUM) + '◈</button></span>';
+    }).join('') + goodsC.map(([k, n]) => {
+      const d = Object.values(ANIMALS).find((x) => x.good === k);
+      return '<span class="chip conv">' + GOOD_EMOJI[k] + ' ' + k + ' ×' + n +
+        ' <button class="mini" data-sellgood="' + k + '" data-grade="conv">sell @' + d.price + '◈</button></span>';
+    }).join('')
+    : '<span class="dim">no goods yet — fed animals drop them on their timers</span>';
+  $$('#goods [data-sellgood]').forEach((b) => b.onclick = () => {
+    const grade = b.dataset.grade;
+    const pool = grade === 'conv' ? farm.goodsC : farm.goods;
+    const r = sellGood(farm, b.dataset.sellgood, pool[b.dataset.sellgood], now(), grade);
+    if (r.ok) { commit(r.farm); toast('+' + r.coins + '◈' + (r.organic ? ' 🌿' : ''), 'ok'); renderBarn(); }
   });
 }
 

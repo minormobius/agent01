@@ -35,6 +35,11 @@ export const ACHIEVEMENTS = [
   { id: 'organic-25',    emoji: '🌿', name: 'Certified Organic',  desc: 'Bring in 25 organic harvests',                test: (f) => (f.stats.organicHarvests | 0) >= 25 },
   { id: 'organic-100',   emoji: '🏵️', name: 'Soil and Soul',      desc: 'Bring in 100 organic harvests',               test: (f) => (f.stats.organicHarvests | 0) >= 100 },
   { id: 'bug-war',       emoji: '🐛', name: 'The Beetle Wars',    desc: 'Treat ten infestations',                      test: (f) => (f.stats.pestsTreated | 0) >= 10 },
+  { id: 'first-animal',  emoji: '🐔', name: 'A Warm Welcome',     desc: 'Bring your first animal home',                test: (f) => (f.stats.animalsBought | 0) >= 1 },
+  { id: 'full-paddock',  emoji: '🐄', name: 'Full Paddock',       desc: 'Keep six animals at once',                    test: (f) => (f.animals || []).length >= 6 },
+  { id: 'good-human',    emoji: '💕', name: 'Good Human',         desc: 'Pet your animals thirty times',               test: (f) => (f.stats.pets | 0) >= 30 },
+  { id: 'provisioner',   emoji: '🥚', name: 'Provisioner',        desc: 'Collect one hundred goods',                   test: (f) => (f.stats.goodsCollected | 0) >= 100 },
+  { id: 'hedge-wizard',  emoji: '✨', name: 'Hedge Wizard',       desc: 'Gather fifty forage sparkles',                test: (f) => (f.stats.foraged | 0) >= 50 },
   { id: 'all-lands',     emoji: '🌐', name: 'The Whole Ark',      desc: 'Unlock every ecosystem pack',                 test: (f, ark) => (f.packs || []).length >= ((ark && ark.biomes) || []).length && (f.packs || []).length > 1 },
 ];
 

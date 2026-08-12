@@ -42,7 +42,9 @@ export const ownsTile = (farm, tx, ty) => inWorld(tx, ty) && ownsParcel(farm, ..
 export const parcelPrice = (farm, px, py) => {
   const n = (farm.parcels || ['0,0']).length;                  // purchases so far, home included
   const ring = Math.max(1, Math.max(Math.abs(px), Math.abs(py)));
-  return 200 * n * ring;
+  // ANNEALED (sim round 5): n^1.4 instead of n — first deeds stay day-2 cheap (250, 660…) while the
+  // outer ring becomes the long game instead of week-two pocket change.
+  return Math.round(250 * Math.pow(n, 1.4) * ring / 10) * 10;
 };
 // buyable = unowned, in the grid, orthogonally adjacent to owned land (the CS rule)
 export function buyableParcels(farm) {
@@ -94,6 +96,207 @@ export const PEST_BITE = 2;                // harvesting through an infestation 
 export const SPRAY_IMMUNE_W = 6;           // synthetic spray clears this window + the next 5
 export const REMEDY_IMMUNE_W = 3;          // a caustic brew clears this window + the next 2, and stays organic
 
+// ── LIVESTOCK ─────────────────────────────────────────────────────────────────────────────────────
+// Animals are the farm's heartbeat: they wander the map, want feeding (a PANTRY SINK — produce
+// finally has somewhere to go besides the market), drop goods on timers (a reason to come back),
+// and can be petted once a day (a free action that doubles the next collect — petting matters).
+// Goods inherit the FEED's grade: an organically-fed hen lays organic eggs (premium + honest).
+// ANNEALED (sim rounds 4-5): at egg/4h·8◈ a hen repaid in a day and the oracle's player ran 28
+// animals and 14 parcels by day 21 — the flood after the famine. These rates aim a hen's repay at
+// ~4 days, a herd at "pleasant income", not a printer.
+export const ANIMALS = {
+  hen:   { emoji: '🐔', name: 'hen',      cost: 80,  good: 'egg',   goodEmoji: '🥚', everyMs: 6 * 3600 * 1000,  feedUnits: 1, price: 5 },
+  duck:  { emoji: '🦆', name: 'duck',     cost: 120, good: 'egg',   goodEmoji: '🥚', everyMs: 5 * 3600 * 1000,  feedUnits: 1, price: 5,  needsPond: true },
+  goat:  { emoji: '🐐', name: 'goat',     cost: 200, good: 'milk',  goodEmoji: '🥛', everyMs: 10 * 3600 * 1000, feedUnits: 2, price: 14 },
+  sheep: { emoji: '🐑', name: 'sheep',    cost: 300, good: 'wool',  goodEmoji: '🧶', everyMs: 16 * 3600 * 1000, feedUnits: 2, price: 28 },
+  bees:  { emoji: '🐝', name: 'bee hive', cost: 400, good: 'honey', goodEmoji: '🍯', everyMs: 22 * 3600 * 1000, feedUnits: 0, price: 45, needsPlants: 6 },
+};
+export const FED_MS = 24 * 3600 * 1000;           // one feeding holds a day
+export const animalCap = (farm) => 2 * (farm.parcels || ['0,0']).length;   // land carries the herd
+
+export function buyAnimal(farm, kind, now) {
+  const def = ANIMALS[kind];
+  if (!def) return { ok: false, reason: 'no such animal' };
+  if ((farm.animals || []).length >= animalCap(farm)) return { ok: false, reason: 'the land carries ' + animalCap(farm) + ' animals — buy a parcel for more' };
+  if (farm.coins < def.cost) return { ok: false, reason: 'costs ' + def.cost + '◈' };
+  if (def.needsPond) {
+    let has = false;
+    for (const key of farm.parcels) {
+      const [px, py] = key.split(',').map(Number);
+      for (let ty = 0; ty < FIELD_T && !has; ty++) for (let tx = 0; tx < FIELD_T && !has; tx++) {
+        if (tileAt(farm, px * FIELD_T + tx, py * FIELD_T + ty) === 'pond') has = true;
+      }
+      if (has) break;
+    }
+    if (!has) return { ok: false, reason: 'a duck needs water on your land — dig a pond' };
+  }
+  const next = clone(farm);
+  next.coins -= def.cost;
+  next.animals = next.animals || [];
+  next.animals.push({ id: 'a' + now.toString(36) + '-' + next.animals.length, kind, at: now, fedUntil: now + FED_MS, lastCollect: now, lastPet: 0 });
+  next.stats.animalsBought = (next.stats.animalsBought | 0) + 1;
+  next.updatedAt = now;
+  return { ok: true, farm: next, def };
+}
+
+export const animalById = (farm, id) => (farm.animals || []).find((a) => a.id === id) || null;
+export const animalFed = (a, now) => now < (a.fedUntil || 0);
+export const animalHungry = (farm, id, now) => { const a = animalById(farm, id); return !!a && !animalFed(a, now) && ANIMALS[a.kind].feedUnits > 0; };
+// bees feed themselves when the farm blooms
+export function animalProducing(farm, a, now) {
+  const def = ANIMALS[a.kind];
+  if (def.needsPlants != null) return farm.bed.plants.length >= def.needsPlants;
+  return animalFed(a, now);
+}
+
+// feed from either pantry; the animal REMEMBERS the grade — goods inherit it at collect time.
+export function feedAnimal(farm, id, cropId, now) {
+  const a = animalById(farm, id);
+  if (!a) return { ok: false, reason: 'no such animal' };
+  const def = ANIMALS[a.kind];
+  if (def.feedUnits === 0) return { ok: false, reason: 'the hive feeds itself — keep things blooming' };
+  if (animalFed(a, now)) return { ok: false, reason: 'already fed today' };
+  const org = (farm.pantry[cropId] | 0), conv = ((farm.pantryC || {})[cropId] | 0);
+  const useOrg = org >= def.feedUnits;
+  if (!useOrg && conv < def.feedUnits) return { ok: false, reason: 'needs ' + def.feedUnits + ' produce of one crop' };
+  const next = clone(farm);
+  const na = animalById(next, id);
+  const pool = useOrg ? next.pantry : next.pantryC;
+  pool[cropId] -= def.feedUnits; if (!pool[cropId]) delete pool[cropId];
+  na.fedUntil = now + FED_MS;
+  na.feedGrade = useOrg ? 'organic' : 'conv';
+  next.updatedAt = now;
+  return { ok: true, farm: next, organic: useOrg };
+}
+
+// pet once a day: pure delight with teeth — the NEXT collect from this animal yields double.
+export function petAnimal(farm, id, now) {
+  const a = animalById(farm, id);
+  if (!a) return { ok: false, reason: 'no such animal' };
+  const day = Math.floor(now / 86400000);
+  if (Math.floor((a.lastPet || 0) / 86400000) === day) return { ok: false, reason: 'already had its scratches today' };
+  const next = clone(farm);
+  animalById(next, id).lastPet = now;
+  next.stats.pets = (next.stats.pets | 0) + 1;
+  next.updatedAt = now;
+  return { ok: true, farm: next, def: ANIMALS[a.kind] };
+}
+
+export function collectAnimal(farm, id, now) {
+  const a = animalById(farm, id);
+  if (!a) return { ok: false, reason: 'no such animal' };
+  const def = ANIMALS[a.kind];
+  if (!animalProducing(farm, a, now)) return { ok: false, reason: def.feedUnits ? 'hungry — nothing to give' : 'the hive wants ' + def.needsPlants + ' growing plants' };
+  if (now - (a.lastCollect || a.at) < def.everyMs) return { ok: false, reason: 'not ready yet' };
+  const next = clone(farm);
+  const na = animalById(next, id);
+  const petted = (na.lastPet || 0) > (na.lastCollect || na.at);
+  const qty = petted ? 2 : 1;
+  const grade = def.feedUnits === 0 ? 'organic' : (na.feedGrade || 'organic');   // bees are always organic
+  const pool = grade === 'organic' ? (next.goods = next.goods || {}) : (next.goodsC = next.goodsC || {});
+  pool[def.good] = (pool[def.good] || 0) + qty;
+  na.lastCollect = now;
+  next.stats.goodsCollected = (next.stats.goodsCollected | 0) + qty;
+  next.updatedAt = now;
+  return { ok: true, farm: next, good: def.good, qty, organic: grade === 'organic', petted };
+}
+
+export const GOOD_EMOJI = { egg: '🥚', milk: '🥛', wool: '🧶', honey: '🍯' };
+export function sellGood(farm, good, qty, now, grade = 'organic') {
+  const def = Object.values(ANIMALS).find((d) => d.good === good);
+  if (!def) return { ok: false, reason: 'no such good' };
+  const poolKey = grade === 'conv' ? 'goodsC' : 'goods';
+  const have = ((farm[poolKey] || {})[good] | 0);
+  qty = Math.max(0, Math.min(have, qty | 0));
+  if (!qty) return { ok: false, reason: 'nothing to sell' };
+  const ward = now < (farm.effects.wardUntil || 0) ? 1.25 : 1;
+  const unit = grade === 'conv' ? def.price : Math.round(def.price * ORGANIC_PREMIUM);
+  const coins = Math.round(unit * qty * ward);
+  const next = clone(farm);
+  next[poolKey][good] -= qty; if (!next[poolKey][good]) delete next[poolKey][good];
+  next.coins += coins;
+  next.updatedAt = now;
+  return { ok: true, farm: next, coins, organic: grade !== 'conv' };
+}
+
+// where an animal stands right now: a slow deterministic wander over the owned parcels (no stored
+// position, no pathfinding — a lissajous stroll seeded by the animal id, avoiding nothing; they are
+// scenery with a hitbox). Returns bed-normalized coords like plants.
+export function animalPos(farm, a, now) {
+  let h = 2166136261; for (const ch of a.id) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  const ph = (h >>> 0) / 4294967296 * Math.PI * 2;
+  const keys = farm.parcels || ['0,0'];
+  const [px, py] = keys[(h >>> 0) % keys.length].split(',').map(Number);   // each animal haunts one parcel
+  const t = now / 90000;   // one slow loop every few minutes
+  const cx = px * FIELD_T + FIELD_T / 2 + Math.sin(t * 0.7 + ph) * (FIELD_T / 2 - 2);
+  const cy = py * FIELD_T + FIELD_T / 2 + Math.sin(t * 0.53 + ph * 2.3) * (FIELD_T / 2 - 2);
+  return { x: cx / FIELD_T, y: cy / FIELD_T };
+}
+
+// ── FORAGE — the arrival scavenger hunt ───────────────────────────────────────────────────────────
+// Every FORAGE_WINDOW, sparkles respawn at seeded spots across OWNED land. Tap to gather a little
+// something. It exists so that ARRIVING is always an act of looking at your farm — the sparkle
+// leads the eye across the estate you built. Deterministic per (seed, window); the collected
+// ledger keeps only the current window.
+export const FORAGE_WINDOW_MS = 4 * 3600 * 1000;
+export const forageWindow = (now) => Math.floor(now / FORAGE_WINDOW_MS);
+export function forageSpots(farm, now) {
+  const w = forageWindow(now);
+  const keys = farm.parcels || ['0,0'];
+  const nSpots = 2 + keys.length;                        // more land, more to find
+  const taken = new Set(((farm.forage || {}).w === w ? farm.forage.got : []) || []);
+  const out = [];
+  for (let i = 0; i < nSpots; i++) {
+    if (taken.has(i)) continue;
+    let h = (farm.seed >>> 0) ^ 0xf04a9e5;
+    for (const ch of 'forage:' + w + ':' + i) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+    h >>>= 0;
+    const key = keys[h % keys.length];
+    const [px, py] = key.split(',').map(Number);
+    const tx = px * FIELD_T + ((h >> 8) % FIELD_T), ty = py * FIELD_T + ((h >> 16) % FIELD_T);
+    if (tileAt(farm, tx, ty) === 'pond' || tileAt(farm, tx, ty) === 'hill') continue;   // sparkles keep their feet dry
+    const roll = (h >> 4) % 100;
+    const prize = roll < 55 ? { kind: 'coins', qty: 4 + (h % 9) } : roll < 90 ? { kind: 'seed' } : { kind: 'shard' };
+    out.push({ i, tx, ty, prize });
+  }
+  return out;
+}
+export function forage(farm, i, now) {
+  const spot = forageSpots(farm, now).find((s) => s.i === i);
+  if (!spot) return { ok: false, reason: 'nothing there' };
+  const next = clone(farm);
+  const w = forageWindow(now);
+  if (!next.forage || next.forage.w !== w) next.forage = { w, got: [] };
+  next.forage.got.push(i);
+  let prize = spot.prize;
+  if (prize.kind === 'coins') next.coins += prize.qty;
+  else if (prize.kind === 'shard') next.shards = (next.shards | 0) + 1;
+  else {
+    // a wildseed from any unlocked pack (seeded pick, deterministic)
+    let h = (farm.seed >>> 0) ^ forageWindow(now) ^ (i * 2654435761);
+    const pool = (farm.packs || [farm.biomeId]);
+    prize = { kind: 'seed', biome: pool[(h >>> 0) % pool.length] };
+    next._forageSeedBiome = prize.biome;   // resolved to a crop by the caller with the ark (kernel stays ark-free here)
+  }
+  next.stats.foraged = (next.stats.foraged | 0) + 1;
+  next.updatedAt = now;
+  return { ok: true, farm: next, prize };
+}
+// the ark-aware half: give the wildseed a species (call right after forage() when prize.kind==='seed')
+export function grantWildseed(farm, ark, now) {
+  const biomeId = farm._forageSeedBiome;
+  const next = clone(farm);
+  delete next._forageSeedBiome;
+  const biome = biomeById(ark, biomeId) || biomeById(ark, farm.biomeId);
+  if (!biome || !biome.crops.length) return { ok: true, farm: next, crop: null };
+  let h = (farm.seed >>> 0) ^ (farm.stats.foraged | 0) * 40503;
+  const crop = biome.crops[(h >>> 0) % biome.crops.length];
+  next.seeds[crop.id] = (next.seeds[crop.id] || 0) + 1;
+  if (!next.owned.includes(crop.id)) next.owned.push(crop.id);
+  next.updatedAt = now;
+  return { ok: true, farm: next, crop };
+}
+
 // ── THE WATERWORKS TECH TREE ──────────────────────────────────────────────────────────────────────
 // Researched at the windmill; each rung eases irrigation at scale or deepens the organic game.
 // Costs spend coins AND planetary metals (the mine feeds the tree); `req` gates order; `needs` are
@@ -117,6 +320,7 @@ export const BUILDING_KINDS = {
   gate:  { emoji: '📮', name: 'friend gate', panel: 'friends' },
   sign:  { emoji: '🪧', name: 'deeds sign',  panel: 'deeds' },
   mill:  { emoji: '🌬️', name: 'waterworks',  panel: 'mill' },
+  barn:  { emoji: '🐄', name: 'barn',        panel: 'barn' },
 };
 // default stations live INSIDE the home parcel (the only land a fresh farm owns). Wanted spots ring
 // the field edge; each slides along a deterministic probe order until it clears the seeded keep-outs.
@@ -128,6 +332,7 @@ export function defaultBuildings(seed) {
     { id: 'gate',  kind: 'gate',  tx: 1,  ty: 1 },
     { id: 'sign',  kind: 'sign',  tx: 6,  ty: 11 },
     { id: 'mill',  kind: 'mill',  tx: 11, ty: 6 },
+    { id: 'barn',  kind: 'barn',  tx: 6,  ty: 0 },
   ];
   const used = new Set();
   return wanted.map((w) => {
@@ -178,7 +383,7 @@ export function newFarm(did, ark, now = 0) {
   const fast = ((biome && biome.crops) || []).slice().sort((a, b) => a.growthDays - b.growthDays || a.id.localeCompare(b.id)).slice(0, 2);
   for (const c of fast) seeds[c.id] = 3;
   return {
-    v: 4, seed,
+    v: 5, seed,
     biomeId: biome ? biome.id : null,
     activeBiome: biome ? biome.id : null,   // which unlocked pack the desk pulls from
     packs: biome ? [biome.id] : [],         // unlocked ecosystem packs (home is free)
@@ -193,6 +398,9 @@ export function newFarm(did, ark, now = 0) {
     supplies: { fert: 0, pest: 0 },   // synthetic inputs, bought at the desk
     tech: {},                    // techId → researched-at ISO (the waterworks tree)
     fixtures: [],                // placed irrigation kit [{ id, kind:'sprinkler', tx, ty }]
+    animals: [],                 // the herd [{ id, kind, at, fedUntil, feedGrade, lastCollect, lastPet }]
+    goods: {}, goodsC: {},       // animal goods by grade (eggs/milk/wool/honey), like the pantries
+    forage: null,                // { w, got: [i…] } — this window's gathered sparkles
     metals: {},                  // metal → count (from the mine: gold silver quicksilver copper iron tin lead)
     shards: 0,                   // quintessence shards (mine) — one steadies a wobbly brew
     preparations: [],            // brewed items [{ id, vessel, grade, label, use, glyphs, reagents, at }]
@@ -202,7 +410,7 @@ export function newFarm(did, ark, now = 0) {
     effects: { yieldBoost: 0, wardUntil: 0 },   // rousing brews bank +1-yield harvests; sedate brews ward the market
     achievements: {},            // id → ISO earned-at
     claimedGifts: [],            // at:// uris of friend gifts already folded into this save
-    stats: { planted: 0, harvests: 0, produce: 0, sold: 0, tendsGiven: 0, giftsSent: 0, brews: 0, bestGrade: null, oresMined: 0, gemsFound: 0, terraforms: 0, movedBuildings: 0, organicHarvests: 0, pestsTreated: 0 },
+    stats: { planted: 0, harvests: 0, produce: 0, sold: 0, tendsGiven: 0, giftsSent: 0, brews: 0, bestGrade: null, oresMined: 0, gemsFound: 0, terraforms: 0, movedBuildings: 0, organicHarvests: 0, pestsTreated: 0, animalsBought: 0, pets: 0, goodsCollected: 0, foraged: 0 },
     createdAt: now, updatedAt: now,
   };
 }
@@ -430,7 +638,10 @@ export function harvestPlant(farm, plantId, ark, now, tendCounts = {}) {
 }
 
 // ── market ────────────────────────────────────────────────────────────────────────────────────────
-export const sellPrice = (crop) => Math.max(SELL_FLOOR, Math.round((crop.seedCost || 10) * 0.5));
+// ANNEALED (sim round 1): at ×0.5 the oracle's player made 615 harvests in 21 days and could not
+// afford a second parcel or a single tech — an 11-day unlock gap. ×0.7 + goods + forage income
+// puts the first land deed around day 2 and keeps something unlockable in reach every ~2 days.
+export const sellPrice = (crop) => Math.max(3, Math.round((crop.seedCost || 10) * 0.6));
 export const sellPriceOrganic = (crop) => Math.round(sellPrice(crop) * ORGANIC_PREMIUM);
 
 // grade: 'organic' (the premium pantry) or 'conv' (synthetic-touched — plain price, never brews)
@@ -848,7 +1059,7 @@ export function toPlotRecord(farm, now) {
 }
 export function fromPlotRecord(value) {
   const f = value && value.farm;
-  if (!f || f.v < 1 || f.v > 4) return null;
+  if (!f || f.v < 1 || f.v > 5) return null;
   if (f.v === 1) {   // v1 → v2: the map-first fields, all additive, defaults deterministic
     f.v = 2;
     f.terra = f.terra || {};
@@ -902,6 +1113,18 @@ export function fromPlotRecord(value) {
       p.calcAt = ref;
       p.wateredAt = ref;
       p.fertN = 0; p.syn = false; p.pestOkW = pestWindow(p, ref);   // no retroactive infestations either
+    }
+  }
+  if (f.v === 4) {   // v4 → v5: livestock, forage, and the barn
+    f.v = 5;
+    f.animals = f.animals || [];
+    f.goods = f.goods || {}; f.goodsC = f.goodsC || {};
+    f.forage = f.forage || null;
+    for (const k of ['animalsBought', 'pets', 'goodsCollected', 'foraged']) f.stats[k] = f.stats[k] | 0;
+    if (!(f.buildings || []).some((b) => b.id === 'barn')) {
+      const barn = defaultBuildings(f.seed).find((b) => b.id === 'barn');
+      if (barn && !buildingAt(f, barn.tx, barn.ty)) f.buildings.push(barn);
+      else if (barn) { barn.tx = (barn.tx + 2) % FIELD_T; f.buildings.push(barn); }
     }
   }
   return f;

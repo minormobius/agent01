@@ -160,6 +160,26 @@ slow enough (30m–1d) that check-back works. The designed rail, when wanted:
   (`BOT_ENABLED != "true"` = observe only).
 - Human prereqs when built: bot account + app password secret, KV namespace.
 
+## The oracle — sim-driven design (farm/sim/)
+
+`node farm/sim/playtest.mjs [--days N --seeds K]` plays the game against the
+REAL kernels with a casual check-in player (3 sessions/day) and reports fun
+proxies: dead sessions, rewards/actions/variety per session, and the longest
+unlock gap (days with nothing new — the churn signal). **Every balance change
+goes through it**: the 2026-08-12 annealing took the 21-day unlock gap from
+11 days → 3.7 (week-1 gap: 1.0 — something new every day) across six rounds
+(sell ×0.5→×0.6; parcel price 200·n → 250·n^1.4·ring; livestock rates cut
+~40% after the first pass minted 28 animals). If you touch an economy
+number, run the oracle before and after and put both readings in the commit.
+
+Livestock (`ANIMALS`, barn station): wander the map via `animalPos` (pure
+lissajous, no stored position), eat pantry produce (the produce sink), drop
+goods on timers, pet once/day to double the next collect; goods inherit the
+FEED's grade (organic in, organic out). Forage (`forageSpots`): sparkles
+respawn every 4h across owned land, tap to gather coins/wildseeds/shards —
+arrival is always a small hunt across the estate you built. Both are v5 save
+fields; migration adds the barn to older saves.
+
 ## Run / test (sandbox-safe)
 
 ```bash

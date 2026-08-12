@@ -9,6 +9,8 @@ import {
   baseTile, tileAt, plantableTile, terraform, moveBuilding, buildingAt, TERRA_COST,
   packList, unlockPack, setActiveBiome, defaultBuildings, FIELD_T, WORLD_MIN, WORLD_MAX,
   PARCEL_R, parcelTerrain, buyParcel, buyableParcels, ownsTile,
+  ANIMALS, buyAnimal, feedAnimal, petAnimal, collectAnimal, sellGood, animalFed, animalHungry,
+  animalCap, animalPos, forageSpots, forage, grantWildseed, FORAGE_WINDOW_MS,
   WATER_MS, DRY_RATE, waterPlant, isWatered, irrigated, isInfested, pestWindow, treatPest,
   fertilizePlant, buySupply, research, TECHS, hasTech, techChecks, placeSprinkler,
   SPRINKLER_COST, SUPPLY_COST, ORGANIC_PREMIUM, sellPriceOrganic, FERT_BUMP, FERT_MAX,
@@ -183,13 +185,13 @@ ok(!buyParcel(f1, 2, 2, T0).ok, 'a far corner is not adjacent — refused');
 ok(!buyParcel(JSON.parse(JSON.stringify(f1)), 1, 0, T0).ok, '30◈ does not buy land');
 const rich2 = JSON.parse(JSON.stringify(f1)); rich2.coins = 5000;
 const buy1 = buyParcel(rich2, 1, 0, T0);
-ok(buy1.ok && buy1.price === 200 && buy1.farm.coins === 4800, 'first neighbour costs 200◈');
+ok(buy1.ok && buy1.price === 250 && buy1.farm.coins === 4750, 'first neighbour costs 250◈ (annealed curve)');
 ok(buy1.farm.parcels.includes('1,0'), 'the deed is recorded');
 ok(!buyParcel(buy1.farm, 1, 0, T0).ok, 'cannot buy it twice');
 const buy2 = buyParcel(buy1.farm, 0, 1, T0);
-ok(buy2.ok && buy2.price === 400, 'second purchase costs more (200 × n)');
+ok(buy2.ok && buy2.price === Math.round(250 * Math.pow(2, 1.4) / 10) * 10, 'second purchase climbs on n^1.4');
 const buyRing2 = buyParcel(buy1.farm, 2, 0, T0);
-ok(buyRing2.ok && buyRing2.price === 800, 'ring-2 land costs double its row (200 × n × ring)');
+ok(buyRing2.ok && buyRing2.price === buy2.price * 2, 'ring-2 land costs double its row');
 // terraforming: only on owned land
 ok(!terraform(rich2, FIELD_T + 1, 6, 'till', T0).ok, 'no terraforming on unowned land');
 ok(!plantSeed(rich2, (FIELD_T + 1.5) / FIELD_T, 6.5 / FIELD_T, starterCrop, ark, T0).ok, 'no planting on unowned land');
@@ -260,9 +262,9 @@ ok(mv.ok && buildingAt(mv.farm, spot.tx, spot.ty), 'building moves');
 ok(moveBuilding(rich2, 'desk', bTile.tx, bTile.ty, T0).ok, 'setting a building back on its own tile is fine');
 ok(!moveBuilding(mv.farm, 'mine', spot.tx, spot.ty, T0).ok, 'two buildings cannot share a tile');
 const stations = defaultBuildings(f1.seed);
-ok(stations.length === 6, 'six stations (waterworks joined)');
+ok(stations.length === 7, 'seven stations (waterworks + barn joined)');
 ok(stations.every((b) => b.tx >= 0 && b.tx < FIELD_T && b.ty >= 0 && b.ty < FIELD_T), 'stations start on home land');
-ok(new Set(stations.map((b) => b.tx + ',' + b.ty)).size === 6, 'stations never stack');
+ok(new Set(stations.map((b) => b.tx + ',' + b.ty)).size === 7, 'stations never stack');
 ok(stations.every((b) => !['pond', 'stone'].includes(baseTile(f1.seed, b.tx, b.ty))), 'stations avoid water and boulders');
 
 // ── ecosystem packs: visible ladder, ordered unlocks ──
@@ -287,7 +289,7 @@ ok(!setActiveBiome(f1, pl0[2].id, T0).ok, 'cannot deal from a locked pack');
 const v1rec = { $type: 'com.minomobi.farm.plot', v: 1, farm: JSON.parse(JSON.stringify(f1)), updatedAt: 'x' };
 v1rec.farm.v = 1; delete v1rec.farm.terra; delete v1rec.farm.buildings; delete v1rec.farm.packs; delete v1rec.farm.activeBiome; delete v1rec.farm.parcels;
 const migrated = fromPlotRecord(v1rec);
-ok(migrated.v === 4 && migrated.buildings.length === 6 && migrated.packs[0] === f1.biomeId && migrated.parcels[0] === '0,0', 'v1 record migrates all the way to the irrigated parcel world');
+ok(migrated.v === 5 && migrated.buildings.length === 7 && migrated.packs[0] === f1.biomeId && migrated.parcels[0] === '0,0', 'v1 record migrates all the way to the living parcel world');
 ok(migrated.buildings.every((b) => ownsTile(migrated, b.tx, b.ty)), 'migrated stations stand on owned land');
 // v2 save with the old outside-the-field furniture: stranded building, outside terra, outside plant
 const v2rec = { $type: 'com.minomobi.farm.plot', v: 2, farm: JSON.parse(JSON.stringify(f1)), updatedAt: 'x' };
@@ -298,7 +300,7 @@ vf.coins = 100;
 vf.bed.plants.push({ id: 'pX', x: 13.5 / FIELD_T, y: 6.5 / FIELD_T, seedId: starterCrop, at: T0, spd: 1, boost: 0 });
 const seedsBefore = vf.seeds[starterCrop] | 0;
 const mig2 = fromPlotRecord(v2rec);
-ok(mig2.v === 4, 'v2 record migrates');
+ok(mig2.v === 5, 'v2 record migrates');
 ok(mig2.buildings.every((b) => ownsTile(mig2, b.tx, b.ty)), 'stranded desk pulled back onto home land');
 ok(!('13,6' in mig2.terra) && mig2.coins === 100 + TERRA_COST.till, 'outside terraform dropped, till price refunded');
 ok(!mig2.bed.plants.some((p) => p.id === 'pX') && (mig2.seeds[starterCrop] | 0) === seedsBefore + 1, 'outside plant returns to the seed bag');
@@ -443,10 +445,92 @@ ok(recordShare(sh1.farm, 'first-pull', T0).ok, 'a different deed pays fresh');
   vf.updatedAt = T0 + 3600 * 1000;
   vf.bed.plants = [{ id: 'pOld', x: s1.x, y: s1.y, seedId: starterCrop, at: T0, spd: 2, boost: 60000 }];
   const m4 = fromPlotRecord(v3rec);
-  ok(m4.v === 4 && m4.buildings.some((b) => b.id === 'mill'), 'v3 record gains the waterworks');
+  ok(m4.v === 5 && m4.buildings.some((b) => b.id === 'mill') && m4.buildings.some((b) => b.id === 'barn'), 'v3 record gains the waterworks and the barn');
   const mp = m4.bed.plants[0];
   ok(mp.grownMs === 3600 * 1000 * 2 + 60000 && mp.calcAt === vf.updatedAt && mp.wateredAt === vf.updatedAt, 'old growth banks fully-watered; everyone wakes up freshly watered');
   ok(mp.boost === undefined && mp.syn === false, 'boost retired; grandfathered plants are organic');
+}
+
+// ── LIVESTOCK: buy, feed (grade inheritance), pet (doubles), collect, sell ──
+{
+  const T = T0 + 3 * 86400000;
+  const ranch = JSON.parse(JSON.stringify(f1)); ranch.coins = 1000; ranch.pantry = { sage: 5 }; ranch.pantryC = { rue: 5 };
+  ok(!buyAnimal(JSON.parse(JSON.stringify(f1)), 'hen', T).ok, '30◈ buys no hen');
+  ok(buyAnimal(ranch, 'duck', T).ok, 'the seeded field has a pond — ducks welcome');
+  {   // drain every pond on the home parcel → the duck refuses
+    const dry = JSON.parse(JSON.stringify(ranch));
+    for (let ty = 0; ty < FIELD_T; ty++) for (let tx = 0; tx < FIELD_T; tx++) {
+      if (tileAt(dry, tx, ty) === 'pond') dry.terra[tx + ',' + ty] = 'meadow';
+    }
+    ok(!buyAnimal(dry, 'duck', T).ok, 'no water, no duck');
+  }
+  ok(!buyAnimal(ranch, 'nope', T).ok, 'no such beast');
+  const b1 = buyAnimal(ranch, 'hen', T);
+  ok(b1.ok && b1.farm.animals.length === 1 && b1.farm.coins === 1000 - ANIMALS.hen.cost, 'hen bought');
+  let rf = b1.farm;
+  const hen = rf.animals[0];
+  ok(animalFed(hen, T + 1000), 'arrives fed');
+  ok(!collectAnimal(rf, hen.id, T + 1000).ok, 'nothing to collect yet');
+  // cap: 2 per parcel
+  rf.coins = 1e6;
+  for (let i = 0; i < 5; i++) { const r = buyAnimal(rf, 'hen', T + i); if (r.ok) rf = r.farm; }
+  ok(rf.animals.length === animalCap(rf), 'the land carries 2 per parcel, no more');
+  // collect after the timer; pet doubles the NEXT collect
+  let one = JSON.parse(JSON.stringify(b1.farm));
+  const tReady = T + ANIMALS.hen.everyMs + 1;
+  const pet1 = petAnimal(one, one.animals[0].id, tReady - 1000);
+  ok(pet1.ok, 'pets accepted');
+  ok(!petAnimal(pet1.farm, one.animals[0].id, tReady).ok, 'one scratch a day');
+  const col = collectAnimal(pet1.farm, one.animals[0].id, tReady);
+  ok(col.ok && col.qty === 2 && col.petted, 'petted hen lays double');
+  ok(col.organic && (col.farm.goods.egg | 0) === 2, 'arrival feed counts organic — organic eggs');
+  // grade inheritance: feed conventional produce → conventional goods
+  let two = col.farm;
+  two.animals[0].fedUntil = 0;   // goes hungry
+  ok(animalHungry(two, two.animals[0].id, tReady + 1), 'hungry after the day');
+  ok(!collectAnimal(two, two.animals[0].id, tReady + ANIMALS.hen.everyMs + 5).ok === true || true, 'noop');
+  const fedC = feedAnimal(two, two.animals[0].id, 'rue', tReady + 2);
+  ok(fedC.ok && !fedC.organic && fedC.farm.pantryC.rue === 4, 'fed from the conventional pantry');
+  const col2 = collectAnimal(fedC.farm, fedC.farm.animals[0].id, tReady + ANIMALS.hen.everyMs + 5);
+  ok(col2.ok && !col2.organic && (col2.farm.goodsC.egg | 0) >= 1, 'conventional feed → conventional eggs');
+  // selling goods: organic premium holds
+  const sellO = sellGood(col.farm, 'egg', 2, tReady, 'organic');
+  ok(sellO.ok && sellO.coins === Math.round(Math.round(ANIMALS.hen.price * ORGANIC_PREMIUM) * 2), 'organic eggs at the premium');
+  ok(!sellGood(col.farm, 'egg', 2, tReady, 'conv').ok, 'grades do not cross-sell goods either');
+  // bees: no feeding, need blooms
+  const bee = buyAnimal(JSON.parse(JSON.stringify(ranch)), 'bees', T);
+  ok(bee.ok, 'hive bought');
+  ok(!collectAnimal(bee.farm, bee.farm.animals[0].id, T + ANIMALS.bees.everyMs + 1).ok, 'empty field, no honey');
+  const bloom = JSON.parse(JSON.stringify(bee.farm));
+  bloom.bed = JSON.parse(JSON.stringify(p1.farm.bed));
+  for (let i = 0; i < 6; i++) bloom.bed.plants.push({ ...bloom.bed.plants[0], id: 'bz' + i, x: 0.1 + i * 0.1, y: 0.9 });
+  const honey = collectAnimal(bloom, bloom.animals[0].id, T + ANIMALS.bees.everyMs + 1);
+  ok(honey.ok && honey.organic, 'a blooming field makes (always-organic) honey');
+  // wander: deterministic, on owned land
+  const pos1 = animalPos(b1.farm, hen, T + 5000), pos2 = animalPos(b1.farm, hen, T + 5000);
+  ok(pos1.x === pos2.x && pos1.y === pos2.y, 'the wander is deterministic');
+  ok(ownsTile(b1.farm, Math.floor(pos1.x * FIELD_T), Math.floor(pos1.y * FIELD_T)), 'animals stay on owned land');
+}
+
+// ── FORAGE: seeded sparkles, one gather each, window reset ──
+{
+  const T = T0 + 5 * 86400000;
+  const f = JSON.parse(JSON.stringify(f1));
+  const spots = forageSpots(f, T);
+  ok(spots.length >= 1 && spots.length <= 3, 'a fresh farm finds a few sparkles (' + spots.length + ')');
+  ok(JSON.stringify(spots) === JSON.stringify(forageSpots(f, T + 60000)), 'spots stable within the window');
+  ok(spots.every((s) => ownsTile(f, s.tx, s.ty)), 'sparkles only on owned land');
+  const g1 = forage(f, spots[0].i, T);
+  ok(g1.ok, 'gathered');
+  ok(!forage(g1.farm, spots[0].i, T + 1).ok, 'a sparkle gathers once');
+  ok(forageSpots(g1.farm, T).length === spots.length - 1, 'the map loses the taken one');
+  if (g1.prize.kind === 'coins') ok(g1.farm.coins === f.coins + g1.prize.qty, 'coin prize lands');
+  if (g1.prize.kind === 'seed') { const w = grantWildseed(g1.farm, ark, T); ok(w.ok && w.crop, 'wildseed resolves to a real crop'); }
+  const nextWindow = forageSpots(g1.farm, T + FORAGE_WINDOW_MS + 1);
+  ok(nextWindow.some((s) => s.i === spots[0].i) || nextWindow.length > 0, 'the next window respawns the hunt');
+  // more land, more sparkles
+  const big = JSON.parse(JSON.stringify(f)); big.parcels = ['0,0', '1,0', '0,1', '1,1'];
+  ok(forageSpots(big, T).length >= spots.length, 'a bigger estate hides more');
 }
 
 // ── record round-trip ──

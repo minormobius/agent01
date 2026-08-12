@@ -19,6 +19,7 @@ import { drawPlant } from '../vendor/plot-render.js';
 import {
   growthOf, cropById, isWatered, isInfested, tileAt, FIELD_T, WORLD_MIN, WORLD_MAX, BUILDING_KINDS,
   parcelOf, ownsParcel, buyableParcels,
+  ANIMALS, animalPos, animalProducing, animalFed, forageSpots,
 } from './state.js';
 import { modelFor } from './render.js';
 import { currentSkin, groundFill, rgba as trgba } from './themes.js';
@@ -42,6 +43,8 @@ export function createIso(canvas, { onTap } = {}) {
   let state = null;                                          // { farm, ark, now, tends, readOnly }
   let hover = null;                                          // {tx,ty} tile under cursor (planting aid)
   let raf = 0;
+  let particles = [];                                        // cosmetic floaters ({wx,wy,text,color,at,dx})
+  let drawTimer = 0;                                         // the lazy liveliness tick
 
   const tw = () => TW * cam.zoom, th = () => TH * cam.zoom;
   // world → screen (canvas CSS px)
@@ -225,6 +228,32 @@ export function createIso(canvas, { onTap } = {}) {
       const moving = state.movingBuilding === b.id;
       sprites.push({ sum: b.tx + 0.5 + b.ty + 0.5, draw: () => drawBuilding(b, def, moving) });
     }
+    // ANIMALS — emoji wanderers with a shadow and a status bubble (the heartbeat of the farm)
+    for (const a of farm.animals || []) {
+      const def = ANIMALS[a.kind]; if (!def) continue;
+      const pos = animalPos(farm, a, now);
+      const wx = pos.x * FIELD_T, wy = pos.y * FIELD_T;
+      sprites.push({ sum: wx + wy, draw: () => {
+        const c = toScreen(wx, wy);
+        if (c.x < -tw() || c.x > W + tw() || c.y < -th() * 3 || c.y > H + th()) return;
+        const bob = Math.sin(now / 300 + wx) * 2 * cam.zoom;
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath(); ctx.ellipse(c.x, c.y, tw() * 0.13, th() * 0.14, 0, 0, 7); ctx.fill();
+        ctx.font = `${Math.max(14, 22 * cam.zoom) | 0}px system-ui, sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+        ctx.fillText(def.emoji, c.x, c.y - 2 + bob);
+        // status bubble: good ready > pettable > hungry
+        const ready = animalProducing(farm, a, now) && now - (a.lastCollect || a.at) >= def.everyMs;
+        const pettable = Math.floor((a.lastPet || 0) / 86400000) !== Math.floor(now / 86400000);
+        const hungry = def.feedUnits > 0 && !animalFed(a, now);
+        const bubble = ready ? def.goodEmoji : hungry ? '🍽️' : pettable ? '💕' : null;
+        if (bubble) {
+          ctx.font = `${Math.max(10, 14 * cam.zoom) | 0}px system-ui, sans-serif`;
+          ctx.fillText(bubble, c.x + tw() * 0.14, c.y - th() * 0.9 + bob);
+        }
+      } });
+    }
+
     // sprinklers: a small post with a spinning head; faint reach diamond while crafting
     for (const f of farm.fixtures || []) {
       if (f.kind !== 'sprinkler') continue;
@@ -250,6 +279,48 @@ export function createIso(canvas, { onTap } = {}) {
     }
     sprites.sort((a, b) => a.sum - b.sum);
     for (const s of sprites) s.draw();
+
+    // FORAGE SPARKLES — the arrival scavenger hunt twinkling across owned land
+    if (!readOnly) {
+      for (const spot of forageSpots(farm, now)) {
+        const c = toScreen(spot.tx + 0.5, spot.ty + 0.5);
+        if (c.x < -40 || c.x > W + 40 || c.y < -40 || c.y > H + 40) continue;
+        const tws = 0.75 + 0.35 * Math.sin(now / 260 + spot.i * 2.1);
+        ctx.save();
+        ctx.globalAlpha = 0.55 + 0.45 * Math.sin(now / 300 + spot.i);
+        ctx.font = `${Math.max(11, 17 * cam.zoom * tws) | 0}px system-ui, sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('✨', c.x, c.y - th() * 0.3);
+        ctx.restore();
+      }
+    }
+
+    // PARTICLES — pure cosmetic floaters (burst() pushes them; they live ~1s and die)
+    if (particles.length) {
+      const alive = [];
+      for (const p of particles) {
+        const age = now - p.at;
+        if (age > 950) continue;
+        alive.push(p);
+        const c = toScreen(p.wx, p.wy);
+        const t = age / 950;
+        ctx.save();
+        ctx.globalAlpha = 1 - t * t;
+        ctx.font = `bold ${Math.max(11, (14 + 6 * (1 - t)) * cam.zoom) | 0}px "JetBrains Mono", ui-monospace, monospace`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = p.color || '#f7c66a';
+        ctx.fillText(p.text, c.x + (p.dx || 0) * t * 30, c.y - th() * 0.6 - t * 46 * cam.zoom);
+        ctx.restore();
+      }
+      particles = alive;
+      if (particles.length) schedule();   // keep animating while any live
+    }
+
+    // the world breathes: while animals wander or sparkles twinkle, keep a lazy redraw ticking
+    // (180ms — visible life, nowhere near a hot rAF loop)
+    if (!readOnly && ((farm.animals || []).length || true) && !drawTimer) {
+      drawTimer = setTimeout(() => { drawTimer = 0; schedule(); }, 180);
+    }
 
     // vignette
     const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.75);
@@ -324,6 +395,31 @@ export function createIso(canvas, { onTap } = {}) {
     return best;
   }
 
+  // the animal under a screen point (front-most)
+  function animalHit(sx, sy) {
+    if (!state) return null;
+    let best = null, bestSum = -Infinity;
+    for (const a of state.farm.animals || []) {
+      const pos = animalPos(state.farm, a, state.now);
+      const c = toScreen(pos.x * FIELD_T, pos.y * FIELD_T);
+      const rr = Math.max(16, tw() * 0.2);
+      if (sx >= c.x - rr && sx <= c.x + rr && sy >= c.y - rr * 1.6 && sy <= c.y + rr * 0.6) {
+        const sum = pos.x + pos.y;
+        if (sum > bestSum) { bestSum = sum; best = a; }
+      }
+    }
+    return best;
+  }
+  // the sparkle under a screen point
+  function sparkleHit(sx, sy) {
+    if (!state || state.readOnly) return null;
+    for (const spot of forageSpots(state.farm, state.now)) {
+      const c = toScreen(spot.tx + 0.5, spot.ty + 0.5);
+      if (Math.abs(sx - c.x) < Math.max(14, tw() * 0.22) && Math.abs(sy - (c.y - th() * 0.3)) < Math.max(14, th() * 0.5)) return spot;
+    }
+    return null;
+  }
+
   // ── input: drag to pan, wheel to zoom, tap to act ──
   let press = null;   // { sx, sy, camX, camY, moved, id }
   const pos = (ev) => { const r = canvas.getBoundingClientRect(); return { sx: ev.clientX - r.left, sy: ev.clientY - r.top }; };
@@ -365,6 +461,8 @@ export function createIso(canvas, { onTap } = {}) {
         tx: Math.floor(w.wx), ty: Math.floor(w.wy),
         plantIdx: plantAt(sx, sy),
         building: buildingHit(sx, sy),
+        animal: animalHit(sx, sy),
+        sparkle: sparkleHit(sx, sy),
       });
     }
   };
@@ -386,6 +484,11 @@ export function createIso(canvas, { onTap } = {}) {
     update(next) { state = next; schedule(); },
     center() { cam.x = FIELD_T / 2; cam.y = FIELD_T / 2; schedule(); },
     redraw: schedule,
+    // JUICE: float a little payoff off a world point (bed-normalized coords like plants)
+    burst(bx, by, text, color) {
+      particles.push({ wx: bx * FIELD_T, wy: by * FIELD_T, text, color, at: Date.now(), dx: Math.random() - 0.5 });
+      schedule();
+    },
   };
 }
 
