@@ -41,6 +41,13 @@ container prints the live matrix and is the authority on what is installed and
 keyed. Adding a model is still one profile entry and no code; adding a harness
 is one `run_<name>` function in `agent.sh`.
 
+The chat surface (ChatView) routes the same worker-keyed profiles without the
+terminal: **assist mode** picks its model in the ⚙ panel (`kimi3`, `ds4-flash`,
+`ds4-pro` — sent as `model` on `/assist/start`, the call runs in the DO with no
+container), and **repo mode** has a model bar that reboots the agent cell on the
+picked profile (chat state is per-cell, so each profile is its own
+conversation). Native `claude` stays terminal-only (browser-supplied key).
+
 The agent clones agent01, works on `kimi/*` branches, pushes, and GitHub Actions
 run. Workflow paths exclude `os/api/**` so frontend deploys do not fire on
 backend changes.
