@@ -22,6 +22,7 @@ import * as Social from './social.js';
 import { FarmStore } from './store.js';
 import { corrForCrop } from './render.js';
 import { createIso } from './iso.js';
+import { SKINS, skinById, skinUnlocked, currentSkin, setSkin } from './themes.js';
 import { prepare, reagentEffect, PREPARATIONS } from '../vendor/alchemy.js';
 import { biomeById, progress, TIER_FOIL } from '../vendor/gacha.js';
 import { PLANETS as PKEYS } from '../vendor/planets.js';
@@ -32,6 +33,14 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':
 const now = () => Date.now();
 
 const METAL_GLYPH = { gold: '☉', silver: '☽', quicksilver: '☿', copper: '♀', iron: '♂', tin: '♃', lead: '♄' };
+
+let theme = null;   // resolved skin object for the farm on screen
+function applySkin(f) {
+  theme = currentSkin(f);
+  for (const [k, v] of Object.entries(theme.css || {})) document.documentElement.style.setProperty(k, v);
+  const btn = $('#skinbtn');
+  if (btn) btn.textContent = theme.emoji;
+}
 const fmtMs = (ms) => {
   if (ms <= 0) return 'ripe';
   const m = Math.ceil(ms / 60000);
@@ -84,6 +93,7 @@ async function boot() {
   else farm = newFarm(did, ark, now());
   if (store.user && !remote && local) store.save(farm, now(), { immediate: true });   // promotion
 
+  applySkin(farm);
   isoMain = createIso($('#bed'), { onTap: onFieldTap });
 
   // the daily streak: first visit of the day settles dew, consecutive days compound (capped)
@@ -228,6 +238,9 @@ async function shareAch(id) {
 // ── header / auth ─────────────────────────────────────────────────────────────────────────────────
 function renderHeader() {
   $('#coins').textContent = farm ? farm.coins : '—';
+  const sb = $('#skinbtn');
+  if (sb && !sb.dataset.wired) { sb.dataset.wired = '1'; sb.onclick = () => openPanel('skins'); }
+  if (sb && theme) sb.textContent = theme.emoji;
   $('#biome').textContent = farm && ark ? ((biomeById(ark, farm.biomeId) || {}).name || '') : '';
   const auth = $('#auth');
   if (store.user) {
@@ -250,6 +263,7 @@ function openPanel(name) {
   if (name === 'friends') renderFriends();
   if (name === 'deeds') renderDeeds();
   if (name === 'mill') renderMill();
+  if (name === 'skins') renderSkins();
 }
 function closePanel() { $$('.pane').forEach((p) => p.classList.remove('on')); redrawBed(); }
 
@@ -290,6 +304,7 @@ function redrawBed() {
     toolCheck: toolCheckAt,
     movingBuilding,
     sprinklerReach: hasTech(farm, 'windpump') ? 2 : 1,
+    theme,
   });
   renderSeedBag(); renderPantry(); renderPlantInfo();
 }
@@ -435,6 +450,30 @@ function renderMill() {
     commit(r.farm);
     toast(r.tech.emoji + ' <b>' + esc(r.tech.name) + '</b> — ' + esc(r.tech.desc), 'ach', 9000);
     renderMill(); renderCraftBar();
+  });
+}
+
+// ── SKINS panel — the wardrobe. Your skin is saved in the plot record: visitors see it. ─────────
+function renderSkins() {
+  $('#skinlist').innerHTML = SKINS.map((sk) => {
+    const un = skinUnlocked(farm, sk.id);
+    const active = (farm.skin || 'verdant') === sk.id && un;
+    const sw = ['meadow', 'soil', 'path', 'pond'].map((k) =>
+      '<i class="sw" style="background:rgb(' + sk.ground[k].base.join(',') + ')"></i>').join('');
+    return '<div class="pack ' + (active ? 'active' : un ? '' : 'locked next') + '">' +
+      '<b>' + sk.emoji + ' ' + esc(sk.name) + '</b> <span class="sws">' + sw + '</span> <span class="dim">' + esc(sk.desc) + '</span>' +
+      (un
+        ? (active ? '<span class="dim">— wearing it</span>' : '<button class="mini" data-skin="' + sk.id + '">wear</button>')
+        : '<div class="reqs"><span class="unmet">✗ ' + esc(sk.unlock.label) + '</span></div>') +
+      '</div>';
+  }).join('');
+  $$('#skinlist [data-skin]').forEach((b) => b.onclick = () => {
+    const r = setSkin(farm, b.dataset.skin, now());
+    if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+    commit(r.farm, { immediate: true });
+    applySkin(farm);
+    toast(r.skin.emoji + ' <b>' + esc(r.skin.name) + '</b> — the farm wears it now, and so does your public page', 'ach', 7000);
+    renderSkins(); redrawBed();
   });
 }
 
@@ -760,8 +799,9 @@ async function bootVisitor(u) {
       : '@' + esc(u) + ' has no farm yet — <a href="./">start yours</a>';
     if (!theirFarm) return;
     farm = theirFarm;   // read-only: no commit path runs in visitor mode
+    applySkin(theirFarm);   // their page, their look
     const viewerIso = createIso($('#bed'), {});
-    const paint = () => viewerIso.update({ farm: theirFarm, ark, now: now(), tends: {}, readOnly: true });
+    const paint = () => viewerIso.update({ farm: theirFarm, ark, now: now(), tends: {}, readOnly: true, theme });
     paint();
     $('#plants').innerHTML = theirFarm.bed.plants.map((pl) => {
       const c = cropById(ark, pl.seedId);

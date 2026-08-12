@@ -7,9 +7,12 @@
 <meta name="description" content="Tend a real-organism garden, mine the seven planetary metals, brew Galenic alchemy, and gift seeds to your Bluesky friends. Your whole farm lives in your own PDS." />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%BE%3C/text%3E%3C/svg%3E" />
 <style>
-  :root { --bg:#0b0906; --ink:#e8e0d0; --dim:#9a8f7a; --gold:#f4bf62; --line:#241d14; --panel:#12100a; --green:#8fe0a0; --warn:#e08a6a;
+  /* --gold/--green/--canvasline are SKIN-DRIVEN (js/themes.js sets them per equipped skin);
+     the values here are the Verdant defaults so first paint matches. */
+  :root { --bg:#0d0b07; --ink:#f0e8d6; --dim:#a89c84; --gold:#f7c66a; --line:#2b2417; --panel:#141109; --green:#93e6a4; --warn:#e08a6a;
+          --canvasline:#2b2417;
           /* aliases for the shared typeahead widget (vendor/typeahead.js uses the repo-wide names) */
-          --rule:#241d14; --text:#e8e0d0; --muted:#9a8f7a; --mono:"JetBrains Mono",ui-monospace,monospace; }
+          --rule:#2b2417; --text:#f0e8d6; --muted:#a89c84; --mono:"JetBrains Mono",ui-monospace,monospace; }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--ink); font-family:"JetBrains Mono",ui-monospace,monospace; line-height:1.5; font-size:14px; }
   a { color:#b48a6a; }
@@ -39,7 +42,9 @@
   .pack.active { border-width:2px; }
   .pack.locked { opacity:.85; border-style:dashed; } .pack.far { opacity:.45; }
   .pack .reqs { width:100%; font-size:11px; } .pack .reqs .met { color:var(--green); } .pack .reqs .unmet { color:var(--warn); }
-  .bedcanvas, #bed { width:100%; height:500px; display:block; border:1px solid var(--line); border-radius:10px; background:#0b0906; cursor:grab; touch-action:none; }
+  .bedcanvas, #bed { width:100%; height:500px; display:block; border:1px solid var(--canvasline); border-radius:10px; background:#0b0906; cursor:grab; touch-action:none; }
+  .sws { display:inline-flex; gap:2px; vertical-align:middle; }
+  .sw { display:inline-block; width:14px; height:14px; border-radius:4px; border:1px solid rgba(0,0,0,.4); }
   #bed:active { cursor:grabbing; }
   #visitbed { height:320px; touch-action:none; }
   #auth { display:flex; gap:6px; align-items:center; }
@@ -87,6 +92,7 @@
     <h1>🌾 Harvestople <span class="sub">farming on ATProto</span></h1>
     <span class="stat">◈ <span id="coins">—</span></span>
     <span class="stat" id="biome"></span>
+    <button id="skinbtn" class="mini" title="skins — the wardrobe">🌿</button>
     <span id="auth"></span>
   </header>
 
@@ -143,6 +149,12 @@
     <div class="hint">watering is the chore; this building is how it stops being one. Research eases irrigation at scale — sprinklers, channels, the wind pump, the deep well — and deepens the organic craft.</div>
     <div id="millstats"></div>
     <div class="row"><h3>the tree</h3><div id="techs"></div></div>
+  </div>
+
+  <div class="pane" id="tab-skins">
+    <div class="panehead"><h2>🎨 the wardrobe</h2><button class="mini closepane">✕ back to the farm</button></div>
+    <div class="hint">skins repaint the whole world and unlock like everything else. The one you wear is saved in your plot record — visitors see your farm in it.</div>
+    <div id="skinlist"></div>
   </div>
 
   <div class="pane" id="tab-deeds">

@@ -21,6 +21,7 @@ import {
   parcelOf, ownsParcel, buyableParcels,
 } from './state.js';
 import { modelFor } from './render.js';
+import { currentSkin, groundFill, rgba as trgba } from './themes.js';
 
 export { FIELD_T };
 const TW = 72, TH = 36;               // base tile diamond (2:1) at zoom 1
@@ -72,7 +73,8 @@ export function createIso(canvas, { onTap } = {}) {
     if (!state) return;
     size();
     const { farm, ark, now, tends, readOnly, plantingCrop } = state;
-    ctx.fillStyle = '#0b0906'; ctx.fillRect(0, 0, W, H);
+    const g = (state.theme || currentSkin(farm)).ground;   // the equipped skin paints the world
+    ctx.fillStyle = g.sky; ctx.fillRect(0, 0, W, H);
 
     // visible tile range from the screen corners (padded)
     const corners = [toWorld(0, 0), toWorld(W, 0), toWorld(0, H), toWorld(W, H)];
@@ -95,34 +97,28 @@ export function createIso(canvas, { onTap } = {}) {
         const owned = ownsParcel(farm, ppx, ppy);
         const saleable = !owned && forSale.has(ppx + ',' + ppy);
         const r = tileHash(farm.bed.seed, tx, ty);
-        let fill;
-        if (kind === 'meadow' || kind === 'hill') fill = `rgb(${26 + r * 8 | 0},${34 + r * 10 | 0},${20 + r * 6 | 0})`;
-        else if (kind === 'soil') fill = `rgb(${56 + r * 14 | 0},${41 + r * 10 | 0},${26 + r * 7 | 0})`;
-        else if (kind === 'path') fill = `rgb(${96 + r * 12 | 0},${82 + r * 10 | 0},${58 + r * 8 | 0})`;
-        else if (kind === 'road') fill = `rgb(${72 + r * 8 | 0},${68 + r * 8 | 0},${62 + r * 8 | 0})`;
-        else if (kind === 'pond') fill = `rgb(${20 + r * 6 | 0},${52 + r * 10 | 0},${72 + r * 12 | 0})`;
-        else fill = `rgb(${56 + r * 14 | 0},${41 + r * 10 | 0},${26 + r * 7 | 0})`;   // stone sits ON soil
+        const fill = groundFill(g, kind === 'stone' ? 'stone' : kind, r);   // stone paints its soil, boulder drawn on top
 
         if (kind === 'hill') {
           // a raised block: side skirts up to a lifted cap — the terrain you paid less because of
           const lift = th() * 0.55;
           ctx.fillStyle = 'rgba(0,0,0,0.4)';   // shadow at the foot
           diamond(c.x, c.y, tw(), th()); ctx.fill();
-          ctx.fillStyle = `rgb(${38 + r * 8 | 0},${40 + r * 8 | 0},${30 + r * 6 | 0})`;   // left skirt
+          ctx.fillStyle = trgba(g.hillSkirtL, 1);   // left skirt
           ctx.beginPath(); ctx.moveTo(c.x - tw() / 2, c.y); ctx.lineTo(c.x, c.y + th() / 2); ctx.lineTo(c.x, c.y + th() / 2 - lift); ctx.lineTo(c.x - tw() / 2, c.y - lift); ctx.closePath(); ctx.fill();
-          ctx.fillStyle = `rgb(${30 + r * 6 | 0},${32 + r * 6 | 0},${24 + r * 5 | 0})`;   // right skirt
+          ctx.fillStyle = trgba(g.hillSkirtR, 1);   // right skirt
           ctx.beginPath(); ctx.moveTo(c.x + tw() / 2, c.y); ctx.lineTo(c.x, c.y + th() / 2); ctx.lineTo(c.x, c.y + th() / 2 - lift); ctx.lineTo(c.x + tw() / 2, c.y - lift); ctx.closePath(); ctx.fill();
-          ctx.fillStyle = `rgb(${52 + r * 10 | 0},${56 + r * 10 | 0},${40 + r * 8 | 0})`;   // grassy cap
+          ctx.fillStyle = groundFill(g, 'hill', r);   // grassy cap
           diamond(c.x, c.y - lift, tw(), th()); ctx.fill();
-          ctx.fillStyle = `rgba(120,116,100,0.5)`;   // rocky flecks
+          ctx.fillStyle = 'rgba(120,116,100,0.5)';   // rocky flecks
           ctx.beginPath(); ctx.ellipse(c.x + (r - 0.5) * tw() * 0.3, c.y - lift, tw() * 0.08, th() * 0.1, 0, 0, 7); ctx.fill();
         } else {
           ctx.fillStyle = fill;
           diamond(c.x, c.y, tw(), th()); ctx.fill();
           // furrow grid on the tillable soil only — reads as "you can plant here"
-          if (kind === 'soil') { ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 1; diamond(c.x, c.y, tw(), th()); ctx.stroke(); }
+          if (kind === 'soil') { ctx.strokeStyle = g.furrow; ctx.lineWidth = 1; diamond(c.x, c.y, tw(), th()); ctx.stroke(); }
           if (kind === 'pond') {   // water sheen
-            ctx.fillStyle = `rgba(180,220,235,${0.06 + 0.05 * Math.sin(now / 900 + tx * 2.1 + ty * 1.3)})`;
+            ctx.fillStyle = trgba(g.sheen, 0.06 + 0.05 * Math.sin(now / 900 + tx * 2.1 + ty * 1.3));
             diamond(c.x, c.y, tw() * 0.7, th() * 0.7); ctx.fill();
           }
           if (kind === 'road') {   // faded centre-line dashes
@@ -132,15 +128,15 @@ export function createIso(canvas, { onTap } = {}) {
           }
           if (kind === 'stone') {   // a boulder resting on the tile
             const rw = tw() * 0.26, rh = th() * 0.5;
-            ctx.fillStyle = '#6b6455'; ctx.beginPath(); ctx.ellipse(c.x, c.y - rh * 0.4, rw, rh, 0, Math.PI, 0); ctx.fill();
-            ctx.fillStyle = '#575044'; ctx.beginPath(); ctx.ellipse(c.x, c.y - rh * 0.4, rw, rh * 0.45, 0, 0, Math.PI); ctx.fill();
+            ctx.fillStyle = g.boulder[0]; ctx.beginPath(); ctx.ellipse(c.x, c.y - rh * 0.4, rw, rh, 0, Math.PI, 0); ctx.fill();
+            ctx.fillStyle = g.boulder[1]; ctx.beginPath(); ctx.ellipse(c.x, c.y - rh * 0.4, rw, rh * 0.45, 0, 0, Math.PI); ctx.fill();
             ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.beginPath(); ctx.ellipse(c.x - rw * 0.35, c.y - rh * 0.75, rw * 0.35, rh * 0.3, 0, 0, 7); ctx.fill();
           }
         }
 
         // fog of ownership: unowned land dims — parcels on the market a little less than the rest
         if (!owned) {
-          ctx.fillStyle = saleable ? 'rgba(5,6,10,0.38)' : 'rgba(5,6,10,0.62)';
+          ctx.fillStyle = saleable ? g.fogSale : g.fogFar;
           const lift = kind === 'hill' ? th() * 0.55 : 0;
           diamond(c.x, c.y - lift, tw(), th()); ctx.fill();
         }
@@ -148,7 +144,7 @@ export function createIso(canvas, { onTap } = {}) {
     }
 
     // parcel survey lines + the home field's golden rim
-    ctx.strokeStyle = 'rgba(200,190,160,0.12)'; ctx.lineWidth = 1;
+    ctx.strokeStyle = g.survey; ctx.lineWidth = 1;
     for (let p = -2; p <= 3; p++) {
       const a = toScreen(p * FIELD_T, WORLD_MIN), b = toScreen(p * FIELD_T, WORLD_MAX + 1);
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
@@ -156,7 +152,7 @@ export function createIso(canvas, { onTap } = {}) {
       ctx.beginPath(); ctx.moveTo(a2.x, a2.y); ctx.lineTo(b2.x, b2.y); ctx.stroke();
     }
     const e0 = toScreen(0, 0), e1 = toScreen(FIELD_T, 0), e2 = toScreen(FIELD_T, FIELD_T), e3 = toScreen(0, FIELD_T);
-    ctx.strokeStyle = 'rgba(244,191,98,0.28)'; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = g.rim; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(e0.x, e0.y); ctx.lineTo(e1.x, e1.y); ctx.lineTo(e2.x, e2.y); ctx.lineTo(e3.x, e3.y); ctx.closePath(); ctx.stroke();
 
     // FOR SALE signs at the centre of each on-market parcel

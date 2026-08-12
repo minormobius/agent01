@@ -127,6 +127,14 @@ run them before any push; the deploy workflow runs them again):
 - `js/achievements.js` — the deed ledger + share text.
 - `js/social.js` — pure tend/gift arithmetic (top half) + keyless public reads
   (bottom half).
+- `js/themes.js` — the SKIN kernel: six full-world palettes (every tile kind +
+  sky/fog/rim + chrome CSS vars), each behind a live unlock predicate
+  (Verdant free; Harvest 25 harvests; Seaside 4 parcels; Umbra — the original
+  muted look — depth 12; Rose Dawn grade-A brew; Gilt 1000◈). The equipped
+  skin is `farm.skin` IN the plot record, so visitors see your farm wearing
+  it — and `currentSkin` renders the default for any save claiming a skin it
+  hasn't earned, so the record can't lie to viewers. iso.js reads all ground
+  colors from the skin; never hardcode a tile color in the renderer again.
 - Brew utilities (the Galenic square read as farming): cooling→dew (growth),
   rousing→+1 yield, caustic→mine bombs, sedate→market ward, oil→tempered picks.
   A quintessence shard (mine) steadies a brew +0.15 coherence.
