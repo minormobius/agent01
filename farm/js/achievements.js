@@ -24,6 +24,10 @@ export const ACHIEVEMENTS = [
   { id: 'first-tend',    emoji: '💧', name: 'Neighbourly',        desc: 'Tend a friend’s plant',                  test: (f) => f.stats.tendsGiven >= 1 },
   { id: 'tend-25',       emoji: '🫗', name: 'Rain on Every Roof', desc: 'Tend friends’ plants 25 times',          test: (f) => f.stats.tendsGiven >= 25 },
   { id: 'coins-500',     emoji: '◈',  name: 'Market Gardener',    desc: 'Hold 500 coins',                              test: (f) => f.coins >= 500 },
+  { id: 'first-terra',   emoji: '🪏', name: 'Landshaper',         desc: 'Terraform your first tile',                   test: (f) => (f.stats.terraforms | 0) >= 1 },
+  { id: 'terra-20',      emoji: '🏞️', name: 'The Farm You Meant', desc: 'Terraform twenty tiles',                      test: (f) => (f.stats.terraforms | 0) >= 20 },
+  { id: 'new-lands',     emoji: '🗺️', name: 'New Lands',          desc: 'Unlock a second ecosystem pack',              test: (f) => (f.packs || []).length >= 2 },
+  { id: 'all-lands',     emoji: '🌐', name: 'The Whole Ark',      desc: 'Unlock every ecosystem pack',                 test: (f, ark) => (f.packs || []).length >= ((ark && ark.biomes) || []).length && (f.packs || []).length > 1 },
 ];
 
 export const byId = (id) => ACHIEVEMENTS.find((a) => a.id === id) || null;

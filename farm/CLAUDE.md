@@ -1,12 +1,32 @@
 # farm — farm.mino.mobi (Harvestople)
 
-Farming on ATProto: tend a bed of real organisms, mine the seven planetary
-metals, brew Galenic alchemy from what you harvest, gift seeds to Bluesky
-friends, and post your deeds. **There is no backend.** The player's own PDS is
-the database (the board.mino.mobi pattern); friends' farms are keyless public
-reads straight off their PDS. The working name is *Harvestople* — it lives in
-`index.html`'s `<title>`, the header, and `achievements.js`'s share text if it
-ever needs changing.
+Farming on ATProto: a **map-first** isometric farm — the five stations (trade
+desk, mine head, alchemy hut, friend gate, deeds sign) are buildings standing
+on the draggable field, tapped to open; craft mode terraforms the world (till
+the meadow outward, dig ponds that water neighbouring rows, lay paths, clear
+boulders, move the buildings); six ecosystem packs of real organisms unlock
+on a ladder whose requirements render live at the desk. **There is no
+backend.** The player's own PDS is the database (the board.mino.mobi
+pattern); friends' farms are keyless public reads straight off their PDS. The
+working name is *Harvestople* — it lives in `index.html`'s `<title>`, the
+header, and `achievements.js`'s share text if it ever needs changing.
+
+## The world model (v2 saves)
+
+The farm is a 24×24 tile world (`WORLD_MIN..WORLD_MAX`); the seeded starting
+field is tiles `[0, FIELD_T)²` where the bed seed lays soil, a pond, stones
+and a trodden path (the old keep-outs, sampled at tile centres by
+`baseTile`). Everything else is meadow. `farm.terra` is a sparse
+`"tx,ty" → kind` override layer written by `terraform()` (till / pond / path /
+clear / meadow, priced by `TERRA_COST`) — so the visible world is always
+`tileAt(farm, tx, ty)` = override-or-baseline, and reverting a tile to its
+baseline deletes the key. Plants keep bed-normalized coords (tile/FIELD_T);
+on reclaimed meadow they simply fall outside [0,1]. A plant beside any pond
+tile grows `POND_CUT` faster (`pondAdjacent` — terraforming with teeth).
+`farm.buildings` are the five stations, movable via `moveBuilding` (never
+onto water, a plant, or each other). `fromPlotRecord` migrates v1 records to
+v2 in place (all-additive defaults), including foreign records read by the
+viewer.
 
 ## Facts
 
@@ -65,10 +85,19 @@ source; the only allowed local edits are the import-path lines marked
 New, farm-owned kernels — all pure, all node-tested (`farm/test/*.selftest.mjs`,
 run them before any push; the deploy workflow runs them again):
 
-- `js/state.js` — save shape + every rule (plant/harvest/sell/pull/gift/brew/use).
-  Fresh-broken ground: a new farm's first 3 plantings grow 4×, so the first
-  session ends with a harvest. Your home biome = `biomeForKey(did)` — different
-  players draw different pools, which is why seed gifts matter.
+- `js/state.js` — save shape + every rule (plant/harvest/sell/pull/gift/brew/
+  use/terraform/moveBuilding/unlockPack). Fresh-broken ground: a new farm's
+  first 3 plantings grow 4×, so the first session ends with a harvest. Your
+  home biome = `biomeForKey(did)`; the other five packs unlock in a fixed
+  ladder (`PACK_REQS`: coins + harvests + mine depth + brews + biomes closed)
+  that `packList()` evaluates live — the desk renders exactly that table, so
+  the path to the next pack is never a mystery. Pulls deal from the ACTIVE
+  unlocked pack; determinism keys on (seed, biomeId, pullIndex) so switching
+  pools disturbs nothing.
+- `js/iso.js` — the draggable 2:1 isometric world: terraform-aware ground off
+  `tileAt`, billboarded flora + station huts in one painter pass, tool-aware
+  hover (green/red), tap vs drag vs zoom. Projection/camera/input only — no
+  game rules.
 - `js/mine.js` — seeded levels `(didSeed, depth)`, exactly one ladder each,
   the Chaldean nobility gradient (lead/iron shallow → gold/quicksilver deep).
   Metals are the bench's vessel tax (`PREP_METAL`): elixir=gold, tonic=silver,

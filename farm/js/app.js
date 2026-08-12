@@ -7,8 +7,10 @@
 
 import {
   newFarm, plantSeed, growthOf, harvestPlant, sellProduce, pullSeeds, claimGift, giveSeed,
-  applyBrew, usePreparation, cropById, sellPrice, DAY_MS, PREP_METAL, PULL_COST, bedKeepouts, plantable,
+  applyBrew, usePreparation, cropById, sellPrice, DAY_MS, PREP_METAL, PULL_COST, fromPlotRecord,
   touchStreak, recordShare, SHARE_COINS,
+  plantableTile, tileAt, buildingAt, terraform, moveBuilding, TERRA_COST, BUILDING_KINDS,
+  packList, unlockPack, setActiveBiome, pondAdjacent, FIELD_T, inWorld,
 } from './state.js';
 import * as Mine from './mine.js';
 import { ACHIEVEMENTS, byId as achById, evaluate as evalAch, markEarned, shareText } from './achievements.js';
@@ -44,6 +46,17 @@ let profiles = new Map();
 let plantingCrop = null;    // seed selected for planting
 let benchPick = [];         // cropIds queued at the bench
 let isoMain = null;         // the field view (created in boot)
+let craftTool = null;       // craft mode: 'till'|'pond'|'path'|'clear'|'meadow'|'move' (null = play)
+let movingBuilding = null;  // building id currently in hand (craft 'move')
+
+const CRAFT_TOOLS = [
+  { key: 'till',   emoji: '🪏', label: 'till',   hint: 'meadow → tilled soil (grow the farm outward)' },
+  { key: 'pond',   emoji: '💧', label: 'pond',   hint: 'dig water — plants beside it grow 10% faster' },
+  { key: 'path',   emoji: '🧱', label: 'path',   hint: 'lay a walkway' },
+  { key: 'clear',  emoji: '🪨', label: 'clear',  hint: 'roll a boulder away' },
+  { key: 'meadow', emoji: '🌿', label: 'meadow', hint: 'give a tile back to the grass' },
+  { key: 'move',   emoji: '✋', label: 'move',   hint: 'tap a building, then tap where it goes' },
+];
 
 async function boot() {
   ark = await (await fetch('./vendor/ark.json')).json();
@@ -79,7 +92,29 @@ async function boot() {
   if (store.user) refreshFriends();   // background: tends boost + gifts at the gate
 }
 
-function onFieldTap({ bx, by, plantIdx }) {
+function onFieldTap({ bx, by, tx, ty, plantIdx, building }) {
+  // craft mode: the tap is a tool stroke
+  if (craftTool === 'move') {
+    if (!movingBuilding) {
+      if (!building) { toast('tap a building to pick it up', 'warn'); return; }
+      movingBuilding = building.id;
+      toast('✋ ' + BUILDING_KINDS[building.kind].name + ' in hand — tap where it goes', 'ok');
+      redrawBed(); return;
+    }
+    const r = moveBuilding(farm, movingBuilding, tx, ty, now());
+    if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+    movingBuilding = null;
+    commit(r.farm); redrawBed();
+    return;
+  }
+  if (craftTool) {
+    const r = terraform(farm, tx, ty, craftTool, now());
+    if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+    commit(r.farm); redrawBed();
+    return;
+  }
+  // play mode: buildings are the rooms — tap one to step inside
+  if (building) { openPanel(BUILDING_KINDS[building.kind].panel); return; }
   if (plantIdx >= 0) { tryHarvest(farm.bed.plants[plantIdx].id); return; }
   if (!plantingCrop) return;
   const r = plantSeed(farm, bx, by, plantingCrop, ark, now());
@@ -88,6 +123,14 @@ function onFieldTap({ bx, by, plantIdx }) {
   if (r.spd > 1) toast('⚡ fresh-broken ground — this one grows 4×', 'ok');
   if (!farm.seeds[plantingCrop]) plantingCrop = null;
   redrawBed();
+}
+
+// what the hover preview asks: does the current tool land on (tx,ty)?
+function toolCheckAt(tx, ty) {
+  if (craftTool === 'move') return movingBuilding ? moveBuilding(farm, movingBuilding, tx, ty, 0).ok : !!buildingAt(farm, tx, ty);
+  if (craftTool) return terraform(farm, tx, ty, craftTool, 0).ok;
+  if (plantingCrop) return plantableTile(farm, (tx + 0.5) / FIELD_T, (ty + 0.5) / FIELD_T);
+  return false;
 }
 
 function commit(next, { immediate = false } = {}) {
@@ -141,25 +184,50 @@ function renderHeader() {
   }
 }
 
-// ── tabs ──────────────────────────────────────────────────────────────────────────────────────────
-function showTab(name) {
-  $$('.tab').forEach((t) => t.classList.toggle('on', t.dataset.tab === name));
+// ── panels: the stations' rooms, opened by tapping their building on the map ────────────────────
+function openPanel(name) {
   $$('.pane').forEach((p) => p.classList.toggle('on', p.id === 'tab-' + name));
-  if (name === 'farm') redrawBed();
   if (name === 'desk') renderDesk();
   if (name === 'mine') { commit(Mine.enterMine(farm, now()).farm); renderMine(); }
   if (name === 'bench') renderBench();
   if (name === 'friends') renderFriends();
   if (name === 'deeds') renderDeeds();
 }
+function closePanel() { $$('.pane').forEach((p) => p.classList.remove('on')); redrawBed(); }
 
-function renderAll() { redrawBed(); renderSeedBag(); renderPantry(); renderDeeds(); }
+// ── craft toolbar ─────────────────────────────────────────────────────────────────────────────────
+function renderCraftBar() {
+  const bar = $('#craftbar');
+  const on = craftTool != null;
+  bar.innerHTML = '<button id="craft" class="' + (on ? 'on' : '') + '">🔨 craft</button>' +
+    (on ? CRAFT_TOOLS.map((t) =>
+      '<button class="tool ' + (craftTool === t.key ? 'on' : '') + '" data-tool="' + t.key + '" title="' + esc(t.hint) + '">' +
+      t.emoji + ' ' + t.label + (TERRA_COST[t.key] ? ' <i>' + TERRA_COST[t.key] + '◈</i>' : '') + '</button>').join('') : '');
+  $('#craft').onclick = () => {
+    craftTool = on ? null : 'till';
+    movingBuilding = null; plantingCrop = null;
+    $('#bedhint').textContent = craftTool
+      ? 'craft mode — pick a tool, tap tiles. Till the meadow to grow the farm; dig ponds beside rows for faster growth.'
+      : 'tap a building to open it · drag to look around · pick a seed then tap the soil';
+    renderCraftBar(); renderSeedBag(); redrawBed();
+  };
+  $$('#craftbar .tool').forEach((b) => b.onclick = () => {
+    craftTool = b.dataset.tool; movingBuilding = null;
+    const t = CRAFT_TOOLS.find((x) => x.key === craftTool);
+    $('#bedhint').textContent = t.emoji + ' ' + t.hint;
+    renderCraftBar(); redrawBed();
+  });
+}
 
-// ── FARM tab ──────────────────────────────────────────────────────────────────────────────────────
+function renderAll() { renderCraftBar(); redrawBed(); renderSeedBag(); renderPantry(); renderDeeds(); }
+
+// ── the field ─────────────────────────────────────────────────────────────────────────────────────
 function redrawBed() {
   if (isoMain) isoMain.update({
     farm, ark, now: now(), tends, plantingCrop,
-    plantableAt: (nx, ny) => plantable(farm.bed, nx, ny, bedKeepouts(farm.bed.seed)),
+    tool: craftTool || (plantingCrop ? 'plant' : null),
+    toolCheck: toolCheckAt,
+    movingBuilding,
   });
   renderSeedBag(); renderPantry(); renderPlantInfo();
 }
@@ -176,10 +244,11 @@ function renderSeedBag() {
     : '<span class="dim">seed bag empty — pull at the trade desk, or ask a friend</span>';
   $$('#seedbag .seed').forEach((b) => b.onclick = () => {
     plantingCrop = plantingCrop === b.dataset.seed ? null : b.dataset.seed;
+    if (plantingCrop) { craftTool = null; movingBuilding = null; renderCraftBar(); }   // a seed in hand leaves craft mode
     renderSeedBag();
     $('#bedhint').textContent = plantingCrop
       ? 'tap a tilled tile to plant ' + (cropById(ark, plantingCrop) || {}).common + ' — green means it fits'
-      : 'drag to look around · scroll to zoom · pick a seed then tap the soil · tap a ripe plant ✓ to harvest';
+      : 'tap a building to open it · drag to look around · pick a seed then tap the soil · tap a ripe plant ✓ to harvest';
     if (isoMain) redrawBed();
   });
 }
@@ -205,11 +274,12 @@ function renderPlantInfo() {
   if (!farm.bed.plants.length) { el.innerHTML = '<span class="dim">nothing in the ground yet</span>'; return; }
   el.innerHTML = farm.bed.plants.map((p) => {
     const c = cropById(ark, p.seedId);
-    const g = growthOf(p, c, now(), tends[p.id] || 0);
+    const pond = pondAdjacent(farm, p);
+    const g = growthOf(p, c, now(), tends[p.id] || 0, pond);
     const tendN = tends[p.id] || 0;
     return '<span class="chip ' + (g.ready ? 'ripe' : '') + '" data-plant="' + esc(p.id) + '">' +
       esc(c ? c.common : p.seedId) + ' — ' + (g.ready ? '✓ ripe' : Math.round(g.stage * 100) + '% · ' + fmtMs(g.msLeft)) +
-      (tendN ? ' 💧×' + tendN : '') + (p.spd > 1 ? ' ⚡' : '') + '</span>';
+      (tendN ? ' 💧×' + tendN : '') + (pond ? ' 🌊' : '') + (p.spd > 1 ? ' ⚡' : '') + '</span>';
   }).join('');
   $$('#plants [data-plant]').forEach((s) => s.onclick = () => tryHarvest(s.dataset.plant));
 }
@@ -223,16 +293,51 @@ function tryHarvest(plantId) {
   redrawBed();
 }
 
-// ── DESK tab (gacha) ──────────────────────────────────────────────────────────────────────────────
+// ── DESK panel (gacha + the ecosystem-pack ladder) ────────────────────────────────────────────────
 function renderDesk() {
-  const biome = biomeById(ark, farm.biomeId);
-  if (!biome) { $('#desk').innerHTML = '<span class="dim">no biome</span>'; return; }
-  const prog = progress(biome, farm.owned);
+  const packs = packList(farm, ark);
+  const active = packs.find((p) => p.active) || packs[0];
   const cost = farm.pulls === 0 ? 'free' : PULL_COST + '◈';
+
+  // the pack shelf: every biome in unlock order — unlocked ones switchable, the next one shows its
+  // requirement row with live ✓/✗, later ones wait their turn. Never a mystery.
+  $('#packs').innerHTML = packs.map((p) => {
+    const b = p.biome;
+    const prog = progress(b, farm.owned);
+    if (p.unlocked) {
+      return '<div class="pack ' + (p.active ? 'active' : '') + '" style="--foil:' + esc(b.foil) + '">' +
+        '<b style="color:' + esc(b.foil) + '">' + esc(b.name) + '</b>' +
+        '<span class="dim">' + prog.have + '/' + prog.total + (prog.complete ? ' 🌍' : '') + '</span>' +
+        (p.active ? '<span class="dim">— dealing</span>' : '<button class="mini" data-pool="' + esc(p.id) + '">deal from here</button>') +
+        '</div>';
+    }
+    if (p.isNext) {
+      return '<div class="pack locked next" style="--foil:' + esc(b.foil) + '">' +
+        '<b>🔒 ' + esc(b.name) + '</b> <span class="dim">' + esc(b.blurb) + '</span>' +
+        '<div class="reqs">' + p.checks.map((c) => '<span class="' + (c.met ? 'met' : 'unmet') + '">' + (c.met ? '✓ ' : '✗ ') + esc(c.label) + '</span>').join(' · ') + '</div>' +
+        (p.canUnlock ? '<button class="mini" data-unlock="' + esc(p.id) + '">unlock — ' + p.req.coins + '◈</button>' : '') +
+        '</div>';
+    }
+    return '<div class="pack locked far"><b>🔒 ' + esc(b.name) + '</b> <span class="dim">unlocks after the pack above</span></div>';
+  }).join('');
+  $$('#packs [data-pool]').forEach((el) => el.onclick = () => {
+    const r = setActiveBiome(farm, el.dataset.pool, now());
+    if (r.ok) { commit(r.farm); renderDesk(); }
+  });
+  $$('#packs [data-unlock]').forEach((el) => el.onclick = () => {
+    const r = unlockPack(farm, el.dataset.unlock, ark, now());
+    if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+    commit(r.farm);
+    toast('🗺️ <b>' + esc(r.biome.name) + '</b> unlocked — the desk now deals its crops', 'ach', 9000);
+    renderDesk();
+  });
+
+  const biome = active.biome;
+  const prog = progress(biome, farm.owned);
   $('#desk').innerHTML =
     '<div class="biomecard" style="border-color:' + esc(biome.foil) + '">' +
     '<h3 style="color:' + esc(biome.foil) + '">' + esc(biome.name) + '</h3>' +
-    '<p class="dim">' + esc(biome.blurb) + ' · your home biome (drawn from your DID — a friend\'s desk deals a different pool, which is what makes seed gifts worth sending)</p>' +
+    '<p class="dim">' + esc(biome.blurb) + (active.id === farm.biomeId ? ' · your home biome (drawn from your DID — a friend\'s desk deals a different pool, which is what makes seed gifts worth sending)' : '') + '</p>' +
     '<p>collection: <b>' + prog.have + '/' + prog.total + '</b>' + (prog.complete ? ' 🌍 CLOSED' : '') + '</p>' +
     '<button id="pull" class="big">🎴 pull seeds — ' + cost + '</button></div>' +
     '<div class="cropgrid">' + biome.crops.map((c) => {
@@ -433,7 +538,7 @@ async function visitFarm(did) {
   const box = $('#visitbox');
   box.innerHTML = '<span class="dim">walking over…</span>';
   const rec = await Social.getRecordFrom(did, Social.PLOT_COLLECTION, 'self');
-  const theirFarm = rec && rec.value && rec.value.farm;
+  const theirFarm = rec && rec.value ? fromPlotRecord(rec.value) : null;   // migrates v1 records on the fly
   if (!theirFarm) { box.innerHTML = '<span class="dim">their field is fallow</span>'; return; }
   const myTends = store.user ? await Social.listRecordsFrom(store.user.did, Social.TEND_COLLECTION, 100) : [];
   const usedToday = Social.tendsToday(myTends, did, now());
@@ -484,9 +589,8 @@ document.addEventListener('click', (e) => {
 // ── VISITOR mode (?u=) ────────────────────────────────────────────────────────────────────────────
 async function bootVisitor(u) {
   $('#app').classList.add('visitor');
-  $('#tabs').style.display = 'none';
-  const pane = $('#tab-farm');
-  $$('.pane').forEach((p) => p.classList.toggle('on', p === pane));
+  $('#craftbar').style.display = 'none';
+  $$('.pane').forEach((p) => p.classList.remove('on'));
   try {
     const did = await Social.resolveHandle(u);
     const [rec, achRecs, prof] = await Promise.all([
@@ -494,7 +598,7 @@ async function bootVisitor(u) {
       Social.listRecordsFrom(did, Social.ACH_COLLECTION, 50),
       Social.getProfiles([did]),
     ]);
-    const theirFarm = rec && rec.value && rec.value.farm;
+    const theirFarm = rec && rec.value ? fromPlotRecord(rec.value) : null;   // migrates v1 records on the fly
     const p = prof.get(did);
     $('#bedhint').innerHTML = theirFarm
       ? 'the farm of <b>@' + esc(p ? p.handle : u) + '</b> — live from their own PDS · <a href="./">start your own</a>'
@@ -532,6 +636,8 @@ function toast(html, kind = 'ok', ms = 5000) {
 }
 
 // ── wire the chrome ──────────────────────────────────────────────────────────────────────────────
-$$('.tab').forEach((t) => t.addEventListener('click', () => showTab(t.dataset.tab)));
+document.addEventListener('click', (e) => { if (e.target.closest('.closepane')) closePanel(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel(); });
+window.harvestople = { openPanel, closePanel };   // console/smoke-test handle — the map is still the front door
 $('#vessel')?.addEventListener('change', () => renderBench());
 boot().catch((e) => { console.error(e); toast('⚠ boot failed: ' + esc(e.message), 'warn', 20000); });

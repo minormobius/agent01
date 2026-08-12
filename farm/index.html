@@ -23,10 +23,22 @@
   button:hover { border-color:var(--gold); color:#fff; } button:disabled { opacity:.45; cursor:default; }
   button.big { font-size:14px; padding:10px 18px; }
   button.mini { font-size:11px; padding:2px 7px; border-radius:5px; }
-  #tabs { display:flex; gap:6px; flex-wrap:wrap; margin:10px 0; }
-  .tab { background:var(--panel); border:1px solid var(--line); color:var(--dim); }
-  .tab.on { color:var(--gold); border-color:var(--gold); }
-  .pane { display:none; } .pane.on { display:block; }
+  #craftbar { display:flex; gap:6px; flex-wrap:wrap; margin:10px 0; align-items:center; }
+  #craftbar button.on { color:var(--gold); border-color:var(--gold); }
+  #craftbar .tool i { color:var(--dim); font-style:normal; font-size:10px; }
+  /* the stations' rooms: drawers over the map, opened by tapping their building */
+  .pane { display:none; }
+  .pane.on { display:block; position:fixed; inset:auto 0 0 0; max-height:min(78vh, 640px); overflow-y:auto;
+             background:var(--bg); border-top:2px solid var(--gold); box-shadow:0 -12px 40px rgba(0,0,0,.6);
+             padding:14px 18px 30px; z-index:5; }
+  @media (min-width: 900px) { .pane.on { left:auto; width:560px; top:0; bottom:0; max-height:none; border-top:none; border-left:2px solid var(--gold); } }
+  .panehead { display:flex; align-items:baseline; gap:10px; margin-bottom:8px; }
+  .panehead h2 { font-size:15px; color:var(--gold); margin:0; }
+  .panehead .closepane { margin-left:auto; }
+  .pack { background:var(--panel); border:1px solid var(--foil,#333); border-radius:8px; padding:8px 12px; margin:0 0 8px; font-size:12px; display:flex; flex-wrap:wrap; gap:6px 12px; align-items:baseline; }
+  .pack.active { border-width:2px; }
+  .pack.locked { opacity:.85; border-style:dashed; } .pack.far { opacity:.45; }
+  .pack .reqs { width:100%; font-size:11px; } .pack .reqs .met { color:var(--green); } .pack .reqs .unmet { color:var(--warn); }
   .bedcanvas, #bed { width:100%; height:500px; display:block; border:1px solid var(--line); border-radius:10px; background:#0b0906; cursor:grab; touch-action:none; }
   #bed:active { cursor:grabbing; }
   #visitbed { height:320px; touch-action:none; }
@@ -76,17 +88,10 @@
     <span id="auth"></span>
   </header>
 
-  <div id="tabs">
-    <button class="tab on" data-tab="farm">🌱 farm</button>
-    <button class="tab" data-tab="desk">🎴 trade desk</button>
-    <button class="tab" data-tab="mine">⛏ mine</button>
-    <button class="tab" data-tab="bench">⚗️ bench</button>
-    <button class="tab" data-tab="friends">💧 friends</button>
-    <button class="tab" data-tab="deeds">🏅 deeds</button>
-  </div>
+  <div id="craftbar"></div>
 
-  <div class="pane on" id="tab-farm">
-    <div class="hint" id="bedhint">drag to look around · scroll to zoom · pick a seed then tap the soil · tap a ripe plant ✓ to harvest</div>
+  <div id="tab-farm">
+    <div class="hint" id="bedhint">tap a building to open it · drag to look around · pick a seed then tap the soil · tap a ripe plant ✓ to harvest</div>
     <canvas id="bed"></canvas>
     <div class="row" id="seedrow"><h3>seed bag</h3><div id="seedbag"></div></div>
     <div class="row"><h3>in the ground</h3><div id="plants"></div></div>
@@ -95,19 +100,23 @@
   </div>
 
   <div class="pane" id="tab-desk">
-    <div class="hint">the trade desk deals seeds from your home biome — 73 real organisms across six worlds, grown from the iNaturalist rosters</div>
+    <div class="panehead"><h2>🎪 trade desk</h2><button class="mini closepane">✕ back to the farm</button></div>
+    <div class="hint">73 real organisms across six ecosystem packs. The desk deals from your ACTIVE pack; the rest unlock in order — every requirement listed, live.</div>
+    <div id="packs"></div>
     <div id="desk"></div>
   </div>
 
   <div class="pane" id="tab-mine">
-    <div class="hint">the shaft under the bed — dig for the seven planetary metals (☉ gold · ☽ silver · ☿ quicksilver · ♀ copper · ♂ iron · ♃ tin · ♄ lead), coins, gems and quintessence shards; find the 🪜 to go deeper</div>
+    <div class="panehead"><h2>⛏️ mine head</h2><button class="mini closepane">✕ back to the farm</button></div>
+    <div class="hint">the shaft under the farm — the seven planetary metals (☉ gold · ☽ silver · ☿ quicksilver · ♀ copper · ♂ iron · ♃ tin · ♄ lead), coins, gems and quintessence shards; find the 🪜 to go deeper</div>
     <div id="minestats"></div>
     <div id="minegrid"></div>
     <div class="row"><h3>ore stores</h3><div id="metals"></div></div>
   </div>
 
   <div class="pane" id="tab-bench">
-    <div class="hint">the alchemy bench — brew pantry herbs by their real Galenic correspondences (Culpeper's planets, Macer's degrees). Reagents that agree brew clean; clashing humours curdle.</div>
+    <div class="panehead"><h2>⚗️ alchemy hut</h2><button class="mini closepane">✕ back to the farm</button></div>
+    <div class="hint">brew pantry herbs by their real Galenic correspondences (Culpeper's planets, Macer's degrees). Reagents that agree brew clean; clashing humours curdle.</div>
     <div class="row"><h3>pantry reagents</h3><div id="reagents"></div></div>
     <div class="row">
       <h3>the vessel</h3>
@@ -120,14 +129,16 @@
   </div>
 
   <div class="pane" id="tab-friends">
-    <div class="hint">friendship is your Bluesky follow graph — visit a farm, tend a plant (they grow 10% faster per friend), send seeds from your biome that theirs never deals</div>
+    <div class="panehead"><h2>📮 friend gate</h2><button class="mini closepane">✕ back to the farm</button></div>
+    <div class="hint">friendship is your Bluesky follow graph — visit a farm, tend a plant (they grow 10% faster per friend), send seeds from your packs that theirs never deals</div>
     <div id="friendlist"></div>
     <div id="giftbox"></div>
     <div id="visitbox"></div>
   </div>
 
   <div class="pane" id="tab-deeds">
-    <div class="hint">deeds are public records in your own repo — post the ones worth bragging about</div>
+    <div class="panehead"><h2>🪧 deeds sign</h2><button class="mini closepane">✕ back to the farm</button></div>
+    <div class="hint">deeds are public records in your own repo — post the ones worth bragging about (the first post of each deed pays 25◈)</div>
     <div id="deedlist"></div>
   </div>
 

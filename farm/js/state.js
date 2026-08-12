@@ -13,9 +13,18 @@
 //
 // All mutators return a NEW farm object (callers persist it); invalid moves return { ok:false, reason }.
 
-import { bedKeepouts, plantable, plantNear, MIN_SPACING } from '../vendor/garden.js';
-import { pull as gachaPull, pullRng, biomeForKey, PULL_COST, progress } from '../vendor/gacha.js';
+import { bedKeepouts, inKeepout, plantNear, MIN_SPACING } from '../vendor/garden.js';
+import { pull as gachaPull, pullRng, biomeForKey, biomeById, PULL_COST, progress } from '../vendor/gacha.js';
 import { gradeOf } from '../vendor/alchemy.js';
+
+// ── THE WORLD GRID ────────────────────────────────────────────────────────────────────────────────
+// The farm is a tile world. The seeded starting field is tiles [0, FIELD_T)²; a meadow apron
+// stretches to the WORLD bounds and is TILLABLE — terraforming meadow into soil is how the farm
+// grows. Plant coordinates stay bed-normalized (world tile / FIELD_T), so a plant on reclaimed
+// meadow simply has x or y outside [0,1] — old saves need no coordinate rewrite.
+export const FIELD_T = 12;
+export const WORLD_MIN = -6, WORLD_MAX = 17;   // inclusive tile range on both axes (24×24)
+export const inWorld = (tx, ty) => tx >= WORLD_MIN && tx <= WORLD_MAX && ty >= WORLD_MIN && ty <= WORLD_MAX;
 
 export const DAY_MS = 30 * 60 * 1000;      // one ark growthDay = 30 real minutes (fast crops ≈ 2h, epics a day+)
 export const START_COINS = 30;
@@ -28,6 +37,37 @@ export const SELL_FLOOR = 2;
 // the vessel tax: the fancier preparations each consume one planetary metal from the mine (the
 // herb→planet→metal bridge, walked backwards — you dig the vessel your brew deserves).
 export const PREP_METAL = { tonic: 'silver', elixir: 'gold', balm: 'copper', smoke: 'tin', oil: 'quicksilver' };
+
+// terraforming price list (coins). Tools apply to one tile; guards in terraform().
+export const TERRA_COST = { till: 15, pond: 30, path: 5, clear: 40, meadow: 5 };
+export const POND_CUT = 0.10;          // a plant beside water grows this much faster (need ×0.9)
+
+// the five station buildings — the game's rooms, standing on the map. Default spots ring the field.
+export const BUILDING_KINDS = {
+  desk:  { emoji: '🎪', name: 'trade desk',  panel: 'desk' },
+  mine:  { emoji: '⛏️', name: 'mine head',   panel: 'mine' },
+  bench: { emoji: '⚗️', name: 'alchemy hut', panel: 'bench' },
+  gate:  { emoji: '📮', name: 'friend gate', panel: 'friends' },
+  sign:  { emoji: '🪧', name: 'deeds sign',  panel: 'deeds' },
+};
+export const defaultBuildings = () => ([
+  { id: 'desk',  kind: 'desk',  tx: 13, ty: 3 },
+  { id: 'mine',  kind: 'mine',  tx: 13, ty: 9 },
+  { id: 'bench', kind: 'bench', tx: 3,  ty: 13 },
+  { id: 'gate',  kind: 'gate',  tx: -2, ty: 6 },
+  { id: 'sign',  kind: 'sign',  tx: 9,  ty: 13 },
+]);
+
+// ecosystem-pack ladder: unlocking the (i+2)-th biome (home is free) needs ALL of the row. Explicit
+// and checkable — the desk renders exactly this table with live ✓/✗ so "how do I unlock" is never
+// a mystery.
+export const PACK_REQS = [
+  { coins: 100,  harvests: 10 },
+  { coins: 250,  harvests: 25,  depth: 3 },
+  { coins: 500,  harvests: 50,  depth: 8,  brews: 5 },
+  { coins: 900,  harvests: 90,  depth: 12, biomesClosed: 1 },
+  { coins: 1500, harvests: 150, depth: 16, biomesClosed: 2 },
+];
 
 // ── seed hash (fnv-1a — house family) ──
 export function hashDid(did) {
@@ -53,8 +93,12 @@ export function newFarm(did, ark, now = 0) {
   const fast = ((biome && biome.crops) || []).slice().sort((a, b) => a.growthDays - b.growthDays || a.id.localeCompare(b.id)).slice(0, 2);
   for (const c of fast) seeds[c.id] = 3;
   return {
-    v: 1, seed,
+    v: 2, seed,
     biomeId: biome ? biome.id : null,
+    activeBiome: biome ? biome.id : null,   // which unlocked pack the desk pulls from
+    packs: biome ? [biome.id] : [],         // unlocked ecosystem packs (home is free)
+    terra: {},                              // "tx,ty" → tile-kind overrides on the seeded baseline
+    buildings: defaultBuildings(),          // the five stations, movable in craft mode
     coins: START_COINS,
     bed: { seed, plants: [], nextId: 0 },
     seeds,                       // cropId → count (plantable)
@@ -68,20 +112,49 @@ export function newFarm(did, ark, now = 0) {
     effects: { yieldBoost: 0, wardUntil: 0 },   // rousing brews bank +1-yield harvests; sedate brews ward the market
     achievements: {},            // id → ISO earned-at
     claimedGifts: [],            // at:// uris of friend gifts already folded into this save
-    stats: { planted: 0, harvests: 0, produce: 0, sold: 0, tendsGiven: 0, giftsSent: 0, brews: 0, bestGrade: null, oresMined: 0, gemsFound: 0 },
+    stats: { planted: 0, harvests: 0, produce: 0, sold: 0, tendsGiven: 0, giftsSent: 0, brews: 0, bestGrade: null, oresMined: 0, gemsFound: 0, terraforms: 0, movedBuildings: 0 },
     createdAt: now, updatedAt: now,
   };
 }
 
 const clone = (f) => JSON.parse(JSON.stringify(f));
 
+// ── TILES: seeded baseline + terraform overrides ──────────────────────────────────────────────────
+// baseline: inside the starting field the bed seed decides soil vs the keep-outs (pond / stones /
+// trodden path, exactly the old geometry, sampled at tile centres); outside it is meadow.
+export function baseTile(seed, tx, ty) {
+  if (tx < 0 || ty < 0 || tx >= FIELD_T || ty >= FIELD_T) return 'meadow';
+  const keepouts = bedKeepouts(seed);
+  const nx = (tx + 0.5) / FIELD_T, ny = (ty + 0.5) / FIELD_T;
+  if (!inKeepout(keepouts, nx, ny)) return 'soil';
+  for (const bl of keepouts.blobs || []) {
+    if ((nx - bl.x) ** 2 + (ny - bl.y) ** 2 < bl.r * bl.r) return bl.kind === 'pond' ? 'pond' : 'stone';
+  }
+  return 'path';
+}
+// the tile the world actually shows: terraform override first, baseline otherwise.
+export const tileAt = (farm, tx, ty) => (farm.terra && farm.terra[tx + ',' + ty]) || baseTile(farm.bed.seed, tx, ty);
+
+export const buildingAt = (farm, tx, ty) => (farm.buildings || []).find((b) => b.tx === tx && b.ty === ty) || null;
+const plantOnTile = (farm, tx, ty) => farm.bed.plants.some((p) => Math.floor(p.x * FIELD_T) === tx && Math.floor(p.y * FIELD_T) === ty);
+
+// can a seed go in at bed-normalized (x,y)? soil tile (terraform-aware), inside the world, no
+// building squatting on it, and the old footprint rule against every other plant.
+export function plantableTile(farm, x, y) {
+  const tx = Math.floor(x * FIELD_T), ty = Math.floor(y * FIELD_T);
+  if (!inWorld(tx, ty)) return false;
+  if (tileAt(farm, tx, ty) !== 'soil') return false;
+  if (buildingAt(farm, tx, ty)) return false;
+  for (const p of farm.bed.plants) if ((p.x - x) ** 2 + (p.y - y) ** 2 < MIN_SPACING * MIN_SPACING) return false;
+  return true;
+}
+
 // ── planting ──────────────────────────────────────────────────────────────────────────────────────
 export function plantSeed(farm, x, y, cropId, ark, now) {
   if (!farm.seeds[cropId]) return { ok: false, reason: 'no seed of that crop in the bag' };
   const crop = cropById(ark, cropId);
   if (!crop) return { ok: false, reason: 'unknown crop' };
-  const keepouts = bedKeepouts(farm.bed.seed);
-  if (!plantable(farm.bed, x, y, keepouts)) return { ok: false, reason: 'not plantable there (path, pond, stone, edge, or crowding)' };
+  if (!plantableTile(farm, x, y)) return { ok: false, reason: 'not plantable there — needs open tilled soil (craft mode tills the meadow)' };
   const next = clone(farm);
   const spd = next.stats.harvests === 0 && next.bed.plants.length < FRESH_PLANTS ? FRESH_SPD : 1;
   next.bed.plants.push({ id: 'p' + next.bed.nextId, x: +x.toFixed(4), y: +y.toFixed(4), seedId: cropId, at: now, spd, boost: 0 });
@@ -93,12 +166,23 @@ export function plantSeed(farm, x, y, cropId, ark, now) {
   return { ok: true, farm: next, spd };
 }
 
-// ── growth: pure (plant, crop, now, tendCount) → stage ────────────────────────────────────────────
-// `plant.boost` is banked growth-time (ms) from cooling draughts; `spd` the fresh-soil multiplier.
-export function growthOf(plant, crop, now, tendCount = 0) {
+// is this plant beside water? (any pond tile within a 1-tile ring — dug or seeded, both count)
+export function pondAdjacent(farm, plant) {
+  const tx = Math.floor(plant.x * FIELD_T), ty = Math.floor(plant.y * FIELD_T);
+  for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+    if (!dx && !dy) continue;
+    if (inWorld(tx + dx, ty + dy) && tileAt(farm, tx + dx, ty + dy) === 'pond') return true;
+  }
+  return false;
+}
+
+// ── growth: pure (plant, crop, now, tendCount, pondAdj) → stage ───────────────────────────────────
+// `plant.boost` is banked growth-time (ms) from cooling draughts; `spd` the fresh-soil multiplier;
+// `pondAdj` (pondAdjacent) waters the roots — dig ponds next to your rows, that's terraforming pay.
+export function growthOf(plant, crop, now, tendCount = 0, pondAdj = false) {
   if (!plant || !crop) return { stage: 0, ready: false, msLeft: 0, needMs: 1 };
   const cut = Math.min(TEND_CAP, tendCount | 0) * TEND_CUT;
-  const needMs = Math.max(1, (crop.growthDays | 0)) * DAY_MS * (1 - cut);
+  const needMs = Math.max(1, (crop.growthDays | 0)) * DAY_MS * (1 - cut) * (pondAdj ? 1 - POND_CUT : 1);
   const grown = Math.max(0, now - plant.at) * (plant.spd || 1) + (plant.boost || 0);
   const stage = Math.max(0, Math.min(1, grown / needMs));
   return { stage, ready: stage >= 1, msLeft: Math.max(0, Math.round((needMs - grown) / (plant.spd || 1))), needMs };
@@ -110,7 +194,7 @@ export function harvestPlant(farm, plantId, ark, now, tendCounts = {}) {
   if (idx < 0) return { ok: false, reason: 'no such plant' };
   const plant = farm.bed.plants[idx], crop = cropById(ark, plant.seedId);
   if (!crop) return { ok: false, reason: 'unknown crop' };
-  if (!growthOf(plant, crop, now, tendCounts[plantId] || 0).ready) return { ok: false, reason: 'not ripe yet' };
+  if (!growthOf(plant, crop, now, tendCounts[plantId] || 0, pondAdjacent(farm, plant)).ready) return { ok: false, reason: 'not ripe yet' };
   const next = clone(farm);
   next.bed.plants.splice(idx, 1);
   let yld = Math.max(1, crop.yield | 0);
@@ -141,9 +225,13 @@ export function sellProduce(farm, cropId, qty, ark, now) {
   return { ok: true, farm: next, coins, warded: ward > 1 };
 }
 
-// ── the trade desk (gacha) — deterministic: (seed, biomeId, pullIndex) re-rolls identically ───────
+// ── the trade desk (gacha) — deterministic: (seed, biomeId, pullIndex) re-rolls identically.
+// Pulls come from the ACTIVE unlocked pack; the per-pull rng keys on the biome id, so switching
+// pools never disturbs another pool's determinism. ──
 export function pullSeeds(farm, ark, now) {
-  const biome = ((ark && ark.biomes) || []).find((b) => b.id === farm.biomeId) || biomeForKey(ark, String(farm.seed));
+  const activeId = farm.activeBiome || farm.biomeId;
+  if (farm.packs && !farm.packs.includes(activeId)) return { ok: false, reason: 'that pack is not unlocked' };
+  const biome = biomeById(ark, activeId) || biomeForKey(ark, String(farm.seed));
   if (!biome) return { ok: false, reason: 'no biome' };
   const cost = farm.pulls === 0 ? 0 : PULL_COST;
   if (farm.coins < cost) return { ok: false, reason: 'need ' + cost + ' coins for a pull' };
@@ -257,6 +345,109 @@ export function usePreparation(farm, itemId, now) {
   return { ok: true, farm: next, effect };
 }
 
+// ── CRAFT MODE: terraforming + rearranging ────────────────────────────────────────────────────────
+// terraform(farm, tx, ty, tool) — tool ∈ till|pond|path|clear|meadow. Rules:
+//   till    meadow/path → soil        (this is how the farm GROWS beyond the starting field)
+//   pond    soil/meadow/path → pond   (water: adjacent plants grow POND_CUT faster)
+//   path    soil/meadow/pond → path   (rearrange the walkways; draining a pond costs its price)
+//   clear   stone → soil              (roll the boulder away)
+//   meadow  soil/path/pond → meadow   (give a tile back to the grass)
+// Never under a plant or a building; always inside the world; each tile-write costs TERRA_COST.
+const TERRA_OK = {
+  till:   { from: ['meadow', 'path'], to: 'soil' },
+  pond:   { from: ['soil', 'meadow', 'path'], to: 'pond' },
+  path:   { from: ['soil', 'meadow', 'pond'], to: 'path' },
+  clear:  { from: ['stone'], to: 'soil' },
+  meadow: { from: ['soil', 'path', 'pond'], to: 'meadow' },
+};
+export function terraform(farm, tx, ty, tool, now) {
+  const rule = TERRA_OK[tool];
+  if (!rule) return { ok: false, reason: 'unknown tool' };
+  if (!inWorld(tx, ty)) return { ok: false, reason: 'beyond the world’s edge' };
+  const cur = tileAt(farm, tx, ty);
+  if (!rule.from.includes(cur)) return { ok: false, reason: 'cannot ' + tool + ' ' + cur };
+  if (plantOnTile(farm, tx, ty)) return { ok: false, reason: 'a plant is rooted there — harvest it first' };
+  if (buildingAt(farm, tx, ty)) return { ok: false, reason: 'a building stands there — move it first' };
+  const cost = TERRA_COST[tool] | 0;
+  if (farm.coins < cost) return { ok: false, reason: 'needs ' + cost + '◈' };
+  const next = clone(farm);
+  next.coins -= cost;
+  const key = tx + ',' + ty;
+  if (baseTile(next.bed.seed, tx, ty) === rule.to) delete next.terra[key];   // back to baseline → drop the override
+  else next.terra[key] = rule.to;
+  next.stats.terraforms = (next.stats.terraforms | 0) + 1;
+  next.updatedAt = now;
+  return { ok: true, farm: next, cost, to: rule.to };
+}
+
+// pick a station up and set it down somewhere sensible (not water, not on a plant/another building).
+export function moveBuilding(farm, id, tx, ty, now) {
+  const idx = (farm.buildings || []).findIndex((b) => b.id === id);
+  if (idx < 0) return { ok: false, reason: 'no such building' };
+  if (!inWorld(tx, ty)) return { ok: false, reason: 'beyond the world’s edge' };
+  const t = tileAt(farm, tx, ty);
+  if (t === 'pond') return { ok: false, reason: 'it would sink' };
+  if (plantOnTile(farm, tx, ty)) return { ok: false, reason: 'a plant is rooted there' };
+  const other = buildingAt(farm, tx, ty);
+  if (other && other.id !== id) return { ok: false, reason: other.id + ' already stands there' };
+  const next = clone(farm);
+  next.buildings[idx].tx = tx; next.buildings[idx].ty = ty;
+  next.stats.movedBuildings = (next.stats.movedBuildings | 0) + 1;
+  next.updatedAt = now;
+  return { ok: true, farm: next };
+}
+
+// ── ECOSYSTEM PACKS ───────────────────────────────────────────────────────────────────────────────
+// packList(farm, ark) → every biome in unlock order (home first, rest in ark order), each with its
+// requirement row evaluated against the save — the desk renders this verbatim, so the path to the
+// next pack is always visible.
+export function biomesClosedCount(farm, ark) {
+  return (farm.packs || []).filter((id) => { const b = biomeById(ark, id); return b && progress(b, farm.owned).complete; }).length;
+}
+export function packList(farm, ark) {
+  const home = farm.biomeId;
+  const rest = (ark.biomes || []).filter((b) => b.id !== home).map((b) => b.id);
+  const order = [home, ...rest];
+  const unlocked = new Set(farm.packs || [home]);
+  let nextLockedSeen = false;
+  return order.map((id, i) => {
+    const biome = biomeById(ark, id);
+    if (unlocked.has(id)) return { id, biome, unlocked: true, active: (farm.activeBiome || home) === id };
+    const req = PACK_REQS[Math.min(unlocked.size - 1, PACK_REQS.length - 1)];
+    const closed = biomesClosedCount(farm, ark);
+    const checks = [
+      { label: req.coins + '◈', met: farm.coins >= req.coins },
+      { label: req.harvests + ' harvests', met: farm.stats.harvests >= req.harvests },
+    ];
+    if (req.depth) checks.push({ label: 'mine depth ' + req.depth, met: farm.mine.depth >= req.depth });
+    if (req.brews) checks.push({ label: req.brews + ' brews', met: farm.stats.brews >= req.brews });
+    if (req.biomesClosed) checks.push({ label: req.biomesClosed + ' biome(s) closed', met: closed >= req.biomesClosed });
+    const isNext = !nextLockedSeen; nextLockedSeen = true;
+    return { id, biome, unlocked: false, isNext, req, checks, canUnlock: isNext && checks.every((c) => c.met) };
+  });
+}
+export function unlockPack(farm, biomeId, ark, now) {
+  const list = packList(farm, ark);
+  const entry = list.find((p) => p.id === biomeId);
+  if (!entry) return { ok: false, reason: 'no such biome' };
+  if (entry.unlocked) return { ok: false, reason: 'already unlocked' };
+  if (!entry.isNext) return { ok: false, reason: 'packs unlock in order — the next one is ' + (list.find((p) => p.isNext) || {}).id };
+  if (!entry.canUnlock) return { ok: false, reason: 'requirements not met: ' + entry.checks.filter((c) => !c.met).map((c) => c.label).join(', ') };
+  const next = clone(farm);
+  next.coins -= entry.req.coins;
+  next.packs.push(biomeId);
+  next.activeBiome = biomeId;   // switch the desk to the new lands — the moment should feel like arrival
+  next.updatedAt = now;
+  return { ok: true, farm: next, biome: entry.biome };
+}
+export function setActiveBiome(farm, biomeId, now) {
+  if (!(farm.packs || []).includes(biomeId)) return { ok: false, reason: 'not unlocked' };
+  const next = clone(farm);
+  next.activeBiome = biomeId;
+  next.updatedAt = now;
+  return { ok: true, farm: next };
+}
+
 // ── the pacing loop: streaks + post-to-progress ───────────────────────────────────────────────────
 // Social-media pacing without the dark half: both bonuses are small, deterministic, and recorded in
 // the save so any viewer can audit them like everything else.
@@ -300,7 +491,18 @@ export function toPlotRecord(farm, now) {
   return { $type: 'com.minomobi.farm.plot', v: 1, farm, updatedAt: new Date(now).toISOString() };
 }
 export function fromPlotRecord(value) {
-  return value && value.farm && value.farm.v === 1 ? value.farm : null;
+  const f = value && value.farm;
+  if (!f || (f.v !== 1 && f.v !== 2)) return null;
+  if (f.v === 1) {   // v1 → v2: the map-first fields, all additive, defaults deterministic
+    f.v = 2;
+    f.terra = f.terra || {};
+    f.buildings = f.buildings || defaultBuildings();
+    f.packs = f.packs || (f.biomeId ? [f.biomeId] : []);
+    f.activeBiome = f.activeBiome || f.biomeId;
+    f.stats.terraforms = f.stats.terraforms | 0;
+    f.stats.movedBuildings = f.stats.movedBuildings | 0;
+  }
+  return f;
 }
 
-export { bedKeepouts, plantable, plantNear, MIN_SPACING, PULL_COST };
+export { bedKeepouts, plantNear, MIN_SPACING, PULL_COST };

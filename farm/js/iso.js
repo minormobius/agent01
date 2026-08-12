@@ -16,12 +16,10 @@
 // building stays in render.js (modelFor). No fetch, no game mutations.
 
 import { drawPlant } from '../vendor/plot-render.js';
-import { bedKeepouts, inKeepout } from '../vendor/garden.js';
-import { growthOf, cropById } from './state.js';
+import { growthOf, cropById, pondAdjacent, tileAt, FIELD_T, WORLD_MIN, WORLD_MAX, BUILDING_KINDS } from './state.js';
 import { modelFor } from './render.js';
 
-export const FIELD_T = 12;            // the bed is a 12×12-tile field
-const MEADOW = 5;                     // meadow ring beyond the field (tiles)
+export { FIELD_T };
 const TW = 72, TH = 36;               // base tile diamond (2:1) at zoom 1
 const DRAG_PX = 6;                    // a press that moves less than this is a tap
 const ZMIN = 0.55, ZMAX = 1.8;
@@ -66,37 +64,25 @@ export function createIso(canvas, { onTap } = {}) {
     ctx.closePath();
   }
 
-  // what a tile is: 'soil' | 'path' | 'pond' | 'stone' | 'meadow'
-  function tileKind(keepouts, tx, ty) {
-    if (tx < 0 || ty < 0 || tx >= FIELD_T || ty >= FIELD_T) return 'meadow';
-    const nx = (tx + 0.5) / FIELD_T, ny = (ty + 0.5) / FIELD_T;
-    if (!inKeepout(keepouts, nx, ny)) return 'soil';
-    for (const bl of keepouts.blobs || []) {
-      if ((nx - bl.x) ** 2 + (ny - bl.y) ** 2 < bl.r * bl.r) return bl.kind === 'pond' ? 'pond' : 'stone';
-    }
-    return 'path';
-  }
-
   function draw() {
     raf = 0;
     if (!state) return;
     size();
     const { farm, ark, now, tends, readOnly, plantingCrop } = state;
-    const keepouts = bedKeepouts(farm.bed.seed);
     ctx.fillStyle = '#0b0906'; ctx.fillRect(0, 0, W, H);
 
     // visible tile range from the screen corners (padded)
     const corners = [toWorld(0, 0), toWorld(W, 0), toWorld(0, H), toWorld(W, H)];
-    const tx0 = Math.max(-MEADOW, Math.floor(Math.min(...corners.map((c) => c.wx)) - 1));
-    const tx1 = Math.min(FIELD_T + MEADOW, Math.ceil(Math.max(...corners.map((c) => c.wx)) + 1));
-    const ty0 = Math.max(-MEADOW, Math.floor(Math.min(...corners.map((c) => c.wy)) - 1));
-    const ty1 = Math.min(FIELD_T + MEADOW, Math.ceil(Math.max(...corners.map((c) => c.wy)) + 1));
+    const tx0 = Math.max(WORLD_MIN, Math.floor(Math.min(...corners.map((c) => c.wx)) - 1));
+    const tx1 = Math.min(WORLD_MAX, Math.ceil(Math.max(...corners.map((c) => c.wx)) + 1));
+    const ty0 = Math.max(WORLD_MIN, Math.floor(Math.min(...corners.map((c) => c.wy)) - 1));
+    const ty1 = Math.min(WORLD_MAX, Math.ceil(Math.max(...corners.map((c) => c.wy)) + 1));
 
     // ── ground pass (painter order: sum ascending draws back → front) ──
     for (let s = tx0 + ty0; s <= tx1 + ty1; s++) {
       for (let tx = tx0; tx <= tx1; tx++) {
         const ty = s - tx; if (ty < ty0 || ty > ty1) continue;
-        const kind = tileKind(keepouts, tx, ty);
+        const kind = tileAt(farm, tx, ty);   // terraform-aware: overrides first, seeded baseline under
         const c = toScreen(tx + 0.5, ty + 0.5);
         if (c.x < -tw() || c.x > W + tw() || c.y < -th() * 2 || c.y > H + th()) continue;
         const r = tileHash(farm.bed.seed, tx, ty);
@@ -128,10 +114,12 @@ export function createIso(canvas, { onTap } = {}) {
     ctx.strokeStyle = 'rgba(244,191,98,0.28)'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(e0.x, e0.y); ctx.lineTo(e1.x, e1.y); ctx.lineTo(e2.x, e2.y); ctx.lineTo(e3.x, e3.y); ctx.closePath(); ctx.stroke();
 
-    // hover tile (planting aid): green = plantable, red = not
-    if (hover && plantingCrop && !readOnly) {
-      const nx = (hover.tx + 0.5) / FIELD_T, ny = (hover.ty + 0.5) / FIELD_T;
-      const okHere = state.plantableAt ? state.plantableAt(nx, ny) : false;
+    // hover tile (action aid): green = the current tool lands here, red = it doesn't. The tool is
+    // whatever the host set — 'plant' when a seed is picked, a terraform verb in craft mode, 'move'
+    // when a building is in hand. The host supplies toolCheck(tx,ty).
+    const tool = state.tool || (plantingCrop ? 'plant' : null);
+    if (hover && tool && !readOnly) {
+      const okHere = state.toolCheck ? state.toolCheck(hover.tx, hover.ty) : false;
       const c = toScreen(hover.tx + 0.5, hover.ty + 0.5);
       ctx.fillStyle = okHere ? 'rgba(143,224,160,0.25)' : 'rgba(224,138,106,0.25)';
       diamond(c.x, c.y, tw(), th()); ctx.fill();
@@ -139,35 +127,71 @@ export function createIso(canvas, { onTap } = {}) {
       diamond(c.x, c.y, tw(), th()); ctx.stroke();
     }
 
-    // ── plant pass (billboarded flora, back → front by wx+wy) ──
-    const items = farm.bed.plants.map((p, i) => {
+    // ── sprite pass: plants AND buildings in one painter order (back → front by wx+wy) ──
+    const u = 118 * cam.zoom;   // plot-units → px for the flora sprites (heights ≤ ~1.15 units)
+    const sprites = [];
+    farm.bed.plants.forEach((p, i) => {
       const crop = cropById(ark, p.seedId);
-      const g = growthOf(p, crop, now, (tends || {})[p.id] || 0);
-      return { p, i, crop, g, wx: p.x * FIELD_T, wy: p.y * FIELD_T };
-    }).sort((a, b) => (a.wx + a.wy) - (b.wx + b.wy));
-    const u = 118 * cam.zoom;   // plot-units → px for the sprites (flora heights are ≤ ~1.15 units)
-    for (const it of items) {
-      if (!it.crop) continue;
-      const c = toScreen(it.wx, it.wy);
-      if (c.x < -u || c.x > W + u || c.y < -u * 1.4 || c.y > H + u) continue;
-      // contact shadow so the sprite sits ON the ground rather than floating over it
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.beginPath(); ctx.ellipse(c.x, c.y, u * 0.1 + it.g.stage * u * 0.08, th() * 0.16, 0, 0, 7); ctx.fill();
-      const m = modelFor(it.p, it.crop, it.g.stage);
-      try { drawPlant(ctx, m, c.x, c.y, u * 0.6); } catch (e) { /* one bad model must not blank the field */ }
-      if (it.g.ready) {
-        ctx.fillStyle = '#8fe0a0'; ctx.font = `${Math.max(10, 13 * cam.zoom) | 0}px "JetBrains Mono", ui-monospace, monospace`;
-        ctx.textAlign = 'center'; ctx.fillText('✓', c.x, c.y - m.height * u * 0.6 - 8);
-      } else if (it.g.stage > 0.02) {   // growth arc at the base
-        ctx.strokeStyle = 'rgba(143,224,160,0.8)'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.ellipse(c.x, c.y, u * 0.13, th() * 0.2, 0, -Math.PI / 2, -Math.PI / 2 + it.g.stage * Math.PI * 2); ctx.stroke();
-      }
+      if (!crop) return;
+      const g = growthOf(p, crop, now, (tends || {})[p.id] || 0, pondAdjacent(farm, p));
+      sprites.push({ sum: p.x * FIELD_T + p.y * FIELD_T, draw: () => {
+        const c = toScreen(p.x * FIELD_T, p.y * FIELD_T);
+        if (c.x < -u || c.x > W + u || c.y < -u * 1.4 || c.y > H + u) return;
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';   // contact shadow: the sprite sits ON the ground
+        ctx.beginPath(); ctx.ellipse(c.x, c.y, u * 0.1 + g.stage * u * 0.08, th() * 0.16, 0, 0, 7); ctx.fill();
+        const m = modelFor(p, crop, g.stage);
+        try { drawPlant(ctx, m, c.x, c.y, u * 0.6); } catch (e) { /* one bad model must not blank the field */ }
+        if (g.ready) {
+          ctx.fillStyle = '#8fe0a0'; ctx.font = `${Math.max(10, 13 * cam.zoom) | 0}px "JetBrains Mono", ui-monospace, monospace`;
+          ctx.textAlign = 'center'; ctx.fillText('✓', c.x, c.y - m.height * u * 0.6 - 8);
+        } else if (g.stage > 0.02) {   // growth arc at the base
+          ctx.strokeStyle = 'rgba(143,224,160,0.8)'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.ellipse(c.x, c.y, u * 0.13, th() * 0.2, 0, -Math.PI / 2, -Math.PI / 2 + g.stage * Math.PI * 2); ctx.stroke();
+        }
+      } });
+    });
+    for (const b of farm.buildings || []) {
+      const def = BUILDING_KINDS[b.kind]; if (!def) continue;
+      const moving = state.movingBuilding === b.id;
+      sprites.push({ sum: b.tx + 0.5 + b.ty + 0.5, draw: () => drawBuilding(b, def, moving) });
     }
+    sprites.sort((a, b) => a.sum - b.sum);
+    for (const s of sprites) s.draw();
 
     // vignette
     const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.75);
     vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.38)');
     ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  }
+
+  // a station building: a little iso hut (two faces + roof) with its emoji over the door. The
+  // stations ARE the game's rooms — tapping one opens its panel — so they must read at any zoom.
+  function drawBuilding(b, def, moving) {
+    const c = toScreen(b.tx + 0.5, b.ty + 0.5);
+    const hw = tw() * 0.36, hh = th() * 0.36, wall = th() * 1.05;
+    if (c.x < -tw() * 2 || c.x > W + tw() * 2 || c.y < -th() * 4 || c.y > H + th() * 2) return;
+    ctx.save();
+    if (moving) ctx.globalAlpha = 0.55;   // in hand: ghosted until it is set down
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';   // ground shadow
+    ctx.beginPath(); ctx.ellipse(c.x, c.y, hw * 1.15, hh * 1.1, 0, 0, 7); ctx.fill();
+    // left face / right face / roof
+    ctx.fillStyle = '#3a3128';
+    ctx.beginPath(); ctx.moveTo(c.x - hw, c.y - hh); ctx.lineTo(c.x, c.y); ctx.lineTo(c.x, c.y - wall); ctx.lineTo(c.x - hw, c.y - hh - wall * 0.8); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#4a4033';
+    ctx.beginPath(); ctx.moveTo(c.x + hw, c.y - hh); ctx.lineTo(c.x, c.y); ctx.lineTo(c.x, c.y - wall); ctx.lineTo(c.x + hw, c.y - hh - wall * 0.8); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#5c4a2f';
+    ctx.beginPath(); ctx.moveTo(c.x, c.y - wall); ctx.lineTo(c.x + hw, c.y - hh - wall * 0.8); ctx.lineTo(c.x, c.y - hh * 2 - wall * 1.15); ctx.lineTo(c.x - hw, c.y - hh - wall * 0.8); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(244,191,98,0.35)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(c.x, c.y - wall); ctx.stroke();
+    // the emoji over the door + a label when zoomed in
+    ctx.font = `${Math.max(13, 19 * cam.zoom) | 0}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(def.emoji, c.x, c.y - wall * 0.55);
+    if (cam.zoom > 0.8) {
+      ctx.font = `${Math.max(8, 10 * cam.zoom) | 0}px "JetBrains Mono", ui-monospace, monospace`;
+      ctx.fillStyle = '#c8b890'; ctx.textBaseline = 'alphabetic';
+      ctx.fillText(def.name, c.x, c.y + th() * 0.62);
+    }
+    ctx.restore();
   }
 
   const schedule = () => { if (!raf) raf = requestAnimationFrame(draw); };
@@ -180,7 +204,7 @@ export function createIso(canvas, { onTap } = {}) {
     state.farm.bed.plants.forEach((p, i) => {
       const c = toScreen(p.x * FIELD_T, p.y * FIELD_T);
       const crop = cropById(state.ark, p.seedId);
-      const g = growthOf(p, crop, state.now, (state.tends || {})[p.id] || 0);
+      const g = growthOf(p, crop, state.now, (state.tends || {})[p.id] || 0, pondAdjacent(state.farm, p));
       const m = crop ? modelFor(p, crop, g.stage) : null;
       const halfW = Math.max(14, (m ? m.footprint : 0.2) * u * 0.45 + 8);
       const top = c.y - (m ? m.height : 0.3) * u * 0.6 - 10;
@@ -189,6 +213,21 @@ export function createIso(canvas, { onTap } = {}) {
         if (sum > bestSum) { bestSum = sum; best = i; }
       }
     });
+    return best;
+  }
+
+  // the building under a screen point (its hut silhouette), front-most first
+  function buildingHit(sx, sy) {
+    if (!state) return null;
+    let best = null, bestSum = -Infinity;
+    for (const b of state.farm.buildings || []) {
+      const c = toScreen(b.tx + 0.5, b.ty + 0.5);
+      const hw = tw() * 0.42, wall = th() * 1.05, top = c.y - th() * 0.72 - wall * 1.15;
+      if (sx >= c.x - hw && sx <= c.x + hw && sy >= top && sy <= c.y + th() * 0.4) {
+        const sum = b.tx + b.ty;
+        if (sum > bestSum) { bestSum = sum; best = b; }
+      }
+    }
     return best;
   }
 
@@ -211,9 +250,8 @@ export function createIso(canvas, { onTap } = {}) {
         const a = -dx / (tw() / 2), b = -dy / (th() / 2);
         cam.x = press.camX + (a + b) / 2;
         cam.y = press.camY + (b - a) / 2;
-        const PAD = MEADOW - 1;
-        cam.x = Math.max(-PAD, Math.min(FIELD_T + PAD, cam.x));
-        cam.y = Math.max(-PAD, Math.min(FIELD_T + PAD, cam.y));
+        cam.x = Math.max(WORLD_MIN + 2, Math.min(WORLD_MAX - 1, cam.x));
+        cam.y = Math.max(WORLD_MIN + 2, Math.min(WORLD_MAX - 1, cam.y));
         schedule();
       }
     } else {
@@ -228,9 +266,13 @@ export function createIso(canvas, { onTap } = {}) {
     press = null;
     if (wasTap && onTap && state && !state.readOnly) {
       const { sx, sy } = pos(ev);
-      const idx = plantAt(sx, sy);
       const w = toWorld(sx, sy);
-      onTap({ bx: w.wx / FIELD_T, by: w.wy / FIELD_T, plantIdx: idx });
+      onTap({
+        bx: w.wx / FIELD_T, by: w.wy / FIELD_T,
+        tx: Math.floor(w.wx), ty: Math.floor(w.wy),
+        plantIdx: plantAt(sx, sy),
+        building: buildingHit(sx, sy),
+      });
     }
   };
   canvas.addEventListener('pointerup', endPress);
