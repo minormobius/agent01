@@ -26,12 +26,13 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Kernel selftests (state · mine · achievements · social)
+      - name: Kernel selftests (every farm/test/*.selftest.mjs)
         run: |
-          node farm/test/state.selftest.mjs
-          node farm/test/mine.selftest.mjs
-          node farm/test/achievements.selftest.mjs
-          node farm/test/social.selftest.mjs
+          fail=0
+          for t in farm/test/*.selftest.mjs; do
+            node "$t" || { echo "FAIL $t"; fail=1; }
+          done
+          exit $fail
 
       - name: Deploy worker + assets
         working-directory: farm

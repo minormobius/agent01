@@ -79,7 +79,10 @@ async function boot() {
   const u = new URLSearchParams(location.search).get('u');
   await store.init();
   store.addEventListener('auth', () => { renderHeader(); });
-  store.addEventListener('syncerror', () => toast('⚠ sync hiccup — will retry', 'warn'));
+  store.addEventListener('syncerror', () => toast('⚠ sync hiccup — retrying with backoff', 'warn'));
+  // an SSO session consented on another mino.mobi site authenticates fine but can't WRITE farm
+  // records — one clear banner with the fix, instead of a failed-save toast storm.
+  store.addEventListener('scopeneeded', () => showGrantBanner('this signed-in session can’t save the farm yet'));
 
   if (u) { await bootVisitor(u); return; }
 
@@ -95,6 +98,9 @@ async function boot() {
 
   applySkin(farm);
   isoMain = createIso($('#bed'), { onTap: onFieldTap });
+
+  // catch the missing-grant case BEFORE the first write fails: SSO'd in, but no farm scopes
+  if (store.user && !store.hasFarmScope()) showGrantBanner('you’re signed in via another mino.mobi site');
 
   // the daily streak: first visit of the day settles dew, consecutive days compound (capped)
   const st = touchStreak(farm, now());
@@ -819,6 +825,18 @@ async function bootVisitor(u) {
   } catch (e) {
     $('#bedhint').textContent = 'could not find @' + u + ' — ' + e.message;
   }
+}
+
+// the grant banner: one persistent, actionable line — tapping it re-consents for the farm's full
+// scope (a redirect) and the pending save flushes on return.
+function showGrantBanner(why) {
+  if ($('#grantbar')) return;   // once is enough
+  const t = document.createElement('div');
+  t.className = 'toast warn'; t.id = 'grantbar';
+  t.innerHTML = '🔐 ' + esc(why) + ' — <button id="grantgo" class="mini">grant farm permissions</button>' +
+    ' <span class="dim">(one consent screen, then straight back here)</span>';
+  $('#toasts').appendChild(t);
+  $('#grantgo').onclick = () => store.grantScope().catch((e) => toast('⚠ ' + esc(e.message), 'warn'));
 }
 
 // ── toasts ────────────────────────────────────────────────────────────────────────────────────────

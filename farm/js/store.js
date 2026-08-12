@@ -9,14 +9,17 @@ import { AuthClient } from '../vendor/auth.js';
 import { toPlotRecord, fromPlotRecord } from './state.js';
 import { PLOT_COLLECTION, ACH_COLLECTION, GIFT_COLLECTION, TEND_COLLECTION } from './social.js';
 
-export const SCOPE = [
-  'atproto',
+// The login scope asks for POSTING up front: sharing deeds is a core loop, and bouncing the player
+// through a re-consent redirect at the exact moment they tap "post" was the worst possible friction.
+// One consent screen, six lines, done.
+export const FARM_SCOPES = [
   'repo:' + PLOT_COLLECTION,
   'repo:' + ACH_COLLECTION,
   'repo:' + GIFT_COLLECTION,
   'repo:' + TEND_COLLECTION,
-].join(' ');
-export const SHARE_SCOPE = 'repo:app.bsky.feed.post';   // escalated only when the player taps share
+];
+export const SHARE_SCOPE = 'repo:app.bsky.feed.post';
+export const SCOPE = ['atproto', ...FARM_SCOPES, SHARE_SCOPE].join(' ');
 
 const LS_KEY = 'farm:save';
 const SAVE_DEBOUNCE_MS = 1500;
@@ -56,6 +59,20 @@ export class FarmStore extends EventTarget {
   logout() { return this.auth.logout(); }
   _emit(type, detail) { this.dispatchEvent(new CustomEvent(type, { detail })); }
 
+  // Does the session actually hold the farm's write grants? The .mino.mobi SSO cookie means a
+  // sign-in here often RESUMES a session consented on some other site — authenticated, but with
+  // none of the com.minomobi.farm.* scopes. Every write would 403; check before assuming.
+  hasFarmScope() { return FARM_SCOPES.every((s) => this.auth.hasScope(s)); }
+  hasShareScope() { return this.auth.hasScope('app.bsky.feed.post'); }
+  // re-consent for the farm's full scope (union with whatever the session already holds).
+  // Redirects the page; call from a user gesture. If the grant turns out to already be held
+  // (race with another tab), unblock the flush loop and push the pending save through.
+  async grantScope() {
+    const ok = await this.auth.ensureScope(SCOPE);
+    if (ok) { this._scopeBlocked = false; this._failures = 0; this._flush(); }
+    return ok;
+  }
+
   // ── local mirror ──
   loadLocal() {
     try { const raw = localStorage.getItem(LS_KEY); return raw ? fromPlotRecord(JSON.parse(raw)) : null; }
@@ -85,20 +102,40 @@ export class FarmStore extends EventTarget {
     this._saveTimer = setTimeout(() => this._flush(), SAVE_DEBOUNCE_MS);
   }
 
+  // is this failure permanent (missing grant — retrying will never help) or transient (network)?
+  static isScopeError(e) {
+    return /scope|forbidden|403|not authorized|unauthorized/i.test(String((e && e.message) || e));
+  }
+
   async _flush() {
     if (this._flushing || !this._dirty || !this.user || !this._pending) return;
+    if (this._scopeBlocked) return;   // a missing grant never fixes itself — wait for grantScope()
     this._flushing = true;
     const { farm, now } = this._pending;
     this._dirty = false;
     try {
       await this.auth.pds.putRecord(PLOT_COLLECTION, PLOT_RKEY, toPlotRecord(farm, now));
+      this._failures = 0;
       this._emit('synced', { at: now });
     } catch (e) {
-      this._dirty = true;                       // keep it pending; the next save retries
-      this._emit('syncerror', { error: e });
+      this._dirty = true;                       // keep it pending
+      if (FarmStore.isScopeError(e)) {
+        // PERMANENT: the session lacks the farm's write grants. Stop hammering the PDS and tell
+        // the app ONCE — the fix is a re-consent redirect, not a retry loop. (This was the
+        // "sync hiccup" toast storm after an SSO login consented on another site.)
+        this._scopeBlocked = true;
+        this._emit('scopeneeded', { error: e });
+      } else {
+        // TRANSIENT: back off exponentially (3s → 6s → 12s … cap 60s), toast only the first time.
+        this._failures = (this._failures || 0) + 1;
+        if (this._failures === 1) this._emit('syncerror', { error: e });
+      }
     } finally {
       this._flushing = false;
-      if (this._dirty) { this._saveTimer = setTimeout(() => this._flush(), SAVE_DEBOUNCE_MS * 2); }
+      if (this._dirty && !this._scopeBlocked) {
+        const delay = Math.min(60_000, SAVE_DEBOUNCE_MS * 2 * Math.pow(2, Math.max(0, (this._failures || 1) - 1)));
+        this._saveTimer = setTimeout(() => this._flush(), delay);
+      }
     }
   }
 
@@ -126,11 +163,12 @@ export class FarmStore extends EventTarget {
     });
   }
 
-  // ── the share post (app.bsky.feed.post) — scope escalates on first use, from the tap itself ──
+  // ── the share post (app.bsky.feed.post). New logins carry the scope from the start; this
+  // escalation path remains for sessions consented before posting joined the login scope. ──
   async sharePost(text) {
     if (!this.user) throw new Error('sign in first');
-    if (!this.auth.hasScope('app.bsky.feed.post')) {
-      await this.auth.ensureScope([SCOPE, SHARE_SCOPE].join(' '));   // redirects; never returns when short
+    if (!this.hasShareScope()) {
+      await this.auth.ensureScope(SCOPE);   // redirects; never returns when short
       return null;
     }
     const res = await this.auth.pds.createRecord('app.bsky.feed.post', {
