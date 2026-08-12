@@ -24,3 +24,10 @@ source image directly ("can you pull it from the link?"). Consistent with
 with a direct question rather than assuming, so it's worth answering
 capability questions plainly and specifically (what was tried, what came
 back, why it didn't work) rather than a generic "I can't see images."
+
+Second follow-up on `reproduce-this` (2026-08-12): asked "can you read
+images?" again, elsewhere, referencing this same project — the capability
+question repeats even after being answered plainly once. Worth restating
+it just as plainly a second time rather than assuming the earlier answer
+was read/remembered, and using any turn where the answer hasn't changed to
+make real progress elsewhere in the build instead of re-investigating.

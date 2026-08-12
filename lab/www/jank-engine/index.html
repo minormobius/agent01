@@ -119,6 +119,10 @@
         <input type="range" id="opacityRange" min="0.05" max="1" step="0.05" value="0.55">
       </div>
       <div class="field">
+        <label for="lineWidthRange">Line width (px) <span class="val" id="lineWidthVal">2.0</span></label>
+        <input type="range" id="lineWidthRange" min="1" max="8" step="0.5" value="2">
+      </div>
+      <div class="field">
         <label for="paletteSel">Palette</label>
         <select id="paletteSel">
           <option value="candy">candy</option>
@@ -176,8 +180,10 @@
   <footer class="foot">
     <p>Built with three.js r169, vendored same-origin — no CDN, nothing loaded from anywhere but this
       domain. The generator function takes a plain <code>THREE</code> namespace and an options object
-      and returns <code>{ group, update, dispose }</code>; it does not know it's running inside this
-      page, so it drops into any three.js scene unchanged.</p>
+      and returns <code>{ group, update, dispose, setResolution }</code>; it does not know it's running
+      inside this page, so it drops into any three.js scene unchanged. Strokes are real screen-space-width
+      quads (a hand-rolled "fat line" shader) rather than 1px <code>LineBasicMaterial</code> lines, which
+      is what WebGL actually gives you on most platforms.</p>
   </footer>
 </main>
 
@@ -211,6 +217,8 @@ function buildJankIllustration(THREE, opts) {
     jank: 0.12,             // 0-0.6, jitter amplitude in scene units
     speed: 1,               // 0.1-3, jitter speed
     lineOpacity: 0.55,
+    lineWidth: 2,           // 1-8, real screen-space pixels (see the strokes shader below)
+    resolution: [800, 600], // [px,px] drawing-buffer size; call setResolution(w,h) to keep in sync on resize
     fill: true,
     fillColor: '#e8a33d',
     fillStyle: 'flat',      // flat | crosshatch
@@ -297,16 +305,90 @@ function buildJankIllustration(THREE, opts) {
   const strokes = [];
   const strokeCount = Math.max(1, Math.min(8, Math.round(opts.strokes)));
 
+  // Real screen-space-width strokes. WebGL caps LineBasicMaterial.linewidth at
+  // 1px on most platforms, so each "stroke" here is a quad billboard (two
+  // triangles) per edge segment, thickened in the vertex shader using the
+  // segment's own screen-space direction — the classic "fat line" technique,
+  // hand-rolled because three.js's Line2/LineMaterial addon isn't vendored.
+  const segCount = vertCount / 2; // EdgesGeometry emits vertex pairs, one pair per segment
+  const CORNERS = 6;              // two triangles per segment quad, non-indexed
+  const CORNER_SIDE = [-1, 1, -1, -1, 1, 1];
+  const CORNER_T = [0, 0, 1, 1, 0, 1];
+  const STROKE_VERT_SHADER = `
+    attribute vec3 aStart;
+    attribute vec3 aEnd;
+    attribute float aSide;
+    attribute float aT;
+    uniform vec2 uResolution;
+    uniform float uLineWidth;
+    void main() {
+      vec4 clipA = projectionMatrix * modelViewMatrix * vec4(aStart, 1.0);
+      vec4 clipB = projectionMatrix * modelViewMatrix * vec4(aEnd, 1.0);
+      vec2 ssA = clipA.xy / clipA.w;
+      vec2 ssB = clipB.xy / clipB.w;
+      vec2 dirPx = (ssB - ssA) * uResolution * 0.5;
+      vec2 dir = length(dirPx) > 0.0001 ? normalize(dirPx) : vec2(1.0, 0.0);
+      vec2 normalPx = vec2(-dir.y, dir.x) * (uLineWidth * 0.5);
+      vec4 clip = mix(clipA, clipB, aT);
+      clip.xy += (normalPx / (uResolution * 0.5)) * aSide * clip.w;
+      gl_Position = clip;
+    }
+  `;
+  const STROKE_FRAG_SHADER = `
+    precision mediump float;
+    uniform vec3 uColor;
+    uniform float uOpacity;
+    void main() { gl_FragColor = vec4(uColor, uOpacity); }
+  `;
+  // Shared by every stroke material's uResolution uniform, so setResolution()
+  // below updates them all by mutating this one Vector2 rather than looping.
+  const resolution = new THREE.Vector2(
+    (opts.resolution && opts.resolution[0]) || 800,
+    (opts.resolution && opts.resolution[1]) || 600
+  );
+
   for (let s = 0; s < strokeCount; s++) {
-    const geom = edgeGeom.clone();
-    const color = opts.palette[s % opts.palette.length];
-    const mat = new THREE.LineBasicMaterial({
-      color, transparent: true, opacity: opts.lineOpacity, depthWrite: false,
+    const n = segCount * CORNERS;
+    const aStart = new Float32Array(n * 3);
+    const aEnd = new Float32Array(n * 3);
+    const aSide = new Float32Array(n);
+    const aT = new Float32Array(n);
+    for (let seg = 0; seg < segCount; seg++) {
+      for (let c = 0; c < CORNERS; c++) {
+        aSide[seg * CORNERS + c] = CORNER_SIDE[c];
+        aT[seg * CORNERS + c] = CORNER_T[c];
+      }
+    }
+    const geom = new THREE.BufferGeometry();
+    // 'position' is required so three.js knows the vertex count for the draw
+    // call; the shader never reads it, so aliasing it onto aStart's buffer is
+    // fine and saves an allocation. frustumCulled is off below because this
+    // alias makes for a bounding sphere that doesn't track the live jitter.
+    geom.setAttribute('position', new THREE.BufferAttribute(aStart, 3));
+    geom.setAttribute('aStart', new THREE.BufferAttribute(aStart, 3));
+    geom.setAttribute('aEnd', new THREE.BufferAttribute(aEnd, 3));
+    geom.setAttribute('aSide', new THREE.BufferAttribute(aSide, 1));
+    geom.setAttribute('aT', new THREE.BufferAttribute(aT, 1));
+
+    const color = new THREE.Color(opts.palette[s % opts.palette.length]);
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        uResolution: { value: resolution },
+        uLineWidth: { value: opts.lineWidth },
+        uColor: { value: color },
+        uOpacity: { value: opts.lineOpacity },
+      },
+      vertexShader: STROKE_VERT_SHADER,
+      fragmentShader: STROKE_FRAG_SHADER,
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
     });
-    const line = new THREE.LineSegments(geom, mat);
-    line._strokeIndex = s;
-    group.add(line);
-    strokes.push(line);
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh._strokeIndex = s;
+    mesh.frustumCulled = false;
+    group.add(mesh);
+    strokes.push(mesh);
   }
 
   let fillMesh = null;
@@ -327,33 +409,58 @@ function buildJankIllustration(THREE, opts) {
     group.add(fillMesh);
   }
 
-  // time is seconds, not a frame delta — pass a running clock.
+  // time is seconds, not a frame delta — pass a running clock. Displaced
+  // per-vertex positions are computed once into a scratch buffer, then
+  // scattered onto each segment's six quad corners (both endpoints are
+  // written to every corner; aSide/aT pick the offset direction in the
+  // shader, not here).
+  const dispScratch = new Float32Array(vertCount * 3);
   function update(time) {
     const t = time * opts.speed;
-    for (const line of strokes) {
-      const p = line.geometry.attributes.position;
-      const strokeOffset = line._strokeIndex * 0.9;
+    for (const mesh of strokes) {
+      const strokeOffset = mesh._strokeIndex * 0.9;
       for (let i = 0; i < vertCount; i++) {
         const bx = basePos.getX(i), by = basePos.getY(i), bz = basePos.getZ(i);
         const px = phase[i * 3], py = phase[i * 3 + 1], pz = phase[i * 3 + 2];
         const jx = Math.sin(t * 1.3 + px + strokeOffset) * 0.6 + Math.sin(t * 2.7 + px * 1.9) * 0.4;
         const jy = Math.sin(t * 1.1 + py + strokeOffset) * 0.6 + Math.sin(t * 2.3 + py * 1.7) * 0.4;
         const jz = Math.sin(t * 1.7 + pz + strokeOffset) * 0.6 + Math.sin(t * 2.9 + pz * 1.3) * 0.4;
-        p.setXYZ(i, bx + jx * opts.jank, by + jy * opts.jank, bz + jz * opts.jank);
+        dispScratch[i * 3] = bx + jx * opts.jank;
+        dispScratch[i * 3 + 1] = by + jy * opts.jank;
+        dispScratch[i * 3 + 2] = bz + jz * opts.jank;
       }
-      p.needsUpdate = true;
+      const aStart = mesh.geometry.attributes.aStart;
+      const aEnd = mesh.geometry.attributes.aEnd;
+      for (let seg = 0; seg < segCount; seg++) {
+        const sx = dispScratch[seg * 6], sy = dispScratch[seg * 6 + 1], sz = dispScratch[seg * 6 + 2];
+        const ex = dispScratch[seg * 6 + 3], ey = dispScratch[seg * 6 + 4], ez = dispScratch[seg * 6 + 5];
+        for (let c = 0; c < CORNERS; c++) {
+          const idx = seg * CORNERS + c;
+          aStart.setXYZ(idx, sx, sy, sz);
+          aEnd.setXYZ(idx, ex, ey, ez);
+        }
+      }
+      aStart.needsUpdate = true;
+      aEnd.needsUpdate = true;
     }
+  }
+
+  // Updates every stroke's on-screen line width at once, since they all share
+  // the `resolution` Vector2 by reference. Call after a canvas resize so the
+  // width stays a constant number of pixels rather than drifting with it.
+  function setResolution(w, h) {
+    resolution.set(w, h);
   }
 
   function dispose() {
     edgeGeom.dispose();
     baseGeom.dispose();
-    for (const line of strokes) { line.geometry.dispose(); line.material.dispose(); }
+    for (const mesh of strokes) { mesh.geometry.dispose(); mesh.material.dispose(); }
     if (fillMesh) fillMesh.material.dispose();
     if (fillTexture) fillTexture.dispose();
   }
 
-  return { group, update, dispose, options: opts };
+  return { group, update, dispose, setResolution, options: opts };
 }
 
 // Recovered from the running function itself — not a hand-kept copy — so the
@@ -368,6 +475,9 @@ const viewport = document.getElementById('viewport');
 let renderer, scene, camera, illo, clockStart = performance.now();
 
 function currentOptions() {
+  const pr = renderer ? renderer.getPixelRatio() : Math.min(devicePixelRatio || 1, 2);
+  const w = Math.max(1, Math.round(viewport.clientWidth * pr));
+  const h = Math.max(1, Math.round(viewport.clientHeight * pr));
   return {
     shape: document.getElementById('shapeSel').value,
     detail: Number(document.getElementById('detailRange').value),
@@ -375,6 +485,8 @@ function currentOptions() {
     jank: Number(document.getElementById('jankRange').value),
     speed: Number(document.getElementById('speedRange').value),
     lineOpacity: Number(document.getElementById('opacityRange').value),
+    lineWidth: Number(document.getElementById('lineWidthRange').value),
+    resolution: [w, h],
     fill: document.getElementById('fillChk').checked,
     fillColor: document.getElementById('fillColorInput').value,
     fillStyle: document.getElementById('fillStyleSel').value,
@@ -405,6 +517,10 @@ function resize() {
   renderer.setSize(w, h, false);
   camera.aspect = w / Math.max(1, h);
   camera.updateProjectionMatrix();
+  if (illo) {
+    const pr = renderer.getPixelRatio();
+    illo.setResolution(Math.max(1, Math.round(w * pr)), Math.max(1, Math.round(h * pr)));
+  }
 }
 new ResizeObserver(resize).observe(viewport);
 
@@ -458,6 +574,7 @@ const LIVE = [
   ['jankRange', 'jankVal', v => Number(v).toFixed(2)],
   ['speedRange', 'speedVal', v => Number(v).toFixed(2)],
   ['opacityRange', 'opacityVal', v => Number(v).toFixed(2)],
+  ['lineWidthRange', 'lineWidthVal', v => Number(v).toFixed(1)],
   ['fillOpacityRange', 'fillOpacityVal', v => Number(v).toFixed(2)],
   ['spinRange', 'spinVal', v => Number(v).toFixed(1)],
 ];
@@ -467,7 +584,8 @@ for (const [inputId, labelId, fmt] of LIVE) {
   input.addEventListener('input', () => { label.textContent = fmt(input.value); });
 }
 const REBUILD_ON = ['shapeSel', 'detailRange', 'strokesRange', 'jankRange', 'speedRange',
-  'opacityRange', 'fillChk', 'fillColorInput', 'fillStyleSel', 'fillOpacityRange', 'paletteSel', 'bgColorInput'];
+  'opacityRange', 'lineWidthRange', 'fillChk', 'fillColorInput', 'fillStyleSel', 'fillOpacityRange',
+  'paletteSel', 'bgColorInput'];
 for (const id of REBUILD_ON) document.getElementById(id).addEventListener('input', rebuild);
 
 document.getElementById('randomizeBtn').addEventListener('click', () => {
@@ -480,7 +598,7 @@ const DEFAULTS = currentOptionsSnapshot();
 function currentOptionsSnapshot() {
   return {
     shape: 'icosahedron', detail: '1', strokes: '4', jank: '0.12', speed: '1',
-    opacity: '0.55', fillChk: true, fillColor: '#e8a33d', fillStyle: 'flat', fillOpacity: '0.9',
+    opacity: '0.55', lineWidth: '2', fillChk: true, fillColor: '#e8a33d', fillStyle: 'flat', fillOpacity: '0.9',
     palette: 'candy', bg: '#0e0e11', spin: '0.3',
   };
 }
@@ -491,6 +609,7 @@ document.getElementById('resetBtn').addEventListener('click', () => {
   document.getElementById('jankRange').value = DEFAULTS.jank;
   document.getElementById('speedRange').value = DEFAULTS.speed;
   document.getElementById('opacityRange').value = DEFAULTS.opacity;
+  document.getElementById('lineWidthRange').value = DEFAULTS.lineWidth;
   document.getElementById('fillChk').checked = DEFAULTS.fillChk;
   document.getElementById('fillColorInput').value = DEFAULTS.fillColor;
   document.getElementById('fillStyleSel').value = DEFAULTS.fillStyle;
@@ -532,6 +651,10 @@ document.getElementById('exportCodeBtn').addEventListener('click', () => {
 //     renderer.render(scene, camera);
 //     requestAnimationFrame(animate);
 //   }
+//   // Strokes are screen-space-width quads, not thin GL lines — call this on
+//   // resize (drawing-buffer pixels, i.e. CSS size * devicePixelRatio) or the
+//   // line width will drift from what the panel showed:
+//   //   illo.setResolution(canvas.width, canvas.height);
 //   // illo.dispose() when you're done with it.
 
 export ${GENERATOR_SOURCE}

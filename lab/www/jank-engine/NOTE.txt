@@ -1,1 +1,1 @@
-The link fetches fine, but only as raw undecoded pixel bytes — I have no image-reading step, so I still can't see it. Words (subject, colours, line weight) work better. Added a crosshatch fill option meanwhile.
+Re-checked the image link — still just raw undecoded bytes, same as before, that's a pipeline limit not something this site can fix. Spent this pass making the strokes real pixel-width lines instead of the 1px WebGL default, with a width slider.

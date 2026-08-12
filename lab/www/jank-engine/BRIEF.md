@@ -46,6 +46,29 @@ unmodified. New "Fill style" select, wired into `currentOptions()`,
 `REBUILD_ON`, `DEFAULTS`, and `resetBtn`. Disposed alongside the material
 in `dispose()`.
 
+Turn 3: the request that arrived was the requester asking (elsewhere, of
+the bot in general) "can you read images?", quoting this project as an
+example of good work that "can't read images" — not a new ask, the same
+question turn 2 already answered. `/tmp/lab-refs.md` fetched the same
+image URL again and got back the same undecoded WebP bytes, plus the
+GitHub profile/tree pages for `minormobius` (their account, not image
+content) — nothing new, confirms turn 2's finding rather than changing it.
+So this turn didn't re-litigate that; it worked plan item 2 instead:
+**strokes are now real screen-space-width lines**, not 1px
+`LineBasicMaterial`. Each stroke is a custom `THREE.ShaderMaterial` drawing
+a quad billboard per edge segment (six vertices, non-indexed, two
+triangles), thickened in the vertex shader by projecting both segment
+endpoints to clip space, finding the screen-space perpendicular, and
+offsetting by `uLineWidth` pixels — the hand-rolled version of three.js's
+Line2/LineMaterial addon, which isn't vendored here. New "Line width (px)"
+slider (1–8, default 2), wired into `currentOptions()`, `REBUILD_ON`,
+`DEFAULTS`, `resetBtn`, and the `LIVE` label list. `buildJankIllustration`
+now also returns `setResolution(w, h)`, which `resize()` calls (in device
+pixels) so the line width stays a constant number of screen pixels rather
+than drifting when the viewport or canvas changes — call it from any host
+scene the exported module is dropped into, too; the export file's usage
+comment says so.
+
 ## Decisions
 
 - **Style generator, not image reproduction.** Given the caption but not the
@@ -87,6 +110,28 @@ in `dispose()`.
   pre-displacement icosahedron, so the hatching should just look stretched
   wherever the displacement is largest, not broken — but I couldn't render
   it to confirm).
+- **Fat lines via a hand-rolled shader, not `THREE.Line2`.** The correct
+  three.js answer to "real line width" is the `Line2`/`LineMaterial`/
+  `LineGeometry` addon trio, which is not vendored (only the core `three.js`
+  module is, per the brief), so it was rebuilt from scratch: one quad
+  (6 vertices, non-indexed, two triangles) per edge segment per stroke, a
+  `ShaderMaterial` that computes the segment's screen-space direction from
+  both endpoints and offsets each corner by half the line width in pixels
+  along the perpendicular. Kept the CPU-side jitter model exactly as it was
+  (same `hash`/`phase`/`update()` math) rather than moving wobble into the
+  shader — displaced positions are still computed on the CPU once per
+  frame into a scratch buffer, then scattered onto both `aStart`/`aEnd`
+  attributes for every corner of every segment. More per-frame writes than
+  the old direct `LineSegments` (six corners instead of one vertex per
+  edge-geometry point) but still cheap at the capped detail levels.
+- **`mesh.frustumCulled = false` on every stroke.** The geometry's
+  `position` attribute is aliased onto `aStart`'s buffer purely so
+  three.js knows the draw's vertex count (the shader never reads
+  `position`), which makes any auto-computed bounding sphere reflect the
+  base pose, not the live jittered one. Rather than recomputing a bounding
+  sphere every frame for a shape that's on-screen almost by construction
+  (the wobble amplitude is tiny relative to camera distance), culling is
+  just off for these meshes.
 
 ## The plan
 
@@ -96,32 +141,38 @@ more depth generally):
 1. **The image still hasn't reached this build, and linking it won't fix
    that.** Turn 2 confirmed the harness only ever hands the agent raw file
    bytes for an image URL, not a description — there is no OCR/vision step
-   in this pipeline. The only way "match the actual picture" becomes
-   possible is if a future turn's task text itself *describes* the image
-   (subject, composition, line weight, colour story) — either because the
-   requester writes that description, or because some future harness
-   version adds an image-captioning pass before the agent runs. Don't
-   re-attempt pulling the link again expecting a different result; it's a
-   pipeline limit, not something this site's code can work around. If a
-   description does show up, matching it is the highest-value next step and
-   may mean a different geometry entirely (a figure, not a primitive) —
-   the wobble/fill mechanism itself should transfer.
-2. **Per-stroke width control.** WebGL line width is capped at 1px on most
-   platforms (`LineBasicMaterial.linewidth` is a known no-op there), which is
-   why the "ink" look currently comes entirely from overlapping jittered
-   strokes rather than thick lines. A proper fix is billboarded quad strokes
-   (screen-space thickened lines) instead of `LineSegments` — more work, but
-   would make the "line weight" of the jank a real, controllable thing
-   rather than an emergent side effect of stroke count.
+   in this pipeline. Turn 3's task re-fetched the exact same image URL
+   (asked elsewhere, not as a new instruction to this build) and got back
+   the same undecoded WebP bytes — confirms it, doesn't change it. The only
+   way "match the actual picture" becomes possible is if a future turn's
+   task text itself *describes* the image (subject, composition, line
+   weight, colour story) — either because the requester writes that
+   description, or because some future harness version adds an
+   image-captioning pass before the agent runs. Don't re-attempt pulling
+   the link again expecting a different result; it's a pipeline limit, not
+   something this site's code can work around. If a description does show
+   up, matching it is the highest-value next step and may mean a different
+   geometry entirely (a figure, not a primitive) — the wobble/fill
+   mechanism itself should transfer.
+2. ~~Per-stroke width control~~ — done in turn 3, via a hand-rolled fat-line
+   shader (see Decisions). **Not yet verified in a browser** — this is the
+   single highest-risk piece of code in the file (a custom vertex shader,
+   never rendered). If the harness's fix-pass or a report shows a blank
+   viewport, a stretched/exploded mesh, or lines that don't track the
+   wobble, start here — see Gotchas for the specific things to check first.
+   Possible follow-up once confirmed working: a per-stroke width (thinner
+   strokes read as "ghost" copies, thicker ones as the "main" line) instead
+   of one global width.
 3. ~~Crosshatch/scribble fill texture~~ — done in turn 2. Possible follow-up:
    a "scribble" variant (looser, less regular than the current straight
    diagonal grid) if the requester wants a rougher look; the current pattern
    is deliberately simple/legible.
 4. **Depth-sorted line rendering** — right now `depthWrite: false` on the
-   line material avoids most z-fighting between overlapping strokes, but at
+   stroke material avoids most z-fighting between overlapping strokes, but at
    some camera angles on `torusKnot`/`blob` the strokes on the far side can
    draw over near-side fill oddly. Untested on a real device; watch for it
-   first if a visual bug gets reported.
+   first if a visual bug gets reported (separate from the fat-line risk
+   above — this one predates it).
 
 ## Gotchas
 
@@ -133,12 +184,27 @@ more depth generally):
 - **I could not load this in a browser.** No Bash, no WebFetch. Everything
   above is careful reading, not verification. The three.js API calls
   (`EdgesGeometry`, `IcosahedronGeometry(radius, detail)`,
-  `TorusKnotGeometry` argument order, `LineSegments`, `.toBlob`) are from
-  memory/vendored-version knowledge (r169), not confirmed against a running
-  page — if the harness's one fix-pass flags something, look there first,
-  and at the `update()` loop's per-vertex trig (an off-by-one in the
-  `phase` array indexing is the likeliest spot for a silent glitch rather
-  than a crash).
+  `TorusKnotGeometry` argument order, `.toBlob`) are from memory/vendored-
+  version knowledge (r169), not confirmed against a running page — if the
+  harness's one fix-pass flags something, look there first, and at the
+  `update()` loop's per-vertex trig (an off-by-one in the `phase` array
+  indexing is the likeliest spot for a silent glitch rather than a crash).
+  **Turn 3's stroke shader is the highest-risk code in the file** — a
+  hand-written GLSL vertex shader that has never compiled against a real
+  GL context. If the strokes are missing/wrong after a browser pass, check
+  in this order: (1) `ShaderMaterial` needs `attribute`/`uniform`/no
+  `precision` qualifier issues — three.js auto-prepends `precision highp
+  float;` for the vertex stage, so the explicit `precision mediump float;`
+  in `STROKE_FRAG_SHADER` is required there (fragment shaders don't get an
+  automatic one) but would be a duplicate/error if ever added to the vertex
+  shader too; (2) `uResolution` being `[0, 0]` (e.g. if `setResolution` is
+  never called before first render) makes every offset `NaN` via division
+  by zero — `init()`'s first `rebuild()` happens after `resize()`, which
+  should avoid this, but double check `currentOptions()`'s `w`/`h` aren't
+  zero on a viewport that hasn't laid out yet; (3) the `aStart`/`aEnd`
+  buffers are written every frame in `update()` but only *created* once in
+  the stroke-building loop — a wrong `n`/`segCount` there would under/over-
+  fill and either throw or silently draw garbage at the tail.
 - **Detail is capped at 3** (icosahedron/sphere/box/torusKnot) and blob's
   effective subdivision is separately capped at 3 — deliberate, to keep the
   per-frame per-vertex jitter loop (`strokes × vertCount` trig calls every
@@ -156,6 +222,8 @@ more depth generally):
   alongside it in the module. The export path recovers the generator by
   calling `.toString()` on the function itself — anything it calls that
   lives outside its own body would be missing from the downloaded file.
-  Learned/applied when adding `hexToRgb`/`makeCrosshatchTexture` this turn;
-  keep doing it that way for whatever comes next (billboarded strokes,
-  scribble variant, etc).
+  Learned/applied when adding `hexToRgb`/`makeCrosshatchTexture` in turn 2
+  and again for the whole fat-line stroke system in turn 3 (shader source
+  strings, `resolution`, `dispScratch` — all nested inside the function, not
+  module-level). Keep doing it that way for whatever comes next (scribble
+  variant, per-stroke width, etc).
