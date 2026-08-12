@@ -33,7 +33,7 @@ _Regenerated 2026-08-12 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 79, bluesky 73, data 57, tools 56, work 8.
 
-**Neighborhood spark** (bisk 2026-08-12, 99 members / 290 posts):
+**Neighborhood spark** (bisk 2026-08-12, 99 members / 294 posts):
 - Mood: Fair 🌤 (trust)
 - Distinctive words: bluesky, idk, buildthis
 - Top post: "My politics at this point is just wanting justice for all the immigrants who have been so cruelly wronged" — @eugenevinitsky.bsky.social
