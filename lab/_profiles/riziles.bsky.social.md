@@ -8,5 +8,12 @@ Bluesky-data site. Suggests this requester sometimes uses the lab for quick
 novelties — a working demo they can test themselves seems to land better than
 a wall of prose.
 
-Only one data point so far; treat this as a starting guess, not a settled
-preference.
+`reproduce-this` (2026-08-12): asked to reproduce a referenced illustration in
+three.js, explicitly "highly customizable with controls" and with the
+generator code "exportable". Reinforces the pattern from `possible-enable`:
+this requester wants a real, tunable tool over a fixed decorative piece —
+exposing parameters as live controls and giving them a way to take the code
+with them lands better than a polished but closed one-off.
+
+Two data points now, same shape: favour working, adjustable, reusable
+output over a single fixed presentation.

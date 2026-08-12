@@ -1,0 +1,1 @@
+No image reached me, just the words "jank illustration" — so I built a tunable generator for that style (shaky multi-stroke ink over a flat fill) instead of guessing a picture. Say what's off and the next pass can aim closer.
