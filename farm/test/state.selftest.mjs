@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import {
   newFarm, plantSeed, growthOf, harvestPlant, sellProduce, pullSeeds, claimGift, giveSeed,
   applyBrew, usePreparation, toPlotRecord, fromPlotRecord, cropById, DAY_MS, FRESH_SPD, START_COINS, PREP_METAL,
+  touchStreak, recordShare, STREAK_CAP, STREAK_DEW_MIN, SHARE_COINS,
 } from '../js/state.js';
 import { prepare } from '../vendor/alchemy.js';
 import { bedKeepouts, plantable } from '../vendor/garden.js';
@@ -126,6 +127,29 @@ const ward = usePreparation(mk({ deliver: 'self', combat: { kind: 'debuff', turn
 ok(ward.ok && ward.farm.effects.wardUntil > T0, 'sedate → market ward');
 const oil = usePreparation(mk({ deliver: 'touch', lubricant: { chassis: 'servo' } }), 'z', T0);
 ok(oil.ok && oil.farm.mine.picksBonus === 1, 'oil → tempered picks');
+
+// ── streaks: one grant per UTC day, consecutive days extend, gaps reset, dew capped ──
+const DAY = 86400000;
+const st1 = touchStreak(p1.farm, T0);
+ok(st1.ok && st1.streak === 1, 'first visit starts the streak');
+ok(st1.farm.bed.plants[0].boost >= STREAK_DEW_MIN * 60000, 'streak settles dew on the plant');
+ok(!touchStreak(st1.farm, T0 + 1000).ok, 'same-day repeat is a no-op');
+const st2 = touchStreak(st1.farm, T0 + DAY);
+ok(st2.ok && st2.streak === 2, 'next day extends');
+const stGap = touchStreak(st2.farm, T0 + 4 * DAY);
+ok(stGap.ok && stGap.streak === 1, 'a gap resets the run');
+let stLong = st1.farm;
+for (let d = 1; d <= 10; d++) { const r = touchStreak(stLong, T0 + d * DAY); if (r.ok) stLong = r.farm; }
+ok(stLong.streak.run === 11 && (function () {
+  const r = touchStreak(stLong, T0 + 11 * DAY);
+  return r.dewMin === STREAK_CAP * STREAK_DEW_MIN;
+})(), 'dew grant caps at a week even as the run grows');
+
+// ── post-to-progress: one payout per deed, ever ──
+const sh1 = recordShare(f1, 'first-seed', T0);
+ok(sh1.ok && sh1.farm.coins === f1.coins + SHARE_COINS, 'sharing a deed pays the town crier');
+ok(!recordShare(sh1.farm, 'first-seed', T0 + 99).ok, 'a deed pays only once');
+ok(recordShare(sh1.farm, 'first-pull', T0).ok, 'a different deed pays fresh');
 
 // ── record round-trip ──
 const rec = toPlotRecord(h1.farm, tRipe);

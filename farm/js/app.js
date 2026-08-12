@@ -8,12 +8,14 @@
 import {
   newFarm, plantSeed, growthOf, harvestPlant, sellProduce, pullSeeds, claimGift, giveSeed,
   applyBrew, usePreparation, cropById, sellPrice, DAY_MS, PREP_METAL, PULL_COST, bedKeepouts, plantable,
+  touchStreak, recordShare, SHARE_COINS,
 } from './state.js';
 import * as Mine from './mine.js';
 import { ACHIEVEMENTS, byId as achById, evaluate as evalAch, markEarned, shareText } from './achievements.js';
 import * as Social from './social.js';
 import { FarmStore } from './store.js';
-import { drawFarm, clickToBed, hitPlant, corrForCrop } from './render.js';
+import { corrForCrop } from './render.js';
+import { createIso } from './iso.js';
 import { prepare, reagentEffect, PREPARATIONS } from '../vendor/alchemy.js';
 import { biomeById, progress, TIER_FOIL } from '../vendor/gacha.js';
 import { PLANETS as PKEYS } from '../vendor/planets.js';
@@ -41,8 +43,7 @@ let friendData = null;      // scanFriends result
 let profiles = new Map();
 let plantingCrop = null;    // seed selected for planting
 let benchPick = [];         // cropIds queued at the bench
-let bedItems = [];          // last drawn items (hit-testing)
-let visiting = null;        // { did, handle, farm, items } in visitor mode
+let isoMain = null;         // the field view (created in boot)
 
 async function boot() {
   ark = await (await fetch('./vendor/ark.json')).json();
@@ -63,9 +64,30 @@ async function boot() {
   else farm = newFarm(did, ark, now());
   if (store.user && !remote && local) store.save(farm, now(), { immediate: true });   // promotion
 
+  isoMain = createIso($('#bed'), { onTap: onFieldTap });
+
+  // the daily streak: first visit of the day settles dew, consecutive days compound (capped)
+  const st = touchStreak(farm, now());
+  if (st.ok) {
+    commit(st.farm);
+    if (st.plants > 0) toast('☀️ day ' + st.streak + ' streak — ' + st.dewMin + ' min of dew on every plant', st.streak > 1 ? 'ach' : 'ok', 8000);
+    else if (st.streak > 1) toast('☀️ day ' + st.streak + ' streak', 'ok');
+  }
+
   renderHeader(); renderAll();
   setInterval(() => { if ($('#tab-farm').classList.contains('on')) redrawBed(); }, 20_000);
   if (store.user) refreshFriends();   // background: tends boost + gifts at the gate
+}
+
+function onFieldTap({ bx, by, plantIdx }) {
+  if (plantIdx >= 0) { tryHarvest(farm.bed.plants[plantIdx].id); return; }
+  if (!plantingCrop) return;
+  const r = plantSeed(farm, bx, by, plantingCrop, ark, now());
+  if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+  commit(r.farm);
+  if (r.spd > 1) toast('⚡ fresh-broken ground — this one grows 4×', 'ok');
+  if (!farm.seeds[plantingCrop]) plantingCrop = null;
+  redrawBed();
 }
 
 function commit(next, { immediate = false } = {}) {
@@ -95,7 +117,11 @@ async function shareAch(id) {
   if (!store.user) { toast('sign in to post', 'warn'); return; }
   try {
     const res = await store.sharePost(shareText(a, store.user.handle));
-    if (res) toast('posted → <a href="' + esc(res.url) + '" target="_blank" rel="noopener">view on bsky</a>', 'ok', 9000);
+    if (res) {
+      toast('posted → <a href="' + esc(res.url) + '" target="_blank" rel="noopener">view on bsky</a>', 'ok', 9000);
+      const pay = recordShare(farm, id, now());   // play-and-post-to-progress: first share of a deed pays
+      if (pay.ok) { commit(pay.farm); toast('◈ +' + SHARE_COINS + ' — the town heard about it', 'ach'); }
+    }
   } catch (e) { toast('⚠ ' + esc(e.message), 'warn'); }
 }
 
@@ -108,9 +134,10 @@ function renderHeader() {
     auth.innerHTML = '<span class="me">@' + esc(store.user.handle) + '</span> <button id="logout">out</button>';
     $('#logout').onclick = () => store.logout().then(() => location.reload());
   } else {
-    auth.innerHTML = '<input id="handle" placeholder="you.bsky.social" size="16" /><button id="login">sign in</button>';
+    auth.innerHTML = '<input id="handle" placeholder="you.bsky.social" size="16" data-bsky-typeahead /><button id="login">sign in</button>';
     $('#login').onclick = () => { const h = $('#handle').value.trim(); if (h) store.login(h).catch((e) => toast('⚠ ' + esc(e.message), 'warn')); };
-    $('#handle').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#login').click(); });
+    $('#handle').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !$('.bsky-ta-drop.open')) $('#login').click(); });
+    if (window.bskyTypeahead) window.bskyTypeahead.attach($('#handle'));
   }
 }
 
@@ -130,8 +157,10 @@ function renderAll() { redrawBed(); renderSeedBag(); renderPantry(); renderDeeds
 
 // ── FARM tab ──────────────────────────────────────────────────────────────────────────────────────
 function redrawBed() {
-  const cv = $('#bed');
-  bedItems = drawFarm(cv, farm, ark, now(), tends);
+  if (isoMain) isoMain.update({
+    farm, ark, now: now(), tends, plantingCrop,
+    plantableAt: (nx, ny) => plantable(farm.bed, nx, ny, bedKeepouts(farm.bed.seed)),
+  });
   renderSeedBag(); renderPantry(); renderPlantInfo();
 }
 
@@ -148,7 +177,10 @@ function renderSeedBag() {
   $$('#seedbag .seed').forEach((b) => b.onclick = () => {
     plantingCrop = plantingCrop === b.dataset.seed ? null : b.dataset.seed;
     renderSeedBag();
-    $('#bedhint').textContent = plantingCrop ? 'click open soil to plant ' + (cropById(ark, plantingCrop) || {}).common : 'pick a seed, then click the soil — or click a ripe plant ✓ to harvest';
+    $('#bedhint').textContent = plantingCrop
+      ? 'tap a tilled tile to plant ' + (cropById(ark, plantingCrop) || {}).common + ' — green means it fits'
+      : 'drag to look around · scroll to zoom · pick a seed then tap the soil · tap a ripe plant ✓ to harvest';
+    if (isoMain) redrawBed();
   });
 }
 
@@ -189,22 +221,6 @@ function tryHarvest(plantId) {
   const c = cropById(ark, r.cropId);
   toast('🧺 ' + r.yield + '× ' + esc(c.common) + ' + ' + r.seeds + ' seed', 'ok');
   redrawBed();
-}
-
-function bindBed() {
-  const cv = $('#bed');
-  cv.addEventListener('click', (ev) => {
-    const { mx, my, x, y } = clickToBed(cv, ev);
-    const hit = hitPlant(cv, bedItems, mx, my);
-    if (hit >= 0) { tryHarvest(farm.bed.plants[hit].id); return; }
-    if (!plantingCrop) return;
-    const r = plantSeed(farm, x, y, plantingCrop, ark, now());
-    if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
-    commit(r.farm);
-    if (r.spd > 1) toast('⚡ fresh-broken ground — this one grows 4×', 'ok');
-    if (!farm.seeds[plantingCrop]) plantingCrop = null;
-    redrawBed();
-  });
 }
 
 // ── DESK tab (gacha) ──────────────────────────────────────────────────────────────────────────────
@@ -428,8 +444,8 @@ async function visitFarm(did) {
     '<div class="dim">💧 tends left for them today: ' + left + ' — each distinct friend’s tend grows a plant 10% faster</div>' +
     '<div id="visitplants"></div>';
   $('#visitclose').onclick = () => { box.innerHTML = ''; };
-  const theirTends = {};   // (their boost display would need their followers' repos — skip; growth shows raw)
-  drawFarm($('#visitbed'), theirFarm, ark, now(), theirTends);
+  const visitIso = createIso($('#visitbed'), {});   // read-only: no onTap wired
+  visitIso.update({ farm: theirFarm, ark, now: now(), tends: {}, readOnly: true });
   $('#visitplants').innerHTML = theirFarm.bed.plants.map((pl) => {
     const c = cropById(ark, pl.seedId);
     const g = growthOf(pl, c, now());
@@ -485,7 +501,9 @@ async function bootVisitor(u) {
       : '@' + esc(u) + ' has no farm yet — <a href="./">start yours</a>';
     if (!theirFarm) return;
     farm = theirFarm;   // read-only: no commit path runs in visitor mode
-    drawFarm($('#bed'), theirFarm, ark, now(), {});
+    const viewerIso = createIso($('#bed'), {});
+    const paint = () => viewerIso.update({ farm: theirFarm, ark, now: now(), tends: {}, readOnly: true });
+    paint();
     $('#plants').innerHTML = theirFarm.bed.plants.map((pl) => {
       const c = cropById(ark, pl.seedId);
       const g = growthOf(pl, c, now());
@@ -498,7 +516,7 @@ async function bootVisitor(u) {
         return '<span class="chip">' + esc(v.emoji || '🏅') + ' ' + esc(v.name || v.achievementId) + '</span>';
       }).join('');
     } else $('#pantryrow').innerHTML = '';
-    setInterval(() => drawFarm($('#bed'), theirFarm, ark, now(), {}), 30_000);
+    setInterval(paint, 30_000);
   } catch (e) {
     $('#bedhint').textContent = 'could not find @' + u + ' — ' + e.message;
   }
@@ -516,5 +534,4 @@ function toast(html, kind = 'ok', ms = 5000) {
 // ── wire the chrome ──────────────────────────────────────────────────────────────────────────────
 $$('.tab').forEach((t) => t.addEventListener('click', () => showTab(t.dataset.tab)));
 $('#vessel')?.addEventListener('change', () => renderBench());
-bindBed();
 boot().catch((e) => { console.error(e); toast('⚠ boot failed: ' + esc(e.message), 'warn', 20000); });

@@ -257,6 +257,44 @@ export function usePreparation(farm, itemId, now) {
   return { ok: true, farm: next, effect };
 }
 
+// ── the pacing loop: streaks + post-to-progress ───────────────────────────────────────────────────
+// Social-media pacing without the dark half: both bonuses are small, deterministic, and recorded in
+// the save so any viewer can audit them like everything else.
+
+export const STREAK_DEW_MIN = 5;     // minutes of dew per streak day, per plant…
+export const STREAK_CAP = 7;         // …capped at a week (35 min — a nudge, not an engine)
+export const SHARE_COINS = 25;       // the town-crier bonus: first share of EACH deed pays once
+
+const utcDay = (now) => new Date(now).toISOString().slice(0, 10);
+
+// touchStreak — call once at boot. First visit of a UTC day extends (or restarts) the streak and
+// settles dew on every growing plant, scaled by the run. Same-day repeats are no-ops.
+export function touchStreak(farm, now) {
+  const today = utcDay(now);
+  const s = farm.streak || { day: null, run: 0 };
+  if (s.day === today) return { ok: false, reason: 'already visited today', streak: s.run };
+  const next = clone(farm);
+  const yesterday = utcDay(now - 86400000);
+  const run = s.day === yesterday ? (s.run | 0) + 1 : 1;
+  next.streak = { day: today, run };
+  const dewMs = Math.min(STREAK_CAP, run) * STREAK_DEW_MIN * 60000;
+  for (const p of next.bed.plants) p.boost = (p.boost || 0) + dewMs;
+  next.updatedAt = now;
+  return { ok: true, farm: next, streak: run, dewMin: dewMs / 60000, plants: next.bed.plants.length };
+}
+
+// recordShare — the play-and-post-to-progress hook: posting a deed to Bluesky pays SHARE_COINS,
+// once per deed ever (the ledger is the save's sharedDeeds list).
+export function recordShare(farm, achId, now) {
+  const done = farm.sharedDeeds || [];
+  if (done.includes(achId)) return { ok: false, reason: 'already paid for this deed' };
+  const next = clone(farm);
+  next.sharedDeeds = [...done, achId];
+  next.coins += SHARE_COINS;
+  next.updatedAt = now;
+  return { ok: true, farm: next, coins: SHARE_COINS };
+}
+
 // ── record shape: the whole farm IS one com.minomobi.farm.plot record (rkey `self`). ──
 export function toPlotRecord(farm, now) {
   return { $type: 'com.minomobi.farm.plot', v: 1, farm, updatedAt: new Date(now).toISOString() };
