@@ -526,6 +526,30 @@ changed, just the numbers, so nothing anyone was relying on ("item 12", "item
 
 No code changed this turn.
 
+Turn 18 shipped in response to "Good knight (go sleep pls) and ty" — a sign-off,
+not a request: it names nothing on the page, thanks the bot, and tells it to
+rest, so it was read the same way turns 2/3/7/8/10/14/15/16/17 were — chatter,
+not an ask. Checked the plan for an ungated item first, same result as every
+recent turn: everything left (§9 fx follow-up, §10 "Tangible" follow-up, §12
+second market, §13 downloadable animation, §14 demand-decay) is explicitly
+conditioned on a specific future request naming it.
+
+Turns 14/15/17 already did a full reread of the script, `pds.js`/README, and
+`kit.js` with nothing outstanding; turn 16 spot-checked the areas most likely to
+drift. This turn covered the one surface those hadn't explicitly named:
+`lab/_kit/tokens.css` in full, checked against every custom property and
+pattern this page relies on (`--bg`, `--bg-raised`, `--border`, `--fg`,
+`--muted`, `--accent`, `--accent-dim`, `--error`/`--error-bg`, `--ok`,
+`--radius`; the reduced-motion rule capping declarative `animation`/
+`transition` only, never `requestAnimationFrame`, which is exactly the
+assumption `flashLightning`'s comment and the `#fx`/rAF split both depend on).
+All match. No bug found, no code changed.
+
+If a future message from thegodfungi.bsky.social does turn out to want
+something new, nothing here needs undoing first — the site is in a clean,
+fully-working state with every plan item either shipped or explicitly waiting
+on a concrete ask.
+
 ## The plan (not built yet, roughly in order)
 
 1. ~~Save the gallery to the visitor's own repo~~ — done turn 2.
