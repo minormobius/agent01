@@ -17,3 +17,10 @@ with them lands better than a polished but closed one-off.
 
 Two data points now, same shape: favour working, adjustable, reusable
 output over a single fixed presentation.
+
+Follow-up on `reproduce-this` (2026-08-12): replied asking to just link the
+source image directly ("can you pull it from the link?"). Consistent with
+`possible-enable` — this requester probes the tool's actual capabilities
+with a direct question rather than assuming, so it's worth answering
+capability questions plainly and specifically (what was tried, what came
+back, why it didn't work) rather than a generic "I can't see images."
