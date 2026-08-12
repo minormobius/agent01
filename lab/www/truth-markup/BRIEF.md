@@ -499,6 +499,33 @@ to a bot"), that's a real, buildable idea on its own terms — but guessing it
 from one ambiguous line risks building something nobody asked for, so it
 wasn't started.
 
+Turn 17 shipped in response to "well done, can't believe noone has tried them"
+— praise naming nothing on the page (no concept like "session instances" or
+"squirrel" to chase, and "them" doesn't point at a specific buildable thing),
+same shape as turns 2/3/7/8/10/14/15/16. Checked the plan for an ungated item
+first — same result as turns 14/15/16: everything left (§9 fx-canvas testing
+note, §10 "Tangible" follow-up, §12 second market, §13 downloadable animation,
+§14 demand-decay) is explicitly conditioned on a specific future request
+naming it, not a "do this next" item.
+
+Turns 14 and 15 already did a full-file reread and a full `pds.js`/README
+contract check with nothing outstanding; turn 16 spot-checked the areas most
+likely to drift. This turn covered the one surface those hadn't explicitly
+named: read `lab/_kit/kit.js` in full and checked every call this page makes
+against it — `kit.showError`, `kit.copy`, `kit.crumb`, `kit.handleInput`
+(both `rivalInput` and `handleInput` pass `{ onPick }` correctly, and neither
+input is re-wrapped, so `_kitTypeahead`'s idempotency guard is never hit
+twice). All match the kit's actual contract; no bug found.
+
+Also fixed a pre-existing bug in this file, not the site: the plan list below
+had two items both numbered "8" (a leftover from separate edits landing out of
+order across turns) and a "10" that had drifted to the very end, after "13".
+Renumbered 8 through 14 in the order they actually appear — no content
+changed, just the numbers, so nothing anyone was relying on ("item 12", "item
+13") shifted meaning.
+
+No code changed this turn.
+
 ## The plan (not built yet, roughly in order)
 
 1. ~~Save the gallery to the visitor's own repo~~ — done turn 2.
@@ -527,28 +554,27 @@ wasn't started.
    shared log axis in one sentence.
 8. **Not built:** the sign-in merge (item 2, above) is still untested past
    reading the code carefully — there's no way to exercise an OAuth
-   round-trip from this sandbox. Same for this turn's export button: the
+   round-trip from this sandbox. Same for the export button (turn 4): the
    composite math (grid layout, `roundRect` clipping, the download link) is
    correct on paper but has never actually run in a browser. If a
    screenshot/report shows a blank or malformed download, check
    `canvas.toDataURL` isn't throwing on a tainted canvas first — it
    shouldn't be, every source canvas is drawn by this page's own script, not
    loaded from any origin — before suspecting the grid math.
-
-8. **The fx canvas is untested in a browser.** The composite math (edge
+9. **The fx canvas is untested in a browser.** The composite math (edge
    entry, rotation, trail fade, `roundRect`-free path drawing) is correct on
    paper — watch the screenshot for whether the shuriken is visible against
    `--bg-raised` (color is `cssVar('--fg')`, should have plenty of
    contrast) and whether it's positioned over the chart rather than offset
    from it, which would mean the "containing block is the padding box"
    assumption above was wrong for the actual browser.
-9. "Tangible" reads like it was answering an earlier question — possibly
-   from the harness or a DM not present in the captured thread — about
-   whether the requester wanted this abstract (numbers only) or physical
-   (something rendered/moving). If a follow-up pushes further in that
-   direction (more particles, a bigger burst, a full "cut" animation on the
-   gallery tile itself when it's created), that's the next step in this
-   line rather than a new one.
+10. "Tangible" reads like it was answering an earlier question — possibly
+    from the harness or a DM not present in the captured thread — about
+    whether the requester wanted this abstract (numbers only) or physical
+    (something rendered/moving). If a follow-up pushes further in that
+    direction (more particles, a bigger burst, a full "cut" animation on the
+    gallery tile itself when it's created), that's the next step in this
+    line rather than a new one.
 11. **Plain-English glossary** — done turn 12: a one-sentence gloss under
     each asset name in the breakdown table (`a.gloss`, `.asset-gloss`).
 12. **Possibly: a second market area**, if a follow-up names one concretely.
@@ -564,8 +590,7 @@ wasn't started.
     should be cheap), or an animated PNG built by hand-assembling `acTL`/
     `fcTL`/`fdAT` chunks around frames the existing `toDataURL` path already
     produces. Both are real work, not a tweak.
-
-10. ~~Demand rises with supply of dispelled truth~~ — done turn 9, as a
+14. ~~Demand rises with supply of dispelled truth~~ — done turn 9, as a
     global `demandFactor()` pushing every price up to ~40% past "true value"
     at full purity. **Not built, worth doing next if this line continues:**
     demand currently only ever rises (it's a pure function of `overallPurity`,
@@ -576,6 +601,17 @@ wasn't started.
     separate from `overallPurity` which should probably stay a pure function
     of dispel state) rather than turning `demandFactor` itself into something
     with memory.
+
+## Screenshot review (turn 17)
+
+Same frame as turns 15/16's reviews — no code changed this turn (turn 17 was a
+kit-contract check plus a numbering fix in this file, nothing in the shipped
+page). Header, breadcrumb, lede, the five-line chart sitting in its log-scale
+bands (HBM/red highest, supply/purple just under, DRAM/orange and
+transfer/blue overlapping mid-band, NAND/green alone near the bottom with the
+expected wide gap above it), legend, and the chart-note caption all rendered
+cleanly at 1200x800. Nothing off-screen, overlapping, or unreadable. No
+changes made.
 
 ## Screenshot review (turn 16)
 
