@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diffuse — watch a pacing rule stop cycling as the market grows</title>
+<meta name="description" content="A repeated single-item ad auction where every bidder paces its own budget with the standard multiplicative rule. At two or three bidders the pacing can stall or cycle; slide the population past a thousand and watch the same rule snap into a straight line on a log-scale convergence plot.">
+<meta property="og:title" content="Diffuse — watch a pacing rule stop cycling as the market grows">
+<meta property="og:description" content="A repeated single-item ad auction where every bidder paces its own budget with the standard multiplicative rule. At two or three bidders the pacing can stall or cycle; slide the population past a thousand and watch the same rule snap into a straight line on a log-scale convergence plot.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root {
+    --accent: #4fd1c5;
+    --accent-dim: #12302d;
+    --accent-rgb: 79, 209, 197;
+  }
+  body { max-width: 960px; margin: 0 auto; padding: 16px 16px 64px; }
+  h1 { font-size: clamp(1.4rem, 4.2vw, 2.1rem); margin: 8px 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: .92rem; }
+  .box {
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; margin: 0 0 18px;
+  }
+  .honest {
+    border-color: var(--accent); background: var(--accent-dim);
+  }
+  .honest h2 { margin-top: 0; color: var(--accent); }
+  .honest p, .honest li { color: var(--fg); }
+  h2 { font-size: 1rem; margin: 0 0 10px; }
+  .layout { display: grid; grid-template-columns: 1fr; gap: 18px; }
+  @media (min-width: 800px) { .layout { grid-template-columns: 1.15fr .85fr; } }
+  .slider-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 4px 0 14px; }
+  .slider-row label { font-size: .85rem; color: var(--muted); flex: none; }
+  input[type=range] { flex: 1 1 200px; min-width: 160px; width: 100%; height: 44px; accent-color: var(--accent); background: transparent; }
+  #nLabel { font-weight: 700; color: var(--accent); min-width: 4.5ch; text-align: right; }
+  button { width: 100%; }
+  .btn-shiny {
+    background: linear-gradient(135deg, var(--accent), #cdebe8);
+    color: #08201d; border: none; font-weight: 700;
+    box-shadow: 0 0 0 1px rgba(var(--accent-rgb), .5), 0 0 18px rgba(var(--accent-rgb), .45);
+  }
+  .btn-shiny:hover { background: linear-gradient(135deg, #cdebe8, var(--accent)); color: #08201d; }
+  #status { font-size: .88rem; margin: 10px 0 4px; min-height: 1.4em; }
+  #plotWrap { margin: 10px 0 6px; }
+  #plotImg { width: 100%; height: auto; border-radius: 8px; background: #fff; }
+  #plotImg:not([hidden]) { display: block; }
+  #copyBtn { margin-top: 8px; }
+  code, pre { color: var(--accent); }
+  pre { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; overflow-x: auto; font-size: .8rem; }
+  ul.rivals { list-style: none; padding: 0; margin: 10px 0 0; }
+  ul.rivals li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: .85rem; color: var(--fg); }
+  .stack { display: flex; flex-direction: column; gap: 8px; }
+  .field-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .field-row input[type=text] { flex: 1 1 180px; }
+  .field-row button { width: auto; flex: none; }
+</style>
+</head>
+<body>
+<script>document.write(kit.crumb('diffuse'));</script>
+
+<h1>Diffuse</h1>
+<p class="sub">One item, sold every round, to whoever pays the most. Every bidder paces its own budget the same simple way real ad platforms do. Turn the population dial and watch whether the pacing settles down.</p>
+
+<div class="box honest">
+  <h2>What this actually is, honestly</h2>
+  <p>The paper behind this toy proves that computing an autobidding equilibrium is worst-case intractable with a <em>handful</em> of bidders (an "atomic" market), but that the hardness disappears once bidder values are drawn from a large, diffuse population — and it hands over a solver with a proven <strong>geometric</strong> convergence rate for that regime.</p>
+  <p><strong>This page does not run that solver.</strong> It runs the ordinary multiplicative pacing heuristic that real ad platforms use — no monotone-equilibrium guarantee, no proof. What you're watching is whether that ordinary heuristic <em>happens</em> to echo the paper's qualitative signature (a stalling, cycling plot at low population that straightens into a clean decaying line at high population), not a demonstration that the guarantee applies to it. It usually doesn't, and the page isn't claiming otherwise.</p>
+</div>
+
+<div class="layout">
+  <div>
+    <div class="box">
+      <h2>Run the market</h2>
+      <div class="slider-row">
+        <label for="nSlider">bidders</label>
+        <input type="range" id="nSlider" min="0" max="100" value="40" step="1" aria-describedby="nLabel">
+        <span id="nLabel">32</span>
+      </div>
+      <button id="runBtn" class="btn-shiny" type="button">Run 400 rounds</button>
+      <div id="status" role="status" aria-live="polite"></div>
+      <div id="errBox" class="err" hidden></div>
+      <div id="plotWrap">
+        <img id="plotImg" alt="Aggregate pacing step size per round, log scale" hidden>
+      </div>
+      <button id="copyBtn" class="btn-shiny" type="button" disabled>copy image</button>
+    </div>
+
+    <div class="box">
+      <h2>How this market works</h2>
+      <p>Every round, all <code>N</code> bidders draw a value for the one item on offer and bid <code>α<sub>i</sub> · v<sub>i</sub></code>, where <code>α<sub>i</sub></code> is bidder <code>i</code>'s own pacing multiplier. Highest bid wins and pays the second-highest (a sealed-bid second-price auction). After each round every bidder — winner or not — nudges its own multiplier:</p>
+      <pre>α_i ← clip( α_i · exp( −η · (spend_i − ρ_i) ), 0.02, 1 )</pre>
+      <p>where <code>spend_i</code> is a running average of what <code>i</code> has actually paid and <code>ρ_i</code> is its target spend rate per round. Each bidder's target scales as <code>1/N</code> — a fair share of the one item on offer shrinks as the crowd grows, which is what makes "population size" the same knob as the paper's "diffuse" framing rather than just a bigger loop.</p>
+      <p>The plot's y-axis is the root-mean-square size of that round's <code>α</code> update across every bidder, on a log scale. When bidders stop adjusting, that line hits the floor and stays there — read that as "locked in". A line that keeps climbing back up hasn't settled — read that as "still moving", and possibly cycling: a couple of large bidders can keep out-jostling each other indefinitely, which is exactly the atomic case the paper says is hard.</p>
+    </div>
+  </div>
+
+  <div>
+    <div class="box">
+      <h2>fastest to lock in</h2>
+      <p>Submit how many rounds your last run took to lock in. Lower is better — you're racing to find a population size (and luck of the draw) that settles fast.</p>
+      <div class="stack">
+        <input type="text" id="myHandle" placeholder="your handle, to submit a run">
+        <button id="submitBtn" type="button" disabled>submit this run's lock time</button>
+        <div id="submitMsg" class="ok" style="min-height:1.2em"></div>
+      </div>
+      <hr style="border-color:var(--border); margin:14px 0;">
+      <div class="field-row">
+        <input type="text" id="rivalHandle" placeholder="a handle to compare against">
+      </div>
+      <ul class="rivals" id="rivalsList"></ul>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { labPds } from '../_kit/pds.js';
+
+  const T = 400, RHO_FRAC = 0.4, ETA = 0.3, BETA = 0.06, ALPHA_MIN = 0.02;
+  const LOCK_EPS = 0.0015, WARMUP = 30, WINDOW = 25;
+
+  const nSlider = document.getElementById('nSlider');
+  const nLabel = document.getElementById('nLabel');
+  const runBtn = document.getElementById('runBtn');
+  const statusEl = document.getElementById('status');
+  const errEl = document.getElementById('errBox');
+  const plotImg = document.getElementById('plotImg');
+  const copyBtn = document.getElementById('copyBtn');
+  const myHandle = document.getElementById('myHandle');
+  const rivalHandle = document.getElementById('rivalHandle');
+  const submitBtn = document.getElementById('submitBtn');
+  const submitMsg = document.getElementById('submitMsg');
+  const rivalsList = document.getElementById('rivalsList');
+
+  const store = labPds();
+
+  function currentN() {
+    const pos = Number(nSlider.value);
+    return Math.max(2, Math.round(2 * Math.pow(1000, pos / 100)));
+  }
+  function updateNLabel() { nLabel.textContent = currentN().toLocaleString(); }
+  nSlider.addEventListener('input', updateNLabel);
+  updateNLabel();
+
+  function simulate(N) {
+    const bValue = new Array(N), rho = new Array(N);
+    const alpha = new Array(N).fill(1);
+    const emaSpend = new Array(N).fill(0);
+    for (let i = 0; i < N; i++) {
+      bValue[i] = 0.6 + Math.random() * 1.2;
+      rho[i] = (RHO_FRAC * bValue[i]) / N;
+    }
+    const rounds = [], logSteps = [];
+    const rawSteps = new Array(T + 1).fill(0);
+    for (let t = 1; t <= T; t++) {
+      let maxBid = -Infinity, maxI = -1, secondBid = 0;
+      for (let i = 0; i < N; i++) {
+        const v = bValue[i] * (0.7 + Math.random() * 0.6);
+        const b = alpha[i] * v;
+        if (b > maxBid) { secondBid = maxBid > -Infinity ? maxBid : 0; maxBid = b; maxI = i; }
+        else if (b > secondBid) { secondBid = b; }
+      }
+      const price = N > 1 ? Math.max(secondBid, 0) : 0;
+      let sumSqStep = 0;
+      for (let i = 0; i < N; i++) {
+        const spend = (i === maxI) ? price : 0;
+        emaSpend[i] = (1 - BETA) * emaSpend[i] + BETA * spend;
+        const gap = emaSpend[i] - rho[i];
+        const newAlpha = Math.min(1, Math.max(ALPHA_MIN, alpha[i] * Math.exp(-ETA * gap)));
+        const step = Math.abs(newAlpha - alpha[i]);
+        sumSqStep += step * step;
+        alpha[i] = newAlpha;
+      }
+      const rms = Math.sqrt(sumSqStep / N);
+      rawSteps[t] = rms;
+      rounds.push(t);
+      logSteps.push(Math.log10(Math.max(rms, 1e-6)));
+    }
+    const trail = new Array(T + 1).fill(Infinity);
+    for (let t = 1; t <= T; t++) {
+      let s = 0, c = 0;
+      for (let k = Math.max(1, t - WINDOW + 1); k <= t; k++) { s += rawSteps[k]; c++; }
+      trail[t] = s / c;
+    }
+    let lockRound = -1;
+    for (let t = T; t >= WARMUP; t--) {
+      if (trail[t] > LOCK_EPS) break;
+      lockRound = t;
+    }
+    return { rounds, logSteps, lockRound, finalTrail: trail[T] };
+  }
+
+  function buildChartSVG(rounds, logSteps, lockRound, W, H) {
+    const m = { l: 56, r: 16, t: 16, b: 36 };
+    const iw = W - m.l - m.r, ih = H - m.t - m.b;
+    const xmin = 0, xmax = Math.max(rounds.length - 1, 1);
+    let ymin = Math.min.apply(null, logSteps), ymax = Math.max.apply(null, logSteps);
+    if (ymin === ymax) { ymin -= 1; ymax += 1; }
+    const pad = (ymax - ymin) * 0.08;
+    ymin -= pad; ymax += pad;
+    const sx = (x) => m.l + (x - xmin) / (xmax - xmin || 1) * iw;
+    const sy = (y) => m.t + ih - (y - ymin) / (ymax - ymin || 1) * ih;
+    const GRID = '#e3e3e3', SPINE = '#555', MUTE = '#777', INK = '#161616', FONT = 'ui-monospace,Menlo,monospace';
+    let body = '';
+    for (let i = 0; i <= 5; i++) {
+      const yv = ymin + (ymax - ymin) * i / 5, yy = sy(yv);
+      body += '<line x1="' + m.l + '" y1="' + yy.toFixed(1) + '" x2="' + (m.l + iw) + '" y2="' + yy.toFixed(1) + '" stroke="' + GRID + '" stroke-width="1"/>';
+      body += '<text x="' + (m.l - 8) + '" y="' + (yy + 3).toFixed(1) + '" font-size="9.5" fill="' + MUTE + '" text-anchor="end" font-family="' + FONT + '">' + yv.toFixed(1) + '</text>';
+    }
+    for (let i = 0; i <= 5; i++) {
+      const xv = Math.round(xmin + (xmax - xmin) * i / 5), xx = sx(xv);
+      body += '<line x1="' + xx.toFixed(1) + '" y1="' + (m.t + ih) + '" x2="' + xx.toFixed(1) + '" y2="' + (m.t + ih + 4) + '" stroke="' + SPINE + '" stroke-width="1"/>';
+      body += '<text x="' + xx.toFixed(1) + '" y="' + (m.t + ih + 15) + '" font-size="9.5" fill="' + MUTE + '" text-anchor="middle" font-family="' + FONT + '">' + xv + '</text>';
+    }
+    body += '<line x1="' + m.l + '" y1="' + m.t + '" x2="' + m.l + '" y2="' + (m.t + ih) + '" stroke="' + SPINE + '" stroke-width="1"/>';
+    body += '<line x1="' + m.l + '" y1="' + (m.t + ih) + '" x2="' + (m.l + iw) + '" y2="' + (m.t + ih) + '" stroke="' + SPINE + '" stroke-width="1"/>';
+    const lockY = sy(Math.log10(LOCK_EPS));
+    if (lockY >= m.t - 1 && lockY <= m.t + ih + 1) {
+      body += '<line x1="' + m.l + '" y1="' + lockY.toFixed(1) + '" x2="' + (m.l + iw) + '" y2="' + lockY.toFixed(1) + '" stroke="' + MUTE + '" stroke-width="1" stroke-dasharray="4,3"/>';
+      body += '<text x="' + (m.l + 4) + '" y="' + (lockY - 4).toFixed(1) + '" font-size="9" fill="' + MUTE + '" font-family="' + FONT + '">locked-in threshold</text>';
+    }
+    if (lockRound != null && lockRound >= 0) {
+      const lx = sx(lockRound);
+      body += '<line x1="' + lx.toFixed(1) + '" y1="' + m.t + '" x2="' + lx.toFixed(1) + '" y2="' + (m.t + ih) + '" stroke="#D55E00" stroke-width="1.2" stroke-dasharray="3,3"/>';
+      body += '<text x="' + (lx + 4).toFixed(1) + '" y="' + (m.t + 12) + '" font-size="9" fill="#D55E00" font-family="' + FONT + '">locked at ' + lockRound + '</text>';
+    }
+    const pts = rounds.map((r, i) => sx(r).toFixed(1) + ',' + sy(logSteps[i]).toFixed(1)).join(' ');
+    body += '<polyline points="' + pts + '" fill="none" stroke="#0072B2" stroke-width="1.8"/>';
+    body += '<text x="' + (m.l + iw / 2) + '" y="' + (H - 4) + '" font-size="10.5" fill="' + INK + '" text-anchor="middle" font-family="' + FONT + '">round</text>';
+    body += '<text x="12" y="' + (m.t + ih / 2).toFixed(1) + '" font-size="10.5" fill="' + INK + '" text-anchor="middle" font-family="' + FONT + '" transform="rotate(-90 12 ' + (m.t + ih / 2).toFixed(1) + ')">log10(pacing step size)</text>';
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="Aggregate pacing step size, log scale, over ' + rounds.length + ' rounds"><rect width="' + W + '" height="' + H + '" fill="#ffffff"/>' + body + '</svg>';
+  }
+
+  function svgToImageBlob(svgString, w, h) {
+    return new Promise((resolve, reject) => {
+      const svg64 = btoa(unescape(encodeURIComponent(svgString)));
+      const img = new Image();
+      img.onload = () => {
+        const scale = 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = w * scale; canvas.height = h * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(scale, scale);
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('rasterize failed')), 'image/png');
+      };
+      img.onerror = () => reject(new Error('svg failed to load as an image'));
+      img.src = 'data:image/svg+xml;charset=utf-8;base64,' + svg64;
+    });
+  }
+
+  let runSeq = 0, lastBlob = null, lastLockRound = -1, lastN = 0;
+
+  async function runOnce() {
+    const my = ++runSeq;
+    const N = currentN();
+    runBtn.disabled = true;
+    kit.clear(errEl);
+    statusEl.textContent = 'running ' + N.toLocaleString() + ' bidders through ' + T + ' rounds…';
+    try {
+      const { rounds, logSteps, lockRound, finalTrail } = simulate(N);
+      if (my !== runSeq) return;
+      const svgStr = buildChartSVG(rounds, logSteps, lockRound, 620, 300);
+      const blob = await svgToImageBlob(svgStr, 620, 300);
+      if (my !== runSeq) return;
+      if (plotImg.src && plotImg.src.indexOf('blob:') === 0) URL.revokeObjectURL(plotImg.src);
+      plotImg.src = URL.createObjectURL(blob);
+      plotImg.hidden = false;
+      lastBlob = blob; lastLockRound = lockRound; lastN = N;
+      copyBtn.disabled = false;
+      if (lockRound >= 0) {
+        statusEl.textContent = 'Locked in ✓ — the pacing multipliers stopped moving by round ' + lockRound + ' of ' + T + '.';
+        submitBtn.disabled = false;
+      } else {
+        statusEl.textContent = 'Still moving — average step ' + finalTrail.toExponential(2) + ' after ' + T + ' rounds. Try a larger population.';
+        submitBtn.disabled = true;
+      }
+    } catch (e) {
+      if (my !== runSeq) return;
+      kit.showError(errEl, 'simulation failed: ' + e.message);
+      statusEl.textContent = '';
+    } finally {
+      if (my === runSeq) runBtn.disabled = false;
+    }
+  }
+  runBtn.addEventListener('click', runOnce);
+
+  copyBtn.addEventListener('click', async () => {
+    if (!lastBlob) return;
+    const was = copyBtn.textContent;
+    try {
+      if (navigator.clipboard && window.isSecureContext && window.ClipboardItem) {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': lastBlob })]);
+        copyBtn.textContent = 'copied';
+      } else {
+        throw new Error('no image clipboard here — long-press the plot instead');
+      }
+    } catch (e) {
+      copyBtn.textContent = 'copy failed';
+    }
+    setTimeout(() => { copyBtn.textContent = was; }, 1200);
+  });
+
+  kit.handleInput(myHandle, { onPick: () => {} });
+  kit.handleInput(rivalHandle, { onPick: (h) => loadRivals(h) });
+  rivalHandle.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadRivals(e.target.value.trim()); });
+
+  async function loadRivals(handle) {
+    if (!handle) return;
+    kit.clear(errEl);
+    rivalsList.innerHTML = '<li>looking up ' + handle + '…</li>';
+    try {
+      const scores = await store.scoresOf(handle);
+      const ranked = store.rank(scores.filter((s) => s.game === 'diffuse-lock'));
+      if (!ranked.length) { rivalsList.innerHTML = '<li>no submitted runs from ' + handle + ' yet</li>'; return; }
+      rivalsList.innerHTML = ranked.slice(0, 10).map((s) =>
+        '<li><span>' + s.value + ' rounds to lock</span><span>' + (s.detail || '') + '</span></li>'
+      ).join('');
+    } catch (e) {
+      rivalsList.innerHTML = '';
+      kit.showError(errEl, 'could not read runs for ' + handle + ': ' + e.message);
+    }
+  }
+
+  submitBtn.addEventListener('click', async () => {
+    kit.clear(errEl);
+    if (lastLockRound == null || lastLockRound < 0) return;
+    try {
+      if (!store.user()) {
+        const handle = myHandle.value.trim();
+        if (!handle) { kit.showError(errEl, 'type your handle above first'); return; }
+        submitMsg.textContent = 'signing in…';
+        await store.signIn(handle, { scores: true });
+        return;
+      }
+      submitMsg.textContent = 'submitting…';
+      await store.postScore(lastLockRound, { unit: 'rounds', higherIsBetter: false, detail: 'N=' + lastN, game: 'diffuse-lock' });
+      submitMsg.textContent = 'submitted: locked at round ' + lastLockRound + ' with N=' + lastN;
+    } catch (e) {
+      submitMsg.textContent = '';
+      kit.showError(errEl, 'submit failed: ' + e.message);
+    }
+  });
+
+  (async () => {
+    await store.ready();
+    if (store.user()) { myHandle.value = store.user().handle; submitMsg.textContent = 'signed in as ' + store.user().handle; }
+  })();
+
+  runOnce();
+</script>
+</body>
+</html>
