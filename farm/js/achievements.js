@@ -40,6 +40,10 @@ export const ACHIEVEMENTS = [
   { id: 'good-human',    emoji: '💕', name: 'Good Human',         desc: 'Pet your animals thirty times',               test: (f) => (f.stats.pets | 0) >= 30 },
   { id: 'provisioner',   emoji: '🥚', name: 'Provisioner',        desc: 'Collect one hundred goods',                   test: (f) => (f.stats.goodsCollected | 0) >= 100 },
   { id: 'hedge-wizard',  emoji: '✨', name: 'Hedge Wizard',       desc: 'Gather fifty forage sparkles',                test: (f) => (f.stats.foraged | 0) >= 50 },
+  { id: 'forge-lit',     emoji: '⚒️', name: 'The Forge Lit',      desc: 'Raise a forge on your land',                  test: (f) => !!f.forge },
+  { id: 'first-pour',    emoji: '🫕', name: 'First Pour',         desc: 'Smelt your first alloy',                      test: (f) => (f.stats.alloysSmelted | 0) >= 1 },
+  { id: 'under-signs',   emoji: '🪬', name: 'Sown Under Signs',   desc: 'Forge a planetary charm',                     test: (f) => (f.stats.charmsForged | 0) >= 1 },
+  { id: 'full-heavens',  emoji: '☄️', name: 'The Full Heavens',   desc: 'Hang all seven charms by the anvil',          test: (f) => Object.keys((f.forge && f.forge.charms) || {}).length >= 7 },
   { id: 'all-lands',     emoji: '🌐', name: 'The Whole Ark',      desc: 'Unlock every ecosystem pack',                 test: (f, ark) => (f.packs || []).length >= ((ark && ark.biomes) || []).length && (f.packs || []).length > 1 },
 ];
 

@@ -13,7 +13,7 @@ import {
   animalCap, animalPos, forageSpots, forage, grantWildseed, FORAGE_WINDOW_MS,
   WATER_MS, DRY_RATE, waterPlant, isWatered, irrigated, isInfested, pestWindow, treatPest,
   fertilizePlant, buySupply, research, TECHS, hasTech, techChecks, placeSprinkler,
-  SPRINKLER_COST, SUPPLY_COST, ORGANIC_PREMIUM, sellPriceOrganic, FERT_BUMP, FERT_MAX,
+  SPRINKLER_COST, SUPPLY_COST, ORGANIC_PREMIUM, sellPrice, sellPriceOrganic, SAT_K, SAT_RATE, FERT_BUMP, FERT_MAX,
   PEST_WINDOW_MS, PEST_BITE, SPRAY_IMMUNE_W,
 } from '../js/state.js';
 import { prepare } from '../vendor/alchemy.js';
@@ -117,6 +117,16 @@ const warded = JSON.parse(JSON.stringify(h1.farm)); warded.effects.wardUntil = t
 const sell2 = sellProduce(warded, starterCrop, 2, ark, tRipe);
 ok(sell2.coins > sell1.coins, 'market ward raises the price');
 ok(!sellProduce(h1.farm, starterCrop, 0, ark, tRipe).ok, 'zero sale rejected');
+// market saturation: the village's daily appetite for any ONE crop
+{
+  const glut = JSON.parse(JSON.stringify(h1.farm)); glut.pantry = { [starterCrop]: SAT_K + 6 };
+  const day1 = sellProduce(glut, starterCrop, SAT_K + 6, ark, tRipe);
+  ok(day1.ok && day1.saturated && day1.coins === Math.round(sellPriceOrganic(crop) * (SAT_K + 6 * SAT_RATE)), 'past SAT_K units the price falls to ×' + SAT_RATE);
+  const again = JSON.parse(JSON.stringify(day1.farm)); again.pantry = { [starterCrop]: 2 };
+  ok(sellProduce(again, starterCrop, 2, ark, tRipe + 1000).saturated, 'the tally holds within the day');
+  const morrow = sellProduce(again, starterCrop, 2, ark, tRipe + 86400000);
+  ok(morrow.ok && !morrow.saturated, 'tomorrow the village is hungry again');
+}
 
 // ── gacha: deterministic, first pull free ──
 const g1 = pullSeeds(f1, ark, T0), g1b = pullSeeds(f1, ark, T0);
@@ -289,7 +299,8 @@ ok(!setActiveBiome(f1, pl0[2].id, T0).ok, 'cannot deal from a locked pack');
 const v1rec = { $type: 'com.minomobi.farm.plot', v: 1, farm: JSON.parse(JSON.stringify(f1)), updatedAt: 'x' };
 v1rec.farm.v = 1; delete v1rec.farm.terra; delete v1rec.farm.buildings; delete v1rec.farm.packs; delete v1rec.farm.activeBiome; delete v1rec.farm.parcels;
 const migrated = fromPlotRecord(v1rec);
-ok(migrated.v === 5 && migrated.buildings.length === 7 && migrated.packs[0] === f1.biomeId && migrated.parcels[0] === '0,0', 'v1 record migrates all the way to the living parcel world');
+ok(migrated.v === 6 && migrated.buildings.length === 7 && migrated.packs[0] === f1.biomeId && migrated.parcels[0] === '0,0', 'v1 record migrates all the way to the living parcel world');
+ok(migrated.forge === null && migrated.stats.alloysSmelted === 0, 'v6 fields arrive with the migration (forge unbuilt)');
 ok(migrated.buildings.every((b) => ownsTile(migrated, b.tx, b.ty)), 'migrated stations stand on owned land');
 // v2 save with the old outside-the-field furniture: stranded building, outside terra, outside plant
 const v2rec = { $type: 'com.minomobi.farm.plot', v: 2, farm: JSON.parse(JSON.stringify(f1)), updatedAt: 'x' };
@@ -300,7 +311,7 @@ vf.coins = 100;
 vf.bed.plants.push({ id: 'pX', x: 13.5 / FIELD_T, y: 6.5 / FIELD_T, seedId: starterCrop, at: T0, spd: 1, boost: 0 });
 const seedsBefore = vf.seeds[starterCrop] | 0;
 const mig2 = fromPlotRecord(v2rec);
-ok(mig2.v === 5, 'v2 record migrates');
+ok(mig2.v === 6, 'v2 record migrates');
 ok(mig2.buildings.every((b) => ownsTile(mig2, b.tx, b.ty)), 'stranded desk pulled back onto home land');
 ok(!('13,6' in mig2.terra) && mig2.coins === 100 + TERRA_COST.till, 'outside terraform dropped, till price refunded');
 ok(!mig2.bed.plants.some((p) => p.id === 'pX') && (mig2.seeds[starterCrop] | 0) === seedsBefore + 1, 'outside plant returns to the seed bag');
@@ -350,7 +361,7 @@ ok(recordShare(sh1.farm, 'first-pull', T0).ok, 'a different deed pays fresh');
   const orgH = harvestPlant(p1.farm, plant.id, ark, ripeAt);
   ok(orgH.ok && orgH.organic && (orgH.farm.pantry[starterCrop] | 0) === orgH.yield, 'untouched harvest stays organic');
   // organic premium at market
-  ok(sellPriceOrganic(crop) === Math.round(Math.max(2, Math.round((crop.seedCost || 10) * 0.5)) * ORGANIC_PREMIUM), 'organic price is the premium');
+  ok(sellPriceOrganic(crop) === Math.round(sellPrice(crop) * ORGANIC_PREMIUM), 'organic price is the premium');
   const sOrg = sellProduce(orgH.farm, starterCrop, orgH.yield, ark, ripeAt, 'organic');
   const sConv = sellProduce(synH.farm, starterCrop, synH.yield, ark, ripeAt, 'conv');
   ok(sOrg.ok && sConv.ok, 'both pantries sell');
@@ -445,7 +456,7 @@ ok(recordShare(sh1.farm, 'first-pull', T0).ok, 'a different deed pays fresh');
   vf.updatedAt = T0 + 3600 * 1000;
   vf.bed.plants = [{ id: 'pOld', x: s1.x, y: s1.y, seedId: starterCrop, at: T0, spd: 2, boost: 60000 }];
   const m4 = fromPlotRecord(v3rec);
-  ok(m4.v === 5 && m4.buildings.some((b) => b.id === 'mill') && m4.buildings.some((b) => b.id === 'barn'), 'v3 record gains the waterworks and the barn');
+  ok(m4.v === 6 && m4.buildings.some((b) => b.id === 'mill') && m4.buildings.some((b) => b.id === 'barn'), 'v3 record gains the waterworks and the barn');
   const mp = m4.bed.plants[0];
   ok(mp.grownMs === 3600 * 1000 * 2 + 60000 && mp.calcAt === vf.updatedAt && mp.wateredAt === vf.updatedAt, 'old growth banks fully-watered; everyone wakes up freshly watered');
   ok(mp.boost === undefined && mp.syn === false, 'boost retired; grandfathered plants are organic');
@@ -456,6 +467,14 @@ ok(recordShare(sh1.farm, 'first-pull', T0).ok, 'a different deed pays fresh');
   const T = T0 + 3 * 86400000;
   const ranch = JSON.parse(JSON.stringify(f1)); ranch.coins = 1000; ranch.pantry = { sage: 5 }; ranch.pantryC = { rue: 5 };
   ok(!buyAnimal(JSON.parse(JSON.stringify(f1)), 'hen', T).ok, '30◈ buys no hen');
+  // the barn's reputation: bigger animals want goods COLLECTED, not just coins (the roster drip)
+  ok(!buyAnimal(JSON.parse(JSON.stringify(ranch)), 'goat', T).ok, 'a rich day-one farm still cannot buy a goat');
+  {
+    const proven = JSON.parse(JSON.stringify(ranch)); proven.stats.goodsCollected = ANIMALS.goat.needsGoods;
+    ok(buyAnimal(proven, 'goat', T).ok, String(ANIMALS.goat.needsGoods) + ' goods vouch for a goat');
+    ok(!buyAnimal(proven, 'sheep', T).ok, '…but not yet for a sheep');
+  }
+  ranch.stats.goodsCollected = 200;   // a proven barn for the rest of the pen tests
   ok(buyAnimal(ranch, 'duck', T).ok, 'the seeded field has a pond — ducks welcome');
   {   // drain every pond on the home parcel → the duck refuses
     const dry = JSON.parse(JSON.stringify(ranch));

@@ -17,6 +17,8 @@ import {
   parcelOf, ownsParcel, buyableParcels, buyParcel, parcelTerrain,
   ANIMALS, GOOD_EMOJI, animalCap, buyAnimal, feedAnimal, petAnimal, collectAnimal, sellGood,
   animalFed, animalProducing, animalById, forage, grantWildseed,
+  FORGE_REQ, ALLOYS, CHARM_DEFS, CHARM_COST, CHARM_SPD, CHARM_SELL, buildForge, smeltAlloy,
+  smeltReady, collectSmelt, sellAlloy, forgeCharm, setCharm, activeCharm, cropPlanet, allCrops,
 } from './state.js';
 import * as Mine from './mine.js';
 import { ACHIEVEMENTS, byId as achById, evaluate as evalAch, markEarned, shareText } from './achievements.js';
@@ -72,6 +74,8 @@ const CRAFT_TOOLS = [
   { key: 'flatten', emoji: '⛰️', label: 'flatten', hint: 'level a hill — the terrain the cheap parcels came with' },
   { key: 'meadow',  emoji: '🌿', label: 'meadow',  hint: 'give a tile back to the grass' },
   { key: 'sprinkler', emoji: '🌀', label: 'sprinkler', hint: 'place a sprinkler (40◈ + 1 tin) — tap one to pull it up', tech: 'sprinklers' },
+  { key: 'forge',   emoji: '⚒️', label: 'forge',   hint: 'raise the forge (120◈ + 2 iron + 2 copper) — the place to smelt what the mine gives',
+    when: (f) => !f.forge, gate: (f) => (f.mine.depth | 0) >= FORGE_REQ.depth, gateHint: 'reach depth ' + FORGE_REQ.depth + ' in the mine — a smith should know where metal sleeps' },
   { key: 'move',    emoji: '✋', label: 'move',    hint: 'tap a building, then tap where it goes' },
 ];
 let pendingBuy = null;   // { key, at } — a FOR-SALE parcel tapped once, awaiting its confirming tap
@@ -212,6 +216,15 @@ function onFieldTap(tap) {
     redrawBed();
     return;
   }
+  if (craftTool === 'forge') {
+    const r = buildForge(farm, tx, ty, now());
+    if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+    commit(r.farm);
+    toast('⚒️ the forge stands — tap it to smelt', 'ach', 7000);
+    craftTool = null; renderCraftBar();
+    redrawBed();
+    return;
+  }
   if (craftTool) {
     const r = terraform(farm, tx, ty, craftTool, now());
     if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
@@ -236,7 +249,8 @@ function onFieldTap(tap) {
   const r = plantSeed(farm, bx, by, plantingCrop, ark, now());
   if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
   commit(r.farm);
-  if (r.spd > 1) toast('⚡ fresh-broken ground — this one grows 4×', 'ok');
+  if (r.charmed) toast('🪬 sown under ' + esc(activeCharm(farm) || '') + ' — this one grows ×' + CHARM_SPD + (r.spd > CHARM_SPD ? ' on top of fresh ground' : ''), 'ok');
+  else if (r.spd > 1) toast('⚡ fresh-broken ground — this one grows 4×', 'ok');
   if (!farm.seeds[plantingCrop]) plantingCrop = null;
   redrawBed();
 }
@@ -245,6 +259,7 @@ function onFieldTap(tap) {
 function toolCheckAt(tx, ty) {
   if (craftTool === 'move') return movingBuilding ? moveBuilding(farm, movingBuilding, tx, ty, 0).ok : !!buildingAt(farm, tx, ty);
   if (craftTool === 'sprinkler') return placeSprinkler(farm, tx, ty, 0).ok;
+  if (craftTool === 'forge') return buildForge(farm, tx, ty, 0).ok;
   if (craftTool) return terraform(farm, tx, ty, craftTool, 0).ok;
   if (plantingCrop) return plantableTile(farm, (tx + 0.5) / FIELD_T, (ty + 0.5) / FIELD_T);
   return false;
@@ -313,6 +328,7 @@ function openPanel(name) {
   if (name === 'friends') renderFriends();
   if (name === 'deeds') renderDeeds();
   if (name === 'mill') renderMill();
+  if (name === 'forge') renderForge();
   if (name === 'skins') renderSkins();
   if (name === 'barn') renderBarn();
 }
@@ -323,10 +339,11 @@ function renderCraftBar() {
   const bar = $('#craftbar');
   const on = craftTool != null;
   bar.innerHTML = '<button id="craft" class="' + (on ? 'on' : '') + '">🔨 craft</button>' +
-    (on ? CRAFT_TOOLS.map((t) => {
-      const locked = t.tech && !hasTech(farm, t.tech);
-      const cost = TERRA_COST[t.key] ? TERRA_COST[t.key] + '◈' : t.key === 'sprinkler' ? SPRINKLER_COST.coins + '◈+' + SPRINKLER_COST.tin + '♃' : '';
-      return '<button class="tool ' + (craftTool === t.key ? 'on' : '') + (locked ? ' locked' : '') + '" data-tool="' + t.key + '" ' + (locked ? 'disabled title="research at the waterworks"' : 'title="' + esc(t.hint) + '"') + '>' +
+    (on ? CRAFT_TOOLS.filter((t) => !t.when || t.when(farm)).map((t) => {
+      const locked = (t.tech && !hasTech(farm, t.tech)) || (t.gate && !t.gate(farm));
+      const lockWhy = t.tech ? 'research at the waterworks' : (t.gateHint || '');
+      const cost = TERRA_COST[t.key] ? TERRA_COST[t.key] + '◈' : t.key === 'sprinkler' ? SPRINKLER_COST.coins + '◈+' + SPRINKLER_COST.tin + '♃' : t.key === 'forge' ? FORGE_REQ.coins + '◈+♂♀' : '';
+      return '<button class="tool ' + (craftTool === t.key ? 'on' : '') + (locked ? ' locked' : '') + '" data-tool="' + t.key + '" ' + (locked ? 'disabled title="' + esc(lockWhy) + '"' : 'title="' + esc(t.hint) + '"') + '>' +
         (locked ? '🔒 ' : t.emoji + ' ') + t.label + (cost ? ' <i>' + cost + '</i>' : '') + '</button>';
     }).join('') : '');
   $('#craft').onclick = () => {
@@ -400,7 +417,7 @@ function renderPantry() {
     const grade = b.dataset.grade;
     const pool = grade === 'conv' ? farm.pantryC : farm.pantry;
     const r = sellProduce(farm, b.dataset.sell, pool[b.dataset.sell], ark, now(), grade);
-    if (r.ok) { commit(r.farm); toast('+' + r.coins + '◈' + (r.organic ? ' 🌿 organic premium' : '') + (r.warded ? ' (warded)' : ''), 'ok'); renderPantry(); }
+    if (r.ok) { commit(r.farm); toast('+' + r.coins + '◈' + (r.organic ? ' 🌿 organic premium' : '') + (r.warded ? ' (warded)' : '') + (r.favoured ? ' 🪬' : '') + (r.saturated ? ' · the village has had its fill of this today' : ''), r.saturated ? 'warn' : 'ok'); renderPantry(); }
   });
 }
 
@@ -535,11 +552,15 @@ function renderBarn() {
   const cap = animalCap(farm);
   $('#barnstats').innerHTML = '<span class="chip">herd ' + (farm.animals || []).length + '/' + cap + '</span>' +
     ' <span class="dim">each parcel carries two animals — buy land, grow the herd. Goods inherit the FEED: organic-fed animals give 🌿 goods (×1.75 at market).</span>';
-  $('#stable').innerHTML = Object.entries(ANIMALS).map(([k, d]) =>
-    '<button class="chip" data-buy-animal="' + k + '">' + d.emoji + ' ' + d.name + ' — ' + d.cost + '◈' +
-    ' <i>' + d.goodEmoji + ' every ' + Math.round(d.everyMs / 3600000) + 'h' +
-    (d.feedUnits ? ' · eats ' + d.feedUnits + ' produce/day' : ' · feeds itself among ≥' + d.needsPlants + ' plants') +
-    (d.needsPond ? ' · needs a pond' : '') + '</i></button>').join('');
+  $('#stable').innerHTML = Object.entries(ANIMALS).map(([k, d]) => {
+    // the goods gate stays VISIBLE while locked — a shelf you can see is a goal, not a mystery
+    const gLeft = d.needsGoods ? Math.max(0, d.needsGoods - (farm.stats.goodsCollected | 0)) : 0;
+    return '<button class="chip' + (gLeft ? ' locked' : '') + '" data-buy-animal="' + k + '">' + (gLeft ? '🔒 ' : '') + d.emoji + ' ' + d.name + ' — ' + d.cost + '◈' +
+      ' <i>' + d.goodEmoji + ' every ' + Math.round(d.everyMs / 3600000) + 'h' +
+      (d.feedUnits ? ' · eats ' + d.feedUnits + ' produce/day' : ' · feeds itself among ≥' + d.needsPlants + ' plants') +
+      (d.needsPond ? ' · needs a pond' : '') +
+      (gLeft ? ' · trusts a barn of ' + d.needsGoods + ' goods (' + gLeft + ' to go)' : '') + '</i></button>';
+  }).join('');
   $$('#stable [data-buy-animal]').forEach((b) => b.onclick = () => {
     const r = buyAnimal(farm, b.dataset.buyAnimal, now());
     if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
@@ -583,6 +604,76 @@ function renderBarn() {
     const pool = grade === 'conv' ? farm.goodsC : farm.goods;
     const r = sellGood(farm, b.dataset.sellgood, pool[b.dataset.sellgood], now(), grade);
     if (r.ok) { commit(r.farm); toast('+' + r.coins + '◈' + (r.organic ? ' 🌿' : ''), 'ok'); renderBarn(); }
+  });
+}
+
+// ── FORGE panel (the metals vertical: crucible → rack → the Chaldean week) ───────────────────────
+function renderForge() {
+  if (!farm.forge) return;   // the pane only opens from the building, which only exists once built
+  const t = now();
+  $('#forgemetals').innerHTML = Object.entries(METAL_GLYPH).map(([m, g]) =>
+    '<span class="chip">' + g + ' ' + m + ' ×' + (farm.metals[m] | 0) + '</span>').join(' ');
+
+  // the crucible
+  const q = farm.forge.queue;
+  const crucible = !q
+    ? '<span class="dim">the crucible stands cold — pour something</span>'
+    : smeltReady(farm, t)
+      ? '<button class="chip" id="collectpour">' + ALLOYS[q.alloy].emoji + ' ' + ALLOYS[q.alloy].name + ' has cooled — collect</button>'
+      : '<span class="chip">' + ALLOYS[q.alloy].emoji + ' ' + ALLOYS[q.alloy].name + ' cooling · ' + fmtMs(q.at + ALLOYS[q.alloy].ms - t) + '</span>';
+  $('#forgesmelt').innerHTML = crucible + '<div>' + Object.entries(ALLOYS).map(([k, d]) => {
+    const short = Object.entries(d.needs).some(([m, n]) => (farm.metals[m] | 0) < n);
+    return '<button class="chip' + (short ? ' locked' : '') + '" data-pour="' + k + '">' + d.emoji + ' ' + d.name +
+      ' <i>' + Object.entries(d.needs).map(([m, n]) => n + METAL_GLYPH[m]).join('+') + ' · ' + Math.round(d.ms / 3600000) + 'h · sells ' + d.sell + '◈</i></button>';
+  }).join('') + '</div>';
+  const collectBtn = $('#collectpour');
+  if (collectBtn) collectBtn.onclick = () => {
+    const r = collectSmelt(farm, now());
+    if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+    commit(r.farm); toast(ALLOYS[r.alloy].emoji + ' ' + ALLOYS[r.alloy].name + ' in the rack', 'ok'); renderForge();
+  };
+  $$('#forgesmelt [data-pour]').forEach((b) => b.onclick = () => {
+    const r = smeltAlloy(farm, b.dataset.pour, now());
+    if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+    commit(r.farm);
+    toast((r.collected ? ALLOYS[r.collected].emoji + ' ' + ALLOYS[r.collected].name + ' banked · ' : '') + '🫕 pouring ' + ALLOYS[b.dataset.pour].name, 'ok');
+    renderForge();
+  });
+
+  // the rack
+  const rack = Object.entries(farm.forge.alloys || {});
+  $('#forgerack').innerHTML = rack.length ? rack.map(([k, n]) =>
+    '<span class="chip">' + ALLOYS[k].emoji + ' ' + ALLOYS[k].name + ' ×' + n +
+    ' <button class="mini" data-sellalloy="' + k + '">sell @' + ALLOYS[k].sell + '◈</button></span>').join(' ')
+    : '<span class="dim">nothing cooled yet</span>';
+  $$('#forgerack [data-sellalloy]').forEach((b) => b.onclick = () => {
+    const r = sellAlloy(farm, b.dataset.sellalloy, 1, now());
+    if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+    commit(r.farm); toast('+' + r.coins + '◈', 'ok'); renderForge();
+  });
+
+  // the seven charms — where the correspondences become visible: each planet lists the crops of
+  // YOURS it rules, so the depth layer teaches itself to whoever reads the anvil.
+  const worn = activeCharm(farm);
+  $('#forgecharms').innerHTML = Object.entries(CHARM_DEFS).map(([p, d]) => {
+    const mine = allCrops(ark).filter((c) => farm.owned.includes(c.id) && cropPlanet(c) === p).map((c) => c.common);
+    const rules = mine.length ? 'rules your ' + esc(mine.slice(0, 3).join(', ')) + (mine.length > 3 ? ' +' + (mine.length - 3) : '') : 'rules none of your crops yet';
+    const owned = !!farm.forge.charms[p];
+    const act = owned
+      ? (worn === p ? '<button class="mini on" data-wear="">worn — take off</button>' : '<button class="mini" data-wear="' + p + '">wear</button>')
+      : '<button class="mini" data-strike="' + p + '">strike · ' + CHARM_COST.coins + '◈ + ' + CHARM_COST.metal + METAL_GLYPH[d.metal] + ' + ' + CHARM_COST.alloy + ' ' + esc(d.alloy) + '</button>';
+    return '<div class="giftrow">' + d.glyph + ' <b>' + p + '</b> <span class="dim">' + rules + '</span> ' + act + '</div>';
+  }).join('') +
+    '<div class="hint">sown under its sign, a crop grows ×' + CHARM_SPD + ' from that planting; while the charm is worn its produce sells ×' + CHARM_SELL + '. One charm at a time — the week turns.</div>';
+  $$('#forgecharms [data-strike]').forEach((b) => b.onclick = () => {
+    const r = forgeCharm(farm, b.dataset.strike, now());
+    if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+    commit(r.farm); toast('🪬 the ' + b.dataset.strike + ' charm hangs by the anvil', 'ach', 6000); renderForge();
+  });
+  $$('#forgecharms [data-wear]').forEach((b) => b.onclick = () => {
+    const r = setCharm(farm, b.dataset.wear || null, now());
+    if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+    commit(r.farm); toast(b.dataset.wear ? '🪬 wearing ' + b.dataset.wear : 'charm off', 'ok'); renderForge(); redrawBed();
   });
 }
 

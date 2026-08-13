@@ -104,11 +104,20 @@ function run(playerSeed, greedy) {
         const ids = Object.keys(farm.seeds);
         let seedId;
         if (greedy) {
+          // an optimizer prices the MARGINAL plant: once a species' pipeline will out-run the
+          // village's daily appetite (SAT_K), its next planting is worth ×SAT_RATE — so real
+          // greed rotates. Value/day × saturation discount, best first.
+          const inBed = {};
+          for (const p of farm.bed.plants) inBed[p.seedId] = (inBed[p.seedId] || 0) + 1;
           seedId = ids.sort((a, b) => {
-            const ca = S.cropById(ark, a), cb = S.cropById(ark, b);
-            const va = ca ? S.sellPriceOrganic(ca) * Math.max(1, ca.yield | 0) / Math.max(1, ca.growthDays | 0) : 0;
-            const vb = cb ? S.sellPriceOrganic(cb) * Math.max(1, cb.yield | 0) / Math.max(1, cb.growthDays | 0) : 0;
-            return vb - va;
+            const val = (id) => {
+              const c = S.cropById(ark, id);
+              if (!c) return 0;
+              const v = S.sellPriceOrganic(c) * Math.max(1, c.yield | 0) / Math.max(1, c.growthDays | 0);
+              const pipeline = ((inBed[id] || 0) + 1) * Math.max(1, c.yield | 0) + S.soldToday(farm, id, now);
+              return v * (pipeline > S.SAT_K ? S.SAT_RATE : 1);
+            };
+            return val(b) - val(a);
           })[0];
         } else seedId = ids[Math.floor(rng() * ids.length)];
         let planted = false;
@@ -132,6 +141,27 @@ function run(playerSeed, greedy) {
         const r = Mine.dig(farm, fresh[Math.floor(rng() * fresh.length)].i, now);
         if (!r.ok) break; farm = r.farm;
       }
+      // forge (as the main sim): raise, keep the crucible warm, walk toward charms
+      if (!farm.forge && (farm.mine.depth | 0) >= S.FORGE_REQ.depth && farm.coins >= S.FORGE_REQ.coins + 40) {
+        outer: for (let ty = 0; ty < S.FIELD_T; ty++) for (let tx = 0; tx < S.FIELD_T; tx++) {
+          const r = S.buildForge(farm, tx, ty, now);
+          if (r.ok) { farm = r.farm; see('forge', 'forge', day); break outer; }
+        }
+      }
+      if (farm.forge) {
+        if (S.smeltReady(farm, now)) { const c = S.collectSmelt(farm, now); if (c.ok) { farm = c.farm; see('alloy', c.alloy, day); } }
+        const wanted = Object.entries(S.CHARM_DEFS).filter(([p]) => !farm.forge.charms[p])
+          .sort((a, b) => (farm.metals[b[1].metal] | 0) - (farm.metals[a[1].metal] | 0))[0] || null;
+        if (!farm.forge.queue) {
+          const pourOrder = wanted ? [wanted[1].alloy, ...Object.keys(S.ALLOYS)] : Object.keys(S.ALLOYS);
+          for (const a of pourOrder) { const r = S.smeltAlloy(farm, a, now); if (r.ok) { farm = r.farm; break; } }
+        }
+        if (wanted) { const r = S.forgeCharm(farm, wanted[0], now); if (r.ok) { farm = r.farm; see('charm', wanted[0], day); } }
+        for (const [a, cnt] of Object.entries({ ...farm.forge.alloys })) {
+          const needed = Object.entries(S.CHARM_DEFS).some(([p, d]) => !farm.forge.charms[p] && d.alloy === a);
+          if (cnt > (needed ? 1 : 0)) { const r = S.sellAlloy(farm, a, cnt - (needed ? 1 : 0), now); if (r.ok) { income.coins += r.coins; farm = r.farm; } }
+        }
+      }
       // pull with goal-saving (as the main sim)
       const cheap = S.buyableParcels(farm).sort((a, b) => a.price - b.price)[0];
       const goal = cheap ? cheap.price : null;
@@ -148,8 +178,15 @@ function run(playerSeed, greedy) {
       const t = S.TECHS.find((t) => !S.hasTech(farm, t.id) && S.techChecks(farm, t).every((c) => c.met));
       if (t) { const r = S.research(farm, t.id, now); if (r.ok) { farm = r.farm; see('tech', t.id, day); } }
       if ((farm.animals || []).length < S.animalCap(farm)) {
-        const kind = Object.entries(S.ANIMALS).filter(([, a]) => !a.needsPond && farm.coins >= a.cost + 40).sort((a, b) => a[1].cost - b[1].cost)[0];
-        if (kind) { const r = S.buyAnimal(farm, kind[0], now); if (r.ok) { farm = r.farm; see('animal', kind[0], day); } }
+        // novelty-seeking, same policy as playtest.mjs: the cheapest kind you DON'T own yet comes
+        // first — cheapest-first misreported the whole animal class as depleted after day one.
+        const owned = new Set((farm.animals || []).map((a) => a.kind));
+        const kinds = Object.entries(S.ANIMALS).filter(([, a]) => farm.coins >= a.cost + 40)
+          .sort((a, b) => (owned.has(a[0]) - owned.has(b[0])) || (a[1].cost - b[1].cost));
+        for (const [k] of kinds) {
+          const r = S.buyAnimal(farm, k, now);
+          if (r.ok) { farm = r.farm; see('animal', k, day); break; }
+        }
       }
       if (cheap && farm.coins >= cheap.price + 40) { const r = S.buyParcel(farm, cheap.px, cheap.py, now); if (r.ok) { farm = r.farm; see('parcel', farm.parcels.length, day); } }
       // deeds + skins
@@ -166,8 +203,8 @@ const runs = [];
 for (let s = 1; s <= SEEDS; s++) runs.push(run(s, false));
 
 console.log('\n━━━ NOVELTY DEPLETION — new elements first seen per week (avg of ' + SEEDS + ' players, ' + DAYS + ' days) ━━━');
-const CLASSES = ['crop', 'deed', 'tech', 'skin', 'animal', 'biome', 'parcel'];
-const TOTALS = { crop: S.allCrops(ark).length, deed: ACHIEVEMENTS.length, tech: S.TECHS.length, skin: SKINS.length, animal: Object.keys(S.ANIMALS).length, biome: ark.biomes.length, parcel: 25 };
+const CLASSES = ['crop', 'deed', 'tech', 'skin', 'animal', 'biome', 'parcel', 'alloy', 'charm'];
+const TOTALS = { crop: S.allCrops(ark).length, deed: ACHIEVEMENTS.length, tech: S.TECHS.length, skin: SKINS.length, animal: Object.keys(S.ANIMALS).length, biome: ark.biomes.length, parcel: 25, alloy: Object.keys(S.ALLOYS).length, charm: Object.keys(S.CHARM_DEFS).length };
 for (const cls of CLASSES) {
   const weeks = [0, 0, 0, 0];
   let totalSeen = 0;

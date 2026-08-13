@@ -104,12 +104,15 @@ export const REMEDY_IMMUNE_W = 3;          // a caustic brew clears this window 
 // ANNEALED (sim rounds 4-5): at egg/4h·8◈ a hen repaid in a day and the oracle's player ran 28
 // animals and 14 parcels by day 21 — the flood after the famine. These rates aim a hen's repay at
 // ~4 days, a herd at "pleasant income", not a printer.
+// ANNEALED (diversity, 2026-08-13): coins alone couldn't pace the roster — a novelty-seeking
+// player bought all five kinds inside week 1. needsGoods gates the bigger animals on goods
+// COLLECTED, which accrues in real time whatever your wallet does: the barn earns its reputation.
 export const ANIMALS = {
   hen:   { emoji: '🐔', name: 'hen',      cost: 80,  good: 'egg',   goodEmoji: '🥚', everyMs: 6 * 3600 * 1000,  feedUnits: 1, price: 5 },
   duck:  { emoji: '🦆', name: 'duck',     cost: 120, good: 'egg',   goodEmoji: '🥚', everyMs: 5 * 3600 * 1000,  feedUnits: 1, price: 5,  needsPond: true },
-  goat:  { emoji: '🐐', name: 'goat',     cost: 200, good: 'milk',  goodEmoji: '🥛', everyMs: 10 * 3600 * 1000, feedUnits: 2, price: 14 },
-  sheep: { emoji: '🐑', name: 'sheep',    cost: 300, good: 'wool',  goodEmoji: '🧶', everyMs: 16 * 3600 * 1000, feedUnits: 2, price: 28 },
-  bees:  { emoji: '🐝', name: 'bee hive', cost: 400, good: 'honey', goodEmoji: '🍯', everyMs: 22 * 3600 * 1000, feedUnits: 0, price: 45, needsPlants: 6 },
+  goat:  { emoji: '🐐', name: 'goat',     cost: 200, good: 'milk',  goodEmoji: '🥛', everyMs: 10 * 3600 * 1000, feedUnits: 2, price: 14, needsGoods: 20 },
+  sheep: { emoji: '🐑', name: 'sheep',    cost: 300, good: 'wool',  goodEmoji: '🧶', everyMs: 16 * 3600 * 1000, feedUnits: 2, price: 28, needsGoods: 60 },
+  bees:  { emoji: '🐝', name: 'bee hive', cost: 400, good: 'honey', goodEmoji: '🍯', everyMs: 22 * 3600 * 1000, feedUnits: 0, price: 45, needsPlants: 6, needsGoods: 140 },
 };
 export const FED_MS = 24 * 3600 * 1000;           // one feeding holds a day
 export const animalCap = (farm) => 2 * (farm.parcels || ['0,0']).length;   // land carries the herd
@@ -119,6 +122,9 @@ export function buyAnimal(farm, kind, now) {
   if (!def) return { ok: false, reason: 'no such animal' };
   if ((farm.animals || []).length >= animalCap(farm)) return { ok: false, reason: 'the land carries ' + animalCap(farm) + ' animals — buy a parcel for more' };
   if (farm.coins < def.cost) return { ok: false, reason: 'costs ' + def.cost + '◈' };
+  if (def.needsGoods && (farm.stats.goodsCollected | 0) < def.needsGoods) {
+    return { ok: false, reason: 'a ' + def.name + ' joins a barn that has collected ' + def.needsGoods + ' goods (you: ' + (farm.stats.goodsCollected | 0) + ')' };
+  }
   if (def.needsPond) {
     let has = false;
     for (const key of farm.parcels) {
@@ -301,6 +307,158 @@ export function grantWildseed(farm, ark, now) {
 // Researched at the windmill; each rung eases irrigation at scale or deepens the organic game.
 // Costs spend coins AND planetary metals (the mine feeds the tree); `req` gates order; `needs` are
 // non-spent prerequisites shown live like the pack ladder.
+// ── THE FORGE — the metals vertical ──────────────────────────────────────────────────────────────
+// Until now the mine's seven metals were only ever an ingredient tax (vessels, techs, sprinklers).
+// The forge is the thing to do with ONLY metals: the first station you BUILD rather than inherit
+// (depth 5 + iron + copper — you've seen where metal sleeps), a timed crucible that turns ore pairs
+// into alloys (check-in pacing: pour, come back), and — the depth layer — planetary CHARMS. Every
+// ark crop already carries its Chaldean planet; a charm forged from a planet's own metal makes
+// crops SOWN under it grow faster and their produce sell dearer while it is worn. One charm active
+// at a time, swapped freely at the anvil: the optimal crop rotates with the charm, which is exactly
+// the situational trade-off the flat roster lacked. None of this is required play — the surface
+// game never mentions correspondences; the forge is where they become visible.
+export const FORGE_REQ = { depth: 5, coins: 120, iron: 2, copper: 2 };
+export const ALLOYS = {
+  bronze:   { emoji: '🥉', name: 'bronze',   needs: { copper: 1, tin: 1 },         ms: 3 * 3600 * 1000,  sell: 26 },
+  pewter:   { emoji: '🍶', name: 'pewter',   needs: { tin: 1, lead: 1 },           ms: 3 * 3600 * 1000,  sell: 22 },
+  steel:    { emoji: '🗡️', name: 'steel',    needs: { iron: 2 },                   ms: 5 * 3600 * 1000,  sell: 34 },
+  amalgam:  { emoji: '🌡️', name: 'amalgam',  needs: { quicksilver: 1, tin: 1 },    ms: 6 * 3600 * 1000,  sell: 48 },
+  sterling: { emoji: '🥈', name: 'sterling', needs: { silver: 2, copper: 1 },      ms: 8 * 3600 * 1000,  sell: 60 },
+  electrum: { emoji: '🥇', name: 'electrum', needs: { gold: 1, silver: 1 },        ms: 12 * 3600 * 1000, sell: 110 },
+};
+// the Chaldean week, walked at the anvil: each planet's charm wants its OWN metal plus an alloy.
+export const CHARM_DEFS = {
+  Sun:     { glyph: '☉', metal: 'gold',        alloy: 'electrum' },
+  Moon:    { glyph: '☽', metal: 'silver',      alloy: 'sterling' },
+  Mercury: { glyph: '☿', metal: 'quicksilver', alloy: 'amalgam' },
+  Venus:   { glyph: '♀', metal: 'copper',      alloy: 'bronze' },
+  Mars:    { glyph: '♂', metal: 'iron',        alloy: 'steel' },
+  Jupiter: { glyph: '♃', metal: 'tin',         alloy: 'bronze' },
+  Saturn:  { glyph: '♄', metal: 'lead',        alloy: 'pewter' },
+};
+export const CHARM_COST = { coins: 40, metal: 2, alloy: 1 };
+export const CHARM_SPD = 1.25;    // a matching plant SOWN while the charm is worn grows this much faster
+export const CHARM_SELL = 1.2;    // matching produce sells this much dearer while the charm is worn
+
+export const hasForge = (farm) => !!farm.forge;
+export const activeCharm = (farm) => (farm.forge && farm.forge.active) || null;
+
+// every crop has a sign: Culpeper's rulership where the ark carries one (the reagent herbs), and
+// the anvil's own reckoning — a deterministic hash over the seven — for the rest. Total, stable,
+// and recomputable by any viewer; without this a Saturn charm would bless nothing (the ark has no
+// Saturn herbs) and a third of the roster would stand outside the heavens.
+const PLANET_RING = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'];
+export function cropPlanet(crop) {
+  if (!crop) return null;
+  if (crop.planet && CHARM_DEFS[crop.planet]) return crop.planet;
+  let h = 0x811c9dc5;
+  for (const ch of 'sign:' + crop.id) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  return PLANET_RING[(h >>> 0) % PLANET_RING.length];
+}
+
+export function buildForge(farm, tx, ty, now) {
+  if (farm.forge) return { ok: false, reason: 'the forge already stands' };
+  if ((farm.mine.depth | 0) < FORGE_REQ.depth) return { ok: false, reason: 'reach depth ' + FORGE_REQ.depth + ' in the mine first — a smith should know where metal sleeps' };
+  if (farm.coins < FORGE_REQ.coins) return { ok: false, reason: 'costs ' + FORGE_REQ.coins + '◈ + ' + FORGE_REQ.iron + ' iron + ' + FORGE_REQ.copper + ' copper' };
+  if ((farm.metals.iron | 0) < FORGE_REQ.iron || (farm.metals.copper | 0) < FORGE_REQ.copper) {
+    return { ok: false, reason: 'needs ' + FORGE_REQ.iron + ' iron + ' + FORGE_REQ.copper + ' copper from the mine' };
+  }
+  if (!inWorld(tx, ty)) return { ok: false, reason: 'beyond the world’s edge' };
+  if (!ownsTile(farm, tx, ty)) return { ok: false, reason: 'not your land — buy the parcel first' };
+  const t = tileAt(farm, tx, ty);
+  if (t === 'pond') return { ok: false, reason: 'it would sink' };
+  if (t === 'hill') return { ok: false, reason: 'flatten the hill first' };
+  if (buildingAt(farm, tx, ty)) return { ok: false, reason: 'a building already stands there' };
+  for (const p of farm.bed.plants) if (Math.floor(p.x * FIELD_T) === tx && Math.floor(p.y * FIELD_T) === ty) return { ok: false, reason: 'a plant is rooted there' };
+  const next = clone(farm);
+  next.coins -= FORGE_REQ.coins;
+  next.metals.iron -= FORGE_REQ.iron;
+  next.metals.copper -= FORGE_REQ.copper;
+  next.buildings.push({ id: 'forge', kind: 'forge', tx, ty });
+  next.forge = { queue: null, alloys: {}, charms: {}, active: null };
+  next.updatedAt = now;
+  return { ok: true, farm: next };
+}
+
+export const smeltReady = (farm, now) => {
+  const q = farm.forge && farm.forge.queue;
+  return !!(q && now >= q.at + (ALLOYS[q.alloy] ? ALLOYS[q.alloy].ms : 0));
+};
+
+export function collectSmelt(farm, now) {
+  if (!farm.forge || !farm.forge.queue) return { ok: false, reason: 'the crucible is empty' };
+  if (!smeltReady(farm, now)) return { ok: false, reason: 'still molten — come back later' };
+  const next = clone(farm);
+  const a = next.forge.queue.alloy;
+  next.forge.alloys[a] = (next.forge.alloys[a] | 0) + 1;
+  next.forge.queue = null;
+  next.stats.alloysSmelted = (next.stats.alloysSmelted | 0) + 1;
+  next.updatedAt = now;
+  return { ok: true, farm: next, alloy: a };
+}
+
+export function smeltAlloy(farm, alloyId, now) {
+  if (!farm.forge) return { ok: false, reason: 'build the forge first' };
+  const def = ALLOYS[alloyId];
+  if (!def) return { ok: false, reason: 'no such alloy' };
+  let base = farm, collected = null;
+  if (farm.forge.queue) {
+    if (!smeltReady(farm, now)) return { ok: false, reason: 'the crucible is busy' };
+    const c = collectSmelt(farm, now);          // a ready pour never blocks the next one
+    base = c.farm; collected = c.alloy;
+  }
+  for (const [m, n] of Object.entries(def.needs)) {
+    if ((base.metals[m] | 0) < n) return { ok: false, reason: def.name + ' wants ' + Object.entries(def.needs).map(([k, v]) => v + ' ' + k).join(' + ') };
+  }
+  const next = clone(base);
+  for (const [m, n] of Object.entries(def.needs)) next.metals[m] -= n;
+  next.forge.queue = { alloy: alloyId, at: now };
+  next.updatedAt = now;
+  return { ok: true, farm: next, collected };
+}
+
+export function sellAlloy(farm, alloyId, qty, now) {
+  const def = ALLOYS[alloyId];
+  if (!farm.forge || !def) return { ok: false, reason: 'no such alloy' };
+  const have = farm.forge.alloys[alloyId] | 0;
+  qty = Math.max(0, Math.min(have, qty | 0));
+  if (!qty) return { ok: false, reason: 'none in the rack' };
+  const next = clone(farm);
+  next.forge.alloys[alloyId] -= qty; if (!next.forge.alloys[alloyId]) delete next.forge.alloys[alloyId];
+  const coins = def.sell * qty;
+  next.coins += coins;
+  next.updatedAt = now;
+  return { ok: true, farm: next, coins };
+}
+
+export function forgeCharm(farm, planet, now) {
+  if (!farm.forge) return { ok: false, reason: 'build the forge first' };
+  const def = CHARM_DEFS[planet];
+  if (!def) return { ok: false, reason: 'no such sign in the sky' };
+  if (farm.forge.charms[planet]) return { ok: false, reason: 'the ' + planet + ' charm already hangs by the anvil' };
+  if (farm.coins < CHARM_COST.coins) return { ok: false, reason: 'costs ' + CHARM_COST.coins + '◈ + ' + CHARM_COST.metal + ' ' + def.metal + ' + ' + CHARM_COST.alloy + ' ' + def.alloy };
+  if ((farm.metals[def.metal] | 0) < CHARM_COST.metal) return { ok: false, reason: 'wants ' + CHARM_COST.metal + ' ' + def.metal + ' — its own metal, no substitute' };
+  if ((farm.forge.alloys[def.alloy] | 0) < CHARM_COST.alloy) return { ok: false, reason: 'wants ' + CHARM_COST.alloy + ' ' + def.alloy + ' from the crucible' };
+  const next = clone(farm);
+  next.coins -= CHARM_COST.coins;
+  next.metals[def.metal] -= CHARM_COST.metal;
+  next.forge.alloys[def.alloy] -= CHARM_COST.alloy; if (!next.forge.alloys[def.alloy]) delete next.forge.alloys[def.alloy];
+  next.forge.charms[planet] = new Date(now).toISOString();
+  if (!next.forge.active) next.forge.active = planet;   // the first charm goes straight on
+  next.stats.charmsForged = (next.stats.charmsForged | 0) + 1;
+  next.updatedAt = now;
+  return { ok: true, farm: next };
+}
+
+export function setCharm(farm, planet, now) {
+  if (!farm.forge) return { ok: false, reason: 'build the forge first' };
+  if (planet != null && !farm.forge.charms[planet]) return { ok: false, reason: 'no such charm by the anvil yet' };
+  const next = clone(farm);
+  next.forge.active = planet || null;
+  next.updatedAt = now;
+  return { ok: true, farm: next };
+}
+
 export const TECHS = [
   { id: 'sprinklers', emoji: '🌀', name: 'Sprinklers',          cost: { coins: 150, copper: 2 },              desc: 'craft-place sprinklers — every plant on the 8 neighbouring tiles stays watered' },
   { id: 'channels',   emoji: '〰️', name: 'Irrigation channels', cost: { coins: 400, iron: 3 },  req: 'sprinklers', desc: 'water reaches 2 tiles from any pond or lake shore' },
@@ -321,6 +479,7 @@ export const BUILDING_KINDS = {
   sign:  { emoji: '🪧', name: 'deeds sign',  panel: 'deeds' },
   mill:  { emoji: '🌬️', name: 'waterworks',  panel: 'mill' },
   barn:  { emoji: '🐄', name: 'barn',        panel: 'barn' },
+  forge: { emoji: '⚒️', name: 'forge',       panel: 'forge' },   // the only station you BUILD (buildForge)
 };
 // default stations live INSIDE the home parcel (the only land a fresh farm owns). Wanted spots ring
 // the field edge; each slides along a deterministic probe order until it clears the seeded keep-outs.
@@ -383,7 +542,7 @@ export function newFarm(did, ark, now = 0) {
   const fast = ((biome && biome.crops) || []).slice().sort((a, b) => a.growthDays - b.growthDays || a.id.localeCompare(b.id)).slice(0, 2);
   for (const c of fast) seeds[c.id] = 3;
   return {
-    v: 5, seed,
+    v: 6, seed,
     biomeId: biome ? biome.id : null,
     activeBiome: biome ? biome.id : null,   // which unlocked pack the desk pulls from
     packs: biome ? [biome.id] : [],         // unlocked ecosystem packs (home is free)
@@ -401,6 +560,8 @@ export function newFarm(did, ark, now = 0) {
     animals: [],                 // the herd [{ id, kind, at, fedUntil, feedGrade, lastCollect, lastPet }]
     goods: {}, goodsC: {},       // animal goods by grade (eggs/milk/wool/honey), like the pantries
     forage: null,                // { w, got: [i…] } — this window's gathered sparkles
+    forge: null,                 // null until BUILT → { queue, alloys, charms, active } (the metals vertical)
+    market: null,                // { day, sold: {cropId → n} } — today's per-crop saturation tally
     metals: {},                  // metal → count (from the mine: gold silver quicksilver copper iron tin lead)
     shards: 0,                   // quintessence shards (mine) — one steadies a wobbly brew
     preparations: [],            // brewed items [{ id, vessel, grade, label, use, glyphs, reagents, at }]
@@ -410,7 +571,7 @@ export function newFarm(did, ark, now = 0) {
     effects: { yieldBoost: 0, wardUntil: 0 },   // rousing brews bank +1-yield harvests; sedate brews ward the market
     achievements: {},            // id → ISO earned-at
     claimedGifts: [],            // at:// uris of friend gifts already folded into this save
-    stats: { planted: 0, harvests: 0, produce: 0, sold: 0, tendsGiven: 0, giftsSent: 0, brews: 0, bestGrade: null, oresMined: 0, gemsFound: 0, terraforms: 0, movedBuildings: 0, organicHarvests: 0, pestsTreated: 0, animalsBought: 0, pets: 0, goodsCollected: 0, foraged: 0 },
+    stats: { planted: 0, harvests: 0, produce: 0, sold: 0, tendsGiven: 0, giftsSent: 0, brews: 0, bestGrade: null, oresMined: 0, gemsFound: 0, terraforms: 0, movedBuildings: 0, organicHarvests: 0, pestsTreated: 0, animalsBought: 0, pets: 0, goodsCollected: 0, foraged: 0, alloysSmelted: 0, charmsForged: 0 },
     createdAt: now, updatedAt: now,
   };
 }
@@ -520,16 +681,21 @@ export function plantSeed(farm, x, y, cropId, ark, now) {
   if (!crop) return { ok: false, reason: 'unknown crop' };
   if (!plantableTile(farm, x, y)) return { ok: false, reason: 'not plantable there — needs open tilled soil (craft mode tills the meadow)' };
   const next = clone(farm);
-  const spd = next.stats.harvests === 0 && next.bed.plants.length < FRESH_PLANTS ? FRESH_SPD : 1;
+  let spd = next.stats.harvests === 0 && next.bed.plants.length < FRESH_PLANTS ? FRESH_SPD : 1;
+  // sown under a sign: a worn charm blesses plantings of its OWN planet, at sow time only — the
+  // boost lives on the plant (public record), so any viewer recomputes it without knowing when
+  // charms were swapped.
+  const charmed = !!(activeCharm(next) && cropPlanet(crop) === activeCharm(next));
+  if (charmed) spd *= CHARM_SPD;
   // grownMs/calcAt is the SETTLE MODEL: banked effective growth as of calcAt, extended live by the
   // piecewise watered/dry rate. wateredAt = now — a fresh planting is watered in.
-  next.bed.plants.push({ id: 'p' + next.bed.nextId, x: +x.toFixed(4), y: +y.toFixed(4), seedId: cropId, at: now, spd, grownMs: 0, calcAt: now, wateredAt: now, fertN: 0, syn: false, pestOkW: 0 });
+  next.bed.plants.push({ id: 'p' + next.bed.nextId, x: +x.toFixed(4), y: +y.toFixed(4), seedId: cropId, at: now, spd, grownMs: 0, calcAt: now, wateredAt: now, fertN: 0, syn: false, pestOkW: 0, ...(charmed ? { sign: cropPlanet(crop) } : {}) });
   next.bed.nextId++;
   next.seeds[cropId]--; if (!next.seeds[cropId]) delete next.seeds[cropId];
   if (!next.owned.includes(cropId)) next.owned.push(cropId);
   next.stats.planted++;
   next.updatedAt = now;
-  return { ok: true, farm: next, spd };
+  return { ok: true, farm: next, spd, charmed };
 }
 
 // ── IRRIGATION: who is watered without lifting a can ─────────────────────────────────────────────
@@ -641,8 +807,31 @@ export function harvestPlant(farm, plantId, ark, now, tendCounts = {}) {
 // ANNEALED (sim round 1): at ×0.5 the oracle's player made 615 harvests in 21 days and could not
 // afford a second parcel or a single tech — an 11-day unlock gap. ×0.7 + goods + forage income
 // puts the first land deed around day 2 and keeps something unlockable in reach every ~2 days.
-export const sellPrice = (crop) => Math.max(3, Math.round((crop.seedCost || 10) * 0.6));
+// ANNEALED (diversity, 2026-08-13): raw seedCost pricing left one king crop at 3× the median
+// coin-value-per-growth-day and a greedy planter at H=0.42 — most of the roster was wallpaper.
+// The price now BLENDS the seed-cost line with a value-normalized line (VALUE_NORM ◈/growth-day),
+// halving the spread (top ≈1.8× median, king ≈16% over its runner-up) while keeping mean income
+// within ~10% of the annealed curve. Real trade-offs come from planet charms, pests and timing.
+export const VALUE_NORM = 12;
+export const sellPrice = (crop) => {
+  const base = Math.max(3, Math.round((crop.seedCost || 10) * 0.6));
+  const flat = VALUE_NORM * Math.max(1, crop.growthDays | 0) / (ORGANIC_PREMIUM * Math.max(1, crop.yield | 0));
+  return Math.max(3, Math.round(0.4 * base + 0.6 * flat));
+};
 export const sellPriceOrganic = (crop) => Math.round(sellPrice(crop) * ORGANIC_PREMIUM);
+
+// MARKET SATURATION (diversity anneal, 2026-08-13): price compression alone couldn't move an
+// argmax planter off one crop (H_greedy fell to 0.13 — whatever ranks first wins forever, since
+// harvests return their own seeds). So the village only wants so much of ONE crop per day: the
+// first SAT_K units sell at list, the rest at ×SAT_RATE until tomorrow. Rotation becomes the
+// optimal play, which is what makes the roster REAL. Per-crop, per-real-day, deterministic; the
+// tally lives in the save (farm.market) so any viewer prices your stall the same. Goods are
+// exempt — there are only four of them and the herd's rates were annealed separately.
+export const SAT_K = 10;
+export const SAT_RATE = 0.5;
+export const marketDay = (now) => Math.floor(now / 86400000);
+export const soldToday = (farm, cropId, now) =>
+  (farm.market && farm.market.day === marketDay(now) ? farm.market.sold[cropId] : 0) | 0;
 
 // grade: 'organic' (the premium pantry) or 'conv' (synthetic-touched — plain price, never brews)
 export function sellProduce(farm, cropId, qty, ark, now, grade = 'organic') {
@@ -653,13 +842,19 @@ export function sellProduce(farm, cropId, qty, ark, now, grade = 'organic') {
   const crop = cropById(ark, cropId);
   if (!crop) return { ok: false, reason: 'unknown crop' };
   const ward = now < (farm.effects.wardUntil || 0) ? 1.25 : 1;   // a sedate brew binds the market in your favour
+  const favoured = activeCharm(farm) && cropPlanet(crop) === activeCharm(farm) ? CHARM_SELL : 1;   // the worn charm's planet sells dear
   const unit = grade === 'conv' ? sellPrice(crop) : sellPriceOrganic(crop);
-  const coins = Math.round(unit * qty * ward);
+  const prior = soldToday(farm, cropId, now);
+  const fullN = Math.max(0, Math.min(qty, SAT_K - prior));       // what the village still wants at list
+  const coins = Math.round(unit * ward * favoured * (fullN + (qty - fullN) * SAT_RATE));
   const next = clone(farm);
   next[poolKey][cropId] -= qty; if (!next[poolKey][cropId]) delete next[poolKey][cropId];
+  const day = marketDay(now);
+  const sold = next.market && next.market.day === day ? next.market.sold : {};
+  next.market = { day, sold: { ...sold, [cropId]: prior + qty } };
   next.coins += coins; next.stats.sold += qty;
   next.updatedAt = now;
-  return { ok: true, farm: next, coins, warded: ward > 1, organic: grade !== 'conv' };
+  return { ok: true, farm: next, coins, warded: ward > 1, favoured: favoured > 1, saturated: qty > fullN, organic: grade !== 'conv' };
 }
 
 // ── SUPPLIES + THE SYNTHETIC/ORGANIC FORK ─────────────────────────────────────────────────────────
@@ -1059,7 +1254,7 @@ export function toPlotRecord(farm, now) {
 }
 export function fromPlotRecord(value) {
   const f = value && value.farm;
-  if (!f || f.v < 1 || f.v > 5) return null;
+  if (!f || f.v < 1 || f.v > 6) return null;
   if (f.v === 1) {   // v1 → v2: the map-first fields, all additive, defaults deterministic
     f.v = 2;
     f.terra = f.terra || {};
@@ -1126,6 +1321,13 @@ export function fromPlotRecord(value) {
       if (barn && !buildingAt(f, barn.tx, barn.ty)) f.buildings.push(barn);
       else if (barn) { barn.tx = (barn.tx + 2) % FIELD_T; f.buildings.push(barn); }
     }
+  }
+  if (f.v === 5) {   // v5 → v6: the forge + the market tally. Nothing to place — the forge is BUILT, not inherited.
+    f.v = 6;
+    f.forge = f.forge || null;
+    f.market = f.market || null;
+    f.stats.alloysSmelted = f.stats.alloysSmelted | 0;
+    f.stats.charmsForged = f.stats.charmsForged | 0;
   }
   return f;
 }

@@ -179,18 +179,51 @@ each biome, real gacha weights), **novelty depletion** (first-seen day for
 every element class over 28 days — is the stock front-loaded or drip-fed?),
 and **choice entropy** (normalized Shannon H of a random vs a greedy
 value-per-day planter — if H_greedy ≪ H_random, crop variety is wallpaper to
-an optimizer). 2026-08-13 baseline: biome close costs 28◈→1963◈ (50× spread,
-mis-shaped sets), 26% of crop stock surfaced by day 28 (scheduling, not
-count, is the constraint), animals 1/5 seen by day 28 (price-ladder cliff —
-flagged, not yet annealed), H_greedy 0.42 vs H_random 0.99.
+an optimizer). The 2026-08-13 diversity anneal that followed the first
+baseline: animal roster gated on goods collected (`needsGoods` — coins
+couldn't pace it: a novelty-seeking player bought all five kinds in week 1),
+sell prices blended toward a value-per-day norm (`VALUE_NORM`), and — the one
+that actually moved the needle — **market saturation** (`SAT_K`/`SAT_RATE`:
+the village buys 10 units of any one crop per day at list, ×0.5 after).
+Compression alone made H_greedy WORSE (0.42 → 0.13; a stable king is still a
+king); saturation took it to 0.89 over 19 species, i.e. rotation became the
+optimal play. Oracle after the whole set: unlock gap 3.3 → 2.7 days, variety
+7.8 → 9.3 verbs/session, and the forge line drips new elements through weeks
+2–4 (alloys 92%, charms 5.5/7 seen by day 28). Note the instrument lesson
+baked into both sims: the simulated player must be NOVELTY-SEEKING when
+buying animals — a cheapest-first policy misreports the roster as depleted.
 
 Livestock (`ANIMALS`, barn station): wander the map via `animalPos` (pure
 lissajous, no stored position), eat pantry produce (the produce sink), drop
 goods on timers, pet once/day to double the next collect; goods inherit the
-FEED's grade (organic in, organic out). Forage (`forageSpots`): sparkles
+FEED's grade (organic in, organic out). The bigger animals are gated on
+`needsGoods` (goods collected — the barn earns its reputation), shown locked
+in the stable so the shelf is a goal. Forage (`forageSpots`): sparkles
 respawn every 4h across owned land, tap to gather coins/wildseeds/shards —
 arrival is always a small hunt across the estate you built. Both are v5 save
 fields; migration adds the barn to older saves.
+
+## The forge — the metals vertical (v6)
+
+The mine's seven metals were only ever an ingredient tax; the forge
+(`FORGE_REQ`, `buildForge`) is the thing to do with ONLY metals, and the
+first station that is BUILT rather than inherited (craft tool, gated on mine
+depth 5 — visible-locked in the craft bar before that). One timed crucible
+(`ALLOYS`, `smeltAlloy`/`collectSmelt` — a ready pour never blocks the next),
+a rack that sells (`sellAlloy` — the mine's own income line), and the depth
+layer: seven planetary **charms** (`CHARM_DEFS`, Chaldean planet→metal),
+each struck from 2× its own metal + an alloy. One worn at a time
+(`setCharm`): crops of the worn planet grow ×`CHARM_SPD` **from the sowing**
+(the boost is written on the plant — `p.sign`, `p.spd` — so viewers
+recompute it without knowing when charms swapped) and sell ×`CHARM_SELL`
+while worn. `cropPlanet()` makes the sign total: Culpeper's rulership where
+the ark has one, a deterministic hash over the seven otherwise (the ark has
+no Saturn herbs — without the hash a Saturn charm would bless nothing). The
+forge pane lists which of YOUR crops each planet rules: the correspondence
+system is invisible until you build the thing, then teaches itself. The
+surface game never requires any of it — that's the graspable/depth split.
+Save v6 adds `forge` (null until built), `market` (the saturation tally) and
+two stats; `fromPlotRecord` walks v1→v6.
 
 ## Run / test (sandbox-safe)
 

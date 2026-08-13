@@ -136,6 +136,36 @@ function playSession(ctx, now) {
     }
   }
 
+  // 6.5) THE FORGE — the metals vertical: raise it once the mine has shown you depth, keep the
+  // crucible warm, walk the Chaldean week toward whatever charm your ore pile favours.
+  if (S.buildForge) {
+    if (!farm.forge && (farm.mine.depth | 0) >= S.FORGE_REQ.depth && farm.coins >= S.FORGE_REQ.coins + 40) {
+      outer: for (let ty = 0; ty < S.FIELD_T; ty++) for (let tx = 0; tx < S.FIELD_T; tx++) {
+        const r = S.buildForge(farm, tx, ty, now);
+        if (r.ok) { farm = r.farm; note('forge', 3); ctx.unlocks.push({ day: ctx.day, what: 'forge' }); break outer; }
+      }
+    }
+    if (farm.forge) {
+      if (S.smeltReady(farm, now)) { const c = S.collectSmelt(farm, now); if (c.ok) { farm = c.farm; note('alloy', 1); } }
+      // aim at the unowned charm whose metal the ore pile favours most
+      const wanted = Object.entries(S.CHARM_DEFS).filter(([p]) => !farm.forge.charms[p])
+        .sort((a, b) => (farm.metals[b[1].metal] | 0) - (farm.metals[a[1].metal] | 0))[0] || null;
+      if (!farm.forge.queue) {
+        const pourOrder = wanted ? [wanted[1].alloy, ...Object.keys(S.ALLOYS)] : Object.keys(S.ALLOYS);
+        for (const a of pourOrder) { const r = S.smeltAlloy(farm, a, now); if (r.ok) { farm = r.farm; note('smelt'); break; } }
+      }
+      if (wanted) {
+        const r = S.forgeCharm(farm, wanted[0], now);
+        if (r.ok) { farm = r.farm; note('charm', 2); ctx.unlocks.push({ day: ctx.day, what: 'charm:' + wanted[0] }); }
+      }
+      // alloys no future charm wants are stock for the market — the mine's own income line
+      for (const [a, cnt] of Object.entries({ ...farm.forge.alloys })) {
+        const needed = Object.entries(S.CHARM_DEFS).some(([p, d]) => !farm.forge.charms[p] && d.alloy === a);
+        if (cnt > (needed ? 1 : 0)) { const r = S.sellAlloy(farm, a, cnt - (needed ? 1 : 0), now); if (r.ok) { farm = r.farm; note('sell'); } }
+      }
+    }
+  }
+
   // 7) PULL seeds — but SAVE toward the nearest visible goal (a player with a FOR SALE sign on
   // screen does not gamble the deed money away)
   const goalCost = (() => {
@@ -149,8 +179,9 @@ function playSession(ctx, now) {
       if (t) costs.push(t.cost.coins);
     }
     if (S.ANIMALS && (farm.animals || []).length < S.animalCap(farm)) {
-      const a = Object.values(S.ANIMALS).filter((d) => !d.needsPond).sort((x, y) => x.cost - y.cost)[(farm.animals || []).length] || null;
-      if (a) costs.push(a.cost);
+      const owned = new Set((farm.animals || []).map((x) => x.kind));
+      const a = Object.entries(S.ANIMALS).filter(([k]) => !owned.has(k)).sort((x, y) => x[1].cost - y[1].cost)[0];
+      if (a) costs.push(a[1].cost);
     }
     return costs.length ? Math.min(...costs) : null;
   })();
@@ -183,11 +214,15 @@ function playSession(ctx, now) {
       if (t) { const r = S.research(farm, t.id, now); if (r.ok) { farm = r.farm; note('tech', 2); ctx.unlocks.push({ day: ctx.day, what: 'tech:' + t.id }); } }
     }
     if (S.buyAnimal && (farm.animals || []).length < S.animalCap(farm)) {
-      const kind = Object.entries(S.ANIMALS).filter(([, a]) => !a.needsPond && farm.coins >= a.cost + 40)
-        .sort((a, b) => a[1].cost - b[1].cost)[0];
-      if (kind) {
-        const r = S.buyAnimal(farm, kind[0], now);
-        if (r.ok) { farm = r.farm; note('animal', 2); ctx.unlocks.push({ day: ctx.day, what: 'animal:' + kind[0] }); }
+      // novelty-seeking, like a real player: the cheapest kind you DON'T own yet comes first
+      // (cheapest-first bought a fifth hen while a goat sat affordable, and misread the whole
+      // animal class as depleted after day one). buyAnimal itself refuses ducks without ponds.
+      const owned = new Set((farm.animals || []).map((a) => a.kind));
+      const kinds = Object.entries(S.ANIMALS).filter(([, a]) => farm.coins >= a.cost + 40)
+        .sort((a, b) => (owned.has(a[0]) - owned.has(b[0])) || (a[1].cost - b[1].cost));
+      for (const [k] of kinds) {
+        const r = S.buyAnimal(farm, k, now);
+        if (r.ok) { farm = r.farm; note('animal', 2); ctx.unlocks.push({ day: ctx.day, what: 'animal:' + k }); break; }
       }
     }
     const cheap = S.buyableParcels(farm).sort((a, b) => a.price - b.price)[0];
