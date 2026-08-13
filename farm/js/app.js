@@ -292,7 +292,10 @@ function onFieldTap(tap) {
     return;
   }
   if (!plantingCrop) return;
-  const r = plantSeed(farm, bx, by, plantingCrop, ark, now());
+  // SNAP TO THE TILE CENTER: the hover preview judges tiles, so planting must land where the
+  // preview looked — free-floating tap coords made green tiles refuse (tap near an edge, too
+  // close to a neighbour) and red tiles accept. One tile, one plant, no lies.
+  const r = plantSeed(farm, (tx + 0.5) / FIELD_T, (ty + 0.5) / FIELD_T, plantingCrop, ark, now());
   if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
   commit(r.farm);
   if (r.farWater) toast('🏜 far from water — it only grows when watered, and 48h dry kills it. A pond or sprinkler nearby fixes that for good', 'warn', 8000);
@@ -308,8 +311,18 @@ function toolCheckAt(tx, ty) {
   if (craftTool === 'sprinkler') return placeSprinkler(farm, tx, ty, 0).ok;
   if (craftTool === 'forge') return buildForge(farm, tx, ty, 0).ok;
   if (craftTool) return terraform(farm, tx, ty, craftTool, 0).ok;
-  if (plantingCrop) return plantableTile(farm, (tx + 0.5) / FIELD_T, (ty + 0.5) / FIELD_T);
+  if (plantingCrop) return plantCheckAt(tx, ty);
   return false;
+}
+
+// the ONE planting predicate — the hover tile, the global overlay and the tap all ask this, and
+// the tap plants at the same tile center it judges, so the answer can never lie
+function plantCheckAt(tx, ty) {
+  if (!plantingCrop) return false;
+  if (!plantableTile(farm, (tx + 0.5) / FIELD_T, (ty + 0.5) / FIELD_T)) return false;
+  const c = cropById(ark, plantingCrop);
+  if (c && THIRSTY[c.id] != null && !waterSourceWithin(farm, tx, ty, THIRSTY[c.id])) return false;
+  return true;
 }
 
 function commit(next, { immediate = false } = {}) {
