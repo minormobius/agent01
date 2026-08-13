@@ -33,10 +33,10 @@ _Regenerated 2026-08-13 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 79, bluesky 73, data 57, tools 56, work 8.
 
-**Neighborhood spark** (bisk 2026-08-13, 99 members / 296 posts):
+**Neighborhood spark** (bisk 2026-08-13, 99 members / 297 posts):
 - Mood: Fair 🌤 (trust)
 - Distinctive words: bluesky, bisks, buildthis
-- Top post: "For the past six months @mariaa.bsky.social and I have been working on creating an improved research experience on atpro" — @eugenevinitsky.bsky.social
+- Top post: "" — @sneptech.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
