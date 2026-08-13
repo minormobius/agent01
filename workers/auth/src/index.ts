@@ -47,6 +47,7 @@ const ALLOWED_ORIGINS = [
   'https://aub.mino.mobi',
   'https://rant.mino.mobi',
   'https://farm.mino.mobi',
+  'https://farm-next.mino.mobi',   // the testing table — petition experiments, same save, same scopes
 ];
 
 function isAllowedOrigin(origin: string | null): boolean {

@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "harvestople-next",
+  "compatibility_date": "2026-08-01",
+  // farm-next.mino.mobi — THE TESTING TABLE. The same game, deployed from the
+  // claude/farm-next branch, where granted petitions go live IMMEDIATELY so the
+  // petitioner can play their idea within the hour. Same auth worker, same plot
+  // record (the save covenant — farm.x — keeps the two worlds compatible; see
+  // test/covenant.selftest.mjs, which gates this deploy too). Experiments
+  // graduate to mainline at the merge party or quietly retire; either way the
+  // player's save is never at risk (a build that can't read a save refuses to
+  // write, store.js loadRemote).
+  "assets": {
+    "directory": "."
+  },
+  "routes": [
+    { "pattern": "farm-next.mino.mobi", "custom_domain": true }
+  ]
+}

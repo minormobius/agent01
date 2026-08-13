@@ -1300,6 +1300,24 @@
       ]
     },
     {
+      "surface": "farm-next",
+      "dir": "farm",
+      "endpoint": "farm-next.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/farm-next",
+      "uses": [
+        "auth.mino.mobi"
+      ],
+      "provides": null,
+      "op": "create",
+      "status": "NEW — first deploy pending. Worker `harvestople-next` + custom_domain route (farm-next.mino.mobi) via farm/wrangler.next.jsonc; wrangler provisions the subdomain on run #1 (farm precedent, same zone).",
+      "note": "THE TESTING TABLE — the same farm/ code deployed from claude/farm-next, where granted petitions go live immediately so the petitioner can play their idea within the hour. Shares the plot record with mainline under the save covenant (farm.x pocket, frozen v — test/covenant.selftest.mjs gates both worlds); next-scope.mjs keeps the rails (store/auth/wrangler/lexicons/sims) out of experiments' reach. Features graduate at the merge party or retire. (full description: farm/CLAUDE.md)",
+      "paths": [
+        "farm/**",
+        ".github/workflows/deploy-farm-next.yml"
+      ]
+    },
+    {
       "surface": "bsky-bot",
       "dir": "workers/bsky-bot",
       "endpoint": "mino-bsky-bot",

@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **82 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **83 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -57,6 +57,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `empathy` | frontend | `empathy` | [empath.mino.mobi](https://empath.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`empathy/CLAUDE.md`](../empathy/CLAUDE.md) | See Bluesky as anyone sees it… |
 | `fable` | frontend | `fable` | [fable.mino.mobi](https://fable.mino.mobi) | `claude/artifact-website-deploy-x8aiuq` | [`fable/CLAUDE.md`](../fable/CLAUDE.md) | The generative / interestingness-engine wing (worker `fable`, custom_domain fable.mino.mobi). Thin assets Worker, no build, no secrets… (full description: fable/CLAUDE.md) |
 | `farm` | frontend | `farm` | [farm.mino.mobi](https://farm.mino.mobi) | `claude/farmville-atproto-game-745mcr` | [`farm/CLAUDE.md`](../farm/CLAUDE.md) | Harvestople — farming on ATProto. Plant real organisms that grow on the wall clock, mine the seven planetary metals, brew Galenic alchemy from what you harvest, and post your deeds to Bluesky… |
+| `farm-next` | frontend | `farm` | [farm-next.mino.mobi](https://farm-next.mino.mobi) | `claude/farm-next` | [`farm/CLAUDE.md`](../farm/CLAUDE.md) | Harvestople's testing table. Petition a change from inside the farm and the town council builds it here — live within the hour, playable with your real save… |
 | `feed` | backend | `workers/feed` | [feed.mino.mobi](https://feed.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`workers/feed/CLAUDE.md`](../workers/feed/CLAUDE.md) | SimCluster — a Bluesky feed generator… |
 | `fifty` | fullstack | `fifty` | [fifty.mino.mobi](https://fifty.mino.mobi) | `claude/fifty-microsites-deploy-fyjk1q` | [`fifty/CLAUDE.md`](../fifty/CLAUDE.md) | Fifty ATProto app concepts on one surface — an index at the root and a page per concept… |
 | `finance` | frontend | `finance` | [fin.mino.mobi](https://fin.mino.mobi) | `claude/speculative-feedback-playground-t0yiaq` | [`finance/CLAUDE.md`](../finance/CLAUDE.md) | Personal financial dashboard. Market data synced to ATProto records, rendered with dark-mode charts. |
@@ -118,7 +119,7 @@ A change here ripples to every dependent surface listed.
 
 | Resource | Dependents | Surfaces |
 |---|---|---|
-| `auth.mino.mobi` | 10 | `bakery`, `board`, `canvas`, `farm`, `games`, `io`, `photo`, `rant`, `scores`, `wave` |
+| `auth.mino.mobi` | 11 | `bakery`, `board`, `canvas`, `farm`, `farm-next`, `games`, `io`, `photo`, `rant`, `scores`, `wave` |
 | `atpolls-db` | 8 | `airchat`, `canvas`, `feed`, `human`, `io`, `poll`, `reef`, `rite` |
 | `mino-auth-db` | 1 | `auth` |
 | `bounty-board` | 1 | `bounty` |

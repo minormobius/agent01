@@ -225,26 +225,32 @@ surface game never requires any of it — that's the graspable/depth split.
 Save v6 adds `forge` (null until built), `market` (the saturation tally) and
 two stats; `fromPlotRecord` walks v1→v6.
 
-## The town council — players change the game (petitions)
+## The town council — players change the game (the immediate loop)
 
-Players file `com.minomobi.farm.petition` records from the deeds sign; an
-automated council session works the queue on `claude/farm-petitions`, and
-`.github/workflows/farm-council.yml` is the ONLY road from there to
-production: **the moat** (`farm/sim/petition-scope.mjs` — the diff may only
-touch themes/achievements-append-only/commons/knobs/council), **the tests**,
-and **the scales** (`farm/sim/gate.mjs` reads both instruments' `METRICS`
-lines against `farm/sim/thresholds.json` — the annealed bounds as executable
-regression). Only then does it merge into the deploy branch and dispatch the
-deploy (a GITHUB_TOKEN push can't fire push triggers, hence the explicit
-dispatch). `gate.mjs` also runs in every farm deploy — the scales bind
-humans and agents alike. The constitution, tiers, and worked triage live in
-[`PETITIONS.md`](PETITIONS.md) (served — it's public law). Grants are
-credited in `council/ledger.json` (served; rendered on the deeds sign).
-NOT BUILT YET: the sweep that collects petitions into `council/queue/` and
-convenes the session — it rides the existing site-maker bot's rails (mention
-posts → queue files → invoke Claude with PETITIONS.md). Petition text is
-untrusted input; the walls judge the diff, never the wish. The thresholds,
-sims, workflows, and PETITIONS.md itself are human-edit-only.
+Petition (deeds sign) → record in the player's own repo + `#harvestople`
+courier post → **`farm-sweep.yml`** (15-min cron) finds it, convenes a
+headless council session (`claude -p`, no Bash — lab-build containment) on
+**`claude/farm-next`**, which builds the wish or declines it → the walls
+judge the diff (`next-scope.mjs` + every selftest) → push deploys **the
+testing table, `farm-next.mino.mobi`** (`wrangler.next.jsonc`; scales
+advisory there) → `reply.mjs` answers in the petitioner's thread with the
+live link. Weekly, **`farm-merge-party.yml`** runs the full walls (scales
+HARD), assembles patch notes from the ledger delta, opens a graduation PR to
+the deploy branch (a human merges — mechanics are Tier 3), and announces on
+Bluesky. Constitution + triage: [`PETITIONS.md`](PETITIONS.md) (served law).
+
+**The save covenant** makes one plot record serve both worlds: experiments
+never bump `v`, keep ALL state under `farm.x.<featureId>`, and write real
+fields only through existing kernels at existing rates (new rewards escrow
+in the pocket until graduation). `test/covenant.selftest.mjs` gates every
+deploy of both worlds; `store.js` refuses to write over any save it cannot
+read (`newerworld` event), so even a covenant-breaking record can't be
+clobbered. The older mainline moat (`petition-scope.mjs` +
+`farm-council.yml` on `claude/farm-petitions`) remains as the narrow
+pure-content lane. The scales (`gate.mjs` + `thresholds.json`) run hard in
+every MAINLINE deploy. Petition text is untrusted input; the walls judge the
+diff, never the wish. Thresholds, sims, workflows, and PETITIONS.md are
+human-edit-only.
 
 ## Run / test (sandbox-safe)
 

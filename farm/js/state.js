@@ -562,6 +562,9 @@ export function newFarm(did, ark, now = 0) {
     forage: null,                // { w, got: [i…] } — this window's gathered sparkles
     forge: null,                 // null until BUILT → { queue, alloys, charms, active } (the metals vertical)
     market: null,                // { day, sold: {cropId → n} } — today's per-crop saturation tally
+    x: {},                       // THE EXPERIMENT POCKET (save covenant): testing-table features keep
+                                 // ALL their state under x.<featureId>. Mainline preserves x verbatim
+                                 // and never reads it — one save plays on both worlds.
     metals: {},                  // metal → count (from the mine: gold silver quicksilver copper iron tin lead)
     shards: 0,                   // quintessence shards (mine) — one steadies a wobbly brew
     preparations: [],            // brewed items [{ id, vessel, grade, label, use, glyphs, reagents, at }]
@@ -1329,6 +1332,12 @@ export function fromPlotRecord(value) {
     f.stats.alloysSmelted = f.stats.alloysSmelted | 0;
     f.stats.charmsForged = f.stats.charmsForged | 0;
   }
+  // THE SAVE COVENANT (not a version bump — both directions stay compatible): farm.x is the
+  // experiment pocket. Testing-table builds (farm-next.mino.mobi) put ALL their state under
+  // x.<featureId> and NEVER bump v or change existing fields' meaning; mainline carries x
+  // untouched (every mutator deep-clones the whole farm) and never reads it. A feature that
+  // graduates at the merge party moves its pocket into real fields via a proper v migration.
+  f.x = f.x || {};
   return f;
 }
 

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { ALLOWED, checkScope, checkAppendOnly } from '../sim/petition-scope.mjs';
+import { checkNextScope } from '../sim/next-scope.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 let n = 0;
@@ -33,6 +34,28 @@ for (const forbidden of [
 }
 const mixed = checkScope(['farm/js/themes.js', 'farm/js/state.js']);
 ok(!mixed.ok && mixed.denied.length === 1, 'one bad file poisons the diff, good files stay named');
+
+// ── the testing table's walls: experiments may touch the GAME, never the rails ──
+ok(checkNextScope(['farm/js/state.js', 'farm/js/app.js', 'farm/js/iso.js', 'farm/js/themes.js']).ok, 'the table may touch the kernel and the UI');
+ok(checkNextScope(['farm/index.html', 'farm/test/fishing.selftest.mjs', 'farm/commons/fish.json']).ok, 'new tests and content are welcome on the table');
+for (const forbidden of [
+  'farm/js/store.js',                    // sync + scopes
+  'farm/vendor/auth.js',                 // the auth client
+  'farm/wrangler.jsonc',                 // worker names + domains
+  'farm/wrangler.next.jsonc',
+  'farm/lexicons/com.minomobi.farm.plot.json',
+  'farm/sim/gate.mjs',                   // the examiner
+  'farm/sim/next-scope.mjs',
+  'farm/test/covenant.selftest.mjs',     // the covenant's seatbelt
+  'farm/PETITIONS.md',
+  'farm/CLAUDE.md',
+  'farm/.assetsignore',
+  'workers/auth/src/index.ts',           // outside farm/ entirely
+  '.github/workflows/farm-sweep.yml',
+]) {
+  const r = checkNextScope([forbidden]);
+  ok(!r.ok && r.denied.includes(forbidden), 'the table may not touch ' + forbidden);
+}
 
 // ── deeds append-only ──
 const base = "  { id: 'first-seed', x: 1 },\n  { id: 'first-harvest' },";

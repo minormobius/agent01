@@ -86,9 +86,21 @@ export class FarmStore extends EventTarget {
   // ── the plot record (rkey self) ──
   async loadRemote() {
     if (!this.user) return null;
+    this.remoteUnreadable = false;
     try {
       const rec = await this.auth.pds.getRecord(PLOT_COLLECTION, PLOT_RKEY);
-      return rec && rec.value ? fromPlotRecord(rec.value) : null;
+      if (!rec || !rec.value) return null;
+      const f = fromPlotRecord(rec.value);
+      if (!f) {
+        // the record EXISTS but this build can't read it — a save written by a newer world
+        // (e.g. a graduated testing-table feature this deploy hasn't caught up to). Absence
+        // and unreadability must never be confused: promoting a local farm over an unread
+        // save would destroy it, so all remote writes stop until a build that can read it.
+        this.remoteUnreadable = true;
+        this.dispatchEvent(new Event('newerworld'));
+        return null;
+      }
+      return f;
     } catch (e) { return null; }
   }
 
@@ -111,6 +123,7 @@ export class FarmStore extends EventTarget {
   async _flush() {
     if (this._flushing || !this._dirty || !this.user || !this._pending) return;
     if (this._scopeBlocked) return;   // a missing grant never fixes itself — wait for grantScope()
+    if (this.remoteUnreadable) return;   // never write over a save this build could not read
     this._flushing = true;
     const { farm, now } = this._pending;
     this._dirty = false;

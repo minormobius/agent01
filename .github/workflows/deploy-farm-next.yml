@@ -1,0 +1,67 @@
+name: Deploy farm-next (the testing table)
+
+# farm-next.mino.mobi — where granted petitions go live IMMEDIATELY. Deploys the
+# claude/farm-next branch: the same game plus in-flight experiments. Walls before
+# wrangler: next-scope (experiments may touch the game, never the rails), every
+# selftest INCLUDING the save covenant (one plot record serves both worlds), and
+# the scales as an ADVISORY reading — experiments may bend the balance on the
+# table; the scales only bind at the merge party, on the road to mainline.
+
+on:
+  push:
+    branches:
+      - 'claude/farm-next'
+    paths:
+      - 'farm/**'
+      - '.github/workflows/deploy-farm-next.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: The testing table's walls (next-scope vs mainline)
+        run: |
+          git fetch origin claude/farmville-atproto-game-745mcr
+          node farm/sim/next-scope.mjs origin/claude/farmville-atproto-game-745mcr
+
+      - name: Kernel selftests + the save covenant
+        run: |
+          fail=0
+          for t in farm/test/*.selftest.mjs; do
+            node "$t" || { echo "FAIL $t"; fail=1; }
+          done
+          exit $fail
+
+      - name: The scales (advisory on the table)
+        continue-on-error: true
+        run: node farm/sim/gate.mjs
+
+      - name: Deploy worker + assets
+        working-directory: farm
+        run: npx wrangler deploy --config wrangler.next.jsonc
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify the custom domain serves the app
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            BODY=$(curl -fsS https://farm-next.mino.mobi/ || true)
+            if echo "$BODY" | grep -q 'Harvestople'; then
+              echo "farm-next.mino.mobi is serving the testing table"
+              exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 4
+          done
+          echo "farm-next.mino.mobi did not serve the expected page within 20s — check the deploy log bound '(custom domain)'."

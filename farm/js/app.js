@@ -81,11 +81,25 @@ const CRAFT_TOOLS = [
 let pendingBuy = null;   // { key, at } — a FOR-SALE parcel tapped once, awaiting its confirming tap
 
 async function boot() {
+  // THE TESTING TABLE: the same code serves farm-next.mino.mobi from its own branch, where
+  // granted petitions go live immediately. Same save (the covenant keeps the worlds compatible)
+  // — but the player should always know which world they're standing in.
+  if (location.hostname === 'farm-next.mino.mobi') {
+    document.title = 'Harvestople NEXT — the testing table';
+    const b = document.createElement('div');
+    b.className = 'toast warn'; b.id = 'nextbar';
+    b.innerHTML = '⚗️ <b>the testing table</b> — petition experiments live here first. Your real save, new rules; the keepers merge the good ones. <a href="https://farm.mino.mobi/">back to the mainline farm</a>';
+    document.addEventListener('DOMContentLoaded', () => $('#toasts') && $('#toasts').appendChild(b));
+    if ($('#toasts')) $('#toasts').appendChild(b);
+  }
   ark = await (await fetch('./vendor/ark.json')).json();
   const u = new URLSearchParams(location.search).get('u');
   await store.init();
   store.addEventListener('auth', () => { renderHeader(); });
   store.addEventListener('syncerror', () => toast('⚠ sync hiccup — retrying with backoff', 'warn'));
+  // a save written by a NEWER world (a graduated testing-table feature this deploy hasn't caught
+  // up to): play continues locally, nothing is overwritten, and a refresh usually resolves it.
+  store.addEventListener('newerworld', () => toast('🔭 your save comes from a newer Harvestople — playing locally, nothing will be overwritten. Refresh in a bit.', 'warn', 12000));
   // an SSO session consented on another mino.mobi site authenticates fine but can't WRITE farm
   // records — one clear banner with the fix, instead of a failed-save toast storm.
   store.addEventListener('scopeneeded', () => showGrantBanner('this signed-in session can’t save the farm yet'));
@@ -999,7 +1013,16 @@ async function renderTownBoard() {
       const r = await store.writePetition(text, null, now());
       if (!r) return;   // scope escalation redirected
       $('#petitiontext').value = '';
-      $('#petitionnote').textContent = 'filed. The council sits daily; grants land on the ledger with your name.';
+      // the COURIER POST is how the sweep discovers petitions (public search on the tag) and
+      // where the council replies with your testing-table link — the record is the truth, the
+      // post is the flare. Best effort: a petition without its flare still exists, it just
+      // waits for a slower road.
+      try {
+        await store.sharePost('🪧 petitioned the Harvestople town council: “' + text.slice(0, 170) + '” #harvestople\n\nfarm.mino.mobi');
+        $('#petitionnote').textContent = 'filed + posted. The council builds or declines within the hour and replies to your post — grants come with a live testing link.';
+      } catch (e) {
+        $('#petitionnote').textContent = 'filed — but the courier post failed, and that post is how the council finds petitions and replies. Try again later from the deeds sign.';
+      }
       toast('🪧 petition filed with the council', 'ach', 6000);
     } catch (e) { toast('the courier stumbled — try again', 'warn'); }
   };
