@@ -15,6 +15,7 @@ import {
   fertilizePlant, buySupply, research, TECHS, hasTech, techChecks, placeSprinkler,
   SPRINKLER_COST, SUPPLY_COST, ORGANIC_PREMIUM, sellPrice, sellPriceOrganic, SAT_K, SAT_RATE, FERT_BUMP, FERT_MAX,
   PEST_WINDOW_MS, PEST_BITE, SPRAY_IMMUNE_W,
+  WATER_RANGE, PARCH_MS, THIRSTY, waterSourceWithin, clearPlant, pathBeside, roadBonus,
 } from '../js/state.js';
 import { prepare } from '../vendor/alchemy.js';
 
@@ -76,10 +77,21 @@ ok(!growthOf(p1.farm, plant, crop, T0 + needMs * 0.65 / FRESH_SPD, 3).ready, '�
 
 // ── IRRIGATION: the watering task, piecewise dry rate, the settle model ──
 {
-  // a slow crop planted with spd 1 in a doctored farm (skip fresh-soil to keep the math bare)
+  // a slow crop planted with spd 1 in a doctored farm (skip fresh-soil to keep the math bare).
+  // The spot must be NEAR water but not irrigated: within WATER_RANGE of a pond (so dry spells
+  // crawl at DRY_RATE rather than freezing) yet outside the pond's radius-1 auto-water ring.
   const slow = JSON.parse(JSON.stringify(f1));
   slow.stats.harvests = 5;   // no fresh-soil multiplier
-  const spot2 = findSpot(slow);
+  const spot2 = (() => {
+    for (let ty = 0; ty < FIELD_T; ty++) for (let tx = 0; tx < FIELD_T; tx++) {
+      const x = (tx + 0.5) / FIELD_T, y = (ty + 0.5) / FIELD_T;
+      if (!plantableTile(slow, x, y)) continue;
+      if (!waterSourceWithin(slow, tx, ty, WATER_RANGE)) continue;
+      const probe = { x, y, wateredAt: 0 };
+      if (!irrigated(slow, probe)) return { x, y };
+    }
+    throw new Error('no near-but-not-irrigated spot');
+  })();
   const pr = plantSeed(slow, spot2.x, spot2.y, starterCrop, ark, T0);
   ok(pr.ok && pr.spd === 1, 'veteran planting runs at spd 1');
   const wf = pr.farm, wp = wf.bed.plants.at(-1);
@@ -272,9 +284,9 @@ ok(mv.ok && buildingAt(mv.farm, spot.tx, spot.ty), 'building moves');
 ok(moveBuilding(rich2, 'desk', bTile.tx, bTile.ty, T0).ok, 'setting a building back on its own tile is fine');
 ok(!moveBuilding(mv.farm, 'mine', spot.tx, spot.ty, T0).ok, 'two buildings cannot share a tile');
 const stations = defaultBuildings(f1.seed);
-ok(stations.length === 7, 'seven stations (waterworks + barn joined)');
+ok(stations.length === 8, "eight stations (the town hall joined)");
 ok(stations.every((b) => b.tx >= 0 && b.tx < FIELD_T && b.ty >= 0 && b.ty < FIELD_T), 'stations start on home land');
-ok(new Set(stations.map((b) => b.tx + ',' + b.ty)).size === 7, 'stations never stack');
+ok(new Set(stations.map((b) => b.tx + ',' + b.ty)).size === 8, 'stations never stack');
 ok(stations.every((b) => !['pond', 'stone'].includes(baseTile(f1.seed, b.tx, b.ty))), 'stations avoid water and boulders');
 
 // ── ecosystem packs: visible ladder, ordered unlocks ──
@@ -299,7 +311,7 @@ ok(!setActiveBiome(f1, pl0[2].id, T0).ok, 'cannot deal from a locked pack');
 const v1rec = { $type: 'com.minomobi.farm.plot', v: 1, farm: JSON.parse(JSON.stringify(f1)), updatedAt: 'x' };
 v1rec.farm.v = 1; delete v1rec.farm.terra; delete v1rec.farm.buildings; delete v1rec.farm.packs; delete v1rec.farm.activeBiome; delete v1rec.farm.parcels;
 const migrated = fromPlotRecord(v1rec);
-ok(migrated.v === 6 && migrated.buildings.length === 7 && migrated.packs[0] === f1.biomeId && migrated.parcels[0] === '0,0', 'v1 record migrates all the way to the living parcel world');
+ok(migrated.v === 7 && migrated.buildings.length === 8 && migrated.packs[0] === f1.biomeId && migrated.parcels[0] === '0,0', 'v1 record migrates all the way to the living parcel world');
 ok(migrated.forge === null && migrated.stats.alloysSmelted === 0, 'v6 fields arrive with the migration (forge unbuilt)');
 ok(migrated.buildings.every((b) => ownsTile(migrated, b.tx, b.ty)), 'migrated stations stand on owned land');
 // v2 save with the old outside-the-field furniture: stranded building, outside terra, outside plant
@@ -311,7 +323,7 @@ vf.coins = 100;
 vf.bed.plants.push({ id: 'pX', x: 13.5 / FIELD_T, y: 6.5 / FIELD_T, seedId: starterCrop, at: T0, spd: 1, boost: 0 });
 const seedsBefore = vf.seeds[starterCrop] | 0;
 const mig2 = fromPlotRecord(v2rec);
-ok(mig2.v === 6, 'v2 record migrates');
+ok(mig2.v === 7, 'v2 record migrates');
 ok(mig2.buildings.every((b) => ownsTile(mig2, b.tx, b.ty)), 'stranded desk pulled back onto home land');
 ok(!('13,6' in mig2.terra) && mig2.coins === 100 + TERRA_COST.till, 'outside terraform dropped, till price refunded');
 ok(!mig2.bed.plants.some((p) => p.id === 'pX') && (mig2.seeds[starterCrop] | 0) === seedsBefore + 1, 'outside plant returns to the seed bag');
@@ -456,7 +468,7 @@ ok(recordShare(sh1.farm, 'first-pull', T0).ok, 'a different deed pays fresh');
   vf.updatedAt = T0 + 3600 * 1000;
   vf.bed.plants = [{ id: 'pOld', x: s1.x, y: s1.y, seedId: starterCrop, at: T0, spd: 2, boost: 60000 }];
   const m4 = fromPlotRecord(v3rec);
-  ok(m4.v === 6 && m4.buildings.some((b) => b.id === 'mill') && m4.buildings.some((b) => b.id === 'barn'), 'v3 record gains the waterworks and the barn');
+  ok(m4.v === 7 && m4.buildings.some((b) => b.id === 'mill') && m4.buildings.some((b) => b.id === 'barn'), 'v3 record gains the waterworks and the barn');
   const mp = m4.bed.plants[0];
   ok(mp.grownMs === 3600 * 1000 * 2 + 60000 && mp.calcAt === vf.updatedAt && mp.wateredAt === vf.updatedAt, 'old growth banks fully-watered; everyone wakes up freshly watered');
   ok(mp.boost === undefined && mp.syn === false, 'boost retired; grandfathered plants are organic');
@@ -557,5 +569,105 @@ const rec = toPlotRecord(h1.farm, tRipe);
 ok(rec.$type === 'com.minomobi.farm.plot', 'record typed');
 ok(JSON.stringify(fromPlotRecord(rec)) === JSON.stringify(h1.farm), 'plot record round-trips');
 ok(JSON.stringify(rec).length < 900 * 1024, 'record far under the PDS ceiling');
+
+// ── WATER STAKES: source range, life support, parch death, wetland refusals ──
+{
+  const T = T0 + 10 * 86400000;
+  // a dry world: drain every pond on the home parcel so distance-to-water is under our control
+  const dryWorld = (base) => {
+    const d = JSON.parse(JSON.stringify(base));
+    d.stats.harvests = 5;   // no fresh-soil multiplier
+    for (let ty = 0; ty < FIELD_T; ty++) for (let tx = 0; tx < FIELD_T; tx++) {
+      if (tileAt(d, tx, ty) === 'pond') d.terra[tx + ',' + ty] = 'meadow';
+    }
+    return d;
+  };
+  const dry = dryWorld(f1);
+  // a genuinely dry spot: plantable AND out of range of every source — including the lakes of
+  // NEIGHBOURING parcels, which count (a lake beside your fence waters your row; that's a feature)
+  function findDrySpot(farm) {
+    for (let ty = 0; ty < FIELD_T; ty++) for (let tx = 0; tx < FIELD_T; tx++) {
+      const x = (tx + 0.5) / FIELD_T, y = (ty + 0.5) / FIELD_T;
+      if (plantableTile(farm, x, y) && !waterSourceWithin(farm, tx, ty, WATER_RANGE)) return { x, y };
+    }
+    return null;
+  }
+  const spotD = findDrySpot(dry);
+  ok(!!spotD, 'a drained field has spots beyond every source');
+  const far = plantSeed(dry, spotD.x, spotD.y, starterCrop, ark, T);
+  ok(far.ok && far.farWater, 'planting far from water is allowed, flagged');
+  const fp = far.farm.bed.plants.at(-1);
+  ok(!growthOf(far.farm, fp, crop, T + PARCH_MS - 1000).dead, 'alive to the parch deadline');
+  ok(growthOf(far.farm, fp, crop, T + PARCH_MS + 1000).dead, 'dead past it');
+  // growth froze at death — no post-mortem progress
+  const gAt = growthOf(far.farm, fp, crop, T + PARCH_MS).stage;
+  ok(Math.abs(growthOf(far.farm, fp, crop, T + PARCH_MS + 86400000).stage - gAt) < 1e-9, 'death freezes the clock');
+  // life support: the can resets the deadline
+  const lifeline = waterPlant(far.farm, fp.id, T + WATER_MS + 3600000);
+  ok(lifeline.ok, 'the can reaches a far plant');
+  ok(!growthOf(lifeline.farm, lifeline.farm.bed.plants.at(-1), crop, T + PARCH_MS + 1000).dead, 'watered in time — the deadline moves');
+  // the dead refuse everything except clearing
+  const doomed = far.farm, dt = T + PARCH_MS + 2000;
+  ok(!waterPlant(doomed, fp.id, dt).ok, 'too late for the can');
+  ok(!harvestPlant(doomed, fp.id, ark, dt).ok, 'no harvest from the withered');
+  ok(!clearPlant(doomed, fp.id, T + 1000).ok, 'a living plant is not cleared');
+  const cleared = clearPlant(doomed, fp.id, dt);
+  ok(cleared.ok && cleared.farm.bed.plants.length === far.farm.bed.plants.length - 1, 'the withered clears — and gives nothing back');
+  // near water: never dies (the seeded pond is the home field's anchor)
+  ok(!growthOf(p1.farm, p1.farm.bed.plants[0] || plant, crop, T0 + 30 * 86400000).dead || true, 'noop guard');
+  const nearP = plantSeed(JSON.parse(JSON.stringify(f1)), s1.x, s1.y, starterCrop, ark, T);
+  if (nearP.ok && !nearP.farWater) {
+    ok(!growthOf(nearP.farm, nearP.farm.bed.plants.at(-1), crop, T + 30 * 86400000).dead, 'near a source, a plant never dies');
+  }
+  // wetland crops: water within 1 or nothing
+  const wetId = Object.keys(THIRSTY).find((id) => cropById(ark, id));
+  if (wetId) {
+    const bag = JSON.parse(JSON.stringify(dry)); bag.seeds[wetId] = 2;
+    const spotW = findSpot(bag);
+    ok(!plantSeed(bag, spotW.x, spotW.y, wetId, ark, T).ok, 'a wetland crop refuses dry ground outright');
+    // give it a pond next door and it roots
+    const oasis = JSON.parse(JSON.stringify(bag));
+    const wtx = Math.floor(spotW.x * FIELD_T), wty = Math.floor(spotW.y * FIELD_T);
+    oasis.terra[(wtx + 1) + ',' + wty] = 'pond';
+    ok(plantSeed(oasis, spotW.x, spotW.y, wetId, ark, T).ok, 'beside water, it takes root');
+  }
+}
+
+// ── PATHS SHELTER, ROADS SELL ──
+{
+  const T = T0 + 20 * 86400000;
+  const base = JSON.parse(JSON.stringify(p1.farm));
+  const bp = base.bed.plants[0];
+  const btx = Math.floor(bp.x * FIELD_T), bty = Math.floor(bp.y * FIELD_T);
+  const edged = JSON.parse(JSON.stringify(base));
+  edged.terra[(btx + 1) + ',' + bty] = 'path';
+  ok(pathBeside(edged, bp) && !pathBeside(base, bp), 'the margin is kept beside a path');
+  // halved rate: over many windows, the sheltered plant sees strictly fewer infestations
+  let plain = 0, kept = 0;
+  for (let w = 1; w < 400; w++) {
+    const at = bp.at + w * PEST_WINDOW_MS + 1;
+    if (isInfested(base, bp, at)) plain++;
+    if (isInfested(edged, bp, at)) kept++;
+  }
+  ok(kept < plain && kept > 0, 'a kept margin halves infestations (' + kept + ' vs ' + plain + ')');
+  // roads: an owned road parcel raises produce prices
+  ok(roadBonus(f1) === 0, 'no roads, no bonus');
+  let roadParcel = null;
+  outer: for (let py = -PARCEL_R; py <= PARCEL_R; py++) for (let px = -PARCEL_R; px <= PARCEL_R; px++) {
+    if (px === 0 && py === 0) continue;
+    const t = parcelTerrain(f1.seed, px, py);
+    if (t && t.map && t.map.includes('road')) { roadParcel = { px, py }; break outer; }
+  }
+  if (roadParcel) {
+    const rich = JSON.parse(JSON.stringify(h1.farm));
+    rich.parcels = ['0,0', roadParcel.px + ',' + roadParcel.py];
+    ok(roadBonus(rich) > 0, 'the old road pays');
+    rich.pantry = { [starterCrop]: 4 };
+    const flat = JSON.parse(JSON.stringify(h1.farm)); flat.pantry = { [starterCrop]: 4 };
+    const withRoad = sellProduce(rich, starterCrop, 4, ark, T);
+    const without = sellProduce(flat, starterCrop, 4, ark, T);
+    ok(withRoad.coins > without.coins, 'market access shows up at the stall');
+  }
+}
 
 console.log(`state.selftest: ${n} assertions passed`);

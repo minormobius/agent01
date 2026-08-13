@@ -21,7 +21,7 @@ const f = newFarm('did:plc:covenanttester01', ark, T0);
 // ── the version is FROZEN. An experiment on the testing table must not bump it: a bumped save
 // is unreadable to mainline, which then refuses all writes (see store.loadRemote). Graduating a
 // feature — and only that, at the merge party, on the mainline branch — moves this number.
-const MAINLINE_V = 6;
+const MAINLINE_V = 7;
 ok(f.v === MAINLINE_V, 'newFarm writes v' + MAINLINE_V + ' — experiments do not bump the save version');
 ok(fromPlotRecord({ farm: { ...JSON.parse(JSON.stringify(f)), v: MAINLINE_V + 1 } }) === null,
   'a future-versioned record is unreadable, never misread');

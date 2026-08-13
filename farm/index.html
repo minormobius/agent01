@@ -84,6 +84,14 @@
   .toast.bye { opacity:0; transition:opacity .4s; }
   @keyframes in { from { transform:translateY(8px); opacity:0; } }
   footer { margin-top:26px; color:var(--dim); font-size:11px; }
+/* collapsible trackers: eighty crops should fold away, not scroll forever */
+details.row summary { cursor: pointer; list-style: none; user-select: none; }
+details.row summary::-webkit-details-marker { display: none; }
+details.row summary h3 { display: inline-block; }
+details.row summary h3::after { content: ' ▾'; opacity: 0.5; font-size: 0.8em; }
+details.row:not([open]) summary h3::after { content: ' ▸'; }
+details.row > div { max-height: 40vh; overflow-y: auto; }
+:fullscreen .wrap { max-width: none; }
 </style>
 </head>
 <body>
@@ -93,6 +101,7 @@
     <span class="stat">◈ <span id="coins">—</span></span>
     <span class="stat" id="biome"></span>
     <button id="skinbtn" class="mini" title="skins — the wardrobe">🌿</button>
+    <button id="fsbtn" class="mini" title="fullscreen — eighty crops deserve the whole glass">⛶</button>
     <span id="auth"></span>
   </header>
 
@@ -101,9 +110,9 @@
   <div id="tab-farm">
     <div class="hint" id="bedhint">tap a building to open it · drag to look around · pick a seed then tap the soil · tap a ripe plant ✓ to harvest</div>
     <canvas id="bed"></canvas>
-    <div class="row" id="seedrow"><h3>seed bag</h3><div id="seedbag"></div></div>
-    <div class="row"><h3>in the ground</h3><div id="plants"></div></div>
-    <div class="row" id="pantryrow"><h3>pantry</h3><div id="pantry"></div></div>
+    <details class="row" id="seedrow" data-fold="seeds" open><summary><h3>seed bag</h3></summary><div id="seedbag"></div></details>
+    <details class="row" data-fold="ground" open><summary><h3>in the ground</h3></summary><div id="plants"></div></details>
+    <details class="row" id="pantryrow" data-fold="pantry" open><summary><h3>pantry</h3></summary><div id="pantry"></div></details>
     <div id="giftgate"></div>
   </div>
 
@@ -179,16 +188,18 @@
     <div class="panehead"><h2>🪧 deeds sign</h2><button class="mini closepane">✕ back to the farm</button></div>
     <div class="hint">deeds are public records in your own repo — post the ones worth bragging about (the first post of each deed pays 25◈)</div>
     <div id="deedlist"></div>
-    <div class="row"><h3>the town ledger</h3>
-      <div class="hint">this game is player-built: granted petitions land here, credited. The council's walls and scales are public — <a href="./PETITIONS.md">PETITIONS.md</a>.</div>
-      <div id="townledger"></div>
-    </div>
+  </div>
+
+  <div class="pane" id="tab-hall">
+    <div class="panehead"><h2>🏛️ town hall</h2><button class="mini closepane">✕ back to the farm</button></div>
+    <div class="hint">this game is player-built. Petition a change and the council builds it — live on <a href="https://farm-next.mino.mobi">the testing table</a> within the hour, credited to you. The walls and scales are public law: <a href="./PETITIONS.md">PETITIONS.md</a>. Petitions are free while the town is young.</div>
     <div class="row"><h3>petition the council</h3>
-      <div class="hint">wish a change into the game — a new skin, a creature, a crop, a knob. Your petition is a public record in your own repo; the council works the grantable ones and the scales refuse anything that would break the farm (yes, that includes unlimited coins).</div>
-      <textarea id="petitiontext" rows="3" maxlength="500" placeholder="e.g. a midnight-blue skin that unlocks at mine depth 20…"></textarea>
+      <textarea id="petitiontext" rows="3" maxlength="500" placeholder="e.g. a fishing minigame at the ponds… a midnight-blue skin… a bat in the mine…"></textarea>
       <button class="mini" id="petitionsend">🪧 submit petition</button>
       <span id="petitionnote" class="dim"></span>
     </div>
+    <div class="row"><h3>on the testing table</h3><div id="modsboard"></div></div>
+    <div class="row"><h3>the town ledger</h3><div id="townledger"></div></div>
   </div>
 
   <footer>

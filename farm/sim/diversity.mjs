@@ -123,6 +123,8 @@ function run(playerSeed, greedy) {
         let planted = false;
         for (let t = 0; t < 30 && !planted; t++) {
           const tx = Math.floor(rng() * S.FIELD_T * 2) - 3, ty = Math.floor(rng() * S.FIELD_T * 2) - 3;
+          // players read the far-from-water warning: prefer watered ground, settle late
+          if (t < 22 && S.waterSourceWithin && !S.waterSourceWithin(farm, tx, ty, S.WATER_RANGE)) continue;
           const r = S.plantSeed(farm, (tx + 0.5) / S.FIELD_T, (ty + 0.5) / S.FIELD_T, seedId, ark, now);
           if (r.ok) { farm = r.farm; planted = true; plantCounts[seedId] = (plantCounts[seedId] || 0) + 1; }
         }

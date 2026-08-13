@@ -81,6 +81,32 @@ export const WATER_MS = 6 * 3600 * 1000;   // one watering holds for 6h
 export const DRY_RATE = 0.5;               // a dry plant grows at half speed (never stops — no punishment spiral)
 export const SPRINKLER_COST = { coins: 40, tin: 1 };
 
+// ── WATER STAKES (2026-08-13, oracle-gated): the can alone is not a farm. A plant wants a water
+// SOURCE — pond, sprinkler, or the deep well — within WATER_RANGE tiles. Beyond that it lives on
+// LIFE SUPPORT: hand-watering keeps it going, but let PARCH_MS pass without the can and it dies
+// (unrecoverable — clearPlant, no seed back). Planting far is allowed with a warning; the stakes
+// are for infrastructure you tore out and fields you stopped visiting. Wetland crops (THIRSTY)
+// are stricter and non-negotiable: they only take root within their own tighter radius — the
+// idiosyncratic rules that make the roster spatial instead of a spreadsheet.
+export const WATER_RANGE = 4;   // annealed: 3 starved week-one throughput before the first pond
+export const PARCH_MS = 48 * 3600 * 1000;
+export const THIRSTY = { papyrus: 1, rice: 1, lotus: 1, cress: 1, herb_cress: 1 };
+
+export function waterSourceWithin(farm, tx, ty, r) {
+  if (hasTech(farm, 'deepwell')) return true;
+  for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+    if (inWorld(tx + dx, ty + dy) && tileAt(farm, tx + dx, ty + dy) === 'pond') return true;
+  }
+  for (const f of farm.fixtures || []) {
+    if (Math.max(Math.abs(f.tx - tx), Math.abs(f.ty - ty)) <= r) return true;
+  }
+  return false;
+}
+export const thirstOf = (crop) => (crop && THIRSTY[crop.id] != null ? THIRSTY[crop.id] : WATER_RANGE);
+export const plantNearWater = (farm, plant) =>
+  waterSourceWithin(farm, Math.floor(plant.x * FIELD_T), Math.floor(plant.y * FIELD_T), plant.wr != null ? plant.wr : WATER_RANGE);
+export const plantDead = (farm, plant, now) => !plantNearWater(farm, plant) && now > (plant.wateredAt || plant.at || 0) + PARCH_MS;
+
 // ── SUPPLIES, PESTS & THE ORGANIC PREMIUM ─────────────────────────────────────────────────────────
 // Synthetic inputs are cheap, instant — and PERMANENT: one squirt of either marks the plant (and all
 // its produce) conventional. Organic produce sells at ORGANIC_PREMIUM and is the ONLY produce the
@@ -259,7 +285,17 @@ export function forageSpots(farm, now) {
     h >>>= 0;
     const key = keys[h % keys.length];
     const [px, py] = key.split(',').map(Number);
-    const tx = px * FIELD_T + ((h >> 8) % FIELD_T), ty = py * FIELD_T + ((h >> 16) % FIELD_T);
+    let tx = px * FIELD_T + ((h >> 8) % FIELD_T), ty = py * FIELD_T + ((h >> 16) % FIELD_T);
+    // roadside gleaning: half the sparkles wash up along this parcel's paths and roads, if it
+    // has any — the walked edges of the farm are where things get dropped.
+    if ((h >>> 2) & 1) {
+      const edges = [];
+      for (let yy = 0; yy < FIELD_T; yy++) for (let xx = 0; xx < FIELD_T; xx++) {
+        const t = tileAt(farm, px * FIELD_T + xx, py * FIELD_T + yy);
+        if (t === 'path' || t === 'road') edges.push([px * FIELD_T + xx, py * FIELD_T + yy]);
+      }
+      if (edges.length) { const e = edges[(h >>> 10) % edges.length]; tx = e[0]; ty = e[1]; }
+    }
     if (tileAt(farm, tx, ty) === 'pond' || tileAt(farm, tx, ty) === 'hill') continue;   // sparkles keep their feet dry
     const roll = (h >> 4) % 100;
     const prize = roll < 55 ? { kind: 'coins', qty: 4 + (h % 9) } : roll < 90 ? { kind: 'seed' } : { kind: 'shard' };
@@ -339,6 +375,18 @@ export const CHARM_DEFS = {
 export const CHARM_COST = { coins: 40, metal: 2, alloy: 1 };
 export const CHARM_SPD = 1.25;    // a matching plant SOWN while the charm is worn grows this much faster
 export const CHARM_SELL = 1.2;    // matching produce sells this much dearer while the charm is worn
+
+// testing-table experiments gate their logic behind modOn: on by default, and a player can shelve
+// one from the town hall board (the off-switch lives in the save's experiment pocket, so it roams).
+export const modOn = (farm, id) => !(farm && farm.x && farm.x._mods && farm.x._mods[id] === false);
+export function setMod(farm, id, on, now) {
+  const next = clone(farm);
+  next.x = next.x || {};
+  next.x._mods = next.x._mods || {};
+  if (on) delete next.x._mods[id]; else next.x._mods[id] = false;
+  next.updatedAt = now;
+  return { ok: true, farm: next };
+}
 
 export const hasForge = (farm) => !!farm.forge;
 export const activeCharm = (farm) => (farm.forge && farm.forge.active) || null;
@@ -480,6 +528,7 @@ export const BUILDING_KINDS = {
   mill:  { emoji: '🌬️', name: 'waterworks',  panel: 'mill' },
   barn:  { emoji: '🐄', name: 'barn',        panel: 'barn' },
   forge: { emoji: '⚒️', name: 'forge',       panel: 'forge' },   // the only station you BUILD (buildForge)
+  hall:  { emoji: '🏛️', name: 'town hall',   panel: 'hall' },    // petitions, the ledger, the testing-table board
 };
 // default stations live INSIDE the home parcel (the only land a fresh farm owns). Wanted spots ring
 // the field edge; each slides along a deterministic probe order until it clears the seeded keep-outs.
@@ -492,6 +541,7 @@ export function defaultBuildings(seed) {
     { id: 'sign',  kind: 'sign',  tx: 6,  ty: 11 },
     { id: 'mill',  kind: 'mill',  tx: 11, ty: 6 },
     { id: 'barn',  kind: 'barn',  tx: 6,  ty: 0 },
+    { id: 'hall',  kind: 'hall',  tx: 0,  ty: 6 },
   ];
   const used = new Set();
   return wanted.map((w) => {
@@ -542,7 +592,7 @@ export function newFarm(did, ark, now = 0) {
   const fast = ((biome && biome.crops) || []).slice().sort((a, b) => a.growthDays - b.growthDays || a.id.localeCompare(b.id)).slice(0, 2);
   for (const c of fast) seeds[c.id] = 3;
   return {
-    v: 6, seed,
+    v: 7, seed,
     biomeId: biome ? biome.id : null,
     activeBiome: biome ? biome.id : null,   // which unlocked pack the desk pulls from
     packs: biome ? [biome.id] : [],         // unlocked ecosystem packs (home is free)
@@ -683,6 +733,14 @@ export function plantSeed(farm, x, y, cropId, ark, now) {
   const crop = cropById(ark, cropId);
   if (!crop) return { ok: false, reason: 'unknown crop' };
   if (!plantableTile(farm, x, y)) return { ok: false, reason: 'not plantable there — needs open tilled soil (craft mode tills the meadow)' };
+  // WATER STAKES: wetland crops refuse dry ground outright; everything else may plant far from
+  // water, but lives on the can (see PARCH_MS) — the caller gets farWater to warn with.
+  const wr = thirstOf(crop);
+  const ptx = Math.floor(x * FIELD_T), pty = Math.floor(y * FIELD_T);
+  const nearWater = waterSourceWithin(farm, ptx, pty, wr);
+  if (!nearWater && THIRSTY[crop.id] != null) {
+    return { ok: false, reason: (crop.common || cropId) + ' grows only beside water — within ' + wr + ' tile' + (wr === 1 ? '' : 's') + ' of a pond' };
+  }
   const next = clone(farm);
   let spd = next.stats.harvests === 0 && next.bed.plants.length < FRESH_PLANTS ? FRESH_SPD : 1;
   // sown under a sign: a worn charm blesses plantings of its OWN planet, at sow time only — the
@@ -692,13 +750,13 @@ export function plantSeed(farm, x, y, cropId, ark, now) {
   if (charmed) spd *= CHARM_SPD;
   // grownMs/calcAt is the SETTLE MODEL: banked effective growth as of calcAt, extended live by the
   // piecewise watered/dry rate. wateredAt = now — a fresh planting is watered in.
-  next.bed.plants.push({ id: 'p' + next.bed.nextId, x: +x.toFixed(4), y: +y.toFixed(4), seedId: cropId, at: now, spd, grownMs: 0, calcAt: now, wateredAt: now, fertN: 0, syn: false, pestOkW: 0, ...(charmed ? { sign: cropPlanet(crop) } : {}) });
+  next.bed.plants.push({ id: 'p' + next.bed.nextId, x: +x.toFixed(4), y: +y.toFixed(4), seedId: cropId, at: now, spd, grownMs: 0, calcAt: now, wateredAt: now, fertN: 0, syn: false, pestOkW: 0, wr, ...(charmed ? { sign: cropPlanet(crop) } : {}) });
   next.bed.nextId++;
   next.seeds[cropId]--; if (!next.seeds[cropId]) delete next.seeds[cropId];
   if (!next.owned.includes(cropId)) next.owned.push(cropId);
   next.stats.planted++;
   next.updatedAt = now;
-  return { ok: true, farm: next, spd, charmed };
+  return { ok: true, farm: next, spd, charmed, farWater: !nearWater };
 }
 
 // ── IRRIGATION: who is watered without lifting a can ─────────────────────────────────────────────
@@ -727,9 +785,13 @@ function effectiveMs(farm, plant, a, b) {
   if (b <= a) return 0;
   const spd = plant.spd || 1;
   if (irrigated(farm, plant)) return (b - a) * spd;
+  // beyond water range the dry ground gives NOTHING back — only the can moves the clock out
+  // there. Within range, dry spells still crawl at DRY_RATE. This is what makes hydration
+  // (grown/elapsed) an honest record of how well a plant was kept.
+  const dryRate = plantNearWater(farm, plant) ? DRY_RATE : 0;
   const wetEnd = Math.min(b, Math.max(a, (plant.wateredAt || 0) + WATER_MS));
   const wet = Math.max(0, wetEnd - a);
-  return (wet + (b - a - wet) * DRY_RATE) * spd;
+  return (wet + (b - a - wet) * dryRate) * spd;
 }
 // settle: bank growth up to `now` (call before any mutation that changes the rate, e.g. watering)
 function settle(plant, farm, now) {
@@ -749,8 +811,21 @@ export function isInfested(farm, plant, now) {
   let h = (farm.seed >>> 0) ^ 0x5ee71e57;
   for (const ch of plant.id + ':' + w) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
   const roll = ((h >>> 0) % 10000) / 10000;
-  const rate = hasTech(farm, 'ladybugs') && !plant.syn ? PEST_RATE / 2 : PEST_RATE;
+  let rate = hasTech(farm, 'ladybugs') && !plant.syn ? PEST_RATE / 2 : PEST_RATE;
+  // KEPT MARGINS (paths matter, 2026-08-13): a walked edge is a weeded edge — a plant with a
+  // path or road on a neighbouring tile sees half the infestations. Spatial, deterministic,
+  // and it finally gives the 5◈ path a job beyond looking tidy.
+  if (pathBeside(farm, plant)) rate /= 2;
   return roll < rate;
+}
+export function pathBeside(farm, plant) {
+  const tx = Math.floor(plant.x * FIELD_T), ty = Math.floor(plant.y * FIELD_T);
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    if (!dx && !dy) continue;
+    const t = inWorld(tx + dx, ty + dy) ? tileAt(farm, tx + dx, ty + dy) : null;
+    if (t === 'path' || t === 'road') return true;
+  }
+  return false;
 }
 
 // ── growth: pure (farm, plant, crop, now, tendCount) → stage ──────────────────────────────────────
@@ -763,8 +838,17 @@ export function growthOf(farm, plant, crop, now, tendCount = 0) {
   const grown = (plant.grownMs || 0) + effectiveMs(farm, plant, plant.calcAt != null ? plant.calcAt : plant.at, now);
   const stage = Math.max(0, Math.min(1, grown / needMs));
   const watered = isWatered(farm, plant, now);
-  const rate = (plant.spd || 1) * (watered ? 1 : DRY_RATE);
-  return { stage, ready: stage >= 1, msLeft: Math.max(0, Math.round((needMs - grown) / rate)), needMs, watered };
+  const near = plantNearWater(farm, plant);
+  const rate = (plant.spd || 1) * (watered ? 1 : near ? DRY_RATE : 0);
+  // death spares nothing, ripe included: a far crop left unwatered PARCH_MS is gone. Harvest
+  // promptly or keep the water flowing — those are the stakes of planting past the ponds.
+  const dead = plantDead(farm, plant, now);
+  // hydration: what fraction of its life this plant spent effectively watered — pure arithmetic
+  // over grown/elapsed, so any viewer recomputes it. 1.0 = kept like a garden; DRY_RATE-ish =
+  // left to crawl; lower still = time beyond the ponds where dry ground gives nothing.
+  const elapsed = Math.max(1, now - (plant.at || 0)) * (plant.spd || 1);
+  const hydration = Math.max(0, Math.min(1, grown / elapsed));
+  return { stage, ready: stage >= 1 && !dead, msLeft: rate > 0 ? Math.max(0, Math.round((needMs - grown) / rate)) : Infinity, needMs, watered, dead, farWater: !near, hydration };
 }
 
 // the watering TASK: free, per-plant, holds WATER_MS. Settles first so the dry spell is banked.
@@ -773,10 +857,23 @@ export function waterPlant(farm, plantId, now) {
   if (idx < 0) return { ok: false, reason: 'no such plant' };
   const next = clone(farm);
   const p = next.bed.plants[idx];
+  if (plantDead(next, p, now)) return { ok: false, reason: 'withered past saving — clear it and plant nearer water' };
   if (irrigated(next, p)) return { ok: false, reason: 'already irrigated — the water finds it by itself' };
   if (now <= (p.wateredAt || 0) + WATER_MS) return { ok: false, reason: 'still damp — water holds 6h' };
   settle(p, next, now);
   p.wateredAt = now;
+  next.updatedAt = now;
+  return { ok: true, farm: next };
+}
+
+// a withered plant comes out of the ground with nothing to show — that is the sting that makes
+// water infrastructure real. Only the dead clear this way; a living plant is harvested or left.
+export function clearPlant(farm, plantId, now) {
+  const idx = farm.bed.plants.findIndex((p) => p.id === plantId);
+  if (idx < 0) return { ok: false, reason: 'no such plant' };
+  if (!plantDead(farm, farm.bed.plants[idx], now)) return { ok: false, reason: 'still alive — harvest it or let it grow' };
+  const next = clone(farm);
+  next.bed.plants.splice(idx, 1);
   next.updatedAt = now;
   return { ok: true, farm: next };
 }
@@ -787,11 +884,19 @@ export function harvestPlant(farm, plantId, ark, now, tendCounts = {}) {
   if (idx < 0) return { ok: false, reason: 'no such plant' };
   const plant = farm.bed.plants[idx], crop = cropById(ark, plant.seedId);
   if (!crop) return { ok: false, reason: 'unknown crop' };
-  if (!growthOf(farm, plant, crop, now, tendCounts[plantId] || 0).ready) return { ok: false, reason: 'not ripe yet' };
+  const g = growthOf(farm, plant, crop, now, tendCounts[plantId] || 0);
+  if (g.dead) return { ok: false, reason: 'withered — clear it and plant nearer water' };
+  if (!g.ready) return { ok: false, reason: 'not ripe yet' };
   const infested = isInfested(farm, plant, now);
   const next = clone(farm);
   next.bed.plants.splice(idx, 1);
   let yld = Math.max(1, crop.yield | 0);
+  // WATER PAYS AT THE SCALE (2026-08-13, oracle-gated): yield follows hydration — the wet
+  // fraction of the plant's whole life. Kept watered (or near a pond/sprinkler): full basket.
+  // Left to crawl through dry spells, or ripe and ignored on far ground: the basket lightens.
+  // Three legible tiers, never below 1 — a live plant always gives something.
+  const parchedTier = g.hydration < 0.6 ? 0.5 : g.hydration < 0.8 ? 0.75 : 1;
+  yld = Math.max(1, Math.round(yld * parchedTier));
   if (infested) yld = Math.max(1, yld - PEST_BITE);   // harvesting through the beetles costs
   if (next.effects.yieldBoost > 0) { yld += 1; next.effects.yieldBoost--; }
   const organic = !plant.syn;
@@ -803,7 +908,7 @@ export function harvestPlant(farm, plantId, ark, now, tendCounts = {}) {
   next.stats.harvests++; next.stats.produce += yld;
   if (organic) next.stats.organicHarvests = (next.stats.organicHarvests | 0) + 1;
   next.updatedAt = now;
-  return { ok: true, farm: next, cropId: crop.id, yield: yld, seeds: seedsBack, organic, bitten: infested };
+  return { ok: true, farm: next, cropId: crop.id, yield: yld, seeds: seedsBack, organic, bitten: infested, parched: parchedTier < 1 };
 }
 
 // ── market ────────────────────────────────────────────────────────────────────────────────────────
@@ -815,7 +920,10 @@ export function harvestPlant(farm, plantId, ark, now, tendCounts = {}) {
 // The price now BLENDS the seed-cost line with a value-normalized line (VALUE_NORM ◈/growth-day),
 // halving the spread (top ≈1.8× median, king ≈16% over its runner-up) while keeping mean income
 // within ~10% of the annealed curve. Real trade-offs come from planet charms, pests and timing.
-export const VALUE_NORM = 12;
+// VALUE_NORM 12 → 15 with the water stakes (2026-08-13): the stakes halved harvest COUNT by
+// design (fewer, better-tended plants near real infrastructure); the per-unit price rises so a
+// full hydrated basket pays what the old sloppy volume did and progression keeps its tempo.
+export const VALUE_NORM = 15;
 export const sellPrice = (crop) => {
   const base = Math.max(3, Math.round((crop.seedCost || 10) * 0.6));
   const flat = VALUE_NORM * Math.max(1, crop.growthDays | 0) / (ORGANIC_PREMIUM * Math.max(1, crop.yield | 0));
@@ -832,6 +940,31 @@ export const sellPriceOrganic = (crop) => Math.round(sellPrice(crop) * ORGANIC_P
 // exempt — there are only four of them and the herd's rates were annealed separately.
 export const SAT_K = 10;
 export const SAT_RATE = 0.5;
+
+// MARKET ACCESS (roads matter, 2026-08-13): every owned parcel the old road runs through adds
+// ROAD_CUT to produce prices, capped — the carts come to you. Turns the road archetype from a
+// planting nuisance into the reason you bought that parcel. Memoized per parcel set.
+export const ROAD_CUT = 0.02;
+export const ROAD_CAP = 0.10;
+const _roadCache = new Map();
+export function roadBonus(farm) {
+  // tileAt, not baseTile: meadow the road away and the carts stop coming — keeping it is the trade
+  const key = farm.seed + '|' + (farm.parcels || []).join(';') + '|' + Object.keys(farm.terra || {}).length;
+  if (!_roadCache.has(key)) {
+    let n = 0;
+    for (const pk of farm.parcels || []) {
+      const [px, py] = pk.split(',').map(Number);
+      let has = false;
+      for (let ty = 0; ty < FIELD_T && !has; ty++) for (let tx = 0; tx < FIELD_T && !has; tx++) {
+        if (tileAt(farm, px * FIELD_T + tx, py * FIELD_T + ty) === 'road') has = true;
+      }
+      if (has) n++;
+    }
+    if (_roadCache.size > 64) _roadCache.clear();
+    _roadCache.set(key, Math.min(ROAD_CAP, ROAD_CUT * n));
+  }
+  return _roadCache.get(key);
+}
 export const marketDay = (now) => Math.floor(now / 86400000);
 export const soldToday = (farm, cropId, now) =>
   (farm.market && farm.market.day === marketDay(now) ? farm.market.sold[cropId] : 0) | 0;
@@ -846,10 +979,11 @@ export function sellProduce(farm, cropId, qty, ark, now, grade = 'organic') {
   if (!crop) return { ok: false, reason: 'unknown crop' };
   const ward = now < (farm.effects.wardUntil || 0) ? 1.25 : 1;   // a sedate brew binds the market in your favour
   const favoured = activeCharm(farm) && cropPlanet(crop) === activeCharm(farm) ? CHARM_SELL : 1;   // the worn charm's planet sells dear
+  const road = 1 + roadBonus(farm);                              // market access: the old roads finally pay
   const unit = grade === 'conv' ? sellPrice(crop) : sellPriceOrganic(crop);
   const prior = soldToday(farm, cropId, now);
   const fullN = Math.max(0, Math.min(qty, SAT_K - prior));       // what the village still wants at list
-  const coins = Math.round(unit * ward * favoured * (fullN + (qty - fullN) * SAT_RATE));
+  const coins = Math.round(unit * ward * favoured * road * (fullN + (qty - fullN) * SAT_RATE));
   const next = clone(farm);
   next[poolKey][cropId] -= qty; if (!next[poolKey][cropId]) delete next[poolKey][cropId];
   const day = marketDay(now);
@@ -1257,7 +1391,7 @@ export function toPlotRecord(farm, now) {
 }
 export function fromPlotRecord(value) {
   const f = value && value.farm;
-  if (!f || f.v < 1 || f.v > 6) return null;
+  if (!f || f.v < 1 || f.v > 7) return null;
   if (f.v === 1) {   // v1 → v2: the map-first fields, all additive, defaults deterministic
     f.v = 2;
     f.terra = f.terra || {};
@@ -1331,6 +1465,23 @@ export function fromPlotRecord(value) {
     f.market = f.market || null;
     f.stats.alloysSmelted = f.stats.alloysSmelted | 0;
     f.stats.charmsForged = f.stats.charmsForged | 0;
+  }
+  if (f.v === 6) {   // v6 → v7: the town hall + the water stakes
+    f.v = 7;
+    // the eighth station: petitions move from the deeds sign into a hall of their own
+    if (!(f.buildings || []).some((b) => b.id === 'hall')) {
+      const hall = defaultBuildings(f.seed).find((b) => b.id === 'hall');
+      if (hall && !buildingAt(f, hall.tx, hall.ty)) f.buildings.push(hall);
+      else if (hall) { hall.ty = (hall.ty + 2) % FIELD_T; f.buildings.push(hall); }
+    }
+    // water stakes grandfathering: every existing plant gets the lenient default range (even
+    // wetland crops planted before the rule — no retroactive executions) and a fresh PARCH_MS
+    // grace from the moment this save walks up, so nobody arrives to a field of corpses.
+    const ref = f.updatedAt || 0;
+    for (const p of f.bed.plants) {
+      if (p.wr == null) p.wr = WATER_RANGE;
+      p.wateredAt = Math.max(p.wateredAt || 0, ref);
+    }
   }
   // THE SAVE COVENANT (not a version bump — both directions stay compatible): farm.x is the
   // experiment pocket. Testing-table builds (farm-next.mino.mobi) put ALL their state under

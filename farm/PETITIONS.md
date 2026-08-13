@@ -78,8 +78,13 @@ table. Rarely the hot path now.
    new save state in `farm.x.<featureId>`; wire UI in plainly (players find
    experiments through play, and the `#nextbar` banner tells them where they
    are).
-3. GRANTS: append `farm/council/ledger.json` — date, change, petitioner
-   handle, tier. The ledger is served; credit is the reward.
+3. GRANTS: register the experiment in `farm/mods/registry.json` — `{ id,
+   title, by: <petitioner handle>, petition: <at:// uri>, since }` — and gate
+   its logic behind `modOn(farm, '<id>')` so a player can shelve it from the
+   town hall board (both worlds render that board; the petitioner's own
+   entries pin first, starred). Then append `farm/council/ledger.json` —
+   date, change, petitioner handle, tier. The ledger is served; credit is
+   the reward.
 4. For every petition write `farm/council/queue/done/<basename>.verdict.json`
    `{ verdict: "granted"|"refused", reply: "<one warm sentence>", post: <the
    queue file's post object, verbatim> }` and delete the queue file. The

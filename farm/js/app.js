@@ -19,6 +19,7 @@ import {
   animalFed, animalProducing, animalById, forage, grantWildseed,
   FORGE_REQ, ALLOYS, CHARM_DEFS, CHARM_COST, CHARM_SPD, CHARM_SELL, buildForge, smeltAlloy,
   smeltReady, collectSmelt, sellAlloy, forgeCharm, setCharm, activeCharm, cropPlanet, allCrops,
+  modOn, setMod, clearPlant, WATER_RANGE, THIRSTY, waterSourceWithin,
 } from './state.js';
 import * as Mine from './mine.js';
 import { ACHIEVEMENTS, byId as achById, evaluate as evalAch, markEarned, shareText } from './achievements.js';
@@ -118,6 +119,28 @@ async function boot() {
 
   applySkin(farm);
   isoMain = createIso($('#bed'), { onTap: onFieldTap });
+
+  // fullscreen: the map is the game — give it the whole glass on request
+  const fs = $('#fsbtn');
+  if (fs) fs.onclick = () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen().catch(() => toast('fullscreen refused by the browser', 'warn'));
+  };
+  // collapsible trackers remember how you left them
+  $$('details[data-fold]').forEach((d) => {
+    const k = 'harvestople-fold-' + d.dataset.fold;
+    if (localStorage.getItem(k) === 'shut') d.open = false;
+    d.addEventListener('toggle', () => localStorage.setItem(k, d.open ? 'open' : 'shut'));
+  });
+  // some auth sessions arrive with the DID where the handle belongs — resolve it once so the
+  // header (and every "by @you" surface) reads like a name, not a key
+  if (store.user && (!store.user.handle || String(store.user.handle).startsWith('did:'))) {
+    try {
+      const profs = await Social.getProfiles([store.user.did]);
+      const p = profs && profs.get && profs.get(store.user.did);
+      if (p && p.handle) { store.user.handle = p.handle; renderHeader(); }
+    } catch (e) { /* the DID still works; the name can wait */ }
+  }
 
   // catch the missing-grant case BEFORE the first write fails: SSO'd in, but no farm scopes
   if (store.user && !store.hasFarmScope()) showGrantBanner('you’re signed in via another mino.mobi site');
@@ -248,21 +271,31 @@ function onFieldTap(tap) {
   // play mode: buildings are the rooms — tap one to step inside
   if (building) { openPanel(BUILDING_KINDS[building.kind].panel); return; }
   if (plantIdx >= 0) {
-    // ripe → harvest; thirsty → WATER (the task); otherwise say how it's doing
+    // dead → clear; ripe → harvest; thirsty → WATER (the task); otherwise say how it's doing
     const p = farm.bed.plants[plantIdx];
     const c = cropById(ark, p.seedId);
     const g = growthOf(farm, p, c, now(), tends[p.id] || 0);
+    if (g.dead) {
+      const r = clearPlant(farm, p.id, now());
+      if (r.ok) { commit(r.farm); toast('🥀 withered past saving — cleared. Water within 48h next time, or plant nearer a pond', 'warn', 8000); redrawBed(); }
+      return;
+    }
     if (g.ready) { tryHarvest(p.id); return; }
     const r = waterPlant(farm, p.id, now());
-    if (r.ok) { commit(r.farm); toast('💧 watered — holds 6h', 'ok'); redrawBed(); return; }
-    toast(esc(c ? c.common : p.seedId) + ': ' + Math.round(g.stage * 100) + '% · ' + fmtMs(g.msLeft) +
-      (irrigated(farm, p) ? ' · 🌊 irrigated' : ' · 💧 damp'), 'ok');
+    if (r.ok) {
+      commit(r.farm);
+      toast(g.farWater ? '💧 watered — far from any pond, this one lives on the can (48h a visit)' : '💧 watered — holds 6h', g.farWater ? 'warn' : 'ok');
+      redrawBed(); return;
+    }
+    toast(esc(c ? c.common : p.seedId) + ': ' + Math.round(g.stage * 100) + '% · ' + (isFinite(g.msLeft) ? fmtMs(g.msLeft) : 'waiting on water') +
+      (irrigated(farm, p) ? ' · 🌊 irrigated' : g.farWater ? ' · 🏜 beyond the ponds' : ' · 💧 damp'), 'ok');
     return;
   }
   if (!plantingCrop) return;
   const r = plantSeed(farm, bx, by, plantingCrop, ark, now());
   if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
   commit(r.farm);
+  if (r.farWater) toast('🏜 far from water — it only grows when watered, and 48h dry kills it. A pond or sprinkler nearby fixes that for good', 'warn', 8000);
   if (r.charmed) toast('🪬 sown under ' + esc(activeCharm(farm) || '') + ' — this one grows ×' + CHARM_SPD + (r.spd > CHARM_SPD ? ' on top of fresh ground' : ''), 'ok');
   else if (r.spd > 1) toast('⚡ fresh-broken ground — this one grows 4×', 'ok');
   if (!farm.seeds[plantingCrop]) plantingCrop = null;
@@ -343,6 +376,7 @@ function openPanel(name) {
   if (name === 'deeds') renderDeeds();
   if (name === 'mill') renderMill();
   if (name === 'forge') renderForge();
+  if (name === 'hall') renderHall();
   if (name === 'skins') renderSkins();
   if (name === 'barn') renderBarn();
 }
@@ -986,11 +1020,12 @@ function renderDeeds() {
     return '<div class="deed ' + (at ? 'earned' : 'locked') + '">' + a.emoji + ' <b>' + esc(a.name) + '</b> — ' + esc(a.desc) +
       (at ? ' <span class="dim">' + esc(at.slice(0, 10)) + '</span> <button class="share mini" data-ach="' + a.id + '">post</button>' : '') + '</div>';
   }).join('');
-  renderTownBoard();
 }
 
-// ── the town board: the ledger of player-driven changes + the petition box ───────────────────────
-async function renderTownBoard() {
+// ── TOWN HALL: the petition box, the experiments board, the ledger ───────────────────────────────
+const ON_TABLE = location.hostname === 'farm-next.mino.mobi';
+async function renderHall() {
+  wirePetitionBox();   // FIRST — the submit button must never wait on a network fetch
   const el = $('#townledger');
   if (el && !el.dataset.loaded) {
     el.dataset.loaded = '1';
@@ -1002,6 +1037,36 @@ async function renderTownBoard() {
         '<span class="dim">no petitions granted yet — be the first name on the board</span>';
     } catch (e) { el.innerHTML = '<span class="dim">the ledger is on its way to town</span>'; }
   }
+  // the experiments board: what lives on the testing table right now, and whose wish it was.
+  // Mainline reads the TABLE's registry (CORS via _headers), so your quick link is right here;
+  // on the table itself the registry is local and each experiment gets a shelve/restore toggle.
+  const mb = $('#modsboard');
+  if (mb && !mb.dataset.loaded) {
+    mb.dataset.loaded = '1';
+    try {
+      const src = ON_TABLE ? './mods/registry.json' : 'https://farm-next.mino.mobi/mods/registry.json';
+      const reg = await (await fetch(src)).json();
+      const mine = (store.user && store.user.handle) || null;
+      const mods = (reg.mods || []).slice().sort((a, b) => (b.by === mine) - (a.by === mine));
+      mb.innerHTML = mods.length ? mods.map((m) => {
+        const yours = m.by === mine;
+        const on = modOn(farm, m.id);
+        return '<div class="giftrow">' + (yours ? '⭐ ' : '') + '<b>' + esc(m.title) + '</b> ' +
+          '<span class="dim">— by @' + esc(m.by) + (m.since ? ' · ' + esc(m.since) : '') + '</span> ' +
+          (ON_TABLE
+            ? '<button class="mini" data-modtoggle="' + esc(m.id) + '">' + (on ? 'shelve' : 'restore') + '</button>'
+            : '<a class="mini" href="https://farm-next.mino.mobi/">play it →</a>') +
+          '</div>';
+      }).join('') : '<span class="dim">the table is bare — wish something onto it below</span>';
+      $$('#modsboard [data-modtoggle]').forEach((b) => b.onclick = () => {
+        const r = setMod(farm, b.dataset.modtoggle, !modOn(farm, b.dataset.modtoggle), now());
+        if (r.ok) { commit(r.farm); mb.dataset.loaded = ''; renderHall(); }
+      });
+    } catch (e) { mb.innerHTML = '<span class="dim">could not reach the testing table just now</span>'; }
+  }
+}
+
+function wirePetitionBox() {
   const send = $('#petitionsend');
   if (!send || send.dataset.wired) return;
   send.dataset.wired = '1';

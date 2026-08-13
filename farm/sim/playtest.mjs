@@ -92,6 +92,26 @@ function playSession(ctx, now) {
     if (r.ok) { farm = r.farm; note('water'); }
   }
 
+  // 3.5) INFRASTRUCTURE — when watered ground runs short, players dig a pond by the beds.
+  // The water stakes made this the load-bearing habit; the sim keeps it or starves like round 1.
+  if (S.terraform && S.waterSourceWithin && farm.coins > 90) {
+    let nearOpen = 0;
+    for (let ty = 0; ty < S.FIELD_T && nearOpen < 4; ty++) for (let tx = 0; tx < S.FIELD_T && nearOpen < 4; tx++) {
+      if (S.tileAt(farm, tx, ty) !== 'soil') continue;
+      if (!S.waterSourceWithin(farm, tx, ty, S.WATER_RANGE)) continue;
+      if (farm.bed.plants.some((p) => Math.floor(p.x * S.FIELD_T) === tx && Math.floor(p.y * S.FIELD_T) === ty)) continue;
+      nearOpen++;
+    }
+    if (nearOpen < 4) {
+      outer: for (let ty = 0; ty < S.FIELD_T; ty++) for (let tx = 0; tx < S.FIELD_T; tx++) {
+        if (S.tileAt(farm, tx, ty) !== 'meadow') continue;
+        if (S.waterSourceWithin(farm, tx, ty, 2)) continue;    // spread the water, don't puddle it
+        const r = S.terraform(farm, tx, ty, 'pond', now);
+        if (r.ok) { farm = r.farm; note('terra'); break outer; }
+      }
+    }
+  }
+
   // 4) PLANT into free soil (keep ~10 plants going, seeds permitting)
   let guard = 0;
   while (farm.bed.plants.length < 10 && Object.keys(farm.seeds).length && guard++ < 20) {
@@ -99,6 +119,9 @@ function playSession(ctx, now) {
     let planted = false;
     for (let t = 0; t < 30 && !planted; t++) {
       const tx = Math.floor(R() * S.FIELD_T * 2) - 3, ty = Math.floor(R() * S.FIELD_T * 2) - 3;
+      // a player reads the far-from-water warning: early tries insist on watered ground,
+      // late tries take what the land gives (and accept the can-carrying that follows)
+      if (t < 22 && S.waterSourceWithin && !S.waterSourceWithin(farm, tx, ty, S.WATER_RANGE)) continue;
       const x = (tx + 0.5) / S.FIELD_T, y = (ty + 0.5) / S.FIELD_T;
       const r = S.plantSeed(farm, x, y, seedId, ark, now);
       if (r.ok) { farm = r.farm; note('plant'); planted = true; }
