@@ -102,6 +102,11 @@ export function createIso(canvas, { onTap } = {}) {
         const saleable = !owned && forSale.has(ppx + ',' + ppy);
         const r = tileHash(farm.bed.seed, tx, ty);
         const fill = groundFill(g, kind === 'stone' ? 'stone' : kind, r);   // stone paints its soil, boulder drawn on top
+        // GLOBAL PLANTING OVERLAY: with a seed in hand, every soil tile declares itself — green
+        // takes the seed, red will not (occupied, or a wetland crop out of its water range). The
+        // same predicate the tap uses, so the map never lies; it re-paints as plants land.
+        const plantTint = state.tool === 'plant' && owned && kind === 'soil' && state.toolCheck && !readOnly
+          ? (state.toolCheck(tx, ty) ? 'rgba(143,224,160,0.22)' : 'rgba(224,120,96,0.18)') : null;
 
         if (kind === 'hill') {
           // a raised block: side skirts up to a lifted cap — the terrain you paid less because of
@@ -119,6 +124,7 @@ export function createIso(canvas, { onTap } = {}) {
         } else {
           ctx.fillStyle = fill;
           diamond(c.x, c.y, tw(), th()); ctx.fill();
+          if (plantTint) { ctx.fillStyle = plantTint; diamond(c.x, c.y, tw() * 0.92, th() * 0.92); ctx.fill(); }
           // furrow grid on the tillable soil only — reads as "you can plant here"
           if (kind === 'soil') { ctx.strokeStyle = g.furrow; ctx.lineWidth = 1; diamond(c.x, c.y, tw(), th()); ctx.stroke(); }
           if (kind === 'pond') {   // water sheen
