@@ -84,6 +84,20 @@
   .toast.bye { opacity:0; transition:opacity .4s; }
   @keyframes in { from { transform:translateY(8px); opacity:0; } }
   footer { margin-top:26px; color:var(--dim); font-size:11px; }
+/* the petition box speaks in the town's voice, not the browser's */
+#petitiontext {
+  display: block; width: 100%; box-sizing: border-box; margin: 6px 0 8px;
+  background: #171410; color: var(--ink, #f3e9d2);
+  border: 2px solid var(--canvasline, #3a3020); border-radius: 8px;
+  padding: 10px 12px; font: 15px/1.5 ui-monospace, 'JetBrains Mono', monospace;
+  resize: vertical; caret-color: var(--gold, #f7c66a);
+}
+#petitiontext:focus { outline: none; border-color: var(--gold, #f7c66a); box-shadow: 0 0 0 3px rgba(247,198,106,0.15); }
+#petitiontext::placeholder { color: #7a715c; }
+/* BIG FARM: the ⛶ button grows the field itself to the whole viewing window */
+body.bigfarm #bed { position: fixed; inset: 0; width: 100vw !important; height: 100vh !important; z-index: 60; border-radius: 0; }
+body.bigfarm #fsbtn { position: fixed; top: 10px; right: 10px; z-index: 61; }
+body.bigfarm #toasts { z-index: 62; }
 /* collapsible trackers: eighty crops should fold away, not scroll forever */
 details.row summary { cursor: pointer; list-style: none; user-select: none; }
 details.row summary::-webkit-details-marker { display: none; }

@@ -650,7 +650,11 @@ export function parcelTerrain(seed, px, py) {
   const map = new Array(FIELD_T * FIELD_T).fill('meadow');
   const put = (x, y, k) => { if (x >= 0 && y >= 0 && x < FIELD_T && y < FIELD_T) map[y * FIELD_T + x] = k; };
   const roll = rng();
-  const archetype = roll < 0.25 ? 'hills' : roll < 0.5 ? 'lake' : roll < 0.7 ? 'road' : roll < 0.85 ? 'boulders' : 'fertile';
+  // NOTE (2026-08-13): 'road' left the archetype lottery — roads are WORLD infrastructure now
+  // (see laneSpec below): two seeded highways slice border-to-border across the whole map, so
+  // every road visibly comes from outside and leaves for outside. A parcel is a road parcel
+  // because the highway passes through it, not because it rolled one.
+  const archetype = roll < 0.3 ? 'hills' : roll < 0.55 ? 'lake' : roll < 0.8 ? 'boulders' : 'fertile';
   if (archetype === 'hills') {
     // 2–3 ridges: drunken walks that pile HILL tiles (unplantable until flattened, 60◈ each)
     const ridges = 2 + (rng() < 0.5 ? 1 : 0);
@@ -671,11 +675,6 @@ export function parcelTerrain(seed, px, py) {
     for (let y = 0; y < FIELD_T; y++) for (let x = 0; x < FIELD_T; x++) {
       if (((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1) put(x, y, 'pond');
     }
-  } else if (archetype === 'road') {
-    // an old road cutting straight through (till it over at 15◈ a tile, or keep it as a lane)
-    const vertical = rng() < 0.5, at = 2 + Math.floor(rng() * (FIELD_T - 4));
-    for (let i = 0; i < FIELD_T; i++) vertical ? put(at, i, 'road') : put(i, at, 'road');
-    if (rng() < 0.4) { const branch = 2 + Math.floor(rng() * (FIELD_T - 4)); for (let i = 0; i < FIELD_T / 2; i++) vertical ? put(at + i, branch, 'road') : put(branch, at + i, 'road'); }
   } else if (archetype === 'boulders') {
     const n = 6 + Math.floor(rng() * 5);
     for (let i = 0; i < n; i++) put(Math.floor(rng() * FIELD_T), Math.floor(rng() * FIELD_T), 'stone');
@@ -686,9 +685,30 @@ export function parcelTerrain(seed, px, py) {
     const x = Math.floor(rng() * FIELD_T), y = Math.floor(rng() * FIELD_T);
     if (map[y * FIELD_T + x] === 'meadow') put(x, y, 'stone');
   }
-  const out = { archetype, map };
+  // THE HIGHWAYS: stamped last, over whatever the parcel rolled (a road wins the argument with a
+  // lake — that's a causeway). Straight, border-to-border, so the slice reads as through-traffic.
+  const lanes = laneSpec(seed);
+  let hasRoad = false;
+  if (py === lanes.h.prow) { for (let x = 0; x < FIELD_T; x++) put(x, lanes.h.row - py * FIELD_T, 'road'); hasRoad = true; }
+  if (px === lanes.v.pcol) { for (let y = 0; y < FIELD_T; y++) put(lanes.v.col - px * FIELD_T, y, 'road'); hasRoad = true; }
+  const out = { archetype: hasRoad ? 'road' : archetype, map };
   _terrainCache.set(key, out);
   return out;
+}
+
+// ── THE LANES — roads are world infrastructure ────────────────────────────────────────────────────
+// Two highways per world, seeded: one horizontal (a tile row inside one parcel-row) and one
+// vertical (a tile column inside one parcel-col), each running the FULL width/height of the 5×5
+// map — in at one border, out at the other, so every road implies somewhere beyond the fence.
+// Neither lane ever runs through the home parcel (prow/pcol ∈ {-2,-1,1,2}). The renderer draws
+// little cars along these lanes; the market pays parcels the highway crosses (roadBonus).
+export function laneSpec(seed) {
+  const h = (tag) => { let x = (seed >>> 0) ^ 0xabc9e2d; for (const ch of 'lane:' + tag) x = Math.imul(x ^ ch.charCodeAt(0), 16777619); return x >>> 0; };
+  const pick = [-2, -1, 1, 2];
+  const prow = pick[h('h') % 4], pcol = pick[h('v') % 4];
+  const row = prow * FIELD_T + 2 + (h('hr') % (FIELD_T - 4));
+  const col = pcol * FIELD_T + 2 + (h('vc') % (FIELD_T - 4));
+  return { h: { prow, row }, v: { pcol, col } };
 }
 
 // ── TILES: seeded baseline + terraform overrides ──────────────────────────────────────────────────

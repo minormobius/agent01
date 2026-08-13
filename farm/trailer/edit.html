@@ -14,7 +14,7 @@
 const FPS = 30, W = 1280, H = 720, TOTAL = 35 * FPS;
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 
-const SHOTS = ['crops','overlay','mine','forge','dead','estate','barn','hall','skin-umbra','skin-gilt'];
+const SHOTS = ['crops','overlay','forge','dead','estate','barn','hall','petition','road','skin-umbra','skin-gilt'];
 const img = {};
 await Promise.all(SHOTS.map((s) => new Promise((res) => {
   const i = new Image(); i.onload = () => res(); i.onerror = () => res();
@@ -31,19 +31,20 @@ const BPM = 150, beatAt = (t) => t / (60 / BPM);
 // ── the cut list ──────────────────────────────────────────────────────────────────────────────
 const CUTS = [
   { t: 0.0,  d: 1.6,  kind: 'logo-in' },
-  { t: 1.6,  d: 2.4,  kind: 'shot', shot: 'crops',   big: '80 REAL CROPS',            sub: 'actual botany · actual Latin',            em: '🌾🥕🌿' },
-  { t: 4.0,  d: 2.2,  kind: 'shot', shot: 'overlay', big: 'THE LAND SAYS YES OR NO',  sub: 'green takes the seed. red will not.',     em: '🟩🟥🌱' },
-  { t: 6.2,  d: 2.2,  kind: 'shot', shot: 'mine',    big: 'MINE THE SEVEN METALS',    sub: 'lead to gold, in the Chaldean order',      em: '⛏️🥇🪨' },
-  { t: 8.4,  d: 2.4,  kind: 'shot', shot: 'forge',   big: 'FORGE PLANETARY CHARMS',   sub: 'Jupiter rules your watercress. really.',   em: '🪬⚒️♃' },
-  { t: 10.8, d: 2.4,  kind: 'shot', shot: 'dead',    big: 'WATER THEM OR THEY DIE',   sub: '48 hours. no mercy. dig ponds.',           em: '💀🥀💧', red: 1 },
-  { t: 13.2, d: 2.2,  kind: 'shot', shot: 'estate',  big: 'BUY THE WHOLE MAP',        sub: 'roads pay · lakes water · hills are hills', em: '🗺️💰🏞️' },
-  { t: 15.4, d: 2.2,  kind: 'shot', shot: 'barn',    big: 'PET. EVERY. ANIMAL.',      sub: 'petting doubles the eggs (science)',       em: '🐔🐐💕' },
-  { t: 17.6, d: 1.8,  kind: 'strobe',                big: 'SIX WHOLE VIBES',          sub: 'skins repaint the world',                  em: '🎨✨🌙' },
-  { t: 19.4, d: 2.6,  kind: 'shot', shot: 'hall',    big: 'WISH FEATURES INTO IT',    sub: 'petition the town council, in game',       em: '🪧🏛️📜' },
-  { t: 22.0, d: 2.4,  kind: 'card', big: 'AN AI BUILDS IT', flip: 'LIVE IN AN HOUR',  sub: 'on the testing table · with your real save', em: '🤖⚗️⏱️' },
-  { t: 24.4, d: 2.6,  kind: 'card', big: 'YOUR SAVE IS YOURS', flip: 'A RECORD IN YOUR OWN REPO', sub: 'no servers · no wipes · sign in with Bluesky', em: '🦋🔑📦' },
-  { t: 27.0, d: 2.0,  kind: 'triptych',              big: 'PETITION · PLAY · MERGE PARTY', sub: '', em: '🎉' },
-  { t: 29.0, d: 6.0,  kind: 'end' },
+  { t: 1.6,  d: 2.2,  kind: 'shot', shot: 'crops',   big: '80 REAL CROPS',            sub: 'actual botany · actual Latin',              em: '🌾🥕🌿', lx: 0.5,  ly: 0.79, ang: -2 },
+  { t: 3.8,  d: 2.0,  kind: 'shot', shot: 'overlay', big: 'THE LAND SAYS YES OR NO',  sub: 'green takes the seed. red will not.',       em: '🟩🟥🌱', lx: 0.34, ly: 0.16, ang: -5, sz: 62 },
+  { t: 5.8,  d: 2.2,  kind: 'shot', shot: 'forge',   big: 'FORGE PLANETARY CHARMS',   sub: 'Jupiter rules your watercress. really.',    em: '🪬⚒️♃', lx: 0.30, ly: 0.50, ang: 4,  sz: 60 },
+  { t: 8.0,  d: 2.3,  kind: 'shot', shot: 'dead',    big: 'WATER THEM OR THEY DIE',   sub: '48 hours. no mercy. dig ponds.',            em: '💀🥀💧', lx: 0.5,  ly: 0.44, ang: -3, red: 1 },
+  { t: 10.3, d: 2.3,  kind: 'shot', shot: 'road',    big: 'THE HIGHWAY PAYS',         sub: 'border to border · the carts come to you',  em: '🚗🛻💰', lx: 0.62, ly: 0.20, ang: 3 },
+  { t: 12.6, d: 2.0,  kind: 'shot', shot: 'estate',  big: 'BUY THE WHOLE MAP',        sub: 'lakes water · hills are hills',             em: '🗺️💰🏞️', lx: 0.5,  ly: 0.80, ang: 2 },
+  { t: 14.6, d: 2.0,  kind: 'shot', shot: 'barn',    big: 'PET. EVERY. ANIMAL.',      sub: 'petting doubles the eggs (science)',        em: '🐔🐐💕', lx: 0.30, ly: 0.82, ang: 3 },
+  { t: 16.6, d: 1.6,  kind: 'strobe',                big: 'SIX WHOLE VIBES',          sub: 'skins repaint the world',                   em: '🎨✨🌙', lx: 0.68, ly: 0.24, ang: -4 },
+  { t: 18.2, d: 2.2,  kind: 'shot', shot: 'hall',    big: 'THIS GAME TAKES REQUESTS', sub: 'walk into the town hall and wish',          em: '🏛️🪧📜', lx: 0.5,  ly: 0.18, ang: -2, sz: 64 },
+  { t: 20.4, d: 2.6,  kind: 'shot', shot: 'petition', big: 'TYPE THE WISH',           sub: '“give us a fishing minigame at the ponds”', em: '🎣🪧✍️', lx: 0.34, ly: 0.76, ang: -4, sz: 70 },
+  { t: 23.0, d: 2.6,  kind: 'card', big: 'AN AI COUNCIL BUILDS IT', flip: 'LIVE IN AN HOUR', sub: 'on the testing table · with your real save · your name on the ledger', em: '🤖⚗️⏱️' },
+  { t: 25.6, d: 2.4,  kind: 'card', big: 'YOUR SAVE IS YOURS', flip: 'A RECORD IN YOUR OWN REPO', sub: 'no servers · no wipes · sign in with Bluesky', em: '🦋🔑📦' },
+  { t: 28.0, d: 1.8,  kind: 'triptych',              big: 'PETITION · PLAY · MERGE PARTY', sub: '', em: '🎉' },
+  { t: 29.8, d: 5.2,  kind: 'end' },
 ];
 const cutAt = (t) => CUTS.find((c) => t >= c.t && t < c.t + c.d) || CUTS[CUTS.length - 1];
 
@@ -57,10 +58,10 @@ function drawShot(name, t, zoomPunch) {
   ctx.drawImage(im, (W - dw) / 2 + Math.sin(t * 0.7) * 12, (H - dh) / 2 + Math.cos(t * 0.5) * 8, dw, dh);
   ctx.restore();
 }
-function bigText(txt, y, size, t, color = '#ffd66e') {
+function bigText(txt, y, size, t, color = '#ffd66e', x = W / 2, ang = 0) {
   const slam = 1 + 2.2 * Math.exp(-t * 14);
   ctx.save();
-  ctx.translate(W / 2, y); ctx.scale(slam, slam);
+  ctx.translate(x, y); ctx.rotate(ang * Math.PI / 180); ctx.scale(slam, slam);
   ctx.font = `${size}px RollSown, system-ui`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.lineWidth = size * 0.14; ctx.strokeStyle = '#14100a'; ctx.lineJoin = 'round';
@@ -68,13 +69,13 @@ function bigText(txt, y, size, t, color = '#ffd66e') {
   ctx.fillStyle = color; ctx.fillText(txt, 0, 0);
   ctx.restore();
 }
-function subText(txt, y) {
+function subText(txt, y, x = W / 2) {
   if (!txt) return;
-  ctx.font = '600 30px ui-monospace, monospace';
+  ctx.font = '600 28px ui-monospace, monospace';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.lineWidth = 8; ctx.strokeStyle = 'rgba(12,10,6,0.9)';
-  ctx.strokeText(txt, W / 2, y);
-  ctx.fillStyle = '#f3e9d2'; ctx.fillText(txt, W / 2, y);
+  ctx.strokeText(txt, x, y);
+  ctx.fillStyle = '#f3e9d2'; ctx.fillText(txt, x, y);
 }
 function emojiRain(em, t, seed) {
   if (!em) return;
@@ -135,14 +136,15 @@ window.renderFrame = function (f) {
     drawShot(cut.shot, ct, 1);
     vignette(cut.red);
     emojiRain(cut.em, t, CUTS.indexOf(cut));
-    bigText(cut.big, H - 150, 78, ct, cut.red ? '#ff6a5e' : '#ffd66e');
-    subText(cut.sub, H - 74);
+    const lx = (cut.lx ?? 0.5) * W, ly = (cut.ly ?? 0.79) * H;
+    bigText(cut.big, ly, cut.sz || 78, ct, cut.red ? '#ff6a5e' : '#ffd66e', lx, cut.ang || 0);
+    subText(cut.sub, ly + (cut.sz || 78) * 0.95, lx);
   } else if (cut.kind === 'strobe') {
     drawShot((f % 12) < 6 ? 'skin-umbra' : 'skin-gilt', ct, 0.5);
     vignette(0);
     emojiRain(cut.em, t, 88);
-    bigText(cut.big, H - 150, 82, ct);
-    subText(cut.sub, H - 74);
+    bigText(cut.big, (cut.ly ?? 0.24) * H, 82, ct, '#ffd66e', (cut.lx ?? 0.5) * W, cut.ang || 0);
+    subText(cut.sub, (cut.ly ?? 0.24) * H + 78, (cut.lx ?? 0.5) * W);
   } else if (cut.kind === 'card') {
     const g = ctx.createLinearGradient(0, 0, 0, H);
     g.addColorStop(0, '#182015'); g.addColorStop(1, '#0c0f0a');
@@ -152,7 +154,7 @@ window.renderFrame = function (f) {
     bigText(half ? cut.flip : cut.big, H / 2 - 30, half && cut.flip.length > 18 ? 62 : 88, half ? ct - cut.d / 2 : ct);
     subText(cut.sub, H / 2 + 70);
   } else if (cut.kind === 'triptych') {
-    const seq = ['crops', 'forge', 'barn', 'overlay', 'estate', 'hall'];
+    const seq = ['hall', 'petition', 'crops', 'road', 'barn', 'forge'];
     drawShot(seq[Math.floor(ct * 9) % seq.length], 0.05, 0.4);
     vignette(0);
     bigText(cut.big, H / 2, 64, ct % 0.35);

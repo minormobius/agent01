@@ -19,7 +19,7 @@ import { drawPlant } from '../vendor/plot-render.js';
 import {
   growthOf, cropById, isWatered, isInfested, tileAt, FIELD_T, WORLD_MIN, WORLD_MAX, BUILDING_KINDS,
   parcelOf, ownsParcel, buyableParcels,
-  ANIMALS, animalPos, animalProducing, animalFed, forageSpots,
+  ANIMALS, animalPos, animalProducing, animalFed, forageSpots, laneSpec,
 } from './state.js';
 import { modelFor } from './render.js';
 import { currentSkin, groundFill, rgba as trgba } from './themes.js';
@@ -241,6 +241,35 @@ export function createIso(canvas, { onTap } = {}) {
       const def = BUILDING_KINDS[b.kind]; if (!def) continue;
       const moving = state.movingBuilding === b.id;
       sprites.push({ sum: b.tx + 0.5 + b.ty + 0.5, draw: () => drawBuilding(b, def, moving) });
+    }
+    // THROUGH-TRAFFIC — little cars on the world lanes, in one border and out the other: the
+    // proof the roads go somewhere. Deterministic from the clock; scenery, no hitbox.
+    {
+      const lanes = laneSpec(farm.bed.seed);
+      const SPAN = WORLD_MAX - WORLD_MIN;
+      const CARS = ['🚗', '🛻', '🚚', '🚌'];
+      for (let lane = 0; lane < 2; lane++) {
+        for (let i = 0; i < 3; i++) {
+          const period = 16000 + lane * 4000 + i * 2600;
+          let s = ((now / period) + i * 0.37 + lane * 0.53) % 1;
+          if (i % 2) s = 1 - s;                              // opposing traffic
+          const wpos = WORLD_MIN + s * SPAN + 0.5;
+          const wx = lane === 0 ? wpos : lanes.v.col + 0.5;
+          const wy = lane === 0 ? lanes.h.row + 0.5 : wpos;
+          sprites.push({ sum: wx + wy - 0.01, draw: () => {
+            const c = toScreen(wx, wy);
+            if (c.x < -tw() || c.x > W + tw() || c.y < -th() * 2 || c.y > H + th()) return;
+            const dim = ownsParcel(farm, ...parcelOf(Math.floor(wx), Math.floor(wy))) ? 1 : 0.65;
+            ctx.globalAlpha = dim;
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.beginPath(); ctx.ellipse(c.x, c.y + th() * 0.06, tw() * 0.11, th() * 0.1, 0, 0, 7); ctx.fill();
+            ctx.font = `${Math.max(11, 16 * cam.zoom) | 0}px system-ui, sans-serif`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+            ctx.fillText(CARS[(lane * 3 + i) % CARS.length], c.x, c.y + Math.sin(now / 90 + i * 9) * 1.2 * cam.zoom);
+            ctx.globalAlpha = 1;
+          } });
+        }
+      }
     }
     // ANIMALS — emoji wanderers with a shadow and a status bubble (the heartbeat of the farm)
     for (const a of farm.animals || []) {
