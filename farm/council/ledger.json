@@ -1,0 +1,6 @@
+{
+  "comment": "The town ledger — player-driven changes, credited. Served at /council/ledger.json and rendered on the deeds sign. The council appends; entries are never rewritten.",
+  "entries": [
+    { "date": "2026-08-13", "change": "The town council convenes: petitions open, the moat is dug, the scales hang", "by": "the founding charter", "tier": 3 }
+  ]
+}

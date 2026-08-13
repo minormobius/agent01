@@ -296,3 +296,11 @@ console.log('end state          coins ' + avgEnd('coins').toFixed(0) + ' · harv
   ' · techs ' + avgEnd('techs').toFixed(1) + ' · deeds ' + avgEnd('deeds').toFixed(1) +
   ' · animals ' + avgEnd('animals').toFixed(1) + ' · brews ' + avgEnd('brews').toFixed(1) + ' · depth ' + avgEnd('depth').toFixed(1));
 if (VERBOSE) console.log('timeline (player 1):', JSON.stringify(runs[0].timeline));
+
+// machine-readable tail — farm/sim/gate.mjs (the executable scales) parses this line
+console.log('METRICS ' + JSON.stringify({
+  days: DAYS, seeds: SEEDS,
+  dead: avg('dead'), rewards: avg('rewards'), actions: avg('actions'), variety: avg('variety'),
+  unlockGap: avg('unlockGap'), unlocks: avg('unlocks'),
+  coins: avgEnd('coins'), harvests: avgEnd('harvests'), parcels: avgEnd('parcels'), techs: avgEnd('techs'),
+}));

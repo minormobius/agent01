@@ -972,6 +972,37 @@ function renderDeeds() {
     return '<div class="deed ' + (at ? 'earned' : 'locked') + '">' + a.emoji + ' <b>' + esc(a.name) + '</b> — ' + esc(a.desc) +
       (at ? ' <span class="dim">' + esc(at.slice(0, 10)) + '</span> <button class="share mini" data-ach="' + a.id + '">post</button>' : '') + '</div>';
   }).join('');
+  renderTownBoard();
+}
+
+// ── the town board: the ledger of player-driven changes + the petition box ───────────────────────
+async function renderTownBoard() {
+  const el = $('#townledger');
+  if (el && !el.dataset.loaded) {
+    el.dataset.loaded = '1';
+    try {
+      const led = await (await fetch('./council/ledger.json')).json();
+      el.innerHTML = (led.entries || []).map((e) =>
+        '<div class="giftrow"><span class="dim">' + esc(e.date) + '</span> ' + esc(e.change) +
+        ' <span class="dim">— petitioned by ' + esc(e.by) + '</span></div>').join('') ||
+        '<span class="dim">no petitions granted yet — be the first name on the board</span>';
+    } catch (e) { el.innerHTML = '<span class="dim">the ledger is on its way to town</span>'; }
+  }
+  const send = $('#petitionsend');
+  if (!send || send.dataset.wired) return;
+  send.dataset.wired = '1';
+  send.onclick = async () => {
+    const text = ($('#petitiontext').value || '').trim();
+    if (text.length < 8) { toast('a petition needs a few more words', 'warn'); return; }
+    if (!store.user) { toast('sign in to petition — wishes are signed records in your own repo', 'warn'); return; }
+    try {
+      const r = await store.writePetition(text, null, now());
+      if (!r) return;   // scope escalation redirected
+      $('#petitiontext').value = '';
+      $('#petitionnote').textContent = 'filed. The council sits daily; grants land on the ledger with your name.';
+      toast('🪧 petition filed with the council', 'ach', 6000);
+    } catch (e) { toast('the courier stumbled — try again', 'warn'); }
+  };
 }
 
 // share buttons live in toasts + deeds — one delegated handler

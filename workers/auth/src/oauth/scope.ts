@@ -175,6 +175,7 @@ const WRITE_COLLECTIONS = [
   'com.minomobi.farm.achievement',
   'com.minomobi.farm.gift',
   'com.minomobi.farm.tend',
+  'com.minomobi.farm.petition',
 ];
 
 // Blob MIME patterns uploaded across the repo (photo: image, poll/mmo: png,

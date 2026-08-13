@@ -1,0 +1,20 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.farm.petition",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A petition to the town council — a player's request to change the game itself, written to the PETITIONER's own repo (rkey tid) so every wish is public, signed, and attributable. The council (an automated development session) sweeps petitions, works the grantable ones inside a mechanically-enforced sandbox (see /PETITIONS.md on the farm site), and credits granted petitions on the town board. The record is never mutated; the grant or decline lives in the council's public reply and the served town ledger.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["text", "createdAt"],
+        "properties": {
+          "text": { "type": "string", "maxLength": 2000, "maxGraphemes": 500, "description": "The wish, in the petitioner's words." },
+          "category": { "type": "string", "knownValues": ["content", "balance", "mechanics"], "description": "Optional self-sort; the council triages regardless." },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

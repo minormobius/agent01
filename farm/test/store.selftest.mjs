@@ -10,7 +10,7 @@ const ok = (cond, msg) => { n++; if (!cond) { console.error('✗', msg); process
 // login through a re-consent redirect.
 ok(SCOPE.split(' ').includes(SHARE_SCOPE), 'login scope carries app.bsky.feed.post up front');
 ok(SCOPE.split(' ')[0] === 'atproto', 'atproto base scope leads');
-ok(FARM_SCOPES.length === 4 && FARM_SCOPES.every((s) => s.startsWith('repo:com.minomobi.farm.')), 'all four farm collections requested');
+ok(FARM_SCOPES.length === 5 && FARM_SCOPES.every((s) => s.startsWith('repo:com.minomobi.farm.')), 'all five farm collections requested (plot/ach/gift/tend/petition)');
 
 // scope errors are PERMANENT (stop, show the grant banner); network errors are TRANSIENT (backoff).
 const scopeErrors = [

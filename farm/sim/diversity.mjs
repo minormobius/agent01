@@ -242,3 +242,17 @@ console.log('  random planter   H = ' + eRand.H.toFixed(2) + ' over ' + eRand.n 
 console.log('  greedy planter   H = ' + eGreedy.H.toFixed(2) + ' over ' + eGreedy.n + ' species (what VALUE differences leave standing)');
 console.log('  → gap = wallpaper. H_greedy near 0 means one crop dominates on value/hour and the rest');
 console.log('    of the roster is cosmetic for an optimizing player; near H_random means real trade-offs.');
+
+// machine-readable tail — farm/sim/gate.mjs (the executable scales) parses this line.
+// lateNovelty = new elements per player first seen AFTER week 1 (the mid-game drip the
+// depletion analysis said this game must protect); earlySkins = non-default skins by day 7.
+let lateNovelty = 0, earlySkins = 0;
+for (const r of runs) for (const [k, day] of Object.entries(r.firstSeen)) {
+  if (day >= 7) lateNovelty++;
+  if (k.startsWith('skin:') && !k.endsWith(':verdant') && day < 7) earlySkins++;
+}
+console.log('METRICS ' + JSON.stringify({
+  days: DAYS, seeds: SEEDS,
+  hRandom: +eRand.H.toFixed(3), hGreedy: +eGreedy.H.toFixed(3), greedySpecies: eGreedy.n,
+  lateNovelty: +(lateNovelty / SEEDS).toFixed(1), earlySkins: +(earlySkins / SEEDS).toFixed(1),
+}));

@@ -17,6 +17,7 @@ export const TEND_COLLECTION = 'com.minomobi.farm.tend';
 export const GIFT_COLLECTION = 'com.minomobi.farm.gift';
 export const PLOT_COLLECTION = 'com.minomobi.farm.plot';
 export const ACH_COLLECTION = 'com.minomobi.farm.achievement';
+export const PETITION_COLLECTION = 'com.minomobi.farm.petition';
 export const TENDS_PER_FRIEND_PER_DAY = 3;     // a friend can tend your bed this many times a day (client-honoured, publicly auditable)
 
 // ── PURE ──────────────────────────────────────────────────────────────────────────────────────────

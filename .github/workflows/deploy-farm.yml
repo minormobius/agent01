@@ -34,6 +34,12 @@ jobs:
           done
           exit $fail
 
+      # The executable scales: the sim oracle + diversity instrument must stay inside the
+      # annealed bounds (farm/sim/thresholds.json). A change that breaks the fun curve does
+      # not ship, whoever authored it — player petition, agent, or human.
+      - name: The scales (farm/sim/gate.mjs)
+        run: node farm/sim/gate.mjs
+
       - name: Deploy worker + assets
         working-directory: farm
         run: npx wrangler deploy

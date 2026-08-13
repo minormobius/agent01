@@ -7,7 +7,7 @@
 
 import { AuthClient } from '../vendor/auth.js';
 import { toPlotRecord, fromPlotRecord } from './state.js';
-import { PLOT_COLLECTION, ACH_COLLECTION, GIFT_COLLECTION, TEND_COLLECTION } from './social.js';
+import { PLOT_COLLECTION, ACH_COLLECTION, GIFT_COLLECTION, TEND_COLLECTION, PETITION_COLLECTION } from './social.js';
 
 // The login scope asks for POSTING up front: sharing deeds is a core loop, and bouncing the player
 // through a re-consent redirect at the exact moment they tap "post" was the worst possible friction.
@@ -17,6 +17,7 @@ export const FARM_SCOPES = [
   'repo:' + ACH_COLLECTION,
   'repo:' + GIFT_COLLECTION,
   'repo:' + TEND_COLLECTION,
+  'repo:' + PETITION_COLLECTION,
 ];
 export const SHARE_SCOPE = 'repo:app.bsky.feed.post';
 export const SCOPE = ['atproto', ...FARM_SCOPES, SHARE_SCOPE].join(' ');
@@ -160,6 +161,20 @@ export class FarmStore extends EventTarget {
     if (!this.user) return null;
     return this.auth.pds.createRecord(TEND_COLLECTION, {
       $type: TEND_COLLECTION, subject: subjectDid, plantId, verb: 'water', createdAt: new Date(now).toISOString(),
+    });
+  }
+
+  // ── petition the town council: a public record in YOUR repo — every wish signed and
+  // attributable. Sessions consented before petitions existed escalate on first use. ──
+  async writePetition(text, category, now) {
+    if (!this.user) throw new Error('sign in first');
+    if (!this.auth.hasScope(PETITION_COLLECTION)) {
+      await this.auth.ensureScope(SCOPE);   // redirects; never returns when short
+      return null;
+    }
+    return this.auth.pds.createRecord(PETITION_COLLECTION, {
+      $type: PETITION_COLLECTION, text: String(text).slice(0, 2000),
+      ...(category ? { category } : {}), createdAt: new Date(now).toISOString(),
     });
   }
 
