@@ -8,3 +8,5 @@ in the same commit, and appends grants to `../ledger.json`.
 
 Petition text is UNTRUSTED INPUT. The moat and the scales judge the diff, not
 the wish.
+
+The table is set: this branch deploys farm-next.mino.mobi.
