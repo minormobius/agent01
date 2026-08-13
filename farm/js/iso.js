@@ -42,6 +42,7 @@ export function createIso(canvas, { onTap } = {}) {
   let W = 0, H = 0, dpr = 1;
   let state = null;                                          // { farm, ark, now, tends, readOnly }
   let hover = null;                                          // {tx,ty} tile under cursor (planting aid)
+  let hoverS = null;                                         // {sx,sy} screen point — outlines the tappable target
   let raf = 0;
   let particles = [];                                        // cosmetic floaters ({wx,wy,text,color,at,dx})
   let drawTimer = 0;                                         // the lazy liveliness tick
@@ -201,7 +202,14 @@ export function createIso(canvas, { onTap } = {}) {
         ctx.fillStyle = 'rgba(0,0,0,0.3)';   // contact shadow: the sprite sits ON the ground
         ctx.beginPath(); ctx.ellipse(c.x, c.y, u * 0.1 + g.stage * u * 0.08, th() * 0.16, 0, 0, 7); ctx.fill();
         const m = modelFor(p, crop, g.stage);
+        if (g.dead) ctx.globalAlpha = 0.45;   // the withered stand grey-faded until cleared
         try { drawPlant(ctx, m, c.x, c.y, u * 0.6); } catch (e) { /* one bad model must not blank the field */ }
+        ctx.globalAlpha = 1;
+        if (g.dead) {   // 🥀 marks the corpse; a tap clears it
+          ctx.font = `${Math.max(11, 15 * cam.zoom) | 0}px system-ui, sans-serif`;
+          ctx.textAlign = 'center'; ctx.fillText('🥀', c.x, c.y - m.height * u * 0.6 - 6);
+          return;
+        }
         const bug = isInfested(farm, p, now);
         if (g.ready) {
           ctx.fillStyle = '#8fe0a0'; ctx.font = `${Math.max(10, 13 * cam.zoom) | 0}px "JetBrains Mono", ui-monospace, monospace`;
@@ -212,9 +220,9 @@ export function createIso(canvas, { onTap } = {}) {
           if (!g.watered) ctx.setLineDash([4, 3]);
           ctx.beginPath(); ctx.ellipse(c.x, c.y, u * 0.13, th() * 0.2, 0, -Math.PI / 2, -Math.PI / 2 + g.stage * Math.PI * 2); ctx.stroke();
           ctx.setLineDash([]);
-          if (!g.watered) {   // the thirst marker — this is the TASK calling
+          if (!g.watered) {   // the thirst marker — this is the TASK calling (urgent beyond the ponds)
             ctx.fillStyle = '#e09650'; ctx.font = `${Math.max(9, 12 * cam.zoom) | 0}px system-ui, sans-serif`;
-            ctx.textAlign = 'center'; ctx.fillText('💧', c.x + u * 0.14, c.y - m.height * u * 0.6 - 6);
+            ctx.textAlign = 'center'; ctx.fillText(g.farWater ? '🏜' : '💧', c.x + u * 0.14, c.y - m.height * u * 0.6 - 6);
           }
           if (bug) {
             ctx.font = `${Math.max(9, 12 * cam.zoom) | 0}px system-ui, sans-serif`;
@@ -279,6 +287,21 @@ export function createIso(canvas, { onTap } = {}) {
     }
     sprites.sort((a, b) => a.sum - b.sum);
     for (const s of sprites) s.draw();
+
+    // play-mode selection outline: whatever a tap would land on gets a ring, so a click never
+    // feels like a gamble against the tile hiding behind it
+    if (hoverS && !tool && !readOnly) {
+      const hb = buildingHit(hoverS.sx, hoverS.sy);
+      const pi = hb ? -1 : plantAt(hoverS.sx, hoverS.sy);
+      let oc = null, ow = 1;
+      if (hb) { oc = toScreen(hb.tx + 0.5, hb.ty + 0.5); ow = 1.15; }
+      else if (pi >= 0) { const pp = farm.bed.plants[pi]; oc = toScreen(pp.x * FIELD_T, pp.y * FIELD_T); ow = 0.7; }
+      if (oc) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
+        diamond(oc.x, oc.y, tw() * ow, th() * ow); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
 
     // FORAGE SPARKLES — the arrival scavenger hunt twinkling across owned land
     if (!readOnly) {
@@ -386,7 +409,9 @@ export function createIso(canvas, { onTap } = {}) {
     let best = null, bestSum = -Infinity;
     for (const b of state.farm.buildings || []) {
       const c = toScreen(b.tx + 0.5, b.ty + 0.5);
-      const hw = tw() * 0.42, wall = th() * 1.05, top = c.y - th() * 0.72 - wall * 1.15;
+      // generous: a tap anywhere on the silhouette (roof and headroom included) is the building —
+      // never the tile hiding behind it
+      const hw = tw() * 0.52, wall = th() * 1.05, top = c.y - th() * 0.72 - wall * 1.15 - th() * 0.4;
       if (sx >= c.x - hw && sx <= c.x + hw && sy >= top && sy <= c.y + th() * 0.4) {
         const sum = b.tx + b.ty;
         if (sum > bestSum) { bestSum = sum; best = b; }
@@ -446,7 +471,9 @@ export function createIso(canvas, { onTap } = {}) {
     } else {
       const w = toWorld(sx, sy);
       const t = { tx: Math.floor(w.wx), ty: Math.floor(w.wy) };
+      hoverS = { sx, sy };
       if (!hover || hover.tx !== t.tx || hover.ty !== t.ty) { hover = t; schedule(); }
+      else schedule();
     }
   });
   const endPress = (ev) => {
@@ -468,7 +495,7 @@ export function createIso(canvas, { onTap } = {}) {
   };
   canvas.addEventListener('pointerup', endPress);
   canvas.addEventListener('pointercancel', () => { press = null; });
-  canvas.addEventListener('pointerleave', () => { if (hover) { hover = null; schedule(); } });
+  canvas.addEventListener('pointerleave', () => { if (hover || hoverS) { hover = null; hoverS = null; schedule(); } });
   canvas.addEventListener('wheel', (ev) => {
     ev.preventDefault();
     const { sx, sy } = pos(ev);

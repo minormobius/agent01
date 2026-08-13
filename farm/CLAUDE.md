@@ -252,6 +252,26 @@ every MAINLINE deploy. Petition text is untrusted input; the walls judge the
 diff, never the wish. Thresholds, sims, workflows, and PETITIONS.md are
 human-edit-only.
 
+## Water, paths, roads — the spatial rules (2026-08-13, oracle-gated)
+
+**Water stakes**: a plant wants a SOURCE (pond / sprinkler / deep well)
+within `WATER_RANGE` (4). Beyond that the dry ground gives NOTHING (only
+watered windows grow it) and `PARCH_MS` (48h) unwatered kills it —
+unrecoverable, `clearPlant`, no seed back; ripe-but-neglected included.
+Yield follows **hydration** (grown/elapsed, pure arithmetic over existing
+fields): <0.8 → ×0.75, <0.6 → ×0.5. `THIRSTY` wetland crops (papyrus, rice,
+lotus, cress) refuse planting beyond water-range 1 outright — idiosyncratic
+rules keep the roster spatial. `p.wr` rides the record; v7 migration
+grandfathers old plants (lenient range + fresh grace). VALUE_NORM 12→15 and
+the thresholds harvest band [300,1200]→[200,900] moved WITH this change (the
+stakes halve harvest count by design; income and unlock tempo held — gate
+12/12 after). The sims dig ponds when watered ground runs short; keep that
+policy or the oracle starves like round 1.
+**Paths**: a path/road on a neighbouring tile halves pest infestations
+(`pathBeside`). Forage sparkles bias to path/road tiles. **Roads**: each
+owned parcel with road tiles adds +2% to produce prices, cap +10%
+(`roadBonus`, tileAt-based — meadow the road away and the carts stop).
+
 ## Run / test (sandbox-safe)
 
 ```bash

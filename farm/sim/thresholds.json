@@ -1,5 +1,5 @@
 {
-  "comment": "THE EXECUTABLE SCALES. These bounds ARE the hard-won balance — frozen from the 2026-08-13 annealed readings (oracle: gap 2.7d, variety 9.3, rewards ~40, unlocks ~69, coins 2.5-5.7k, harvests ~614; diversity: H_greedy 0.89, lateNovelty ~13/player, earlySkins 2). gate.mjs runs both instruments and refuses any change that breaks a bound. Bounds carry deliberate rng headroom. HUMAN-EDIT ONLY: the town council (or any automated session) may never touch this file or the instruments — the examinee does not edit the examiner. Tighten or re-anneal these only with before/after readings in the commit.",
+  "comment": "THE EXECUTABLE SCALES. These bounds ARE the hard-won balance — frozen from the 2026-08-13 annealed readings, re-annealed same day for the WATER STAKES: the harvest band moved from [300,1200] to [200,900] deliberately (the stakes halve harvest count by design — fewer, better-tended plants near real infrastructure — while VALUE_NORM 12→15 keeps income and unlock tempo; before/after in the commit). gate.mjs runs both instruments and refuses any change that breaks a bound. Bounds carry deliberate rng headroom. HUMAN-EDIT ONLY: the town council (or any automated session) may never touch this file or the instruments — the examinee does not edit the examiner. Tighten or re-anneal these only with before/after readings in the commit.",
   "oracle": {
     "deadMax": 0.02,
     "unlockGapMax": 4.5,
@@ -7,7 +7,7 @@
     "rewardsMin": 25,
     "unlocksMin": 55,
     "coinsRange": [500, 15000],
-    "harvestsRange": [300, 1200]
+    "harvestsRange": [200, 900]
   },
   "diversity": {
     "hGreedyMin": 0.6,

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
   newFarm, fromPlotRecord, toPlotRecord, plantSeed, sellProduce, growthOf, cropById, allCrops,
-  FORGE_REQ, ALLOYS, CHARM_DEFS, CHARM_COST, CHARM_SPD, CHARM_SELL,
+  FORGE_REQ, ALLOYS, CHARM_DEFS, CHARM_COST, CHARM_SPD, CHARM_SELL, THIRSTY,
   buildForge, smeltAlloy, smeltReady, collectSmelt, sellAlloy, forgeCharm, setCharm, activeCharm,
   cropPlanet, hasForge, plantableTile, FIELD_T, DAY_MS, sellPriceOrganic,
 } from '../js/state.js';
@@ -109,8 +109,10 @@ ok(!sellAlloy(clone(F), 'bronze', 1, T0).ok, 'empty rack refused');
   ok(off.ok && activeCharm(off.farm) === null, 'a charm comes off');
 
   // ── sown under a sign: sow-time growth boost, worn-time market favour ──
-  const jCrops = allCrops(ark).filter((c) => cropPlanet(c) === 'Jupiter');
-  const xCrop = allCrops(ark).find((c) => cropPlanet(c) !== 'Jupiter');
+  // dry-land crops only — a THIRSTY (wetland) pick would trip the water-range refusal and test
+  // the wrong rule here
+  const jCrops = allCrops(ark).filter((c) => cropPlanet(c) === 'Jupiter' && THIRSTY[c.id] == null);
+  const xCrop = allCrops(ark).find((c) => cropPlanet(c) !== 'Jupiter' && THIRSTY[c.id] == null);
   ok(jCrops.length > 0 && !!xCrop, 'fixture crops exist');
   const field = clone(j.farm);                      // Jupiter worn
   field.stats.harvests = 5;                         // no fresh-soil multiplier — bare charm math
@@ -153,11 +155,11 @@ ok(!sellAlloy(clone(F), 'bronze', 1, T0).ok, 'empty rack refused');
 // ── save round-trip + migration ──
 {
   const rt = fromPlotRecord(toPlotRecord(clone(c1.farm), T0 + 10));
-  ok(rt && rt.forge && rt.forge.alloys.bronze === 1 && rt.v === 6, 'a built forge survives the record round-trip');
+  ok(rt && rt.forge && rt.forge.alloys.bronze === 1 && rt.v === 7, 'a built forge survives the record round-trip');
   const v5 = toPlotRecord(clone(f0), T0); v5.farm.v = 5; delete v5.farm.forge;
   delete v5.farm.stats.alloysSmelted; delete v5.farm.stats.charmsForged;
   const up = fromPlotRecord(v5);
-  ok(up && up.v === 6 && up.forge === null && up.stats.alloysSmelted === 0, 'a v5 save walks up to v6 with the forge unbuilt');
+  ok(up && up.v === 7 && up.forge === null && up.stats.alloysSmelted === 0, 'a v5 save walks up to v6 with the forge unbuilt');
 }
 
 console.log('forge.selftest: ' + n + ' assertions passed');

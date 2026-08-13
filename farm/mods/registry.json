@@ -1,0 +1,4 @@
+{
+  "comment": "THE TESTING TABLE'S REGISTRY. Every experiment the council builds registers here: { id, title, by (petitioner handle), petition (at:// uri), since (YYYY-MM-DD) }. The town hall renders this board on BOTH worlds (mainline fetches it cross-origin — see _headers), gating each mod's logic behind modOn(farm, id). Empty on mainline by construction: experiments live on claude/farm-next until they graduate.",
+  "mods": []
+}
