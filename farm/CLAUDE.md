@@ -172,6 +172,18 @@ goes through it**: the 2026-08-12 annealing took the 21-day unlock gap from
 ~40% after the first pass minted 28 animals). If you touch an economy
 number, run the oracle before and after and put both readings in the commit.
 
+`node farm/sim/diversity.mjs [--days N --seeds K --trials T]` is the second
+instrument — it answers "how many of X?" questions instead of pacing ones.
+Three readings: **collection math** (coupon-collector E[pulls]/coins to close
+each biome, real gacha weights), **novelty depletion** (first-seen day for
+every element class over 28 days — is the stock front-loaded or drip-fed?),
+and **choice entropy** (normalized Shannon H of a random vs a greedy
+value-per-day planter — if H_greedy ≪ H_random, crop variety is wallpaper to
+an optimizer). 2026-08-13 baseline: biome close costs 28◈→1963◈ (50× spread,
+mis-shaped sets), 26% of crop stock surfaced by day 28 (scheduling, not
+count, is the constraint), animals 1/5 seen by day 28 (price-ladder cliff —
+flagged, not yet annealed), H_greedy 0.42 vs H_random 0.99.
+
 Livestock (`ANIMALS`, barn station): wander the map via `animalPos` (pure
 lissajous, no stored position), eat pantry produce (the produce sink), drop
 goods on timers, pet once/day to double the next collect; goods inherit the

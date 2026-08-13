@@ -5,6 +5,8 @@ CLAUDE.md
 # Tests are tests, not pages; the rest is deploy-time debris if wrangler is
 # ever npm-installed in-dir.
 test
+# The oracle and its instruments are node-only design tools, not pages.
+sim
 node_modules
 .wrangler
 package.json
