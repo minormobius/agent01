@@ -97,4 +97,5 @@ jobs:
         env:
           BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
           BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
-        run: node farm/sim/reply.mjs --announce --text "this week's graduating experiments: ${{ steps.notes.outputs.summary }} — merging to the mainline farm"
+        run: |
+          node farm/sim/reply.mjs --announce --text "this week's graduating experiments: ${{ steps.notes.outputs.summary }} — merging to the mainline farm"
