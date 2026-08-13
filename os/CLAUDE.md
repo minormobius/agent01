@@ -55,6 +55,10 @@ backend changes.
 **Published runs:** [`/arena/race-01/`](https://os.mino.mobi/arena/race-01/) —
 11 entries, one brief ("turn INPAC into a race, make it look good"), each a live
 sandboxed iframe plus a filmstrip and the agent's own notes.
+[`/arena/race-02/`](https://os.mino.mobi/arena/race-02/) — the same grid re-run
+2026-08-12, 12/12 entries; its ds4-pro cells are the first on the V4 Pro 0813
+GA build (race-01's ran the preview), so the two rounds compare the model
+across that cutover.
 
 `public/arena/` holds published bake-off runs (see
 [`../bakeoff/CLAUDE.md`](../bakeoff/CLAUDE.md)) — the same cells given one brief,
