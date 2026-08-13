@@ -634,6 +634,28 @@ rings for the "portable" model, i.e. breaking the no-rectilinear default is
 fine when the rectilinear shape is itself making the argument (a wall),
 not just the easy layout.
 
+## `site-4`/Fixed Orbit (2026-08-13): "build that" pattern extends to a control-theory paper pitch
+A ninth "build that"-shaped reply to a factory-posted concept advert (after
+`concourse`, `yes-that`/stallpoint, `rootcut`, `that-2`/Sixfold, `diffuse`,
+`porefront`, `site-3`/Superelastic, `monopath`), this time minimum-time
+control of Kuramoto oscillators into sync under a power budget. No
+back-and-forth to draw a design preference from. Scoped turn one exactly to
+the advert's own line (N slider, greedy control only, big time-to-sync
+number) and gave the advert's named "hard part" — making greedy's
+suboptimality legible without dynamic programming — the most build effort:
+overlaid the order-parameter path at three power budgets on the same random
+starting phases so the "one fixed curve regardless of power" claim is
+directly checkable on screen, not just asserted in copy. Deviated from one
+line of the advert itself (it named `g`'s canvas-simulation pattern as
+reuse; no `g/` directory exists in this repo, checked directly rather than
+assumed) and said so in BRIEF.md. Deferred the leaderboard for a structural
+reason worth remembering generally: **a "claimed record is a seed plus a
+control law, re-simulatable" leaderboard needs a seedable PRNG**, and this
+codebase's canvas sims default to bare `Math.random()` — a future turn
+wiring up `pds.js` scores for a re-simulation-verified leaderboard on *any*
+site needs to swap in a seeded PRNG first, or claimed scores are
+unverifiable by construction.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
