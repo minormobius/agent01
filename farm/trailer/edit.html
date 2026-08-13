@@ -1,0 +1,191 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Harvestople — the edit machine</title>
+<!-- The trailer's deterministic timeline: renderFrame(n) draws frame n at 30fps, so the same
+     code plays live in a browser AND renders the mp4 frame-by-frame under Playwright. The
+     display face is Roll seed 'sown-under-signs' (rite.mino.mobi/font, CC0). -->
+<style>
+  html,body{margin:0;background:#0c0f0a;height:100%;display:grid;place-items:center}
+  canvas{max-width:100vw;max-height:100vh}
+  @font-face{font-family:'RollSown';src:url('../brand/RollSown.ttf')}
+</style>
+<canvas id="c" width="1280" height="720"></canvas>
+<script type="module">
+const FPS = 30, W = 1280, H = 720, TOTAL = 35 * FPS;
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+
+const SHOTS = ['crops','overlay','mine','forge','dead','estate','barn','hall','skin-umbra','skin-gilt'];
+const img = {};
+await Promise.all(SHOTS.map((s) => new Promise((res) => {
+  const i = new Image(); i.onload = () => res(); i.onerror = () => res();
+  i.src = './shots/' + s + '.png'; img[s] = i;
+})));
+const logo = new Image();
+await new Promise((res) => { logo.onload = res; logo.onerror = res; logo.src = '../brand/logo.svg'; });
+await document.fonts.load('80px RollSown').catch(() => {});
+
+const rand = (n) => { let h = (n * 2654435761) >>> 0; h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995) >>> 0; return ((h ^ (h >>> 15)) >>> 0) / 4294967296; };
+const eout = (x) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
+const BPM = 150, beatAt = (t) => t / (60 / BPM);
+
+// ── the cut list ──────────────────────────────────────────────────────────────────────────────
+const CUTS = [
+  { t: 0.0,  d: 1.6,  kind: 'logo-in' },
+  { t: 1.6,  d: 2.4,  kind: 'shot', shot: 'crops',   big: '80 REAL CROPS',            sub: 'actual botany · actual Latin',            em: '🌾🥕🌿' },
+  { t: 4.0,  d: 2.2,  kind: 'shot', shot: 'overlay', big: 'THE LAND SAYS YES OR NO',  sub: 'green takes the seed. red will not.',     em: '🟩🟥🌱' },
+  { t: 6.2,  d: 2.2,  kind: 'shot', shot: 'mine',    big: 'MINE THE SEVEN METALS',    sub: 'lead to gold, in the Chaldean order',      em: '⛏️🥇🪨' },
+  { t: 8.4,  d: 2.4,  kind: 'shot', shot: 'forge',   big: 'FORGE PLANETARY CHARMS',   sub: 'Jupiter rules your watercress. really.',   em: '🪬⚒️♃' },
+  { t: 10.8, d: 2.4,  kind: 'shot', shot: 'dead',    big: 'WATER THEM OR THEY DIE',   sub: '48 hours. no mercy. dig ponds.',           em: '💀🥀💧', red: 1 },
+  { t: 13.2, d: 2.2,  kind: 'shot', shot: 'estate',  big: 'BUY THE WHOLE MAP',        sub: 'roads pay · lakes water · hills are hills', em: '🗺️💰🏞️' },
+  { t: 15.4, d: 2.2,  kind: 'shot', shot: 'barn',    big: 'PET. EVERY. ANIMAL.',      sub: 'petting doubles the eggs (science)',       em: '🐔🐐💕' },
+  { t: 17.6, d: 1.8,  kind: 'strobe',                big: 'SIX WHOLE VIBES',          sub: 'skins repaint the world',                  em: '🎨✨🌙' },
+  { t: 19.4, d: 2.6,  kind: 'shot', shot: 'hall',    big: 'WISH FEATURES INTO IT',    sub: 'petition the town council, in game',       em: '🪧🏛️📜' },
+  { t: 22.0, d: 2.4,  kind: 'card', big: 'AN AI BUILDS IT', flip: 'LIVE IN AN HOUR',  sub: 'on the testing table · with your real save', em: '🤖⚗️⏱️' },
+  { t: 24.4, d: 2.6,  kind: 'card', big: 'YOUR SAVE IS YOURS', flip: 'A RECORD IN YOUR OWN REPO', sub: 'no servers · no wipes · sign in with Bluesky', em: '🦋🔑📦' },
+  { t: 27.0, d: 2.0,  kind: 'triptych',              big: 'PETITION · PLAY · MERGE PARTY', sub: '', em: '🎉' },
+  { t: 29.0, d: 6.0,  kind: 'end' },
+];
+const cutAt = (t) => CUTS.find((c) => t >= c.t && t < c.t + c.d) || CUTS[CUTS.length - 1];
+
+function drawShot(name, t, zoomPunch) {
+  const im = img[name]; if (!im || !im.width) { ctx.fillStyle = '#1a221a'; ctx.fillRect(0, 0, W, H); return; }
+  const punch = 1 + 0.16 * Math.exp(-t * 6) * zoomPunch + 0.02 * Math.sin(t * 2.2);
+  const scale = Math.max(W / im.width, H / im.height) * punch;
+  const dw = im.width * scale, dh = im.height * scale;
+  ctx.save();
+  ctx.filter = 'saturate(1.45) contrast(1.12) brightness(1.06)';
+  ctx.drawImage(im, (W - dw) / 2 + Math.sin(t * 0.7) * 12, (H - dh) / 2 + Math.cos(t * 0.5) * 8, dw, dh);
+  ctx.restore();
+}
+function bigText(txt, y, size, t, color = '#ffd66e') {
+  const slam = 1 + 2.2 * Math.exp(-t * 14);
+  ctx.save();
+  ctx.translate(W / 2, y); ctx.scale(slam, slam);
+  ctx.font = `${size}px RollSown, system-ui`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = size * 0.14; ctx.strokeStyle = '#14100a'; ctx.lineJoin = 'round';
+  ctx.strokeText(txt, 0, 0);
+  ctx.fillStyle = color; ctx.fillText(txt, 0, 0);
+  ctx.restore();
+}
+function subText(txt, y) {
+  if (!txt) return;
+  ctx.font = '600 30px ui-monospace, monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 8; ctx.strokeStyle = 'rgba(12,10,6,0.9)';
+  ctx.strokeText(txt, W / 2, y);
+  ctx.fillStyle = '#f3e9d2'; ctx.fillText(txt, W / 2, y);
+}
+function emojiRain(em, t, seed) {
+  if (!em) return;
+  const chars = [...em];
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (let i = 0; i < 14; i++) {
+    const r = rand(seed * 97 + i), r2 = rand(seed * 131 + i * 7 + 3);
+    const x = r * W, sp = 260 + r2 * 420;
+    const y = ((t * sp + r2 * H * 2) % (H + 160)) - 80;
+    ctx.font = `${26 + r2 * 30}px system-ui`;
+    ctx.globalAlpha = 0.85;
+    ctx.fillText(chars[i % chars.length], x, y);
+    ctx.globalAlpha = 1;
+  }
+}
+function vignette(red) {
+  const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.85);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(1, red ? 'rgba(120,10,10,0.55)' : 'rgba(0,0,0,0.45)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+function scanlines(f) {
+  ctx.globalAlpha = 0.05;
+  ctx.fillStyle = '#000';
+  for (let y = (f % 3); y < H; y += 3) ctx.fillRect(0, y, W, 1);
+  ctx.globalAlpha = 1;
+}
+function drawLogo(cx, cy, w, wob) {
+  if (!logo.width) return;
+  const h = w * (logo.height / logo.width || 0.53);
+  ctx.save();
+  ctx.translate(cx, cy); ctx.rotate(wob);
+  ctx.drawImage(logo, -w / 2, -h / 2, w, h);
+  ctx.restore();
+}
+
+window.renderFrame = function (f) {
+  const t = f / FPS;
+  const cut = cutAt(t);
+  const ct = t - cut.t;
+  const beat = beatAt(t) % 1;                      // 0 at every beat
+  const thump = Math.exp(-beat * 6) * (t > 1.6 && t < 29 ? 1 : 0.3);
+
+  // screenshake: hard at each cut head, pulse on the beat, extra on the red cut
+  const shakeAmp = 14 * Math.exp(-ct * 9) + thump * 2.5 + (cut.red ? 3 : 0);
+  const sx = (rand(f * 3 + 1) - 0.5) * 2 * shakeAmp, sy = (rand(f * 3 + 2) - 0.5) * 2 * shakeAmp;
+
+  ctx.save();
+  ctx.fillStyle = '#0c0f0a'; ctx.fillRect(0, 0, W, H);
+  ctx.translate(sx, sy);
+
+  if (cut.kind === 'logo-in') {
+    const a = eout(ct / 0.5);
+    ctx.fillStyle = '#141a12'; ctx.fillRect(-40, -40, W + 80, H + 80);
+    drawLogo(W / 2, H / 2 - 20, 260 + 700 * (1 - a), (1 - a) * 0.3);
+    if (ct > 0.9) subText('a farm that lives in your own repo', H - 120);
+  } else if (cut.kind === 'shot') {
+    drawShot(cut.shot, ct, 1);
+    vignette(cut.red);
+    emojiRain(cut.em, t, CUTS.indexOf(cut));
+    bigText(cut.big, H - 150, 78, ct, cut.red ? '#ff6a5e' : '#ffd66e');
+    subText(cut.sub, H - 74);
+  } else if (cut.kind === 'strobe') {
+    drawShot((f % 12) < 6 ? 'skin-umbra' : 'skin-gilt', ct, 0.5);
+    vignette(0);
+    emojiRain(cut.em, t, 88);
+    bigText(cut.big, H - 150, 82, ct);
+    subText(cut.sub, H - 74);
+  } else if (cut.kind === 'card') {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#182015'); g.addColorStop(1, '#0c0f0a');
+    ctx.fillStyle = g; ctx.fillRect(-40, -40, W + 80, H + 80);
+    emojiRain(cut.em, t, 55 + CUTS.indexOf(cut));
+    const half = ct > cut.d / 2 && cut.flip;
+    bigText(half ? cut.flip : cut.big, H / 2 - 30, half && cut.flip.length > 18 ? 62 : 88, half ? ct - cut.d / 2 : ct);
+    subText(cut.sub, H / 2 + 70);
+  } else if (cut.kind === 'triptych') {
+    const seq = ['crops', 'forge', 'barn', 'overlay', 'estate', 'hall'];
+    drawShot(seq[Math.floor(ct * 9) % seq.length], 0.05, 0.4);
+    vignette(0);
+    bigText(cut.big, H / 2, 64, ct % 0.35);
+  } else { // end card
+    ctx.fillStyle = '#141a12'; ctx.fillRect(-40, -40, W + 80, H + 80);
+    const pulse = 1 + thump * 0.05;
+    drawLogo(W / 2, 250, 640 * pulse, Math.sin(t * 0.8) * 0.012);
+    bigText('farm.mino.mobi', 505, 86, ct, '#8fd07a');
+    subText('free · in your browser · your data is yours', 585);
+    ctx.font = '600 26px ui-monospace, monospace'; ctx.fillStyle = '#d8a657';
+    ctx.textAlign = 'center'; ctx.fillText('#harvestople — wish a feature, the council builds it', W / 2, 650);
+    if (t > 34) { ctx.fillStyle = `rgba(12,15,10,${(t - 34)})`; ctx.fillRect(-40, -40, W + 80, H + 80); }
+  }
+
+  // garnish: 1-frame invert flash on every cut head, scanlines always
+  const anyCutHead = CUTS.some((c) => f === Math.round(c.t * FPS));
+  ctx.restore();
+  if (anyCutHead && cut.kind !== 'logo-in') {
+    ctx.globalCompositeOperation = 'difference';
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  scanlines(f);
+};
+window.TOTAL_FRAMES = TOTAL;
+window.EDIT_READY = true;
+
+// live playback for anyone who visits the machine directly
+if (!location.search.includes('record')) {
+  const t0 = performance.now();
+  (function loop() {
+    window.renderFrame(Math.floor((performance.now() - t0) / (1000 / FPS)) % TOTAL);
+    requestAnimationFrame(loop);
+  })();
+}
+</script>
