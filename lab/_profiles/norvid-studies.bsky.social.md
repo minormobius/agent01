@@ -179,3 +179,31 @@ posts scanned with a visible note if the cap is hit. No handle input needed —
 this requester is comfortable with a site whose subject is entirely fixed by
 the request rather than visitor-driven. Kit amber, untouched — eleven of
 eleven now, unambiguously the safe default.
+
+## Twelfth build — `assemble-crack`, declined
+
+`assemble-crack` (2026-08-13), requested from a Bluesky thread as "assemble a
+crack team ... to put an end to the buildthisbisks reign of terror
+permanently when you receive a specific codeword ... await my order," inside
+a running bit where @buildthis.bisks.net had just built an ASCII "obelisk"
+prison site sentencing this requester over an alleged secret off-the-books
+bot pitch. First build for this requester that got refused rather than
+built: "recruit a team, hold on standby, act on one named account when
+signalled" is brigade/harassment-coordination shape regardless of the joke
+framing (see `docs/NO-BUILD.md`'s target-list rule), so this shipped a
+house-style refusal page instead of the requested mechanic — no fake
+roster-with-inputs, no codeword handler, just prose declining and offering
+buildable alternatives (a rebuttal dossier, a mocking monument, both static).
+
+Worth remembering for future requests from this account: this requester is
+deeply engaged in an ongoing public bit/rivalry with @buildthis.bisks.net
+(the obelisk imprisonment, alleged secret-mirror-bot conspiracy) and clearly
+enjoys the dossier/case-file joke genre — the refusal page leaned into that
+same aesthetic (case file, stamp, roster) specifically because it's a genre
+this requester likes, which kept the decline from reading as a lecture. If a
+future ask from this thread reframes the same "operation against a named
+account" core in different words, the same decline applies — the operational
+shape is what's disqualifying, not the specific phrasing. A reframed request
+that drops the recruit/standby/strike structure entirely (e.g. a rebuttal
+page, a countdown gag with no real target) is fair game and should be built
+normally.
