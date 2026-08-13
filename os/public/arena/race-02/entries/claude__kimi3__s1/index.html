@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>INPAC GP — a race inside the torus</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#04060c}
+#game{display:block;width:100%;height:100%}
+#minimap{position:fixed;bottom:14px;right:14px;z-index:2;
+  border:1px solid rgba(60,200,255,0.25);border-radius:6px;background:rgba(4,6,12,0.85)}
+#hud{position:fixed;inset:0;pointer-events:none;z-index:2;
+  font-family:'Courier New',ui-monospace,monospace;color:#dfe8ff}
+#hud-top{position:absolute;top:10px;left:50%;transform:translateX(-50%);text-align:center}
+#clock{font-size:44px;font-weight:bold;letter-spacing:2px;color:#ffd27a;
+  text-shadow:0 0 18px rgba(255,180,60,0.45);font-variant-numeric:tabular-nums}
+#lapind{font-size:14px;color:#7fd8ff;letter-spacing:3px;margin-top:2px}
+#delta{font-size:18px;font-weight:bold;margin-top:2px;min-height:22px;font-variant-numeric:tabular-nums}
+#delta.ahead{color:#5dff8f}#delta.behind{color:#ff6a5d}
+#hud-left{position:absolute;top:14px;left:14px;font-size:13px;line-height:1.7;
+  color:#9fb4d8;text-shadow:0 1px 3px #000}
+#hud-left b{color:#ffd27a;font-variant-numeric:tabular-nums}
+#hud-left .lbl{color:#5a6f92;font-size:10px;letter-spacing:2px}
+#feed{position:absolute;top:14px;right:14px;text-align:right;font-size:12px;line-height:1.8;
+  font-variant-numeric:tabular-nums;text-shadow:0 1px 3px #000}
+#feed .ahead{color:#5dff8f}#feed .behind{color:#ff6a5d}#feed .gate{color:#5a6f92}
+#msg{position:fixed;top:34%;left:50%;transform:translate(-50%,-50%);z-index:5;
+  font:bold 42px 'Courier New',monospace;color:#ffd27a;text-align:center;
+  text-shadow:0 0 24px rgba(255,180,60,0.6);pointer-events:none;white-space:pre-line}
+#hint{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:4;
+  color:#7fd8ff;font:13px 'Courier New',monospace;letter-spacing:2px;
+  text-shadow:0 0 10px rgba(80,200,255,0.5);pointer-events:none}
+#reticle{position:fixed;top:50%;left:50%;z-index:3;width:20px;height:20px;
+  margin:-10px 0 0 -10px;pointer-events:none;display:none}
+#reticle::before,#reticle::after{content:'';position:absolute;background:rgba(255,240,200,0.55)}
+#reticle::before{width:2px;height:12px;top:4px;left:9px}
+#reticle::after{width:12px;height:2px;top:9px;left:4px}
+#start-screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;background:rgba(3,5,10,0.68);z-index:10;
+  font-family:'Courier New',monospace;color:#dfe8ff;text-align:center}
+#start-screen h1{font-size:84px;color:#ffd27a;letter-spacing:6px;
+  text-shadow:0 0 34px rgba(255,170,50,0.55)}
+#start-screen h1 span{color:#7fd8ff;text-shadow:0 0 34px rgba(80,200,255,0.55)}
+#start-screen .tag{font-size:15px;color:#9fb4d8;margin-top:6px}
+#start-screen .ctrl{font-size:13px;color:#5a6f92;margin-top:22px;line-height:1.9}
+#start-screen .best{font-size:14px;color:#5dff8f;margin-top:10px;min-height:18px}
+#start-screen button{font-size:22px;padding:14px 58px;margin-top:26px;background:#ffd27a;
+  color:#1a1005;border:none;border-radius:4px;cursor:pointer;font-family:inherit;
+  font-weight:bold;letter-spacing:3px}
+#start-screen button:hover{background:#ffe3a1;box-shadow:0 0 26px rgba(255,190,80,0.5)}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<canvas id="minimap"></canvas>
+<div id="hud">
+  <div id="hud-top">
+    <div id="clock">0:00.00</div>
+    <div id="lapind">LAP 1/3</div>
+    <div id="delta"></div>
+  </div>
+  <div id="hud-left">
+    <span class="lbl">BEST LAP</span><br><b id="best">—</b><br>
+    <span class="lbl">LAST LAP</span><br><b id="last">—</b><br>
+    <span class="lbl">SPEED</span><br><b id="speed">0.0</b>
+  </div>
+  <div id="feed"></div>
+</div>
+<div id="msg"></div>
+<div id="hint" style="display:none">ATTRACT MODE — PRESS ANY KEY TO DRIVE</div>
+<div id="reticle"></div>
+<div id="start-screen">
+  <h1>INPAC <span>GP</span></h1>
+  <div class="tag">Twelve gates. Three laps. One spiral around the inside of a torus.</div>
+  <div class="ctrl">
+    the track climbs the outer wall and dives through the hole — look up, it's all there<br>
+    MOUSE steer &bull; S brake &bull; SPACE jump &bull; F flat map &bull; R restart<br>
+    you are racing two paceline drones and the ghost of your fastest lap
+  </div>
+  <div class="best" id="menu-best"></div>
+  <button id="startBtn">RACE</button>
+</div>
+<script>
+'use strict';
+
+// =====================================================================
+// The interior field — inline mirror of field.mjs.
+//
+// The physics of this page is driven by ./field.mjs: when the page is
+// served over http(s) the module is imported below and `field` is rebound
+// to the module's export. The capture harness loads the page over file://,
+// where Chromium's CORS policy refuses ALL module imports; for that case
+// only, this inline copy — byte-identical logic — is the fallback, so the
+// game still runs the same field. Any change to the field must be made in
+// field.mjs and mirrored here.
+// =====================================================================
+let field = (function () {
+  const G_WALL = 9.0;
+  function magnitude(f) { const c = f < 1 ? f : 1; return G_WALL * (0.3 + 0.7 * c); }
+  return function (R, Z, geom = {}) {
+    const R0 = typeof geom.R === 'number' ? geom.R : 8.0;
+    const r0 = typeof geom.r === 'number' ? geom.r : 3.0;
+    const dR = R - R0, dZ = Z;
+    const d = Math.sqrt(dR * dR + dZ * dZ);
+    if (d < 1e-9) return { gR: 0, gZ: 0 };
+    const mag = magnitude(d / r0);
+    return { gR: (dR / d) * mag, gZ: (dZ / d) * mag };
+  };
+})();
+if (location.protocol !== 'file:') {
+  import('./field.mjs')
+    .then(m => { if (m && typeof m.field === 'function') field = m.field; })
+    .catch(() => { /* inline mirror stays in use */ });
+}
+
+// =====================================================================
+// Constants
+// =====================================================================
+const WORLD_W = 54, WORLD_H = 45;   // tile-space dimensions of the 2-torus map
+const TORUS_R = 8.0, TORUS_r = 3.0;
+const EYE_HEIGHT = 0.12;
+const MOUSE_SENS = 0.002;
+const MAX_PITCH = Math.PI * 0.44;
+const FOV = Math.PI * 0.6;
+const VFOV = Math.PI * 0.45;
+
+const GATES = 12;
+const LAPS = 3;
+const GATE_R = 1.5;        // world units — keep in sync with the shader
+const TRACK_W = 1.1;       // world units, half-width of the painted lane
+
+const S_MAX = 7.5;         // world units / s
+const ACCEL = 5.0;
+const BRAKE = 14.0;
+const COAST = 1.2;
+const DRIFT = 3.4;         // rad/s: velocity swings toward heading
+const JUMP_SPEED = 4.2;
+
+// The course is the (1,1) curve of the 2-torus: one turn the long way round
+// the ring, one turn through the hole, per lap. In tile space it is the
+// diagonal from (0,0) to (WORLD_W, WORLD_H); gates sit equally along it.
+const gates = [];
+for (let k = 0; k < GATES; k++) {
+  gates.push({ x: (k / GATES) * WORLD_W, y: (k / GATES) * WORLD_H });
+}
+
+function wrapX(x) { return ((x % WORLD_W) + WORLD_W) % WORLD_W; }
+function wrapY(y) { return ((y % WORLD_H) + WORLD_H) % WORLD_H; }
+
+// Metric: one tile is muU world units in the u (long way) direction at
+// poloidal angle v, muV world units in the v (through the hole) direction.
+// The u-circle has circumference 2π(R + r·cos v) — the 2π matters.
+function muUat(tileY) { const v = (tileY / WORLD_H) * Math.PI * 2; return 2 * Math.PI * (TORUS_R + TORUS_r * Math.cos(v)) / WORLD_W; }
+function muVat() { return 2 * Math.PI * TORUS_r / WORLD_H; }
+
+// Wrapped world-space distance from (x, y) to a gate, using the local metric.
+function gateDist(x, y, g) {
+  let dx = x - g.x; if (dx > WORLD_W / 2) dx -= WORLD_W; if (dx < -WORLD_W / 2) dx += WORLD_W;
+  let dy = y - g.y; if (dy > WORLD_H / 2) dy -= WORLD_H; if (dy < -WORLD_H / 2) dy += WORLD_H;
+  const wx = dx * muUat(y), wy = dy * muVat();
+  return Math.sqrt(wx * wx + wy * wy);
+}
+
+// =====================================================================
+// Player state
+// =====================================================================
+let playerX = wrapX(-2.2), playerY = wrapY(-2.2);   // just behind the start line
+let playerAngle = 0, playerPitch = 0;               // heading, set at spawn
+let velDir = 0, speed = 0;
+let airborne = false, playerHeight = 0;
+let csR = 0, csZ = 0, csVR = 0, csVZ = 0, csVU = 0;
+let jumpDxPerSec = 0;
+
+(function spawn() {
+  // Sit on the course, aimed along its local tangent.
+  const v0 = (playerY / WORLD_H) * Math.PI * 2;
+  playerAngle = Math.atan2(TORUS_R + TORUS_r * Math.cos(v0), TORUS_r);
+  velDir = playerAngle;
+})();
+
+function getPlayerU() { return (playerX / WORLD_W) * Math.PI * 2; }
+function getPlayerV() { return (playerY / WORLD_H) * Math.PI * 2; }
+function torusPos(u, v) {
+  return [
+    (TORUS_R + TORUS_r * Math.cos(v)) * Math.cos(u),
+    TORUS_r * Math.sin(v),
+    (TORUS_R + TORUS_r * Math.cos(v)) * Math.sin(u),
+  ];
+}
+
+// =====================================================================
+// Race state
+// =====================================================================
+let running = false, finished = false;
+let raceT = 0, lapStartT = 0, lap = 1, nextGate = 1;
+let lastLapMs = null;
+let bestMs = null, bestGateMs = null, bestSamples = null;
+let curGateMs = new Array(GATES + 1).fill(null);
+let curSamples = [];
+let deltaText = '', deltaCls = '', deltaUntil = 0;
+let feedRows = [];
+let msgUntil = 0;
+let autopilot = false;
+
+function loadBest() {
+  try {
+    const raw = localStorage.getItem('inpacgp.best.v1');
+    if (!raw) return;
+    const b = JSON.parse(raw);
+    if (b && typeof b.bestMs === 'number') {
+      bestMs = b.bestMs;
+      if (Array.isArray(b.gateMs)) bestGateMs = b.gateMs;
+      if (Array.isArray(b.samples) && b.samples.length > 1) bestSamples = b.samples;
+    }
+  } catch (e) { /* sandboxed / disabled storage — session-only bests */ }
+}
+function saveBest() {
+  try {
+    let s = bestSamples || [];
+    if (s.length > 1200) { // keep the blob small; 1200 samples ≈ 20 s at 60 fps
+      const stride = s.length / 1200, out = [];
+      for (let i = 0; i < s.length; i += stride) out.push(s[Math.floor(i)]);
+      s = out;
+    }
+    localStorage.setItem('inpacgp.best.v1',
+      JSON.stringify({ bestMs, gateMs: bestGateMs, samples: s }));
+  } catch (e) { /* non-fatal */ }
+}
+loadBest();
+
+// =====================================================================
+// Rivals — two paceline drones on constant-pace laps, and the ghost of
+// your fastest lap. All three live in the shader's sphere buffer.
+// =====================================================================
+const rivals = [
+  { paceMs: 9200, color: [1.0, 0.28, 0.22], offTiles: +1.4, s0: 0.015 },
+  { paceMs: 10800, color: [0.25, 0.85, 1.0], offTiles: -1.4, s0: -0.015 },
+];
+// Course-perpendicular offset in tile space (course dir is (WORLD_W, WORLD_H)).
+const perpLen = Math.hypot(WORLD_H, WORLD_W);
+const perpX = WORLD_H / perpLen, perpY = -WORLD_W / perpLen;
+
+function rivalPos(rv, tSec) {
+  const s = ((tSec * 1000 / rv.paceMs + rv.s0) % 1 + 1) % 1;
+  return {
+    x: wrapX(s * WORLD_W + perpX * rv.offTiles),
+    y: wrapY(s * WORLD_H + perpY * rv.offTiles),
+  };
+}
+
+let ghostIdx = 0;
+function ghostPos(lapElapsedMs) {
+  if (!bestSamples || bestSamples.length < 2) return null;
+  const s = bestSamples;
+  if (lapElapsedMs <= s[0][0]) return { x: s[0][1], y: s[0][2] };
+  const last = s[s.length - 1];
+  if (lapElapsedMs >= last[0]) return { x: last[1], y: last[2] };
+  while (ghostIdx < s.length - 2 && s[ghostIdx + 1][0] <= lapElapsedMs) ghostIdx++;
+  while (ghostIdx > 0 && s[ghostIdx][0] > lapElapsedMs) ghostIdx--;
+  const a = s[ghostIdx], b = s[ghostIdx + 1];
+  const f = (lapElapsedMs - a[0]) / Math.max(1, b[0] - a[0]);
+  // Lerp in wrapped tile space along the short way.
+  let dx = b[1] - a[1]; if (dx > WORLD_W / 2) dx -= WORLD_W; if (dx < -WORLD_W / 2) dx += WORLD_W;
+  let dy = b[2] - a[2]; if (dy > WORLD_H / 2) dy -= WORLD_H; if (dy < -WORLD_H / 2) dy += WORLD_H;
+  return { x: wrapX(a[1] + dx * f), y: wrapY(a[2] + dy * f) };
+}
+
+// =====================================================================
+// Input
+// =====================================================================
+const keys = {};
+let fpMode = true;
+let throttle = true;
+
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (e.key === ' ') e.preventDefault();
+  if (autopilot) { autopilot = false; document.getElementById('hint').style.display = 'none'; }
+  if (e.key === 'f' || e.key === 'F') fpMode = !fpMode;
+  if (e.key === 'q' || e.key === 'Q') throttle = !throttle;
+  if ((e.key === 'r' || e.key === 'R') && (running || finished)) beginRace(false);
+});
+document.addEventListener('keyup', e => {
+  keys[e.key] = false;
+  if (e.key.length === 1) { keys[e.key.toLowerCase()] = false; keys[e.key.toUpperCase()] = false; }
+});
+window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+const gpuCanvas = document.createElement('canvas');
+gpuCanvas.id = 'gpuCanvas';
+gpuCanvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;display:none;z-index:1';
+document.body.insertBefore(gpuCanvas, document.getElementById('minimap'));
+let gpuSky = null;
+
+function lockPointer() {
+  // Pointer Lock throws (or rejects) without a user gesture — only ever call
+  // this from a click, and never on the autostart path.
+  try {
+    const el = (fpMode && gpuSky) ? gpuCanvas : canvas;
+    const p = el.requestPointerLock && el.requestPointerLock();
+    if (p && typeof p.catch === 'function') p.catch(() => {});
+  } catch (e) { /* no gesture, no lock — the game still runs */ }
+}
+canvas.addEventListener('click', () => { if (running) lockPointer(); });
+gpuCanvas.addEventListener('click', () => { if (running) lockPointer(); });
+
+function hasPointerLock() {
+  return document.pointerLockElement === canvas || document.pointerLockElement === gpuCanvas;
+}
+document.addEventListener('mousemove', e => {
+  if (!hasPointerLock()) return;
+  playerAngle += e.movementX * MOUSE_SENS;
+  playerPitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, playerPitch - e.movementY * MOUSE_SENS));
+});
+document.addEventListener('pointerlockchange', () => {
+  document.getElementById('reticle').style.display = hasPointerLock() ? 'block' : 'none';
+});
+
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener('resize', resize);
+resize();
+
+// =====================================================================
+// Jump physics — airborne ballistics through the tube's cross-section,
+// driven by field.mjs. Grounded, "down" is the wall under you; airborne,
+// the field pulls you back onto it — everywhere, all the way around.
+// =====================================================================
+function doJump() {
+  if (airborne) return;
+  airborne = true;
+  const v = getPlayerV();
+  csR = TORUS_R + TORUS_r * Math.cos(v);
+  csZ = TORUS_r * Math.sin(v);
+  const nR = Math.cos(v), nZ = Math.sin(v);           // outward (toward wall)
+  csVR = -nR * JUMP_SPEED;                            // jump inward, off the wall
+  csVZ = -nZ * JUMP_SPEED;
+  const vPhys = Math.cos(velDir) * speed;             // poloidal world velocity
+  csVR += -nZ * vPhys;
+  csVZ += nR * vPhys;
+  csVU = Math.sin(velDir) * speed;                    // toroidal world velocity
+}
+
+function forceLand() {
+  airborne = false; playerHeight = 0;
+  csVR = 0; csVZ = 0; csVU = 0; jumpDxPerSec = 0;
+}
+
+function updateJumpPhysics(dt) {
+  if (!airborne) { playerHeight = 0; return; }
+  const substeps = 8;
+  const subDt = dt / substeps;
+  for (let s = 0; s < substeps; s++) {
+    const absR = Math.max(0.1, Math.abs(csR));
+    const g = field(absR, csZ, { R: TORUS_R, r: TORUS_r });
+    csVR += (csR >= 0 ? g.gR : -g.gR) * subDt;
+    csVZ += g.gZ * subDt;
+    csR += csVR * subDt;
+    csZ += csVZ * subDt;
+
+    // Toroidal motion continues along the u-circle of radius |csR|.
+    jumpDxPerSec = csVU * WORLD_W / (2 * Math.PI * Math.max(0.1, Math.abs(csR)));
+
+    const dcR = csR - TORUS_R, dcZ = csZ;
+    const distTC = Math.sqrt(dcR * dcR + dcZ * dcZ);
+    if (distTC >= TORUS_r) {
+      const vDot = (csVR * dcR + csVZ * dcZ) / (distTC || 1);
+      if (vDot > 0 || distTC > TORUS_r * 1.05) {
+        // Land: keep world facing, re-express it in the new surface frame.
+        const cam = computeCamera();
+        const worldFwd = cam.fwd;
+        const landingV = Math.atan2(dcZ, dcR);
+        playerY = wrapY(((landingV + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2) * WORLD_H);
+        const newU = getPlayerU(), newV = getPlayerV();
+        const cosNV = Math.cos(newV), sinNV = Math.sin(newV);
+        const cosNU = Math.cos(newU), sinNU = Math.sin(newU);
+        const newEu = [-(TORUS_R + TORUS_r * cosNV) * sinNU, 0, (TORUS_R + TORUS_r * cosNV) * cosNU];
+        const newEuLen = Math.hypot(newEu[0], newEu[2]) || 1;
+        const newEv = [-TORUS_r * sinNV * cosNU, TORUS_r * cosNV, -TORUS_r * sinNV * sinNU];
+        const newEvLen = Math.hypot(newEv[0], newEv[1], newEv[2]) || 1;
+        const dotU = (worldFwd[0] * newEu[0] + worldFwd[1] * newEu[1] + worldFwd[2] * newEu[2]) / newEuLen;
+        const dotV = (worldFwd[0] * newEv[0] + worldFwd[1] * newEv[1] + worldFwd[2] * newEv[2]) / newEvLen;
+        playerAngle = Math.atan2(dotU, dotV);
+        velDir = playerAngle;
+        forceLand();
+        return;
+      }
+    }
+    playerHeight = TORUS_r - distTC;
+  }
+}
+
+// =====================================================================
+// Camera — gravity-aligned, offset inward from the wall
+// =====================================================================
+function computeCamera() {
+  const u = getPlayerU();
+  const v = getPlayerV();
+  const surfP = torusPos(u, v);
+  const hOff = EYE_HEIGHT + playerHeight;
+
+  const inR = -Math.cos(v), inZ = -Math.sin(v);       // wall → tube centreline
+  const inDir = [inR * Math.cos(u), inZ, inR * Math.sin(u)];
+
+  let P, en;
+  if (airborne && playerHeight > 0.01) {
+    P = [csR * Math.cos(u), csZ, csR * Math.sin(u)];
+    // Airborne "up" is anti-gravity, from field.mjs — which is again simply
+    // the direction toward the centreline, but we ask the field so the camera
+    // can never disagree with the physics.
+    const absR = Math.max(0.1, Math.abs(csR));
+    const g = field(absR, csZ, { R: TORUS_R, r: TORUS_r });
+    const gR = csR >= 0 ? g.gR : -g.gR;
+    const gLen = Math.hypot(gR, g.gZ);
+    if (gLen > 0.01) {
+      const aR = -gR / gLen, aZ = -g.gZ / gLen;
+      en = [aR * Math.cos(u), aZ, aR * Math.sin(u)];
+    } else en = inDir;
+  } else {
+    P = [surfP[0] + inDir[0] * hOff, surfP[1] + inDir[1] * hOff, surfP[2] + inDir[2] * hOff];
+    en = inDir;
+  }
+
+  const uTan = [-Math.sin(u), 0, Math.cos(u)];
+  const dot = uTan[0] * en[0] + uTan[1] * en[1] + uTan[2] * en[2];
+  let rx = uTan[0] - dot * en[0], ry = uTan[1] - dot * en[1], rz = uTan[2] - dot * en[2];
+  const rLen = Math.hypot(rx, ry, rz) || 1;
+  rx /= rLen; ry /= rLen; rz /= rLen;
+
+  let tx = en[1] * rz - en[2] * ry, ty = en[2] * rx - en[0] * rz, tz = en[0] * ry - en[1] * rx;
+  const tLen = Math.hypot(tx, ty, tz) || 1;
+  tx /= tLen; ty /= tLen; tz /= tLen;
+
+  const eu = [rx, ry, rz], ev = [tx, ty, tz];
+  const sa = Math.sin(playerAngle), ca = Math.cos(playerAngle);
+  const flatFwd = [sa * eu[0] + ca * ev[0], sa * eu[1] + ca * ev[1], sa * eu[2] + ca * ev[2]];
+  const right = [ca * eu[0] - sa * ev[0], ca * eu[1] - sa * ev[1], ca * eu[2] - sa * ev[2]];
+
+  const cp = Math.cos(playerPitch), sp = Math.sin(playerPitch);
+  const fwd = [flatFwd[0] * cp + en[0] * sp, flatFwd[1] * cp + en[1] * sp, flatFwd[2] * cp + en[2] * sp];
+  const up = [-flatFwd[0] * sp + en[0] * cp, -flatFwd[1] * sp + en[1] * cp, -flatFwd[2] * sp + en[2] * cp];
+
+  return { P, fwd, right, up };
+}
+
+// =====================================================================
+// WebGPU — ray-marched interior of the torus
+// =====================================================================
+const shaderCode = `
+struct Params {
+  camX: f32, camY: f32, camZ: f32, _p0: f32,
+  fwdX: f32, fwdY: f32, fwdZ: f32, _p1: f32,
+  rightX: f32, rightY: f32, rightZ: f32, _p2: f32,
+  upX: f32, upY: f32, upZ: f32, _p3: f32,
+  sunX: f32, sunY: f32, sunZ: f32, time: f32,
+  torusR: f32, torusr: f32, width: u32, height: u32,
+  fovH: f32, fovV: f32, worldW: u32, worldH: u32,
+  horizonY: f32, nextGate: f32, gateCount: f32, trackW: f32,
+}
+
+@group(0) @binding(0) var<uniform> p: Params;
+@group(0) @binding(1) var<storage, read> gates: array<vec4f>;
+@group(0) @binding(2) var output: texture_storage_2d<rgba8unorm, write>;
+@group(0) @binding(3) var<storage, read> spheres: array<f32>;
+
+const PI: f32 = 3.14159265;
+const TWO_PI: f32 = 6.28318531;
+const GATE_R_W: f32 = 1.5;   // world units — keep in sync with GATE_R in JS
+
+// Interior distance: positive inside the tube, zero on its wall.
+fn innerDist(px: f32, py: f32, pz: f32, R: f32, r: f32) -> f32 {
+  let q = sqrt(px*px + pz*pz) - R;
+  return r - sqrt(q*q + py*py);
+}
+
+fn spherePos(si: u32, R: f32, r: f32) -> vec3f {
+  let sx = spheres[si * 8u];
+  let sy = spheres[si * 8u + 1u];
+  let u = sx / f32(p.worldW) * TWO_PI;
+  let v = sy / f32(p.worldH) * TWO_PI;
+  let sr = r - 0.35;   // hover inward from the wall
+  return vec3f((R + sr * cos(v)) * cos(u), sr * sin(v), (R + sr * cos(v)) * sin(u));
+}
+
+fn raySphere(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32,
+             cx: f32, cy: f32, cz: f32, rad: f32) -> f32 {
+  let ex = ox - cx; let ey = oy - cy; let ez = oz - cz;
+  let b = ex*dx + ey*dy + ez*dz;
+  let c = ex*ex + ey*ey + ez*ez - rad*rad;
+  let disc = b*b - c;
+  if (disc < 0.0) { return -1.0; }
+  let sq = sqrt(disc);
+  let t1 = -b - sq;
+  if (t1 > 0.01) { return t1; }
+  let t2 = -b + sq;
+  if (t2 > 0.01) { return t2; }
+  return -1.0;
+}
+
+fn traceRay(ox: f32, oy: f32, oz: f32, dx: f32, dy: f32, dz: f32, R: f32, r: f32) -> f32 {
+  var t: f32 = 0.02;
+  for (var i = 0u; i < 128u; i++) {
+    let px = ox + t*dx; let py = oy + t*dy; let pz = oz + t*dz;
+    let dd = innerDist(px, py, pz, R, r);
+    if (dd < 0.002) { return t; }
+    t += max(dd * 0.6, 0.005);
+    if (t > 60.0) { return -1.0; }
+  }
+  return -1.0;
+}
+
+@compute @workgroup_size(8, 8)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let px = gid.x;
+  let py = gid.y;
+  let w = p.width;
+  let h = p.height;
+  if (px >= w || py >= h) { return; }
+
+  let screenH = (f32(px) / f32(w)) * 2.0 - 1.0;
+  let screenV = p.horizonY - f32(py) / f32(h);
+  let azAngle = screenH * p.fovH * 0.5;
+  let elevAngle = screenV * p.fovV;
+
+  let cosEl = cos(elevAngle); let sinEl = sin(elevAngle);
+  let cosAz = cos(azAngle); let sinAz = sin(azAngle);
+
+  let fwd = vec3f(p.fwdX, p.fwdY, p.fwdZ);
+  let right = vec3f(p.rightX, p.rightY, p.rightZ);
+  let up = vec3f(p.upX, p.upY, p.upZ);
+  let rd = normalize(fwd * cosEl * cosAz + right * cosEl * sinAz + up * sinEl);
+  let cam = vec3f(p.camX, p.camY, p.camZ);
+  let R = p.torusR;
+  let r = p.torusr;
+  var t = traceRay(cam.x, cam.y, cam.z, rd.x, rd.y, rd.z, R, r);
+
+  // Sphere test: best-lap ghost + two rival drones.
+  var hitSphere: i32 = -1;
+  for (var si = 0u; si < 4u; si++) {
+    let smode = spheres[si * 8u + 5u];
+    if (smode > 1.5) { continue; }
+    let sp = spherePos(si, R, r);
+    let srad = spheres[si * 8u + 6u];
+    let st = raySphere(cam.x, cam.y, cam.z, rd.x, rd.y, rd.z, sp.x, sp.y, sp.z, srad);
+    if (st > 0.0 && (t < 0.0 || st < t)) {
+      t = st;
+      hitSphere = i32(si);
+    }
+  }
+
+  if (hitSphere >= 0) {
+    let si = u32(hitSphere);
+    let sp = spherePos(si, R, r);
+    let hp = cam + t * rd;
+    let sn = normalize(hp - sp);
+    var cr = spheres[si * 8u + 2u];
+    var cg = spheres[si * 8u + 3u];
+    var cb = spheres[si * 8u + 4u];
+    let viewDot = abs(dot(sn, rd));
+    let fresnel = pow(1.0 - viewDot, 2.0);
+    let glow = 0.65 + 0.35 * fresnel;
+    let fade = 1.0 - min(1.0, t / 45.0) * 0.4;
+    cr = min(1.0, cr * glow * fade + fresnel * 0.45);
+    cg = min(1.0, cg * glow * fade + fresnel * 0.45);
+    cb = min(1.0, cb * glow * fade + fresnel * 0.45);
+    textureStore(output, vec2u(px, py), vec4f(cr, cg, cb, 1.0));
+    return;
+  }
+
+  if (t < 0.0) {
+    textureStore(output, vec2u(px, py), vec4f(0.008, 0.006, 0.02, 1.0));
+    return;
+  }
+
+  // Wall hit.
+  let hx = cam.x + t * rd.x;
+  let hy = cam.y + t * rd.y;
+  let hz = cam.z + t * rd.z;
+
+  var ua = atan2(hz, hx);
+  if (ua < 0.0) { ua += TWO_PI; }
+  let dRad = sqrt(hx*hx + hz*hz);
+  var va = atan2(hy, dRad - R);
+  if (va < 0.0) { va += TWO_PI; }
+  let su = ua / TWO_PI;
+  let sv = va / TWO_PI;
+  let muU = R + r * cos(va);   // world units per radian the long way round
+
+  // Base wall: dark slate, lit from the tube axis, with a faint survey grid.
+  var cr: f32 = 0.040;
+  var cg: f32 = 0.048;
+  var cb: f32 = 0.085;
+  let gxu = abs(fract(su * 18.0) - 0.5);
+  let gxv = abs(fract(sv * 18.0) - 0.5);
+  let grid = 1.0 - clamp(min(gxu, gxv) / 0.05, 0.0, 1.0);
+  cr += grid * 0.020;
+  cg += grid * 0.026;
+  cb += grid * 0.045;
+
+  let fade = 1.0 - min(1.0, t / 45.0) * 0.45;
+  cr *= fade; cg *= fade; cb *= fade;
+  let eFade = 1.0 - min(1.0, t / 60.0) * 0.4;
+
+  // The painted lane: distance from the (1,1) line su == sv, in world units.
+  var dl = sv - su;
+  dl -= floor(dl + 0.5);
+  let laneDist = abs(dl) * PI * sqrt(muU * muU + r * r);
+  let tw = p.trackW;
+
+  // The lane lights the wall around it — this is what makes the tube's
+  // volume read instead of collapsing to black.
+  let bounce = clamp(1.0 - laneDist / 7.0, 0.0, 1.0);
+  bounce *= bounce;
+  cr += 0.012 * bounce * eFade;
+  cg += 0.050 * bounce * eFade;
+  cb += 0.070 * bounce * eFade;
+
+  let fill = clamp(1.0 - laneDist / tw, 0.0, 1.0);
+  cr += 0.012 * fill * eFade;
+  cg += 0.050 * fill * eFade;
+  cb += 0.068 * fill * eFade;
+
+  let edge = 1.0 - clamp(abs(laneDist - tw) / 0.20, 0.0, 1.0);
+  let pulse = 0.78 + 0.22 * sin(p.time * 2.2);
+  cr += 0.10 * edge * edge * pulse * eFade;
+  cg += 0.75 * edge * edge * pulse * eFade;
+  cb += 0.95 * edge * edge * pulse * eFade;
+
+  // Centre dashes along the lane.
+  let sCoord = (su + sv) * 0.5;
+  let dash = step(0.5, fract(sCoord * 48.0));
+  let cw2 = 1.0 - clamp(laneDist / 0.09, 0.0, 1.0);
+  cr += 0.45 * dash * cw2 * 0.30 * eFade;
+  cg += 0.50 * dash * cw2 * 0.30 * eFade;
+  cb += 0.55 * dash * cw2 * 0.30 * eFade;
+
+  // Gates: rings painted on the wall. Next gate burns amber; the rest glow
+  // cyan; the start/finish ring is white.
+  let nGate = u32(p.nextGate + 0.5);
+  let nCount = u32(p.gateCount + 0.5);
+  for (var i = 0u; i < nCount; i++) {
+    let g = gates[i];
+    var dxs = su - g.x / f32(p.worldW);
+    dxs -= floor(dxs + 0.5);
+    var dys = sv - g.y / f32(p.worldH);
+    dys -= floor(dys + 0.5);
+    let wx = dxs * TWO_PI * muU;
+    let wz = dys * TWO_PI * r;
+    let gd = sqrt(wx*wx + wz*wz);
+    if (gd > GATE_R_W * 3.0) { continue; }
+    let ring = 1.0 - clamp(abs(gd - GATE_R_W) / 0.16, 0.0, 1.0);
+    let halo = clamp(1.0 - gd / (GATE_R_W * 2.2), 0.0, 1.0);
+    var gr: f32 = 0.10; var gg: f32 = 0.50; var gb: f32 = 0.62;
+    var amp: f32 = 0.8;
+    if (i == 0u) {
+      gr = 0.95; gg = 0.95; gb = 0.85; amp = 1.0;
+    }
+    if (i == nGate) {
+      gr = 1.0; gg = 0.62; gb = 0.12;
+      amp = 1.3 + 0.5 * sin(p.time * 5.0);
+    }
+    cr += gr * (ring * ring * amp + halo * 0.10 * amp) * eFade;
+    cg += gg * (ring * ring * amp + halo * 0.10 * amp) * eFade;
+    cb += gb * (ring * ring * amp + halo * 0.10 * amp) * eFade;
+  }
+
+  // Sphere point-lights: drones and the ghost wash the wall with colour.
+  let hitPos = vec3f(hx, hy, hz);
+  let on = normalize(vec3f(cos(va) * cos(ua), sin(va), cos(va) * sin(ua)));
+  for (var si = 0u; si < 4u; si++) {
+    let smode = spheres[si * 8u + 5u];
+    if (smode > 1.5) { continue; }
+    let sp = spherePos(si, R, r);
+    let toLight = sp - hitPos;
+    let dist2 = dot(toLight, toLight);
+    if (dist2 > 16.0 || dist2 < 0.0001) { continue; }
+    let dist = sqrt(dist2);
+    let ldir = toLight / dist;
+    let ndotl = max(0.0, dot(on, ldir));
+    let atten = ndotl / (0.3 + dist2 * 1.5);
+    cr += spheres[si * 8u + 2u] * atten * 1.6;
+    cg += spheres[si * 8u + 3u] * atten * 1.6;
+    cb += spheres[si * 8u + 4u] * atten * 1.6;
+  }
+
+  textureStore(output, vec2u(px, py),
+    vec4f(clamp(cr, 0.0, 1.0), clamp(cg, 0.0, 1.0), clamp(cb, 0.0, 1.0), 1.0));
+}
+`;
+
+const blitShaderCode = `
+struct VOut {
+  @builtin(position) pos: vec4f,
+  @location(0) uv: vec2f,
+}
+@vertex fn vs(@builtin(vertex_index) vi: u32) -> VOut {
+  let x = f32(i32(vi & 1u)) * 4.0 - 1.0;
+  let y = f32(i32(vi >> 1u)) * 4.0 - 1.0;
+  var out: VOut;
+  out.pos = vec4f(x, y, 0.0, 1.0);
+  out.uv = vec2f((x + 1.0) * 0.5, (1.0 - y) * 0.5);
+  return out;
+}
+@group(0) @binding(0) var tex: texture_2d<f32>;
+@group(0) @binding(1) var samp: sampler;
+@fragment fn fs(inp: VOut) -> @location(0) vec4f {
+  return textureSample(tex, samp, inp.uv);
+}
+`;
+
+(async function initWebGPU() {
+  if (!navigator.gpu) { console.warn('No WebGPU'); return; }
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) { console.warn('No GPU adapter'); return; }
+  const device = await adapter.requestDevice();
+  device.addEventListener('uncapturederror', e => console.error('WebGPU:', e.error && e.error.message));
+
+  const gpuCtx = gpuCanvas.getContext('webgpu');
+  const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+  gpuCtx.configure({ device, format: canvasFormat, alphaMode: 'opaque' });
+
+  const computeModule = device.createShaderModule({ code: shaderCode });
+  const computePipeline = device.createComputePipeline({
+    layout: 'auto',
+    compute: { module: computeModule, entryPoint: 'main' },
+  });
+
+  const blitModule = device.createShaderModule({ code: blitShaderCode });
+  const blitPipeline = device.createRenderPipeline({
+    layout: 'auto',
+    vertex: { module: blitModule, entryPoint: 'vs' },
+    fragment: { module: blitModule, entryPoint: 'fs', targets: [{ format: canvasFormat }] },
+    primitive: { topology: 'triangle-list' },
+  });
+
+  const sampler = device.createSampler({ magFilter: 'nearest', minFilter: 'nearest' });
+  const paramBuf = device.createBuffer({ size: 128, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  const gateBuf = device.createBuffer({ size: 16 * 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+  const sphereBuf = device.createBuffer({ size: 128, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+
+  const gateData = new Float32Array(16 * 4);
+  for (let k = 0; k < GATES; k++) { gateData[k * 4] = gates[k].x; gateData[k * 4 + 1] = gates[k].y; }
+  device.queue.writeBuffer(gateBuf, 0, gateData);
+
+  const initSpheres = new Float32Array(32);
+  for (let i = 0; i < 4; i++) initSpheres[i * 8 + 5] = 2.0;
+  device.queue.writeBuffer(sphereBuf, 0, initSpheres);
+
+  let outputTex = null, computeBindGroup = null, blitBindGroup = null;
+  let skyW = 0, skyH = 0;
+
+  function ensureSize(w, h) {
+    if (w === skyW && h === skyH) return;
+    skyW = w; skyH = h;
+    if (outputTex) outputTex.destroy();
+    outputTex = device.createTexture({
+      size: [w, h],
+      format: 'rgba8unorm',
+      usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+    });
+    computeBindGroup = device.createBindGroup({
+      layout: computePipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer: paramBuf } },
+        { binding: 1, resource: { buffer: gateBuf } },
+        { binding: 2, resource: outputTex.createView() },
+        { binding: 3, resource: { buffer: sphereBuf } },
+      ],
+    });
+    blitBindGroup = device.createBindGroup({
+      layout: blitPipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: outputTex.createView() },
+        { binding: 1, resource: sampler },
+      ],
+    });
+  }
+
+  gpuSky = {
+    render: function (w, h, cam, sphereData) {
+      ensureSize(w, h);
+      if (sphereData) device.queue.writeBuffer(sphereBuf, 0, sphereData);
+
+      const pd = new ArrayBuffer(128);
+      const f = new Float32Array(pd);
+      const u32 = new Uint32Array(pd);
+      f[0] = cam.P[0]; f[1] = cam.P[1]; f[2] = cam.P[2];
+      f[4] = cam.fwd[0]; f[5] = cam.fwd[1]; f[6] = cam.fwd[2];
+      f[8] = cam.right[0]; f[9] = cam.right[1]; f[10] = cam.right[2];
+      f[12] = cam.up[0]; f[13] = cam.up[1]; f[14] = cam.up[2];
+      f[16] = 0.3; f[17] = 0.7; f[18] = 0.2;
+      f[19] = gameTime;
+      f[20] = TORUS_R; f[21] = TORUS_r;
+      u32[22] = w; u32[23] = h;
+      const speedFrac = Math.min(1, speed / S_MAX);
+      f[24] = FOV * (1 + 0.13 * speedFrac); f[25] = VFOV;
+      u32[26] = WORLD_W; u32[27] = WORLD_H;
+      f[28] = 0.5;
+      f[29] = running || finished ? (nextGate >= GATES ? 0 : nextGate) : 1;
+      f[30] = GATES;
+      f[31] = TRACK_W;
+      device.queue.writeBuffer(paramBuf, 0, pd);
+
+      gpuCanvas.width = canvas.width;
+      gpuCanvas.height = canvas.height;
+
+      const enc = device.createCommandEncoder();
+      const comp = enc.beginComputePass();
+      comp.setPipeline(computePipeline);
+      comp.setBindGroup(0, computeBindGroup);
+      comp.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(h / 8));
+      comp.end();
+
+      const renderPass = enc.beginRenderPass({
+        colorAttachments: [{
+          view: gpuCtx.getCurrentTexture().createView(),
+          loadOp: 'clear', storeOp: 'store',
+          clearValue: { r: 0, g: 0, b: 0, a: 1 },
+        }],
+      });
+      renderPass.setPipeline(blitPipeline);
+      renderPass.setBindGroup(0, blitBindGroup);
+      renderPass.draw(3);
+      renderPass.end();
+
+      device.queue.submit([enc.finish()]);
+    },
+  };
+  console.log('WebGPU initialized (interior torus racer)');
+})();
+
+// =====================================================================
+// Sphere buffer: [x, y, r, g, b, mode, size, pad] × 4.
+// Slot 0 = best-lap ghost (gold), 1 = rival A (red), 2 = rival B (cyan).
+// mode 2 = hidden.
+// =====================================================================
+function buildSphereData() {
+  const data = new Float32Array(32);
+  const lapMs = (raceT - lapStartT) * 1000;
+  const gh = running ? ghostPos(lapMs) : null;
+  if (gh) {
+    data[0] = gh.x; data[1] = gh.y;
+    data[2] = 1.0; data[3] = 0.8; data[4] = 0.3;
+    data[5] = 0.0; data[6] = 0.22;
+  } else data[5] = 2.0;
+  for (let i = 0; i < 2; i++) {
+    const rp = rivalPos(rivals[i], raceT);
+    const o = (i + 1) * 8;
+    data[o] = rp.x; data[o + 1] = rp.y;
+    data[o + 2] = rivals[i].color[0]; data[o + 3] = rivals[i].color[1]; data[o + 4] = rivals[i].color[2];
+    data[o + 5] = 0.0; data[o + 6] = 0.30;
+  }
+  data[3 * 8 + 5] = 2.0;
+  return data;
+}
+
+// =====================================================================
+// Movement
+// =====================================================================
+function updatePlayer(dt) {
+  if (keys['ArrowLeft']) playerAngle -= 2.8 * dt;
+  if (keys['ArrowRight']) playerAngle += 2.8 * dt;
+
+  if (airborne) {
+    playerX = wrapX(playerX + jumpDxPerSec * dt);
+    return;
+  }
+
+  if (autopilot) {
+    // Attract mode: aim at the next gate, metric-corrected, full throttle.
+    const g = gates[nextGate >= GATES ? 0 : nextGate];
+    let dx = g.x - playerX; if (dx > WORLD_W / 2) dx -= WORLD_W; if (dx < -WORLD_W / 2) dx += WORLD_W;
+    let dy = g.y - playerY; if (dy > WORLD_H / 2) dy -= WORLD_H; if (dy < -WORLD_H / 2) dy += WORLD_H;
+    const desired = Math.atan2(dx * muUat(playerY), dy * muVat());
+    let diff = desired - playerAngle;
+    while (diff > Math.PI) diff -= 2 * Math.PI;
+    while (diff < -Math.PI) diff += 2 * Math.PI;
+    const maxTurn = 3.0 * dt;
+    playerAngle += Math.max(-maxTurn, Math.min(maxTurn, diff));
+  }
+
+  // Speed.
+  const braking = keys['s'] || keys['S'] || keys['ArrowDown'];
+  if (braking) speed = Math.max(0, speed - BRAKE * dt);
+  else if (throttle || autopilot || keys['w'] || keys['W'] || keys['ArrowUp'])
+    speed = Math.min(S_MAX, speed + ACCEL * dt);
+  else speed = Math.max(0, speed - COAST * dt);
+
+  // Velocity swings toward heading — the drift that makes speed cost something.
+  let dd = playerAngle - velDir;
+  while (dd > Math.PI) dd -= 2 * Math.PI;
+  while (dd < -Math.PI) dd += 2 * Math.PI;
+  const maxSwing = DRIFT * dt;
+  velDir += Math.max(-maxSwing, Math.min(maxSwing, dd));
+
+  const wx = Math.sin(velDir) * speed * dt;
+  const wy = Math.cos(velDir) * speed * dt;
+  playerX = wrapX(playerX + wx / muUat(playerY));
+  playerY = wrapY(playerY + wy / muVat());
+
+  if (keys[' ']) doJump();
+}
+
+// =====================================================================
+// Gates, laps, splits
+// =====================================================================
+function fmtMs(ms) {
+  if (ms == null) return '—';
+  const t = Math.max(0, Math.round(ms));
+  const m = Math.floor(t / 60000);
+  const s = Math.floor((t % 60000) / 1000);
+  const c = Math.floor((t % 1000) / 10);
+  return m + ':' + String(s).padStart(2, '0') + '.' + String(c).padStart(2, '0');
+}
+function fmtDelta(ms) { return (ms <= 0 ? '−' : '+') + Math.abs(ms / 1000).toFixed(2); }
+
+function showMessage(text, secs) {
+  const el = document.getElementById('msg');
+  el.textContent = text;
+  msgUntil = gameTime + (secs || 2.2);
+}
+
+function checkGate() {
+  const g = gates[nextGate >= GATES ? 0 : nextGate];
+  if (gateDist(playerX, playerY, g) > GATE_R) return;
+
+  const lapMs = (raceT - lapStartT) * 1000;
+  if (nextGate >= GATES) {
+    // Start/finish line: lap complete.
+    lastLapMs = lapMs;
+    curGateMs[0] = lapMs;
+    let newBest = false;
+    if (bestMs == null || lapMs < bestMs) {
+      bestMs = lapMs;
+      bestGateMs = curGateMs.slice();
+      bestSamples = curSamples.slice();
+      saveBest();
+      newBest = true;
+    }
+    if (lap >= LAPS) {
+      running = false; finished = true;
+      showMessage('FINISH\n' + fmtMs(raceT * 1000) + (newBest ? '\nNEW BEST LAP ' + fmtMs(bestMs) : ''), 6);
+    } else {
+      lap++;
+      showMessage((lap === LAPS ? 'FINAL LAP' : 'LAP ' + lap) + '  ' + fmtMs(lapMs) + (newBest ? '  ★ BEST' : ''), 2.2);
+      lapStartT = raceT;
+      nextGate = 1;
+      curGateMs = new Array(GATES + 1).fill(null);
+      curSamples = [];
+      ghostIdx = 0;
+    }
+    return;
+  }
+
+  // Mid-course gate: split against the best lap.
+  curGateMs[nextGate] = lapMs;
+  if (bestGateMs && bestGateMs[nextGate] != null) {
+    const d = lapMs - bestGateMs[nextGate];
+    deltaText = fmtDelta(d);
+    deltaCls = d <= 0 ? 'ahead' : 'behind';
+    deltaUntil = gameTime + 2.5;
+    feedRows.unshift({ gate: nextGate, d });
+    if (feedRows.length > 5) feedRows.pop();
+  } else {
+    deltaText = ''; deltaCls = '';
+  }
+  nextGate++;
+}
+
+// =====================================================================
+// HUD
+// =====================================================================
+const elClock = document.getElementById('clock');
+const elLap = document.getElementById('lapind');
+const elDelta = document.getElementById('delta');
+const elBest = document.getElementById('best');
+const elLast = document.getElementById('last');
+const elSpeed = document.getElementById('speed');
+const elFeed = document.getElementById('feed');
+const elMsg = document.getElementById('msg');
+
+let lastClockStr = '';
+function updateHUD() {
+  const cs = fmtMs(raceT * 1000);
+  if (cs !== lastClockStr) { elClock.textContent = cs; lastClockStr = cs; }
+  elLap.textContent = 'LAP ' + Math.min(lap, LAPS) + '/' + LAPS + '  ·  GATE ' + (nextGate >= GATES ? 0 : nextGate) + '/' + (GATES - 1);
+  if (gameTime < deltaUntil && deltaText) {
+    if (elDelta.textContent !== deltaText) elDelta.textContent = deltaText;
+    elDelta.className = deltaCls;
+  } else if (elDelta.textContent) {
+    elDelta.textContent = '';
+  }
+  elBest.textContent = fmtMs(bestMs);
+  elLast.textContent = fmtMs(lastLapMs);
+  elSpeed.textContent = speed.toFixed(1);
+  if (gameTime >= msgUntil && elMsg.textContent) elMsg.textContent = '';
+
+  let feed = '';
+  for (const row of feedRows) {
+    feed += '<div><span class="gate">G' + row.gate + '</span> <span class="' +
+      (row.d <= 0 ? 'ahead' : 'behind') + '">' + fmtDelta(row.d) + '</span></div>';
+  }
+  if (elFeed.innerHTML !== feed) elFeed.innerHTML = feed;
+}
+
+// =====================================================================
+// Minimap — the whole 2-torus, flattened: the course is its diagonal.
+// =====================================================================
+const mmCanvas = document.getElementById('minimap');
+const mmCtx = mmCanvas.getContext('2d');
+const MM_SCALE = 3;
+mmCanvas.width = WORLD_W * MM_SCALE;
+mmCanvas.height = WORLD_H * MM_SCALE;
+
+function drawMinimap() {
+  const s = MM_SCALE;
+  mmCtx.fillStyle = '#05070e';
+  mmCtx.fillRect(0, 0, mmCanvas.width, mmCanvas.height);
+
+  mmCtx.strokeStyle = 'rgba(60,190,255,0.45)';
+  mmCtx.lineWidth = 3;
+  mmCtx.beginPath();
+  mmCtx.moveTo(0, 0);
+  mmCtx.lineTo(WORLD_W * s, WORLD_H * s);
+  mmCtx.stroke();
+
+  const nG = nextGate >= GATES ? 0 : nextGate;
+  for (let k = 0; k < GATES; k++) {
+    const gx = gates[k].x * s, gy = gates[k].y * s;
+    if (k === nG) {
+      const pulse = 2.5 + Math.sin(gameTime * 5) * 1.2;
+      mmCtx.fillStyle = '#ffb03a';
+      mmCtx.beginPath(); mmCtx.arc(gx, gy, pulse + 1.5, 0, Math.PI * 2); mmCtx.fill();
+    } else if (k === 0) {
+      mmCtx.fillStyle = '#e8e8da';
+      mmCtx.beginPath(); mmCtx.arc(gx, gy, 2.5, 0, Math.PI * 2); mmCtx.fill();
+    } else {
+      mmCtx.fillStyle = 'rgba(60,190,255,0.7)';
+      mmCtx.beginPath(); mmCtx.arc(gx, gy, 1.8, 0, Math.PI * 2); mmCtx.fill();
+    }
+  }
+
+  const lapMs = (raceT - lapStartT) * 1000;
+  const gh = running ? ghostPos(lapMs) : null;
+  if (gh) {
+    mmCtx.fillStyle = '#ffcf5a';
+    mmCtx.beginPath(); mmCtx.arc(gh.x * s, gh.y * s, 2.5, 0, Math.PI * 2); mmCtx.fill();
+  }
+  for (const rv of rivals) {
+    const rp = rivalPos(rv, raceT);
+    mmCtx.fillStyle = 'rgb(' + (rv.color[0] * 255 | 0) + ',' + (rv.color[1] * 255 | 0) + ',' + (rv.color[2] * 255 | 0) + ')';
+    mmCtx.fillRect(rp.x * s - 2, rp.y * s - 2, 4, 4);
+  }
+
+  mmCtx.fillStyle = '#ffe98a';
+  mmCtx.beginPath();
+  mmCtx.arc(playerX * s, playerY * s, 3, 0, Math.PI * 2);
+  mmCtx.fill();
+  mmCtx.strokeStyle = '#ffe98a';
+  mmCtx.lineWidth = 1;
+  mmCtx.beginPath();
+  mmCtx.moveTo(playerX * s, playerY * s);
+  mmCtx.lineTo((playerX + Math.sin(playerAngle) * 1.8) * s, (playerY + Math.cos(playerAngle) * 1.8) * s);
+  mmCtx.stroke();
+}
+
+// =====================================================================
+// Top-down fallback renderer (F, or no WebGPU)
+// =====================================================================
+function renderTopDown() {
+  const w = canvas.width, h = canvas.height;
+  ctx.fillStyle = '#04060c';
+  ctx.fillRect(0, 0, w, h);
+  const sc = Math.min(w / WORLD_W, h / WORLD_H) * 0.92;
+  const ox = (w - WORLD_W * sc) / 2, oy = (h - WORLD_H * sc) / 2;
+
+  ctx.strokeStyle = 'rgba(60,190,255,0.5)';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(ox, oy);
+  ctx.lineTo(ox + WORLD_W * sc, oy + WORLD_H * sc);
+  ctx.stroke();
+
+  const nG = nextGate >= GATES ? 0 : nextGate;
+  for (let k = 0; k < GATES; k++) {
+    const gx = ox + gates[k].x * sc, gy = oy + gates[k].y * sc;
+    ctx.strokeStyle = k === nG ? '#ffb03a' : (k === 0 ? '#e8e8da' : 'rgba(60,190,255,0.8)');
+    ctx.lineWidth = k === nG ? 3 : 1.5;
+    ctx.beginPath(); ctx.arc(gx, gy, (k === nG ? 7 : 5), 0, Math.PI * 2); ctx.stroke();
+  }
+
+  const lapMs = (raceT - lapStartT) * 1000;
+  const gh = running ? ghostPos(lapMs) : null;
+  if (gh) {
+    ctx.fillStyle = '#ffcf5a';
+    ctx.beginPath(); ctx.arc(ox + gh.x * sc, oy + gh.y * sc, 4, 0, Math.PI * 2); ctx.fill();
+  }
+  for (const rv of rivals) {
+    const rp = rivalPos(rv, raceT);
+    ctx.fillStyle = 'rgb(' + (rv.color[0] * 255 | 0) + ',' + (rv.color[1] * 255 | 0) + ',' + (rv.color[2] * 255 | 0) + ')';
+    ctx.beginPath(); ctx.arc(ox + rp.x * sc, oy + rp.y * sc, 5, 0, Math.PI * 2); ctx.fill();
+  }
+
+  ctx.fillStyle = '#ffe98a';
+  ctx.beginPath();
+  ctx.arc(ox + playerX * sc, oy + playerY * sc, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#ffe98a';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(ox + playerX * sc, oy + playerY * sc);
+  ctx.lineTo(ox + (playerX + Math.sin(playerAngle) * 2.5) * sc, oy + (playerY + Math.cos(playerAngle) * 2.5) * sc);
+  ctx.stroke();
+}
+
+function renderFPV() {
+  if (!gpuSky) return;
+  const w = canvas.width, h = canvas.height;
+  const scale = Math.min(1, 420 / h);
+  const rw = Math.max(8, Math.floor(w * scale));
+  const rh = Math.max(8, Math.floor(h * scale));
+  gpuSky.render(rw, rh, computeCamera(), buildSphereData());
+}
+
+// =====================================================================
+// Race control
+// =====================================================================
+function beginRace(withAutopilot) {
+  document.getElementById('start-screen').style.display = 'none';
+  raceT = 0; lapStartT = 0; lap = 1; nextGate = 1;
+  running = true; finished = false;
+  curGateMs = new Array(GATES + 1).fill(null);
+  curSamples = [];
+  feedRows = [];
+  deltaText = ''; deltaCls = ''; deltaUntil = 0;
+  ghostIdx = 0;
+  playerX = wrapX(-2.2); playerY = wrapY(-2.2);
+  const v0 = (playerY / WORLD_H) * Math.PI * 2;
+  playerAngle = Math.atan2(TORUS_R + TORUS_r * Math.cos(v0), TORUS_r);
+  velDir = playerAngle; playerPitch = 0;
+  speed = 0;
+  airborne = false; playerHeight = 0;
+  autopilot = !!withAutopilot;
+  document.getElementById('hint').style.display = autopilot ? 'block' : 'none';
+  showMessage('GO!', 1.2);
+}
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  beginRace(false);
+  lockPointer();
+});
+
+const menuBest = document.getElementById('menu-best');
+if (bestMs != null) menuBest.textContent = 'best lap ' + fmtMs(bestMs);
+
+// =====================================================================
+// State contract — polled by the capture harness; keep it cheap.
+// =====================================================================
+window.__inpacState = function () {
+  return {
+    running,
+    timeMs: Math.round(raceT * 1000),
+    lap: Math.min(lap, LAPS),
+    laps: LAPS,
+    bestMs: bestMs == null ? null : Math.round(bestMs),
+  };
+};
+
+// =====================================================================
+// Main loop
+// =====================================================================
+let gameTime = 0;
+let lastTime = performance.now();
+
+function gameLoop(now) {
+  requestAnimationFrame(gameLoop);
+  const dt = Math.min((now - lastTime) / 1000, 0.05);
+  lastTime = now;
+  gameTime += dt;
+
+  if (running) {
+    raceT += dt;
+    updatePlayer(dt);
+    updateJumpPhysics(dt);
+    checkGate();
+    if (running && !airborne) {
+      curSamples.push([Math.round((raceT - lapStartT) * 1000),
+        Math.round(playerX * 100) / 100, Math.round(playerY * 100) / 100]);
+    }
+  }
+
+  if (fpMode && gpuSky) {
+    gpuCanvas.style.display = 'block';
+    canvas.style.display = 'none';
+    renderFPV();
+  } else {
+    gpuCanvas.style.display = 'none';
+    canvas.style.display = 'block';
+    renderTopDown();
+  }
+  drawMinimap();
+  updateHUD();
+}
+
+requestAnimationFrame(gameLoop);
+
+// ?autostart=1 — begin play with no clicks and no keypresses. Pointer lock is
+// deliberately NOT requested here: it throws without a user gesture.
+if (new URLSearchParams(location.search).get('autostart')) {
+  beginRace(true);
+}
+</script>
+</body>
+</html>

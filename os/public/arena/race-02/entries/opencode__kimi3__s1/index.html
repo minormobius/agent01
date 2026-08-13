@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>INPAC — a race inside the torus</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#030208}
+#gpu{display:block;position:fixed;inset:0;width:100%;height:100%;image-rendering:pixelated;z-index:1}
+#game{display:none;position:fixed;inset:0;width:100%;height:100%;z-index:1}
+
+/* ---------- HUD ---------- */
+#hud{position:fixed;top:14px;left:16px;z-index:3;pointer-events:none;
+  font-family:'Courier New',ui-monospace,monospace;color:#e8e2d2;
+  background:rgba(4,2,10,0.55);padding:10px 16px 11px 14px;border-radius:3px;
+  border-left:2px solid rgba(255,180,58,0.7)}
+#time-label{font-size:10px;letter-spacing:3px;color:#8f8a7a}
+#time{font-size:34px;font-weight:bold;color:#ffb43a;line-height:1.05;
+  text-shadow:0 0 18px rgba(255,180,58,0.35);font-variant-numeric:tabular-nums}
+#lapline{margin-top:2px;font-size:13px;letter-spacing:1px;color:#d8d2c2}
+#lapline b{color:#fff}
+#bestline{margin-top:2px;font-size:12px;letter-spacing:1px;color:#37e6c8}
+#ringline{margin-top:2px;font-size:11px;letter-spacing:1px;color:#8f8a7a;transition:color .15s}
+#ringline.tick{color:#ffd88a}
+#speedwrap{position:fixed;left:16px;bottom:16px;z-index:3;pointer-events:none;
+  font-family:'Courier New',ui-monospace,monospace;color:#e8e2d2;
+  background:rgba(4,2,10,0.55);padding:9px 14px 11px;border-radius:3px;
+  border-left:2px solid rgba(55,230,200,0.55)}
+#speed{font-size:22px;font-weight:bold;color:#f2ead2;font-variant-numeric:tabular-nums}
+#speed small{font-size:10px;color:#8f8a7a;letter-spacing:2px}
+#speedbar{width:140px;height:3px;background:rgba(255,255,255,0.08);margin-top:4px}
+#speedbar i{display:block;height:100%;width:0%;
+  background:linear-gradient(90deg,#37e6c8,#ffb43a)}
+#map{position:fixed;right:14px;bottom:14px;z-index:3;
+  border:1px solid rgba(255,180,58,0.35);background:rgba(4,2,10,0.72)}
+#msg{position:fixed;top:34%;left:50%;transform:translate(-50%,-50%);z-index:4;
+  font:bold 40px 'Courier New',monospace;color:#ffb43a;letter-spacing:2px;
+  text-shadow:0 0 24px rgba(255,180,58,0.55),2px 0 3px #000,-2px 0 3px #000,
+    0 2px 3px #000,0 -2px 3px #000,2px 2px 3px #000,-2px -2px 3px #000,
+    -2px 2px 3px #000,2px -2px 3px #000;
+  pointer-events:none;display:none;text-align:center;white-space:pre-line}
+#msg small{display:block;font-size:16px;color:#37e6c8;letter-spacing:2px;margin-top:6px}
+#count{position:fixed;top:38%;left:50%;transform:translate(-50%,-50%);z-index:4;
+  font:bold 110px 'Courier New',monospace;color:#fff;pointer-events:none;display:none;
+  text-shadow:0 0 40px rgba(255,180,58,0.8),3px 0 4px #000,-3px 0 4px #000,
+    0 3px 4px #000,0 -3px 4px #000,3px 3px 4px #000,-3px -3px 4px #000,
+    -3px 3px 4px #000,3px -3px 4px #000}
+#reticle{position:fixed;top:50%;left:50%;z-index:3;width:4px;height:4px;margin:-2px;
+  border-radius:50%;background:rgba(255,255,255,0.75);pointer-events:none;display:none}
+#attract{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:3;
+  font:11px 'Courier New',monospace;letter-spacing:2px;color:#37e6c8;
+  border:1px solid rgba(55,230,200,0.4);padding:5px 12px;border-radius:3px;
+  background:rgba(4,10,12,0.6);pointer-events:none;display:none}
+
+/* ---------- overlays ---------- */
+.overlay{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;background:rgba(3,2,8,0.93);
+  font-family:'Courier New',ui-monospace,monospace;color:#e8e2d2;text-align:center}
+.overlay h1{font-size:92px;letter-spacing:10px;color:#ffb43a;line-height:1;
+  text-shadow:0 0 34px rgba(255,140,20,0.45)}
+.overlay .sub{margin-top:10px;font-size:14px;letter-spacing:3px;color:#37e6c8}
+.overlay .desc{margin-top:22px;font-size:12px;line-height:1.9;color:#a49e8e;max-width:560px}
+.overlay .desc b{color:#d8d2c2}
+.overlay .keys{margin-top:16px;font-size:12px;letter-spacing:1px;color:#8f8a7a}
+.overlay .keys b{color:#e8e2d2}
+.overlay button{margin-top:26px;font:bold 20px 'Courier New',monospace;letter-spacing:4px;
+  padding:14px 54px;background:#ffb43a;color:#1a1206;border:none;cursor:pointer}
+.overlay button:hover{background:#ffc85e}
+#startmap{margin-top:26px;border:1px solid rgba(255,180,58,0.25)}
+#finish{display:none}
+#finish .total{font-size:44px;color:#fff;margin-top:8px;font-variant-numeric:tabular-nums}
+#finish table{margin:20px auto 0;border-collapse:collapse;font-size:13px}
+#finish td{padding:3px 14px;text-align:left;color:#a49e8e}
+#finish td:last-child{text-align:right;color:#e8e2d2;font-variant-numeric:tabular-nums}
+#finish tr.best td{color:#37e6c8}
+</style>
+</head>
+<body>
+<canvas id="gpu"></canvas>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div id="time-label">TIME</div>
+  <div id="time">0:00.000</div>
+  <div id="lapline">LAP <b>1</b>/3</div>
+  <div id="bestline">BEST —</div>
+  <div id="ringline">RING 1/16</div>
+</div>
+<div id="speedwrap">
+  <div id="speed">0<small> KM/H</small></div>
+  <div id="speedbar"><i></i></div>
+</div>
+<canvas id="map" width="224" height="168"></canvas>
+<div id="msg"></div>
+<div id="count"></div>
+<div id="reticle"></div>
+<div id="attract">ATTRACT MODE — PRESS ANY KEY TO RACE</div>
+
+<div id="start" class="overlay">
+  <h1>INPAC</h1>
+  <div class="sub">A TIME TRIAL ON THE INSIDE OF A TORUS</div>
+  <div class="desc">
+    The lap is a <b>(2,1) torus knot</b>: once around the ring, twice through the
+    hole — a glowing ribbon painted on the tube wall. Thread the amber rings in
+    order, three laps against the clock. The magenta drone runs a 12.5&nbsp;s
+    reference lap. Beat it, then beat your own ghost.
+  </div>
+  <canvas id="startmap" width="224" height="168"></canvas>
+  <div class="keys"><b>WASD</b> run &nbsp;&bull;&nbsp; <b>mouse</b> steer (click to lock) &nbsp;&bull;&nbsp; <b>SPACE</b> jump &nbsp;&bull;&nbsp; <b>R</b> restart</div>
+  <button id="startbtn">RACE</button>
+</div>
+
+<div id="finish" class="overlay">
+  <div style="font-size:14px;letter-spacing:4px;color:#37e6c8">RACE COMPLETE</div>
+  <div class="total" id="fin-total">0:00.000</div>
+  <table id="fin-table"></table>
+  <button id="againbtn">RACE AGAIN</button>
+</div>
+
+<script>
+'use strict';
+/* =====================================================================
+   INPAC — a race inside the torus.
+
+   The Pac-Man board is cleared: no maze, no pellets, no ghost house.
+   The torus itself is the track. The lap is a (2,1) torus knot painted
+   on the inner wall as a glowing ribbon; sixteen rings thread it; the
+   clock, a pacer drone and your own best-lap ghost are the opposition.
+
+   Physics note: interior gravity — "down", inside a tube, is straight at
+   the nearest wall — comes from field.mjs (see the loader at the bottom).
+   ===================================================================== */
+
+/* ---------- inline copy of field.mjs ---------------------------------
+   Byte-identical math to ./field.mjs. The game boots from this classic
+   script because module loads are CORS-blocked under file:// (which is
+   how the capture harness loads pages); when the page is served over
+   http(s) the loader at the bottom imports field.mjs and swaps it in, so
+   the deployed game literally drives its physics from the module. Every
+   call site goes through Field.field. */
+const FIELD_STRENGTH = 6.5;
+const FIELD_PARAMS = { TORUS_R: 8.0, TORUS_r: 3.0 };
+function fieldInline(R, Z, geom = {}) {
+  const R0 = typeof geom.R === 'number' ? geom.R : FIELD_PARAMS.TORUS_R;
+  const r0 = typeof geom.r === 'number' ? geom.r : FIELD_PARAMS.TORUS_r;
+  const G = typeof geom.strength === 'number' ? geom.strength : FIELD_STRENGTH;
+  const dR = R - R0;
+  const d = Math.hypot(dR, Z);
+  if (!Number.isFinite(d) || d < 1e-9) return { gR: 0, gZ: 0 };
+  const g = (G * d) / (d + 0.2 * r0);
+  return { gR: (dR / d) * g, gZ: (Z / d) * g };
+}
+const Field = window.__inpacField = { field: fieldInline, source: 'inline' };
+
+/* ---------- config ---------- */
+const R0 = 8.0, TUBE = 3.0;          // torus major / minor radius
+const VWIND = 2;                     // the lap: v = VWIND·u — a (2,1) knot
+const GATE_N = 16;                   // rings per lap
+const GATE_R = 1.05;                 // ring radius
+const GATE_CLEAR = 1.35;             // pass distance
+const GATE_FLOAT = 0.85;             // ring centre height off the wall
+const LAPS = 3;
+const EYE = 0.42;                    // eye height off the wall
+const TOP_SPEED = 7.5, AUTO_SPEED = 6.6;
+const ACCEL = 22, FRICTION = 13, BRAKE = 26;
+const TURN_KEY = 3.1, TURN_AUTO = 3.6;
+const MOUSE_SENS = 0.0021, MAX_PITCH = Math.PI * 0.46;
+const JUMP = 3.4;
+const PACER_LAP_MS = 12500;
+const FOV = Math.PI * 0.60, VFOV = Math.PI * 0.45;
+const COUNTDOWN_MS = 3000, FINISH_HOLD_MS = 4500;
+const TAU = Math.PI * 2;
+
+/* ---------- torus surface math ---------- */
+const wrapTau = (a) => ((a % TAU) + TAU) % TAU;
+const wrapPi  = (a) => { a = wrapTau(a); return a > Math.PI ? a - TAU : a; };
+// point at distance ρ from the tube centreline, at surface angles (u, v)
+function surfPoint(u, v, rho) {
+  const cv = Math.cos(v);
+  return [(R0 + rho * cv) * Math.cos(u), rho * Math.sin(v), (R0 + rho * cv) * Math.sin(u)];
+}
+const euVec = (u) => [-Math.sin(u), 0, Math.cos(u)];                                            // toroidal tangent
+const evVec = (u, v) => [-Math.sin(v) * Math.cos(u), Math.cos(v), -Math.sin(v) * Math.sin(u)];  // poloidal tangent
+const inNormal = (u, v) => [-Math.cos(v) * Math.cos(u), -Math.sin(v), -Math.cos(v) * Math.sin(u)]; // toward centreline = "up"
+
+/* ---------- the course: a glowing (2,1) spiral + 16 rings ---------- */
+const lineV = (u) => wrapTau(VWIND * u);
+const gates = [];
+for (let k = 0; k < GATE_N; k++) {
+  const u = (k / GATE_N) * TAU, v = lineV(u);
+  const C = surfPoint(u, v, TUBE - GATE_FLOAT);
+  const eu = euVec(u), ev = evVec(u, v);
+  const wu = R0 + TUBE * Math.cos(v), wv = TUBE * VWIND; // metric-weighted tangent
+  const nx = eu[0] * wu + ev[0] * wv, ny = ev[1] * wv, nz = eu[2] * wu + ev[2] * wv;
+  const L = Math.hypot(nx, ny, nz);
+  gates.push({ u, v, C, N: [nx / L, ny / L, nz / L], rho: k === 0 ? GATE_R * 1.2 : GATE_R });
+}
+
+/* ---------- state ---------- */
+let state = 'menu';           // menu | countdown | racing | finished
+let autopilot = false;
+let raceStart = 0, finishAt = 0, finishTotal = 0;
+let lap = 1, lapStart = 0, nextGate = 1;
+let lapTimes = [];
+let bestMs = loadBest();
+let curLapSamples = [], bestGhost = null, lastRec = -1;
+let gameTime = 0, lastNow = 0;
+let frameWarned = false;
+
+const player = {
+  u: -0.22, v: lineV(-0.22), yaw: 0, pitch: 0.06,
+  pu: 0, pv: 0,               // physical velocity along (eu, ev)
+  airborne: false, pos: [0, 0, 0], vel: [0, 0, 0],
+};
+
+function spawnYaw() {
+  return Math.atan2(R0 + TUBE * Math.cos(player.v), TUBE * VWIND);
+}
+function resetPlayer() {
+  player.u = -0.22; player.v = lineV(player.u);
+  player.yaw = spawnYaw(); player.pitch = 0.06;
+  player.pu = 0; player.pv = 0;
+  player.airborne = false; player.vel = [0, 0, 0];
+}
+
+function loadBest() {
+  try { const v = +localStorage.getItem('inpac.bestMs'); return v > 0 ? v : null; }
+  catch { return null; }
+}
+function saveBest() {
+  try { localStorage.setItem('inpac.bestMs', String(bestMs)); } catch { /* sandboxed */ }
+}
+
+/* ---------- race control ---------- */
+function beginCountdown() {
+  resetPlayer();
+  lap = 1; nextGate = 1; lapTimes = [];
+  curLapSamples = []; lastRec = -1;
+  raceStart = performance.now() + COUNTDOWN_MS;
+  lapStart = raceStart;
+  state = 'countdown';
+  document.getElementById('start').style.display = 'none';
+  document.getElementById('finish').style.display = 'none';
+  hideMsg();
+}
+function startRace(viaAttract) {
+  autopilot = !!viaAttract;
+  document.getElementById('attract').style.display = autopilot ? 'block' : 'none';
+  beginCountdown();
+}
+function lapComplete(now) {
+  const lapMs = now - lapStart;
+  lapTimes.push(lapMs);
+  let newBest = false;
+  if (bestMs === null || lapMs < bestMs) {
+    bestMs = lapMs; bestGhost = curLapSamples; saveBest(); newBest = true;
+  }
+  lap++;
+  if (lap > LAPS) {
+    finishTotal = now - raceStart;
+    finishAt = now;
+    state = 'finished';
+    showFinish();
+    return;
+  }
+  showMsg('LAP ' + lap + '\n' + fmtMs(lapMs) + (newBest ? '  — NEW BEST' : ''), 1800);
+  lapStart = now;
+  nextGate = 1;
+  curLapSamples = []; lastRec = -1;
+}
+function eyePos() {
+  return player.airborne ? player.pos : surfPoint(player.u, player.v, TUBE - EYE);
+}
+function checkGates(now) {
+  const P = eyePos(), g = gates[nextGate];
+  const dx = P[0] - g.C[0], dy = P[1] - g.C[1], dz = P[2] - g.C[2];
+  if (dx * dx + dy * dy + dz * dz > GATE_CLEAR * GATE_CLEAR) return;
+  if (nextGate === 0) { lapComplete(now); return; }
+  nextGate = (nextGate + 1) % GATE_N;
+  hud.ringline.classList.add('tick');
+  setTimeout(() => hud.ringline.classList.remove('tick'), 250);
+}
+
+/* ---------- pacer drone & best-lap ghost ---------- */
+function pacerPos(now) {
+  if (state === 'menu') return null;
+  const t = Math.max(0, now - raceStart);
+  const u = wrapTau((t / PACER_LAP_MS) * TAU);
+  return surfPoint(u, lineV(u), TUBE - 0.30);
+}
+function ghostPos(now) {
+  if (!bestGhost || bestGhost.length < 2 || state !== 'racing') return null;
+  const t = now - lapStart;
+  if (t > bestGhost[bestGhost.length - 1].t) return null;
+  let i = 0;
+  while (i < bestGhost.length - 2 && bestGhost[i + 1].t < t) i++;
+  const a = bestGhost[i], b = bestGhost[i + 1];
+  const f = Math.min(1, Math.max(0, (t - a.t) / Math.max(1e-6, b.t - a.t)));
+  const u = a.u + wrapPi(b.u - a.u) * f;
+  const v = a.v + wrapPi(b.v - a.v) * f;
+  return surfPoint(u, v, TUBE - EYE);
+}
+function recordGhost(now) {
+  if (state !== 'racing') return;
+  const t = now - lapStart;
+  if (t - lastRec < 66) return;
+  lastRec = t;
+  curLapSamples.push({ t, u: player.u, v: player.v });
+  if (curLapSamples.length > 4000) curLapSamples.shift();
+}
+
+/* ---------- input ---------- */
+const keys = {};
+document.addEventListener('keydown', (e) => {
+  if (e.key === ' ') e.preventDefault();
+  if (autopilot) { takeOver(); return; }
+  keys[e.key.length === 1 ? e.key.toLowerCase() : e.key] = true;
+  if (e.key === 'Enter' && state === 'menu') startRace(false);
+  if ((e.key === 'r' || e.key === 'R') && state !== 'menu') startRace(false);
+});
+document.addEventListener('keyup', (e) => {
+  keys[e.key.length === 1 ? e.key.toLowerCase() : e.key] = false;
+});
+window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+const gpuCanvas = document.getElementById('gpu');
+const fbCanvas = document.getElementById('game');
+const fbCtx = fbCanvas.getContext('2d');
+
+function tryPointerLock() {
+  // Pointer Lock throws without a user gesture — never call this from the
+  // autostart path, and never let a rejection escape as a page error.
+  try {
+    if (!gpuCanvas.requestPointerLock) return;
+    const r = gpuCanvas.requestPointerLock();
+    if (r && typeof r.catch === 'function') r.catch(() => {});
+  } catch { /* no gesture — fine */ }
+}
+function hasPointerLock() { return document.pointerLockElement === gpuCanvas; }
+
+function takeOver() {
+  autopilot = false;
+  document.getElementById('attract').style.display = 'none';
+  startRace(false);
+  tryPointerLock();
+}
+gpuCanvas.addEventListener('click', () => {
+  if (autopilot) { takeOver(); return; }
+  if (state === 'menu' || state === 'finished') { startRace(false); return; }
+  if (!hasPointerLock()) tryPointerLock();
+});
+document.getElementById('startbtn').addEventListener('click', (e) => {
+  e.currentTarget.blur(); startRace(false); tryPointerLock();
+});
+document.getElementById('againbtn').addEventListener('click', (e) => {
+  e.currentTarget.blur(); startRace(false); tryPointerLock();
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!hasPointerLock() || autopilot) return;
+  player.yaw += e.movementX * MOUSE_SENS;
+  player.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, player.pitch - e.movementY * MOUSE_SENS));
+});
+document.addEventListener('pointerlockchange', () => {
+  document.getElementById('reticle').style.display = hasPointerLock() ? 'block' : 'none';
+  if (!hasPointerLock()) for (const k in keys) keys[k] = false;
+});
+
+/* ---------- movement & jump physics (field.mjs drives the air) ---------- */
+function updatePlayer(dt) {
+  if (state !== 'racing') return;
+
+  if (keys['ArrowLeft'])  player.yaw -= TURN_KEY * dt;
+  if (keys['ArrowRight']) player.yaw += TURN_KEY * dt;
+  if (keys['ArrowUp'])    player.pitch = Math.min(MAX_PITCH, player.pitch + 1.8 * dt);
+  if (keys['ArrowDown'])  player.pitch = Math.max(-MAX_PITCH, player.pitch - 1.8 * dt);
+
+  let fwd = 0, str = 0, spd = TOP_SPEED, braking = false;
+  if (autopilot) {
+    // attract mode: steer at the next ring, full throttle, brake if it is
+    // badly off the nose (i.e. just re-approach it from the front)
+    spd = AUTO_SPEED;
+    const g = gates[nextGate];
+    const du = wrapPi(g.u - player.u), dv = wrapPi(g.v - player.v);
+    const des = Math.atan2(du * (R0 + TUBE * Math.cos(player.v)), dv * TUBE);
+    const err = wrapPi(des - player.yaw);
+    const maxTurn = TURN_AUTO * dt;
+    player.yaw += Math.max(-maxTurn, Math.min(maxTurn, err));
+    player.pitch = 0.06;
+    fwd = Math.cos(err);
+    if (fwd < 0.25) { fwd = 0; braking = true; }
+  } else {
+    if (keys['w']) fwd += 1;
+    if (keys['s']) fwd -= 1;
+    if (keys['d']) str += 1;
+    if (keys['a']) str -= 1;
+  }
+
+  if (player.airborne) { integrateAir(dt); return; }
+
+  const sy = Math.sin(player.yaw), cy = Math.cos(player.yaw);
+  let tu = sy * fwd + cy * str;
+  let tv = cy * fwd - sy * str;
+  const tl = Math.hypot(tu, tv);
+  const hasInput = tl > 0.01;
+  if (hasInput) { tu = (tu / tl) * spd; tv = (tv / tl) * spd; }
+  const rate = hasInput ? ACCEL : (braking ? BRAKE : FRICTION);
+  let au = tu - player.pu, av = tv - player.pv;
+  const al = Math.hypot(au, av), mx = rate * dt;
+  if (al > mx && al > 1e-9) { au = (au / al) * mx; av = (av / al) * mx; }
+  player.pu += au; player.pv += av;
+
+  player.u = wrapTau(player.u + (player.pu / (R0 + TUBE * Math.cos(player.v))) * dt);
+  player.v = wrapTau(player.v + (player.pv / TUBE) * dt);
+
+  if (keys[' '] && !autopilot) doJump();
+}
+
+function doJump() {
+  const u = player.u, v = player.v;
+  const eu = euVec(u), ev = evVec(u, v), en = inNormal(u, v);
+  player.pos = surfPoint(u, v, TUBE - EYE);
+  player.vel = [
+    eu[0] * player.pu + ev[0] * player.pv + en[0] * JUMP,
+    eu[1] * player.pu + ev[1] * player.pv + en[1] * JUMP,
+    eu[2] * player.pu + ev[2] * player.pv + en[2] * JUMP,
+  ];
+  player.airborne = true;
+}
+
+// The only place the field is integrated — and the only place the shipped
+// LUT ever mattered. Now: an exact analytic pull toward the nearest wall,
+// full momentum carry, land when the eye point reaches the wall again.
+function integrateAir(dt) {
+  const sub = 8, sdt = dt / sub;
+  const P = player.pos, V = player.vel;
+  for (let s = 0; s < sub; s++) {
+    const Rc = Math.max(1e-3, Math.hypot(P[0], P[2]));
+    const g = Field.field(Rc, P[1]);
+    const inv = 1 / Rc;
+    V[0] += g.gR * (P[0] * inv) * sdt;
+    V[1] += g.gZ * sdt;
+    V[2] += g.gR * (P[2] * inv) * sdt;
+    P[0] += V[0] * sdt; P[1] += V[1] * sdt; P[2] += V[2] * sdt;
+    const dR = Math.hypot(P[0], P[2]) - R0;
+    if (dR * dR + P[1] * P[1] >= (TUBE - EYE) * (TUBE - EYE)) {
+      const u = Math.atan2(P[2], P[0]);
+      const v = Math.atan2(P[1], Math.hypot(P[0], P[2]) - R0);
+      const eu = euVec(u), ev = evVec(u, v);
+      player.u = wrapTau(u); player.v = wrapTau(v);
+      player.pu = V[0] * eu[0] + V[1] * eu[1] + V[2] * eu[2];
+      player.pv = V[0] * ev[0] + V[1] * ev[1] + V[2] * ev[2];
+      const gl = Math.hypot(player.pu, player.pv);
+      if (gl > 12) { player.pu *= 12 / gl; player.pv *= 12 / gl; }
+      player.airborne = false;
+      return;
+    }
+  }
+  if (!Number.isFinite(P[0] + P[1] + P[2])) { player.airborne = false; resetPlayer(); }
+}
+/* ---------- camera ---------- */
+function computeCamera() {
+  const u = player.u, v = player.v;
+  let P, en;
+  if (player.airborne) {
+    P = player.pos;
+    const Rc = Math.hypot(P[0], P[2]);
+    const g = Field.field(Rc, P[1]);
+    const gl = Math.hypot(g.gR, g.gZ);
+    if (gl > 1e-4 && Rc > 1e-3) {
+      // "up" while airborne = anti-gravity = toward the tube centreline
+      en = [-(g.gR / gl) * (P[0] / Rc), -(g.gZ / gl), -(g.gR / gl) * (P[2] / Rc)];
+    } else {
+      en = inNormal(u, v);
+    }
+  } else {
+    P = surfPoint(u, v, TUBE - EYE);
+    en = inNormal(u, v);
+  }
+  const eu = euVec(u);
+  const d = eu[0] * en[0] + eu[1] * en[1] + eu[2] * en[2];
+  let rx = eu[0] - d * en[0], ry = eu[1] - d * en[1], rz = eu[2] - d * en[2];
+  const rl = Math.hypot(rx, ry, rz) || 1; rx /= rl; ry /= rl; rz /= rl;
+  let tx = en[1] * rz - en[2] * ry, ty = en[2] * rx - en[0] * rz, tz = en[0] * ry - en[1] * rx;
+  const tl = Math.hypot(tx, ty, tz) || 1; tx /= tl; ty /= tl; tz /= tl;
+
+  const sa = Math.sin(player.yaw), ca = Math.cos(player.yaw);
+  const flatFwd = [sa * rx + ca * tx, sa * ry + ca * ty, sa * rz + ca * tz];
+  const right = [ca * rx - sa * tx, ca * ry - sa * ty, ca * rz - sa * tz];
+  const cp = Math.cos(player.pitch), sp = Math.sin(player.pitch);
+  return {
+    P,
+    fwd: [flatFwd[0] * cp + en[0] * sp, flatFwd[1] * cp + en[1] * sp, flatFwd[2] * cp + en[2] * sp],
+    right,
+    up: [-flatFwd[0] * sp + en[0] * cp, -flatFwd[1] * sp + en[1] * cp, -flatFwd[2] * sp + en[2] * cp],
+  };
+}
+
+/* ---------- WebGPU renderer: raymarched tube interior ---------- */
+const shaderCode = `
+struct Params {
+  camX: f32, camY: f32, camZ: f32, time: f32,
+  fwdX: f32, fwdY: f32, fwdZ: f32, fovH: f32,
+  rightX: f32, rightY: f32, rightZ: f32, fovV: f32,
+  upX: f32, upY: f32, upZ: f32, horizonY: f32,
+  torusR: f32, torusr: f32, vwind: f32, speedFx: f32,
+  width: u32, height: u32, gateCount: u32, orbCount: u32,
+  _p0: f32, _p1: f32, _p2: f32, _p3: f32,
+  _p4: f32, _p5: f32, _p6: f32, _p7: f32,
+}
+@group(0) @binding(0) var<uniform> p: Params;
+@group(0) @binding(1) var<storage, read> gates: array<vec4f>;
+@group(0) @binding(2) var<storage, read> orbs: array<vec4f>;
+@group(0) @binding(3) var output: texture_storage_2d<rgba8unorm, write>;
+
+const TAU: f32 = 6.283185307179586;
+const VOID: vec3f = vec3f(0.010, 0.008, 0.022);
+
+fn innerDist(P: vec3f, R: f32, r: f32) -> f32 {
+  let q = length(P.xz) - R;
+  return r - sqrt(q * q + P.y * P.y);
+}
+fn conduitDist(P: vec3f, R: f32) -> f32 {
+  let q = length(P.xz) - R;
+  return sqrt(q * q + P.y * P.y);
+}
+fn lineMask(f: f32) -> f32 {
+  let d = min(f, 1.0 - f);
+  return clamp((0.055 - d) / 0.055, 0.0, 1.0);
+}
+
+@compute @workgroup_size(8, 8)
+fn main(@builtin(global_invocation_id) gid: vec3u) {
+  let px = gid.x;
+  let py = gid.y;
+  if (px >= p.width || py >= p.height) { return; }
+
+  let screenH = (f32(px) / f32(p.width)) * 2.0 - 1.0;
+  let screenV = p.horizonY - f32(py) / f32(p.height);
+  let az = screenH * p.fovH * 0.5;
+  let el = screenV * p.fovV;
+  let fwd = vec3f(p.fwdX, p.fwdY, p.fwdZ);
+  let right = vec3f(p.rightX, p.rightY, p.rightZ);
+  let up = vec3f(p.upX, p.upY, p.upZ);
+  let rd = normalize(fwd * cos(el) * cos(az) + right * cos(el) * sin(az) + up * sin(el));
+  let cam = vec3f(p.camX, p.camY, p.camZ);
+  let R = p.torusR;
+  let r = p.torusr;
+
+  // exact interior sphere-trace (the course is open — no displacement)
+  var t = 0.02;
+  var hit = false;
+  for (var i = 0u; i < 96u; i++) {
+    let d = innerDist(cam + t * rd, R, r);
+    if (d < 0.002) { hit = true; break; }
+    t += max(d * 0.85, 0.008);
+    if (t > 60.0) { break; }
+  }
+  var tWall = 60.0;
+  if (hit) { tWall = t; }
+
+  // gate rings: analytic ray x plane tests, nearest wins
+  var ringT = tWall;
+  var ringCol = vec3f(0.0);
+  var ringW = 0.0;
+  for (var gi = 0u; gi < p.gateCount; gi++) {
+    let g0 = gates[gi * 2u];
+    let g1 = gates[gi * 2u + 1u];
+    let st = g0.w;
+    if (st < 0.5) { continue; }
+    let denom = dot(rd, g1.xyz);
+    if (abs(denom) < 1e-5) { continue; }
+    let tr = dot(g0.xyz - cam, g1.xyz) / denom;
+    if (tr < 0.05 || tr > ringT) { continue; }
+    let Q = cam + tr * rd - g0.xyz;
+    let dr = abs(length(Q) - g1.w);
+    let band = 0.10;
+    if (dr < band) {
+      var col = vec3f(0.10, 0.42, 0.46);
+      if (st > 2.5) {
+        col = vec3f(0.82, 0.85, 0.92);
+      } else if (st > 1.5) {
+        let pl = 0.78 + 0.42 * sin(p.time * 7.0);
+        col = vec3f(1.15, 0.70, 0.22) * pl;
+      }
+      ringT = tr;
+      ringCol = col;
+      ringW = 1.0 - dr / band;
+    }
+  }
+
+  // orbs (pacer, ghost): sphere tests
+  var orbT = tWall;
+  var orbCol = vec3f(0.0);
+  var orbHit = false;
+  for (var oi = 0u; oi < p.orbCount; oi++) {
+    let o0 = orbs[oi * 2u];
+    let o1 = orbs[oi * 2u + 1u];
+    if (o1.w < 0.5) { continue; }
+    let oc = cam - o0.xyz;
+    let b = dot(oc, rd);
+    let c = dot(oc, oc) - o0.w * o0.w;
+    let disc = b * b - c;
+    if (disc < 0.0) { continue; }
+    let sq = sqrt(disc);
+    var to = -b - sq;
+    if (to < 0.02) { to = -b + sq; }
+    if (to < 0.02 || to > orbT) { continue; }
+    orbT = to;
+    orbHit = true;
+    let N = normalize(cam + to * rd - o0.xyz);
+    let fr = pow(1.0 - abs(dot(N, rd)), 2.0);
+    orbCol = o1.rgb * (0.72 + 0.65 * fr) + vec3f(fr * 0.30);
+  }
+
+  // wall shading
+  var col = VOID;
+  if (hit) {
+    let H = cam + tWall * rd;
+    let Rc = length(H.xz);
+    let u = atan2(H.z, H.x);
+    let v = atan2(H.y, Rc - R);
+    let nIn = -vec3f(cos(v) * cos(u), sin(v), cos(v) * sin(u));
+    let face = abs(dot(nIn, rd));
+
+    var wall = vec3f(0.120, 0.106, 0.170) + vec3f(0.042, 0.022, -0.008) * (0.5 + 0.5 * cos(v));
+    wall *= 0.45 + 0.55 * face;
+
+    // lat/long grid — speed texture
+    let lu = lineMask(fract(u / TAU * 48.0 + 0.5));
+    let lv = lineMask(fract(v / TAU * 24.0 + 0.5));
+    wall += vec3f(0.10, 0.30, 0.33) * max(lu, lv) * (0.22 + 0.78 * face);
+
+    // the racing ribbon: v = vwind·u, with a pulse travelling forward
+    var dv = v - p.vwind * u;
+    dv = atan2(sin(dv), cos(dv));
+    let bd = (dv * r) / 0.70;
+    let ribbon = exp(-bd * bd);
+    let flow = 0.5 + 0.5 * sin(u * 14.0 - p.time * 7.0);
+    wall += vec3f(1.0, 0.62, 0.20) * ribbon * (0.40 + 0.24 * flow);
+
+    // start/finish checker patch on the line at u = 0
+    let du0 = atan2(sin(u), cos(u));
+    if (abs(du0) < 0.05 && abs(dv) < 0.6) {
+      let chk = f32((i32(floor(u * 80.0)) + i32(floor(v * 20.0))) & 1);
+      wall = mix(wall, vec3f(0.85, 0.85, 0.88) * (0.35 + 0.65 * face), chk * 0.6);
+    }
+
+    // orb light pools
+    for (var li = 0u; li < p.orbCount; li++) {
+      let o0 = orbs[li * 2u];
+      let o1 = orbs[li * 2u + 1u];
+      if (o1.w < 0.5) { continue; }
+      let L = o0.xyz - H;
+      let d2 = dot(L, L);
+      let atten = max(0.0, dot(nIn, L / sqrt(d2))) * 1.7 / (0.35 + d2 * 1.6);
+      wall += o1.rgb * atten;
+    }
+    // next-ring light pool
+    for (var lj = 0u; lj < p.gateCount; lj++) {
+      let g0 = gates[lj * 2u];
+      if (g0.w < 1.5 || g0.w > 2.5) { continue; }
+      let L = g0.xyz - H;
+      let d2 = dot(L, L);
+      let atten = max(0.0, dot(nIn, L / sqrt(d2))) * 1.25 / (0.40 + d2 * 1.4);
+      wall += vec3f(1.0, 0.60, 0.24) * atten;
+    }
+
+    let fog = 1.0 - exp(-tWall * 0.055);
+    col = mix(wall, VOID, fog);
+  }
+
+  // composites: ring (emissive), then orb
+  if (ringW > 0.0) {
+    let rf = 1.0 - exp(-ringT * 0.055);
+    col = mix(col, ringCol * (1.0 - 0.5 * rf), clamp(ringW * 1.15, 0.0, 1.0));
+  }
+  if (orbHit) {
+    let oFade = 1.0 - exp(-orbT * 0.055);
+    col = mix(col, orbCol, 1.0 - 0.35 * oFade);
+  }
+
+  // the conduit: a glowing thread along the tube centreline
+  let tEnd = select(60.0, min(tWall, 34.0), hit);
+  var glow = 0.0;
+  var tPrev = 0.0;
+  for (var si = 1u; si <= 28u; si++) {
+    let f = f32(si) / 28.0;
+    let ts = tEnd * f * f;
+    let cd = conduitDist(cam + ts * rd, R);
+    let g = 0.85 / (1.0 + cd * cd * 11.0) + 0.16 / (1.0 + cd * cd * 1.1);
+    glow += g * (ts - tPrev) * exp(-ts * 0.03);
+    tPrev = ts;
+  }
+  col += vec3f(0.42, 0.60, 1.00) * glow * 0.55;
+
+  // mild filmic rolloff
+  col = vec3f(1.0) - exp(-col * 1.45);
+  textureStore(output, vec2u(px, py), vec4f(clamp(col, vec3f(0.0), vec3f(1.0)), 1.0));
+}
+`;
+
+const blitShaderCode = `
+struct VOut {
+  @builtin(position) pos: vec4f,
+  @location(0) uv: vec2f,
+}
+@vertex fn vs(@builtin(vertex_index) vi: u32) -> VOut {
+  let x = f32(i32(vi & 1u)) * 4.0 - 1.0;
+  let y = f32(i32(vi >> 1u)) * 4.0 - 1.0;
+  var out: VOut;
+  out.pos = vec4f(x, y, 0.0, 1.0);
+  out.uv = vec2f((x + 1.0) * 0.5, (1.0 - y) * 0.5);
+  return out;
+}
+@group(0) @binding(0) var tex: texture_2d<f32>;
+@group(0) @binding(1) var samp: sampler;
+@fragment fn fs(inp: VOut) -> @location(0) vec4f {
+  return textureSample(tex, samp, inp.uv);
+}
+`;
+
+let gpu = null;
+let gpuFailed = false;
+async function initWebGPU() {
+  if (!navigator.gpu) { gpuFailed = true; return; }
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) { gpuFailed = true; return; }
+  const device = await adapter.requestDevice();
+  device.onuncapturederror = () => {
+    gpu = null; gpuFailed = true;
+    gpuCanvas.style.display = 'none'; fbCanvas.style.display = 'block';
+  };
+
+  const gpuCtx = gpuCanvas.getContext('webgpu');
+  if (!gpuCtx) { gpuFailed = true; return; }
+  const format = navigator.gpu.getPreferredCanvasFormat();
+  gpuCtx.configure({ device, format, alphaMode: 'opaque' });
+
+  const computeModule = device.createShaderModule({ code: shaderCode });
+  const blitModule = device.createShaderModule({ code: blitShaderCode });
+  // A shader that compiles to nothing must not leave a black screen: verify
+  // before the first dispatch, and fall back to the 2D course view instead.
+  const infos = await Promise.all([computeModule.getCompilationInfo(), blitModule.getCompilationInfo()]);
+  if (infos.some((i) => i.messages.some((m) => m.type === 'error'))) { gpuFailed = true; return; }
+
+  const computePipeline = device.createComputePipeline({
+    layout: 'auto',
+    compute: { module: computeModule, entryPoint: 'main' },
+  });
+  const blitPipeline = device.createRenderPipeline({
+    layout: 'auto',
+    vertex: { module: blitModule, entryPoint: 'vs' },
+    fragment: { module: blitModule, entryPoint: 'fs', targets: [{ format }] },
+    primitive: { topology: 'triangle-list' },
+  });
+  const sampler = device.createSampler({ magFilter: 'nearest', minFilter: 'nearest' });
+  const paramBuf = device.createBuffer({ size: 128, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  const gateBuf = device.createBuffer({ size: GATE_N * 2 * 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+  const orbBuf = device.createBuffer({ size: 4 * 2 * 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+
+  let outTex = null, computeBG = null, blitBG = null, texW = 0, texH = 0;
+  function ensureSize(w, h) {
+    if (w === texW && h === texH) return;
+    texW = w; texH = h;
+    if (outTex) outTex.destroy();
+    outTex = device.createTexture({
+      size: [w, h], format: 'rgba8unorm',
+      usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+    });
+    computeBG = device.createBindGroup({
+      layout: computePipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer: paramBuf } },
+        { binding: 1, resource: { buffer: gateBuf } },
+        { binding: 2, resource: { buffer: orbBuf } },
+        { binding: 3, resource: outTex.createView() },
+      ],
+    });
+    blitBG = device.createBindGroup({
+      layout: blitPipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: outTex.createView() },
+        { binding: 1, resource: sampler },
+      ],
+    });
+  }
+
+  const gateData = new Float32Array(GATE_N * 8);
+  const orbData = new Float32Array(16);
+  const pd = new ArrayBuffer(128);
+  const pf = new Float32Array(pd);
+  const pu32 = new Uint32Array(pd);
+
+  gpu = {
+    render(now, cam, speedFrac) {
+      const scale = Math.min(1, 420 / Math.max(1, gpuCanvas.height));
+      const w = Math.max(8, Math.floor(gpuCanvas.width * scale));
+      const h = Math.max(8, Math.floor(gpuCanvas.height * scale));
+      ensureSize(w, h);
+
+      for (let k = 0; k < GATE_N; k++) {
+        const g = gates[k];
+        let st;
+        if (state === 'racing' || state === 'countdown') {
+          const ahead = (k - nextGate + GATE_N) % GATE_N;
+          st = k === nextGate ? 2 : (k === 0 ? 3 : (ahead <= 5 ? 1 : 0));
+        } else {
+          st = k === 0 ? 3 : 1; // menu/finished: show the whole course
+        }
+        gateData[k * 8 + 0] = g.C[0]; gateData[k * 8 + 1] = g.C[1]; gateData[k * 8 + 2] = g.C[2];
+        gateData[k * 8 + 3] = st;
+        gateData[k * 8 + 4] = g.N[0]; gateData[k * 8 + 5] = g.N[1]; gateData[k * 8 + 6] = g.N[2];
+        gateData[k * 8 + 7] = g.rho;
+      }
+      device.queue.writeBuffer(gateBuf, 0, gateData);
+
+      const pp = pacerPos(now);
+      orbData.set(pp ? [pp[0], pp[1], pp[2], 0.22, 1.0, 0.30, 0.62, 1]
+                     : [0, 0, 0, 0.22, 0, 0, 0, 0]);
+      const gp = ghostPos(now);
+      orbData.set(gp ? [gp[0], gp[1], gp[2], 0.20, 0.62, 0.78, 1.0, 1]
+                     : [0, 0, 0, 0.20, 0, 0, 0, 0], 8);
+      device.queue.writeBuffer(orbBuf, 0, orbData);
+
+      const fovKick = 1 + 0.09 * speedFrac;
+      pf[0] = cam.P[0]; pf[1] = cam.P[1]; pf[2] = cam.P[2]; pf[3] = gameTime;
+      pf[4] = cam.fwd[0]; pf[5] = cam.fwd[1]; pf[6] = cam.fwd[2]; pf[7] = FOV * fovKick;
+      pf[8] = cam.right[0]; pf[9] = cam.right[1]; pf[10] = cam.right[2]; pf[11] = VFOV * fovKick;
+      pf[12] = cam.up[0]; pf[13] = cam.up[1]; pf[14] = cam.up[2]; pf[15] = 0.5;
+      pf[16] = R0; pf[17] = TUBE; pf[18] = VWIND; pf[19] = speedFrac;
+      pu32[20] = w; pu32[21] = h; pu32[22] = GATE_N; pu32[23] = 2;
+      device.queue.writeBuffer(paramBuf, 0, pd);
+
+      const enc = device.createCommandEncoder();
+      const comp = enc.beginComputePass();
+      comp.setPipeline(computePipeline);
+      comp.setBindGroup(0, computeBG);
+      comp.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(h / 8));
+      comp.end();
+      const pass = enc.beginRenderPass({
+        colorAttachments: [{
+          view: gpuCtx.getCurrentTexture().createView(),
+          loadOp: 'clear', storeOp: 'store',
+          clearValue: { r: 0, g: 0, b: 0, a: 1 },
+        }],
+      });
+      pass.setPipeline(blitPipeline);
+      pass.setBindGroup(0, blitBG);
+      pass.draw(3);
+      pass.end();
+      device.queue.submit([enc.finish()]);
+    },
+  };
+}
+initWebGPU()
+  .then(() => { if (!gpu) { gpuFailed = true; fbCanvas.style.display = 'block'; gpuCanvas.style.display = 'none'; } })
+  .catch((e) => {
+    console.warn('WebGPU unavailable:', e);
+    gpu = null; gpuFailed = true;
+    fbCanvas.style.display = 'block'; gpuCanvas.style.display = 'none';
+  });
+/* ---------- trackmap: the (u,v) chart — the whole course at a glance ---------- */
+const mapCanvas = document.getElementById('map');
+const mmCtx = mapCanvas.getContext('2d');
+
+function drawTrackmap(c, W, H, now) {
+  c.fillStyle = '#070512';
+  c.fillRect(0, 0, W, H);
+  c.strokeStyle = 'rgba(120,120,160,0.16)';
+  c.lineWidth = 1;
+  for (let k = 0; k <= 4; k++) {
+    const x = (k / 4) * W, y = (k / 4) * H;
+    c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke();
+    c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke();
+  }
+  // the ribbon: VWIND diagonals (v climbs two full wraps per lap)
+  c.strokeStyle = 'rgba(255,180,58,0.50)';
+  c.lineWidth = 2;
+  for (let j = 0; j < VWIND; j++) {
+    c.beginPath();
+    c.moveTo((j / VWIND) * W, H);
+    c.lineTo(((j + 1) / VWIND) * W, 0);
+    c.stroke();
+  }
+  // start meridian
+  c.strokeStyle = 'rgba(255,255,255,0.65)';
+  c.lineWidth = 1.5;
+  c.beginPath(); c.moveTo(0, 0); c.lineTo(0, H); c.stroke();
+
+  for (let k = 0; k < GATE_N; k++) {
+    const g = gates[k];
+    const x = (g.u / TAU) * W, y = (g.v / TAU) * H;
+    if (k === nextGate && (state === 'racing' || state === 'countdown')) {
+      c.fillStyle = '#ffb43a';
+      c.beginPath(); c.arc(x, y, 2.4 + 1.2 * Math.sin(gameTime * 7), 0, TAU); c.fill();
+    } else {
+      c.fillStyle = k === 0 ? 'rgba(255,255,255,0.8)' : 'rgba(55,230,200,0.55)';
+      c.beginPath(); c.arc(x, y, k === 0 ? 2.2 : 1.5, 0, TAU); c.fill();
+    }
+  }
+  const dot = (P, style, r) => {
+    if (!P) return;
+    const u = Math.atan2(P[2], P[0]);
+    const v = Math.atan2(P[1], Math.hypot(P[0], P[2]) - R0);
+    c.fillStyle = style;
+    c.beginPath(); c.arc((wrapTau(u) / TAU) * W, (wrapTau(v) / TAU) * H, r, 0, TAU); c.fill();
+  };
+  dot(pacerPos(now), '#ff4f9e', 2.6);
+  dot(ghostPos(now), 'rgba(160,200,255,0.8)', 2.2);
+  dot(eyePos(), '#ffffff', 3.0);
+  const px = (wrapTau(player.u) / TAU) * W, py = (wrapTau(player.v) / TAU) * H;
+  c.strokeStyle = '#ffffff';
+  c.lineWidth = 1.4;
+  c.beginPath();
+  c.moveTo(px, py);
+  c.lineTo(px + Math.sin(player.yaw) * 9, py + Math.cos(player.yaw) * 9);
+  c.stroke();
+}
+
+/* ---------- 2D fallback (no WebGPU): the map becomes the view ---------- */
+function renderFallback(now) {
+  const w = fbCanvas.width, h = fbCanvas.height;
+  fbCtx.fillStyle = '#05030c';
+  fbCtx.fillRect(0, 0, w, h);
+  fbCtx.fillStyle = '#8f8a7a';
+  fbCtx.font = '14px monospace';
+  fbCtx.textAlign = 'center';
+  fbCtx.fillText('WEBGPU UNAVAILABLE — COURSE MAP VIEW', w / 2, 34);
+  const s = Math.min(w - 80, h - 120) / TAU;
+  fbCtx.save();
+  fbCtx.translate(w / 2 - Math.PI * s, h / 2 - Math.PI * s + 20);
+  drawTrackmap(fbCtx, TAU * s, TAU * s, now);
+  fbCtx.restore();
+}
+
+/* ---------- HUD ---------- */
+const hud = {};
+for (const id of ['time', 'lapline', 'bestline', 'ringline', 'speed', 'msg', 'count'])
+  hud[id] = document.getElementById(id);
+const speedBar = document.querySelector('#speedbar i');
+const hudCache = {};
+
+function fmtMs(ms) {
+  ms = Math.max(0, Math.round(ms));
+  const m = Math.floor(ms / 60000), s = Math.floor((ms % 60000) / 1000), mm = ms % 1000;
+  return m + ':' + String(s).padStart(2, '0') + '.' + String(mm).padStart(3, '0');
+}
+function setText(node, txt) {
+  if (hudCache[node.id] === txt) return;
+  hudCache[node.id] = txt;
+  node.textContent = txt;
+}
+function raceClock(now) {
+  if (state === 'menu') return 0;
+  if (state === 'finished') return finishTotal;
+  return Math.max(0, now - raceStart);
+}
+function updateHUD(now) {
+  setText(hud.time, fmtMs(raceClock(now)));
+  const lapHtml = 'LAP <b>' + Math.min(lap, LAPS) + '</b>/' + LAPS;
+  if (hudCache.lapline !== lapHtml) { hudCache.lapline = lapHtml; hud.lapline.innerHTML = lapHtml; }
+  setText(hud.bestline, 'BEST ' + (bestMs === null ? '—' : fmtMs(bestMs)));
+  setText(hud.ringline, 'RING ' + (nextGate === 0 ? GATE_N : nextGate) + '/' + GATE_N);
+  const spd = player.airborne ? Math.hypot(player.vel[0], player.vel[1], player.vel[2])
+                              : Math.hypot(player.pu, player.pv);
+  setText(hud.speed, String(Math.round(spd * 14)));
+  speedBar.style.width = Math.min(100, (spd / TOP_SPEED) * 100) + '%';
+
+  if (state === 'countdown') {
+    const left = Math.ceil((raceStart - now) / 1000);
+    hud.count.style.display = 'block';
+    setText(hud.count, left > 0 ? String(left) : 'GO');
+  } else {
+    hud.count.style.display = 'none';
+  }
+}
+
+let msgTimer = 0;
+function showMsg(txt, ms) {
+  const parts = txt.split('\n');
+  hud.msg.innerHTML = parts[0] + (parts[1] ? '<small>' + parts[1] + '</small>' : '');
+  hud.msg.style.display = 'block';
+  msgTimer = performance.now() + ms;
+}
+function hideMsg() { hud.msg.style.display = 'none'; }
+
+function showFinish() {
+  document.getElementById('fin-total').textContent = fmtMs(finishTotal);
+  let html = '';
+  lapTimes.forEach((tms, i) => {
+    html += '<tr' + (tms === bestMs ? ' class="best"' : '') +
+      '><td>LAP ' + (i + 1) + '</td><td>' + fmtMs(tms) + '</td></tr>';
+  });
+  html += '<tr><td>BEST LAP</td><td>' + fmtMs(bestMs) + '</td></tr>';
+  document.getElementById('fin-table').innerHTML = html;
+  document.getElementById('finish').style.display = 'flex';
+}
+
+/* ---------- game loop ---------- */
+function tick(now) {
+  if (state === 'countdown' && now >= raceStart) {
+    state = 'racing';
+    showMsg('GO!', 800);
+  }
+  if (state === 'finished' && autopilot && now > finishAt + FINISH_HOLD_MS) startRace(true);
+  if (msgTimer && now > msgTimer) { hideMsg(); msgTimer = 0; }
+
+  updatePlayer(dt_);
+  if (state === 'racing') { checkGates(now); recordGhost(now); }
+
+  const cam = computeCamera();
+  const spd = player.airborne ? Math.hypot(player.vel[0], player.vel[1], player.vel[2])
+                              : Math.hypot(player.pu, player.pv);
+  if (gpu) gpu.render(now, cam, Math.min(1, spd / TOP_SPEED));
+  else if (gpuFailed) renderFallback(now);
+  drawTrackmap(mmCtx, mapCanvas.width, mapCanvas.height, now);
+  updateHUD(now);
+}
+let dt_ = 0.016;
+function frame(now) {
+  requestAnimationFrame(frame);
+  dt_ = Math.min(0.05, Math.max(0.001, (now - lastNow) / 1000)) || 0.016;
+  lastNow = now;
+  gameTime += dt_;
+  try { tick(now); }
+  catch (e) { if (!frameWarned) { console.warn('frame error:', e); frameWarned = true; } }
+}
+
+/* ---------- the capture contract ---------- */
+window.__inpacState = () => ({
+  running: state === 'countdown' || state === 'racing',
+  timeMs: raceClock(performance.now()),
+  lap: Math.min(lap, LAPS),
+  laps: LAPS,
+  bestMs: bestMs === null ? null : bestMs,
+});
+
+/* ---------- boot ---------- */
+function resize() {
+  gpuCanvas.width = window.innerWidth;
+  gpuCanvas.height = window.innerHeight;
+  fbCanvas.width = window.innerWidth;
+  fbCanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+resetPlayer();
+drawTrackmap(document.getElementById('startmap').getContext('2d'), 224, 168, performance.now());
+requestAnimationFrame(frame);
+
+// ?autostart=1 — the harness sends no input; begin play at once, as an
+// attract mode that actually races (any key or click hands over the wheel).
+if (new URLSearchParams(location.search).has('autostart')) startRace(true);
+</script>
+
+<script>
+/* field.mjs loader: over http(s) the module imports cleanly and the game
+   drives its physics from it; under file:// module loads are CORS-blocked,
+   so the byte-identical inline copy above stays in use instead. */
+if (location.protocol !== 'file:') {
+  const s = document.createElement('script');
+  s.type = 'module';
+  s.textContent =
+    "import { field } from './field.mjs';\n" +
+    "if (window.__inpacField) { window.__inpacField.field = field; window.__inpacField.source = 'field.mjs'; }";
+  s.onerror = () => {};
+  document.head.appendChild(s);
+}
+</script>
+</body>
+</html>
+</script>
+</body>
+</html>
