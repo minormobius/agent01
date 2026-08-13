@@ -120,11 +120,15 @@ async function boot() {
   applySkin(farm);
   isoMain = createIso($('#bed'), { onTap: onFieldTap });
 
-  // fullscreen: the map is the game — give it the whole glass on request
+  // BIG FARM: not the browser's F11 — the FIELD grows to fill the viewing window and everything
+  // else steps aside. Same button toggles back.
   const fs = $('#fsbtn');
   if (fs) fs.onclick = () => {
-    if (document.fullscreenElement) document.exitFullscreen();
-    else document.documentElement.requestFullscreen().catch(() => toast('fullscreen refused by the browser', 'warn'));
+    const on = document.body.classList.toggle('bigfarm');
+    fs.textContent = on ? '✕' : '⛶';
+    fs.title = on ? 'back to the homestead view' : 'big farm — the field takes the whole window';
+    window.dispatchEvent(new Event('resize'));   // the iso canvas re-measures itself
+    redrawBed();
   };
   // collapsible trackers remember how you left them
   $$('details[data-fold]').forEach((d) => {
