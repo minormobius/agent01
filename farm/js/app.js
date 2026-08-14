@@ -19,7 +19,7 @@ import {
   animalFed, animalProducing, animalById, forage, grantWildseed,
   FORGE_REQ, ALLOYS, CHARM_DEFS, CHARM_COST, CHARM_SPD, CHARM_SELL, buildForge, smeltAlloy,
   smeltReady, collectSmelt, sellAlloy, forgeCharm, setCharm, activeCharm, cropPlanet, allCrops,
-  modOn, setMod, clearPlant, WATER_RANGE, THIRSTY, waterSourceWithin,
+  modOn, setMod, clearPlant, WATER_RANGE, THIRSTY, waterSourceWithin, saveAhead,
 } from './state.js';
 import * as Mine from './mine.js';
 import { ACHIEVEMENTS, byId as achById, evaluate as evalAch, markEarned, shareText } from './achievements.js';
@@ -81,6 +81,11 @@ const CRAFT_TOOLS = [
 ];
 let pendingBuy = null;   // { key, at } — a FOR-SALE parcel tapped once, awaiting its confirming tap
 
+// LAUNCH FLAG: petitions post a public courier flare to the petitioner's Bluesky feed. Off until
+// the town launches — the sweep's farmers rail reads petition records straight from known repos,
+// so the council loop runs fine without it; verdicts show in the hall instead of a reply thread.
+const COURIER_POSTS = false;
+
 async function boot() {
   // THE TESTING TABLE: the same code serves farm-next.mino.mobi from its own branch, where
   // granted petitions go live immediately. Same save (the covenant keeps the worlds compatible)
@@ -107,12 +112,30 @@ async function boot() {
 
   if (u) { await bootVisitor(u); return; }
 
-  // FARMER: prefer the PDS copy, else local, else a fresh field. Signing in promotes the local farm
-  // if the PDS has none (a wanderer's work is not thrown away).
+  // FARMER: pick between the PDS copy and the local mirror by PROGRESS first, wall-clock second.
+  // Timestamps lie across devices: a stale phone that merely opens later re-stamps an old world
+  // (the streak commit fires on boot) and would win every updatedAt race — burying the other
+  // device's unsynced session for good. saveAhead compares monotonic counters instead; when one
+  // copy is an unambiguous superset it wins regardless of clocks, and a genuine fork (each ahead
+  // somewhere) keeps the cloud copy live but stashes the local one in the attic with a restore.
   const local = store.loadLocal();
   const remote = await store.loadRemote();
   const did = store.user ? store.user.did : 'wanderer';
-  if (remote && (!local || (remote.updatedAt || 0) >= (local.updatedAt || 0))) farm = remote;
+  if (remote && local) {
+    if (saveAhead(local, remote)) {
+      farm = local;
+      if ((remote.updatedAt || 0) > (local.updatedAt || 0)) toast('🧵 this device held progress the cloud never received — recovered and resyncing', 'ach', 9000);
+      store.save(farm, now(), { immediate: true });   // push the recovered progress up
+    } else if (saveAhead(remote, local) || (remote.updatedAt || 0) >= (local.updatedAt || 0)) {
+      farm = remote;
+    } else {
+      // local is newer by clock but not a clean superset — a fork. Cloud wins (it's what every
+      // other device sees), local waits in the attic behind a one-tap restore.
+      farm = remote;
+      store.stashAttic(local, now());
+      toast('🧳 this device also holds a diverged save — <button class="mini" id="atticgo">bring it back</button> <span class="dim">(replaces the cloud copy)</span>', 'warn', 30000);
+    }
+  } else if (remote) farm = remote;
   else if (local) farm = local;
   else farm = newFarm(did, ark, now());
   if (store.user && !remote && local) store.save(farm, now(), { immediate: true });   // promotion
@@ -1108,7 +1131,7 @@ async function renderMyPetitions() {
         || (led.entries || []).find((e) => e.petition === r.uri);
       const status = granted
         ? '<b style="color:var(--green,#8fd07a)">⚗️ granted — live on <a href="https://farm-next.mino.mobi/">the testing table</a></b>'
-        : '<span class="dim">⏳ filed — awaiting the council (it sweeps every 15 minutes when awake; grants land on the table and reply to your post)</span>';
+        : '<span class="dim">⏳ filed — awaiting the council (it sweeps every 15 minutes when awake; grants land on the table' + (COURIER_POSTS ? ' and reply to your post' : '') + ')</span>';
       return '<div class="giftrow">🪧 “' + esc(text.slice(0, 90)) + (text.length > 90 ? '…' : '') + '” <span class="dim">' + esc(at) + '</span><br>' + status + '</div>';
     }).join('');
   } catch (e) { el.innerHTML = '<span class="dim">could not read your repo just now — the records are safe, try reopening the hall</span>'; }
@@ -1126,15 +1149,20 @@ function wirePetitionBox() {
       const r = await store.writePetition(text, null, now());
       if (!r) return;   // scope escalation redirected
       $('#petitiontext').value = '';
-      // the COURIER POST is how the sweep discovers petitions (public search on the tag) and
-      // where the council replies with your testing-table link — the record is the truth, the
-      // post is the flare. Best effort: a petition without its flare still exists, it just
-      // waits for a slower road.
-      try {
-        await store.sharePost('🪧 petitioned the Harvestople town council: “' + text.slice(0, 170) + '” #harvestople\n\nfarm.mino.mobi');
-        $('#petitionnote').textContent = 'filed + posted. The council builds or declines within the hour and replies to your post — grants come with a live testing link.';
-      } catch (e) {
-        $('#petitionnote').textContent = 'filed — but the courier post failed, and that post is how the council finds petitions and replies. Try again later from the deeds sign.';
+      // the COURIER POST is the public flare: it advertises the town on the petitioner's feed and
+      // gives the council a thread to reply in. The record is the truth either way — the sweep's
+      // farmers rail reads petitions straight from known repos, so the loop runs without the post.
+      // PRE-LAUNCH the flare stays home (nobody wants test wishes on their real feed); flip
+      // COURIER_POSTS at launch.
+      if (COURIER_POSTS) {
+        try {
+          await store.sharePost('🪧 petitioned the Harvestople town council: “' + text.slice(0, 170) + '” #harvestople\n\nfarm.mino.mobi');
+          $('#petitionnote').textContent = 'filed + posted. The council builds or declines within the hour and replies to your post — grants come with a live testing link.';
+        } catch (e) {
+          $('#petitionnote').textContent = 'filed — but the courier post failed, and that post is how the council finds petitions and replies. Try again later from the deeds sign.';
+        }
+      } else {
+        $('#petitionnote').textContent = 'filed — the council reads wishes straight from your repo (no public post while the town is pre-launch). Watch your petitions above for the verdict.';
       }
       toast('🪧 petition filed with the council', 'ach', 6000);
     } catch (e) { toast('the courier stumbled — try again', 'warn'); }
@@ -1145,6 +1173,18 @@ function wirePetitionBox() {
 document.addEventListener('click', (e) => {
   const b = e.target.closest('.share');
   if (b && b.dataset.ach) shareAch(b.dataset.ach);
+});
+
+// the attic restore: the player chooses the diverged local save over the cloud copy
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#atticgo')) return;
+  const attic = store.loadAttic();
+  if (!attic) { toast('the attic is empty', 'warn'); return; }
+  farm = attic;
+  commit(farm, { immediate: true });   // this save is the truth again — everywhere
+  applySkin(farm); renderHeader(); renderAll(); redrawBed();
+  const t = e.target.closest('.toast'); if (t) t.remove();
+  toast('🧳 restored — this device’s save is the farm again', 'ach', 7000);
 });
 
 // ── VISITOR mode (?u=) ────────────────────────────────────────────────────────────────────────────

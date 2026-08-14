@@ -53,7 +53,26 @@ export class FarmStore extends EventTarget {
     this.auth.onAuthChange((user) => { this.user = user; this._emit('auth', { user }); });
     try { await this.auth.init(); } catch (e) { /* offline — the local tier still farms */ }
     this.user = this.auth.getUser();
+    // THE TAB-CLOSE HOLE: a debounced (or backing-off) save dies with the tab, and on phones the
+    // browser freezes timers the moment the app is backgrounded — a whole session can sit in
+    // _pending and never reach the PDS. Flush the instant the page hides (visibilitychange fires
+    // before the freeze, and an in-flight fetch is allowed to finish), and again when the network
+    // returns. pagehide is the desktop tab-close backstop.
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') this.flushNow(); });
+      window.addEventListener('pagehide', () => this.flushNow());
+      window.addEventListener('online', () => this.flushNow());
+    }
     return this.user;
+  }
+
+  // flush RIGHT NOW: skip the debounce and forgive any transient-failure backoff (a fresh
+  // network or a closing tab both deserve one immediate try, not the tail of a 60s wait).
+  flushNow() {
+    if (!this._dirty || !this.user) return;
+    if (this._saveTimer) { clearTimeout(this._saveTimer); this._saveTimer = null; }
+    this._failures = 0;
+    return this._flush();
   }
 
   login(handle) { return this.auth.login(handle, { scope: SCOPE }); }
@@ -81,6 +100,17 @@ export class FarmStore extends EventTarget {
   }
   saveLocal(farm, now) {
     try { localStorage.setItem(LS_KEY, JSON.stringify(toPlotRecord(farm, now))); } catch (e) { /* quota — PDS still has it */ }
+  }
+
+  // the ATTIC: when boot must choose between two copies of the save, the loser goes here instead
+  // of silently ceasing to exist. One slot, this device only — the safety net for the day two
+  // devices genuinely diverge (each ahead somewhere) and the player has to pick.
+  stashAttic(farm, now) {
+    try { localStorage.setItem(LS_KEY + ':attic', JSON.stringify(toPlotRecord(farm, now))); } catch (e) { /* best effort */ }
+  }
+  loadAttic() {
+    try { const raw = localStorage.getItem(LS_KEY + ':attic'); return raw ? fromPlotRecord(JSON.parse(raw)) : null; }
+    catch (e) { return null; }
   }
 
   // ── the plot record (rkey self) ──
