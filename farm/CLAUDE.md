@@ -85,7 +85,17 @@ Two consequences worth internalising:
 
 Signed-out play works (localStorage tier); signing in promotes the local farm.
 Writes go through the shared auth worker's `/pds/*` proxy, debounced — the PDS
-is a save file, not a keystroke log.
+is a save file, not a keystroke log. Two protections around that debounce
+(2026-08-14, after a real cross-device loss): `store.flushNow()` fires on
+`visibilitychange:hidden` / `pagehide` / `online` so a pending save doesn't
+die with the tab (phones freeze timers on background — this was the hole);
+and boot picks between local and remote by **progress, not clocks** —
+`saveAhead()` compares monotonic counters (`progressMarks`), because a stale
+device that merely opens later re-stamps `updatedAt` (streak commit) and
+would win every timestamp race. An unambiguously-ahead local copy is adopted
+and resynced; a genuine fork keeps the cloud copy and stashes local at
+`farm:save:attic` behind a one-tap restore toast. `test/sync.selftest.mjs`
+encodes the incident.
 
 ## The game systems and where they came from
 
@@ -228,7 +238,10 @@ two stats; `fromPlotRecord` walks v1→v6.
 ## The town council — players change the game (the immediate loop)
 
 Petition (deeds sign) → record in the player's own repo + `#harvestople`
-courier post → **`farm-sweep.yml`** (15-min cron) finds it, convenes a
+courier post (**pre-launch the post is off** — `COURIER_POSTS` in `js/app.js`;
+the sweep's farmers rail reads petition records straight from the repos in
+`council/farmers.json`, and verdicts then show in the hall instead of a reply
+thread. Flip the flag at launch) → **`farm-sweep.yml`** (15-min cron) finds it, convenes a
 headless council session (`claude -p`, no Bash — lab-build containment) on
 **`claude/farm-next`**, which builds the wish or declines it → the walls
 judge the diff (`next-scope.mjs` + every selftest) → push deploys **the

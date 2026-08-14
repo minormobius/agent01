@@ -1405,6 +1405,30 @@ export function recordShare(farm, achId, now) {
   return { ok: true, farm: next, coins: SHARE_COINS };
 }
 
+// ── which copy of a save carries more LIVED progress? ──
+// updatedAt is wall-clock and wall-clocks lie across devices: a stale phone that merely BOOTS
+// later re-stamps an old world (the streak commit fires on open) and wins every timestamp race,
+// silently burying the other device's session. These counters only ever grow, so they can't lie.
+export function progressMarks(f) {
+  const s = (f && f.stats) || {};
+  return [
+    s.harvests | 0, s.planted | 0, s.sold | 0, s.brews | 0, s.oresMined | 0, s.terraforms | 0,
+    s.animalsBought | 0, s.goodsCollected | 0, s.foraged | 0, s.alloysSmelted | 0, s.charmsForged | 0,
+    (f && f.mine && f.mine.depth) | 0,
+    (f && f.pulls) | 0,
+    ((f && f.parcels) || ['0,0']).length,
+    ((f && f.owned) || []).length,
+    Object.keys((f && f.achievements) || {}).length,
+  ];
+}
+// true when `a` is at least `b` on every mark and strictly ahead on one — an unambiguous superset
+// of progress. Diverged saves (each ahead somewhere) return false both ways: that's a real fork,
+// and the caller should keep both and let the player choose.
+export function saveAhead(a, b) {
+  const A = progressMarks(a), B = progressMarks(b);
+  return A.every((v, i) => v >= B[i]) && A.some((v, i) => v > B[i]);
+}
+
 // ── record shape: the whole farm IS one com.minomobi.farm.plot record (rkey `self`). ──
 export function toPlotRecord(farm, now) {
   return { $type: 'com.minomobi.farm.plot', v: 1, farm, updatedAt: new Date(now).toISOString() };
