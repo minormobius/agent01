@@ -81,10 +81,11 @@ const CRAFT_TOOLS = [
 ];
 let pendingBuy = null;   // { key, at } — a FOR-SALE parcel tapped once, awaiting its confirming tap
 
-// LAUNCH FLAG: petitions post a public courier flare to the petitioner's Bluesky feed. Off until
-// the town launches — the sweep's farmers rail reads petition records straight from known repos,
-// so the council loop runs fine without it; verdicts show in the hall instead of a reply thread.
-const COURIER_POSTS = false;
+// LAUNCH FLAG: petitions post a public courier flare to the petitioner's Bluesky feed — it is how
+// the sweep discovers petitioners it doesn't already know (the farmers rail only reads repos in
+// farmers.json), and the thread the council replies in with the testing-table link. ON since
+// launch (2026-08-14); flip false only for private testing.
+const COURIER_POSTS = true;
 
 async function boot() {
   // THE TESTING TABLE: the same code serves farm-next.mino.mobi from its own branch, where
