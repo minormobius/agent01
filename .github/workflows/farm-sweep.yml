@@ -28,6 +28,7 @@ concurrency:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   sweep-and-build:
@@ -136,6 +137,19 @@ jobs:
           git add -A
           git diff --cached --quiet || git commit -m "council: worked ${{ steps.sweep.outputs.count }} petition(s)"
           git push origin claude/farm-next
+
+      # A GITHUB_TOKEN push never fires push-triggered workflows (recursion guard) — the same
+      # trap farm-council.yml dodges. Without this, a granted wish sits on the branch while the
+      # table serves yesterday. First real petition (candyland) hit exactly this.
+      - name: Dispatch the table deploy
+        if: steps.sweep.outputs.count != '0'
+        run: |
+          curl -fsS -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy-farm-next.yml/dispatches \
+            -d '{"ref":"claude/farm-next"}' \
+            || echo "::warning::dispatch refused — the next human push to claude/farm-next will carry the grant out"
 
       # one reply per petitioner, in their own thread, with the live link
       - name: Reply to petitioners
