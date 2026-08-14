@@ -33,9 +33,9 @@ _Regenerated 2026-08-14 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 79, bluesky 73, data 57, tools 56, work 8.
 
-**Neighborhood spark** (bisk 2026-08-14, 99 members / 280 posts):
+**Neighborhood spark** (bisk 2026-08-14, 99 members / 272 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: foid, bluesky, glm
+- Distinctive words: foid, glm, cerebras
 - Top post: "I'm beginning to frame a unified theory of moral panics—which is: You can start wars or raise tariffs 100% and it's NBD," — @tedunderwood.com
 <!-- BRIEF_END -->
 
