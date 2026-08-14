@@ -1,0 +1,6 @@
+{
+  "comment": "Known petitioners — the sweep polls these repos DIRECTLY (public listRecords, no search, no auth), so a returning farmer's wish is never lost to a search outage. The sweep appends newly-discovered petitioners itself.",
+  "farmers": [
+    { "did": "did:plc:7zre4plmd5jllccww575j6sb", "handle": "minormobius.bsky.social" }
+  ]
+}

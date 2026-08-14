@@ -1043,6 +1043,7 @@ function renderDeeds() {
 const ON_TABLE = location.hostname === 'farm-next.mino.mobi';
 async function renderHall() {
   wirePetitionBox();   // FIRST — the submit button must never wait on a network fetch
+  renderMyPetitions();
   const el = $('#townledger');
   if (el && !el.dataset.loaded) {
     el.dataset.loaded = '1';
@@ -1081,6 +1082,35 @@ async function renderHall() {
       });
     } catch (e) { mb.innerHTML = '<span class="dim">could not reach the testing table just now</span>'; }
   }
+}
+
+// YOUR PETITIONS — read straight from YOUR OWN repo (keyless public XRPC), every visit, no
+// cache: filing is a record write, so this is the proof-of-receipt the town hall owed you.
+// Status is derived from public artifacts: the mods registry (granted → live on the table),
+// the town ledger, else "awaiting the council".
+async function renderMyPetitions() {
+  const el = $('#mypetitions');
+  if (!el) return;
+  if (!store.user) { el.innerHTML = '<span class="dim">sign in — your petitions are records in your own repo, and they show here with their status</span>'; return; }
+  el.innerHTML = '<span class="dim">reading your repo…</span>';
+  try {
+    const [recs, reg, led] = await Promise.all([
+      Social.listRecordsFrom(store.user.did, Social.PETITION_COLLECTION, 25),
+      fetch('https://farm-next.mino.mobi/mods/registry.json').then((r) => r.json()).catch(() => ({ mods: [] })),
+      fetch('./council/ledger.json').then((r) => r.json()).catch(() => ({ entries: [] })),
+    ]);
+    if (!recs.length) { el.innerHTML = '<span class="dim">none yet — the box above is waiting</span>'; return; }
+    el.innerHTML = recs.map((r) => {
+      const text = (r.value && r.value.text) || '';
+      const at = ((r.value && r.value.createdAt) || '').slice(0, 10);
+      const granted = (reg.mods || []).find((m) => m.petition === r.uri)
+        || (led.entries || []).find((e) => e.petition === r.uri);
+      const status = granted
+        ? '<b style="color:var(--green,#8fd07a)">⚗️ granted — live on <a href="https://farm-next.mino.mobi/">the testing table</a></b>'
+        : '<span class="dim">⏳ filed — awaiting the council (it sweeps every 15 minutes when awake; grants land on the table and reply to your post)</span>';
+      return '<div class="giftrow">🪧 “' + esc(text.slice(0, 90)) + (text.length > 90 ? '…' : '') + '” <span class="dim">' + esc(at) + '</span><br>' + status + '</div>';
+    }).join('');
+  } catch (e) { el.innerHTML = '<span class="dim">could not read your repo just now — the records are safe, try reopening the hall</span>'; }
 }
 
 function wirePetitionBox() {
