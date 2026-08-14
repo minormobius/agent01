@@ -83,8 +83,9 @@ table. Rarely the hot path now.
    its logic behind `modOn(farm, '<id>')` so a player can shelve it from the
    town hall board (both worlds render that board; the petitioner's own
    entries pin first, starred). Then append `farm/council/ledger.json` —
-   date, change, petitioner handle, tier. The ledger is served; credit is
-   the reward.
+   date, change, petitioner handle, tier, and `petition` (the at:// uri) so
+   the hall's "your petitions" panel can show the grant. The ledger is
+   served; credit is the reward.
 4. For every petition write `farm/council/queue/done/<basename>.verdict.json`
    `{ verdict: "granted"|"refused", reply: "<one warm sentence>", post: <the
    queue file's post object, verbatim> }` and delete the queue file. The
