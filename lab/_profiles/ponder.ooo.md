@@ -164,6 +164,22 @@ when a math/CS paper's own theorems pick out a "for this everything holds"
 special case, ship that case first and name the harder general case as future
 work, rather than guessing at a harder variant that might not actually work.
 
+Fifteenth request (2026-08-14), "exhaustive gallery of elementary cellular
+automata... let the user set the initial condition in one place & generate
+the whole gallery in parallel from that" — terse, purely mathematical again,
+no reference link. Consistent with the fourth/fifth requests' standing
+pattern of taking a stated bound literally and building the real thing: "the
+whole gallery" was read as literally all 256 rules (not a curated subset),
+each independently addressable and simultaneously regenerated from one
+shared control, with no extra sliders (width/steps fixed) added beyond what
+was asked. "In parallel" read as "all computed together from one shared
+input and shown side by side," not literally Web Workers — at this data
+size (256 rules × 51 cells × 51 rows) plain synchronous JS is sub-frame, so
+added complexity there would have been pure cost. Worth watching: if a
+future ask pushes this kind of exhaustive-sweep pattern to a much larger
+N, that's the point actual parallelism (workers) would start earning its
+keep — not before.
+
 Thirteenth request (2026-07-31), continuing meta-todo: asked for two
 prioritized backlog entries — a max-priority one about pointing future build
 agents at general-template as their base, a high-priority one about rolling

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>All 256 elementary cellular automata, one initial row</title>
+<meta name="description" content="Set one starting row of cells and watch all 256 elementary cellular automata (Wolfram's rule 0 through rule 255) run 50 steps from it side by side, computed live in your browser.">
+<meta property="og:title" content="All 256 elementary cellular automata, one initial row">
+<meta property="og:description" content="Set one starting row of cells and watch all 256 elementary cellular automata run 50 steps from it, side by side.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  /* 256 tiles want more room than the kit's default reading-width column. */
+  main { max-width: 84rem; }
+  .panel {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-raised); padding: 1rem 1.1rem; margin: 1rem 0;
+  }
+  #editor {
+    width: 100%; background: #fff; border: 1px solid var(--border);
+    border-radius: var(--radius); touch-action: none; display: block;
+    cursor: crosshair; height: 3rem;
+  }
+  .actions { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: .8rem; }
+  .actions button { min-height: 44px; flex: 1 1 7rem; }
+  .editor-label { font-size: .75rem; color: var(--muted); margin: 0 0 .5rem; display: flex; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
+  .editor-label b { color: var(--accent); }
+  #gallery {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: .6rem; margin-top: 1.5rem;
+  }
+  .cell {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: .35rem;
+  }
+  .cell canvas {
+    width: 100%; aspect-ratio: 1 / 1; display: block; background: #fff;
+    image-rendering: pixelated; image-rendering: crisp-edges;
+    border-radius: 2px;
+  }
+  .cell .num {
+    font-size: .68rem; color: var(--muted); text-align: center; margin-top: .3rem;
+  }
+  footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>256 elementary cellular automata</h1>
+  <p class="sub">Every elementary cellular automaton — Wolfram's rule 0
+    through rule 255 — run for 50 steps from <strong>the same starting
+    row</strong>, set once below. Edges wrap around, so the row is really a
+    ring.</p>
+
+  <div class="panel">
+    <p class="editor-label">initial row &mdash; drag to paint <span><b id="onCount">0</b> of <b id="widthOut">51</b> cells on</span></p>
+    <canvas id="editor" aria-label="Initial row editor: drag left to right to toggle cells on and off"></canvas>
+    <div class="actions">
+      <button id="singleBtn">Single cell</button>
+      <button id="randomBtn">Random</button>
+      <button id="allBtn">All on</button>
+      <button id="invertBtn">Invert</button>
+      <button id="clearBtn">Clear</button>
+    </div>
+  </div>
+
+  <div id="gallery" aria-label="Gallery of all 256 rules, generated from the row above"></div>
+
+  <div class="panel" style="margin-top:1.5rem">
+    <p style="margin:0 0 .7rem">An <strong>elementary cellular
+      automaton</strong> is a row of black/white cells that updates all at
+      once: each cell's next state depends only on itself and its two
+      neighbours, and one of the 2<sup>3</sup>&nbsp;=&nbsp;8 possible
+      neighbourhoods maps to one of 2<sup>8</sup>&nbsp;=&nbsp;256 possible
+      rules &mdash; Wolfram's numbering reads the rule's 8 output bits as a
+      binary number, which is the number on each tile below. Rule 30 is
+      chaotic, rule 90 draws a Sierpi&#324;ski triangle from a single cell,
+      rule 110 is Turing-complete &mdash; the same eight neighbourhood cases,
+      256 different answers to what to do with them.</p>
+    <p style="margin:0">Every tile is computed from the exact row you set
+      above, live, right here: no server, nothing precomputed. Painting the
+      row regenerates all 256 grids at once.</p>
+  </div>
+
+  <footer class="foot">Runs entirely in your browser: no server, no stored
+    data, nothing sent anywhere.</footer>
+</main>
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('exhaustive-gallery');
+
+  var WIDTH = 51;
+  var STEPS = 50;
+  var HEIGHT = STEPS + 1;
+
+  var row = new Uint8Array(WIDTH);
+  row[(WIDTH / 2) | 0] = 1; // default: single cell, centred
+
+  // ------------------------------------------------------------------
+  // initial-row editor — one canvas, drawn as WIDTH rectangles; painted
+  // by fractional pointer position so it works at any CSS size.
+  // ------------------------------------------------------------------
+  var editor = document.getElementById('editor');
+  var ectx = editor.getContext('2d');
+  var onCountEl = document.getElementById('onCount');
+  document.getElementById('widthOut').textContent = WIDTH;
+
+  function sizeEditor() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var rect = editor.getBoundingClientRect();
+    var w = Math.max(1, Math.round(rect.width * dpr));
+    var h = Math.max(1, Math.round(rect.height * dpr));
+    if (editor.width !== w || editor.height !== h) { editor.width = w; editor.height = h; }
+  }
+
+  function drawEditor() {
+    sizeEditor();
+    var w = editor.width, h = editor.height;
+    ectx.clearRect(0, 0, w, h);
+    ectx.fillStyle = '#fff';
+    ectx.fillRect(0, 0, w, h);
+    ectx.fillStyle = '#111';
+    var cellW = w / WIDTH;
+    var on = 0;
+    for (var i = 0; i < WIDTH; i++) {
+      if (row[i]) { ectx.fillRect(Math.round(i * cellW), 0, Math.ceil(cellW) + 1, h); on++; }
+    }
+    ectx.strokeStyle = 'rgba(0,0,0,.12)';
+    ectx.lineWidth = 1;
+    for (var g = 1; g < WIDTH; g++) {
+      var x = Math.round(g * cellW) + .5;
+      ectx.beginPath(); ectx.moveTo(x, 0); ectx.lineTo(x, h); ectx.stroke();
+    }
+    onCountEl.textContent = on;
+  }
+
+  function cellIndexAt(clientX) {
+    var rect = editor.getBoundingClientRect();
+    var frac = (clientX - rect.left) / rect.width;
+    return Math.min(WIDTH - 1, Math.max(0, Math.floor(frac * WIDTH)));
+  }
+
+  var painting = false, paintValue = 1;
+  function paintAt(clientX) {
+    var i = cellIndexAt(clientX);
+    if (row[i] !== paintValue) { row[i] = paintValue; drawEditor(); scheduleRegenerate(); }
+  }
+  editor.addEventListener('pointerdown', function (e) {
+    editor.setPointerCapture(e.pointerId);
+    var i = cellIndexAt(e.clientX);
+    paintValue = row[i] ? 0 : 1;
+    painting = true;
+    paintAt(e.clientX);
+  });
+  editor.addEventListener('pointermove', function (e) { if (painting) paintAt(e.clientX); });
+  function stopPaint() { painting = false; }
+  editor.addEventListener('pointerup', stopPaint);
+  editor.addEventListener('pointercancel', stopPaint);
+  editor.addEventListener('pointerleave', stopPaint);
+
+  function setRow(fn) {
+    for (var i = 0; i < WIDTH; i++) row[i] = fn(i);
+    drawEditor();
+    scheduleRegenerate();
+  }
+  document.getElementById('singleBtn').addEventListener('click', function () {
+    setRow(function (i) { return i === ((WIDTH / 2) | 0) ? 1 : 0; });
+  });
+  document.getElementById('randomBtn').addEventListener('click', function () {
+    setRow(function () { return Math.random() < 0.5 ? 1 : 0; });
+  });
+  document.getElementById('allBtn').addEventListener('click', function () {
+    setRow(function () { return 1; });
+  });
+  document.getElementById('invertBtn').addEventListener('click', function () {
+    setRow(function (i) { return row[i] ? 0 : 1; });
+  });
+  document.getElementById('clearBtn').addEventListener('click', function () {
+    setRow(function () { return 0; });
+  });
+
+  if ('ResizeObserver' in window) {
+    new ResizeObserver(drawEditor).observe(editor);
+  } else {
+    window.addEventListener('resize', drawEditor);
+  }
+
+  // ------------------------------------------------------------------
+  // gallery — 256 canvases, one per rule, built once; regenerated by
+  // recomputing each rule's grid and putImageData-ing it straight in.
+  // ------------------------------------------------------------------
+  var gallery = document.getElementById('gallery');
+  var canvases = new Array(256);
+  var frag = document.createDocumentFragment();
+  for (var r = 0; r < 256; r++) {
+    var cell = document.createElement('div');
+    cell.className = 'cell';
+    var c = document.createElement('canvas');
+    c.width = WIDTH; c.height = HEIGHT;
+    c.setAttribute('aria-label', 'Rule ' + r);
+    var num = document.createElement('div');
+    num.className = 'num';
+    num.textContent = 'rule ' + r;
+    cell.appendChild(c);
+    cell.appendChild(num);
+    frag.appendChild(cell);
+    canvases[r] = c;
+  }
+  gallery.appendChild(frag);
+
+  var grid = new Uint8Array(WIDTH * HEIGHT); // scratch, reused per rule
+  var imgData = new Array(256); // lazily created per canvas
+
+  function computeAndDraw(ruleNum) {
+    for (var x = 0; x < WIDTH; x++) grid[x] = row[x];
+    for (var y = 1; y < HEIGHT; y++) {
+      var prevBase = (y - 1) * WIDTH, base = y * WIDTH;
+      for (var x2 = 0; x2 < WIDTH; x2++) {
+        var left = grid[prevBase + ((x2 - 1 + WIDTH) % WIDTH)];
+        var center = grid[prevBase + x2];
+        var right = grid[prevBase + ((x2 + 1) % WIDTH)];
+        var idx = (left << 2) | (center << 1) | right;
+        grid[base + x2] = (ruleNum >> idx) & 1;
+      }
+    }
+    var canvas = canvases[ruleNum];
+    var ctx = canvas.getContext('2d');
+    var img = imgData[ruleNum] || (imgData[ruleNum] = ctx.createImageData(WIDTH, HEIGHT));
+    var data = img.data;
+    for (var p = 0, di = 0; p < grid.length; p++, di += 4) {
+      var v = grid[p] ? 17 : 255;
+      data[di] = v; data[di + 1] = v; data[di + 2] = v; data[di + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  function regenerateAll() {
+    for (var r2 = 0; r2 < 256; r2++) computeAndDraw(r2);
+  }
+
+  var regenScheduled = false;
+  function scheduleRegenerate() {
+    if (regenScheduled) return;
+    regenScheduled = true;
+    requestAnimationFrame(function () { regenScheduled = false; regenerateAll(); });
+  }
+
+  drawEditor();
+  regenerateAll();
+})();
+</script>
+</body>
+</html>

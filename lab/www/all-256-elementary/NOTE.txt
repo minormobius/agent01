@@ -1,0 +1,1 @@
+All 256 rules, 50 steps, wraparound edges, regenerated live from one row you paint. No width/step sliders on purpose. Next: keyboard toggling for the row editor — right now it's pointer/drag only.
