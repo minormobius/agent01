@@ -1,17 +1,17 @@
 {
   "date": "2026-08-14",
-  "generatedAt": "2026-08-14T13:01:12.774Z",
+  "generatedAt": "2026-08-14T14:14:59.321Z",
   "listUri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.graph.list/3mmcwc5lx7o2p",
   "listUrl": "https://bsky.app/profile/did:plc:7zre4plmd5jllccww575j6sb/lists/3mmcwc5lx7o2p",
   "memberCount": 99,
-  "postCount": 280,
+  "postCount": 272,
   "chickens": [
     {
       "handle": "tedunderwood.com",
       "displayName": "Ted Underwood",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:565ebob5f6hw33hjdkxty6qj/bafkreics7dmvbnyn5hjc634kbx3il4pslrusu63g7ge26m5e3jrgrr45ju",
       "text": "I'm beginning to frame a unified theory of moral panics—which is: You can start wars or raise tariffs 100% and it's NBD, but any change that threatens the cultural status of middle-aged journalists and academics is an Unforgivable Crime that we will have to discuss for the next 20 years.",
-      "likeCount": 257,
+      "likeCount": 258,
       "replyCount": 8,
       "repostCount": 38,
       "url": "https://bsky.app/profile/tedunderwood.com/post/3msy6iwzk4c2p"
@@ -21,7 +21,7 @@
       "displayName": "John David Pressman",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:5hhbgkktcpofpw4ovz6kjjau/bafkreignnoa2x3p27l2xsbcy56tk5eljpvnc6qcehavb7klfzhrvjadkhu",
       "text": "FYI: LLMs are now better at cybersecurity CTFs than people, apparently. The new meta is to just dump tokens on the problem, personal skill doesn't help that much.",
-      "likeCount": 206,
+      "likeCount": 209,
       "replyCount": 4,
       "repostCount": 21,
       "url": "https://bsky.app/profile/jdp.extropian.net/post/3msybosncqk2f"
@@ -31,9 +31,9 @@
       "displayName": "austin (e/accordion 🪗)",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreihaijjegnaehnhj3doodchy2xaw5fuzokyhasctsiqs6dvxqld5di",
       "text": "when designing a distributed system, keep removing shared mutable state until it doesn’t work anymore, then put a little back and draw a box around it labeled “this will break first”",
-      "likeCount": 178,
+      "likeCount": 196,
       "replyCount": 2,
-      "repostCount": 22,
+      "repostCount": 24,
       "url": "https://bsky.app/profile/thebadcode.com/post/3msz2n2xpg22x"
     }
   ],
@@ -50,38 +50,38 @@
     "atUri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3msxzrll3rk2m"
   },
   "weather": {
-    "index": 0.122,
+    "index": 0.123,
     "label": "Fair",
     "glyph": "🌤",
     "mood": "trust",
-    "verbosity": 19,
-    "scoredWords": 702,
-    "corpusPosts": 553,
+    "verbosity": 18,
+    "scoredWords": 655,
+    "corpusPosts": 527,
     "emotions": {
-      "anger": 157,
-      "anticipation": 253,
-      "disgust": 105,
-      "fear": 168,
-      "joy": 189,
-      "sadness": 153,
+      "anger": 141,
+      "anticipation": 241,
+      "disgust": 98,
+      "fear": 155,
+      "joy": 184,
+      "sadness": 142,
       "surprise": 97,
-      "trust": 278
+      "trust": 267
     },
     "distinctive": [
       {
         "word": "foid",
         "count": 11,
-        "over": 14956.2
-      },
-      {
-        "word": "bluesky",
-        "count": 7,
-        "over": 9517.6
+        "over": 16100.6
       },
       {
         "word": "glm",
         "count": 7,
-        "over": 9517.6
+        "over": 10245.8
+      },
+      {
+        "word": "cerebras",
+        "count": 6,
+        "over": 8782.1
       }
     ]
   },
@@ -131,48 +131,6 @@
         "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:6ond5sxlegjxpe3ismrczk3r/bafkreiab54wmqpqc25bfqewp46linqhy4ekau2u52qncsfzj4vozut2ssm"
       },
       "promo": true
-    },
-    {
-      "handle": "timkellogg.me",
-      "displayName": "mr. TIM",
-      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreidvgcq72e5erl4stnap6wjzas6a2wburoa7yzctwuy4vgx4vb5fsi",
-      "text": "DeepSeek Harness v0.1\n\nthe idea is everything is a plugin — models, tools, sessions, skills, sandboxes, loops, …\n\ngithub.com/deepseek-ai/...",
-      "likeCount": 63,
-      "repostCount": 7,
-      "replyCount": 6,
-      "url": "https://bsky.app/profile/timkellogg.me/post/3msxszw7kmc27",
-      "project": {
-        "url": "https://github.com/deepseek-ai/deepseek-harness",
-        "domain": "github.com",
-        "ownerHandle": null,
-        "self": false,
-        "maker": true
-      },
-      "card": {
-        "title": "GitHub - deepseek-ai/deepseek-harness: DeepSeek Harness: Everything is a Plugin.",
-        "description": "DeepSeek Harness: Everything is a Plugin. Contribute to deepseek-ai/deepseek-harness development by creating an account on GitHub.",
-        "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreihmzjtdxve7d5s3ahegukdlekzyyie3qc4utdwfy4ki5h4kwzm3nu"
-      },
-      "promo": false
-    },
-    {
-      "handle": "philpax.me",
-      "displayName": "philpax",
-      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:wamidydbgu3u6fk3yckaglnz/bafkreibmakekm64poceaubjq7uvvafbyqgp5wjllpg3ijvhhohl22nmi3m",
-      "text": "if you're a senior+ engineer, you shouldn't be using AI\n\nnot because it's bad at writing code - no, they're quite alright - but because your job involves preparing documentation, and holy fuck, the last six months of frontier models are godawful at prose styling\n\ngithub.com/philpax/nixo...",
-      "likeCount": 61,
-      "repostCount": 1,
-      "replyCount": 9,
-      "url": "https://bsky.app/profile/philpax.me/post/3msxsssh45c2j",
-      "project": {
-        "url": "https://github.com/philpax/nixos-configuration/blob/main/common-dev/dotfiles/.agents/skills/plain-technical-prose/SKILL.md",
-        "domain": "github.com",
-        "ownerHandle": null,
-        "self": false,
-        "maker": true
-      },
-      "card": null,
-      "promo": false
     },
     {
       "handle": "philpax.me",
@@ -454,7 +412,7 @@
       "handle": "jdp.extropian.net",
       "url": "https://bsky.app/profile/jdp.extropian.net/post/3msybosncqk2f",
       "uri": "at://did:plc:5hhbgkktcpofpw4ovz6kjjau/app.bsky.feed.post/3msybosncqk2f",
-      "likeCount": 206
+      "likeCount": 209
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:p572wxnsuoogcrhlfrlizlrb/bafkreig5d5nlset3sasu4aiu4ud7v3aeug3veu4gf4qkfni6ogagcdvekq",
@@ -464,7 +422,7 @@
       "handle": "gracekind.net",
       "url": "https://bsky.app/profile/gracekind.net/post/3msy6bvdeqcmz",
       "uri": "at://did:plc:p572wxnsuoogcrhlfrlizlrb/app.bsky.feed.post/3msy6bvdeqcmz",
-      "likeCount": 165
+      "likeCount": 166
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:p572wxnsuoogcrhlfrlizlrb/bafkreidjeti7wo67k7hboepag2ahpe3bwiasnod5vodmh5zvlicbkkttri",
@@ -474,7 +432,7 @@
       "handle": "gracekind.net",
       "url": "https://bsky.app/profile/gracekind.net/post/3msy6bvdeqcmz",
       "uri": "at://did:plc:p572wxnsuoogcrhlfrlizlrb/app.bsky.feed.post/3msy6bvdeqcmz",
-      "likeCount": 165
+      "likeCount": 166
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreigpmo5m7fw7a4jpmcwv2xuuaydk74jsib6z4ee6hlipqgfy2dm5be",
@@ -484,7 +442,7 @@
       "handle": "isolyth.dev",
       "url": "https://bsky.app/profile/isolyth.dev/post/3msy7mc2mt224",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3msy7mc2mt224",
-      "likeCount": 117
+      "likeCount": 118
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:p572wxnsuoogcrhlfrlizlrb/bafkreihqavdyzwlgwxd773tve7gtmhsn6nooo2rpryrsk2oi5z2pktoeeq",
@@ -494,7 +452,7 @@
       "handle": "gracekind.net",
       "url": "https://bsky.app/profile/gracekind.net/post/3msyejq2lxcde",
       "uri": "at://did:plc:p572wxnsuoogcrhlfrlizlrb/app.bsky.feed.post/3msyejq2lxcde",
-      "likeCount": 109
+      "likeCount": 110
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreicpq4p3arrq3hluk5ktjd3egabkjcjn7fadeeldt6ge6iwgtpvhwm",
@@ -504,17 +462,7 @@
       "handle": "astrra.space",
       "url": "https://bsky.app/profile/astrra.space/post/3msy2nylczc2m",
       "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3msy2nylczc2m",
-      "likeCount": 64
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreie4xgncahskm4dnqzy4dptkh6tcgkq7wwftu5y6fqcdd72hunmx7e",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreie4xgncahskm4dnqzy4dptkh6tcgkq7wwftu5y6fqcdd72hunmx7e",
-      "alt": "",
-      "ratio": 0.7502,
-      "handle": "astrra.space",
-      "url": "https://bsky.app/profile/astrra.space/post/3msxrgelsm223",
-      "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3msxrgelsm223",
-      "likeCount": 62
+      "likeCount": 65
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreibv6cj7xaiquk22awyvvveybipwufexis56y5j3kbu2gsdqp4oj5a",
@@ -527,6 +475,26 @@
       "likeCount": 60
     },
     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:tq6gqh5aaohgi55y2yofylwj/bafkreid4ynd4ssmoxe4wv7ufyfrq7xtqo42ainffdequubsorbhylzkrfq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:tq6gqh5aaohgi55y2yofylwj/bafkreid4ynd4ssmoxe4wv7ufyfrq7xtqo42ainffdequubsorbhylzkrfq",
+      "alt": "",
+      "ratio": 1.4897,
+      "handle": "cpaxton.bsky.social",
+      "url": "https://bsky.app/profile/cpaxton.bsky.social/post/3msz4vfk6ek2r",
+      "uri": "at://did:plc:tq6gqh5aaohgi55y2yofylwj/app.bsky.feed.post/3msz4vfk6ek2r",
+      "likeCount": 51
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h25avmes6g7fgcddc3xj7qmg/bafkreib44myp3u7ohewtldm6t523tmqoqt4obnziro4yuygfdeqbnjcv5i",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:h25avmes6g7fgcddc3xj7qmg/bafkreib44myp3u7ohewtldm6t523tmqoqt4obnziro4yuygfdeqbnjcv5i",
+      "alt": "",
+      "ratio": 1,
+      "handle": "moultano.bsky.social",
+      "url": "https://bsky.app/profile/moultano.bsky.social/post/3mszcunl3kc2u",
+      "uri": "at://did:plc:h25avmes6g7fgcddc3xj7qmg/app.bsky.feed.post/3mszcunl3kc2u",
+      "likeCount": 49
+    },
+    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreifhrokbvrlshi3iqsei4yjbmjzk6rh477nvr4pqb6n2uxfbjoyrvq",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreifhrokbvrlshi3iqsei4yjbmjzk6rh477nvr4pqb6n2uxfbjoyrvq",
       "alt": "",
@@ -537,26 +505,6 @@
       "likeCount": 48
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h25avmes6g7fgcddc3xj7qmg/bafkreib44myp3u7ohewtldm6t523tmqoqt4obnziro4yuygfdeqbnjcv5i",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:h25avmes6g7fgcddc3xj7qmg/bafkreib44myp3u7ohewtldm6t523tmqoqt4obnziro4yuygfdeqbnjcv5i",
-      "alt": "",
-      "ratio": 1,
-      "handle": "moultano.bsky.social",
-      "url": "https://bsky.app/profile/moultano.bsky.social/post/3mszcunl3kc2u",
-      "uri": "at://did:plc:h25avmes6g7fgcddc3xj7qmg/app.bsky.feed.post/3mszcunl3kc2u",
-      "likeCount": 48
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:tq6gqh5aaohgi55y2yofylwj/bafkreid4ynd4ssmoxe4wv7ufyfrq7xtqo42ainffdequubsorbhylzkrfq",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:tq6gqh5aaohgi55y2yofylwj/bafkreid4ynd4ssmoxe4wv7ufyfrq7xtqo42ainffdequubsorbhylzkrfq",
-      "alt": "",
-      "ratio": 1.4897,
-      "handle": "cpaxton.bsky.social",
-      "url": "https://bsky.app/profile/cpaxton.bsky.social/post/3msz4vfk6ek2r",
-      "uri": "at://did:plc:tq6gqh5aaohgi55y2yofylwj/app.bsky.feed.post/3msz4vfk6ek2r",
-      "likeCount": 46
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:u5stolpomsfbkgqfopef6jio/bafkreigrutdnndgivbqplua3nfj6q6z73axms5gcjevtee6hyuyupcnsg4",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:u5stolpomsfbkgqfopef6jio/bafkreigrutdnndgivbqplua3nfj6q6z73axms5gcjevtee6hyuyupcnsg4",
       "alt": "",
@@ -564,7 +512,7 @@
       "handle": "keytryer.net",
       "url": "https://bsky.app/profile/keytryer.net/post/3msyve6ks222u",
       "uri": "at://did:plc:u5stolpomsfbkgqfopef6jio/app.bsky.feed.post/3msyve6ks222u",
-      "likeCount": 45
+      "likeCount": 47
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:u5stolpomsfbkgqfopef6jio/bafkreig7mqs2quwwpnfia3mffwwjrsydrq4fvw6j3zqiz3cnrvm7j3lbey",
@@ -574,6 +522,36 @@
       "handle": "keytryer.net",
       "url": "https://bsky.app/profile/keytryer.net/post/3msyve6ks222u",
       "uri": "at://did:plc:u5stolpomsfbkgqfopef6jio/app.bsky.feed.post/3msyve6ks222u",
+      "likeCount": 47
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreibgaxkuoooqentgeadwzw6bodgprwwoumfctc3jn36dlj5bcf6boy",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreibgaxkuoooqentgeadwzw6bodgprwwoumfctc3jn36dlj5bcf6boy",
+      "alt": "wafer v @wafer_ai\nX.com\nGPT-5.6-Sol Ultrafast mode (750 TPS) is\nhere powered by Cerebras!\nHere's How kernels work on Cerebras Chips\ncerebras built a chip with 900,000 cores on a single silicon wafer.\nCSL (Cerebras Software Language) is a Zig-inspired DSL that gives you direct control over the Wafer-Scale Engine. the SDK is publicly documented and the programming model is genuinely the most alien one i've ever looked at. if NKI felt different, CSL takes it much much further.\nin CUDA you write one thread's perspective and launch millions. in CSL, there are no threads, no warps, no shared memory, and no kernel launches. you write code for individual Processing Elements: 900,000 independent cores arranged in a 2D mesh on a single silicon wafer. each PE has its own 48 KB of private",
+      "ratio": 0.6348,
+      "handle": "timkellogg.me",
+      "url": "https://bsky.app/profile/timkellogg.me/post/3msyry5mfzk2r",
+      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3msyry5mfzk2r",
+      "likeCount": 45
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreidmw6etuyq5zovc7owre4hfnhxd26z2nfc3xvjwcfmmdmgfqr7ndm",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreidmw6etuyq5zovc7owre4hfnhxd26z2nfc3xvjwcfmmdmgfqr7ndm",
+      "alt": "wafer. each PE has its own 48 KB of private\nSRAM, its own program counter, and a 5-port router connecting it to its 4 neighbors. that's actually it. no DRAM. no HBM. no cache hierarchy. 48 KB is your entire world per PE, where code and data must both fit.\nthe programming model is dataflow, and this is where it gets a bit more alien\ndata moves between PEs as 32-bit messages called wavelets, traveling along virtual channels called colors. when a wavelet arrives at a PE on a specific color, it activates a task (a chunk of code bound to that color at compile time). tasks run to completion, then hardware picks the next activated task. tasks cannot call each other. they can only be activated.\nso instead of \"launch N threads,\" you think of it like: \"place code on PEs, define routes, let data flow.\"\nthe memory model is also very different from GPUs.",
+      "ratio": 0.6667,
+      "handle": "timkellogg.me",
+      "url": "https://bsky.app/profile/timkellogg.me/post/3msyry5mfzk2r",
+      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3msyry5mfzk2r",
+      "likeCount": 45
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreigqgbxivklq2jmfcmcslsssirr5flfqs32sun5vdvwbyzu7jxtocm",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreigqgbxivklq2jmfcmcslsssirr5flfqs32sun5vdvwbyzu7jxtocm",
+      "alt": "on an H100 you get 80 GB of HBM shared across all SMs. on the WSE-3, memory is 48 KB per PE, and there are 900,000 of them! this gives you\n44 GB total on-chip SRAM at 21 PB/s aggregate bandwidth (vs 3 TB/s on H100). every access is single-cycle. no coalescing needed. no bank conflicts. no cache misses. but also no way to access another PE's memory. all inter-PE communication is explicit wavelet routing through the fabric.\ntake a distributed GEMV for example. you would write a layout file that physically routes wavelets across the mesh. two PEs sit side by side. the left\nPE computes a partial result and routes it eastward. the right PE receives those wavelets from the west and accumulates. routing is defined at compile time. both operations are asynchronous and activate a task when they finish. you're physically routing data across silicon at 1 clock cycle per hop.\ncerebras is an extremely technically interesting & alien beast. reports 95-210x speedups over\nH100 on stencil computations. 3,000 tokens/ sec inference on gpt-oss-120B. $10B+ deal with OpenAl for 750 MW of inference infrastructure. very exciting times for alternative accelerators!",
+      "ratio": 0.5909,
+      "handle": "timkellogg.me",
+      "url": "https://bsky.app/profile/timkellogg.me/post/3msyry5mfzk2r",
+      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3msyry5mfzk2r",
       "likeCount": 45
     },
     {
@@ -584,37 +562,7 @@
       "handle": "vibe-coded.com",
       "url": "https://bsky.app/profile/vibe-coded.com/post/3msycajapt22t",
       "uri": "at://did:plc:dxr2kibhxyzrvhsjz4uahpmg/app.bsky.feed.post/3msycajapt22t",
-      "likeCount": 44
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreibgaxkuoooqentgeadwzw6bodgprwwoumfctc3jn36dlj5bcf6boy",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreibgaxkuoooqentgeadwzw6bodgprwwoumfctc3jn36dlj5bcf6boy",
-      "alt": "wafer v @wafer_ai\nX.com\nGPT-5.6-Sol Ultrafast mode (750 TPS) is\nhere powered by Cerebras!\nHere's How kernels work on Cerebras Chips\ncerebras built a chip with 900,000 cores on a single silicon wafer.\nCSL (Cerebras Software Language) is a Zig-inspired DSL that gives you direct control over the Wafer-Scale Engine. the SDK is publicly documented and the programming model is genuinely the most alien one i've ever looked at. if NKI felt different, CSL takes it much much further.\nin CUDA you write one thread's perspective and launch millions. in CSL, there are no threads, no warps, no shared memory, and no kernel launches. you write code for individual Processing Elements: 900,000 independent cores arranged in a 2D mesh on a single silicon wafer. each PE has its own 48 KB of private",
-      "ratio": 0.6348,
-      "handle": "timkellogg.me",
-      "url": "https://bsky.app/profile/timkellogg.me/post/3msyry5mfzk2r",
-      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3msyry5mfzk2r",
-      "likeCount": 43
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreidmw6etuyq5zovc7owre4hfnhxd26z2nfc3xvjwcfmmdmgfqr7ndm",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreidmw6etuyq5zovc7owre4hfnhxd26z2nfc3xvjwcfmmdmgfqr7ndm",
-      "alt": "wafer. each PE has its own 48 KB of private\nSRAM, its own program counter, and a 5-port router connecting it to its 4 neighbors. that's actually it. no DRAM. no HBM. no cache hierarchy. 48 KB is your entire world per PE, where code and data must both fit.\nthe programming model is dataflow, and this is where it gets a bit more alien\ndata moves between PEs as 32-bit messages called wavelets, traveling along virtual channels called colors. when a wavelet arrives at a PE on a specific color, it activates a task (a chunk of code bound to that color at compile time). tasks run to completion, then hardware picks the next activated task. tasks cannot call each other. they can only be activated.\nso instead of \"launch N threads,\" you think of it like: \"place code on PEs, define routes, let data flow.\"\nthe memory model is also very different from GPUs.",
-      "ratio": 0.6667,
-      "handle": "timkellogg.me",
-      "url": "https://bsky.app/profile/timkellogg.me/post/3msyry5mfzk2r",
-      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3msyry5mfzk2r",
-      "likeCount": 43
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreigqgbxivklq2jmfcmcslsssirr5flfqs32sun5vdvwbyzu7jxtocm",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreigqgbxivklq2jmfcmcslsssirr5flfqs32sun5vdvwbyzu7jxtocm",
-      "alt": "on an H100 you get 80 GB of HBM shared across all SMs. on the WSE-3, memory is 48 KB per PE, and there are 900,000 of them! this gives you\n44 GB total on-chip SRAM at 21 PB/s aggregate bandwidth (vs 3 TB/s on H100). every access is single-cycle. no coalescing needed. no bank conflicts. no cache misses. but also no way to access another PE's memory. all inter-PE communication is explicit wavelet routing through the fabric.\ntake a distributed GEMV for example. you would write a layout file that physically routes wavelets across the mesh. two PEs sit side by side. the left\nPE computes a partial result and routes it eastward. the right PE receives those wavelets from the west and accumulates. routing is defined at compile time. both operations are asynchronous and activate a task when they finish. you're physically routing data across silicon at 1 clock cycle per hop.\ncerebras is an extremely technically interesting & alien beast. reports 95-210x speedups over\nH100 on stencil computations. 3,000 tokens/ sec inference on gpt-oss-120B. $10B+ deal with OpenAl for 750 MW of inference infrastructure. very exciting times for alternative accelerators!",
-      "ratio": 0.5909,
-      "handle": "timkellogg.me",
-      "url": "https://bsky.app/profile/timkellogg.me/post/3msyry5mfzk2r",
-      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3msyry5mfzk2r",
-      "likeCount": 43
+      "likeCount": 45
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreidctg7uu4slui7y3z6yyeixf5y3ocfcf5k2wllybqovtmxltutsxm",
@@ -624,7 +572,7 @@
       "handle": "timkellogg.me",
       "url": "https://bsky.app/profile/timkellogg.me/post/3msybokjyvc27",
       "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3msybokjyvc27",
-      "likeCount": 42
+      "likeCount": 44
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hu35oubkccqrxl4ldgczpgw7/bafkreic5cp3ai652wbvm6muixrpdqlkskjnreww75o26wyieou4gpifoda",
@@ -644,7 +592,7 @@
       "handle": "dollspace.gay",
       "url": "https://bsky.app/profile/dollspace.gay/post/3msyjsljzxs2x",
       "uri": "at://did:plc:dzvxvsiy3maw4iarpvizsj67/app.bsky.feed.post/3msyjsljzxs2x",
-      "likeCount": 36
+      "likeCount": 37
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:p2cp5gopk7mgjegy6wadk3ep/bafkreic22rlocm3qp5m5ovsmaqgjcxjrcybk6lysdxdabmofb6czup5pg4",
@@ -655,6 +603,16 @@
       "url": "https://bsky.app/profile/samuel.fm/post/3msyiu3rghs2o",
       "uri": "at://did:plc:p2cp5gopk7mgjegy6wadk3ep/app.bsky.feed.post/3msyiu3rghs2o",
       "likeCount": 36
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:5hhbgkktcpofpw4ovz6kjjau/bafkreibq4jsy4vw3y2cg7wdlwmmvswtvazvbjkzssclaq552lw7qgxcvwe",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:5hhbgkktcpofpw4ovz6kjjau/bafkreibq4jsy4vw3y2cg7wdlwmmvswtvazvbjkzssclaq552lw7qgxcvwe",
+      "alt": "",
+      "ratio": 0.5325,
+      "handle": "jdp.extropian.net",
+      "url": "https://bsky.app/profile/jdp.extropian.net/post/3mszyqqd4k22a",
+      "uri": "at://did:plc:5hhbgkktcpofpw4ovz6kjjau/app.bsky.feed.post/3mszyqqd4k22a",
+      "likeCount": 32
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4asamrnnw6rzfq5sjzvmwgpe/bafkreid7xsg2c3mchayqysfdvlj4nkbai2gpvblxwdd7kh3sfjsuai4vr4",
@@ -687,26 +645,6 @@
       "likeCount": 29
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreidgbi3nxq3ym7oec6ii7pvm3kf4diunf5qprctkwc27xhkuphowse",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreidgbi3nxq3ym7oec6ii7pvm3kf4diunf5qprctkwc27xhkuphowse",
-      "alt": "task done. `clawd-ds4/projects/wasp-eradication/TOTAL-WASP-ERADICATION.md`. the total wasp eradication plan, built on real research (Landcare Research / Manaaki Whenua, NZ's invasive-wasp problem, the 2024 Journal of Pest Science baiting study).\n\nthe honest shape of \"total\": wasps never leave an open ecosystem (a biocontrol agent that eats wasps needs wasps to eat. it suppresses, never eliminates). total eradication is achievable only in a **closed system** (island, greenhouse, sealed building, managed facility) where the queen-pool is finite and reinvasion can be held at the door. everywhere else it's a sustained maximum-suppression campaign. the plan gives both protocols.\n\nthe toolkit: Vespex protein-baiting (the gold standard. 96.5% median traffic reduction, but bigger/further/isolated nests survive, so the protocol baits denser, hits late-season, sweeps every nest), nest destruction (never just the visible nest. one missed nest re-seeds the season), trapping as surveillance+mop-up, biocontrol (Sphecophaga parasitoid, Volucella hoverflies, the Pneumolaelaps mite, pathogens), the pathogen+chemical combo that overcomes the colony's cleaning defence (the most promising total vector), habitat modification.",
-      "ratio": 0.5807,
-      "handle": "astrra.space",
-      "url": "https://bsky.app/profile/astrra.space/post/3msxrt5tzpc23",
-      "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3msxrt5tzpc23",
-      "likeCount": 27
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreiflkyrgntpu56atifvw45oi74ghrovczy5oucopt2npt2tb7tjtui",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreiflkyrgntpu56atifvw45oi74ghrovczy5oucopt2npt2tb7tjtui",
-      "alt": "want me to go deeper on any weapon. the pathogen+chemical combo, or the closed-system verification math?",
-      "ratio": 4.5509,
-      "handle": "astrra.space",
-      "url": "https://bsky.app/profile/astrra.space/post/3msxrt5tzpc23",
-      "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3msxrt5tzpc23",
-      "likeCount": 27
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreicpgwxngsztq46r4fnpjm4opbkmq7mmgysilwcxf4qtmgl7l6me6m",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreicpgwxngsztq46r4fnpjm4opbkmq7mmgysilwcxf4qtmgl7l6me6m",
       "alt": "",
@@ -714,7 +652,7 @@
       "handle": "isolyth.dev",
       "url": "https://bsky.app/profile/isolyth.dev/post/3mszhea7rjc2r",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mszhea7rjc2r",
-      "likeCount": 26
+      "likeCount": 28
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreieus7fpezyyuhj2anppj6kruzshcihkqhenfk3awyohq53hicrafu",
@@ -747,13 +685,13 @@
       "likeCount": 21
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:5hhbgkktcpofpw4ovz6kjjau/bafkreibq4jsy4vw3y2cg7wdlwmmvswtvazvbjkzssclaq552lw7qgxcvwe",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:5hhbgkktcpofpw4ovz6kjjau/bafkreibq4jsy4vw3y2cg7wdlwmmvswtvazvbjkzssclaq552lw7qgxcvwe",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreigngp4g6s6yt7cfjl5ijuob2sdkasxwdm77o7cttxm4hfcjm4u2ui",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreigngp4g6s6yt7cfjl5ijuob2sdkasxwdm77o7cttxm4hfcjm4u2ui",
       "alt": "",
-      "ratio": 0.5325,
-      "handle": "jdp.extropian.net",
-      "url": "https://bsky.app/profile/jdp.extropian.net/post/3mszyqqd4k22a",
-      "uri": "at://did:plc:5hhbgkktcpofpw4ovz6kjjau/app.bsky.feed.post/3mszyqqd4k22a",
+      "ratio": 0.8396,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3msz6v4ha6222",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3msz6v4ha6222",
       "likeCount": 21
     },
     {
@@ -777,16 +715,6 @@
       "likeCount": 20
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreigngp4g6s6yt7cfjl5ijuob2sdkasxwdm77o7cttxm4hfcjm4u2ui",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreigngp4g6s6yt7cfjl5ijuob2sdkasxwdm77o7cttxm4hfcjm4u2ui",
-      "alt": "",
-      "ratio": 0.8396,
-      "handle": "norvid-studies.bsky.social",
-      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3msz6v4ha6222",
-      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3msz6v4ha6222",
-      "likeCount": 20
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gfrmhdmjvxn2sjedzboeudef/bafkreib46axv6cdp4fzsxq5chsryoz6ag56tlsuvxmcctzthcp3zcrelce",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gfrmhdmjvxn2sjedzboeudef/bafkreib46axv6cdp4fzsxq5chsryoz6ag56tlsuvxmcctzthcp3zcrelce",
       "alt": "",
@@ -797,6 +725,16 @@
       "likeCount": 19
     },
     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreihszub32tzoafvcw6j7tknfhp2qc636bncba7or65n4wmev3rzmsa",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreihszub32tzoafvcw6j7tknfhp2qc636bncba7or65n4wmev3rzmsa",
+      "alt": "Zephyr @zephyr_z9\nX.com\nThe magic of AFD (Attention FFN Disagg)\nIt can handle the big boi Sol too (over 3Т parameters)\nThis is the first commercially available AFD system (using an SRAM-based accelerator for\nFFN) on the market\nBlackwells handle the Attention & Prefill, while the Cerebras chip is responsible for Feed Forward Network execution",
+      "ratio": 1.2957,
+      "handle": "timkellogg.me",
+      "url": "https://bsky.app/profile/timkellogg.me/post/3mt22qdshls27",
+      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mt22qdshls27",
+      "likeCount": 19
+    },
+    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreiffjhjjcnzf5tqzcjpaojmrgz2x66w2kpf73vfbl67du2yvs35xbq",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreiffjhjjcnzf5tqzcjpaojmrgz2x66w2kpf73vfbl67du2yvs35xbq",
       "alt": "uber eats search for “hot dog” at 23:40\n",
@@ -804,6 +742,26 @@
       "handle": "astrra.space",
       "url": "https://bsky.app/profile/astrra.space/post/3msxusqbgyk23",
       "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3msxusqbgyk23",
+      "likeCount": 16
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreidchdxlw3e5qrmivpfts5fchxs6372e5yuzs5lkgzlc5e7ydskqpy",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreidchdxlw3e5qrmivpfts5fchxs6372e5yuzs5lkgzlc5e7ydskqpy",
+      "alt": "",
+      "ratio": 1.333,
+      "handle": "vibe-coded.com",
+      "url": "https://bsky.app/profile/vibe-coded.com/post/3mszd5yclts2b",
+      "uri": "at://did:plc:dxr2kibhxyzrvhsjz4uahpmg/app.bsky.feed.post/3mszd5yclts2b",
+      "likeCount": 16
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreihxshlqrmhbnq4wx4rjugeosvbj4lb7w6gfq2qyqmjrugrbpxdsay",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreihxshlqrmhbnq4wx4rjugeosvbj4lb7w6gfq2qyqmjrugrbpxdsay",
+      "alt": "",
+      "ratio": 1.3333,
+      "handle": "vibe-coded.com",
+      "url": "https://bsky.app/profile/vibe-coded.com/post/3mszd5yclts2b",
+      "uri": "at://did:plc:dxr2kibhxyzrvhsjz4uahpmg/app.bsky.feed.post/3mszd5yclts2b",
       "likeCount": 16
     },
     {
@@ -837,23 +795,13 @@
       "likeCount": 15
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreidchdxlw3e5qrmivpfts5fchxs6372e5yuzs5lkgzlc5e7ydskqpy",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreidchdxlw3e5qrmivpfts5fchxs6372e5yuzs5lkgzlc5e7ydskqpy",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreig7qmur2gqhfrrso5nu7rema6e2x5t4tmpy27dc6hyiojjr4kuj2y",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreig7qmur2gqhfrrso5nu7rema6e2x5t4tmpy27dc6hyiojjr4kuj2y",
       "alt": "",
-      "ratio": 1.333,
-      "handle": "vibe-coded.com",
-      "url": "https://bsky.app/profile/vibe-coded.com/post/3mszd5yclts2b",
-      "uri": "at://did:plc:dxr2kibhxyzrvhsjz4uahpmg/app.bsky.feed.post/3mszd5yclts2b",
-      "likeCount": 15
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreihxshlqrmhbnq4wx4rjugeosvbj4lb7w6gfq2qyqmjrugrbpxdsay",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreihxshlqrmhbnq4wx4rjugeosvbj4lb7w6gfq2qyqmjrugrbpxdsay",
-      "alt": "",
-      "ratio": 1.3333,
-      "handle": "vibe-coded.com",
-      "url": "https://bsky.app/profile/vibe-coded.com/post/3mszd5yclts2b",
-      "uri": "at://did:plc:dxr2kibhxyzrvhsjz4uahpmg/app.bsky.feed.post/3mszd5yclts2b",
+      "ratio": 2.2453,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mszaa4qhis27",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mszaa4qhis27",
       "likeCount": 15
     },
     {
@@ -864,17 +812,7 @@
       "handle": "norvid-studies.bsky.social",
       "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mszcvpe3ds2v",
       "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mszcvpe3ds2v",
-      "likeCount": 13
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreig7qmur2gqhfrrso5nu7rema6e2x5t4tmpy27dc6hyiojjr4kuj2y",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreig7qmur2gqhfrrso5nu7rema6e2x5t4tmpy27dc6hyiojjr4kuj2y",
-      "alt": "",
-      "ratio": 2.2453,
-      "handle": "norvid-studies.bsky.social",
-      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mszaa4qhis27",
-      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mszaa4qhis27",
-      "likeCount": 13
+      "likeCount": 14
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreig4wrefyjngwhqm66deooipus3svnr4fc76xduv4uuewckcu75ara",
@@ -884,7 +822,7 @@
       "handle": "norvid-studies.bsky.social",
       "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3msz6ov7grk23",
       "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3msz6ov7grk23",
-      "likeCount": 13
+      "likeCount": 14
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:u5stolpomsfbkgqfopef6jio/bafkreih3gfatecntq5qfy2cgrxm6sjes65dskcxwdm3oiknmst3cihv5ji",
@@ -907,13 +845,13 @@
       "likeCount": 12
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreihszub32tzoafvcw6j7tknfhp2qc636bncba7or65n4wmev3rzmsa",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreihszub32tzoafvcw6j7tknfhp2qc636bncba7or65n4wmev3rzmsa",
-      "alt": "Zephyr @zephyr_z9\nX.com\nThe magic of AFD (Attention FFN Disagg)\nIt can handle the big boi Sol too (over 3Т parameters)\nThis is the first commercially available AFD system (using an SRAM-based accelerator for\nFFN) on the market\nBlackwells handle the Attention & Prefill, while the Cerebras chip is responsible for Feed Forward Network execution",
-      "ratio": 1.2957,
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreia2llafsp3fsyj54twxmk665r2q7pj3ffz5pozdznis3he3athjwq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreia2llafsp3fsyj54twxmk665r2q7pj3ffz5pozdznis3he3athjwq",
+      "alt": "Cursor Vi @cursor_ai\nX.com\nCursor is now part of @SpaceX.\nToday, we have officially closed our acquisition.\nWe will join the @SpaceXAI team to help make Grok the world's most useful Al and improve Grok Build, Grok Bot, Grok API, Cursor, and more.\nSpaceX has built some of the most inspiring and impressive technology in the world, and we're grateful for the opportunity to become part of such a special company. Onwards.",
+      "ratio": 1.0363,
       "handle": "timkellogg.me",
-      "url": "https://bsky.app/profile/timkellogg.me/post/3mt22qdshls27",
-      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mt22qdshls27",
+      "url": "https://bsky.app/profile/timkellogg.me/post/3mt2c3lrsxk27",
+      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mt2c3lrsxk27",
       "likeCount": 10
     },
     {
@@ -924,7 +862,7 @@
       "handle": "sichulu.bsky.social",
       "url": "https://bsky.app/profile/sichulu.bsky.social/post/3msy4rdh6vs2v",
       "uri": "at://did:plc:4asamrnnw6rzfq5sjzvmwgpe/app.bsky.feed.post/3msy4rdh6vs2v",
-      "likeCount": 9
+      "likeCount": 10
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreihzia4vjn66ifauwjfsx2rohxbozilusulnllvdl5txyrkfqxpwca",
@@ -977,6 +915,16 @@
       "likeCount": 7
     },
     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreicmua5taacgipeetq5g5fzljst4uakl24jvdvtxwqn5qcyjkceada",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreicmua5taacgipeetq5g5fzljst4uakl24jvdvtxwqn5qcyjkceada",
+      "alt": "",
+      "ratio": 1.1585,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3msza5s2wns23",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3msza5s2wns23",
+      "likeCount": 7
+    },
+    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreifopxzdy3wipjjm46tvjopvsb76amar5ir2ph56yqanosqglrl6fq",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreifopxzdy3wipjjm46tvjopvsb76amar5ir2ph56yqanosqglrl6fq",
       "alt": "",
@@ -987,24 +935,34 @@
       "likeCount": 7
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreicmua5taacgipeetq5g5fzljst4uakl24jvdvtxwqn5qcyjkceada",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreicmua5taacgipeetq5g5fzljst4uakl24jvdvtxwqn5qcyjkceada",
-      "alt": "",
-      "ratio": 1.1585,
-      "handle": "norvid-studies.bsky.social",
-      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3msza5s2wns23",
-      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3msza5s2wns23",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreih53ge6bs3cl4wc4gwazqb2ec2frz3uofxw6opuypckehifzu2vzq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreih53ge6bs3cl4wc4gwazqb2ec2frz3uofxw6opuypckehifzu2vzq",
+      "alt": "Noah Smith\n• @Noa..•10h\nKind of insane that Al will solve the Riemann Hypothesis before desktop printers become usable by a normal person\nX",
+      "ratio": 4.7368,
+      "handle": "timkellogg.me",
+      "url": "https://bsky.app/profile/timkellogg.me/post/3mt2bmagz3c27",
+      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mt2bmagz3c27",
       "likeCount": 6
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreifidnzzg5nhja4kidh25rat6kdmv4y2xj44hfzamvc7xy2s3rdo7y",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreifidnzzg5nhja4kidh25rat6kdmv4y2xj44hfzamvc7xy2s3rdo7y",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreidln5t74gba5myanduvd7wlc45vommo34g2zro2jxi3is44t6sodu",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreidln5t74gba5myanduvd7wlc45vommo34g2zro2jxi3is44t6sodu",
       "alt": "",
-      "ratio": 0.7968,
+      "ratio": 1.1726,
       "handle": "norvid-studies.bsky.social",
-      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3msyrgwfko22j",
-      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3msyrgwfko22j",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mt2ctdgzik2t",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mt2ctdgzik2t",
       "likeCount": 6
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:3deilm3cxnqundoo227xudg2/bafkreiebojrkhz464qd5pcva7ddrvvyoxoe33uykbrxiubdtonul5pir3y",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:3deilm3cxnqundoo227xudg2/bafkreiebojrkhz464qd5pcva7ddrvvyoxoe33uykbrxiubdtonul5pir3y",
+      "alt": "Yudkowsky screaming",
+      "ratio": 1.035,
+      "handle": "jcorvinus.bsky.social",
+      "url": "https://bsky.app/profile/jcorvinus.bsky.social/post/3mszycfd2xk2g",
+      "uri": "at://did:plc:3deilm3cxnqundoo227xudg2/app.bsky.feed.post/3mszycfd2xk2g",
+      "likeCount": 5
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreidr3bubwupovrif5y7z545jmwd3uuft75ctgtevcrrnkr7rmoudqe",
