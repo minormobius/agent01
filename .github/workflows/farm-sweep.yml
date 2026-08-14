@@ -134,7 +134,10 @@ jobs:
         if: steps.sweep.outputs.count != '0'
         id: push
         run: |
-          git add -A
+          # stage ONLY the farm — workflow-local debris (sweep.log etc.) once rode `add -A`
+          # into the commit and the walls refused the whole deploy for a stowaway
+          rm -f sweep.log
+          git add farm
           git diff --cached --quiet || git commit -m "council: worked ${{ steps.sweep.outputs.count }} petition(s)"
           git push origin claude/farm-next
 
