@@ -10,6 +10,8 @@
 // as base + r*amp on each channel, which is what keeps tiles from banding. Every skin must define
 // every KIND (themes.selftest enforces it), so the renderer never falls through to a default.
 
+import { modOn } from './state.js';
+
 export const TILE_KINDS = ['meadow', 'soil', 'path', 'road', 'pond', 'stone', 'hill'];
 
 export const SKINS = [
@@ -144,6 +146,30 @@ export const SKINS = [
       fogSale: 'rgba(10,8,2,0.34)', fogFar: 'rgba(10,8,2,0.58)',
     },
     css: { '--gold': '#ffd66e', '--green': '#e6d493', '--canvasline': '#3a2f14' },
+  },
+  {
+    // council grant: minormobius.bsky.social petitioned for a skin free from the start —
+    // gated behind modOn (the testing-table off-switch), not an unlock ladder rung.
+    id: 'candyland', emoji: '🍬', name: 'Candyland', desc: 'spun-sugar meadows, cocoa soil, cotton-candy water',
+    unlock: { label: 'a town council grant — yours from the start', test: (f) => modOn(f, 'candyland') },
+    ground: {
+      sky: '#1a0e18',
+      meadow: { base: [232, 140, 196], amp: 14 },
+      soil:   { base: [138, 90, 64], amp: 12 },
+      path:   { base: [250, 224, 200], amp: 10 },
+      road:   { base: [214, 180, 210], amp: 8 },
+      pond:   { base: [150, 208, 244], amp: 12 },
+      stone:  { base: [138, 90, 64], amp: 12 },
+      hill:   { base: [246, 176, 210], amp: 10 },
+      hillSkirtL: [206, 120, 168], hillSkirtR: [176, 96, 144],
+      boulder: ['#e8a8c8', '#c886a8'],
+      furrow: 'rgba(90,20,60,0.16)',
+      sheen: [255, 232, 246],
+      rim: 'rgba(255,168,224,0.4)',
+      survey: 'rgba(255,220,240,0.14)',
+      fogSale: 'rgba(24,8,20,0.34)', fogFar: 'rgba(24,8,20,0.58)',
+    },
+    css: { '--gold': '#ffc6e6', '--green': '#8fe6d4', '--canvasline': '#3a1830' },
   },
 ];
 

@@ -1,4 +1,6 @@
 {
   "comment": "THE TESTING TABLE'S REGISTRY. Every experiment the council builds registers here: { id, title, by (petitioner handle), petition (at:// uri), since (YYYY-MM-DD) }. The town hall renders this board on BOTH worlds (mainline fetches it cross-origin — see _headers), gating each mod's logic behind modOn(farm, id). Empty on mainline by construction: experiments live on claude/farm-next until they graduate.",
-  "mods": []
+  "mods": [
+    { "id": "candyland", "title": "Candyland skin", "by": "minormobius.bsky.social", "petition": "at://did:plc:7zre4plmd5jllccww575j6sb/com.minomobi.farm.petition/3msyrsdyac62o", "since": "2026-08-14" }
+  ]
 }
