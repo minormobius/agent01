@@ -15,13 +15,12 @@
 // Pure-ish: this module owns projection, camera and input; game rules stay in state.js, model
 // building stays in render.js (modelFor). No fetch, no game mutations.
 
-import { drawPlant } from '../vendor/plot-render.js';
 import {
   growthOf, cropById, isWatered, isInfested, tileAt, FIELD_T, WORLD_MIN, WORLD_MAX, BUILDING_KINDS,
   parcelOf, ownsParcel, buyableParcels,
   ANIMALS, animalPos, animalProducing, animalFed, forageSpots, laneSpec,
 } from './state.js';
-import { modelFor } from './render.js';
+import { spriteSpec, drawIsoPlant, isoPlantMetrics } from './sprite.js';
 import { currentSkin, groundFill, rgba as trgba } from './themes.js';
 
 export { FIELD_T };
@@ -65,26 +64,27 @@ function textStamp(text, px, font, color, dpr) {
   return s;
 }
 
-// plant sprites: drawPlant rasterizes a whole procedural model per plant per frame — cached here
-// per (plant, stage bucket, size bucket). The bucket matches modelFor's, so pixels are stable
-// within a bucket; uQ quantizes size so a zoom gesture doesn't mint 150 rasters per notch.
+// plant sprites: the iso crop art (sprite.js) rasterized once per (plant, stage bucket, size
+// bucket) and blitted every frame after. uQ quantizes size so a zoom gesture doesn't mint 150
+// rasters per notch; the stage bucket matches the ripeness thresholds so pixels are stable.
 const _plantRasters = new Map();
 let _plantRasterPx = 0;
-function plantRaster(p, crop, stage, u, dpr, modelFor, drawPlant) {
+function plantRaster(p, crop, stage, ripe, u, dpr) {
   const uQ = Math.max(18, Math.round(u / 6) * 6);
   const bucket = Math.min(20, Math.floor(stage * 20));
-  const key = p.id + ':' + p.seedId + ':' + bucket + ':' + uQ + ':' + dpr;
+  const key = p.id + ':' + p.seedId + ':' + bucket + ':' + (ripe ? 1 : 0) + ':' + uQ + ':' + dpr;
   let s = _plantRasters.get(key);
   if (!s) {
     if (_plantRasters.size > 320 || _plantRasterPx > 16_000_000) { _plantRasters.clear(); _plantRasterPx = 0; }
-    const w = Math.ceil(uQ * 2), h = Math.ceil(uQ * 1.5);
-    const ax = w / 2, ay = h - uQ * 0.3;
+    const w = Math.ceil(uQ * 1.2), h = Math.ceil(uQ * 0.95);
+    const ax = w / 2, ay = h - uQ * 0.12;
     const cv = document.createElement('canvas');
     cv.width = Math.ceil(w * dpr); cv.height = Math.ceil(h * dpr);
     const g = cv.getContext('2d');
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const m = modelFor(p, crop, stage);
-    try { drawPlant(g, m, ax, ay, uQ * 0.6); } catch (e) { /* one bad model must not blank the field */ }
+    const spec = spriteSpec(crop);
+    try { drawIsoPlant(g, { form: spec.form, pal: spec.pal, stage, ripe, seed: p.id + p.seedId, u: uQ, ax, ay }); }
+    catch (e) { /* one bad sprite must not blank the field */ }
     s = { cv, w, h, ax, ay, uQ };
     _plantRasters.set(key, s);
     _plantRasterPx += cv.width * cv.height;
@@ -316,24 +316,25 @@ export function createIso(canvas, { onTap } = {}) {
       sprites.push({ sum: p.x * FIELD_T + p.y * FIELD_T, draw: () => {
         const c = toScreen(p.x * FIELD_T, p.y * FIELD_T);
         if (c.x < -u || c.x > W + u || c.y < -u * 1.4 || c.y > H + u) return;
-        const m = modelFor(p, crop, g.stage);
-        hits.push({ i, x: c.x, halfW: Math.max(14, m.footprint * u * 0.45 + 8), top: c.y - m.height * u * 0.6 - 10, bottom: c.y + th() * 0.3, sum: p.x + p.y });
+        const spec = spriteSpec(crop);
+        const met = isoPlantMetrics(spec.form, g.stage, u);
+        hits.push({ i, x: c.x, halfW: met.halfW, top: c.y - met.h - 10, bottom: c.y + th() * 0.3, sum: p.x + p.y });
         ctx.fillStyle = 'rgba(0,0,0,0.3)';   // contact shadow: the sprite sits ON the ground
         ctx.beginPath(); ctx.ellipse(c.x, c.y, u * 0.1 + g.stage * u * 0.08, th() * 0.16, 0, 0, 7); ctx.fill();
-        // the plant itself comes from the raster cache: drawPlant rasterizes a whole procedural
-        // model — done once per (plant, stage bucket, size bucket), blitted every frame after
-        const s = plantRaster(p, crop, g.stage, u, dpr, modelFor, drawPlant);
+        // the plant itself comes from the raster cache — the iso sprite art, one raster per
+        // (plant, stage bucket, size bucket), blitted every frame after
+        const s = plantRaster(p, crop, g.stage, g.ready, u, dpr);
         const k = u / s.uQ;
         if (g.dead) ctx.globalAlpha = 0.45;   // the withered stand grey-faded until cleared
         ctx.drawImage(s.cv, c.x - s.ax * k, c.y - s.ay * k, s.w * k, s.h * k);
         ctx.globalAlpha = 1;
         if (g.dead) {   // 🥀 marks the corpse; a tap clears it
-          stampAt('🥀', Math.max(11, 15 * cam.zoom) | 0, c.x, c.y - m.height * u * 0.6 - 6);
+          stampAt('🥀', Math.max(11, 15 * cam.zoom) | 0, c.x, c.y - met.h - 6);
           return;
         }
         const bug = isInfested(farm, p, now);
         if (g.ready) {
-          stampAt(bug ? '✓🐛' : '✓', Math.max(10, 13 * cam.zoom) | 0, c.x, c.y - m.height * u * 0.6 - 8,
+          stampAt(bug ? '✓🐛' : '✓', Math.max(10, 13 * cam.zoom) | 0, c.x, c.y - met.h - 8,
             { font: '"JetBrains Mono", ui-monospace, monospace', color: '#8fe0a0' });
         } else if (g.stage > 0.02) {   // growth arc at the base: green while watered, parched orange when dry
           ctx.strokeStyle = g.watered ? 'rgba(143,224,160,0.8)' : 'rgba(224,150,80,0.9)';
@@ -342,9 +343,9 @@ export function createIso(canvas, { onTap } = {}) {
           ctx.beginPath(); ctx.ellipse(c.x, c.y, u * 0.13, th() * 0.2, 0, -Math.PI / 2, -Math.PI / 2 + g.stage * Math.PI * 2); ctx.stroke();
           ctx.setLineDash([]);
           if (!g.watered) {   // the thirst marker — this is the TASK calling (urgent beyond the ponds)
-            stampAt(g.farWater ? '🏜' : '💧', Math.max(9, 12 * cam.zoom) | 0, c.x + u * 0.14, c.y - m.height * u * 0.6 - 6, { color: '#e09650' });
+            stampAt(g.farWater ? '🏜' : '💧', Math.max(9, 12 * cam.zoom) | 0, c.x + u * 0.14, c.y - met.h - 6, { color: '#e09650' });
           }
-          if (bug) stampAt('🐛', Math.max(9, 12 * cam.zoom) | 0, c.x - u * 0.14, c.y - m.height * u * 0.6 - 6);
+          if (bug) stampAt('🐛', Math.max(9, 12 * cam.zoom) | 0, c.x - u * 0.14, c.y - met.h - 6);
         }
       } });
     });
@@ -554,10 +555,8 @@ export function createIso(canvas, { onTap } = {}) {
       const c = toScreen(p.x * FIELD_T, p.y * FIELD_T);
       const crop = cropById(state.ark, p.seedId);
       const g = growthOf(state.farm, p, crop, Date.now(), (state.tends || {})[p.id] || 0);
-      const m = crop ? modelFor(p, crop, g.stage) : null;
-      const halfW = Math.max(14, (m ? m.footprint : 0.2) * u * 0.45 + 8);
-      const top = c.y - (m ? m.height : 0.3) * u * 0.6 - 10;
-      if (sx >= c.x - halfW && sx <= c.x + halfW && sy >= top && sy <= c.y + th() * 0.3) {
+      const met = isoPlantMetrics(crop ? spriteSpec(crop).form : 'herbClump', g.stage, u);
+      if (sx >= c.x - met.halfW && sx <= c.x + met.halfW && sy >= c.y - met.h - 10 && sy <= c.y + th() * 0.3) {
         const sum = p.x + p.y;
         if (sum > bestSum) { bestSum = sum; best = i; }
       }
