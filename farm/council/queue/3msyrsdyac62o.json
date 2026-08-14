@@ -1,0 +1,11 @@
+{
+  "uri": "at://did:plc:7zre4plmd5jllccww575j6sb/com.minomobi.farm.petition/3msyrsdyac62o",
+  "did": "did:plc:7zre4plmd5jllccww575j6sb",
+  "handle": "minormobius.bsky.social",
+  "text": "new candyland skin available by default",
+  "createdAt": "2026-08-13T23:19:46.483Z",
+  "post": {
+    "uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3msyrser3iz27",
+    "cid": "bafyreignoqxx6jbeaqddauvvdbhvx6hybntadu4ayc2pccvswcozqfvtka"
+  }
+}
