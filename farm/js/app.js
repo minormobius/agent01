@@ -1260,6 +1260,6 @@ document.addEventListener('click', (e) => { if (e.target.closest('.closepane')) 
 // the ✕ on persistent banners (nextbar, grantbar) — every popup must be banishable
 document.addEventListener('click', (e) => { const x = e.target.closest('.toast .x'); if (x) x.closest('.toast').remove(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel(); });
-window.harvestople = { openPanel, closePanel, state: () => farm, cam: () => isoMain && isoMain.cam() };   // console/smoke-test handle — the map is still the front door
+window.harvestople = { openPanel, closePanel, state: () => farm, cam: () => isoMain && isoMain.cam(), isoStats: () => isoMain && isoMain.stats() };   // console/smoke-test handle — the map is still the front door
 $('#vessel')?.addEventListener('change', () => renderBench());
 boot().catch((e) => { console.error(e); toast('⚠ boot failed: ' + esc(e.message), 'warn', 20000); });

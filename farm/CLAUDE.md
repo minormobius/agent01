@@ -129,7 +129,25 @@ run them before any push; the deploy workflow runs them again):
 - `js/iso.js` — the draggable 2:1 isometric world: terraform-aware ground off
   `tileAt`, billboarded flora + station huts in one painter pass, tool-aware
   hover (green/red), tap vs drag vs zoom. Projection/camera/input only — no
-  game rules.
+  game rules. PERF ARCHITECTURE (2026-08-14, 15-30× per frame): the ground
+  renders once into an offscreen layer (viewport + `GM` margin) and blits
+  until the camera leaves the apron, zoom changes, or `update()` sees a new
+  farm/tool/theme (`groundVersion`); plant sprites and emoji come from raster
+  caches (`plantRaster` keyed to modelFor's stage buckets, `textStamp`);
+  the liveliness tick runs ONLY while animated sprites are on a visible
+  tab's screen (`motion` flag — no `|| true`, ever); draw uses the LIVE
+  clock so animation breathes between state updates; `plantAt` reuses the
+  frame's hitboxes; a mousemove redraws only when the hovered tile or
+  outlined target changes. Frame cost is instrumented —
+  `harvestople.isoStats()` returns {frames, ms, avg} since last call, and
+  the bench lives in the session scratchpad (perf.mjs pattern: 150 plants /
+  25 parcels / 10 animals; 2026-08-14 baseline 45ms → 3.1ms at survey zoom).
+  Anything that changes what the GROUND pass reads must ride
+  `groundVersion` — a cached layer that misses an input is a stale-world
+  bug. state.js backs this with per-farm-version WeakMap memos
+  (`waterSourceWithin`/`irrigated`/`pathBeside`/`forageSpots`) — mutating a
+  farm IN PLACE (console doctoring) can serve stale spatial answers until
+  the next kernel clone.
 - `js/mine.js` — seeded levels `(didSeed, depth)`, exactly one ladder each,
   the Chaldean nobility gradient (lead/iron shallow → gold/quicksilver deep).
   Metals are the bench's vessel tax (`PREP_METAL`): elixir=gold, tonic=silver,
