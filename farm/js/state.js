@@ -92,15 +92,30 @@ export const WATER_RANGE = 4;   // annealed: 3 starved week-one throughput befor
 export const PARCH_MS = 48 * 3600 * 1000;
 export const THIRSTY = { papyrus: 1, rice: 1, lotus: 1, cress: 1, herb_cress: 1 };
 
+// PER-FARM SPATIAL MEMO. The renderer asks water/path questions per plant per frame, and each is
+// a neighbourhood scan of tileAt — with a big estate that was ~40k tile reads a frame. Every
+// mutation clones the farm, so caching on the farm OBJECT self-invalidates: a WeakMap entry dies
+// with the version it described. Pure functions stay pure; they just remember.
+const _spatialMemo = new WeakMap();
+function spatialMemo(farm, key, calc) {
+  let m = _spatialMemo.get(farm);
+  if (!m) { m = new Map(); _spatialMemo.set(farm, m); }
+  let v = m.get(key);
+  if (v === undefined) { v = calc(); m.set(key, v); }
+  return v;
+}
+
 export function waterSourceWithin(farm, tx, ty, r) {
-  if (hasTech(farm, 'deepwell')) return true;
-  for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-    if (inWorld(tx + dx, ty + dy) && tileAt(farm, tx + dx, ty + dy) === 'pond') return true;
-  }
-  for (const f of farm.fixtures || []) {
-    if (Math.max(Math.abs(f.tx - tx), Math.abs(f.ty - ty)) <= r) return true;
-  }
-  return false;
+  return spatialMemo(farm, 'w' + tx + ',' + ty + ',' + r, () => {
+    if (hasTech(farm, 'deepwell')) return true;
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (inWorld(tx + dx, ty + dy) && tileAt(farm, tx + dx, ty + dy) === 'pond') return true;
+    }
+    for (const f of farm.fixtures || []) {
+      if (Math.max(Math.abs(f.tx - tx), Math.abs(f.ty - ty)) <= r) return true;
+    }
+    return false;
+  });
 }
 export const thirstOf = (crop) => (crop && THIRSTY[crop.id] != null ? THIRSTY[crop.id] : WATER_RANGE);
 export const plantNearWater = (farm, plant) =>
@@ -274,6 +289,11 @@ export const FORAGE_WINDOW_MS = 4 * 3600 * 1000;
 export const forageWindow = (now) => Math.floor(now / FORAGE_WINDOW_MS);
 export function forageSpots(farm, now) {
   const w = forageWindow(now);
+  // the roadside bias scans whole parcels per spot — memoized per farm version + window (the
+  // renderer asks every frame; the answer only changes when the farm or the 4h window does)
+  return spatialMemo(farm, 'f' + w, () => forageSpotsRaw(farm, w));
+}
+function forageSpotsRaw(farm, w) {
   const keys = farm.parcels || ['0,0'];
   const nSpots = 2 + keys.length;                        // more land, more to find
   const taken = new Set(((farm.forage || {}).w === w ? farm.forage.got : []) || []);
@@ -784,18 +804,20 @@ export function plantSeed(farm, x, y, cropId, ark, now) {
 // the wind pump), or anywhere at all once the deep well is sunk. All from public state — a viewer
 // recomputes your irrigation map exactly.
 export function irrigated(farm, plant) {
-  if (hasTech(farm, 'deepwell')) return true;
   const tx = Math.floor(plant.x * FIELD_T), ty = Math.floor(plant.y * FIELD_T);
-  const waterR = hasTech(farm, 'channels') ? 2 : 1;
-  for (let dx = -waterR; dx <= waterR; dx++) for (let dy = -waterR; dy <= waterR; dy++) {
-    if (!dx && !dy) continue;
-    if (inWorld(tx + dx, ty + dy) && tileAt(farm, tx + dx, ty + dy) === 'pond') return true;
-  }
-  const sprR = hasTech(farm, 'windpump') ? 2 : 1;
-  for (const f of farm.fixtures || []) {
-    if (f.kind === 'sprinkler' && Math.abs(f.tx - tx) <= sprR && Math.abs(f.ty - ty) <= sprR) return true;
-  }
-  return false;
+  return spatialMemo(farm, 'i' + tx + ',' + ty, () => {
+    if (hasTech(farm, 'deepwell')) return true;
+    const waterR = hasTech(farm, 'channels') ? 2 : 1;
+    for (let dx = -waterR; dx <= waterR; dx++) for (let dy = -waterR; dy <= waterR; dy++) {
+      if (!dx && !dy) continue;
+      if (inWorld(tx + dx, ty + dy) && tileAt(farm, tx + dx, ty + dy) === 'pond') return true;
+    }
+    const sprR = hasTech(farm, 'windpump') ? 2 : 1;
+    for (const f of farm.fixtures || []) {
+      if (f.kind === 'sprinkler' && Math.abs(f.tx - tx) <= sprR && Math.abs(f.ty - ty) <= sprR) return true;
+    }
+    return false;
+  });
 }
 export const isWatered = (farm, plant, now) => irrigated(farm, plant) || now <= (plant.wateredAt || 0) + WATER_MS;
 
@@ -840,12 +862,14 @@ export function isInfested(farm, plant, now) {
 }
 export function pathBeside(farm, plant) {
   const tx = Math.floor(plant.x * FIELD_T), ty = Math.floor(plant.y * FIELD_T);
-  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-    if (!dx && !dy) continue;
-    const t = inWorld(tx + dx, ty + dy) ? tileAt(farm, tx + dx, ty + dy) : null;
-    if (t === 'path' || t === 'road') return true;
-  }
-  return false;
+  return spatialMemo(farm, 'p' + tx + ',' + ty, () => {
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue;
+      const t = inWorld(tx + dx, ty + dy) ? tileAt(farm, tx + dx, ty + dy) : null;
+      if (t === 'path' || t === 'road') return true;
+    }
+    return false;
+  });
 }
 
 // ── growth: pure (farm, plant, crop, now, tendCount) → stage ──────────────────────────────────────

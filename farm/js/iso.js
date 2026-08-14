@@ -36,6 +36,62 @@ function tileHash(seed, tx, ty) {
   h ^= h >>> 15; return (h >>> 0) / 4294967296;
 }
 
+// ── RASTER CACHES (shared across iso instances) ──────────────────────────────────────────────────
+// fillText with color-font emoji re-rasterizes the glyph every call — one of the two big per-frame
+// costs (the other is the ground pass). Both caches trade a little memory for drawImage blits.
+
+// text/emoji stamps: key (text, px, font, color, dpr) → offscreen canvas, centre-anchored
+const _stamps = new Map();
+function textStamp(text, px, font, color, dpr) {
+  const key = text + '|' + px + '|' + font + '|' + (color || '') + '|' + dpr;
+  let s = _stamps.get(key);
+  if (!s) {
+    if (_stamps.size > 400) _stamps.clear();
+    const cv = document.createElement('canvas');
+    const fontStr = px + 'px ' + font;
+    let g = cv.getContext('2d');
+    g.font = fontStr;
+    const w = Math.max(2, Math.ceil(g.measureText(text).width) + Math.ceil(px * 0.5));
+    const h = Math.max(2, Math.ceil(px * 1.6));
+    cv.width = Math.ceil(w * dpr); cv.height = Math.ceil(h * dpr);
+    g = cv.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.font = fontStr; g.textAlign = 'center'; g.textBaseline = 'middle';
+    if (color) g.fillStyle = color;
+    g.fillText(text, w / 2, h / 2);
+    s = { cv, w, h };
+    _stamps.set(key, s);
+  }
+  return s;
+}
+
+// plant sprites: drawPlant rasterizes a whole procedural model per plant per frame — cached here
+// per (plant, stage bucket, size bucket). The bucket matches modelFor's, so pixels are stable
+// within a bucket; uQ quantizes size so a zoom gesture doesn't mint 150 rasters per notch.
+const _plantRasters = new Map();
+let _plantRasterPx = 0;
+function plantRaster(p, crop, stage, u, dpr, modelFor, drawPlant) {
+  const uQ = Math.max(18, Math.round(u / 6) * 6);
+  const bucket = Math.min(20, Math.floor(stage * 20));
+  const key = p.id + ':' + p.seedId + ':' + bucket + ':' + uQ + ':' + dpr;
+  let s = _plantRasters.get(key);
+  if (!s) {
+    if (_plantRasters.size > 320 || _plantRasterPx > 16_000_000) { _plantRasters.clear(); _plantRasterPx = 0; }
+    const w = Math.ceil(uQ * 2), h = Math.ceil(uQ * 1.5);
+    const ax = w / 2, ay = h - uQ * 0.3;
+    const cv = document.createElement('canvas');
+    cv.width = Math.ceil(w * dpr); cv.height = Math.ceil(h * dpr);
+    const g = cv.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const m = modelFor(p, crop, stage);
+    try { drawPlant(g, m, ax, ay, uQ * 0.6); } catch (e) { /* one bad model must not blank the field */ }
+    s = { cv, w, h, ax, ay, uQ };
+    _plantRasters.set(key, s);
+    _plantRasterPx += cv.width * cv.height;
+  }
+  return s;
+}
+
 export function createIso(canvas, { onTap } = {}) {
   const ctx = canvas.getContext('2d');
   const cam = { x: FIELD_T / 2, y: FIELD_T / 2, zoom: 1 };   // camera looks at world point (x,y)
@@ -46,6 +102,12 @@ export function createIso(canvas, { onTap } = {}) {
   let raf = 0;
   let particles = [];                                        // cosmetic floaters ({wx,wy,text,color,at,dx})
   let drawTimer = 0;                                         // the lazy liveliness tick
+  let groundVersion = 0;                                     // bumped when anything the ground reads changes
+  let gcache = null;                                         // the cached ground layer (see rebuildGround)
+  let vign = null;                                           // cached vignette gradient
+  let plantHits = [];                                        // this frame's plant hitboxes — hover/tap reuse
+  let outlinedKey = null;                                    // what the play-mode outline ringed last frame
+  const GM = 224;                                            // ground cache margin (css px): pan this far before a rebuild
 
   const tw = () => TW * cam.zoom, th = () => TH * cam.zoom;
   // world → screen (canvas CSS px)
@@ -66,37 +128,54 @@ export function createIso(canvas, { onTap } = {}) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  function diamond(cx, cy, w, h) {
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - h / 2); ctx.lineTo(cx + w / 2, cy); ctx.lineTo(cx, cy + h / 2); ctx.lineTo(cx - w / 2, cy);
-    ctx.closePath();
+  function diamondOn(g, cx, cy, w, h) {
+    g.beginPath();
+    g.moveTo(cx, cy - h / 2); g.lineTo(cx + w / 2, cy); g.lineTo(cx, cy + h / 2); g.lineTo(cx - w / 2, cy);
+    g.closePath();
+  }
+  const diamond = (cx, cy, w, h) => diamondOn(ctx, cx, cy, w, h);
+
+  // blit a cached glyph. baseline 'alphabetic' matches what fillText did at the same y.
+  function stampAt(text, px, x, y, { font = 'system-ui, sans-serif', color = null, baseline = 'alphabetic' } = {}) {
+    const s = textStamp(text, px, font, color, dpr);
+    const yy = baseline === 'middle' ? y : y - px * 0.36;
+    ctx.drawImage(s.cv, x - s.w / 2, yy - s.h / 2, s.w, s.h);
   }
 
-  function draw() {
-    raf = 0;
-    if (!state) return;
-    size();
-    const { farm, ark, now, tends, readOnly, plantingCrop } = state;
-    const g = (state.theme || currentSkin(farm)).ground;   // the equipped skin paints the world
-    ctx.fillStyle = g.sky; ctx.fillRect(0, 0, W, H);
+  // THE GROUND LAYER CACHE. The tile pass was the whole-frame cost: at survey zoom it filled
+  // thousands of diamonds per frame. The ground only changes when the WORLD changes (terraform,
+  // purchase, skin, planting overlay) or the camera leaves the cached apron — so it renders once
+  // into an offscreen (viewport + GM margin on every side) and every frame after is one blit.
+  // Pond sheen is deliberately NOT cached: the water animates live over the blit (few tiles).
+  function rebuildGround() {
+    const { farm, readOnly } = state;
+    const g = (state.theme || currentSkin(farm)).ground;
+    const cw = W + GM * 2, ch = H + GM * 2;
+    if (!gcache) gcache = { cv: document.createElement('canvas'), ponds: [] };
+    const cv = gcache.cv;
+    if (cv.width !== Math.ceil(cw * dpr) || cv.height !== Math.ceil(ch * dpr)) {
+      cv.width = Math.ceil(cw * dpr); cv.height = Math.ceil(ch * dpr);
+    }
+    const g2 = cv.getContext('2d');
+    g2.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g2.fillStyle = g.sky; g2.fillRect(0, 0, cw, ch);
 
-    // visible tile range from the screen corners (padded)
-    const corners = [toWorld(0, 0), toWorld(W, 0), toWorld(0, H), toWorld(W, H)];
+    const corners = [toWorld(-GM, -GM), toWorld(W + GM, -GM), toWorld(-GM, H + GM), toWorld(W + GM, H + GM)];
     const tx0 = Math.max(WORLD_MIN, Math.floor(Math.min(...corners.map((c) => c.wx)) - 1));
     const tx1 = Math.min(WORLD_MAX, Math.ceil(Math.max(...corners.map((c) => c.wx)) + 1));
     const ty0 = Math.max(WORLD_MIN, Math.floor(Math.min(...corners.map((c) => c.wy)) - 1));
     const ty1 = Math.min(WORLD_MAX, Math.ceil(Math.max(...corners.map((c) => c.wy)) + 1));
-
-    // parcels for sale this frame (adjacent to owned land) — signs + lighter fog
     const forSale = new Map(buyableParcels(farm).map((b) => [b.px + ',' + b.py, b]));
+    const ponds = [];
 
-    // ── ground pass (painter order: sum ascending draws back → front) ──
+    // painter order: sum ascending draws back → front
     for (let s = tx0 + ty0; s <= tx1 + ty1; s++) {
       for (let tx = tx0; tx <= tx1; tx++) {
         const ty = s - tx; if (ty < ty0 || ty > ty1) continue;
         const kind = tileAt(farm, tx, ty);   // terraform-aware: overrides first, seeded baseline under
-        const c = toScreen(tx + 0.5, ty + 0.5);
-        if (c.x < -tw() || c.x > W + tw() || c.y < -th() * 3 || c.y > H + th()) continue;
+        const c0 = toScreen(tx + 0.5, ty + 0.5);
+        const c = { x: c0.x + GM, y: c0.y + GM };
+        if (c.x < -tw() || c.x > cw + tw() || c.y < -th() * 3 || c.y > ch + th()) continue;
         const [ppx, ppy] = parcelOf(tx, ty);
         const owned = ownsParcel(farm, ppx, ppy);
         const saleable = !owned && forSale.has(ppx + ',' + ppy);
@@ -111,47 +190,78 @@ export function createIso(canvas, { onTap } = {}) {
         if (kind === 'hill') {
           // a raised block: side skirts up to a lifted cap — the terrain you paid less because of
           const lift = th() * 0.55;
-          ctx.fillStyle = 'rgba(0,0,0,0.4)';   // shadow at the foot
-          diamond(c.x, c.y, tw(), th()); ctx.fill();
-          ctx.fillStyle = trgba(g.hillSkirtL, 1);   // left skirt
-          ctx.beginPath(); ctx.moveTo(c.x - tw() / 2, c.y); ctx.lineTo(c.x, c.y + th() / 2); ctx.lineTo(c.x, c.y + th() / 2 - lift); ctx.lineTo(c.x - tw() / 2, c.y - lift); ctx.closePath(); ctx.fill();
-          ctx.fillStyle = trgba(g.hillSkirtR, 1);   // right skirt
-          ctx.beginPath(); ctx.moveTo(c.x + tw() / 2, c.y); ctx.lineTo(c.x, c.y + th() / 2); ctx.lineTo(c.x, c.y + th() / 2 - lift); ctx.lineTo(c.x + tw() / 2, c.y - lift); ctx.closePath(); ctx.fill();
-          ctx.fillStyle = groundFill(g, 'hill', r);   // grassy cap
-          diamond(c.x, c.y - lift, tw(), th()); ctx.fill();
-          ctx.fillStyle = 'rgba(120,116,100,0.5)';   // rocky flecks
-          ctx.beginPath(); ctx.ellipse(c.x + (r - 0.5) * tw() * 0.3, c.y - lift, tw() * 0.08, th() * 0.1, 0, 0, 7); ctx.fill();
+          g2.fillStyle = 'rgba(0,0,0,0.4)';   // shadow at the foot
+          diamondOn(g2, c.x, c.y, tw(), th()); g2.fill();
+          g2.fillStyle = trgba(g.hillSkirtL, 1);   // left skirt
+          g2.beginPath(); g2.moveTo(c.x - tw() / 2, c.y); g2.lineTo(c.x, c.y + th() / 2); g2.lineTo(c.x, c.y + th() / 2 - lift); g2.lineTo(c.x - tw() / 2, c.y - lift); g2.closePath(); g2.fill();
+          g2.fillStyle = trgba(g.hillSkirtR, 1);   // right skirt
+          g2.beginPath(); g2.moveTo(c.x + tw() / 2, c.y); g2.lineTo(c.x, c.y + th() / 2); g2.lineTo(c.x, c.y + th() / 2 - lift); g2.lineTo(c.x + tw() / 2, c.y - lift); g2.closePath(); g2.fill();
+          g2.fillStyle = groundFill(g, 'hill', r);   // grassy cap
+          diamondOn(g2, c.x, c.y - lift, tw(), th()); g2.fill();
+          g2.fillStyle = 'rgba(120,116,100,0.5)';   // rocky flecks
+          g2.beginPath(); g2.ellipse(c.x + (r - 0.5) * tw() * 0.3, c.y - lift, tw() * 0.08, th() * 0.1, 0, 0, 7); g2.fill();
         } else {
-          ctx.fillStyle = fill;
-          diamond(c.x, c.y, tw(), th()); ctx.fill();
-          if (plantTint) { ctx.fillStyle = plantTint; diamond(c.x, c.y, tw() * 0.92, th() * 0.92); ctx.fill(); }
+          g2.fillStyle = fill;
+          diamondOn(g2, c.x, c.y, tw(), th()); g2.fill();
+          if (plantTint) { g2.fillStyle = plantTint; diamondOn(g2, c.x, c.y, tw() * 0.92, th() * 0.92); g2.fill(); }
           // furrow grid on the tillable soil only — reads as "you can plant here"
-          if (kind === 'soil') { ctx.strokeStyle = g.furrow; ctx.lineWidth = 1; diamond(c.x, c.y, tw(), th()); ctx.stroke(); }
-          if (kind === 'pond') {   // water sheen
-            ctx.fillStyle = trgba(g.sheen, 0.06 + 0.05 * Math.sin(now / 900 + tx * 2.1 + ty * 1.3));
-            diamond(c.x, c.y, tw() * 0.7, th() * 0.7); ctx.fill();
-          }
+          if (kind === 'soil') { g2.strokeStyle = g.furrow; g2.lineWidth = 1; diamondOn(g2, c.x, c.y, tw(), th()); g2.stroke(); }
+          if (kind === 'pond') ponds.push({ tx, ty });   // sheen animates live, over the blit
           if (kind === 'road') {   // faded centre-line dashes
-            ctx.strokeStyle = 'rgba(220,210,170,0.28)'; ctx.lineWidth = Math.max(1, 1.5 * cam.zoom); ctx.setLineDash([tw() * 0.14, tw() * 0.12]);
-            ctx.beginPath(); ctx.moveTo(c.x - tw() * 0.25, c.y - th() * 0.12); ctx.lineTo(c.x + tw() * 0.25, c.y + th() * 0.12); ctx.stroke();
-            ctx.setLineDash([]);
+            g2.strokeStyle = 'rgba(220,210,170,0.28)'; g2.lineWidth = Math.max(1, 1.5 * cam.zoom); g2.setLineDash([tw() * 0.14, tw() * 0.12]);
+            g2.beginPath(); g2.moveTo(c.x - tw() * 0.25, c.y - th() * 0.12); g2.lineTo(c.x + tw() * 0.25, c.y + th() * 0.12); g2.stroke();
+            g2.setLineDash([]);
           }
           if (kind === 'stone') {   // a boulder resting on the tile
             const rw = tw() * 0.26, rh = th() * 0.5;
-            ctx.fillStyle = g.boulder[0]; ctx.beginPath(); ctx.ellipse(c.x, c.y - rh * 0.4, rw, rh, 0, Math.PI, 0); ctx.fill();
-            ctx.fillStyle = g.boulder[1]; ctx.beginPath(); ctx.ellipse(c.x, c.y - rh * 0.4, rw, rh * 0.45, 0, 0, Math.PI); ctx.fill();
-            ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.beginPath(); ctx.ellipse(c.x - rw * 0.35, c.y - rh * 0.75, rw * 0.35, rh * 0.3, 0, 0, 7); ctx.fill();
+            g2.fillStyle = g.boulder[0]; g2.beginPath(); g2.ellipse(c.x, c.y - rh * 0.4, rw, rh, 0, Math.PI, 0); g2.fill();
+            g2.fillStyle = g.boulder[1]; g2.beginPath(); g2.ellipse(c.x, c.y - rh * 0.4, rw, rh * 0.45, 0, 0, Math.PI); g2.fill();
+            g2.fillStyle = 'rgba(255,255,255,0.12)'; g2.beginPath(); g2.ellipse(c.x - rw * 0.35, c.y - rh * 0.75, rw * 0.35, rh * 0.3, 0, 0, 7); g2.fill();
           }
         }
 
         // fog of ownership: unowned land dims — parcels on the market a little less than the rest
         if (!owned) {
-          ctx.fillStyle = saleable ? g.fogSale : g.fogFar;
+          g2.fillStyle = saleable ? g.fogSale : g.fogFar;
           const lift = kind === 'hill' ? th() * 0.55 : 0;
-          diamond(c.x, c.y - lift, tw(), th()); ctx.fill();
+          diamondOn(g2, c.x, c.y - lift, tw(), th()); g2.fill();
         }
       }
     }
+    gcache.ponds = ponds;
+    gcache.camX = cam.x; gcache.camY = cam.y; gcache.zoom = cam.zoom;
+    gcache.W = W; gcache.H = H; gcache.dpr = dpr; gcache.version = groundVersion;
+  }
+
+  function draw() {
+    raf = 0;
+    if (!state) return;
+    const __t0 = performance.now();
+    size();
+    const { farm, ark, tends, readOnly, plantingCrop } = state;
+    const now = Date.now();   // the LIVE clock: the world breathes between state updates too
+    const g = (state.theme || currentSkin(farm)).ground;   // the equipped skin paints the world
+    let motion = false;       // set when anything animated actually drew — gates the liveliness tick
+
+    // ── ground: one blit from the cache; rebuild only when stale ──
+    let gdx = 0, gdy = 0, gok = false;
+    if (gcache && gcache.version === groundVersion && gcache.zoom === cam.zoom &&
+        gcache.W === W && gcache.H === H && gcache.dpr === dpr) {
+      gdx = ((cam.x - gcache.camX) - (cam.y - gcache.camY)) * tw() / 2;
+      gdy = ((cam.x - gcache.camX) + (cam.y - gcache.camY)) * th() / 2;
+      gok = Math.abs(gdx) < GM && Math.abs(gdy) < GM;
+    }
+    if (!gok) { rebuildGround(); gdx = 0; gdy = 0; }
+    ctx.drawImage(gcache.cv, -GM - gdx, -GM - gdy, W + GM * 2, H + GM * 2);
+    // living water over the blit
+    for (const t of gcache.ponds) {
+      const c = toScreen(t.tx + 0.5, t.ty + 0.5);
+      if (c.x < -tw() || c.x > W + tw() || c.y < -th() || c.y > H + th()) continue;
+      ctx.fillStyle = trgba(g.sheen, 0.06 + 0.05 * Math.sin(now / 900 + t.tx * 2.1 + t.ty * 1.3));
+      diamond(c.x, c.y, tw() * 0.7, th() * 0.7); ctx.fill();
+      motion = true;
+    }
+    const forSale = new Map(buyableParcels(farm).map((b) => [b.px + ',' + b.py, b]));
 
     // parcel survey lines + the home field's golden rim
     ctx.strokeStyle = g.survey; ctx.lineWidth = 1;
@@ -198,6 +308,7 @@ export function createIso(canvas, { onTap } = {}) {
     // ── sprite pass: plants AND buildings in one painter order (back → front by wx+wy) ──
     const u = 118 * cam.zoom;   // plot-units → px for the flora sprites (heights ≤ ~1.15 units)
     const sprites = [];
+    const hits = [];            // this frame's plant hitboxes — plantAt reuses them on every mousemove
     farm.bed.plants.forEach((p, i) => {
       const crop = cropById(ark, p.seedId);
       if (!crop) return;
@@ -205,21 +316,25 @@ export function createIso(canvas, { onTap } = {}) {
       sprites.push({ sum: p.x * FIELD_T + p.y * FIELD_T, draw: () => {
         const c = toScreen(p.x * FIELD_T, p.y * FIELD_T);
         if (c.x < -u || c.x > W + u || c.y < -u * 1.4 || c.y > H + u) return;
+        const m = modelFor(p, crop, g.stage);
+        hits.push({ i, x: c.x, halfW: Math.max(14, m.footprint * u * 0.45 + 8), top: c.y - m.height * u * 0.6 - 10, bottom: c.y + th() * 0.3, sum: p.x + p.y });
         ctx.fillStyle = 'rgba(0,0,0,0.3)';   // contact shadow: the sprite sits ON the ground
         ctx.beginPath(); ctx.ellipse(c.x, c.y, u * 0.1 + g.stage * u * 0.08, th() * 0.16, 0, 0, 7); ctx.fill();
-        const m = modelFor(p, crop, g.stage);
+        // the plant itself comes from the raster cache: drawPlant rasterizes a whole procedural
+        // model — done once per (plant, stage bucket, size bucket), blitted every frame after
+        const s = plantRaster(p, crop, g.stage, u, dpr, modelFor, drawPlant);
+        const k = u / s.uQ;
         if (g.dead) ctx.globalAlpha = 0.45;   // the withered stand grey-faded until cleared
-        try { drawPlant(ctx, m, c.x, c.y, u * 0.6); } catch (e) { /* one bad model must not blank the field */ }
+        ctx.drawImage(s.cv, c.x - s.ax * k, c.y - s.ay * k, s.w * k, s.h * k);
         ctx.globalAlpha = 1;
         if (g.dead) {   // 🥀 marks the corpse; a tap clears it
-          ctx.font = `${Math.max(11, 15 * cam.zoom) | 0}px system-ui, sans-serif`;
-          ctx.textAlign = 'center'; ctx.fillText('🥀', c.x, c.y - m.height * u * 0.6 - 6);
+          stampAt('🥀', Math.max(11, 15 * cam.zoom) | 0, c.x, c.y - m.height * u * 0.6 - 6);
           return;
         }
         const bug = isInfested(farm, p, now);
         if (g.ready) {
-          ctx.fillStyle = '#8fe0a0'; ctx.font = `${Math.max(10, 13 * cam.zoom) | 0}px "JetBrains Mono", ui-monospace, monospace`;
-          ctx.textAlign = 'center'; ctx.fillText(bug ? '✓🐛' : '✓', c.x, c.y - m.height * u * 0.6 - 8);
+          stampAt(bug ? '✓🐛' : '✓', Math.max(10, 13 * cam.zoom) | 0, c.x, c.y - m.height * u * 0.6 - 8,
+            { font: '"JetBrains Mono", ui-monospace, monospace', color: '#8fe0a0' });
         } else if (g.stage > 0.02) {   // growth arc at the base: green while watered, parched orange when dry
           ctx.strokeStyle = g.watered ? 'rgba(143,224,160,0.8)' : 'rgba(224,150,80,0.9)';
           ctx.lineWidth = 2;
@@ -227,13 +342,9 @@ export function createIso(canvas, { onTap } = {}) {
           ctx.beginPath(); ctx.ellipse(c.x, c.y, u * 0.13, th() * 0.2, 0, -Math.PI / 2, -Math.PI / 2 + g.stage * Math.PI * 2); ctx.stroke();
           ctx.setLineDash([]);
           if (!g.watered) {   // the thirst marker — this is the TASK calling (urgent beyond the ponds)
-            ctx.fillStyle = '#e09650'; ctx.font = `${Math.max(9, 12 * cam.zoom) | 0}px system-ui, sans-serif`;
-            ctx.textAlign = 'center'; ctx.fillText(g.farWater ? '🏜' : '💧', c.x + u * 0.14, c.y - m.height * u * 0.6 - 6);
+            stampAt(g.farWater ? '🏜' : '💧', Math.max(9, 12 * cam.zoom) | 0, c.x + u * 0.14, c.y - m.height * u * 0.6 - 6, { color: '#e09650' });
           }
-          if (bug) {
-            ctx.font = `${Math.max(9, 12 * cam.zoom) | 0}px system-ui, sans-serif`;
-            ctx.textAlign = 'center'; ctx.fillText('🐛', c.x - u * 0.14, c.y - m.height * u * 0.6 - 6);
-          }
+          if (bug) stampAt('🐛', Math.max(9, 12 * cam.zoom) | 0, c.x - u * 0.14, c.y - m.height * u * 0.6 - 6);
         }
       } });
     });
@@ -259,13 +370,12 @@ export function createIso(canvas, { onTap } = {}) {
           sprites.push({ sum: wx + wy - 0.01, draw: () => {
             const c = toScreen(wx, wy);
             if (c.x < -tw() || c.x > W + tw() || c.y < -th() * 2 || c.y > H + th()) return;
+            motion = true;
             const dim = ownsParcel(farm, ...parcelOf(Math.floor(wx), Math.floor(wy))) ? 1 : 0.65;
             ctx.globalAlpha = dim;
             ctx.fillStyle = 'rgba(0,0,0,0.3)';
             ctx.beginPath(); ctx.ellipse(c.x, c.y + th() * 0.06, tw() * 0.11, th() * 0.1, 0, 0, 7); ctx.fill();
-            ctx.font = `${Math.max(11, 16 * cam.zoom) | 0}px system-ui, sans-serif`;
-            ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-            ctx.fillText(CARS[(lane * 3 + i) % CARS.length], c.x, c.y + Math.sin(now / 90 + i * 9) * 1.2 * cam.zoom);
+            stampAt(CARS[(lane * 3 + i) % CARS.length], Math.max(11, 16 * cam.zoom) | 0, c.x, c.y + Math.sin(now / 90 + i * 9) * 1.2 * cam.zoom);
             ctx.globalAlpha = 1;
           } });
         }
@@ -279,21 +389,17 @@ export function createIso(canvas, { onTap } = {}) {
       sprites.push({ sum: wx + wy, draw: () => {
         const c = toScreen(wx, wy);
         if (c.x < -tw() || c.x > W + tw() || c.y < -th() * 3 || c.y > H + th()) return;
+        motion = true;
         const bob = Math.sin(now / 300 + wx) * 2 * cam.zoom;
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
         ctx.beginPath(); ctx.ellipse(c.x, c.y, tw() * 0.13, th() * 0.14, 0, 0, 7); ctx.fill();
-        ctx.font = `${Math.max(14, 22 * cam.zoom) | 0}px system-ui, sans-serif`;
-        ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-        ctx.fillText(def.emoji, c.x, c.y - 2 + bob);
+        stampAt(def.emoji, Math.max(14, 22 * cam.zoom) | 0, c.x, c.y - 2 + bob);
         // status bubble: good ready > pettable > hungry
         const ready = animalProducing(farm, a, now) && now - (a.lastCollect || a.at) >= def.everyMs;
         const pettable = Math.floor((a.lastPet || 0) / 86400000) !== Math.floor(now / 86400000);
         const hungry = def.feedUnits > 0 && !animalFed(a, now);
         const bubble = ready ? def.goodEmoji : hungry ? '🍽️' : pettable ? '💕' : null;
-        if (bubble) {
-          ctx.font = `${Math.max(10, 14 * cam.zoom) | 0}px system-ui, sans-serif`;
-          ctx.fillText(bubble, c.x + tw() * 0.14, c.y - th() * 0.9 + bob);
-        }
+        if (bubble) stampAt(bubble, Math.max(10, 14 * cam.zoom) | 0, c.x + tw() * 0.14, c.y - th() * 0.9 + bob);
       } });
     }
 
@@ -303,6 +409,7 @@ export function createIso(canvas, { onTap } = {}) {
       sprites.push({ sum: f.tx + 0.5 + f.ty + 0.5, draw: () => {
         const c = toScreen(f.tx + 0.5, f.ty + 0.5);
         if (c.x < -tw() || c.x > W + tw() || c.y < -th() * 3 || c.y > H + th()) return;
+        motion = true;   // the head spins
         if (state.tool === 'sprinkler') {
           const R = state.sprinklerReach || 1;
           ctx.fillStyle = 'rgba(90,169,216,0.13)';
@@ -322,15 +429,17 @@ export function createIso(canvas, { onTap } = {}) {
     }
     sprites.sort((a, b) => a.sum - b.sum);
     for (const s of sprites) s.draw();
+    plantHits = hits;   // publish this frame's hitboxes for hover/tap reuse
 
     // play-mode selection outline: whatever a tap would land on gets a ring, so a click never
     // feels like a gamble against the tile hiding behind it
+    outlinedKey = null;
     if (hoverS && !tool && !readOnly) {
       const hb = buildingHit(hoverS.sx, hoverS.sy);
       const pi = hb ? -1 : plantAt(hoverS.sx, hoverS.sy);
       let oc = null, ow = 1;
-      if (hb) { oc = toScreen(hb.tx + 0.5, hb.ty + 0.5); ow = 1.15; }
-      else if (pi >= 0) { const pp = farm.bed.plants[pi]; oc = toScreen(pp.x * FIELD_T, pp.y * FIELD_T); ow = 0.7; }
+      if (hb) { oc = toScreen(hb.tx + 0.5, hb.ty + 0.5); ow = 1.15; outlinedKey = 'b' + hb.id; }
+      else if (pi >= 0) { const pp = farm.bed.plants[pi]; oc = toScreen(pp.x * FIELD_T, pp.y * FIELD_T); ow = 0.7; outlinedKey = 'p' + pi; }
       if (oc) {
         ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
         diamond(oc.x, oc.y, tw() * ow, th() * ow); ctx.stroke();
@@ -343,12 +452,11 @@ export function createIso(canvas, { onTap } = {}) {
       for (const spot of forageSpots(farm, now)) {
         const c = toScreen(spot.tx + 0.5, spot.ty + 0.5);
         if (c.x < -40 || c.x > W + 40 || c.y < -40 || c.y > H + 40) continue;
+        motion = true;
         const tws = 0.75 + 0.35 * Math.sin(now / 260 + spot.i * 2.1);
         ctx.save();
         ctx.globalAlpha = 0.55 + 0.45 * Math.sin(now / 300 + spot.i);
-        ctx.font = `${Math.max(11, 17 * cam.zoom * tws) | 0}px system-ui, sans-serif`;
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('✨', c.x, c.y - th() * 0.3);
+        stampAt('✨', Math.max(11, 17 * cam.zoom * tws) | 0, c.x, c.y - th() * 0.3, { baseline: 'middle' });
         ctx.restore();
       }
     }
@@ -374,17 +482,26 @@ export function createIso(canvas, { onTap } = {}) {
       if (particles.length) schedule();   // keep animating while any live
     }
 
-    // the world breathes: while animals wander or sparkles twinkle, keep a lazy redraw ticking
-    // (180ms — visible life, nowhere near a hot rAF loop)
-    if (!readOnly && ((farm.animals || []).length || true) && !drawTimer) {
+    // the world breathes — but ONLY while something animated is actually on screen and the tab
+    // is visible. An empty corner of the estate, a hidden tab, a covered pane: zero redraws.
+    // (This replaced an unconditional tick that repainted the whole world 5.5×/s forever.)
+    if (!readOnly && motion && !document.hidden && !drawTimer) {
       drawTimer = setTimeout(() => { drawTimer = 0; schedule(); }, 180);
     }
 
-    // vignette
-    const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.75);
-    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.38)');
-    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+    // vignette (gradient cached per canvas size — building one per frame was pure waste)
+    const vkey = W + 'x' + H;
+    if (!vign || vign.key !== vkey) {
+      const grad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.75);
+      grad.addColorStop(0, 'rgba(0,0,0,0)'); grad.addColorStop(1, 'rgba(0,0,0,0.38)');
+      vign = { key: vkey, grad };
+    }
+    ctx.fillStyle = vign.grad; ctx.fillRect(0, 0, W, H);
+
+    _stat.frames++; _stat.ms += performance.now() - __t0;
   }
+  // frame-cost counters since the last read — the perf instrument (harvestople.isoStats())
+  let _stat = { frames: 0, ms: 0 };
 
   // a station building: a little iso hut (two faces + roof) with its emoji over the door. The
   // stations ARE the game's rooms — tapping one opens its panel — so they must read at any zoom.
@@ -406,8 +523,7 @@ export function createIso(canvas, { onTap } = {}) {
     ctx.strokeStyle = 'rgba(244,191,98,0.35)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(c.x, c.y - wall); ctx.stroke();
     // the emoji over the door + a label when zoomed in
-    ctx.font = `${Math.max(13, 19 * cam.zoom) | 0}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(def.emoji, c.x, c.y - wall * 0.55);
+    stampAt(def.emoji, Math.max(13, 19 * cam.zoom) | 0, c.x, c.y - wall * 0.55, { baseline: 'middle' });
     if (cam.zoom > 0.8) {
       ctx.font = `${Math.max(8, 10 * cam.zoom) | 0}px "JetBrains Mono", ui-monospace, monospace`;
       ctx.fillStyle = '#c8b890'; ctx.textBaseline = 'alphabetic';
@@ -419,14 +535,25 @@ export function createIso(canvas, { onTap } = {}) {
   const schedule = () => { if (!raf) raf = requestAnimationFrame(draw); };
 
   // find the plant under a screen point (front-most). Sprites stand up from their base.
+  // Reuses the hitboxes the last draw published — a mousemove must never re-model the whole bed.
   function plantAt(sx, sy) {
     if (!state) return -1;
+    if (plantHits.length || !state.farm.bed.plants.length) {
+      let best = -1, bestSum = -Infinity;
+      for (const h of plantHits) {
+        if (sx >= h.x - h.halfW && sx <= h.x + h.halfW && sy >= h.top && sy <= h.bottom && h.sum > bestSum) {
+          bestSum = h.sum; best = h.i;
+        }
+      }
+      return best;
+    }
+    // no frame drawn yet (a tap can race the first paint) — the full scan, once
     const u = 118 * cam.zoom;
     let best = -1, bestSum = -Infinity;
     state.farm.bed.plants.forEach((p, i) => {
       const c = toScreen(p.x * FIELD_T, p.y * FIELD_T);
       const crop = cropById(state.ark, p.seedId);
-      const g = growthOf(state.farm, p, crop, state.now, (state.tends || {})[p.id] || 0);
+      const g = growthOf(state.farm, p, crop, Date.now(), (state.tends || {})[p.id] || 0);
       const m = crop ? modelFor(p, crop, g.stage) : null;
       const halfW = Math.max(14, (m ? m.footprint : 0.2) * u * 0.45 + 8);
       const top = c.y - (m ? m.height : 0.3) * u * 0.6 - 10;
@@ -460,7 +587,7 @@ export function createIso(canvas, { onTap } = {}) {
     if (!state) return null;
     let best = null, bestSum = -Infinity;
     for (const a of state.farm.animals || []) {
-      const pos = animalPos(state.farm, a, state.now);
+      const pos = animalPos(state.farm, a, Date.now());   // the live clock — where draw() put them
       const c = toScreen(pos.x * FIELD_T, pos.y * FIELD_T);
       const rr = Math.max(16, tw() * 0.2);
       if (sx >= c.x - rr && sx <= c.x + rr && sy >= c.y - rr * 1.6 && sy <= c.y + rr * 0.6) {
@@ -473,7 +600,7 @@ export function createIso(canvas, { onTap } = {}) {
   // the sparkle under a screen point
   function sparkleHit(sx, sy) {
     if (!state || state.readOnly) return null;
-    for (const spot of forageSpots(state.farm, state.now)) {
+    for (const spot of forageSpots(state.farm, Date.now())) {
       const c = toScreen(spot.tx + 0.5, spot.ty + 0.5);
       if (Math.abs(sx - c.x) < Math.max(14, tw() * 0.22) && Math.abs(sy - (c.y - th() * 0.3)) < Math.max(14, th() * 0.5)) return spot;
     }
@@ -529,11 +656,19 @@ export function createIso(canvas, { onTap } = {}) {
         schedule();
       }
     } else {
+      // hover bookkeeping — but only REDRAW when the visible aid would change: the hovered tile
+      // (tool overlay) or the outlined tap target. A bare mousemove used to repaint the world.
       const w = toWorld(sx, sy);
       const t = { tx: Math.floor(w.wx), ty: Math.floor(w.wy) };
-      hoverS = { sx, sy };
-      if (!hover || hover.tx !== t.tx || hover.ty !== t.ty) { hover = t; schedule(); }
-      else schedule();
+      const tileChanged = !hover || hover.tx !== t.tx || hover.ty !== t.ty;
+      hover = t; hoverS = { sx, sy };
+      let need = tileChanged;
+      if (!need && state && !state.readOnly && !state.tool && !state.plantingCrop) {
+        const hb = buildingHit(sx, sy);
+        const key = hb ? 'b' + hb.id : (() => { const pi = plantAt(sx, sy); return pi >= 0 ? 'p' + pi : null; })();
+        need = key !== outlinedKey;
+      }
+      if (need) schedule();
     }
   });
   const liftFinger = (ev) => {
@@ -576,11 +711,20 @@ export function createIso(canvas, { onTap } = {}) {
     schedule();
   }, { passive: false });
   window.addEventListener('resize', schedule);
+  // a hidden tab draws nothing (the tick gate checks document.hidden) — wake it on return
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) schedule(); });
 
   return {
-    update(next) { state = next; schedule(); },
+    update(next) {
+      // anything the cached ground layer reads → new version → next draw rebuilds it
+      if (!state || !next || next.farm !== state.farm || next.tool !== state.tool ||
+          next.theme !== state.theme || next.plantingCrop !== state.plantingCrop ||
+          next.toolCheck !== state.toolCheck || next.readOnly !== state.readOnly) groundVersion++;
+      state = next; schedule();
+    },
     center() { cam.x = FIELD_T / 2; cam.y = FIELD_T / 2; schedule(); },
     cam: () => ({ x: cam.x, y: cam.y, zoom: cam.zoom }),   // read-only peek (smoke tests)
+    stats() { const s = { frames: _stat.frames, ms: _stat.ms, avg: _stat.frames ? _stat.ms / _stat.frames : 0 }; _stat = { frames: 0, ms: 0 }; return s; },
     redraw: schedule,
     // JUICE: float a little payoff off a world point (bed-normalized coords like plants)
     burst(bx, by, text, color) {
