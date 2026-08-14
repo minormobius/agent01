@@ -12,3 +12,5 @@ the wish.
 The table is set: this branch deploys farm-next.mino.mobi.
 
 Candyland rode out on this push — the first granted petition.
+
+(the sweep.log stowaway was removed — the walls caught it)
