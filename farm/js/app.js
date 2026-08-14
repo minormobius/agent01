@@ -386,6 +386,7 @@ function renderHeader() {
 // ── panels: the stations' rooms, opened by tapping their building on the map ────────────────────
 function openPanel(name) {
   $$('.pane').forEach((p) => p.classList.toggle('on', p.id === 'tab-' + name));
+  document.body.classList.add('panopen');   // lets CSS steer the toast stack off the open pane's rows
   if (name === 'desk') renderDesk();
   if (name === 'mine') { commit(Mine.enterMine(farm, now()).farm); renderMine(); }
   if (name === 'bench') renderBench();
@@ -397,7 +398,7 @@ function openPanel(name) {
   if (name === 'skins') renderSkins();
   if (name === 'barn') renderBarn();
 }
-function closePanel() { $$('.pane').forEach((p) => p.classList.remove('on')); redrawBed(); }
+function closePanel() { $$('.pane').forEach((p) => p.classList.remove('on')); document.body.classList.remove('panopen'); redrawBed(); }
 
 // ── craft toolbar ─────────────────────────────────────────────────────────────────────────────────
 function renderCraftBar() {

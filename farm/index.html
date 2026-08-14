@@ -90,6 +90,20 @@
   @media (max-width: 700px) {
     #toasts { left:10px; right:10px; bottom:auto; top:calc(10px + env(safe-area-inset-top, 0px)); max-width:none; }
   }
+  /* 700-899px panes are STILL bottom sheets (the 900px breakpoint below is where they become a
+     side panel) but the phone fix above doesn't reach this width — same untappable-last-row bug,
+     narrower window. Move toasts up only while a pane is actually open, so idle toasts keep their
+     usual corner. */
+  @media (min-width: 701px) and (max-width: 899px) {
+    body.panopen #toasts { bottom:auto; top:calc(14px + env(safe-area-inset-top, 0px)); }
+  }
+  /* >=900px panes dock as a right-side sheet spanning the full height (see the .pane.on media
+     query) — the SAME corner toasts live in, so an open pane's bottom rows (the wardrobe's last
+     skin, most often) sit under the toast stack there too. Slide toasts to the left edge, over the
+     field instead of the pane, while a pane is open. */
+  @media (min-width: 900px) {
+    body.panopen #toasts { right:auto; left:14px; }
+  }
   /* fat-finger dignity: real tap targets and no double-tap page zoom on controls */
   button, .chip, summary, select, .toast { touch-action:manipulation; }
   @media (pointer: coarse) {
