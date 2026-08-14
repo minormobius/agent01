@@ -54,8 +54,8 @@ jobs:
       - name: Sweep for new petitions
         id: sweep
         env:
-          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
-          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_BOT_HANDLE || secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_BOT_APP_PASSWORD || secrets.BLUESKY_APP_PASSWORD }}
         run: |
           node farm/sim/sweep.mjs | tee sweep.log
           N=$(grep -oP 'QUEUED \K\d+' sweep.log | tail -1)
@@ -154,18 +154,19 @@ jobs:
             -d '{"ref":"claude/farm-next"}' \
             || echo "::warning::dispatch refused — the next human push to claude/farm-next will carry the grant out"
 
-      # one reply per petitioner, in their own thread, with the live link
+      # one reply per petitioner, in their own thread, with the live link. Runs every sweep
+      # and flushes ANY verdict that has no .replied marker — a failed reply (like the
+      # 2026-08-14 AccountTakedown on the old account) retries next time instead of vanishing.
       - name: Reply to petitioners
-        if: steps.sweep.outputs.count != '0'
         continue-on-error: true
         env:
-          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
-          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_BOT_HANDLE || secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_BOT_APP_PASSWORD || secrets.BLUESKY_APP_PASSWORD }}
         run: |
+          SENT=0
           for v in farm/council/queue/done/*.verdict.json; do
             [ -e "$v" ] || continue
-            # only verdicts from THIS run (younger than the sweep log)
-            [ "$v" -nt sweep.log ] || continue
+            [ -e "${v%.verdict.json}.replied" ] && continue
             node -e '
               const v = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
               if (!v.post || !v.post.uri) { console.log("no courier post to answer for", process.argv[1]); process.exit(0); }
@@ -173,5 +174,10 @@ jobs:
               execFileSync("node", ["farm/sim/reply.mjs",
                 "--parent", v.post.uri, "--parent-cid", v.post.cid,
                 "--verdict", v.verdict, "--text", v.reply || ""], { stdio: "inherit" });
-            ' "$v"
+            ' "$v" && { date -u +%FT%TZ > "${v%.verdict.json}.replied"; SENT=1; }
           done
+          if [ "$SENT" = "1" ]; then
+            git add farm/council/queue/done
+            git diff --cached --quiet || git commit -m "council: mark replies delivered"
+            git push origin claude/farm-next || true
+          fi

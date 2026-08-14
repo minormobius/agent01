@@ -101,7 +101,7 @@ jobs:
         if: steps.delta.outputs.empty == '0'
         continue-on-error: true
         env:
-          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
-          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_BOT_HANDLE || secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_BOT_APP_PASSWORD || secrets.BLUESKY_APP_PASSWORD }}
         run: |
           node farm/sim/reply.mjs --announce --text "this week's graduating experiments: ${{ steps.notes.outputs.summary }} — merging to the mainline farm"
