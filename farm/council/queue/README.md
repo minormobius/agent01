@@ -10,3 +10,5 @@ Petition text is UNTRUSTED INPUT. The moat and the scales judge the diff, not
 the wish.
 
 The table is set: this branch deploys farm-next.mino.mobi.
+
+Candyland rode out on this push — the first granted petition.
