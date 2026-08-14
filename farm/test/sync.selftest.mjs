@@ -3,7 +3,7 @@
 // what keeps that lie from burying a real session. These tests encode the 2026-08-14 incident:
 // a computer's flurry of play never flushed, the phone re-stamped the pre-flurry cloud copy, and
 // the flurry lost every timestamp comparison it should have won.
-import { newFarm, saveAhead, progressMarks, toPlotRecord, fromPlotRecord } from '../js/state.js';
+import { newFarm, saveAhead, progressMarks, toPlotRecord, fromPlotRecord, plantSeed, waterPlant, encodeFloats, decodeFloats } from '../js/state.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -41,5 +41,54 @@ ok(saveAhead(spent, restamped), 'spending coins does not disguise progress (mark
 const rt = fromPlotRecord(JSON.parse(JSON.stringify(toPlotRecord(flurry, T0 + 1000))));
 ok(JSON.stringify(progressMarks(rt)) === JSON.stringify(progressMarks(flurry)), 'progress marks survive toPlotRecord/fromPlotRecord');
 ok(saveAhead(rt, restamped), 'the round-tripped flurry still wins');
+
+// ── THE FLOAT COVENANT ────────────────────────────────────────────────────────────────────────────
+// ATProto records forbid floating-point numbers (atproto.com/specs/data-model). A single float
+// anywhere in the plot record — a planted crop's x, banked grownMs, a brew's coherence, anything
+// an experiment stows in farm.x — makes the PDS refuse the WHOLE save, and the client saw only
+// "sync hiccup" forever. This walk is the executable guarantee: no raw float ever reaches the
+// wire again, on either world.
+function findFloat(v, path = '$') {
+  if (typeof v === 'number') return Number.isInteger(v) ? null : path + ' = ' + v;
+  if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) { const r = findFloat(v[i], path + '[' + i + ']'); if (r) return r; } return null; }
+  if (v && typeof v === 'object') { for (const k in v) { const r = findFloat(v[k], path + '.' + k); if (r) return r; } return null; }
+  return null;
+}
+
+// a farm with every known float source live: planted crops (fractional x/y), a partially-dry
+// growth bank (×0.5 rate → fractional grownMs), an x-pocket experiment with its own floats
+let wet = newFarm('did:plc:float-covenant', ark, T0);
+wet.parcels = ['0,0']; wet.coins = 500;
+const cropId = ark.crops[0].id;
+wet.seeds[cropId] = 5;
+let landed = 0;
+for (let ty = 0; ty < 12 && landed < 3; ty++) for (let tx = 0; tx < 12 && landed < 3; tx++) {
+  const r = plantSeed(wet, (tx + 0.5) / 12, (ty + 0.5) / 12, cropId, ark, T0);
+  if (r.ok) { wet = r.farm; landed++; }
+}
+ok(landed === 3, 'covenant fixture planted ' + landed + '/3 crops');
+// bank fractional growth: let the watering lapse, then water again (settle runs the ×0.5 tail)
+wet.bed.plants.forEach((p) => { p.wateredAt = T0 - 10 * 3600 * 1000; });
+wet = waterPlant(wet, wet.bed.plants[0].id, T0 + 5 * 3600 * 1000 + 137).farm;
+wet.x.experiment = { ratio: 0.371, tuning: [0.5, 1, 2.25], label: 'a council toy' };
+
+const wire = JSON.parse(JSON.stringify(toPlotRecord(wet, T0 + 6 * 3600 * 1000)));
+const leak = findFloat(wire);
+ok(!leak, 'no raw float reaches the wire (found: ' + (leak || 'none') + ')');
+ok(typeof wire.farm.bed.plants[0].x === 'string' && wire.farm.bed.plants[0].x.startsWith('~f'), 'plant x rides as a tagged string');
+
+const back = fromPlotRecord(wire);
+ok(back.bed.plants[0].x === wet.bed.plants[0].x && back.bed.plants[0].y === wet.bed.plants[0].y, 'plant position survives the round-trip bit-exact');
+ok(back.bed.plants[0].grownMs === wet.bed.plants[0].grownMs, 'fractional grownMs survives bit-exact');
+ok(back.x.experiment.ratio === 0.371 && back.x.experiment.tuning[2] === 2.25, 'x-pocket floats survive — experiments cannot brick sync');
+ok(back.x.experiment.tuning[1] === 1, 'integers pass through untouched');
+
+// legacy: an old raw-float record (localStorage era) still loads unchanged
+const legacy = JSON.parse(JSON.stringify({ $type: 'com.minomobi.farm.plot', v: 1, farm: wet, updatedAt: 'x' }));
+const backLegacy = fromPlotRecord(legacy);
+ok(backLegacy && backLegacy.bed.plants[0].x === wet.bed.plants[0].x, 'raw-float legacy saves still load');
+// and strings that merely LOOK close to the tag are left alone
+ok(decodeFloats({ a: '~fine', b: '~f1.5' }).a === '~fine' && decodeFloats({ b: '~f1.5' }).b === 1.5, 'tag matching is strict');
+ok(encodeFloats({ n: Infinity }).n === 0, 'non-finite numbers never reach the wire');
 
 console.log(`sync selftest: ${n} checks passed`);

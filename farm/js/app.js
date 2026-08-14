@@ -102,7 +102,15 @@ async function boot() {
   const u = new URLSearchParams(location.search).get('u');
   await store.init();
   store.addEventListener('auth', () => { renderHeader(); });
-  store.addEventListener('syncerror', () => toast('⚠ sync hiccup — retrying with backoff', 'warn'));
+  store.addEventListener('syncerror', () => { toast('⚠ sync hiccup — retrying with backoff', 'warn'); renderSyncChip(); });
+  store.addEventListener('synced', () => renderSyncChip());
+  // three straight failures is NOT weather — name the real error where the player can see it.
+  // (The float-rejection bug hid for days behind the generic hiccup toast.)
+  store.addEventListener('syncstuck', (e) => {
+    const msg = (e.detail && e.detail.error && (e.detail.error.message || String(e.detail.error))) || 'unknown error';
+    toast('🛑 your save is NOT reaching the cloud — the PDS says: <b>' + esc(String(msg).slice(0, 140)) + '</b>. Screenshot this for the keepers.', 'warn', 20000);
+    renderSyncChip();
+  });
   // a save written by a NEWER world (a graduated testing-table feature this deploy hasn't caught
   // up to): play continues locally, nothing is overwritten, and a refresh usually resolves it.
   store.addEventListener('newerworld', () => toast('🔭 your save comes from a newer Harvestople — playing locally, nothing will be overwritten. Refresh in a bit.', 'warn', 12000));
@@ -180,7 +188,7 @@ async function boot() {
     else if (st.streak > 1) toast('☀️ day ' + st.streak + ' streak', 'ok');
   }
 
-  renderHeader(); renderAll();
+  renderHeader(); renderSyncChip(); renderAll();
   setInterval(() => { if ($('#tab-farm').classList.contains('on')) redrawBed(); }, 20_000);
   if (store.user) refreshFriends();   // background: tends boost + gifts at the gate
 }
@@ -352,10 +360,40 @@ function plantCheckAt(tx, ty) {
   return true;
 }
 
+// ── the sync chip: the save's ground truth in the header — saved, saving, or stuck (tap = retry) ──
+function renderSyncChip() {
+  const el = $('#syncchip');
+  if (!el) return;
+  if (!store.user) { el.textContent = ''; el.className = ''; return; }   // wanderers save locally only
+  const s = store.status();
+  if (s.blocked || s.failures >= 3) {
+    el.textContent = '⚠ save stuck — tap to retry';
+    el.className = 'bad';
+    el.title = s.lastError || 'the session cannot write the save';
+  } else if (s.dirty || s.failures > 0) {
+    el.textContent = '☁ saving…';
+    el.className = 'busy';
+    el.title = 'a save is on its way to your PDS';
+  } else if (s.lastSyncAt) {
+    const d = new Date(s.lastSyncAt);
+    el.textContent = '☁ saved ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    el.className = '';
+    el.title = 'your whole save is on your PDS';
+  } else { el.textContent = '☁ not synced yet'; el.className = 'busy'; el.title = 'no write has landed this session'; }
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#syncchip.bad')) return;
+  if (store.status().blocked) { store.grantScope().catch(() => {}); return; }
+  store._failures = 0; store.flushNow();
+  toast('retrying the save now…', 'ok', 3000);
+  setTimeout(renderSyncChip, 1500);
+});
+
 function commit(next, { immediate = false } = {}) {
   farm = next;
   store.save(farm, now(), { immediate });
   checkAchievements();
+  renderSyncChip();
   renderHeader();
 }
 
