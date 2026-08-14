@@ -66,6 +66,16 @@ export class FarmStore extends EventTarget {
     return this.user;
   }
 
+  // the sync chip's one-stop readout: is the save on the PDS, pending, or stuck — and why
+  status() {
+    return {
+      dirty: !!this._dirty, lastSyncAt: this.lastSyncAt || 0,
+      failures: this._failures || 0,
+      lastError: this._lastError ? String(this._lastError.message || this._lastError) : null,
+      blocked: !!this._scopeBlocked || !!this.remoteUnreadable,
+    };
+  }
+
   // flush RIGHT NOW: skip the debounce and forgive any transient-failure backoff (a fresh
   // network or a closing tab both deserve one immediate try, not the tail of a 60s wait).
   flushNow() {
@@ -160,6 +170,8 @@ export class FarmStore extends EventTarget {
     try {
       await this.auth.pds.putRecord(PLOT_COLLECTION, PLOT_RKEY, toPlotRecord(farm, now));
       this._failures = 0;
+      this._lastError = null;
+      this.lastSyncAt = Date.now();
       this._emit('synced', { at: now });
     } catch (e) {
       this._dirty = true;                       // keep it pending
@@ -172,7 +184,11 @@ export class FarmStore extends EventTarget {
       } else {
         // TRANSIENT: back off exponentially (3s → 6s → 12s … cap 60s), toast only the first time.
         this._failures = (this._failures || 0) + 1;
+        this._lastError = e;
         if (this._failures === 1) this._emit('syncerror', { error: e });
+        // three straight failures is not a hiccup — surface the REAL error so a rejected record
+        // (the float bug hid behind this exact toast) can never masquerade as network weather.
+        if (this._failures === 3) this._emit('syncstuck', { error: e });
       }
     } finally {
       this._flushing = false;

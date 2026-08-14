@@ -21,6 +21,11 @@
   h1 { font-size:20px; color:var(--gold); margin:0; } h1 .sub { font-size:11px; color:var(--dim); font-weight:normal; }
   .stat { color:var(--dim); font-size:12px; } .stat b, #coins { color:var(--gold); }
   #auth { margin-left:auto; font-size:12px; } #auth .me { color:var(--green); }
+  /* the sync chip: the save's ground truth, always in view — saved, saving, or stuck (and why) */
+  #syncchip { font-size:11px; color:var(--dim); border:1px solid var(--line); border-radius:12px; padding:2px 8px; }
+  #syncchip:empty { display:none; }
+  #syncchip.busy { color:#c8b890; }
+  #syncchip.bad { color:var(--warn); border-color:var(--warn); cursor:pointer; }
   input { background:#050403; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:5px 8px; font:inherit; font-size:12px; }
   button { background:#241f15; color:var(--gold); border:1px solid #6a5a3a; font:inherit; font-size:12px; padding:6px 12px; border-radius:6px; cursor:pointer; }
   button:hover { border-color:var(--gold); color:#fff; } button:disabled { opacity:.45; cursor:default; }
@@ -145,6 +150,7 @@ details.row > div { max-height: 40vh; overflow-y: auto; }
     <span class="stat" id="biome"></span>
     <button id="skinbtn" class="mini" title="skins — the wardrobe">🌿</button>
     <button id="fsbtn" class="mini" title="fullscreen — eighty crops deserve the whole glass">⛶</button>
+    <span id="syncchip" title="save sync"></span>
     <span id="auth"></span>
   </header>
 

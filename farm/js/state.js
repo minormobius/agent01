@@ -1453,12 +1453,40 @@ export function saveAhead(a, b) {
   return A.every((v, i) => v >= B[i]) && A.some((v, i) => v > B[i]);
 }
 
+// ── THE WIRE CODEC: ATProto records forbid floating-point numbers ─────────────────────────────────
+// (atproto.com/specs/data-model — the spec's own advice is "encode the floats as strings"). This
+// was THE sync killer: one planted crop carries p.x = 0.4583…, grownMs banks through ×0.5 rates,
+// a brew stores its coherence — ONE float anywhere and the PDS refuses the whole record, the
+// client calls it a "hiccup", and the save silently stops syncing until harvest empties the bed.
+// So the codec is GENERIC, not per-field: every non-integer number in the save — today's fields,
+// tomorrow's, anything a testing-table experiment stows in the x pocket — rides the wire as a
+// tagged string ('~f0.4583') and comes back a number, bit-exact. sync.selftest walks every
+// serialized record and fails the deploy if a raw float ever reaches the wire again.
+const FLOAT_TAG = '~f';
+const FLOAT_RE = /^~f-?\d+(\.\d+)?([eE][+-]?\d+)?$/;
+export function encodeFloats(v) {
+  if (typeof v === 'number') {
+    if (!Number.isFinite(v)) return 0;                        // never stored legitimately
+    return Number.isInteger(v) ? v : FLOAT_TAG + v;
+  }
+  if (Array.isArray(v)) return v.map(encodeFloats);
+  if (v && typeof v === 'object') { const o = {}; for (const k in v) o[k] = encodeFloats(v[k]); return o; }
+  return v;
+}
+export function decodeFloats(v) {
+  if (typeof v === 'string' && v.length > 2 && v.charCodeAt(0) === 126 && FLOAT_RE.test(v)) return parseFloat(v.slice(2));
+  if (Array.isArray(v)) return v.map(decodeFloats);
+  if (v && typeof v === 'object') { const o = {}; for (const k in v) o[k] = decodeFloats(v[k]); return o; }
+  return v;
+}
+
 // ── record shape: the whole farm IS one com.minomobi.farm.plot record (rkey `self`). ──
 export function toPlotRecord(farm, now) {
-  return { $type: 'com.minomobi.farm.plot', v: 1, farm, updatedAt: new Date(now).toISOString() };
+  return { $type: 'com.minomobi.farm.plot', v: 1, farm: encodeFloats(farm), updatedAt: new Date(now).toISOString() };
 }
 export function fromPlotRecord(value) {
-  const f = value && value.farm;
+  // decode the wire codec first (raw-float records — old localStorage saves — pass through as-is)
+  const f = value && value.farm ? decodeFloats(value.farm) : null;
   if (!f || f.v < 1 || f.v > 7) return null;
   if (f.v === 1) {   // v1 → v2: the map-first fields, all additive, defaults deterministic
     f.v = 2;
