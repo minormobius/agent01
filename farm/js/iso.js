@@ -480,17 +480,42 @@ export function createIso(canvas, { onTap } = {}) {
     return null;
   }
 
-  // ── input: drag to pan, wheel to zoom, tap to act ──
+  // ── input: drag to pan, pinch/wheel to zoom, tap to act ──
   let press = null;   // { sx, sy, camX, camY, moved, id }
+  const touches = new Map();   // pointerId → {sx,sy}; two live fingers = a pinch, never a tap
+  let pinch = null;   // { d0, zoom0 } — finger distance and zoom at pinch start
   const pos = (ev) => { const r = canvas.getBoundingClientRect(); return { sx: ev.clientX - r.left, sy: ev.clientY - r.top }; };
 
   canvas.addEventListener('pointerdown', (ev) => {
     const { sx, sy } = pos(ev);
-    press = { sx, sy, camX: cam.x, camY: cam.y, moved: false, id: ev.pointerId };
-    canvas.setPointerCapture(ev.pointerId);
+    touches.set(ev.pointerId, { sx, sy });
+    if (touches.size === 2) {
+      const [a, b] = [...touches.values()];
+      pinch = { d0: Math.hypot(a.sx - b.sx, a.sy - b.sy) || 1, zoom0: cam.zoom };
+      press = null;   // the second finger cancels any pan/tap in progress
+    } else if (touches.size === 1) {
+      press = { sx, sy, camX: cam.x, camY: cam.y, moved: false, id: ev.pointerId };
+    } else {
+      press = null;
+    }
+    try { canvas.setPointerCapture(ev.pointerId); } catch { /* synthetic or already-lifted pointer */ }
   });
   canvas.addEventListener('pointermove', (ev) => {
     const { sx, sy } = pos(ev);
+    if (touches.has(ev.pointerId)) touches.set(ev.pointerId, { sx, sy });
+    if (pinch && touches.size >= 2) {
+      const [a, b] = [...touches.values()];
+      const d = Math.hypot(a.sx - b.sx, a.sy - b.sy);
+      if (d > 0) {
+        const mx = (a.sx + b.sx) / 2, my = (a.sy + b.sy) / 2;
+        const before = toWorld(mx, my);
+        cam.zoom = Math.max(ZMIN, Math.min(ZMAX, pinch.zoom0 * (d / pinch.d0)));
+        const after = toWorld(mx, my);
+        cam.x += before.wx - after.wx; cam.y += before.wy - after.wy;   // zoom about the fingers
+        schedule();
+      }
+      return;
+    }
     if (press && ev.pointerId === press.id) {
       const dx = sx - press.sx, dy = sy - press.sy;
       if (Math.abs(dx) + Math.abs(dy) > DRAG_PX) press.moved = true;
@@ -511,7 +536,17 @@ export function createIso(canvas, { onTap } = {}) {
       else schedule();
     }
   });
+  const liftFinger = (ev) => {
+    touches.delete(ev.pointerId);
+    if (pinch && touches.size < 2) {
+      pinch = null;
+      // hand the surviving finger a pan (moved: it must never fire a tap)
+      const [id] = [...touches.keys()];
+      if (id !== undefined) { const p = touches.get(id); press = { sx: p.sx, sy: p.sy, camX: cam.x, camY: cam.y, moved: true, id }; }
+    }
+  };
   const endPress = (ev) => {
+    liftFinger(ev);
     if (!press || ev.pointerId !== press.id) return;
     const wasTap = !press.moved;
     press = null;
@@ -529,7 +564,7 @@ export function createIso(canvas, { onTap } = {}) {
     }
   };
   canvas.addEventListener('pointerup', endPress);
-  canvas.addEventListener('pointercancel', () => { press = null; });
+  canvas.addEventListener('pointercancel', (ev) => { liftFinger(ev); press = null; });
   canvas.addEventListener('pointerleave', () => { if (hover || hoverS) { hover = null; hoverS = null; schedule(); } });
   canvas.addEventListener('wheel', (ev) => {
     ev.preventDefault();
@@ -545,6 +580,7 @@ export function createIso(canvas, { onTap } = {}) {
   return {
     update(next) { state = next; schedule(); },
     center() { cam.x = FIELD_T / 2; cam.y = FIELD_T / 2; schedule(); },
+    cam: () => ({ x: cam.x, y: cam.y, zoom: cam.zoom }),   // read-only peek (smoke tests)
     redraw: schedule,
     // JUICE: float a little payoff off a world point (bed-normalized coords like plants)
     burst(bx, by, text, color) {

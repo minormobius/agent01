@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Harvestople — farming on ATProto</title>
 <meta name="description" content="Tend a real-organism garden, mine the seven planetary metals, brew Galenic alchemy, and gift seeds to your Bluesky friends. Your whole farm lives in your own PDS." />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%BE%3C/text%3E%3C/svg%3E" />
@@ -33,7 +33,8 @@
   .pane { display:none; }
   .pane.on { display:block; position:fixed; inset:auto 0 0 0; max-height:min(78vh, 640px); overflow-y:auto;
              background:var(--bg); border-top:2px solid var(--gold); box-shadow:0 -12px 40px rgba(0,0,0,.6);
-             padding:14px 18px 30px; z-index:5; }
+             padding:14px 18px calc(30px + env(safe-area-inset-bottom, 0px)); z-index:5;
+             -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
   @media (min-width: 900px) { .pane.on { left:auto; width:560px; top:0; bottom:0; max-height:none; border-top:none; border-left:2px solid var(--gold); } }
   .panehead { display:flex; align-items:baseline; gap:10px; margin-bottom:8px; }
   .panehead h2 { font-size:15px; color:var(--gold); margin:0; }
@@ -78,11 +79,25 @@
   .ava { width:26px; height:26px; border-radius:50%; }
   .giftrow { padding:4px 0; }
   #giftgate:not(:empty), #giftbox:not(:empty), #visitbox:not(:empty) { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin:10px 0; }
-  #toasts { position:fixed; right:14px; bottom:14px; display:flex; flex-direction:column; gap:8px; z-index:9; max-width:min(420px,90vw); }
-  .toast { background:#1a1510; border:1px solid var(--line); border-left:3px solid var(--gold); border-radius:8px; padding:8px 12px; font-size:12.5px; animation:in .25s; }
+  #toasts { position:fixed; right:14px; bottom:calc(14px + env(safe-area-inset-bottom, 0px)); display:flex; flex-direction:column; gap:8px; z-index:9; max-width:min(420px,90vw); }
+  .toast { background:#1a1510; border:1px solid var(--line); border-left:3px solid var(--gold); border-radius:8px; padding:8px 12px; font-size:12.5px; animation:in .25s; cursor:pointer; }
   .toast.ok { border-left-color:var(--green); } .toast.warn { border-left-color:var(--warn); } .toast.ach { border-left-color:#b07be0; }
   .toast.bye { opacity:0; transition:opacity .4s; }
+  .toast .x { float:right; margin:-2px -4px 4px 10px; padding:2px 6px; color:var(--dim); cursor:pointer; font-size:13px; }
+  .toast .x:hover { color:var(--gold); }
+  /* on a phone the panes are bottom sheets — toasts move to the TOP so they never sit on the
+     pane's last rows (the wardrobe's final skins were untappable under the stack) */
+  @media (max-width: 700px) {
+    #toasts { left:10px; right:10px; bottom:auto; top:calc(10px + env(safe-area-inset-top, 0px)); max-width:none; }
+  }
+  /* fat-finger dignity: real tap targets and no double-tap page zoom on controls */
+  button, .chip, summary, select, .toast { touch-action:manipulation; }
+  @media (pointer: coarse) {
+    button.mini { padding:7px 12px; font-size:12px; }
+    .closepane { padding:8px 14px; }
+  }
   @keyframes in { from { transform:translateY(8px); opacity:0; } }
+  @media (max-width: 700px) { @keyframes in { from { transform:translateY(-8px); opacity:0; } } }
   footer { margin-top:26px; color:var(--dim); font-size:11px; }
 /* the petition box speaks in the town's voice, not the browser's */
 #petitiontext {
@@ -95,7 +110,7 @@
 #petitiontext:focus { outline: none; border-color: var(--gold, #f7c66a); box-shadow: 0 0 0 3px rgba(247,198,106,0.15); }
 #petitiontext::placeholder { color: #7a715c; }
 /* BIG FARM: the ⛶ button grows the field itself to the whole viewing window */
-body.bigfarm #bed { position: fixed; inset: 0; width: 100vw !important; height: 100vh !important; z-index: 60; border-radius: 0; }
+body.bigfarm #bed { position: fixed; inset: 0; width: 100vw !important; height: 100vh !important; height: 100dvh !important; z-index: 60; border-radius: 0; }
 body.bigfarm #fsbtn { position: fixed; top: 10px; right: 10px; z-index: 61; }
 body.bigfarm #toasts { z-index: 62; }
 /* collapsible trackers: eighty crops should fold away, not scroll forever */

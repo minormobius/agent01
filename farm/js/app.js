@@ -89,7 +89,7 @@ async function boot() {
     document.title = 'Harvestople NEXT — the testing table';
     const b = document.createElement('div');
     b.className = 'toast warn'; b.id = 'nextbar';
-    b.innerHTML = '⚗️ <b>the testing table</b> — petition experiments live here first. Your real save, new rules; the keepers merge the good ones. <a href="https://farm.mino.mobi/">back to the mainline farm</a>';
+    b.innerHTML = '<span class="x" title="dismiss">✕</span>⚗️ <b>the testing table</b> — petition experiments live here first. Your real save, new rules; the keepers merge the good ones. <a href="https://farm.mino.mobi/">back to the mainline farm</a>';
     document.addEventListener('DOMContentLoaded', () => $('#toasts') && $('#toasts').appendChild(b));
     if ($('#toasts')) $('#toasts').appendChild(b);
   }
@@ -1193,24 +1193,32 @@ function showGrantBanner(why) {
   if ($('#grantbar')) return;   // once is enough
   const t = document.createElement('div');
   t.className = 'toast warn'; t.id = 'grantbar';
-  t.innerHTML = '🔐 ' + esc(why) + ' — <button id="grantgo" class="mini">grant farm permissions</button>' +
+  t.innerHTML = '<span class="x" title="dismiss">✕</span>🔐 ' + esc(why) + ' — <button id="grantgo" class="mini">grant farm permissions</button>' +
     ' <span class="dim">(one consent screen, then straight back here)</span>';
   $('#toasts').appendChild(t);
   $('#grantgo').onclick = () => store.grantScope().catch((e) => toast('⚠ ' + esc(e.message), 'warn'));
 }
 
 // ── toasts ────────────────────────────────────────────────────────────────────────────────────────
+// BANISHABLE, always: every toast dismisses on tap, and the stack caps at 4 so a burst of
+// notices never buries the pane buttons underneath (persistent banners with ids don't count).
 function toast(html, kind = 'ok', ms = 5000) {
+  const box = $('#toasts');
+  const live = [...box.children].filter((el) => !el.id);
+  while (live.length >= 4) live.shift().remove();
   const t = document.createElement('div');
   t.className = 'toast ' + kind;
   t.innerHTML = html;
-  $('#toasts').appendChild(t);
+  t.addEventListener('click', (e) => { if (e.target.closest('a, button, select, input')) return; t.remove(); });
+  box.appendChild(t);
   setTimeout(() => { t.classList.add('bye'); setTimeout(() => t.remove(), 400); }, ms);
 }
 
 // ── wire the chrome ──────────────────────────────────────────────────────────────────────────────
 document.addEventListener('click', (e) => { if (e.target.closest('.closepane')) closePanel(); });
+// the ✕ on persistent banners (nextbar, grantbar) — every popup must be banishable
+document.addEventListener('click', (e) => { const x = e.target.closest('.toast .x'); if (x) x.closest('.toast').remove(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel(); });
-window.harvestople = { openPanel, closePanel, state: () => farm };   // console/smoke-test handle — the map is still the front door
+window.harvestople = { openPanel, closePanel, state: () => farm, cam: () => isoMain && isoMain.cam() };   // console/smoke-test handle — the map is still the front door
 $('#vessel')?.addEventListener('change', () => renderBench());
 boot().catch((e) => { console.error(e); toast('⚠ boot failed: ' + esc(e.message), 'warn', 20000); });
