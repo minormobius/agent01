@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>palm · the corpus — every account the dial is measured against</title>
+<meta name="description" content="The full reference pool behind b.mino.mobi/palm — every account measured, as a tiled hexagon. A percentile means nothing without the population it is against, so here is the population.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="palm · the corpus">
+<meta property="og:description" content="Every account the dial is measured against, as a tiled hexagon.">
+<meta property="og:url" content="https://b.mino.mobi/palm/corpus/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --sky: #1a82c4; --sky-faint: rgba(110, 193, 228, 0.12); --gold: #b8860b;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0f0f0f; --text: #d4d4d4; --muted: #888; --rule: #333;
+          --sky: #6ec1e4; --sky-faint: rgba(110,193,228,0.10); --gold: #d8b85a; }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--serif);
+  line-height: 1.65; -webkit-font-smoothing: antialiased;
+  max-width: 1180px; margin: 0 auto; padding: 2.4rem 1.2rem 6rem;
+}
+.crumb { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+         text-transform: uppercase; color: var(--muted); text-decoration: none;
+         display: inline-block; margin-bottom: 1.4rem; }
+.crumb:hover { color: var(--sky); }
+h1 { font-size: 2.4rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.05; }
+h1 .fly { color: var(--sky); }
+.tagline { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.16em;
+           text-transform: uppercase; color: var(--muted); margin-top: 0.5rem; }
+.sky-rule { height: 3px; width: 84px; background: var(--sky); margin: 1.2rem 0 0; border-radius: 2px; }
+.lede { font-size: 1rem; color: var(--muted); margin-top: 1.2rem; max-width: 66ch; }
+.lede b { color: var(--text); font-weight: 600; }
+
+.controls { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin: 1.8rem 0 1.2rem; }
+.controls label { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.1em;
+                  text-transform: uppercase; color: var(--muted); }
+select, .controls input {
+  font-family: var(--mono); font-size: 0.8rem; padding: 0.4rem 0.55rem;
+  border: 1px solid var(--rule); border-radius: 5px; background: var(--bg); color: var(--text);
+}
+.controls input { flex: 1 1 180px; min-width: 140px; }
+.count { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-left: auto; }
+.sortnote { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); margin: -0.4rem 0 0.9rem; min-height: 1rem; }
+
+/* Two columns on a phone, as many as fit on anything wider. */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 0.85rem; }
+@media (min-width: 640px) { .grid { grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); } }
+
+.tile {
+  border: 1px solid var(--rule); border-radius: 9px; overflow: hidden;
+  background: var(--bg); text-decoration: none; color: inherit; display: block;
+  transition: border-color .15s ease, transform .15s ease;
+}
+.tile:hover { border-color: var(--sky); transform: translateY(-2px); }
+.tile .plot { display: block; line-height: 0; }
+.tile .plot svg { display: block; width: 100%; height: auto; }
+/* Every row is its own block: as inline spans they reflow into one another and
+   a long handle drags the score and the archetype off the tile. */
+.tile .meta { display: block; padding: 0.5rem 0.6rem 0.62rem; }
+.tile .h {
+  display: flex; align-items: baseline; gap: 0.4rem;
+  font-family: var(--mono); font-size: 0.7rem; line-height: 1.3;
+}
+.tile .h .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.tile .sc { margin-left: auto; flex: none; font-weight: 700; font-size: 0.8rem; color: var(--sky); }
+.tile .n { display: block; font-family: var(--mono); font-size: 0.6rem; color: var(--muted);
+           margin-top: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile .arch { display: block; font-size: 0.78rem; color: var(--gold); margin-top: 0.3rem;
+              line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.foot { margin-top: 2.6rem; font-size: 0.9rem; color: var(--muted); max-width: 68ch; }
+.foot h2 { font-size: 0.68rem; font-family: var(--mono); letter-spacing: 0.12em;
+           text-transform: uppercase; color: var(--muted); font-weight: 400; margin: 1.8rem 0 0.6rem; }
+.foot code { font-family: var(--mono); font-size: 0.82em; color: var(--text); }
+.caveat { border-left: 3px solid var(--gold); padding: 0.2rem 0 0.2rem 0.9rem; margin: 1rem 0; }
+</style>
+</head>
+<body>
+
+<a class="crumb" href="/palm/">← palm</a>
+
+<h1>the corpus<span class="fly">.</span></h1>
+<div class="tagline">every account the dial is measured against</div>
+<div class="sky-rule"></div>
+
+<p class="lede">
+  A percentile means nothing without the population it is against, so here is the
+  population — <b id="n">…</b> accounts, each read exactly the way you are read:
+  whole repository, same six lines, same fixed budgets. The tile is the shape of the
+  hand; a spiky one and a round one are different people at a glance.
+</p>
+
+<div class="controls">
+  <label for="sort">sort</label>
+  <select id="sort">
+    <option value="score-desc">most machine-like first</option>
+    <option value="score-asc">most animal first</option>
+    <option value="handle">handle</option>
+    <option value="posts">most posts</option>
+    <option value="first">longest on Bluesky</option>
+  </select>
+  <input type="text" id="filter" placeholder="filter by handle or archetype" spellcheck="false" autocomplete="off">
+  <span class="count" id="count"></span>
+</div>
+
+<p class="sortnote" id="sortNote"></p>
+
+<div class="grid" id="grid"></div>
+
+<div class="foot">
+  <h2>why this page exists</h2>
+  <p>
+    The pool <i>is</i> the scale. Publishing it is the difference between a number you
+    can argue with and a number you have to trust, and it is the only way to see what
+    the dial is actually made of.
+  </p>
+  <div class="caveat">
+    These are percentiles among this pool, <b>not</b> a probability that anyone's posts
+    were machine-written — there is no such measurement here, and Bluesky posts are far
+    too short for one. Every figure derives from public repositories. A tile is a
+    description of a writing habit, not a verdict about a person.
+  </div>
+  <h2>who is not here</h2>
+  <p id="missing"></p>
+</div>
+
+<script type="module" src="./corpus.js"></script>
+</body>
+</html>
