@@ -8,6 +8,7 @@
 
 import { generateDungeon, discretizeRoom } from '../dungeon.mjs';
 import { dungeonToJSON, dungeonToUVTT, roomOutlines, uniqueDoors, planBounds } from '../dungeon-export.mjs';
+import { buildCrawl, crawlReachability, crawlReport } from '../dungeon-crawl.mjs';
 import { pointInPolyXZ } from '../foamworld.js';
 
 let checks = 0, failures = 0;
@@ -18,6 +19,28 @@ function ok(cond, label) {
 
 const SEEDS = [1, 2, 5];
 const t0 = Date.now();
+
+// -- GOLDEN PERMALINK PINS. A published permalink is (DUNGEON_VERSION, seed,
+//    endpoints, shape, scale) → this exact dungeon. These signatures are the
+//    canonical JSON of known seeds, hashed; if a change to generation or
+//    discretization shifts one, that change breaks every published permalink
+//    — either revert it, or consciously bump DUNGEON_VERSION in dungeon.mjs
+//    and re-pin. Never re-pin without the bump.
+{
+  const { DUNGEON_VERSION } = await import('../dungeon.mjs');
+  ok(DUNGEON_VERSION === 1, 'golden pins below are for DUNGEON_VERSION 1');
+  const GOLDEN = { 1: 0x1e73d61d, 2: 0xccc95c48, 5: 0xd2cdbe57 };
+  const sigOf = (s) => {
+    const str = JSON.stringify(dungeonToJSON(generateDungeon({ seed: s, endpoints: 3, tileShape: 'grid', tileScale: 0.35 })));
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    return h >>> 0;
+  };
+  for (const [s, want] of Object.entries(GOLDEN)) {
+    const got = sigOf(Number(s));
+    ok(got === want, `permalink pin seed ${s}: 0x${got.toString(16)} == 0x${want.toString(16)}`);
+  }
+}
 
 for (const seed of SEEDS) {
   console.log(`seed ${seed}`);
@@ -209,6 +232,39 @@ for (const seed of SEEDS) {
       `${shape}: uvtt portals inside the map`);
     const b = planBounds(dd);
     ok(b.x1 > b.x0 && b.z1 > b.z0, `${shape}: plan bounds sane`);
+  }
+
+  // -- CRAWL layer: the tile-step graph over the canonical document must
+  //    carry a walker from the entrance tile to every endpoint, both shapes,
+  //    with the forced (out-of-reach) bridge essentially never needed
+  for (const shape of ['grid', 'hex']) {
+    const J = dungeonToJSON(generateDungeon({ pocket, endpoints: 3, tileShape: shape, tileScale: 0.35 }));
+    const rep = crawlReport(J);
+    ok(rep.complete, `crawl ${shape}: entrance reaches all ${rep.endpointsTotal} endpoints on foot`);
+    ok(rep.allRoomsReachable, `crawl ${shape}: every room enterable`);
+    ok(rep.forcedBridges <= 1, `crawl ${shape}: forced bridges ≤1 (${rep.forcedBridges})`);
+    const crawl = buildCrawl(J);
+    // every door transit is symmetric and lands on a real tile
+    for (const [ri, room] of crawl.rooms) {
+      for (const d of room.doors) {
+        ok(d.farTile !== null && crawl.rooms.get(d.to).byKey.has(d.farTile),
+          `crawl ${shape}: door ${ri}→${d.to} lands on a real tile`);
+        const back = crawl.rooms.get(d.to).doors.find((x) => x.face === d.face);
+        ok(back && back.farTile === d.tile, `crawl ${shape}: door ${ri}→${d.to} transits back`);
+      }
+    }
+    // steps honour the height gate (bridges exempt, they are the scramble)
+    const R0 = crawl.rooms.get(crawl.startRoom);
+    let gated = true;
+    for (const [k, ns] of R0.adj) {
+      for (const nk of ns) {
+        const a = R0.byKey.get(k), b = R0.byKey.get(nk);
+        // lattice neighbours only — a bridge pair may exceed the gate
+        const latticeDist = Math.hypot(a.x - b.x, a.z - b.z);
+        if (latticeDist <= J.tile.size * 1.05 && Math.abs(a.y - b.y) > crawl.dyMax + 1e-9) gated = false;
+      }
+    }
+    ok(gated, `crawl ${shape}: lattice steps honour the height gate`);
   }
 
   // -- one endpoint / five endpoints both roll

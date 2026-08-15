@@ -18,6 +18,8 @@
 // Pure geometry — runs in node (the selftest) and the browser (the page's
 // export buttons). Deterministic for a given dungeon. No dependencies.
 
+import { DUNGEON_VERSION } from './dungeon.mjs';
+
 const rnd3 = (v) => Math.round(v * 1000) / 1000;
 
 // ---------------------------------------------------------- tile corners ---
@@ -120,7 +122,7 @@ export function dungeonToJSON(dungeon) {
   const roleOf = (r) => r.isEntrance ? 'entrance' : r.endpointIndex >= 0 ? 'endpoint' : 'room';
   return {
     format: 'foam-dungeon',
-    version: 1,
+    version: DUNGEON_VERSION,
     generator: {
       engine: 'foam.mino.mobi/dungeon/',
       seed: P.seed, salt: P.salt,

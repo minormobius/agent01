@@ -24,6 +24,14 @@
 
 import { generatePocket, fnv, mulberry, pointInPolyXZ } from './foamworld.js';
 
+// The PERMALINK contract: (DUNGEON_VERSION, seed, endpoints, tileShape,
+// tileScale) → an identical dungeon, forever. The selftest pins golden
+// signatures of known seeds; any change to generation or discretization that
+// shifts them must bump this version — published permalinks carry it, so a
+// layout from an older generator is detectable rather than silently
+// different.
+export const DUNGEON_VERSION = 1;
+
 // ------------------------------------------------------------ geometry ------
 function planeYAt(f, x, z) {
   // height of face f's plane at column (x,z); caller guarantees |n.y| sane

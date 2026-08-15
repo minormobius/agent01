@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#04060a" />
+<title>foam — dungeon crawl</title>
+<meta name="description" content="Room's-eye crawl through a foam dungeon: step tile by tile (grid or hex), pass certified doors, light up the map, find every endpoint. Loads exported foam-dungeon .json files." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpolygon points='16,3 28,10 28,22 16,29 4,22 4,10' fill='none' stroke='%23ffce78' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='18' r='3.4' fill='%237fd8d0'/%3E%3C/svg%3E" />
+<script type="importmap">{ "imports": { "three": "../../vendor/three.module.min.js" } }</script>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #04060a; color: #cfe8e4; font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; overflow: hidden; }
+  #c { display: block; width: 100vw; height: 100vh; touch-action: none; }
+
+  #hud { position: fixed; top: max(8px, env(safe-area-inset-top)); left: 10px; pointer-events: none; text-shadow: 0 1px 3px #000; }
+  #hud b { color: #cffff8; letter-spacing: .04em; }
+  #hud .dim { color: #5f7a80; font-size: 11px; }
+  #hud a { color: #7fd8d0; pointer-events: auto; }
+  #roomline { margin-top: 4px; font-size: 12px; color: #9fc9c4; }
+  #roomline .tag { color: #ffce78; }
+  #ends { margin-top: 2px; font-size: 11px; }
+  #ends .pip { display: inline-block; width: 9px; height: 9px; border-radius: 50%; border: 1px solid #1c2b31; margin-right: 4px; vertical-align: middle; opacity: .3; }
+  #ends .pip.lit { opacity: 1; box-shadow: 0 0 6px currentColor; }
+
+  #topright { position: fixed; top: max(8px, env(safe-area-inset-top)); right: 10px; display: flex; gap: 8px; }
+  .chip { background: rgba(127,216,208,.08); border: 1px solid #1c2b31; border-radius: 8px; color: #9fc9c4; padding: 6px 10px; font: 12px ui-monospace, monospace; cursor: pointer; user-select: none; }
+  .chip:hover { border-color: #7fd8d0; }
+
+  #doorbar { position: fixed; bottom: max(120px, calc(env(safe-area-inset-bottom) + 120px)); left: 50%; transform: translateX(-50%); display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 90vw; }
+  #doorbar button { background: rgba(255,206,120,.14); border: 1px solid #ffce78; border-radius: 10px; color: #ffe9c0; padding: 9px 14px; font: 13px ui-monospace, monospace; cursor: pointer; }
+  #doorbar button:hover { background: rgba(255,206,120,.26); }
+
+  #mini { position: fixed; bottom: max(10px, env(safe-area-inset-bottom)); left: 10px; width: 190px; height: 190px; background: rgba(6,10,14,.85); border: 1px solid #1c2b31; border-radius: 10px; }
+  #steps { position: fixed; bottom: max(12px, env(safe-area-inset-bottom)); right: 12px; font-size: 11px; color: #5f7a80; text-align: right; text-shadow: 0 1px 3px #000; }
+
+  .overlay { position: fixed; inset: 0; background: rgba(4,6,10,.88); display: none; align-items: center; justify-content: center; z-index: 10; }
+  .overlay.on { display: flex; }
+  .card { max-width: 480px; margin: 16px; background: #070c12; border: 1px solid #1c2b31; border-radius: 14px; padding: 22px 26px; }
+  .card h1 { font-size: 18px; margin: 0 0 6px; color: #cffff8; }
+  .card p { margin: 8px 0; color: #9fc9c4; font-size: 13px; }
+  .card b { color: #ffce78; }
+  .card button { margin-top: 12px; width: 100%; padding: 11px; font: 13px ui-monospace, monospace; background: rgba(127,216,208,.14); color: #cffff8; border: 1px solid #7fd8d0; border-radius: 10px; cursor: pointer; }
+  #file { display: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <b>foam · crawl</b> <span class="dim">— <a href="../" id="backlink">← generator</a></span>
+  <div id="roomline"></div>
+  <div id="ends"></div>
+</div>
+
+<div id="topright">
+  <span class="chip" id="loadChip" title="load an exported foam-dungeon .json">⤒ load .json</span>
+  <input id="file" type="file" accept=".json,application/json">
+</div>
+
+<div id="doorbar"></div>
+<canvas id="mini" width="380" height="380"></canvas>
+<div id="steps"></div>
+
+<div class="overlay on" id="intro">
+  <div class="card">
+    <h1>the dungeon crawl</h1>
+    <p>You stand at the <b>entrance</b>, on the foam's top surface. Somewhere
+    below, beacons mark the endpoints. Every door was proven walkable before
+    this dungeon shipped.</p>
+    <p><b>click / tap</b> a lit tile to step · <b>WASD / arrows</b> to walk ·
+    <b>drag</b> to orbit · doors show a button when you stand on their tile.</p>
+    <p class="dim" id="introMeta"></p>
+    <button id="begin">descend</button>
+  </div>
+</div>
+
+<div class="overlay" id="win">
+  <div class="card">
+    <h1>dungeon cleared</h1>
+    <p id="winText"></p>
+    <button onclick="location.reload()">crawl it again</button>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from '../../vendor/OrbitControls.js';
+import { generateDungeon, DUNGEON_VERSION } from '../../dungeon.mjs';
+import { dungeonToJSON } from '../../dungeon-export.mjs';
+import { buildCrawl } from '../../dungeon-crawl.mjs';
+
+const PATH_COLORS = ['#ff9e6e', '#9ff0e6', '#c8a5ff', '#ffd166', '#8fd3ff', '#ffa5c0'];
+const css = (c) => new THREE.Color(c);
+const $ = (id) => document.getElementById(id);
+
+// ------------------------------------------------------------- params ------
+const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35 };
+{
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (h.get('seed')) params.seed = Math.max(1, parseInt(h.get('seed'), 10) || 1);
+  if (h.get('n')) params.n = Math.min(6, Math.max(1, parseInt(h.get('n'), 10) || 3));
+  if (h.get('shape') === 'hex') params.shape = 'hex';
+  if (h.get('scale')) params.scale = Math.min(0.8, Math.max(0.15, parseFloat(h.get('scale')) || 0.35));
+  const v = h.get('v');
+  if (v && parseInt(v, 10) !== DUNGEON_VERSION) {
+    console.warn('permalink generator v' + v + ' ≠ current v' + DUNGEON_VERSION + ' — layout may differ');
+  }
+}
+$('backlink').href = '../#seed=' + params.seed + '&n=' + params.n + '&shape=' + params.shape + '&scale=' + params.scale + '&v=' + DUNGEON_VERSION;
+
+// -------------------------------------------------------------- state ------
+let J = null, crawl = null;            // canonical document + crawl graph
+let curRoom = -1, curTile = null;
+let discovered = new Set();            // room ids entered
+let found = new Set();                 // endpoint room ids reached
+let steps = 0;
+let loadedFromFile = false;
+
+// -------------------------------------------------------------- three ------
+const canvas = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+scene.background = css('#04060a');
+scene.fog = new THREE.Fog(css('#04060a'), 18, 60);
+const camera = new THREE.PerspectiveCamera(58, 1, 0.05, 300);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.1;
+controls.maxPolarAngle = Math.PI * 0.62;
+controls.minDistance = 2.5; controls.maxDistance = 30;
+function resize() {
+  renderer.setSize(innerWidth, innerHeight, false);
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+let roomGroup = null;      // rebuilt on room entry
+let tileMesh = null;       // merged tiles (picking → nearest centre)
+let hiliteMesh = null;     // reachable-neighbour overlay
+let token = null;
+const tokenTarget = new THREE.Vector3();
+
+function disposeGroup(g) {
+  if (!g) return;
+  g.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.(); });
+  scene.remove(g);
+}
+
+function hexCorner(x, z, R, k) {
+  const a = Math.PI / 180 * (60 * k - 30);
+  return [x + R * Math.cos(a), z + R * Math.sin(a)];
+}
+function tileCorners2D(t, inset = 1) {
+  const s = J.tile.size;
+  if (J.tile.shape === 'hex') {
+    const R = (s / Math.sqrt(3)) * 0.96 * inset;
+    return [0, 1, 2, 3, 4, 5].map((k) => hexCorner(t.x, t.z, R, k));
+  }
+  const h = s * 0.47 * inset;
+  return [[t.x - h, t.z - h], [t.x + h, t.z - h], [t.x + h, t.z + h], [t.x - h, t.z + h]];
+}
+function pushTile(pos, col, t, c, lift = 0.03) {
+  const corners = tileCorners2D(t);
+  for (let i = 1; i + 1 < corners.length; i++) {
+    for (const [cx, cz] of [corners[0], corners[i], corners[i + 1]]) {
+      pos.push(cx, t.y + lift, cz); col.push(c[0], c[1], c[2]);
+    }
+  }
+}
+
+function roomInfo(id) { return crawl.rooms.get(id).info; }
+function roleLabel(r) {
+  return r.role === 'entrance' ? 'ENTRANCE' : r.role === 'endpoint' ? 'ENDPOINT ' + (r.endpointIndex + 1) : 'room ' + r.id;
+}
+
+function buildRoom(id) {
+  disposeGroup(roomGroup);
+  roomGroup = new THREE.Group();
+  const R = crawl.rooms.get(id);
+  const r = R.info;
+  let y0 = Infinity, y1 = -Infinity;
+  for (const t of r.tiles) { y0 = Math.min(y0, t.y); y1 = Math.max(y1, t.y); }
+
+  // -- tiles
+  {
+    const pos = [], col = [];
+    for (const t of r.tiles) {
+      const h = y1 - y0 > 1e-6 ? (t.y - y0) / (y1 - y0) : 0.5;
+      let c = [0.10 + h * 0.16, 0.22 + h * 0.22, 0.24 + h * 0.20];
+      if (t.kind === 'door') c = [0.72, 0.58, 0.34];
+      else if (t.kind === 'entrance') c = [0.45, 0.72, 0.40];
+      else if (t.kind === 'goal') {
+        const pc = css(PATH_COLORS[(r.endpointIndex ?? 0) % PATH_COLORS.length]);
+        c = [pc.r * 0.8, pc.g * 0.8, pc.b * 0.8];
+      }
+      pushTile(pos, col, t, c);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    tileMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+    roomGroup.add(tileMesh);
+    // tile edges for readability
+    const ep = [];
+    for (const t of r.tiles) {
+      const cs = tileCorners2D(t);
+      for (let i = 0; i < cs.length; i++) {
+        const a = cs[i], b = cs[(i + 1) % cs.length];
+        ep.push(a[0], t.y + 0.035, a[1], b[0], t.y + 0.035, b[1]);
+      }
+    }
+    const eg = new THREE.BufferGeometry();
+    eg.setAttribute('position', new THREE.Float32BufferAttribute(ep, 3));
+    roomGroup.add(new THREE.LineSegments(eg, new THREE.LineBasicMaterial({ color: css('#04060a'), transparent: true, opacity: 0.6 })));
+  }
+
+  // -- walls: outline loops extruded up, base following the nearest tile
+  {
+    const yNear = (x, z) => {
+      let best = y0, bd = Infinity;
+      for (const t of r.tiles) {
+        const d = (t.x - x) ** 2 + (t.z - z) ** 2;
+        if (d < bd) { bd = d; best = t.y; }
+      }
+      return best;
+    };
+    const H = 2.6;
+    const pos = [];
+    const lp = [];
+    for (const loop of r.outline) {
+      for (let i = 0; i + 1 < loop.length; i++) {
+        const [ax, az] = loop[i], [bx, bz] = loop[i + 1];
+        const ay = yNear(ax, az), by = yNear(bx, bz);
+        pos.push(ax, ay, az, bx, by, bz, bx, by + H, bz);
+        pos.push(ax, ay, az, bx, by + H, bz, ax, ay + H, az);
+        lp.push(ax, ay + H, az, bx, by + H, bz);
+        lp.push(ax, ay, az, ax, ay + H, az);
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    roomGroup.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+      color: css('#0d2126'), transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false,
+    })));
+    const lg = new THREE.BufferGeometry();
+    lg.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3));
+    roomGroup.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: css('#2b6a72'), transparent: true, opacity: 0.8 })));
+  }
+
+  // -- doors: glowing columns at the certified stations
+  for (const d of R.doors) {
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 2.3, 10),
+      new THREE.MeshBasicMaterial({ color: css('#ffce78'), transparent: true, opacity: 0.75 }));
+    col.position.set(d.at[0], d.at[1] + 1.15, d.at[2]);
+    col.userData.doorFace = d.face;
+    roomGroup.add(col);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.05, 8, 28),
+      new THREE.MeshBasicMaterial({ color: css('#ffce78'), transparent: true, opacity: 0.6 }));
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(d.at[0], d.at[1] + 0.12, d.at[2]);
+    roomGroup.add(ring);
+  }
+
+  // -- endpoint beacon in its room
+  if (r.role === 'endpoint') {
+    const pc = PATH_COLORS[(r.endpointIndex ?? 0) % PATH_COLORS.length];
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.2, 7, 10),
+      new THREE.MeshBasicMaterial({ color: css(pc), transparent: true, opacity: 0.55 }));
+    beam.position.set(r.centroid[0], r.centroid[1] + 3.4, r.centroid[2]);
+    roomGroup.add(beam);
+  }
+
+  // -- token
+  token = new THREE.Group();
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.85, 12),
+    new THREE.MeshBasicMaterial({ color: css('#cffff8') }));
+  cone.position.y = 0.55;
+  token.add(cone);
+  const tring = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.045, 8, 28),
+    new THREE.MeshBasicMaterial({ color: css('#7fd8d0') }));
+  tring.rotation.x = Math.PI / 2; tring.position.y = 0.06;
+  token.add(tring);
+  roomGroup.add(token);
+
+  hiliteMesh = null;
+  scene.add(roomGroup);
+}
+
+function refreshHilites() {
+  if (hiliteMesh) { roomGroup.remove(hiliteMesh); hiliteMesh.geometry.dispose(); hiliteMesh.material.dispose(); }
+  const R = crawl.rooms.get(curRoom);
+  const pos = [], col = [];
+  for (const nk of R.adj.get(curTile) ?? []) {
+    const t = R.byKey.get(nk);
+    pushTile(pos, col, t, [0.35, 0.75, 0.70], 0.06);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  hiliteMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+    vertexColors: true, transparent: true, opacity: 0.4, depthWrite: false,
+  }));
+  roomGroup.add(hiliteMesh);
+}
+
+// ---------------------------------------------------------------- HUD ------
+function refreshHUD() {
+  const r = roomInfo(curRoom);
+  $('roomline').innerHTML = '<span class="tag">' + roleLabel(r) + '</span> · ' +
+    r.depth + ' door' + (r.depth === 1 ? '' : 's') + ' deep · floor ' + r.floorY.toFixed(1) + ' m';
+  $('ends').innerHTML = J.endpoints.map((e, i) => {
+    const lit = found.has(e);
+    return '<span class="pip' + (lit ? ' lit' : '') + '" style="color:' + PATH_COLORS[i % PATH_COLORS.length] +
+      ';background:' + (lit ? PATH_COLORS[i % PATH_COLORS.length] : 'transparent') + '"></span>';
+  }).join('') + ' <span class="dim">' + found.size + '/' + J.endpoints.length + ' endpoints</span>';
+  $('steps').innerHTML = steps + ' steps · ' + discovered.size + '/' + J.rooms.length + ' rooms<br>' +
+    '<span style="color:#48606a">' + (loadedFromFile ? 'loaded file' : 'seed ' + params.seed + ' · ' + params.shape + ' @ ' + params.scale) + '</span>';
+  // door buttons when standing on a door tile
+  const R = crawl.rooms.get(curRoom);
+  const here = R.doors.filter((d) => d.tile === curTile && d.farTile !== null);
+  $('doorbar').innerHTML = '';
+  for (const d of here) {
+    const b = document.createElement('button');
+    const far = roomInfo(d.to);
+    b.textContent = '⟶ through the door · ' + roleLabel(far).toLowerCase();
+    b.onclick = () => transit(d);
+    $('doorbar').appendChild(b);
+  }
+}
+
+// ------------------------------------------------------------- minimap -----
+const mini = $('mini');
+function drawMini() {
+  const ctx = mini.getContext('2d');
+  const W = mini.width, H = mini.height;
+  ctx.clearRect(0, 0, W, H);
+  let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  for (const r of J.rooms) for (const t of r.tiles) {
+    x0 = Math.min(x0, t.x); x1 = Math.max(x1, t.x);
+    z0 = Math.min(z0, t.z); z1 = Math.max(z1, t.z);
+  }
+  const pad = J.tile.size * 2;
+  x0 -= pad; x1 += pad; z0 -= pad; z1 += pad;
+  const k = Math.min(W / (x1 - x0), H / (z1 - z0));
+  const mx = (x) => (x - x0) * k + (W - (x1 - x0) * k) / 2;
+  const mz = (z) => (z - z0) * k + (H - (z1 - z0) * k) / 2;
+  for (const r of J.rooms) {
+    if (!discovered.has(r.id)) continue;
+    ctx.fillStyle = r.id === curRoom ? 'rgba(127,216,208,.30)' : 'rgba(127,216,208,.12)';
+    ctx.strokeStyle = r.id === curRoom ? '#7fd8d0' : '#2b6a72';
+    ctx.lineWidth = 1;
+    for (const loop of r.outline) {
+      ctx.beginPath();
+      loop.forEach(([x, z], i) => i ? ctx.lineTo(mx(x), mz(z)) : ctx.moveTo(mx(x), mz(z)));
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+    if (r.role === 'endpoint' && found.has(r.id)) {
+      ctx.fillStyle = PATH_COLORS[r.endpointIndex % PATH_COLORS.length];
+      ctx.beginPath(); ctx.arc(mx(r.centroid[0]), mz(r.centroid[2]), 3.5, 0, Math.PI * 2); ctx.fill();
+    }
+    if (r.role === 'entrance') {
+      ctx.strokeStyle = '#b8ff9e';
+      ctx.beginPath(); ctx.arc(mx(r.centroid[0]), mz(r.centroid[2]), 4, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+  const t = crawl.rooms.get(curRoom).byKey.get(curTile);
+  ctx.fillStyle = '#cffff8';
+  ctx.beginPath(); ctx.arc(mx(t.x), mz(t.z), 3, 0, Math.PI * 2); ctx.fill();
+}
+
+// ------------------------------------------------------------ movement -----
+function placeToken(animate = true) {
+  const t = crawl.rooms.get(curRoom).byKey.get(curTile);
+  tokenTarget.set(t.x, t.y, t.z);
+  if (!animate) token.position.copy(tokenTarget);
+  refreshHilites(); refreshHUD(); drawMini();
+}
+
+function stepTo(key) {
+  const R = crawl.rooms.get(curRoom);
+  if (!(R.adj.get(curTile) ?? []).includes(key)) return false;
+  curTile = key; steps++;
+  placeToken();
+  return true;
+}
+
+function transit(door) {
+  curRoom = door.to; curTile = door.farTile; steps++;
+  discovered.add(curRoom);
+  const r = roomInfo(curRoom);
+  if (r.role === 'endpoint') found.add(curRoom);
+  buildRoom(curRoom);
+  placeToken(false);
+  const t = crawl.rooms.get(curRoom).byKey.get(curTile);
+  controls.target.set(t.x, t.y + 0.6, t.z);
+  camera.position.set(t.x + 6, t.y + 6.5, t.z + 6);
+  if (found.size === J.endpoints.length && !$('win').classList.contains('on')) {
+    $('winText').innerHTML = 'All <b>' + J.endpoints.length + '</b> endpoints found in <b>' + steps +
+      '</b> steps, ' + discovered.size + ' of ' + J.rooms.length + ' rooms explored.';
+    $('win').classList.add('on');
+  }
+}
+
+// picking: click a highlighted neighbour (or any tile → nearest reachable)
+const ray = new THREE.Raycaster();
+let downAt = null;
+canvas.addEventListener('pointerdown', (e) => { downAt = [e.clientX, e.clientY]; });
+canvas.addEventListener('pointerup', (e) => {
+  if (!downAt) return;
+  const moved = Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]);
+  downAt = null;
+  if (moved > 6 || !crawl) return;
+  const ndc = new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hits = ray.intersectObject(tileMesh, false);
+  if (!hits.length) return;
+  const p = hits[0].point;
+  const R = crawl.rooms.get(curRoom);
+  let best = null, bd = Infinity;
+  for (const nk of R.adj.get(curTile) ?? []) {
+    const t = R.byKey.get(nk);
+    const d = (t.x - p.x) ** 2 + (t.z - p.z) ** 2;
+    if (d < bd) { bd = d; best = nk; }
+  }
+  if (best && bd < (J.tile.size * 1.4) ** 2) stepTo(best);
+});
+
+// keys: pick the neighbour best aligned with the camera-relative direction
+addEventListener('keydown', (e) => {
+  const dirmap = { ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1], ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0] };
+  const d = dirmap[e.code];
+  if (!d || !crawl) return;
+  const fwd = new THREE.Vector3(); camera.getWorldDirection(fwd);
+  fwd.y = 0; fwd.normalize();
+  const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
+  const want = new THREE.Vector3().addScaledVector(right, d[0]).addScaledVector(fwd, -d[1]);
+  const R = crawl.rooms.get(curRoom);
+  const cur = R.byKey.get(curTile);
+  let best = null, bs = 0.25;
+  for (const nk of R.adj.get(curTile) ?? []) {
+    const t = R.byKey.get(nk);
+    const v = new THREE.Vector3(t.x - cur.x, 0, t.z - cur.z).normalize();
+    const s = v.dot(want.clone().normalize());
+    if (s > bs) { bs = s; best = nk; }
+  }
+  if (best) { stepTo(best); e.preventDefault(); }
+});
+
+// -------------------------------------------------------------- loading ----
+function start(doc, fromFile) {
+  J = doc; crawl = buildCrawl(J);
+  loadedFromFile = fromFile;
+  curRoom = crawl.startRoom; curTile = crawl.startTile;
+  discovered = new Set([curRoom]); found = new Set(); steps = 0;
+  buildRoom(curRoom);
+  placeToken(false);
+  const t = crawl.rooms.get(curRoom).byKey.get(curTile);
+  controls.target.set(t.x, t.y + 0.6, t.z);
+  camera.position.set(t.x + 6, t.y + 7, t.z + 6);
+  $('introMeta').textContent = (fromFile ? 'loaded document' : 'seed ' + params.seed) +
+    ' · ' + J.tile.shape + ' tiles @ ' + J.tile.size.toFixed(2) + ' m · ' +
+    J.rooms.length + ' rooms · ' + J.endpoints.length + ' endpoints';
+  window.__crawl.ready = true;
+}
+
+$('loadChip').onclick = () => $('file').click();
+$('file').onchange = async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  try {
+    const doc = JSON.parse(await f.text());
+    if (doc.format !== 'foam-dungeon') throw new Error('not a foam-dungeon file');
+    $('win').classList.remove('on'); $('intro').classList.add('on');
+    start(doc, true);
+  } catch (err) { alert('could not load: ' + err.message); }
+};
+$('begin').onclick = () => $('intro').classList.remove('on');
+
+// -------------------------------------------------------------- debug ------
+window.__crawl = {
+  ready: false,
+  get state() { return { room: curRoom, tile: curTile, steps, found: [...found], discovered: discovered.size }; },
+  get doc() { return J; },
+  neighbors: () => [...(crawl.rooms.get(curRoom).adj.get(curTile) ?? [])],
+  step: (k) => stepTo(k),
+  doorsHere: () => crawl.rooms.get(curRoom).doors.filter((d) => d.tile === curTile),
+  adjOf: (room, tile) => [...(crawl.rooms.get(room).adj.get(tile) ?? [])],
+  doorsOf: (room) => crawl.rooms.get(room).doors.map((d) => ({ to: d.to, face: d.face, tile: d.tile, farTile: d.farTile })),
+  transit: (face) => {
+    const d = crawl.rooms.get(curRoom).doors.find((x) => x.face === face && x.tile === curTile);
+    if (d) transit(d);
+    return !!d;
+  },
+  begin: () => $('begin').click(),
+};
+
+// --------------------------------------------------------------- boot ------
+start(dungeonToJSON(generateDungeon({
+  seed: params.seed, endpoints: params.n, tileShape: params.shape, tileScale: params.scale,
+})), false);
+
+(function loop() {
+  requestAnimationFrame(loop);
+  if (token) {
+    token.position.lerp(tokenTarget, 0.22);
+    controls.target.lerp(new THREE.Vector3(tokenTarget.x, tokenTarget.y + 0.6, tokenTarget.z), 0.12);
+  }
+  controls.update();
+  renderer.render(scene, camera);
+})();
+</script>
+</body>
+</html>

@@ -53,6 +53,18 @@ modules directly. A flat export of a 3D dungeon overlaps rooms that stack
 vertically — the canonical JSON keeps full 3D; slice by depth if you need
 clean per-level maps.
 
+`/dungeon/crawl/` is the **room's-eye crawler**: three.js view of the current
+room only (tiles at true floor heights, walls extruded from the canonical
+outlines, doors as glowing columns at their certified stations), token
+stepped by click/WASD over the crawl layer's graph, fog-of-war minimap,
+win state when every endpoint is found. It shares the generator's permalink
+hash and loads exported .json files. **Permalinks are a contract**:
+`DUNGEON_VERSION` (dungeon.mjs) is stamped into the URL hash and every
+export, and the selftest pins golden signatures of seeds 1/2/5 — a change
+that moves any layout must bump the version and re-pin, never re-pin alone.
+`window.__crawl` is the crawl page's harness hook (an automated bot BFSes
+the page's own graph and replays it to an endpoint) — keep it.
+
 ## The files
 
 | File | What it is |
@@ -60,6 +72,7 @@ clean per-level maps.
 | `foamworld.js` | **the kernel** — seeded pocket generation + the walk certificate. Layered, anisotropic 3D Voronoi (convex cells by half-space clipping, global epsilon-weld so the complex is watertight), every shared face extracted as a MEMBRANE, and a nav graph under the movement rules (below). `generatePocket({seed})` retries salts until the certificate proves start → target solvable, so **every published seed carries a constructive proof**. Factored as `buildComplex` (geometry from ANY seed list) + `buildNav` (pocket or fixed start/target modes), which is what powers `reformPocket(pocket, point)` — deterministic node insertion with the same closure gate and a re-derived oracle. Runs in node and the browser — the selftest and the game consume the same module. |
 | `app.js` | **the game** — WebGL2 renderer (one sorted-alpha membrane draw, no depth buffer, per-face state in an RGBA32F texture, x-ray edge pass, adaptive-resolution governor), walker physics (support probe + plane clamps driven by the same face classification the certificate uses), the shiva tools (raycast → per-face dissolve/growth animations in the fragment shader), touch + pointer-lock input, HUD. |
 | `dungeon.mjs` | **the dungeon layer** — a pure consumer of the kernel (no kernel change): `generateDungeon({seed, endpoints, tileShape, tileScale})` rolls endpoints, wayfinds descending paths over `pocket.nodes`/`pocket.edges`, and discretizes room floors (`discretizeRoom` is exported separately so the page can retile without regenerating — pass `pocket` in opts for that). Deterministic under the same contract as the kernel. |
+| `dungeon-crawl.mjs` | **the crawl layer** — tile-by-tile movement over a canonical `foam-dungeon` document (deliberately the export format, not the live object, so downloaded .json files crawl identically): lattice adjacency (grid 4-n / hex 6-n) with a height gate of `1.05·tileSize + 0.35` (what the certificate's maxGrade permits per tile), deterministic bridging of sampling gaps, door transits via matched far-side tiles. `crawlReport` is what the selftest asserts: every generated dungeon fully crawlable entrance → every endpoint. |
 | `dungeon-export.mjs` | **the export layer** — `dungeonToJSON` (canonical `foam-dungeon` v1), `dungeonToUVTT` (`.dd2vtt`; caller supplies the baked base64 PNG — the page renders it, node passes `''`), `roomOutlines` (tile-union wall loops on an exact integer corner lattice), `uniqueDoors`, `planBounds`. Pure geometry, node + browser. |
 | `test/dungeon.selftest.mjs` | pins the dungeon contract: determinism, endpoints distinct/reachable/below the entrance, every door on a path is a certified crossing between its recorded rooms, paths shortest with the descent tie-break honoured, tile centres inside their room's own floor with exact plane heights, doors snapped to tiles at every scale, tile DENSITY (no big room starved to the fallback tile — the hex q-band regression), grid + hex, and the export layer (outlines closed + enclosing, canonical JSON deterministic, UVTT geometry inside the map window, one portal per door). Run: `node foam/test/dungeon.selftest.mjs` (~2s, 3 seeds). |
 | `test/foamworld.selftest.mjs` | pins determinism, watertightness (per-cell Euler V−E+F=2, volumes sum to the box), membrane pairing/orientation/planarity, and the certificate: route crossings are wall-class with standing clearance, all support faces within grade, par in the puzzle band. Run: `node foam/test/foamworld.selftest.mjs` (~4s, 8 seeds). |

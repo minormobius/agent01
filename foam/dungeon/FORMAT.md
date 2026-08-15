@@ -4,6 +4,35 @@ The dungeon generator at <https://foam.mino.mobi/dungeon/> exports three
 artifacts, downloadable from the page's EXPORT panel. Everything is
 deterministic: the same seed + settings produce byte-identical exports.
 
+## Permalinks
+
+A dungeon IS its parameters. The URL hash
+
+```
+https://foam.mino.mobi/dungeon/#seed=5&n=3&shape=hex&scale=0.35&v=1
+```
+
+is a permalink: anyone opening it regenerates the identical dungeon, and the
+CORS-served modules (below) regenerate it identically outside the browser.
+`v` is the generator version (`DUNGEON_VERSION`): golden signatures of known
+seeds are pinned in CI, so the generation algorithm cannot drift under a
+published permalink — any change that would move a layout must bump `v`,
+making an old link *detectably* old instead of silently different. The same
+version is stamped into every exported JSON (`generator` block).
+
+## The crawler
+
+<https://foam.mino.mobi/dungeon/crawl/> is a room's-eye dungeon crawler over
+this format — step tile by tile (grid **and hex**), pass doors, light up the
+minimap, find every endpoint. It accepts the same permalink hash, and its
+**⤒ load .json** button accepts any exported `foam-dungeon` document — so
+maps produced by other services against this spec crawl the same as ours.
+Movement uses lattice adjacency (4-neighbour grid / 6-neighbour hex) gated
+by tile height difference (≤ `1.05·size + 0.35` — what the foam's walk
+certificate permits), with a deterministic "scramble" bridging rare sampling
+gaps; CI asserts every generated dungeon is fully crawlable entrance →
+every endpoint.
+
 ## 1. `foam-dungeon` JSON (canonical) — `.json`
 
 The full dungeon: rooms, tiles with floor heights, doors, paths, and wall
