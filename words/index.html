@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>words — a word game with hazards</title>
+<meta name="description" content="Words with friends, without the ads. Play 1–4 players against friends or a deterministic bot, on boards with mires, halves, tolls and stones.">
+<meta name="theme-color" content="#1b1d21">
+<meta property="og:title" content="words">
+<meta property="og:description" content="A word game with hazard tiles. 1–4 players, a deterministic opponent, no ads, no accounts.">
+<meta property="og:type" content="website">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<header class="top">
+  <button class="brand" id="goHome" type="button">words</button>
+  <span class="sub" id="topNote">a word game with hazards</span>
+  <button class="ghost" id="installBtn" type="button" hidden>install</button>
+</header>
+
+<main>
+
+<!-- ------------------------------------------------------------- home -- -->
+<section id="home" class="view">
+  <p class="lede">
+    Words with friends, minus the ads, the accounts and the nagging. Play on
+    your own against a bot, or pass a link to up to three other people and take
+    turns whenever you like.
+  </p>
+
+  <div id="resume" class="card" hidden>
+    <h2>Your games</h2>
+    <ul id="resumeList" class="games"></ul>
+  </div>
+
+  <div class="card">
+    <h2>New game</h2>
+
+    <fieldset class="field">
+      <legend>Board</legend>
+      <div id="layoutPick" class="pick"></div>
+      <p class="hint" id="layoutBlurb"></p>
+    </fieldset>
+
+    <fieldset class="field">
+      <legend>Players</legend>
+      <div id="seatPick" class="seats"></div>
+      <div class="row">
+        <button class="ghost" id="addSeat" type="button">add a seat</button>
+        <button class="ghost" id="dropSeat" type="button">remove</button>
+      </div>
+    </fieldset>
+
+    <fieldset class="field">
+      <legend>You are</legend>
+      <input id="myName" type="text" maxlength="24" placeholder="your name" autocomplete="nickname">
+    </fieldset>
+
+    <div class="row">
+      <button class="primary" id="startOnline" type="button">Start</button>
+      <button class="ghost" id="startLocal" type="button">Play offline on this device</button>
+    </div>
+    <p class="hint" id="startNote">
+      A game with other people needs the network. A game against bots — or one
+      passed around a single device — runs entirely in this tab and works with
+      no signal at all.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>Join a game</h2>
+    <div class="row">
+      <input id="joinCode" type="text" maxlength="5" placeholder="CODE" autocapitalize="characters" spellcheck="false">
+      <button class="primary" id="joinBtn" type="button">Join</button>
+    </div>
+    <p class="hint">Whoever started the game has a five-character code, or a link.</p>
+  </div>
+
+  <div class="card">
+    <h2>The squares</h2>
+    <p class="hint">
+      The four you know, and four you do not. Everything resolves the moment you
+      play — nothing here waits a turn and surprises you later.
+    </p>
+    <ul id="legend" class="legend"></ul>
+  </div>
+
+  <div class="card">
+    <h2>Is it a word?</h2>
+    <div class="row">
+      <input id="lookup" type="text" maxlength="15" placeholder="type a word" autocapitalize="characters" spellcheck="false">
+      <span id="lookupResult" class="verdict"></span>
+    </div>
+    <p class="hint" id="lexNote">
+      The lexicon is ENABLE — public domain, and the same list Words With
+      Friends uses. It has 96 two-letter words: no <code>ZA</code>, no
+      <code>QI</code>. If you learned those from a tournament list, this is the
+      board where they stop working.
+    </p>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------- game -- -->
+<section id="game" class="view" hidden>
+  <div id="scores" class="scores"></div>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <div class="boardwrap">
+    <div id="board" class="board" role="grid" aria-label="game board"></div>
+  </div>
+
+  <div id="pending" class="pending" hidden></div>
+
+  <div id="rack" class="rack" aria-label="your tiles"></div>
+
+  <div class="actions">
+    <button class="primary" id="playBtn" type="button">Play</button>
+    <button class="ghost" id="recallBtn" type="button">Recall</button>
+    <button class="ghost" id="shuffleBtn" type="button">Shuffle</button>
+    <button class="ghost" id="hintBtn" type="button">Hint</button>
+    <button class="ghost" id="swapBtn" type="button">Swap</button>
+    <button class="ghost" id="passBtn" type="button">Pass</button>
+  </div>
+
+  <div id="notifyRow" class="card" hidden>
+    <h2>Turn alerts</h2>
+    <p class="hint" id="notifyNote">
+      Get a badge on the icon and a nudge when it is your move. Asynchronous
+      games are mostly lost to being forgotten about.
+    </p>
+    <div class="row">
+      <button class="primary" id="notifyBtn" type="button">Notify me when it is my turn</button>
+    </div>
+  </div>
+
+  <div id="shareRow" class="card" hidden>
+    <h2>Waiting for players</h2>
+    <p class="hint">Send this link. Anyone with it takes the next free seat.</p>
+    <div class="row">
+      <input id="shareLink" type="text" readonly>
+      <button class="ghost" id="copyLink" type="button">copy</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Moves</h2>
+    <ol id="log" class="log"></ol>
+    <div class="row">
+      <button class="ghost" id="resignBtn" type="button">Resign</button>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<div id="toast" class="toast" hidden></div>
+
+<!-- The blank picker and the swap picker are the only two modal moments. -->
+<div id="modal" class="modal" hidden>
+  <div class="sheet">
+    <h2 id="modalTitle"></h2>
+    <div id="modalBody"></div>
+    <div class="row">
+      <button class="primary" id="modalOk" type="button">OK</button>
+      <button class="ghost" id="modalCancel" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>

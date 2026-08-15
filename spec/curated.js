@@ -55,7 +55,7 @@ window.SPEC_CURATED = {
     wormhole: 'generative', idol: 'generative',
     g: 'games', torus: 'games', canvas: 'games', pokemon: 'games',
     aub: 'games', fluoddity: 'games', cards: 'games', human: 'games',
-    foam: 'games', farm: 'games', 'farm-next': 'games',
+    foam: 'games', farm: 'games', 'farm-next': 'games', words: 'games',
     moji: 'reference', uni: 'reference', unit: 'reference', fix: 'reference',
     read: 'reading', rite: 'reading', chat: 'reading',
     math: 'math', 'ai-edu': 'math',
