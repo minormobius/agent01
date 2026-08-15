@@ -14,6 +14,13 @@ name: Farm town council (sweep + build)
 # MANUAL TRIGGER WHILE TESTING: cron and workflow_dispatch both need this file on the DEFAULT
 # branch to fire; until a merge candidate carries it there, push any commit to the kick branch:
 #   git commit --allow-empty -m kick && git push origin HEAD:claude/farm-sweep-kick
+#
+# COST, so nobody has to re-derive it (PR #68 read this cron as ~96 agent sessions/day): every
+# Claude step below is gated `if: count != '0'`. An EMPTY tick is a ~30s checkout + one node
+# script of keyless public reads — free Actions minutes on a public repo, zero agent sessions.
+# Billed sessions scale with PETITION BATCHES, i.e. with players actually using the town hall.
+# The one real per-tick spend is a single bot createSession for the authed-search fallback
+# (bounded by Bluesky's 300/day; halve the cadence before ever worrying about it).
 on:
   schedule:
     - cron: '*/15 * * * *'
