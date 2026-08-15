@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#04060a" />
+<title>foam — dungeon generator</title>
+<meta name="description" content="The voronoi foam as a dungeon generator: enter at the top surface, wind down certified crossings to rolled endpoints. Grid or hex tiles, a CAD view of the paths, and a room-by-room explorer." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpolygon points='16,3 28,10 28,22 16,29 4,22 4,10' fill='none' stroke='%237fd8d0' stroke-width='2.5'/%3E%3Cpath d='M16 8 L16 24 M10 14 L22 20' stroke='%23ffce78' stroke-width='2' fill='none'/%3E%3C/svg%3E" />
+<script type="importmap">{ "imports": { "three": "../vendor/three.module.min.js" } }</script>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #04060a; color: #cfe8e4; font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; overflow: hidden; }
+  #c { display: block; width: 100vw; height: 100vh; touch-action: none; }
+
+  #title { position: fixed; top: max(8px, env(safe-area-inset-top)); left: 10px; pointer-events: none; text-shadow: 0 1px 3px #000; }
+  #title b { color: #cffff8; letter-spacing: .04em; }
+  #title .dim { color: #5f7a80; font-size: 11px; }
+  #title a { color: #7fd8d0; pointer-events: auto; }
+
+  #panel { position: fixed; top: max(8px, env(safe-area-inset-top)); right: 10px; width: 228px;
+    background: rgba(6,10,14,.86); border: 1px solid #1c2b31; border-radius: 12px; padding: 12px 14px;
+    backdrop-filter: blur(4px); }
+  #panel h2 { margin: 0 0 8px; font-size: 12px; color: #7fd8d0; letter-spacing: .08em; font-weight: 600; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 7px 0; }
+  .row label { color: #9fc9c4; font-size: 12px; }
+  .row .val { color: #ffce78; min-width: 30px; text-align: right; flex-shrink: 0; }
+  input[type=range] { width: 92px; min-width: 0; accent-color: #7fd8d0; }
+  input[type=number] { width: 74px; background: #0a1218; color: #cfe8e4; border: 1px solid #1c2b31; border-radius: 6px; padding: 4px 6px; font: 12px ui-monospace, monospace; }
+  .seg { display: flex; border: 1px solid #1c2b31; border-radius: 7px; overflow: hidden; }
+  .seg button { background: none; border: none; color: #9fc9c4; padding: 4px 10px; font: 12px ui-monospace, monospace; cursor: pointer; }
+  .seg button.on { background: rgba(127,216,208,.18); color: #cffff8; }
+  .btn { width: 100%; margin-top: 8px; padding: 8px; font: 12px ui-monospace, monospace; background: rgba(127,216,208,.14); color: #cffff8; border: 1px solid #7fd8d0; border-radius: 8px; cursor: pointer; }
+  .btn:hover { background: rgba(127,216,208,.24); }
+  .btn.ghost { background: none; border-color: #1c2b31; color: #9fc9c4; }
+  #stats { margin-top: 8px; font-size: 11px; color: #5f7a80; border-top: 1px solid #14202600; }
+
+  .chiprow { position: fixed; bottom: max(10px, env(safe-area-inset-bottom)); left: 10px; display: flex; gap: 8px; flex-wrap: wrap; max-width: 60vw; }
+  .chip { background: rgba(127,216,208,.08); border: 1px solid #1c2b31; border-radius: 8px; color: #9fc9c4; padding: 5px 10px; font: 11px ui-monospace, monospace; cursor: pointer; user-select: none; }
+  .chip.on { border-color: #7fd8d0; color: #cffff8; background: rgba(127,216,208,.16); }
+  .chip .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: baseline; }
+
+  /* room explorer */
+  #explorer { position: fixed; right: 10px; bottom: max(10px, env(safe-area-inset-bottom)); width: 300px;
+    background: rgba(6,10,14,.9); border: 1px solid #1c2b31; border-radius: 12px; padding: 12px 14px;
+    backdrop-filter: blur(4px); display: none; }
+  #explorer.open { display: block; }
+  #explorer h2 { margin: 0; font-size: 13px; color: #cffff8; }
+  #explorer h2 .tag { color: #ffce78; }
+  #explorer .sub { font-size: 11px; color: #5f7a80; margin: 2px 0 8px; }
+  #map { width: 100%; aspect-ratio: 1; background: #060b10; border: 1px solid #14252b; border-radius: 8px; display: block; }
+  #doors { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; max-height: 132px; overflow-y: auto; }
+  #doors button { text-align: left; background: rgba(255,206,120,.07); border: 1px solid #33301f; border-radius: 7px; color: #e8d9b0; padding: 5px 8px; font: 11px ui-monospace, monospace; cursor: pointer; }
+  #doors button:hover { border-color: #ffce78; }
+  #doors button b { color: #ffce78; }
+  #explorer .nav { display: flex; gap: 6px; margin-top: 8px; }
+  #explorer .nav button { flex: 1; padding: 6px; font: 11px ui-monospace, monospace; background: rgba(127,216,208,.1); color: #9fc9c4; border: 1px solid #1c2b31; border-radius: 7px; cursor: pointer; }
+  #explorer .nav button:disabled { opacity: .35; cursor: default; }
+  #xclose { position: absolute; top: 8px; right: 10px; background: none; border: none; color: #5f7a80; cursor: pointer; font: 14px ui-monospace, monospace; }
+
+  #busy { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(4,6,10,.55); z-index: 20; }
+  #busy.on { display: flex; }
+  #busy div { background: #070c12; border: 1px solid #1c2b31; border-radius: 10px; padding: 12px 22px; color: #7fd8d0; }
+
+  @media (max-width: 720px) {
+    #panel { width: 200px; }
+    #explorer { width: min(300px, calc(100vw - 20px)); }
+    .chiprow { max-width: 46vw; }
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="title">
+  <b>foam · dungeon</b> <span class="dim">— wind down from the top surface</span><br>
+  <span class="dim"><a href="../">← the foam walker</a> · every door is a certified crossing</span>
+</div>
+
+<div id="panel">
+  <h2>GENERATOR</h2>
+  <div class="row"><label>seed</label><input id="seed" type="number" min="1" step="1" value="1"></div>
+  <div class="row"><label>endpoints</label><input id="nend" type="range" min="1" max="6" step="1" value="3"><span class="val" id="nendv">3</span></div>
+  <div class="row"><label>tiles</label>
+    <span class="seg"><button id="shGrid" class="on">grid</button><button id="shHex">hex</button></span>
+  </div>
+  <div class="row"><label>tile scale</label><input id="scale" type="range" min="0.15" max="0.8" step="0.05" value="0.35"><span class="val" id="scalev">0.35</span></div>
+  <button class="btn" id="reroll">⚄ reroll seed</button>
+  <button class="btn ghost" id="regen">regenerate</button>
+  <div id="stats"></div>
+</div>
+
+<div class="chiprow" id="legend"></div>
+
+<div id="explorer">
+  <button id="xclose">✕</button>
+  <h2 id="xtitle">room</h2>
+  <div class="sub" id="xsub"></div>
+  <canvas id="map" width="272" height="272"></canvas>
+  <div id="doors"></div>
+  <div class="nav">
+    <button id="navUp">◀ toward entrance</button>
+    <button id="navDown">toward endpoint ▶</button>
+  </div>
+</div>
+
+<div id="busy"><div>rolling the foam…</div></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from '../vendor/OrbitControls.js';
+import { generateDungeon } from '../dungeon.mjs';
+
+// ------------------------------------------------------------ palette ------
+const PATH_COLORS = ['#ff9e6e', '#9ff0e6', '#c8a5ff', '#ffd166', '#8fd3ff', '#ffa5c0'];
+const COL = {
+  door: '#ffce78', entrance: '#b8ff9e', edgeFaint: '#16333a', edgeRoom: '#2b6a72',
+  tileHi: [0.36, 0.62, 0.60], tileLo: [0.10, 0.20, 0.26],   // depth shading (rgb 0..1)
+};
+const css = (c) => new THREE.Color(c);
+
+// ------------------------------------------------------------- state -------
+const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35 };
+let dungeon = null, pocket = null, selected = -1;
+
+// hash <-> params (shareable dungeons)
+function readHash() {
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (h.get('seed')) params.seed = Math.max(1, parseInt(h.get('seed'), 10) || 1);
+  if (h.get('n')) params.n = Math.min(6, Math.max(1, parseInt(h.get('n'), 10) || 3));
+  if (h.get('shape') === 'hex') params.shape = 'hex';
+  if (h.get('scale')) params.scale = Math.min(0.8, Math.max(0.15, parseFloat(h.get('scale')) || 0.35));
+}
+function writeHash() {
+  history.replaceState(null, '', '#seed=' + params.seed + '&n=' + params.n +
+    '&shape=' + params.shape + '&scale=' + params.scale);
+}
+
+// ------------------------------------------------------------ three --------
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+scene.background = css('#04060a');
+const camera = new THREE.PerspectiveCamera(52, 1, 0.1, 800);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.maxPolarAngle = Math.PI * 0.72; // stay above the swamp
+
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+let group = null;                 // everything dungeon-specific
+let foamWire = null;              // the surrounding foam context
+let tileMeshes = [];              // one mesh per room, for picking
+const show = { foam: true, paths: true, wire: true };
+
+function disposeGroup(g) {
+  if (!g) return;
+  g.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.(); });
+  scene.remove(g);
+}
+
+// polygon fan triangulation into position array (convex faces — voronoi)
+function pushFan(pos, verts, lift = 0) {
+  for (let i = 1; i + 1 < verts.length; i++) {
+    for (const p of [verts[0], verts[i], verts[i + 1]]) pos.push(p[0], p[1] + lift, p[2]);
+  }
+}
+
+function hexCorner(x, z, R, k) {
+  const a = Math.PI / 180 * (60 * k - 30); // pointy-top
+  return [x + R * Math.cos(a), z + R * Math.sin(a)];
+}
+
+function buildScene(d) {
+  disposeGroup(group); disposeGroup(foamWire);
+  tileMeshes = []; group = new THREE.Group(); foamWire = new THREE.Group();
+  const P = d.pocket;
+
+  // -- the surrounding foam, as the faintest CAD ghost: every membrane edge
+  {
+    const pos = [];
+    for (const f of P.faces) {
+      const v = f.verts;
+      for (let i = 0; i < v.length; i++) {
+        const a = v[i], b = v[(i + 1) % v.length];
+        pos.push(a[0], a[1], a[2], b[0], b[1], b[2]);
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    foamWire.add(new THREE.LineSegments(g,
+      new THREE.LineBasicMaterial({ color: css(COL.edgeFaint), transparent: true, opacity: 0.16 })));
+  }
+
+  // -- dungeon room shells: brighter wireframe per room cell
+  {
+    const pos = [];
+    const seen = new Set();
+    for (const r of d.rooms) {
+      for (const fi of P.cells[r.cell].faces) {
+        if (seen.has(fi)) continue; seen.add(fi);
+        const v = P.faces[fi].verts;
+        for (let i = 0; i < v.length; i++) {
+          const a = v[i], b = v[(i + 1) % v.length];
+          pos.push(a[0], a[1], a[2], b[0], b[1], b[2]);
+        }
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    const wire = new THREE.LineSegments(g,
+      new THREE.LineBasicMaterial({ color: css(COL.edgeRoom), transparent: true, opacity: 0.5 }));
+    wire.userData.isRoomWire = true;
+    group.add(wire);
+  }
+
+  // -- depth range for tile shading
+  let dMax = 1;
+  for (const r of d.rooms) dMax = Math.max(dMax, r.depth);
+
+  // -- tiles: one mesh per room (picking), vertex-colored
+  const s = d.tileSize;
+  for (const r of d.rooms) {
+    const pos = [], col = [];
+    const t01 = r.depth / dMax;
+    const base = [
+      COL.tileHi[0] + (COL.tileLo[0] - COL.tileHi[0]) * t01,
+      COL.tileHi[1] + (COL.tileLo[1] - COL.tileHi[1]) * t01,
+      COL.tileHi[2] + (COL.tileLo[2] - COL.tileHi[2]) * t01,
+    ];
+    for (const t of r.tiles) {
+      let c = base;
+      if (t.kind === 'door') c = [1.0, 0.81, 0.47];
+      else if (t.kind === 'entrance') c = [0.72, 1.0, 0.62];
+      else if (t.kind === 'goal') {
+        const pc = css(PATH_COLORS[r.endpointIndex % PATH_COLORS.length]);
+        c = [pc.r, pc.g, pc.b];
+      }
+      const y = t.y + 0.045;
+      let corners;
+      if (d.tileShape === 'hex') {
+        const R = (s / Math.sqrt(3)) * 0.94;
+        corners = [0, 1, 2, 3, 4, 5].map((k) => hexCorner(t.x, t.z, R, k));
+      } else {
+        const h = s * 0.46;
+        corners = [[t.x - h, t.z - h], [t.x + h, t.z - h], [t.x + h, t.z + h], [t.x - h, t.z + h]];
+      }
+      for (let i = 1; i + 1 < corners.length; i++) {
+        for (const [cx, cz] of [corners[0], corners[i], corners[i + 1]]) {
+          pos.push(cx, y, cz); col.push(c[0], c[1], c[2]);
+        }
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+      vertexColors: true, transparent: true, opacity: 0.92, side: THREE.DoubleSide,
+    }));
+    mesh.userData.roomId = r.id;
+    tileMeshes.push(mesh); group.add(mesh);
+  }
+
+  // -- door membranes: translucent amber plates on every path door
+  {
+    const pos = [];
+    const seen = new Set();
+    for (const p of d.paths) for (const q of p.doors) {
+      if (seen.has(q.face)) continue; seen.add(q.face);
+      pushFan(pos, P.faces[q.face].verts);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    group.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+      color: css(COL.door), transparent: true, opacity: 0.14, side: THREE.DoubleSide, depthWrite: false,
+    })));
+  }
+
+  // -- the paths: CAD tubes winding down through the door stations
+  const pathGroup = new THREE.Group(); pathGroup.userData.isPaths = true;
+  d.paths.forEach((p, pi) => {
+    const pts = [];
+    const c0 = d.roomOf.get(p.rooms[0]).centroid;
+    pts.push(new THREE.Vector3(c0[0], c0[1] + 0.6, c0[2]));
+    for (let i = 0; i < p.doors.length; i++) {
+      const at = p.doors[i].at;
+      pts.push(new THREE.Vector3(at[0], at[1] + 0.55, at[2]));
+      const c = d.roomOf.get(p.rooms[i + 1]).centroid;
+      pts.push(new THREE.Vector3(c[0], c[1] + 0.6, c[2]));
+    }
+    const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.15);
+    const tube = new THREE.Mesh(
+      new THREE.TubeGeometry(curve, Math.max(32, pts.length * 6), 0.09, 6, false),
+      new THREE.MeshBasicMaterial({ color: css(PATH_COLORS[pi % PATH_COLORS.length]), transparent: true, opacity: 0.85 }));
+    pathGroup.add(tube);
+    // endpoint beacon: a slim column rising from the goal room
+    const e = d.roomOf.get(p.endpoint).centroid;
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 5.5, 8),
+      new THREE.MeshBasicMaterial({ color: css(PATH_COLORS[pi % PATH_COLORS.length]), transparent: true, opacity: 0.5 }));
+    beam.position.set(e[0], e[1] + 2.8, e[2]);
+    pathGroup.add(beam);
+  });
+  // entrance beacon
+  {
+    const e = d.roomOf.get(d.entrance).centroid;
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.2, 6.5, 8),
+      new THREE.MeshBasicMaterial({ color: css(COL.entrance), transparent: true, opacity: 0.6 }));
+    beam.position.set(e[0], e[1] + 3.2, e[2]);
+    pathGroup.add(beam);
+  }
+  group.add(pathGroup);
+
+  // -- selection halo (repositioned on select)
+  const halo = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.05, 8, 40),
+    new THREE.MeshBasicMaterial({ color: css('#ffffff'), transparent: true, opacity: 0.8 }));
+  halo.rotation.x = Math.PI / 2; halo.visible = false; halo.userData.isHalo = true;
+  group.add(halo);
+
+  scene.add(foamWire); scene.add(group);
+  applyToggles();
+
+  // frame the dungeon
+  const bb = new THREE.Box3().setFromObject(group);
+  const c = bb.getCenter(new THREE.Vector3()), sz = bb.getSize(new THREE.Vector3());
+  controls.target.copy(c);
+  const rad = Math.max(sz.x, sz.z);
+  camera.position.set(c.x + rad * 0.85, c.y + sz.y * 1.35 + 6, c.z + rad * 0.85);
+  camera.near = 0.1; camera.far = rad * 12 + 200; camera.updateProjectionMatrix();
+}
+
+function applyToggles() {
+  if (foamWire) foamWire.visible = show.foam;
+  group?.traverse((o) => {
+    if (o.userData.isPaths) o.visible = show.paths;
+    if (o.userData.isRoomWire) o.visible = show.wire;
+  });
+}
+
+// ------------------------------------------------------------ explorer -----
+const X = {
+  el: document.getElementById('explorer'), title: document.getElementById('xtitle'),
+  sub: document.getElementById('xsub'), map: document.getElementById('map'),
+  doors: document.getElementById('doors'), up: document.getElementById('navUp'), down: document.getElementById('navDown'),
+};
+
+function roomLabel(r) {
+  if (r.isEntrance) return 'ENTRANCE';
+  if (r.endpointIndex >= 0) return 'ENDPOINT ' + (r.endpointIndex + 1);
+  return 'room ' + r.id;
+}
+
+function selectRoom(id, fly = true) {
+  if (!dungeon || !dungeon.roomOf.has(id)) return;
+  selected = id;
+  const r = dungeon.roomOf.get(id);
+  X.el.classList.add('open');
+  X.title.innerHTML = roomLabel(r) + (r.endpointIndex >= 0 || r.isEntrance ? ' <span class="tag">#' + r.id + '</span>' : '');
+  X.sub.textContent = r.depth + ' door' + (r.depth === 1 ? '' : 's') + ' from entrance · floor ' +
+    r.floorY.toFixed(1) + ' m · ' + r.tiles.length + ' tiles · paths [' +
+    r.onPaths.map((i) => i + 1).join(',') + ']';
+  drawRoomMap(r);
+  buildDoorButtons(r);
+  // halo + camera
+  group?.traverse((o) => {
+    if (o.userData.isHalo) {
+      o.visible = true;
+      o.position.set(r.centroid[0], r.centroid[1] + 0.3, r.centroid[2]);
+      const rr = Math.sqrt(r.area / Math.PI);
+      o.scale.setScalar(Math.max(0.6, rr * 0.55));
+    }
+  });
+  if (fly) controls.target.set(r.centroid[0], r.centroid[1], r.centroid[2]);
+}
+
+function drawRoomMap(r) {
+  const ctx = X.map.getContext('2d');
+  const Wp = X.map.width, Hp = X.map.height;
+  ctx.clearRect(0, 0, Wp, Hp);
+  let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const t of r.tiles) {
+    x0 = Math.min(x0, t.x); x1 = Math.max(x1, t.x);
+    z0 = Math.min(z0, t.z); z1 = Math.max(z1, t.z);
+    y0 = Math.min(y0, t.y); y1 = Math.max(y1, t.y);
+  }
+  const s = dungeon.tileSize;
+  x0 -= s; x1 += s; z0 -= s; z1 += s;
+  const k = Math.min(Wp / (x1 - x0), Hp / (z1 - z0));
+  const mx = (x) => (x - x0) * k + (Wp - (x1 - x0) * k) / 2;
+  const mz = (z) => (z - z0) * k + (Hp - (z1 - z0) * k) / 2;
+  const doorOfTile = new Map(r.doors.map((d, i) => [d.tile, i]));
+  for (const t of r.tiles) {
+    // shade by height within the room: higher floor = lighter
+    const h = y1 - y0 > 1e-6 ? (t.y - y0) / (y1 - y0) : 0.5;
+    let fill;
+    if (t.kind === 'door') fill = '#ffce78';
+    else if (t.kind === 'entrance') fill = '#b8ff9e';
+    else if (t.kind === 'goal') fill = PATH_COLORS[r.endpointIndex % PATH_COLORS.length];
+    else {
+      const l = 18 + h * 26;
+      fill = 'hsl(190 40% ' + l.toFixed(0) + '%)';
+    }
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = 'rgba(4,6,10,.7)'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (dungeon.tileShape === 'hex') {
+      const R = (s / Math.sqrt(3)) * k;
+      for (let i = 0; i < 6; i++) {
+        const a = Math.PI / 180 * (60 * i - 30);
+        const px = mx(t.x) + R * Math.cos(a), pz = mz(t.z) + R * Math.sin(a);
+        i ? ctx.lineTo(px, pz) : ctx.moveTo(px, pz);
+      }
+    } else {
+      const hs = s * 0.5 * k;
+      ctx.rect(mx(t.x) - hs, mz(t.z) - hs, hs * 2, hs * 2);
+    }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    if (doorOfTile.has(t.key)) {
+      ctx.fillStyle = '#241a05';
+      ctx.font = 'bold ' + Math.max(9, s * k * 0.5) + 'px ui-monospace, monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String.fromCharCode(65 + doorOfTile.get(t.key)), mx(t.x), mz(t.z));
+    }
+  }
+}
+
+function buildDoorButtons(r) {
+  X.doors.innerHTML = '';
+  r.doors.forEach((d, i) => {
+    const to = dungeon.roomOf.get(d.to);
+    const dir = to.depth > r.depth ? 'deeper ↓' : to.depth < r.depth ? 'back up ↑' : 'level →';
+    const b = document.createElement('button');
+    b.innerHTML = '<b>' + String.fromCharCode(65 + i) + '</b> → ' + roomLabel(to).toLowerCase() +
+      ' · ' + dir;
+    b.onclick = () => selectRoom(d.to);
+    X.doors.appendChild(b);
+  });
+  // walk the first path through this room
+  const pi = r.onPaths[0];
+  const p = dungeon.paths[pi];
+  const idx = p ? p.rooms.indexOf(r.id) : -1;
+  X.up.disabled = !(p && idx > 0);
+  X.down.disabled = !(p && idx >= 0 && idx < p.rooms.length - 1);
+  X.up.onclick = () => p && idx > 0 && selectRoom(p.rooms[idx - 1]);
+  X.down.onclick = () => p && idx < p.rooms.length - 1 && selectRoom(p.rooms[idx + 1]);
+}
+
+document.getElementById('xclose').onclick = () => {
+  X.el.classList.remove('open'); selected = -1;
+  group?.traverse((o) => { if (o.userData.isHalo) o.visible = false; });
+};
+
+// ------------------------------------------------------------- picking -----
+const ray = new THREE.Raycaster();
+let downAt = null;
+canvas.addEventListener('pointerdown', (e) => { downAt = [e.clientX, e.clientY]; });
+canvas.addEventListener('pointerup', (e) => {
+  if (!downAt) return;
+  const moved = Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]);
+  downAt = null;
+  if (moved > 6 || !dungeon) return;   // it was a drag
+  const ndc = new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hits = ray.intersectObjects(tileMeshes, false);
+  if (hits.length) selectRoom(hits[0].object.userData.roomId);
+});
+
+// ------------------------------------------------------------- legend ------
+function buildLegend() {
+  const el = document.getElementById('legend');
+  el.innerHTML = '';
+  const mk = (html, cls, fn) => {
+    const c = document.createElement('span');
+    c.className = 'chip' + (cls ? ' ' + cls : ''); c.innerHTML = html;
+    if (fn) c.onclick = fn; el.appendChild(c); return c;
+  };
+  const t1 = mk('foam', show.foam ? 'on' : '', () => { show.foam = !show.foam; t1.classList.toggle('on'); applyToggles(); });
+  const t2 = mk('rooms', show.wire ? 'on' : '', () => { show.wire = !show.wire; t2.classList.toggle('on'); applyToggles(); });
+  const t3 = mk('paths', show.paths ? 'on' : '', () => { show.paths = !show.paths; t3.classList.toggle('on'); applyToggles(); });
+  mk('<span class="sw" style="background:#b8ff9e"></span>entrance');
+  mk('<span class="sw" style="background:#ffce78"></span>door');
+  dungeon?.paths.forEach((p, i) =>
+    mk('<span class="sw" style="background:' + PATH_COLORS[i % PATH_COLORS.length] + '"></span>path ' + (i + 1) +
+       ' · ' + p.doors.length + ' doors', '', () => selectRoom(p.endpoint)));
+}
+
+// ------------------------------------------------------------ controls -----
+const $ = (id) => document.getElementById(id);
+function syncUI() {
+  $('seed').value = params.seed;
+  $('nend').value = params.n; $('nendv').textContent = params.n;
+  $('scale').value = params.scale; $('scalev').textContent = params.scale.toFixed(2);
+  $('shGrid').classList.toggle('on', params.shape === 'grid');
+  $('shHex').classList.toggle('on', params.shape === 'hex');
+}
+
+function stats() {
+  if (!dungeon) return;
+  const pars = dungeon.paths.map((p) => p.doors.length);
+  $('stats').innerHTML =
+    'seed <b style="color:#ffce78">' + params.seed + '</b> · salt ' + dungeon.pocket.salt +
+    '<br>' + dungeon.rooms.length + ' rooms · ' + dungeon.paths.length + ' paths (' + pars.join(' / ') + ' doors)' +
+    '<br>' + dungeon.rooms.reduce((a, r) => a + r.tiles.length, 0) + ' tiles · ' +
+    dungeon.pocket.nav.nodeCount + ' basins in the foam';
+}
+
+// regenerate: full = new pocket (seed changed), else re-derive over the same foam
+function regen(full) {
+  $('busy').classList.add('on');
+  setTimeout(() => {
+    try {
+      const base = { endpoints: params.n, tileShape: params.shape, tileScale: params.scale };
+      dungeon = (full || !pocket)
+        ? generateDungeon({ seed: params.seed, ...base })
+        : generateDungeon({ pocket, ...base });
+      pocket = dungeon.pocket;
+      buildScene(dungeon); buildLegend(); stats(); writeHash();
+      if (selected >= 0 && dungeon.roomOf.has(selected)) selectRoom(selected, false);
+      else { X.el.classList.remove('open'); selected = -1; }
+      window.__dungeon.ready = true;
+    } finally { $('busy').classList.remove('on'); }
+  }, 30);
+}
+
+$('seed').onchange = () => { params.seed = Math.max(1, parseInt($('seed').value, 10) || 1); regen(true); };
+$('reroll').onclick = () => { params.seed = 1 + Math.floor(Math.random() * 99999); syncUI(); regen(true); };
+$('regen').onclick = () => regen(true);
+$('nend').oninput = () => { params.n = parseInt($('nend').value, 10); $('nendv').textContent = params.n; };
+$('nend').onchange = () => regen(false);
+$('scale').oninput = () => { params.scale = parseFloat($('scale').value); $('scalev').textContent = params.scale.toFixed(2); };
+$('scale').onchange = () => regen(false);
+$('shGrid').onclick = () => { params.shape = 'grid'; syncUI(); regen(false); };
+$('shHex').onclick = () => { params.shape = 'hex'; syncUI(); regen(false); };
+
+// ------------------------------------------------------------- debug -------
+// load-bearing for the headless verification harness (the __foam pattern)
+window.__dungeon = {
+  ready: false,
+  get dungeon() { return dungeon; },
+  get params() { return { ...params }; },
+  select: (id) => selectRoom(id),
+  regen: (p) => { Object.assign(params, p || {}); syncUI(); regen(!!(p && 'seed' in p)); },
+};
+
+// -------------------------------------------------------------- boot -------
+readHash(); syncUI(); regen(true);
+(function loop() { requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
+</script>
+</body>
+</html>

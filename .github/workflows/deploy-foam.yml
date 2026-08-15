@@ -2,7 +2,7 @@ name: Deploy foam (voronoi foam walker)
 
 on:
   push:
-    branches: ['claude/voronoi-foam-interactive-keo0uy']
+    branches: ['claude/foam-dungeon-generator-aoaz0j']
     paths:
       - 'foam/**'
       - '.github/workflows/deploy-foam.yml'
@@ -21,6 +21,8 @@ jobs:
           node-version: '20'
       - name: Kernel selftest (the walk certificate)
         run: node test/foamworld.selftest.mjs
+      - name: Dungeon selftest (paths, descent rule, tiles)
+        run: node test/dungeon.selftest.mjs
       - name: Install wrangler
         run: npm install wrangler
       - name: Deploy worker + assets

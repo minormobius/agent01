@@ -9,7 +9,7 @@ first-person view into the foam, toggleable membranes, a tight close-up on
 membrane creation/destruction, heading toward a puzzle platformer — with mobile
 AND desktop performance a hard requirement.
 
-**Two pages, one module.** `/` (index.html) is the tight puzzle pocket.
+**Three pages, one kernel.** `/` (index.html) is the tight puzzle pocket.
 `/macro/` (macro/index.html, `<body data-mode="macro">`) is the same
 `app.js` with hall-scale generation (4×4×(3+1) chambers of 20 m × 9 m),
 faster walk, longer tool reach — and the third shiva tool, **plant** (Q /
@@ -21,12 +21,32 @@ the coming CELL TYPES: sources, sinks, defenses). All pocket-derived render
 and physics data rebuilds through `installPocket`, so more reform-driven
 mechanics can reuse the same path.
 
-## The three files
+`/dungeon/` (dungeon/index.html) is the **dungeon generator** — the same foam
+read as a dungeon instead of a puzzle. The entrance is the pocket's certified
+top-layer target chamber; n ENDPOINTS are rolled deep in the foam
+(deepest-lying reachable basins, greedily spread in plan, seeded rng); one
+path per endpoint is wayfound over the certified crossing graph — shortest by
+door count, and among equally short continuations always the **maximal
+gradient down** (the puzzle's oracle climbs; the dungeon descends). Each
+room's floor is then discretized into square-grid or hex tiles on a single
+global lattice at a chosen scale relative to the chamber scale, every tile
+carrying the exact floor-plane height under its centre. The page renders a
+three.js CAD view (foam ghost wireframe, tiled rooms shaded by depth, door
+membranes, one tube per path, endpoint beacons) plus a room-by-room explorer
+(2D tile map, lettered doors, walk along a path). three.js is **vendored** at
+`vendor/three.module.min.js` + `vendor/OrbitControls.js` (pinned 0.160.1,
+loaded via importmap) — no build step, no CDN. URL hash carries
+seed/n/shape/scale for shareable dungeons; `window.__dungeon` is the headless
+harness hook (the `__foam` pattern) — keep it.
+
+## The files
 
 | File | What it is |
 |---|---|
 | `foamworld.js` | **the kernel** — seeded pocket generation + the walk certificate. Layered, anisotropic 3D Voronoi (convex cells by half-space clipping, global epsilon-weld so the complex is watertight), every shared face extracted as a MEMBRANE, and a nav graph under the movement rules (below). `generatePocket({seed})` retries salts until the certificate proves start → target solvable, so **every published seed carries a constructive proof**. Factored as `buildComplex` (geometry from ANY seed list) + `buildNav` (pocket or fixed start/target modes), which is what powers `reformPocket(pocket, point)` — deterministic node insertion with the same closure gate and a re-derived oracle. Runs in node and the browser — the selftest and the game consume the same module. |
 | `app.js` | **the game** — WebGL2 renderer (one sorted-alpha membrane draw, no depth buffer, per-face state in an RGBA32F texture, x-ray edge pass, adaptive-resolution governor), walker physics (support probe + plane clamps driven by the same face classification the certificate uses), the shiva tools (raycast → per-face dissolve/growth animations in the fragment shader), touch + pointer-lock input, HUD. |
+| `dungeon.mjs` | **the dungeon layer** — a pure consumer of the kernel (no kernel change): `generateDungeon({seed, endpoints, tileShape, tileScale})` rolls endpoints, wayfinds descending paths over `pocket.nodes`/`pocket.edges`, and discretizes room floors (`discretizeRoom` is exported separately so the page can retile without regenerating — pass `pocket` in opts for that). Deterministic under the same contract as the kernel. |
+| `test/dungeon.selftest.mjs` | pins the dungeon contract: determinism, endpoints distinct/reachable/below the entrance, every door on a path is a certified crossing between its recorded rooms, paths shortest with the descent tie-break honoured, tile centres inside their room's own floor with exact plane heights, doors snapped to tiles at every scale, grid + hex. Run: `node foam/test/dungeon.selftest.mjs` (~2s, 3 seeds). |
 | `test/foamworld.selftest.mjs` | pins determinism, watertightness (per-cell Euler V−E+F=2, volumes sum to the box), membrane pairing/orientation/planarity, and the certificate: route crossings are wall-class with standing clearance, all support faces within grade, par in the puzzle band. Run: `node foam/test/foamworld.selftest.mjs` (~4s, 8 seeds). |
 
 ## The movement rules (the honesty contract)
@@ -113,10 +133,10 @@ hook is load-bearing for that harness; keep it.
 
 ## Deploy
 
-- Push `foam/**` on `claude/voronoi-foam-interactive-keo0uy` (the owning
-  branch — see `deploy-registry.json`) → `deploy-foam.yml` runs the selftest,
-  then `wrangler deploy`. The sandbox cannot deploy; push and let the Action
-  run. **First deploy also creates the custom domain** — verify the log binds
+- Push `foam/**` on `claude/foam-dungeon-generator-aoaz0j` (the owning
+  branch — see `deploy-registry.json`) → `deploy-foam.yml` runs both
+  selftests (kernel + dungeon), then `wrangler deploy`. The sandbox cannot
+  deploy; push and let the Action run. **First deploy also creates the custom domain** — verify the log binds
   `foam.mino.mobi (custom domain)` (the golden rule), then that `/` serves
   the game and `/health` answers.
 

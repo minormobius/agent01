@@ -315,10 +315,10 @@
       "dir": "foam",
       "endpoint": "foam.mino.mobi",
       "type": "frontend",
-      "branch": "claude/voronoi-foam-interactive-keo0uy",
+      "branch": "claude/foam-dungeon-generator-aoaz0j",
       "uses": [],
       "provides": null,
-      "note": "First-person interactive space inside the rind's voronoi foam (game-side sibling of the rind structure wing). Two pages: `/` is the tight certified puzzle pocket; `/macro/` is the same mechanics in halls ~10x the volume plus the PLANT tool — insert a voronoi node and the whole lattice reforms around it (kernel reformPocket, membrane state carried by chamber pair). Membranes toggle, shatter and re-weave via the shiva tools; movement is walking only (no jumps, max grade ≈46°) and foamworld.js proves every published seed solvable with an explicit oracle (path + shiva sequence) before it ships. WebGL2, pure static, no build, no D1/DO/secrets. Assets worker `foam`, custom_domain foam.mino.mobi.",
+      "note": "First-person interactive space inside the rind's voronoi foam (game-side sibling of the rind structure wing). Two pages: `/` is the tight certified puzzle pocket; `/macro/` is the same mechanics in halls ~10x the volume plus the PLANT tool — insert a voronoi node and the whole lattice reforms around it (kernel reformPocket, membrane state carried by chamber pair).  `/dungeon/` reads the same foam as a DUNGEON GENERATOR: certified top-surface entrance, n rolled endpoints deep below, one maximal-gradient-down path each over the certified crossing graph, room floors discretized to grid or hex tiles at a chosen scale, rendered as a three.js CAD view (vendored, importmap) with a room-by-room explorer. Membranes toggle, shatter and re-weave via the shiva tools; movement is walking only (no jumps, max grade ≈46°) and foamworld.js proves every published seed solvable with an explicit oracle (path + shiva sequence) before it ships. WebGL2, pure static, no build, no D1/DO/secrets. Assets worker `foam`, custom_domain foam.mino.mobi.",
       "paths": [
         "foam/**",
         ".github/workflows/deploy-foam.yml"
