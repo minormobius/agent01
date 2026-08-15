@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node packages/homunculus/log-prompt.mjs",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node packages/homunculus/capture-session.mjs",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

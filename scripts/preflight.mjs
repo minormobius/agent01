@@ -137,6 +137,43 @@ console.log('\nredaction');
   const leaked = PUBLISHED.filter((f) => existsSync(join(ROOT, f))
     && /ascential/i.test(readFileSync(join(ROOT, f), 'utf8')));
   record('no work-facing hosts in generated output', leaked.length === 0, leaked.join(', '));
+
+  // The prompt corpus is the principal's own words, captured by the
+  // UserPromptSubmit hook in .claude/settings.json. The root worker serves
+  // `assets.directory: "."`, so a missing .assetsignore line publishes every
+  // prompt ever typed to mino.mobi. The log is gitignored today, but that
+  // protects the repo, not the upload — a local run leaves the file on disk
+  // and `wrangler deploy` uploads what it finds.
+  const LOG_DIR = 'packages/homunculus/log/';
+  const assetsIgnore = existsSync(join(ROOT, '.assetsignore'))
+    ? readFileSync(join(ROOT, '.assetsignore'), 'utf8').split('\n').map((l) => l.trim())
+    : [];
+  const logIgnored = assetsIgnore.includes(LOG_DIR);
+  record('prompt log stays unserved', logIgnored,
+    logIgnored ? '' : `${LOG_DIR} missing from .assetsignore`);
+
+  const INBOX_DIR = 'homunculus/inbox/';
+  record('inbox stays unserved', assetsIgnore.includes(INBOX_DIR),
+    assetsIgnore.includes(INBOX_DIR) ? '' : `${INBOX_DIR} missing from .assetsignore`);
+
+  // Recovery-pass transcripts ride feature branches while the repo is
+  // temporarily private, and must never reach main — the permanent public
+  // trunk. The network-wide gate is scripts/../assert-public-safe.mjs; this is
+  // the local backstop that keeps a merge candidate from carrying one in.
+  // Scoped to main so it does not fire on the feature branches that carry the
+  // files on purpose during a pass.
+  let branch = '';
+  try {
+    branch = execFileSync('git', ['branch', '--show-current'], { cwd: ROOT }).toString().trim();
+  } catch { /* detached HEAD in CI — fall through */ }
+  if (branch === 'main') {
+    let tracked = '';
+    try {
+      tracked = execFileSync('git', ['ls-files', INBOX_DIR], { cwd: ROOT }).toString().trim();
+    } catch { /* none */ }
+    record('no transcripts on main', tracked === '',
+      tracked ? `${INBOX_DIR} committed to main — strip before merging` : '');
+  }
 }
 
 // ------------------------------------------ 4a. the loop's blast radius -----

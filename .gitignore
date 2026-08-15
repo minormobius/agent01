@@ -47,3 +47,8 @@ bakeoff/.run/
 # stray capture output if someone runs bakeoff/capture.mjs with an explicit --out
 # inside the tree (the default is a temp dir)
 */capture/frame-*.png
+packages/homunculus/log/
+
+# Recovery-pass transcripts: force-added onto feature branches by the snippet,
+# collected at merge time, and asserted absent before the repo goes public.
+homunculus/inbox/
