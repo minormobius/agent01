@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cairn character roller — table</title>
+<meta name="description" content="Roll a complete Cairn 2e character — background, attributes, gear, packed inventory, bond and omen — from a seed. The seed is the permalink: the same string always rolls the same character. Cairn is by Yochai Gal, CC BY-SA 4.0.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Cairn character roller">
+<meta property="og:description" content="A whole Cairn 2e party from one seed, packed into ten inventory slots and ready to print.">
+<meta property="og:url" content="https://table.mino.mobi/cairn/">
+<meta name="twitter:card" content="summary">
+<style>
+:root {
+  --bg: #f7f4ec;
+  --panel: #fffdf7;
+  --text: #1c1a17;
+  --muted: #6d675c;
+  --rule: #d8d2c4;
+  --rule-hard: #b3ab99;
+  --accent: #3f6d4e;          /* the Wood */
+  --accent-soft: rgba(63, 109, 78, 0.08);
+  --ink: #8a3324;             /* the roll: rust-red, like a die pip */
+  --slot-empty: rgba(0, 0, 0, 0.03);
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12120f; --panel: #1a1a16; --text: #ddd8cc; --muted: #8f887a;
+    --rule: #33322b; --rule-hard: #4c4a40;
+    --accent: #7dbb92; --accent-soft: rgba(125, 187, 146, 0.1);
+    --ink: #d98c72; --slot-empty: rgba(255, 255, 255, 0.03);
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: var(--serif); line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  max-width: 900px; margin: 0 auto; padding: 2rem 1.2rem 5rem;
+}
+a { color: var(--accent); }
+h1 { font-size: 1.9rem; line-height: 1.2; font-weight: 600; letter-spacing: -0.01em; }
+h2 { font-size: 1rem; font-weight: 600; }
+
+.crumb {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); text-decoration: none;
+  display: inline-block; margin-bottom: 1.2rem;
+}
+.lede { color: var(--muted); margin-top: 0.5rem; font-size: 0.98rem; }
+.lede code { font-family: var(--mono); font-size: 0.85em; }
+
+/* ------------------------------------------------------------- controls -- */
+.controls {
+  display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;
+  margin: 1.4rem 0 1.8rem; padding: 0.85rem;
+  border: 1px solid var(--rule); border-radius: 8px; background: var(--panel);
+}
+button, select, input[type=text] {
+  font-family: var(--mono); font-size: 0.8rem;
+  padding: 0.45rem 0.7rem; border-radius: 6px;
+  border: 1px solid var(--rule-hard); background: var(--panel); color: var(--text);
+}
+button { cursor: pointer; }
+button:hover { border-color: var(--accent); color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--panel); font-weight: 600; }
+button.primary:hover { filter: brightness(1.1); color: var(--panel); }
+input[type=text] { min-width: 11rem; flex: 1 1 11rem; }
+.ctl-label { font-family: var(--mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.status { font-family: var(--mono); font-size: 0.7rem; color: var(--accent); min-height: 1rem; flex-basis: 100%; }
+
+/* ---------------------------------------------------------------- sheet -- */
+.sheet {
+  border: 1px solid var(--rule-hard); border-radius: 8px; background: var(--panel);
+  padding: 1.3rem; margin-bottom: 1.6rem;
+}
+.sheet-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+.who { font-size: 1.5rem; font-weight: 600; line-height: 1.15; }
+.who .bg { color: var(--accent); }
+.whence { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); text-align: right; }
+.blurb { color: var(--muted); font-style: italic; margin: 0.5rem 0 1.1rem; font-size: 0.94rem; }
+
+.stat-row { display: flex; gap: 0.55rem; flex-wrap: wrap; margin-bottom: 1.2rem; }
+.stat {
+  flex: 1 1 5.5rem; text-align: center; padding: 0.5rem 0.3rem;
+  border: 1px solid var(--rule); border-radius: 6px; background: var(--bg);
+}
+.stat .k { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.stat .v { font-size: 1.6rem; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.stat.swappable { cursor: pointer; }
+.stat.swappable:hover { border-color: var(--accent); }
+.stat.picked { border-color: var(--accent); background: var(--accent-soft); }
+.stat .sub { font-family: var(--mono); font-size: 0.6rem; color: var(--muted); }
+
+.sec { margin-top: 1.4rem; }
+.sec > h2 {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted); font-weight: 600;
+  border-bottom: 1px solid var(--rule); padding-bottom: 0.3rem; margin-bottom: 0.7rem;
+  display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem;
+}
+.sec > h2 .note { text-transform: none; letter-spacing: 0; font-family: var(--serif); font-size: 0.78rem; }
+.sec > h2 .note.warn { color: var(--ink); font-weight: 600; }
+
+/* slots */
+.slots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.35rem; }
+@media (max-width: 560px) { .slots { grid-template-columns: 1fr; } }
+.slot {
+  display: flex; align-items: baseline; gap: 0.5rem; min-height: 2rem;
+  padding: 0.32rem 0.55rem; border: 1px solid var(--rule); border-radius: 5px;
+  background: var(--slot-empty); font-size: 0.87rem;
+}
+.slot .n { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); min-width: 1.5rem; }
+.slot.filled { background: var(--panel); border-color: var(--rule-hard); }
+.slot.cont { color: var(--muted); font-style: italic; }
+.slot.body { border-left: 3px solid var(--accent); }
+.slot.fatigue { border-left: 3px solid var(--ink); }
+.slot .drop { margin-left: auto; border: none; background: none; color: var(--muted); cursor: pointer; font-family: var(--mono); font-size: 0.85rem; padding: 0 0.2rem; }
+.slot .drop:hover { color: var(--ink); }
+.petty-line { margin-top: 0.5rem; font-size: 0.85rem; color: var(--muted); }
+.petty-line b { color: var(--text); font-weight: 600; }
+
+/* prose blocks */
+.qa { margin-bottom: 0.9rem; }
+.qa .q { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); }
+.qa .q .r { color: var(--ink); font-weight: 600; }
+.qa .a { font-size: 0.94rem; }
+.qa .a .t { font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.35rem; }
+.chip {
+  font-family: var(--mono); font-size: 0.68rem; padding: 0.2rem 0.5rem;
+  border: 1px dashed var(--rule-hard); border-radius: 999px;
+  background: none; color: var(--muted); cursor: pointer;
+}
+.chip:hover { border-color: var(--accent); border-style: solid; color: var(--accent); }
+.chip[disabled] { opacity: 0.4; cursor: default; text-decoration: line-through; }
+.chip.static { cursor: default; border-style: solid; }
+.chip.static:hover { border-color: var(--rule-hard); color: var(--muted); }
+.add-item { display: inline-flex; }
+.add-item input {
+  font-family: var(--mono); font-size: 0.68rem; padding: 0.2rem 0.6rem;
+  border: 1px dashed var(--rule-hard); border-radius: 999px;
+  background: none; color: var(--text); min-width: 16rem;
+}
+.add-item input::placeholder { color: var(--muted); }
+.add-item input:focus { outline: none; border-color: var(--accent); border-style: solid; }
+
+.traits { display: flex; flex-wrap: wrap; gap: 0.3rem 0.9rem; font-size: 0.88rem; }
+.traits span b { font-family: var(--mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 400; margin-right: 0.25rem; }
+
+details.log { margin-top: 1.4rem; }
+details.log summary {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); cursor: pointer;
+}
+.log-table { width: 100%; border-collapse: collapse; margin-top: 0.6rem; font-family: var(--mono); font-size: 0.72rem; }
+.log-table td { padding: 0.16rem 0.4rem; border-bottom: 1px solid var(--rule); }
+.log-table td:first-child { color: var(--muted); }
+.log-table td.dice { color: var(--ink); text-align: right; white-space: nowrap; }
+
+footer {
+  margin-top: 2.5rem; padding-top: 1.2rem; border-top: 1px solid var(--rule);
+  font-size: 0.83rem; color: var(--muted);
+}
+footer p + p { margin-top: 0.6rem; }
+
+/* ---------------------------------------------------------------- print -- */
+@media print {
+  :root { --bg: #fff; --panel: #fff; --text: #000; --muted: #444; --rule: #bbb; --rule-hard: #666; --accent: #2c4d37; --slot-empty: #fff; }
+  body { max-width: none; padding: 0; font-size: 10.5pt; }
+  .controls, .crumb, .lede, .chip, .slot .drop, details.log, .no-print { display: none !important; }
+  .sheet { break-inside: avoid; page-break-inside: avoid; border: 1.5px solid #000; margin-bottom: 0.6rem; }
+  h1 { font-size: 1.2rem; }
+  footer { font-size: 8pt; }
+}
+</style>
+</head>
+<body>
+
+<a class="crumb" href="/">← table</a>
+
+<header>
+  <h1>Cairn character roller</h1>
+  <p class="lede">
+    A whole Cairn Second Edition character in one throw: background, name, 3d6 attributes,
+    starting gear packed into the ten inventory slots, two background tables, a bond, an omen.
+    <strong>The seed is the character.</strong> <code>#s=oak-fen-317</code> rolls the same
+    Fletchwind for everyone, forever — hand a party out as a URL, print it, or reroll and keep looking.
+  </p>
+</header>
+
+<div class="controls">
+  <span class="ctl-label">seed</span>
+  <input type="text" id="seed" spellcheck="false" aria-label="Seed">
+  <button class="primary" id="roll">Roll new</button>
+  <span class="ctl-label">party</span>
+  <select id="size" aria-label="Party size">
+    <option value="1">1</option>
+    <option value="2">2</option>
+    <option value="3">3</option>
+    <option value="4">4</option>
+    <option value="6">6</option>
+  </select>
+  <button id="print">Print</button>
+  <button id="copy">Copy link</button>
+  <button id="json">Download JSON</button>
+  <span class="status" id="status"></span>
+</div>
+
+<main id="sheets"></main>
+
+<footer>
+  <p>
+    <strong>Cairn Second Edition</strong> is by <a href="https://cairnrpg.com/">Yochai Gal</a>,
+    licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The tables this page rolls on are adapted from the
+    <a href="https://cairnrpg.com/second-edition/">Cairn 2e SRD</a> and are shared under the same
+    licence — see <a href="LICENSE.md">LICENSE.md</a>. This roller is not affiliated with or
+    endorsed by the author.
+  </p>
+  <p class="no-print">
+    Everything runs in your browser: no account, no server, nothing stored. The dice are a seeded
+    PRNG, so a sheet is reproducible from its seed alone —
+    <a href="roll.js">roll.js</a> · <a href="data.js">data.js</a> · <a href="tools/scrape-srd.py">the scraper</a>.
+  </p>
+</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

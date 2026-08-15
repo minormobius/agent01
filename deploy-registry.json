@@ -1404,6 +1404,24 @@
         "plant/**",
         ".github/workflows/deploy-plant.yml"
       ]
+    },
+    {
+      "surface": "table",
+      "dir": "table",
+      "endpoint": "table.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/ttrpg-character-sheet-gen-886np4",
+      "uses": [],
+      "provides": null,
+      "status": "MANAGED — NEW SURFACE, domain not yet provisioned. table.mino.mobi is declared in table/wrangler.jsonc routes[] and is created by the first deploy (the same path plant.minomobi.com took: DNS misses for ~10s, then Cloudflare 1104 for ~60s while the cert issues, then it works). Until that first run lands, treat the endpoint as pending and verify the log binds `table.mino.mobi (custom domain)`.",
+      "note": "Procedural character sheets for tabletop RPGs whose rules text is openly licensed — the surface exists because a generator has to reproduce the tables, and only openly licensed text can be shipped that way. Thin assets Worker (worker `table`), no build, no D1, no secrets; every generator runs in the browser, deterministically from a seed, so a URL is a character. Live: /cairn — Cairn Second Edition (Yochai Gal, CC BY-SA 4.0), full chargen with slot-accurate inventory, party rolls and a print sheet; its tables are scraped from the SRD by table/cairn/tools/scrape-srd.py into table/cairn/data.js and re-shared under CC BY-SA 4.0. Next: /mausritter (CC BY 4.0). Each system's licence and attribution ships next to its data — see table/CLAUDE.md before adding one. (full description: table/CLAUDE.md)",
+      "serves": [
+        "cairn"
+      ],
+      "paths": [
+        "table/**",
+        ".github/workflows/deploy-table.yml"
+      ]
     }
   ],
   "unmanaged": {

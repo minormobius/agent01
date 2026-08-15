@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>table — character sheets from open game systems</title>
+<meta name="description" content="Procedural character sheets built on tabletop RPGs whose rules text is openly licensed — Cairn, Mausritter, Knave, the 5.1/5.2 SRD. One seed, one character, one permalink. Every system's attribution ships with its data.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="table — character sheets from open game systems">
+<meta property="og:description" content="One seed, one character, one permalink. Procedural sheets built only on openly licensed rules text, starting with Cairn 2e.">
+<meta property="og:image" content="https://mino.mobi/og.png?v=2">
+<meta property="og:url" content="https://table.mino.mobi">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+:root {
+  --bg: #f7f4ec;
+  --panel: #fffdf7;
+  --text: #1c1a17;
+  --muted: #6d675c;
+  --rule: #d8d2c4;
+  --rule-hard: #b3ab99;
+  --accent: #3f6d4e;
+  --accent-soft: rgba(63, 109, 78, 0.08);
+  --ink: #8a3324;
+  --ok: #3f6d4e;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12120f; --panel: #1a1a16; --text: #ddd8cc; --muted: #8f887a;
+    --rule: #33322b; --rule-hard: #4c4a40;
+    --accent: #7dbb92; --accent-soft: rgba(125, 187, 146, 0.1);
+    --ink: #d98c72; --ok: #7dbb92;
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: var(--serif); line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  max-width: 860px; margin: 0 auto; padding: 2.4rem 1.3rem 5rem;
+}
+a { color: var(--accent); }
+.crumb {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); text-decoration: none;
+  display: inline-block; margin-bottom: 1.4rem;
+}
+h1 { font-size: 2.5rem; line-height: 1.05; font-weight: 600; letter-spacing: -0.02em; }
+h1 .dot { color: var(--accent); }
+.tagline { font-size: 1.12rem; color: var(--muted); margin-top: 0.6rem; }
+h2 {
+  font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--muted); font-weight: 600;
+  margin: 2.6rem 0 0.9rem; padding-bottom: 0.35rem; border-bottom: 1px solid var(--rule);
+}
+p + p { margin-top: 0.9rem; }
+section > p { font-size: 1rem; }
+strong { font-weight: 600; }
+code { font-family: var(--mono); font-size: 0.85em; background: var(--accent-soft); padding: 0.1em 0.35em; border-radius: 3px; }
+
+/* --------------------------------------------------------------- the site */
+.wing {
+  display: block; text-decoration: none; color: inherit;
+  border: 1px solid var(--rule-hard); border-radius: 10px; background: var(--panel);
+  padding: 1.1rem 1.2rem; margin-bottom: 0.7rem;
+}
+.wing:hover { border-color: var(--accent); background: var(--accent-soft); }
+.wing .row { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+.wing .name { font-size: 1.25rem; font-weight: 600; color: var(--accent); }
+.wing .sys { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); }
+.wing .lic {
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.06em;
+  border: 1px solid var(--rule-hard); border-radius: 999px; padding: 0.1rem 0.5rem; color: var(--muted);
+}
+.wing .what { margin-top: 0.4rem; color: var(--text); font-size: 0.96rem; }
+.wing.soon { border-style: dashed; opacity: 0.75; }
+.wing.soon .name { color: var(--muted); }
+
+/* ------------------------------------------------------------ licence table */
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 0.4rem; }
+th, td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th {
+  font-family: var(--mono); font-size: 0.63rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); font-weight: 600; white-space: nowrap;
+}
+td.lic { font-family: var(--mono); font-size: 0.74rem; white-space: nowrap; }
+td.lic.free { color: var(--ok); }
+td.lic.own { color: var(--ink); }
+td.st { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
+td.st.live { color: var(--ok); font-weight: 600; }
+
+ul { margin: 0.6rem 0 0 1.1rem; }
+li { margin-bottom: 0.4rem; }
+li::marker { color: var(--muted); }
+
+.rule-note {
+  border-left: 3px solid var(--accent); background: var(--accent-soft);
+  padding: 0.7rem 1rem; margin-top: 1rem; font-size: 0.94rem; border-radius: 0 6px 6px 0;
+}
+
+footer {
+  margin-top: 3rem; padding-top: 1.2rem; border-top: 1px solid var(--rule);
+  font-size: 0.85rem; color: var(--muted);
+}
+</style>
+</head>
+<body>
+
+<a class="crumb" href="https://mino.mobi">← mino.mobi</a>
+
+<header>
+  <h1>table<span class="dot">.</span></h1>
+  <p class="tagline">
+    Procedural character sheets for tabletop RPGs — built only on systems whose rules text is
+    <strong>openly licensed</strong>, so the actual tables can ship with the generator.
+  </p>
+</header>
+
+<section>
+  <h2>Live</h2>
+
+  <a class="wing" href="/cairn/">
+    <div class="row">
+      <span class="name">/cairn</span>
+      <span class="sys">Cairn Second Edition · Yochai Gal</span>
+      <span class="lic">CC BY-SA 4.0</span>
+    </div>
+    <div class="what">
+      A complete character in one throw: d20 background, 3d6 attributes, 1d6 hit protection,
+      starting gear packed into the ten inventory slots, both background tables, a bond, an omen,
+      and every die that produced them. Roll a party of six and the youngest reads the omen aloud.
+      Prints as a sheet.
+    </div>
+  </a>
+
+  <div class="wing soon">
+    <div class="row">
+      <span class="name">/mausritter</span>
+      <span class="sys">Mausritter · Isaac Williams</span>
+      <span class="lic">CC BY 4.0</span>
+    </div>
+    <div class="what">
+      Next. Same skeleton, different bones — mice, six-slot pack-and-paw inventory, spells as
+      physical objects. Its SRD went Creative Commons in 2025.
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Why these systems and not that one</h2>
+  <p>
+    You cannot copyright a game's <em>mechanics</em> — rolling three six-sided dice, comparing a
+    d20 to a score. You can absolutely copyright the <em>text</em> that expresses them: the table
+    entries, the class write-ups, the monster prose, the names, the setting. A generator is almost
+    entirely that second thing. A character roller worth using has to reproduce the tables, so the
+    only honest way to build one is on rules text that has been deliberately opened.
+  </p>
+  <p>
+    Since the OGL crisis of January 2023 there is a lot of it. This is the shortlist, and what each
+    licence actually asks of a site like this one:
+  </p>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead>
+      <tr><th>System</th><th>Licence</th><th>What it means here</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a href="https://cairnrpg.com/">Cairn</a> 1e / 2e</td>
+        <td class="lic free">CC BY-SA 4.0</td>
+        <td>Credit the author; share adaptations of the text under the same licence. Character creation <em>is</em> a cascade of random tables — the best-shaped system on this list for a generator.</td>
+        <td class="st live">live</td>
+      </tr>
+      <tr>
+        <td><a href="https://mausritter.com/">Mausritter</a></td>
+        <td class="lic free">CC BY 4.0</td>
+        <td>Credit only — no share-alike. Same lineage as Cairn, with a physical-inventory game on top.</td>
+        <td class="st">next</td>
+      </tr>
+      <tr>
+        <td><a href="https://www.drivethrurpg.com/en/product/250888/knave">Knave</a> (1st ed.)</td>
+        <td class="lic free">CC BY 4.0</td>
+        <td>Credit only. Twenty lines of rules, a d20 career table, and the tidiest inventory maths in the OSR. 2nd edition is <em>not</em> Creative Commons.</td>
+        <td class="st">candidate</td>
+      </tr>
+      <tr>
+        <td><a href="https://www.dndbeyond.com/srd">D&amp;D SRD</a> 5.1 &amp; 5.2</td>
+        <td class="lic free">CC BY 4.0</td>
+        <td>Wizards released 5.1 in January 2023 and 5.2 in 2025. Credit with their exact statement and no other Wizards attribution. The heaviest build here — classes, subclasses, spell lists — and the most recognisable.</td>
+        <td class="st">candidate</td>
+      </tr>
+      <tr>
+        <td><a href="https://fate-srd.com/">Fate Core</a> / Accelerated</td>
+        <td class="lic free">CC BY 3.0</td>
+        <td>Credit only. Aspects and stunts are prose a player writes, so a roller here is a prompt engine more than a dice engine — a genuinely different shape.</td>
+        <td class="st">candidate</td>
+      </tr>
+      <tr>
+        <td><a href="https://www.bastionland.com/2020/11/mark-of-odd-licence-and-srd.html">Mark of the Odd</a> (Into the Odd)</td>
+        <td class="lic own">bespoke</td>
+        <td>Free use of the SRD text with attribution to Chris McDowall and a link — but it is the author's own licence, not Creative Commons, and it covers the SRD only.</td>
+        <td class="st">read first</td>
+      </tr>
+      <tr>
+        <td><a href="https://paizo.com/orclicense">Pathfinder 2e</a> (Remaster)</td>
+        <td class="lic own">ORC</td>
+        <td>Paizo's Open RPG Creative licence: perpetual and irrevocable, but with its own notice requirements and reserved product identity. Vastly more data than anything else here.</td>
+        <td class="st">read first</td>
+      </tr>
+      <tr>
+        <td><a href="https://darringtonpress.com/license/">Daggerheart</a></td>
+        <td class="lic own">DPCGL</td>
+        <td>A community gaming licence, not an open one: publisher-granted, revocable, with terms attached. Beautiful chargen; wrong licence for a permanent public generator.</td>
+        <td class="st">no</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="rule-note">
+    <strong>The rule this surface keeps:</strong> if a system's own text ships in the generator, its
+    attribution ships beside it — in the data file, in the page footer, and in a
+    <code>LICENSE.md</code> next to the tables. Share-alike systems keep their share-alike: the
+    Cairn data here is offered back under CC BY-SA 4.0.
+  </div>
+</section>
+
+<section>
+  <h2>How the generators work</h2>
+  <ul>
+    <li><strong>The seed is the character.</strong> Every sheet is a pure function of a short
+      string, so <code>#s=oak-fen-317</code> rolls the same person for everyone, forever. Hand a
+      party to a table as a URL rather than six PDFs.</li>
+    <li><strong>The dice are shown.</strong> Each sheet carries the roll log that produced it —
+      d20 → 14, 3d6 → 4+5+2. A generator you cannot audit is a generator you cannot trust at a
+      table where the dice matter.</li>
+    <li><strong>Rules, not just randomness.</strong> Inventory slots, bulk, petty items, armour
+      caps and encumbrance are computed by the system's own rules, not printed as a list for you
+      to total up.</li>
+    <li><strong>No backend.</strong> Everything runs in the browser. No account, no storage,
+      nothing sent anywhere. Print the sheet and the site has done its job.</li>
+  </ul>
+</section>
+
+<footer>
+  <p>
+    Part of <a href="https://mino.mobi">mino.mobi</a>. Each generator credits its system on its own
+    page; those systems and their authors are not affiliated with this site and have not endorsed it.
+  </p>
+</footer>
+
+</body>
+</html>
