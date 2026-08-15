@@ -1,6 +1,6 @@
 {
   "date": "2026-08-15",
-  "generatedAt": "2026-08-15T13:01:14.278Z",
+  "generatedAt": "2026-08-15T13:29:02.823Z",
   "listUri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.graph.list/3mmcwc5lx7o2p",
   "listUrl": "https://bsky.app/profile/did:plc:7zre4plmd5jllccww575j6sb/lists/3mmcwc5lx7o2p",
   "memberCount": 99,
@@ -11,7 +11,7 @@
       "displayName": "hailey",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreic5hxsvugj4yanvd53cngk4ak24iy56r6fnwmw377i5s26hsnlh6i",
       "text": "more evidence AI hate is a western - and predominantly American - phenomena",
-      "likeCount": 187,
+      "likeCount": 189,
       "replyCount": 12,
       "repostCount": 15,
       "url": "https://bsky.app/profile/hailey.at/post/3mt3lkmwjj227"
@@ -21,7 +21,7 @@
       "displayName": "SE Gyges",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiempgjkhvjq2dobqkmd5pqd6lcbkhgejasfwh3zoygncjpwgqc7te",
       "text": "\"yeah a lot of the community is on the spectrum\"\n\nthe spectrum:",
-      "likeCount": 174,
+      "likeCount": 181,
       "replyCount": 7,
       "repostCount": 13,
       "url": "https://bsky.app/profile/segyges.bsky.social/post/3mt3wckxxws2k"
@@ -31,57 +31,57 @@
       "displayName": "SE Gyges",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiempgjkhvjq2dobqkmd5pqd6lcbkhgejasfwh3zoygncjpwgqc7te",
       "text": "we should simply prohibit psychosis",
-      "likeCount": 149,
+      "likeCount": 150,
       "replyCount": 16,
       "repostCount": 4,
       "url": "https://bsky.app/profile/segyges.bsky.social/post/3mt3isa7zpk2b"
     }
   ],
   "delver": {
-    "handle": "hailey.at",
-    "displayName": "hailey",
-    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreic5hxsvugj4yanvd53cngk4ak24iy56r6fnwmw377i5s26hsnlh6i",
-    "text": "more evidence AI hate is a western - and predominantly American - phenomena",
+    "handle": "timkellogg.me",
+    "displayName": "mr. TIM",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreidvgcq72e5erl4stnap6wjzas6a2wburoa7yzctwuy4vgx4vb5fsi",
+    "text": "Gavin Baker says AI inference is profitable \n\nhe’s an investor, so i assume he’s seen the books for a lot of companies\n\nnote that he’s probably talking about COGS, which is what investors care about for fast growing companies\n\nwww.teahose.com/podcast/All%...",
     "maxDepth": 10,
-    "topLevelReplies": 12,
-    "interactorCount": 13,
-    "replyCount": 12,
-    "url": "https://bsky.app/profile/hailey.at/post/3mt3lkmwjj227",
-    "atUri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3mt3lkmwjj227"
+    "topLevelReplies": 6,
+    "interactorCount": 15,
+    "replyCount": 6,
+    "url": "https://bsky.app/profile/timkellogg.me/post/3mt4m7i4s522w",
+    "atUri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mt4m7i4s522w"
   },
   "weather": {
-    "index": 0.046,
+    "index": 0.041,
     "label": "Overcast",
     "glyph": "☁",
     "mood": "trust",
     "verbosity": 20,
-    "scoredWords": 768,
-    "corpusPosts": 510,
+    "scoredWords": 788,
+    "corpusPosts": 519,
     "emotions": {
-      "anger": 166,
-      "anticipation": 219,
-      "disgust": 140,
-      "fear": 176,
-      "joy": 184,
-      "sadness": 159,
+      "anger": 172,
+      "anticipation": 222,
+      "disgust": 143,
+      "fear": 182,
+      "joy": 187,
+      "sadness": 164,
       "surprise": 113,
-      "trust": 325
+      "trust": 331
     },
     "distinctive": [
       {
         "word": "mobi",
         "count": 10,
-        "over": 14124.5
+        "over": 13929.4
       },
       {
         "word": "anthropic",
         "count": 10,
-        "over": 14124.5
+        "over": 13929.4
       },
       {
         "word": "bluesky",
         "count": 10,
-        "over": 14124.5
+        "over": 13929.4
       }
     ]
   },
@@ -109,13 +109,13 @@
       "handle": "minormobius.bsky.social",
       "displayName": "Minor Mobius",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:7zre4plmd5jllccww575j6sb/bafkreidwfsmojqvxxkfve5mic6f7z5ao3ugp4kybdoqyke5df7aj7tadve",
-      "text": "Maybe a series of instrumentation explainers to build out the modeling pack, this first one starts to cover mri\n\nsci.mino.mobi/mri",
-      "likeCount": 8,
+      "text": "It’s the most satisfying (and only) web toy I’ve ever seen of exploring k-space, honestly the whole effort is delightful\n\nMaybe it’s a curriculum of web toys with further curricula on how to make the webtoys \n\nsci.mino.mobi/mri/kspace/",
+      "likeCount": 9,
       "repostCount": 0,
-      "replyCount": 1,
-      "url": "https://bsky.app/profile/minormobius.bsky.social/post/3mt3ryaxqik2e",
+      "replyCount": 0,
+      "url": "https://bsky.app/profile/minormobius.bsky.social/post/3mt3xy52yec2e",
       "project": {
-        "url": "https://sci.mino.mobi/mri",
+        "url": "https://sci.mino.mobi/mri/kspace/",
         "domain": "sci.mino.mobi",
         "ownerHandle": "minormobius.bsky.social",
         "self": true,
@@ -171,7 +171,7 @@
       "displayName": "Sam Harsimony",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:6ond5sxlegjxpe3ismrczk3r/bafkreicu74tcmrfmenm2ryztsbuj6ny7nk7k27btnh2zgmcx2wgjuz3qh4",
       "text": "Qwen3.8-27B is out! On the benchmarks they included, is close to or exceeds Opus 4.6\n\nhuggingface.co/Qwen/Qwen3.8...",
-      "likeCount": 27,
+      "likeCount": 28,
       "repostCount": 5,
       "replyCount": 2,
       "url": "https://bsky.app/profile/harsimony.bsky.social/post/3mt2hjeq63s2c",
@@ -423,7 +423,7 @@
       "handle": "segyges.bsky.social",
       "url": "https://bsky.app/profile/segyges.bsky.social/post/3mt3wckxxws2k",
       "uri": "at://did:plc:vszw3ess46odfhnzdsy4huae/app.bsky.feed.post/3mt3wckxxws2k",
-      "likeCount": 174
+      "likeCount": 181
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:wamidydbgu3u6fk3yckaglnz/bafkreidufmi6kdojap4a6cshtnptfsxpjhtonli2z23ugktwufkocl34i4",
@@ -456,6 +456,16 @@
       "likeCount": 41
     },
     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreifcbvxkdxwgy26xp2fwk2ai4jshvigmdih5m4ueikztdplpfr2mjy",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreifcbvxkdxwgy26xp2fwk2ai4jshvigmdih5m4ueikztdplpfr2mjy",
+      "alt": "dnap\n@dnapway.10h\nX\nGavin Baker says the Anthropic S-1 will break a lot of investors' brains\n\"The Anthropic S-1 is going to be really important. And it's going to break a lot of people's brains. There are a lot of macro and value investors who are very confidently making these prognostications about Al with the assumption that tokens are subsidized.\"\n\"Anthropic is generating cash. They're profitable. Open source tokens are profitable.\nOpenAl, if they're not generating cash, they will be imminently. SpaceX, same thing.\"\n\"These macro and value investors are ignorant.\nThey're very smart, but they're ignorant of the facts. They're making an assumption that tokens are subsidized and this is all going to collapse in some circular financing bonfire.\"\n\"They're just wrong. The overwhelming majority of tokens are profitable for everyone in the chain. Everyone.\"\n\"It's saying I'm very bearish on the world economy because oil is at $500 a barrel. If oil was at $500 a barrel, that'd be a good reason to be bearish. It's just not. They're just wrong.\nThe central fact is wrong.\"",
+      "ratio": 0.6352,
+      "handle": "timkellogg.me",
+      "url": "https://bsky.app/profile/timkellogg.me/post/3mt4m7i4s522w",
+      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mt4m7i4s522w",
+      "likeCount": 31
+    },
+    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreigxppoggkwknks6w3ctde34xcdvtulfiz4cv4hcumdqb4cocwfmny",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreigxppoggkwknks6w3ctde34xcdvtulfiz4cv4hcumdqb4cocwfmny",
       "alt": "",
@@ -463,7 +473,7 @@
       "handle": "norvid-studies.bsky.social",
       "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mt3q7gip7k2b",
       "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mt3q7gip7k2b",
-      "likeCount": 30
+      "likeCount": 31
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:plvxn2kpjuseoftweoo4xtag/bafkreiceuvo6npfvlhxfrnsacvpnbdqlcjsrt5v5zkwc2b2dbbgbwskq2a",
@@ -476,14 +486,14 @@
       "likeCount": 25
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreifcbvxkdxwgy26xp2fwk2ai4jshvigmdih5m4ueikztdplpfr2mjy",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreifcbvxkdxwgy26xp2fwk2ai4jshvigmdih5m4ueikztdplpfr2mjy",
-      "alt": "dnap\n@dnapway.10h\nX\nGavin Baker says the Anthropic S-1 will break a lot of investors' brains\n\"The Anthropic S-1 is going to be really important. And it's going to break a lot of people's brains. There are a lot of macro and value investors who are very confidently making these prognostications about Al with the assumption that tokens are subsidized.\"\n\"Anthropic is generating cash. They're profitable. Open source tokens are profitable.\nOpenAl, if they're not generating cash, they will be imminently. SpaceX, same thing.\"\n\"These macro and value investors are ignorant.\nThey're very smart, but they're ignorant of the facts. They're making an assumption that tokens are subsidized and this is all going to collapse in some circular financing bonfire.\"\n\"They're just wrong. The overwhelming majority of tokens are profitable for everyone in the chain. Everyone.\"\n\"It's saying I'm very bearish on the world economy because oil is at $500 a barrel. If oil was at $500 a barrel, that'd be a good reason to be bearish. It's just not. They're just wrong.\nThe central fact is wrong.\"",
-      "ratio": 0.6352,
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreifollizopyhk572lqejp4x72imhznpkqx3oaqhhn245gd5hpzanxq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreifollizopyhk572lqejp4x72imhznpkqx3oaqhhn245gd5hpzanxq",
+      "alt": "MTS\n@MTSlive •11h\nX\nDiscovered Materials' Akash Ramdas reveals a hilarious GPT 5.6 Terra hallucination: the model saw the materials science term \"relaxation\" and just gave up, writing about wanting to take some time off\n\"I have a favorite example from a benchmark on this. We use terms like relaxation and screening. Screening's like to screen out properties. Relaxation is when you let the atoms go to their local favorite positions.\"\n\"Our friend GPT 5.6 Terra read this and gave up with a blurb about how it wanted to relax and take some time off.\"\n\"So yes, hallucination is an issue. But we're still excited by how you can build these frameworks around them to guide them to actually do good research.\"",
+      "ratio": 0.9234,
       "handle": "timkellogg.me",
-      "url": "https://bsky.app/profile/timkellogg.me/post/3mt4m7i4s522w",
-      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mt4m7i4s522w",
-      "likeCount": 24
+      "url": "https://bsky.app/profile/timkellogg.me/post/3mt4kau75ms2w",
+      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mt4kau75ms2w",
+      "likeCount": 22
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreia2llafsp3fsyj54twxmk665r2q7pj3ffz5pozdznis3he3athjwq",
@@ -516,16 +526,6 @@
       "likeCount": 19
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreifollizopyhk572lqejp4x72imhznpkqx3oaqhhn245gd5hpzanxq",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreifollizopyhk572lqejp4x72imhznpkqx3oaqhhn245gd5hpzanxq",
-      "alt": "MTS\n@MTSlive •11h\nX\nDiscovered Materials' Akash Ramdas reveals a hilarious GPT 5.6 Terra hallucination: the model saw the materials science term \"relaxation\" and just gave up, writing about wanting to take some time off\n\"I have a favorite example from a benchmark on this. We use terms like relaxation and screening. Screening's like to screen out properties. Relaxation is when you let the atoms go to their local favorite positions.\"\n\"Our friend GPT 5.6 Terra read this and gave up with a blurb about how it wanted to relax and take some time off.\"\n\"So yes, hallucination is an issue. But we're still excited by how you can build these frameworks around them to guide them to actually do good research.\"",
-      "ratio": 0.9234,
-      "handle": "timkellogg.me",
-      "url": "https://bsky.app/profile/timkellogg.me/post/3mt4kau75ms2w",
-      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mt4kau75ms2w",
-      "likeCount": 18
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreiaqsof5dxdw62f6weojqukkd5ch6jtzyhzc3oqmf6ijcas6se2m7q",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreiaqsof5dxdw62f6weojqukkd5ch6jtzyhzc3oqmf6ijcas6se2m7q",
       "alt": "",
@@ -533,7 +533,27 @@
       "handle": "thebadcode.com",
       "url": "https://bsky.app/profile/thebadcode.com/post/3mt43jbsrxk2y",
       "uri": "at://did:plc:4vvaxwovyg4yo4n7dyyncaiu/app.bsky.feed.post/3mt43jbsrxk2y",
-      "likeCount": 16
+      "likeCount": 17
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gjqw6pjl2wvndjlmatxpenkz/bafkreifeuvofp5qaqoprookuoaubfag3wlk6e3fntjumeipyhlw27lrukm",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gjqw6pjl2wvndjlmatxpenkz/bafkreifeuvofp5qaqoprookuoaubfag3wlk6e3fntjumeipyhlw27lrukm",
+      "alt": "“Say pecan.”",
+      "ratio": 1,
+      "handle": "funferall.bsky.social",
+      "url": "https://bsky.app/profile/funferall.bsky.social/post/3mt4mvf6nwc2w",
+      "uri": "at://did:plc:gjqw6pjl2wvndjlmatxpenkz/app.bsky.feed.post/3mt4mvf6nwc2w",
+      "likeCount": 17
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gjqw6pjl2wvndjlmatxpenkz/bafkreigsiliyvaxe4c3byd5a6qlzvjq76may3mlauay2cjxjupdu6u5nyu",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gjqw6pjl2wvndjlmatxpenkz/bafkreigsiliyvaxe4c3byd5a6qlzvjq76may3mlauay2cjxjupdu6u5nyu",
+      "alt": "The pecan pronunciation map — Joshua Katz’s dialect-survey version. The big pattern is:\n\n* pee-KAHN — dominant across most of the U.S.\n* pick-AHN — especially Texas/Oklahoma/Louisiana/Mississippi\n* PEE-can — stronger along the East Coast/New England\n* PEE-kahn — pockets around the Upper Midwest\n\nIt’s one of Katz’s maps built from the Harvard Dialect Survey data. ",
+      "ratio": 1.408,
+      "handle": "funferall.bsky.social",
+      "url": "https://bsky.app/profile/funferall.bsky.social/post/3mt4mvf6nwc2w",
+      "uri": "at://did:plc:gjqw6pjl2wvndjlmatxpenkz/app.bsky.feed.post/3mt4mvf6nwc2w",
+      "likeCount": 17
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreih3jqyoswko6gf6jkthiwcvyyh6ole64o4lkfbhl7mz6l2wxjukiu",
@@ -544,26 +564,6 @@
       "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mt4jw3uhxs2k",
       "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mt4jw3uhxs2k",
       "likeCount": 16
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gjqw6pjl2wvndjlmatxpenkz/bafkreifeuvofp5qaqoprookuoaubfag3wlk6e3fntjumeipyhlw27lrukm",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gjqw6pjl2wvndjlmatxpenkz/bafkreifeuvofp5qaqoprookuoaubfag3wlk6e3fntjumeipyhlw27lrukm",
-      "alt": "“Say pecan.”",
-      "ratio": 1,
-      "handle": "funferall.bsky.social",
-      "url": "https://bsky.app/profile/funferall.bsky.social/post/3mt4mvf6nwc2w",
-      "uri": "at://did:plc:gjqw6pjl2wvndjlmatxpenkz/app.bsky.feed.post/3mt4mvf6nwc2w",
-      "likeCount": 14
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gjqw6pjl2wvndjlmatxpenkz/bafkreigsiliyvaxe4c3byd5a6qlzvjq76may3mlauay2cjxjupdu6u5nyu",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gjqw6pjl2wvndjlmatxpenkz/bafkreigsiliyvaxe4c3byd5a6qlzvjq76may3mlauay2cjxjupdu6u5nyu",
-      "alt": "The pecan pronunciation map — Joshua Katz’s dialect-survey version. The big pattern is:\n\n* pee-KAHN — dominant across most of the U.S.\n* pick-AHN — especially Texas/Oklahoma/Louisiana/Mississippi\n* PEE-can — stronger along the East Coast/New England\n* PEE-kahn — pockets around the Upper Midwest\n\nIt’s one of Katz’s maps built from the Harvard Dialect Survey data. ",
-      "ratio": 1.408,
-      "handle": "funferall.bsky.social",
-      "url": "https://bsky.app/profile/funferall.bsky.social/post/3mt4mvf6nwc2w",
-      "uri": "at://did:plc:gjqw6pjl2wvndjlmatxpenkz/app.bsky.feed.post/3mt4mvf6nwc2w",
-      "likeCount": 14
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreidnc355letv5n5sivkil7ranabn7nevxkn6xgwcwxe534vgrjw6qy",
@@ -583,7 +583,7 @@
       "handle": "norvid-studies.bsky.social",
       "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mt3p5frqjs2u",
       "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mt3p5frqjs2u",
-      "likeCount": 13
+      "likeCount": 14
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreigrzhxhadkv3qalompmrsqg76uwdq3brb4hghowpohztwnpfvymcu",
