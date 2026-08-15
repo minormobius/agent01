@@ -232,7 +232,8 @@ cerebrospinal fluid — and why the same TI does not work on a scanner running a
   steady-state free precession, which is a different equation and a different-looking image. And
   the biggest omission: <b>contrast agents</b>, which shorten T₁ in proportion to their
   concentration and are in a large fraction of clinical scans. All three are additions to this
-  page rather than corrections to it.
+  page rather than corrections to it. The thing every patient notices and nobody explains —
+  <a href="/mri/acoustics/"><b>why it screams</b></a> — is part four.
 </div>
 
 <h2 class="sec">Where this comes from</h2>
@@ -280,16 +281,47 @@ function fail(err) {
 const dec = (el) => Math.pow(10, +el.value);
 const setDec = (el, ms) => { el.value = Math.log10(ms); };
 
+// Assigning canvas.width wipes the bitmap even when the value is unchanged, so
+// only resize when the size really changed — otherwise every slider frame
+// blanks the canvas and the page background flashes through it.
 function fit(cv) {
   const dpr = window.devicePixelRatio || 1;
-  const w = cv.clientWidth || cv.width;
-  const h = Math.round(w * (cv.height / cv.width));
-  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
-  cv.style.height = h + 'px';
+  const w = cv.clientWidth || cv.width / dpr;
+  if (!cv.dataset.aspect) cv.dataset.aspect = cv.height / cv.width;
+  const h = Math.round(w * cv.dataset.aspect);
+  const wantW = Math.round(w * dpr), wantH = Math.round(h * dpr);
+  if (cv.width !== wantW || cv.height !== wantH) {
+    cv.width = wantW; cv.height = wantH; cv.style.height = h + 'px';
+  }
   const g = cv.getContext('2d');
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.clearRect(0, 0, w, h);
   return { g, w, h };
+}
+
+// Reused scratch canvas: a synchronous putImageData + drawImage, rather than an
+// async createImageBitmap whose result lands a frame after the clear.
+const scratch = new Map();
+function blit(g, img, w, h, key, x, y, dw, dh) {
+  let c = scratch.get(key);
+  if (!c || c.width !== img.width || c.height !== img.height) {
+    c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    scratch.set(key, c);
+  }
+  c.getContext('2d').putImageData(img, 0, 0);
+  g.imageSmoothingEnabled = true;
+  g.drawImage(c, x, y, dw, dh);
+}
+
+// One redraw per animation frame, however fast the slider fires.
+function onFrame(fn) {
+  let queued = false;
+  return (...a) => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; fn(...a); });
+  };
 }
 
 init().then(() => {
@@ -391,8 +423,8 @@ init().then(() => {
     }
     renderScene(); renderLand();
   });
-  ['tr', 'te', 'ti', 'fa'].forEach((id) =>
-    $(id).addEventListener('input', () => { renderScene(); renderLand(); }));
+  const sceneLive = onFrame(() => { renderScene(); renderLand(); });
+  ['tr', 'te', 'ti', 'fa'].forEach((id) => $(id).addEventListener('input', sceneLive));
 
   // ---------------------------------------------- §3 the contrast landscape --
   const TR_LO = 50, TR_HI = 8000, TE_LO = 2, TE_HI = 200;
@@ -412,11 +444,9 @@ init().then(() => {
       else { d.data[p] = 30 + 220 * t; d.data[p + 1] = 30 + 145 * t; d.data[p + 2] = 30 + 40 * t; }
       d.data[p + 3] = 255;
     }
-    createImageBitmap(d).then((bmp) => {
+    {
       const iw = w - pad.l - pad.r, ih = h - pad.t - pad.b;
-      g.clearRect(0, 0, w, h);
-      g.imageSmoothingEnabled = true;
-      g.drawImage(bmp, pad.l, pad.t, iw, ih);
+      blit(g, d, w, h, 'land', pad.l, pad.t, iw, ih);
 
       const px = (tr) => pad.l + iw * Math.log10(tr / TR_LO) / Math.log10(TR_HI / TR_LO);
       const py = (te) => pad.t + ih * (1 - Math.log10(te / TE_LO) / Math.log10(TE_HI / TE_LO));
@@ -474,7 +504,7 @@ init().then(() => {
           renderScene(); renderLand();
         }
       };
-    });
+    }
   };
 
   // ------------------------------------------- §4 Ernst angle + nulling ----
@@ -547,8 +577,8 @@ init().then(() => {
       `null comes earlier because the magnetisation never fully recovered.`;
   };
 
-  ['etr'].forEach((id) => $(id).addEventListener('input', renderErnst));
-  $('nullsel').addEventListener('input', renderIR);
+  $('etr').addEventListener('input', onFrame(renderErnst));
+  $('nullsel').addEventListener('input', onFrame(renderIR));
 
   const all = () => { showKnobs(); renderScene(); renderLand(); renderErnst(); renderIR(); };
   all();

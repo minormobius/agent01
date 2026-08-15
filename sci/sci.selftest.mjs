@@ -25,15 +25,18 @@ const read = (p) => readFileSync(join(DIR, p), "utf8");
 const page = read("mri/index.html");
 const kpage = read("mri/kspace/index.html");
 const cpage = read("mri/contrast/index.html");
+const apage = read("mri/acoustics/index.html");
 const landing = read("index.html");
 const physics = read("engine-rs/src/physics.rs");
 const coil = read("engine-rs/src/coil.rs");
 const encode = read("engine-rs/src/encode.rs");
 const contrast = read("engine-rs/src/contrast.rs");
+const acoustics = read("engine-rs/src/acoustics.rs");
 const phantom = read("engine-rs/src/phantom.rs");
 const sources = read("research/mri-sources.md");
 
-const PAGES = [["mri", page], ["mri/kspace", kpage], ["mri/contrast", cpage]];
+const PAGES = [["mri", page], ["mri/kspace", kpage], ["mri/contrast", cpage],
+               ["mri/acoustics", apage]];
 
 // ---- 1. the wasm module ships -------------------------------------------
 const WASM = "mri/pkg/mri_bg.wasm";
@@ -116,6 +119,9 @@ for (const who of ["Lauterbur", "Mansfield", "Twieg", "Ljunggren", "Shepp", "Gue
 for (const who of ["Stanisz", "Ernst", "Bloch", "Damadian", "Zavala Bojorquez", "Hennig"]) {
   ok(cpage.includes(who), `the contrast page credits ${who}`);
 }
+for (const who of ["Motovilova", "Winkler", "Mansfield", "Twieg", "Schaefer"]) {
+  ok(apage.includes(who), `the acoustics page credits ${who}`);
+}
 
 // ---- 5. the wing's rule ---------------------------------------------------
 ok(/traces to a primary source/.test(landing), "the landing page still states the wing's rule");
@@ -151,6 +157,10 @@ for (const sec of ["A tissue is three numbers", "any brightness you like",
                    "Contrast is not signal", "closed forms worth knowing"]) {
   ok(cpage.includes(sec), `contrast page section '${sec}' present`);
 }
+for (const sec of ["kilograms per metre of wire", "You hear the corners",
+                   "comb locked to the sequence", "How loud is loud"]) {
+  ok(apage.includes(sec), `acoustics page section '${sec}' present`);
+}
 // Every page states its own scope honestly, and part one hands off to part two
 // rather than still claiming the encoding half is unwritten.
 for (const [name, html] of PAGES) {
@@ -163,7 +173,27 @@ ok(!/the encoding half is not written/.test(page) && !/pages are not built/.test
 ok(/\/mri\/contrast\//.test(kpage), "the k-space page links on to part three");
 ok(!/Contrast[^.]*is a third part, and is not written/.test(kpage),
   "the k-space page no longer claims contrast is unwritten");
+ok(/\/mri\/acoustics\//.test(cpage), "the contrast page links on to part four");
 ok(/not written|omission/.test(cpage), "the contrast page still says what it leaves out");
+
+// ---- 6d. the acoustics page's numbers are the review's ------------------
+// Motovilova & Winkler 2022 is the only source for a decibel on that page.
+for (const n of ["110", "120", "85", "97.6", "90.5"]) {
+  ok(apage.includes(n), `the acoustics page carries the measured figure ${n} dB`);
+}
+{
+  // Both texts wrap differently — a Rust doc comment breaks lines with `//!`
+  // and the HTML wraps at 100 columns — so compare with whitespace and comment
+  // markers normalised away.
+  const flat = (t) => t.replace(/\/\/!/g, " ").replace(/<[^>]+>/g, "").replace(/\s+/g, " ");
+  const claim = "timing structure is the physics; the timbre is a model";
+  ok(flat(apage).includes(claim), "the page separates the physics (timing) from the model (timbre)");
+  ok(flat(acoustics).includes(claim), "and the engine says the same thing in the same words");
+}
+ok(/resonator/.test(acoustics) && /model/.test(apage),
+  "the resonator is labelled a model on the page as well as in the engine");
+ok(/200 T\/m\/s|200 T\/m/.test(apage) && /Schaefer/.test(apage),
+  "the slew-rate ceiling is stated with its physiological reason and source");
 
 // ---- 6c. the tissue table on the page is the paper's --------------------
 // Stanisz et al. 2005 Table 1, "This study", 3 T. The page renders these from

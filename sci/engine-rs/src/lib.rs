@@ -1,6 +1,6 @@
 //! sci-mri-engine — an MRI, computed rather than asserted.
 //!
-//! Seven modules, no dependencies. Part one of the page is the sensor; part two
+//! Eight modules, no dependencies. Part one of the page is the sensor; part two
 //! is the encoding. Both are here:
 //!
 //! * [`coil`] — Biot–Savart fields from wire loops, and the **principle of
@@ -22,6 +22,8 @@
 //! * [`contrast`] — measured tissue T₁/T₂ (Stanisz 2005) and the sequence
 //!   equations that turn them into brightness, each cross-checked against a
 //!   full Bloch simulation rather than against a textbook.
+//! * [`acoustics`] — the Lorentz force on the gradient windings, and why the
+//!   pitch of a scanner is its readout frequency.
 //!
 //! Plus [`physics`], which holds the constants and the two scaling laws that
 //! make the whole instrument make sense: Curie-law polarisation and the
@@ -31,6 +33,7 @@
 //! closed-form solution, and `cargo run --release --bin verify` prints the
 //! comparison.
 
+pub mod acoustics;
 pub mod bloch;
 pub mod coil;
 pub mod contrast;

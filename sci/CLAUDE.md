@@ -42,7 +42,8 @@ Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `s
 | `mri/index.html` | part one — the sensor. Single-file, drives the wasm |
 | `mri/kspace/index.html` | part two — the encoding. Same wasm, `../pkg/mri.js` |
 | `mri/contrast/index.html` | part three — contrast. Same wasm |
-| `mri/pkg/` | **generated** — wasm-pack output, committed. Shared by all three pages |
+| `mri/acoustics/index.html` | part four — the noise. Same wasm, plus Web Audio |
+| `mri/pkg/` | **generated** — wasm-pack output, committed. Shared by all four pages |
 | `engine-rs/` | the Rust source for that wasm; **not served** |
 | `research/` | literature scans, one per instrument; **not served** |
 | `sci.selftest.mjs` | guards the wiring preflight can't see |
@@ -114,7 +115,7 @@ add wasm32-unknown-unknown` + wasm-pack) and run the whole site under
 
 ## engine-rs — what it actually computes
 
-Seven modules, no dependencies, and the browser shell is thin on purpose so that
+Eight modules, no dependencies, and the browser shell is thin on purpose so that
 what the page shows is what `cargo test` checks.
 
 | Module | Holds |
@@ -125,11 +126,12 @@ what the page shows is what `cargo test` checks.
 | `fft.rs` | radix-2 Cooley–Tukey, 1D and 2D, plus `fftshift2`. Sixty lines, and it is the entire reconstruction algorithm |
 | `encode.rs` | gradients as a steering wheel for k-space; spin-warp / EPI / radial; T₂* and off-resonance applied through **sample time**; reconstruction; the circular-cross-correlation shift measurement |
 | `contrast.rs` | measured tissue T₁/T₂ (Stanisz 2005 Table 1, transcribed and asserted), the three sequence signal equations, the Ernst angle, the null time, and the contrast zero-crossing root finder |
+| `acoustics.rs` | trapezoid gradient lobes, the Lorentz force, the `d²G/dt²` acoustic drive, one damped resonator (**a model**, labelled as such), spectra, and decibels |
 | `physics.rs` | CODATA 2018 constants, Larmor frequency and wavelength, Curie-law polarisation, and the B₀² law for Faraday detection |
 
 ```bash
 cd sci/engine-rs
-cargo test --release            # 39 known-answer tests, ~1s
+cargo test --release            # 45 known-answer tests, ~1s
 cargo run --release --bin verify   # every result printed beside its closed form
 ```
 
@@ -183,6 +185,30 @@ to visitors, not merely broken.
   around the FOV — which a centroid reads as a small shift and a circular
   correlation reads correctly. The tool has its own test.
 
+### …and part four
+
+- **`F/L = B·I`**, and the number that lands: at 3 T and 300 A every metre of
+  gradient winding carries the equivalent of **92 kg**, reversing thousands of
+  times a second.
+- **You hear the corners.** Radiated pressure goes as the *acceleration* of the
+  radiating surface, so it follows `d²G/dt²` — the ramps are silent and the
+  corners are not. Halving the ramp time doubles the kick, tested.
+- **The spectrum is a comb locked to the sequence clock**: >90% of the acoustic
+  energy sits on multiples of `1/(2·esp)`, asserted. The loudest line is
+  usually a *harmonic*, not the fundamental, because `d²/dt²` weights by `ω²` —
+  the original test asserted the fundamental, failed, and the measurement was
+  the better claim.
+- **The spectrum path is validated against a square wave's Fourier series** —
+  odd harmonics falling as 1/n, even harmonics absent.
+- **What is a model, and labelled as one:** the step from force to *sound* is a
+  single damped resonator. A real former has many modes and a measured transfer
+  function. The selftest asserts that page and engine use the same sentence
+  about it: *the timing structure is the physics; the timbre is a model.*
+- **The slew ceiling is physiological.** Past ~200 T/m/s the changing field
+  stimulates peripheral nerves (Schaefer 2000), so gradient speed — and
+  therefore the floor under the noise — is limited by the patient, not the
+  amplifier.
+
 ### …and part three
 
 - **The sequence equations are validated against the physics, not a textbook.**
@@ -221,10 +247,14 @@ research scan — a citation on a page that nobody catalogued is a caught error.
 
 ## What `/mri` does not cover yet
 
-Parts one, two and three are the sensor, the encoding and the contrast. **The
-acoustics section is not written** — why the scanner screams: Lorentz forces on
-the gradient windings, 110–120 dB from EPI against an 85 dB NIOSH threshold.
-Sources are in the scan at §6 and the landing page lists it as planned.
+The four parts are the sensor, the encoding, the contrast and the noise — which
+is the whole instrument, end to end. What is left is depth rather than coverage.
+
+Named omissions in part four: the acoustic output of a real gradient set is
+dominated by *measured* mechanical resonances and by radiation efficiency, and
+neither is modelled; the three real quieting strategies (force-balanced coil
+design, damping and vacuum mounting, resonance-avoiding sequence design) are
+pointed at rather than explored.
 
 Named omissions inside part three, each an addition rather than a correction:
 multi-echo trains (fast spin echo is more T₂-weighted than the single-echo

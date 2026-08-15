@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>why it screams — the sound is the sequence</title>
+<meta name="description" content="Why an MRI scanner is so loud. Lorentz forces on the gradient windings, a hundred kilograms per metre of wire reversing thousands of times a second, and an acoustic spectrum that is a comb locked to the pulse sequence's own clock — synthesised live in the browser so you can hear it change.">
+<meta property="og:title" content="why it screams — the sound is the sequence">
+<meta property="og:description" content="The pitch of an MRI is its readout frequency. Drive the gradient timing and listen to it move.">
+<meta property="og:type" content="article">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b1213'/%3E%3Cellipse cx='16' cy='16' rx='11' ry='11' fill='none' stroke='%235eead4' stroke-width='2.5'/%3E%3Cellipse cx='16' cy='16' rx='4.5' ry='4.5' fill='none' stroke='%23e8a838' stroke-width='2'/%3E%3C/svg%3E">
+
+<style>
+:root {
+  --bg: #faf9f6; --fg: #1d2223; --muted: #6b7576; --rule: #d3cfc8; --link: #145;
+  --accent: #0d7a72; --accent-faint: rgba(13, 122, 114, 0.10);
+  --warm: #a8641c;
+  --panel: #f2f0ea; --tag-bg: #e8e5dd; --tag-text: #56605f;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1213; --fg: #dde3e3; --muted: #7d8a8a; --rule: #26312f; --link: #dfe;
+    --accent: #5eead4; --accent-faint: rgba(94, 234, 212, 0.12);
+    --warm: #e8a838;
+    --panel: #121b1c; --tag-bg: #1a2426; --tag-text: #9fb0af;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+body { max-width: 820px; margin: 0 auto; padding: 2rem 1.4rem 5rem; line-height: 1.62; }
+a { color: var(--link); }
+header { margin-bottom: 1.4rem; }
+.crumb { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-decoration: none; display: inline-block; margin-bottom: 0.9rem; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-size: 2.7rem; letter-spacing: -0.015em; font-weight: 600; }
+.subtitle { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 0.4rem 0 0; }
+.lead { font-size: 1.06rem; margin: 1.5rem 0 0; }
+.lead strong { color: var(--accent); font-weight: 600; }
+h2.sec { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); font-weight: normal; margin: 3.2rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--rule); }
+p { margin: 0.9rem 0; }
+code, .num { font-family: var(--mono); font-size: 0.88em; }
+.eq { font-family: var(--mono); font-size: 0.86rem; text-align: center; color: var(--accent); background: var(--accent-faint); padding: 0.7rem 0.6rem; border-radius: 3px; margin: 1.2rem 0; overflow-x: auto; }
+
+.panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 4px; padding: 1rem 1.1rem 1.2rem; margin: 1.4rem 0; }
+.panel h4 { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: normal; margin: 0 0 0.8rem; }
+canvas { display: block; width: 100%; height: auto; border-radius: 2px; }
+.cap { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-top: 0.35rem; }
+.ctl { display: grid; grid-template-columns: 9.5rem 1fr 6.5rem; gap: 0.4rem 0.7rem; align-items: center; margin-top: 0.9rem; font-family: var(--mono); font-size: 0.75rem; }
+.ctl label { color: var(--muted); }
+.ctl output { color: var(--accent); text-align: right; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.segs { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.9rem; align-items: center; }
+.segs button { font-family: var(--mono); font-size: 0.7rem; padding: 0.35rem 0.7rem; border: 1px solid var(--rule); background: transparent; color: var(--muted); border-radius: 3px; cursor: pointer; }
+.segs button:hover { color: var(--fg); }
+.segs button[aria-pressed="true"] { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.segs button.play { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.segs .hint { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); }
+.readout { display: flex; flex-wrap: wrap; gap: 0.4rem 1.7rem; margin-top: 0.9rem; font-family: var(--mono); font-size: 0.76rem; }
+.readout div { color: var(--muted); }
+.readout b { display: block; color: var(--fg); font-size: 1.02rem; font-weight: 600; }
+.readout b.hot { color: var(--warm); }
+.verdict { margin-top: 0.9rem; padding: 0.6rem 0.8rem; border-left: 2px solid var(--accent); background: var(--accent-faint); font-size: 0.92rem; }
+.caveat { border-left: 2px solid var(--warm); padding: 0.6rem 0.9rem; margin: 1.2rem 0; font-size: 0.93rem; color: var(--muted); background: rgba(168,100,28,0.06); }
+.caveat b { color: var(--fg); }
+table.db { border-collapse: collapse; width: 100%; font-family: var(--mono); font-size: 0.75rem; margin: 1rem 0; }
+table.db th, table.db td { text-align: right; padding: 0.32rem 0.5rem 0.32rem 0; border-bottom: 1px solid var(--rule); }
+table.db th:first-child, table.db td:first-child { text-align: left; }
+table.db th { color: var(--muted); font-weight: normal; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.64rem; }
+table.db tr.hi td { color: var(--warm); }
+ul.src { list-style: none; padding: 0; margin: 1rem 0; }
+ul.src li { padding: 0.5rem 0; border-bottom: 1px solid var(--rule); font-size: 0.9rem; }
+ul.src li span.what { display: block; color: var(--muted); font-size: 0.85rem; margin-top: 0.15rem; }
+.cite { font-family: var(--mono); font-size: 0.74rem; color: var(--muted); line-height: 1.5; }
+.stamp { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); }
+.err { color: var(--warm); font-family: var(--mono); font-size: 0.8rem; }
+.scope { border: 1px dashed var(--rule); border-radius: 4px; padding: 0.9rem 1.1rem; margin: 2rem 0; font-size: 0.92rem; color: var(--muted); }
+.scope b { color: var(--fg); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="/mri/contrast/">sci ← mri ← part three, contrast</a>
+  <h1>why it screams</h1>
+  <p class="subtitle">mri · part four · the noise</p>
+  <p class="lead">This is the part of an MRI everybody has personally experienced and nobody
+  explains. The scanner does not hum or whir — it hammers, at a pitch that changes when the
+  sequence changes, loudly enough that you are given ear protection before they will run it. All of
+  that is a direct consequence of parts one to three: <strong>the sound is the pulse sequence,
+  made audible by the same field that makes the images possible.</strong></p>
+</header>
+
+<h2 class="sec">1 · A hundred kilograms per metre of wire</h2>
+
+<p>Part two needs gradients: coils that make the field vary across the bore, switched on and off
+thousands of times a second. Those coils sit <em>inside</em> B₀, carrying hundreds of amps. A wire
+carrying current <span class="num">I</span> across a field <span class="num">B</span> feels a force
+per unit length of exactly</p>
+
+<div class="eq">F / L = B · I</div>
+
+<p>which is not a small number in a magnet this strong. Every metre of gradient winding is being
+shoved sideways, and then shoved back, at kilohertz rates. The former flexes; the flexing pushes
+air; that is the noise. There is no acoustic design problem here that is separable from the
+imaging — the force is the same B₀ that gives you the signal, times the same gradient current that
+gives you the resolution.</p>
+
+<div class="panel">
+  <h4>the force on one metre of winding</h4>
+  <div class="ctl">
+    <label for="cur">gradient current</label>
+    <input type="range" id="cur" min="10" max="600" step="10" value="300">
+    <output id="curv">300 A</output>
+    <label for="b0">B₀</label>
+    <input type="range" id="b0" min="0.05" max="7" step="0.05" value="3">
+    <output id="b0v">3.0 T</output>
+  </div>
+  <div class="readout">
+    <div>force per metre<b id="fn">—</b></div>
+    <div>…as a weight<b id="fkg" class="hot">—</b></div>
+    <div>reversing at<b id="frev">—</b></div>
+  </div>
+  <div class="verdict" id="fsay">…</div>
+</div>
+
+<h2 class="sec">2 · You hear the corners</h2>
+
+<p>The force follows the current, so the coil's <em>displacement</em> follows the gradient
+waveform. But what radiates sound is not displacement — it is the <strong>acceleration</strong> of
+the radiating surface. Differentiate a trapezoid twice and the ramps vanish: what is left is a pair
+of impulses at each corner, where the slew rate changes. That is why an EPI train clatters rather
+than hums, and why <b>a faster gradient is a louder one</b> — halve the ramp time to double the
+slew rate, and you double the size of every kick.</p>
+
+<div class="panel">
+  <h4>gradient current, and what the coil radiates</h4>
+  <canvas id="wave" width="720" height="260"></canvas>
+  <div class="cap">top: G(t), the readout train · bottom: d²G/dt², the acoustic drive</div>
+  <div class="ctl">
+    <label for="esp">echo spacing</label>
+    <input type="range" id="esp" min="200" max="1600" step="20" value="500">
+    <output id="espv">500 µs</output>
+    <label for="ramp">ramp time</label>
+    <input type="range" id="ramp" min="10" max="45" step="1" value="20">
+    <output id="rampv">100 µs</output>
+    <label for="amp">amplitude</label>
+    <input type="range" id="amp" min="5" max="80" step="1" value="20">
+    <output id="ampv">20 mT/m</output>
+  </div>
+  <div class="readout">
+    <div>slew rate<b id="slew">—</b></div>
+    <div>k-space per lobe<b id="kext">—</b></div>
+    <div>current period<b id="per">—</b></div>
+  </div>
+  <div class="verdict" id="wsay">…</div>
+</div>
+
+<p>Push the ramp slider fast enough and the readout above will tell you that you have left the
+range any real scanner can operate in — and the limit is not the amplifier. A changing magnetic
+field induces an electric field in the patient, and past a threshold that field
+<strong>stimulates peripheral nerves</strong>: a tingling or tapping sensation, well before
+anything is dangerous, but firmly a limit. Clinical systems run around 200 T/m/s for that reason,
+not because faster switching is unbuildable. The quietest sequence and the fastest sequence are
+pulling on the same rope, and a third rope is tied to the patient's nerves.</p>
+
+<h2 class="sec">3 · The sound is a comb locked to the sequence</h2>
+
+<p>Because the drive repeats exactly every two lobes, the spectrum is not noise — it is a
+<strong>harmonic comb</strong>, every line sitting on a multiple of <span class="num">1/(2·esp)</span>.
+The engine's test asserts that better than 90% of the acoustic energy lands on those lines. Halve
+the echo spacing and the whole comb goes up an octave. When a radiographer changes the sequence and
+the scanner starts making a different noise, you are hearing the timing change.</p>
+
+<p>The loudest line is usually not the fundamental: the second derivative weights every harmonic by
+<span class="num">ω²</span>, pushing the peak up the comb until the ramps' own roll-off takes over.</p>
+
+<div class="panel">
+  <h4>listen to it · headphones down first, this is a scanner</h4>
+  <canvas id="spec" width="720" height="240"></canvas>
+  <div class="cap">acoustic spectrum · comb lines marked at multiples of 1/(2·esp)</div>
+  <div class="segs">
+    <button id="play" class="play">▶ play</button>
+    <button data-preset="epi">single-shot EPI</button>
+    <button data-preset="fast">fast EPI</button>
+    <button data-preset="slow">gentle readout</button>
+    <span class="hint">synthesised from the waveform above — nothing here is a recording</span>
+  </div>
+  <div class="ctl">
+    <label for="res">former resonance</label>
+    <input type="range" id="res" min="200" max="3000" step="50" value="1000">
+    <output id="resv">1000 Hz</output>
+    <label for="qq">its Q</label>
+    <input type="range" id="qq" min="1" max="20" step="0.5" value="6">
+    <output id="qqv">6</output>
+  </div>
+  <div class="readout">
+    <div>comb spacing<b id="comb">—</b></div>
+    <div>loudest line<b id="peak" class="hot">—</b></div>
+    <div>that is harmonic<b id="harm">—</b></div>
+  </div>
+  <div class="verdict" id="ssay">…</div>
+</div>
+
+<div class="caveat">
+  <b>What is physics here and what is a model.</b> The waveform, the Lorentz force, the
+  second-derivative relationship and the resulting comb are computed exactly and checked by tests.
+  The step from force to <em>sound</em> is a single damped resonator standing in for the coil
+  former's mechanical response — a real former has many modes and a measured transfer function.
+  <b>The timing structure is the physics; the timbre is a model.</b> This will not sound like your
+  scanner, and moving the resonance slider is changing an assumption, not a measurement.
+</div>
+
+<h2 class="sec">4 · How loud is loud</h2>
+
+<p>Decibels compress so aggressively that the numbers stop meaning anything. EPI reaches
+<span class="num">110–120 dB</span> against an occupational exposure limit of
+<span class="num">85 dB</span>, and that gap is not "a bit louder":</p>
+
+<div class="panel">
+  <h4>sound pressure level, and what the ratios actually are</h4>
+  <table class="db">
+    <thead><tr><th>source</th><th>SPL</th><th>pressure</th><th>× energy vs 85 dB</th></tr></thead>
+    <tbody id="dbtable"></tbody>
+  </table>
+  <div class="verdict">A scanner running EPI at 120 dB is delivering <b id="ratio">—</b> times the
+  acoustic energy of the 85 dB limit. This is why ear protection is not a courtesy, and why the
+  quietest useful thing a sequence designer can do is lengthen a ramp — at the cost of the speed
+  that made the sequence worth running.</div>
+</div>
+
+<div class="scope">
+  <b>Where this stops.</b> The acoustic output of a real gradient set is dominated by the mechanical
+  resonances of the former and the bore liner, which are measured rather than derived, and by
+  radiation efficiency that depends on geometry — none of which is modelled here. Serious quieting
+  work happens in three places this page does not go: gradient coil design that balances the
+  Lorentz forces so they cancel, damping and vacuum-mounting the former, and sequence design that
+  avoids exciting resonances. Motovilova and Winkler's review is the way in to all three — and the fourth option, not switching
+  the gradient at all, is Weiger's zero-echo-time imaging below.
+</div>
+
+<h2 class="sec">Where this comes from</h2>
+
+<ul class="src">
+  <li><a href="https://doi.org/10.3389/fphy.2022.907619">Motovilova E &amp; Winkler SA (2022). Overview of methods for noise and heat reduction in MRI gradient coils. <i>Front Phys</i> 10:907619.</a>
+    <span class="what">Open access, and the source of every decibel figure on this page: EPI at 110–120 dB, the NIOSH 85 dB limit, average SPLs of 97.6 dB (head) and 90.5 dB (body) gradient coils, and 0–3 kHz as the band covering most sequences. Also the survey of what can be done about it.</span></li>
+  <li><a href="https://doi.org/10.1088/0022-3719/10/3/004">Mansfield P (1977). Multi-planar image formation using NMR spin echoes. <i>J Phys C</i> 10:L55–L58.</a>
+    <span class="what">EPI: the boustrophedon readout train whose alternation sets the comb spacing. The loudest sequence in the clinic is the same one that made functional imaging possible.</span></li>
+  <li><a href="https://doi.org/10.1118/1.595331">Twieg DB (1983). The k-trajectory formulation of the NMR imaging process. <i>Med Phys</i> 10:610–621.</a>
+    <span class="what">Why the lobe area is not free: <span class="num">Δk = γ̄·∫G dt</span>, so the k-space a readout must traverse fixes the area, and only the trade between amplitude and duration is available.</span></li>
+  <li><a href="https://doi.org/10.1002/1522-2586(200007)12:1%3C20::AID-JMRI3%3E3.0.CO;2-Y">Schaefer DJ, Bourland JD &amp; Nyenhuis JA (2000). Review of patient safety in time-varying gradient fields. <i>J Magn Reson Imaging</i> 12:20–29.</a>
+    <span class="what">Why gradient slew rates stop where they do: a changing field induces an electric field in the patient, and past a threshold it stimulates peripheral nerves. The ceiling on speed — and so the floor under the noise — is physiological.</span></li>
+  <li><a href="https://doi.org/10.1002/mrm.24816">Weiger M, Brunner DO, Dietrich BE, Müller CF &amp; Pruessmann KP (2013). ZTE imaging in humans. <i>Magn Reson Med</i> 70:328–332.</a>
+    <span class="what">The other end of this page: if the noise comes from switching the gradient, do not switch it. Zero-echo-time imaging keeps the gradient on and steps it in tiny increments between excitations, and the result is near-silent — a scan you can hold a conversation through. The trade is everything else about the sequence.</span></li>
+  <li><a href="https://doi.org/10.1002/mrm.1910160203">Roemer PB <i>et al.</i> (1990). The NMR phased array. <i>Magn Reson Med</i> 16:192–225.</a>
+    <span class="what">Not about noise — but the reason part one's arrays let you undersample, which shortens the echo train, which is one of the few ways to be both fast and quiet.</span></li>
+</ul>
+
+<p class="cite">The Lorentz force, the slew rate, the lobe area and its k-space extent, the harmonic
+comb and the decibel ratios are each checked against a closed form or an analytic Fourier series:
+the spectrum path is validated against a square wave's odd harmonics, and the comb test asserts
+that &gt;90% of the acoustic energy sits on multiples of the sequence clock.
+<code>cd sci/engine-rs &amp;&amp; cargo test --release</code> — 45 known-answer tests.</p>
+
+<p class="stamp">engine: rust → wasm · no dependencies · 45 tests · <a href="/mri/">one</a> · <a href="/mri/kspace/">two</a> · <a href="/mri/contrast/">three</a> · <a href="/">sci</a></p>
+
+<script type="module">
+import init, {
+  gradient_force, gradient_waveform, acoustic_waveform, acoustic_spectrum,
+  acoustic_peak_hz, slew_rate, lobe_k_extent, db_energy_ratio
+} from '../pkg/mri.js';
+
+const $ = (id) => document.getElementById(id);
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const SR = 44100;
+const NBUF = 16384;
+
+function fail(err) {
+  document.querySelectorAll('.panel').forEach((p) => {
+    p.innerHTML = '<p class="err">could not load the wasm engine: ' + err + '</p>';
+  });
+}
+// Only resize when the size really changed — assigning canvas.width wipes the
+// bitmap, and a wiped canvas shows the page background through it.
+function fit(cv) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth || cv.width / dpr;
+  if (!cv.dataset.aspect) cv.dataset.aspect = cv.height / cv.width;
+  const h = Math.round(w * cv.dataset.aspect);
+  const wantW = Math.round(w * dpr), wantH = Math.round(h * dpr);
+  if (cv.width !== wantW || cv.height !== wantH) {
+    cv.width = wantW; cv.height = wantH; cv.style.height = h + 'px';
+  }
+  const g = cv.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+  return { g, w, h };
+}
+function onFrame(fn) {
+  let queued = false;
+  return (...a) => { if (queued) return; queued = true;
+    requestAnimationFrame(() => { queued = false; fn(...a); }); };
+}
+
+init().then(() => {
+  // ------------------------------------------------------- §1 the force ----
+  const force = () => {
+    const i = +$('cur').value, b = +$('b0').value;
+    $('curv').textContent = i + ' A';
+    $('b0v').textContent = b.toFixed(2) + ' T';
+    const [n, kg] = gradient_force(i, b);
+    $('fn').textContent = n.toFixed(0) + ' N/m';
+    $('fkg').textContent = kg.toFixed(0) + ' kg/m';
+    const esp = +$('esp').value * 1e-6;
+    $('frev').textContent = (1 / (2 * esp)).toFixed(0) + ' Hz';
+    $('fsay').innerHTML = 'Every metre of winding is carrying the equivalent of <b>' +
+      kg.toFixed(0) + ' kg</b> — and reversing it <b>' + (1 / (2 * esp)).toFixed(0) +
+      '</b> times a second. The coil is not vibrating because something is loose. It is ' +
+      'vibrating because it is a current-carrying conductor doing its job inside a very large magnet.';
+  };
+
+  // ------------------------------------------------- §2 the waveform ------
+  const params = () => {
+    const esp = +$('esp').value;                 // µs
+    const rampPct = +$('ramp').value / 100;
+    const ramp = esp * rampPct;
+    const flat = Math.max(esp - 2 * ramp, 1);
+    return { esp, ramp, flat, amp: +$('amp').value };
+  };
+
+  const drawWave = () => {
+    const { esp, ramp, flat, amp } = params();
+    $('espv').textContent = esp + ' µs';
+    $('rampv').textContent = ramp.toFixed(0) + ' µs';
+    $('ampv').textContent = amp + ' mT/m';
+
+    const dt = esp / 240;                        // µs per sample: ~240 per lobe
+    const n = 1200;
+    const g0 = gradient_waveform(amp, ramp, flat, dt, n);
+    // Second difference for display, in the same units the engine uses.
+    const d2 = new Float32Array(n);
+    for (let i = 1; i < n - 1; i++) d2[i] = g0[i + 1] - 2 * g0[i] + g0[i - 1];
+
+    const { g, w, h } = fit($('wave'));
+    const half = h / 2, pad = 8;
+    const px = (i) => (i / (n - 1)) * w;
+    const gmax = Math.max(...Array.from(g0, Math.abs), 1e-9);
+    const dmax = Math.max(...Array.from(d2, Math.abs), 1e-12);
+
+    g.strokeStyle = css('--rule'); g.lineWidth = 1;
+    g.beginPath(); g.moveTo(0, half); g.lineTo(w, half); g.stroke();
+
+    g.strokeStyle = css('--accent'); g.lineWidth = 1.8; g.beginPath();
+    for (let i = 0; i < n; i++) {
+      const y = half - pad - (g0[i] / gmax) * (half - pad * 2);
+      i ? g.lineTo(px(i), y) : g.moveTo(px(i), y);
+    }
+    g.stroke();
+
+    g.strokeStyle = css('--warm'); g.lineWidth = 1.2; g.beginPath();
+    for (let i = 0; i < n; i++) {
+      const y = h - pad - ((d2[i] / dmax) * 0.5 + 0.5) * (half - pad * 2);
+      i ? g.lineTo(px(i), y) : g.moveTo(px(i), y);
+    }
+    g.stroke();
+
+    g.fillStyle = css('--muted'); g.font = '10px ui-monospace, monospace';
+    g.fillText('G(t)', 6, 14);
+    g.fillText('d²G/dt² — the kicks', 6, half + 14);
+
+    const sr = slew_rate(amp, ramp);
+    $('slew').textContent = sr.toFixed(0) + ' T/m/s';
+    $('kext').textContent = (lobe_k_extent(amp, ramp, flat) / 100).toFixed(1) + ' cy/cm';
+    $('per').textContent = (2 * esp / 1000).toFixed(2) + ' ms';
+    // Clinical whole-body gradients run around 200 T/m/s, limited by nerve
+    // stimulation rather than by the amplifier.
+    const el = $('slew');
+    el.className = sr > 200 ? 'hot' : '';
+    $('wsay').innerHTML = sr > 200
+      ? 'At <b>' + sr.toFixed(0) + ' T/m/s</b> this is past what a clinical system will run: ' +
+        'around 200 T/m/s the changing field starts stimulating peripheral nerves in the patient. ' +
+        'The limit on gradient speed is physiological, not electrical.'
+      : 'Every corner in the lower trace is a kick the former takes. The ramps themselves are ' +
+        'silent — it is the <b>changes</b> in slew rate that radiate, which is why lengthening a ' +
+        'ramp quietens a scanner and slows it down in the same stroke.';
+  };
+
+  // ------------------------------------------------ §3 spectrum + audio ---
+  let ctxA = null, node = null, gainNode = null, playing = false;
+
+  const buildBuffer = () => {
+    const { ramp, flat, amp } = params();
+    const data = acoustic_waveform(amp, ramp, flat, SR, NBUF, +$('res').value, +$('qq').value);
+    const buf = ctxA.createBuffer(1, data.length, SR);
+    buf.copyToChannel(Float32Array.from(data), 0);
+    return buf;
+  };
+
+  const restart = () => {
+    if (!playing || !ctxA) return;
+    if (node) { try { node.stop(); } catch (e) {} node.disconnect(); }
+    node = ctxA.createBufferSource();
+    node.buffer = buildBuffer();
+    node.loop = true;
+    node.connect(gainNode);
+    node.start();
+  };
+
+  $('play').addEventListener('click', async () => {
+    if (!ctxA) {
+      ctxA = new (window.AudioContext || window.webkitAudioContext)();
+      gainNode = ctxA.createGain();
+      // Deliberately quiet. The point is the pitch, not the volume, and the
+      // real thing is 110 dB.
+      gainNode.gain.value = 0.14;
+      gainNode.connect(ctxA.destination);
+    }
+    if (ctxA.state === 'suspended') await ctxA.resume();
+    playing = !playing;
+    $('play').textContent = playing ? '■ stop' : '▶ play';
+    $('play').setAttribute('aria-pressed', String(playing));
+    if (playing) restart();
+    else if (node) { try { node.stop(); } catch (e) {} node.disconnect(); node = null; }
+  });
+
+  const drawSpec = () => {
+    const { esp, ramp, flat, amp } = params();
+    $('resv').textContent = $('res').value + ' Hz';
+    $('qqv').textContent = $('qq').value;
+
+    const sp = acoustic_spectrum(amp, ramp, flat, SR, NBUF, +$('res').value, +$('qq').value);
+    const { g, w, h } = fit($('spec'));
+    const pad = { l: 34, r: 10, t: 10, b: 24 };
+    const FMAX = 6000;
+    const binHz = SR / NBUF;
+    const px = (f) => pad.l + (w - pad.l - pad.r) * f / FMAX;
+    const py = (v) => h - pad.b - (h - pad.t - pad.b) * v;
+
+    // comb lines at multiples of 1/(2·esp)
+    const f0 = 1 / (2 * esp * 1e-6);
+    g.strokeStyle = css('--rule'); g.lineWidth = 1;
+    for (let k = 1; k * f0 < FMAX; k++) {
+      g.beginPath(); g.moveTo(px(k * f0), pad.t); g.lineTo(px(k * f0), h - pad.b); g.stroke();
+    }
+    g.strokeStyle = css('--muted');
+    g.beginPath(); g.moveTo(pad.l, py(0)); g.lineTo(w - pad.r, py(0)); g.stroke();
+
+    g.strokeStyle = css('--accent'); g.lineWidth = 1.6; g.beginPath();
+    let started = false;
+    for (let i = 1; i * binHz < FMAX; i++) {
+      const x = px(i * binHz), y = py(sp[i]);
+      started ? g.lineTo(x, y) : g.moveTo(x, y);
+      started = true;
+    }
+    g.stroke();
+
+    g.fillStyle = css('--muted'); g.font = '10px ui-monospace, monospace';
+    for (const f of [1000, 2000, 3000, 4000, 5000]) g.fillText((f / 1000) + 'k', px(f) - 8, h - 8);
+    g.fillText('Hz', w - 24, h - 8);
+
+    const peak = acoustic_peak_hz(amp, ramp, flat, SR, NBUF, +$('res').value, +$('qq').value);
+    g.strokeStyle = css('--warm'); g.setLineDash([3, 3]); g.lineWidth = 1.4;
+    g.beginPath(); g.moveTo(px(peak), pad.t); g.lineTo(px(peak), h - pad.b); g.stroke();
+    g.setLineDash([]);
+
+    $('comb').textContent = f0.toFixed(0) + ' Hz';
+    $('peak').textContent = peak.toFixed(0) + ' Hz';
+    const hn = peak / f0;
+    $('harm').textContent = '#' + hn.toFixed(1);
+    $('ssay').innerHTML = 'Comb spacing <b>' + f0.toFixed(0) + ' Hz</b> — that is the current’s own ' +
+      'repetition rate, one cycle per two readout lobes. The loudest line is harmonic <b>' +
+      hn.toFixed(1) + '</b> at <b>' + peak.toFixed(0) + ' Hz</b>, pushed up the comb because ' +
+      'radiated pressure goes as the second derivative and so weights every harmonic by ω². ' +
+      'Halve the echo spacing and every line here moves up an octave.';
+  };
+
+  document.querySelectorAll('[data-preset]').forEach((b) => b.addEventListener('click', () => {
+    const p = b.dataset.preset;
+    if (p === 'epi') { $('esp').value = 500; $('ramp').value = 20; $('amp').value = 20; }
+    if (p === 'fast') { $('esp').value = 260; $('ramp').value = 14; $('amp').value = 40; }
+    if (p === 'slow') { $('esp').value = 1400; $('ramp').value = 42; $('amp').value = 10; }
+    redraw(); restart();
+  }));
+
+  // ---------------------------------------------------------- §4 the dB ---
+  const dbRows = [
+    ['a quiet room', 30], ['conversation', 60],
+    ['NIOSH exposure limit', 85], ['body gradient coil, average', 90.5],
+    ['head gradient coil, average', 97.6], ['EPI, quiet end', 110], ['EPI, loud end', 120],
+  ];
+  $('dbtable').innerHTML = dbRows.map(([name, db]) => {
+    const pa = 20e-6 * Math.pow(10, db / 20);
+    const r = db_energy_ratio(db, 85);
+    const hi = db >= 110 ? ' class="hi"' : '';
+    return `<tr${hi}><td>${name}</td><td>${db} dB</td><td>${pa.toFixed(pa < 1 ? 3 : 1)} Pa</td>` +
+      `<td>${r >= 1 ? '×' + (r >= 100 ? r.toFixed(0) : r.toFixed(1)) : '×' + r.toFixed(3)}</td></tr>`;
+  }).join('');
+  $('ratio').textContent = db_energy_ratio(120, 85).toFixed(0);
+
+  const redraw = () => { force(); drawWave(); drawSpec(); };
+  const live = onFrame(() => { redraw(); });
+  ['cur', 'b0'].forEach((id) => $(id).addEventListener('input', onFrame(force)));
+  ['esp', 'ramp', 'amp'].forEach((id) => $(id).addEventListener('input', () => { live(); restart(); }));
+  ['res', 'qq'].forEach((id) => $(id).addEventListener('input', () => { onFrame(drawSpec)(); restart(); }));
+  redraw();
+  window.addEventListener('resize', onFrame(redraw));
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', onFrame(redraw));
+  }
+}).catch(fail);
+</script>
+</body>
+</html>

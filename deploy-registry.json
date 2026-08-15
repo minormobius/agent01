@@ -1263,14 +1263,15 @@
       "uses": [],
       "provides": null,
       "status": "LIVE — first deploy 2026-08-15 bound `sci.mino.mobi (custom domain)` and the site answered. The hostname was new and did not resolve beforehand; wrangler created the custom domain itself, no dashboard step required (mino.mobi is a zone on this account). Golden rule still applies to later deploys: confirm the log binds the custom domain.",
-      "note": "Scientific instruments taken apart, one page per instrument, each built around a Rust→WASM solver the visitor drives and each mechanism claim traced to a primary source. Assets-only worker `sci`, staged to ../.sci-stage (engine-rs/ and research/ excluded). First instrument, MRI, in three parts: /mri/ the detection chain (reciprocity, coil sensitivity, spin echo, the B0^2 law), /mri/kspace/ the spatial encoding (analytic phantom, real acquisition, FFT reconstruction, EPI distortion), /mri/contrast/ the tissue properties and sequence equations (Stanisz 2005 relaxation times, closed forms validated against a Bloch simulation, the Ernst angle, the TR-TE curve where two tissues become invisible). Engine known-answer tested against closed-form physics: sci/engine-rs, 39 tests. (full description: sci/CLAUDE.md)",
+      "note": "Scientific instruments taken apart, one page per instrument, each built around a Rust→WASM solver the visitor drives and each mechanism claim traced to a primary source. Assets-only worker `sci`, staged to ../.sci-stage (engine-rs/ and research/ excluded). First instrument, MRI, in four parts: /mri/ the detection chain (reciprocity, coil sensitivity, spin echo, the B0^2 law), /mri/kspace/ the spatial encoding (analytic phantom, real acquisition, FFT reconstruction, EPI distortion), /mri/contrast/ the tissue properties and sequence equations (Stanisz 2005 relaxation times, closed forms validated against a Bloch simulation, the Ernst angle, the TR-TE curve where two tissues become invisible), and /mri/acoustics/ why it screams (Lorentz force on the gradient windings, the acoustic comb locked to the sequence clock, synthesised live via Web Audio). Engine known-answer tested against closed-form physics: sci/engine-rs, 45 tests. (full description: sci/CLAUDE.md)",
       "paths": [
         "sci/**"
       ],
       "serves": [
         "mri",
         "mri/kspace",
-        "mri/contrast"
+        "mri/contrast",
+        "mri/acoustics"
       ]
     },
     {

@@ -276,16 +276,54 @@ function fail(err) {
 }
 
 // Device-pixel-aware canvas sizing.
+//
+// Assigning to canvas.width or .height RESETS the canvas — it wipes the bitmap
+// to transparent black even if you assign the value it already had. Combined
+// with an asynchronous redraw that is a white flash on every frame, because a
+// transparent canvas shows the page background through it. So: only resize when
+// the size has actually changed, and only ever redraw synchronously.
 function fitCanvas(cv) {
   const dpr = window.devicePixelRatio || 1;
-  const w = cv.clientWidth || cv.width;
-  const h = Math.round(w * (cv.height / cv.width));
-  cv.width = Math.round(w * dpr);
-  cv.height = Math.round(h * dpr);
-  cv.style.height = h + 'px';
+  const w = cv.clientWidth || cv.width / dpr;
+  const h = Math.round(w * (cv.dataset.aspect || (cv.height / cv.width)));
+  if (!cv.dataset.aspect) cv.dataset.aspect = cv.height / cv.width;
+  const wantW = Math.round(w * dpr), wantH = Math.round(h * dpr);
+  if (cv.width !== wantW || cv.height !== wantH) {
+    cv.width = wantW;
+    cv.height = wantH;
+    cv.style.height = h + 'px';
+  }
   const g = cv.getContext('2d');
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   return { g, w, h };
+}
+
+// One scratch canvas per field, reused, so the scaled blit is a synchronous
+// drawImage rather than an async createImageBitmap that lands a frame later.
+const scratch = new Map();
+function blit(g, img, w, h, key) {
+  let c = scratch.get(key);
+  if (!c || c.width !== img.width || c.height !== img.height) {
+    c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    scratch.set(key, c);
+  }
+  c.getContext('2d').putImageData(img, 0, 0);
+  g.imageSmoothingEnabled = true;
+  g.drawImage(c, 0, 0, w, h);
+}
+
+// Coalesce input events onto animation frames: a drag fires `input` far faster
+// than a 46 000-point Biot–Savart solve can run, and without this the queued
+// solves stack up and the panel judders behind the slider.
+function onFrame(fn) {
+  let queued = false;
+  return (...args) => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; fn(...args); });
+  };
 }
 
 init().then(() => {
@@ -304,14 +342,19 @@ init().then(() => {
       polarization_ppm(b0).toFixed(1) + '</b> are left uncancelled — the rest pair off and ' +
       'contribute nothing at all.';
   };
-  $('b0').addEventListener('input', b0Panel);
+  $('b0').addEventListener('input', onFrame(b0Panel));
   b0Panel();
 
   // -------------------------------------------- §2 sensitivity map (coil) --
   const X0 = -0.30, X1 = 0.30, Z0 = -0.24, Z1 = 0.24;
-  const NX = 240, NZ = 192;
+  // Coarse while a slider is moving, full resolution once it settles. The
+  // solve is O(pixels x wire segments), so halving both axes is a 4x saving
+  // and the difference is invisible mid-drag.
+  const FULL = [240, 192], DRAFT = [120, 96];
+  let settle = null;
 
-  const drawMap = () => {
+  const drawMap = (draft) => {
+    const [NX, NZ] = draft ? DRAFT : FULL;
     const ang = +$('ang').value * Math.PI / 180;
     const rad = +$('rad').value;
     const dst = +$('dst').value;
@@ -351,11 +394,8 @@ init().then(() => {
       }
       img.data[p + 3] = 255;
     }
-    createImageBitmap(img).then((bmp) => {
-      g.imageSmoothingEnabled = true;
-      g.clearRect(0, 0, w, h);
-      g.drawImage(bmp, 0, 0, w, h);
-
+    blit(g, img, w, h, 'map');
+    {
       const px = (x) => (x - X0) / (X1 - X0) * w;
       const pz = (z) => (z - Z0) / (Z1 - Z0) * h;
 
@@ -400,9 +440,18 @@ init().then(() => {
           : 'Only the component transverse to B₀ counts: <b>' + (100 * frac).toFixed(0) +
             '%</b> of this coil’s field at isocentre is doing any work.');
       coil.free();
-    });
+    }
   };
-  ['ang', 'rad', 'dst'].forEach((id) => $(id).addEventListener('input', drawMap));
+
+  // While dragging: one draft solve per animation frame. When the slider has
+  // been still for a moment: one full-resolution solve.
+  const drawMapDraft = onFrame(() => drawMap(true));
+  const drawMapLive = () => {
+    drawMapDraft();
+    clearTimeout(settle);
+    settle = setTimeout(() => drawMap(false), 90);
+  };
+  ['ang', 'rad', 'dst'].forEach((id) => $(id).addEventListener('input', drawMapLive));
 
   // ------------------------------------------------- §3 FID vs spin echo --
   const drawSig = () => {
@@ -475,7 +524,8 @@ init().then(() => {
     $('se').textContent = mag(e, Math.min(at, steps - 1)).toFixed(4);
     $('sc').textContent = Math.exp(-2 * tau / t2).toFixed(4);
   };
-  ['t2', 'sp', 'tau'].forEach((id) => $(id).addEventListener('input', drawSig));
+  const drawSigLive = onFrame(drawSig);
+  ['t2', 'sp', 'tau'].forEach((id) => $(id).addEventListener('input', drawSigLive));
 
   // ------------------------------------------------------ §4 the B₀² law --
   const drawB0 = () => {
@@ -520,7 +570,7 @@ init().then(() => {
     g.fillText('relative EMF (1.5 T = 1)', pad.l + 4, pad.t + 10);
   };
 
-  const redrawAll = () => { drawMap(); drawSig(); drawB0(); };
+  const redrawAll = () => { drawMap(false); drawSig(); drawB0(); };
   redrawAll();
   window.addEventListener('resize', redrawAll);
   if (window.matchMedia) {

@@ -112,6 +112,25 @@ export class TissueImager {
 }
 
 /**
+ * The loudest line in that spectrum, hertz.
+ */
+export function acoustic_peak_hz(amp_mt_per_m: number, ramp_us: number, flat_us: number, sample_rate: number, n: number, resonance_hz: number, q: number): number;
+
+/**
+ * Magnitude spectrum of the radiated sound, normalised to its own peak.
+ * Bin `i` is `i · sample_rate / n` hertz.
+ */
+export function acoustic_spectrum(amp_mt_per_m: number, ramp_us: number, flat_us: number, sample_rate: number, n: number, resonance_hz: number, q: number): Float32Array;
+
+/**
+ * What the coil radiates: `d²G/dt²` put through one damped mechanical
+ * resonance, normalised to ±1 so it can be handed straight to Web Audio.
+ *
+ * The timing is physics; the resonance is a model. See `acoustics.rs`.
+ */
+export function acoustic_waveform(amp_mt_per_m: number, ramp_us: number, flat_us: number, sample_rate: number, n: number, resonance_hz: number, q: number): Float32Array;
+
+/**
  * The signal-optimal loop radius for a target depth, `√2 · z`.
  */
 export function best_radius(depth_m: number): number;
@@ -121,6 +140,11 @@ export function best_radius(depth_m: number): number;
  * (`nte` rows of `ntr`). The landscape a radiographer is choosing a point on.
  */
 export function contrast_map(i: number, j: number, tr_lo_ms: number, tr_hi_ms: number, te_lo_ms: number, te_hi_ms: number, ntr: number, nte: number, signed: boolean): Float32Array;
+
+/**
+ * How many times more acoustic energy `a` decibels is than `b`.
+ */
+export function db_energy_ratio(a: number, b: number): number;
 
 /**
  * The predicted EPI geometric shift, in pixels: `Δf · N · echo-spacing / R`.
@@ -139,6 +163,16 @@ export function ernst_angle_deg(tr_ms: number, t1_ms: number): number;
 export function fid(t1: number, t2: number, spread_hz: number, dt: number, steps: number, n_iso: number): Float32Array;
 
 /**
+ * Lorentz force on a gradient winding: `[N/m, kgf/m]`.
+ */
+export function gradient_force(current_a: number, b0_t: number): Float64Array;
+
+/**
+ * The gradient waveform of an EPI readout train, in mT/m, sampled at `dt`.
+ */
+export function gradient_waveform(amp_mt_per_m: number, ramp_us: number, flat_us: number, dt_us: number, n: number): Float32Array;
+
+/**
  * Proton Larmor frequency in MHz.
  */
 export function larmor_mhz(b0: number): number;
@@ -147,6 +181,12 @@ export function larmor_mhz(b0: number): number;
  * Free-space wavelength at the Larmor frequency, in metres.
  */
 export function larmor_wavelength_m(b0: number): number;
+
+/**
+ * k-space width one readout lobe traverses, in cycles per metre — the join to
+ * part two: `Δk_total = γ̄ · ∫G dt`.
+ */
+export function lobe_k_extent(amp_mt_per_m: number, ramp_us: number, flat_us: number): number;
 
 /**
  * On-axis field of a circular loop, µT per amp — the closed form the solver is
@@ -183,6 +223,11 @@ export function shift_px(a: Float32Array, b: Float32Array, n: number): number;
 export function signal_for(t1_ms: number, t2_ms: number, kind: number, tr_ms: number, te_ms: number, ti_ms: number, flip_deg: number): number;
 
 /**
+ * Slew rate of a lobe, T/m/s.
+ */
+export function slew_rate(amp_mt_per_m: number, ramp_us: number): number;
+
+/**
  * Hahn spin echo: 90°, τ, 180°, and the echo at 2τ.
  */
 export function spin_echo(t1: number, t2: number, spread_hz: number, tau: number, dt: number, steps: number, n_iso: number): Float32Array;
@@ -217,11 +262,17 @@ export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_imager_free: (a: number, b: number) => void;
     readonly __wbg_rxcoil_free: (a: number, b: number) => void;
+    readonly acoustic_peak_hz: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
+    readonly acoustic_spectrum: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
+    readonly acoustic_waveform: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
     readonly best_radius: (a: number) => number;
     readonly contrast_map: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => void;
+    readonly db_energy_ratio: (a: number, b: number) => number;
     readonly epi_shift_px: (a: number, b: number, c: number, d: number) => number;
     readonly ernst_angle_deg: (a: number, b: number) => number;
     readonly fid: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
+    readonly gradient_force: (a: number, b: number, c: number) => void;
+    readonly gradient_waveform: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly imager_acquire: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly imager_centroid: (a: number, b: number, c: number, d: number) => void;
     readonly imager_image: (a: number, b: number) => void;
@@ -236,6 +287,7 @@ export interface InitOutput {
     readonly imager_truth: (a: number, b: number) => void;
     readonly larmor_mhz: (a: number) => number;
     readonly larmor_wavelength_m: (a: number) => number;
+    readonly lobe_k_extent: (a: number, b: number, c: number) => number;
     readonly loop_axis_field_ut: (a: number, b: number) => number;
     readonly null_time_ms: (a: number, b: number) => number;
     readonly polarization_ppm: (a: number) => number;
@@ -248,6 +300,7 @@ export interface InitOutput {
     readonly rxcoil_sensitivity_map: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
     readonly shift_px: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly signal_for: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
+    readonly slew_rate: (a: number, b: number) => number;
     readonly spin_echo: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
     readonly tissue_count: () => number;
     readonly tissue_name: (a: number, b: number) => void;
@@ -257,8 +310,8 @@ export interface InitOutput {
     readonly tissueimager_label_map: (a: number, b: number) => void;
     readonly tissueimager_new: (a: number, b: number, c: number) => number;
     readonly zero_contrast_tr_ms: (a: number, b: number, c: number) => number;
-    readonly relative_faraday_emf: (a: number) => number;
     readonly __wbg_tissueimager_free: (a: number, b: number) => void;
+    readonly relative_faraday_emf: (a: number) => number;
     readonly __wbindgen_add_to_stack_pointer: (a: number) => number;
     readonly __wbindgen_export: (a: number, b: number, c: number) => void;
     readonly __wbindgen_export2: (a: number, b: number) => number;

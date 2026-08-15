@@ -384,6 +384,76 @@ export class TissueImager {
 if (Symbol.dispose) TissueImager.prototype[Symbol.dispose] = TissueImager.prototype.free;
 
 /**
+ * The loudest line in that spectrum, hertz.
+ * @param {number} amp_mt_per_m
+ * @param {number} ramp_us
+ * @param {number} flat_us
+ * @param {number} sample_rate
+ * @param {number} n
+ * @param {number} resonance_hz
+ * @param {number} q
+ * @returns {number}
+ */
+export function acoustic_peak_hz(amp_mt_per_m, ramp_us, flat_us, sample_rate, n, resonance_hz, q) {
+    const ret = wasm.acoustic_peak_hz(amp_mt_per_m, ramp_us, flat_us, sample_rate, n, resonance_hz, q);
+    return ret;
+}
+
+/**
+ * Magnitude spectrum of the radiated sound, normalised to its own peak.
+ * Bin `i` is `i · sample_rate / n` hertz.
+ * @param {number} amp_mt_per_m
+ * @param {number} ramp_us
+ * @param {number} flat_us
+ * @param {number} sample_rate
+ * @param {number} n
+ * @param {number} resonance_hz
+ * @param {number} q
+ * @returns {Float32Array}
+ */
+export function acoustic_spectrum(amp_mt_per_m, ramp_us, flat_us, sample_rate, n, resonance_hz, q) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.acoustic_spectrum(retptr, amp_mt_per_m, ramp_us, flat_us, sample_rate, n, resonance_hz, q);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var v1 = getArrayF32FromWasm0(r0, r1).slice();
+        wasm.__wbindgen_export(r0, r1 * 4, 4);
+        return v1;
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
+ * What the coil radiates: `d²G/dt²` put through one damped mechanical
+ * resonance, normalised to ±1 so it can be handed straight to Web Audio.
+ *
+ * The timing is physics; the resonance is a model. See `acoustics.rs`.
+ * @param {number} amp_mt_per_m
+ * @param {number} ramp_us
+ * @param {number} flat_us
+ * @param {number} sample_rate
+ * @param {number} n
+ * @param {number} resonance_hz
+ * @param {number} q
+ * @returns {Float32Array}
+ */
+export function acoustic_waveform(amp_mt_per_m, ramp_us, flat_us, sample_rate, n, resonance_hz, q) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.acoustic_waveform(retptr, amp_mt_per_m, ramp_us, flat_us, sample_rate, n, resonance_hz, q);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var v1 = getArrayF32FromWasm0(r0, r1).slice();
+        wasm.__wbindgen_export(r0, r1 * 4, 4);
+        return v1;
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
  * The signal-optimal loop radius for a target depth, `√2 · z`.
  * @param {number} depth_m
  * @returns {number}
@@ -419,6 +489,17 @@ export function contrast_map(i, j, tr_lo_ms, tr_hi_ms, te_lo_ms, te_hi_ms, ntr, 
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
     }
+}
+
+/**
+ * How many times more acoustic energy `a` decibels is than `b`.
+ * @param {number} a
+ * @param {number} b
+ * @returns {number}
+ */
+export function db_energy_ratio(a, b) {
+    const ret = wasm.db_energy_ratio(a, b);
+    return ret;
 }
 
 /**
@@ -471,6 +552,49 @@ export function fid(t1, t2, spread_hz, dt, steps, n_iso) {
 }
 
 /**
+ * Lorentz force on a gradient winding: `[N/m, kgf/m]`.
+ * @param {number} current_a
+ * @param {number} b0_t
+ * @returns {Float64Array}
+ */
+export function gradient_force(current_a, b0_t) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.gradient_force(retptr, current_a, b0_t);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var v1 = getArrayF64FromWasm0(r0, r1).slice();
+        wasm.__wbindgen_export(r0, r1 * 8, 8);
+        return v1;
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
+ * The gradient waveform of an EPI readout train, in mT/m, sampled at `dt`.
+ * @param {number} amp_mt_per_m
+ * @param {number} ramp_us
+ * @param {number} flat_us
+ * @param {number} dt_us
+ * @param {number} n
+ * @returns {Float32Array}
+ */
+export function gradient_waveform(amp_mt_per_m, ramp_us, flat_us, dt_us, n) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.gradient_waveform(retptr, amp_mt_per_m, ramp_us, flat_us, dt_us, n);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var v1 = getArrayF32FromWasm0(r0, r1).slice();
+        wasm.__wbindgen_export(r0, r1 * 4, 4);
+        return v1;
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
  * Proton Larmor frequency in MHz.
  * @param {number} b0
  * @returns {number}
@@ -487,6 +611,19 @@ export function larmor_mhz(b0) {
  */
 export function larmor_wavelength_m(b0) {
     const ret = wasm.larmor_wavelength_m(b0);
+    return ret;
+}
+
+/**
+ * k-space width one readout lobe traverses, in cycles per metre — the join to
+ * part two: `Δk_total = γ̄ · ∫G dt`.
+ * @param {number} amp_mt_per_m
+ * @param {number} ramp_us
+ * @param {number} flat_us
+ * @returns {number}
+ */
+export function lobe_k_extent(amp_mt_per_m, ramp_us, flat_us) {
+    const ret = wasm.lobe_k_extent(amp_mt_per_m, ramp_us, flat_us);
     return ret;
 }
 
@@ -565,6 +702,17 @@ export function shift_px(a, b, n) {
  */
 export function signal_for(t1_ms, t2_ms, kind, tr_ms, te_ms, ti_ms, flip_deg) {
     const ret = wasm.signal_for(t1_ms, t2_ms, kind, tr_ms, te_ms, ti_ms, flip_deg);
+    return ret;
+}
+
+/**
+ * Slew rate of a lobe, T/m/s.
+ * @param {number} amp_mt_per_m
+ * @param {number} ramp_us
+ * @returns {number}
+ */
+export function slew_rate(amp_mt_per_m, ramp_us) {
+    const ret = wasm.slew_rate(amp_mt_per_m, ramp_us);
     return ret;
 }
 

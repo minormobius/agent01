@@ -937,3 +937,173 @@ fn tissue_table_matches_stanisz_2005_table_1() {
         assert!(t.pd == 1.0, "proton density is not measured by that table");
     }
 }
+
+// ====================================================== acoustics (part 4) ==
+
+use crate::acoustics::*;
+
+/// `F = B·I·L`, and the number that makes it real: at 3 T and 300 A every metre
+/// of winding carries the equivalent of ~92 kg, reversing thousands of times a
+/// second.
+#[test]
+fn lorentz_force_is_b_i_l() {
+    assert!(rel(force_per_metre(300.0, 3.0), 900.0) < 1e-12);
+    assert!(rel(force_per_metre(50.0, 1.5), 75.0) < 1e-12);
+    // linear in both, as the cross product requires
+    assert!(rel(force_per_metre(600.0, 3.0), 2.0 * force_per_metre(300.0, 3.0)) < 1e-12);
+    assert!(rel(force_as_kg_per_metre(300.0, 3.0), 900.0 / 9.80665) < 1e-12);
+    assert!((force_as_kg_per_metre(300.0, 3.0) - 91.8).abs() < 0.1);
+}
+
+/// A trapezoid's slew rate is its amplitude over its ramp, and its **area is
+/// the k-space it traverses** — which is the join between this module and
+/// `encode`: a readout lobe must sweep `N·Δk`, so its area is fixed by the
+/// field of view and matrix, and only the trade between amplitude and duration
+/// is free.
+#[test]
+fn a_readout_lobe_traverses_the_k_space_it_has_to() {
+    let (fov, n) = (0.30, 128.0); // metres, samples
+    let dk = 1.0 / fov;
+    let needed_area = n * dk / GAMMA_BAR; // T·s/m
+
+    // Pick a plateau amplitude and solve for the flat time that gets there.
+    let amp = 0.020; // 20 mT/m
+    let ramp = 200e-6;
+    let flat = needed_area / amp - ramp;
+    let lobe = Lobe { amp, ramp, flat };
+    assert!(rel(lobe.area(), needed_area) < 1e-12, "area {} vs {needed_area}", lobe.area());
+    assert!(rel(GAMMA_BAR * lobe.area(), n * dk) < 1e-12, "Δk traversed");
+    assert!(rel(lobe.slew(), amp / ramp) < 1e-12);
+
+    // Numerically integrating the sampled waveform must agree with the closed
+    // form, which is the check that `at()` draws the trapezoid it claims to.
+    let dt = 1e-7;
+    let steps = (lobe.duration() / dt).round() as usize;
+    let integral: f64 = (0..steps).map(|i| lobe.at((i as f64 + 0.5) * dt) * dt).sum();
+    assert!(rel(integral, needed_area) < 1e-6, "∫G dt {integral} vs {needed_area}");
+}
+
+/// **The pitch is the readout frequency** — in the form that is actually true.
+///
+/// A boustrophedon train alternates sign, so the *current* repeats every two
+/// lobes and its fundamental is `1/(2·esp)`. The radiated pressure goes as
+/// `d²G/dt²`, which weights every harmonic by `ω²`, so the loudest line is not
+/// the fundamental but a higher harmonic of it — here the third. What holds
+/// regardless is the thing worth claiming:
+///
+/// 1. the spectrum is a **comb locked to the sequence clock** — essentially all
+///    the energy sits on multiples of `1/(2·esp)`;
+/// 2. the loudest line is one of those multiples; and
+/// 3. the whole comb scales as `1/esp`, so halving the echo spacing takes the
+///    sound up an octave.
+///
+/// That is what "you are listening to the pulse sequence" means, precisely.
+#[test]
+fn the_acoustic_spectrum_is_a_comb_locked_to_the_sequence_clock() {
+    let dt = 1.0 / 48_000.0;
+    let n = 8192usize;
+    let bin_hz = 1.0 / (n as f64 * dt);
+    let mut scaled = vec![];
+
+    for &esp_us in &[400.0, 500.0, 800.0, 1000.0] {
+        let esp = esp_us * 1e-6;
+        let ramp = esp * 0.2;
+        let lobe = Lobe { amp: 0.020, ramp, flat: esp - 2.0 * ramp };
+        assert!(rel(lobe.duration(), esp) < 1e-12);
+
+        let w = readout_loop(lobe, true, dt, n);
+        let acc = second_derivative(&w, dt);
+        let sp = spectrum(&acc, dt);
+        let f0 = 1.0 / (2.0 * esp); // the current's own repetition rate
+
+        // 1. the energy lives on harmonics of f0
+        let (mut on, mut total) = (0.0f64, 0.0f64);
+        for (i, &v) in sp.iter().enumerate().skip(1) {
+            let f = i as f64 * bin_hz;
+            let h = f / f0;
+            let e = v * v;
+            total += e;
+            if (h - h.round()).abs() < 0.12 && h.round() >= 1.0 {
+                on += e;
+            }
+        }
+        assert!(
+            on / total > 0.9,
+            "esp={esp_us}µs: only {:.0}% of the acoustic energy is on the comb",
+            100.0 * on / total
+        );
+
+        // 2. the loudest line is one of those harmonics
+        let f = peak_frequency(&acc, dt);
+        let h = f / f0;
+        assert!(
+            (h - h.round()).abs() < 0.1 && h.round() >= 1.0,
+            "esp={esp_us}µs: peak {f:.0} Hz is harmonic {h:.2} of {f0:.0} Hz"
+        );
+        // …and it is audible, which is the entire complaint about MRI scanners
+        assert!(f > 300.0 && f < 8000.0, "esp={esp_us}µs: peak {f:.0} Hz");
+        scaled.push(f * esp);
+    }
+
+    // 3. the comb scales as 1/esp: f·esp is the same number every time, so
+    // halving the echo spacing raises the pitch by an octave.
+    let first = scaled[0];
+    for v in &scaled {
+        assert!(rel(*v, first) < 0.02, "f·esp should be constant: {scaled:?}");
+    }
+}
+
+/// The spectrum path itself, against the analytic Fourier series of a square
+/// wave: odd harmonics only, amplitude falling as 1/n.
+#[test]
+fn the_spectrum_reproduces_a_square_waves_harmonics() {
+    let dt = 1.0 / 8192.0;
+    let n = 8192;
+    let f0 = 64.0; // exactly 64 cycles in the window, so bins land dead on
+    let sq: Vec<f64> = (0..n)
+        .map(|i| if ((i as f64 * dt * f0).fract()) < 0.5 { 1.0 } else { -1.0 })
+        .collect();
+    let sp = spectrum(&sq, dt);
+    let bin = |h: f64| sp[(h * f0 * n as f64 * dt).round() as usize];
+    let fund = bin(1.0);
+    for h in [3.0, 5.0, 7.0, 9.0] {
+        assert!(
+            rel(bin(h) / fund, 1.0 / h) < 0.02,
+            "harmonic {h}: {} of the fundamental, want {}",
+            bin(h) / fund,
+            1.0 / h
+        );
+    }
+    for h in [2.0, 4.0, 6.0] {
+        assert!(bin(h) / fund < 1e-9, "even harmonic {h} should be absent");
+    }
+}
+
+/// Halving the ramp time doubles the slew rate and doubles the size of the kick
+/// the coil takes — the trade every gradient design is stuck with, and the
+/// reason a faster scanner is a louder one.
+#[test]
+fn a_faster_ramp_is_a_harder_kick() {
+    let dt = 1e-7;
+    let peak_kick = |ramp: f64| {
+        let lobe = Lobe { amp: 0.020, ramp, flat: 400e-6 };
+        let w = readout_loop(lobe, true, dt, 20_000);
+        second_derivative(&w, dt).iter().fold(0.0f64, |m, v| m.max(v.abs()))
+    };
+    let slow = peak_kick(400e-6);
+    let fast = peak_kick(200e-6);
+    assert!(rel(fast / slow, 2.0) < 0.05, "halving the ramp should double the kick: {slow} → {fast}");
+}
+
+/// Decibels, and the comparison the page is built to make: EPI at 110–120 dB
+/// against the 85 dB exposure limit is not "a bit louder".
+#[test]
+fn decibels_are_not_a_bit_louder() {
+    assert!(rel(spl_db(pressure_pa(85.0)), 85.0) < 1e-9);
+    assert!(rel(pressure_pa(0.0), 20e-6) < 1e-12);
+    // 110 dB is 316× the acoustic energy of 85 dB; 120 dB is 3160×.
+    assert!(rel(energy_ratio(110.0, 85.0), 316.227_766) < 1e-6);
+    assert!(rel(energy_ratio(120.0, 85.0), 3162.277_66) < 1e-6);
+    // …and ~18× the pressure amplitude at 110 dB.
+    assert!(rel(pressure_pa(110.0) / pressure_pa(85.0), 17.782_794) < 1e-6);
+}

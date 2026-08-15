@@ -470,3 +470,136 @@ impl TissueImager {
         out
     }
 }
+
+// ------------------------------------------------------ acoustics (part 4) --
+
+use crate::acoustics;
+
+/// Lorentz force on a gradient winding: `[N/m, kgf/m]`.
+#[wasm_bindgen]
+pub fn gradient_force(current_a: f64, b0_t: f64) -> Vec<f64> {
+    vec![
+        acoustics::force_per_metre(current_a, b0_t),
+        acoustics::force_as_kg_per_metre(current_a, b0_t),
+    ]
+}
+
+/// The gradient waveform of an EPI readout train, in mT/m, sampled at `dt`.
+#[wasm_bindgen]
+pub fn gradient_waveform(
+    amp_mt_per_m: f64,
+    ramp_us: f64,
+    flat_us: f64,
+    dt_us: f64,
+    n: usize,
+) -> Vec<f32> {
+    let lobe = acoustics::Lobe {
+        amp: amp_mt_per_m * 1e-3,
+        ramp: ramp_us * 1e-6,
+        flat: flat_us * 1e-6,
+    };
+    acoustics::readout_loop(lobe, true, dt_us * 1e-6, n)
+        .iter()
+        .map(|v| (v * 1e3) as f32)
+        .collect()
+}
+
+/// What the coil radiates: `d²G/dt²` put through one damped mechanical
+/// resonance, normalised to ±1 so it can be handed straight to Web Audio.
+///
+/// The timing is physics; the resonance is a model. See `acoustics.rs`.
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn acoustic_waveform(
+    amp_mt_per_m: f64,
+    ramp_us: f64,
+    flat_us: f64,
+    sample_rate: f64,
+    n: usize,
+    resonance_hz: f64,
+    q: f64,
+) -> Vec<f32> {
+    let dt = 1.0 / sample_rate;
+    let lobe = acoustics::Lobe {
+        amp: amp_mt_per_m * 1e-3,
+        ramp: ramp_us * 1e-6,
+        flat: flat_us * 1e-6,
+    };
+    let g = acoustics::readout_loop(lobe, true, dt, n);
+    let force = acoustics::second_derivative(&g, dt);
+    let a = acoustics::resonator(&force, dt, resonance_hz, q);
+    let peak = a.iter().fold(0.0f64, |m, v| m.max(v.abs())).max(1e-30);
+    a.iter().map(|v| (v / peak) as f32).collect()
+}
+
+/// Magnitude spectrum of the radiated sound, normalised to its own peak.
+/// Bin `i` is `i · sample_rate / n` hertz.
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn acoustic_spectrum(
+    amp_mt_per_m: f64,
+    ramp_us: f64,
+    flat_us: f64,
+    sample_rate: f64,
+    n: usize,
+    resonance_hz: f64,
+    q: f64,
+) -> Vec<f32> {
+    let dt = 1.0 / sample_rate;
+    let lobe = acoustics::Lobe {
+        amp: amp_mt_per_m * 1e-3,
+        ramp: ramp_us * 1e-6,
+        flat: flat_us * 1e-6,
+    };
+    let g = acoustics::readout_loop(lobe, true, dt, n);
+    let a = acoustics::resonator(&acoustics::second_derivative(&g, dt), dt, resonance_hz, q);
+    let sp = acoustics::spectrum(&a, dt);
+    let peak = sp.iter().fold(0.0f64, |m, &v| m.max(v)).max(1e-30);
+    sp.iter().map(|v| (v / peak) as f32).collect()
+}
+
+/// The loudest line in that spectrum, hertz.
+#[wasm_bindgen]
+pub fn acoustic_peak_hz(
+    amp_mt_per_m: f64,
+    ramp_us: f64,
+    flat_us: f64,
+    sample_rate: f64,
+    n: usize,
+    resonance_hz: f64,
+    q: f64,
+) -> f64 {
+    let dt = 1.0 / sample_rate;
+    let lobe = acoustics::Lobe {
+        amp: amp_mt_per_m * 1e-3,
+        ramp: ramp_us * 1e-6,
+        flat: flat_us * 1e-6,
+    };
+    let g = acoustics::readout_loop(lobe, true, dt, n);
+    let a = acoustics::resonator(&acoustics::second_derivative(&g, dt), dt, resonance_hz, q);
+    acoustics::peak_frequency(&a, dt)
+}
+
+/// Slew rate of a lobe, T/m/s.
+#[wasm_bindgen]
+pub fn slew_rate(amp_mt_per_m: f64, ramp_us: f64) -> f64 {
+    acoustics::Lobe { amp: amp_mt_per_m * 1e-3, ramp: ramp_us * 1e-6, flat: 0.0 }.slew()
+}
+
+/// k-space width one readout lobe traverses, in cycles per metre — the join to
+/// part two: `Δk_total = γ̄ · ∫G dt`.
+#[wasm_bindgen]
+pub fn lobe_k_extent(amp_mt_per_m: f64, ramp_us: f64, flat_us: f64) -> f64 {
+    let lobe = acoustics::Lobe {
+        amp: amp_mt_per_m * 1e-3,
+        ramp: ramp_us * 1e-6,
+        flat: flat_us * 1e-6,
+    };
+    physics::GAMMA_BAR * lobe.area()
+}
+
+/// How many times more acoustic energy `a` decibels is than `b`.
+#[wasm_bindgen]
+pub fn db_energy_ratio(a: f64, b: f64) -> f64 {
+    acoustics::energy_ratio(a, b)
+}
