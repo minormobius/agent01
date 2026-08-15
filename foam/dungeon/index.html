@@ -70,10 +70,34 @@
   #busy.on { display: flex; }
   #busy div { background: #070c12; border: 1px solid #1c2b31; border-radius: 10px; padding: 12px 22px; color: #7fd8d0; }
 
+  #sheetChev { display: none; }
+
+  /* mobile: the controls become a scrollable bottom sheet (tap GENERATOR to
+     open/close); the explorer becomes a sheet of its own above it */
   @media (max-width: 720px) {
-    #panel { width: 200px; }
-    #explorer { width: min(300px, calc(100vw - 20px)); }
-    .chiprow { max-width: 46vw; }
+    #title .dim { display: none; }
+    #panel { top: auto; left: 0; right: 0; bottom: 0; width: 100%; max-height: 38vh;
+      overflow-y: auto; -webkit-overflow-scrolling: touch; border-radius: 14px 14px 0 0;
+      border-bottom: none; padding: 0 16px calc(12px + env(safe-area-inset-bottom));
+      transition: transform .22s ease; z-index: 5; }
+    #panel.collapsed { transform: translateY(calc(100% - 46px)); overflow: hidden; }
+    #sheetHead { position: sticky; top: 0; margin: 0 -16px 8px; padding: 14px 16px 10px;
+      background: rgba(6,10,14,.97); cursor: pointer; user-select: none; z-index: 1; }
+    #sheetChev { display: inline-block; float: right; color: #7fd8d0;
+      transition: transform .22s ease; }
+    #panel.collapsed #sheetChev { transform: rotate(180deg); }
+    .row { margin: 10px 0; }
+    input[type=range] { width: 46vw; height: 26px; }
+    input[type=number] { padding: 8px; font-size: 14px; }
+    .seg button { padding: 8px 14px; }
+    .btn { padding: 11px; font-size: 13px; }
+    #explorer { left: 0; right: 0; bottom: 0; width: 100%; max-height: 48vh;
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+      border-radius: 14px 14px 0 0; border-bottom: none;
+      padding-bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 6; }
+    #doors { max-height: none; }
+    #doors button { padding: 9px 10px; font-size: 12px; }
+    .chiprow { bottom: calc(52px + env(safe-area-inset-bottom)); max-width: calc(100vw - 20px); }
   }
 </style>
 </head>
@@ -86,7 +110,7 @@
 </div>
 
 <div id="panel">
-  <h2>GENERATOR</h2>
+  <h2 id="sheetHead">GENERATOR<span id="sheetChev">⌄</span></h2>
   <div class="row"><label>seed</label><input id="seed" type="number" min="1" step="1" value="1"></div>
   <div class="row"><label>size</label>
     <span class="seg" id="sizeSeg"><button data-size="s">s</button><button data-size="m" class="on">m</button><button data-size="l">l</button><button data-size="xl">xl</button></span>
@@ -806,6 +830,12 @@ window.__dungeon = {
   exportUVTT: () => { const { canvas, ppg } = bakeMap(); return dungeonToUVTT(dungeon, { pixelsPerGrid: ppg, image: canvas.toDataURL('image/png').split(',')[1] }); },
   openPlan,
 };
+
+// ------------------------------------------------------- mobile sheet ------
+const isMobile = () => matchMedia('(max-width: 720px)').matches;
+$('sheetHead').onclick = () => { if (isMobile()) $('panel').classList.toggle('collapsed'); };
+if (isMobile()) $('panel').classList.add('collapsed');
+addEventListener('resize', () => { if (!isMobile()) $('panel').classList.remove('collapsed'); });
 
 // -------------------------------------------------------------- boot -------
 readHash(); syncUI(); regen(true);

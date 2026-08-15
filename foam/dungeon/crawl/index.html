@@ -47,9 +47,30 @@
   #endTurn:hover { border-color: #7fd8d0; }
   #doorbar button:disabled { opacity: .35; cursor: default; }
 
-  #note { position: fixed; left: 50%; bottom: 30vh; transform: translateX(-50%); background: rgba(6,10,14,.85); border: 1px solid #1c2b31; border-radius: 8px; padding: 6px 14px; color: #ffce78; opacity: 0; transition: opacity .25s; pointer-events: none; font-size: 13px; }
+  #note { position: fixed; left: 50%; bottom: 30vh; transform: translateX(-50%); background: rgba(6,10,14,.85); border: 1px solid #1c2b31; border-radius: 8px; padding: 6px 14px; color: #ffce78; opacity: 0; transition: opacity .25s; pointer-events: none; font-size: 13px; max-width: 86vw; text-align: center; }
   #hpline { margin-top: 3px; font-size: 12px; }
   #hpline b.hp { color: #ff9e6e; } #hpline b.gp { color: #ffdf9e; }
+
+  /* mobile: controls consolidate into a full-width bottom bar; minimap and
+     door buttons stack above it */
+  @media (max-width: 720px) {
+    #hud { max-width: 54vw; }
+    #hud .dim { font-size: 10px; }
+    #movebox { left: 0; right: 0; bottom: 0; width: 100%; border-radius: 14px 14px 0 0;
+      border-bottom: none; padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+      display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; z-index: 5; }
+    #movebox .mrow { flex: 1 1 100%; }
+    #movebox input[type=range] { width: 52vw; height: 26px; }
+    #moveLeft { margin: 0; flex: 1 1 auto; }
+    #endTurn { margin: 0; flex: 0 0 auto; width: auto; padding: 11px 18px; font-size: 13px; }
+    #mini { left: 10px; bottom: calc(104px + env(safe-area-inset-bottom));
+      width: 118px; height: 118px; }
+    #steps { right: 10px; bottom: calc(104px + env(safe-area-inset-bottom)); }
+    #doorbar { left: 50%; bottom: calc(150px + env(safe-area-inset-bottom)); max-width: 96vw; }
+    #doorbar button { padding: 11px 14px; font-size: 13px; }
+    #note { bottom: 38vh; }
+    #topright .chip { padding: 8px 12px; }
+  }
 
   .overlay { position: fixed; inset: 0; background: rgba(4,6,10,.88); display: none; align-items: center; justify-content: center; z-index: 10; }
   .overlay.on { display: flex; }
