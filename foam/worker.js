@@ -17,6 +17,15 @@ export default {
       });
     }
 
-    return env.ASSETS.fetch(request);
+    const res = await env.ASSETS.fetch(request);
+
+    // The kernel + dungeon modules are importable by other services
+    // (dungeon/FORMAT.md documents the contract) — serve them with CORS.
+    if (/\.(mjs|js|json)$/.test(url.pathname)) {
+      const open = new Response(res.body, res);
+      open.headers.set('access-control-allow-origin', '*');
+      return open;
+    }
+    return res;
   },
 };

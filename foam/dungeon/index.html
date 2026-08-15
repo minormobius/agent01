@@ -58,6 +58,14 @@
   #explorer .nav button:disabled { opacity: .35; cursor: default; }
   #xclose { position: absolute; top: 8px; right: 10px; background: none; border: none; color: #5f7a80; cursor: pointer; font: 14px ui-monospace, monospace; }
 
+  .xb { margin-top: 0 !important; flex: 1; padding: 6px 0 !important; }
+
+  /* top-down plan overlay */
+  #plan { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(4,6,10,.82); z-index: 15; }
+  #plan.open { display: flex; }
+  #planc { max-width: 94vw; max-height: 92vh; border: 1px solid #1c2b31; border-radius: 10px; background: #04060a; cursor: crosshair; }
+  #pclose { position: absolute; top: 14px; right: 18px; background: none; border: 1px solid #1c2b31; border-radius: 8px; color: #9fc9c4; padding: 6px 12px; cursor: pointer; font: 13px ui-monospace, monospace; }
+
   #busy { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(4,6,10,.55); z-index: 20; }
   #busy.on { display: flex; }
   #busy div { background: #070c12; border: 1px solid #1c2b31; border-radius: 10px; padding: 12px 22px; color: #7fd8d0; }
@@ -87,8 +95,17 @@
   <div class="row"><label>tile scale</label><input id="scale" type="range" min="0.15" max="0.8" step="0.05" value="0.35"><span class="val" id="scalev">0.35</span></div>
   <button class="btn" id="reroll">⚄ reroll seed</button>
   <button class="btn ghost" id="regen">regenerate</button>
+  <h2 style="margin-top:12px">EXPORT</h2>
+  <div class="row" style="gap:6px">
+    <button class="btn ghost xb" id="expJson" title="canonical foam-dungeon JSON">.json</button>
+    <button class="btn ghost xb" id="expVtt" title="Universal VTT (Foundry, Arkenforge, …)">.dd2vtt</button>
+    <button class="btn ghost xb" id="expPng" title="top-down map image">.png</button>
+  </div>
+  <div style="font-size:10px;color:#48606a;margin-top:4px"><a href="FORMAT.md" style="color:#5f8a90">format docs</a> — open formats, CORS-served modules</div>
   <div id="stats"></div>
 </div>
+
+<div id="plan"><canvas id="planc"></canvas><button id="pclose">✕</button></div>
 
 <div class="chiprow" id="legend"></div>
 
@@ -110,6 +127,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from '../vendor/OrbitControls.js';
 import { generateDungeon } from '../dungeon.mjs';
+import { dungeonToJSON, dungeonToUVTT, planBounds, roomOutlines } from '../dungeon-export.mjs';
 
 // ------------------------------------------------------------ palette ------
 const PATH_COLORS = ['#ff9e6e', '#9ff0e6', '#c8a5ff', '#ffd166', '#8fd3ff', '#ffa5c0'];
@@ -482,6 +500,7 @@ function buildLegend() {
   const t1 = mk('foam', show.foam ? 'on' : '', () => { show.foam = !show.foam; t1.classList.toggle('on'); applyToggles(); });
   const t2 = mk('rooms', show.wire ? 'on' : '', () => { show.wire = !show.wire; t2.classList.toggle('on'); applyToggles(); });
   const t3 = mk('paths', show.paths ? 'on' : '', () => { show.paths = !show.paths; t3.classList.toggle('on'); applyToggles(); });
+  mk('⊞ plan', '', openPlan);
   mk('<span class="sw" style="background:#b8ff9e"></span>entrance');
   mk('<span class="sw" style="background:#ffce78"></span>door');
   dungeon?.paths.forEach((p, i) =>
@@ -537,6 +556,139 @@ $('scale').onchange = () => regen(false);
 $('shGrid').onclick = () => { params.shape = 'grid'; syncUI(); regen(false); };
 $('shHex').onclick = () => { params.shape = 'hex'; syncUI(); regen(false); };
 
+// ------------------------------------------------------------ plan view ----
+// One top-down renderer serves three masters: the plan overlay, the exported
+// .png, and the image baked into the .dd2vtt (whose transform must match the
+// UVTT grid exactly — px per metre = pixelsPerGrid / tileSize).
+function drawPlan(ctx, wpx, hpx, k, ox, oz) {
+  const mx = (x) => (x - ox) * k, mz = (z) => (z - oz) * k;
+  ctx.fillStyle = '#04060a'; ctx.fillRect(0, 0, wpx, hpx);
+  const s = dungeon.tileSize;
+  let y0 = Infinity, y1 = -Infinity;
+  for (const r of dungeon.rooms) for (const t of r.tiles) { y0 = Math.min(y0, t.y); y1 = Math.max(y1, t.y); }
+  const tilePath = (t) => {
+    ctx.beginPath();
+    if (dungeon.tileShape === 'hex') {
+      const R = (s / Math.sqrt(3)) * k * 0.96;
+      for (let i = 0; i < 6; i++) {
+        const a = Math.PI / 180 * (60 * i - 30);
+        const px = mx(t.x) + R * Math.cos(a), pz = mz(t.z) + R * Math.sin(a);
+        i ? ctx.lineTo(px, pz) : ctx.moveTo(px, pz);
+      }
+    } else {
+      const hs = s * 0.48 * k;
+      ctx.rect(mx(t.x) - hs, mz(t.z) - hs, hs * 2, hs * 2);
+    }
+    ctx.closePath();
+  };
+  for (const r of dungeon.rooms) {
+    for (const t of r.tiles) {
+      const h = y1 - y0 > 1e-6 ? (t.y - y0) / (y1 - y0) : 0.5;
+      if (t.kind === 'door') ctx.fillStyle = '#ffce78';
+      else if (t.kind === 'entrance') ctx.fillStyle = '#b8ff9e';
+      else if (t.kind === 'goal') ctx.fillStyle = PATH_COLORS[r.endpointIndex % PATH_COLORS.length];
+      else ctx.fillStyle = 'hsl(190 40% ' + (16 + h * 28).toFixed(0) + '%)';
+      tilePath(t); ctx.fill();
+      ctx.strokeStyle = 'rgba(4,6,10,.65)'; ctx.lineWidth = Math.max(0.5, k * 0.02);
+      ctx.stroke();
+    }
+  }
+  // walls: the canonical outlines — what the UVTT's line_of_sight carries
+  ctx.strokeStyle = 'rgba(127,216,208,.85)'; ctx.lineWidth = Math.max(1, k * 0.07);
+  ctx.lineJoin = 'round';
+  for (const r of dungeon.rooms) {
+    for (const loop of (r._outlines ??= roomOutlines(dungeon, r))) {
+      ctx.beginPath();
+      loop.forEach(([x, z], i) => i ? ctx.lineTo(mx(x), mz(z)) : ctx.moveTo(mx(x), mz(z)));
+      ctx.stroke();
+    }
+  }
+  // paths, descending entrance → endpoints
+  dungeon.paths.forEach((p, pi) => {
+    ctx.strokeStyle = PATH_COLORS[pi % PATH_COLORS.length];
+    ctx.lineWidth = Math.max(1.2, k * 0.06); ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    const c0 = dungeon.roomOf.get(p.rooms[0]).centroid;
+    ctx.moveTo(mx(c0[0]), mz(c0[2]));
+    for (let i = 0; i < p.doors.length; i++) {
+      const at = p.doors[i].at, c = dungeon.roomOf.get(p.rooms[i + 1]).centroid;
+      ctx.lineTo(mx(at[0]), mz(at[2])); ctx.lineTo(mx(c[0]), mz(c[2]));
+    }
+    ctx.stroke(); ctx.globalAlpha = 1;
+  });
+  // entrance ring
+  const e = dungeon.roomOf.get(dungeon.entrance).centroid;
+  ctx.strokeStyle = '#b8ff9e'; ctx.lineWidth = Math.max(1.5, k * 0.08);
+  ctx.beginPath(); ctx.arc(mx(e[0]), mz(e[2]), Math.max(4, s * 0.5 * k), 0, Math.PI * 2); ctx.stroke();
+}
+
+const planEl = document.getElementById('plan');
+const planC = document.getElementById('planc');
+let planK = 1, planOx = 0, planOz = 0;
+function openPlan() {
+  if (!dungeon) return;
+  const b = planBounds(dungeon);
+  const fitW = Math.min(innerWidth * 0.94, 1400), fitH = Math.min(innerHeight * 0.92, 1400);
+  planK = Math.min(fitW / (b.x1 - b.x0), fitH / (b.z1 - b.z0));
+  planOx = b.x0; planOz = b.z0;
+  const dpr = Math.min(devicePixelRatio, 2);
+  planC.width = Math.round((b.x1 - b.x0) * planK * dpr);
+  planC.height = Math.round((b.z1 - b.z0) * planK * dpr);
+  planC.style.width = ((b.x1 - b.x0) * planK) + 'px';
+  const ctx = planC.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawPlan(ctx, planC.width / dpr, planC.height / dpr, planK, planOx, planOz);
+  planEl.classList.add('open');
+}
+document.getElementById('pclose').onclick = () => planEl.classList.remove('open');
+planEl.addEventListener('click', (e) => { if (e.target === planEl) planEl.classList.remove('open'); });
+planC.addEventListener('click', (e) => {
+  const r = planC.getBoundingClientRect();
+  const x = (e.clientX - r.left) / planK + planOx;
+  const z = (e.clientY - r.top) / planK + planOz;
+  let best = -1, bd = dungeon.tileSize * dungeon.tileSize;
+  for (const room of dungeon.rooms) for (const t of room.tiles) {
+    const d = (t.x - x) ** 2 + (t.z - z) ** 2;
+    if (d < bd) { bd = d; best = room.id; }
+  }
+  if (best >= 0) { planEl.classList.remove('open'); selectRoom(best); }
+});
+
+// ------------------------------------------------------------- exports -----
+function download(name, blob) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+const stamp = () => 'foam-dungeon-s' + params.seed + '-n' + params.n + '-' + params.shape + '-' + params.scale;
+
+// bake the plan at the UVTT's exact raster: map_size × pixels_per_grid
+function bakeMap() {
+  const b = planBounds(dungeon);
+  const t = dungeon.tileSize;
+  const gw = Math.ceil((b.x1 - b.x0) / t), gh = Math.ceil((b.z1 - b.z0) / t);
+  const ppg = Math.max(16, Math.min(64, Math.floor(4096 / Math.max(gw, gh))));
+  const c = document.createElement('canvas');
+  c.width = gw * ppg; c.height = gh * ppg;
+  drawPlan(c.getContext('2d'), c.width, c.height, ppg / t, b.x0, b.z0);
+  return { canvas: c, ppg };
+}
+
+document.getElementById('expJson').onclick = () => {
+  const j = JSON.stringify(dungeonToJSON(dungeon), null, 1);
+  download(stamp() + '.json', new Blob([j], { type: 'application/json' }));
+};
+document.getElementById('expVtt').onclick = () => {
+  const { canvas, ppg } = bakeMap();
+  const image = canvas.toDataURL('image/png').split(',')[1];
+  const u = dungeonToUVTT(dungeon, { pixelsPerGrid: ppg, image });
+  download(stamp() + '.dd2vtt', new Blob([JSON.stringify(u)], { type: 'application/json' }));
+};
+document.getElementById('expPng').onclick = () => {
+  bakeMap().canvas.toBlob((b) => download(stamp() + '.png', b), 'image/png');
+};
+
 // ------------------------------------------------------------- debug -------
 // load-bearing for the headless verification harness (the __foam pattern)
 window.__dungeon = {
@@ -545,6 +697,9 @@ window.__dungeon = {
   get params() { return { ...params }; },
   select: (id) => selectRoom(id),
   regen: (p) => { Object.assign(params, p || {}); syncUI(); regen(!!(p && 'seed' in p)); },
+  exportJSON: () => dungeonToJSON(dungeon),
+  exportUVTT: () => { const { canvas, ppg } = bakeMap(); return dungeonToUVTT(dungeon, { pixelsPerGrid: ppg, image: canvas.toDataURL('image/png').split(',')[1] }); },
+  openPlan,
 };
 
 // -------------------------------------------------------------- boot -------

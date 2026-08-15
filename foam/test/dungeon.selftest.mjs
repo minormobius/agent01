@@ -7,6 +7,7 @@
 // Run: node foam/test/dungeon.selftest.mjs
 
 import { generateDungeon, discretizeRoom } from '../dungeon.mjs';
+import { dungeonToJSON, dungeonToUVTT, roomOutlines, uniqueDoors, planBounds } from '../dungeon-export.mjs';
 import { pointInPolyXZ } from '../foamworld.js';
 
 let checks = 0, failures = 0;
@@ -122,6 +123,24 @@ for (const seed of SEEDS) {
   ok(rooms.some((r) => r.tiles.some((t) => t.kind === 'entrance')), 'entrance tile marked');
   ok(rooms.filter((r) => r.endpointIndex >= 0).length === endpoints.length, 'each endpoint owns a room');
 
+  // -- tile DENSITY: tiles must roughly fill the floor at every scale, in
+  //    both shapes — a room several tile-areas big may never collapse to the
+  //    single fallback tile (the hex q-band bug starved far-z rooms to 1)
+  for (const [shape, scale] of [['grid', 0.35], ['hex', 0.35], ['hex', 0.25]]) {
+    const dd = generateDungeon({ pocket, endpoints: 3, tileShape: shape, tileScale: scale });
+    const tArea = shape === 'hex'
+      ? (Math.sqrt(3) / 2) * dd.tileSize * dd.tileSize
+      : dd.tileSize * dd.tileSize;
+    let thin = 0, fallback = 0;
+    for (const r of dd.rooms) {
+      const expect = r.area / tArea;
+      if (expect >= 3 && r.tiles.length < expect * 0.4) thin++;
+      if (expect >= 3 && r.tiles.some((t) => t.key === 'c')) fallback++;
+    }
+    ok(fallback === 0, `${shape}@${scale}: no big room on the fallback tile (${fallback})`);
+    ok(thin === 0, `${shape}@${scale}: no big room under 40% tile coverage (${thin})`);
+  }
+
   // -- hex + a coarser scale, over the SAME pocket (the retile path the
   //    page's controls use — must not need regeneration)
   for (const [shape, scale] of [['hex', 0.35], ['grid', 0.7], ['hex', 0.2]]) {
@@ -138,6 +157,58 @@ for (const seed of SEEDS) {
       ok(r0.tiles.every((t) => t.key === 'c' || (Number.isInteger(t.q) && Number.isInteger(t.r))),
         'hex tiles carry axial coords');
     }
+  }
+
+  // -- EXPORT layer, both shapes: canonical JSON + UVTT
+  for (const shape of ['grid', 'hex']) {
+    const dd = generateDungeon({ pocket, endpoints: 3, tileShape: shape, tileScale: 0.35 });
+
+    // outlines: closed loops that enclose every tile centre of their room
+    for (const r of dd.rooms) {
+      const loops = roomOutlines(dd, r);
+      ok(loops.length >= 1, `${shape}: room ${r.id} has an outline`);
+      ok(loops.every((L) => L.length >= 4 &&
+        L[0][0] === L[L.length - 1][0] && L[0][1] === L[L.length - 1][1]),
+        `${shape}: room ${r.id} outlines closed`);
+      // point-in-polygon over the loop set: every tile centre inside an odd
+      // number of loops (outer boundary, possibly minus holes)
+      const inLoop = (L, x, z) => {
+        let inside = false;
+        for (let i = 0, j = L.length - 2; i < L.length - 1; j = i++) {
+          if ((L[i][1] > z) !== (L[j][1] > z) &&
+              x < ((L[j][0] - L[i][0]) * (z - L[i][1])) / (L[j][1] - L[i][1]) + L[i][0]) inside = !inside;
+        }
+        return inside;
+      };
+      ok(r.tiles.every((tl) => loops.filter((L) => inLoop(L, tl.x, tl.z)).length % 2 === 1),
+        `${shape}: room ${r.id} outline encloses its tiles`);
+    }
+
+    // canonical JSON: structure, determinism, JSON-round-trip
+    const J = dungeonToJSON(dd);
+    ok(J.format === 'foam-dungeon' && J.version === 1, `${shape}: canonical format header`);
+    ok(J.rooms.length === dd.rooms.length && J.paths.length === 3, `${shape}: canonical rooms/paths`);
+    ok(J.rooms.every((r) => r.outline.length >= 1 && r.tiles.length >= 1 &&
+      typeof r.tiles[0].y === 'number'), `${shape}: canonical rooms carry outline + tiles with heights`);
+    ok(J.doors.length === uniqueDoors(dd).length &&
+      J.doors.every((d) => d.rooms.length === 2), `${shape}: canonical doors unique, two-sided`);
+    const J2 = dungeonToJSON(generateDungeon({ pocket, endpoints: 3, tileShape: shape, tileScale: 0.35 }));
+    ok(JSON.stringify(J) === JSON.stringify(J2), `${shape}: canonical export deterministic`);
+    ok(JSON.parse(JSON.stringify(J)).rooms.length === J.rooms.length, `${shape}: canonical survives round-trip`);
+
+    // UVTT: geometry in grid units, everything inside the map window
+    const U = dungeonToUVTT(dd);
+    ok(U.format === 0.3 && U.resolution.pixels_per_grid === 64, `${shape}: uvtt header`);
+    const { x: gw, y: gh } = U.resolution.map_size;
+    ok(Number.isInteger(gw) && Number.isInteger(gh) && gw > 4 && gh > 4, `${shape}: uvtt map size sane`);
+    const inMap = (p) => p.x >= 0 && p.x <= gw && p.y >= 0 && p.y <= gh;
+    ok(U.line_of_sight.length >= dd.rooms.length, `${shape}: uvtt walls cover every room`);
+    ok(U.line_of_sight.every((w) => w.every(inMap)), `${shape}: uvtt walls inside the map`);
+    ok(U.portals.length === uniqueDoors(dd).length, `${shape}: uvtt one portal per door`);
+    ok(U.portals.every((p) => inMap(p.position) && p.bounds.length === 2 && p.bounds.every(inMap)),
+      `${shape}: uvtt portals inside the map`);
+    const b = planBounds(dd);
+    ok(b.x1 > b.x0 && b.z1 > b.z0, `${shape}: plan bounds sane`);
   }
 
   // -- one endpoint / five endpoints both roll

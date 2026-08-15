@@ -70,11 +70,16 @@ export function discretizeRoom(pocket, node, shape, tileSize) {
     return hit >= 0 ? { y, face: hit } : null;
   };
   if (shape === 'hex') {
-    // pointy-top axial; flat-to-flat width = tileSize ⇒ circumradius R
+    // pointy-top axial; flat-to-flat width = tileSize ⇒ circumradius R.
+    // x = √3·R·(q + r/2), so the q-band covering [minX,maxX] SHIFTS by −r/2
+    // per row — it must be computed per row, not once (a fixed band walks
+    // off the room as |r| grows, which starved far-z rooms down to the
+    // fallback tile).
     const R = tileSize / Math.sqrt(3);
-    const q0 = Math.floor(minX / (Math.sqrt(3) * R)) - 2, q1 = Math.ceil(maxX / (Math.sqrt(3) * R)) + 2;
     const r0 = Math.floor(minZ / (1.5 * R)) - 2, r1 = Math.ceil(maxZ / (1.5 * R)) + 2;
     for (let r = r0; r <= r1; r++) {
+      const q0 = Math.floor(minX / (Math.sqrt(3) * R) - r / 2) - 2;
+      const q1 = Math.ceil(maxX / (Math.sqrt(3) * R) - r / 2) + 2;
       for (let q = q0; q <= q1; q++) {
         const x = Math.sqrt(3) * R * (q + r / 2);
         const z = 1.5 * R * r;
