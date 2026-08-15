@@ -1535,6 +1535,15 @@
    "parent": null
   },
   {
+   "id": "stats",
+   "name": "stats",
+   "url": "https://mino.mobi/stats/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": null
+  },
+  {
    "id": "read",
    "name": "read",
    "url": "https://mino.mobi/read/",

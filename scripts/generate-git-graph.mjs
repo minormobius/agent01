@@ -7,7 +7,7 @@
 //     h: short hash (7 chars)
 //     p: parent short hashes (array)
 //     t: unix timestamp (seconds)
-//     a: author code — 'C' for Claude, 'H' for human
+//     a: actor — 'agent' | 'loop' | 'bot' | 'human' (lib/gitlog.mjs)
 //     d: top-level directories touched (array)
 //     r: refs at this commit (string, or null)
 //     m: is_merge (boolean)
@@ -30,7 +30,7 @@ import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const MAX_COMMITS = 800;
+const MAX_COMMITS = 2000;
 
 if (existsSync(join(REPO_ROOT, '.git', 'shallow')) && !process.argv.includes('--allow-shallow')) {
   const have = execSync('git rev-list --count HEAD', { cwd: REPO_ROOT }).toString().trim();
@@ -40,63 +40,33 @@ if (existsSync(join(REPO_ROOT, '.git', 'shallow')) && !process.argv.includes('--
   process.exit(1);
 }
 
-function sh(cmd) {
-  return execSync(cmd, { cwd: REPO_ROOT, maxBuffer: 64 * 1024 * 1024 }).toString();
-}
+import { readCommits } from './lib/gitlog.mjs';
 
-// Use a delimiter unlikely to appear in commit messages or names.
-const SEP = '\x1f';
-const FORMAT = ['%h', '%P', '%ct', '%ae', '%D'].join(SEP);
+// Newest N commits. The landing page draws these as a spiral, so this is a
+// payload budget, not a claim about the repo's size — at ~93 bytes a commit,
+// the whole 5,800-commit history would be a ~540 KB fetch on a landing page.
+// Full-history analysis lives in stats/ (scripts/build-git-stats.mjs), which
+// reads everything and ships pre-aggregated rollups instead.
 
-const raw = sh(`git log --all --max-count=${MAX_COMMITS} --format='${FORMAT}'`);
-const lines = raw.split('\n').filter(Boolean);
-
-// For each commit, find the directories its changes touched. Batching this
-// keeps `git show --stat` cost down vs. one call per commit.
-const HASHES = lines.map(l => l.split(SEP)[0]);
-
-function topDirsFor(hash) {
-  // --no-merges --no-renames keeps the file list clean. For merges we still
-  // want a 'd' value — fall back to whatever changed against the first parent.
-  let out;
-  try {
-    out = sh(`git show --no-merges --name-only --format= ${hash} 2>/dev/null || git show -m --first-parent --name-only --format= ${hash}`);
-  } catch {
-    return [];
-  }
-  const dirs = new Set();
-  for (const path of out.split('\n')) {
-    if (!path) continue;
-    const top = path.split('/')[0];
-    // Skip dotfiles + obvious non-surface dirs.
-    if (top.startsWith('.') || top === 'node_modules') continue;
-    dirs.add(top);
-  }
-  return Array.from(dirs).slice(0, 6);
-}
-
-const commits = lines.map(line => {
-  const [h, parents, t, email, refs] = line.split(SEP);
-  const author = email.includes('claude') ? 'C' : 'H';
-  const p = parents.trim() ? parents.trim().split(/\s+/).map(x => x.slice(0, 7)) : [];
-  const m = p.length > 1;
-  return {
-    h,
-    p,
-    t: parseInt(t, 10),
-    a: author,
-    d: topDirsFor(h),
-    r: refs.trim() || null,
-    m,
-  };
-});
+const commits = readCommits({ merges: true, max: MAX_COMMITS, cwd: REPO_ROOT }).map((c) => ({
+  h: c.h,
+  p: c.p,
+  t: c.t,
+  a: c.actor,           // agent | loop | bot | human — see lib/gitlog.mjs
+  d: c.dirs.filter((d) => !d.startsWith('.')).slice(0, 6),
+  r: c.refs,
+  m: c.merge,
+}));
 
 const json = JSON.stringify(commits);
 
 if (process.argv.includes('--write')) {
   const outPath = resolve(REPO_ROOT, 'git-graph.json');
   writeFileSync(outPath, json);
+  const by = {};
+  for (const c of commits) by[c.a] = (by[c.a] || 0) + 1;
   process.stderr.write(`Wrote ${commits.length} commits to ${outPath}\n`);
+  process.stderr.write(`  ${Object.entries(by).map(([k, v]) => `${k}:${v}`).join('  ')}\n`);
 } else {
   process.stdout.write(json);
 }

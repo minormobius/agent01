@@ -124,6 +124,8 @@ Generated — never edit by hand; `preflight --fix` rebuilds them all:
 | `spec/data.js` | `build-spec.mjs --write` |
 | workflow `branches:` triggers | `gen-deploy-triggers.mjs --write` |
 | `og.png` / `og.svg` | `generate-og-card.mjs` |
+| `git-graph.json` | `generate-git-graph.mjs --write` — **needs a full clone** |
+| `stats/data.json` | `build-git-stats.mjs --write` — **needs a full clone** |
 | missing `<dir>/CLAUDE.md` | `gen-surface-docs.mjs --write` |
 
 Hand-edited: **`catalogue.json`**; `index.html`'s curated `<li>` descriptions;
@@ -168,6 +170,25 @@ An endpoint that is neither listed nor declared fails preflight, and so does a
 rule that matches nothing. `pending` rules are deliberately explicit paths
 rather than globs, so a *new* sub-site trips the gate instead of being silently
 absorbed.
+
+### History analytics
+
+`/stats` reports on the repo itself — commits per day, the year grid, the
+time-of-day rhythm, and which surfaces got the work. Two things to know before
+touching it:
+
+- **Both history artefacts need a full clone.** This sandbox is shallow, so
+  `generate-git-graph.mjs` and `build-git-stats.mjs` both refuse to run rather
+  than publish a truncated history as if it were the whole thing. Run
+  `git fetch --unshallow` first. Preflight *skips* the stats check on a shallow
+  clone; CI checks out at `fetch-depth: 0` and is authoritative.
+- **A commit is not a prompt.** It is one committed turn — a floor on prompts.
+  A *session* (the `Claude-Session` commit trailer) is one conversation; the
+  median here is 7 commits. And only `actor: agent` commits had a person behind
+  them: the loop and the bots commit on a schedule, and folding them into
+  "prompts per day" would roughly triple the number and mean nothing. The actor
+  taxonomy lives in [`scripts/lib/gitlog.mjs`](scripts/lib/gitlog.mjs) — add new
+  bot identities there, or they get counted as human.
 
 The root worker serves `assets.directory: "."` — **the whole repo root is
 internet-facing.** Generators write through `scripts/lib/landing.mjs`, which

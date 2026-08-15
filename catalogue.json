@@ -30,7 +30,7 @@
       "label": "tools"
     },
     {
-      "before": 197,
+      "before": 198,
       "label": "games"
     }
   ],
@@ -1795,6 +1795,16 @@
       "a": "hot",
       "t": "2026-07-16",
       "b": "2026-07-16",
+      "surface": "root"
+    },
+    {
+      "n": "stats",
+      "u": "https://mino.mobi/stats/",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-08-15",
+      "b": "2026-08-15",
       "surface": "root"
     },
     {

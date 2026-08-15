@@ -151,6 +151,23 @@ console.log('\nregistration completeness');
     unkeyed.length ? `no surface key: ${unkeyed.join(', ')}` : '');
 }
 
+// ------------------------------------------------- 3a. history analytics ----
+// stats/data.json is derived from the FULL git history, so it can only be
+// checked where the full history is present. CI checks out fetch-depth: 0 and
+// is authoritative; agent sandboxes are shallow clones, where re-deriving it
+// would compare against a truncated history and fail for the wrong reason.
+// So: skip loudly rather than fail.
+console.log('\nhistory analytics');
+{
+  if (existsSync(join(ROOT, '.git', 'shallow'))) {
+    record('stats/data.json is current', true, 'skipped — shallow clone, needs `git fetch --unshallow`');
+  } else {
+    let r = run('build-git-stats.mjs', ['--check']);
+    if (!r.ok && fix) { run('build-git-stats.mjs', ['--write']); r = run('build-git-stats.mjs', ['--check']); }
+    record('stats/data.json is current', r.ok, r.ok ? lastLine(r.out) : lastLine(r.out));
+  }
+}
+
 // -------------------------------------------- 3b. every endpoint is decided --
 // The root worker serves the whole repo, so every directory with an index.html
 // is a live URL. This asserts each one is either in the catalogue or explicitly

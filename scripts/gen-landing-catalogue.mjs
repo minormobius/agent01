@@ -113,17 +113,31 @@ if (REDACT.test(emitted)) {
   process.exit(1);
 }
 
-// --- guard 2: the rewrite must be semantically identical -------------------
+// --- guard 2: the emitted literal must round-trip to the catalogue ---------
+// The invariant is FAITHFULNESS, not stability: `var P` is allowed to change
+// whenever catalogue.json does — that is the whole point — but what lands in
+// the page must parse back to exactly what the catalogue says. That is what
+// catches an emission bug (a bad escape, a dropped field, a mangled quote)
+// before it reaches a live page.
+//
+// (During the migration this compared against the PREVIOUS var P instead,
+// which proved the lift changed nothing. Kept as a one-off, it would have
+// made every future catalogue edit unpublishable.)
 const afterP = parseP(after);
-const norm = (P) => JSON.stringify(P.map((p) => EMIT.filter((k) => p[k] !== undefined).map((k) => [k, p[k]])));
-if (norm(beforeP) !== norm(afterP)) {
-  console.error('REFUSING: regenerated var P differs semantically from the current one.');
-  console.error(`  before: ${beforeP.length} entries, after: ${afterP.length} entries`);
-  for (let i = 0; i < Math.max(beforeP.length, afterP.length); i++) {
-    const a = JSON.stringify(beforeP[i]), b = JSON.stringify(afterP[i]);
-    if (a !== b) { console.error(`  first difference at index ${i}:\n    was: ${a}\n    now: ${b}`); break; }
+const norm = (rows) => JSON.stringify(rows.map((p) => EMIT.filter((k) => p[k] !== undefined).map((k) => [k, p[k]])));
+if (norm(cat.entries) !== norm(afterP)) {
+  console.error('REFUSING: the emitted var P does not round-trip to catalogue.json.');
+  console.error(`  catalogue: ${cat.entries.length} entries, emitted: ${afterP.length} entries`);
+  for (let i = 0; i < Math.max(cat.entries.length, afterP.length); i++) {
+    const a = norm([cat.entries[i] || {}]), b = norm([afterP[i] || {}]);
+    if (a !== b) { console.error(`  first difference at index ${i}:\n    catalogue: ${a}\n    emitted:   ${b}`); break; }
   }
   process.exit(1);
+}
+// Report what the rewrite actually changes, so a surprising diff is visible
+// rather than silent.
+if (norm(beforeP) !== norm(afterP)) {
+  console.log(`catalogue changed: ${beforeP.length} -> ${afterP.length} entries`);
 }
 
 if (after === before) {
@@ -139,4 +153,4 @@ if (!write) {
 
 writeFileSync(INDEX, after);
 console.log(`rewrote index.html var P from catalogue.json: ${cat.entries.length} entries`);
-console.log('verified: parsed catalogue is identical before and after (formatting only)');
+console.log('verified: the emitted literal round-trips to catalogue.json');
