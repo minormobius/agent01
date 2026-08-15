@@ -426,6 +426,236 @@ named hard part left for next time" over a shakier full attempt — no
 confirmation yet that this scoping choice specifically landed well, but
 worth watching for a follow-up react to it.
 
+## `that-2`/Sixfold (2026-08-04), turn 2: an honest "we didn't attempt the hard part" gets pushed back on, not accepted as final
+Turn 1 named the paper's real solver (hyperbolic homotopy continuation) as
+the hard, unattempted part and shipped closed-form solids instead. The
+follow-up was two words: "Real solving, go for it baby" — a direct request
+to actually attempt the named-hard-part, not just an acknowledgement of the
+honest scoping. Durable, and it refines the `rootcut`/turn-1-Sixfold pattern
+below: this requester's tolerance for "here's turn one, here's the honestly
+unattempted hard part" is real but **not indefinite** — when the hard part
+is the actual interesting claim of a pitch (here: the paper's whole point),
+expect a follow-up asking for real progress on it specifically, and when it
+comes, attempt genuine work on a *scoped* version of the hard problem (here:
+a real numerical solver, applied to one hand-verified test case, with its
+own error/confidence reported) rather than either refusing again or faking
+it outright. Showing the method's own uncertainty (a printed convergence
+error) rather than asserting exactness satisfies "go for it" without
+overclaiming — this requester has not objected to honest-but-approximate
+results elsewhere (see `chladni-sim`'s JS-not-Rust substitution), only to
+work that visibly wasn't attempted at all.
+
+## `that-2`/Sixfold (2026-08-04): "build that" pattern extends to a geometry/topology paper pitch
+A fourth "build that"-shaped reply to a factory-posted concept advert
+(after `concourse`, `yes-that`/stallpoint — physics — and `rootcut` —
+graph theory), this time a paper about "neoplatonic solids" (6-nets:
+triangulated spheres with vertex degree ≤6, each folding uniquely into a
+rigid unit-triangle solid). Confirms the pattern generalizes across
+physics, graph theory, and now solid geometry/topology — any well-pitched
+math/geometry concept advert seems to land with this requester regardless
+of subfield. No back-and-forth in this exchange to draw a design
+preference from. Scoped turn one to the checkable half (a degree-cap mesh
+editor with live constraint feedback, plus a gallery of closed-form convex
+deltahedra) and explicitly did not attempt the paper's actual numerical
+solver (hyperbolic homotopy continuation) in one pass — consistent with
+this requester's established tolerance for an honest "here's turn one,
+here's the named hard part" (see `rootcut`) over a shakier full attempt.
+Also deviated from one literal line in the advert itself (a cross-visitor
+shared "growing gallery," which has no backend to build on here) and said
+so plainly in BRIEF.md rather than silently building a shared version that
+would violate the kit's no-shared-backend-for-strangers'-content rule.
+
+## `that-2`/Sixfold (2026-08-04), turn 3: spots when a claimed convergence metric doesn't actually prove correctness
+"Looks like a squished up overlapping tetrahedron, how do you know you've
+solved it?" — turn 2 had shipped a solved shape whose only printed evidence
+was edge-length error, and this requester noticed (from the render, not the
+number) that low edge error doesn't rule out a degenerate/self-overlapping
+embedding. Same close-reading instinct as the `arch-brainstorm` "why would a
+wall be too steep" and `take-escher` "still not infinite" catches (this
+requester tracks whether a claimed proof/metric actually covers the failure
+mode it's being used to rule out), but here aimed at a numerical solver's
+own evidence rather than a UI/labeling mismatch. Durable: **when shipping a
+convergence/error number as evidence a computed result is "right," check
+whether it can be near-perfect while the result is still visibly wrong, and
+if so, add a second independent check rather than just the one number** —
+for a shape/embedding solver specifically, edge-length error alone never
+rules out folding/self-intersection, since attractive-only forces have no
+term discouraging non-adjacent points from converging to the same location.
+Same message also paired a bug report with a new feature ask ("how do we
+unlock the solve for my drawn meshes") — this requester frequently bundles a
+correction and a forward request in one terse line; treat both as live asks
+in the same turn rather than picking one.
+
+## `diffuse` (2026-08-05): "build that" pattern extends to an economics/optimization paper pitch
+A fifth "build that"-shaped reply to a factory-posted concept advert (after
+`concourse`, `yes-that`/stallpoint — physics — `rootcut` — graph theory — and
+`that-2`/Sixfold — solid geometry), this time an auction-theory/optimization
+paper (autobidding equilibrium hardness vanishing in the nonatomic/"diffuse"
+population limit, with a proven-linear-convergence solver). Confirms the
+pattern generalizes across essentially any well-pitched math/CS-theory
+concept, not just physics or geometry. No back-and-forth in this exchange to
+draw a design preference from. Scoped turn one to the checkable, honestly-a-
+heuristic half (a standard multiplicative pacing simulation with a population
+slider and a live log-scale convergence plot) and explicitly did not attempt
+the paper's actual named hard part (a monotone-GNE solver with a real
+convergence proof) in one pass — consistent with the established tolerance
+for an honest "here's turn one, here's the named hard part" (see `rootcut`,
+`that-2`/Sixfold turn 1), and per that same requester's later turn on
+Sixfold, expect a possible terse follow-up asking to actually attempt the
+named hard part if this thread continues. Also deviated from one line of the
+advert itself (it named `packages/dataviz` and `workers/scores` for the chart
+and leaderboard; built a small bespoke inline SVG chart instead — auditing
+and vendoring the ~1400-line dataviz files felt riskier under a fixed 20-
+minute budget than a self-contained function — and used `lab/_kit/pds.js`'s
+score collection instead of `workers/scores`, since the lab worker's CSP
+`connect-src` cannot reach `scores.mino.mobi` at all) and said so plainly in
+BRIEF.md rather than silently substituting.
+
+## `honeyflow-chess` (2026-08-07): wants simulations solved and verified, not eyeballed — and will ask for the tooling to make that possible
+Earlier in this same thread: "you can't cheat the flow it's gotta be solved not guessed" (about a physics coupling). This turn's follow-up, after seeing the shipped result: "build a headless play tester and tune defaults... maybe more dramatic streamlines these are pretty wimpy" — a direct ask for verification tooling (a script that measures the actual effect), not just a request to change numbers by feel. Consistent with the `that-2`/Sixfold "how do you know you've solved it?" catch and the general close-reading pattern (see `arch-brainstorm`, `take-escher` entries) — this requester distrusts a plausible-looking result until it's actually measured. Durable: for any future site involving a solver/simulation where a constant is being tuned "by feel" because there's no browser to test in, consider building (or at least stubbing) a small headless/Node-runnable harness alongside the reasoning-based tuning, even without being asked explicitly — it's the kind of artifact this requester will value and may ask for again on a different simulation-heavy site.
+
+## `honeyflow-chess` (2026-08-07), turn 3: a physical-scale hint is a literal modeling instruction, and "not at all" means check reach before retuning strength
+Follow-up after the tuning turn above: "my pieces aren't moving their
+neighbors at all... the physics will work better if you think of them like
+1um scale pieces" — this requester again gave a concrete physical framing
+(micron scale → low Reynolds number → viscosity-dominated, long-range flow)
+rather than a vague "make it stronger," same instinct as the `arch-
+brainstorm` viewpoint/steepness entries where a physical/geometric word was
+meant literally, not as a vibe. Worth checking the actual mechanism before
+just raising a magnitude constant again: here the previous turn's fix
+(`DRAG` up) couldn't have worked regardless of its value, because the
+injection only ever wrote into a single grid cell and a neighbouring square
+depended on slow multi-frame diffusion to receive any of it — "not at all"
+was a structurally accurate bug report, not underselling a "weak" effect.
+Durable: when this requester reports an effect isn't happening **at all**
+(vs. "could be stronger"), check whether the mechanism can geometrically
+reach the claimed case before retuning a strength constant — and when they
+name a physical scale or regime (micron-scale, low-Re, etc.), treat it as an
+instruction about which physics applies (here: wide/direct coupling instead
+of local/diffusive), not flavour text.
+
+## `porefront` (2026-08-09): "build that" pattern extends to a porous-media/percolation physics paper
+A sixth "build that"-shaped reply to a factory-posted concept advert (after
+`concourse`, `yes-that`/stallpoint — physics — `rootcut` — graph theory —
+`that-2`/Sixfold — solid geometry — and `diffuse` — auction theory), this
+time pressure-controlled drainage reframed as bond percolation with
+trapping. No back-and-forth to draw a design preference from. Scoped turn
+one exactly to the advert's own "turn one" line (single fixed 2D grid,
+pressure slider, invasion animation, trapped-fraction readout) and, per the
+`that-2`/Sixfold-turn-3 lesson that this requester pushes back on an
+honestly-unattempted hard part, implemented the actual trapping algorithm
+(Wilkinson–Willemsen: BFS-verified reachability-to-drain before each
+invasion, not a static per-pressure threshold cut, which would silently
+give zero residual saturation) rather than a cosmetic animation standing in
+for it — the hard part named in the advert was attempted for real this
+time, not deferred. Deferred instead: the crowd/shared-scatter half (needs
+`pds.js` writes and a real chart), left as a named next step in BRIEF.md.
+
+## `porefront` (2026-08-09), turn 2: a terse follow-up can redirect past the prior turn's own named "next step," and "another view + a toggle" is a recognizable ask shape
+Turn 1's BRIEF named the crowd scatter plot as the planned next step. The
+actual follow-up — "Give us another view of the field, a graph of those
+throats, and a toggle to swap between them" — asked for something else
+entirely (alternate renders of the same single-run data plus a chart of the
+edge/throat population, switchable in place) and took priority over the
+BRIEF's own plan, per the house rule that the live request beats a written
+plan. Durable: don't assume a terse follow-up is asking to continue the
+previous turn's stated "what's next" section — read it fresh against what it
+actually says, even when a plan is sitting right there in BRIEF.md looking
+like the obvious continuation. Also worth noting as a taste signal: "another
+view... and a toggle to swap between them" is a shape this requester reaches
+for on data-heavy sites — multiple honest ways to look at the same
+underlying data, switched in place rather than requiring new pages or losing
+the current run's state.
+
+## `site-3`/Superelastic (2026-08-10): "build that" pattern extends to active-matter physics
+A seventh "build that"-shaped reply to a factory-posted concept advert (after
+`concourse`, `yes-that`/stallpoint, `rootcut`, `that-2`/Sixfold, `diffuse`,
+`porefront`) — this time a motility-induced-phase-separation paper reframed
+as super-elastic collisions among non-motile buzzing particles. No
+back-and-forth to draw a preference from. Consistent with `diffuse` and
+`porefront`: deviated from the advert's own suggested reuse (`g/`'s WebGPU
+shelf — a different origin, not actually importable into a `lab/www/`
+tenant) and built plain canvas2D physics instead, said so in BRIEF.md rather
+than silently substituting. Scoped turn one exactly to the advert's own
+named turn-one line (two dials, canvas, live quiet/buzzing readout) and left
+crystallization + the recipe leaderboard as the next named steps, per this
+requester's established tolerance for an honest scoped turn one over a
+shakier full attempt.
+
+## `porefront` (2026-08-11), turn 3: "take gravity into consideration" means feed the solver, not relabel the picture — confirms the pattern across sites
+Follow-up: "pin the invading fluid as water, the retreating fluid as air. Let's
+fill from below and take gravity into consideration. I'd like to turn this
+into a model of filling granular media." Same instinct as the
+`honeyflow-chess`/`arch-brainstorm` entries above (a physical-scale or
+physical-mechanism word is a literal modeling instruction), but this is the
+first confirmation it generalizes to a *different* site/thread, not just
+repeated asks within one conversation. Read "take gravity into consideration"
+as: gravity must change which pore/cell gets processed next inside the actual
+solver (here, an added height-weighted term in invasion percolation's
+threshold-selection, which reorders the whole simulation), not just a cosmetic
+top/bottom relabel or a decorative arrow. Durable: on any simulation site,
+when a follow-up names a physical force/effect by its real name (gravity,
+viscosity, pressure, diffusion), treat it as a request to route that quantity
+through wherever the model actually makes decisions, and change the UI/labels
+to match only as a consequence of that, not as a substitute for it.
+
+## `monopath` (2026-08-11): "build that" pattern extends to a combinatorics/graph-colouring paper pitch
+An eighth "build that"-shaped reply to a factory-posted concept advert (after
+`concourse`, `yes-that`/stallpoint, `rootcut`, `that-2`/Sixfold, `diffuse`,
+`porefront`, `site-4`/Superelastic), this time a Gyárfás-conjecture disproof
+(monochromatic vertex-disjoint path covers). No back-and-forth to draw a
+design preference from. Followed the `diffuse`/`porefront` precedent of
+deviating from one line of the advert itself — the advert's "leaderboard of
+best partition counts for a shared hard colouring" isn't buildable as a true
+global leaderboard against this kit's `pds.js` (no global scoreboard query,
+only per-named-handle lookups) — and shipped `localStorage`-only best-score
+tracking on the one fixed/seeded instance, deferring the real friend-compare
+leaderboard (`kit.handleInput` + `store.scoresOf`) to BRIEF.md as the named
+next step, consistent with this requester's tolerance for an honest scoped
+turn one over a shakier full attempt.
+
+## `sketch-out` (2026-08-11): a "pitch deck" request wants an argument plus one live, checkable proof, not prose alone
+Asked to "sketch out a pitch deck of agentic atproto, where's the value
+captured and why is it the users" from a thread of others riffing (ATProto
+as free infra, small single-purpose products, a joke about portable-data
+DMs) — no direct back-and-forth to draw a correction from yet. Built a
+short numbered-slide argument page, but per the `arch-brainstorm` pattern
+("build a small working proof of the hardest/most load-bearing piece, not
+only a written breakdown"), added one live demo backing the deck's actual
+claim: type a handle, watch it really resolve to its DID and its real PDS
+host via `plc.directory`, off both this domain and bsky.app. Worth
+defaulting to for future argument/essay/"pitch"-shaped requests from this
+requester: find the one claim the piece is actually resting on and make it
+independently checkable on the page itself, not just asserted in prose.
+Also continued the deliberate-rectilinear-as-contrast move from
+`daily-digital`'s "no rectilinear by default" rule: used a literal walled
+box for the "old, locked-in" model specifically to contrast against open
+rings for the "portable" model, i.e. breaking the no-rectilinear default is
+fine when the rectilinear shape is itself making the argument (a wall),
+not just the easy layout.
+
+## `site-4`/Fixed Orbit (2026-08-13): "build that" pattern extends to a control-theory paper pitch
+A ninth "build that"-shaped reply to a factory-posted concept advert (after
+`concourse`, `yes-that`/stallpoint, `rootcut`, `that-2`/Sixfold, `diffuse`,
+`porefront`, `site-3`/Superelastic, `monopath`), this time minimum-time
+control of Kuramoto oscillators into sync under a power budget. No
+back-and-forth to draw a design preference from. Scoped turn one exactly to
+the advert's own line (N slider, greedy control only, big time-to-sync
+number) and gave the advert's named "hard part" — making greedy's
+suboptimality legible without dynamic programming — the most build effort:
+overlaid the order-parameter path at three power budgets on the same random
+starting phases so the "one fixed curve regardless of power" claim is
+directly checkable on screen, not just asserted in copy. Deviated from one
+line of the advert itself (it named `g`'s canvas-simulation pattern as
+reuse; no `g/` directory exists in this repo, checked directly rather than
+assumed) and said so in BRIEF.md. Deferred the leaderboard for a structural
+reason worth remembering generally: **a "claimed record is a seed plus a
+control law, re-simulatable" leaderboard needs a seedable PRNG**, and this
+codebase's canvas sims default to bare `Math.random()` — a future turn
+wiring up `pds.js` scores for a re-simulation-verified leaderboard on *any*
+site needs to swap in a seeded PRNG first, or claimed scores are
+unverifiable by construction.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build

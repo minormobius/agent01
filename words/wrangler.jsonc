@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "words",
+  "main": "worker.js",
+  "compatibility_date": "2026-03-21",
+  // words.mino.mobi — the word game. Worker + static assets + the shared
+  // atpolls-db (migration 0035_words.sql), like human/reef/rite.
+  //
+  // GOLDEN RULE (../docs/DEPLOYS.md §4): `name` must be the worker that owns
+  // the live custom domain, and the domain must be declared below — otherwise
+  // wrangler updates a stray words.workers.dev and the deploy goes green while
+  // the site never changes. words.mino.mobi did not resolve before this
+  // surface existed, so the first deploy creates the worker AND attaches the
+  // domain (mino.mobi is a zone on this account — the same thing happened for
+  // `neuro`, no dashboard step needed). Confirm the run logs
+  // `words.mino.mobi (custom domain)` all the same.
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "atpolls-db",
+      "database_id": "fee2f25a-8b4a-4d46-b245-9d5da93c117d"
+    }
+  ],
+  "routes": [
+    { "pattern": "words.mino.mobi", "custom_domain": true }
+  ]
+}

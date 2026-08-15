@@ -38,7 +38,14 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # 22, not 20, and for the same reason deploy-words.yml gives: the
+          # words worker selftest runs against `node:sqlite`, which landed in
+          # Node 22.5. That test deliberately fails loudly rather than skipping
+          # when the module is missing, so on Node 20 it took the whole
+          # preflight down — CI red on every PR while the sandbox, on 22, was
+          # green. This is the sweep that runs every surface's selftests, so it
+          # needs the highest runtime any of them require, not the lowest.
+          node-version: '22'
 
       # preflight checks that generated files are CURRENT — it must not be
       # allowed to fix them here, or CI would pass on a tree the repo doesn't

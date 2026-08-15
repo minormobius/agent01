@@ -1,0 +1,402 @@
+name: Loop review (promote what is ready, and only that)
+
+# THE SEAT THAT CLOSES THE LOOP, and therefore the dangerous one.
+#
+#   tick halts starved WITH PROPOSALS ──writes .github/loop/review/request.json──▶ THIS
+#   THIS promotes what meets the DoR ──touches .github/loop/wake──▶ tick ──▶ work
+#
+# Every other seat can only add to a pile. This one turns a pile into work the
+# fleet will actually spend money on, with no human in the path. That is the
+# loop being closed, which is the whole programme — and it is exactly why the
+# constraints below are structural rather than instructions.
+#
+# WHAT BOUNDS IT:
+#
+#  1. ONE SEAT. config.seats.roles.review.max is 1. The rate at which this
+#     system can feed itself is the rate at which one reviewer works. Raising
+#     that number past 1 is the single most dangerous edit in this repository:
+#     it is the difference between a loop with gain 1 and a loop with gain > 1.
+#  2. IT DOES NOT PROMOTE — the CLI does. The agent writes a recommendation;
+#     the step below runs `beads promote` per id, and that command enforces the
+#     Definition of Ready including the gate-file-must-exist check. So a
+#     reviewer that hallucinates a ready bead produces a failed promotion and a
+#     log line, not a dispatch.
+#  3. IT REVIEWS ONLY WHAT IT DID NOT WRITE. Asserted below against the bead's
+#     actor. A planner reviewing its own proposals is not review.
+#  4. IT CANNOT WRITE CODE. Read/Glob/Grep and one Write, to its verdict file.
+
+on:
+  push:
+    branches: ['claude/loop-graph-ticketing-surface-7qxu7c']
+    paths:
+      - '.github/loop/review/**'
+  workflow_dispatch:
+
+concurrency:
+  group: loop-review
+  cancel-in-progress: false
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, 'merge candidate')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Same self-terminating guard as loop-plan: this workflow's own commit
+      # deletes the request, and a deletion under a path is a change to it.
+      - name: Is the loop enabled, is a review seat open, and was one requested?
+        id: enabled
+        run: |
+          ENABLED=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).enabled===true)")
+          SEATS=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).seats?.roles?.review?.max ?? 0)")
+          GO=false
+          if [ "$ENABLED" = "true" ] && [ "$SEATS" != "0" ]; then
+            if [ -f .github/loop/review/request.json ]; then GO=true
+            elif [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then GO=true
+            else echo "::notice::No review request on disk — this is the reviewer's own commit echoing back."
+            fi
+          fi
+          # ONE SEAT, ASSERTED. The comment above says why; this makes it true
+          # even if someone edits the config without reading it.
+          if [ "$SEATS" -gt 1 ]; then
+            echo "::error::review.max is $SEATS. This seat is capped at 1 BY DESIGN — it is the"
+            echo "::error::gain control (LOOP-WBS §3.3). More than one reviewer promoting in"
+            echo "::error::parallel is a loop with gain > 1. Refusing to run."
+            exit 1
+          fi
+          echo "go=$GO" >> "$GITHUB_OUTPUT"
+
+      - name: The ledger is a valid graph
+        if: steps.enabled.outputs.go == 'true'
+        run: node scripts/beads.mjs lint
+
+      - name: Compose the review brief
+        id: brief
+        if: steps.enabled.outputs.go == 'true'
+        run: |
+          # THE BRIEF GOES TO A FILE, NOT TO A STEP OUTPUT.
+          #
+          # It used to be written to $GITHUB_OUTPUT and read back through the
+          # env: block, which puts the whole brief in the child process's
+          # ENVIRONMENT. The kernel caps argv+env together, and the brief
+          # carries vision.md verbatim plus the ticket, the memory and the
+          # protocol — so it grew until exec failed outright:
+          #
+          #   An error occurred trying to start process '/usr/bin/bash' …
+          #   Argument list too long
+          #
+          # The failure is silent in the only way that matters. `Run the agent`
+          # is continue-on-error, so the step goes GREEN in zero seconds, the
+          # agent never runs, no outbox is written, and the turn is recorded as
+          # a real turn that produced nothing. Turns 34 and 35 were spent that
+          # way. Nothing was red; the run just stopped producing.
+          #
+          # A file has no such limit, and the agent reads it on stdin exactly as
+          # before. Editing vision.md can no longer break the loop by length.
+          {
+            echo "You are the REVIEWER for an instrumented agent loop. You write no code and"
+            echo "you fix no tickets. You decide which PROPOSALS are ready for an unattended"
+            echo "agent to take, and your approval is the last thing between a proposal and"
+            echo "real money being spent on it. There is no human after you."
+            echo
+            echo "Approving a bad ticket is far worse than rejecting a good one. A rejected"
+            echo "good ticket comes back next round with your reason attached. An approved"
+            echo "bad one spends a turn, produces something plausible, and lands on a public"
+            echo "site."
+            echo
+            echo "=== WHAT THE OPERATOR SAYS MATTERS RIGHT NOW ==="
+            echo "This outranks everything else in this brief. A proposal that is technically"
+            echo "well-formed but points away from this should be REJECTED, and saying so is"
+            echo "the most valuable thing you do."
+            echo
+            cat .github/loop/vision.md
+            echo
+            echo "=== WHAT THE LOOP ALREADY KNOWS ==="
+            node --input-type=module -e "
+              import {readFileSync} from 'node:fs';
+              import {parseLedger} from './scripts/lib/beads.mjs';
+              const {beads}=parseLedger(readFileSync('.github/loop/beads.jsonl','utf8'));
+              for (const b of beads.filter(x=>['finding','dead-end'].includes(x.kind)))
+                console.log(b.kind.toUpperCase()+': '+b.title);
+              for (const b of beads.filter(x=>x.kind==='decision'&&x.tags.includes('answer')))
+                console.log('OPERATOR ANSWERED: '+b.title+'\n  '+b.body.replace(/\n/g,'\n  '));
+            "
+            echo
+            echo "=== GATES THAT EXIST TODAY ==="
+            ls -1 foam/test/*.mjs plant/test/*.mjs scripts/*.selftest.mjs 2>/dev/null | sed 's/^/  /'
+            echo
+            echo "=== THE PROPOSALS ON YOUR DESK ==="
+            node --input-type=module -e "
+              import {readFileSync} from 'node:fs';
+              import {parseLedger} from './scripts/lib/beads.mjs';
+              const {beads}=parseLedger(readFileSync('.github/loop/beads.jsonl','utf8'));
+              const KNOW=new Set(['finding','dead-end','question','decision']);
+              for (const b of beads.filter(x=>x.status==='proposed'&&!KNOW.has(x.kind)&&!x.tags.includes('rejected-by-review')))
+                console.log('─── '+b.id+'  by '+b.actor+'  ['+(b.tags.find(t=>/^class-/.test(t))||'NO CLASS')+']\n'
+                  +'    '+b.title+'\n    gate: '+(b.gate.length?b.gate.join(' && '):'NONE')
+                  +'\n    '+b.body.replace(/\n/g,'\n    ')+'\n');
+            "
+            echo
+            echo "=== THE DEFINITION OF READY — all six, and you check them ==="
+            echo " R1 ONE TURN. 30 minutes of agent time with room to spare."
+            echo " R2 NAMES ITS GATE. Two legitimate shapes, and telling them apart is"
+            echo "    most of your job:"
+            echo "      class-a         — the gate EXISTS today. Check the list above."
+            echo "      creates-gate    — the gate does NOT exist and the turn will build"
+            echo "                        it. Held to more, not less: the file must appear,"
+            echo "                        pass, and break nothing else."
+            echo "    A class-a bead naming a gate nobody has written is neither, and"
+            echo "    promotion will refuse it — catch it here and say which shape it wants."
+            echo
+            echo "    BIAS TOWARD creates-gate WORK WHEN THE VISION ASKS FOR SOMETHING NEW."
+            echo "    Only gated work reaches the fleet, so a reviewer who only ever approves"
+            echo "    the already-gateable steers this loop into polishing forever. That has"
+            echo "    already happened once: five turns, a beautiful explainer, no game."
+            echo " R3 BOUNDED PATHS, all under plant/."
+            echo " R4 INDEPENDENT of its siblings."
+            echo " R5 CARRIES ITS MEMORY — references the findings that bear on it."
+            echo " R6 REVERSIBLE."
+            echo
+            echo "=== HOW TO REPORT ==="
+            echo "Write EXACTLY ONE file: .github/loop/review/verdict.json"
+            echo
+            echo '{'
+            echo '  "approve": [{ "id": "lp-xxxxxx", "why": "which DoR criteria it meets, and why it serves the vision" }],'
+            echo '  "reject":  [{ "id": "lp-yyyyyy", "why": "the specific criterion it fails, and what would fix it" }],'
+            echo '  "note": "one paragraph on the state of the backlog as a whole"'
+            echo '}'
+            echo
+            echo "RULES ENFORCED, NOT REQUESTED:"
+            echo " - You may not approve a bead you authored. Checked against the actor."
+            echo " - You do not promote. The workflow runs \`beads promote\` for each id you"
+            echo "   approve, and that command re-checks the DoR — including that the gate"
+            echo "   file exists. If you approve something unready it fails there, visibly."
+            echo " - APPROVE AT MOST 3. You are the throttle. If five look good, take the"
+            echo "   three that most move the vision and say so in the note; the rest keep."
+            echo " - An empty approve list is a legitimate and sometimes correct answer."
+            echo "   Say why in the note. The loop will staff a planner instead."
+            echo " - Reject freely. A rejection is cheap and carries your reason forward."
+          } > /tmp/brief.txt
+          echo "brief bytes: $(wc -c < /tmp/brief.txt)"
+
+      - name: The tree is clean before the agent touches it
+        if: steps.enabled.outputs.go == 'true'
+        run: |
+          DIRTY=$(git status --porcelain)
+          if [ -n "$DIRTY" ]; then
+            echo "::error::The workflow dirtied the tree before the reviewer ran."
+            printf '%s\n' "$DIRTY"; exit 1
+          fi
+
+      - name: Install Claude Code
+        if: steps.enabled.outputs.go == 'true'
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run the reviewer
+        id: agent
+        if: steps.enabled.outputs.go == 'true'
+        continue-on-error: true
+        timeout-minutes: 15
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set +e
+          set -uo pipefail
+          claude -p < /tmp/brief.txt \
+            --model claude-opus-5 \
+            --max-turns 30 \
+            --max-budget-usd 2 \
+            --permission-mode acceptEdits \
+            --allowedTools "Read" "Glob" "Grep" "Write" \
+            --disallowedTools "Bash" "WebFetch" "WebSearch" "Task" "Edit" "NotebookEdit" \
+            --output-format stream-json --verbose | tee /tmp/reviewer.jsonl
+          echo "agent_exit=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Containment gate
+        id: gate
+        if: steps.enabled.outputs.go == 'true'
+        run: |
+          OUT=$(git status --porcelain | awk '{print $NF}' | grep -Ev '^\.github/loop/review/' || true)
+          if [ -n "$OUT" ]; then
+            echo "::error::The reviewer wrote outside its verdict file:"; printf '%s\n' "$OUT"
+            git checkout -- . && git clean -fd
+            echo "gate=failed" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "gate=passed" >> "$GITHUB_OUTPUT"
+
+      # ── THE PRIVILEGED ACT, and it runs through the same CLI a human uses ───
+      # The reviewer recommends; `beads promote` decides. That command enforces
+      # the DoR and refuses a class-A bead whose gate file does not exist, so an
+      # over-eager reviewer costs a red line in this log rather than a turn.
+      - name: Promote what the reviewer approved
+        id: promote
+        if: steps.gate.outputs.gate == 'passed'
+        env:
+          LOOP_ACTOR: reviewer
+        run: |
+          # EXPORTED, not just assigned. A plain shell assignment is invisible
+          # to the node processes below, and the rejection recorder reads it
+          # from the environment rather than interpolating it into a -e string.
+          export V=.github/loop/review/verdict.json
+          [ -f "$V" ] || { echo "::warning::The reviewer wrote no verdict."; echo "promoted=0" >> "$GITHUB_OUTPUT"; exit 0; }
+          node -e "JSON.parse(require('fs').readFileSync('$V','utf8'))" \
+            || { echo "::error::verdict.json is not valid JSON"; echo "promoted=0" >> "$GITHUB_OUTPUT"; exit 0; }
+
+          # SELF-APPROVAL IS REFUSED HERE, not asked for in the prompt. A seat
+          # that can approve its own output is not a review seat.
+          node --input-type=module -e "
+            import {readFileSync} from 'node:fs';
+            import {parseLedger} from './scripts/lib/beads.mjs';
+            const v=JSON.parse(readFileSync('$V','utf8'));
+            const {beads}=parseLedger(readFileSync('.github/loop/beads.jsonl','utf8'));
+            const ids=(v.approve??[]).map(a=>a.id).slice(0,3);
+            const out=[];
+            for (const id of ids) {
+              const b=beads.find(x=>x.id===id);
+              if (!b) { console.error('  skip '+id+' — no such bead'); continue; }
+              if (b.actor==='reviewer') { console.error('  REFUSED '+id+' — authored by the reviewer'); continue; }
+              if (b.status!=='proposed') { console.error('  skip '+id+' — status is '+b.status); continue; }
+              out.push(id);
+            }
+            console.log(out.join(' '));
+          " > /tmp/approved.txt 2>/tmp/approve-notes.txt
+          cat /tmp/approve-notes.txt || true
+          APPROVED=$(cat /tmp/approved.txt)
+
+          N=0
+          for id in $APPROVED; do
+            if node scripts/beads.mjs promote "$id"; then
+              N=$((N+1))
+            else
+              echo "::warning::promote refused $id — the DoR check caught what review did not"
+            fi
+          done
+
+          # Rejections are recorded so the next planner sees them and the next
+          # reviewer does not re-litigate. A tag, not a drop: the proposal is
+          # still there and a human can overrule.
+          #
+          # THE REASON IS THE POINT, and it was being thrown away. This step used
+          # to apply the tag and discard `r.why` — while the brief above tells
+          # the reviewer, in these words, "a rejection is cheap and carries your
+          # reason forward". It did not. Seventy-two proposals were killed with
+          # no recorded cause, among them lp-574eb2, which is gate 6 — the
+          # vision's own priority 2 — with a brief that names its gate file and
+          # three things that gate must prove.
+          #
+          # The cost compounds in both directions. `rejected-by-review` is
+          # PERMANENT: loop-tick and the reviewer's own candidate list both
+          # filter it out forever, so a rejection is a death sentence. And the
+          # next planner, seeing a dead bead with no reason, cannot avoid the
+          # mistake and proposes the same thing again. A reviewer told its
+          # reasons are preserved rejects freely; that is correct behaviour on a
+          # false premise.
+          #
+          # Written to `evidence` because that field APPENDS — a body edit would
+          # overwrite the brief being judged, which is the one thing a later
+          # reader needs to see next to the reason.
+          # execFileSync, NOT execSync, and this is load-bearing rather than
+          # stylistic. `r.why` is MODEL-GENERATED PROSE about a codebase, and
+          # execSync runs a shell: a reason containing $(…), a backtick or a
+          # bare $VAR is interpreted before beads.mjs ever sees it. Quoting the
+          # argument does not save you — JSON.stringify yields a DOUBLE-quoted
+          # shell string, inside which command substitution still fires. Tested,
+          # not assumed: a reason containing $(whoami) came back with `root`
+          # substituted into the evidence.
+          #
+          # beads.mjs already carries this lesson at bodyArg() — a finding about
+          # `git pull --rebase && git push` executed the backticks and ran the
+          # pull. Same class, same file, one layer up. execFileSync takes an
+          # argv array and spawns no shell, so nothing in the string is special.
+          node --input-type=module -e "
+            import {readFileSync} from 'node:fs';
+            import {execFileSync} from 'node:child_process';
+            const v=JSON.parse(readFileSync(process.env.V,'utf8'));
+            for (const r of (v.reject??[])) {
+              if (!r?.id) continue;
+              const why = String(r.why ?? '').replace(/\s+/g,' ').trim().slice(0, 400);
+              // No reason given is itself worth recording: it is the reviewer
+              // failing its own brief, and silence is what made this invisible.
+              const note = why ? 'rejected: ' + why
+                : 'rejected with NO REASON GIVEN — reviewer did not follow its brief';
+              try {
+                execFileSync('node', ['scripts/beads.mjs', 'set', r.id,
+                  '--tag', 'rejected-by-review', '--evidence', note], {stdio:'inherit'});
+              } catch (e) { console.log('could not record rejection for '+r.id+': '+e.message); }
+            }
+          " || true
+
+          echo "promoted=$N" >> "$GITHUB_OUTPUT"
+          echo "### Review" >> "$GITHUB_STEP_SUMMARY"
+          echo "- promoted: $N" >> "$GITHUB_STEP_SUMMARY"
+          node -e "const v=require('./$V'); console.log(v.note??'')" >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Commit, and wake the reactor
+        if: steps.gate.outputs.gate == 'passed'
+        env:
+          GH_TOKEN: ${{ secrets.OS_AGENT_GITHUB_TOKEN }}
+        run: |
+          [ -n "$GH_TOKEN" ] || { echo "::error::OS_AGENT_GITHUB_TOKEN is not set."; exit 1; }
+          git config user.name  "loop-reviewer"
+          git config user.email "loop@users.noreply.github.com"
+          rm -rf .github/loop/review
+
+          # THE WAKE FILE. A promotion changes the ready queue and nothing else
+          # would tell the reactor. loop-tick watches this path; touching it is
+          # how a seat says "the world changed, look again". Without it the loop
+          # promotes work and then sits on it until a human pushes something,
+          # which is the closed loop failing open at the last inch.
+          # ALWAYS WAKE, INCLUDING WHEN NOTHING WAS PROMOTED. This was
+          # conditional on promoted != 0 and that stopped the loop dead: a
+          # review that approves nothing is a LEGITIMATE outcome — the brief
+          # says so explicitly — but with no wake, no tick ran, and the chain
+          # ended in silence at a point where every component had behaved
+          # correctly. Reviewed, rejected, halted, and nothing red anywhere.
+          #
+          # A zero-promote review is not "nothing happened". It has tagged its
+          # rejections, so the next tick sees a SMALLER pending pile and will
+          # staff a planner once the pile is empty. That is the loop continuing
+          # by a different route, and it only happens if the tick is told to
+          # look. The wake is how a seat says "the world changed" — and a
+          # backlog that just got judged has changed.
+          date -u +%Y-%m-%dT%H:%M:%SZ > .github/loop/wake
+
+          STAGE=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).writes.map(w=>w.replace(/\/\*\*$/,'')).join(' '))")
+          for p in $STAGE; do if [ -e "$p" ]; then git add "$p"; fi; done
+          git add -A .github/loop/review 2>/dev/null || true
+          git diff --cached --quiet && { echo "nothing to commit"; exit 0; }
+          git commit -m "loop: review promoted ${{ steps.promote.outputs.promoted }} proposal(s)"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          for attempt in 1 2 3 4; do
+            # REDO, DO NOT RESOLVE (LOOP-SPRINTS.md). loop/data/graph.json is
+            # DERIVED, so two writers regenerate it from different ledger states
+            # and it conflicts on essentially every concurrent push. A bare
+            # `pull --rebase` halts there, and then all four retries fail
+            # identically — the backoff just makes the loss slower.
+            #
+            # This is what stalled the five-hour run twice: a seat did real
+            # work, applied it, and lost the push to a conflict in a file that
+            # is not a source of truth. Regenerating IS the resolution; merging
+            # a generated file is never right.
+            if ! git pull --rebase origin "${GITHUB_REF_NAME}"; then
+              if [ -n "$(git diff --name-only --diff-filter=U)" ]; then
+                node scripts/gen-loop-data.mjs --write || true
+                git add -A
+                GIT_EDITOR=true git rebase --continue || git rebase --abort || true
+              else
+                git rebase --abort 2>/dev/null || true
+              fi
+            fi
+            git push origin HEAD:"${GITHUB_REF_NAME}" && exit 0
+            echo "push failed, retry $attempt"; sleep $((2 ** attempt))
+          done
+          echo "::error::could not push the review"; exit 1

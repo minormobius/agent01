@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>INPAC — the inside line</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#05060c}
+body{font-family:'Courier New',ui-monospace,Menlo,monospace;color:#ffb300}
+#game{display:block;width:100%;height:100%;image-rendering:pixelated;cursor:crosshair}
+#map{position:fixed;right:14px;bottom:14px;z-index:5;image-rendering:auto;
+  background:rgba(6,8,14,0.85);border:1px solid rgba(255,176,0,0.30);border-radius:3px}
+.panel{position:fixed;z-index:6;background:rgba(7,10,17,0.74);border:1px solid rgba(255,176,0,0.22);
+  border-radius:3px;padding:8px 12px;pointer-events:none;user-select:none}
+#race-panel{top:14px;left:14px;min-width:236px}
+#race-panel .lbl{font-size:10px;letter-spacing:2px;color:#8a7a4a;margin-bottom:4px}
+#lap-line{display:flex;align-items:baseline;gap:8px}
+#lap-num{font-size:30px;font-weight:bold;text-shadow:0 0 10px rgba(255,176,0,0.5)}
+#lap-total{font-size:14px;color:#8a7a4a}
+#lap-timer{font-size:40px;line-height:1;font-weight:bold;margin:4px 0 2px;
+  font-variant-numeric:tabular-nums;text-shadow:0 0 12px rgba(255,176,0,0.55)}
+#delta{font-size:16px;font-weight:bold;font-variant-numeric:tabular-nums}
+#delta.ahead{color:#3ee6b0;text-shadow:0 0 8px rgba(62,230,176,0.5)}
+#delta.behind{color:#ff5a4e;text-shadow:0 0 8px rgba(255,90,78,0.5)}
+.split{display:flex;justify-content:space-between;font-size:12px;color:#b8a878;margin-top:2px;
+  font-variant-numeric:tabular-nums}
+.split b{color:#e8c86a;font-weight:bold}
+.split .best{color:#fff0a8}
+#gates{display:flex;gap:5px;margin-top:7px;align-items:center}
+#gates .g{width:18px;height:6px;background:rgba(255,255,255,0.10);border-radius:1px}
+#gates .g.on{background:#ffb300;box-shadow:0 0 6px rgba(255,176,0,0.8)}
+#gates .g.miss{background:#ff5a4e;box-shadow:0 0 6px rgba(255,90,78,0.9)}
+#gates .gl{font-size:10px;color:#8a7a4a;letter-spacing:1px;margin-right:4px}
+#progress{position:fixed;top:0;left:0;height:3px;z-index:6;background:rgba(255,176,0,0.85);
+  box-shadow:0 0 8px rgba(255,176,0,0.7);pointer-events:none}
+#speed-panel{top:14px;right:14px;text-align:right;min-width:150px}
+#speed-val{font-size:34px;font-weight:bold;font-variant-numeric:tabular-nums;
+  text-shadow:0 0 10px rgba(255,176,0,0.45)}
+#speed-lbl{font-size:10px;letter-spacing:2px;color:#8a7a4a}
+#nitro-bar{width:100%;height:7px;background:rgba(255,255,255,0.08);border-radius:2px;margin-top:6px;overflow:hidden}
+#nitro-fill{height:100%;width:0%;background:linear-gradient(90deg,#3ee6ff,#3ee6b0);
+  box-shadow:0 0 8px rgba(62,230,255,0.7)}
+#status{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:6;font-size:12px;letter-spacing:2px;color:#8a7a4a;
+  text-shadow:0 0 6px #000;pointer-events:none;background:rgba(7,10,17,0.5);padding:3px 10px;border-radius:2px}
+#flash{position:fixed;top:34%;left:0;right:0;text-align:center;z-index:8;pointer-events:none;
+  font-size:34px;font-weight:bold;letter-spacing:4px;opacity:0;transition:opacity .25s}
+#flash.ok{color:#3ee6b0;text-shadow:0 0 18px rgba(62,230,176,0.8)}
+#flash.bad{color:#ff5a4e;text-shadow:0 0 18px rgba(255,90,78,0.9)}
+#flash.go{color:#fff0a8;text-shadow:0 0 22px rgba(255,176,0,0.9)}
+#hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:5;color:#8a7a4a;
+  font-size:11px;letter-spacing:1px;text-align:center;pointer-events:none;transition:opacity 1.2s;
+  text-shadow:0 1px 3px #000}
+#hint b{color:#c9a84a;font-weight:bold}
+#start-screen{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;background:radial-gradient(ellipse at 50% 40%,rgba(20,24,42,0.96),rgba(3,4,9,0.99));
+  color:#ffb300}
+#start-screen h1{font-size:92px;letter-spacing:10px;text-shadow:0 0 34px rgba(255,176,0,0.55)}
+#start-screen .sub{font-size:16px;letter-spacing:5px;color:#e8c86a;margin-top:-6px}
+#start-screen .pitch{max-width:560px;margin-top:26px;font-size:13px;line-height:1.7;color:#b8a878;text-align:center}
+#start-screen .pitch b{color:#e8c86a}
+#start-screen .keys{margin-top:18px;font-size:12px;color:#8a7a4a;letter-spacing:1px}
+#start-screen .keys b{color:#c9a84a}
+#start-screen button{font-family:inherit;font-size:22px;font-weight:bold;letter-spacing:4px;
+  padding:13px 52px;margin-top:30px;background:#ffb300;color:#0a0c14;border:none;border-radius:2px;
+  cursor:pointer;box-shadow:0 0 22px rgba(255,176,0,0.55)}
+#start-screen button:hover{background:#ffc63d}
+#results{position:fixed;inset:0;z-index:20;display:none;flex-direction:column;align-items:center;
+  justify-content:center;background:rgba(3,4,9,0.92)}
+#results h2{font-size:52px;letter-spacing:8px;text-shadow:0 0 28px rgba(255,176,0,0.5)}
+#results .lines{margin-top:22px;font-size:16px;line-height:2.2;color:#b8a878;font-variant-numeric:tabular-nums}
+#results .lines b{color:#fff0a8}
+#results .again{margin-top:26px;font-size:14px;letter-spacing:2px;color:#8a7a4a}
+#results button{font-family:inherit;font-size:18px;font-weight:bold;letter-spacing:3px;
+  padding:10px 40px;margin-top:16px;background:#ffb300;color:#0a0c14;border:none;border-radius:2px;
+  cursor:pointer}
+#results button:hover{background:#ffc63d}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="progress"></div>
+<div id="race-panel" class="panel">
+  <div class="lbl">LAP</div>
+  <div id="lap-line"><span id="lap-num">1</span><span id="lap-total">/ 3</span></div>
+  <div id="lap-timer">0:00.000</div>
+  <div id="delta" class="ahead">+0.000</div>
+  <div class="split"><span>LAST</span><b id="last-time">--:--.---</b></div>
+  <div class="split"><span>BEST</span><b id="best-time" class="best">--:--.---</b></div>
+  <div id="gates"><span class="gl">GATES</span><span class="g" data-g="0"></span><span class="g" data-g="1"></span><span class="g" data-g="2"></span><span class="g" data-g="3"></span><span class="g" data-g="4"></span><span class="g" data-g="5"></span></div>
+</div>
+<div id="speed-panel" class="panel">
+  <div id="speed-val">0</div>
+  <div id="speed-lbl">KM/H</div>
+  <div id="nitro-bar"><div id="nitro-fill"></div></div>
+</div>
+<div id="status">WAITING FOR FIRST LAP</div>
+<canvas id="map" width="170" height="170"></canvas>
+<div id="flash"></div>
+<div id="hint"><b>STEER</b> A/D or mouse &nbsp;·&nbsp; <b>BOOST</b> Shift/W &nbsp;·&nbsp; <b>BRAKE</b> S &nbsp;·&nbsp; <b>HOP</b> Space &nbsp;·&nbsp; click to capture the mouse</div>
+<div id="start-screen">
+  <h1>INPAC</h1>
+  <div class="sub">THE INSIDE LINE</div>
+  <div class="pitch">
+    You race the inside wall of a torus. The track is a ribbon that threads the tube —
+    one lap winds all the way around the ring <i>and</i> all the way around the doughnut,
+    so the whole course loops above your head as you drive. Chase the gold pace ghost, then
+    beat your own best lap. <b>Three laps. Best line wins.</b>
+  </div>
+  <div class="keys"><b>STEER</b> A/D or mouse &nbsp;·&nbsp; <b>BOOST</b> Shift/W &nbsp;·&nbsp; <b>BRAKE</b> S &nbsp;·&nbsp; <b>HOP</b> Space</div>
+  <button id="start-btn">START RACE</button>
+</div>
+<div id="results">
+  <h2>RACE COMPLETE</h2>
+  <div class="lines" id="results-lines"></div>
+  <div class="again">press R or click below</div>
+  <button id="again-btn">RACE AGAIN</button>
+</div>
+<script type="module">
+'use strict';
+// field.mjs is the interior gravity. Chromium blocks ES-module imports under
+// file:// (CORS, origin 'null'), which is exactly how the capture harness loads
+// the page — so load it dynamically and fall back to the identical inline copy
+// when the browser forbids the fetch. Served over http(s) the page uses the
+// real module; under file:// it uses the same function, and field.mjs remains
+// the authoritative module for the scorer.
+let FIELD;
+try {
+  FIELD = (await import('./field.mjs')).field;
+} catch (err) {
+  FIELD = function inlineField(R, Z, geom = {}) {
+    const R0 = geom.R ?? 8.0;
+    const dR = R - R0, d = Math.hypot(dR, Z);
+    if (d < 1e-9) return { gR: 9.8, gZ: 0 };
+    const k = 9.8 / d;
+    return { gR: dR * k, gZ: Z * k };
+  };
+}
+
+// =====================================================================
+// Torus + course
+// =====================================================================
+const TAU = Math.PI * 2;
+const TORUS_R = 8.0, TORUS_r = 3.0;
+const EYE = 0.52;                 // eye height above the wall
+const LAPS = 3;
+const BAND = 0.40;                // half-width of the racing ribbon (radians of v)
+const RUMBLE = 0.11;              // thickness of the edge rumble strips
+const GATE_WIN = 0.38;            // gate window half-width (radians of v)
+const GOLD_LAP = 8.2;             // seconds — the pace ghost's lap
+const BOOST_US = [TAU * 0.26, TAU * 0.60, TAU * 0.82];
+
+const GATE_US = [TAU/7, 2*TAU/7, 3*TAU/7, 4*TAU/7, 5*TAU/7, 6*TAU/7];
+
+const vLine = (uu) => uu;         // the (1,1) helix: v = u (+ phase 0)
+
+function angDiff(a, b) {
+  let d = (a - b) % TAU;
+  if (d >  Math.PI) d -= TAU;
+  if (d < -Math.PI) d += TAU;
+  return d;
+}
+const clamp = (x, a, b) => x < a ? a : x > b ? b : x;
+
+// Surface point / basis helpers. Player stands on the tube wall at (u, v);
+// "up" points inward, toward the tube centreline (gravity pulls the other way).
+function surfPoint(uu, vv) {
+  const r = TORUS_R + TORUS_r * Math.cos(vv);
+  return [r * Math.cos(uu), TORUS_r * Math.sin(vv), r * Math.sin(uu)];
+}
+function eyePoint(uu, vv) {
+  const r = TORUS_R + (TORUS_r - EYE) * Math.cos(vv);
+  return [r * Math.cos(uu), (TORUS_r - EYE) * Math.sin(vv), r * Math.sin(uu)];
+}
+// orthonormal basis at (u, v): eu along the ring, ev along the tube, n outward
+function basisAt(uu, vv) {
+  const cu = Math.cos(uu), su = Math.sin(uu);
+  const cv = Math.cos(vv), sv = Math.sin(vv);
+  const eu = [-su, 0, cu];
+  const ev = [-sv * cu, cv, -sv * su];
+  const n  = [ cv * cu, sv,  cv * su];
+  return { eu, ev, n };
+}
+
+// =====================================================================
+// Driving parameters
+// =====================================================================
+const TOP_SPEED = 7.5;
+const NITRO_SPEED = 11.2;
+const ACCEL = 9.0;
+const BRAKE = 17.0;
+const STEER = 2.7;
+const OFF_TOP = 4.1;
+const NITRO_MAX = 1.0;
+const NITRO_GAIN_GATE = 0.34;
+const NITRO_REGEN = 0.05;
+const NITRO_BURN = 0.34;
+const HOP = 4.0;
+
+// =====================================================================
+// State
+// =====================================================================
+let u = 0, v = 0, heading = 0, speed = 0;
+let pitch = 0, roll = 0, rollTarget = 0;
+let airborne = false, csR = 0, csZ = 0, csVR = 0, csVZ = 0, airU = 0;
+let lap = 1, lapStartU = 0, lapStartT = 0, gateIdx = 0;
+let raceTime = 0, bestMs = null, lastLapMs = null, totalMs = 0;
+let lapSplits = [];
+let running = false, raceOver = false;
+let nitro = NITRO_MAX, lastInputAt = -99, autoPilotOn = false;
+let boosting = false, boostAlpha = 0;
+let lastGateFlash = -9e9, gateFlashOk = false;
+
+// ghost
+let curSamples = [], sampleAcc = 0;
+let bestSamples = null, bestGold = null;
+const GOLD_DT = 0.05;
+const fmtTime = (ms) => {
+  if (ms == null) return '--:--.---';
+  const m = Math.floor(ms / 60000), s = Math.floor((ms % 60000) / 1000), d = ms % 1000;
+  return `${m}:${String(s).padStart(2, '0')}.${String(Math.floor(d)).padStart(3, '0')}`;
+};
+const fmtDelta = (s) => `${s < 0 ? '' : '+'}${s.toFixed(3)}`;
+
+function buildGoldGhost() {
+  const n = Math.ceil(GOLD_LAP * 1000 / (GOLD_DT * 1000)) + 2;
+  const g = [];
+  for (let i = 0; i < n; i++) {
+    const t = i * GOLD_DT * 1000;   // ms, matching recorded laps
+    const gu = (t / (GOLD_LAP * 1000)) * TAU;
+    g.push({ t, u: gu, v: vLine(gu) });
+  }
+  bestGold = g;
+}
+buildGoldGhost();
+
+// =====================================================================
+// Input
+// =====================================================================
+const keys = {};
+const gameEl = document.getElementById('game');
+let mouseSteer = 0, mouseLocked = false;
+
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space') e.preventDefault();
+  keys[e.key.toLowerCase()] = true;
+  lastInputAt = performance.now();
+  if (e.key === 'r' || e.key === 'R') { if (raceOver || running) resetRace(); }
+  if (e.key === 'Escape' && document.pointerLockElement) document.exitPointerLock();
+});
+window.addEventListener('keyup', e => {
+  keys[e.key.toLowerCase()] = false;
+});
+window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+gameEl.addEventListener('click', () => {
+  if (!running) return;
+  try {
+    if (!document.pointerLockElement) gameEl.requestPointerLock();
+  } catch (err) { /* headless / no gesture — keyboard still works */ }
+});
+document.addEventListener('pointerlockchange', () => {
+  mouseLocked = document.pointerLockElement === gameEl;
+  if (!mouseLocked) mouseSteer = 0;
+});
+document.addEventListener('mousemove', e => {
+  if (!mouseLocked) return;
+  mouseSteer = clamp(mouseSteer * 0.55 + e.movementX * 0.0016, -1, 1);
+  pitch = clamp(pitch - e.movementY * 0.0022, -1.0, 1.0);
+  lastInputAt = performance.now();
+});
+
+document.getElementById('start-btn').addEventListener('click', startRace);
+document.getElementById('again-btn').addEventListener('click', resetRace);
+window.addEventListener('resize', resize);
+
+// =====================================================================
+// Race control
+// =====================================================================
+function startRace() {
+  document.getElementById('start-screen').classList.add('hidden');
+  resetRace();
+}
+function resetRace() {
+  document.getElementById('results').style.display = 'none';
+  resetState();
+  running = true; raceOver = false;
+  flashMsg('GO!', 'go');
+  lastInputAt = performance.now();
+}
+function resetState() {
+  u = 0; v = 0; speed = 0;
+  heading = Math.atan2(TORUS_r, TORUS_R + TORUS_r);
+  pitch = 0.05; roll = 0;
+  airborne = false;
+  lap = 1; lapStartU = 0; gateIdx = 0;
+  raceTime = 0; totalMs = 0; lastLapMs = null;
+  lapSplits = [];
+  nitro = NITRO_MAX;
+  curSamples = []; sampleAcc = 0;
+  lapStartT = performance.now();
+  lastTime = performance.now();
+  updateHUD();
+  document.getElementById('hint').style.opacity = '1';
+  setTimeout(() => { document.getElementById('hint').style.opacity = '0'; }, 9000);
+}
+
+const auto = new URLSearchParams(location.search).has('autostart');
+if (auto) setTimeout(() => startRace(), 150);
+
+// =====================================================================
+// State contract for the harness
+// =====================================================================
+window.__inpacState = () => ({
+  running,
+  timeMs: Math.floor(raceTime * 1000),
+  lap,
+  laps: LAPS,
+  bestMs: bestMs == null ? null : Math.floor(bestMs),
+});
+
+// =====================================================================
+// Movement + physics (airborne uses field.mjs)
+// =====================================================================
+function readInputs() {
+  let steer = 0;
+  if (keys['arrowleft'] || keys['a']) steer -= 1;
+  if (keys['arrowright'] || keys['d']) steer += 1;
+  if (mouseLocked && Math.abs(mouseSteer) > 0.01) steer += mouseSteer;
+  return {
+    steer: clamp(steer, -1, 1),
+    brake: keys['arrowdown'] || keys['s'],
+    nitro: (keys['shift'] || keys['w']) && nitro > 0.02,
+    hop: keys[' '],
+  };
+}
+
+function autopilotSteer() {
+  const look = u + 0.32;
+  const err = angDiff(vLine(look), v);
+  return clamp(err * 1.9, -1, 1);
+}
+
+function updatePlayer(dt) {
+  const now = performance.now();
+  autoPilotOn = (now - lastInputAt) > 2500;
+  if (airborne) { updateAirborne(dt); return; }
+
+  const inp = readInputs();
+  const onTrack = Math.abs(angDiff(v, vLine(u))) <= BAND;
+  let steer = (autoPilotOn && !inp.steer) ? autopilotSteer() : inp.steer;
+
+  let boost = false;
+  if (inp.nitro) { boost = true; nitro = Math.max(0, nitro - NITRO_BURN * dt); }
+  else nitro = Math.min(NITRO_MAX, nitro + NITRO_REGEN * dt);
+
+  const top = boost ? NITRO_SPEED : (onTrack ? TOP_SPEED : OFF_TOP);
+  const acc = boost ? 15 : (onTrack ? ACCEL : 5.5);
+  boosting = boost;
+  if (inp.brake) speed = Math.max(0, speed - BRAKE * dt);
+  else speed = Math.min(top, speed + acc * dt);
+
+  const w = STEER / (1 + speed / 7.5);
+  heading += steer * w * dt;
+
+  const rho = TORUS_R + TORUS_r * Math.cos(v);
+  u += (speed * Math.cos(heading) / rho) * dt;
+  v += (speed * Math.sin(heading) / TORUS_r) * dt;
+
+  rollTarget = -steer * (speed / TOP_SPEED) * 0.24 * (autoPilotOn ? 0.5 : 1);
+  roll += (rollTarget - roll) * Math.min(1, dt * 6);
+  pitch += (0.05 - pitch) * Math.min(1, dt * 1.4);
+  if (Math.abs(pitch) < 0.01) pitch = 0;
+
+  if (inp.hop && !boost) startHop();
+
+  if (!onTrack && speed > 3) rollTarget += Math.sin(now * 0.13) * 0.006;
+
+  checkGates();
+  recordSample(dt);
+}
+
+function startHop() {
+  airborne = true;
+  csR = TORUS_R + (TORUS_r - EYE) * Math.cos(v);
+  csZ = (TORUS_r - EYE) * Math.sin(v);
+  const sv = speed * Math.sin(heading);
+  csVR = -Math.cos(v) * HOP - Math.sin(v) * sv;
+  csVZ = -Math.sin(v) * HOP + Math.cos(v) * sv;
+  airU = (speed * Math.cos(heading) / (TORUS_R + TORUS_r * Math.cos(v)));
+}
+
+function updateAirborne(dt) {
+  const sub = 10, sdt = dt / sub;
+  for (let s = 0; s < sub; s++) {
+    const absR = Math.max(1e-4, Math.abs(csR));
+    const g = FIELD(absR, csZ, { R: TORUS_R, r: TORUS_r });
+    const gR = csR >= 0 ? g.gR : -g.gR;
+    csVR += gR * sdt;
+    csVZ += g.gZ * sdt;
+    csR += csVR * sdt;
+    csZ += csVZ * sdt;
+    u += airU * sdt;
+  }
+  const distTC = Math.hypot(csR - TORUS_R, csZ);
+  const out = ((csVR * (csR - TORUS_R)) + (csVZ * csZ)) / Math.max(1e-6, distTC);
+  if (distTC >= TORUS_r - EYE * 0.55 && out > 0) {
+    v = Math.atan2(csZ, csR - TORUS_R) + Math.round(v / TAU - Math.atan2(csZ, csR - TORUS_R) / TAU) * TAU;
+    airborne = false;
+  }
+}
+
+function recordSample(dt) {
+  sampleAcc += dt;
+  if (sampleAcc >= 0.033) {
+    sampleAcc = 0;
+    curSamples.push({ t: performance.now() - lapStartT, u: u - lapStartU, v, speed });
+    if (curSamples.length > 4000) curSamples.shift();
+  }
+}
+
+function checkGates() {
+  const lapU = u - lapStartU;
+  if (gateIdx < GATE_US.length) {
+    const gu = GATE_US[gateIdx];
+    if (lapU >= gu) {
+      const targetV = vLine(u - lapU + gu);
+      if (Math.abs(angDiff(v, targetV)) <= GATE_WIN) {
+        gateIdx++;
+        nitro = Math.min(NITRO_MAX, nitro + NITRO_GAIN_GATE);
+        gateFlashOk = true; lastGateFlash = performance.now();
+        flashMsg(`GATE ${gateIdx}/${GATE_US.length}`, 'ok');
+      } else {
+        u = lapStartU + gu - 0.22;
+        speed *= 0.45;
+        v = v + angDiff(vLine(u), v) * 0.5;
+        heading = Math.atan2(TORUS_r, TORUS_R + TORUS_r * Math.cos(v));
+        gateFlashOk = false; lastGateFlash = performance.now();
+        flashMsg(`GATE ${gateIdx + 1} MISSED`, 'bad');
+      }
+    }
+  } else if (lapU >= TAU) {
+    completeLap();
+  }
+}
+
+function completeLap() {
+  const lapT = performance.now() - lapStartT;
+  lapStartU += TAU;
+  lapStartT = performance.now();
+  gateIdx = 0;
+  lastLapMs = lapT;
+  totalMs += lapT;
+  lapSplits.push(lapT);
+  if (bestMs == null || lapT < bestMs) {
+    bestMs = lapT;
+    if (curSamples.length > 3) bestSamples = curSamples.slice();
+  }
+  curSamples = []; sampleAcc = 0;
+  lap++;
+  flashMsg(`LAP ${Math.min(lap - 1, LAPS)}  ${fmtTime(lapT)}`, 'go');
+  if (lap > LAPS) { raceOverNow(); }
+  updateHUD();
+}
+
+function raceOverNow() {
+  running = false; raceOver = true;
+  const lines = document.getElementById('results-lines');
+  const total = totalMs;
+  const splits = lapSplits.map((s, i) => `<div>LAP ${i + 1} &nbsp;<b>${fmtTime(s)}</b></div>`).join('');
+  lines.innerHTML =
+    splits +
+    `<div>TOTAL &nbsp;<b>${fmtTime(total)}</b></div>` +
+    `<div>BEST LAP &nbsp;<b>${fmtTime(bestMs)}</b></div>` +
+    `<div>GOLD TARGET &nbsp;<b>${fmtTime(GOLD_LAP * 1000)}</b></div>` +
+    `<div>${bestMs != null && bestMs < GOLD_LAP * 1000 ? '— you beat the gold ghost —' : '— gold ghost still unbeaten —'}</div>`;
+  document.getElementById('results').style.display = 'flex';
+}
+
+// =====================================================================
+// Camera
+// =====================================================================
+let camU = 0, camV = 0, camP = [0, 0, 0], camF = [0, 0, 1], camR = [0, 1, 0], camUv = [-1, 0, 0];
+
+function computeCamera() {
+  let uu = u, vv = v, P, up;
+  if (airborne) {
+    uu = u; vv = Math.atan2(csZ, csR - TORUS_R);
+    P = [csR * Math.cos(u), csZ, csR * Math.sin(u)];
+    const absR = Math.max(1e-4, Math.abs(csR));
+    const g = FIELD(absR, csZ, { R: TORUS_R, r: TORUS_r });
+    const gR = csR >= 0 ? g.gR : -g.gR, gZ = g.gZ;
+    const gl = Math.hypot(gR, gZ) || 1;
+    const cu = Math.cos(u), su = Math.sin(u);
+    // gravity-aligned up: away from the wall, rotated about the axis
+    up = [(-gR / gl) * cu, -gZ / gl, (-gR / gl) * su];
+  }
+  const cu = Math.cos(uu), su = Math.sin(uu);
+  const cv = Math.cos(vv), sv = Math.sin(vv);
+  const eu = [-su, 0, cu];
+  const ev = [-sv * cu, cv, -sv * su];
+  const n  = [ cv * cu, sv,  cv * su];
+  if (!up) up = [-n[0], -n[1], -n[2]];
+  if (!P) P = eyePoint(uu, vv);
+
+  // ground forward / right from heading
+  const ch = Math.cos(heading), sh = Math.sin(heading);
+  const gF = [
+    ch * eu[0] + sh * ev[0],
+    ch * eu[1] + sh * ev[1],
+    ch * eu[2] + sh * ev[2],
+  ];
+  // right = up × forward
+  const gR = [
+    up[1] * gF[2] - up[2] * gF[1],
+    up[2] * gF[0] - up[0] * gF[2],
+    up[0] * gF[1] - up[1] * gF[0],
+  ];
+
+  // pitch about right, then roll about forward
+  const cp = Math.cos(pitch), sp = Math.sin(pitch);
+  let fwd = [
+    gF[0] * cp + up[0] * sp,
+    gF[1] * cp + up[1] * sp,
+    gF[2] * cp + up[2] * sp,
+  ];
+  let up2 = [
+    -gF[0] * sp + up[0] * cp,
+    -gF[1] * sp + up[1] * cp,
+    -gF[2] * sp + up[2] * cp,
+  ];
+  const cr = Math.cos(roll), sr = Math.sin(roll);
+  const right = [
+    gR[0] * cr + up2[0] * sr,
+    gR[1] * cr + up2[1] * sr,
+    gR[2] * cr + up2[2] * sr,
+  ];
+  up2 = [
+    -gR[0] * sr + up2[0] * cr,
+    -gR[1] * sr + up2[1] * cr,
+    -gR[2] * sr + up2[2] * cr,
+  ];
+
+  camU = uu; camV = vv; camP = P; camF = fwd; camR = right; camUv = up2;
+  return { P, fwd, right, up: up2 };
+}
+
+// =====================================================================
+// Software raycaster — the inside of the tube
+// =====================================================================
+const BW = 240, BH = 135;
+const FOV_H = 1.22;
+const MAXD = 26;
+const bufC = document.createElement('canvas');
+bufC.width = BW; bufC.height = BH;
+const bufCtx = bufC.getContext('2d', { willReadFrequently: true });
+const imgData = bufCtx.createImageData(BW, BH);
+const pix = imgData.data;
+const GAMMA = new Uint8ClampedArray(1024);
+for (let i = 0; i < 1024; i++) GAMMA[i] = Math.round(255 * Math.pow(i / 1023, 0.82));
+
+function innerDist(x, y, z) {
+  const d = Math.hypot(Math.hypot(x, z) - TORUS_R, y);
+  return TORUS_r - d;
+}
+
+// Find the tube wall along a ray via sphere tracing (used for rays the local
+// straight-cylinder model cannot resolve — the corridor curving away).
+function marchWall(P, rd) {
+  let t = 0.35;
+  let prevD = innerDist(P[0] + t * rd[0], P[1] + t * rd[1], P[2] + t * rd[2]);
+  for (let i = 0; i < 40; i++) {
+    const d = innerDist(P[0] + t * rd[0], P[1] + t * rd[1], P[2] + t * rd[2]);
+    if (d <= 0 && prevD > 0) {
+      let lo = t - 0.9, hi = t;
+      for (let b = 0; b < 6; b++) {
+        const mid = (lo + hi) * 0.5;
+        if (innerDist(P[0] + mid * rd[0], P[1] + mid * rd[1], P[2] + mid * rd[2]) <= 0) hi = mid;
+        else lo = mid;
+      }
+      return (lo + hi) * 0.5;
+    }
+    prevD = d;
+    t += Math.max(0.3, Math.min(1.7, d * 0.85));
+    if (t > MAXD) return -1;
+  }
+  return -1;
+}
+
+// color of the wall at surface coords (uu, vv) + distance for fog
+function wallColor(uu, vv, t, lam) {
+  const dv = angDiff(vv, vLine(uu));
+  const on = Math.abs(dv) <= BAND;
+  const edge = BAND - Math.abs(dv);
+  let r, g, b;
+
+  if (on) {
+    if (edge < RUMBLE) {
+      const stripe = ((uu * 4 + 0.5) & 1) === 0;
+      if (stripe) { r = 0.62; g = 0.14; b = 0.12; }
+      else { r = 0.86; g = 0.84; b = 0.78; }
+    } else {
+      r = 0.165; g = 0.178; b = 0.24;
+      if (Math.abs(dv) < 0.055) {
+        const dash = ((uu * 3.2) % 1) < 0.5;
+        if (dash) { r = 0.85; g = 0.85; b = 0.80; }
+      }
+    }
+    for (const bu of BOOST_US) {
+      if (Math.abs(angDiff(uu, bu)) < 0.09 && Math.abs(dv) < 0.13) {
+        const core = 1 - Math.abs(angDiff(uu, bu)) / 0.09;
+        r = r * 0.2 + 0.10 * core;
+        g = g * 0.2 + 0.95 * core;
+        b = b * 0.2 + 0.88 * core;
+      }
+    }
+    // finish line: checkered band across the ribbon at u = 0
+    if (Math.abs(angDiff(uu, 0)) < 0.14 && Math.abs(dv) < BAND) {
+      const ck = ((Math.floor(uu * 26) ^ Math.floor(vv * 10)) & 1) === 0;
+      r = ck ? 0.92 : 0.06; g = ck ? 0.90 : 0.06; b = ck ? 0.85 : 0.08;
+    }
+  } else {
+    r = 0.058; g = 0.066; b = 0.108;
+    const grid = Math.min(Math.abs(Math.sin(uu * 7)), Math.abs(Math.sin(vv * 7)));
+    if (grid < 0.045) { r += 0.02; g += 0.024; b += 0.04; }
+  }
+
+  // gates: glowing hoops around the tube
+  for (let i = 0; i < GATE_US.length; i++) {
+    const gu = GATE_US[i];
+    const du = angDiff(uu, gu);
+    const ad = Math.abs(du);
+    if (ad < 0.30) {
+      const f = 1 - ad / 0.30;
+      let cr, cg, cb;
+      if (i < gateIdx) { cr = 0.30; cg = 0.32; cb = 0.40; }
+      else if (i === gateIdx) {
+        const pulse = 0.72 + 0.28 * Math.sin(performance.now() * 0.006);
+        cr = 1.0 * pulse; cg = 0.62 * pulse; cb = 0.18 * pulse;
+        if (Math.abs(du) < 0.03) { cr = 1; cg = 0.85; cb = 0.4; }
+      } else { cr = 0.35; cg = 0.36; cb = 0.42; }
+      const bl = f * f;
+      r = r * (1 - 0.55 * bl) + cr * 0.55 * bl;
+      g = g * (1 - 0.55 * bl) + cg * 0.55 * bl;
+      b = b * (1 - 0.55 * bl) + cb * 0.55 * bl;
+    }
+  }
+
+  // headlight lambert + distance fog
+  let light = 0.46 + 0.52 * Math.pow(Math.max(0, lam), 1.5) + 0.10 * clamp(1 - t / MAXD, 0, 1);
+  r *= light; g *= light; b *= light;
+  const fog = Math.pow(clamp(t / MAXD, 0, 1), 1.1);
+  r = r * (1 - fog) + 0.015 * fog;
+  g = g * (1 - fog) + 0.022 * fog;
+  b = b * (1 - fog) + 0.055 * fog;
+  return { r, g, b };
+}
+
+function renderScene() {
+  const cam = computeCamera();
+  const fovH = FOV_H * (1 + 0.12 * (speed / TOP_SPEED));
+  const hk = Math.tan(fovH / 2);
+  const vk = hk * (BH / BW);
+
+  // local cylinder model: axis through the ring centreline at this azimuth
+  const cu = Math.cos(camU), su = Math.sin(camU);
+  const a = [-su, 0, cu];
+  const w = [camP[0] - TORUS_R * cu, camP[1], camP[2] - TORUS_R * su];
+  const B = [-cu * w[1], cu * w[0] + su * w[2], -su * w[1]];
+  const BB = B[0] * B[0] + B[1] * B[1] + B[2] * B[2];
+  const R2 = TORUS_r * TORUS_r;
+  const fwd = cam.fwd, right = cam.right, up = cam.up;
+
+  let o = 0;
+  for (let py = 0; py < BH; py++) {
+    const uy = 1 - (py + 0.5) / BH * 2;
+    for (let px = 0; px < BW; px++) {
+      const ux = (px + 0.5) / BW * 2 - 1;
+      let dx = fwd[0] + right[0] * ux * hk + up[0] * uy * vk;
+      let dy = fwd[1] + right[1] * ux * hk + up[1] * uy * vk;
+      let dz = fwd[2] + right[2] * ux * hk + up[2] * uy * vk;
+      let il = Math.hypot(dx, dy, dz) || 1;
+      dx /= il; dy /= il; dz /= il;
+
+      // ray vs local cylinder
+      const Ax = a[1] * dz - a[2] * dy, Ay = a[2] * dx - a[0] * dz, Az = a[0] * dy - a[1] * dx;
+      const AA = Ax * Ax + Ay * Ay + Az * Az;
+      const BA = B[0] * Ax + B[1] * Ay + B[2] * Az;
+      let disc = BA * BA - AA * (BB - R2);
+      let t = -1;
+      if (disc > 1e-12) {
+        const sq = Math.sqrt(disc);
+        const t1 = (-BA - sq) / AA, t2 = (-BA + sq) / AA;
+        t = (t1 > 0.05) ? t1 : ((t2 > 0.05) ? t2 : -1);
+      }
+
+      let found = false;
+      let Hx, Hy, Hz, uu, vv;
+      if (t > 0.05) {
+        Hx = camP[0] + t * dx; Hy = camP[1] + t * dy; Hz = camP[2] + t * dz;
+        const rho = Math.hypot(Hx, Hz);
+        uu = Math.atan2(Hz, Hx);
+        vv = Math.atan2(Hy, rho - TORUS_R);
+        found = true;
+      } else {
+        const tm = marchWall(camP, [dx, dy, dz]);
+        if (tm > 0.05) {
+          t = tm;
+          Hx = camP[0] + t * dx; Hy = camP[1] + t * dy; Hz = camP[2] + t * dz;
+          const rho = Math.hypot(Hx, Hz);
+          uu = Math.atan2(Hz, Hx);
+          vv = Math.atan2(Hy, rho - TORUS_R);
+          found = true;
+        }
+      }
+
+      const lam = dx * fwd[0] + dy * fwd[1] + dz * fwd[2];
+      let r, g, b;
+      if (found) {
+        const c = wallColor(uu, vv, t, lam);
+        r = c.r; g = c.g; b = c.b;
+      } else {
+        // aperture — the corridor curving into the tube's far side
+        const d2 = Math.hypot(ux, uy);
+        const core = clamp(1 - d2 / 0.22, 0, 1);
+        const halo = clamp(1 - d2 / 0.75, 0, 1);
+        r = 0.075 * halo + 0.10 * core + 0.008;
+        g = 0.115 * halo + 0.175 * core + 0.014;
+        b = 0.20 * halo + 0.32 * core + 0.035;
+      }
+
+      const G = GAMMA;
+      pix[o] = G[(clamp(r, 0, 1) * 1023) | 0];
+      pix[o + 1] = G[(clamp(g, 0, 1) * 1023) | 0];
+      pix[o + 2] = G[(clamp(b, 0, 1) * 1023) | 0];
+      pix[o + 3] = 255;
+      o += 4;
+    }
+  }
+  bufCtx.putImageData(imgData, 0, 0);
+}
+
+// =====================================================================
+// Billboard glows (gates, boost, ghost) + projection
+// =====================================================================
+function projectPoint(P) {
+  const rx = P[0] - camP[0], ry = P[1] - camP[1], rz = P[2] - camP[2];
+  const z = rx * camF[0] + ry * camF[1] + rz * camF[2];
+  if (z < 0.08) return null;
+  const sx = rx * camR[0] + ry * camR[1] + rz * camR[2];
+  const sy = rx * camUv[0] + ry * camUv[1] + rz * camUv[2];
+  const fovH = FOV_H * (1 + 0.12 * (speed / TOP_SPEED));
+  return { x: (0.5 + 0.5 * sx / (z * Math.tan(fovH / 2))) * W,
+           y: (0.5 - 0.5 * sy / (z * Math.tan(fovH / 2) * (BH / BW))) * H,
+           z };
+}
+
+const sprites = {};
+function makeSprite(color, inner, outer) {
+  const s = document.createElement('canvas');
+  s.width = 64; s.height = 64;
+  const c = s.getContext('2d');
+  const gr = c.createRadialGradient(32, 32, 2, 32, 32, 32);
+  gr.addColorStop(0, inner);
+  gr.addColorStop(0.35, outer);
+  gr.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = gr;
+  c.fillRect(0, 0, 64, 64);
+  sprites[color] = s;
+}
+makeSprite('amber',  'rgba(255,190,80,0.95)', 'rgba(255,150,30,0.28)');
+makeSprite('amberD', 'rgba(255,200,110,0.5)', 'rgba(255,150,30,0.10)');
+makeSprite('cyan',   'rgba(120,255,235,0.95)', 'rgba(30,200,180,0.30)');
+makeSprite('white',  'rgba(255,255,255,0.95)', 'rgba(255,255,255,0.25)');
+makeSprite('red',    'rgba(255,110,90,0.95)', 'rgba(255,60,40,0.30)');
+makeSprite('ghost',  'rgba(150,235,255,0.85)', 'rgba(60,160,220,0.22)');
+
+let W = 0, H = 0;
+const vigC = document.createElement('canvas');
+const vigX = vigC.getContext('2d');
+function resize() {
+  W = window.innerWidth; H = window.innerHeight;
+  gameEl.width = W; gameEl.height = H;
+  vigC.width = Math.max(8, W); vigC.height = Math.max(8, H);
+  vigX.clearRect(0, 0, W, H);
+  const vg = vigX.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.42, W / 2, H / 2, Math.max(W, H) * 0.72);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(0,0,0,0.45)');
+  vigX.fillStyle = vg;
+  vigX.fillRect(0, 0, W, H);
+}
+resize();
+
+// motes drifting in the tube interior ahead of the player
+const parts = [];
+function spawnPart() {
+  return {
+    off: 1.0 + Math.random() * 22,          // toroidal offset ahead of the player
+    r2: Math.sqrt(Math.random()) * 1.9,     // radius from the centreline
+    a: Math.random() * TAU,
+    as: (Math.random() - 0.5) * 0.55,       // poloidal drift rate
+    tw: Math.random() * 6.28,
+  };
+}
+for (let i = 0; i < 40; i++) parts.push(spawnPart());
+function partPos(p, now) {
+  const pU = u + p.off;
+  const cu = Math.cos(pU), su = Math.sin(pU);
+  const a = p.a + p.as * now * 0.001;
+  const ca = Math.cos(a), sa = Math.sin(a);
+  return [
+    (TORUS_R + p.r2 * ca) * cu,
+    p.r2 * sa,
+    (TORUS_R + p.r2 * ca) * su,
+  ];
+}
+
+function drawGlow(spr, x, y, size, alpha) {
+  if (!(x >= -size && x < W + size && y >= -size && y < H + size)) return;
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(sprites[spr], x - size / 2, y - size / 2, size, size);
+  ctx.globalAlpha = 1;
+}
+
+function glowPass() {
+  const now = performance.now();
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+
+  // gates
+  for (let i = 0; i < GATE_US.length; i++) {
+    const gu = GATE_US[i];
+    let gU = gu, gV = vLine(gu);
+    // choose the nearest representation of the gate's u to the camera
+    let du = angDiff(gU, camU);
+    gU = camU + du;
+    const p = surfPoint(gU, gV);
+    const pr = projectPoint(p);
+    if (!pr) continue;
+    const near = clamp(1 - (Math.abs(du) - 0.2) / 1.4, 0.15, 1);
+    let spr = 'amberD';
+    if (i === gateIdx) spr = 'amber';
+    else if (i < gateIdx) spr = 'amberD';
+    const missFlash = (i === gateIdx && !gateFlashOk && now - lastGateFlash < 600);
+    if (missFlash) spr = 'red';
+    const pulse = 1 + 0.25 * Math.sin(now * 0.006 + i);
+    drawGlow(spr, pr.x, pr.y, (52 + 900 / Math.max(1.5, pr.z)) * near * pulse, near * (i === gateIdx ? 0.85 : 0.4));
+  }
+
+  // boost pads
+  for (const bu of BOOST_US) {
+    const du = angDiff(bu, camU);
+    const p = surfPoint(camU + du, vLine(camU + du));
+    const pr = projectPoint(p);
+    if (!pr) continue;
+    drawGlow('cyan', pr.x, pr.y, 26 + 420 / Math.max(1.2, pr.z), 0.7);
+  }
+
+  // finish line glow
+  {
+    let du = angDiff(0, camU);
+    const fu = camU + du;
+    const p = surfPoint(fu, vLine(fu));
+    const pr = projectPoint(p);
+    if (pr) drawGlow('white', pr.x, pr.y, 40 + 640 / Math.max(1.5, pr.z), 0.5);
+  }
+
+  // ghost
+  const gh = ghostState();
+  if (gh) {
+    const trail = gh.trail;
+    for (let i = 0; i < trail.length; i++) {
+      const pr = projectPoint(trail[i]);
+      if (pr) drawGlow('ghost', pr.x, pr.y, 22 + 520 / Math.max(1.4, pr.z) * (1 - i / trail.length), 0.35 * (1 - i / trail.length));
+    }
+    const pr = projectPoint(gh.pos);
+    if (pr) drawGlow('ghost', pr.x, pr.y, 40 + 620 / Math.max(1.4, pr.z), 0.85);
+  }
+
+  // motes drifting in the void ahead — depth + motion cues
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i];
+    if (p.off < 0.7) Object.assign(p, spawnPart());
+    const pos = partPos(p, now);
+    const pr = projectPoint(pos);
+    if (!pr) continue;
+    const fade = clamp(1 - pr.z / 22, 0, 1);
+    const tw = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(now * 0.003 + p.tw));
+    drawGlow('ghost', pr.x, pr.y, 5 + 70 / Math.max(1.3, pr.z), 0.55 * fade * tw);
+  }
+  ctx.restore();
+}
+
+function ghostState() {
+  const samples = bestSamples || bestGold;
+  if (!samples || samples.length < 2) return null;
+  const elapsed = performance.now() - lapStartT;
+  let i = 0;
+  while (i < samples.length - 2 && samples[i + 1].t < elapsed) i++;
+  const a = samples[i], b = samples[i + 1] || a;
+  const f = b.t > a.t ? clamp((elapsed - a.t) / (b.t - a.t), 0, 1) : 0;
+  const gu = a.u + (b.u - a.u) * f;
+  const gv = a.v + (b.v - a.v) * f;
+  const pos = surfPoint((gu + lapStartU) % TAU, gv);
+  const trail = [];
+  for (let k = 0; k < 8; k++) {
+    const ft = elapsed - k * 0.055;
+    let j = 0;
+    while (j < samples.length - 2 && samples[j + 1].t < ft) j++;
+    const pa = samples[j], pb = samples[j + 1] || pa;
+    const ff = pb.t > pa.t ? clamp((ft - pa.t) / (pb.t - pa.t), 0, 1) : 0;
+    const tu = pa.u + (pb.u - pa.u) * ff;
+    const tv = pa.v + (pb.v - pa.v) * ff;
+    trail.push(surfPoint((tu + lapStartU) % TAU, tv));
+  }
+  return { pos, trail, u: gu, v: gv };
+}
+
+function deltaVsGhost() {
+  const samples = bestSamples || bestGold;
+  if (!samples || samples.length < 2) return null;
+  const elapsed = performance.now() - lapStartT;
+  const myU = u - lapStartU;
+  if (myU <= 0) return null;
+  // find the sample whose u matches mine → its t is the ghost's time here
+  let lo = 0, hi = samples.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (samples[mid].u < myU) lo = mid;
+    else hi = mid;
+  }
+  const gt = samples[lo].t + (myU - samples[lo].u) / Math.max(1e-6, samples[hi].u - samples[lo].u) * (samples[hi].t - samples[lo].t);
+  return elapsed - gt;   // positive = behind the ghost
+}
+
+// =====================================================================
+// Minimap — the torus unwrapped, centred on the player
+// =====================================================================
+const mmC = document.getElementById('map');
+const mmX = mmC.getContext('2d');
+const MM = 170;
+
+function drawMinimap() {
+  mmX.clearRect(0, 0, MM, MM);
+  mmX.fillStyle = 'rgba(7,9,16,0.0)';
+  mmX.fillRect(0, 0, MM, MM);
+
+  const cu = u % TAU, cv = v % TAU;
+  const u0 = cu - Math.PI;
+  const X = (uu) => ((uu - u0) / TAU) * MM;
+  const Y = (vv) => (1 - ((vv % TAU) / TAU)) * MM;
+  const WX = (uu) => { let w = uu % TAU; while (w < u0) w += TAU; return X(w); };
+
+  mmX.strokeStyle = 'rgba(255,255,255,0.05)';
+  mmX.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    mmX.beginPath(); mmX.moveTo((i / 4) * MM, 0); mmX.lineTo((i / 4) * MM, MM); mmX.stroke();
+  }
+  for (let i = 0; i <= 4; i++) {
+    mmX.beginPath(); mmX.moveTo(0, (i / 4) * MM); mmX.lineTo(MM, (i / 4) * MM); mmX.stroke();
+  }
+
+  // ribbon band
+  mmX.save();
+  mmX.lineCap = 'round';
+  mmX.strokeStyle = 'rgba(40,44,62,0.95)';
+  mmX.lineWidth = 2.2 * (BAND / 0.9);
+  mmX.beginPath();
+  for (let i = 0; i <= 60; i++) {
+    const uu = u0 + (i / 60) * TAU;
+    const vv = vLine(uu);
+    const x = X(uu), y = Y(vv);
+    if (i === 0) mmX.moveTo(x, y); else mmX.lineTo(x, y);
+  }
+  mmX.stroke();
+  // centre dashes
+  mmX.strokeStyle = 'rgba(150,150,170,0.5)';
+  mmX.setLineDash([3, 4]);
+  mmX.beginPath();
+  for (let i = 0; i <= 60; i++) {
+    const uu = u0 + (i / 60) * TAU;
+    const x = X(uu), y = Y(vLine(uu));
+    if (i === 0) mmX.moveTo(x, y); else mmX.lineTo(x, y);
+  }
+  mmX.stroke();
+  mmX.setLineDash([]);
+  mmX.restore();
+
+  // gates
+  for (let i = 0; i < GATE_US.length; i++) {
+    const gx = WX(GATE_US[i]), gy = Y(vLine(GATE_US[i]));
+    mmX.save();
+    mmX.translate(gx, gy); mmX.rotate(Math.PI / 4);
+    mmX.fillStyle = i === gateIdx ? '#ffb300' : (i < gateIdx ? 'rgba(255,176,0,0.25)' : 'rgba(255,176,0,0.55)');
+    mmX.fillRect(-3, -3, 6, 6);
+    mmX.restore();
+  }
+  // boost pads
+  mmX.fillStyle = 'rgba(62,230,255,0.7)';
+  for (const bu of BOOST_US) { mmX.fillRect(WX(bu) - 1.5, Y(vLine(bu)) - 1.5, 3, 3); }
+  // finish
+  mmX.fillStyle = 'rgba(255,255,255,0.5)';
+  mmX.fillRect(WX(0) - 1, 0, 2, MM);
+
+  // ghost
+  const gh = ghostState();
+  if (gh) {
+    const gx = WX(gh.u + lapStartU), gy = Y(gh.v);
+    mmX.fillStyle = 'rgba(150,235,255,0.9)';
+    mmX.beginPath(); mmX.arc(gx, gy, 3, 0, TAU); mmX.fill();
+  }
+
+  // player
+  const px = X(cu), py = Y(cv);
+  mmX.fillStyle = '#ffb300';
+  mmX.beginPath(); mmX.arc(px, py, 3.2, 0, TAU); mmX.fill();
+  mmX.strokeStyle = '#fff0a8';
+  mmX.lineWidth = 1.4;
+  mmX.beginPath();
+  const du = Math.cos(heading) / (TORUS_R + TORUS_r * Math.cos(v));
+  const dv = Math.sin(heading) / TORUS_r;
+  const dl = Math.hypot(du, dv) || 1;
+  mmX.moveTo(px, py);
+  mmX.lineTo(px + du / dl * 8, py - dv / dl * 8);
+  mmX.stroke();
+}
+
+// =====================================================================
+// HUD
+// =====================================================================
+function updateHUD() {
+  document.getElementById('lap-num').textContent = lap;
+  document.getElementById('lap-total').textContent = `/ ${LAPS}`;
+  document.getElementById('lap-timer').textContent = fmtTime(raceTime * 1000);
+  const d = deltaVsGhost();
+  const del = document.getElementById('delta');
+  if (d == null) { del.textContent = '—.---'; del.className = 'ahead'; }
+  else if (d < 0) { del.textContent = fmtDelta(d); del.className = 'ahead'; }
+  else { del.textContent = fmtDelta(d); del.className = 'behind'; }
+  document.getElementById('last-time').textContent = fmtTime(lastLapMs);
+  document.getElementById('best-time').textContent = fmtTime(bestMs);
+  const gates = document.querySelectorAll('#gates .g');
+  gates.forEach((el, i) => {
+    el.className = 'g' + (i < gateIdx ? ' on' : i === gateIdx ? '' : '');
+  });
+  const spd = Math.round(speed * 13.5);
+  document.getElementById('speed-val').textContent = spd;
+  document.getElementById('nitro-fill').style.width = (nitro * 100) + '%';
+  document.getElementById('progress').style.width = (Math.min(1, (u - lapStartU) / TAU) * 100) + '%';
+  const st = document.getElementById('status');
+  st.textContent = !running ? '—' : (gateIdx < GATE_US.length ? `GATE ${gateIdx + 1} / ${GATE_US.length}` : 'FINISH STRAIGHT');
+}
+
+function flashMsg(txt, kind) {
+  const el = document.getElementById('flash');
+  el.textContent = txt;
+  el.className = kind;
+  el.style.opacity = '1';
+  setTimeout(() => { el.style.opacity = '0'; }, 900);
+}
+
+// =====================================================================
+// Main loop
+// =====================================================================
+const ctx = gameEl.getContext('2d');
+
+let lastTime = performance.now();
+let hudAcc = 0;
+
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = Math.min(0.05, (now - lastTime) / 1000);
+  lastTime = now;
+
+  if (running) {
+    raceTime += dt;
+    updatePlayer(dt);
+    hudAcc += dt;
+    if (hudAcc > 0.1) { hudAcc = 0; updateHUD(); }
+  }
+
+  // render
+  renderScene();
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(bufC, 0, 0, W, H);
+  ctx.restore();
+  if (running) glowPass();
+  drawMinimap();
+
+  // speed lines at high speed
+  if (running && speed > 5.5) {
+    const n = Math.floor((speed - 5.5) * 2.4);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < n; i++) {
+      const ang = Math.random() * TAU;
+      const r0 = Math.min(W, H) * (0.28 + Math.random() * 0.22);
+      const r1 = r0 + 20 + Math.random() * 60;
+      const a2 = (speed - 5.5) / 4 * (0.12 + Math.random() * 0.2);
+      ctx.strokeStyle = `rgba(160,200,255,${a2})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(W / 2 + Math.cos(ang) * r0, H / 2 + Math.sin(ang) * r0);
+      ctx.lineTo(W / 2 + Math.cos(ang) * r1, H / 2 + Math.sin(ang) * r1);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // vignette
+  ctx.drawImage(vigC, 0, 0, W, H);
+
+  // nitro edge glow
+  boostAlpha += ((boosting && running) ? 0.05 : -0.06);
+  boostAlpha = clamp(boostAlpha, 0, 0.5);
+  if (boostAlpha > 0.01) {
+    const bg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.7);
+    bg.addColorStop(0, 'rgba(80,220,255,0)');
+    bg.addColorStop(1, `rgba(70,200,255,${boostAlpha})`);
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+requestAnimationFrame(loop);
+
+// first paint guard: render once even before running (so a still frame shows)
+renderScene();
+ctx.imageSmoothingEnabled = false;
+ctx.drawImage(bufC, 0, 0, W, H);
+drawMinimap();
+updateHUD();
+</script>
+</body>
+</html>

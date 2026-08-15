@@ -14,7 +14,9 @@
       // the ideas bot: post hourly, review every 6h, pull daily at 06:00
       "0 * * * *",
       "0 */6 * * *",
-      "0 6 * * *"
+      "0 6 * * *",
+      // the agent loop's heartbeat — a backstop for a stalled push chain
+      "10,30,50 * * * *"
     ]
   },
   "vars": {

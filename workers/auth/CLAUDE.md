@@ -15,7 +15,7 @@ The shared ATProto OAuth worker (BFF confidential client: PKCE + DPoP + PAR + pr
 | Dir | `workers/auth/` |
 | Endpoint | `auth.mino.mobi` |
 | Type | backend |
-| Owning branch | `claude/atproto-infinite-whiteboard-usdpzx` (contested — see below) |
+| Owning branch | `claude/farmville-atproto-game-745mcr` (contested — see below) |
 | Deploy | `.github/workflows/deploy-auth.yml` |
 | Uses | `mino-auth-db` |
 | Provides | `auth.mino.mobi` |
@@ -32,7 +32,30 @@ repo — a bad push signs everyone out of every site.
 |---|---|
 | `claude/feature-merge-candidate-l4dkwq` | what `main`'s registry still names, and **stale**: 2509 commits ahead / 216 behind, and its `workers/auth` diff against `main` is a net *deletion* of 65 lines. Deploying auth from it would strip collections other live sites depend on. Do not. |
 | `claude/standard-site-blog-page-319rod` | claims `auth` on its own branch; carries the `rant.mino.mobi` origin plus the four `site.standard.*` collections, not yet on `main`. |
-| `claude/atproto-infinite-whiteboard-usdpzx` | current claimant. Carries **both** 319rod's additions and `com.minomobi.board.canvas`, so it is a strict superset of `main`, of 319rod, and of what production had. |
+| `claude/atproto-infinite-whiteboard-usdpzx` | claimed `auth` back on its own branch and carries the `loop.mino.mobi` origin plus `com.minomobi.loop.answer`. Its collection list is **70 of the 75** below: it does not have the five `com.minomobi.farm.*` entries, so deploying auth from it would strip farm's writes. |
+| `claude/farmville-atproto-game-745mcr` | **current claimant, and the one this merge candidate kept.** Its tree carries all 75 collections — the only claimant that does — plus the `farm.mino.mobi` and `farm-next.mino.mobi` origins and the dedupe of the doubled `lab.doc`/`lab.score` pair that tripped `check-auth-scope`'s gate. |
+
+### What the 2026-08-15 merge candidate reconciled
+
+`farmville`'s note asked the next merge candidate to hand the surface back to
+`atproto-infinite-whiteboard`. It did not, and the reason is mechanical rather
+than political: **the owning branch is the branch that deploys, so the owner has
+to be the tree that holds the union.** At the time of the merge:
+
+| | collections | `farm.mino.mobi` | `loop.mino.mobi` |
+|---|---|---|---|
+| `claude/farmville-atproto-game-745mcr` | 75 / 75 | ✅ | ❌ |
+| `claude/atproto-infinite-whiteboard-usdpzx` | 70 / 75 | ❌ | ✅ |
+| this candidate (now `main`) | **75 / 75** | ✅ | ✅ |
+
+Handing ownership to the 70-collection tree would have made the next auth deploy
+a silent narrowing of the ceiling. Ownership therefore stays with `farmville`,
+which is five collections better off and one origin short.
+
+**Before the next auth deploy, the owning branch must pull `main`.** Only `main`
+now carries both the full 75 and all three of the `farm`, `farm-next` and `loop`
+origins; `farmville`'s tree is still missing `loop.mino.mobi`, so deploying it
+as-is would sign loop.mino.mobi out.
 
 **The claim is a convention, not a lock.** A workflow's trigger list lives in the
 workflow file *on the branch being pushed* — so 319rod pushing a change under

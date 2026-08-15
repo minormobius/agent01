@@ -1,0 +1,1169 @@
+{
+ "builtFrom": "curated roster of 99 accounts",
+ "axes": [
+  "cadence",
+  "vigil",
+  "lexicon",
+  "polish",
+  "drift",
+  "chorus"
+ ],
+ "n": 77,
+ "members": [
+  {
+   "handle": "moultano.bsky.social",
+   "did": "did:plc:h25avmes6g7fgcddc3xj7qmg",
+   "posts": 13369,
+   "first": "2023-04-11",
+   "pcts": [
+    69.4,
+    46.1,
+    69,
+    99,
+    96.1,
+    81.3
+   ],
+   "score": 100
+  },
+  {
+   "handle": "tedunderwood.com",
+   "did": "did:plc:565ebob5f6hw33hjdkxty6qj",
+   "posts": 23708,
+   "first": "2023-04-10",
+   "pcts": [
+    84.1,
+    85.1,
+    40.8,
+    92.3,
+    98,
+    34.2
+   ],
+   "score": 98
+  },
+  {
+   "handle": "keytryer.net",
+   "did": "did:plc:u5stolpomsfbkgqfopef6jio",
+   "posts": 20409,
+   "first": "2023-04-12",
+   "pcts": [
+    59.5,
+    50,
+    77.5,
+    93.1,
+    63.1,
+    98.7
+   ],
+   "score": 98
+  },
+  {
+   "handle": "heartpunk.com",
+   "did": "did:plc:5clan7z4wsuvaffihedjv6fu",
+   "posts": 57781,
+   "first": "2023-10-03",
+   "pcts": [
+    46,
+    98.2,
+    89.9,
+    4,
+    81.6,
+    100
+   ],
+   "score": 96
+  },
+  {
+   "handle": "jdp.extropian.net",
+   "did": "did:plc:5hhbgkktcpofpw4ovz6kjjau",
+   "posts": 5595,
+   "first": "2023-04-10",
+   "pcts": [
+    26.4,
+    97.7,
+    50,
+    94.8,
+    88,
+    47.2
+   ],
+   "score": 95
+  },
+  {
+   "handle": "samuel.fm",
+   "did": "did:plc:p2cp5gopk7mgjegy6wadk3ep",
+   "posts": 24221,
+   "first": "2023-04-14",
+   "pcts": [
+    82,
+    89.4,
+    100,
+    38.1,
+    56.7,
+    28
+   ],
+   "score": 93
+  },
+  {
+   "handle": "cpaxton.bsky.social",
+   "did": "did:plc:tq6gqh5aaohgi55y2yofylwj",
+   "posts": 5280,
+   "first": "2024-02-27",
+   "pcts": [
+    53,
+    65.9,
+    96,
+    65.5,
+    55.2,
+    56.2
+   ],
+   "score": 92
+  },
+  {
+   "handle": "huwupy.kawaii.social",
+   "did": "did:plc:vw4e7blkwzdokanwp24k3igr",
+   "posts": 35852,
+   "first": "2023-04-12",
+   "pcts": [
+    88.3,
+    38,
+    52.8,
+    59.1,
+    97.9,
+    44.5
+   ],
+   "score": 91
+  },
+  {
+   "handle": "yetanotheruseless.com",
+   "did": "did:plc:bjaceaxgoto5p7gor2rcov3g",
+   "posts": 6068,
+   "first": "2023-05-13",
+   "pcts": [
+    60.1,
+    88.2,
+    57.8,
+    80.3,
+    87,
+    3.9
+   ],
+   "score": 89
+  },
+  {
+   "handle": "croissanthology.com",
+   "did": "did:plc:pjlhgjhb34k4zufrtbh2jyms",
+   "posts": 4368,
+   "first": "2025-01-30",
+   "pcts": [
+    47.8,
+    76,
+    63.2,
+    54,
+    71,
+    64.3
+   ],
+   "score": 88
+  },
+  {
+   "handle": "anthonybecker.bsky.social",
+   "did": "did:plc:u77gyutvsyoa36kmz2wj4cmw",
+   "posts": 17402,
+   "first": "2023-05-08",
+   "pcts": [
+    77.9,
+    58,
+    67.3,
+    68.5,
+    91,
+    10.5
+   ],
+   "score": 87
+  },
+  {
+   "handle": "kittokatto405.bsky.social",
+   "did": "did:plc:zgufzyadu3gghypxz4hp5psp",
+   "posts": 2579,
+   "first": "2025-11-23",
+   "pcts": [
+    96.1,
+    56.3,
+    44.6,
+    71,
+    16,
+    85.5
+   ],
+   "score": 86
+  },
+  {
+   "handle": "pavedwalden.bsky.social",
+   "did": "did:plc:uynpich2hsqmryyhr3moz5re",
+   "posts": 5512,
+   "first": "2023-03-10",
+   "pcts": [
+    78.8,
+    77.7,
+    56,
+    84.2,
+    58,
+    7.7
+   ],
+   "score": 84
+  },
+  {
+   "handle": "isolyth.dev",
+   "did": "did:plc:allu5vs3gnm2wm7jzf4rad3r",
+   "posts": 5688,
+   "first": "2023-12-11",
+   "pcts": [
+    25,
+    93.1,
+    61.8,
+    77.9,
+    34.2,
+    67.4
+   ],
+   "score": 83
+  },
+  {
+   "handle": "eugenevinitsky.bsky.social",
+   "did": "did:plc:5wm25vgenhgut3iqfjf4ozj5",
+   "posts": 9566,
+   "first": "2023-05-23",
+   "pcts": [
+    11.9,
+    75,
+    75,
+    73.7,
+    89.4,
+    30.3
+   ],
+   "score": 81
+  },
+  {
+   "handle": "vibe-coded.com",
+   "did": "did:plc:dxr2kibhxyzrvhsjz4uahpmg",
+   "posts": 2653,
+   "first": "2026-01-21",
+   "pcts": [
+    92,
+    51.4,
+    81.5,
+    43.8,
+    25,
+    60.7
+   ],
+   "score": 80
+  },
+  {
+   "handle": "dollspace.gay",
+   "did": "did:plc:dzvxvsiy3maw4iarpvizsj67",
+   "posts": 13501,
+   "first": "2024-11-17",
+   "pcts": [
+    71.1,
+    90.7,
+    19,
+    82.5,
+    54,
+    35.9
+   ],
+   "score": 79
+  },
+  {
+   "handle": "shibbi.me",
+   "did": "did:plc:hu35oubkccqrxl4ldgczpgw7",
+   "posts": 15804,
+   "first": "2023-08-12",
+   "pcts": [
+    3.8,
+    19.9,
+    93.1,
+    86.9,
+    92,
+    54
+   ],
+   "score": 77
+  },
+  {
+   "handle": "sneptech.bsky.social",
+   "did": "did:plc:2p7a3z4uzfpoepv3aa36ykjq",
+   "posts": 8436,
+   "first": "2024-10-26",
+   "pcts": [
+    90.9,
+    100,
+    11.7,
+    31.3,
+    52.5,
+    61.5
+   ],
+   "score": 77
+  },
+  {
+   "handle": "jcorvinus.bsky.social",
+   "did": "did:plc:3deilm3cxnqundoo227xudg2",
+   "posts": 5215,
+   "first": "2023-04-18",
+   "pcts": [
+    61.8,
+    69.4,
+    88,
+    60.7,
+    36.9,
+    25
+   ],
+   "score": 75
+  },
+  {
+   "handle": "tachikoma.elsewhereunbound.com",
+   "did": "did:plc:mpdezz4nkre7vyift2rttggl",
+   "posts": 8921,
+   "first": "2024-11-07",
+   "pcts": [
+    89.5,
+    10.2,
+    71,
+    44.7,
+    84.2,
+    42
+   ],
+   "score": 74
+  },
+  {
+   "handle": "philpax.me",
+   "did": "did:plc:wamidydbgu3u6fk3yckaglnz",
+   "posts": 4978,
+   "first": "2024-10-17",
+   "pcts": [
+    93.5,
+    92.1,
+    32.9,
+    35.4,
+    61.9,
+    23.8
+   ],
+   "score": 72
+  },
+  {
+   "handle": "astrra.space",
+   "did": "did:plc:nbfjoeficjzf3pejpontvril",
+   "posts": 15283,
+   "first": "2024-10-29",
+   "pcts": [
+    82,
+    96,
+    60.3,
+    1.1,
+    23.6,
+    73
+   ],
+   "score": 71
+  },
+  {
+   "handle": "nmk.wtf",
+   "did": "did:plc:xm55llyxcrb3h7qwqr3wtaog",
+   "posts": 1312,
+   "first": "2024-08-08",
+   "pcts": [
+    86.7,
+    37,
+    73.8,
+    85.6,
+    5.3,
+    46.1
+   ],
+   "score": 70
+  },
+  {
+   "handle": "shreyanjain.net",
+   "did": "did:plc:bnqkww7bjxaacajzvu5gswdf",
+   "posts": 29476,
+   "first": "2023-02-18",
+   "pcts": [
+    53.9,
+    34.1,
+    95,
+    28,
+    69.7,
+    51.7
+   ],
+   "score": 68
+  },
+  {
+   "handle": "jefferyharrell.bsky.social",
+   "did": "did:plc:h6tcd37yr7vk33uuisbidqvw",
+   "posts": 10921,
+   "first": "2024-11-14",
+   "pcts": [
+    30,
+    5.1,
+    39.2,
+    97.5,
+    82.8,
+    76.4
+   ],
+   "score": 67
+  },
+  {
+   "handle": "gracekind.net",
+   "did": "did:plc:p572wxnsuoogcrhlfrlizlrb",
+   "posts": 18073,
+   "first": "2024-11-05",
+   "pcts": [
+    66,
+    61.8,
+    7.9,
+    76.3,
+    80.2,
+    38.4
+   ],
+   "score": 66
+  },
+  {
+   "handle": "harsimony.bsky.social",
+   "did": "did:plc:6ond5sxlegjxpe3ismrczk3r",
+   "posts": 2283,
+   "first": "2024-11-20",
+   "pcts": [
+    100,
+    0,
+    21.4,
+    90,
+    31.3,
+    86.9
+   ],
+   "score": 64
+  },
+  {
+   "handle": "temujin9.t9productions.com",
+   "did": "did:plc:wixdgg4ejykqrsoqgi7c2fk6",
+   "posts": 10564,
+   "first": "2023-04-10",
+   "pcts": [
+    85.5,
+    72.9,
+    26.3,
+    62,
+    75,
+    6.9
+   ],
+   "score": 63
+  },
+  {
+   "handle": "sichulu.bsky.social",
+   "did": "did:plc:4asamrnnw6rzfq5sjzvmwgpe",
+   "posts": 4280,
+   "first": "2023-10-07",
+   "pcts": [
+    44.7,
+    35.8,
+    53.9,
+    47.6,
+    48.5,
+    93.1
+   ],
+   "score": 62
+  },
+  {
+   "handle": "godoglyness.bsky.social",
+   "did": "did:plc:7qsdxoucnmbk4nctklqrzmdy",
+   "posts": 18518,
+   "first": "2024-11-05",
+   "pcts": [
+    48.4,
+    9.2,
+    46.2,
+    52.7,
+    94.9,
+    69.7
+   ],
+   "score": 60
+  },
+  {
+   "handle": "cameron.stream",
+   "did": "did:plc:gfrmhdmjvxn2sjedzboeudef",
+   "posts": 23192,
+   "first": "2023-05-05",
+   "pcts": [
+    9.2,
+    64.3,
+    82.9,
+    70,
+    27.8,
+    65.6
+   ],
+   "score": 59
+  },
+  {
+   "handle": "lastnpcalex.agency",
+   "did": "did:plc:ccxl3ictrlvtrrgh5swvvg47",
+   "posts": 32151,
+   "first": "2023-04-11",
+   "pcts": [
+    22.1,
+    30.1,
+    97.7,
+    6,
+    68.4,
+    94.6
+   ],
+   "score": 58
+  },
+  {
+   "handle": "jenrm.bsky.social",
+   "did": "did:plc:dzwlkfkhiixxvfsldyjpycrg",
+   "posts": 1815,
+   "first": "2023-05-22",
+   "pcts": [
+    63.1,
+    84.7,
+    36.7,
+    90.1,
+    38.4,
+    1.5
+   ],
+   "score": 57
+  },
+  {
+   "handle": "cinera-verinia.bsky.social",
+   "did": "did:plc:uh5rubsyn75c7ww2pftwxcwh",
+   "posts": 1223,
+   "first": "2024-11-14",
+   "pcts": [
+    8,
+    95,
+    85,
+    96.1,
+    1.1,
+    26
+   ],
+   "score": 55
+  },
+  {
+   "handle": "segyges.bsky.social",
+   "did": "did:plc:vszw3ess46odfhnzdsy4huae",
+   "posts": 70198,
+   "first": "2023-08-27",
+   "pcts": [
+    1.1,
+    73.4,
+    72.4,
+    5.1,
+    100,
+    52.3
+   ],
+   "score": 53
+  },
+  {
+   "handle": "timkellogg.me",
+   "did": "did:plc:ckaz32jwl6t2cno6fmuw2nhn",
+   "posts": 20119,
+   "first": "2024-08-13",
+   "pcts": [
+    74,
+    42.1,
+    35.3,
+    21,
+    76.3,
+    55.4
+   ],
+   "score": 53
+  },
+  {
+   "handle": "goose.art",
+   "did": "did:plc:hsqwcidfez66lwm3gxhfv5in",
+   "posts": 24626,
+   "first": "2023-04-10",
+   "pcts": [
+    10.4,
+    68.6,
+    79,
+    0,
+    64.2,
+    80.6
+   ],
+   "score": 52
+  },
+  {
+   "handle": "yonderdavid.bsky.social",
+   "did": "did:plc:nqu76ue2hgr44emaxyvgbzsq",
+   "posts": 3542,
+   "first": "2023-04-28",
+   "pcts": [
+    56.7,
+    18.1,
+    29,
+    100,
+    46.2,
+    48.8
+   ],
+   "score": 50
+  },
+  {
+   "handle": "hikikomorphism.bsky.social",
+   "did": "did:plc:qvywnipfiyrd6v4qdf4x27wy",
+   "posts": 7949,
+   "first": "2025-05-11",
+   "pcts": [
+    80.4,
+    44.8,
+    38.8,
+    55,
+    65.8,
+    13.2
+   ],
+   "score": 49
+  },
+  {
+   "handle": "dave.9000ish.uk",
+   "did": "did:plc:hovt6k22s64dq63jjmoyibk3",
+   "posts": 6386,
+   "first": "2023-04-28",
+   "pcts": [
+    33,
+    59.6,
+    22.3,
+    72.1,
+    17,
+    88.3
+   ],
+   "score": 47
+  },
+  {
+   "handle": "lauragiron.bsky.social",
+   "did": "did:plc:w5wzw5xy3ptl7snkar62ggkz",
+   "posts": 4663,
+   "first": "2023-07-01",
+   "pcts": [
+    13.1,
+    63.3,
+    34.1,
+    30.4,
+    59,
+    92.4
+   ],
+   "score": 47
+  },
+  {
+   "handle": "sincerely.cam",
+   "did": "did:plc:ar5diongjpnump4wflfyhj2h",
+   "posts": 11893,
+   "first": "2023-04-09",
+   "pcts": [
+    19.5,
+    17.5,
+    76.1,
+    17.1,
+    78.9,
+    82.4
+   ],
+   "score": 45
+  },
+  {
+   "handle": "nainrouge420.bsky.social",
+   "did": "did:plc:72bsmc54uyf5fpkqejojtea7",
+   "posts": 2622,
+   "first": "2023-04-13",
+   "pcts": [
+    72.3,
+    15.5,
+    25,
+    67.2,
+    43,
+    68.1
+   ],
+   "score": 43
+  },
+  {
+   "handle": "imitationlearn.bsky.social",
+   "did": "did:plc:uvwxlxswy3tciwp24uwd7fpx",
+   "posts": 1746,
+   "first": "2024-11-13",
+   "pcts": [
+    27.6,
+    52.9,
+    92.1,
+    57.8,
+    2.6,
+    57.9
+   ],
+   "score": 43
+  },
+  {
+   "handle": "brennan.computer",
+   "did": "did:plc:gwvh3frsmdih2zpol2holysc",
+   "posts": 10144,
+   "first": "2023-04-10",
+   "pcts": [
+    43.3,
+    48.5,
+    59.7,
+    23,
+    93.2,
+    22.2
+   ],
+   "score": 41
+  },
+  {
+   "handle": "hotrollhottakes.bsky.social",
+   "did": "did:plc:4gm5uxjg3tz4nat4qpjk2t6h",
+   "posts": 10770,
+   "first": "2024-11-06",
+   "pcts": [
+    36.5,
+    71.1,
+    31.7,
+    78.7,
+    26.1,
+    39.1
+   ],
+   "score": 39
+  },
+  {
+   "handle": "norvid-studies.bsky.social",
+   "did": "did:plc:mssgex5rqek4wc66wgvzztbc",
+   "posts": 54667,
+   "first": "2023-07-12",
+   "pcts": [
+    0,
+    47.3,
+    9.2,
+    40.4,
+    85.6,
+    97.4
+   ],
+   "score": 38
+  },
+  {
+   "handle": "minormobius.bsky.social",
+   "did": "did:plc:7zre4plmd5jllccww575j6sb",
+   "posts": 49891,
+   "first": "2023-04-13",
+   "pcts": [
+    39.8,
+    23.6,
+    6.5,
+    63,
+    50,
+    96.1
+   ],
+   "score": 36
+  },
+  {
+   "handle": "hdevalence.bsky.social",
+   "did": "did:plc:2wco2e2ybeg2lwpfx3kqjsuv",
+   "posts": 4665,
+   "first": "2023-04-07",
+   "pcts": [
+    67,
+    82.9,
+    64.4,
+    9.5,
+    39.2,
+    16
+   ],
+   "score": 36
+  },
+  {
+   "handle": "timfduffy.com",
+   "did": "did:plc:mk7qlghvwdjjayu5x3bo3lx2",
+   "posts": 5022,
+   "first": "2024-11-09",
+   "pcts": [
+    75,
+    3.8,
+    43.4,
+    88,
+    32.5,
+    32.1
+   ],
+   "score": 34
+  },
+  {
+   "handle": "adler.dev",
+   "did": "did:plc:rmplvmo2uq2mlth23rqhgcvx",
+   "posts": 3234,
+   "first": "2023-07-06",
+   "pcts": [
+    38.1,
+    87,
+    90.8,
+    14.6,
+    10.7,
+    32
+   ],
+   "score": 33
+  },
+  {
+   "handle": "funferall.bsky.social",
+   "did": "did:plc:gjqw6pjl2wvndjlmatxpenkz",
+   "posts": 3380,
+   "first": "2024-11-20",
+   "pcts": [
+    55,
+    80.8,
+    5.3,
+    56.9,
+    9.1,
+    63.4
+   ],
+   "score": 32
+  },
+  {
+   "handle": "thebadcode.com",
+   "did": "did:plc:4vvaxwovyg4yo4n7dyyncaiu",
+   "posts": 9869,
+   "first": "2023-11-30",
+   "pcts": [
+    50,
+    40.2,
+    27.6,
+    36.8,
+    67.2,
+    43.8
+   ],
+   "score": 30
+  },
+  {
+   "handle": "fleetingbits.bsky.social",
+   "did": "did:plc:3dor7kagwyswq4ogboxeqo42",
+   "posts": 1207,
+   "first": "2024-11-13",
+   "pcts": [
+    29,
+    53.6,
+    55.9,
+    25,
+    6.7,
+    90.6
+   ],
+   "score": 29
+  },
+  {
+   "handle": "faz.ms",
+   "did": "did:plc:huocg7zsbthk54vjai56wd27",
+   "posts": 1694,
+   "first": "2024-11-30",
+   "pcts": [
+    97.3,
+    27.7,
+    14.8,
+    81.9,
+    21,
+    14.5
+   ],
+   "score": 28
+  },
+  {
+   "handle": "enflux.bsky.social",
+   "did": "did:plc:w4z6ghagaqa3hanyf66cajzh",
+   "posts": 2333,
+   "first": "2023-08-14",
+   "pcts": [
+    68.5,
+    60.1,
+    23.3,
+    10.3,
+    60.9,
+    28.8
+   ],
+   "score": 26
+  },
+  {
+   "handle": "mimi10v3.com",
+   "did": "did:plc:7eb2rkqterqn7zvs6r52jroz",
+   "posts": 6318,
+   "first": "2023-04-09",
+   "pcts": [
+    5.2,
+    78.8,
+    86.9,
+    12,
+    47.2,
+    21
+   ],
+   "score": 25
+  },
+  {
+   "handle": "viriditax.bsky.social",
+   "did": "did:plc:6tgrg4woq2zxv2lentcpqmka",
+   "posts": 6751,
+   "first": "2024-11-13",
+   "pcts": [
+    98.7,
+    25,
+    15.9,
+    19.6,
+    73.8,
+    17
+   ],
+   "score": 24
+  },
+  {
+   "handle": "avengingfem.me",
+   "did": "did:plc:7757w723nk675bqziinitoif",
+   "posts": 9514,
+   "first": "2023-08-22",
+   "pcts": [
+    2.9,
+    12,
+    69.1,
+    39.8,
+    51.2,
+    73.1
+   ],
+   "score": 23
+  },
+  {
+   "handle": "dawnlightmelody.bsky.social",
+   "did": "did:plc:swoaeygasn75w2gkno4wa4gt",
+   "posts": 2265,
+   "first": "2023-05-25",
+   "pcts": [
+    34.1,
+    55.7,
+    80.3,
+    13,
+    40.8,
+    18.2
+   ],
+   "score": 21
+  },
+  {
+   "handle": "ornamentalseashell.bsky.social",
+   "did": "did:plc:weepuvekcnexr4oqh5y5hdl4",
+   "posts": 3044,
+   "first": "2023-05-09",
+   "pcts": [
+    31.5,
+    28.9,
+    65.7,
+    33,
+    7.9,
+    75
+   ],
+   "score": 20
+  },
+  {
+   "handle": "tbabb.bsky.social",
+   "did": "did:plc:zrwhncnqel7corjtg2cak3jx",
+   "posts": 3062,
+   "first": "2023-04-11",
+   "pcts": [
+    40.5,
+    21.2,
+    48.1,
+    48.5,
+    44.3,
+    36.5
+   ],
+   "score": 19
+  },
+  {
+   "handle": "generativist.com",
+   "did": "did:plc:o32okshy54r5h2vlrjpz3aln",
+   "posts": 3759,
+   "first": "2023-02-27",
+   "pcts": [
+    18.5,
+    8,
+    84.9,
+    22.9,
+    28.9,
+    71.3
+   ],
+   "score": 17
+  },
+  {
+   "handle": "apex.atproto.ceo",
+   "did": "did:plc:zjnskcrzfd35gtlso2agki5y",
+   "posts": 5514,
+   "first": "2025-01-28",
+   "pcts": [
+    23.8,
+    33,
+    30.6,
+    28.4,
+    31,
+    79
+   ],
+   "score": 15
+  },
+  {
+   "handle": "vgel.me",
+   "did": "did:plc:zymiavmtif2rj5oklzyzslpu",
+   "posts": 2975,
+   "first": "2023-05-02",
+   "pcts": [
+    51.3,
+    81.2,
+    17,
+    15.7,
+    11.6,
+    50
+   ],
+   "score": 15
+  },
+  {
+   "handle": "niplav.site",
+   "did": "did:plc:xsbulgruwmkxhbwytphhjykk",
+   "posts": 2085,
+   "first": "2023-06-24",
+   "pcts": [
+    42.3,
+    3,
+    13.1,
+    75,
+    13.5,
+    77.4
+   ],
+   "score": 13
+  },
+  {
+   "handle": "words.bsky.social",
+   "did": "did:plc:plvxn2kpjuseoftweoo4xtag",
+   "posts": 26809,
+   "first": "2023-04-11",
+   "pcts": [
+    76,
+    14,
+    47.3,
+    2.8,
+    77.9,
+    5.1
+   ],
+   "score": 12
+  },
+  {
+   "handle": "eternalism-when.bsky.social",
+   "did": "did:plc:avmom3x7xo4ii6tte7rlre5h",
+   "posts": 2097,
+   "first": "2025-05-24",
+   "pcts": [
+    14.7,
+    31.8,
+    19.1,
+    34.2,
+    35.4,
+    84.3
+   ],
+   "score": 10
+  },
+  {
+   "handle": "schwarzgerat.bsky.social",
+   "did": "did:plc:gyaxtxafuuegoh2igamal3dd",
+   "posts": 1795,
+   "first": "2024-11-15",
+   "pcts": [
+    21,
+    13.9,
+    10.7,
+    64.7,
+    19.6,
+    89.2
+   ],
+   "score": 10
+  },
+  {
+   "handle": "tautologer.com",
+   "did": "did:plc:kef63ihhci7f5xhriu4asjhb",
+   "posts": 4263,
+   "first": "2023-04-09",
+   "pcts": [
+    15.8,
+    43.5,
+    98.2,
+    18.9,
+    18.8,
+    20
+   ],
+   "score": 8
+  },
+  {
+   "handle": "bisks.net",
+   "did": "did:plc:f6n22z62adionrvb5s6n6vfk",
+   "posts": 2226,
+   "first": "2026-02-04",
+   "pcts": [
+    94.4,
+    67,
+    0,
+    26.1,
+    14.4,
+    9.2
+   ],
+   "score": 7
+  },
+  {
+   "handle": "conjurial.bsky.social",
+   "did": "did:plc:qwo2qok6e3hhcwmdjkm3psxv",
+   "posts": 11333,
+   "first": "2025-02-05",
+   "pcts": [
+    6.6,
+    22.2,
+    42.2,
+    50,
+    72.2,
+    0
+   ],
+   "score": 5
+  },
+  {
+   "handle": "abeliansoup.bsky.social",
+   "did": "did:plc:kbdtfnqrqpwwf62f6eekr7m2",
+   "posts": 2996,
+   "first": "2025-11-18",
+   "pcts": [
+    35.8,
+    6.7,
+    3.9,
+    42.1,
+    43,
+    59.3
+   ],
+   "score": 4
+  },
+  {
+   "handle": "deepfates.com.deepfates.com.deepfates.com.deepfates.com.deepfates.com",
+   "did": "did:plc:7ti53c7iwv3poxnypw2tu3ck",
+   "posts": 5372,
+   "first": "2023-04-09",
+   "pcts": [
+    17.4,
+    39.7,
+    51,
+    46,
+    4,
+    11.9
+   ],
+   "score": 3
+  },
+  {
+   "handle": "sqcu.bsky.social",
+   "did": "did:plc:7y2fzguy54ruryiq2jphfpvd",
+   "posts": 691,
+   "first": "2023-04-24",
+   "pcts": [
+    58,
+    1.5,
+    2.9,
+    51,
+    0,
+    40.9
+   ],
+   "score": 1
+  },
+  {
+   "handle": "medjed.bsky.social",
+   "did": "did:plc:njvjlnjfbvtm5zsnlztu2tx6",
+   "posts": 1925,
+   "first": "2023-07-26",
+   "pcts": [
+    64.3,
+    26.6,
+    1.5,
+    7.9,
+    22.4,
+    2.8
+   ],
+   "score": 0
+  }
+ ]
+}

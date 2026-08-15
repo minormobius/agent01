@@ -327,6 +327,74 @@ That selftest caught its own guard: `new URL()` normalises
 prefix-matching check waved IPv4-mapped loopback straight through. The address
 parser expands properly now.
 
+## What the build agent gets to run — `bench.html`
+
+The same rule as above, applied to execution rather than to the network: **the
+harness runs it and the agent reads the result.**
+
+The agent's code has always executed here —
+[`lab-smoke.mjs`](../../scripts/lab-smoke.mjs) loads `index.html` in real
+headless Chrome on every build. What contains it is not that the agent didn't
+press the button. It is that a **browser** has no credentials, no filesystem and
+a `connect-src` naming seven hosts. `node whatever.mjs` on the runner has this
+job's environment — the OAuth token, the API key, everything on localhost — and
+is Bash with extra steps.
+
+So [`lab-bench.mjs`](../../scripts/lab-bench.mjs) reuses that exact sandbox
+(both share [`lib/headless.mjs`](../../scripts/lib/headless.mjs)) for a second
+page. If a tenant directory contains `bench.html`, the harness serves it
+same-origin under the production CSP, runs it, and hands what it printed to one
+tuning pass. `bench.html` is walked by the content gate like every other file
+in the directory, so this adds no ungated surface.
+
+**The contract**, stated to the agent in the brief:
+
+| | |
+|---|---|
+| report a result | append an element with `data-labbench="<label>"`, value as its text |
+| signal completion | append one final `data-labbench="done"` |
+| finish | no animation loop; timers are fast-forwarded, synchronous grinding is not |
+| measure what ships | iframe or import `index.html` rather than copying its code in |
+
+**`done` is the load-bearing part.** Chrome dumps the DOM when the virtual-time
+budget expires whether the page finished or not, so a sweep cut off at result 4
+of 40 is byte-identical to a sweep that found 4. Without the marker the report
+is labelled partial, and the tuning prompt tells the agent not to tune to the
+edge of a truncated sweep.
+
+**A bench is information, never a verdict.** `lab-bench.mjs` exits 0 when it ran
+and 2 when it could not; it never exits 1, and no build fails on it. The smoke
+test already owns *is it broken?* — a measurement that could fail a build would
+become a thing agents write to pass rather than to learn from.
+
+### Why this exists
+
+`@minormobius` asked honeyflow-chess to *"build a headless play tester and tune
+defaults so that a pawn advancing two barely pulls neighboring pawns forward
+one."* The agent built the tester — `headless-test.mjs`, a real sweep harness —
+and then wrote in `NOTE.txt`: *"No shell here to run it, so DRAG and the
+streamline knobs are raised by reasoning, not measurement."* `DRAG` shipped
+0.4 → 1.0 by argument.
+
+Three things that build got right are why this is a harness change and not a
+prompting one. It correctly identified the constraint; it wrote the plan item
+(*"actually run headless-test.mjs and retune from real numbers — this is the
+load-bearing next step"*); and it warned that a future turn would be equally
+stuck. It could not have fixed this itself: `scripts/` is outside the tenant
+directory and the containment gate rejects any diff that reaches it. The one
+thing it could not do was tell anyone who *could* change the harness — see
+**Absence of a channel**, below.
+
+### Absence of a channel
+
+A build agent that notices the harness is missing something has nowhere to put
+that. `BRIEF.md` is read by the next build agent, who has identical
+constraints. `NOTE.txt` is 250 characters on a Bluesky reply. Both of
+honeyflow-chess's observations were correct, well-argued, and addressed to
+readers who could do nothing with them; the only reason the gap closed is that
+the operator happened to read the reply. That is still open, and it is a
+cheaper win than most of what is built here.
+
 ## Assets: on the domain, or not at all
 
 A published lab site **cannot** load a model from poly.pizza at runtime, and the

@@ -36,7 +36,7 @@ window.SPEC_CURATED = {
   families: {
     root: 'platform', auth: 'platform', scores: 'platform', cron: 'platform',
     autopilot: 'platform', bounty: 'platform', 'duffel-proxy': 'platform', 'fred-proxy': 'platform',
-    lab: 'platform',
+    lab: 'platform', loop: 'platform', plant: 'platform',
     'bsky-bot': 'platform',
     poll: 'social', feed: 'social', zoom: 'social', b: 'social', airchat: 'social',
     bisk: 'social', empathy: 'social', io: 'social', photo: 'social',
@@ -55,7 +55,7 @@ window.SPEC_CURATED = {
     wormhole: 'generative', idol: 'generative',
     g: 'games', torus: 'games', canvas: 'games', pokemon: 'games',
     aub: 'games', fluoddity: 'games', cards: 'games', human: 'games',
-    foam: 'games',
+    foam: 'games', farm: 'games', 'farm-next': 'games', words: 'games',
     moji: 'reference', uni: 'reference', unit: 'reference', fix: 'reference',
     read: 'reading', rite: 'reading', chat: 'reading',
     math: 'math', 'ai-edu': 'math',

@@ -155,7 +155,7 @@
       "dir": "b",
       "endpoint": "b.mino.mobi",
       "type": "frontend",
-      "branch": "claude/image-manipulation-platform-g5puxy",
+      "branch": "claude/ai-detection-browser-aw7kq5",
       "uses": [],
       "provides": null,
       "paths": [
@@ -172,24 +172,27 @@
         "map",
         "unique",
         "thread",
-        "sleuth"
+        "sleuth",
+        "palm"
       ],
-      "note": "Portal to every Bluesky tool here—feeds, network maps, account analysis, and the shared OAuth worker in one place. (full description: b/CLAUDE.md) Also hosts thread at /thread (paste a post URL, read the whole reply tree with the author's own chain kept unbroken, plus a wall of every post it quoted) and sleuth at /sleuth (a thousand of any account's posts indexed in-tab with TF-IDF for instant keyless search; bring your own API key and the retrieved posts become RAG context, or generate a dossier of themes, narrative arcs and a personality read with every claim cited back to a post). Both moved here from photo, where they had been filed as image tools by accident — photo 301s /thread and /sleuth here and translates the old fragment deep links (#/thread/<url> -> ?p=, #/sleuth/<handle> -> ?u=)."
+      "note": "Portal to every Bluesky tool here—feeds, network maps, account analysis, and the shared OAuth worker in one place. (full description: b/CLAUDE.md) Also hosts palm at /palm (six stylometric lines off a whole repo, as percentiles against an offline pool — explicitly not an AI detector; b/palm/car-stream.js is a pure-JS streaming CAR reader that handles a 90MB repo where the buffering paths OOM) and thread at /thread (paste a post URL, read the whole reply tree with the author's own chain kept unbroken, plus a wall of every post it quoted) and sleuth at /sleuth (a thousand of any account's posts indexed in-tab with TF-IDF for instant keyless search; bring your own API key and the retrieved posts become RAG context, or generate a dossier of themes, narrative arcs and a personality read with every claim cited back to a post). Both moved here from photo, where they had been filed as image tools by accident — photo 301s /thread and /sleuth here and translates the old fragment deep links (#/thread/<url> -> ?p=, #/sleuth/<handle> -> ?u=).",
+      "status": "RECONCILED 2026-08-15 — two branches developed b/ in parallel. Owner is claude/ai-detection-browser-aw7kq5, whose tree this candidate's b/ matches byte for byte (75 files, palm at 2026-08-06). claude/image-manipulation-platform-g5puxy has the older b/ (66 files, 21 of them behind) and contributed the registry record for palm, not the code — deploying b from it would regress the surface."
     },
     {
       "surface": "auth",
       "dir": "workers/auth",
       "endpoint": "auth.mino.mobi",
       "type": "backend",
-      "branch": "claude/atproto-infinite-whiteboard-usdpzx",
+      "branch": "claude/farmville-atproto-game-745mcr",
       "uses": [
         "mino-auth-db"
       ],
       "provides": "auth.mino.mobi",
+      "status": "RECONCILED 2026-08-15 — one owner: claude/farmville-atproto-game-745mcr. It is the only claimant whose tree carries all 75 WRITE_COLLECTIONS; claude/atproto-infinite-whiteboard-usdpzx has 70 (no com.minomobi.farm.*), so giving it the surface would make the next auth deploy a silent narrowing of the ceiling. BEFORE THE NEXT AUTH DEPLOY THE OWNER MUST PULL main: only main now has both the full 75 and all three of the farm.mino.mobi, farm-next.mino.mobi and loop.mino.mobi origins — farmville's tree is still missing the loop origin.",
       "paths": [
         "workers/auth/**"
       ],
-      "note": "The one shared OAuth worker (confidential client — PKCE + DPoP + PAR + private_key_jwt). Claimed from claude/feature-merge-candidate-l4dkwq, whose auth content had already landed in main (it was 65 lines BEHIND main on workers/auth), to ship rant’s four site.standard.* collections into the metadata ceiling and allowlist rant.mino.mobi. Hand back to the next merge candidate when one forms."
+      "note": "The one shared OAuth worker (confidential client — PKCE + DPoP + PAR + private_key_jwt). This merge candidate unioned the two competing trees: 75 collections, deduplicated (the doubled lab.doc/lab.score pair that tripped check-auth-scope is gone), plus the farm, farm-next and loop origins together. Superset verified against main (69), farmville (75) and atproto-infinite-whiteboard (70) — nothing dropped from any of them. Full ownership history and the deploy caveat: workers/auth/CLAUDE.md."
     },
     {
       "surface": "autopilot",
@@ -806,11 +809,12 @@
         "borsuk",
         "elements",
         "prop",
-        "cohomology"
+        "cohomology",
+        "voronoi"
       ],
       "endpoint": "math.mino.mobi",
       "type": "frontend",
-      "branch": "claude/cohomology-edutainment-viz-a75erl",
+      "branch": "claude/conway-voronoi-procgen-wens91",
       "uses": [],
       "provides": null,
       "status": "MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain math.mino.mobi). Members are STAGED from root at build time, not moved; root still serves the canonical mino.mobi/<x>/ URLs so nothing breaks.",
@@ -831,7 +835,8 @@
         "borsuk/**",
         "elements/**",
         "prop/**",
-        "cohomology/**"
+        "cohomology/**",
+        "voronoi/**"
       ]
     },
     {
@@ -862,6 +867,26 @@
         "paint/**",
         "mmo/**",
         "pizza/**"
+      ]
+    },
+    {
+      "surface": "board",
+      "dir": "board",
+      "endpoint": "board.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/atproto-infinite-whiteboard-usdpzx",
+      "uses": [
+        "auth.mino.mobi"
+      ],
+      "provides": null,
+      "status": "MANAGED — verified prod. Run #1 (2026-07-28) created Worker `board` and bound `board.mino.mobi (custom domain)`; wrangler attached the new subdomain itself, no dashboard step was needed. Live: index + /lexicons/*.json serve 200.",
+      "op": "create",
+      "note": "The infinite whiteboard. Spatial canvas holding pictures, voice notes, links, files and text snips — and other whiteboards: a selection folds into a child board (⌘G) leaving a portal behind, and connectors that crossed the boundary re-point at it. One board = one com.minomobi.board.canvas record in the user's own repo, media as blobs on their PDS; no backend, no database… (full description: board/CLAUDE.md)",
+      "paths": [
+        "board/**",
+        "packages/oauth-client/**",
+        "js/typeahead.js",
+        "scripts/vendor-board.sh"
       ]
     },
     {
@@ -1262,23 +1287,39 @@
       "note": "Fifty ATProto app pitches, one deploy surface: a landing index at / and one page per concept at /c/<n>. Thirty are working tools; twenty render an honest write-up of why they were not built… (full description: fifty/CLAUDE.md)"
     },
     {
-      "surface": "board",
-      "dir": "board",
-      "endpoint": "board.mino.mobi",
+      "surface": "farm",
+      "dir": "farm",
+      "endpoint": "farm.mino.mobi",
       "type": "frontend",
-      "branch": "claude/atproto-infinite-whiteboard-usdpzx",
+      "branch": "claude/farmville-atproto-game-745mcr",
       "uses": [
         "auth.mino.mobi"
       ],
       "provides": null,
-      "status": "MANAGED — verified prod. Run #1 (2026-07-28) created Worker `board` and bound `board.mino.mobi (custom domain)`; wrangler attached the new subdomain itself, no dashboard step was needed. Live: index + /lexicons/*.json serve 200.",
       "op": "create",
-      "note": "The infinite whiteboard. Spatial canvas holding pictures, voice notes, links, files and text snips — and other whiteboards: a selection folds into a child board (⌘G) leaving a portal behind, and connectors that crossed the boundary re-point at it. One board = one com.minomobi.board.canvas record in the user's own repo, media as blobs on their PDS; no backend, no database… (full description: board/CLAUDE.md)",
+      "status": "NEW — first deploy pending. Worker `farm` + custom_domain route (farm.mino.mobi); wrangler creates the subdomain itself on run #1 (neuro/board precedent). Requires the auth worker deployed with the com.minomobi.farm.* collections FIRST (same branch owns both; auth deploys on the same push).",
+      "note": "Harvestople — farming on ATProto (the board pattern: no backend, the player's PDS is the database). Real-organism crops vendored from the hoop ag pack, wall-clock growth, gacha seed desk per-DID biome, a planetary-metals mine, the Galenic alchemy bench, public achievement records with one-tap bsky share, and friend-to-friend tends/gifts as public records in each side's own repo. (full description: farm/CLAUDE.md)",
       "paths": [
-        "board/**",
-        "packages/oauth-client/**",
-        "js/typeahead.js",
-        "scripts/vendor-board.sh"
+        "farm/**",
+        ".github/workflows/deploy-farm.yml"
+      ]
+    },
+    {
+      "surface": "farm-next",
+      "dir": "farm",
+      "endpoint": "farm-next.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/farm-next",
+      "uses": [
+        "auth.mino.mobi"
+      ],
+      "provides": null,
+      "op": "create",
+      "status": "NEW — first deploy pending. Worker `harvestople-next` + custom_domain route (farm-next.mino.mobi) via farm/wrangler.next.jsonc; wrangler provisions the subdomain on run #1 (farm precedent, same zone).",
+      "note": "THE TESTING TABLE — the same farm/ code deployed from claude/farm-next, where granted petitions go live immediately so the petitioner can play their idea within the hour. Shares the plot record with mainline under the save covenant (farm.x pocket, frozen v — test/covenant.selftest.mjs gates both worlds); next-scope.mjs keeps the rails (store/auth/wrangler/lexicons/sims) out of experiments' reach. Features graduate at the merge party or retire. (full description: farm/CLAUDE.md)",
+      "paths": [
+        "farm/**",
+        ".github/workflows/deploy-farm-next.yml"
       ]
     },
     {
@@ -1297,6 +1338,27 @@
       ]
     },
     {
+      "surface": "words",
+      "dir": "words",
+      "endpoint": "words.mino.mobi",
+      "type": "fullstack",
+      "branch": "claude/word-game-surface-ai-x1nuys",
+      "uses": [
+        "atpolls-db"
+      ],
+      "provides": null,
+      "status": "MANAGED — new surface via deploy-words.yml (Worker `words`, custom_domain words.mino.mobi). words.mino.mobi did not resolve before this branch, so the first deploy creates the worker and attaches the domain itself (the `neuro` precedent — mino.mobi is a zone on this account). Engine selftest + a lexicon-freshness check gate the deploy; idempotent D1 migration 0035_words before it.",
+      "op": "create",
+      "note": "words.mino.mobi — the word game: Words With Friends without the ads, the accounts or the nagging. 1-4 seats, any of them a bot. THE INNOVATION IS THE BOARD: alongside double/triple letter and word there are four new squares — QUAD LETTER, MIRE (a letter there scores nothing), HALF (the word through it is halved after every multiplier) and TOLL (a flat 8 off the play, so it taxes the filler move and barely dents a good one) — plus STONE, a hole in the board that words break on like the edge, which changes the topology rather than the arithmetic. Three layouts: Fair (no hazards), Hazard, Archipelago (stones). The opponent is a DETERMINISTIC Appel-Jacobson move generator over a minimal DAWG of ENABLE (168,551 words in 474 KiB, committed), with three levels that differ in what they can see rather than in how honestly they play. Installable PWA: the browser runs the same engine, so a game against bots is played entirely offline. Turn notifications are real Web Push (VAPID + aes128gcm implemented on WebCrypto, no dependency) plus the App Badging API, with the keypair self-provisioned into D1 because worker secrets need a human. (full description: words/CLAUDE.md)",
+      "paths": [
+        "words/**",
+        "poll/apps/api/migrations/0035_words.sql",
+        "poll/apps/api/migrations/0036_words_push.sql",
+        ".github/workflows/deploy-words.yml"
+      ],
+      "cohesion": "self-contained"
+    },
+    {
       "surface": "lab",
       "dir": "lab/www",
       "endpoint": "minomobi.com",
@@ -1311,6 +1373,36 @@
         "lab/_kit/**",
         "scripts/gen-lab-tenants.mjs",
         ".github/workflows/deploy-lab.yml"
+      ]
+    },
+    {
+      "surface": "loop",
+      "dir": "loop",
+      "endpoint": "loop.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/loop-graph-ticketing-surface-7qxu7c",
+      "uses": [],
+      "provides": null,
+      "status": "MANAGED and LIVE — the viewing surface for the agent loop's ticket graph. loop.mino.mobi was created by the first deploy from the routes[] declaration (run 30875224557 logged \"loop.mino.mobi (custom domain)\") and answers /health 200. It did not exist before that run; DEPLOYS.md §7's dashboard-only rule covers detaching and moving a domain, not creating a new one on a zone already in the account.",
+      "note": "The loop apparatus: the ticket graph, the ready queue, the governor, and the quality-against-turn-count curve. Reads loop/data/graph.json, generated from the ledger in .github/loop/. (full description: loop/CLAUDE.md)",
+      "paths": [
+        "loop/**",
+        ".github/workflows/deploy-loop.yml"
+      ]
+    },
+    {
+      "surface": "plant",
+      "dir": "plant",
+      "endpoint": "plant.minomobi.com",
+      "type": "frontend",
+      "branch": "claude/loop-graph-ticketing-surface-7qxu7c",
+      "uses": [],
+      "provides": null,
+      "status": "MANAGED and LIVE — the agent loop's WORK PRODUCT, deployed so people outside the loop can judge it. plant.minomobi.com was created by the first deploy from the routes[] declaration (run 30959458804) and answers /health 200 with {\"ok\": true}. The domain is NOT plant.mino.mobi and that is a security decision: workers/auth sets its session cookie with Domain=.mino.mobi and isAllowedOrigin() allowlists any hostname ending .mino.mobi, so agent-written JS on such a host could call auth.mino.mobi/pds/* with a signed-in visitor's session. CLOSED-LOOP.md §6.1. Provisioning on that first run is worth knowing: DNS did not resolve at all for ~10s, then Cloudflare served error 1104 for ~60s while the certificate issued, then it worked. Only a first deploy sees that.",
+      "note": "Written by loop turns, not by hand — this is the tree the fleet may edit, and the only place its output reaches a stranger. Deliberately separate from foam/ (hand-authored, different domain, different workflow): the comparison between them is worth nothing if the trees are contaminated. Currently serves the summon inspector — Platonic cells in an anisotropic foam, with the naive-placement trap flippable so a visitor can see the 22° rather than be told about it. (full description: plant/CLAUDE.md)",
+      "paths": [
+        "plant/**",
+        ".github/workflows/deploy-plant.yml"
       ]
     }
   ],

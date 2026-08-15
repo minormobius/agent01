@@ -48,7 +48,38 @@ permissions:
   actions: read
 
 jobs:
+  # BULK-PUSH GUARD — same lesson as bakeoff.yml's intent job: the paths filter
+  # fires whenever bakeoff/PUBLISH differs anywhere in the push RANGE, so a
+  # branch sync/force-push carrying the file re-publishes a run nobody asked
+  # for (it happened 2026-08-12). Publishing is deliberate: the push's TIP
+  # commit must itself be a non-merge commit that changes bakeoff/PUBLISH.
+  intent:
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.check.outputs.go }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: check
+        run: |
+          set -uo pipefail
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          MERGES=$(git rev-list --no-walk --count --merges HEAD)
+          CHANGED=$(git diff --name-only HEAD^ HEAD 2>/dev/null || echo "")
+          if [ "$MERGES" = "0" ] && echo "$CHANGED" | grep -qx 'bakeoff/PUBLISH'; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::head commit does not itself change bakeoff/PUBLISH (bulk sync or merge) — not a publish request; skipping"
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          fi
+
   publish:
+    needs: intent
+    if: needs.intent.outputs.go == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

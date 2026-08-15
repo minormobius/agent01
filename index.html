@@ -1349,6 +1349,22 @@ footer a:hover {
   </li>
   <li>
     <div class="name-row">
+      <a href="https://farm.mino.mobi">farm</a>
+      <span class="tag">atproto</span>
+      <span class="tag">game</span>
+    </div>
+    <div class="desc">Harvestople — farming on ATProto. Plant real organisms that grow on the wall clock, mine the seven planetary metals, brew Galenic alchemy from what you harvest, and post your deeds to Bluesky. Friends who water your plants grow them 10% faster each — every boost a public record either side can verify. Your whole farm is one record in your own repo; no database anywhere.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://farm-next.mino.mobi">farm-next</a>
+      <span class="tag">atproto</span>
+      <span class="tag">game</span>
+    </div>
+    <div class="desc">Harvestople's testing table. Petition a change from inside the farm and the town council builds it here — live within the hour, playable with your real save. The good experiments graduate to the mainline farm at the weekly merge party; the save covenant keeps one plot record honest across both worlds.</div>
+  </li>
+  <li>
+    <div class="name-row">
       <a href="https://mino.mobi/bounty/">bounty</a>
       <span class="tag">workers</span>
       <span class="tag">d1</span>
@@ -1575,6 +1591,15 @@ footer a:hover {
   </li>
   <li>
     <div class="name-row">
+      <a href="https://mino.mobi/voronoi/">voronoi</a>
+      <span class="tag">canvas</span>
+      <span class="tag">math</span>
+      <span class="tag">procgen</span>
+    </div>
+    <div class="desc">Conway's Game of Life on a Voronoi mesh of a torus. B3/S23 is really a fact about squares having eight neighbours, so here the rule is a <em>fraction</em> of whatever neighbourhood a cell drew — four to eight sides, six on average, exactly six on average because Euler says so. Roll sites, relax the mesh, then roll soups until one refuses to settle: the hunt scores every trajectory and shows you the duds it rejected. Six found specimens ship with the page, including one that never repeated in 5000 generations and one whose period-210 attractor is just lcm(2,3,5,6,14) of oscillators ignoring each other. Every universe is a seed, so every good one is a URL.</div>
+  </li>
+  <li>
+    <div class="name-row">
       <a href="https://mino.mobi/elements/">elements</a>
       <span class="tag">canvas</span>
       <span class="tag">chem</span>
@@ -1646,6 +1671,24 @@ footer a:hover {
 <div class="section-label">tools</div>
 
 <ul class="projects">
+  <li>
+    <div class="name-row">
+      <a href="https://loop.mino.mobi">loop</a>
+      <span class="tag">beads</span>
+      <span class="tag">actions</span>
+      <span class="tag">agents</span>
+    </div>
+    <div class="desc">The apparatus for a budget-governed agent loop, shown while it runs: the ticket graph it reasons over (dependencies, findings, and the dead ends that stop turn&nbsp;30 repeating turn&nbsp;4), the ready queue, the stop conditions, and the quality-against-turn-count curve the whole programme exists to measure. The deliverable is the curve, not the artifacts.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://plant.minomobi.com">plant</a>
+      <span class="tag">voronoi</span>
+      <span class="tag">platonic</span>
+      <span class="tag">agents</span>
+    </div>
+    <div class="desc">What the loop next door actually built, published so it can be judged by someone who is not the machine that made it. A cell in a foam is the intersection of half-spaces, so its faces <em>are</em> its bisectors &mdash; put a seed in the middle and one along each face normal and the foam grows a Platonic solid. Drag to orbit; push the anisotropy up and watch the space stretch while the shape stays exact; tick <em>naive placement</em> to see the 22&deg; the correction exists to remove, and then try it on a cube, which is fine, which is why the bug is dangerous.</div>
+  </li>
   <li>
     <div class="name-row">
       <a href="https://mino.mobi/spec/">spec</a>
@@ -1901,6 +1944,15 @@ footer a:hover {
 <div class="section-label">games</div>
 
 <ul class="projects">
+  <li>
+    <div class="name-row">
+      <a href="https://words.mino.mobi">words</a>
+      <span class="tag">d1</span>
+      <span class="tag">pwa</span>
+      <span class="tag">game</span>
+    </div>
+    <div class="desc">Words with friends, without the ads or the accounts. One to four seats, any of them a deterministic bot that reads a 168,551-word lexicon through a DAWG. The board is the new part: beside the usual double and triple squares there are quad letters, mires that pay nothing, halves that cut a word in two after every multiplier, tolls that tax the filler move, and stones &mdash; holes that words break on like the edge of the board. Installs as a PWA and plays offline against the bots.</div>
+  </li>
   <li>
     <div class="name-row">
       <a href="https://human.mino.mobi">human</a>
@@ -2170,6 +2222,11 @@ footer a:hover {
 
 <ul class="claude-index">
   <li>
+    <code>word-game-surface-ai</code>
+    <span class="claude-ships">shipped <a href="https://words.mino.mobi">words</a></span>
+    <span class="claude-blurb">The word game: hazard squares (mire, half, toll, stone) beside the classic premiums, a deterministic Appel&ndash;Jacobson opponent over a committed 474&nbsp;KiB DAWG, async games on shared atpolls-db (migration 0035), installable and playable offline.</span>
+  </li>
+  <li>
     <code>human-machinery</code>
     <span class="claude-ships">shipped <a href="https://human.mino.mobi">human</a></span>
     <span class="claude-blurb">The bias arcade: six playable exhibits, live aggregate stats on shared atpolls-db (migration 0033), pixel-font OG cards baked in CI.</span>
@@ -2287,6 +2344,8 @@ footer a:hover {
       <tr><td class="surf"><code>duffel-proxy</code></td><td class="kind">backend</td><td class="eps"><a class="ep" href="https://air.mino.mobi">air.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>empathy</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://empath.mino.mobi">empath.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>fable</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://fable.mino.mobi">fable.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>farm</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://farm.mino.mobi">farm.mino.mobi</a></td><td class="eps"><a class="ep" href="https://auth.mino.mobi">auth.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>farm-next</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://farm-next.mino.mobi">farm-next.mino.mobi</a></td><td class="eps"><a class="ep" href="https://auth.mino.mobi">auth.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>feed</code></td><td class="kind">backend</td><td class="eps"><a class="ep" href="https://feed.mino.mobi">feed.mino.mobi</a></td><td class="eps"><code class="ep">atpolls-db</code></td><td class="eps"><a class="ep" href="https://feed.mino.mobi">feed.mino.mobi</a></td></tr>
       <tr><td class="surf"><code>fifty</code></td><td class="kind">fullstack</td><td class="eps"><a class="ep" href="https://fifty.mino.mobi">fifty.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>finance</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://fin.mino.mobi">fin.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
@@ -2307,6 +2366,7 @@ footer a:hover {
       <tr><td class="surf"><code>j</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://j.mino.mobi">j.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>lab</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://minomobi.com">minomobi.com</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><a class="ep" href="https://minomobi.com">minomobi.com</a></td></tr>
       <tr><td class="surf"><code>labglass</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://glass.mino.mobi">glass.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>loop</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://loop.mino.mobi">loop.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>mappa</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://mappa.mino.mobi">mappa.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>math</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://math.mino.mobi">math.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>mega</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://mega.mino.mobi">mega.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
@@ -2318,6 +2378,7 @@ footer a:hover {
       <tr><td class="surf"><code>os-api</code></td><td class="kind">backend</td><td class="eps"><a class="ep" href="https://os-api.minomobi.com">os-api.minomobi.com</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><a class="ep" href="https://os-api.minomobi.com">os-api.minomobi.com</a></td></tr>
       <tr><td class="surf"><code>photo</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://photo.mino.mobi">photo.mino.mobi</a></td><td class="eps"><a class="ep" href="https://auth.mino.mobi">auth.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>phylofiction</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://phylofiction.mino.mobi">phylofiction.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>plant</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://plant.minomobi.com">plant.minomobi.com</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>pm</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://pm.mino.mobi">pm.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>pod</code></td><td class="kind">fullstack</td><td class="eps"><a class="ep" href="https://pod.mino.mobi">pod.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>pokemon</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://poke.mino.mobi">poke.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
@@ -2339,6 +2400,7 @@ footer a:hover {
       <tr><td class="surf"><code>unit</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://unit.mino.mobi">unit.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>wars</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://war.mino.mobi">war.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>wave</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://wave.mino.mobi">wave.mino.mobi</a></td><td class="eps"><a class="ep" href="https://auth.mino.mobi">auth.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>words</code></td><td class="kind">fullstack</td><td class="eps"><a class="ep" href="https://words.mino.mobi">words.mino.mobi</a></td><td class="eps"><code class="ep">atpolls-db</code></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>wormhole</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://wormhole.mino.mobi">wormhole.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>zoom</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://zoom.mino.mobi">zoom.mino.mobi</a></td><td class="eps"><a class="ep" href="https://feed.mino.mobi">feed.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <!-- SURFACE-MAP:END -->
@@ -2444,6 +2506,8 @@ footer a:hover {
     { n:'pm',       u:'https://mino.mobi/pm/',                   c:'work',    k:17, a:'warm', t:'2026-05-29', b:'2026-03-25', p:'org' },
     { n:'wave',     u:'https://wave.mino.mobi',                  c:'work',    k:10, a:'cold', t:'2026-05-29', b:'2026-03-25', p:'org' },
     { n:'board',    u:'https://board.mino.mobi',                 c:'work',    k:1,  a:'hot', t:'2026-07-28', b:'2026-07-28' },
+    { n:'farm',     u:'https://farm.mino.mobi',                  c:'games',   k:1,  a:'hot', t:'2026-08-11', b:'2026-08-11' },
+    { n:'farm-next', u:'https://farm-next.mino.mobi',            c:'games',   k:1,  a:'hot', t:'2026-08-13', b:'2026-08-13' },
     { n:'wiki',     u:'https://mino.mobi/wiki/',                 c:'work',    k:15, a:'warm', t:'2026-05-29', b:'2026-04-15', p:'org' },
     { n:'crm',      u:'https://mino.mobi/crm/',                  c:'work',    k:14, a:'warm', t:'2026-05-29', b:'2026-03-25', p:'org' },
     { n:'bounty',   u:'https://mino.mobi/bounty/',               c:'work',    k:5,  a:'cold', t:'2026-05-29', b:'2026-03-18' },
@@ -2499,6 +2563,7 @@ footer a:hover {
     { n:'borsuk',   u:'https://mino.mobi/borsuk/',               c:'data',    k:1,  a:'hot', t:'2026-05-29', b:'2026-05-23',  p:'geometry' },
     { n:'viazovska',u:'https://mino.mobi/viazovska/',            c:'data',    k:1,  a:'hot', t:'2026-05-29', b:'2026-05-24',  p:'geometry' },
     { n:'cohomology',u:'https://mino.mobi/cohomology/',        c:'data',    k:1,  a:'hot', t:'2026-07-28', b:'2026-07-28',  p:'geometry' },
+    { n:'voronoi',  u:'https://mino.mobi/voronoi/',            c:'data',    k:1,  a:'hot', t:'2026-08-06', b:'2026-08-06',  p:'geometry' },
     { n:'elements', u:'https://mino.mobi/elements/',             c:'data',    k:1,  a:'hot', t:'2026-05-29', b:'2026-05-23' },
     { n:'prop',     u:'https://mino.mobi/prop/',                 c:'data',    k:1,  a:'hot', t:'2026-06-15', b:'2026-06-15' },
     { n:'techtree', u:'https://mino.mobi/cards/collection/techtree.html', c:'data', k:15, a:'warm', t:'2026-05-29', b:'2026-04-13', p:'cards' },
@@ -2507,6 +2572,8 @@ footer a:hover {
     { n:'yum',      u:'https://mino.mobi/cards/games/yum.html',           c:'data', k:6,  a:'hot', t:'2026-05-29', b:'2026-04-13',  p:'cards' },
     { n:'diffract', u:'https://mino.mobi/cards/collection/diffract.html', c:'data', k:1,  a:'hot', t:'2026-06-07', b:'2026-06-07',  p:'cards' },
     // tools
+    { n:'loop',     u:'https://loop.mino.mobi',                  c:'tools',   k:1,  a:'hot', t:'2026-08-04', b:'2026-08-04' },
+    { n:'plant',    u:'https://plant.minomobi.com',                 c:'tools',   k:1,  a:'hot', t:'2026-08-04', b:'2026-08-04' },
     { n:'labglass', u:'https://mino.mobi/labglass/',             c:'tools',   k:25, a:'cold', t:'2026-05-29', b:'2026-02-25' },
     { n:'neuro',    u:'https://neuro.mino.mobi',                 c:'tools',   k:1,  a:'hot', t:'2026-07-25', b:'2026-07-25' },
     { n:'homeostasis', u:'https://neuro.mino.mobi/homeostasis/',  c:'tools',   k:1,  a:'hot', t:'2026-07-25', b:'2026-07-25',  p:'neuro' },
@@ -2566,6 +2633,7 @@ footer a:hover {
     { n:'g',     u:'https://g.mino.mobi/',               c:'games',   k:119,a:'hot', t:'2026-06-02', b:'2026-03-22' },
     { n:'bearings',  u:'https://g.mino.mobi/bearings/',      c:'games',   k:1,  a:'hot', t:'2026-07-25', b:'2026-07-25', p:'g' },
     { n:'morph',     u:'https://g.mino.mobi/morph/',         c:'games',   k:1,  a:'hot', t:'2026-07-31', b:'2026-07-30', p:'g' },
+    { n:'words',     u:'https://words.mino.mobi',            c:'games',   k:1,  a:'hot', t:'2026-08-05', b:'2026-08-05' },
     { n:'foam',      u:'https://foam.mino.mobi',             c:'games',   k:2,  a:'hot', t:'2026-07-31', b:'2026-07-30' },
     { n:'macro',     u:'https://foam.mino.mobi/macro/',      c:'games',   k:1,  a:'hot', t:'2026-07-31', b:'2026-07-31', p:'foam' },
     { n:'golem',     u:'https://golem.mino.mobi',            c:'games',   k:3,  a:'hot', t:'2026-07-14', b:'2026-07-13' },

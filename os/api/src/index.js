@@ -80,10 +80,40 @@ export class ContainerShell extends Container {
   }
 
   // ─── Assist turn engine (server-side generation) ─────────────────
-  // A turn = one Moonshot call, run to completion inside this DO regardless
+  // A turn = one provider call, run to completion inside this DO regardless
   // of the client's fate. State: { status, text, thinking, tools[], stopReason,
   // error, startedAt }. Live turns in memory; finished turns persisted
   // (last 5 kept) so a client reopened hours later still finds its reply.
+  //
+  // The provider is routed per-turn by body.model — the CHAT-mode mirror of
+  // AGENT_PROFILES: same profile names, same env vars, but called directly
+  // from this DO with no container in the loop.
+
+  // `web` marks providers whose Anthropic-compatible endpoint supports the
+  // server-side web_search tool (DeepSeek's does not — sending it 400s).
+  _assistModel(name) {
+    const profiles = {
+      kimi3: {
+        base: this.env.KIMI_BASE_URL || 'https://api.moonshot.ai/anthropic',
+        model: this.env.KIMI_MODEL || 'kimi-k3',
+        key: this.env.MOONSHOT_API_KEY || '',
+        web: true,
+      },
+      'ds4-flash': {
+        base: this.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/anthropic',
+        model: this.env.DEEPSEEK_FLASH_MODEL || 'deepseek-v4-flash',
+        key: this.env.DEEPSEEK_API_KEY || '',
+        web: false,
+      },
+      'ds4-pro': {
+        base: this.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/anthropic',
+        model: this.env.DEEPSEEK_PRO_MODEL || 'deepseek-v4-pro',
+        key: this.env.DEEPSEEK_API_KEY || '',
+        web: false,
+      },
+    };
+    return profiles[name] || profiles.kimi3;
+  }
 
   async handleAssistOp(request, url) {
     this._assistTurns = this._assistTurns || new Map();
@@ -129,23 +159,24 @@ export class ContainerShell extends Container {
 
   async _runAssistTurn(turn, body, signal) {
     try {
-      const base = (this.env.KIMI_BASE_URL || 'https://api.moonshot.ai/anthropic').replace(/\/$/, '');
+      const prof = this._assistModel(body.model);
+      const base = prof.base.replace(/\/$/, '');
       const upstream = await fetch(`${base}/v1/messages`, {
         method: 'POST',
         signal,
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': this.env.MOONSHOT_API_KEY || '',
+          'x-api-key': prof.key,
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: this.env.KIMI_MODEL || 'kimi-k3',
+          model: prof.model,
           max_tokens: 8192,
           system: body.system,
           messages: body.messages,
           stream: true,
           ...(body.thinking ? { thinking: { type: 'enabled', budget_tokens: 4096 } } : {}),
-          ...(body.webSearch ? { tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }] } : {}),
+          ...(body.webSearch && prof.web ? { tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }] } : {}),
         }),
       });
       if (!upstream.ok) {
@@ -335,8 +366,9 @@ export class ContainerShell extends Container {
     if (url.pathname === '/_sync') {
       return this.handleWorkspaceSync(request);
     }
-    // Assist turns (worker-internal, post-auth). THE POINT: the Moonshot call
-    // runs HERE in the DO, detached from the browser — closing the phone
+    // Assist turns (worker-internal, post-auth). THE POINT: the provider call
+    // (Moonshot or DeepSeek, routed by body.model) runs HERE in the DO,
+    // detached from the browser — closing the phone
     // mid-generation no longer kills the turn. The client polls for the
     // accumulated snapshot; finished turns persist so even a dead client
     // finds its reply later.
@@ -528,7 +560,7 @@ export default {
       });
     }
 
-    // Assist mode (authed): the Moonshot call runs INSIDE the per-DID DO,
+    // Assist mode (authed): the provider call runs INSIDE the per-DID DO,
     // detached from the browser — closing the phone mid-generation no longer
     // loses the turn. Client flow: POST /assist/start → {turnId}, then GET
     // /assist/poll?turn=… for the accumulating snapshot (survives any client
@@ -548,12 +580,23 @@ export default {
       const stub = env.CONTAINER_SHELL.get(env.CONTAINER_SHELL.idFromName(auth.did));
 
       if (op === 'start' && request.method === 'POST') {
-        if (!env.MOONSHOT_API_KEY) {
-          return new Response(JSON.stringify({ ok: false, error: 'MOONSHOT_API_KEY not configured' }), { status: 503, headers: jsonHeaders });
-        }
         let body;
         try { body = await request.json(); } catch {
           return new Response(JSON.stringify({ error: 'bad json' }), { status: 400, headers: jsonHeaders });
+        }
+        // Model route — any AGENT_PROFILES name whose key the WORKER holds:
+        // kimi3 (Moonshot) or ds4-flash / ds4-pro (DeepSeek V4, one shared
+        // key). Native `claude` is browser-keyed and container-only, so it is
+        // deliberately not routable here. Gate on the selected model's key so
+        // a missing secret names itself instead of 401ing at the provider.
+        const ASSIST_KEYS = { kimi3: 'MOONSHOT_API_KEY', 'ds4-flash': 'DEEPSEEK_API_KEY', 'ds4-pro': 'DEEPSEEK_API_KEY' };
+        const model = typeof body?.model === 'string' && body.model ? body.model : 'kimi3';
+        const keyName = ASSIST_KEYS[model];
+        if (!keyName) {
+          return new Response(JSON.stringify({ error: `unknown assist model '${model}' (known: ${Object.keys(ASSIST_KEYS).join(', ')})` }), { status: 400, headers: jsonHeaders });
+        }
+        if (!env[keyName]) {
+          return new Response(JSON.stringify({ ok: false, error: `${keyName} not configured` }), { status: 503, headers: jsonHeaders });
         }
         const messages = (Array.isArray(body?.messages) ? body.messages : [])
           .filter((m) => (m?.role === 'user' || m?.role === 'assistant') && typeof m?.content === 'string')
@@ -565,10 +608,10 @@ export default {
         // with a server-side default.
         const system = (typeof body.system === 'string' && body.system.trim())
           ? body.system.slice(0, 4000)
-          : 'You are Kimi in the assist mode of os.mino.mobi — a quick, direct thinking partner. minomobi is a personal, non-commercial playground of experimental web toys (ATProto apps, visualizations, generative sites) built for curiosity and craft. Be concrete and candid; disagree when warranted. When a plan firms up, the user can hand this conversation to your repo-agent mode (a full Claude Code harness inside the agent01 monorepo) with the → repo button.';
+          : 'You are the assist mode of os.mino.mobi — a quick, direct thinking partner. minomobi is a personal, non-commercial playground of experimental web toys (ATProto apps, visualizations, generative sites) built for curiosity and craft. Be concrete and candid; disagree when warranted. When a plan firms up, the user can hand this conversation to the repo-agent mode (a full coding-agent harness inside the agent01 monorepo) with the → repo button.';
         const res = await stub.fetch(new Request('https://do/_assist/start', {
           method: 'POST',
-          body: JSON.stringify({ messages, system, thinking: !!body.thinking, webSearch: !!body.webSearch }),
+          body: JSON.stringify({ model, messages, system, thinking: !!body.thinking, webSearch: !!body.webSearch }),
         }));
         return new Response(res.body, { status: res.status, headers: jsonHeaders });
       }

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>knot — the dense core of your mutuals, before the graph finishes loading</title>
+<meta name="description" content="Find the tightest mutual-follow community around any Bluesky account without downloading the whole follow graph. Fetches rows in in-degree order and reports a genuine k-core from a fraction of them.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="knot — the dense core of your mutuals">
+<meta property="og:description" content="A real k-core from a fraction of the graph. Watch it assemble.">
+<meta property="og:url" content="https://b.mino.mobi/knot/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --sky: #1a82c4; --sky-faint: rgba(110, 193, 228, 0.12);
+  --gold: #b8860b; --good: #2e7d4f; --warn: #b4472e;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0f0f0f; --text: #d4d4d4; --muted: #888; --rule: #333;
+          --sky: #6ec1e4; --sky-faint: rgba(110,193,228,0.10);
+          --gold: #d8b85a; --good: #6fd0a0; --warn: #e08b6f; }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: var(--serif);
+       line-height: 1.65; -webkit-font-smoothing: antialiased;
+       max-width: 1000px; margin: 0 auto; padding: 2.4rem 1.2rem 6rem; }
+.crumb { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+         text-transform: uppercase; color: var(--muted); text-decoration: none;
+         display: inline-block; margin-bottom: 1.4rem; }
+.crumb:hover { color: var(--sky); }
+h1 { font-size: 2.6rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.05; }
+h1 .fly { color: var(--sky); }
+.tagline { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.16em;
+           text-transform: uppercase; color: var(--muted); margin-top: 0.5rem; }
+.sky-rule { height: 3px; width: 84px; background: var(--sky); margin: 1.2rem 0 0; border-radius: 2px; }
+.lede { font-size: 1.02rem; color: var(--muted); margin-top: 1.2rem; max-width: 66ch; }
+.lede b { color: var(--text); font-weight: 600; }
+
+form { margin: 2rem 0 1rem; display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+input[type=text] { flex: 1 1 260px; min-width: 200px; font-family: var(--mono); font-size: 0.95rem;
+  padding: 0.7rem 0.85rem; border: 1px solid var(--rule); border-radius: 6px;
+  background: var(--bg); color: var(--text); }
+input[type=text]:focus { outline: none; border-color: var(--sky); }
+button { font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.04em;
+  padding: 0.7rem 1.2rem; border: 1px solid var(--sky); border-radius: 6px;
+  background: var(--sky); color: #fff; cursor: pointer; }
+button:hover { opacity: .85; } button:disabled { opacity: .4; cursor: default; }
+button.ghost { background: none; color: var(--sky); }
+
+.status { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); min-height: 1.4rem; }
+.err { color: var(--warn); }
+.bar { height: 3px; background: var(--rule); border-radius: 2px; overflow: hidden; margin: 0.5rem 0 1.4rem; }
+.bar i { display: block; height: 100%; width: 0; background: var(--sky); transition: width .25s; }
+
+.readout { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+           gap: 0.8rem; margin: 1.4rem 0; }
+.stat { border: 1px solid var(--rule); border-radius: 8px; padding: 0.7rem 0.85rem; }
+.stat .v { font-family: var(--mono); font-size: 1.5rem; font-weight: 700; color: var(--sky); line-height: 1.1; }
+.stat .l { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em;
+           text-transform: uppercase; color: var(--muted); margin-top: 0.25rem; }
+
+.claim { border-left: 3px solid var(--good); padding: 0.3rem 0 0.3rem 0.9rem;
+         margin: 1.2rem 0; font-size: 0.95rem; color: var(--muted); }
+.claim b { color: var(--text); }
+
+.members { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.5rem; margin-top: 1rem; }
+@media (min-width: 640px) { .members { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); } }
+.m { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.5rem;
+     border: 1px solid var(--rule); border-radius: 7px; text-decoration: none; color: inherit;
+     transition: border-color .15s, transform .15s; min-width: 0; }
+.m:hover { border-color: var(--sky); transform: translateY(-1px); }
+.m img { width: 30px; height: 30px; border-radius: 50%; flex: none; background: var(--rule); }
+.m .who { min-width: 0; }
+.m .h { font-family: var(--mono); font-size: 0.68rem; overflow: hidden;
+        text-overflow: ellipsis; white-space: nowrap; }
+.m .d { font-family: var(--mono); font-size: 0.58rem; color: var(--muted); }
+.new { animation: pop .5s ease; }
+@keyframes pop { from { background: var(--sky-faint); } to { background: transparent; } }
+
+.foot { margin-top: 2.6rem; font-size: 0.9rem; color: var(--muted); max-width: 68ch; }
+.foot h2 { font-size: 0.68rem; font-family: var(--mono); letter-spacing: 0.12em;
+           text-transform: uppercase; color: var(--muted); font-weight: 400; margin: 1.8rem 0 0.6rem; }
+.foot code { font-family: var(--mono); font-size: 0.82em; color: var(--text); }
+.hidden { display: none; }
+</style>
+<script src="/lib/handle-typeahead.js"></script>
+</head>
+<body>
+
+<a class="crumb" href="/">← b.mino.mobi</a>
+
+<h1>knot<span class="fly">.</span></h1>
+<div class="tagline">the dense core · found before the graph finishes</div>
+<div class="sky-rule"></div>
+
+<p class="lede">
+  Your tightest mutual-follow community, without downloading the follow graph.
+  A thousand mutuals means about <b>twenty thousand requests</b> to know who follows whom —
+  eleven minutes of staring at a spinner. This fetches rows in the order most likely
+  to matter and shows you a <b>real</b> answer within seconds, which then only gets better.
+</p>
+
+<form id="f">
+  <input type="text" id="handle" value="minormobius.bsky.social" spellcheck="false"
+         autocapitalize="off" autocomplete="off" placeholder="handle.bsky.social" data-bsky-typeahead>
+  <button type="submit" id="go">find the knot</button>
+  <button type="button" class="ghost hidden" id="stop">stop here</button>
+</form>
+
+<div class="status" id="status"></div>
+<div class="bar"><i id="prog"></i></div>
+
+<div id="out" class="hidden">
+  <div class="readout">
+    <div class="stat"><div class="v" id="k">—</div><div class="l">every member has ≥ k mutuals inside</div></div>
+    <div class="stat"><div class="v" id="size">—</div><div class="l">in the core</div></div>
+    <div class="stat"><div class="v" id="edges">—</div><div class="l">mutual edges inside</div></div>
+    <div class="stat"><div class="v" id="rows">—</div><div class="l">rows read</div></div>
+    <div class="stat"><div class="v" id="saved">—</div><div class="l">of the full graph</div></div>
+  </div>
+
+  <p class="claim" id="claim"></p>
+  <div class="members" id="members"></div>
+</div>
+
+<div class="foot">
+  <h2>why this can stop early and still be true</h2>
+  <p>
+    Reading one account's follow list gives a <b>complete row</b> of the adjacency matrix,
+    not a sample of it, so a mutual edge is confirmed the moment both endpoints have been
+    read. Take the accounts read so far and find a set where everyone has at least
+    <code>k</code> mutuals inside that set: every one of those edges is real, and the
+    accounts not yet read can only <i>add</i> connections to them. So the group on screen
+    is a genuine <code>k</code>-core of the whole graph, found from a fraction of it.
+    More reading can raise <code>k</code>. It can never make what you are looking at wrong.
+  </p>
+  <h2>how it decides what to read next</h2>
+  <p>
+    An unread account's in-degree from the rows already read is a free estimate of how
+    central it is — if a dozen accounts you have already read follow it, it is probably in
+    the same dense region they are. Reading highest-first assembles the core in the first
+    few hundred rows instead of the last. On a planted test graph that is
+    <b>80 rows against 389</b> for blind ordering.
+  </p>
+  <h2>a core, not a clique</h2>
+  <p>
+    "Everyone follows everyone" is maximum-clique: NP-hard, and brittle — one person who
+    missed one follow splits the group in two. "Everyone here has at least <code>k</code>
+    mutuals here" is linear to compute, survives a missing edge, and is a better
+    description of what a community actually is.
+  </p>
+  <h2>where the edges come from</h2>
+  <p>
+    Follow lists are read from each account's own repository via
+    <code>com.atproto.repo.listRecords</code> rather than the AppView's
+    <code>getFollows</code>: half the bytes, and <b>more complete</b> — measured on one
+    account, the repo held 1,707 follow records where the AppView returned 1,509, having
+    quietly dropped follows to deactivated and blocked accounts. Followers have to come
+    from the AppView, since those are other people's records. Everything is cached in this
+    browser for six hours, so a second run is close to instant.
+  </p>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

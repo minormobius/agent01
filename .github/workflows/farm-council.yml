@@ -1,0 +1,66 @@
+name: Farm town council (petition promotion)
+
+# THE PROMOTION PIPELINE for player-driven game changes. The council — an automated session
+# working the petition queue — pushes its work to claude/farm-petitions. This workflow is the
+# only road from that branch to production, and it is walls all the way:
+#   1. the moat    — petition-scope.mjs: the diff may only touch the council sandbox
+#   2. the tests   — every kernel selftest
+#   3. the scales  — gate.mjs: the sim oracle + diversity instrument inside annealed bounds
+# Only if all three hold does the work merge into the farm's owning branch and deploy. A
+# petition that talks the council into anything out of bounds dies here, mechanically.
+
+on:
+  push:
+    branches:
+      - 'claude/farm-petitions'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  judge-and-promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: The moat (diff scope vs the deploy branch)
+        run: |
+          git fetch origin claude/farmville-atproto-game-745mcr
+          node farm/sim/petition-scope.mjs origin/claude/farmville-atproto-game-745mcr
+
+      - name: Kernel selftests
+        run: |
+          fail=0
+          for t in farm/test/*.selftest.mjs; do
+            node "$t" || { echo "FAIL $t"; fail=1; }
+          done
+          exit $fail
+
+      - name: The scales (gate.mjs)
+        run: node farm/sim/gate.mjs
+
+      - name: Promote to the deploy branch
+        run: |
+          git config user.name 'harvestople-council'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git checkout -B promote origin/claude/farmville-atproto-game-745mcr
+          git merge --no-ff --no-edit "$GITHUB_SHA" -m "town council: promote $(git log -1 --format=%s $GITHUB_SHA)"
+          git push origin promote:claude/farmville-atproto-game-745mcr
+
+      # A push made with GITHUB_TOKEN does not fire push-triggered workflows (recursion guard),
+      # so the deploy is dispatched explicitly. deploy-farm.yml re-runs tests + the scales.
+      - name: Dispatch the deploy
+        run: |
+          curl -fsS -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy-farm.yml/dispatches \
+            -d '{"ref":"claude/farmville-atproto-game-745mcr"}'

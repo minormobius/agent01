@@ -15,7 +15,7 @@ Portal to every Bluesky tool here—feeds, network maps, account analysis, and t
 | Dir | `b/` |
 | Endpoint | `b.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/image-manipulation-platform-g5puxy` |
+| Owning branch | `claude/ai-detection-browser-aw7kq5` |
 | Deploy | `.github/workflows/deploy-b.yml` |
 | Uses | — |
 | Provides | — |
@@ -56,9 +56,294 @@ what a post of more than four pictures became and which every reader here was
 blind to) and `sleuth/sleuth.selftest.mjs` (the TF-IDF ranking, and the temporal
 buckets the dossier is built on).
 
+## knot — the graph problem, and why it is not a fetching problem
+
+`/knot` finds the dense core of an account's mutual follows. `minormobius` has
+**1,329 mutuals**, and knowing who among them follows whom means 1,329 follow
+lists — about **20,000 paginated requests, eleven minutes** at good concurrency.
+`cluster` (on the root surface) waits for all of it. Nobody waits eleven minutes,
+so the fix had to be algorithmic.
+
+### What was measured before building anything
+
+| route | records | requests | bytes | time |
+|---|---|---|---|---|
+| MST subtree walk via `getBlocks` | 1,707 | 35 | 432 KB | 6.1 s |
+| `getFollows` (what `cluster` uses) | 1,509 | 18 | 957 KB | 2.6 s |
+| `listRecords` on the collection | 1,707 | 19 | 464 KB | **1.1 s** |
+
+- **`listRecords` wins and is also more correct.** It returned **1,707 records
+  where `getFollows` returned 1,509** — the AppView silently drops follows to
+  deactivated, deleted and blocked accounts, so any graph built on `getFollows`
+  is missing ~12% of its edges.
+- **The clever route loses.** The MST is sorted by `collection/rkey`, so all
+  follow records are contiguous and `com.atproto.sync.getBlocks` can fetch a
+  subtree. Built and measured: slower. `getBlocks` caps near 200 CIDs per URL
+  (the CIDs ride in the query string) and the tree is 9 levels deep, so the
+  descent alone costs 21 round trips. **Do not rebuild it.**
+- **`limit` is hard-capped at 100** on `listRecords`, `getFollows` and
+  `getFollowers` alike — `limit=200` is `InvalidRequest`. There is no bulk read.
+- **`getRelationships` does 30 pairs in one request**, so all-pairs over M
+  accounts costs `M·⌈(M−1)/30⌉` against `M·⌈F/100⌉` for full rows. Crossover at
+  **M ≈ 0.3F**; with F ≈ 1,700 that is M ≈ 510. At 1,329 mutuals full rows win,
+  which is why `knot` does not use it — but below a few hundred it is the right tool.
+
+### The idea that makes stopping early legitimate
+
+Reading one account's follow list yields a **complete row** of the adjacency
+matrix, not a sample, so a mutual edge is confirmed once both endpoints are read.
+Find a set where everyone has ≥ k mutuals inside it: every edge is real, and
+unread accounts can only *add* degree to its members. **So the group on screen is
+a genuine k-core of the full graph, from a fraction of it.** More reading can
+raise k; it can never invalidate what is already shown. That is the whole
+product — `knot.selftest.mjs` asserts it by revealing a known graph row by row
+and checking every intermediate core against the full adjacency.
+
+Steering: an unread account's in-degree from already-read rows is a free
+centrality estimate. Read highest-first and the core assembles early. On a
+planted graph that is **80 rows against 389** for blind ordering, and the
+selftest fails if that advantage disappears — otherwise a refactor could turn
+the clever crawl into a slow one with every other test still green.
+
+**A k-core, not a clique, deliberately.** Maximum-clique is NP-hard and brittle
+(one missing follow splits the group); "everyone here has ≥ k mutuals here" is
+linear, survives a missing edge, and describes a community better.
+
+### `b/lib/graph.js`
+
+Shared, and the place to add graph reads rather than a fourth copy: `followsOf`
+(listRecords, 6h IndexedDB cache), `followersOf` (AppView — your followers are
+other people's records, so there is no repo to read), `mutualsOf`,
+`relationships` (batched at 30), `pdsFor` (cached with **no expiry** — one
+plc.directory lookup per DID would otherwise be 1,300 extra requests), and
+`pool()` for bounded concurrency.
+
+## palm — six readings, and the third CAR path
+
+`/palm` takes a handle, streams its **entire** repository, and reads six
+stylometric lines off it: cadence (how evenly you arrive), vigil (whether you
+sleep), lexicon (how wide you draw), polish (how well-formed you are), drift
+(whether you are still the same writer), chorus (whether you answer). Each is
+oriented so high = machine-like; the composite places you on a dial from *Pan*
+to *the Loom* and draws a radar card you can save as a PNG.
+
+**It is not an AI detector and the page says so twice.** Bluesky caps a post at
+300 characters and every published detector degrades badly below ~50 words, so a
+per-post verdict would be invention. What survives at this length is stylometry
+*in aggregate* — the error on a mean over 50k posts falls as √N — so the reading
+is about the account and never about a post. The dial is a **percentile against
+other accounts**, not a probability that anything was generated. Anything that
+later reintroduces a per-post number has to answer that objection first.
+
+### `car-stream.js` — why there is a third CAR reader here
+
+`coin/lexicon.js` and `lathe`'s `archive` source both buffer the whole download,
+hand it to the Rust→WASM parser, get NDJSON back for **every** record in the
+repo, and `.split('\n')` it. On a 90 MB / 50k-post repo that is the chunk array,
+plus a contiguous copy, plus wasm linear memory, plus ~500k records as one
+UTF-16 string, plus the array `split` allocates — and the tab dies. Measured on
+`minormobius.bsky.social` (90 MB, 300k blocks): the streaming reader finishes in
+**2.9 s at 140 MB peak**, keeping 49,891 posts and dropping 178,934 likes on the
+floor as they go past.
+
+Two things make it possible, and both are load-bearing:
+
+- **No MST walk.** Prefix compression inside an MST node is node-*local*
+  (`os/crates/car-parser/src/mst.rs` resets `last_key` per node), so every node
+  decodes independently and block order does not matter. Collect key→CID from
+  whatever nodes stream past, collect CID→record from record blocks, join at the
+  end. No roots, no recursion, no block index.
+- **Anchored sniffing.** Only candidate blocks get decoded. A post record is
+  found by the DAG-CBOR length byte `0x72` that can only precede an 18-character
+  string — **not** by searching for `app.bsky.feed.post`, because every *like*
+  contains that inside its `subject.uri`, and likes outnumber posts 3:1. Get this
+  wrong and the card is drawn from a corpus that is 78% not-posts with nothing
+  looking broken. `palm.selftest.mjs` builds that exact like and asserts it stays out.
+
+It is pure JS with no WASM, so unlike the other two it needs nothing staged at
+deploy time. If it earns a third caller, promote it to `packages/`.
+
+### The baseline is built offline and committed
+
+`baseline.json` is a 101-point quantile table per axis plus the pairwise
+correlations, built by `build-baseline.mjs` — **node only, run by hand, needs
+network**. It measures a pool of real accounts *exactly* as the subject is
+measured (full repo, same code, same fixed budgets), because a percentile against
+a differently-computed population is a lie with a number attached. Pool members
+come from the seed account's own reply partners: a real bias, stated on the page.
+
+```bash
+node b/palm/build-baseline.mjs <posts.json> --pool 80 --cache /tmp/pool
+```
+
+`--cache` keeps each account's reduced posts so changing an axis and re-running
+costs nothing; the download is the whole expense. Two axes carry **fixed
+budgets** (`LEX_WORDS`, `ECHO_TRIGRAMS`) and the Heaps fit is pinned to a fixed
+word range — take those pins out and the percentiles silently start measuring
+who posts the most rather than how they post.
+
+**The pool is a curated roster, and that was a fix.** It was originally the seed's
+own reply partners — selected, in other words, *for replying* — which made
+`chorus` circular by construction. It is now the membership of a Bluesky list
+(`--list roster.json`), a mutual-follow cluster with no selection on
+conversationality. The improvement is measurable: **worst axis correlation went
+from −0.59 to −0.274**, so all six lines are now near-independent rather than two
+of them being one and a half.
+
+It is still a bias, just a nameable one: a mutual-follow cluster is a single
+community, sharing interests and register far more than a random sample. And a
+tight cluster talks to itself constantly, so subjects still read broadcast-heavy
+on `chorus` — `minormobius` is 97th there. That is a real property of the
+comparison, not a defect in the axis.
+
+**Rebuild it with the roster, not the reply-partner default:**
+
+```bash
+node b/palm/build-baseline.mjs <posts.json> \
+  --list roster.json --exclude <seed-did> --cache /tmp/pool
+```
+
+`--exclude` drops the seed: you cannot be a percentile against a pool containing
+yourself. Rejections are collected with reasons and written into `baseline.json`
+(`rejected[]`, `attempted`) so **"is everyone on the list in the corpus" has an
+answer you can check.** Of 98 attempted, 76 qualified; 12 were under the 500-post
+floor, 9 could not fill `LEX_WORDS`, one account was terminated.
+
+### The corpus browser
+
+`/palm/corpus/` tiles every pool member as a small hexagon — no labels, because
+at 150px the shape is the readable thing and six words are noise. It reads
+`corpus.json` (emitted alongside `baseline.json`) plus `baseline.json` for the
+rejection list, so the page is one request and no computation, where `/palm`
+itself is a 90 MB download.
+
+The tile derives its archetype through the same `archetype()` the reading uses —
+one definition of the pair, not two. Grid is `auto-fill minmax(148px)`, which
+lands on two columns on a phone and as many as fit above that.
+
+Publishing the pool is deliberate: **the pool is the scale**, and a percentile
+without its population is a number you have to trust rather than one you can
+argue with. It sits in tension with this surface's own "read your own palm" line,
+and the resolution is the framing — tiles are percentiles among a named pool,
+never verdicts, and every figure comes from a public repository.
+
+### The card puts the headline under the plot
+
+The composite used to sit in a disc at the centre of the radar. That was not
+merely busy, it **occluded data**: every axis below roughly the 35th percentile
+plots inside that radius, so a low scorer's most interesting readings were hidden
+behind their own score (`minormobius`: Lexicon 6 and Vigil 23, both underneath).
+The card now reads top to bottom — chart, verdict, archetype, identity — and the
+polygon is drawn on nothing but its own web. Keep it that way.
+
+**Echo was cut from the radar.** It measured trigram repeat rate and correlated
+with Lexicon at **r = 0.84** across the pool: a narrow vocabulary and a high
+repeat rate are one fact in two hats. Six readings that are really five is worse
+than five honest ones, so `drift` replaced it and echo survives as a footnote.
+The correlation matrix ships in `baseline.json` precisely so the next person can
+run the same check — regenerate it whenever an axis changes.
+
+### The dial was flat, and the fix is two percentiles
+
+The composite started as the plain mean of the six percentiles, and that is the
+central limit theorem applied to your own dial. Averaging six roughly
+independent U(0,100) values gives a standard deviation near 12 rather than 29, so
+it piles up at 50. **Measured across the pool: 80% of accounts fell into two of
+the seven bands, and `Wholly Pan` and `The Loom` were reached by nobody at all** —
+two verdicts that existed only in the source code.
+
+So the mean is put back through the same treatment the axes got, against the
+pool's distribution *of means* (`quantiles.__composite`, built by the second pass
+in `build-baseline.mjs`). It is deliberately circular — the pool normalised
+against itself — which is precisely what makes the output uniform on 0..100.
+After: **sd 12.2 → 30.0, all seven bands reached, min 0 max 100.**
+
+Two consequences worth holding onto:
+
+- **Band widths are now population shares.** `BANDS` says 4/12/17/33/17/12/5, so
+  4% of people are Wholly Pan. Editing a boundary is choosing how rare a verdict
+  is, not just where a line sits.
+- **`score()` still works against an older baseline** with no `__composite` key —
+  it falls back to the raw mean and reports `normalised: false`, because a flat
+  dial beats no dial. The selftest pins both branches.
+
+Re-run `build-baseline.mjs` after ANY axis change: the composite table is derived
+from the per-axis tables, so a stale one silently mis-reads the dial.
+
+### The matrix — 30 archetypes, so the reading is not just a number
+
+Two people who both score 43 have nothing in common except 43. `matrix.js` names
+the **pair**: the line running furthest toward the machine (dominant) and the one
+furthest toward the animal (recessive). Six axes give 6 × 5 = 30 ordered pairs,
+and with seven bands that is **210 distinct readings**. Across 85 real accounts,
+28 of the 30 cells were hit.
+
+The pair is about the *shape* of a hand, not its magnitude — someone at 12 and
+someone at 88 can both be Switchboards, and that is the point. Soft axes are
+excluded from the selection so an axis that could not be measured comparably
+never becomes someone's headline, and ties break on `AXES` order so a refresh
+never changes the verdict.
+
+Every cell must exist: a gap is not a crash, it is an account that gets no
+reading. `palm.selftest.mjs` walks all thirty and asserts the names are distinct.
+The names are pure editorial — rename them freely.
+
+### Posting the card — the one rule worth knowing
+
+`palm/share.js` posts the card through the shared OAuth worker, scope
+`atproto repo:app.bsky.feed.post blob:image/*` (same as `/coin`, and
+`b.mino.mobi` is already allowlisted in `workers/auth/src/index.ts`). It reuses
+`coin/compose.js` for `linkFacets` and `textLength` rather than re-deriving byte
+offsets — that file is dependency-free, which is what makes the cross-directory
+import safe.
+
+**You may only post a card for the account you are signed in as.** `getRepo` is
+public, so anyone's palm can be *read* — but publishing a reading about someone
+else, under a number that looks like a verdict, is the harassment vector the
+page warns about. Reading is open; making a claim is not. That is a DID
+comparison in `postCard()`, not a line of copy, and the button reflects the
+state instead of failing after the click.
+
+The auth library is imported **lazily**, on the first share attempt only, so a
+visit that just reads a palm never loads it (lathe's rule for read-only toys).
+It is staged into the assets dir at deploy time and gitignored under `b/`, so
+that import cannot resolve in the sandbox — the failure path is a message, not a
+broken page.
+
+Two sizing facts, both measured rather than assumed:
+
+- The card at its native 1080px is **1258 KB against a 950 KB blob ceiling** —
+  the radial background is a gradient and gradients are what PNG compresses
+  worst. `SIZES` therefore starts at 800 (~740 KB), so no share pays for a
+  doomed render first. JPEG would fit easily and was rejected: it mushes exactly
+  the thin bright strokes the numbers are made of.
+- The post text is assembled longest-first against a 300-**grapheme** budget,
+  and the link back and the "not an AI detector" clause are the last things
+  dropped. A silently truncated disclaimer is the failure that would matter.
+
+### Quality-of-life
+
+- **Typeahead** — `/lib/handle-typeahead.js` as a classic `<script>` plus
+  `data-bsky-typeahead` on the input; the shared component, not a fourth copy.
+- **`store.js`** caches reduced posts per DID in IndexedDB, 6h TTL, same as
+  lathe's archive cache. This is what makes the OAuth redirect survivable: sign-in
+  navigates away and back, and without it you would re-download 90 MB to post a
+  card you had already generated. Verified in-browser: round trip is exact and
+  the score is identical from cache.
+- **Share intent** survives that redirect in `sessionStorage`, but it is a *flag,
+  not an instruction* — on return the reading re-runs from cache and the button
+  is left armed. Posting to someone's account without a second click would be
+  wrong however clearly they asked a redirect ago.
+- Stop button (`AbortController`) for a long download, last handle remembered,
+  copy-to-clipboard, and a "fetch it again" link when a reading came from cache.
+
+Selftest: `palm/palm.selftest.mjs` (the like trap, chunk-boundary equivalence,
+MST prefix compression, known answers for all six readings, the percentile, and
+the card's grapheme budget and link-facet byte offsets).
+
 ## Deploying
 
-Pushes to `claude/image-manipulation-platform-g5puxy` that touch this surface's paths trigger [`.github/workflows/deploy-b.yml`](../.github/workflows/deploy-b.yml).
+Pushes to `claude/ai-detection-browser-aw7kq5` that touch this surface's paths trigger [`.github/workflows/deploy-b.yml`](../.github/workflows/deploy-b.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
@@ -76,3 +361,23 @@ rather than merging it, so pushing that stale branch would have **republished b
 with those files gone, from a green run** — the failure the root `CLAUDE.md`
 describes for `lab/www`. Nothing was orphaned by the handover, and the surface
 became deployable again by it.
+
+**It changed hands again on 2026-08-05**, from
+`claude/image-manipulation-platform-g5puxy` to `claude/ai-detection-browser-aw7kq5`,
+when `/palm` arrived. The same check was run first and is the only one that
+matters for a handover here: **`b/` was byte-identical between the two branches**
+— same file list, empty content diff — so republishing from the new owner
+produces exactly what was already live. Do not move this surface without
+re-running that diff; a branch that merely *looks* current is how the manifest
+loses files silently.
+
+`photo` did **not** move and is still owned by
+`claude/image-manipulation-platform-g5puxy`. One branch may own several surfaces;
+what the registry forbids is one surface having two owners.
+
+⚠️ **The old branch still carries a `deploy-b.yml` that names itself**, because
+Actions reads the workflow from the ref being pushed and that ref predates this
+change. So until it takes this commit, a push there touching `b/**` would deploy
+b from a branch that no longer owns it. Nothing routine does that — `photo` work
+does not touch `b/**` — but if you are about to change `b/` on that branch,
+don't: change it here.

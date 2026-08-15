@@ -21,7 +21,11 @@ surface lives in that surface's own `CLAUDE.md`.
 | the shape of the repo on disk | [`docs/REPO-STRUCTURE.md`](docs/REPO-STRUCTURE.md) |
 | OAuth per-site status | [`docs/OAUTH.md`](docs/OAUTH.md) |
 | splitting a surface, or moving a site between surfaces | [`docs/surface-mitosis.md`](docs/surface-mitosis.md) — `scripts/surface-mitosis.mjs` detects, `scripts/rehome.mjs` moves |
-| the closed-loop programme — and why this repo's parts don't depend on each other | [`docs/CLOSED-LOOP.md`](docs/CLOSED-LOOP.md) — proposed, not built |
+| the closed-loop programme — and why this repo's parts don't depend on each other | [`docs/CLOSED-LOOP.md`](docs/CLOSED-LOOP.md) — the design record; the **why** |
+| how a loop is actually wired: chain-reaction Actions, the ticket graph, the contagion firewall | [`docs/LOOPS.md`](docs/LOOPS.md) — built and **disabled**; the **how** |
+| what gets built in what order, and what would stop the programme | [`docs/LOOP-WBS.md`](docs/LOOP-WBS.md) — phases, gates, kill criteria, and the Definition of Ready |
+| where loop output lands, and how six parallel agents' work comes back together | [`docs/LOOP-SPRINTS.md`](docs/LOOP-SPRINTS.md) — the three surfaces, path leases, the barrier, the integrator |
+| **how to steer the loop**, and how it asks you for the things no gate can measure | [`.github/loop/vision.md`](.github/loop/vision.md) — the operator's channel in; every planning turn reads it verbatim. Answer its asks with `beads answer <id> --body-file` |
 
 ## The shape of a surface
 
@@ -58,6 +62,37 @@ candidate** and merged to `main`; that is how pull requests are made here.
    themselves inconsistently; this is where that gets reconciled.
 4. `node scripts/preflight.mjs` — must pass.
 5. Push, open the PR, and state what could not be verified from the sandbox.
+
+### Corpus-recovery passes
+
+Occasionally the repo runs a **recovery pass**: old `claude/*` sessions are
+resumed and each commits its own conversation transcript to
+`homunculus/inbox/<session>.json` on its own branch, to be collected into a
+personal training corpus. This is the principal recovering their own data; the
+tooling and rationale live in [`packages/homunculus/`](packages/homunculus/)
+(`RECOVERY.md`). Two rules bind the merge flow while a pass is live:
+
+- **The repo is private for the duration.** The transcripts are the
+  principal's own conversations; they sit on public branches only if someone
+  forgets to flip visibility back correctly, which is what the gate below
+  prevents.
+- **`homunculus/inbox/` never reaches `main`.** It is gitignored and
+  `.assetsignore`d, and preflight fails on `main` if one is tracked. When
+  assembling a candidate, drop the dir before squashing — collection reads it
+  off the feature branches, `main` never needs it.
+
+Collect and gate:
+
+```bash
+node packages/homunculus/collect-branches.mjs --out ~/corpus.jsonl  # gather from all branches
+node packages/homunculus/assert-public-safe.mjs                     # MUST say SAFE before going public
+```
+
+`assert-public-safe.mjs` sweeps every branch and exits non-zero while any still
+carries a transcript. **Do not flip the repo back to public on a red.** Git
+keeps history: a transcript left on a branch at flip-back is exposed, and
+deleting the file afterward does not remove the blob — delete the file and
+force-push, or delete the branch, until the gate is green.
 
 ### Preflight
 
@@ -199,6 +234,11 @@ worker are grandfathered: [`docs/OAUTH.md`](docs/OAUTH.md).
   two branches collide, the later merge renumbers.
 - Deleting or renaming a worker, detaching a domain, and D1 creation are
   dashboard-only ([`docs/DEPLOYS.md`](docs/DEPLOYS.md) §7).
+- **`loop-*` workflows spend model budget in a chain reaction.** They are inert
+  while `.github/loop/config.json` has `enabled: false`; flipping that is the
+  switch. Before changing any workflow's `paths:`, run
+  `node scripts/loop-blast-radius.mjs --check` — it asserts a loop commit cannot
+  wake anything it has not declared, and `preflight` runs it for you.
 
 ## This sandbox
 

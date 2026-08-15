@@ -1,0 +1,12 @@
+# Not part of the site. The assets directory is "." (house pattern), so without
+# this the deploy publishes its own build inputs — and on the first run it
+# uploaded `.wrangler/tmp/deploy-*/worker.js.map`, i.e. a source map, to a
+# public URL.
+.wrangler
+node_modules
+package.json
+package-lock.json
+wrangler.jsonc
+worker.js
+CLAUDE.md
+.assetsignore

@@ -1,0 +1,22 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.farm.achievement",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A deed earned on a Harvestople farm — public, in the player's own repo. rkey = the achievement id, so a deed can never double-mint. The public farm viewer lists these; the (optional, one tap, never automatic) share is a plain app.bsky.feed.post linking the viewer.",
+      "key": "any",
+      "record": {
+        "type": "object",
+        "required": ["achievementId", "name", "earnedAt"],
+        "properties": {
+          "achievementId": { "type": "string", "maxLength": 64, "description": "Stable id (farm/js/achievements.js), also the rkey." },
+          "name": { "type": "string", "maxLength": 120 },
+          "emoji": { "type": "string", "maxLength": 8 },
+          "desc": { "type": "string", "maxLength": 300 },
+          "earnedAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

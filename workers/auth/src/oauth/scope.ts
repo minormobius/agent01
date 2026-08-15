@@ -39,6 +39,13 @@
 const WRITE_COLLECTIONS = [
   // answers
   'com.minomobi.answers',
+  // loop (loop.mino.mobi) — a signed answer to an ASK the agent loop filed.
+  // The loop can measure whether a thing WORKS and cannot measure whether it is
+  // any GOOD; this collection carries the second kind of judgement. Written to
+  // the answerer's own repo, so we store nothing and the answer stays theirs —
+  // which also makes it the only honest way to collect taste, since an unsigned
+  // box on a public page is a box anyone can fill with anything.
+  'com.minomobi.loop.answer',
   // airchat
   'com.minomobi.airchat.voice',
   // photo (ATProto Arena)
@@ -151,12 +158,9 @@ const WRITE_COLLECTIONS = [
   // feedgen (b.mino.mobi/feedgen) — the feed definition record + the published feed generator
   'com.minomobi.feedgen.def',
   'app.bsky.feed.generator',
-  // lab — carried forward from claude/feature-merge-candidate-l4dkwq, which
-  // deployed these on 2026-07-29 (auth run #38). That deploy also dropped eight
-  // collections other sites depend on, because its tree predates them; this
-  // list is the union, so nothing is lost in either direction.
-  'com.minomobi.lab.doc',
-  'com.minomobi.lab.score',
+  // (com.minomobi.lab.doc / lab.score already appear above with the lab block —
+  // the duplicate pair that used to sit here trips check-auth-scope's dedupe
+  // gate; removing a duplicate is not a narrowing, the set is unchanged.)
   // rant (rant.mino.mobi) — the shared standard.site lexicons, NOT a
   // com.minomobi.* namespace. That is the point: a post written here is a
   // record any other standard.site reader can index, so the collection names
@@ -167,6 +171,14 @@ const WRITE_COLLECTIONS = [
   'site.standard.document',
   'site.standard.graph.subscription',
   'site.standard.graph.recommend',
+  // farm (farm.mino.mobi) — Harvestople. plot = the whole save (rkey self);
+  // achievement/gift/tend are small public one-shots that make deeds bragable
+  // and friend-to-friend growth boosts verifiable from public records alone.
+  'com.minomobi.farm.plot',
+  'com.minomobi.farm.achievement',
+  'com.minomobi.farm.gift',
+  'com.minomobi.farm.tend',
+  'com.minomobi.farm.petition',
 ];
 
 // Blob MIME patterns uploaded across the repo (photo: image, poll/mmo: png,

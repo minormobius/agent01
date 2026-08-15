@@ -46,6 +46,13 @@ the provider. `agent.sh` pins **every** Claude Code model tier to the profile's
 one model id — DeepSeek silently remaps Claude ids by tier, which would
 otherwise quietly turn a `ds4-flash` run's subagents into `ds4-pro`.
 
+**Assist mode is model-routed too**: `/assist/start` takes `model` — any
+worker-keyed profile name (`kimi3`, `ds4-flash`, `ds4-pro`) — and the DO calls
+that provider's Anthropic endpoint directly (no container). The worker gates on
+the selected model's key (`MOONSHOT_API_KEY` / `DEEPSEEK_API_KEY`) so a missing
+secret names itself; the server-side `web_search` tool is attached only for
+`kimi3` (DeepSeek's endpoint rejects it).
+
 Chat state is keyed by cell, so `claude:ds4-flash` and `opencode:ds4-flash` are
 separate conversations. OpenCode's event schema is not a documented contract, so
 `server.js` normalizes it by **duck-typing** into the Claude Code shapes the

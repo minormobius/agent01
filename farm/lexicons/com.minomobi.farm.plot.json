@@ -1,0 +1,20 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.farm.plot",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A player's whole Harvestople farm — the single save record (rkey `self`, one farm per repo). The `farm` blob is the deterministic game state (bed with free-position plants and wall-clock `at` timestamps, seed bag, pantry, planetary metals, preparations, gacha collection, mine progress, stats). Growth is a pure function of (plant, crop, now, tendCount), so any client — including a keyless public viewer — recomputes the live field from this record alone. Open-shaped: the engine versions the blob with `farm.v`.",
+      "key": "literal:self",
+      "record": {
+        "type": "object",
+        "required": ["v", "farm", "updatedAt"],
+        "properties": {
+          "v": { "type": "integer", "description": "Record envelope version." },
+          "farm": { "type": "unknown", "description": "The engine save (farm/js/state.js shape, versioned by farm.v)." },
+          "updatedAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}
