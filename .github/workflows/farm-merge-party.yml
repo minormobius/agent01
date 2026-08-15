@@ -9,12 +9,23 @@ name: Farm merge party (weekly graduation)
 # on the table, and graduating an x-pocket into real save fields (a v-bump migration) is
 # work a human reviews in the PR either way.
 
-# MANUAL TRIGGER WHILE TESTING: cron and workflow_dispatch both need this file on the DEFAULT
-# branch to fire; until a merge candidate carries it there, push any commit to the kick branch:
+# MANUAL TRIGGER: workflow_dispatch needs this file on the DEFAULT branch to appear; the kick
+# branch works before and after that:
 #   git commit --allow-empty -m kick && git push origin HEAD:claude/farm-merge-party-kick
+#
+# `schedule:` DOES FIRE ON THIS REPO — see the note in farm-sweep.yml; an earlier version of
+# this comment claimed otherwise and was wrong.
+#
+# THE SCHEDULE STAYS DORMANT, at the farm owner's request on PR #68, and unlike farm-sweep.yml
+# the reason is not cost — the expensive steps here are gated `if: steps.delta.outputs.empty
+# == '0'`, so a bare table runs no walls, opens no PR and posts nothing. It is that a weekly
+# unattended run opens a PR and announces on Bluesky, and the "Actions can create PRs" repo
+# setting has to be flipped by hand first. Enabling it deliberately, afterwards, costs nothing.
+#
+# TO SWITCH THE PARTY ON: flip that repo setting, then uncomment the two `schedule:` lines.
 on:
-  schedule:
-    - cron: '0 17 * * 5'
+  # schedule:
+  #   - cron: '0 17 * * 5'
   workflow_dispatch:
   push:
     branches:
