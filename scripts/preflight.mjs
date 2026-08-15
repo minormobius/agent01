@@ -21,7 +21,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative } from 'node:path';
-import { loadRegistry, loadLanding, loadCurated, surfaceResolver } from './lib/landing.mjs';
+import { loadRegistry, loadLanding, loadCurated, loadCatalogue, surfaceResolver } from './lib/landing.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const fix = process.argv.includes('--fix');
@@ -64,6 +64,14 @@ const GENERATED = [
   { name: 'docs/SURFACES.md index', script: 'gen-surface-index.mjs',        write: ['--write'] },
   { name: 'per-surface docs exist', script: 'gen-surface-docs.mjs',         write: ['--write'] },
   { name: 'dataviz copies',         script: 'sync-dataviz.mjs',             write: ['--write'] },
+  // Everything derived from catalogue.json. The landing `var P` is the
+  // projection people actually see; the other four are the site maps that
+  // drifted for months precisely because none of them was in this list.
+  { name: 'landing var P',          script: 'gen-landing-catalogue.mjs',    write: ['--write'] },
+  { name: 'stumble portal',         script: 'generate-sites-json.mjs',      write: [] },
+  { name: 'office site map',        script: 'build-office.mjs',             write: ['--write'] },
+  { name: 'mappa atlas',            script: 'build-mappa.mjs',              write: [] },
+  { name: 'orrery map',             script: 'build-orrery.mjs',             write: [] },
   // loop/data/graph.json is generated from the ledger in .github/loop/. If it
   // drifts, the public page shows a graph that is not the graph the scheduler
   // reads — a divergence that is invisible from outside, because the page still
@@ -126,6 +134,33 @@ console.log('\nregistration completeness');
   // every surface's dir actually exists
   const ghosts = reg.surfaces.filter((s) => s.dir && !existsSync(join(ROOT, s.dir))).map((s) => s.surface);
   record('every surface dir exists', ghosts.length === 0, ghosts.join(', '));
+
+  // Every catalogue entry's `surface` must resolve to a real registry surface.
+  // This is the foreign key that ties "what a person can visit" to "what
+  // deploys it"; a dangling one means the catalogue is pointing at a surface
+  // that was renamed or removed, and nothing else would notice.
+  const cat = loadCatalogue(ROOT);
+  const known = new Set(reg.surfaces.map((s) => s.surface));
+  const dangling = cat.entries
+    .filter((e) => e.surface && !known.has(e.surface))
+    .map((e) => `${e.n} -> ${e.surface}`);
+  record('catalogue surface keys resolve', dangling.length === 0, dangling.join(', '));
+
+  const unkeyed = cat.entries.filter((e) => !e.surface).map((e) => e.n);
+  record('every catalogue entry names its surface', unkeyed.length === 0,
+    unkeyed.length ? `no surface key: ${unkeyed.join(', ')}` : '');
+}
+
+// -------------------------------------------- 3b. every endpoint is decided --
+// The root worker serves the whole repo, so every directory with an index.html
+// is a live URL. This asserts each one is either in the catalogue or explicitly
+// declared in catalogue.json's notListed — no silent live endpoints.
+console.log('\nendpoint coverage');
+{
+  const r = run('catalogue-coverage.mjs', ['--check']);
+  const counts = (r.out.match(/pending {2}\(backlog\) {2}: (\d+)/) || [])[1];
+  record('every reachable endpoint is listed or declared', r.ok,
+    r.ok ? (counts ? `${counts} in the pending backlog` : '') : lastLine(r.out));
 }
 
 // ------------------------------------------------------ 4. no leaked hosts --

@@ -16,7 +16,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { loadCatalogue } from './lib/landing.mjs';
+import { loadCatalogue, emit } from './lib/landing.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const write = process.argv.includes('--write');
@@ -180,9 +180,13 @@ const withParent = nodes.filter((n) => n.parent).length;
 console.log(`office: ${nodes.length} nodes, ${cats.length} categories, ${withParent} nested`);
 console.log('categories:', cats.map((c) => `${c}(${catCounts[c]})`).join(' '));
 
-if (write) {
-  const dest = join(ROOT, 'office', 'surfaces.json');
-  writeFileSync(dest, JSON.stringify(out, null, 1) + '\n');
+const check = process.argv.includes('--check');
+const dest = join(ROOT, 'office', 'surfaces.json');
+const r = emit(dest, JSON.stringify(out, null, 1) + '\n', { write });
+if (check) {
+  if (!r.same) { console.error('STALE: office/surfaces.json differs from catalogue.json — run `node scripts/build-office.mjs --write`'); process.exit(1); }
+  console.log('office/surfaces.json is current (' + nodes.length + ' nodes)');
+} else if (write) {
   console.log('wrote', dest);
 } else {
   console.log('(dry run — pass --write to emit office/surfaces.json)');

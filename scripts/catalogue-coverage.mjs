@@ -30,7 +30,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative } from 'node:path';
-import { loadRegistry, surfaceResolver, norm } from './lib/landing.mjs';
+import { loadRegistry, surfaceResolver, norm, pathGlob } from './lib/landing.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const check = process.argv.includes('--check');
@@ -91,27 +91,6 @@ function pathMapper() {
   };
 }
 
-// ------------------------------------------------------------------ globs --
-// `*` matches inside one path segment. `**` matches one or more whole segments
-// when it ends a pattern, and zero or more in the middle. Built segment-wise:
-// a flat string-replace version of this silently matched nothing for the
-// common trailing-`**` case, which made the gate look green while it was
-// checking nothing.
-function globToRe(glob) {
-  const segs = glob.split('/');
-  let re = '';
-  segs.forEach((s, i) => {
-    const last = i === segs.length - 1;
-    if (s === '**') {
-      re += last ? '[^/]+(?:/[^/]+)*' : '(?:[^/]+/)*';
-      return;
-    }
-    re += s.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*');
-    if (!last) re += '/';
-  });
-  return new RegExp('^' + re.replace(/\/{2,}/g, '/') + '$');
-}
-
 // ------------------------------------------------------------------- main --
 const cat = JSON.parse(readFileSync(join(ROOT, 'catalogue.json'), 'utf8'));
 const repoPath = pathMapper();
@@ -122,7 +101,7 @@ for (const e of cat.entries) {
   if (p) listed.add(p);
 }
 
-const rules = (cat.notListed || []).map((r) => ({ ...r, re: globToRe(r.glob) }));
+const rules = (cat.notListed || []).map((r) => ({ ...r, re: pathGlob(r.glob) }));
 const reachable = crawl();
 
 const buckets = { listed: [], internal: [], content: [], pending: [], undeclared: [] };

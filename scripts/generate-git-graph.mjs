@@ -14,14 +14,31 @@
 //
 // Usage: node scripts/generate-git-graph.mjs > git-graph.json
 //        (or: node scripts/generate-git-graph.mjs --write)
+//        (--allow-shallow to override the shallow-clone refusal below)
+//
+// SHALLOW CLONES. This reads `git log --all`, so its output is only as complete
+// as the clone it runs in. In a shallow or single-branch checkout — an agent
+// sandbox, or a CI job with the default actions/checkout fetch-depth of 1 —
+// `git log` returns a fraction of the history, and regenerating here would
+// replace a full graph with a truncated one and report success. The landing
+// page would then show a commit history that simply stops. So: refuse to write
+// from a shallow clone unless explicitly overridden.
 
 import { execSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { writeFileSync, existsSync } from 'node:fs';
+import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MAX_COMMITS = 800;
+
+if (existsSync(join(REPO_ROOT, '.git', 'shallow')) && !process.argv.includes('--allow-shallow')) {
+  const have = execSync('git rev-list --count HEAD', { cwd: REPO_ROOT }).toString().trim();
+  console.error(`REFUSING: this is a shallow clone (${have} commits reachable).`);
+  console.error('Regenerating here would truncate git-graph.json rather than refresh it.');
+  console.error('Run after `git fetch --unshallow`, or pass --allow-shallow if you mean it.');
+  process.exit(1);
+}
 
 function sh(cmd) {
   return execSync(cmd, { cwd: REPO_ROOT, maxBuffer: 64 * 1024 * 1024 }).toString();

@@ -16,7 +16,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadCatalogue } from './lib/landing.mjs';
+import { loadCatalogue, emit } from './lib/landing.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -304,5 +304,11 @@ buildLegend(); resize();
 </html>
 `;
 mkdirSync(join(root, 'orrery'), { recursive: true });
-writeFileSync(join(root, 'orrery', 'index.html'), page);
+const check = process.argv.includes('--check');
+const rr = emit(join(root, 'orrery', 'index.html'), page, { write: !check });
+if (check) {
+  if (!rr.same) { console.error('STALE: orrery/index.html differs from catalogue.json — run `node scripts/build-orrery.mjs`'); process.exit(1); }
+  console.log('orrery/index.html is current');
+  process.exit(0);
+}
 console.log('\nwrote orrery/index.html  ('+(page.length/1024|0)+' KB)');

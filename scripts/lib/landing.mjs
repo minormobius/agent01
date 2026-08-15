@@ -17,8 +17,25 @@
 //   surfaceResolver(reg) -> { ownerOf, hostToSurface, dirToSurface }
 //   describe(surface, {reg, landing})                           — best one-line blurb
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+
+// ------------------------------------------------------------- emit/check ---
+// Compare-or-write, so every generator can answer "is the artefact on disk
+// what I would produce right now?" without writing. preflight needs that
+// answer; generators that could only write were the ones nothing could gate,
+// which is how io/sites.json, office/surfaces.json, mappa/sites.js and
+// orrery/index.html all drifted at once.
+//
+// `volatile` is a regex for content that legitimately changes every run (a
+// generation timestamp) and must be excluded from the comparison.
+export function emit(absPath, content, { write = false, volatile: vol = null } = {}) {
+  const strip = (s) => (vol ? s.replace(vol, '') : s);
+  const current = existsSync(absPath) ? readFileSync(absPath, 'utf8') : null;
+  const same = current !== null && strip(current) === strip(content);
+  if (write) writeFileSync(absPath, content);
+  return { same, existed: current !== null };
+}
 
 // ------------------------------------------------------------- redaction ----
 // The generated artefacts are INTERNET-FACING and cover the minomobi
@@ -90,6 +107,29 @@ export function orderEntry(e) {
 export function saveCatalogue(root, cat) {
   const next = { ...cat, entries: cat.entries.map(orderEntry) };
   writeFileSync(join(root, 'catalogue.json'), JSON.stringify(next, null, 2) + '\n');
+}
+
+// Path glob for catalogue.json's `notListed` rules. `*` matches inside one
+// path segment; `**` matches one or more whole segments when it ends a
+// pattern, and zero or more in the middle.
+//
+// Built segment-wise on purpose. The first version of this did a flat string
+// replace and silently matched NOTHING for the common trailing-`**` case,
+// which made the coverage gate report success while checking nothing — the
+// exact failure mode the gate exists to prevent.
+export function pathGlob(glob) {
+  const segs = glob.split('/');
+  let re = '';
+  segs.forEach((s, i) => {
+    const last = i === segs.length - 1;
+    if (s === '**') {
+      re += last ? '[^/]+(?:/[^/]+)*' : '(?:[^/]+/)*';
+      return;
+    }
+    re += s.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*');
+    if (!last) re += '/';
+  });
+  return new RegExp('^' + re.replace(/\/{2,}/g, '/') + '$');
 }
 
 // The landing-page view: the catalogue entries plus the curated <li> blocks.
