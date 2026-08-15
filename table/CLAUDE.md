@@ -68,13 +68,35 @@ obligations it puts on us: [`cairn/LICENSE.md`](cairn/LICENSE.md).
 | `cairn/roll.js` | The dice and the rules. Pure logic, no DOM |
 | `cairn/roll.selftest.mjs` | The tripwires. **Run this before touching either of the two files above** |
 | `cairn/app.js` | The page: rendering, the two edits a player may make, print |
+| `cairn/monsters.js` | **Generated.** The 84 bestiary stat blocks, parsed into numbers |
+| `cairn/tools/scrape-monsters.py` | What generated it |
+| `cairn/combat.js` | The encounter oracle: a Cairn combat simulator, the bestiary search, and the veterancy model |
+| `cairn/combat.selftest.mjs` | 40 checks. **A simulator fails silently — run this** |
+| `cairn/encounter/` | The oracle's page |
 
 Regenerate the data (only when the SRD itself changes):
 
 ```sh
-python3 table/cairn/tools/scrape-srd.py > table/cairn/data.js
+python3 table/cairn/tools/scrape-srd.py      > table/cairn/data.js
+python3 table/cairn/tools/scrape-monsters.py > table/cairn/monsters.js
 node table/cairn/roll.selftest.mjs      # must pass; the frozen sheet is the check
+node table/cairn/combat.selftest.mjs    # must pass; a wrong simulator looks right
 ```
+
+### /cairn/encounter — the oracle
+
+Cairn ships no challenge rating, no XP budget and no encounter table, deliberately. Rather than
+invent one, the oracle **plays the fight**: it runs Cairn's combat rules a few thousand times
+against the party the seed rolled and reports the distribution. Three rules govern anything you
+add here, and all three are about not lying to a Warden:
+
+1. **Say it is a floor.** The model fights to the last body with no terrain, tricks, talking or
+   retreat — the thing Cairn is explicitly about avoiding. Every surface of the page says so.
+2. **Mark what the model cannot see.** 59 of the 84 creatures have abilities beyond their stat
+   line (the scraper's `unmodelled` flag), and those encounters are harder than the verdict says.
+   Never let a verdict imply it covered the whole creature.
+3. **Never dress our arithmetic as Cairn's.** The difficulty bands and the veterancy curve are this
+   site's invention. They are labelled as such in the code, in the UI, and in the footer.
 
 ### Things that will bite you here
 
@@ -95,6 +117,12 @@ node table/cairn/roll.selftest.mjs      # must pass; the frozen sheet is the che
   safe direction — nothing is added automatically, and the sheet takes free-text
   items for whatever the heuristic misses. Tightening it is welcome; auto-adding
   is not.
+- **The search must not contradict the weighing.** The bestiary search runs at low trials and the
+  bands have hard edges, so a marginal encounter can read "deadly" in the table and "risky" one
+  click later. Two things stop that, and they fix different halves of it: results are ranked by
+  distance from the *middle* of the band (6 of 12 top results flipped when ranked by lethality
+  instead, 0 of 12 after), and each candidate is confirmed against a second seed (9 of 49 flipped
+  unconfirmed, 3 of 38 confirmed). A selftest measures both.
 - **Player edits live only in the page.** Swapping two attributes (which Cairn
   allows) and taking an offered item change what is on screen, never what the
   seed rolls. Reloading the permalink returns the sheet as rolled. If you add

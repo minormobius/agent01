@@ -11,6 +11,7 @@ export default {
         surface: 'table',
         // system id -> the licence its shipped rules text is used under
         systems: { cairn: 'CC BY-SA 4.0' },
+        tools: ['/cairn/', '/cairn/encounter/'],
       });
     }
     // Everything else is a static asset (the assets binding resolves directory

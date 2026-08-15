@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cairn encounter oracle — table</title>
+<meta name="description" content="Cairn publishes no challenge rating. This plays the fight five thousand times against your actual party and reports what happens: wipe rate, casualties, the round the first body drops. Then it searches the bestiary for encounters in the band you want.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Cairn encounter oracle">
+<meta property="og:description" content="No challenge rating, no XP budget — just the fight, simulated five thousand times against your party.">
+<meta property="og:url" content="https://table.mino.mobi/cairn/encounter/">
+<meta name="twitter:card" content="summary">
+<style>
+:root {
+  --bg: #f7f4ec;
+  --panel: #fffdf7;
+  --text: #1c1a17;
+  --muted: #6d675c;
+  --rule: #d8d2c4;
+  --rule-hard: #b3ab99;
+  --accent: #3f6d4e;
+  --accent-soft: rgba(63, 109, 78, 0.08);
+  --ink: #8a3324;
+  --routine: #3f6d4e;
+  --risky: #8a6d24;
+  --deadly: #a8541f;
+  --lethal: #8a3324;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12120f; --panel: #1a1a16; --text: #ddd8cc; --muted: #8f887a;
+    --rule: #33322b; --rule-hard: #4c4a40;
+    --accent: #7dbb92; --accent-soft: rgba(125, 187, 146, 0.1); --ink: #d98c72;
+    --routine: #7dbb92; --risky: #d3b163; --deadly: #e0925c; --lethal: #e07a62;
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: var(--serif); line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  max-width: 940px; margin: 0 auto; padding: 2rem 1.2rem 5rem;
+}
+a { color: var(--accent); }
+h1 { font-size: 1.9rem; line-height: 1.2; font-weight: 600; letter-spacing: -0.01em; }
+.crumb {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); text-decoration: none;
+  display: inline-block; margin-bottom: 1.2rem;
+}
+.lede { color: var(--muted); margin-top: 0.5rem; font-size: 0.98rem; }
+code { font-family: var(--mono); font-size: 0.85em; }
+
+.panel {
+  border: 1px solid var(--rule-hard); border-radius: 8px; background: var(--panel);
+  padding: 1rem 1.1rem; margin-top: 1.2rem;
+}
+.panel > h2 {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted); font-weight: 600;
+  border-bottom: 1px solid var(--rule); padding-bottom: 0.3rem; margin-bottom: 0.8rem;
+}
+.row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+button, select, input[type=text], input[type=number] {
+  font-family: var(--mono); font-size: 0.78rem;
+  padding: 0.4rem 0.6rem; border-radius: 6px;
+  border: 1px solid var(--rule-hard); background: var(--bg); color: var(--text);
+}
+button { cursor: pointer; }
+button:hover { border-color: var(--accent); color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--panel); font-weight: 600; }
+button.primary:hover { filter: brightness(1.1); color: var(--panel); }
+button.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+label.ctl { font-family: var(--mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+input[type=range] { accent-color: var(--accent); }
+
+.party { font-size: 0.86rem; margin-top: 0.6rem; }
+.party table { width: 100%; border-collapse: collapse; }
+.party td { padding: 0.22rem 0.4rem; border-bottom: 1px solid var(--rule); }
+.party td.num { font-family: var(--mono); font-size: 0.76rem; text-align: right; white-space: nowrap; }
+.party td.who { font-weight: 600; }
+.party td.kit { color: var(--muted); font-size: 0.82rem; }
+
+/* verdict */
+.verdict { display: flex; flex-wrap: wrap; gap: 1.4rem; align-items: baseline; }
+.band {
+  font-size: 2rem; font-weight: 600; letter-spacing: -0.02em; text-transform: lowercase;
+}
+.band.routine { color: var(--routine); } .band.risky { color: var(--risky); }
+.band.deadly { color: var(--deadly); } .band.lethal { color: var(--lethal); }
+.kpis { display: flex; flex-wrap: wrap; gap: 1.2rem; }
+.kpi .v { font-family: var(--mono); font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.kpi .k { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+.reading { margin-top: 0.8rem; font-size: 0.95rem; }
+.warn { margin-top: 0.7rem; color: var(--ink); font-size: 0.88rem; }
+
+table.results { width: 100%; border-collapse: collapse; font-size: 0.86rem; margin-top: 0.3rem; }
+table.results th {
+  font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--muted); text-align: left; font-weight: 600; padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid var(--rule-hard);
+}
+table.results td { padding: 0.3rem 0.4rem; border-bottom: 1px solid var(--rule); }
+table.results td.num { font-family: var(--mono); font-size: 0.76rem; text-align: right; font-variant-numeric: tabular-nums; }
+table.results tr.pick { cursor: pointer; }
+table.results tr.pick:hover { background: var(--accent-soft); }
+.flag { color: var(--ink); font-family: var(--mono); font-size: 0.7rem; }
+
+.caveat { font-size: 0.88rem; color: var(--muted); }
+.caveat b { color: var(--text); }
+.caveat ul { margin: 0.5rem 0 0 1.1rem; }
+.caveat li { margin-bottom: 0.35rem; }
+
+.status { font-family: var(--mono); font-size: 0.7rem; color: var(--accent); min-height: 1rem; }
+
+footer {
+  margin-top: 2.5rem; padding-top: 1.2rem; border-top: 1px solid var(--rule);
+  font-size: 0.83rem; color: var(--muted);
+}
+@media print { .no-print { display: none; } }
+</style>
+</head>
+<body>
+
+<a class="crumb" href="/cairn/">← cairn roller</a>
+
+<header>
+  <h1>Encounter oracle</h1>
+  <p class="lede">
+    Cairn publishes no challenge rating, no XP budget and no encounter table — difficulty is the
+    Warden's call, made in the fiction. So this doesn't look difficulty up. It <strong>plays the
+    fight</strong>, thousands of times, against the actual sheets your seed rolled, using Cairn's
+    own combat rules, and reports what happened. Then it searches the bestiary for the encounters
+    that land where you want them.
+  </p>
+</header>
+
+<section class="panel">
+  <h2>The party</h2>
+  <div class="row">
+    <label class="ctl" for="seed">seed</label>
+    <input type="text" id="seed" spellcheck="false" style="min-width:11rem;flex:1 1 11rem">
+    <label class="ctl" for="size">size</label>
+    <select id="size">
+      <option>1</option><option>2</option><option>3</option><option selected>4</option>
+      <option>5</option><option>6</option>
+    </select>
+    <label class="ctl" for="vet">scars survived</label>
+    <input type="range" id="vet" min="0" max="10" value="0" style="width:8rem">
+    <span class="ctl" id="vetOut">0</span>
+    <a class="ctl" id="sheets" href="/cairn/">see full sheets ↗</a>
+  </div>
+  <div class="party" id="party"></div>
+</section>
+
+<section class="panel">
+  <h2>Weigh an encounter</h2>
+  <div class="row">
+    <select id="monster" style="flex:1 1 16rem"></select>
+    <label class="ctl" for="count">×</label>
+    <input type="number" id="count" min="1" max="30" value="4" style="width:4.5rem">
+    <button id="morale" class="on" title="Cairn's default: enemies save to avoid fleeing">morale</button>
+    <button id="surprise" title="The party is ambushed: no DEX save to act in round one">surprise</button>
+    <button class="primary" id="weigh">Weigh</button>
+    <span class="status" id="status"></span>
+  </div>
+  <div id="verdict"></div>
+</section>
+
+<section class="panel">
+  <h2>Find encounters</h2>
+  <div class="row">
+    <label class="ctl">target</label>
+    <select id="target">
+      <option value="routine">routine</option>
+      <option value="risky">risky</option>
+      <option value="deadly" selected>deadly</option>
+      <option value="lethal">lethal</option>
+    </select>
+    <button class="primary" id="search">Search the bestiary</button>
+    <span class="status" id="searchStatus"></span>
+  </div>
+  <div id="results"></div>
+</section>
+
+<section class="panel caveat">
+  <h2>What this number is, and is not</h2>
+  <p>
+    <b>It is a floor, not a forecast.</b> The model fights to the last body: no terrain, no tricks,
+    no talking, no torches thrown, nobody running. Cairn is a game about avoiding exactly that
+    fight, so a real table will almost always do better than the number here. Treat it as the cost
+    of a scene going badly with nobody getting clever.
+  </p>
+  <ul>
+    <li><b>Modelled:</b> the DEX save to act in round one, auto-hitting attacks, armour subtracted
+      from every hit, overflow damage into STR, the STR save against critical damage, death at 0
+      STR, paired dice keeping the highest, blast hitting everyone, and enemy morale saves at the
+      first casualty and at half losses.</li>
+    <li><b>Not modelled:</b> monster abilities beyond the stat line — <span id="flagCount"></span>
+      of the bestiary's creatures have one, from a basilisk's gaze to a gelatinous ooze digesting
+      you at d6 STR a round. Encounters with those creatures are marked, and their real difficulty
+      is <em>worse</em> than what you see.</li>
+    <li><b>Also not modelled:</b> spells, relics, retreat, hirelings, detachments, healing between
+      rounds, or the Scars table firing mid-fight.</li>
+    <li><b>The bands are ours, not Cairn's.</b> Cairn publishes no difficulty scale. Inventing one
+      that looked official would be a lie, so: <em>routine</em> is under a 12% chance of anyone
+      going down, <em>risky</em> above it, <em>deadly</em> means a real chance of losing someone,
+      <em>lethal</em> means the party is wiped at least a quarter of the time.</li>
+    <li><b>"Scars survived" is our stand-in for levels.</b> Cairn has none — but its Scars table
+      raises maximums when a hit takes you to exactly 0 HP, so a veteran is someone who has been
+      there and back. The curve saturates fast, which is the interesting part.</li>
+  </ul>
+</section>
+
+<footer>
+  <p>
+    <strong>Cairn Second Edition</strong> is by <a href="https://cairnrpg.com/">Yochai Gal</a>,
+    licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>; the
+    bestiary and tables here are adapted from the
+    <a href="https://cairnrpg.com/second-edition/wardens-guide/bestiary/">2e SRD</a> and shared
+    under the same licence — see <a href="../LICENSE.md">LICENSE.md</a>. The simulation, the bands
+    and the veterancy model are this site's own work, not Cairn's, and this tool is not affiliated
+    with or endorsed by the author.
+  </p>
+  <p class="no-print">
+    Everything runs in your browser —
+    <a href="../combat.js">combat.js</a> · <a href="../monsters.js">monsters.js</a> ·
+    <a href="../combat.selftest.mjs">the tests that keep it honest</a>.
+  </p>
+</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
