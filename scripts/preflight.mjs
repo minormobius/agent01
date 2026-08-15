@@ -64,6 +64,11 @@ const GENERATED = [
   { name: 'docs/SURFACES.md index', script: 'gen-surface-index.mjs',        write: ['--write'] },
   { name: 'per-surface docs exist', script: 'gen-surface-docs.mjs',         write: ['--write'] },
   { name: 'dataviz copies',         script: 'sync-dataviz.mjs',             write: ['--write'] },
+  // loop/data/graph.json is generated from the ledger in .github/loop/. If it
+  // drifts, the public page shows a graph that is not the graph the scheduler
+  // reads — a divergence that is invisible from outside, because the page still
+  // renders. It is just wrong.
+  { name: 'loop graph view',        script: 'gen-loop-data.mjs',            write: ['--write'] },
 ];
 for (const g of GENERATED) {
   if (!existsSync(join(ROOT, 'scripts', g.script))) { record(g.name, false, 'script missing'); continue; }
@@ -134,6 +139,29 @@ console.log('\nredaction');
   record('no work-facing hosts in generated output', leaked.length === 0, leaked.join(', '));
 }
 
+// ------------------------------------------ 4a. the loop's blast radius -----
+// A push is what wakes the next workflow, and 140 of this repo's 151 workflows
+// are push-triggered. An autonomous loop that commits is therefore a chain
+// reaction, and docs/CLOSED-LOOP.md §7 requires — before the first autonomous
+// commit — a check asserting its diff cannot match any other workflow's
+// triggers.
+//
+// IT LIVES HERE, NOT ONLY IN THE LOOP'S OWN WORKFLOWS, because the thing that
+// breaks it is usually not a change to the loop. It is somebody adding a
+// `paths:` entry to an unrelated workflow that happens to overlap the loop's
+// write tree — a change that would go green in every other check in this file.
+console.log('\nloop containment');
+{
+  if (!existsSync(join(ROOT, '.github', 'loop', 'config.json'))) {
+    record('loop blast radius', true, 'no loop configured — skipped');
+  } else {
+    const r = run('loop-blast-radius.mjs', ['--check']);
+    record('loop blast radius', r.ok, r.ok ? '' : lastLine(r.out));
+    const l = run('beads.mjs', ['lint']);
+    record('loop ledger is a valid graph', l.ok, l.ok ? lastLine(l.out).trim() : lastLine(l.out));
+  }
+}
+
 // -------------------------------------------- 4b. workflow shell parses -----
 // EVERY `run:` BLOCK IS A SHELL SCRIPT NOBODY EVER PARSES. GitHub does not
 // check them; YAML validity says nothing about the shell inside; and the only
@@ -192,6 +220,118 @@ console.log('\nworkflow shell');
     }
   }
   record(`workflow shell parses (${blocks} run blocks)`, bad.length === 0, bad.join('; '));
+
+  // ---- every seat that changes the QUEUE must wake the reactor ----
+  //
+  // loop-tick watches three paths: runs.jsonl, config.json and wake. A seat
+  // whose commit changes what is schedulable WITHOUT touching one of those
+  // proposes into silence — the work is real, committed, and nothing ever looks
+  // at it again.
+  //
+  // This has now happened three times to the same design (lp-a4030e): the
+  // reviewer could not wake the tick when it promoted nothing; the planner
+  // could not wake it at all and stalled a five-hour run 8 minutes in; and the
+  // outbox schema could not carry `createsGate`. Every instance was a message
+  // that could not be expressed, and every symptom was SILENCE rather than an
+  // error — which is why a human found each one instead of CI.
+  //
+  // loop-work and loop-judge are exempt and it is worth saying why rather than
+  // listing them as exceptions: work/ and runs.jsonl are themselves watched
+  // paths, so those two wake the next stage by doing their ordinary job.
+  {
+    const MUST_WAKE = ['loop-plan.yml', 'loop-review.yml'];
+    const missing = MUST_WAKE.filter((f) => {
+      const p = join(wfDir, f);
+      return existsSync(p) && !readFileSync(p, 'utf8').includes('.github/loop/wake');
+    });
+    // ---- the published org chart must match the model actually invoked ----
+    //
+    // config.seats.roles[*].tier is PUBLISHED on loop.mino.mobi. It said `opus`
+    // for plan, implement and review while all three workflows ran
+    // claude-sonnet-5, so the governor on the public page was describing a
+    // fleet that did not exist — and the operator's read of the output ("not a
+    // shocking amount of progress for 30 opus turns") was fighting a caption
+    // that was simply false.
+    //
+    // This is the golden rule wearing different clothes: a published fact that
+    // nothing checks drifts, and drifts toward the flattering value.
+    {
+      const TIER_MODEL = { opus: 'claude-opus-5', cheap: 'claude-haiku-4-5' };
+      const SEAT_WF = { plan: 'loop-plan.yml', implement: 'loop-work.yml', review: 'loop-review.yml' };
+      const cfgPath = join(ROOT, '.github', 'loop', 'config.json');
+      const bad = [];
+      if (existsSync(cfgPath)) {
+        const roles = (JSON.parse(readFileSync(cfgPath, 'utf8')).seats?.roles) ?? {};
+        for (const [seat, wf] of Object.entries(SEAT_WF)) {
+          const want = TIER_MODEL[roles[seat]?.tier];
+          const p = join(wfDir, wf);
+          if (!want || !existsSync(p)) continue;
+          const m = readFileSync(p, 'utf8').match(/--model\s+([\w.-]+)/);
+          if (m && m[1] !== want) bad.push(`${seat}: chart says ${roles[seat].tier} (${want}), ${wf} runs ${m[1]}`);
+        }
+      }
+      record('the published org chart matches the model each seat runs',
+        bad.length === 0, bad.join('; '));
+    }
+
+    // A DISPATCHED ORDER MUST BE A CONSUMED ORDER.
+    //
+    // loop-work picks its order with `head -1` of the work files in the push, so
+    // it consumes exactly ONE per run. If the tick may issue more than one per
+    // tick, the surplus is silently dropped — and a dropped order is not merely
+    // lost work, it is a file in .github/loop/work/ that the tick counts as
+    // committed spend forever, holding a concurrency slot. Two of those and the
+    // loop halts at `at concurrency` permanently with every run still green.
+    //
+    // These two numbers are a PAIR and they live in different files, which is
+    // exactly the shape of drift nothing catches. Asserted here rather than
+    // commented, because a comment did not stop it the first time.
+    {
+      const cfgPath = join(ROOT, '.github', 'loop', 'config.json');
+      const wfPath = join(wfDir, 'loop-work.yml');
+      let why = '';
+      if (existsSync(cfgPath) && existsSync(wfPath)) {
+        const perRun = JSON.parse(readFileSync(cfgPath, 'utf8')).budget?.turnsPerRun ?? 1;
+        const takesOne = /grep '\^\\\.github\/loop\/work\/.*\| head -1/.test(readFileSync(wfPath, 'utf8'))
+          || readFileSync(wfPath, 'utf8').includes('head -1');
+        if (takesOne && perRun > 1) {
+          why = `budget.turnsPerRun is ${perRun} but loop-work consumes one order per run (head -1), `
+            + `so ${perRun - 1} order(s) per tick would be stranded and hold a concurrency slot forever`;
+        }
+      }
+      record('the tick issues no more orders than a turn can consume', why === '', why);
+    }
+
+    // THE COP MUST STAY OUT OF THE FLEET'S REACH.
+    //
+    // scripts/loop-capability.mjs is the only signal in this system that is not
+    // the fleet's own homework: every other gate is a test the fleet wrote. That
+    // is worth exactly as much as the fleet's inability to edit it.
+    //
+    // loop-work's containment gate reverts any diff outside config.writes, so
+    // the guarantee holds as long as the cop lives outside those paths. Moving
+    // it under plant/ or loop/ would not fail anything at runtime — it would
+    // quietly convert a measurement into a self-report, which is the failure
+    // this repo is least able to detect from the outside. So: assert it.
+    {
+      const cfgPath = join(ROOT, '.github', 'loop', 'config.json');
+      const COP = 'scripts/loop-capability.mjs';
+      let why = '';
+      if (existsSync(cfgPath)) {
+        const writes = (JSON.parse(readFileSync(cfgPath, 'utf8')).writes ?? [])
+          .map((w) => w.replace(/\/\*\*$/, '/'));
+        if (!existsSync(join(ROOT, COP))) why = `${COP} is missing — the only non-self-graded signal is gone`;
+        else if (writes.some((w) => COP.startsWith(w))) {
+          why = `${COP} is INSIDE the loop's write paths (${writes.join(', ')}) — the fleet could edit its own scorer`;
+        }
+      }
+      record('the capability cop is outside the loop\'s write paths', why === '', why);
+    }
+
+    record('every seat that changes the queue wakes the reactor',
+      missing.length === 0,
+      missing.length ? `${missing.join(', ')} never writes .github/loop/wake — it would propose into silence` : '');
+  }
 
   // ---- and: `'\"'\"'` must not appear at all ----
   //

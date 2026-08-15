@@ -39,6 +39,11 @@
 const WRITE_COLLECTIONS = [
   // answers
   'com.minomobi.answers',
+  // loop — a signed answer to an ASK the agent loop filed. The loop can measure
+  // whether a thing works and cannot measure whether it is any good; this is the
+  // collection that carries the second kind of judgement, written to the
+  // answerer's OWN repo so we store nothing and the answer stays theirs.
+  'com.minomobi.loop.answer',
   // airchat
   'com.minomobi.airchat.voice',
   // photo (ATProto Arena)

@@ -1,0 +1,53 @@
+{
+  // plant — where the loop's work product goes on the internet.
+  //
+  // ⭐ GOLDEN RULE (docs/DEPLOYS.md §4): `name` must be the worker that owns the
+  // live custom domain, and that domain must appear in `routes` — otherwise
+  // `wrangler deploy` quietly updates a stray plant.workers.dev, the run goes
+  // green, and nothing a visitor can see changes.
+  //
+  // ⚠ THE DOMAIN IS NOT plant.mino.mobi, AND THAT IS A SECURITY DECISION, not a
+  // naming preference. Every other surface in this repo lives on *.mino.mobi;
+  // this one must not, because THIS TREE IS WRITTEN BY AGENTS:
+  //
+  //   · workers/auth sets its session cookie with `Domain=.mino.mobi`, so a
+  //     signed-in visitor's cookie is sent to EVERY host under that domain;
+  //   · `isAllowedOrigin` returns true for any hostname ending `.mino.mobi`,
+  //     so such a host is CORS-allowlisted at the auth worker automatically.
+  //
+  // Put agent-written JavaScript on plant.mino.mobi and it can call
+  // auth.mino.mobi/pds/* with a visitor's session and act on their ATProto
+  // account. plant.minomobi.com is outside the cookie scope AND outside the
+  // allowlist (`endsWith('.mino.mobi')` is false, `=== 'minomobi.com'` is
+  // false). CLOSED-LOOP.md §6.1: minomobi.com carries agent-generated content
+  // and nothing else. plant/CLAUDE.md said this before the surface existed and
+  // it was nearly missed anyway.
+  //
+  // Nor `minomobi.com/plant/` — that PATH is served by the `lab` worker, so a
+  // loop push would fire deploy-lab.yml and republish every tenant site. A
+  // SUBDOMAIN is a separate worker and does not.
+  //
+  // plant.minomobi.com did not exist when this was written (curl: no DNS at
+  // all), so there is no owner to contend with and `plant` is a fresh name. The
+  // hostname is created by the first deploy from this `routes` declaration —
+  // the same path loop.mino.mobi took in run 30875224557. DEPLOYS.md §7's
+  // "dashboard only" rule covers DETACHING and MOVING a domain, not creating a
+  // new one on a zone already in the account.
+  //
+  // Expect the first run to look broken and not be: DNS takes ~10s to resolve
+  // and Cloudflare serves error 1104 for a few minutes while the certificate is
+  // issued. That is provisioning. Only a first deploy sees it, which is why the
+  // domain probe in deploy-plant.yml is tolerant exactly once.
+  "name": "plant",
+  "main": "worker.js",
+  "compatibility_date": "2026-03-21",
+
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+
+  "routes": [
+    { "pattern": "plant.minomobi.com", "custom_domain": true }
+  ]
+}

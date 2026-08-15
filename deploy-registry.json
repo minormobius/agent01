@@ -1348,6 +1348,36 @@
         "scripts/gen-lab-tenants.mjs",
         ".github/workflows/deploy-lab.yml"
       ]
+    },
+    {
+      "surface": "loop",
+      "dir": "loop",
+      "endpoint": "loop.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/loop-graph-ticketing-surface-7qxu7c",
+      "uses": [],
+      "provides": null,
+      "status": "MANAGED and LIVE — the viewing surface for the agent loop's ticket graph. loop.mino.mobi was created by the first deploy from the routes[] declaration (run 30875224557 logged \"loop.mino.mobi (custom domain)\") and answers /health 200. It did not exist before that run; DEPLOYS.md §7's dashboard-only rule covers detaching and moving a domain, not creating a new one on a zone already in the account.",
+      "note": "The loop apparatus: the ticket graph, the ready queue, the governor, and the quality-against-turn-count curve. Reads loop/data/graph.json, generated from the ledger in .github/loop/. (full description: loop/CLAUDE.md)",
+      "paths": [
+        "loop/**",
+        ".github/workflows/deploy-loop.yml"
+      ]
+    },
+    {
+      "surface": "plant",
+      "dir": "plant",
+      "endpoint": "plant.minomobi.com",
+      "type": "frontend",
+      "branch": "claude/loop-graph-ticketing-surface-7qxu7c",
+      "uses": [],
+      "provides": null,
+      "status": "MANAGED and LIVE — the agent loop's WORK PRODUCT, deployed so people outside the loop can judge it. plant.minomobi.com was created by the first deploy from the routes[] declaration (run 30959458804) and answers /health 200 with {\"ok\": true}. The domain is NOT plant.mino.mobi and that is a security decision: workers/auth sets its session cookie with Domain=.mino.mobi and isAllowedOrigin() allowlists any hostname ending .mino.mobi, so agent-written JS on such a host could call auth.mino.mobi/pds/* with a signed-in visitor's session. CLOSED-LOOP.md §6.1. Provisioning on that first run is worth knowing: DNS did not resolve at all for ~10s, then Cloudflare served error 1104 for ~60s while the certificate issued, then it worked. Only a first deploy sees that.",
+      "note": "Written by loop turns, not by hand — this is the tree the fleet may edit, and the only place its output reaches a stranger. Deliberately separate from foam/ (hand-authored, different domain, different workflow): the comparison between them is worth nothing if the trees are contaminated. Currently serves the summon inspector — Platonic cells in an anisotropic foam, with the naive-placement trap flippable so a visitor can see the 22° rather than be told about it. (full description: plant/CLAUDE.md)",
+      "paths": [
+        "plant/**",
+        ".github/workflows/deploy-plant.yml"
+      ]
     }
   ],
   "unmanaged": {

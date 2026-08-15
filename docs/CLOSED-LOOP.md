@@ -3,6 +3,17 @@
 A design record for the next thing, written before the thing exists so that the
 reasoning survives the conversation it came from.
 
+> **Update, 2026-08-04 — the plumbing now exists.** The apparatus described in
+> §6 is built and **disabled**: the ticket graph, the contagion firewall §7
+> demanded, the governor of §8, the surface of §6.1, and the four chain-reaction
+> workflows. See [`LOOPS.md`](LOOPS.md) for how it is wired and
+> [`loop.mino.mobi`](https://loop.mino.mobi) for the graph.
+>
+> **The parts this document says are the actual project are still missing** —
+> the judge (§3) is two of three signals short and uncalibrated, and no turn has
+> run, so §9's phase 1 is still the next thing. Nothing below is superseded.
+> What follows is still the **why**; LOOPS.md is only the how.
+
 **What is being proposed:** an instrumented, budget-governed, unattended agent
 loop that produces artifacts *and a measurement*, on a new surface, driven from
 inside the house rather than by a stranger's mention.

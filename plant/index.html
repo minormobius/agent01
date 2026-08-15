@@ -1,0 +1,800 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>plant — feed the factory</title>
+<meta name="description" content="Six small factories, one setting each. Get nothing short and the next one opens.">
+<style>
+  :root {
+    --bg: #0f1113; --fg: #e8e6e1; --dim: #8b8b86; --line: #26292d;
+    --accent: #d08324; --ok: #4c9a5a; --bad: #c25b4a;
+    --seed: #e8e6e1; --seed-back: #55585c; --centre: #d08324;
+    --edge: #7fa8c9; --edge-back: #2f3f4c; --spoke: #2a2e33; --ghost: #3a3f45;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #faf9f7; --fg: #1a1a18; --dim: #6b6b66; --line: #e0ded9;
+      --seed: #1a1a18; --seed-back: #b8b5ae; --edge: #3a6b96; --edge-back: #c3d2de;
+      --spoke: #ddd9d2; --ghost: #cfcac1;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.55 ui-serif, Georgia, "Times New Roman", serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 60rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+  h1 { font-size: 1.6rem; margin: 0 0 .3rem; letter-spacing: -.01em; }
+  .sub { color: var(--dim); margin: 0 0 2rem; max-width: 42rem; }
+  h2 { font-size: 1.1rem; margin: 2.5rem 0 .5rem; }
+  p { max-width: 42rem; }
+  code { font: .85em ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent); }
+  a { color: var(--accent); }
+
+  .stage {
+    display: grid; grid-template-columns: 1fr 15rem; gap: 1.25rem;
+    border: 1px solid var(--line); border-radius: 6px; padding: 1rem; background: var(--bg);
+  }
+  @media (max-width: 46rem) { .stage { grid-template-columns: 1fr; } }
+  svg#view { width: 100%; height: 26rem; touch-action: none; cursor: grab; display: block; }
+  svg#view:active { cursor: grabbing; }
+
+  .ctl label { display: block; font-size: .78rem; color: var(--dim); margin: .9rem 0 .15rem;
+    text-transform: uppercase; letter-spacing: .06em; }
+  .ctl select, .ctl input[type=range] { width: 100%; }
+  .ctl select {
+    background: var(--bg); color: var(--fg); border: 1px solid var(--line);
+    border-radius: 4px; padding: .35rem; font: inherit; font-size: .9rem;
+  }
+  .ctl .row { display: flex; align-items: center; gap: .5rem; margin-top: .9rem; font-size: .9rem; }
+  .val { color: var(--fg); font: .8rem ui-monospace, Menlo, monospace; float: right; }
+
+  .verdict {
+    margin-top: 1rem; padding-top: .8rem; border-top: 1px solid var(--line);
+    font: .8rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .verdict .ok { color: var(--ok); } .verdict .bad { color: var(--bad); }
+  .verdict div { margin: .15rem 0; }
+  .legend { font-size: .8rem; color: var(--dim); margin-top: .8rem; }
+  .legend b { color: var(--fg); font-weight: normal; }
+  .note { border-left: 2px solid var(--accent); padding-left: .9rem; color: var(--dim); }
+  /* The one board on the page. It used to be `svg#lvl`, matching exactly one of
+     six per-level mounts — so levels 2-6 rendered unstyled by these rules for
+     five levels' worth of turns. One level at a time makes that impossible
+     rather than fixed: there is one id and it is this one. */
+  svg#gameBoard { width:100%; height:150px; display:block; }
+  svg#gameBoard .ln { font: 600 14px ui-serif, Georgia, serif; fill: var(--fg); }
+  svg#gameBoard .ls { font: 12px ui-monospace, Menlo, monospace; fill: var(--dim); }
+  svg#gameBoard .ls.bad { fill: var(--bad); }
+  .lvl-verdict { margin-top:.6rem; font: 14px ui-monospace, Menlo, monospace; }
+  .lvl-verdict.ok { color: var(--ok); } .lvl-verdict.bad { color: var(--bad); }
+  /* Sets no `display`, so the UA's `[hidden] { display: none }` is unopposed and
+     the element really disappears when the page hides it. */
+  #gameNudge { margin: .5rem 0 0; color: var(--dim); font-size: .9rem; }
+  .lvl-btn { margin-top:.8rem; width:100%; background:var(--bg); color:var(--fg);
+    border:1px solid var(--line); border-radius:4px; padding:.4rem; font:inherit; font-size:.85rem; cursor:pointer; }
+  .lvl-btn:hover { border-color: var(--accent); }
+  #gameNext { border-color: var(--ok); color: var(--ok); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Plant</h1>
+<!-- The first screen's two lines are campaign.mjs's INTRO, filled at boot
+     (lp-ef6599). They ship EMPTY on purpose: a sentence typed here is a second
+     copy of the module's words that nothing can keep in step, and a gate
+     reading this file as text could then only check what the copy was LIKE —
+     short, plain, no vocabulary from inside the repository — never that it was
+     the RIGHT sentence, because there would be nothing to compare it to. The
+     mounts are a title and a blurb because that is a LEVELS entry's shape, so
+     the intro screen and a level screen render through the same two lines. -->
+<h2 id="gameIntroTitle" style="margin:.2rem 0 .4rem; font-size:1.15rem"></h2>
+<p class="sub" id="gameIntro"></p>
+
+<div class="stage" id="game">
+  <div>
+    <h2 id="gameTitle" style="margin:.1rem 0 .35rem"></h2>
+    <p id="gameBlurb" style="margin:0 0 .9rem; color:var(--dim)"></p>
+    <svg id="gameBoard" viewBox="0 0 640 150" preserveAspectRatio="xMidYMid meet"
+         aria-label="This level's production network"></svg>
+    <div class="lvl-verdict" id="gameLine"></div>
+    <p id="gameNudge" hidden></p>
+  </div>
+  <div class="ctl">
+    <label for="gameKnob"><span id="gameKnobKind"></span> <span class="val" id="gameKnobV"></span></label>
+    <input type="range" id="gameKnob">
+    <div id="gameParts"></div>
+    <div id="gameChoice"></div>
+    <p class="legend" id="gameProgress" style="margin-top:.9rem"></p>
+    <button id="gameNext" class="lvl-btn" hidden></button>
+  </div>
+</div>
+
+<p class="note" style="margin-top:1.2rem">
+  The verdict under the board is not a description of the factory — it is the same check CI runs,
+  called live on the same level the tests grade. If it says something is short here, the test says
+  the same thing. Whether being two units short <em>feels</em> fair is the part no test can answer,
+  and it is the reason this page exists at all.
+</p>
+
+<!-- The pocket factory. Every word in it is pocket-game.mjs's, filled at boot,
+     for the same reason the intro's are: a gate reading this file as text can
+     assert a sentence exists and never that it is the RIGHT one. -->
+<h2 id="pgTitle" style="margin:2rem 0 .3rem"></h2>
+<p class="sub" id="pgBlurb"></p>
+
+<div class="stage">
+  <div>
+    <svg id="pgPlan" viewBox="0 0 640 320" preserveAspectRatio="xMidYMid meet"
+         style="width:100%;height:20rem;display:block;touch-action:none;cursor:crosshair"
+         aria-label="Top-down plan of the pocket; click to put the selected machine down"></svg>
+    <div class="lvl-verdict" id="pgLine"></div>
+  </div>
+  <div class="ctl">
+    <div id="pgPalette"></div>
+    <button id="pgReset" class="lvl-btn">clear it and start again</button>
+    <p class="legend" id="pgPlaced" style="margin-top:.9rem"></p>
+  </div>
+</div>
+
+<h2>The summon inspector</h2>
+<p>
+  A cell in the foam is the intersection of half-spaces, one per neighbouring seed — so a cell's faces
+  <em>are</em> its bisectors, and its face normals <em>are</em> its neighbour directions. Put a seed in the
+  middle and one along each face normal of a Platonic solid, and the foam grows that solid. These are not
+  models; there is no mesh. Everything below is <strong>points</strong>.
+</p>
+
+<div class="stage">
+  <svg id="view" viewBox="0 0 640 416" preserveAspectRatio="xMidYMid meet" aria-label="A summoned Platonic cell, drag to orbit"></svg>
+  <div class="ctl">
+    <label for="solid">Solid</label>
+    <select id="solid"></select>
+
+    <label for="aniso">Anisotropy <span class="val" id="anisoV"></span></label>
+    <input type="range" id="aniso" min="1" max="8" step="0.1" value="2.2">
+
+    <label for="r">Inradius <span class="val" id="rV"></span></label>
+    <input type="range" id="r" min="0.6" max="3" step="0.05" value="1.5">
+
+    <label for="rot">Yaw <span class="val" id="rotV"></span></label>
+    <input type="range" id="rot" min="0" max="6.28" step="0.01" value="0">
+
+    <div class="row"><input type="checkbox" id="naive"><label for="naive"
+      style="margin:0;text-transform:none;letter-spacing:0;font-size:.85rem;color:var(--fg)">Naive placement</label></div>
+    <div class="row"><input type="checkbox" id="sphere" checked><label for="sphere"
+      style="margin:0;text-transform:none;letter-spacing:0;font-size:.85rem;color:var(--fg)">Isotropic ghost</label></div>
+
+    <div class="verdict" id="verdict"></div>
+  </div>
+</div>
+
+<p class="legend">
+  <b>Orange dot</b> the cell's own seed · <b>pale dots</b> its neighbours · <b>blue</b> the dual polyhedron
+  they imply · <b>dashed circle</b> where those seeds would sit if the metric had no grain.
+  Drag to orbit.
+</p>
+
+<h2>Summon — put one of these into real ground</h2>
+<p>
+  Everything above is a shape in empty space. Below is a <strong>pocket</strong>: a real chunk of the
+  foam, seen from above, with every seed in it drawn as a dot. Click anywhere on the plan to choose a
+  spot, then press <em>summon</em>. It either lands whole or it is refused, and the refusal tells you
+  what it hit — the rock that was already there, a wall, or something you put down yourself.
+  Green dots are spots that look clear at the current height; you do not have to use them.
+</p>
+
+<div class="stage">
+  <div>
+    <svg id="plan" viewBox="0 0 640 320" preserveAspectRatio="xMidYMid meet"
+         style="width:100%;height:20rem;display:block;touch-action:none;cursor:crosshair"
+         aria-label="Top-down plan of the pocket; click to choose where to summon"></svg>
+    <div class="lvl-verdict" id="summonVerdict"></div>
+  </div>
+  <div class="ctl">
+    <label for="summonSolid">Solid</label>
+    <select id="summonSolid"></select>
+
+    <label for="summonY">Height <span class="val" id="summonYV"></span></label>
+    <input type="range" id="summonY" min="0" max="1" step="0.01" value="0.5">
+
+    <button id="summonGo" class="lvl-btn">summon here</button>
+    <button id="summonReset" class="lvl-btn">start a new pocket</button>
+    <p class="legend" id="summonPlaced" style="margin-top:.9rem"></p>
+  </div>
+</div>
+
+<p class="note" style="margin-top:1.2rem">
+  The plan is flat and the pocket is not — two dots on top of each other may be a long way apart
+  vertically, and the foam measures up-and-down differently from side-to-side anyway. So a spot that
+  looks clear can still be refused, and the sentence underneath is the only honest account of why.
+  Is that frustrating or is it the puzzle? Nobody here can tell you.
+</p>
+
+<h2>What to look at</h2>
+<p>
+  Push <strong>anisotropy</strong> up. The seeds pull away from the dashed circle, because the foam measures
+  vertical distance differently from horizontal — grade has to stay a meaningful thing to climb. The solid
+  is still exact: every face is still where it should be, to floating point. It is the <em>space</em> that is
+  stretched, not the shape that is wrong.
+</p>
+<p>
+  Now tick <strong>naive placement</strong> — seeds at unit directions times a common radius, the obvious way
+  to do it. Watch the verdict. Then switch to a <strong>cube</strong> and tick it again: the cube is fine.
+  Its face normals are axis-aligned and the metric cannot rotate those, so the first solid anyone tries looks
+  perfect and the bug waits in the second one. That is the trap this code was written to survive, and the
+  error reported is measured live rather than quoted.
+</p>
+
+<h2>Why this page exists</h2>
+<p class="note">
+  This surface is the work product of an agent loop that writes its own tickets and grades itself against
+  gates it also writes. A system like that gets very good at what it can measure and blind to everything
+  else. The correction is people from outside it — which requires there to be something you can open.
+  So: does the squash read as the world having a <em>grain</em> you could learn to use, or as the shapes
+  being <em>broken</em>? There is no test for that, which is exactly why it is being asked.
+</p>
+
+<script type="module">
+import { SOLID_NAMES } from './solids.mjs';
+import { render } from './view.js';
+
+const $ = (id) => document.getElementById(id);
+const view = $('view');
+const state = { solid: 'dodecahedron', r: 1.5, aniso: 2.2, rotate: 0, yaw: 0.6, pitch: 0.35 };
+
+$('solid').innerHTML = SOLID_NAMES.map((n) =>
+  `<option value="${n}"${n === state.solid ? ' selected' : ''}>${n}</option>`).join('');
+
+function draw() {
+  view.setAttribute('viewBox', `0 0 ${view.clientWidth || 640} ${view.clientHeight || 416}`);
+  const res = render(view, { ...state, naive: $('naive').checked, showSphere: $('sphere').checked });
+  $('anisoV').textContent = state.aniso.toFixed(1);
+  $('rV').textContent = state.r.toFixed(2);
+  $('rotV').textContent = `${Math.round(state.rotate * 180 / Math.PI)}°`;
+  const exact = res.ok && !$('naive').checked;
+  $('verdict').innerHTML = `
+    <div>${res.faces} faces</div>
+    <div class="${exact ? 'ok' : 'bad'}">${exact ? '✓ exact' : '✗ not exact'}</div>
+    <div>worst face off by<br>${(res.naiveErrDeg ?? res.errDeg).toFixed(res.naiveErrDeg ? 2 : 8)}°</div>
+    <div>inradius ${res.inradius.toFixed(4)}</div>`;
+}
+
+for (const [id, key, f] of [['aniso', 'aniso', Number], ['r', 'r', Number], ['rot', 'rotate', Number]]) {
+  $(id).addEventListener('input', (e) => { state[key] = f(e.target.value); draw(); });
+}
+$('solid').addEventListener('change', (e) => { state.solid = e.target.value; draw(); });
+for (const id of ['naive', 'sphere']) $(id).addEventListener('change', draw);
+
+// Orbit. Pointer events so a finger works the same as a mouse — this page is
+// meant to be handed to someone on a phone and judged in thirty seconds.
+let drag = null;
+view.addEventListener('pointerdown', (e) => {
+  drag = { x: e.clientX, y: e.clientY, yaw: state.yaw, pitch: state.pitch };
+  view.setPointerCapture(e.pointerId);
+});
+view.addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  state.yaw = drag.yaw + (e.clientX - drag.x) * 0.01;
+  // Clamped short of the poles, where an orbit camera flips and reads as a bug.
+  state.pitch = Math.max(-1.5, Math.min(1.5, drag.pitch + (e.clientY - drag.y) * 0.01));
+  draw();
+});
+for (const ev of ['pointerup', 'pointercancel']) view.addEventListener(ev, () => { drag = null; });
+addEventListener('resize', draw);
+draw();
+
+// CAMPAIGN BLOCK BEGIN ─ the game: one level at a time ──────────────────────
+//
+// This replaced six scrolled sections, each with its own slider, its own call
+// to the oracle and its own copy of a level's bounds. The page now knows
+// NOTHING about any level: `campaign.mjs` owns the order, the titles, the
+// blurbs, the domains and the verdict sentence, and everything below reads
+// them. `index-campaign-wiring.selftest.mjs` asserts that by deriving the
+// forbidden literals from the module's own exports.
+//
+// THE CONTROL IS BUILT OVER `knob.samples`, BY INDEX. A slider whose value is
+// a POSITION in the declared domain cannot emit a setting the domain does not
+// contain — a drifted float is unrepresentable rather than merely unlikely —
+// and the win-fraction measure that computed the play order therefore keeps
+// describing exactly what the player is offered. The old page had the other
+// arrangement and it had already drifted: the first level's slider shipped an
+// opening value far above its own maximum, silently clamped by the browser and
+// visible to nobody. That is what two copies of a bound always come to.
+//
+// NOTHING HERE DECIDES ANYTHING. The page never grades a network, never
+// resolves a fan-out split, and names no level and no threshold: the handlers
+// move the game, ask it for a verdict, and render what comes back. That is
+// vision item 1's requirement that the control logic live in a module rather
+// than in event handlers, and it is the only form of it a test with no browser
+// can check.
+import { Campaign, entryOf, INTRO, LINES } from './campaign.mjs';
+import { drawLevel } from './level-view.js';
+
+const game = new Campaign();
+
+// The page's ONE judgement about a control, and it is about SIZE rather than
+// about which level it is: a domain small enough to see all of gets a button
+// per setting, anything larger gets a slider. A future level offering four
+// options is laid out as buttons without editing this line.
+const ALL_AT_ONCE = 8;
+
+/** A setting as words. Objects print `name value`, so a multi-part knob needs
+ *  no special case here and no knowledge of which parts it has. */
+const showValue = (v) => (v && typeof v === 'object'
+  ? Object.entries(v).map(([n, x]) => `${n} ${x}`).join(' · ')
+  : String(v));
+
+const knobOf = () => entryOf(game.state().id).knob;
+
+/** One slider per component, for a knob that declares `parts`. Still a POSITION
+ *  per part, so every reachable combination is a member of the declared domain
+ *  and no move from these controls can be refused. The page reads `name` and
+ *  the length of each part's own domain and knows nothing else about it. */
+function buildParts(k, host) {
+  const pos = k.positions(game.state().value) || k.parts.map(() => 0);
+  host.innerHTML = k.parts.map((p, i) =>
+    `<label>${p.name} <span class="val" data-v="${i}"></span></label>`
+    + `<input type="range" data-p="${i}" min="0" max="${p.samples.length - 1}" step="1"`
+    + ` value="${pos[i]}" aria-label="${p.name}">`).join('');
+}
+
+/** The part sliders' own read-outs. Each shows the member its position selects,
+ *  which is the only way a stop on an index slider means anything. */
+function paintParts() {
+  const k = knobOf();
+  const host = $('gameParts');
+  if (!k.parts) return;
+  for (const el of host.querySelectorAll('input[data-p]')) {
+    const i = Number(el.dataset.p);
+    const out = host.querySelector(`[data-v="${i}"]`);
+    if (out) out.textContent = String(k.parts[i].samples[Number(el.value)]);
+  }
+}
+
+function buildControl() {
+  const k = knobOf();
+  const slider = $('gameKnob');
+  const choice = $('gameChoice');
+  const host = $('gameParts');
+  // Three control shapes, and the page picks between them on the SHAPE OF THE
+  // KNOB rather than on which level it is: a knob with components gets one
+  // slider each, a domain small enough to see all of gets a button each, and
+  // anything else gets the single index slider.
+  const multi = !!k.parts;
+  const discrete = !multi && k.samples.length <= ALL_AT_ONCE;
+  $('gameKnobKind').textContent = k.kind;
+  slider.hidden = discrete || multi;
+  choice.hidden = !discrete;
+  host.hidden = !multi;
+  if (discrete) {
+    host.innerHTML = '';
+    choice.innerHTML = k.samples.map((s, j) =>
+      `<button class="lvl-btn" data-i="${j}">${showValue(s)}</button>`).join('');
+    return;
+  }
+  choice.innerHTML = '';
+  if (multi) {
+    buildParts(k, host);
+    return;
+  }
+  host.innerHTML = '';
+  // `key` is the knob's own membership function, so finding where the current
+  // setting sits works for a float and for an object alike.
+  const at = k.samples.findIndex((s) => k.key(s) === k.key(game.state().value));
+  slider.min = String(0);
+  slider.max = String(k.samples.length - 1);
+  slider.step = String(1);
+  slider.value = String(at);
+}
+
+function paint() {
+  const st = game.state();
+  const entry = entryOf(st.id);
+  $('gameTitle').textContent = entry.title;
+  $('gameBlurb').textContent = entry.blurb;
+  $('gameKnobV').textContent = showValue(st.value);
+  paintParts();
+
+  // `verdict()` spreads the oracle's own result, so it IS a valid verdict for
+  // drawLevel — the board and the sentence come from one call, not two.
+  const v = game.verdict();
+  drawLevel($('gameBoard'), v.network, v);
+
+  // `ok` IS THE FACTORY'S ANSWER AND `won` IS THE GAME'S, and the tick belongs
+  // to the second of those however much it looks like it belongs to the first.
+  // A level nobody has changed yet is fed and is NOT done, so a tick beside a
+  // hidden next button is the whole reason this screen read as broken — the
+  // nudge below explained the difference while the tick went on contradicting
+  // it. That state gets the factory's own words with the mark left off.
+  //
+  // NEITHER STRING IS THE PAGE'S. `plain` is `line` minus its mark, composed
+  // once in `campaign.mjs`, so the two forms cannot drift into two different
+  // accounts of one verdict. No mark is written anywhere in this block — not in
+  // the code and not in a comment — and the gate checks that against the
+  // module's own MARK export, because a glyph typed here is a glyph that can
+  // disagree with the sentence it is sitting on. (The inspector above the
+  // campaign block has its own, and is outside what that check reads.)
+  //
+  // The finished branch keeps its mark: `next` only appears on `won`, so the
+  // end of the game is by construction a state that was won.
+  const untouched = v.ok && !v.won;
+  const line = $('gameLine');
+  line.textContent = st.finished
+    ? `${v.line} ${LINES.finished}`
+    : (untouched ? v.plain : v.line);
+  line.className = 'lvl-verdict ' + (v.ok ? 'ok' : 'bad');
+
+  const more = st.index < st.total - 1;
+  const next = $('gameNext');
+  next.textContent = more ? 'next level' : 'finish';
+  next.hidden = !(v.won && !st.finished);
+
+  // THE SAME STATE, SAID IN FULL. Dropping the mark above removes a claim the
+  // page should not be making; this line is the one that tells a stranger what
+  // to do instead, and both come from the ONE condition computed above — the
+  // page renders `ok` and `won` and computes nothing: no move count, no level
+  // id, no second verdict. Keeping this out of the module's own sentence() is
+  // deliberate, because that function speaks about the factory and this line is
+  // about the game.
+  //
+  // THE WORDS ARE THE MODULE'S (lp-3302ee). They were quoted here, and a gate
+  // reading this file as text could then only check what the string was LIKE —
+  // short, plain, no vocabulary from inside the repository — never that it was
+  // the right string, because there was nothing to compare it to. Rendering
+  // `LINES.untouched` by reference makes that comparison hold by construction.
+  const nudge = $('gameNudge');
+  nudge.hidden = !untouched;
+  nudge.textContent = untouched ? LINES.untouched : '';
+
+  $('gameProgress').textContent =
+    `${st.index + 1} of ${st.total} · ${st.moves} change${st.moves === 1 ? '' : 's'}`;
+}
+
+/** Take a POSITION in the declared domain. A refused move repaints nothing —
+ *  the game did not change, so neither should the screen. */
+function choose(at) {
+  if (!game.move(knobOf().samples[at]).accepted) return;
+  paint();
+}
+
+/** Read every part slider's POSITION, ask the knob to compose them, and move.
+ *  The page never builds the setting itself — `compose` is the knob's, so a
+ *  setting whose shape is not an object of its part names still works here. */
+function chooseParts() {
+  const k = knobOf();
+  const idx = [...$('gameParts').querySelectorAll('input[data-p]')].map((el) => Number(el.value));
+  if (!game.move(k.compose(k.parts.map((p, i) => p.samples[idx[i]]))).accepted) return;
+  paint();
+}
+
+$('gameKnob').addEventListener('input', (e) => choose(Number(e.target.value)));
+$('gameParts').addEventListener('input', chooseParts);
+$('gameChoice').addEventListener('click', (e) => {
+  const at = e.target.dataset.i;
+  if (at !== undefined) choose(Number(at));
+});
+$('gameNext').addEventListener('click', () => {
+  game.next();          // returns null on the last level and latches `finished`
+  buildControl();
+  paint();
+});
+
+// THE FIRST SCREEN'S WORDS ARE THE MODULE'S TOO (lp-ef6599). This paragraph was
+// typed into the markup, and a gate reading the page as text could then only
+// check what the string was LIKE — non-empty, short, none of this repository's
+// vocabulary — never that it was the RIGHT string, because there was nothing to
+// compare it against: those checks pass for an intro describing a different game
+// entirely. `INTRO` is rendered by reference, so page and module cannot disagree,
+// and the prose rules the sentence must obey are asserted once against the export
+// by campaign.selftest.mjs's own INTRO section. The shipped wording changed and
+// the module's won, which is the direction that keeps one owner: the page's
+// version was two sentences and counted the setting, and that gate's
+// one-sentence and count rules both refuse it.
+//
+// Written once at startup rather than inside paint(), because the first screen
+// says the same thing whatever the game is doing.
+$('gameIntroTitle').textContent = INTRO.title;
+$('gameIntro').textContent = INTRO.blurb;
+
+buildControl();
+paint();
+// CAMPAIGN BLOCK END ────────────────────────────────────────────────────────
+
+// POCKET GAME BLOCK BEGIN ─ build a factory in the rock ─────────────────────
+//
+// THE CONTROLLER OWNS EVERY DECISION, exactly as the campaign and summon blocks
+// do. Nothing here works out whether a machine fits, what is short, or what a
+// refusal should say: the handlers read a control, hand a point to `pg`, and
+// render what comes back. There is no threshold, no rate and no capacity in
+// this block — pocket-game.selftest.mjs derives the forbidden literals from
+// OBJECTIVE at run time and fails on any of them re-typed here.
+//
+// The block is delimited by MARKERS rather than found by position, so it can be
+// moved without breaking its own gate — the lesson index-campaign-wiring learnt.
+//
+// Aliased imports: this whole <script> is ONE module, and the summon block below
+// already binds `hullBounds`, `planShapes` and `PLAN`. Re-importing those names
+// would be a duplicate declaration and a syntax error that kills the entire
+// page, so they are bound under their own names here.
+// entryOf is DELIBERATELY NOT IMPORTED HERE, and re-adding it breaks the page.
+// This file is ONE module scope (a single <script type="module">), campaign.mjs
+// already binds entryOf at the top, and a second bare binding is a duplicate
+// declaration — a SyntaxError that stops the ENTIRE script executing, so the
+// inspector, the campaign and this panel all go dead at once and the page
+// renders as inert HTML. Nothing in this block ever used it.
+// Turn 92 added it; all 18 selftests still passed, because they import the
+// modules in node and NOTHING EVER LOADED THIS PAGE AS A BROWSER MODULE.
+import { PocketGame, OBJECTIVE } from './pocket-game.mjs';
+import { hullBounds as pgHullBounds } from './placement.mjs';
+import { planShapes as pgPlanShapes, PLAN as PG_PLAN } from './summon-view.js';
+
+const pg = new PocketGame();
+let pgBounds = null;      // hullBounds of the pocket — null until it is dug
+let pgRes = null;         // the preview the plan is currently illustrating
+
+// The words are the module's, rendered by reference and written ONCE: the title
+// and blurb do not change with the state, so repainting them per move could only
+// ever write the same two strings.
+$('pgTitle').textContent = OBJECTIVE.title;
+$('pgBlurb').textContent = OBJECTIVE.blurb;
+
+// One button per palette entry, built FROM THE OBJECTIVE — a hand-typed list of
+// four labels would be a second copy of the palette free to drift from it.
+$('pgPalette').innerHTML = OBJECTIVE.palette.map((p) =>
+  `<button class="lvl-btn" data-key="${p.key}">${p.label}</button>`).join('');
+
+// The plan draws the pristine pocket's seeds PLUS every seed the player has
+// placed, as one list, with `originCount` marking the boundary. That is exactly
+// what `planShapes` already means by `mine`, so a placed machine renders as the
+// player's own ground with no new drawing code and no second rule.
+function pgDisplayPocket(st) {
+  return { ...pg.pocket, seeds: [...pg.pocket.seeds, ...st.placed.flatMap((p) => p.seeds)] };
+}
+
+const pgSvgOf = (s) => {
+  if (s.kind === 'frame') {
+    return `<rect x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}" fill="none" stroke="var(--line)"/>`;
+  }
+  const c = `cx="${s.cx.toFixed(2)}" cy="${s.cy.toFixed(2)}" r="${s.r}"`;
+  if (s.kind === 'cursor') return `<circle ${c} fill="none" stroke="var(--accent)" stroke-width="2"/>`;
+  if (s.kind === 'summon') {
+    const stroke = s.blamed ? 'var(--bad)' : 'var(--ok)';
+    return `<circle ${c} fill="none" stroke="${stroke}" stroke-width="${s.blamed ? 3 : 1}"/>`;
+  }
+  const fill = s.mine ? 'var(--centre)' : 'var(--seed-back)';
+  return `<circle ${c} fill="${fill}"/>`;
+};
+
+function pgPaint() {
+  if (!pgBounds) return;
+  const st = pg.state();
+  const v = pg.verdict();
+  // `pgRes` is shaped for `planShapes`: the inner refusals are the ones carrying
+  // `summonSeed`, which is how the offending part of a shape gets lit up.
+  $('pgPlan').innerHTML = pgPlanShapes(pgDisplayPocket(st), pgBounds, [], null,
+    pg.pocket.seeds.length, pgRes).map(pgSvgOf).join('');
+  const el = $('pgLine');
+  el.textContent = pg.line(v);
+  el.className = 'lvl-verdict' + (v.won ? ' ok' : (st.placed.length ? ' bad' : ''));
+  $('pgPlaced').innerHTML = st.placed.length
+    ? `<b>${st.moves} moves</b><br>${st.placed.map((p) => p.label).join('<br>')}`
+    : `<b>${st.moves} moves</b>`;
+  for (const b of $('pgPalette').querySelectorAll('button')) {
+    b.disabled = st.placed.some((p) => p.key === b.dataset.key);
+    b.style.outline = b.dataset.key === st.selected ? '2px solid var(--accent)' : '';
+  }
+}
+
+function pgPointFrom(e) {
+  const ctm = $('pgPlan').getScreenCTM();
+  if (!ctm || !pgBounds) return null;
+  const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+  const sp = (ax) => pgBounds[ax][1] - pgBounds[ax][0];
+  return [
+    pgBounds.x[0] + (q.x - PG_PLAN.pad) / (PG_PLAN.w - 2 * PG_PLAN.pad) * sp('x'),
+    pgBounds.y[0] + 0.5 * sp('y'),
+    pgBounds.z[0] + (q.y - PG_PLAN.pad) / (PG_PLAN.h - 2 * PG_PLAN.pad) * sp('z'),
+  ];
+}
+
+$('pgPalette').addEventListener('click', (e) => {
+  const key = e.target.dataset && e.target.dataset.key;
+  if (!key || !pgBounds) return;
+  pg.select(key);
+  pgRes = null;
+  pgPaint();
+});
+$('pgPlan').addEventListener('click', (e) => {
+  const p = pgPointFrom(e);
+  if (!p || !pg.state().selected) return;
+  const r = pg.place(p);
+  // A refused move still shows its shape and what it hit — that is the whole
+  // point of a refusal being news rather than nothing happening.
+  const pv = r.accepted ? null : pg.preview(p);
+  pgRes = pv && pv.con
+    ? { ok: pv.ok, con: pv.con, refusals: pv.refusal ? pv.refusal.refusals : [] }
+    : null;
+  pgPaint();
+});
+$('pgReset').addEventListener('click', () => { pg.reset(); pgRes = null; pgPaint(); });
+
+// Deferred a tick for the same reason the summon panel is: digging a pocket is
+// expensive and must not sit in front of the first paint.
+$('pgLine').textContent = 'Digging a pocket…';
+setTimeout(() => {
+  pg.start();
+  pgBounds = pgHullBounds(pg.pocket);
+  pg.select(OBJECTIVE.palette[0].key);
+  pgPaint();
+}, 0);
+// POCKET GAME BLOCK END ─────────────────────────────────────────────────────
+
+// ── Summon — the click that reaches the foam ───────────────────────────────
+//
+// THE CONTROLLER OWNS EVERY PLACEMENT DECISION. Nothing below decides whether
+// a summon is legal, how close is too close, or what went wrong: the handlers
+// read a control, hand a point to the session, and render what comes back.
+// That is vision item 1's requirement ("the control logic lives in a module,
+// not in event handlers") and it is what makes this wiring checkable from a
+// test with no browser — index-summon-wiring.selftest.mjs asserts it.
+//
+// In particular there is NO THRESHOLD IN THIS FILE. The seed gap, the hull
+// margins and the pocket's anisotropy all have exactly one home each, and a
+// number re-typed here would be a second copy free to drift away from the one
+// the foam actually enforces. `hullBounds()` is imported for the same reason:
+// the plan's coordinate map is derived from the kernel's own clamp, not from
+// bounds guessed to match it.
+//
+// NOR IS THERE A SENTENCE IN THIS FILE. Every word a refusal produces, and
+// every dot the plan draws, comes from `summon-view.js` — because a regex
+// reading this page as text can assert that six sentences exist and differ,
+// and cannot assert that one of them is TRUE. That check needs a module, and
+// `summon-view.selftest.mjs` is it.
+import { SummonSession } from './summon-session.mjs';
+import { hullBounds } from './placement.mjs';
+import { summonSentence, planShapes, PLAN } from './summon-view.js';
+
+const plan = $('plan');
+const session = new SummonSession({ solid: SOLID_NAMES[0] });
+
+let cursor = null;      // the world point the player last clicked, or null
+let bounds = null;      // hullBounds of the current pocket — null until started
+let cands = [];         // candidate centres at the current height, for the plan
+let lastRes = null;     // the verdict the plan is currently illustrating
+let pocketSeed = 1;
+
+const SWEEP = { step: 6, limit: 200 };
+
+// The verdict is the plan's state as much as the cursor is: the shape drawn
+// under the pointer, and which of its points are marked, both come out of it.
+// So `say` keeps it and redraws, and nothing else assigns `lastRes` — a stale
+// verdict would highlight a part of a shape that is no longer being proposed.
+function say(res) {
+  lastRes = res;
+  const el = $('summonVerdict');
+  el.textContent = summonSentence(res);
+  el.className = 'lvl-verdict' + (res ? (res.ok ? ' ok' : ' bad') : '');
+  drawPlan();
+}
+
+// ---- the plan ------------------------------------------------------------
+// `planShapes` decides WHAT is drawn and WHERE; everything below only turns a
+// descriptor into an element and picks its colour.
+const span = (ax) => bounds[ax][1] - bounds[ax][0];
+const height = () => bounds.y[0] + Number($('summonY').value) * span('y');
+
+function pointFromEvent(e) {
+  const ctm = plan.getScreenCTM();
+  if (!ctm || !bounds) return null;
+  const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+  return [
+    bounds.x[0] + (q.x - PLAN.pad) / (PLAN.w - 2 * PLAN.pad) * span('x'),
+    height(),
+    bounds.z[0] + (q.y - PLAN.pad) / (PLAN.h - 2 * PLAN.pad) * span('z'),
+  ];
+}
+
+// Colour is the one thing left here, and deliberately: it is a stylesheet
+// question, and the descriptor already carries the decision behind it (`mine`
+// — did the player plant this seed, or did the generator; `blamed` — did the
+// verdict name this part of the shape). Neither is computed here: reading a
+// refusal list to work out which point was at fault is a placement decision,
+// and placement decisions live in the controller.
+const svgOf = (s) => {
+  if (s.kind === 'frame') {
+    return `<rect x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}" fill="none" stroke="var(--line)"/>`;
+  }
+  const c = `cx="${s.cx.toFixed(2)}" cy="${s.cy.toFixed(2)}" r="${s.r}"`;
+  if (s.kind === 'cursor') {
+    return `<circle ${c} fill="none" stroke="var(--accent)" stroke-width="2"/>`;
+  }
+  if (s.kind === 'summon') {
+    // The offending part is drawn as a thicker, warmer ring than its siblings,
+    // so "what did I hit" is answered on the map as well as in the sentence.
+    const stroke = s.blamed ? 'var(--bad)' : 'var(--ok)';
+    return `<circle ${c} fill="none" stroke="${stroke}" stroke-width="${s.blamed ? 3 : 1}"`
+      + `${s.blamed ? '' : ' opacity="0.7"'}/>`;
+  }
+  const fill = s.kind === 'candidate' ? 'var(--ok)' : (s.mine ? 'var(--centre)' : 'var(--seed-back)');
+  return `<circle ${c} fill="${fill}"${s.opacity === undefined ? '' : ` opacity="${s.opacity}"`}/>`;
+};
+
+function drawPlan() {
+  if (!bounds) { plan.innerHTML = ''; return; }
+  plan.innerHTML = planShapes(session.pocket, bounds, cands, cursor,
+    session.state().originCount, lastRes).map(svgOf).join('');
+}
+
+function drawPlaced() {
+  const st = session.state();
+  const lines = st.placed.map((p) =>
+    `${p.move}. ${p.solid} at ${p.centre.map((v) => v.toFixed(0)).join(', ')} — ${p.count} seeds`);
+  $('summonPlaced').innerHTML = lines.length
+    ? `<b>${st.moves} moves, ${lines.length} landed</b><br>${lines.join('<br>')}`
+    : `<b>${st.moves} moves, none landed yet</b>`;
+}
+
+function refresh() {
+  if (!bounds) return;                      // the pocket is still being dug
+  $('summonYV').textContent = `${height().toFixed(1)} m`;
+  cands = session.candidates({ ys: [height()], step: SWEEP.step, limit: SWEEP.limit }).list;
+  drawPlan();
+}
+
+// ---- handlers: read a control, call the session, render the answer --------
+$('summonSolid').innerHTML = SOLID_NAMES.map((n) =>
+  `<option value="${n}"${n === session.solid ? ' selected' : ''}>${n}</option>`).join('');
+
+// Every one of these guards on `bounds`: until the pocket exists there is
+// nothing to be legal or illegal about, and the session throws rather than
+// guess — see its `_started()`.
+$('summonSolid').addEventListener('change', (e) => {
+  session.select(e.target.value);
+  if (!bounds) return;
+  refresh();
+  say(cursor ? session.preview(cursor) : null);
+});
+$('summonY').addEventListener('input', () => {
+  if (!bounds) return;
+  if (cursor) cursor = [cursor[0], height(), cursor[2]];
+  refresh();
+  say(cursor ? session.preview(cursor) : null);
+});
+plan.addEventListener('click', (e) => {
+  const p = pointFromEvent(e);
+  if (!p) return;
+  cursor = p;
+  say(session.preview(cursor));   // `say` redraws, with the verdict it was given
+});
+$('summonGo').addEventListener('click', () => {
+  if (!bounds) return;
+  const res = session.place(session.solid, cursor);
+  say(res);
+  refresh();
+  drawPlaced();
+});
+$('summonReset').addEventListener('click', () => { pocketSeed++; startSummon(); });
+
+function startSummon() {
+  session.start(pocketSeed);
+  bounds = hullBounds(session.pocket);
+  cursor = null;
+  // Cleared with the cursor and for the same reason: a verdict about the old
+  // pocket names points that are nowhere in this one.
+  lastRes = null;
+  refresh();
+  drawPlaced();
+  say(null);
+}
+// Deferred one tick: generating a pocket is the most expensive thing on this
+// page and it must not sit in front of the first paint.
+$('summonVerdict').textContent = 'Digging a pocket…';
+setTimeout(startSummon, 0);
+</script>
+</div>
+</body>
+</html>

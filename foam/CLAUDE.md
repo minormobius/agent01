@@ -122,6 +122,15 @@ hook is load-bearing for that harness; keep it.
 
 ## Where this is heading (agreed direction, not yet built)
 
+**[`FACTORIO.md`](FACTORIO.md) is the design record for the big one** —
+summonable sources, processors, defenses and sinks placed into the foam as
+Platonic cells, and the certificate work that makes them shippable. It is also
+the target for the agent loop ([`../docs/LOOPS.md`](../docs/LOOPS.md)). The
+summon primitive is built and pinned: [`solids.mjs`](solids.mjs) +
+[`test/solids.selftest.mjs`](test/solids.selftest.mjs). Read FACTORIO.md §1
+before touching it — the anisotropic metric rotates a naive constellation by
+22°, and a cube looks perfect anyway.
+
 Puzzle-platformer campaign over the pocket family: pocket N links to N+1;
 creation puzzles (weave a membrane to seal a hole and walk over it — the
 kernel already treats a re-woven floor as support); chunked/streamed pockets

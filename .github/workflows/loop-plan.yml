@@ -1,0 +1,431 @@
+name: Loop plan (the planner makes work)
+
+# THE PLAN SEAT — the requirement factory, and the thing that decides whether
+# unattended operation exists at all.
+#
+#   loop-tick halts starved ──writes .github/loop/plan/<n>.json──▶  THIS
+#   THIS proposes requirements ──▶ a human promotes ──▶ loop-tick dispatches
+#
+# LOOP-WBS.md §3.7: an unattended fleet does not consume features, it consumes
+# requirements it can finish and prove it finished — and hand-authoring twelve a
+# day is two hours of operator time, every day, forever, as the price of
+# "unattended". This workflow is the answer to that arithmetic.
+#
+# What it is NOT allowed to do, and none of it is by convention:
+#
+#  - It cannot promote. Everything it proposes is born `proposed`
+#    (loop-apply-outbox.mjs forces the status regardless of what it writes), so
+#    the queue it fills is not a queue it can then feed itself. That is the loop
+#    gain control (LOOP-WBS.md §3.3) and this workflow does not touch it.
+#  - It cannot label work class-b. That class exists to force human review, and
+#    an agent that could self-label into it would route around the review.
+#  - It cannot claim class-a without naming a gate, because class-a MEANS
+#    "certified against an existing gate" and a class-a bead with no gate is
+#    exactly the shape of turn 1's unverified claim. When the check it needs
+#    does not exist, the honest move is `creates-gate` — a requirement that
+#    includes building its own acceptance test. That is not a loophole; a
+#    requirement with no verification method is a wish, and naming the method
+#    is the requirement-writing, not an addendum to it.
+#  - Its gates are constrained to read-only verbs with no shell metacharacters
+#    (beads.mjs `validateGate`). A gate is shell that CI runs; a planner writing
+#    one is fine, a planner writing arbitrary one is not.
+
+on:
+  push:
+    branches: ['claude/loop-graph-ticketing-surface-7qxu7c']
+    paths:
+      - '.github/loop/plan/**'
+  workflow_dispatch:
+
+concurrency:
+  group: loop-plan
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, 'merge candidate')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # See loop-tick.yml — the persisted checkout header overrides the
+          # remote URL's credentials and the push goes out as the wrong identity.
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # THREE CONDITIONS, ALL REQUIRED. The third is the one that is easy to
+      # miss: this workflow's own commit DELETES .github/loop/plan/, and a
+      # deletion under a path is a change to that path — so the planner's push
+      # wakes the planner. Requiring the request file to be present makes the
+      # echo self-terminating instead of a second unbriefed planning run.
+      - name: Is the loop enabled, is a plan seat open, and was one requested?
+        id: enabled
+        run: |
+          ENABLED=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).enabled===true)")
+          SEATS=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).seats?.roles?.plan?.max ?? 0)")
+          [ "$ENABLED" = "true" ] || echo "::notice::The loop is disabled. Nothing to do."
+          [ "$SEATS" != "0" ] || echo "::notice::No plan seats configured."
+          GO=false
+          if [ "$ENABLED" = "true" ] && [ "$SEATS" != "0" ]; then
+            if [ -f .github/loop/plan/request.json ]; then
+              GO=true
+            elif [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+              GO=true
+              echo "::notice::No request on disk — running because a human dispatched this."
+            else
+              echo "::notice::No plan request on disk. This is the planner's own commit echoing back."
+            fi
+          fi
+          echo "go=$GO" >> "$GITHUB_OUTPUT"
+
+      - name: The ledger is a valid graph
+        if: steps.enabled.outputs.go == 'true'
+        run: node scripts/beads.mjs lint
+
+      # THE PLANNING BEAD. An outbox must name the bead its turn was for, so the
+      # planner needs one to report against. Created here per run rather than
+      # reused, so each planning turn is its own auditable unit in the graph and
+      # the decision it records is attached to the run that made it.
+      - name: Seed the planning bead
+        id: seed
+        if: steps.enabled.outputs.go == 'true'
+        run: |
+          BEAD=$(node scripts/beads.mjs new --actor planner --kind task --status in_progress \
+            --priority 0 --tag planning --tag class-d \
+            --title "Planning run $(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --body "A plan seat was staffed because the ready queue was starved. Output: proposals, born proposed, awaiting human promotion.")
+          echo "bead=$BEAD" >> "$GITHUB_OUTPUT"
+          echo "planning bead: $BEAD"
+
+          # COMMIT THE SEED, LOCALLY, BEFORE THE AGENT STARTS. The containment
+          # gate below asks `git status --porcelain` what changed and attributes
+          # ALL of it to the planner — so a workflow that dirties the tree on the
+          # agent's behalf frames the agent for it. That is not hypothetical: the
+          # plan seat's first live run produced four well-formed proposals and the
+          # gate deleted the entire outbox because THIS step had appended to
+          # beads.jsonl. The gate must not be loosened to allow the ledger — that
+          # allowance is exactly the hole a planner would use to write itself a
+          # ready class-A bead and skip the validator. So clean the tree instead.
+          git config user.name  "loop-planner"
+          git config user.email "loop@users.noreply.github.com"
+          git add .github/loop/beads.jsonl
+          git commit -q -m "loop: seed planning bead $BEAD"
+
+      # ── The brief ──────────────────────────────────────────────────────────
+      # The planner sees the SPEC, the GRAPH, the CHECKS THAT EXIST, and — since
+      # lp-ec52ed — the ones that DO NOT. Showing only the existing inventory is
+      # what taught five turns of planning to stay inside it: every proposal was
+      # well-formed, gateable, and a refinement of something already tested,
+      # because that was the only shape the brief made visible.
+      - name: Compose the planning brief
+        id: brief
+        if: steps.enabled.outputs.go == 'true'
+        run: |
+          # THE BRIEF GOES TO A FILE, NOT TO A STEP OUTPUT.
+          #
+          # It used to be written to $GITHUB_OUTPUT and read back through the
+          # env: block, which puts the whole brief in the child process's
+          # ENVIRONMENT. The kernel caps argv+env together, and the brief
+          # carries vision.md verbatim plus the ticket, the memory and the
+          # protocol — so it grew until exec failed outright:
+          #
+          #   An error occurred trying to start process '/usr/bin/bash' …
+          #   Argument list too long
+          #
+          # The failure is silent in the only way that matters. `Run the agent`
+          # is continue-on-error, so the step goes GREEN in zero seconds, the
+          # agent never runs, no outbox is written, and the turn is recorded as
+          # a real turn that produced nothing. Turns 34 and 35 were spent that
+          # way. Nothing was red; the run just stopped producing.
+          #
+          # A file has no such limit, and the agent reads it on stdin exactly as
+          # before. Editing vision.md can no longer break the loop by length.
+          {
+            echo "You are the PLANNER for an instrumented agent loop. You do not write code."
+            echo "You write REQUIREMENTS that an unattended agent can finish in one turn and"
+            echo "that a machine can then prove were finished. The loop is currently STARVED:"
+            echo "it has capacity and nothing schedulable, which is why you were staffed."
+            echo
+            echo "=== WHAT THE OPERATOR SAYS MATTERS RIGHT NOW ==="
+            echo "This is the ONE input that is asserted rather than derived, and it"
+            echo "outranks anything you infer from the repository. If it conflicts with"
+            echo "what the graph suggests, it wins — the graph records what happened,"
+            echo "this records what is wanted."
+            echo
+            cat .github/loop/vision.md
+            echo
+            echo "=== THE PROJECT ==="
+            sed -n '1,80p' foam/FACTORIO.md
+            echo
+            echo "=== HOW A REQUIREMENT GETS VERIFIED ==="
+            echo "A requirement that does not say how you would know it was met is not a"
+            echo "requirement, it is a wish. The verification method is PART OF THE SPEC."
+            echo "The only unusual thing here is that the acceptance criterion has to be"
+            echo "EXECUTABLE, because the thing reading it is a machine with no judgement."
+            echo
+            echo "So: every proposal names how it will be checked. If that check does not"
+            echo "exist yet, BUILDING IT IS PART OF THE REQUIREMENT — tag creates-gate and"
+            echo "name the file it will land in. That is not a workaround. It is what good"
+            echo "requirements writing has always been."
+            echo
+            echo "=== CHECKS THAT EXIST TODAY (use these, or build the one you need) ==="
+            echo "A proposal is class-a only if its acceptance test is in this list."
+            echo "These selftests run today and exit non-zero on failure:"
+            ls -1 foam/test/*.mjs plant/test/*.mjs scripts/*.selftest.mjs 2>/dev/null | sed 's/^/  node /'
+            echo
+            echo "Files you may propose work against:"
+            ls -1 plant/ plant/test/ 2>/dev/null | sed 's/^/  /'
+            echo
+            echo "=== THE MEASUREMENT BACKLOG — the gates that do NOT exist yet ==="
+            echo "FACTORIO.md §2 is an oracle stack: seven gates, four built, three not."
+            echo "The three that are not built are the measurements to plan, and they are"
+            echo "the reason the work above them has been unschedulable:"
+            sed -n '/^| # | Gate | Status |/,/^$/p' foam/FACTORIO.md
+            echo "Gate 5 is the next one. Until the loop can decide whether a factory is"
+            echo "satisfiable, every ticket about sources and processors and sinks is"
+            echo "ungradeable — and ungradeable work is work this system cannot do."
+            echo
+            echo "=== THE GRAPH AS IT STANDS ==="
+            node scripts/beads.mjs stats
+            echo
+            echo "Open work (do not duplicate):"
+            node scripts/beads.mjs ready || true
+            echo
+            echo "=== WHAT THE LOOP ALREADY KNOWS (do not propose rediscovering these) ==="
+            node --input-type=module -e "
+              import {readFileSync} from 'node:fs';
+              import {parseLedger} from './scripts/lib/beads.mjs';
+              const {beads}=parseLedger(readFileSync('.github/loop/beads.jsonl','utf8'));
+              for (const b of beads.filter(x=>['dead-end','finding','decision'].includes(x.kind)))
+                console.log(b.kind.toUpperCase()+': '+b.title);
+            "
+            echo
+            echo "=== ASKS ALREADY WAITING ON THE OPERATOR (do not duplicate) ==="
+            echo "Unanswered means unanswered, not ignored. Proposing work that depends"
+            echo "on one of these being resolved is proposing work that cannot start."
+            node --input-type=module -e "
+              import {readFileSync} from 'node:fs';
+              import {parseLedger} from './scripts/lib/beads.mjs';
+              const {beads}=parseLedger(readFileSync('.github/loop/beads.jsonl','utf8'));
+              const open=beads.filter(b=>b.kind==='question'&&b.status==='proposed');
+              if (!open.length) console.log('  (none — the operator is not owing you anything)');
+              for (const b of open) console.log('  '+b.id+'  '+b.title);
+            "
+            echo
+            echo "=== THE DEFINITION OF READY — every proposal must meet all six ==="
+            echo " R1 ONE TURN. Fits in 30 minutes of agent time with room to spare."
+            echo " R2 NAMES ITS GATE. A shell command that decides done. This is the one"
+            echo "    that matters: a requirement that cannot name its gate is a request FOR"
+            echo "    a gate, which is different work and is not yours to schedule."
+            echo " R3 BOUNDED PATHS. Say which files it may touch. All must be under plant/."
+            echo " R4 INDEPENDENT. No hidden ordering against a sibling you also propose."
+            echo " R5 CARRIES ITS MEMORY. Reference the findings above that bear on it."
+            echo " R6 REVERSIBLE. A failed attempt leaves the tree as it found it."
+            echo
+            echo "=== HOW TO REPORT ==="
+            echo "Write EXACTLY ONE file: .github/loop/outbox/$PLAN_BEAD.json"
+            echo
+            echo '{'
+            echo '  "bead": "'"$PLAN_BEAD"'",'
+            echo '  "outcome": "done",'
+            echo '  "summary": "what you proposed and why these, in one paragraph",'
+            echo '  "evidence": ["foam/FACTORIO.md"],'
+            echo '  "learned": [{"kind":"decision","title":"…","body":"why you scoped it this way"}],'
+            echo '  "propose": ['
+            echo '    { "title": "…", "class": "a", "priority": 2,'
+            echo '      "gate": ["node plant/test/something.selftest.mjs"],'
+            echo '      "createsGate": true,   // ONLY if that file does not exist yet'
+            echo '      "body": "The brief. State the bounded paths (R3) and link the findings (R5)." }'
+            echo '  ]'
+            echo '}'
+            echo
+            echo "RULES ENFORCED, NOT REQUESTED:"
+            echo " - Everything you propose is created as a PROPOSAL. You cannot schedule your"
+            echo "   own work, and nothing you write runs until a human promotes it."
+            echo " - class-a REQUIRES a gate THAT ALREADY EXISTS, from the list above."
+            echo
+            echo " - IF THE WORK NEEDS A GATE NOBODY HAS WRITTEN, SAY SO AND CLAIM IT."
+            echo "   Set \"createsGate\": true and name in \"gate\" the test file the turn"
+            echo "   will BRING INTO BEING. That bead is dispatchable, and it"
+            echo "   is judged harder than a class-a one: the file must not exist now, must"
+            echo "   exist and pass afterwards, and the whole existing suite must still pass."
+            echo
+            echo "   This matters more than it sounds. Only gated work reaches the fleet, so"
+            echo "   without this the loop can ONLY refine things that are already tested —"
+            echo "   which is how it spent five turns making an excellent explainer and no"
+            echo "   game. Everything on the roadmap needs a gate that does not exist yet."
+            echo "   If the most valuable next thing has no test, propose building the test"
+            echo "   AND the thing. Do not retreat to whatever happens to be gateable."
+            echo " - You may NOT use class-b. That class means 'this defines what done means'"
+            echo "   and it exists to force human review."
+            echo " - A gate must start with node/cmp/diff/test/grep/ls/head/wc and contain no"
+            echo "   shell metacharacters. It runs one checker; it does not compose."
+            echo " - At most 12 proposals. Fewer good ones beats more vague ones — every"
+            echo "   proposal a human rejects is worse than one you did not write."
+            echo " - EACH BODY MUST BE UNDER 8000 CHARACTERS, and REJECTION IS WHOLE: one"
+            echo "   body over the limit discards this entire turn, every proposal in it."
+            echo "   That has already happened once — a six-minute planning run lost to a"
+            echo "   body 456 characters over. Long is fine and detail is wanted; count."
+            echo " - DECIDE, DO NOT WAIT. There is no human on the other end of this turn."
+            echo "   Record judgement calls as decisions and continue. Nothing you write"
+            echo "   can park this turn or any other."
+            echo
+            echo "BUT YOU MAY ASK — asking is not waiting."
+            echo "Some questions no gate can settle: is this fair, does this feel good to"
+            echo "play, is this the game we want. Guessing at those is how a loop gets"
+            echo "better at what it can measure and blind to everything else. So file an"
+            echo "ask. Your turn still ends now; you will never see the answer; a later"
+            echo "turn reads it as memory. At most 3, and fewer is better — human"
+            echo "attention is the one input this system cannot manufacture."
+            echo
+            echo '  "asks": [{'
+            echo '    "title": "the question, in one line",'
+            echo '    "body":  "why it is not decidable from here, and what you already tried",'
+            echo '    "do":     "what the human should DO — concrete enough to act on cold",'
+            echo '    "watch":  "what to pay attention to while doing it",'
+            echo '    "soThat": "what you will do with EACH answer"'
+            echo '  }]'
+            echo
+            echo "   All three protocol fields are required and the validator refuses an"
+            echo "   ask without them. soThat is the one that matters: if you cannot say"
+            echo "   what each answer would change, the ask changes nothing and you are"
+            echo "   spending a person's evening on it. Do not file that ask."
+          } > /tmp/brief.txt
+          echo "brief bytes: $(wc -c < /tmp/brief.txt)"
+        env:
+          PLAN_BEAD: ${{ steps.seed.outputs.bead }}
+
+      # THE GATE'S PRECONDITION, ASSERTED. Everything the containment gate says
+      # about the planner is only true if the tree was clean when the planner
+      # started. That precondition used to be implicit, and it was false. A red
+      # run here costs one planning turn; a silently dirty tree costs the turn
+      # AND blames the agent for it, which is the more expensive failure because
+      # it sends you reading the transcript instead of the workflow.
+      - name: The tree is clean before the agent touches it
+        if: steps.enabled.outputs.go == 'true'
+        run: |
+          DIRTY=$(git status --porcelain)
+          if [ -n "$DIRTY" ]; then
+            echo "::error::The workflow dirtied the tree before the planner ran."
+            echo "::error::The containment gate would attribute this to the agent."
+            printf '%s\n' "$DIRTY"
+            exit 1
+          fi
+
+      - name: Install Claude Code
+        if: steps.enabled.outputs.go == 'true'
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run the planner
+        id: agent
+        if: steps.enabled.outputs.go == 'true'
+        continue-on-error: true
+        timeout-minutes: 20
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set +e
+          set -uo pipefail
+          claude -p < /tmp/brief.txt \
+            --model claude-opus-5 \
+            --max-turns 40 \
+            --max-budget-usd 3 \
+            --permission-mode acceptEdits \
+            --allowedTools "Read" "Glob" "Grep" "Write" \
+            --disallowedTools "Bash" "WebFetch" "WebSearch" "Task" "Edit" "NotebookEdit" \
+            --output-format stream-json --verbose | tee /tmp/planner.jsonl
+          echo "agent_exit=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      # The planner writes ONE file and it is an outbox. Anything else is a bug.
+      - name: Containment gate
+        id: gate
+        if: steps.enabled.outputs.go == 'true'
+        run: |
+          OUT=$(git status --porcelain | awk '{print $NF}' | grep -Ev '^\.github/loop/(outbox|plan)/' || true)
+          if [ -n "$OUT" ]; then
+            echo "::error::The planner wrote outside its outbox:"; printf '%s\n' "$OUT"
+            git checkout -- . && git clean -fd
+            echo "gate=failed" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "gate=passed" >> "$GITHUB_OUTPUT"
+
+      - name: Apply the proposals
+        id: apply
+        if: steps.gate.outputs.gate == 'passed'
+        env:
+          LOOP_ACTOR: planner
+        run: |
+          node scripts/loop-apply-outbox.mjs --all || { echo "applied=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          node scripts/gen-loop-data.mjs --write
+          echo "applied=true" >> "$GITHUB_OUTPUT"
+          echo "### Proposed this run" >> "$GITHUB_STEP_SUMMARY"
+          node --input-type=module -e "
+            import {readFileSync} from 'node:fs';
+            import {parseLedger} from './scripts/lib/beads.mjs';
+            const {beads}=parseLedger(readFileSync('.github/loop/beads.jsonl','utf8'));
+            for (const b of beads.filter(x=>x.tags.includes('proposed-by-agent') && x.status==='proposed'))
+              console.log('- \`'+b.id+'\` '+b.title+(b.gate.length?' — gate: \`'+b.gate[0]+'\`':' — NO GATE'));
+          " >> "$GITHUB_STEP_SUMMARY"
+
+      # ── Commit. NOTHING IS PROMOTED — a human runs `beads promote` next. ────
+      - name: Commit the proposals
+        if: steps.apply.outputs.applied == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.OS_AGENT_GITHUB_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::OS_AGENT_GITHUB_TOKEN is not set."; exit 1
+          fi
+          git config user.name  "loop-planner"
+          git config user.email "loop@users.noreply.github.com"
+          rm -rf .github/loop/plan
+
+          # WAKE THE REACTOR. The planner has just changed the world — there are
+          # proposals now where there were none — and its push touches
+          # beads.jsonl and plan/, neither of which loop-tick watches. Without
+          # this line the planner proposes into silence and the loop stops,
+          # which is exactly what it did: 06:12 proposals, then 37 minutes of
+          # nothing during a run that was supposed to last five hours.
+          #
+          # THIS IS THE THIRD INSTANCE OF ONE PATTERN (lp-a4030e). The reviewer
+          # had the same hole and it was fixed there; the planner was not
+          # checked at the same time, so the fix landed on one of the two seats
+          # that needed it. When a rule turns out to be missing in one place,
+          # the next move is to grep for every other place it belongs — not to
+          # patch the instance in front of you.
+          date -u +%Y-%m-%dT%H:%M:%SZ > .github/loop/wake
+
+          STAGE=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).writes.map(w=>w.replace(/\/\*\*$/,'')).join(' '))")
+          git add -- $STAGE
+          git diff --cached --quiet && { echo "nothing to commit"; exit 0; }
+          git commit -m "loop: planner proposed work (awaiting promotion)"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          for attempt in 1 2 3 4; do
+            # REDO, DO NOT RESOLVE (LOOP-SPRINTS.md). loop/data/graph.json is
+            # DERIVED, so two writers regenerate it from different ledger states
+            # and it conflicts on essentially every concurrent push. A bare
+            # `pull --rebase` halts there, and then all four retries fail
+            # identically — the backoff just makes the loss slower.
+            #
+            # This is what stalled the five-hour run twice: a seat did real
+            # work, applied it, and lost the push to a conflict in a file that
+            # is not a source of truth. Regenerating IS the resolution; merging
+            # a generated file is never right.
+            if ! git pull --rebase origin "${GITHUB_REF_NAME}"; then
+              if [ -n "$(git diff --name-only --diff-filter=U)" ]; then
+                node scripts/gen-loop-data.mjs --write || true
+                git add -A
+                GIT_EDITOR=true git rebase --continue || git rebase --abort || true
+              else
+                git rebase --abort 2>/dev/null || true
+              fi
+            fi
+            git push origin HEAD:"${GITHUB_REF_NAME}" && exit 0
+            echo "push failed, retry $attempt"; sleep $((2 ** attempt))
+          done
+          echo "::error::could not push the proposals"; exit 1
