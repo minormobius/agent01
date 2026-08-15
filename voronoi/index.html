@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>voronoi — life on a mesh that isn't a grid</title>
+<meta name="description" content="Conway's Game of Life on a periodic Voronoi tessellation. Roll the sites, relax the mesh, then roll soups until something refuses to settle. Every universe is a seed, so every good one is a URL.">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --fg: #222;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #234;
+  --accent: #7b2d8b;
+  --accent-faint: rgba(123, 45, 139, 0.12);
+  --accent-tint: rgba(123, 45, 139, 0.06);
+  --canvas-bg: #fbfaf7;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --live: #7b2d8b;
+  --born: #c14ecf;
+  --ghost: 123, 45, 139;
+  --mesh-line: rgba(0, 0, 0, 0.10);
+  --good: #2a6a4a;
+  --bad: #b04030;
+  --warn: #a35a00;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0e10;
+    --fg: #ddd;
+    --muted: #888;
+    --rule: #333;
+    --link: #dcd;
+    --accent: #d38ce0;
+    --accent-faint: rgba(211, 140, 224, 0.14);
+    --accent-tint: rgba(211, 140, 224, 0.06);
+    --canvas-bg: #121012;
+    --live: #b566c9;
+    --born: #f0a8ff;
+    --ghost: 211, 140, 224;
+    --mesh-line: rgba(255, 255, 255, 0.09);
+    --good: #6ec48f;
+    --bad: #d36a6a;
+    --warn: #d9974a;
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+body { max-width: 880px; margin: 0 auto; padding: 2rem 1.4rem 4rem; line-height: 1.55; }
+header { margin-bottom: 1.5rem; }
+.crumb {
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted); text-decoration: none;
+  display: inline-block; margin-bottom: 0.8rem;
+}
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-size: 2.4rem; letter-spacing: -0.01em; font-weight: 600; }
+.subtitle {
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--muted); margin: 0.3rem 0 0;
+}
+.crossref {
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted); margin-top: 0.4rem;
+}
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+
+nav.tabs {
+  display: flex; gap: 0.4rem; margin: 1.6rem 0 1rem;
+  border-bottom: 1px solid var(--rule); flex-wrap: wrap;
+}
+.tab {
+  font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.16em;
+  text-transform: uppercase; background: transparent; border: none;
+  border-bottom: 2px solid transparent; color: var(--muted);
+  padding: 0.55rem 0.9rem; margin-bottom: -1px; cursor: pointer;
+}
+.tab:hover { color: var(--fg); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.pane { display: none; }
+.pane.active { display: block; }
+
+.lede { font-size: 0.95rem; color: var(--muted); margin: 0 0 1.1rem; max-width: 68ch; }
+.lede strong { color: var(--fg); font-weight: 600; }
+
+.work-wrap {
+  display: grid; grid-template-columns: minmax(0, 1fr) 258px;
+  gap: 1.4rem; align-items: start;
+}
+@media (max-width: 780px) { .work-wrap { grid-template-columns: minmax(0, 1fr); } }
+
+.stage {
+  position: relative; width: 100%; aspect-ratio: 1;
+  background: var(--canvas-bg); border: 1px solid var(--rule);
+  border-radius: 2px; overflow: hidden; touch-action: none; cursor: crosshair;
+}
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.stage-note {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.08em;
+  padding: 1.4rem 0.6rem 0.45rem; color: var(--muted); pointer-events: none;
+  z-index: 5; text-align: right;
+  /* the canvas underneath is dense and high-contrast — without a fade this
+     line is unreadable exactly when the simulation is most interesting */
+  background: linear-gradient(to bottom, transparent, var(--canvas-bg) 78%);
+}
+
+.controls { font-family: var(--mono); font-size: 0.78rem; display: flex; flex-direction: column; gap: 0.95rem; }
+.ctrl-group { display: flex; flex-direction: column; gap: 0.35rem; }
+.ctrl-label { font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.ctrl-label .hint { text-transform: none; letter-spacing: 0.02em; color: var(--accent); float: right; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.btn {
+  font-family: var(--mono); font-size: 0.65rem; background: transparent;
+  border: 1px solid var(--rule); color: var(--muted); padding: 0.32rem 0.55rem;
+  border-radius: 2px; cursor: pointer; transition: all 0.15s ease;
+}
+.btn:hover { color: var(--fg); border-color: var(--muted); }
+.btn.active { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
+.btn:disabled { opacity: 0.35; cursor: default; }
+.btn.wide { flex: 1; }
+
+input[type=range] {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 3px;
+  background: var(--rule); border-radius: 2px; outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 14px; height: 14px;
+  background: var(--accent); border-radius: 50%; cursor: pointer;
+}
+input[type=range]::-moz-range-thumb {
+  width: 14px; height: 14px; background: var(--accent);
+  border-radius: 50%; cursor: pointer; border: none;
+}
+.slider-row { display: flex; align-items: center; gap: 0.5rem; }
+.slider-row .val { font-size: 0.7rem; color: var(--accent); min-width: 3.6em; text-align: right; }
+
+input[type=text] {
+  font-family: var(--mono); font-size: 0.72rem; background: transparent;
+  border: 1px solid var(--rule); color: var(--fg); border-radius: 2px;
+  padding: 0.3rem 0.45rem; width: 100%; min-width: 0;
+}
+input[type=text]:focus { outline: none; border-color: var(--accent); }
+.seed-row { display: flex; gap: 0.25rem; }
+.seed-row .btn { flex: 0 0 auto; }
+
+select {
+  font-family: var(--mono); font-size: 0.72rem; background: transparent;
+  border: 1px solid var(--rule); color: var(--fg); border-radius: 2px;
+  padding: 0.25rem 0.3rem;
+}
+select:focus { outline: none; border-color: var(--accent); }
+.band-row { display: flex; align-items: center; gap: 0.4rem; font-size: 0.7rem; color: var(--muted); }
+.band-row .w { width: 1.4rem; color: var(--accent); }
+
+.stats { border-top: 1px solid var(--rule); padding-top: 0.8rem; font-family: var(--mono); font-size: 0.7rem; line-height: 1.75; }
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; }
+.stat-row .v.hot { color: var(--accent); font-weight: 600; }
+.stat-note { font-size: 0.68rem; color: var(--muted); margin-top: 0.5rem; line-height: 1.5; font-family: var(--serif); font-style: italic; }
+
+table.ledger { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.72rem; margin-bottom: 1.4rem; }
+table.ledger caption {
+  text-align: left; font-size: 0.6rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--muted); padding-bottom: 0.4rem;
+}
+table.ledger th, table.ledger td { text-align: left; padding: 0.3rem 0.5rem 0.3rem 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+table.ledger th { color: var(--muted); font-weight: normal; width: 38%; }
+table.ledger td { text-align: right; }
+table.ledger td.note { text-align: left; color: var(--muted); font-family: var(--serif); font-style: italic; font-size: 0.78rem; width: 34%; }
+.ok { color: var(--good); }
+.no { color: var(--bad); }
+
+.scroller { overflow-x: auto; }
+table.log { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.68rem; }
+table.log th {
+  text-align: left; color: var(--muted); font-weight: normal; padding: 0.25rem 0.6rem 0.25rem 0;
+  border-bottom: 1px solid var(--rule); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase;
+}
+table.log td { padding: 0.2rem 0.6rem 0.2rem 0; border-bottom: 1px solid var(--accent-tint); white-space: nowrap; }
+table.log tr.win td { color: var(--accent); font-weight: 600; }
+table.log tr.dud td { color: var(--muted); }
+.logbox { max-height: 300px; overflow-y: auto; border: 1px solid var(--rule); border-radius: 2px; padding: 0.5rem 0.7rem; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; }
+.card { border: 1px solid var(--rule); border-radius: 2px; padding: 0.9rem 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.card h3 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+.card .rule { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.card p { margin: 0; font-size: 0.85rem; color: var(--muted); line-height: 1.5; }
+.card .facts { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); line-height: 1.6; border-top: 1px solid var(--rule); padding-top: 0.5rem; }
+.card .facts b { color: var(--fg); font-weight: 600; }
+
+.chart { width: 100%; height: auto; display: block; }
+.chart text { font-family: var(--mono); font-size: 7px; fill: var(--muted); }
+
+.docs { max-width: 68ch; }
+.docs h2 { font-size: 1.15rem; margin: 2rem 0 0.6rem; font-weight: 600; }
+.docs h2:first-child { margin-top: 0; }
+.docs p { margin: 0 0 0.9rem; font-size: 0.95rem; }
+.docs ul { margin: 0 0 0.9rem; padding-left: 1.2rem; font-size: 0.95rem; }
+.docs li { margin-bottom: 0.4rem; }
+.docs code { font-family: var(--mono); font-size: 0.85em; background: var(--accent-tint); padding: 0.1em 0.35em; border-radius: 2px; }
+.docs a { color: var(--accent); }
+.docs .aside { border-left: 2px solid var(--rule); padding-left: 1rem; color: var(--muted); font-size: 0.9rem; }
+
+footer {
+  margin-top: 3rem; padding-top: 1.2rem; border-top: 1px solid var(--rule);
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted);
+  display: flex; flex-wrap: wrap; gap: 0.9rem;
+}
+footer a { color: var(--accent); text-decoration: none; }
+footer a:hover { text-decoration: underline; }
+.perma { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); word-break: break-all; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>voronoi</h1>
+  <p class="subtitle">Conway's Game of Life on a mesh that isn't a grid</p>
+  <p class="crossref">
+    part of the pack ·
+    <a href="https://mino.mobi/geometry/">geometry</a> ·
+    <a href="https://mino.mobi/cohomology/">cohomology</a> ·
+    <a href="https://mino.mobi/aztec/">aztec</a> ·
+    <a href="https://mino.mobi/temperley-lieb/">temperley–lieb</a> ·
+    <a href="https://mino.mobi/heilbronn/">heilbronn</a>
+  </p>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button class="tab active" data-pane="life">life</button>
+  <button class="tab" data-pane="hunt">hunt</button>
+  <button class="tab" data-pane="anatomy">anatomy</button>
+  <button class="tab" data-pane="specimens">specimens</button>
+  <button class="tab" data-pane="docs">docs</button>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════════════ LIFE ══ -->
+<section class="pane active" id="pane-life">
+  <p class="lede">
+    Conway's rule counts eight neighbours because a square has eight. Drop that
+    assumption and the rule has to be stated as a <strong>fraction</strong> of
+    whatever neighbourhood a cell happens to have — here, the cells of a
+    <strong>Voronoi tessellation of a torus</strong>, which average six sides
+    but range from four to eight. Everything below is a pure function of two
+    seeds, so <strong>every universe you like is a URL</strong>.
+  </p>
+
+  <div class="work-wrap">
+    <div class="stage" id="stage">
+      <canvas id="cv"></canvas>
+      <div class="stage-note" id="stageNote">click a cell to flip it</div>
+    </div>
+
+    <div class="controls">
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn wide" id="playBtn">▶ run</button>
+          <button class="btn" id="stepBtn">step</button>
+          <button class="btn" id="resetBtn">reset</button>
+        </div>
+        <div class="slider-row">
+          <input type="range" id="speed" min="1" max="60" value="18">
+          <span class="val" id="speedVal">18/s</span>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label">mesh seed</div>
+        <div class="seed-row">
+          <input type="text" id="meshSeed" spellcheck="false">
+          <button class="btn" id="meshDice" title="roll a new mesh">⚄</button>
+        </div>
+        <div class="ctrl-label">sites <span class="hint" id="nVal"></span></div>
+        <div class="slider-row"><input type="range" id="nSites" min="64" max="2000" step="4"></div>
+        <div class="ctrl-label">lloyd relaxation <span class="hint" id="relaxVal"></span></div>
+        <div class="slider-row"><input type="range" id="relax" min="0" max="40"></div>
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label">rule <span class="hint" id="ruleName"></span></div>
+        <div class="band-row">
+          <span class="w">B</span>
+          <select id="bLo"></select><span>–</span><select id="bHi"></select>
+          <span id="bFrac"></span>
+        </div>
+        <div class="band-row">
+          <span class="w">S</span>
+          <select id="sLo"></select><span>–</span><select id="sHi"></select>
+          <span id="sFrac"></span>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label">soup seed</div>
+        <div class="seed-row">
+          <input type="text" id="soupSeed" spellcheck="false">
+          <button class="btn" id="soupDice" title="roll a new soup">⚄</button>
+        </div>
+        <div class="ctrl-label">density <span class="hint" id="densVal"></span></div>
+        <div class="slider-row"><input type="range" id="density" min="0" max="1000"></div>
+      </div>
+
+      <div class="stats">
+        <div class="stat-row"><span class="k">generation</span><span class="v hot" id="stGen">0</span></div>
+        <div class="stat-row"><span class="k">population</span><span class="v" id="stPop">—</span></div>
+        <div class="stat-row"><span class="k">activity</span><span class="v" id="stAct">—</span></div>
+        <div class="stat-row"><span class="k">cell degrees</span><span class="v" id="stDeg">—</span></div>
+      </div>
+
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn wide" id="copyBtn">copy permalink</button>
+        </div>
+        <div class="perma" id="perma"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ HUNT ══ -->
+<section class="pane" id="pane-hunt">
+  <p class="lede">
+    Most soups are boring. They die, or they lock into blinkers within a dozen
+    generations, or they boil at a constant temperature forever. The hunt rolls
+    initial conditions on the <strong>current mesh</strong> and scores each
+    trajectory, stopping at the first that clears the bar — and it shows you
+    everything it threw away, because the rejects are most of the story.
+    A run scores well when it is <strong>still doing something</strong> after a
+    long time without either dying out or saturating; the exact formula is
+    <code>emergence()</code>, and it is in the docs tab.
+  </p>
+
+  <div class="work-wrap">
+    <div>
+      <div class="logbox">
+        <table class="log" id="huntLog">
+          <thead><tr><th>#</th><th>soup</th><th>score</th><th>outcome</th><th>period</th><th>transient</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="stat-note" id="huntSummary">Not started.</p>
+    </div>
+
+    <div class="controls">
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn wide" id="huntBtn">hunt for emergence</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn wide" id="huntLoadBtn" disabled>load the winner</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">score to beat <span class="hint" id="thrVal"></span></div>
+        <div class="slider-row"><input type="range" id="threshold" min="5" max="90" value="35"></div>
+        <div class="ctrl-label">generations per try <span class="hint" id="hgVal"></span></div>
+        <div class="slider-row"><input type="range" id="huntGens" min="100" max="1500" step="50" value="500"></div>
+        <div class="ctrl-label">give up after <span class="hint" id="htVal"></span></div>
+        <div class="slider-row"><input type="range" id="huntTries" min="10" max="400" step="10" value="120"></div>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">also roll</div>
+        <div class="btn-row">
+          <button class="btn" id="rollRule">the rule</button>
+          <button class="btn" id="rollDens">density</button>
+        </div>
+        <p class="stat-note">
+          Rolling the rule widens the search enormously and is where the
+          strangest results come from — but a soup that only works under one
+          exotic rule is a different kind of find from one that works under a
+          rule you chose in advance.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ ANATOMY ══ -->
+<section class="pane" id="pane-anatomy">
+  <p class="lede">
+    The automaton is only as trustworthy as the mesh under it, and a Voronoi
+    mesh on a torus has enough structure to be <strong>checked rather than
+    assumed</strong>. Every row below is recomputed from the mesh currently
+    loaded — not cached, not from a fixture.
+  </p>
+
+  <table class="ledger">
+    <caption>mesh ledger — recomputed live</caption>
+    <tbody id="ledger"></tbody>
+  </table>
+
+  <div class="work-wrap">
+    <div>
+      <div class="ctrl-label" style="font-family:var(--mono);margin-bottom:.4rem">degree histogram</div>
+      <svg class="chart" id="degChart" viewBox="0 0 300 120" preserveAspectRatio="xMidYMid meet"></svg>
+      <p class="stat-note">
+        How many sides each cell has. Σdeg is pinned to exactly 6n by Euler's
+        formula, so relaxation cannot change the <em>mean</em> — only how tightly
+        the distribution clusters on it.
+      </p>
+    </div>
+    <div>
+      <div class="ctrl-label" style="font-family:var(--mono);margin-bottom:.4rem">lloyd energy</div>
+      <svg class="chart" id="energyChart" viewBox="0 0 300 120" preserveAspectRatio="xMidYMid meet"></svg>
+      <p class="stat-note">
+        The quantity Lloyd's algorithm minimises, per iteration. It must never
+        go up; that it descends and flattens is the evidence the mesh has
+        converged rather than merely stopped.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════ SPECIMENS ══ -->
+<section class="pane" id="pane-specimens">
+  <p class="lede">
+    Six universes worth keeping, found by an offline sweep of
+    <strong>198 rule bands × 3 meshes × 5 densities × 8 soups</strong> — 6099
+    trajectories that scored above zero. They are picked for behavioural variety
+    rather than score: an attractor with a huge period and one that never
+    repeats are different animals, and a collection of five near-identical
+    storms would not be a collection. Every number on every card is re-measured
+    from its own permalink by the selftest on each run.
+  </p>
+  <div class="cards" id="specimenCards"></div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ DOCS ══ -->
+<section class="pane" id="pane-docs">
+  <div class="docs">
+    <h2>Why a Voronoi mesh breaks the rule</h2>
+    <p>
+      <code>B3/S23</code> is not a statement about life. It is a statement about
+      a square grid, where every cell has exactly eight neighbours and "three"
+      therefore means "three eighths of your world". Move to a mesh where cells
+      have four, five, six, seven or eight sides and the counting rule stops
+      being well defined: a four-sided cell can never see three live neighbours
+      the same way an eight-sided one can, so a count rule silently hands power
+      to the big cells and the automaton becomes a story about mesh irregularity
+      instead of about the rule.
+    </p>
+    <p>
+      So the rule here is stated as a <strong>fraction</strong>. A cell is born
+      if the share of its neighbours that are alive falls in the birth band, and
+      survives if that share falls in the survival band. Every cell then plays
+      by the same law regardless of how many sides it drew.
+    </p>
+    <p>
+      This is a genuine generalisation and not a different game, which is
+      checkable: on a square grid with Moore neighbourhoods, the fractional rule
+      with birth band [3/8, 3/8] and survival band [2/8, 3/8] <em>is</em>
+      Conway's B3/S23. The selftest runs the engine on a 24×24 Moore torus
+      against an independently written naive implementation over gliders,
+      blinkers, toads, beacons, a pulsar and 200 random soups × 40 generations,
+      and requires cell-for-cell agreement.
+    </p>
+
+    <h2>The mesh</h2>
+    <p>
+      The domain is the unit <strong>torus</strong>, not a bounded patch. On a
+      patch the border cells have fewer neighbours and act as sinks; every hunt
+      then converges on artefacts of the edge rather than on anything about the
+      rule. On the torus there is no edge and no cell is special.
+    </p>
+    <p>
+      Cells are built by intersecting half-planes: start with a square around
+      the site and clip against the perpendicular bisector to each other site,
+      nearest first. The interesting part is knowing when to stop. After
+      clipping against everything within distance <em>R</em>, let
+      <em>r</em> be the distance to the furthest polygon vertex. Any site
+      further than 2<em>r</em> has its bisector further than <em>r</em> from the
+      site, so it cannot touch the polygon — the cell is final. That is a proof,
+      not a tolerance, which is why the result is the Voronoi diagram rather
+      than an approximation to it.
+    </p>
+    <p>
+      Adjacency comes out of the same pass. Each polygon edge carries a tag
+      naming the site whose bisector cut it, so neighbours are recorded when the
+      cut is made instead of being reverse-engineered from distances afterwards.
+      That matters on a relaxed mesh, which is full of near-degenerate quadruple
+      points where a distance-matching heuristic has to pick a tolerance and
+      picks it wrong.
+    </p>
+
+    <h2>One number that catches everything</h2>
+    <p>
+      A Voronoi diagram on a torus satisfies V − E + F = 0, and Voronoi vertices
+      are trivalent, so V = Σdeg/3 and E = Σdeg/2 with F = n. Substituting gives
+      <strong>Σdeg = 6n exactly</strong>: the mean cell has six sides no matter
+      where the sites fell, and no amount of relaxation changes it.
+    </p>
+    <p>
+      This makes an unusually sharp test. A dropped neighbour, a phantom
+      neighbour, a wrap computed with the wrong sign — all of them move Σdeg off
+      6n, and none of them can cancel out. It is checked on every mesh the
+      selftest builds, alongside the areas summing to 1, adjacency being
+      symmetric with mirrored image shifts, and 3000 random probe points per
+      mesh landing inside the cell that brute-force periodic nearest-site
+      classification assigns them to.
+    </p>
+
+    <h2>Relaxation</h2>
+    <p>
+      Raw Poisson sites make a terrible mesh — cells range from slivers to
+      monsters and the automaton is dominated by a handful of huge cells. Lloyd
+      relaxation moves each site to its cell's centroid and rebuilds, repeatedly,
+      converging towards a centroidal tessellation with blue-noise character.
+      The degree histogram tightens onto 6; at 12 iterations a typical mesh is
+      about 57% hexagonal with nothing outside 4–8 sides.
+    </p>
+    <p>
+      Lloyd's algorithm is a descent on the energy Σᵢ ∫|x − sᵢ|² dA, so that
+      quantity must never increase. The anatomy tab plots it, and the selftest
+      asserts monotonicity — which is the difference between "the mesh looks
+      nicer" and "the relaxation is doing what relaxation does".
+    </p>
+
+    <h2>What "emergence" means here</h2>
+    <p>
+      Nothing rigorous. It is an explicit, tunable stand-in, and it is worth
+      being blunt about that because the alternative is a number that looks
+      objective and isn't. A trajectory scores well when it is
+      <em>still doing something</em> a long way in, without either dying or
+      saturating:
+    </p>
+    <ul>
+      <li>zero for extinction and for still lifes, immediately;</li>
+      <li>a triangular band on mean activity over the last quarter of the run,
+        peaking around 15% of cells flipping per generation — below that it is
+        frozen, above it is boiling;</li>
+      <li>a triangular band on mean population, peaking near a third alive;</li>
+      <li>a longevity factor rewarding long transients and long periods, set to
+        1 for a run that never repeated inside the window.</li>
+    </ul>
+    <p>
+      Cycle detection is exact rather than statistical: every generation's state
+      hash goes into a map, and a hit is confirmed by comparing the full states,
+      so a 32-bit collision cannot fake a period.
+    </p>
+    <p class="aside">
+      "Unsettled" means no state repeated inside the horizon. It is a claim about
+      the window, not a proof of aperiodicity — the state space is finite, so
+      every trajectory cycles eventually. The two specimens labelled unsettled
+      were run out to 5000 generations and had still not repeated.
+    </p>
+
+    <h2>Permalinks</h2>
+    <p>
+      Every universe is six fields: mesh seed, site count, relaxation iterations,
+      the two rule bands, the soup seed and its density. Nothing else enters —
+      the PRNG is a hand-rolled splitmix32 seeded by FNV-1a over a string, so
+      <code>Math.random()</code> never touches anything and the same URL builds
+      the same mesh and the same soup on any machine.
+    </p>
+    <p>
+      Rule thresholds travel as per-mille integers. That keeps the URL short, but
+      the real reason is exactness: a rule that round-trips to within 10⁻¹⁶ is a
+      <em>different automaton</em> at the threshold, so the bands are placed at
+      midpoints between neighbouring sixths — maximally far from every boundary
+      they have to separate — and the round-trip is checked on 500 random specs
+      per selftest run.
+    </p>
+
+    <h2>Running the tests</h2>
+    <p>
+      The engine is <code>life.js</code>, loaded by this page as a module and
+      imported unchanged by <code>life.selftest.mjs</code> — there is no second
+      copy to drift. 154 checks, about 1.5 seconds:
+    </p>
+    <p><code>node voronoi/life.selftest.mjs</code></p>
+    <p>
+      The offline sweep that found the specimens is <code>search.mjs</code>, and
+      it is deterministic: the same invocation prints the same table anywhere,
+      which is the only reason baking its answers into this page is defensible.
+    </p>
+    <p><code>node voronoi/search.mjs --emit</code></p>
+  </div>
+</section>
+
+<footer>
+  <a href="https://mino.mobi/geometry/">geometry</a>
+  <a href="https://mino.mobi/cohomology/">cohomology</a>
+  <a href="https://mino.mobi/aztec/">aztec</a>
+  <a href="https://mino.mobi/temperley-lieb/">temperley–lieb</a>
+  <a href="https://mino.mobi/meander/">meander</a>
+  <a href="https://mino.mobi/heilbronn/">heilbronn</a>
+  <a href="https://mino.mobi/borsuk/">borsuk</a>
+  <a href="https://mino.mobi/viazovska/">viazovska</a>
+</footer>
+
+<script type="module">
+import {
+  buildMesh, meshReport, seedSoup, step, runTrajectory, emergence,
+  encodeSpec, decodeSpec, DEFAULT_SPEC, bandFor, countsIn, ruleName,
+  ruleFromCounts, rng, hashSeed,
+} from './life.js';
+import { SPECIMENS } from './specimens.js';
+
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+// ── state ────────────────────────────────────────────────────────────────
+let spec = decodeSpec(location.search || '');
+let mesh = null, report = null, draws = null;
+let cur = null, nxt = null, age = null;
+let gen = 0, lastChanged = 0, running = false, acc = 0, lastT = 0;
+
+// ── tabs ─────────────────────────────────────────────────────────────────
+$('tabs').addEventListener('click', (e) => {
+  const b = e.target.closest('.tab');
+  if (!b) return;
+  document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === b));
+  document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('active', p.id === `pane-${b.dataset.pane}`));
+  if (b.dataset.pane === 'anatomy') renderAnatomy();
+  fit();
+});
+
+// ── mesh lifecycle ───────────────────────────────────────────────────────
+function rebuildMesh() {
+  mesh = buildMesh({ seed: spec.mesh, n: spec.n, relax: spec.relax });
+  report = meshReport(mesh);
+  // Precompute which periodic copies of each cell need drawing. Almost every
+  // cell needs exactly one; only those straddling the wrap need more.
+  draws = mesh.polys.map((p) => {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (let v = 0; v < p.length; v += 2) {
+      minX = Math.min(minX, p[v]); maxX = Math.max(maxX, p[v]);
+      minY = Math.min(minY, p[v + 1]); maxY = Math.max(maxY, p[v + 1]);
+    }
+    const offs = [];
+    for (let ox = -1; ox <= 1; ox++) {
+      if (maxX + ox < 0 || minX + ox > 1) continue;
+      for (let oy = -1; oy <= 1; oy++) {
+        if (maxY + oy < 0 || minY + oy > 1) continue;
+        offs.push(ox, oy);
+      }
+    }
+    return offs;
+  });
+  reseed();
+}
+
+function reseed() {
+  cur = seedSoup(mesh.n, spec.soup, spec.density);
+  nxt = new Uint8Array(mesh.n);
+  age = new Int32Array(mesh.n);
+  gen = 0; lastChanged = 0;
+  draw(); updateStats(); updatePerma();
+}
+
+function advance() {
+  lastChanged = step(mesh, cur, nxt, spec.rule);
+  for (let i = 0; i < mesh.n; i++) age[i] = nxt[i] === cur[i] ? age[i] + 1 : 0;
+  const t = cur; cur = nxt; nxt = t;
+  gen++;
+}
+
+// ── drawing ──────────────────────────────────────────────────────────────
+const cv = $('cv'), ctx = cv.getContext('2d');
+let S = 0;
+function fit() {
+  const r = $('stage').getBoundingClientRect();
+  if (!r.width) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(r.width * dpr);
+  cv.height = Math.round(r.height * dpr);
+  S = cv.width;
+  draw();
+}
+window.addEventListener('resize', fit);
+
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+function draw() {
+  if (!mesh || !S) return;
+  const live = css('--live'), born = css('--born');
+  const ghost = css('--ghost'), line = css('--mesh-line'), bg = css('--canvas-bg');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.lineWidth = Math.max(0.5, S / 1400);
+
+  for (let i = 0; i < mesh.n; i++) {
+    const p = mesh.polys[i], offs = draws[i], a = age[i];
+    // Live cells burn brightest the generation they are born and settle to the
+    // steady colour; dead cells keep a fading wash for a few generations, which
+    // is what makes fronts and wakes visible at all.
+    let fill;
+    if (cur[i]) fill = a < 1 ? born : (a < 4 ? mix(born, live, a / 4) : live);
+    else if (a < 9) fill = `rgba(${ghost},${(0.30 * (1 - a / 9)).toFixed(3)})`;
+    else fill = null;
+
+    for (let o = 0; o < offs.length; o += 2) {
+      ctx.beginPath();
+      for (let v = 0; v < p.length; v += 2) {
+        const x = (p[v] + offs[o]) * S, y = (p[v + 1] + offs[o + 1]) * S;
+        if (v === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+      ctx.strokeStyle = line; ctx.stroke();
+    }
+  }
+}
+
+/** Blend two hex/rgb colour strings. Cheap, and only ever called on 4 shades. */
+const hexCache = new Map();
+function parse(c) {
+  if (hexCache.has(c)) return hexCache.get(c);
+  const d = document.createElement('canvas').getContext('2d');
+  d.fillStyle = c; const hex = d.fillStyle;
+  const v = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  hexCache.set(c, v); return v;
+}
+function mix(a, b, t) {
+  const A = parse(a), B = parse(b);
+  return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',')})`;
+}
+
+// ── clicking a cell ──────────────────────────────────────────────────────
+$('stage').addEventListener('click', (e) => {
+  const r = $('stage').getBoundingClientRect();
+  const qx = (e.clientX - r.left) / r.width, qy = (e.clientY - r.top) / r.height;
+  let best = -1, bestD = Infinity;
+  for (let i = 0; i < mesh.n; i++) {
+    let dx = qx - mesh.sx[i], dy = qy - mesh.sy[i];
+    dx -= Math.round(dx); dy -= Math.round(dy);
+    const d = dx * dx + dy * dy;
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  if (best < 0) return;
+  cur[best] ^= 1; age[best] = 0;
+  $('stageNote').textContent = `cell ${best} · ${mesh.deg[best]} sides · now ${cur[best] ? 'alive' : 'dead'}`;
+  draw(); updateStats();
+});
+
+// ── controls ─────────────────────────────────────────────────────────────
+function fill(sel, selected) {
+  sel.innerHTML = '';
+  for (let k = 0; k <= 6; k++) {
+    const o = document.createElement('option');
+    o.value = k; o.textContent = k; if (k === selected) o.selected = true;
+    sel.appendChild(o);
+  }
+}
+
+/** Read the rule back as integer counts on a degree-6 cell, for the editor. */
+function ruleCounts() {
+  const b = countsIn(spec.rule.b0, spec.rule.b1, 6);
+  const s = countsIn(spec.rule.s0, spec.rule.s1, 6);
+  return {
+    bLo: b.length ? b[0] : 3, bHi: b.length ? b[b.length - 1] : 3,
+    sLo: s.length ? s[0] : 2, sHi: s.length ? s[s.length - 1] : 3,
+  };
+}
+
+function syncControls() {
+  $('meshSeed').value = spec.mesh;
+  $('soupSeed').value = spec.soup;
+  $('nSites').value = spec.n;      $('nVal').textContent = spec.n;
+  $('relax').value = spec.relax;   $('relaxVal').textContent = `${spec.relax}×`;
+  $('density').value = Math.round(spec.density * 1000);
+  $('densVal').textContent = spec.density.toFixed(3);
+  const c = ruleCounts();
+  fill($('bLo'), c.bLo); fill($('bHi'), c.bHi);
+  fill($('sLo'), c.sLo); fill($('sHi'), c.sHi);
+  $('ruleName').textContent = ruleName(spec.rule, 6);
+  $('bFrac').textContent = `${spec.rule.b0.toFixed(3)}–${spec.rule.b1.toFixed(3)}`;
+  $('sFrac').textContent = `${spec.rule.s0.toFixed(3)}–${spec.rule.s1.toFixed(3)}`;
+}
+
+function updateStats() {
+  let live = 0;
+  for (let i = 0; i < mesh.n; i++) live += cur[i];
+  $('stGen').textContent = gen;
+  $('stPop').textContent = `${live} / ${mesh.n} · ${(100 * live / mesh.n).toFixed(1)}%`;
+  $('stAct').textContent = gen ? `${lastChanged} · ${(100 * lastChanged / mesh.n).toFixed(1)}%` : '—';
+  const ds = Object.keys(report.degHist).map(Number).sort((a, b) => a - b);
+  $('stDeg').textContent = `${ds[0]}–${ds[ds.length - 1]} · mean ${report.meanDeg.toFixed(2)}`;
+}
+
+function updatePerma() {
+  const qs = encodeSpec(spec);
+  const url = `${location.origin}${location.pathname}?${qs}`;
+  $('perma').textContent = `?${qs}`;
+  history.replaceState(null, '', `?${qs}`);
+  return url;
+}
+
+$('copyBtn').addEventListener('click', async () => {
+  const url = updatePerma();
+  try { await navigator.clipboard.writeText(url); $('copyBtn').textContent = 'copied ✓'; }
+  catch { $('copyBtn').textContent = 'select the url above'; }
+  setTimeout(() => { $('copyBtn').textContent = 'copy permalink'; }, 1600);
+});
+
+// transport
+function setRunning(on) {
+  running = on;
+  $('playBtn').textContent = on ? '❚❚ pause' : '▶ run';
+  $('playBtn').classList.toggle('active', on);
+  if (on) { lastT = performance.now(); acc = 0; requestAnimationFrame(tick); }
+}
+$('playBtn').addEventListener('click', () => setRunning(!running));
+$('stepBtn').addEventListener('click', () => { setRunning(false); advance(); draw(); updateStats(); });
+$('resetBtn').addEventListener('click', () => { setRunning(false); reseed(); });
+
+let speed = 18;
+$('speed').addEventListener('input', (e) => { speed = +e.target.value; $('speedVal').textContent = `${speed}/s`; });
+
+function tick(t) {
+  if (!running) return;
+  acc += (t - lastT) / 1000; lastT = t;
+  const dt = 1 / speed;
+  let n = 0;
+  while (acc >= dt && n < 8) { advance(); acc -= dt; n++; }
+  if (n) { draw(); updateStats(); }
+  requestAnimationFrame(tick);
+}
+
+// mesh + soup parameters
+const rollSeed = () => Math.floor(Math.random() * 1679616).toString(36);
+$('meshDice').addEventListener('click', () => { spec.mesh = rollSeed(); syncControls(); rebuildMesh(); renderAnatomy(); });
+$('soupDice').addEventListener('click', () => { spec.soup = rollSeed(); syncControls(); reseed(); });
+$('meshSeed').addEventListener('change', (e) => { spec.mesh = e.target.value || 'a'; rebuildMesh(); renderAnatomy(); });
+$('soupSeed').addEventListener('change', (e) => { spec.soup = e.target.value || 'a'; reseed(); });
+
+let meshTimer = null;
+const deferMesh = () => { clearTimeout(meshTimer); meshTimer = setTimeout(() => { rebuildMesh(); renderAnatomy(); }, 220); };
+$('nSites').addEventListener('input', (e) => { spec.n = +e.target.value; $('nVal').textContent = spec.n; deferMesh(); });
+$('relax').addEventListener('input', (e) => { spec.relax = +e.target.value; $('relaxVal').textContent = `${spec.relax}×`; deferMesh(); });
+$('density').addEventListener('input', (e) => {
+  spec.density = +e.target.value / 1000;
+  $('densVal').textContent = spec.density.toFixed(3);
+  reseed();
+});
+
+// rule editor — the selects hold integer counts, the spec holds fractions
+for (const id of ['bLo', 'bHi', 'sLo', 'sHi']) {
+  $(id).addEventListener('change', () => {
+    let bLo = +$('bLo').value, bHi = +$('bHi').value;
+    let sLo = +$('sLo').value, sHi = +$('sHi').value;
+    if (bHi < bLo) { if (id === 'bLo') bHi = bLo; else bLo = bHi; }
+    if (sHi < sLo) { if (id === 'sLo') sHi = sLo; else sLo = sHi; }
+    spec.rule = ruleFromCounts(bLo, bHi, sLo, sHi);
+    syncControls(); updatePerma();
+  });
+}
+
+// ── anatomy ──────────────────────────────────────────────────────────────
+function row(label, value, good, note) {
+  return `<tr><th>${label}</th><td class="${good === null ? '' : good ? 'ok' : 'no'}">${value}</td><td class="note">${note}</td></tr>`;
+}
+function renderAnatomy() {
+  if (!report) return;
+  const r = report;
+  $('ledger').innerHTML = [
+    row('Σ deg', `${r.edgeSum} = 6·${mesh.n}`, r.edgeSum === 6 * mesh.n,
+      'forced by V−E+F=0 with trivalent vertices'),
+    row('mean degree', r.meanDeg.toFixed(9), Math.abs(r.meanDeg - 6) < 1e-9,
+      'six sides on average, always'),
+    row('χ = V−E+F', r.euler.toFixed(9), Math.abs(r.euler) < 1e-9, 'zero on a torus'),
+    row('Σ area', r.areaSum.toFixed(12), Math.abs(r.areaSum - 1) < 1e-9,
+      'the cells tile the unit torus exactly'),
+    row('asymmetric adjacencies', r.asym, r.asym === 0,
+      'i neighbours j through the mirrored wrap'),
+    row('edges left from the bounding box', r.boxEdges, r.boxEdges === 0,
+      'a survivor would mean a cell wrapped onto itself'),
+    row('largest cell radius', r.maxCellRadius.toFixed(5), r.fitsFundamentalDomain,
+      'must stay below ½ the torus period'),
+    row('lloyd energy monotone', r.energyDescends ? 'yes' : 'NO', r.energyDescends,
+      'descent, not drift'),
+    row('lloyd energy', `${mesh.energy[0].toExponential(3)} → ${mesh.energy[mesh.energy.length - 1].toExponential(3)}`,
+      null, `${spec.relax} iteration${spec.relax === 1 ? '' : 's'}`),
+  ].join('');
+
+  // degree histogram
+  const H = r.degHist, keys = Object.keys(H).map(Number).sort((a, b) => a - b);
+  const maxV = Math.max(...keys.map((k) => H[k]));
+  const bw = 300 / Math.max(1, keys.length);
+  // Bars top out at 80 of the 120-unit box so the count label above the tallest
+  // one still has somewhere to go.
+  $('degChart').innerHTML = keys.map((k, i) => {
+    const h = 80 * H[k] / maxV;
+    const x = i * bw + bw * 0.16, w = bw * 0.68;
+    return `<rect x="${x.toFixed(1)}" y="${(96 - h).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}"
+              fill="${k === 6 ? 'var(--accent)' : 'var(--accent-faint)'}" stroke="var(--accent)" stroke-width="0.5"/>
+            <text x="${(x + w / 2).toFixed(1)}" y="${(96 - h).toFixed(1)}" dy="-2.5" text-anchor="middle">${H[k]}</text>
+            <text x="${(x + w / 2).toFixed(1)}" y="106" text-anchor="middle">${k}</text>`;
+  }).join('') + `<text x="150" y="118" text-anchor="middle">sides per cell</text>`;
+
+  // lloyd energy
+  const E = mesh.energy;
+  if (E.length < 2) {
+    $('energyChart').innerHTML = `<text x="150" y="60" text-anchor="middle">no relaxation — slide it up</text>`;
+  } else {
+    const lo = Math.min(...E), hi = Math.max(...E), span = (hi - lo) || 1;
+    const pts = E.map((v, i) => `${(10 + 280 * i / (E.length - 1)).toFixed(1)},${(96 - 86 * (v - lo) / span).toFixed(1)}`);
+    $('energyChart').innerHTML =
+      `<polyline points="${pts.join(' ')}" fill="none" stroke="var(--accent)" stroke-width="1.5"/>` +
+      pts.map((p) => `<circle cx="${p.split(',')[0]}" cy="${p.split(',')[1]}" r="1.6" fill="var(--accent)"/>`).join('') +
+      `<text x="10" y="106">0</text><text x="290" y="106" text-anchor="end">${E.length - 1}</text>` +
+      `<text x="150" y="118" text-anchor="middle">lloyd iteration</text>`;
+  }
+}
+
+// ── the hunt ─────────────────────────────────────────────────────────────
+let hunting = false, huntWinner = null;
+let rollRuleOn = false, rollDensOn = false;
+$('rollRule').addEventListener('click', (e) => { rollRuleOn = !rollRuleOn; e.target.classList.toggle('active', rollRuleOn); });
+$('rollDens').addEventListener('click', (e) => { rollDensOn = !rollDensOn; e.target.classList.toggle('active', rollDensOn); });
+
+const thr = () => +$('threshold').value / 100;
+const bindHint = (id, target, fmt) => {
+  const f = () => { $(target).textContent = fmt(+$(id).value); };
+  $(id).addEventListener('input', f); f();
+};
+bindHint('threshold', 'thrVal', (v) => (v / 100).toFixed(2));
+bindHint('huntGens', 'hgVal', (v) => String(v));
+bindHint('huntTries', 'htVal', (v) => String(v));
+
+$('huntBtn').addEventListener('click', () => {
+  if (hunting) { hunting = false; return; }
+  startHunt();
+});
+
+function startHunt() {
+  hunting = true; huntWinner = null;
+  $('huntBtn').textContent = 'stop';
+  $('huntLoadBtn').disabled = true;
+  const body = $('huntLog').querySelector('tbody');
+  body.innerHTML = '';
+  const gens = +$('huntGens').value, tries = +$('huntTries').value, threshold = thr();
+  const pick = rng(hashSeed(`hunt:${spec.mesh}:${Date.now()}`));
+  let t = 0, best = null;
+
+  // Chunked so the page keeps breathing. Each slice runs a few trajectories,
+  // appends its rows, and yields.
+  const slice = () => {
+    if (!hunting) return finish(t, best, tries, false);
+    const t0 = performance.now();
+    while (t < tries && performance.now() - t0 < 60) {
+      const soup = `${spec.soup}~${t}`;
+      const rule = rollRuleOn ? randomRule(pick) : spec.rule;
+      const dens = rollDensOn ? 0.10 + 0.55 * pick() : spec.density;
+      const tr = runTrajectory(mesh, seedSoup(mesh.n, soup, dens), rule, gens);
+      const score = emergence(tr);
+      const rec = { t, soup, rule, dens, score, tr };
+      if (!best || score > best.score) best = rec;
+      const win = score >= threshold;
+      const row = document.createElement('tr');
+      row.className = win ? 'win' : (score === 0 ? 'dud' : '');
+      row.innerHTML =
+        `<td>${t}</td><td>${soup}${rollRuleOn ? ` · ${ruleName(rule, 6)}` : ''}` +
+        `${rollDensOn ? ` · d=${dens.toFixed(2)}` : ''}</td>` +
+        `<td>${score.toFixed(3)}</td><td>${tr.kind}</td>` +
+        `<td>${tr.period > 0 ? tr.period : '—'}</td><td>${tr.transient >= 0 ? tr.transient : '—'}</td>`;
+      body.appendChild(row);
+      row.scrollIntoView({ block: 'nearest' });
+      t++;
+      if (win) { huntWinner = rec; return finish(t, rec, tries, true); }
+    }
+    if (t >= tries) return finish(t, best, tries, false);
+    setTimeout(slice, 0);
+  };
+  slice();
+}
+
+function finish(tried, best, tries, won) {
+  hunting = false;
+  $('huntBtn').textContent = 'hunt for emergence';
+  huntWinner = best;
+  $('huntLoadBtn').disabled = !best;
+  if (!best) { $('huntSummary').textContent = `Stopped after ${tried} tries with nothing to show.`; return; }
+  $('huntSummary').textContent = won
+    ? `Found it on try ${tried - 1}: ${best.tr.kind}, score ${best.score.toFixed(3)}, ` +
+      `${best.tr.period > 0 ? `period ${best.tr.period} after a ${best.tr.transient}-generation transient` : 'never repeated inside the window'}. ` +
+      `Load it to watch, then copy the permalink.`
+    : `${tried} tries, none cleared ${thr().toFixed(2)}. The best was ${best.score.toFixed(3)} ` +
+      `(${best.tr.kind}) — load it anyway, or lower the bar, or roll a different mesh.`;
+}
+
+$('huntLoadBtn').addEventListener('click', () => {
+  if (!huntWinner) return;
+  spec.soup = huntWinner.soup;
+  spec.rule = huntWinner.rule;
+  spec.density = huntWinner.dens;
+  syncControls(); reseed();
+  document.querySelector('.tab[data-pane="life"]').click();
+});
+
+/** A random rule from the same band family the sweep searched. */
+function randomRule(pick) {
+  const bLo = 1 + Math.floor(pick() * 4);
+  const bHi = bLo + Math.floor(pick() * 3);
+  const sLo = Math.floor(pick() * 4);
+  const sHi = sLo + Math.floor(pick() * (6 - sLo));
+  return ruleFromCounts(bLo, clamp(bHi, bLo, 6), sLo, clamp(sHi, sLo, 6));
+}
+
+// ── specimens ────────────────────────────────────────────────────────────
+$('specimenCards').innerHTML = SPECIMENS.map((s) => `
+  <div class="card">
+    <div class="rule">${s.rule}</div>
+    <h3>${s.name}</h3>
+    <p>${s.blurb}</p>
+    <div class="facts">
+      outcome <b>${s.kind}</b><br>
+      ${s.period > 0 ? `period <b>${s.period}</b> after <b>${s.transient}</b> generations<br>` : `no repeat in <b>${s.gens}</b> generations<br>`}
+      activity <b>${(100 * s.act).toFixed(1)}%</b> · population <b>${(100 * s.pop).toFixed(1)}%</b><br>
+      score <b>${s.score.toFixed(3)}</b>
+    </div>
+    <div class="btn-row">
+      <button class="btn wide" data-load="${s.link}">load</button>
+      <button class="btn" data-copy="${s.link}">link</button>
+    </div>
+  </div>`).join('');
+
+$('specimenCards').addEventListener('click', (e) => {
+  const load = e.target.dataset.load, copy = e.target.dataset.copy;
+  if (load) {
+    spec = decodeSpec(load);
+    syncControls(); rebuildMesh(); renderAnatomy();
+    document.querySelector('.tab[data-pane="life"]').click();
+    setRunning(true);
+  } else if (copy) {
+    navigator.clipboard.writeText(`${location.origin}${location.pathname}?${copy}`)
+      .then(() => { e.target.textContent = '✓'; setTimeout(() => { e.target.textContent = 'link'; }, 1400); })
+      .catch(() => {});
+  }
+});
+
+// ── go ───────────────────────────────────────────────────────────────────
+syncControls();
+rebuildMesh();
+fit();
+renderAnatomy();
+setRunning(true);
+</script>
+
+</body>
+</html>

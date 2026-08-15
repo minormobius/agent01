@@ -806,11 +806,12 @@
         "borsuk",
         "elements",
         "prop",
-        "cohomology"
+        "cohomology",
+        "voronoi"
       ],
       "endpoint": "math.mino.mobi",
       "type": "frontend",
-      "branch": "claude/cohomology-edutainment-viz-a75erl",
+      "branch": "claude/conway-voronoi-procgen-wens91",
       "uses": [],
       "provides": null,
       "status": "MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain math.mino.mobi). Members are STAGED from root at build time, not moved; root still serves the canonical mino.mobi/<x>/ URLs so nothing breaks.",
@@ -831,7 +832,8 @@
         "borsuk/**",
         "elements/**",
         "prop/**",
-        "cohomology/**"
+        "cohomology/**",
+        "voronoi/**"
       ]
     },
     {

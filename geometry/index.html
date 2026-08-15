@@ -39,6 +39,7 @@
   --c-borsuk:   #3a3060;
   --c-viazovska:#97781a;
   --c-cohom:    #5f6b16;
+  --c-voronoi:  #7b2d8b;
   /* Status colours */
   --st-proved:    #3a8a40;
   --st-tight:     #1a7a5e;
@@ -76,6 +77,7 @@
     --c-borsuk:   #9080d4;
     --c-viazovska:#d4b454;
     --c-cohom:    #c0c65e;
+    --c-voronoi:  #d38ce0;
     --st-proved:    #6abf6f;
     --st-tight:     #4ec0a0;
     --st-partial:   #d4a850;
@@ -374,6 +376,7 @@ footer a:hover { color: var(--accent); }
     <a href="https://mino.mobi/heilbronn/">heilbronn</a> ·
     <a href="https://mino.mobi/borsuk/">borsuk</a> ·
     <a href="https://mino.mobi/cohomology/">cohomology</a> ·
+    <a href="https://mino.mobi/voronoi/">voronoi</a> ·
     <a href="https://mino.mobi/viazovska/">viazovska</a>
     · adjacent: <a href="https://mino.mobi/elements/">elements</a>
     · sibling hub: <a href="https://math.mino.mobi/conjectures/">conjectures</a>
@@ -541,6 +544,7 @@ footer a:hover { color: var(--accent); }
   <a href="https://mino.mobi/heilbronn/">heilbronn</a>
   <a href="https://mino.mobi/borsuk/">borsuk</a>
   <a href="https://mino.mobi/cohomology/">cohomology</a>
+  <a href="https://mino.mobi/voronoi/">voronoi</a>
   <a href="https://mino.mobi/viazovska/">viazovska</a>
   <a href="https://mino.mobi/elements/">elements</a>
 </footer>
@@ -633,6 +637,18 @@ const PACK = [
     status: 'proved',
     statusRank: 0,
     statusText: 'dim H¹ = #holes',
+  },
+  {
+    name: 'voronoi',
+    url:  'https://mino.mobi/voronoi/',
+    accent: 'var(--c-voronoi)',
+    problem: 'Life on a Voronoi mesh',
+    era: 1970,
+    eraText: 'Conway 1970, generalised',
+    tech: 'procedural search',
+    status: 'open',
+    statusRank: 3,
+    statusText: 'no classification',
   },
   {
     name: 'hadwiger',
