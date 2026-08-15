@@ -1,0 +1,13 @@
+{
+  "slug": "exhaustive-gallery",
+  "task": "exhaustive gallery of elementary cellular automata. let the user set the initial condition in one place & generate the whole gallery in parallel from that. simulate like 50 steps for each automaton",
+  "thread_root": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mt3e5eoyc225",
+  "requester": "ponder.ooo",
+  "named": "no",
+  "root_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mt3e5eoyc225",
+  "root_cid": "bafyreiedqhkdqpu422xn3hpnw6kyqdhbh4nsxofieldamr72suz7wncjb4",
+  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mt3e5eoyc225",
+  "parent_cid": "bafyreiedqhkdqpu422xn3hpnw6kyqdhbh4nsxofieldamr72suz7wncjb4",
+  "refs_from": "exhaustive gallery of elementary cellular automata. let the user set the initial condition in one place & generate the whole gallery in parallel from that. simulate like 50 steps for each automaton",
+  "requestedAt": "2026-08-14T23:53:34.189Z"
+}
