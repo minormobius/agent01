@@ -34,11 +34,17 @@ jobs:
         with:
           node-version: '20'
 
-      # The rules data is generated from the Cairn SRD and the roller's own
-      # selftest is the only thing standing between a bad scrape and a wrong
-      # character sheet, so it runs before anything ships.
-      - name: Roller selftest
-        run: node cairn/roll.selftest.mjs
+      # Every generated data file here is scraped from an SRD, and every model
+      # on top of it returns plausible numbers whether or not it is right. The
+      # selftests are the only thing standing between a bad scrape and a wrong
+      # character sheet or a wrong verdict, so ALL of them run before anything
+      # ships. (This step used to run only the roller's, while the registry
+      # claimed the deploy was gated — it now does what was claimed.)
+      - name: Selftests
+        run: |
+          node cairn/roll.selftest.mjs
+          node cairn/combat.selftest.mjs
+          node cairn/delve.selftest.mjs
 
       - name: Install wrangler
         run: npm install wrangler
