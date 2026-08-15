@@ -115,15 +115,59 @@ Generated — never edit by hand; `preflight --fix` rebuilds them all:
 |---|---|
 | `docs/SURFACES.md` | `gen-surface-index.mjs --write` |
 | surface-map table in `index.html` | `gen-surface-map.mjs --write` |
+| **`var P` catalogue in `index.html`** | `gen-landing-catalogue.mjs --write` |
 | `functions/search.js` catalogue | `generate-search-catalog.mjs` |
+| `io/sites.json` (stumble portal) | `generate-sites-json.mjs` |
+| `office/surfaces.json` | `build-office.mjs --write` |
+| `mappa/sites.js` | `build-mappa.mjs` |
+| `orrery/index.html` | `build-orrery.mjs` |
 | `spec/data.js` | `build-spec.mjs --write` |
 | workflow `branches:` triggers | `gen-deploy-triggers.mjs --write` |
 | `og.png` / `og.svg` | `generate-og-card.mjs` |
 | missing `<dir>/CLAUDE.md` | `gen-surface-docs.mjs --write` |
 
-Hand-edited: `index.html`'s `var P` catalogue and its curated `<li>`
-descriptions; `spec/curated.js` (families, capsules); every `<dir>/CLAUDE.md`
-after it is seeded; the registry's machine fields.
+Hand-edited: **`catalogue.json`**; `index.html`'s curated `<li>` descriptions;
+`spec/curated.js` (families, capsules); every `<dir>/CLAUDE.md` after it is
+seeded; the registry's machine fields.
+
+### The two sources of truth
+
+There are exactly two hand-written catalogues at the root, and they answer
+different questions. Keep them that way.
+
+| File | Answers | Feeds |
+|---|---|---|
+| [`deploy-registry.json`](deploy-registry.json) | **what deploys** — dir, endpoint, owning branch, paths | workflow triggers, `SURFACES.md`, `spec/data.js` |
+| [`catalogue.json`](catalogue.json) | **what a person can visit** — name, URL, category, heat | `var P`, search, stumble portal, office, mappa, orrery |
+
+Each catalogue entry carries a `surface` key — a foreign key **into** the
+registry, never the reverse. The registry alone owns deploy ownership;
+preflight fails if a catalogue entry names a surface that doesn't exist.
+
+**Never hand-edit `var P` in `index.html`.** It is generated from
+`catalogue.json`, and the generator refuses to write if the rewrite would
+change the catalogue semantically — it only ever reformats. Edit
+`catalogue.json` and run `preflight --fix`.
+
+### Every reachable endpoint is accounted for
+
+The root worker serves the whole repo, so every directory with an `index.html`
+is a live URL — 566 of them. `catalogue.json` lists the ones worth visiting;
+everything else must be declared in its `notListed` rules, with a `kind`:
+
+- `internal` — build output or pre-build source. Not a destination.
+- `content` — a real page *inside* an already-listed site.
+- `pending` — a genuine sub-site not catalogued yet. **The backlog.**
+
+```bash
+node scripts/catalogue-coverage.mjs             # the full report
+node scripts/catalogue-coverage.mjs --pending   # just the backlog
+```
+
+An endpoint that is neither listed nor declared fails preflight, and so does a
+rule that matches nothing. `pending` rules are deliberately explicit paths
+rather than globs, so a *new* sub-site trips the gate instead of being silently
+absorbed.
 
 The root worker serves `assets.directory: "."` — **the whole repo root is
 internet-facing.** Generators write through `scripts/lib/landing.mjs`, which
@@ -171,11 +215,14 @@ than inferring; local `wrangler deploy` skips migrations and post-deploy hooks.
    quirks and correct secret names.
 4. Add the `surfaces[]` entry (including `branch` and `paths`); drop it from
    `unmanaged{}`.
-5. Add it to `index.html`'s `var P` with a curated `<li>` description — a
-   headless backend gets a capsule in `spec/curated.js` instead — and give it a
-   family in `spec/curated.js`.
-6. `node scripts/preflight.mjs --fix`. It seeds `<dir>/CLAUDE.md`; then write
-   that file properly.
+5. Add an entry to `catalogue.json` — including its `surface` key — plus a
+   curated `<li>` description in `index.html`. A headless backend gets a
+   capsule in `spec/curated.js` instead. Either way, give it a family in
+   `spec/curated.js`.
+6. `node scripts/preflight.mjs --fix`. It regenerates `var P` and every other
+   projection, and seeds `<dir>/CLAUDE.md`; then write that file properly.
+   If the surface ships sub-sites, `catalogue-coverage.mjs` will name them —
+   list them or declare them.
 7. Push, and confirm the run binds the custom domain.
 
 New lexicon? Add the collection to `WRITE_COLLECTIONS` in
