@@ -87,6 +87,49 @@ let pendingBuy = null;   // { key, at } — a FOR-SALE parcel tapped once, await
 // launch (2026-08-14); flip false only for private testing.
 const COURIER_POSTS = true;
 
+// ── CALM MODE (?ui=calm, sticky; ?ui=dense reverts) ──────────────────────────────────────────────
+// The launch feedback: information density reads high for a browser game. Calm mode is
+// progressive disclosure keyed to the SAME ladder that gates content: a fresh farm shows the
+// field, the seed bag, one hint — the craft bar arrives with your first harvest, the pantry with
+// your first produce, the biome chip with your second pack. Veterans' counters pass every gate
+// instantly, so they lose nothing. Behind a flag while we judge it; the winner becomes default.
+const _uiParam = new URLSearchParams(location.search).get('ui');
+if (_uiParam === 'calm' || _uiParam === 'dense') { try { localStorage.setItem('harvestople-ui', _uiParam); } catch (e) { /* fine */ } }
+const CALM = (_uiParam || localStorage.getItem('harvestople-ui')) === 'calm';
+let _calmCraftShown = null;   // detect the moment the tools reveal (for the one-time toast)
+function applyCalmGates() {
+  if (!CALM || !farm) return;
+  const b = document.body.classList;
+  b.add('calmui');
+  const craft = (farm.stats.harvests | 0) >= 1;
+  b.toggle('g-craft', craft);
+  b.toggle('g-pantry', Object.keys(farm.pantry || {}).length > 0 || Object.keys(farm.pantryC || {}).length > 0);
+  b.toggle('g-biome', (farm.packs || []).length > 1);
+  if (craft && _calmCraftShown === false) toast('🛠 first harvest in — the <b>craft tools</b> are yours now (till, dig, build)', 'ach', 9000);
+  _calmCraftShown = craft;
+}
+
+// ── CREATIVE MODE (?creative=1) ──────────────────────────────────────────────────────────────────
+// A poking-around sandbox: endless coins, every pack/tech/parcel/metal unlocked, crops grow ×60.
+// It lives in its OWN localStorage slot and the store's sandbox latch guarantees nothing —
+// plot, achievements, gifts, tends, petitions, posts — ever reaches the PDS from here.
+const CREATIVE = new URLSearchParams(location.search).get('creative') === '1';
+function creativeFarm(did) {
+  let f = newFarm(String(did) + ':creative', ark, now());
+  f.coins = 9_999_999;
+  f.parcels = [];
+  for (let py = 0; py < 5; py++) for (let px = 0; px < 5; px++) f.parcels.push(px + ',' + py);
+  f.packs = ark.biomes.map((b) => b.id);
+  for (const b of ark.biomes) for (const c of b.crops) { f.seeds[c.id] = 99; if (!f.owned.includes(c.id)) f.owned.push(c.id); }
+  f.metals = { gold: 99, silver: 99, quicksilver: 99, copper: 99, iron: 99, tin: 99, lead: 99 };
+  f.shards = 50;
+  f.mine = { ...f.mine, depth: 20, picks: 99, bombs: 25 };
+  f.tech = {}; for (const t of TECHS) f.tech[t.id] = true;
+  // the wardrobe opens too: these counters satisfy every skin's unlock predicate
+  f.stats = { ...f.stats, harvests: 100, brews: 10, bestGrade: 'A' };
+  return f;
+}
+
 async function boot() {
   // THE TESTING TABLE: the same code serves farm-next.mino.mobi from its own branch, where
   // granted petitions go live immediately. Same save (the covenant keeps the worlds compatible)
@@ -121,33 +164,52 @@ async function boot() {
 
   if (u) { await bootVisitor(u); return; }
 
+  // CREATIVE: its own slot, its own world, and the store latch means nothing here can sync
+  if (CREATIVE) {
+    store.sandboxKey = 'farm:creative';
+    farm = store.loadLocal() || creativeFarm(store.user ? store.user.did : 'wanderer');
+    store.save(farm, now());   // local only, by the latch
+    const cb = document.createElement('div');
+    cb.className = 'toast warn'; cb.id = 'creativebar';
+    cb.innerHTML = '<span class="x" title="dismiss">✕</span>🧪 <b>creative sandbox</b> — endless coins, everything unlocked, crops grow ×60. Nothing here syncs or posts. ' +
+      '<a href="./">back to your real farm</a> <button id="creativereset" class="mini">reset sandbox</button>';
+    $('#toasts').appendChild(cb);
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#creativereset')) return;
+      localStorage.removeItem('farm:creative'); location.reload();
+    });
+  }
+
   // FARMER: pick between the PDS copy and the local mirror by PROGRESS first, wall-clock second.
   // Timestamps lie across devices: a stale phone that merely opens later re-stamps an old world
   // (the streak commit fires on boot) and would win every updatedAt race — burying the other
   // device's unsynced session for good. saveAhead compares monotonic counters instead; when one
   // copy is an unambiguous superset it wins regardless of clocks, and a genuine fork (each ahead
   // somewhere) keeps the cloud copy live but stashes the local one in the attic with a restore.
-  const local = store.loadLocal();
-  const remote = await store.loadRemote();
-  const did = store.user ? store.user.did : 'wanderer';
-  if (remote && local) {
-    if (saveAhead(local, remote)) {
-      farm = local;
-      if ((remote.updatedAt || 0) > (local.updatedAt || 0)) toast('🧵 this device held progress the cloud never received — recovered and resyncing', 'ach', 9000);
-      store.save(farm, now(), { immediate: true });   // push the recovered progress up
-    } else if (saveAhead(remote, local) || (remote.updatedAt || 0) >= (local.updatedAt || 0)) {
-      farm = remote;
-    } else {
-      // local is newer by clock but not a clean superset — a fork. Cloud wins (it's what every
-      // other device sees), local waits in the attic behind a one-tap restore.
-      farm = remote;
-      store.stashAttic(local, now());
-      toast('🧳 this device also holds a diverged save — <button class="mini" id="atticgo">bring it back</button> <span class="dim">(replaces the cloud copy)</span>', 'warn', 30000);
-    }
-  } else if (remote) farm = remote;
-  else if (local) farm = local;
-  else farm = newFarm(did, ark, now());
-  if (store.user && !remote && local) store.save(farm, now(), { immediate: true });   // promotion
+  // (Creative already holds its farm — the sandbox never consults the cloud.)
+  if (!CREATIVE) {
+    const local = store.loadLocal();
+    const remote = await store.loadRemote();
+    const did = store.user ? store.user.did : 'wanderer';
+    if (remote && local) {
+      if (saveAhead(local, remote)) {
+        farm = local;
+        if ((remote.updatedAt || 0) > (local.updatedAt || 0)) toast('🧵 this device held progress the cloud never received — recovered and resyncing', 'ach', 9000);
+        store.save(farm, now(), { immediate: true });   // push the recovered progress up
+      } else if (saveAhead(remote, local) || (remote.updatedAt || 0) >= (local.updatedAt || 0)) {
+        farm = remote;
+      } else {
+        // local is newer by clock but not a clean superset — a fork. Cloud wins (it's what every
+        // other device sees), local waits in the attic behind a one-tap restore.
+        farm = remote;
+        store.stashAttic(local, now());
+        toast('🧳 this device also holds a diverged save — <button class="mini" id="atticgo">bring it back</button> <span class="dim">(replaces the cloud copy)</span>', 'warn', 30000);
+      }
+    } else if (remote) farm = remote;
+    else if (local) farm = local;
+    else farm = newFarm(did, ark, now());
+    if (store.user && !remote && local) store.save(farm, now(), { immediate: true });   // promotion
+  }
 
   applySkin(farm);
   isoMain = createIso($('#bed'), { onTap: onFieldTap });
@@ -162,12 +224,21 @@ async function boot() {
     window.dispatchEvent(new Event('resize'));   // the iso canvas re-measures itself
     redrawBed();
   };
-  // collapsible trackers remember how you left them
+  // collapsible trackers remember how you left them (calm mode: pantry + ground start shut for
+  // a fresh eye — the seed bag stays open, it IS the first move)
   $$('details[data-fold]').forEach((d) => {
     const k = 'harvestople-fold-' + d.dataset.fold;
-    if (localStorage.getItem(k) === 'shut') d.open = false;
+    const stored = localStorage.getItem(k);
+    if (stored === 'shut') d.open = false;
+    else if (stored == null && CALM && d.dataset.fold !== 'seeds') d.open = false;
     d.addEventListener('toggle', () => localStorage.setItem(k, d.open ? 'open' : 'shut'));
   });
+  if (CALM) {
+    const bh = $('#bedhint');
+    if (bh) bh.textContent = 'pick a seed, tap the soil — the rest of the farm reveals itself as you play';
+    applyCalmGates();
+    if (_uiParam === 'calm') toast('🌾 calm mode — the chrome appears as you earn it. <span class="dim">?ui=dense brings it all back</span>', 'ok', 9000);
+  }
   // some auth sessions arrive with the DID where the handle belongs — resolve it once so the
   // header (and every "by @you" surface) reads like a name, not a key
   if (store.user && (!store.user.handle || String(store.user.handle).startsWith('did:'))) {
@@ -179,7 +250,7 @@ async function boot() {
   }
 
   // catch the missing-grant case BEFORE the first write fails: SSO'd in, but no farm scopes
-  if (store.user && !store.hasFarmScope()) showGrantBanner('you’re signed in via another mino.mobi site');
+  if (store.user && !store.hasFarmScope() && !CREATIVE) showGrantBanner('you’re signed in via another mino.mobi site');
 
   // the daily streak: first visit of the day settles dew, consecutive days compound (capped)
   const st = touchStreak(farm, now());
@@ -191,7 +262,7 @@ async function boot() {
 
   renderHeader(); renderSyncChip(); renderAll();
   setInterval(() => { if ($('#tab-farm').classList.contains('on')) redrawBed(); }, 20_000);
-  if (store.user) refreshFriends();   // background: tends boost + gifts at the gate
+  if (store.user && !CREATIVE) refreshFriends();   // background: tends boost + gifts at the gate
 }
 
 const TERRAIN_BLURB = {
@@ -333,6 +404,9 @@ function onFieldTap(tap) {
   // close to a neighbour) and red tiles accept. One tile, one plant, no lies.
   const r = plantSeed(farm, (tx + 0.5) / FIELD_T, (ty + 0.5) / FIELD_T, plantingCrop, ark, now());
   if (!r.ok) { toast(esc(r.reason), 'warn'); return; }
+  // creative sandbox: the point is poking around, so crops ripen in about a minute — spd is the
+  // kernel's own mechanism (charms use it), and the sandbox never syncs, so nothing can leak
+  if (CREATIVE) { const p = r.farm.bed.plants[r.farm.bed.plants.length - 1]; p.spd = (p.spd || 1) * 60; }
   commit(r.farm);
   if (r.farWater) toast('🏜 far from water — it only grows when watered, and 48h dry kills it. A pond or sprinkler nearby fixes that for good', 'warn', 8000);
   if (r.charmed) toast('🪬 sown under ' + esc(activeCharm(farm) || '') + ' — this one grows ×' + CHARM_SPD + (r.spd > CHARM_SPD ? ' on top of fresh ground' : ''), 'ok');
@@ -365,6 +439,7 @@ function plantCheckAt(tx, ty) {
 function renderSyncChip() {
   const el = $('#syncchip');
   if (!el) return;
+  if (CREATIVE) { el.textContent = '🧪 sandbox — local only'; el.className = 'busy'; el.title = 'creative mode never syncs'; return; }
   if (!store.user) { el.textContent = ''; el.className = ''; return; }   // wanderers save locally only
   const s = store.status();
   if (s.blocked || s.failures >= 3) {
@@ -395,6 +470,7 @@ function commit(next, { immediate = false } = {}) {
   store.save(farm, now(), { immediate });
   checkAchievements();
   renderSyncChip();
+  applyCalmGates();
   renderHeader();
 }
 
@@ -1203,7 +1279,7 @@ function wirePetitionBox() {
         $('#petitionnote').textContent = 'filed — the council reads wishes straight from your repo (no public post while the town is pre-launch). Watch your petitions above for the verdict.';
       }
       toast('🪧 petition filed with the council', 'ach', 6000);
-    } catch (e) { toast('the courier stumbled — try again', 'warn'); }
+    } catch (e) { toast(esc((e && e.message) || 'the courier stumbled — try again'), 'warn', 8000); }
   };
 }
 

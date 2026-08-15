@@ -47,6 +47,11 @@ export class FarmStore extends EventTarget {
     this._saveTimer = null;
     this._flushing = false;
     this._dirty = false;
+    // THE SANDBOX LATCH (creative mode): when set, the store keeps its save under this separate
+    // localStorage key and NEVER writes to the PDS — not the plot, not achievements, not gifts,
+    // tends, petitions or posts. One chokepoint, so a sandbox can't leak records no matter what
+    // the UI above it does.
+    this.sandboxKey = null;
   }
 
   async init() {
@@ -104,12 +109,13 @@ export class FarmStore extends EventTarget {
   }
 
   // ── local mirror ──
+  _lsKey() { return this.sandboxKey || LS_KEY; }
   loadLocal() {
-    try { const raw = localStorage.getItem(LS_KEY); return raw ? fromPlotRecord(JSON.parse(raw)) : null; }
+    try { const raw = localStorage.getItem(this._lsKey()); return raw ? fromPlotRecord(JSON.parse(raw)) : null; }
     catch (e) { return null; }
   }
   saveLocal(farm, now) {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(toPlotRecord(farm, now))); } catch (e) { /* quota — PDS still has it */ }
+    try { localStorage.setItem(this._lsKey(), JSON.stringify(toPlotRecord(farm, now))); } catch (e) { /* quota — PDS still has it */ }
   }
 
   // the ATTIC: when boot must choose between two copies of the save, the loser goes here instead
@@ -147,6 +153,7 @@ export class FarmStore extends EventTarget {
   // debounce writes: farming is clicky, the PDS is not a keystroke log.
   save(farm, now, { immediate = false } = {}) {
     this.saveLocal(farm, now);
+    if (this.sandboxKey) return;   // the sandbox never leaves this browser
     this._pending = { farm, now };
     this._dirty = true;
     if (!this.user) return;
@@ -202,7 +209,7 @@ export class FarmStore extends EventTarget {
   // ── public one-shot records ──
   // achievement: rkey = the achievement id, so a deed can never double-mint.
   async writeAchievement(ach, now) {
-    if (!this.user) return null;
+    if (this.sandboxKey || !this.user) return null;
     return this.auth.pds.putRecord(ACH_COLLECTION, ach.id, {
       $type: ACH_COLLECTION, achievementId: ach.id, name: ach.name, emoji: ach.emoji,
       desc: ach.desc, earnedAt: new Date(now).toISOString(),
@@ -210,14 +217,14 @@ export class FarmStore extends EventTarget {
   }
 
   async writeGift(toDid, item, note, now) {
-    if (!this.user) return null;
+    if (this.sandboxKey || !this.user) return null;
     return this.auth.pds.createRecord(GIFT_COLLECTION, {
       $type: GIFT_COLLECTION, to: toDid, item, note: note || '', createdAt: new Date(now).toISOString(),
     });
   }
 
   async writeTend(subjectDid, plantId, now) {
-    if (!this.user) return null;
+    if (this.sandboxKey || !this.user) return null;
     return this.auth.pds.createRecord(TEND_COLLECTION, {
       $type: TEND_COLLECTION, subject: subjectDid, plantId, verb: 'water', createdAt: new Date(now).toISOString(),
     });
@@ -226,6 +233,7 @@ export class FarmStore extends EventTarget {
   // ── petition the town council: a public record in YOUR repo — every wish signed and
   // attributable. Sessions consented before petitions existed escalate on first use. ──
   async writePetition(text, category, now) {
+    if (this.sandboxKey) throw new Error('the sandbox has no voice at the council — petition from your real farm');
     if (!this.user) throw new Error('sign in first');
     if (!this.auth.hasScope(PETITION_COLLECTION)) {
       await this.auth.ensureScope(SCOPE);   // redirects; never returns when short
@@ -240,6 +248,7 @@ export class FarmStore extends EventTarget {
   // ── the share post (app.bsky.feed.post). New logins carry the scope from the start; this
   // escalation path remains for sessions consented before posting joined the login scope. ──
   async sharePost(text) {
+    if (this.sandboxKey) throw new Error('the sandbox does not post — share from your real farm');
     if (!this.user) throw new Error('sign in first');
     if (!this.hasShareScope()) {
       await this.auth.ensureScope(SCOPE);   // redirects; never returns when short

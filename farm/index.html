@@ -101,6 +101,16 @@
   @media (max-width: 700px) {
     #toasts { left:10px; right:10px; bottom:auto; top:calc(10px + env(safe-area-inset-top, 0px)); max-width:none; }
   }
+  /* CALM MODE (?ui=calm): progressive disclosure — chrome appears as play earns it. The g-*
+     classes are toggled by applyCalmGates() from the same counters that pace the game. */
+  body.calmui #craftbar { display:none; }
+  body.calmui.g-craft #craftbar { display:flex; }
+  body.calmui #pantryrow { display:none; }
+  body.calmui.g-pantry #pantryrow { display:block; }
+  body.calmui #biome { display:none; }
+  body.calmui.g-biome #biome { display:inline; }
+  body.calmui .hint { font-size:11.5px; opacity:.8; }
+  body.calmui .pane.on { line-height:1.55; }
   /* fat-finger dignity: real tap targets and no double-tap page zoom on controls */
   button, .chip, summary, select, .toast { touch-action:manipulation; }
   @media (pointer: coarse) {
@@ -246,7 +256,7 @@ details.row > div { max-height: 40vh; overflow-y: auto; }
 
   <footer>
     your farm is a <code>com.minomobi.farm.plot</code> record in your own PDS — no database here, sign in on any device and the field follows you ·
-    <a href="./lexicons/com.minomobi.farm.plot.json">lexicons</a> · one of the <a href="https://mino.mobi">mino.mobi</a> yard of experiments
+    <a href="./lexicons/com.minomobi.farm.plot.json">lexicons</a> · <a href="?creative=1">creative sandbox</a> · <a href="?ui=calm" title="a quieter farm — chrome appears as you earn it">calm mode</a> · one of the <a href="https://mino.mobi">mino.mobi</a> yard of experiments
   </footer>
 </div>
 <div id="toasts"></div>
