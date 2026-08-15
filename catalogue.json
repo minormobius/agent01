@@ -2979,5 +2979,542 @@
       "surface": "human"
     }
   ],
-  "notListed": []
+  "notListed": [
+    {
+      "glob": "**/public",
+      "kind": "internal",
+      "reason": "pre-build source for a surface that ships ./dist; reachable on the apex only because the root worker serves the whole repo"
+    },
+    {
+      "glob": "**/public/**",
+      "kind": "internal",
+      "reason": "pre-build source for a surface that ships ./dist; reachable on the apex only because the root worker serves the whole repo"
+    },
+    {
+      "glob": "aub/web",
+      "kind": "internal",
+      "reason": "wasm app source root; the built game ships from aub/dist"
+    },
+    {
+      "glob": "audio/apps/web",
+      "kind": "internal",
+      "reason": "Vite monorepo app source root"
+    },
+    {
+      "glob": "poll/apps/web",
+      "kind": "internal",
+      "reason": "Vite monorepo app source root; poll ships from poll/apps/web/dist"
+    },
+    {
+      "glob": "tjs/orb/sketch",
+      "kind": "internal",
+      "reason": "scratch sketch kept beside the orb source"
+    },
+    {
+      "glob": "tjs/orb/build",
+      "kind": "internal",
+      "reason": "committed build output of the tjs orb demo"
+    },
+    {
+      "glob": "bakeoff/results/**",
+      "kind": "internal",
+      "reason": "generated benchmark run data, one directory per model and seed"
+    },
+    {
+      "glob": "ai-edu/dev",
+      "kind": "internal",
+      "reason": "in-progress draft page, not linked from the site"
+    },
+    {
+      "glob": "hoop-archive/**",
+      "kind": "content",
+      "reason": "archived hoop versions, kept reachable as a record; superseded by hoop/"
+    },
+    {
+      "glob": "fifty/c/*",
+      "kind": "content",
+      "reason": "individual chapters of the fifty serial"
+    },
+    {
+      "glob": "ai-edu/problems/*",
+      "kind": "content",
+      "reason": "worked problems within the ai-edu site"
+    },
+    {
+      "glob": "ai-edu/getting-started/*",
+      "kind": "content",
+      "reason": "onboarding pages within the ai-edu site"
+    },
+    {
+      "glob": "human/exhibits/*",
+      "kind": "content",
+      "reason": "individual exhibits within the human site"
+    },
+    {
+      "glob": "human/about/*",
+      "kind": "content",
+      "reason": "about pages within the human site"
+    },
+    {
+      "glob": "human/stats",
+      "kind": "content",
+      "reason": "stats page within the human site"
+    },
+    {
+      "glob": "read/alch/*",
+      "kind": "content",
+      "reason": "individual texts within the read alchemy collection"
+    },
+    {
+      "glob": "b/gc/*",
+      "kind": "content",
+      "reason": "sub-routes of the listed gc tool"
+    },
+    {
+      "glob": "b/palm/corpus",
+      "kind": "content",
+      "reason": "corpus browser inside b/palm"
+    },
+    {
+      "glob": "clock/morph/showcase",
+      "kind": "content",
+      "reason": "showcase route inside clock/morph"
+    },
+    {
+      "glob": "**/docs",
+      "kind": "content",
+      "reason": "a site's own documentation page"
+    },
+    {
+      "glob": "hoop/v*",
+      "kind": "content",
+      "reason": "versioned hoop snapshot"
+    },
+    {
+      "glob": "hoop/v*/**",
+      "kind": "content",
+      "reason": "versioned hoop snapshot"
+    },
+    {
+      "glob": "mega/v*",
+      "kind": "content",
+      "reason": "versioned mega snapshot"
+    },
+    {
+      "glob": "mega/v*/**",
+      "kind": "content",
+      "reason": "versioned mega snapshot"
+    },
+    {
+      "glob": "mega/sprite/**",
+      "kind": "content",
+      "reason": "in-game routes of the mega sprite demos"
+    },
+    {
+      "glob": "mega/bees/**",
+      "kind": "content",
+      "reason": "in-game routes of mega/bees"
+    },
+    {
+      "glob": "**/play",
+      "kind": "content",
+      "reason": "in-game route of a listed game"
+    },
+    {
+      "glob": "clock/antoine",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/basket",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/bearings",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/corn",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/emsim",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/fluoddity",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/garden",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/geocast",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/globe",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/hand",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/helix",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/horned",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/hourglass",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/lattice",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/mol",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/mole",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/morph",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/scape",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/scope",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/ship",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/soil",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/sticks",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/stretch",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/syllis",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/tablet",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/tabletilt",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/yarrow",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "clock/yijing",
+      "kind": "pending",
+      "reason": "the clock toy pack — 28 single-file toys, none listed"
+    },
+    {
+      "glob": "fable/deal",
+      "kind": "pending",
+      "reason": "the fable generative wing — named in the registry serves[] but not catalogued"
+    },
+    {
+      "glob": "fable/drift",
+      "kind": "pending",
+      "reason": "the fable generative wing — named in the registry serves[] but not catalogued"
+    },
+    {
+      "glob": "fable/flux",
+      "kind": "pending",
+      "reason": "the fable generative wing — named in the registry serves[] but not catalogued"
+    },
+    {
+      "glob": "fable/forge",
+      "kind": "pending",
+      "reason": "the fable generative wing — named in the registry serves[] but not catalogued"
+    },
+    {
+      "glob": "fable/gyre",
+      "kind": "pending",
+      "reason": "the fable generative wing — named in the registry serves[] but not catalogued"
+    },
+    {
+      "glob": "fable/knack",
+      "kind": "pending",
+      "reason": "the fable generative wing — named in the registry serves[] but not catalogued"
+    },
+    {
+      "glob": "fable/morph",
+      "kind": "pending",
+      "reason": "the fable generative wing — named in the registry serves[] but not catalogued"
+    },
+    {
+      "glob": "fable/puzz",
+      "kind": "pending",
+      "reason": "the fable generative wing — named in the registry serves[] but not catalogued"
+    },
+    {
+      "glob": "canvas",
+      "kind": "pending",
+      "reason": "top-level directories that are live URLs but absent from the catalogue"
+    },
+    {
+      "glob": "conjectures",
+      "kind": "pending",
+      "reason": "top-level directories that are live URLs but absent from the catalogue"
+    },
+    {
+      "glob": "ising",
+      "kind": "pending",
+      "reason": "top-level directories that are live URLs but absent from the catalogue"
+    },
+    {
+      "glob": "orrery",
+      "kind": "pending",
+      "reason": "top-level directories that are live URLs but absent from the catalogue"
+    },
+    {
+      "glob": "pizza",
+      "kind": "pending",
+      "reason": "top-level directories that are live URLs but absent from the catalogue"
+    },
+    {
+      "glob": "torus",
+      "kind": "pending",
+      "reason": "top-level directories that are live URLs but absent from the catalogue"
+    },
+    {
+      "glob": "biome/balance",
+      "kind": "pending",
+      "reason": "sub-sites of the O’Neill pack"
+    },
+    {
+      "glob": "biome/cycles",
+      "kind": "pending",
+      "reason": "sub-sites of the O’Neill pack"
+    },
+    {
+      "glob": "hoop/chunkroller",
+      "kind": "pending",
+      "reason": "sub-sites of the O’Neill pack"
+    },
+    {
+      "glob": "hoop/econ/deck",
+      "kind": "pending",
+      "reason": "sub-sites of the O’Neill pack"
+    },
+    {
+      "glob": "hoop/econ/foam",
+      "kind": "pending",
+      "reason": "sub-sites of the O’Neill pack"
+    },
+    {
+      "glob": "hoop/nave",
+      "kind": "pending",
+      "reason": "sub-sites of the O’Neill pack"
+    },
+    {
+      "glob": "hoop/rind",
+      "kind": "pending",
+      "reason": "sub-sites of the O’Neill pack"
+    },
+    {
+      "glob": "rind/upperrind",
+      "kind": "pending",
+      "reason": "sub-sites of the O’Neill pack"
+    },
+    {
+      "glob": "tide/atmosphere",
+      "kind": "pending",
+      "reason": "sub-sites of the O’Neill pack"
+    },
+    {
+      "glob": "tide/case",
+      "kind": "pending",
+      "reason": "sub-sites of the O’Neill pack"
+    },
+    {
+      "glob": "tide/fountain",
+      "kind": "pending",
+      "reason": "sub-sites of the O’Neill pack"
+    },
+    {
+      "glob": "tide/profile",
+      "kind": "pending",
+      "reason": "sub-sites of the O’Neill pack"
+    },
+    {
+      "glob": "tide/ratchet",
+      "kind": "pending",
+      "reason": "sub-sites of the O’Neill pack"
+    },
+    {
+      "glob": "mega/bees",
+      "kind": "pending",
+      "reason": "sub-sites of the O’Neill pack"
+    },
+    {
+      "glob": "b/knot",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "b/palm",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "b/sleuth",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "chat/robo",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "civ/claims",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "civ/dash",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "farm/trailer",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "finance/pm",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "fipo/pitch",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "j/model",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "j/playground",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "photo/dm",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "pod/app",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "pod/listen",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "pod/prod",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "pod/room",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "polis/city",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "polis/hinterland",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "reef/model",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "splice/game",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "splice/lab",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "splice/roadmap",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "splice/table",
+      "kind": "pending",
+      "reason": "sub-sites of other listed surfaces"
+    }
+  ],
+  "$notListed": "Reachable endpoints deliberately kept off the landing page. kind=internal: build output or source dirs. kind=content: real pages inside an already-listed site. kind=pending: a genuine sub-site that is not catalogued yet — the backlog, printed by `node scripts/catalogue-coverage.mjs --pending`. Rules are first-match-wins, and a rule matching nothing fails the gate."
 }
