@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>contrast — the picture is a choice</title>
+<meta name="description" content="Why tissues look different in an MRI. T1, T2 and the schedule: measured tissue relaxation times from Stanisz 2005, the sequence equations validated against a Bloch simulation, the Ernst angle, inversion-recovery nulling, and the curve through TR–TE where two tissues become invisible to each other.">
+<meta property="og:title" content="contrast — the picture is a choice">
+<meta property="og:description" content="An MRI doesn't measure tissue. It measures a tissue's response to a schedule, and somebody picks the schedule.">
+<meta property="og:type" content="article">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b1213'/%3E%3Cellipse cx='16' cy='16' rx='11' ry='11' fill='none' stroke='%235eead4' stroke-width='2.5'/%3E%3Cellipse cx='16' cy='16' rx='4.5' ry='4.5' fill='none' stroke='%23e8a838' stroke-width='2'/%3E%3C/svg%3E">
+
+<style>
+:root {
+  --bg: #faf9f6; --fg: #1d2223; --muted: #6b7576; --rule: #d3cfc8; --link: #145;
+  --accent: #0d7a72; --accent-faint: rgba(13, 122, 114, 0.10);
+  --warm: #a8641c;
+  --panel: #f2f0ea; --tag-bg: #e8e5dd; --tag-text: #56605f;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1213; --fg: #dde3e3; --muted: #7d8a8a; --rule: #26312f; --link: #dfe;
+    --accent: #5eead4; --accent-faint: rgba(94, 234, 212, 0.12);
+    --warm: #e8a838;
+    --panel: #121b1c; --tag-bg: #1a2426; --tag-text: #9fb0af;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+body { max-width: 820px; margin: 0 auto; padding: 2rem 1.4rem 5rem; line-height: 1.62; }
+a { color: var(--link); }
+header { margin-bottom: 1.4rem; }
+.crumb { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-decoration: none; display: inline-block; margin-bottom: 0.9rem; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-size: 2.7rem; letter-spacing: -0.015em; font-weight: 600; }
+.subtitle { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 0.4rem 0 0; }
+.lead { font-size: 1.06rem; margin: 1.5rem 0 0; }
+.lead strong { color: var(--accent); font-weight: 600; }
+h2.sec { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); font-weight: normal; margin: 3.2rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--rule); }
+p { margin: 0.9rem 0; }
+code, .num { font-family: var(--mono); font-size: 0.88em; }
+.eq { font-family: var(--mono); font-size: 0.84rem; text-align: center; color: var(--accent); background: var(--accent-faint); padding: 0.7rem 0.6rem; border-radius: 3px; margin: 1.2rem 0; overflow-x: auto; }
+
+.panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 4px; padding: 1rem 1.1rem 1.2rem; margin: 1.4rem 0; }
+.panel h4 { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: normal; margin: 0 0 0.8rem; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; align-items: start; }
+@media (max-width: 620px) { .split { grid-template-columns: 1fr; } }
+canvas { display: block; width: 100%; height: auto; border-radius: 2px; }
+canvas.img { image-rendering: pixelated; background: #000; border: 1px solid var(--rule); }
+.cap { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-top: 0.35rem; }
+.cap b { color: var(--fg); font-weight: 600; text-transform: none; letter-spacing: 0; }
+.ctl { display: grid; grid-template-columns: 8rem 1fr 6.5rem; gap: 0.4rem 0.7rem; align-items: center; margin-top: 0.9rem; font-family: var(--mono); font-size: 0.75rem; }
+.ctl label { color: var(--muted); }
+.ctl output { color: var(--accent); text-align: right; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.segs { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.9rem; }
+.segs button { font-family: var(--mono); font-size: 0.7rem; padding: 0.3rem 0.6rem; border: 1px solid var(--rule); background: transparent; color: var(--muted); border-radius: 3px; cursor: pointer; }
+.segs button:hover { color: var(--fg); }
+.segs button[aria-pressed="true"] { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.verdict { margin-top: 0.9rem; padding: 0.6rem 0.8rem; border-left: 2px solid var(--accent); background: var(--accent-faint); font-size: 0.92rem; }
+.readout { display: flex; flex-wrap: wrap; gap: 0.4rem 1.7rem; margin-top: 0.9rem; font-family: var(--mono); font-size: 0.76rem; }
+.readout div { color: var(--muted); }
+.readout b { display: block; color: var(--fg); font-size: 1.02rem; font-weight: 600; }
+.readout b.hot { color: var(--warm); }
+table.tissues { border-collapse: collapse; width: 100%; font-family: var(--mono); font-size: 0.74rem; margin: 1rem 0; }
+table.tissues th, table.tissues td { text-align: right; padding: 0.32rem 0.5rem 0.32rem 0; border-bottom: 1px solid var(--rule); }
+table.tissues th:first-child, table.tissues td:first-child { text-align: left; }
+table.tissues th { color: var(--muted); font-weight: normal; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.64rem; }
+table.tissues td.sw { width: 1.4rem; }
+table.tissues i { font-style: normal; display: inline-block; width: 0.75rem; height: 0.75rem; border-radius: 2px; }
+ul.src { list-style: none; padding: 0; margin: 1rem 0; }
+ul.src li { padding: 0.5rem 0; border-bottom: 1px solid var(--rule); font-size: 0.9rem; }
+ul.src li span.what { display: block; color: var(--muted); font-size: 0.85rem; margin-top: 0.15rem; }
+.cite { font-family: var(--mono); font-size: 0.74rem; color: var(--muted); line-height: 1.5; }
+.stamp { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); }
+.err { color: var(--warm); font-family: var(--mono); font-size: 0.8rem; }
+.scope { border: 1px dashed var(--rule); border-radius: 4px; padding: 0.9rem 1.1rem; margin: 2rem 0; font-size: 0.92rem; color: var(--muted); }
+.scope b { color: var(--fg); }
+.caveat { border-left: 2px solid var(--warm); padding: 0.6rem 0.9rem; margin: 1.2rem 0; font-size: 0.93rem; color: var(--muted); background: rgba(168,100,28,0.06); }
+.caveat b { color: var(--fg); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="/mri/kspace/">sci ← mri ← part two, k-space</a>
+  <h1>contrast</h1>
+  <p class="subtitle">mri · part three · why anything looks like anything</p>
+  <p class="lead">Parts one and two build a map of where the protons are. That map is nearly
+  useless — brain is about 80% water everywhere, so a pure proton-density picture of a head is a
+  faintly textured blob. Every clinical MR image is instead a picture of <strong>how fast the
+  magnetisation recovers and decays</strong>, and which of those you see is not a property of the
+  scanner. It is a choice, made by somebody, in the two or three numbers of a schedule.</p>
+</header>
+
+<h2 class="sec">1 · A tissue is three numbers</h2>
+
+<p>Strip away the anatomy and a tissue, to an MRI, is <span class="num">T₁</span> (how quickly
+magnetisation recovers along the field after being knocked over), <span class="num">T₂</span> (how
+quickly it loses coherence in the transverse plane) and proton density. Here are the ones this page
+uses, measured:</p>
+
+<div class="panel">
+  <h4>Stanisz et al. 2005, Table 1 — 3 T, 37 °C</h4>
+  <table class="tissues" id="ttable">
+    <thead><tr><th></th><th>tissue</th><th>T₁ / ms</th><th>T₂ / ms</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="caveat">
+  <b>Three things to know before trusting a digit of that.</b> These are <b>in vitro</b>
+  measurements on excised tissue — bovine white and grey matter, mouse liver and muscle, human
+  blood — not in-vivo human numbers. The same table's own literature column disagrees with several:
+  it gives grey-matter T₁ as <span class="num">1470 ± 50 ms</span> against the
+  <span class="num">1820 ± 114 ms</span> measured here, a <b>24% disagreement in the single
+  most-used parameter in the field</b>, and neither is wrong — T₁ depends on preparation,
+  temperature, method and magnetization transfer. And proton density is set to 1.0 for every tissue
+  here, because that table does not measure it, so all the contrast below comes from T₁ and T₂
+  alone. Real proton-density differences in brain are small but not zero.
+</div>
+
+<h2 class="sec">2 · The same tissues, any brightness you like</h2>
+
+<p>Three schedules, three equations. A spin echo waits <span class="num">TR</span> between
+excitations and reads at <span class="num">TE</span>:</p>
+
+<div class="eq">S = PD · (1 − 2e<sup>−(TR−TE/2)/T₁</sup> + e<sup>−TR/T₁</sup>) · e<sup>−TE/T₂</sup></div>
+
+<p>Short TR punishes long-T₁ tissue, because it has not finished recovering when the next pulse
+arrives — that is <b>T₁ weighting</b>. Long TE punishes short-T₂ tissue, because it has already
+faded by the time you look — that is <b>T₂ weighting</b>. Make TR long and TE short and you punish
+neither, which is the proton-density image nobody wants. Drag the schedule and watch six tissues
+rearrange themselves.</p>
+
+<div class="panel">
+  <h4>drive the schedule · the image is reconstructed through part two's k-space path</h4>
+  <div class="split">
+    <div>
+      <canvas class="img" id="img" width="128" height="128"></canvas>
+      <div class="cap" id="imgcap">spin echo</div>
+    </div>
+    <div>
+      <canvas id="bars" width="360" height="300"></canvas>
+      <div class="cap">signal per tissue</div>
+    </div>
+  </div>
+  <div class="segs" id="seqsegs">
+    <button data-seq="0" aria-pressed="true">spin echo</button>
+    <button data-seq="1" aria-pressed="false">inversion recovery</button>
+    <button data-seq="2" aria-pressed="false">spoiled gradient echo</button>
+  </div>
+  <div class="segs" id="presets">
+    <button data-p="t1">T₁-weighted</button>
+    <button data-p="t2">T₂-weighted</button>
+    <button data-p="pd">proton density</button>
+    <button data-p="null">erase the difference</button>
+  </div>
+  <div class="ctl" id="knobs">
+    <label for="tr">TR</label><input type="range" id="tr" min="1.7" max="4.0" step="0.01" value="2.7"><output id="trv">500 ms</output>
+    <label for="te">TE</label><input type="range" id="te" min="0.3" max="2.3" step="0.01" value="1.0"><output id="tev">10 ms</output>
+    <label for="ti" class="ir">TI</label><input type="range" id="ti" min="1.0" max="3.6" step="0.01" value="2.5" class="ir"><output id="tiv" class="ir">316 ms</output>
+    <label for="fa" class="ge">flip angle</label><input type="range" id="fa" min="1" max="90" step="1" value="30" class="ge"><output id="fav" class="ge">30°</output>
+  </div>
+  <div class="verdict" id="say">…</div>
+</div>
+
+<h2 class="sec">3 · Contrast is not signal</h2>
+
+<p>A sequence can be bright and useless. What an image is <em>for</em> is the difference between
+two tissues, and that difference has its own landscape over the schedule — with a maximum in a
+different place from the signal maximum, and, more interestingly, <strong>a curve where it goes to
+zero</strong>. Along that curve two tissues produce exactly the same brightness and the image
+cannot tell them apart, however good the scanner is.</p>
+
+<div class="panel">
+  <h4>|white matter − grey matter| over the schedule · click to jump there</h4>
+  <canvas id="land" width="640" height="420"></canvas>
+  <div class="readout">
+    <div>contrast here<b id="lc">—</b></div>
+    <div>invisible at this TE when TR =<b id="lz" class="hot">—</b></div>
+    <div>best TR for this TE<b id="lb">—</b></div>
+  </div>
+  <div class="verdict">The dark valley running across the map is the <b>invisibility curve</b>:
+  every echo time up to about 110 ms has a repetition time at which white and grey matter cancel
+  exactly. It runs between the two places clinical imaging actually stands — T₁-weighted at the
+  bottom left, T₂-weighted at the top right — which is another way of saying those two regions are
+  on opposite sides of a sign change, and the "opposite" contrast of a T₁ and a T₂ image is not a
+  coincidence of physiology but a geometric fact about this surface.</div>
+</div>
+
+<h2 class="sec">4 · Two closed forms worth knowing</h2>
+
+<p>The <b>Ernst angle</b> is the flip angle that maximises gradient-echo signal for a given
+<span class="num">TR/T₁</span>: differentiate the signal with respect to α and you get
+<span class="num">cos α = e<sup>−TR/T₁</sup></span>. It is why fast sequences use small flip
+angles — at TR = 5 ms a tissue with T₁ = 1 s wants about 6°, not 90°. And it maximises signal for
+<em>one</em> tissue; the angle that maximises the difference between two is somewhere else
+entirely.</p>
+
+<p>The <b>null time</b> deletes a tissue. Invert the magnetisation, wait for the one you want gone
+to pass through zero, and excite at that instant:
+<span class="num">TI = T₁ · ln(2 / (1 + e<sup>−TR/T₁</sup>))</span>, which becomes the familiar
+<span class="num">T₁ · ln 2</span> when TR is long. This is how STIR removes fat and FLAIR removes
+cerebrospinal fluid — and why the same TI does not work on a scanner running a different TR.</p>
+
+<div class="panel">
+  <h4>left: gradient-echo signal against flip angle · right: recovery after inversion</h4>
+  <div class="split">
+    <div>
+      <canvas id="ernst" width="360" height="260"></canvas>
+      <div class="cap">Ernst angle at TR = <b id="ernsttr">—</b></div>
+    </div>
+    <div>
+      <canvas id="ir" width="360" height="260"></canvas>
+      <div class="cap">null at TI = <b id="irti">—</b></div>
+    </div>
+  </div>
+  <div class="ctl">
+    <label for="etr">TR</label><input type="range" id="etr" min="0.7" max="3.3" step="0.01" value="1.7"><output id="etrv">50 ms</output>
+    <label for="nullsel">null which</label><input type="range" id="nullsel" min="0" max="5" step="1" value="4"><output id="nullselv">liver</output>
+  </div>
+  <div class="verdict" id="nsay">…</div>
+</div>
+
+<div class="scope">
+  <b>Where this stops.</b> Three simplifications worth naming. Real sequences read many echoes per
+  excitation (fast spin echo), and the later ones are more T₂-weighted than the equation here
+  admits. Gradient-echo signal assumes <em>perfect</em> spoiling; imperfect spoiling produces
+  steady-state free precession, which is a different equation and a different-looking image. And
+  the biggest omission: <b>contrast agents</b>, which shorten T₁ in proportion to their
+  concentration and are in a large fraction of clinical scans. All three are additions to this
+  page rather than corrections to it.
+</div>
+
+<h2 class="sec">Where this comes from</h2>
+
+<ul class="src">
+  <li><a href="https://doi.org/10.1002/mrm.20605">Stanisz GJ, Odrobina EE, Pun J, Escaravage M, Graham SJ, Bronskill MJ &amp; Henkelman RM (2005). T₁, T₂ relaxation and magnetization transfer in tissue at 3T. <i>Magn Reson Med</i> 54:507–512.</a>
+    <span class="what">Every tissue number on this page is Table 1, "This study", 3 T column — read from the paper, uncertainties included. In vitro, 37 °C.</span></li>
+  <li><a href="https://doi.org/10.1063/1.1719961">Ernst RR &amp; Anderson WA (1966). Application of Fourier transform spectroscopy to magnetic resonance. <i>Rev Sci Instrum</i> 37:93–102.</a>
+    <span class="what">The Ernst angle, and the pulse-and-transform method the whole instrument runs on. Nobel 1991.</span></li>
+  <li><a href="https://doi.org/10.1103/PhysRev.70.460">Bloch F (1946). Nuclear induction. <i>Phys Rev</i> 70:460–474.</a>
+    <span class="what">The equations every closed form on this page is checked against, by simulation, in the engine's tests.</span></li>
+  <li><a href="https://doi.org/10.1126/science.171.3976.1151">Damadian R (1971). Tumor detection by nuclear magnetic resonance. <i>Science</i> 171:1151–1153.</a>
+    <span class="what">The claim that relaxation times differ between tissues — the one that made a medical instrument conceivable at all. This page is that claim, operationalised.</span></li>
+  <li><a href="https://doi.org/10.1016/j.mri.2016.08.021">Zavala Bojorquez J, Bricq S, Acquitter C, Brunotte F, Walker PM &amp; Lalande A (2017). What are normal relaxation times of tissues at 3 T? <i>Magn Reson Imaging</i> 35:69–80.</a>
+    <span class="what">A review of how much published relaxation times disagree, and why. Reports fat T₁ at 3 T as 366 ± 78 ms by one method and 450 ± 26 ms by another in the same breast — which is the honest state of the art, and the reason the caveat above is not false modesty.</span></li>
+  <li><a href="https://doi.org/10.1002/mrm.1910030602">Hennig J, Nauerth A &amp; Friedburg H (1986). RARE imaging: a fast imaging method for clinical MR. <i>Magn Reson Med</i> 3:823–833.</a>
+    <span class="what">Many echoes per excitation — the sequence family whose contrast this page's single-echo equation does not quite describe.</span></li>
+</ul>
+
+<p class="cite">The three sequence equations are validated against a full Bloch simulation built
+from part one's integrator — repeated pulses run to steady state — rather than against a textbook;
+the Ernst angle and the null time are checked against brute-force optima of their own equations;
+and the tissue table is asserted digit-for-digit against the paper.
+<code>cd sci/engine-rs &amp;&amp; cargo test --release</code> — 39 known-answer tests.</p>
+
+<p class="stamp">engine: rust → wasm · no dependencies · 39 tests · <a href="/mri/">part one</a> · <a href="/mri/kspace/">part two</a> · <a href="/">sci</a></p>
+
+<script type="module">
+import init, {
+  TissueImager, tissue_count, tissue_name, tissue_relaxation_ms, tissue_signal,
+  signal_for, contrast_map, zero_contrast_tr_ms, ernst_angle_deg, null_time_ms
+} from '../pkg/mri.js';
+
+const $ = (id) => document.getElementById(id);
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const N = 128;
+const HUES = ['#5eead4', '#e8a838', '#8ab4f8', '#f28b82', '#c58af9', '#81c995'];
+
+function fail(err) {
+  document.querySelectorAll('.panel').forEach((p) => {
+    p.innerHTML = '<p class="err">could not load the wasm engine: ' + err + '</p>';
+  });
+}
+// log-scaled sliders: the interesting range of TR and TE spans decades
+const dec = (el) => Math.pow(10, +el.value);
+const setDec = (el, ms) => { el.value = Math.log10(ms); };
+
+function fit(cv) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth || cv.width;
+  const h = Math.round(w * (cv.height / cv.width));
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  cv.style.height = h + 'px';
+  const g = cv.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+  return { g, w, h };
+}
+
+init().then(() => {
+  const NT = tissue_count();
+  const T = [];
+  for (let i = 0; i < NT; i++) {
+    const r = tissue_relaxation_ms(i);
+    T.push({ name: tissue_name(i), t1: r[0], t2: r[1], t1sd: r[2], t2sd: r[3], hue: HUES[i % HUES.length] });
+  }
+
+  // ---------------------------------------------------- §1 the table -------
+  $('ttable').querySelector('tbody').innerHTML = T.map((t) =>
+    `<tr><td class="sw"><i style="background:${t.hue}"></i></td><td>${t.name}</td>` +
+    `<td>${t.t1.toFixed(0)} ± ${t.t1sd.toFixed(0)}</td>` +
+    `<td>${t.t2.toFixed(0)} ± ${t.t2sd.toFixed(0)}</td></tr>`).join('');
+
+  // ------------------------------------------- §2 the schedule + image -----
+  const imager = new TissueImager(N, 26, 11);
+  let seq = 0;
+
+  const showKnobs = () => {
+    document.querySelectorAll('.ir').forEach((e) => e.style.display = seq === 1 ? '' : 'none');
+    document.querySelectorAll('.ge').forEach((e) => e.style.display = seq === 2 ? '' : 'none');
+  };
+
+  const renderScene = () => {
+    const tr = dec($('tr')), te = dec($('te')), ti = dec($('ti')), fa = +$('fa').value;
+    $('trv').textContent = tr < 1000 ? tr.toFixed(0) + ' ms' : (tr / 1000).toFixed(2) + ' s';
+    $('tev').textContent = te.toFixed(1) + ' ms';
+    $('tiv').textContent = ti.toFixed(0) + ' ms';
+    $('fav').textContent = fa + '°';
+
+    const img = imager.image(seq, tr, te, ti, fa);
+    // Window to the brightest tissue so the picture uses the full range, the
+    // way a scanner console does.
+    let hi = 0; for (let i = 0; i < img.length; i++) if (img[i] > hi) hi = img[i];
+    const c = $('img'); const g = c.getContext('2d');
+    if (c.width !== N) { c.width = N; c.height = N; }
+    const d = new ImageData(N, N);
+    for (let i = 0; i < N * N; i++) {
+      const v = hi > 0 ? Math.min(1, img[i] / hi) : 0;
+      const s = Math.round(255 * Math.pow(v, 0.85));
+      d.data[i * 4] = s; d.data[i * 4 + 1] = s; d.data[i * 4 + 2] = s; d.data[i * 4 + 3] = 255;
+    }
+    g.putImageData(d, 0, 0);
+
+    // bars
+    const sig = T.map((_, i) => tissue_signal(i, seq, tr, te, ti, fa));
+    const { g: bg, w, h } = fit($('bars'));
+    const max = Math.max(...sig.map(Math.abs), 1e-6);
+    const rowH = h / NT;
+    bg.font = '11px ui-monospace, monospace';
+    T.forEach((t, i) => {
+      const y = i * rowH;
+      const bw = (w - 96) * Math.abs(sig[i]) / max;
+      bg.fillStyle = t.hue;
+      bg.fillRect(94, y + rowH * 0.22, bw, rowH * 0.5);
+      bg.fillStyle = css('--muted');
+      bg.textAlign = 'right'; bg.fillText(t.name, 88, y + rowH * 0.62);
+      bg.fillStyle = css('--fg'); bg.textAlign = 'left';
+      bg.fillText(sig[i].toFixed(3), 98 + bw, y + rowH * 0.62);
+    });
+
+    // the verdict: which is brightest, and what that means
+    const order = sig.map((s, i) => [s, i]).sort((a, b) => b[0] - a[0]);
+    const wm = sig[0], gm = sig[1];
+    const gap = Math.abs(wm - gm) / Math.max(Math.abs(wm), Math.abs(gm), 1e-9);
+    let msg = `Brightest: <b>${T[order[0][1]].name}</b>. `;
+    if (gap < 0.02) {
+      msg += 'White and grey matter are within 2% of each other — on this schedule the image ' +
+             'cannot tell them apart at all.';
+    } else if (wm > gm) {
+      msg += 'White matter is brighter than grey: short TR is punishing grey matter’s longer T₁. ' +
+             'This is a <b>T₁-weighted</b> image.';
+    } else {
+      msg += 'Grey matter is brighter than white: long TE is punishing white matter’s shorter T₂. ' +
+             'This is a <b>T₂-weighted</b> image.';
+    }
+    $('say').innerHTML = msg;
+    $('imgcap').textContent = ['spin echo', 'inversion recovery', 'spoiled gradient echo'][seq];
+  };
+
+  $('seqsegs').addEventListener('click', (ev) => {
+    const b = ev.target.closest('button'); if (!b) return;
+    seq = +b.dataset.seq;
+    [...$('seqsegs').querySelectorAll('button')].forEach((x) =>
+      x.setAttribute('aria-pressed', String(+x.dataset.seq === seq)));
+    showKnobs(); renderScene();
+  });
+  $('presets').addEventListener('click', (ev) => {
+    const b = ev.target.closest('button'); if (!b) return;
+    const p = b.dataset.p;
+    if (p === 't1') { setDec($('tr'), 500); setDec($('te'), 10); }
+    if (p === 't2') { setDec($('tr'), 4000); setDec($('te'), 100); }
+    if (p === 'pd') { setDec($('tr'), 4000); setDec($('te'), 8); }
+    if (p === 'null') {
+      const te = 20; const tr = zero_contrast_tr_ms(0, 1, te);
+      setDec($('te'), te); setDec($('tr'), tr > 0 ? tr : 2000);
+    }
+    renderScene(); renderLand();
+  });
+  ['tr', 'te', 'ti', 'fa'].forEach((id) =>
+    $(id).addEventListener('input', () => { renderScene(); renderLand(); }));
+
+  // ---------------------------------------------- §3 the contrast landscape --
+  const TR_LO = 50, TR_HI = 8000, TE_LO = 2, TE_HI = 200;
+  const MW = 160, MH = 120;
+  const renderLand = () => {
+    const { g, w, h } = fit($('land'));
+    const pad = { l: 52, r: 12, t: 12, b: 30 };
+    const map = contrast_map(0, 1, TR_LO, TR_HI, TE_LO, TE_HI, MW, MH, true);
+    let mx = 0; for (let i = 0; i < map.length; i++) mx = Math.max(mx, Math.abs(map[i]));
+    const d = new ImageData(MW, MH);
+    for (let i = 0; i < MW * MH; i++) {
+      const v = map[i] / (mx || 1);
+      const t = Math.pow(Math.abs(v), 0.55);
+      const p = i * 4;
+      // white matter brighter → teal; grey matter brighter → amber; zero → dark
+      if (v >= 0) { d.data[p] = 30 + 60 * t; d.data[p + 1] = 30 + 210 * t; d.data[p + 2] = 30 + 185 * t; }
+      else { d.data[p] = 30 + 220 * t; d.data[p + 1] = 30 + 145 * t; d.data[p + 2] = 30 + 40 * t; }
+      d.data[p + 3] = 255;
+    }
+    createImageBitmap(d).then((bmp) => {
+      const iw = w - pad.l - pad.r, ih = h - pad.t - pad.b;
+      g.clearRect(0, 0, w, h);
+      g.imageSmoothingEnabled = true;
+      g.drawImage(bmp, pad.l, pad.t, iw, ih);
+
+      const px = (tr) => pad.l + iw * Math.log10(tr / TR_LO) / Math.log10(TR_HI / TR_LO);
+      const py = (te) => pad.t + ih * (1 - Math.log10(te / TE_LO) / Math.log10(TE_HI / TE_LO));
+
+      // the invisibility curve, from the engine's root finder
+      g.strokeStyle = '#fff'; g.globalAlpha = 0.85; g.lineWidth = 1.6;
+      g.setLineDash([5, 3]); g.beginPath();
+      let started = false;
+      for (let k = 0; k <= 60; k++) {
+        const te = TE_LO * Math.pow(TE_HI / TE_LO, k / 60);
+        const tr = zero_contrast_tr_ms(0, 1, te);
+        if (tr <= 0) continue;
+        const X = px(Math.min(Math.max(tr, TR_LO), TR_HI));
+        started ? g.lineTo(X, py(te)) : g.moveTo(X, py(te));
+        started = true;
+      }
+      g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
+
+      // axes
+      g.fillStyle = css('--muted'); g.font = '10px ui-monospace, monospace';
+      for (const tr of [50, 200, 1000, 4000, 8000]) g.fillText(tr >= 1000 ? (tr / 1000) + 's' : tr, px(tr) - 8, h - 10);
+      for (const te of [2, 10, 50, 200]) g.fillText(te + 'ms', 6, py(te) + 3);
+      g.fillText('TR →', w - 60, h - 10);
+
+      // where the schedule currently is
+      const tr = dec($('tr')), te = dec($('te'));
+      const X = px(Math.min(Math.max(tr, TR_LO), TR_HI));
+      const Y = py(Math.min(Math.max(te, TE_LO), TE_HI));
+      g.strokeStyle = '#fff'; g.lineWidth = 1.4;
+      g.beginPath(); g.arc(X, Y, 6, 0, 7); g.stroke();
+      g.beginPath(); g.moveTo(X - 10, Y); g.lineTo(X + 10, Y); g.moveTo(X, Y - 10); g.lineTo(X, Y + 10); g.stroke();
+
+      const c = tissue_signal(0, 0, tr, te, 0, 0) - tissue_signal(1, 0, tr, te, 0, 0);
+      $('lc').textContent = (c >= 0 ? '+' : '') + c.toFixed(4);
+      const z = zero_contrast_tr_ms(0, 1, te);
+      $('lz').textContent = z > 0 ? (z < 1000 ? z.toFixed(0) + ' ms' : (z / 1000).toFixed(2) + ' s') : 'never';
+      // best TR at this TE, by scan
+      let best = [0, -1];
+      for (let k = 0; k <= 200; k++) {
+        const t = TR_LO * Math.pow(TR_HI / TR_LO, k / 200);
+        const v = Math.abs(tissue_signal(0, 0, t, te, 0, 0) - tissue_signal(1, 0, t, te, 0, 0));
+        if (v > best[1]) best = [t, v];
+      }
+      $('lb').textContent = best[0] < 1000 ? best[0].toFixed(0) + ' ms' : (best[0] / 1000).toFixed(2) + ' s';
+
+      $('land').onclick = (ev) => {
+        const r = $('land').getBoundingClientRect();
+        const fx = (ev.clientX - r.left) * (w / r.width);
+        const fy = (ev.clientY - r.top) * (h / r.height);
+        const trc = TR_LO * Math.pow(TR_HI / TR_LO, (fx - pad.l) / iw);
+        const tec = TE_LO * Math.pow(TE_HI / TE_LO, 1 - (fy - pad.t) / ih);
+        if (trc > 0 && tec > 0) {
+          setDec($('tr'), Math.min(Math.max(trc, TR_LO), TR_HI));
+          setDec($('te'), Math.min(Math.max(tec, TE_LO), TE_HI));
+          renderScene(); renderLand();
+        }
+      };
+    });
+  };
+
+  // ------------------------------------------- §4 Ernst angle + nulling ----
+  const renderErnst = () => {
+    const tr = dec($('etr'));
+    $('etrv').textContent = tr < 1000 ? tr.toFixed(0) + ' ms' : (tr / 1000).toFixed(2) + ' s';
+    const { g, w, h } = fit($('ernst'));
+    const pad = { l: 34, r: 10, t: 12, b: 26 };
+    const px = (a) => pad.l + (w - pad.l - pad.r) * a / 90;
+    let mx = 0;
+    const curves = T.map((t) => {
+      const pts = [];
+      for (let a = 0.5; a <= 90; a += 0.5) {
+        const s = signal_for(t.t1, t.t2, 2, tr, 0, 0, a);
+        mx = Math.max(mx, s); pts.push([a, s]);
+      }
+      return pts;
+    });
+    const py = (s) => pad.t + (h - pad.t - pad.b) * (1 - s / (mx || 1));
+    g.strokeStyle = css('--rule'); g.lineWidth = 1;
+    g.beginPath(); g.moveTo(pad.l, py(0)); g.lineTo(w - pad.r, py(0)); g.stroke();
+    g.fillStyle = css('--muted'); g.font = '10px ui-monospace, monospace';
+    for (const a of [0, 30, 60, 90]) g.fillText(a + '°', px(a) - 8, h - 8);
+    curves.forEach((pts, i) => {
+      g.strokeStyle = T[i].hue; g.lineWidth = 1.6; g.beginPath();
+      pts.forEach(([a, s], k) => k ? g.lineTo(px(a), py(s)) : g.moveTo(px(a), py(s)));
+      g.stroke();
+      const ang = ernst_angle_deg(tr, T[i].t1);
+      const s = signal_for(T[i].t1, T[i].t2, 2, tr, 0, 0, ang);
+      g.fillStyle = T[i].hue;
+      g.beginPath(); g.arc(px(ang), py(s), 3, 0, 7); g.fill();
+    });
+    $('ernsttr').textContent = T.map((t) => ernst_angle_deg(tr, t.t1).toFixed(0) + '°').join(' / ');
+  };
+
+  const renderIR = () => {
+    const sel = +$('nullsel').value;
+    $('nullselv').textContent = T[sel].name;
+    const tr = 3000;
+    const ti = null_time_ms(T[sel].t1, tr);
+    const { g, w, h } = fit($('ir'));
+    const pad = { l: 34, r: 10, t: 12, b: 26 };
+    const TIMAX = 2500;
+    const px = (t) => pad.l + (w - pad.l - pad.r) * t / TIMAX;
+    const py = (m) => pad.t + (h - pad.t - pad.b) * (1 - (m + 1) / 2);
+    g.strokeStyle = css('--rule'); g.lineWidth = 1;
+    g.beginPath(); g.moveTo(pad.l, py(0)); g.lineTo(w - pad.r, py(0)); g.stroke();
+    g.fillStyle = css('--muted'); g.font = '10px ui-monospace, monospace';
+    for (const t of [0, 1000, 2000]) g.fillText(t + 'ms', px(t), h - 8);
+    T.forEach((t, i) => {
+      g.strokeStyle = t.hue; g.lineWidth = i === sel ? 2.4 : 1.2;
+      g.globalAlpha = i === sel ? 1 : 0.55;
+      g.beginPath();
+      for (let x = 0; x <= TIMAX; x += 8) {
+        const m = 1 - 2 * Math.exp(-x / t.t1) + Math.exp(-tr / t.t1);
+        x ? g.lineTo(px(x), py(m)) : g.moveTo(px(x), py(m));
+      }
+      g.stroke(); g.globalAlpha = 1;
+    });
+    g.strokeStyle = css('--warm'); g.setLineDash([3, 3]); g.lineWidth = 1.2;
+    g.beginPath(); g.moveTo(px(ti), pad.t); g.lineTo(px(ti), h - pad.b); g.stroke();
+    g.setLineDash([]);
+    $('irti').textContent = ti.toFixed(0) + ' ms';
+    const others = T.map((t, i) => i === sel ? null :
+      Math.abs(1 - 2 * Math.exp(-ti / t.t1) + Math.exp(-tr / t.t1))).filter((v) => v !== null);
+    $('nsay').innerHTML = `At <b>TI = ${ti.toFixed(0)} ms</b> the ${T[sel].name} curve is crossing ` +
+      `zero, so it contributes nothing. Everything else still does — the nearest other tissue is ` +
+      `at <b>${Math.min(...others).toFixed(3)}</b> of full magnetisation. ` +
+      `Long-TR limit would be T₁·ln2 = ${(T[sel].t1 * Math.LN2).toFixed(0)} ms; at TR = 3 s the ` +
+      `null comes earlier because the magnetisation never fully recovered.`;
+  };
+
+  ['etr'].forEach((id) => $(id).addEventListener('input', renderErnst));
+  $('nullsel').addEventListener('input', renderIR);
+
+  const all = () => { showKnobs(); renderScene(); renderLand(); renderErnst(); renderIR(); };
+  all();
+  window.addEventListener('resize', all);
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', all);
+  }
+}).catch(fail);
+</script>
+</body>
+</html>

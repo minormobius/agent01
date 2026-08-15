@@ -313,6 +313,77 @@ export class RxCoil {
 if (Symbol.dispose) RxCoil.prototype[Symbol.dispose] = RxCoil.prototype.free;
 
 /**
+ * A scanner whose phantom is made of the measured tissues, imaged through the
+ * same encoding and reconstruction as part two.
+ */
+export class TissueImager {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        TissueImagerFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_tissueimager_free(ptr, 0);
+    }
+    /**
+     * Re-weight every region by what its tissue does under this sequence, then
+     * acquire and reconstruct. The image is a real reconstruction, not a
+     * colouring-in of the truth map.
+     * @param {number} kind
+     * @param {number} tr_ms
+     * @param {number} te_ms
+     * @param {number} ti_ms
+     * @param {number} flip_deg
+     * @returns {Float32Array}
+     */
+    image(kind, tr_ms, te_ms, ti_ms, flip_deg) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.tissueimager_image(retptr, this.__wbg_ptr, kind, tr_ms, te_ms, ti_ms, flip_deg);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v1 = getArrayF32FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export(r0, r1 * 4, 4);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * A map of which tissue is where, for the legend: the tissue index at each
+     * pixel, or −1 outside the phantom.
+     * @returns {Int32Array}
+     */
+    label_map() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.tissueimager_label_map(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v1 = getArrayI32FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export(r0, r1 * 4, 4);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @param {number} n
+     * @param {number} fov_cm
+     * @param {number} object_cm
+     */
+    constructor(n, fov_cm, object_cm) {
+        const ret = wasm.tissueimager_new(n, fov_cm, object_cm);
+        this.__wbg_ptr = ret;
+        TissueImagerFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+}
+if (Symbol.dispose) TissueImager.prototype[Symbol.dispose] = TissueImager.prototype.free;
+
+/**
  * The signal-optimal loop radius for a target depth, `√2 · z`.
  * @param {number} depth_m
  * @returns {number}
@@ -320,6 +391,34 @@ if (Symbol.dispose) RxCoil.prototype[Symbol.dispose] = RxCoil.prototype.free;
 export function best_radius(depth_m) {
     const ret = wasm.best_radius(depth_m);
     return ret;
+}
+
+/**
+ * |contrast| between two tissues over a log-spaced TR × TE grid, row-major
+ * (`nte` rows of `ntr`). The landscape a radiographer is choosing a point on.
+ * @param {number} i
+ * @param {number} j
+ * @param {number} tr_lo_ms
+ * @param {number} tr_hi_ms
+ * @param {number} te_lo_ms
+ * @param {number} te_hi_ms
+ * @param {number} ntr
+ * @param {number} nte
+ * @param {boolean} signed
+ * @returns {Float32Array}
+ */
+export function contrast_map(i, j, tr_lo_ms, tr_hi_ms, te_lo_ms, te_hi_ms, ntr, nte, signed) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.contrast_map(retptr, i, j, tr_lo_ms, tr_hi_ms, te_lo_ms, te_hi_ms, ntr, nte, signed);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var v1 = getArrayF32FromWasm0(r0, r1).slice();
+        wasm.__wbindgen_export(r0, r1 * 4, 4);
+        return v1;
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
 }
 
 /**
@@ -332,6 +431,17 @@ export function best_radius(depth_m) {
  */
 export function epi_shift_px(off_res_hz, n, dwell_us, undersample) {
     const ret = wasm.epi_shift_px(off_res_hz, n, dwell_us, undersample);
+    return ret;
+}
+
+/**
+ * The Ernst angle in degrees: `cos α = e^(−TR/T₁)`.
+ * @param {number} tr_ms
+ * @param {number} t1_ms
+ * @returns {number}
+ */
+export function ernst_angle_deg(tr_ms, t1_ms) {
+    const ret = wasm.ernst_angle_deg(tr_ms, t1_ms);
     return ret;
 }
 
@@ -393,6 +503,17 @@ export function loop_axis_field_ut(radius_m, z_m) {
 }
 
 /**
+ * The inversion time that nulls a T₁, in ms.
+ * @param {number} t1_ms
+ * @param {number} tr_ms
+ * @returns {number}
+ */
+export function null_time_ms(t1_ms, tr_ms) {
+    const ret = wasm.null_time_ms(t1_ms, tr_ms);
+    return ret;
+}
+
+/**
  * Thermal spin polarisation in parts per million, at body temperature.
  * @param {number} b0
  * @returns {number}
@@ -431,6 +552,23 @@ export function shift_px(a, b, n) {
 }
 
 /**
+ * Signal from an arbitrary `(T1, T2)` — for drawing the response of a tissue
+ * the table does not contain.
+ * @param {number} t1_ms
+ * @param {number} t2_ms
+ * @param {number} kind
+ * @param {number} tr_ms
+ * @param {number} te_ms
+ * @param {number} ti_ms
+ * @param {number} flip_deg
+ * @returns {number}
+ */
+export function signal_for(t1_ms, t2_ms, kind, tr_ms, te_ms, ti_ms, flip_deg) {
+    const ret = wasm.signal_for(t1_ms, t2_ms, kind, tr_ms, te_ms, ti_ms, flip_deg);
+    return ret;
+}
+
+/**
  * Hahn spin echo: 90°, τ, 180°, and the echo at 2τ.
  * @param {number} t1
  * @param {number} t2
@@ -454,6 +592,84 @@ export function spin_echo(t1, t2, spread_hz, tau, dt, steps, n_iso) {
         wasm.__wbindgen_add_to_stack_pointer(16);
     }
 }
+
+/**
+ * How many tissues the measured table carries.
+ * @returns {number}
+ */
+export function tissue_count() {
+    const ret = wasm.tissue_count();
+    return ret >>> 0;
+}
+
+/**
+ * @param {number} i
+ * @returns {string}
+ */
+export function tissue_name(i) {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.tissue_name(retptr, i);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred1_0 = r0;
+        deferred1_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * `[T1, T2, T1 sd, T2 sd]` in milliseconds, straight from Stanisz 2005 Table 1.
+ * @param {number} i
+ * @returns {Float64Array}
+ */
+export function tissue_relaxation_ms(i) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.tissue_relaxation_ms(retptr, i);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var v1 = getArrayF64FromWasm0(r0, r1).slice();
+        wasm.__wbindgen_export(r0, r1 * 8, 8);
+        return v1;
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
+ * Signal from tissue `i` under a sequence. `kind`: 0 spin echo,
+ * 1 inversion recovery, 2 spoiled gradient echo.
+ * @param {number} i
+ * @param {number} kind
+ * @param {number} tr_ms
+ * @param {number} te_ms
+ * @param {number} ti_ms
+ * @param {number} flip_deg
+ * @returns {number}
+ */
+export function tissue_signal(i, kind, tr_ms, te_ms, ti_ms, flip_deg) {
+    const ret = wasm.tissue_signal(i, kind, tr_ms, te_ms, ti_ms, flip_deg);
+    return ret;
+}
+
+/**
+ * The TR at which two tissues become indistinguishable at this TE, in ms.
+ * Negative if there is no such TR — at long TE, T₂ wins everywhere.
+ * @param {number} i
+ * @param {number} j
+ * @param {number} te_ms
+ * @returns {number}
+ */
+export function zero_contrast_tr_ms(i, j, te_ms) {
+    const ret = wasm.zero_contrast_tr_ms(i, j, te_ms);
+    return ret;
+}
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,
@@ -473,6 +689,9 @@ const ImagerFinalization = (typeof FinalizationRegistry === 'undefined')
 const RxCoilFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_rxcoil_free(ptr, 1));
+const TissueImagerFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_tissueimager_free(ptr, 1));
 
 function getArrayF32FromWasm0(ptr, len) {
     ptr = ptr >>> 0;

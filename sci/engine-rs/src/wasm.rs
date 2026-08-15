@@ -301,3 +301,172 @@ pub fn epi_shift_px(off_res_hz: f64, n: usize, dwell_us: f64, undersample: usize
 pub fn shift_px(a: &[f32], b: &[f32], n: usize) -> f64 {
     crate::encode::shift_along_y(a, b, n)
 }
+
+// ------------------------------------------------------- contrast (part 3) --
+
+use crate::contrast::{
+    contrast as tissue_contrast, contrast_zero_crossing, ernst_angle, null_time, Sequence, Tissue,
+    STANISZ_3T,
+};
+
+fn seq_of(kind: u32, tr_ms: f64, te_ms: f64, ti_ms: f64, flip_deg: f64) -> Sequence {
+    let (tr, te, ti) = (tr_ms * 1e-3, te_ms * 1e-3, ti_ms * 1e-3);
+    match kind {
+        1 => Sequence::InversionRecovery { tr, ti, te },
+        2 => Sequence::SpoiledGradientEcho { tr, te, flip: flip_deg.to_radians() },
+        _ => Sequence::SpinEcho { tr, te },
+    }
+}
+
+/// How many tissues the measured table carries.
+#[wasm_bindgen]
+pub fn tissue_count() -> usize {
+    STANISZ_3T.len()
+}
+
+#[wasm_bindgen]
+pub fn tissue_name(i: usize) -> String {
+    STANISZ_3T[i.min(STANISZ_3T.len() - 1)].name.to_string()
+}
+
+/// `[T1, T2, T1 sd, T2 sd]` in milliseconds, straight from Stanisz 2005 Table 1.
+#[wasm_bindgen]
+pub fn tissue_relaxation_ms(i: usize) -> Vec<f64> {
+    let t = STANISZ_3T[i.min(STANISZ_3T.len() - 1)];
+    vec![t.t1 * 1e3, t.t2 * 1e3, t.t1_sd * 1e3, t.t2_sd * 1e3]
+}
+
+/// Signal from tissue `i` under a sequence. `kind`: 0 spin echo,
+/// 1 inversion recovery, 2 spoiled gradient echo.
+#[wasm_bindgen]
+pub fn tissue_signal(i: usize, kind: u32, tr_ms: f64, te_ms: f64, ti_ms: f64, flip_deg: f64) -> f64 {
+    let t = STANISZ_3T[i.min(STANISZ_3T.len() - 1)];
+    seq_of(kind, tr_ms, te_ms, ti_ms, flip_deg).signal(&t, t.t2)
+}
+
+/// Signal from an arbitrary `(T1, T2)` — for drawing the response of a tissue
+/// the table does not contain.
+#[wasm_bindgen]
+pub fn signal_for(
+    t1_ms: f64,
+    t2_ms: f64,
+    kind: u32,
+    tr_ms: f64,
+    te_ms: f64,
+    ti_ms: f64,
+    flip_deg: f64,
+) -> f64 {
+    let t = Tissue { name: "", t1: t1_ms * 1e-3, t2: t2_ms * 1e-3, t1_sd: 0.0, t2_sd: 0.0, pd: 1.0 };
+    seq_of(kind, tr_ms, te_ms, ti_ms, flip_deg).signal(&t, t.t2)
+}
+
+/// |contrast| between two tissues over a log-spaced TR × TE grid, row-major
+/// (`nte` rows of `ntr`). The landscape a radiographer is choosing a point on.
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn contrast_map(
+    i: usize,
+    j: usize,
+    tr_lo_ms: f64,
+    tr_hi_ms: f64,
+    te_lo_ms: f64,
+    te_hi_ms: f64,
+    ntr: usize,
+    nte: usize,
+    signed: bool,
+) -> Vec<f32> {
+    let (a, b) = (STANISZ_3T[i.min(5)], STANISZ_3T[j.min(5)]);
+    let mut out = Vec::with_capacity(ntr * nte);
+    for ry in 0..nte {
+        let te = te_lo_ms * (te_hi_ms / te_lo_ms).powf(ry as f64 / (nte - 1).max(1) as f64) * 1e-3;
+        for rx in 0..ntr {
+            let tr =
+                tr_lo_ms * (tr_hi_ms / tr_lo_ms).powf(rx as f64 / (ntr - 1).max(1) as f64) * 1e-3;
+            let c = tissue_contrast(&a, &b, &Sequence::SpinEcho { tr, te }, 1.0);
+            out.push(if signed { c as f32 } else { c.abs() as f32 });
+        }
+    }
+    out
+}
+
+/// The TR at which two tissues become indistinguishable at this TE, in ms.
+/// Negative if there is no such TR — at long TE, T₂ wins everywhere.
+#[wasm_bindgen]
+pub fn zero_contrast_tr_ms(i: usize, j: usize, te_ms: f64) -> f64 {
+    let (a, b) = (STANISZ_3T[i.min(5)], STANISZ_3T[j.min(5)]);
+    let te = te_ms * 1e-3;
+    contrast_zero_crossing(&a, &b, te, te * 1.5, 20.0).map_or(-1.0, |tr| tr * 1e3)
+}
+
+/// The Ernst angle in degrees: `cos α = e^(−TR/T₁)`.
+#[wasm_bindgen]
+pub fn ernst_angle_deg(tr_ms: f64, t1_ms: f64) -> f64 {
+    ernst_angle(tr_ms * 1e-3, t1_ms * 1e-3).to_degrees()
+}
+
+/// The inversion time that nulls a T₁, in ms.
+#[wasm_bindgen]
+pub fn null_time_ms(t1_ms: f64, tr_ms: f64) -> f64 {
+    null_time(t1_ms * 1e-3, tr_ms * 1e-3) * 1e3
+}
+
+/// A scanner whose phantom is made of the measured tissues, imaged through the
+/// same encoding and reconstruction as part two.
+#[wasm_bindgen]
+pub struct TissueImager {
+    sc: Scanner,
+}
+
+#[wasm_bindgen]
+impl TissueImager {
+    #[wasm_bindgen(constructor)]
+    pub fn new(n: usize, fov_cm: f64, object_cm: f64) -> TissueImager {
+        TissueImager {
+            sc: Scanner::new(
+                n,
+                fov_cm / 100.0,
+                object_cm / 100.0,
+                Phantom::from_tissue_signals(&[1.0; 6]),
+            ),
+        }
+    }
+
+    /// Re-weight every region by what its tissue does under this sequence, then
+    /// acquire and reconstruct. The image is a real reconstruction, not a
+    /// colouring-in of the truth map.
+    pub fn image(&mut self, kind: u32, tr_ms: f64, te_ms: f64, ti_ms: f64, flip_deg: f64) -> Vec<f32> {
+        let seq = seq_of(kind, tr_ms, te_ms, ti_ms, flip_deg);
+        let signals: Vec<f64> = STANISZ_3T.iter().map(|t| seq.signal(t, t.t2)).collect();
+        self.sc.phantom = Phantom::from_tissue_signals(&signals);
+        self.sc.acquire(
+            Trajectory::SpinWarp,
+            Timing { dwell: 4e-6, t2star: 1e6, off_res: 0.0 },
+            1,
+        );
+        self.sc.reconstruct(None)
+    }
+
+    /// A map of which tissue is where, for the legend: the tissue index at each
+    /// pixel, or −1 outside the phantom.
+    pub fn label_map(&self) -> Vec<i32> {
+        let n = self.sc.n;
+        let px = self.sc.pixel();
+        let h = n as f64 / 2.0;
+        let regions = crate::phantom::tissue_regions();
+        let mut out = Vec::with_capacity(n * n);
+        for iy in 0..n {
+            for ix in 0..n {
+                let x = (ix as f64 - h) * px / self.sc.object_radius;
+                let y = (iy as f64 - h) * px / self.sc.object_radius;
+                let mut label = -1;
+                for (geom, tix) in regions.iter() {
+                    if geom.contains(x, y) {
+                        label = *tix as i32;
+                    }
+                }
+                out.push(label);
+            }
+        }
+        out
+    }
+}

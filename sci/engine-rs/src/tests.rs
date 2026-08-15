@@ -654,3 +654,286 @@ fn t2star_blurs_epi_and_not_spin_warp() {
         "EPI PSF should broaden measurably: ×{epi_ratio}"
     );
 }
+
+// ======================================================= contrast (part 3) ==
+
+use crate::contrast::*;
+
+/// Simulate a sequence with the Bloch integrator from part one and return the
+/// steady-state signal — the ground truth the closed forms are checked against.
+///
+/// This is the point of the exercise: `contrast.rs` prints equations that every
+/// textbook prints, and here they are made to agree with an actual simulation
+/// of pulses and relaxation, run to steady state.
+fn bloch_spgr(t: &Tissue, tr: f64, te: f64, flip_deg: f64, reps: usize) -> f64 {
+    let mut s = Spin::new(t.t1, t.t2, 0.0);
+    let mut sig = 0.0;
+    for _ in 0..reps {
+        s.pulse(flip_deg.to_radians(), 0.0);
+        s.evolve(te);
+        sig = (s.m[0] * s.m[0] + s.m[1] * s.m[1]).sqrt();
+        s.evolve(tr - te);
+        // Perfect spoiling: destroy whatever transverse magnetisation is left
+        // before the next excitation. That assumption is what makes the closed
+        // form a closed form.
+        s.m[0] = 0.0;
+        s.m[1] = 0.0;
+    }
+    sig
+}
+
+fn bloch_spin_echo(t: &Tissue, tr: f64, te: f64, reps: usize) -> f64 {
+    let mut s = Spin::new(t.t1, t.t2, 0.0);
+    let mut sig = 0.0;
+    for _ in 0..reps {
+        s.pulse(PI / 2.0, 0.0);
+        s.evolve(te / 2.0);
+        s.pulse(PI, PI / 2.0);
+        s.evolve(te / 2.0);
+        sig = (s.m[0] * s.m[0] + s.m[1] * s.m[1]).sqrt();
+        s.evolve(tr - te);
+        s.m[0] = 0.0;
+        s.m[1] = 0.0;
+    }
+    sig
+}
+
+/// **The gradient-echo equation is the physics.** Closed form against a Bloch
+/// simulation run to steady state, over a grid of TR, flip angle and tissue.
+#[test]
+fn spgr_closed_form_matches_a_bloch_simulation() {
+    for t in STANISZ_3T.iter() {
+        for &tr in &[0.010, 0.050, 0.200, 1.0] {
+            for &flip in &[5.0, 20.0, 60.0, 90.0] {
+                let te = 0.004;
+                let want = bloch_spgr(t, tr, te, flip, 4000);
+                let got = Sequence::SpoiledGradientEcho {
+                    tr,
+                    te,
+                    flip: flip.to_radians(),
+                }
+                .signal(t, t.t2);
+                assert!(
+                    (got - want).abs() < 1e-6,
+                    "{} TR={tr} α={flip}°: closed form {got}, Bloch {want}",
+                    t.name
+                );
+            }
+        }
+    }
+}
+
+/// …and so is the spin-echo equation, including the term most textbooks drop.
+#[test]
+fn spin_echo_closed_form_matches_a_bloch_simulation() {
+    for t in STANISZ_3T.iter() {
+        for &(tr, te) in &[(0.5, 0.015), (2.0, 0.080), (3.0, 0.010), (0.3, 0.040)] {
+            let want = bloch_spin_echo(t, tr, te, 3000);
+            let got = Sequence::SpinEcho { tr, te }.signal(t, 1.0);
+            assert!(
+                (got.abs() - want).abs() < 1e-6,
+                "{} TR={tr} TE={te}: closed form {got}, Bloch {want}",
+                t.name
+            );
+        }
+    }
+}
+
+/// The simplified spin-echo equation everyone prints — PD(1−e^{−TR/T₁})e^{−TE/T₂}
+/// — drops the 180° pulse's position in the recovery. Measure the error rather
+/// than hand-waving it: it is small at long TR and short TE, and reaches several
+/// per cent in the T₂-weighted corner where the sequence is actually used.
+#[test]
+fn the_textbook_simplification_costs_a_few_per_cent() {
+    let t = tissue("grey matter");
+    let simple = |tr: f64, te: f64| (1.0 - (-tr / t.t1).exp()) * (-te / t.t2).exp();
+    let exact = |tr: f64, te: f64| Sequence::SpinEcho { tr, te }.signal(&t, 1.0);
+
+    // T₁-weighted corner: short TR, short TE — the simplification is good.
+    let e1 = (exact(0.5, 0.010) - simple(0.5, 0.010)).abs() / exact(0.5, 0.010);
+    assert!(e1 < 0.02, "short TR/TE error {e1}");
+
+    // T₂-weighted corner: long TR, long TE — worse, and in a place that matters.
+    let e2 = (exact(3.0, 0.100) - simple(3.0, 0.100)).abs() / exact(3.0, 0.100);
+    assert!(e2 > 0.005 && e2 < 0.15, "long TR/TE error {e2}");
+}
+
+/// **The Ernst angle**: `cos α = e^(−TR/T₁)`, against a brute-force maximum of
+/// the signal over flip angle.
+#[test]
+fn ernst_angle_maximises_gradient_echo_signal() {
+    for t in STANISZ_3T.iter() {
+        for &tr in &[0.005, 0.020, 0.100, 0.500] {
+            let mut best = (0.0f64, -1.0f64);
+            let mut a = 0.1f64;
+            while a < 90.0 {
+                let s = Sequence::SpoiledGradientEcho {
+                    tr,
+                    te: 0.0,
+                    flip: a.to_radians(),
+                }
+                .signal(t, t.t2);
+                if s > best.1 {
+                    best = (a, s);
+                }
+                a += 0.01;
+            }
+            let want = ernst_angle(tr, t.t1).to_degrees();
+            assert!(
+                (best.0 - want).abs() < 0.05,
+                "{} TR={tr}: search {}° , formula {want}°",
+                t.name,
+                best.0
+            );
+        }
+    }
+}
+
+/// **The null time** deletes a tissue exactly, and reduces to `T₁ ln 2` when TR
+/// is long — the approximation everyone actually uses.
+#[test]
+fn inversion_recovery_nulls_the_tissue_it_is_tuned_to() {
+    for t in STANISZ_3T.iter() {
+        for &tr in &[1.0, 3.0, 10.0] {
+            let ti = null_time(t.t1, tr);
+            let s = Sequence::InversionRecovery { tr, ti, te: 0.0 }.signal(t, 1.0);
+            assert!(s < 1e-12, "{} TR={tr}: signal at the null is {s}", t.name);
+        }
+        // The long-TR limit is T₁·ln2, approached from below.
+        let long = null_time(t.t1, 1000.0);
+        assert!(rel(long, t.t1 * 2f64.ln()) < 1e-9, "{}: {long}", t.name);
+        assert!(null_time(t.t1, 1.0) < long, "a finite TR nulls earlier");
+    }
+}
+
+/// **Weighting is real: the same two tissues swap which is brighter.**
+///
+/// White matter has the shorter T₁ *and* the shorter T₂ of the pair, so a
+/// short-TR image makes it bright (it has recovered more) while a long-TE image
+/// makes it dark (it has decayed more). Nothing about the tissue changed.
+#[test]
+fn tr_and_te_decide_which_tissue_is_brighter() {
+    let wm = tissue("white matter");
+    let gm = tissue("grey matter");
+    assert!(wm.t1 < gm.t1 && wm.t2 < gm.t2, "the premise of the test");
+
+    let t1w = Sequence::SpinEcho { tr: 0.5, te: 0.010 };
+    let t2w = Sequence::SpinEcho { tr: 4.0, te: 0.100 };
+    assert!(
+        t1w.signal(&wm, 1.0) > t1w.signal(&gm, 1.0),
+        "on a T₁-weighted image white matter is the brighter one"
+    );
+    assert!(
+        t2w.signal(&wm, 1.0) < t2w.signal(&gm, 1.0),
+        "on a T₂-weighted image it is the darker one"
+    );
+}
+
+/// …and somewhere in between they are **indistinguishable**. A sequence can be
+/// perfectly bright and carry no information at all.
+#[test]
+fn there_is_a_schedule_that_erases_the_difference() {
+    let wm = tissue("white matter");
+    let gm = tissue("grey matter");
+    // A short TE, so the T₂ term is a mild handicap that the T₁ term can win
+    // against at short TR and lose to at long TR. At a long TE the T₂
+    // difference dominates everywhere and there is no crossing at any
+    // physically meaningful TR — which is itself worth knowing, and is checked
+    // below.
+    let te = 0.010;
+    let tr = contrast_zero_crossing(&wm, &gm, te, 0.1, 10.0)
+        .expect("white and grey matter must have a crossing at short TE");
+    let seq = Sequence::SpinEcho { tr, te };
+    let c = contrast(&wm, &gm, &seq, 1.0);
+    assert!(c.abs() < 1e-9, "contrast at the crossing is {c}, TR = {tr} s");
+    // And both are still producing plenty of signal — the image is bright and
+    // useless, which is the point.
+    assert!(seq.signal(&wm, 1.0) > 0.2, "signal at the crossing is not the problem");
+    // Either side of it, the ordering is opposite.
+    assert!(contrast(&wm, &gm, &Sequence::SpinEcho { tr: tr * 0.5, te }, 1.0) > 0.0);
+    assert!(contrast(&wm, &gm, &Sequence::SpinEcho { tr: tr * 2.0, te }, 1.0) < 0.0);
+
+    // The crossing is not a single point but a **curve** through the TR–TE
+    // plane: for every echo time up to about 110 ms there is a repetition time
+    // at which these two tissues cancel exactly, because T₁ saturation favours
+    // white matter at short TR while T₂ decay favours grey matter at long TR.
+    // An invisibility curve runs right between the two regimes a radiographer
+    // chooses from — T₁-weighted at (0.5 s, 10 ms) on one side of it, and
+    // T₂-weighted at (4 s, 100 ms) on the other.
+    let mut previous = f64::INFINITY;
+    for &te in &[0.005, 0.010, 0.020, 0.040, 0.060, 0.080, 0.100] {
+        // TR must exceed TE for the sequence to mean anything.
+        let tr = contrast_zero_crossing(&wm, &gm, te, te * 1.5, 20.0)
+            .unwrap_or_else(|| panic!("no crossing at TE = {te}"));
+        let c = contrast(&wm, &gm, &Sequence::SpinEcho { tr, te }, 1.0);
+        assert!(c.abs() < 1e-9, "TE={te}: contrast {c} at TR={tr}");
+        // A longer echo time handicaps white matter more, so its T₁ advantage
+        // is surrendered sooner: the curve runs down and to the left.
+        assert!(tr < previous, "TE={te}: crossing at {tr} s, previous {previous} s");
+        previous = tr;
+    }
+    // Past about 110 ms the T₂ difference wins at every TR and the curve ends —
+    // which is why heavily T₂-weighted imaging is a safe place to stand.
+    assert!(
+        contrast_zero_crossing(&wm, &gm, 0.140, 0.140 * 1.5, 20.0).is_none(),
+        "at TE = 140 ms grey matter is brighter at every TR"
+    );
+}
+
+/// Maximum *contrast* is not at maximum *signal*. Checked on the flip angle: the
+/// Ernst angle for one tissue is not where two tissues differ most.
+#[test]
+fn peak_contrast_is_not_at_peak_signal() {
+    let (a, b) = (tissue("white matter"), tissue("liver"));
+    let tr = 0.030;
+    let scan = |f: &dyn Fn(f64) -> f64| {
+        let (mut best, mut bv) = (0.0f64, f64::NEG_INFINITY);
+        let mut x = 0.1f64;
+        while x < 90.0 {
+            let v = f(x);
+            if v > bv {
+                bv = v;
+                best = x;
+            }
+            x += 0.01;
+        }
+        best
+    };
+    let sig = scan(&|d: f64| {
+        Sequence::SpoiledGradientEcho { tr, te: 0.0, flip: d.to_radians() }.signal(&a, a.t2)
+    });
+    let con = scan(&|d: f64| {
+        contrast(&a, &b, &Sequence::SpoiledGradientEcho { tr, te: 0.0, flip: d.to_radians() }, 1.0).abs()
+    });
+    assert!(rel(sig, ernst_angle(tr, a.t1).to_degrees()) < 1e-3, "signal peaks at the Ernst angle");
+    assert!(
+        (con - sig).abs() > 3.0,
+        "peak contrast ({con}°) should be well away from peak signal ({sig}°)"
+    );
+}
+
+/// The tissue table is the paper's, digit for digit. If someone "tidies" a
+/// number, this fails — the values are measurements, not preferences.
+#[test]
+fn tissue_table_matches_stanisz_2005_table_1() {
+    // Stanisz et al., Magn Reson Med 54:507–512 (2005), Table 1, "This study",
+    // 3 T column. T2 [ms], T1 [ms].
+    let want: [(&str, f64, f64, f64, f64); 6] = [
+        ("white matter", 1084.0, 69.0, 45.0, 3.0),
+        ("grey matter", 1820.0, 99.0, 114.0, 7.0),
+        ("muscle", 1412.0, 50.0, 13.0, 4.0),
+        ("blood", 1932.0, 275.0, 85.0, 50.0),
+        ("liver", 812.0, 42.0, 64.0, 3.0),
+        ("cartilage", 1168.0, 27.0, 18.0, 3.0),
+    ];
+    assert_eq!(STANISZ_3T.len(), want.len());
+    for (name, t1, t2, t1sd, t2sd) in want {
+        let t = tissue(name);
+        assert_eq!(t.name, name);
+        assert!((t.t1 * 1000.0 - t1).abs() < 1e-9, "{name} T1");
+        assert!((t.t2 * 1000.0 - t2).abs() < 1e-9, "{name} T2");
+        assert!((t.t1_sd * 1000.0 - t1sd).abs() < 1e-9, "{name} T1 sd");
+        assert!((t.t2_sd * 1000.0 - t2sd).abs() < 1e-9, "{name} T2 sd");
+        assert!(t.pd == 1.0, "proton density is not measured by that table");
+    }
+}

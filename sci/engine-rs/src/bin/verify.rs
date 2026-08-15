@@ -7,6 +7,7 @@
 
 use sci_mri_engine::bloch::*;
 use sci_mri_engine::coil::*;
+use sci_mri_engine::contrast::{self, Sequence as Seq, STANISZ_3T};
 use sci_mri_engine::encode::*;
 use sci_mri_engine::phantom::*;
 use sci_mri_engine::physics::*;
@@ -199,6 +200,76 @@ fn main() {
         );
         let (_, cy) = Scanner::centroid(&sc.reconstruct(None), nn);
         println!("  spin-warp at Δf = +60 Hz: {cy:+.4} px — the clock restarts every line");
+    }
+
+    head("Tissue properties — Stanisz et al. 2005, Table 1, 3 T (in vitro, 37 °C)");
+    println!("  {:<20} {:>12} {:>12}", "", "T1 [ms]", "T2 [ms]");
+    for t in STANISZ_3T.iter() {
+        println!(
+            "  {:<20} {:>7.0} ± {:<3.0} {:>7.0} ± {:<3.0}",
+            t.name, t.t1 * 1e3, t.t1_sd * 1e3, t.t2 * 1e3, t.t2_sd * 1e3
+        );
+    }
+    println!("  The same table's literature column gives grey-matter T1 as 1470 ± 50 ms —");
+    println!("  a 24% disagreement in the most-used parameter in the field.");
+
+    head("Sequence equations vs a Bloch simulation run to steady state");
+    {
+        let wm = contrast::tissue("white matter");
+        for &(tr, te, flip) in &[(0.010f64, 0.004f64, 10.0f64), (0.050, 0.004, 30.0), (0.500, 0.010, 90.0)] {
+            let closed = Seq::SpoiledGradientEcho { tr, te, flip: flip.to_radians() }.signal(&wm, wm.t2);
+            // Bloch: repeated pulses with perfect spoiling.
+            let mut s = Spin::new(wm.t1, wm.t2, 0.0);
+            let mut sim = 0.0;
+            for _ in 0..4000 {
+                s.pulse(flip.to_radians(), 0.0);
+                s.evolve(te);
+                sim = (s.m[0] * s.m[0] + s.m[1] * s.m[1]).sqrt();
+                s.evolve(tr - te);
+                s.m[0] = 0.0;
+                s.m[1] = 0.0;
+            }
+            row(&format!("SPGR TR={:.0}ms α={flip:.0}°", tr * 1e3), closed, sim, "M₀");
+        }
+    }
+
+    head("The two closed forms");
+    {
+        let wm = contrast::tissue("white matter");
+        for &tr in &[0.005, 0.050, 0.500] {
+            // brute-force maximum over flip angle
+            let (mut best, mut bv) = (0.0f64, -1.0f64);
+            let mut a = 0.01f64;
+            while a < 90.0 {
+                let v = Seq::SpoiledGradientEcho { tr, te: 0.0, flip: a.to_radians() }.signal(&wm, wm.t2);
+                if v > bv { bv = v; best = a; }
+                a += 0.01;
+            }
+            row(&format!("Ernst angle at TR={:.0} ms", tr * 1e3), best,
+                contrast::ernst_angle(tr, wm.t1).to_degrees(), "deg");
+        }
+        for t in STANISZ_3T.iter().take(3) {
+            let ti = contrast::null_time(t.t1, 3.0);
+            let s = Seq::InversionRecovery { tr: 3.0, ti, te: 0.0 }.signal(t, 1.0);
+            println!("  null {:<16} TI = {:>7.1} ms → signal {:.2e}  (T1·ln2 = {:.1} ms)",
+                t.name, ti * 1e3, s, t.t1 * 1e3 * std::f64::consts::LN_2);
+        }
+    }
+
+    head("The invisibility curve: where white and grey matter cancel");
+    {
+        let (wm, gm) = (contrast::tissue("white matter"), contrast::tissue("grey matter"));
+        for &te_ms in &[5.0, 10.0, 20.0, 40.0, 80.0, 100.0, 140.0] {
+            let te = te_ms * 1e-3;
+            match contrast::contrast_zero_crossing(&wm, &gm, te, te * 1.5, 20.0) {
+                Some(tr) => println!(
+                    "  TE = {te_ms:>5.0} ms → indistinguishable at TR = {:>7.0} ms  (contrast {:+.2e})",
+                    tr * 1e3,
+                    contrast::contrast(&wm, &gm, &Seq::SpinEcho { tr, te }, 1.0)
+                ),
+                None => println!("  TE = {te_ms:>5.0} ms → no crossing: grey matter is brighter at every TR"),
+            }
+        }
     }
 
     head("Acquisition time — the reason EPI exists at all");

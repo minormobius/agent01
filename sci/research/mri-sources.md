@@ -6,8 +6,10 @@ them.
 
 **Built so far:** [`/mri/`](https://sci.mino.mobi/mri/) — part one, the sensor
 (§0, §2, §7 below). [`/mri/kspace/`](https://sci.mino.mobi/mri/kspace/) — part
-two, the encoding (§3, and the phantom sub-section). Part three, contrast (§4),
-is not written. `sci.selftest.mjs` asserts that every DOI cited on a page also
+two, the encoding (§3, and the phantom sub-section).
+[`/mri/contrast/`](https://sci.mino.mobi/mri/contrast/) — part three, contrast
+(§4, and the tissue-properties sub-section). The acoustics section (§6) is not
+written. `sci.selftest.mjs` asserts that every DOI cited on a page also
 appears in this file, so a citation nobody catalogued is a build failure.
 
 Every entry says *what it gives us* — a number to put on the page, a mechanism
@@ -84,7 +86,7 @@ The best single entry point for the detection chain specifically, and it is
 | **Bloch F, Hansen WW, Packard M.** *Nuclear induction.* Phys Rev 70, 460–474 (1946); and *The nuclear induction experiment*, Phys Rev 70, 474–485 (1946). [doi:10.1103/PhysRev.70.460](https://doi.org/10.1103/PhysRev.70.460) | The founding document of the *sensor*. Bloch's method was literally an induction coil picking up the precessing magnetisation — "nuclear induction" is the original and more honest name for the technique. The Bloch equations from this paper are the equations any interactive simulator on our page will integrate. **[unverified]** |
 | **Purcell EM, Torrey HC, Pound RV.** *Resonance absorption by nuclear magnetic moments in a solid.* Phys Rev 69, 37–38 (1946). | The independent, simultaneous discovery, by absorption rather than induction. Bloch and Purcell shared the 1952 Nobel. Useful as the page's "two ways to see the same thing" framing device. **[unverified]** |
 | **Hahn EL.** *Spin echoes.* Phys Rev 80, 580–594 (1950). [doi:10.1103/PhysRev.80.580](https://doi.org/10.1103/PhysRev.80.580) | The echo. Dephasing from field inhomogeneity is reversible; a refocusing pulse un-mixes it. This is the most animatable idea in all of MR (the runners-on-a-track picture) and the basis of T2 vs T2*. **[unverified]** |
-| **Ernst RR, Anderson WA.** *Application of Fourier transform spectroscopy to magnetic resonance.* Rev Sci Instrum 37, 93–102 (1966). | Pulse-and-transform replaces slow frequency sweeping. Nobel 1991. Everything downstream is Fourier because of this. **[unverified]** |
+| **Ernst RR, Anderson WA.** *Application of Fourier transform spectroscopy to magnetic resonance.* Rev Sci Instrum 37, 93–102 (1966). [doi:10.1063/1.1719961](https://doi.org/10.1063/1.1719961) | Pulse-and-transform replaces slow frequency sweeping. Nobel 1991. Everything downstream is Fourier because of this. **[unverified]** |
 | **Damadian R.** *Tumor detection by nuclear magnetic resonance.* Science 171, 1151–1153 (1971). [doi:10.1126/science.171.3976.1151](https://doi.org/10.1126/science.171.3976.1151) | Relaxation times differ between tissues — the claim that made a *medical* instrument conceivable. Also the centre of the field's ugliest priority dispute (Damadian was not included in the 2003 Nobel); the page should note the dispute exists without adjudicating it. |
 
 ---
@@ -136,6 +138,14 @@ This is the section the whole instrument breakdown hangs on.
 |---|---|
 | **Hennig J, Nauerth A, Friedburg H.** *RARE imaging: a fast imaging method for clinical MR.* Magn Reson Med 3, 823–833 (1986). [doi:10.1002/mrm.1910030602](https://doi.org/10.1002/mrm.1910030602) | Echo trains: one excitation, many phase-encoded echoes (FSE/TSE). **[unverified]** |
 | **Haase A, Frahm J, Matthaei D, Hänicke W, Merboldt KD.** *FLASH imaging: rapid NMR imaging using low flip-angle pulses.* J Magn Reson 67, 258–266 (1986). | Low flip angles + gradient echoes: seconds instead of minutes. The Ernst-angle trade-off is a natural slider-toy. **[unverified]** |
+### Tissue properties — the numbers a sequence is optimised against
+
+| Source | Why it matters / what we take |
+|---|---|
+| ⭐ **Stanisz GJ, Odrobina EE, Pun J, Escaravage M, Graham SJ, Bronskill MJ, Henkelman RM.** *T₁, T₂ relaxation and magnetization transfer in tissue at 3T.* Magn Reson Med 54, 507–512 (2005). [doi:10.1002/mrm.20605](https://doi.org/10.1002/mrm.20605) · [PDF](https://mriquestions.com/uploads/3/4/5/7/34572113/t1_and_t2_at_1.5_and_3t_stanisz_et_al-2005-magnetic_resonance_in_medicine.pdf) | **Read in full; Table 1 transcribed digit-for-digit into `contrast.rs` and asserted by a test.** T₁/T₂ at 3 T and 1.5 T with uncertainties, for white and grey matter, muscle, blood, liver, kidney, heart, cartilage, optic nerve and spinal cord. **In vitro**, 37 °C, mostly bovine/mouse/rat — not in-vivo human. Its own literature column disagrees with it by 24% on grey-matter T₁ (1820 ± 114 here vs 1470 ± 50 cited), which is the honest state of the field and is now a caveat box on the page. |
+| ⭐ **Zavala Bojorquez J, Bricq S, Acquitter C, Brunotte F, Walker PM, Lalande A.** *What are normal relaxation times of tissues at 3 T?* Magn Reson Imaging 35, 69–80 (2017). [doi:10.1016/j.mri.2016.08.021](https://doi.org/10.1016/j.mri.2016.08.021) · [PDF](https://mri-q.com/uploads/3/4/5/7/34572113/normal_relaxation_times_at_3t.pdf) | A review of *how much published relaxation times disagree and why*, which is the more useful fact than any single number. Read in part: reports fat T₁ at 3 T as 366 ± 78 ms by FSE-IR IDEAL and 450 ± 26 ms by FSE-TI **in the same tissue**, and grey-matter T₁ across the literature spanning 968–1815 ms. Its summary tables are figures, so per-tissue values could not be extracted mechanically — cite it for the spread, not for a value. |
+| **Wansapura JP, Holland SK, Dunn RS, Ball WS.** *NMR relaxation times in the human brain at 3.0 Tesla.* J Magn Reson Imaging 9, 531–538 (1999). | The in-vivo human counterpart to Stanisz. **[unverified — not read; two search summaries gave inconsistent T₂ values, so nothing from it is on any page.]** Read before using it. |
+
 | ⭐ **Ogawa S, Lee TM, Kay AR, Tank DW.** *Brain magnetic resonance imaging with contrast dependent on blood oxygenation.* PNAS 87, 9868–9872 (1990). [doi:10.1073/pnas.87.24.9868](https://doi.org/10.1073/pnas.87.24.9868) · [PDF](https://www.pnas.org/doi/pdf/10.1073/pnas.87.24.9868) | **BOLD.** Deoxyhaemoglobin is paramagnetic, so it is an endogenous contrast agent and brain activity becomes visible. Freely available PDF. The whole of fMRI in five pages. |
 
 ---

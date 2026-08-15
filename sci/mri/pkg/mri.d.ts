@@ -91,14 +91,46 @@ export class RxCoil {
 }
 
 /**
+ * A scanner whose phantom is made of the measured tissues, imaged through the
+ * same encoding and reconstruction as part two.
+ */
+export class TissueImager {
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Re-weight every region by what its tissue does under this sequence, then
+     * acquire and reconstruct. The image is a real reconstruction, not a
+     * colouring-in of the truth map.
+     */
+    image(kind: number, tr_ms: number, te_ms: number, ti_ms: number, flip_deg: number): Float32Array;
+    /**
+     * A map of which tissue is where, for the legend: the tissue index at each
+     * pixel, or −1 outside the phantom.
+     */
+    label_map(): Int32Array;
+    constructor(n: number, fov_cm: number, object_cm: number);
+}
+
+/**
  * The signal-optimal loop radius for a target depth, `√2 · z`.
  */
 export function best_radius(depth_m: number): number;
 
 /**
+ * |contrast| between two tissues over a log-spaced TR × TE grid, row-major
+ * (`nte` rows of `ntr`). The landscape a radiographer is choosing a point on.
+ */
+export function contrast_map(i: number, j: number, tr_lo_ms: number, tr_hi_ms: number, te_lo_ms: number, te_hi_ms: number, ntr: number, nte: number, signed: boolean): Float32Array;
+
+/**
  * The predicted EPI geometric shift, in pixels: `Δf · N · echo-spacing / R`.
  */
 export function epi_shift_px(off_res_hz: number, n: number, dwell_us: number, undersample: number): number;
+
+/**
+ * The Ernst angle in degrees: `cos α = e^(−TR/T₁)`.
+ */
+export function ernst_angle_deg(tr_ms: number, t1_ms: number): number;
 
 /**
  * Free-induction decay after a 90° pulse — interleaved `[re, im, …]` in the
@@ -123,6 +155,11 @@ export function larmor_wavelength_m(b0: number): number;
 export function loop_axis_field_ut(radius_m: number, z_m: number): number;
 
 /**
+ * The inversion time that nulls a T₁, in ms.
+ */
+export function null_time_ms(t1_ms: number, tr_ms: number): number;
+
+/**
  * Thermal spin polarisation in parts per million, at body temperature.
  */
 export function polarization_ppm(b0: number): number;
@@ -140,9 +177,39 @@ export function relative_faraday_emf(b0: number): number;
 export function shift_px(a: Float32Array, b: Float32Array, n: number): number;
 
 /**
+ * Signal from an arbitrary `(T1, T2)` — for drawing the response of a tissue
+ * the table does not contain.
+ */
+export function signal_for(t1_ms: number, t2_ms: number, kind: number, tr_ms: number, te_ms: number, ti_ms: number, flip_deg: number): number;
+
+/**
  * Hahn spin echo: 90°, τ, 180°, and the echo at 2τ.
  */
 export function spin_echo(t1: number, t2: number, spread_hz: number, tau: number, dt: number, steps: number, n_iso: number): Float32Array;
+
+/**
+ * How many tissues the measured table carries.
+ */
+export function tissue_count(): number;
+
+export function tissue_name(i: number): string;
+
+/**
+ * `[T1, T2, T1 sd, T2 sd]` in milliseconds, straight from Stanisz 2005 Table 1.
+ */
+export function tissue_relaxation_ms(i: number): Float64Array;
+
+/**
+ * Signal from tissue `i` under a sequence. `kind`: 0 spin echo,
+ * 1 inversion recovery, 2 spoiled gradient echo.
+ */
+export function tissue_signal(i: number, kind: number, tr_ms: number, te_ms: number, ti_ms: number, flip_deg: number): number;
+
+/**
+ * The TR at which two tissues become indistinguishable at this TE, in ms.
+ * Negative if there is no such TR — at long TE, T₂ wins everywhere.
+ */
+export function zero_contrast_tr_ms(i: number, j: number, te_ms: number): number;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
@@ -151,7 +218,9 @@ export interface InitOutput {
     readonly __wbg_imager_free: (a: number, b: number) => void;
     readonly __wbg_rxcoil_free: (a: number, b: number) => void;
     readonly best_radius: (a: number) => number;
+    readonly contrast_map: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => void;
     readonly epi_shift_px: (a: number, b: number, c: number, d: number) => number;
+    readonly ernst_angle_deg: (a: number, b: number) => number;
     readonly fid: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
     readonly imager_acquire: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly imager_centroid: (a: number, b: number, c: number, d: number) => void;
@@ -168,6 +237,7 @@ export interface InitOutput {
     readonly larmor_mhz: (a: number) => number;
     readonly larmor_wavelength_m: (a: number) => number;
     readonly loop_axis_field_ut: (a: number, b: number) => number;
+    readonly null_time_ms: (a: number, b: number) => number;
     readonly polarization_ppm: (a: number) => number;
     readonly rxcoil_add_loop: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
     readonly rxcoil_clear: (a: number) => void;
@@ -177,7 +247,17 @@ export interface InitOutput {
     readonly rxcoil_sensitivity_at: (a: number, b: number, c: number, d: number) => number;
     readonly rxcoil_sensitivity_map: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
     readonly shift_px: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly signal_for: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
     readonly spin_echo: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
+    readonly tissue_count: () => number;
+    readonly tissue_name: (a: number, b: number) => void;
+    readonly tissue_relaxation_ms: (a: number, b: number) => void;
+    readonly tissue_signal: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
+    readonly tissueimager_image: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
+    readonly tissueimager_label_map: (a: number, b: number) => void;
+    readonly tissueimager_new: (a: number, b: number, c: number) => number;
+    readonly zero_contrast_tr_ms: (a: number, b: number, c: number) => number;
+    readonly __wbg_tissueimager_free: (a: number, b: number) => void;
     readonly relative_faraday_emf: (a: number) => number;
     readonly __wbindgen_add_to_stack_pointer: (a: number) => number;
     readonly __wbindgen_export: (a: number, b: number, c: number) => void;

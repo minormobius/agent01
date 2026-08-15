@@ -1,6 +1,6 @@
 //! sci-mri-engine — an MRI, computed rather than asserted.
 //!
-//! Six modules, no dependencies. Part one of the page is the sensor; part two
+//! Seven modules, no dependencies. Part one of the page is the sensor; part two
 //! is the encoding. Both are here:
 //!
 //! * [`coil`] — Biot–Savart fields from wire loops, and the **principle of
@@ -19,6 +19,9 @@
 //! * [`encode`] — gradients as a steering wheel for k-space (Twieg 1983), the
 //!   trajectories that result, and the artefacts that come from *when* each
 //!   sample was taken rather than which.
+//! * [`contrast`] — measured tissue T₁/T₂ (Stanisz 2005) and the sequence
+//!   equations that turn them into brightness, each cross-checked against a
+//!   full Bloch simulation rather than against a textbook.
 //!
 //! Plus [`physics`], which holds the constants and the two scaling laws that
 //! make the whole instrument make sense: Curie-law polarisation and the
@@ -30,6 +33,7 @@
 
 pub mod bloch;
 pub mod coil;
+pub mod contrast;
 pub mod encode;
 pub mod fft;
 pub mod phantom;

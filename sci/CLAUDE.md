@@ -41,7 +41,8 @@ Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `s
 | `index.html` | the wing landing page — instrument index + the rule |
 | `mri/index.html` | part one — the sensor. Single-file, drives the wasm |
 | `mri/kspace/index.html` | part two — the encoding. Same wasm, `../pkg/mri.js` |
-| `mri/pkg/` | **generated** — wasm-pack output, committed. Shared by both pages |
+| `mri/contrast/index.html` | part three — contrast. Same wasm |
+| `mri/pkg/` | **generated** — wasm-pack output, committed. Shared by all three pages |
 | `engine-rs/` | the Rust source for that wasm; **not served** |
 | `research/` | literature scans, one per instrument; **not served** |
 | `sci.selftest.mjs` | guards the wiring preflight can't see |
@@ -113,7 +114,7 @@ add wasm32-unknown-unknown` + wasm-pack) and run the whole site under
 
 ## engine-rs — what it actually computes
 
-Six modules, no dependencies, and the browser shell is thin on purpose so that
+Seven modules, no dependencies, and the browser shell is thin on purpose so that
 what the page shows is what `cargo test` checks.
 
 | Module | Holds |
@@ -123,11 +124,12 @@ what the page shows is what `cargo test` checks.
 | `phantom.rs` | ellipses in the continuous plane and their **closed-form** k-space (Bessel J₁); Shepp–Logan, original and Toft-modified |
 | `fft.rs` | radix-2 Cooley–Tukey, 1D and 2D, plus `fftshift2`. Sixty lines, and it is the entire reconstruction algorithm |
 | `encode.rs` | gradients as a steering wheel for k-space; spin-warp / EPI / radial; T₂* and off-resonance applied through **sample time**; reconstruction; the circular-cross-correlation shift measurement |
+| `contrast.rs` | measured tissue T₁/T₂ (Stanisz 2005 Table 1, transcribed and asserted), the three sequence signal equations, the Ernst angle, the null time, and the contrast zero-crossing root finder |
 | `physics.rs` | CODATA 2018 constants, Larmor frequency and wavelength, Curie-law polarisation, and the B₀² law for Faraday detection |
 
 ```bash
 cd sci/engine-rs
-cargo test --release            # 30 known-answer tests, ~1s
+cargo test --release            # 39 known-answer tests, ~1s
 cargo run --release --bin verify   # every result printed beside its closed form
 ```
 
@@ -181,6 +183,33 @@ to visitors, not merely broken.
   around the FOV — which a centroid reads as a small shift and a circular
   correlation reads correctly. The tool has its own test.
 
+### …and part three
+
+- **The sequence equations are validated against the physics, not a textbook.**
+  Each closed form is compared with a full Bloch simulation — repeated pulses
+  from `bloch.rs` run to steady state with explicit spoiling — and agrees to
+  ~1e-14. That is the strongest tie between the three parts: part one's
+  integrator certifies part three's algebra.
+- **The textbook simplification is measured, not waved away.** The usual
+  `PD(1−e^{−TR/T₁})e^{−TE/T₂}` drops the 180° pulse's position in the recovery
+  period; the error is under 2% in the T₁-weighted corner and several per cent
+  in the T₂-weighted one. `contrast.rs` implements the exact form and a test
+  pins the size of the difference.
+- **Tissue values are Stanisz et al. 2005 Table 1, read from the paper**, with
+  uncertainties, asserted digit-for-digit by both a Rust test and the JS
+  selftest — two independent copies of the list, so a "tidy-up" has to defeat
+  both. They are **in vitro**; the same table disagrees with its own literature
+  column by 24% on grey-matter T₁, and the page says so in a caveat box rather
+  than picking a winner.
+- **The invisibility curve.** For every TE up to ~110 ms there is a TR at which
+  white and grey matter produce identical signal. It runs between the
+  T₁-weighted and T₂-weighted corners, which is *why* those two images look
+  like negatives of each other — they are on opposite sides of a sign change,
+  not on opposite sides of a physiological fact.
+- **Proton density is 1.0 for every tissue** because that table does not measure
+  it. Stated on the page. It makes the T₁/T₂ story cleaner and slightly
+  overstates how much of clinical contrast is relaxation.
+
 ## Research
 
 | File | What |
@@ -192,13 +221,20 @@ research scan — a citation on a page that nobody catalogued is a caught error.
 
 ## What `/mri` does not cover yet
 
-Parts one and two are the sensor and the encoding. **Part three, contrast — why
-tissues look different rather than merely being in the right place — is not
-written**, and neither is the acoustics section (why the scanner screams;
-sources are in the scan at §6). The landing page lists `contrast` as planned and
-each page's scope box says where it stops. `sci.selftest.mjs` asserts those
-statements stay true, so retiring a "not written" means updating the selftest in
-the same commit — which is the point.
+Parts one, two and three are the sensor, the encoding and the contrast. **The
+acoustics section is not written** — why the scanner screams: Lorentz forces on
+the gradient windings, 110–120 dB from EPI against an 85 dB NIOSH threshold.
+Sources are in the scan at §6 and the landing page lists it as planned.
+
+Named omissions inside part three, each an addition rather than a correction:
+multi-echo trains (fast spin echo is more T₂-weighted than the single-echo
+equation admits), imperfect spoiling (which gives steady-state free precession,
+a different equation), and **contrast agents**, which shorten T₁ in proportion
+to concentration and are in a large fraction of clinical scans.
+
+Each page's scope box says where it stops, and `sci.selftest.mjs` asserts those
+statements stay true — so retiring a "not written" means updating the selftest
+in the same commit, which is the point.
 
 ## Adding an instrument
 

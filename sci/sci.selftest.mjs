@@ -24,14 +24,16 @@ const read = (p) => readFileSync(join(DIR, p), "utf8");
 
 const page = read("mri/index.html");
 const kpage = read("mri/kspace/index.html");
+const cpage = read("mri/contrast/index.html");
 const landing = read("index.html");
 const physics = read("engine-rs/src/physics.rs");
 const coil = read("engine-rs/src/coil.rs");
 const encode = read("engine-rs/src/encode.rs");
+const contrast = read("engine-rs/src/contrast.rs");
 const phantom = read("engine-rs/src/phantom.rs");
 const sources = read("research/mri-sources.md");
 
-const PAGES = [["mri", page], ["mri/kspace", kpage]];
+const PAGES = [["mri", page], ["mri/kspace", kpage], ["mri/contrast", cpage]];
 
 // ---- 1. the wasm module ships -------------------------------------------
 const WASM = "mri/pkg/mri_bg.wasm";
@@ -62,6 +64,7 @@ if (existsSync(join(DIR, GLUE))) {
   const methods = [
     ...page.matchAll(/\bcoil\.([a-z_0-9]+)\(/g),
     ...kpage.matchAll(/\b(?:im|brush|sw|ep)\.([a-z_0-9]+)\(/g),
+    ...cpage.matchAll(/\bimager\.([a-z_0-9]+)\(/g),
   ].map((m) => m[1]);
   for (const m of new Set(methods)) {
     ok(new RegExp(`^\\s{4}${m}\\(`, "m").test(glue), `pkg/ binds a .${m}() method`);
@@ -110,6 +113,9 @@ for (const who of ["Lauterbur", "Mansfield", "Twieg", "Ljunggren", "Shepp", "Gue
                    "Pruessmann", "Griswold"]) {
   ok(kpage.includes(who), `the k-space page credits ${who}`);
 }
+for (const who of ["Stanisz", "Ernst", "Bloch", "Damadian", "Zavala Bojorquez", "Hennig"]) {
+  ok(cpage.includes(who), `the contrast page credits ${who}`);
+}
 
 // ---- 5. the wing's rule ---------------------------------------------------
 ok(/traces to a primary source/.test(landing), "the landing page still states the wing's rule");
@@ -141,6 +147,10 @@ for (const sec of ["Frequency becomes position", "Drive it yourself", "the edges
                    "folds onto itself", "not just whether", "speed costs"]) {
   ok(kpage.includes(sec), `k-space page section '${sec}' present`);
 }
+for (const sec of ["A tissue is three numbers", "any brightness you like",
+                   "Contrast is not signal", "closed forms worth knowing"]) {
+  ok(cpage.includes(sec), `contrast page section '${sec}' present`);
+}
 // Every page states its own scope honestly, and part one hands off to part two
 // rather than still claiming the encoding half is unwritten.
 for (const [name, html] of PAGES) {
@@ -150,7 +160,50 @@ ok(/part one/i.test(page) && /\/mri\/kspace\//.test(page),
   "the sensor page links on to part two");
 ok(!/the encoding half is not written/.test(page) && !/pages are not built/.test(page),
   "the sensor page no longer claims the encoding half is unwritten");
-ok(/not written/.test(kpage), "the k-space page still says contrast is not written");
+ok(/\/mri\/contrast\//.test(kpage), "the k-space page links on to part three");
+ok(!/Contrast[^.]*is a third part, and is not written/.test(kpage),
+  "the k-space page no longer claims contrast is unwritten");
+ok(/not written|omission/.test(cpage), "the contrast page still says what it leaves out");
+
+// ---- 6c. the tissue table on the page is the paper's --------------------
+// Stanisz et al. 2005 Table 1, "This study", 3 T. The page renders these from
+// the engine, so this checks the ENGINE's copy — the same numbers the tests
+// assert, kept here so a change has to survive two independent lists.
+{
+  // Parse the literals rather than pattern-matching formatted numbers, so that
+  // 1.820 and 1.82 are the same value here as they are to the compiler.
+  const rows = [...contrast.matchAll(
+    /name: "([^"]+)",\s*t1: ([0-9.]+),\s*t2: ([0-9.]+),\s*t1_sd: ([0-9.]+),\s*t2_sd: ([0-9.]+)/g)]
+    .map((m) => [m[1], +m[2], +m[3], +m[4], +m[5]]);
+  const want = [
+    ["white matter", 1084, 69, 45, 3],
+    ["grey matter", 1820, 99, 114, 7],
+    ["muscle", 1412, 50, 13, 4],
+    ["blood", 1932, 275, 85, 50],
+    ["liver", 812, 42, 64, 3],
+    ["cartilage", 1168, 27, 18, 3],
+  ];
+  ok(rows.length === want.length, `contrast.rs carries ${want.length} tissues (found ${rows.length})`);
+  for (const [name, t1, t2, t1sd, t2sd] of want) {
+    const r = rows.find((x) => x[0] === name);
+    ok(!!r, `contrast.rs carries ${name}`);
+    if (!r) continue;
+    const near = (got, ms) => Math.abs(got * 1000 - ms) < 1e-6;
+    ok(near(r[1], t1) && near(r[2], t2) && near(r[3], t1sd) && near(r[4], t2sd),
+      `${name}: Stanisz 2005 gives T1 ${t1} ± ${t1sd}, T2 ${t2} ± ${t2sd} ms ` +
+      `(found ${r[1] * 1000} ± ${r[3] * 1000}, ${r[2] * 1000} ± ${r[4] * 1000})`);
+  }
+}
+ok(/in vitro/.test(contrast) && /in vitro/i.test(cpage),
+  "both engine and page flag that those are in-vitro measurements");
+ok(/1470/.test(contrast) && /1470/.test(cpage),
+  "both flag the 24% literature disagreement on grey-matter T1");
+ok(/pd: 1\.0/.test(contrast) && /proton density/.test(cpage),
+  "both state that proton density is set to 1 and not measured by that table");
+// Every closed form on the page is validated against a Bloch simulation.
+ok(/bloch_spgr/.test(read("engine-rs/src/tests.rs")) &&
+   /Bloch simulation/.test(cpage),
+  "the page's claim that the equations are Bloch-validated is backed by the tests");
 
 // ---- 6b. the encoding claims are tied to the engine ----------------------
 // Every formula the k-space page quotes must be the one the engine implements.

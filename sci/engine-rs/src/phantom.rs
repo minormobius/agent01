@@ -209,3 +209,54 @@ impl Phantom {
         }
     }
 }
+
+// --------------------------------------------------- a phantom of tissues --
+
+/// The geometry of the tissue phantom: an oval of white matter with labelled
+/// inclusions, one per tissue in [`crate::contrast::STANISZ_3T`].
+///
+/// It is deliberately **not** a fake brain. The tissues here are the ones that
+/// paper actually measured, arranged legibly, so that every grey value on the
+/// page traces to a row of a published table rather than to an artist's idea of
+/// anatomy.
+///
+/// Returned as `(geometry, tissue index)`. Region 0 is the background oval.
+pub fn tissue_regions() -> Vec<(Ellipse, usize)> {
+    let e = |a, b, x0, y0| Ellipse { rho: 1.0, a, b, x0, y0, theta: 0.0 };
+    vec![
+        (e(0.75, 0.92, 0.00, 0.00), 0),  // white matter — the bulk
+        (e(0.22, 0.30, -0.34, 0.18), 1), // grey matter
+        (e(0.22, 0.30, 0.34, 0.18), 1),  // grey matter
+        (e(0.24, 0.11, 0.00, 0.62), 2),  // muscle
+        (e(0.16, 0.16, 0.00, -0.42), 3), // blood
+        (e(0.13, 0.13, -0.36, -0.30), 4), // liver
+        (e(0.13, 0.13, 0.36, -0.30), 5), // cartilage
+    ]
+}
+
+impl Phantom {
+    /// Build the tissue phantom with each region set to the signal its tissue
+    /// produces under some sequence.
+    ///
+    /// The ellipses in a [`Phantom`] *add*, so an inclusion carries the
+    /// difference from the background rather than its own value — the same
+    /// trick Shepp and Logan used to cut interior structures into a skull, and
+    /// the reason the analytic k-space still works exactly.
+    pub fn from_tissue_signals(signals: &[f64]) -> Self {
+        let regions = tissue_regions();
+        let base = signals.first().copied().unwrap_or(0.0);
+        Phantom {
+            ellipses: regions
+                .iter()
+                .enumerate()
+                .map(|(i, (geom, tix))| {
+                    let s = signals.get(*tix).copied().unwrap_or(0.0);
+                    Ellipse {
+                        rho: if i == 0 { base } else { s - base },
+                        ..*geom
+                    }
+                })
+                .collect(),
+        }
+    }
+}
