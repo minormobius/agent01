@@ -24,6 +24,12 @@ published permalink — any change that would move a layout must bump `v`,
 making an old link *detectably* old instead of silently different. The same
 version is stamped into every exported JSON (`generator` block).
 
+Version history: **v2** — no flat ground: basins standing on the domain box
+are excluded (every floor is a voronoi membrane), pockets are rampier so
+descent happens on tilted membranes, every size carries an extra sub-layer,
+and the entrance is the roomiest top chamber of the largest connected
+region. v1 links regenerate a v1-labelled layout only under v1 code.
+
 ## The crawler
 
 <https://foam.mino.mobi/dungeon/crawl/> is a room's-eye dungeon crawler over

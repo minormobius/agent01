@@ -30,8 +30,8 @@ const t0 = Date.now();
 //    Never re-pin a moved layout without the bump.
 {
   const { DUNGEON_VERSION } = await import('../dungeon.mjs');
-  ok(DUNGEON_VERSION === 1, 'golden pins below are for DUNGEON_VERSION 1');
-  const GOLDEN = { 1: 0x5f50a930, 2: 0xfed153c0, 5: 0x14e0ace0 };
+  ok(DUNGEON_VERSION === 2, 'golden pins below are for DUNGEON_VERSION 2');
+  const GOLDEN = { 1: 0x0a684e9a, 2: 0x47232154, 5: 0x55c7fbc8 };
   const sigOf = (s) => {
     const J = dungeonToJSON(generateDungeon({ seed: s, endpoints: 3, tileShape: 'grid', tileScale: 0.35 }));
     const str = JSON.stringify({ e: J.entrance, n: J.endpoints, r: J.rooms, d: J.doors, p: J.paths });
@@ -64,6 +64,11 @@ for (const seed of SEEDS) {
   // -- entrance is the certified top-surface chamber
   const L = pocket.opts.layers + pocket.opts.subLayers;
   ok(pocket.cells[pocket.nodes[entrance].cell].layer === L - 1, 'entrance on the top layer');
+
+  // -- v2: no flat ground anywhere — no room's floor touches the domain
+  //    boundary; every surface a crawler stands on is a voronoi membrane
+  ok(rooms.every((r) => pocket.nodes[r.id].faces.every((fi) => !pocket.faces[fi].boundary)),
+    'no room stands on the domain box (all floors are membranes)');
 
   // -- endpoints: as many as asked, distinct, none the entrance, all below it
   ok(endpoints.length === 3, `rolled 3 endpoints (got ${endpoints.length})`);
@@ -211,8 +216,9 @@ for (const seed of SEEDS) {
     }
 
     // canonical JSON: structure, determinism, JSON-round-trip
+    const { DUNGEON_VERSION } = await import('../dungeon.mjs');
     const J = dungeonToJSON(dd);
-    ok(J.format === 'foam-dungeon' && J.version === 1, `${shape}: canonical format header`);
+    ok(J.format === 'foam-dungeon' && J.version === DUNGEON_VERSION, `${shape}: canonical format header`);
     ok(J.rooms.length === dd.rooms.length && J.paths.length === 3, `${shape}: canonical rooms/paths`);
     ok(J.rooms.every((r) => r.outline.length >= 1 && r.tiles.length >= 1 &&
       typeof r.tiles[0].y === 'number'), `${shape}: canonical rooms carry outline + tiles with heights`);
@@ -338,7 +344,9 @@ for (const seed of SEEDS) {
         ok(!hostileAtEntrance, `content ${seed}/${shape}/${roll}: entrance room safe`);
         for (const er of J.rooms.filter((r) => r.role === 'endpoint')) {
           ok(C.effects.some((e) => e.room === er.id && e.type === 'treasure'), `content ${seed}/${shape}/${roll}: treasure at endpoint ${er.id}`);
-          ok(C.agents.some((a) => a.room === er.id), `content ${seed}/${shape}/${roll}: guardian at endpoint ${er.id}`);
+          // guardian in the room — or on its threshold when the room is all markers
+          const near = new Set([er.id, ...er.doors.map((d) => d.to)]);
+          ok(C.agents.some((a) => near.has(a.room)), `content ${seed}/${shape}/${roll}: guardian at endpoint ${er.id}`);
         }
         // the safety gate held: obstacles never sever the dungeon
         const rep = crawlReport(J, { blocked: contentBlocked(C) });
@@ -356,7 +364,7 @@ for (const seed of SEEDS) {
 {
   const { SIZES } = await import('../dungeon.mjs');
   for (const name of Object.keys(SIZES)) {
-    const d = generateDungeon({ seed: 3, endpoints: 3, tileShape: 'hex', tileScale: 0.35, size: name });
+    const d = generateDungeon({ seed: 9, endpoints: 3, tileShape: 'hex', tileScale: 0.35, size: name });
     ok(d.size === name, `size ${name}: reported on the dungeon`);
     const J = dungeonToJSON(d);
     ok(J.generator.size === name && J.generator.dims.nx === SIZES[name].nx,
@@ -368,7 +376,7 @@ for (const seed of SEEDS) {
     ok(d2.size === name, `size ${name}: inferred from a given pocket on retile`);
   }
   // finer tile scales: the new low end still tiles and crawls
-  const d = generateDungeon({ seed: 3, endpoints: 3, tileShape: 'grid', tileScale: 0.1 });
+  const d = generateDungeon({ seed: 9, endpoints: 3, tileShape: 'grid', tileScale: 0.1 });
   const rep = crawlReport(dungeonToJSON(d));
   ok(rep.complete, `tileScale 0.1: crawlable (${d.rooms.reduce((a, r) => a + r.tiles.length, 0)} tiles)`);
 }

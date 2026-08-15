@@ -25,22 +25,32 @@
 import { generatePocket, fnv, mulberry, pointInPolyXZ } from './foamworld.js';
 
 // The PERMALINK contract: (DUNGEON_VERSION, seed, endpoints, tileShape,
-// tileScale) → an identical dungeon, forever. The selftest pins golden
+// tileScale, size) → an identical dungeon, forever. The selftest pins golden
 // signatures of known seeds; any change to generation or discretization that
 // shifts them must bump this version — published permalinks carry it, so a
 // layout from an older generator is detectable rather than silently
 // different.
-export const DUNGEON_VERSION = 1;
+//
+// v1 → v2: the dungeon never stands on the domain box. Basins whose floor
+// touches the boundary (the box bottom shows as an unnaturally flat field)
+// are no longer rooms and paths cannot route through them — every floor in
+// a v2 dungeon is a voronoi membrane. That exclusion removes the flat
+// bottom as a routing hub, so v2 pockets are also RAMPIER than the walker's
+// (rampFrac 0.5, jitterY 0.4): descent happens on tilted membranes, the
+// way the user wants the whole world to read. Every size gained a
+// sub-layer of foam below, and the entrance is the roomiest top-layer
+// chamber of the LARGEST connected region (a merely-roomy chamber can sit
+// in an isolated pocket).
+export const DUNGEON_VERSION = 2;
 
 // Dungeon sizes: pocket dimensions by name. Part of the permalink (the
-// `size` hash param; absent = 'm', which is the original geometry — old
-// permalinks are unaffected). xl generation can take a few seconds when the
-// certificate rerolls salts.
+// `size` hash param; absent = 'm'). xl generation can take a few seconds
+// when the certificate rerolls salts.
 export const SIZES = {
-  s:  { nx: 5,  nz: 5,  layers: 3, subLayers: 1 },
-  m:  { nx: 7,  nz: 7,  layers: 4, subLayers: 2 },
-  l:  { nx: 9,  nz: 9,  layers: 5, subLayers: 2 },
-  xl: { nx: 11, nz: 11, layers: 6, subLayers: 2 },
+  s:  { nx: 5,  nz: 5,  layers: 3, subLayers: 2 },
+  m:  { nx: 7,  nz: 7,  layers: 4, subLayers: 3 },
+  l:  { nx: 9,  nz: 9,  layers: 5, subLayers: 3 },
+  xl: { nx: 11, nz: 11, layers: 6, subLayers: 3 },
 };
 
 // ------------------------------------------------------------ geometry ------
@@ -161,23 +171,68 @@ export function generateDungeon(opts = {}) {
     pocket: given = null,
     ...pocketOpts
   } = opts;
-  const pocket = given ?? generatePocket({ seed: 1, ...(SIZES[size] ?? SIZES.m), ...pocketOpts });
+  // Dungeon pockets are rampier than the walker's (rampFrac 0.5 — descent
+  // must happen on tilted membranes once the flat bottom is excluded), and
+  // the kernel's PUZZLE band is relaxed with deep salt retries: the dungeon
+  // proves its own reachability below, so the puzzle only needs to exist,
+  // not to be a good puzzle. Worst observed generation ~12s at xl.
+  const pocket = given ?? generatePocket({
+    seed: 1, rampFrac: 0.5, parMin: 1, parTarget: 5, maxSalt: 96,
+    ...(SIZES[size] ?? SIZES.m), ...pocketOpts,
+  });
   // the size a given pocket actually has wins over the size argument
   const sizeName = Object.entries(SIZES).find(([, v]) =>
     v.nx === pocket.opts.nx && v.nz === pocket.opts.nz &&
     v.layers === pocket.opts.layers && v.subLayers === pocket.opts.subLayers)?.[0] ?? 'custom';
   const { nodes, edges, cells } = pocket;
 
+  // Flat-floored basins — any floor face on the domain boundary — are not
+  // dungeon rooms: the box bottom reads as an artificial plane in a world
+  // that is otherwise all membranes. Drop them and every edge through them;
+  // the sub-foam below the dungeon absorbs them.
+  const isFlat = nodes.map((n) => n.faces.some((fi) => pocket.faces[fi].boundary));
   const adj = nodes.map(() => []);
-  for (const e of edges) { adj[e.a].push(e); adj[e.b].push(e); }
+  for (const e of edges) {
+    if (isFlat[e.a] || isFlat[e.b]) continue;
+    adj[e.a].push(e); adj[e.b].push(e);
+  }
 
   const floor = nodes.map((n) => basinFloor(pocket, n));
   const floorY = (ni) => floor[ni].centroid[1];
 
-  // the entrance: the pocket's certified TARGET basin — a top-layer chamber
-  // the kernel already proved connected down to the dais. The puzzle climbs
-  // to it; the dungeon walks in through it and winds down.
-  const entrance = pocket.nav.target;
+  // the entrance: the roomiest top-surface chamber of the LARGEST connected
+  // region of the (flat-excluded) crossing graph. Roominess alone can pick
+  // a chamber in an isolated pocket; component size first, floor area
+  // second. (v1 used the puzzle's certified target basin, which could open
+  // the dungeon in a one-tile closet; every door is a certified crossing
+  // either way, and the dungeon's own BFS below proves connectivity.)
+  const L = pocket.opts.layers + pocket.opts.subLayers;
+  let entrance = pocket.nav.target;
+  {
+    const comp = new Array(nodes.length).fill(-1);
+    let nc = 0;
+    for (let s = 0; s < nodes.length; s++) {
+      if (comp[s] >= 0 || !adj[s].length) continue;
+      const q = [s]; comp[s] = nc;
+      for (let h = 0; h < q.length; h++) {
+        for (const e of adj[q[h]]) {
+          const v = e.a === q[h] ? e.b : e.a;
+          if (comp[v] < 0) { comp[v] = nc; q.push(v); }
+        }
+      }
+      nc++;
+    }
+    const compSize = new Array(nc).fill(0);
+    for (const c of comp) if (c >= 0) compSize[c]++;
+    let bestC = -1, bestA = -1;
+    for (let ni = 0; ni < nodes.length; ni++) {
+      if (cells[nodes[ni].cell].layer !== L - 1 || comp[ni] < 0) continue;
+      const cs = compSize[comp[ni]];
+      if (cs > bestC || (cs === bestC && floor[ni].area > bestA)) {
+        bestC = cs; bestA = floor[ni].area; entrance = ni;
+      }
+    }
+  }
 
   // reachability from the entrance over certified crossings
   const distE = new Array(nodes.length).fill(-1);

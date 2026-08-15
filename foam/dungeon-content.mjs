@@ -64,14 +64,22 @@ export function rollContent(json, opts = {}) {
     const isEndpoint = room.role === 'endpoint';
 
     if (isEndpoint) {
-      // the prize sits on the goal marker itself; a guardian stands nearby
+      // the prize sits on the goal marker itself; a guardian stands nearby —
+      // in this room, or (when the room is all markers, no free floor) on
+      // the threshold: the room across its first door
       const goal = room.tiles.find((t) => t.kind === 'goal') ?? cand[0];
       if (goal) effects.push(place(room, goal, { type: 'treasure', gold: 25 + room.depth * 2 }));
-      const g = takeTile(room, cand);
-      if (g) {
-        const type = depthT > 0.75 ? 'wraith' : 'shade';
-        agents.push(place(room, g, { id: agentId++, type, hp: ENEMY_TYPES[type].hp }));
+      const type = depthT > 0.75 ? 'wraith' : 'shade';
+      let g = takeTile(room, cand), gRoom = room;
+      if (!g) {
+        for (const d of room.doors) {
+          const far = json.rooms.find((r) => r.id === d.to);
+          const farCand = far.tiles.filter((t) => t.kind === 'floor');
+          g = takeTile(far, farCand);
+          if (g) { gRoom = far; break; }
+        }
       }
+      if (g) agents.push(place(gRoom, g, { id: agentId++, type, hp: ENEMY_TYPES[type].hp }));
     }
 
     // loot: likelier and richer the deeper you are

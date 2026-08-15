@@ -68,7 +68,16 @@ the geometry-bearing export subset, so metadata additions don't shift them.
 The crawl page plays the content roll: hp/gold, bump combat (enemies
 retaliate and chase within the current room on end turn, never onto door
 tiles — a camped door would soft-lock), traps trigger on step, obstacles
-block movement, death and cleared overlays. `⚄ roll` rerolls content only. It shares the generator's permalink
+block movement, death and cleared overlays. `⚄ roll` rerolls content only.
+The GENERATOR page displays the same content document (SSOT — display
+decision only): 3D markers in the CAD view, GM glyphs on the ⊞ plan (baked
+into the .png / .dd2vtt images; `content` legend chip toggles both), its
+own `⚄ content roll` button, and `roll` rides the shared permalink into
+the crawler. DUNGEON_VERSION is 2: no room stands on the domain box (all
+floors are membranes), dungeon pockets are rampier than the walker's
+(rampFrac 0.5, relaxed puzzle band + deep salt retries — the dungeon
+proves its own reachability), and the entrance is the roomiest top chamber
+of the largest connected region. Worst xl generation ~12s. It shares the generator's permalink
 hash and loads exported .json files. **Permalinks are a contract**:
 `DUNGEON_VERSION` (dungeon.mjs) is stamped into the URL hash and every
 export, and the selftest pins golden signatures of seeds 1/2/5 — a change

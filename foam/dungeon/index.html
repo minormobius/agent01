@@ -98,6 +98,7 @@
   <div class="row"><label>tile scale</label><input id="scale" type="range" min="0.08" max="1" step="0.01" value="0.35"><span class="val" id="scalev">0.35</span></div>
   <button class="btn" id="reroll">⚄ reroll seed</button>
   <button class="btn ghost" id="regen">regenerate</button>
+  <button class="btn ghost" id="rollBtn">⚄ content roll <span id="rollv" style="color:#ffce78">1</span></button>
   <button class="btn" id="crawlBtn" style="border-color:#ffce78;color:#ffe9c0;background:rgba(255,206,120,.12)">⚔ crawl this dungeon</button>
   <h2 style="margin-top:12px">EXPORT</h2>
   <div class="row" style="gap:6px">
@@ -132,6 +133,7 @@ import * as THREE from 'three';
 import { OrbitControls } from '../vendor/OrbitControls.js';
 import { generateDungeon, DUNGEON_VERSION, SIZES } from '../dungeon.mjs';
 import { dungeonToJSON, dungeonToUVTT, planBounds, roomOutlines } from '../dungeon-export.mjs';
+import { rollContent, ENEMY_TYPES } from '../dungeon-content.mjs';
 
 // ------------------------------------------------------------ palette ------
 const PATH_COLORS = ['#ff9e6e', '#9ff0e6', '#c8a5ff', '#ffd166', '#8fd3ff', '#ffa5c0'];
@@ -142,8 +144,10 @@ const COL = {
 const css = (c) => new THREE.Color(c);
 
 // ------------------------------------------------------------- state -------
-const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35, size: 'm' };
+const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35, size: 'm', roll: 1 };
 let dungeon = null, pocket = null, selected = -1;
+let content = null;          // the SSOT content roll — the crawler plays the
+                             // same document; here it is a display layer
 
 // hash <-> params (shareable dungeons)
 function readHash() {
@@ -153,12 +157,14 @@ function readHash() {
   if (h.get('shape') === 'hex') params.shape = 'hex';
   if (h.get('scale')) params.scale = Math.min(1, Math.max(0.08, parseFloat(h.get('scale')) || 0.35));
   if (SIZES[h.get('size')]) params.size = h.get('size');
+  if (h.get('roll')) params.roll = Math.max(1, parseInt(h.get('roll'), 10) || 1);
 }
 function writeHash() {
   // the PERMALINK: params + generator version — a link from an older
   // generator version is detectable rather than silently different
   history.replaceState(null, '', '#seed=' + params.seed + '&n=' + params.n +
-    '&shape=' + params.shape + '&scale=' + params.scale + '&size=' + params.size + '&v=' + DUNGEON_VERSION);
+    '&shape=' + params.shape + '&scale=' + params.scale + '&size=' + params.size +
+    '&roll=' + params.roll + '&v=' + DUNGEON_VERSION);
 }
 
 // ------------------------------------------------------------ three --------
@@ -182,7 +188,7 @@ addEventListener('resize', resize); resize();
 let group = null;                 // everything dungeon-specific
 let foamWire = null;              // the surrounding foam context
 let tileMeshes = [];              // one mesh per room, for picking
-const show = { foam: true, paths: true, wire: true };
+const show = { foam: true, paths: true, wire: true, content: true };
 
 function disposeGroup(g) {
   if (!g) return;
@@ -341,6 +347,9 @@ function buildScene(d) {
   }
   group.add(pathGroup);
 
+  // -- the content layer, displayed at dungeon level (GM view: traps shown)
+  group.add(buildContentMarkers());
+
   // -- selection halo (repositioned on select)
   const halo = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.05, 8, 40),
     new THREE.MeshBasicMaterial({ color: css('#ffffff'), transparent: true, opacity: 0.8 }));
@@ -359,11 +368,46 @@ function buildScene(d) {
   camera.near = 0.1; camera.far = rad * 12 + 200; camera.updateProjectionMatrix();
 }
 
+function tileOf(rec) {
+  return dungeon.roomOf.get(rec.room)?.tiles.find((t) => t.key === rec.tile) ?? null;
+}
+
+function buildContentMarkers() {
+  const cg = new THREE.Group(); cg.userData.isContent = true;
+  if (!content) return cg;
+  const s = dungeon.tileSize;
+  for (const e of content.effects) {
+    const t = tileOf(e); if (!t) continue;
+    if (e.type === 'obstacle') {
+      const m = new THREE.Mesh(new THREE.OctahedronGeometry(s * 0.3, 0),
+        new THREE.MeshBasicMaterial({ color: css('#3a4a52') }));
+      m.position.set(t.x, t.y + s * 0.28, t.z); cg.add(m);
+    } else if (e.type === 'trap') {
+      const m = new THREE.Mesh(new THREE.ConeGeometry(s * 0.16, s * 0.4, 4),
+        new THREE.MeshBasicMaterial({ color: css('#ff6e5a') }));
+      m.position.set(t.x, t.y + s * 0.22, t.z); cg.add(m);
+    } else {
+      const big = e.type === 'treasure';
+      const m = new THREE.Mesh(new THREE.BoxGeometry(s * (big ? 0.3 : 0.2), s * (big ? 0.24 : 0.16), s * (big ? 0.3 : 0.2)),
+        new THREE.MeshBasicMaterial({ color: css(big ? '#ffdf9e' : '#d8a94e') }));
+      m.position.set(t.x, t.y + s * 0.12, t.z); m.rotation.y = 0.5; cg.add(m);
+    }
+  }
+  for (const a of content.agents) {
+    const t = tileOf(a); if (!t) continue;
+    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(s * (0.16 + a.hp * 0.04), 0),
+      new THREE.MeshBasicMaterial({ color: css(ENEMY_TYPES[a.type].color) }));
+    m.position.set(t.x, t.y + s * 0.3, t.z); cg.add(m);
+  }
+  return cg;
+}
+
 function applyToggles() {
   if (foamWire) foamWire.visible = show.foam;
   group?.traverse((o) => {
     if (o.userData.isPaths) o.visible = show.paths;
     if (o.userData.isRoomWire) o.visible = show.wire;
+    if (o.userData.isContent) o.visible = show.content;
   });
 }
 
@@ -507,6 +551,10 @@ function buildLegend() {
   const t1 = mk('foam', show.foam ? 'on' : '', () => { show.foam = !show.foam; t1.classList.toggle('on'); applyToggles(); });
   const t2 = mk('rooms', show.wire ? 'on' : '', () => { show.wire = !show.wire; t2.classList.toggle('on'); applyToggles(); });
   const t3 = mk('paths', show.paths ? 'on' : '', () => { show.paths = !show.paths; t3.classList.toggle('on'); applyToggles(); });
+  const t4 = mk('content', show.content ? 'on' : '', () => {
+    show.content = !show.content; t4.classList.toggle('on'); applyToggles();
+    if (planEl.classList.contains('open')) openPlan();
+  });
   mk('⊞ plan', '', openPlan);
   mk('<span class="sw" style="background:#b8ff9e"></span>entrance');
   mk('<span class="sw" style="background:#ffce78"></span>door');
@@ -524,6 +572,7 @@ function syncUI() {
   $('shGrid').classList.toggle('on', params.shape === 'grid');
   $('shHex').classList.toggle('on', params.shape === 'hex');
   for (const b of $('sizeSeg').children) b.classList.toggle('on', b.dataset.size === params.size);
+  $('rollv').textContent = params.roll;
 }
 
 function stats() {
@@ -546,6 +595,7 @@ function regen(full) {
         ? generateDungeon({ seed: params.seed, size: params.size, ...base })
         : generateDungeon({ pocket, ...base });
       pocket = dungeon.pocket;
+      content = rollContent(dungeonToJSON(dungeon), { roll: params.roll });
       buildScene(dungeon); buildLegend(); stats(); writeHash();
       if (selected >= 0 && dungeon.roomOf.has(selected)) selectRoom(selected, false);
       else { X.el.classList.remove('open'); selected = -1; }
@@ -555,6 +605,17 @@ function regen(full) {
 }
 
 $('crawlBtn').onclick = () => { writeHash(); location.href = 'crawl/' + location.hash; };
+// reroll the CONTENT only — the map (and its permalink seed) stays put
+$('rollBtn').onclick = () => {
+  params.roll = 1 + Math.floor(Math.random() * 9998);
+  content = rollContent(dungeonToJSON(dungeon), { roll: params.roll });
+  let old = null;
+  group.traverse((o) => { if (o.userData.isContent) old = o; });
+  if (old) { group.remove(old); old.traverse((x) => { x.geometry?.dispose(); x.material?.dispose?.(); }); }
+  group.add(buildContentMarkers());
+  applyToggles(); syncUI(); writeHash();
+  if (planEl.classList.contains('open')) openPlan();
+};
 $('seed').onchange = () => { params.seed = Math.max(1, parseInt($('seed').value, 10) || 1); regen(true); };
 $('reroll').onclick = () => { params.seed = 1 + Math.floor(Math.random() * 99999); syncUI(); regen(true); };
 $('regen').onclick = () => regen(true);
@@ -632,6 +693,37 @@ function drawPlan(ctx, wpx, hpx, k, ox, oz) {
   const e = dungeon.roomOf.get(dungeon.entrance).centroid;
   ctx.strokeStyle = '#b8ff9e'; ctx.lineWidth = Math.max(1.5, k * 0.08);
   ctx.beginPath(); ctx.arc(mx(e[0]), mz(e[2]), Math.max(4, s * 0.5 * k), 0, Math.PI * 2); ctx.stroke();
+
+  // the content roll, as GM-map glyphs (baked into the exports too)
+  if (content && show.content) {
+    const r = Math.max(2.5, s * 0.2 * k);
+    for (const rec of content.effects) {
+      const t = tileOf(rec); if (!t) continue;
+      const x = mx(t.x), z = mz(t.z);
+      if (rec.type === 'obstacle') {
+        ctx.strokeStyle = '#5f7a80'; ctx.lineWidth = Math.max(1, k * 0.05);
+        ctx.beginPath(); ctx.moveTo(x - r, z - r); ctx.lineTo(x + r, z + r);
+        ctx.moveTo(x + r, z - r); ctx.lineTo(x - r, z + r); ctx.stroke();
+      } else if (rec.type === 'trap') {
+        ctx.strokeStyle = '#ff6e5a'; ctx.lineWidth = Math.max(1, k * 0.05);
+        ctx.beginPath(); ctx.moveTo(x, z - r); ctx.lineTo(x + r, z + r * 0.8); ctx.lineTo(x - r, z + r * 0.8);
+        ctx.closePath(); ctx.stroke();
+      } else {
+        const big = rec.type === 'treasure';
+        ctx.fillStyle = big ? '#ffdf9e' : '#d8a94e';
+        ctx.beginPath(); ctx.moveTo(x, z - r * (big ? 1.4 : 1)); ctx.lineTo(x + r * (big ? 1.4 : 1), z);
+        ctx.lineTo(x, z + r * (big ? 1.4 : 1)); ctx.lineTo(x - r * (big ? 1.4 : 1), z);
+        ctx.closePath(); ctx.fill();
+        if (big) { ctx.strokeStyle = '#ffdf9e'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, z, r * 2, 0, Math.PI * 2); ctx.stroke(); }
+      }
+    }
+    for (const a of content.agents) {
+      const t = tileOf(a); if (!t) continue;
+      ctx.fillStyle = ENEMY_TYPES[a.type].color;
+      ctx.strokeStyle = 'rgba(4,6,10,.8)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(mx(t.x), mz(t.z), r * 0.9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+  }
 }
 
 const planEl = document.getElementById('plan');
@@ -706,6 +798,7 @@ document.getElementById('expPng').onclick = () => {
 window.__dungeon = {
   ready: false,
   get dungeon() { return dungeon; },
+  get content() { return content; },
   get params() { return { ...params }; },
   select: (id) => selectRoom(id),
   regen: (p) => { Object.assign(params, p || {}); syncUI(); regen(!!(p && 'seed' in p)); },
