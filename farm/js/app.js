@@ -511,8 +511,9 @@ function renderSeedBag() {
   el.innerHTML = entries.length
     ? entries.map(([id, n]) => {
       const c = cropById(ark, id);
+      const price = c ? '· ' + sellPriceOrganic(c) + '◈' : '';
       return '<button class="chip seed ' + (plantingCrop === id ? 'on' : '') + '" data-seed="' + esc(id) + '" title="' + esc(c ? c.sciName : '') + '">' +
-        '🌱 ' + esc(c ? c.common : id) + ' ×' + n + ' <i>' + (c ? c.growthDays * 30 + 'm' : '') + '</i></button>';
+        '🌱 ' + esc(c ? c.common : id) + ' ×' + n + ' <i>' + (c ? c.growthDays * 30 + 'm' : '') + ' ' + price + '</i></button>';
     }).join('')
     : '<span class="dim">seed bag empty — pull at the trade desk, or ask a friend</span>';
   $$('#seedbag .seed').forEach((b) => b.onclick = () => {
