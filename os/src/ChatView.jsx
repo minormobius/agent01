@@ -15,10 +15,17 @@ const ASSIST_SYSTEM_KEY = 'os:assist-system';
 const ASSIST_PREFS_KEY = 'os:assist-prefs';
 const ASSIST_TID_KEY = 'os:assist-thread-id';
 const ACTIVE_TURN_KEY = 'os:assist-active-turn';
+const REPO_PROFILE_KEY = 'os:repo-profile';
 const ASSIST_MAX_MSGS = 200;
 const HANDOFF_LAST_N = 12;
 
-const DEFAULT_SYSTEM = 'You are Kimi in the assist mode of os.mino.mobi — a quick, direct thinking partner. minomobi is a personal, non-commercial playground of experimental web toys (ATProto apps, visualizations, generative sites) built for curiosity and craft. Be concrete and candid; disagree when warranted. When a plan firms up, the user can hand this conversation to your repo-agent mode (a full Claude Code harness inside the agent01 monorepo) with the → repo button.';
+// Worker-keyed model profiles, same names as AGENT_PROFILES on os-api. Assist
+// routes them directly from the DO (/assist/start body.model); repo mode boots
+// them as the agent's model (?profile= on /chat). Native `claude` is
+// browser-keyed and terminal-only, so it is not offered here.
+const MODELS = ['kimi3', 'ds4-flash', 'ds4-pro'];
+
+const DEFAULT_SYSTEM = 'You are the assist mode of os.mino.mobi — a quick, direct thinking partner. minomobi is a personal, non-commercial playground of experimental web toys (ATProto apps, visualizations, generative sites) built for curiosity and craft. Be concrete and candid; disagree when warranted. When a plan firms up, the user can hand this conversation to the repo-agent mode (a full coding-agent harness inside the agent01 monorepo) with the → repo button.';
 
 const MONO = '"Berkeley Mono", "JetBrains Mono", "Fira Code", monospace';
 const ACCENTS = {
@@ -134,7 +141,15 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
   const [threads, setThreads] = useState(null); // null = not loaded
   const [threadId, setThreadId] = useState(() => localStorage.getItem(ASSIST_TID_KEY) || newThreadId());
   const [systemPrompt, setSystemPrompt] = useState(() => localStorage.getItem(ASSIST_SYSTEM_KEY) || DEFAULT_SYSTEM);
-  const [prefs, setPrefs] = useState(() => loadJson(ASSIST_PREFS_KEY, { thinking: false, web: false }));
+  const [prefs, setPrefs] = useState(() => loadJson(ASSIST_PREFS_KEY, { thinking: false, web: false, model: 'kimi3' }));
+  // Repo-mode model profile. Changing it tears the socket down and reconnects:
+  // chat state is keyed by cell on the container, so each profile is its own
+  // conversation (the history frame repopulates from that cell's journal).
+  const [repoProfile, setRepoProfile] = useState(() => {
+    const saved = localStorage.getItem(REPO_PROFILE_KEY);
+    return MODELS.includes(saved) ? saved : profile;
+  });
+  const assistModel = MODELS.includes(prefs.model) ? prefs.model : 'kimi3';
   const assistTurnRef = useRef(null); // { turnId, authInfo } while a turn is in flight
   const socketRef = useRef(null);
   const scrollRef = useRef(null);
@@ -340,17 +355,29 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
         },
       });
       socketRef.current = sock;
-      sock.connect({ session: session.did, ...authInfo, profile });
+      sock.connect({ session: session.did, ...authInfo, profile: repoProfile });
     } finally {
       connectingRef.current = false;
     }
-  }, [session, getContainerAuth, profile, handleFrame, push]);
+  }, [session, getContainerAuth, repoProfile, handleFrame, push]);
 
-  // Container connects only when repo mode is entered.
+  // Container connects only when repo mode is entered (and reconnects when the
+  // repo profile changes — switchRepoProfile tears the old socket down first).
   useEffect(() => {
     if (mode === 'repo') connect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode]);
+  }, [mode, repoProfile]);
+
+  const switchRepoProfile = useCallback((p) => {
+    if (p === repoProfile) return;
+    try { localStorage.setItem(REPO_PROFILE_KEY, p); } catch { /* no-op */ }
+    socketRef.current?.disconnect();
+    socketRef.current = null;
+    setMessages([]);
+    setRunning(false);
+    setStatus('idle');
+    setRepoProfile(p); // triggers the reconnect effect above
+  }, [repoProfile]);
   useEffect(() => () => socketRef.current?.disconnect(), []);
 
   useEffect(() => {
@@ -390,7 +417,7 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
         if (snap.status === 'error') {
           setAssistMsgs((l) => [...l, { id: nextId++, role: 'error', text: snap.error || 'turn failed' }]);
         } else if (snap.stopReason === 'refusal') {
-          setAssistMsgs((l) => [...l, { id: nextId++, role: 'refusal', text: 'kimi declined this request' }]);
+          setAssistMsgs((l) => [...l, { id: nextId++, role: 'refusal', text: 'the model declined this request' }]);
         } else if (snap.stopReason === 'max_tokens') {
           setAssistMsgs((l) => [...l, { id: nextId++, role: 'info', text: 'response hit the length cap — say "continue" for the rest' }]);
         } else if (snap.stopReason === 'interrupted') {
@@ -414,6 +441,7 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
       const authInfo = getContainerAuth();
       if (!authInfo) throw new Error('linking device via OAuth…');
       const turnId = await assistStart({ session: session.did, ...authInfo }, {
+        model: assistModel,
         messages: base.filter((m) => (m.role === 'user' || m.role === 'assistant') && m.text)
           .map((m) => ({ role: m.role, content: m.text })),
         system: systemPrompt,
@@ -579,8 +607,8 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
         <div style={S.title(A)}>kimi</div>
         <div style={S.sub}>
           {isAssist
-            ? `@${session.handle} · assist`
-            : `@${session.handle} · ${profile}${statusDetail ? ` · ${statusDetail}` : ''}`}
+            ? `@${session.handle} · assist · ${assistModel}`
+            : `@${session.handle} · ${repoProfile}${statusDetail ? ` · ${statusDetail}` : ''}`}
         </div>
         <button style={S.hbtn(isAssist, A)} onClick={() => setMode('assist')}>assist</button>
         <button style={S.hbtn(!isAssist, A)} onClick={() => setMode('repo')}>repo</button>
@@ -600,8 +628,23 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
         <button style={S.hbtn(false, A)} onClick={onLogout}>logout</button>
       </div>
 
+      {!isAssist && (
+        <div style={{ display: 'flex', gap: 6, padding: '6px 12px', borderBottom: '1px solid #1e1e1e', flexShrink: 0, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ color: '#606060', fontSize: 11 }}>model</div>
+          {MODELS.map((m) => (
+            <button key={m} style={S.hbtn(m === repoProfile, A)} onClick={() => switchRepoProfile(m)}>{m}</button>
+          ))}
+        </div>
+      )}
+
       {isAssist && showSettings && (
         <div style={S.panel}>
+          <div style={S.panelLabel}>model (routes the next message — kimi3 = Moonshot, ds4-* = DeepSeek V4)</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {MODELS.map((m) => (
+              <button key={m} style={S.hbtn(m === assistModel, A)} onClick={() => setPrefs({ ...prefs, model: m })}>{m}</button>
+            ))}
+          </div>
           <div style={S.panelLabel}>system prompt (yours to edit — sent with every assist message)</div>
           <textarea
             style={{ ...S.panelInput, minHeight: 90 }}
@@ -613,7 +656,7 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
               <input type="checkbox" checked={!!prefs.thinking} onChange={(e) => setPrefs({ ...prefs, thinking: e.target.checked })} /> show thinking
             </label>
             <label style={{ color: '#909090', fontSize: 12, cursor: 'pointer' }}>
-              <input type="checkbox" checked={!!prefs.web} onChange={(e) => setPrefs({ ...prefs, web: e.target.checked })} /> web search (experimental)
+              <input type="checkbox" checked={!!prefs.web} onChange={(e) => setPrefs({ ...prefs, web: e.target.checked })} /> web search (experimental, kimi3 only)
             </label>
             <button style={S.hbtn(false, A)} onClick={() => setSystemPrompt(DEFAULT_SYSTEM)}>reset prompt</button>
           </div>
@@ -649,10 +692,10 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
         {list.length === 0 && (
           <div style={S.info}>
             {isAssist ? (
-              <>strategy chat with Kimi — direct API, no container, pennies per message.<br />
+              <>strategy chat with {assistModel} — direct API, no container, pennies per message.<br />
                 when the plan is ready, <b>→ repo</b> hands this thread to the coding agent.</>
             ) : (
-              <>the {profile} coding agent — a clone of agent01, git, and pushes that run
+              <>the {repoProfile} coding agent — a clone of agent01, git, and pushes that run
                 GitHub Actions.<br />`work &lt;slug&gt;` branches are its lane.</>
             )}
           </div>
@@ -680,8 +723,8 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
             }
           }}
           placeholder={isAssist
-            ? 'strategize with kimi…'
-            : status === 'connected' ? `message the ${profile} agent…` : 'connecting…'}
+            ? `strategize with ${assistModel}…`
+            : status === 'connected' ? `message the ${repoProfile} agent…` : 'connecting…'}
           rows={1}
         />
         {busy ? (

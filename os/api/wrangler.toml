@@ -46,8 +46,10 @@ KIMI_MODEL = "kimi-k3"
 # deepseek-v4-pro, sonnet/haiku → deepseek-v4-flash, anything unknown → flash).
 # We do not rely on that — agent.sh pins every tier to one explicit id so a
 # profile means exactly one model and the bake-off compares what it says it
-# compares. `deepseek-v4-flash` is a floating alias for the latest snapshot
-# (currently DeepSeek-V4-Flash-0731).
+# compares. `deepseek-v4-flash` and `deepseek-v4-pro` are floating aliases for
+# the latest snapshot (flash: DeepSeek-V4-Flash-0731; pro: DeepSeek-V4-Pro-0813,
+# the GA build that replaced the preview on 2026-08-12 — DeepSeek publishes no
+# pinned dated ids, so the alias is the only routable name).
 DEEPSEEK_BASE_URL = "https://api.deepseek.com/anthropic"
 DEEPSEEK_OAI_BASE_URL = "https://api.deepseek.com/v1"
 DEEPSEEK_FLASH_MODEL = "deepseek-v4-flash"

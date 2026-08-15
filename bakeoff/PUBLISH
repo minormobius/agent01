@@ -1,5 +1,5 @@
 {
-  "runId": "race-01",
-  "sourceRun": 30713426713,
-  "note": "11 of 12 cells, all gate PASS + 4/4 primitives. Retry: the first attempt died because the sentinel was read with require(), which will not load an extensionless file as JSON."
+  "runId": "race-02",
+  "sourceRun": 31646780972,
+  "note": "12/12 cells from the 2026-08-12 re-run of the inpac-race brief. Same grid as race-01, but the ds4-pro cells ran on DeepSeek-V4-Pro-0813 — the GA build that replaced the preview that day — so this round is the new model's entries. Published as race-02: race-01 keeps the preview-era entries for comparison."
 }

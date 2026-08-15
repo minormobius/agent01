@@ -54,10 +54,42 @@ permissions:
   contents: write
 
 jobs:
+  # BULK-PUSH GUARD. The paths filter fires whenever bakeoff/RUN differs
+  # anywhere in the push RANGE — including a branch sync or force-push whose
+  # diff happens to carry the file (exactly how an unasked-for 12-cell matrix
+  # started on 2026-08-12). Asking for a run is a deliberate act: the push's
+  # TIP commit must itself be a non-merge commit that changes bakeoff/RUN.
+  # workflow_dispatch always passes.
+  intent:
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.check.outputs.go }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: check
+        run: |
+          set -uo pipefail
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          MERGES=$(git rev-list --no-walk --count --merges HEAD)
+          CHANGED=$(git diff --name-only HEAD^ HEAD 2>/dev/null || echo "")
+          if [ "$MERGES" = "0" ] && echo "$CHANGED" | grep -qx 'bakeoff/RUN'; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::head commit does not itself change bakeoff/RUN (bulk sync or merge) — not a run request; skipping the matrix"
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # Establish the control BEFORE spending a token. If the shipped code no longer
   # fails the rubric, the rubric is broken and the whole run is meaningless —
   # better to find that out in 20 seconds than after twelve agents have finished.
   baseline:
+    needs: intent
+    if: needs.intent.outputs.go == 'true'
     runs-on: ubuntu-latest
     outputs:
       run_id: ${{ steps.plan.outputs.run_id }}
