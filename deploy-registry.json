@@ -187,10 +187,11 @@
         "mino-auth-db"
       ],
       "provides": "auth.mino.mobi",
+      "status": "RECONCILED 2026-08-15 — one owner: claude/farmville-atproto-game-745mcr. It is the only claimant whose tree carries all 75 WRITE_COLLECTIONS; claude/atproto-infinite-whiteboard-usdpzx has 70 (no com.minomobi.farm.*), so giving it the surface would make the next auth deploy a silent narrowing of the ceiling. BEFORE THE NEXT AUTH DEPLOY THE OWNER MUST PULL main: only main now has both the full 75 and all three of the farm.mino.mobi, farm-next.mino.mobi and loop.mino.mobi origins — farmville's tree is still missing the loop origin.",
       "paths": [
         "workers/auth/**"
       ],
-      "note": "The one shared OAuth worker (confidential client — PKCE + DPoP + PAR + private_key_jwt). Claimed from claude/atproto-infinite-whiteboard-usdpzx (whose board.canvas + site.standard.* additions had landed in main) to ship farm's four com.minomobi.farm.* collections + the farm.mino.mobi origin. This tree is a strict superset of the live ceiling (check-auth-scope.mjs verified; also carries com.minomobi.loop.answer, live but not on main). Hand back to the next merge candidate when one forms."
+      "note": "The one shared OAuth worker (confidential client — PKCE + DPoP + PAR + private_key_jwt). This merge candidate unioned the two competing trees: 75 collections, deduplicated (the doubled lab.doc/lab.score pair that tripped check-auth-scope is gone), plus the farm, farm-next and loop origins together. Superset verified against main (69), farmville (75) and atproto-infinite-whiteboard (70) — nothing dropped from any of them. Full ownership history and the deploy caveat: workers/auth/CLAUDE.md."
     },
     {
       "surface": "autopilot",
@@ -868,6 +869,26 @@
       ]
     },
     {
+      "surface": "board",
+      "dir": "board",
+      "endpoint": "board.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/atproto-infinite-whiteboard-usdpzx",
+      "uses": [
+        "auth.mino.mobi"
+      ],
+      "provides": null,
+      "status": "MANAGED — verified prod. Run #1 (2026-07-28) created Worker `board` and bound `board.mino.mobi (custom domain)`; wrangler attached the new subdomain itself, no dashboard step was needed. Live: index + /lexicons/*.json serve 200.",
+      "op": "create",
+      "note": "The infinite whiteboard. Spatial canvas holding pictures, voice notes, links, files and text snips — and other whiteboards: a selection folds into a child board (⌘G) leaving a portal behind, and connectors that crossed the boundary re-point at it. One board = one com.minomobi.board.canvas record in the user's own repo, media as blobs on their PDS; no backend, no database… (full description: board/CLAUDE.md)",
+      "paths": [
+        "board/**",
+        "packages/oauth-client/**",
+        "js/typeahead.js",
+        "scripts/vendor-board.sh"
+      ]
+    },
+    {
       "surface": "tjs",
       "dir": "tjs",
       "endpoint": "tjs.mino.mobi",
@@ -1263,26 +1284,6 @@
         ".github/workflows/deploy-fifty.yml"
       ],
       "note": "Fifty ATProto app pitches, one deploy surface: a landing index at / and one page per concept at /c/<n>. Thirty are working tools; twenty render an honest write-up of why they were not built… (full description: fifty/CLAUDE.md)"
-    },
-    {
-      "surface": "board",
-      "dir": "board",
-      "endpoint": "board.mino.mobi",
-      "type": "frontend",
-      "branch": "claude/atproto-infinite-whiteboard-usdpzx",
-      "uses": [
-        "auth.mino.mobi"
-      ],
-      "provides": null,
-      "status": "MANAGED — verified prod. Run #1 (2026-07-28) created Worker `board` and bound `board.mino.mobi (custom domain)`; wrangler attached the new subdomain itself, no dashboard step was needed. Live: index + /lexicons/*.json serve 200.",
-      "op": "create",
-      "note": "The infinite whiteboard. Spatial canvas holding pictures, voice notes, links, files and text snips — and other whiteboards: a selection folds into a child board (⌘G) leaving a portal behind, and connectors that crossed the boundary re-point at it. One board = one com.minomobi.board.canvas record in the user's own repo, media as blobs on their PDS; no backend, no database… (full description: board/CLAUDE.md)",
-      "paths": [
-        "board/**",
-        "packages/oauth-client/**",
-        "js/typeahead.js",
-        "scripts/vendor-board.sh"
-      ]
     },
     {
       "surface": "farm",

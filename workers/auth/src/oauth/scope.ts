@@ -39,10 +39,12 @@
 const WRITE_COLLECTIONS = [
   // answers
   'com.minomobi.answers',
-  // loop — a signed answer to an ASK the agent loop filed. The loop can measure
-  // whether a thing works and cannot measure whether it is any good; this is the
-  // collection that carries the second kind of judgement, written to the
-  // answerer's OWN repo so we store nothing and the answer stays theirs.
+  // loop (loop.mino.mobi) — a signed answer to an ASK the agent loop filed.
+  // The loop can measure whether a thing WORKS and cannot measure whether it is
+  // any GOOD; this collection carries the second kind of judgement. Written to
+  // the answerer's own repo, so we store nothing and the answer stays theirs —
+  // which also makes it the only honest way to collect taste, since an unsigned
+  // box on a public page is a box anyone can fill with anything.
   'com.minomobi.loop.answer',
   // airchat
   'com.minomobi.airchat.voice',
@@ -169,10 +171,6 @@ const WRITE_COLLECTIONS = [
   'site.standard.document',
   'site.standard.graph.subscription',
   'site.standard.graph.recommend',
-  // loop — live on the production ceiling but absent from main when farm claimed
-  // this surface (2026-08-11); carried here so the union rule holds (the ceiling
-  // only ever grows — check-auth-scope.mjs flagged it, we keep it).
-  'com.minomobi.loop.answer',
   // farm (farm.mino.mobi) — Harvestople. plot = the whole save (rkey self);
   // achievement/gift/tend are small public one-shots that make deeds bragable
   // and friend-to-friend growth boosts verifiable from public records alone.
