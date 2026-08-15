@@ -2,8 +2,8 @@
 /**
  * Generate io/sites.json — the registry the StumbleUpon portal randomizes over.
  *
- * Source of truth is the `var P = [...]` PROJECTS array in the root index.html
- * (the same array generate-search-catalog.mjs and generate-og-card.mjs parse).
+ * Source of truth is catalogue.json (the same catalogue that generates
+ * index.html's `var P`, the search catalogue and the office map).
  * We re-emit it in the portal's domain-first shape so the constellation can grow
  * beyond mino.mobi: additional `constellations[]` entries (other domains/repos)
  * are appended by hand or by sibling repos' CI — this generator only owns the
@@ -16,9 +16,9 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { loadCatalogue } from './lib/landing.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const INDEX_HTML = join(ROOT, 'index.html');
 const OUT = join(ROOT, 'io', 'sites.json');
 
 const MINO_DOMAIN = 'mino.mobi';
@@ -46,25 +46,19 @@ function hostOf(url) {
 // search catalog + OG card pick them up too) and delete from this list.
 const SUPPLEMENTAL = []; // folded into index.html var P (2026-06-04); empty to avoid duplicates
 
-function parseProjects(html) {
-  const start = html.indexOf('var P = [');
-  if (start === -1) throw new Error('Could not find `var P = [` in index.html');
-  const end = html.indexOf('];', start);
-  const block = html.slice(start, end);
-  // { n:'poll', u:'https://poll.mino.mobi', c:'bluesky', k:75, a:'warm', p:'photo' }
-  // Match the 5 required fields; tolerate any trailing fields (t:, b:, p:) in any
-  // order before the closing brace, and pull `parent` out of that tail if present.
-  // (var P entries carry t:/b: date fields the old regex didn't account for, which
-  // silently dropped every dated entry.)
-  const re = /\{\s*n:'([^']+)',\s*u:'([^']+)',\s*c:'([^']+)',\s*k:(\d+),\s*a:'([^']+)'([^}]*)\}/g;
-  const out = [];
-  let m;
-  while ((m = re.exec(block)) !== null) {
-    const [, name, url, category, k, heat, rest] = m;
-    const pm = /p:'([^']+)'/.exec(rest);
-    out.push({ name, url, category, weight: Number(k), heat, parent: pm ? pm[1] : null });
-  }
-  return out;
+// The catalogue, read from catalogue.json (the source of truth) rather than
+// regex-scraped out of index.html. The regex this replaced required the five
+// fields in a fixed order and had already silently dropped every dated entry
+// once; that class of bug is why this is data now.
+function parseProjects() {
+  return loadCatalogue(ROOT).entries.map((e) => ({
+    name: e.n,
+    url: e.u,
+    category: e.c,
+    weight: Number(e.k ?? 1),
+    heat: e.a,
+    parent: e.p || null,
+  }));
 }
 
 function buildMinoConstellation(projects) {
@@ -87,8 +81,7 @@ function buildMinoConstellation(projects) {
 
 function main() {
   const dry = process.argv.includes('--dry');
-  const html = readFileSync(INDEX_HTML, 'utf8');
-  const projects = parseProjects(html);
+  const projects = parseProjects();
   const mino = buildMinoConstellation(projects);
 
   // Preserve any non-mino constellation entries a human/other repo added.

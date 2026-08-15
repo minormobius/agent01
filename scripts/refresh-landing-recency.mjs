@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Populate/update a `t` field (last-edit date, YYYY-MM-DD) on every entry in the
-// index.html `var P` taxonomy, from git history. The landing colour scale (age:
+// Populate/update the `t` field (last-edit date, YYYY-MM-DD) on every entry in
+// catalogue.json, from git history. The landing colour scale (age:
 // this week / last week / 2+ weeks) derives from `t` at render time, so the
 // colours always reflect when a surface was actually last touched.
 //
@@ -10,13 +10,12 @@
 //
 // Usage: node scripts/refresh-landing-recency.mjs [--dry]
 
-import { readFileSync, writeFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { loadCatalogue, saveCatalogue } from './lib/landing.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const INDEX = join(ROOT, 'index.html');
 const dry = process.argv.includes('--dry');
 const OVERRIDE = { empath: 'empathy', bake: 'bakery', ai: 'ai-edu' };
 
@@ -37,28 +36,23 @@ function dates(path) {
   } catch { return null; }
 }
 
-const html = readFileSync(INDEX, 'utf8');
-const start = html.indexOf('var P = [');
-const end = html.indexOf('\n  ];', start);
-const block = html.slice(start, end);
+// Update the catalogue, then re-project it into index.html. This used to do
+// line-by-line string surgery on the `var P` literal; writing the source and
+// regenerating the projection is what keeps the two from drifting apart.
+const cat = loadCatalogue(ROOT);
 
 let updated = 0, missed = 0;
-const out = block.split('\n').map(line => {
-  const um = line.match(/u:\s*'([^']+)'/);
-  if (!um || !/n:\s*'/.test(line)) return line;
-  const d = dates(repoPath(um[1]));
-  if (!d) { missed++; return line; }
+for (const e of cat.entries) {
+  const d = dates(repoPath(e.u));
+  if (!d) { missed++; continue; }
   updated++;
-  let nl = line;
-  // last-edit `t` (insert after a:'…')
-  nl = /\bt:\s*'/.test(nl) ? nl.replace(/t:\s*'[^']*'/, `t:'${d.t}'`)
-                           : nl.replace(/(a:\s*'[^']*')/, `$1, t:'${d.t}'`);
-  // birth `b` (insert after t:'…')
-  nl = /\bb:\s*'/.test(nl) ? nl.replace(/b:\s*'[^']*'/, `b:'${d.b}'`)
-                           : nl.replace(/(t:\s*'[^']*')/, `$1, b:'${d.b}'`);
-  return nl;
-});
+  e.t = d.t;
+  e.b = d.b;
+}
 
 console.log(`recency: ${updated} entries got a last-edit date; ${missed} had no resolvable path (kept as-is)`);
-if (!dry) { writeFileSync(INDEX, html.slice(0, start) + out.join('\n') + html.slice(end)); console.log('wrote index.html'); }
-else console.log('(dry run)');
+if (dry) { console.log('(dry run)'); process.exit(0); }
+
+saveCatalogue(ROOT, cat);
+console.log('wrote catalogue.json');
+execSync('node scripts/gen-landing-catalogue.mjs --write', { cwd: ROOT, stdio: 'inherit' });

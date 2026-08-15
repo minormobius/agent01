@@ -11,17 +11,21 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadCatalogue } from './lib/landing.mjs';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-const html = readFileSync(join(root, 'index.html'), 'utf8');
-const block = html.match(/var P = \[([\s\S]*?)\n  \];/)[1];
-const surfaces = [];
-for (const line of block.split('\n')) {
-  const n = line.match(/n:'([^']+)'/); if (!n) continue;
-  const g = (re, d) => { const m = line.match(re); return m ? m[1] : d; };
-  surfaces.push({ n:n[1], u:g(/u:'([^']+)'/,''), c:g(/c:'([^']+)'/,''),
-    k:+(g(/k:(\d+)/,'1')), a:g(/a:'([^']+)'/,'warm'), b:g(/b:'([^']+)'/,''), p:g(/p:'([^']+)'/,'') });
-}
+// Read the catalogue, not index.html. catalogue.json is the source of truth;
+// `var P` is generated from it. The line-by-line regex this replaced silently
+// skipped any entry whose formatting it didn't anticipate.
+const surfaces = loadCatalogue(root).entries.map((e) => ({
+  n: e.n,
+  u: e.u || '',
+  c: e.c || '',
+  k: e.k ?? 1,
+  a: e.a || 'warm',
+  b: e.b || '',
+  p: e.p || '',
+}));
 
 const WINGS = [
   { id:'social',  label:'The Social Layer', hue:205 },

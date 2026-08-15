@@ -16,25 +16,20 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadCatalogue } from './lib/landing.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 // ---- 1. parse the canonical P array -----------------------------------------
-const html = readFileSync(join(root, 'index.html'), 'utf8');
-const block = html.match(/var P = \[([\s\S]*?)\n  \];/)[1];
-const surfaces = [];
-for (const line of block.split('\n')) {
-  const n = line.match(/n:'([^']+)'/); if (!n) continue;
-  const g = (re, d) => { const m = line.match(re); return m ? m[1] : d; };
-  surfaces.push({
-    n: n[1],
-    u: g(/u:'([^']+)'/, ''),
-    c: g(/c:'([^']+)'/, ''),
-    k: +(g(/k:(\d+)/, '1')),
-    a: g(/a:'([^']+)'/, 'warm'),
-    p: g(/p:'([^']+)'/, ''),
-  });
-}
+// Read the catalogue, not index.html — see build-mappa.mjs for why.
+const surfaces = loadCatalogue(root).entries.map((e) => ({
+  n: e.n,
+  u: e.u || '',
+  c: e.c || '',
+  k: e.k ?? 1,
+  a: e.a || 'warm',
+  p: e.p || '',
+}));
 
 // ---- 2. the wings -----------------------------------------------------------
 // cx,cy are normalized centroids (0..1). The field is read along two axes:

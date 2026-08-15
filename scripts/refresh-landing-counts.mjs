@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Refresh the `k` (commit count) of every TOP-LEVEL entry in the index.html
-// `var P` taxonomy from real git history (git-graph.json's per-top-level-dir
+// Refresh the `k` (commit count) of every TOP-LEVEL entry in catalogue.json
+// from real git history (git-graph.json's per-top-level-dir
 // commit counts). Only updates an entry when its name matches its own
 // top-level dir (so sub-pages like torusworld=clock/scape are left alone).
 // Children (entries with `p:`) keep their hand-allocated counts.
@@ -16,9 +16,9 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { loadCatalogue, saveCatalogue } from './lib/landing.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const INDEX = join(ROOT, 'index.html');
 const dry = process.argv.includes('--dry');
 
 // Full-history per-top-level-dir commit counts (all branches, no merges).
@@ -50,39 +50,33 @@ function dirFor(url, name) {
   return name;
 }
 
-const html = readFileSync(INDEX, 'utf8');
-const startTok = 'var P = [';
-const start = html.indexOf(startTok);
-const end = html.indexOf('\n  ];', start);
-const block = html.slice(start, end);
-const lines = block.split('\n');
+// Update the catalogue, then re-project it into index.html. This used to
+// rewrite the `var P` literal line by line; writing the source and
+// regenerating the projection is what keeps the two from drifting apart.
+const cat = loadCatalogue(ROOT);
 
 const changes = [];
-const out = lines.map(line => {
-  const nm = line.match(/n:\s*'([^']+)'/);
-  const um = line.match(/u:\s*'([^']+)'/);
-  const km = line.match(/k:\s*(\d+)/);
-  if (!nm || !um || !km) return line;            // not a data line
-  if (/\bp:/.test(line)) return line;            // child entry — leave alone
-  const name = nm[1], url = um[1], oldK = +km[1];
-  const dir = dirFor(url, name);
-  if (dir !== name) return line;                 // name != dir (e.g. torusworld) — skip
+for (const e of cat.entries) {
+  if (e.p) continue;                              // child entry — leave alone
+  if (e.k === undefined) continue;
+  const dir = dirFor(e.u, e.n);
+  if (dir !== e.n) continue;                      // name != dir (e.g. torusworld) — skip
   const real = dirCount[dir];
-  if (real == null || real === oldK) return line;
-  changes.push(`${name}: ${oldK} -> ${real}`);
-  return line.replace(/k:\s*\d+/, 'k:' + real);
-});
+  if (real == null || real === e.k) continue;
+  changes.push(`${e.n}: ${e.k} -> ${real}`);
+  e.k = real;
+}
 
 if (changes.length) {
   console.log('Updated commit counts (top-level, from git history):');
-  changes.forEach(c => console.log('  ' + c));
+  changes.forEach((c) => console.log('  ' + c));
 } else {
   console.log('No changes — counts already match git history.');
 }
 
-if (!dry && changes.length) {
-  writeFileSync(INDEX, html.slice(0, start) + out.join('\n') + html.slice(end));
-  console.log(`\nWrote ${changes.length} updates to index.html`);
-} else if (dry) {
-  console.log('\n(dry run — no write)');
-}
+if (dry) { console.log('\n(dry run — no write)'); process.exit(0); }
+if (!changes.length) process.exit(0);
+
+saveCatalogue(ROOT, cat);
+console.log(`\nWrote ${changes.length} updates to catalogue.json`);
+execSync('node scripts/gen-landing-catalogue.mjs --write', { cwd: ROOT, stdio: 'inherit' });
