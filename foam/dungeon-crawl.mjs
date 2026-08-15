@@ -42,36 +42,43 @@ export function buildCrawl(json, opts = {}) {
   const tileSize = json.tile.size;
   const dyMax = opts.dyMax ?? defaultDyMax(tileSize);
   const shape = json.tile.shape;
+  // blocked: Set of 'room:tile' keys that cannot be stood on (obstacles).
+  // Blocked tiles vanish from the step graph entirely — no adjacency, no
+  // bridging through them. Door / entrance / goal tiles are never blocked
+  // (the content roller reserves them).
+  const blocked = opts.blocked ?? null;
   const roomById = new Map(json.rooms.map((r) => [r.id, r]));
   const rooms = new Map();
 
   for (const r of json.rooms) {
+    const isB = (k) => blocked !== null && blocked.has(r.id + ':' + k);
+    const walk = r.tiles.filter((t) => !isB(t.key));
     const byKey = new Map(r.tiles.map((t) => [t.key, t]));
-    const adj = new Map(r.tiles.map((t) => [t.key, []]));
+    const adj = new Map(walk.map((t) => [t.key, []]));
     const link = (a, b) => { adj.get(a).push(b); adj.get(b).push(a); };
     // lattice neighbours under the height gate
-    for (const t of r.tiles) {
+    for (const t of walk) {
       const deltas = shape === 'hex' ? HEXN : GRIDN;
       for (const [da, db] of deltas) {
         const nk = shape === 'hex'
           ? (t.q === undefined ? null : (t.q + da) + ',' + (t.r + db))
           : (t.i === undefined ? null : (t.i + da) + ',' + (t.j + db));
-        if (!nk || !byKey.has(nk)) continue;
+        if (!nk || !byKey.has(nk) || isB(nk)) continue;
         const n = byKey.get(nk);
         if (t.key < nk && Math.abs(n.y - t.y) <= dyMax) link(t.key, nk);
       }
     }
     // bridge the gaps: union-find components, join closest pairs
-    const par = new Map(r.tiles.map((t) => [t.key, t.key]));
+    const par = new Map(walk.map((t) => [t.key, t.key]));
     const find = (x) => { while (par.get(x) !== x) { par.set(x, par.get(par.get(x))); x = par.get(x); } return x; };
     for (const [a, ns] of adj) for (const b of ns) { const ra = find(a), rb = find(b); if (ra !== rb) par.set(ra, rb); }
     let bridges = 0, forcedBridges = 0;
-    const compCount = () => new Set(r.tiles.map((t) => find(t.key))).size;
+    const compCount = () => new Set(walk.map((t) => find(t.key))).size;
     while (compCount() > 1) {
       let best = null, bd = Infinity, forced = null, fd = Infinity;
-      for (let i = 0; i < r.tiles.length; i++) {
-        for (let j = i + 1; j < r.tiles.length; j++) {
-          const a = r.tiles[i], b = r.tiles[j];
+      for (let i = 0; i < walk.length; i++) {
+        for (let j = i + 1; j < walk.length; j++) {
+          const a = walk[i], b = walk[j];
           if (find(a.key) === find(b.key)) continue;
           const d = Math.hypot(a.x - b.x, a.z - b.z);
           const dy = Math.abs(a.y - b.y);
@@ -138,7 +145,9 @@ export function crawlReachability(crawl) {
 // Returns Map('room:tile' → cost), including the start at cost 0. This is
 // the VTT move range: the UI highlights the current room's entries as legal
 // squares and lights doors whose transit fits the budget.
-export function reachableWithin(crawl, room, tile, budget) {
+// `blocked` (optional Set of 'room:tile') is a DYNAMIC overlay — tiles
+// currently impassable on top of the graph (e.g. an enemy standing there).
+export function reachableWithin(crawl, room, tile, budget, blocked = null) {
   const out = new Map();
   const key = (r, t) => r + ':' + t;
   out.set(key(room, tile), 0);
@@ -149,14 +158,15 @@ export function reachableWithin(crawl, room, tile, budget) {
     if (d >= budget) continue;
     const R = crawl.rooms.get(ri);
     for (const nk of R.adj.get(tk) ?? []) {
-      if (!out.has(key(ri, nk))) { out.set(key(ri, nk), d + 1); q.push([ri, nk]); }
+      const k = key(ri, nk);
+      if (out.has(k) || (blocked && blocked.has(k))) continue;
+      out.set(k, d + 1); q.push([ri, nk]);
     }
     for (const door of R.doors) {
       if (door.tile !== tk || door.farTile === null) continue;
-      if (!out.has(key(door.to, door.farTile))) {
-        out.set(key(door.to, door.farTile), d + 1);
-        q.push([door.to, door.farTile]);
-      }
+      const k = key(door.to, door.farTile);
+      if (out.has(k) || (blocked && blocked.has(k))) continue;
+      out.set(k, d + 1); q.push([door.to, door.farTile]);
     }
   }
   return out;

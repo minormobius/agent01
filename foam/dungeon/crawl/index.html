@@ -47,6 +47,10 @@
   #endTurn:hover { border-color: #7fd8d0; }
   #doorbar button:disabled { opacity: .35; cursor: default; }
 
+  #note { position: fixed; left: 50%; bottom: 30vh; transform: translateX(-50%); background: rgba(6,10,14,.85); border: 1px solid #1c2b31; border-radius: 8px; padding: 6px 14px; color: #ffce78; opacity: 0; transition: opacity .25s; pointer-events: none; font-size: 13px; }
+  #hpline { margin-top: 3px; font-size: 12px; }
+  #hpline b.hp { color: #ff9e6e; } #hpline b.gp { color: #ffdf9e; }
+
   .overlay { position: fixed; inset: 0; background: rgba(4,6,10,.88); display: none; align-items: center; justify-content: center; z-index: 10; }
   .overlay.on { display: flex; }
   .card { max-width: 480px; margin: 16px; background: #070c12; border: 1px solid #1c2b31; border-radius: 14px; padding: 22px 26px; }
@@ -63,10 +67,12 @@
 <div id="hud">
   <b>foam · crawl</b> <span class="dim">— <a href="../" id="backlink">← generator</a></span>
   <div id="roomline"></div>
+  <div id="hpline"></div>
   <div id="ends"></div>
 </div>
 
 <div id="topright">
+  <span class="chip" id="rollChip" title="reroll loot, traps and enemies — same map">⚄ roll 1</span>
   <span class="chip" id="loadChip" title="load an exported foam-dungeon .json">⤒ load .json</span>
   <input id="file" type="file" accept=".json,application/json">
 </div>
@@ -79,13 +85,24 @@
   <button id="endTurn">↻ end turn</button>
 </div>
 <div id="steps"></div>
+<div id="note"></div>
+
+<div class="overlay" id="death">
+  <div class="card">
+    <h1>the foam takes you</h1>
+    <p id="deathText"></p>
+    <button onclick="location.reload()">crawl again</button>
+  </div>
+</div>
 
 <div class="overlay on" id="intro">
   <div class="card">
     <h1>the dungeon crawl</h1>
     <p>You stand at the <b>entrance</b>, on the foam's top surface. Somewhere
-    below, beacons mark the endpoints. Every door was proven walkable before
-    this dungeon shipped.</p>
+    below, beacons mark the endpoints — each holds a treasure, and each has a
+    guardian. Caches glitter, traps wait unseen, rubble blocks tiles, and
+    things move in the deep when you end your turn. Bump an enemy to strike
+    it. Every door was proven walkable before this dungeon shipped.</p>
     <p><b>click / tap</b> any lit tile to walk there — the lit squares are your
     movement range for this turn (set it with the <b>movement</b> slider,
     <b>↻ end turn</b> refreshes it) · <b>WASD / arrows</b> step one tile ·
@@ -109,13 +126,14 @@ import { OrbitControls } from '../../vendor/OrbitControls.js';
 import { generateDungeon, DUNGEON_VERSION, SIZES } from '../../dungeon.mjs';
 import { dungeonToJSON } from '../../dungeon-export.mjs';
 import { buildCrawl, reachableWithin } from '../../dungeon-crawl.mjs';
+import { rollContent, contentBlocked, ENEMY_TYPES } from '../../dungeon-content.mjs';
 
 const PATH_COLORS = ['#ff9e6e', '#9ff0e6', '#c8a5ff', '#ffd166', '#8fd3ff', '#ffa5c0'];
 const css = (c) => new THREE.Color(c);
 const $ = (id) => document.getElementById(id);
 
 // ------------------------------------------------------------- params ------
-const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35, size: 'm' };
+const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35, size: 'm', roll: 1 };
 {
   const h = new URLSearchParams(location.hash.slice(1));
   if (h.get('seed')) params.seed = Math.max(1, parseInt(h.get('seed'), 10) || 1);
@@ -123,6 +141,7 @@ const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35, size: 'm' };
   if (h.get('shape') === 'hex') params.shape = 'hex';
   if (h.get('scale')) params.scale = Math.min(1, Math.max(0.08, parseFloat(h.get('scale')) || 0.35));
   if (SIZES[h.get('size')]) params.size = h.get('size');
+  if (h.get('roll')) params.roll = Math.max(1, parseInt(h.get('roll'), 10) || 1);
   const v = h.get('v');
   if (v && parseInt(v, 10) !== DUNGEON_VERSION) {
     console.warn('permalink generator v' + v + ' ≠ current v' + DUNGEON_VERSION + ' — layout may differ');
@@ -139,6 +158,10 @@ let steps = 0;
 let loadedFromFile = false;
 let moveMax = 10, moveLeft = 10;       // the movement budget (tiles per turn)
 let walkQueue = [];                    // multi-step walk in progress
+let content = null;                    // the content roll (loot/traps/obstacles/enemies)
+let fx = new Map();                    // 'room:tile' -> live effect record
+let mobs = [];                         // live agents: {id,type,hp,room,tile}
+let hp = 12, gold = 0, dead = false;   // the crawler
 
 // -------------------------------------------------------------- three ------
 const canvas = $('c');
@@ -294,6 +317,53 @@ function buildRoom(id) {
     roomGroup.add(beam);
   }
 
+  // -- content: effects + agents living in this room
+  for (const [k, e] of fx) {
+    if (Number(k.split(':')[0]) !== id || e.done) continue;
+    const t = crawl.rooms.get(id).byKey.get(e.tile);
+    if (e.type === 'obstacle') {
+      const m = new THREE.Mesh(new THREE.OctahedronGeometry(J.tile.size * 0.34, 0),
+        new THREE.MeshBasicMaterial({ color: css('#3a4a52') }));
+      m.position.set(t.x, t.y + J.tile.size * 0.3, t.z);
+      m.rotation.y = (t.x * 7 + t.z * 3) % 1;
+      roomGroup.add(m);
+      const w = new THREE.LineSegments(new THREE.WireframeGeometry(m.geometry),
+        new THREE.LineBasicMaterial({ color: css('#5f7a80') }));
+      w.position.copy(m.position); w.rotation.copy(m.rotation);
+      roomGroup.add(w);
+    } else if (e.type === 'loot' || e.type === 'treasure') {
+      const s = e.type === 'treasure' ? 0.32 : 0.2;
+      const m = new THREE.Mesh(new THREE.BoxGeometry(J.tile.size * s, J.tile.size * s * 0.75, J.tile.size * s),
+        new THREE.MeshBasicMaterial({ color: css(e.type === 'treasure' ? '#ffdf9e' : '#d8a94e') }));
+      m.position.set(t.x, t.y + J.tile.size * s * 0.4, t.z);
+      m.rotation.y = 0.5;
+      e.mesh = m; roomGroup.add(m);
+      if (e.type === 'treasure') {
+        const halo = new THREE.Mesh(new THREE.TorusGeometry(J.tile.size * 0.34, 0.03, 8, 24),
+          new THREE.MeshBasicMaterial({ color: css('#ffdf9e'), transparent: true, opacity: 0.6 }));
+        halo.rotation.x = Math.PI / 2; halo.position.set(t.x, t.y + 0.08, t.z);
+        e.halo = halo; roomGroup.add(halo);
+      }
+    } else if (e.type === 'trap' && e.sprung) {
+      const m = new THREE.Mesh(new THREE.ConeGeometry(J.tile.size * 0.16, 0.5, 6),
+        new THREE.MeshBasicMaterial({ color: css('#ff6e5a') }));
+      m.position.set(t.x, t.y + 0.25, t.z);
+      roomGroup.add(m);
+    }
+  }
+  for (const a of mobs) {
+    if (a.room !== id || a.hp <= 0) continue;
+    const t = crawl.rooms.get(id).byKey.get(a.tile);
+    const spec = ENEMY_TYPES[a.type];
+    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(J.tile.size * (0.2 + a.hp * 0.05), 0),
+      new THREE.MeshBasicMaterial({ color: css(spec.color) }));
+    m.position.set(t.x, t.y + 0.55, t.z);
+    a.mesh = m; roomGroup.add(m);
+    const w = new THREE.LineSegments(new THREE.WireframeGeometry(m.geometry),
+      new THREE.LineBasicMaterial({ color: css('#04060a'), transparent: true, opacity: 0.5 }));
+    m.add(w);
+  }
+
   // -- token
   token = new THREE.Group();
   const cone = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.85, 12),
@@ -315,7 +385,7 @@ function buildRoom(id) {
 let rangeMap = new Map();   // 'room:tile' -> cost, refreshed with the token
 function refreshHilites() {
   if (hiliteMesh) { roomGroup.remove(hiliteMesh); hiliteMesh.geometry.dispose(); hiliteMesh.material.dispose(); }
-  rangeMap = reachableWithin(crawl, curRoom, curTile, moveLeft);
+  rangeMap = reachableWithin(crawl, curRoom, curTile, moveLeft, mobTiles());
   const R = crawl.rooms.get(curRoom);
   const pos = [], col = [];
   for (const [k, cost] of rangeMap) {
@@ -366,6 +436,7 @@ function refreshHUD() {
     b.onclick = () => transit(d);
     $('doorbar').appendChild(b);
   }
+  $('hpline').innerHTML = '♥ <b class="hp">' + hp + '</b> · <b class="gp">' + gold + '</b> gold';
   // the movement meter
   $('moveMaxV').textContent = moveMax;
   $('moveLeft').classList.toggle('spent', moveLeft === 0);
@@ -421,27 +492,87 @@ function placeToken(animate = true) {
   refreshHilites(); refreshHUD(); drawMini();
 }
 
-function stepTo(key) {
+// ------------------------------------------------------------- gameplay ----
+let noteT = null;
+function note(msg, color = '#ffce78') {
+  const el = $('note');
+  el.textContent = msg; el.style.color = color; el.style.opacity = 1;
+  clearTimeout(noteT); noteT = setTimeout(() => { el.style.opacity = 0; }, 1600);
+}
+
+const mobAt = (room, tile) => mobs.find((a) => a.hp > 0 && a.room === room && a.tile === tile);
+const mobTiles = () => new Set(mobs.filter((a) => a.hp > 0).map((a) => a.room + ':' + a.tile));
+
+function hurt(dmg, why) {
+  hp -= dmg;
+  note(why + ' — ' + dmg + ' damage', '#ff6e5a');
+  if (hp <= 0 && !dead) {
+    dead = true; hp = 0;
+    $('deathText').innerHTML = 'You made it <b>' + steps + '</b> steps and ' + gold +
+      ' gold deep, with ' + found.size + ' of ' + J.endpoints.length + ' endpoints found.';
+    $('death').classList.add('on');
+  }
+  refreshHUD();
+}
+
+function attack(mob) {
   if (moveLeft <= 0) return false;
+  moveLeft--; steps++;
+  mob.hp--;
+  const spec = ENEMY_TYPES[mob.type];
+  if (mob.hp <= 0) {
+    gold += spec.gold;
+    note(mob.type + ' slain · +' + spec.gold + ' gold', '#9fd86e');
+    mob.mesh?.parent?.remove(mob.mesh);
+  } else {
+    if (mob.mesh) mob.mesh.scale.setScalar(0.75 + mob.hp * 0.12);
+    hurt(spec.dmg, 'the ' + mob.type + ' strikes back');
+    if (dead) return true;
+  }
+  placeToken();
+  return true;
+}
+
+function resolveTile() {
+  const e = fx.get(curRoom + ':' + curTile);
+  if (!e || e.done) return;
+  if (e.type === 'loot' || e.type === 'treasure') {
+    e.done = true; gold += e.gold;
+    note((e.type === 'treasure' ? 'the treasure!' : 'a cache') + ' +' + e.gold + ' gold', '#ffdf9e');
+    e.mesh?.parent?.remove(e.mesh); e.halo?.parent?.remove(e.halo);
+  } else if (e.type === 'trap' && !e.sprung) {
+    e.sprung = true;
+    if (e.trap === 'snare') { moveLeft = 0; note('a snare! your turn ends here', '#ff9e6e'); }
+    else hurt(e.dmg, 'spike trap');
+    buildRoom(curRoom); placeToken(false);   // reveal the sprung trap
+  }
+}
+
+function stepTo(key) {
+  if (moveLeft <= 0 || dead) return false;
   const R = crawl.rooms.get(curRoom);
   if (!(R.adj.get(curTile) ?? []).includes(key)) return false;
+  const mob = mobAt(curRoom, key);
+  if (mob) return attack(mob);               // a bump is an attack
   curTile = key; steps++; moveLeft--;
   placeToken();
+  resolveTile();
   return true;
 }
 
 // walk to any tile inside the legal range: shortest path within the room,
 // consumed step by step by the render loop (the token visibly walks it)
 function walkTo(key) {
-  if (walkQueue.length) return false;
+  if (walkQueue.length || dead) return false;
   const target = curRoom + ':' + key;
   if (!rangeMap.has(target) || rangeMap.get(target) === 0) return false;
   const R = crawl.rooms.get(curRoom);
+  const blocked = mobTiles();
   const prev = new Map([[curTile, null]]);
   const q = [curTile];
   for (let h = 0; h < q.length && !prev.has(key); h++) {
     for (const nk of R.adj.get(q[h]) ?? []) {
-      if (!prev.has(nk)) { prev.set(nk, q[h]); q.push(nk); }
+      if (!prev.has(nk) && !blocked.has(curRoom + ':' + nk)) { prev.set(nk, q[h]); q.push(nk); }
     }
   }
   if (!prev.has(key)) return false;
@@ -454,7 +585,9 @@ function walkTo(key) {
 }
 
 function transit(door) {
-  if (moveLeft <= 0) return;
+  if (moveLeft <= 0 || dead) return;
+  const guard = mobAt(door.to, door.farTile);
+  if (guard) { note('something waits on the far side — it blocks the door', '#ff9e6e'); return; }
   curRoom = door.to; curTile = door.farTile; steps++; moveLeft--;
   discovered.add(curRoom);
   const r = roomInfo(curRoom);
@@ -486,7 +619,14 @@ canvas.addEventListener('pointerup', (e) => {
   if (!hits.length) return;
   const p = hits[0].point;
   const R = crawl.rooms.get(curRoom);
-  // nearest tile to the hit point that lies inside the legal range
+  // an adjacent enemy first: clicking it is a bump attack
+  for (const nk of R.adj.get(curTile) ?? []) {
+    const mob = mobAt(curRoom, nk);
+    if (!mob) continue;
+    const t = R.byKey.get(nk);
+    if ((t.x - p.x) ** 2 + (t.z - p.z) ** 2 < (J.tile.size * 0.8) ** 2) { attack(mob); return; }
+  }
+  // otherwise the nearest tile inside the legal range
   let best = null, bd = Infinity;
   for (const [k, cost] of rangeMap) {
     if (cost === 0) continue;
@@ -522,11 +662,20 @@ addEventListener('keydown', (e) => {
 
 // -------------------------------------------------------------- loading ----
 function start(doc, fromFile) {
-  J = doc; crawl = buildCrawl(J);
+  J = doc;
+  // the content roll is a SEPARATE pass on the same map — reroll it and the
+  // geometry (and its permalink) stays put
+  content = rollContent(J, { roll: params.roll });
+  fx = new Map(content.effects.map((e) => [e.room + ':' + e.tile, { ...e }]));
+  mobs = content.agents.map((a) => ({ ...a }));
+  crawl = buildCrawl(J, { blocked: contentBlocked(content) });
   loadedFromFile = fromFile;
   curRoom = crawl.startRoom; curTile = crawl.startTile;
   discovered = new Set([curRoom]); found = new Set(); steps = 0;
   moveLeft = moveMax; walkQueue = [];
+  hp = 12; gold = 0; dead = false;
+  $('death').classList.remove('on');
+  $('rollChip').textContent = '⚄ roll ' + params.roll;
   buildRoom(curRoom);
   placeToken(false);
   const t = crawl.rooms.get(curRoom).byKey.get(curTile);
@@ -538,12 +687,57 @@ function start(doc, fromFile) {
   window.__crawl.ready = true;
 }
 
+$('rollChip').onclick = () => {
+  if (loadedFromFile) { params.roll = 1 + Math.floor(Math.random() * 9998); start(J, true); return; }
+  params.roll = 1 + Math.floor(Math.random() * 9998);
+  const h = new URLSearchParams(location.hash.slice(1));
+  h.set('roll', params.roll);
+  history.replaceState(null, '', '#' + h.toString());
+  start(J, false);
+};
+
 $('moveSlider').oninput = () => {
   moveMax = parseInt($('moveSlider').value, 10);
   moveLeft = Math.min(moveLeft, moveMax);
   refreshHilites(); refreshHUD();
 };
-$('endTurn').onclick = () => { moveLeft = moveMax; refreshHilites(); refreshHUD(); };
+// ending the turn wakes the room: each enemy here steps toward you, or
+// strikes if already at your side — then your movement refreshes
+function enemyTurn() {
+  const R = crawl.rooms.get(curRoom);
+  for (const mob of mobs) {
+    if (mob.hp <= 0 || mob.room !== curRoom) continue;
+    if ((R.adj.get(mob.tile) ?? []).includes(curTile)) {
+      hurt(ENEMY_TYPES[mob.type].dmg, 'the ' + mob.type + ' strikes');
+      if (dead) return;
+      continue;
+    }
+    // one step along its shortest path to you, never through anything
+    const blocked = mobTiles();
+    const prev = new Map([[curTile, null]]);       // BFS out FROM you
+    const q = [curTile];
+    for (let h = 0; h < q.length && !prev.has(mob.tile); h++) {
+      for (const nk of R.adj.get(q[h]) ?? []) {
+        if (!prev.has(nk) && (!blocked.has(curRoom + ':' + nk) || nk === mob.tile)) { prev.set(nk, q[h]); q.push(nk); }
+      }
+    }
+    const next = prev.get(mob.tile);               // the mob's step toward you
+    // never onto door/entrance/goal markers — a mob camped on a door tile in
+    // a room you left could lock that door forever
+    if (next && R.byKey.get(next).kind !== 'floor') continue;
+    if (next && next !== curTile && !mobAt(curRoom, next)) {
+      mob.tile = next;
+      const t = R.byKey.get(next);
+      mob.mesh?.position.set(t.x, t.y + 0.55, t.z);
+    }
+  }
+}
+$('endTurn').onclick = () => {
+  if (dead) return;
+  enemyTurn();
+  if (dead) return;
+  moveLeft = moveMax; refreshHilites(); refreshHUD();
+};
 
 $('loadChip').onclick = () => $('file').click();
 $('file').onchange = async (e) => {
@@ -561,7 +755,13 @@ $('begin').onclick = () => $('intro').classList.remove('on');
 // -------------------------------------------------------------- debug ------
 window.__crawl = {
   ready: false,
-  get state() { return { room: curRoom, tile: curTile, steps, found: [...found], discovered: discovered.size, moveLeft, moveMax }; },
+  get state() { return { room: curRoom, tile: curTile, steps, found: [...found], discovered: discovered.size, moveLeft, moveMax, hp, gold, dead }; },
+  get content() { return content; },
+  effectAt: (r, t) => { const e = fx.get(r + ':' + t); return e ? { ...e, mesh: undefined, halo: undefined } : null; },
+  mobAt: (r, t) => { const m = mobAt(r, t); return m ? { id: m.id, type: m.type, hp: m.hp, tile: m.tile } : null; },
+  mobs: () => mobs.filter((m) => m.hp > 0).map((m) => ({ id: m.id, type: m.type, hp: m.hp, room: m.room, tile: m.tile })),
+  reroll: (n) => { params.roll = n; start(J, loadedFromFile); },
+  setHp: (n) => { hp = n; refreshHUD(); },       // harness/debug only
   get range() { return Object.fromEntries(rangeMap); },
   setMove: (n) => { $('moveSlider').value = n; $('moveSlider').oninput(); },
   endTurn: () => $('endTurn').click(),

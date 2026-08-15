@@ -301,6 +301,57 @@ for (const seed of SEEDS) {
     `${rooms.length} rooms, par ${paths.map((p) => p.doors.length).join('/')}`);
 }
 
+// -- CONTENT rolls: a separate deterministic pass on top of a finished map
+{
+  const { rollContent, contentBlocked, ENEMY_TYPES, CONTENT_VERSION } = await import('../dungeon-content.mjs');
+  const { layoutSignature } = await import('../dungeon-export.mjs');
+  for (const seed of SEEDS) {
+    for (const shape of ['grid', 'hex']) {
+      const J = dungeonToJSON(generateDungeon({ seed, endpoints: 3, tileShape: shape, tileScale: 0.35 }));
+      const tilesByRoom = new Map(J.rooms.map((r) => [r.id, new Map(r.tiles.map((t) => [t.key, t]))]));
+      for (const roll of [1, 2, 7]) {
+        const C = rollContent(J, { roll });
+        ok(C.format === 'foam-dungeon-content' && C.version === CONTENT_VERSION && C.roll === roll,
+          `content ${seed}/${shape}/${roll}: header`);
+        ok(C.mapSig === layoutSignature(J), `content ${seed}/${shape}/${roll}: bound to the map`);
+        // determinism + rolls actually differ
+        ok(JSON.stringify(rollContent(J, { roll })) === JSON.stringify(C), `content ${seed}/${shape}/${roll}: deterministic`);
+        // one thing per tile, everything on real tiles, markers reserved
+        const spots = new Set();
+        let collide = false, offMap = false, onMarker = false;
+        for (const x of [...C.effects, ...C.agents]) {
+          const k = x.room + ':' + x.tile;
+          if (spots.has(k)) collide = true;
+          spots.add(k);
+          const t = tilesByRoom.get(x.room)?.get(x.tile);
+          if (!t) offMap = true;
+          else if (t.kind !== 'floor' && !(x.type === 'treasure' && t.kind === 'goal')) onMarker = true;
+        }
+        ok(!collide, `content ${seed}/${shape}/${roll}: one thing per tile`);
+        ok(!offMap, `content ${seed}/${shape}/${roll}: everything on real tiles`);
+        ok(!onMarker, `content ${seed}/${shape}/${roll}: markers reserved (treasure-on-goal excepted)`);
+        // entrance safe, endpoints furnished
+        const entrance = J.rooms.find((r) => r.role === 'entrance');
+        const hostileAtEntrance =
+          C.agents.some((a) => a.room === entrance.id) ||
+          C.effects.some((e) => e.room === entrance.id && (e.type === 'trap' || e.type === 'obstacle'));
+        ok(!hostileAtEntrance, `content ${seed}/${shape}/${roll}: entrance room safe`);
+        for (const er of J.rooms.filter((r) => r.role === 'endpoint')) {
+          ok(C.effects.some((e) => e.room === er.id && e.type === 'treasure'), `content ${seed}/${shape}/${roll}: treasure at endpoint ${er.id}`);
+          ok(C.agents.some((a) => a.room === er.id), `content ${seed}/${shape}/${roll}: guardian at endpoint ${er.id}`);
+        }
+        // the safety gate held: obstacles never sever the dungeon
+        const rep = crawlReport(J, { blocked: contentBlocked(C) });
+        ok(rep.complete && rep.allRoomsReachable, `content ${seed}/${shape}/${roll}: obstacles never sever the dungeon`);
+        // agent types are known
+        ok(C.agents.every((a) => ENEMY_TYPES[a.type] && a.hp === ENEMY_TYPES[a.type].hp), `content ${seed}/${shape}/${roll}: agents typed`);
+      }
+      const a = JSON.stringify(rollContent(J, { roll: 1 })), b = JSON.stringify(rollContent(J, { roll: 2 }));
+      ok(a !== b, `content ${seed}/${shape}: different rolls differ`);
+    }
+  }
+}
+
 // -- SIZES: every named size generates, stays crawlable, and reports itself
 {
   const { SIZES } = await import('../dungeon.mjs');

@@ -108,6 +108,39 @@ Caveat: UVTT assumes a **square** grid. A hex-tiled dungeon exports correct
 walls, portals and image, but a VTT's grid overlay will not align with the
 hexes — use grid tiles if square-grid alignment matters to your table.
 
+## Content rolls — `foam-dungeon-content`
+
+Loot, traps, obstacles and enemies are a **separate roll on top of the
+map**, not part of it. A map permalink freezes geometry; the `roll` hash
+param on the crawler picks the furnishing, rerollable without touching the
+map. Content reduces to two primitives:
+
+- **tile effects** — things that ARE a tile: `loot` (gold cache),
+  `treasure` (endpoint prize, sits on the goal marker), `trap`
+  (`spike` damage / `snare` ends the turn; hidden until stepped on),
+  `obstacle` (impassable rubble),
+- **agents** — things that STAND on a tile and act: enemies
+  (`mite`/`shade`/`wraith` by depth; bump to fight, they chase on end turn).
+
+```jsonc
+{
+  "format": "foam-dungeon-content",
+  "version": 1,
+  "mapSig": 1598924080,      // layout signature of the map it furnishes
+  "roll": 7,                  // the content seed
+  "effects": [{ "type": "trap", "trap": "spike", "dmg": 2, "room": 128, "tile": "3,-1" }, …],
+  "agents":  [{ "id": 4, "type": "shade", "hp": 2, "room": 75, "tile": "5,2" }, …]
+}
+```
+
+Guarantees the roller enforces (CI-pinned): deterministic per
+`(mapSig, roll)`; one thing per tile; door/entrance/goal markers reserved
+(treasure-on-goal excepted); the entrance room is safe ground; every
+endpoint holds a treasure and a guardian; and **obstacles never sever the
+dungeon** — placement is re-checked against the crawl graph and repaired
+before the roll is returned. `rollContent` / `contentBlocked` are exported
+from the CORS-served `dungeon-content.mjs`.
+
 ## 3. Map PNG — `.png`
 
 The same top-down plan the page shows (tiles shaded by floor height, walls,

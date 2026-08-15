@@ -116,6 +116,17 @@ export function uniqueDoors(dungeon) {
   return [...seen.values()].sort((a, b) => a.face - b.face);
 }
 
+// A canonical document's LAYOUT SIGNATURE: fnv over the geometry-bearing
+// subset (the same subset the selftest's golden permalink pins hash).
+// Content rolls bind to this — a content document knows which map it
+// furnishes, whatever metadata either document also carries.
+export function layoutSignature(json) {
+  const str = JSON.stringify({ e: json.entrance, n: json.endpoints, r: json.rooms, d: json.doors, p: json.paths });
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return h >>> 0;
+}
+
 // ------------------------------------------------- the canonical format ----
 export function dungeonToJSON(dungeon) {
   const P = dungeon.pocket;
