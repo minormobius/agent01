@@ -8,7 +8,7 @@
 
 import { generateDungeon, discretizeRoom } from '../dungeon.mjs';
 import { dungeonToJSON, dungeonToUVTT, roomOutlines, uniqueDoors, planBounds } from '../dungeon-export.mjs';
-import { buildCrawl, crawlReachability, crawlReport } from '../dungeon-crawl.mjs';
+import { buildCrawl, crawlReachability, crawlReport, reachableWithin } from '../dungeon-crawl.mjs';
 import { pointInPolyXZ } from '../foamworld.js';
 
 let checks = 0, failures = 0;
@@ -21,17 +21,20 @@ const SEEDS = [1, 2, 5];
 const t0 = Date.now();
 
 // -- GOLDEN PERMALINK PINS. A published permalink is (DUNGEON_VERSION, seed,
-//    endpoints, shape, scale) → this exact dungeon. These signatures are the
-//    canonical JSON of known seeds, hashed; if a change to generation or
-//    discretization shifts one, that change breaks every published permalink
-//    — either revert it, or consciously bump DUNGEON_VERSION in dungeon.mjs
-//    and re-pin. Never re-pin without the bump.
+//    endpoints, shape, scale, size) → this exact LAYOUT. The signature hashes
+//    the geometry-bearing parts of the canonical export (entrance, endpoints,
+//    rooms, doors, paths) — metadata additions to the generator block do not
+//    shift it. If a change to generation or discretization moves one of
+//    these, that change reshuffles every published permalink — either revert
+//    it, or consciously bump DUNGEON_VERSION in dungeon.mjs and re-pin.
+//    Never re-pin a moved layout without the bump.
 {
   const { DUNGEON_VERSION } = await import('../dungeon.mjs');
   ok(DUNGEON_VERSION === 1, 'golden pins below are for DUNGEON_VERSION 1');
-  const GOLDEN = { 1: 0x1e73d61d, 2: 0xccc95c48, 5: 0xd2cdbe57 };
+  const GOLDEN = { 1: 0x5f50a930, 2: 0xfed153c0, 5: 0x14e0ace0 };
   const sigOf = (s) => {
-    const str = JSON.stringify(dungeonToJSON(generateDungeon({ seed: s, endpoints: 3, tileShape: 'grid', tileScale: 0.35 })));
+    const J = dungeonToJSON(generateDungeon({ seed: s, endpoints: 3, tileShape: 'grid', tileScale: 0.35 }));
+    const str = JSON.stringify({ e: J.entrance, n: J.endpoints, r: J.rooms, d: J.doors, p: J.paths });
     let h = 2166136261 >>> 0;
     for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
     return h >>> 0;
@@ -267,6 +270,27 @@ for (const seed of SEEDS) {
     ok(gated, `crawl ${shape}: lattice steps honour the height gate`);
   }
 
+  // -- movement budget: reachableWithin is a metric over the crawl graph —
+  //    costs ≤ budget, monotone in budget, and at par with full BFS
+  {
+    const J = dungeonToJSON(generateDungeon({ pocket, endpoints: 3, tileShape: 'hex', tileScale: 0.35 }));
+    const crawl = buildCrawl(J);
+    const r5 = reachableWithin(crawl, crawl.startRoom, crawl.startTile, 5);
+    const r10 = reachableWithin(crawl, crawl.startRoom, crawl.startTile, 10);
+    ok([...r5.values()].every((c) => c <= 5), 'move range 5: all costs within budget');
+    ok(r5.get(crawl.startRoom + ':' + crawl.startTile) === 0, 'move range: start costs 0');
+    ok(r10.size >= r5.size, 'move range monotone in budget');
+    ok([...r5].every(([k, c]) => r10.get(k) === c), 'costs stable as budget grows');
+    const reach = crawlReachability(crawl);
+    const rBig = reachableWithin(crawl, crawl.startRoom, crawl.startTile, 10000);
+    ok(rBig.size === reach.seen.size, 'unbounded move range equals full reachability');
+    // neighbours are exactly the budget-1 range minus the start
+    const r1 = reachableWithin(crawl, crawl.startRoom, crawl.startTile, 1);
+    const nbr = crawl.rooms.get(crawl.startRoom).adj.get(crawl.startTile).length +
+      crawl.rooms.get(crawl.startRoom).doors.filter((d) => d.tile === crawl.startTile && d.farTile !== null).length;
+    ok(r1.size === 1 + nbr, 'move range 1 = neighbours + start');
+  }
+
   // -- one endpoint / five endpoints both roll
   const d1 = generateDungeon({ pocket, endpoints: 1 });
   ok(d1.endpoints.length === 1 && d1.paths.length === 1, 'a single endpoint rolls');
@@ -275,6 +299,27 @@ for (const seed of SEEDS) {
 
   console.log(`  entrance ${entrance} → endpoints [${endpoints.join(', ')}], ` +
     `${rooms.length} rooms, par ${paths.map((p) => p.doors.length).join('/')}`);
+}
+
+// -- SIZES: every named size generates, stays crawlable, and reports itself
+{
+  const { SIZES } = await import('../dungeon.mjs');
+  for (const name of Object.keys(SIZES)) {
+    const d = generateDungeon({ seed: 3, endpoints: 3, tileShape: 'hex', tileScale: 0.35, size: name });
+    ok(d.size === name, `size ${name}: reported on the dungeon`);
+    const J = dungeonToJSON(d);
+    ok(J.generator.size === name && J.generator.dims.nx === SIZES[name].nx,
+      `size ${name}: canonical export carries size + dims`);
+    const rep = crawlReport(J);
+    ok(rep.complete && rep.allRoomsReachable, `size ${name}: fully crawlable (${rep.rooms} rooms)`);
+    // retile with the pocket given: size inferred, not trusted from opts
+    const d2 = generateDungeon({ pocket: d.pocket, endpoints: 3, tileShape: 'grid', tileScale: 0.5 });
+    ok(d2.size === name, `size ${name}: inferred from a given pocket on retile`);
+  }
+  // finer tile scales: the new low end still tiles and crawls
+  const d = generateDungeon({ seed: 3, endpoints: 3, tileShape: 'grid', tileScale: 0.1 });
+  const rep = crawlReport(dungeonToJSON(d));
+  ok(rep.complete, `tileScale 0.1: crawlable (${d.rooms.reduce((a, r) => a + r.tiles.length, 0)} tiles)`);
 }
 
 console.log(`\n${checks} checks, ${failures} failures (${((Date.now() - t0) / 1000).toFixed(1)}s)`);

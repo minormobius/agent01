@@ -88,11 +88,14 @@
 <div id="panel">
   <h2>GENERATOR</h2>
   <div class="row"><label>seed</label><input id="seed" type="number" min="1" step="1" value="1"></div>
+  <div class="row"><label>size</label>
+    <span class="seg" id="sizeSeg"><button data-size="s">s</button><button data-size="m" class="on">m</button><button data-size="l">l</button><button data-size="xl">xl</button></span>
+  </div>
   <div class="row"><label>endpoints</label><input id="nend" type="range" min="1" max="6" step="1" value="3"><span class="val" id="nendv">3</span></div>
   <div class="row"><label>tiles</label>
     <span class="seg"><button id="shGrid" class="on">grid</button><button id="shHex">hex</button></span>
   </div>
-  <div class="row"><label>tile scale</label><input id="scale" type="range" min="0.15" max="0.8" step="0.05" value="0.35"><span class="val" id="scalev">0.35</span></div>
+  <div class="row"><label>tile scale</label><input id="scale" type="range" min="0.08" max="1" step="0.01" value="0.35"><span class="val" id="scalev">0.35</span></div>
   <button class="btn" id="reroll">⚄ reroll seed</button>
   <button class="btn ghost" id="regen">regenerate</button>
   <button class="btn" id="crawlBtn" style="border-color:#ffce78;color:#ffe9c0;background:rgba(255,206,120,.12)">⚔ crawl this dungeon</button>
@@ -127,7 +130,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from '../vendor/OrbitControls.js';
-import { generateDungeon, DUNGEON_VERSION } from '../dungeon.mjs';
+import { generateDungeon, DUNGEON_VERSION, SIZES } from '../dungeon.mjs';
 import { dungeonToJSON, dungeonToUVTT, planBounds, roomOutlines } from '../dungeon-export.mjs';
 
 // ------------------------------------------------------------ palette ------
@@ -139,7 +142,7 @@ const COL = {
 const css = (c) => new THREE.Color(c);
 
 // ------------------------------------------------------------- state -------
-const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35 };
+const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35, size: 'm' };
 let dungeon = null, pocket = null, selected = -1;
 
 // hash <-> params (shareable dungeons)
@@ -148,13 +151,14 @@ function readHash() {
   if (h.get('seed')) params.seed = Math.max(1, parseInt(h.get('seed'), 10) || 1);
   if (h.get('n')) params.n = Math.min(6, Math.max(1, parseInt(h.get('n'), 10) || 3));
   if (h.get('shape') === 'hex') params.shape = 'hex';
-  if (h.get('scale')) params.scale = Math.min(0.8, Math.max(0.15, parseFloat(h.get('scale')) || 0.35));
+  if (h.get('scale')) params.scale = Math.min(1, Math.max(0.08, parseFloat(h.get('scale')) || 0.35));
+  if (SIZES[h.get('size')]) params.size = h.get('size');
 }
 function writeHash() {
   // the PERMALINK: params + generator version — a link from an older
   // generator version is detectable rather than silently different
   history.replaceState(null, '', '#seed=' + params.seed + '&n=' + params.n +
-    '&shape=' + params.shape + '&scale=' + params.scale + '&v=' + DUNGEON_VERSION);
+    '&shape=' + params.shape + '&scale=' + params.scale + '&size=' + params.size + '&v=' + DUNGEON_VERSION);
 }
 
 // ------------------------------------------------------------ three --------
@@ -519,13 +523,14 @@ function syncUI() {
   $('scale').value = params.scale; $('scalev').textContent = params.scale.toFixed(2);
   $('shGrid').classList.toggle('on', params.shape === 'grid');
   $('shHex').classList.toggle('on', params.shape === 'hex');
+  for (const b of $('sizeSeg').children) b.classList.toggle('on', b.dataset.size === params.size);
 }
 
 function stats() {
   if (!dungeon) return;
   const pars = dungeon.paths.map((p) => p.doors.length);
   $('stats').innerHTML =
-    'seed <b style="color:#ffce78">' + params.seed + '</b> · salt ' + dungeon.pocket.salt +
+    'seed <b style="color:#ffce78">' + params.seed + '</b> · ' + dungeon.size + ' · salt ' + dungeon.pocket.salt +
     '<br>' + dungeon.rooms.length + ' rooms · ' + dungeon.paths.length + ' paths (' + pars.join(' / ') + ' doors)' +
     '<br>' + dungeon.rooms.reduce((a, r) => a + r.tiles.length, 0) + ' tiles · ' +
     dungeon.pocket.nav.nodeCount + ' basins in the foam';
@@ -538,7 +543,7 @@ function regen(full) {
     try {
       const base = { endpoints: params.n, tileShape: params.shape, tileScale: params.scale };
       dungeon = (full || !pocket)
-        ? generateDungeon({ seed: params.seed, ...base })
+        ? generateDungeon({ seed: params.seed, size: params.size, ...base })
         : generateDungeon({ pocket, ...base });
       pocket = dungeon.pocket;
       buildScene(dungeon); buildLegend(); stats(); writeHash();
@@ -559,6 +564,9 @@ $('scale').oninput = () => { params.scale = parseFloat($('scale').value); $('sca
 $('scale').onchange = () => regen(false);
 $('shGrid').onclick = () => { params.shape = 'grid'; syncUI(); regen(false); };
 $('shHex').onclick = () => { params.shape = 'hex'; syncUI(); regen(false); };
+for (const b of $('sizeSeg').children) {
+  b.onclick = () => { params.size = b.dataset.size; syncUI(); regen(true); };
+}
 
 // ------------------------------------------------------------ plan view ----
 // One top-down renderer serves three masters: the plan overlay, the exported

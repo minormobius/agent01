@@ -57,7 +57,14 @@ clean per-level maps.
 room only (tiles at true floor heights, walls extruded from the canonical
 outlines, doors as glowing columns at their certified stations), token
 stepped by click/WASD over the crawl layer's graph, fog-of-war minimap,
-win state when every endpoint is found. It shares the generator's permalink
+win state when every endpoint is found. Movement is budgeted VTT-style
+(`reachableWithin` in the crawl module): the movement slider sets
+tiles-per-turn, legal squares light shaded by cost, in-reach doors glow,
+clicking a lit tile walks the shortest path (each step visibly consumed),
+end turn refreshes the budget. Dungeon `SIZES` (s/m/l/xl, dungeon.mjs) set
+the pocket dims and ride the permalink `size` param; absent = m = the
+original geometry, so old permalinks are unaffected. Golden pins hash only
+the geometry-bearing export subset, so metadata additions don't shift them. It shares the generator's permalink
 hash and loads exported .json files. **Permalinks are a contract**:
 `DUNGEON_VERSION` (dungeon.mjs) is stamped into the URL hash and every
 export, and the selftest pins golden signatures of seeds 1/2/5 — a change

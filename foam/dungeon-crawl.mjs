@@ -133,6 +133,35 @@ export function crawlReachability(crawl) {
   };
 }
 
+// Movement budget: every (room, tile) state reachable within `budget` steps
+// of the given position — steps within rooms and door transits both cost 1.
+// Returns Map('room:tile' → cost), including the start at cost 0. This is
+// the VTT move range: the UI highlights the current room's entries as legal
+// squares and lights doors whose transit fits the budget.
+export function reachableWithin(crawl, room, tile, budget) {
+  const out = new Map();
+  const key = (r, t) => r + ':' + t;
+  out.set(key(room, tile), 0);
+  const q = [[room, tile]];
+  for (let h = 0; h < q.length; h++) {
+    const [ri, tk] = q[h];
+    const d = out.get(key(ri, tk));
+    if (d >= budget) continue;
+    const R = crawl.rooms.get(ri);
+    for (const nk of R.adj.get(tk) ?? []) {
+      if (!out.has(key(ri, nk))) { out.set(key(ri, nk), d + 1); q.push([ri, nk]); }
+    }
+    for (const door of R.doors) {
+      if (door.tile !== tk || door.farTile === null) continue;
+      if (!out.has(key(door.to, door.farTile))) {
+        out.set(key(door.to, door.farTile), d + 1);
+        q.push([door.to, door.farTile]);
+      }
+    }
+  }
+  return out;
+}
+
 // Per-room + global health of a document's crawl graph — what the selftest
 // asserts and a UI can surface.
 export function crawlReport(json, opts = {}) {

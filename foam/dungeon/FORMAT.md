@@ -9,8 +9,12 @@ deterministic: the same seed + settings produce byte-identical exports.
 A dungeon IS its parameters. The URL hash
 
 ```
-https://foam.mino.mobi/dungeon/#seed=5&n=3&shape=hex&scale=0.35&v=1
+https://foam.mino.mobi/dungeon/#seed=5&n=3&shape=hex&scale=0.35&size=l&v=1
 ```
+
+`size` picks the foam's dimensions (`s`/`m`/`l`/`xl`, ~100–1000 chambers;
+absent = `m`, the original geometry — older links are unaffected). The
+export's `generator` block records both the size name and the exact `dims`.
 
 is a permalink: anyone opening it regenerates the identical dungeon, and the
 CORS-served modules (below) regenerate it identically outside the browser.
@@ -31,7 +35,10 @@ Movement uses lattice adjacency (4-neighbour grid / 6-neighbour hex) gated
 by tile height difference (≤ `1.05·size + 0.35` — what the foam's walk
 certificate permits), with a deterministic "scramble" bridging rare sampling
 gaps; CI asserts every generated dungeon is fully crawlable entrance →
-every endpoint.
+every endpoint. Movement is budgeted VTT-style: a **movement slider** sets
+tiles-per-turn, the legal squares light up (shaded by cost, doors in reach
+glow), clicking a lit tile walks the shortest path there, and **end turn**
+refreshes the budget. Steps and door transits cost 1 each.
 
 ## 1. `foam-dungeon` JSON (canonical) — `.json`
 

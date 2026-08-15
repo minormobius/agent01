@@ -34,6 +34,19 @@
   #mini { position: fixed; bottom: max(10px, env(safe-area-inset-bottom)); left: 10px; width: 190px; height: 190px; background: rgba(6,10,14,.85); border: 1px solid #1c2b31; border-radius: 10px; }
   #steps { position: fixed; bottom: max(12px, env(safe-area-inset-bottom)); right: 12px; font-size: 11px; color: #5f7a80; text-align: right; text-shadow: 0 1px 3px #000; }
 
+  /* movement budget */
+  #movebox { position: fixed; bottom: max(64px, calc(env(safe-area-inset-bottom) + 64px)); right: 12px; width: 190px;
+    background: rgba(6,10,14,.88); border: 1px solid #1c2b31; border-radius: 10px; padding: 10px 12px; }
+  #movebox .mrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: #9fc9c4; }
+  #movebox input[type=range] { width: 74px; min-width: 0; accent-color: #7fd8d0; }
+  #movebox .mval { color: #ffce78; min-width: 20px; text-align: right; }
+  #moveLeft { margin-top: 6px; font-size: 12px; }
+  #moveLeft b { color: #9ff0e6; font-size: 14px; }
+  #moveLeft.spent b { color: #ff9e6e; }
+  #endTurn { margin-top: 7px; width: 100%; padding: 6px; font: 12px ui-monospace, monospace; background: rgba(127,216,208,.12); color: #cffff8; border: 1px solid #2b6a72; border-radius: 8px; cursor: pointer; }
+  #endTurn:hover { border-color: #7fd8d0; }
+  #doorbar button:disabled { opacity: .35; cursor: default; }
+
   .overlay { position: fixed; inset: 0; background: rgba(4,6,10,.88); display: none; align-items: center; justify-content: center; z-index: 10; }
   .overlay.on { display: flex; }
   .card { max-width: 480px; margin: 16px; background: #070c12; border: 1px solid #1c2b31; border-radius: 14px; padding: 22px 26px; }
@@ -60,6 +73,11 @@
 
 <div id="doorbar"></div>
 <canvas id="mini" width="380" height="380"></canvas>
+<div id="movebox">
+  <div class="mrow"><span>movement</span><input id="moveSlider" type="range" min="1" max="20" step="1" value="10"><span class="mval" id="moveMaxV">10</span></div>
+  <div id="moveLeft"><b>10</b> tiles left this turn</div>
+  <button id="endTurn">↻ end turn</button>
+</div>
 <div id="steps"></div>
 
 <div class="overlay on" id="intro">
@@ -68,7 +86,9 @@
     <p>You stand at the <b>entrance</b>, on the foam's top surface. Somewhere
     below, beacons mark the endpoints. Every door was proven walkable before
     this dungeon shipped.</p>
-    <p><b>click / tap</b> a lit tile to step · <b>WASD / arrows</b> to walk ·
+    <p><b>click / tap</b> any lit tile to walk there — the lit squares are your
+    movement range for this turn (set it with the <b>movement</b> slider,
+    <b>↻ end turn</b> refreshes it) · <b>WASD / arrows</b> step one tile ·
     <b>drag</b> to orbit · doors show a button when you stand on their tile.</p>
     <p class="dim" id="introMeta"></p>
     <button id="begin">descend</button>
@@ -86,28 +106,29 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from '../../vendor/OrbitControls.js';
-import { generateDungeon, DUNGEON_VERSION } from '../../dungeon.mjs';
+import { generateDungeon, DUNGEON_VERSION, SIZES } from '../../dungeon.mjs';
 import { dungeonToJSON } from '../../dungeon-export.mjs';
-import { buildCrawl } from '../../dungeon-crawl.mjs';
+import { buildCrawl, reachableWithin } from '../../dungeon-crawl.mjs';
 
 const PATH_COLORS = ['#ff9e6e', '#9ff0e6', '#c8a5ff', '#ffd166', '#8fd3ff', '#ffa5c0'];
 const css = (c) => new THREE.Color(c);
 const $ = (id) => document.getElementById(id);
 
 // ------------------------------------------------------------- params ------
-const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35 };
+const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35, size: 'm' };
 {
   const h = new URLSearchParams(location.hash.slice(1));
   if (h.get('seed')) params.seed = Math.max(1, parseInt(h.get('seed'), 10) || 1);
   if (h.get('n')) params.n = Math.min(6, Math.max(1, parseInt(h.get('n'), 10) || 3));
   if (h.get('shape') === 'hex') params.shape = 'hex';
-  if (h.get('scale')) params.scale = Math.min(0.8, Math.max(0.15, parseFloat(h.get('scale')) || 0.35));
+  if (h.get('scale')) params.scale = Math.min(1, Math.max(0.08, parseFloat(h.get('scale')) || 0.35));
+  if (SIZES[h.get('size')]) params.size = h.get('size');
   const v = h.get('v');
   if (v && parseInt(v, 10) !== DUNGEON_VERSION) {
     console.warn('permalink generator v' + v + ' ≠ current v' + DUNGEON_VERSION + ' — layout may differ');
   }
 }
-$('backlink').href = '../#seed=' + params.seed + '&n=' + params.n + '&shape=' + params.shape + '&scale=' + params.scale + '&v=' + DUNGEON_VERSION;
+$('backlink').href = '../#seed=' + params.seed + '&n=' + params.n + '&shape=' + params.shape + '&scale=' + params.scale + '&size=' + params.size + '&v=' + DUNGEON_VERSION;
 
 // -------------------------------------------------------------- state ------
 let J = null, crawl = null;            // canonical document + crawl graph
@@ -116,6 +137,8 @@ let discovered = new Set();            // room ids entered
 let found = new Set();                 // endpoint room ids reached
 let steps = 0;
 let loadedFromFile = false;
+let moveMax = 10, moveLeft = 10;       // the movement budget (tiles per turn)
+let walkQueue = [];                    // multi-step walk in progress
 
 // -------------------------------------------------------------- three ------
 const canvas = $('c');
@@ -287,21 +310,36 @@ function buildRoom(id) {
   scene.add(roomGroup);
 }
 
+// the LEGAL SQUARES: everything within the remaining movement budget,
+// shaded by cost — bright close in, fading toward the edge of the range
+let rangeMap = new Map();   // 'room:tile' -> cost, refreshed with the token
 function refreshHilites() {
   if (hiliteMesh) { roomGroup.remove(hiliteMesh); hiliteMesh.geometry.dispose(); hiliteMesh.material.dispose(); }
+  rangeMap = reachableWithin(crawl, curRoom, curTile, moveLeft);
   const R = crawl.rooms.get(curRoom);
   const pos = [], col = [];
-  for (const nk of R.adj.get(curTile) ?? []) {
-    const t = R.byKey.get(nk);
-    pushTile(pos, col, t, [0.35, 0.75, 0.70], 0.06);
+  for (const [k, cost] of rangeMap) {
+    if (cost === 0) continue;
+    const [ri, tk] = [Number(k.split(':')[0]), k.slice(k.indexOf(':') + 1)];
+    if (ri !== curRoom) continue;                    // far-room reach shows on doors
+    const t = R.byKey.get(tk);
+    const f = 1 - (cost - 1) / Math.max(1, moveLeft); // 1 near → 0 at range edge
+    pushTile(pos, col, t, [0.10 + 0.28 * f, 0.30 + 0.48 * f, 0.30 + 0.44 * f], 0.06);
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   hiliteMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({
-    vertexColors: true, transparent: true, opacity: 0.4, depthWrite: false,
+    vertexColors: true, transparent: true, opacity: 0.45, depthWrite: false,
   }));
   roomGroup.add(hiliteMesh);
+  // doors whose transit fits the budget glow brighter
+  roomGroup.traverse((o) => {
+    if (o.userData.doorFace === undefined) return;
+    const d = R.doors.find((x) => x.face === o.userData.doorFace);
+    const inReach = d && d.farTile !== null && rangeMap.has(d.to + ':' + d.farTile);
+    o.material.opacity = inReach ? 0.95 : 0.35;
+  });
 }
 
 // ---------------------------------------------------------------- HUD ------
@@ -324,9 +362,15 @@ function refreshHUD() {
     const b = document.createElement('button');
     const far = roomInfo(d.to);
     b.textContent = '⟶ through the door · ' + roleLabel(far).toLowerCase();
+    b.disabled = moveLeft <= 0;
     b.onclick = () => transit(d);
     $('doorbar').appendChild(b);
   }
+  // the movement meter
+  $('moveMaxV').textContent = moveMax;
+  $('moveLeft').classList.toggle('spent', moveLeft === 0);
+  $('moveLeft').innerHTML = '<b>' + moveLeft + '</b> tile' + (moveLeft === 1 ? '' : 's') +
+    (moveLeft === 0 ? ' — end the turn to move' : ' left this turn');
 }
 
 // ------------------------------------------------------------- minimap -----
@@ -378,15 +422,40 @@ function placeToken(animate = true) {
 }
 
 function stepTo(key) {
+  if (moveLeft <= 0) return false;
   const R = crawl.rooms.get(curRoom);
   if (!(R.adj.get(curTile) ?? []).includes(key)) return false;
-  curTile = key; steps++;
+  curTile = key; steps++; moveLeft--;
   placeToken();
   return true;
 }
 
+// walk to any tile inside the legal range: shortest path within the room,
+// consumed step by step by the render loop (the token visibly walks it)
+function walkTo(key) {
+  if (walkQueue.length) return false;
+  const target = curRoom + ':' + key;
+  if (!rangeMap.has(target) || rangeMap.get(target) === 0) return false;
+  const R = crawl.rooms.get(curRoom);
+  const prev = new Map([[curTile, null]]);
+  const q = [curTile];
+  for (let h = 0; h < q.length && !prev.has(key); h++) {
+    for (const nk of R.adj.get(q[h]) ?? []) {
+      if (!prev.has(nk)) { prev.set(nk, q[h]); q.push(nk); }
+    }
+  }
+  if (!prev.has(key)) return false;
+  const path = [];
+  for (let k = key; k !== curTile; k = prev.get(k)) path.push(k);
+  path.reverse();
+  if (path.length > moveLeft) return false;
+  walkQueue = path;
+  return true;
+}
+
 function transit(door) {
-  curRoom = door.to; curTile = door.farTile; steps++;
+  if (moveLeft <= 0) return;
+  curRoom = door.to; curTile = door.farTile; steps++; moveLeft--;
   discovered.add(curRoom);
   const r = roomInfo(curRoom);
   if (r.role === 'endpoint') found.add(curRoom);
@@ -417,13 +486,17 @@ canvas.addEventListener('pointerup', (e) => {
   if (!hits.length) return;
   const p = hits[0].point;
   const R = crawl.rooms.get(curRoom);
+  // nearest tile to the hit point that lies inside the legal range
   let best = null, bd = Infinity;
-  for (const nk of R.adj.get(curTile) ?? []) {
-    const t = R.byKey.get(nk);
+  for (const [k, cost] of rangeMap) {
+    if (cost === 0) continue;
+    const [ri, tk] = [Number(k.split(':')[0]), k.slice(k.indexOf(':') + 1)];
+    if (ri !== curRoom) continue;
+    const t = R.byKey.get(tk);
     const d = (t.x - p.x) ** 2 + (t.z - p.z) ** 2;
-    if (d < bd) { bd = d; best = nk; }
+    if (d < bd) { bd = d; best = tk; }
   }
-  if (best && bd < (J.tile.size * 1.4) ** 2) stepTo(best);
+  if (best && bd < (J.tile.size * 1.2) ** 2) walkTo(best);
 });
 
 // keys: pick the neighbour best aligned with the camera-relative direction
@@ -453,6 +526,7 @@ function start(doc, fromFile) {
   loadedFromFile = fromFile;
   curRoom = crawl.startRoom; curTile = crawl.startTile;
   discovered = new Set([curRoom]); found = new Set(); steps = 0;
+  moveLeft = moveMax; walkQueue = [];
   buildRoom(curRoom);
   placeToken(false);
   const t = crawl.rooms.get(curRoom).byKey.get(curTile);
@@ -463,6 +537,13 @@ function start(doc, fromFile) {
     J.rooms.length + ' rooms · ' + J.endpoints.length + ' endpoints';
   window.__crawl.ready = true;
 }
+
+$('moveSlider').oninput = () => {
+  moveMax = parseInt($('moveSlider').value, 10);
+  moveLeft = Math.min(moveLeft, moveMax);
+  refreshHilites(); refreshHUD();
+};
+$('endTurn').onclick = () => { moveLeft = moveMax; refreshHilites(); refreshHUD(); };
 
 $('loadChip').onclick = () => $('file').click();
 $('file').onchange = async (e) => {
@@ -480,7 +561,12 @@ $('begin').onclick = () => $('intro').classList.remove('on');
 // -------------------------------------------------------------- debug ------
 window.__crawl = {
   ready: false,
-  get state() { return { room: curRoom, tile: curTile, steps, found: [...found], discovered: discovered.size }; },
+  get state() { return { room: curRoom, tile: curTile, steps, found: [...found], discovered: discovered.size, moveLeft, moveMax }; },
+  get range() { return Object.fromEntries(rangeMap); },
+  setMove: (n) => { $('moveSlider').value = n; $('moveSlider').oninput(); },
+  endTurn: () => $('endTurn').click(),
+  walkTo: (k) => walkTo(k),
+  walking: () => walkQueue.length,
   get doc() { return J; },
   neighbors: () => [...(crawl.rooms.get(curRoom).adj.get(curTile) ?? [])],
   step: (k) => stepTo(k),
@@ -497,7 +583,7 @@ window.__crawl = {
 
 // --------------------------------------------------------------- boot ------
 start(dungeonToJSON(generateDungeon({
-  seed: params.seed, endpoints: params.n, tileShape: params.shape, tileScale: params.scale,
+  seed: params.seed, endpoints: params.n, tileShape: params.shape, tileScale: params.scale, size: params.size,
 })), false);
 
 (function loop() {
@@ -505,6 +591,10 @@ start(dungeonToJSON(generateDungeon({
   if (token) {
     token.position.lerp(tokenTarget, 0.22);
     controls.target.lerp(new THREE.Vector3(tokenTarget.x, tokenTarget.y + 0.6, tokenTarget.z), 0.12);
+    // consume a queued multi-step walk one tile at a time, visibly
+    if (walkQueue.length && token.position.distanceTo(tokenTarget) < 0.25) {
+      if (!stepTo(walkQueue.shift())) walkQueue = [];
+    }
   }
   controls.update();
   renderer.render(scene, camera);

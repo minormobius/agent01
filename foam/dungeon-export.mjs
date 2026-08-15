@@ -128,6 +128,8 @@ export function dungeonToJSON(dungeon) {
       seed: P.seed, salt: P.salt,
       endpoints: dungeon.requestedEndpoints,
       tileShape: dungeon.tileShape, tileScale: dungeon.tileScale,
+      size: dungeon.size,
+      dims: { nx: P.opts.nx, nz: P.opts.nz, layers: P.opts.layers, subLayers: P.opts.subLayers, cell: P.opts.cell },
     },
     units: 'meters',
     axes: 'x/z plan, y up (tile y = floor height under the tile centre)',

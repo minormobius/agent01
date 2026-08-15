@@ -32,6 +32,17 @@ import { generatePocket, fnv, mulberry, pointInPolyXZ } from './foamworld.js';
 // different.
 export const DUNGEON_VERSION = 1;
 
+// Dungeon sizes: pocket dimensions by name. Part of the permalink (the
+// `size` hash param; absent = 'm', which is the original geometry — old
+// permalinks are unaffected). xl generation can take a few seconds when the
+// certificate rerolls salts.
+export const SIZES = {
+  s:  { nx: 5,  nz: 5,  layers: 3, subLayers: 1 },
+  m:  { nx: 7,  nz: 7,  layers: 4, subLayers: 2 },
+  l:  { nx: 9,  nz: 9,  layers: 5, subLayers: 2 },
+  xl: { nx: 11, nz: 11, layers: 6, subLayers: 2 },
+};
+
 // ------------------------------------------------------------ geometry ------
 function planeYAt(f, x, z) {
   // height of face f's plane at column (x,z); caller guarantees |n.y| sane
@@ -146,10 +157,15 @@ export function generateDungeon(opts = {}) {
     tileShape = 'grid',
     tileScale = 0.35,
     minDepth = 4,
+    size = 'm',
     pocket: given = null,
     ...pocketOpts
   } = opts;
-  const pocket = given ?? generatePocket({ seed: 1, ...pocketOpts });
+  const pocket = given ?? generatePocket({ seed: 1, ...(SIZES[size] ?? SIZES.m), ...pocketOpts });
+  // the size a given pocket actually has wins over the size argument
+  const sizeName = Object.entries(SIZES).find(([, v]) =>
+    v.nx === pocket.opts.nx && v.nz === pocket.opts.nz &&
+    v.layers === pocket.opts.layers && v.subLayers === pocket.opts.subLayers)?.[0] ?? 'custom';
   const { nodes, edges, cells } = pocket;
 
   const adj = nodes.map(() => []);
@@ -304,7 +320,7 @@ export function generateDungeon(opts = {}) {
 
   return {
     pocket, entrance, endpoints: picked, paths, rooms, roomOf,
-    tileShape, tileScale, tileSize,
+    tileShape, tileScale, tileSize, size: sizeName,
     requestedEndpoints: wantEndpoints,
   };
 }
