@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **81 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **83 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -35,7 +35,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `ar` | fullstack | `ar` | [ar.mino.mobi](https://ar.mino.mobi) | `claude/3d-crystal-diffraction-B5YhB` | [`ar/CLAUDE.md`](../ar/CLAUDE.md) | Worker + Room Durable Object (WebSocket relay) + static assets (public/). Two-phone AR Laue diffraction at /crystal/. |
 | `aub` | frontend | `aub` | [aub.mino.mobi](https://aub.mino.mobi) | `claude/game-website-deploy-2ffuu2` | [`aub/CLAUDE.md`](../aub/CLAUDE.md) | Ecdysium (aubrika/ecdysium) — a Rust + macroquad sci-fi horror roguelike vendored under aub/game and compiled to wasm32-unknown-unknown… (full description: aub/CLAUDE.md) |
 | `audio` | fullstack | `audio` | [audio.mino.mobi (pending attach)](https://audio.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`audio/CLAUDE.md`](../audio/CLAUDE.md) | Audio Rooms — a voice-room app (Vite monorepo web + worker with a RoomCoordinator Durable Object for signaling). Deployed to workers.dev; audio.mino.mobi not yet attached. |
-| `auth` | backend | `workers/auth` | [auth.mino.mobi](https://auth.mino.mobi) | `claude/atproto-infinite-whiteboard-usdpzx` | [`workers/auth/CLAUDE.md`](../workers/auth/CLAUDE.md) | The shared ATProto OAuth worker (BFF confidential client: PKCE + DPoP + PAR + private_key_jwt). One login = SSO across every *.mino.mobi site via a domain cookie… |
+| `auth` | backend | `workers/auth` | [auth.mino.mobi](https://auth.mino.mobi) | `claude/farmville-atproto-game-745mcr` | [`workers/auth/CLAUDE.md`](../workers/auth/CLAUDE.md) | The shared ATProto OAuth worker (BFF confidential client: PKCE + DPoP + PAR + private_key_jwt). One login = SSO across every *.mino.mobi site via a domain cookie… |
 | `autopilot` | backend | `auto` | `auto` | `claude/landing-projects-takeover-pKkmW` | [`auto/CLAUDE.md`](../auto/CLAUDE.md) | The unattended site factory. A daily routine builds one self-contained site per run under auto/<slug>/, deploys it to auto-<slug>.workers.dev, and announces from the bot account… |
 | `b` | frontend | `b` | [b.mino.mobi](https://b.mino.mobi) | `claude/image-manipulation-platform-g5puxy` | [`b/CLAUDE.md`](../b/CLAUDE.md) | Portal to every Bluesky tool here—feeds, network maps, account analysis, and the shared OAuth worker in one place. |
 | `bakery` | frontend | `bakery` | [bake.mino.mobi](https://bake.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`bakery/CLAUDE.md`](../bakery/CLAUDE.md) | Flour blend calculator—protein math, hydration targets, blend ratios. |
@@ -56,6 +56,8 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `duffel-proxy` | backend | `workers/duffel-proxy` | [air.mino.mobi](https://air.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`workers/duffel-proxy/CLAUDE.md`](../workers/duffel-proxy/CLAUDE.md) | CORS/auth proxy for the Duffel flight-search API — holds the bearer token as a worker secret so the browser never sees it. Backs the flights explorer. |
 | `empathy` | frontend | `empathy` | [empath.mino.mobi](https://empath.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`empathy/CLAUDE.md`](../empathy/CLAUDE.md) | See Bluesky as anyone sees it… |
 | `fable` | frontend | `fable` | [fable.mino.mobi](https://fable.mino.mobi) | `claude/artifact-website-deploy-x8aiuq` | [`fable/CLAUDE.md`](../fable/CLAUDE.md) | The generative / interestingness-engine wing (worker `fable`, custom_domain fable.mino.mobi). Thin assets Worker, no build, no secrets… (full description: fable/CLAUDE.md) |
+| `farm` | frontend | `farm` | [farm.mino.mobi](https://farm.mino.mobi) | `claude/farmville-atproto-game-745mcr` | [`farm/CLAUDE.md`](../farm/CLAUDE.md) | Harvestople — farming on ATProto. Plant real organisms that grow on the wall clock, mine the seven planetary metals, brew Galenic alchemy from what you harvest, and post your deeds to Bluesky… |
+| `farm-next` | frontend | `farm` | [farm-next.mino.mobi](https://farm-next.mino.mobi) | `claude/farm-next` | [`farm/CLAUDE.md`](../farm/CLAUDE.md) | Harvestople's testing table. Petition a change from inside the farm and the town council builds it here — live within the hour, playable with your real save… |
 | `feed` | backend | `workers/feed` | [feed.mino.mobi](https://feed.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`workers/feed/CLAUDE.md`](../workers/feed/CLAUDE.md) | SimCluster — a Bluesky feed generator… |
 | `fifty` | fullstack | `fifty` | [fifty.mino.mobi](https://fifty.mino.mobi) | `claude/fifty-microsites-deploy-fyjk1q` | [`fifty/CLAUDE.md`](../fifty/CLAUDE.md) | Fifty ATProto app concepts on one surface — an index at the root and a page per concept… |
 | `finance` | frontend | `finance` | [fin.mino.mobi](https://fin.mino.mobi) | `claude/speculative-feedback-playground-t0yiaq` | [`finance/CLAUDE.md`](../finance/CLAUDE.md) | Personal financial dashboard. Market data synced to ATProto records, rendered with dark-mode charts. |
@@ -117,7 +119,7 @@ A change here ripples to every dependent surface listed.
 
 | Resource | Dependents | Surfaces |
 |---|---|---|
-| `auth.mino.mobi` | 9 | `bakery`, `board`, `canvas`, `games`, `io`, `photo`, `rant`, `scores`, `wave` |
+| `auth.mino.mobi` | 11 | `bakery`, `board`, `canvas`, `farm`, `farm-next`, `games`, `io`, `photo`, `rant`, `scores`, `wave` |
 | `atpolls-db` | 8 | `airchat`, `canvas`, `feed`, `human`, `io`, `poll`, `reef`, `rite` |
 | `mino-auth-db` | 1 | `auth` |
 | `bounty-board` | 1 | `bounty` |

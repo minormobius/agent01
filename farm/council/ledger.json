@@ -1,0 +1,8 @@
+{
+  "comment": "The town ledger — player-driven changes, credited. Served at /council/ledger.json and rendered on the deeds sign. The council appends; entries are never rewritten.",
+  "entries": [
+    { "date": "2026-08-13", "change": "The town council convenes: petitions open, the moat is dug, the scales hang", "by": "the founding charter", "tier": 3 },
+    { "date": "2026-08-14", "change": "Candyland skin — a spun-sugar wardrobe entry, free from the start", "by": "minormobius.bsky.social", "tier": 1, "petition": "at://did:plc:7zre4plmd5jllccww575j6sb/com.minomobi.farm.petition/3msyrsdyac62o" },
+    { "date": "2026-08-14", "change": "Wardrobe fix — the toast stack no longer covers the skin list's last rows on tablet/desktop widths, so Candyland (and any future last-in-line skin) is selectable", "by": "minormobius.bsky.social", "tier": 1, "petition": "at://did:plc:7zre4plmd5jllccww575j6sb/com.minomobi.farm.petition/3msyz6673o22o" }
+  ]
+}

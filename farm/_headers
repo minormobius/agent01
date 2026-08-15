@@ -1,0 +1,7 @@
+# Workers Static Assets honours this file. The mods registry and the council artifacts are
+# meant to be read ACROSS the two worlds (farm.mino.mobi's town hall renders the testing
+# table's board), so they get CORS; everything else stays same-origin.
+/mods/*
+  Access-Control-Allow-Origin: *
+/council/*
+  Access-Control-Allow-Origin: *

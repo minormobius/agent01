@@ -181,7 +181,7 @@
       "dir": "workers/auth",
       "endpoint": "auth.mino.mobi",
       "type": "backend",
-      "branch": "claude/atproto-infinite-whiteboard-usdpzx",
+      "branch": "claude/farmville-atproto-game-745mcr",
       "uses": [
         "mino-auth-db"
       ],
@@ -189,7 +189,7 @@
       "paths": [
         "workers/auth/**"
       ],
-      "note": "The one shared OAuth worker (confidential client — PKCE + DPoP + PAR + private_key_jwt). Claimed from claude/feature-merge-candidate-l4dkwq, whose auth content had already landed in main (it was 65 lines BEHIND main on workers/auth), to ship rant’s four site.standard.* collections into the metadata ceiling and allowlist rant.mino.mobi. Hand back to the next merge candidate when one forms."
+      "note": "The one shared OAuth worker (confidential client — PKCE + DPoP + PAR + private_key_jwt). Claimed from claude/atproto-infinite-whiteboard-usdpzx (whose board.canvas + site.standard.* additions had landed in main) to ship farm's four com.minomobi.farm.* collections + the farm.mino.mobi origin. This tree is a strict superset of the live ceiling (check-auth-scope.mjs verified; also carries com.minomobi.loop.answer, live but not on main). Hand back to the next merge candidate when one forms."
     },
     {
       "surface": "autopilot",
@@ -1279,6 +1279,42 @@
         "packages/oauth-client/**",
         "js/typeahead.js",
         "scripts/vendor-board.sh"
+      ]
+    },
+    {
+      "surface": "farm",
+      "dir": "farm",
+      "endpoint": "farm.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/farmville-atproto-game-745mcr",
+      "uses": [
+        "auth.mino.mobi"
+      ],
+      "provides": null,
+      "op": "create",
+      "status": "NEW — first deploy pending. Worker `farm` + custom_domain route (farm.mino.mobi); wrangler creates the subdomain itself on run #1 (neuro/board precedent). Requires the auth worker deployed with the com.minomobi.farm.* collections FIRST (same branch owns both; auth deploys on the same push).",
+      "note": "Harvestople — farming on ATProto (the board pattern: no backend, the player's PDS is the database). Real-organism crops vendored from the hoop ag pack, wall-clock growth, gacha seed desk per-DID biome, a planetary-metals mine, the Galenic alchemy bench, public achievement records with one-tap bsky share, and friend-to-friend tends/gifts as public records in each side's own repo. (full description: farm/CLAUDE.md)",
+      "paths": [
+        "farm/**",
+        ".github/workflows/deploy-farm.yml"
+      ]
+    },
+    {
+      "surface": "farm-next",
+      "dir": "farm",
+      "endpoint": "farm-next.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/farm-next",
+      "uses": [
+        "auth.mino.mobi"
+      ],
+      "provides": null,
+      "op": "create",
+      "status": "NEW — first deploy pending. Worker `harvestople-next` + custom_domain route (farm-next.mino.mobi) via farm/wrangler.next.jsonc; wrangler provisions the subdomain on run #1 (farm precedent, same zone).",
+      "note": "THE TESTING TABLE — the same farm/ code deployed from claude/farm-next, where granted petitions go live immediately so the petitioner can play their idea within the hour. Shares the plot record with mainline under the save covenant (farm.x pocket, frozen v — test/covenant.selftest.mjs gates both worlds); next-scope.mjs keeps the rails (store/auth/wrangler/lexicons/sims) out of experiments' reach. Features graduate at the merge party or retire. (full description: farm/CLAUDE.md)",
+      "paths": [
+        "farm/**",
+        ".github/workflows/deploy-farm-next.yml"
       ]
     },
     {

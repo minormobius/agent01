@@ -15,7 +15,7 @@ The shared ATProto OAuth worker (BFF confidential client: PKCE + DPoP + PAR + pr
 | Dir | `workers/auth/` |
 | Endpoint | `auth.mino.mobi` |
 | Type | backend |
-| Owning branch | `claude/atproto-infinite-whiteboard-usdpzx` (contested — see below) |
+| Owning branch | `claude/farmville-atproto-game-745mcr` (contested — see below) |
 | Deploy | `.github/workflows/deploy-auth.yml` |
 | Uses | `mino-auth-db` |
 | Provides | `auth.mino.mobi` |
@@ -32,7 +32,8 @@ repo — a bad push signs everyone out of every site.
 |---|---|
 | `claude/feature-merge-candidate-l4dkwq` | what `main`'s registry still names, and **stale**: 2509 commits ahead / 216 behind, and its `workers/auth` diff against `main` is a net *deletion* of 65 lines. Deploying auth from it would strip collections other live sites depend on. Do not. |
 | `claude/standard-site-blog-page-319rod` | claims `auth` on its own branch; carries the `rant.mino.mobi` origin plus the four `site.standard.*` collections, not yet on `main`. |
-| `claude/atproto-infinite-whiteboard-usdpzx` | current claimant. Carries **both** 319rod's additions and `com.minomobi.board.canvas`, so it is a strict superset of `main`, of 319rod, and of what production had. |
+| `claude/atproto-infinite-whiteboard-usdpzx` | previous claimant. Its additions (`com.minomobi.board.canvas`, the `site.standard.*` four) have since landed on `main`. |
+| `claude/farmville-atproto-game-745mcr` | current claimant (2026-08-11): `main`'s auth + the four `com.minomobi.farm.*` collections, the `farm.mino.mobi` origin, `com.minomobi.loop.answer` (live on the production ceiling but missing from `main` — carried so the union rule holds), and a dedupe of the doubled `lab.doc`/`lab.score` entries that tripped `check-auth-scope`'s gate. Verified a strict superset of the live ceiling. |
 
 **The claim is a convention, not a lock.** A workflow's trigger list lives in the
 workflow file *on the branch being pushed* — so 319rod pushing a change under

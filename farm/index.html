@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Harvestople — farming on ATProto</title>
+<meta name="description" content="Tend a real-organism garden, mine the seven planetary metals, brew Galenic alchemy, and petition the town council to change the game itself. Your whole farm lives in your own PDS." />
+<meta property="og:title" content="Harvestople — farming on ATProto" />
+<meta property="og:description" content="A farm that lives in your own PDS. Real organisms, planetary metals, Galenic brews — and a town council that builds what you petition, within the hour." />
+<meta property="og:image" content="https://farm.mino.mobi/og-card.png" />
+<meta property="og:url" content="https://farm.mino.mobi/" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%BE%3C/text%3E%3C/svg%3E" />
+<style>
+  /* --gold/--green/--canvasline are SKIN-DRIVEN (js/themes.js sets them per equipped skin);
+     the values here are the Verdant defaults so first paint matches. */
+  :root { --bg:#0d0b07; --ink:#f0e8d6; --dim:#a89c84; --gold:#f7c66a; --line:#2b2417; --panel:#141109; --green:#93e6a4; --warn:#e08a6a;
+          --canvasline:#2b2417;
+          /* aliases for the shared typeahead widget (vendor/typeahead.js uses the repo-wide names) */
+          --rule:#2b2417; --text:#f0e8d6; --muted:#a89c84; --mono:"JetBrains Mono",ui-monospace,monospace; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:"JetBrains Mono",ui-monospace,monospace; line-height:1.5; font-size:14px; }
+  a { color:#b48a6a; }
+  .wrap { max-width:1040px; margin:0 auto; padding:14px 14px 80px; }
+  header { display:flex; flex-wrap:wrap; align-items:baseline; gap:10px 18px; margin-bottom:8px; }
+  h1 { font-size:20px; color:var(--gold); margin:0; } h1 .sub { font-size:11px; color:var(--dim); font-weight:normal; }
+  .stat { color:var(--dim); font-size:12px; } .stat b, #coins { color:var(--gold); }
+  #auth { margin-left:auto; font-size:12px; } #auth .me { color:var(--green); }
+  /* the sync chip: the save's ground truth, always in view — saved, saving, or stuck (and why) */
+  #syncchip { font-size:11px; color:var(--dim); border:1px solid var(--line); border-radius:12px; padding:2px 8px; }
+  #syncchip:empty { display:none; }
+  #syncchip.busy { color:#c8b890; }
+  #syncchip.bad { color:var(--warn); border-color:var(--warn); cursor:pointer; }
+  input { background:#050403; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:5px 8px; font:inherit; font-size:12px; }
+  button { background:#241f15; color:var(--gold); border:1px solid #6a5a3a; font:inherit; font-size:12px; padding:6px 12px; border-radius:6px; cursor:pointer; }
+  button:hover { border-color:var(--gold); color:#fff; } button:disabled { opacity:.45; cursor:default; }
+  button.big { font-size:14px; padding:10px 18px; }
+  button.mini { font-size:11px; padding:2px 7px; border-radius:5px; }
+  #craftbar { display:flex; gap:6px; flex-wrap:wrap; margin:10px 0; align-items:center; }
+  #craftbar button.on { color:var(--gold); border-color:var(--gold); }
+  #craftbar .tool i { color:var(--dim); font-style:normal; font-size:10px; }
+  /* the stations' rooms: drawers over the map, opened by tapping their building */
+  .pane { display:none; }
+  .pane.on { display:block; position:fixed; inset:auto 0 0 0; max-height:min(78vh, 640px); overflow-y:auto;
+             background:var(--bg); border-top:2px solid var(--gold); box-shadow:0 -12px 40px rgba(0,0,0,.6);
+             padding:14px 18px calc(30px + env(safe-area-inset-bottom, 0px)); z-index:5;
+             -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
+  @media (min-width: 900px) { .pane.on { left:auto; width:560px; top:0; bottom:0; max-height:none; border-top:none; border-left:2px solid var(--gold); } }
+  .panehead { display:flex; align-items:baseline; gap:10px; margin-bottom:8px; }
+  .panehead h2 { font-size:15px; color:var(--gold); margin:0; }
+  .panehead .closepane { margin-left:auto; }
+  .pack { background:var(--panel); border:1px solid var(--foil,#333); border-radius:8px; padding:8px 12px; margin:0 0 8px; font-size:12px; display:flex; flex-wrap:wrap; gap:6px 12px; align-items:baseline; }
+  .pack.active { border-width:2px; }
+  .pack.locked { opacity:.85; border-style:dashed; } .pack.far { opacity:.45; }
+  .pack .reqs { width:100%; font-size:11px; } .pack .reqs .met { color:var(--green); } .pack .reqs .unmet { color:var(--warn); }
+  .bedcanvas, #bed { width:100%; height:500px; display:block; border:1px solid var(--canvasline); border-radius:10px; background:#0b0906; cursor:grab; touch-action:none; }
+  .sws { display:inline-flex; gap:2px; vertical-align:middle; }
+  .sw { display:inline-block; width:14px; height:14px; border-radius:4px; border:1px solid rgba(0,0,0,.4); }
+  #bed:active { cursor:grabbing; }
+  #visitbed { height:320px; touch-action:none; }
+  #auth { display:flex; gap:6px; align-items:center; }
+  .hint { color:var(--dim); font-size:12px; margin:6px 0; }
+  .row { margin:10px 0; } .row h3 { font-size:13px; color:var(--gold); margin:0 0 6px; }
+  .chip { display:inline-block; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:3px 10px; margin:0 5px 6px 0; font-size:12px; }
+  .chip i { color:var(--dim); font-style:normal; font-size:11px; }
+  .chip.on { border-color:var(--gold); color:var(--gold); }
+  .chip.ripe { border-color:var(--green); color:var(--green); cursor:pointer; }
+  .chip.seed { cursor:pointer; }
+  .chip.reagent.live { border-color:#5a4a6a; cursor:pointer; } .chip.reagent.dead { opacity:.55; cursor:pointer; }
+  .chip.metal { color:#c6cede; }
+  .chip.organic { border-color:#3a5a44; } .chip.conv { border-color:#5a4a3a; opacity:.85; }
+  #craftbar .tool.locked { opacity:.5; }
+  .dim { color:var(--dim); font-size:12px; } .warn { color:var(--warn); }
+  .biomecard { background:var(--panel); border:1px solid; border-radius:10px; padding:12px 16px; margin-bottom:12px; }
+  .biomecard h3 { margin:0 0 4px; }
+  .cropgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; }
+  .crop { background:var(--panel); border:1px solid var(--foil,#333); border-radius:8px; padding:6px; font-size:11px; text-align:center; }
+  .crop img { width:100%; aspect-ratio:1; object-fit:cover; border-radius:6px; }
+  .crop.unknown img { filter:brightness(.12) saturate(0); }
+  .crop .cname { color:var(--ink); margin-top:4px; } .crop .crare { color:var(--foil); font-size:10px; }
+  #minegrid { display:grid; gap:6px; max-width:460px; margin:10px 0; }
+  .mtile { aspect-ratio:1; font-size:19px; display:flex; align-items:center; justify-content:center; background:#171208; }
+  .mtile.rock { background:#221d16; } .mtile.dug { background:#0a0805; border-style:dashed; cursor:default; }
+  .mtile.k-ore { color:#c6cede; } .mtile.k-gem { color:#8fd0e0; } .mtile.k-shard { color:#e0d08f; } .mtile.k-ladder { color:var(--green); }
+  select { background:#050403; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:5px 8px; font:inherit; font-size:12px; }
+  .gS { color:#f0c860; } .gA { color:#b07be0; } .gB { color:#5aa9d8; } .gC { color:#62b87a; } .gD, .gF { color:var(--dim); }
+  .deed { padding:4px 0; } .deed.locked { opacity:.45; }
+  .friend { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px dashed var(--line); }
+  .ava { width:26px; height:26px; border-radius:50%; }
+  .giftrow { padding:4px 0; }
+  #giftgate:not(:empty), #giftbox:not(:empty), #visitbox:not(:empty) { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin:10px 0; }
+  #toasts { position:fixed; right:14px; bottom:calc(14px + env(safe-area-inset-bottom, 0px)); display:flex; flex-direction:column; gap:8px; z-index:9; max-width:min(420px,90vw); }
+  .toast { background:#1a1510; border:1px solid var(--line); border-left:3px solid var(--gold); border-radius:8px; padding:8px 12px; font-size:12.5px; animation:in .25s; cursor:pointer; }
+  .toast.ok { border-left-color:var(--green); } .toast.warn { border-left-color:var(--warn); } .toast.ach { border-left-color:#b07be0; }
+  .toast.bye { opacity:0; transition:opacity .4s; }
+  .toast .x { float:right; margin:-2px -4px 4px 10px; padding:2px 6px; color:var(--dim); cursor:pointer; font-size:13px; }
+  .toast .x:hover { color:var(--gold); }
+  /* on a phone the panes are bottom sheets — toasts move to the TOP so they never sit on the
+     pane's last rows (the wardrobe's final skins were untappable under the stack) */
+  @media (max-width: 700px) {
+    #toasts { left:10px; right:10px; bottom:auto; top:calc(10px + env(safe-area-inset-top, 0px)); max-width:none; }
+  }
+  /* 700-899px panes are STILL bottom sheets (the 900px breakpoint below is where they become a
+     side panel) but the phone fix above doesn't reach this width — same untappable-last-row bug,
+     narrower window. Move toasts up only while a pane is actually open, so idle toasts keep their
+     usual corner. */
+  @media (min-width: 701px) and (max-width: 899px) {
+    body.panopen #toasts { bottom:auto; top:calc(14px + env(safe-area-inset-top, 0px)); }
+  }
+  /* >=900px panes dock as a right-side sheet spanning the full height (see the .pane.on media
+     query) — the SAME corner toasts live in, so an open pane's bottom rows (the wardrobe's last
+     skin, most often) sit under the toast stack there too. Slide toasts to the left edge, over the
+     field instead of the pane, while a pane is open. */
+  @media (min-width: 900px) {
+    body.panopen #toasts { right:auto; left:14px; }
+  }
+  /* fat-finger dignity: real tap targets and no double-tap page zoom on controls */
+  button, .chip, summary, select, .toast { touch-action:manipulation; }
+  @media (pointer: coarse) {
+    button.mini { padding:7px 12px; font-size:12px; }
+    .closepane { padding:8px 14px; }
+  }
+  @keyframes in { from { transform:translateY(8px); opacity:0; } }
+  @media (max-width: 700px) { @keyframes in { from { transform:translateY(-8px); opacity:0; } } }
+  footer { margin-top:26px; color:var(--dim); font-size:11px; }
+/* the petition box speaks in the town's voice, not the browser's */
+#petitiontext {
+  display: block; width: 100%; box-sizing: border-box; margin: 6px 0 8px;
+  background: #171410; color: var(--ink, #f3e9d2);
+  border: 2px solid var(--canvasline, #3a3020); border-radius: 8px;
+  padding: 10px 12px; font: 15px/1.5 ui-monospace, 'JetBrains Mono', monospace;
+  resize: vertical; caret-color: var(--gold, #f7c66a);
+}
+#petitiontext:focus { outline: none; border-color: var(--gold, #f7c66a); box-shadow: 0 0 0 3px rgba(247,198,106,0.15); }
+#petitiontext::placeholder { color: #7a715c; }
+/* BIG FARM: the ⛶ button grows the field itself to the whole viewing window */
+body.bigfarm #bed { position: fixed; inset: 0; width: 100vw !important; height: 100vh !important; height: 100dvh !important; z-index: 60; border-radius: 0; }
+body.bigfarm #fsbtn { position: fixed; top: 10px; right: 10px; z-index: 61; }
+body.bigfarm #toasts { z-index: 62; }
+/* collapsible trackers: eighty crops should fold away, not scroll forever */
+details.row summary { cursor: pointer; list-style: none; user-select: none; }
+details.row summary::-webkit-details-marker { display: none; }
+details.row summary h3 { display: inline-block; }
+details.row summary h3::after { content: ' ▾'; opacity: 0.5; font-size: 0.8em; }
+details.row:not([open]) summary h3::after { content: ' ▸'; }
+details.row > div { max-height: 40vh; overflow-y: auto; }
+:fullscreen .wrap { max-width: none; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <header>
+    <h1>🌾 Harvestople <span class="sub">farming on ATProto</span></h1>
+    <span class="stat">◈ <span id="coins">—</span></span>
+    <span class="stat" id="biome"></span>
+    <button id="skinbtn" class="mini" title="skins — the wardrobe">🌿</button>
+    <button id="fsbtn" class="mini" title="fullscreen — eighty crops deserve the whole glass">⛶</button>
+    <span id="syncchip" title="save sync"></span>
+    <span id="auth"></span>
+  </header>
+
+  <div id="craftbar"></div>
+
+  <div id="tab-farm">
+    <div class="hint" id="bedhint">tap a building to open it · drag to look around · pick a seed then tap the soil · tap a ripe plant ✓ to harvest</div>
+    <canvas id="bed"></canvas>
+    <details class="row" id="seedrow" data-fold="seeds" open><summary><h3>seed bag</h3></summary><div id="seedbag"></div></details>
+    <details class="row" data-fold="ground" open><summary><h3>in the ground</h3></summary><div id="plants"></div></details>
+    <details class="row" id="pantryrow" data-fold="pantry" open><summary><h3>pantry</h3></summary><div id="pantry"></div></details>
+    <div id="giftgate"></div>
+  </div>
+
+  <div class="pane" id="tab-desk">
+    <div class="panehead"><h2>🎪 trade desk</h2><button class="mini closepane">✕ back to the farm</button></div>
+    <div class="hint">73 real organisms across six ecosystem packs. The desk deals from your ACTIVE pack; the rest unlock in order — every requirement listed, live.</div>
+    <div id="packs"></div>
+    <div id="desk"></div>
+  </div>
+
+  <div class="pane" id="tab-mine">
+    <div class="panehead"><h2>⛏️ mine head</h2><button class="mini closepane">✕ back to the farm</button></div>
+    <div class="hint">the shaft under the farm — the seven planetary metals (☉ gold · ☽ silver · ☿ quicksilver · ♀ copper · ♂ iron · ♃ tin · ♄ lead), coins, gems and quintessence shards; find the 🪜 to go deeper</div>
+    <div id="minestats"></div>
+    <div id="minegrid"></div>
+    <div class="row"><h3>ore stores</h3><div id="metals"></div></div>
+  </div>
+
+  <div class="pane" id="tab-bench">
+    <div class="panehead"><h2>⚗️ alchemy hut</h2><button class="mini closepane">✕ back to the farm</button></div>
+    <div class="hint">brew pantry herbs by their real Galenic correspondences (Culpeper's planets, Macer's degrees). Reagents that agree brew clean; clashing humours curdle.</div>
+    <div class="row"><h3>pantry reagents</h3><div id="reagents"></div></div>
+    <div class="row">
+      <h3>the vessel</h3>
+      <select id="vessel"></select>
+      <button id="brew">⚗️ brew</button>
+      <span id="brewpreview"></span>
+    </div>
+    <div class="row"><h3>preparations</h3><div id="preps"></div></div>
+    <div class="dim">cooling brews are dew (growth) · rousing brews add yield · caustic brews are mine bombs · sedate brews ward the market · oils temper your picks</div>
+  </div>
+
+  <div class="pane" id="tab-friends">
+    <div class="panehead"><h2>📮 friend gate</h2><button class="mini closepane">✕ back to the farm</button></div>
+    <div class="hint">friendship is your Bluesky follow graph — visit a farm, tend a plant (they grow 10% faster per friend), send seeds from your packs that theirs never deals</div>
+    <div id="friendlist"></div>
+    <div id="giftbox"></div>
+    <div id="visitbox"></div>
+  </div>
+
+  <div class="pane" id="tab-mill">
+    <div class="panehead"><h2>🌬️ waterworks</h2><button class="mini closepane">✕ back to the farm</button></div>
+    <div class="hint">watering is the chore; this building is how it stops being one. Research eases irrigation at scale — sprinklers, channels, the wind pump, the deep well — and deepens the organic craft.</div>
+    <div id="millstats"></div>
+    <div class="row"><h3>the tree</h3><div id="techs"></div></div>
+  </div>
+
+  <div class="pane" id="tab-barn">
+    <div class="panehead"><h2>🐄 barn</h2><button class="mini closepane">✕ back to the farm</button></div>
+    <div class="hint">the herd wanders your land. Tap an animal on the map: collects its good if ready, pets it otherwise (petting doubles the next collect). Feeding is a pantry sink — and the grade you feed is the grade you get.</div>
+    <div id="barnstats"></div>
+    <div class="row"><h3>the stable</h3><div id="stable"></div></div>
+    <div class="row"><h3>the herd</h3><div id="herd"></div></div>
+    <div class="row"><h3>goods</h3><div id="goods"></div></div>
+  </div>
+
+  <div class="pane" id="tab-forge">
+    <div class="panehead"><h2>⚒️ forge</h2><button class="mini closepane">✕ back to the farm</button></div>
+    <div class="hint">the mine's metals, finally molten. Pour an alloy and come back when it's cooled; sell it, or walk the Chaldean week — each planet's charm is struck from its own metal, and while you wear one, its crops grow faster from the sowing and sell dearer at the stall.</div>
+    <div id="forgemetals"></div>
+    <div class="row"><h3>the crucible</h3><div id="forgesmelt"></div></div>
+    <div class="row"><h3>the rack</h3><div id="forgerack"></div></div>
+    <div class="row"><h3>the seven charms</h3><div id="forgecharms"></div></div>
+  </div>
+
+  <div class="pane" id="tab-skins">
+    <div class="panehead"><h2>🎨 the wardrobe</h2><button class="mini closepane">✕ back to the farm</button></div>
+    <div class="hint">skins repaint the whole world and unlock like everything else. The one you wear is saved in your plot record — visitors see your farm in it.</div>
+    <div id="skinlist"></div>
+  </div>
+
+  <div class="pane" id="tab-deeds">
+    <div class="panehead"><h2>🪧 deeds sign</h2><button class="mini closepane">✕ back to the farm</button></div>
+    <div class="hint">deeds are public records in your own repo — post the ones worth bragging about (the first post of each deed pays 25◈)</div>
+    <div id="deedlist"></div>
+  </div>
+
+  <div class="pane" id="tab-hall">
+    <div class="panehead"><h2>🏛️ town hall</h2><button class="mini closepane">✕ back to the farm</button></div>
+    <div class="hint">this game is player-built. Petition a change and the council builds it — live on <a href="https://farm-next.mino.mobi">the testing table</a> within the hour, credited to you. The walls and scales are public law: <a href="./PETITIONS.md">PETITIONS.md</a>. Petitions are free while the town is young.</div>
+    <div class="row"><h3>petition the council</h3>
+      <textarea id="petitiontext" rows="3" maxlength="500" placeholder="e.g. a fishing minigame at the ponds… a midnight-blue skin… a bat in the mine…"></textarea>
+      <button class="mini" id="petitionsend">🪧 submit petition</button>
+      <span id="petitionnote" class="dim"></span>
+    </div>
+    <div class="row"><h3>your petitions</h3><div id="mypetitions"></div></div>
+    <div class="row"><h3>on the testing table</h3><div id="modsboard"></div></div>
+    <div class="row"><h3>the town ledger</h3><div id="townledger"></div></div>
+  </div>
+
+  <footer>
+    your farm is a <code>com.minomobi.farm.plot</code> record in your own PDS — no database here, sign in on any device and the field follows you ·
+    <a href="./lexicons/com.minomobi.farm.plot.json">lexicons</a> · one of the <a href="https://mino.mobi">mino.mobi</a> yard of experiments
+  </footer>
+</div>
+<div id="toasts"></div>
+<script src="./vendor/typeahead.js"></script>
+<script type="module" src="./js/app.js"></script>
+</body>
+</html>
