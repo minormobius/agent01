@@ -27,6 +27,11 @@
 // move the ledger and this is the one line that has to move with it.
 const IDEAS_REF = 'claude/minomobi-landing-page-vg37b8';
 
+// The agent loop's ledger lives here, for the same reason: dispatched at 'main'
+// the tick would check out a branch with no work orders and no ledger, decide
+// nothing, and report green. Move the loop and this line moves with it.
+const LOOP_REF = 'claude/loop-graph-ticketing-surface-7qxu7c';
+
 const FIRE_MAP = {
   '0 13 * * *':    { workflow: 'bisk-digest.yml',     ref: 'main' },     // daily 13:00
   '30 13 * * *':   { workflow: 'autopilot-brief.yml', ref: 'main' },     // daily 13:30 (after bisk)
@@ -45,6 +50,29 @@ const FIRE_MAP = {
   '0 * * * *':     { workflow: 'ideas-post.yml',   ref: IDEAS_REF },
   '0 */6 * * *':   { workflow: 'ideas-review.yml', ref: IDEAS_REF },
   '0 6 * * *':     { workflow: 'ideas-pull.yml',   ref: IDEAS_REF },
+
+  // THE AGENT LOOP'S HEARTBEAT, and it is a backstop rather than the driver.
+  //
+  // The loop is driven by pushes: a tick dispatches, a turn commits, the commit
+  // wakes the judge, the judge's commit wakes the tick. Fast, and it has one
+  // failure mode — anything that stops the pushes stops the loop FOREVER, in
+  // silence, with every workflow green. Observed twice on 2026-08-05: once when
+  // the brief overflowed MAX_ARG_STRLEN and the agent stopped starting, once
+  // when two failed turns held both concurrency slots and the reaper that would
+  // have freed them lives inside the tick, which only runs on a push.
+  //
+  // Both causes are fixed. This is for the third one nobody has found yet.
+  //
+  // 10/30/50 rather than an interval, so it never lands on :00 alongside
+  // ideas-post — two crons firing in the same minute is legal (Cloudflare
+  // invokes the handler once per matching trigger, keyed by event.cron) but
+  // sharing a minute makes a log ambiguous for no benefit.
+  //
+  // A tick is cheap and usually decides `halt`: it is bounded by the same
+  // budget, concurrency and stop conditions as any other tick, so this can
+  // wake a stalled loop and cannot make a healthy one spend faster than its
+  // governor allows.
+  '10,30,50 * * * *': { workflow: 'loop-tick.yml', ref: LOOP_REF },
 };
 
 async function dispatch(env, workflow, ref = 'main') {

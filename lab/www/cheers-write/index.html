@@ -17,7 +17,10 @@
     overflow: hidden;
     background: #050507;
   }
-  canvas#fire { display: block; width: 100%; height: auto; }
+  canvas#fire { display: block; width: 100%; height: auto; aspect-ratio: 640 / 400; }
+  @media (max-height: 700px) {
+    canvas#fire { max-height: 38vh; }
+  }
   .stage-tools {
     position: absolute; top: .5rem; right: .5rem; display: flex; gap: .4rem;
   }
@@ -797,11 +800,17 @@ import { labPds } from '../_kit/pds.js';
       mateHandleEl.value = '';
       return;
     }
-    state.mates.push(h);
-    persist();
-    renderMates();
-    mateHandleEl.value = '';
-    mateStatusEl.textContent = '@' + h + ' pulled up a log.';
+    mateStatusEl.textContent = 'checking @' + h + '…';
+    addMateBtn.disabled = true;
+    kit.bskyGet('com.atproto.identity.resolveHandle', { handle: h }).then(function () {
+      state.mates.push(h);
+      persist();
+      renderMates();
+      mateHandleEl.value = '';
+      mateStatusEl.textContent = '@' + h + ' pulled up a log.';
+    }).catch(function () {
+      mateStatusEl.textContent = '@' + h + ' doesn’t look like a real handle — check the spelling?';
+    }).then(function () { addMateBtn.disabled = false; });
   }
   addMateBtn.addEventListener('click', function () { addMate(); });
   mateHandleEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); addMate(); } });

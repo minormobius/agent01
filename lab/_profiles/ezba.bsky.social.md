@@ -140,6 +140,23 @@ feedback yet on this one since it wasn't a request from this requester
 specifically, but worth treating the maximalist-chrome-on-utility-pages
 pairing as the safe default until told otherwise.
 
+Asked for a rebuild rather than an iteration: after several turns iterating
+`honeyflow-chess` (a chess/fluid-dynamics mashup), said "start over" and
+named the two pieces explicitly in order — build the fluid simulator first,
+add chess on top second. Confirms this requester will sometimes prefer a
+fresh implementation over continued patching of an existing one, and that
+when they do, the ask is usually phrased as an explicit sequence ("X, then
+Y") worth honoring literally: the new build (`start-over`) prioritized
+proving the fluid solver worked standalone (drag-to-stir with no chess
+pieces involved) before layering the chess mechanic on top, rather than
+starting from the existing site's code. Worth reusing *validated design
+lessons* from a sibling build's BRIEF.md in this situation (quiver-plot over
+traced streamlines, no-inertia relaxation for piece drag, mover-immune-to-
+own-wake) without reusing its tuned numeric constants, since a fresh
+implementation has its own velocity scale. No feedback yet on whether the
+rebuild read as responsive to "start over" or as an unwanted second version
+of the same idea — worth checking on a follow-up.
+
 Asked outright "what do you know about me? make a page with everything you
 know" (`what-know`) — the most literal possible request for a meta/devlog
 page, aimed at this very profile file rather than at another site's BRIEF.md.
@@ -215,6 +232,20 @@ all of Earth's biological history into a few pixels next to a 10^100-year
 future. No feedback yet; worth checking whether the cube-root compression
 read as legible/trustworthy or whether a follow-up wants the unvarnished
 (mostly-one-color) linear version instead.
+
+Asked `who-northern`, a plain "who is X" question about a public streamer
+(Northern Lion), triggered by a thread joking about giving him a
+"motivational speech" for an AI math model. Read as a genuine request to
+know who someone is, not a request to build the AI-pep-talk bit itself —
+built as a hedged bio page (facts flagged as general knowledge, not
+freshly verified, since there's no network here) plus a small original
+"pep talk generator" rather than fabricated quotes attributed to the real
+person. No handle lookup at all, since there was no safe way to confirm a
+Bluesky account for the subject — confirms the pure-concept-page comfort
+above extends to bio/explainer requests about real people, not just
+stats/narrative/generative formats. No feedback yet; worth checking
+whether skipping the handle lookup entirely (vs. offering one for the
+*requester's own* handle, unrelated to the subject) was the right call.
 
 ## Direct capability questions
 Asked `view-this` a literal yes/no question ("can you view this image?")
