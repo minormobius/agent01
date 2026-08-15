@@ -1,1 +1,1 @@
-All 256 rules, 50 steps, wraparound edges, regenerated live from one row you paint. No width/step sliders on purpose. Next: keyboard toggling for the row editor — right now it's pointer/drag only.
+Did it the dumb way as asked: 65,536 canvases, one per ordered rule pair, alternating A/B every step, no virtualization, no workers. That's ~650MB of retained image data plus ~200k DOM nodes, so expect a real pause on load and on every drag. Tell me if it cries.

@@ -2,17 +2,30 @@
 
 ## What this is
 
-Requested: "exhaustive gallery of elementary cellular automata. let the
-user set the initial condition in one place & generate the whole gallery
-in parallel from that. simulate like 50 steps for each automaton."
+Original request: "exhaustive gallery of elementary cellular automata. let
+the user set the initial condition in one place & generate the whole
+gallery in parallel from that. simulate like 50 steps for each automaton."
 
-Shipped: a single 51-cell initial-row editor (drag/click to paint, plus
-Single cell / Random / All on / Invert / Clear presets), and a grid of
-all 256 rules (Wolfram's numbering, rule 0 through rule 255), each run
-50 steps from that exact same row and redrawn instantly whenever the row
-changes. One file, no dependencies, links `../_kit/tokens.css` and
-`../_kit/kit.js` (used for `kit.crumb` only — no Bluesky calls, no
-handle input, nothing this page needs a network for).
+Follow-up request (this turn): "instead of just one rule per simulation
+there should be an ordered pair of 2 rules, and at each step the automaton
+should alternate between its two rules. squaring the # of sims. don't try
+to be clever about perf. do it straightforwardly & i'll tell u if it makes
+my computer cry."
+
+Shipped, turn 1: a single 51-cell initial-row editor (drag/click to paint,
+plus Single cell / Random / All on / Invert / Clear presets), and a grid of
+all 256 rules run 50 steps from that row.
+
+Shipped, turn 2 (this one): the gallery is now every **ordered pair** of
+rules, 256 × 256 = 65,536 tiles, one canvas each. Each automaton alternates
+rule A on odd steps (1, 3, 5, …) and rule B on even steps (2, 4, 6, …),
+computed in `computeAndDraw(pairIdx, ruleA, ruleB)` — `ruleNum = (y % 2
+=== 1) ? ruleA : ruleB` inside the same row-by-row loop as before. Tile
+label reads "A → B". Everything else (editor, presets, debounce, black-on-
+white rendering, wraparound boundary) is unchanged. Did this literally —
+same architecture as the single-rule version, just nested the rule loop —
+per the explicit "don't be clever" instruction, so no virtualization, no
+Web Workers, no offscreen-tile skipping, no lazy DOM.
 
 ## Decisions
 
@@ -44,26 +57,44 @@ handle input, nothing this page needs a network for).
   blank — that's the canonical starting point (e.g. rule 90 only reads as
   a Sierpiński triangle from a single seed), so the gallery is meaningful
   on first load before anyone touches the editor.
+- **Alternation starts with rule A on step 1**, not rule B, and step
+  parity is keyed off the *target* row index `y` (odd `y` = A, even `y` =
+  B) rather than a separate counter — one less piece of state, and it
+  falls naturally out of the existing `for (y = 1; y < HEIGHT; y++)` loop.
+  No settings for "start with B instead" or "alternate every N steps" —
+  wasn't asked for, and the request said not to get clever.
+- **Did not build any perf mitigation** (virtualized/lazy tiles, a
+  "compute only visible" mode, Web Workers, downsampled preview canvases)
+  even though 65,536 canvases + 65,536 cached `ImageData` objects
+  (51×51×4 bytes each ≈ 650 MB of retained image data alone, before canvas
+  backing stores and ~200k DOM nodes) is a real amount of memory and a
+  real multi-second synchronous block on load and on every row edit. This
+  was explicit: "don't try to be clever about perf... i'll tell u if it
+  makes my computer cry." Left a warning in the on-page copy instead of
+  silently degrading anything.
 
 ## The plan (not built yet, roughly in order)
 
-1. **Keyboard access to the row editor.** Right now toggling a cell is
-   pointer/drag only (`pointerdown`/`pointermove` on the editor canvas).
-   The five preset buttons are fully keyboard-reachable, so the page
-   isn't unusable without a mouse/touch, but painting an arbitrary custom
-   pattern is. Add a hidden-but-focusable per-cell control, or arrow-key
-   + space toggling with a visible cursor, driven off the same `row`
-   array the pointer handler already writes to — `drawEditor()` and
-   `scheduleRegenerate()` are already the right entry points to call
-   after any change, whatever the input method.
-2. **A width control**, if requested — see "Decisions" above for why it
-   isn't here now. Would need the gallery canvases resized
-   (`c.width = WIDTH`) and the editor's cell-index math already scales
-   correctly since it works in fractions of the canvas's bounding rect.
-3. **Optional: highlight/pin a single rule** (click a tile to see it
-   larger, maybe with a per-row readout of the active neighbourhood
-   rule). Gallery tiles are all independently addressable
-   (`canvases[ruleNum]`), so this is additive, not a rewrite.
+1. **If it made their computer cry**, the fix is virtualization: only
+   build/compute canvases currently in or near the viewport
+   (`IntersectionObserver`), recycling a small pool of real canvases and
+   drawing placeholders for the rest — NOT reducing WIDTH/STEPS/rule
+   count, since the ask was for all of it. `imgData` cache would need to
+   move from "one per pairIdx forever" to "one per visible tile,
+   evicted on scroll" to actually recover the memory.
+2. **Keyboard access to the row editor.** Still not done — toggling a
+   cell is pointer/drag only (`pointerdown`/`pointermove` on the editor
+   canvas). The five preset buttons are fully keyboard-reachable. Add a
+   hidden-but-focusable per-cell control, or arrow-key + space toggling
+   with a visible cursor, driven off the same `row` array the pointer
+   handler already writes to.
+3. **A width control**, if requested — see "Decisions" above for why it
+   isn't here. Would need the gallery canvases resized (`c.width =
+   WIDTH`) and the editor's cell-index math already scales correctly.
+4. **Optional: highlight/pin a single tile** (click to see it larger,
+   with a readout of which rule is active at each step). Tiles are all
+   independently addressable (`canvases[a * 256 + b]`), so this is
+   additive.
 
 ## Gotchas
 
@@ -74,18 +105,30 @@ handle input, nothing this page needs a network for).
   this is what makes painting work correctly at any screen size without
   needing to recompute pixel math on resize. If you change WIDTH, nothing
   else about this needs to change.
-- The 256 gallery canvases, by contrast, ARE exact bitmaps: canvas
-  backing store is literally `WIDTH × HEIGHT` pixels, scaled up via CSS
+- The gallery canvases, by contrast, ARE exact bitmaps: canvas backing
+  store is literally `WIDTH × HEIGHT` pixels, scaled up via CSS
   (`aspect-ratio: 1/1`, `image-rendering: pixelated`). Don't add
   anti-aliasing or a display-resolution backing store to those — the
-  crispness is the point and cheap `putImageData` calls are what keeps
-  256-at-once fast.
+  crispness is the point.
 - Regeneration is debounced through a single `requestAnimationFrame` flag
   (`scheduleRegenerate`), same pattern as `plot-all`'s `scheduleRender`.
   Necessary because pointer-drag painting fires many times per second;
-  without the debounce you'd recompute all 256 rules per pointermove
-  event instead of once per frame.
+  without the debounce you'd recompute all 65,536 pairs per pointermove
+  event instead of once per frame — and each of those recomputes is now
+  ~256× the single-rule version's cost, so a drag that felt instant before
+  may visibly lag now. That's the "computer cry" risk, by design, per the
+  request.
+- **Pair index is `a * 256 + b`**, `a` = rule A (odd steps), `b` = rule B
+  (even steps). `canvases[a * 256 + b]` and `imgData[a * 256 + b]` — if you
+  change WIDTH/STEPS/anything else, this indexing doesn't need to change,
+  but if you ever add a "skip symmetric pairs" optimization, remember
+  `(a, b)` and `(b, a)` are genuinely different automata (different
+  starting rule), not duplicates, so there's nothing to dedupe there —
+  only `a === b` tiles (256 of them) match the single-rule behaviour.
 - Untested in a real browser by me (no network/shell here), but the
   harness screenshots it after this build — check that screenshot before
-  assuming anything above is visually right, especially the editor's tap
-  responsiveness on a narrow viewport.
+  assuming anything above is visually right. Watch specifically for
+  whether the page actually finishes rendering/computing in reasonable
+  time, and whether the tab shows memory pressure — that's the thing most
+  likely to have gone wrong given the scale and the "don't be clever"
+  instruction.
