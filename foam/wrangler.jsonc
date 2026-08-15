@@ -5,7 +5,11 @@
   "compatibility_date": "2026-03-14",
   "assets": {
     "directory": ".",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    // without this, asset-matching requests are served BEFORE the worker
+    // runs, so worker.js could never add the CORS header that makes the
+    // dungeon modules importable cross-origin (see dungeon/FORMAT.md)
+    "run_worker_first": true
   },
   // GOLDEN RULE: this `name` must be the worker that owns the live custom
   // domain, and the domain must be declared here as a custom_domain route —
