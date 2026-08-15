@@ -85,6 +85,26 @@ Ordering matters, and it mirrors `neuro`:
   comes out of that module, so a deploy without it is a page full of em-dashes
   that still goes green.
 
+### The dispatch race — found on the first run, fixed here
+
+`build-sci-engine` pushes `pkg/` and then dispatches `deploy-sci`. A
+`workflow_dispatch` resolves its `ref` to **whatever the branch tip is at
+dispatch time**, and GitHub's branch read lags a push by a second or two. The
+first run dispatched two seconds after pushing and the deploy ran against the
+*previous* commit: it redeployed the old wasm, and both runs were green while
+the committed `pkg/` and the live asset silently disagreed.
+
+The fix is the `Wait for the branch tip to settle` step — poll the branch API
+until it reports the SHA we just pushed, then dispatch. **`neuro`'s workflow has
+the same shape and the same race**; it has not been touched from here because
+that surface is owned by another branch, but it is worth fixing there before it
+bites.
+
+The general lesson, and it is the golden rule again in a new costume: two green
+runs do not prove the thing that was built is the thing that is being served.
+`curl -w '%{size_download}'` the live wasm against `stat -c%s` the committed one
+when in doubt.
+
 The sandbox cannot reach Cloudflare — **push to the owning branch, don't
 `wrangler deploy` locally.** The sandbox *can* build the wasm (`rustup target
 add wasm32-unknown-unknown` + wasm-pack) and run the whole site under

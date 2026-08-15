@@ -69,7 +69,30 @@ jobs:
           git add -f sci/mri/pkg
           git commit -m "build: sci mri wasm engine" || { echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; }
           git push
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # A workflow_dispatch resolves `ref` to whatever the branch tip is AT
+      # DISPATCH TIME, and GitHub's branch read is not immediately consistent
+      # with the push above. Dispatching straight after the push therefore races:
+      # the first run of this workflow dispatched at 03:34:02 against the commit
+      # from 03:32:46 and redeployed the PREVIOUS wasm, leaving the committed
+      # pkg/ and the live asset out of sync while both runs showed green.
+      # So: wait until the API agrees the branch points at the commit we just
+      # pushed, and only then dispatch.
+      - name: Wait for the branch tip to settle
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          want='${{ steps.commit.outputs.sha }}'
+          for attempt in $(seq 1 20); do
+            got=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                    -H "Accept: application/vnd.github+json" \
+                    "https://api.github.com/repos/${{ github.repository }}/branches/${{ github.ref_name }}" \
+                  | sed -n 's/.*"sha": *"\([0-9a-f]\{40\}\)".*/\1/p' | head -1)
+            [ "$got" = "$want" ] && { echo "branch tip is $got"; exit 0; }
+            echo "  attempt $attempt: tip is ${got:-unknown}, want $want"; sleep 3
+          done
+          echo "::warning::branch tip never matched $want — dispatching anyway, CHECK the deployed wasm"
 
       - name: Deploy the new engine (dispatch deploy-sci)
         if: steps.commit.outputs.changed == 'true'
