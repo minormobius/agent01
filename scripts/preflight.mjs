@@ -588,9 +588,14 @@ console.log('\nworkflow shell');
   // ALREADY drifted by the time anyone looked: no 'wasm-unsafe-eval', no
   // host.bsky.network. A drift check that covers two of three copies is how the
   // third one drifts.
+  // THE HARNESS COPY MOVED, AND THIS CHECK IS HOW ANYONE FOUND OUT. It lived in
+  // lab-smoke.mjs until lab-bench.mjs needed the same server; both now import it
+  // from lib/headless.mjs, which is one copy instead of the two a second harness
+  // would otherwise have created. The check failed on the move — pointing here is
+  // the fix, and the failure is the evidence that it still watches the right file.
   const headersFile = join(ROOT, 'lab', 'www', '_headers');
   const copies = [
-    ['scripts/lab-smoke.mjs', join(ROOT, 'scripts', 'lab-smoke.mjs')],
+    ['scripts/lib/headless.mjs', join(ROOT, 'scripts', 'lib', 'headless.mjs')],
     ['lab/www/worker.js', join(ROOT, 'lab', 'www', 'worker.js')],
   ];
   if (existsSync(headersFile)) {

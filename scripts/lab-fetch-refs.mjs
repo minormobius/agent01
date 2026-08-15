@@ -42,7 +42,8 @@
 //     files are written, the content gate governs what machinery may ship, the
 //     secret scan reads the output. A page that follows a hostile instruction
 //     still has to get past all three, and they never consult this file.
-//  3. Bounded: three URLs, a per-kind character budget, 20s apiece, http(s)
+//  3. Bounded: six URLs from the requester and four more from the rest of the
+//     thread, a per-kind character budget under a 140k ceiling, 20s apiece, http(s)
 //     only, and a failure is a warning rather than a dead build.
 //
 // It fetches; it does not judge. Judging is what the gates are for.
