@@ -72,6 +72,14 @@ for (const key of ['physique', 'skin', 'hair', 'face', 'speech', 'clothing', 'vi
   };
   ok(JSON.stringify(shape) === JSON.stringify(frozen),
     `seed "mino-mobi" still rolls the frozen sheet\n     got:    ${JSON.stringify(shape)}\n     wanted: ${JSON.stringify(frozen)}`);
+
+  // Both landing pages quote this seed by name as the example permalink, so a
+  // stream change would leave the site telling visitors something untrue.
+  // Change the copy in table/index.html and the root index.html together with
+  // this line, or don't change either.
+  const quoted = rollCharacter('oak-fen-317');
+  ok(quoted.background.name === 'Kettlewright' && quoted.name === 'Berek',
+    `seed "oak-fen-317" is Berek the Kettlewright, as the pages claim (got ${quoted.name} the ${quoted.background.name})`);
 }
 
 // 3b. nearby seeds must not roll the same character ------------------------
