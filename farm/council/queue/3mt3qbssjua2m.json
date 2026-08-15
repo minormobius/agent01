@@ -1,0 +1,11 @@
+{
+  "uri": "at://did:plc:7zre4plmd5jllccww575j6sb/com.minomobi.farm.petition/3mt3qbssjua2m",
+  "did": "did:plc:7zre4plmd5jllccww575j6sb",
+  "handle": "minormobius.bsky.social",
+  "text": "Show price of plants at the seed level. Idk how to prioritize what to plant",
+  "createdAt": "2026-08-15T03:30:37.088Z",
+  "post": {
+    "uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3mt3qbthju32y",
+    "cid": "bafyreicfdrfgk3ilcn5452az5cws73elv7ruclushse7sr4okk3oprraem"
+  }
+}
