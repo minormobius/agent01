@@ -1262,13 +1262,14 @@
       "branch": "claude/sci-surface-mri-research-ji1xf9",
       "uses": [],
       "provides": null,
-      "status": "NEW — first deploy pending. sci.mino.mobi did not resolve as of 2026-08-15 (ENOTFOUND); the hostname is new. Precedent (neuro, 2026-07-25) says wrangler creates the custom domain itself on first deploy since mino.mobi is a zone on this account. CONFIRM the run log binds `sci.mino.mobi (custom domain)` — green alone never proves it.",
-      "note": "Scientific instruments taken apart, one page per instrument, each built around a Rust→WASM solver the visitor drives and each mechanism claim traced to a primary source. Assets-only worker `sci`, staged to ../.sci-stage (engine-rs/ and research/ excluded). First instrument: /mri/ — the detection chain (reciprocity, coil sensitivity, spin echo, the B0^2 law). Engine known-answer tested against closed-form physics: sci/engine-rs, 17 tests. (full description: sci/CLAUDE.md)",
+      "status": "LIVE — first deploy 2026-08-15 bound `sci.mino.mobi (custom domain)` and the site answered. The hostname was new and did not resolve beforehand; wrangler created the custom domain itself, no dashboard step required (mino.mobi is a zone on this account). Golden rule still applies to later deploys: confirm the log binds the custom domain.",
+      "note": "Scientific instruments taken apart, one page per instrument, each built around a Rust→WASM solver the visitor drives and each mechanism claim traced to a primary source. Assets-only worker `sci`, staged to ../.sci-stage (engine-rs/ and research/ excluded). First instrument, MRI, in two parts: /mri/ the detection chain (reciprocity, coil sensitivity, spin echo, the B0^2 law) and /mri/kspace/ the spatial encoding (analytic phantom, real k-space acquisition, FFT reconstruction, EPI distortion). Engine known-answer tested against closed-form physics: sci/engine-rs, 30 tests. (full description: sci/CLAUDE.md)",
       "paths": [
         "sci/**"
       ],
       "serves": [
-        "mri"
+        "mri",
+        "mri/kspace"
       ]
     },
     {

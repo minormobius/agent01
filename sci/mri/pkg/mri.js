@@ -1,6 +1,204 @@
 /* @ts-self-types="./mri.d.ts" */
 
 /**
+ * A scanner the page can drive: an object, a matrix, a field of view, and a
+ * trajectory through k-space.
+ */
+export class Imager {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        ImagerFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_imager_free(ptr, 0);
+    }
+    /**
+     * Run an acquisition. `traj`: 0 spin-warp, 1 EPI, 2 radial.
+     * @param {number} traj
+     * @param {number} dwell_us
+     * @param {number} t2star_ms
+     * @param {number} off_res_hz
+     * @param {number} undersample
+     */
+    acquire(traj, dwell_us, t2star_ms, off_res_hz, undersample) {
+        wasm.imager_acquire(this.__wbg_ptr, traj, dwell_us, t2star_ms, off_res_hz, undersample);
+    }
+    /**
+     * Intensity centroid of an image, in pixels from the centre: `[x, y]`.
+     * @param {Float32Array} img
+     * @returns {Float64Array}
+     */
+    centroid(img) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passArrayF32ToWasm0(img, wasm.__wbindgen_export2);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.imager_centroid(retptr, this.__wbg_ptr, ptr0, len0);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v2 = getArrayF64FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export(r0, r1 * 8, 8);
+            return v2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Reconstruct everything acquired.
+     * @returns {Float32Array}
+     */
+    image() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.imager_image(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v1 = getArrayF32FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export(r0, r1 * 4, 4);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Reconstruct with parts of k-space deleted — the paintbrush.
+     * @param {Uint8Array} mask
+     * @returns {Float32Array}
+     */
+    image_masked(mask) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passArray8ToWasm0(mask, wasm.__wbindgen_export2);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.imager_image_masked(retptr, this.__wbg_ptr, ptr0, len0);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v2 = getArrayF32FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export(r0, r1 * 4, 4);
+            return v2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Reconstruct from the first `frac` of the acquisition, in the order the
+     * trajectory actually visits k-space.
+     * @param {number} frac
+     * @returns {Float32Array}
+     */
+    image_progress(frac) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.imager_image_progress(retptr, this.__wbg_ptr, frac);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v1 = getArrayF32FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export(r0, r1 * 4, 4);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * k-space magnitude, log-compressed to 0…1 for display — raw k-space has
+     * a dynamic range no screen can show.
+     * @returns {Float32Array}
+     */
+    k_display() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.imager_k_display(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v1 = getArrayF32FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export(r0, r1 * 4, 4);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {number}
+     */
+    k_max_per_cm() {
+        const ret = wasm.imager_k_max_per_cm(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * `n` must be a power of two. `fov_cm` is the field of view and
+     * `object_cm` the radius the phantom's unit disc maps to.
+     * @param {number} n
+     * @param {number} fov_cm
+     * @param {number} object_cm
+     * @param {boolean} classic
+     */
+    constructor(n, fov_cm, object_cm, classic) {
+        const ret = wasm.imager_new(n, fov_cm, object_cm, classic);
+        this.__wbg_ptr = ret;
+        ImagerFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
+     * Acquisition order per k-space sample, `-1` where never acquired.
+     * @returns {Int32Array}
+     */
+    order() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.imager_order(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v1 = getArrayI32FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export(r0, r1 * 4, 4);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {number}
+     */
+    pixel_mm() {
+        const ret = wasm.imager_pixel_mm(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Seconds this acquisition would take. `tr_ms` is the repetition time for
+     * the sequences that need one per line.
+     * @param {number} traj
+     * @param {number} dwell_us
+     * @param {number} undersample
+     * @param {number} tr_ms
+     * @returns {number}
+     */
+    seconds(traj, dwell_us, undersample, tr_ms) {
+        const ret = wasm.imager_seconds(this.__wbg_ptr, traj, dwell_us, undersample, tr_ms);
+        return ret;
+    }
+    /**
+     * The object as it really is — what the reconstruction is trying to be.
+     * @returns {Float32Array}
+     */
+    truth() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.imager_truth(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v1 = getArrayF32FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export(r0, r1 * 4, 4);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+}
+if (Symbol.dispose) Imager.prototype[Symbol.dispose] = Imager.prototype.free;
+
+/**
  * A receive coil built from circular loops. Lengths in metres; `B₀` is along
  * `+z`, so a loop whose normal is `+z` faces down the bore.
  */
@@ -125,6 +323,19 @@ export function best_radius(depth_m) {
 }
 
 /**
+ * The predicted EPI geometric shift, in pixels: `Δf · N · echo-spacing / R`.
+ * @param {number} off_res_hz
+ * @param {number} n
+ * @param {number} dwell_us
+ * @param {number} undersample
+ * @returns {number}
+ */
+export function epi_shift_px(off_res_hz, n, dwell_us, undersample) {
+    const ret = wasm.epi_shift_px(off_res_hz, n, dwell_us, undersample);
+    return ret;
+}
+
+/**
  * Free-induction decay after a 90° pulse — interleaved `[re, im, …]` in the
  * rotating frame (i.e. after the receiver's mixer).
  * @param {number} t1
@@ -202,6 +413,24 @@ export function relative_faraday_emf(b0) {
 }
 
 /**
+ * How far image `b` has slid along y relative to `a`, in pixels, by circular
+ * cross-correlation — the measurement that survives the image wrapping around
+ * the field of view, which is what large off-resonance actually does.
+ * @param {Float32Array} a
+ * @param {Float32Array} b
+ * @param {number} n
+ * @returns {number}
+ */
+export function shift_px(a, b, n) {
+    const ptr0 = passArrayF32ToWasm0(a, wasm.__wbindgen_export2);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArrayF32ToWasm0(b, wasm.__wbindgen_export2);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.shift_px(ptr0, len0, ptr1, len1, n);
+    return ret;
+}
+
+/**
  * Hahn spin echo: 90°, τ, 180°, and the echo at 2τ.
  * @param {number} t1
  * @param {number} t2
@@ -238,6 +467,9 @@ function __wbg_get_imports() {
     };
 }
 
+const ImagerFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_imager_free(ptr, 1));
 const RxCoilFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_rxcoil_free(ptr, 1));
@@ -250,6 +482,11 @@ function getArrayF32FromWasm0(ptr, len) {
 function getArrayF64FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return getFloat64ArrayMemory0().subarray(ptr / 8, ptr / 8 + len);
+}
+
+function getArrayI32FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getInt32ArrayMemory0().subarray(ptr / 4, ptr / 4 + len);
 }
 
 let cachedDataViewMemory0 = null;
@@ -276,6 +513,14 @@ function getFloat64ArrayMemory0() {
     return cachedFloat64ArrayMemory0;
 }
 
+let cachedInt32ArrayMemory0 = null;
+function getInt32ArrayMemory0() {
+    if (cachedInt32ArrayMemory0 === null || cachedInt32ArrayMemory0.byteLength === 0) {
+        cachedInt32ArrayMemory0 = new Int32Array(wasm.memory.buffer);
+    }
+    return cachedInt32ArrayMemory0;
+}
+
 function getStringFromWasm0(ptr, len) {
     return decodeText(ptr >>> 0, len);
 }
@@ -286,6 +531,20 @@ function getUint8ArrayMemory0() {
         cachedUint8ArrayMemory0 = new Uint8Array(wasm.memory.buffer);
     }
     return cachedUint8ArrayMemory0;
+}
+
+function passArray8ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 1, 1) >>> 0;
+    getUint8ArrayMemory0().set(arg, ptr / 1);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
+function passArrayF32ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 4, 4) >>> 0;
+    getFloat32ArrayMemory0().set(arg, ptr / 4);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
 }
 
 let cachedTextDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true });
@@ -302,6 +561,8 @@ function decodeText(ptr, len) {
     return cachedTextDecoder.decode(getUint8ArrayMemory0().subarray(ptr, ptr + len));
 }
 
+let WASM_VECTOR_LEN = 0;
+
 let wasmModule, wasmInstance, wasm;
 function __wbg_finalize_init(instance, module) {
     wasmInstance = instance;
@@ -310,6 +571,7 @@ function __wbg_finalize_init(instance, module) {
     cachedDataViewMemory0 = null;
     cachedFloat32ArrayMemory0 = null;
     cachedFloat64ArrayMemory0 = null;
+    cachedInt32ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     return wasm;
 }

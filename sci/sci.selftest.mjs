@@ -23,10 +23,15 @@ const ok = (cond, msg) => { if (!cond) { failures++; console.error("  ✗ " + ms
 const read = (p) => readFileSync(join(DIR, p), "utf8");
 
 const page = read("mri/index.html");
+const kpage = read("mri/kspace/index.html");
 const landing = read("index.html");
 const physics = read("engine-rs/src/physics.rs");
 const coil = read("engine-rs/src/coil.rs");
+const encode = read("engine-rs/src/encode.rs");
+const phantom = read("engine-rs/src/phantom.rs");
 const sources = read("research/mri-sources.md");
+
+const PAGES = [["mri", page], ["mri/kspace", kpage]];
 
 // ---- 1. the wasm module ships -------------------------------------------
 const WASM = "mri/pkg/mri_bg.wasm";
@@ -44,20 +49,26 @@ if (existsSync(join(DIR, WASM))) {
 // ---- 2. the page imports what the module exports -------------------------
 if (existsSync(join(DIR, GLUE))) {
   const glue = read(GLUE);
-  const imported = (page.match(/import init,\s*\{([\s\S]*?)\}\s*from/) || [, ""])[1]
-    .split(",").map((s) => s.trim()).filter(Boolean);
-  ok(imported.length >= 6, `the page imports named symbols from pkg/ (found ${imported.length})`);
-  for (const sym of imported) {
-    ok(new RegExp(`export\\s+(function|class)\\s+${sym}\\b`).test(glue),
-      `pkg/ exports '${sym}' — the page imports it`);
+  for (const [name, html] of PAGES) {
+    const imported = (html.match(/import init,\s*\{([\s\S]*?)\}\s*from/) || [, ""])[1]
+      .split(",").map((s) => s.trim()).filter(Boolean);
+    ok(imported.length >= 2, `${name} imports named symbols from pkg/ (found ${imported.length})`);
+    for (const sym of imported) {
+      ok(new RegExp(`export\\s+(function|class)\\s+${sym}\\b`).test(glue),
+        `pkg/ exports '${sym}' — ${name} imports it`);
+    }
   }
-  // Methods called on an RxCoil must exist on the generated class.
-  const methods = [...page.matchAll(/\bcoil\.([a-z_0-9]+)\(/g)].map((m) => m[1]);
+  // Methods called on the wasm classes must exist on the generated bindings.
+  const methods = [
+    ...page.matchAll(/\bcoil\.([a-z_0-9]+)\(/g),
+    ...kpage.matchAll(/\b(?:im|brush|sw|ep)\.([a-z_0-9]+)\(/g),
+  ].map((m) => m[1]);
   for (const m of new Set(methods)) {
-    ok(new RegExp(`^\\s{4}${m}\\(`, "m").test(glue), `RxCoil.${m}() exists in pkg/`);
+    ok(new RegExp(`^\\s{4}${m}\\(`, "m").test(glue), `pkg/ binds a .${m}() method`);
   }
-  // Every RxCoil the page constructs must be freed, or a slider leaks wasm
-  // memory on every drag.
+  // Every RxCoil the sensor page constructs must be freed — it makes a new one
+  // on every slider frame, so a leak there is unbounded. (The k-space page's
+  // Imagers are made once and live for the page, so they are not freed.)
   const news = (page.match(/new RxCoil\(\)/g) || []).length;
   const frees = (page.match(/\.free\(\)/g) || []).length;
   ok(news === frees, `every RxCoil is freed (${news} constructed, ${frees} freed)`);
@@ -84,16 +95,20 @@ ok(/T_BODY: f64 = 310\.15/.test(physics), "body temperature is 310.15 K");
 // ---- 4. the page's citations are in the research scan --------------------
 // The wing's rule is that claims trace to primary sources. A DOI on the page
 // that isn't in the scan means a citation nobody checked.
-const doisOnPage = [...page.matchAll(/doi\.org\/(10\.[^"'\s<)]+)/g)].map((m) => m[1]);
-ok(doisOnPage.length >= 8, `the page cites at least 8 DOIs (found ${doisOnPage.length})`);
-for (const doi of new Set(doisOnPage)) {
-  const stem = doi.split("/").slice(0, 2).join("/").replace(/[.()]/g, "\\$&");
-  ok(new RegExp(stem.slice(0, 28)).test(sources) || sources.includes(doi.slice(0, 24)),
-    `DOI ${doi} appears in research/mri-sources.md`);
+for (const [name, html] of PAGES) {
+  const dois = [...html.matchAll(/doi\.org\/(10\.[^"'\s<)]+)/g)].map((m) => m[1]);
+  ok(dois.length >= 6, `${name} cites at least 6 DOIs (found ${dois.length})`);
+  for (const doi of new Set(dois)) {
+    ok(sources.includes(doi), `${name} cites ${doi} — it must be catalogued in research/mri-sources.md`);
+  }
 }
-// The four load-bearing sources for part one must be on the page by name.
+// The load-bearing sources must be on their page by name.
 for (const who of ["Hoult", "Bloch", "Hahn", "Edelstein", "Ocali", "Roemer", "Gruber", "Hanson"]) {
-  ok(page.includes(who), `the page credits ${who}`);
+  ok(page.includes(who), `the sensor page credits ${who}`);
+}
+for (const who of ["Lauterbur", "Mansfield", "Twieg", "Ljunggren", "Shepp", "Guerquin-Kern",
+                   "Pruessmann", "Griswold"]) {
+  ok(kpage.includes(who), `the k-space page credits ${who}`);
 }
 
 // ---- 5. the wing's rule ---------------------------------------------------
@@ -118,12 +133,41 @@ ok(/√2 ?· ?z/.test(page), "the page states the √2·z optimum");
 ok(/signal-only|Signal only/.test(page) && /signal-only|Signal only/.test(coil),
   "both page and engine flag that the √2 optimum is signal-only, not SNR");
 
-// ---- 6. the page keeps its four sections ---------------------------------
+// ---- 6. each page keeps its sections, and says where it stops ------------
 for (const sec of ["not radio waves", "Reciprocity", "actually hears", "magnet is so big"]) {
-  ok(page.includes(sec), `section '${sec}' present`);
+  ok(page.includes(sec), `sensor page section '${sec}' present`);
 }
-ok(/part one/i.test(page) && /is not written/.test(page),
-  "the page still says which half of the instrument it does not cover");
+for (const sec of ["Frequency becomes position", "Drive it yourself", "the edges are the detail",
+                   "folds onto itself", "not just whether", "speed costs"]) {
+  ok(kpage.includes(sec), `k-space page section '${sec}' present`);
+}
+// Every page states its own scope honestly, and part one hands off to part two
+// rather than still claiming the encoding half is unwritten.
+for (const [name, html] of PAGES) {
+  ok(/<div class="scope">/.test(html), `${name} carries a scope box`);
+}
+ok(/part one/i.test(page) && /\/mri\/kspace\//.test(page),
+  "the sensor page links on to part two");
+ok(!/the encoding half is not written/.test(page) && !/pages are not built/.test(page),
+  "the sensor page no longer claims the encoding half is unwritten");
+ok(/not written/.test(kpage), "the k-space page still says contrast is not written");
+
+// ---- 6b. the encoding claims are tied to the engine ----------------------
+// Every formula the k-space page quotes must be the one the engine implements.
+ok(/Δf · N · esp|Δf · N · echo-spacing/.test(kpage) && /epi_shift_pixels/.test(encode),
+  "the EPI shift formula appears on the page and in the engine");
+ok(/FOV = 1\/Δk/.test(kpage) && /FOV = 1\/Δk/.test(encode),
+  "FOV = 1/Δk stated on the page and in the engine");
+ok(/Δx = 1\/2k_max/.test(kpage) && /1\/2k_max/.test(encode),
+  "the resolution relation stated on the page and in the engine");
+// The page's claim that it avoids the inverse crime is only true because
+// phantom.rs evaluates k-space analytically. Tie the two together.
+ok(!/inverse crime/i.test(kpage) || /inverse crime/i.test(phantom),
+  "if the page invokes the inverse crime, phantom.rs is where it is avoided");
+ok(/closed form/.test(kpage) && /closed form|analytic/i.test(phantom),
+  "page and engine agree that k-space is evaluated in closed form");
+ok(/Shepp/.test(phantom) && /Toft/.test(phantom),
+  "phantom.rs carries both the original and the contrast-boosted Shepp–Logan, and says which is which");
 
 // ---- 7. no wasm-pack droppings -------------------------------------------
 for (const junk of ["mri/pkg/.gitignore", "mri/pkg/package.json"]) {

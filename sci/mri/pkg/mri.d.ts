@@ -2,6 +2,61 @@
 /* eslint-disable */
 
 /**
+ * A scanner the page can drive: an object, a matrix, a field of view, and a
+ * trajectory through k-space.
+ */
+export class Imager {
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Run an acquisition. `traj`: 0 spin-warp, 1 EPI, 2 radial.
+     */
+    acquire(traj: number, dwell_us: number, t2star_ms: number, off_res_hz: number, undersample: number): void;
+    /**
+     * Intensity centroid of an image, in pixels from the centre: `[x, y]`.
+     */
+    centroid(img: Float32Array): Float64Array;
+    /**
+     * Reconstruct everything acquired.
+     */
+    image(): Float32Array;
+    /**
+     * Reconstruct with parts of k-space deleted — the paintbrush.
+     */
+    image_masked(mask: Uint8Array): Float32Array;
+    /**
+     * Reconstruct from the first `frac` of the acquisition, in the order the
+     * trajectory actually visits k-space.
+     */
+    image_progress(frac: number): Float32Array;
+    /**
+     * k-space magnitude, log-compressed to 0…1 for display — raw k-space has
+     * a dynamic range no screen can show.
+     */
+    k_display(): Float32Array;
+    k_max_per_cm(): number;
+    /**
+     * `n` must be a power of two. `fov_cm` is the field of view and
+     * `object_cm` the radius the phantom's unit disc maps to.
+     */
+    constructor(n: number, fov_cm: number, object_cm: number, classic: boolean);
+    /**
+     * Acquisition order per k-space sample, `-1` where never acquired.
+     */
+    order(): Int32Array;
+    pixel_mm(): number;
+    /**
+     * Seconds this acquisition would take. `tr_ms` is the repetition time for
+     * the sequences that need one per line.
+     */
+    seconds(traj: number, dwell_us: number, undersample: number, tr_ms: number): number;
+    /**
+     * The object as it really is — what the reconstruction is trying to be.
+     */
+    truth(): Float32Array;
+}
+
+/**
  * A receive coil built from circular loops. Lengths in metres; `B₀` is along
  * `+z`, so a loop whose normal is `+z` faces down the bore.
  */
@@ -41,6 +96,11 @@ export class RxCoil {
 export function best_radius(depth_m: number): number;
 
 /**
+ * The predicted EPI geometric shift, in pixels: `Δf · N · echo-spacing / R`.
+ */
+export function epi_shift_px(off_res_hz: number, n: number, dwell_us: number, undersample: number): number;
+
+/**
  * Free-induction decay after a 90° pulse — interleaved `[re, im, …]` in the
  * rotating frame (i.e. after the receiver's mixer).
  */
@@ -73,6 +133,13 @@ export function polarization_ppm(b0: number): number;
 export function relative_faraday_emf(b0: number): number;
 
 /**
+ * How far image `b` has slid along y relative to `a`, in pixels, by circular
+ * cross-correlation — the measurement that survives the image wrapping around
+ * the field of view, which is what large off-resonance actually does.
+ */
+export function shift_px(a: Float32Array, b: Float32Array, n: number): number;
+
+/**
  * Hahn spin echo: 90°, τ, 180°, and the echo at 2τ.
  */
 export function spin_echo(t1: number, t2: number, spread_hz: number, tau: number, dt: number, steps: number, n_iso: number): Float32Array;
@@ -81,9 +148,23 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
+    readonly __wbg_imager_free: (a: number, b: number) => void;
     readonly __wbg_rxcoil_free: (a: number, b: number) => void;
     readonly best_radius: (a: number) => number;
+    readonly epi_shift_px: (a: number, b: number, c: number, d: number) => number;
     readonly fid: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
+    readonly imager_acquire: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
+    readonly imager_centroid: (a: number, b: number, c: number, d: number) => void;
+    readonly imager_image: (a: number, b: number) => void;
+    readonly imager_image_masked: (a: number, b: number, c: number, d: number) => void;
+    readonly imager_image_progress: (a: number, b: number, c: number) => void;
+    readonly imager_k_display: (a: number, b: number) => void;
+    readonly imager_k_max_per_cm: (a: number) => number;
+    readonly imager_new: (a: number, b: number, c: number, d: number) => number;
+    readonly imager_order: (a: number, b: number) => void;
+    readonly imager_pixel_mm: (a: number) => number;
+    readonly imager_seconds: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly imager_truth: (a: number, b: number) => void;
     readonly larmor_mhz: (a: number) => number;
     readonly larmor_wavelength_m: (a: number) => number;
     readonly loop_axis_field_ut: (a: number, b: number) => number;
@@ -95,10 +176,12 @@ export interface InitOutput {
     readonly rxcoil_outline_xz: (a: number, b: number) => void;
     readonly rxcoil_sensitivity_at: (a: number, b: number, c: number, d: number) => number;
     readonly rxcoil_sensitivity_map: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
+    readonly shift_px: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly spin_echo: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
     readonly relative_faraday_emf: (a: number) => number;
     readonly __wbindgen_add_to_stack_pointer: (a: number) => number;
     readonly __wbindgen_export: (a: number, b: number, c: number) => void;
+    readonly __wbindgen_export2: (a: number, b: number) => number;
 }
 
 export type SyncInitInput = BufferSource | WebAssembly.Module;

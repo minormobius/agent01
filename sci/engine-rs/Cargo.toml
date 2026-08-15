@@ -24,3 +24,4 @@ strip = true
 # Same call as neuro/engine-rs, mappa/engine-rs and j/wasm in this repo.
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
+

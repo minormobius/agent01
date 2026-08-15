@@ -1,8 +1,14 @@
 # MRI — canonical sources
 
 Literature scan for the first `sci` instrument breakdown (`sci.mino.mobi/mri`).
-**No explainer is written yet.** This file is the source list we draw from, plus
-the one answer that motivated the page.
+This is the source list the pages draw from, plus the one answer that motivated
+them.
+
+**Built so far:** [`/mri/`](https://sci.mino.mobi/mri/) — part one, the sensor
+(§0, §2, §7 below). [`/mri/kspace/`](https://sci.mino.mobi/mri/kspace/) — part
+two, the encoding (§3, and the phantom sub-section). Part three, contrast (§4),
+is not written. `sci.selftest.mjs` asserts that every DOI cited on a page also
+appears in this file, so a citation nobody catalogued is a build failure.
 
 Every entry says *what it gives us* — a number to put on the page, a mechanism
 to animate, or a claim we would otherwise get wrong. Entries marked
@@ -111,9 +117,16 @@ This is the section the whole instrument breakdown hangs on.
 | **Mansfield P, Grannell PK.** *NMR "diffraction" in solids?* J Phys C 6, L422–L426 (1973). [doi:10.1088/0022-3719/6/22/007](https://doi.org/10.1088/0022-3719/6/22/007) | Independent and simultaneous, from the reciprocal-space side — Fourier transforms of gradient-encoded signals resolving lattice planes. The "diffraction" framing is arguably the better route into k-space for a technical audience. **[unverified]** |
 | **Kumar A, Welti D, Ernst RR.** *NMR Fourier zeugmatography.* J Magn Reson 18, 69–83 (1975). | Phase encoding — the actual reconstruction method used by every scanner today, as opposed to Lauterbur's back-projection. **[unverified]** |
 | **Edelstein WA, Hutchison JMS, Johnson G, Redpath T.** *Spin warp NMR imaging and applications to human whole-body imaging.* Phys Med Biol 25, 751–756 (1980). [doi:10.1088/0031-9155/25/4/017](https://doi.org/10.1088/0031-9155/25/4/017) | Spin-warp: constant-duration, variable-amplitude phase encoding — the robust practical form of the above, and what a real sequence diagram on our page should depict. **[unverified]** |
-| **Twieg DB.** *The k-trajectory formulation of the NMR imaging process…* Med Phys 10, 610–621 (1983). [PDF](https://mriquestions.com/uploads/3/4/5/7/34572113/twieg-kspace.pdf) · [PubMed 6646065](https://pubmed.ncbi.nlm.nih.gov/6646065/) | **k-space, named and formalised**: gradients steer a point through spatial-frequency space; the pulse sequence is a *trajectory*. This is the single best interactive on the page — drive the gradients, watch the k-space pen move, watch the image resolve. PDF freely mirrored. |
+| **Twieg DB.** *The k-trajectory formulation of the NMR imaging process…* Med Phys 10, 610–621 (1983). [doi:10.1118/1.595331](https://doi.org/10.1118/1.595331) · [PDF](https://mriquestions.com/uploads/3/4/5/7/34572113/twieg-kspace.pdf) | **k-space, named and formalised**: gradients steer a point through spatial-frequency space; the pulse sequence is a *trajectory*. This is the single best interactive on the page — drive the gradients, watch the k-space pen move, watch the image resolve. PDF freely mirrored. |
 | **Ljunggren S.** *A simple graphical representation of Fourier-based imaging methods.* J Magn Reson 54, 338–343 (1983). | The companion k-space formulation, independent of Twieg. Cite both. **[unverified]** |
-| **Mansfield P.** *Multi-planar image formation using NMR spin echoes.* J Phys C 10, L55–L58 (1977). | **EPI** — traverse all of k-space in one shot. The reason fMRI and diffusion imaging exist, and the reason the scanner is so loud. **[unverified]** |
+| **Mansfield P.** *Multi-planar image formation using NMR spin echoes.* J Phys C 10, L55–L58 (1977). [doi:10.1088/0022-3719/10/3/004](https://doi.org/10.1088/0022-3719/10/3/004) | **EPI** — traverse all of k-space in one shot. The reason fMRI and diffusion imaging exist, and the reason the scanner is so loud. **[unverified]** |
+
+### Phantoms — what you reconstruct *from* when you have no patient
+
+| Source | Why it matters / what we take |
+|---|---|
+| ⭐ **Shepp LA, Logan BF.** *The Fourier reconstruction of a head section.* IEEE Trans Nucl Sci 21, 21–43 (1974). | The phantom, and the reason it looks the way it does: the interior features sit at ±0.01 against a 1.0 background *deliberately*, because the paper's argument was that reconstruction has to resolve low contrast. Almost everyone displays Toft's contrast-boosted variant instead (**Toft PA**, *The Radon Transform — Theory and Implementation*, PhD thesis, DTU 1996) without saying so. `/mri/kspace/` carries both and says which. **[unverified]** |
+| ⭐ **Guerquin-Kern M, Lejeune L, Pruessmann KP, Unser M.** *Realistic analytical phantoms for parallel magnetic resonance imaging.* IEEE Trans Med Imaging 31, 626–636 (2012). [doi:10.1109/TMI.2011.2174158](https://doi.org/10.1109/TMI.2011.2174158) · [PDF](https://bigwww.epfl.ch/publications/guerquinkern1201.pdf) | **The inverse-crime argument**, and the fix. If you simulate k-space by FFT-ing a digital image, the reconstruction inverts exactly the discretisation you used and the artefacts that matter are absent or wrong. Evaluate the phantom's k-space *analytically* instead — closed-form for ellipses, which is what `phantom.rs` does. This paper is why the aliasing on that page is real. |
 
 ---
 

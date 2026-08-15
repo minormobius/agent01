@@ -86,16 +86,28 @@ li.pending a.item { color: var(--muted); cursor: default; }
     <div class="desc">The most celebrated instrument in applied physics detects its signal with a
     coil of wire. What that means: Faraday induction in the near field, the principle of reciprocity
     turning a hard reception problem into a Biot–Savart integral, a coil that goes <em>deaf</em>
-    when you point it down the bore, and why field strength buys signal twice over. Part one covers
-    the sensor; the encoding half is not written yet.</div>
+    when you point it down the bore, and why field strength buys signal twice over.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a class="item" href="/mri/kspace/">k-space</a>
+      <span class="tag">rust → wasm</span>
+      <span class="tag">fourier</span>
+      <span class="tag">part two</span>
+    </div>
+    <div class="desc">If the sensor has no spatial resolution, where do the pixels come from? The
+    gradients — a steering wheel for frequency space. Run a real acquisition on a phantom whose
+    k-space is evaluated in closed form, delete parts of k-space to see what each was carrying,
+    and watch an EPI image slide off its own outline by exactly the number of pixels the formula
+    predicts.</div>
   </li>
   <li class="pending">
     <div class="name-row">
-      <a class="item">k-space</a>
+      <a class="item">contrast</a>
       <span class="tag soon">planned</span>
     </div>
-    <div class="desc">Part two of the MRI breakdown: how gradients turn one wire's voltage into a
-    picture, and why an MRI is really a one-pixel camera whose image is a Fourier transform.</div>
+    <div class="desc">Part three: why tissues look different rather than merely being in the right
+    place — T₁, T₂, and what a pulse sequence is actually choosing between.</div>
   </li>
 </ul>
 

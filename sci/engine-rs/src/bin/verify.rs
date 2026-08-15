@@ -7,6 +7,8 @@
 
 use sci_mri_engine::bloch::*;
 use sci_mri_engine::coil::*;
+use sci_mri_engine::encode::*;
+use sci_mri_engine::phantom::*;
 use sci_mri_engine::physics::*;
 
 fn row(label: &str, got: f64, want: f64, unit: &str) {
@@ -138,5 +140,74 @@ fn main() {
     );
     println!("\n  Polarisation is the exact two-level tanh; at these fields it is");
     println!("  indistinguishable from the Curie limit ħγB₀/2k_BT.");
+
+    // ------------------------------------------------ part two: encoding --
+
+    head("Analytic k-space: the k = 0 sample is the object's integrated density");
+    for (name, p) in [
+        ("Shepp–Logan (1974)", Phantom::shepp_logan()),
+        ("Shepp–Logan, modified", Phantom::shepp_logan_modified()),
+    ] {
+        row(name, p.k_value(0.0, 0.0).0, p.mass(), "∫ρ dA");
+    }
+
+    let n = 128;
+    let fov = 0.30;
+    let dwell = 4e-6;
+    let clean = Timing { dwell, t2star: 1e9, off_res: 0.0 };
+
+    head("Sampling: Δk sets the field of view, k_max sets the resolution");
+    {
+        let sc = Scanner::new(n, fov, 0.10, Phantom::disc(0.0, 0.0, 0.25));
+        row("FOV from 1/Δk", 1.0 / sc.dk(), fov, "m");
+        row("pixel from 1/(2·k_max)", 1.0 / (2.0 * sc.k_max()), sc.pixel(), "m");
+    }
+    {
+        // A disc parked off centre reconstructs where it actually is.
+        let (x0, y0) = (0.3, -0.15);
+        let mut sc = Scanner::new(n, fov, 0.10, Phantom::disc(x0, y0, 0.25));
+        sc.acquire(Trajectory::SpinWarp, clean, 1);
+        let (cx, cy) = Scanner::centroid(&sc.reconstruct(None), n);
+        row("recon centroid x", cx, x0 * 0.10 / sc.pixel(), "px");
+        row("recon centroid y", cy, y0 * 0.10 / sc.pixel(), "px");
+    }
+
+    head("The EPI distortion formula: shift = Δf · N · echo-spacing");
+    {
+        let nn = 64;
+        let esp = nn as f64 * dwell;
+        let mut sc = Scanner::new(nn, fov, 0.10, Phantom::disc(0.0, 0.0, 0.30));
+        for &df in &[30.0, -45.0, 60.0] {
+            sc.acquire(
+                Trajectory::Epi,
+                Timing { dwell, t2star: 1e9, off_res: df },
+                1,
+            );
+            let (_, cy) = Scanner::centroid(&sc.reconstruct(None), nn);
+            row(
+                &format!("EPI shift at Δf = {df:+.0} Hz"),
+                cy.abs(),
+                epi_shift_pixels(df, nn, esp, 1).abs(),
+                "px",
+            );
+        }
+        // …and the same off-resonance through spin-warp.
+        sc.acquire(
+            Trajectory::SpinWarp,
+            Timing { dwell, t2star: 1e9, off_res: 60.0 },
+            1,
+        );
+        let (_, cy) = Scanner::centroid(&sc.reconstruct(None), nn);
+        println!("  spin-warp at Δf = +60 Hz: {cy:+.4} px — the clock restarts every line");
+    }
+
+    head("Acquisition time — the reason EPI exists at all");
+    {
+        let sc = Scanner::new(n, fov, 0.10, Phantom::shepp_logan_modified());
+        let sw = sc.acquisition_seconds(Trajectory::SpinWarp, clean, 1, 0.5);
+        let ep = sc.acquisition_seconds(Trajectory::Epi, clean, 1, 0.5);
+        println!("  spin-warp, 128 lines at TR = 500 ms: {sw:8.2} s");
+        println!("  single-shot EPI, same coverage:      {ep:8.4} s   ({:.0}× faster)", sw / ep);
+    }
     println!();
 }

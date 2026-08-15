@@ -39,8 +39,9 @@ Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `s
 | Path | What |
 |---|---|
 | `index.html` | the wing landing page — instrument index + the rule |
-| `mri/index.html` | the first instrument, single-file, drives the wasm |
-| `mri/pkg/` | **generated** — wasm-pack output, committed |
+| `mri/index.html` | part one — the sensor. Single-file, drives the wasm |
+| `mri/kspace/index.html` | part two — the encoding. Same wasm, `../pkg/mri.js` |
+| `mri/pkg/` | **generated** — wasm-pack output, committed. Shared by both pages |
 | `engine-rs/` | the Rust source for that wasm; **not served** |
 | `research/` | literature scans, one per instrument; **not served** |
 | `sci.selftest.mjs` | guards the wiring preflight can't see |
@@ -112,18 +113,21 @@ add wasm32-unknown-unknown` + wasm-pack) and run the whole site under
 
 ## engine-rs — what it actually computes
 
-Three modules, no dependencies, and the browser shell is thin on purpose so that
+Six modules, no dependencies, and the browser shell is thin on purpose so that
 what the page shows is what `cargo test` checks.
 
 | Module | Holds |
 |---|---|
 | `coil.rs` | Biot–Savart from finite straight segments; loops as polygons; `sensitivity()` = the reciprocity result, `|B₁⁻| = ½√(Bx²+By²)` |
 | `bloch.rs` | Bloch equations, **exact per step** (rotation + two exponentials, not Euler); hard pulses via Rodrigues; isochromat ensembles; FID and Hahn echo |
+| `phantom.rs` | ellipses in the continuous plane and their **closed-form** k-space (Bessel J₁); Shepp–Logan, original and Toft-modified |
+| `fft.rs` | radix-2 Cooley–Tukey, 1D and 2D, plus `fftshift2`. Sixty lines, and it is the entire reconstruction algorithm |
+| `encode.rs` | gradients as a steering wheel for k-space; spin-warp / EPI / radial; T₂* and off-resonance applied through **sample time**; reconstruction; the circular-cross-correlation shift measurement |
 | `physics.rs` | CODATA 2018 constants, Larmor frequency and wavelength, Curie-law polarisation, and the B₀² law for Faraday detection |
 
 ```bash
 cd sci/engine-rs
-cargo test --release            # 17 known-answer tests, ~1s
+cargo test --release            # 30 known-answer tests, ~1s
 cargo run --release --bin verify   # every result printed beside its closed form
 ```
 
@@ -153,6 +157,30 @@ to visitors, not merely broken.
   ultra-low-field section: a SQUID's sensitivity is frequency-flat, so it does
   not pay that price.
 
+### …and part two
+
+- **No inverse crime.** k-space is evaluated from the closed-form transform of
+  an ellipse, not by FFT-ing a picture, so the aliasing on the page is the real
+  thing rather than an artefact of reusing a grid (Guerquin-Kern 2012). Checked
+  against brute-force numerical integration of the ellipse's indicator function.
+- **`FOV = 1/Δk` and `Δx = 1/(2·k_max)`**, both measured rather than asserted: a
+  disc parked at a known offset reconstructs at that offset, and a point object
+  reconstructs into exactly one pixel with the PSF's zeros landing on its
+  neighbours.
+- **The EPI shift is `Δf · N · esp / R`.** Measured by circular
+  cross-correlation against an undistorted reference and matched to the formula
+  within a tenth of a pixel, at R = 1, 2 and 4. Spin-warp, same k-space, same
+  Δf, comes out at 0.004 px — the artefact lives in the *timing*, not the
+  sampling pattern.
+- **Two modelling bugs found by testing, both fixed:** the image grid was
+  half a pixel off (`(j − n/2)`, not `(j − n/2 + 0.5)`), which silently biased
+  every position the module reported; and accelerated EPI was charging time for
+  the lines it skipped, which made its distortion R× too large.
+- **Measure shifts with `shift_along_y`, not a centroid.** The phantom is not
+  symmetric, so its centroid is not zero to begin with, and a large shift wraps
+  around the FOV — which a centroid reads as a small shift and a circular
+  correlation reads correctly. The tool has its own test.
+
 ## Research
 
 | File | What |
@@ -164,11 +192,13 @@ research scan — a citation on a page that nobody catalogued is a caught error.
 
 ## What `/mri` does not cover yet
 
-Part one is the sensor. The encoding half — gradients, k-space, spin-warp and
-EPI, why the scanner screams, what contrast is — is **not written**. The sources
-are catalogued and read; the pages are not built. The landing page lists
-`k-space` as planned, and the `/mri` page says so in its own words. Keep that
-honest as pages land.
+Parts one and two are the sensor and the encoding. **Part three, contrast — why
+tissues look different rather than merely being in the right place — is not
+written**, and neither is the acoustics section (why the scanner screams;
+sources are in the scan at §6). The landing page lists `contrast` as planned and
+each page's scope box says where it stops. `sci.selftest.mjs` asserts those
+statements stay true, so retiring a "not written" means updating the selftest in
+the same commit — which is the point.
 
 ## Adding an instrument
 

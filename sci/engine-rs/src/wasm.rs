@@ -150,3 +150,154 @@ pub fn best_radius(depth_m: f64) -> f64 {
 pub fn loop_axis_field_ut(radius_m: f64, z_m: f64) -> f64 {
     loop_axis_field(radius_m, z_m, 1.0) * 1e6
 }
+
+// ------------------------------------------------- spatial encoding (part 2) --
+
+use crate::encode::{epi_shift_pixels, Scanner, Timing, Trajectory};
+use crate::phantom::Phantom;
+
+fn traj_of(code: u32) -> Trajectory {
+    match code {
+        1 => Trajectory::Epi,
+        2 => Trajectory::Radial,
+        _ => Trajectory::SpinWarp,
+    }
+}
+
+/// A scanner the page can drive: an object, a matrix, a field of view, and a
+/// trajectory through k-space.
+#[wasm_bindgen]
+pub struct Imager {
+    sc: Scanner,
+}
+
+#[wasm_bindgen]
+impl Imager {
+    /// `n` must be a power of two. `fov_cm` is the field of view and
+    /// `object_cm` the radius the phantom's unit disc maps to.
+    #[wasm_bindgen(constructor)]
+    pub fn new(n: usize, fov_cm: f64, object_cm: f64, classic: bool) -> Imager {
+        let p = if classic {
+            Phantom::shepp_logan()
+        } else {
+            Phantom::shepp_logan_modified()
+        };
+        Imager {
+            sc: Scanner::new(n, fov_cm / 100.0, object_cm / 100.0, p),
+        }
+    }
+
+    /// Run an acquisition. `traj`: 0 spin-warp, 1 EPI, 2 radial.
+    pub fn acquire(
+        &mut self,
+        traj: u32,
+        dwell_us: f64,
+        t2star_ms: f64,
+        off_res_hz: f64,
+        undersample: usize,
+    ) {
+        self.sc.acquire(
+            traj_of(traj),
+            Timing {
+                dwell: dwell_us * 1e-6,
+                t2star: t2star_ms * 1e-3,
+                off_res: off_res_hz,
+            },
+            undersample,
+        );
+    }
+
+    /// Reconstruct everything acquired.
+    pub fn image(&self) -> Vec<f32> {
+        self.sc.reconstruct(None)
+    }
+
+    /// Reconstruct with parts of k-space deleted — the paintbrush.
+    pub fn image_masked(&self, mask: &[u8]) -> Vec<f32> {
+        self.sc.reconstruct(Some(mask))
+    }
+
+    /// Reconstruct from the first `frac` of the acquisition, in the order the
+    /// trajectory actually visits k-space.
+    pub fn image_progress(&self, frac: f64) -> Vec<f32> {
+        let m = self.sc.progress_mask(frac);
+        self.sc.reconstruct(Some(&m))
+    }
+
+    /// k-space magnitude, log-compressed to 0…1 for display — raw k-space has
+    /// a dynamic range no screen can show.
+    pub fn k_display(&self) -> Vec<f32> {
+        let n = self.sc.n;
+        let mut max: f64 = 0.0;
+        for i in 0..n * n {
+            let m = self.sc.k[2 * i].hypot(self.sc.k[2 * i + 1]);
+            if m > max {
+                max = m;
+            }
+        }
+        (0..n * n)
+            .map(|i| {
+                let m = self.sc.k[2 * i].hypot(self.sc.k[2 * i + 1]);
+                if max <= 0.0 || m <= 0.0 {
+                    0.0
+                } else {
+                    // five decades, which is about what k-space spans
+                    ((1.0 + (m / max).log10() / 5.0).clamp(0.0, 1.0)) as f32
+                }
+            })
+            .collect()
+    }
+
+    /// The object as it really is — what the reconstruction is trying to be.
+    pub fn truth(&self) -> Vec<f32> {
+        self.sc.truth()
+    }
+
+    /// Acquisition order per k-space sample, `-1` where never acquired.
+    pub fn order(&self) -> Vec<i32> {
+        self.sc.order.clone()
+    }
+
+    /// Intensity centroid of an image, in pixels from the centre: `[x, y]`.
+    pub fn centroid(&self, img: &[f32]) -> Vec<f64> {
+        let (x, y) = Scanner::centroid(img, self.sc.n);
+        vec![x, y]
+    }
+
+    pub fn pixel_mm(&self) -> f64 {
+        self.sc.pixel() * 1000.0
+    }
+
+    pub fn k_max_per_cm(&self) -> f64 {
+        self.sc.k_max() / 100.0
+    }
+
+    /// Seconds this acquisition would take. `tr_ms` is the repetition time for
+    /// the sequences that need one per line.
+    pub fn seconds(&self, traj: u32, dwell_us: f64, undersample: usize, tr_ms: f64) -> f64 {
+        self.sc.acquisition_seconds(
+            traj_of(traj),
+            Timing {
+                dwell: dwell_us * 1e-6,
+                t2star: 1.0,
+                off_res: 0.0,
+            },
+            undersample,
+            tr_ms * 1e-3,
+        )
+    }
+}
+
+/// The predicted EPI geometric shift, in pixels: `Δf · N · echo-spacing / R`.
+#[wasm_bindgen]
+pub fn epi_shift_px(off_res_hz: f64, n: usize, dwell_us: f64, undersample: usize) -> f64 {
+    epi_shift_pixels(off_res_hz, n, n as f64 * dwell_us * 1e-6, undersample)
+}
+
+/// How far image `b` has slid along y relative to `a`, in pixels, by circular
+/// cross-correlation — the measurement that survives the image wrapping around
+/// the field of view, which is what large off-resonance actually does.
+#[wasm_bindgen]
+pub fn shift_px(a: &[f32], b: &[f32], n: usize) -> f64 {
+    crate::encode::shift_along_y(a, b, n)
+}
