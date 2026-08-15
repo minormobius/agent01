@@ -1,6 +1,6 @@
 name: Farm town council (sweep + build)
 
-# THE IMMEDIATE LOOP. Every quarter hour: find new petitions (courier posts tagged
+# THE IMMEDIATE LOOP. Every half hour: find new petitions (courier posts tagged
 # #harvestople → the petitioner's own petition records), convene the council — a headless
 # Claude Code session working on the TESTING TABLE branch — and either build the wish or
 # decline it, then reply to the petitioner with the live link. The petitioner plays their
@@ -11,19 +11,30 @@ name: Farm town council (sweep + build)
 # on the diff, every selftest including the save covenant. A run whose walls fail ships
 # nothing and declines the batch with the breach named.
 
-# MANUAL TRIGGER WHILE TESTING: cron and workflow_dispatch both need this file on the DEFAULT
-# branch to fire; until a merge candidate carries it there, push any commit to the kick branch:
+# MANUAL TRIGGER: workflow_dispatch needs this file on the DEFAULT branch to appear; before it
+# was carried there, the way to run it was to push any commit to the kick branch:
 #   git commit --allow-empty -m kick && git push origin HEAD:claude/farm-sweep-kick
+# That path still works and is still the fastest way to force a sweep.
 #
-# COST, so nobody has to re-derive it (PR #68 read this cron as ~96 agent sessions/day): every
-# Claude step below is gated `if: count != '0'`. An EMPTY tick is a ~30s checkout + one node
-# script of keyless public reads — free Actions minutes on a public repo, zero agent sessions.
-# Billed sessions scale with PETITION BATCHES, i.e. with players actually using the town hall.
-# The one real per-tick spend is a single bot createSession for the authed-search fallback
-# (bounded by Bluesky's 300/day; halve the cadence before ever worrying about it).
+# `schedule:` DOES FIRE ON THIS REPO — checked rather than assumed on 2026-08-15, because an
+# earlier note here claimed the opposite: the repo has 1216 scheduled runs, and hoop-director.yml
+# (`*/15`) fires from main continuously. Anything cron'd here is live the moment it is on main.
+#
+# WHAT A TICK ACTUALLY COSTS, since this is the workflow most likely to be mistaken for a money
+# fire. Every expensive step below — Install Claude Code, Convene the council, the walls, the
+# push, the deploy dispatch — is gated `if: steps.sweep.outputs.count != '0'`. An EMPTY tick is
+# a checkout plus one node script doing public XRPC reads, and Actions minutes are free on a
+# public repo. So the billed Claude sessions equal the number of petition BATCHES, which is
+# bounded by real players filing petitions — the product working, not a standing charge.
+# The only true per-tick cost is the bot createSession in sweep.mjs, and even that is a fallback
+# taken only when the public appview refuses the runner (it counts against Bluesky's 300/day).
+#
+# THE CADENCE IS */30, NOT */15. The product promise is that the council answers within the
+# hour, which 30 preserves while halving the empty-tick floor. Raising it back to */15 is
+# supportable; the thing to keep in view is the createSession budget, not the model spend.
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '*/30 * * * *'
   workflow_dispatch:
   push:
     branches:
