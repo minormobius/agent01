@@ -45,11 +45,19 @@ export function combatantFromCharacter(character, extraItems) {
         .sort((a, b) => Math.max(...b.dice) - Math.max(...a.dice))
     : [{ name: 'unarmed', dice: [4], blast: false }];
 
+  // "Anyone carrying a full inventory (i.e. filling all 10 slots) is reduced to
+  //  0 HP." Without this the pack has no weight in the model at all: a party
+  //  hauling ten slots of loot fought exactly as well as one travelling light,
+  //  which quietly deletes the resource game the whole system runs on. At 0 HP
+  //  every hit goes straight to STR, which is as punishing as it sounds.
+  const encumbered = inv.full;
+
   return {
     name: character.name,
     side: 'pc',
-    hp: character.hp,
+    hp: encumbered ? 0 : character.hp,
     maxHp: character.hp,
+    encumbered,
     armor: inv.armor,
     STR: character.attributes.STR,
     DEX: character.attributes.DEX,
@@ -286,8 +294,13 @@ export function assess(pcs, foes, { trials = 2000, seed = 'oracle', ...opts } = 
     p.forEach((c, idx) => { if (!alive(c)) perPc[idx]++; });
   }
 
+  const toll = casualties / trials / pcs.length;
   return {
     trials,
+    // THE METRIC. See `band` below for what these two numbers are and why they
+    // are the two.
+    toll,
+    swing: wipes / trials,
     wipeRate: wipes / trials,
     meanCasualties: casualties / trials,
     deathRate: deaths / (trials * pcs.length),
@@ -298,27 +311,44 @@ export function assess(pcs, foes, { trials = 2000, seed = 'oracle', ...opts } = 
     // running. It is the most actionable number the oracle produces.
     meanFirstCasualtyRound: firstCasualtyN ? firstCasualty / firstCasualtyN : null,
     perCharacterDownRate: perPc.map((n) => n / trials),
-    band: band(wipes / trials, casualties / trials / pcs.length),
+    band: band(toll, wipes / trials),
   };
 }
 
 /**
- * A label for the numbers. THESE BANDS ARE OURS, NOT CAIRN'S — the game
- * publishes no difficulty scale, and inventing one that looks official would be
- * a lie. They are tuned to how an OSR table reads risk: "risky" means someone
- * probably gets hurt, "deadly" means plan an exit, "lethal" means don't.
+ * THE CHALLENGE METRIC. Cairn publishes no difficulty scale, so this is ours,
+ * and it is stated in units that mean something rather than as a rating out of
+ * ten. Two numbers, because one is not enough:
+ *
+ *   TOLL — the expected fraction of the party that does not walk away.
+ *          0.25 means "on average this fight costs a quarter of the party".
+ *          It is an average, so it is the right number for pricing a whole
+ *          dungeon: five toll-0.2 rooms cost about one character.
+ *
+ *   SWING — the probability the whole party is wiped. This is the tail, and it
+ *          is NOT implied by toll. A fight that always leaves one body has the
+ *          same toll as one that is free three times in four and total the
+ *          fourth. The first is attrition; the second ends campaigns. A Warden
+ *          needs to see the difference, so swing can escalate a band on its own.
+ *
+ * The cut points are judgement calls, and they are the only invented numbers
+ * in the model. They are set where the meaning changes rather than on round
+ * numbers: below a twentieth of a party lost, nothing is really at stake; a
+ * fifth means someone is getting hurt regularly; approaching half means the
+ * party should be planning an exit before the first round.
  */
-export function band(wipeRate, casualtyFraction) {
-  if (wipeRate >= 0.25) return 'lethal';
-  if (wipeRate >= 0.05 || casualtyFraction >= 0.4) return 'deadly';
-  if (casualtyFraction >= 0.12) return 'risky';
+export const BANDS = ['routine', 'risky', 'deadly', 'lethal'];
+
+export function band(toll, swing = 0) {
+  if (toll >= 0.45 || swing >= 0.25) return 'lethal';
+  if (toll >= 0.20 || swing >= 0.05) return 'deadly';
+  if (toll >= 0.05) return 'risky';
   return 'routine';
 }
 
-export const BANDS = ['routine', 'risky', 'deadly', 'lethal'];
+/** Where a band sits, for ranking results by how typical they are of it. */
+export const BAND_CENTRE_TOLL = { routine: 0.02, risky: 0.12, deadly: 0.30, lethal: 0.60 };
 
-/** Roughly where a band sits, used to rank results by how typical they are. */
-const BAND_CENTRE = { routine: 0.005, risky: 0.03, deadly: 0.14, lethal: 0.45 };
 
 /**
  * Search the bestiary for encounters that land in a target band against THIS
@@ -360,7 +390,7 @@ export function findEncounters(pcs, bestiary, {
       const verdict = assess(pcs, foes(), { trials, seed: `${seed}/${monster.id}/${count}` });
       const rank = BANDS.indexOf(verdict.band);
       if (rank === wanted) {
-        const distance = Math.abs(verdict.wipeRate - BAND_CENTRE[target]);
+        const distance = Math.abs(verdict.toll - BAND_CENTRE_TOLL[target]);
         if (!best || distance < best.distance) {
           const agreed = !confirm || assess(pcs, foes(), {
             trials, seed: `${seed}/confirm/${monster.id}/${count}`,

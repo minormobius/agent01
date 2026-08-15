@@ -16,7 +16,7 @@ Procedural character sheets for tabletop RPGs. Repo-wide rules live in
 | Deploy | [`.github/workflows/deploy-table.yml`](../.github/workflows/deploy-table.yml) |
 | Uses | — |
 | Provides | — |
-| Serves | `/cairn` |
+| Serves | `/cairn`, `/cairn/encounter`, `/cairn/items` |
 
 Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) →
 `surfaces[]` where `surface == "table"`.
@@ -70,17 +70,25 @@ obligations it puts on us: [`cairn/LICENSE.md`](cairn/LICENSE.md).
 | `cairn/app.js` | The page: rendering, the two edits a player may make, print |
 | `cairn/monsters.js` | **Generated.** The 84 bestiary stat blocks, parsed into numbers |
 | `cairn/tools/scrape-monsters.py` | What generated it |
-| `cairn/combat.js` | The encounter oracle: a Cairn combat simulator, the bestiary search, and the veterancy model |
+| `cairn/combat.js` | The encounter oracle: the combat simulator, the challenge metric, the bestiary search |
 | `cairn/combat.selftest.mjs` | 40 checks. **A simulator fails silently — run this** |
+| `cairn/items.js` | **Generated.** The marketplace, the 46 relics, the d100 spellbook table |
+| `cairn/tools/scrape-items.py` | What generated it |
+| `cairn/delve.js` | Advancement: scars and loot on one axis, inside the ten slots |
+| `cairn/study.js` | What a slot is worth — item value measured in the same currency as an encounter |
+| `cairn/delve.selftest.mjs` | 45 checks over delve.js, study.js and items.js |
 | `cairn/encounter/` | The oracle's page |
+| `cairn/items/` | The item study's page |
 
 Regenerate the data (only when the SRD itself changes):
 
 ```sh
 python3 table/cairn/tools/scrape-srd.py      > table/cairn/data.js
 python3 table/cairn/tools/scrape-monsters.py > table/cairn/monsters.js
+python3 table/cairn/tools/scrape-items.py    > table/cairn/items.js
 node table/cairn/roll.selftest.mjs      # must pass; the frozen sheet is the check
 node table/cairn/combat.selftest.mjs    # must pass; a wrong simulator looks right
+node table/cairn/delve.selftest.mjs     # must pass; a wrong advancement model looks right too
 ```
 
 ### /cairn/encounter — the oracle
@@ -95,8 +103,29 @@ add here, and all three are about not lying to a Warden:
 2. **Mark what the model cannot see.** 59 of the 84 creatures have abilities beyond their stat
    line (the scraper's `unmodelled` flag), and those encounters are harder than the verdict says.
    Never let a verdict imply it covered the whole creature.
-3. **Never dress our arithmetic as Cairn's.** The difficulty bands and the veterancy curve are this
-   site's invention. They are labelled as such in the code, in the UI, and in the footer.
+3. **Never dress our arithmetic as Cairn's.** The challenge metric, the loot table and the delve
+   model are this site's invention. They are labelled as such in the code, in the UI, and in the
+   footer.
+
+### The challenge metric
+
+Two numbers, defined in `combat.js`:
+
+- **Toll** — the expected fraction of the party that does not walk away. An average, so it prices a
+  whole dungeon: five toll-0.2 rooms cost about one character.
+- **Swing** — the probability of a wipe. This is the tail, and toll does not imply it: a fight that
+  always leaves one body and a fight that is free three times in four and total the fourth have the
+  same toll and are completely different problems.
+
+Bands come off both. The cut points are the only invented numbers in the model.
+
+### /cairn/items — what a slot is worth
+
+Cairn puts magic in objects and caps objects at ten slots, so an item's real question is its value
+*per slot*, and that is measurable: give the party the item, re-run the same basket of fights on the
+same seeds, and the difference in toll is what the item is worth. Both runs share seeds, so an item
+the model cannot see reads exactly `0.0000` rather than drifting near it — which is what lets a weak
+real effect be told apart from noise.
 
 ### Things that will bite you here
 
@@ -123,6 +152,13 @@ add here, and all three are about not lying to a Warden:
   distance from the *middle* of the band (6 of 12 top results flipped when ranked by lethality
   instead, 0 of 12 after), and each candidate is confirmed against a second seed (9 of 49 flipped
   unconfirmed, 3 of 38 confirmed). A selftest measures both.
+- **Advancement is an inventory problem, and the slot cap is load-bearing.** `delve.js` advances
+  scars and loot together because they come from the same rooms. Two findings are baked into it and
+  must not be "simplified" away: a delver **reserves one slot**, because filling all ten is 0 HP by
+  the rules and the first model had the average character unconscious by their third delve; and
+  `combatantFromCharacter` **applies that 0 HP**, without which the pack has no weight at all and
+  the whole item study measures nothing. Carrying saturates at about three delves — after that a
+  veteran is choosing what to leave, not accumulating.
 - **Player edits live only in the page.** Swapping two attributes (which Cairn
   allows) and taking an offered item change what is on screen, never what the
   seed rolls. Reloading the permalink returns the sheet as rolled. If you add

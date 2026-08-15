@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What a slot is worth — Cairn items</title>
+<meta name="description" content="Cairn puts magic in objects and caps objects at ten slots, so an item's real question is what it does per slot. This measures every weapon, every piece of armour and all 46 relics by simulation — and finds the point where picking one more thing up makes a party worse.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="What a slot is worth">
+<meta property="og:description" content="Every Cairn weapon, armour and relic, priced by simulation in the same currency as an encounter.">
+<meta property="og:url" content="https://table.mino.mobi/cairn/items/">
+<meta name="twitter:card" content="summary">
+<style>
+:root {
+  --bg: #f7f4ec; --panel: #fffdf7; --text: #1c1a17; --muted: #6d675c;
+  --rule: #d8d2c4; --rule-hard: #b3ab99; --accent: #3f6d4e;
+  --accent-soft: rgba(63, 109, 78, 0.08); --ink: #8a3324; --good: #3f6d4e;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12120f; --panel: #1a1a16; --text: #ddd8cc; --muted: #8f887a;
+    --rule: #33322b; --rule-hard: #4c4a40; --accent: #7dbb92;
+    --accent-soft: rgba(125, 187, 146, 0.1); --ink: #d98c72; --good: #7dbb92;
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: var(--serif); line-height: 1.6; -webkit-font-smoothing: antialiased;
+  max-width: 940px; margin: 0 auto; padding: 2rem 1.2rem 5rem;
+}
+a { color: var(--accent); }
+h1 { font-size: 1.9rem; line-height: 1.2; font-weight: 600; letter-spacing: -0.01em; }
+.crumb {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); text-decoration: none;
+  display: inline-block; margin-bottom: 1.2rem;
+}
+.lede { color: var(--muted); margin-top: 0.5rem; font-size: 0.98rem; }
+code { font-family: var(--mono); font-size: 0.85em; }
+.panel {
+  border: 1px solid var(--rule-hard); border-radius: 8px; background: var(--panel);
+  padding: 1rem 1.1rem; margin-top: 1.2rem;
+}
+.panel > h2 {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted); font-weight: 600;
+  border-bottom: 1px solid var(--rule); padding-bottom: 0.3rem; margin-bottom: 0.8rem;
+}
+.row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+button, select, input[type=text] {
+  font-family: var(--mono); font-size: 0.78rem; padding: 0.4rem 0.6rem;
+  border-radius: 6px; border: 1px solid var(--rule-hard); background: var(--bg); color: var(--text);
+}
+button { cursor: pointer; }
+button:hover { border-color: var(--accent); color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--panel); font-weight: 600; }
+label.ctl { font-family: var(--mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.status { font-family: var(--mono); font-size: 0.7rem; color: var(--accent); min-height: 1rem; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.87rem; margin-top: 0.3rem; }
+th {
+  font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--muted); text-align: left; font-weight: 600; padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid var(--rule-hard);
+}
+td { padding: 0.3rem 0.4rem; border-bottom: 1px solid var(--rule); }
+td.num { font-family: var(--mono); font-size: 0.76rem; text-align: right; font-variant-numeric: tabular-nums; }
+td.name { font-weight: 600; }
+td.kind { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); }
+tr.unseen td.name { font-weight: 400; color: var(--muted); }
+.bar { display: inline-block; height: 0.55rem; background: var(--good); border-radius: 2px; vertical-align: middle; }
+.bar.neg { background: var(--ink); }
+.caveat { font-size: 0.88rem; color: var(--muted); }
+.caveat b { color: var(--text); }
+.caveat ul { margin: 0.5rem 0 0 1.1rem; }
+.caveat li { margin-bottom: 0.35rem; }
+.finding {
+  border-left: 3px solid var(--accent); background: var(--accent-soft);
+  padding: 0.7rem 1rem; margin-top: 0.9rem; border-radius: 0 6px 6px 0; font-size: 0.94rem;
+}
+footer {
+  margin-top: 2.5rem; padding-top: 1.2rem; border-top: 1px solid var(--rule);
+  font-size: 0.83rem; color: var(--muted);
+}
+</style>
+</head>
+<body>
+
+<a class="crumb" href="/cairn/">← cairn roller</a>
+
+<header>
+  <h1>What a slot is worth</h1>
+  <p class="lede">
+    Cairn puts magic entirely into objects — a spellbook is one slot and a Fatigue to read, a relic
+    is one slot and a recharge condition — and then caps a character at ten slots, of which filling
+    the last drops you to 0 HP. That makes the interesting question about an item not <em>what does
+    it do</em> but <strong>what does it do per slot of pack space</strong>. Which is a question the
+    <a href="/cairn/encounter/">encounter oracle</a> can answer, because it already prices a fight:
+    give the party the item, run the same fights on the same dice, and see how much of the toll
+    goes away.
+  </p>
+</header>
+
+<section class="panel">
+  <h2>The party doing the carrying</h2>
+  <div class="row">
+    <label class="ctl" for="seed">seed</label>
+    <input type="text" id="seed" spellcheck="false" style="min-width:11rem;flex:1 1 11rem">
+    <label class="ctl" for="size">size</label>
+    <select id="size"><option>3</option><option selected>4</option><option>5</option></select>
+    <button class="primary" id="run">Price every item</button>
+    <span class="status" id="status"></span>
+  </div>
+  <p class="caveat" style="margin-top:0.5rem">
+    Value is measured in <b>toll averted</b> — the same unit the oracle uses for encounters, the
+    expected fraction of the party that doesn't walk away — averaged over a fixed basket of six
+    fights: five goblins, four skeletons, three bandits, three wolves, one ogre, one troll. A mixed
+    basket matters: armour is worth far more against the swarm, a bigger die against the big one.
+  </p>
+</section>
+
+<section class="panel">
+  <h2>Every item, by value per slot</h2>
+  <div id="table"></div>
+</section>
+
+<section class="panel">
+  <h2>The cliff</h2>
+  <p class="caveat">
+    The same shield, offered to the same party carrying more and more junk. This is the number that
+    makes Cairn's inventory a game rather than a list.
+  </p>
+  <div id="curve"></div>
+</section>
+
+<section class="panel caveat">
+  <h2>How to read this</h2>
+  <ul>
+    <li><b>Zero does not mean useless.</b> The simulator sees armour, damage dice and carrying
+      capacity. It does not see a relic that swaps two people's minds, a spellbook that charms a
+      guard, or anything resolved in the fiction — which is most of Cairn. Items the model cannot
+      see are greyed out and scored 0.0000 exactly, and that number is a statement about the model,
+      not the item.</li>
+    <li><b>Both runs use the same dice.</b> Value is a difference between two simulations, and they
+      are seeded identically, so an item with no mechanical effect measures exactly zero rather than
+      drifting around it. Any non-zero reading is therefore a real effect, however small.</li>
+    <li><b>"Best holder" is the party being sensible.</b> The average column is what a random piece
+      of loot is worth; the best column is what it is worth once the party works out who should
+      carry it. The gap between them is the value of thinking about it.</li>
+    <li><b>This is a stand-and-fight model.</b> Everything the
+      <a href="/cairn/encounter/">oracle's caveats</a> say applies here too. An item that helps you
+      avoid the fight entirely is worth more than anything in this table, and scores nothing in it.</li>
+  </ul>
+</section>
+
+<footer>
+  <p>
+    <strong>Cairn Second Edition</strong> is by <a href="https://cairnrpg.com/">Yochai Gal</a>,
+    licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>; the
+    marketplace, reliquary and spellbook tables are adapted from the SRD and shared under the same
+    licence — see <a href="../LICENSE.md">LICENSE.md</a>. The simulation, the toll metric and this
+    study are this site's own work, not Cairn's.
+  </p>
+  <p><a href="../study.js">study.js</a> · <a href="../items.js">items.js</a> · <a href="../delve.js">delve.js</a></p>
+</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

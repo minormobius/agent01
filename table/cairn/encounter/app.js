@@ -4,18 +4,17 @@
 // the verdict. The wording matters as much as the number: a percentage with no
 // sentence attached invites a Warden to read it as a promise, and it isn't one.
 
-import { rollParty, rollCharacter } from '../roll.js';
+import { rollParty, rollCharacter, packInventory } from '../roll.js';
 import { BESTIARY } from '../monsters.js';
-import {
-  assess, findEncounters, combatantFromCharacter, combatantFromMonster, applyScars,
-} from '../combat.js';
+import { assess, findEncounters, combatantFromCharacter, combatantFromMonster } from '../combat.js';
+import { delve } from '../delve.js';
 
 const $ = (id) => document.getElementById(id);
 
 const state = {
   seed: 'oak-fen-317',
   size: 4,
-  scars: 0,
+  delves: 0,
   monster: 'goblin',
   count: 4,
   morale: true,
@@ -35,25 +34,45 @@ const md = (s) => escapeHtml(s)
 
 // ------------------------------------------------------------------- party
 
-/** The rolled party, aged by `scars`, as combatants. */
-function party() {
+/**
+ * The party, after `delves` expeditions. Scars and loot advance together —
+ * see delve.js for why they are one axis and not two.
+ */
+function partyCharacters() {
   const members = state.size === 1
     ? [rollCharacter(state.seed)]
     : rollParty(state.seed, state.size).members;
-  return members
-    .map((m) => (state.scars ? applyScars(m, state.scars) : m))
-    .map((m) => combatantFromCharacter(m));
+  return state.delves ? members.map((m, i) => delve(m, state.delves, { seed: `${i}` })) : members;
 }
 
-function renderParty(pcs) {
-  $('party').innerHTML = `<table>${pcs.map((c) => `
+function party() {
+  return partyCharacters().map((m) => combatantFromCharacter(m));
+}
+
+function renderParty(characters) {
+  const rows = characters.map((ch) => {
+    const c = combatantFromCharacter(ch);
+    const inv = ch.inventory || packInventory(ch.gear);
+    const found = ch.found || [];
+    const relics = found.filter((f) => f.kind === 'relic').length;
+    const books = found.filter((f) => f.kind === 'spellbook').length;
+    const carried = [
+      `${inv.used}/${inv.capacity} slots`,
+      relics ? `${relics} relic${relics > 1 ? 's' : ''}` : '',
+      books ? `${books} spellbook${books > 1 ? 's' : ''}` : '',
+      ch.scars && ch.scars.length ? `${ch.scars.length} scar${ch.scars.length > 1 ? 's' : ''}` : '',
+    ].filter(Boolean).join(' · ');
+    return `
     <tr>
-      <td class="who">${escapeHtml(c.name)}</td>
+      <td class="who">${escapeHtml(c.name)}${c.encumbered ? ' <span class="flag">⚠ full pack</span>' : ''}</td>
       <td class="kit">${escapeHtml(c.attacks[0].name)} (d${c.attacks[0].dice.join('+d')})</td>
       <td class="num">${c.hp} HP</td>
       <td class="num">${c.armor} armour</td>
       <td class="num">STR ${c.STR} · DEX ${c.DEX} · WIL ${c.WIL}</td>
-    </tr>`).join('')}</table>`;
+      <td class="kit">${carried}</td>
+    </tr>`;
+  }).join('');
+  $('party').innerHTML = `<table>${rows}</table>`;
   $('sheets').href = `/cairn/#s=${encodeURIComponent(state.seed)}${state.size > 1 ? `&n=${state.size}` : ''}`;
 }
 
@@ -201,26 +220,26 @@ function readHash() {
   const p = new URLSearchParams(location.hash.replace(/^#/, ''));
   if (p.get('s')) state.seed = p.get('s');
   if (p.get('n')) state.size = Math.min(6, Math.max(1, Number(p.get('n')) || 4));
-  if (p.get('v')) state.scars = Math.min(10, Math.max(0, Number(p.get('v')) || 0));
+  if (p.get('v')) state.delves = Math.min(10, Math.max(0, Number(p.get('v')) || 0));
   if (p.get('m') && BESTIARY.some((m) => m.id === p.get('m'))) state.monster = p.get('m');
   if (p.get('c')) state.count = Math.min(30, Math.max(1, Number(p.get('c')) || 4));
 }
 
 function writeHash() {
   const p = new URLSearchParams({ s: state.seed, n: String(state.size), m: state.monster, c: String(state.count) });
-  if (state.scars) p.set('v', String(state.scars));
+  if (state.delves) p.set('v', String(state.delves));
   history.replaceState(null, '', `#${p}`);
 }
 
 function refreshParty() {
-  renderParty(party());
+  renderParty(partyCharacters());
 }
 
 $('seed').addEventListener('change', () => { state.seed = $('seed').value.trim() || state.seed; refreshParty(); writeHash(); });
 $('size').addEventListener('change', () => { state.size = Number($('size').value); refreshParty(); writeHash(); });
 $('vet').addEventListener('input', () => {
-  state.scars = Number($('vet').value);
-  $('vetOut').textContent = state.scars;
+  state.delves = Number($('vet').value);
+  $('vetOut').textContent = state.delves;
   refreshParty();
   writeHash();
 });
@@ -237,8 +256,8 @@ readHash();
 fillMonsters();
 $('seed').value = state.seed;
 $('size').value = String(state.size);
-$('vet').value = String(state.scars);
-$('vetOut').textContent = state.scars;
+$('vet').value = String(state.delves);
+$('vetOut').textContent = state.delves;
 $('count').value = String(state.count);
 $('flagCount').textContent = `${BESTIARY.filter((m) => m.unmodelled).length} of ${BESTIARY.length}`;
 refreshParty();

@@ -147,7 +147,7 @@ footer {
       <option>1</option><option>2</option><option>3</option><option selected>4</option>
       <option>5</option><option>6</option>
     </select>
-    <label class="ctl" for="vet">scars survived</label>
+    <label class="ctl" for="vet">delves survived</label>
     <input type="range" id="vet" min="0" max="10" value="0" style="width:8rem">
     <span class="ctl" id="vetOut">0</span>
     <a class="ctl" id="sheets" href="/cairn/">see full sheets ↗</a>
@@ -208,9 +208,15 @@ footer {
       that looked official would be a lie, so: <em>routine</em> is under a 12% chance of anyone
       going down, <em>risky</em> above it, <em>deadly</em> means a real chance of losing someone,
       <em>lethal</em> means the party is wiped at least a quarter of the time.</li>
-    <li><b>"Scars survived" is our stand-in for levels.</b> Cairn has none — but its Scars table
-      raises maximums when a hit takes you to exactly 0 HP, so a veteran is someone who has been
-      there and back. The curve saturates fast, which is the interesting part.</li>
+    <li><b>"Delves survived" is our stand-in for levels.</b> Cairn has none, and it puts magic
+      entirely in objects — so a character's power is what they are carrying, and carrying is
+      capped at ten slots. One delve advances both halves at once: loot found, and a coin-flip
+      chance of a scar, which raises a maximum. Advancement saturates by about the third delve,
+      after which a veteran is not accumulating but <em>choosing what to leave behind</em>.</li>
+    <li><b>A full pack is modelled, and it is brutal.</b> "Anyone carrying a full inventory is
+      reduced to 0 HP" — so encumbrance is not flavour here, and there is a point where picking
+      up one more shield makes a party measurably worse. See
+      <a href="/cairn/items/">what a slot is worth</a>.</li>
   </ul>
 </section>
 
