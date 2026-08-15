@@ -1,6 +1,6 @@
 name: Farm town council (sweep + build)
 
-# THE IMMEDIATE LOOP. Every quarter hour: find new petitions (courier posts tagged
+# THE IMMEDIATE LOOP. Every half hour: find new petitions (courier posts tagged
 # #harvestople → the petitioner's own petition records), convene the council — a headless
 # Claude Code session working on the TESTING TABLE branch — and either build the wish or
 # decline it, then reply to the petitioner with the live link. The petitioner plays their
@@ -11,25 +11,30 @@ name: Farm town council (sweep + build)
 # on the diff, every selftest including the save covenant. A run whose walls fail ships
 # nothing and declines the batch with the breach named.
 
-# MANUAL TRIGGER WHILE TESTING: cron and workflow_dispatch both need this file on the DEFAULT
-# branch to fire; until a merge candidate carries it there, push any commit to the kick branch:
+# MANUAL TRIGGER: workflow_dispatch needs this file on the DEFAULT branch to appear; before it
+# was carried there, the way to run it was to push any commit to the kick branch:
 #   git commit --allow-empty -m kick && git push origin HEAD:claude/farm-sweep-kick
+# That path still works and is still the fastest way to force a sweep.
 #
-# ⚠ THE SCHEDULE LANDS DORMANT, AND THAT IS A DELIBERATE EDIT BY THE MERGE
-# CANDIDATE, NOT THE AUTHOR'S INTENT. Every 15 minutes this workflow installs
-# Claude Code and runs a headless agent session — ~96 sessions a day, billed.
-# The note above assumes `schedule:` never fires here; that assumption is stale.
-# It was checked when this landed: the repo has 1216 scheduled runs, and
-# hoop-director.yml (also `*/15`) fires from main continuously. So carrying this
-# to main as written switches the council on at full rate the moment it merges,
-# which is not something a merge candidate should decide on its own.
+# `schedule:` DOES FIRE ON THIS REPO — checked rather than assumed on 2026-08-15, because an
+# earlier note here claimed the opposite: the repo has 1216 scheduled runs, and hoop-director.yml
+# (`*/15`) fires from main continuously. Anything cron'd here is live the moment it is on main.
 #
-# TO SWITCH THE COUNCIL ON: uncomment the two `schedule:` lines below. Nothing
-# else needs to change — workflow_dispatch and the kick branch below are
-# untouched, so the existing manual testing path still works exactly as before.
+# WHAT A TICK ACTUALLY COSTS, since this is the workflow most likely to be mistaken for a money
+# fire. Every expensive step below — Install Claude Code, Convene the council, the walls, the
+# push, the deploy dispatch — is gated `if: steps.sweep.outputs.count != '0'`. An EMPTY tick is
+# a checkout plus one node script doing public XRPC reads, and Actions minutes are free on a
+# public repo. So the billed Claude sessions equal the number of petition BATCHES, which is
+# bounded by real players filing petitions — the product working, not a standing charge.
+# The only true per-tick cost is the bot createSession in sweep.mjs, and even that is a fallback
+# taken only when the public appview refuses the runner (it counts against Bluesky's 300/day).
+#
+# THE CADENCE IS */30, NOT */15. The product promise is that the council answers within the
+# hour, which 30 preserves while halving the empty-tick floor. Raising it back to */15 is
+# supportable; the thing to keep in view is the createSession budget, not the model spend.
 on:
-  # schedule:
-  #   - cron: '*/15 * * * *'
+  schedule:
+    - cron: '*/30 * * * *'
   workflow_dispatch:
   push:
     branches:
