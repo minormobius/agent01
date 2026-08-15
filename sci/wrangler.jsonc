@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sci",
+  "compatibility_date": "2026-08-15",
+  // Assets-only worker — static HTML plus one wasm module per instrument.
+  // `engine-rs/` holds the Rust sources for mri/pkg/ and `research/` holds the
+  // literature scans; both are excluded from the asset stage by the deploy
+  // workflow (which rsyncs into ../.sci-stage). Only the built pkg/ ships.
+  "assets": {
+    "directory": "../.sci-stage"
+  },
+  // sci.mino.mobi did not resolve before the first deploy — the hostname was
+  // new (checked 2026-08-15: ENOTFOUND). Precedent says wrangler creates the
+  // custom domain itself on first deploy, because mino.mobi is a zone on this
+  // account: that is exactly how neuro.mino.mobi was attached, see
+  // neuro/wrangler.jsonc and neuro/CLAUDE.md. docs/DEPLOYS.md §7's
+  // "dashboard-only" note covers DETACHING domains and orphan cleanup, not a
+  // first attach on an owned zone.
+  // The golden rule applies to every deploy: confirm the run log binds
+  // `sci.mino.mobi (custom domain)`, because green alone never proves it.
+  "routes": [
+    { "pattern": "sci.mino.mobi", "custom_domain": true }
+  ]
+}

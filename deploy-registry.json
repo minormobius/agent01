@@ -1255,6 +1255,23 @@
       ]
     },
     {
+      "surface": "sci",
+      "dir": "sci",
+      "endpoint": "sci.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/sci-surface-mri-research-ji1xf9",
+      "uses": [],
+      "provides": null,
+      "status": "NEW — first deploy pending. sci.mino.mobi did not resolve as of 2026-08-15 (ENOTFOUND); the hostname is new. Precedent (neuro, 2026-07-25) says wrangler creates the custom domain itself on first deploy since mino.mobi is a zone on this account. CONFIRM the run log binds `sci.mino.mobi (custom domain)` — green alone never proves it.",
+      "note": "Scientific instruments taken apart, one page per instrument, each built around a Rust→WASM solver the visitor drives and each mechanism claim traced to a primary source. Assets-only worker `sci`, staged to ../.sci-stage (engine-rs/ and research/ excluded). First instrument: /mri/ — the detection chain (reciprocity, coil sensitivity, spin echo, the B0^2 law). Engine known-answer tested against closed-form physics: sci/engine-rs, 17 tests. (full description: sci/CLAUDE.md)",
+      "paths": [
+        "sci/**"
+      ],
+      "serves": [
+        "mri"
+      ]
+    },
+    {
       "surface": "rant",
       "dir": "rant",
       "endpoint": "rant.mino.mobi",

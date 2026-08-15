@@ -1,0 +1,81 @@
+name: Build sci engine (wasm)
+
+# Compiles sci/engine-rs (the MRI detection-chain solvers) to WASM with
+# wasm-pack and commits the result to sci/mri/pkg/. The module is NOT optional —
+# every number the /mri page prints comes out of it, and the page is a shell
+# around it — so the committed pkg/ is the source of truth for what is deployed,
+# and this workflow keeps it honest against engine-rs/.
+#
+# Committing sci/mri/pkg/** would normally wake deploy-sci (paths: sci/**), but
+# GITHUB_TOKEN pushes don't trigger other workflows, so the deploy is dispatched
+# explicitly at the end.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/sci-surface-mri-research-ji1xf9'
+    paths:
+      - 'sci/engine-rs/**'
+      - '.github/workflows/build-sci-engine.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Cache cargo + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            sci/engine-rs/target
+          key: cargo-sci-${{ runner.os }}-${{ hashFiles('sci/engine-rs/Cargo.toml', 'sci/engine-rs/src/**') }}
+          restore-keys: cargo-sci-${{ runner.os }}-
+
+      # These tests are not decoration: each one compares a solver against a
+      # closed form the page cites. A regression here is a page that lies.
+      - name: Test the engine
+        working-directory: sci/engine-rs
+        run: cargo test --release
+
+      - name: Print the known-answer table
+        working-directory: sci/engine-rs
+        run: cargo run --release --bin verify
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build Rust/WASM engine
+        working-directory: sci/engine-rs
+        run: wasm-pack build --release --target web --out-dir ../mri/pkg --out-name mri
+
+      - name: Commit pkg/
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          rm -f sci/mri/pkg/.gitignore sci/mri/pkg/package.json sci/mri/pkg/README.md
+          git add -f sci/mri/pkg
+          git commit -m "build: sci mri wasm engine" || { echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy the new engine (dispatch deploy-sci)
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy-sci.yml/dispatches" \
+            -d '{"ref":"${{ github.ref_name }}"}' || echo "dispatch skipped (non-fatal)"

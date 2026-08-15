@@ -1,0 +1,58 @@
+name: Deploy Sci
+
+on:
+  push:
+    branches: ['claude/sci-surface-mri-research-ji1xf9']
+    paths:
+      - 'sci/**'
+      - '.github/workflows/deploy-sci.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Selftest
+        run: node sci/sci.selftest.mjs
+
+      - name: Assemble the asset stage
+        # Serve sci/ minus this config, minus the Rust sources, and minus the
+        # literature scans — mri/pkg/ (the built wasm) is what ships.
+        run: |
+          rm -rf .sci-stage && mkdir -p .sci-stage
+          rsync -a --exclude 'wrangler.jsonc' --exclude 'engine-rs/' \
+                --exclude 'research/' --exclude '*.selftest.mjs' --exclude 'CLAUDE.md' \
+                sci/ .sci-stage/
+          echo "staged: $(find .sci-stage -type f | wc -l) files"
+          test -f .sci-stage/mri/pkg/mri_bg.wasm \
+            || { echo "::error::wasm module missing from the stage — run build-sci-engine.yml"; exit 1; }
+
+      - name: Install wrangler
+        run: npm install wrangler
+
+      - name: Deploy worker + assets
+        working-directory: sci
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            if curl -fsSL https://sci.mino.mobi/mri/ | grep -qi 'reciprocity'; then
+              echo "✓ sci is live"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 5
+          done
+          echo "⚠️ sci.mino.mobi didn't respond. If this is the FIRST deploy the hostname"
+          echo "   was brand new, so a few seconds of DNS propagation is expected — that is"
+          echo "   how neuro.mino.mobi behaved. Check the deploy log above for"
+          echo "   'sci.mino.mobi (custom domain)'. If it only bound a workers.dev host,"
+          echo "   the domain needs attaching to the 'sci' worker (docs/DEPLOYS.md §7)."

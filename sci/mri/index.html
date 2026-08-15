@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>mri — the sensor is a coil of wire</title>
+<meta name="description" content="What actually detects the signal in an MRI scanner. A tuned coil, Faraday induction in the near field, and the principle of reciprocity — with the coil sensitivity map, the spin echo and the B₀² law computed live in Rust/WebAssembly.">
+<meta property="og:title" content="mri — the sensor is a coil of wire">
+<meta property="og:description" content="The MRI detection chain, computed rather than asserted: reciprocity, coil sensitivity maps, spin echoes, and why field strength buys signal twice.">
+<meta property="og:type" content="article">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b1213'/%3E%3Cellipse cx='16' cy='16' rx='11' ry='11' fill='none' stroke='%235eead4' stroke-width='2.5'/%3E%3Cellipse cx='16' cy='16' rx='4.5' ry='4.5' fill='none' stroke='%23e8a838' stroke-width='2'/%3E%3C/svg%3E">
+
+<style>
+:root {
+  --bg: #faf9f6; --fg: #1d2223; --muted: #6b7576; --rule: #d3cfc8; --link: #145;
+  --accent: #0d7a72; --accent-faint: rgba(13, 122, 114, 0.10);
+  --warm: #a8641c;
+  --panel: #f2f0ea; --tag-bg: #e8e5dd; --tag-text: #56605f;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1213; --fg: #dde3e3; --muted: #7d8a8a; --rule: #26312f; --link: #dfe;
+    --accent: #5eead4; --accent-faint: rgba(94, 234, 212, 0.12);
+    --warm: #e8a838;
+    --panel: #121b1c; --tag-bg: #1a2426; --tag-text: #9fb0af;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+body { max-width: 820px; margin: 0 auto; padding: 2rem 1.4rem 5rem; line-height: 1.62; }
+a { color: var(--link); }
+header { margin-bottom: 1.4rem; }
+.crumb { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-decoration: none; display: inline-block; margin-bottom: 0.9rem; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-size: 2.7rem; letter-spacing: -0.015em; font-weight: 600; }
+.subtitle { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 0.4rem 0 0; }
+.lead { font-size: 1.06rem; margin: 1.5rem 0 0; }
+.lead strong { color: var(--accent); font-weight: 600; }
+h2.sec { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); font-weight: normal; margin: 3.2rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--rule); }
+h3 { font-size: 1.12rem; margin: 2rem 0 0.5rem; font-weight: 600; }
+p { margin: 0.9rem 0; }
+.dim { color: var(--muted); }
+code, .num { font-family: var(--mono); font-size: 0.88em; }
+.cite { font-family: var(--mono); font-size: 0.74rem; color: var(--muted); line-height: 1.5; }
+.cite a { color: var(--muted); }
+.cite a:hover { color: var(--accent); }
+
+.panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 4px; padding: 1rem 1.1rem 1.2rem; margin: 1.4rem 0; }
+.panel h4 { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: normal; margin: 0 0 0.8rem; }
+canvas { display: block; width: 100%; height: auto; border-radius: 3px; background: var(--bg); }
+.ctl { display: grid; grid-template-columns: 8.5rem 1fr 5.5rem; gap: 0.4rem 0.7rem; align-items: center; margin-top: 0.75rem; font-family: var(--mono); font-size: 0.75rem; }
+.ctl label { color: var(--muted); }
+.ctl output { color: var(--accent); text-align: right; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.readout { display: flex; flex-wrap: wrap; gap: 0.4rem 1.8rem; margin-top: 0.9rem; font-family: var(--mono); font-size: 0.76rem; }
+.readout div { color: var(--muted); }
+.readout b { display: block; color: var(--fg); font-size: 1.05rem; font-weight: 600; }
+.readout b.hot { color: var(--warm); }
+.verdict { margin-top: 0.9rem; padding: 0.6rem 0.8rem; border-left: 2px solid var(--accent); background: var(--accent-faint); font-size: 0.92rem; }
+table { border-collapse: collapse; width: 100%; font-family: var(--mono); font-size: 0.76rem; margin: 1rem 0; }
+th, td { text-align: left; padding: 0.35rem 0.6rem 0.35rem 0; border-bottom: 1px solid var(--rule); }
+th { color: var(--muted); font-weight: normal; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.66rem; }
+ul.src { list-style: none; padding: 0; margin: 1rem 0; }
+ul.src li { padding: 0.5rem 0; border-bottom: 1px solid var(--rule); font-size: 0.9rem; }
+ul.src li span.what { display: block; color: var(--muted); font-size: 0.85rem; margin-top: 0.15rem; }
+.stamp { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); }
+.err { color: var(--warm); font-family: var(--mono); font-size: 0.8rem; }
+.scope { border: 1px dashed var(--rule); border-radius: 4px; padding: 0.9rem 1.1rem; margin: 2rem 0; font-size: 0.92rem; color: var(--muted); }
+.scope b { color: var(--fg); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="/">sci ← instruments</a>
+  <h1>MRI</h1>
+  <p class="subtitle">part one · the sensor</p>
+  <p class="lead">The most celebrated instrument in applied physics detects its signal with
+  <strong>a coil of wire</strong>. Not a detector array, not a photon counter — a tuned loop, of the
+  same species as the one in a crystal radio, picking up a voltage of order nanovolts by
+  Faraday induction. Everything strange about MRI follows from that.</p>
+</header>
+
+<p>Four consequences, and each one is a thing the usual explanation gets wrong.</p>
+
+<h2 class="sec">1 · It is not radio waves</h2>
+
+<p>The coil and the patient sit <em>inside</em> each other's near field. At 1.5 T protons precess at
+about 64 MHz, so the free-space wavelength is metres — hundreds of times the size of any coil in
+the bore. Nothing radiates and nothing propagates. The coupling is plain magnetic induction, the
+same effect that makes a dynamo work, and the "radio waves go in, radio waves come out" story
+survives in textbooks despite thirty years of correction from the person who worked out how the
+detection actually functions.</p>
+
+<div class="panel">
+  <h4>the instrument at a field strength — computed live</h4>
+  <div class="ctl">
+    <label for="b0">B₀</label>
+    <input type="range" id="b0" min="0.01" max="7" step="0.005" value="1.5">
+    <output id="b0v">1.5 T</output>
+  </div>
+  <div class="readout">
+    <div>Larmor frequency<b id="rf">—</b></div>
+    <div>free-space λ<b id="rl">—</b></div>
+    <div>spin polarisation<b id="rp">—</b></div>
+    <div>induced EMF vs 1.5 T<b id="re" class="hot">—</b></div>
+  </div>
+  <div class="verdict" id="b0say">…</div>
+</div>
+
+<p>Two of those numbers deserve to stop you. <b>The polarisation is a few parts per million</b>: at
+body temperature the thermal population difference between the two proton spin states is about
+<span class="num">4.9 × 10⁻⁶</span> at 1.5 T. Essentially the entire sample cancels itself out, and
+the image is built from the residue. And <b>the signal goes as B₀²</b> — once because the
+magnetisation is proportional to that polarisation, and again because Faraday's law rewards a
+faster-changing flux. That second factor is a property of <em>the sensor</em>, not of the physics.
+Hold on to it; it is how §4 ends.</p>
+
+<h2 class="sec">2 · Reciprocity, and the coil that cannot hear</h2>
+
+<p>Working out what a coil can detect looks like it ought to be hard. It is not, because of a
+result of Hoult and Richards': <strong>a coil's receive sensitivity at a point is the field it
+would produce at that point per unit current.</strong> Transmit and receive are the same map. So the
+reception problem collapses into a Biot–Savart integral — which is what the module below is
+doing, live, as you drag the sliders.</p>
+
+<p>And that map has a hole in it. Only the field component <em>transverse</em> to B₀ couples to
+precessing magnetisation, so a coil whose field at the sample points along the bore axis is
+<em>deaf there</em> — not weak, deaf, by sixteen orders of magnitude. Slide the coil around the
+patient and watch it happen.</p>
+
+<div class="panel">
+  <h4>receive sensitivity |B₁⁻| in the plane of the bore · B₀ → along z</h4>
+  <canvas id="map" width="720" height="440"></canvas>
+  <div class="ctl">
+    <label for="ang">coil position</label>
+    <input type="range" id="ang" min="0" max="90" step="1" value="0">
+    <output id="angv">beside</output>
+    <label for="rad">loop radius</label>
+    <input type="range" id="rad" min="0.02" max="0.20" step="0.002" value="0.08">
+    <output id="radv">80 mm</output>
+    <label for="dst">distance</label>
+    <input type="range" id="dst" min="0.05" max="0.25" step="0.002" value="0.12">
+    <output id="dstv">120 mm</output>
+  </div>
+  <div class="readout">
+    <div>|B| at isocentre<b id="cb">—</b></div>
+    <div>|B₁⁻| sensitivity there<b id="cs" class="hot">—</b></div>
+    <div>signal-optimal radius for this depth<b id="cr">—</b></div>
+  </div>
+  <div class="verdict" id="csay">…</div>
+</div>
+
+<p>The optimum in that last readout is <span class="num">a = √2 · z</span>, which falls out of
+differentiating the on-axis field of a loop. It is a <em>signal-only</em> optimum, and real coils
+are smaller than it, because a bigger loop also sees more of the patient — and in a clinical
+scanner <strong>the dominant noise source is the patient</strong>, thermal currents in conductive
+tissue rather than anything in the electronics. That is why coils are made to fit closely, why the
+bench figure of merit is the ratio of unloaded to loaded Q, and why there is a ceiling on SNR that
+no hardware can climb past.</p>
+
+<h2 class="sec">3 · What the coil actually hears</h2>
+
+<p>A 90° pulse tips the magnetisation into the transverse plane and it precesses, inducing the EMF.
+Left alone, the signal fades — but two different things are happening at once, and only one of them
+is a loss. Spins in slightly different fields precess at slightly different rates and fan out; that
+is <em>reversible</em>. Meanwhile true T₂ relaxation destroys phase coherence for good.</p>
+
+<p>Hahn's trick separates them: flip everything 180° and the fanning-out runs backwards, re-converging
+into an <strong>echo</strong>. Turn the field spread up as far as you like — the echo comes back at
+exactly <span class="num">e<sup>−2τ/T₂</sup></span>, unchanged. The free decay is a lie about how
+much signal you have.</p>
+
+<div class="panel">
+  <h4>free induction decay vs. spin echo</h4>
+  <canvas id="sig" width="720" height="300"></canvas>
+  <div class="ctl">
+    <label for="t2">T₂</label>
+    <input type="range" id="t2" min="10" max="200" step="1" value="90">
+    <output id="t2v">90 ms</output>
+    <label for="sp">field spread</label>
+    <input type="range" id="sp" min="0" max="200" step="1" value="40">
+    <output id="spv">±40 Hz</output>
+    <label for="tau">τ (echo at 2τ)</label>
+    <input type="range" id="tau" min="5" max="60" step="1" value="25">
+    <output id="tauv">25 ms</output>
+  </div>
+  <div class="readout">
+    <div>T₂* (what the FID shows)<b id="st">—</b></div>
+    <div>echo amplitude at 2τ<b id="se">—</b></div>
+    <div>e<sup>−2τ/T₂</sup> (closed form)<b id="sc">—</b></div>
+  </div>
+  <div class="verdict">The echo trace and the closed form agree to the last digit the solver
+  carries, for any field spread. That is not a fit — the refocusing is exact.</div>
+</div>
+
+<h2 class="sec">4 · Why the magnet is so big — and how to escape it</h2>
+
+<p>Put the two field dependencies together and induction-detected signal scales as
+<span class="num">B₀²</span>. That is the entire economic argument for superconducting magnets,
+cryogens, quench pipes, and a machine you must build a room around.</p>
+
+<p>But the second factor of B₀ belongs to the <em>sensor</em>. A SQUID's sensitivity does not depend
+on frequency at all; nor does an optically pumped atomic magnetometer's. Detect with one of those and
+the collapse in the graph below simply does not happen — which is how a scanner can work at
+<span class="num">0.055 T</span> in an unshielded room, or at 80 mT from a wall socket. The magnet
+is not the physics. The magnet is a consequence of choosing a coil.</p>
+
+<div class="panel">
+  <h4>induction signal vs field strength · 10 mT to 7 T, log–log</h4>
+  <canvas id="b0c" width="720" height="280"></canvas>
+  <div class="verdict">Marked: the 0.055 T shielding-free scanner (Liu 2021), the 80 mT portable
+  Halbach scanner (Cooley 2021), and clinical 1.5 T and 3 T. The gap between the ends of this line
+  is a factor of ~40 000 — and the low-field machines are producing diagnostic images anyway,
+  which tells you how much of the rest of MRI is not about signal at all.</div>
+</div>
+
+<div class="scope">
+  <b>What this page is not, yet.</b> This is part one, and it stops where the sensor's story stops.
+  The other half of the instrument — how gradients turn one wire's voltage into a picture, k-space,
+  spin-warp and EPI, why the scanner screams, and what contrast actually is — is not written.
+  The literature for it is catalogued and the sources are read; the pages are not built.
+</div>
+
+<h2 class="sec">Where this comes from</h2>
+
+<ul class="src">
+  <li><a href="https://doi.org/10.1016/0022-2364(76)90233-X">Hoult DI &amp; Richards RE (1976). The signal-to-noise ratio of the nuclear magnetic resonance experiment. <i>J Magn Reson</i> 24:71–85.</a>
+    <span class="what">The principle of reciprocity, and MR treated as a detection problem. §2 is this paper.</span></li>
+  <li><a href="https://doi.org/10.1002/cmr.1820010104">Hoult DI (1989). The magnetic resonance myth of radio waves. <i>Concepts Magn Reson</i> 1:1–5.</a>
+    <span class="what">Five pages on why §1 is true. See also his 2009 sequel, <i>Concepts Magn Reson A</i> 34A:193–216.</span></li>
+  <li><a href="https://doi.org/10.1103/PhysRev.70.460">Bloch F (1946). Nuclear induction. <i>Phys Rev</i> 70:460–474.</a>
+    <span class="what">The equations integrated in §3 — and note the name he gave it.</span></li>
+  <li><a href="https://doi.org/10.1103/PhysRev.80.580">Hahn EL (1950). Spin echoes. <i>Phys Rev</i> 80:580–594.</a>
+    <span class="what">The refocusing trick.</span></li>
+  <li><a href="https://doi.org/10.1002/mrm.1910030413">Edelstein WA, Glover GH, Hardy CJ &amp; Redington RW (1986). The intrinsic signal-to-noise ratio in NMR imaging. <i>Magn Reson Med</i> 3:604–618.</a>
+    <span class="what">Body noise dominance — the reason a better coil has a hard ceiling.</span></li>
+  <li><a href="https://doi.org/10.1002/mrm.1910390317">Ocali O &amp; Atalar E (1998). Ultimate intrinsic signal-to-noise ratio in MRI. <i>Magn Reson Med</i> 39:462–473.</a>
+    <span class="what">Where that ceiling is, computed over all possible fields.</span></li>
+  <li><a href="https://doi.org/10.1002/mrm.1910160203">Roemer PB, Edelstein WA, Hayes CE, Souza SP &amp; Mueller OM (1990). The NMR phased array. <i>Magn Reson Med</i> 16:192–225.</a>
+    <span class="what">Many small coils at once. Every modern head coil descends from it.</span></li>
+  <li><a href="https://doi.org/10.1002/jmri.26187">Gruber B, Froeling M, Leiner T &amp; Klomp DWJ (2018). RF coils: a practical guide for nonphysicists. <i>J Magn Reson Imaging</i> 48:590–604.</a>
+    <span class="what">Open access, and the best single reference for the whole detection chain.</span></li>
+  <li><a href="https://doi.org/10.1038/s41467-021-27317-1">Liu Y <i>et al.</i> (2021). A low-cost and shielding-free ultra-low-field brain MRI scanner. <i>Nat Commun</i> 12:7238.</a>
+    <span class="what">0.055 T, no shielded room. The right-hand end of §4's graph.</span></li>
+  <li><a href="https://doi.org/10.1038/s41551-020-00641-5">Cooley CZ <i>et al.</i> (2021). A portable scanner for magnetic resonance imaging of the brain. <i>Nat Biomed Eng</i> 5:229–239.</a>
+    <span class="what">80 mT of permanent Halbach magnet, no cryogens, standard power outlet.</span></li>
+  <li><a href="https://doi.org/10.1002/cmr.a.20123">Hanson LG (2008). Is quantum mechanics necessary for understanding magnetic resonance? <i>Concepts Magn Reson A</i> 32A:329–340.</a>
+    <span class="what">Why this page is classical throughout, and does not mention photons once.</span></li>
+</ul>
+
+<p class="cite">Every number on this page is computed in the browser from constants and closed-form
+physics, not quoted. The solver is checked against analytic solutions on each build:
+<code>cd sci/engine-rs &amp;&amp; cargo test --release</code> (17 known-answer tests), and
+<code>cargo run --release --bin verify</code> prints each result beside the closed form it
+reproduces. CODATA 2018 constants throughout.</p>
+
+<p class="stamp">engine: rust → wasm · 35 kB · no dependencies · 17 tests · <a href="/">sci</a></p>
+
+<script type="module">
+import init, {
+  RxCoil, fid, spin_echo,
+  larmor_mhz, larmor_wavelength_m, polarization_ppm, relative_faraday_emf,
+  best_radius, loop_axis_field_ut
+} from './pkg/mri.js';
+
+const $ = (id) => document.getElementById(id);
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+function fail(err) {
+  document.querySelectorAll('.panel').forEach((p) => {
+    p.innerHTML = '<p class="err">could not load the wasm engine: ' + err + '</p>';
+  });
+}
+
+// Device-pixel-aware canvas sizing.
+function fitCanvas(cv) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth || cv.width;
+  const h = Math.round(w * (cv.height / cv.width));
+  cv.width = Math.round(w * dpr);
+  cv.height = Math.round(h * dpr);
+  cv.style.height = h + 'px';
+  const g = cv.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { g, w, h };
+}
+
+init().then(() => {
+  // ------------------------------------------------------ §1 field panel --
+  const b0Panel = () => {
+    const b0 = +$('b0').value;
+    $('b0v').textContent = b0.toFixed(2) + ' T';
+    $('rf').textContent = larmor_mhz(b0).toFixed(2) + ' MHz';
+    $('rl').textContent = larmor_wavelength_m(b0).toFixed(2) + ' m';
+    $('rp').textContent = polarization_ppm(b0).toFixed(2) + ' ppm';
+    const e = relative_faraday_emf(b0);
+    $('re').textContent = e >= 0.01 ? '×' + e.toFixed(2) : '×' + e.toExponential(1);
+    const lam = larmor_wavelength_m(b0);
+    $('b0say').innerHTML = 'The wavelength is <b>' + (lam / 0.5).toFixed(0) +
+      '×</b> the width of a bore. Of every million protons, about <b>' +
+      polarization_ppm(b0).toFixed(1) + '</b> are left uncancelled — the rest pair off and ' +
+      'contribute nothing at all.';
+  };
+  $('b0').addEventListener('input', b0Panel);
+  b0Panel();
+
+  // -------------------------------------------- §2 sensitivity map (coil) --
+  const X0 = -0.30, X1 = 0.30, Z0 = -0.24, Z1 = 0.24;
+  const NX = 240, NZ = 192;
+
+  const drawMap = () => {
+    const ang = +$('ang').value * Math.PI / 180;
+    const rad = +$('rad').value;
+    const dst = +$('dst').value;
+    $('angv').textContent = ang === 0 ? 'beside' :
+      (+$('ang').value >= 89 ? 'head-on' : $('ang').value + '°');
+    $('radv').textContent = (rad * 1000).toFixed(0) + ' mm';
+    $('dstv').textContent = (dst * 1000).toFixed(0) + ' mm';
+
+    // The coil always points at isocentre; the slider swings it from beside the
+    // patient (field transverse to B₀) round to the head end (field along B₀).
+    const nx = Math.cos(ang), nz = Math.sin(ang);
+    const coil = new RxCoil();
+    coil.add_loop(-dst * nx, 0, -dst * nz, nx, 0, nz, rad);
+
+    const map = coil.sensitivity_map(X0, X1, Z0, Z1, NX, NZ);
+    const { g, w, h } = fitCanvas($('map'));
+
+    // Log-scaled false colour, normalised to the map's own maximum.
+    let max = 0;
+    for (let i = 0; i < map.length; i++) if (map[i] > max) max = map[i];
+    const floor = 1e-4;                      // 4 decades of dynamic range
+    const img = new ImageData(NX, NZ);
+    const dark = css('--bg').startsWith('#0');
+    for (let i = 0; i < map.length; i++) {
+      const v = max > 0 ? map[i] / max : 0;
+      let t = v <= 0 ? 0 : Math.max(0, Math.min(1, 1 + Math.log10(Math.max(v, floor)) / 4));
+      const p = i * 4;
+      // teal → white ramp on dark, teal → deep on light
+      if (dark) {
+        img.data[p]     = Math.round(255 * Math.pow(t, 2.2));
+        img.data[p + 1] = Math.round(255 * Math.pow(t, 0.85));
+        img.data[p + 2] = Math.round(255 * Math.pow(t, 1.05));
+      } else {
+        img.data[p]     = Math.round(250 - 230 * Math.pow(t, 0.9));
+        img.data[p + 1] = Math.round(248 - 150 * Math.pow(t, 0.75));
+        img.data[p + 2] = Math.round(242 - 150 * Math.pow(t, 0.8));
+      }
+      img.data[p + 3] = 255;
+    }
+    createImageBitmap(img).then((bmp) => {
+      g.imageSmoothingEnabled = true;
+      g.clearRect(0, 0, w, h);
+      g.drawImage(bmp, 0, 0, w, h);
+
+      const px = (x) => (x - X0) / (X1 - X0) * w;
+      const pz = (z) => (z - Z0) / (Z1 - Z0) * h;
+
+      // the patient
+      g.strokeStyle = dark ? 'rgba(255,255,255,0.32)' : 'rgba(0,0,0,0.30)';
+      g.setLineDash([4, 4]); g.lineWidth = 1.2;
+      g.beginPath(); g.ellipse(px(0), pz(0), px(0.10) - px(0), pz(0.15) - pz(0), 0, 0, 7); g.stroke();
+      g.setLineDash([]);
+
+      // B₀ arrow, along +z
+      g.strokeStyle = dark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.4)';
+      g.fillStyle = g.strokeStyle; g.lineWidth = 1.4;
+      g.beginPath(); g.moveTo(px(0.26), pz(0.16)); g.lineTo(px(0.26), pz(-0.16)); g.stroke();
+      g.beginPath(); g.moveTo(px(0.26), pz(-0.19)); g.lineTo(px(0.252), pz(-0.15));
+      g.lineTo(px(0.268), pz(-0.15)); g.closePath(); g.fill();
+      g.font = '11px ui-monospace, monospace';
+      g.fillText('B₀', px(0.272), pz(0.02));
+
+      // the coil, drawn edge-on in this plane
+      const cx = -dst * nx, cz = -dst * nz;
+      const ux = -nz, uz = nx;                       // in-plane direction of the loop
+      g.strokeStyle = css('--warm'); g.lineWidth = 3; g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(px(cx + ux * rad), pz(cz + uz * rad));
+      g.lineTo(px(cx - ux * rad), pz(cz - uz * rad));
+      g.stroke();
+
+      // readouts at isocentre
+      const s = coil.sensitivity_at(0, 0, 0);
+      const f = coil.field_at(0, 0, 0);
+      const bmag = Math.hypot(f[0], f[1], f[2]);
+      $('cb').textContent = bmag.toFixed(3) + ' µT/A';
+      $('cs').textContent = s < 1e-6 ? s.toExponential(1) + ' µT/A' : s.toFixed(3) + ' µT/A';
+      $('cr').textContent = (best_radius(dst) * 1000).toFixed(0) + ' mm';
+      const frac = bmag > 0 ? s / (0.5 * bmag) : 0;
+      $('csay').innerHTML = frac > 0.9
+        ? 'The coil’s field at isocentre is transverse to B₀, so <b>all of it counts</b>.'
+        : (frac < 1e-3
+          ? 'Same field strength at isocentre — <b>and essentially zero sensitivity</b>. ' +
+            'The field points along B₀, and a field parallel to B₀ cannot couple to ' +
+            'magnetisation precessing about it. The coil is not weak here. It is deaf here.'
+          : 'Only the component transverse to B₀ counts: <b>' + (100 * frac).toFixed(0) +
+            '%</b> of this coil’s field at isocentre is doing any work.');
+      coil.free();
+    });
+  };
+  ['ang', 'rad', 'dst'].forEach((id) => $(id).addEventListener('input', drawMap));
+
+  // ------------------------------------------------- §3 FID vs spin echo --
+  const drawSig = () => {
+    const t2 = +$('t2').value / 1000;
+    const spread = +$('sp').value;
+    const tau = +$('tau').value / 1000;
+    $('t2v').textContent = $('t2').value + ' ms';
+    $('spv').textContent = '±' + $('sp').value + ' Hz';
+    $('tauv').textContent = $('tau').value + ' ms';
+
+    const span = 0.16, steps = 640, dt = span / steps, n = 601;
+    const f = fid(1.0, t2, spread, dt, steps, n);
+    const e = spin_echo(1.0, t2, spread, tau, dt, steps, n);
+    const mag = (a, i) => Math.hypot(a[2 * i], a[2 * i + 1]);
+
+    const { g, w, h } = fitCanvas($('sig'));
+    g.clearRect(0, 0, w, h);
+    const pad = { l: 40, r: 12, t: 14, b: 26 };
+    const px = (t) => pad.l + (w - pad.l - pad.r) * (t / span);
+    const py = (v) => pad.t + (h - pad.t - pad.b) * (1 - v);
+
+    g.strokeStyle = css('--rule'); g.lineWidth = 1;
+    g.beginPath(); g.moveTo(pad.l, py(0)); g.lineTo(w - pad.r, py(0)); g.stroke();
+    g.beginPath(); g.moveTo(pad.l, py(0)); g.lineTo(pad.l, py(1.05)); g.stroke();
+    g.fillStyle = css('--muted'); g.font = '10px ui-monospace, monospace';
+    g.fillText('1.0', 8, py(1) + 3); g.fillText('0', 26, py(0) + 3);
+    for (let ms = 0; ms <= 160; ms += 40) { g.fillText(ms + (ms === 160 ? ' ms' : ''), px(ms / 1000) - 8, h - 8); }
+
+    // the T₂ envelope — the truth the FID hides
+    g.strokeStyle = css('--muted'); g.setLineDash([3, 3]); g.lineWidth = 1;
+    g.beginPath();
+    for (let i = 0; i < steps; i++) {
+      const t = i * dt, v = Math.exp(-t / t2);
+      i ? g.lineTo(px(t), py(v)) : g.moveTo(px(t), py(v));
+    }
+    g.stroke(); g.setLineDash([]);
+    g.fillText('e^(−t/T₂)', px(span) - 66, py(Math.exp(-span / t2)) - 6);
+
+    // the FID
+    g.strokeStyle = css('--muted'); g.lineWidth = 1.6; g.globalAlpha = 0.75;
+    g.beginPath();
+    for (let i = 0; i < steps; i++) {
+      const t = i * dt, v = mag(f, i);
+      i ? g.lineTo(px(t), py(v)) : g.moveTo(px(t), py(v));
+    }
+    g.stroke(); g.globalAlpha = 1;
+
+    // the echo
+    g.strokeStyle = css('--accent'); g.lineWidth = 2;
+    g.beginPath();
+    for (let i = 0; i < steps; i++) {
+      const t = i * dt, v = mag(e, i);
+      i ? g.lineTo(px(t), py(v)) : g.moveTo(px(t), py(v));
+    }
+    g.stroke();
+
+    // the 180° pulse and the echo centre
+    g.strokeStyle = css('--warm'); g.setLineDash([2, 3]);
+    for (const t of [tau, 2 * tau]) {
+      g.beginPath(); g.moveTo(px(t), py(0)); g.lineTo(px(t), py(1.02)); g.stroke();
+    }
+    g.setLineDash([]);
+    g.fillStyle = css('--warm');
+    g.fillText('180°', px(tau) + 4, py(1.02) + 9);
+    g.fillText('echo', px(2 * tau) + 4, py(1.02) + 9);
+
+    const at = Math.round(2 * tau / dt);
+    const t2star = 1 / (1 / t2 + 2 * Math.PI * spread);
+    $('st').textContent = (t2star * 1000).toFixed(1) + ' ms';
+    $('se').textContent = mag(e, Math.min(at, steps - 1)).toFixed(4);
+    $('sc').textContent = Math.exp(-2 * tau / t2).toFixed(4);
+  };
+  ['t2', 'sp', 'tau'].forEach((id) => $(id).addEventListener('input', drawSig));
+
+  // ------------------------------------------------------ §4 the B₀² law --
+  const drawB0 = () => {
+    const { g, w, h } = fitCanvas($('b0c'));
+    g.clearRect(0, 0, w, h);
+    const pad = { l: 52, r: 14, t: 16, b: 30 };
+    const lo = Math.log10(0.01), hi = Math.log10(7);
+    const vlo = Math.log10(relative_faraday_emf(0.01)), vhi = Math.log10(relative_faraday_emf(7));
+    const px = (b) => pad.l + (w - pad.l - pad.r) * (Math.log10(b) - lo) / (hi - lo);
+    const py = (v) => pad.t + (h - pad.t - pad.b) * (1 - (Math.log10(v) - vlo) / (vhi - vlo));
+
+    g.strokeStyle = css('--rule'); g.lineWidth = 1;
+    g.fillStyle = css('--muted'); g.font = '10px ui-monospace, monospace';
+    for (const b of [0.01, 0.1, 1, 7]) {
+      g.beginPath(); g.moveTo(px(b), pad.t); g.lineTo(px(b), h - pad.b); g.stroke();
+      g.fillText(b + ' T', px(b) - 8, h - 10);
+    }
+    for (const d of [-4, -3, -2, -1, 0]) {
+      const v = Math.pow(10, d);
+      if (Math.log10(v) < vlo) continue;
+      g.beginPath(); g.moveTo(pad.l, py(v)); g.lineTo(w - pad.r, py(v)); g.stroke();
+      g.fillText('10' + (d ? '^' + d : '⁰'), 8, py(v) + 3);
+    }
+
+    g.strokeStyle = css('--accent'); g.lineWidth = 2.2;
+    g.beginPath();
+    for (let i = 0; i <= 300; i++) {
+      const b = Math.pow(10, lo + (hi - lo) * i / 300);
+      const v = relative_faraday_emf(b);
+      i ? g.lineTo(px(b), py(v)) : g.moveTo(px(b), py(v));
+    }
+    g.stroke();
+
+    for (const [b, label] of [[0.055, '0.055 T'], [0.08, '80 mT'], [1.5, '1.5 T'], [3, '3 T']]) {
+      const v = relative_faraday_emf(b);
+      g.fillStyle = css('--warm');
+      g.beginPath(); g.arc(px(b), py(v), 3.5, 0, 7); g.fill();
+      g.fillStyle = css('--muted');
+      g.fillText(label, px(b) + 6, py(v) + (b < 0.1 ? 12 : -6));
+    }
+    g.fillStyle = css('--muted');
+    g.fillText('relative EMF (1.5 T = 1)', pad.l + 4, pad.t + 10);
+  };
+
+  const redrawAll = () => { drawMap(); drawSig(); drawB0(); };
+  redrawAll();
+  window.addEventListener('resize', redrawAll);
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redrawAll);
+  }
+}).catch(fail);
+</script>
+</body>
+</html>

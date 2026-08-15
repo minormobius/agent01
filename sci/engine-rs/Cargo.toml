@@ -1,0 +1,26 @@
+[package]
+name = "sci-mri-engine"
+version = "0.1.0"
+edition = "2021"
+description = "The MRI detection chain from first principles: Biot-Savart coil fields turned into receive sensitivity by the principle of reciprocity (Hoult & Richards 1976), and a Bloch-equation integrator for the magnetisation those coils actually detect. Dependency-free Rust core; wasm-bindgen surface for the browser, native binary for the known-answer checks."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "verify"
+path = "src/bin/verify.rs"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+# Skip wasm-opt — its bundled binaryen rejects the bulk-memory ops LLVM emits.
+# Same call as neuro/engine-rs, mappa/engine-rs and j/wasm in this repo.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

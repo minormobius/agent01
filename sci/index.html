@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sci — scientific instruments, taken apart</title>
+<meta name="description" content="Detailed technical explainers of how scientific instruments actually work, built around solvers you can drive rather than analogies that fall apart. Every mechanism claim traces to a primary source, and the source is on the page.">
+<meta property="og:title" content="sci — scientific instruments, taken apart">
+<meta property="og:description" content="How scientific instruments actually work — computed in the browser, checked against closed-form physics, and cited.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b1213'/%3E%3Cellipse cx='16' cy='16' rx='11' ry='11' fill='none' stroke='%235eead4' stroke-width='2.5'/%3E%3Cellipse cx='16' cy='16' rx='4.5' ry='4.5' fill='none' stroke='%23e8a838' stroke-width='2'/%3E%3C/svg%3E">
+
+<style>
+:root {
+  --bg: #faf9f6; --fg: #1d2223; --muted: #6b7576; --rule: #d3cfc8; --link: #145;
+  --accent: #0d7a72; --accent-faint: rgba(13, 122, 114, 0.10);
+  --warm: #a8641c;
+  --panel: #f2f0ea; --tag-bg: #e8e5dd; --tag-text: #56605f;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1213; --fg: #dde3e3; --muted: #7d8a8a; --rule: #26312f; --link: #dfe;
+    --accent: #5eead4; --accent-faint: rgba(94, 234, 212, 0.12);
+    --warm: #e8a838;
+    --panel: #121b1c; --tag-bg: #1a2426; --tag-text: #9fb0af;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+body { max-width: 760px; margin: 0 auto; padding: 2.4rem 1.4rem 5rem; line-height: 1.62; }
+a { color: var(--link); }
+header { margin-bottom: 1.4rem; }
+.crumb { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-decoration: none; display: inline-block; margin-bottom: 0.9rem; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-size: 3rem; letter-spacing: -0.02em; font-weight: 600; }
+.subtitle { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 0.45rem 0 0; }
+.lead { font-size: 1.08rem; margin: 1.6rem 0 0; }
+.lead strong { color: var(--accent); font-weight: 600; }
+h2.sec { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); font-weight: normal; margin: 3rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--rule); }
+p { margin: 0.9rem 0; }
+.rule { background: var(--panel); border-left: 2px solid var(--accent); padding: 0.9rem 1.1rem; margin: 1.6rem 0; font-size: 0.98rem; }
+.rule b { color: var(--accent); }
+
+ul.items { list-style: none; padding: 0; margin: 1.2rem 0 0; }
+ul.items li { padding: 1rem 0; border-bottom: 1px solid var(--rule); }
+ul.items .name-row { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+ul.items a.item { font-size: 1.2rem; font-weight: 600; text-decoration: none; color: var(--link); }
+ul.items a.item:hover { color: var(--accent); }
+.tag { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; background: var(--tag-bg); color: var(--tag-text); padding: 0.12rem 0.4rem; border-radius: 2px; }
+.tag.soon { background: transparent; border: 1px solid var(--rule); color: var(--muted); }
+.desc { color: var(--muted); font-size: 0.95rem; margin-top: 0.3rem; }
+li.pending a.item { color: var(--muted); cursor: default; }
+.stamp { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); }
+.stamp a { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi">mino.mobi</a>
+  <h1>sci</h1>
+  <p class="subtitle">scientific instruments, taken apart</p>
+  <p class="lead">One page per instrument, each built around <strong>a solver you can drive</strong>
+  rather than an analogy that falls apart when you push on it. If a diagram's only justification is
+  that it is the diagram everyone draws, it does not ship here.</p>
+</header>
+
+<div class="rule">
+  <b>The rule.</b> Every mechanism claim on a page traces to a primary source, and the source is on
+  the page. Every number is computed from constants and closed-form physics in front of you, not
+  quoted — and the solver that computes it is checked against an analytic solution on every build.
+</div>
+
+<h2 class="sec">Instruments</h2>
+
+<ul class="items">
+  <li>
+    <div class="name-row">
+      <a class="item" href="/mri/">MRI</a>
+      <span class="tag">rust → wasm</span>
+      <span class="tag">nmr</span>
+      <span class="tag">part one</span>
+    </div>
+    <div class="desc">The most celebrated instrument in applied physics detects its signal with a
+    coil of wire. What that means: Faraday induction in the near field, the principle of reciprocity
+    turning a hard reception problem into a Biot–Savart integral, a coil that goes <em>deaf</em>
+    when you point it down the bore, and why field strength buys signal twice over. Part one covers
+    the sensor; the encoding half is not written yet.</div>
+  </li>
+  <li class="pending">
+    <div class="name-row">
+      <a class="item">k-space</a>
+      <span class="tag soon">planned</span>
+    </div>
+    <div class="desc">Part two of the MRI breakdown: how gradients turn one wire's voltage into a
+    picture, and why an MRI is really a one-pixel camera whose image is a Fourier transform.</div>
+  </li>
+</ul>
+
+<h2 class="sec">Why</h2>
+
+<p>Most instrument explainers stop at the block diagram. The interesting part is always one level
+below it — the place where a physical constraint forces the design to be the shape it is. An MRI
+scanner is enormous and cold and expensive because of a factor of B₀ that belongs to the
+<em>detector</em> rather than to the physics, which is why ultra-low-field machines that detect
+differently can be neither. You cannot see that from a block diagram, and you can see it
+immediately from a graph you are allowed to drag.</p>
+
+<p class="stamp">engines: rust → wasm, no dependencies, known-answer tested ·
+<a href="https://mino.mobi">mino.mobi</a></p>
+</body>
+</html>

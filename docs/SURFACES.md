@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **86 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **87 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -102,6 +102,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `rind` | frontend | `rind` | [rind.mino.mobi](https://rind.mino.mobi) | `claude/upperrind-thread-styling-p7dhwu` | [`rind/CLAUDE.md`](../rind/CLAUDE.md) | The STRUCTURE wing of the O'Neill cylinder modelling package (split out of hoop). Assets worker `rind` serving directory 'rind'… |
 | `rite` | fullstack | `rite` | [rite.mino.mobi](https://rite.mino.mobi) | `claude/procedural-name-generator-2qqwfq` | [`rite/CLAUDE.md`](../rite/CLAUDE.md) | Sentence editing drill plus nine surfaces over Bluesky prose—fodder swipe deck, redactle, semantic search, atlas, lexicon lenses, list themes, link knowledge graph, and signal mapping. |
 | `root` | frontend | `.` | [minomobi.com / mino.mobi (landing)](https://minomobi.com) | `claude/root-deploy-spec-doc-f3ucht` | [`CLAUDE.md`](../CLAUDE.md) | Thread analysis. Tidy-tree canvas view of any Bluesky conversation with contributor weighting and YAML export for LLMs. |
+| `sci` | frontend | `sci` | [sci.mino.mobi](https://sci.mino.mobi) | `claude/sci-surface-mri-research-ji1xf9` | [`sci/CLAUDE.md`](../sci/CLAUDE.md) | Scientific instruments taken apart, one page each, built around a solver you drive rather than an analogy that falls apart… |
 | `scores` | backend | `workers/scores` | [scores.mino.mobi](https://scores.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`workers/scores/CLAUDE.md`](../workers/scores/CLAUDE.md) | Shared multi-game leaderboard worker. One generic game_scores table (own D1: mino-scores-db) keyed by game slug; identity delegated to auth.mino.mobi bearer tokens… |
 | `splice` | frontend | `splice` | [splice.mino.mobi](https://splice.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`splice/CLAUDE.md`](../splice/CLAUDE.md) | Molecular-biology workbench—restriction mapping, PCR, and cloning compiled to WASM and wrapped as a campaign puzzle game. |
 | `tide` | frontend | `tide` | [tide.mino.mobi](https://tide.mino.mobi) | `claude/nave-unified-web-6plmae` | [`tide/CLAUDE.md`](../tide/CLAUDE.md) | The THERMODYNAMICS wing of the O'Neill cylinder modelling package (split out of biome). Assets worker `tide` serving directory 'tide'… |
