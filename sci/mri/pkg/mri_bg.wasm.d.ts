@@ -51,8 +51,8 @@ export const tissueimager_image: (a: number, b: number, c: number, d: number, e:
 export const tissueimager_label_map: (a: number, b: number) => void;
 export const tissueimager_new: (a: number, b: number, c: number) => number;
 export const zero_contrast_tr_ms: (a: number, b: number, c: number) => number;
-export const __wbg_tissueimager_free: (a: number, b: number) => void;
 export const relative_faraday_emf: (a: number) => number;
+export const __wbg_tissueimager_free: (a: number, b: number) => void;
 export const __wbindgen_add_to_stack_pointer: (a: number) => number;
 export const __wbindgen_export: (a: number, b: number, c: number) => void;
 export const __wbindgen_export2: (a: number, b: number) => number;
