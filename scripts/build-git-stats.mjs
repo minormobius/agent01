@@ -29,12 +29,12 @@
  *   node scripts/build-git-stats.mjs --write    # write stats/data.json
  *   node scripts/build-git-stats.mjs --check    # exit 1 if stats/data.json is stale
  */
-import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { execSync } from 'node:child_process';
 import { readCommits, surfaceForDir, ACTORS } from './lib/gitlog.mjs';
-import { loadRegistry, loadCatalogue, emit } from './lib/landing.mjs';
+import { loadRegistry, loadCatalogue } from './lib/landing.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const write = process.argv.includes('--write');
@@ -202,11 +202,38 @@ const out = {
 const json = JSON.stringify(out, null, 1) + '\n';
 const dest = join(ROOT, 'stats', 'data.json');
 
+// --check is a FRESHNESS check, not an equality check, and the difference is
+// forced by what this file is. Every other generated artefact is a pure
+// projection of a source file, so "regenerate and compare" is exact. This one
+// is a snapshot of git history, and history grows with every commit — including
+// the commit that would write the snapshot, which can never contain itself. A
+// byte-equality gate would therefore fail on literally every push.
+//
+// So the useful question is not "is it identical" but "has anyone rebuilt it
+// lately". Stale by a few days is fine; stale by a month means the page is
+// quietly lying about a repo that has moved on.
+const MAX_AGE_DAYS = 14;
+
 if (check) {
-  // `generated` moves every day; exclude it, like the other date-stamped artefacts.
-  const r = emit(dest, json, { write: false, volatile: /"generated": "[^"]*",\n/ });
-  if (!r.same) { console.error('STALE: stats/data.json differs — run `node scripts/build-git-stats.mjs --write`'); process.exit(1); }
-  console.log(`stats/data.json is current (${inProject.length} commits, ${sess.size} sessions)`);
+  if (!existsSync(dest)) {
+    console.error('MISSING: stats/data.json — run `node scripts/build-git-stats.mjs --write`');
+    process.exit(1);
+  }
+  let prev;
+  try { prev = JSON.parse(readFileSync(dest, 'utf8')); }
+  catch (e) { console.error(`CORRUPT: stats/data.json does not parse — ${e.message}`); process.exit(1); }
+
+  const end = prev.window && prev.window.end;
+  if (!end) { console.error('MALFORMED: stats/data.json has no window.end'); process.exit(1); }
+
+  const ageDays = Math.floor((Date.parse(out.window.end) - Date.parse(end)) / 86400000);
+  if (ageDays > MAX_AGE_DAYS) {
+    console.error(`STALE: stats/data.json covers up to ${end}, but history now runs to ${out.window.end} `
+      + `(${ageDays} days behind, limit ${MAX_AGE_DAYS}) — run \`node scripts/build-git-stats.mjs --write\``);
+    process.exit(1);
+  }
+  console.log(`stats/data.json is fresh (covers to ${end}, ${ageDays} day(s) behind head; `
+    + `${prev.coverage.commits} commits, ${prev.sessions.count} sessions)`);
   process.exit(0);
 }
 

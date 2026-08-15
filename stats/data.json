@@ -17,14 +17,14 @@
   }
  },
  "coverage": {
-  "commits": 5099,
-  "withSession": 2495,
+  "commits": 5100,
+  "withSession": 2496,
   "sessionPct": 48.9,
   "excludedPreProject": 1,
   "note": "Session ids cover agent commits only; the uncovered remainder is loop and bot volume."
  },
  "totals": {
-  "agent": 3391,
+  "agent": 3392,
   "loop": 507,
   "bot": 1194,
   "human": 7
@@ -39,8 +39,8 @@
    "3": 16,
    "4": 14,
    "5": 8,
-   "6": 12,
-   "7": 5,
+   "6": 11,
+   "7": 6,
    "8": 9,
    "9": 1,
    "10": 4,
@@ -86,7 +86,7 @@
   "Claude Opus 4.8": 375,
   "Claude Fable 5": 157,
   "Claude": 7,
-  "Claude Opus 5": 305
+  "Claude Opus 5": 306
  },
  "daily": [
   {
@@ -1427,7 +1427,7 @@
   },
   {
    "d": "2026-08-14",
-   "agent": 30,
+   "agent": 31,
    "loop": 0,
    "bot": 28,
    "human": 0,
@@ -1457,7 +1457,7 @@
    143,
    188,
    310,
-   193,
+   194,
    364,
    120
   ],
@@ -1693,7 +1693,7 @@
    26,
    33,
    59,
-   40,
+   41,
    47,
    8
   ],
@@ -1860,11 +1860,11 @@
   {
    "surface": "mappa",
    "url": "https://mino.mobi/mappa/",
-   "total": 82,
+   "total": 83,
    "sessions": 9,
    "first": "2026-06-07",
    "last": "2026-08-15",
-   "agent": 72,
+   "agent": 73,
    "loop": 0,
    "bot": 9,
    "human": 1
@@ -2052,11 +2052,11 @@
   {
    "surface": "io",
    "url": "https://io.mino.mobi",
-   "total": 34,
+   "total": 35,
    "sessions": 7,
    "first": "2026-05-30",
    "last": "2026-08-15",
-   "agent": 34,
+   "agent": 35,
    "loop": 0,
    "bot": 0,
    "human": 0
@@ -2650,5 +2650,5 @@
    "human": 0
   }
  ],
- "infraTouches": 1850
+ "infraTouches": 1860
 }
