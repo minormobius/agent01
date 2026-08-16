@@ -43,7 +43,13 @@ import { crawlReport } from './dungeon-crawl.mjs';
 // Renderers fill the tiles — a linear feature you read at a glance — and
 // the safety gate still carves the minimal gap through any wall that would
 // sever the dungeon.
-export const CONTENT_VERSION = 3;
+// v3 → v4: WALLS NEVER PARTITION. The crawl graph's sampling bridges are
+// now computed from geometry alone (a bridge could previously hop
+// apex-to-apex across a wall — found by a human crawler walking through a
+// solid one), and the gate gained a second invariant: every room's free
+// tiles stay one connected component. Rubble is texture and cover; a
+// spanning wall keeps a breach.
+export const CONTENT_VERSION = 4;
 
 export const DEFAULT_TUNING = {
   loot: 1,        // 0..2 — cache/treasure abundance
@@ -210,15 +216,23 @@ export function rollContent(json, opts = {}) {
     }
   }
 
-  // -- the safety gate: obstacles must not sever the dungeon. Re-check the
-  //    crawl graph with obstacles blocked; while broken, drop the newest
-  //    obstacle — deterministic, and the selftest asserts the result.
+  // -- the safety gate, two invariants: obstacles must not sever the
+  //    dungeon, and a wall must NEVER PARTITION A ROOM — rubble is texture
+  //    and cover, not architecture. While either fails, carve: drop the
+  //    newest obstacle tile in an offending room (a breach in that wall),
+  //    falling back to the newest anywhere. Deterministic.
   const blockedSet = () => new Set(effects.filter((e) => e.type === 'obstacle').map((e) => e.room + ':' + e.tile));
   for (;;) {
     const rep = crawlReport(json, { blocked: blockedSet() });
-    if (rep.complete && rep.allRoomsReachable) break;
+    if (rep.complete && rep.allRoomsReachable && rep.partitionedRoomIds.length === 0) break;
+    const bad = new Set(rep.partitionedRoomIds);
     let last = -1;
-    for (let i = effects.length - 1; i >= 0; i--) if (effects[i].type === 'obstacle') { last = i; break; }
+    for (let i = effects.length - 1; i >= 0; i--) {
+      if (effects[i].type === 'obstacle' && bad.has(effects[i].room)) { last = i; break; }
+    }
+    if (last < 0) {
+      for (let i = effects.length - 1; i >= 0; i--) if (effects[i].type === 'obstacle') { last = i; break; }
+    }
     if (last < 0) break;               // nothing left to remove — cannot happen on a crawlable map
     taken.delete(effects[last].room + ':' + effects[last].tile);
     effects.splice(last, 1);

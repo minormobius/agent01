@@ -43,16 +43,20 @@ export function buildCrawl(json, opts = {}) {
   const dyMax = opts.dyMax ?? defaultDyMax(tileSize);
   const shape = json.tile.shape;
   // blocked: Set of 'room:tile' keys that cannot be stood on (obstacles).
-  // Blocked tiles vanish from the step graph entirely — no adjacency, no
-  // bridging through them. Door / entrance / goal tiles are never blocked
-  // (the content roller reserves them).
+  // CRITICAL ORDER: adjacency AND bridging are computed from geometry alone
+  // — the full tile set — and blocked tiles are cut out afterwards. Bridges
+  // exist to heal tile-SAMPLING gaps; computing them after blocking let a
+  // scramble hop apex-to-apex across a rubble wall (found by a human
+  // crawler walking through a solid wall). A wall now blocks exactly what
+  // it covers, nothing routes around it. Door / entrance / goal tiles are
+  // never blocked (the content roller reserves them).
   const blocked = opts.blocked ?? null;
   const roomById = new Map(json.rooms.map((r) => [r.id, r]));
   const rooms = new Map();
 
   for (const r of json.rooms) {
     const isB = (k) => blocked !== null && blocked.has(r.id + ':' + k);
-    const walk = r.tiles.filter((t) => !isB(t.key));
+    const walk = r.tiles;
     const byKey = new Map(r.tiles.map((t) => [t.key, t]));
     const adj = new Map(walk.map((t) => [t.key, []]));
     const link = (a, b) => { adj.get(a).push(b); adj.get(b).push(a); };
@@ -63,7 +67,7 @@ export function buildCrawl(json, opts = {}) {
         const nk = shape === 'hex'
           ? (t.q === undefined ? null : (t.q + da) + ',' + (t.r + db))
           : (t.i === undefined ? null : (t.i + da) + ',' + (t.j + db));
-        if (!nk || !byKey.has(nk) || isB(nk)) continue;
+        if (!nk || !byKey.has(nk)) continue;
         const n = byKey.get(nk);
         if (t.key < nk && Math.abs(n.y - t.y) <= dyMax) link(t.key, nk);
       }
@@ -99,6 +103,12 @@ export function buildCrawl(json, opts = {}) {
       const fd = far.doors.find((x) => x.face === d.face);
       return { to: d.to, face: d.face, at: d.at, tile: d.tile, farTile: fd ? fd.tile : null };
     });
+    // NOW the wall lands: blocked tiles vanish from the finished graph —
+    // no adjacency, and no bridge may terminate on or re-route around them
+    if (blocked !== null) {
+      for (const t of r.tiles) if (isB(t.key)) adj.delete(t.key);
+      for (const [a, ns] of adj) adj.set(a, ns.filter((b) => !isB(b)));
+    }
     rooms.set(r.id, { info: r, byKey, adj, bridges, forcedBridges, doors, links: [] });
   }
 
@@ -200,11 +210,26 @@ export function crawlReport(json, opts = {}) {
   const crawl = buildCrawl(json, opts);
   const reach = crawlReachability(crawl);
   let forced = 0, bridged = 0;
-  for (const [, r] of crawl.rooms) { forced += r.forcedBridges; bridged += r.bridges; }
+  // a room is PARTITIONED when its free tiles no longer form one component
+  // — a wall may texture a room or offer cover, never split it
+  const partitionedRoomIds = [];
+  for (const [rid, r] of crawl.rooms) {
+    forced += r.forcedBridges; bridged += r.bridges;
+    const keys = [...r.adj.keys()];
+    if (keys.length > 1) {
+      const seen = new Set([keys[0]]);
+      const q = [keys[0]];
+      for (let h = 0; h < q.length; h++) {
+        for (const nk of r.adj.get(q[h])) if (!seen.has(nk)) { seen.add(nk); q.push(nk); }
+      }
+      if (seen.size !== keys.length) partitionedRoomIds.push(rid);
+    }
+  }
   return {
     rooms: crawl.rooms.size,
     bridgedRooms: bridged,
     forcedBridges: forced,
+    partitionedRoomIds,
     allRoomsReachable: reach.roomsSeen.size === crawl.rooms.size,
     endpointsReachable: reach.endpointsReachable.length,
     endpointsTotal: json.endpoints.length,

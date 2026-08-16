@@ -666,28 +666,34 @@ function stepTo(key) {
   return true;
 }
 
-// walk to any tile inside the legal range: shortest path within the room,
-// consumed step by step by the render loop (the token visibly walks it)
+// walk TOWARD any tile of the room — forgiving movement: if the intent is
+// out of range or unreachable, take the shortest path to the reachable
+// tile nearest it and go as far as this turn's budget allows
 function walkTo(key) {
-  if (walkQueue.length || dead) return false;
-  const target = curRoom + ':' + key;
-  if (!rangeMap.has(target) || rangeMap.get(target) === 0) return false;
+  if (walkQueue.length || dead || moveLeft <= 0) return false;
   const R = crawl.rooms.get(curRoom);
+  const target = R.byKey.get(key);
+  if (!target) return false;
   const blocked = mobTiles();
   const prev = new Map([[curTile, null]]);
   const q = [curTile];
-  for (let h = 0; h < q.length && !prev.has(key); h++) {
+  for (let h = 0; h < q.length; h++) {
     for (const nk of R.adj.get(q[h]) ?? []) {
       if (!prev.has(nk) && !blocked.has(curRoom + ':' + nk)) { prev.set(nk, q[h]); q.push(nk); }
     }
   }
-  if (!prev.has(key)) return false;
+  let best = null, bd = Infinity;
+  for (const k of prev.keys()) {
+    const t = R.byKey.get(k);
+    const d2 = (t.x - target.x) ** 2 + (t.z - target.z) ** 2;
+    if (d2 < bd - 1e-9) { bd = d2; best = k; }
+  }
+  if (!best || best === curTile) return false;
   const path = [];
-  for (let k = key; k !== curTile; k = prev.get(k)) path.push(k);
+  for (let k = best; k !== curTile; k = prev.get(k)) path.push(k);
   path.reverse();
-  if (path.length > moveLeft) return false;
-  walkQueue = path;
-  return true;
+  walkQueue = path.slice(0, moveLeft);   // as far as possible this turn
+  return walkQueue.length > 0;
 }
 
 function transit(door) {
@@ -732,17 +738,14 @@ canvas.addEventListener('pointerup', (e) => {
     const t = R.byKey.get(nk);
     if ((t.x - p.x) ** 2 + (t.z - p.z) ** 2 < (J.tile.size * 0.8) ** 2) { attack(mob); return; }
   }
-  // otherwise the nearest tile inside the legal range
+  // otherwise walk TOWARD the nearest room tile to the click — even out of
+  // range, the token goes as far as the budget allows
   let best = null, bd = Infinity;
-  for (const [k, cost] of rangeMap) {
-    if (cost === 0) continue;
-    const [ri, tk] = [Number(k.split(':')[0]), k.slice(k.indexOf(':') + 1)];
-    if (ri !== curRoom) continue;
-    const t = R.byKey.get(tk);
+  for (const t of roomInfo(curRoom).tiles) {
     const d = (t.x - p.x) ** 2 + (t.z - p.z) ** 2;
-    if (d < bd) { bd = d; best = tk; }
+    if (d < bd) { bd = d; best = t.key; }
   }
-  if (best && bd < (J.tile.size * 1.2) ** 2) walkTo(best);
+  if (best && bd < (J.tile.size * 1.6) ** 2) walkTo(best);
 });
 
 // keys: pick the neighbour best aligned with the camera-relative direction

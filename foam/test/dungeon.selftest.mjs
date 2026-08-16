@@ -407,8 +407,9 @@ for (const seed of SEEDS) {
   const J = dungeonToJSON(generateDungeon({ seed: 5, endpoints: 3, tileShape: 'hex', tileScale: 0.35 }));
   const count = (C, t) => C.effects.filter((e) => e.type === t).length;
   const base = rollContent(J, { roll: 1 });
-  ok(base.version === 3 && JSON.stringify(base.tuning) === JSON.stringify(DEFAULT_TUNING),
-    'content v3 records its tuning; omitted tuning = defaults');
+  const { CONTENT_VERSION } = await import('../dungeon-content.mjs');
+  ok(base.version === CONTENT_VERSION && JSON.stringify(base.tuning) === JSON.stringify(DEFAULT_TUNING),
+    'content records its version + tuning; omitted tuning = defaults');
   ok(JSON.stringify(rollContent(J, { roll: 1, tuning: { ...DEFAULT_TUNING } })) === JSON.stringify(base),
     'explicit default tuning identical to omitted');
   const hot = rollContent(J, { roll: 1, tuning: { traps: 2, enemies: 2 } });
@@ -436,10 +437,35 @@ for (const seed of SEEDS) {
   const mites = (C) => C.agents.filter((a) => a.type === 'mite').length;
   ok(wraiths(tough) >= wraiths(soft) && mites(soft) >= mites(tough),
     `toughness shifts the bands (wraiths ${wraiths(tough)}≥${wraiths(soft)}, mites ${mites(soft)}≥${mites(tough)})`);
-  // safety gate holds under extreme rubble
+  // safety gate holds under extreme rubble — and WALLS NEVER PARTITION:
+  // every room's free tiles stay one component, bridges are computed from
+  // geometry alone (the apex-to-apex wall hop a human crawler found)
   const rubble = rollContent(J, { roll: 1, tuning: { obstacles: 2 } });
   const rep = crawlReport(J, { blocked: contentBlocked(rubble) });
   ok(rep.complete && rep.allRoomsReachable, 'obstacles at 2: safety gate still holds');
+  ok(rep.partitionedRoomIds.length === 0, 'obstacles at 2: no room partitioned');
+  {
+    const cFree = buildCrawl(J);
+    const cBlk = buildCrawl(J, { blocked: contentBlocked(rubble) });
+    let sameBridges = true, hop = false;
+    for (const [rid, rf] of cFree.rooms) {
+      const rb = cBlk.rooms.get(rid);
+      if (rf.bridges !== rb.bridges || rf.forcedBridges !== rb.forcedBridges) sameBridges = false;
+      // no surviving edge may touch a blocked tile
+      const blk = contentBlocked(rubble);
+      for (const [a, ns] of rb.adj) {
+        if (blk.has(rid + ':' + a)) hop = true;
+        for (const b of ns) if (blk.has(rid + ':' + b)) hop = true;
+      }
+    }
+    ok(sameBridges, 'bridges are geometry-only — content cannot re-route them');
+    ok(!hop, 'no step edge touches a wall tile');
+  }
+  for (const roll of [2, 5, 9]) {
+    const C2 = rollContent(J, { roll, tuning: { obstacles: 2 } });
+    const r2 = crawlReport(J, { blocked: contentBlocked(C2) });
+    ok(r2.complete && r2.partitionedRoomIds.length === 0, `roll ${roll} heavy rubble: complete, unpartitioned`);
+  }
   // v3: LINES MADE OF TILES — every obstacle/trap run is lattice-contiguous
   {
     const byId = new Map(J.rooms.map((r) => [r.id, r]));
