@@ -97,7 +97,16 @@ the crawler gains WAYPOINT TEK: the ◎ guide chip routes room-level BFS over
 KNOWN topology only (doors + hatches + sprung trapdoors — no spoilers) to
 the nearest unfound endpoint or a pip-clicked waypoint; the suggested door
 pulses in 3D and in the door bar, and the minimap draws the dashed route
-thread. `/dungeon/content/` is the CONTENT FORGE: sliders for the
+thread. The crawler also runs FOG OF WAR (per-tile knowledge: unknown =
+unrendered, live = full color, stale = dimmed memory; visibility is a
+radius with line-of-sight — rubble blocks sight, making walls real cover),
+two MODES (explore = free movement, enemies drift a step per player move
+and spot you by the same LOS; encounter = the budget + end-turn cadence,
+entered when something sees or is seen), and the HEIST alarm: lifting a
+treasure wakes the dungeon — alerted enemies hunt cross-room through
+doors — and reaching the entrance alive with treasure is an escape win.
+Tile colors recolor in place per fog change (one attribute per room), so
+the walk animation survives; `colorOf`/`refreshFog` are the single source. `/dungeon/content/` is the CONTENT FORGE: sliders for the
 content-v2 tuning block (loot/traps/obstacles/enemies/toughness +
 `gradient`, the danger direction: +deep / 0 flat / −entrance), live plan
 preview with a crawlability tally, content-.json export; tuning rides

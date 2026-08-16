@@ -200,6 +200,10 @@ let spinners = [];                     // marker meshes rotating in the loop
 let guide = true, waypoint = null;     // waypoint tek: null = nearest unfound endpoint
 let guideRooms = [], guideFace = null; // current route + suggested door face
 let suggestedMeshes = [];              // door columns pulsing in the loop
+let seenTiles = new Map();             // fog of war: 'room:tile' -> 'live' | 'stale'
+let mode = 'explore';                  // 'explore' (free movement) | 'encounter' (budgeted)
+let alert = false;                     // the heist alarm: the dungeon is awake
+let treasures = 0;                     // treasures carried (the heist prize)
 
 // -------------------------------------------------------------- three ------
 const canvas = $('c');
@@ -221,8 +225,63 @@ addEventListener('resize', resize); resize();
 
 let roomGroup = null;      // rebuilt on room entry
 let tileMesh = null;       // merged tiles (picking → nearest centre)
+let edgeLines = null;      // tile edges (known tiles only)
 let hiliteMesh = null;     // reachable-neighbour overlay
 let token = null;
+
+// tile color through the fog — the single source for build + recolor
+function colorOf(r, t) {
+  const know = knowledge(r.id, t.key);
+  if (know === 'unknown') return [0.016, 0.024, 0.04];
+  let y0 = Infinity, y1 = -Infinity;
+  for (const tt of r.tiles) { y0 = Math.min(y0, tt.y); y1 = Math.max(y1, tt.y); }
+  const h = y1 - y0 > 1e-6 ? (t.y - y0) / (y1 - y0) : 0.5;
+  let c = r.secret
+    ? [0.10 + h * 0.10, 0.14 + h * 0.14, 0.26 + h * 0.18]
+    : [0.10 + h * 0.16, 0.22 + h * 0.22, 0.24 + h * 0.20];
+  const fxT = fx.get(r.id + ':' + t.key);
+  if (fxT?.type === 'obstacle') c = [0.24, 0.30, 0.33];
+  else if (fxT?.type === 'trap' && fxT.sprung) c = [0.38, 0.14, 0.11];
+  else if (t.kind === 'door') c = [0.72, 0.58, 0.34];
+  else if (t.kind === 'entrance') c = [0.45, 0.72, 0.40];
+  else if (t.kind === 'trapdoor') { if (sprungTd.has(r.id + ':' + t.key)) c = [0.03, 0.06, 0.08]; }
+  else if (t.kind === 'hatch') c = [0.16, 0.38, 0.36];
+  else if (t.kind === 'goal') {
+    const pc = css(PATH_COLORS[(r.endpointIndex ?? 0) % PATH_COLORS.length]);
+    c = [pc.r * 0.8, pc.g * 0.8, pc.b * 0.8];
+  }
+  return know === 'stale' ? c.map((v) => v * 0.42) : c;
+}
+
+// recolor tiles + rebuild known edges + marker/mob visibility, in place
+function refreshFog() {
+  if (!tileMesh) return;
+  const r = roomInfo(curRoom);
+  const attr = tileMesh.geometry.getAttribute('color');
+  for (const t of r.tiles) {
+    const [start, count] = tileMesh.userData.ranges.get(t.key);
+    const c = colorOf(r, t);
+    for (let i = 0; i < count; i++) attr.setXYZ(start + i, c[0], c[1], c[2]);
+  }
+  attr.needsUpdate = true;
+  const ep = [];
+  for (const t of r.tiles) {
+    if (knowledge(curRoom, t.key) === 'unknown') continue;
+    const cs = tileCorners2D(t);
+    for (let i = 0; i < cs.length; i++) {
+      const a = cs[i], b = cs[(i + 1) % cs.length];
+      ep.push(a[0], t.y + 0.035, a[1], b[0], t.y + 0.035, b[1]);
+    }
+  }
+  edgeLines.geometry.dispose();
+  edgeLines.geometry = new THREE.BufferGeometry();
+  edgeLines.geometry.setAttribute('position', new THREE.Float32BufferAttribute(ep, 3));
+  roomGroup.traverse((o) => {
+    if (o.userData.fogTile === undefined) return;
+    const k = knowledge(curRoom, o.userData.fogTile);
+    o.visible = o.userData.isMob ? k === 'live' : k !== 'unknown';
+  });
+}
 const tokenTarget = new THREE.Vector3();
 
 function disposeGroup(g) {
@@ -278,44 +337,26 @@ function buildRoom(id) {
   let y0 = Infinity, y1 = -Infinity;
   for (const t of r.tiles) { y0 = Math.min(y0, t.y); y1 = Math.max(y1, t.y); }
 
-  // -- tiles
+  // -- tiles, colored through the fog: unknown tiles paint as background
+  //    (invisible), stale dimmed, live full. Colors live in one attribute
+  //    per room so the fog can recolor in place without rebuilding.
   {
     const pos = [], col = [];
+    const ranges = new Map();
     for (const t of r.tiles) {
-      const h = y1 - y0 > 1e-6 ? (t.y - y0) / (y1 - y0) : 0.5;
-      let c = r.secret
-        ? [0.10 + h * 0.10, 0.14 + h * 0.14, 0.26 + h * 0.18]
-        : [0.10 + h * 0.16, 0.22 + h * 0.22, 0.24 + h * 0.20];
-      const fxT = fx.get(id + ':' + t.key);
-      if (fxT?.type === 'obstacle') c = [0.24, 0.30, 0.33];
-      else if (fxT?.type === 'trap' && fxT.sprung) c = [0.38, 0.14, 0.11];
-      else if (t.kind === 'door') c = [0.72, 0.58, 0.34];
-      else if (t.kind === 'entrance') c = [0.45, 0.72, 0.40];
-      else if (t.kind === 'trapdoor') c = sprungTd.has(id + ':' + t.key) ? [0.03, 0.06, 0.08] : c;
-      else if (t.kind === 'hatch') c = [0.16, 0.38, 0.36];
-      else if (t.kind === 'goal') {
-        const pc = css(PATH_COLORS[(r.endpointIndex ?? 0) % PATH_COLORS.length]);
-        c = [pc.r * 0.8, pc.g * 0.8, pc.b * 0.8];
-      }
-      pushTile(pos, col, t, c);
+      const start = pos.length / 3;
+      pushTile(pos, col, t, colorOf(r, t));
+      ranges.set(t.key, [start, pos.length / 3 - start]);
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     tileMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+    tileMesh.userData.ranges = ranges;
     roomGroup.add(tileMesh);
-    // tile edges for readability
-    const ep = [];
-    for (const t of r.tiles) {
-      const cs = tileCorners2D(t);
-      for (let i = 0; i < cs.length; i++) {
-        const a = cs[i], b = cs[(i + 1) % cs.length];
-        ep.push(a[0], t.y + 0.035, a[1], b[0], t.y + 0.035, b[1]);
-      }
-    }
-    const eg = new THREE.BufferGeometry();
-    eg.setAttribute('position', new THREE.Float32BufferAttribute(ep, 3));
-    roomGroup.add(new THREE.LineSegments(eg, new THREE.LineBasicMaterial({ color: css('#04060a'), transparent: true, opacity: 0.6 })));
+    edgeLines = new THREE.LineSegments(new THREE.BufferGeometry(),
+      new THREE.LineBasicMaterial({ color: css('#04060a'), transparent: true, opacity: 0.6 }));
+    roomGroup.add(edgeLines);
   }
 
   // -- walls: outline loops extruded up, base following the nearest tile
@@ -357,11 +398,13 @@ function buildRoom(id) {
       new THREE.MeshBasicMaterial({ color: css('#ffce78'), transparent: true, opacity: 0.75 }));
     col.position.set(d.at[0], d.at[1] + 1.15, d.at[2]);
     col.userData.doorFace = d.face;
+    col.userData.fogTile = d.tile;
     roomGroup.add(col);
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.05, 8, 28),
       new THREE.MeshBasicMaterial({ color: css('#ffce78'), transparent: true, opacity: 0.6 }));
     ring.rotation.x = Math.PI / 2;
     ring.position.set(d.at[0], d.at[1] + 0.12, d.at[2]);
+    ring.userData.fogTile = d.tile;
     roomGroup.add(ring);
   }
 
@@ -383,10 +426,12 @@ function buildRoom(id) {
         new THREE.MeshBasicMaterial({ color: css('#3a4a52') }));
       m.position.set(t.x, t.y + J.tile.size * 0.3, t.z);
       m.rotation.y = (t.x * 7 + t.z * 3) % 1;
+      m.userData.fogTile = e.tile;
       roomGroup.add(m);
       const w = new THREE.LineSegments(new THREE.WireframeGeometry(m.geometry),
         new THREE.LineBasicMaterial({ color: css('#5f7a80') }));
       w.position.copy(m.position); w.rotation.copy(m.rotation);
+      w.userData.fogTile = e.tile;
       roomGroup.add(w);
     } else if (e.type === 'loot' || e.type === 'treasure') {
       const big = e.type === 'treasure';
@@ -394,16 +439,19 @@ function buildRoom(id) {
         big ? '#ffdf9e' : '#d8a94e', false);
       m.position.set(t.x, t.y + J.tile.size * (big ? 0.3 : 0.2), t.z);
       spinners.push(m);
+      m.userData.fogTile = e.tile;
       e.mesh = m; roomGroup.add(m);
       if (e.type === 'treasure') {
         const halo = new THREE.Mesh(new THREE.TorusGeometry(J.tile.size * 0.34, 0.03, 8, 24),
           new THREE.MeshBasicMaterial({ color: css('#ffdf9e'), transparent: true, opacity: 0.6 }));
         halo.rotation.x = Math.PI / 2; halo.position.set(t.x, t.y + 0.08, t.z);
+        halo.userData.fogTile = e.tile;
         e.halo = halo; roomGroup.add(halo);
       }
     } else if (e.type === 'trap' && e.sprung) {
       const m = pyramid(J.tile.size * 0.2, J.tile.size * 0.4, '#ff6e5a', true);
       m.position.set(t.x, t.y + J.tile.size * 0.55, t.z);
+      m.userData.fogTile = e.tile;
       spinners.push(m); roomGroup.add(m);
     }
   }
@@ -415,10 +463,12 @@ function buildRoom(id) {
     if (ln.kind === 'trapdoor' && sprungTd.has(id + ':' + ln.tile)) {
       const m = pyramid(J.tile.size * 0.3, J.tile.size * 0.5, '#173238', true);
       m.position.set(t.x, t.y - J.tile.size * 0.1, t.z);
+      m.userData.fogTile = ln.tile;
       roomGroup.add(m);
     } else if (ln.kind === 'hatch') {
       const m = pyramid(J.tile.size * 0.26, J.tile.size * 0.5, '#7fd8d0', false, true);
       m.position.set(t.x, t.y + J.tile.size * 0.3, t.z);
+      m.userData.fogTile = ln.tile;
       spinners.push(m); roomGroup.add(m);
     }
   }
@@ -429,6 +479,8 @@ function buildRoom(id) {
     const m = new THREE.Mesh(new THREE.IcosahedronGeometry(J.tile.size * (0.2 + a.hp * 0.05), 0),
       new THREE.MeshBasicMaterial({ color: css(spec.color) }));
     m.position.set(t.x, t.y + 0.55, t.z);
+    m.userData.isMob = true;
+    m.userData.fogTile = a.tile;
     a.mesh = m; roomGroup.add(m);
     const w = new THREE.LineSegments(new THREE.WireframeGeometry(m.geometry),
       new THREE.LineBasicMaterial({ color: css('#04060a'), transparent: true, opacity: 0.5 }));
@@ -456,13 +508,16 @@ function buildRoom(id) {
 let rangeMap = new Map();   // 'room:tile' -> cost, refreshed with the token
 function refreshHilites() {
   if (hiliteMesh) { roomGroup.remove(hiliteMesh); hiliteMesh.geometry.dispose(); hiliteMesh.material.dispose(); }
-  rangeMap = reachableWithin(crawl, curRoom, curTile, moveLeft, mobTiles());
+  rangeMap = mode === 'encounter'
+    ? reachableWithin(crawl, curRoom, curTile, moveLeft, mobTiles())
+    : new Map();
   const R = crawl.rooms.get(curRoom);
   const pos = [], col = [];
   for (const [k, cost] of rangeMap) {
     if (cost === 0) continue;
     const [ri, tk] = [Number(k.split(':')[0]), k.slice(k.indexOf(':') + 1)];
     if (ri !== curRoom) continue;                    // far-room reach shows on doors
+    if (knowledge(curRoom, tk) === 'unknown') continue;   // the fog keeps its secrets
     const t = R.byKey.get(tk);
     const f = 1 - (cost - 1) / Math.max(1, moveLeft); // 1 near → 0 at range edge
     pushTile(pos, col, t, [0.10 + 0.28 * f, 0.30 + 0.48 * f, 0.30 + 0.44 * f], 0.06);
@@ -478,9 +533,175 @@ function refreshHilites() {
   roomGroup.traverse((o) => {
     if (o.userData.doorFace === undefined) return;
     const d = R.doors.find((x) => x.face === o.userData.doorFace);
-    const inReach = d && d.farTile !== null && rangeMap.has(d.to + ':' + d.farTile);
+    const inReach = mode === 'explore' ||
+      (d && d.farTile !== null && rangeMap.has(d.to + ':' + d.farTile));
     o.material.opacity = inReach ? 0.95 : 0.35;
   });
+}
+
+// ------------------------------------------------------------ fog of war ---
+// Three knowledge states per tile: UNKNOWN (never seen — not rendered),
+// LIVE (currently visible — full color, enemies shown), STALE (remembered —
+// dimmed terrain, nothing that moves). Visibility is a radius from the
+// token with line-of-sight: rubble blocks sight, which is what makes it
+// COVER. Walls occlude by construction (vision is per-room).
+const VISION_R = () => J.tile.size * 4.5;
+function losClear(R, from, to) {
+  // sight is blocked when the segment passes over an obstacle tile
+  for (const [k, e] of fx) {
+    if (e.type !== 'obstacle' || Number(k.split(':')[0]) !== curRoom) continue;
+    const o = R.byKey.get(e.tile);
+    if (!o || o === from || o === to) continue;
+    // distance from obstacle centre to the segment
+    const dx = to.x - from.x, dz = to.z - from.z;
+    const L2 = dx * dx + dz * dz;
+    if (L2 < 1e-9) continue;
+    let t = ((o.x - from.x) * dx + (o.z - from.z) * dz) / L2;
+    t = Math.max(0, Math.min(1, t));
+    const px = from.x + dx * t, pz = from.z + dz * t;
+    if ((o.x - px) ** 2 + (o.z - pz) ** 2 < (J.tile.size * 0.42) ** 2) return false;
+  }
+  return true;
+}
+function visibleNow() {
+  const R = crawl.rooms.get(curRoom);
+  const me = R.byKey.get(curTile);
+  const out = new Set();
+  const r2 = VISION_R() ** 2;
+  for (const t of roomInfo(curRoom).tiles) {
+    if ((t.x - me.x) ** 2 + (t.z - me.z) ** 2 > r2) continue;
+    if (!losClear(R, me, t)) continue;
+    out.add(t.key);
+  }
+  return out;
+}
+function recomputeVision() {
+  const vis = visibleNow();
+  let changed = false;
+  for (const [k, st] of seenTiles) {
+    if (Number(k.split(':')[0]) !== curRoom) continue;
+    const tk = k.slice(k.indexOf(':') + 1);
+    if (st === 'live' && !vis.has(tk)) { seenTiles.set(k, 'stale'); changed = true; }
+  }
+  for (const tk of vis) {
+    const k = curRoom + ':' + tk;
+    if (seenTiles.get(k) !== 'live') { seenTiles.set(k, 'live'); changed = true; }
+  }
+  return changed;
+}
+function knowledge(rid, tk) { return seenTiles.get(rid + ':' + tk) ?? 'unknown'; }
+
+// ------------------------------------------------------ modes + the alarm --
+// EXPLORE: free movement; the dungeon drifts — enemies wander a step as you
+// move, and spot you by the same line-of-sight you see them by. ENCOUNTER:
+// the movement budget and end-turn cadence, entered when something sees or
+// is seen. The HEIST ALARM: lifting a treasure wakes the whole dungeon —
+// every enemy in discovered rooms hunts you cross-room; escape by reaching
+// the entrance alive.
+function enemiesAware() {
+  const R = crawl.rooms.get(curRoom);
+  const me = R.byKey.get(curTile);
+  const r2 = VISION_R() ** 2;
+  return mobs.some((m) => {
+    if (m.hp <= 0 || m.room !== curRoom) return false;
+    if (alert) return true;
+    const t = R.byKey.get(m.tile);
+    return t && (t.x - me.x) ** 2 + (t.z - me.z) ** 2 <= r2 && losClear(R, me, t);
+  });
+}
+function updateMode() {
+  const aware = enemiesAware();
+  if (mode === 'explore' && aware) {
+    mode = 'encounter'; moveLeft = moveMax;
+    note('encounter!', '#ff9e6e');
+  } else if (mode === 'encounter' && !aware) {
+    mode = 'explore';
+    note('the foam settles', '#7fd8d0');
+  }
+}
+
+// one enemy step: chase when hunting (alert or sees the player), else drift
+function enemyStep(mob) {
+  const R = crawl.rooms.get(mob.room);
+  const here = mob.room === curRoom;
+  if (here && (R.adj.get(mob.tile) ?? []).includes(curTile)) {
+    hurt(ENEMY_TYPES[mob.type].dmg, 'the ' + mob.type + ' strikes');
+    return;
+  }
+  const me = here ? R.byKey.get(curTile) : null;
+  const mt = R.byKey.get(mob.tile);
+  const hunting = alert || (here && me && mt &&
+    (mt.x - me.x) ** 2 + (mt.z - me.z) ** 2 <= VISION_R() ** 2 && losClear(R, me, mt));
+  const blocked = mobTiles();
+  const stepOk = (nk) => R.byKey.get(nk).kind === 'floor' && !blocked.has(mob.room + ':' + nk) &&
+    !(here && nk === curTile);
+  let next = null;
+  if (hunting) {
+    // toward the player: in-room BFS, or (alert, other room) toward the door
+    // whose room is nearer the player on the room graph
+    let goal = null;
+    if (here) goal = curTile;
+    else if (alert && discovered.has(mob.room)) {
+      let bestD = Infinity;
+      for (const d of R.doors) {
+        const dd = roomDistTo(d.to, curRoom);
+        if (dd < bestD) { bestD = dd; goal = d.tile; }
+      }
+      if (goal === mob.tile) {
+        // standing on the door: cross it
+        const d = R.doors.find((x) => x.tile === mob.tile && x.farTile !== null);
+        if (d && !mobAt(d.to, d.farTile) && d.farTile !== (d.to === curRoom ? curTile : null)) {
+          mob.room = d.to; mob.tile = d.farTile;
+          if (mob.mesh) mob.mesh.visible = false;
+          if (d.to === curRoom) { buildRoom(curRoom); placeToken(false); }
+          return;
+        }
+      }
+    }
+    if (goal !== null) {
+      const prev = new Map([[goal, null]]);
+      const q = [goal];
+      for (let h = 0; h < q.length && !prev.has(mob.tile); h++) {
+        for (const nk of R.adj.get(q[h]) ?? []) {
+          if (!prev.has(nk) && (stepOk(nk) || nk === mob.tile || nk === goal)) { prev.set(nk, q[h]); q.push(nk); }
+        }
+      }
+      next = prev.get(mob.tile) ?? null;
+    }
+  } else if (Math.random() < 0.4) {
+    const opts = (R.adj.get(mob.tile) ?? []).filter(stepOk);
+    if (opts.length) next = opts[Math.floor(Math.random() * opts.length)];
+  }
+  if (next && stepOk(next)) {
+    mob.tile = next;
+    const t = R.byKey.get(next);
+    if (mob.mesh && here) {
+      mob.mesh.position.set(t.x, t.y + 0.55, t.z);
+      mob.mesh.userData.fogTile = next;
+    }
+  }
+}
+function roomDistTo(from, to) {
+  if (from === to) return 0;
+  const dist = new Map([[from, 0]]);
+  const q = [from];
+  for (let h = 0; h < q.length; h++) {
+    if (q[h] === to) return dist.get(to);
+    for (const d of crawl.rooms.get(q[h]).doors) {
+      if (d.farTile !== null && !dist.has(d.to)) { dist.set(d.to, dist.get(q[h]) + 1); q.push(d.to); }
+    }
+  }
+  return Infinity;
+}
+// the world moves between your moves: mobs in discovered rooms take a step
+function worldStep() {
+  for (const m of mobs) {
+    if (m.hp <= 0 || dead) continue;
+    if (!discovered.has(m.room)) continue;
+    if (m.room !== curRoom && !alert) continue;   // only the alarm moves far rooms
+    enemyStep(m);
+    if (dead) return;
+  }
 }
 
 // ---------------------------------------------------------- waypoint tek ---
@@ -560,7 +781,7 @@ function refreshHUD() {
     const far = roomInfo(d.to);
     b.textContent = (d.face === guideFace ? '◎ ' : '') + '⟶ through the door · ' + roleLabel(far).toLowerCase();
     if (d.face === guideFace) b.classList.add('suggested');
-    b.disabled = moveLeft <= 0;
+    b.disabled = mode === 'encounter' && moveLeft <= 0;
     b.onclick = () => transit(d);
     $('doorbar').appendChild(b);
   }
@@ -573,16 +794,26 @@ function refreshHUD() {
     const up = far.floorY > roomInfo(curRoom).floorY;
     b.textContent = (ln.kind === 'hatch' ? (up ? '⇧ climb the hatch · ' : '⇩ descend the hatch · ') : '⇩ drop again · ')
       + roleLabel(far).toLowerCase();
-    b.disabled = moveLeft <= 0;
-    b.onclick = () => { if (moveLeft > 0) { moveLeft--; steps++; takeLink(ln); } };
+    b.disabled = mode === 'encounter' && moveLeft <= 0;
+    b.onclick = () => {
+      if (mode === 'encounter') { if (moveLeft <= 0) return; moveLeft--; }
+      steps++; takeLink(ln);
+    };
     $('doorbar').appendChild(b);
   }
   $('hpline').innerHTML = '♥ <b class="hp">' + hp + '</b> · <b class="gp">' + gold + '</b> gold';
-  // the movement meter
+  // the movement meter — explore is free, encounter is budgeted
   $('moveMaxV').textContent = moveMax;
-  $('moveLeft').classList.toggle('spent', moveLeft === 0);
-  $('moveLeft').innerHTML = '<b>' + moveLeft + '</b> tile' + (moveLeft === 1 ? '' : 's') +
-    (moveLeft === 0 ? ' — end the turn to move' : ' left this turn');
+  if (mode === 'explore') {
+    $('moveLeft').classList.remove('spent');
+    $('moveLeft').innerHTML = '<b>∞</b> explore' + (alert ? ' — <span style=\"color:#ff6e5a\">the foam hunts you</span>' : ' — free movement');
+    $('endTurn').disabled = true;
+  } else {
+    $('endTurn').disabled = false;
+    $('moveLeft').classList.toggle('spent', moveLeft === 0);
+    $('moveLeft').innerHTML = '<b>' + moveLeft + '</b> tile' + (moveLeft === 1 ? '' : 's') +
+      (moveLeft === 0 ? ' — end the turn to move' : ' left this turn');
+  }
 }
 
 // ------------------------------------------------------------- minimap -----
@@ -675,8 +906,10 @@ function hurt(dmg, why) {
 }
 
 function attack(mob) {
-  if (moveLeft <= 0) return false;
-  moveLeft--; steps++;
+  if (dead) return false;
+  if (mode === 'encounter' && moveLeft <= 0) return false;
+  if (mode === 'encounter') moveLeft--;
+  steps++;
   mob.hp--;
   const spec = ENEMY_TYPES[mob.type];
   if (mob.hp <= 0) {
@@ -689,6 +922,7 @@ function attack(mob) {
     if (dead) return true;
   }
   placeToken();
+  recomputeVision(); updateMode(); refreshFog();
   return true;
 }
 
@@ -701,6 +935,7 @@ function takeLink(ln) {
   if (r.role === 'endpoint') found.add(curRoom);
   buildRoom(curRoom);
   placeToken(false);
+  recomputeVision(); refreshFog(); updateMode();
   const t = crawl.rooms.get(curRoom).byKey.get(curTile);
   controls.target.set(t.x, t.y + 0.6, t.z);
   camera.position.set(t.x + 6, t.y + 6.5, t.z + 6);
@@ -725,6 +960,13 @@ function resolveTile() {
     e.done = true; gold += e.gold;
     note((e.type === 'treasure' ? 'the treasure!' : 'a cache') + ' +' + e.gold + ' gold', '#ffdf9e');
     e.mesh?.parent?.remove(e.mesh); e.halo?.parent?.remove(e.halo);
+    if (e.type === 'treasure') {
+      treasures++;
+      if (!alert) {
+        alert = true;
+        note('the dungeon WAKES — run for the entrance', '#ff6e5a');
+      }
+    }
   } else if (e.type === 'trap' && !e.sprung) {
     e.sprung = true;
     if (e.trap === 'snare') { moveLeft = 0; note('a snare! your turn ends here', '#ff9e6e'); }
@@ -734,14 +976,20 @@ function resolveTile() {
 }
 
 function stepTo(key) {
-  if (moveLeft <= 0 || dead) return false;
+  if (dead) return false;
+  if (mode === 'encounter' && moveLeft <= 0) return false;
   const R = crawl.rooms.get(curRoom);
   if (!(R.adj.get(curTile) ?? []).includes(key)) return false;
   const mob = mobAt(curRoom, key);
   if (mob) return attack(mob);               // a bump is an attack
-  curTile = key; steps++; moveLeft--;
+  curTile = key; steps++;
+  if (mode === 'encounter') moveLeft--;
   placeToken();
   resolveTile();
+  if (dead) return true;
+  if (mode === 'explore') worldStep();       // the dungeon drifts as you move
+  if (dead) return true;
+  recomputeVision(); updateMode(); refreshFog();
   return true;
 }
 
@@ -771,23 +1019,34 @@ function walkTo(key) {
   const path = [];
   for (let k = best; k !== curTile; k = prev.get(k)) path.push(k);
   path.reverse();
-  walkQueue = path.slice(0, moveLeft);   // as far as possible this turn
+  walkQueue = mode === 'encounter' ? path.slice(0, moveLeft) : path;
   return walkQueue.length > 0;
 }
 
 function transit(door) {
-  if (moveLeft <= 0 || dead) return;
+  if (dead) return;
+  if (mode === 'encounter' && moveLeft <= 0) return;
   const guard = mobAt(door.to, door.farTile);
   if (guard) { note('something waits on the far side — it blocks the door', '#ff9e6e'); return; }
-  curRoom = door.to; curTile = door.farTile; steps++; moveLeft--;
+  curRoom = door.to; curTile = door.farTile; steps++;
+  if (mode === 'encounter') moveLeft--;
   discovered.add(curRoom);
   const r = roomInfo(curRoom);
   if (r.role === 'endpoint') found.add(curRoom);
   buildRoom(curRoom);
   placeToken(false);
+  recomputeVision(); refreshFog(); updateMode();
   const t = crawl.rooms.get(curRoom).byKey.get(curTile);
   controls.target.set(t.x, t.y + 0.6, t.z);
   camera.position.set(t.x + 6, t.y + 6.5, t.z + 6);
+  // the heist exit: reach the entrance carrying treasure and slip out
+  if (roomInfo(curRoom).role === 'entrance' && treasures > 0 && !$('win').classList.contains('on')) {
+    $('win').querySelector('h1').textContent = 'escaped the foam';
+    $('winText').innerHTML = 'Out with <b>' + gold + '</b> gold and ' + treasures + ' treasure' +
+      (treasures > 1 ? 's' : '') + ' — ' + found.size + '/' + J.endpoints.length + ' endpoints, ' +
+      steps + ' steps.' + (alert ? ' The foam howls behind you.' : '');
+    $('win').classList.add('on');
+  }
   if (found.size === J.endpoints.length && !$('win').classList.contains('on')) {
     $('winText').innerHTML = 'All <b>' + J.endpoints.length + '</b> endpoints found in <b>' + steps +
       '</b> steps, ' + discovered.size + ' of ' + J.rooms.length + ' rooms explored.';
@@ -863,10 +1122,12 @@ function start(doc, fromFile) {
   moveLeft = moveMax; walkQueue = [];
   hp = 12; gold = 0; dead = false;
   waypoint = null; guideRooms = []; guideFace = null; suggestedMeshes = []; sprungTd = new Set();
+  seenTiles = new Map(); mode = 'explore'; alert = false; treasures = 0;
   $('death').classList.remove('on');
   $('rollChip').textContent = '⚄ roll ' + params.roll;
   buildRoom(curRoom);
   placeToken(false);
+  recomputeVision(); refreshFog();
   const t = crawl.rooms.get(curRoom).byKey.get(curTile);
   controls.target.set(t.x, t.y + 0.6, t.z);
   camera.position.set(t.x + 6, t.y + 7, t.z + 6);
@@ -896,42 +1157,13 @@ $('moveSlider').oninput = () => {
   moveLeft = Math.min(moveLeft, moveMax);
   refreshHilites(); refreshHUD();
 };
-// ending the turn wakes the room: each enemy here steps toward you, or
-// strikes if already at your side — then your movement refreshes
-function enemyTurn() {
-  const R = crawl.rooms.get(curRoom);
-  for (const mob of mobs) {
-    if (mob.hp <= 0 || mob.room !== curRoom) continue;
-    if ((R.adj.get(mob.tile) ?? []).includes(curTile)) {
-      hurt(ENEMY_TYPES[mob.type].dmg, 'the ' + mob.type + ' strikes');
-      if (dead) return;
-      continue;
-    }
-    // one step along its shortest path to you, never through anything
-    const blocked = mobTiles();
-    const prev = new Map([[curTile, null]]);       // BFS out FROM you
-    const q = [curTile];
-    for (let h = 0; h < q.length && !prev.has(mob.tile); h++) {
-      for (const nk of R.adj.get(q[h]) ?? []) {
-        if (!prev.has(nk) && (!blocked.has(curRoom + ':' + nk) || nk === mob.tile)) { prev.set(nk, q[h]); q.push(nk); }
-      }
-    }
-    const next = prev.get(mob.tile);               // the mob's step toward you
-    // never onto door/entrance/goal markers — a mob camped on a door tile in
-    // a room you left could lock that door forever
-    if (next && R.byKey.get(next).kind !== 'floor') continue;
-    if (next && next !== curTile && !mobAt(curRoom, next)) {
-      mob.tile = next;
-      const t = R.byKey.get(next);
-      mob.mesh?.position.set(t.x, t.y + 0.55, t.z);
-    }
-  }
-}
 $('endTurn').onclick = () => {
+  if (dead || mode !== 'encounter') return;
+  worldStep();
   if (dead) return;
-  enemyTurn();
-  if (dead) return;
-  moveLeft = moveMax; refreshHilites(); refreshHUD();
+  moveLeft = moveMax;
+  recomputeVision(); updateMode(); refreshFog();
+  refreshHilites(); refreshHUD(); drawMini();
 };
 
 $('loadChip').onclick = () => $('file').click();
@@ -950,7 +1182,10 @@ $('begin').onclick = () => $('intro').classList.remove('on');
 // -------------------------------------------------------------- debug ------
 window.__crawl = {
   ready: false,
-  get state() { return { room: curRoom, tile: curTile, steps, found: [...found], discovered: discovered.size, moveLeft, moveMax, hp, gold, dead }; },
+  get state() { return { room: curRoom, tile: curTile, steps, found: [...found], discovered: discovered.size, moveLeft, moveMax, hp, gold, dead, mode, alert, treasures }; },
+  vision: () => { const out = { live: 0, stale: 0, unknown: 0 }; for (const t of roomInfo(curRoom).tiles) out[knowledge(curRoom, t.key)]++; return out; },
+  setMode: (m) => { mode = m; if (m === 'encounter') moveLeft = Math.min(moveLeft, moveMax); refreshHilites(); refreshHUD(); },  // harness/debug only
+  mobPositions: () => mobs.filter((m) => m.hp > 0).map((m) => m.room + ':' + m.tile),
   get content() { return content; },
   effectAt: (r, t) => { const e = fx.get(r + ':' + t); return e ? { ...e, mesh: undefined, halo: undefined } : null; },
   mobAt: (r, t) => { const m = mobAt(r, t); return m ? { id: m.id, type: m.type, hp: m.hp, tile: m.tile } : null; },
