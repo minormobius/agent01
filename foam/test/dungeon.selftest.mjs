@@ -407,8 +407,8 @@ for (const seed of SEEDS) {
   const J = dungeonToJSON(generateDungeon({ seed: 5, endpoints: 3, tileShape: 'hex', tileScale: 0.35 }));
   const count = (C, t) => C.effects.filter((e) => e.type === t).length;
   const base = rollContent(J, { roll: 1 });
-  ok(base.version === 2 && JSON.stringify(base.tuning) === JSON.stringify(DEFAULT_TUNING),
-    'content v2 records its tuning; omitted tuning = defaults');
+  ok(base.version === 3 && JSON.stringify(base.tuning) === JSON.stringify(DEFAULT_TUNING),
+    'content v3 records its tuning; omitted tuning = defaults');
   ok(JSON.stringify(rollContent(J, { roll: 1, tuning: { ...DEFAULT_TUNING } })) === JSON.stringify(base),
     'explicit default tuning identical to omitted');
   const hot = rollContent(J, { roll: 1, tuning: { traps: 2, enemies: 2 } });
@@ -440,6 +440,37 @@ for (const seed of SEEDS) {
   const rubble = rollContent(J, { roll: 1, tuning: { obstacles: 2 } });
   const rep = crawlReport(J, { blocked: contentBlocked(rubble) });
   ok(rep.complete && rep.allRoomsReachable, 'obstacles at 2: safety gate still holds');
+  // v3: LINES MADE OF TILES — every obstacle/trap run is lattice-contiguous
+  {
+    const byId = new Map(J.rooms.map((r) => [r.id, r]));
+    const lines = new Map();
+    for (const e of base.effects) {
+      if (e.line === undefined) continue;
+      if (!lines.has(e.line)) lines.set(e.line, []);
+      lines.get(e.line).push(e);
+    }
+    ok(lines.size > 4, `content lays lines (${lines.size} runs)`);
+    let contiguous = true, mixed = false, spans = { full: 0, partial: 0 };
+    for (const [, tiles] of lines) {
+      spans[tiles[0].span]++;
+      if (new Set(tiles.map((e) => e.type)).size > 1) mixed = true;
+      if (tiles.length < 2) continue;
+      const room = byId.get(tiles[0].room);
+      const tl = tiles.map((e) => room.tiles.find((t) => t.key === e.tile));
+      // each tile adjacent (lattice distance 1) to at least one other
+      for (const a of tl) {
+        const near = tl.some((b) => b !== a && (
+          J.tile.shape === 'hex'
+            ? [[1, 0], [-1, 0], [0, 1], [0, -1], [1, -1], [-1, 1]].some(([dq, dr]) => b.q === a.q + dq && b.r === a.r + dr)
+            : Math.abs(b.i - a.i) + Math.abs(b.j - a.j) === 1));
+        if (!near) contiguous = false;
+      }
+    }
+    ok(contiguous, 'every multi-tile run is lattice-contiguous');
+    ok(!mixed, 'a run is one mechanism (no mixed types)');
+    ok(spans.partial > 0, `partial lines rolled (${spans.partial})`);
+    ok([...lines.values()].some((t) => t.length >= 3), 'some run reaches 3+ tiles');
+  }
   // param round-trip
   ok(tuningToParam(DEFAULT_TUNING) === null, 'default tuning omits the hash param');
   const T = { loot: 0.5, traps: 2, obstacles: 0.3, enemies: 1.4, toughness: 1.8, gradient: -0.5 };

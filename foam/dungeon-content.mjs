@@ -34,7 +34,16 @@ import { crawlReport } from './dungeon-crawl.mjs';
 // dungeon (deadly at the door, quiet in the deep). The tuning is recorded
 // in the document: (mapSig, roll, tuning) → identical content, and the
 // /dungeon/content/ page is the console for it.
-export const CONTENT_VERSION = 2;
+//
+// v2 → v3: LINES MADE OF TILES. Obstacles and traps are no longer lone
+// tiles wearing outlines — they are RUNS of tiles laid along a lattice
+// direction: rubble WALLS and TRIPWIRES, either full-span (across the room
+// until the floor runs out) or partial (a 2–4 tile segment). Each tile in a
+// run carries `line` (a per-document run id) and `span: 'full'|'partial'`.
+// Renderers fill the tiles — a linear feature you read at a glance — and
+// the safety gate still carves the minimal gap through any wall that would
+// sever the dungeon.
+export const CONTENT_VERSION = 3;
 
 export const DEFAULT_TUNING = {
   loot: 1,        // 0..2 — cache/treasure abundance
@@ -83,6 +92,52 @@ export function rollContent(json, opts = {}) {
     return null;
   };
 
+  // -- line laying: walk the lattice from a start tile in a direction (and
+  //    its opposite, for full spans), collecting free floor tiles
+  const shape = json.tile.shape;
+  const DIRS = shape === 'hex'
+    ? [[1, 0], [-1, 0], [0, 1], [0, -1], [1, -1], [-1, 1]]
+    : [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const stepKey = (t, d) => shape === 'hex'
+    ? (t.q === undefined ? null : (t.q + d[0]) + ',' + (t.r + d[1]))
+    : (t.i === undefined ? null : (t.i + d[0]) + ',' + (t.j + d[1]));
+  const walkLine = (room, byKey, start, dir, maxLen, out) => {
+    let cur = start;
+    while (cur && out.length < maxLen) {
+      if (cur !== start && (cur.kind !== 'floor' || taken.has(room.id + ':' + cur.key))) break;
+      if (!out.includes(cur)) out.push(cur);
+      const nk = stepKey(cur, dir);
+      cur = nk ? byKey.get(nk) : null;
+    }
+  };
+  let lineId = 0;
+  const layLine = (room, byKey, cand, maxLen, full) => {
+    const start = takeTileLattice(room, cand);
+    if (!start) return null;
+    // try a few directions from the same start, keep the longest run — a
+    // one-tile "line" defeats the point
+    const d0 = Math.floor(rng() * DIRS.length);
+    let best = null;
+    for (let k = 0; k < 3; k++) {
+      const dir = DIRS[(d0 + k) % DIRS.length];
+      const out = [];
+      walkLine(room, byKey, start, dir, full ? 99 : maxLen, out);
+      if (full) walkLine(room, byKey, start, [-dir[0], -dir[1]], 99, out);
+      if (!best || out.length > best.length) best = out;
+      if (best.length >= (full ? 4 : maxLen)) break;
+    }
+    return best?.length ? { tiles: best, line: lineId++, span: full ? 'full' : 'partial' } : null;
+  };
+  const takeTileLattice = (room, cand) => {
+    // line starts need lattice coords (the rare fallback tile has none)
+    for (let i = 0; i < cand.length; i++) {
+      const j = Math.floor(rng() * cand.length);
+      const t = cand[j];
+      if (t.key !== 'c' && !taken.has(room.id + ':' + t.key)) { cand.splice(j, 1); return t; }
+    }
+    return null;
+  };
+
   for (const room of json.rooms) {
     // candidates: plain floor tiles only — markers stay reserved
     const cand = room.tiles.filter((t) => t.kind === 'floor');
@@ -117,21 +172,30 @@ export function rollContent(json, opts = {}) {
     }
     if (isEntrance) continue;          // safe ground: nothing hostile below
 
-    // traps: one likely anywhere, a second along the danger direction
-    const nTrap = (rng() < Math.min(0.95, 0.5 * T.traps) ? 1 : 0) +
-      (rng() < Math.min(0.95, d * 0.45 * T.traps) ? 1 : 0);
-    for (let i = 0; i < nTrap; i++) {
-      const t = takeTile(room, cand);
-      if (t) effects.push(place(room, t, rng() < 0.6
+    const byKey = new Map(room.tiles.map((t) => [t.key, t]));
+
+    // trap TRIPWIRES: runs of trap tiles sharing one mechanism — one likely
+    // anywhere, a second along the danger direction
+    const nTripwire = (rng() < Math.min(0.95, 0.45 * T.traps) ? 1 : 0) +
+      (rng() < Math.min(0.95, d * 0.4 * T.traps) ? 1 : 0);
+    for (let i = 0; i < nTripwire; i++) {
+      const full = rng() < 0.25;
+      const len = 2 + Math.floor(rng() * 3);
+      const mech = rng() < 0.6
         ? { type: 'trap', trap: 'spike', dmg: tier(depthT) > 0.6 ? 2 : 1 }
-        : { type: 'trap', trap: 'snare' }));
+        : { type: 'trap', trap: 'snare' };
+      const L = layLine(room, byKey, cand, len, full);
+      if (L) for (const t of L.tiles) effects.push(place(room, t, { ...mech, line: L.line, span: L.span }));
     }
 
-    // obstacles: a little rubble, more in big rooms (safety-checked below)
-    const nObst = Math.min(3, Math.floor(rng() * (1.7 + cand.length * 0.12) * T.obstacles));
-    for (let i = 0; i < nObst; i++) {
-      const t = takeTile(room, cand);
-      if (t) effects.push(place(room, t, { type: 'obstacle' }));
+    // rubble WALLS: runs of blocked tiles, full-span or a segment — the
+    // safety gate below carves a gap through any wall that severs the map
+    const nWall = Math.min(2, Math.floor(rng() * (0.9 + cand.length * 0.05) * T.obstacles));
+    for (let i = 0; i < nWall; i++) {
+      const full = rng() < 0.35;
+      const len = 2 + Math.floor(rng() * 3);
+      const L = layLine(room, byKey, cand, len, full);
+      if (L) for (const t of L.tiles) effects.push(place(room, t, { type: 'obstacle', line: L.line, span: L.span }));
     }
 
     // enemies: sparse where the gradient says calm, thick where it says not

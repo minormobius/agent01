@@ -2,10 +2,11 @@
 // (generator ⊞ plan + baked .png/.dd2vtt images, the content builder's live
 // preview). One implementation so the line grammar stays coherent:
 //
-//   FULL solid outline    = closed     (obstacle tiles)
-//   PARTIAL dashed outline = suspect / hidden (traps, trapdoor mouths,
-//                            secret-room walls — which also tint blue)
-//   solid outline + ▲     = known passage (hatches)
+//   LINES ARE MADE OF TILES: rubble walls and tripwires read as runs of
+//   FILLED tiles (slate + hatching = closed; ember red = trap), laid along
+//   lattice directions by the content roller — not strokes around tiles.
+//   Dashes survive only where a thing is genuinely hidden: secret-room
+//   walls and trapdoor mouths. Hatches wear solid rims + ▲.
 //
 // Browser + node-canvas compatible (pure 2D context calls). Callers own the
 // transform: k = px per metre, (ox, oz) = world coords of the canvas origin.
@@ -117,20 +118,25 @@ export function drawPlan(ctx, o) {
       const t = tileOf(rec); if (!t) continue;
       const x = mx(t.x), z = mz(t.z);
       if (rec.type === 'obstacle') {
-        // FULL line: solid heavy outline says "closed"
-        ctx.strokeStyle = '#8fb3bd'; ctx.lineWidth = Math.max(2, k * 0.12);
-        tilePath(t, 0.86); ctx.stroke();
-        ctx.lineWidth = Math.max(1.4, k * 0.07);
-        ctx.beginPath(); ctx.moveTo(x - r0, z - r0); ctx.lineTo(x + r0, z + r0);
-        ctx.moveTo(x + r0, z - r0); ctx.lineTo(x - r0, z + r0); ctx.stroke();
-      } else if (rec.type === 'trap') {
-        // PARTIAL line: dashed outline says "suspect"
+        // a rubble tile: solid slate fill with diagonal hatching — runs of
+        // these read as WALLS
+        ctx.fillStyle = '#37444c';
+        tilePath(t); ctx.fill();
         ctx.save();
-        ctx.strokeStyle = '#ff8a76'; ctx.lineWidth = Math.max(1.8, k * 0.1);
-        ctx.setLineDash([Math.max(3, k * 0.12), Math.max(3, k * 0.14)]);
-        tilePath(t, 0.86); ctx.stroke();
+        tilePath(t); ctx.clip();
+        ctx.strokeStyle = '#5d707a'; ctx.lineWidth = Math.max(1.2, k * 0.06);
+        const hspan = s * k * 0.6, step = Math.max(3, s * k * 0.22);
+        ctx.beginPath();
+        for (let o2 = -hspan; o2 <= hspan; o2 += step) {
+          ctx.moveTo(x + o2 - hspan, z - hspan); ctx.lineTo(x + o2 + hspan, z + hspan);
+        }
+        ctx.stroke();
         ctx.restore();
-        ctx.strokeStyle = '#ff8a76'; ctx.lineWidth = Math.max(1.4, k * 0.07);
+      } else if (rec.type === 'trap') {
+        // a trap tile: ember fill — runs of these read as TRIPWIRES
+        ctx.fillStyle = '#571f1a';
+        tilePath(t); ctx.fill();
+        ctx.strokeStyle = '#ff8a76'; ctx.lineWidth = Math.max(1.2, k * 0.06);
         ctx.beginPath(); ctx.moveTo(x, z - r0); ctx.lineTo(x + r0, z + r0 * 0.8); ctx.lineTo(x - r0, z + r0 * 0.8);
         ctx.closePath(); ctx.stroke();
       } else {

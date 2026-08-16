@@ -7,6 +7,7 @@
 <title>foam — content forge</title>
 <meta name="description" content="Tune a foam dungeon's furnishing: sliders for loot, traps, obstacles, enemies, toughness, and the danger direction — live on the map, exportable, crawlable." />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpolygon points='16,3 28,10 28,22 16,29 4,22 4,10' fill='none' stroke='%23ffce78' stroke-width='2.5'/%3E%3Cpath d='M10 16 h12 M16 10 v12' stroke='%237fd8d0' stroke-width='2'/%3E%3C/svg%3E" />
+<script type="importmap">{ "imports": { "three": "../../vendor/three.module.min.js" } }</script>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; height: 100%; background: #04060a; color: #cfe8e4; font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; overflow: hidden; }
@@ -16,8 +17,12 @@
   #title .dim { color: #5f7a80; font-size: 11px; }
   #title a { color: #7fd8d0; pointer-events: auto; }
 
+  #c3 { display: block; width: 100vw; height: 100vh; touch-action: none; }
   #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
   #planc { max-width: calc(100vw - 300px); max-height: 94vh; border: 1px solid #1c2b31; border-radius: 10px; background: #04060a; }
+  #viewseg { position: fixed; bottom: max(10px, env(safe-area-inset-bottom)); left: 10px; display: flex; gap: 8px; z-index: 3; }
+  .chip { background: rgba(127,216,208,.08); border: 1px solid #1c2b31; border-radius: 8px; color: #9fc9c4; padding: 6px 12px; font: 12px ui-monospace, monospace; cursor: pointer; user-select: none; }
+  .chip.on { border-color: #7fd8d0; color: #cffff8; background: rgba(127,216,208,.16); }
 
   #panel { position: fixed; top: max(8px, env(safe-area-inset-top)); right: 10px; width: 258px;
     background: rgba(6,10,14,.88); border: 1px solid #1c2b31; border-radius: 12px; padding: 12px 16px;
@@ -58,6 +63,7 @@
     #panel.collapsed #sheetChev { transform: rotate(180deg); }
     .row input[type=range] { height: 26px; }
     .btn { padding: 11px; font-size: 13px; }
+    #viewseg { bottom: calc(52px + env(safe-area-inset-bottom)); }
   }
 </style>
 </head>
@@ -67,7 +73,12 @@
   <span class="dim"><a href="../" id="genlink">← generator</a> · the map never changes here</span>
 </div>
 
-<div id="wrap"><canvas id="planc"></canvas></div>
+<canvas id="c3"></canvas>
+<div id="wrap" style="display:none"><canvas id="planc"></canvas></div>
+<div id="viewseg">
+  <span class="chip on" id="view3d">3d</span>
+  <span class="chip" id="viewPlan">⊞ plan</span>
+</div>
 
 <div id="panel">
   <h2 id="sheetHead">CONTENT<span id="rollLabel">roll 1</span><span id="sheetChev">⌄</span></h2>
@@ -88,11 +99,13 @@
 <div id="busy"><div>weaving the foam…</div></div>
 
 <script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from '../../vendor/OrbitControls.js';
 import { generateDungeon, DUNGEON_VERSION, SIZES } from '../../dungeon.mjs';
 import { dungeonToJSON } from '../../dungeon-export.mjs';
-import { rollContent, contentBlocked, DEFAULT_TUNING, tuningToParam, tuningFromParam } from '../../dungeon-content.mjs';
+import { rollContent, contentBlocked, DEFAULT_TUNING, tuningToParam, tuningFromParam, ENEMY_TYPES } from '../../dungeon-content.mjs';
 import { crawlReport } from '../../dungeon-crawl.mjs';
-import { drawPlan } from '../../dungeon-plan.mjs';
+import { drawPlan, PATH_COLORS } from '../../dungeon-plan.mjs';
 
 const $ = (id) => document.getElementById(id);
 const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35, size: 'm', roll: 1 };
@@ -123,9 +136,155 @@ function writeHash() {
 
 function retune() {
   content = rollContent(J, { roll: params.roll, tuning });
-  draw(); tally(); writeHash();
+  if (view === 'plan') draw(); else build3d();
+  tally(); writeHash();
   $('rollLabel').textContent = 'roll ' + params.roll;
 }
+
+// ------------------------------------------------------------- 3D view -----
+// the schematic collapses when a tangled map stacks rooms in plan — the 3D
+// CAD view is the primary; the plan is a chip away
+const css = (c) => new THREE.Color(c);
+const renderer = new THREE.WebGLRenderer({ canvas: $('c3'), antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+scene.background = css('#04060a');
+const camera = new THREE.PerspectiveCamera(52, 1, 0.1, 800);
+const controls = new OrbitControls(camera, $('c3'));
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+function resize3d() {
+  renderer.setSize(innerWidth, innerHeight, false);
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize3d); resize3d();
+let group = null, spinners = [], framed = false;
+let view = '3d';
+function pyramid(size, h, color, down, wire = false) {
+  const g = new THREE.ConeGeometry(size, h, 4);
+  const m = wire
+    ? new THREE.LineSegments(new THREE.WireframeGeometry(g), new THREE.LineBasicMaterial({ color: css(color) }))
+    : new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: css(color) }));
+  if (down) m.rotation.z = Math.PI;
+  return m;
+}
+function hexCorner(x, z, R, kk) {
+  const a = Math.PI / 180 * (60 * kk - 30);
+  return [x + R * Math.cos(a), z + R * Math.sin(a)];
+}
+function build3d() {
+  if (group) { group.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.(); }); scene.remove(group); }
+  group = new THREE.Group(); spinners = [];
+  const s = dungeon.tileSize;
+  const fxOf = new Map(content.effects.map((e) => [e.room + ':' + e.tile, e]));
+  let dMax = 1;
+  for (const r of dungeon.rooms) dMax = Math.max(dMax, r.depth);
+  // tiles, content in the fills
+  const pos = [], col = [];
+  for (const r of dungeon.rooms) {
+    const t01 = r.depth / dMax;
+    const base = r.secret ? [0.16, 0.19, 0.30] : [0.36 - 0.26 * t01, 0.62 - 0.42 * t01, 0.60 - 0.34 * t01];
+    for (const t of r.tiles) {
+      let c = base;
+      const e = fxOf.get(r.id + ':' + t.key);
+      if (e?.type === 'obstacle') c = [0.24, 0.30, 0.33];
+      else if (e?.type === 'trap') c = [0.38, 0.14, 0.11];
+      else if (t.kind === 'door') c = [1.0, 0.81, 0.47];
+      else if (t.kind === 'entrance') c = [0.72, 1.0, 0.62];
+      else if (t.kind === 'trapdoor') c = [0.04, 0.09, 0.11];
+      else if (t.kind === 'hatch') c = [0.17, 0.38, 0.36];
+      else if (t.kind === 'goal') { const pc = css(PATH_COLORS[(r.endpointIndex ?? 0) % PATH_COLORS.length]); c = [pc.r, pc.g, pc.b]; }
+      let corners;
+      if (dungeon.tileShape === 'hex') {
+        const R = (s / Math.sqrt(3)) * 0.94;
+        corners = [0, 1, 2, 3, 4, 5].map((kk) => hexCorner(t.x, t.z, R, kk));
+      } else {
+        const hh = s * 0.46;
+        corners = [[t.x - hh, t.z - hh], [t.x + hh, t.z - hh], [t.x + hh, t.z + hh], [t.x - hh, t.z + hh]];
+      }
+      for (let i = 1; i + 1 < corners.length; i++) {
+        for (const [cx, cz] of [corners[0], corners[i], corners[i + 1]]) {
+          pos.push(cx, t.y + 0.045, cz); col.push(c[0], c[1], c[2]);
+        }
+      }
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  group.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.92, side: THREE.DoubleSide })));
+  // room wireframes
+  {
+    const wp = [], seen = new Set();
+    for (const r of dungeon.rooms) {
+      for (const fi of dungeon.pocket.cells[r.cell].faces) {
+        if (seen.has(fi)) continue; seen.add(fi);
+        const v = dungeon.pocket.faces[fi].verts;
+        for (let i = 0; i < v.length; i++) {
+          const a = v[i], b = v[(i + 1) % v.length];
+          wp.push(a[0], a[1], a[2], b[0], b[1], b[2]);
+        }
+      }
+    }
+    const wg = new THREE.BufferGeometry();
+    wg.setAttribute('position', new THREE.Float32BufferAttribute(wp, 3));
+    group.add(new THREE.LineSegments(wg, new THREE.LineBasicMaterial({ color: css('#2b6a72'), transparent: true, opacity: 0.4 })));
+  }
+  // markers: enemies, loot/treasure, one pyramid per tripwire, beacons
+  const seenLines = new Set();
+  for (const e of content.effects) {
+    const t = dungeon.roomOf.get(e.room)?.tiles.find((x) => x.key === e.tile); if (!t) continue;
+    if (e.type === 'trap') {
+      if (e.line !== undefined && seenLines.has(e.line)) continue;
+      if (e.line !== undefined) seenLines.add(e.line);
+      const m = pyramid(s * 0.2, s * 0.4, '#ff6e5a', true);
+      m.position.set(t.x, t.y + s * 0.6, t.z); spinners.push(m); group.add(m);
+    } else if (e.type === 'obstacle') {
+      const m = new THREE.Mesh(new THREE.OctahedronGeometry(s * 0.26, 0), new THREE.MeshBasicMaterial({ color: css('#3a4a52') }));
+      m.position.set(t.x, t.y + s * 0.24, t.z); group.add(m);
+    } else {
+      const big = e.type === 'treasure';
+      const m = pyramid(s * (big ? 0.28 : 0.16), s * (big ? 0.46 : 0.28), big ? '#ffdf9e' : '#d8a94e', false);
+      m.position.set(t.x, t.y + s * (big ? 0.28 : 0.18), t.z); spinners.push(m); group.add(m);
+    }
+  }
+  for (const a of content.agents) {
+    const t = dungeon.roomOf.get(a.room)?.tiles.find((x) => x.key === a.tile); if (!t) continue;
+    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(s * (0.15 + a.hp * 0.04), 0),
+      new THREE.MeshBasicMaterial({ color: css(ENEMY_TYPES[a.type].color) }));
+    m.position.set(t.x, t.y + s * 0.28, t.z); group.add(m);
+  }
+  const e0 = dungeon.roomOf.get(dungeon.entrance).centroid;
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.2, 6.5, 8),
+    new THREE.MeshBasicMaterial({ color: css('#b8ff9e'), transparent: true, opacity: 0.6 }));
+  beam.position.set(e0[0], e0[1] + 3.2, e0[2]);
+  group.add(beam);
+  scene.add(group);
+  if (!framed) {
+    framed = true;
+    const bb = new THREE.Box3().setFromObject(group);
+    const c = bb.getCenter(new THREE.Vector3()), sz = bb.getSize(new THREE.Vector3());
+    controls.target.copy(c);
+    const rad = Math.max(sz.x, sz.z);
+    camera.position.set(c.x + rad * 0.8, c.y + sz.y * 1.3 + 6, c.z + rad * 0.8);
+    camera.far = rad * 12 + 200; camera.updateProjectionMatrix();
+  }
+}
+(function loop() {
+  requestAnimationFrame(loop);
+  if (view === '3d') { for (const m of spinners) m.rotation.y += 0.02; controls.update(); renderer.render(scene, camera); }
+})();
+
+// view toggle
+function setView(v) {
+  view = v;
+  $('c3').style.display = v === '3d' ? 'block' : 'none';
+  $('wrap').style.display = v === 'plan' ? 'flex' : 'none';
+  $('view3d').classList.toggle('on', v === '3d');
+  $('viewPlan').classList.toggle('on', v === 'plan');
+  if (v === 'plan') draw(); else build3d();
+}
+$('view3d').onclick = () => setView('3d');
+$('viewPlan').onclick = () => setView('plan');
 
 function draw() {
   const c = $('planc');
@@ -188,6 +347,7 @@ $('expBtn').onclick = () => {
 // mobile bottom sheet
 const isMobile = () => matchMedia('(max-width: 720px)').matches;
 $('sheetHead').onclick = () => { if (isMobile()) $('panel').classList.toggle('collapsed'); };
+if (isMobile()) $('panel').classList.add('collapsed');
 addEventListener('resize', () => { if (!isMobile()) $('panel').classList.remove('collapsed'); dungeon && draw(); });
 
 window.__forge = { ready: false, get content() { return content; }, get tuning() { return { ...tuning }; },

@@ -277,7 +277,10 @@ function buildRoom(id) {
       let c = r.secret
         ? [0.10 + h * 0.10, 0.14 + h * 0.14, 0.26 + h * 0.18]
         : [0.10 + h * 0.16, 0.22 + h * 0.22, 0.24 + h * 0.20];
-      if (t.kind === 'door') c = [0.72, 0.58, 0.34];
+      const fxT = fx.get(id + ':' + t.key);
+      if (fxT?.type === 'obstacle') c = [0.24, 0.30, 0.33];
+      else if (fxT?.type === 'trap' && fxT.sprung) c = [0.38, 0.14, 0.11];
+      else if (t.kind === 'door') c = [0.72, 0.58, 0.34];
       else if (t.kind === 'entrance') c = [0.45, 0.72, 0.40];
       else if (t.kind === 'trapdoor') c = sprungTd.has(id + ':' + t.key) ? [0.03, 0.06, 0.08] : c;
       else if (t.kind === 'hatch') c = [0.16, 0.38, 0.36];

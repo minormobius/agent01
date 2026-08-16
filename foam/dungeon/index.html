@@ -283,8 +283,10 @@ function buildScene(d) {
   let dMax = 1;
   for (const r of d.rooms) dMax = Math.max(dMax, r.depth);
 
-  // -- tiles: one mesh per room (picking), vertex-colored
+  // -- tiles: one mesh per room (picking), vertex-colored. Content lines
+  //    are tile FILLS here too: rubble walls slate, tripwires ember.
   const s = d.tileSize;
+  const fxOf = new Map((content?.effects ?? []).map((e) => [e.room + ':' + e.tile, e.type]));
   for (const r of d.rooms) {
     const pos = [], col = [];
     const t01 = r.depth / dMax;
@@ -295,8 +297,13 @@ function buildScene(d) {
     ];
     for (const t of r.tiles) {
       let c = base;
-      if (t.kind === 'door') c = [1.0, 0.81, 0.47];
+      const fxT = show.content ? fxOf.get(r.id + ':' + t.key) : null;
+      if (fxT === 'obstacle') c = [0.24, 0.30, 0.33];
+      else if (fxT === 'trap') c = [0.38, 0.14, 0.11];
+      else if (t.kind === 'door') c = [1.0, 0.81, 0.47];
       else if (t.kind === 'entrance') c = [0.72, 1.0, 0.62];
+      else if (t.kind === 'trapdoor') c = [0.04, 0.09, 0.11];
+      else if (t.kind === 'hatch') c = [0.17, 0.38, 0.36];
       else if (t.kind === 'goal') {
         const pc = css(PATH_COLORS[r.endpointIndex % PATH_COLORS.length]);
         c = [pc.r, pc.g, pc.b];
@@ -419,6 +426,7 @@ function buildContentMarkers() {
   if (!content) return cg;
   const s = dungeon.tileSize;
   const spin = (m) => { spinners.push(m); return m; };
+  const seenLines = new Set();
   for (const e of content.effects) {
     const t = tileOf(e); if (!t) continue;
     if (e.type === 'obstacle') {
@@ -426,8 +434,13 @@ function buildContentMarkers() {
         new THREE.MeshBasicMaterial({ color: css('#3a4a52') }));
       m.position.set(t.x, t.y + s * 0.28, t.z); cg.add(m);
     } else if (e.type === 'trap') {
-      const m = spin(pyramid(s * 0.22, s * 0.44, '#ff6e5a', true));
-      m.position.set(t.x, t.y + s * 0.65, t.z); cg.add(m);
+      // one hovering pyramid per TRIPWIRE, not per tile — the filled run
+      // carries the line; the pyramid marks it
+      if (e.line === undefined || !seenLines.has(e.line)) {
+        if (e.line !== undefined) seenLines.add(e.line);
+        const m = spin(pyramid(s * 0.22, s * 0.44, '#ff6e5a', true));
+        m.position.set(t.x, t.y + s * 0.65, t.z); cg.add(m);
+      }
     } else {
       const big = e.type === 'treasure';
       const m = spin(pyramid(s * (big ? 0.3 : 0.18), s * (big ? 0.5 : 0.3), big ? '#ffdf9e' : '#d8a94e', false));
@@ -628,7 +641,8 @@ function buildLegend() {
   const t2 = mk('rooms', show.wire ? 'on' : '', () => { show.wire = !show.wire; t2.classList.toggle('on'); applyToggles(); });
   const t3 = mk('paths', show.paths ? 'on' : '', () => { show.paths = !show.paths; t3.classList.toggle('on'); applyToggles(); });
   const t4 = mk('content', show.content ? 'on' : '', () => {
-    show.content = !show.content; t4.classList.toggle('on'); applyToggles();
+    show.content = !show.content; t4.classList.toggle('on');
+    buildScene(dungeon);   // content is in the tile fills now
     if (planEl.classList.contains('open')) openPlan();
   });
   mk('⊞ plan', '', openPlan);
@@ -686,11 +700,8 @@ $('tuneBtn').onclick = () => { writeHash(); location.href = 'content/' + locatio
 $('rollBtn').onclick = () => {
   params.roll = 1 + Math.floor(Math.random() * 9998);
   content = rollContent(dungeonToJSON(dungeon), { roll: params.roll, tuning: params.tuning });
-  let old = null;
-  group.traverse((o) => { if (o.userData.isContent) old = o; });
-  if (old) { group.remove(old); old.traverse((x) => { x.geometry?.dispose(); x.material?.dispose?.(); }); }
-  group.add(buildContentMarkers());
-  applyToggles(); syncUI(); writeHash();
+  buildScene(dungeon);   // tile fills carry content now — full rebuild
+  syncUI(); writeHash();
   if (planEl.classList.contains('open')) openPlan();
 };
 $('seed').onchange = () => { params.seed = Math.max(1, parseInt($('seed').value, 10) || 1); regen(true); };
