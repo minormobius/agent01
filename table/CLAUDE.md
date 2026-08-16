@@ -71,7 +71,7 @@ obligations it puts on us: [`cairn/LICENSE.md`](cairn/LICENSE.md).
 | `cairn/monsters.js` | **Generated.** The 84 bestiary stat blocks, parsed into numbers |
 | `cairn/tools/scrape-monsters.py` | What generated it |
 | `cairn/combat.js` | The encounter oracle: the combat simulator, the challenge metric, the bestiary search |
-| `cairn/combat.selftest.mjs` | 78 checks. **A simulator fails silently — run this** |
+| `cairn/combat.selftest.mjs` | 97 checks. **A simulator fails silently — run this** |
 | `cairn/items.js` | **Generated.** The marketplace, the 46 relics, the d100 spellbook table |
 | `cairn/tools/scrape-items.py` | What generated it |
 | `cairn/effects.js` | The mechanical vocabulary: what monster abilities and spells the simulator can see, and the count of what it cannot |
@@ -80,7 +80,7 @@ obligations it puts on us: [`cairn/LICENSE.md`](cairn/LICENSE.md).
 | `cairn/study.js` | What a slot is worth — item value measured in the same currency as an encounter |
 | `cairn/delve.selftest.mjs` | 49 checks over delve.js, study.js and items.js |
 | `cairn/encounter/` | The oracle's page |
-| `cairn/arena/` | The replay: one recorded fight, drawn |
+| `cairn/arena/` | One fight, drawn — watched, or piloted |
 | `cairn/items/` | The item study's page |
 
 Regenerate the data (only when the SRD itself changes):
@@ -194,6 +194,41 @@ a state, and nothing else. A crowd stacks into ranks of eight and drops its labe
 identical names are noise. Everything on the field is in **user units on a 100-wide viewBox**, where
 1 unit is about 4px on a phone: a `font-size` or `stroke-width` that looks sane as pixels renders as
 a rope. That trap has now been walked into twice.
+
+### /cairn/arena — one fight, watched or played
+
+Two modes over **one** engine. `combat.js` exports `fight()`, a generator:
+`simulate()` drives it with nobody answering — that is what the oracle counts —
+and the arena drives it with a person answering. Same dice, same rules, same
+event stream; the only thing that differs is who picks the action, which is the
+only thing that *should* differ.
+
+That is not a stylistic preference. If piloting had its own combat code it
+would be a second simulator wearing the first one's clothes, and the number on
+the oracle page and the fight on the arena page could drift apart without
+anyone noticing.
+
+**Withdrawing lives in the piloted path and nowhere else.** The oracle is a
+stand-and-fight floor *by definition*; adding retreat to the auto cascade would
+change every published number to model a decision no simulation is making.
+A pilot, though, is playing Cairn — where leaving is usually correct — so the
+option belongs to them. Putting the two side by side is the clearest statement
+available of why the oracle's number is a floor and not a forecast. A
+withdrawal is **not** a casualty, in the model or in the verdict line.
+
+Three things that will bite you here:
+
+- **The auto cascade's RNG order is load-bearing.** Choosing and resolving were
+  split into shared closures so the pilot and the AI execute the same code; the
+  draws happen in the same order they always did. A **fingerprint test** pins
+  54 recorded fights to a digest, and it exists because 78 green checks did not
+  prove the numbers were unchanged when the generator refactor landed. If that
+  digest is your only failure, you have altered the model.
+- **Options are chosen by index, never by name.** A delver can be carrying two
+  sets of Soporific Darts — one from a background, one off a corpse. Resolving
+  by name made the second unusable and unspendable forever.
+- **`[hidden]` loses to `display: flex`.** The transport controls stayed on
+  screen through piloted fights despite the attribute being set correctly.
 
 ### /cairn/items — what a slot is worth
 

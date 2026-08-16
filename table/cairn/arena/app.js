@@ -16,7 +16,7 @@
 
 import { rollParty, rollCharacter, makeRng } from '../roll.js';
 import { BESTIARY } from '../monsters.js';
-import { simulate, assess, combatantFromCharacter, combatantFromMonster } from '../combat.js';
+import { simulate, fight, assess, combatantFromCharacter, combatantFromMonster } from '../combat.js';
 import { delve } from '../delve.js';
 
 const $ = (id) => document.getElementById(id);
@@ -25,7 +25,9 @@ const SVG = 'http://www.w3.org/2000/svg';
 const state = {
   seed: 'oak-fen-317', size: 4, delves: 0, monster: 'goblin', count: 4,
   fight: 1,            // which fight of this encounter we are watching
+  mode: 'watch',       // 'watch' replays a simulated fight; 'play' pilots one
   events: [], at: 0, playing: false, timer: null,
+  gen: null, pending: null, drawn: 0, target: null,
   tokens: new Map(),   // name -> { el, hp, maxHp, x, y }
 };
 
@@ -44,6 +46,7 @@ function readHash() {
   // a different encounter than the one it just weighed
   if (p.get('c')) state.count = Math.min(30, Math.max(1, Number(p.get('c')) || 4));
   if (p.get('f')) state.fight = Math.max(1, Number(p.get('f')) || 1);
+  if (p.get('p') === '1') state.mode = 'play';
 }
 
 function writeHash() {
@@ -51,6 +54,7 @@ function writeHash() {
     s: state.seed, n: String(state.size), m: state.monster, c: String(state.count), f: String(state.fight),
   });
   if (state.delves) p.set('v', String(state.delves));
+  if (state.mode === 'play') p.set('p', '1');
   history.replaceState(null, '', `#${p}`);
 }
 
@@ -153,6 +157,10 @@ function token(c, spot, cls, { labels = true, barWidth = 9, size = 1 } = {}) {
     g.appendChild(label);
   }
 
+  if (cls === 'foe') {
+    g.style.cursor = 'pointer';
+    g.addEventListener('click', () => { if (state.mode === 'play') setTarget(c.name); });
+  }
   $('field').appendChild(wrap);
   state.tokens.set(c.name, {
     el: g, fill, barWidth, hp: c.hp, maxHp: Math.max(1, c.maxHp), x: spot.x, y: spot.y,
@@ -424,19 +432,35 @@ function apply(e) {
       say(`${who(e.actor)} gets back up. Only fire or acid would have stopped that.`, 'foe');
       break;
 
+    case 'withdraw':
+      flag(e.actor, 'withdrawn');
+      flag(e.actor, 'down');
+      say(`${who(e.actor)} backs out of the fight — alive, and still carrying everything.`, 'note');
+      break;
+
     case 'rout':
       say(`The enemy breaks and runs — ${escapeHtml(e.reason)}.`, 'note');
       break;
 
     case 'end': {
-      const lost = [...state.tokens.entries()]
-        .filter(([, t]) => t.el.classList.contains('pc') && t.el.classList.contains('down')).length;
+      // A character who withdrew is DOWN on the map but is not a casualty —
+      // counting them as one would make the arena punish the single decision
+      // Cairn is actually about.
+      const pcTokens = [...state.tokens.entries()]
+        .filter(([, t]) => t.el.classList.contains('pc') && !t.el.classList.contains('summoned'));
+      const left = pcTokens.filter(([, t]) => t.el.classList.contains('withdrawn')).length;
+      const lost = pcTokens.filter(([, t]) => t.el.classList.contains('down')
+        && !t.el.classList.contains('withdrawn')).length;
       separator('after');
       const line = lost === 0
-        ? 'Everyone walks away.'
-        : lost === state.size ? 'Nobody walks away.' : `${lost} of ${state.size} down.`;
+        ? (left ? `Everyone lives. ${left} of them by leaving.` : 'Everyone walks away, unhurt by the end.')
+        : lost === pcTokens.length ? 'Nobody walks away.'
+          : `${lost} of ${pcTokens.length} down${left ? `, ${left} withdrew` : ''}.`;
       say(`${line} ${e.round} round${e.round === 1 ? '' : 's'}.`, 'verdict');
-      say(`This was one fight. The oracle plays it five thousand times — press <b>New fight</b> to see another, and watch how much the same encounter varies.`, 'note');
+      say(state.mode === 'play'
+        ? 'The oracle plays this same fight five thousand times and never once withdraws, which is why its number is a floor and not a forecast.'
+        : 'This was one fight. The oracle plays it five thousand times — press <b>New fight</b> to see another, and watch how much the same encounter varies.',
+      'note');
       break;
     }
     default:
@@ -472,6 +496,142 @@ function play() {
   }, 620);
 }
 
+// ----------------------------------------------------------------- piloted
+//
+// Playing is not a second simulator. combat.js's fight() is a generator: the
+// oracle drives it with nobody answering, and this drives it with a person
+// answering. Same dice, same rules, same event stream — the only difference is
+// who picks the action, which is exactly the difference that ought to exist.
+
+/** Draw whatever the model has done since we last looked. */
+function drain(events) {
+  // Clear the previous action's flourishes first. Watching, they expire on
+  // their own between beats; playing, a fast player outruns them and the field
+  // fills with stale damage numbers from three turns ago.
+  if (state.fx) state.fx.innerHTML = '';
+  for (const el of $('map').querySelectorAll('.pop')) el.remove();
+  while (state.drawn < events.length) apply(events[state.drawn++]);
+}
+
+/** Advance the fight with the pilot's answer, then ask for the next one. */
+function answer(choice) {
+  if (!state.gen) return;
+  const step = state.gen.next(choice || null);
+  if (step.done) {
+    drain(step.value.events || []);
+    state.gen = null;
+    state.pending = null;
+    renderActions();
+    return;
+  }
+  state.pending = step.value;
+  drain(step.value.events);
+  renderActions();
+}
+
+/** Which foe the next attack lands on. Tapping the map sets it. */
+function setTarget(name) {
+  state.target = name;
+  for (const [n, t] of state.tokens) t.el.classList.toggle('marked', n === name);
+  renderActions();
+}
+
+function liveFoeNames() {
+  return (state.pending ? state.pending.foes : []).filter((f) => !f.down).map((f) => f.name);
+}
+
+/**
+ * The action bar. It shows what this character can do and what each choice
+ * costs — a spell that will fill the pack says so *before* it is read, because
+ * discovering it afterwards is the difference between a decision and a trap.
+ */
+function renderActions() {
+  const bar = $('actions');
+  if (state.mode !== 'play') { bar.hidden = true; return; }
+  bar.hidden = false;
+
+  if (!state.pending) {
+    bar.innerHTML = state.gen
+      ? '<div class="turn">…</div>'
+      : '<div class="turn">The fight is over. <button class="act again" id="rerun">Play again</button></div>';
+    const again = $('rerun');
+    if (again) again.addEventListener('click', () => run({ nextFight: true }));
+    return;
+  }
+
+  const req = state.pending;
+  const foes = liveFoeNames();
+  if (state.target && !foes.includes(state.target)) state.target = null;
+  const target = state.target || foes[0] || null;
+  for (const [n, t] of state.tokens) t.el.classList.toggle('marked', n === target);
+  for (const [n, t] of state.tokens) t.el.classList.toggle('turn', n === req.actor);
+
+  // Two of the same thing is normal — a delver can carry two sets of the same
+  // darts — so identical labels get numbered rather than looking like a bug.
+  const seen = new Map();
+  const chips = req.options.map((o, i) => {
+    const base = o.kind === 'attack' ? (o.blast ? `💥 ${o.weapon}` : o.weapon)
+      : o.kind === 'spell' ? `📖 ${String(o.source).replace('Spellbook: ', '')}`
+        : o.kind === 'power' ? `✦ ${o.source}`
+          : '← Withdraw';
+    const n = (seen.get(base) || 0) + 1;
+    seen.set(base, n);
+    const dupes = req.options.filter((x) => (x.weapon || x.source) === (o.weapon || o.source)).length;
+    const label = dupes > 1 && o.kind !== 'withdraw' ? `${base} (${n})` : base;
+    return `<button class="act${o.kind === 'withdraw' ? ' flee' : ''}"
+      data-i="${i}" ${o.disabled ? 'disabled' : ''}>
+      <span class="l">${escapeHtml(label)}</span>
+      <span class="n">${escapeHtml(o.note || '')}</span>
+    </button>`;
+  }).join('');
+
+  bar.innerHTML = `
+    <div class="turn">
+      <b>${escapeHtml(shortName(req.actor))}</b>'s turn
+      ${target ? `· at <span class="mark">${escapeHtml(shortName(target))}</span>
+        <span class="hint">tap a diamond to switch</span>` : ''}
+    </div>
+    <div class="acts">${chips}</div>`;
+
+  bar.querySelectorAll('button.act').forEach((b) => b.addEventListener('click', () => {
+    const o = req.options[Number(b.dataset.i)];
+    answer({
+      kind: o.kind,
+      at: o.at,
+      weapon: o.weapon,
+      source: o.source,
+      target: o.needsTarget ? target : null,
+    });
+  }));
+}
+
+function startPlay(pcs, foes, monster) {
+  state.gen = fight(pcs.map((c) => ({ ...c })), foes.map((c) => ({ ...c })),
+    makeRng(`${state.seed}/${state.monster}/${state.count}/play/${state.fight}`),
+    { pilot: true, events: true });
+  state.drawn = 0;
+  state.target = null;
+
+  // Pull the first request. The start event is already in the stream by then,
+  // so the field is drawn from the model rather than from a second guess at it.
+  const step = state.gen.next();
+  const events = step.done ? (step.value.events || []) : step.value.events;
+  const opening = events[0];
+  drawField(opening.pcs, opening.foes);
+  state.drawn = 1;
+
+  separator('the field');
+  for (const c of opening.pcs) {
+    say(`${who(c.name)} — ${c.hp} HP, ${c.armor} armour, ${escapeHtml(c.weapon || 'unarmed')}.`, 'pc');
+  }
+  say(`Against ${state.count} × ${escapeHtml(monster.name)}: ${monster.hp} HP, ${monster.armor} armour.`, 'foe');
+  say('You are choosing now. The oracle never withdraws — you can.', 'note');
+
+  if (step.done) { drain(events); state.gen = null; state.pending = null; }
+  else { state.pending = step.value; drain(step.value.events); }
+  renderActions();
+}
+
 // ------------------------------------------------------------------ start
 
 function run({ nextFight = false } = {}) {
@@ -492,6 +652,17 @@ function run({ nextFight = false } = {}) {
   $('band').textContent = verdict.band;
   $('band').className = `band ${verdict.band}`;
 
+  $('feed').innerHTML = '';
+  $('round').textContent = 'before the first round';
+  $('mode').textContent = state.mode === 'play' ? '▶ Watching instead' : '🎲 Play it yourself';
+  $('watchControls').hidden = state.mode === 'play';
+
+  if (state.mode === 'play') {
+    startPlay(pcs, foes, monster);
+    writeHash();
+    return;
+  }
+
   // One fight, recorded. Its seed includes the fight number, so "New fight"
   // is a different fight of the same encounter and "Replay" is the same one.
   const rng = makeRng(`${state.seed}/${state.monster}/${state.count}/watch/${state.fight}`);
@@ -499,8 +670,6 @@ function run({ nextFight = false } = {}) {
 
   state.events = result.events;
   state.at = 0;
-  $('feed').innerHTML = '';
-  $('round').textContent = 'before the first round';
 
   const opening = state.events[0];
   drawField(opening.pcs, opening.foes);
@@ -517,6 +686,11 @@ function run({ nextFight = false } = {}) {
   play();
 }
 
+$('mode').addEventListener('click', () => {
+  state.mode = state.mode === 'play' ? 'watch' : 'play';
+  state.gen = null; state.pending = null;
+  run();
+});
 $('play').addEventListener('click', () => (state.playing ? stop() : play()));
 $('step').addEventListener('click', () => { stop(); step(); });
 $('again').addEventListener('click', () => run());

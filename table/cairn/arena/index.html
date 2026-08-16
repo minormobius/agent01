@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Cairn arena — watch the fight</title>
-<meta name="description" content="Watch one Cairn fight play out round by round: who swings, what the dice said, who goes down and when the enemy breaks. The same simulation the encounter oracle counts five thousand times.">
+<title>Cairn arena — watch a fight, or fight it</title>
+<meta name="description" content="Watch one Cairn fight play out round by round, or take the party yourself and choose every action — including the one the simulator never makes, which is leaving. The same engine either way.">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Cairn arena">
-<meta property="og:description" content="One fight, played out round by round — the same simulation the oracle counts five thousand times.">
+<meta property="og:description" content="Watch a Cairn fight, or pilot the party through one. Same engine, same dice — you just get to withdraw.">
 <meta property="og:url" content="https://table.mino.mobi/cairn/arena/">
 <meta name="twitter:card" content="summary">
 <style>
@@ -26,6 +26,12 @@
  *
  * Mobile first: the map takes the upper two thirds, the feed the lower third,
  * and neither the page nor the body ever scrolls — only the feed does.
+ *
+ * Two modes share all of it. WATCHING replays a simulated fight; PLAYING drives
+ * the same generator with a person answering. The action bar replaces the
+ * transport controls rather than sitting beside them, because the bottom of a
+ * phone is the only thumb-reachable real estate and a mode should not have to
+ * compete with itself for it.
  */
 :root {
   --bg: #f7f4ec; --panel: #fffdf7; --text: #1c1a17; --muted: #6d675c;
@@ -160,6 +166,50 @@ svg.field { position: absolute; inset: 0; width: 100%; height: 100%; }
 }
 .controls button.primary { background: var(--pc); border-color: var(--pc); color: var(--panel); font-weight: 600; }
 .controls button:active { transform: translateY(1px); }
+/* An explicit `display` beats the UA stylesheet's [hidden] { display: none },
+   so the transport controls stayed on screen throughout a piloted fight even
+   though the attribute was correctly set. */
+.controls[hidden], .actions[hidden] { display: none; }
+.controls.modebar { border-top: none; padding-top: 0; }
+.controls button.wide { flex: 1 1 100%; }
+
+/* ------------------------------------------------------------- piloting -- */
+/*
+ * The action bar replaces the transport controls when you are playing. It is
+ * the only part of the arena that is a GAME rather than a picture, so it gets
+ * the thumb-reachable bottom of the screen and states the cost of every
+ * choice — a spell that will fill your pack says so before you read it.
+ */
+.actions {
+  flex: 0 0 auto; background: var(--panel); border-top: 1px solid var(--rule-hard);
+  padding: 0.5rem 0.7rem calc(0.5rem + env(safe-area-inset-bottom));
+}
+.actions .turn { font-size: 0.85rem; margin-bottom: 0.4rem; }
+.actions .turn b { color: var(--pc); }
+.actions .mark { color: var(--foe); font-weight: 600; }
+.actions .hint { font-family: var(--mono); font-size: 0.58rem; color: var(--muted); }
+.actions .acts { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.actions button.act {
+  flex: 1 1 8.5rem; text-align: left; cursor: pointer;
+  border: 1px solid var(--rule-hard); border-radius: 7px; background: var(--bg);
+  color: var(--text); padding: 0.4rem 0.55rem;
+}
+.actions button.act .l { display: block; font-size: 0.82rem; font-weight: 600; }
+.actions button.act .n {
+  display: block; font-family: var(--mono); font-size: 0.58rem; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.actions button.act:active { transform: translateY(1px); }
+.actions button.act[disabled] { opacity: 0.4; }
+.actions button.act.flee { border-color: var(--gold); }
+.actions button.act.flee .l { color: var(--gold); }
+.actions button.act.again { flex: 0 0 auto; }
+
+/* whose turn it is, and what they are pointed at */
+.tok.turn .body { stroke-width: 2.6; }
+.tok.marked .body { stroke-dasharray: 1.6 1.2; stroke-width: 2.4; }
+.tok.withdrawn { opacity: 0.3; }
+.tok.withdrawn .name { font-style: italic; }
 </style>
 </head>
 <body>
@@ -177,11 +227,17 @@ svg.field { position: absolute; inset: 0; width: 100%; height: 100%; }
 
 <div class="feed" id="feed"></div>
 
-<div class="controls">
+<div class="actions" id="actions" hidden></div>
+
+<div class="controls" id="watchControls">
   <button id="play" class="primary">▶ Play</button>
   <button id="step">Step</button>
   <button id="again">Replay</button>
   <button id="next">New fight</button>
+</div>
+
+<div class="controls modebar">
+  <button id="mode" class="wide">🎲 Play it yourself</button>
 </div>
 
 <script type="module" src="app.js"></script>

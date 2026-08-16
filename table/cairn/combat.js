@@ -391,7 +391,98 @@ function recorder(on) {
   };
 }
 
+/**
+ * Run a fight to the end with nobody piloting. This is what the oracle counts.
+ *
+ * It is a two-line driver over `fight()` precisely so that the piloted arena
+ * and the five-thousand-trial oracle cannot be two different simulators. If
+ * you are tempted to write combat logic here, it belongs in fight().
+ */
+/** A combatant, reduced to what a piloted UI has to draw. */
+function brief(c) {
+  return {
+    name: c.name, side: c.side, hp: c.hp, maxHp: c.maxHp,
+    STR: c.STR, maxSTR: c.maxSTR, armor: c.armor,
+    down: !!c.down, dead: !!c.dead, withdrawn: !!c.withdrawn,
+    warded: c.warded > 0, disabled: !!c.disabled,
+    weapon: c.attacks[0] && c.attacks[0].name,
+  };
+}
+
+/**
+ * Everything this character could legally do right now, with the cost stated.
+ *
+ * The UI must never invent an option: a spell whose Fatigue would fill the
+ * pack is a choice that costs the caster all their hit protection, and a
+ * player is entitled to see that before spending it rather than after.
+ */
+export function pcOptions(pc, liveFoes, hurt, abilities = true) {
+  const out = [];
+  // Every option carries `at`, its index into the character's own array.
+  // Names are NOT unique: a delver can easily be carrying two sets of
+  // Soporific Darts, one from their background and one off a corpse, and
+  // looking the choice up by name would make the second unusable and
+  // unspendable forever.
+  pc.attacks.forEach((a, at) => {
+    if (a.uses != null && a.uses <= 0) return;
+    out.push({
+      kind: 'attack',
+      at,
+      weapon: a.name,
+      dice: a.dice,
+      blast: !!a.blast,
+      uses: a.uses == null ? null : a.uses,
+      needsTarget: !a.blast && liveFoes.length > 0,
+      note: a.blast ? 'catches everyone' : `d${a.dice.join(' / d')}`,
+    });
+  });
+  if (abilities) {
+    (pc.powers || []).forEach((pw, at) => {
+      if (!(pw.uses > 0)) return;
+      out.push({
+        kind: 'power', at, source: pw.source, effect: pw.kind, uses: pw.uses,
+        needsTarget: pw.kind !== 'heal' && pw.kind !== 'summon',
+        note: `${pw.kind}, ${pw.uses} left`,
+      });
+    });
+    (pc.spells || []).forEach((sp, at) => {
+      if (sp.spent) return;
+      out.push({
+        kind: 'spell', at, source: sp.source, effect: sp.kind,
+        // The whole cost of magic in Cairn, said out loud.
+        note: pc.encumbered ? 'pack is full — cannot read'
+          : pc.freeSlots > 0 ? `WIL save, costs a Fatigue (${pc.freeSlots} slots free)`
+            : 'WIL save, and the Fatigue fills your pack — you drop to 0 HP',
+        disabled: !!pc.encumbered,
+      });
+    });
+  }
+  // Cairn's actual best move, and the one the oracle never makes.
+  out.push({ kind: 'withdraw', note: 'leave the fight — you keep what you carry' });
+  return out;
+}
+
 export function simulate(pcs, foes, rng, opts = {}) {
+  const g = fight(pcs, foes, rng, opts);
+  let step = g.next();
+  while (!step.done) step = g.next(null);   // no pilot: nothing to answer with
+  return step.value;
+}
+
+/**
+ * The fight itself, as a generator.
+ *
+ * With `opts.pilot` off it never yields and behaves exactly as it always has —
+ * the auto cascade below is untouched, RNG call for RNG call, which the
+ * fingerprint test in combat.selftest pins to 201 recorded fights.
+ *
+ * With `opts.pilot` on it yields a decision request at each conscious PC's
+ * turn and expects the chosen action back through `next(choice)`. Both paths
+ * then run the SAME execution closures, so a piloted fight resolves under
+ * identical rules to a simulated one. That is the only reason it is safe to
+ * let a person play against numbers the oracle produced.
+ */
+export function* fight(pcs, foes, rng, opts = {}) {
   // `abilities: false` runs the fight with magic and monster powers switched
   // off. It exists so the cost of modelling them can be MEASURED rather than
   // asserted — see the ability-delta test in combat.selftest.
@@ -478,8 +569,153 @@ export function simulate(pcs, foes, rng, opts = {}) {
     // damage dice and keep the single highest result", so concentrating fire
     // throws away dice. Spreading is the strong play, and the sim plays it.
     const targeted = new Map();
+
+    // The three things a PC can DO, extracted so that the auto cascade below
+    // and a human pilot run the same code. Choosing is the only part that
+    // differs between a simulated fight and a played one; resolving must not,
+    // or the arena becomes a second simulator wearing the first one's clothes.
+    const doPower = (pc, power, mark, hurt) => {
+      power.uses -= 1;
+      rec.push('power', { actor: pc.name, source: power.source, effect: power.kind,
+        target: power.kind === 'heal' ? (hurt && hurt.name) : (mark && mark.name) });
+      const victim = power.kind === 'heal' ? hurt : mark;
+      if (power.kind === 'summon') {
+        pcs.push({
+          name: `${power.source} (summoned)`, side: 'pc', summoned: true,
+          hp: power.hp || 3, maxHp: power.hp || 3, armor: 0,
+          STR: power.STR || 6, DEX: power.DEX || 10, WIL: power.WIL || 4, maxSTR: power.STR || 6,
+          attacks: [{ name: power.source, dice: power.dice || [6], blast: false }],
+          spells: [], powers: [], combatAbilities: [],
+        });
+      } else if (victim) {
+        applyEffect(rng, power, victim, log);
+      }
+    };
+
+    const doSpell = (pc, spell, hurt, livePcsNow) => {
+      spell.spent = true;
+      if (pc.freeSlots > 0) pc.freeSlots -= 1; else { pc.hp = 0; pc.encumbered = true; }
+      if (!save(rng, pc.WIL)) {
+        if (log) log.push(`${pc.name} fumbles ${spell.source}`);
+        rec.push('cast', { actor: pc.name, spell: spell.source, fumbled: true });
+        return;
+      }
+      if (spell.kind === 'wardMundane') {
+        const ward = livePcsNow.slice().sort((a, b) => (a.hp + a.armor) - (b.hp + b.armor))[0] || pc;
+        ward.warded = (ward.warded || 0) + (spell.rounds || 6);
+        if (log) log.push(`${ward.name} is shielded from mundane attacks`);
+        rec.push('cast', { actor: pc.name, spell: spell.source, effect: 'ward', target: ward.name });
+        return;
+      }
+      if (spell.kind === 'summon') {
+        const servant = {
+          name: `${spell.source} (summoned)`, side: 'pc', summoned: true,
+          hp: spell.hp || 3, maxHp: spell.hp || 3, armor: spell.armor || 0,
+          STR: spell.STR || 8, DEX: spell.DEX || 10, WIL: spell.WIL || 3, maxSTR: spell.STR || 8,
+          attacks: [{ name: 'summoned', dice: spell.dice || [6], blast: false }],
+          spells: [], powers: [], combatAbilities: [],
+        };
+        pcs.push(servant);
+        if (log) log.push(`${pc.name} raises a servant`);
+        // The servant is the only combatant that joins after the start event,
+        // so it travels with the event that makes it — otherwise it fights,
+        // takes blows and dies as a name with nothing on the field.
+        rec.push('cast', {
+          actor: pc.name, spell: spell.source, effect: 'summon',
+          summoned: {
+            name: servant.name, hp: servant.hp, maxHp: servant.maxHp, STR: servant.STR,
+            armor: servant.armor, weapon: servant.attacks[0].name, side: 'pc',
+          },
+        });
+        return;
+      }
+      const victim = spell.kind === 'heal' ? hurt : pickTarget(rng, side(foes));
+      // "Immune to charms and magical sleep" / "Immune to magic from
+      //  spellbooks" / a warp panther that resists it half the time.
+      const ward = victim && (victim.combatAbilities || []).find((a) => a.kind === 'spellImmune');
+      const shrugged = ward && (ward.chance == null || rng.raw() < ward.chance);
+      if (victim && !shrugged) {
+        const worked = applyEffect(rng, spell, victim, log);
+        rec.push('cast', { actor: pc.name, spell: spell.source, effect: spell.kind,
+          target: victim.name, resisted: !worked });
+      } else if (shrugged) {
+        if (log) log.push(`${victim.name} shrugs off ${spell.source}`);
+        rec.push('cast', { actor: pc.name, spell: spell.source, target: victim.name, immune: true });
+      }
+    };
+
+    /** Returns false when there is nothing left to swing at. */
+    const doAttack = (pc, attack, target) => {
+      if (attack.uses != null) attack.uses -= 1;
+      // Blast cuts both ways, and the party side of it was missing: a thrown
+      // blast sphere is a bomb, not a rock, and it was landing on one goblin.
+      if (attack.blast) {
+        rec.push('attack', { actor: pc.name, weapon: attack.name, blast: true, side: 'pc' });
+        for (const foe of side(foes)) {
+          applyDamage(rng, foe, rollDamage(rng, attack, attackModifier(pc, foe, abilities)), log, pc, rec);
+        }
+        return true;
+      }
+      if (!target) return false;
+      const mod = attackModifier(pc, target, abilities);
+      const dmg = rollDamage(rng, attack, mod);
+      rec.push('attack', { actor: pc.name, weapon: attack.name, target: target.name, mod, side: 'pc' });
+      const prev = targeted.get(target);
+      // same-target attacks in one round collapse to the single highest die
+      if (prev == null || dmg > prev.dmg) targeted.set(target, { dmg, attacker: pc });
+      return true;
+    };
+
     for (const pc of livePcs) {
       if (round === 1 && !acts.get(pc)) continue;
+
+      // --- a human is choosing -------------------------------------------
+      // RETREAT lives here and only here. The oracle is a stand-and-fight
+      // floor by definition, so adding withdrawal to the auto cascade would
+      // change every published number for a decision no simulation is making.
+      // A pilot, though, is playing Cairn — where leaving is the correct move
+      // more often than not — so the option belongs in the piloted game, and
+      // its absence upstairs is exactly why the oracle reads as a worst case.
+      if (opts.pilot) {
+        const hurtNow = livePcs.find((a) => a.STR <= a.maxSTR / 2);
+        const choice = yield {
+          type: 'turn',
+          round,
+          actor: pc.name,
+          options: pcOptions(pc, side(foes), hurtNow, abilities),
+          pcs: pcs.filter((c) => !c.summoned || alive(c)).map(brief),
+          foes: foes.map(brief),
+          // The LIVE recorder array, not a copy. A piloted fight has to draw
+          // what just happened before asking what to do next, and the only
+          // honest way to show it is the same event stream the replay uses —
+          // the caller drains whatever it has not drawn yet.
+          events: rec.events,
+        };
+        const act = choice || { kind: 'attack' };
+        if (act.kind === 'withdraw') {
+          pc.withdrawn = true;
+          pc.down = true;                 // out of the fight, not a casualty
+          rec.push('withdraw', { actor: pc.name });
+          if (log) log.push(`${pc.name} withdraws`);
+          continue;
+        }
+        const pick = (list, at) => (Number.isInteger(at) ? (list || [])[at] : undefined);
+        if (act.kind === 'power') {
+          const power = pick(pc.powers, act.at);
+          const mark = act.target ? side(foes).find((f) => f.name === act.target)
+            : (side(foes).length ? pickTarget(rng, side(foes)) : null);
+          if (power && power.uses > 0) { doPower(pc, power, mark, hurtNow); continue; }
+        }
+        if (act.kind === 'spell') {
+          const spell = pick(pc.spells, act.at);
+          if (spell && !spell.spent && !pc.encumbered) { doSpell(pc, spell, hurtNow, livePcs); continue; }
+        }
+        const attack = (pick(pc.attacks, act.at)
+          || pc.attacks.find((a) => a.uses == null || a.uses > 0) || pc.attacks[0]);
+        const target = act.target ? side(foes).find((f) => f.name === act.target) : null;
+        if (!doAttack(pc, attack, target || pickTarget(rng, side(foes)))) break;
+        continue;
+      }
 
       // CASTING. "Anyone can cast a spell by holding a Spellbook in both hands
       // and reading its contents aloud. They must then add a Fatigue to
@@ -508,21 +744,7 @@ export function simulate(pcs, foes, rng, opts = {}) {
         && (pw.kind === 'disable' || pw.kind === 'summon' || (hurt && pw.kind === 'heal'))
         && (pw.kind === 'summon' ? 2 : actionValue(pw, pc, mark)) >= swing);
       if (power && side(foes).length) {
-        power.uses -= 1;
-        rec.push('power', { actor: pc.name, source: power.source, effect: power.kind,
-          target: power.kind === 'heal' ? (hurt && hurt.name) : (mark && mark.name) });
-        const victim = power.kind === 'heal' ? hurt : mark;
-        if (power.kind === 'summon') {
-          pcs.push({
-            name: `${power.source} (summoned)`, side: 'pc', summoned: true,
-            hp: power.hp || 3, maxHp: power.hp || 3, armor: 0,
-            STR: power.STR || 6, DEX: power.DEX || 10, WIL: power.WIL || 4, maxSTR: power.STR || 6,
-            attacks: [{ name: power.source, dice: power.dice || [6], blast: false }],
-            spells: [], powers: [], combatAbilities: [],
-          });
-        } else if (victim) {
-          applyEffect(rng, power, victim, log);
-        }
+        doPower(pc, power, mark, hurt);
         continue;
       }
 
@@ -532,79 +754,18 @@ export function simulate(pcs, foes, rng, opts = {}) {
         || pc.spells.find((sp) => !sp.spent && sp.kind === 'summon')
         || (hurt && pc.spells.find((sp) => !sp.spent && sp.kind === 'heal')));
       if (spell && side(foes).length && !pc.encumbered) {
-        spell.spent = true;
-        if (pc.freeSlots > 0) pc.freeSlots -= 1; else { pc.hp = 0; pc.encumbered = true; }
-        if (save(rng, pc.WIL)) {
-          // a ward goes on the most exposed ally, a summon onto the field
-          if (spell.kind === 'wardMundane') {
-            const ward = livePcs.slice().sort((a, b) => (a.hp + a.armor) - (b.hp + b.armor))[0] || pc;
-            ward.warded = (ward.warded || 0) + (spell.rounds || 6);
-            if (log) log.push(`${ward.name} is shielded from mundane attacks`);
-            rec.push('cast', { actor: pc.name, spell: spell.source, effect: 'ward', target: ward.name });
-            continue;
-          }
-          if (spell.kind === 'summon') {
-            const servant = {
-              name: `${spell.source} (summoned)`, side: 'pc', summoned: true,
-              hp: spell.hp || 3, maxHp: spell.hp || 3, armor: spell.armor || 0,
-              STR: spell.STR || 8, DEX: spell.DEX || 10, WIL: spell.WIL || 3, maxSTR: spell.STR || 8,
-              attacks: [{ name: 'summoned', dice: spell.dice || [6], blast: false }],
-              spells: [], powers: [], combatAbilities: [],
-            };
-            pcs.push(servant);
-            if (log) log.push(`${pc.name} raises a servant`);
-            // The servant is the only combatant that joins after the start
-            // event, so it travels with the event that makes it — otherwise it
-            // fights, takes blows and dies as a name with nothing on the field.
-            rec.push('cast', {
-              actor: pc.name, spell: spell.source, effect: 'summon',
-              summoned: {
-                name: servant.name, hp: servant.hp, maxHp: servant.maxHp, STR: servant.STR,
-                armor: servant.armor, weapon: servant.attacks[0].name, side: 'pc',
-              },
-            });
-            continue;
-          }
-          const victim = spell.kind === 'heal' ? hurt : pickTarget(rng, side(foes));
-          // "Immune to charms and magical sleep" / "Immune to magic from
-          //  spellbooks" / a warp panther that resists it half the time. Now
-          //  that the party can cast, the creatures that shrug it off matter.
-          const ward = victim && (victim.combatAbilities || []).find((a) => a.kind === 'spellImmune');
-          const shrugged = ward && (ward.chance == null || rng.raw() < ward.chance);
-          if (victim && !shrugged) {
-            const worked = applyEffect(rng, spell, victim, log);
-            rec.push('cast', { actor: pc.name, spell: spell.source, effect: spell.kind,
-              target: victim.name, resisted: !worked });
-          } else if (shrugged) {
-            if (log) log.push(`${victim.name} shrugs off ${spell.source}`);
-            rec.push('cast', { actor: pc.name, spell: spell.source, target: victim.name, immune: true });
-          }
-        } else {
-          if (log) log.push(`${pc.name} fumbles ${spell.source}`);
-          rec.push('cast', { actor: pc.name, spell: spell.source, fumbled: true });
-        }
+        doSpell(pc, spell, hurt, livePcs);
         continue;                              // reading a book is the whole turn
       }
 
       const attack = pc.attacks.find((a) => a.uses == null || a.uses > 0) || pc.attacks[0];
-      if (attack.uses != null) attack.uses -= 1;
+      // NB the RNG order here is load-bearing: pickTarget is drawn before the
+      // blast check, exactly as it always was, so that switching to the shared
+      // closure did not shift the stream by one draw and silently rewrite
+      // every published number. The fingerprint test is what proves it.
       const target = pickTarget(rng, side(foes));
       if (!target) break;
-      // Blast cuts both ways, and the party side of it was missing: a thrown
-      // blast sphere is a bomb, not a rock, and it was landing on one goblin.
-      if (attack.blast) {
-        rec.push('attack', { actor: pc.name, weapon: attack.name, blast: true, side: 'pc' });
-        for (const foe of side(foes)) {
-          applyDamage(rng, foe, rollDamage(rng, attack, attackModifier(pc, foe, abilities)), log, pc, rec);
-        }
-        continue;
-      }
-      const mod = attackModifier(pc, target, abilities);
-      const dmg = rollDamage(rng, attack, mod);
-      rec.push('attack', { actor: pc.name, weapon: attack.name, target: target.name, mod, side: 'pc' });
-      const prev = targeted.get(target);
-      // same-target attacks in one round collapse to the single highest die
-      if (prev == null || dmg > prev.dmg) targeted.set(target, { dmg, attacker: pc });
+      doAttack(pc, attack, target);
     }
     for (const [target, hit] of targeted) applyDamage(rng, target, hit.dmg, log, hit.attacker, rec);
 
@@ -708,21 +869,29 @@ export function simulate(pcs, foes, rng, opts = {}) {
   // skeleton falling is not a casualty, and counting it as one would make
   // Raise Dead look worse the better it worked.
   const roster = pcs.filter((p) => !p.summoned);
+  // Someone who withdrew is OUT of the fight but is emphatically not a
+  // casualty — walking away is the correct play in Cairn and counting it as a
+  // loss would make the arena punish the one decision the game is about. Only
+  // a pilot can withdraw, so `walked` is always empty in a simulated fight and
+  // none of the oracle's numbers move.
+  const walked = (c) => c.withdrawn;
+  const lost = (c) => !alive(c) && !walked(c);
   rec.push('end', {
     round,
     routed,
-    survivors: pcs.filter((p) => !p.summoned).filter(alive).map((p) => p.name),
+    survivors: roster.filter((p) => alive(p) || walked(p)).map((p) => p.name),
     foesLeft: side(foes).map((f) => f.name),
   });
 
-  const downPcs = roster.filter((p) => !alive(p));
+  const downPcs = roster.filter(lost);
   return {
     rounds: round,
     routed,
     wipe: downPcs.length === roster.length,
     casualties: downPcs.length,
+    withdrew: roster.filter(walked).map((p) => p.name),
     deaths: roster.filter((p) => p.dead).length,
-    survivors: roster.filter(alive).map((p) => p.name),
+    survivors: roster.filter((p) => alive(p) || walked(p)).map((p) => p.name),
     foesLeft: side(foes).length,
     firstCasualtyRound,
     log,

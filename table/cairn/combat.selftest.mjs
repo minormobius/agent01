@@ -21,7 +21,7 @@
 import { rollCharacter, rollParty, parseItem } from './roll.js';
 import { BESTIARY } from './monsters.js';
 import {
-  simulate, assess, findEncounters, band, BANDS,
+  simulate, fight, pcOptions, assess, findEncounters, band, BANDS,
   combatantFromCharacter, combatantFromMonster, applyScars,
 } from './combat.js';
 import { makeRng } from './roll.js';
@@ -431,7 +431,155 @@ ok(BESTIARY.length >= 80, `bestiary has ${BESTIARY.length} monsters`);
   }
 }
 
-// 10. and the whole thing is fast enough to run in a page --------------------
+// 10. the pilot and the oracle are ONE simulator ------------------------------
+//
+// combat.js exposes a generator; simulate() drives it with nobody piloting and
+// the arena drives it with a person choosing. The danger in that arrangement is
+// obvious — it is the same danger the event stream had — so two things are
+// pinned here: that turning the fight into a generator did not move a single
+// published number, and that a piloted fight resolves under the same rules.
+{
+  const goblin = BESTIARY.find((m) => m.id === 'goblin');
+  const troll = BESTIARY.find((m) => m.id === 'troll');
+  const foes = (m, n) => Array.from({ length: n }, (_, i) => combatantFromMonster(m, i));
+
+  // THE FINGERPRINT. A fixed matrix of fights, reduced to one string. This was
+  // captured before simulate() was refactored into a driver over fight(), and
+  // it is the only reason that refactor could be called safe: 78 green checks
+  // did not prove the numbers were unchanged, and this does.
+  {
+    const rows = [];
+    for (const id of ['goblin', 'bandit', 'troll', 'ogre', 'skeleton', 'wolf']) {
+      const m = BESTIARY.find((x) => x.id === id);
+      for (const n of [1, 3, 4]) {
+        for (const cnt of [1, 3, 5]) {
+          const r = simulate(party(n, `fp/${id}/${n}`), foes(m, cnt),
+            makeRng(`fp/${id}/${n}/${cnt}/0`), { events: true });
+          rows.push([id, n, cnt, r.rounds, r.casualties, r.deaths, r.wipe, r.routed,
+            r.foesLeft, r.survivors.join('|'), (r.events || []).length].join(','));
+        }
+      }
+    }
+    // a cheap stable digest — enough to catch one die moving anywhere
+    let h = 0;
+    const blob = rows.join(';');
+    for (let i = 0; i < blob.length; i++) h = (Math.imul(h, 31) + blob.charCodeAt(i)) | 0;
+    ok(rows.length === 54, `the fingerprint covers ${rows.length} fights`);
+    ok(h === -1647786003,
+      `54 recorded fights are bit-for-bit unchanged (digest ${h}) — if this is the only ` +
+      'failure you have altered the model, and every published number with it');
+  }
+
+  // A pilot answering every request resolves a real fight, under the same
+  // rules, and reaches an end.
+  {
+    const g = fight(party(4, 'pilot/1'), foes(goblin, 4), makeRng('pilot/1'),
+      { pilot: true, events: true });
+    let step = g.next();
+    let asked = 0;
+    while (!step.done) {
+      asked++;
+      const req = step.value;
+      ok(req.type === 'turn' && req.actor && Array.isArray(req.options) && req.options.length > 0,
+        'every request names its actor and offers at least one option');
+      const attack = req.options.find((o) => o.kind === 'attack');
+      const mark = req.foes.find((f) => !f.down);
+      step = g.next({ kind: 'attack', weapon: attack.weapon, target: mark && mark.name });
+      if (asked > 400) break;
+    }
+    ok(step.done, `a piloted fight terminates (${asked} decisions)`);
+    ok(asked > 0, 'and the pilot was actually asked');
+    const r = step.value;
+    ok(r.rounds >= 1 && Array.isArray(r.events), 'and it returns the same shape of result');
+  }
+
+  // WITHDRAWING IS NOT DYING. This is the whole point of adding it, and the
+  // invariant has to be stated carefully: you cannot simply declare that a
+  // fleeing party loses nobody, because round one's DEX save means some
+  // characters never get to act at all and the enemy swings regardless. What
+  // must hold is narrower and actually true — nobody who left is counted as
+  // lost.
+  {
+    let ran = 0, bodies = 0, walkers = 0, contradiction = 0;
+    for (let i = 0; i < 60; i++) {
+      const g = fight(party(4, `flee/${i}`), foes(troll, 4), makeRng(`flee/${i}`), { pilot: true });
+      let step = g.next();
+      while (!step.done) step = g.next({ kind: 'withdraw' });
+      const r = step.value;
+      ran++;
+      bodies += r.casualties;
+      walkers += r.withdrew.length;
+      // the invariant: a name cannot be both walked away and lost
+      if (r.withdrew.some((n) => !r.survivors.includes(n))) contradiction++;
+      if (r.casualties + r.withdrew.length > 4) contradiction++;
+    }
+    ok(contradiction === 0, `nobody is both a survivor and a casualty (${contradiction} of ${ran})`);
+    ok(walkers > 0, `people actually got out (${walkers} across ${ran} fights)`);
+
+    // And the claim worth measuring: leaving four trolls beats fighting them.
+    // If this ever fails, either withdrawal is broken or trolls are not scary,
+    // and both are worth being told about.
+    let stood = 0;
+    for (let i = 0; i < 60; i++) {
+      stood += simulate(party(4, `flee/${i}`), foes(troll, 4), makeRng(`flee/${i}`)).casualties;
+    }
+    ok(bodies < stood,
+      `walking away from four trolls costs less than fighting them ` +
+      `(${(bodies / ran).toFixed(2)} vs ${(stood / ran).toFixed(2)} bodies per fight)`);
+  }
+
+  // Withdrawing is only offered to a pilot, and the oracle therefore cannot
+  // take it — which is precisely why the oracle's numbers are a floor.
+  {
+    const r = simulate(party(4, 'pilot/3'), foes(troll, 4), makeRng('pilot/3'));
+    ok(Array.isArray(r.withdrew) && r.withdrew.length === 0,
+      'nobody withdraws in a simulated fight — the oracle stands and fights by definition');
+  }
+
+  // TWO OF THE SAME THING. A delver really can carry two sets of Soporific
+  // Darts — one from their background, one off a corpse — and the pilot first
+  // resolved a choice by NAME, so the second set could never be selected and
+  // never ran out. Options carry an index into the character's own array now.
+  {
+    const pc = party(1, 'dupes')[0];
+    pc.powers = [
+      { source: 'Soporific Darts', kind: 'disable', uses: 1 },
+      { source: 'Soporific Darts', kind: 'disable', uses: 1 },
+    ];
+    const opts = pcOptions(pc, [combatantFromMonster(goblin, 0)], null, true)
+      .filter((o) => o.kind === 'power');
+    ok(opts.length === 2, `both copies are offered (${opts.length})`);
+    ok(opts[0].at === 0 && opts[1].at === 1, 'and each knows which one it is');
+
+    // spend the SECOND one and check the first is untouched
+    const g = fight([pc], [combatantFromMonster(goblin, 0)], makeRng('dupes'), { pilot: true });
+    const step = g.next();
+    if (!step.done) g.next({ kind: 'power', at: 1, source: 'Soporific Darts', target: step.value.foes[0].name });
+    ok(pc.powers[1].uses === 0 && pc.powers[0].uses === 1,
+      `choosing the second copy spends the second copy (${pc.powers.map((x) => x.uses)})`);
+  }
+
+  // The options offered are legal and honest about cost.
+  {
+    const pcs = party(4, 'pilot/4');
+    const opts = pcOptions(pcs[0], foes(goblin, 3), null, true);
+    ok(opts.some((o) => o.kind === 'attack'), 'a character is always offered an attack');
+    ok(opts.some((o) => o.kind === 'withdraw'), 'and can always leave');
+    ok(opts.filter((o) => o.kind === 'attack').every((o) => o.uses === null || o.uses > 0),
+      'a spent one-use weapon is never offered');
+    // A caster with a full pack must be told that reading costs them their HP.
+    const caster = pcs.find((c) => (c.spells || []).length);
+    if (caster) {
+      const co = pcOptions(caster, foes(goblin, 3), null, true).filter((o) => o.kind === 'spell');
+      ok(co.every((o) => /Fatigue|pack/.test(o.note)),
+        'every spell states its Fatigue cost before it is spent');
+    } else {
+      ok(true, 'no caster in this party to check spell costing (skipped)');
+    }
+  }
+}
+
+// 11. and the whole thing is fast enough to run in a page --------------------
 {
   const t0 = Date.now();
   assess(party(4, 'perf'), Array.from({ length: 6 }, (_, i) =>
