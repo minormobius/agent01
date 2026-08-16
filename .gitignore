@@ -52,3 +52,6 @@ packages/homunculus/log/
 # Recovery-pass transcripts: force-added onto feature branches by the snippet,
 # collected at merge time, and asserted absent before the repo goes public.
 homunculus/inbox/
+
+# DOI resolution cache (scripts/check-dois.mjs) — local, and the repo root is served
+.doi-cache.json
