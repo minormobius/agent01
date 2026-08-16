@@ -298,6 +298,25 @@ part three from a search result could not see that parts one, two and four
 existed. `sci.selftest.mjs` asserts every page carries the strip, links all the
 others, and marks **exactly one** as current.
 
+## Automating this
+
+[`docs/SCI-LOOP.md`](../docs/SCI-LOOP.md) is the design for a loop that produces
+a wing like this one from a single instrument name: target → survey → angle →
+chart → engine → author → cohere, with eleven mechanical gates.
+
+Its load-bearing observation, and the reason it is worth reading before building
+anything: **the literature is what made the MRI run safe to leave alone.** Three
+constraints did the work — every claim cites a primary source, every number
+comes from a solver, every solver is checked against a closed form — and the
+third caught five substantive errors that would otherwise have shipped. The doc
+lists them, and lists what no gate can check.
+
+**`sci/` is hand-authored.** Any loop writes to its own tree and promotion is a
+human merge, for the same reason `foam/` is fenced off from `plant/`
+([`docs/LOOP-SPRINTS.md`](../docs/LOOP-SPRINTS.md) §1): this wing is the
+reference specimen the loop's output gets compared against, and a loop allowed
+to edit the rubric will.
+
 ## Adding an instrument
 
 1. `research/<name>-sources.md` first — the literature scan, with verification
