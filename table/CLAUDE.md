@@ -16,7 +16,7 @@ Procedural character sheets for tabletop RPGs. Repo-wide rules live in
 | Deploy | [`.github/workflows/deploy-table.yml`](../.github/workflows/deploy-table.yml) |
 | Uses | — |
 | Provides | — |
-| Serves | `/cairn`, `/cairn/encounter`, `/cairn/items` |
+| Serves | `/cairn`, `/cairn/encounter`, `/cairn/arena`, `/cairn/items` |
 
 Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) →
 `surfaces[]` where `surface == "table"`.
@@ -71,15 +71,16 @@ obligations it puts on us: [`cairn/LICENSE.md`](cairn/LICENSE.md).
 | `cairn/monsters.js` | **Generated.** The 84 bestiary stat blocks, parsed into numbers |
 | `cairn/tools/scrape-monsters.py` | What generated it |
 | `cairn/combat.js` | The encounter oracle: the combat simulator, the challenge metric, the bestiary search |
-| `cairn/combat.selftest.mjs` | 40 checks. **A simulator fails silently — run this** |
+| `cairn/combat.selftest.mjs` | 78 checks. **A simulator fails silently — run this** |
 | `cairn/items.js` | **Generated.** The marketplace, the 46 relics, the d100 spellbook table |
 | `cairn/tools/scrape-items.py` | What generated it |
 | `cairn/effects.js` | The mechanical vocabulary: what monster abilities and spells the simulator can see, and the count of what it cannot |
-| `cairn/effects.selftest.mjs` | 38 checks. **Every ability must have a measurable effect, not just parse** |
+| `cairn/effects.selftest.mjs` | 43 checks. **Every ability must have a measurable effect, not just parse** |
 | `cairn/delve.js` | Advancement: scars and loot on one axis, inside the ten slots |
 | `cairn/study.js` | What a slot is worth — item value measured in the same currency as an encounter |
-| `cairn/delve.selftest.mjs` | 45 checks over delve.js, study.js and items.js |
+| `cairn/delve.selftest.mjs` | 49 checks over delve.js, study.js and items.js |
 | `cairn/encounter/` | The oracle's page |
+| `cairn/arena/` | The replay: one recorded fight, drawn |
 | `cairn/items/` | The item study's page |
 
 Regenerate the data (only when the SRD itself changes):
@@ -103,7 +104,7 @@ add here, and all three are about not lying to a Warden:
 
 1. **Say it is a floor.** The model fights to the last body with no terrain, tricks, talking or
    retreat — the thing Cairn is explicitly about avoiding. Every surface of the page says so.
-2. **Mark what the model cannot see.** Abilities are modelled now (see below), but 20 creatures
+2. **Mark what the model cannot see.** Abilities are modelled now (see below), but five creatures
    still carry prose no vocabulary reads, and those encounters are harder than the verdict says.
    Each verdict lists what it simulated *and* what it could not; never let one imply it covered the
    whole creature.
@@ -162,6 +163,38 @@ Three rules for anything added here:
    options in the same currency (`actionValue`, with a removed character priced at six damage) and
    take the better one. A sweep over the whole bestiary asserts the direction.
 
+### /cairn/arena — watching one fight
+
+A percentage does not teach anyone the game. The arena takes any encounter the oracle has weighed
+and plays **one** of those fights back, event by event, on a phone-shaped map with a scrolling feed
+under it. Cairn's damage chain — roll, subtract armour, take it off hit protection, overflow into
+STR, save or take a critical — is the whole reason the game is lethal, and reading it happen line by
+line is faster than any explanation of it.
+
+The rule that keeps it honest: **the arena does not simulate anything.** `simulate(…, { events:
+true })` records a structured event stream and `arena/app.js` only draws it. There is no second
+combat implementation to drift out of step, and the selftest reconstructs the summary from the
+events alone and requires them to match. If the replay looks wrong, the model *is* wrong — which is
+the point, and is how the summon bug was found.
+
+Two consequences worth knowing before changing it:
+
+- **`{ events: true }` is opt-in and off in the oracle's hot loop.** The recorder allocates per
+  event; five thousand trials must not pay for a picture nobody is watching.
+- **The servant is the only combatant that joins mid-fight**, so the `cast`/`summon` event carries
+  its whole stat line. Anything else added to the roster after round zero must do the same, or it
+  fights as a name with nothing on the field.
+
+On the art, since these were decisions rather than defaults: Cairn has no grid, no facing and no
+positions, and the model simulates none — so the map is two facing ranks on bare ground and
+deliberately **not** a tactical map. Drawing a battle grid would invent rules the game does not
+have, in the one place a reader would believe them. Shape carries the side (party circles, enemy
+diamonds) so the fight is readable without colour; each token shows a name, a hit-protection bar and
+a state, and nothing else. A crowd stacks into ranks of eight and drops its labels — thirty
+identical names are noise. Everything on the field is in **user units on a 100-wide viewBox**, where
+1 unit is about 4px on a phone: a `font-size` or `stroke-width` that looks sane as pixels renders as
+a rope. That trap has now been walked into twice.
+
 ### /cairn/items — what a slot is worth
 
 Cairn puts magic in objects and caps objects at ten slots, so an item's real question is its value
@@ -216,6 +249,11 @@ real effect be told apart from noise.
   `combatantFromCharacter` **applies that 0 HP**, without which the pack has no weight at all and
   the whole item study measures nothing. Carrying saturates at about three delves — after that a
   veteran is choosing what to leave, not accumulating.
+- **A CSS `transform` on an SVG element REPLACES its `transform` attribute.** They do not compose.
+  The arena's acting token carried its own `translate()` and grew a `scale()` on its turn, so every
+  attacker teleported to the corner of the field the moment it swung. Position lives on an outer
+  `<g>`, classes on an inner one; and `transform-box`/`transform-origin` are set explicitly, because
+  the default origin is the middle of the *viewBox*, not of the thing being scaled.
 - **Player edits live only in the page.** Swapping two attributes (which Cairn
   allows) and taking an offered item change what is on screen, never what the
   seed rolls. Reloading the permalink returns the sheet as rolled. If you add

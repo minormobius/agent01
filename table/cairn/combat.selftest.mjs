@@ -295,7 +295,143 @@ ok(BESTIARY.length >= 80, `bestiary has ${BESTIARY.length} monsters`);
   ok(JSON.stringify(twice) === JSON.stringify(applyScars(rollCharacter('vet/2'), 3)), 'veterancy is deterministic');
 }
 
-// 9. and the whole thing is fast enough to run in a page ---------------------
+// 9. the event stream and the summary tell the same story --------------------
+//
+// The arena replays these events. If they can disagree with the result the
+// oracle counts, then the picture on screen is a second, unverified simulator
+// wearing the first one's clothes — which is the whole thing this file exists
+// to prevent. So: the events must reconstruct the summary, exactly.
+{
+  const goblin = BESTIARY.find((m) => m.id === 'goblin');
+  const troll = BESTIARY.find((m) => m.id === 'troll');
+  const run = (seed, n, monster, count, opts = {}) => simulate(
+    party(n, seed),
+    Array.from({ length: count }, (_, i) => combatantFromMonster(monster, i)),
+    makeRng(seed), { events: true, ...opts },
+  );
+
+  const r = run('ev/1', 4, goblin, 5);
+  ok(Array.isArray(r.events) && r.events.length > 3, `a recorded fight has events (${r.events.length})`);
+  ok(simulate(party(4, 'ev/1'), [combatantFromMonster(goblin, 0)], makeRng('ev/1')).events === null,
+    'and an unrecorded one carries none — the oracle pays nothing for the arena');
+
+  ok(r.events[0].kind === 'start' && r.events[r.events.length - 1].kind === 'end',
+    'the stream opens on start and closes on end');
+  ok(r.events[0].pcs.length === 4 && r.events[0].foes.length === 5,
+    'the opening event knows the whole field');
+  ok(r.events[0].pcs.every((c) => c.name && c.hp >= 0 && c.maxHp >= 1 && typeof c.armor === 'number'),
+    'every combatant in it is drawable — name, hp, maxHp, armour');
+
+  // Every event that names someone must name someone who is on the field. A
+  // typo'd or stale name is silent in the model and invisible on the map: the
+  // token simply never reacts.
+  {
+    const strays = [];
+    let checked = 0;
+    // Six fights, because one is not enough to hit every branch: the streams
+    // differ, and a name only goes stale in the branch that produced it.
+    for (const seed of ['ev/a', 'ev/b', 'ev/c', 'ev/d', 'ev/e', 'ev/f']) {
+      const ev = run(seed, 4, seed.endsWith('f') ? troll : goblin, 5).events;
+      const known = new Set([...ev[0].pcs, ...ev[0].foes].map((c) => c.name));
+      for (const e of ev) {
+        // the servant is the one combatant that joins mid-fight, and it brings
+        // its own record with it
+        if (e.summoned) known.add(e.summoned.name);
+        for (const key of ['actor', 'target']) {
+          if (e[key]) { checked++; if (!known.has(e[key])) strays.push(`${seed} ${e.kind}.${key}=${e[key]}`); }
+        }
+      }
+    }
+    ok(checked > 100 && strays.length === 0,
+      `every actor and target is on the field (${checked} names, ${strays.slice(0, 3).join(', ')})`);
+    ok(r.events.filter((e) => e.kind === 'attack').every((e) => e.actor && e.weapon && (e.target || e.blast)),
+      'every attack says who swung, with what, at whom — unless it is a blast');
+    ok(r.events.filter((e) => e.kind === 'hit').every((e) => e.target && typeof e.raw === 'number'
+      && typeof e.hp === 'number'), 'every hit says who took it, what was rolled and what is left');
+  }
+
+  // The reconstruction. Count the party's dead off the events alone and see
+  // whether it matches the number the oracle would have banked.
+  {
+    // A fight the party loses people in — reconciling 0 against 0 would pass
+    // for any implementation at all, including one that records nothing.
+    let bodies = 0;
+    for (const seed of ['ev/x1', 'ev/x2', 'ev/x3', 'ev/x4']) {
+      const f = run(seed, 4, troll, 3);
+      const pcNames = new Set(f.events[0].pcs.map((c) => c.name));
+      const downed = new Set();
+      for (const e of f.events) {
+        if (e.kind === 'down' && pcNames.has(e.target)) downed.add(e.target);
+        if ((e.kind === 'shake' || e.kind === 'regenerate') && pcNames.has(e.actor)) downed.delete(e.actor);
+      }
+      bodies += f.casualties;
+      ok(downed.size === f.casualties,
+        `${seed}: the events account for every casualty (${downed.size} vs ${f.casualties})`);
+      const end = f.events[f.events.length - 1];
+      ok(end.round === f.rounds, `${seed}: the stream ends on the fight's last round (${end.round})`);
+      ok(end.survivors.length === f.survivors.length, `${seed}: and agrees on who is left standing`);
+      ok(end.routed === f.routed, `${seed}: and on whether the enemy broke`);
+    }
+    ok(bodies > 0, `and those fights actually killed somebody (${bodies} down across four)`);
+  }
+
+  // The servant. It joins after the start event, so unless it travels with the
+  // cast that raises it the arena has a name with nothing on the field.
+  {
+    let seen = null;
+    for (let i = 0; i < 300 && !seen; i++) {
+      const pcs = party(4, `ev/nec/${i}`);
+      pcs[0].spells = [{ source: 'Spellbook: Raise Dead', kind: 'summon', hp: 3, STR: 8, DEX: 10, WIL: 3, dice: [6] }];
+      const ev = simulate(pcs, Array.from({ length: 4 }, (_, k) => combatantFromMonster(goblin, k)),
+        makeRng(`ev/nec/${i}`), { events: true }).events;
+      seen = ev.find((e) => e.kind === 'cast' && e.effect === 'summon') || null;
+    }
+    ok(seen && seen.summoned && seen.summoned.name && seen.summoned.maxHp >= 1,
+      'a summon carries the servant it raised — name, hp, armour, weapon');
+  }
+
+  // Damage arithmetic, off the wire. Cairn's chain is armour, then hit
+  // protection, then STR — and the arena prints each part as a separate
+  // clause, so a raw total that does not add up would be read as a rules bug
+  // by anyone watching.
+  {
+    const bad = run('ev/2', 4, goblin, 6).events
+      .filter((e) => e.kind === 'hit')
+      .filter((e) => (e.blocked || 0) + (e.toHp || 0) + (e.toStr || 0) !== e.raw);
+    ok(bad.length === 0, `blocked + hp + STR always equals the roll (${bad.length} mismatched)`);
+  }
+
+  // Determinism, because the arena's Replay button promises it.
+  {
+    const a = JSON.stringify(run('ev/3', 4, goblin, 4).events);
+    const b = JSON.stringify(run('ev/3', 4, goblin, 4).events);
+    ok(a === b, 'the same seed records the same fight, event for event');
+    ok(a !== JSON.stringify(run('ev/4', 4, goblin, 4).events), 'and a different seed does not');
+  }
+
+  // Recording must not change the fight. If it did, the arena would be showing
+  // a fight the oracle never played.
+  {
+    const summary = (o) => {
+      const x = simulate(party(4, 'ev/5'),
+        Array.from({ length: 5 }, (_, i) => combatantFromMonster(troll, i)),
+        makeRng('ev/5'), o);
+      return `${x.rounds}/${x.casualties}/${x.deaths}/${x.routed}/${x.survivors.join(',')}`;
+    };
+    ok(summary({}) === summary({ events: true }), 'watching a fight does not change it');
+  }
+
+  // The one event a reader will not believe unless it is real.
+  {
+    let regen = 0;
+    for (let i = 0; i < 40 && !regen; i++) {
+      regen = run(`ev/troll/${i}`, 4, troll, 2).events.filter((e) => e.kind === 'regenerate').length;
+    }
+    ok(regen > 0, 'trolls are recorded getting back up');
+  }
+}
+
+// 10. and the whole thing is fast enough to run in a page --------------------
 {
   const t0 = Date.now();
   assess(party(4, 'perf'), Array.from({ length: 6 }, (_, i) =>

@@ -146,13 +146,14 @@ function rollDamage(rng, attack, mod) {
  * Apply damage to one target, following the whole chain:
  * armour, then HP, then the overflow into STR, then the Critical Damage save.
  */
-function applyDamage(rng, target, raw, log, attacker) {
+function applyDamage(rng, target, raw, log, attacker, rec) {
   // "A creature you touch is protected from mundane attacks for one minute."
   // Every attack in the bestiary is a claw, a blade or a bite, so the model
   // treats them all as mundane — which makes Shield the strongest defensive
   // spell in the game, and the numbers should say so rather than hide it.
   if (target.warded > 0) {
     if (log) log.push(`${target.name} is untouched behind the shield`);
+    if (rec) rec.push('warded', { target: target.name });
     return;
   }
   // "Before calculating damage to HP, subtract the target's Armor value"
@@ -164,6 +165,17 @@ function applyDamage(rng, target, raw, log, attacker) {
   const toHp = direct ? 0 : Math.min(target.hp, dmg);
   target.hp -= toHp;
   const overflow = dmg - toHp;
+  if (rec) {
+    rec.push('hit', {
+      actor: attacker && attacker.name,
+      target: target.name,
+      raw,
+      blocked: raw - dmg,
+      toHp,
+      toStr: Math.max(0, overflow),
+      hp: target.hp,
+    });
+  }
   if (overflow <= 0) return;
 
   // A creature whose sting stays in the wound starts its damage the moment it
@@ -180,6 +192,7 @@ function applyDamage(rng, target, raw, log, attacker) {
     target.down = true;
     target.dead = true;                       // "If a PC's STR is reduced to 0, they die."
     if (log) log.push(`${target.name} is killed outright`);
+    if (rec) rec.push('down', { target: target.name, dead: true, cause: 'STR to 0' });
     return;
   }
   // "The target must then immediately make a STR save… using their new STR score."
@@ -194,6 +207,7 @@ function applyDamage(rng, target, raw, log, attacker) {
     const regrows = (target.combatAbilities || []).some((a) => a.kind === 'regenerate');
     target.dead = target.side !== 'pc' && !regrows;
     if (log) log.push(`${target.name} takes critical damage`);
+    if (rec) rec.push('down', { target: target.name, dead: target.dead, cause: 'critical damage' });
 
     // Half the bestiary carries a consequence for exactly this moment — an
     // extra d6 of STR gone, armour rent, a wound that leaves you deprived. It
@@ -229,6 +243,8 @@ function attackModifier(attacker, target, enabled = true) {
 
 /** Apply one ability to one target. Saves are rolled where the ability has one. */
 function applyEffect(rng, effect, target, log) {
+  // A passed save is the target resisting — reported so a replay can say
+  // "Vesper shrugs it off" instead of silently doing nothing.
   if (effect.save && save(rng, target[effect.save])) return false;
   switch (effect.kind) {
     case 'disable':
@@ -359,6 +375,22 @@ function pickTarget(rng, candidates) {
  * @param {boolean} [opts.surprise]      foes act first and the PCs skip their DEX save round
  * @param {number} [opts.maxRounds=30]   a standing draw is called, not looped forever
  */
+/**
+ * A structured record of a fight, for replaying it rather than summarising it.
+ *
+ * The oracle needs one number; a person needs to watch the thing happen. Both
+ * come off the SAME simulation — the arena does not re-implement combat, it
+ * plays back the events of a fight the oracle would have counted, so what you
+ * watch and what the percentage says can never drift apart.
+ */
+function recorder(on) {
+  const events = [];
+  return {
+    events,
+    push(kind, data) { if (on) events.push({ kind, ...data }); },
+  };
+}
+
 export function simulate(pcs, foes, rng, opts = {}) {
   // `abilities: false` runs the fight with magic and monster powers switched
   // off. It exists so the cost of modelling them can be MEASURED rather than
@@ -366,6 +398,7 @@ export function simulate(pcs, foes, rng, opts = {}) {
   const { morale = true, surprise = false, maxRounds = 30, abilities = true } = opts;
   const powersOf = (c) => (abilities ? c.abilities || [] : []);
   const log = opts.log ? [] : null;
+  const rec = recorder(opts.events);
   const startingFoes = foes.length;
   let round = 0;
   let routed = false;
@@ -396,11 +429,23 @@ export function simulate(pcs, foes, rng, opts = {}) {
 
   const acts = new Map();
   for (const pc of pcs) acts.set(pc, surprise ? false : save(rng, pc.DEX));
+  rec.push('start', {
+    round: 0,
+    pcs: pcs.map((c) => ({ name: c.name, hp: c.hp, maxHp: c.maxHp, STR: c.STR, armor: c.armor,
+      weapon: c.attacks[0] && c.attacks[0].name, side: 'pc' })),
+    foes: foes.map((c) => ({ name: c.name, hp: c.hp, maxHp: c.maxHp, STR: c.STR, armor: c.armor,
+      weapon: c.attacks[0] && c.attacks[0].name, side: 'foe' })),
+    surprise,
+  });
+  if (!surprise) {
+    for (const pc of pcs) if (!acts.get(pc)) rec.push('flatfooted', { actor: pc.name });
+  }
 
   const side = (list) => list.filter(alive);
 
   while (round < maxRounds) {
     round++;
+    rec.push('round', { round });
 
     // A charm or a befuddling can be shaken off; petrification cannot. Both
     // arrive as `disabled`, and only the first carries `mayShakeOff`.
@@ -410,6 +455,7 @@ export function simulate(pcs, foes, rng, opts = {}) {
         c.down = false;
         c.mayShakeOff = null;
         if (log) log.push(`${c.name} shakes it off`);
+        rec.push('shake', { actor: c.name });
       }
     }
     // The shield lasts a minute — six rounds of ten seconds.
@@ -419,7 +465,7 @@ export function simulate(pcs, foes, rng, opts = {}) {
       if (!c.dot || c.down) continue;
       let n = 0;
       for (const d of c.dot) n += rng.d(d);
-      applyDamage(rng, c, n + c.armor, log);        // the sting is already inside the armour
+      applyDamage(rng, c, n + c.armor, log, null, rec);   // the sting is already inside the armour
     }
 
     const livePcs = side(pcs);
@@ -463,6 +509,8 @@ export function simulate(pcs, foes, rng, opts = {}) {
         && (pw.kind === 'summon' ? 2 : actionValue(pw, pc, mark)) >= swing);
       if (power && side(foes).length) {
         power.uses -= 1;
+        rec.push('power', { actor: pc.name, source: power.source, effect: power.kind,
+          target: power.kind === 'heal' ? (hurt && hurt.name) : (mark && mark.name) });
         const victim = power.kind === 'heal' ? hurt : mark;
         if (power.kind === 'summon') {
           pcs.push({
@@ -492,17 +540,29 @@ export function simulate(pcs, foes, rng, opts = {}) {
             const ward = livePcs.slice().sort((a, b) => (a.hp + a.armor) - (b.hp + b.armor))[0] || pc;
             ward.warded = (ward.warded || 0) + (spell.rounds || 6);
             if (log) log.push(`${ward.name} is shielded from mundane attacks`);
+            rec.push('cast', { actor: pc.name, spell: spell.source, effect: 'ward', target: ward.name });
             continue;
           }
           if (spell.kind === 'summon') {
-            pcs.push({
+            const servant = {
               name: `${spell.source} (summoned)`, side: 'pc', summoned: true,
               hp: spell.hp || 3, maxHp: spell.hp || 3, armor: spell.armor || 0,
               STR: spell.STR || 8, DEX: spell.DEX || 10, WIL: spell.WIL || 3, maxSTR: spell.STR || 8,
               attacks: [{ name: 'summoned', dice: spell.dice || [6], blast: false }],
               spells: [], powers: [], combatAbilities: [],
-            });
+            };
+            pcs.push(servant);
             if (log) log.push(`${pc.name} raises a servant`);
+            // The servant is the only combatant that joins after the start
+            // event, so it travels with the event that makes it — otherwise it
+            // fights, takes blows and dies as a name with nothing on the field.
+            rec.push('cast', {
+              actor: pc.name, spell: spell.source, effect: 'summon',
+              summoned: {
+                name: servant.name, hp: servant.hp, maxHp: servant.maxHp, STR: servant.STR,
+                armor: servant.armor, weapon: servant.attacks[0].name, side: 'pc',
+              },
+            });
             continue;
           }
           const victim = spell.kind === 'heal' ? hurt : pickTarget(rng, side(foes));
@@ -511,10 +571,17 @@ export function simulate(pcs, foes, rng, opts = {}) {
           //  that the party can cast, the creatures that shrug it off matter.
           const ward = victim && (victim.combatAbilities || []).find((a) => a.kind === 'spellImmune');
           const shrugged = ward && (ward.chance == null || rng.raw() < ward.chance);
-          if (victim && !shrugged) applyEffect(rng, spell, victim, log);
-          else if (log && shrugged) log.push(`${victim.name} shrugs off ${spell.source}`);
-        } else if (log) {
-          log.push(`${pc.name} fumbles ${spell.source}`);
+          if (victim && !shrugged) {
+            const worked = applyEffect(rng, spell, victim, log);
+            rec.push('cast', { actor: pc.name, spell: spell.source, effect: spell.kind,
+              target: victim.name, resisted: !worked });
+          } else if (shrugged) {
+            if (log) log.push(`${victim.name} shrugs off ${spell.source}`);
+            rec.push('cast', { actor: pc.name, spell: spell.source, target: victim.name, immune: true });
+          }
+        } else {
+          if (log) log.push(`${pc.name} fumbles ${spell.source}`);
+          rec.push('cast', { actor: pc.name, spell: spell.source, fumbled: true });
         }
         continue;                              // reading a book is the whole turn
       }
@@ -526,17 +593,20 @@ export function simulate(pcs, foes, rng, opts = {}) {
       // Blast cuts both ways, and the party side of it was missing: a thrown
       // blast sphere is a bomb, not a rock, and it was landing on one goblin.
       if (attack.blast) {
+        rec.push('attack', { actor: pc.name, weapon: attack.name, blast: true, side: 'pc' });
         for (const foe of side(foes)) {
-          applyDamage(rng, foe, rollDamage(rng, attack, attackModifier(pc, foe, abilities)), log, pc);
+          applyDamage(rng, foe, rollDamage(rng, attack, attackModifier(pc, foe, abilities)), log, pc, rec);
         }
         continue;
       }
-      const dmg = rollDamage(rng, attack, attackModifier(pc, target, abilities));
+      const mod = attackModifier(pc, target, abilities);
+      const dmg = rollDamage(rng, attack, mod);
+      rec.push('attack', { actor: pc.name, weapon: attack.name, target: target.name, mod, side: 'pc' });
       const prev = targeted.get(target);
       // same-target attacks in one round collapse to the single highest die
       if (prev == null || dmg > prev.dmg) targeted.set(target, { dmg, attacker: pc });
     }
-    for (const [target, hit] of targeted) applyDamage(rng, target, hit.dmg, log, hit.attacker);
+    for (const [target, hit] of targeted) applyDamage(rng, target, hit.dmg, log, hit.attacker, rec);
 
     // REGENERATION. "Only when the body is burned…" — a stand-and-fight model
     // has no fire to apply, so a troll that goes down gets back up. That is not
@@ -546,6 +616,7 @@ export function simulate(pcs, foes, rng, opts = {}) {
         foe.down = false;
         foe.hp = Math.max(1, Math.floor(foe.maxHp / 2));
         if (log) log.push(`${foe.name} gets back up`);
+        rec.push('regenerate', { actor: foe.name, hp: foe.hp });
       }
     }
 
@@ -562,6 +633,7 @@ export function simulate(pcs, foes, rng, opts = {}) {
       if (leader && !alive(leader)) {
         routed = true;
         if (log) log.push('the leader falls and the rest break');
+        rec.push('rout', { round, reason: 'their leader is down' });
         break;
       }
       const checkFirst = casualties >= 1 && !checkedFirst;
@@ -573,6 +645,7 @@ export function simulate(pcs, foes, rng, opts = {}) {
         if (!save(rng, rally.WIL)) {
           routed = true;
           if (log) log.push(`the enemy routs in round ${round}`);
+          rec.push('rout', { round, reason: 'morale broke' });
           break;
         }
       }
@@ -593,6 +666,8 @@ export function simulate(pcs, foes, rng, opts = {}) {
         const spread = power.scope === 'all' ? side(pcs).length : 1;
         if (mark && worth * spread >= attackValue(foe, mark, side(pcs).length)) {
           const victims = power.scope === 'all' ? side(pcs) : [mark];
+          rec.push('ability', { actor: foe.name, effect: power.kind, note: power.note,
+            scope: power.scope, targets: victims.filter(Boolean).map((v) => v.name) });
           for (const victim of victims) if (victim) applyEffect(rng, power, victim, log);
           continue;
         }
@@ -602,7 +677,7 @@ export function simulate(pcs, foes, rng, opts = {}) {
       if (attack.blast) {
         // "Attacks with the Blast quality affect all targets in the noted area,
         //  rolling separately for each affected character."
-        for (const pc of side(pcs)) applyDamage(rng, pc, rollDamage(rng, attack, null), log, foe);
+        for (const pc of side(pcs)) applyDamage(rng, pc, rollDamage(rng, attack, null), log, foe, rec);
         continue;
       }
       const target = pickTarget(rng, side(pcs));
@@ -612,7 +687,9 @@ export function simulate(pcs, foes, rng, opts = {}) {
       const pack = abilities
         && powersOf(foe).some((a) => a.kind === 'packTactics')
         && side(foes).length > 1;
-      const dmg = rollDamage(rng, attack, pack ? 'enhanced' : attackModifier(foe, target, abilities));
+      const foeMod = pack ? 'enhanced' : attackModifier(foe, target, abilities);
+      const dmg = rollDamage(rng, attack, foeMod);
+      rec.push('attack', { actor: foe.name, weapon: attack.name, target: target.name, mod: foeMod, side: 'foe' });
       const prev = hitPcs.get(target);
       if (prev == null || dmg > prev.dmg) hitPcs.set(target, { dmg, attacker: foe });
 
@@ -622,7 +699,7 @@ export function simulate(pcs, foes, rng, opts = {}) {
         if (ability.trigger === 'onHit' && ability.self) applyEffect(rng, ability, foe, log);
       }
     }
-    for (const [target, hit] of hitPcs) applyDamage(rng, target, hit.dmg, log, hit.attacker);
+    for (const [target, hit] of hitPcs) applyDamage(rng, target, hit.dmg, log, hit.attacker, rec);
 
     if (!firstCasualtyRound && pcs.some((p) => !alive(p))) firstCasualtyRound = round;
   }
@@ -631,6 +708,13 @@ export function simulate(pcs, foes, rng, opts = {}) {
   // skeleton falling is not a casualty, and counting it as one would make
   // Raise Dead look worse the better it worked.
   const roster = pcs.filter((p) => !p.summoned);
+  rec.push('end', {
+    round,
+    routed,
+    survivors: pcs.filter((p) => !p.summoned).filter(alive).map((p) => p.name),
+    foesLeft: side(foes).map((f) => f.name),
+  });
+
   const downPcs = roster.filter((p) => !alive(p));
   return {
     rounds: round,
@@ -642,6 +726,7 @@ export function simulate(pcs, foes, rng, opts = {}) {
     foesLeft: side(foes).length,
     firstCasualtyRound,
     log,
+    events: opts.events ? rec.events : null,
   };
 }
 

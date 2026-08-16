@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Cairn arena — watch the fight</title>
+<meta name="description" content="Watch one Cairn fight play out round by round: who swings, what the dice said, who goes down and when the enemy breaks. The same simulation the encounter oracle counts five thousand times.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Cairn arena">
+<meta property="og:description" content="One fight, played out round by round — the same simulation the oracle counts five thousand times.">
+<meta property="og:url" content="https://table.mino.mobi/cairn/arena/">
+<meta name="twitter:card" content="summary">
+<style>
+/*
+ * ART DIRECTION, briefly, because these were choices:
+ *
+ * Cairn has no grid and no positions, and this model simulates none — so the
+ * arena is deliberately NOT a tactical map. It is two ranks facing each other
+ * on bare ground: enough space to see who is still standing and who is being
+ * hit, and no more. Drawing a battle grid would be a lie told in pixels.
+ *
+ * The party are circles, the enemy are diamonds — shape carries the side, so
+ * the fight is readable without colour, in a glance, at arm's length. Every
+ * token shows only a name, a hit-protection bar and a state; anything else
+ * belongs on the sheet, not on the floor.
+ *
+ * Mobile first: the map takes the upper two thirds, the feed the lower third,
+ * and neither the page nor the body ever scrolls — only the feed does.
+ */
+:root {
+  --bg: #f7f4ec; --panel: #fffdf7; --text: #1c1a17; --muted: #6d675c;
+  --rule: #d8d2c4; --rule-hard: #b3ab99;
+  --pc: #3f6d4e; --foe: #8a3324; --gold: #b08a2e;
+  --ground: #ece5d6;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12120f; --panel: #191915; --text: #ddd8cc; --muted: #8f887a;
+    --rule: #2e2d27; --rule-hard: #46443b;
+    --pc: #7dbb92; --foe: #e07a62; --gold: #d8b35a; --ground: #1c1c17;
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--serif);
+  display: flex; flex-direction: column; height: 100dvh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+a { color: var(--pc); }
+
+/* ------------------------------------------------------------------ bar -- */
+.bar {
+  display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.7rem;
+  border-bottom: 1px solid var(--rule); background: var(--panel); flex: 0 0 auto;
+}
+.bar .who { font-size: 0.9rem; font-weight: 600; flex: 1 1 auto; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar .who small { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); font-weight: 400; }
+.bar a.back { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.08em;
+  text-transform: uppercase; text-decoration: none; color: var(--muted); }
+.band {
+  font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase;
+  border: 1px solid currentColor; border-radius: 999px; padding: 0.1rem 0.45rem;
+}
+.band.routine { color: var(--pc); } .band.risky { color: var(--gold); }
+.band.deadly { color: #c2792e; } .band.lethal { color: var(--foe); }
+
+/* ------------------------------------------------------------------ map -- */
+.map { flex: 2 1 0; position: relative; overflow: hidden; background:
+  radial-gradient(ellipse at 50% 52%, var(--ground) 0%, var(--bg) 78%); }
+.round {
+  position: absolute; top: 0.5rem; left: 50%; transform: translateX(-50%);
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--muted); pointer-events: none;
+}
+svg.field { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.tok {
+  transition: opacity 260ms ease, transform 260ms ease;
+  /* Each token is an inner <g> whose parent carries the translate, so a CSS
+     transform here scales about the token's own centre. Both properties are
+     load-bearing: a CSS transform REPLACES the SVG transform attribute, and
+     the default origin (50% of the view-box) would fling the token across the
+     field. Do not put the translate on this element. */
+  transform-box: view-box; transform-origin: 0 0;
+}
+.tok .body { transition: fill 200ms ease, stroke 200ms ease; }
+.tok .name {
+  /* NB: inside an SVG this is USER UNITS, not pixels — the viewBox is 100 wide,
+     so 8.5 meant labels a twelfth of the field across, overlapping into mush. */
+  font-family: var(--mono); font-size: 2.7px; text-anchor: middle; fill: var(--text);
+}
+.tok .hpbar { fill: var(--rule); }
+.tok .hpfill { transition: width 260ms ease; }
+.tok.pc .body { fill: color-mix(in srgb, var(--pc) 22%, transparent); stroke: var(--pc); }
+.tok.pc .hpfill { fill: var(--pc); }
+.tok.foe .body { fill: color-mix(in srgb, var(--foe) 20%, transparent); stroke: var(--foe); }
+.tok.foe .hpfill { fill: var(--foe); }
+.tok.acting { transform: scale(1.12); }
+.tok.hurt .body { stroke-width: 2.4; }
+.tok.down { opacity: 0.28; }
+.tok.down .name { text-decoration: line-through; }
+.tok.dead { opacity: 0.15; }
+.tok.disabled .body { stroke-dasharray: 3 3; }
+/* raised, not recruited: it fights on the party's side and dies without
+   counting as a casualty, so it should not read as one of them */
+.tok.summoned .body { stroke-dasharray: 2 1.4; fill: none; }
+.tok.warded .body { stroke-width: 2.6; stroke: var(--gold); }
+
+/* Everything below is in USER UNITS on a 100-wide viewBox, so 1 ≈ 4px on a
+   phone. Widths that look sane as pixels are ropes here. */
+.fx { pointer-events: none; }
+.fx line { stroke-width: 0.7; stroke-linecap: round; opacity: 0; }
+.fx line.show { animation: swing 420ms ease-out; }
+@keyframes swing { 0% { opacity: 0; } 25% { opacity: 0.9; } 100% { opacity: 0; } }
+.fx circle.ripple { fill: none; stroke-width: 0.7; opacity: 0; }
+.fx circle.ripple.show { animation: ripple 620ms ease-out; }
+@keyframes ripple { 0% { r: 4; opacity: 0.85; } 100% { r: 34; opacity: 0; } }
+.pop {
+  position: absolute; font-family: var(--mono); font-size: 0.8rem; font-weight: 600;
+  transform: translate(-50%, -50%); pointer-events: none; opacity: 0;
+}
+.pop.show { animation: pop 900ms ease-out; }
+@keyframes pop {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+  20% { opacity: 1; transform: translate(-50%, -110%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -220%) scale(1); }
+}
+
+/* ----------------------------------------------------------------- feed -- */
+.feed {
+  flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  border-top: 1px solid var(--rule-hard); background: var(--panel);
+  padding: 0.5rem 0.7rem 1.2rem; -webkit-overflow-scrolling: touch;
+}
+.feed p { font-size: 0.86rem; line-height: 1.5; margin: 0.18rem 0; }
+.feed p.pc b { color: var(--pc); }
+.feed p.foe b { color: var(--foe); }
+.feed p.note { color: var(--muted); font-style: italic; }
+.feed p .n { font-family: var(--mono); font-size: 0.78rem; }
+.feed .sep {
+  font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--muted); border-bottom: 1px solid var(--rule); margin: 0.55rem 0 0.3rem; padding-bottom: 0.15rem;
+}
+.feed .verdict { margin-top: 0.6rem; font-weight: 600; }
+
+/* ------------------------------------------------------------- controls -- */
+.controls {
+  flex: 0 0 auto; display: flex; gap: 0.4rem; padding: 0.5rem 0.7rem;
+  border-top: 1px solid var(--rule); background: var(--panel);
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+}
+.controls button {
+  flex: 1 1 0; font-family: var(--mono); font-size: 0.72rem; padding: 0.55rem 0.3rem;
+  border: 1px solid var(--rule-hard); border-radius: 7px; background: var(--bg);
+  color: var(--text); cursor: pointer;
+}
+.controls button.primary { background: var(--pc); border-color: var(--pc); color: var(--panel); font-weight: 600; }
+.controls button:active { transform: translateY(1px); }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <a class="back" href="/cairn/encounter/">← oracle</a>
+  <div class="who" id="title">…</div>
+  <span class="band" id="band"></span>
+</div>
+
+<div class="map" id="map">
+  <div class="round" id="round">before the first round</div>
+  <svg class="field" id="field" preserveAspectRatio="xMidYMid meet"></svg>
+</div>
+
+<div class="feed" id="feed"></div>
+
+<div class="controls">
+  <button id="play" class="primary">▶ Play</button>
+  <button id="step">Step</button>
+  <button id="again">Replay</button>
+  <button id="next">New fight</button>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

@@ -94,6 +94,14 @@ input[type=range] { accent-color: var(--accent); }
 .kpi .v { font-family: var(--mono); font-size: 1.15rem; font-variant-numeric: tabular-nums; }
 .kpi .k { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
 .reading { margin-top: 0.8rem; font-size: 0.95rem; }
+a.watch {
+  display: inline-block; margin-top: 0.8rem; text-decoration: none;
+  font-family: var(--mono); font-size: 0.78rem; padding: 0.45rem 0.8rem;
+  border: 1px solid var(--accent); border-radius: 6px;
+  background: var(--accent); color: var(--panel); font-weight: 600;
+}
+a.watch:hover { filter: brightness(1.1); }
+a.watch .sub { font-weight: 400; opacity: 0.85; }
 .warn { margin-top: 0.7rem; color: var(--ink); font-size: 0.88rem; }
 
 table.results { width: 100%; border-collapse: collapse; font-size: 0.86rem; margin-top: 0.3rem; }

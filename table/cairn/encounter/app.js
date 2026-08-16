@@ -100,6 +100,20 @@ function reading(v, pcs, foesLabel) {
   return `${lead} ${first}${rout}`;
 }
 
+/**
+ * The arena runs one fight of exactly this encounter. It reads the same hash
+ * keys this page writes, so the link is the state — same seed, same party,
+ * same delves, same crowd, and therefore the same distribution the numbers
+ * above came out of.
+ */
+function arenaLink() {
+  const p = new URLSearchParams({
+    s: state.seed, n: String(state.size), m: state.monster, c: String(state.count),
+  });
+  if (state.delves) p.set('v', String(state.delves));
+  return `/cairn/arena/#${p}`;
+}
+
 function renderVerdict(v, pcs, monster, count) {
   const label = `${count} × ${monster.name}`;
   $('verdict').innerHTML = `
@@ -114,6 +128,8 @@ function renderVerdict(v, pcs, monster, count) {
       </div>
     </div>
     <p class="reading">${reading(v, pcs, label)}</p>
+    <p><a class="watch" href="${arenaLink()}">▶ Watch one of these fights
+      <span class="sub">— turn by turn</span></a></p>
     ${(() => {
       const { abilities, unread } = monsterAbilities(monster);
       const seen = abilities.length
