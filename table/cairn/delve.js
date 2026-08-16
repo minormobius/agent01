@@ -59,11 +59,32 @@ export function applyScar(state, n, rng) {
  * interesting part. Rope and lanterns compete for space with the sword.
  */
 const LOOT_MIX = [
-  { kind: 'gear', weight: 38 },
-  { kind: 'weapon', weight: 20 },
+  { kind: 'gear', weight: 34 },
+  { kind: 'weapon', weight: 18 },
   { kind: 'armor', weight: 12 },
   { kind: 'spellbook', weight: 14 },
-  { kind: 'relic', weight: 16 },
+  { kind: 'relic', weight: 14 },
+  // Cairn's most powerful objects are the ones that run out: a blast sphere is
+  // a d12 across the whole room, once. They come off the background tables
+  // rather than the shop, so the loot table carries them explicitly.
+  { kind: 'consumable', weight: 8 },
+];
+
+/**
+ * One-use and few-use items, taken verbatim from the backgrounds that grant
+ * them. Their `N use` is read by parseItem and spent in the fight.
+ */
+export const CONSUMABLES = [
+  'Blast Sphere (d12, *blast*, *bulky*, 1 use)',
+  'Fireseeds (d8, *blast*, 4 uses)',
+  'Pyrophoric Gel (1 use)',
+  'Spark Dust (3 uses)',
+  'Healing Unguent (restores d4 STR, 1 use)',
+  'Herbs Pouch (restore 1 STR, 3 uses)',
+  'Soporific Darts (STR save or fall asleep, 6 uses)',
+  'Bandages (3 uses)',
+  'Antitoxin (2 uses)',
+  'Aqua Vita (cures 1d6 STR, 1 use)',
 ];
 
 const TOTAL_WEIGHT = LOOT_MIX.reduce((n, l) => n + l.weight, 0);
@@ -87,6 +108,7 @@ export function rollLoot(rng) {
     const relic = pick(ITEMS.relics);
     return { ...parseItem(relic.text), kind, relic };
   }
+  if (kind === 'consumable') return { ...parseItem(pick(CONSUMABLES)), kind };
   const table = { gear: ITEMS.market.gear, weapon: ITEMS.market.weapons, armor: ITEMS.market.armor }[kind];
   return { ...parseItem(pick(table).text), kind };
 }
@@ -108,6 +130,9 @@ export function itemUtility(item) {
   if (item.damage) score += Math.max(...item.damage.match(/\d+/g).map(Number)) / 2;
   if (item.kind === 'relic') score += 2;
   if (item.kind === 'spellbook') score += 2;
+  // a bomb is worth carrying, but a spent one is dead weight — value it below
+  // a permanent weapon of the same die
+  if (item.kind === 'consumable') score += item.damage ? 1.5 : 0.5;
   if (item.capacity) score += item.capacity;         // a cart earns its own slots back
   return score / item.slots;                         // per slot, because slots are the currency
 }

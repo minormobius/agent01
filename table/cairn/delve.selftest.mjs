@@ -120,7 +120,8 @@ ok(ITEMS.market.weapons.length >= 12, `${ITEMS.market.weapons.length} weapons, s
     if (!item.name || item.slots > 2 || item.slots < 0) bad++;
   }
   ok(bad === 0, `2000 pieces of loot all pack into 0-2 slots (${bad} did not)`);
-  ok(Object.keys(kinds).length === 5, `all five kinds appear (${Object.keys(kinds).join(', ')})`);
+  ok(Object.keys(kinds).length === 6, `all six kinds appear (${Object.keys(kinds).join(', ')})`);
+  ok(kinds.consumable > 0, 'including the bombs and flasks, which are the sharpest thing a delve can find');
   ok(kinds.gear > kinds.relic, 'and the mundane outnumbers the magical, which is what makes slots hurt');
 }
 
@@ -177,8 +178,27 @@ ok(ITEMS.market.weapons.length >= 12, `${ITEMS.market.weapons.length} weapons, s
   ok(ranked.length > 50, `${ranked.length} items scored`);
   ok(ranked[0].perSlot >= ranked[ranked.length - 1].perSlot ||
      ranked[ranked.length - 1].perSlot === null, 'sorted by value per slot');
-  const armourFirst = ranked.slice(0, 8).filter((r) => r.item.armor).length;
-  ok(armourFirst >= 4, `armour dominates the top of the table (${armourFirst} of the top 8)`);
+  // Before the simulator could read a spellbook, armour owned the top of this
+  // table. It no longer does: removing a combatant outright beats soaking his
+  // hits, so the five combat spells sit above every piece of armour, and the
+  // first weapon does not appear until well down the list. The assertion is
+  // written against that ORDER rather than a count, so it keeps meaning
+  // something if the numbers move.
+  // The ordering, not the numbers — this is the shape of Cairn's economy of
+  // slots as the model measures it, and it has been rearranged twice already:
+  // once when spellbooks became readable, and again when one-use bombs stopped
+  // being infinite. A bomb is a d12 across the whole room for one slot and one
+  // throw, and nothing else in the game competes with that.
+  const rank = (pred) => ranked.findIndex((r) => pred(r.item));
+  const bomb = rank((i) => i.kind === 'consumable' && i.blast);
+  const spell = rank((i) => i.kind === 'spellbook');
+  const armour = rank((i) => i.armor);
+  const weapon = rank((i) => i.kind === 'weapon');
+  ok(bomb === 0, `a blast bomb is the single best thing per slot in the game (rank ${bomb + 1})`);
+  ok(armour < weapon, `armour beats plain weapons (ranks ${armour + 1} vs ${weapon + 1})`);
+  ok(spell < weapon, `and so does a combat spellbook (ranks ${spell + 1} vs ${weapon + 1})`);
+  ok(ranked.slice(0, 8).every((r) => r.item.kind !== 'weapon'),
+    'no ordinary weapon reaches the top eight');
 }
 
 // 8. the slot curve shows the cost of a full pack -------------------------

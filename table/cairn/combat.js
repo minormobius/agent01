@@ -19,7 +19,7 @@
 // Rules text quoted in comments is Cairn 2e by Yochai Gal, CC BY-SA 4.0.
 
 import { makeRng, packInventory, parseItem } from './roll.js';
-import { monsterAbilities, spellEffect, relicEffect } from './effects.js';
+import { monsterAbilities, spellEffect, itemEffect } from './effects.js';
 
 // --------------------------------------------------------------- combatants
 
@@ -40,6 +40,11 @@ export function combatantFromCharacter(character, extraItems) {
           name: w.name,
           dice: (w.damage.match(/d(\d+)/g) || ['d4']).map((d) => Number(d.slice(1))),
           blast: w.blast,
+          // A one-use blast sphere is the best thing in the pack for exactly
+          // one round. Without this it was the best thing in the pack for
+          // every round of every fight, which quietly armed a Fungal Forager
+          // with a repeating cannon.
+          uses: w.uses,
         }))
         // best weapon first — a character fights with their sword, not the
         // needle-knife they also happen to be carrying
@@ -61,11 +66,13 @@ export function combatantFromCharacter(character, extraItems) {
     .map((item) => ({ item, effect: spellEffect(item) }))
     .filter((s) => s.effect)
     .map((s) => ({ ...s.effect, source: s.item.name, kind: s.effect.kind, spell: true }));
+  // Relics, flasks and darts: things you USE rather than cast, so no Fatigue,
+  // but a hard limit on charges. Read from any item's own text, not just from
+  // the reliquary — the darts a Prowler starts with are as real as a relic.
   const powers = carried
-    .filter((item) => item.relic)
-    .map((item) => ({ item, effect: relicEffect(item.relic) }))
-    .filter((p) => p.effect)
-    .map((p) => ({ ...p.effect, source: p.item.name, uses: p.effect.uses || 1 }));
+    .map((item) => ({ item, effect: itemEffect(item) }))
+    .filter((pw) => pw.effect)
+    .map((pw) => ({ ...pw.effect, source: pw.item.name, uses: pw.effect.uses || 1 }));
 
   return {
     name: character.name,
@@ -140,12 +147,30 @@ function rollDamage(rng, attack, mod) {
  * armour, then HP, then the overflow into STR, then the Critical Damage save.
  */
 function applyDamage(rng, target, raw, log, attacker) {
+  // "A creature you touch is protected from mundane attacks for one minute."
+  // Every attack in the bestiary is a claw, a blade or a bite, so the model
+  // treats them all as mundane — which makes Shield the strongest defensive
+  // spell in the game, and the numbers should say so rather than hide it.
+  if (target.warded > 0) {
+    if (log) log.push(`${target.name} is untouched behind the shield`);
+    return;
+  }
   // "Before calculating damage to HP, subtract the target's Armor value"
   const dmg = Math.max(0, raw - target.armor);
-  const toHp = Math.min(target.hp, dmg);
+  // "Attacks deal direct STR damage (subtracting Armor)" — an invisible
+  // stalker goes past hit protection entirely, which is a different kind of
+  // dangerous from a big die and was previously modelled as neither.
+  const direct = (attacker && attacker.combatAbilities || []).some((a) => a.kind === 'directDamage');
+  const toHp = direct ? 0 : Math.min(target.hp, dmg);
   target.hp -= toHp;
   const overflow = dmg - toHp;
   if (overflow <= 0) return;
+
+  // A creature whose sting stays in the wound starts its damage the moment it
+  // draws STR, not when it hits.
+  for (const ability of (attacker && attacker.combatAbilities) || []) {
+    if (ability.trigger === 'onSTRDamage') applyEffect(rng, ability, target, log);
+  }
 
   // "Damage that reduces a target's HP below zero is subtracted from their STR
   //  by the amount of damage remaining."
@@ -174,7 +199,9 @@ function applyDamage(rng, target, raw, log, attacker) {
     // extra d6 of STR gone, armour rent, a wound that leaves you deprived. It
     // is the difference between a character who wakes up and one who does not.
     for (const ability of (attacker && attacker.combatAbilities) || []) {
-      if (ability.trigger === 'onCrit') applyEffect(rng, ability, target, log);
+      if (ability.trigger !== 'onCrit') continue;
+      // a self-heal on a critical (the red cap drinking) lands on the attacker
+      applyEffect(rng, ability, ability.self ? attacker : target, log);
     }
   }
 }
@@ -210,11 +237,23 @@ function applyEffect(rng, effect, target, log) {
       // of things that just felled them is not a survivor.
       target.disabled = true;
       target.down = true;
+      // "WIL save once per round to break free" — a befuddling or a charm can
+      // be shaken off, unlike petrification. Recorded so the round loop can
+      // give them the roll.
+      if (effect.rounds === 'save') target.mayShakeOff = effect.save || 'WIL';
       if (log) log.push(`${target.name} is out of the fight (${effect.note || effect.kind})`);
       return true;
+    case 'hpToZero':
+      // "A target is overcome with fear (HP drops to 0)" — no wound, but the
+      // next hit goes straight to STR, which is where fear becomes lethal.
+      target.hp = 0;
+      return true;
     case 'drain': {
-      let total = 0;
-      for (const d of effect.dice || [6]) total += rng.d(d);
+      // A flat drain (a storm giant's thunderclap is 4 STR, doubled against
+      // metal) rather than dice, when the SRD gives a number.
+      let total = effect.flat || 0;
+      if (total && effect.doubleIfArmor && target.armor >= effect.doubleIfArmor) total *= 2;
+      if (!total) for (const d of effect.dice || [6]) total += rng.d(d);
       const attr = effect.attr || 'STR';
       target[attr] -= total;
       if (target[attr] <= 0) {
@@ -222,6 +261,10 @@ function applyEffect(rng, effect, target, log) {
         target.down = true;
         target.dead = attr === 'STR';
         if (log) log.push(`${target.name} is emptied of ${attr}`);
+      } else if (effect.alsoDisable) {
+        // "save WIL or lose 1d4 WIL AND become paralyzed" — both halves.
+        target.disabled = true;
+        target.down = true;
       }
       return true;
     }
@@ -237,9 +280,67 @@ function applyEffect(rng, effect, target, log) {
       target.STR = Math.min(target.maxSTR, target.STR + total);
       return true;
     }
+    case 'dot':
+      // "the stingers are lodged into the target, dealing d4 each round"
+      target.dot = effect.dice || [4];
+      return true;
     default:
       return false;
   }
+}
+
+/**
+ * Would this creature rather use its special or hit someone?
+ *
+ * The first version always used the special, which quietly made several
+ * creatures SAFER than their stat block: a storm giant swapped a d12 great
+ * sword for a flat 4 STR thunderclap (toll 0.68 → 0.10), a sea hag traded
+ * d6+d6 claws for a stare that deals no damage at all (0.18 → 0.00), and a
+ * sphinx gave up blast claws to roar. A Warden picks whichever is worse for
+ * the party, so the model does too, valuing both options in the same currency:
+ * expected damage, with a removed character priced as roughly six of it.
+ *
+ * Being explicit about that exchange rate is the point. It is a judgement, it
+ * is the only one in the ability layer, and it is written down here rather than
+ * buried in a branch.
+ */
+const REMOVAL_WORTH = 6;
+
+function actionValue(effect, actor, target) {
+  const chance = effect.save ? 1 - Math.min(19, Math.max(1, target[effect.save])) / 20 : 1;
+  switch (effect.kind) {
+    case 'disable':
+      // shakeable charms are worth much less than petrification
+      return chance * (effect.rounds === 'save' ? REMOVAL_WORTH / 3 : REMOVAL_WORTH);
+    case 'hpToZero':
+      return chance * Math.min(target.hp, REMOVAL_WORTH / 2);
+    case 'drain': {
+      let expected = effect.flat || 0;
+      if (expected && effect.doubleIfArmor && target.armor >= effect.doubleIfArmor) expected *= 2;
+      if (!expected) for (const d of effect.dice || [6]) expected += (d + 1) / 2;
+      return chance * (expected + (effect.alsoDisable ? REMOVAL_WORTH / 2 : 0));
+    }
+    default:
+      return 0;
+  }
+}
+
+/**
+ * Expected damage from a creature's best attack, after the target's armour.
+ *
+ * Blast counts once per body in the way: a sphinx's d8+d8 claws land on the
+ * whole party, and ignoring that made it prefer roaring — which came out as
+ * the sphinx being SAFER once its abilities were modelled.
+ */
+function attackValue(actor, target, targets = 1) {
+  if (!actor.attacks.length) return 0;
+  let best = 0;
+  for (const attack of actor.attacks) {
+    const die = Math.max(...attack.dice);
+    const value = Math.max(0, (die + 1) / 2 - target.armor) * (attack.blast ? targets : 1);
+    best = Math.max(best, value);
+  }
+  return best;
 }
 
 /** Pick a living target. Cairn punishes focus fire — see the note in simulate. */
@@ -278,6 +379,21 @@ export function simulate(pcs, foes, rng, opts = {}) {
   // combatant for the duration of this fight and taken away again below.
   for (const c of [...pcs, ...foes]) c.combatAbilities = powersOf(c);
 
+  // "A detachment always travels with one leader wearing chain mail (2 Armor)
+  //  and a long sword (d10)… When testing Morale, save using the leader's WIL.
+  //  If the leader dies, the others will flee." One better-armed body changes
+  //  a bandit gang's arithmetic, and their nerve hangs on it.
+  const leaderRule = foes.length > 1 && powersOf(foes[0]).find((a) => a.kind === 'leader');
+  let leader = null;
+  if (leaderRule) {
+    leader = foes[0];
+    leader.armor = Math.max(leader.armor, leaderRule.armor || leader.armor);
+    leader.WIL = leaderRule.WIL || leader.WIL;
+    leader.attacks = [{ name: 'long sword', dice: leaderRule.dice || [10], blast: false }];
+    leader.isLeader = true;
+    leader.name = `${leader.name} (leader)`;
+  }
+
   const acts = new Map();
   for (const pc of pcs) acts.set(pc, surprise ? false : save(rng, pc.DEX));
 
@@ -285,6 +401,27 @@ export function simulate(pcs, foes, rng, opts = {}) {
 
   while (round < maxRounds) {
     round++;
+
+    // A charm or a befuddling can be shaken off; petrification cannot. Both
+    // arrive as `disabled`, and only the first carries `mayShakeOff`.
+    for (const c of [...pcs, ...foes]) {
+      if (c.disabled && c.mayShakeOff && save(rng, c[c.mayShakeOff])) {
+        c.disabled = false;
+        c.down = false;
+        c.mayShakeOff = null;
+        if (log) log.push(`${c.name} shakes it off`);
+      }
+    }
+    // The shield lasts a minute — six rounds of ten seconds.
+    for (const c of pcs) if (c.warded > 0) c.warded -= 1;
+    // Anything still carrying a lodged stinger bleeds for it.
+    for (const c of [...pcs, ...foes]) {
+      if (!c.dot || c.down) continue;
+      let n = 0;
+      for (const d of c.dot) n += rng.d(d);
+      applyDamage(rng, c, n + c.armor, log);        // the sting is already inside the armour
+    }
+
     const livePcs = side(pcs);
     const liveFoes = side(foes);
     if (!livePcs.length || !liveFoes.length || routed) break;
@@ -308,25 +445,92 @@ export function simulate(pcs, foes, rng, opts = {}) {
       // Which spell, if any. Removing an enemy outright beats patching an ally,
       // so a disable goes first; a heal is worth a turn only once someone has
       // actually been opened up, since STR only drops after HP is gone.
+      // Which spell, in what order. A ward first, because "protected from
+      // mundane attacks for one minute" outlasts the fight and the earlier it
+      // lands the more it stops; then removing an enemy; then a summon to soak
+      // hits; and a heal only once someone has actually been opened up.
       const hurt = livePcs.find((a) => a.STR <= a.maxSTR / 2);
+      // An object with charges costs no Fatigue, so it is cheap — but not
+      // automatic. A character holding both soporific darts and a blast sphere
+      // should throw the bomb, and the first version always reached for the
+      // darts, which quietly made the bomb worthless whenever the same
+      // character had anything else with charges. Powers are valued against
+      // swinging exactly as a monster's are.
+      const mark = side(foes).length ? pickTarget(rng, side(foes)) : null;
+      const swing = mark ? attackValue(pc, mark, side(foes).length) : 0;
+      const power = abilities && pc.powers && mark && pc.powers.find((pw) => pw.uses > 0
+        && (pw.kind === 'disable' || pw.kind === 'summon' || (hurt && pw.kind === 'heal'))
+        && (pw.kind === 'summon' ? 2 : actionValue(pw, pc, mark)) >= swing);
+      if (power && side(foes).length) {
+        power.uses -= 1;
+        const victim = power.kind === 'heal' ? hurt : mark;
+        if (power.kind === 'summon') {
+          pcs.push({
+            name: `${power.source} (summoned)`, side: 'pc', summoned: true,
+            hp: power.hp || 3, maxHp: power.hp || 3, armor: 0,
+            STR: power.STR || 6, DEX: power.DEX || 10, WIL: power.WIL || 4, maxSTR: power.STR || 6,
+            attacks: [{ name: power.source, dice: power.dice || [6], blast: false }],
+            spells: [], powers: [], combatAbilities: [],
+          });
+        } else if (victim) {
+          applyEffect(rng, power, victim, log);
+        }
+        continue;
+      }
+
       const spell = abilities && pc.spells && (
-        pc.spells.find((sp) => !sp.spent && sp.kind === 'disable')
+        pc.spells.find((sp) => !sp.spent && sp.kind === 'wardMundane')
+        || pc.spells.find((sp) => !sp.spent && sp.kind === 'disable')
+        || pc.spells.find((sp) => !sp.spent && sp.kind === 'summon')
         || (hurt && pc.spells.find((sp) => !sp.spent && sp.kind === 'heal')));
       if (spell && side(foes).length && !pc.encumbered) {
         spell.spent = true;
         if (pc.freeSlots > 0) pc.freeSlots -= 1; else { pc.hp = 0; pc.encumbered = true; }
         if (save(rng, pc.WIL)) {
+          // a ward goes on the most exposed ally, a summon onto the field
+          if (spell.kind === 'wardMundane') {
+            const ward = livePcs.slice().sort((a, b) => (a.hp + a.armor) - (b.hp + b.armor))[0] || pc;
+            ward.warded = (ward.warded || 0) + (spell.rounds || 6);
+            if (log) log.push(`${ward.name} is shielded from mundane attacks`);
+            continue;
+          }
+          if (spell.kind === 'summon') {
+            pcs.push({
+              name: `${spell.source} (summoned)`, side: 'pc', summoned: true,
+              hp: spell.hp || 3, maxHp: spell.hp || 3, armor: spell.armor || 0,
+              STR: spell.STR || 8, DEX: spell.DEX || 10, WIL: spell.WIL || 3, maxSTR: spell.STR || 8,
+              attacks: [{ name: 'summoned', dice: spell.dice || [6], blast: false }],
+              spells: [], powers: [], combatAbilities: [],
+            });
+            if (log) log.push(`${pc.name} raises a servant`);
+            continue;
+          }
           const victim = spell.kind === 'heal' ? hurt : pickTarget(rng, side(foes));
-          if (victim) applyEffect(rng, spell, victim, log);
+          // "Immune to charms and magical sleep" / "Immune to magic from
+          //  spellbooks" / a warp panther that resists it half the time. Now
+          //  that the party can cast, the creatures that shrug it off matter.
+          const ward = victim && (victim.combatAbilities || []).find((a) => a.kind === 'spellImmune');
+          const shrugged = ward && (ward.chance == null || rng.raw() < ward.chance);
+          if (victim && !shrugged) applyEffect(rng, spell, victim, log);
+          else if (log && shrugged) log.push(`${victim.name} shrugs off ${spell.source}`);
         } else if (log) {
           log.push(`${pc.name} fumbles ${spell.source}`);
         }
         continue;                              // reading a book is the whole turn
       }
 
-      const attack = pc.attacks[0];
+      const attack = pc.attacks.find((a) => a.uses == null || a.uses > 0) || pc.attacks[0];
+      if (attack.uses != null) attack.uses -= 1;
       const target = pickTarget(rng, side(foes));
       if (!target) break;
+      // Blast cuts both ways, and the party side of it was missing: a thrown
+      // blast sphere is a bomb, not a rock, and it was landing on one goblin.
+      if (attack.blast) {
+        for (const foe of side(foes)) {
+          applyDamage(rng, foe, rollDamage(rng, attack, attackModifier(pc, foe, abilities)), log, pc);
+        }
+        continue;
+      }
       const dmg = rollDamage(rng, attack, attackModifier(pc, target, abilities));
       const prev = targeted.get(target);
       // same-target attacks in one round collapse to the single highest die
@@ -352,15 +556,21 @@ export function simulate(pcs, foes, rng, opts = {}) {
     //  casualty and again when they lose half their number. Lone foes must save
     //  when they're reduced to 0 HP."
     if (morale && side(foes).length) {
-      const leader = side(foes)[0];
+      const rally = leader && alive(leader) ? leader : side(foes)[0];
       const lone = startingFoes === 1;
+      // "If the leader dies, the others will flee."
+      if (leader && !alive(leader)) {
+        routed = true;
+        if (log) log.push('the leader falls and the rest break');
+        break;
+      }
       const checkFirst = casualties >= 1 && !checkedFirst;
       const checkHalf = casualties >= Math.ceil(startingFoes / 2) && !checkedHalf;
-      const checkLone = lone && leader.hp === 0 && !checkedFirst;
+      const checkLone = lone && rally.hp === 0 && !checkedFirst;
       if (checkFirst || checkHalf || checkLone) {
         if (checkFirst || checkLone) checkedFirst = true;
         if (checkHalf) checkedHalf = true;
-        if (!save(rng, leader.WIL)) {
+        if (!save(rng, rally.WIL)) {
           routed = true;
           if (log) log.push(`the enemy routs in round ${round}`);
           break;
@@ -371,13 +581,21 @@ export function simulate(pcs, foes, rng, opts = {}) {
     // --- the foes' turn ---------------------------------------------------
     const hitPcs = new Map();
     for (const foe of side(foes)) {
-      // A creature with a turn ability uses it instead of biting: a banshee
-      // wails, a basilisk stares, a frost elf casts Sleep.
+      // A creature with a turn ability uses it when it is worth more than
+      // swinging: a banshee wails, a frost elf casts Sleep, a storm giant keeps
+      // hold of its great sword.
       const power = powersOf(foe).find((a) => a.trigger === 'onTurn');
       if (power) {
-        const victims = power.scope === 'all' ? side(pcs) : [pickTarget(rng, side(pcs))];
-        for (const victim of victims) if (victim) applyEffect(rng, power, victim, log);
-        continue;
+        const mark = pickTarget(rng, side(pcs));
+        const worth = mark ? actionValue(power, foe, mark) : 0;
+        // a scope-'all' ability hits everyone standing, so it is worth that
+        // much again per extra target
+        const spread = power.scope === 'all' ? side(pcs).length : 1;
+        if (mark && worth * spread >= attackValue(foe, mark, side(pcs).length)) {
+          const victims = power.scope === 'all' ? side(pcs) : [mark];
+          for (const victim of victims) if (victim) applyEffect(rng, power, victim, log);
+          continue;
+        }
       }
       if (!foe.attacks.length) continue;
       const attack = foe.attacks[rng.d(foe.attacks.length) - 1];
@@ -389,7 +607,12 @@ export function simulate(pcs, foes, rng, opts = {}) {
       }
       const target = pickTarget(rng, side(pcs));
       if (!target) break;
-      const dmg = rollDamage(rng, attack, attackModifier(foe, target, abilities));
+      // "Damage dealt is enhanced if an ally is also engaged with the same
+      //  enemy" — hobgoblins in a pair hit like a d12, and alone like a mace.
+      const pack = abilities
+        && powersOf(foe).some((a) => a.kind === 'packTactics')
+        && side(foes).length > 1;
+      const dmg = rollDamage(rng, attack, pack ? 'enhanced' : attackModifier(foe, target, abilities));
       const prev = hitPcs.get(target);
       if (prev == null || dmg > prev.dmg) hitPcs.set(target, { dmg, attacker: foe });
 
@@ -404,14 +627,18 @@ export function simulate(pcs, foes, rng, opts = {}) {
     if (!firstCasualtyRound && pcs.some((p) => !alive(p))) firstCasualtyRound = round;
   }
 
-  const downPcs = pcs.filter((p) => !alive(p));
+  // Summoned servants fight and die without counting against the party: a
+  // skeleton falling is not a casualty, and counting it as one would make
+  // Raise Dead look worse the better it worked.
+  const roster = pcs.filter((p) => !p.summoned);
+  const downPcs = roster.filter((p) => !alive(p));
   return {
     rounds: round,
     routed,
-    wipe: downPcs.length === pcs.length,
+    wipe: downPcs.length === roster.length,
     casualties: downPcs.length,
-    deaths: pcs.filter((p) => p.dead).length,
-    survivors: pcs.filter(alive).map((p) => p.name),
+    deaths: roster.filter((p) => p.dead).length,
+    survivors: roster.filter(alive).map((p) => p.name),
     foesLeft: side(foes).length,
     firstCasualtyRound,
     log,
@@ -433,6 +660,9 @@ const clone = (list) => list.map((c) => ({
   ...c,
   spells: c.spells ? c.spells.map((sp) => ({ ...sp })) : undefined,
   powers: c.powers ? c.powers.map((pw) => ({ ...pw })) : undefined,
+  // attacks carry remaining uses now, so they are per-fight state too — the
+  // same trap that made spellbooks cast nothing
+  attacks: c.attacks ? c.attacks.map((a) => ({ ...a })) : undefined,
 }));
 
 /**

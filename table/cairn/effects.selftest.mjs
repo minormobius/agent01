@@ -24,7 +24,8 @@ import { rollCharacter, rollParty, parseItem } from './roll.js';
 import { BESTIARY } from './monsters.js';
 import { ITEMS } from './items.js';
 import {
-  monsterAbilities, spellEffect, relicEffect, coverage, SPELL_EFFECTS, EFFECT_KINDS,
+  monsterAbilities, spellEffect, relicEffect, coverage,
+  SPELL_EFFECTS, SPELLS_OUT_OF_SCOPE, EFFECT_KINDS, OUT_OF_SCOPE,
 } from './effects.js';
 import { assess, combatantFromCharacter, combatantFromMonster } from './combat.js';
 import { basketToll, modelSees } from './study.js';
@@ -43,8 +44,15 @@ const abilityKinds = (id) => monsterAbilities(BESTIARY.find((m) => m.id === id))
   const c = coverage();
   ok(c.monsters.withModelledAbility >= 30,
     `${c.monsters.withModelledAbility} of ${c.monsters.total} creatures have a modelled ability`);
-  ok(c.spells.modelled >= 8 && c.spells.modelled <= 15,
-    `${c.spells.modelled} of 100 spells have combat mechanics — most of Cairn's magic is not for fighting`);
+  // Reading all hundred (rather than grepping them) moved this from 9 to 16,
+  // and put a reason next to 13 more that touch a fight but cannot be
+  // simulated. What matters is that the great majority remain non-combat:
+  // Cairn's magic is for getting into places, not for winning brawls.
+  ok(c.spells.modelled >= 14, `${c.spells.modelled} of 100 spells are modelled`);
+  ok(c.spells.excludedWithReason >= 10,
+    `${c.spells.excludedWithReason} more are combat-adjacent and excluded WITH A STATED REASON`);
+  ok(c.spells.modelled + c.spells.excludedWithReason < 40,
+    'and the clear majority of the hundred are not combat magic at all');
   ok(c.relics.modelledBeyondStats >= 4, `${c.relics.modelledBeyondStats} relics do something beyond their stat line`);
   ok(Object.keys(c.abilityKinds).every((k) => EFFECT_KINDS.includes(k)),
     `every classified ability is in the vocabulary (${Object.keys(c.abilityKinds).join(', ')})`);
@@ -67,6 +75,11 @@ const abilityKinds = (id) => monsterAbilities(BESTIARY.find((m) => m.id === id))
   ok(!spellEffect({ name: 'Spellbook: Adhere', spell: { name: 'Adhere' } }), 'Adhere is not');
   ok(Object.keys(SPELL_EFFECTS).every((n) => ITEMS.spells.some((s) => s.name === n)),
     'every curated spell name exists in the SRD table — a typo here silently disables a spell');
+  ok(Object.keys(SPELLS_OUT_OF_SCOPE).every((n) => ITEMS.spells.some((s) => s.name === n)),
+    'and so does every spell we have written off');
+  // Cairn sells a Shield and also has a Shield spell
+  ok(!spellEffect(parseItem('Shield (+1 Armor)')), 'a wooden shield is not the Shield spell');
+  ok(spellEffect({ ...parseItem('Spellbook: Shield'), spell: { name: 'Shield' } }), 'but the spellbook is');
   const named = ITEMS.relics.filter((r) => relicEffect(r));
   ok(named.some((r) => r.name === 'Jar of Ants'), 'the Jar of Ants is read (its stat block is in the notes)');
   ok(ITEMS.relics.filter((r) => relicEffect(r)).every((r) => relicEffect(r).kind),

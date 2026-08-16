@@ -109,6 +109,10 @@ export function parseItem(text) {
   const bulky = /\bbulky\b/i.test(flat);
   const armorMatch = flat.match(/\+?(\d)\s*Armou?r\b/i);
   const capacityMatch = flat.match(/\+(\d+)\s*slots?\b/i);
+  // "(d12, blast, bulky, 1 use)" — Cairn's bombs, flasks and charged relics are
+  // spent when used, and a model that ignores that arms a party with an
+  // infinite grenade launcher.
+  const usesMatch = flat.match(/(\d+)\s*(?:uses?|charges?)\b/i);
   // Only the parenthetical carries a weapon's damage die — a spellbook whose
   // description happens to say "d6" is not a weapon.
   const paren = flat.match(/\(([^)]*)\)/);
@@ -125,6 +129,7 @@ export function parseItem(text) {
     capacity: capacityMatch ? Number(capacityMatch[1]) : 0,
     damage: dmgMatch ? dmgMatch[0].replace(/\s+/g, '') : null,
     blast: /\bblast\b/i.test(flat),
+    uses: usesMatch ? Number(usesMatch[1]) : null,
   };
 }
 

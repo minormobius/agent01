@@ -18,7 +18,7 @@
 //   makes the first trial right and all 1,999 others progressively wronger —
 //   the single most likely way for this file to start lying.
 
-import { rollCharacter } from './roll.js';
+import { rollCharacter, rollParty, parseItem } from './roll.js';
 import { BESTIARY } from './monsters.js';
 import {
   simulate, assess, findEncounters, band, BANDS,
@@ -130,6 +130,49 @@ ok(BESTIARY.length >= 80, `bestiary has ${BESTIARY.length} monsters`);
     if (pc.STR === 18) survived++;
   }
   ok(survived < 400, 'even 18 STR fails a critical damage save sometimes (the natural 20)');
+}
+
+// 2b. consumables are spent, and bombs are bombs --------------------------
+{
+  // A one-use blast sphere was the best weapon in the pack for EVERY round of
+  // every fight, because nothing tracked its single use. Cairn's bombs and
+  // charged relics are the party's most powerful objects precisely because
+  // they run out.
+  const members = rollParty('bomb', 4).members;
+  const bomb = parseItem('Blast Sphere (d12, *blast*, *bulky*, 1 use)');
+  ok(bomb.uses === 1 && bomb.blast && bomb.damage === 'd12', 'a bomb parses its die, its blast and its single use');
+  ok(parseItem('Long Sword (d10, *bulky*)').uses === null, 'and a sword has no use limit');
+
+  const foes = (id, n) => () => Array.from({ length: n }, (_, i) =>
+    combatantFromMonster(BESTIARY.find((m) => m.id === id), i));
+  const carrying = (item) => members.map((c, i) => combatantFromCharacter(c, i === 0 ? [item] : []));
+  const toll = (item, fight) => assess(carrying(item), fight(), { trials: 2500, seed: 'bomb' }).toll;
+  const eternal = parseItem('Endless Sphere (d12, *blast*, *bulky*)');
+
+  // RUNNING OUT ONLY MATTERS IF THE FIGHT LASTS. Against six goblins, one
+  // throw ends it and a bottomless bag of bombs is worth almost nothing more;
+  // against two trolls it is worth a great deal. That relationship is the
+  // proof the use is actually being consumed — a single comparison would sit
+  // inside the noise, which is how this test first "passed" in the wrong
+  // direction.
+  const shortFight = foes('goblin', 6);
+  const longFight = foes('troll', 2);
+  const shortGap = toll(bomb, shortFight) - toll(eternal, shortFight);
+  const longGap = toll(bomb, longFight) - toll(eternal, longFight);
+  ok(longGap > shortGap + 0.03,
+    `running out costs more in a long fight than a short one (${shortGap.toFixed(3)} vs ${longGap.toFixed(3)})`);
+  ok(shortGap >= -0.02, 'and never negative: a limited bomb is never better than an unlimited one');
+
+  const none = toll(parseItem('Iron Pot'), shortFight);
+  ok(toll(bomb, shortFight) < none - 0.05,
+    `one throw still changes a fight (${none.toFixed(3)} → ${toll(bomb, shortFight).toFixed(3)})`);
+  ok(toll(bomb, shortFight) < toll(parseItem('Heavy Rock (d12, 1 use)'), shortFight),
+    'a blast bomb beats the same die thrown at one goblin');
+
+  // and uses must not leak between trials, like `spent` did for spellbooks
+  const short = assess(carrying(bomb), shortFight(), { trials: 40, seed: 'bomb' }).toll;
+  const long = assess(carrying(bomb), shortFight(), { trials: 2000, seed: 'bomb' }).toll;
+  ok(Math.abs(short - long) < 0.12, `the bomb is restocked each fight, not each simulation (${short.toFixed(3)} vs ${long.toFixed(3)})`);
 }
 
 // 3. monotonicity ------------------------------------------------------------

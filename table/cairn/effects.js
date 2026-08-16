@@ -44,11 +44,21 @@ import { BESTIARY } from './monsters.js';
  *   fatigue       { scope }                    fills a slot, which in a full pack means 0 HP
  *   sunder        {}                           destroys a piece of armour
  *   summon        { hp, STR, DEX, WIL, dice }  an ally joins the fight
+ *   directDamage  { dice }                     damage straight to STR, past HP
+ *   dot           { dice }                     damage every round once it lands
+ *   hpToZero      { save }                     fear: HP to 0 without a wound
+ *   spellImmune   {}                           the party's spellbooks do nothing to it
+ *   packTactics   {}                           attacks enhanced while an ally still stands
+ *   leader        { armor, dice, WIL }         one of them is better armed, and morale hangs on them
+ *   wardMundane   { rounds }                   untouchable by ordinary weapons for a while
  */
 export const EFFECT_KINDS = [
   'damage', 'drain', 'heal', 'disable', 'deprive',
   'impairedAgainst', 'enhancedAgainst', 'regenerate', 'critBonus', 'fatigue',
   'sunder', 'summon',
+  // added after auditing the twenty creatures the first pass left unread
+  'directDamage', 'dot', 'hpToZero', 'spellImmune', 'packTactics', 'leader',
+  'wardMundane',
 ];
 
 const dice = (s) => (s.match(/d(\d+)/g) || []).map((d) => Number(d.slice(1)));
@@ -103,6 +113,89 @@ export const CURATED = {
   'crypt-guardian': [
     { kind: 'impairedAgainst', unless: 'magic', note: 'non-magical attacks are impaired' },
   ],
+
+  // ---- the second pass: creatures the rules read as prose, read properly ----
+  //
+  // Each of these was sitting in the "cannot model" pile, and most of them were
+  // there because of a detail of phrasing rather than anything genuinely
+  // unmodellable — a save written against WIL instead of STR, a consequence in
+  // the sentence after the trigger, an ability that is a flat number.
+
+  bandit: [
+    { kind: 'leader', trigger: 'passive', armor: 2, dice: [10], WIL: 13,
+      note: 'a detachment travels with a leader in chain mail (2 Armor) and a long sword (d10); morale uses their WIL 13, and if they die the rest flee' },
+  ],
+  dryad: [
+    { kind: 'disable', trigger: 'onTurn', save: 'WIL', scope: 'one', rounds: 'save',
+      note: 'Befuddle: confused, wandering away — WIL save once per round to break free' },
+  ],
+  'swine-thing': [
+    { kind: 'disable', trigger: 'onTurn', save: 'WIL', scope: 'one', rounds: 'save',
+      note: 'Charm: obeys the swine until it is killed — WIL save once per round' },
+  ],
+  gargoyle: [
+    { kind: 'spellImmune', trigger: 'passive', note: 'immune to charms and magical sleep' },
+  ],
+  zombie: [
+    { kind: 'spellImmune', trigger: 'passive', note: 'immune to all mind-influencing effects' },
+    { kind: 'deprive', trigger: 'onCrit', scope: 'one', note: 'infected, and becomes deprived' },
+  ],
+  sphinx: [
+    { kind: 'spellImmune', trigger: 'passive', note: 'immune to magic of any kind' },
+    { kind: 'disable', trigger: 'onTurn', save: 'WIL', scope: 'all', rounds: 'save',
+      note: 'Roar: anyone in earshot must save WIL or flee in fear' },
+  ],
+  'sea-hag': [
+    { kind: 'spellImmune', trigger: 'passive', note: 'immune to magic from spellbooks' },
+    { kind: 'hpToZero', trigger: 'onTurn', save: 'WIL', scope: 'one',
+      note: 'Hideous Gaze: overcome with fear, HP drops to 0 — WIL save each round' },
+  ],
+  'warp-panther': [
+    { kind: 'spellImmune', trigger: 'passive', chance: 0.5,
+      note: 'resistant to magic: the caster must save WIL for the effect to land' },
+  ],
+  hobgoblin: [
+    { kind: 'packTactics', trigger: 'passive',
+      note: 'trained to fight together: damage is enhanced while an ally is engaged' },
+  ],
+  'invisible-stalker': [
+    { kind: 'directDamage', trigger: 'passive',
+      note: 'attacks deal direct STR damage, subtracting armour but ignoring HP' },
+  ],
+  'killer-bees': [
+    { kind: 'dot', trigger: 'onSTRDamage', dice: [4],
+      note: 'stingers lodge in the wound, dealing d4 each round until removed' },
+  ],
+  'storm-giant': [
+    { kind: 'drain', trigger: 'onTurn', scope: 'one', flat: 4, doubleIfArmor: 2,
+      note: 'Thunderclap: 4 STR to one target, doubled against metal armour' },
+  ],
+  'mind-lasher': [
+    { kind: 'drain', trigger: 'onTurn', save: 'WIL', scope: 'all', dice: [4], attr: 'WIL',
+      alsoDisable: true, note: 'Mind Blast: save WIL or lose 1d4 WIL and be paralysed' },
+  ],
+  mummy: [
+    { kind: 'deprive', trigger: 'onCrit', scope: 'one',
+      note: 'mummy rot: cannot recover STR until cured, and is deprived' },
+  ],
+  'red-cap': [
+    { kind: 'heal', trigger: 'onCrit', self: true, dice: [6],
+      note: 'eviscerates its victim, the blood restoring its own lost STR' },
+  ],
+};
+
+/**
+ * Creatures whose remaining prose is genuinely outside the model, and why. Kept
+ * as a list rather than a silence, so "unmodelled" is a decision with a reason
+ * attached instead of a gap nobody looked at.
+ */
+export const OUT_OF_SCOPE = {
+  aranea: 'fire damage is enhanced against it — the model has no damage types, and no PC carries fire',
+  'cave-locust': 'immune to most poisons; the model has no poison',
+  hellhound: 'immune to fire and heat; the model has no damage types',
+  lich: 'arrives with d6 undead servants — encounter composition, not an ability; add the servants yourself',
+  wight: 'STR loss is permanent — a between-fights consequence, and every fight here is the first',
+  'killer-bees-honey': 'their honey heals 1d6 STR: loot, not a combat action',
 };
 
 /**
@@ -198,6 +291,27 @@ export function monsterAbilities(monster) {
  * effect in the model, which for 78 of the 100 spells is simply true.
  */
 export const SPELL_EFFECTS = {
+  // --- found on the second pass, by reading all hundred instead of grepping.
+  // The first pass caught nine and missed these six.
+  //
+  // Shield looked like it would be the strongest of them — immunity to mundane
+  // attacks for six rounds is longer than most fights last. Measured, it is
+  // worth about half of Sleep: warding one body does less than removing one
+  // attacker, because the others simply hit somebody else. Prevention beats
+  // protection here, which is the same lesson Cure Wounds taught.
+  Shield: { kind: 'wardMundane', rounds: 6, self: false,
+    note: 'a creature you touch is protected from mundane attacks for one minute' },
+  Pacify: { kind: 'disable', scope: 'one', rounds: Infinity, save: null,
+    note: 'a creature near you has an aversion to violence' },
+  'Raise Dead': { kind: 'summon', hp: 3, STR: 8, DEX: 10, WIL: 3, dice: [6],
+    note: 'a skeleton rises from the ground to serve you' },
+  Miniaturize: { kind: 'disable', scope: 'one', rounds: Infinity, save: null,
+    note: 'a creature you touch is shrunk to the size of a mouse' },
+  Hatred: { kind: 'disable', scope: 'one', rounds: Infinity, save: null,
+    note: 'it develops a deep hatred of something else and wishes to destroy it' },
+  Web: { kind: 'disable', scope: 'one', rounds: 'save', save: 'STR',
+    note: 'your wrists shoot thick webbing' },
+
   Sleep: { kind: 'disable', scope: 'one', rounds: Infinity, save: null,
     note: 'a creature you can see falls into a light sleep' },
   'Cure Wounds': { kind: 'heal', dice: [4], attr: 'STR', note: 'restore 1d4 STR per day' },
@@ -218,9 +332,43 @@ export const SPELL_EFFECTS = {
   'Smoke Form': { kind: 'impairedAgainst', note: 'your body becomes living smoke' },
 };
 
-/** A spellbook item -> its combat effect, or null. */
+/**
+ * Spells that touch a fight but are NOT modelled, each with the reason. Written
+ * down because "we read all hundred" is only a claim worth anything if the
+ * judgement calls are visible: these are the ones where the SRD's sentence does
+ * not say enough to simulate, and guessing would invent rules Cairn does not
+ * have.
+ */
+export const SPELLS_OUT_OF_SCOPE = {
+  Frenzy: 'erupts in a frenzy of violence — the text does not say whether it fights better or worse',
+  'Fog Cloud': 'concealment cuts both ways and the model has no positions',
+  Slick: 'a slippery floor is a save the Warden calls, not a stated effect',
+  'Cone of Foam': 'coats the target, with no stated consequence',
+  Befuddle: 'no short-term memory: crippling in a conversation, unclear in a brawl',
+  'Elemental Wall': 'battlefield geometry, and the model has no battlefield',
+  Earthquake: 'damages structures; the model is four people in a room',
+  'Push/Pull': 'moves things; positioning is not simulated',
+  Shuffle: 'swaps two creatures, which only matters with positions',
+  'Magic Dampener': 'halves magical effects — meaningful only once both sides cast',
+  Hypnotize: 'one honest answer to one question: an interrogation, not a fight',
+  'Astral Prison': 'freezes an OBJECT, not a creature',
+  'Time Control': 'a 10% change to the speed of time in a bubble',
+};
+
+/**
+ * A spellbook item -> its combat effect, or null.
+ *
+ * IT MUST ACTUALLY BE A SPELLBOOK. Cairn sells a Shield for 10gp and also has a
+ * Shield spell, and matching on the bare name gave the wooden one a wizard's
+ * ward — it scored double every other +1 Armor item in the study, which is how
+ * the collision was noticed. A spellbook either carries its spell or says so in
+ * its name.
+ */
 export function spellEffect(item) {
-  const name = (item.spell && item.spell.name) || String(item.name || '').replace(/^Spellbook:\s*/, '');
+  if (!item) return null;
+  const labelled = /^Spellbook:\s*/.test(String(item.name || ''));
+  if (!item.spell && !labelled) return null;
+  const name = (item.spell && item.spell.name) || String(item.name).replace(/^Spellbook:\s*/, '');
   return SPELL_EFFECTS[name] || null;
 }
 
@@ -240,6 +388,18 @@ export const RELIC_EFFECTS = {
     note: 'a dozen miniature soldiers, grown' },
   'Last Breath': { kind: 'damage', dice: [6], uses: 1, note: 'a chipped short sword' },
 };
+
+/**
+ * Any item's combat effect read from its own text — the same regexes the
+ * reliquary uses, applied to the flasks and darts a background hands out.
+ * "Soporific Darts (STR save or fall asleep, 6 uses)" is a disable with six
+ * charges, and it was scoring zero because only relics were being read.
+ */
+export function itemEffect(item) {
+  if (!item || !item.text) return null;
+  if (item.relic) return relicEffect(item.relic);
+  return relicEffect({ id: null, name: item.name, quals: '', effect: item.text });
+}
 
 /**
  * A relic's combat effect beyond the armour and damage `parseItem` already
@@ -277,13 +437,19 @@ export function coverage() {
     if (unread.length) monstersPartly++;
   }
   const spellsSeen = ITEMS.spells.filter((s) => SPELL_EFFECTS[s.name]).length;
+  const spellsExcluded = Object.keys(SPELLS_OUT_OF_SCOPE).length;
   const relicsSeen = ITEMS.relics.filter((r) => relicEffect(r)).length;
   const kinds = {};
   for (const m of BESTIARY) for (const a of monsterAbilities(m).abilities) kinds[a.kind] = (kinds[a.kind] || 0) + 1;
 
   return {
     monsters: { total: BESTIARY.length, withModelledAbility: monstersSeen, withUnreadProse: monstersPartly },
-    spells: { total: ITEMS.spells.length, modelled: spellsSeen },
+    spells: {
+      total: ITEMS.spells.length,
+      modelled: spellsSeen,
+      // combat-adjacent but deliberately not modelled, each with a reason
+      excludedWithReason: spellsExcluded,
+    },
     relics: { total: ITEMS.relics.length, modelledBeyondStats: relicsSeen },
     abilityKinds: kinds,
   };

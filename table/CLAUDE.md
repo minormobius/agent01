@@ -131,10 +131,21 @@ damage die, so a simulator that sees only armour and dice is pricing a different
 `impairedAgainst`, `regenerate`, `sunder`, `heal`, `summon`, …), reads the SRD's prose into it where
 the prose is unambiguous, carries a curated table for the rest, and **counts the remainder**.
 
-Current coverage: **32 of 84 creatures** have a modelled ability, 20 still carry prose the model
-cannot read; **9 of 100 spells** have combat mechanics; 5 relics do something beyond their stat
-line. Those numbers are printed on the pages — a coverage claim a reader cannot check is just
-reassurance.
+Current coverage, after a second pass that went through the leftovers one at a time:
+
+| | |
+|---|---|
+| creatures with a modelled ability | **46 of 84** |
+| creatures with prose still unread | **5**, each named in `OUT_OF_SCOPE` with the reason |
+| spells simulated | **16 of 100** |
+| spells combat-adjacent but excluded | **13**, each named in `SPELLS_OUT_OF_SCOPE` with the reason |
+| spells that simply are not for fighting | **71** |
+| relics doing something beyond their stat line | 5 |
+
+Those numbers are printed on the pages — a coverage claim a reader cannot check is just
+reassurance. The second pass roughly halved the "cannot model" pile and found that most of it was
+phrasing rather than substance: a save written `save WIL` instead of `a WIL save`, a consequence in
+the sentence after its trigger, an ability stated as a flat number.
 
 Three rules for anything added here:
 
@@ -143,8 +154,13 @@ Three rules for anything added here:
    it is decorative.
 2. **Never approximate into the nearest shape.** If an effect is not expressible in the vocabulary,
    leave it unread and let it show up in the count. Guessing produces a number nobody can audit.
-3. **The 91 spells with no combat mechanics are not a gap.** They are what Cairn's magic is for.
+3. **The 71 spells with no combat mechanics are not a gap.** They are what Cairn's magic is for.
    Listing them as worth zero in a fight is only honest if the page says why.
+4. **A creature must never be made SAFER by its own abilities.** Modelling them as "use the special
+   instead of attacking" did exactly that to five creatures — a storm giant swapped a d12 great
+   sword for a flat 4 STR clap and its toll fell from 0.68 to 0.10. Both sides now value their
+   options in the same currency (`actionValue`, with a removed character priced at six damage) and
+   take the better one. A sweep over the whole bestiary asserts the direction.
 
 ### /cairn/items — what a slot is worth
 
@@ -179,6 +195,14 @@ real effect be told apart from noise.
   distance from the *middle* of the band (6 of 12 top results flipped when ranked by lethality
   instead, 0 of 12 after), and each candidate is confirmed against a second seed (9 of 49 flipped
   unconfirmed, 3 of 38 confirmed). A selftest measures both.
+- **Consumables run out, and forgetting that arms the party with a cannon.** Cairn's bombs come off
+  the background tables — `Blast Sphere (d12, blast, bulky, 1 use)` — and were modelled as a
+  permanent best weapon fired every round. `parseItem` reads `uses` now, attacks spend them, and
+  `clone()` copies attacks per trial for the same reason it copies spells. A blast bomb is
+  nonetheless the best thing per slot in the game; only long fights punish running out.
+- **Two things named Shield.** Cairn sells a wooden one and has a spell of the same name, and
+  matching a spell by bare item name gave the armour a wizard's ward — it scored double every other
+  +1 Armor item, which is how it was spotted. `spellEffect` requires an actual spellbook.
 - **A mis-wired ability is invisible, not broken.** Casting was fully implemented and moved the
   toll by nothing, because `spent` was set on a spells array shared by every trial — `clone()` in
   combat.js must deep-copy `spells` and `powers`, and any new per-fight state belongs there too.

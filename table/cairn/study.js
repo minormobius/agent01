@@ -24,6 +24,7 @@ import { parseItem } from './roll.js';
 import { ITEMS } from './items.js';
 import { BESTIARY } from './monsters.js';
 import { spellEffect, relicEffect, SPELL_EFFECTS } from './effects.js';
+import { CONSUMABLES } from './delve.js';
 
 /**
  * The fights an item is judged against. Fixed, so every item is scored on the
@@ -117,6 +118,9 @@ export function studyItems(characters, opts = {}) {
     ...ITEMS.spells
       .filter((sp) => SPELL_EFFECTS[sp.name])
       .map((sp) => ({ ...parseItem(`Spellbook: ${sp.name}`), kind: 'spellbook', spell: sp })),
+    // The bombs. A blast sphere is one throw across the whole room, and the
+    // most interesting entry in this table for it.
+    ...CONSUMABLES.map((text) => ({ ...parseItem(text), kind: 'consumable' })),
   ];
 
   const results = [];
@@ -134,6 +138,7 @@ export function studyItems(characters, opts = {}) {
  */
 export function modelSees(item) {
   if (item.armor || item.damage || item.capacity) return true;
+  if (item.uses && /STR/i.test(item.text || '')) return true;   // a healing draught
   if (item.spell && spellEffect(item)) return true;
   if (item.relic && relicEffect(item.relic)) return true;
   return false;
