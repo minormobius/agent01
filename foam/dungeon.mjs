@@ -66,7 +66,8 @@ export const DUNGEON_VERSION = 4;
 // when the certificate rerolls salts.
 // every tiling the dungeon speaks. grid/hex are lattice-keyed; the rest
 // carry their polygon per tile (`poly`) and adjoin by shared edges.
-export const TILE_SHAPES = ['grid', 'hex', 'penrose', 'ammann', 'seven', 'rhombille'];
+export const TILE_SHAPES = ['grid', 'hex', 'penrose', 'ammann', 'seven', 'rhombille',
+  'snub', 'kagome', 'rhombitri', 'truncsq'];
 
 export const SIZES = {
   s:  { nx: 5,  nz: 5,  layers: 3, subLayers: 2 },
@@ -152,6 +153,99 @@ function multigridRhombs(dirs, G, pre, minX, maxX, minZ, maxZ, u, probe, tiles) 
   }
 }
 
+// Archimedean MULTI-SHAPE tilings: a fixed unit cell of prototile polygons
+// (mixed species — squares with triangles, hexagons with octagons…) repeated
+// by two translations. Unit cells are derived at edge length 1 and were
+// coverage-verified offline (every point of the plane in exactly one tile);
+// each shape is then normalized so the MEAN tile area is tileSize² — an
+// octagon at edge = tileSize would dwarf a grid square and starve rooms.
+function archimedeanCell(shape) {
+  const s3 = Math.sqrt(3);
+  let protos, T1, T2;
+  if (shape === 'snub') {
+    // 3.3.4.3.4 snub square: squares rotated ±30° in a checkerboard on
+    // spacing a = (1+√3)/2, four gap triangles. All coordinates are
+    // combinations of e = (√3−1)/4 and f = (√3+1)/4 (a = 2f).
+    const e = (s3 - 1) / 4, f = (s3 + 1) / 4, a = 2 * f;
+    protos = [
+      [[-e, -f], [f, -e], [e, f], [-f, e]],                    // square +30°
+      [[f, -e], [a + e, -f], [a + f, e], [a - e, f]],          // square −30°
+      [[a - e, f], [e, f], [f, -e]],
+      [[f, -e], [f, -e - 1], [a + e, -f]],
+      [[2 * a - e, -f], [a + f, e], [a + e, -f]],
+      [[a + f, e + 1], [a - e, f], [a + f, e]],
+    ];
+    T1 = [a, a]; T2 = [a, -a];
+  } else if (shape === 'kagome') {
+    // 3.6.3.6 trihexagonal: hexagons sharing vertices, triangle gaps
+    const hex = [0, 1, 2, 3, 4, 5].map((k) => [Math.cos(k * Math.PI / 3), Math.sin(k * Math.PI / 3)]);
+    protos = [hex, [[1, 0], [1.5, s3 / 2], [0.5, s3 / 2]], [[0.5, -s3 / 2], [1.5, -s3 / 2], [1, 0]]];
+    T1 = [2, 0]; T2 = [1, s3];
+  } else if (shape === 'rhombitri') {
+    // 3.4.6.4 rhombitrihexagonal: hexagons, bridge squares on each edge,
+    // gap triangles with their apex AT the hex vertices. Neighbour hexes
+    // sit across the squares (edge normals 30°/90°) at a = 1+√3.
+    const a = 1 + s3;
+    const hex = [0, 1, 2, 3, 4, 5].map((k) => [Math.cos(k * Math.PI / 3), Math.sin(k * Math.PI / 3)]);
+    protos = [hex];
+    for (const ed of [0, 1, 2]) {
+      const p1 = hex[ed], p2 = hex[ed + 1];
+      const n = [Math.cos((ed + 0.5) * Math.PI / 3), Math.sin((ed + 0.5) * Math.PI / 3)];
+      protos.push([p1, [p1[0] + n[0], p1[1] + n[1]], [p2[0] + n[0], p2[1] + n[1]], p2]);
+    }
+    for (const vi of [0, 1]) {   // two lattice classes of the six vertex triangles
+      const v = hex[vi];
+      const nA = [Math.cos((vi - 0.5) * Math.PI / 3), Math.sin((vi - 0.5) * Math.PI / 3)];
+      const nB = [Math.cos((vi + 0.5) * Math.PI / 3), Math.sin((vi + 0.5) * Math.PI / 3)];
+      protos.push([v, [v[0] + nA[0], v[1] + nA[1]], [v[0] + nB[0], v[1] + nB[1]]]);
+    }
+    T1 = [a * s3 / 2, a / 2]; T2 = [0, a];
+  } else {
+    // 4.8.8 truncated square: axis-aligned octagons, 45° squares in the
+    // gaps, on a square lattice of a = 1+√2
+    const a = 1 + Math.SQRT2;
+    const R = 1 / (2 * Math.sin(Math.PI / 8));
+    const oct = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => [R * Math.cos((k + 0.5) * Math.PI / 4), R * Math.sin((k + 0.5) * Math.PI / 4)]);
+    const h = Math.SQRT1_2;
+    protos = [oct, [[a / 2 + h, a / 2], [a / 2, a / 2 + h], [a / 2 - h, a / 2], [a / 2, a / 2 - h]]];
+    T1 = [a, 0]; T2 = [0, a];
+  }
+  for (const P of protos) {     // normalize winding CCW
+    let s = 0;
+    for (let i = 0; i < P.length; i++) { const p = P[i], q = P[(i + 1) % P.length]; s += p[0] * q[1] - q[0] * p[1]; }
+    if (s < 0) P.reverse();
+  }
+  return { protos, T1, T2 };
+}
+
+function periodicTiling(shape, minX, maxX, minZ, maxZ, u, probe, tiles) {
+  const { protos, T1, T2 } = archimedeanCell(shape);
+  const det = T1[0] * T2[1] - T1[1] * T2[0];
+  const su = u * Math.sqrt(protos.length / Math.abs(det));  // mean tile area = u²
+  let m0 = Infinity, m1 = -Infinity, n0 = Infinity, n1 = -Infinity;
+  for (const [bx, bz] of [[minX, minZ], [minX, maxZ], [maxX, minZ], [maxX, maxZ]]) {
+    const x = bx / su, z = bz / su;
+    const m = (x * T2[1] - z * T2[0]) / det, n = (T1[0] * z - T1[1] * x) / det;
+    m0 = Math.min(m0, m); m1 = Math.max(m1, m);
+    n0 = Math.min(n0, n); n1 = Math.max(n1, n);
+  }
+  m0 = Math.floor(m0) - 2; m1 = Math.ceil(m1) + 2;
+  n0 = Math.floor(n0) - 2; n1 = Math.ceil(n1) + 2;
+  for (let m = m0; m <= m1; m++) {
+    for (let n = n0; n <= n1; n++) {
+      const ox = m * T1[0] + n * T2[0], oz = m * T1[1] + n * T2[1];
+      for (let p = 0; p < protos.length; p++) {
+        const verts = protos[p].map(([x, z]) => [(x + ox) * su, (z + oz) * su]);
+        let cx = 0, cz = 0;
+        for (const [vx, vz] of verts) { cx += vx; cz += vz; }
+        cx /= verts.length; cz /= verts.length;
+        const sf = probe(cx, cz);
+        if (sf) tiles.push({ key: p + '.' + m + '.' + n, x: cx, z: cz, y: sf.y, face: sf.face, kind: 'floor', poly: verts });
+      }
+    }
+  }
+}
+
 export function discretizeRoom(pocket, node, shape, tileSize) {
   const faces = node.faces.map((fi) => pocket.faces[fi]);
   let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
@@ -207,6 +301,8 @@ export function discretizeRoom(pocket, node, shape, tileSize) {
       const dirs = [0, 1, 2, 3, 4, 5, 6].map((k) => [Math.cos(2 * Math.PI * k / 7), Math.sin(2 * Math.PI * k / 7)]);
       multigridRhombs(dirs, G, 2 / 7, minX, maxX, minZ, maxZ, u, probe, tiles);
     }
+  } else if (shape === 'snub' || shape === 'kagome' || shape === 'rhombitri' || shape === 'truncsq') {
+    periodicTiling(shape, minX, maxX, minZ, maxZ, tileSize, probe, tiles);
   } else if (shape === 'rhombille') {
     // tumbling blocks: 60°/120° rhombs in three orientations, each the
     // union of two triangles of the triangular lattice under a perfect

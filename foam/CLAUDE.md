@@ -28,7 +28,8 @@ top-layer target chamber; n ENDPOINTS are rolled deep in the foam
 path per endpoint is wayfound over the certified crossing graph — shortest by
 door count, and among equally short continuations always the **maximal
 gradient down** (the puzzle's oracle climbs; the dungeon descends). Each
-room's floor is then discretized into tiles (six shapes, grid to Penrose)
+room's floor is then discretized into tiles (ten shapes, grid to Penrose
+to mixed Archimedean)
 on a single global tiling at a chosen scale relative to the chamber scale, every tile
 carrying the exact floor-plane height under its centre. The page renders a
 three.js CAD view (foam ghost wireframe, tiled rooms shaded by depth, door
@@ -61,19 +62,27 @@ win state when every endpoint is found. Movement is budgeted VTT-style
 (`reachableWithin` in the crawl module): the movement slider sets
 tiles-per-turn, legal squares light shaded by cost, in-reach doors glow,
 clicking a lit tile walks the shortest path (each step visibly consumed),
-end turn refreshes the budget. SIX tile shapes (`TILE_SHAPES` in
-dungeon.mjs): grid, hex, and four poly-carried tilings — PENROSE (P3
+end turn refreshes the budget. TEN tile shapes (`TILE_SHAPES` in
+dungeon.mjs): grid, hex, and eight poly-carried tilings — PENROSE (P3
 rhombs), AMMANN (Ammann–Beenker squares+rhombs, 4-grid), SEVEN (sevenfold
 rhombs, 3 species, 7-grid) all via one generic de Bruijn multigrid dual
 (`multigridRhombs`: fixed generic offsets = one global aperiodic tiling;
 enumeration runs over the bbox pre-image since the dual maps p → (N/2)·p;
 vertices are integer combos of the unit grid dirs, so neighbours share
-corners bit-identically), plus RHOMBILLE (tumbling blocks — triangular
+corners bit-identically), RHOMBILLE (tumbling blocks — triangular
 lattice with triangle pairs matched by (i−j) mod 3; periodic but carries
-`poly` like the others). Tiles carry `poly` winding-normalized CCW. The
-crawl layer derives poly-shape adjacency from shared polygon edges,
-content lines walk by ANGLE instead of lattice direction, and every
-renderer takes `t.poly` as authoritative when present. Dungeon `SIZES` (s/m/l/xl,
+`poly` like the others), and four MULTI-SHAPE Archimedean tilings via
+`periodicTiling`/`archimedeanCell` (a fixed unit cell of mixed prototile
+polygons under two translations, coverage-verified; normalized so the
+MEAN tile area is tileSize²): SNUB (3.3.4.3.4 tilted squares+triangles),
+KAGOME (3.6.3.6 hexagons+triangles), RHOMBITRI (3.4.6.4
+triangles+squares+hexagons), TRUNCSQ (4.8.8 octagons+squares). Tiles
+carry `poly` winding-normalized CCW; renderers fan-triangulate from
+vertex 0, which is safe because every tile is convex — keep new tilings
+convex or fix the fans. The crawl layer derives poly-shape adjacency
+from shared polygon edges, content lines walk by ANGLE instead of
+lattice direction, and every renderer takes `t.poly` as authoritative
+when present. Dungeon `SIZES` (s/m/l/xl,
 dungeon.mjs) set the pocket dims and ride the permalink `size` param; absent = m = the
 original geometry, so old permalinks are unaffected. Golden pins hash only
 the geometry-bearing export subset, so metadata additions don't shift them.

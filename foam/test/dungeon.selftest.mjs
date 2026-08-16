@@ -544,40 +544,61 @@ for (const seed of SEEDS) {
   ok(JSON.stringify(tuningFromParam(tuningToParam(T))) === JSON.stringify(T), 'tuning round-trips through the hash param');
 }
 
-// -- POLY TILINGS (penrose, ammann–beenker, sevenfold, rhombille): tiles
+// -- POLY TILINGS (penrose, ammann–beenker, sevenfold, rhombille, and the
+//    Archimedean multi-shape tilings snub/kagome/rhombitri/truncsq): tiles
 //    that carry their polygon, adjoin by shared edges, and behave as
 //    first-class citizens of the whole stack
 {
   const { rollContent, contentBlocked } = await import('../dungeon-content.mjs');
   const { roomOutlines, dungeonToUVTT } = await import('../dungeon-export.mjs');
-  const SPECIES = { penrose: 2, ammann: 2, seven: 3, rhombille: 1 };
-  for (const [shapeName, seed] of [['penrose', 1], ['penrose', 5], ['ammann', 5], ['seven', 5], ['rhombille', 5]]) {
+  // species = distinct tile shapes; edge = edge length in units of tileSize
+  // (the Archimedean multi-shape tilings are normalized to MEAN tile area
+  // = tileSize², so their edges are shorter or longer than tileSize);
+  // ngons = the vertex counts the tiling is allowed to contain
+  const s3 = Math.sqrt(3), s2 = Math.SQRT2;
+  const POLY = {
+    penrose:   { species: 2, edge: 1, ngons: [4] },
+    ammann:    { species: 2, edge: 1, ngons: [4] },
+    seven:     { species: 3, edge: 1, ngons: [4] },
+    rhombille: { species: 1, edge: 1, ngons: [4] },
+    snub:      { species: 2, edge: Math.sqrt(6 / (2 * ((1 + s3) / 2) ** 2)), ngons: [3, 4] },
+    kagome:    { species: 2, edge: Math.sqrt(3 / (2 * s3)), ngons: [3, 6] },
+    rhombitri: { species: 3, edge: Math.sqrt(6 / ((1 + s3) ** 2 * s3 / 2)), ngons: [3, 4, 6] },
+    truncsq:   { species: 2, edge: Math.sqrt(2 / (1 + s2) ** 2), ngons: [4, 8] },
+  };
+  for (const [shapeName, seed] of [['penrose', 1], ['penrose', 5], ['ammann', 5], ['seven', 5], ['rhombille', 5],
+    ['snub', 5], ['kagome', 5], ['rhombitri', 5], ['truncsq', 5]]) {
     const d = generateDungeon({ seed, endpoints: 3, tileShape: shapeName, tileScale: 0.35 });
     const J = dungeonToJSON(d);
     const tag = shapeName + ' ' + seed;
     // determinism
     const J2 = dungeonToJSON(generateDungeon({ seed, endpoints: 3, tileShape: shapeName, tileScale: 0.35 }));
     ok(JSON.stringify(J) === JSON.stringify(J2), `${tag}: deterministic`);
-    // rhomb geometry: 4-gon polys, all edges = tileSize, exactly two shapes
+    // tile geometry: polys of the allowed n-gon orders, every edge at the
+    // shape's edge length, exactly the expected number of species
+    const spec = POLY[shapeName];
     const areas = new Map();
     let polyOk = true, edgeOk = true;
     for (const r of J.rooms) {
       for (const t of r.tiles) {
         if (t.key === 'c') continue;
-        if (!t.poly || t.poly.length !== 4) { polyOk = false; continue; }
-        for (let i = 0; i < 4; i++) {
-          const a = t.poly[i], b = t.poly[(i + 1) % 4];
-          if (Math.abs(Math.hypot(b[0] - a[0], b[1] - a[1]) - J.tile.size) > 0.02) edgeOk = false;
+        if (!t.poly || !spec.ngons.includes(t.poly.length)) { polyOk = false; continue; }
+        for (let i = 0; i < t.poly.length; i++) {
+          const a = t.poly[i], b = t.poly[(i + 1) % t.poly.length];
+          if (Math.abs(Math.hypot(b[0] - a[0], b[1] - a[1]) - spec.edge * J.tile.size) > 0.02) edgeOk = false;
         }
-        const [p0, p1, p2] = t.poly;
-        const ar = Math.abs((p1[0] - p0[0]) * (p2[1] - p0[1]) - (p1[1] - p0[1]) * (p2[0] - p0[0]));
-        const bin = Math.round(ar / (J.tile.size * J.tile.size) * 10);   // tolerant binning
+        let sh = 0;                                        // shoelace area
+        for (let i = 0; i < t.poly.length; i++) {
+          const a = t.poly[i], b = t.poly[(i + 1) % t.poly.length];
+          sh += a[0] * b[1] - b[0] * a[1];
+        }
+        const bin = Math.round(Math.abs(sh / 2) / (J.tile.size * J.tile.size) * 8);  // tolerant binning
         areas.set(bin, (areas.get(bin) ?? 0) + 1);
       }
     }
-    ok(polyOk, `${tag}: every tile carries a 4-vertex polygon`);
-    ok(edgeOk, `${tag}: every tile edge = tileSize`);
-    ok(areas.size === SPECIES[shapeName], `${tag}: ${SPECIES[shapeName]} tile species, got ${areas.size}`);
+    ok(polyOk, `${tag}: every tile is a ${spec.ngons.join('/')}-gon with its polygon`);
+    ok(edgeOk, `${tag}: every tile edge = ${spec.edge.toFixed(3)}·tileSize`);
+    ok(areas.size === spec.species, `${tag}: ${spec.species} tile species, got ${areas.size}`);
     // density + full crawlability through shared-edge adjacency
     const tiles = J.rooms.reduce((a, r) => a + r.tiles.length, 0);
     ok(tiles / J.rooms.length > 4, `${tag}: dense (${(tiles / J.rooms.length).toFixed(1)} rhombs/room)`);
