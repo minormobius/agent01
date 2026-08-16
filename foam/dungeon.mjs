@@ -41,7 +41,15 @@ import { generatePocket, fnv, mulberry, pointInPolyXZ } from './foamworld.js';
 // sub-layer of foam below, and the entrance is the roomiest top-layer
 // chamber of the LARGEST connected region (a merely-roomy chamber can sit
 // in an isolated pocket).
-export const DUNGEON_VERSION = 2;
+//
+// v2 → v3: TRAPDOOR PASSAGES. A trapdoor is a floor tile whose membrane
+// opens: you drop into the chamber directly beneath it (the floor face's
+// other cell — geometrically real). The landing is off-dungeon foam, and a
+// certified corkscrew of SECRET rooms climbs from there until it surfaces
+// through a HATCH in the floor of a different path room. One-way down,
+// two-way hatch, provably navigable — a tunnel through foam the main
+// dungeon never uses, not a branch.
+export const DUNGEON_VERSION = 3;
 
 // Dungeon sizes: pocket dimensions by name. Part of the permalink (the
 // `size` hash param; absent = 'm'). xl generation can take a few seconds
@@ -371,10 +379,112 @@ export function generateDungeon(opts = {}) {
     if (r.isEntrance) mark('entrance', r.centroid[0], r.centroid[2]);
     if (r.endpointIndex >= 0) mark('goal', r.centroid[0], r.centroid[2]);
   }
+  // -- v3: trapdoor passages. For up to two rolled path rooms, find a floor
+  //    tile whose underside chamber holds a non-dungeon basin, then a
+  //    certified corkscrew from that landing through OFF-DUNGEON basins that
+  //    surfaces under the floor of a DIFFERENT path room (the hatch). The
+  //    whole passage becomes secret rooms with real certified doors; the
+  //    drop is one-way, the hatch two-way. Deterministic; a map with no
+  //    viable passage simply has none.
+  const trapdoors = [];
+  {
+    const rngT = mulberry(fnv(0x7DA9D0, pocket.seed >>> 0, nodes.length));
+    const want = 1 + (rngT() < 0.5 ? 1 : 0);
+    const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rngT() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    const basinsOfCell = new Map();
+    nodes.forEach((n, i) => {
+      if (!basinsOfCell.has(n.cell)) basinsOfCell.set(n.cell, []);
+      basinsOfCell.get(n.cell).push(i);
+    });
+    // a dungeon-room floor tile directly above cell `c` (the hatch exit)
+    const hatchInto = (c, excludeRoom) => {
+      for (const r of rooms) {
+        if (r.id === excludeRoom || r.secret) continue;
+        for (const ty of r.tiles) {
+          const fy = pocket.faces[ty.face];
+          if (fy.b < 0 || ty.kind !== 'floor') continue;
+          if ((fy.a === nodes[r.id].cell ? fy.b : fy.a) === c) return { room: r, tile: ty };
+        }
+      }
+      return null;
+    };
+    const candRooms = shuffle(rooms.filter((r) => !r.isEntrance && r.endpointIndex < 0 && r.depth >= 2));
+    for (const R of candRooms) {
+      if (trapdoors.length >= want * 2) break;   // 2 records (drop + hatch) per passage
+      const tiles = shuffle(R.tiles.filter((t) => t.kind === 'floor'));
+      let made = false;
+      for (const t of tiles) {
+        if (made) break;
+        const f = pocket.faces[t.face];
+        if (f.b < 0) continue;
+        const below = f.a === nodes[R.id].cell ? f.b : f.a;
+        const Ls = (basinsOfCell.get(below) ?? []).filter((ni) => !isFlat[ni] && !roomOf.has(ni) && floor[ni].area >= 3);
+        if (!Ls.length) continue;
+        let L = Ls[0];
+        for (const ni of Ls) if (floor[ni].area > floor[L].area) L = ni;
+        // corkscrew BFS from the landing through off-dungeon basins only
+        const prevE = new Map([[L, null]]);
+        const depth = new Map([[L, 0]]);
+        const q = [L];
+        let exit = null;
+        for (let h = 0; h < q.length && !exit; h++) {
+          const S = q[h];
+          if (depth.get(S) >= 2 && depth.get(S) <= 14) {
+            const hx = hatchInto(nodes[S].cell, R.id);
+            if (hx) { exit = { S, ...hx }; break; }
+          }
+          for (const e of adj[S]) {
+            const v = e.a === S ? e.b : e.a;
+            if (!prevE.has(v) && !roomOf.has(v)) { prevE.set(v, { from: S, e }); depth.set(v, depth.get(S) + 1); q.push(v); }
+          }
+        }
+        if (!exit) continue;
+        // materialize the passage: chain L → … → exit.S as secret rooms
+        const chain = [];
+        for (let u = exit.S; u !== null; u = prevE.get(u)?.from ?? null) chain.push(u);
+        chain.reverse();                          // L first
+        for (let i = 0; i < chain.length; i++) {
+          const r = touch(chain[i]);
+          r.secret = true;
+          r.depth = R.depth + 1 + i;
+          r.tiles = discretizeRoom(pocket, nodes[chain[i]], tileShape, tileSize);
+        }
+        // certified doors along the chain
+        for (let i = 1; i < chain.length; i++) {
+          const { e } = prevE.get(chain[i]);
+          for (const [me, other] of [[chain[i - 1], chain[i]], [chain[i], chain[i - 1]]]) {
+            const r = roomOf.get(me);
+            if (!r.doors.some((x) => x.face === e.face)) r.doors.push({ face: e.face, to: other, at: e.at.slice() });
+          }
+        }
+        for (const ni of chain) {
+          const r = roomOf.get(ni);
+          for (const d of r.doors) {
+            const dt = nearestTile(r.tiles, d.at[0], d.at[2]);
+            if (dt.kind === 'floor') dt.kind = 'door';
+            d.tile = dt.key;
+          }
+        }
+        // the drop and the hatch
+        const Lr = roomOf.get(L);
+        const land = nearestTile(Lr.tiles, t.x, t.z);
+        t.kind = 'trapdoor';
+        trapdoors.push({ kind: 'trapdoor', fromRoom: R.id, fromTile: t.key, toRoom: L, toTile: land.key,
+          drop: Math.round((t.y - land.y) * 10) / 10 });
+        const Sr = roomOf.get(exit.S);
+        const bottom = nearestTile(Sr.tiles, exit.tile.x, exit.tile.z);
+        if (bottom.kind === 'floor') bottom.kind = 'hatch';
+        exit.tile.kind = 'hatch';
+        trapdoors.push({ kind: 'hatch', fromRoom: exit.S, fromTile: bottom.key, toRoom: exit.room.id, toTile: exit.tile.key,
+          drop: Math.round((exit.tile.y - bottom.y) * 10) / 10 });
+        made = true;
+      }
+    }
+  }
   rooms.sort((a, b) => a.depth - b.depth || a.id - b.id);
 
   return {
-    pocket, entrance, endpoints: picked, paths, rooms, roomOf,
+    pocket, entrance, endpoints: picked, paths, rooms, roomOf, trapdoors,
     tileShape, tileScale, tileSize, size: sizeName,
     requestedEndpoints: wantEndpoints,
   };

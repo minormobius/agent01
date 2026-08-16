@@ -28,7 +28,22 @@ Version history: **v2** — no flat ground: basins standing on the domain box
 are excluded (every floor is a voronoi membrane), pockets are rampier so
 descent happens on tilted membranes, every size carries an extra sub-layer,
 and the entrance is the roomiest top chamber of the largest connected
-region. v1 links regenerate a v1-labelled layout only under v1 code.
+region. **v3** — trapdoor passages (below). Older links regenerate their
+labelled layout only under matching code.
+
+### Trapdoor passages (v3)
+
+Maps may carry secret passages, in the top-level `trapdoors` array. A
+`trapdoor` record is a one-way drop: standing on `fromTile` in `fromRoom`
+opens the floor membrane and drops you into the chamber directly beneath
+(`toRoom`/`toTile`, `drop` in metres — geometrically real, the tile's floor
+face is the landing chamber's ceiling). The landing begins a corkscrew of
+rooms flagged `"secret": true`, connected by ordinary certified doors, that
+surfaces through a `hatch` record (two-way) in the floor of a different
+path room. Tile kinds `trapdoor` and `hatch` mark the mouths. CI pins:
+passages are certified navigable, corkscrews run ≥3 secret rooms, hatches
+re-enter somewhere other than where the drop began, and content rolls keep
+the passage endpoints clear.
 
 ## The crawler
 

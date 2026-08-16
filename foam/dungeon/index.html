@@ -373,6 +373,7 @@ function buildScene(d) {
 
   // -- the content layer, displayed at dungeon level (GM view: traps shown)
   group.add(buildContentMarkers());
+  group.add(buildTrapdoorMarkers());
 
   // -- selection halo (repositioned on select)
   const halo = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.05, 8, 40),
@@ -396,10 +397,24 @@ function tileOf(rec) {
   return dungeon.roomOf.get(rec.room)?.tiles.find((t) => t.key === rec.tile) ?? null;
 }
 
+// the marker vocabulary: DOWN-pyramids hovering point-first = dangers
+// (traps, trapdoors), UP-pyramids = riches (loot, treasure). Spinners turn
+// slowly in the render loop for prominence.
+let spinners = [];
+function pyramid(size, h, color, down, wire = false) {
+  const g = new THREE.ConeGeometry(size, h, 4);
+  const m = wire
+    ? new THREE.LineSegments(new THREE.WireframeGeometry(g), new THREE.LineBasicMaterial({ color: css(color) }))
+    : new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: css(color) }));
+  if (down) m.rotation.z = Math.PI;
+  return m;
+}
 function buildContentMarkers() {
   const cg = new THREE.Group(); cg.userData.isContent = true;
+  spinners = spinners.filter((s) => s.parent);   // drop disposed ones
   if (!content) return cg;
   const s = dungeon.tileSize;
+  const spin = (m) => { spinners.push(m); return m; };
   for (const e of content.effects) {
     const t = tileOf(e); if (!t) continue;
     if (e.type === 'obstacle') {
@@ -407,14 +422,17 @@ function buildContentMarkers() {
         new THREE.MeshBasicMaterial({ color: css('#3a4a52') }));
       m.position.set(t.x, t.y + s * 0.28, t.z); cg.add(m);
     } else if (e.type === 'trap') {
-      const m = new THREE.Mesh(new THREE.ConeGeometry(s * 0.16, s * 0.4, 4),
-        new THREE.MeshBasicMaterial({ color: css('#ff6e5a') }));
-      m.position.set(t.x, t.y + s * 0.22, t.z); cg.add(m);
+      const m = spin(pyramid(s * 0.22, s * 0.44, '#ff6e5a', true));
+      m.position.set(t.x, t.y + s * 0.65, t.z); cg.add(m);
     } else {
       const big = e.type === 'treasure';
-      const m = new THREE.Mesh(new THREE.BoxGeometry(s * (big ? 0.3 : 0.2), s * (big ? 0.24 : 0.16), s * (big ? 0.3 : 0.2)),
-        new THREE.MeshBasicMaterial({ color: css(big ? '#ffdf9e' : '#d8a94e') }));
-      m.position.set(t.x, t.y + s * 0.12, t.z); m.rotation.y = 0.5; cg.add(m);
+      const m = spin(pyramid(s * (big ? 0.3 : 0.18), s * (big ? 0.5 : 0.3), big ? '#ffdf9e' : '#d8a94e', false));
+      m.position.set(t.x, t.y + s * (big ? 0.3 : 0.2), t.z); cg.add(m);
+      if (big) {
+        const halo = new THREE.Mesh(new THREE.TorusGeometry(s * 0.42, 0.035, 8, 24),
+          new THREE.MeshBasicMaterial({ color: css('#ffdf9e'), transparent: true, opacity: 0.6 }));
+        halo.rotation.x = Math.PI / 2; halo.position.set(t.x, t.y + 0.06, t.z); cg.add(halo);
+      }
     }
   }
   for (const a of content.agents) {
@@ -424,6 +442,33 @@ function buildContentMarkers() {
     m.position.set(t.x, t.y + s * 0.3, t.z); cg.add(m);
   }
   return cg;
+}
+
+// trapdoor passages are MAP features, not content: sunken down-pyramid at
+// the drop, wireframe up-pyramids at both mouths of the hatch
+function buildTrapdoorMarkers() {
+  const tg = new THREE.Group();
+  const s = dungeon.tileSize;
+  for (const td of dungeon.trapdoors ?? []) {
+    const from = dungeon.roomOf.get(td.fromRoom)?.tiles.find((t) => t.key === td.fromTile);
+    const to = dungeon.roomOf.get(td.toRoom)?.tiles.find((t) => t.key === td.toTile);
+    if (!from || !to) continue;
+    if (td.kind === 'trapdoor') {
+      const m = pyramid(s * 0.3, s * 0.55, '#173238', true);
+      m.position.set(from.x, from.y - s * 0.1, from.z);
+      tg.add(m);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(s * 0.36, 0.03, 6, 20),
+        new THREE.MeshBasicMaterial({ color: css('#4fb3a8'), transparent: true, opacity: 0.7 }));
+      rim.rotation.x = Math.PI / 2; rim.position.set(from.x, from.y + 0.05, from.z); tg.add(rim);
+    } else {
+      for (const t of [from, to]) {
+        const m = pyramid(s * 0.26, s * 0.5, '#7fd8d0', false, true);
+        m.position.set(t.x, t.y + s * 0.28, t.z);
+        tg.add(m);
+      }
+    }
+  }
+  return tg;
 }
 
 function applyToggles() {
@@ -445,6 +490,7 @@ const X = {
 function roomLabel(r) {
   if (r.isEntrance) return 'ENTRANCE';
   if (r.endpointIndex >= 0) return 'ENDPOINT ' + (r.endpointIndex + 1);
+  if (r.secret) return 'SECRET room ' + r.id;
   return 'room ' + r.id;
 }
 
@@ -494,9 +540,11 @@ function drawRoomMap(r) {
     if (t.kind === 'door') fill = '#ffce78';
     else if (t.kind === 'entrance') fill = '#b8ff9e';
     else if (t.kind === 'goal') fill = PATH_COLORS[r.endpointIndex % PATH_COLORS.length];
+    else if (t.kind === 'trapdoor') fill = '#0a1418';
+    else if (t.kind === 'hatch') fill = '#2a5f5a';
     else {
       const l = 18 + h * 26;
-      fill = 'hsl(190 40% ' + l.toFixed(0) + '%)';
+      fill = 'hsl(' + (r.secret ? 210 : 190) + ' 40% ' + l.toFixed(0) + '%)';
     }
     ctx.fillStyle = fill;
     ctx.strokeStyle = 'rgba(4,6,10,.7)'; ctx.lineWidth = 1;
@@ -684,21 +732,44 @@ function drawPlan(ctx, wpx, hpx, k, ox, oz) {
       if (t.kind === 'door') ctx.fillStyle = '#ffce78';
       else if (t.kind === 'entrance') ctx.fillStyle = '#b8ff9e';
       else if (t.kind === 'goal') ctx.fillStyle = PATH_COLORS[r.endpointIndex % PATH_COLORS.length];
+      else if (t.kind === 'trapdoor') ctx.fillStyle = '#0a1418';
+      else if (t.kind === 'hatch') ctx.fillStyle = '#2a5f5a';
+      else if (r.secret) ctx.fillStyle = 'hsl(210 30% ' + (14 + h * 20).toFixed(0) + '%)';
       else ctx.fillStyle = 'hsl(190 40% ' + (16 + h * 28).toFixed(0) + '%)';
       tilePath(t); ctx.fill();
       ctx.strokeStyle = 'rgba(4,6,10,.65)'; ctx.lineWidth = Math.max(0.5, k * 0.02);
       ctx.stroke();
+      // line treatments: trapdoors dashed with a down-glyph, hatches solid
+      // with an up-glyph (map features, always drawn)
+      if (t.kind === 'trapdoor' || t.kind === 'hatch') {
+        ctx.save();
+        ctx.strokeStyle = '#4fb3a8'; ctx.lineWidth = Math.max(1, k * 0.06);
+        if (t.kind === 'trapdoor') ctx.setLineDash([Math.max(2, k * 0.12), Math.max(2, k * 0.1)]);
+        tilePath(t); ctx.stroke();
+        ctx.restore();
+        const g = Math.max(3, s * 0.18 * k);
+        ctx.fillStyle = '#7fd8d0';
+        ctx.beginPath();
+        if (t.kind === 'trapdoor') { ctx.moveTo(mx(t.x) - g, mz(t.z) - g * 0.7); ctx.lineTo(mx(t.x) + g, mz(t.z) - g * 0.7); ctx.lineTo(mx(t.x), mz(t.z) + g); }
+        else { ctx.moveTo(mx(t.x) - g, mz(t.z) + g * 0.7); ctx.lineTo(mx(t.x) + g, mz(t.z) + g * 0.7); ctx.lineTo(mx(t.x), mz(t.z) - g); }
+        ctx.closePath(); ctx.fill();
+      }
     }
   }
   // walls: the canonical outlines — what the UVTT's line_of_sight carries
-  ctx.strokeStyle = 'rgba(127,216,208,.85)'; ctx.lineWidth = Math.max(1, k * 0.07);
   ctx.lineJoin = 'round';
   for (const r of dungeon.rooms) {
+    ctx.save();
+    // secret passage rooms wear dashed walls — partial lines for hidden things
+    ctx.strokeStyle = r.secret ? 'rgba(143,160,255,.8)' : 'rgba(127,216,208,.85)';
+    ctx.lineWidth = Math.max(1, k * 0.07);
+    if (r.secret) ctx.setLineDash([Math.max(3, k * 0.16), Math.max(2, k * 0.1)]);
     for (const loop of (r._outlines ??= roomOutlines(dungeon, r))) {
       ctx.beginPath();
       loop.forEach(([x, z], i) => i ? ctx.lineTo(mx(x), mz(z)) : ctx.moveTo(mx(x), mz(z)));
       ctx.stroke();
     }
+    ctx.restore();
   }
   // paths, descending entrance → endpoints
   dungeon.paths.forEach((p, pi) => {
@@ -725,10 +796,19 @@ function drawPlan(ctx, wpx, hpx, k, ox, oz) {
       const t = tileOf(rec); if (!t) continue;
       const x = mx(t.x), z = mz(t.z);
       if (rec.type === 'obstacle') {
-        ctx.strokeStyle = '#5f7a80'; ctx.lineWidth = Math.max(1, k * 0.05);
+        // FULL line: a solid heavy outline says "this tile is closed"
+        ctx.strokeStyle = '#5f7a80'; ctx.lineWidth = Math.max(1.2, k * 0.07);
+        tilePath(t); ctx.stroke();
+        ctx.lineWidth = Math.max(1, k * 0.05);
         ctx.beginPath(); ctx.moveTo(x - r, z - r); ctx.lineTo(x + r, z + r);
         ctx.moveTo(x + r, z - r); ctx.lineTo(x - r, z + r); ctx.stroke();
       } else if (rec.type === 'trap') {
+        // PARTIAL line: a dashed outline says "this tile is suspect"
+        ctx.save();
+        ctx.strokeStyle = '#ff6e5a'; ctx.lineWidth = Math.max(1, k * 0.06);
+        ctx.setLineDash([Math.max(2, k * 0.1), Math.max(2, k * 0.12)]);
+        tilePath(t); ctx.stroke();
+        ctx.restore();
         ctx.strokeStyle = '#ff6e5a'; ctx.lineWidth = Math.max(1, k * 0.05);
         ctx.beginPath(); ctx.moveTo(x, z - r); ctx.lineTo(x + r, z + r * 0.8); ctx.lineTo(x - r, z + r * 0.8);
         ctx.closePath(); ctx.stroke();
@@ -839,7 +919,12 @@ addEventListener('resize', () => { if (!isMobile()) $('panel').classList.remove(
 
 // -------------------------------------------------------------- boot -------
 readHash(); syncUI(); regen(true);
-(function loop() { requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
+(function loop() {
+  requestAnimationFrame(loop);
+  for (const m of spinners) m.rotation.y += 0.02;
+  controls.update();
+  renderer.render(scene, camera);
+})();
 </script>
 </body>
 </html>

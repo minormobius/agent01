@@ -30,11 +30,11 @@ const t0 = Date.now();
 //    Never re-pin a moved layout without the bump.
 {
   const { DUNGEON_VERSION } = await import('../dungeon.mjs');
-  ok(DUNGEON_VERSION === 2, 'golden pins below are for DUNGEON_VERSION 2');
-  const GOLDEN = { 1: 0x0a684e9a, 2: 0x47232154, 5: 0x55c7fbc8 };
+  ok(DUNGEON_VERSION === 3, 'golden pins below are for DUNGEON_VERSION 3');
+  const GOLDEN = { 1: 0x15ef02ce, 2: 0xfd450c68, 5: 0x75a64bc0 };
   const sigOf = (s) => {
     const J = dungeonToJSON(generateDungeon({ seed: s, endpoints: 3, tileShape: 'grid', tileScale: 0.35 }));
-    const str = JSON.stringify({ e: J.entrance, n: J.endpoints, r: J.rooms, d: J.doors, p: J.paths });
+    const str = JSON.stringify({ e: J.entrance, n: J.endpoints, r: J.rooms, d: J.doors, p: J.paths, t: J.trapdoors });
     let h = 2166136261 >>> 0;
     for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
     return h >>> 0;
@@ -134,7 +134,10 @@ for (const seed of SEEDS) {
   //    height matches that face's plane
   const unionRooms = new Set();
   for (const p of paths) for (const r of p.rooms) unionRooms.add(r);
-  ok(rooms.length === unionRooms.size, 'rooms = union of path rooms');
+  const secretCount = rooms.filter((r) => r.secret).length;
+  ok(rooms.length === unionRooms.size + secretCount,
+    'rooms = union of path rooms + secret passage rooms');
+  ok(rooms.every((r) => unionRooms.has(r.id) || r.secret), 'non-path rooms are all secret');
   for (const r of rooms) {
     ok(r.tiles.length >= 1, `room ${r.id} has tiles`);
     let inside = true, heights = true;
@@ -274,6 +277,44 @@ for (const seed of SEEDS) {
       }
     }
     ok(gated, `crawl ${shape}: lattice steps honour the height gate`);
+  }
+
+  // -- v3 trapdoor passages: paired records, marked tiles, certified
+  //    corkscrews — and the whole dungeon (secret rooms included) reachable
+  {
+    const J = dungeonToJSON(generateDungeon({ pocket, endpoints: 3, tileShape: 'grid', tileScale: 0.35 }));
+    const byId = new Map(J.rooms.map((r) => [r.id, r]));
+    const drops = J.trapdoors.filter((t) => t.kind === 'trapdoor');
+    const hatches = J.trapdoors.filter((t) => t.kind === 'hatch');
+    ok(drops.length === hatches.length, `trapdoors paired with hatches (${drops.length}/${hatches.length})`);
+    for (const td of drops) {
+      const from = byId.get(td.fromRoom), to = byId.get(td.toRoom);
+      ok(from && !from.secret && from.role === 'room', `trapdoor from an ordinary path room (${td.fromRoom})`);
+      ok(to && to.secret, `trapdoor lands in a secret room (${td.toRoom})`);
+      ok(from.tiles.find((t) => t.key === td.fromTile)?.kind === 'trapdoor', 'trapdoor tile marked');
+      ok(to.tiles.some((t) => t.key === td.toTile), 'landing tile exists');
+      ok(td.drop > 0, `the drop drops (${td.drop}m)`);
+    }
+    for (const h of hatches) {
+      ok(byId.get(h.fromRoom)?.secret && !byId.get(h.toRoom)?.secret, `hatch climbs out of the secret rooms (${h.fromRoom}→${h.toRoom})`);
+      ok(byId.get(h.toRoom).tiles.find((t) => t.key === h.toTile)?.kind === 'hatch', 'hatch exit tile marked');
+    }
+    const secrets = J.rooms.filter((r) => r.secret);
+    if (drops.length) {
+      ok(secrets.length >= drops.length * 3, `corkscrews are corkscrews (${secrets.length} secret rooms for ${drops.length} passage(s))`);
+      const crawl = buildCrawl(J);
+      const reach = crawlReachability(crawl);
+      ok(reach.roomsSeen.size === J.rooms.length, 'every room, secret ones included, reachable on foot');
+      // the passage is not a typical branch: hatch surfaces in a DIFFERENT room
+      for (let i = 0; i < drops.length; i++) {
+        ok(hatches[i].toRoom !== drops[i].fromRoom, `passage ${i} re-enters elsewhere (${drops[i].fromRoom} → … → ${hatches[i].toRoom})`);
+      }
+      // content stays off the passage endpoints
+      const { rollContent } = await import('../dungeon-content.mjs');
+      const C = rollContent(J, { roll: 1 });
+      const reserved = new Set(J.trapdoors.flatMap((t) => [t.fromRoom + ':' + t.fromTile, t.toRoom + ':' + t.toTile]));
+      ok(![...C.effects, ...C.agents].some((x) => reserved.has(x.room + ':' + x.tile)), 'content stays off trapdoor endpoints');
+    }
   }
 
   // -- movement budget: reachableWithin is a metric over the crawl graph —

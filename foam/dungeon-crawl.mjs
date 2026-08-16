@@ -99,7 +99,16 @@ export function buildCrawl(json, opts = {}) {
       const fd = far.doors.find((x) => x.face === d.face);
       return { to: d.to, face: d.face, at: d.at, tile: d.tile, farTile: fd ? fd.tile : null };
     });
-    rooms.set(r.id, { info: r, byKey, adj, bridges, forcedBridges, doors });
+    rooms.set(r.id, { info: r, byKey, adj, bridges, forcedBridges, doors, links: [] });
+  }
+
+  // v3 trapdoor passages: a `trapdoor` link is one-way (the drop); a `hatch`
+  // links both ways. Attached per-room as directed links.
+  for (const td of json.trapdoors ?? []) {
+    rooms.get(td.fromRoom)?.links.push({ kind: td.kind, tile: td.fromTile, to: td.toRoom, toTile: td.toTile, drop: td.drop });
+    if (td.kind === 'hatch') {
+      rooms.get(td.toRoom)?.links.push({ kind: 'hatch', tile: td.toTile, to: td.fromRoom, toTile: td.fromTile, drop: td.drop });
+    }
   }
 
   const startRoom = json.entrance;
@@ -128,6 +137,13 @@ export function crawlReachability(crawl) {
       if (!seen.has(key(door.to, door.farTile))) {
         seen.set(key(door.to, door.farTile), d + 1);
         q.push([door.to, door.farTile]);
+      }
+    }
+    for (const ln of room.links) {
+      if (ln.tile !== tk) continue;
+      if (!seen.has(key(ln.to, ln.toTile))) {
+        seen.set(key(ln.to, ln.toTile), d + 1);
+        q.push([ln.to, ln.toTile]);
       }
     }
   }
@@ -167,6 +183,12 @@ export function reachableWithin(crawl, room, tile, budget, blocked = null) {
       const k = key(door.to, door.farTile);
       if (out.has(k) || (blocked && blocked.has(k))) continue;
       out.set(k, d + 1); q.push([door.to, door.farTile]);
+    }
+    for (const ln of R.links) {
+      if (ln.tile !== tk) continue;
+      const k = key(ln.to, ln.toTile);
+      if (out.has(k) || (blocked && blocked.has(k))) continue;
+      out.set(k, d + 1); q.push([ln.to, ln.toTile]);
     }
   }
   return out;

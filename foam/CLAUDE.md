@@ -77,7 +77,17 @@ the crawler. DUNGEON_VERSION is 2: no room stands on the domain box (all
 floors are membranes), dungeon pockets are rampier than the walker's
 (rampFrac 0.5, relaxed puzzle band + deep salt retries — the dungeon
 proves its own reachability), and the entrance is the roomiest top chamber
-of the largest connected region. Worst xl generation ~12s. It shares the generator's permalink
+of the largest connected region. Worst xl generation ~12s. v3 adds
+TRAPDOOR PASSAGES (map-level, in the canonical `trapdoors` array): a floor
+tile drops one-way into the chamber directly beneath it (the floor face's
+other cell), a corkscrew of SECRET rooms climbs back over certified doors,
+and a two-way hatch surfaces in a different path room — the crawler falls
+on step (hidden until sprung), the generator shows both mouths. Marker
+vocabulary everywhere: hovering DOWN-pyramids = dangers (traps, trapdoor
+wells), UP-pyramids = riches (loot, treasure; hatch mouths are wireframe
+up-pyramids), spinning for prominence; on the 2D plan, FULL solid outlines
+= closed tiles (obstacles), PARTIAL dashed outlines = suspect/hidden
+(traps, trapdoors, secret-room walls). It shares the generator's permalink
 hash and loads exported .json files. **Permalinks are a contract**:
 `DUNGEON_VERSION` (dungeon.mjs) is stamped into the URL hash and every
 export, and the selftest pins golden signatures of seeds 1/2/5 — a change

@@ -47,6 +47,13 @@ export function rollContent(json, opts = {}) {
   const taken = new Set();               // 'room:tile' with anything on it
   let agentId = 0;
 
+  // trapdoor passage endpoints stay clear — landing on a spike trap after a
+  // blind drop is unfair even by this dungeon's standards
+  for (const td of json.trapdoors ?? []) {
+    taken.add(td.fromRoom + ':' + td.fromTile);
+    taken.add(td.toRoom + ':' + td.toTile);
+  }
+
   const place = (room, tile, rec) => { taken.add(room.id + ':' + tile.key); rec.room = room.id; rec.tile = tile.key; return rec; };
   const takeTile = (room, cand) => {
     while (cand.length) {
