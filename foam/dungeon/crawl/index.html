@@ -147,7 +147,7 @@ import { OrbitControls } from '../../vendor/OrbitControls.js';
 import { generateDungeon, DUNGEON_VERSION, SIZES } from '../../dungeon.mjs';
 import { dungeonToJSON } from '../../dungeon-export.mjs';
 import { buildCrawl, reachableWithin } from '../../dungeon-crawl.mjs';
-import { rollContent, contentBlocked, ENEMY_TYPES } from '../../dungeon-content.mjs';
+import { rollContent, contentBlocked, ENEMY_TYPES, tuningFromParam, tuningToParam } from '../../dungeon-content.mjs';
 
 const PATH_COLORS = ['#ff9e6e', '#9ff0e6', '#c8a5ff', '#ffd166', '#8fd3ff', '#ffa5c0'];
 const css = (c) => new THREE.Color(c);
@@ -163,12 +163,18 @@ const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35, size: 'm', roll: 1 }
   if (h.get('scale')) params.scale = Math.min(1, Math.max(0.08, parseFloat(h.get('scale')) || 0.35));
   if (SIZES[h.get('size')]) params.size = h.get('size');
   if (h.get('roll')) params.roll = Math.max(1, parseInt(h.get('roll'), 10) || 1);
+  params.tuning = tuningFromParam(h.get('tune'));
   const v = h.get('v');
   if (v && parseInt(v, 10) !== DUNGEON_VERSION) {
     console.warn('permalink generator v' + v + ' ≠ current v' + DUNGEON_VERSION + ' — layout may differ');
   }
 }
-$('backlink').href = '../#seed=' + params.seed + '&n=' + params.n + '&shape=' + params.shape + '&scale=' + params.scale + '&size=' + params.size + '&v=' + DUNGEON_VERSION;
+{
+  const tune = tuningToParam(params.tuning);
+  $('backlink').href = '../#seed=' + params.seed + '&n=' + params.n + '&shape=' + params.shape +
+    '&scale=' + params.scale + '&size=' + params.size + '&roll=' + params.roll +
+    (tune ? '&tune=' + tune : '') + '&v=' + DUNGEON_VERSION;
+}
 
 // -------------------------------------------------------------- state ------
 let J = null, crawl = null;            // canonical document + crawl graph
@@ -762,7 +768,7 @@ function start(doc, fromFile) {
   J = doc;
   // the content roll is a SEPARATE pass on the same map — reroll it and the
   // geometry (and its permalink) stays put
-  content = rollContent(J, { roll: params.roll });
+  content = rollContent(J, { roll: params.roll, tuning: params.tuning });
   fx = new Map(content.effects.map((e) => [e.room + ':' + e.tile, { ...e }]));
   mobs = content.agents.map((a) => ({ ...a }));
   crawl = buildCrawl(J, { blocked: contentBlocked(content) });

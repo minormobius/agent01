@@ -401,6 +401,51 @@ for (const seed of SEEDS) {
   }
 }
 
+// -- CONTENT TUNING (v2 content): dials move the roll the way they claim
+{
+  const { rollContent, contentBlocked, DEFAULT_TUNING, tuningToParam, tuningFromParam } = await import('../dungeon-content.mjs');
+  const J = dungeonToJSON(generateDungeon({ seed: 5, endpoints: 3, tileShape: 'hex', tileScale: 0.35 }));
+  const count = (C, t) => C.effects.filter((e) => e.type === t).length;
+  const base = rollContent(J, { roll: 1 });
+  ok(base.version === 2 && JSON.stringify(base.tuning) === JSON.stringify(DEFAULT_TUNING),
+    'content v2 records its tuning; omitted tuning = defaults');
+  ok(JSON.stringify(rollContent(J, { roll: 1, tuning: { ...DEFAULT_TUNING } })) === JSON.stringify(base),
+    'explicit default tuning identical to omitted');
+  const hot = rollContent(J, { roll: 1, tuning: { traps: 2, enemies: 2 } });
+  const cold = rollContent(J, { roll: 1, tuning: { traps: 0.2, enemies: 0.2 } });
+  ok(count(hot, 'trap') > count(cold, 'trap'), `traps dial works (${count(hot, 'trap')} > ${count(cold, 'trap')})`);
+  ok(hot.agents.length > cold.agents.length, `enemies dial works (${hot.agents.length} > ${cold.agents.length})`);
+  const noObst = rollContent(J, { roll: 1, tuning: { obstacles: 0 } });
+  ok(count(noObst, 'obstacle') === 0, 'obstacles at 0 = none');
+  ok(JSON.stringify(rollContent(J, { roll: 1, tuning: { traps: 2, enemies: 2 } })) === JSON.stringify(hot),
+    'tuned rolls deterministic');
+  // the DIRECTION: mean depth of enemies shifts with the gradient
+  const maxD = Math.max(...J.rooms.map((r) => r.depth));
+  const meanDepth = (C) => {
+    const byId = new Map(J.rooms.map((r) => [r.id, r]));
+    const ds = C.agents.map((a) => byId.get(a.room).depth / maxD);
+    return ds.reduce((a, b) => a + b, 0) / Math.max(1, ds.length);
+  };
+  const deep = meanDepth(rollContent(J, { roll: 1, tuning: { gradient: 1 } }));
+  const door = meanDepth(rollContent(J, { roll: 1, tuning: { gradient: -1 } }));
+  ok(deep > door, `danger direction flips with the gradient (mean depth ${deep.toFixed(2)} vs ${door.toFixed(2)})`);
+  // toughness shifts the type bands
+  const tough = rollContent(J, { roll: 1, tuning: { toughness: 2 } });
+  const soft = rollContent(J, { roll: 1, tuning: { toughness: 0.2 } });
+  const wraiths = (C) => C.agents.filter((a) => a.type === 'wraith').length;
+  const mites = (C) => C.agents.filter((a) => a.type === 'mite').length;
+  ok(wraiths(tough) >= wraiths(soft) && mites(soft) >= mites(tough),
+    `toughness shifts the bands (wraiths ${wraiths(tough)}≥${wraiths(soft)}, mites ${mites(soft)}≥${mites(tough)})`);
+  // safety gate holds under extreme rubble
+  const rubble = rollContent(J, { roll: 1, tuning: { obstacles: 2 } });
+  const rep = crawlReport(J, { blocked: contentBlocked(rubble) });
+  ok(rep.complete && rep.allRoomsReachable, 'obstacles at 2: safety gate still holds');
+  // param round-trip
+  ok(tuningToParam(DEFAULT_TUNING) === null, 'default tuning omits the hash param');
+  const T = { loot: 0.5, traps: 2, obstacles: 0.3, enemies: 1.4, toughness: 1.8, gradient: -0.5 };
+  ok(JSON.stringify(tuningFromParam(tuningToParam(T))) === JSON.stringify(T), 'tuning round-trips through the hash param');
+}
+
 // -- SIZES: every named size generates, stays crawlable, and reports itself
 {
   const { SIZES } = await import('../dungeon.mjs');

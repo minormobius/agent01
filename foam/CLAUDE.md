@@ -87,7 +87,15 @@ vocabulary everywhere: hovering DOWN-pyramids = dangers (traps, trapdoor
 wells), UP-pyramids = riches (loot, treasure; hatch mouths are wireframe
 up-pyramids), spinning for prominence; on the 2D plan, FULL solid outlines
 = closed tiles (obstacles), PARTIAL dashed outlines = suspect/hidden
-(traps, trapdoors, secret-room walls). It shares the generator's permalink
+(traps, trapdoors, secret-room walls). The plan renderer lives ONCE in
+`dungeon-plan.mjs` — the generator's ⊞ plan, the baked .png/.dd2vtt images
+and the content forge all draw through it; edit the line grammar there,
+nowhere else. `/dungeon/content/` is the CONTENT FORGE: sliders for the
+content-v2 tuning block (loot/traps/obstacles/enemies/toughness +
+`gradient`, the danger direction: +deep / 0 flat / −entrance), live plan
+preview with a crawlability tally, content-.json export; tuning rides
+permalinks as `tune=lo,tr,ob,en,tf,gr` and the generator (⚙ tune content)
+and crawler both honour it. It shares the generator's permalink
 hash and loads exported .json files. **Permalinks are a contract**:
 `DUNGEON_VERSION` (dungeon.mjs) is stamped into the URL hash and every
 export, and the selftest pins golden signatures of seeds 1/2/5 — a change

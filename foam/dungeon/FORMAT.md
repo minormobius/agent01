@@ -143,10 +143,20 @@ map. Content reduces to two primitives:
 - **agents** — things that STAND on a tile and act: enemies
   (`mite`/`shade`/`wraith` by depth; bump to fight, they chase on end turn).
 
+Content is tunable at <https://foam.mino.mobi/dungeon/content/> — the
+**content forge**: sliders for each proportion (loot, traps, obstacles,
+enemies, toughness) and the danger **direction** (`gradient` +1 ramps
+hostiles toward the endpoints, 0 spreads them flat, −1 inverts the dungeon).
+The tuning is recorded in the document and rides permalinks as the compact
+`tune=lo,tr,ob,en,tf,gr` hash param — `(mapSig, roll, tuning)` → identical
+content.
+
 ```jsonc
 {
   "format": "foam-dungeon-content",
-  "version": 1,
+  "version": 2,
+  "tuning": { "loot": 1, "traps": 1, "obstacles": 1,
+              "enemies": 1, "toughness": 1, "gradient": 1 },
   "mapSig": 1598924080,      // layout signature of the map it furnishes
   "roll": 7,                  // the content seed
   "effects": [{ "type": "trap", "trap": "spike", "dmg": 2, "room": 128, "tile": "3,-1" }, …],

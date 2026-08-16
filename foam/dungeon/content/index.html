@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#04060a" />
+<title>foam — content forge</title>
+<meta name="description" content="Tune a foam dungeon's furnishing: sliders for loot, traps, obstacles, enemies, toughness, and the danger direction — live on the map, exportable, crawlable." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpolygon points='16,3 28,10 28,22 16,29 4,22 4,10' fill='none' stroke='%23ffce78' stroke-width='2.5'/%3E%3Cpath d='M10 16 h12 M16 10 v12' stroke='%237fd8d0' stroke-width='2'/%3E%3C/svg%3E" />
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #04060a; color: #cfe8e4; font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; overflow: hidden; }
+
+  #title { position: fixed; top: max(8px, env(safe-area-inset-top)); left: 10px; pointer-events: none; text-shadow: 0 1px 3px #000; z-index: 2; }
+  #title b { color: #cffff8; letter-spacing: .04em; }
+  #title .dim { color: #5f7a80; font-size: 11px; }
+  #title a { color: #7fd8d0; pointer-events: auto; }
+
+  #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  #planc { max-width: calc(100vw - 300px); max-height: 94vh; border: 1px solid #1c2b31; border-radius: 10px; background: #04060a; }
+
+  #panel { position: fixed; top: max(8px, env(safe-area-inset-top)); right: 10px; width: 258px;
+    background: rgba(6,10,14,.88); border: 1px solid #1c2b31; border-radius: 12px; padding: 12px 16px;
+    backdrop-filter: blur(4px); max-height: calc(100vh - 20px); overflow-y: auto; }
+  #panel h2 { margin: 0 0 4px; font-size: 12px; color: #7fd8d0; letter-spacing: .08em; font-weight: 600; }
+  #panel h2 span { float: right; color: #48606a; font-weight: 400; letter-spacing: 0; }
+  #sheetChev { display: none; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 9px 0; }
+  .row label { color: #9fc9c4; font-size: 12px; flex: 0 0 72px; }
+  .row input[type=range] { flex: 1; min-width: 0; accent-color: #7fd8d0; }
+  .row .val { color: #ffce78; min-width: 34px; text-align: right; flex-shrink: 0; font-size: 12px; }
+  .grad .val { color: #8fd3ff; }
+  .btn { width: 100%; margin-top: 8px; padding: 9px; font: 12px ui-monospace, monospace; background: rgba(127,216,208,.14); color: #cffff8; border: 1px solid #7fd8d0; border-radius: 8px; cursor: pointer; }
+  .btn:hover { background: rgba(127,216,208,.24); }
+  .btn.ghost { background: none; border-color: #1c2b31; color: #9fc9c4; }
+  .btn.amber { border-color: #ffce78; color: #ffe9c0; background: rgba(255,206,120,.12); }
+  #tally { margin-top: 10px; font-size: 11px; color: #5f7a80; line-height: 1.7; }
+  #tally b { color: #9fc9c4; }
+  #tally .warn { color: #ff9e6e; }
+  hr { border: none; border-top: 1px solid #14252b; margin: 10px 0; }
+
+  #busy { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(4,6,10,.6); z-index: 20; }
+  #busy.on { display: flex; }
+  #busy div { background: #070c12; border: 1px solid #1c2b31; border-radius: 10px; padding: 12px 22px; color: #7fd8d0; }
+
+  @media (max-width: 720px) {
+    #title .dim { display: none; }
+    #planc { max-width: 96vw; max-height: 56vh; }
+    #wrap { align-items: flex-start; padding-top: 52px; }
+    #panel { top: auto; left: 0; right: 0; bottom: 0; width: 100%; max-height: 40vh;
+      overflow-y: auto; -webkit-overflow-scrolling: touch; border-radius: 14px 14px 0 0;
+      border-bottom: none; padding: 0 16px calc(12px + env(safe-area-inset-bottom));
+      transition: transform .22s ease; }
+    #panel.collapsed { transform: translateY(calc(100% - 46px)); overflow: hidden; }
+    #sheetHead { position: sticky; top: 0; margin: 0 -16px 8px; padding: 14px 16px 10px;
+      background: rgba(6,10,14,.97); cursor: pointer; user-select: none; z-index: 1; }
+    #sheetChev { display: inline-block; float: right; color: #7fd8d0; transition: transform .22s ease; }
+    #panel.collapsed #sheetChev { transform: rotate(180deg); }
+    .row input[type=range] { height: 26px; }
+    .btn { padding: 11px; font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+<div id="title">
+  <b>foam · content forge</b> <span class="dim">— same map, your furnishing</span><br>
+  <span class="dim"><a href="../" id="genlink">← generator</a> · the map never changes here</span>
+</div>
+
+<div id="wrap"><canvas id="planc"></canvas></div>
+
+<div id="panel">
+  <h2 id="sheetHead">CONTENT<span id="rollLabel">roll 1</span><span id="sheetChev">⌄</span></h2>
+  <div class="row"><label>loot</label><input id="s_loot" type="range" min="0" max="2" step="0.1" value="1"><span class="val" id="v_loot">1.0</span></div>
+  <div class="row"><label>traps</label><input id="s_traps" type="range" min="0" max="2" step="0.1" value="1"><span class="val" id="v_traps">1.0</span></div>
+  <div class="row"><label>obstacles</label><input id="s_obstacles" type="range" min="0" max="2" step="0.1" value="1"><span class="val" id="v_obstacles">1.0</span></div>
+  <div class="row"><label>enemies</label><input id="s_enemies" type="range" min="0" max="2" step="0.1" value="1"><span class="val" id="v_enemies">1.0</span></div>
+  <div class="row"><label>toughness</label><input id="s_toughness" type="range" min="0" max="2" step="0.1" value="1"><span class="val" id="v_toughness">1.0</span></div>
+  <div class="row grad"><label>direction</label><input id="s_gradient" type="range" min="-1" max="1" step="0.1" value="1"><span class="val" id="v_gradient">deep</span></div>
+  <button class="btn ghost" id="reroll">⚄ reroll content</button>
+  <button class="btn ghost" id="reset">reset dials</button>
+  <hr>
+  <button class="btn amber" id="crawlBtn">⚔ crawl this furnishing</button>
+  <button class="btn ghost" id="expBtn">⤓ content .json</button>
+  <div id="tally"></div>
+</div>
+
+<div id="busy"><div>weaving the foam…</div></div>
+
+<script type="module">
+import { generateDungeon, DUNGEON_VERSION, SIZES } from '../../dungeon.mjs';
+import { dungeonToJSON } from '../../dungeon-export.mjs';
+import { rollContent, contentBlocked, DEFAULT_TUNING, tuningToParam, tuningFromParam } from '../../dungeon-content.mjs';
+import { crawlReport } from '../../dungeon-crawl.mjs';
+import { drawPlan } from '../../dungeon-plan.mjs';
+
+const $ = (id) => document.getElementById(id);
+const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35, size: 'm', roll: 1 };
+let tuning = { ...DEFAULT_TUNING };
+{
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (h.get('seed')) params.seed = Math.max(1, parseInt(h.get('seed'), 10) || 1);
+  if (h.get('n')) params.n = Math.min(6, Math.max(1, parseInt(h.get('n'), 10) || 3));
+  if (h.get('shape') === 'hex') params.shape = 'hex';
+  if (h.get('scale')) params.scale = Math.min(1, Math.max(0.08, parseFloat(h.get('scale')) || 0.35));
+  if (SIZES[h.get('size')]) params.size = h.get('size');
+  if (h.get('roll')) params.roll = Math.max(1, parseInt(h.get('roll'), 10) || 1);
+  tuning = tuningFromParam(h.get('tune'));
+}
+
+let dungeon = null, J = null, content = null;
+
+function hash() {
+  const tune = tuningToParam(tuning);
+  return '#seed=' + params.seed + '&n=' + params.n + '&shape=' + params.shape +
+    '&scale=' + params.scale + '&size=' + params.size + '&roll=' + params.roll +
+    (tune ? '&tune=' + tune : '') + '&v=' + DUNGEON_VERSION;
+}
+function writeHash() {
+  history.replaceState(null, '', hash());
+  $('genlink').href = '../' + hash();
+}
+
+function retune() {
+  content = rollContent(J, { roll: params.roll, tuning });
+  draw(); tally(); writeHash();
+  $('rollLabel').textContent = 'roll ' + params.roll;
+}
+
+function draw() {
+  const c = $('planc');
+  let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  for (const r of dungeon.rooms) for (const t of r.tiles) {
+    x0 = Math.min(x0, t.x); x1 = Math.max(x1, t.x);
+    z0 = Math.min(z0, t.z); z1 = Math.max(z1, t.z);
+  }
+  const pad = dungeon.tileSize * 1.5;
+  x0 -= pad; x1 += pad; z0 -= pad; z1 += pad;
+  const avail = Math.min(innerWidth - (matchMedia('(max-width: 720px)').matches ? 16 : 300), 1200);
+  const availH = matchMedia('(max-width: 720px)').matches ? innerHeight * 0.56 : innerHeight * 0.94;
+  const k = Math.min(avail / (x1 - x0), availH / (z1 - z0));
+  const dpr = Math.min(devicePixelRatio, 2);
+  c.width = Math.round((x1 - x0) * k * dpr); c.height = Math.round((z1 - z0) * k * dpr);
+  c.style.width = ((x1 - x0) * k) + 'px';
+  const ctx = c.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawPlan(ctx, { dungeon, content, k, ox: x0, oz: z0, w: c.width / dpr, h: c.height / dpr });
+}
+
+function tally() {
+  const n = (t) => content.effects.filter((e) => e.type === t).length;
+  const byType = {};
+  for (const a of content.agents) byType[a.type] = (byType[a.type] ?? 0) + 1;
+  const rep = crawlReport(J, { blocked: contentBlocked(content) });
+  $('tally').innerHTML =
+    '<b>' + n('loot') + '</b> caches · <b>' + n('treasure') + '</b> treasures<br>' +
+    '<b>' + n('trap') + '</b> traps · <b>' + n('obstacle') + '</b> rubble<br>' +
+    '<b>' + content.agents.length + '</b> enemies (' +
+      Object.entries(byType).map(([k, v]) => v + ' ' + k).join(', ') + ')<br>' +
+    (rep.complete ? 'crawlable: entrance → every endpoint ✓'
+      : '<span class="warn">⚠ not fully crawlable</span>');
+}
+
+const DIALS = ['loot', 'traps', 'obstacles', 'enemies', 'toughness', 'gradient'];
+function syncDials() {
+  for (const d of DIALS) {
+    $('s_' + d).value = tuning[d];
+    $('v_' + d).textContent = d === 'gradient'
+      ? (tuning[d] > 0.15 ? 'deep' : tuning[d] < -0.15 ? 'door' : 'flat') + ' ' + tuning[d].toFixed(1)
+      : tuning[d].toFixed(1);
+  }
+}
+for (const d of DIALS) {
+  $('s_' + d).oninput = () => { tuning[d] = parseFloat($('s_' + d).value); syncDials(); retune(); };
+}
+$('reroll').onclick = () => { params.roll = 1 + Math.floor(Math.random() * 9998); retune(); };
+$('reset').onclick = () => { tuning = { ...DEFAULT_TUNING }; syncDials(); retune(); };
+$('crawlBtn').onclick = () => { location.href = '../crawl/' + hash(); };
+$('expBtn').onclick = () => {
+  const blob = new Blob([JSON.stringify(content, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'foam-dungeon-content-s' + params.seed + '-r' + params.roll + '.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+};
+
+// mobile bottom sheet
+const isMobile = () => matchMedia('(max-width: 720px)').matches;
+$('sheetHead').onclick = () => { if (isMobile()) $('panel').classList.toggle('collapsed'); };
+addEventListener('resize', () => { if (!isMobile()) $('panel').classList.remove('collapsed'); dungeon && draw(); });
+
+window.__forge = { ready: false, get content() { return content; }, get tuning() { return { ...tuning }; },
+  set: (d, v) => { tuning[d] = v; syncDials(); retune(); } };
+
+$('busy').classList.add('on');
+setTimeout(() => {
+  try {
+    dungeon = generateDungeon({ seed: params.seed, endpoints: params.n, tileShape: params.shape, tileScale: params.scale, size: params.size });
+    J = dungeonToJSON(dungeon);
+    syncDials(); retune();
+    window.__forge.ready = true;
+  } finally { $('busy').classList.remove('on'); }
+}, 30);
+</script>
+</body>
+</html>
