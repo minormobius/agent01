@@ -1107,3 +1107,173 @@ fn decibels_are_not_a_bit_louder() {
     // …and ~18× the pressure amplitude at 110 dB.
     assert!(rel(pressure_pa(110.0) / pressure_pa(85.0), 17.782_794) < 1e-6);
 }
+
+// ================================================= all together (console) ==
+
+use crate::console::*;
+
+fn tissue_phantom_for_console() -> Phantom {
+    // A uniform disc: the SNR tests want a flat signal region and a clean
+    // background, not anatomy.
+    Phantom::disc(0.0, 0.0, 0.55)
+}
+
+/// The generator is deterministic, and its normals are actually normal.
+#[test]
+fn the_rng_is_reproducible_and_gaussian() {
+    let a: Vec<u32> = { let mut r = Rng::new(42); (0..8).map(|_| r.next_u32()).collect() };
+    let b: Vec<u32> = { let mut r = Rng::new(42); (0..8).map(|_| r.next_u32()).collect() };
+    assert_eq!(a, b, "same seed, same stream");
+    let c: Vec<u32> = { let mut r = Rng::new(43); (0..8).map(|_| r.next_u32()).collect() };
+    assert_ne!(a, c, "different seed, different stream");
+
+    let mut r = Rng::new(7);
+    let (mut s1, mut s2, mut s4) = (0.0f64, 0.0f64, 0.0f64);
+    let n = 200_000;
+    for _ in 0..n / 2 {
+        let (x, y) = r.normal_pair();
+        for v in [x, y] {
+            s1 += v;
+            s2 += v * v;
+            s4 += v * v * v * v;
+        }
+    }
+    let mean = s1 / n as f64;
+    let var = s2 / n as f64 - mean * mean;
+    let kurt = s4 / n as f64 / (var * var);
+    assert!(mean.abs() < 0.01, "mean {mean}");
+    assert!((var - 1.0).abs() < 0.02, "variance {var}");
+    assert!((kurt - 3.0).abs() < 0.1, "kurtosis {kurt} — should be 3 for a Gaussian");
+}
+
+/// **The background of an MR image is not black.** Magnitude of zero-mean
+/// complex Gaussian noise is Rician, with mean `σ√(π/2) ≈ 1.253σ` — measured
+/// here on an actual reconstruction of pure noise, not on a formula.
+#[test]
+fn the_background_of_a_magnitude_image_is_rician() {
+    let mut p = REFERENCE;
+    p.n = 64;
+    // An empty scanner: no object at all, only receiver noise.
+    let s = scan(p, Phantom { ellipses: vec![] }, 40.0, 12345);
+
+    let vals: Vec<f64> = s.image.iter().map(|&v| v as f64).collect();
+    let n = vals.len() as f64;
+    let mean = vals.iter().sum::<f64>() / n;
+    let var = vals.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n;
+    // For a Rician with no signal: mean = σ√(π/2), var = (2 − π/2)σ².
+    let sigma_from_var = (var / (2.0 - std::f64::consts::PI / 2.0)).sqrt();
+    let predicted = rician_background_mean(sigma_from_var);
+    assert!(
+        rel(mean, predicted) < 0.03,
+        "background mean {mean} vs Rician prediction {predicted}"
+    );
+    // And emphatically not zero, which is the point.
+    assert!(mean > 0.5 * var.sqrt(), "a magnitude image has a bright floor");
+}
+
+/// **SNR scales with voxel volume.** Halving the pixel in both directions —
+/// same field of view, double the matrix — quarters the signal per voxel, and
+/// the measured image bears it out.
+#[test]
+fn snr_scales_with_voxel_volume() {
+    let coarse = { let mut p = REFERENCE; p.n = 64; p };
+    let fine = { let mut p = REFERENCE; p.n = 128; p };
+    // Predicted: voxel volume falls 4×, sampling time rises 4× (N² samples), so
+    // SNR falls by 4/√4 = 2.
+    assert!(rel(coarse.relative_snr() / fine.relative_snr(), 2.0) < 1e-9,
+        "law says 2×: {} vs {}", coarse.relative_snr(), fine.relative_snr());
+
+    let a = scan(coarse, tissue_phantom_for_console(), 40.0, 5);
+    let b = scan(fine, tissue_phantom_for_console(), 40.0, 5);
+    assert!(
+        rel(a.measured_snr / b.measured_snr, 2.0) < 0.25,
+        "measured {} vs {} (ratio {})",
+        a.measured_snr, b.measured_snr, a.measured_snr / b.measured_snr
+    );
+}
+
+/// **SNR scales as √(sampling time).** Four averages doubles it — the oldest
+/// trade in the modality, and the reason a good image takes minutes.
+#[test]
+fn snr_scales_as_the_square_root_of_time() {
+    let one = { let mut p = REFERENCE; p.n = 64; p };
+    let four = { let mut p = one; p.averages = 4; p };
+    assert!(rel(four.relative_snr() / one.relative_snr(), 2.0) < 1e-9);
+    assert!(rel(four.sampling_seconds() / one.sampling_seconds(), 4.0) < 1e-12);
+
+    let a = scan(one, tissue_phantom_for_console(), 40.0, 9);
+    let b = scan(four, tissue_phantom_for_console(), 40.0, 9);
+    assert!(
+        rel(b.measured_snr / a.measured_snr, 2.0) < 0.25,
+        "four averages should double SNR: {} → {}", a.measured_snr, b.measured_snr
+    );
+}
+
+/// **Acceleration does not cost SNR until you unfold it** — which is the
+/// opposite of the folklore, and worth being exact about.
+///
+/// Skipping every other phase-encode line halves the scan and puts noise into
+/// half as many k-samples, so a zero-filled reconstruction is measurably
+/// *quieter* — by √2 — and thoroughly aliased. The familiar `√R` penalty is
+/// paid by the **unfolding** step (SENSE's g-factor), which this console does
+/// not perform: part two shows you the folding instead.
+#[test]
+fn acceleration_buys_time_and_pays_in_aliasing_not_noise() {
+    let full = { let mut p = REFERENCE; p.n = 64; p };
+    let half = { let mut p = full; p.undersample = 2; p };
+
+    // It halves the scan…
+    assert!(rel(full.scan_seconds() / half.scan_seconds(), 2.0) < 1e-12);
+    // …and the law does not charge for it, because zero-filled and unfolded
+    // reconstructions are not comparable.
+    assert!(rel(full.relative_snr(), half.relative_snr()) < 1e-12,
+        "acceleration is deliberately outside the law — see Protocol::sampling_seconds");
+
+    // Measured: fewer noisy samples really does mean a quieter image.
+    let bg_sd = |p: Protocol| {
+        let s = scan(p, Phantom { ellipses: vec![] }, 40.0, 21);
+        let v: Vec<f64> = s.image.iter().map(|&x| x as f64).collect();
+        let m = v.iter().sum::<f64>() / v.len() as f64;
+        (v.iter().map(|x| (x - m).powi(2)).sum::<f64>() / v.len() as f64).sqrt()
+    };
+    let ratio = bg_sd(full) / bg_sd(half);
+    assert!(
+        rel(ratio, 2f64.sqrt()) < 0.1,
+        "R=2 should be √2 quieter, not noisier: ratio {ratio}"
+    );
+}
+
+/// **The B₀² law flows all the way through to the picture.** Tripling the field
+/// from 1 T to 3 T is a 9× signal gain, and it shows up in a reconstruction.
+#[test]
+fn field_strength_reaches_the_image() {
+    let low = { let mut p = REFERENCE; p.n = 64; p.b0 = 1.0; p };
+    let high = { let mut p = low; p.b0 = 3.0; p };
+    assert!(rel(high.relative_snr() / low.relative_snr(), 9.0) < 1e-6);
+
+    let a = scan(low, tissue_phantom_for_console(), 40.0, 3);
+    let b = scan(high, tissue_phantom_for_console(), 40.0, 3);
+    assert!(
+        rel(b.measured_snr / a.measured_snr, 9.0) < 0.2,
+        "measured {} vs {} (ratio {})", a.measured_snr, b.measured_snr,
+        b.measured_snr / a.measured_snr
+    );
+}
+
+/// The whole law in one place: every factor is separately linear in the thing
+/// it should be linear in, so the console's readout can attribute a change to
+/// the knob that caused it.
+#[test]
+fn each_term_of_the_scaling_law_is_separable() {
+    let base = REFERENCE;
+    let with = |f: &dyn Fn(&mut Protocol)| { let mut p = base; f(&mut p); p.relative_snr() };
+    assert!(rel(base.relative_snr(), 1.0) < 1e-12, "the reference is 1 by construction");
+    // coil sensitivity: linear
+    assert!(rel(with(&|p| p.coil_sensitivity = 2.0), 2.0) < 1e-12);
+    // slice thickness: linear (volume)
+    assert!(rel(with(&|p| p.slice = 0.010), 2.0) < 1e-12);
+    // averages: √
+    assert!(rel(with(&|p| p.averages = 9), 3.0) < 1e-12);
+    // field: squared
+    assert!(rel(with(&|p| p.b0 = 3.0), 4.0) < 1e-4);
+}

@@ -2,6 +2,62 @@
 /* eslint-disable */
 
 /**
+ * The whole instrument as one control panel: every knob from the four parts,
+ * one image, and the SNR law that ties them together.
+ */
+export class Console {
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * The acoustic peak this protocol's readout would radiate, in hertz — part
+     * four, driven by the same dwell time the encoding uses.
+     */
+    acoustic_hz(): number;
+    /**
+     * The predicted EPI geometric shift for this protocol, in pixels.
+     */
+    epi_shift(): number;
+    /**
+     * `[relative_snr, measured_snr, scan_seconds, voxel_mm3, sampling_ms, coil_sensitivity]`
+     */
+    metrics(reference_snr: number, seed: number): Float64Array;
+    constructor();
+    /**
+     * Run the scan. Returns the reconstructed magnitude image.
+     */
+    scan(reference_snr: number, seed: number): Float32Array;
+    /**
+     * Part one: place the receive coil. Distance in cm, radius in cm, and an
+     * angle in degrees swinging it from beside the patient (0°, transverse to
+     * B₀ and fully sensitive) round to the head end (90°, along B₀ and deaf).
+     */
+    set_coil(distance_cm: number, radius_cm: number, angle_deg: number): void;
+    /**
+     * Part two: the encoding.
+     */
+    set_encoding(n: number, fov_cm: number, slice_mm: number, undersample: number, traj: number): void;
+    /**
+     * Parts one and four: the magnet, the readout clock, and the shim.
+     */
+    set_hardware(b0: number, dwell_us: number, off_res_hz: number, t2star_ms: number): void;
+    /**
+     * Part three: the schedule.
+     */
+    set_schedule(tr_ms: number, te_ms: number, averages: number): void;
+    /**
+     * The SNR law broken into its four factors, so the console can attribute a
+     * change to the knob that caused it:
+     * `[B₀ term, voxel term, √time term, coil term]`, each relative to the
+     * reference protocol.
+     */
+    snr_terms(): Float64Array;
+    /**
+     * The ground truth, for comparison.
+     */
+    truth(): Float32Array;
+}
+
+/**
  * A scanner the page can drive: an object, a matrix, a field of view, and a
  * trajectory through k-space.
  */
@@ -210,6 +266,11 @@ export function polarization_ppm(b0: number): number;
 export function relative_faraday_emf(b0: number): number;
 
 /**
+ * The Rician mean of a magnitude image's background: `σ√(π/2)`.
+ */
+export function rician_background_mean(sigma: number): number;
+
+/**
  * How far image `b` has slid along y relative to `a`, in pixels, by circular
  * cross-correlation — the measurement that survives the image wrapping around
  * the field of view, which is what large off-resonance actually does.
@@ -260,12 +321,24 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
+    readonly __wbg_console_free: (a: number, b: number) => void;
     readonly __wbg_imager_free: (a: number, b: number) => void;
     readonly __wbg_rxcoil_free: (a: number, b: number) => void;
     readonly acoustic_peak_hz: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
     readonly acoustic_spectrum: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
     readonly acoustic_waveform: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
     readonly best_radius: (a: number) => number;
+    readonly console_acoustic_hz: (a: number) => number;
+    readonly console_epi_shift: (a: number) => number;
+    readonly console_metrics: (a: number, b: number, c: number, d: number) => void;
+    readonly console_new: () => number;
+    readonly console_scan: (a: number, b: number, c: number, d: number) => void;
+    readonly console_set_coil: (a: number, b: number, c: number, d: number) => void;
+    readonly console_set_encoding: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
+    readonly console_set_hardware: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly console_set_schedule: (a: number, b: number, c: number, d: number) => void;
+    readonly console_snr_terms: (a: number, b: number) => void;
+    readonly console_truth: (a: number, b: number) => void;
     readonly contrast_map: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => void;
     readonly db_energy_ratio: (a: number, b: number) => number;
     readonly epi_shift_px: (a: number, b: number, c: number, d: number) => number;
@@ -291,6 +364,7 @@ export interface InitOutput {
     readonly loop_axis_field_ut: (a: number, b: number) => number;
     readonly null_time_ms: (a: number, b: number) => number;
     readonly polarization_ppm: (a: number) => number;
+    readonly rician_background_mean: (a: number) => number;
     readonly rxcoil_add_loop: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
     readonly rxcoil_clear: (a: number) => void;
     readonly rxcoil_field_at: (a: number, b: number, c: number, d: number, e: number) => void;
@@ -310,8 +384,8 @@ export interface InitOutput {
     readonly tissueimager_label_map: (a: number, b: number) => void;
     readonly tissueimager_new: (a: number, b: number, c: number) => number;
     readonly zero_contrast_tr_ms: (a: number, b: number, c: number) => number;
-    readonly relative_faraday_emf: (a: number) => number;
     readonly __wbg_tissueimager_free: (a: number, b: number) => void;
+    readonly relative_faraday_emf: (a: number) => number;
     readonly __wbindgen_add_to_stack_pointer: (a: number) => number;
     readonly __wbindgen_export: (a: number, b: number, c: number) => void;
     readonly __wbindgen_export2: (a: number, b: number) => number;

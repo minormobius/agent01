@@ -1,6 +1,163 @@
 /* @ts-self-types="./mri.d.ts" */
 
 /**
+ * The whole instrument as one control panel: every knob from the four parts,
+ * one image, and the SNR law that ties them together.
+ */
+export class Console {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        ConsoleFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_console_free(ptr, 0);
+    }
+    /**
+     * The acoustic peak this protocol's readout would radiate, in hertz — part
+     * four, driven by the same dwell time the encoding uses.
+     * @returns {number}
+     */
+    acoustic_hz() {
+        const ret = wasm.console_acoustic_hz(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * The predicted EPI geometric shift for this protocol, in pixels.
+     * @returns {number}
+     */
+    epi_shift() {
+        const ret = wasm.console_epi_shift(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * `[relative_snr, measured_snr, scan_seconds, voxel_mm3, sampling_ms, coil_sensitivity]`
+     * @param {number} reference_snr
+     * @param {number} seed
+     * @returns {Float64Array}
+     */
+    metrics(reference_snr, seed) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.console_metrics(retptr, this.__wbg_ptr, reference_snr, seed);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v1 = getArrayF64FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export(r0, r1 * 8, 8);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    constructor() {
+        const ret = wasm.console_new();
+        this.__wbg_ptr = ret;
+        ConsoleFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
+     * Run the scan. Returns the reconstructed magnitude image.
+     * @param {number} reference_snr
+     * @param {number} seed
+     * @returns {Float32Array}
+     */
+    scan(reference_snr, seed) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.console_scan(retptr, this.__wbg_ptr, reference_snr, seed);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v1 = getArrayF32FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export(r0, r1 * 4, 4);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Part one: place the receive coil. Distance in cm, radius in cm, and an
+     * angle in degrees swinging it from beside the patient (0°, transverse to
+     * B₀ and fully sensitive) round to the head end (90°, along B₀ and deaf).
+     * @param {number} distance_cm
+     * @param {number} radius_cm
+     * @param {number} angle_deg
+     */
+    set_coil(distance_cm, radius_cm, angle_deg) {
+        wasm.console_set_coil(this.__wbg_ptr, distance_cm, radius_cm, angle_deg);
+    }
+    /**
+     * Part two: the encoding.
+     * @param {number} n
+     * @param {number} fov_cm
+     * @param {number} slice_mm
+     * @param {number} undersample
+     * @param {number} traj
+     */
+    set_encoding(n, fov_cm, slice_mm, undersample, traj) {
+        wasm.console_set_encoding(this.__wbg_ptr, n, fov_cm, slice_mm, undersample, traj);
+    }
+    /**
+     * Parts one and four: the magnet, the readout clock, and the shim.
+     * @param {number} b0
+     * @param {number} dwell_us
+     * @param {number} off_res_hz
+     * @param {number} t2star_ms
+     */
+    set_hardware(b0, dwell_us, off_res_hz, t2star_ms) {
+        wasm.console_set_hardware(this.__wbg_ptr, b0, dwell_us, off_res_hz, t2star_ms);
+    }
+    /**
+     * Part three: the schedule.
+     * @param {number} tr_ms
+     * @param {number} te_ms
+     * @param {number} averages
+     */
+    set_schedule(tr_ms, te_ms, averages) {
+        wasm.console_set_schedule(this.__wbg_ptr, tr_ms, te_ms, averages);
+    }
+    /**
+     * The SNR law broken into its four factors, so the console can attribute a
+     * change to the knob that caused it:
+     * `[B₀ term, voxel term, √time term, coil term]`, each relative to the
+     * reference protocol.
+     * @returns {Float64Array}
+     */
+    snr_terms() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.console_snr_terms(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v1 = getArrayF64FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export(r0, r1 * 8, 8);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * The ground truth, for comparison.
+     * @returns {Float32Array}
+     */
+    truth() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.console_truth(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var v1 = getArrayF32FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_export(r0, r1 * 4, 4);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+}
+if (Symbol.dispose) Console.prototype[Symbol.dispose] = Console.prototype.free;
+
+/**
  * A scanner the page can drive: an object, a matrix, a field of view, and a
  * trajectory through k-space.
  */
@@ -671,6 +828,16 @@ export function relative_faraday_emf(b0) {
 }
 
 /**
+ * The Rician mean of a magnitude image's background: `σ√(π/2)`.
+ * @param {number} sigma
+ * @returns {number}
+ */
+export function rician_background_mean(sigma) {
+    const ret = wasm.rician_background_mean(sigma);
+    return ret;
+}
+
+/**
  * How far image `b` has slid along y relative to `a`, in pixels, by circular
  * cross-correlation — the measurement that survives the image wrapping around
  * the field of view, which is what large off-resonance actually does.
@@ -831,6 +998,9 @@ function __wbg_get_imports() {
     };
 }
 
+const ConsoleFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_console_free(ptr, 1));
 const ImagerFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_imager_free(ptr, 1));

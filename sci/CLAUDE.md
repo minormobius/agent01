@@ -43,7 +43,9 @@ Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `s
 | `mri/kspace/index.html` | part two — the encoding. Same wasm, `../pkg/mri.js` |
 | `mri/contrast/index.html` | part three — contrast. Same wasm |
 | `mri/acoustics/index.html` | part four — the noise. Same wasm, plus Web Audio |
-| `mri/pkg/` | **generated** — wasm-pack output, committed. Shared by all four pages |
+| `mri/console/index.html` | the capstone — all four parts as one control panel |
+| `series.css` | **shared** — the series strip every part carries. One source of truth for how the parts link to each other |
+| `mri/pkg/` | **generated** — wasm-pack output, committed. Shared by all five pages |
 | `engine-rs/` | the Rust source for that wasm; **not served** |
 | `research/` | literature scans, one per instrument; **not served** |
 | `sci.selftest.mjs` | guards the wiring preflight can't see |
@@ -115,7 +117,7 @@ add wasm32-unknown-unknown` + wasm-pack) and run the whole site under
 
 ## engine-rs — what it actually computes
 
-Eight modules, no dependencies, and the browser shell is thin on purpose so that
+Nine modules, no dependencies, and the browser shell is thin on purpose so that
 what the page shows is what `cargo test` checks.
 
 | Module | Holds |
@@ -127,11 +129,12 @@ what the page shows is what `cargo test` checks.
 | `encode.rs` | gradients as a steering wheel for k-space; spin-warp / EPI / radial; T₂* and off-resonance applied through **sample time**; reconstruction; the circular-cross-correlation shift measurement |
 | `contrast.rs` | measured tissue T₁/T₂ (Stanisz 2005 Table 1, transcribed and asserted), the three sequence signal equations, the Ernst angle, the null time, and the contrast zero-crossing root finder |
 | `acoustics.rs` | trapezoid gradient lobes, the Lorentz force, the `d²G/dt²` acoustic drive, one damped resonator (**a model**, labelled as such), spectra, and decibels |
+| `console.rs` | the SNR scaling law, a PCG generator, receiver noise added in k-space, and the Rician background that follows from a magnitude |
 | `physics.rs` | CODATA 2018 constants, Larmor frequency and wavelength, Curie-law polarisation, and the B₀² law for Faraday detection |
 
 ```bash
 cd sci/engine-rs
-cargo test --release            # 45 known-answer tests, ~1s
+cargo test --release            # 52 known-answer tests, ~1s
 cargo run --release --bin verify   # every result printed beside its closed form
 ```
 
@@ -184,6 +187,26 @@ to visitors, not merely broken.
   symmetric, so its centroid is not zero to begin with, and a large shift wraps
   around the FOV — which a centroid reads as a small shift and a circular
   correlation reads correctly. The tool has its own test.
+
+### …and the capstone
+
+- **`SNR ∝ B₀² · voxel volume · √(sampling time) · coil sensitivity`** — computed
+  two independent ways, which is the point. `Protocol::relative_snr()` is
+  arithmetic on the protocol; `scan()` adds complex Gaussian noise *to k-space*
+  and lets the reconstruction propagate it. The tests measure SNR in the
+  resulting image and assert the two agree through voxel volume, averaging and
+  field strength.
+- **The background of an MR image is not black.** A magnitude turns zero-mean
+  complex noise Rician, mean `σ√(π/2)`. Measured on a reconstruction of pure
+  noise against the closed form.
+- **A bug those tests caught:** voxel volume was applied to the *signal* and
+  also implied by the reconstruction's own `(N·Δk)²` scaling — counted twice, so
+  a 2× law predicted a 4× image. The fix is that a reconstruction returns
+  *density*, which does not depend on how finely you sample it; the whole
+  resolution/SNR trade lives in the noise. `console.rs` says so where it happens.
+- **Acceleration is deliberately outside the law.** Zero-filled undersampling
+  gives a *quieter*, aliased image — measured at √2 quieter for R = 2. The
+  familiar `√R` penalty belongs to the unfolding step, which this does not do.
 
 ### …and part four
 
@@ -265,6 +288,15 @@ to concentration and are in a large fraction of clinical scans.
 Each page's scope box says where it stops, and `sci.selftest.mjs` asserts those
 statements stay true — so retiring a "not written" means updating the selftest
 in the same commit, which is the point.
+
+## Reading order, and the series strip
+
+The four parts are a sequence and the pages say so: each carries a
+`<nav class="series">` from [`series.css`](series.css) linking every part and
+marking the current one. It replaced one-way breadcrumbs — a reader arriving at
+part three from a search result could not see that parts one, two and four
+existed. `sci.selftest.mjs` asserts every page carries the strip, links all the
+others, and marks **exactly one** as current.
 
 ## Adding an instrument
 

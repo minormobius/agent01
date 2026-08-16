@@ -45,6 +45,14 @@ p { margin: 0.9rem 0; }
 
 ul.items { list-style: none; padding: 0; margin: 1.2rem 0 0; }
 ul.items li { padding: 1rem 0; border-bottom: 1px solid var(--rule); }
+ol.parts { list-style: none; counter-reset: p; padding: 0; margin: 0.9rem 0 0 0.2rem; }
+ol.parts li { counter-increment: p; padding: 0.32rem 0 0.32rem 2rem; border: none; position: relative; font-size: 0.93rem; color: var(--muted); }
+ol.parts li::before { content: counter(p); position: absolute; left: 0; top: 0.32rem; font-family: var(--mono); font-size: 0.7rem; color: var(--muted); opacity: 0.7; }
+ol.parts li.capstone::before { content: "▸"; color: var(--warm); }
+ol.parts a { text-decoration: none; }
+ol.parts a b { color: var(--link); font-weight: 600; }
+ol.parts a:hover b { color: var(--accent); }
+ol.parts li.capstone a b { color: var(--warm); }
 ul.items .name-row { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
 ul.items a.item { font-size: 1.2rem; font-weight: 600; text-decoration: none; color: var(--link); }
 ul.items a.item:hover { color: var(--accent); }
@@ -62,9 +70,10 @@ li.pending a.item { color: var(--muted); cursor: default; }
   <a class="crumb" href="https://mino.mobi">mino.mobi</a>
   <h1>sci</h1>
   <p class="subtitle">scientific instruments, taken apart</p>
-  <p class="lead">One page per instrument, each built around <strong>a solver you can drive</strong>
-  rather than an analogy that falls apart when you push on it. If a diagram's only justification is
-  that it is the diagram everyone draws, it does not ship here.</p>
+  <p class="lead">One instrument at a time, taken apart into parts that each carry
+  <strong>a solver you can drive</strong> rather than an analogy that falls apart when you push on
+  it. If a diagram's only justification is that it is the diagram everyone draws, it does not ship
+  here.</p>
 </header>
 
 <div class="rule">
@@ -80,50 +89,37 @@ li.pending a.item { color: var(--muted); cursor: default; }
     <div class="name-row">
       <a class="item" href="/mri/">MRI</a>
       <span class="tag">rust → wasm</span>
-      <span class="tag">nmr</span>
-      <span class="tag">part one</span>
+      <span class="tag">4 parts + console</span>
     </div>
     <div class="desc">The most celebrated instrument in applied physics detects its signal with a
-    coil of wire. What that means: Faraday induction in the near field, the principle of reciprocity
-    turning a hard reception problem into a Biot–Savart integral, a coil that goes <em>deaf</em>
-    when you point it down the bore, and why field strength buys signal twice over.</div>
+    coil of wire — and almost everything strange about it follows from that one fact. Four parts,
+    each built on a solver you drive, and a console that runs all four at once.</div>
+    <ol class="parts">
+      <li><a href="/mri/"><b>the sensor</b></a> — Faraday induction in the near field, reciprocity
+        turning a hard reception problem into a Biot–Savart integral, and a coil that goes
+        <em>deaf</em> when you point it down the bore.</li>
+      <li><a href="/mri/kspace/"><b>k-space</b></a> — if the sensor has no spatial resolution,
+        where do the pixels come from? Run an acquisition on a phantom whose k-space is evaluated
+        in closed form, and watch an EPI image slide by exactly the predicted number of pixels.</li>
+      <li><a href="/mri/contrast/"><b>contrast</b></a> — an MRI does not measure tissue; it
+        measures a tissue's response to a schedule. Measured T₁/T₂, sequence equations checked
+        against a Bloch simulation, and the curve where two tissues become invisible.</li>
+      <li><a href="/mri/acoustics/"><b>why it screams</b></a> — ninety kilograms of Lorentz force
+        per metre of winding, and an acoustic comb locked to the pulse sequence's own clock.
+        Synthesised in the browser; drag the timing and hear the pitch move.</li>
+      <li class="capstone"><a href="/mri/console/"><b>▶ the console</b></a> — all four at once.
+        Every knob belongs to one part, one image comes out, and the SNR law shows which knob
+        paid for it.</li>
+    </ol>
   </li>
-  <li>
+  <li class="pending">
     <div class="name-row">
-      <a class="item" href="/mri/kspace/">k-space</a>
-      <span class="tag">rust → wasm</span>
-      <span class="tag">fourier</span>
-      <span class="tag">part two</span>
+      <a class="item">the next instrument</a>
+      <span class="tag soon">unchosen</span>
     </div>
-    <div class="desc">If the sensor has no spatial resolution, where do the pixels come from? The
-    gradients — a steering wheel for frequency space. Run a real acquisition on a phantom whose
-    k-space is evaluated in closed form, delete parts of k-space to see what each was carrying,
-    and watch an EPI image slide off its own outline by exactly the number of pixels the formula
-    predicts.</div>
-  </li>
-  <li>
-    <div class="name-row">
-      <a class="item" href="/mri/contrast/">contrast</a>
-      <span class="tag">rust → wasm</span>
-      <span class="tag">tissue</span>
-      <span class="tag">part three</span>
-    </div>
-    <div class="desc">An MRI does not measure tissue. It measures a tissue's response to a
-    schedule, and somebody picks the schedule. Measured T₁ and T₂ from Stanisz 2005, sequence
-    equations validated against a Bloch simulation rather than a textbook, the Ernst angle, and the
-    curve through TR–TE along which two tissues become invisible to each other.</div>
-  </li>
-  <li>
-    <div class="name-row">
-      <a class="item" href="/mri/acoustics/">why it screams</a>
-      <span class="tag">rust → wasm</span>
-      <span class="tag">audio</span>
-      <span class="tag">part four</span>
-    </div>
-    <div class="desc">The part everybody has personally experienced and nobody explains. A hundred
-    kilograms of Lorentz force per metre of gradient winding, reversing thousands of times a
-    second — and an acoustic spectrum that is a comb locked to the pulse sequence's own clock.
-    Synthesised in the browser, so you can drag the timing and hear the pitch move.</div>
+    <div class="desc">The MRI breakdown is complete, so the wing needs a second subject. The
+    criterion is the same one that made this one work: an instrument whose usual explanation is
+    wrong in a way the literature can settle.</div>
   </li>
 </ul>
 

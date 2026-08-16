@@ -1,0 +1,75 @@
+/* The series strip: one source of truth for how the four parts of an
+   instrument link to each other.
+
+   Every page of a multi-part instrument carries this, so a reader who lands in
+   the middle can see the whole shape and move in both directions. It replaced
+   a set of one-way breadcrumbs that only ever pointed backwards — you could
+   arrive at part three from a search result and have no idea parts one, two and
+   four existed.
+
+   Shared rather than inlined because there are five pages and this is the one
+   component they genuinely have in common. Colours come from each page's own
+   custom properties, so it inherits whatever theme the page sets. */
+
+.series {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.5rem;
+  margin: 0 0 1.5rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+}
+
+.series .home {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-decoration: none;
+  margin-right: 0.2rem;
+}
+.series .home:hover { color: var(--accent); }
+
+.series .sep { color: var(--rule); }
+
+.series a.part,
+.series span.part {
+  text-decoration: none;
+  color: var(--muted);
+  padding: 0.16rem 0.42rem;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.series a.part:hover {
+  color: var(--fg);
+  border-color: var(--rule);
+}
+
+/* Where you are. */
+.series [aria-current="page"] {
+  color: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+/* The capstone sits slightly apart — it is not a fifth chapter, it is all four
+   at once. */
+.series a.part.capstone {
+  color: var(--warm);
+  border-color: color-mix(in srgb, var(--warm) 40%, transparent);
+}
+.series a.part.capstone:hover { border-color: var(--warm); }
+
+.series .num {
+  opacity: 0.55;
+  margin-right: 0.25rem;
+}
+
+@media (max-width: 560px) {
+  .series { font-size: 0.63rem; }
+  .series .home { width: 100%; margin-bottom: 0.2rem; }
+}

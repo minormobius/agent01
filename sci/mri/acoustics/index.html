@@ -10,6 +10,7 @@
 <meta property="og:type" content="article">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b1213'/%3E%3Cellipse cx='16' cy='16' rx='11' ry='11' fill='none' stroke='%235eead4' stroke-width='2.5'/%3E%3Cellipse cx='16' cy='16' rx='4.5' ry='4.5' fill='none' stroke='%23e8a838' stroke-width='2'/%3E%3C/svg%3E">
 
+<link rel="stylesheet" href="/series.css">
 <style>
 :root {
   --bg: #faf9f6; --fg: #1d2223; --muted: #6b7576; --rule: #d3cfc8; --link: #145;
@@ -82,8 +83,16 @@ ul.src li span.what { display: block; color: var(--muted); font-size: 0.85rem; m
 <body>
 
 <header>
-  <a class="crumb" href="/mri/contrast/">sci ← mri ← part three, contrast</a>
-  <h1>why it screams</h1>
+<nav class="series" aria-label="MRI series">
+  <a class="home" href="/">sci</a>
+  <span class="sep">/</span>
+  <a class="part" href="/mri/"><span class="num">1</span>the sensor</a>
+  <a class="part" href="/mri/kspace/"><span class="num">2</span>k-space</a>
+  <a class="part" href="/mri/contrast/"><span class="num">3</span>contrast</a>
+  <span class="part" aria-current="page"><span class="num">4</span>why it screams</span>
+  <a class="part capstone" href="/mri/console/">▶ the console</a>
+</nav>
+    <h1>why it screams</h1>
   <p class="subtitle">mri · part four · the noise</p>
   <p class="lead">This is the part of an MRI everybody has personally experienced and nobody
   explains. The scanner does not hum or whir — it hammers, at a pitch that changes when the

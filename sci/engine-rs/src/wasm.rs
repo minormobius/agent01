@@ -603,3 +603,165 @@ pub fn lobe_k_extent(amp_mt_per_m: f64, ramp_us: f64, flat_us: f64) -> f64 {
 pub fn db_energy_ratio(a: f64, b: f64) -> f64 {
     acoustics::energy_ratio(a, b)
 }
+
+// ------------------------------------------------- all together (console) --
+
+use crate::console::{self, Protocol, REFERENCE};
+
+/// The whole instrument as one control panel: every knob from the four parts,
+/// one image, and the SNR law that ties them together.
+#[wasm_bindgen]
+pub struct Console {
+    p: Protocol,
+    coil: Coil,
+}
+
+#[wasm_bindgen]
+impl Console {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Console {
+        Console {
+            p: REFERENCE,
+            coil: Coil::new(),
+        }
+    }
+
+    /// Part one: place the receive coil. Distance in cm, radius in cm, and an
+    /// angle in degrees swinging it from beside the patient (0°, transverse to
+    /// B₀ and fully sensitive) round to the head end (90°, along B₀ and deaf).
+    pub fn set_coil(&mut self, distance_cm: f64, radius_cm: f64, angle_deg: f64) {
+        let a = angle_deg.to_radians();
+        let (nx, nz) = (a.cos(), a.sin());
+        let d = distance_cm / 100.0;
+        self.coil.segments.clear();
+        self.coil
+            .add_loop([-d * nx, 0.0, -d * nz], [nx, 0.0, nz], radius_cm / 100.0, 96);
+        // Sensitivity at isocentre, normalised so the default geometry is ~1.
+        let s = self.coil.sensitivity([0.0, 0.0, 0.0]) * 1e6;
+        self.p.coil_sensitivity = s / 0.67;
+    }
+
+    /// Part two: the encoding.
+    pub fn set_encoding(&mut self, n: usize, fov_cm: f64, slice_mm: f64, undersample: usize, traj: u32) {
+        self.p.n = n;
+        self.p.fov = fov_cm / 100.0;
+        self.p.slice = slice_mm / 1000.0;
+        self.p.undersample = undersample.max(1);
+        self.p.trajectory = traj_of(traj);
+    }
+
+    /// Part three: the schedule.
+    pub fn set_schedule(&mut self, tr_ms: f64, te_ms: f64, averages: usize) {
+        self.p.tr = tr_ms * 1e-3;
+        self.p.te = te_ms * 1e-3;
+        self.p.averages = averages.max(1);
+    }
+
+    /// Parts one and four: the magnet, the readout clock, and the shim.
+    pub fn set_hardware(&mut self, b0: f64, dwell_us: f64, off_res_hz: f64, t2star_ms: f64) {
+        self.p.b0 = b0;
+        self.p.dwell = dwell_us * 1e-6;
+        self.p.off_res = off_res_hz;
+        self.p.t2star = t2star_ms * 1e-3;
+    }
+
+    /// Run the scan. Returns the reconstructed magnitude image.
+    pub fn scan(&self, reference_snr: f64, seed: u32) -> Vec<f32> {
+        self.run(reference_snr, seed).image
+    }
+
+    fn run(&self, reference_snr: f64, seed: u32) -> console::Scan {
+        let seq = Sequence::SpinEcho { tr: self.p.tr, te: self.p.te };
+        let signals: Vec<f64> = STANISZ_3T.iter().map(|t| seq.signal(t, t.t2)).collect();
+        console::scan(
+            self.p,
+            Phantom::from_tissue_signals(&signals),
+            reference_snr,
+            seed as u64,
+        )
+    }
+
+    /// `[relative_snr, measured_snr, scan_seconds, voxel_mm3, sampling_ms, coil_sensitivity]`
+    pub fn metrics(&self, reference_snr: f64, seed: u32) -> Vec<f64> {
+        let s = self.run(reference_snr, seed);
+        vec![
+            s.relative_snr,
+            s.measured_snr,
+            s.scan_seconds,
+            self.p.voxel_volume() * 1e9,
+            self.p.sampling_seconds() * 1e3,
+            self.p.coil_sensitivity,
+        ]
+    }
+
+    /// The SNR law broken into its four factors, so the console can attribute a
+    /// change to the knob that caused it:
+    /// `[B₀ term, voxel term, √time term, coil term]`, each relative to the
+    /// reference protocol.
+    pub fn snr_terms(&self) -> Vec<f64> {
+        vec![
+            physics::relative_faraday_emf(self.p.b0) / physics::relative_faraday_emf(REFERENCE.b0),
+            self.p.voxel_volume() / REFERENCE.voxel_volume(),
+            (self.p.sampling_seconds() / REFERENCE.sampling_seconds()).sqrt(),
+            self.p.coil_sensitivity / REFERENCE.coil_sensitivity,
+        ]
+    }
+
+    /// The acoustic peak this protocol's readout would radiate, in hertz — part
+    /// four, driven by the same dwell time the encoding uses.
+    pub fn acoustic_hz(&self) -> f64 {
+        let esp = self.p.n as f64 * self.p.dwell;
+        let ramp = esp * 0.2;
+        acoustics::peak_frequency(
+            &acoustics::resonator(
+                &acoustics::second_derivative(
+                    &acoustics::readout_loop(
+                        acoustics::Lobe { amp: 0.020, ramp, flat: esp - 2.0 * ramp },
+                        true,
+                        1.0 / 44100.0,
+                        8192,
+                    ),
+                    1.0 / 44100.0,
+                ),
+                1.0 / 44100.0,
+                1000.0,
+                6.0,
+            ),
+            1.0 / 44100.0,
+        )
+    }
+
+    /// The predicted EPI geometric shift for this protocol, in pixels.
+    pub fn epi_shift(&self) -> f64 {
+        if self.p.trajectory as u32 == 1 {
+            epi_shift_pixels(
+                self.p.off_res,
+                self.p.n,
+                self.p.n as f64 * self.p.dwell,
+                self.p.undersample,
+            )
+        } else {
+            0.0
+        }
+    }
+
+    /// The ground truth, for comparison.
+    pub fn truth(&self) -> Vec<f32> {
+        let seq = Sequence::SpinEcho { tr: self.p.tr, te: self.p.te };
+        let signals: Vec<f64> = STANISZ_3T.iter().map(|t| seq.signal(t, t.t2)).collect();
+        let sc = Scanner::new(self.p.n, self.p.fov, 0.10, Phantom::from_tissue_signals(&signals));
+        sc.truth()
+    }
+}
+
+impl Default for Console {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// The Rician mean of a magnitude image's background: `σ√(π/2)`.
+#[wasm_bindgen]
+pub fn rician_background_mean(sigma: f64) -> f64 {
+    console::rician_background_mean(sigma)
+}

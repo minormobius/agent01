@@ -32,7 +32,7 @@ jobs:
           test -f .sci-stage/mri/pkg/mri_bg.wasm \
             || { echo "::error::wasm module missing from the stage — run build-sci-engine.yml"; exit 1; }
           for page in index.html mri/index.html mri/kspace/index.html mri/contrast/index.html \
-                      mri/acoustics/index.html; do
+                      mri/acoustics/index.html mri/console/index.html series.css; do
             test -f ".sci-stage/$page" || { echo "::error::$page missing from the stage"; exit 1; }
           done
 
@@ -53,7 +53,9 @@ jobs:
             if curl -fsSL https://sci.mino.mobi/mri/ | grep -qi 'reciprocity' \
                && curl -fsSL https://sci.mino.mobi/mri/kspace/ | grep -qi 'one-pixel camera' \
                && curl -fsSL https://sci.mino.mobi/mri/contrast/ | grep -qi 'Stanisz' \
-               && curl -fsSL https://sci.mino.mobi/mri/acoustics/ | grep -qi 'Lorentz'; then
+               && curl -fsSL https://sci.mino.mobi/mri/acoustics/ | grep -qi 'Lorentz' \
+               && curl -fsSL https://sci.mino.mobi/mri/console/ | grep -qi 'scaling law' \
+               && curl -fsSL https://sci.mino.mobi/series.css | grep -q '\.series'; then
               echo "✓ sci is live"; exit 0
             fi
             echo "  attempt $attempt: not yet, sleeping…"; sleep 5

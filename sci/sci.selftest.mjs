@@ -26,17 +26,23 @@ const page = read("mri/index.html");
 const kpage = read("mri/kspace/index.html");
 const cpage = read("mri/contrast/index.html");
 const apage = read("mri/acoustics/index.html");
+const xpage = read("mri/console/index.html");
 const landing = read("index.html");
 const physics = read("engine-rs/src/physics.rs");
 const coil = read("engine-rs/src/coil.rs");
 const encode = read("engine-rs/src/encode.rs");
 const contrast = read("engine-rs/src/contrast.rs");
 const acoustics = read("engine-rs/src/acoustics.rs");
+const consoleRs = read("engine-rs/src/console.rs");
+const seriesCss = read("series.css");
 const phantom = read("engine-rs/src/phantom.rs");
 const sources = read("research/mri-sources.md");
 
 const PAGES = [["mri", page], ["mri/kspace", kpage], ["mri/contrast", cpage],
                ["mri/acoustics", apage]];
+// The console is a capstone, not a chapter: it drives the engine but makes no
+// new claims of its own, so it is exempt from the per-page DOI minimum.
+const ALL_PAGES = [...PAGES, ["mri/console", xpage]];
 
 // ---- 1. the wasm module ships -------------------------------------------
 const WASM = "mri/pkg/mri_bg.wasm";
@@ -54,10 +60,10 @@ if (existsSync(join(DIR, WASM))) {
 // ---- 2. the page imports what the module exports -------------------------
 if (existsSync(join(DIR, GLUE))) {
   const glue = read(GLUE);
-  for (const [name, html] of PAGES) {
+  for (const [name, html] of ALL_PAGES) {
     const imported = (html.match(/import init,\s*\{([\s\S]*?)\}\s*from/) || [, ""])[1]
       .split(",").map((s) => s.trim()).filter(Boolean);
-    ok(imported.length >= 2, `${name} imports named symbols from pkg/ (found ${imported.length})`);
+    ok(imported.length >= 1, `${name} imports named symbols from pkg/ (found ${imported.length})`);
     for (const sym of imported) {
       ok(new RegExp(`export\\s+(function|class)\\s+${sym}\\b`).test(glue),
         `pkg/ exports '${sym}' — ${name} imports it`);
@@ -65,6 +71,7 @@ if (existsSync(join(DIR, GLUE))) {
   }
   // Methods called on the wasm classes must exist on the generated bindings.
   const methods = [
+    ...xpage.matchAll(/\bcon\.([a-z_0-9]+)\(/g),
     ...page.matchAll(/\bcoil\.([a-z_0-9]+)\(/g),
     ...kpage.matchAll(/\b(?:im|brush|sw|ep)\.([a-z_0-9]+)\(/g),
     ...cpage.matchAll(/\bimager\.([a-z_0-9]+)\(/g),
@@ -175,6 +182,42 @@ ok(!/Contrast[^.]*is a third part, and is not written/.test(kpage),
   "the k-space page no longer claims contrast is unwritten");
 ok(/\/mri\/acoustics\//.test(cpage), "the contrast page links on to part four");
 ok(/not written|omission/.test(cpage), "the contrast page still says what it leaves out");
+
+// ---- 6c-bis. the series strip ------------------------------------------
+// Every page of the instrument carries the same strip, links to every other
+// part, and marks exactly one of them as current. This replaced one-way
+// breadcrumbs; if a page drops it, a reader arriving mid-series is stranded.
+{
+  ok(/\.series/.test(seriesCss), "series.css defines the strip");
+  const PARTS = ["/mri/", "/mri/kspace/", "/mri/contrast/", "/mri/acoustics/", "/mri/console/"];
+  for (const [name, html] of ALL_PAGES) {
+    ok(/<nav class="series"/.test(html), `${name} carries the series strip`);
+    ok(/series\.css/.test(html), `${name} links series.css`);
+    const current = (html.match(/aria-current="page"/g) || []).length;
+    ok(current === 1, `${name} marks exactly one part as current (found ${current})`);
+    for (const href of PARTS) {
+      const self = ("/" + name + "/").replace("//", "/").replace("/mri/mri/", "/mri/");
+      const isSelf = href === self || (name === "mri" && href === "/mri/");
+      if (isSelf) continue;
+      ok(html.includes(`href="${href}"`), `${name} links to ${href}`);
+    }
+  }
+  // The landing page routes into the series too.
+  for (const href of PARTS) {
+    ok(landing.includes(href), `the wing landing links to ${href}`);
+  }
+}
+
+// ---- 6c-ter. the capstone ties the four parts together -------------------
+ok(/SNR/.test(xpage) && /voxel volume/.test(xpage) && /sampling time/.test(xpage),
+  "the console states the scaling law");
+ok(/relative_snr/.test(consoleRs) && /Rician/.test(consoleRs),
+  "console.rs carries both the law and the Rician background");
+ok(/Rician/.test(xpage), "and the page explains why the background is not black");
+// The law and the simulation must be described as independent — that is the
+// claim the tests back up.
+ok(/counting it twice|counted twice|count it twice/.test(consoleRs),
+  "console.rs records the double-counting bug the tests caught");
 
 // ---- 6d. the acoustics page's numbers are the review's ------------------
 // Motovilova & Winkler 2022 is the only source for a decibel on that page.

@@ -10,6 +10,7 @@
 <meta property="og:type" content="article">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b1213'/%3E%3Cellipse cx='16' cy='16' rx='11' ry='11' fill='none' stroke='%235eead4' stroke-width='2.5'/%3E%3Cellipse cx='16' cy='16' rx='4.5' ry='4.5' fill='none' stroke='%23e8a838' stroke-width='2'/%3E%3C/svg%3E">
 
+<link rel="stylesheet" href="/series.css">
 <style>
 :root {
   --bg: #faf9f6; --fg: #1d2223; --muted: #6b7576; --rule: #d3cfc8; --link: #145;
@@ -74,8 +75,16 @@ ul.src li span.what { display: block; color: var(--muted); font-size: 0.85rem; m
 <body>
 
 <header>
-  <a class="crumb" href="/">sci ← instruments</a>
-  <h1>MRI</h1>
+<nav class="series" aria-label="MRI series">
+  <a class="home" href="/">sci</a>
+  <span class="sep">/</span>
+  <span class="part" aria-current="page"><span class="num">1</span>the sensor</span>
+  <a class="part" href="/mri/kspace/"><span class="num">2</span>k-space</a>
+  <a class="part" href="/mri/contrast/"><span class="num">3</span>contrast</a>
+  <a class="part" href="/mri/acoustics/"><span class="num">4</span>why it screams</a>
+  <a class="part capstone" href="/mri/console/">▶ the console</a>
+</nav>
+    <h1>MRI</h1>
   <p class="subtitle">part one · the sensor</p>
   <p class="lead">The most celebrated instrument in applied physics detects its signal with
   <strong>a coil of wire</strong>. Not a detector array, not a photon counter — a tuned loop, of the

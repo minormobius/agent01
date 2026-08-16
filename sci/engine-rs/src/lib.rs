@@ -1,6 +1,6 @@
 //! sci-mri-engine — an MRI, computed rather than asserted.
 //!
-//! Eight modules, no dependencies. Part one of the page is the sensor; part two
+//! Nine modules, no dependencies. Part one of the page is the sensor; part two
 //! is the encoding. Both are here:
 //!
 //! * [`coil`] — Biot–Savart fields from wire loops, and the **principle of
@@ -24,6 +24,9 @@
 //!   full Bloch simulation rather than against a textbook.
 //! * [`acoustics`] — the Lorentz force on the gradient windings, and why the
 //!   pitch of a scanner is its readout frequency.
+//! * [`console`] — all of the above at once: the SNR scaling law that ties the
+//!   four together, receiver noise added where it actually enters, and the
+//!   Rician background that follows from taking a magnitude.
 //!
 //! Plus [`physics`], which holds the constants and the two scaling laws that
 //! make the whole instrument make sense: Curie-law polarisation and the
@@ -36,6 +39,7 @@
 pub mod acoustics;
 pub mod bloch;
 pub mod coil;
+pub mod console;
 pub mod contrast;
 pub mod encode;
 pub mod fft;

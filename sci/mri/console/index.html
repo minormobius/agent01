@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>the console — all four parts at once</title>
+<meta name="description" content="Every knob from the four parts of the MRI breakdown on one panel: the coil, the encoding, the schedule, the magnet. One image comes out, and the SNR scaling law shows which knob paid for it.">
+<meta property="og:title" content="the console — all four parts at once">
+<meta property="og:description" content="Drive a whole scanner. Every control belongs to one of the four parts, and the SNR law shows what each one cost you.">
+<meta property="og:type" content="article">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b1213'/%3E%3Cellipse cx='16' cy='16' rx='11' ry='11' fill='none' stroke='%235eead4' stroke-width='2.5'/%3E%3Cellipse cx='16' cy='16' rx='4.5' ry='4.5' fill='none' stroke='%23e8a838' stroke-width='2'/%3E%3C/svg%3E">
+
+<link rel="stylesheet" href="/series.css">
+<style>
+:root {
+  --bg: #faf9f6; --fg: #1d2223; --muted: #6b7576; --rule: #d3cfc8; --link: #145;
+  --accent: #0d7a72; --accent-faint: rgba(13, 122, 114, 0.10);
+  --warm: #a8641c;
+  --panel: #f2f0ea; --tag-bg: #e8e5dd; --tag-text: #56605f;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1213; --fg: #dde3e3; --muted: #7d8a8a; --rule: #26312f; --link: #dfe;
+    --accent: #5eead4; --accent-faint: rgba(94, 234, 212, 0.12);
+    --warm: #e8a838;
+    --panel: #121b1c; --tag-bg: #1a2426; --tag-text: #9fb0af;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+body { max-width: 900px; margin: 0 auto; padding: 2rem 1.4rem 5rem; line-height: 1.62; }
+a { color: var(--link); }
+header { margin-bottom: 1.4rem; }
+h1 { margin: 0; font-size: 2.7rem; letter-spacing: -0.015em; font-weight: 600; }
+.subtitle { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 0.4rem 0 0; }
+.lead { font-size: 1.06rem; margin: 1.5rem 0 0; }
+.lead strong { color: var(--accent); font-weight: 600; }
+h2.sec { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); font-weight: normal; margin: 3rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--rule); }
+p { margin: 0.9rem 0; }
+code, .num { font-family: var(--mono); font-size: 0.88em; }
+
+.console { display: grid; grid-template-columns: 1fr 300px; gap: 1.1rem; align-items: start; margin: 1.4rem 0; }
+@media (max-width: 760px) { .console { grid-template-columns: 1fr; } }
+.deck { background: var(--panel); border: 1px solid var(--rule); border-radius: 4px; padding: 0.9rem 1rem 1.1rem; }
+.deck h4 { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.12em; text-transform: uppercase; font-weight: normal; margin: 0 0 0.2rem; }
+.deck h4 .from { color: var(--muted); }
+.deck + .deck { margin-top: 0.7rem; }
+.deck.p1 h4 { color: #5eead4; } .deck.p1 { border-left: 2px solid #5eead4; }
+.deck.p2 h4 { color: #8ab4f8; } .deck.p2 { border-left: 2px solid #8ab4f8; }
+.deck.p3 h4 { color: #f28b82; } .deck.p3 { border-left: 2px solid #f28b82; }
+.deck.p4 h4 { color: #e8a838; } .deck.p4 { border-left: 2px solid #e8a838; }
+.ctl { display: grid; grid-template-columns: 5.6rem 1fr 4.6rem; gap: 0.3rem 0.5rem; align-items: center; margin-top: 0.5rem; font-family: var(--mono); font-size: 0.7rem; }
+.ctl label { color: var(--muted); }
+.ctl output { color: var(--accent); text-align: right; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.viewer canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; border-radius: 3px; background: #000; border: 1px solid var(--rule); }
+.viewer .cap { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-top: 0.4rem; }
+.segs { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.8rem 0 0; }
+.segs button { font-family: var(--mono); font-size: 0.68rem; padding: 0.3rem 0.6rem; border: 1px solid var(--rule); background: transparent; color: var(--muted); border-radius: 3px; cursor: pointer; }
+.segs button:hover { color: var(--fg); }
+.segs button[aria-pressed="true"] { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+table.law { border-collapse: collapse; width: 100%; font-family: var(--mono); font-size: 0.72rem; margin: 0.8rem 0 0; }
+table.law td { padding: 0.28rem 0.4rem 0.28rem 0; border-bottom: 1px solid var(--rule); }
+table.law td.term { color: var(--muted); }
+table.law td.val { text-align: right; font-weight: 600; }
+table.law td.val.up { color: var(--accent); }
+table.law td.val.down { color: var(--warm); }
+table.law tr.total td { border-bottom: none; padding-top: 0.5rem; font-size: 0.85rem; }
+.swatch { display: inline-block; width: 0.55rem; height: 0.55rem; border-radius: 2px; margin-right: 0.35rem; }
+
+.stat { display: flex; flex-wrap: wrap; gap: 0.4rem 1.4rem; margin-top: 0.8rem; font-family: var(--mono); font-size: 0.72rem; }
+.stat div { color: var(--muted); }
+.stat b { display: block; color: var(--fg); font-size: 1rem; font-weight: 600; }
+.stat b.hot { color: var(--warm); }
+.verdict { margin-top: 0.9rem; padding: 0.6rem 0.8rem; border-left: 2px solid var(--accent); background: var(--accent-faint); font-size: 0.92rem; }
+.scope { border: 1px dashed var(--rule); border-radius: 4px; padding: 0.9rem 1.1rem; margin: 2rem 0; font-size: 0.92rem; color: var(--muted); }
+.scope b { color: var(--fg); }
+.cite { font-family: var(--mono); font-size: 0.74rem; color: var(--muted); line-height: 1.5; }
+.stamp { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); }
+.err { color: var(--warm); font-family: var(--mono); font-size: 0.8rem; }
+.eq { font-family: var(--mono); font-size: 0.84rem; text-align: center; color: var(--accent); background: var(--accent-faint); padding: 0.7rem 0.6rem; border-radius: 3px; margin: 1.2rem 0; overflow-x: auto; }
+</style>
+</head>
+<body>
+
+<header>
+<nav class="series" aria-label="MRI series">
+  <a class="home" href="/">sci</a>
+  <span class="sep">/</span>
+  <a class="part" href="/mri/"><span class="num">1</span>the sensor</a>
+  <a class="part" href="/mri/kspace/"><span class="num">2</span>k-space</a>
+  <a class="part" href="/mri/contrast/"><span class="num">3</span>contrast</a>
+  <a class="part" href="/mri/acoustics/"><span class="num">4</span>why it screams</a>
+  <span class="part capstone" aria-current="page">▶ the console</span>
+</nav>
+  <h1>the console</h1>
+  <p class="subtitle">mri · all four parts at once</p>
+  <p class="lead">Four pages, four isolated effects. They are not really separate: they compose
+  into <strong>one image, and one number</strong>. Every control below belongs to one of the parts
+  — colour-coded to it — and the panel on the right shows which knob paid for what.</p>
+</header>
+
+<div class="eq">SNR &nbsp;∝&nbsp; B₀² &nbsp;·&nbsp; voxel volume &nbsp;·&nbsp; √(sampling time) &nbsp;·&nbsp; coil sensitivity</div>
+
+<p>That is the whole instrument in one line. The first term is part one's — the sensor is a coil,
+so it pays twice for field. The middle two are part two's: resolution is bought with signal, and
+signal is bought with time. The last is part one's again, through reciprocity. What each tissue
+<em>does</em> with that signal is part three, and what the timing costs your ears is part four.</p>
+
+<div class="console">
+  <div>
+    <div class="deck p1">
+      <h4>1 · the sensor <span class="from">— coil placement, field strength</span></h4>
+      <div class="ctl">
+        <label for="b0">B₀</label><input type="range" id="b0" min="0.05" max="7" step="0.05" value="1.5"><output id="b0v">1.50 T</output>
+        <label for="cang">coil angle</label><input type="range" id="cang" min="0" max="90" step="1" value="0"><output id="cangv">beside</output>
+        <label for="crad">coil radius</label><input type="range" id="crad" min="3" max="20" step="0.5" value="10"><output id="cradv">10 cm</output>
+        <label for="cdst">distance</label><input type="range" id="cdst" min="6" max="25" step="0.5" value="12"><output id="cdstv">12 cm</output>
+      </div>
+    </div>
+    <div class="deck p2">
+      <h4>2 · the encoding <span class="from">— matrix, field of view, trajectory</span></h4>
+      <div class="ctl">
+        <label for="mat">matrix</label><input type="range" id="mat" min="5" max="8" step="1" value="7"><output id="matv">128²</output>
+        <label for="fov">FOV</label><input type="range" id="fov" min="14" max="40" step="1" value="26"><output id="fovv">26 cm</output>
+        <label for="slice">slice</label><input type="range" id="slice" min="1" max="10" step="0.5" value="5"><output id="slicev">5.0 mm</output>
+        <label for="us">accelerate</label><input type="range" id="us" min="1" max="4" step="1" value="1"><output id="usv">R = 1</output>
+      </div>
+      <div class="segs" id="trajsegs">
+        <button data-traj="0" aria-pressed="true">spin-warp</button>
+        <button data-traj="1" aria-pressed="false">single-shot EPI</button>
+      </div>
+    </div>
+    <div class="deck p3">
+      <h4>3 · the schedule <span class="from">— what the tissues do with it</span></h4>
+      <div class="ctl">
+        <label for="tr">TR</label><input type="range" id="tr" min="1.7" max="3.7" step="0.01" value="2.7"><output id="trv">500 ms</output>
+        <label for="te">TE</label><input type="range" id="te" min="0.3" max="2.2" step="0.01" value="1.0"><output id="tev">10 ms</output>
+        <label for="avg">averages</label><input type="range" id="avg" min="1" max="8" step="1" value="1"><output id="avgv">1</output>
+      </div>
+    </div>
+    <div class="deck p4">
+      <h4>4 · the clock <span class="from">— readout speed, and what it costs</span></h4>
+      <div class="ctl">
+        <label for="dwell">dwell</label><input type="range" id="dwell" min="1" max="16" step="0.5" value="4"><output id="dwellv">4.0 µs</output>
+        <label for="off">off-resonance</label><input type="range" id="off" min="-300" max="300" step="10" value="0"><output id="offv">0 Hz</output>
+      </div>
+    </div>
+    <div class="segs" id="presets">
+      <button data-p="clinical">clinical T₁w</button>
+      <button data-p="fmri">fast fMRI</button>
+      <button data-p="lowfield">a 0.055 T scanner</button>
+      <button data-p="greedy">too much resolution</button>
+    </div>
+  </div>
+
+  <div class="viewer">
+    <canvas id="img" width="128" height="128"></canvas>
+    <div class="cap" id="imgcap">—</div>
+    <table class="law" id="lawtable"></table>
+    <div class="stat">
+      <div>scan time<b id="stime">—</b></div>
+      <div>voxel<b id="svox">—</b></div>
+      <div>it sounds like<b id="ssound" class="hot">—</b></div>
+    </div>
+  </div>
+</div>
+
+<div class="verdict" id="say">…</div>
+
+<h2 class="sec">What the console is showing you</h2>
+
+<p><strong>The noise is added at the receiver, not painted on afterwards.</strong> Every scan above
+puts complex Gaussian noise into k-space before reconstructing, which is where thermal noise
+actually enters — and that has a visible consequence people notice without being told:
+<strong>the background of an MR image is not black</strong>. Taking a magnitude turns zero-mean
+complex noise into a Rician distribution with mean <span class="num">σ√(π/2) ≈ 1.253σ</span>, so
+empty space glows faintly. The engine measures that on a reconstruction of pure noise and checks it
+against the closed form.</p>
+
+<p>Two more things worth doing deliberately. <strong>Swing the coil to 90°</strong> and watch the
+image die — part one's deaf coil, now costing you a whole scan. And <strong>push the matrix to
+256²</strong>: the picture gets sharper and grainier at once, because you just cut the voxel volume
+fourfold and only bought back a factor of two in sampling time. That trade is not an engineering
+limitation anybody is working on. It is the scaling law.</p>
+
+<div class="scope">
+  <b>Where this stops.</b> The SNR law here is the standard relation and the simulation derives it
+  independently — but real scanners lose additional signal to coil noise correlation, to imperfect
+  slice profiles, and to every real-world factor a two-dimensional phantom does not have.
+  Acceleration is shown as folding rather than as a parallel-imaging reconstruction, so it does not
+  pay the <span class="num">g√R</span> penalty a real SENSE image would; part two says the same.
+  And the tissue values are the in-vitro ones from part three, with the caveats that page carries.
+</div>
+
+<p class="cite">The law and the simulation are separate code paths that must agree:
+<code>console.rs</code> computes the law arithmetically from the protocol, while <code>scan()</code>
+adds receiver noise and lets the reconstruction propagate it. The tests measure SNR in a reconstructed image and assert it tracks
+the law through voxel volume, averaging, and field strength — and that the Rician background mean
+matches <span class="num">σ√(π/2)</span>. Writing those tests caught a real bug in this page's
+model: voxel volume was being applied to the signal *and* implied by the reconstruction's own
+scaling, counting it twice.
+<code>cd sci/engine-rs &amp;&amp; cargo test --release</code> — 52 known-answer tests.</p>
+
+<p class="stamp">engine: rust → wasm · no dependencies · 52 tests · <a href="/mri/">one</a> · <a href="/mri/kspace/">two</a> · <a href="/mri/contrast/">three</a> · <a href="/mri/acoustics/">four</a></p>
+
+<script type="module">
+import init, { Console } from '../pkg/mri.js';
+
+const $ = (id) => document.getElementById(id);
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const REF_SNR = 45;
+
+function fail(err) {
+  document.querySelectorAll('.deck, .viewer').forEach((p) => {
+    p.innerHTML = '<p class="err">could not load the wasm engine: ' + err + '</p>';
+  });
+}
+function onFrame(fn) {
+  let queued = false;
+  return (...a) => { if (queued) return; queued = true;
+    requestAnimationFrame(() => { queued = false; fn(...a); }); };
+}
+
+init().then(() => {
+  const con = new Console();
+  let traj = 0;
+  const dec = (el) => Math.pow(10, +el.value);
+
+  const read = () => ({
+    b0: +$('b0').value,
+    cang: +$('cang').value, crad: +$('crad').value, cdst: +$('cdst').value,
+    n: Math.pow(2, +$('mat').value), fov: +$('fov').value, slice: +$('slice').value,
+    us: +$('us').value, tr: dec($('tr')), te: dec($('te')), avg: +$('avg').value,
+    dwell: +$('dwell').value, off: +$('off').value,
+  });
+
+  const render = () => {
+    const v = read();
+    $('b0v').textContent = v.b0.toFixed(2) + ' T';
+    $('cangv').textContent = v.cang === 0 ? 'beside' : (v.cang >= 89 ? 'head-on' : v.cang + '°');
+    $('cradv').textContent = v.crad + ' cm';
+    $('cdstv').textContent = v.cdst + ' cm';
+    $('matv').textContent = v.n + '²';
+    $('fovv').textContent = v.fov + ' cm';
+    $('slicev').textContent = v.slice.toFixed(1) + ' mm';
+    $('usv').textContent = 'R = ' + v.us;
+    $('trv').textContent = v.tr < 1000 ? v.tr.toFixed(0) + ' ms' : (v.tr / 1000).toFixed(2) + ' s';
+    $('tev').textContent = v.te.toFixed(1) + ' ms';
+    $('avgv').textContent = v.avg;
+    $('dwellv').textContent = v.dwell.toFixed(1) + ' µs';
+    $('offv').textContent = v.off + ' Hz';
+
+    con.set_coil(v.cdst, v.crad, v.cang);
+    con.set_encoding(v.n, v.fov, v.slice, v.us, traj);
+    con.set_schedule(v.tr, v.te, v.avg);
+    con.set_hardware(v.b0, v.dwell, v.off, 1e6);
+
+    const img = con.scan(REF_SNR, 1234);
+    const m = con.metrics(REF_SNR, 1234);
+    const terms = con.snr_terms();
+
+    // Draw with a fixed window, so a dimmer scan LOOKS dimmer rather than being
+    // auto-levelled back to full brightness. That is the whole point.
+    const c = $('img');
+    if (c.width !== v.n) { c.width = v.n; c.height = v.n; }
+    const g = c.getContext('2d');
+    const d = new ImageData(v.n, v.n);
+    const window_ = 1.15;
+    for (let i = 0; i < v.n * v.n; i++) {
+      const s = Math.round(255 * Math.min(1, Math.pow(Math.max(img[i], 0) / window_, 0.8)));
+      d.data[i * 4] = s; d.data[i * 4 + 1] = s; d.data[i * 4 + 2] = s; d.data[i * 4 + 3] = 255;
+    }
+    g.putImageData(d, 0, 0);
+
+    const cell = (label, colour, val) => {
+      const cls = val > 1.02 ? 'up' : (val < 0.98 ? 'down' : '');
+      const txt = val >= 100 ? '×' + val.toFixed(0)
+        : val >= 0.01 ? '×' + val.toFixed(2) : '×' + val.toExponential(1);
+      return `<tr><td class="term"><span class="swatch" style="background:${colour}"></span>${label}</td>` +
+        `<td class="val ${cls}">${txt}</td></tr>`;
+    };
+    const snr = m[0];
+    $('lawtable').innerHTML =
+      cell('B₀² — the sensor', '#5eead4', terms[0]) +
+      cell('voxel volume', '#8ab4f8', terms[1]) +
+      cell('√sampling time', '#8ab4f8', terms[2]) +
+      cell('coil sensitivity', '#5eead4', terms[3]) +
+      `<tr class="total"><td class="term">SNR vs reference</td>` +
+      `<td class="val ${snr > 1.02 ? 'up' : (snr < 0.98 ? 'down' : '')}">` +
+      `${snr >= 0.01 ? '×' + snr.toFixed(2) : '×' + snr.toExponential(1)}</td></tr>`;
+
+    const secs = m[2];
+    $('stime').textContent = secs >= 1 ? secs.toFixed(1) + ' s' : (secs * 1000).toFixed(0) + ' ms';
+    $('svox').textContent = (v.fov * 10 / v.n).toFixed(1) + '×' + (v.fov * 10 / v.n).toFixed(1) +
+      '×' + v.slice.toFixed(1) + ' mm';
+    $('ssound').textContent = con.acoustic_hz().toFixed(0) + ' Hz';
+    $('imgcap').innerHTML = 'measured SNR <b>' + m[1].toFixed(1) + '</b> · ' +
+      (traj === 1 ? 'EPI' : 'spin-warp');
+
+    // Attribute the biggest deviation to its part.
+    const names = ['field strength (part one)', 'voxel volume (part two)',
+                   'sampling time (part two)', 'coil sensitivity (part one)'];
+    let worst = 0;
+    for (let i = 1; i < 4; i++) {
+      if (Math.abs(Math.log(terms[i])) > Math.abs(Math.log(terms[worst]))) worst = i;
+    }
+    let msg;
+    if (terms[3] < 0.02) {
+      msg = 'The coil is pointing down the bore, so its field at the patient is parallel to B₀ ' +
+        'and it hears <b>almost nothing</b>. Part one, now costing you an entire scan.';
+    } else if (Math.abs(Math.log(snr)) < 0.05) {
+      msg = 'This is the reference protocol, near enough — every term is close to 1.';
+    } else {
+      msg = 'SNR is <b>×' + snr.toFixed(2) + '</b> the reference, and the biggest single reason is ' +
+        '<b>' + names[worst] + '</b> at ×' + terms[worst].toFixed(2) + '. ' +
+        (snr < 1
+          ? 'Everything you gained — resolution, speed, or both — was paid for out of this number.'
+          : 'You bought that with field, volume or time; check the scan clock and the voxel size.');
+    }
+    $('say').innerHTML = msg;
+  };
+
+  $('trajsegs').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    traj = +b.dataset.traj;
+    [...$('trajsegs').querySelectorAll('button')].forEach((x) =>
+      x.setAttribute('aria-pressed', String(+x.dataset.traj === traj)));
+    render();
+  });
+
+  const PRESETS = {
+    clinical: { b0: 1.5, cang: 0, crad: 10, cdst: 12, mat: 7, fov: 26, slice: 5, us: 1,
+                tr: Math.log10(500), te: Math.log10(10), avg: 1, dwell: 4, off: 0, traj: 0 },
+    fmri:     { b0: 3, cang: 0, crad: 12, cdst: 12, mat: 6, fov: 24, slice: 3, us: 2,
+                tr: Math.log10(2000), te: Math.log10(30), avg: 1, dwell: 4, off: 60, traj: 1 },
+    lowfield: { b0: 0.055, cang: 0, crad: 10, cdst: 10, mat: 6, fov: 24, slice: 8, us: 1,
+                tr: Math.log10(1500), te: Math.log10(20), avg: 8, dwell: 12, off: 0, traj: 0 },
+    greedy:   { b0: 3, cang: 0, crad: 8, cdst: 12, mat: 8, fov: 20, slice: 1, us: 1,
+                tr: Math.log10(600), te: Math.log10(12), avg: 1, dwell: 2, off: 0, traj: 0 },
+  };
+  $('presets').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    const p = PRESETS[b.dataset.p];
+    for (const [k, val] of Object.entries(p)) {
+      if (k === 'traj') { traj = val; [...$('trajsegs').querySelectorAll('button')].forEach((x) =>
+        x.setAttribute('aria-pressed', String(+x.dataset.traj === traj))); continue; }
+      if ($(k)) $(k).value = val;
+    }
+    render();
+  });
+
+  const live = onFrame(render);
+  ['b0','cang','crad','cdst','mat','fov','slice','us','tr','te','avg','dwell','off']
+    .forEach((id) => $(id).addEventListener('input', live));
+  render();
+}).catch(fail);
+</script>
+</body>
+</html>

@@ -1,12 +1,24 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
+export const __wbg_console_free: (a: number, b: number) => void;
 export const __wbg_imager_free: (a: number, b: number) => void;
 export const __wbg_rxcoil_free: (a: number, b: number) => void;
 export const acoustic_peak_hz: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
 export const acoustic_spectrum: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
 export const acoustic_waveform: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
 export const best_radius: (a: number) => number;
+export const console_acoustic_hz: (a: number) => number;
+export const console_epi_shift: (a: number) => number;
+export const console_metrics: (a: number, b: number, c: number, d: number) => void;
+export const console_new: () => number;
+export const console_scan: (a: number, b: number, c: number, d: number) => void;
+export const console_set_coil: (a: number, b: number, c: number, d: number) => void;
+export const console_set_encoding: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
+export const console_set_hardware: (a: number, b: number, c: number, d: number, e: number) => void;
+export const console_set_schedule: (a: number, b: number, c: number, d: number) => void;
+export const console_snr_terms: (a: number, b: number) => void;
+export const console_truth: (a: number, b: number) => void;
 export const contrast_map: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => void;
 export const db_energy_ratio: (a: number, b: number) => number;
 export const epi_shift_px: (a: number, b: number, c: number, d: number) => number;
@@ -32,6 +44,7 @@ export const lobe_k_extent: (a: number, b: number, c: number) => number;
 export const loop_axis_field_ut: (a: number, b: number) => number;
 export const null_time_ms: (a: number, b: number) => number;
 export const polarization_ppm: (a: number) => number;
+export const rician_background_mean: (a: number) => number;
 export const rxcoil_add_loop: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
 export const rxcoil_clear: (a: number) => void;
 export const rxcoil_field_at: (a: number, b: number, c: number, d: number, e: number) => void;
@@ -51,8 +64,8 @@ export const tissueimager_image: (a: number, b: number, c: number, d: number, e:
 export const tissueimager_label_map: (a: number, b: number) => void;
 export const tissueimager_new: (a: number, b: number, c: number) => number;
 export const zero_contrast_tr_ms: (a: number, b: number, c: number) => number;
-export const relative_faraday_emf: (a: number) => number;
 export const __wbg_tissueimager_free: (a: number, b: number) => void;
+export const relative_faraday_emf: (a: number) => number;
 export const __wbindgen_add_to_stack_pointer: (a: number) => number;
 export const __wbindgen_export: (a: number, b: number, c: number) => void;
 export const __wbindgen_export2: (a: number, b: number) => number;
