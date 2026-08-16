@@ -191,13 +191,92 @@ for (const size of [1, 4]) {
 
 // ------------------------------- 3. the party survives the walk between pages
 //
-// THE REGRESSION THIS EXISTS FOR. The kit screen and the trials share a
-// permalink and disagreed about what it meant: one drew its haul from
-// `<seed>/<count>`, the other from `<seed>` while ignoring the source and size
-// in the URL entirely, and the trials page then drew the BARE roll until you
-// pressed Begin. A party built next door arrived carrying someone else's loot
-// and its score fell from 43 to 21 with the damage axis gone. Nothing threw.
-// Only comparing the two screens catches this, so the two screens get compared.
+// THE REGRESSIONS THIS EXISTS FOR, all of them silent, all of them a party
+// quietly becoming a different party:
+//
+//   * the kit screen and the trials seeded their hauls differently, and the
+//     trials ignored `src`/`h` and drew the bare roll until you pressed Begin.
+//     A score of 43 became 21 with the damage axis gone.
+//   * the roller omitted `n` at size one, so a solo delver arrived as four.
+//   * attribute swaps, background picks, typed items and Fatigue never left
+//     the roller at all.
+//   * and the roller's own onward link read `location.hash`, which is written
+//     AFTER the link is drawn — so it was always one edit stale.
+//
+// Nothing here throws, and the cards can agree while the formation quietly
+// differs, so the HASH is compared as well as the card. That is what caught
+// the stale link: identical radars, a missing `-f1`.
+{
+  const edited = await open(`${base}/cairn/#s=oak-fen-317&n=3`, PHONE);
+  const r = edited.page;
+  await r.waitForSelector('#overview:not([hidden])', { timeout: 20000 });
+  const sheets = r.locator('.sheet');
+
+  // Every kind of edit the roller offers, on three different members.
+  await sheets.nth(0).locator('[data-swap="STR"]').click();
+  await sheets.nth(0).locator('[data-swap="DEX"]').click();
+  await r.waitForTimeout(120);
+  const chip = sheets.nth(1).locator('.chip[data-add]').first();
+  if (await chip.count()) { await chip.click(); await r.waitForTimeout(120); }
+  await sheets.nth(2).locator('.add-item input').fill('Chainmail (2 Armor, bulky)');
+  await sheets.nth(2).locator('.add-item input').press('Enter');
+  await r.waitForTimeout(150);
+  await sheets.nth(0).locator('[data-fatigue]').click();
+  await r.waitForTimeout(250);
+
+  const rollerHash = await r.evaluate(() => location.hash);
+  const rollerCard = [await r.textContent('.ov-head .n'),
+    (await r.locator('.ov-legend .v').allTextContents()).join('/')].join(' ');
+  ok(/e=0\.sSD-f1/.test(rollerHash) && /x=2\./.test(rollerHash),
+    `the roller records every edit in the URL (${rollerHash})`);
+
+  // EVERY onward link must carry the formation, not just the one in the card.
+  const links = await r.locator('a[href^="kit/"]').evaluateAll(
+    (as) => as.map((a) => a.getAttribute('href')));
+  ok(links.length > 0 && links.every((h) => h === `kit/${rollerHash}`),
+    `every link to the kit screen carries the current formation (${links.join(' , ')})`);
+  await r.close();
+
+  // The kit screen, reached by that link.
+  const kit = await open(`${base}/cairn/kit/${rollerHash}`, PHONE);
+  await kit.page.waitForSelector('#overview:not([hidden])', { timeout: 20000 });
+  const kitHash = await kit.page.evaluate(() => location.hash);
+  const kitCard = [await kit.page.textContent('.ov-head .n'),
+    (await kit.page.locator('.ov-legend .v').allTextContents()).join('/')].join(' ');
+  ok(kitHash === rollerHash, `the kit screen round-trips the formation unchanged\n     roller ${rollerHash}\n     kit    ${kitHash}`);
+  ok(kitCard === rollerCard, `and shows the same party (${rollerCard} vs ${kitCard})`);
+  await kit.page.close();
+
+  // The trials, with the kit pass off so the comparison is like for like.
+  const tri = await open(`${base}/cairn/trials/${rollerHash}&kit=0`, PHONE);
+  await tri.page.waitForSelector('#overview:not([hidden])', { timeout: 20000 });
+  await tri.page.waitForTimeout(300);
+  const triCard = [await tri.page.textContent('.ov-head .n'),
+    (await tri.page.locator('.ov-legend .v').allTextContents()).join('/')].join(' ');
+  ok(triCard === rollerCard, `and so do the trials (${rollerCard} vs ${triCard})`);
+  ok(!edited.noise.length && !kit.noise.length && !tri.noise.length,
+    `all three pages clean — ${[...edited.noise, ...kit.noise, ...tri.noise].join(' | ')}`);
+  await tri.page.close();
+}
+
+// A party of ONE has to stay a party of one all the way down.
+{
+  const r = await open(`${base}/cairn/#s=oak-fen-317`, PHONE);
+  await r.page.waitForSelector('#overview:not([hidden])', { timeout: 20000 });
+  ok((await r.page.locator('.sheet').count()) === 1, 'the roller opens on a single character');
+  const hash = await r.page.evaluate(() => location.hash);
+  ok(/n=1/.test(hash), `and says so in the URL (${hash})`);
+  await r.page.close();
+  for (const where of ['kit', 'trials']) {
+    const p = await open(`${base}/cairn/${where}/${hash}`, PHONE);
+    await p.page.waitForSelector('#overview:not([hidden])', { timeout: 20000 });
+    const note = await p.page.textContent('.ov-note');
+    ok(/\b1 delver\b/.test(note), `/${where}/ keeps them a party of one`);
+    await p.page.close();
+  }
+}
+
+// The kit and trials both hand off whatever haul settings they were given.
 for (const hash of ['#s=oak-fen-317&n=4', '#s=oak-fen-317&n=4&src=bought&h=12']) {
   const kit = await open(`${base}/cairn/kit/${hash}`, PHONE);
   await kit.page.waitForSelector('#overview:not([hidden])', { timeout: 20000 });
@@ -208,8 +287,8 @@ for (const hash of ['#s=oak-fen-317&n=4', '#s=oak-fen-317&n=4&src=bought&h=12'])
   const onward = await kit.page.getAttribute('.onward-row a[href*="trials"]', 'href');
   await kit.page.close();
 
-  const tri = await open(base + new URL(onward, `${base}/cairn/kit/`).pathname
-    + new URL(onward, `${base}/cairn/kit/`).hash, PHONE);
+  const url = new URL(onward, `${base}/cairn/kit/`);
+  const tri = await open(base + url.pathname + url.hash, PHONE);
   await tri.page.waitForSelector('#overview:not([hidden])', { timeout: 20000 });
   await tri.page.waitForFunction(() => document.getElementById('progress').hidden, { timeout: 120000 });
   await tri.page.waitForTimeout(250);
@@ -218,7 +297,7 @@ for (const hash of ['#s=oak-fen-317&n=4', '#s=oak-fen-317&n=4&src=bought&h=12'])
   await tri.page.close();
 
   ok(kitScore === triScore && kitAxes === triAxes,
-    `handoff ${hash}: the trials page shows the party the kit page built `
+    `handoff ${hash}: the trials show the party the kit screen built `
     + `(kit ${kitScore} [${kitAxes}] vs trials ${triScore} [${triAxes}])`);
   ok(!kit.noise.length && !tri.noise.length,
     `handoff ${hash}: both pages clean — ${[...kit.noise, ...tri.noise].join(' | ')}`);

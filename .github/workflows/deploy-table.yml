@@ -43,6 +43,7 @@ jobs:
       - name: Selftests
         run: |
           node cairn/roll.selftest.mjs
+          node cairn/formation.selftest.mjs
           node cairn/combat.selftest.mjs
           node cairn/condition.selftest.mjs
           node cairn/trials.selftest.mjs

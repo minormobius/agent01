@@ -10,9 +10,10 @@
 // Everything slow — searching for a rung, allocating a reward — is a generator
 // or a chunked loop, so the tab never locks up without saying why.
 
-import { rollParty, coinSeed } from '../roll.js';
+import { coinSeed } from '../roll.js';
 import { combatantFromCharacter } from '../combat.js';
 import { kitParty } from '../condition.js';
+import { decodeFormation, encodeFormation, partyWithGear } from '../formation.js';
 import { overviewCard } from '../overview-card.js';
 import {
   RUNGS, MODES, newRun, combatants, standing, findRung, fightRung, rewardRung,
@@ -22,34 +23,17 @@ const $ = (id) => document.getElementById(id);
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+// The formation IS the state: the roll, the size, the player's edits on the
+// roller, and the kit settings, all in one string. Every field this page needs
+// used to be re-parsed here with its own defaults, which is how a party built
+// two screens ago arrived as somebody else. See ../formation.js.
 const state = {
-  // `source` and `count` are the kit screen's haul settings, carried in the
-  // same hash. They used to be ignored here, so a party built next door with
-  // twelve bought items arrived kitted from eight found ones — a different
-  // party wearing the same name, with the weapon it was given missing.
-  seed: '', size: 4, mode: 'scaled', kit: true, source: 'found', count: 8,
+  formation: null, extras: null,
   party: [], run: null, entry: null, pending: null, busy: false,
 };
 
-function readHash() {
-  const p = new URLSearchParams(location.hash.replace(/^#/, ''));
-  return {
-    seed: p.get('s') || '',
-    size: Math.min(6, Math.max(1, Number(p.get('n')) || 4)),
-    mode: MODES.includes(p.get('m')) ? p.get('m') : 'scaled',
-    kit: p.get('kit') !== '0',
-    source: p.get('src') === 'bought' ? 'bought' : 'found',
-    count: Math.min(12, Math.max(4, Number(p.get('h')) || 8)),
-  };
-}
 function writeHash() {
-  const p = new URLSearchParams({ s: state.seed, n: String(state.size) });
-  if (state.mode !== 'scaled') p.set('m', state.mode);
-  if (!state.kit) p.set('kit', '0');
-  // Round-tripped so the link back to /cairn/kit/ rebuilds the same party.
-  if (state.source !== 'found') p.set('src', state.source);
-  if (state.count !== 8) p.set('h', String(state.count));
-  history.replaceState(null, '', `#${p}`);
+  history.replaceState(null, '', `#${encodeFormation(state.formation)}`);
 }
 function say(m) {
   $('status').textContent = m;
@@ -252,8 +236,9 @@ function goIn(auto = false) {
  * built next door arrived carrying somebody else's loot and its score fell.
  */
 function kitThenStart(then) {
+  const f = state.formation;
   const it = kitParty(state.party, {
-    seed: state.seed, count: state.count, source: state.source, trials: 400,
+    seed: f.seed, count: f.count, source: f.source, trials: 400,
   });
   busy(true, 'kitting them out before the door…');
   const step = () => {
@@ -269,7 +254,9 @@ function kitThenStart(then) {
 
 function begin() {
   if (state.busy) return;
-  state.run = newRun(state.party, { seed: state.seed, extras: state.extras, mode: state.mode });
+  state.run = newRun(state.party, {
+    seed: state.formation.seed, extras: state.extras, mode: state.formation.mode,
+  });
   state.entryCombatants = combatants(state.run);
   draw();
   scout();
@@ -285,22 +272,32 @@ $('next').addEventListener('click', (e) => {
 });
 $('begin').addEventListener('click', begin);
 // Without this the screen was one party for as long as you stayed on it.
+/** A new seed is a new party, so the edits made to the old one go with it. */
+function reseed(seed) {
+  state.formation = { ...state.formation, seed, edits: {} };
+  $('seed').value = seed;
+  reset();
+}
 $('roll').addEventListener('click', () => {
   if (state.busy) return;
-  state.seed = coinSeed();
-  $('seed').value = state.seed;
-  reset();
+  reseed(coinSeed());
   say('new party');
 });
-$('seed').addEventListener('change', () => {
-  state.seed = $('seed').value.trim() || coinSeed();
-  $('seed').value = state.seed;
+$('seed').addEventListener('change', () => reseed($('seed').value.trim() || coinSeed()));
+$('size').addEventListener('change', () => {
+  // Renumbering everybody makes the roller's edits describe strangers, so they
+  // go — the same rule the other two screens follow.
+  state.formation = { ...state.formation, size: Number($('size').value), edits: {} };
   reset();
 });
-for (const [id, key, cast] of [['size', 'size', Number], ['mode', 'mode', String]]) {
-  $(id).addEventListener('change', () => { state[key] = cast($(id).value); reset(); });
-}
-$('kit').addEventListener('change', () => { state.kit = $('kit').checked; reset(); });
+$('mode').addEventListener('change', () => {
+  state.formation = { ...state.formation, mode: $('mode').value };
+  reset();
+});
+$('kit').addEventListener('change', () => {
+  state.formation = { ...state.formation, kit: $('kit').checked };
+  reset();
+});
 $('copy').addEventListener('click', async () => {
   try {
     await navigator.clipboard.writeText(location.href);
@@ -317,24 +314,26 @@ function reset() {
   state.run = null;
   state.pending = null;
   state.extras = null;
-  state.party = rollParty(state.seed, state.size).members;
+  // Rebuilt from the formation, never re-rolled: this is the party the roller
+  // showed, swaps and background picks and all.
+  state.party = partyWithGear(state.formation);
   // The ghost on the radar is always the party as ROLLED, so the card shows
   // everything the kit and then the run have done to them, cumulatively.
   state.entry = state.party.map((c) => combatantFromCharacter(c));
   writeHash();
   draw();
-  if (state.kit) kitThenStart((extras) => { state.extras = extras; draw(); });
+  if (state.formation.kit) kitThenStart((extras) => { state.extras = extras; draw(); });
 }
 
 // ------------------------------------------------------------------- start
 
-// Take EVERY field readHash returns. Adding one to the reader and forgetting
-// it here is silent — the page reads `src=bought&h=12` off the URL, ignores it,
-// and kits the party from a default haul that looks perfectly plausible.
-Object.assign(state, readHash());
-state.seed = state.seed || coinSeed();
-$('seed').value = state.seed;
-$('size').value = String(state.size);
-$('mode').value = state.mode;
-$('kit').checked = state.kit;
+// One decode, one object. There is no longer a per-page reader to forget a
+// field in — which is what happened when `src` and `h` were added to the URL
+// and this page went on kitting from a default haul that looked plausible.
+state.formation = decodeFormation(location.hash);
+if (!state.formation.seed) state.formation.seed = coinSeed();
+$('seed').value = state.formation.seed;
+$('size').value = String(state.formation.size);
+$('mode').value = state.formation.mode;
+$('kit').checked = state.formation.kit;
 reset();

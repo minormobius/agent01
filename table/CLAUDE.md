@@ -67,6 +67,8 @@ obligations it puts on us: [`cairn/LICENSE.md`](cairn/LICENSE.md).
 | `cairn/tools/scrape-srd.py` | What generated it, from <https://cairnrpg.com/second-edition/> |
 | `cairn/roll.js` | The dice and the rules. Pure logic, no DOM |
 | `cairn/roll.selftest.mjs` | The tripwires. **Run this before touching either of the two files above** |
+| `cairn/formation.js` | One party carried across all four screens: the seed plus every decision since |
+| `cairn/formation.selftest.mjs` | 34 checks. **A formation that decodes wrong shows a plausible stranger** |
 | `cairn/app.js` | The page: rendering, the two edits a player may make, print |
 | `cairn/monsters.js` | **Generated.** The 84 bestiary stat blocks, parsed into numbers |
 | `cairn/tools/scrape-monsters.py` | What generated it |
@@ -99,12 +101,56 @@ python3 table/cairn/tools/scrape-srd.py      > table/cairn/data.js
 python3 table/cairn/tools/scrape-monsters.py > table/cairn/monsters.js
 python3 table/cairn/tools/scrape-items.py    > table/cairn/items.js
 node table/cairn/roll.selftest.mjs      # must pass; the frozen sheet is the check
+node table/cairn/formation.selftest.mjs # must pass; a mis-decoded formation is a different party
 node table/cairn/combat.selftest.mjs    # must pass; a wrong simulator looks right
 node table/cairn/delve.selftest.mjs     # must pass; a wrong advancement model looks right too
 node table/cairn/effects.selftest.mjs   # must pass; a mis-wired ability does nothing, silently
 node table/cairn/condition.selftest.mjs # must pass; measuring has to keep beating guessing
 node table/cairn/trials.selftest.mjs    # must pass; what carries between fights is easy to get backwards
 ```
+
+### The formation — one party, four screens
+
+`/cairn` rolls a party, the player edits it, `/cairn/kit` equips it and
+`/cairn/trials` runs it. **Every screen rebuilds the party from the URL, so the
+URL has to be the whole formation** — the seed, and then every decision layered
+on top of it in order:
+
+```
+#s=oak-fen-317 & n=3 & e=0.sSD-f1!1.t0 & x=2.Q2hhaW5tYWls… & src=bought & h=12
+   the roll      size  hand edits        typed items         kit settings
+```
+
+`formation.js` owns all of it: one `decodeFormation`, one `encodeFormation`, one
+`buildParty`. **No screen downstream of the roller may call `rollParty`.** That
+rule exists because the alternative shipped, and every screen after the first
+was quietly showing a different party:
+
+- the roller omitted `n` when it was 1, and the kit screen's default is 4 — a
+  solo delver arrived as a party of four;
+- attribute swaps, background picks, typed items and Fatigue never left the
+  roller at all, because they were held in page state and the next screen
+  re-rolled from the seed;
+- the roller's own onward link read `location.hash`, which `render()` writes
+  *after* drawing the link — so it was permanently one edit stale, and the last
+  thing you did never travelled.
+
+Three properties keep it honest, and each is a test:
+
+1. **Operations, not results.** Edits are recorded as what the player did
+   (`sSD` = swap STR and DEX), never as the resulting sheet. Two swaps sharing
+   an attribute do not commute, so the order is replayed, not just the set.
+2. **Offers are addressed by index, not label.** Two background offers can carry
+   the same words; a label cannot tell them apart. Same bug the combat layer had
+   with two sets of Soporific Darts.
+3. **Defaults are arguments.** `decodeFormation(hash, { defaultSize })` — the
+   roller passes 1, everyone else 4. Two hard-coded numbers in two files is how
+   the size was lost; two visible arguments is survivable.
+
+The browser check walks a fully edited party from the roller to the kit screen
+to the trials and compares **the hash as well as the card**. That matters: when
+the stale link dropped a Fatigue, all three radars still agreed — only the
+missing `-f1` gave it away.
 
 ### The party overview card — a radar that had to earn it
 
@@ -520,7 +566,7 @@ starting at y=678 on a phone — entirely off the screen it was built for.
 
 ```sh
 npm i playwright-core        # Chromium is already at /opt/pw-browsers
-node table/page.check.mjs    # 60 checks; skips with exit 0 if the above is missing
+node table/page.check.mjs    # 70 checks; skips with exit 0 if the above is missing
 ```
 
 It is **not** in the deploy gate. The gate runs plain node selftests with no

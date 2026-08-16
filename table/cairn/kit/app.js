@@ -6,9 +6,10 @@
 // the tab for two or three seconds with no explanation, on a page whose whole
 // pitch is that it is doing real work — so the work is visible.
 
-import { rollParty, packInventory, coinSeed } from '../roll.js';
+import { packInventory, coinSeed } from '../roll.js';
 import { combatantFromCharacter } from '../combat.js';
 import { kitParty } from '../condition.js';
+import { decodeFormation, encodeFormation, partyWithGear } from '../formation.js';
 import { overviewCard } from '../overview-card.js';
 
 const $ = (id) => document.getElementById(id);
@@ -19,24 +20,16 @@ const md = (s) => escapeHtml(s)
   .replace(/\*\*([^*]+)\*\*/g, '<span class="t">$1</span>')
   .replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
-const state = { seed: '', size: 4, source: 'found', count: 8, party: [], result: null, running: false };
-
-function readHash() {
-  const p = new URLSearchParams(location.hash.replace(/^#/, ''));
-  return {
-    seed: p.get('s') || '',
-    size: Math.min(6, Math.max(1, Number(p.get('n')) || 4)),
-    source: p.get('src') === 'bought' ? 'bought' : 'found',
-    count: Math.min(12, Math.max(4, Number(p.get('h')) || 8)),
-  };
-}
+// The formation IS the state — the roll, the size, and every edit the player
+// made on the roller, carried in one string. This page used to re-roll from the
+// seed alone, which threw away attribute swaps, background picks and party size
+// and then showed a different party with total confidence. See ../formation.js.
+const state = { formation: null, party: [], result: null, running: false };
 
 function writeHash() {
-  const p = new URLSearchParams({ s: state.seed, n: String(state.size) });
-  if (state.source !== 'found') p.set('src', state.source);
-  if (state.count !== 8) p.set('h', String(state.count));
-  history.replaceState(null, '', `#${p}`);
+  history.replaceState(null, '', `#${encodeFormation(state.formation)}`);
 }
+const onward = () => `#${encodeFormation(state.formation)}`;
 
 function say(message) {
   $('status').textContent = message;
@@ -144,19 +137,20 @@ function renderResult() {
     </div>
 
     <div class="onward-row">
-      <a href="../encounter/${location.hash}"><b>Encounter oracle →</b>
+      <a href="../encounter/${onward()}"><b>Encounter oracle →</b>
         <span>Pick a fight and see what it costs this party, now that they are carrying this.</span></a>
-      <a href="../trials/${location.hash}"><b>The trials →</b>
+      <a href="../trials/${onward()}"><b>The trials →</b>
         <span>Eight fights up a ladder, wounds carried between them. Strength does not come back.</span></a>
-      <a href="../arena/${location.hash}"><b>The arena →</b>
+      <a href="../arena/${onward()}"><b>The arena →</b>
         <span>Watch one fight play out round by round, or pilot it yourself.</span></a>
     </div>`;
 }
 
 // -------------------------------------------------------------- the allocator
 
+/** Rebuild from the formation. Never rolls: `partyWithGear` is the one way in. */
 function reroll() {
-  state.party = rollParty(state.seed, state.size).members;
+  state.party = partyWithGear(state.formation);
   state.result = null;
   renderCard();
   renderResult();
@@ -171,8 +165,9 @@ function run() {
 
   // kitParty owns the seed derivation, so the trials screen this links to
   // reproduces exactly this haul and exactly this allocation.
+  const f = state.formation;
   const it = kitParty(state.party, {
-    seed: state.seed, count: state.count, source: state.source, trials: 400,
+    seed: f.seed, count: f.count, source: f.source, trials: 400,
   });
 
   // Slice the work between frames. Roughly 60ms per slice keeps the bar moving
@@ -206,24 +201,35 @@ function run() {
 $('run').addEventListener('click', run);
 // A fresh party AND a fresh haul, because the seed drives both. Without this
 // the screen was one party for as long as you stayed on it.
+/** A new seed is a new party, so the edits made to the old one go with it. */
+function reseed(seed) {
+  state.formation = { ...state.formation, seed, edits: {} };
+  $('seed').value = seed;
+  reroll();
+}
 $('roll').addEventListener('click', () => {
   if (state.running) return;
-  state.seed = coinSeed();
-  $('seed').value = state.seed;
-  reroll();
+  reseed(coinSeed());
   say('new party, new haul');
 });
-$('seed').addEventListener('change', () => {
-  state.seed = $('seed').value.trim() || coinSeed();
-  $('seed').value = state.seed;
+$('seed').addEventListener('change', () => reseed($('seed').value.trim() || coinSeed()));
+
+$('size').addEventListener('change', () => {
+  // Changing the size renumbers everybody, so edits made about member 3 no
+  // longer describe member 3. Dropping them beats re-applying them to a
+  // stranger — the same rule the roller follows.
+  state.formation = { ...state.formation, size: Number($('size').value), edits: {} };
   reroll();
 });
-for (const [id, key, cast] of [['size', 'size', Number], ['source', 'source', String], ['count', 'count', Number]]) {
+for (const [id, key, cast] of [['source', 'source', String], ['count', 'count', Number]]) {
   $(id).addEventListener('change', () => {
-    state[key] = cast($(id).value);
-    // Party size changes who is here; haul settings only change what is on the
-    // table, so they do not need a reroll — but both invalidate an allocation.
-    if (key === 'size') reroll(); else { state.result = null; renderCard(); renderResult(); writeHash(); }
+    // Haul settings change what is on the table, not who is here — so no
+    // rebuild, but any existing allocation is stale.
+    state.formation = { ...state.formation, [key]: cast($(id).value) };
+    state.result = null;
+    renderCard();
+    renderResult();
+    writeHash();
   });
 }
 $('copy').addEventListener('click', async () => {
@@ -235,12 +241,10 @@ $('copy').addEventListener('click', async () => {
 
 // ------------------------------------------------------------------- start
 
-// Take every field readHash returns, so adding one there cannot be silently
-// dropped here — see the same note in ../trials/app.js, where it was.
-Object.assign(state, readHash());
-state.seed = state.seed || coinSeed();
-$('seed').value = state.seed;
-$('size').value = String(state.size);
-$('source').value = state.source;
-$('count').value = String(state.count);
+state.formation = decodeFormation(location.hash);
+if (!state.formation.seed) state.formation.seed = coinSeed();
+$('seed').value = state.formation.seed;
+$('size').value = String(state.formation.size);
+$('source').value = state.formation.source;
+$('count').value = String(state.formation.count);
 reroll();
