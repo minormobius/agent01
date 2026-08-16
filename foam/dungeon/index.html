@@ -116,6 +116,9 @@
   <div class="row"><label>size</label>
     <span class="seg" id="sizeSeg"><button data-size="s">s</button><button data-size="m" class="on">m</button><button data-size="l">l</button><button data-size="xl">xl</button></span>
   </div>
+  <div class="row"><label>dungeons</label>
+    <span class="seg" id="twinSeg"><button data-twin="0" class="on">one</button><button data-twin="1">twins ⧉</button></span>
+  </div>
   <div class="row"><label>endpoints</label><input id="nend" type="range" min="1" max="6" step="1" value="3"><span class="val" id="nendv">3</span></div>
   <div class="row"><label>tiles</label>
     <select id="shapeSel">
@@ -182,7 +185,7 @@ const COL = {
 const css = (c) => new THREE.Color(c);
 
 // ------------------------------------------------------------- state -------
-const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35, size: 'm', roll: 1 };
+const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35, size: 'm', roll: 1, twin: false };
 let dungeon = null, pocket = null, selected = -1;
 let content = null;          // the SSOT content roll — the crawler plays the
                              // same document; here it is a display layer
@@ -196,6 +199,7 @@ function readHash() {
   if (h.get('scale')) params.scale = Math.min(1, Math.max(0.08, parseFloat(h.get('scale')) || 0.35));
   if (SIZES[h.get('size')]) params.size = h.get('size');
   if (h.get('roll')) params.roll = Math.max(1, parseInt(h.get('roll'), 10) || 1);
+  params.twin = h.get('twin') === '1';
   params.tuning = tuningFromParam(h.get('tune'));
 }
 function writeHash() {
@@ -204,7 +208,8 @@ function writeHash() {
   const tune = tuningToParam(params.tuning ?? {});
   history.replaceState(null, '', '#seed=' + params.seed + '&n=' + params.n +
     '&shape=' + params.shape + '&scale=' + params.scale + '&size=' + params.size +
-    '&roll=' + params.roll + (tune ? '&tune=' + tune : '') + '&v=' + DUNGEON_VERSION);
+    '&roll=' + params.roll + (params.twin ? '&twin=1' : '') +
+    (tune ? '&tune=' + tune : '') + '&v=' + DUNGEON_VERSION);
 }
 
 // ------------------------------------------------------------ three --------
@@ -299,13 +304,16 @@ function buildScene(d) {
   //    are tile FILLS here too: rubble walls slate, tripwires ember.
   const s = d.tileSize;
   const fxOf = new Map((content?.effects ?? []).map((e) => [e.room + ':' + e.tile, e.type]));
+  // twin: side 1 shades violet so the interleaved dungeons read apart in 3D
+  const HI = [COL.tileHi, [0.46, 0.36, 0.66]], LO = [COL.tileLo, [0.16, 0.10, 0.28]];
   for (const r of d.rooms) {
     const pos = [], col = [];
     const t01 = r.depth / dMax;
+    const hi = HI[r.side === 1 ? 1 : 0], lo = LO[r.side === 1 ? 1 : 0];
     const base = [
-      COL.tileHi[0] + (COL.tileLo[0] - COL.tileHi[0]) * t01,
-      COL.tileHi[1] + (COL.tileLo[1] - COL.tileHi[1]) * t01,
-      COL.tileHi[2] + (COL.tileLo[2] - COL.tileHi[2]) * t01,
+      hi[0] + (lo[0] - hi[0]) * t01,
+      hi[1] + (lo[1] - hi[1]) * t01,
+      hi[2] + (lo[2] - hi[2]) * t01,
     ];
     for (const t of r.tiles) {
       let c = base;
@@ -386,13 +394,39 @@ function buildScene(d) {
     beam.position.set(e[0], e[1] + 2.8, e[2]);
     pathGroup.add(beam);
   });
-  // entrance beacon
+  // entrance beacon(s) — the twin's second entrance beams violet
   {
-    const e = d.roomOf.get(d.entrance).centroid;
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.2, 6.5, 8),
-      new THREE.MeshBasicMaterial({ color: css(COL.entrance), transparent: true, opacity: 0.6 }));
-    beam.position.set(e[0], e[1] + 3.2, e[2]);
-    pathGroup.add(beam);
+    const ents = d.twin ? d.twin.entrances : [d.entrance];
+    ents.forEach((ni, si) => {
+      const e = d.roomOf.get(ni).centroid;
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.2, 6.5, 8),
+        new THREE.MeshBasicMaterial({ color: css(si === 1 ? '#c99eff' : COL.entrance), transparent: true, opacity: 0.6 }));
+      beam.position.set(e[0], e[1] + 3.2, e[2]);
+      pathGroup.add(beam);
+    });
+  }
+  // twin seams: the sealed membranes where the two dungeons touch — the
+  // passable ones (certified crossings that never open) get a bright pink
+  // membrane plate + spinning diamond, mere shared walls a faint plate
+  if (d.twin) {
+    for (const sm of d.twin.seams) {
+      const pos = [];
+      pushFan(pos, P.faces[sm.face].verts);
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      pathGroup.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+        color: css('#ff9ef2'), transparent: true, opacity: sm.passable ? 0.28 : 0.1,
+        side: THREE.DoubleSide, depthWrite: false,
+      })));
+      if (sm.passable) {
+        const gem = new THREE.LineSegments(
+          new THREE.WireframeGeometry(new THREE.OctahedronGeometry(0.5)),
+          new THREE.LineBasicMaterial({ color: css('#ff9ef2') }));
+        gem.position.set(sm.at[0], sm.at[1] + 1.1, sm.at[2]);
+        spinners.push(gem);
+        pathGroup.add(gem);
+      }
+    }
   }
   group.add(pathGroup);
 
@@ -679,6 +713,7 @@ function syncUI() {
   $('scale').value = params.scale; $('scalev').textContent = params.scale.toFixed(2);
   $('shapeSel').value = params.shape;
   for (const b of $('sizeSeg').children) b.classList.toggle('on', b.dataset.size === params.size);
+  for (const b of $('twinSeg').children) b.classList.toggle('on', b.dataset.twin === (params.twin ? '1' : '0'));
   $('rollv').textContent = params.roll;
 }
 
@@ -687,6 +722,10 @@ function stats() {
   const pars = dungeon.paths.map((p) => p.doors.length);
   $('stats').innerHTML =
     'seed <b style="color:#ffce78">' + params.seed + '</b> · ' + dungeon.size + ' · salt ' + dungeon.pocket.salt +
+    (dungeon.twin ? '<br>⧉ twins: ' +
+      dungeon.rooms.filter((r) => r.side === 0).length + '+' + dungeon.rooms.filter((r) => r.side === 1).length +
+      ' rooms · ' + dungeon.twin.seams.length + ' seam' + (dungeon.twin.seams.length === 1 ? '' : 's') +
+      ' (' + dungeon.twin.seams.filter((s) => s.passable).length + ' passable, all sealed)' : '') +
     '<br>' + dungeon.rooms.length + ' rooms · ' + dungeon.paths.length + ' paths (' + pars.join(' / ') + ' doors)' +
     '<br>' + dungeon.rooms.reduce((a, r) => a + r.tiles.length, 0) + ' tiles · ' +
     dungeon.pocket.nav.nodeCount + ' basins in the foam';
@@ -697,7 +736,7 @@ function regen(full) {
   $('busy').classList.add('on');
   setTimeout(() => {
     try {
-      const base = { endpoints: params.n, tileShape: params.shape, tileScale: params.scale };
+      const base = { endpoints: params.n, tileShape: params.shape, tileScale: params.scale, twin: params.twin };
       dungeon = (full || !pocket)
         ? generateDungeon({ seed: params.seed, size: params.size, ...base })
         : generateDungeon({ pocket, ...base });
@@ -731,6 +770,9 @@ $('scale').onchange = () => regen(false);
 $('shapeSel').onchange = () => { params.shape = $('shapeSel').value; syncUI(); regen(false); };
 for (const b of $('sizeSeg').children) {
   b.onclick = () => { params.size = b.dataset.size; syncUI(); regen(true); };
+}
+for (const b of $('twinSeg').children) {
+  b.onclick = () => { params.twin = b.dataset.twin === '1'; syncUI(); regen(false); };
 }
 
 // ------------------------------------------------------------ plan view ----

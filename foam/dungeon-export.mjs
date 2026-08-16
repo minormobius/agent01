@@ -145,6 +145,7 @@ export function dungeonToJSON(dungeon) {
       endpoints: dungeon.requestedEndpoints,
       tileShape: dungeon.tileShape, tileScale: dungeon.tileScale,
       size: dungeon.size,
+      ...(dungeon.twin ? { twin: true } : {}),
       dims: { nx: P.opts.nx, nz: P.opts.nz, layers: P.opts.layers, subLayers: P.opts.subLayers, cell: P.opts.cell },
     },
     units: 'meters',
@@ -168,8 +169,10 @@ export function dungeonToJSON(dungeon) {
     endpoints: dungeon.endpoints.slice(),
     rooms: dungeon.rooms.map((r) => ({
       id: r.id, role: roleOf(r),
+      ...(r.side !== undefined ? { side: r.side } : {}),
       ...(r.secret ? { secret: true } : {}),
       ...(r.loop ? { loop: true } : {}),
+      ...(r.gallery ? { gallery: true } : {}),
       ...(r.endpointIndex >= 0 ? { endpointIndex: r.endpointIndex } : {}),
       depth: r.depth, floorY: rnd3(r.floorY),
       centroid: r.centroid.map(rnd3), area: rnd3(r.area),
@@ -189,9 +192,19 @@ export function dungeonToJSON(dungeon) {
     loops: (dungeon.loops ?? []).map((l) => ({ ...l })),
     paths: dungeon.paths.map((p) => ({
       endpoint: p.endpoint,
+      ...(p.side !== undefined ? { side: p.side } : {}),
       rooms: p.rooms.slice(),
       doors: p.doors.map((d) => ({ face: d.face, from: d.from, to: d.to, at: d.at.map(rnd3) })),
     })),
+    ...(dungeon.twin ? {
+      twin: {
+        entrances: dungeon.twin.entrances.slice(),
+        seams: dungeon.twin.seams.map((s) => ({
+          rooms: s.rooms.slice(), face: s.face, at: s.at.map(rnd3),
+          ...(s.passable ? { passable: true } : {}),
+        })),
+      },
+    } : {}),
   };
 }
 

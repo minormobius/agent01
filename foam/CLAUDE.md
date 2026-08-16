@@ -127,7 +127,21 @@ entered when something sees or is seen), and the HEIST alarm: lifting a
 treasure wakes the dungeon — alerted enemies hunt cross-room through
 doors — and reaching the entrance alive with treasure is an escape win.
 Tile colors recolor in place per fog change (one attribute per room), so
-the walk animation survives; `colorOf`/`refreshFog` are the single source. `/dungeon/content/` is the CONTENT FORGE: sliders for the
+the walk animation survives; `colorOf`/`refreshFog` are the single source.
+TWIN DUNGEONS (`twin=1` on every page's permalink; `side=a|b` on the
+crawler): the same foam carries two dungeons — a second entrance far
+across the top surface, the certified graph split into territories by
+simultaneous BFS, every side's endpoints/paths/loops/trapdoors planned
+inside its own territory, so the two interleave in 3D but provably never
+connect. `twin.seams` records every membrane where the two touch
+(`passable: true` = a certified crossing that never opens); GALLERIES
+grow short annex rooms on both sides toward one frontier crossing so at
+least one passable seam always exists. The crawler renders the other
+side as violet ghost geometry through seams (visible, never enterable),
+filters endpoints/win to its side, and `crawlReport` on a twin doc
+certifies each side complete from its own entrance with zero leakage.
+Twin layouts have their own golden pins; single mode is byte-identical
+with the flag off, so DUNGEON_VERSION stayed 4. `/dungeon/content/` is the CONTENT FORGE: sliders for the
 content-v2 tuning block (loot/traps/obstacles/enemies/toughness +
 `gradient`, the danger direction: +deep / 0 flat / −entrance), live plan
 preview with a crawlability tally, content-.json export; tuning rides

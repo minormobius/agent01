@@ -652,6 +652,77 @@ for (const seed of SEEDS) {
   ok(rep.complete, `tileScale 0.1: crawlable (${d.rooms.reduce((a, r) => a + r.tiles.length, 0)} tiles)`);
 }
 
+// -- TWIN DUNGEONS (the intertwined pair): two entrances whose dungeons
+//    share one foam but provably never connect. Territories partition the
+//    certified graph; every door, loop, trapdoor and corkscrew stays on
+//    its own side; seams are the sealed membranes where the two touch
+//    (galleries guarantee at least one certified-crossing seam); and the
+//    crawl certificate proves each side complete from its own entrance
+//    with zero leakage. `twin` absent = single mode, pinned above.
+{
+  const { rollContent, contentBlocked } = await import('../dungeon-content.mjs');
+  const TWIN_GOLDEN = { 2: 0x7912e963, 5: 0x1f501ee4 };
+  const twinSig = (J) => {
+    const str = JSON.stringify({ e: J.entrance, n: J.endpoints, r: J.rooms, d: J.doors, p: J.paths, t: J.trapdoors, w: J.twin });
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    return h >>> 0;
+  };
+  for (const seed of [2, 5]) {
+    const d = generateDungeon({ seed, endpoints: 3, tileShape: 'grid', tileScale: 0.35, twin: true });
+    const tag = `twin ${seed}`;
+    ok(!!d.twin, `${tag}: twin planned`);
+    const [eA, eB] = d.twin.entrances;
+    ok(eA !== eB && eA === d.entrance, `${tag}: two distinct entrances, side 0 is json.entrance`);
+    const L = d.pocket.opts.layers + d.pocket.opts.subLayers;
+    ok([eA, eB].every((e) => d.pocket.cells[d.pocket.nodes[e].cell].layer === L - 1),
+      `${tag}: both entrances on the top surface`);
+    ok(d.rooms.every((r) => r.side === 0 || r.side === 1), `${tag}: every room takes a side`);
+    ok(d.roomOf.get(eA).side === 0 && d.roomOf.get(eB).side === 1 &&
+      d.roomOf.get(eA).isEntrance && d.roomOf.get(eB).isEntrance, `${tag}: entrance rooms marked`);
+    // hard disjointness: nothing traversable crosses the frontier
+    ok(d.rooms.every((r) => r.doors.every((dd) => d.roomOf.get(dd.to)?.side === r.side)),
+      `${tag}: no door crosses sides`);
+    ok(d.trapdoors.every((td) => d.roomOf.get(td.fromRoom).side === d.roomOf.get(td.toRoom).side),
+      `${tag}: trapdoor passages stay on their side`);
+    ok(d.loops.every((l) => [...l.rooms, ...l.via].every((ni) => d.roomOf.get(ni).side === d.roomOf.get(l.rooms[0]).side)),
+      `${tag}: loop detours stay on their side`);
+    // both sides fully provisioned
+    for (const s of [0, 1]) {
+      const ends = d.rooms.filter((r) => r.endpointIndex >= 0 && r.side === s);
+      ok(ends.length === 3, `${tag}: side ${s} has 3 endpoints (got ${ends.length})`);
+    }
+    // seams: cross-side, sealed (never doors), and the galleries guarantee
+    // at least one certified-crossing seam — a wall a body could walk
+    // through, if only it opened
+    ok(d.twin.seams.length >= 1 && d.twin.seams.some((s) => s.passable), `${tag}: ≥1 passable seam`);
+    ok(d.twin.seams.every((s) => d.roomOf.get(s.rooms[0]).side === 0 && d.roomOf.get(s.rooms[1]).side === 1),
+      `${tag}: seams connect side 0 to side 1`);
+    const doorFaces = new Set(d.rooms.flatMap((r) => r.doors.map((dd) => dd.face)));
+    ok(d.twin.seams.every((s) => !doorFaces.has(s.face)), `${tag}: no seam is a door`);
+    // determinism + the crawl certificate
+    const J = dungeonToJSON(d);
+    const J2 = dungeonToJSON(generateDungeon({ seed, endpoints: 3, tileShape: 'grid', tileScale: 0.35, twin: true }));
+    ok(JSON.stringify(J) === JSON.stringify(J2), `${tag}: deterministic`);
+    ok(twinSig(J) === TWIN_GOLDEN[seed],
+      `${tag}: twin golden signature (got 0x${twinSig(J).toString(16)}, pinned 0x${TWIN_GOLDEN[seed].toString(16)})`);
+    const rep = crawlReport(J);
+    ok(rep.complete && rep.allRoomsReachable && !rep.twin.leak,
+      `${tag}: both sides complete from their own entrance, zero leakage`);
+    ok(rep.twin.sides.every((s) => s.covered && s.leaked === 0 && s.endpointsReachable === 3),
+      `${tag}: per-side certificate (${JSON.stringify(rep.twin.sides.map((s) => s.rooms))} rooms)`);
+    // content rolls stay safe on twin documents
+    const C = rollContent(J, { roll: 1 });
+    const rep2 = crawlReport(J, { blocked: contentBlocked(C) });
+    ok(rep2.complete && rep2.allRoomsReachable && rep2.partitionedRoomIds.length === 0,
+      `${tag}: content-safe, no partitions`);
+  }
+  // a shape with poly tiles twins too
+  const dp = generateDungeon({ seed: 5, endpoints: 2, tileShape: 'kagome', tileScale: 0.35, twin: true });
+  const repP = crawlReport(dungeonToJSON(dp));
+  ok(!!dp.twin && repP.complete && !repP.twin.leak, 'twin kagome: generates and certifies');
+}
+
 console.log(`\n${checks} checks, ${failures} failures (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
 if (failures) process.exit(1);
 console.log('DUNGEON SELFTEST PASS');

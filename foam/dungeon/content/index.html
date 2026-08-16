@@ -118,6 +118,7 @@ let tuning = { ...DEFAULT_TUNING };
   if (h.get('scale')) params.scale = Math.min(1, Math.max(0.08, parseFloat(h.get('scale')) || 0.35));
   if (SIZES[h.get('size')]) params.size = h.get('size');
   if (h.get('roll')) params.roll = Math.max(1, parseInt(h.get('roll'), 10) || 1);
+  params.twin = h.get('twin') === '1';
   tuning = tuningFromParam(h.get('tune'));
 }
 
@@ -127,6 +128,7 @@ function hash() {
   const tune = tuningToParam(tuning);
   return '#seed=' + params.seed + '&n=' + params.n + '&shape=' + params.shape +
     '&scale=' + params.scale + '&size=' + params.size + '&roll=' + params.roll +
+    (params.twin ? '&twin=1' : '') +
     (tune ? '&tune=' + tune : '') + '&v=' + DUNGEON_VERSION;
 }
 function writeHash() {
@@ -358,7 +360,7 @@ window.__forge = { ready: false, get content() { return content; }, get tuning()
 $('busy').classList.add('on');
 setTimeout(() => {
   try {
-    dungeon = generateDungeon({ seed: params.seed, endpoints: params.n, tileShape: params.shape, tileScale: params.scale, size: params.size });
+    dungeon = generateDungeon({ seed: params.seed, endpoints: params.n, tileShape: params.shape, tileScale: params.scale, size: params.size, twin: params.twin });
     J = dungeonToJSON(dungeon);
     syncDials(); retune();
     window.__forge.ready = true;

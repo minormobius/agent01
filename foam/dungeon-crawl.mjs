@@ -141,7 +141,9 @@ export function buildCrawl(json, opts = {}) {
     }
   }
 
-  const startRoom = json.entrance;
+  // twin documents have two entrances; opts.startRoom picks which one this
+  // crawl runs from (default: json.entrance = side 0's)
+  const startRoom = opts.startRoom ?? json.entrance;
   const sr = rooms.get(startRoom);
   const startTile = (sr.info.tiles.find((t) => t.kind === 'entrance') ?? sr.info.tiles[0]).key;
   return { json, dyMax, rooms, startRoom, startTile };
@@ -228,6 +230,31 @@ export function reachableWithin(crawl, room, tile, budget, blocked = null) {
 // asserts and a UI can surface.
 export function crawlReport(json, opts = {}) {
   const crawl = buildCrawl(json, opts);
+  // twin documents: each side must be complete from its OWN entrance, and a
+  // crawl must never leak across the frontier — the disjointness certificate
+  if (json.twin) {
+    const sideOfRoom = new Map(json.rooms.map((r) => [r.id, r.side]));
+    let allCovered = true, leak = false, endpointsReachable = 0;
+    const sideReports = json.twin.entrances.map((ent, s) => {
+      const reach = crawlReachability(buildCrawl(json, { ...opts, startRoom: ent }));
+      const sideRooms = json.rooms.filter((r) => r.side === s);
+      const covered = sideRooms.every((r) => reach.roomsSeen.has(r.id));
+      const leaked = [...reach.roomsSeen].filter((id) => sideOfRoom.get(id) !== s);
+      const ends = json.endpoints.filter((e) => sideOfRoom.get(e) === s && reach.roomsSeen.has(e));
+      allCovered = allCovered && covered;
+      leak = leak || leaked.length > 0;
+      endpointsReachable += ends.length;
+      return { side: s, rooms: reach.roomsSeen.size, covered, leaked: leaked.length, endpointsReachable: ends.length };
+    });
+    const base = crawlReport({ ...json, twin: undefined }, opts);   // room-level metrics over the union
+    return {
+      ...base,
+      allRoomsReachable: allCovered && !leak,
+      endpointsReachable,
+      complete: endpointsReachable === json.endpoints.length,
+      twin: { leak, sides: sideReports },
+    };
+  }
   const reach = crawlReachability(crawl);
   let forced = 0, bridged = 0;
   // a room is PARTITIONED when its free tiles no longer form one component

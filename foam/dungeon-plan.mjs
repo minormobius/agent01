@@ -57,6 +57,8 @@ export function drawPlan(ctx, o) {
       else if (t.kind === 'trapdoor') ctx.fillStyle = '#0a1418';
       else if (t.kind === 'hatch') ctx.fillStyle = '#2a5f5a';
       else if (r.secret) ctx.fillStyle = 'hsl(210 30% ' + (14 + h * 20).toFixed(0) + '%)';
+      // twin: side 1 wears violet so the two interleaved dungeons read apart
+      else if (r.side === 1) ctx.fillStyle = 'hsl(265 32% ' + (18 + h * 26).toFixed(0) + '%)';
       else ctx.fillStyle = 'hsl(190 40% ' + (16 + h * 28).toFixed(0) + '%)';
       tilePath(t); ctx.fill();
       ctx.strokeStyle = 'rgba(4,6,10,.65)'; ctx.lineWidth = Math.max(0.5, k * 0.02);
@@ -93,10 +95,31 @@ export function drawPlan(ctx, o) {
     ctx.stroke(); ctx.globalAlpha = 1;
   });
 
-  // -- entrance ring
+  // -- entrance ring(s) — a twin document has two
   const e = dungeon.roomOf.get(dungeon.entrance).centroid;
   ctx.strokeStyle = '#b8ff9e'; ctx.lineWidth = Math.max(1.5, k * 0.08);
   ctx.beginPath(); ctx.arc(mx(e[0]), mz(e[2]), Math.max(4, s * 0.5 * k), 0, Math.PI * 2); ctx.stroke();
+  if (dungeon.twin) {
+    const e2 = dungeon.roomOf.get(dungeon.twin.entrances[1]).centroid;
+    ctx.strokeStyle = '#d9b8ff';
+    ctx.beginPath(); ctx.arc(mx(e2[0]), mz(e2[2]), Math.max(4, s * 0.5 * k), 0, Math.PI * 2); ctx.stroke();
+
+    // -- seams: the sealed membranes where the twins touch. Passable seams
+    //    (certified crossings that will never open) wear a solid bright
+    //    diamond — the windows; mere shared walls a faint dotted one.
+    for (const sm of dungeon.twin.seams) {
+      const x = mx(sm.at[0]), z = mz(sm.at[2]);
+      const g = Math.max(4, s * 0.3 * k);
+      ctx.save();
+      ctx.strokeStyle = sm.passable ? '#ff9ef2' : 'rgba(255,158,242,.4)';
+      ctx.lineWidth = Math.max(1.5, k * 0.08);
+      if (!sm.passable) ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(x, z - g); ctx.lineTo(x + g, z); ctx.lineTo(x, z + g); ctx.lineTo(x - g, z);
+      ctx.closePath(); ctx.stroke();
+      ctx.restore();
+    }
+  }
 
   // -- passage mouths: drawn LAST so the grammar sits on top of everything
   for (const r of dungeon.rooms) {

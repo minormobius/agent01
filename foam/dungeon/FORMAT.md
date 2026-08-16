@@ -49,6 +49,28 @@ passages are certified navigable, corkscrews run ≥3 secret rooms, hatches
 re-enter somewhere other than where the drop began, and content rolls keep
 the passage endpoints clear.
 
+### Twin dungeons (`twin=1`)
+
+With `twin=1` on the permalink the same foam carries TWO dungeons: a second
+entrance far across the top surface, the certified crossing graph split into
+two territories by simultaneous BFS from both entrances, and each side's
+endpoints, paths, loops and trapdoor passages planned entirely inside its own
+territory. The two dungeons interleave in 3D but provably never connect —
+no door, loop, or corkscrew crosses the frontier (CI-pinned per side from
+its own entrance, with a zero-leakage check).
+
+In the export every room and path carries `side: 0|1`, and a top-level
+`twin` block records `entrances: [a, b]` and `seams` — every membrane where
+a side-0 room and a side-1 room touch. A seam with `passable: true` is a
+certified crossing (a standing body could walk through it, if it ever
+opened — it never does); galleries in the generator guarantee at least one,
+growing short annexes (`gallery: true` rooms) on both sides so the two
+dungeons arrive at opposite faces of one sealed wall. The crawler takes
+`side=a|b` on the hash, starts at that side's entrance, and renders the
+other dungeon as ghost geometry through seams — visible, never enterable.
+`twin` absent = single dungeon, and nothing about single-mode output
+changes.
+
 ## The crawler
 
 <https://foam.mino.mobi/dungeon/crawl/> is a room's-eye dungeon crawler over

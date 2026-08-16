@@ -379,6 +379,7 @@ export function generateDungeon(opts = {}) {
     tileScale = 0.35,
     minDepth = 4,
     size = 'm',
+    twin = false,
     pocket: given = null,
     ...pocketOpts
   } = opts;
@@ -419,8 +420,8 @@ export function generateDungeon(opts = {}) {
   // either way, and the dungeon's own BFS below proves connectivity.)
   const L = pocket.opts.layers + pocket.opts.subLayers;
   let entrance = pocket.nav.target;
+  const comp = new Array(nodes.length).fill(-1);
   {
-    const comp = new Array(nodes.length).fill(-1);
     let nc = 0;
     for (let s = 0; s < nodes.length; s++) {
       if (comp[s] >= 0 || !adj[s].length) continue;
@@ -445,91 +446,133 @@ export function generateDungeon(opts = {}) {
     }
   }
 
-  // reachability from the entrance over certified crossings
-  const distE = new Array(nodes.length).fill(-1);
-  distE[entrance] = 0;
-  {
-    const q = [entrance];
-    for (let h = 0; h < q.length; h++) {
-      const u = q[h];
-      for (const e of adj[u]) {
-        const v = e.a === u ? e.b : e.a;
-        if (distE[v] < 0) { distE[v] = distE[u] + 1; q.push(v); }
-      }
-    }
-  }
-
-  // -- roll n endpoints: deep, far, and spread out. Candidates are reachable
-  //    basins at least minDepth doors in; the pool is the deepest-lying slice
-  //    (lowest floor centroid). The first endpoint is rolled from the pool,
-  //    the rest greedily maximise plan-distance to those already picked —
-  //    deterministic under the dungeon rng.
-  const rng = mulberry(fnv(0xD07E0, pocket.seed >>> 0, wantEndpoints, nodes.length));
-  let cands = [];
-  for (let ni = 0; ni < nodes.length; ni++) {
-    if (ni === entrance || distE[ni] < minDepth) continue;
-    cands.push(ni);
-  }
-  if (cands.length < wantEndpoints) {
-    // shallow pocket — relax to anything reachable at depth ≥2
-    cands = [];
+  // -- twin mode (the intertwined pair): a second entrance far across the
+  //    top surface of the SAME component, then the certified graph split
+  //    into two territories by simultaneous BFS from both entrances (ties
+  //    go to side 0 — deterministic). Each side's dungeon is planned inside
+  //    its own territory, so the two dungeons interleave through the foam
+  //    but provably never connect.
+  let entranceB = -1, sideOf = null;
+  if (twin) {
+    let bd = -1, ba = -1;
     for (let ni = 0; ni < nodes.length; ni++) {
-      if (ni !== entrance && distE[ni] >= 2) cands.push(ni);
+      if (ni === entrance || comp[ni] !== comp[entrance]) continue;
+      if (cells[nodes[ni].cell].layer !== L - 1) continue;
+      const A = floor[ni].centroid, B = floor[entrance].centroid;
+      const dd = (A[0] - B[0]) ** 2 + (A[2] - B[2]) ** 2;
+      if (dd > bd || (dd === bd && floor[ni].area > ba)) { bd = dd; ba = floor[ni].area; entranceB = ni; }
     }
-  }
-  cands.sort((a, b) => floorY(a) - floorY(b) || a - b);   // deepest-lying first
-  const pool = cands.slice(0, Math.max(wantEndpoints * 4, 12));
-  const picked = [];
-  if (pool.length) {
-    picked.push(pool[Math.floor(rng() * Math.min(pool.length, wantEndpoints * 2))]);
-    while (picked.length < wantEndpoints && picked.length < pool.length) {
-      let best = -1, bd = -1;
-      for (const c of pool) {
-        if (picked.includes(c)) continue;
-        let dmin = Infinity;
-        for (const p of picked) {
-          const A = floor[c].centroid, B = floor[p].centroid;
-          dmin = Math.min(dmin, (A[0] - B[0]) ** 2 + (A[2] - B[2]) ** 2);
+    if (entranceB >= 0) {
+      sideOf = new Array(nodes.length).fill(-1);
+      sideOf[entrance] = 0; sideOf[entranceB] = 1;
+      const q = [entrance, entranceB];
+      for (let h = 0; h < q.length; h++) {
+        const u = q[h];
+        for (const e of adj[u]) {
+          const v = e.a === u ? e.b : e.a;
+          if (sideOf[v] < 0) { sideOf[v] = sideOf[u]; q.push(v); }
         }
-        const jit = dmin * (0.9 + 0.2 * rng());           // seeded tie-jitter
-        if (jit > bd) { bd = jit; best = c; }
       }
-      if (best < 0) break;
-      picked.push(best);
     }
   }
+  const twinActive = entranceB >= 0;
 
-  // -- wayfind one path per endpoint: shortest by door count, and among
-  //    equally short continuations take the maximal gradient down. BFS from
-  //    the endpoint gives distance-to-go; the walk from the entrance then
-  //    always steps to a next chamber one door closer, choosing the one whose
-  //    floor lies lowest.
-  const paths = picked.map((end) => {
-    const dT = new Array(nodes.length).fill(-1);
-    dT[end] = 0;
-    const q = [end];
-    for (let h = 0; h < q.length; h++) {
-      const u = q[h];
-      for (const e of adj[u]) {
-        const v = e.a === u ? e.b : e.a;
-        if (dT[v] < 0) { dT[v] = dT[u] + 1; q.push(v); }
+  // -- reachability + endpoint roll + wayfinding for one SIDE (the whole
+  //    dungeon in single mode, one territory in twin mode).
+  //    Endpoints: deep, far, and spread out — candidates are reachable
+  //    basins at least minDepth doors in; the pool is the deepest-lying
+  //    slice (lowest floor centroid). The first endpoint is rolled from
+  //    the pool, the rest greedily maximise plan-distance to those already
+  //    picked — deterministic under the dungeon rng.
+  //    Paths: shortest by door count, and among equally short continuations
+  //    take the maximal gradient down. BFS from the endpoint gives
+  //    distance-to-go; the walk from the entrance then always steps to a
+  //    next chamber one door closer, choosing the one whose floor lies
+  //    lowest.
+  const planSide = (ent, allow, salt) => {
+    const dist = new Array(nodes.length).fill(-1);
+    dist[ent] = 0;
+    {
+      const q = [ent];
+      for (let h = 0; h < q.length; h++) {
+        const u = q[h];
+        for (const e of adj[u]) {
+          const v = e.a === u ? e.b : e.a;
+          if (dist[v] < 0 && allow(v)) { dist[v] = dist[u] + 1; q.push(v); }
+        }
       }
     }
-    const rooms = [entrance], doors = [];
-    let u = entrance;
-    while (u !== end) {
-      let bestE = null, bestV = -1;
-      for (const e of adj[u]) {
-        const v = e.a === u ? e.b : e.a;
-        if (dT[v] !== dT[u] - 1) continue;
-        if (!bestE || floorY(v) < floorY(bestV) - 1e-9 ||
-            (Math.abs(floorY(v) - floorY(bestV)) <= 1e-9 && v < bestV)) { bestE = e; bestV = v; }
-      }
-      doors.push({ face: bestE.face, from: u, to: bestV, at: bestE.at.slice() });
-      rooms.push(bestV);
-      u = bestV;
+    const rng = mulberry(fnv(0xD07E0 + salt, pocket.seed >>> 0, wantEndpoints, nodes.length));
+    let cands = [];
+    for (let ni = 0; ni < nodes.length; ni++) {
+      if (ni === ent || dist[ni] < minDepth) continue;
+      cands.push(ni);
     }
-    return { endpoint: end, rooms, doors };
+    if (cands.length < wantEndpoints) {
+      // shallow pocket (or a small territory) — relax to depth ≥2
+      cands = [];
+      for (let ni = 0; ni < nodes.length; ni++) {
+        if (ni !== ent && dist[ni] >= 2) cands.push(ni);
+      }
+    }
+    cands.sort((a, b) => floorY(a) - floorY(b) || a - b);   // deepest-lying first
+    const pool = cands.slice(0, Math.max(wantEndpoints * 4, 12));
+    const picked = [];
+    if (pool.length) {
+      picked.push(pool[Math.floor(rng() * Math.min(pool.length, wantEndpoints * 2))]);
+      while (picked.length < wantEndpoints && picked.length < pool.length) {
+        let best = -1, bd = -1;
+        for (const c of pool) {
+          if (picked.includes(c)) continue;
+          let dmin = Infinity;
+          for (const p of picked) {
+            const A = floor[c].centroid, B = floor[p].centroid;
+            dmin = Math.min(dmin, (A[0] - B[0]) ** 2 + (A[2] - B[2]) ** 2);
+          }
+          const jit = dmin * (0.9 + 0.2 * rng());           // seeded tie-jitter
+          if (jit > bd) { bd = jit; best = c; }
+        }
+        if (best < 0) break;
+        picked.push(best);
+      }
+    }
+    const paths = picked.map((end) => {
+      const dT = new Array(nodes.length).fill(-1);
+      dT[end] = 0;
+      const q = [end];
+      for (let h = 0; h < q.length; h++) {
+        const u = q[h];
+        for (const e of adj[u]) {
+          const v = e.a === u ? e.b : e.a;
+          if (dT[v] < 0 && allow(v)) { dT[v] = dT[u] + 1; q.push(v); }
+        }
+      }
+      const rooms = [ent], doors = [];
+      let u = ent;
+      while (u !== end) {
+        let bestE = null, bestV = -1;
+        for (const e of adj[u]) {
+          const v = e.a === u ? e.b : e.a;
+          if (dT[v] !== dT[u] - 1) continue;
+          if (!bestE || floorY(v) < floorY(bestV) - 1e-9 ||
+              (Math.abs(floorY(v) - floorY(bestV)) <= 1e-9 && v < bestV)) { bestE = e; bestV = v; }
+        }
+        doors.push({ face: bestE.face, from: u, to: bestV, at: bestE.at.slice() });
+        rooms.push(bestV);
+        u = bestV;
+      }
+      return { endpoint: end, rooms, doors };
+    });
+    return { dist, picked, paths };
+  };
+  const sidesPlan = twinActive
+    ? [planSide(entrance, (ni) => sideOf[ni] === 0, 0), planSide(entranceB, (ni) => sideOf[ni] === 1, 1)]
+    : [planSide(entrance, () => true, 0)];
+  const depthAt = (ni) => (twinActive && sideOf[ni] === 1 ? sidesPlan[1].dist[ni] : sidesPlan[0].dist[ni]);
+  const picked = sidesPlan.flatMap((s) => s.picked);
+  const paths = sidesPlan.flatMap((s, si) => {
+    if (twinActive) for (const p of s.paths) p.side = si;
+    return s.paths;
   });
 
   // -- assemble the room set (union of all paths) and discretize each floor
@@ -540,11 +583,12 @@ export function generateDungeon(opts = {}) {
     if (roomOf.has(ni)) return roomOf.get(ni);
     const r = {
       id: ni, cell: nodes[ni].cell, layer: cells[nodes[ni].cell].layer,
-      depth: distE[ni], floorY: floorY(ni),
+      depth: depthAt(ni), floorY: floorY(ni),
       centroid: floor[ni].centroid.slice(), area: floor[ni].area,
-      isEntrance: ni === entrance, endpointIndex: -1,
+      isEntrance: ni === entrance || ni === entranceB, endpointIndex: -1,
       onPaths: [], doors: [], tiles: null,
     };
+    if (twinActive) r.side = sideOf[ni];
     roomOf.set(ni, r); rooms.push(r);
     return r;
   };
@@ -621,6 +665,9 @@ export function generateDungeon(opts = {}) {
         for (const e of adj[u]) {
           const v = e.a === u ? e.b : e.a;
           if (prevE.has(v)) continue;
+          // twin: a detour must stay in its own territory — a loop that
+          // wandered across the frontier would bridge the two dungeons
+          if (twinActive && sideOf[v] !== R1.side) continue;
           if (roomOf.has(v)) {
             if (v !== R1.id && depthB.get(u) >= 1 && !roomOf.get(v).secret && doorDist(R1.id, v) >= 3) {
               prevE.set(v, { from: u, e });
@@ -680,9 +727,10 @@ export function generateDungeon(opts = {}) {
       basinsOfCell.get(n.cell).push(i);
     });
     // a dungeon-room floor tile directly above cell `c` (the hatch exit)
-    const hatchInto = (c, excludeRoom) => {
+    const hatchInto = (c, excludeRoom, side) => {
       for (const r of rooms) {
         if (r.id === excludeRoom || r.secret) continue;
+        if (twinActive && r.side !== side) continue;   // never surface in the twin
         for (const ty of r.tiles) {
           const fy = pocket.faces[ty.face];
           if (fy.b < 0 || ty.kind !== 'floor') continue;
@@ -701,7 +749,8 @@ export function generateDungeon(opts = {}) {
         const f = pocket.faces[t.face];
         if (f.b < 0) continue;
         const below = f.a === nodes[R.id].cell ? f.b : f.a;
-        const Ls = (basinsOfCell.get(below) ?? []).filter((ni) => !isFlat[ni] && !roomOf.has(ni) && floor[ni].area >= 3);
+        const Ls = (basinsOfCell.get(below) ?? []).filter((ni) => !isFlat[ni] && !roomOf.has(ni) && floor[ni].area >= 3 &&
+          (!twinActive || sideOf[ni] === R.side));
         if (!Ls.length) continue;
         let L = Ls[0];
         for (const ni of Ls) if (floor[ni].area > floor[L].area) L = ni;
@@ -713,11 +762,12 @@ export function generateDungeon(opts = {}) {
         for (let h = 0; h < q.length && !exit; h++) {
           const S = q[h];
           if (depth.get(S) >= 2 && depth.get(S) <= 14) {
-            const hx = hatchInto(nodes[S].cell, R.id);
+            const hx = hatchInto(nodes[S].cell, R.id, R.side);
             if (hx) { exit = { S, ...hx }; break; }
           }
           for (const e of adj[S]) {
             const v = e.a === S ? e.b : e.a;
+            if (twinActive && sideOf[v] !== R.side) continue;   // corkscrews respect the frontier
             if (!prevE.has(v) && !roomOf.has(v)) { prevE.set(v, { from: S, e }); depth.set(v, depth.get(S) + 1); q.push(v); }
           }
         }
@@ -764,11 +814,126 @@ export function generateDungeon(opts = {}) {
       }
     }
   }
+  // -- twin galleries: guarantee the twins actually MEET. Both planners
+  //    dive for depth, so left alone the two dungeons can interleave
+  //    without ever coming within one membrane of each other (frontier
+  //    crossings exist between the territories, but usually between basins
+  //    neither dungeon uses). A gallery takes a certified frontier
+  //    crossing — a membrane a standing body could walk through — and
+  //    grows a short annex of rooms on EACH side to reach it, so both
+  //    dungeons arrive at opposite faces of one sealed wall. That wall is
+  //    the window: ghost-view geometry on both crawls, and never a door.
+  if (twinActive) {
+    const rngG = mulberry(fnv(0x5EAA5, pocket.seed >>> 0, rooms.length));
+    const want = 1 + (rngG() < 0.5 ? 1 : 0);
+    // shortest own-side chain of non-room basins from `start` to any room
+    const attach = (start) => {
+      if (roomOf.has(start)) return { basins: [], hops: [], cost: 0 };
+      const prev = new Map([[start, null]]);
+      const depth = new Map([[start, 0]]);
+      const q = [start];
+      for (let h = 0; h < q.length; h++) {
+        const u = q[h];
+        if (depth.get(u) > 3) continue;
+        for (const e of adj[u]) {
+          const v = e.a === u ? e.b : e.a;
+          if (sideOf[v] !== sideOf[start] || prev.has(v)) continue;
+          if (roomOf.has(v)) {
+            // chain start … u, then door u→v into the existing room
+            const basins = [];
+            for (let w = u; w !== null; w = prev.get(w)?.from ?? null) basins.push(w);
+            basins.reverse();
+            const hops = [];
+            for (let i = 1; i < basins.length; i++) hops.push({ a: basins[i - 1], b: basins[i], e: prev.get(basins[i]).e });
+            hops.push({ a: u, b: v, e });
+            return { basins, hops, cost: basins.length };
+          }
+          prev.set(v, { from: u, e });
+          depth.set(v, depth.get(u) + 1);
+          q.push(v);
+        }
+      }
+      return null;
+    };
+    const usedFaces = new Set();
+    for (let g = 0; g < want; g++) {
+      let best = null;
+      for (const e of edges) {
+        if (usedFaces.has(e.face)) continue;
+        if (sideOf[e.a] < 0 || sideOf[e.b] < 0 || sideOf[e.a] === sideOf[e.b]) continue;
+        if (isFlat[e.a] || isFlat[e.b]) continue;
+        const A = attach(e.a), B = attach(e.b);
+        if (!A || !B) continue;
+        const cost = A.cost + B.cost;
+        if (!best || cost < best.cost || (cost === best.cost && e.face < best.e.face)) best = { e, A, B, cost };
+      }
+      if (!best) break;
+      usedFaces.add(best.e.face);
+      for (const side of [best.A, best.B]) {
+        for (const ni of side.basins) {
+          const r = touch(ni);
+          r.gallery = true;
+          r.tiles = discretizeRoom(pocket, nodes[ni], tileShape, tileSize);
+        }
+        for (const hop of side.hops) {
+          for (const [me, other] of [[hop.a, hop.b], [hop.b, hop.a]]) {
+            const r = roomOf.get(me);
+            if (r.doors.some((x) => x.face === hop.e.face)) continue;
+            const dt = nearestTile(r.tiles, hop.e.at[0], hop.e.at[2]);
+            if (dt.kind === 'floor') dt.kind = 'door';
+            r.doors.push({ face: hop.e.face, to: other, at: hop.e.at.slice(), tile: dt.key });
+          }
+        }
+      }
+    }
+  }
   rooms.sort((a, b) => a.depth - b.depth || a.id - b.id);
+
+  // -- twin seams: every membrane where the two dungeons touch — the near
+  //    misses. A seam records a shared wall between a side-0 room and a
+  //    side-1 room; `passable: true` marks the ones that are certified
+  //    crossings (a standing body could walk through, if only the membrane
+  //    opened — it never does). Seams are what the crawler's ghost view
+  //    renders through, and the certificate that they are ALL sealed is
+  //    what makes the twins provably disjoint.
+  let seams = null;
+  if (twinActive) {
+    seams = [];
+    const passFace = new Map();          // face → certified crossing station
+    for (const e of edges) {
+      if (roomOf.has(e.a) && roomOf.has(e.b) && roomOf.get(e.a).side !== roomOf.get(e.b).side) {
+        passFace.set(e.face, e.at);
+      }
+    }
+    const roomsByCell = new Map();
+    for (const r of rooms) {
+      if (!roomsByCell.has(nodes[r.id].cell)) roomsByCell.set(nodes[r.id].cell, []);
+      roomsByCell.get(nodes[r.id].cell).push(r);
+    }
+    const seen = new Set();
+    pocket.faces.forEach((f, fi) => {
+      if (f.b < 0) return;
+      for (const ra of roomsByCell.get(f.a) ?? []) {
+        for (const rb of roomsByCell.get(f.b) ?? []) {
+          if (ra.side === rb.side) continue;
+          const k = fi + ':' + Math.min(ra.id, rb.id) + ':' + Math.max(ra.id, rb.id);
+          if (seen.has(k)) continue;
+          seen.add(k);
+          const at = passFace.get(fi) ?? f.centroid;
+          seams.push({
+            rooms: ra.side === 0 ? [ra.id, rb.id] : [rb.id, ra.id],
+            face: fi, at: at.slice(), passable: passFace.has(fi),
+          });
+        }
+      }
+    });
+    seams.sort((a, b) => a.face - b.face || a.rooms[0] - b.rooms[0]);
+  }
 
   return {
     pocket, entrance, endpoints: picked, paths, rooms, roomOf, trapdoors, loops,
     tileShape, tileScale, tileSize, size: sizeName,
     requestedEndpoints: wantEndpoints,
+    ...(twinActive ? { twin: { entrances: [entrance, entranceB], seams } } : {}),
   };
 }
