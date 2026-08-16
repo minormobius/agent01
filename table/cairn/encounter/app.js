@@ -8,6 +8,7 @@ import { rollParty, rollCharacter, packInventory } from '../roll.js';
 import { BESTIARY } from '../monsters.js';
 import { assess, findEncounters, combatantFromCharacter, combatantFromMonster } from '../combat.js';
 import { delve } from '../delve.js';
+import { monsterAbilities, coverage } from '../effects.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -60,6 +61,7 @@ function renderParty(characters) {
       `${inv.used}/${inv.capacity} slots`,
       relics ? `${relics} relic${relics > 1 ? 's' : ''}` : '',
       books ? `${books} spellbook${books > 1 ? 's' : ''}` : '',
+      c.spells && c.spells.length ? `casts ${c.spells.map((sp) => sp.source.replace('Spellbook: ', '')).join(', ')}` : '',
       ch.scars && ch.scars.length ? `${ch.scars.length} scar${ch.scars.length > 1 ? 's' : ''}` : '',
     ].filter(Boolean).join(' · ');
     return `
@@ -112,8 +114,18 @@ function renderVerdict(v, pcs, monster, count) {
       </div>
     </div>
     <p class="reading">${reading(v, pcs, label)}</p>
-    ${monster.unmodelled ? `<p class="warn">⚠ ${escapeHtml(monster.name)} has abilities the model
-      ignores, so the real fight is harder than this: ${md(monster.notes.slice(1).join(' '))}</p>` : ''}
+    ${(() => {
+      const { abilities, unread } = monsterAbilities(monster);
+      const seen = abilities.length
+        ? `<p class="reading" style="color:var(--accent)">✓ Modelled in the fight above:
+           ${abilities.map((a) => `<b>${a.kind}</b>${a.note ? ` — ${escapeHtml(a.note)}` : ''}`).join('; ')}</p>`
+        : '';
+      const missed = unread.length
+        ? `<p class="warn">⚠ Still beyond the model, so the real fight is harder:
+           ${md(unread.join(' '))}</p>`
+        : '';
+      return seen + missed;
+    })()}
     <table class="results" style="margin-top:0.9rem">
       <thead><tr><th>who</th><th style="text-align:right">goes down</th><th>kit</th></tr></thead>
       <tbody>${pcs.map((c, i) => `
@@ -259,6 +271,11 @@ $('size').value = String(state.size);
 $('vet').value = String(state.delves);
 $('vetOut').textContent = state.delves;
 $('count').value = String(state.count);
-$('flagCount').textContent = `${BESTIARY.filter((m) => m.unmodelled).length} of ${BESTIARY.length}`;
+{
+  const c = coverage();
+  $('flagCount').textContent =
+    `${c.monsters.withModelledAbility} of ${c.monsters.total} creatures now have their abilities simulated; `
+    + `${c.monsters.withUnreadProse} still carry prose the model cannot read`;
+}
 refreshParty();
 weigh();

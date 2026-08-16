@@ -18,7 +18,8 @@
 //
 // Rules text quoted in comments is Cairn 2e by Yochai Gal, CC BY-SA 4.0.
 
-import { makeRng, packInventory } from './roll.js';
+import { makeRng, packInventory, parseItem } from './roll.js';
+import { monsterAbilities, spellEffect, relicEffect } from './effects.js';
 
 // --------------------------------------------------------------- combatants
 
@@ -52,12 +53,29 @@ export function combatantFromCharacter(character, extraItems) {
   //  every hit goes straight to STR, which is as punishing as it sounds.
   const encumbered = inv.full;
 
+  // Magic is carried, so it is read off the pack like everything else. A
+  // spellbook is one slot and reading it costs a Fatigue — another slot — which
+  // is why casting is a real decision and not a free action.
+  const carried = [...character.gear, ...extras];
+  const spells = carried
+    .map((item) => ({ item, effect: spellEffect(item) }))
+    .filter((s) => s.effect)
+    .map((s) => ({ ...s.effect, source: s.item.name, kind: s.effect.kind, spell: true }));
+  const powers = carried
+    .filter((item) => item.relic)
+    .map((item) => ({ item, effect: relicEffect(item.relic) }))
+    .filter((p) => p.effect)
+    .map((p) => ({ ...p.effect, source: p.item.name, uses: p.effect.uses || 1 }));
+
   return {
     name: character.name,
     side: 'pc',
     hp: encumbered ? 0 : character.hp,
     maxHp: character.hp,
     encumbered,
+    freeSlots: Math.max(0, inv.capacity - inv.used),
+    spells,
+    powers,
     armor: inv.armor,
     STR: character.attributes.STR,
     DEX: character.attributes.DEX,
@@ -69,7 +87,10 @@ export function combatantFromCharacter(character, extraItems) {
 
 /** A bestiary entry -> one combatant. `index` only distinguishes duplicates. */
 export function combatantFromMonster(monster, index = 0) {
+  const { abilities, unread } = monsterAbilities(monster);
   return {
+    abilities,
+    unreadProse: unread.length,
     name: index ? `${monster.name} ${index + 1}` : monster.name,
     side: 'foe',
     hp: monster.hp,
@@ -118,7 +139,7 @@ function rollDamage(rng, attack, mod) {
  * Apply damage to one target, following the whole chain:
  * armour, then HP, then the overflow into STR, then the Critical Damage save.
  */
-function applyDamage(rng, target, raw, log) {
+function applyDamage(rng, target, raw, log, attacker) {
   // "Before calculating damage to HP, subtract the target's Armor value"
   const dmg = Math.max(0, raw - target.armor);
   const toHp = Math.min(target.hp, dmg);
@@ -141,9 +162,83 @@ function applyDamage(rng, target, raw, log) {
     target.down = true;
     // A PC is out of action and dies within the hour unless stabilised; a
     // monster is simply dead. Either way it stops fighting, which is all the
-    // simulation needs to know.
-    target.dead = target.side !== 'pc';
+    // simulation needs to know — UNLESS it regenerates, in which case being
+    // felled is temporary. Marking every monster dead here made the troll's
+    // regeneration unreachable: the revival check requires a body that is down
+    // but not dead, and there was never one.
+    const regrows = (target.combatAbilities || []).some((a) => a.kind === 'regenerate');
+    target.dead = target.side !== 'pc' && !regrows;
     if (log) log.push(`${target.name} takes critical damage`);
+
+    // Half the bestiary carries a consequence for exactly this moment — an
+    // extra d6 of STR gone, armour rent, a wound that leaves you deprived. It
+    // is the difference between a character who wakes up and one who does not.
+    for (const ability of (attacker && attacker.combatAbilities) || []) {
+      if (ability.trigger === 'onCrit') applyEffect(rng, ability, target, log);
+    }
+  }
+}
+
+/**
+ * Attacks against some creatures are impaired — a basilisk you dare not look
+ * at, a blink dog phasing out of reality, a werewolf without a silver blade.
+ * This is the single largest lethality modifier in the bestiary and the model
+ * was blind to it: it turns any attack into a d4 regardless of the weapon.
+ *
+ * `unless` names the thing that lifts the penalty ("silver", "magic"), which is
+ * checked against the attacker's weapon name — Cairn's own gear list includes a
+ * Silver Knife, so this is a real out and not a hypothetical one.
+ */
+function attackModifier(attacker, target, enabled = true) {
+  if (!enabled) return null;
+  const ward = (target.abilities || []).find((a) => a.kind === 'impairedAgainst');
+  if (!ward) return null;
+  if (ward.unless) {
+    const weapon = (attacker.attacks[0] && attacker.attacks[0].name) || '';
+    if (new RegExp(ward.unless, 'i').test(weapon)) return null;
+  }
+  return 'impaired';
+}
+
+/** Apply one ability to one target. Saves are rolled where the ability has one. */
+function applyEffect(rng, effect, target, log) {
+  if (effect.save && save(rng, target[effect.save])) return false;
+  switch (effect.kind) {
+    case 'disable':
+      // Asleep, charmed, petrified, possessed: out of the fight without being
+      // wounded. Counted as a casualty, because a sleeping character in a room
+      // of things that just felled them is not a survivor.
+      target.disabled = true;
+      target.down = true;
+      if (log) log.push(`${target.name} is out of the fight (${effect.note || effect.kind})`);
+      return true;
+    case 'drain': {
+      let total = 0;
+      for (const d of effect.dice || [6]) total += rng.d(d);
+      const attr = effect.attr || 'STR';
+      target[attr] -= total;
+      if (target[attr] <= 0) {
+        target[attr] = 0;
+        target.down = true;
+        target.dead = attr === 'STR';
+        if (log) log.push(`${target.name} is emptied of ${attr}`);
+      }
+      return true;
+    }
+    case 'deprive':
+      target.deprived = true;                 // "cannot recover HP, Attributes, or item slots"
+      return true;
+    case 'sunder':
+      if (target.armor > 0) target.armor -= 1;
+      return true;
+    case 'heal': {
+      let total = 0;
+      for (const d of effect.dice || [4]) total += rng.d(d);
+      target.STR = Math.min(target.maxSTR, target.STR + total);
+      return true;
+    }
+    default:
+      return false;
   }
 }
 
@@ -164,7 +259,11 @@ function pickTarget(rng, candidates) {
  * @param {number} [opts.maxRounds=30]   a standing draw is called, not looped forever
  */
 export function simulate(pcs, foes, rng, opts = {}) {
-  const { morale = true, surprise = false, maxRounds = 30 } = opts;
+  // `abilities: false` runs the fight with magic and monster powers switched
+  // off. It exists so the cost of modelling them can be MEASURED rather than
+  // asserted — see the ability-delta test in combat.selftest.
+  const { morale = true, surprise = false, maxRounds = 30, abilities = true } = opts;
+  const powersOf = (c) => (abilities ? c.abilities || [] : []);
   const log = opts.log ? [] : null;
   const startingFoes = foes.length;
   let round = 0;
@@ -175,6 +274,10 @@ export function simulate(pcs, foes, rng, opts = {}) {
 
   // "During the first round of combat, each PC must make a DEX save in order to
   //  act." Surprise means they do not even get that.
+  // applyDamage cannot see `opts`, so the on-crit powers are published onto the
+  // combatant for the duration of this fight and taken away again below.
+  for (const c of [...pcs, ...foes]) c.combatAbilities = powersOf(c);
+
   const acts = new Map();
   for (const pc of pcs) acts.set(pc, surprise ? false : save(rng, pc.DEX));
 
@@ -194,15 +297,53 @@ export function simulate(pcs, foes, rng, opts = {}) {
     const targeted = new Map();
     for (const pc of livePcs) {
       if (round === 1 && !acts.get(pc)) continue;
+
+      // CASTING. "Anyone can cast a spell by holding a Spellbook in both hands
+      // and reading its contents aloud. They must then add a Fatigue to
+      // inventory." That Fatigue is a slot, and a slot is HP: if the pack has
+      // no room the character must drop something, and if it fills the pack
+      // they drop to 0 HP. So a spell is never free, and the model charges for
+      // it. "If the PC is deprived or in danger… the Warden may require a WIL
+      // save" — combat is danger, so the save is always rolled here.
+      // Which spell, if any. Removing an enemy outright beats patching an ally,
+      // so a disable goes first; a heal is worth a turn only once someone has
+      // actually been opened up, since STR only drops after HP is gone.
+      const hurt = livePcs.find((a) => a.STR <= a.maxSTR / 2);
+      const spell = abilities && pc.spells && (
+        pc.spells.find((sp) => !sp.spent && sp.kind === 'disable')
+        || (hurt && pc.spells.find((sp) => !sp.spent && sp.kind === 'heal')));
+      if (spell && side(foes).length && !pc.encumbered) {
+        spell.spent = true;
+        if (pc.freeSlots > 0) pc.freeSlots -= 1; else { pc.hp = 0; pc.encumbered = true; }
+        if (save(rng, pc.WIL)) {
+          const victim = spell.kind === 'heal' ? hurt : pickTarget(rng, side(foes));
+          if (victim) applyEffect(rng, spell, victim, log);
+        } else if (log) {
+          log.push(`${pc.name} fumbles ${spell.source}`);
+        }
+        continue;                              // reading a book is the whole turn
+      }
+
       const attack = pc.attacks[0];
       const target = pickTarget(rng, side(foes));
       if (!target) break;
-      const dmg = rollDamage(rng, attack, null);
+      const dmg = rollDamage(rng, attack, attackModifier(pc, target, abilities));
       const prev = targeted.get(target);
       // same-target attacks in one round collapse to the single highest die
-      targeted.set(target, prev == null ? dmg : Math.max(prev, dmg));
+      if (prev == null || dmg > prev.dmg) targeted.set(target, { dmg, attacker: pc });
     }
-    for (const [target, dmg] of targeted) applyDamage(rng, target, dmg, log);
+    for (const [target, hit] of targeted) applyDamage(rng, target, hit.dmg, log, hit.attacker);
+
+    // REGENERATION. "Only when the body is burned…" — a stand-and-fight model
+    // has no fire to apply, so a troll that goes down gets back up. That is not
+    // a modelling shortcut, it is why you do not brawl with trolls.
+    for (const foe of foes) {
+      if (foe.down && !foe.dead && powersOf(foe).some((a) => a.kind === 'regenerate')) {
+        foe.down = false;
+        foe.hp = Math.max(1, Math.floor(foe.maxHp / 2));
+        if (log) log.push(`${foe.name} gets back up`);
+      }
+    }
 
     const casualties = foes.filter((f) => !alive(f)).length;
 
@@ -230,21 +371,35 @@ export function simulate(pcs, foes, rng, opts = {}) {
     // --- the foes' turn ---------------------------------------------------
     const hitPcs = new Map();
     for (const foe of side(foes)) {
+      // A creature with a turn ability uses it instead of biting: a banshee
+      // wails, a basilisk stares, a frost elf casts Sleep.
+      const power = powersOf(foe).find((a) => a.trigger === 'onTurn');
+      if (power) {
+        const victims = power.scope === 'all' ? side(pcs) : [pickTarget(rng, side(pcs))];
+        for (const victim of victims) if (victim) applyEffect(rng, power, victim, log);
+        continue;
+      }
       if (!foe.attacks.length) continue;
       const attack = foe.attacks[rng.d(foe.attacks.length) - 1];
       if (attack.blast) {
         // "Attacks with the Blast quality affect all targets in the noted area,
         //  rolling separately for each affected character."
-        for (const pc of side(pcs)) applyDamage(rng, pc, rollDamage(rng, attack, null), log);
+        for (const pc of side(pcs)) applyDamage(rng, pc, rollDamage(rng, attack, null), log, foe);
         continue;
       }
       const target = pickTarget(rng, side(pcs));
       if (!target) break;
-      const dmg = rollDamage(rng, attack, null);
+      const dmg = rollDamage(rng, attack, attackModifier(foe, target, abilities));
       const prev = hitPcs.get(target);
-      hitPcs.set(target, prev == null ? dmg : Math.max(prev, dmg));
+      if (prev == null || dmg > prev.dmg) hitPcs.set(target, { dmg, attacker: foe });
+
+      // "A damaged vampire regains 6 HP when it bites" — an on-hit heal that
+      // makes a lone monster a war of attrition rather than a race.
+      for (const ability of powersOf(foe)) {
+        if (ability.trigger === 'onHit' && ability.self) applyEffect(rng, ability, foe, log);
+      }
     }
-    for (const [target, dmg] of hitPcs) applyDamage(rng, target, dmg, log);
+    for (const [target, hit] of hitPcs) applyDamage(rng, target, hit.dmg, log, hit.attacker);
 
     if (!firstCasualtyRound && pcs.some((p) => !alive(p))) firstCasualtyRound = round;
   }
@@ -265,8 +420,20 @@ export function simulate(pcs, foes, rng, opts = {}) {
 
 // ------------------------------------------------------------- the oracle
 
-/** Fresh copies, so a trial never inherits the last trial's wounds. */
-const clone = (list) => list.map((c) => ({ ...c }));
+/**
+ * Fresh copies, so a trial never inherits the last trial's wounds.
+ *
+ * THE SPELLS AND POWERS MUST BE COPIED TOO. A shallow spread shares the arrays
+ * between every trial, so a spellbook marked `spent` in trial one stays spent
+ * for the other 2,999 — which is exactly how casting came to have no effect on
+ * the numbers at all while looking perfectly wired up. Any new per-fight state
+ * on a combatant belongs here.
+ */
+const clone = (list) => list.map((c) => ({
+  ...c,
+  spells: c.spells ? c.spells.map((sp) => ({ ...sp })) : undefined,
+  powers: c.powers ? c.powers.map((pw) => ({ ...pw })) : undefined,
+}));
 
 /**
  * Play the same fight `trials` times and report the distribution.

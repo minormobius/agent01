@@ -45,6 +45,7 @@ jobs:
           node cairn/roll.selftest.mjs
           node cairn/combat.selftest.mjs
           node cairn/delve.selftest.mjs
+          node cairn/effects.selftest.mjs
 
       - name: Install wrangler
         run: npm install wrangler

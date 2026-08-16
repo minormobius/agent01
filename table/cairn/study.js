@@ -13,15 +13,17 @@
 // visible: the dice are identical, so the only thing that changed is the item.
 // Without that, a shield's contribution disappears under sampling noise.
 //
-// The honest limits are the model's limits, and they are large here: a
-// spellbook is a slot with a Fatigue attached and no combat effect the
-// simulator understands, so this ranks it near zero. That is a statement about
-// the model, not about spellbooks — see UNMODELLED below.
+// Spellbooks are priced here too, now that the simulator can read one. Only the
+// nine spells with combat mechanics are listed: the other ninety-one do nothing
+// in a fight, and putting them in the table at zero would say something false
+// about what they are for. See `modelSees`, which is what keeps "worth nothing"
+// and "invisible to the model" apart.
 
-import { assess, combatantFromCharacter } from './combat.js';
+import { assess, combatantFromCharacter, combatantFromMonster } from './combat.js';
 import { parseItem } from './roll.js';
 import { ITEMS } from './items.js';
 import { BESTIARY } from './monsters.js';
+import { spellEffect, relicEffect, SPELL_EFFECTS } from './effects.js';
 
 /**
  * The fights an item is judged against. Fixed, so every item is scored on the
@@ -48,18 +50,16 @@ function basketFoes(basket = BASKET) {
 }
 
 /** Mean toll across the basket. The same seeds are used for every call. */
-export function basketToll(pcs, { trials = 250, basket = BASKET, seed = 'basket' } = {}) {
+export function basketToll(pcs, { trials = 250, basket = BASKET, seed = 'basket', ...opts } = {}) {
   const foes = basketFoes(basket);
   let total = 0;
   for (const { monster, count } of foes) {
-    const group = Array.from({ length: count }, (_, i) => ({
-      name: i ? `${monster.name} ${i + 1}` : monster.name,
-      side: 'foe',
-      hp: monster.hp, maxHp: monster.hp, armor: monster.armor,
-      STR: monster.STR, DEX: monster.DEX, WIL: monster.WIL, maxSTR: monster.STR,
-      attacks: monster.attacks,
-    }));
-    total += assess(pcs, group, { trials, seed: `${seed}/${monster.id}` }).toll;
+    // Built through combatantFromMonster, not by hand: an inline copy of the
+    // stat block silently dropped the creature's ABILITIES, so the study was
+    // pricing items against a bestiary with its teeth removed while the oracle
+    // next door modelled them.
+    const group = Array.from({ length: count }, (_, i) => combatantFromMonster(monster, i));
+    total += assess(pcs, group, { trials, seed: `${seed}/${monster.id}`, ...opts }).toll;
   }
   return total / foes.length;
 }
@@ -110,6 +110,13 @@ export function studyItems(characters, opts = {}) {
     ...ITEMS.market.weapons.map((w) => ({ ...parseItem(w.text), kind: 'weapon', cost: w.cost })),
     ...ITEMS.market.armor.map((a) => ({ ...parseItem(a.text), kind: 'armor', cost: a.cost })),
     ...ITEMS.relics.map((r) => ({ ...parseItem(r.text), kind: 'relic', relic: r })),
+    // Spellbooks are the whole of Cairn's magic and the study ignored them
+    // until the simulator could read one. Only the spells with combat
+    // mechanics are priced; listing the other 91 at zero would say something
+    // false about them (see `modelSees`).
+    ...ITEMS.spells
+      .filter((sp) => SPELL_EFFECTS[sp.name])
+      .map((sp) => ({ ...parseItem(`Spellbook: ${sp.name}`), kind: 'spellbook', spell: sp })),
   ];
 
   const results = [];
@@ -126,7 +133,10 @@ export function studyItems(characters, opts = {}) {
  * "this relic does something the model has no rules for".
  */
 export function modelSees(item) {
-  return Boolean(item.armor || item.damage || item.capacity);
+  if (item.armor || item.damage || item.capacity) return true;
+  if (item.spell && spellEffect(item)) return true;
+  if (item.relic && relicEffect(item.relic)) return true;
+  return false;
 }
 
 /**

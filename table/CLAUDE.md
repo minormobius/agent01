@@ -74,6 +74,8 @@ obligations it puts on us: [`cairn/LICENSE.md`](cairn/LICENSE.md).
 | `cairn/combat.selftest.mjs` | 40 checks. **A simulator fails silently — run this** |
 | `cairn/items.js` | **Generated.** The marketplace, the 46 relics, the d100 spellbook table |
 | `cairn/tools/scrape-items.py` | What generated it |
+| `cairn/effects.js` | The mechanical vocabulary: what monster abilities and spells the simulator can see, and the count of what it cannot |
+| `cairn/effects.selftest.mjs` | 38 checks. **Every ability must have a measurable effect, not just parse** |
 | `cairn/delve.js` | Advancement: scars and loot on one axis, inside the ten slots |
 | `cairn/study.js` | What a slot is worth — item value measured in the same currency as an encounter |
 | `cairn/delve.selftest.mjs` | 45 checks over delve.js, study.js and items.js |
@@ -89,6 +91,7 @@ python3 table/cairn/tools/scrape-items.py    > table/cairn/items.js
 node table/cairn/roll.selftest.mjs      # must pass; the frozen sheet is the check
 node table/cairn/combat.selftest.mjs    # must pass; a wrong simulator looks right
 node table/cairn/delve.selftest.mjs     # must pass; a wrong advancement model looks right too
+node table/cairn/effects.selftest.mjs   # must pass; a mis-wired ability does nothing, silently
 ```
 
 ### /cairn/encounter — the oracle
@@ -100,9 +103,10 @@ add here, and all three are about not lying to a Warden:
 
 1. **Say it is a floor.** The model fights to the last body with no terrain, tricks, talking or
    retreat — the thing Cairn is explicitly about avoiding. Every surface of the page says so.
-2. **Mark what the model cannot see.** 59 of the 84 creatures have abilities beyond their stat
-   line (the scraper's `unmodelled` flag), and those encounters are harder than the verdict says.
-   Never let a verdict imply it covered the whole creature.
+2. **Mark what the model cannot see.** Abilities are modelled now (see below), but 20 creatures
+   still carry prose no vocabulary reads, and those encounters are harder than the verdict says.
+   Each verdict lists what it simulated *and* what it could not; never let one imply it covered the
+   whole creature.
 3. **Never dress our arithmetic as Cairn's.** The challenge metric, the loot table and the delve
    model are this site's invention. They are labelled as such in the code, in the UI, and in the
    footer.
@@ -118,6 +122,29 @@ Two numbers, defined in `combat.js`:
   same toll and are completely different problems.
 
 Bands come off both. The cut points are the only invented numbers in the model.
+
+### Magic and abilities
+
+Cairn puts all of its magic in objects, and half its bestiary fights with something other than a
+damage die, so a simulator that sees only armour and dice is pricing a different game.
+`effects.js` defines a small vocabulary of mechanical primitives (`disable`, `drain`, `critBonus`,
+`impairedAgainst`, `regenerate`, `sunder`, `heal`, `summon`, …), reads the SRD's prose into it where
+the prose is unambiguous, carries a curated table for the rest, and **counts the remainder**.
+
+Current coverage: **32 of 84 creatures** have a modelled ability, 20 still carry prose the model
+cannot read; **9 of 100 spells** have combat mechanics; 5 relics do something beyond their stat
+line. Those numbers are printed on the pages — a coverage claim a reader cannot check is just
+reassurance.
+
+Three rules for anything added here:
+
+1. **An ability must have a measured effect.** The selftest compares `abilities: true` against
+   `abilities: false` for each one. A parsed ability that does not move the toll is not modelled,
+   it is decorative.
+2. **Never approximate into the nearest shape.** If an effect is not expressible in the vocabulary,
+   leave it unread and let it show up in the count. Guessing produces a number nobody can audit.
+3. **The 91 spells with no combat mechanics are not a gap.** They are what Cairn's magic is for.
+   Listing them as worth zero in a fight is only honest if the page says why.
 
 ### /cairn/items — what a slot is worth
 
@@ -152,6 +179,12 @@ real effect be told apart from noise.
   distance from the *middle* of the band (6 of 12 top results flipped when ranked by lethality
   instead, 0 of 12 after), and each candidate is confirmed against a second seed (9 of 49 flipped
   unconfirmed, 3 of 38 confirmed). A selftest measures both.
+- **A mis-wired ability is invisible, not broken.** Casting was fully implemented and moved the
+  toll by nothing, because `spent` was set on a spells array shared by every trial — `clone()` in
+  combat.js must deep-copy `spells` and `powers`, and any new per-fight state belongs there too.
+  Separately, a troll could not regenerate because monsters were marked `dead` on failing a
+  critical damage save, and the revival check needs a body that is down but not dead. Both were
+  found by measuring, not by reading, which is why the effects selftest measures.
 - **Advancement is an inventory problem, and the slot cap is load-bearing.** `delve.js` advances
   scars and loot together because they come from the same rooms. Two findings are baked into it and
   must not be "simplified" away: a delver **reserves one slot**, because filling all ten is 0 HP by
