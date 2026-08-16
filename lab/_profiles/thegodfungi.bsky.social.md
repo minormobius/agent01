@@ -247,6 +247,23 @@ this handle references one of their own past builds by name on a different
 site, treat it as pointing at the *pattern*, not asking to literally import
 that site's theme.
 
+## Nineteenth build (hey-tarot — "Tarot Court")
+
+Request replied to a different account's tarot-reading posts ("can the tarot
+readings of [buildthis.bisks.net] be made into a prediction system...") with
+a thread full of minormobius/antiali riffing on an unrelated idea (petitions,
+dueling wizards) attached alongside — same shape as several earlier builds:
+only the requester's own line is a brief, the rest is room-context to skip.
+The literal wording ("recommended accounts... user-list for where to turn")
+reads like it wants discovery across strangers, which the platform's one
+rule with teeth forbids (no search/firehose over accounts the visitor didn't
+name) — resolved by inverting the mechanic so the visitor supplies and tags
+their own candidate list, then a keyword-guessed "problem domain" draws a
+card and matches against it. Worth remembering for future asks from this
+handle that sound like they want a recommendation/ranking engine: the
+buildable version is usually "visitor names the candidates, the site does
+the matching," not "the site discovers the candidates."
+
 ## Sixteenth/seventeenth builds (data-real/truth-markup, iterations)
 
 Two follow-up turns in a row landed opaque one-liners with nothing to parse
