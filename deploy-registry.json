@@ -1359,6 +1359,26 @@
       "cohesion": "self-contained"
     },
     {
+      "surface": "zest",
+      "dir": "zest",
+      "endpoint": "zest.mino.mobi",
+      "type": "fullstack",
+      "branch": "claude/3d-feed-embedding-geometry-uiveyf",
+      "uses": [
+        "atpolls-db"
+      ],
+      "provides": null,
+      "status": "MANAGED — new surface via deploy-zest.yml (Worker `zest`, custom_domain zest.mino.mobi). zest.mino.mobi did not resolve before this branch, so the first deploy creates the worker and attaches the domain itself (the `words` / `neuro` precedent — mino.mobi is a zone on this account). Two pure-module selftests gate the deploy; idempotent D1 migration 0037_zest before it. UNVERIFIED FROM THE SANDBOX: the domain binding, Workers AI quota, and the first basis build all need the deploy log and a live check.",
+      "op": "create",
+      "note": "zest.mino.mobi — legibility of embeddings, as a fruit-ninja game. A post's 768-dim embedding is used as the SPECTRUM of a surface: r(θ,φ) = R·(1 + amp·Σ ĉ_lm·Y_l^m), where the 24 loudest corpus dimensions take harmonic bands l=1..4 one-for-one (the lobes), l=0 is reserved for ‖z‖ (ordinary posts are small pebbles, strange ones big), and the ~740 quiet dimensions fold into bands 5..10 by a seeded Johnson–Lindenstrauss projection (the grain). The map is linear and the harmonics orthonormal, so Parseval makes the L² distance between two surfaces exactly the distance between their vectors — checked against a Gauss–Legendre quadrature. Posts rain down and you slice them; Hunt mode scores you with a one-sided exact binomial test, so the page can tell you that you were indistinguishable from guessing. Text-only posts by design. Workers AI bge-base-en-v1.5, cached by content hash on D1; the corpus basis is versioned and shared, with an announced session-local fallback. /atlas is the reading room, /how is the map and its three measured failure modes. (full description: zest/CLAUDE.md)",
+      "paths": [
+        "zest/**",
+        "poll/apps/api/migrations/0037_zest.sql",
+        ".github/workflows/deploy-zest.yml"
+      ],
+      "cohesion": "self-contained"
+    },
+    {
       "surface": "lab",
       "dir": "lab/www",
       "endpoint": "minomobi.com",

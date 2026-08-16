@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>zest atlas — every shape next to the post that made it</title>
+<meta name="description" content="The reading room: a wall of post-solids with their texts, sorted by similarity, plus the harmonic readout for any one of them.">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+<style>
+  :root{--bg:#08090d;--ink:#e8edf6;--dim:#96a0b5;--line:#232838;--accent:#8ab4ff;--good:#5ee0a4}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  header{padding:26px 22px 14px;border-bottom:1px solid var(--line)}
+  h1{margin:0 0 6px;font-size:24px;letter-spacing:-.01em}
+  h1 a{color:var(--dim);text-decoration:none;font-size:14px;font-weight:400}
+  .lead{color:var(--dim);max-width:70ch;font-size:13.5px}
+  b.warn{color:#ffc46b}
+  main{padding:18px 22px 60px}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+  button{font:inherit;font-weight:600;padding:7px 14px;border-radius:8px;cursor:pointer;
+    background:transparent;color:var(--ink);border:1px solid var(--line)}
+  button:hover{background:#151926}
+  button.on{background:var(--ink);color:#0a0c12;border-color:var(--ink)}
+  #status{color:var(--dim);font-size:12.5px;margin-left:auto}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+  .cell{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0b0d14;cursor:pointer;
+    transition:border-color .15s,transform .15s}
+  .cell:hover{border-color:var(--accent);transform:translateY(-2px)}
+  .cell.pinned{border-color:var(--good);box-shadow:0 0 0 1px var(--good) inset}
+  .cell canvas{display:block;width:100%;height:170px;background:#0a0c12}
+  .cell .t{padding:9px 11px;font-size:12px;line-height:1.4;height:5.6em;overflow:hidden}
+  .cell .m{padding:0 11px 9px;color:var(--dim);font-size:11px;
+    display:flex;justify-content:space-between;font-variant-numeric:tabular-nums}
+  .cell .m .sim{color:var(--accent);font-weight:700}
+
+  #detail{position:sticky;top:0;z-index:10;background:#0b0d14;border:1px solid var(--line);
+    border-radius:12px;padding:14px 16px;margin-bottom:18px;display:none}
+  #detail.show{display:block}
+  #detail .head{display:flex;gap:14px;align-items:flex-start}
+  #detail .txt{font-size:14px;flex:1}
+  #detail .by{color:var(--dim);font-size:12px;margin-top:4px}
+  #detail .close{margin-left:auto}
+  .bands{margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:6px}
+  .band{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:11.5px;
+    font-variant-numeric:tabular-nums;display:flex;justify-content:space-between;gap:8px}
+  .band .l{color:var(--dim)}
+  .band .s{font-weight:700}
+  .band .s.pos{color:var(--good)}
+  .band .s.neg{color:#ff9db0}
+  .meterline{margin-top:10px;color:var(--dim);font-size:12px}
+  .meterline b{color:var(--ink)}
+</style>
+</head>
+<body>
+<header>
+  <h1>zest atlas &nbsp;<a href="/">← back to the game</a></h1>
+  <p class="lead">Every post drawn as its solid, beside the text that produced it. Click one to
+  pin it: the wall re-sorts by shape similarity to your pick, and the panel names which
+  dimension is driving which harmonic. This is where you find out whether the picture is
+  carrying the meaning or just decorating it — if the top of a re-sorted wall does not read as
+  a coherent group, the map is failing and you should be able to see that here.</p>
+</header>
+<main>
+  <div class="bar">
+    <button id="src-simcluster" class="on">SimCluster</button>
+    <button id="src-hot">Discover</button>
+    <button id="reload">More posts</button>
+    <div id="status">loading…</div>
+  </div>
+  <div id="detail"></div>
+  <div class="grid" id="grid"></div>
+</main>
+
+<script type="module">
+import { harmonicMesh, readEmbedding, makeProjector, shBand, cosine, framingDistance } from './embed-geometry.js';
+import { loadPosts, embedTexts, loadBasis, MODES, BASIS_MODES } from './feed.js';
+
+const grid = document.getElementById('grid');
+const statusEl = document.getElementById('status');
+const detail = document.getElementById('detail');
+
+// Dynamic, so a CDN failure is a sentence rather than a blank wall.
+let THREE;
+try {
+  THREE = await import('three');
+} catch (err) {
+  statusEl.innerHTML = '<b class="warn">three.js could not be loaded from the CDN — no shapes can be drawn.</b>';
+  throw err;
+}
+
+let source = 'simcluster';
+let items = [], pinned = null, cursor = '';
+
+// One renderer for the whole wall: render each cell into it and blit the pixels
+// out to that cell's own 2D canvas. Dozens of WebGL contexts is the thing that
+// actually breaks a page like this; one context and a drawImage does not.
+const R = 300;
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(1);
+renderer.setSize(R, R, false);
+renderer.setClearColor(0x0a0c12, 1);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 50);
+// Framed on the largest shape ANY post can produce, not on this one's bounding
+// sphere: per-shape fitting would normalise the size channel away, and size is
+// carrying "how strange is this post".
+camera.position.set(0, 0, framingDistance(40));
+scene.add(new THREE.AmbientLight(0x39435e, 1.1));
+const k = new THREE.DirectionalLight(0xffffff, 2.4); k.position.set(3, 5, 6); scene.add(k);
+const rim = new THREE.DirectionalLight(0x8ab4ff, 1.4); rim.position.set(-4, -3, -3); scene.add(rim);
+
+function drawInto(canvas, read) {
+  const g = harmonicMesh(read.unit, { detail: 4, L: proj.L, amp: read.amp, radius: read.radius });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
+  geo.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3));
+  geo.setIndex(new THREE.BufferAttribute(g.indices, 1));
+  const c = new THREE.Color(...read.color.rgb);
+  const mat = new THREE.MeshStandardMaterial({
+    color: c, roughness: 0.34, metalness: 0.16, emissive: c.clone().multiplyScalar(0.22),
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.rotation.set(0.4, 0.7, 0);
+  scene.add(mesh);
+  renderer.render(scene, camera);
+  canvas.width = R; canvas.height = R;
+  canvas.getContext('2d').drawImage(renderer.domElement, 0, 0);
+  scene.remove(mesh);
+  geo.dispose(); mat.dispose();
+}
+
+let basis, proj, basisInfo, embedMode, embedNote;
+
+async function load(append) {
+  statusEl.textContent = 'loading posts…';
+  const got = await loadPosts({ src: source, limit: 48, cursor: append ? cursor : '' });
+  cursor = got.cursor;
+  statusEl.textContent = `embedding ${got.posts.length} posts…`;
+  const emb = await embedTexts(got.posts.map((p) => p.text));
+  embedMode = emb.mode; embedNote = emb.note;
+
+  if (!basis) {
+    basisInfo = await loadBasis(emb.vectors);
+    basis = basisInfo.basis;
+    proj = makeProjector(basis);
+  }
+
+  const fresh = got.posts.map((p, i) => {
+    const read = readEmbedding(emb.vectors[i], basis, proj);
+    return { post: p, read, unit: read.unit };
+  });
+  items = append ? items.concat(fresh) : fresh;
+  render();
+}
+
+function provenance() {
+  const a = embedMode === MODES.SEMANTIC
+    ? 'bge-base-en-v1.5'
+    : '<b class="warn">lexical fallback (spelling, not meaning)</b>';
+  const b = basisInfo.mode === BASIS_MODES.CORPUS
+    ? `shared basis, ${basisInfo.n} posts`
+    : `<b class="warn">session basis, ${basisInfo.n} posts</b>`;
+  return `${items.length} posts · ${a} · ${b}`;
+}
+
+function render() {
+  const list = pinned
+    ? items.map((it) => ({ it, sim: cosine(pinned.unit, it.unit) })).sort((a, b) => b.sim - a.sim)
+    : items.map((it) => ({ it, sim: null }));
+
+  grid.innerHTML = '';
+  for (const { it, sim } of list) {
+    const cell = document.createElement('div');
+    cell.className = 'cell' + (it === pinned ? ' pinned' : '');
+    const canvas = document.createElement('canvas');
+    cell.appendChild(canvas);
+    const t = document.createElement('div');
+    t.className = 't';
+    t.textContent = it.post.text;
+    cell.appendChild(t);
+    const m = document.createElement('div');
+    m.className = 'm';
+    m.innerHTML = `<span>@${escapeHtml(it.post.author.handle)}</span>` +
+      (sim === null ? `<span>${(it.read.outlier * 100).toFixed(0)}% strange</span>`
+                    : `<span class="sim">${sim.toFixed(3)}</span>`);
+    cell.appendChild(m);
+    cell.onclick = () => { pinned = it === pinned ? null : it; showDetail(); render(); };
+    grid.appendChild(cell);
+    drawInto(canvas, it.read);
+  }
+  statusEl.innerHTML = provenance() + (pinned ? ' · sorted by similarity to your pin' : '');
+}
+
+function showDetail() {
+  if (!pinned) { detail.classList.remove('show'); return; }
+  const r = pinned.read;
+  const top = r.loudest.slice(0, 12).map((e) => `
+    <div class="band">
+      <span class="l">dim ${e.dim} → Y<sub>${e.l}</sub><sup>${e.m}</sup></span>
+      <span class="s ${e.sigma >= 0 ? 'pos' : 'neg'}">${e.sigma >= 0 ? '+' : ''}${e.sigma.toFixed(2)}σ</span>
+    </div>`).join('');
+  detail.innerHTML = `
+    <div class="head">
+      <div class="txt">${escapeHtml(pinned.post.text)}
+        <div class="by">@${escapeHtml(pinned.post.author.handle)}</div></div>
+      <button class="close" onclick="this.closest('#detail').classList.remove('show')">close</button>
+    </div>
+    <div class="meterline">
+      <b>${(r.outlier * 100).toFixed(0)}%</b> stranger than the average post ·
+      colour <b style="color:${r.color.hex}">${r.color.hex}</b> ·
+      spin <b>${r.spin.rate.toFixed(2)}</b> rad/s
+    </div>
+    <div class="bands">${top}</div>
+    <div class="meterline">The twelve loudest dimensions on this post, and the harmonic each one
+      drives. Everything below them — roughly 740 more — is folded into bands 5–10 as the grain.</div>`;
+  detail.classList.add('show');
+  detail.scrollIntoView({ block: 'nearest' });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+document.getElementById('reload').onclick = () => load(true);
+for (const key of ['simcluster', 'hot']) {
+  document.getElementById('src-' + key).onclick = (e) => {
+    source = key; pinned = null; cursor = '';
+    document.querySelectorAll('.bar button').forEach((b) => b.classList.remove('on'));
+    e.target.classList.add('on');
+    detail.classList.remove('show');
+    load(false);
+  };
+}
+
+load(false).catch((err) => { statusEl.innerHTML = `<b class="warn">${err.message}</b>`; });
+</script>
+</body>
+</html>

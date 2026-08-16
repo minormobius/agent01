@@ -1,0 +1,42 @@
+{
+  // zest.mino.mobi — the embedding-geometry feed game.
+  //
+  // THE GOLDEN RULE (../CLAUDE.md): `name` must be the worker that owns the
+  // live custom domain, and that domain must appear in routes[] with
+  // custom_domain: true. zest.mino.mobi did not resolve before this surface
+  // existed, so this deploy is what creates it — confirm the run log binds
+  // "zest.mino.mobi (custom domain)". A green run is not proof.
+  //
+  // Assets are served from ./dist, which deploy-zest.yml stages. That keeps
+  // worker.js, the two selftests and this file out of the published bundle —
+  // Static Assets replaces the whole manifest on every deploy, so whatever is
+  // in dist/ IS the site.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "zest",
+  "main": "worker.js",
+  "compatibility_date": "2026-02-20",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS"
+  },
+  "ai": {
+    "binding": "AI"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "atpolls-db",
+      "database_id": "fee2f25a-8b4a-4d46-b245-9d5da93c117d"
+    }
+  ],
+  "triggers": {
+    // Daily: refit the corpus basis on a fresh sample and prune the embedding
+    // cache. The basis is versioned (BASIS_VERSION in worker.js), so a refit
+    // moves every shape slightly — that is why it is daily and not hourly.
+    "crons": ["17 4 * * *"]
+  },
+  "routes": [
+    { "pattern": "zest.mino.mobi", "custom_domain": true }
+  ]
+}

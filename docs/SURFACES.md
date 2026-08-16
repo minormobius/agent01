@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **86 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **87 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -114,6 +114,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `wave` | frontend | `wave` | [wave.mino.mobi](https://wave.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`wave/CLAUDE.md`](../wave/CLAUDE.md) | Team messaging. Channels, threads, and collaborative documents with real-time Jetstream sync. |
 | `words` | fullstack | `words` | [words.mino.mobi](https://words.mino.mobi) | `claude/word-game-surface-ai-x1nuys` | [`words/CLAUDE.md`](../words/CLAUDE.md) | Words with friends, without the ads or the accounts. One to four seats, any of them a deterministic bot that reads a 168,551-word lexicon through a DAWG… |
 | `wormhole` | frontend | `wormhole` | [wormhole.mino.mobi](https://wormhole.mino.mobi) | `claude/academic-wormhole-roulette-lpuqfq` | [`wormhole/CLAUDE.md`](../wormhole/CLAUDE.md) | Academic Wormhole Roulette. Thin assets Worker (worker `wormhole`, custom_domain wormhole.mino.mobi) — no build, no D1, no AI, no secrets… (full description: wormhole/CLAUDE.md) |
+| `zest` | fullstack | `zest` | [zest.mino.mobi](https://zest.mino.mobi) | `claude/3d-feed-embedding-geometry-uiveyf` | [`zest/CLAUDE.md`](../zest/CLAUDE.md) | Posts as solids… |
 | `zoom` | frontend | `zoom` | [zoom.mino.mobi](https://zoom.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`zoom/CLAUDE.md`](../zoom/CLAUDE.md) | SimCluster community viewer. Infinite-canvas visualization of feed communities with hex-packed profile pictures. |
 
 ## Shared backends — check the blast radius before changing these
@@ -123,7 +124,7 @@ A change here ripples to every dependent surface listed.
 | Resource | Dependents | Surfaces |
 |---|---|---|
 | `auth.mino.mobi` | 11 | `bakery`, `board`, `canvas`, `farm`, `farm-next`, `games`, `io`, `photo`, `rant`, `scores`, `wave` |
-| `atpolls-db` | 9 | `airchat`, `canvas`, `feed`, `human`, `io`, `poll`, `reef`, `rite`, `words` |
+| `atpolls-db` | 10 | `airchat`, `canvas`, `feed`, `human`, `io`, `poll`, `reef`, `rite`, `words`, `zest` |
 | `mino-auth-db` | 1 | `auth` |
 | `bounty-board` | 1 | `bounty` |
 | `scores.mino.mobi` | 1 | `canvas` |

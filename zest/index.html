@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>zest — reading Bluesky posts as solids</title>
+<meta name="description" content="Post embeddings are 768 unreadable numbers. Here they are the harmonic spectrum of a solid: loud dimensions become lobes, quiet ones become grain. Then you slice them.">
+<meta property="og:title" content="zest — reading Bluesky posts as solids">
+<meta property="og:description" content="A legibility-of-embeddings toy. Post → vector → spherical-harmonic spectrum → a shape you can learn to read. Fruit-ninja rules; a binomial test tells you whether you actually learned anything.">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  :root{
+    --bg:#08090d; --ink:#e8edf6; --dim:#96a0b5; --line:#232838;
+    --good:#5ee0a4; --bad:#ff7a8a; --accent:#8ab4ff;
+    font-synthesis-weight:none;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);overscroll-behavior:none}
+  body{font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+  b.warn{color:#ffc46b}
+
+  #app{position:fixed;inset:0;touch-action:none}
+  #stage,#blade{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #blade{pointer-events:none}
+
+  /* ── HUD ─────────────────────────────────────────────────────────── */
+  .hud{position:absolute;pointer-events:none;z-index:5}
+  #topbar{top:0;left:0;right:0;display:flex;gap:16px;align-items:flex-start;
+    padding:14px 18px;background:linear-gradient(#08090dcc,#08090d00)}
+  #brand{font-weight:700;letter-spacing:.02em}
+  #brand span{color:var(--dim);font-weight:400}
+  #meters{margin-left:auto;display:flex;gap:18px;align-items:baseline;font-variant-numeric:tabular-nums}
+  #score{font-size:26px;font-weight:700}
+  #combo{color:var(--accent);font-weight:700}
+  #lives{color:var(--bad);letter-spacing:2px}
+  #progress{color:var(--dim);font-size:12px}
+
+  #status{position:absolute;left:14px;bottom:12px;max-width:min(52ch,60vw);color:var(--dim);
+    font-size:12.5px;z-index:5;padding:7px 11px;border-radius:9px;background:#08090dcc;
+    backdrop-filter:blur(4px);border:1px solid #1a1e2b}
+  #status .note{margin-top:4px;color:#ffc46b}
+
+  #anchor-panel{position:absolute;right:16px;top:64px;width:190px;z-index:5}
+  /* No background: the anchor is rendered INTO this rectangle by the WebGL
+     canvas underneath, so any fill here would dim the thing it is framing. */
+  #anchor-box{width:190px;height:190px;border:1px solid var(--line);border-radius:14px}
+  #anchor-panel h3{margin:10px 0 4px;font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim)}
+  #anchor-text{font-size:12px;color:#c3ccdd;max-height:6.4em;overflow:hidden}
+
+  #cards{position:absolute;inset:0;z-index:6;pointer-events:none}
+  .card{position:absolute;width:300px;padding:11px 13px;border-radius:12px;
+    background:#11141ded;border:1px solid var(--line);border-left:3px solid var(--tint,#8ab4ff);
+    box-shadow:0 12px 34px #0009;transition:opacity .7s,transform .7s;animation:rise .35s ease-out}
+  .card.out{opacity:0;transform:translateY(-26px)}
+  .card .txt{font-size:13.5px;line-height:1.45}
+  .card .by{margin-top:5px;color:var(--dim);font-size:11.5px}
+  .card .sim{margin-top:6px;padding-top:6px;border-top:1px solid var(--line);color:var(--dim);font-size:11px;
+    font-variant-numeric:tabular-nums}
+  .tag{display:inline-block;margin-bottom:5px;padding:1px 7px;border-radius:99px;font-size:10.5px;
+    font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+  .tag.good{background:#123d2c;color:var(--good)}
+  .tag.bad{background:#3d1520;color:var(--bad)}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+  /* ── banner ──────────────────────────────────────────────────────── */
+  #banner{position:absolute;inset:0;z-index:20;display:none;place-items:center;
+    background:#05060ad0;backdrop-filter:blur(6px);padding:24px}
+  #banner.show{display:grid}
+  #banner>*{max-width:640px}
+  #banner h2{margin:0 0 10px;font-size:26px;letter-spacing:-.01em}
+  #banner .body{color:#c3ccdd;font-size:14.5px}
+  #banner .v{margin:2px 0 14px;padding:11px 13px;border-radius:10px;border:1px solid var(--line);background:#0d1017}
+  #banner .v.read{border-color:#2c6b52;color:var(--good)}
+  #banner .v.chance{border-color:#5a3a44;color:#ffb4bd}
+  #banner .v.thin{color:var(--dim)}
+  #banner .tally{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:13px}
+  #banner .tally td{padding:5px 8px;border-top:1px solid var(--line)}
+  #banner .tally td:nth-child(2),#banner .tally td:nth-child(4){
+    font-weight:700;font-variant-numeric:tabular-nums;text-align:right;width:3.5em}
+  #banner .tally td:nth-child(odd){color:var(--dim)}
+  #banner .anchor-reveal{padding:11px 13px;border-radius:10px;background:#0d1017;border:1px solid var(--line)}
+  #banner .actions{margin-top:18px;display:flex;gap:10px;flex-wrap:wrap}
+  button{font:inherit;font-weight:600;padding:9px 17px;border-radius:9px;cursor:pointer;
+    background:var(--ink);color:#0a0c12;border:0}
+  button:hover{background:#fff}
+  button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+  button.ghost:hover{background:#151926}
+  a{color:var(--accent)}
+
+  #intro .lead{font-size:16px;line-height:1.6}
+  #intro .map{margin:16px 0;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+  #intro .map div{display:grid;grid-template-columns:5.5em 1fr;gap:12px;padding:9px 13px;border-top:1px solid var(--line)}
+  #intro .map div:first-child{border-top:0;background:#0d1017}
+  #intro .map b{color:var(--accent);font-variant-numeric:tabular-nums}
+  #intro .sources{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 4px}
+  #intro small{color:var(--dim)}
+
+  @media (max-width:720px){
+    #anchor-panel{width:118px;top:56px;right:10px}
+    #anchor-box{width:118px;height:118px}
+    #anchor-text{font-size:11px;max-height:4.4em}
+    #score{font-size:20px}
+    #status{max-width:70vw;font-size:11.5px}
+    .card{width:240px}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="stage"></canvas>
+  <canvas id="blade"></canvas>
+
+  <div class="hud" id="topbar">
+    <div id="brand">zest <span>· posts as solids</span></div>
+    <div id="meters">
+      <div id="combo"></div>
+      <div id="lives"></div>
+      <div id="score">—</div>
+    </div>
+  </div>
+  <div id="progress" class="hud" style="top:46px;right:18px"></div>
+
+  <div id="anchor-panel" class="hud">
+    <div id="anchor-box"></div>
+    <h3>the anchor</h3>
+    <div id="anchor-text"></div>
+  </div>
+
+  <div id="cards"></div>
+  <div id="status"></div>
+
+  <div id="banner">
+    <div id="intro">
+      <h2>zest</h2>
+      <div class="body">
+        <p class="lead">A post embedding is 768 numbers no one can read. This page does not
+        illustrate them — it uses them as the <b>harmonic spectrum of a surface</b>, in the
+        basis where "spectrum of a surface" is what those words literally mean.</p>
+
+        <div class="map">
+          <div><b>l = 0</b><span>the base radius — how far the post sits from the average post. Ordinary posts are small pebbles.</span></div>
+          <div><b>l = 1–4</b><span>24 slots, taking the 24 <b>loudest</b> dimensions one for one. These are the lobes: the silhouette you read across a room.</span></div>
+          <div><b>l = 5–10</b><span>the remaining ~740 <b>quiet</b> dimensions, carried in by a random projection. The Fourier transform of everything too small to get a lobe of its own — the grain.</span></div>
+          <div><b>colour</b><span>an independent readout: the corpus's top three principal directions, straight into OKLCH.</span></div>
+        </div>
+
+        <p>Because the map is linear and the harmonics are orthonormal, two posts that mean
+        the same thing <em>cannot</em> look different: the L² distance between two surfaces is
+        exactly the distance between their vectors. That is checked, not asserted —
+        <a href="/how">the maths and its measured limits</a>.</p>
+
+        <p><b>Hunt</b> shows you one anchor solid and rains posts down. Slice the ones that mean
+        the same kind of thing. Every round runs its full slate — mistakes cost points, never the
+        round, because stopping early on mistakes would bias what comes next. At the end a
+        binomial test says whether you beat chance, so the page can be wrong about you, which is
+        the point.</p>
+
+        <div class="sources" id="sources"></div>
+        <small>Text-only posts. Anything with a picture has already told you what it is about
+        through a channel the embedding never saw.</small>
+      </div>
+      <div class="actions">
+        <button id="play">Hunt</button>
+        <button id="free" class="ghost">Grove — free slicing</button>
+        <button id="atlas-link" class="ghost">Atlas</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Put the intro up from a plain script, before any module is fetched. The
+  // explainer is the part of this page that must survive a bad network: if
+  // three.js fails to load from the CDN, a reader should still get the idea and
+  // an honest error, not a black rectangle.
+  document.getElementById('banner').classList.add('show');
+</script>
+<script type="module">
+import { SOURCES } from './feed.js';
+
+const app = document.getElementById('app');
+const banner = document.getElementById('banner');
+
+let Zest;
+try {
+  ({ Zest } = await import('./game.js'));
+} catch (err) {
+  document.querySelector('#intro .actions').innerHTML =
+    '<div style="color:#ffc46b">three.js could not be loaded from the CDN, so the game cannot start. ' +
+    'The explanation above still stands — <a href="/how">the maths is here</a>.</div>';
+  throw err;
+}
+
+let source = new URLSearchParams(location.search).get('src') || 'simcluster';
+const srcBox = document.getElementById('sources');
+for (const s of SOURCES) {
+  const b = document.createElement('button');
+  b.className = 'ghost' + (s.key === source ? ' on' : '');
+  b.innerHTML = `${s.name} <small style="opacity:.6">${s.blurb}</small>`;
+  b.onclick = () => {
+    source = s.key;
+    [...srcBox.children].forEach((c) => c.classList.remove('on'));
+    b.classList.add('on');
+    b.style.background = 'var(--ink)'; b.style.color = '#0a0c12';
+    booted = null;
+  };
+  if (s.key === source) { b.style.background = 'var(--ink)'; b.style.color = '#0a0c12'; }
+  srcBox.appendChild(b);
+}
+
+const zest = new Zest(app);
+let booted = null;
+
+async function ready() {
+  if (booted === source) return true;
+  const okay = await zest.boot(source);
+  booted = okay ? source : null;
+  return okay;
+}
+
+document.getElementById('play').onclick = async () => {
+  banner.classList.remove('show');
+  if (await ready()) zest.startHunt();
+  else banner.classList.add('show');
+};
+document.getElementById('free').onclick = async () => {
+  banner.classList.remove('show');
+  if (await ready()) zest.startFree();
+  else banner.classList.add('show');
+};
+document.getElementById('atlas-link').onclick = () => { location.href = '/atlas'; };
+</script>
+</body>
+</html>
