@@ -384,8 +384,12 @@ function buildRoom(id) {
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    // FrontSide only — the dollhouse cull: walls facing away from the
+    // camera (the near side of the room) simply don't draw, so the room
+    // interior is never hidden behind its own wall. Edge lines stay for
+    // silhouette.
     roomGroup.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({
-      color: css('#0d2126'), transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false,
+      color: css('#0d2126'), transparent: true, opacity: 0.55, side: THREE.FrontSide, depthWrite: false,
     })));
     const lg = new THREE.BufferGeometry();
     lg.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3));
@@ -807,9 +811,9 @@ function refreshHUD() {
   if (mode === 'explore') {
     $('moveLeft').classList.remove('spent');
     $('moveLeft').innerHTML = '<b>∞</b> explore' + (alert ? ' — <span style=\"color:#ff6e5a\">the foam hunts you</span>' : ' — free movement');
-    $('endTurn').disabled = true;
+    $('endTurn').textContent = '⧗ wait';
   } else {
-    $('endTurn').disabled = false;
+    $('endTurn').textContent = '↻ end turn';
     $('moveLeft').classList.toggle('spent', moveLeft === 0);
     $('moveLeft').innerHTML = '<b>' + moveLeft + '</b> tile' + (moveLeft === 1 ? '' : 's') +
       (moveLeft === 0 ? ' — end the turn to move' : ' left this turn');
@@ -969,8 +973,17 @@ function resolveTile() {
     }
   } else if (e.type === 'trap' && !e.sprung) {
     e.sprung = true;
-    if (e.trap === 'snare') { moveLeft = 0; note('a snare! your turn ends here', '#ff9e6e'); }
-    else hurt(e.dmg, 'spike trap');
+    if (e.trap === 'snare') {
+      // mode-aware: in an encounter the snare ends your turn; exploring, it
+      // roots you while the dungeon takes two free steps — never a lockout
+      if (mode === 'encounter') { moveLeft = 0; note('a snare! your turn ends here', '#ff9e6e'); }
+      else {
+        note('a snare! you wrench free as things move', '#ff9e6e');
+        walkQueue = [];
+        worldStep(); if (!dead) worldStep();
+      }
+    } else hurt(e.dmg, 'spike trap');
+    if (dead) return;
     buildRoom(curRoom); placeToken(false);   // reveal the sprung trap
   }
 }
@@ -1066,8 +1079,15 @@ canvas.addEventListener('pointerup', (e) => {
   const ndc = new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(ndc, camera);
   const hits = ray.intersectObject(tileMesh, false);
-  if (!hits.length) return;
-  const p = hits[0].point;
+  let p = hits[0]?.point ?? null;
+  if (!p) {
+    // walls (and empty air) are transparent to clicks: fall back to the
+    // room's median floor plane and take the nearest tile to that point
+    const t0 = crawl.rooms.get(curRoom).byKey.get(curTile);
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -t0.y);
+    p = new THREE.Vector3();
+    if (!ray.ray.intersectPlane(plane, p)) return;
+  }
   const R = crawl.rooms.get(curRoom);
   // an adjacent enemy first: clicking it is a bump attack
   for (const nk of R.adj.get(curTile) ?? []) {
@@ -1157,8 +1177,11 @@ $('moveSlider').oninput = () => {
   moveLeft = Math.min(moveLeft, moveMax);
   refreshHilites(); refreshHUD();
 };
+// always available: in an encounter it ends the turn; exploring it is a
+// WAIT — the world takes a step around you. Whatever state a trap or mode
+// flip leaves behind, this button always restores the budget.
 $('endTurn').onclick = () => {
-  if (dead || mode !== 'encounter') return;
+  if (dead) return;
   worldStep();
   if (dead) return;
   moveLeft = moveMax;
