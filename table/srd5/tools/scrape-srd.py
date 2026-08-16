@@ -495,6 +495,16 @@ def classes(pages):
         for mm in re.finditer(r"^Level (\d+):\s*([^\n]+)$", body, re.M):
             feats_by_level.setdefault(int(mm.group(1)), []).append(mm.group(2).strip())
         rec["features"] = {str(k): v for k, v in sorted(feats_by_level.items())}
+        # ASI levels differ per class and the class table is not parsed, but the
+        # feature's own text names them: "You gain this feature again at Fighter
+        # levels 6, 8, 12, 14, and 16." Taking the level-4 heading alone would
+        # give every class one ability score improvement in twenty levels.
+        asi = [4]
+        again = re.search(r"Ability Score Improvement.{0,400}?again at %s levels?\s+([\d,\s and]+)"
+                          % name, body, re.S)
+        if again:
+            asi += [int(x) for x in re.findall(r"\d+", again.group(1))]
+        rec["asiLevels"] = sorted(set(asi))
         out[name] = rec
     return out
 

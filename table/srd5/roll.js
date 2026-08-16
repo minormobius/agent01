@@ -81,6 +81,9 @@ function xmur3(str) {
   };
 }
 
+/** A background's granted Origin feat, stripped of its cross-reference. */
+const c0 = (background) => String(background.feat).replace(/\s*\(see [^)]*\)/, '').trim();
+
 // --------------------------------------------------------------- the rules
 
 /** "Ability Modifiers" table — and it is exactly this formula, not a lookup. */
@@ -214,6 +217,142 @@ function hitPoints(rng, klass, con, level, species) {
   return { hp, log, tough };
 }
 
+// ------------------------------------------------------- multiclassing
+
+/**
+ * The abilities a class demands, split by how the SRD phrases it.
+ *
+ * "Strength or Dexterity" (Fighter) means either will do; "Dexterity and
+ * Wisdom" (Monk) means both. Treating the two the same way would let a Monk
+ * multiclass on one good score.
+ */
+export function primaryAbilities(klass) {
+  const named = ABILITIES.filter((a) => new RegExp(FULL[a]).test(klass.primary || ''));
+  const either = /\bor\b/.test(klass.primary || '');
+  return { named, either };
+}
+
+/**
+ * "To qualify for a new class, you must have a score of at least 13 in the
+ * primary ability of the new class and your current classes."
+ *
+ * Note BOTH halves: the new class's primary *and* every class already taken.
+ * A Barbarian/Druid needs Strength 13 and Wisdom 13, which is the SRD's own
+ * worked example.
+ */
+export function meetsPrerequisite(scores, klass) {
+  const { named, either } = primaryAbilities(klass);
+  if (!named.length) return true;
+  return either ? named.some((a) => scores[a] >= 13) : named.every((a) => scores[a] >= 13);
+}
+
+export function canMulticlassInto(scores, currentClassNames, klass) {
+  if (!meetsPrerequisite(scores, klass)) return false;
+  return currentClassNames.every((n) => meetsPrerequisite(scores, CLASSES[n]));
+}
+
+// "All your levels in the Bard, Cleric, Druid, Sorcerer, and Wizard classes /
+//  Half your levels (round up) in the Paladin and Ranger classes". The Warlock
+//  is deliberately absent from that list — Pact Magic is counted separately by
+//  the SRD, and pretending otherwise would inflate a Warlock multiclass's slots.
+const FULL_CASTERS = ['Bard', 'Cleric', 'Druid', 'Sorcerer', 'Wizard'];
+const HALF_CASTERS = ['Paladin', 'Ranger'];
+
+export function casterLevel(classLevels) {
+  let n = 0;
+  for (const [name, lv] of Object.entries(classLevels)) {
+    if (FULL_CASTERS.includes(name)) n += lv;
+    else if (HALF_CASTERS.includes(name)) n += Math.ceil(lv / 2);
+  }
+  return n;
+}
+
+// ------------------------------------------------------------------ path
+
+/**
+ * What happened at each level, and what else could have happened.
+ *
+ * This is the answer to "I rolled a level ten and I have no idea how we got
+ * here". Every entry records the class the level went into, the features it
+ * bought, the hit die rolled, and — where the game actually offered a
+ * choice — the decision taken AND the roads not taken, because a path with no
+ * alternatives on it is a list, not a tree.
+ */
+function asiLevelsOf(klass) {
+  return klass.asiLevels || [4, 8, 12, 16];
+}
+
+/** One level's worth of advancement, appended to the path. */
+function advance(rng, c, level, klass, opts) {
+  const classLevel = (c.classLevels[klass.name] || 0) + 1;
+  c.classLevels[klass.name] = classLevel;
+
+  // "You gain the Hit Points from your new class as described for levels after
+  //  1. You gain the level 1 Hit Points for a class only when your total
+  //  character level is 1." So a Fighter's first level as a multiclass rolls;
+  //  it does not take the die whole.
+  const conMod = modifier(c.scores.Con);
+  const whole = level === 1;
+  const roll = whole ? klass.hitDie : rng.d(klass.hitDie);
+  const gained = whole ? roll + conMod : Math.max(1, roll + conMod);
+
+  const gainedFeatures = (klass.features[String(classLevel)] || []).slice();
+  const entry = {
+    level,
+    klass: klass.name,
+    classLevel,
+    gained: gainedFeatures,
+    hp: { roll, gained, whole, die: klass.hitDie },
+    decisions: [],
+  };
+
+  // The subclass fork. The SRD publishes exactly ONE subclass per class, so
+  // this is a fork with a single road — said plainly rather than dressed up.
+  const sub = gainedFeatures.find((f) => /Subclass$/.test(f));
+  if (sub) {
+    entry.decisions.push({
+      kind: 'subclass',
+      chose: gainedFeatures.filter((f) => !/Subclass$/.test(f)).join(', ') || sub,
+      alternatives: [],
+      note: 'the SRD publishes one subclass per class; the full game has several',
+    });
+  }
+
+  // The ability score improvement — a real choice between a bump and a feat.
+  if (asiLevelsOf(klass).includes(classLevel)) {
+    const want = primaryAbilities(klass).named[0] || 'Con';
+    const room = c.scores[want] <= 18;
+    const feats = FEATS.filter((f) => f.category === 'General' && f.name !== 'Ability Score Improvement');
+    const takeFeat = !room || rng.raw() < 0.25;
+    if (takeFeat && feats.length) {
+      const feat = rng.pick(feats);
+      c.feats.push(feat.name);
+      entry.decisions.push({
+        kind: 'asi', chose: `the ${feat.name} feat`,
+        alternatives: [`+2 ${want} (now ${c.scores[want]})`],
+      });
+    } else {
+      c.scores[want] = Math.min(20, c.scores[want] + 2);
+      entry.decisions.push({
+        kind: 'asi', chose: `+2 ${want} → ${c.scores[want]}`,
+        alternatives: feats.slice(0, 3).map((f) => `the ${f.name} feat`),
+      });
+    }
+  }
+
+  // The multiclass fork, recorded even when it is not taken — the point of a
+  // path is the branches, and "you could have gone Rogue here" is the branch.
+  if (opts.multiclass && level > 1) {
+    const eligible = Object.values(CLASSES)
+      .filter((k) => k.name !== klass.name && canMulticlassInto(c.scores, Object.keys(c.classLevels), k))
+      .map((k) => k.name);
+    if (eligible.length) entry.couldHaveTaken = eligible;
+  }
+
+  c.path.push(entry);
+  return gained;
+}
+
 // -------------------------------------------------------------- the roller
 
 /**
@@ -222,7 +361,7 @@ function hitPoints(rng, klass, con, level, species) {
  * THE DRAW ORDER BELOW IS THE PERMALINK. Do not reorder it, and do not insert
  * a draw in the middle of it; append at the end if you must add something.
  */
-export function rollCharacter(seedText, { level = 1 } = {}) {
+export function rollCharacter(seedText, { level = 1, multiclass = false } = {}) {
   const rng = makeRng(`srd5/${seedText}`);
   const lvl = Math.min(20, Math.max(1, level));
 
@@ -284,15 +423,39 @@ export function rollCharacter(seedText, { level = 1 } = {}) {
     : null;
   const shield = /Shield/i.test(armorTraining) && !melee.twoHanded;
 
-  // 5. hit points, which need Constitution and so come last
-  const { hp, log: hpLog, tough } = hitPoints(rng, klass, scores.Con, lvl, species);
+  // 5. THE PATH. Levels are walked one at a time rather than multiplied out,
+  //    because that walk IS the answer to "how did I get here" — and because
+  //    multiclassing makes each level a genuine choice that changes the hit
+  //    die rolled, the features gained, and when the next improvement lands.
+  //
+  //    The level-1 draws above are untouched, so a level-1 permalink still
+  //    rolls the person it always rolled; everything new is appended.
+  const c = { scores: { ...scores }, classLevels: {}, path: [], feats: [c0(background)] };
+  let hp = 0;
+  let current = klass;
+  for (let l = 1; l <= lvl; l++) {
+    if (l > 1 && multiclass) {
+      const eligible = Object.values(CLASSES).filter((k) =>
+        canMulticlassInto(c.scores, Object.keys(c.classLevels), k));
+      // A quarter of level-ups branch, when the character qualifies at all.
+      // The number is ours: the SRD has no opinion on how often anyone
+      // multiclasses, and the page says so.
+      if (eligible.length && rng.raw() < 0.25) current = rng.pick(eligible);
+    }
+    hp += advance(rng, c, l, current, { multiclass });
+  }
+  // "Dwarven Toughness. Your Hit Point maximum increases by 1, and it
+  //  increases by 1 again whenever you gain a level."
+  const tough = (species.traits || []).some((t) => /Dwarven Toughness/i.test(t.name));
+  if (tough) hp += lvl;
 
   return finish({
     seed: seedText, level: lvl, species, background, klass,
-    rolls, scores, applied,
+    rolls, scores: c.scores, baseScores: scores, applied,
     proficient, backgroundSkills, classSkills,
     weapons: [melee, ranged].filter(Boolean), worn, shield,
-    hp, hpLog, tough,
+    hp, tough, path: c.path, classLevels: c.classLevels, feats: c.feats,
+    multiclass,
   });
 }
 
@@ -304,6 +467,10 @@ function finish(c) {
 
   const { ac, how } = armorClass(c.scores, c.worn, c.shield);
 
+  // "When you gain your first level in a class other than your initial class,
+  //  you gain only SOME of the new class's starting proficiencies" — and
+  //  saving throws are not among them. So saves stay the initial class's, even
+  //  for a character who is mostly something else now.
   const saves = ABILITIES.map((a) => ({
     ability: a,
     proficient: (c.klass.saves || []).includes(a),
@@ -337,9 +504,14 @@ function finish(c) {
   // Spellcasting, where the class has it. The ability is the class's primary
   // one for the full casters the SRD publishes; a class with no spell slots in
   // its table gets nothing rather than an empty box.
-  const casting = spellcasting(c.klass, mods, pb);
+  // With multiclassing the caster is whichever class brought the spellcasting;
+  // the first one taken wins the sheet's headline numbers.
+  const castingClass = Object.keys(c.classLevels).find((n) => CASTING_ABILITY[n]);
+  const casting = spellcasting(castingClass ? CLASSES[castingClass] : c.klass, mods, pb);
 
   const perception = skills.find((s) => s.name === 'Perception');
+  const classLine = Object.entries(c.classLevels)
+    .map(([n, l]) => `${n} ${l}`).join(' / ');
 
   return {
     ...c,
@@ -354,8 +526,16 @@ function finish(c) {
     attacks,
     casting,
     passivePerception: 10 + (perception ? perception.mod : mods.Wis),
-    features: featuresUpTo(c.klass, c.level),
+    // Features come off the PATH, not from the first class and the character
+    // level. A Paladin 2 / Warlock 6 does not have a Paladin's level-8
+    // features, and computing them that way would hand out several.
+    features: c.path.filter((e) => e.gained.length)
+      .map((e) => ({ level: e.level, klass: e.klass, names: e.gained })),
     feat: c.background.feat,
+    classLine,
+    casterLevel: casterLevel(c.classLevels),
+    // The hit-point log the sheet shows is the path, not a second list.
+    hpLog: c.path.map((e) => ({ level: e.level, roll: e.hp.roll, gained: e.hp.gained, fixed: e.hp.whole })),
   };
 }
 
@@ -383,6 +563,135 @@ export function featuresUpTo(klass, level) {
     if (Number(lv) <= level) out.push({ level: Number(lv), names });
   }
   return out.sort((a, b) => a.level - b.level);
+}
+
+// ---------------------------------------------------------------- balance
+//
+// THE SRD PUBLISHES NO ROLE TAXONOMY. "Every party needs a healer" is folk
+// wisdom, not a rule, and this file is careful about the difference. What
+// follows is in two halves, and the page keeps them apart:
+//
+//   DERIVED — properties of the actual rules, computable from the class data
+//   and true whether or not anyone agrees with our theory. Saving-throw
+//   coverage is the strongest of these: every class grants proficiency in
+//   exactly two of the six saves, a party either covers a save or does not,
+//   and an uncovered save is a real hole that specific monsters aim at.
+//
+//   OURS — the role names, and the weights that turn coverage into one number.
+//   Invented, labelled, and arguable. When the map layer lands and encounters
+//   can be simulated, this becomes testable rather than asserted, and that is
+//   the point of writing it down now.
+
+/**
+ * The four roles, each defined by something on the sheet rather than by vibes.
+ * Curated: this table is ours. Every entry says what evidence it reads.
+ */
+export const ROLES = [
+  {
+    key: 'frontline',
+    label: 'holds the line',
+    why: 'heavy or medium armour and a d10+ hit die — can stand where it hurts',
+    test: (c) => CLASSES[firstClass(c)] && /Heavy|Medium/i.test(String(CLASSES[firstClass(c)].armor || ''))
+      && CLASSES[firstClass(c)].hitDie >= 10,
+  },
+  {
+    key: 'healer',
+    label: 'puts people back up',
+    // Curated, and it has to be: healing lives in spell lists the SRD prints
+    // but this corpus does not yet parse. These are the classes that can heal
+    // at level 1 by the book.
+    why: 'can restore hit points from level 1 (Bard, Cleric, Druid, Paladin, Ranger)',
+    test: (c) => Object.keys(c.classLevels || {})
+      .some((n) => ['Bard', 'Cleric', 'Druid', 'Paladin', 'Ranger'].includes(n)),
+  },
+  {
+    key: 'caster',
+    label: 'changes the situation',
+    why: 'has a spell save DC, so can force saves rather than only deal damage',
+    test: (c) => !!c.casting,
+  },
+  {
+    key: 'scout',
+    label: 'finds the trouble first',
+    why: 'proficient in Stealth or Perception',
+    test: (c) => c.proficient.includes('Stealth') || c.proficient.includes('Perception'),
+  },
+];
+
+const firstClass = (c) => (c.klass ? c.klass.name : Object.keys(c.classLevels || {})[0]);
+
+/**
+ * What a party covers and what it does not.
+ *
+ * The two coverage numbers are mechanical. The roles are ours. The score
+ * weights saves most heavily because an uncovered save is the only one of
+ * these a monster can aim at deliberately.
+ */
+export function partyBalance(members) {
+  const saves = {};
+  for (const a of ABILITIES) {
+    saves[a] = members.filter((m) => m.saves.find((s) => s.ability === a && s.proficient))
+      .map((m) => m.klass.name);
+  }
+  const skillsCovered = new Set(members.flatMap((m) => m.proficient));
+
+  const roles = {};
+  for (const r of ROLES) roles[r.key] = members.filter((m) => r.test(m)).map((m) => m.klass.name);
+
+  // The three saves that matter most. Ours, and stated: Dexterity, Constitution
+  // and Wisdom are what the bestiary's area effects, poisons and charms call
+  // for, so a hole in one of those costs more than a hole in Strength.
+  const BIG_THREE = ['Dex', 'Con', 'Wis'];
+  const savesCovered = ABILITIES.filter((a) => saves[a].length > 0);
+  const bigCovered = BIG_THREE.filter((a) => saves[a].length > 0);
+  const rolesCovered = ROLES.filter((r) => roles[r.key].length > 0);
+
+  const score = bigCovered.length * 3 + savesCovered.length + rolesCovered.length * 2
+    + Math.min(12, skillsCovered.size) / 4;
+
+  return {
+    saves,
+    savesCovered,
+    savesMissing: ABILITIES.filter((a) => !saves[a].length),
+    bigThreeMissing: BIG_THREE.filter((a) => !saves[a].length),
+    skillsCovered: [...skillsCovered].sort(),
+    skillsMissing: SKILLS.map((s) => s.name).filter((n) => !skillsCovered.has(n)),
+    roles,
+    rolesMissing: ROLES.filter((r) => !roles[r.key].length).map((r) => r.key),
+    score: Math.round(score * 100) / 100,
+    // the best a party of this size could possibly score, for context
+    max: Math.round((3 * 3 + 6 + ROLES.length * 2 + 3) * 100) / 100,
+  };
+}
+
+/**
+ * A party chosen for coverage rather than accepted as rolled.
+ *
+ * Deterministic rejection sampling: walk a fixed number of candidate parties
+ * derived from the same seed, score each, keep the best. The seed still
+ * decides everything, so the permalink still works — it just points at the
+ * winner of a search instead of the first throw.
+ *
+ * Rejection sampling and not construction, deliberately. Assembling one of
+ * each role would produce the same four classes every time and quietly answer
+ * a design question ("what SHOULD a party be?") that we have no business
+ * answering yet. Searching says only "of these forty parties, this one has the
+ * fewest holes", which is a claim we can actually defend.
+ */
+export function rollBalancedParty(seedText, size = 4, opts = {}) {
+  const tries = opts.tries || 40;
+  let best = null;
+  for (let i = 0; i < tries; i++) {
+    const members = Array.from({ length: size }, (_, k) =>
+      rollCharacter(`${seedText}/b${i}/${k}`, opts));
+    const balance = partyBalance(members);
+    if (!best || balance.score > best.balance.score) best = { members, balance, attempt: i };
+  }
+  // and what an unsearched party of this seed would have scored, so the page
+  // can show what the search actually bought
+  const plain = partyBalance(Array.from({ length: size }, (_, k) =>
+    rollCharacter(`${seedText}/${k}`, opts)));
+  return { seed: seedText, ...best, tries, plainScore: plain.score, plain };
 }
 
 /** A party. Each member is seeded from the party seed and their index. */

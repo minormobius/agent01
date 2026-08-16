@@ -22,7 +22,9 @@
 // https://creativecommons.org/licenses/by/4.0/legalcode.
 
 import {
-  rollCharacter, rollParty, modifier, proficiencyBonus, armorClass, ABILITIES,
+  rollCharacter, rollParty, rollBalancedParty, partyBalance, ROLES,
+  meetsPrerequisite, canMulticlassInto, casterLevel,
+  modifier, proficiencyBonus, armorClass, ABILITIES,
 } from './roll.js';
 import { CLASSES, SPECIES, BACKGROUNDS, SKILLS, WEAPONS, ARMOR } from './data.js';
 
@@ -228,6 +230,148 @@ const many = (n, level = 1) =>
 
   const p = rollParty('band', 5, { level: 3 });
   ok(p.members.length === 5 && p.members.every((m) => m.level === 3), 'a party rolls at one level');
+}
+
+// ---------------------------------------------------------------------------
+// 7. the path — how a level 10 got to be a level 10
+// ---------------------------------------------------------------------------
+{
+  const c = rollCharacter('path', { level: 12 });
+  ok(c.path.length === 12, `one path entry per level (${c.path.length})`);
+  ok(c.path.every((e, i) => e.level === i + 1), 'the path is in level order with no gaps');
+  ok(c.path.every((e) => e.hp.gained >= 1), 'every level grants at least 1 HP');
+  ok(c.path[0].hp.whole === true, 'level 1 takes the hit die whole');
+  ok(c.path.slice(1).every((e) => !e.hp.whole), 'and every level after it rolls');
+
+  // The sheet's numbers have to BE the path's numbers, not a parallel sum.
+  const fromPath = c.path.reduce((n, e) => n + e.hp.gained, 0) + (c.tough ? c.level : 0);
+  ok(fromPath === c.hp, `hit points are the path's total (${fromPath} vs ${c.hp})`);
+  ok(c.hpLog.length === c.path.length, 'the hit-point log is the path');
+
+  // Decisions, and the roads not taken — a path with no alternatives is a list.
+  const asis = c.path.flatMap((e) => e.decisions.filter((d) => d.kind === 'asi'));
+  ok(asis.length === (c.klass.asiLevels || []).filter((l) => l <= 12).length,
+    `every ability score improvement the class gets by level 12 appears (${asis.length})`);
+  ok(asis.every((d) => d.chose && d.alternatives.length > 0),
+    'each improvement records what was taken AND what was not');
+  const sub = c.path.flatMap((e) => e.decisions.filter((d) => d.kind === 'subclass'));
+  ok(sub.length === 1 && sub[0].note, 'the subclass fork appears once, and says the SRD has only one');
+
+  // Fighters get six improvements in twenty levels and Wizards four — if this
+  // ever reads the same for both, the ASI levels stopped being parsed per class.
+  const lvls = (n) => (CLASSES[n].asiLevels || []).length;
+  ok(lvls('Fighter') > lvls('Wizard'), `a Fighter gets more improvements than a Wizard (${lvls('Fighter')} vs ${lvls('Wizard')})`);
+
+  // Same seed, same path.
+  ok(JSON.stringify(rollCharacter('path', { level: 12 }).path) === JSON.stringify(c.path),
+    'the path is deterministic');
+  // A shorter character is a prefix of the longer one: level 5 is how the
+  // level 12 got to level 5, not a different history.
+  const five = rollCharacter('path', { level: 5 });
+  ok(JSON.stringify(five.path) === JSON.stringify(c.path.slice(0, 5)),
+    'a level 5 sheet is the first five levels of the level 12 sheet');
+}
+
+// ---------------------------------------------------------------------------
+// 8. multiclassing, which the SRD does publish
+// ---------------------------------------------------------------------------
+{
+  // "you must have a score of at least 13 in the primary ability of the new
+  //  class and your current classes" — and "Strength or Dexterity" means
+  //  either, while "Dexterity and Wisdom" means both.
+  const lo = { Str: 8, Dex: 8, Con: 8, Int: 8, Wis: 8, Cha: 8 };
+  const dexOnly = { ...lo, Dex: 15 };
+  ok(!meetsPrerequisite(lo, CLASSES.Fighter), 'nobody qualifies on eights');
+  ok(meetsPrerequisite(dexOnly, CLASSES.Fighter),
+    'a Fighter needs Strength OR Dexterity, and Dexterity alone is enough');
+  ok(!meetsPrerequisite(dexOnly, CLASSES.Monk),
+    'a Monk needs Dexterity AND Wisdom, so Dexterity alone is not');
+  ok(meetsPrerequisite({ ...dexOnly, Wis: 13 }, CLASSES.Monk), 'and with both, it is');
+
+  // the prerequisite runs BOTH ways — you must still qualify for what you are
+  const barb = { ...lo, Str: 16, Wis: 16 };
+  ok(canMulticlassInto(barb, ['Barbarian'], CLASSES.Druid),
+    "the SRD's own example: a Barbarian with Strength 16 and Wisdom 16 may take Druid");
+  ok(!canMulticlassInto({ ...lo, Wis: 16 }, ['Barbarian'], CLASSES.Druid),
+    'but not with Wisdom alone — the Barbarian half still has to qualify');
+
+  // Spell slots: full casters count fully, Paladin and Ranger at half rounded
+  // up, and the Warlock is NOT in that list because Pact Magic is separate.
+  ok(casterLevel({ Wizard: 5 }) === 5, 'a Wizard 5 is caster level 5');
+  ok(casterLevel({ Paladin: 5 }) === 3, 'a Paladin 5 is caster level 3 (half, rounded up)');
+  ok(casterLevel({ Wizard: 4, Ranger: 3 }) === 6, 'and they add: Wizard 4 + Ranger 3 = 6');
+  ok(casterLevel({ Warlock: 9 }) === 0,
+    'a Warlock contributes nothing — the SRD counts Pact Magic separately');
+  ok(casterLevel({ Fighter: 20 }) === 0, 'and a Fighter contributes nothing at all');
+
+  // A multiclassed character is legal, adds up, and keeps its FIRST class's
+  // saving throws — multiclassing grants only some proficiencies, and saves
+  // are not among them.
+  let multied = 0;
+  for (let i = 0; i < 60; i++) {
+    const m = rollCharacter(`mc/${i}`, { level: 12, multiclass: true });
+    const names = Object.keys(m.classLevels);
+    if (names.length > 1) multied++;
+    const total = Object.values(m.classLevels).reduce((a, b) => a + b, 0);
+    ok(total === 12, `class levels sum to the character level (${total})`);
+    ok(m.proficiencyBonus === proficiencyBonus(12),
+      'proficiency bonus comes from total level, not class level');
+    ok(m.saves.filter((s) => s.proficient).length === 2,
+      'still exactly two proficient saves after multiclassing');
+    // every class taken was one the character qualified for
+    ok(names.every((n) => meetsPrerequisite(m.scores, CLASSES[n]))
+      || names.length === 1, `every class taken met its prerequisite (${names})`);
+  }
+  ok(multied > 5, `multiclassing actually happens when asked for (${multied} of 60)`);
+  const pure = Array.from({ length: 30 }, (_, i) => rollCharacter(`mc/${i}`, { level: 12 }));
+  ok(pure.every((m) => Object.keys(m.classLevels).length === 1),
+    'and never happens when it is not asked for');
+}
+
+// ---------------------------------------------------------------------------
+// 9. balance — and whether searching for it buys anything
+// ---------------------------------------------------------------------------
+{
+  const b = partyBalance(rollParty('bal', 4).members);
+  ok(ABILITIES.every((a) => Array.isArray(b.saves[a])), 'every save is accounted for');
+  ok(b.savesCovered.length + b.savesMissing.length === 6, 'covered and missing add to six');
+  ok(b.skillsCovered.length + b.skillsMissing.length === 18, 'and the skills add to eighteen');
+  ok(ROLES.every((r) => r.why && r.test), 'every role says what evidence defines it');
+
+  // THE CLAIM, MEASURED. A role theory that cannot be shown to change anything
+  // is decoration. A random party of four has a real hole most of the time;
+  // searching forty candidates removes it. If these numbers ever converge, the
+  // balanced mode has stopped doing anything and should be removed.
+  const N = 40;
+  let plainBig = 0, searchBig = 0, plainRole = 0, searchRole = 0;
+  let plainScore = 0, searchScore = 0;
+  for (let i = 0; i < N; i++) {
+    const seed = `bcmp/${i}`;
+    const plain = partyBalance(rollParty(seed, 4).members);
+    const found = rollBalancedParty(seed, 4);
+    if (plain.bigThreeMissing.length) plainBig++;
+    if (found.balance.bigThreeMissing.length) searchBig++;
+    if (plain.rolesMissing.length) plainRole++;
+    if (found.balance.rolesMissing.length) searchRole++;
+    plainScore += plain.score;
+    searchScore += found.balance.score;
+  }
+  ok(plainBig / N > 0.35,
+    `a rolled party of four usually has a hole in Dex/Con/Wis (${(plainBig / N * 100).toFixed(0)}%) — ` +
+    'if this drops, the metric has stopped discriminating');
+  ok(searchBig < plainBig / 3,
+    `searching removes most of them (${(searchBig / N * 100).toFixed(0)}% vs ${(plainBig / N * 100).toFixed(0)}%)`);
+  ok(searchRole <= plainRole, `and does not make role coverage worse (${searchRole} vs ${plainRole})`);
+  ok(searchScore / N > plainScore / N + 2,
+    `the searched party scores meaningfully higher (${(searchScore / N).toFixed(2)} vs ${(plainScore / N).toFixed(2)})`);
+
+  // and it is still a permalink
+  const a1 = rollBalancedParty('fixed', 4);
+  const a2 = rollBalancedParty('fixed', 4);
+  ok(a1.members.map((m) => m.klass.name).join() === a2.members.map((m) => m.klass.name).join(),
+    'the balanced party is deterministic — the seed still decides');
+  ok(a1.plainScore !== undefined && a1.tries === 40,
+    'and it reports what an unsearched party would have scored, so the search is visible');
 }
 
 console.log(`roll.selftest: ${pass} passed, ${fail} failed`);

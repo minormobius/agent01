@@ -138,8 +138,70 @@ footer {
 }
 footer .attrib { font-size: 0.78rem; }
 
+/* ------------------------------------------------------------- balance -- */
+.balance .score { display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.6rem; }
+.balance .score .v { font-family: var(--mono); font-size: 1.6rem; }
+.balance .score .k { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); }
+.balance .score .gain {
+  font-family: var(--mono); font-size: 0.6rem; color: var(--accent);
+  border: 1px solid var(--accent); border-radius: 999px; padding: 0.1rem 0.5rem; margin-left: auto;
+}
+.cov { display: flex; gap: 0.6rem; align-items: baseline; margin-bottom: 0.35rem; flex-wrap: wrap; }
+.cov > .k {
+  font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--muted); flex: 0 0 6.5rem;
+}
+.chip.gap { border-color: var(--ink); color: var(--ink); border-style: dashed; }
+button.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+
+/* ---------------------------------------------------------------- path -- */
+/*
+ * A spine, not a table. What matters about a level 10 is not the total, it is
+ * where the decisions were and what the other roads were — and a table has
+ * nowhere to put a road not taken.
+ */
+.pathblock { border-top: 1px dashed var(--rule); padding-top: 0.6rem; }
+button.showpath {
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase;
+  background: none; border: 1px solid var(--rule-hard); color: var(--muted); padding: 0.3rem 0.6rem;
+}
+button.showpath:hover { border-color: var(--accent); color: var(--accent); }
+.path { margin-top: 0.7rem; }
+.step { display: flex; gap: 0.7rem; position: relative; padding-bottom: 0.55rem; }
+/* the spine itself, drawn as a border on the marker column */
+.step .mark { flex: 0 0 1.6rem; display: flex; justify-content: center; position: relative; }
+.step .mark::before {
+  content: ''; position: absolute; top: 1.5rem; bottom: -0.55rem; left: 50%;
+  width: 1px; background: var(--rule-hard);
+}
+.step:last-child .mark::before { display: none; }
+.step .lv {
+  font-family: var(--mono); font-size: 0.6rem; width: 1.6rem; height: 1.6rem; flex: 0 0 auto;
+  border: 1px solid var(--rule-hard); border-radius: 50%; background: var(--bg);
+  display: flex; align-items: center; justify-content: center; color: var(--muted); z-index: 1;
+}
+.step.decided .lv { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.step.branch .lv { border-style: dashed; }
+.step .body { flex: 1 1 auto; min-width: 0; padding-top: 0.15rem; }
+.step .head { font-size: 0.87rem; }
+.step .head .hp { font-family: var(--mono); font-size: 0.66rem; color: var(--muted); margin-left: 0.4rem; }
+.step .got { display: flex; flex-wrap: wrap; gap: 0.2rem; margin-top: 0.2rem; }
+.step .decision {
+  margin-top: 0.3rem; font-size: 0.83rem; border-left: 2px solid var(--accent);
+  background: var(--accent-soft); padding: 0.25rem 0.5rem; border-radius: 0 5px 5px 0;
+}
+.step .decision .k {
+  font-family: var(--mono); font-size: 0.55rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--accent); margin-right: 0.35rem;
+}
+.step .decision .alt { color: var(--muted); font-size: 0.78rem; }
+.step .couldve {
+  margin-top: 0.25rem; font-family: var(--mono); font-size: 0.62rem; color: var(--gold);
+}
+
 @media print {
-  .controls, footer, .panel, .crumb, details.dice { display: none; }
+  .controls, footer, .crumb, details.dice, .pathblock { display: none; }
+  .panel.balance { display: block; border-color: #999; }
   body { max-width: none; padding: 0; }
   .sheet { border-color: #999; page-break-inside: avoid; }
 }
@@ -168,10 +230,13 @@ footer .attrib { font-size: 0.78rem; }
   <select id="size"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select>
   <label class="ctl" for="level">level</label>
   <select id="level"></select>
+  <button id="balanced" title="search 40 parties for the one with the fewest coverage holes">⚖ Balanced</button>
+  <button id="multiclass" title="let level-ups branch into other classes when the character qualifies">⑂ Multiclass</button>
   <button class="primary" id="roll">Roll a new party</button>
   <button id="print">Print</button>
 </div>
 
+<div id="balance"></div>
 <div id="party"></div>
 
 <section class="panel caveat">
@@ -189,6 +254,17 @@ footer .attrib { font-size: 0.78rem; }
       where the class wants it. Gear is picked as the best the class is <em>trained</em> for,
       weighing hit chance and not just the damage die. A real player would sometimes decide
       otherwise, and should.</li>
+    <li><b>Balanced mode searches, it does not construct.</b> It rolls forty parties from your
+      seed, scores each on coverage, and keeps the best — so the seed still decides everything and
+      the permalink still works. Building one of each role would have been easier and would have
+      quietly answered a design question we have no business answering yet; searching only claims
+      "of these forty, this one has the fewest holes".</li>
+    <li><b>Multiclassing is the SRD's, and it is real.</b> "You must have a score of at least 13 in
+      the primary ability of the new class <em>and your current classes</em>" — so the branch is
+      only offered when the character qualifies, hit points roll rather than take the die whole,
+      proficiency bonus comes from total level, and spell slots add full casters at full and
+      Paladin/Ranger at half. The Warlock contributes none, because Pact Magic is counted
+      separately. How <em>often</em> anyone branches is ours: a quarter of eligible level-ups.</li>
     <li><b>Four backgrounds is all there is.</b> The SRD publishes Acolyte, Criminal, Sage and
       Soldier where the full game has many more, and one subclass per class where the game has
       several. That is the document being a subset, not the roller being lazy — and it is why every

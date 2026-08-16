@@ -308,7 +308,7 @@ system is called `srd5` and carries no branding.
 
 One thing worth knowing before working on it: it is parsed out of a **364-page PDF**, not scraped
 from marked-up HTML, so a bad parse does not throw — it comes back as fluent English. That is why
-`srd5.selftest.mjs` runs 92 checks over generated data (and `roll.selftest.mjs` another 97 over the roller), and why they are built on reconciliation
+`srd5.selftest.mjs` runs 92 checks over generated data (and `roll.selftest.mjs` another 373 over the roller, the path and the balance model), and why they are built on reconciliation
 and external grading rather than spot checks. They have already caught seven merged swarms, eighty
 truncated attacks, four dragons with a back-to-front CR line, and one error in the SRD itself.
 

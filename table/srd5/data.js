@@ -300,7 +300,13 @@ export const CLASSES = {
    "20": [
     "Primal Champion"
    ]
-  }
+  },
+  "asiLevels": [
+   4,
+   8,
+   12,
+   16
+  ]
  },
  "Bard": {
   "name": "Bard",
@@ -358,7 +364,13 @@ export const CLASSES = {
    "20": [
     "Words of Creation"
    ]
-  }
+  },
+  "asiLevels": [
+   4,
+   8,
+   12,
+   16
+  ]
  },
  "Cleric": {
   "name": "Cleric",
@@ -422,7 +434,13 @@ export const CLASSES = {
    "20": [
     "Greater Divine Intervention"
    ]
-  }
+  },
+  "asiLevels": [
+   4,
+   8,
+   12,
+   16
+  ]
  },
  "Druid": {
   "name": "Druid",
@@ -493,7 +511,13 @@ export const CLASSES = {
    "20": [
     "Archdruid"
    ]
-  }
+  },
+  "asiLevels": [
+   4,
+   8,
+   12,
+   16
+  ]
  },
  "Fighter": {
   "name": "Fighter",
@@ -570,7 +594,15 @@ export const CLASSES = {
    "20": [
     "Three Extra Attacks"
    ]
-  }
+  },
+  "asiLevels": [
+   4,
+   6,
+   8,
+   12,
+   14,
+   16
+  ]
  },
  "Monk": {
   "name": "Monk",
@@ -655,7 +687,13 @@ export const CLASSES = {
    "20": [
     "Body and Mind"
    ]
-  }
+  },
+  "asiLevels": [
+   4,
+   8,
+   12,
+   16
+  ]
  },
  "Paladin": {
   "name": "Paladin",
@@ -732,7 +770,13 @@ export const CLASSES = {
    "20": [
     "Holy Nimbus"
    ]
-  }
+  },
+  "asiLevels": [
+   4,
+   8,
+   12,
+   16
+  ]
  },
  "Ranger": {
   "name": "Ranger",
@@ -815,7 +859,13 @@ export const CLASSES = {
    "20": [
     "Foe Slayer"
    ]
-  }
+  },
+  "asiLevels": [
+   4,
+   8,
+   12,
+   16
+  ]
  },
  "Rogue": {
   "name": "Rogue",
@@ -897,7 +947,14 @@ export const CLASSES = {
    "20": [
     "Stroke of Luck"
    ]
-  }
+  },
+  "asiLevels": [
+   4,
+   8,
+   10,
+   12,
+   16
+  ]
  },
  "Sorcerer": {
   "name": "Sorcerer",
@@ -959,7 +1016,13 @@ export const CLASSES = {
    "20": [
     "Arcane Apotheosis"
    ]
-  }
+  },
+  "asiLevels": [
+   4,
+   8,
+   12,
+   16
+  ]
  },
  "Warlock": {
   "name": "Warlock",
@@ -1021,7 +1084,13 @@ export const CLASSES = {
    "20": [
     "Eldritch Master"
    ]
-  }
+  },
+  "asiLevels": [
+   4,
+   8,
+   12,
+   16
+  ]
  },
  "Wizard": {
   "name": "Wizard",
@@ -1084,7 +1153,13 @@ export const CLASSES = {
    "20": [
     "Signature Spells"
    ]
-  }
+  },
+  "asiLevels": [
+   4,
+   8,
+   12,
+   16
+  ]
  }
 };
 
