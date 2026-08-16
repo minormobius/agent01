@@ -1,0 +1,13 @@
+{
+  "slug": "water-simulation",
+  "task": "minecraft water simulation confined to a single height level. user should be able to pause/unpause, place or destroy water source blocks, place or destroy obstacle blocks, and place or destroy \"punctures\" in the floor",
+  "thread_root": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mta4arhups25",
+  "requester": "ponder.ooo",
+  "named": "no",
+  "root_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mta4arhups25",
+  "root_cid": "bafyreih7v45jknap5eecejzewzncogrsxxegfqoqkwuopunz4xu2soq56m",
+  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mta4arhups25",
+  "parent_cid": "bafyreih7v45jknap5eecejzewzncogrsxxegfqoqkwuopunz4xu2soq56m",
+  "refs_from": "minecraft water simulation confined to a single height level. user should be able to pause/unpause, place or destroy water source blocks, place or destroy obstacle blocks, and place or destroy \"punctures\" in the floor",
+  "requestedAt": "2026-08-16T21:15:48.260Z"
+}
