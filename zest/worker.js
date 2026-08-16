@@ -26,10 +26,13 @@ export const D1_MAX_VARIABLES = 100;
 // Bump when anything about how the basis is FITTED changes (the model, the
 // sample, the α in makeBasis). Shapes built under different versions are not
 // comparable, so the version is part of the row key and is reported to the page.
-const BASIS_VERSION = 'v4';
+const BASIS_VERSION = 'v5';
 const BASIS_SAMPLE = 400;   // posts to fit on
 const BASIS_MIN = 120;      // below this a basis is too thin to be meaningful
 const BASIS_BUDGET_MS = 240000;  // per feed; this runs in a cron, not a request
+// How many already-embedded vectors to fold into the fit. 800 x 3 KiB is a
+// ~2.4 MiB D1 read, which is comfortable; the whole cache would not be.
+const BASIS_CACHE_DRAW = 800;
 
 const APPVIEW = 'https://public.api.bsky.app';
 const SIMCLUSTER = 'at://did:plc:yivyyp54vddf7qf2lpsikhe4/app.bsky.feed.generator/simcluster';
@@ -178,52 +181,11 @@ async function collectPosts(feedUri, { want, cursor = '', maxPages, budgetMs }) 
   return { posts, cursor: next, pages, stats };
 }
 
-/**
- * Broad sampling for the basis fit ONLY, via search rather than a feed.
- *
- * The two feeds together hold about 130 usable posts, and both are communities:
- * a basis fitted on them alone makes those communities' concerns "average" and
- * everyone else strange, which is a claim about the world that has no business
- * being baked into the geometry. Searching common function words pulls posts
- * that have nothing in common except being English prose, which is much closer
- * to the population the shapes should be deviations from.
- *
- * Best-effort: if search is unavailable the fit still proceeds on the feeds.
- */
-const BASIS_PROBES = ['the', 'and', 'today', 'people', 'think', 'because', 'time', 'really', 'work', 'good'];
-
-async function collectSearch(query, { want, budgetMs }) {
-  const posts = [];
-  const seen = new Set();
-  const deadline = Date.now() + budgetMs;
-  let cursor = '';
-  collectSearch.lastError = null;
-  while (posts.length < want && Date.now() < deadline) {
-    const u = new URL(APPVIEW + '/xrpc/app.bsky.feed.searchPosts');
-    u.searchParams.set('q', query);
-    u.searchParams.set('limit', '100');
-    u.searchParams.set('lang', 'en');
-    if (cursor) u.searchParams.set('cursor', cursor);
-    let data = null;
-    try {
-      const res = await fetch(u, { headers: { 'user-agent': 'zest.mino.mobi' } });
-      if (!res.ok) { collectSearch.lastError = `HTTP ${res.status}`; break; }
-      data = await res.json();
-    } catch (err) {
-      collectSearch.lastError = String(err && err.message || err);
-      break;
-    }
-    if (!data || !Array.isArray(data.posts) || !data.posts.length) break;
-    for (const post of data.posts) {
-      // searchPosts returns bare postViews; usablePost expects a feed item
-      const p = usablePost({ post });
-      if (p && !seen.has(p.uri)) { seen.add(p.uri); posts.push(p); }
-    }
-    cursor = data.cursor || '';
-    if (!cursor) break;
-  }
-  return posts;
-}
+// NOT AVAILABLE: app.bsky.feed.searchPosts. It was added here to widen the
+// basis beyond two communities and returns **HTTP 403** on the public AppView —
+// it requires authentication. Recorded so the next person does not spend a
+// deploy rediscovering it. The corpus is widened from the embedding cache
+// instead (see buildBasisInner), which needs no auth and grows on its own.
 
 async function fetchFeedPage(feedUri, cursor, limit) {
   const u = new URL(APPVIEW + '/xrpc/app.bsky.feed.getFeed');
@@ -479,24 +441,32 @@ async function buildBasisInner(env, { force }) {
     sources[key] = got.posts.length;
   }
 
-  // …then widen well past those two communities.
-  const perProbe = Math.ceil(BASIS_SAMPLE / BASIS_PROBES.length);
-  let searched = 0;
-  for (const q of BASIS_PROBES) {
-    if (texts.length >= BASIS_SAMPLE * 2) break;
-    const found = await collectSearch(q, { want: perProbe, budgetMs: 20000 });
-    for (const p of found) texts.push(p.text);
-    searched += found.length;
-    if (!found.length && collectSearch.lastError) break;  // search is down; stop asking
-  }
-  sources.search = searched;
-  if (collectSearch.lastError) sources.searchError = collectSearch.lastError;
-
   const uniq = [...new Set(texts)].slice(0, BASIS_SAMPLE);
   if (uniq.length < BASIS_MIN) throw new Error(`basis sample too thin: ${uniq.length} posts (floor ${BASIS_MIN})`);
 
   const { vectors } = await embedTexts(uniq, env);
   const good = vectors.filter((v) => v && v.length === EMBED_DIM);
+  sources.fresh = good.length;
+
+  // Widen with everything already embedded. The two public feeds hold only
+  // ~130 usable posts between them, which is a thin and community-shaped
+  // definition of "the average post" — and searchPosts, the obvious way to
+  // broaden it, needs auth (403). The cache is the way out: it accumulates
+  // every post any player has ever been shown, costs no extra model calls, and
+  // gets broader on its own. A version bump later refits on a bigger corpus.
+  try {
+    const rows = await env.DB.prepare(
+      'SELECT embedding FROM zest_embeddings WHERE model = ? ORDER BY created_at DESC LIMIT ?'
+    ).bind(EMBED_MODEL, BASIS_CACHE_DRAW).all();
+    let added = 0;
+    for (const r of rows.results || []) {
+      const v = floatsFromBlob(r.embedding);
+      if (v.length === EMBED_DIM) { good.push(v); added++; }
+    }
+    sources.cache = added;
+  } catch (err) {
+    sources.cacheError = String(err && err.message || err);
+  }
   if (good.length < BASIS_MIN) throw new Error(`basis: only ${good.length} of ${uniq.length} texts embedded`);
 
   const basis = makeBasis(good);

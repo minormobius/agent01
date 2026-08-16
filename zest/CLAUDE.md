@@ -144,6 +144,22 @@ against — re-measure before changing `BASIS_SAMPLE` or `BASIS_MIN`:
 | SimCluster | ~34% | `embed` |
 | Discover | ~7.7% | `embed` (467 of 520 scanned) |
 
+**The two public feeds hold only ~130 usable posts between them** (simcluster
+85, hot 47), and raising the time budget does not change that — it is how many
+are there. Two things follow, both already handled, both easy to undo by
+accident:
+
+- **`app.bsky.feed.searchPosts` is not an option: it returns HTTP 403 on the
+  public AppView and needs auth.** It was tried, it cost a deploy, and the note
+  is in `worker.js` so it is not tried again.
+- The fit therefore folds in up to `BASIS_CACHE_DRAW` already-embedded vectors
+  from `zest_embeddings`. That cache accumulates every post any player has been
+  shown, costs no extra model calls, and widens on its own — so a later
+  `BASIS_VERSION` bump refits on a materially bigger corpus than this one did.
+
+`lastBasisBuild.detail` carries the per-source breakdown, so you can always see
+which of those actually contributed.
+
 ## Cost
 
 Workers AI is the only metered thing. Embeddings are cached on D1 by content
