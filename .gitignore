@@ -52,3 +52,7 @@ packages/homunculus/log/
 # Recovery-pass transcripts: force-added onto feature branches by the snippet,
 # collected at merge time, and asserted absent before the repo goes public.
 homunculus/inbox/
+
+# The SRD 5.2.1 PDF is 6MB and freely redistributable, but there is no reason
+# to carry it: table/srd5/tools/scrape-srd.py fetches it on demand.
+table/srd5/tools/*.pdf

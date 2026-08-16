@@ -10,8 +10,8 @@ export default {
         ok: true,
         surface: 'table',
         // system id -> the licence its shipped rules text is used under
-        systems: { cairn: 'CC BY-SA 4.0' },
-        tools: ['/cairn/', '/cairn/encounter/', '/cairn/arena/', '/cairn/items/'],
+        systems: { cairn: 'CC BY-SA 4.0', srd5: 'CC BY 4.0' },
+        tools: ['/cairn/', '/cairn/encounter/', '/cairn/arena/', '/cairn/items/', '/srd5/'],
       });
     }
     // Everything else is a static asset (the assets binding resolves directory

@@ -16,7 +16,7 @@ Procedural character sheets for tabletop RPGs. Repo-wide rules live in
 | Deploy | [`.github/workflows/deploy-table.yml`](../.github/workflows/deploy-table.yml) |
 | Uses | — |
 | Provides | — |
-| Serves | `/cairn`, `/cairn/encounter`, `/cairn/arena`, `/cairn/items` |
+| Serves | `/cairn`, `/cairn/encounter`, `/cairn/arena`, `/cairn/items`, `/srd5` |
 
 Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) →
 `surfaces[]` where `surface == "table"`.
@@ -258,6 +258,25 @@ real effect be told apart from noise.
   allows) and taking an offered item change what is on screen, never what the
   seed rolls. Reloading the permalink returns the sheet as rolled. If you add
   persistence, do it in the URL, not in storage.
+
+## /srd5 — System Reference Document 5.2.1
+
+The second system, and the first with **positions**: cover, reach, opportunity attacks and cone
+templates are all distances, so this one gets a real map where Cairn's arena refuses to draw one.
+
+Its instructions are its own — **[`srd5/CLAUDE.md`](srd5/CLAUDE.md)** — and you must read
+[`srd5/LICENSE.md`](srd5/LICENSE.md) before touching it, because its obligations differ from
+Cairn's in ways that are easy to breach by habit: **CC BY, not CC BY-SA** (no share-alike, so the
+footers are not interchangeable); the attribution statement is **fixed and exclusive**, with no
+other credit to Wizards permitted anywhere; and **trademarks are not licensed**, which is why the
+system is called `srd5` and carries no branding.
+
+One thing worth knowing before working on it: it is parsed out of a **364-page PDF**, not scraped
+from marked-up HTML, so a bad parse does not throw — it comes back as fluent English. That is why
+`srd5.selftest.mjs` runs 67 checks over generated data, and why they are built on reconciliation
+and external grading rather than spot checks. They have already caught seven merged swarms, eighty
+truncated attacks, four dragons with a back-to-front CR line, and one error in the SRD itself.
+
 
 ## Deploying
 
