@@ -10,14 +10,15 @@
 //!      part one   part two       part two                  part one
 //! ```
 //!
+//! …and the brightness of each tissue in that image is part three, while the
+//! price of the timing that sets `√t` is part four. Turn any knob and the
+//! others move.
+//!
 //! That is the standard relation, and this module is arranged so that the law
 //! and the simulation *derive* it independently: the law is arithmetic on the
 //! protocol, while the simulation adds noise at the receiver and lets the
 //! reconstruction propagate it. `tests.rs` asserts the two agree in a
 //! reconstructed image, which is a much stronger claim than either alone.
-//!
-//! and the brightness of each tissue in that image is part three, and the price
-//! of the timing that sets `√t` is part four. Turn any knob and the others move.
 //!
 //! * **`B₀²`** — polarisation × Faraday's law, from [`crate::physics`]. The
 //!   sensor is a coil, so it pays twice for field strength.

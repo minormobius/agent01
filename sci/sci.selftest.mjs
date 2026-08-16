@@ -109,10 +109,18 @@ ok(/T_BODY: f64 = 310\.15/.test(physics), "body temperature is 310.15 K");
 // The wing's rule is that claims trace to primary sources. A DOI on the page
 // that isn't in the scan means a citation nobody checked.
 for (const [name, html] of PAGES) {
-  const dois = [...html.matchAll(/doi\.org\/(10\.[^"'\s<)]+)/g)].map((m) => m[1]);
+  // By href attribute, not a character class: real DOIs contain parentheses
+  // (10.1016/0022-2364(76)90233-X), and a class excluding ')' silently
+  // truncates them. scripts/check-dois.mjs hit exactly that.
+  const dois = [...html.matchAll(/href=["']https?:\/\/doi\.org\/([^"']+)["']/g)]
+    .map((m) => decodeURIComponent(m[1]))
+    .filter((d) => d.startsWith("10."));
   ok(dois.length >= 6, `${name} cites at least 6 DOIs (found ${dois.length})`);
   for (const doi of new Set(dois)) {
-    ok(sources.includes(doi), `${name} cites ${doi} — it must be catalogued in research/mri-sources.md`);
+    // The scan may carry the DOI raw or URL-encoded; accept either.
+    const encoded = encodeURI(doi).replace(/</g, "%3C").replace(/>/g, "%3E");
+    ok(sources.includes(doi) || sources.includes(encoded),
+      `${name} cites ${doi} — it must be catalogued in research/mri-sources.md`);
   }
 }
 // The load-bearing sources must be on their page by name.
