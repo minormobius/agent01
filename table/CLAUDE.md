@@ -71,7 +71,8 @@ obligations it puts on us: [`cairn/LICENSE.md`](cairn/LICENSE.md).
 | `cairn/monsters.js` | **Generated.** The 84 bestiary stat blocks, parsed into numbers |
 | `cairn/tools/scrape-monsters.py` | What generated it |
 | `cairn/combat.js` | The encounter oracle: the combat simulator, the challenge metric, the bestiary search |
-| `cairn/combat.selftest.mjs` | 106 checks. **A simulator fails silently — run this** |
+| `cairn/party.js` | What a party is good at, as four **measured** axes — the overview card's radar |
+| `cairn/combat.selftest.mjs` | 134 checks. **A simulator fails silently — run this** |
 | `cairn/items.js` | **Generated.** The marketplace, the 46 relics, the d100 spellbook table |
 | `cairn/tools/scrape-items.py` | What generated it |
 | `cairn/effects.js` | The mechanical vocabulary: what monster abilities and spells the simulator can see, and the count of what it cannot |
@@ -82,6 +83,7 @@ obligations it puts on us: [`cairn/LICENSE.md`](cairn/LICENSE.md).
 | `cairn/encounter/` | The oracle's page |
 | `cairn/arena/` | One fight, drawn — watched, or piloted |
 | `cairn/items/` | The item study's page |
+| `page.check.mjs` | Loads every page of the surface in a real browser. **Run it when you touch a page** |
 
 Regenerate the data (only when the SRD itself changes):
 
@@ -94,6 +96,41 @@ node table/cairn/combat.selftest.mjs    # must pass; a wrong simulator looks rig
 node table/cairn/delve.selftest.mjs     # must pass; a wrong advancement model looks right too
 node table/cairn/effects.selftest.mjs   # must pass; a mis-wired ability does nothing, silently
 ```
+
+### The party overview card — a radar that had to earn it
+
+The roller's config screen carries a radar of four axes and five role chips
+(`cairn/party.js`). A radar plot is the easiest chart in the world to lie with:
+pick axes that sound right, draw a pleasing shape, never check. So none of these
+axes were chosen. Nine candidates were scored across parties whose casualties
+were then **measured** against a five-encounter basket, and correlation decided
+what survived. Four did; five are kept in `REJECTED` with their numbers, because
+a dropped axis is a finding — and the loudest of them is that **healing does not
+predict survival in Cairn**. "Every party needs a healer" is not a fact here:
+healing restores hit protection, and it is Strength that kills you.
+
+Three traps this went through, all of which are the same trap:
+
+- **A confound.** `carry` (free slots) correlated with deaths at **+0.75** until
+  the delve count was held constant, at which point it flipped sign. Emptier
+  packs were standing in for "has never delved". Every figure in `party.js` is
+  measured with delves fixed, for that reason.
+- **A weight guessed instead of measured.** Durability is `hp + 2 × armour`
+  because ×1, ×2, ×3 and ×4 were all tried and ×2 was the most stable across
+  delve levels — armour is subtracted from every hit, so it is worth several hit
+  points and not one.
+- **A sample too small to test the thing it was testing.** The validation test
+  first sampled 26 parties, reported grit at **+0.42**, and appeared to refute
+  the axis. At n=26 the standard error is 0.21: it was measuring noise. Measured
+  properly, grit runs −0.39 / −0.25 / −0.16 / −0.08 across delves 0–3 — real for
+  fresh parties, gone for veterans, and for a reason (Strength is only reached
+  by damage that overflows hit protection, and three delves of armour make that
+  rare). Sweep is its mirror: identically zero until someone finds a bomb.
+
+Because two axes only exist in one regime, `corrByDelve` is a curve, `profile()`
+weights each axis by the correlation **at that party's delve level**, and the
+selftest measures both regimes and asserts the decay itself — not just a
+threshold, which is what let the bad number through the first time.
 
 ### /cairn/encounter — the oracle
 
@@ -354,6 +391,24 @@ from marked-up HTML, so a bad parse does not throw — it comes back as fluent E
 and external grading rather than spot checks. They have already caught seven merged swarms, eighty
 truncated attacks, four dragons with a back-to-front CR line, and one error in the SRD itself.
 
+
+## Checking a page, not just a model
+
+The selftests prove the models; they cannot prove a page renders. Three defects
+here were invisible to node and instant in a browser: a CSS transform silently
+**replacing** an SVG `transform` attribute (acting tokens teleported to the
+corner), `[hidden]` losing to `display: flex` (transport controls stayed up
+through piloted fights), and the party overview card laying out 497px tall
+starting at y=678 on a phone — entirely off the screen it was built for.
+
+```sh
+npm i playwright-core        # Chromium is already at /opt/pw-browsers
+node table/page.check.mjs    # 33 checks; skips with exit 0 if the above is missing
+```
+
+It is **not** in the deploy gate. The gate runs plain node selftests with no
+install step, and wiring a browser into the deploy path is not something to do
+as a side effect of a UI commit. Run it by hand when you touch a page.
 
 ## Deploying
 

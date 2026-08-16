@@ -80,6 +80,11 @@ export function combatantFromCharacter(character, extraItems) {
     hp: encumbered ? 0 : character.hp,
     maxHp: character.hp,
     encumbered,
+    // Combat never reads this. `party.js` does: two of the four radar axes only
+    // predict in one regime — Strength matters while hit protection is thin,
+    // blast matters only once someone owns a bomb — so the scorer has to know
+    // how far in this party is.
+    delves: character.delves || 0,
     freeSlots: Math.max(0, inv.capacity - inv.used),
     spells,
     powers,

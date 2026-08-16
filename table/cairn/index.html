@@ -51,6 +51,10 @@ h2 { font-size: 1rem; font-weight: 600; }
 }
 .lede { color: var(--muted); margin-top: 0.5rem; font-size: 0.98rem; }
 .lede code { font-family: var(--mono); font-size: 0.85em; }
+.lede.onward { margin: 0 0 1.6rem; font-size: 0.9rem; }
+/* The detail behind the headline. Kept in the DOM for readers and for print;
+   dropped on a phone, where the vertical budget is spent on the party card. */
+@media (max-width: 620px) { .lede .aside { display: none; } }
 
 /* ------------------------------------------------------------- controls -- */
 .controls {
@@ -70,6 +74,73 @@ button.primary:hover { filter: brightness(1.1); color: var(--panel); }
 input[type=text] { min-width: 11rem; flex: 1 1 11rem; }
 .ctl-label { font-family: var(--mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
 .status { font-family: var(--mono); font-size: 0.7rem; color: var(--accent); min-height: 1rem; flex-basis: 100%; }
+
+/* ------------------------------------------------------------- overview -- */
+/* Two columns at every width. Stacking the radar above the numbers on a phone
+   made the card 497px tall, which pushed it off the screen it exists to sit
+   on; the radar shrinks instead, and the chips and the note run full width
+   underneath it. Measured at 390x844 — see the page check. */
+.overview {
+  border: 1px solid var(--rule-hard); border-radius: 8px; background: var(--panel);
+  padding: 0.9rem 1rem; margin-bottom: 1.2rem;
+  display: grid; grid-template-columns: 172px minmax(0, 1fr); gap: 0.5rem 1.1rem;
+  align-items: start;
+}
+.overview[hidden] { display: none; }
+.overview .radar { width: 172px; height: 172px; overflow: visible; grid-row: span 2; }
+/* Wide: the chips and the note sit beside the radar, in its column's shadow,
+   so the card is exactly as tall as the chart. Narrow: they run full width. */
+.overview .ov-tail { grid-column: 2; }
+.radar .ring { fill: none; stroke: var(--rule); stroke-width: 1; }
+.radar .spoke { stroke: var(--rule); stroke-width: 1; }
+.radar .shape { fill: var(--accent); fill-opacity: 0.17; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+.radar .dot { fill: var(--accent); }
+.radar .dot.nil { fill: var(--muted); opacity: 0.45; }
+.radar text {
+  font-family: var(--mono); font-size: 9px; fill: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.radar text.off { opacity: 0.45; }
+
+.ov-body { min-width: 0; width: 100%; }
+.ov-head { display: flex; align-items: baseline; gap: 0.55rem; flex-wrap: wrap; }
+.ov-head .n { font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; }
+.ov-head h2 { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.ov-head .of { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); }
+
+.ov-legend {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.15rem 0.9rem;
+  margin: 0.55rem 0 0; font-size: 0.82rem; max-width: 30rem;
+}
+/* nowrap matters: without it a narrow column breaks a row between its value
+   and its correlation, and the two halves read as separate facts. */
+.ov-legend div { display: flex; gap: 0.4rem; align-items: baseline; cursor: help; white-space: nowrap; }
+.ov-legend .k { font-family: var(--mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+.ov-legend .v { font-variant-numeric: tabular-nums; font-weight: 600; }
+.ov-legend .c { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); margin-left: auto; }
+.ov-legend .off .v, .ov-legend .off .k { opacity: 0.45; }
+
+.ov-roles { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; }
+.ov-role {
+  font-family: var(--mono); font-size: 0.66rem; padding: 0.16rem 0.5rem;
+  border: 1px solid var(--accent); border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent); cursor: help;
+}
+.ov-role.gap { border-style: dashed; border-color: var(--rule-hard); background: none; color: var(--muted); }
+.ov-note { font-size: 0.8rem; line-height: 1.45; color: var(--muted); margin-top: 0.5rem; }
+.ov-note b { color: var(--text); font-weight: 600; }
+.ov-note b.warn { color: var(--ink); }
+
+/* Phone: the radar shrinks and the legend goes single-column. This block sits
+   last on purpose — it overrides .ov-legend's own grid, which is declared
+   after .overview and would otherwise win on source order. */
+@media (max-width: 620px) {
+  .overview { grid-template-columns: 130px minmax(0, 1fr); gap: 0.35rem 0.7rem; padding: 0.8rem; }
+  .overview .radar { width: 130px; height: 130px; }
+  .ov-legend { grid-template-columns: minmax(0, 1fr); font-size: 0.8rem; }
+  .ov-head .n { font-size: 1.35rem; }
+  .overview .ov-tail { grid-column: 1 / -1; }
+}
 
 /* ---------------------------------------------------------------- sheet -- */
 .sheet {
@@ -184,10 +255,11 @@ footer p + p { margin-top: 0.6rem; }
 <header>
   <h1>Cairn character roller</h1>
   <p class="lede">
-    A whole Cairn Second Edition character in one throw: background, name, 3d6 attributes,
-    starting gear packed into the ten inventory slots, two background tables, a bond, an omen.
-    <strong>The seed is the character.</strong> <code>#s=oak-fen-317</code> rolls the same
-    Kettlewright for everyone, forever — hand a party out as a URL, print it, or reroll and keep looking.
+    A whole Cairn Second Edition character in one throw. <strong>The seed is the character:</strong>
+    <code>#s=oak-fen-317</code> rolls the same Kettlewright for everyone, forever.
+    <span class="aside">Background, name, 3d6 attributes, starting gear packed into the ten
+    inventory slots, two background tables, a bond and an omen — hand a party out as a URL,
+    print it, or reroll and keep looking.</span>
   </p>
 </header>
 
@@ -209,12 +281,13 @@ footer p + p { margin-top: 0.6rem; }
   <span class="status" id="status"></span>
 </div>
 
-<p class="lede" style="margin:-0.6rem 0 1.6rem">
-  Rolled a party? <a href="encounter/">Take it to the encounter oracle</a> — Cairn publishes no
-  challenge rating, so that page plays the fight five thousand times instead and tells you what
-  happens, for a party as fresh or as scarred and laden as you like. Or see
-  <a href="items/">what a slot is worth</a>, where every relic and weapon is priced in the same
-  currency.
+<section class="overview" id="overview" hidden aria-label="Party overview"></section>
+
+<p class="lede onward">
+  <a href="encounter/">Take them to the encounter oracle</a> — Cairn publishes no challenge rating,
+  so that page plays the fight five thousand times instead and tells you what happens, for a party
+  as fresh or as scarred and laden as you like. Or see <a href="items/">what a slot is worth</a>,
+  where every relic and weapon is priced in the same currency.
 </p>
 
 <main id="sheets"></main>

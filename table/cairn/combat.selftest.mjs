@@ -25,6 +25,8 @@ import {
   combatantFromCharacter, combatantFromMonster, applyScars,
 } from './combat.js';
 import { makeRng } from './roll.js';
+import { AXES, REJECTED, profile, overview, radarPoints, expectedDamage } from './party.js';
+import { delve } from './delve.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  ✗', m); } };
@@ -643,7 +645,129 @@ ok(BESTIARY.length >= 80, `bestiary has ${BESTIARY.length} monsters`);
     `(${smart.toFixed(3)} vs ${scores.random.toFixed(3)})`);
 }
 
-// 12. and the whole thing is fast enough to run in a page --------------------
+// 12. the party radar's axes still predict what they claim to -----------------
+//
+// A radar plot is the easiest chart in the world to lie with: pick axes that
+// sound right, draw a pleasing shape, never check. Each axis in party.js earned
+// its place by correlating with measured toll, and this is what stops that
+// claim from rotting — if the combat model changes and an axis stops
+// predicting, the shape becomes decoration and the suite says so.
+{
+  const eachAxis = AXES.map((a) => a.key);
+  ok(eachAxis.length === 4, `four axes survived selection (${eachAxis})`);
+  ok(AXES.every((a) => a.why && a.corrByDelve.length === 4),
+    'every axis records why it exists and its correlation at each delve level');
+  ok(REJECTED.length >= 4, `and the rejected candidates are kept with their numbers (${REJECTED.length})`);
+  ok(REJECTED.some((r) => r.key === 'recovery' && r.corr.fresh * r.corr.delved < 0),
+    'the healing axis is on record as flipping sign — "every party needs a healer" is not a Cairn fact');
+
+  // Expected damage under keep-the-highest, checked against values worked by
+  // hand: a d6 averages 3.5, and two d6 kept highest average 161/36.
+  ok(Math.abs(expectedDamage([6]) - 3.5) < 1e-9, 'a d6 averages 3.5');
+  ok(Math.abs(expectedDamage([6, 6]) - 161 / 36) < 1e-9,
+    `two d6 keeping the highest average ${(161 / 36).toFixed(4)}`);
+  // 161/36 = 4.472 beats a lone d8's 4.5? No — it does not, and only just. That
+  // near-tie is worth pinning: it is why two d6 attackers are worth about one
+  // d8 attacker, and why focus fire is not free.
+  ok(expectedDamage([6, 6]) < expectedDamage([8]),
+    `two d6 kept-highest (${expectedDamage([6, 6]).toFixed(3)}) is worth slightly LESS than one d8 (4.5)`);
+  ok(expectedDamage([8]) - expectedDamage([6, 6]) < 0.05, 'but only just — within 0.05');
+
+  const corr = (xs, ys) => {
+    const n = xs.length;
+    const mx = xs.reduce((a, b) => a + b, 0) / n;
+    const my = ys.reduce((a, b) => a + b, 0) / n;
+    let num = 0, dx = 0, dy = 0;
+    for (let i = 0; i < n; i++) {
+      const a = xs[i] - mx, b = ys[i] - my;
+      num += a * b; dx += a * a; dy += b * b;
+    }
+    return num / Math.sqrt((dx * dy) || 1);
+  };
+
+  // THE LIVE CHECK. Score parties on each axis, measure their actual toll, and
+  // require each correlation to still point the way party.js says it does.
+  //
+  // Measured in BOTH regimes, because two of the four axes only exist in one of
+  // them, and a single sample cannot see that. This is the correction to an
+  // earlier version of this test, which sampled 26 parties at three delves and
+  // reported grit at +0.42 — a sample that small has a standard error of 0.21,
+  // so it was measuring noise and calling it a refutation. Forty parties at
+  // se ≈ 0.16, in the two regimes the axes were fitted in, costs about a
+  // second and actually tests the claim.
+  const basket = [['goblin', 5], ['skeleton', 4], ['bandit', 4], ['wolf', 3], ['ogre', 2]];
+  const sweepAt = (delves) => {
+    const rows = [];
+    for (let i = 0; i < 40; i++) {
+      const pcs = rollParty(`radar/${i}`, 4).members
+        .map((m, k) => combatantFromCharacter(delves ? delve(m, delves, { seed: `${k}` }) : m));
+      let toll = 0;
+      for (const [id, n] of basket) {
+        const mon = BESTIARY.find((m) => m.id === id);
+        toll += assess(pcs, Array.from({ length: n }, (_, k) => combatantFromMonster(mon, k)),
+          { trials: 100, seed: `radar/${i}/${id}` }).meanCasualties / 4;
+      }
+      rows.push({ toll: toll / basket.length, p: profile(pcs, { delves }) });
+    }
+    const tolls = rows.map((r) => r.toll);
+    const out = { tolls };
+    AXES.forEach((a, i) => { out[a.key] = corr(rows.map((r) => r.p.axes[i].raw), tolls); });
+    return out;
+  };
+  const fresh = sweepAt(0);
+  const delved = sweepAt(3);
+
+  for (const [name, s] of [['fresh', fresh], ['delved', delved]]) {
+    ok(Math.max(...s.tolls) - Math.min(...s.tolls) > 0.1,
+      `${name} parties differ enough to correlate against ` +
+      `(${Math.min(...s.tolls).toFixed(2)}..${Math.max(...s.tolls).toFixed(2)})`);
+    // The two always-on axes must predict in both regimes.
+    ok(s.durability < -0.5,
+      `${name}: durability predicts fewer deaths (${s.durability.toFixed(2)})`);
+    ok(s.damage < -0.25, `${name}: damage predicts fewer deaths (${s.damage.toFixed(2)})`);
+    ok(Math.abs(s.durability) === Math.max(...AXES.map((a) => Math.abs(s[a.key]))),
+      `${name}: durability is still the strongest axis ` +
+      `(${AXES.map((a) => `${a.key} ${s[a.key].toFixed(2)}`).join(', ')})`);
+  }
+
+  // The two regime-bound axes, each checked where party.js claims it works —
+  // AND checked for the decay, so the claim cannot quietly become false in one
+  // regime while still passing in the other.
+  ok(fresh.grit < -0.2,
+    `grit decides FRESH parties (${fresh.grit.toFixed(2)}) — Strength is what damage overflows into`);
+  ok(Math.abs(delved.grit) < Math.abs(fresh.grit) - 0.1,
+    `and fades once armour piles up (${delved.grit.toFixed(2)} at three delves) — if this stops ` +
+    'being true the mechanism in party.js is wrong, not just the number');
+  ok(fresh.sweep === 0, 'sweep is identically zero for fresh parties: nobody starts with a bomb');
+  ok(delved.sweep < -0.15,
+    `and is decisive once someone finds one (${delved.sweep.toFixed(2)})`);
+
+  // The weighting follows the regime: a fresh party is not marked down for
+  // lacking a bomb it could not possibly own.
+  const raw4 = rollParty('ov', 4).members;
+  const pcs = raw4.map((m) => combatantFromCharacter(m));
+  const vets = raw4.map((m, k) => combatantFromCharacter(delve(m, 3, { seed: `${k}` })));
+  ok(profile(pcs).delves === 0 && profile(vets).delves === 3,
+    'the profile reads how far in the party is off the party itself');
+  ok(profile(pcs).axes.find((a) => a.key === 'sweep').weight === 0,
+    'so sweep carries no weight at zero delves');
+  ok(profile(vets).axes.find((a) => a.key === 'grit').weight
+    < profile(pcs).axes.find((a) => a.key === 'grit').weight,
+  'and grit counts for less the further in they are');
+
+  // and the overview a page renders is well formed
+  const o = overview(pcs);
+  ok(o.axes.length === 4 && o.axes.every((a) => a.value >= 0 && a.value <= 1),
+    'every axis normalises into 0..1');
+  ok(o.score >= 0 && o.score <= 1, `the headline score is in range (${o.score.toFixed(2)})`);
+  ok(Object.keys(o.roles).length === 5, 'five roles are reported');
+  const pts = radarPoints(o.axes);
+  ok(pts.length === 4 && pts.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y)),
+    'the radar geometry is finite');
+  ok(Math.abs(pts[0].ax) < 1e-9 && pts[0].ay < 0, 'the first axis points straight up');
+}
+
+// 13. and the whole thing is fast enough to run in a page --------------------
 {
   const t0 = Date.now();
   assess(party(4, 'perf'), Array.from({ length: 6 }, (_, i) =>
