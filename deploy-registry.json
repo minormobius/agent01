@@ -1420,7 +1420,8 @@
         "cairn/encounter",
         "cairn/arena",
         "cairn/items",
-        "srd5"
+        "srd5",
+        "srd5/corpus"
       ],
       "paths": [
         "table/**",

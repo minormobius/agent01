@@ -1,140 +1,162 @@
-// table/srd5/app.js — the corpus, shown so it can be checked.
+// table/srd5/app.js — the roller's page. Rendering only; roll.js owns the rules.
 //
-// This page has no dice in it. Its whole job is to put the parsed data in front
-// of a reader who can compare it against the PDF, because a corpus recovered
-// from typeset text is a claim, and a claim nobody can check is just a number
-// on a page. Everything below reads the generated modules directly.
+// Every number shown here comes off the character object, never recomputed for
+// display. A page that does its own arithmetic is a second implementation, and
+// the two drift the first time one of them is edited.
 
-import { BESTIARY } from './monsters.js';
-import { XP_BUDGET } from './data.js';
+import { rollParty, ABILITIES, signed } from './roll.js';
 
 const $ = (id) => document.getElementById(id);
 
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-/** "1/4" -> 0.25, so challenge sorts as a number rather than a string. */
-const crValue = (cr) => {
-  if (!cr) return -1;
-  const [a, b] = String(cr).split('/');
-  return b ? Number(a) / Number(b) : Number(a);
-};
+const state = { seed: 'oak-fen-317', size: 4, level: 1 };
 
-// -------------------------------------------------------------- the counts
+// ------------------------------------------------------------------ seeds
 
-function renderCounts() {
-  const attacks = BESTIARY.flatMap((m) => (m.actions || []).filter((a) => a.attack));
-  const saves = BESTIARY.flatMap((m) => (m.actions || []).filter((a) => a.save));
-  const areas = BESTIARY.flatMap((m) => (m.actions || []).filter((a) => a.area));
-  const stats = [
-    [BESTIARY.length, 'stat blocks'],
-    // "attacks", not "attacks with dice": 21 of them deal a flat number with
-    // no dice at all, and the Roper's tentacle deals no damage whatsoever.
-    [attacks.length, 'attacks parsed'],
-    [saves.length, 'forced saves'],
-    [areas.length, 'area effects'],
-    [new Set(BESTIARY.map((m) => m.cr)).size, 'challenge ratings'],
-    // filter(Boolean) or the damageless attack's null counts as a fourteenth
-    // damage type, and the game has thirteen
-    [new Set(attacks.map((a) => a.attack.damageType).filter(Boolean)).size, 'damage types'],
-  ];
-  $('counts').innerHTML = stats.map(([v, k]) =>
-    `<div class="count"><div class="v">${v}</div><div class="k">${k}</div></div>`).join('');
+/**
+ * A readable seed. Two words and a number, so it can be said aloud across a
+ * table and typed back in — the permalink is only useful if a person can
+ * carry it.
+ */
+const WORDS = ['oak', 'fen', 'ash', 'mire', 'crag', 'holt', 'barrow', 'quill', 'salt', 'ember',
+  'thistle', 'wold', 'marsh', 'grey', 'hollow', 'stone', 'briar', 'kiln', 'reed', 'tarn'];
+
+function freshSeed() {
+  const r = () => WORDS[Math.floor(Math.random() * WORDS.length)];
+  return `${r()}-${r()}-${100 + Math.floor(Math.random() * 900)}`;
 }
 
-// ----------------------------------------------------------- the bestiary
-
-/** The headline attack, which is what a reader scans a stat block for. */
-function weapon(m) {
-  const a = (m.actions || []).find((x) => x.attack);
-  if (!a) return '—';
-  const at = a.attack;
-  const where = at.reach ? `reach ${at.reach}` : at.range ? `range ${at.range}` : '';
-  // Three shapes: dice, a flat number, or no damage at all.
-  const hurt = at.damageType === null ? 'no damage'
-    : `${at.dice || at.avg} ${at.damageType.toLowerCase()}`;
-  return `${a.name} ${at.bonus >= 0 ? '+' : ''}${at.bonus}, ${hurt}`
-    + (where ? ` (${where} ft.)` : '');
+function readHash() {
+  const p = new URLSearchParams(location.hash.replace(/^#/, ''));
+  if (p.get('s')) state.seed = p.get('s');
+  if (p.get('n')) state.size = Math.min(6, Math.max(1, Number(p.get('n')) || 4));
+  if (p.get('l')) state.level = Math.min(20, Math.max(1, Number(p.get('l')) || 1));
 }
 
-function renderTable() {
-  const q = $('q').value.trim().toLowerCase();
-  const sort = $('sort').value;
-  let rows = BESTIARY.filter((m) => !q
-    || m.name.toLowerCase().includes(q)
-    || (m.type || '').toLowerCase().includes(q)
-    || `cr ${m.cr}` === q || String(m.cr) === q);
-
-  rows = rows.slice().sort((a, b) => (
-    sort === 'name' ? a.name.localeCompare(b.name)
-      : sort === 'hp' ? b.hp - a.hp
-        : crValue(b.cr) - crValue(a.cr) || a.name.localeCompare(b.name)));
-
-  const shown = rows.slice(0, 120);
-  $('table').innerHTML = `
-    <table>
-      <thead><tr>
-        <th>creature</th><th>kind</th>
-        <th style="text-align:right">cr</th>
-        <th style="text-align:right">ac</th>
-        <th style="text-align:right">hp</th>
-        <th style="text-align:right">speed</th>
-        <th>its attack</th>
-      </tr></thead>
-      <tbody>${shown.map((m) => `
-        <tr>
-          <td class="name">${escapeHtml(m.name)}</td>
-          <td class="kit">${escapeHtml(m.size)} ${escapeHtml(m.type)}</td>
-          <td class="num">${escapeHtml(String(m.cr))}</td>
-          <td class="num">${m.ac}</td>
-          <td class="num">${m.hp}</td>
-          <td class="num">${m.walk}</td>
-          <td class="kit">${escapeHtml(weapon(m))}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-    <p class="caveat" style="margin-top:0.6rem">
-      ${rows.length === BESTIARY.length
-    ? `All ${BESTIARY.length} stat blocks in the SRD`
-    : `${rows.length} of ${BESTIARY.length}`}${rows.length > shown.length
-    ? `, first ${shown.length} shown` : ''}. Speed is the walking speed in feet — which is
-      to say, in grid squares times five.
-    </p>`;
+function writeHash() {
+  const p = new URLSearchParams({ s: state.seed });
+  if (state.size !== 4) p.set('n', String(state.size));
+  if (state.level !== 1) p.set('l', String(state.level));
+  history.replaceState(null, '', `#${p}`);
 }
 
-// ------------------------------------------------------------- the budget
+// ----------------------------------------------------------------- render
 
-function renderBudget() {
-  const levels = Object.keys(XP_BUDGET).map(Number).sort((a, b) => a - b);
-  $('budget').innerHTML = `
-    <table>
-      <thead><tr>
-        <th>party level</th>
-        <th style="text-align:right">low</th>
-        <th style="text-align:right">moderate</th>
-        <th style="text-align:right">high</th>
-      </tr></thead>
-      <tbody>${levels.map((l) => {
-    const r = XP_BUDGET[String(l)];
-    return `<tr>
-          <td class="num" style="text-align:left">${l}</td>
-          <td class="num">${r.low.toLocaleString()}</td>
-          <td class="num">${r.moderate.toLocaleString()}</td>
-          <td class="num">${r.high.toLocaleString()}</td>
-        </tr>`;
-  }).join('')}
-      </tbody>
-    </table>
-    <p class="caveat" style="margin-top:0.6rem">
-      XP per character; multiply by the number of characters. These are the SRD's numbers, not
-      ours — the question this surface will ask is whether they hold.
-    </p>`;
+function abilityBox(c, a) {
+  const save = c.saves.find((s) => s.ability === a);
+  return `<div class="ab${save.proficient ? ' save' : ''}">
+    <div class="k">${a}</div>
+    <div class="v">${c.scores[a]}</div>
+    <div class="m">${signed(c.mods[a])}${save.proficient ? ` · save ${signed(save.mod)}` : ''}</div>
+  </div>`;
+}
+
+function sheet(c) {
+  const trained = c.skills.filter((s) => s.proficient);
+  const untrained = c.skills.filter((s) => !s.proficient);
+
+  return `<article class="sheet">
+    <header>
+      <span class="who">${escapeHtml(c.species.name)} ${escapeHtml(c.klass.name)}</span>
+      <span class="sub">${escapeHtml(c.background.name)} · ${escapeHtml(c.species.size)} · ${c.speed} ft.</span>
+      <span class="lvl">level ${c.level} · PB ${signed(c.proficiencyBonus)}</span>
+    </header>
+
+    <div class="abilities">${ABILITIES.map((a) => abilityBox(c, a)).join('')}</div>
+
+    <div class="stats">
+      <div class="stat"><div class="v">${c.ac}</div><div class="k">armour class</div>
+        <div class="why">${escapeHtml(c.acHow)}</div></div>
+      <div class="stat"><div class="v">${c.hp}</div><div class="k">hit points</div>
+        <div class="why">d${c.klass.hitDie}${c.tough ? ' + dwarven toughness' : ''}</div></div>
+      <div class="stat"><div class="v">${signed(c.initiative)}</div><div class="k">initiative</div></div>
+      <div class="stat"><div class="v">${c.passivePerception}</div><div class="k">passive perception</div></div>
+      ${c.casting ? `<div class="stat"><div class="v">${c.casting.saveDc}</div>
+        <div class="k">spell save dc</div>
+        <div class="why">${c.casting.ability} · attack ${signed(c.casting.attack)}</div></div>` : ''}
+    </div>
+
+    <div class="block">
+      <h3>attacks</h3>
+      ${c.attacks.map((a) => `<div class="line">
+        <b>${escapeHtml(a.name)}</b>
+        <span class="n">${signed(a.attack)} to hit, ${escapeHtml(a.damage)}</span>
+        <span class="dim">${a.range ? `· range ${a.range[0]}/${a.range[1]} ft.` : ''}
+        ${a.versatile ? `· versatile ${escapeHtml(a.versatile)}` : ''}
+        ${a.properties.length ? `· ${escapeHtml(a.properties.join(', ').toLowerCase())}` : ''}</span>
+      </div>`).join('')}
+      ${c.worn ? `<div class="line dim">Wearing ${escapeHtml(c.worn)}${c.shield ? ' and a shield' : ''}.</div>`
+    : '<div class="line dim">No armour — untrained in all of it.</div>'}
+    </div>
+
+    <div class="block">
+      <h3>skills</h3>
+      <div class="chips">
+        ${trained.map((s) => `<span class="chip on">${escapeHtml(s.name)} ${signed(s.mod)}</span>`).join('')}
+        ${untrained.map((s) => `<span class="chip">${escapeHtml(s.name)} ${signed(s.mod)}</span>`).join('')}
+      </div>
+    </div>
+
+    <div class="block">
+      <h3>origin</h3>
+      <div class="line">
+        <b>${escapeHtml(c.background.name)}</b> — ${escapeHtml(c.applied.join(', '))},
+        the <b>${escapeHtml(c.feat)}</b> feat, and proficiency with
+        ${escapeHtml(c.backgroundSkills.join(' and '))}.
+        <span class="dim">Tool: ${escapeHtml(c.background.tool)}.</span>
+      </div>
+      <div class="line dim" style="margin-top:0.2rem">
+        <b>${escapeHtml(c.species.name)}:</b>
+        ${c.species.traits.map((t) => escapeHtml(t.name)).join(', ') || '—'}
+      </div>
+    </div>
+
+    ${c.features.length ? `<div class="block">
+      <h3>class features</h3>
+      <div class="line dim">${c.features.map((f) =>
+    `<b>${f.level}:</b> ${escapeHtml(f.names.join(', '))}`).join(' · ')}</div>
+    </div>` : ''}
+
+    <details class="dice">
+      <summary>the dice</summary>
+      ${c.rolls.map((r, i) => `<div class="roll">
+        4d6 <b>${r.dice.join(' ')}</b> → keep ${r.kept.join(' ')} = <b>${r.total}</b>
+      </div>`).join('')}
+      <div class="roll">assigned by class, then ${escapeHtml(c.applied.join(' and '))} from the background</div>
+      ${c.hpLog.map((e) => `<div class="roll">level ${e.level}: ${e.fixed
+    ? `d${c.klass.hitDie} taken whole` : `d${c.klass.hitDie} rolled ${e.roll}`} → <b>+${e.gained}</b> HP</div>`).join('')}
+    </details>
+  </article>`;
+}
+
+function render() {
+  const party = rollParty(state.seed, state.size, { level: state.level });
+  $('party').innerHTML = party.members.map(sheet).join('');
+  writeHash();
 }
 
 // -------------------------------------------------------------------- go
 
-renderCounts();
-renderTable();
-renderBudget();
-$('q').addEventListener('input', renderTable);
-$('sort').addEventListener('change', renderTable);
+$('level').innerHTML = Array.from({ length: 20 }, (_, i) =>
+  `<option value="${i + 1}">${i + 1}</option>`).join('');
+
+readHash();
+$('seed').value = state.seed;
+$('size').value = String(state.size);
+$('level').value = String(state.level);
+render();
+
+$('seed').addEventListener('change', () => {
+  state.seed = $('seed').value.trim() || state.seed;
+  render();
+});
+$('size').addEventListener('change', () => { state.size = Number($('size').value); render(); });
+$('level').addEventListener('change', () => { state.level = Number($('level').value); render(); });
+$('roll').addEventListener('click', () => {
+  state.seed = freshSeed();
+  $('seed').value = state.seed;
+  render();
+});
+$('print').addEventListener('click', () => window.print());

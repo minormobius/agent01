@@ -3,20 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SRD 5.2.1 — the corpus, and how far to trust it</title>
-<meta name="description" content="The whole SRD 5.2.1 bestiary parsed out of the official PDF into numbers a simulator can use: 330 stat blocks, every attack's dice, reach and damage type, and the official XP budget. Includes what the parse got wrong, and one thing the document itself gets wrong.">
+<title>SRD 5.2.1 character roller — table</title>
+<meta name="description" content="Roll a whole party of 5E-compatible characters from a seed: species, class, background, four-d6 ability scores, armour, weapons and every derived number computed from the rules — AC, hit points, saves, skills, spell save DC. The seed is the permalink.">
 <meta property="og:type" content="website">
-<meta property="og:title" content="SRD 5.2.1, parsed">
-<meta property="og:description" content="330 stat blocks recovered from a 364-page PDF, and the checks that decide whether to believe them.">
+<meta property="og:title" content="SRD 5.2.1 character roller">
+<meta property="og:description" content="A whole party from one seed, with every number derived from the rules rather than listed.">
 <meta property="og:url" content="https://table.mino.mobi/srd5/">
 <meta name="twitter:card" content="summary">
 <style>
 :root {
   --bg: #f7f4ec; --panel: #fffdf7; --text: #1c1a17; --muted: #6d675c;
   --rule: #d8d2c4; --rule-hard: #b3ab99;
-  --accent: #3a5f7d;              /* colder than Cairn's wood — a different game */
+  --accent: #3a5f7d;                     /* colder than Cairn's wood */
   --accent-soft: rgba(58, 95, 125, 0.08);
-  --ink: #8a3324; --good: #3f6d4e;
+  --ink: #8a3324; --gold: #b08a2e;
   --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
   --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
 }
@@ -25,14 +25,14 @@
     --bg: #12120f; --panel: #1a1a16; --text: #ddd8cc; --muted: #8f887a;
     --rule: #33322b; --rule-hard: #4c4a40;
     --accent: #8ab4d4; --accent-soft: rgba(138, 180, 212, 0.1);
-    --ink: #d98c72; --good: #7dbb92;
+    --ink: #d98c72; --gold: #d8b35a;
   }
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   background: var(--bg); color: var(--text); font-family: var(--serif);
   line-height: 1.6; -webkit-font-smoothing: antialiased;
-  max-width: 940px; margin: 0 auto; padding: 2rem 1.2rem 5rem;
+  max-width: 1000px; margin: 0 auto; padding: 2rem 1.2rem 5rem;
 }
 a { color: var(--accent); }
 h1 { font-size: 1.9rem; line-height: 1.2; font-weight: 600; letter-spacing: -0.01em; }
@@ -43,6 +43,86 @@ h1 { font-size: 1.9rem; line-height: 1.2; font-weight: 600; letter-spacing: -0.0
 }
 .lede { color: var(--muted); margin-top: 0.5rem; font-size: 0.98rem; }
 code { font-family: var(--mono); font-size: 0.85em; }
+
+/* ------------------------------------------------------------- controls -- */
+.controls {
+  display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;
+  margin: 1.3rem 0 1.4rem; padding: 0.85rem;
+  border: 1px solid var(--rule-hard); border-radius: 8px; background: var(--panel);
+}
+button, select, input[type=text] {
+  font-family: var(--mono); font-size: 0.78rem; padding: 0.42rem 0.6rem;
+  border-radius: 6px; border: 1px solid var(--rule-hard); background: var(--bg); color: var(--text);
+}
+button { cursor: pointer; }
+button:hover { border-color: var(--accent); color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--panel); font-weight: 600; }
+button.primary:hover { filter: brightness(1.1); color: var(--panel); }
+label.ctl {
+  font-family: var(--mono); font-size: 0.66rem; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted);
+}
+
+/* ---------------------------------------------------------------- sheet -- */
+.sheet {
+  border: 1px solid var(--rule-hard); border-radius: 9px; background: var(--panel);
+  padding: 1rem 1.1rem; margin-bottom: 0.9rem;
+  break-inside: avoid;
+}
+.sheet > header { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: baseline;
+  border-bottom: 1px solid var(--rule); padding-bottom: 0.45rem; margin-bottom: 0.7rem; }
+.sheet .who { font-size: 1.2rem; font-weight: 600; }
+.sheet .sub { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); }
+.sheet .lvl {
+  margin-left: auto; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted);
+  border: 1px solid var(--rule-hard); border-radius: 999px; padding: 0.08rem 0.5rem;
+}
+
+.abilities { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.7rem; }
+.ab {
+  flex: 1 1 4.2rem; text-align: center; border: 1px solid var(--rule);
+  border-radius: 7px; padding: 0.35rem 0.2rem;
+}
+.ab .k { font-family: var(--mono); font-size: 0.56rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); }
+.ab .v { font-family: var(--mono); font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.ab .m { font-family: var(--mono); font-size: 0.66rem; color: var(--accent); }
+.ab.save { border-color: var(--accent); background: var(--accent-soft); }
+
+.stats { display: flex; flex-wrap: wrap; gap: 1.1rem; margin-bottom: 0.7rem; }
+.stat .v { font-family: var(--mono); font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.stat .k { font-family: var(--mono); font-size: 0.56rem; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--muted); }
+.stat .why { font-family: var(--mono); font-size: 0.56rem; color: var(--muted); }
+
+.block { margin-top: 0.6rem; }
+.block h3 {
+  font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.11em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600; margin-bottom: 0.25rem;
+}
+.line { font-size: 0.87rem; }
+.line .n { font-family: var(--mono); font-size: 0.8rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.chip {
+  font-family: var(--mono); font-size: 0.66rem; border: 1px solid var(--rule);
+  border-radius: 999px; padding: 0.08rem 0.45rem; color: var(--muted);
+}
+.chip.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.dim { color: var(--muted); }
+
+details.dice { margin-top: 0.6rem; }
+details.dice summary {
+  font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--muted); cursor: pointer;
+}
+details.dice .roll { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); margin-top: 0.3rem; }
+details.dice .roll b { color: var(--text); }
+
+.caveat { font-size: 0.86rem; color: var(--muted); }
+.caveat b { color: var(--text); }
+.caveat ul { margin: 0.4rem 0 0 1.1rem; }
+.caveat li { margin-bottom: 0.3rem; }
 .panel {
   border: 1px solid var(--rule-hard); border-radius: 8px; background: var(--panel);
   padding: 1rem 1.1rem; margin-top: 1.2rem;
@@ -52,47 +132,17 @@ code { font-family: var(--mono); font-size: 0.85em; }
   text-transform: uppercase; color: var(--muted); font-weight: 600;
   border-bottom: 1px solid var(--rule); padding-bottom: 0.3rem; margin-bottom: 0.8rem;
 }
-.counts { display: flex; flex-wrap: wrap; gap: 1.4rem; }
-.count .v { font-family: var(--mono); font-size: 1.4rem; font-variant-numeric: tabular-nums; }
-.count .k {
-  font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.09em;
-  text-transform: uppercase; color: var(--muted);
-}
-table { width: 100%; border-collapse: collapse; font-size: 0.87rem; margin-top: 0.3rem; }
-th {
-  font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.09em; text-transform: uppercase;
-  color: var(--muted); text-align: left; font-weight: 600; padding: 0.3rem 0.4rem;
-  border-bottom: 1px solid var(--rule-hard);
-}
-td { padding: 0.3rem 0.4rem; border-bottom: 1px solid var(--rule); }
-td.num { font-family: var(--mono); font-size: 0.76rem; text-align: right; font-variant-numeric: tabular-nums; }
-td.name { font-weight: 600; }
-td.kit { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); }
-.wrap { overflow-x: auto; }
-.row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
-input[type=text], select {
-  font-family: var(--mono); font-size: 0.78rem; padding: 0.4rem 0.6rem;
-  border-radius: 6px; border: 1px solid var(--rule-hard); background: var(--bg); color: var(--text);
-}
-label.ctl {
-  font-family: var(--mono); font-size: 0.66rem; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--muted);
-}
-.finding {
-  border-left: 3px solid var(--ink); background: rgba(138, 51, 36, 0.06);
-  padding: 0.7rem 1rem; margin-top: 0.9rem; border-radius: 0 6px 6px 0; font-size: 0.94rem;
-}
-.soon { color: var(--muted); font-size: 0.9rem; }
-.soon li { margin: 0.3rem 0 0 1.1rem; }
-.caveat { font-size: 0.88rem; color: var(--muted); }
-.caveat b { color: var(--text); }
-.caveat ul { margin: 0.5rem 0 0 1.1rem; }
-.caveat li { margin-bottom: 0.35rem; }
 footer {
   margin-top: 2.5rem; padding-top: 1.2rem; border-top: 1px solid var(--rule);
   font-size: 0.83rem; color: var(--muted);
 }
 footer .attrib { font-size: 0.78rem; }
+
+@media print {
+  .controls, footer, .panel, .crumb, details.dice { display: none; }
+  body { max-width: none; padding: 0; }
+  .sheet { border-color: #999; page-break-inside: avoid; }
+}
 </style>
 </head>
 <body>
@@ -100,87 +150,53 @@ footer .attrib { font-size: 0.78rem; }
 <a class="crumb" href="/">← table</a>
 
 <header>
-  <h1>SRD 5.2.1, parsed</h1>
+  <h1>SRD 5.2.1 character roller</h1>
   <p class="lede">
-    The second system on this surface, and the first one with <strong>positions</strong>. Cairn has
-    no grid and no facing, which is why its <a href="/cairn/arena/">arena</a> refuses to draw a map.
-    This game is nothing without one — cover, reach, opportunity attacks and cone templates are all
-    distances — so the map here will be the model rather than decoration. Everything starts with
-    getting the rules out of a 364-page PDF and proving they came out intact.
+    A whole party from one seed. Species, class and background are drawn; ability scores are rolled
+    the way the SRD says to roll them — <em>four d6, keep the highest three</em> — and then
+    <strong>every other number is computed</strong>: armour class from the armour actually worn and
+    the Dexterity actually rolled, hit points from the hit die and Constitution, every save and
+    skill, attack and damage per weapon, spell save DC. The seed is the permalink, so
+    <code>#s=oak-fen-317</code> rolls these same people forever.
   </p>
 </header>
 
-<section class="panel">
-  <h2>What came out of the document</h2>
-  <div class="counts" id="counts"></div>
-  <p class="caveat" style="margin-top:0.8rem">
-    Recovered from the official PDF by <a href="tools/scrape-srd.py">one scraper</a>, and checked by
-    <a href="srd5.selftest.mjs">67 assertions</a> before anything here is believed. That ratio is
-    deliberate: Cairn's SRD is HTML with real table markup, so a bad parse there tends to throw.
-    This one is <em>typeset</em> text in two justified columns, and its failures come back looking
-    like English.
-  </p>
-</section>
+<div class="controls">
+  <label class="ctl" for="seed">seed</label>
+  <input type="text" id="seed" spellcheck="false" style="flex:1 1 11rem">
+  <label class="ctl" for="size">party</label>
+  <select id="size"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select>
+  <label class="ctl" for="level">level</label>
+  <select id="level"></select>
+  <button class="primary" id="roll">Roll a new party</button>
+  <button id="print">Print</button>
+</div>
 
-<section class="panel">
-  <h2>One thing the document itself gets wrong</h2>
-  <div class="finding">
-    <strong>The Archmage's XP does not match its Challenge Rating.</strong>
-    SRD 5.2.1 prints <code>CR 12 (XP 8,000)</code>. Challenge Rating 12 is worth <strong>8,400</strong>
-    XP, and the Erinyes — also CR 12, a few pages away — prints 8,400 correctly. So this is an
-    erratum in the published document, not a bad parse.
-    <br><br>
-    The data keeps <strong>8,000</strong>, because it says what the book says. Quietly correcting it
-    would make this corpus disagree with the page someone is reading at the table, and that is a
-    worse failure than being wrong in the same way the source is. The selftest pins it as the only
-    known discrepancy, so if a later revision fixes it — or introduces another — the tests say so
-    instead of the exception rotting.
-  </div>
-  <p class="caveat" style="margin-top:0.7rem">
-    Worth saying plainly: this was not found by reading. It was found because the parse is graded
-    against the official Challenge-Rating-to-XP table, which is knowledge from <em>outside</em> the
-    parse — the same trick that caught seven swarms being welded onto the creatures above them, and
-    four dragons whose CR line is printed back-to-front as <code>CR 3 (700 XP)</code>.
-  </p>
-</section>
+<div id="party"></div>
 
-<section class="panel">
-  <h2>The bestiary</h2>
-  <div class="row">
-    <label class="ctl" for="q">filter</label>
-    <input type="text" id="q" placeholder="name, type, or cr" spellcheck="false" style="flex:1 1 12rem">
-    <label class="ctl" for="sort">sort</label>
-    <select id="sort">
-      <option value="cr">by challenge</option>
-      <option value="name">by name</option>
-      <option value="hp">by hit points</option>
-    </select>
-  </div>
-  <div class="wrap"><div id="table"></div></div>
-</section>
-
-<section class="panel">
-  <h2>The official encounter budget</h2>
-  <p class="caveat">
-    This table is the reason this system was chosen. Cairn publishes no challenge rating at all,
-    so its <a href="/cairn/encounter/">oracle</a> had to invent a metric and label it as ours.
-    Here there <em>is</em> an official answer — and it can be graded. Build encounters to exactly
-    these budgets, simulate them on a real grid, and see whether "moderate" means anything.
-  </p>
-  <div class="wrap"><div id="budget"></div></div>
-</section>
-
-<section class="panel">
-  <h2>Not built yet</h2>
-  <ul class="soon">
-    <li><strong>The map.</strong> A real grid: squares, movement, reach against range, opportunity
-      attacks, cover, difficult terrain, and the cone/emanation/sphere templates. Every distance
-      needed for it is already parsed and checked to be a whole number of five-foot squares.</li>
-    <li><strong>The audit.</strong> Whether the budget above predicts what actually happens.</li>
-    <li><strong>Classes and the tree.</strong> Twenty levels, the subclass fork, feats with
-      prerequisites, multiclassing. Honestly: the SRD's tree is <em>thin</em> — twelve classes with
-      one subclass each and seventeen feats, of which the only real prerequisite chain is the
-      Warlock's invocations. The page will say so rather than dress it up.</li>
+<section class="panel caveat">
+  <h2>What is the SRD's, and what is ours</h2>
+  <ul>
+    <li><b>The dice are the SRD's.</b> "Roll four d6s and record the total of the highest three
+      dice" is the book's own random method — the other two it offers, the standard array and point
+      buy, are not random and so are not what a roller is for. Open <em>the dice</em> on any sheet
+      to see all four of every throw, including the one that was dropped.</li>
+    <li><b>The arithmetic is the SRD's.</b> Armour class, hit points, proficiency bonus, save and
+      skill modifiers, spell save DC — all derived from the rules, from the same numbers printed on
+      the sheet, so the sheet cannot disagree with itself.</li>
+    <li><b>The choices are ours, and they are choices.</b> The SRD leaves assignment open, so we put
+      the best roll on the class's primary ability and the background's <span class="dim">+2</span>
+      where the class wants it. Gear is picked as the best the class is <em>trained</em> for,
+      weighing hit chance and not just the damage die. A real player would sometimes decide
+      otherwise, and should.</li>
+    <li><b>Four backgrounds is all there is.</b> The SRD publishes Acolyte, Criminal, Sage and
+      Soldier where the full game has many more, and one subclass per class where the game has
+      several. That is the document being a subset, not the roller being lazy — and it is why every
+      party of six here shares backgrounds.</li>
+    <li><b>Not modelled yet:</b> subclasses (chosen at level 3), feats beyond the one your
+      background grants, spell lists, and the class features that change these numbers — a
+      Barbarian's Unarmored Defense in particular, so barbarians here wear armour like everyone
+      else. Each is named rather than quietly approximated.</li>
   </ul>
 </section>
 
@@ -192,13 +208,12 @@ footer .attrib { font-size: 0.78rem; }
     available at <a href="https://creativecommons.org/licenses/by/4.0/legalcode">https://creativecommons.org/licenses/by/4.0/legalcode</a>.
   </p>
   <p style="margin-top:0.7rem">
-    This site is compatible with fifth edition. The simulator, any metric it defines, and any
-    judgement it reaches about the official encounter maths are this site's own work — see
-    <a href="LICENSE.md">LICENSE.md</a>.
+    This site is compatible with fifth edition. The assignment rules, the gear choices and anything
+    else this roller decides on your behalf are its own work — see <a href="LICENSE.md">LICENSE.md</a>.
   </p>
   <p style="margin-top:0.7rem">
-    <a href="monsters.js">monsters.js</a> · <a href="data.js">data.js</a> ·
-    <a href="tools/scrape-srd.py">scrape-srd.py</a> · <a href="srd5.selftest.mjs">srd5.selftest.mjs</a>
+    <a href="corpus/">the parsed corpus</a> · <a href="roll.js">roll.js</a> ·
+    <a href="data.js">data.js</a> · <a href="roll.selftest.mjs">roll.selftest.mjs</a>
   </p>
 </footer>
 

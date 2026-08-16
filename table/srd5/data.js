@@ -223,9 +223,24 @@ export const CLASSES = {
   "name": "Barbarian",
   "primary": "Strength",
   "hitDie": 12,
-  "saves": "Proficiencies",
+  "saves": [
+   "Str",
+   "Con"
+  ],
   "weapons": "Simple and Martial weapons",
-  "armor": "Light and Medium armor and",
+  "armor": "Light and Medium armor and Shields",
+  "startingEquipment": "Choose A or B: (A) Greataxe, 4 Handaxes, Explorer's Pack, and 15 GP; or (B) 75 GP",
+  "skills": {
+   "choose": 2,
+   "from": [
+    "Animal Handling",
+    "Athletics",
+    "Intimidation",
+    "Nature",
+    "Perception",
+    "Survival"
+   ]
+  },
   "features": {
    "1": [
     "Rage",
@@ -291,9 +306,17 @@ export const CLASSES = {
   "name": "Bard",
   "primary": "Charisma",
   "hitDie": 8,
-  "saves": "Proficiencies",
+  "saves": [
+   "Dex",
+   "Cha"
+  ],
   "weapons": "Simple weapons",
   "armor": "Light armor",
+  "startingEquipment": "Choose A or B: (A) Leather Armor, 2 Daggers, Musical Instrument of your choice, Entertainer's Pack, and 19 GP; or (B) 90 GP",
+  "skills": {
+   "choose": 3,
+   "from": "any"
+  },
   "features": {
    "1": [
     "Bardic Inspiration",
@@ -341,9 +364,23 @@ export const CLASSES = {
   "name": "Cleric",
   "primary": "Wisdom",
   "hitDie": 8,
-  "saves": "Proficiencies",
+  "saves": [
+   "Wis",
+   "Cha"
+  ],
   "weapons": "Simple weapons",
-  "armor": "Light and Medium armor and",
+  "armor": "Light and Medium armor and Shields",
+  "startingEquipment": "Choose A or B: (A) Chain Shirt, Shield, Mace, Holy Symbol, Priest's Pack, and 7 GP; or (B) 110 GP",
+  "skills": {
+   "choose": 2,
+   "from": [
+    "History",
+    "Insight",
+    "Medicine",
+    "Persuasion",
+    "Religion"
+   ]
+  },
   "features": {
    "1": [
     "Spellcasting",
@@ -391,9 +428,26 @@ export const CLASSES = {
   "name": "Druid",
   "primary": "Wisdom",
   "hitDie": 8,
-  "saves": "Proficiencies",
+  "saves": [
+   "Int",
+   "Wis"
+  ],
   "weapons": "Simple weapons",
   "armor": "Light armor and Shields",
+  "startingEquipment": "Choose A or B: (A) Leather Armor, Shield, Sickle, Druidic Focus (Quarterstaff), Explorer's Pack, Herbalism Kit, and 9 GP; or (B) 50 GP",
+  "skills": {
+   "choose": 2,
+   "from": [
+    "Animal Handling",
+    "Arcana",
+    "Insight",
+    "Medicine",
+    "Nature",
+    "Perception",
+    "Religion",
+    "Survival"
+   ]
+  },
   "features": {
    "1": [
     "Spellcasting",
@@ -445,9 +499,27 @@ export const CLASSES = {
   "name": "Fighter",
   "primary": "Strength or Dexterity",
   "hitDie": 10,
-  "saves": "Proficiencies",
+  "saves": [
+   "Str",
+   "Con"
+  ],
   "weapons": "Simple and Martial weapons",
   "armor": "Light, Medium, and Heavy armor and Shields",
+  "startingEquipment": "Choose A, B, or C: (A) Chain Mail, Greatsword, Flail, 8 Javelins, Dungeoneer's Pack, and 4 GP; (B) Studded Leather Armor, Scimitar, Short sword, Longbow, 20 Arrows, Quiver, Dungeoneer's Pack, and 11 GP; or (C) 155 GP",
+  "skills": {
+   "choose": 2,
+   "from": [
+    "Acrobatics",
+    "Animal Handling",
+    "Athletics",
+    "History",
+    "Insight",
+    "Intimidation",
+    "Persuasion",
+    "Perception",
+    "Survival"
+   ]
+  },
   "features": {
    "1": [
     "Fighting Style",
@@ -504,9 +576,24 @@ export const CLASSES = {
   "name": "Monk",
   "primary": "Dexterity and Wisdom",
   "hitDie": 8,
-  "saves": "Proficiencies",
-  "weapons": "Simple weapons and Martial",
+  "saves": [
+   "Str",
+   "Dex"
+  ],
+  "weapons": "Simple weapons and Martial weapons that have the Light property",
   "armor": "None",
+  "startingEquipment": "Choose A or B: (A) Spear, 5 Daggers, Artisan's Tools or Musical Instrument chosen for the tool proficiency above, Explorer's Pack, and 11 GP; or (B) 50 GP",
+  "skills": {
+   "choose": 2,
+   "from": [
+    "Acrobatics",
+    "Athletics",
+    "History",
+    "Insight",
+    "Religion",
+    "Stealth"
+   ]
+  },
   "features": {
    "1": [
     "Martial Arts",
@@ -574,9 +661,24 @@ export const CLASSES = {
   "name": "Paladin",
   "primary": "Strength and Charisma",
   "hitDie": 10,
-  "saves": "Proficiencies",
+  "saves": [
+   "Wis",
+   "Cha"
+  ],
   "weapons": "Simple and Martial weapons",
   "armor": "Light, Medium, and Heavy armor and Shields",
+  "startingEquipment": "Choose A or B: (A) Chain Mail, Shield, Longsword, 6 Javelins, Holy Symbol, Priest's Pack, and 9 GP; or (B) 150 GP",
+  "skills": {
+   "choose": 2,
+   "from": [
+    "Athletics",
+    "Insight",
+    "Intimidation",
+    "Medicine",
+    "Persuasion",
+    "Religion"
+   ]
+  },
   "features": {
    "1": [
     "Lay On Hands",
@@ -636,9 +738,26 @@ export const CLASSES = {
   "name": "Ranger",
   "primary": "Dexterity and Wisdom",
   "hitDie": 10,
-  "saves": "Proficiencies",
+  "saves": [
+   "Str",
+   "Dex"
+  ],
   "weapons": "Simple and Martial weapons",
-  "armor": "Light and Medium armor and",
+  "armor": "Light and Medium armor and Shields",
+  "startingEquipment": "Choose A or B: (A) Studded Leather Armor, Scimitar, Shortsword, Longbow, 20 Arrows, Quiver, Druidic Focus (sprig of mistletoe), Explorer's Pack, and 7 GP; or (B) 150 GP",
+  "skills": {
+   "choose": 3,
+   "from": [
+    "Animal Handling",
+    "Athletics",
+    "Insight",
+    "Investigation",
+    "Nature",
+    "Perception",
+    "Stealth",
+    "Survival"
+   ]
+  },
   "features": {
    "1": [
     "Spellcasting",
@@ -702,9 +821,28 @@ export const CLASSES = {
   "name": "Rogue",
   "primary": "Dexterity",
   "hitDie": 8,
-  "saves": "Proficiencies",
-  "weapons": "Simple weapons and Martial",
+  "saves": [
+   "Dex",
+   "Int"
+  ],
+  "weapons": "Simple weapons and Martial weapons that have the Finesse or Light property",
   "armor": "Light armor",
+  "startingEquipment": "Choose A or B: (A) Leather Armor, 2 Daggers, Short sword, Shortbow, 20 Arrows, Quiver, Thieves' Tools, Burglar's Pack, and 8 GP; or (B) 100 GP",
+  "skills": {
+   "choose": 4,
+   "from": [
+    "Acrobatics",
+    "Athletics",
+    "Deception",
+    "Insight",
+    "Intimidation",
+    "Investigation",
+    "Perception",
+    "Persuasion",
+    "Sleight of Hand",
+    "Stealth"
+   ]
+  },
   "features": {
    "1": [
     "Expertise",
@@ -765,9 +903,24 @@ export const CLASSES = {
   "name": "Sorcerer",
   "primary": "Charisma",
   "hitDie": 6,
-  "saves": "Proficiencies",
+  "saves": [
+   "Con",
+   "Cha"
+  ],
   "weapons": "Simple weapons",
   "armor": "None",
+  "startingEquipment": "Choose A or B: (A) Spear, 2 Daggers, Arcane Focus (crystal), Dungeoneer's Pack, and 28 GP; or (B) 50 GP",
+  "skills": {
+   "choose": 2,
+   "from": [
+    "Arcana",
+    "Deception",
+    "Insight",
+    "Intimidation",
+    "Persuasion",
+    "Religion"
+   ]
+  },
   "features": {
    "1": [
     "Spellcasting",
@@ -812,9 +965,25 @@ export const CLASSES = {
   "name": "Warlock",
   "primary": "Charisma",
   "hitDie": 8,
-  "saves": "Proficiencies",
+  "saves": [
+   "Wis",
+   "Cha"
+  ],
   "weapons": "Simple weapons",
   "armor": "Light armor",
+  "startingEquipment": "Choose A or B: (A) Leather Armor, Sickle, 2 Daggers, Arcane Focus (orb), Book (occult lore), Scholar's Pack, and 15 GP; or (B) 100 GP",
+  "skills": {
+   "choose": 2,
+   "from": [
+    "Arcana",
+    "Deception",
+    "History",
+    "Intimidation",
+    "Investigation",
+    "Nature",
+    "Religion"
+   ]
+  },
   "features": {
    "1": [
     "Eldritch Invocations",
@@ -858,9 +1027,25 @@ export const CLASSES = {
   "name": "Wizard",
   "primary": "Intelligence",
   "hitDie": 6,
-  "saves": "Proficiencies",
+  "saves": [
+   "Int",
+   "Wis"
+  ],
   "weapons": "Simple weapons",
   "armor": "None",
+  "startingEquipment": "Choose A or B: (A) 2 Daggers, Arcane Focus (Quarterstaff), Robe, Spellbook, Scholar's Pack, and 5 GP; or (B) 55 GP",
+  "skills": {
+   "choose": 2,
+   "from": [
+    "Arcana",
+    "History",
+    "Insight",
+    "Investigation",
+    "Medicine",
+    "Nature",
+    "Religion"
+   ]
+  },
   "features": {
    "1": [
     "Spellcasting",
@@ -902,4 +1087,1208 @@ export const CLASSES = {
   }
  }
 };
+
+export const SKILLS = [
+ {
+  "name": "Acrobatics",
+  "ability": "Dex"
+ },
+ {
+  "name": "Animal Handling",
+  "ability": "Wis"
+ },
+ {
+  "name": "Arcana",
+  "ability": "Int"
+ },
+ {
+  "name": "Athletics",
+  "ability": "Str"
+ },
+ {
+  "name": "Deception",
+  "ability": "Cha"
+ },
+ {
+  "name": "History",
+  "ability": "Int"
+ },
+ {
+  "name": "Insight",
+  "ability": "Wis"
+ },
+ {
+  "name": "Intimidation",
+  "ability": "Cha"
+ },
+ {
+  "name": "Investigation",
+  "ability": "Int"
+ },
+ {
+  "name": "Medicine",
+  "ability": "Wis"
+ },
+ {
+  "name": "Nature",
+  "ability": "Int"
+ },
+ {
+  "name": "Perception",
+  "ability": "Wis"
+ },
+ {
+  "name": "Performance",
+  "ability": "Cha"
+ },
+ {
+  "name": "Persuasion",
+  "ability": "Cha"
+ },
+ {
+  "name": "Religion",
+  "ability": "Int"
+ },
+ {
+  "name": "Sleight of Hand",
+  "ability": "Dex"
+ },
+ {
+  "name": "Stealth",
+  "ability": "Dex"
+ },
+ {
+  "name": "Survival",
+  "ability": "Wis"
+ }
+];
+
+export const BACKGROUNDS = [
+ {
+  "name": "Acolyte",
+  "abilities": [
+   "Int",
+   "Wis",
+   "Cha"
+  ],
+  "feat": "Magic Initiate (Cleric)",
+  "skills": [
+   "Insight",
+   "Religion"
+  ],
+  "tool": "Calligrapher's Supplies",
+  "equipment": "Choose A or B: (A) Calligrapher's Supplies, Book (prayers), Holy Symbol, Parchment (10 sheets), Robe, 8 GP; or (B) 50 GP"
+ },
+ {
+  "name": "Criminal",
+  "abilities": [
+   "Dex",
+   "Con",
+   "Int"
+  ],
+  "feat": "Alert",
+  "skills": [
+   "Sleight of Hand",
+   "Stealth"
+  ],
+  "tool": "Thieves' Tools",
+  "equipment": "Choose A or B: (A) 2 Daggers, Thieves' Tools, Crowbar, 2 Pouches, Traveler's Clothes, 16 GP; or (B) 50 GP"
+ },
+ {
+  "name": "Sage",
+  "abilities": [
+   "Con",
+   "Int",
+   "Wis"
+  ],
+  "feat": "Magic Initiate (Wizard)",
+  "skills": [
+   "Arcana",
+   "History"
+  ],
+  "tool": "Calligrapher's Supplies",
+  "equipment": "Choose A or B: (A) Quarterstaff, Calligrapher's Supplies, Book (history), Parchment (8 sheets), Robe, 8 GP; or (B) 50 GP"
+ },
+ {
+  "name": "Soldier",
+  "abilities": [
+   "Str",
+   "Dex",
+   "Con"
+  ],
+  "feat": "Savage Attacker",
+  "skills": [
+   "Athletics",
+   "Intimidation"
+  ],
+  "tool": "Choose one kind of Gaming Set",
+  "equipment": "Choose A or B: (A) Spear, Shortbow, 20 Arrows, Gaming Set (same as above), Healer's Kit, Quiver, Traveler's Clothes, 14 GP; or (B) 50 GP"
+ }
+];
+
+export const SPECIES = [
+ {
+  "name": "Dragonborn",
+  "creatureType": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "traits": [
+   {
+    "name": "Draconic Ancestry",
+    "text": "Your lineage stems from a dragon progenitor. Choose the kind of dragon from the Draconic Ancestors table. Your choice affects your Breath Weapon and Damage Resistance traits as well as your appearance. Draconic Ancestors Dragon Damage Type Dragon Damage Type Black Acid Gold Fire Blue Lightning Green Poison Brass Fire Red Fire Bronze Lightning Silver Cold Copper Acid White Cold"
+   },
+   {
+    "name": "Breath Weapon",
+    "text": "When you take the Attack action on your turn, you can replace one of your attacks with an exhalation of magical energy in either a 15-foot Cone or a 30-foot Line that is 5 feet wide (choose the shape each time). Each creature in that area must make a Dexterity saving throw (DC 8 plus your Constitution modifier and Proficiency Bonus). On a failed save, a creature takes 1d10 damage of the type determined by your Draconic Ancestry trait. On a successful save, a creature takes half as much damage. This damage increases by 1d10 when you reach character levels 5 (2d10), 11 (3d10), and 17 (4d10). You"
+   },
+   {
+    "name": "Damage Resistance",
+    "text": "You have Resistance to the damage type determined by your Draconic Ancestry trait."
+   },
+   {
+    "name": "Darkvision",
+    "text": "You have Darkvision with a range of 60 feet."
+   },
+   {
+    "name": "Draconic Flight",
+    "text": "When you reach character level 5, you can channel draconic magic to give yourself temporary flight. As a Bonus Action, you sprout spectral wings on your back that last for 10 minutes or until you retract the wings (no action required) or have the Incapacitated condition. During that time, you have a Fly Speed equal to your Speed. Your wings appear to be made of the same energy as your Breath Weapon. Once you use this trait, you can't use it again until you finish a Long Rest."
+   }
+  ]
+ },
+ {
+  "name": "Dwarf",
+  "creatureType": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "traits": [
+   {
+    "name": "Darkvision",
+    "text": "You have Darkvision with a range of 120 feet."
+   },
+   {
+    "name": "Dwarven Resilience",
+    "text": "You have Resistance to Poison damage. You also have Advantage on saving throws you make to avoid or end the Poisoned condition."
+   },
+   {
+    "name": "Dwarven Toughness",
+    "text": "Your Hit Point maximum increases by 1, and it increases by 1 again whenever you gain a level."
+   },
+   {
+    "name": "Stonecunning",
+    "text": "As a Bonus Action, you gain Tremorsense with a range of 60 feet for 10 minutes. You must be on a stone surface or touching a stone surface to use this Tremorsense. The stone can be natural or worked. You can use this Bonus Action a number of times equal to your Proficiency Bonus, and you regain all expended uses when you finish a Long Rest."
+   }
+  ]
+ },
+ {
+  "name": "Elf",
+  "creatureType": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "traits": [
+   {
+    "name": "Darkvision",
+    "text": "You have Darkvision with a range of 60 feet."
+   },
+   {
+    "name": "Elven Lineage",
+    "text": "You are part of a lineage that grants you supernatural abilities. Choose a lineage from the Elven Lineages table. You gain the level 1 benefit of that lineage. When you reach character levels 3 and 5, you learn a higher-level spell, as shown on the table. You always have that spell prepared. You can cast it once without a spell slot, and you regain the ability to cast it in that way when you finish a Long Rest. You can also cast the spell using any spell slots you have of the appropriate level. Intelligence, Wisdom, or Charisma is your spellcasting ability for the spells you cast with this tra"
+   },
+   {
+    "name": "Fey Ancestry",
+    "text": "You have Advantage on saving throws you make to avoid or end the Charmed condition."
+   },
+   {
+    "name": "Keen Senses",
+    "text": "You have proficiency in the Insight, Perception, or Survival skill."
+   },
+   {
+    "name": "Trance",
+    "text": "You don't need to sleep, and magic can't put you to sleep. You can finish a Long Rest in 4 hours if you spend those hours in a trancelike meditation, during which you retain consciousness."
+   }
+  ]
+ },
+ {
+  "name": "Gnome",
+  "creatureType": "Humanoid",
+  "size": "Small",
+  "speed": 30,
+  "traits": [
+   {
+    "name": "Darkvision",
+    "text": "You have Darkvision with a range of 60 feet."
+   },
+   {
+    "name": "Gnomish Cunning",
+    "text": "You have Advantage on Intelligence, Wisdom, and Charisma saving throws."
+   },
+   {
+    "name": "Gnomish Lineage",
+    "text": "You are part of a lineage that grants you supernatural abilities. Choose one of the following options; whichever one you choose, Intelligence, Wisdom, or Charisma is your spellcasting ability for the spells you cast with this trait (choose the ability when you select the lineage): Forest Gnome. You know the Minor Illusion cantrip. You also always have the Speak with Animals spell prepared. You can cast it without a spell slot a number of times equal to your Proficiency Bonus, and you regain all expended uses when you finish a Long Rest. You can also use any spell slots you have to cast the spe"
+   }
+  ]
+ },
+ {
+  "name": "Goliath",
+  "creatureType": "Humanoid",
+  "size": "Medium",
+  "speed": 35,
+  "traits": [
+   {
+    "name": "Giant Ancestry",
+    "text": "You are descended from Giants. Choose one of the following benefits—a supernatural boon from your ancestry; you can use the chosen benefit a number of times equal to your Proficiency Bonus, and you regain all expended uses when you finish a Long Rest: Cloud's Jaunt (Cloud Giant). As a Bonus Action, you magically teleport up to 30 feet to an unoccupied space you can see. Fire's Burn (Fire Giant). When you hit a target with an attack roll and deal damage to it, you can also deal 1d10 Fire damage to that target. Frost's Chill (Frost Giant). When you hit a target with an attack roll and deal damag"
+   },
+   {
+    "name": "Large Form",
+    "text": "Starting at character level 5, you can change your size to Large as a Bonus Action if you're in a big enough space. This transformation lasts for 10 minutes or until you end it (no action required). For that duration, you have Advantage on Strength checks, and your Speed increases by 10 feet. Once you use this trait, you can't use it again until you finish a Long Rest."
+   },
+   {
+    "name": "Powerful Build",
+    "text": "You have Advantage on any ability check you make to end the Grappled condition. You also count as one size larger when determining your carrying capacity."
+   }
+  ]
+ },
+ {
+  "name": "Halfling",
+  "creatureType": "Humanoid",
+  "size": "Small",
+  "speed": 30,
+  "traits": [
+   {
+    "name": "Brave",
+    "text": "You have Advantage on saving throws you make to avoid or end the Frightened condition."
+   },
+   {
+    "name": "Halfling Nimbleness",
+    "text": "You can move through the space of any creature that is a size larger than you, but you can't stop in the same space."
+   },
+   {
+    "name": "Luck",
+    "text": "When you roll a 1 on the d20 of a D20 Test, you can reroll the die, and you must use the new roll."
+   },
+   {
+    "name": "Naturally Stealthy",
+    "text": "You can take the Hide action even when you are obscured only by a creature that is at least one size larger than you."
+   }
+  ]
+ },
+ {
+  "name": "Human",
+  "creatureType": "Humanoid",
+  "size": "Medium or Small",
+  "speed": 30,
+  "traits": [
+   {
+    "name": "Resourceful",
+    "text": "You gain Heroic Inspiration whenever you finish a Long Rest."
+   },
+   {
+    "name": "Skillful",
+    "text": "You gain proficiency in one skill of your choice."
+   },
+   {
+    "name": "Versatile",
+    "text": "You gain an Origin feat of your choice (see \"Feats\"). Skilled is recommended."
+   }
+  ]
+ },
+ {
+  "name": "Orc",
+  "creatureType": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "traits": [
+   {
+    "name": "Adrenaline Rush",
+    "text": "You can take the Dash action as a Bonus Action. When you do so, you gain a number of Temporary Hit Points equal to your Proficiency Bonus. You can use this trait a number of times equal to your Proficiency Bonus, and you regain all expended uses when you finish a Short or Long Rest."
+   },
+   {
+    "name": "Darkvision",
+    "text": "You have Darkvision with a range of 120 feet."
+   },
+   {
+    "name": "Relentless Endurance",
+    "text": "When you are reduced to 0 Hit Points but not killed outright, you can drop to 1 Hit Point instead. Once you use this trait, you can't do so again until you finish a Long Rest."
+   }
+  ]
+ },
+ {
+  "name": "Tiefling",
+  "creatureType": "Humanoid",
+  "size": "Medium or Small",
+  "speed": 30,
+  "traits": [
+   {
+    "name": "Darkvision",
+    "text": "You have Darkvision with a range of 60 feet."
+   },
+   {
+    "name": "Fiendish Legacy",
+    "text": "You are the recipient of a legacy that grants you supernatural abilities. Choose a legacy from the Fiendish Legacies table. You gain the level 1 benefit of the chosen legacy. When you reach character levels 3 and 5, you learn a higher-level spell, as shown on the table. You always have that spell prepared. You can cast it once without a spell slot, and you regain the ability to cast it in that way when you finish a Long Rest. You can also cast the spell using any spell slots you have of the appropriate level. Intelligence, Wisdom, or Charisma is your spellcasting ability for the spells you cas"
+   },
+   {
+    "name": "Otherworldly Presence",
+    "text": "You know the Thaumaturgy cantrip. When you cast it with this trait, the spell uses the same spellcasting ability you use for your Fiendish Legacy trait. Fiendish Legacies Legacy Level 1 Level 3 Level 5 Abyssal You have Resistance to Poison damage. You also know the Poison Spray cantrip. Ray of Sickness Hold Person Chthonic You have Resistance to Necrotic damage. You also know the Chill Touch cantrip. False Life Ray of Enfeeblement Infernal You have Resistance to Fire damage. You also know the Fire Bolt cantrip. Hellish Rebuke Darkness"
+   }
+  ]
+ }
+];
+
+export const WEAPONS = [
+ {
+  "name": "Club",
+  "group": "Simple Melee Weapons",
+  "dice": "1d4",
+  "damageType": "Bludgeoning",
+  "melee": true,
+  "martial": false,
+  "finesse": false,
+  "light": true,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": null,
+  "range": null,
+  "cost": [
+   1,
+   "SP"
+  ]
+ },
+ {
+  "name": "Dagger",
+  "group": "Simple Melee Weapons",
+  "dice": "1d4",
+  "damageType": "Piercing",
+  "melee": true,
+  "martial": false,
+  "finesse": true,
+  "light": true,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": null,
+  "range": [
+   20,
+   60
+  ],
+  "cost": [
+   2,
+   "GP"
+  ]
+ },
+ {
+  "name": "Greatclub",
+  "group": "Simple Melee Weapons",
+  "dice": "1d8",
+  "damageType": "Bludgeoning",
+  "melee": true,
+  "martial": false,
+  "finesse": false,
+  "light": false,
+  "heavy": false,
+  "twoHanded": true,
+  "reach": false,
+  "versatile": null,
+  "range": null,
+  "cost": [
+   2,
+   "SP"
+  ]
+ },
+ {
+  "name": "Handaxe",
+  "group": "Simple Melee Weapons",
+  "dice": "1d6",
+  "damageType": "Slashing",
+  "melee": true,
+  "martial": false,
+  "finesse": false,
+  "light": true,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": null,
+  "range": [
+   20,
+   60
+  ],
+  "cost": [
+   5,
+   "GP"
+  ]
+ },
+ {
+  "name": "Javelin",
+  "group": "Simple Melee Weapons",
+  "dice": "1d6",
+  "damageType": "Piercing",
+  "melee": true,
+  "martial": false,
+  "finesse": false,
+  "light": false,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": null,
+  "range": [
+   30,
+   120
+  ],
+  "cost": [
+   5,
+   "SP"
+  ]
+ },
+ {
+  "name": "Light Hammer",
+  "group": "Simple Melee Weapons",
+  "dice": "1d4",
+  "damageType": "Bludgeoning",
+  "melee": true,
+  "martial": false,
+  "finesse": false,
+  "light": true,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": null,
+  "range": [
+   20,
+   60
+  ],
+  "cost": [
+   2,
+   "GP"
+  ]
+ },
+ {
+  "name": "Mace",
+  "group": "Simple Melee Weapons",
+  "dice": "1d6",
+  "damageType": "Bludgeoning",
+  "melee": true,
+  "martial": false,
+  "finesse": false,
+  "light": false,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": null,
+  "range": null,
+  "cost": [
+   5,
+   "GP"
+  ]
+ },
+ {
+  "name": "Quarterstaff",
+  "group": "Simple Melee Weapons",
+  "dice": "1d6",
+  "damageType": "Bludgeoning",
+  "melee": true,
+  "martial": false,
+  "finesse": false,
+  "light": false,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": "1d8",
+  "range": null,
+  "cost": [
+   2,
+   "SP"
+  ]
+ },
+ {
+  "name": "Sickle",
+  "group": "Simple Melee Weapons",
+  "dice": "1d4",
+  "damageType": "Slashing",
+  "melee": true,
+  "martial": false,
+  "finesse": false,
+  "light": true,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": null,
+  "range": null,
+  "cost": [
+   1,
+   "GP"
+  ]
+ },
+ {
+  "name": "Spear",
+  "group": "Simple Melee Weapons",
+  "dice": "1d6",
+  "damageType": "Piercing",
+  "melee": true,
+  "martial": false,
+  "finesse": false,
+  "light": false,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": "1d8",
+  "range": [
+   20,
+   60
+  ],
+  "cost": [
+   1,
+   "GP"
+  ]
+ },
+ {
+  "name": "Dart",
+  "group": "Simple Ranged Weapons",
+  "dice": "1d4",
+  "damageType": "Piercing",
+  "melee": false,
+  "martial": false,
+  "finesse": true,
+  "light": false,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": null,
+  "range": [
+   20,
+   60
+  ],
+  "cost": [
+   5,
+   "CP"
+  ]
+ },
+ {
+  "name": "Light Crossbow",
+  "group": "Simple Ranged Weapons",
+  "dice": "1d8",
+  "damageType": "Piercing",
+  "melee": false,
+  "martial": false,
+  "finesse": false,
+  "light": false,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": null,
+  "range": [
+   80,
+   320
+  ],
+  "cost": null
+ },
+ {
+  "name": "Shortbow",
+  "group": "Simple Ranged Weapons",
+  "dice": "1d6",
+  "damageType": "Piercing",
+  "melee": false,
+  "martial": false,
+  "finesse": false,
+  "light": false,
+  "heavy": false,
+  "twoHanded": true,
+  "reach": false,
+  "versatile": null,
+  "range": [
+   80,
+   320
+  ],
+  "cost": [
+   25,
+   "GP"
+  ]
+ },
+ {
+  "name": "Sling",
+  "group": "Simple Ranged Weapons",
+  "dice": "1d4",
+  "damageType": "Bludgeoning",
+  "melee": false,
+  "martial": false,
+  "finesse": false,
+  "light": false,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": null,
+  "range": [
+   30,
+   120
+  ],
+  "cost": [
+   1,
+   "SP"
+  ]
+ },
+ {
+  "name": "Battleaxe",
+  "group": "Martial Melee Weapons",
+  "dice": "1d8",
+  "damageType": "Slashing",
+  "melee": true,
+  "martial": true,
+  "finesse": false,
+  "light": false,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": "1d10",
+  "range": null,
+  "cost": [
+   10,
+   "GP"
+  ]
+ },
+ {
+  "name": "Flail",
+  "group": "Martial Melee Weapons",
+  "dice": "1d8",
+  "damageType": "Bludgeoning",
+  "melee": true,
+  "martial": true,
+  "finesse": false,
+  "light": false,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": null,
+  "range": null,
+  "cost": [
+   10,
+   "GP"
+  ]
+ },
+ {
+  "name": "Glaive",
+  "group": "Martial Melee Weapons",
+  "dice": "1d10",
+  "damageType": "Slashing",
+  "melee": true,
+  "martial": true,
+  "finesse": false,
+  "light": false,
+  "heavy": true,
+  "twoHanded": true,
+  "reach": true,
+  "versatile": null,
+  "range": null,
+  "cost": [
+   20,
+   "GP"
+  ]
+ },
+ {
+  "name": "Greataxe",
+  "group": "Martial Melee Weapons",
+  "dice": "1d12",
+  "damageType": "Slashing",
+  "melee": true,
+  "martial": true,
+  "finesse": false,
+  "light": false,
+  "heavy": true,
+  "twoHanded": true,
+  "reach": false,
+  "versatile": null,
+  "range": null,
+  "cost": [
+   30,
+   "GP"
+  ]
+ },
+ {
+  "name": "Greatsword",
+  "group": "Martial Melee Weapons",
+  "dice": "2d6",
+  "damageType": "Slashing",
+  "melee": true,
+  "martial": true,
+  "finesse": false,
+  "light": false,
+  "heavy": true,
+  "twoHanded": true,
+  "reach": false,
+  "versatile": null,
+  "range": null,
+  "cost": [
+   50,
+   "GP"
+  ]
+ },
+ {
+  "name": "Halberd",
+  "group": "Martial Melee Weapons",
+  "dice": "1d10",
+  "damageType": "Slashing",
+  "melee": true,
+  "martial": true,
+  "finesse": false,
+  "light": false,
+  "heavy": true,
+  "twoHanded": true,
+  "reach": true,
+  "versatile": null,
+  "range": null,
+  "cost": [
+   20,
+   "GP"
+  ]
+ },
+ {
+  "name": "Lance",
+  "group": "Martial Melee Weapons",
+  "dice": "1d10",
+  "damageType": "Piercing",
+  "melee": true,
+  "martial": true,
+  "finesse": false,
+  "light": false,
+  "heavy": true,
+  "twoHanded": true,
+  "reach": true,
+  "versatile": null,
+  "range": null,
+  "cost": [
+   10,
+   "GP"
+  ]
+ },
+ {
+  "name": "Longsword",
+  "group": "Martial Melee Weapons",
+  "dice": "1d8",
+  "damageType": "Slashing",
+  "melee": true,
+  "martial": true,
+  "finesse": false,
+  "light": false,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": "1d10",
+  "range": null,
+  "cost": [
+   15,
+   "GP"
+  ]
+ },
+ {
+  "name": "Maul",
+  "group": "Martial Melee Weapons",
+  "dice": "2d6",
+  "damageType": "Bludgeoning",
+  "melee": true,
+  "martial": true,
+  "finesse": false,
+  "light": false,
+  "heavy": true,
+  "twoHanded": true,
+  "reach": false,
+  "versatile": null,
+  "range": null,
+  "cost": [
+   10,
+   "GP"
+  ]
+ },
+ {
+  "name": "Morningstar",
+  "group": "Martial Melee Weapons",
+  "dice": "1d8",
+  "damageType": "Piercing",
+  "melee": true,
+  "martial": true,
+  "finesse": false,
+  "light": false,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": null,
+  "range": null,
+  "cost": [
+   15,
+   "GP"
+  ]
+ },
+ {
+  "name": "Pike",
+  "group": "Martial Melee Weapons",
+  "dice": "1d10",
+  "damageType": "Piercing",
+  "melee": true,
+  "martial": true,
+  "finesse": false,
+  "light": false,
+  "heavy": true,
+  "twoHanded": true,
+  "reach": true,
+  "versatile": null,
+  "range": null,
+  "cost": [
+   5,
+   "GP"
+  ]
+ },
+ {
+  "name": "Rapier",
+  "group": "Martial Melee Weapons",
+  "dice": "1d8",
+  "damageType": "Piercing",
+  "melee": true,
+  "martial": true,
+  "finesse": true,
+  "light": false,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": null,
+  "range": null,
+  "cost": [
+   25,
+   "GP"
+  ]
+ },
+ {
+  "name": "Scimitar",
+  "group": "Martial Melee Weapons",
+  "dice": "1d6",
+  "damageType": "Slashing",
+  "melee": true,
+  "martial": true,
+  "finesse": true,
+  "light": true,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": null,
+  "range": null,
+  "cost": [
+   25,
+   "GP"
+  ]
+ },
+ {
+  "name": "Shortsword",
+  "group": "Martial Melee Weapons",
+  "dice": "1d6",
+  "damageType": "Piercing",
+  "melee": true,
+  "martial": true,
+  "finesse": true,
+  "light": true,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": null,
+  "range": null,
+  "cost": [
+   10,
+   "GP"
+  ]
+ },
+ {
+  "name": "Trident",
+  "group": "Martial Melee Weapons",
+  "dice": "1d8",
+  "damageType": "Piercing",
+  "melee": true,
+  "martial": true,
+  "finesse": false,
+  "light": false,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": "1d10",
+  "range": [
+   20,
+   60
+  ],
+  "cost": [
+   5,
+   "GP"
+  ]
+ },
+ {
+  "name": "Warhammer",
+  "group": "Martial Melee Weapons",
+  "dice": "1d8",
+  "damageType": "Bludgeoning",
+  "melee": true,
+  "martial": true,
+  "finesse": false,
+  "light": false,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": "1d10",
+  "range": null,
+  "cost": [
+   15,
+   "GP"
+  ]
+ },
+ {
+  "name": "War Pick",
+  "group": "Martial Melee Weapons",
+  "dice": "1d8",
+  "damageType": "Piercing",
+  "melee": true,
+  "martial": true,
+  "finesse": false,
+  "light": false,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": "1d10",
+  "range": null,
+  "cost": [
+   5,
+   "GP"
+  ]
+ },
+ {
+  "name": "Whip",
+  "group": "Martial Melee Weapons",
+  "dice": "1d4",
+  "damageType": "Slashing",
+  "melee": true,
+  "martial": true,
+  "finesse": true,
+  "light": false,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": true,
+  "versatile": null,
+  "range": null,
+  "cost": [
+   2,
+   "GP"
+  ]
+ },
+ {
+  "name": "Hand Crossbow",
+  "group": "Martial Ranged Weapons",
+  "dice": "1d6",
+  "damageType": "Piercing",
+  "melee": false,
+  "martial": true,
+  "finesse": false,
+  "light": true,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": null,
+  "range": [
+   30,
+   120
+  ],
+  "cost": [
+   75,
+   "GP"
+  ]
+ },
+ {
+  "name": "Heavy Crossbow",
+  "group": "Martial Ranged Weapons",
+  "dice": "1d10",
+  "damageType": "Piercing",
+  "melee": false,
+  "martial": true,
+  "finesse": false,
+  "light": false,
+  "heavy": true,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": null,
+  "range": [
+   100,
+   400
+  ],
+  "cost": null
+ },
+ {
+  "name": "Longbow",
+  "group": "Martial Ranged Weapons",
+  "dice": "1d8",
+  "damageType": "Piercing",
+  "melee": false,
+  "martial": true,
+  "finesse": false,
+  "light": false,
+  "heavy": true,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": null,
+  "range": [
+   150,
+   600
+  ],
+  "cost": null
+ },
+ {
+  "name": "Musket",
+  "group": "Martial Ranged Weapons",
+  "dice": "1d12",
+  "damageType": "Piercing",
+  "melee": false,
+  "martial": true,
+  "finesse": false,
+  "light": false,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": null,
+  "range": [
+   40,
+   120
+  ],
+  "cost": null
+ },
+ {
+  "name": "Pistol",
+  "group": "Martial Ranged Weapons",
+  "dice": "1d10",
+  "damageType": "Piercing",
+  "melee": false,
+  "martial": true,
+  "finesse": false,
+  "light": false,
+  "heavy": false,
+  "twoHanded": false,
+  "reach": false,
+  "versatile": null,
+  "range": [
+   30,
+   90
+  ],
+  "cost": [
+   250,
+   "GP"
+  ]
+ }
+];
+
+export const ARMOR = [
+ {
+  "name": "Padded Armor",
+  "category": "Light",
+  "ac": 11,
+  "addDex": true,
+  "dexCap": null,
+  "strength": null,
+  "stealthDisadvantage": true
+ },
+ {
+  "name": "Leather Armor",
+  "category": "Light",
+  "ac": 11,
+  "addDex": true,
+  "dexCap": null,
+  "strength": null,
+  "stealthDisadvantage": false
+ },
+ {
+  "name": "Studded Leather Armor",
+  "category": "Light",
+  "ac": 12,
+  "addDex": true,
+  "dexCap": null,
+  "strength": null,
+  "stealthDisadvantage": false
+ },
+ {
+  "name": "Hide Armor",
+  "category": "Medium",
+  "ac": 12,
+  "addDex": true,
+  "dexCap": 2,
+  "strength": null,
+  "stealthDisadvantage": false
+ },
+ {
+  "name": "Chain Shirt",
+  "category": "Medium",
+  "ac": 13,
+  "addDex": true,
+  "dexCap": 2,
+  "strength": null,
+  "stealthDisadvantage": false
+ },
+ {
+  "name": "Scale Mail",
+  "category": "Medium",
+  "ac": 14,
+  "addDex": true,
+  "dexCap": 2,
+  "strength": null,
+  "stealthDisadvantage": true
+ },
+ {
+  "name": "Breastplate",
+  "category": "Medium",
+  "ac": 14,
+  "addDex": true,
+  "dexCap": 2,
+  "strength": null,
+  "stealthDisadvantage": false
+ },
+ {
+  "name": "Half Plate Armor",
+  "category": "Medium",
+  "ac": 15,
+  "addDex": true,
+  "dexCap": 2,
+  "strength": null,
+  "stealthDisadvantage": true
+ },
+ {
+  "name": "Ring Mail",
+  "category": "Heavy",
+  "ac": 14,
+  "addDex": false,
+  "dexCap": null,
+  "strength": null,
+  "stealthDisadvantage": true
+ },
+ {
+  "name": "Chain Mail",
+  "category": "Heavy",
+  "ac": 16,
+  "addDex": false,
+  "dexCap": null,
+  "strength": 13,
+  "stealthDisadvantage": true
+ },
+ {
+  "name": "Splint Armor",
+  "category": "Heavy",
+  "ac": 17,
+  "addDex": false,
+  "dexCap": null,
+  "strength": 15,
+  "stealthDisadvantage": true
+ },
+ {
+  "name": "Plate Armor",
+  "category": "Heavy",
+  "ac": 18,
+  "addDex": false,
+  "dexCap": null,
+  "strength": 15,
+  "stealthDisadvantage": true
+ },
+ {
+  "name": "Shield",
+  "category": "Shield",
+  "ac": 2,
+  "addDex": false,
+  "dexCap": null,
+  "strength": null,
+  "stealthDisadvantage": false
+ }
+];
 

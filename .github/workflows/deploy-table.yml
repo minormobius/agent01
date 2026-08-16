@@ -47,6 +47,7 @@ jobs:
           node cairn/delve.selftest.mjs
           node cairn/effects.selftest.mjs
           node srd5/srd5.selftest.mjs
+          node srd5/roll.selftest.mjs
 
       - name: Install wrangler
         run: npm install wrangler
@@ -82,7 +83,7 @@ jobs:
             echo "::error::deploy reported success but https://table.mino.mobi/api/health never served $GITHUB_SHA"
             exit 1
           fi
-          for path in /cairn/ /cairn/encounter/ /cairn/arena/ /cairn/items/ /srd5/; do
+          for path in /cairn/ /cairn/encounter/ /cairn/arena/ /cairn/items/ /srd5/ /srd5/corpus/; do
             STATUS=$(curl -fsS -o /dev/null -w "%{http_code}" "https://table.mino.mobi$path" || echo fail)
             echo "  $path -> $STATUS"
             [ "$STATUS" = 200 ] || { echo "::error::$path is $STATUS"; exit 1; }

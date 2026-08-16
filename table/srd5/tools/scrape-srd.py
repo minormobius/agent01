@@ -446,23 +446,257 @@ def classes(pages):
                    if p > 0] or [len(text)])
         body = text[m.start():nxt]
         rec = {"name": name}
-        for label, key in (("Primary Ability", "primary"),
-                           ("Hit Point Die", "hitDie"),
-                           ("Saving Throw", "saves"),
-                           ("Weapon Proficiencies", "weapons"),
-                           ("Armor Training", "armor")):
-            mm = re.search(r"^%s\s*\n?\s*([^\n]+)" % re.escape(label), body, re.M)
+        # Every trait VALUE wraps, and one LABEL wraps too: the core table
+        # prints "Saving Throw" and "Proficiencies" on separate lines, so
+        # reading one line after the label handed back the rest of the label
+        # and called it the saving throws. Read to the NEXT label instead.
+        LABELS = [r"Primary Ability", r"Hit Point Die",
+                  r"Saving Throw\s*Proficiencies", r"Skill Proficiencies",
+                  r"Weapon Proficiencies", r"Tool Proficiencies",
+                  r"Armor Training", r"Starting Equipment", r"Becoming a"]
+        nxt = "|".join(LABELS)
+        for label, key in ((r"Primary Ability", "primary"),
+                           (r"Hit Point Die", "hitDie"),
+                           (r"Saving Throw\s*Proficiencies", "saves"),
+                           (r"Skill Proficiencies", "skillChoice"),
+                           (r"Weapon Proficiencies", "weapons"),
+                           (r"Armor Training", "armor"),
+                           (r"Starting Equipment", "startingEquipment")):
+            mm = re.search(r"%s\s*(.*?)(?=\s*(?:%s)\b|\Z)" % (label, nxt), body, re.S)
             if mm:
                 rec[key] = re.sub(r"\s+", " ", mm.group(1)).strip()
         hd = re.search(r"D(\d+) per %s level" % name, body)
         if hd:
             rec["hitDie"] = int(hd.group(1))
+        # "Strength and Constitution" -> ["Str", "Con"]
+        if isinstance(rec.get("saves"), str):
+            rec["saves"] = [a[:3] for a in re.findall(
+                r"Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma", rec["saves"])]
+        # "Choose 2: Acrobatics, Animal Handling, ... or Survival"
+        pick = rec.pop("skillChoice", None)
+        if pick:
+            # TWO grammars. Most classes print "Choose 2: Acrobatics, ...";
+            # the Bard prints "Choose any 3 skills", which has no list at all.
+            # Matching only the first read the Bard as "choose 2 from a list of
+            # one", which is not a thing the game can do — and is exactly the
+            # kind of nonsense a test should refuse rather than render.
+            anyN = re.search(r"Choose any (\d+)", pick)
+            if anyN:
+                rec["skills"] = {"choose": int(anyN.group(1)), "from": "any"}
+            else:
+                n = re.search(r"Choose (\d+)", pick)
+                names = re.sub(r"^Choose \d+:\s*", "", pick)
+                rec["skills"] = {
+                    "choose": int(n.group(1)) if n else 2,
+                    "from": [x.strip() for x in re.split(r",| or ", names) if x.strip()],
+                }
         # "Level 3: Subclass" style feature headings
         feats_by_level = {}
         for mm in re.finditer(r"^Level (\d+):\s*([^\n]+)$", body, re.M):
             feats_by_level.setdefault(int(mm.group(1)), []).append(mm.group(2).strip())
         rec["features"] = {str(k): v for k, v in sorted(feats_by_level.items())}
         out[name] = rec
+    return out
+
+
+def skills(text):
+    """The eighteen skills and the ability each one uses.
+
+    Needed twice over: a sheet has to compute every skill modifier, and the
+    Bard's "Choose any 3 skills" only means anything if we know what "any" is.
+    """
+    start = text.find("Skill Ability Example Uses")
+    # Bounded by length, not by a following heading — the same mistake that
+    # emptied the weapon table. There are eighteen rows and the test counts
+    # them, so an over-long slice is caught by what it lets in, not by luck.
+    chunk = text[start:start + 1800] if start > 0 else ""
+    out = []
+    for m in re.finditer(
+            r"^(?P<name>[A-Z][A-Za-z ]{2,20}?)\s+"
+            r"(?P<ability>Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s",
+            chunk, re.M):
+        name = m.group("name").strip()
+        if name and name != "Skill":
+            out.append({"name": name, "ability": m.group("ability")[:3]})
+    return out
+
+
+def backgrounds(text):
+    """The four the SRD publishes, in a rigidly regular format.
+
+    Only four, which is worth stating on the page rather than hiding: the SRD
+    is a subset of the full game and this is one of the places it shows most.
+    """
+    out = []
+    start = text.find("Background Descriptions")
+    stop = text.find("Character Species", start)
+    chunk = text[start:stop] if start > 0 and stop > start else ""
+    # Fields WRAP. Soldier's tool proficiency runs onto a second line, and
+    # anchoring each field to a single line silently dropped that whole
+    # background — 3 of 4, which looks like a plausible number and is not.
+    # So every field reads up to the next label instead of to end-of-line.
+    pat = re.compile(
+        r"\n(?P<name>[A-Z][a-z]+)\s*\n"
+        r"Ability Scores:\s*(?P<abilities>.*?)\s*"
+        r"Feat:\s*(?P<feat>.*?)\s*"
+        r"Skill Proficiencies:\s*(?P<skills>.*?)\s*"
+        r"Tool Proficiency:\s*(?P<tool>.*?)\s*"
+        r"Equipment:\s*(?P<equipment>.*?)(?=\n[A-Z][a-z]+\s*\nAbility Scores:|\Z)", re.S)
+    for m in pat.finditer(chunk):
+        clean_list = lambda v: [x.strip() for x in
+                                re.split(r",| and ", re.sub(r"\s+", " ", v)) if x.strip()]
+        out.append({
+            "name": m.group("name"),
+            "abilities": [a[:3] for a in clean_list(m.group("abilities"))],
+            "feat": re.sub(r"\s*\(see [^)]*\)", "", m.group("feat")).strip(),
+            "skills": clean_list(m.group("skills")),
+            "tool": re.sub(r"\s*\(see [^)]*\)", "", re.sub(r"\s+", " ", m.group("tool"))).strip(),
+            "equipment": re.sub(r"\s+", " ", m.group("equipment")).strip(),
+        })
+    return out
+
+
+def species(text):
+    """The nine playable species, with their traits kept whole."""
+    out = []
+    start = text.find("Parts of a Species")
+    stop = text.find("\nFeats\n", start)
+    chunk = text[start:stop] if start > 0 and stop > start else ""
+    # Same trap as the backgrounds: Human and Tiefling both have a two-line
+    # Size ("Medium ... or Small ..., chosen when you select this species"),
+    # and a line-anchored pattern lost both of them.
+    pat = re.compile(
+        r"\n(?P<name>[A-Z][a-z]+)\s*\n"
+        r"Creature Type:\s*(?P<type>.*?)\s*"
+        r"Size:\s*(?P<size>.*?)\s*"
+        r"Speed:\s*(?P<speed>.*?)\s*\n"
+        r"(?P<body>.*?)(?=\n[A-Z][a-z]+\s*\nCreature Type:|\Z)", re.S)
+    for m in pat.finditer(chunk):
+        body = m.group("body")
+        # A trait entry is INDENTED. The SRD sets each bolded trait with a
+        # leading space, and wrapped prose starts hard against the margin —
+        # which is the only reliable way to tell them apart:
+        #
+        #   " Breath Weapon. When you take the Attack action…"   <- a trait
+        #   "You always have that spell prepared. You can cast…" <- a sentence
+        #
+        # Matching any capitalised phrase that ends in a period gave the Elf a
+        # trait called "You always have that spell prepared" and the Orc one
+        # called "Bonus" (off "…equal to your Proficiency / Bonus."). Requiring
+        # a sentence to have ended first fixed those and then dropped Breath
+        # Weapon, because it follows the Draconic Ancestors *table*. The indent
+        # gets all three right. Names are de-duplicated because a species'
+        # opening paragraph names traits it is about to define.
+        traits = []
+        seen = set()
+        for t in re.finditer(
+                r"\n[ \t]+([A-Z][A-Za-z' -]{2,34})\.\s(.*?)"
+                r"(?=\n[ \t]+[A-Z][A-Za-z' -]{2,34}\.\s|\Z)", body, re.S):
+            name = t.group(1).strip()
+            if name in seen:
+                continue
+            seen.add(name)
+            traits.append({"name": name,
+                           "text": re.sub(r"\s+", " ", t.group(2)).strip()[:600]})
+        sp = re.search(r"(\d+)\s*feet", m.group("speed"))
+        out.append({
+            "name": m.group("name"),
+            "creatureType": m.group("type").strip(),
+            # "Medium (about 4-7 feet tall) or Small (…), chosen when you
+            # select this species" -> "Medium or Small"
+            "size": re.sub(r",.*$", "", re.sub(r"\s*\([^)]*\)", "", m.group("size"))).strip(),
+            "speed": int(sp.group(1)) if sp else 30,
+            "traits": traits,
+        })
+    return out
+
+
+# "Greatsword 2d6 Slashing Heavy, Two-Handed Graze 6 lb. 50 GP"
+WEAPON_ROW = re.compile(
+    r"^(?P<name>[A-Z][A-Za-z' -]{2,24}?)\s+(?P<dice>\d+d\d+)\s+"
+    r"(?P<type>Bludgeoning|Piercing|Slashing)\s+(?P<rest>.*)$", re.M)
+
+
+def weapons(text):
+    """The weapon table, with the properties that change how a sheet reads."""
+    start = text.find("Simple Melee Weapons")
+    # "Mastery Properties" is a heading that appears BEFORE this table, so
+    # searching forward for it returned -1 and the whole table came back empty.
+    stop = text.find("\nArmor\n", start)
+    chunk = text[start:stop] if start > 0 and stop > start else ""
+    group = None
+    out = []
+    for line in chunk.split("\n"):
+        head = line.strip()
+        if head in ("Simple Melee Weapons", "Simple Ranged Weapons",
+                    "Martial Melee Weapons", "Martial Ranged Weapons"):
+            group = head
+            continue
+        m = WEAPON_ROW.match(line)
+        if not m or not group:
+            continue
+        rest = m.group("rest")
+        vers = re.search(r"Versatile \((\d+d\d+)\)", rest)
+        thrown = re.search(r"Thrown \(Range (\d+)/(\d+)\)", rest)
+        ammo = re.search(r"Ammunition \(Range (\d+)/(\d+)", rest)
+        cost = re.search(r"(\d+)\s*(GP|SP|CP)\s*$", rest)
+        out.append({
+            "name": m.group("name").strip(),
+            "group": group,
+            "dice": m.group("dice"),
+            "damageType": m.group("type"),
+            "melee": "Melee" in group,
+            "martial": "Martial" in group,
+            "finesse": "Finesse" in rest,
+            "light": bool(re.search(r"\bLight\b", rest)),
+            "heavy": bool(re.search(r"\bHeavy\b", rest)),
+            "twoHanded": "Two-Handed" in rest,
+            "reach": "Reach" in rest,
+            "versatile": vers.group(1) if vers else None,
+            "range": ([int(thrown.group(1)), int(thrown.group(2))] if thrown
+                      else [int(ammo.group(1)), int(ammo.group(2))] if ammo else None),
+            "cost": (int(cost.group(1)), cost.group(2)) if cost else None,
+        })
+    return out
+
+
+# "Studded Leather Armor 12 + Dex modifier — — 13 lb. 45 GP"
+# "Chain Mail 16 Str 13 Disadvantage 55 lb. 75 GP"
+ARMOR_ROW = re.compile(
+    r"^(?P<name>[A-Z][A-Za-z ]{2,24}?)\s+(?P<ac>\d+)"
+    r"(?P<dex>\s*\+\s*Dex modifier(?:\s*\(max (?P<cap>\d+)\))?)?\s+"
+    r"(?P<rest>.*)$", re.M)
+
+
+def armor(text):
+    start = text.find("Armor Armor Class (AC) Strength Stealth Weight Cost")
+    stop = text.find("\nTools\n", start)
+    chunk = text[start:stop] if start > 0 and stop > start else ""
+    group = None
+    out = []
+    for line in chunk.split("\n"):
+        head = line.strip()
+        if head.startswith(("Light Armor", "Medium Armor", "Heavy Armor")):
+            group = head.split(" Armor")[0]
+            continue
+        m = ARMOR_ROW.match(line)
+        if not m or not group:
+            continue
+        rest = m.group("rest")
+        need = re.search(r"Str (\d+)", rest)
+        out.append({
+            "name": m.group("name").strip(),
+            "category": group,
+            "ac": int(m.group("ac")),
+            # Light armour adds all of DEX, medium caps it at +2, heavy none.
+            "addDex": bool(m.group("dex")),
+            "dexCap": int(m.group("cap")) if m.group("cap") else None,
+            "strength": int(need.group(1)) if need else None,
+            "stealthDisadvantage": "Disadvantage" in rest,
+        })
+    # The Shield is its own line and is not in the table's body.
+    out.append({"name": "Shield", "category": "Shield", "ac": 2, "addDex": False,
+                "dexCap": None, "strength": None, "stealthDisadvantage": False})
     return out
 
 
@@ -501,7 +735,12 @@ def write_modules(out, data):
            "classes, feats and the official encounter maths",
            [("XP_BUDGET", data["xpBudget"]),
             ("FEATS", data["feats"]),
-            ("CLASSES", data["classes"])])
+            ("CLASSES", data["classes"]),
+            ("SKILLS", data["skills"]),
+            ("BACKGROUNDS", data["backgrounds"]),
+            ("SPECIES", data["species"]),
+            ("WEAPONS", data["weapons"]),
+            ("ARMOR", data["armor"])])
 
 
 # ------------------------------------------------------------------- driver
@@ -537,6 +776,11 @@ def main():
         "xpBudget": xp_budget(text),
         "feats": feats(text),
         "classes": classes(pages),
+        "skills": skills(text),
+        "backgrounds": backgrounds(text),
+        "species": species(text),
+        "weapons": weapons(text),
+        "armor": armor(text),
     }
 
     write_modules(args.out, data)
@@ -545,6 +789,11 @@ def main():
     print(f"xp budget     {len(data['xpBudget'])} levels")
     print(f"feats         {len(data['feats'])}")
     print(f"classes       {len(data['classes'])}")
+    print(f"skills        {len(data['skills'])}")
+    print(f"backgrounds   {len(data['backgrounds'])}")
+    print(f"species       {len(data['species'])}")
+    print(f"weapons       {len(data['weapons'])}")
+    print(f"armor         {len(data['armor'])}")
     if complaints:
         print(f"\nincomplete    {len(complaints)}")
         for n, bad in complaints[:25]:

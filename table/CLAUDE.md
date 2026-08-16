@@ -16,7 +16,7 @@ Procedural character sheets for tabletop RPGs. Repo-wide rules live in
 | Deploy | [`.github/workflows/deploy-table.yml`](../.github/workflows/deploy-table.yml) |
 | Uses | — |
 | Provides | — |
-| Serves | `/cairn`, `/cairn/encounter`, `/cairn/arena`, `/cairn/items`, `/srd5` |
+| Serves | `/cairn`, `/cairn/encounter`, `/cairn/arena`, `/cairn/items`, `/srd5`, `/srd5/corpus` |
 
 Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) →
 `surfaces[]` where `surface == "table"`.
@@ -308,7 +308,7 @@ system is called `srd5` and carries no branding.
 
 One thing worth knowing before working on it: it is parsed out of a **364-page PDF**, not scraped
 from marked-up HTML, so a bad parse does not throw — it comes back as fluent English. That is why
-`srd5.selftest.mjs` runs 67 checks over generated data, and why they are built on reconciliation
+`srd5.selftest.mjs` runs 92 checks over generated data (and `roll.selftest.mjs` another 97 over the roller), and why they are built on reconciliation
 and external grading rather than spot checks. They have already caught seven merged swarms, eighty
 truncated attacks, four dragons with a back-to-front CR line, and one error in the SRD itself.
 

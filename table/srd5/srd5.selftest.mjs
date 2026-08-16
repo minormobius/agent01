@@ -28,7 +28,7 @@
 // https://creativecommons.org/licenses/by/4.0/legalcode.
 
 import { BESTIARY } from './monsters.js';
-import { XP_BUDGET, FEATS, CLASSES } from './data.js';
+import { XP_BUDGET, FEATS, CLASSES, SPECIES, BACKGROUNDS, SKILLS, WEAPONS, ARMOR } from './data.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  ✗', m); } };
@@ -308,6 +308,78 @@ const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  ✗', m); } 
   // is the point — the page claims "the tree is thin" and this is the evidence.
   ok(FEATS.length < 60 && Object.keys(CLASSES).length === 12,
     'the SRD tree really is small — the page must not imply otherwise');
+}
+
+// ---------------------------------------------------------------------------
+// 8. the character-creation tables
+// ---------------------------------------------------------------------------
+//
+// These come out of prose rather than a stat block, and their failure mode is
+// a plausible-looking list with a sentence in it. Every check below is aimed at
+// something that actually happened while writing the parser.
+{
+  ok(SPECIES.length === 9, `9 species (${SPECIES.length})`);
+  ok(BACKGROUNDS.length === 4, `the SRD's 4 backgrounds (${BACKGROUNDS.length})`);
+  ok(SKILLS.length === 18, `18 skills (${SKILLS.length})`);
+  ok(WEAPONS.length === 37, `37 weapons (${WEAPONS.length})`);
+  ok(ARMOR.length === 13, `12 armours and a shield (${ARMOR.length})`);
+
+  // A trait name is a short noun phrase. These were all produced by the parser
+  // at some point and all rendered on the page without complaint:
+  //   "You always have that spell prepared"  (a wrapped sentence)
+  //   "Bonus"                                (the tail of "Proficiency Bonus")
+  const traits = SPECIES.flatMap((sp) => sp.traits.map((t) => ({ sp: sp.name, ...t })));
+  const sentences = traits.filter((t) => /^(You|The|This|If|When|As|Your|Whenever|While|Once|In|Choose)\b/.test(t.name));
+  ok(sentences.length === 0,
+    `no species trait is a sentence (${sentences.slice(0, 3).map((t) => `${t.sp}:"${t.name}"`)})`);
+  ok(traits.every((t) => t.name.split(/\s+/).length <= 3),
+    `every trait name is a short phrase (${traits.filter((t) => t.name.split(/\s+/).length > 3).slice(0, 3).map((t) => t.name)})`);
+  ok(SPECIES.every((sp) => new Set(sp.traits.map((t) => t.name)).size === sp.traits.length),
+    'no species lists the same trait twice');
+  ok(SPECIES.every((sp) => sp.traits.length >= 3), 'every species has at least three traits');
+
+  // Breath Weapon follows the Draconic Ancestors TABLE, so a rule that
+  // required a finished sentence beforehand dropped it. Named here because it
+  // is the case that distinguishes a correct rule from a nearly-correct one.
+  const drag = SPECIES.find((sp) => sp.name === 'Dragonborn');
+  ok(drag && drag.traits.some((t) => t.name === 'Breath Weapon'),
+    'the Dragonborn kept Breath Weapon, which follows a table rather than a sentence');
+
+  ok(SPECIES.every((sp) => [25, 30, 35].includes(sp.speed)),
+    `every speed is real (${SPECIES.map((sp) => sp.speed).filter((x) => ![25, 30, 35].includes(x))})`);
+  ok(SPECIES.every((sp) => /^(Tiny|Small|Medium|Large)( or (Small|Medium))?$/.test(sp.size)),
+    `every size is a size, not a sentence (${SPECIES.map((sp) => sp.size).filter((x) => x.length > 18)})`);
+
+  // Soldier's tool proficiency wraps onto a second line; anchoring fields to
+  // one line lost the whole background and left a plausible three.
+  ok(BACKGROUNDS.some((b) => b.name === 'Soldier'), 'the Soldier survived its wrapped tool line');
+  ok(BACKGROUNDS.every((b) => b.abilities.length === 3
+    && b.abilities.every((a) => ['Str', 'Dex', 'Con', 'Int', 'Wis', 'Cha'].includes(a))),
+  `every background lists three real abilities (${BACKGROUNDS.map((b) => b.abilities.join('/'))})`);
+  ok(BACKGROUNDS.every((b) => b.skills.length === 2
+    && b.skills.every((sk) => SKILLS.some((k) => k.name === sk))),
+  'every background grants two real skills');
+  ok(BACKGROUNDS.every((b) => FEATS.some((f) => b.feat.startsWith(f.name))),
+    `every background's feat is a feat the SRD defines (${BACKGROUNDS.map((b) => b.feat)})`);
+
+  // Weapons: the table was empty for a while because its slice ended at a
+  // heading that appears BEFORE it.
+  ok(WEAPONS.every((w) => /^\d+d\d+$/.test(w.dice)), 'every weapon has a real damage die');
+  ok(WEAPONS.every((w) => ['Bludgeoning', 'Piercing', 'Slashing'].includes(w.damageType)),
+    'every weapon deals a physical damage type');
+  ok(new Set(WEAPONS.map((w) => w.group)).size === 4, 'all four weapon groups are present');
+  ok(WEAPONS.some((w) => w.name === 'Greatsword' && w.dice === '2d6' && w.twoHanded),
+    'the Greatsword is 2d6 and two-handed');
+  ok(WEAPONS.filter((w) => w.finesse).length >= 3, 'finesse weapons exist');
+
+  ok(ARMOR.filter((a) => a.category === 'Heavy').every((a) => !a.addDex),
+    'heavy armour adds no Dexterity');
+  ok(ARMOR.filter((a) => a.category === 'Medium').every((a) => a.dexCap === 2),
+    'medium armour caps Dexterity at +2');
+  ok(ARMOR.filter((a) => a.category === 'Light').every((a) => a.addDex && a.dexCap === null),
+    'light armour adds all of it');
+  const plate = ARMOR.find((a) => a.name === 'Plate Armor');
+  ok(plate && plate.ac === 18 && plate.strength === 15, 'Plate is AC 18 and needs Strength 15');
 }
 
 console.log(`srd5.selftest: ${pass} passed, ${fail} failed`);
