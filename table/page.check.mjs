@@ -186,9 +186,47 @@ for (const size of [1, 4]) {
   await page.close();
 }
 
-// --------------------------------------------- 3. every served path loads clean
-for (const path of ['/cairn/', '/cairn/kit/', '/cairn/encounter/', '/cairn/arena/', '/cairn/items/',
-  '/srd5/', '/srd5/corpus/']) {
+// -------------------------------------------------------------- 3. the trials
+{
+  const { page, noise } = await open(`${base}/cairn/trials/#s=oak-fen-317&n=4`, PHONE);
+  await page.waitForSelector('.rung', { timeout: 20000 });
+  ok((await page.locator('.rung').count()) === 8, 'trials: eight rungs on the ladder');
+
+  await page.click('#begin');
+  await page.waitForSelector('#next:not([hidden])', { timeout: 120000 });
+  // THE PACING IS THE DESIGN: the odds are on screen before you commit.
+  const odds = (await page.textContent('.next .odds')).replace(/\s+/g, ' ');
+  ok(/% of the party expected to fall/.test(odds) && /% chance of a wipe/.test(odds),
+    `trials: the rung is weighed before you go in — ${odds.trim().slice(0, 96)}`);
+
+  await page.click('[data-act="auto"]');
+  await page.waitForSelector('.outcome', { timeout: 240000 });
+  ok(!noise.length, `trials: the page is clean — ${noise.join(' | ')}`);
+  const trials = await page.locator('.trial').count();
+  ok(trials >= 1 && trials <= 8, `trials: the run logged ${trials} rung(s)`);
+  ok(/forecast \d+% · actual \d+%/.test(await page.textContent('.trial .note')),
+    'trials: each rung records what was forecast against what happened');
+
+  // Attrition must be visible: Strength is the resource the run spends, and if
+  // nobody's bar ever moves the carry model is not wired to the page.
+  const bars = await page.locator('.who em').allTextContents();
+  ok(bars.length === 4, `trials: the roster shows all four (${bars.join(', ')})`);
+  ok(bars.some((b) => b === 'dead' || /STR (\d+)\/(\d+)/.test(b) === true),
+    'trials: and reports each delver as a Strength fraction or as dead');
+  const spent = bars.some((b) => {
+    const m = /STR (\d+)\/(\d+)/.exec(b);
+    return b === 'dead' || (m && Number(m[1]) < Number(m[2]));
+  });
+  ok(spent, `trials: somebody paid for the run in Strength or in blood (${bars.join(', ')})`);
+
+  ok(!(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)),
+    'trials: the page does not scroll horizontally on a phone');
+  await page.close();
+}
+
+// --------------------------------------------- 4. every served path loads clean
+for (const path of ['/cairn/', '/cairn/kit/', '/cairn/trials/', '/cairn/encounter/',
+  '/cairn/arena/', '/cairn/items/', '/srd5/', '/srd5/corpus/']) {
   const { page, noise } = await open(base + path);
   await page.waitForTimeout(1500);
   ok(!noise.length, `${path} loads clean — ${noise.join(' | ')}`);

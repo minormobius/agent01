@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The trials — Cairn — table</title>
+<meta name="description" content="Take a Cairn party up a ladder of eight fights that scales to them. Hit protection comes back between rungs, Strength does not, and the fallen only survive if somebody is left standing to reach them.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="The trials">
+<meta property="og:description" content="Eight fights, really rolled, with the wounds carried between them. You see the odds before you commit.">
+<meta property="og:url" content="https://table.mino.mobi/cairn/trials/">
+<meta name="twitter:card" content="summary">
+<link rel="stylesheet" href="../theme.css">
+<style>
+/* ---------------------------------------------------------- the ladder --- */
+.rungs { display: flex; gap: 0.25rem; margin: 0 0 1rem; }
+.rung {
+  flex: 1 1 0; min-width: 0; text-align: center; padding: 0.35rem 0.1rem;
+  border: 1px solid var(--rule); border-radius: 5px; background: var(--panel);
+  font-family: var(--mono); font-size: 0.6rem; color: var(--muted);
+}
+.rung .n { display: block; font-size: 0.8rem; color: var(--text); font-weight: 600; }
+.rung.done { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.rung.done .n { color: var(--accent); }
+.rung.now { border-color: var(--text); border-width: 2px; }
+.rung.now .n { color: var(--text); }
+.rung.cost { border-color: var(--ink); }
+.rung.cost .n { color: var(--ink); }
+
+/* ---------------------------------------------------------- the roster --- */
+.roster { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.4rem; margin-bottom: 1rem; }
+.who {
+  border: 1px solid var(--rule); border-radius: 6px; background: var(--panel);
+  padding: 0.4rem 0.55rem; font-size: 0.85rem;
+}
+.who.gone { opacity: 0.45; border-style: dashed; }
+.who.gone .nm { text-decoration: line-through; }
+.who .nm { font-weight: 600; display: flex; justify-content: space-between; gap: 0.4rem; align-items: baseline; }
+.who .nm em { font-family: var(--mono); font-size: 0.62rem; font-style: normal; color: var(--muted); }
+.who .str { height: 4px; border-radius: 2px; background: var(--rule); margin-top: 0.3rem; overflow: hidden; }
+.who .str > i { display: block; height: 100%; background: var(--accent); }
+.who.hurt .str > i { background: var(--ink); }
+.who .line { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); margin-top: 0.2rem; }
+
+/* ------------------------------------------------------------ the fight -- */
+.next {
+  border: 1px solid var(--rule-hard); border-radius: 8px; background: var(--panel);
+  padding: 0.8rem 0.9rem; margin-bottom: 1rem;
+}
+.next h2 { font-size: 1.05rem; font-weight: 600; }
+.next .odds { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; }
+.next .odds b { color: var(--text); }
+.next .odds b.deadly, .next .odds b.lethal { color: var(--ink); }
+.next .go { margin-top: 0.6rem; display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.next[hidden] { display: none; }
+
+.trial {
+  border: 1px solid var(--rule); border-radius: 6px; background: var(--panel);
+  padding: 0.5rem 0.7rem; margin-bottom: 0.4rem;
+}
+.trial .head { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; font-size: 0.9rem; }
+.trial .head .r { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); }
+.trial .head .verdict { margin-left: auto; font-family: var(--mono); font-size: 0.72rem; white-space: nowrap; }
+.trial .head .verdict.bad { color: var(--ink); font-weight: 600; }
+.trial .head .verdict.clean { color: var(--accent); }
+.trial .note { font-size: 0.78rem; color: var(--muted); margin-top: 0.2rem; }
+.trial .note b { color: var(--ink); font-weight: 600; }
+.trial details { margin-top: 0.3rem; }
+.trial summary { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); cursor: pointer; text-transform: uppercase; letter-spacing: 0.08em; }
+.trial .log { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); margin-top: 0.3rem; line-height: 1.5; }
+
+.outcome {
+  border: 2px solid var(--accent); border-radius: 8px; background: var(--accent-soft);
+  padding: 0.8rem 0.9rem; margin-bottom: 1rem;
+}
+.outcome.wiped { border-color: var(--ink); background: none; }
+.outcome h2 { font-size: 1.15rem; font-weight: 600; }
+.outcome p { font-size: 0.85rem; color: var(--muted); margin-top: 0.3rem; }
+
+.bar { height: 5px; border-radius: 3px; background: var(--rule); overflow: hidden; margin-bottom: 0.4rem; }
+.bar > i { display: block; height: 100%; background: var(--accent); width: 0; transition: width 0.12s linear; }
+.run { margin-bottom: 1rem; }
+.run[hidden] { display: none; }
+.run .what { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); }
+
+.sec { margin-top: 1.6rem; }
+.sec > h2 {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted); font-weight: 600;
+  border-bottom: 1px solid var(--rule); padding-bottom: 0.3rem; margin-bottom: 0.7rem;
+  display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem;
+}
+.sec > h2 .note { text-transform: none; letter-spacing: 0; font-family: var(--serif); font-size: 0.78rem; }
+
+footer {
+  margin-top: 2.5rem; padding-top: 1.2rem; border-top: 1px solid var(--rule);
+  font-size: 0.83rem; color: var(--muted);
+}
+footer p + p { margin-top: 0.6rem; }
+</style>
+</head>
+<body>
+
+<a class="crumb" href="../">← Cairn roller</a>
+
+<header>
+  <h1>The trials</h1>
+  <p class="lede">
+    Eight fights, <strong>really rolled</strong>, with the wounds carried between them. Hit
+    protection comes back with a rest; Strength does not, and Strength is what kills you. A delver
+    on critical damage only wakes up if somebody is left standing to reach them.
+    <span class="aside">You see the odds before you commit to each rung — the oracle weighs the
+    fight first, against the party exactly as they now stand.</span>
+  </p>
+</header>
+
+<div class="controls">
+  <span class="ctl-label">seed</span>
+  <input type="text" id="seed" spellcheck="false" aria-label="Seed">
+  <span class="ctl-label">party</span>
+  <select id="size" aria-label="Party size">
+    <option value="3">3</option><option value="4" selected>4</option><option value="6">6</option>
+  </select>
+  <span class="ctl-label">ladder</span>
+  <select id="mode" aria-label="Ladder mode">
+    <option value="scaled">scaled to you</option>
+    <option value="fixed">fixed at the door</option>
+  </select>
+  <label class="ctl-label" style="display:inline-flex;gap:0.3rem;align-items:center">
+    <input type="checkbox" id="kit" checked> kit first
+  </label>
+  <button class="primary" id="begin">Begin</button>
+  <button id="copy">Copy link</button>
+  <span class="status" id="status"></span>
+</div>
+
+<div class="rungs" id="rungs"></div>
+<div class="roster" id="roster"></div>
+
+<div class="run" id="progress" hidden>
+  <div class="bar"><i id="bar"></i></div>
+  <div class="what" id="progress-note"></div>
+</div>
+
+<div class="next" id="next" hidden></div>
+<div id="outcome"></div>
+
+<section class="overview" id="overview" hidden aria-label="Party overview"></section>
+
+<main id="log"></main>
+
+<footer>
+  <p>
+    <strong>Cairn Second Edition</strong> is by <a href="https://cairnrpg.com/">Yochai Gal</a>,
+    licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> — see
+    <a href="../LICENSE.md">LICENSE.md</a>. What carries between rungs is Cairn's own recovery
+    rules read as rules. The eight toll targets, the ladder and the run structure are ours.
+  </p>
+  <p>
+    Every fight is played in your browser from a seed, under the same combat model the
+    <a href="../encounter/">oracle</a> and the <a href="../arena/">arena</a> use —
+    <a href="../trials.js">trials.js</a> · <a href="../combat.js">combat.js</a>.
+    The same seed replays the same run, exactly.
+  </p>
+</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

@@ -16,7 +16,7 @@ Procedural character sheets for tabletop RPGs. Repo-wide rules live in
 | Deploy | [`.github/workflows/deploy-table.yml`](../.github/workflows/deploy-table.yml) |
 | Uses | — |
 | Provides | — |
-| Serves | `/cairn`, `/cairn/kit`, `/cairn/encounter`, `/cairn/arena`, `/cairn/items`, `/srd5`, `/srd5/corpus` |
+| Serves | `/cairn`, `/cairn/kit`, `/cairn/trials`, `/cairn/encounter`, `/cairn/arena`, `/cairn/items`, `/srd5`, `/srd5/corpus` |
 
 Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) →
 `surfaces[]` where `surface == "table"`.
@@ -85,7 +85,10 @@ obligations it puts on us: [`cairn/LICENSE.md`](cairn/LICENSE.md).
 | `cairn/condition.js` | Kitting a party out: who gains most from what, **measured**, with error bars |
 | `cairn/condition.selftest.mjs` | 53 checks. **The allocator's failure mode is confident nonsense — run this** |
 | `cairn/overview-card.js` + `cairn/theme.css` | The party card's markup and styling, shared by two pages |
+| `cairn/trials.js` | A ladder of real fights, with Cairn's recovery rules carrying between them |
+| `cairn/trials.selftest.mjs` | 47 checks. **State that survives a fight is a new way to be wrong — run this** |
 | `cairn/kit/` | The conditioning screen |
+| `cairn/trials/` | The ladder's page |
 | `cairn/items/` | The item study's page |
 | `page.check.mjs` | Loads every page of the surface in a real browser. **Run it when you touch a page** |
 
@@ -100,6 +103,7 @@ node table/cairn/combat.selftest.mjs    # must pass; a wrong simulator looks rig
 node table/cairn/delve.selftest.mjs     # must pass; a wrong advancement model looks right too
 node table/cairn/effects.selftest.mjs   # must pass; a mis-wired ability does nothing, silently
 node table/cairn/condition.selftest.mjs # must pass; measuring has to keep beating guessing
+node table/cairn/trials.selftest.mjs    # must pass; what carries between fights is easy to get backwards
 ```
 
 ### The party overview card — a radar that had to earn it
@@ -174,6 +178,52 @@ Two rules for anything added here:
    draft wrote its own and weighted it per ITEM; the SRD has a hundred spells
    and six kinds of armour, so hauls came out half spellbooks. `delve.js`
    weights per KIND, which is correct and already shared.
+
+### /cairn/trials — a ladder, and the invariance that had to be admitted
+
+Eight fights, really rolled, with the wounds carried between them. What carries
+is Cairn's own recovery rules read as rules rather than as flavour, and none of
+it is invented:
+
+- **Hit protection comes back** — "a few moments' rest and some water".
+- **Strength does not** — ability loss wants a week or magic. STR is what the
+  run spends, and it is what kills you: damage overflows into it and 0 is death.
+- **The fallen need somebody standing.** A PC on critical damage "will die in
+  one hour unless stabilised by an ally", so a total party knock-down is a total
+  party kill. That is why wipes here are absolute.
+
+**Two ladder modes, because the obvious one is reward-invariant and shipping it
+alone would have been a lie by omission.** The natural reading of "scales in
+difficulty" is to search each rung against the party as they now stand. But a
+rung is defined by a *toll* — so a party that has just been handed a blast
+sphere is simply given a bigger fight, and the odds are exactly what they were.
+Measured over 50 runs per cell:
+
+| | bare | kitted + rewards |
+|---|---|---|
+| **scaled** (re-weighed each rung) | 44% ± 7 | 32% ± 7 |
+| **fixed** (weighed once at the door) | 12% ± 5 | 40% ± 7 |
+
+Under `scaled`, loot buys nothing — the difference is inside the error and if
+anything points the wrong way. Under `fixed`, it more than triples completion.
+So both are offered and the page says which is which.
+
+The selftest does **not** re-run those rates: four runs a cell has a standard
+error near 25 points and could not see a 28-point gap. An early draft asserted
+mean depth instead and failed on noise, because depth saturates — nearly every
+run reaches rung 7 or 8 regardless. A second draft predicted that a fixed
+ladder's forecasts would read low as they went stale, and the measurement said
+otherwise: `actual − forecast` is negative in *both* modes, because a single
+fight usually beats its own mean (the toll distribution is skewed). What the
+suite checks instead is the mechanism as a code fact — every `fixed` rung must
+be exactly the rung the party at the door was weighed for, and a `scaled` one
+must diverge from that once anybody is hurt.
+
+One bug worth remembering: **a summon spell pushes an extra combatant onto the
+party array mid-fight**, so reading the wounds back by index after the fight
+wrote one delver's Strength onto another. It threw on the fifth party out of
+twenty. Trials map roster entries to combatants by reference, and section 4 of
+the selftest forces a summoner into a run rather than waiting for one.
 
 ### /cairn/encounter — the oracle
 
@@ -446,7 +496,7 @@ starting at y=678 on a phone — entirely off the screen it was built for.
 
 ```sh
 npm i playwright-core        # Chromium is already at /opt/pw-browsers
-node table/page.check.mjs    # 33 checks; skips with exit 0 if the above is missing
+node table/page.check.mjs    # 56 checks; skips with exit 0 if the above is missing
 ```
 
 It is **not** in the deploy gate. The gate runs plain node selftests with no

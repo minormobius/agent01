@@ -146,6 +146,8 @@ function renderResult() {
     <div class="onward-row">
       <a href="../encounter/${location.hash}"><b>Encounter oracle →</b>
         <span>Pick a fight and see what it costs this party, now that they are carrying this.</span></a>
+      <a href="../trials/${location.hash}"><b>The trials →</b>
+        <span>Eight fights up a ladder, wounds carried between them. Strength does not come back.</span></a>
       <a href="../arena/${location.hash}"><b>The arena →</b>
         <span>Watch one fight play out round by round, or pilot it yourself.</span></a>
     </div>`;
