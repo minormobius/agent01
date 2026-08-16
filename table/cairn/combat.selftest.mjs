@@ -657,7 +657,9 @@ ok(BESTIARY.length >= 80, `bestiary has ${BESTIARY.length} monsters`);
   ok(eachAxis.length === 4, `four axes survived selection (${eachAxis})`);
   ok(AXES.every((a) => a.why && a.corrByDelve.length === 4),
     'every axis records why it exists and its correlation at each delve level');
-  ok(REJECTED.length >= 4, `and the rejected candidates are kept with their numbers (${REJECTED.length})`);
+  ok(REJECTED.length >= 7, `and the rejected candidates are kept with their numbers (${REJECTED.length})`);
+  ok(REJECTED.some((r) => r.key === 'sweep' && /0 of 3000/.test(r.verdict)),
+    'sweep is on record as dropped for never varying, not for failing to predict');
   ok(REJECTED.some((r) => r.key === 'recovery' && r.corr.fresh * r.corr.delved < 0),
     'the healing axis is on record as flipping sign — "every party needs a healer" is not a Cairn fact');
 
@@ -696,7 +698,7 @@ ok(BESTIARY.length >= 80, `bestiary has ${BESTIARY.length} monsters`);
   // se ≈ 0.16, in the two regimes the axes were fitted in, costs about a
   // second and actually tests the claim.
   const basket = [['goblin', 5], ['skeleton', 4], ['bandit', 4], ['wolf', 3], ['ogre', 2]];
-  const sweepAt = (delves) => {
+  const measureAt = (delves) => {
     const rows = [];
     for (let i = 0; i < 40; i++) {
       const pcs = rollParty(`radar/${i}`, 4).members
@@ -714,8 +716,8 @@ ok(BESTIARY.length >= 80, `bestiary has ${BESTIARY.length} monsters`);
     AXES.forEach((a, i) => { out[a.key] = corr(rows.map((r) => r.p.axes[i].raw), tolls); });
     return out;
   };
-  const fresh = sweepAt(0);
-  const delved = sweepAt(3);
+  const fresh = measureAt(0);
+  const delved = measureAt(3);
 
   for (const [name, s] of [['fresh', fresh], ['delved', delved]]) {
     ok(Math.max(...s.tolls) - Math.min(...s.tolls) > 0.1,
@@ -738,22 +740,66 @@ ok(BESTIARY.length >= 80, `bestiary has ${BESTIARY.length} monsters`);
   ok(Math.abs(delved.grit) < Math.abs(fresh.grit) - 0.1,
     `and fades once armour piles up (${delved.grit.toFixed(2)} at three delves) — if this stops ` +
     'being true the mechanism in party.js is wrong, not just the number');
-  ok(fresh.sweep === 0, 'sweep is identically zero for fresh parties: nobody starts with a bomb');
-  ok(delved.sweep < -0.15,
-    `and is decisive once someone finds one (${delved.sweep.toFixed(2)})`);
+  // `speed` is the axis that replaced `sweep`, and unlike the others it is
+  // required to work in BOTH regimes — that is the whole reason it is here.
+  ok(fresh.speed < -0.1 && delved.speed < -0.1,
+    `speed predicts in both regimes (${fresh.speed.toFixed(2)} fresh, ${delved.speed.toFixed(2)} delved)`);
 
-  // The weighting follows the regime: a fresh party is not marked down for
-  // lacking a bomb it could not possibly own.
+  // EVERY AXIS MUST VARY WHERE IT IS DRAWN. This is the rule `sweep` broke: it
+  // predicted beautifully for delved parties and was identically zero for
+  // fresh ones, so a quarter of the roller's chart said nothing at all. A
+  // correlation earns an axis its place; a non-zero spread keeps it there.
+  for (const [name, delves] of [['fresh', 0], ['delved', 3]]) {
+    for (let i = 0; i < AXES.length; i++) {
+      const vals = Array.from({ length: 40 }, (_, k) => {
+        const p = rollParty(`radar/${k}`, 4).members
+          .map((m, j) => combatantFromCharacter(delves ? delve(m, delves, { seed: `${j}` }) : m));
+        return profile(p, { delves }).axes[i].raw;
+      });
+      const mu = vals.reduce((a, b) => a + b, 0) / vals.length;
+      const spread = Math.sqrt(vals.reduce((t, v) => t + (v - mu) ** 2, 0) / vals.length);
+      ok(spread > 0.01,
+        `${name}: ${AXES[i].key} actually varies between parties (sd ${spread.toFixed(2)}) — ` +
+        'an axis that is the same for everybody is a spoke, not a measurement');
+    }
+  }
+
+  // AND `speed`'S MECHANISM IS ISOLATED, not merely correlated. Cairn: "During
+  // the first round of combat, each PC must make a DEX save in order to act."
+  // Raise Dexterity and the toll falls; take away that one save, by starting
+  // the fight surprised, and raising Dexterity does exactly nothing.
+  {
+    const foes = () => Array.from({ length: 5 },
+      (_, i) => combatantFromMonster(BESTIARY.find((m) => m.id === 'goblin'), i));
+    const shift = (party, by) => party.map((c) => ({ ...c, DEX: Math.max(3, Math.min(18, c.DEX + by)) }));
+    const measure = (opts) => {
+      let low = 0, high = 0;
+      for (let i = 0; i < 12; i++) {
+        const party = rollParty(`dexab/${i}`, 4).members.map((m) => combatantFromCharacter(m));
+        low += assess(shift(party, -3), foes(), { trials: 400, seed: `dexab/${i}`, ...opts }).toll;
+        high += assess(shift(party, 3), foes(), { trials: 400, seed: `dexab/${i}`, ...opts }).toll;
+      }
+      return (low - high) / 12;
+    };
+    const normal = measure({});
+    const surprised = measure({ surprise: true });
+    ok(normal > 0.005,
+      `six points of Dexterity is worth ${normal.toFixed(4)} of the toll`);
+    ok(Math.abs(surprised) < 1e-9,
+      `and worth exactly nothing when nobody gets the first-round save (${surprised.toFixed(4)}) — ` +
+      'this is what makes speed a mechanism and not a coincidence');
+  }
+
   const raw4 = rollParty('ov', 4).members;
   const pcs = raw4.map((m) => combatantFromCharacter(m));
   const vets = raw4.map((m, k) => combatantFromCharacter(delve(m, 3, { seed: `${k}` })));
   ok(profile(pcs).delves === 0 && profile(vets).delves === 3,
     'the profile reads how far in the party is off the party itself');
-  ok(profile(pcs).axes.find((a) => a.key === 'sweep').weight === 0,
-    'so sweep carries no weight at zero delves');
+  ok(profile(pcs).axes.every((a) => a.weight > 0),
+    'and every axis now carries weight on a freshly rolled party — none of them is dead on arrival');
   ok(profile(vets).axes.find((a) => a.key === 'grit').weight
     < profile(pcs).axes.find((a) => a.key === 'grit').weight,
-  'and grit counts for less the further in they are');
+  'grit counts for less the further in they are');
 
   // and the overview a page renders is well formed
   const o = overview(pcs);

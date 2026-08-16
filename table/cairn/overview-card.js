@@ -66,19 +66,17 @@ export function overviewCard(pcs, opts = {}) {
   const n = pcs.length;
 
   const legend = o.axes.map((a) => {
-    const decimals = a.key === 'sweep' ? 2 : 1;
     // The correlation is on screen, not buried in a comment. It is the reason
-    // the axis is on the chart at all, and an axis reading 0.00 is telling you
-    // it predicts nothing for a party this fresh.
+    // the axis is on the chart at all.
     const title = `${a.why}. Correlation with casualties for a party ${o.delves} `
       + `${o.delves === 1 ? 'delve' : 'delves'} in: ${a.corr.toFixed(2)} `
       + `(negative is good). Across delve levels 0–3: ${a.corrByDelve.join(', ')}.`;
     const gi = ghost && ghost.axes.find((x) => x.key === a.key);
     const moved = gi && Math.abs(gi.raw - a.raw) > 0.005
-      ? `<span class="was">was ${gi.raw.toFixed(decimals)}</span>` : '';
+      ? `<span class="was">was ${gi.raw.toFixed(1)}</span>` : '';
     return `<div class="${a.weight ? '' : 'off'}" title="${escapeHtml(title)}">
       <span class="k">${escapeHtml(a.label)}</span>
-      <span class="v">${a.raw.toFixed(decimals)}</span>
+      <span class="v">${a.raw.toFixed(1)}</span>
       ${moved}
       <span class="c">r ${a.corr.toFixed(2)}</span>
     </div>`;
@@ -95,9 +93,10 @@ export function overviewCard(pcs, opts = {}) {
 
   const filled = ROLES.length - o.missing.length;
   const strongest = o.axes.reduce((a, b) => (b.value > a.value ? b : a));
-  // A fresh party owning no bomb is not a flaw in the party; the axis simply
-  // does not exist yet. Say which, rather than letting a hollow radar read as
-  // a bad roll.
+  // Kept as a guard, not as decoration: an axis carrying no weight at this
+  // party's delve level is greyed and named rather than drawn as a zero the
+  // reader would take for a weakness. Nothing triggers it since `sweep` — the
+  // axis that was permanently zero for fresh parties — was replaced by `speed`.
   const notYet = o.axes.filter((a) => !a.weight).map((a) => a.label);
   const enc = o.encumbered;
   const delta = ghost ? Math.round(o.score * 100) - Math.round(ghost.score * 100) : 0;
@@ -117,7 +116,7 @@ export function overviewCard(pcs, opts = {}) {
       <p class="ov-note">
         ${n} ${n === 1 ? 'delver' : 'delvers'} · ${o.hp} HP · ${o.armor} armour ·
         ${filled}/${ROLES.length} roles · strongest at <b>${escapeHtml(strongest.label)}</b>${
-  notYet.length ? ` · no <b>${notYet.map(escapeHtml).join(' or ')}</b> yet: nobody starts with a bomb` : ''}${
+  notYet.length ? ` · <b>${notYet.map(escapeHtml).join(' and ')}</b> ${notYet.length === 1 ? 'does' : 'do'} not apply to a party this fresh` : ''}${
   enc.length ? ` · <b class="warn">${enc.map(escapeHtml).join(', ')}</b> ${enc.length === 1 ? 'has a full pack, so is' : 'have full packs, so are'} at 0 HP` : ''}.
         Every axis earned its place by predicting measured casualties — hover one for the number.
       </p>

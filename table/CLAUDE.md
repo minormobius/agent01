@@ -72,7 +72,7 @@ obligations it puts on us: [`cairn/LICENSE.md`](cairn/LICENSE.md).
 | `cairn/tools/scrape-monsters.py` | What generated it |
 | `cairn/combat.js` | The encounter oracle: the combat simulator, the challenge metric, the bestiary search |
 | `cairn/party.js` | What a party is good at, as four **measured** axes — the overview card's radar |
-| `cairn/combat.selftest.mjs` | 134 checks. **A simulator fails silently — run this** |
+| `cairn/combat.selftest.mjs` | 144 checks. **A simulator fails silently — run this** |
 | `cairn/items.js` | **Generated.** The marketplace, the 46 relics, the d100 spellbook table |
 | `cairn/tools/scrape-items.py` | What generated it |
 | `cairn/effects.js` | The mechanical vocabulary: what monster abilities and spells the simulator can see, and the count of what it cannot |
@@ -111,14 +111,35 @@ node table/cairn/trials.selftest.mjs    # must pass; what carries between fights
 The roller's config screen carries a radar of four axes and five role chips
 (`cairn/party.js`). A radar plot is the easiest chart in the world to lie with:
 pick axes that sound right, draw a pleasing shape, never check. So none of these
-axes were chosen. Nine candidates were scored across parties whose casualties
+axes were chosen. Twenty candidates across two rounds were scored over parties whose casualties
 were then **measured** against a five-encounter basket, and correlation decided
-what survived. Four did; five are kept in `REJECTED` with their numbers, because
+what survived. Four did; eight are kept in `REJECTED` with their numbers, because
 a dropped axis is a finding — and the loudest of them is that **healing does not
 predict survival in Cairn**. "Every party needs a healer" is not a fact here:
 healing restores hit protection, and it is Strength that kills you.
 
-Three traps this went through, all of which are the same trap:
+**An axis must also VARY where it is drawn.** A second round of selection
+happened after the first shipped, because `sweep` — blast weapons — was a
+permanently empty spoke on the roller's card. Blast comes only from loot and
+**0 of 3000 rolled characters own any**, so the axis predicted well for delved
+parties and said nothing whatever about a fresh one: a quarter of the chart
+wasted on the screen most people see first. It is a yes/no fact anyway, so it
+moved to the `bomb` role chip, where yes/no facts belong.
+
+Its replacement, `speed` (Dexterity), is the only axis here whose mechanism was
+**isolated rather than inferred**. Cairn: *"During the first round of combat,
+each PC must make a DEX save in order to act."* Take the same parties, shift
+Dexterity ±3, and the toll moves by 0.073. Run the identical test with the
+fight starting surprised — which is exactly that one save removed — and the
+effect is **0.0000**. Not a correlation that survived a control: the single
+rule that causes it, switched off and back on. It also beat every other
+candidate on partial correlation with durability, damage AND grit held constant
+(−0.53 fresh, −0.24 delved), and unlike `teeth` or `weakest` it works in both
+regimes. Those two are in `REJECTED` with their numbers: `weakest` looked superb
+at −0.64 and collapsed to −0.09 once mean durability was controlled, which is
+to say it was measuring durability with extra steps.
+
+Four traps this went through, all of which are the same trap:
 
 - **A confound.** `carry` (free slots) correlated with deaths at **+0.75** until
   the delve count was held constant, at which point it flipped sign. Emptier
@@ -128,6 +149,9 @@ Three traps this went through, all of which are the same trap:
   because ×1, ×2, ×3 and ×4 were all tried and ×2 was the most stable across
   delve levels — armour is subtracted from every hit, so it is worth several hit
   points and not one.
+- **An axis that could not vary.** See `sweep`, above: it correlated, so it
+  passed every check the suite had, and it was still dead on the page. The
+  suite now asserts a non-zero spread for every axis in both regimes.
 - **A sample too small to test the thing it was testing.** The validation test
   first sampled 26 parties, reported grit at **+0.42**, and appeared to refute
   the axis. At n=26 the standard error is 0.21: it was measuring noise. Measured
@@ -496,7 +520,7 @@ starting at y=678 on a phone — entirely off the screen it was built for.
 
 ```sh
 npm i playwright-core        # Chromium is already at /opt/pw-browsers
-node table/page.check.mjs    # 56 checks; skips with exit 0 if the above is missing
+node table/page.check.mjs    # 60 checks; skips with exit 0 if the above is missing
 ```
 
 It is **not** in the deploy gate. The gate runs plain node selftests with no

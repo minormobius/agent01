@@ -39,7 +39,7 @@ import { BESTIARY } from './monsters.js';
 import {
   assess, simulate, band, combatantFromCharacter, combatantFromMonster,
 } from './combat.js';
-import { rollHaul, allocate } from './condition.js';
+import { rollHaul, allocate, extrasOf } from './condition.js';
 
 /**
  * The rungs, as target tolls rather than band names.
@@ -256,19 +256,11 @@ export function* rewardRung(run, { count = 3, trials = 250 } = {}) {
     gear: [...r.character.gear, ...r.extras].map((g) => ({ ...g })),
   }));
   const out = yield* allocate(asChars, haul.items, { trials, seed: `${run.seed}/reward/${run.rung}` });
-  // Read the allocation back onto the run: what each survivor now carries,
-  // minus what they were rolled with, is their extras.
-  out.members.forEach((m, k) => {
-    const base = live[k].character.gear;
-    const kept = [];
-    const pool = m.gear.map((g) => ({ ...g }));
-    for (const g of base) {
-      const at = pool.findIndex((p) => p.text === g.text);
-      if (at >= 0) pool.splice(at, 1);
-    }
-    kept.push(...pool);
-    live[k].extras = kept;
-  });
+  // Read the allocation back onto the run. `extrasOf` diffs against the sheet
+  // as ROLLED, not against what they were already carrying, so the result is
+  // the whole pack-beyond-the-sheet rather than just this round's winnings.
+  const gained = extrasOf(out.members, live.map((r) => r.character));
+  gained.forEach((kept, k) => { live[k].extras = kept; });
   return out;
 }
 

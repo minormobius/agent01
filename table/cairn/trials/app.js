@@ -12,7 +12,7 @@
 
 import { rollParty, coinSeed } from '../roll.js';
 import { combatantFromCharacter } from '../combat.js';
-import { rollHaul, allocate } from '../condition.js';
+import { kitParty } from '../condition.js';
 import { overviewCard } from '../overview-card.js';
 import {
   RUNGS, MODES, newRun, combatants, standing, findRung, fightRung, rewardRung,
@@ -23,7 +23,11 @@ const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 const state = {
-  seed: '', size: 4, mode: 'scaled', kit: true,
+  // `source` and `count` are the kit screen's haul settings, carried in the
+  // same hash. They used to be ignored here, so a party built next door with
+  // twelve bought items arrived kitted from eight found ones — a different
+  // party wearing the same name, with the weapon it was given missing.
+  seed: '', size: 4, mode: 'scaled', kit: true, source: 'found', count: 8,
   party: [], run: null, entry: null, pending: null, busy: false,
 };
 
@@ -34,12 +38,17 @@ function readHash() {
     size: Math.min(6, Math.max(1, Number(p.get('n')) || 4)),
     mode: MODES.includes(p.get('m')) ? p.get('m') : 'scaled',
     kit: p.get('kit') !== '0',
+    source: p.get('src') === 'bought' ? 'bought' : 'found',
+    count: Math.min(12, Math.max(4, Number(p.get('h')) || 8)),
   };
 }
 function writeHash() {
   const p = new URLSearchParams({ s: state.seed, n: String(state.size) });
   if (state.mode !== 'scaled') p.set('m', state.mode);
   if (!state.kit) p.set('kit', '0');
+  // Round-tripped so the link back to /cairn/kit/ rebuilds the same party.
+  if (state.source !== 'found') p.set('src', state.source);
+  if (state.count !== 8) p.set('h', String(state.count));
   history.replaceState(null, '', `#${p}`);
 }
 function say(m) {
@@ -90,7 +99,13 @@ function drawRoster() {
 
 function drawCard() {
   const run = state.run;
-  const now = (run ? combatants(run).filter((c) => !c.dead) : state.party.map((c) => combatantFromCharacter(c)));
+  // Before the run starts, show the party AS THEY WILL WALK IN — kit included.
+  // This page used to draw the bare roll here and only apply the kit once you
+  // pressed Begin, so a party you had just built next door appeared to lose its
+  // weapon and half its score the moment you arrived.
+  const now = run
+    ? combatants(run).filter((c) => !c.dead)
+    : state.party.map((c, i) => combatantFromCharacter(c, (state.extras && state.extras[i]) || []));
   if (!now.length) { $('overview').hidden = true; return; }
   $('overview').hidden = false;
   $('overview').innerHTML = overviewCard(now, { was: state.entry });
@@ -230,29 +245,22 @@ function goIn(auto = false) {
   reward(() => scout(auto && !run.over ? () => goIn(true) : null));
 }
 
-/** Kit the party out before the first rung, the same way /cairn/kit/ does. */
+/**
+ * Kit the party out before the first rung — by calling the same function the
+ * kit screen calls, with the same settings out of the same hash. This page
+ * used to roll its own haul from a different seed, so a party you had just
+ * built next door arrived carrying somebody else's loot and its score fell.
+ */
 function kitThenStart(then) {
-  const haul = rollHaul(state.seed, { count: 8 });
-  const it = allocate(state.party, haul.items, { trials: 400, seed: `${state.seed}/kit` });
+  const it = kitParty(state.party, {
+    seed: state.seed, count: state.count, source: state.source, trials: 400,
+  });
   busy(true, 'kitting them out before the door…');
   const step = () => {
     const until = performance.now() + 60;
     let next = it.next();
     while (!next.done && performance.now() < until) next = it.next();
-    if (next.done) {
-      // What each member now carries beyond what they were rolled with.
-      const extras = next.value.members.map((m, k) => {
-        const pool = m.gear.map((g) => ({ ...g }));
-        for (const g of state.party[k].gear) {
-          const at = pool.findIndex((p) => p.text === g.text);
-          if (at >= 0) pool.splice(at, 1);
-        }
-        return pool;
-      });
-      busy(false);
-      then(extras);
-      return;
-    }
+    if (next.done) { busy(false); then(next.value.extras); return; }
     $('bar').style.width = `${Math.min(100, (next.value.progress / next.value.of) * 100).toFixed(1)}%`;
     requestAnimationFrame(step);
   };
@@ -261,18 +269,10 @@ function kitThenStart(then) {
 
 function begin() {
   if (state.busy) return;
-  state.party = rollParty(state.seed, state.size).members;
-  // The ghost on the radar is the party as they were rolled, before any kit —
-  // so the card shows what the run has done to them, cumulatively.
-  state.entry = state.party.map((c) => combatantFromCharacter(c));
-  writeHash();
-  const start = (extras) => {
-    state.run = newRun(state.party, { seed: state.seed, extras, mode: state.mode });
-    state.entryCombatants = combatants(state.run);
-    draw();
-    scout();
-  };
-  if (state.kit) kitThenStart(start); else start(null);
+  state.run = newRun(state.party, { seed: state.seed, extras: state.extras, mode: state.mode });
+  state.entryCombatants = combatants(state.run);
+  draw();
+  scout();
 }
 
 // ---------------------------------------------------------------- behaviour
@@ -284,6 +284,14 @@ $('next').addEventListener('click', (e) => {
   if (act.dataset.act === 'auto') goIn(true);
 });
 $('begin').addEventListener('click', begin);
+// Without this the screen was one party for as long as you stayed on it.
+$('roll').addEventListener('click', () => {
+  if (state.busy) return;
+  state.seed = coinSeed();
+  $('seed').value = state.seed;
+  reset();
+  say('new party');
+});
 $('seed').addEventListener('change', () => {
   state.seed = $('seed').value.trim() || coinSeed();
   $('seed').value = state.seed;
@@ -300,22 +308,31 @@ $('copy').addEventListener('click', async () => {
   } catch { say(location.href); }
 });
 
+/**
+ * Roll the party and, if the kit is on, kit them — BEFORE the run starts, so
+ * the card on arrival is the party you are about to send in rather than the
+ * bare sheet. The kit is the slow part, so `Begin` stays disabled through it.
+ */
 function reset() {
   state.run = null;
   state.pending = null;
+  state.extras = null;
   state.party = rollParty(state.seed, state.size).members;
-  state.entry = null;
+  // The ghost on the radar is always the party as ROLLED, so the card shows
+  // everything the kit and then the run have done to them, cumulatively.
+  state.entry = state.party.map((c) => combatantFromCharacter(c));
   writeHash();
   draw();
+  if (state.kit) kitThenStart((extras) => { state.extras = extras; draw(); });
 }
 
 // ------------------------------------------------------------------- start
 
-const fromUrl = readHash();
-state.seed = fromUrl.seed || coinSeed();
-state.size = fromUrl.size;
-state.mode = fromUrl.mode;
-state.kit = fromUrl.kit;
+// Take EVERY field readHash returns. Adding one to the reader and forgetting
+// it here is silent — the page reads `src=bought&h=12` off the URL, ignores it,
+// and kits the party from a default haul that looks perfectly plausible.
+Object.assign(state, readHash());
+state.seed = state.seed || coinSeed();
 $('seed').value = state.seed;
 $('size').value = String(state.size);
 $('mode').value = state.mode;

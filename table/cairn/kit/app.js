@@ -8,7 +8,7 @@
 
 import { rollParty, packInventory, coinSeed } from '../roll.js';
 import { combatantFromCharacter } from '../combat.js';
-import { rollHaul, allocate } from '../condition.js';
+import { kitParty } from '../condition.js';
 import { overviewCard } from '../overview-card.js';
 
 const $ = (id) => document.getElementById(id);
@@ -169,15 +169,11 @@ function run() {
   $('run').disabled = true;
   $('run-progress').hidden = false;
 
-  const haul = rollHaul(`${state.seed}/${state.count}`, { count: state.count, source: state.source });
-  if (!haul.items.length) {
-    say('that budget buys nothing');
-    state.running = false;
-    $('run').disabled = false;
-    $('run-progress').hidden = true;
-    return;
-  }
-  const it = allocate(state.party, haul.items, { trials: 400, seed: `${state.seed}/kit` });
+  // kitParty owns the seed derivation, so the trials screen this links to
+  // reproduces exactly this haul and exactly this allocation.
+  const it = kitParty(state.party, {
+    seed: state.seed, count: state.count, source: state.source, trials: 400,
+  });
 
   // Slice the work between frames. Roughly 60ms per slice keeps the bar moving
   // without spending more time yielding than simulating.
@@ -192,7 +188,9 @@ function run() {
       $('run-progress').hidden = true;
       renderCard();
       renderResult();
-      say(`${state.result.awards.length} of ${haul.items.length} were worth a slot`);
+      const n = state.result.haul.items.length;
+      if (!n) { say('that budget buys nothing'); return; }
+      say(`${state.result.awards.length} of ${n} were worth a slot`);
       return;
     }
     const { progress, of, note } = next.value;
@@ -206,6 +204,15 @@ function run() {
 // ---------------------------------------------------------------- behaviour
 
 $('run').addEventListener('click', run);
+// A fresh party AND a fresh haul, because the seed drives both. Without this
+// the screen was one party for as long as you stayed on it.
+$('roll').addEventListener('click', () => {
+  if (state.running) return;
+  state.seed = coinSeed();
+  $('seed').value = state.seed;
+  reroll();
+  say('new party, new haul');
+});
 $('seed').addEventListener('change', () => {
   state.seed = $('seed').value.trim() || coinSeed();
   $('seed').value = state.seed;
@@ -228,11 +235,10 @@ $('copy').addEventListener('click', async () => {
 
 // ------------------------------------------------------------------- start
 
-const fromUrl = readHash();
-state.seed = fromUrl.seed || coinSeed();
-state.size = fromUrl.size;
-state.source = fromUrl.source;
-state.count = fromUrl.count;
+// Take every field readHash returns, so adding one there cannot be silently
+// dropped here — see the same note in ../trials/app.js, where it was.
+Object.assign(state, readHash());
+state.seed = state.seed || coinSeed();
 $('seed').value = state.seed;
 $('size').value = String(state.size);
 $('source').value = state.source;

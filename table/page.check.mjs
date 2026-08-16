@@ -115,9 +115,12 @@ for (const size of [1, 4]) {
   const pts = await page.getAttribute('.radar polygon.shape', 'points');
   ok(pts && !/NaN|undefined/.test(pts), `${who}: the radar geometry is finite (${pts})`);
   const labels = (await page.locator('.radar text').allTextContents()).join(',');
-  ok(labels === 'durability,damage,grit,sweep', `${who}: axis labels in order (${labels})`);
-  ok((await page.locator('.radar text.off').count()) === 1,
-    `${who}: sweep alone is greyed — a fresh party owns no bomb, and the card should say so`);
+  ok(labels === 'durability,damage,grit,speed', `${who}: axis labels in order (${labels})`);
+  // `sweep` used to sit here permanently greyed, which is what got it replaced:
+  // an axis that is zero for every fresh party is a quarter of the chart saying
+  // nothing. All four must now be live on a party straight off the dice.
+  ok((await page.locator('.radar text.off').count()) === 0,
+    `${who}: no axis is dead on a freshly rolled party`);
 
   // THE LAYOUT ASSERTION THIS FILE WAS WRITTEN FOR. The card has to be wholly
   // visible without scrolling, on a phone, or it is not doing its job.
@@ -186,7 +189,42 @@ for (const size of [1, 4]) {
   await page.close();
 }
 
-// -------------------------------------------------------------- 3. the trials
+// ------------------------------- 3. the party survives the walk between pages
+//
+// THE REGRESSION THIS EXISTS FOR. The kit screen and the trials share a
+// permalink and disagreed about what it meant: one drew its haul from
+// `<seed>/<count>`, the other from `<seed>` while ignoring the source and size
+// in the URL entirely, and the trials page then drew the BARE roll until you
+// pressed Begin. A party built next door arrived carrying someone else's loot
+// and its score fell from 43 to 21 with the damage axis gone. Nothing threw.
+// Only comparing the two screens catches this, so the two screens get compared.
+for (const hash of ['#s=oak-fen-317&n=4', '#s=oak-fen-317&n=4&src=bought&h=12']) {
+  const kit = await open(`${base}/cairn/kit/${hash}`, PHONE);
+  await kit.page.waitForSelector('#overview:not([hidden])', { timeout: 20000 });
+  await kit.page.click('#run');
+  await kit.page.waitForSelector('.award .to', { timeout: 120000 });
+  const kitScore = (await kit.page.textContent('.ov-head .n')).trim();
+  const kitAxes = (await kit.page.locator('.ov-legend .v').allTextContents()).join('/');
+  const onward = await kit.page.getAttribute('.onward-row a[href*="trials"]', 'href');
+  await kit.page.close();
+
+  const tri = await open(base + new URL(onward, `${base}/cairn/kit/`).pathname
+    + new URL(onward, `${base}/cairn/kit/`).hash, PHONE);
+  await tri.page.waitForSelector('#overview:not([hidden])', { timeout: 20000 });
+  await tri.page.waitForFunction(() => document.getElementById('progress').hidden, { timeout: 120000 });
+  await tri.page.waitForTimeout(250);
+  const triScore = (await tri.page.textContent('.ov-head .n')).trim();
+  const triAxes = (await tri.page.locator('.ov-legend .v').allTextContents()).join('/');
+  await tri.page.close();
+
+  ok(kitScore === triScore && kitAxes === triAxes,
+    `handoff ${hash}: the trials page shows the party the kit page built `
+    + `(kit ${kitScore} [${kitAxes}] vs trials ${triScore} [${triAxes}])`);
+  ok(!kit.noise.length && !tri.noise.length,
+    `handoff ${hash}: both pages clean — ${[...kit.noise, ...tri.noise].join(' | ')}`);
+}
+
+// -------------------------------------------------------------- 4. the trials
 {
   const { page, noise } = await open(`${base}/cairn/trials/#s=oak-fen-317&n=4`, PHONE);
   await page.waitForSelector('.rung', { timeout: 20000 });
@@ -224,7 +262,7 @@ for (const size of [1, 4]) {
   await page.close();
 }
 
-// --------------------------------------------- 4. every served path loads clean
+// --------------------------------------------- 5. every served path loads clean
 for (const path of ['/cairn/', '/cairn/kit/', '/cairn/trials/', '/cairn/encounter/',
   '/cairn/arena/', '/cairn/items/', '/srd5/', '/srd5/corpus/']) {
   const { page, noise } = await open(base + path);

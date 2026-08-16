@@ -2,11 +2,22 @@
 //
 // WHY FOUR, AND WHY THESE FOUR. A radar plot invites you to invent axes that
 // sound right, draw a nice shape, and never check whether the shape means
-// anything. So every axis here was tested first: nine candidates were scored
-// across ninety random parties, each party's toll was measured against a
-// six-encounter basket, and the correlation between axis and toll decided what
-// survived. Four did. Five did not, and they are listed below with their
-// numbers, because a dropped axis is a finding too.
+// anything. So every axis here was tested first: twenty candidates across two
+// rounds were scored over random parties, each party's toll was measured
+// against a five-encounter basket, and the correlation between axis and toll
+// decided what survived. Four did. Eight did not, and they are listed below
+// with their numbers, because a dropped axis is a finding too.
+//
+// AN AXIS MUST ALSO *VARY* WHERE IT IS DRAWN. The second round of selection
+// happened because `sweep` — blast weapons — turned out to be a permanently
+// empty spoke on the roller's card: blast comes only from loot, and 0 of 3000
+// rolled characters own any. It predicted well for delved parties and said
+// nothing at all about a fresh one, which is a quarter of the chart wasted on
+// the screen most people see first. A correlation earns an axis its place; a
+// standard deviation greater than zero is what keeps it there.
+//
+// Its replacement, `speed`, is the only one here whose mechanism was ISOLATED
+// rather than inferred: see the note on the axis.
 //
 // THE CONFOUND THAT ALMOST GOT THROUGH. On the first pass, `carry` (free
 // inventory slots) correlated with toll at **+0.75** — parties with emptier
@@ -99,13 +110,20 @@ export const AXES = [
     hi: 13,
   },
   {
-    key: 'sweep',
-    label: 'sweep',
-    why: 'blast weapons — reach into a crowd. Nil until someone finds a bomb, then decisive',
-    corrByDelve: [0, -0.39, -0.44, -0.30],
-    of: (c) => (c.attacks.some((a) => a.blast) ? 1 : 0),
-    lo: 0,
-    hi: 0.5,
+    key: 'speed',
+    label: 'speed',
+    // The only axis here whose mechanism was ISOLATED rather than inferred.
+    // Six points of Dexterity across a party is worth 0.073 of the toll — and
+    // running the identical test with `surprise: true`, which is precisely the
+    // rule "nobody gets the first-round save to act", makes the effect
+    // **exactly 0.0000**. That is not a correlation that survived a control;
+    // it is the single rule that produces it, switched off and back on.
+    why: 'Dexterity — "each PC must make a DEX save in order to act" in round one, and a party '
+      + 'that stands still for a round pays for it',
+    corrByDelve: [-0.20, -0.24, -0.19, -0.23],
+    of: (c) => c.DEX,
+    lo: 8.25,
+    hi: 13,
   },
 ];
 
@@ -120,6 +138,31 @@ export const delvesOf = (pcs) =>
  * advice there is.
  */
 export const REJECTED = [
+  {
+    key: 'sweep',
+    why: 'blast weapons — reach into a crowd',
+    corr: { fresh: 0, delved: -0.33 },
+    verdict: 'REAL BUT NOT AN AXIS. Blast is decisive once someone owns a bomb (−0.39 at one '
+      + 'delve, −0.44 at two) and **0 of 3000 rolled characters own one**, so on the roller it '
+      + 'was a permanently empty spoke — a quarter of the chart saying nothing. It is also a '
+      + 'yes/no fact rather than a quantity, so it moved to the `bomb` role chip, which is where '
+      + 'yes/no facts belong. Nothing was lost except a dead axis.',
+  },
+  {
+    key: 'teeth',
+    why: 'the fraction of the party swinging a d8 or better',
+    corr: { fresh: -0.56, delved: -0.27 },
+    verdict: 'strong fresh (−0.41 even after durability, damage and grit) and gone by three '
+      + 'delves (−0.05) — it is a coarse restatement of `damage` that stops discriminating once '
+      + 'everybody has found a real weapon. Two damage axes is one damage axis and a decoration.',
+  },
+  {
+    key: 'weakest',
+    why: 'the least durable member — a party dies one at a time',
+    corr: { fresh: -0.64, delved: -0.57 },
+    verdict: 'looks superb alone and collapses to −0.09 once mean durability is held constant. '
+      + 'It was measuring durability with extra steps.',
+  },
   {
     key: 'recovery',
     why: 'healing spells and relics',

@@ -258,6 +258,46 @@ export function condition(characters, haul, opts = {}) {
 }
 
 /**
+ * What a member ended up carrying BEYOND the sheet they were rolled with.
+ *
+ * Four places needed this and three of them had written it out by hand, which
+ * is how a party kitted on one screen arrived at the next one carrying
+ * something else. Matching is by `text` and consumes each match, so a delver
+ * rolled with one torch who is handed a second keeps both.
+ */
+export function extrasOf(members, characters) {
+  return members.map((m, i) => {
+    const pool = m.gear.map((g) => ({ ...g }));
+    for (const g of characters[i].gear) {
+      const at = pool.findIndex((p) => p.text === g.text);
+      if (at >= 0) pool.splice(at, 1);
+    }
+    return pool;
+  });
+}
+
+/**
+ * THE ONE DEFINITION OF "KIT THIS PARTY OUT".
+ *
+ * Both the kit screen and the trials share a permalink, and for one release
+ * they disagreed about what it meant: the kit screen drew its haul from
+ * `<seed>/<count>` and the trials drew theirs from `<seed>`, ignoring the
+ * source and size the player had chosen. So a party you built on one screen —
+ * halberd, chainmail and all — arrived at the next one carrying somebody
+ * else's loot, and its damage axis fell off the radar. There is now one
+ * function, and a page that wants a kitted party has to call it.
+ *
+ * A generator, because it is seconds of simulation and a page needs to say so.
+ */
+export function* kitParty(characters, {
+  seed = 'kit', count = 8, source = 'found', budget = 120, trials = 400,
+} = {}) {
+  const haul = rollHaul(`${seed}/${count}`, { count, source, budget });
+  const out = yield* allocate(characters, haul.items, { trials, seed: `${seed}/kit` });
+  return { ...out, haul, extras: extrasOf(out.members, characters) };
+}
+
+/**
  * A crude, instant allocation for comparison — items to whoever `delve.js`'s
  * hand-written utility ranking likes, which is how the delve model has always
  * distributed loot.
