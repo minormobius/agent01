@@ -365,6 +365,71 @@ function pickTarget(rng, candidates) {
 }
 
 /**
+ * WHO THE PARTY SWINGS AT — a policy, because Cairn makes this a real choice
+ * and the answer is not obvious.
+ *
+ * "If multiple attackers target the same foe, roll all damage dice and keep the
+ * single highest result." So concentrating fire in Cairn does NOT add damage
+ * the way it does in most games; three d6 on one goblin is max(3d6) ≈ 5, while
+ * three d6 on three goblins is 3 × 3.5 ≈ 10.5 spread out. Focus buys a higher
+ * chance of removing ONE creature — and removing a creature removes its attacks
+ * for the rest of the fight, which is the classic reason to focus anywhere.
+ *
+ * Which effect wins is an empirical question, so it is answered by measurement
+ * rather than by argument. See the targeting comparison in combat.selftest.
+ *
+ *   spread  a distinct foe each, so no damage die is ever pooled away
+ *   focus   everyone onto the weakest live foe — fewest dice wasted per kill
+ *   leader  the leader while one stands, because "if the leader dies, the
+ *           others will flee" makes that one death worth more than damage
+ *   random  what this model used to do, kept so the cost of not choosing at
+ *           all stays measurable
+ */
+export const TARGETING = ['smart', 'spread', 'focus', 'leader', 'random'];
+
+function chooseTargets(rng, attackers, foes, policy) {
+  const live = foes.filter(alive);
+  if (!live.length) return new Map();
+  const out = new Map();
+
+  // The composite, and the default. Three rules, each of which came out of the
+  // measurement rather than out of intuition:
+  //   1. a leader is worth focusing at any cost, because "if the leader dies,
+  //      the others will flee" turns one death into the end of the fight;
+  //   2. ARMOUR is subtracted from every hit, so against an armoured foe many
+  //      small hits are eaten and one pooled high die is not — focus;
+  //   3. otherwise spread, because pooling throws dice away.
+  if (policy === 'smart') {
+    const leader = live.find((f) => f.isLeader);
+    if (leader) return chooseTargets(rng, attackers, foes, 'leader');
+    const armoured = live.some((f) => f.armor >= 1);
+    return chooseTargets(rng, attackers, foes, armoured ? 'focus' : 'spread');
+  }
+
+  if (policy === 'focus' || policy === 'leader') {
+    let mark = null;
+    if (policy === 'leader') mark = live.find((f) => f.isLeader) || null;
+    if (!mark) {
+      // the weakest live foe: the fewest dice are wasted finishing it
+      mark = live.slice().sort((a, b) => (a.hp + a.armor) - (b.hp + b.armor))[0];
+    }
+    for (const a of attackers) out.set(a, mark);
+    return out;
+  }
+
+  if (policy === 'spread') {
+    // Deal attackers round-robin across distinct foes, so no two collide until
+    // there are more attackers than enemies left standing.
+    const order = live.slice();
+    attackers.forEach((a, i) => out.set(a, order[i % order.length]));
+    return out;
+  }
+
+  for (const a of attackers) out.set(a, pickTarget(rng, live));
+  return out;
+}
+
+/**
  * One fight, to a conclusion. Returns what happened; mutates nothing outside.
  *
  * @param {object[]} pcs    combatants (side 'pc')
@@ -486,7 +551,8 @@ export function* fight(pcs, foes, rng, opts = {}) {
   // `abilities: false` runs the fight with magic and monster powers switched
   // off. It exists so the cost of modelling them can be MEASURED rather than
   // asserted — see the ability-delta test in combat.selftest.
-  const { morale = true, surprise = false, maxRounds = 30, abilities = true } = opts;
+  const { morale = true, surprise = false, maxRounds = 30, abilities = true,
+    targeting = 'smart' } = opts;
   const powersOf = (c) => (abilities ? c.abilities || [] : []);
   const log = opts.log ? [] : null;
   const rec = recorder(opts.events);
@@ -569,6 +635,10 @@ export function* fight(pcs, foes, rng, opts = {}) {
     // damage dice and keep the single highest result", so concentrating fire
     // throws away dice. Spreading is the strong play, and the sim plays it.
     const targeted = new Map();
+    // One assignment for the whole round, so a policy can actually coordinate.
+    // Picking per attacker inside the loop is what made "spread" impossible to
+    // express: each PC drew independently and collided by accident.
+    const marks = chooseTargets(rng, livePcs, foes, targeting);
 
     // The three things a PC can DO, extracted so that the auto cascade below
     // and a human pilot run the same code. Choosing is the only part that
@@ -763,7 +833,9 @@ export function* fight(pcs, foes, rng, opts = {}) {
       // blast check, exactly as it always was, so that switching to the shared
       // closure did not shift the stream by one draw and silently rewrite
       // every published number. The fingerprint test is what proves it.
-      const target = pickTarget(rng, side(foes));
+      const target = (marks.get(pc) && alive(marks.get(pc)))
+        ? marks.get(pc)
+        : pickTarget(rng, side(foes));
       if (!target) break;
       doAttack(pc, attack, target);
     }

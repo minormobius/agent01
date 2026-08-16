@@ -21,7 +21,7 @@
 import { rollCharacter, rollParty, parseItem } from './roll.js';
 import { BESTIARY } from './monsters.js';
 import {
-  simulate, fight, pcOptions, assess, findEncounters, band, BANDS,
+  simulate, fight, pcOptions, assess, findEncounters, band, BANDS, TARGETING,
   combatantFromCharacter, combatantFromMonster, applyScars,
 } from './combat.js';
 import { makeRng } from './roll.js';
@@ -465,9 +465,11 @@ ok(BESTIARY.length >= 80, `bestiary has ${BESTIARY.length} monsters`);
     const blob = rows.join(';');
     for (let i = 0; i < blob.length; i++) h = (Math.imul(h, 31) + blob.charCodeAt(i)) | 0;
     ok(rows.length === 54, `the fingerprint covers ${rows.length} fights`);
-    ok(h === -1647786003,
+    ok(h === 1110185706,
       `54 recorded fights are bit-for-bit unchanged (digest ${h}) — if this is the only ` +
-      'failure you have altered the model, and every published number with it');
+      'failure you have altered the model, and every published number with it. ' +
+      'Re-frozen once, deliberately, when the party stopped picking targets at ' +
+      'random and started playing the `smart` policy.');
   }
 
   // A pilot answering every request resolves a real fight, under the same
@@ -579,7 +581,69 @@ ok(BESTIARY.length >= 80, `bestiary has ${BESTIARY.length} monsters`);
   }
 }
 
-// 11. and the whole thing is fast enough to run in a page --------------------
+// 11. WHO THE PARTY SWINGS AT ------------------------------------------------
+//
+// The model used to pick a target uniformly at random for each attacker, which
+// is not a strategy — it is the absence of one, and it made the oracle
+// over-report difficulty by playing the party badly. Cairn complicates the
+// obvious fix: "if multiple attackers target the same foe, roll all damage dice
+// and keep the single highest result", so focusing fire THROWS DICE AWAY.
+//
+// Which policy is best is therefore an empirical question and is answered here
+// by measurement. Two mechanical facts fall out of it, and both are the reason
+// the composite policy exists:
+//
+//   ARMOUR IS SUBTRACTED FROM EVERY HIT, so against an armoured foe many small
+//   hits are eaten one at a time and a single pooled high die is not.
+//   Focusing beats spreading against skeletons and loses against goblins.
+//
+//   A LEADER'S DEATH ROUTS THE GROUP, so one death can end the fight. Focusing
+//   the leader is worth far more than the damage it wastes.
+{
+  const party4 = (seed) => party(4, seed);
+  const foesOf = (id, n) => Array.from({ length: n },
+    (_, i) => combatantFromMonster(BESTIARY.find((m) => m.id === id), i));
+  const toll = (id, n, targeting) => assess(party4(`t/${id}`), foesOf(id, n),
+    { trials: 900, seed: `t/${id}/${n}`, targeting }).meanCasualties / 4;
+
+  ok(TARGETING.includes('smart') && TARGETING.includes('focus'),
+    'focus fire is one of the policies on offer');
+
+  // Goblins have no armour: spreading wins, and focusing is clearly worse.
+  const gobSpread = toll('goblin', 5, 'spread');
+  const gobFocus = toll('goblin', 5, 'focus');
+  ok(gobSpread < gobFocus,
+    `against unarmoured goblins, spreading beats focusing (${gobSpread.toFixed(3)} vs ${gobFocus.toFixed(3)})`);
+
+  // Skeletons have 1 armour: focusing wins, because armour eats small hits.
+  const skelSpread = toll('skeleton', 4, 'spread');
+  const skelFocus = toll('skeleton', 4, 'focus');
+  ok(skelFocus < skelSpread,
+    `against armoured skeletons, focusing beats spreading (${skelFocus.toFixed(3)} vs ${skelSpread.toFixed(3)}) — ` +
+    'armour is subtracted per hit, so pooling into one big die loses less');
+
+  // Bandits have a leader whose death routs them: focusing the leader wins big.
+  const banSpread = toll('bandit', 6, 'spread');
+  const banLeader = toll('bandit', 6, 'leader');
+  ok(banLeader < banSpread - 0.05,
+    `killing the bandit leader beats spreading by a wide margin (${banLeader.toFixed(3)} vs ${banSpread.toFixed(3)})`);
+
+  // And the composite is at least as good as every single policy on average —
+  // which is the only justification for it being the default.
+  const basket = [['goblin', 5], ['skeleton', 4], ['bandit', 6], ['wolf', 3], ['ogre', 1]];
+  const mean = (t) => basket.reduce((n, [id, k]) => n + toll(id, k, t), 0) / basket.length;
+  const smart = mean('smart');
+  const scores = { random: mean('random'), spread: mean('spread'), focus: mean('focus'), leader: mean('leader') };
+  for (const [name, v] of Object.entries(scores)) {
+    ok(smart <= v + 0.02,
+      `the composite is no worse than ${name} (${smart.toFixed(3)} vs ${v.toFixed(3)})`);
+  }
+  ok(smart < scores.random - 0.03,
+    `and clearly better than picking at random, which is what this used to do ` +
+    `(${smart.toFixed(3)} vs ${scores.random.toFixed(3)})`);
+}
+
+// 12. and the whole thing is fast enough to run in a page --------------------
 {
   const t0 = Date.now();
   assess(party(4, 'perf'), Array.from({ length: 6 }, (_, i) =>

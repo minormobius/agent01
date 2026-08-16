@@ -71,7 +71,7 @@ obligations it puts on us: [`cairn/LICENSE.md`](cairn/LICENSE.md).
 | `cairn/monsters.js` | **Generated.** The 84 bestiary stat blocks, parsed into numbers |
 | `cairn/tools/scrape-monsters.py` | What generated it |
 | `cairn/combat.js` | The encounter oracle: the combat simulator, the challenge metric, the bestiary search |
-| `cairn/combat.selftest.mjs` | 97 checks. **A simulator fails silently — run this** |
+| `cairn/combat.selftest.mjs` | 106 checks. **A simulator fails silently — run this** |
 | `cairn/items.js` | **Generated.** The marketplace, the 46 relics, the d100 spellbook table |
 | `cairn/tools/scrape-items.py` | What generated it |
 | `cairn/effects.js` | The mechanical vocabulary: what monster abilities and spells the simulator can see, and the count of what it cannot |
@@ -111,6 +111,48 @@ add here, and all three are about not lying to a Warden:
 3. **Never dress our arithmetic as Cairn's.** The challenge metric, the loot table and the delve
    model are this site's invention. They are labelled as such in the code, in the UI, and in the
    footer.
+
+### Who the party swings at — a measured policy, not an assumption
+
+For a long time `pickTarget` chose a live foe **uniformly at random** for each
+attacker, and a comment claimed the model "spreads, and spreading is the strong
+play". Half of that was wrong: random is not spread, it is the *absence* of a
+strategy, and it made the oracle over-report difficulty by playing the party
+badly.
+
+Cairn complicates the obvious fix. *"If multiple attackers target the same foe,
+roll all damage dice and keep the single highest result"* — so focusing fire
+**throws dice away**, unlike almost every other game. That makes "should the
+party focus?" an empirical question, and it is now answered by measurement.
+Mean toll over a nine-encounter basket:
+
+| policy | mean toll |
+|---|---|
+| random (what this used to do) | 0.445 |
+| focus | 0.447 |
+| leader | 0.406 |
+| spread | 0.392 |
+| **smart** (the default) | **0.369** |
+
+Two mechanical facts fall out, and both are why the composite exists:
+
+- **Armour is subtracted from every hit**, so against an armoured foe many small
+  hits are eaten one at a time and one pooled high die is not. Focus beats
+  spread against skeletons (0.300 vs 0.346) and loses badly against goblins
+  (0.400 vs 0.253).
+- **A leader's death routs the group.** Against six bandits, focusing the leader
+  is worth more than everything else combined: the oracle used to call that
+  fight **lethal at a 57% wipe rate**, and a party that kills the leader first
+  faces **14%**.
+
+So `smart` is: focus the leader if there is one; else focus if the foes have
+armour; else spread. It wins or ties every row of the basket, which is the only
+justification for making it the default. All five policies are selectable on
+the oracle page, because seeing the spread between them is the point.
+
+**This re-froze the fingerprint.** Changing the default moved every published
+number — one encounter in eight changes band — and the digest test is what
+announced it. That was a deliberate re-freeze, and the only one so far.
 
 ### The challenge metric
 

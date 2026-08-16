@@ -21,6 +21,7 @@ const state = {
   morale: true,
   surprise: false,
   target: 'deadly',
+  targeting: 'smart',
 };
 
 const pct = (x) => `${(x * 100).toFixed(x >= 0.1 ? 0 : 1)}%`;
@@ -151,7 +152,9 @@ function renderVerdict(v, pcs, monster, count) {
       </tbody>
     </table>
     <p class="caveat" style="margin-top:0.6rem">${v.trials.toLocaleString()} simulated fights,
-      seeded on <code>${state.seed}</code> — the same inputs always give this same verdict.</p>`;
+      seeded on <code>${state.seed}</code> — the same inputs always give this same verdict.
+      The party is playing <b>${escapeHtml(state.targeting)}</b> targeting; switch it to see how
+      much the strategy is worth. Against a leader-led band it is worth a great deal.</p>`;
 }
 
 function weigh() {
@@ -164,6 +167,7 @@ function weigh() {
     seed: `${state.seed}/${state.monster}/${state.count}`,
     morale: state.morale,
     surprise: state.surprise,
+    targeting: state.targeting,
   });
   renderVerdict(v, pcs, monster, state.count);
   $('status').textContent = `${Math.round(performance.now() - t0)}ms`;
@@ -183,6 +187,7 @@ function search() {
       trials: 300,
       seed: `${state.seed}/search`,
       morale: state.morale,
+      targeting: state.targeting,
     });
     $('results').innerHTML = found.length ? `
       <table class="results">
@@ -275,6 +280,7 @@ $('count').addEventListener('change', () => { state.count = Math.max(1, Number($
 $('monster').addEventListener('change', () => { state.monster = $('monster').value; });
 $('morale').addEventListener('click', () => { state.morale = !state.morale; $('morale').classList.toggle('on', state.morale); });
 $('surprise').addEventListener('click', () => { state.surprise = !state.surprise; $('surprise').classList.toggle('on', state.surprise); });
+$('targeting').addEventListener('change', () => { state.targeting = $('targeting').value; weigh(); });
 $('weigh').addEventListener('click', weigh);
 $('search').addEventListener('click', search);
 
@@ -287,6 +293,7 @@ $('size').value = String(state.size);
 $('vet').value = String(state.delves);
 $('vetOut').textContent = state.delves;
 $('count').value = String(state.count);
+$('targeting').value = state.targeting;
 {
   const c = coverage();
   $('flagCount').textContent =

@@ -171,6 +171,14 @@ footer {
     <input type="number" id="count" min="1" max="30" value="4" style="width:4.5rem">
     <button id="morale" class="on" title="Cairn's default: enemies save to avoid fleeing">morale</button>
     <button id="surprise" title="The party is ambushed: no DEX save to act in round one">surprise</button>
+    <label class="ctl" for="targeting">they aim</label>
+    <select id="targeting" title="who the party swings at — measured, not assumed">
+      <option value="smart">smart</option>
+      <option value="spread">spread</option>
+      <option value="focus">focus fire</option>
+      <option value="leader">the leader</option>
+      <option value="random">at random</option>
+    </select>
     <button class="primary" id="weigh">Weigh</button>
     <span class="status" id="status"></span>
   </div>
