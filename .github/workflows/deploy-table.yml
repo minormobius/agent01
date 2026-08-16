@@ -52,21 +52,38 @@ jobs:
         run: npm install wrangler
 
       - name: Deploy worker + assets
-        run: npx wrangler deploy
+        # --var stamps the commit into the worker so the verification below can
+        # prove it is looking at THIS build and not the previous one.
+        run: npx wrangler deploy --var COMMIT:"$GITHUB_SHA"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Verify the surface is live
-        continue-on-error: true
+        # GREEN IS NOT PROOF. This used to grep the health endpoint for
+        # '"ok":true' — which was equally true of the deployment before it, so
+        # a run could print the OLD payload and still declare success. It did
+        # exactly that on the run that shipped /srd5. Match on the commit
+        # instead: only this build can answer with this SHA.
         run: |
           for attempt in 1 2 3 4 5 6 7 8; do
             HEALTH=$(curl -fsS https://table.mino.mobi/api/health || true)
-            if echo "$HEALTH" | grep -q '"ok":true'; then
-              echo "$HEALTH"; echo "✓ table is live"; break
+            if echo "$HEALTH" | grep -q "\"version\":\"$GITHUB_SHA\""; then
+              echo "$HEALTH"
+              echo "✓ table is live and serving $GITHUB_SHA"
+              LIVE=yes
+              break
             fi
-            echo "  attempt $attempt: not yet (first deploy provisions DNS + cert), sleeping…"
+            echo "  attempt $attempt: not this build yet, sleeping…"
+            echo "    saw: ${HEALTH:-<no response>}"
             sleep 8
           done
-          STATUS=$(curl -fsS -o /dev/null -w "%{http_code}" "https://table.mino.mobi/cairn/" || echo fail)
-          echo "cairn roller -> $STATUS"
+          if [ "${LIVE:-no}" != yes ]; then
+            echo "::error::deploy reported success but https://table.mino.mobi/api/health never served $GITHUB_SHA"
+            exit 1
+          fi
+          for path in /cairn/ /cairn/encounter/ /cairn/arena/ /cairn/items/ /srd5/; do
+            STATUS=$(curl -fsS -o /dev/null -w "%{http_code}" "https://table.mino.mobi$path" || echo fail)
+            echo "  $path -> $STATUS"
+            [ "$STATUS" = 200 ] || { echo "::error::$path is $STATUS"; exit 1; }
+          done

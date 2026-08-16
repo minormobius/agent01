@@ -9,6 +9,12 @@ export default {
       return Response.json({
         ok: true,
         surface: 'table',
+        // The commit this worker was built from, stamped in by the deploy
+        // workflow (`wrangler deploy --var COMMIT:$GITHUB_SHA`). It exists so
+        // the workflow's own verification can tell "MY deploy is live" from
+        // "A deploy is live" — without it the check passed against the
+        // previous release and reported success. 'dev' when run locally.
+        version: env.COMMIT || 'dev',
         // system id -> the licence its shipped rules text is used under
         systems: { cairn: 'CC BY-SA 4.0', srd5: 'CC BY 4.0' },
         tools: ['/cairn/', '/cairn/encounter/', '/cairn/arena/', '/cairn/items/', '/srd5/'],
