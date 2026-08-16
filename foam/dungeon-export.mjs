@@ -152,11 +152,13 @@ export function dungeonToJSON(dungeon) {
     bounds: { w: rnd3(P.W), h: rnd3(P.H), d: rnd3(P.D) },
     tile: {
       shape: dungeon.tileShape, size: rnd3(dungeon.tileSize),
-      lattice: dungeon.tileShape === 'penrose'
-        ? 'P3 Penrose rhombs, de Bruijn pentagrid dual (fixed offsets), edge=size; tiles carry their polygon in `poly`'
-        : dungeon.tileShape === 'hex'
-          ? 'pointy-top axial (q,r): x=√3R(q+r/2), z=1.5Rr, R=size/√3, global origin 0,0'
-          : 'square (i,j): centre x=(i+0.5)size, z=(j+0.5)size, global origin 0,0',
+      lattice: ({
+        penrose: 'P3 Penrose rhombs, de Bruijn pentagrid dual (fixed offsets), edge=size; tiles carry their polygon in `poly`',
+        ammann: 'Ammann–Beenker squares+rhombs, de Bruijn 4-grid dual (fixed offsets), edge=size; tiles carry their polygon in `poly`',
+        seven: 'sevenfold rhombs (3 species), de Bruijn 7-grid dual (fixed offsets), edge=size; tiles carry their polygon in `poly`',
+        rhombille: 'rhombille (tumbling blocks), 60°/120° rhombs on the triangular lattice, edge=size; tiles carry their polygon in `poly`',
+        hex: 'pointy-top axial (q,r): x=√3R(q+r/2), z=1.5Rr, R=size/√3, global origin 0,0',
+      })[dungeon.tileShape] || 'square (i,j): centre x=(i+0.5)size, z=(j+0.5)size, global origin 0,0',
     },
     entrance: dungeon.entrance,
     endpoints: dungeon.endpoints.slice(),

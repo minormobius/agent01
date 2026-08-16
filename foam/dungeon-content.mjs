@@ -169,7 +169,7 @@ export function rollContent(json, opts = {}) {
     return out.length ? { tiles: out, line: lineId++, span: full ? 'full' : 'partial' } : null;
   };
   const layLine = (room, byKey, cand, maxLen, full) => {
-    if (shape === 'penrose') return layLineAngular(room, byKey, cand, maxLen, full);
+    if (shape !== 'grid' && shape !== 'hex') return layLineAngular(room, byKey, cand, maxLen, full);
     const start = takeTileLattice(room, cand);
     if (!start) return null;
     // try a few directions from the same start, keep the longest run — a

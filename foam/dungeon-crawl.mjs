@@ -64,7 +64,7 @@ export function buildCrawl(json, opts = {}) {
     // shapes; aperiodic tiles (poly carried) adjoin by SHARED EDGE, found
     // through their bit-identical rounded vertices. This is why the whole
     // crawl layer is graph-based: a tiling only owes us an adjacency.
-    if (shape === 'penrose') {
+    if (shape !== 'grid' && shape !== 'hex') {
       const vk = (p) => Math.round(p[0] * 512) + ',' + Math.round(p[1] * 512);
       const edgeOwner = new Map();
       for (const t of walk) {

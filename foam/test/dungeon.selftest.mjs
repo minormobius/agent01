@@ -544,16 +544,20 @@ for (const seed of SEEDS) {
   ok(JSON.stringify(tuningFromParam(tuningToParam(T))) === JSON.stringify(T), 'tuning round-trips through the hash param');
 }
 
-// -- PENROSE (P3 pentagrid dual): aperiodic tiles as first-class citizens
+// -- POLY TILINGS (penrose, ammann–beenker, sevenfold, rhombille): tiles
+//    that carry their polygon, adjoin by shared edges, and behave as
+//    first-class citizens of the whole stack
 {
   const { rollContent, contentBlocked } = await import('../dungeon-content.mjs');
   const { roomOutlines, dungeonToUVTT } = await import('../dungeon-export.mjs');
-  for (const seed of [1, 5]) {
-    const d = generateDungeon({ seed, endpoints: 3, tileShape: 'penrose', tileScale: 0.35 });
+  const SPECIES = { penrose: 2, ammann: 2, seven: 3, rhombille: 1 };
+  for (const [shapeName, seed] of [['penrose', 1], ['penrose', 5], ['ammann', 5], ['seven', 5], ['rhombille', 5]]) {
+    const d = generateDungeon({ seed, endpoints: 3, tileShape: shapeName, tileScale: 0.35 });
     const J = dungeonToJSON(d);
+    const tag = shapeName + ' ' + seed;
     // determinism
-    const J2 = dungeonToJSON(generateDungeon({ seed, endpoints: 3, tileShape: 'penrose', tileScale: 0.35 }));
-    ok(JSON.stringify(J) === JSON.stringify(J2), `penrose ${seed}: deterministic`);
+    const J2 = dungeonToJSON(generateDungeon({ seed, endpoints: 3, tileShape: shapeName, tileScale: 0.35 }));
+    ok(JSON.stringify(J) === JSON.stringify(J2), `${tag}: deterministic`);
     // rhomb geometry: 4-gon polys, all edges = tileSize, exactly two shapes
     const areas = new Map();
     let polyOk = true, edgeOk = true;
@@ -567,21 +571,21 @@ for (const seed of SEEDS) {
         }
         const [p0, p1, p2] = t.poly;
         const ar = Math.abs((p1[0] - p0[0]) * (p2[1] - p0[1]) - (p1[1] - p0[1]) * (p2[0] - p0[0]));
-        const bin = Math.round(ar / (J.tile.size * J.tile.size) * 20);   // tolerant binning
+        const bin = Math.round(ar / (J.tile.size * J.tile.size) * 10);   // tolerant binning
         areas.set(bin, (areas.get(bin) ?? 0) + 1);
       }
     }
-    ok(polyOk, `penrose ${seed}: every tile carries a 4-vertex polygon`);
-    ok(edgeOk, `penrose ${seed}: every rhomb edge = tileSize`);
-    ok(areas.size === 2, `penrose ${seed}: exactly two rhomb shapes (fat + thin), got ${areas.size}`);
+    ok(polyOk, `${tag}: every tile carries a 4-vertex polygon`);
+    ok(edgeOk, `${tag}: every tile edge = tileSize`);
+    ok(areas.size === SPECIES[shapeName], `${tag}: ${SPECIES[shapeName]} tile species, got ${areas.size}`);
     // density + full crawlability through shared-edge adjacency
     const tiles = J.rooms.reduce((a, r) => a + r.tiles.length, 0);
-    ok(tiles / J.rooms.length > 4, `penrose ${seed}: dense (${(tiles / J.rooms.length).toFixed(1)} rhombs/room)`);
+    ok(tiles / J.rooms.length > 4, `${tag}: dense (${(tiles / J.rooms.length).toFixed(1)} rhombs/room)`);
     const crawl = buildCrawl(J);
     ok(crawlReachability(crawl).roomsSeen.size === J.rooms.length,
-      `penrose ${seed}: every room walkable over shared-edge adjacency`);
+      `${tag}: every room walkable over shared-edge adjacency`);
     for (const r of J.rooms) {
-      ok(r.doors.every((dd) => r.tiles.some((t) => t.key === dd.tile)), `penrose ${seed}: room ${r.id} doors snapped`);
+      ok(r.doors.every((dd) => r.tiles.some((t) => t.key === dd.tile)), `${tag}: room ${r.id} doors snapped`);
     }
     // outlines close and enclose (drives plan walls + UVTT)
     let outOk = true;
@@ -590,19 +594,19 @@ for (const seed of SEEDS) {
       if (!loops.length || !loops.every((L) => L.length >= 4 &&
         L[0][0] === L[L.length - 1][0] && L[0][1] === L[L.length - 1][1])) outOk = false;
     }
-    ok(outOk, `penrose ${seed}: room outlines close`);
+    ok(outOk, `${tag}: room outlines close`);
     const U = dungeonToUVTT(d);
-    ok(U.line_of_sight.length >= J.rooms.length && U.portals.length > 0, `penrose ${seed}: UVTT export sane`);
+    ok(U.line_of_sight.length >= J.rooms.length && U.portals.length > 0, `${tag}: UVTT export sane`);
     // content: angular lines lay, safety gate + never-partition hold
     const C = rollContent(J, { roll: 1 });
     const lineIds = new Set(C.effects.filter((e) => e.line !== undefined).map((e) => e.line));
-    ok(lineIds.size > 3, `penrose ${seed}: content lines lay by angle (${lineIds.size} runs)`);
+    ok(lineIds.size > 3, `${tag}: content lines lay by angle (${lineIds.size} runs)`);
     const rep = crawlReport(J, { blocked: contentBlocked(C) });
     ok(rep.complete && rep.allRoomsReachable && rep.partitionedRoomIds.length === 0,
-      `penrose ${seed}: content-safe, no partitions`);
+      `${tag}: content-safe, no partitions`);
     // retile over the same pocket: skeleton unchanged
     const dd = generateDungeon({ pocket: d.pocket, endpoints: 3, tileShape: 'grid', tileScale: 0.35 });
-    ok(dd.entrance === d.entrance, `penrose ${seed}: skeleton survives retiling to grid`);
+    ok(dd.entrance === d.entrance, `${tag}: skeleton survives retiling to grid`);
   }
 }
 

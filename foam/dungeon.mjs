@@ -64,6 +64,10 @@ export const DUNGEON_VERSION = 4;
 // Dungeon sizes: pocket dimensions by name. Part of the permalink (the
 // `size` hash param; absent = 'm'). xl generation can take a few seconds
 // when the certificate rerolls salts.
+// every tiling the dungeon speaks. grid/hex are lattice-keyed; the rest
+// carry their polygon per tile (`poly`) and adjoin by shared edges.
+export const TILE_SHAPES = ['grid', 'hex', 'penrose', 'ammann', 'seven', 'rhombille'];
+
 export const SIZES = {
   s:  { nx: 5,  nz: 5,  layers: 3, subLayers: 2 },
   m:  { nx: 7,  nz: 7,  layers: 4, subLayers: 3 },
@@ -97,6 +101,57 @@ function basinFloor(pocket, node) {
 //
 //   grid: axis-aligned squares of edge `tileSize`   → { i, j }
 //   hex:  pointy-top axial hexes, width  `tileSize` → { q, r }
+
+// Rhomb tilings from an N-multigrid (de Bruijn dual): N line families with
+// fixed generic offsets → one deterministic tiling of the plane per shape.
+// The dual sends the intersection at p to a rhomb near (N/2)·p, so
+// enumeration runs over the bbox pre-image (× 2/N). Vertices are integer
+// combinations of the unit directions — adjacent rhombs share bit-identical
+// corners. Every rhomb edge = tileSize.
+function multigridRhombs(dirs, G, pre, minX, maxX, minZ, maxZ, u, probe, tiles) {
+  const N = dirs.length;
+  const x0 = (minX / u) * pre - 2, x1 = (maxX / u) * pre + 2;
+  const z0 = (minZ / u) * pre - 2, z1 = (maxZ / u) * pre + 2;
+  const rangeOf = (k) => {
+    let lo = Infinity, hi = -Infinity;
+    for (const [bx, bz] of [[x0, z0], [x0, z1], [x1, z0], [x1, z1]]) {
+      const d = bx * dirs[k][0] + bz * dirs[k][1] + G[k];
+      lo = Math.min(lo, d); hi = Math.max(hi, d);
+    }
+    return [Math.floor(lo) - 1, Math.ceil(hi) + 1];
+  };
+  for (let k = 0; k < N; k++) {
+    for (let l = k + 1; l < N; l++) {
+      const det = dirs[k][0] * dirs[l][1] - dirs[k][1] * dirs[l][0];
+      if (Math.abs(det) < 1e-9) continue;           // parallel families
+      const [rk0, rk1] = rangeOf(k), [rl0, rl1] = rangeOf(l);
+      for (let r = rk0; r <= rk1; r++) {
+        for (let s2 = rl0; s2 <= rl1; s2++) {
+          const a = r - G[k], b = s2 - G[l];
+          const px = (a * dirs[l][1] - b * dirs[k][1]) / det;
+          const pz = (b * dirs[k][0] - a * dirs[l][0]) / det;
+          if (px < x0 || px > x1 || pz < z0 || pz > z1) continue;
+          const K = [];
+          for (let m = 0; m < N; m++) K[m] = Math.ceil(px * dirs[m][0] + pz * dirs[m][1] + G[m] - 1e-9);
+          const verts = [];
+          for (const [dk, dl] of [[0, 0], [1, 0], [1, 1], [0, 1]]) {
+            K[k] = r + dk; K[l] = s2 + dl;
+            let vx = 0, vz = 0;
+            for (let m = 0; m < N; m++) { vx += K[m] * dirs[m][0]; vz += K[m] * dirs[m][1]; }
+            verts.push([vx * u, vz * u]);
+          }
+          const area2 = (verts[1][0] - verts[0][0]) * (verts[2][1] - verts[0][1]) -
+                        (verts[1][1] - verts[0][1]) * (verts[2][0] - verts[0][0]);
+          if (area2 < 0) verts.reverse();
+          const cx = (verts[0][0] + verts[2][0]) / 2, cz = (verts[0][1] + verts[2][1]) / 2;
+          const sf = probe(cx, cz);
+          if (sf) tiles.push({ key: k + '.' + l + '.' + r + '.' + s2, x: cx, z: cz, y: sf.y, face: sf.face, kind: 'floor', poly: verts });
+        }
+      }
+    }
+  }
+}
+
 export function discretizeRoom(pocket, node, shape, tileSize) {
   const faces = node.faces.map((fi) => pocket.faces[fi]);
   let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
@@ -135,59 +190,46 @@ export function discretizeRoom(pocket, node, shape, tileSize) {
         if (s) tiles.push({ key: q + ',' + r, q, r, x, z, y: s.y, face: s.face, kind: 'floor' });
       }
     }
-  } else if (shape === 'penrose') {
-    // P3 Penrose rhombs by de Bruijn's pentagrid dual: five families of
-    // parallel lines at 72°, fixed generic offsets — ONE aperiodic tiling
-    // of the whole plane, deterministic forever, so tiles align across
-    // rooms exactly like the periodic lattices. Each line intersection is
-    // dual to one rhomb (fat 72° or thin 36°, edge length = tileSize);
-    // vertices are integer combinations of the five unit directions, so
-    // adjacent rhombs share bit-identical corners. Tiles carry their
-    // polygon (`poly`) since no lattice formula reproduces them.
-    const G = [0.1375, 0.2632, -0.1141, 0.0523, -0.3389];   // generic, fixed
-    const dirs = [0, 1, 2, 3, 4].map((k) => [Math.cos(2 * Math.PI * k / 5), Math.sin(2 * Math.PI * k / 5)]);
+  } else if (shape === 'penrose' || shape === 'ammann' || shape === 'seven') {
+    // aperiodic rhomb tilings — P3 (5-grid), Ammann–Beenker (4-grid at
+    // 45°), and a 7-grid quasicrystal. Offsets fixed forever per shape.
     const u = tileSize;
-    // de Bruijn's dual sends the intersection at p to a rhomb near (5/2)·p
-    // (Σ eₘeₘᵀ = 5/2·I), so enumerate intersections over the PRE-IMAGE of
-    // the room's bbox: bbox × 2/5, padded
-    const x0 = (minX / u) * 0.4 - 2, x1 = (maxX / u) * 0.4 + 2;
-    const z0 = (minZ / u) * 0.4 - 2, z1 = (maxZ / u) * 0.4 + 2;
-    const rangeOf = (k) => {
-      let lo = Infinity, hi = -Infinity;
-      for (const [bx, bz] of [[x0, z0], [x0, z1], [x1, z0], [x1, z1]]) {
-        const d = bx * dirs[k][0] + bz * dirs[k][1] + G[k];
-        lo = Math.min(lo, d); hi = Math.max(hi, d);
-      }
-      return [Math.floor(lo) - 1, Math.ceil(hi) + 1];
-    };
-    for (let k = 0; k < 5; k++) {
-      for (let l = k + 1; l < 5; l++) {
-        const det = dirs[k][0] * dirs[l][1] - dirs[k][1] * dirs[l][0];
-        const [rk0, rk1] = rangeOf(k), [rl0, rl1] = rangeOf(l);
-        for (let r = rk0; r <= rk1; r++) {
-          for (let s2 = rl0; s2 <= rl1; s2++) {
-            const a = r - G[k], b = s2 - G[l];
-            const px = (a * dirs[l][1] - b * dirs[k][1]) / det;
-            const pz = (b * dirs[k][0] - a * dirs[l][0]) / det;
-            if (px < x0 || px > x1 || pz < z0 || pz > z1) continue;
-            const K = [];
-            for (let m = 0; m < 5; m++) K[m] = Math.ceil(px * dirs[m][0] + pz * dirs[m][1] + G[m] - 1e-9);
-            const verts = [];
-            for (const [dk, dl] of [[0, 0], [1, 0], [1, 1], [0, 1]]) {
-              K[k] = r + dk; K[l] = s2 + dl;
-              let vx = 0, vz = 0;
-              for (let m = 0; m < 5; m++) { vx += K[m] * dirs[m][0]; vz += K[m] * dirs[m][1]; }
-              verts.push([vx * u, vz * u]);
-            }
-            // normalize winding CCW so outline extraction stays consistent
-            const area2 = (verts[1][0] - verts[0][0]) * (verts[2][1] - verts[0][1]) -
-                          (verts[1][1] - verts[0][1]) * (verts[2][0] - verts[0][0]);
-            if (area2 < 0) verts.reverse();
-            const cx = (verts[0][0] + verts[2][0]) / 2, cz = (verts[0][1] + verts[2][1]) / 2;
-            const sf = probe(cx, cz);
-            if (sf) tiles.push({ key: k + '.' + l + '.' + r + '.' + s2, x: cx, z: cz, y: sf.y, face: sf.face, kind: 'floor', poly: verts });
-          }
-        }
+    if (shape === 'penrose') {
+      const G = [0.1375, 0.2632, -0.1141, 0.0523, -0.3389];
+      const dirs = [0, 1, 2, 3, 4].map((k) => [Math.cos(2 * Math.PI * k / 5), Math.sin(2 * Math.PI * k / 5)]);
+      multigridRhombs(dirs, G, 0.4, minX, maxX, minZ, maxZ, u, probe, tiles);
+    } else if (shape === 'ammann') {
+      const G = [0.171, -0.077, 0.313, -0.407];
+      const dirs = [0, 1, 2, 3].map((k) => [Math.cos(Math.PI * k / 4), Math.sin(Math.PI * k / 4)]);
+      multigridRhombs(dirs, G, 0.5, minX, maxX, minZ, maxZ, u, probe, tiles);
+    } else {
+      const G = [0.123, -0.201, 0.077, 0.291, -0.154, 0.033, -0.169];
+      const dirs = [0, 1, 2, 3, 4, 5, 6].map((k) => [Math.cos(2 * Math.PI * k / 7), Math.sin(2 * Math.PI * k / 7)]);
+      multigridRhombs(dirs, G, 2 / 7, minX, maxX, minZ, maxZ, u, probe, tiles);
+    }
+  } else if (shape === 'rhombille') {
+    // tumbling blocks: 60°/120° rhombs in three orientations, each the
+    // union of two triangles of the triangular lattice under a perfect
+    // matching by (i−j) mod 3 — periodic, exact, and the cubes illusion
+    const t = tileSize;
+    const P = (i, j) => [(i + j / 2) * t, j * (Math.sqrt(3) / 2) * t];
+    const i0 = Math.floor((minX - maxZ) / t) - 2, i1 = Math.ceil(maxX / t) + 2;
+    const j0 = Math.floor(minZ / (t * Math.sqrt(3) / 2)) - 2, j1 = Math.ceil(maxZ / (t * Math.sqrt(3) / 2)) + 2;
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        // up-triangle (i,j) pairs with one down-triangle by residue
+        const c = ((i - j) % 3 + 3) % 3;
+        const A = P(i, j), B = P(i + 1, j), C = P(i, j + 1);
+        let verts;
+        if (c === 0)      verts = [A, B, P(i + 1, j + 1), C];        // down(i,j): right rhomb
+        else if (c === 1) verts = [P(i + 1, j - 1), B, C, A];        // down(i,j-1): lower rhomb
+        else              verts = [B, C, P(i - 1, j + 1), A];        // down(i-1,j): left rhomb
+        const area2 = (verts[1][0] - verts[0][0]) * (verts[2][1] - verts[0][1]) -
+                      (verts[1][1] - verts[0][1]) * (verts[2][0] - verts[0][0]);
+        if (area2 < 0) verts.reverse();
+        const cx = (verts[0][0] + verts[2][0]) / 2, cz = (verts[0][1] + verts[2][1]) / 2;
+        const sf = probe(cx, cz);
+        if (sf) tiles.push({ key: i + '.' + j, x: cx, z: cz, y: sf.y, face: sf.face, kind: 'floor', poly: verts });
       }
     }
   } else {
