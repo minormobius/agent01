@@ -26,7 +26,7 @@ export const D1_MAX_VARIABLES = 100;
 // Bump when anything about how the basis is FITTED changes (the model, the
 // sample, the α in makeBasis). Shapes built under different versions are not
 // comparable, so the version is part of the row key and is reported to the page.
-const BASIS_VERSION = 'v3';
+const BASIS_VERSION = 'v4';
 const BASIS_SAMPLE = 400;   // posts to fit on
 const BASIS_MIN = 120;      // below this a basis is too thin to be meaningful
 const BASIS_BUDGET_MS = 240000;  // per feed; this runs in a cron, not a request
@@ -197,6 +197,7 @@ async function collectSearch(query, { want, budgetMs }) {
   const seen = new Set();
   const deadline = Date.now() + budgetMs;
   let cursor = '';
+  collectSearch.lastError = null;
   while (posts.length < want && Date.now() < deadline) {
     const u = new URL(APPVIEW + '/xrpc/app.bsky.feed.searchPosts');
     u.searchParams.set('q', query);
@@ -206,9 +207,10 @@ async function collectSearch(query, { want, budgetMs }) {
     let data = null;
     try {
       const res = await fetch(u, { headers: { 'user-agent': 'zest.mino.mobi' } });
-      if (!res.ok) break;
+      if (!res.ok) { collectSearch.lastError = `HTTP ${res.status}`; break; }
       data = await res.json();
     } catch (err) {
+      collectSearch.lastError = String(err && err.message || err);
       break;
     }
     if (!data || !Array.isArray(data.posts) || !data.posts.length) break;
@@ -443,7 +445,10 @@ async function noteStatus(env, key, ok, detail) {
 async function buildBasis(env, opts) {
   try {
     const out = await buildBasisInner(env, opts);
-    if (out) await noteStatus(env, 'basis-build', true, `fitted on ${out.n} posts`);
+    if (out) {
+      await noteStatus(env, 'basis-build', true,
+        `fitted on ${out.n} posts — ${JSON.stringify(out.sources)}`);
+    }
     return out;
   } catch (err) {
     await noteStatus(env, 'basis-build', false, err && err.message || String(err));
@@ -463,6 +468,7 @@ async function buildBasisInner(env, { force }) {
   // which is a claim about the world we have no business encoding in geometry.
   const keys = Object.keys(FEEDS);
   const texts = [];
+  const sources = {};
   for (const key of keys) {
     const got = await collectPosts(FEEDS[key].uri, {
       want: Math.ceil(BASIS_SAMPLE / keys.length),
@@ -470,15 +476,21 @@ async function buildBasisInner(env, { force }) {
       budgetMs: BASIS_BUDGET_MS,
     });
     for (const p of got.posts) texts.push(p.text);
+    sources[key] = got.posts.length;
   }
 
   // …then widen well past those two communities.
   const perProbe = Math.ceil(BASIS_SAMPLE / BASIS_PROBES.length);
+  let searched = 0;
   for (const q of BASIS_PROBES) {
     if (texts.length >= BASIS_SAMPLE * 2) break;
     const found = await collectSearch(q, { want: perProbe, budgetMs: 20000 });
     for (const p of found) texts.push(p.text);
+    searched += found.length;
+    if (!found.length && collectSearch.lastError) break;  // search is down; stop asking
   }
+  sources.search = searched;
+  if (collectSearch.lastError) sources.searchError = collectSearch.lastError;
 
   const uniq = [...new Set(texts)].slice(0, BASIS_SAMPLE);
   if (uniq.length < BASIS_MIN) throw new Error(`basis sample too thin: ${uniq.length} posts (floor ${BASIS_MIN})`);
@@ -495,7 +507,7 @@ async function buildBasisInner(env, { force }) {
      ON CONFLICT(id) DO UPDATE SET n = excluded.n, payload = excluded.payload, built_at = excluded.built_at`
   ).bind(id, EMBED_MODEL, BASIS_VERSION, EMBED_DIM, good.length, payload, Math.floor(Date.now() / 1000)).run();
 
-  return { ...basis, n: good.length };
+  return { ...basis, n: good.length, sources };
 }
 
 /** Six significant figures is far below any visible difference and roughly
