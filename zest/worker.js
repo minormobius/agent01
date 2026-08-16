@@ -101,16 +101,34 @@ async function handleFeed(url, env) {
   const cursor = url.searchParams.get('cursor') || '';
 
   const posts = [];
+  const seen = new Set();
+  const stats = { scanned: 0, kept: 0, reject: {} };
   let next = cursor;
   let pages = 0;
-  // The filter is aggressive, so one upstream page rarely fills an order.
-  while (posts.length < want && pages < 6) {
+
+  // The filter throws most of the network away, so one upstream page never
+  // fills an order. Two hard stops, because getFeed against a busy generator
+  // has been measured at up to ~25s a page and a request that pages forever is
+  // worse than a short pool: a page budget AND a wall-clock budget.
+  const deadline = Date.now() + 20000;
+  while (posts.length < want && pages < 10 && Date.now() < deadline) {
     pages++;
     const page = await fetchFeedPage(FEEDS[src].uri, next, 100);
     if (!page) break;
     for (const item of page.feed || []) {
+      stats.scanned++;
       const p = usablePost(item);
-      if (p) posts.push(p);
+      if (!p) {
+        const why = usablePost.reason || 'other';
+        stats.reject[why] = (stats.reject[why] || 0) + 1;
+        continue;
+      }
+      // A repost puts a post someone already wrote back in the feed, and the
+      // same post can appear twice in one pull. Dedupe rather than drop.
+      if (seen.has(p.uri)) { stats.reject.duplicate = (stats.reject.duplicate || 0) + 1; continue; }
+      seen.add(p.uri);
+      posts.push(p);
+      stats.kept++;
       if (posts.length >= want) break;
     }
     next = page.cursor || '';
@@ -118,9 +136,11 @@ async function handleFeed(url, env) {
   }
 
   return json(
-    { source: src, label: FEEDS[src].label, posts, cursor: next, pages },
+    { source: src, label: FEEDS[src].label, posts, cursor: next, pages, stats },
     200,
-    { 'cache-control': 'public, max-age=120' }
+    // Everyone is shown the same pool, so caching this is most of the latency
+    // fix: only the first visitor in each window pays for the paging above.
+    { 'cache-control': 'public, max-age=300, s-maxage=300' }
   );
 }
 
@@ -134,33 +154,52 @@ async function fetchFeedPage(feedUri, cursor, limit) {
   return await res.json();
 }
 
-/** The whole text-only rule, in one place. Returns null for anything unusable. */
+/**
+ * The whole text-only rule, in one place. Returns null for anything unusable,
+ * and leaves the reason on `usablePost.reason` so /api/feed can report WHY a
+ * pull came back thin instead of leaving the next person to guess.
+ *
+ * THE RULE, precisely: the player must have no information about a post that
+ * the embedding did not. That is the only test a candidate has to pass.
+ *
+ * It is worth being exact about this, because the first version of this filter
+ * was stricter than the rule and cost 98.5% of the live network. Replies and
+ * reposts were dropped for "needing a parent" and "the reposter said nothing" —
+ * but the card shows nothing except the post's own text, which is exactly what
+ * the model was given. A reply read cold is a perfectly honest object here; the
+ * player and the model are looking at the same words. So they are kept, and
+ * reposts are deduplicated by URI rather than discarded.
+ *
+ * Embeds are the real line, and they stay rejected: a picture tells the player
+ * the topic through a channel the geometry never saw.
+ */
 export function usablePost(item) {
+  const no = (why) => { usablePost.reason = why; return null; };
+  usablePost.reason = null;
+
   const post = item && item.post;
-  if (!post || !post.record) return null;
-  if (item.reason) return null;              // reposts: the reposter said nothing
-  if (post.record.reply) return null;        // replies need a parent to make sense
-  if (post.embed) return null;               // images, video, quotes, link cards
-  if (post.record.embed) return null;
+  if (!post || !post.record) return no('malformed');
+  if (post.embed) return no('embed');          // images, video, quotes, link cards
+  if (post.record.embed) return no('embed');
 
   let text = String(post.record.text || '').trim();
-  if (!text) return null;
+  if (!text) return no('empty');
   if (post.record.langs && post.record.langs.length && !post.record.langs.some((l) => String(l).startsWith('en'))) {
     // BGE is an English model. Embedding other languages with it produces a
     // vector, and a shape, and no meaning — so they are dropped rather than
     // drawn misleadingly.
-    return null;
+    return no('not-english');
   }
 
   // A post that is mostly a URL or mostly mentions carries almost no text for
   // the model to read, and would show up as an indistinct near-sphere.
   const stripped = text.replace(/https?:\/\/\S+/g, '').replace(/@[\w.-]+/g, '').trim();
-  if (stripped.length < 24) return null;
-  if (stripped.length / text.length < 0.55) return null;
+  if (stripped.length < 24) return no('too-short');
+  if (stripped.length / text.length < 0.55) return no('mostly-links');
   if (text.length > 300) text = text.slice(0, 300);
 
   const letters = (stripped.match(/\p{L}/gu) || []).length;
-  if (letters < 16) return null;
+  if (letters < 16) return no('too-few-letters');
 
   return {
     uri: post.uri,

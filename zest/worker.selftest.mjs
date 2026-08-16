@@ -53,10 +53,16 @@ section('§1  usablePost — the text-only premise');
   ok(usablePost(item({ embed: { $type: 'app.bsky.embed.video#view' } })) === null, 'video is rejected');
   ok(usablePost(item({ embed: { $type: 'app.bsky.embed.external#view' } })) === null, 'a link card is rejected');
   ok(usablePost(item({ embed: { $type: 'app.bsky.embed.record#view' } })) === null, 'a quote post is rejected');
-  ok(usablePost({ ...item(), reason: { $type: 'app.bsky.feed.defs#reasonRepost' } }) === null,
-    'a repost is rejected — the reposter said nothing');
-  ok(usablePost(item({}, { reply: { root: {}, parent: {} } })) === null,
-    'a reply is rejected — it needs a parent to make sense');
+  // THE LINE, and where it is NOT. The rule is "the player must have no
+  // information the embedding did not". Replies and reposts pass it — the card
+  // shows only the post's own text, which is exactly what the model was given —
+  // so they are kept. An earlier, stricter filter dropped them and lost 98.5%
+  // of the live network for no gain in honesty. These two assertions exist to
+  // stop that being reintroduced as a "tightening".
+  ok(usablePost({ ...item(), reason: { $type: 'app.bsky.feed.defs#reasonRepost' } }) !== null,
+    'a repost is KEPT — its text is still text (deduped by URI upstream)');
+  ok(usablePost(item({}, { reply: { root: {}, parent: {} } })) !== null,
+    'a reply is KEPT — read cold, the player and the model see the same words');
 
   ok(usablePost(item({}, { langs: ['ja'] })) === null, 'a non-English post is rejected');
   ok(usablePost(item({}, { langs: ['en-GB'] })) !== null, 'en-GB counts as English');
@@ -76,6 +82,24 @@ section('§1  usablePost — the text-only premise');
     'digits are not letters — rejected for having nothing to read');
   ok(usablePost(item({}, { text: '🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉' })) === null,
     'emoji-only is rejected');
+
+  // every rejection names itself, so a thin pull is diagnosable
+  const reasons = [
+    [item({ embed: { $type: 'app.bsky.embed.images#view' } }), 'embed'],
+    [item({}, { text: '' }), 'empty'],
+    [item({}, { langs: ['ja'] }), 'not-english'],
+    [item({}, { text: 'nice' }), 'too-short'],
+    // long enough to clear the too-short gate, so it reaches the links ratio
+    [item({}, { text: 'check out this thing I found today https://example.com/a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p' }), 'mostly-links'],
+    [item({}, { text: '123456 7890 4444 5555 6666 7777 8888 99999 000000 111111' }), 'too-few-letters'],
+    [null, 'malformed'],
+  ];
+  for (const [inp, why] of reasons) {
+    usablePost(inp);
+    ok(usablePost.reason === why, `rejection reason is reported as "${why}"`, usablePost.reason);
+  }
+  usablePost(item());
+  ok(usablePost.reason === null, 'an accepted post leaves no stale rejection reason');
 
   // truncation at the protocol limit
   const long = usablePost(item({}, { text: 'x'.repeat(400) + ' words words words' }));
