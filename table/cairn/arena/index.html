@@ -208,8 +208,16 @@ svg.field { position: absolute; inset: 0; width: 100%; height: 100%; }
 /* whose turn it is, and what they are pointed at */
 .tok.turn .body { stroke-width: 2.6; }
 .tok.marked .body { stroke-dasharray: 1.6 1.2; stroke-width: 2.4; }
-.tok.withdrawn { opacity: 0.3; }
-.tok.withdrawn .name { font-style: italic; }
+/* Someone who left must NOT read as someone who died. Both are off the field,
+   so both are dimmed — but the dead keep the strikethrough and the walkers get
+   it removed, sit brighter, and go dashed like a door closing behind them.
+   Without this the map told the opposite story from the verdict line under it. */
+.tok.withdrawn { opacity: 0.5; }
+.tok.withdrawn .name { text-decoration: none; font-style: italic; fill: var(--muted); }
+.tok.withdrawn .body {
+  fill: none; stroke: var(--muted); stroke-dasharray: 2.2 1.6; stroke-width: 1.2;
+}
+.tok.withdrawn .hpbar, .tok.withdrawn .hpfill { display: none; }
 </style>
 </head>
 <body>
