@@ -26,7 +26,7 @@ export const D1_MAX_VARIABLES = 100;
 // Bump when anything about how the basis is FITTED changes (the model, the
 // sample, the α in makeBasis). Shapes built under different versions are not
 // comparable, so the version is part of the row key and is reported to the page.
-const BASIS_VERSION = 'v2';
+const BASIS_VERSION = 'v3';
 const BASIS_SAMPLE = 400;   // posts to fit on
 const BASIS_MIN = 120;      // below this a basis is too thin to be meaningful
 const BASIS_BUDGET_MS = 240000;  // per feed; this runs in a cron, not a request
@@ -176,6 +176,51 @@ async function collectPosts(feedUri, { want, cursor = '', maxPages, budgetMs }) 
   }
 
   return { posts, cursor: next, pages, stats };
+}
+
+/**
+ * Broad sampling for the basis fit ONLY, via search rather than a feed.
+ *
+ * The two feeds together hold about 130 usable posts, and both are communities:
+ * a basis fitted on them alone makes those communities' concerns "average" and
+ * everyone else strange, which is a claim about the world that has no business
+ * being baked into the geometry. Searching common function words pulls posts
+ * that have nothing in common except being English prose, which is much closer
+ * to the population the shapes should be deviations from.
+ *
+ * Best-effort: if search is unavailable the fit still proceeds on the feeds.
+ */
+const BASIS_PROBES = ['the', 'and', 'today', 'people', 'think', 'because', 'time', 'really', 'work', 'good'];
+
+async function collectSearch(query, { want, budgetMs }) {
+  const posts = [];
+  const seen = new Set();
+  const deadline = Date.now() + budgetMs;
+  let cursor = '';
+  while (posts.length < want && Date.now() < deadline) {
+    const u = new URL(APPVIEW + '/xrpc/app.bsky.feed.searchPosts');
+    u.searchParams.set('q', query);
+    u.searchParams.set('limit', '100');
+    u.searchParams.set('lang', 'en');
+    if (cursor) u.searchParams.set('cursor', cursor);
+    let data = null;
+    try {
+      const res = await fetch(u, { headers: { 'user-agent': 'zest.mino.mobi' } });
+      if (!res.ok) break;
+      data = await res.json();
+    } catch (err) {
+      break;
+    }
+    if (!data || !Array.isArray(data.posts) || !data.posts.length) break;
+    for (const post of data.posts) {
+      // searchPosts returns bare postViews; usablePost expects a feed item
+      const p = usablePost({ post });
+      if (p && !seen.has(p.uri)) { seen.add(p.uri); posts.push(p); }
+    }
+    cursor = data.cursor || '';
+    if (!cursor) break;
+  }
+  return posts;
 }
 
 async function fetchFeedPage(feedUri, cursor, limit) {
@@ -425,6 +470,14 @@ async function buildBasisInner(env, { force }) {
       budgetMs: BASIS_BUDGET_MS,
     });
     for (const p of got.posts) texts.push(p.text);
+  }
+
+  // …then widen well past those two communities.
+  const perProbe = Math.ceil(BASIS_SAMPLE / BASIS_PROBES.length);
+  for (const q of BASIS_PROBES) {
+    if (texts.length >= BASIS_SAMPLE * 2) break;
+    const found = await collectSearch(q, { want: perProbe, budgetMs: 20000 });
+    for (const p of found) texts.push(p.text);
   }
 
   const uniq = [...new Set(texts)].slice(0, BASIS_SAMPLE);
