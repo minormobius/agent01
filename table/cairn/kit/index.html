@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kit the party out — Cairn — table</title>
+<meta name="description" content="Hand a haul round a Cairn party by measurement: every item goes to whoever it saves the most casualties, with the error bar shown, and anything worth less than the slot it costs stays on the floor.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Kit the party out">
+<meta property="og:description" content="Who should carry the bomb? Measured, not asserted — and where the simulator cannot tell two delvers apart, it says so.">
+<meta property="og:url" content="https://table.mino.mobi/cairn/kit/">
+<meta name="twitter:card" content="summary">
+<link rel="stylesheet" href="../theme.css">
+<style>
+/* ------------------------------------------------------------- progress -- */
+.run { margin: 0 0 1.2rem; }
+.bar {
+  height: 5px; border-radius: 3px; background: var(--rule); overflow: hidden;
+  margin-bottom: 0.4rem;
+}
+.bar > i { display: block; height: 100%; background: var(--accent); width: 0; transition: width 0.12s linear; }
+.run .what { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); }
+.run[hidden] { display: none; }
+
+/* --------------------------------------------------------------- awards -- */
+.awards { list-style: none; }
+.award {
+  border: 1px solid var(--rule); border-radius: 6px; background: var(--panel);
+  padding: 0.55rem 0.7rem; margin-bottom: 0.4rem;
+}
+.award .top { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+.award .what { font-size: 0.95rem; }
+.award .what .t { font-weight: 600; }
+.award .to {
+  font-family: var(--mono); font-size: 0.72rem; color: var(--accent);
+  border: 1px solid var(--accent); background: var(--accent-soft);
+  border-radius: 999px; padding: 0.1rem 0.5rem; white-space: nowrap;
+}
+.award .gain {
+  margin-left: auto; font-family: var(--mono); font-size: 0.75rem;
+  color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.award .gain .se { color: var(--muted); }
+.award .why { font-size: 0.78rem; color: var(--muted); margin-top: 0.25rem; }
+.award .why .alt { font-family: var(--mono); font-size: 0.92em; }
+.award .why b { color: var(--ink); font-weight: 600; }
+
+.floor {
+  border: 1px dashed var(--rule-hard); border-radius: 6px;
+  padding: 0.55rem 0.7rem; margin-top: 0.7rem; font-size: 0.85rem; color: var(--muted);
+}
+.floor b { color: var(--text); font-weight: 600; }
+.floor .items { font-family: var(--mono); font-size: 0.72rem; margin-top: 0.25rem; }
+
+/* ----------------------------------------------------------- the packs --- */
+.packs { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0.5rem; }
+.pack { border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); padding: 0.55rem 0.7rem; }
+.pack h3 { font-size: 0.95rem; font-weight: 600; display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+.pack h3 span { font-family: var(--mono); font-size: 0.66rem; color: var(--muted); font-weight: 400; }
+.pack ul { list-style: none; margin-top: 0.3rem; font-size: 0.83rem; }
+.pack li { color: var(--muted); }
+.pack li.got { color: var(--text); font-weight: 600; }
+.pack li.got::before { content: '+ '; color: var(--accent); }
+
+.sec { margin-top: 1.6rem; }
+.sec > h2 {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted); font-weight: 600;
+  border-bottom: 1px solid var(--rule); padding-bottom: 0.3rem; margin-bottom: 0.7rem;
+  display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem;
+}
+.sec > h2 .note { text-transform: none; letter-spacing: 0; font-family: var(--serif); font-size: 0.78rem; }
+
+.onward-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1.2rem; }
+.onward-row a {
+  flex: 1 1 14rem; text-decoration: none; color: var(--text);
+  border: 1px solid var(--rule-hard); border-radius: 8px; background: var(--panel);
+  padding: 0.7rem 0.85rem;
+}
+.onward-row a:hover { border-color: var(--accent); }
+.onward-row a b { display: block; color: var(--accent); font-size: 0.95rem; }
+.onward-row a span { font-size: 0.82rem; color: var(--muted); }
+
+footer {
+  margin-top: 2.5rem; padding-top: 1.2rem; border-top: 1px solid var(--rule);
+  font-size: 0.83rem; color: var(--muted);
+}
+footer p + p { margin-top: 0.6rem; }
+</style>
+</head>
+<body>
+
+<a class="crumb" href="../">← Cairn roller</a>
+
+<header>
+  <h1>Kit the party out</h1>
+  <p class="lede">
+    The step between the roll and the dungeon. A haul goes round the party and each thing lands
+    with whoever it saves the most — <strong>measured</strong>, by playing the fights with and
+    without it. <span class="aside">Anything worth less than the slot it costs stays on the
+    floor, and where the simulation cannot tell two delvers apart it says so rather than
+    picking one and looking confident.</span>
+  </p>
+</header>
+
+<div class="controls">
+  <span class="ctl-label">seed</span>
+  <input type="text" id="seed" spellcheck="false" aria-label="Seed">
+  <span class="ctl-label">party</span>
+  <select id="size" aria-label="Party size">
+    <option value="2">2</option><option value="3">3</option>
+    <option value="4" selected>4</option><option value="6">6</option>
+  </select>
+  <span class="ctl-label">haul</span>
+  <select id="source" aria-label="Where the haul came from">
+    <option value="found">found</option>
+    <option value="bought">bought</option>
+  </select>
+  <select id="count" aria-label="How many items">
+    <option value="4">4 items</option><option value="6">6 items</option>
+    <option value="8" selected>8 items</option><option value="12">12 items</option>
+  </select>
+  <button class="primary" id="run">Hand it round</button>
+  <button id="copy">Copy link</button>
+  <span class="status" id="status"></span>
+</div>
+
+<section class="overview" id="overview" hidden aria-label="Party overview"></section>
+
+<div class="run" id="run-progress" hidden>
+  <div class="bar"><i id="bar"></i></div>
+  <div class="what" id="progress-note"></div>
+</div>
+
+<main id="result"></main>
+
+<footer>
+  <p>
+    <strong>Cairn Second Edition</strong> is by <a href="https://cairnrpg.com/">Yochai Gal</a>,
+    licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> — see
+    <a href="../LICENSE.md">LICENSE.md</a>. The allocation model, the error bars and the idea of
+    pricing an item in casualties averted are this site's, not Cairn's.
+  </p>
+  <p>
+    Every number here comes from playing the fight, in your browser, from a seed —
+    <a href="../condition.js">condition.js</a> · <a href="../combat.js">combat.js</a> ·
+    <a href="../study.js">study.js</a>. Nothing is stored and nothing is sent anywhere.
+  </p>
+</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

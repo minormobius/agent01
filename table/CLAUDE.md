@@ -16,7 +16,7 @@ Procedural character sheets for tabletop RPGs. Repo-wide rules live in
 | Deploy | [`.github/workflows/deploy-table.yml`](../.github/workflows/deploy-table.yml) |
 | Uses | — |
 | Provides | — |
-| Serves | `/cairn`, `/cairn/encounter`, `/cairn/arena`, `/cairn/items`, `/srd5`, `/srd5/corpus` |
+| Serves | `/cairn`, `/cairn/kit`, `/cairn/encounter`, `/cairn/arena`, `/cairn/items`, `/srd5`, `/srd5/corpus` |
 
 Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) →
 `surfaces[]` where `surface == "table"`.
@@ -82,6 +82,10 @@ obligations it puts on us: [`cairn/LICENSE.md`](cairn/LICENSE.md).
 | `cairn/delve.selftest.mjs` | 49 checks over delve.js, study.js and items.js |
 | `cairn/encounter/` | The oracle's page |
 | `cairn/arena/` | One fight, drawn — watched, or piloted |
+| `cairn/condition.js` | Kitting a party out: who gains most from what, **measured**, with error bars |
+| `cairn/condition.selftest.mjs` | 53 checks. **The allocator's failure mode is confident nonsense — run this** |
+| `cairn/overview-card.js` + `cairn/theme.css` | The party card's markup and styling, shared by two pages |
+| `cairn/kit/` | The conditioning screen |
 | `cairn/items/` | The item study's page |
 | `page.check.mjs` | Loads every page of the surface in a real browser. **Run it when you touch a page** |
 
@@ -95,6 +99,7 @@ node table/cairn/roll.selftest.mjs      # must pass; the frozen sheet is the che
 node table/cairn/combat.selftest.mjs    # must pass; a wrong simulator looks right
 node table/cairn/delve.selftest.mjs     # must pass; a wrong advancement model looks right too
 node table/cairn/effects.selftest.mjs   # must pass; a mis-wired ability does nothing, silently
+node table/cairn/condition.selftest.mjs # must pass; measuring has to keep beating guessing
 ```
 
 ### The party overview card — a radar that had to earn it
@@ -131,6 +136,44 @@ Because two axes only exist in one regime, `corrByDelve` is a curve, `profile()`
 weights each axis by the correlation **at that party's delve level**, and the
 selftest measures both regimes and asserts the decay itself — not just a
 threshold, which is what let the bad number through the first time.
+
+### /cairn/kit — the conditioning screen, and its noise floor
+
+Between the roll and the dungeon: a haul goes round the party and each thing
+lands with whoever it averts the most casualties for, in the same currency the
+oracle reports. Cairn has no classes, so there is no taxonomy to look a
+"specialty" up in — the specialty is whatever the simulation says it is.
+
+**The noise floor was measured before the allocator was written**, which is the
+only reason any of it is trustworthy. On the three-encounter kit basket, one
+holder in four, at 150 trials:
+
+| item | averted | ± | signal/noise |
+|---|---|---|---|
+| Blast Sphere | 0.196 | 0.011 | 18 |
+| Chainmail | 0.036 | 0.019 | 1.9 |
+| Shield | 0.016 | 0.012 | 1.3 |
+
+So "who should carry the bomb" is a question with an answer and "which of these
+two trinkets is better" is not. Every gain carries a standard error — computed
+by splitting each measurement into blocks and **differencing within each block**,
+because before and after share their dice and pooling the two sides first throws
+that pairing away and reports an error several times too large. Any choice made
+inside that error is printed as a tie, resolved by a stated rule (most room in
+the pack), and labelled as not-a-finding.
+
+Two rules for anything added here:
+
+1. **The claim is that measuring beats guessing, so it is measured.**
+   `conditionByUtility` is `delve.js`'s instant hand-written ranking, and the
+   selftest pits the allocator against it on parties neither has seen. It
+   currently wins 7 of 8 (mean toll 0.150 vs 0.160, against 0.287 bare). If that
+   ever reverses, `condition.js` is buying nothing with two seconds of
+   simulation and should be deleted in favour of the ranking.
+2. **The haul comes from `delve.js`'s loot table, not a second one.** A first
+   draft wrote its own and weighted it per ITEM; the SRD has a hundred spells
+   and six kinds of armour, so hauls came out half spellbooks. `delve.js`
+   weights per KIND, which is correct and already shared.
 
 ### /cairn/encounter — the oracle
 

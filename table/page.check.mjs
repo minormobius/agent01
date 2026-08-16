@@ -147,8 +147,47 @@ for (const size of [1, 4]) {
   await page.close();
 }
 
-// --------------------------------------------- 2. every served path loads clean
-for (const path of ['/cairn/', '/cairn/encounter/', '/cairn/arena/', '/cairn/items/',
+// ------------------------------------------------ 2. the conditioning screen
+{
+  const { page, noise } = await open(`${base}/cairn/kit/#s=oak-fen-317&n=4`, PHONE);
+  await page.waitForSelector('#overview:not([hidden])', { timeout: 20000 });
+  const before = (await page.textContent('.ov-head .n')).trim();
+  ok((await page.locator('.radar polygon.was').count()) === 0,
+    'kit: no ghost polygon before the party has been kitted out');
+
+  await page.click('#run');
+  await page.waitForSelector('.award, .awards', { timeout: 90000 });
+  await page.waitForTimeout(400);
+  ok(!noise.length, `kit: the page is clean — ${noise.join(' | ')}`);
+
+  const awards = await page.locator('.award .to').count();
+  ok(awards > 0, `kit: something in the haul was worth a slot (${awards} awarded)`);
+  ok((await page.locator('.pack').count()) === 4, 'kit: one pack panel per delver');
+  ok((await page.locator('.radar polygon.was').count()) === 1,
+    'kit: the ghost polygon shows the party as they were rolled');
+  const after = (await page.textContent('.ov-head .n')).trim();
+  ok(Number(after) >= Number(before),
+    `kit: kitting them out does not make the party worse (${before} → ${after})`);
+  ok((await page.locator('.ov-head .delta').count()) === 1,
+    'kit: and the change is stated as a delta');
+
+  // The error bar is the point. It must be on screen, not just in the model.
+  const firstGain = await page.textContent('.award .gain');
+  ok(/±/.test(firstGain), `kit: every gain carries its error bar (${firstGain.trim()})`);
+  // Nobody may end up with a full pack: a full pack is 0 HP.
+  const slots = await page.locator('.pack h3 span').allTextContents();
+  ok(slots.every((s) => {
+    const [used, cap] = s.split('·')[0].trim().split('/').map(Number);
+    return used < cap;
+  }), `kit: every pack keeps a slot free (${slots.map((s) => s.split('·')[0].trim()).join(', ')})`);
+
+  ok(!(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)),
+    'kit: the page does not scroll horizontally on a phone');
+  await page.close();
+}
+
+// --------------------------------------------- 3. every served path loads clean
+for (const path of ['/cairn/', '/cairn/kit/', '/cairn/encounter/', '/cairn/arena/', '/cairn/items/',
   '/srd5/', '/srd5/corpus/']) {
   const { page, noise } = await open(base + path);
   await page.waitForTimeout(1500);

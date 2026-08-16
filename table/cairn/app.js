@@ -95,97 +95,23 @@ let scorerAsked = false;
 function ensureScorer() {
   if (scorerAsked) return;
   scorerAsked = true;
-  Promise.all([import('./party.js'), import('./combat.js')])
-    .then(([party, combat]) => {
-      scorer = { ...party, combatantFromCharacter: combat.combatantFromCharacter };
+  Promise.all([import('./overview-card.js'), import('./combat.js')])
+    .then(([card, combat]) => {
+      scorer = { card: card.overviewCard, toCombatant: combat.combatantFromCharacter };
       renderOverview();
     })
     .catch(() => { /* the sheets are the page; the card is a bonus */ });
 }
 
-/** The radar, as SVG. 4 axes, so the labels land on the compass points. */
-function radarSvg(axes) {
-  const R = 62;
-  const pts = scorer.radarPoints(axes, R);
-  const ring = (f) => `<circle class="ring" cx="0" cy="0" r="${(R * f).toFixed(1)}"/>`;
-  const spokes = pts.map((p) =>
-    `<line class="spoke" x1="0" y1="0" x2="${p.ax.toFixed(1)}" y2="${p.ay.toFixed(1)}"/>`).join('');
-  const shape = pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-  const dots = pts.map((p) =>
-    `<circle class="dot ${p.value ? '' : 'nil'}" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.6"/>`).join('');
-  // Anchor by quadrant so nothing overhangs the box: top and bottom centred,
-  // the two flanks pushed outwards.
-  const labels = pts.map((p, i) => {
-    const axis = axes[i];
-    const anchor = Math.abs(p.ax) < 1 ? 'middle' : (p.ax > 0 ? 'start' : 'end');
-    const dy = p.ay < -1 ? -8 : (p.ay > 1 ? 14 : 3);
-    const dx = anchor === 'middle' ? 0 : (p.ax > 0 ? 6 : -6);
-    return `<text class="${axis.weight ? '' : 'off'}" x="${(p.ax + dx).toFixed(1)}" ` +
-      `y="${(p.ay + dy).toFixed(1)}" text-anchor="${anchor}">${escapeHtml(axis.label)}</text>`;
-  }).join('');
-  return `<svg class="radar" viewBox="-100 -84 200 176" role="img"
-    aria-label="Party radar: ${axes.map((a) => `${a.label} ${Math.round(a.value * 100)}%`).join(', ')}">
-    ${ring(1)}${ring(0.66)}${ring(0.33)}${spokes}
-    <polygon class="shape" points="${shape}"/>${dots}${labels}
-  </svg>`;
-}
-
 function renderOverview() {
   if (!scorer) { ensureScorer(); return; }
-  const pcs = state.sheets.map((s) => scorer.combatantFromCharacter(s.character, addedOf(s)));
-  const o = scorer.overview(pcs);
-  const n = pcs.length;
-
-  const legend = o.axes.map((a) => {
-    const decimals = a.key === 'sweep' ? 2 : 1;
-    // The correlation is shown, not hidden in a comment. It is the reason the
-    // axis is on the chart, and an axis at 0.00 is telling you it does not
-    // predict anything for a party this fresh.
-    const title = `${a.why}. Correlation with casualties for a party ${o.delves} `
-      + `${o.delves === 1 ? 'delve' : 'delves'} in: ${a.corr.toFixed(2)} `
-      + `(negative is good). Across delve levels 0–3: ${a.corrByDelve.join(', ')}.`;
-    return `<div class="${a.weight ? '' : 'off'}" title="${escapeHtml(title)}">
-      <span class="k">${escapeHtml(a.label)}</span>
-      <span class="v">${a.raw.toFixed(decimals)}</span>
-      <span class="c">r ${a.corr.toFixed(2)}</span>
-    </div>`;
-  }).join('');
-
-  const roleChips = scorer.ROLES.map((r) => {
-    const who = o.roles[r.key];
-    const title = who.length ? `${r.why} — ${who.join(', ')}` : `nobody: ${r.why}`;
-    return `<span class="ov-role ${who.length ? '' : 'gap'}" title="${escapeHtml(title)}">`
-      + `${escapeHtml(r.label)}${who.length > 1 ? ` ×${who.length}` : ''}</span>`;
-  }).join('');
-
-  const filled = scorer.ROLES.length - o.missing.length;
-  const strongest = o.axes.reduce((a, b) => (b.value > a.value ? b : a));
-  // A fresh party owning no bomb is not a flaw in the party; the axis simply
-  // does not exist yet. Say which, rather than letting a hollow radar read as
-  // a bad roll.
-  const notYet = o.axes.filter((a) => !a.weight).map((a) => a.label);
-  const enc = o.encumbered;
-
+  const pcs = state.sheets.map((s) => scorer.toCombatant(s.character, addedOf(s)));
   overviewEl.hidden = false;
-  overviewEl.innerHTML = `
-    ${radarSvg(o.axes)}
-    <div class="ov-body">
-      <div class="ov-head">
-        <span class="n">${Math.round(o.score * 100)}</span>
-        <h2>party score</h2>
-      </div>
-      <div class="ov-legend">${legend}</div>
-    </div>
-    <div class="ov-tail">
-      <div class="ov-roles">${roleChips}</div>
-      <p class="ov-note">
-        ${n} ${n === 1 ? 'delver' : 'delvers'} · ${o.hp} HP · ${o.armor} armour ·
-        ${filled}/${scorer.ROLES.length} roles · strongest at <b>${escapeHtml(strongest.label)}</b>${
-  notYet.length ? ` · no <b>${notYet.map(escapeHtml).join(' or ')}</b> yet: nobody starts with a bomb` : ''}${
-  enc.length ? ` · <b class="warn">${enc.map(escapeHtml).join(', ')}</b> ${enc.length === 1 ? 'has a full pack, so is' : 'have full packs, so are'} at 0 HP` : ''}.
-        Every axis earned its place by predicting measured casualties — hover one for the number.
-      </p>
-    </div>`;
+  overviewEl.innerHTML = scorer.card(pcs, {
+    tail: `<p class="ov-note"><a href="kit/${location.hash}">Kit them out</a> — hand round a
+      haul, measured: each thing goes to whoever it saves most, and what nobody gains from
+      stays on the floor.</p>`,
+  });
 }
 
 function renderSheet(sheet, index) {

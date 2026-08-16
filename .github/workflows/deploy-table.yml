@@ -44,6 +44,7 @@ jobs:
         run: |
           node cairn/roll.selftest.mjs
           node cairn/combat.selftest.mjs
+          node cairn/condition.selftest.mjs
           node cairn/delve.selftest.mjs
           node cairn/effects.selftest.mjs
           node srd5/srd5.selftest.mjs
@@ -83,7 +84,7 @@ jobs:
             echo "::error::deploy reported success but https://table.mino.mobi/api/health never served $GITHUB_SHA"
             exit 1
           fi
-          for path in /cairn/ /cairn/encounter/ /cairn/arena/ /cairn/items/ /srd5/ /srd5/corpus/; do
+          for path in /cairn/ /cairn/kit/ /cairn/encounter/ /cairn/arena/ /cairn/items/ /srd5/ /srd5/corpus/; do
             STATUS=$(curl -fsS -o /dev/null -w "%{http_code}" "https://table.mino.mobi$path" || echo fail)
             echo "  $path -> $STATUS"
             [ "$STATUS" = 200 ] || { echo "::error::$path is $STATUS"; exit 1; }
