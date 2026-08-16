@@ -384,8 +384,8 @@ export interface InitOutput {
     readonly tissueimager_label_map: (a: number, b: number) => void;
     readonly tissueimager_new: (a: number, b: number, c: number) => number;
     readonly zero_contrast_tr_ms: (a: number, b: number, c: number) => number;
-    readonly __wbg_tissueimager_free: (a: number, b: number) => void;
     readonly relative_faraday_emf: (a: number) => number;
+    readonly __wbg_tissueimager_free: (a: number, b: number) => void;
     readonly __wbindgen_add_to_stack_pointer: (a: number) => number;
     readonly __wbindgen_export: (a: number, b: number, c: number) => void;
     readonly __wbindgen_export2: (a: number, b: number) => number;
