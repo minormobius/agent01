@@ -26,9 +26,10 @@ export const D1_MAX_VARIABLES = 100;
 // Bump when anything about how the basis is FITTED changes (the model, the
 // sample, the α in makeBasis). Shapes built under different versions are not
 // comparable, so the version is part of the row key and is reported to the page.
-const BASIS_VERSION = 'v1';
+const BASIS_VERSION = 'v2';
 const BASIS_SAMPLE = 400;   // posts to fit on
 const BASIS_MIN = 120;      // below this a basis is too thin to be meaningful
+const BASIS_BUDGET_MS = 240000;  // per feed; this runs in a cron, not a request
 
 const APPVIEW = 'https://public.api.bsky.app';
 const SIMCLUSTER = 'at://did:plc:yivyyp54vddf7qf2lpsikhe4/app.bsky.feed.generator/simcluster';
@@ -71,11 +72,19 @@ export default {
     return env.ASSETS.fetch(request);
   },
 
-  // Daily: refit the basis on a fresh sample, and prune the embedding cache.
+  // Daily: build the basis IF IT IS MISSING, and prune the embedding cache.
+  //
+  // Deliberately not a refit. The basis decides which dimension drives which
+  // harmonic, so refitting re-shapes every post that has ever been drawn — and
+  // the variance ranking is exactly the part a fresh sample jitters, since with
+  // a few hundred posts the standard error on each dimension's spread is enough
+  // to swap neighbouring ranks. A surface whose whole promise is "two people
+  // looking at the same post see the same solid" cannot quietly redraw itself
+  // every night. Refitting is an explicit act: bump BASIS_VERSION.
   async scheduled(event, env, ctx) {
     ctx.waitUntil((async () => {
       try {
-        await buildBasis(env, { force: true });
+        await buildBasis(env, { force: false });
       } catch (err) {
         console.error('zest cron: basis build failed', err);
       }
@@ -412,8 +421,8 @@ async function buildBasisInner(env, { force }) {
   for (const key of keys) {
     const got = await collectPosts(FEEDS[key].uri, {
       want: Math.ceil(BASIS_SAMPLE / keys.length),
-      maxPages: 40,      // the fit is a background job; it can afford to page
-      budgetMs: 60000,
+      maxPages: 60,      // the fit is a background job; it can afford to page
+      budgetMs: BASIS_BUDGET_MS,
     });
     for (const p of got.posts) texts.push(p.text);
   }

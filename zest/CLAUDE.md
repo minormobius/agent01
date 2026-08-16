@@ -81,10 +81,15 @@ post can carry information the embedding never saw.
 **`DEFAULTS.seed` is frozen.** The quiet-dimension projection is drawn from it.
 Change it and every post ever screenshotted becomes a different solid.
 
-**`BASIS_VERSION` in `worker.js` is part of the row key.** Bump it whenever how
-the basis is *fitted* changes — the model, the sample, the α in `makeBasis`.
-Shapes built under different versions are not comparable, which is the one thing
-this surface exists to provide.
+**`BASIS_VERSION` in `worker.js` is part of the row key, and bumping it is the
+ONLY way to refit.** The cron builds the basis if it is missing and otherwise
+leaves it alone, on purpose. The basis decides which dimension drives which
+harmonic, so a refit re-shapes every post ever drawn — and the variance ranking
+is precisely what a fresh sample jitters, since at a few hundred posts the
+standard error on each dimension's spread is enough to swap neighbouring ranks.
+A surface promising "two people looking at the same post see the same solid"
+cannot quietly redraw itself every night. Bump the version when the model, the
+sample or the α in `makeBasis` changes; expect every shape to move when you do.
 
 **Do not "improve" the shapes.** No stylised bevels, no organic noise, no
 per-post randomness in the material. If a shape looks boring, that is a fact
