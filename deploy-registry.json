@@ -1374,6 +1374,7 @@
       "paths": [
         "zest/**",
         "poll/apps/api/migrations/0037_zest.sql",
+        "poll/apps/api/migrations/0038_zest_status.sql",
         ".github/workflows/deploy-zest.yml"
       ],
       "cohesion": "self-contained"

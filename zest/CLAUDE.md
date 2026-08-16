@@ -66,7 +66,7 @@ against a Gauss–Legendre quadrature rather than asserting it.
 ```bash
 node zest/embed-geometry.selftest.mjs   # 103 assertions — the map is faithful
 node zest/rounds.selftest.mjs           # 280 assertions — the test is calibrated
-node zest/worker.selftest.mjs           #  63 assertions — the premise + the bytes
+node zest/worker.selftest.mjs           #  71 assertions — the premise + the bytes
 ```
 
 All three gate the deploy, and they are not smoke tests: §2 of the first checks
@@ -115,12 +115,29 @@ rejections inflates the round's base rate.
 Push to the owning branch with something under `zest/**` touched. The workflow
 runs all three selftests, stages the static half into `zest/dist/` (Static Assets
 replaces the **whole** manifest — anything not staged is not on the site),
-applies migration `0037_zest.sql`, then `wrangler deploy`.
+applies migrations `0037_zest.sql` and `0038_zest_status.sql`, then
+`wrangler deploy`.
 
 `zest.mino.mobi` did not resolve before this surface existed, so the first
 deploy creates the worker *and* attaches the domain (the `words` / `neuro`
 precedent — `mino.mobi` is a zone on this account). **Confirm the run log binds
 `zest.mino.mobi (custom domain)`.** Green is not proof.
+
+## Watching the basis cron
+
+`GET /health` reports `lastBasisBuild: { ok, detail, at }`. **Check it before
+believing a missing basis is just a cold start** — a basis that is absent
+because the fit *failed* looks identical to one that has not run yet, and that
+cost a real diagnosis: the first sample loop gathered 116 posts against a floor
+of 120, threw, and left nothing behind but `basis: null`.
+
+Live yields, measured 2026-08-16, which is what the sample budget is sized
+against — re-measure before changing `BASIS_SAMPLE` or `BASIS_MIN`:
+
+| feed | kept | dominant rejection |
+|---|---|---|
+| SimCluster | ~34% | `embed` |
+| Discover | ~7.7% | `embed` (467 of 520 scanned) |
 
 ## Cost
 

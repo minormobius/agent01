@@ -100,20 +100,44 @@ async function handleFeed(url, env) {
   const want = Math.min(100, Math.max(1, Number(url.searchParams.get('limit')) || 40));
   const cursor = url.searchParams.get('cursor') || '';
 
+  const got = await collectPosts(FEEDS[src].uri, {
+    want, cursor, maxPages: 10, budgetMs: 20000,
+  });
+
+  return json(
+    { source: src, label: FEEDS[src].label, posts: got.posts, cursor: got.cursor, pages: got.pages, stats: got.stats },
+    200,
+    // Everyone is shown the same pool, so caching this is most of the latency
+    // fix: only the first visitor in each window pays for the paging above.
+    { 'cache-control': 'public, max-age=300, s-maxage=300' }
+  );
+}
+
+/**
+ * Page a feed until `want` usable posts are found, or a budget runs out.
+ *
+ * ONE collector, used by both /api/feed and the basis fit, because they had
+ * separate paging loops with separately-guessed page budgets and the basis one
+ * was silently too small — it gathered 116 posts against a floor of 120 and
+ * threw, for weeks of crons, with nothing on /health to say so.
+ *
+ * Both budgets are load-bearing. The filter discards most of the network
+ * (measured: 7.7% kept on Discover, 34% on SimCluster), so a page budget alone
+ * cannot bound the time; and getFeed against a busy generator has been measured
+ * at up to ~25s for a single page, so a time budget alone cannot bound the
+ * work either.
+ */
+async function collectPosts(feedUri, { want, cursor = '', maxPages, budgetMs }) {
   const posts = [];
   const seen = new Set();
   const stats = { scanned: 0, kept: 0, reject: {} };
+  const deadline = Date.now() + budgetMs;
   let next = cursor;
   let pages = 0;
 
-  // The filter throws most of the network away, so one upstream page never
-  // fills an order. Two hard stops, because getFeed against a busy generator
-  // has been measured at up to ~25s a page and a request that pages forever is
-  // worse than a short pool: a page budget AND a wall-clock budget.
-  const deadline = Date.now() + 20000;
-  while (posts.length < want && pages < 10 && Date.now() < deadline) {
+  while (posts.length < want && pages < maxPages && Date.now() < deadline) {
     pages++;
-    const page = await fetchFeedPage(FEEDS[src].uri, next, 100);
+    const page = await fetchFeedPage(feedUri, next, 100);
     if (!page) break;
     for (const item of page.feed || []) {
       stats.scanned++;
@@ -123,8 +147,8 @@ async function handleFeed(url, env) {
         stats.reject[why] = (stats.reject[why] || 0) + 1;
         continue;
       }
-      // A repost puts a post someone already wrote back in the feed, and the
-      // same post can appear twice in one pull. Dedupe rather than drop.
+      // A repost puts a post someone already wrote back into the feed, and the
+      // same post can surface twice in one pull. Dedupe rather than drop.
       if (seen.has(p.uri)) { stats.reject.duplicate = (stats.reject.duplicate || 0) + 1; continue; }
       seen.add(p.uri);
       posts.push(p);
@@ -135,13 +159,7 @@ async function handleFeed(url, env) {
     if (!next) break;
   }
 
-  return json(
-    { source: src, label: FEEDS[src].label, posts, cursor: next, pages, stats },
-    200,
-    // Everyone is shown the same pool, so caching this is most of the latency
-    // fix: only the first visitor in each window pays for the paging above.
-    { 'cache-control': 'public, max-age=300, s-maxage=300' }
-  );
+  return { posts, cursor: next, pages, stats };
 }
 
 async function fetchFeedPage(feedUri, cursor, limit) {
@@ -351,38 +369,54 @@ async function handleBasis(url, env, ctx) {
   return json({ status: 'building', version: BASIS_VERSION, model: EMBED_MODEL, basis: null }, 202);
 }
 
+/** Record how the last basis build went, so a failing cron is not invisible. */
+async function noteStatus(env, key, ok, detail) {
+  await env.DB.prepare(
+    `INSERT INTO zest_status (key, ok, detail, updated_at) VALUES (?, ?, ?, ?)
+     ON CONFLICT(key) DO UPDATE SET ok = excluded.ok, detail = excluded.detail, updated_at = excluded.updated_at`
+  ).bind(key, ok ? 1 : 0, String(detail).slice(0, 500), Math.floor(Date.now() / 1000))
+    .run().catch((err) => console.error('zest: status write failed', err));
+}
+
 /** Fit the basis on a fresh sample of feed posts and store it. */
-async function buildBasis(env, { force }) {
+async function buildBasis(env, opts) {
+  try {
+    const out = await buildBasisInner(env, opts);
+    if (out) await noteStatus(env, 'basis-build', true, `fitted on ${out.n} posts`);
+    return out;
+  } catch (err) {
+    await noteStatus(env, 'basis-build', false, err && err.message || String(err));
+    throw err;
+  }
+}
+
+async function buildBasisInner(env, { force }) {
   const id = `${EMBED_MODEL}/${BASIS_VERSION}`;
   if (!force) {
     const existing = await env.DB.prepare('SELECT id FROM zest_basis WHERE id = ?').bind(id).first().catch(() => null);
     if (existing) return null;
   }
 
-  // Sample across BOTH feeds. A basis fitted on one community would make that
-  // community's posts look average and everyone else look strange, which is a
-  // claim about the world we have no business encoding in the geometry.
+  // Sample across BOTH feeds, half each. A basis fitted on one community would
+  // make that community's posts look average and everyone else look strange,
+  // which is a claim about the world we have no business encoding in geometry.
+  const keys = Object.keys(FEEDS);
   const texts = [];
-  for (const key of ['simcluster', 'hot']) {
-    let cursor = '';
-    for (let page = 0; page < 5 && texts.length < BASIS_SAMPLE; page++) {
-      const res = await fetchFeedPage(FEEDS[key].uri, cursor, 100);
-      if (!res) break;
-      for (const item of res.feed || []) {
-        const p = usablePost(item);
-        if (p) texts.push(p.text);
-      }
-      cursor = res.cursor || '';
-      if (!cursor) break;
-    }
+  for (const key of keys) {
+    const got = await collectPosts(FEEDS[key].uri, {
+      want: Math.ceil(BASIS_SAMPLE / keys.length),
+      maxPages: 40,      // the fit is a background job; it can afford to page
+      budgetMs: 60000,
+    });
+    for (const p of got.posts) texts.push(p.text);
   }
 
   const uniq = [...new Set(texts)].slice(0, BASIS_SAMPLE);
-  if (uniq.length < BASIS_MIN) throw new Error(`basis sample too thin: ${uniq.length} posts`);
+  if (uniq.length < BASIS_MIN) throw new Error(`basis sample too thin: ${uniq.length} posts (floor ${BASIS_MIN})`);
 
   const { vectors } = await embedTexts(uniq, env);
   const good = vectors.filter((v) => v && v.length === EMBED_DIM);
-  if (good.length < BASIS_MIN) throw new Error(`basis: only ${good.length} vectors embedded`);
+  if (good.length < BASIS_MIN) throw new Error(`basis: only ${good.length} of ${uniq.length} texts embedded`);
 
   const basis = makeBasis(good);
   const payload = JSON.stringify(roundBasis(basis));
@@ -422,6 +456,12 @@ async function handleHealth(env) {
     out.basis = b ? { n: b.n, builtAt: b.built_at } : null;
     const c = await env.DB.prepare('SELECT COUNT(*) AS c FROM zest_embeddings').first();
     out.cachedEmbeddings = c ? c.c : 0;
+    const st = await env.DB.prepare(
+      'SELECT ok, detail, updated_at FROM zest_status WHERE key = ?'
+    ).bind('basis-build').first().catch(() => null);
+    // A basis that is absent because the fit FAILED looks identical to one that
+    // is absent because it has not run yet. Say which.
+    out.lastBasisBuild = st ? { ok: !!st.ok, detail: st.detail, at: st.updated_at } : null;
   } catch (err) {
     out.ok = false;
     out.error = String(err && err.message || err);
