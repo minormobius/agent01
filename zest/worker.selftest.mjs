@@ -13,7 +13,10 @@
 //                 renders the wrong solids, silently, forever, because the
 //                 wrong vector is now cached under the right hash.
 
-import { usablePost, hashText, blobFromFloats, floatsFromBlob, b64FromFloats, roundBasis } from './worker.js';
+import {
+  usablePost, hashText, blobFromFloats, floatsFromBlob, b64FromFloats, roundBasis,
+  CACHE_LOOKUP_CHUNK, D1_MAX_VARIABLES,
+} from './worker.js';
 import { makeBasis, hashEmbed } from './embed-geometry.js';
 
 let pass = 0, fail = 0;
@@ -114,7 +117,28 @@ section('§1  usablePost — the text-only premise');
   ok(usablePost({ post: { record: { text: LONG } } }) !== null, 'a post with no author block still yields a record');
 }
 
-section('§2  content addressing');
+section('§2  D1 will not take more than 100 bound variables');
+{
+  // The cache lookup is `WHERE model = ? AND hash IN (?, ?, …)`, so one chunk
+  // costs chunk + 1 variables. At chunk = 100 that is 101 and D1 fails with
+  // "too many SQL variables" — which never fires under a small test batch and
+  // fires every time on the 400-post basis fit. Pin the arithmetic.
+  ok(CACHE_LOOKUP_CHUNK + 1 <= D1_MAX_VARIABLES,
+    'one cache-lookup chunk fits inside D1\'s variable limit',
+    `${CACHE_LOOKUP_CHUNK} hashes + 1 model = ${CACHE_LOOKUP_CHUNK + 1} of ${D1_MAX_VARIABLES}`);
+  ok(CACHE_LOOKUP_CHUNK > 0, 'the chunk is a positive size');
+
+  // and the chunking really does cover an over-limit batch without any chunk
+  // exceeding it
+  for (const total of [1, 89, 90, 91, 200, 400]) {
+    const chunks = [];
+    for (let i = 0; i < total; i += CACHE_LOOKUP_CHUNK) chunks.push(Math.min(CACHE_LOOKUP_CHUNK, total - i));
+    ok(chunks.reduce((a, b) => a + b, 0) === total, `${total} hashes are fully covered`);
+    ok(chunks.every((c) => c + 1 <= D1_MAX_VARIABLES), `${total} hashes chunk within the limit`);
+  }
+}
+
+section('§3  content addressing');
 {
   ok(hashText('abc') === hashText('abc'), 'the same text hashes the same');
   ok(hashText('abc') !== hashText('abd'), 'a one-character change changes the hash');
@@ -129,7 +153,7 @@ section('§2  content addressing');
   ok(seen.size === 20000, 'no collisions across 20k realistic keys', seen.size);
 }
 
-section('§3  the Float32 round trip — D1 blob and base64');
+section('§4  the Float32 round trip — D1 blob and base64');
 {
   const vec = hashEmbed('a post about herons standing very still in shallow water');
   const f32 = Float32Array.from(vec);
@@ -166,7 +190,7 @@ section('§3  the Float32 round trip — D1 blob and base64');
   ok(edgeBack.every((v, i) => Object.is(v, edge[i])), 'denormals, signed zero and near-max survive');
 }
 
-section('§4  the stored basis stays a usable basis');
+section('§5  the stored basis stays a usable basis');
 {
   const vecs = Array.from({ length: 140 }, (_, i) => hashEmbed('post ' + i + ' about a thing that happened'));
   const basis = makeBasis(vecs);

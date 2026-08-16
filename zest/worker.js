@@ -15,6 +15,13 @@ import { makeBasis } from './embed-geometry.js';
 const EMBED_MODEL = '@cf/baai/bge-base-en-v1.5';
 const EMBED_DIM = 768;
 const EMBED_BATCH = 50;
+// D1 caps a prepared statement at 100 bound variables. The cache lookup binds
+// the model plus one hash per slot, so the chunk must leave room for that model
+// parameter — at 100 it is 101 variables and D1 answers "too many SQL
+// variables", which is invisible until something asks for more than 100 texts
+// at once. The basis fit asks for 400.
+export const CACHE_LOOKUP_CHUNK = 90;
+export const D1_MAX_VARIABLES = 100;
 
 // Bump when anything about how the basis is FITTED changes (the model, the
 // sample, the α in makeBasis). Shapes built under different versions are not
@@ -269,8 +276,8 @@ async function embedTexts(texts, env) {
 
   // ── read-through
   const unique = [...new Set(hashes)];
-  for (let i = 0; i < unique.length; i += 100) {
-    const chunk = unique.slice(i, i + 100);
+  for (let i = 0; i < unique.length; i += CACHE_LOOKUP_CHUNK) {
+    const chunk = unique.slice(i, i + CACHE_LOOKUP_CHUNK);
     const rows = await env.DB.prepare(
       `SELECT hash, embedding FROM zest_embeddings
         WHERE model = ? AND hash IN (${chunk.map(() => '?').join(',')})`

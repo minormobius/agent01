@@ -66,7 +66,7 @@ against a Gauss–Legendre quadrature rather than asserting it.
 ```bash
 node zest/embed-geometry.selftest.mjs   # 103 assertions — the map is faithful
 node zest/rounds.selftest.mjs           # 280 assertions — the test is calibrated
-node zest/worker.selftest.mjs           #  71 assertions — the premise + the bytes
+node zest/worker.selftest.mjs           #  85 assertions — the premise + the bytes
 ```
 
 All three gate the deploy, and they are not smoke tests: §2 of the first checks
