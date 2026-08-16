@@ -27,7 +27,13 @@ export function drawPlan(ctx, o) {
   for (const r of dungeon.rooms) for (const t of r.tiles) { y0 = Math.min(y0, t.y); y1 = Math.max(y1, t.y); }
   const tilePath = (t, inset = 1) => {
     ctx.beginPath();
-    if (dungeon.tileShape === 'hex') {
+    if (t.poly) {
+      const f = 0.96 * inset;
+      t.poly.forEach(([px, pz], i) => {
+        const x = mx(t.x + (px - t.x) * f), z = mz(t.z + (pz - t.z) * f);
+        i ? ctx.lineTo(x, z) : ctx.moveTo(x, z);
+      });
+    } else if (dungeon.tileShape === 'hex') {
       const R = (s / Math.sqrt(3)) * k * 0.96 * inset;
       for (let i = 0; i < 6; i++) {
         const a = Math.PI / 180 * (60 * i - 30);

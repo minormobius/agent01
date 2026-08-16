@@ -102,9 +102,15 @@ against if you want everything the generator knows.
 
 Semantics worth knowing:
 
-- **Tiles sit on one global lattice** (origin `0,0`), so tiles align across
+- **Tiles sit on one global tiling** (origin `0,0`), so tiles align across
   rooms. Grid: centre `x=(i+0.5)·size`. Hex: pointy-top axial,
-  `x=√3·R·(q+r/2)`, `z=1.5·R·r`, `R=size/√3`.
+  `x=√3·R·(q+r/2)`, `z=1.5·R·r`, `R=size/√3`. **Penrose** (`shape:
+  "penrose"`): P3 rhombs from de Bruijn's pentagrid dual with fixed generic
+  offsets — one aperiodic tiling of the plane, edge length = `size`; since
+  no formula reproduces an aperiodic tile from its key, each tile carries
+  its polygon in `poly` (4 vertices, CCW). Consumers should treat `poly`
+  as authoritative when present and derive adjacency by shared edges —
+  which is how the crawl layer works for every shape anyway.
 - **`y` on every tile is the exact floor-plane height** under its centre —
   render flat by ignoring it, or 3D by using it.
 - **Every door is a certified crossing**: the generator's kernel proved a

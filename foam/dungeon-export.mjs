@@ -29,6 +29,11 @@ const rnd3 = (v) => Math.round(v * 1000) / 1000;
 //   hex   — pointy-top corner lattice: x in units √3R/2 (X = 2q+r±1|0),
 //           z in units R/2 (Z = 3r±1|±2)
 function cornersOf(shape, tileSize, t) {
+  if (t.poly) {
+    // aperiodic tiles carry their polygon; adjacent tiles share rounded
+    // vertices exactly, so quantized keys cancel shared edges
+    return t.poly.map(([x, z]) => ({ key: 'p' + Math.round(x * 1e3) + ':' + Math.round(z * 1e3), x, z }));
+  }
   if (t.key === 'c') {
     // fallback tile (floor sliver): a free square around the centre — no
     // neighbours to cancel against, so float keys are safe
@@ -147,9 +152,11 @@ export function dungeonToJSON(dungeon) {
     bounds: { w: rnd3(P.W), h: rnd3(P.H), d: rnd3(P.D) },
     tile: {
       shape: dungeon.tileShape, size: rnd3(dungeon.tileSize),
-      lattice: dungeon.tileShape === 'hex'
-        ? 'pointy-top axial (q,r): x=√3R(q+r/2), z=1.5Rr, R=size/√3, global origin 0,0'
-        : 'square (i,j): centre x=(i+0.5)size, z=(j+0.5)size, global origin 0,0',
+      lattice: dungeon.tileShape === 'penrose'
+        ? 'P3 Penrose rhombs, de Bruijn pentagrid dual (fixed offsets), edge=size; tiles carry their polygon in `poly`'
+        : dungeon.tileShape === 'hex'
+          ? 'pointy-top axial (q,r): x=√3R(q+r/2), z=1.5Rr, R=size/√3, global origin 0,0'
+          : 'square (i,j): centre x=(i+0.5)size, z=(j+0.5)size, global origin 0,0',
     },
     entrance: dungeon.entrance,
     endpoints: dungeon.endpoints.slice(),
@@ -166,6 +173,7 @@ export function dungeonToJSON(dungeon) {
         key: t.key,
         ...(t.q !== undefined ? { q: t.q, r: t.r } : {}),
         ...(t.i !== undefined ? { i: t.i, j: t.j } : {}),
+        ...(t.poly ? { poly: t.poly.map(([a, b]) => [rnd3(a), rnd3(b)]) } : {}),
         x: rnd3(t.x), z: rnd3(t.z), y: rnd3(t.y), kind: t.kind,
       })),
       outline: roomOutlines(dungeon, r),

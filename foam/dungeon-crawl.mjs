@@ -60,16 +60,36 @@ export function buildCrawl(json, opts = {}) {
     const byKey = new Map(r.tiles.map((t) => [t.key, t]));
     const adj = new Map(walk.map((t) => [t.key, []]));
     const link = (a, b) => { adj.get(a).push(b); adj.get(b).push(a); };
-    // lattice neighbours under the height gate
-    for (const t of walk) {
-      const deltas = shape === 'hex' ? HEXN : GRIDN;
-      for (const [da, db] of deltas) {
-        const nk = shape === 'hex'
-          ? (t.q === undefined ? null : (t.q + da) + ',' + (t.r + db))
-          : (t.i === undefined ? null : (t.i + da) + ',' + (t.j + db));
-        if (!nk || !byKey.has(nk)) continue;
-        const n = byKey.get(nk);
-        if (t.key < nk && Math.abs(n.y - t.y) <= dyMax) link(t.key, nk);
+    // neighbours under the height gate — lattice deltas for periodic
+    // shapes; aperiodic tiles (poly carried) adjoin by SHARED EDGE, found
+    // through their bit-identical rounded vertices. This is why the whole
+    // crawl layer is graph-based: a tiling only owes us an adjacency.
+    if (shape === 'penrose') {
+      const vk = (p) => Math.round(p[0] * 512) + ',' + Math.round(p[1] * 512);
+      const edgeOwner = new Map();
+      for (const t of walk) {
+        if (!t.poly) continue;
+        for (let i = 0; i < t.poly.length; i++) {
+          const a = vk(t.poly[i]), b = vk(t.poly[(i + 1) % t.poly.length]);
+          const ek = a < b ? a + '|' + b : b + '|' + a;
+          const other = edgeOwner.get(ek);
+          if (other !== undefined && other !== t.key) {
+            const n = byKey.get(other);
+            if (Math.abs(n.y - t.y) <= dyMax) link(t.key, other);
+          } else edgeOwner.set(ek, t.key);
+        }
+      }
+    } else {
+      for (const t of walk) {
+        const deltas = shape === 'hex' ? HEXN : GRIDN;
+        for (const [da, db] of deltas) {
+          const nk = shape === 'hex'
+            ? (t.q === undefined ? null : (t.q + da) + ',' + (t.r + db))
+            : (t.i === undefined ? null : (t.i + da) + ',' + (t.j + db));
+          if (!nk || !byKey.has(nk)) continue;
+          const n = byKey.get(nk);
+          if (t.key < nk && Math.abs(n.y - t.y) <= dyMax) link(t.key, nk);
+        }
       }
     }
     // bridge the gaps: union-find components, join closest pairs

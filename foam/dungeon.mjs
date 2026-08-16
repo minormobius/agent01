@@ -135,6 +135,61 @@ export function discretizeRoom(pocket, node, shape, tileSize) {
         if (s) tiles.push({ key: q + ',' + r, q, r, x, z, y: s.y, face: s.face, kind: 'floor' });
       }
     }
+  } else if (shape === 'penrose') {
+    // P3 Penrose rhombs by de Bruijn's pentagrid dual: five families of
+    // parallel lines at 72°, fixed generic offsets — ONE aperiodic tiling
+    // of the whole plane, deterministic forever, so tiles align across
+    // rooms exactly like the periodic lattices. Each line intersection is
+    // dual to one rhomb (fat 72° or thin 36°, edge length = tileSize);
+    // vertices are integer combinations of the five unit directions, so
+    // adjacent rhombs share bit-identical corners. Tiles carry their
+    // polygon (`poly`) since no lattice formula reproduces them.
+    const G = [0.1375, 0.2632, -0.1141, 0.0523, -0.3389];   // generic, fixed
+    const dirs = [0, 1, 2, 3, 4].map((k) => [Math.cos(2 * Math.PI * k / 5), Math.sin(2 * Math.PI * k / 5)]);
+    const u = tileSize;
+    // de Bruijn's dual sends the intersection at p to a rhomb near (5/2)·p
+    // (Σ eₘeₘᵀ = 5/2·I), so enumerate intersections over the PRE-IMAGE of
+    // the room's bbox: bbox × 2/5, padded
+    const x0 = (minX / u) * 0.4 - 2, x1 = (maxX / u) * 0.4 + 2;
+    const z0 = (minZ / u) * 0.4 - 2, z1 = (maxZ / u) * 0.4 + 2;
+    const rangeOf = (k) => {
+      let lo = Infinity, hi = -Infinity;
+      for (const [bx, bz] of [[x0, z0], [x0, z1], [x1, z0], [x1, z1]]) {
+        const d = bx * dirs[k][0] + bz * dirs[k][1] + G[k];
+        lo = Math.min(lo, d); hi = Math.max(hi, d);
+      }
+      return [Math.floor(lo) - 1, Math.ceil(hi) + 1];
+    };
+    for (let k = 0; k < 5; k++) {
+      for (let l = k + 1; l < 5; l++) {
+        const det = dirs[k][0] * dirs[l][1] - dirs[k][1] * dirs[l][0];
+        const [rk0, rk1] = rangeOf(k), [rl0, rl1] = rangeOf(l);
+        for (let r = rk0; r <= rk1; r++) {
+          for (let s2 = rl0; s2 <= rl1; s2++) {
+            const a = r - G[k], b = s2 - G[l];
+            const px = (a * dirs[l][1] - b * dirs[k][1]) / det;
+            const pz = (b * dirs[k][0] - a * dirs[l][0]) / det;
+            if (px < x0 || px > x1 || pz < z0 || pz > z1) continue;
+            const K = [];
+            for (let m = 0; m < 5; m++) K[m] = Math.ceil(px * dirs[m][0] + pz * dirs[m][1] + G[m] - 1e-9);
+            const verts = [];
+            for (const [dk, dl] of [[0, 0], [1, 0], [1, 1], [0, 1]]) {
+              K[k] = r + dk; K[l] = s2 + dl;
+              let vx = 0, vz = 0;
+              for (let m = 0; m < 5; m++) { vx += K[m] * dirs[m][0]; vz += K[m] * dirs[m][1]; }
+              verts.push([vx * u, vz * u]);
+            }
+            // normalize winding CCW so outline extraction stays consistent
+            const area2 = (verts[1][0] - verts[0][0]) * (verts[2][1] - verts[0][1]) -
+                          (verts[1][1] - verts[0][1]) * (verts[2][0] - verts[0][0]);
+            if (area2 < 0) verts.reverse();
+            const cx = (verts[0][0] + verts[2][0]) / 2, cz = (verts[0][1] + verts[2][1]) / 2;
+            const sf = probe(cx, cz);
+            if (sf) tiles.push({ key: k + '.' + l + '.' + r + '.' + s2, x: cx, z: cz, y: sf.y, face: sf.face, kind: 'floor', poly: verts });
+          }
+        }
+      }
+    }
   } else {
     const t = tileSize;
     const i0 = Math.floor(minX / t), i1 = Math.ceil(maxX / t);

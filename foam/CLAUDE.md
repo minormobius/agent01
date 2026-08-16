@@ -61,8 +61,14 @@ win state when every endpoint is found. Movement is budgeted VTT-style
 (`reachableWithin` in the crawl module): the movement slider sets
 tiles-per-turn, legal squares light shaded by cost, in-reach doors glow,
 clicking a lit tile walks the shortest path (each step visibly consumed),
-end turn refreshes the budget. Dungeon `SIZES` (s/m/l/xl, dungeon.mjs) set
-the pocket dims and ride the permalink `size` param; absent = m = the
+end turn refreshes the budget. Tile shapes: grid, hex, and PENROSE (P3
+rhombs via de Bruijn's pentagrid dual, fixed generic offsets = one global
+aperiodic tiling; enumeration runs over the bbox pre-image since the dual
+maps p → ~(5/2)p; tiles carry `poly`, winding normalized CCW). The crawl
+layer derives penrose adjacency from shared polygon edges, content lines
+walk by ANGLE instead of lattice direction, and every renderer takes
+`t.poly` as authoritative when present. Dungeon `SIZES` (s/m/l/xl,
+dungeon.mjs) set the pocket dims and ride the permalink `size` param; absent = m = the
 original geometry, so old permalinks are unaffected. Golden pins hash only
 the geometry-bearing export subset, so metadata additions don't shift them.
 The crawl page plays the content roll: hp/gold, bump combat (enemies

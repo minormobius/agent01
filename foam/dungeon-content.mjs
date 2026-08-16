@@ -117,7 +117,59 @@ export function rollContent(json, opts = {}) {
     }
   };
   let lineId = 0;
+  // aperiodic tiles have no lattice direction — lines walk by ANGLE: pick a
+  // bearing, then repeatedly step to the edge-adjacent neighbour best
+  // aligned with it. Adjacency from shared rounded polygon vertices.
+  const polyAdjCache = new Map();
+  const polyAdjacency = (room) => {
+    if (polyAdjCache.has(room.id)) return polyAdjCache.get(room.id);
+    const vk = (p) => Math.round(p[0] * 512) + ',' + Math.round(p[1] * 512);
+    const adj = new Map(room.tiles.map((t) => [t.key, []]));
+    const owner = new Map();
+    for (const t of room.tiles) {
+      if (!t.poly) continue;
+      for (let i = 0; i < t.poly.length; i++) {
+        const a = vk(t.poly[i]), b = vk(t.poly[(i + 1) % t.poly.length]);
+        const ek = a < b ? a + '|' + b : b + '|' + a;
+        const o = owner.get(ek);
+        if (o !== undefined && o !== t.key) { adj.get(t.key).push(o); adj.get(o).push(t.key); }
+        else owner.set(ek, t.key);
+      }
+    }
+    polyAdjCache.set(room.id, adj);
+    return adj;
+  };
+  const layLineAngular = (room, byKey, cand, maxLen, full) => {
+    const start = takeTileLattice(room, cand);   // any non-fallback tile
+    if (!start) return null;
+    const adj = polyAdjacency(room);
+    const th = rng() * 2 * Math.PI;
+    const walkDir = (dirX, dirZ, out) => {
+      let cur = start;
+      for (;;) {
+        if (out.length >= (full ? 99 : maxLen)) break;
+        let best = null, bs = 0.35;
+        for (const nk of adj.get(cur.key) ?? []) {
+          const n = byKey.get(nk);
+          if (out.includes(n) || n === start) continue;
+          if (n.kind !== 'floor' || taken.has(room.id + ':' + n.key)) continue;
+          const dx = n.x - cur.x, dz = n.z - cur.z;
+          const L = Math.hypot(dx, dz) || 1;
+          const cos = (dx * dirX + dz * dirZ) / L;
+          if (cos > bs) { bs = cos; best = n; }
+        }
+        if (!best) break;
+        out.push(best);
+        cur = best;
+      }
+    };
+    const out = [start];
+    walkDir(Math.cos(th), Math.sin(th), out);
+    if (full) walkDir(-Math.cos(th), -Math.sin(th), out);
+    return out.length ? { tiles: out, line: lineId++, span: full ? 'full' : 'partial' } : null;
+  };
   const layLine = (room, byKey, cand, maxLen, full) => {
+    if (shape === 'penrose') return layLineAngular(room, byKey, cand, maxLen, full);
     const start = takeTileLattice(room, cand);
     if (!start) return null;
     // try a few directions from the same start, keep the longest run — a

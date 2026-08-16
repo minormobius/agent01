@@ -117,7 +117,7 @@
   </div>
   <div class="row"><label>endpoints</label><input id="nend" type="range" min="1" max="6" step="1" value="3"><span class="val" id="nendv">3</span></div>
   <div class="row"><label>tiles</label>
-    <span class="seg"><button id="shGrid" class="on">grid</button><button id="shHex">hex</button></span>
+    <span class="seg"><button id="shGrid" class="on">grid</button><button id="shHex">hex</button><button id="shPen" title="Penrose P3 — aperiodic rhombs">pen</button></span>
   </div>
   <div class="row"><label>tile scale</label><input id="scale" type="range" min="0.08" max="1" step="0.01" value="0.35"><span class="val" id="scalev">0.35</span></div>
   <button class="btn" id="reroll">⚄ reroll seed</button>
@@ -180,7 +180,7 @@ function readHash() {
   const h = new URLSearchParams(location.hash.slice(1));
   if (h.get('seed')) params.seed = Math.max(1, parseInt(h.get('seed'), 10) || 1);
   if (h.get('n')) params.n = Math.min(6, Math.max(1, parseInt(h.get('n'), 10) || 3));
-  if (h.get('shape') === 'hex') params.shape = 'hex';
+  if (h.get('shape') === 'hex' || h.get('shape') === 'penrose') params.shape = h.get('shape');
   if (h.get('scale')) params.scale = Math.min(1, Math.max(0.08, parseFloat(h.get('scale')) || 0.35));
   if (SIZES[h.get('size')]) params.size = h.get('size');
   if (h.get('roll')) params.roll = Math.max(1, parseInt(h.get('roll'), 10) || 1);
@@ -310,7 +310,9 @@ function buildScene(d) {
       }
       const y = t.y + 0.045;
       let corners;
-      if (d.tileShape === 'hex') {
+      if (t.poly) {
+        corners = t.poly.map(([px, pz]) => [t.x + (px - t.x) * 0.94, t.z + (pz - t.z) * 0.94]);
+      } else if (d.tileShape === 'hex') {
         const R = (s / Math.sqrt(3)) * 0.94;
         corners = [0, 1, 2, 3, 4, 5].map((k) => hexCorner(t.x, t.z, R, k));
       } else {
@@ -566,7 +568,11 @@ function drawRoomMap(r) {
     ctx.fillStyle = fill;
     ctx.strokeStyle = 'rgba(4,6,10,.7)'; ctx.lineWidth = 1;
     ctx.beginPath();
-    if (dungeon.tileShape === 'hex') {
+    if (t.poly) {
+      t.poly.forEach(([qx, qz], i) => {
+        i ? ctx.lineTo(mx(qx), mz(qz)) : ctx.moveTo(mx(qx), mz(qz));
+      });
+    } else if (dungeon.tileShape === 'hex') {
       const R = (s / Math.sqrt(3)) * k;
       for (let i = 0; i < 6; i++) {
         const a = Math.PI / 180 * (60 * i - 30);
@@ -661,6 +667,7 @@ function syncUI() {
   $('scale').value = params.scale; $('scalev').textContent = params.scale.toFixed(2);
   $('shGrid').classList.toggle('on', params.shape === 'grid');
   $('shHex').classList.toggle('on', params.shape === 'hex');
+  $('shPen').classList.toggle('on', params.shape === 'penrose');
   for (const b of $('sizeSeg').children) b.classList.toggle('on', b.dataset.size === params.size);
   $('rollv').textContent = params.roll;
 }
@@ -713,6 +720,7 @@ $('scale').oninput = () => { params.scale = parseFloat($('scale').value); $('sca
 $('scale').onchange = () => regen(false);
 $('shGrid').onclick = () => { params.shape = 'grid'; syncUI(); regen(false); };
 $('shHex').onclick = () => { params.shape = 'hex'; syncUI(); regen(false); };
+$('shPen').onclick = () => { params.shape = 'penrose'; syncUI(); regen(false); };
 for (const b of $('sizeSeg').children) {
   b.onclick = () => { params.size = b.dataset.size; syncUI(); regen(true); };
 }
