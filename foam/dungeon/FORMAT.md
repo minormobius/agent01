@@ -24,7 +24,11 @@ published permalink — any change that would move a layout must bump `v`,
 making an old link *detectably* old instead of silently different. The same
 version is stamped into every exported JSON (`generator` block).
 
-Version history: **v2** — no flat ground: basins standing on the domain box
+Version history: **v4** — loops: detour routes through off-dungeon foam
+connecting rooms whose door-graph distance is ≥3, added as ordinary visible
+rooms (`"loop": true`) with every detour door tagged; the top-level `loops`
+array records `{rooms: [a, b], via: […], span, detour}` — endpoints gain
+genuinely multiple paths. **v2** — no flat ground: basins standing on the domain box
 are excluded (every floor is a voronoi membrane), pockets are rampier so
 descent happens on tilted membranes, every size carries an extra sub-layer,
 and the entrance is the roomiest top chamber of the largest connected

@@ -49,7 +49,17 @@ import { generatePocket, fnv, mulberry, pointInPolyXZ } from './foamworld.js';
 // through a HATCH in the floor of a different path room. One-way down,
 // two-way hatch, provably navigable — a tunnel through foam the main
 // dungeon never uses, not a branch.
-export const DUNGEON_VERSION = 3;
+//
+// v3 → v4: LOOPS. The kernel's oracle was always loop-agnostic (a BFS
+// distance field tolerates any number of shortest paths); it was this
+// layer that flattened the dungeon to a tree by keeping one wayfound path
+// per endpoint — and the tree is TIGHT: the union of shortest paths uses
+// essentially every certified edge among its rooms, so loops cannot come
+// from unlocking existing membranes. v4 rolls DETOURS instead: alternate
+// routes through off-dungeon foam connecting rooms whose door-graph
+// distance is ≥3, added as ordinary visible rooms (`loop: true`), every
+// door on the detour tagged — endpoints gain genuinely multiple paths.
+export const DUNGEON_VERSION = 4;
 
 // Dungeon sizes: pocket dimensions by name. Part of the permalink (the
 // `size` hash param; absent = 'm'). xl generation can take a few seconds
@@ -379,6 +389,86 @@ export function generateDungeon(opts = {}) {
     if (r.isEntrance) mark('entrance', r.centroid[0], r.centroid[2]);
     if (r.endpointIndex >= 0) mark('goal', r.centroid[0], r.centroid[2]);
   }
+  // -- v4: LOOPS. The union of shortest paths from one entrance uses
+  //    essentially every certified edge among its rooms — a tree with no
+  //    slack. Real loops need NEW rooms: an alternate route through
+  //    off-dungeon foam connecting two rooms whose door-graph distance is
+  //    ≥4, giving endpoints genuinely multiple paths. Loop rooms are
+  //    ordinary visible rooms (`loop: true`); every door on the detour is
+  //    tagged `loop: true`.
+  const loops = [];
+  {
+    const rngL = mulberry(fnv(0x100950, pocket.seed >>> 0, rooms.length));
+    const doorAdj = new Map(rooms.map((r) => [r.id, r.doors.map((d) => d.to)]));
+    const doorDist = (src, dst) => {
+      const dist = new Map([[src, 0]]);
+      const q = [src];
+      for (let h = 0; h < q.length; h++) {
+        if (q[h] === dst) return dist.get(dst);
+        for (const v of doorAdj.get(q[h]) ?? []) {
+          if (!dist.has(v)) { dist.set(v, dist.get(q[h]) + 1); q.push(v); }
+        }
+      }
+      return Infinity;
+    };
+    const want = 1 + (rngL() < 0.6 ? 1 : 0);
+    const starts = rooms.filter((r) => !r.isEntrance && r.endpointIndex < 0);
+    for (let i = starts.length - 1; i > 0; i--) { const j = Math.floor(rngL() * (i + 1)); [starts[i], starts[j]] = [starts[j], starts[i]]; }
+    for (const R1 of starts) {
+      if (loops.length >= want) break;
+      // BFS from R1 through OFF-dungeon basins only; dungeon rooms are
+      // terminals — the first far-enough one ends the detour
+      const prevE = new Map([[R1.id, null]]);
+      const depthB = new Map([[R1.id, 0]]);
+      const q = [R1.id];
+      let hit = null;
+      for (let h = 0; h < q.length && !hit; h++) {
+        const u = q[h];
+        if (depthB.get(u) > 9) continue;
+        for (const e of adj[u]) {
+          const v = e.a === u ? e.b : e.a;
+          if (prevE.has(v)) continue;
+          if (roomOf.has(v)) {
+            if (v !== R1.id && depthB.get(u) >= 1 && !roomOf.get(v).secret && doorDist(R1.id, v) >= 3) {
+              prevE.set(v, { from: u, e });
+              hit = v;
+              break;
+            }
+            continue;
+          }
+          prevE.set(v, { from: u, e });
+          depthB.set(v, depthB.get(u) + 1);
+          q.push(v);
+        }
+      }
+      if (hit === null) continue;
+      const chain = [];
+      for (let u = hit; u !== R1.id; u = prevE.get(u).from) chain.push(u);
+      chain.push(R1.id); chain.reverse();            // R1 … hit
+      const span = doorDist(R1.id, hit);
+      for (let ci = 1; ci + 1 < chain.length; ci++) {
+        const ni = chain[ci];
+        const r = touch(ni);
+        r.loop = true;
+        if (r.depth < 0) r.depth = roomOf.get(R1.id).depth + ci;
+        r.tiles = discretizeRoom(pocket, nodes[ni], tileShape, tileSize);
+        doorAdj.set(ni, []);
+      }
+      for (let ci = 1; ci < chain.length; ci++) {
+        const { e } = prevE.get(chain[ci]);
+        for (const [me, other] of [[chain[ci - 1], chain[ci]], [chain[ci], chain[ci - 1]]]) {
+          const r = roomOf.get(me);
+          if (r.doors.some((x) => x.face === e.face)) continue;
+          const dt = nearestTile(r.tiles, e.at[0], e.at[2]);
+          if (dt.kind === 'floor') dt.kind = 'door';
+          r.doors.push({ face: e.face, to: other, at: e.at.slice(), tile: dt.key, loop: true });
+          doorAdj.get(me).push(other);
+        }
+      }
+      loops.push({ rooms: [R1.id, hit], via: chain.slice(1, -1), span, detour: chain.length - 1 });
+    }
+  }
+
   // -- v3: trapdoor passages. For up to two rolled path rooms, find a floor
   //    tile whose underside chamber holds a non-dungeon basin, then a
   //    certified corkscrew from that landing through OFF-DUNGEON basins that
@@ -484,7 +574,7 @@ export function generateDungeon(opts = {}) {
   rooms.sort((a, b) => a.depth - b.depth || a.id - b.id);
 
   return {
-    pocket, entrance, endpoints: picked, paths, rooms, roomOf, trapdoors,
+    pocket, entrance, endpoints: picked, paths, rooms, roomOf, trapdoors, loops,
     tileShape, tileScale, tileSize, size: sizeName,
     requestedEndpoints: wantEndpoints,
   };

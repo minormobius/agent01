@@ -30,8 +30,8 @@ const t0 = Date.now();
 //    Never re-pin a moved layout without the bump.
 {
   const { DUNGEON_VERSION } = await import('../dungeon.mjs');
-  ok(DUNGEON_VERSION === 3, 'golden pins below are for DUNGEON_VERSION 3');
-  const GOLDEN = { 1: 0x15ef02ce, 2: 0xfd450c68, 5: 0x75a64bc0 };
+  ok(DUNGEON_VERSION === 4, 'golden pins below are for DUNGEON_VERSION 4');
+  const GOLDEN = { 1: 0xc6c94931, 2: 0xbf94806e, 5: 0x3dc99152 };
   const sigOf = (s) => {
     const J = dungeonToJSON(generateDungeon({ seed: s, endpoints: 3, tileShape: 'grid', tileScale: 0.35 }));
     const str = JSON.stringify({ e: J.entrance, n: J.endpoints, r: J.rooms, d: J.doors, p: J.paths, t: J.trapdoors });
@@ -134,10 +134,11 @@ for (const seed of SEEDS) {
   //    height matches that face's plane
   const unionRooms = new Set();
   for (const p of paths) for (const r of p.rooms) unionRooms.add(r);
-  const secretCount = rooms.filter((r) => r.secret).length;
-  ok(rooms.length === unionRooms.size + secretCount,
-    'rooms = union of path rooms + secret passage rooms');
-  ok(rooms.every((r) => unionRooms.has(r.id) || r.secret), 'non-path rooms are all secret');
+  const extraCount = rooms.filter((r) => r.secret || r.loop).length;
+  ok(rooms.length === unionRooms.size + extraCount,
+    'rooms = path union + secret passages + loop detours');
+  ok(rooms.every((r) => unionRooms.has(r.id) || r.secret || r.loop),
+    'non-path rooms are secret or loop');
   for (const r of rooms) {
     ok(r.tiles.length >= 1, `room ${r.id} has tiles`);
     let inside = true, heights = true;
@@ -314,6 +315,46 @@ for (const seed of SEEDS) {
       const C = rollContent(J, { roll: 1 });
       const reserved = new Set(J.trapdoors.flatMap((t) => [t.fromRoom + ':' + t.fromTile, t.toRoom + ':' + t.toTile]));
       ok(![...C.effects, ...C.agents].some((x) => reserved.has(x.room + ':' + x.tile)), 'content stays off trapdoor endpoints');
+    }
+  }
+
+  // -- v4 LOOPS: detours through off-dungeon foam giving endpoints multiple
+  //    paths — junctions far apart door-wise, loop rooms visible + flagged,
+  //    and cutting the primary route's door still leaves the loop's far
+  //    junction reachable (the whole point of a loop)
+  {
+    const J = dungeonToJSON(generateDungeon({ pocket, endpoints: 3, tileShape: 'grid', tileScale: 0.35 }));
+    const byId = new Map(J.rooms.map((r) => [r.id, r]));
+    for (const L of J.loops) {
+      const [a, b] = L.rooms;
+      ok(byId.has(a) && byId.has(b) && !byId.get(a).secret && !byId.get(b).secret,
+        `loop ${a}↔${b}: junctions are ordinary rooms`);
+      ok(L.span >= 3, `loop ${a}↔${b}: span ${L.span} ≥ 3`);
+      ok(L.via.every((v) => byId.get(v)?.loop), `loop ${a}↔${b}: detour rooms flagged`);
+      ok(byId.get(a).doors.some((d) => d.loop) && byId.get(b).doors.some((d) => d.loop),
+        `loop ${a}↔${b}: junction doors tagged`);
+      // multiple paths, provably: a→b still connects when THIS loop's
+      // detour rooms are deleted from the graph (the other route exists),
+      // and connects through the detour when it is present
+      const viaSet = new Set(L.via);
+      const reach = (skipVia) => {
+        const seen = new Set([a]);
+        const q = [a];
+        for (let h = 0; h < q.length; h++) {
+          for (const d of byId.get(q[h]).doors) {
+            if (skipVia && viaSet.has(d.to)) continue;
+            if (!seen.has(d.to)) { seen.add(d.to); q.push(d.to); }
+          }
+        }
+        return seen.has(b);
+      };
+      ok(reach(true), `loop ${a}↔${b}: another route exists without this detour`);
+      ok(reach(false), `loop ${a}↔${b}: the detour route connects`);
+    }
+    if (J.loops.length) {
+      const crawl = buildCrawl(J);
+      ok(crawlReachability(crawl).roomsSeen.size === J.rooms.length,
+        'loop rooms crawlable with everything else');
     }
   }
 

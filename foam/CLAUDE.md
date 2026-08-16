@@ -90,7 +90,14 @@ up-pyramids), spinning for prominence; on the 2D plan, FULL solid outlines
 (traps, trapdoors, secret-room walls). The plan renderer lives ONCE in
 `dungeon-plan.mjs` — the generator's ⊞ plan, the baked .png/.dd2vtt images
 and the content forge all draw through it; edit the line grammar there,
-nowhere else. `/dungeon/content/` is the CONTENT FORGE: sliders for the
+nowhere else. Map v4 adds LOOPS (the shortest-path union is a tight tree,
+so loops are DETOURS through off-dungeon foam between rooms ≥3 doors
+apart — visible `loop: true` rooms, tagged doors, top-level `loops[]`) and
+the crawler gains WAYPOINT TEK: the ◎ guide chip routes room-level BFS over
+KNOWN topology only (doors + hatches + sprung trapdoors — no spoilers) to
+the nearest unfound endpoint or a pip-clicked waypoint; the suggested door
+pulses in 3D and in the door bar, and the minimap draws the dashed route
+thread. `/dungeon/content/` is the CONTENT FORGE: sliders for the
 content-v2 tuning block (loot/traps/obstacles/enemies/toughness +
 `gradient`, the danger direction: +deep / 0 flat / −entrance), live plan
 preview with a crawlability tally, content-.json export; tuning rides

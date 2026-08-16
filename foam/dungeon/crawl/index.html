@@ -20,8 +20,12 @@
   #roomline { margin-top: 4px; font-size: 12px; color: #9fc9c4; }
   #roomline .tag { color: #ffce78; }
   #ends { margin-top: 2px; font-size: 11px; }
-  #ends .pip { display: inline-block; width: 9px; height: 9px; border-radius: 50%; border: 1px solid #1c2b31; margin-right: 4px; vertical-align: middle; opacity: .3; }
+  #ends .pip { display: inline-block; width: 9px; height: 9px; border-radius: 50%; border: 1px solid #1c2b31; margin-right: 4px; vertical-align: middle; opacity: .3; pointer-events: auto; cursor: pointer; }
   #ends .pip.lit { opacity: 1; box-shadow: 0 0 6px currentColor; }
+  #ends .pip.way { outline: 2px solid #cffff8; outline-offset: 1px; opacity: .85; }
+  #wayline { font-size: 11px; color: #8fd3ff; margin-top: 1px; }
+  #doorbar button.suggested { border-color: #cffff8; box-shadow: 0 0 10px rgba(159,240,230,.5); }
+  .chip.on { border-color: #7fd8d0; color: #cffff8; background: rgba(127,216,208,.16); }
 
   #topright { position: fixed; top: max(8px, env(safe-area-inset-top)); right: 10px; display: flex; gap: 8px; }
   .chip { background: rgba(127,216,208,.08); border: 1px solid #1c2b31; border-radius: 8px; color: #9fc9c4; padding: 6px 10px; font: 12px ui-monospace, monospace; cursor: pointer; user-select: none; }
@@ -90,9 +94,11 @@
   <div id="roomline"></div>
   <div id="hpline"></div>
   <div id="ends"></div>
+  <div id="wayline"></div>
 </div>
 
 <div id="topright">
+  <span class="chip on" id="guideChip" title="waypoint guidance — the next door on the route pulses">◎ guide</span>
   <span class="chip" id="rollChip" title="reroll loot, traps and enemies — same map">⚄ roll 1</span>
   <span class="chip" id="loadChip" title="load an exported foam-dungeon .json">⤒ load .json</span>
   <input id="file" type="file" accept=".json,application/json">
@@ -191,6 +197,9 @@ let mobs = [];                         // live agents: {id,type,hp,room,tile}
 let hp = 12, gold = 0, dead = false;   // the crawler
 let sprungTd = new Set();              // revealed trapdoors ('room:tile')
 let spinners = [];                     // marker meshes rotating in the loop
+let guide = true, waypoint = null;     // waypoint tek: null = nearest unfound endpoint
+let guideRooms = [], guideFace = null; // current route + suggested door face
+let suggestedMeshes = [];              // door columns pulsing in the loop
 
 // -------------------------------------------------------------- three ------
 const canvas = $('c');
@@ -474,16 +483,72 @@ function refreshHilites() {
   });
 }
 
+// ---------------------------------------------------------- waypoint tek ---
+// Room-level BFS over the KNOWN topology: doors, hatches, and only sprung
+// trapdoors (an unsprung one is a secret — the guide must not spoil it).
+function knownExits(rid) {
+  const R = crawl.rooms.get(rid);
+  const out = [];
+  for (const d of R.doors) if (d.farTile !== null) out.push({ to: d.to, face: d.face });
+  for (const ln of R.links) {
+    if (ln.kind === 'trapdoor' && !sprungTd.has(rid + ':' + ln.tile)) continue;
+    out.push({ to: ln.to, face: null, link: ln.kind });
+  }
+  return out;
+}
+function refreshGuide() {
+  guideRooms = []; guideFace = null;
+  if (!guide || dead) return;
+  // target: explicit waypoint, else the nearest unfound endpoint
+  const prev = new Map([[curRoom, null]]);
+  const q = [curRoom];
+  for (let h = 0; h < q.length; h++) {
+    for (const x of knownExits(q[h])) {
+      if (!prev.has(x.to)) { prev.set(x.to, { from: q[h], face: x.face }); q.push(x.to); }
+    }
+  }
+  let target = null;
+  if (waypoint !== null && waypoint !== curRoom && prev.has(waypoint)) target = waypoint;
+  else {
+    for (const rid of q) {   // q is BFS order — first unfound endpoint is nearest
+      if (roomInfo(rid).role === 'endpoint' && !found.has(rid)) { target = rid; break; }
+    }
+  }
+  if (target === null || target === curRoom) return;
+  const route = [];
+  for (let u = target; u !== null; u = prev.get(u)?.from ?? null) route.push(u);
+  route.reverse();
+  guideRooms = route;
+  guideFace = prev.get(route[1])?.face ?? null;   // door out of the current room
+  // pulse the suggested door's column in the 3D room
+  suggestedMeshes = [];
+  roomGroup?.traverse((o) => {
+    if (o.userData.doorFace !== undefined && o.userData.doorFace === guideFace) suggestedMeshes.push(o);
+  });
+}
+
 // ---------------------------------------------------------------- HUD ------
 function refreshHUD() {
+  refreshGuide();
   const r = roomInfo(curRoom);
   $('roomline').innerHTML = '<span class="tag">' + roleLabel(r) + '</span> · ' +
     r.depth + ' door' + (r.depth === 1 ? '' : 's') + ' deep · floor ' + r.floorY.toFixed(1) + ' m';
   $('ends').innerHTML = J.endpoints.map((e, i) => {
     const lit = found.has(e);
-    return '<span class="pip' + (lit ? ' lit' : '') + '" style="color:' + PATH_COLORS[i % PATH_COLORS.length] +
+    return '<span class="pip' + (lit ? ' lit' : '') + (waypoint === e ? ' way' : '') +
+      '" data-e="' + e + '" title="set waypoint" style="color:' + PATH_COLORS[i % PATH_COLORS.length] +
       ';background:' + (lit ? PATH_COLORS[i % PATH_COLORS.length] : 'transparent') + '"></span>';
   }).join('') + ' <span class="dim">' + found.size + '/' + J.endpoints.length + ' endpoints</span>';
+  for (const pip of document.querySelectorAll('#ends .pip')) {
+    pip.onclick = () => {
+      const e = Number(pip.dataset.e);
+      waypoint = waypoint === e ? null : e;
+      refreshHUD(); drawMini();
+    };
+  }
+  const tgt = guideRooms.length ? guideRooms[guideRooms.length - 1] : null;
+  $('wayline').textContent = !guide ? '' : tgt === null ? '◎ no route to guide' :
+    '◎ ' + roleLabel(roomInfo(tgt)).toLowerCase() + ' · ' + (guideRooms.length - 1) + ' room' + (guideRooms.length === 2 ? '' : 's') + ' out';
   $('steps').innerHTML = steps + ' steps · ' + discovered.size + '/' + J.rooms.length + ' rooms<br>' +
     '<span style="color:#48606a">' + (loadedFromFile ? 'loaded file' : 'seed ' + params.seed + ' · ' + params.shape + ' @ ' + params.scale) + '</span>';
   // door buttons when standing on a door tile
@@ -493,7 +558,8 @@ function refreshHUD() {
   for (const d of here) {
     const b = document.createElement('button');
     const far = roomInfo(d.to);
-    b.textContent = '⟶ through the door · ' + roleLabel(far).toLowerCase();
+    b.textContent = (d.face === guideFace ? '◎ ' : '') + '⟶ through the door · ' + roleLabel(far).toLowerCase();
+    if (d.face === guideFace) b.classList.add('suggested');
     b.disabled = moveLeft <= 0;
     b.onclick = () => transit(d);
     $('doorbar').appendChild(b);
@@ -558,6 +624,19 @@ function drawMini() {
       ctx.strokeStyle = '#b8ff9e';
       ctx.beginPath(); ctx.arc(mx(r.centroid[0]), mz(r.centroid[2]), 4, 0, Math.PI * 2); ctx.stroke();
     }
+  }
+  // the guide's route: a dashed thread through the rooms toward the waypoint
+  if (guide && guideRooms.length > 1) {
+    ctx.save();
+    ctx.strokeStyle = '#8fd3ff'; ctx.lineWidth = 1.4; ctx.setLineDash([4, 3]);
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    guideRooms.forEach((rid, i) => {
+      const c = roomInfo(rid).centroid;
+      i ? ctx.lineTo(mx(c[0]), mz(c[2])) : ctx.moveTo(mx(c[0]), mz(c[2]));
+    });
+    ctx.stroke();
+    ctx.restore();
   }
   const t = crawl.rooms.get(curRoom).byKey.get(curTile);
   ctx.fillStyle = '#cffff8';
@@ -783,6 +862,7 @@ function start(doc, fromFile) {
   discovered = new Set([curRoom]); found = new Set(); steps = 0;
   moveLeft = moveMax; walkQueue = [];
   hp = 12; gold = 0; dead = false;
+  waypoint = null; guideRooms = []; guideFace = null; suggestedMeshes = []; sprungTd = new Set();
   $('death').classList.remove('on');
   $('rollChip').textContent = '⚄ roll ' + params.roll;
   buildRoom(curRoom);
@@ -796,6 +876,12 @@ function start(doc, fromFile) {
   window.__crawl.ready = true;
 }
 
+$('guideChip').onclick = () => {
+  guide = !guide;
+  $('guideChip').classList.toggle('on', guide);
+  suggestedMeshes = [];
+  refreshHUD(); drawMini();
+};
 $('rollChip').onclick = () => {
   if (loadedFromFile) { params.roll = 1 + Math.floor(Math.random() * 9998); start(J, true); return; }
   params.roll = 1 + Math.floor(Math.random() * 9998);
@@ -871,6 +957,8 @@ window.__crawl = {
   mobs: () => mobs.filter((m) => m.hp > 0).map((m) => ({ id: m.id, type: m.type, hp: m.hp, room: m.room, tile: m.tile })),
   reroll: (n) => { params.roll = n; start(J, loadedFromFile); },
   setHp: (n) => { hp = n; refreshHUD(); },       // harness/debug only
+  get guide() { return { on: guide, waypoint, route: [...guideRooms], face: guideFace }; },
+  setWaypoint: (r) => { waypoint = r; refreshHUD(); drawMini(); },
   get range() { return Object.fromEntries(rangeMap); },
   setMove: (n) => { $('moveSlider').value = n; $('moveSlider').oninput(); },
   endTurn: () => $('endTurn').click(),
@@ -899,6 +987,8 @@ start(dungeonToJSON(generateDungeon({
 (function loop() {
   requestAnimationFrame(loop);
   for (const m of spinners) m.rotation.y += 0.02;
+  const pulse = 1 + 0.18 * Math.sin(performance.now() / 220);
+  for (const m of suggestedMeshes) m.scale.set(pulse, 1, pulse);
   if (token) {
     token.position.lerp(tokenTarget, 0.22);
     controls.target.lerp(new THREE.Vector3(tokenTarget.x, tokenTarget.y + 0.6, tokenTarget.z), 0.12);

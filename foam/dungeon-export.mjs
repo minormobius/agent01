@@ -156,11 +156,12 @@ export function dungeonToJSON(dungeon) {
     rooms: dungeon.rooms.map((r) => ({
       id: r.id, role: roleOf(r),
       ...(r.secret ? { secret: true } : {}),
+      ...(r.loop ? { loop: true } : {}),
       ...(r.endpointIndex >= 0 ? { endpointIndex: r.endpointIndex } : {}),
       depth: r.depth, floorY: rnd3(r.floorY),
       centroid: r.centroid.map(rnd3), area: rnd3(r.area),
       onPaths: r.onPaths.slice(),
-      doors: r.doors.map((d) => ({ to: d.to, face: d.face, at: d.at.map(rnd3), tile: d.tile })),
+      doors: r.doors.map((d) => ({ to: d.to, face: d.face, at: d.at.map(rnd3), tile: d.tile, ...(d.loop ? { loop: true } : {}) })),
       tiles: r.tiles.map((t) => ({
         key: t.key,
         ...(t.q !== undefined ? { q: t.q, r: t.r } : {}),
@@ -171,6 +172,7 @@ export function dungeonToJSON(dungeon) {
     })),
     doors: uniqueDoors(dungeon).map((d) => ({ face: d.face, rooms: d.rooms, at: d.at.map(rnd3) })),
     trapdoors: (dungeon.trapdoors ?? []).map((t) => ({ ...t })),
+    loops: (dungeon.loops ?? []).map((l) => ({ ...l })),
     paths: dungeon.paths.map((p) => ({
       endpoint: p.endpoint,
       rooms: p.rooms.slice(),
