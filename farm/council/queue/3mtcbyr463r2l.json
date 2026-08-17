@@ -1,0 +1,11 @@
+{
+  "uri": "at://did:plc:7zre4plmd5jllccww575j6sb/com.minomobi.farm.petition/3mtcbyr463r2l",
+  "did": "did:plc:7zre4plmd5jllccww575j6sb",
+  "handle": "minormobius.bsky.social",
+  "text": "Please give me a harvest all button. harvest all the crops with one button",
+  "createdAt": "2026-08-17T18:03:38.989Z",
+  "post": {
+    "uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3mtcbyrvg7r2l",
+    "cid": "bafyreidrne44a7wasp73jrnezcv6rsi3khkgsoepmrkcihgjildheq6fci"
+  }
+}
