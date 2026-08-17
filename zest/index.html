@@ -46,13 +46,21 @@
     font-size:12.5px;z-index:5;padding:7px 11px;border-radius:9px;background:#08090dcc;
     backdrop-filter:blur(4px);border:1px solid #1a1e2b}
   #status .note{margin-top:4px;color:#ffc46b}
+  /* On a phone the provenance line is four lines tall and sits on top of the
+     play area. Clamp it to one, and let a tap open it — it says what the shapes
+     were computed from, so it may shrink but it must never be removed. */
+  #status.clamp{max-height:2.4em;overflow:hidden;cursor:pointer}
+  #status.clamp::after{content:'⌃';position:absolute;right:8px;bottom:5px;color:var(--dim);font-size:10px}
 
   #anchor-panel{position:absolute;right:16px;top:64px;width:190px;z-index:5}
   /* No background: the anchor is rendered INTO this rectangle by the WebGL
      canvas underneath, so any fill here would dim the thing it is framing. */
   #anchor-box{width:190px;height:190px;border:1px solid var(--line);border-radius:14px}
-  #anchor-panel h3{margin:10px 0 4px;font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim)}
-  #anchor-text{font-size:12px;color:#c3ccdd;max-height:6.4em;overflow:hidden}
+  /* Solids fly behind this label, so it needs its own ground to stay readable. */
+  #anchor-panel h3{margin:10px 0 0;font-size:11px;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--dim);padding:5px 8px 3px;background:#08090de6;border-radius:8px 8px 0 0}
+  #anchor-text{font-size:12px;color:#c3ccdd;max-height:6.4em;overflow:hidden;
+    padding:0 8px 6px;background:#08090de6;border-radius:0 0 8px 8px}
 
   #cards{position:absolute;inset:0;z-index:6;pointer-events:none}
   .card{position:absolute;width:300px;padding:11px 13px;border-radius:12px;
@@ -69,11 +77,24 @@
   .tag.bad{background:#3d1520;color:var(--bad)}
   @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
-  /* ── banner ──────────────────────────────────────────────────────── */
-  #banner{position:absolute;inset:0;z-index:20;display:none;place-items:center;
-    background:#05060ad0;backdrop-filter:blur(6px);padding:24px}
-  #banner.show{display:grid}
-  #banner>*{max-width:640px}
+  /* ── banner ──────────────────────────────────────────────────────────
+     This panel is taller than a phone screen and lives inside #app, which sets
+     touch-action:none so a swipe slices instead of scrolling the page. Both
+     facts have to be undone here or the buttons sit below the fold with no way
+     to reach them — which is exactly what shipped first.
+       · overflow-y:auto           makes it a scroll container
+       · touch-action:pan-y        re-permits the one gesture it needs
+       · flex + margin:auto        centres short content, scrolls tall content.
+         place-items:center does NOT: it clips the overflow off BOTH ends and
+         the top of a long panel becomes unreachable.
+       · env(safe-area-inset-*)    keeps it clear of notches and home bars   */
+  #banner{position:absolute;inset:0;z-index:20;display:none;
+    background:#05060ad0;backdrop-filter:blur(6px);
+    padding:max(20px,env(safe-area-inset-top)) 20px max(20px,env(safe-area-inset-bottom));
+    overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;
+    overscroll-behavior:contain}
+  #banner.show{display:flex}
+  #banner>*{max-width:640px;margin:auto;width:100%}
   #banner h2{margin:0 0 10px;font-size:26px;letter-spacing:-.01em}
   #banner .body{color:#c3ccdd;font-size:14.5px}
   #banner .v{margin:2px 0 14px;padding:11px 13px;border-radius:10px;border:1px solid var(--line);background:#0d1017}
@@ -86,7 +107,15 @@
     font-weight:700;font-variant-numeric:tabular-nums;text-align:right;width:3.5em}
   #banner .tally td:nth-child(odd){color:var(--dim)}
   #banner .anchor-reveal{padding:11px 13px;border-radius:10px;background:#0d1017;border:1px solid var(--line)}
-  #banner .actions{margin-top:18px;display:flex;gap:10px;flex-wrap:wrap}
+  /* A real action bar, stuck to the bottom of the panel, so the primary action
+     is reachable at any scroll position instead of only after reading to the
+     end. Full-bleed (negative margins cancel #banner's 20px padding) and
+     OPAQUE — a gradient let the text behind it show through between buttons. */
+  #banner .actions{display:flex;gap:10px;flex-wrap:wrap;
+    position:sticky;bottom:calc(-1 * max(20px,env(safe-area-inset-bottom)));
+    margin:18px -20px calc(-1 * max(20px,env(safe-area-inset-bottom)));
+    padding:12px 20px max(14px,env(safe-area-inset-bottom));
+    background:#0a0c13;border-top:1px solid var(--line)}
   button{font:inherit;font-weight:600;padding:9px 17px;border-radius:9px;cursor:pointer;
     background:var(--ink);color:#0a0c12;border:0}
   button:hover{background:#fff}
@@ -103,12 +132,24 @@
   #intro small{color:var(--dim)}
 
   @media (max-width:720px){
-    #anchor-panel{width:118px;top:56px;right:10px}
-    #anchor-box{width:118px;height:118px}
+    #anchor-panel{width:112px;top:64px;right:10px}
+    #anchor-box{width:112px;height:112px}
     #anchor-text{font-size:11px;max-height:4.4em}
     #score{font-size:20px}
-    #status{max-width:70vw;font-size:11.5px}
-    .card{width:240px}
+    #progress{top:44px;right:12px}
+    #status{max-width:min(72vw,320px);font-size:11px;bottom:10px;left:10px;padding-right:20px}
+    .card{width:min(280px,86vw)}
+    /* Less to scroll past on a phone, without cutting any of the explanation. */
+    #banner h2{font-size:21px}
+    #banner .body{font-size:13.5px}
+    #intro .lead{font-size:14.5px;line-height:1.55}
+    #intro .map{font-size:12px;margin:12px 0}
+    #intro .map div{grid-template-columns:4.4em 1fr;gap:9px;padding:7px 10px}
+    #banner .tally{font-size:12px}
+    /* Three buttons must share one row rather than stacking into a wall. */
+    .wide{display:none}
+    #banner .actions{gap:8px}
+    #banner .actions button{flex:1 1 0;min-width:0;padding:12px 8px;font-size:14px}
   }
 </style>
 </head>
@@ -168,7 +209,7 @@
       </div>
       <div class="actions">
         <button id="play">Hunt</button>
-        <button id="free" class="ghost">Grove — free slicing</button>
+        <button id="free" class="ghost">Grove<span class="wide"> — free slicing</span></button>
         <button id="atlas-link" class="ghost">Atlas</button>
       </div>
     </div>
@@ -217,6 +258,16 @@ for (const s of SOURCES) {
 
 const zest = new Zest(app);
 let booted = null;
+
+// Phone-only: the provenance line starts clamped to one line and opens on tap.
+const statusEl = document.getElementById('status');
+const applyClamp = () => statusEl.classList.toggle('clamp', window.innerWidth <= 720);
+applyClamp();
+window.addEventListener('resize', applyClamp);
+statusEl.addEventListener('click', () => {
+  if (window.innerWidth > 720) return;
+  statusEl.classList.toggle('clamp');
+});
 
 async function ready() {
   if (booted === source) return true;

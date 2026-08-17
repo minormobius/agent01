@@ -24,6 +24,16 @@ const DETAIL_ANCHOR = 4;
 // and a swipe is a choice rather than an inevitability. It is a UNIFORM scale,
 // so the relative sizes — which carry how strange each post is — are untouched.
 const FALL_SCALE = 0.5;
+// …but "half" is only right for a landscape window. A portrait phone is narrow
+// in WORLD units too (worldW = worldH x aspect), so the biggest solids cover
+// ~44% of the screen width there against ~16% on a desktop.
+//
+// The taper is deliberately PARTIAL (0.6 + 0.4 x ratio, not the ratio itself).
+// Scaling straight down by the width ratio also shrinks the typical solid, which
+// was never the problem — only the rare oversized outliers were — and it left
+// everything too small to hit with a thumb. This lands a typical solid near 15%
+// of the width on a phone and its largest near 35%.
+const REFERENCE_WORLD_W = 13;
 
 export class Zest {
   constructor(root) {
@@ -122,6 +132,7 @@ export class Zest {
     const vFov = (this.camera.fov * Math.PI) / 180;
     this.worldH = 2 * Math.tan(vFov / 2) * this.camera.position.z;
     this.worldW = this.worldH * this.camera.aspect;
+    this.fallScale = FALL_SCALE * Math.min(1, 0.6 + 0.4 * (this.worldW / REFERENCE_WORLD_W));
   }
 
   // ───────────────────────────────────────────────────────────── data
@@ -276,7 +287,7 @@ export class Zest {
     const item = entry.item || entry;
     const ripe = entry.ripe ?? null;
 
-    const { geo, raw } = this.meshFor(item.read, DETAIL_FALLING, FALL_SCALE);
+    const { geo, raw } = this.meshFor(item.read, DETAIL_FALLING, this.fallScale);
     const mesh = new THREE.Mesh(geo, this.materialFor(item.read));
     const halfW = this.worldW / 2;
     const x = (Math.random() * 1.5 - 0.75) * halfW;
@@ -470,7 +481,7 @@ export class Zest {
 
     // the pit: a small glowing core, revealed by the cut
     const core = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(a.item.read.radius * FALL_SCALE * 0.3, 1),
+      new THREE.IcosahedronGeometry(a.item.read.radius * this.fallScale * 0.3, 1),
       new THREE.MeshBasicMaterial({ color: 0xfff2d8, transparent: true })
     );
     core.position.copy(a.mesh.position);
