@@ -219,10 +219,34 @@ from the CORS-served `dungeon-content.mjs`.
 The same top-down plan the page shows (tiles shaded by floor height, walls,
 doors, paths), at export resolution. Useful anywhere an image is enough.
 
+## The API — summon a dungeon over HTTP
+
+No JS required: the worker runs the generator server-side and returns the
+canonical documents to any client.
+
+```
+GET https://foam.mino.mobi/api/dungeon?seed=5&n=3&shape=hex&scale=0.35&size=m&twin=1
+    → canonical foam-dungeon JSON (this spec, §1)
+GET https://foam.mino.mobi/api/content?seed=5&shape=hex&roll=7&tune=1.5,1,1,1,1,0.5
+    → the content roll for that same map (a separate document, §content)
+GET https://foam.mino.mobi/api
+    → usage + parameter reference
+```
+
+Parameters are exactly the permalink params, same names, same defaults —
+a page permalink's hash pasted after `/api/dungeon?` is a valid query.
+Unknown `shape`/`size` values are a 400 (not a silent default). Responses
+are CORS-open and edge-cached immutable, keyed on the normalized params
+plus the generator versions: the first summon of a given dungeon pays the
+generation CPU (`x-generation-ms`; s/m are quick, l/xl can take seconds),
+every repeat anywhere in the world is a cache hit (`x-cache: hit`).
+Determinism is the contract — same params, byte-identical body, forever
+under one `DUNGEON_VERSION` (stamped in `x-dungeon-version`).
+
 ## Using the generator itself
 
 The modules are plain ES modules served with CORS enabled — other services
-can import and run the generator directly (node ≥18 or any browser):
+can also import and run the generator directly (node ≥18 or any browser):
 
 ```js
 import { generateDungeon } from 'https://foam.mino.mobi/dungeon.mjs';

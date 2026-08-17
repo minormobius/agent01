@@ -54,6 +54,15 @@ modules directly. A flat export of a 3D dungeon overlaps rooms that stack
 vertically — the canonical JSON keeps full 3D; slice by depth if you need
 clean per-level maps.
 
+The worker also serves the **dungeon API**: `GET /api/dungeon?seed=…`
+(canonical JSON) and `GET /api/content?…&roll=…` (the content roll),
+`/api` for usage — the same pure modules run SERVER-SIDE in `worker.js`,
+params = permalink params, responses edge-cached immutable keyed on
+normalized params + versions (determinism makes every repeat summon a
+cache hit; only the first pays generation CPU). Unknown shape/size = 400.
+The handler is plain ESM — it smoke-tests in node by importing worker.js
+and calling `worker.fetch(new Request(…), {ASSETS: stub})`.
+
 `/dungeon/crawl/` is the **room's-eye crawler**: three.js view of the current
 room only (tiles at true floor heights, walls extruded from the canonical
 outlines, doors as glowing columns at their certified stations), token
