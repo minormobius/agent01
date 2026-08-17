@@ -238,8 +238,10 @@ a page permalink's hash pasted after `/api/dungeon?` is a valid query.
 Unknown `shape`/`size` values are a 400 (not a silent default). Responses
 are CORS-open and edge-cached immutable, keyed on the normalized params
 plus the generator versions: the first summon of a given dungeon pays the
-generation CPU (`x-generation-ms`; s/m are quick, l/xl can take seconds),
-every repeat anywhere in the world is a cache hit (`x-cache: hit`).
+generation CPU, every repeat anywhere in the world is a cache hit
+(`x-cache: hit`). Sizes `s`/`m`/`l` summon reliably; `xl` can exceed the
+edge CPU limit (a 503 with Cloudflare error 1102 — deterministic work, so
+not retryable): for xl, import the modules below instead.
 Determinism is the contract — same params, byte-identical body, forever
 under one `DUNGEON_VERSION` (stamped in `x-dungeon-version`).
 

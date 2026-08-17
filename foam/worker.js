@@ -83,7 +83,9 @@ const USAGE = {
     },
   },
   determinism: 'same params → byte-identical response, immutable per version; responses are edge-cached',
-  note: 'generation is CPU-bound: s/m are quick, l/xl can take seconds on a cold summon',
+  note: 'generation is CPU-bound: s/m/l summon reliably; xl can exceed the edge CPU limit ' +
+    '(a 503 with Cloudflare error 1102 — not retryable, the work is deterministic). For xl, ' +
+    'import the modules instead: https://foam.mino.mobi/dungeon.mjs (CORS-open, node ≥18 or browser).',
 };
 
 async function handleApi(url) {
