@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tarot Court — draw an advisor from your own circle</title>
 <meta property="og:title" content="Tarot Court">
-<meta property="og:description" content="Add a few people you trust to a small court and tag what each is good for. Describe what's going on and the deck draws a card, reads it, and points at one of them.">
+<meta property="og:description" content="Add a few people you trust to a small court and tag what each is good for. Describe what's going on and it reads your palm (or draws a card, your call), and points at one of them.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
@@ -47,6 +47,9 @@
   .drawRow { margin-top: .8rem; display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
   #drawBtn:disabled { opacity: .5; cursor: not-allowed; }
   #drawBtn:disabled:hover { background: var(--accent-dim); color: var(--accent); }
+  .modeBtn { padding: .75rem 1rem; font-size: .82rem; min-height: 44px; }
+  .modeBtn[aria-pressed="false"] { background: transparent; color: var(--muted); border-color: var(--border); }
+  .modeBtn[aria-pressed="false"]:hover { background: var(--bg-raised); color: var(--fg); border-color: var(--border); }
   .hint { color: var(--muted); font-size: .78rem; }
 
   #reading { margin-top: 1.5rem; }
@@ -87,8 +90,8 @@
   <div id="crumb"></div>
   <h1>Tarot Court</h1>
   <p class="sub">Build a small court of people you trust, and tag what each of them is actually good for.
-  When something's going on, describe it below — the deck draws a card, reads it, and points at whichever
-  one of your court covers that ground.</p>
+  When something's going on, describe it below — this reads your palm (or draws a card, whichever you pick)
+  and points at whichever one of your court covers that ground.</p>
 
   <div class="shareRow">
     <button type="button" id="siteShareBtn">copy a link to this site</button>
@@ -133,6 +136,13 @@
   <section>
     <h2>ask the deck</h2>
     <textarea id="problem" placeholder="what's going on? (optional — leave blank to just shuffle)"></textarea>
+    <div class="drawRow" style="margin-top:.6rem;">
+      <span class="hint">reading style:</span>
+      <button type="button" id="modePalmBtn" class="modeBtn" aria-pressed="false">palm lines</button>
+      <button type="button" id="modeCardsBtn" class="modeBtn" aria-pressed="false">tarot cards</button>
+    </div>
+    <p class="hint" id="modeLegend">the same five lanes map onto five palm lines, not just the four suits and
+      the major arcana: heart line (♥), head line (♠), life line (★), fate line (♦), sun line (♣).</p>
     <div class="drawRow">
       <button type="button" id="drawBtn">draw a card</button>
       <span class="hint" id="drawHint"></span>
@@ -260,8 +270,43 @@ import { labPds } from '../_kit/pds.js';
       DECK.push({ name: r + ' of ' + s.label, suit: s.key, domain: s.domain, mood: RANK_MOOD[r] });
     });
   });
-  var NAME_TO_SUIT = {};
-  DECK.forEach(function (c) { NAME_TO_SUIT[c.name] = c.suit; });
+  // ---------------------------------------------------------------------
+  // palm lines — an alternate reading style over the exact same five lanes
+  // the tarot deck already uses. Real palmistry correspondences, not
+  // invented ones: heart line (emotion), head line (intellect/decisions),
+  // life line (the big turns), fate line (career/practical path), and the
+  // sun/Apollo line (creative success) — which line by line onto this
+  // page's cups/swords/major/pentacles/wands domains.
+  // ---------------------------------------------------------------------
+  var PALM_LINES = [
+    { suit: 'cups', name: 'Heart Line', where: 'runs across the top of the palm, under the fingers' },
+    { suit: 'swords', name: 'Head Line', where: 'runs straight through the middle of the palm' },
+    { suit: 'major', name: 'Life Line', where: 'curves around the base of the thumb' },
+    { suit: 'pentacles', name: 'Fate Line', where: 'runs vertically up the centre of the palm' },
+    { suit: 'wands', name: 'Sun Line', where: 'runs up toward the ring finger — also called the Apollo line' },
+  ];
+  var LINE_BY_SUIT = {};
+  PALM_LINES.forEach(function (l) { LINE_BY_SUIT[l.suit] = l; });
+
+  var TRAITS = ['deep and unbroken', 'faint, still forming', 'forked into two', 'broken, then mended',
+    'crossed by another line', 'curving wide', 'short and sharp', 'doubled, running close alongside itself'];
+  var TRAIT_MOOD = {
+    'deep and unbroken': 'this one is settled — trust it',
+    'faint, still forming': "it hasn't decided what it is yet",
+    'forked into two': 'a real choice, not a comfortable one',
+    'broken, then mended': 'something ended so this could keep going',
+    'crossed by another line': 'someone else is tangled up in this',
+    'curving wide': 'more room here than it looks like',
+    'short and sharp': 'quick, and it means it',
+    'doubled, running close alongside itself': "you're not doing this one alone",
+  };
+
+  function drawPalm(suit) {
+    var line = LINE_BY_SUIT[suit];
+    var domain = suit === 'major' ? MAJOR_DOMAIN : SUIT_BY_KEY[suit].domain;
+    var trait = TRAITS[Math.floor(Math.random() * TRAITS.length)];
+    return { name: line.name + ' — ' + trait, suit: suit, domain: domain, mood: TRAIT_MOOD[trait], where: line.where };
+  }
 
   var KEYWORDS = {
     cups: ['love', 'heart', 'relationship', 'breakup', 'break up', 'family', 'friend', 'feel',
@@ -526,6 +571,35 @@ import { labPds } from '../_kit/pds.js';
   var shareText = '';
 
   // ---------------------------------------------------------------------
+  // reading style — cards or palm lines over the same domain-guess/court-
+  // match logic below. Defaults to palm: that's what was actually asked
+  // for this turn. Remembered per-browser so it doesn't reset on reload.
+  // ---------------------------------------------------------------------
+  var MODE_KEY = 'hey-tarot-mode-v1';
+  var mode = 'palm';
+  try {
+    var storedMode = localStorage.getItem(MODE_KEY);
+    if (storedMode === 'cards' || storedMode === 'palm') mode = storedMode;
+  } catch (e) { /* private mode: default stands */ }
+
+  var modeCardsBtn = document.getElementById('modeCardsBtn');
+  var modePalmBtn = document.getElementById('modePalmBtn');
+
+  function renderMode() {
+    modeCardsBtn.setAttribute('aria-pressed', mode === 'cards' ? 'true' : 'false');
+    modePalmBtn.setAttribute('aria-pressed', mode === 'palm' ? 'true' : 'false');
+    drawBtn.textContent = mode === 'palm' ? 'read my palm' : 'draw a card';
+  }
+  function setMode(m) {
+    mode = m;
+    try { localStorage.setItem(MODE_KEY, mode); } catch (e) { /* private mode: not fatal */ }
+    renderMode();
+  }
+  modeCardsBtn.addEventListener('click', function () { setMode('cards'); });
+  modePalmBtn.addEventListener('click', function () { setMode('palm'); });
+  renderMode();
+
+  // ---------------------------------------------------------------------
   // prior readings — a per-device tally of what this page has drawn for
   // this visitor before. Crosschecks the CURRENT draw against THEIR OWN
   // history only; never touches or ranks the court. Ranking court members
@@ -567,7 +641,8 @@ import { labPds } from '../_kit/pds.js';
     var byDomain = {}, byCard = {};
     history.forEach(function (rec) {
       byDomain[rec.suit] = (byDomain[rec.suit] || 0) + 1;
-      byCard[rec.name] = (byCard[rec.name] || 0) + 1;
+      if (!byCard[rec.name]) byCard[rec.name] = { count: 0, suit: rec.suit };
+      byCard[rec.name].count++;
     });
 
     var domainRows = Object.keys(byDomain).map(function (k) { return { key: k, count: byDomain[k] }; })
@@ -580,19 +655,19 @@ import { labPds } from '../_kit/pds.js';
       domainFreqEl.appendChild(li);
     });
 
-    var cardRows = Object.keys(byCard).map(function (k) { return { key: k, count: byCard[k] }; })
+    var cardRows = Object.keys(byCard).map(function (k) { return { key: k, count: byCard[k].count, suit: byCard[k].suit }; })
       .filter(function (r) { return r.count > 1; })
       .sort(function (a, b) { return b.count - a.count; })
       .slice(0, 8);
     cardFreqEl.replaceChildren();
     if (!cardRows.length) {
       var li0 = document.createElement('li');
-      li0.textContent = 'no card has repeated yet';
+      li0.textContent = 'nothing has repeated yet';
       cardFreqEl.appendChild(li0);
     } else {
       cardRows.forEach(function (row) {
         var li = document.createElement('li');
-        li.innerHTML = '<b>' + domainGlyph(NAME_TO_SUIT[row.key]) + ' ' + row.key + '</b> ' + row.count + '×';
+        li.innerHTML = '<b>' + domainGlyph(row.suit) + ' ' + row.key + '</b> ' + row.count + '×';
         cardFreqEl.appendChild(li);
       });
     }
@@ -627,12 +702,17 @@ import { labPds } from '../_kit/pds.js';
     var text = problemEl.value.trim();
     var guess = text ? guessDomain(text) : { domain: DECK[Math.floor(Math.random() * DECK.length)].suit, hits: [] };
     var domain = guess.domain;
-    var poolCards = DECK.filter(function (c) { return c.suit === domain; });
-    var card = poolCards[Math.floor(Math.random() * poolCards.length)];
+    var card;
+    if (mode === 'palm') {
+      card = drawPalm(domain);
+    } else {
+      var poolCards = DECK.filter(function (c) { return c.suit === domain; });
+      card = poolCards[Math.floor(Math.random() * poolCards.length)];
+    }
 
     cardNameEl.textContent = card.name;
     cardGlyphEl.textContent = domainGlyph(card.suit);
-    cardDomainEl.textContent = 'for ' + card.domain;
+    cardDomainEl.textContent = 'for ' + card.domain + (card.where ? ' — ' + card.where : '');
     cardMoodEl.textContent = card.mood;
     var whyText;
     if (!text) {
@@ -646,9 +726,9 @@ import { labPds } from '../_kit/pds.js';
 
     var priorCount = history.filter(function (r) { return r.name === card.name; }).length;
     var repeatText = priorCount > 0
-      ? 'crosschecked against your prior readings: this card has now come up ' + (priorCount + 1) +
+      ? 'crosschecked against your prior readings: this exact reading has now come up ' + (priorCount + 1) +
         ' time' + (priorCount + 1 === 1 ? '' : 's') + ' for you.'
-      : 'first time this card has come up for you.';
+      : 'first time this exact reading has come up for you.';
     cardRepeatEl.textContent = repeatText;
     history.push({ name: card.name, suit: card.suit, ts: Date.now() });
     saveHistory(); renderPatterns();
@@ -659,7 +739,7 @@ import { labPds } from '../_kit/pds.js';
     if (matches.length) {
       var pick = matches[Math.floor(Math.random() * matches.length)];
       var lead = document.createElement('div'); lead.className = 'recLead';
-      lead.textContent = domainGlyph(card.suit) + ' ' + (text ? 'the deck says go talk to —' : 'from your court —');
+      lead.textContent = domainGlyph(card.suit) + ' ' + (text ? 'the reading says go talk to —' : 'from your court —');
       recBlockEl.appendChild(lead);
       recBlockEl.appendChild(recCardNode(pick));
       recLine = 'go talk to @' + pick.handle + ' (bsky.app/profile/' + pick.handle + ')';

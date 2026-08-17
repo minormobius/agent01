@@ -27,7 +27,11 @@ DECISIONS and the turn 5 plan entry below. As of turn 9 the page also keeps a
 local tally of the visitor's own past draws ("patterns in your readings") and
 crosschecks each new draw against it — see the turn 9 entry below. As of turn
 10 each suit carries a real sign (♥ ♣ ♠ ♦ ★) shown on badges, drawn cards,
-share text, and both pattern lists — see the turn 10 entry below.
+share text, and both pattern lists — see the turn 10 entry below. As of turn
+11 a visitor can read via **palm lines** instead of tarot cards (real
+palmistry correspondences onto the same five lanes) via a toggle above the
+draw button, defaulting to palm — see the turn 11 entry below. Both modes
+share the same domain-guess, court-match, history and share-text logic.
 
 ## Decisions
 
@@ -305,6 +309,67 @@ court/draw/PDS/history logic or storage shapes at all.
 natural place to drop one in without forcing it) — didn't force it. If a
 future ask wants the signs there too, the cleanest hook is probably a
 per-line marker rather than per-letter.
+
+## Turn 11 — "I meant with the palm readings"
+
+The task text this turn: "Sounds cool, I meant with the palm readings." Read
+against the very first message in the thread ("@buildthis.bisks.net hey, can
+the tarot readings of [blank — the referenced account name never made it
+through] be made into..."), this reads as a genuine correction, not a new,
+unrelated ask: the original ask may well have been about a *palm*-reading
+account, and this build has spent ten turns deepening a *tarot* deck instead.
+"Sounds cool" is them liking the mechanic (court, domain-guess, match); "I
+meant with the palm readings" is them saying the divination system itself
+should have been palmistry.
+
+**What I did, and why not a full rewrite.** Ten turns of published, public
+work sit on the tarot deck specifically — the 78-card deck, the suit glyphs
+(turn 10), "patterns in your readings" tallying card names, and "the oracle's
+letter" section, which reads its corpus straight out of the deck's own card
+names and moods. Ripping that out to satisfy one ambiguous line risks
+discarding real, working, referenced content over a guess. So: **added palm
+reading as a second, real reading style, not a cosmetic label change on top
+of tarot** — and made it the *default*, since that's literally what was
+asked for.
+
+Five real palmistry correspondences, not invented ones, mapped onto the
+five lanes this site already scores against: Heart Line → cups (love/
+feelings — the standard palmistry meaning), Head Line → swords (intellect,
+decisions, hard truths), Life Line → major arcana (the big turns in a life),
+Fate Line → pentacles (career/practical path), Sun/Apollo Line → wands
+(creative success, ambition). Each line also gets a random "trait" (deep and
+unbroken / faint, still forming / forked / broken-then-mended / etc., 8
+total) with its own short mood line, playing the same role tarot's
+rank-mood pairing does, so a palm reading isn't just "you got the Heart Line"
+every time — same variety, same honesty about being a coin-flip modifier
+(`TRAIT_MOOD`), same "why this lane" line underneath since that's driven by
+`guessDomain`, unchanged for either mode.
+
+A "reading style: palm lines / tarot cards" toggle sits above the draw
+button (persisted in `hey-tarot-mode-v1` localStorage, defaults to palm).
+Everything downstream — the domain guess, the court match, the history
+tally, the share text — is untouched and mode-agnostic; only what gets drawn
+(`card` vs `drawPalm(domain)`) and its display strings changed. The tarot
+deck, its glyphs, and the oracle's-letter section (which reads the deck's
+text, unaffected by which mode a visitor reads with) are all still there and
+still fully working — this turn added, it didn't replace.
+
+**One real bug found and fixed along the way, not new scope:** the "by card"
+tally in "patterns in your readings" looked up each card's suit via
+`NAME_TO_SUIT[row.key]`, a lookup built only from the 78 fixed tarot card
+names. A palm-line-drawn name (e.g. "Heart Line — deep and unbroken") was
+never in that table, so its glyph would have silently rendered blank the
+first time a palm reading repeated. Fixed by storing `suit` directly on each
+`byCard` tally entry instead of re-deriving it from a name lookup — more
+robust for either mode, and `NAME_TO_SUIT` (now unused) was removed rather
+than left dead.
+
+**Left open:** the oracle's letter section still only knows about card
+names/moods, not palm-line names/traits — deliberately not forced in, same
+call as turn 10 made about that section. If the next ask wants the letter's
+corpus to reflect whichever mode is active, that's the natural next step,
+but it wasn't asked for here and the section works fine as-is (it documents
+itself as reading "this deck's own card names").
 
 ## Gotchas
 

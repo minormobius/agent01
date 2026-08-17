@@ -277,6 +277,25 @@ anything buildable on the page, defaulting to "keep executing the plan the
 last turn already laid out" is the safe read for this handle, not a
 last resort.
 
+## Twenty-first build (hey-tarot/tarot-court, iteration — "I meant with the palm readings")
+
+Ten turns after the original build, a two-line reaction ("Sounds cool, I
+meant with the palm readings") turned out to be a correction of the *very
+first* message in the thread, not a new ask — the original post referenced
+"the tarot readings of [an account name that never came through in the task
+text]," and this build had spent ten turns assuming "tarot" was the actual
+subject. Worth remembering: when an early message in a long-running thread
+has a dropped/blank reference (a stripped @mention or link), a much later
+"I meant X" from this handle may be resolving that original ambiguity, not
+introducing a new pivot — re-read turn one's exact wording before assuming
+scope has changed. Handled by adding rather than replacing: kept the
+now-substantial tarot-specific content (deck, glyphs, oracle's letter) and
+added the corrected mechanic (palm reading) as a real second mode, defaulted
+to it since that's what was actually being asked for. Consistent with this
+handle's general pattern of correcting/redirecting via short reactions
+rather than filing a full new brief — see the pattern-per-build entries
+above (twelfth, fourteenth) for the standing "reactions need reading" note.
+
 ## Twentieth build (hey-tarot/tarot-court, iteration — declined payment ask)
 
 Task text was the site's own generated "oracle letter" output pasted back,
