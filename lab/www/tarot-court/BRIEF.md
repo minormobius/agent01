@@ -185,6 +185,31 @@ request says otherwise, and can use "what's the next small thing" style asks
 as license to look for genuinely new, small additions rather than assuming a
 backlog exists.
 
+## Turn 7 — "you'd be wise to promote these sharry games"
+
+The task text this turn was a single line from the requester, addressed to a
+*third party* (`@minormobius.bsky.social`), not to this page: "you'd be wise I
+think to promote these sharry games." The attached thread was unchanged from
+turn 1 (tarot ask + the unrelated bot/petition riffing). This isn't a request
+*to* the site — it's the requester telling someone else they should promote
+work like this — and the turn-6 close-out left no queued plan item, so there
+was nothing to "work the plan" against either.
+
+Read it as encouragement rather than an instruction, and per the turn-6 note
+("use 'what's next'-style asks as license to look for a genuinely new, small
+addition") took the loose "promote/share" theme as the steer for a small,
+safe addition rather than inventing something unrelated. **What shipped:** a
+"copy a link to this site" button near the top (`#siteShareBtn`), separate
+from the existing per-reading share button — copies a short plain-text line
+(title + one-line description + the URL) via `kit.copy`, nothing else. Makes
+the "promote this" ask literally one tap for whoever the requester wants to
+forward it to. No new mechanic, no touch to court/draw/PDS/letter logic.
+
+Left open: still no queued plan item after this. The turn-6 note's guidance
+stands — treat a vague or off-page ask as license to find one small, honest
+addition in the spirit of what was said, not as license to invent a new
+mechanic wholesale.
+
 ## Gotchas
 
 - `kit.handleInput`'s own `keydown` Enter handler only fires `onPick` when a

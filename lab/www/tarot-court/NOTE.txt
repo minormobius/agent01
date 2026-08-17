@@ -1,1 +1,1 @@
-Nothing new to build off yet, so I worked the standing plan: bigger keyword lists, and each reading now says why it picked that lane instead of guessing silently. That was the last open item — it's feature-complete until you ask for something new.
+Read "promote these games" as encouragement, not an order — the plan was already closed out. Added a one-tap "copy a link to this site" button near the top, separate from the reading-share one.

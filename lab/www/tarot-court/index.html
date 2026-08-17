@@ -85,6 +85,11 @@
   When something's going on, describe it below — the deck draws a card, reads it, and points at whichever
   one of your court covers that ground.</p>
 
+  <div class="shareRow">
+    <button type="button" id="siteShareBtn">copy a link to this site</button>
+    <span class="hint">plain text — a title, a one-line description, and the address. nothing is posted for you.</span>
+  </div>
+
   <section>
     <h2>your court</h2>
     <div class="addRow">
@@ -543,6 +548,11 @@ import { labPds } from '../_kit/pds.js';
   });
 
   shareBtn.addEventListener('click', function () { kit.copy(shareText, shareBtn); });
+
+  var siteShareBtn = document.getElementById('siteShareBtn');
+  siteShareBtn.addEventListener('click', function () {
+    kit.copy('Tarot Court — draw an advisor from your own circle. minomobi.com/tarot-court/', siteShareBtn);
+  });
 
   // ---------------------------------------------------------------------
   // the oracle's letter — the "accessible database" is this deck's own
