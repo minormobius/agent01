@@ -29,8 +29,13 @@ export const GROUPS = [
   },
   {
     id: 'archive',
+    // Was "everything a Bluesky account has ever posted, made searchable",
+    // which stopped being true when /pom arrived: a public collection nobody
+    // here posted, filtered the same way. What the group has in common is the
+    // shape of the answer — thousands of pictures, one wall, live filters —
+    // not whose pictures they are.
     label: 'the archive',
-    note: 'everything a Bluesky account has ever posted, made searchable',
+    note: 'thousands of pictures at a time, made filterable',
   },
   {
     id: 'instruments',
@@ -112,6 +117,21 @@ export const TOOLS = [
   },
 
   // ────────────────────────────────────────────────────────── archive ──
+  {
+    id: 'pom',
+    name: 'pom',
+    href: '/pom/',
+    kind: 'static',
+    group: 'archive',
+    tag: 'collection',
+    blurb: 'Every surviving plate of the USDA Pomological Watercolor Collection — 7,581 '
+      + 'paintings of fruit commissioned by the U.S. government between 1886 and 1942, most of '
+      + 'them by women, as one filterable wall. Narrow by fruit, painter, orchard or year; open '
+      + 'any plate at 4,000 pixels, or take it into shop. Nothing is hosted here: every image '
+      + 'is loaded from Wikimedia Commons or the Internet Archive.',
+    featured: true,
+    lede: 'Every USDA fruit watercolour, 1886–1942, as one filterable wall.',
+  },
   {
     id: 'explore',
     name: 'explore',

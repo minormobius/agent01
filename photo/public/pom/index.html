@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Pom — every USDA fruit watercolour, 1886–1942</title>
+  <meta name="description" content="All 7,581 surviving plates of the USDA Pomological Watercolor Collection in one filterable wall: 120 fruits, 26 painters, fifty-six years. Filter by fruit, painter, place and year; open any plate at full resolution, or take it into the editor. Nothing is hosted here — the pixels come from Wikimedia Commons and the Internet Archive." />
+  <meta property="og:title" content="Pom — every USDA fruit watercolour, 1886–1942" />
+  <meta property="og:description" content="7,581 watercolours of fruit, commissioned by the U.S. Department of Agriculture and painted mostly by women, as one filterable wall." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍑</text></svg>" />
+  <link rel="preconnect" href="https://upload.wikimedia.org" crossorigin />
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+
+<header class="bar">
+  <a class="brand" href="/" title="photo.mino.mobi">🍑 <b>pom</b></a>
+  <div class="find">
+    <input id="q" type="search" autocomplete="off" spellcheck="false"
+           placeholder="apples · Passmore · Winesap · Fresno · 1904 …" aria-label="search the collection" />
+    <button id="q-clear" class="ghost" hidden title="clear the search">×</button>
+  </div>
+  <label class="sortwrap">sort
+    <select id="sort" aria-label="sort order"></select>
+  </label>
+  <button id="facets-toggle" class="ghost wide-only-hide" aria-expanded="false">filters</button>
+  <button id="about-btn" class="ghost" title="about this collection">?</button>
+</header>
+
+<div class="shell">
+  <aside id="facets" class="facets" aria-label="filters">
+    <div class="stat">
+      <b id="count">…</b><span id="count-note">plates</span>
+    </div>
+    <section class="grp">
+      <h2>Years <span class="hint" id="years-note"></span></h2>
+      <div id="hist" class="hist" role="group" aria-label="filter by year"></div>
+      <p class="tip" id="hist-tip">click a year · drag across the bars for a span</p>
+    </section>
+    <div id="facet-groups"></div>
+    <p class="src" id="src-note"></p>
+  </aside>
+
+  <main id="scroller" class="scroller" tabindex="-1">
+    <div id="chips" class="chips"></div>
+    <div id="grid" class="grid" role="list"></div>
+    <p id="empty" class="empty" hidden>Nothing matches. <button class="linky" id="empty-clear">clear the filters</button></p>
+    <footer class="foot">
+      <p><b>7,584 plates were painted. 7,581 of them are on this page.</b>
+        POM00000390, POM00001143 and POM00007550 are on neither Wikimedia Commons nor the
+        Internet Archive; nothing here can show you a scan that no one has published.</p>
+      <p>The paintings are works of the United States federal government and are in the
+        <b>public domain</b>. This page hosts none of them — every image is loaded straight from
+        <a href="https://commons.wikimedia.org/wiki/Category:USDA_Pomological_Watercolors">Wikimedia Commons</a>
+        or the <a href="https://archive.org/details/usda-pomological-watercolor-collection">Internet Archive</a>,
+        which is also where the credit belongs. Catalogue data from the
+        <a href="https://www.nal.usda.gov/">National Agricultural Library</a> by way of Commons.</p>
+    </footer>
+  </main>
+</div>
+
+<div id="lightbox" class="lightbox" hidden role="dialog" aria-modal="true" aria-label="plate">
+  <button class="lb-close ghost" id="lb-close" title="close (esc)">×</button>
+  <button class="lb-nav lb-prev" id="lb-prev" title="previous (←)">‹</button>
+  <button class="lb-nav lb-next" id="lb-next" title="next (→)">›</button>
+  <figure class="lb-fig">
+    <img id="lb-img" alt="" />
+    <figcaption id="lb-cap"></figcaption>
+  </figure>
+</div>
+
+<div id="about" class="modal" hidden role="dialog" aria-modal="true" aria-label="about">
+  <div class="modal-inner">
+    <button class="ghost modal-close" id="about-close" title="close">×</button>
+    <h2>The Pomological Watercolor Collection</h2>
+    <p>Between 1886 and 1942 the U.S. Department of Agriculture&rsquo;s Division of Pomology
+      paid artists to paint fruit. Not fruit in general — <em>this</em> apple, picked on
+      <em>this</em> day, in <em>this</em> orchard. Colour photography could not yet be trusted to
+      record a cultivar, so the plates were the record: they illustrated the department&rsquo;s
+      bulletins, settled what a variety looked like, and were later used as evidence in plant
+      variety protection claims.</p>
+    <p>Twenty-one of the twenty-six hands on this page belong to women, at a time when very
+      few paid scientific posts did. <b>Deborah Griscom Passmore</b> alone painted over a
+      thousand of them.</p>
+    <p>The paintings are held by the National Agricultural Library in Beltsville, Maryland.
+      They are works of the federal government, so they are in the public domain — you can
+      download, print, alter and sell any plate on this page.</p>
+    <h3>Where the pictures come from</h3>
+    <p>Nothing is hosted here. Each tile is a direct link to the scan on
+      <b>Wikimedia Commons</b> (7,577 plates) or, for four plates Commons never received, on
+      the <b>Internet Archive</b>. Their servers, their bandwidth, their credit. What this site
+      carries is a 600 kB catalogue — every plate&rsquo;s variety, species, painter, place and
+      date — which is downloaded once and then filtered entirely in your browser.</p>
+    <h3>Two doors out</h3>
+    <p>Every plate opens in <a href="/shop/">shop</a>, the layered editor on this surface, and
+      in <a href="/bloom/">bloom</a>, which grows a web of variations from it. They are 4,000
+      pixels tall and out of copyright, which makes them the best input either tool has.</p>
+  </div>
+</div>
+
+<script type="module" src="./js/app.js"></script>
+</body>
+</html>

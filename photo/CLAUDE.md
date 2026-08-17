@@ -5,7 +5,7 @@
      overwrite it. It is the instruction set for THIS surface. Repo-wide rules
      live in ../CLAUDE.md; the index of all surfaces is ../docs/SURFACES.md. -->
 
-An index of image tools sharing one origin: a layered editor, projections and warps, optical instruments, and an explorer that renders every image from any Bluesky account as a filterable masonry grid. `/` is the catalogue; everything else hangs off it.
+An index of image tools sharing one origin: a layered editor, projections and warps, optical instruments, an explorer that renders every image from any Bluesky account as a filterable masonry grid, and a public archive of 7,581 government fruit paintings. `/` is the catalogue; everything else hangs off it.
 
 ## Facts
 
@@ -35,6 +35,7 @@ them again is a known dead end.
 |---|---|---|
 | **`/`** | **the index of this surface — every tool below, grouped** | `src/components/Landing.jsx`, `src/lib/catalogue.js` |
 | `/explore` | the image explorer (repo → CAR → WASM → DuckDB → masonry grid) | `src/components/Explorer.jsx` |
+| **`/pom`** | **every USDA fruit watercolour, 1886–1942 — 7,581 plates we do not host** | `public/pom/` |
 | `/albums` | your own pictures and albums, on your PDS | `src/components/Arena.jsx`, `src/lib/arena.js` |
 | ~~`/thread`~~ | **moved to [b.mino.mobi/thread](https://b.mino.mobi/thread/)** — 301 in `worker.js` |
 | ~~`/sleuth`~~ | **moved to [b.mino.mobi/sleuth](https://b.mino.mobi/sleuth/)** — 301 in `worker.js` |
@@ -854,6 +855,112 @@ two separate bugs that taught us why.
 colour as the background, invisible in a screenshot, and swallowing every click
 on the web underneath. `[hidden] { display: none !important }` is in the page's
 CSS for that reason. A browser caught it; reading the file never would have.
+
+## `/pom` — an archive we do not host
+
+Between 1886 and 1942 the USDA paid artists — twenty-one of the twenty-six
+hands are women's — to paint fruit, one cultivar at a time, because colour
+photography could not yet be trusted to record a variety. 7,584 plates
+survive, held by the National Agricultural Library. `/pom` is all of them
+that anyone has published: **7,581, as one filterable wall**.
+
+The organising constraint, and the reason the page is 600 kB rather than 60 GB:
+
+- **Not one pixel is served from this origin.** A tile is a direct `<img src>`
+  at `upload.wikimedia.org`; the full scan is a link to the same. What the repo
+  carries is `public/pom/data/index.json` — variety, species, painter, place,
+  date and dimensions for every plate — fetched once and then filtered entirely
+  in the tab. Whoever already pays to store 60 GB of 4,000-pixel scans keeps
+  the traffic and the credit.
+- **The id is a fact about the object, not about a host.** Every plate is its
+  NAL barcode, `POM00000001`. Commons names its file from it, the Internet
+  Archive names its scan from it, and NAL's own catalogue is searchable by it —
+  so a URL at any of the three is a string substitution, and a tile that will
+  not load from one archive can be retried against the other with no lookup.
+
+### ⚠️ Wikimedia serves eleven thumbnail widths and 400s the rest
+
+`250px-…` is a picture. `240px-…` is an HTML error page. The permitted widths
+are **20, 40, 60, 120, 250, 330, 500, 960, 1280, 1920, 3840** and nothing else;
+requests routed *through* the MediaWiki API get rounded up for you, direct
+hotlinks — which is every one of these — do not.
+([`Common_thumbnail_sizes`](https://www.mediawiki.org/wiki/Common_thumbnail_sizes).)
+
+`bucket()` in `js/pom.js` is the only place a width is chosen, and
+`pom.selftest.mjs` walks every width from 1 to 4200 asserting none of them can
+produce an off-list URL. The failure this prevents has no symptom in the code:
+a plausible refactor that computes a tile size arithmetically gives you 7,581
+broken frames and a page that looks like the collection has been taken down.
+
+### Where the metadata comes from
+
+`harvest-pom.mjs` (run by hand, output committed) reads it off Commons, whose
+file pages carry the NAL catalogue record. Three things it knows that a rewrite
+would have to rediscover:
+
+- **Unwrap `{{en|…}}` before stripping templates**, or the generic `{{…}}` pass
+  takes the whole description with it — every plate, silently, leaving a
+  catalogue that looks like Commons has no descriptions.
+- **The description has four shapes, not one.** Named cultivar, species only,
+  cultivar with no species, and either plus a condition note. One regex
+  demanding all the clauses dropped ~10% of the collection to free text —
+  including most of the plant-explorer material, which is the interesting half.
+  `parseDesc` strips the clauses that announce themselves and keeps the
+  remainder.
+- **A painter is written two ways** — `{{creator:Deborah Griscom Passmore}}` and
+  `Passmore, Deborah Griscom, 1840-1911` — and if they do not normalise to the
+  same string, the facet list shows one artist twice with her work split
+  between the spellings. That shipped: 26 painters where the collection has 21.
+
+Coverage after all that: 99.8% of plates carry structured facets, 95% a date,
+97% a painter. The selftest asserts those floors, so a harvest regression is a
+red run rather than a quietly emptier wall.
+
+### The gap, stated rather than rounded
+
+Commons has 7,577 plates; the Internet Archive has four Commons never received;
+**POM00000390, POM00001143 and POM00007550 are on neither**. The page says so in
+its own footer. "7,584 paintings" is the number every article about this
+collection quotes, and silently showing 7,581 under that headline would be the
+first lie the page tells.
+
+### Two doors, one archive, no proxy
+
+Every plate offers *open in shop* and *grow variations* — the surface's rule,
+and these are the best input either tool has ever had: 4,000 pixels, public
+domain, no rights-holder to annoy. Neither URL goes through `/api/img`.
+That proxy exists for `cdn.bsky.app`, which sends no
+`access-control-allow-origin`; upload.wikimedia.org and archive.org both answer
+`*`, so shop and bloom read those pixels directly and routing them through the
+worker would put 500 kB on our bandwidth for nothing.
+
+### Two rules that hold the grid up
+
+- **The layout is justified rows, not a uniform grid** (`justify()`, pure and
+  selftested). Cropping plates of different trim to a common box is a decision
+  about someone's painting made by a stylesheet; here only the width varies.
+  The tile CSS is `object-fit: contain` for the same reason — the tile is
+  already cut to the plate's true ratio, so if a dimension is ever wrong the
+  failure should be a hairline of background rather than a cropped painting.
+- **⚠️ A tile that scrolls off is kept, not evicted.** Removing it aborts its
+  download, and a fling through 7,581 plates then reaches
+  upload.wikimedia.org as hundreds of opened-and-reset connections — measured
+  in the browser as a wall of `net::ERR_ABORTED`, and `429`s on the requests
+  that were real. Tiles stay parked at their absolute positions until the
+  mounted count passes `KEEP`, then the furthest from the viewport go first.
+  A few hundred idle `<img>` elements cost nothing; being rate-limited by the
+  host that serves the entire page costs the page.
+
+There is no chart library here on purpose. The year strip and the count bars
+behind the facet labels are *filter controls that happen to be drawn as bars* —
+they are clicked, dragged and recoloured with the theme. If `/pom` ever grows a
+real figure (a distribution, a correlation), that one should come from
+`packages/dataviz`, byte-synced into `public/` like `shop/js/vendor/auth.js`.
+
+```bash
+node photo/pom.selftest.mjs                    # the pure core + the committed catalogue
+node photo/harvest-pom.mjs --report            # rebuild the catalogue (needs network, ~30s)
+```
 
 ## Deploying
 
