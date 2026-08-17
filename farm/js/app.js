@@ -629,7 +629,7 @@ function renderPantry() {
 function renderPlantInfo() {
   const el = $('#plants');
   if (!farm.bed.plants.length) { el.innerHTML = '<span class="dim">nothing in the ground yet</span>'; return; }
-  const dry = [];
+  const dry = [], ripe = [];
   el.innerHTML = farm.bed.plants.map((p) => {
     const c = cropById(ark, p.seedId);
     const g = growthOf(farm, p, c, now(), tends[p.id] || 0);
@@ -637,6 +637,7 @@ function renderPlantInfo() {
     const bug = isInfested(farm, p, now());
     const irr = irrigated(farm, p);
     if (!g.ready && !g.watered) dry.push(p.id);
+    if (g.ready) ripe.push(p.id);
     return '<span class="chip ' + (g.ready ? 'ripe' : '') + (p.syn ? ' conv' : '') + '" data-plant="' + esc(p.id) + '">' +
       esc(c ? c.common : p.seedId) + ' — ' + (g.ready ? '✓ ripe' : Math.round(g.stage * 100) + '% · ' + fmtMs(g.msLeft)) +
       (irr ? ' 🌊' : g.watered ? ' 💧' : ' <b class="warn">🏜 dry</b>') +
@@ -646,7 +647,8 @@ function renderPlantInfo() {
       (!g.ready && (p.fertN | 0) < 2 && (farm.supplies.fert | 0) > 0 ? ' <button class="mini" data-fert="' + esc(p.id) + '">🧪 fert</button>' : '') +
       '</span>';
   }).join('') +
-  (dry.length > 1 ? ' <button class="mini" id="waterall">💧 water all (' + dry.length + ' thirsty)</button>' : '');
+  (dry.length > 1 ? ' <button class="mini" id="waterall">💧 water all (' + dry.length + ' thirsty)</button>' : '') +
+  (ripe.length > 1 ? ' <button class="mini" id="harvestall">🧺 harvest all (' + ripe.length + ' ripe)</button>' : '');
   $$('#plants [data-plant]').forEach((s) => s.onclick = (e) => { if (e.target.closest('button')) return; tryHarvest(s.dataset.plant); });
   $$('#plants [data-water]').forEach((b) => b.onclick = () => {
     const r = waterPlant(farm, b.dataset.water, now());
@@ -658,6 +660,20 @@ function renderPlantInfo() {
     let f = farm, n = 0;
     for (const id of dry) { const r = waterPlant(f, id, now()); if (r.ok) { f = r.farm; n++; } }
     if (n) { commit(f); toast('💧 watered ' + n + ' plants — one can at a time, mind', 'ok'); redrawBed(); }
+  };
+  const ha = $('#harvestall');
+  if (ha) ha.onclick = () => {
+    let f = farm, n = 0, yld = 0, bitten = 0;
+    for (const id of ripe) {
+      const r = harvestPlant(f, id, ark, now(), tends);
+      if (r.ok) { f = r.farm; n++; yld += r.yield; if (r.bitten) bitten++; }
+    }
+    if (n) {
+      commit(f);
+      toast('🧺 harvested ' + n + ' plant' + (n > 1 ? 's' : '') + ' — ' + yld + ' total' +
+        (bitten ? ' · <b class="warn">the beetles bit ' + bitten + '</b>' : ''), bitten ? 'warn' : 'ok');
+      redrawBed();
+    }
   };
   $$('#plants [data-fert]').forEach((b) => b.onclick = () => {
     const r = fertilizePlant(farm, b.dataset.fert, ark, now());
