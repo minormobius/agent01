@@ -181,7 +181,25 @@ function applyDamage(rng, target, raw, log, attacker, rec) {
       hp: target.hp,
     });
   }
-  if (overflow <= 0) return;
+  if (overflow <= 0) {
+    // "Whenever a PC's HP is reduced to exactly 0, roll on the Scars table."
+    //
+    // EXACTLY zero, and that word is the whole rule: the damage has to land on
+    // nothing left over. One more point and it overflows into Strength, which
+    // is the critical-damage path instead — a different and much worse night.
+    // Already being at 0 does not count either; you have to be *reduced* to it.
+    //
+    // Recorded, never rolled here. Rolling a d12 inside the fight would consume
+    // RNG the fingerprint test pins call-for-call across 201 recorded fights,
+    // and the scar belongs to the character sheet rather than to the combat —
+    // `run.js` reads the flag afterwards and rolls it against the run's stream.
+    if (toHp > 0 && target.hp === 0) {
+      target.scarred = (target.scarred || 0) + 1;
+      if (log) log.push(`${target.name} is brought to exactly 0 HP — a scar`);
+      if (rec) rec.push('scar', { target: target.name });
+    }
+    return;
+  }
 
   // A creature whose sting stays in the wound starts its damage the moment it
   // draws STR, not when it hits.

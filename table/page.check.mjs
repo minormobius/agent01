@@ -341,9 +341,86 @@ for (const hash of ['#s=oak-fen-317&n=4', '#s=oak-fen-317&n=4&src=bought&h=12'])
   await page.close();
 }
 
-// --------------------------------------------- 5. every served path loads clean
-for (const path of ['/cairn/', '/cairn/kit/', '/cairn/trials/', '/cairn/encounter/',
-  '/cairn/arena/', '/cairn/items/', '/srd5/', '/srd5/corpus/']) {
+// ------------------------------------------------------- 5. the descent plays
+//
+// Not "does it render" — DOES IT PLAY. The run is the only page here that is a
+// game, so the check plays one: pilot every action, take a spoils choice
+// between every fight, and reach an ending. Anything that stalls the loop —
+// an option that never enables, a phase with no way out — hangs here rather
+// than shipping.
+{
+  const { page, noise } = await open(`${base}/cairn/run/#s=tallow-mere&n=4`, PHONE);
+  await page.waitForSelector('.stage h2', { timeout: 20000 });
+  ok((await page.locator('.pip').count()) === 8, 'the descent has eight rungs on its track');
+  ok((await page.locator('.mate').count()) === 4, 'and the party is on screen before anything else');
+
+  let acts = 0, spoils = 0, sawFeed = false, sawOdds = false, guard = 900;
+  while (guard-- > 0) {
+    if (await page.locator('.ending').count()) break;
+    if (!(await page.locator('#progress').isHidden())) { await page.waitForTimeout(100); continue; }
+
+    if (await page.locator('[data-go]').count()) {
+      const odds = (await page.textContent('.stage .sub')).replace(/\s+/g, ' ');
+      if (/expected to fall/.test(odds) && /chance of a wipe/.test(odds)) sawOdds = true;
+      await page.click('[data-go]');
+      continue;
+    }
+    if (await page.locator('[data-scout]').count()) { await page.click('[data-scout]'); continue; }
+
+    if (await page.locator('[data-heal]').count()) {
+      spoils++;
+      ok((await page.locator('.card').count()) === 3 || spoils > 1,
+        'the pack on the table is three cards');
+      if (spoils === 1) {
+        // The oracle advises but must never spend the choice for you.
+        await page.click('[data-ask]');
+        await page.waitForFunction(() => document.getElementById('progress').hidden, { timeout: 60000 });
+        ok((await page.locator('.card .oracle').count()) === 3,
+          'asking the oracle annotates every card, including the ones it would leave');
+        ok((await page.locator('[data-heal]').count()) === 1,
+          'and both choices are still on the table afterwards — advice is not a move');
+        // Place a card by tapping it and then a delver.
+        await page.click('[data-card="0"]');
+        await page.locator('[data-holder]').first().click();
+        ok((await page.locator('.card .to').count()) === 1, 'a placed card says who is carrying it');
+        await page.click('[data-done]');
+      } else if (spoils % 2 === 0) {
+        await page.click('[data-heal]');
+      } else {
+        await page.click('[data-done]');
+      }
+      continue;
+    }
+
+    // A fight is waiting on a decision.
+    const foe = page.locator('.foe:not(.down)').first();
+    if (await foe.count()) await foe.click();
+    const act = page.locator('.act:not([disabled])').first();
+    if (await act.count()) {
+      if (!(await page.locator('#feed').isHidden())) sawFeed = true;
+      await act.click();
+      acts++;
+      continue;
+    }
+    await page.waitForTimeout(60);
+  }
+
+  ok(acts > 10, `the run asked for ${acts} piloted decisions`);
+  ok(spoils > 1, `and offered spoils ${spoils} times`);
+  ok(sawOdds, 'every rung showed its odds before you committed to it');
+  ok(sawFeed, 'and the blow-by-blow feed appeared during a fight');
+  ok((await page.locator('.ending').count()) === 1, 'the descent reaches an ending');
+  const detail = (await page.textContent('.ending p')).replace(/\s+/g, ' ');
+  ok(/scars? earned/.test(detail), `the ending accounts for the scars (${detail.trim().slice(0, 110)})`);
+  ok(!noise.length, `the run is clean — ${noise.join(' | ')}`);
+  ok(!(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)),
+    'and does not scroll horizontally on a phone');
+  await page.close();
+}
+
+// --------------------------------------------- 6. every served path loads clean
+for (const path of ['/cairn/', '/cairn/kit/', '/cairn/trials/', '/cairn/run/',
+  '/cairn/encounter/', '/cairn/arena/', '/cairn/items/', '/srd5/', '/srd5/corpus/']) {
   const { page, noise } = await open(base + path);
   await page.waitForTimeout(1500);
   ok(!noise.length, `${path} loads clean — ${noise.join(' | ')}`);

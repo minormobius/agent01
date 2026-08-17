@@ -450,28 +450,49 @@ ok(BESTIARY.length >= 80, `bestiary has ${BESTIARY.length} monsters`);
   // it is the only reason that refactor could be called safe: 78 green checks
   // did not prove the numbers were unchanged, and this does.
   {
-    const rows = [];
+    // TWO DIGESTS, NOT ONE, and the split was bought with an afternoon.
+    //
+    // The original fingerprint folded `events.length` in with the outcomes. So
+    // when the fight gained a new EVENT KIND — the scar recorded at exactly 0
+    // HP, which consumes no dice and changes no result — the single digest went
+    // red exactly as loudly as a broken damage rule would have, and the only way
+    // to tell the difference was to check out the previous file and diff the two
+    // by hand. (It was clean: outcomes −1568347449 before and after.)
+    //
+    // Now the outcomes stand alone. A red on `outcomes` means a die moved and
+    // every published number with it. A red on `events` alone means the stream
+    // gained or lost a kind — worth knowing, never an emergency.
+    const outcomes = [];
+    const streams = [];
     for (const id of ['goblin', 'bandit', 'troll', 'ogre', 'skeleton', 'wolf']) {
       const m = BESTIARY.find((x) => x.id === id);
       for (const n of [1, 3, 4]) {
         for (const cnt of [1, 3, 5]) {
           const r = simulate(party(n, `fp/${id}/${n}`), foes(m, cnt),
             makeRng(`fp/${id}/${n}/${cnt}/0`), { events: true });
-          rows.push([id, n, cnt, r.rounds, r.casualties, r.deaths, r.wipe, r.routed,
-            r.foesLeft, r.survivors.join('|'), (r.events || []).length].join(','));
+          outcomes.push([id, n, cnt, r.rounds, r.casualties, r.deaths, r.wipe, r.routed,
+            r.foesLeft, r.survivors.join('|')].join(','));
+          streams.push(String((r.events || []).length));
         }
       }
     }
     // a cheap stable digest — enough to catch one die moving anywhere
-    let h = 0;
-    const blob = rows.join(';');
-    for (let i = 0; i < blob.length; i++) h = (Math.imul(h, 31) + blob.charCodeAt(i)) | 0;
-    ok(rows.length === 54, `the fingerprint covers ${rows.length} fights`);
-    ok(h === 1110185706,
-      `54 recorded fights are bit-for-bit unchanged (digest ${h}) — if this is the only ` +
-      'failure you have altered the model, and every published number with it. ' +
+    const digest = (rows) => {
+      let h = 0;
+      const blob = rows.join(';');
+      for (let i = 0; i < blob.length; i++) h = (Math.imul(h, 31) + blob.charCodeAt(i)) | 0;
+      return h;
+    };
+    ok(outcomes.length === 54, `the fingerprint covers ${outcomes.length} fights`);
+    ok(digest(outcomes) === -1568347449,
+      `54 recorded fights are bit-for-bit unchanged (digest ${digest(outcomes)}) — if this is ` +
+      'the only failure you have altered the model, and every published number with it. ' +
       'Re-frozen once, deliberately, when the party stopped picking targets at ' +
       'random and started playing the `smart` policy.');
+    ok(digest(streams) === -252178952,
+      `and the event stream still has the same shape (digest ${digest(streams)}) — a red HERE ` +
+      'with the outcomes green means the fight gained or lost an event kind without changing ' +
+      'a single result, which is usually intended. Re-freeze it and say why.');
   }
 
   // A pilot answering every request resolves a real fight, under the same

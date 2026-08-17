@@ -16,7 +16,7 @@ Procedural character sheets for tabletop RPGs. Repo-wide rules live in
 | Deploy | [`.github/workflows/deploy-table.yml`](../.github/workflows/deploy-table.yml) |
 | Uses | — |
 | Provides | — |
-| Serves | `/cairn`, `/cairn/kit`, `/cairn/trials`, `/cairn/encounter`, `/cairn/arena`, `/cairn/items`, `/srd5`, `/srd5/corpus` |
+| Serves | `/cairn`, `/cairn/kit`, `/cairn/trials`, `/cairn/run`, `/cairn/encounter`, `/cairn/arena`, `/cairn/items`, `/srd5`, `/srd5/corpus` |
 
 Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) →
 `surfaces[]` where `surface == "table"`.
@@ -74,7 +74,7 @@ obligations it puts on us: [`cairn/LICENSE.md`](cairn/LICENSE.md).
 | `cairn/tools/scrape-monsters.py` | What generated it |
 | `cairn/combat.js` | The encounter oracle: the combat simulator, the challenge metric, the bestiary search |
 | `cairn/party.js` | What a party is good at, as four **measured** axes — the overview card's radar |
-| `cairn/combat.selftest.mjs` | 144 checks. **A simulator fails silently — run this** |
+| `cairn/combat.selftest.mjs` | 145 checks. **A simulator fails silently — run this** |
 | `cairn/items.js` | **Generated.** The marketplace, the 46 relics, the d100 spellbook table |
 | `cairn/tools/scrape-items.py` | What generated it |
 | `cairn/effects.js` | The mechanical vocabulary: what monster abilities and spells the simulator can see, and the count of what it cannot |
@@ -91,6 +91,9 @@ obligations it puts on us: [`cairn/LICENSE.md`](cairn/LICENSE.md).
 | `cairn/trials.selftest.mjs` | 47 checks. **State that survives a fight is a new way to be wrong — run this** |
 | `cairn/kit/` | The conditioning screen |
 | `cairn/trials/` | The ladder's page |
+| `cairn/run.js` | **The game.** Piloted ladder, rest-or-loot, and Cairn's Scars table as advancement |
+| `cairn/run.selftest.mjs` | 41 checks. **One word — *exactly* 0 HP — carries the whole engine** |
+| `cairn/run/` | The descent |
 | `cairn/items/` | The item study's page |
 | `page.check.mjs` | Loads every page of the surface in a real browser. **Run it when you touch a page** |
 
@@ -107,6 +110,7 @@ node table/cairn/delve.selftest.mjs     # must pass; a wrong advancement model l
 node table/cairn/effects.selftest.mjs   # must pass; a mis-wired ability does nothing, silently
 node table/cairn/condition.selftest.mjs # must pass; measuring has to keep beating guessing
 node table/cairn/trials.selftest.mjs    # must pass; what carries between fights is easy to get backwards
+node table/cairn/run.selftest.mjs       # must pass; the scar trigger is one word wide
 ```
 
 ### The formation — one party, four screens
@@ -248,6 +252,50 @@ Two rules for anything added here:
    draft wrote its own and weighted it per ITEM; the SRD has a hundred spells
    and six kinds of armour, so hauls came out half spellbooks. `delve.js`
    weights per KIND, which is correct and already shared.
+
+### /cairn/run — the roguelite, and where advancement actually comes from
+
+The other pages are instruments. This one is a game: you pilot every fight,
+and between each you take **one** of a rest or a pack of three — never both,
+because a choice you can decline to make is not a choice.
+
+**CAIRN HAS NO EXPERIENCE CURVE, AND THIS DOES NOT INVENT ONE.** No XP, no
+levels, no track. It has the Scars table:
+
+> "Whenever a PC's HP is reduced to exactly 0, roll on the Scars table."
+
+Nine of its twelve rows raise a maximum — *"roll 1d6, if the total is higher
+than your max HP, take the new result"* — so a delver grows by surviving the
+moment they nearly died and at no other time. It cannot be ground, only earned.
+
+**EXACTLY** carries the rule. One more point of damage overflows into Strength,
+which is critical damage and possibly death, and pays nothing. `combat.js`
+records the flag at precisely that boundary and rolls nothing; `run.js` rolls it
+afterwards off the run's own stream, because the fight's RNG is pinned
+call-for-call by the fingerprint and a scar belongs to a character sheet rather
+than to a combat.
+
+Measured over 1,600 fights before any of this was built on:
+
+| encounter | fights that scar | scars/fight | deaths/fight |
+|---|---|---|---|
+| 5 goblins | 34% | 0.44 | 0.04 |
+| 4 skeletons | 37% | 0.43 | 0.03 |
+| 3 wolves | 37% | 0.45 | 0.12 |
+| 1 ogre | **12%** | 0.12 | 0.03 |
+
+That is the shape a run needs: you brush death often and die rarely. The ogre
+line is the mechanic showing its face — one big die overshoots zero into
+Strength instead of landing on it, so **swarms make veterans and giants make
+corpses**. Over whole runs it comes to 0.32 scars a rung, about 2.6 in an
+eight-rung descent, with 48% of rungs being a single big creature. The selftest
+guards that rate against collapsing to zero, because an advancement engine that
+is correct and never fires is a treadmill.
+
+The oracle is available on the spoils screen and **only advises**. It measures
+who gains most from each card, shows the gain with its error bar, and applies
+nothing. The difference between "here is the answer" and "here is what the
+oracle thinks" is the difference between a tool and a game.
 
 ### /cairn/trials — a ladder, and the invariance that had to be admitted
 
@@ -566,7 +614,7 @@ starting at y=678 on a phone — entirely off the screen it was built for.
 
 ```sh
 npm i playwright-core        # Chromium is already at /opt/pw-browsers
-node table/page.check.mjs    # 70 checks; skips with exit 0 if the above is missing
+node table/page.check.mjs    # 92 checks; skips with exit 0 if the above is missing
 ```
 
 It is **not** in the deploy gate. The gate runs plain node selftests with no
