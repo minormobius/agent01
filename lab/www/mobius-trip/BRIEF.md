@@ -1,5 +1,15 @@
 # BRIEF — hey-know / "Möbius Trip"
 
+## Second turn (this one)
+
+The requester's only follow-up was a terse, unparseable reaction —
+"I'm sure will improve dreaming experiences" — no concrete ask, no thread
+pointer to anything new. Per this file's own item 3 and the requester's
+established pattern (see their profile: reactions get read, not parsed
+literally; when nothing parses, work the standing plan), picked up **item 1**
+below: the optional dedication feature. It's now built and item 1 is DONE —
+see "What shipped this turn." Item 2 (the wide-orbit companion trip) is next.
+
 ## What this is
 
 The requester (thegodfungi) asked, terse as usual: "can we build a trip for
@@ -44,22 +54,35 @@ a stylistic choice, and the whole point of the build (see Decisions).
   camera position, and lighting would have made large parts of the strip go
   dark during the ride for no reason.
 
+## What shipped this turn
+
+Item 1, **the optional dedication feature**, is built: a "Ride it with
+someone" panel using `kit.handleInput`, resolving the picked handle via
+`kit.bskyGet('app.bsky.actor.getProfile', ...)`, and — once resolved — a
+glowing marker (an additive-blended radial-gradient sprite behind a
+circle-masked avatar sprite) that rides ahead of the camera on the same
+`computeFrame()` path during the trip, offset by a small lead angle
+(`AVATAR_LEAD = 0.22` radians) so it's visible in view rather than dead
+centre/occluded. `kit.hidden()` gates it (declines with a message rather than
+rendering a moderated profile); a profile with no avatar gets a canvas-drawn
+monogram instead of nothing. The marker only exists in scene (not `group`)
+and is only visible while `tripping` — same reasoning as the camera itself
+(see Gotchas, "startTrip() force-resets…").
+
 ## The plan (not built yet, roughly in order)
 
-1. **Optional dedication feature.** Add a `kit.handleInput` box ("ride it with
-   someone — optional") where the *visitor* types a handle; on pick, resolve
-   via `kit.bskyGet('app.bsky.actor.getProfile', ...)` and place their avatar
-   (loaded through `/_img/`, per the kit's CORS-safe pattern) as a small
-   glowing marker that rides along with the camera. This is squarely inside
-   the content rule (visitor-named subject) and was cut only for time, not
-   because it's risky. Fixture to read first: `lab/_kit/fixtures/getProfile.json`.
+1. ~~Optional dedication feature~~ — DONE, see above.
 2. **Second named "trip"**: a slower, wider-orbit companion mode that
    circles the whole strip from outside (not on the edge) while the rainbow
    gently hue-shifts over time — purely decorative, gate it behind
    `prefers-reduced-motion` like everything else that moves on its own.
-3. If the requester ever reacts with something un-parseable (this handle's
-   pattern per its profile note — terse reactions, not filed requests),
-   default to picking up item 1 or 2 above rather than guessing something new.
+3. If the requester ever reacts with something un-parseable again (this
+   handle's established pattern), default to item 2 above rather than
+   guessing something new.
+4. Not yet considered: does the dedication marker want its own short lap
+   caption (e.g. "riding with @handle") folded into `updateLap()`, or is the
+   panel text above the viewport enough? Left as panel text only this turn,
+   for time — revisit if it reads as easy to miss.
 
 ## Gotchas
 
@@ -80,3 +103,12 @@ a stylistic choice, and the whole point of the build (see Decisions).
 - Möbius strip is a generic mathematical term, not a trademark (same
   reasoning as "knot" in `mathematical-knot/`) — safe to use directly in the
   title, no gate issue expected.
+- The companion marker is a `THREE.Sprite`, which always faces the camera —
+  no billboard math needed, and it's why the lead-angle trick (place it a bit
+  further along `u` than the look-at target) works to keep it roughly framed
+  without any orientation logic of its own.
+- Building the avatar texture from `/_img/...` needs `img.onload`/`onerror`
+  on a plain `Image`, then `ctx.drawImage` into a same-size canvas before
+  handing that canvas to `THREE.CanvasTexture` — you cannot pass the raw
+  `/_img/` URL straight to `THREE.TextureLoader` and also get the circular
+  mask; the canvas step does both (CORS-safety and the crop) in one place.

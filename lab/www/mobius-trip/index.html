@@ -68,6 +68,19 @@
   </div>
 
   <div class="panel">
+    <h2 style="margin-top:0">Ride it with someone</h2>
+    <p class="sub" style="margin:.2rem 0 .6rem">Optional — name a handle and their avatar rides the edge with you.</p>
+    <div class="row">
+      <div class="slidewrap" style="flex:1 1 16rem">
+        <label for="companionInput">Handle</label>
+        <input type="text" id="companionInput" placeholder="handle.bsky.social">
+      </div>
+      <button id="companionClear" class="small" type="button">Clear</button>
+    </div>
+    <p id="companionOut" style="font-size:.85rem;color:var(--muted);margin:.5rem 0 0;min-height:1.4em"></p>
+  </div>
+
+  <div class="panel">
     <h2 style="margin-top:0">Why it takes two loops</h2>
     <p style="margin:.3rem 0 0">
       A Möbius strip has exactly one edge and one face. The bright line traced
@@ -181,6 +194,110 @@ function main() {
   const edgeMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
   group.add(new THREE.Line(buildEdgeLine(300), edgeMat));
 
+  // ---------------------------------------------------------------- companion marker
+  // Not parented to `group` — same reason the camera isn't: the ride is computed
+  // in the strip's local/object space, which only equals world space once
+  // startTrip() has reset the rotation to zero (see gotchas in BRIEF.md).
+
+  function makeGlowTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, 'rgba(232,163,61,0.9)');
+    g.addColorStop(0.5, 'rgba(232,163,61,0.35)');
+    g.addColorStop(1, 'rgba(232,163,61,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 128, 128);
+    return new THREE.CanvasTexture(c);
+  }
+
+  function makeMonogramTexture(handle) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#3a2c15';
+    ctx.beginPath(); ctx.arc(64, 64, 64, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#e8a33d';
+    ctx.font = 'bold 64px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText((handle[0] || '?').toUpperCase(), 64, 70);
+    return new THREE.CanvasTexture(c);
+  }
+
+  // Bluesky's avatar CDN sends no CORS header, which taints a canvas drawn from
+  // it directly — /_img/ re-serves the same bytes same-origin. Masked into a
+  // circle here so it reads as a marker, not a floating square photo.
+  function loadAvatarTexture(avatarUrl, onReady) {
+    const path = avatarUrl.split('cdn.bsky.app/')[1];
+    if (!path) { onReady(null); return; }
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = c.height = 128;
+      const ctx = c.getContext('2d');
+      ctx.save();
+      ctx.beginPath(); ctx.arc(64, 64, 64, 0, Math.PI * 2); ctx.clip();
+      ctx.drawImage(img, 0, 0, 128, 128);
+      ctx.restore();
+      onReady(new THREE.CanvasTexture(c));
+    };
+    img.onerror = () => onReady(null);
+    img.src = '/_img/' + path;
+  }
+
+  const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: makeGlowTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  }));
+  glowSprite.scale.set(0.9, 0.9, 1);
+  const avatarMat = new THREE.SpriteMaterial({ transparent: true, depthWrite: false });
+  const avatarSprite = new THREE.Sprite(avatarMat);
+  avatarSprite.scale.set(0.42, 0.42, 1);
+  const companionMarker = new THREE.Group();
+  companionMarker.add(glowSprite, avatarSprite);
+  companionMarker.visible = false;
+  scene.add(companionMarker);
+
+  let companion = null; // { handle, label } once resolved
+  function setCompanionTexture(tex) {
+    if (avatarMat.map) avatarMat.map.dispose();
+    avatarMat.map = tex;
+    avatarMat.needsUpdate = true;
+  }
+
+  const companionInput = document.getElementById('companionInput');
+  const companionOut = document.getElementById('companionOut');
+
+  function loadCompanion(handle) {
+    companion = null;
+    companionOut.textContent = 'Looking up @' + handle + '…';
+    kit.bskyGet('app.bsky.actor.getProfile', { actor: handle }).then((profile) => {
+      if (kit.hidden(profile)) {
+        companionOut.textContent = "Can't ride with @" + handle + ' — that profile is moderated.';
+        return;
+      }
+      const label = profile.displayName || ('@' + profile.handle);
+      companion = { handle: profile.handle, label };
+      companionOut.textContent = 'Riding with ' + label + ' — press "Take the trip".';
+      if (profile.avatar) {
+        loadAvatarTexture(profile.avatar, (tex) => setCompanionTexture(tex || makeMonogramTexture(profile.handle)));
+      } else {
+        setCompanionTexture(makeMonogramTexture(profile.handle));
+      }
+    }).catch(() => {
+      companion = null;
+      companionOut.textContent = "Couldn't find @" + handle + ' — check the handle and try again.';
+    });
+  }
+
+  kit.handleInput(companionInput, { onPick: (handle) => loadCompanion(handle) });
+  document.getElementById('companionClear').addEventListener('click', () => {
+    companionInput.value = '';
+    companion = null;
+    companionOut.textContent = '';
+  });
+
   function resize() {
     const w = viewport.clientWidth, h = viewport.clientHeight;
     if (!w || !h) return;
@@ -235,7 +352,7 @@ function main() {
   speedSlider.addEventListener('input', () => { speedOut.textContent = speedSlider.value; });
 
   let tripping = false, tripElapsed = 0, tripDuration = 16;
-  const EPS = 0.01, LIFT = 0.16;
+  const EPS = 0.01, LIFT = 0.16, AVATAR_LEAD = 0.22;
 
   // The surface's own local frame at (u, EDGE_V): tangent along the ride,
   // and the surface normal from the cross of the two partial derivatives —
@@ -305,11 +422,17 @@ function main() {
       camera.position.copy(f.point).addScaledVector(f.normal, LIFT);
       camera.lookAt(computeFrame(Math.min(u + 0.12, Math.PI * 4)).point);
       updateLap(frac);
+      if (companion) {
+        const cf = computeFrame(u + AVATAR_LEAD);
+        companionMarker.position.copy(cf.point).addScaledVector(cf.normal, LIFT + 0.05);
+        companionMarker.visible = true;
+      }
       if (frac >= 1) {
         endTrip("Back at the start — you traced the strip's one edge in two loops, and were on both ‘sides’ of its one face along the way.");
       }
-    } else if (!reducedMotion && !dragging) {
-      group.rotation.y += dt * 0.15;
+    } else {
+      companionMarker.visible = false;
+      if (!reducedMotion && !dragging) group.rotation.y += dt * 0.15;
     }
 
     renderer.render(scene, camera);

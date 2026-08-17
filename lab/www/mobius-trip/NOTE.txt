@@ -1,1 +1,1 @@
-Took "trip" literally: the camera rides the strip's single edge, and because a Möbius strip has one side, one loop isn't enough — it takes two, flipping upside-down partway, before you're home. Left mobious out of the scene itself, on purpose; more on why in BRIEF.md.
+Added "ride it with someone" — name a handle, their avatar glows along the edge with you. Your last line didn't read as a new ask, so I worked the queued feature instead. Next queued: a slow wide orbit that circles the whole strip from outside.
