@@ -182,7 +182,13 @@ function main() {
   const DEFAULT_ROT = { x: 0.5, y: 0.6 };
   group.rotation.set(DEFAULT_ROT.x, DEFAULT_ROT.y, 0);
 
-  const stripMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  // polygonOffset pushes this mesh's depth back a hair so the wireframe overlay
+  // below — same surface, coincident geometry — doesn't z-fight it into a
+  // flickering moire, worst right up close during the trip.
+  const stripMat = new THREE.MeshBasicMaterial({
+    vertexColors: true, side: THREE.DoubleSide,
+    polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
+  });
   group.add(new THREE.Mesh(buildStripGeometry(180, 10), stripMat));
 
   const wireMat = new THREE.MeshBasicMaterial({
