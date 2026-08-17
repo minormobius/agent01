@@ -1,0 +1,1157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FORTRESS · microgravity in a Menger fractal · torus.mino.mobi</title>
+<meta name="description" content="Fly around the inside of a kaleidoscopic Menger fractal in raw WebGPU, pulled by a gravitational field solved from the fractal's own mass distribution.">
+<meta name="theme-color" content="#05060b">
+<style>
+  :root { --soft:#8a8aa0; --accent:#6ff2d4; --warn:#ff6b8a; --bg:#05060b; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; overflow:hidden; background:var(--bg); color:#e6e6f0;
+    font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; -webkit-font-smoothing:antialiased; }
+  canvas { display:block; width:100%; height:100%; touch-action:none; }
+  #hud, #panel, #boot, #crumb { position:fixed; z-index:5; }
+
+  #crumb { top:10px; left:12px; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--soft); }
+  #crumb a { color:var(--soft); text-decoration:none; }
+  #crumb a:hover { color:var(--accent); }
+
+  #hud { bottom:12px; left:12px; font-size:11px; color:var(--soft); line-height:1.7;
+         text-shadow:0 1px 3px #000; pointer-events:none; }
+  #hud b { color:#cfd3e6; font-weight:500; }
+  #hud .g { color:var(--accent); }
+  #hud .st { color:var(--warn); }
+
+  #panel { top:10px; right:12px; width:212px; background:rgba(8,10,18,.82); border:1px solid #1e2233;
+           border-radius:8px; padding:10px 12px; font-size:11px; backdrop-filter:blur(8px); }
+  #panel h2 { margin:0 0 8px; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--soft); font-weight:600; }
+  #panel label { display:block; margin:8px 0 2px; color:var(--soft); display:flex; justify-content:space-between; gap:6px; }
+  #panel label i { font-style:normal; color:#cfd3e6; }
+  #panel input[type=range] { width:100%; margin:0; accent-color:var(--accent); height:16px; }
+  #panel .row { display:flex; gap:6px; margin-top:10px; }
+  #panel button { flex:1; background:#141a28; color:#cfd3e6; border:1px solid #262c40; border-radius:5px;
+                  padding:6px 4px; font:inherit; font-size:10px; cursor:pointer; }
+  #panel button:hover { border-color:var(--accent); color:var(--accent); }
+  #panel .note { margin-top:9px; color:#5a5f75; font-size:10px; line-height:1.45; }
+  #panel.hidden { display:none; }
+
+  #boot { inset:0; display:flex; align-items:center; justify-content:center; background:var(--bg); padding:24px; }
+  #boot .card { max-width:560px; text-align:center; }
+  #boot h1 { font-size:26px; letter-spacing:.16em; margin:0 0 6px; font-weight:700; }
+  #boot p { color:var(--soft); margin:0 0 8px; font-size:13px; line-height:1.65; }
+  #boot .stage { color:var(--accent); min-height:1.5em; font-size:12px; }
+  #boot .err { color:var(--warn); text-align:left; font-size:12px; line-height:1.7; }
+  #boot .err code { background:#141a28; padding:1px 5px; border-radius:3px; }
+  #boot button { margin-top:18px; background:#101725; color:var(--accent); border:1px solid var(--accent);
+                 border-radius:6px; padding:11px 26px; font:inherit; letter-spacing:.1em; cursor:pointer; }
+  #boot button:hover { background:var(--accent); color:#05060b; }
+  #boot.gone { display:none; }
+  .keys { display:inline-block; text-align:left; color:var(--soft); font-size:12px; margin-top:14px; line-height:1.85; }
+  .keys kbd { background:#141a28; border:1px solid #262c40; border-radius:4px; padding:1px 6px;
+              color:#cfd3e6; font:inherit; font-size:11px; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div id="crumb"><a href="../">torus</a> / fortress</div>
+
+<div id="hud"></div>
+
+<div id="panel" class="hidden">
+  <h2>field &amp; optics</h2>
+  <label>gravity <i id="vG">1.00×</i></label>
+  <input type="range" id="sG" min="0" max="100" value="40">
+  <label>fractal phase <i id="vP">0.00</i></label>
+  <input type="range" id="sP" min="0" max="628" value="0">
+  <label>exposure <i id="vE">1.00</i></label>
+  <input type="range" id="sE" min="5" max="300" value="100">
+  <label>glow <i id="vW">0.80</i></label>
+  <input type="range" id="sW" min="0" max="300" value="80">
+  <label>supersampling <i id="vS">1.3×</i></label>
+  <input type="range" id="sS" min="70" max="200" value="130">
+  <div class="row">
+    <button id="bResolve">re-solve field</button>
+    <button id="bReset">respawn</button>
+  </div>
+  <div class="note" id="fieldNote">field: —</div>
+</div>
+
+<div id="boot">
+  <div class="card" id="bootCard">
+    <h1>FORTRESS</h1>
+    <p>A kaleidoscopic Menger fractal, raymarched in raw WebGPU — and a Newtonian
+       gravitational field solved from the fractal's own mass.</p>
+    <div class="stage" id="stage">checking WebGPU…</div>
+    <div id="bootAction"></div>
+  </div>
+</div>
+
+<script type="module">
+'use strict';
+
+// =====================================================================
+//  FORTRESS — microgravity inside a kaleidoscopic Menger fractal
+//
+//  The geometry is a port of "Cyber Fortress" (fragcoord.xyz/s/c5y70a5f),
+//  itself after CodeParade's fractal video. The original is a pure glow
+//  accumulator: it never resolves a surface, it just integrates brightness
+//  along a ray. To walk on it we need an actual distance estimator, so the
+//  fold sequence here also tracks its derivative:
+//
+//    pre-fold      p.xz = -abs(rot(phase) * p.xz)          |J| = 1
+//    inversion     p /= dot(p,p)                           |J| = 1/D
+//    x9 { box fold, Menger (sorting) fold, scale 2.5, rotate }   |J| = 2.5
+//
+//  so  DE(p) = D * length(q) / 2.5^9 , and 2.5^9 = 3814.7 — which is why the
+//  original divides by 4e3. Verified numerically: the estimate never exceeds
+//  the true distance to the surface (worst ratio 0.68 over sampled rays), so
+//  sphere-tracing with it is safe.
+// =====================================================================
+
+const CFG = {
+  ITERS: 9,
+  SCALE: 2.5,
+  SC: Math.pow(2.5, 9),       // 3814.697…
+  FOLD: 0.2,
+  CORE: 0.055,                // the inversion centre is a singularity; cap it
+                              // with a solid sphere so neither rays nor the
+                              // player can fall into it.
+  HALF: 1.45,                 // half-extent of the mass box (measured: all
+                              // occupied voxels lie within |p| < 1.3)
+  COARSE: 32,                 // mass grid resolution per axis
+  SUB: 6,                     // DE samples per axis inside each mass cell
+                              // -> 192^3 = 7.1M evaluations, once, on the GPU
+  PLAYER_R: 0.009,
+  EYE: 0.006,
+  WALK: 0.22,
+  AIR: 0.05,
+  JUMP: 0.115,
+  SUPER: 0.26,
+  THRUST: 0.055,
+  G_TARGET: 0.09,             // |g| calibrated to this at the reference shell,
+                              // giving ~1.3 s of hang time on a normal jump
+};
+
+// ---------------------------------------------------------------------
+//  WGSL — shared fractal core, injected into every shader module
+// ---------------------------------------------------------------------
+const WGSL_FRACTAL = /* wgsl */`
+const ITERS : i32 = ${CFG.ITERS};
+const SCALE : f32 = ${CFG.SCALE};
+const SC    : f32 = ${CFG.SC};
+const FOLD  : f32 = ${CFG.FOLD};
+const CORE  : f32 = ${CFG.CORE};
+
+// Rotate-and-mirror into one kaleidoscopic wedge.
+// GLSL mat2(a,b,c,d) is column major, so v*M = (v.x*a + v.y*b', ...) —
+// expanded here to keep the WGSL row/column convention unambiguous.
+fn preFold(pin : vec3f, phase : f32) -> vec3f {
+  let c  = cos(phase);
+  let s0 = cos(phase + 11.0);
+  let s1 = cos(phase + 33.0);
+  let x = pin.x * c  + pin.z * s0;
+  let z = pin.x * s1 + pin.z * c;
+  return vec3f(-abs(x), pin.y, -abs(z));
+}
+
+// Menger fold: sort the components descending via three conditional swaps.
+fn mengerFold(pin : vec3f) -> vec3f {
+  var p = pin;
+  var a = min(p.x - p.y, 0.0); p.x -= a; p.y += a;
+  a = min(p.x - p.z, 0.0); p.x -= a; p.z += a;
+  a = min(p.y - p.z, 0.0); p.y -= a; p.z += a;
+  return p;
+}
+
+// Returns: .x = distance estimate, .y = orbit trap (min), .z = inverted-space
+// radius (the original shader's "v", which drives the glow), .w = orbit trap
+// (mean).
+//
+// Two traps, because they behave differently: the minimum is sharp but
+// spatially unstable — neighbouring pixels can latch onto different
+// iterations and the surface breaks into rainbow speckle. The mean over the
+// orbit varies smoothly across a face, so that is what drives albedo, with
+// the minimum left to modulate it slightly.
+fn mapF(pw : vec3f, phase : f32) -> vec4f {
+  var p = preFold(pw, phase);
+  let D = max(dot(p, p), 1e-9);
+  p = p / D;
+  var trap = 1e9;
+  var acc  = 0.0;
+  for (var n = 0; n < ITERS; n = n + 1) {
+    p = clamp(p, vec3f(-FOLD), vec3f(FOLD)) * 2.0 - p;
+    p = mengerFold(p);
+    p = p * SCALE + vec3f(-3.0, -0.5, 0.0);
+    p = vec3f(p.x, p.z, -p.y);
+    let l = length(p);
+    trap = min(trap, l);
+    acc += l;
+  }
+  let inv  = length(p) / SC;          // the original's v, pre-inversion-scale
+  let dFr  = D * inv;                 // ... corrected back to world units
+  let dCore = length(pw) - CORE;
+  return vec4f(min(dFr, dCore), trap, inv, acc / f32(ITERS));
+}
+
+fn deF(pw : vec3f, phase : f32) -> f32 { return mapF(pw, phase).x; }
+
+fn normalF(pw : vec3f, phase : f32, h : f32) -> vec3f {
+  let k = vec2f(1.0, -1.0);
+  let n = k.xyy * deF(pw + k.xyy * h, phase)
+        + k.yyx * deF(pw + k.yyx * h, phase)
+        + k.yxy * deF(pw + k.yxy * h, phase)
+        + k.xxx * deF(pw + k.xxx * h, phase);
+  let l = length(n);
+  return select(vec3f(0.0, 1.0, 0.0), n / l, l > 1e-20);
+}
+`;
+
+// ---------------------------------------------------------------------
+//  WGSL — mass voxelisation
+//
+//  One invocation per coarse cell; each sub-samples the DE on a SUB^3 lattice
+//  and reports the occupied fraction. That fraction is the cell's density —
+//  the source term for the gravitational field.
+// ---------------------------------------------------------------------
+const WGSL_MASS = WGSL_FRACTAL + /* wgsl */`
+struct MassU {
+  half_ : f32,
+  phase : f32,
+  coarse : f32,
+  sub : f32,
+};
+@group(0) @binding(0) var<uniform> mu : MassU;
+@group(0) @binding(1) var<storage, read_write> mass : array<f32>;
+
+@compute @workgroup_size(4, 4, 4)
+fn main(@builtin(global_invocation_id) gid : vec3u) {
+  let N = u32(mu.coarse);
+  if (gid.x >= N || gid.y >= N || gid.z >= N) { return; }
+
+  let cell = 2.0 * mu.half_ / mu.coarse;      // coarse cell edge
+  let S    = i32(mu.sub);
+  let step = cell / mu.sub;                   // fine sample spacing
+  let tau  = step * 0.5;                      // "inside" iff DE < half a fine voxel
+  let base = vec3f(gid) * cell - vec3f(mu.half_);
+
+  var hit = 0.0;
+  for (var i = 0; i < S; i = i + 1) {
+    for (var j = 0; j < S; j = j + 1) {
+      for (var k = 0; k < S; k = k + 1) {
+        let p = base + (vec3f(f32(i), f32(j), f32(k)) + 0.5) * step;
+        // Skip the singular core: in the pre-image of the inversion this is
+        // the point at infinity, not matter.
+        if (length(p) < CORE) { continue; }
+        if (deF(p, mu.phase) < tau) { hit = hit + 1.0; }
+      }
+    }
+  }
+  let total = mu.sub * mu.sub * mu.sub;
+  mass[(gid.z * N + gid.y) * N + gid.x] = hit / total;
+}
+`;
+
+// ---------------------------------------------------------------------
+//  WGSL — render
+//
+//  A single march does double duty: it sphere-traces the DE to find a solid
+//  surface to shade, and along the way it accumulates the original shader's
+//  glow integral so the fortress keeps the look it has on fragcoord.
+// ---------------------------------------------------------------------
+const WGSL_RENDER = WGSL_FRACTAL + /* wgsl */`
+struct Cam {
+  org   : vec4f,   // xyz = eye, w = phase
+  right : vec4f,   // xyz = basis, w = tanHalfFov
+  up    : vec4f,   // xyz = basis, w = exposure
+  fwd   : vec4f,   // xyz = basis, w = glow gain
+  misc  : vec4f,   // x = aspect, y = time, z = gDown blend, w = unused
+  gdir  : vec4f,   // xyz = normalised gravity direction, w = |g| (normalised)
+};
+@group(0) @binding(0) var<uniform> cam : Cam;
+
+struct VSOut {
+  @builtin(position) pos : vec4f,
+  @location(0) uv : vec2f,
+};
+
+@vertex
+fn vs(@builtin(vertex_index) vi : u32) -> VSOut {
+  // One oversized triangle covering the viewport.
+  var p = array<vec2f, 3>(vec2f(-1.0, -3.0), vec2f(-1.0, 1.0), vec2f(3.0, 1.0));
+  var o : VSOut;
+  o.pos = vec4f(p[vi], 0.0, 1.0);
+  o.uv  = p[vi];
+  return o;
+}
+
+// The original's palette: exp(sin(phi + vec3(0,2,3))). Kept exactly, because
+// it is the signature of the shader this is a port of — it drives the glow.
+fn palette(phi : f32) -> vec3f {
+  return exp(sin(vec3f(phi, phi + 2.0, phi + 3.0)));
+}
+
+// Surface albedo wants a different curve. exp(sin) spends most of its range in
+// the warm quadrant, and a fortress lit entirely in cream reads as sandstone,
+// not as the thing on fragcoord. A cosine palette lets the hue sweep be stated
+// outright: steel through teal through violet.
+fn albedoRamp(x : f32) -> vec3f {
+  return vec3f(0.40, 0.50, 0.58)
+       + vec3f(0.34, 0.30, 0.36) * cos(6.28318 * (vec3f(1.00, 0.92, 0.80) * x
+                                                 + vec3f(0.08, 0.40, 0.66)));
+}
+
+// Distance-field ambient occlusion. Sampling the DE along the normal is far
+// smoother than the usual march-step-count proxy, which on a fractal this
+// dense turns into per-pixel speckle.
+fn calcAO(p : vec3f, n : vec3f, phase : f32) -> f32 {
+  var occ = 0.0;
+  var norm = 0.0;
+  var sca = 1.0;
+  for (var i = 0; i < 6; i = i + 1) {
+    // Probe out to ~0.06 world units. The usual hard-coded IQ radii assume a
+    // scene tens of units across; this world is barely 2.6 across, and at
+    // those radii every probe lands in open space and the occlusion term
+    // never fires at all.
+    let h = 0.004 + 0.056 * f32(i) / 5.0;
+    let d = deF(p + n * h, phase);
+    occ  += (h - min(d, h)) * sca;
+    norm += h * sca;
+    sca  *= 0.75;
+  }
+  // Normalised, so the term spans a real 0..1 whatever the probe radii are.
+  return clamp(1.0 - 1.45 * occ / max(norm, 1e-6), 0.0, 1.0);
+}
+
+fn softShadow(ro : vec3f, rd : vec3f, phase : f32, kmax : f32) -> f32 {
+  var res = 1.0;
+  var t = 0.008;
+  for (var i = 0; i < 26; i = i + 1) {
+    let h = deF(ro + rd * t, phase);
+    if (h < 0.0004) { return 0.0; }
+    res = min(res, kmax * h / t);
+    t = t + clamp(h, 0.004, 0.09);
+    if (t > 2.2) { break; }
+  }
+  return clamp(res, 0.0, 1.0);
+}
+
+@fragment
+fn fs(in : VSOut) -> @location(0) vec4f {
+  let phase = cam.org.w;
+  let uv = vec2f(in.uv.x * cam.misc.x, -in.uv.y) * cam.right.w;
+  let rd = normalize(cam.fwd.xyz + cam.right.xyz * uv.x + cam.up.xyz * uv.y);
+  let ro = cam.org.xyz;
+
+  var t = 0.0012;
+  var glow = vec3f(0.0);
+  var hit = false;
+  var steps = 0.0;
+
+  // --- march: surface trace + glow integral in one pass -----------------
+  //
+  // The glow is the original shader's accumulator, kept per-step and
+  // normalised by its 2e3 the same way, because our step schedule (d*0.92) is
+  // the same DE-driven schedule its "v*min(D,1)" produced. Accumulation stops
+  // just short of the surface so the solid occludes its own haze instead of
+  // washing out behind an edge.
+  for (var i = 0; i < 128; i = i + 1) {
+    let p = ro + rd * t;
+    let m = mapF(p, phase);
+    let d = m.x;
+    let v = abs(m.z) + 1e-4;          // the original's v
+    steps = f32(i);
+
+    let eps = max(0.0018 * t, 6.0e-4);
+    if (d < eps) { hit = true; break; }
+
+    if (d > eps * 3.0) {
+      // Emission density, as a line integral rather than a per-step sum, so
+      // brightness does not depend on how many steps the tracer happened to
+      // take through a given stretch of space.
+      //
+      // The exponent is not a guess: the original adds pal/sqrt(v) per step
+      // while stepping by v, so its emission *per unit length* is
+      // pal/v^1.5 — far more sharply peaked at the structure than
+      // pal/sqrt(v). Integrating the gentler form is what turns the neon
+      // filigree into a flat white veil.
+      //
+      // Colour comes from the orbit trap with only a light distance term, so
+      // the bands sit on the fractal instead of sweeping through the world as
+      // rings centred on the eye.
+      glow += palette(f32(i) * 0.1 + m.y * 0.6 + t * 1.5)
+            / (v * sqrt(v)) * min(d, 0.05);
+    }
+
+    t = t + d * 0.92;                 // 0.92 keeps us inside the safe bound
+    if (t > 9.0) { break; }
+  }
+
+  glow = tanh(glow * 5.0e-4 * cam.fwd.w);
+  glow = glow * glow;
+
+  var col = vec3f(0.0);
+  if (hit) {
+    let p = ro + rd * t;
+    // Sample the gradient well above the surface's own detail scale. At the
+    // microscopic scale the fractal is rough everywhere, the normal points
+    // more or less anywhere, and every shading term that depends on the angle
+    // to the eye — fresnel especially — fires on every pixel at once. A wider
+    // stencil returns the orientation of the face you are actually looking at.
+    let n = normalF(p, phase, max(0.0016 * t, 7.0e-4));
+    let m = mapF(p, phase);
+
+    // Albedo from the orbit trap. Measured, the trap runs about 0.22–1.42
+    // across visible surfaces, so it is normalised onto that span before it
+    // drives the palette — mapped raw it only ever reaches one narrow arc of
+    // the curve and every wall comes out the same colour.
+    // Measured across visible surfaces the mean trap runs about 1.8–3.3, so
+    // it is normalised onto that span before driving the palette — mapped raw
+    // it only ever reaches one narrow arc and every wall comes out one colour.
+    let tw  = clamp((m.w - 1.8) / 1.5, 0.0, 1.0);
+    let td  = clamp((m.y - 0.22) / 1.20, 0.0, 1.0);
+    let alb = albedoRamp(tw * 0.85 + 0.05) * 0.19
+            + albedoRamp(td * 0.30 + 0.55) * 0.035   // fine detail, kept quiet
+            + vec3f(0.006, 0.011, 0.018);
+
+    // Key light: raked well off the local vertical rather than sitting on it.
+    // Putting the sun at -gravity looks principled, but you approach the
+    // fortress falling *along* gravity, so the light ends up behind the eye
+    // and every face is lit head-on — flash photography, no shade anywhere.
+    // Fifty-odd degrees off vertical gives the structure its own shadows.
+    let lUp  = -cam.gdir.xyz;
+    let axis = select(vec3f(1.0, 0.0, 0.0), vec3f(0.0, 1.0, 0.0), abs(lUp.y) < 0.9);
+    let lTan = normalize(cross(lUp, axis));
+    let lDir = normalize(lUp * 0.60 + lTan * 0.80);
+    let dif  = max(dot(n, lDir), 0.0);
+    let sha  = softShadow(p, lDir, phase, 9.0);
+    let ao   = calcAO(p, n, phase);
+    let fill = 0.5 + 0.5 * dot(n, -cam.gdir.xyz);   // sky/ground fill
+    let fres = pow(clamp(1.0 + dot(rd, n), 0.0, 1.0), 5.0);
+    let hv   = normalize(lDir - rd);
+    let spec = pow(max(dot(n, hv), 0.0), 26.0) * sha;
+
+    col  = alb * dif * sha * 1.7;                  // key, dominant on purpose
+    col += alb * fill * fill * 0.16 * ao;          // sky/ground fill
+    col += alb * 0.02 * ao;                        // floor
+    col += vec3f(0.55, 0.90, 1.0) * spec * 0.09 * ao;
+    // Edge light in the accent hue: on a structure this self-similar the
+    // silhouettes are most of what tells you where you are. Kept low —
+    // it reads as fog the moment it competes with the key.
+    col += vec3f(0.30, 0.92, 0.80) * fres * 0.035 * ao;
+
+    // Distance haze, so depth reads at speed.
+    col = mix(col, vec3f(0.010, 0.018, 0.032), clamp(t / 6.0, 0.0, 0.88));
+  }
+
+  col = col + glow;
+  col = col * cam.up.w;                        // exposure
+  col = col / (col + vec3f(1.0));              // Reinhard
+  col = pow(max(col, vec3f(0.0)), vec3f(1.0 / 2.2));
+
+  // Vignette.
+  let r2 = dot(in.uv, in.uv);
+  col = col * (1.0 - 0.20 * r2);
+
+  return vec4f(col, 1.0);
+}
+`;
+
+// =====================================================================
+//  Boot
+// =====================================================================
+const stageEl = document.getElementById('stage');
+const bootEl  = document.getElementById('boot');
+const actionEl= document.getElementById('bootAction');
+const cardEl  = document.getElementById('bootCard');
+const canvas  = document.getElementById('cv');
+const hudEl   = document.getElementById('hud');
+const panelEl = document.getElementById('panel');
+
+const setStage = (s) => { stageEl.textContent = s; };
+
+function fail(title, detailHTML) {
+  cardEl.innerHTML =
+    `<h1>FORTRESS</h1><div class="err"><p style="color:var(--warn);margin-bottom:10px">${title}</p>${detailHTML}</div>`;
+}
+
+async function boot() {
+  if (!('gpu' in navigator)) {
+    fail('This page needs WebGPU, and this browser has not got it.',
+      `<p>WebGPU is how the page draws the fractal and solves its gravitational
+          field — there is no fallback renderer here, by design.</p>
+       <p>It works today in Chrome and Edge 113+, and in Safari 26+. In Firefox
+          it is behind <code>dom.webgpu.enabled</code>.</p>
+       <p>On Linux Chrome you may also need <code>--enable-unsafe-webgpu</code>.</p>
+       <p style="margin-top:14px">The rest of the toroidal family runs on plain
+          WebGL: <a href="../" style="color:var(--accent)">torus.mino.mobi</a></p>`);
+    return;
+  }
+  setStage('requesting adapter…');
+  let adapter = null;
+  try { adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' }); }
+  catch (e) { /* fall through to the null check */ }
+  if (!adapter) adapter = await navigator.gpu.requestAdapter().catch(() => null);
+  if (!adapter) {
+    fail('WebGPU is present but no adapter would open.',
+      `<p>Usually this is a blocklisted or software-only GPU driver.</p>
+       <p>Try <code>chrome://gpu</code> to see why the adapter was refused.</p>`);
+    return;
+  }
+
+  setStage('opening device…');
+  let device;
+  try {
+    device = await adapter.requestDevice();
+  } catch (e) {
+    fail('The GPU device would not open.', `<p><code>${String(e && e.message || e)}</code></p>`);
+    return;
+  }
+
+  device.lost.then((info) => {
+    if (info.reason === 'destroyed') return;
+    fail('The GPU device was lost.',
+      `<p><code>${info.message || 'no reason given'}</code></p><p>Reload to try again.</p>`);
+    bootEl.classList.remove('gone');
+  });
+
+  try {
+    await run(device);
+  } catch (e) {
+    console.error(e);
+    fail('Failed while building the pipeline.',
+      `<p><code>${String(e && e.message || e).slice(0, 600)}</code></p>`);
+  }
+}
+
+// =====================================================================
+//  The world
+// =====================================================================
+async function run(device) {
+  setStage('compiling shaders…');
+
+  const ctx = canvas.getContext('webgpu');
+  const format = navigator.gpu.getPreferredCanvasFormat();
+  ctx.configure({ device, format, alphaMode: 'opaque' });
+
+  // --- shader modules, with compilation diagnostics surfaced ------------
+  async function mod(code, label) {
+    const m = device.createShaderModule({ code, label });
+    if (m.getCompilationInfo) {
+      const info = await m.getCompilationInfo();
+      const errs = info.messages.filter((x) => x.type === 'error');
+      if (errs.length) {
+        const lines = code.split('\n');
+        throw new Error(`${label}: ${errs.map((e) =>
+          `line ${e.lineNum}: ${e.message}\n    ${(lines[e.lineNum - 1] || '').trim()}`).join('\n')}`);
+      }
+    }
+    return m;
+  }
+
+  const massMod   = await mod(WGSL_MASS, 'mass');
+  const renderMod = await mod(WGSL_RENDER, 'render');
+
+  // --- mass pipeline ----------------------------------------------------
+  const N = CFG.COARSE, NC = N * N * N;
+  const massUBuf = device.createBuffer({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  const massBuf  = device.createBuffer({
+    size: NC * 4,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+  });
+  const massRead = device.createBuffer({
+    size: NC * 4,
+    usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+  });
+  const massPipe = device.createComputePipeline({
+    layout: 'auto',
+    compute: { module: massMod, entryPoint: 'main' },
+  });
+  const massBind = device.createBindGroup({
+    layout: massPipe.getBindGroupLayout(0),
+    entries: [
+      { binding: 0, resource: { buffer: massUBuf } },
+      { binding: 1, resource: { buffer: massBuf } },
+    ],
+  });
+
+  // --- render pipeline --------------------------------------------------
+  const camBuf = device.createBuffer({ size: 96, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  const renderPipe = device.createRenderPipeline({
+    layout: 'auto',
+    vertex:   { module: renderMod, entryPoint: 'vs' },
+    fragment: { module: renderMod, entryPoint: 'fs', targets: [{ format }] },
+    primitive: { topology: 'triangle-list' },
+  });
+  const renderBind = device.createBindGroup({
+    layout: renderPipe.getBindGroupLayout(0),
+    entries: [{ binding: 0, resource: { buffer: camBuf } }],
+  });
+
+  // =====================================================================
+  //  Gravitational field
+  //
+  //  The GPU hands back an occupancy fraction per coarse cell. Pruning the
+  //  empty ones leaves a few thousand point masses, and the field is then the
+  //  honest Newtonian sum over them,
+  //
+  //      g(x) = -G · Σ mᵢ (x - xᵢ) / (|x - xᵢ|² + ε²)^{3/2}
+  //
+  //  with Plummer softening ε at the cell scale — which is exactly what a
+  //  finite-resolution mass model can support, and which keeps the field
+  //  smooth right up against a wall instead of blowing up inside a cell.
+  // =====================================================================
+  const field = {
+    px: null, py: null, pz: null, m: null, n: 0,
+    total: 0, G: 1, eps2: 0, cell: 0, ready: false,
+  };
+
+  let solving = false;
+  async function solveField(phase) {
+    if (solving) return;
+    solving = true;
+    try {
+      device.queue.writeBuffer(massUBuf, 0,
+        new Float32Array([CFG.HALF, phase, CFG.COARSE, CFG.SUB]));
+
+      const enc = device.createCommandEncoder();
+      const pass = enc.beginComputePass();
+      pass.setPipeline(massPipe);
+      pass.setBindGroup(0, massBind);
+      const groups = Math.ceil(N / 4);
+      pass.dispatchWorkgroups(groups, groups, groups);
+      pass.end();
+      enc.copyBufferToBuffer(massBuf, 0, massRead, 0, NC * 4);
+      device.queue.submit([enc.finish()]);
+
+      await massRead.mapAsync(GPUMapMode.READ);
+      const raw = new Float32Array(massRead.getMappedRange().slice(0));
+      massRead.unmap();
+
+      // Prune to occupied cells.
+      const cell = 2 * CFG.HALF / N;
+      const px = [], py = [], pz = [], mm = [];
+      let total = 0;
+      for (let k = 0; k < N; k++) for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+        const m = raw[(k * N + j) * N + i];
+        if (m <= 0.0005) continue;
+        px.push(-CFG.HALF + (i + 0.5) * cell);
+        py.push(-CFG.HALF + (j + 0.5) * cell);
+        pz.push(-CFG.HALF + (k + 0.5) * cell);
+        mm.push(m);
+        total += m;
+      }
+      field.px = Float32Array.from(px);
+      field.py = Float32Array.from(py);
+      field.pz = Float32Array.from(pz);
+      field.m  = Float32Array.from(mm);
+      field.n  = mm.length;
+      field.total = total;
+      field.cell = cell;
+      field.eps2 = (cell * 0.85) ** 2;
+      field.G = 1;
+      field.ready = field.n > 0;
+
+      // Calibrate G so the field has a consistent, playable strength whatever
+      // the phase leaves behind: sample |g| over a shell just outside the
+      // structure and scale so the median matches G_TARGET.
+      if (field.ready) {
+        const probes = [];
+        const g = [0, 0, 0];
+        for (let a = 0; a < 64; a++) {
+          const u = (a + 0.5) / 64, v = ((a * 7) % 64 + 0.5) / 64;
+          const th = Math.acos(1 - 2 * u), ph = 2 * Math.PI * v;
+          const r = 0.95;
+          gravityAt(r * Math.sin(th) * Math.cos(ph), r * Math.cos(th),
+                    r * Math.sin(th) * Math.sin(ph), g);
+          probes.push(Math.hypot(g[0], g[1], g[2]));
+        }
+        probes.sort((a, b) => a - b);
+        const med = probes[probes.length >> 1] || 1e-6;
+        field.G = CFG.G_TARGET / Math.max(med, 1e-9);
+      }
+
+      document.getElementById('fieldNote').textContent =
+        `field: ${field.n.toLocaleString()} mass cells · ${(100 * field.total / NC).toFixed(2)}% of box · ` +
+        `${CFG.COARSE}³ grid from ${(CFG.COARSE * CFG.SUB)}³ samples`;
+    } finally {
+      solving = false;
+    }
+  }
+
+  function gravityAt(x, y, z, out) {
+    let ax = 0, ay = 0, az = 0;
+    if (field.ready) {
+      const { px, py, pz, m, n, eps2 } = field;
+      for (let i = 0; i < n; i++) {
+        const dx = px[i] - x, dy = py[i] - y, dz = pz[i] - z;
+        const r2 = dx * dx + dy * dy + dz * dz + eps2;
+        const inv = m[i] / (r2 * Math.sqrt(r2));
+        ax += dx * inv; ay += dy * inv; az += dz * inv;
+      }
+      const G = field.G;
+      ax *= G; ay *= G; az *= G;
+    }
+    out[0] = ax; out[1] = ay; out[2] = az;
+    return out;
+  }
+
+  // =====================================================================
+  //  CPU mirror of the distance estimator — collision needs it every frame,
+  //  and a readback per step would cost more than recomputing here.
+  //  Kept structurally identical to mapF() above; if one changes, change both.
+  // =====================================================================
+  let PHASE = 0;
+  function deCPU(x, y, z) {
+    const c = Math.cos(PHASE), s0 = Math.cos(PHASE + 11), s1 = Math.cos(PHASE + 33);
+    let qx = -Math.abs(x * c + z * s0);
+    let qy = y;
+    let qz = -Math.abs(x * s1 + z * c);
+    const D = Math.max(qx * qx + qy * qy + qz * qz, 1e-9);
+    qx /= D; qy /= D; qz /= D;
+    for (let n = 0; n < CFG.ITERS; n++) {
+      qx = Math.min(Math.max(qx, -CFG.FOLD), CFG.FOLD) * 2 - qx;
+      qy = Math.min(Math.max(qy, -CFG.FOLD), CFG.FOLD) * 2 - qy;
+      qz = Math.min(Math.max(qz, -CFG.FOLD), CFG.FOLD) * 2 - qz;
+      let a;
+      a = Math.min(qx - qy, 0); qx -= a; qy += a;
+      a = Math.min(qx - qz, 0); qx -= a; qz += a;
+      a = Math.min(qy - qz, 0); qy -= a; qz += a;
+      qx = qx * CFG.SCALE - 3.0; qy = qy * CFG.SCALE - 0.5; qz = qz * CFG.SCALE;
+      const t = qy; qy = qz; qz = -t;
+    }
+    const dFr = D * Math.hypot(qx, qy, qz) / CFG.SC;
+    const dCore = Math.hypot(x, y, z) - CFG.CORE;
+    return Math.min(dFr, dCore);
+  }
+
+  function normalCPU(x, y, z, h, out) {
+    const nx = deCPU(x + h, y, z) - deCPU(x - h, y, z);
+    const ny = deCPU(x, y + h, z) - deCPU(x, y - h, z);
+    const nz = deCPU(x, y, z + h) - deCPU(x, y, z - h);
+    const l = Math.hypot(nx, ny, nz);
+    if (l < 1e-20) { out[0] = 0; out[1] = 1; out[2] = 0; return false; }
+    out[0] = nx / l; out[1] = ny / l; out[2] = nz / l;
+    return true;
+  }
+
+  // =====================================================================
+  //  Player
+  // =====================================================================
+  // "Up" here is whichever way the gravitational field says is up, which
+  // changes as you move — so the camera cannot derive its heading from a
+  // fixed world axis without going degenerate every time you look along it.
+  // Instead it carries a persistent tangent vector, re-orthogonalised against
+  // up each frame and rotated about up by mouse-X. Pitch stays a clamped
+  // scalar applied in the up/forward plane.
+  const P = {
+    x: 0, y: -0.1, z: 1.6,
+    vx: 0, vy: 0, vz: 0,
+    fx: 0, fy: 0, fz: -1,         // tangent heading
+    pitch: 0,
+    upx: 0, upy: 1, upz: 0,       // smoothed local "up"
+    grounded: false,
+    coyote: 0,
+    since: 0,
+  };
+
+  // Rotate the heading about the current up (they are kept perpendicular).
+  function yawBy(a) {
+    const c = Math.cos(a), s = Math.sin(a);
+    // up × fwd
+    const cx = P.upy * P.fz - P.upz * P.fy;
+    const cy = P.upz * P.fx - P.upx * P.fz;
+    const cz = P.upx * P.fy - P.upy * P.fx;
+    P.fx = P.fx * c + cx * s;
+    P.fy = P.fy * c + cy * s;
+    P.fz = P.fz * c + cz * s;
+  }
+
+  // Any unit vector perpendicular to n.
+  function perp(n, out) {
+    const ax = Math.abs(n[0]), ay = Math.abs(n[1]);
+    let hx = 0, hy = 0, hz = 1;
+    if (ax < ay && ax < Math.abs(n[2])) { hx = 1; hz = 0; }
+    else if (ay < Math.abs(n[2])) { hy = 1; hz = 0; }
+    let ox = n[1] * hz - n[2] * hy;
+    let oy = n[2] * hx - n[0] * hz;
+    let oz = n[0] * hy - n[1] * hx;
+    const l = Math.hypot(ox, oy, oz) || 1;
+    out[0] = ox / l; out[1] = oy / l; out[2] = oz / l;
+  }
+
+  function spawn() {
+    // Walk in from outside along the original shader's view ray until we are
+    // a comfortable distance off the structure, so you always start in open
+    // space looking at the fortress.
+    let bx = 0, by = -0.1, bz = 1.6;
+    const dx = 0, dy = 0.04, dz = -1;
+    const L = Math.hypot(dx, dy, dz);
+    let t = 0;
+    for (let i = 0; i < 400; i++) {
+      const d = deCPU(bx + dx / L * t, by + dy / L * t, bz + dz / L * t);
+      if (d < CFG.PLAYER_R * 4) break;
+      t += Math.max(d * 0.8, 1e-4);
+      if (t > 3) break;
+    }
+    t = Math.max(t - CFG.PLAYER_R * 14, 0);
+    P.x = bx + dx / L * t; P.y = by + dy / L * t; P.z = bz + dz / L * t;
+    P.vx = P.vy = P.vz = 0;
+    P.grounded = false; P.coyote = 0; P.since = 0;
+
+    // Face the fortress: up is away from the mass, so pitching down looks at
+    // it. Seed the heading from any tangent, then let the field take over.
+    gravityAt(P.x, P.y, P.z, gv);
+    const gm = Math.hypot(gv[0], gv[1], gv[2]);
+    if (gm > 1e-9) { P.upx = -gv[0] / gm; P.upy = -gv[1] / gm; P.upz = -gv[2] / gm; }
+    else { P.upx = 0; P.upy = 1; P.upz = 0; }
+    const tan = [0, 0, 0];
+    perp([P.upx, P.upy, P.upz], tan);
+    P.fx = tan[0]; P.fy = tan[1]; P.fz = tan[2];
+    P.pitch = -0.95;
+  }
+
+  // --- input ------------------------------------------------------------
+  const keys = Object.create(null);
+  let pointerLocked = false;
+  const opts = { gravity: 1, exposure: 1, glow: 1, ssaa: 1.3 };
+
+  addEventListener('keydown', (e) => {
+    keys[e.code] = true;
+    if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
+    if (e.code === 'KeyR') spawn();
+    if (e.code === 'KeyH') panelEl.classList.toggle('hidden');
+    if (e.code === 'Escape' && pointerLocked) document.exitPointerLock();
+  });
+  addEventListener('keyup', (e) => { keys[e.code] = false; });
+  addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+  canvas.addEventListener('click', () => {
+    if (!pointerLocked) canvas.requestPointerLock();
+  });
+  document.addEventListener('pointerlockchange', () => {
+    pointerLocked = document.pointerLockElement === canvas;
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!pointerLocked) return;
+    yawBy(-e.movementX * 0.0022);
+    P.pitch -= e.movementY * 0.0022;
+    P.pitch = Math.max(-1.5, Math.min(1.5, P.pitch));
+  });
+
+  // Touch: drag to look, two fingers to thrust forward.
+  let touchId = null, tlx = 0, tly = 0, touchThrust = false;
+  canvas.addEventListener('touchstart', (e) => {
+    touchThrust = e.touches.length >= 2;
+    if (touchId === null) {
+      touchId = e.touches[0].identifier; tlx = e.touches[0].clientX; tly = e.touches[0].clientY;
+    }
+    e.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener('touchmove', (e) => {
+    for (const t of e.touches) {
+      if (t.identifier !== touchId) continue;
+      yawBy(-(t.clientX - tlx) * 0.005);
+      P.pitch -= (t.clientY - tly) * 0.005;
+      P.pitch = Math.max(-1.5, Math.min(1.5, P.pitch));
+      tlx = t.clientX; tly = t.clientY;
+    }
+    e.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener('touchend', (e) => {
+    if (e.touches.length < 2) touchThrust = false;
+    if (e.touches.length === 0) touchId = null;
+  });
+
+  // --- panel ------------------------------------------------------------
+  const bind = (slider, out, fmt, apply) => {
+    const s = document.getElementById(slider), o = document.getElementById(out);
+    const upd = () => { const v = apply(+s.value); o.textContent = fmt(v); };
+    s.addEventListener('input', upd); upd();
+  };
+  bind('sG', 'vG', (v) => v.toFixed(2) + '×', (raw) => (opts.gravity = Math.pow(10, (raw - 40) / 40) ));
+  bind('sE', 'vE', (v) => v.toFixed(2),        (raw) => (opts.exposure = raw / 100));
+  bind('sW', 'vW', (v) => v.toFixed(2),        (raw) => (opts.glow = raw / 100));
+  bind('sS', 'vS', (v) => v.toFixed(2) + '×',  (raw) => (opts.ssaa = raw / 100));
+  const sP = document.getElementById('sP'), vP = document.getElementById('vP');
+  sP.addEventListener('input', () => { PHASE = +sP.value / 100; vP.textContent = PHASE.toFixed(2); });
+  document.getElementById('bResolve').addEventListener('click', () => { solveField(PHASE); });
+  document.getElementById('bReset').addEventListener('click', spawn);
+
+  // --- physics ----------------------------------------------------------
+  const gv = [0, 0, 0], nv = [0, 0, 0];
+  let gMag = 0;
+
+  function step(dt) {
+    // Gravity from the solved field.
+    gravityAt(P.x, P.y, P.z, gv);
+    let gx = gv[0] * opts.gravity, gy = gv[1] * opts.gravity, gz = gv[2] * opts.gravity;
+    gMag = Math.hypot(gx, gy, gz);
+
+    // Local "up" — opposite gravity, smoothed so the horizon does not snap.
+    let ux = 0, uy = 1, uz = 0;
+    if (gMag > 1e-7) { ux = -gx / gMag; uy = -gy / gMag; uz = -gz / gMag; }
+    const grounded = P.grounded;
+    if (grounded && normalCPU(P.x, P.y, P.z, 3e-4, nv)) {
+      // Standing: blend toward the surface normal so walls become floors.
+      ux = ux * 0.35 + nv[0] * 0.65;
+      uy = uy * 0.35 + nv[1] * 0.65;
+      uz = uz * 0.35 + nv[2] * 0.65;
+      const l = Math.hypot(ux, uy, uz) || 1;
+      ux /= l; uy /= l; uz /= l;
+    }
+    const k = 1 - Math.pow(0.0016, dt);      // ~frame-rate independent slerp
+    P.upx += (ux - P.upx) * k; P.upy += (uy - P.upy) * k; P.upz += (uz - P.upz) * k;
+    const ul = Math.hypot(P.upx, P.upy, P.upz) || 1;
+    P.upx /= ul; P.upy /= ul; P.upz /= ul;
+
+    // Re-orthogonalise the carried heading against the new up. Because the
+    // heading is carried rather than rebuilt from a world axis, it stays
+    // continuous as up swings around — no gimbal flip when you walk over a
+    // ledge and "down" rotates ninety degrees under you.
+    let d = P.fx * P.upx + P.fy * P.upy + P.fz * P.upz;
+    let fx = P.fx - P.upx * d, fy = P.fy - P.upy * d, fz = P.fz - P.upz * d;
+    let fl = Math.hypot(fx, fy, fz);
+    if (fl < 1e-4) {
+      const tmp = [0, 0, 0];
+      perp([P.upx, P.upy, P.upz], tmp);
+      fx = tmp[0]; fy = tmp[1]; fz = tmp[2]; fl = 1;
+    }
+    fx /= fl; fy /= fl; fz /= fl;
+    P.fx = fx; P.fy = fy; P.fz = fz;
+    // right = forward × up
+    const rx = fy * P.upz - fz * P.upy;
+    const ry = fz * P.upx - fx * P.upz;
+    const rz = fx * P.upy - fy * P.upx;
+
+    const cp = Math.cos(P.pitch), sp = Math.sin(P.pitch);
+    const vx = fx * cp + P.upx * sp, vy = fy * cp + P.upy * sp, vz = fz * cp + P.upz * sp;
+
+    // --- movement input ------------------------------------------------
+    let mf = 0, ms = 0;
+    if (keys.KeyW || keys.ArrowUp) mf += 1;
+    if (keys.KeyS || keys.ArrowDown) mf -= 1;
+    if (keys.KeyD || keys.ArrowRight) ms += 1;
+    if (keys.KeyA || keys.ArrowLeft) ms -= 1;
+    if (touchThrust) mf += 1;
+    const ml = Math.hypot(mf, ms);
+    if (ml > 0) { mf /= ml; ms /= ml; }
+
+    const boost = (keys.ShiftLeft || keys.ShiftRight) ? 2.1 : 1;
+
+    if (grounded) {
+      // Walking: drive velocity in the tangent plane directly.
+      const sp2 = CFG.WALK * boost;
+      const tx = fx * mf + rx * ms, ty = fy * mf + ry * ms, tz = fz * mf + rz * ms;
+      const drag = 1 - Math.pow(0.00002, dt);
+      P.vx += (tx * sp2 - P.vx) * drag;
+      P.vy += (ty * sp2 - P.vy) * drag;
+      P.vz += (tz * sp2 - P.vz) * drag;
+    } else {
+      // Microgravity: thrust only, and it barely does anything — that is
+      // the whole feel. No drag out here; you keep what you were given.
+      const acc = CFG.AIR * boost;
+      P.vx += (fx * mf + rx * ms) * acc * dt;
+      P.vy += (fy * mf + ry * ms) * acc * dt;
+      P.vz += (fz * mf + rz * ms) * acc * dt;
+      // Hold jump in flight for a weak attitude thruster along view up.
+      if (keys.Space) {
+        P.vx += P.upx * CFG.THRUST * dt;
+        P.vy += P.upy * CFG.THRUST * dt;
+        P.vz += P.upz * CFG.THRUST * dt;
+      }
+    }
+
+    // Jump — off the surface normal, along the smoothed up.
+    if (keys.Space && (grounded || P.coyote > 0) && P.since > 0.12) {
+      const j = (keys.ShiftLeft || keys.ShiftRight) ? CFG.SUPER : CFG.JUMP;
+      P.vx += P.upx * j; P.vy += P.upy * j; P.vz += P.upz * j;
+      P.grounded = false; P.coyote = 0; P.since = 0;
+    }
+
+    // Gravity integration.
+    P.vx += gx * dt; P.vy += gy * dt; P.vz += gz * dt;
+
+    // --- integrate with substeps, so fast flight cannot tunnel ----------
+    const speed = Math.hypot(P.vx, P.vy, P.vz);
+    const nsub = Math.max(1, Math.min(8, Math.ceil(speed * dt / (CFG.PLAYER_R * 0.8))));
+    const h = dt / nsub;
+    let landed = false;
+    for (let s = 0; s < nsub; s++) {
+      P.x += P.vx * h; P.y += P.vy * h; P.z += P.vz * h;
+      let d = deCPU(P.x, P.y, P.z);
+      // Resolve penetration; a couple of passes because the surface curves
+      // away sharply at fractal scales.
+      for (let it = 0; it < 3 && d < CFG.PLAYER_R; it++) {
+        if (!normalCPU(P.x, P.y, P.z, Math.max(d * 0.5, 2e-4), nv)) break;
+        const push = (CFG.PLAYER_R - d) + 1e-5;
+        P.x += nv[0] * push; P.y += nv[1] * push; P.z += nv[2] * push;
+        const vn = P.vx * nv[0] + P.vy * nv[1] + P.vz * nv[2];
+        if (vn < 0) {                       // kill inward velocity, keep slide
+          P.vx -= nv[0] * vn * 1.0;
+          P.vy -= nv[1] * vn * 1.0;
+          P.vz -= nv[2] * vn * 1.0;
+        }
+        landed = true;
+        d = deCPU(P.x, P.y, P.z);
+      }
+    }
+
+    // Ground state: standing if the surface is within a shallow probe and we
+    // are not moving away from it.
+    const dNow = deCPU(P.x, P.y, P.z);
+    if (landed || dNow < CFG.PLAYER_R * 1.6) {
+      P.grounded = true; P.coyote = 0.12;
+    } else {
+      P.grounded = false;
+      P.coyote = Math.max(0, P.coyote - dt);
+    }
+    P.since += dt;
+
+    // Leash: the fractal is compact, so anything past the box is escape
+    // velocity. Rather than lose the player, fold them back in gently.
+    const R = Math.hypot(P.x, P.y, P.z);
+    if (R > 4.5) {
+      const s = 4.5 / R;
+      P.x *= s; P.y *= s; P.z *= s;
+      P.vx *= 0.2; P.vy *= 0.2; P.vz *= 0.2;
+    }
+
+    return { vx, vy, vz, rx, ry, rz, gx, gy, gz };
+  }
+
+  // --- resize -----------------------------------------------------------
+  // The fractal carries detail far below one pixel, so it aliases badly at
+  // 1:1. Rendering the backing store larger than the CSS box and letting the
+  // compositor downsample is plain supersampling — no resolve pass needed.
+  let W = 1, H = 1;
+  // Sustained-framerate governor. A fractal raymarch is one of the few
+  // workloads where the same shader runs three orders of magnitude apart on a
+  // discrete GPU and on a software rasteriser, so the sampling rate has to be
+  // discovered at runtime rather than picked.
+  let adapt = 1;
+  function governor(fps) {
+    if (fps > 0 && fps < 26 && adapt > 0.5) adapt = Math.max(0.5, adapt - 0.08);
+    else if (fps > 52 && adapt < 1) adapt = Math.min(1, adapt + 0.04);
+  }
+
+  function targetSize() {
+    const dpr = Math.min(devicePixelRatio || 1, 1.75) * opts.ssaa * adapt;
+    const maxDim = device.limits.maxTextureDimension2D || 8192;
+    return [
+      Math.min(Math.max(1, Math.round(canvas.clientWidth * dpr)), maxDim),
+      Math.min(Math.max(1, Math.round(canvas.clientHeight * dpr)), maxDim),
+    ];
+  }
+  function resize() {
+    const [w, h] = targetSize();
+    if (w === W && h === H) return;
+    W = w; H = h;
+    canvas.width = W; canvas.height = H;
+  }
+  addEventListener('resize', resize);
+  document.getElementById('sS').addEventListener('input', resize);
+  resize();
+
+  // --- first solve ------------------------------------------------------
+  setStage('voxelising the fractal and solving its gravitational field…');
+  await solveField(PHASE);
+  spawn();
+
+  setStage('');
+  actionEl.innerHTML =
+    `<div class="keys">
+       <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &middot; <kbd>mouse</kbd> look<br>
+       <kbd>Space</kbd> jump, or hold to thrust in flight<br>
+       <kbd>Shift</kbd> super jump &middot; <kbd>R</kbd> respawn &middot; <kbd>H</kbd> panel<br>
+       <kbd>Esc</kbd> release the mouse
+     </div>
+     <div><button id="go">ENTER THE FORTRESS</button></div>`;
+  panelEl.classList.remove('hidden');
+
+  document.getElementById('go').addEventListener('click', () => {
+    bootEl.classList.add('gone');
+    canvas.requestPointerLock();
+  });
+
+  // Handle for tuning and for the headless render checks: pinning the player
+  // is the only way to compare two shading settings on the same framing.
+  globalThis.__fortress = { P, opts, CFG, field, deCPU, gravityAt, spawn, solveField };
+
+  // --- frame loop -------------------------------------------------------
+  const camData = new Float32Array(24);
+  let last = performance.now(), acc = 0, fps = 0, fpsT = 0, fpsN = 0;
+  const FIXED = 1 / 120;
+
+  function frame(now) {
+    // Two clocks. The physics gets a capped delta so a stall cannot teleport
+    // the player through a wall; the frame-rate governor gets the real one,
+    // because a capped delta cannot tell 10 fps from 2 fps — which is exactly
+    // the range where the governor needs to act.
+    const wall = (now - last) / 1000;
+    const dtReal = Math.min(wall, 0.1);
+    last = now;
+
+    // Fixed-step physics so collision resolution stays stable across
+    // machines; render interpolation is not worth it at these speeds.
+    acc += dtReal;
+    let basis = null, guard = 0;
+    while (acc >= FIXED && guard++ < 16) { basis = step(FIXED); acc -= FIXED; }
+    if (!basis) basis = step(0);
+
+    resize();
+
+    const gl = Math.hypot(basis.gx, basis.gy, basis.gz) || 1;
+    camData.set([
+      P.x + P.upx * CFG.EYE, P.y + P.upy * CFG.EYE, P.z + P.upz * CFG.EYE, PHASE,
+      basis.rx, basis.ry, basis.rz, Math.tan(0.5 * 1.15),
+      // camera up = right × view
+      basis.ry * basis.vz - basis.rz * basis.vy,
+      basis.rz * basis.vx - basis.rx * basis.vz,
+      basis.rx * basis.vy - basis.ry * basis.vx, opts.exposure,
+      basis.vx, basis.vy, basis.vz, opts.glow,
+      W / H, now / 1000, 0, 0,
+      basis.gx / gl, basis.gy / gl, basis.gz / gl, gMag,
+    ]);
+    device.queue.writeBuffer(camBuf, 0, camData);
+
+    const enc = device.createCommandEncoder();
+    const pass = enc.beginRenderPass({
+      colorAttachments: [{
+        view: ctx.getCurrentTexture().createView(),
+        clearValue: { r: 0.02, g: 0.024, b: 0.043, a: 1 },
+        loadOp: 'clear', storeOp: 'store',
+      }],
+    });
+    pass.setPipeline(renderPipe);
+    pass.setBindGroup(0, renderBind);
+    pass.draw(3);
+    pass.end();
+    device.queue.submit([enc.finish()]);
+
+    // HUD
+    fpsT += wall; fpsN++;
+    if (fpsT > 0.5) { fps = fpsN / fpsT; fpsT = 0; fpsN = 0; governor(fps); }
+    const sp = Math.hypot(P.vx, P.vy, P.vz);
+    const alt = deCPU(P.x, P.y, P.z);
+    hudEl.innerHTML =
+      `<b>|g|</b> <span class="g">${(gMag).toFixed(4)}</span> u/s²` +
+      ` &nbsp;<b>v</b> ${sp.toFixed(3)}` +
+      ` &nbsp;<b>surface</b> ${alt < 9 ? alt.toFixed(4) : '—'}` +
+      ` &nbsp;<b>r</b> ${Math.hypot(P.x, P.y, P.z).toFixed(3)}` +
+      ` &nbsp;${P.grounded ? '<span class="st">STANDING</span>' : 'FREE FALL'}` +
+      ` &nbsp;<b>${fps.toFixed(0)}</b> fps` +
+      `<br><span style="color:#4a4f63">${field.n.toLocaleString()} mass cells · ` +
+      `${pointerLocked ? 'mouse captured — Esc to release' : 'click to capture the mouse'}</span>`;
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+boot();
+</script>
+</body>
+</html>
