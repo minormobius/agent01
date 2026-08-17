@@ -50,6 +50,7 @@
   }
   #resultCard .mood { color: var(--fg); font-size: .95rem; margin: .4rem 0 .8rem; }
   #resultCard .why { font-size: .78rem; color: var(--muted); }
+  #resultCard .copy-btn { margin-top: 1rem; font-size: .85rem; }
   textarea#situ { min-height: 6rem; resize: vertical; font-size: 1rem; }
   button:disabled { opacity: .5; cursor: not-allowed; }
   button:disabled:hover { background: var(--accent-dim); color: var(--accent); }
@@ -95,6 +96,7 @@
     <h3 id="resName"></h3>
     <div class="mood" id="resMood"></div>
     <div class="why" id="resWhy"></div>
+    <button id="copyBtn" class="copy-btn">copy this reading</button>
   </div>
 
   <p class="about">
@@ -140,6 +142,8 @@
       'what am i doing']
   };
 
+  // Full 78-card deck: 14 per minor suit (Ace-10, Page, Knight, Queen, King)
+  // plus 22 major arcana (Justice lives under swords, its traditional element).
   var DECK = {
     cups: [
       { name: 'The Two of Cups', mood: 'a bond forming, or one worth repairing' },
@@ -147,7 +151,15 @@
       { name: 'The Queen of Cups', mood: 'feeling everything and staying steady anyway' },
       { name: 'The Five of Cups', mood: 'grieving what spilled, not seeing what is still standing' },
       { name: 'The Ace of Cups', mood: 'a feeling arriving before you have a name for it' },
-      { name: 'The Knight of Cups', mood: 'chasing something because it moved you, not because it made sense' }
+      { name: 'The Knight of Cups', mood: 'chasing something because it moved you, not because it made sense' },
+      { name: 'The Three of Cups', mood: 'celebrating with people who were there for the messy part too' },
+      { name: 'The Four of Cups', mood: 'so busy staring at what is missing you did not see what is being offered' },
+      { name: 'The Six of Cups', mood: 'a memory that is sweeter now than the moment actually was' },
+      { name: 'The Seven of Cups', mood: 'too many options and none of them examined closely' },
+      { name: 'The Eight of Cups', mood: 'walking away from something good because good stopped being enough' },
+      { name: 'The Nine of Cups', mood: 'satisfied, and a little smug about it' },
+      { name: 'The Page of Cups', mood: 'a feeling too new to trust yet, showing up anyway' },
+      { name: 'The King of Cups', mood: 'steady when everyone else in the room is not' }
     ],
     wands: [
       { name: 'The Three of Wands', mood: 'the plan is out of your hands now — it is moving' },
@@ -155,7 +167,15 @@
       { name: 'The King of Wands', mood: 'leading with conviction, whether or not you feel ready' },
       { name: 'The Eight of Wands', mood: 'everything arriving at once — no time to overthink it' },
       { name: 'The Seven of Wands', mood: 'holding your ground because somebody has to' },
-      { name: 'The Page of Wands', mood: 'an idea too new to be taken seriously yet' }
+      { name: 'The Page of Wands', mood: 'an idea too new to be taken seriously yet' },
+      { name: 'The Two of Wands', mood: 'standing at the edge of a plan, deciding how far to take it' },
+      { name: 'The Four of Wands', mood: 'a small, real win worth actually stopping for' },
+      { name: 'The Five of Wands', mood: 'everyone pulling in a slightly different direction, loudly' },
+      { name: 'The Six of Wands', mood: 'recognition for something that took longer than anyone saw' },
+      { name: 'The Nine of Wands', mood: 'worn down but still standing between the work and giving up' },
+      { name: 'The Ten of Wands', mood: 'carrying more than your share because you said you would' },
+      { name: 'The Knight of Wands', mood: 'moving fast, figuring out the rest on the way' },
+      { name: 'The Queen of Wands', mood: 'warmth with a spine — welcoming and not to be tested' }
     ],
     swords: [
       { name: 'The Two of Swords', mood: 'a choice you are refusing to make by not looking at it' },
@@ -163,7 +183,16 @@
       { name: 'The Nine of Swords', mood: 'the version of this that only shows up at 3am' },
       { name: 'The Queen of Swords', mood: 'seeing clearly and saying so, kindly but without softening it' },
       { name: 'The Eight of Swords', mood: 'boxed in by rules nobody is actually enforcing' },
-      { name: 'Justice', mood: 'a reckoning that is fair, which is not the same as comfortable' }
+      { name: 'Justice', mood: 'a reckoning that is fair, which is not the same as comfortable' },
+      { name: 'The Three of Swords', mood: 'the hurt that is honest about being a hurt' },
+      { name: 'The Four of Swords', mood: 'the rest you need and keep finding reasons to postpone' },
+      { name: 'The Five of Swords', mood: 'a win that cost more than it was worth' },
+      { name: 'The Six of Swords', mood: 'moving on, slowly, with the worst of it behind you' },
+      { name: 'The Seven of Swords', mood: 'getting away with something, or convincing yourself you will' },
+      { name: 'The Ten of Swords', mood: 'the bottom, which means there is only one direction left' },
+      { name: 'The Page of Swords', mood: 'a question asked before it is fully formed' },
+      { name: 'The Knight of Swords', mood: 'charging at the problem before thinking it all the way through' },
+      { name: 'The King of Swords', mood: 'a decision made on principle, not on mood' }
     ],
     pentacles: [
       { name: 'The Four of Pentacles', mood: 'holding on tight to something that would be fine to let go' },
@@ -171,7 +200,15 @@
       { name: 'The Ace of Pentacles', mood: 'an opening that is boring on paper and real anyway' },
       { name: 'The Ten of Pentacles', mood: 'the long, slow kind of security — not a windfall' },
       { name: 'The Five of Pentacles', mood: 'harder than it needs to look from outside' },
-      { name: 'The King of Pentacles', mood: 'steady hands, unglamorous work, it adds up' }
+      { name: 'The King of Pentacles', mood: 'steady hands, unglamorous work, it adds up' },
+      { name: 'The Two of Pentacles', mood: 'keeping several things balanced, and it is taking real effort' },
+      { name: 'The Three of Pentacles', mood: 'the work that only comes together because more than one person showed up' },
+      { name: 'The Six of Pentacles', mood: 'help moving in one direction — worth noticing which way' },
+      { name: 'The Seven of Pentacles', mood: 'checking on something slow-growing to see if it was worth the wait' },
+      { name: 'The Eight of Pentacles', mood: 'putting in the unglamorous hours nobody is watching' },
+      { name: 'The Page of Pentacles', mood: 'a practical idea, not exciting yet, worth taking seriously anyway' },
+      { name: 'The Queen of Pentacles', mood: 'care that shows up as competence, not sentiment' },
+      { name: 'The Knight of Pentacles', mood: 'slow and steady, uninterested in being impressive' }
     ],
     major: [
       { name: 'The Tower', mood: 'something is coming down whether or not you brace for it' },
@@ -181,7 +218,20 @@
       { name: 'The Hermit', mood: 'the answer was never going to arrive from outside' },
       { name: 'The Sun', mood: 'the plain, unguarded kind of good' },
       { name: 'Judgement', mood: 'a reckoning with who you have actually been lately' },
-      { name: 'The Fool', mood: 'starting anyway, with the part still unknown' }
+      { name: 'The Fool', mood: 'starting anyway, with the part still unknown' },
+      { name: 'The Magician', mood: 'having exactly what you need and finally noticing it' },
+      { name: 'The High Priestess', mood: 'knowing something before you can explain how' },
+      { name: 'The Empress', mood: 'growth that does not need to be forced' },
+      { name: 'The Emperor', mood: 'structure, because the alternative was not working' },
+      { name: 'The Hierophant', mood: 'the way it is usually done, for a reason worth checking' },
+      { name: 'The Lovers', mood: 'a choice that is really about what you value' },
+      { name: 'The Chariot', mood: 'pulling in two directions and moving forward anyway' },
+      { name: 'Strength', mood: 'gentleness that turns out to be the stronger move' },
+      { name: 'The Hanged Man', mood: 'nothing to do but wait, and seeing it differently because of it' },
+      { name: 'Temperance', mood: 'mixing two things that should not work together until they do' },
+      { name: 'The Devil', mood: 'a chain you could probably just take off' },
+      { name: 'The Moon', mood: 'uncertain, and not everything you are afraid of is real' },
+      { name: 'The World', mood: 'a cycle actually closing, not just pausing' }
     ]
   };
 
@@ -429,6 +479,13 @@
   document.getElementById('burnAllBtn').addEventListener('click', function () {
     if (!state) return;
     finishReveal();
+  });
+  document.getElementById('copyBtn').addEventListener('click', function (e) {
+    if (!state) return;
+    var info = LANES[state.lane];
+    var text = state.card.name + ' (' + info.label + ') — ' + state.card.mood +
+      '\ndrawn at minomobi.com/directed-tarot/';
+    kit.copy(text, e.currentTarget);
   });
 })();
 </script>

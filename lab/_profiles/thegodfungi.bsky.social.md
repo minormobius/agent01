@@ -329,3 +329,12 @@ misread. Consistent with the standing preference for real mechanism over
 whimsy: the burn is an actual pixel-coverage threshold, not a fake progress
 bar, and the "why this card" line names the actual matched keywords rather
 than asserting a vague insight.
+
+## Twenty-third build (directed-tarot, iteration — pure enthusiasm)
+
+"Awesomeeeeeee!! Gonna hit the jelly babies in the skull with that" — no
+buildable instruction at all, just excitement at the previous turn landing.
+Another data point for the standing rule (sixteenth/seventeenth,
+twentieth builds): when a reaction from this handle carries no parseable ask,
+work the BRIEF.md plan top-to-bottom rather than invent something. Shipped
+the full 78-card deck and a copy-reading button, the top two queued items.

@@ -61,25 +61,44 @@ painted onto it.
   `tarot-court`'s `RANKS`/`MAJOR` arrays did. Original names/moods, not
   copied from `tarot-court`'s deck text.
 
+## Turn 2 — what shipped
+
+The request this turn (`thegodfungi.bsky.social`: "Awesomeeeeeee!! Gonna hit
+the jelly babies in the skull with that") was enthusiasm, not a new spec — no
+instruction that pointed anywhere else, so this turn worked the plan turn 1
+left, top to bottom as far as time allowed:
+
+1. **Full 78-card deck, done.** Each minor suit (cups/wands/pentacles) now
+   has all 14 ranks (Ace–10, Page, Knight, Queen, King); swords has its 14
+   plus Justice, which turn 1 already filed there as the traditional
+   element correspondence. Major arcana went from 8 to 21 entries, plus
+   Justice under swords = the full traditional 22. 14×4 + 21 + 1 = 78.
+   Fresh mood text throughout, hand-written rather than templated off a
+   rank×suit generator — turned out to be about as fast for one turn and
+   reads less mechanically ("The Page of Swords" and "The King of Swords"
+   don't sound like the same sentence with two words swapped).
+2. **Copy-this-reading button, done.** `#copyBtn` inside `#resultCard`,
+   wired to `kit.copy(text, btn)` with a plain-text summary (card name,
+   lane label, mood line, the site URL). Same shape as `tarot-court`'s copy
+   button. Picked this over PDS save as the next small thing because it
+   needed no sign-in and no new state.
+
 ## The plan (next steps, in order)
 
-1. **Full 78-card deck**, if the six-per-suit set starts feeling repetitive
-   to a real visitor. The cheapest path is `tarot-court`'s own approach —
-   generate ranks × suits from short arrays rather than hand-writing 78
-   objects — but write fresh mood text, don't copy theirs verbatim.
-2. **PDS save of a finished reading** (`labPds()` from `/_kit/pds.js`,
+1. **PDS save of a finished reading** (`labPds()` from `/_kit/pds.js`,
    `store.save('reading', {...})`) — sign-in optional, same pattern as
-   `tarot-court` turn 5. Not done yet because nothing here needs to persist
-   for the core mechanic to work; add it once someone asks to keep a
-   reading rather than just see it once.
-3. **Sharper keyword lists.** `KEYWORDS` in the script is a first pass (~20
-   entries per lane), tuned by eye like every other lab site's scorer, not
-   checked against real text. If a lane keeps winning by accident, that's
+   `tarot-court` turn 5. Still not done: nothing here needs to persist for
+   the core mechanic to work, so add it once someone actually asks to keep
+   a reading rather than just see and copy it once.
+2. **Sharper keyword lists.** `KEYWORDS` in the script is still a first
+   pass (~20 entries per lane), tuned by eye, not checked against real
+   text. Untouched this turn. If a lane keeps winning by accident, that's
    the file to open.
-4. **A share/copy button for a finished reading**, same shape as
-   `tarot-court`'s "copy this reading" (`kit.copy` with a plain-text
-   summary) — natural next small addition, not done this turn because the
-   burn mechanic was the harder, riskier part to get right first.
+3. **Screenshot check on the new deck.** Not verified in a browser this
+   turn (see Gotchas) — checked the CSS by eye and `#resName` has no
+   `white-space: nowrap`, so a long name like "The High Priestess" should
+   just wrap onto a second line rather than overflow, but that is reading
+   the rule, not seeing the render.
 
 ## Gotchas
 
