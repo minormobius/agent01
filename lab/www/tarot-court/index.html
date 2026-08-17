@@ -129,6 +129,7 @@
         <div class="name" id="cardName"></div>
         <div class="domainLine" id="cardDomain"></div>
         <div class="mood" id="cardMood"></div>
+        <div class="hint" id="cardWhy" style="margin-top:.5rem;"></div>
       </div>
       <div class="recBlock" id="recBlock"></div>
       <div class="shareRow">
@@ -225,28 +226,50 @@ import { labPds } from '../_kit/pds.js';
 
   var KEYWORDS = {
     cups: ['love', 'heart', 'relationship', 'breakup', 'break up', 'family', 'friend', 'feel',
-      'feeling', 'lonely', 'miss', 'crush', 'grief', 'sad', 'partner', 'marriage'],
+      'feeling', 'lonely', 'miss', 'crush', 'grief', 'sad', 'partner', 'marriage', 'divorce',
+      'dating', ' ex ', 'ex-', 'mom', 'dad', 'parent', 'sibling', 'brother', 'sister', 'wedding',
+      'engaged', 'engagement', 'jealous', 'insecure', 'anxious', 'anxiety', 'depress', 'heartbreak',
+      'heartbroken', 'affection', 'romance', 'romantic', 'wife', 'husband', 'boyfriend',
+      'girlfriend', 'kids', 'child', 'children', 'friendship', 'trust him', 'trust her',
+      'homesick', 'forgive', 'forgiveness', 'crying', 'emotional', 'attachment'],
     wands: ['creative', 'career', 'ambition', 'motivat', 'starting', 'start a', 'project',
-      'passion', 'stuck', 'goal', 'dream', 'burnout', 'inspir', 'new job', 'idea'],
+      'passion', 'stuck', 'goal', 'dream', 'burnout', 'inspir', 'new job', 'idea', 'art',
+      'artistic', 'writing', 'music', 'business', 'startup', 'launch', 'hustle', 'drive',
+      'momentum', 'procrastinat', 'lazy', 'lack of motivation', 'side project', 'hobby',
+      'invent', 'build', 'building', 'pursue', 'pursuing', 'risk', 'bold', 'adventure',
+      'travel', 'move abroad', 'quit my job', 'promotion', 'leadership', 'leader',
+      'initiative', 'entrepreneur'],
     swords: ['fight', 'conflict', 'argu', 'lie', 'betray', 'truth', 'confront', 'communicat',
-      'anger', 'hurt', 'honest', 'trust issue', 'apolog'],
+      'anger', 'hurt', 'honest', 'trust issue', 'apolog', 'deceit', 'deception', 'gossip',
+      'rumor', 'drama', 'tension', 'disagreement', 'misunderstanding', 'cut off', 'boundaries',
+      'boundary', 'harsh', 'criticism', 'criticize', 'blunt', 'difficult conversation',
+      'ultimatum', 'ghosted', 'ghosting', 'backstab', 'feud', 'rivalry', 'lawsuit', 'legal',
+      'dispute', 'cheat', 'cheating', 'unfair'],
     pentacles: ['money', 'rent', 'job', 'work', 'debt', 'budget', 'bills', 'salary', 'finance',
-      'practical', 'house', 'move', 'career change', 'savings'],
+      'practical', 'house', 'move', 'career change', 'savings', 'mortgage', 'invest',
+      'investment', 'retirement', 'taxes', ' tax ', 'paycheck', 'income', 'expenses', 'broke',
+      'poor', 'wealth', 'rich', 'raise', 'business plan', 'loan', 'credit', 'bank', 'property',
+      'apartment', 'landlord', 'insurance', 'inheritance', 'financial'],
     major: ['life', 'everything', 'existential', 'crisis', 'huge', 'death', 'future', 'meaning',
-      'identity', 'who am i', 'big decision', 'whole life'],
+      'identity', 'who am i', 'big decision', 'whole life', 'purpose', 'spiritual',
+      'spirituality', 'fate', 'destiny', 'transformation', 'rebirth', 'ending an era',
+      'life path', 'soul', 'universe', 'cosmic', 'mortality', 'legacy', 'journey', 'awakening',
+      'midlife', 'turning point'],
   };
 
   function guessDomain(text) {
-    var t = text.toLowerCase();
-    var best = null, bestScore = 0;
+    var t = ' ' + text.toLowerCase() + ' ';
+    var best = null, bestScore = 0, bestHits = [];
     Object.keys(KEYWORDS).forEach(function (domain) {
-      var score = 0;
-      KEYWORDS[domain].forEach(function (kw) { if (t.indexOf(kw) !== -1) score++; });
-      if (score > bestScore) { bestScore = score; best = domain; }
+      var score = 0, hits = [];
+      KEYWORDS[domain].forEach(function (kw) {
+        if (t.indexOf(kw) !== -1) { score++; hits.push(kw.trim()); }
+      });
+      if (score > bestScore) { bestScore = score; best = domain; bestHits = hits; }
     });
-    if (best) return best;
+    if (best) return { domain: best, hits: bestHits };
     var pool = ['cups', 'wands', 'swords', 'pentacles'];
-    return pool[Math.floor(Math.random() * pool.length)];
+    return { domain: pool[Math.floor(Math.random() * pool.length)], hits: [] };
   }
 
   // ---------------------------------------------------------------------
@@ -456,6 +479,7 @@ import { labPds } from '../_kit/pds.js';
   var cardDomainEl = document.getElementById('cardDomain');
   var cardMoodEl = document.getElementById('cardMood');
   var recBlockEl = document.getElementById('recBlock');
+  var cardWhyEl = document.getElementById('cardWhy');
   var problemEl = document.getElementById('problem');
   var shareBtn = document.getElementById('shareBtn');
   var shareText = '';
@@ -478,13 +502,23 @@ import { labPds } from '../_kit/pds.js';
   drawBtn.addEventListener('click', function () {
     if (!court.length) return;
     var text = problemEl.value.trim();
-    var domain = text ? guessDomain(text) : DECK[Math.floor(Math.random() * DECK.length)].suit;
+    var guess = text ? guessDomain(text) : { domain: DECK[Math.floor(Math.random() * DECK.length)].suit, hits: [] };
+    var domain = guess.domain;
     var poolCards = DECK.filter(function (c) { return c.suit === domain; });
     var card = poolCards[Math.floor(Math.random() * poolCards.length)];
 
     cardNameEl.textContent = card.name;
     cardDomainEl.textContent = 'for ' + card.domain;
     cardMoodEl.textContent = card.mood;
+    var whyText;
+    if (!text) {
+      whyText = 'no problem was typed, so the lane was picked at random.';
+    } else if (guess.hits.length) {
+      whyText = 'guessed ' + domainLabel(domain) + ' because of: "' + guess.hits.slice(0, 4).join('", "') + '"';
+    } else {
+      whyText = 'nothing in what you wrote matched a lane strongly, so this one was picked at random.';
+    }
+    cardWhyEl.textContent = whyText;
 
     var matches = court.filter(function (m) { return m.domain === card.suit; });
     recBlockEl.replaceChildren();
@@ -503,7 +537,7 @@ import { labPds } from '../_kit/pds.js';
       recBlockEl.appendChild(p);
       recLine = 'nobody in the court is tagged for ' + domainLabel(card.suit) + ' yet';
     }
-    shareText = card.name + ' — ' + card.mood + '\nfor ' + card.domain + '\n' + recLine +
+    shareText = card.name + ' — ' + card.mood + '\nfor ' + card.domain + '\n' + whyText + '\n' + recLine +
       '\n\ndrawn at Tarot Court, minomobi.com/tarot-court/';
     readingEl.classList.remove('hidden');
   });

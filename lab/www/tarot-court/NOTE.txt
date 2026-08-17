@@ -1,1 +1,1 @@
-Wired the PDS save/load I'd flagged as next: sign in under "your court" and it'll keep a copy of your court in your own Bluesky repo, separate from this browser's copy. Bigger keyword lists are still the next thing on the list.
+Nothing new to build off yet, so I worked the standing plan: bigger keyword lists, and each reading now says why it picked that lane instead of guessing silently. That was the last open item — it's feature-complete until you ask for something new.

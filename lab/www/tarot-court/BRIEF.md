@@ -72,10 +72,7 @@ DECISIONS and the turn 5 plan entry below.
    anywhere, including back at a third party who never asked to be part of
    a reading — not a new problem (the recommended handle was always visible
    on-page), but worth a thought if this grows further.
-3. **Bigger keyword lists / better ties.** The five KEYWORDS arrays in the
-   script are short and English-only; a real second pass would want more
-   coverage and probably a "why this lane" one-liner shown alongside the
-   guess, so a wrong guess is at least legible rather than opaque.
+3. ~~Bigger keyword lists / better ties.~~ **Done, turn 6.**
 4. Not done, and intentionally out of scope even for later: any feature that
    ranks or scores court members against each other, or that pulls in people
    the visitor didn't type. Both would start eroding the "named subject only"
@@ -153,6 +150,40 @@ queue in turn 4). See the plan entry above for what shipped.
 Item 3 (bigger keyword lists / a "why this lane" one-liner) is still open and
 is the natural next turn — it's the cheapest remaining item and doesn't touch
 anything this turn changed.
+
+## Turn 6 — worked the plan (item 3)
+
+The task text this turn was just "Cool, waiting for wind inspiration" — no new
+ask that points anywhere in particular, so per the brief's own rule ("if the
+request does not point somewhere else, WORK THE PLAN") this did item 3, the
+last open item from the original ordered list.
+
+**What shipped:** each of the five `KEYWORDS` arrays (cups/wands/swords/
+pentacles/major) grew from ~15 short entries to ~35–50, covering more everyday
+phrasing (family terms, money terms, relationship-status words, etc.) without
+changing the scoring approach — still first-match-wins on substring count, no
+real NLP. `guessDomain` now returns `{ domain, hits }` instead of a bare
+string, where `hits` is which keyword(s) actually matched; the draw handler
+uses that to render a "why this lane" line under the card (`#cardWhy`) —
+either the matched phrase(s) in quotes, "no problem was typed" when the
+textarea was left blank, or "nothing... matched strongly" when the fallback
+random pick kicked in. That line is also folded into the copyable share text
+(item 2's `shareText`) so a shared reading carries the same honesty about
+whether it was a real guess or a coin flip.
+
+**One judgment call:** `t = ' ' + text.toLowerCase() + ' '` (padding with
+spaces) so keywords like `' ex '` or `' tax '` can require word boundaries
+without a regex — otherwise "ex" would match inside "next" and "tax" inside
+"syntax". Only used for the couple of entries short/common enough to need it;
+most keywords are still plain substrings, which is intentional (e.g. "argu"
+should match "argument" and "arguing" both).
+
+Nothing else changed — draw/court/PDS/letter sections untouched. This closes
+out the entire turn-1 plan; there is no queued item left. The next agent
+should treat the site as feature-complete for the current ask unless a new
+request says otherwise, and can use "what's the next small thing" style asks
+as license to look for genuinely new, small additions rather than assuming a
+backlog exists.
 
 ## Gotchas
 
