@@ -61,6 +61,14 @@
   .noMatch { color: var(--muted); font-size: .85rem; margin-top: 1rem; }
 
   .note { margin-top: 2.5rem; }
+
+  .letterRank { display: flex; flex-wrap: wrap; gap: .4rem; list-style: none; padding: 0; margin: .9rem 0 0; }
+  .letterRank li { border: 1px solid var(--border); border-radius: var(--radius); padding: .3rem .55rem;
+    background: var(--bg-raised); color: var(--muted); font-size: .76rem; }
+  .letterRank li b { color: var(--fg); }
+  .letterText { white-space: pre-wrap; font-family: inherit; background: var(--bg-raised);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.15rem; line-height: 1.55;
+    margin: 1rem 0 0; color: var(--fg); }
 </style>
 </head>
 <body>
@@ -105,6 +113,22 @@
         <div class="mood" id="cardMood"></div>
       </div>
       <div class="recBlock" id="recBlock"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>the oracle's letter</h2>
+    <p class="sub" style="margin-top:.4rem;">This deck's own card names and moods are the only "database"
+    a page with no network can honestly read from. Count which letters it already capitalizes most — mostly
+    an accident of proper nouns like "The Chariot" or "Cups" — and you get a ranking. Write a short letter
+    where each word's capital is a coin-flip weighted by that same ranking, and you get this.</p>
+    <ol id="letterRank" class="letterRank" aria-label="how often each letter appears capitalized in this deck's own text"></ol>
+    <div class="drawRow">
+      <button type="button" id="letterBtn">write a letter</button>
+    </div>
+    <div id="letterOut" class="hidden">
+      <pre id="letterText" class="letterText"></pre>
+      <p class="hint" id="letterStat"></p>
     </div>
   </section>
 
@@ -382,6 +406,100 @@
       recBlockEl.appendChild(p);
     }
     readingEl.classList.remove('hidden');
+  });
+
+  // ---------------------------------------------------------------------
+  // the oracle's letter — the "accessible database" is this deck's own
+  // text (card names + moods + suit labels), read client-side, no network.
+  // Rank the 26 letters by how often the deck already capitalizes them,
+  // then write a short letter where each word's capitalization is a
+  // coin-flip weighted by that ranking. Not a claim any letter *means*
+  // more — it's what "The Chariot" vs "the chariot" leaves behind, made
+  // visible and then reused.
+  // ---------------------------------------------------------------------
+  var CORPUS = DECK.map(function (c) { return c.name + ' ' + c.mood; })
+    .concat(SUITS.map(function (s) { return s.label + ' ' + s.domain; }))
+    .concat([MAJOR_DOMAIN])
+    .join(' ');
+
+  var letterUpper = {}, letterLower = {};
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(function (l) { letterUpper[l] = 0; letterLower[l] = 0; });
+  CORPUS.split('').forEach(function (ch) {
+    if (ch >= 'A' && ch <= 'Z') letterUpper[ch]++;
+    else if (ch >= 'a' && ch <= 'z') letterLower[ch.toUpperCase()]++;
+  });
+  var LETTER_RANK = Object.keys(letterUpper).map(function (l) {
+    return { letter: l, upper: letterUpper[l], total: letterUpper[l] + letterLower[l] };
+  }).sort(function (a, b) { return b.upper - a.upper || b.total - a.total; });
+
+  var letterRankEl = document.getElementById('letterRank');
+  LETTER_RANK.forEach(function (row) {
+    var li = document.createElement('li');
+    var pct = row.total ? Math.round((row.upper / row.total) * 100) : 0;
+    li.innerHTML = '<b>' + row.letter + '</b> ' + row.upper + '/' + row.total + ' (' + pct + '%)';
+    letterRankEl.appendChild(li);
+  });
+
+  var RANK_INDEX = {};
+  LETTER_RANK.forEach(function (row, i) { RANK_INDEX[row.letter] = i; });
+
+  function capChance(letter) {
+    var idx = RANK_INDEX[letter];
+    if (idx === undefined) return 0.15;
+    return 0.15 + 0.7 * (25 - idx) / 25; // rank 0 (most-capitalized in deck) -> .85, rank 25 -> .15
+  }
+
+  var LETTER_LINES = [
+    'dear seeker, the deck remembers you',
+    'the cards do not sleep, they only wait for a question',
+    'what you fear to ask is already halfway drawn',
+    'listen for the suit that answers back',
+    'the court you keep says more about you than any single reading does',
+    'a name written twice does not choose which time is true',
+    'the tower falls the same whether tower is capital or not',
+    'we sign nothing here, because a letter that signs itself is a summons, not a letter',
+    'some letters get capitalized often in this deck only because it keeps saying the same few words',
+    'that is not fate, it is just what got counted',
+  ];
+
+  function shuffled(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function versalizeWord(word) {
+    var m = word.match(/^([a-zA-Z]+)(.*)$/);
+    if (!m) return word;
+    var core = m[1], rest = m[2];
+    var first = core.charAt(0).toUpperCase();
+    if (Math.random() < capChance(first)) return first + core.slice(1).toLowerCase() + rest;
+    return core.toLowerCase() + rest;
+  }
+
+  var letterBtn = document.getElementById('letterBtn');
+  var letterOutEl = document.getElementById('letterOut');
+  var letterTextEl = document.getElementById('letterText');
+  var letterStatEl = document.getElementById('letterStat');
+
+  letterBtn.addEventListener('click', function () {
+    var lines = shuffled(LETTER_LINES).slice(0, 4 + Math.floor(Math.random() * 2));
+    var raw = lines.join('. ') + '.';
+    var capped = 0, totalWords = 0;
+    var out = raw.split(/(\s+)/).map(function (tok) {
+      if (!tok || /^\s+$/.test(tok)) return tok;
+      totalWords++;
+      var v = versalizeWord(tok);
+      if (/^[A-Z]/.test(v)) capped++;
+      return v;
+    }).join('');
+    letterTextEl.textContent = out;
+    letterStatEl.textContent = capped + ' of ' + totalWords + ' words came out capitalized this time — ' +
+      'weighted by how often the deck itself capitalizes each starting letter, not by anything the words mean.';
+    letterOutEl.classList.remove('hidden');
   });
 })();
 </script>

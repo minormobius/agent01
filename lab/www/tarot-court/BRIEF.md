@@ -69,6 +69,36 @@ write — see DECISIONS.
    the visitor didn't type. Both would start eroding the "named subject only"
    boundary this design leans on.
 
+## Turn 3 — "the oracle's letter"
+
+The task text this turn was a single odd line pasted alongside the same
+Bluesky thread as before: "consider the prevalence... of uppercased letters
+versus lowercased ones, write a letter by randomizing words by those
+standards... show why, if, cases matter and how much." Nothing else in the
+thread (still the tarot/petition/wizard riffing from turn 1) connects to
+letter-case statistics at all, and the ask doesn't name Tarot Court or
+anything in it. I could not tell whether this was genuinely the site owner
+posting something unrelated, or a mismatched/garbled task assembly.
+
+**What I did, and why.** Rather than gamble on either "ignore it entirely"
+or "abandon Tarot Court and build an unrelated site" (the hard boundary is
+this directory anyway), I took the request at face value but grounded it in
+the one thing on this page that's an honest "accessible database" with no
+network call involved: **the deck's own text.** Added a new section, "the
+oracle's letter": it counts how often each letter A–Z appears capitalized
+vs. lowercase across all 78 card names + moods + suit labels (mostly an
+artifact of proper nouns — "The Chariot", "Cups"), shows that as a ranking,
+then writes a short generated letter (fixed phrase bank, `LETTER_LINES`)
+where each word's capitalization is a coin-flip weighted by that same
+per-letter ranking. The stat line under the letter is deliberately honest
+that this shows *deck-naming habits*, not that any letter *means* more.
+Pure client-side, deterministic corpus, no network, no PDS, no OAuth touched.
+
+If the next request clarifies this was actually meant to be a *different*,
+unrelated site: this section is easy to lift back out (`letterRank`,
+`letterBtn`/`letterOut`, and the whole "oracle's letter" JS block at the end
+of the script) — it doesn't touch the court/draw logic above it at all.
+
 ## Gotchas
 
 - `kit.handleInput`'s own `keydown` Enter handler only fires `onPick` when a

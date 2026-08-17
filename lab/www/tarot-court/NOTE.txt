@@ -1,1 +1,1 @@
-Tarot Court: tag people for heart/action/conflict/money/big-stuff, describe what's up, and it draws a card pointing at whoever covers that ground. No real read on anyone — a firehose scan of strangers isn't built here. Saved to this browser for now.
+Added "the oracle's letter": ranks which letters the deck's own card names capitalize most, then writes a letter with words capitalized by that weighting. Grounded the case-prevalence ask in the deck's own text since nothing else pointed elsewhere.
