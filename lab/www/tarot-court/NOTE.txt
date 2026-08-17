@@ -1,1 +1,1 @@
-Read "promote these games" as encouragement, not an order — the plan was already closed out. Added a one-tap "copy a link to this site" button near the top, separate from the reading-share one.
+Added a "prior readings" tally: the page remembers which cards/lanes keep coming up for you on this device, and flags repeats when you draw. Kept it about your own patterns, not a ranking of your court.

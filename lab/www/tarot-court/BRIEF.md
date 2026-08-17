@@ -23,7 +23,9 @@ tagged for it, it says so and invites adding someone.
 The court and its tags persist in `localStorage` by default; as of turn 5 a
 visitor can optionally sign in with Bluesky OAuth and also save/load the
 court to/from their own repo (`com.minomobi.lab.doc`, key `court`) — see
-DECISIONS and the turn 5 plan entry below.
+DECISIONS and the turn 5 plan entry below. As of turn 9 the page also keeps a
+local tally of the visitor's own past draws ("patterns in your readings") and
+crosschecks each new draw against it — see the turn 9 entry below.
 
 ## Decisions
 
@@ -222,6 +224,43 @@ Next agent: there is still no queued plan item. If the next task is similarly
 open-ended or a reaction rather than an ask, the turn-6/-7 guidance still
 applies — work a standing plan item if one exists, otherwise treat it as
 license for one small, honest addition rather than inventing a new mechanic.
+
+## Turn 9 — "crosscheck with the prior readings program"
+
+The task text this turn: "if you want to surprise me, could it be possible to
+crosscheck with the 'prior readings program' to add the symbols that were so
+popular as to know where people fit in." A genuinely new ask — turn 6 closed
+the entire original plan and turns 7–8 were reactions, not requests — but a
+loosely worded one with no prior "readings program" actually existing on the
+site to crosscheck against.
+
+**Reading it.** "Prior readings" = this page's own history of draws, which
+didn't persist anywhere before this turn. "Symbols that were so popular" =
+which cards/lanes keep recurring for one visitor. "Know where people fit in"
+I read as the visitor's own sense of which lane they keep landing in — **not**
+a ranking of court members, which the standing plan (item 4, pre-turn-9)
+explicitly rules out ("any feature that ranks or scores court members against
+each other... erodes the 'named subject only' boundary"). I stayed well clear
+of that: the new feature counts cards and lanes, never touches or orders
+court members.
+
+**What shipped:** a `hey-tarot-history-v1` localStorage array, one record per
+draw (`{name, suit, ts}`, capped at the most recent 300). A new "patterns in
+your readings" section (between "ask the deck" and "the oracle's letter")
+shows a running count of readings, a ranked "by lane" tally (all lanes, with
+%), and a ranked "by card" tally (only cards that have repeated, top 8) — plus
+a "clear my reading history" button. Every draw also crosschecks itself
+against the history *before* recording it and shows/shares a line like
+"this card has now come up 3 times for you" or "first time this card has come
+up for you," folded into the existing copy-this-reading share text. Pure
+client-side tally of the visitor's own draws, no network, no PDS, no court
+logic touched.
+
+**Left open, deliberately:** no PDS sync for this history (court already has
+one; this doesn't, to keep the turn scoped) — a natural next step if the
+requester wants the tally to follow them across devices, same pattern as
+`store.save('court', court)`. Also didn't add a "why this insight" framing
+line beyond the raw counts — kept it as a tally, not a claim.
 
 ## Gotchas
 

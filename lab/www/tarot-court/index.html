@@ -34,6 +34,10 @@
   .courtCard .rm:hover { background: var(--error-bg); color: var(--error); border-color: var(--error); }
   .emptyNote { color: var(--muted); font-size: .82rem; margin-top: 1.25rem; }
 
+  .subhead { font-size: .8rem; color: var(--muted); font-weight: 600; margin: 1.1rem 0 .4rem; text-transform: uppercase; letter-spacing: .02em; }
+  #clearHistoryBtn:disabled { opacity: .5; cursor: not-allowed; }
+  #clearHistoryBtn:disabled:hover { background: var(--accent-dim); color: var(--accent); }
+
   .authstate { font-size: .82rem; color: var(--muted); margin: 1.25rem 0 .6rem; }
   .authstate b { color: var(--fg); }
   .authRow { display: flex; flex-wrap: wrap; gap: .6rem; align-items: stretch; }
@@ -135,12 +139,30 @@
         <div class="domainLine" id="cardDomain"></div>
         <div class="mood" id="cardMood"></div>
         <div class="hint" id="cardWhy" style="margin-top:.5rem;"></div>
+        <div class="hint" id="cardRepeat" style="margin-top:.3rem;"></div>
       </div>
       <div class="recBlock" id="recBlock"></div>
       <div class="shareRow">
         <button type="button" id="shareBtn">copy this reading</button>
         <span class="hint">copies the card and who it points to as plain text — nothing is sent anywhere</span>
       </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>patterns in your readings</h2>
+    <p class="sub" style="margin-top:.4rem;">Every card this page draws for you gets tallied here, on this
+    device only — a crosscheck against your own prior readings, not a prediction about anyone.
+    <span id="patternsCount"></span></p>
+    <p class="emptyNote" id="patternsEmpty">Draw a card above and it'll start showing up here.</p>
+    <div id="patternsBody" class="hidden">
+      <p class="subhead">by lane</p>
+      <ol id="domainFreq" class="letterRank" aria-label="how often each lane has come up in your readings"></ol>
+      <p class="subhead">by card</p>
+      <ol id="cardFreq" class="letterRank" aria-label="which individual cards have repeated in your readings"></ol>
+    </div>
+    <div class="drawRow" style="margin-top:1rem;">
+      <button type="button" id="clearHistoryBtn" disabled>clear my reading history</button>
     </div>
   </section>
 
@@ -163,8 +185,8 @@
   <p class="note">The reading of "what's going on" is a blunt keyword guess at which lane it falls
   in — heart, action, conflict, money — not an analysis of you or of anyone in your court. Which suit
   each person is filed under is whatever you told this page when you added them; the deck doesn't know
-  anything real about them beyond that. Your court and its tags live only in this browser's storage on
-  this device — clear your browsing data and it's gone.</p>
+  anything real about them beyond that. Your court, its tags, and the tally of your past readings all
+  live only in this browser's storage on this device — clear your browsing data and it's gone.</p>
 </main>
 
 <script type="module">
@@ -485,9 +507,92 @@ import { labPds } from '../_kit/pds.js';
   var cardMoodEl = document.getElementById('cardMood');
   var recBlockEl = document.getElementById('recBlock');
   var cardWhyEl = document.getElementById('cardWhy');
+  var cardRepeatEl = document.getElementById('cardRepeat');
   var problemEl = document.getElementById('problem');
   var shareBtn = document.getElementById('shareBtn');
   var shareText = '';
+
+  // ---------------------------------------------------------------------
+  // prior readings — a per-device tally of what this page has drawn for
+  // this visitor before. Crosschecks the CURRENT draw against THEIR OWN
+  // history only; never touches or ranks the court. Ranking court members
+  // against each other is the thing the standing plan explicitly rules
+  // out (it erodes the "named subject only" boundary) — this is a
+  // different axis: which lanes and cards keep recurring for one visitor,
+  // same spirit as the oracle's-letter section, no new data source.
+  // ---------------------------------------------------------------------
+  var HISTORY_KEY = 'hey-tarot-history-v1';
+  var history = [];
+  try {
+    var rawH = localStorage.getItem(HISTORY_KEY);
+    if (rawH) history = JSON.parse(rawH) || [];
+  } catch (e) { history = []; }
+
+  function saveHistory() {
+    try {
+      if (history.length > 300) history = history.slice(history.length - 300);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    } catch (e) { /* private mode: not fatal */ }
+  }
+
+  var patternsEmptyEl = document.getElementById('patternsEmpty');
+  var patternsBodyEl = document.getElementById('patternsBody');
+  var patternsCountEl = document.getElementById('patternsCount');
+  var domainFreqEl = document.getElementById('domainFreq');
+  var cardFreqEl = document.getElementById('cardFreq');
+  var clearHistoryBtn = document.getElementById('clearHistoryBtn');
+
+  function renderPatterns() {
+    var has = history.length > 0;
+    patternsEmptyEl.hidden = has;
+    patternsBodyEl.classList.toggle('hidden', !has);
+    clearHistoryBtn.disabled = !has;
+    patternsCountEl.textContent = has
+      ? (history.length + ' reading' + (history.length === 1 ? '' : 's') + ' drawn so far.') : '';
+    if (!has) { domainFreqEl.replaceChildren(); cardFreqEl.replaceChildren(); return; }
+
+    var byDomain = {}, byCard = {};
+    history.forEach(function (rec) {
+      byDomain[rec.suit] = (byDomain[rec.suit] || 0) + 1;
+      byCard[rec.name] = (byCard[rec.name] || 0) + 1;
+    });
+
+    var domainRows = Object.keys(byDomain).map(function (k) { return { key: k, count: byDomain[k] }; })
+      .sort(function (a, b) { return b.count - a.count; });
+    domainFreqEl.replaceChildren();
+    domainRows.forEach(function (row) {
+      var li = document.createElement('li');
+      var pct = Math.round((row.count / history.length) * 100);
+      li.innerHTML = '<b>' + domainLabel(row.key) + '</b> ' + row.count + ' (' + pct + '%)';
+      domainFreqEl.appendChild(li);
+    });
+
+    var cardRows = Object.keys(byCard).map(function (k) { return { key: k, count: byCard[k] }; })
+      .filter(function (r) { return r.count > 1; })
+      .sort(function (a, b) { return b.count - a.count; })
+      .slice(0, 8);
+    cardFreqEl.replaceChildren();
+    if (!cardRows.length) {
+      var li0 = document.createElement('li');
+      li0.textContent = 'no card has repeated yet';
+      cardFreqEl.appendChild(li0);
+    } else {
+      cardRows.forEach(function (row) {
+        var li = document.createElement('li');
+        li.innerHTML = '<b>' + row.key + '</b> ' + row.count + '×';
+        cardFreqEl.appendChild(li);
+      });
+    }
+  }
+
+  clearHistoryBtn.addEventListener('click', function () {
+    if (!history.length) return;
+    if (!window.confirm('Clear the reading history stored on this device? This cannot be undone.')) return;
+    history = [];
+    saveHistory(); renderPatterns();
+  });
+
+  renderPatterns();
 
   function recCardNode(member) {
     var a = document.createElement('a');
@@ -525,6 +630,15 @@ import { labPds } from '../_kit/pds.js';
     }
     cardWhyEl.textContent = whyText;
 
+    var priorCount = history.filter(function (r) { return r.name === card.name; }).length;
+    var repeatText = priorCount > 0
+      ? 'crosschecked against your prior readings: this card has now come up ' + (priorCount + 1) +
+        ' time' + (priorCount + 1 === 1 ? '' : 's') + ' for you.'
+      : 'first time this card has come up for you.';
+    cardRepeatEl.textContent = repeatText;
+    history.push({ name: card.name, suit: card.suit, ts: Date.now() });
+    saveHistory(); renderPatterns();
+
     var matches = court.filter(function (m) { return m.domain === card.suit; });
     recBlockEl.replaceChildren();
     var recLine;
@@ -542,8 +656,8 @@ import { labPds } from '../_kit/pds.js';
       recBlockEl.appendChild(p);
       recLine = 'nobody in the court is tagged for ' + domainLabel(card.suit) + ' yet';
     }
-    shareText = card.name + ' — ' + card.mood + '\nfor ' + card.domain + '\n' + whyText + '\n' + recLine +
-      '\n\ndrawn at Tarot Court, minomobi.com/tarot-court/';
+    shareText = card.name + ' — ' + card.mood + '\nfor ' + card.domain + '\n' + whyText + '\n' + repeatText +
+      '\n' + recLine + '\n\ndrawn at Tarot Court, minomobi.com/tarot-court/';
     readingEl.classList.remove('hidden');
   });
 
