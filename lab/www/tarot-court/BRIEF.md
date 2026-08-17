@@ -25,7 +25,9 @@ visitor can optionally sign in with Bluesky OAuth and also save/load the
 court to/from their own repo (`com.minomobi.lab.doc`, key `court`) — see
 DECISIONS and the turn 5 plan entry below. As of turn 9 the page also keeps a
 local tally of the visitor's own past draws ("patterns in your readings") and
-crosschecks each new draw against it — see the turn 9 entry below.
+crosschecks each new draw against it — see the turn 9 entry below. As of turn
+10 each suit carries a real sign (♥ ♣ ♠ ♦ ★) shown on badges, drawn cards,
+share text, and both pattern lists — see the turn 10 entry below.
 
 ## Decisions
 
@@ -261,6 +263,48 @@ one; this doesn't, to keep the turn scoped) — a natural next step if the
 requester wants the tally to follow them across devices, same pattern as
 `store.save('court', court)`. Also didn't add a "why this insight" framing
 line beyond the raw counts — kept it as a tally, not a claim.
+
+## Turn 10 — "involve the symbols or signs that were created there"
+
+The task text this turn: "Surprise me even more* I wanted to inculcate / involve
+the symbols or signs that were created there." No queued plan item existed
+(turn 6 closed the original plan; turns 7–9 were reactions or one small add
+each). Genuinely new, but loosely worded — "the symbols or signs that were
+created there" doesn't name a specific prior artifact.
+
+**Reading it.** Two candidate readings: (a) the 🔼🔽 case-arrows from the much
+earlier "uppercase" aside (turn 3's unrelated tangent, never actually built
+into this site), or (b) the suits themselves — Cups/Wands/Swords/Pentacles/
+Major Arcana — which are the actual "signs" this site is built around and
+which, until this turn, were text-only. Went with (b): it's the reading that
+stays inside Tarot Court's own subject matter rather than reaching back into
+an unrelated tangent, and "created there" reads naturally as "in this site."
+
+**What shipped:** each suit got a real sign — ♥ cups, ♣ wands, ♠ swords,
+♦ pentacles, ★ major arcana. Chose the classic four playing-card suits over
+the alchemical/elemental glyphs (🜄🜂🜁🜃) specifically for **rendering safety**:
+alchemical Unicode symbols are a niche block many phone fonts don't cover and
+can render as tofu boxes, while ♥♣♠♦★ are near-universal. The playing-card
+correspondence is also a real, citable one (tarot suits are historically where
+French playing-card suits are often traced from) — said as "often traced to,"
+not asserted as settled history, per the site's own no-overclaiming rule.
+
+Wired everywhere a suit already appears, nothing new introduced: the
+`domainSelect` options, each court member's badge (`domainGlyph()` + label),
+the drawn card's name line (`#cardGlyph`, new span), the "go talk to —" lead
+line, the copyable share text, and both "patterns in your readings" lists (by
+lane, and by card — the latter needed a new `NAME_TO_SUIT` lookup off `DECK`
+since history records only stored `{name, suit}` and the by-card tally had
+discarded suit). A short legend paragraph under the add-court row spells out
+what each sign is and where it recurs, so nobody has to reverse-engineer it.
+Pure display change — no new data source, no new mechanic, doesn't touch
+court/draw/PDS/history logic or storage shapes at all.
+
+**Left open:** the "oracle's letter" section still doesn't use the suit signs
+(it works over the deck's card-name text, not per-card suit, so there's no
+natural place to drop one in without forcing it) — didn't force it. If a
+future ask wants the signs there too, the cleanest hook is probably a
+per-line marker rather than per-letter.
 
 ## Gotchas
 

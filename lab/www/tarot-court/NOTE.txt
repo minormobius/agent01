@@ -1,1 +1,1 @@
-Added a "prior readings" tally: the page remembers which cards/lanes keep coming up for you on this device, and flags repeats when you draw. Kept it about your own patterns, not a ranking of your court.
+Gave each suit a sign — hearts, clubs, spades, diamonds, a star for the Major Arcana — on badges, drawn cards, and your reading patterns. Picked those over alchemical glyphs since phones render them reliably; odder symbols risk showing as boxes.

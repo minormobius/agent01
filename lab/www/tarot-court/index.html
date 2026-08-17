@@ -53,6 +53,7 @@
   .card { border: 1px solid var(--accent); border-radius: var(--radius); background: var(--accent-dim);
     padding: 1.1rem 1.25rem; }
   .card .name { font-size: 1.2rem; color: var(--accent); font-weight: 700; }
+  .cardGlyph { display: inline-block; margin-right: .4rem; font-size: 1.1em; }
   .card .domainLine { color: var(--fg); font-size: .85rem; margin-top: .3rem; }
   .card .mood { color: var(--muted); font-size: .82rem; margin-top: .5rem; font-style: italic; }
 
@@ -98,17 +99,20 @@
     <h2>your court</h2>
     <div class="addRow">
       <select id="domainSelect" aria-label="what this person is good for">
-        <option value="cups">Cups — heart &amp; feelings</option>
-        <option value="wands">Wands — action &amp; creativity</option>
-        <option value="swords">Swords — conflict &amp; hard truths</option>
-        <option value="pentacles">Pentacles — money &amp; practical</option>
-        <option value="major">Major Arcana — the big stuff</option>
+        <option value="cups">♥ Cups — heart &amp; feelings</option>
+        <option value="wands">♣ Wands — action &amp; creativity</option>
+        <option value="swords">♠ Swords — conflict &amp; hard truths</option>
+        <option value="pentacles">♦ Pentacles — money &amp; practical</option>
+        <option value="major">★ Major Arcana — the big stuff</option>
       </select>
       <span class="ta-wrap">
         <input type="text" id="handleInput" placeholder="type a handle to add them">
       </span>
     </div>
     <div id="addErr" class="err hidden" style="margin-top:.75rem;"></div>
+    <p class="hint" id="signLegend">♥ cups &nbsp; ♣ wands &nbsp; ♠ swords &nbsp; ♦ pentacles &nbsp; ★ major arcana —
+      the four suits are often traced to where playing-card suits came from (hearts, clubs, spades, diamonds);
+      the star just marks "bigger than one lane." Same signs mark badges below, drawn cards, and your patterns.</p>
     <ul id="courtList"></ul>
     <p class="emptyNote" id="emptyNote" hidden>Nobody in your court yet — pick what they're good for above,
       then type their handle and pick them from the list.</p>
@@ -135,7 +139,7 @@
     </div>
     <div id="reading" class="hidden">
       <div class="card">
-        <div class="name" id="cardName"></div>
+        <div class="name"><span id="cardGlyph" class="cardGlyph" aria-hidden="true"></span><span id="cardName"></span></div>
         <div class="domainLine" id="cardDomain"></div>
         <div class="mood" id="cardMood"></div>
         <div class="hint" id="cardWhy" style="margin-top:.5rem;"></div>
@@ -199,14 +203,20 @@ import { labPds } from '../_kit/pds.js';
   var STORE_KEY = 'hey-tarot-court-v1';
 
   var SUITS = [
-    { key: 'cups', label: 'Cups', domain: 'matters of the heart — love, family, feelings' },
-    { key: 'wands', label: 'Wands', domain: 'action, ambition, creative fire' },
-    { key: 'swords', label: 'Swords', domain: 'conflict, truth, hard conversations' },
-    { key: 'pentacles', label: 'Pentacles', domain: 'money, work, practical matters' },
+    { key: 'cups', label: 'Cups', glyph: '♥', domain: 'matters of the heart — love, family, feelings' },
+    { key: 'wands', label: 'Wands', glyph: '♣', domain: 'action, ambition, creative fire' },
+    { key: 'swords', label: 'Swords', glyph: '♠', domain: 'conflict, truth, hard conversations' },
+    { key: 'pentacles', label: 'Pentacles', glyph: '♦', domain: 'money, work, practical matters' },
   ];
   var SUIT_BY_KEY = {};
   SUITS.forEach(function (s) { SUIT_BY_KEY[s.key] = s; });
   var MAJOR_DOMAIN = 'the big stuff — the calls too large for one lane';
+  var MAJOR_GLYPH = '★';
+
+  function domainGlyph(key) {
+    if (key === 'major') return MAJOR_GLYPH;
+    return SUIT_BY_KEY[key] ? SUIT_BY_KEY[key].glyph : '';
+  }
 
   var RANKS = ['Ace', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
     'Page', 'Knight', 'Queen', 'King'];
@@ -250,6 +260,8 @@ import { labPds } from '../_kit/pds.js';
       DECK.push({ name: r + ' of ' + s.label, suit: s.key, domain: s.domain, mood: RANK_MOOD[r] });
     });
   });
+  var NAME_TO_SUIT = {};
+  DECK.forEach(function (c) { NAME_TO_SUIT[c.name] = c.suit; });
 
   var KEYWORDS = {
     cups: ['love', 'heart', 'relationship', 'breakup', 'break up', 'family', 'friend', 'feel',
@@ -358,7 +370,7 @@ import { labPds } from '../_kit/pds.js';
       if (member.displayName) { meta.appendChild(document.createElement('br')); meta.appendChild(dn); }
       li.appendChild(meta);
       var badge = document.createElement('span'); badge.className = 'badge';
-      badge.textContent = domainLabel(member.domain);
+      badge.textContent = domainGlyph(member.domain) + ' ' + domainLabel(member.domain);
       li.appendChild(badge);
       var rm = document.createElement('button'); rm.type = 'button'; rm.className = 'rm';
       rm.textContent = '×'; rm.setAttribute('aria-label', 'remove @' + member.handle + ' from your court');
@@ -503,6 +515,7 @@ import { labPds } from '../_kit/pds.js';
   // ---------------------------------------------------------------------
   var readingEl = document.getElementById('reading');
   var cardNameEl = document.getElementById('cardName');
+  var cardGlyphEl = document.getElementById('cardGlyph');
   var cardDomainEl = document.getElementById('cardDomain');
   var cardMoodEl = document.getElementById('cardMood');
   var recBlockEl = document.getElementById('recBlock');
@@ -563,7 +576,7 @@ import { labPds } from '../_kit/pds.js';
     domainRows.forEach(function (row) {
       var li = document.createElement('li');
       var pct = Math.round((row.count / history.length) * 100);
-      li.innerHTML = '<b>' + domainLabel(row.key) + '</b> ' + row.count + ' (' + pct + '%)';
+      li.innerHTML = '<b>' + domainGlyph(row.key) + ' ' + domainLabel(row.key) + '</b> ' + row.count + ' (' + pct + '%)';
       domainFreqEl.appendChild(li);
     });
 
@@ -579,7 +592,7 @@ import { labPds } from '../_kit/pds.js';
     } else {
       cardRows.forEach(function (row) {
         var li = document.createElement('li');
-        li.innerHTML = '<b>' + row.key + '</b> ' + row.count + '×';
+        li.innerHTML = '<b>' + domainGlyph(NAME_TO_SUIT[row.key]) + ' ' + row.key + '</b> ' + row.count + '×';
         cardFreqEl.appendChild(li);
       });
     }
@@ -618,6 +631,7 @@ import { labPds } from '../_kit/pds.js';
     var card = poolCards[Math.floor(Math.random() * poolCards.length)];
 
     cardNameEl.textContent = card.name;
+    cardGlyphEl.textContent = domainGlyph(card.suit);
     cardDomainEl.textContent = 'for ' + card.domain;
     cardMoodEl.textContent = card.mood;
     var whyText;
@@ -645,7 +659,7 @@ import { labPds } from '../_kit/pds.js';
     if (matches.length) {
       var pick = matches[Math.floor(Math.random() * matches.length)];
       var lead = document.createElement('div'); lead.className = 'recLead';
-      lead.textContent = text ? 'the deck says go talk to —' : 'from your court —';
+      lead.textContent = domainGlyph(card.suit) + ' ' + (text ? 'the deck says go talk to —' : 'from your court —');
       recBlockEl.appendChild(lead);
       recBlockEl.appendChild(recCardNode(pick));
       recLine = 'go talk to @' + pick.handle + ' (bsky.app/profile/' + pick.handle + ')';
@@ -656,7 +670,7 @@ import { labPds } from '../_kit/pds.js';
       recBlockEl.appendChild(p);
       recLine = 'nobody in the court is tagged for ' + domainLabel(card.suit) + ' yet';
     }
-    shareText = card.name + ' — ' + card.mood + '\nfor ' + card.domain + '\n' + whyText + '\n' + repeatText +
+    shareText = domainGlyph(card.suit) + ' ' + card.name + ' — ' + card.mood + '\nfor ' + card.domain + '\n' + whyText + '\n' + repeatText +
       '\n' + recLine + '\n\ndrawn at Tarot Court, minomobi.com/tarot-court/';
     readingEl.classList.remove('hidden');
   });
