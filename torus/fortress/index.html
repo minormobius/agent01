@@ -70,8 +70,8 @@
   <input type="range" id="sE" min="5" max="300" value="100">
   <label>glow <i id="vW">0.80</i></label>
   <input type="range" id="sW" min="0" max="300" value="80">
-  <label>supersampling <i id="vS">1.3×</i></label>
-  <input type="range" id="sS" min="70" max="200" value="130">
+  <label>render scale <i id="vS">1.40×</i></label>
+  <input type="range" id="sS" min="60" max="220" value="140">
   <div class="row">
     <button id="bResolve">re-solve field</button>
     <button id="bReset">respawn</button>
@@ -121,6 +121,9 @@ const CFG = {
                               // player can fall into it.
   HALF: 1.45,                 // half-extent of the mass box (measured: all
                               // occupied voxels lie within |p| < 1.3)
+  RBOUND: 1.70,               // ray-clip sphere. Measured, the outermost point
+                              // with a surface is |p| = 1.26; the margin is for
+                              // the glow halo, which extends past the solid.
   COARSE: 32,                 // mass grid resolution per axis
   SUB: 6,                     // DE samples per axis inside each mass cell
                               // -> 192^3 = 7.1M evaluations, once, on the GPU
@@ -144,16 +147,19 @@ const SCALE : f32 = ${CFG.SCALE};
 const SC    : f32 = ${CFG.SC};
 const FOLD  : f32 = ${CFG.FOLD};
 const CORE  : f32 = ${CFG.CORE};
+const RBOUND: f32 = ${CFG.RBOUND};
 
 // Rotate-and-mirror into one kaleidoscopic wedge.
 // GLSL mat2(a,b,c,d) is column major, so v*M = (v.x*a + v.y*b', ...) —
 // expanded here to keep the WGSL row/column convention unambiguous.
-fn preFold(pin : vec3f, phase : f32) -> vec3f {
-  let c  = cos(phase);
-  let s0 = cos(phase + 11.0);
-  let s1 = cos(phase + 33.0);
-  let x = pin.x * c  + pin.z * s0;
-  let z = pin.x * s1 + pin.z * c;
+//
+// pc is (cos(phase), cos(phase+11), cos(phase+33)), evaluated once per frame on
+// the CPU. Phase is a uniform: taking those three cosines inside the fold meant
+// spending ~135 transcendentals per pixel recomputing a per-frame constant,
+// since the fold runs on the order of forty-five times per pixel.
+fn preFold(pin : vec3f, pc : vec3f) -> vec3f {
+  let x = pin.x * pc.x + pin.z * pc.y;
+  let z = pin.x * pc.z + pin.z * pc.x;
   return vec3f(-abs(x), pin.y, -abs(z));
 }
 
@@ -175,35 +181,49 @@ fn mengerFold(pin : vec3f) -> vec3f {
 // iterations and the surface breaks into rainbow speckle. The mean over the
 // orbit varies smoothly across a face, so that is what drives albedo, with
 // the minimum left to modulate it slightly.
-fn mapF(pw : vec3f, phase : f32) -> vec4f {
-  var p = preFold(pw, phase);
+// The iteration count is a parameter so cheaper consumers can truncate it.
+// Truncating is safe for marching: each iteration carves material away, so the
+// depth-n approximant is a *superset* of the limit set, and distance to a
+// superset is never an overestimate. Shadows in particular are low-frequency
+// enough that depth 6 casts the same shadow as depth 9 for a third less work.
+// The scale factor is accumulated rather than taken as a constant SC, which is
+// what makes the depth a free parameter.
+fn mapN(pw : vec3f, pc : vec3f, iters : i32) -> vec4f {
+  var p = preFold(pw, pc);
   let D = max(dot(p, p), 1e-9);
   p = p / D;
   var trap = 1e9;
   var acc  = 0.0;
-  for (var n = 0; n < ITERS; n = n + 1) {
+  var s    = 1.0;
+  for (var n = 0; n < iters; n = n + 1) {
     p = clamp(p, vec3f(-FOLD), vec3f(FOLD)) * 2.0 - p;
     p = mengerFold(p);
     p = p * SCALE + vec3f(-3.0, -0.5, 0.0);
     p = vec3f(p.x, p.z, -p.y);
+    s = s * SCALE;
     let l = length(p);
     trap = min(trap, l);
     acc += l;
   }
-  let inv  = length(p) / SC;          // the original's v, pre-inversion-scale
+  let inv  = length(p) / s;           // the original's v, pre-inversion-scale
   let dFr  = D * inv;                 // ... corrected back to world units
   let dCore = length(pw) - CORE;
-  return vec4f(min(dFr, dCore), trap, inv, acc / f32(ITERS));
+  return vec4f(min(dFr, dCore), trap, inv, acc / f32(iters));
 }
 
-fn deF(pw : vec3f, phase : f32) -> f32 { return mapF(pw, phase).x; }
+fn mapF(pw : vec3f, pc : vec3f) -> vec4f { return mapN(pw, pc, ITERS); }
+fn deF(pw : vec3f, pc : vec3f) -> f32 { return mapN(pw, pc, ITERS).x; }
+fn deN(pw : vec3f, pc : vec3f, n : i32) -> f32 { return mapN(pw, pc, n).x; }
 
-fn normalF(pw : vec3f, phase : f32, h : f32) -> vec3f {
+fn normalF(pw : vec3f, pc : vec3f, h : f32) -> vec3f {
+  // Depth 8, not 9: this is deliberately sampled at a stencil far wider than
+  // the fractal's finest detail (see the call site), so the last iteration's
+  // contribution is below the scale being measured anyway.
   let k = vec2f(1.0, -1.0);
-  let n = k.xyy * deF(pw + k.xyy * h, phase)
-        + k.yyx * deF(pw + k.yyx * h, phase)
-        + k.yxy * deF(pw + k.yxy * h, phase)
-        + k.xxx * deF(pw + k.xxx * h, phase);
+  let n = k.xyy * deN(pw + k.xyy * h, pc, 8)
+        + k.yyx * deN(pw + k.yyx * h, pc, 8)
+        + k.yxy * deN(pw + k.yxy * h, pc, 8)
+        + k.xxx * deN(pw + k.xxx * h, pc, 8);
   let l = length(n);
   return select(vec3f(0.0, 1.0, 0.0), n / l, l > 1e-20);
 }
@@ -219,9 +239,10 @@ fn normalF(pw : vec3f, phase : f32, h : f32) -> vec3f {
 const WGSL_MASS = WGSL_FRACTAL + /* wgsl */`
 struct MassU {
   half_ : f32,
-  phase : f32,
   coarse : f32,
   sub : f32,
+  pad : f32,
+  pcos : vec4f,   // xyz = the fold's phase cosines (see preFold)
 };
 @group(0) @binding(0) var<uniform> mu : MassU;
 @group(0) @binding(1) var<storage, read_write> mass : array<f32>;
@@ -245,7 +266,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
         // Skip the singular core: in the pre-image of the inversion this is
         // the point at infinity, not matter.
         if (length(p) < CORE) { continue; }
-        if (deF(p, mu.phase) < tau) { hit = hit + 1.0; }
+        if (deF(p, mu.pcos.xyz) < tau) { hit = hit + 1.0; }
       }
     }
   }
@@ -267,7 +288,9 @@ struct Cam {
   right : vec4f,   // xyz = basis, w = tanHalfFov
   up    : vec4f,   // xyz = basis, w = exposure
   fwd   : vec4f,   // xyz = basis, w = glow gain
-  misc  : vec4f,   // x = aspect, y = time, z = gDown blend, w = unused
+  // yzw carries cos(phase), cos(phase+11), cos(phase+33) — the fold's rotation,
+  // evaluated once per frame on the CPU instead of ~45 times per pixel.
+  misc  : vec4f,   // x = aspect, yzw = phase cosines
   gdir  : vec4f,   // xyz = normalised gravity direction, w = |g| (normalised)
 };
 @group(0) @binding(0) var<uniform> cam : Cam;
@@ -306,87 +329,118 @@ fn albedoRamp(x : f32) -> vec3f {
 // Distance-field ambient occlusion. Sampling the DE along the normal is far
 // smoother than the usual march-step-count proxy, which on a fractal this
 // dense turns into per-pixel speckle.
-fn calcAO(p : vec3f, n : vec3f, phase : f32) -> f32 {
+fn calcAO(p : vec3f, n : vec3f, pc : vec3f) -> f32 {
   var occ = 0.0;
   var norm = 0.0;
   var sca = 1.0;
-  for (var i = 0; i < 6; i = i + 1) {
+  for (var i = 0; i < 5; i = i + 1) {
     // Probe out to ~0.06 world units. The usual hard-coded IQ radii assume a
     // scene tens of units across; this world is barely 2.6 across, and at
     // those radii every probe lands in open space and the occlusion term
     // never fires at all.
-    let h = 0.004 + 0.056 * f32(i) / 5.0;
-    let d = deF(p + n * h, phase);
+    let h = 0.004 + 0.056 * f32(i) / 4.0;
+    let d = deN(p + n * h, pc, 8);
     occ  += (h - min(d, h)) * sca;
     norm += h * sca;
-    sca  *= 0.75;
+    sca  *= 0.72;
   }
   // Normalised, so the term spans a real 0..1 whatever the probe radii are.
   return clamp(1.0 - 1.45 * occ / max(norm, 1e-6), 0.0, 1.0);
 }
 
-fn softShadow(ro : vec3f, rd : vec3f, phase : f32, kmax : f32) -> f32 {
+fn softShadow(ro : vec3f, rd : vec3f, pc : vec3f, kmax : f32) -> f32 {
   var res = 1.0;
-  var t = 0.008;
-  for (var i = 0; i < 26; i = i + 1) {
-    let h = deF(ro + rd * t, phase);
-    if (h < 0.0004) { return 0.0; }
+  var t = 0.010;
+  for (var i = 0; i < 14; i = i + 1) {
+    let h = deN(ro + rd * t, pc, 6);
+    if (h < 0.0006) { return 0.0; }
     res = min(res, kmax * h / t);
-    t = t + clamp(h, 0.004, 0.09);
-    if (t > 2.2) { break; }
+    // Once the ray is this occluded, the remaining steps cannot lift it back
+    // out — min() is monotone — so the rest of the march is dead work.
+    if (res < 0.03) { return 0.0; }
+    t = t + clamp(h, 0.010, 0.16);
+    // The whole world is 2.6 across; a caster past 1.3 contributes almost
+    // nothing and the old 2.2 limit was marching most of the way across it.
+    if (t > 1.3) { break; }
   }
   return clamp(res, 0.0, 1.0);
 }
 
 @fragment
 fn fs(in : VSOut) -> @location(0) vec4f {
-  let phase = cam.org.w;
-  let uv = vec2f(in.uv.x * cam.misc.x, -in.uv.y) * cam.right.w;
+  let pc = cam.misc.yzw;
+  // in.uv is the clip-space position, and WebGPU clip space puts +y at the TOP
+  // of the screen — so this is used as-is. Negating it (the reflex carried over
+  // from framebuffer coordinates, where y grows downward) mirrors the whole
+  // image top-to-bottom, which leaves gravity and pitch correct and only shows
+  // up as the horizon being on the wrong side.
+  let uv = vec2f(in.uv.x * cam.misc.x, in.uv.y) * cam.right.w;
   let rd = normalize(cam.fwd.xyz + cam.right.xyz * uv.x + cam.up.xyz * uv.y);
   let ro = cam.org.xyz;
+
+  // Clip the ray to the bounding sphere. Measured, no surface exists beyond
+  // |p| = 1.26, so a ray that misses this sphere can skip the march entirely
+  // and one that crosses it need never march the empty space on either side —
+  // the old far limit of t > 9 was four times the width of the whole world.
+  let bb = dot(ro, rd);
+  let bc = dot(ro, ro) - RBOUND * RBOUND;
+  let bh = bb * bb - bc;
 
   var t = 0.0012;
   var glow = vec3f(0.0);
   var hit = false;
   var steps = 0.0;
+  var mHit = vec4f(0.0);
 
-  // --- march: surface trace + glow integral in one pass -----------------
-  //
-  // The glow is the original shader's accumulator, kept per-step and
-  // normalised by its 2e3 the same way, because our step schedule (d*0.92) is
-  // the same DE-driven schedule its "v*min(D,1)" produced. Accumulation stops
-  // just short of the surface so the solid occludes its own haze instead of
-  // washing out behind an edge.
-  for (var i = 0; i < 128; i = i + 1) {
-    let p = ro + rd * t;
-    let m = mapF(p, phase);
-    let d = m.x;
-    let v = abs(m.z) + 1e-4;          // the original's v
-    steps = f32(i);
+  if (bh > 0.0) {
+    let bs = sqrt(bh);
+    let tExit = -bb + bs;
+    if (tExit > 0.0) {
+      t = max(-bb - bs, 0.0012);
 
-    let eps = max(0.0018 * t, 6.0e-4);
-    if (d < eps) { hit = true; break; }
-
-    if (d > eps * 3.0) {
-      // Emission density, as a line integral rather than a per-step sum, so
-      // brightness does not depend on how many steps the tracer happened to
-      // take through a given stretch of space.
+      // --- march: surface trace + glow integral in one pass ---------------
       //
-      // The exponent is not a guess: the original adds pal/sqrt(v) per step
-      // while stepping by v, so its emission *per unit length* is
-      // pal/v^1.5 — far more sharply peaked at the structure than
-      // pal/sqrt(v). Integrating the gentler form is what turns the neon
-      // filigree into a flat white veil.
-      //
-      // Colour comes from the orbit trap with only a light distance term, so
-      // the bands sit on the fractal instead of sweeping through the world as
-      // rings centred on the eye.
-      glow += palette(f32(i) * 0.1 + m.y * 0.6 + t * 1.5)
-            / (v * sqrt(v)) * min(d, 0.05);
+      // The glow is the original shader's accumulator, kept per-step and
+      // normalised by its 2e3 the same way, because our step schedule (d*0.92)
+      // is the same DE-driven schedule its "v*min(D,1)" produced. Accumulation
+      // stops just short of the surface so the solid occludes its own haze
+      // instead of washing out behind an edge.
+      for (var i = 0; i < 128; i = i + 1) {
+        let p = ro + rd * t;
+        let m = mapF(p, pc);
+        let d = m.x;
+        let v = abs(m.z) + 1e-4;          // the original's v
+        steps = f32(i);
+
+        let eps = max(0.0018 * t, 6.0e-4);
+        if (d < eps) { hit = true; mHit = m; break; }
+
+        if (d > eps * 3.0) {
+          // Emission density, as a line integral rather than a per-step sum,
+          // so brightness does not depend on how many steps the tracer
+          // happened to take through a given stretch of space.
+          //
+          // The exponent is not a guess: the original adds pal/sqrt(v) per
+          // step while stepping by v, so its emission *per unit length* is
+          // pal/v^1.5 — far more sharply peaked at the structure than
+          // pal/sqrt(v). Integrating the gentler form is what turns the neon
+          // filigree into a flat white veil.
+          let w = min(d, 0.05) / (v * sqrt(v));
+          // palette() is six transcendentals. Measured over sampled rays,
+          // steps below this weight are 23% of all steps and carry 1.7% of the
+          // total glow, so evaluating them is nearly all cost and no image.
+          if (w > 1.0) {
+            // Colour comes from the orbit trap with only a light distance
+            // term, so the bands sit on the fractal instead of sweeping
+            // through the world as rings centred on the eye.
+            glow += palette(f32(i) * 0.1 + m.y * 0.6 + t * 1.5) * w;
+          }
+        }
+
+        t = t + d * 0.92;               // 0.92 keeps us inside the safe bound
+        if (t > tExit) { break; }
+      }
     }
-
-    t = t + d * 0.92;                 // 0.92 keeps us inside the safe bound
-    if (t > 9.0) { break; }
   }
 
   glow = tanh(glow * 5.0e-4 * cam.fwd.w);
@@ -400,8 +454,9 @@ fn fs(in : VSOut) -> @location(0) vec4f {
     // more or less anywhere, and every shading term that depends on the angle
     // to the eye — fresnel especially — fires on every pixel at once. A wider
     // stencil returns the orientation of the face you are actually looking at.
-    let n = normalF(p, phase, max(0.0016 * t, 7.0e-4));
-    let m = mapF(p, phase);
+    let n = normalF(p, pc, max(0.0016 * t, 7.0e-4));
+    let m = mHit;                        // carried out of the march; re-evaluating
+                                         // it here was a whole extra fold chain
 
     // Albedo from the orbit trap. Measured, the trap runs about 0.22–1.42
     // across visible surfaces, so it is normalised onto that span before it
@@ -426,8 +481,13 @@ fn fs(in : VSOut) -> @location(0) vec4f {
     let lTan = normalize(cross(lUp, axis));
     let lDir = normalize(lUp * 0.60 + lTan * 0.80);
     let dif  = max(dot(n, lDir), 0.0);
-    let sha  = softShadow(p, lDir, phase, 9.0);
-    let ao   = calcAO(p, n, phase);
+    // The shadow only ever multiplies the key term, so on a face turned away
+    // from the light the entire fourteen-step shadow march is multiplied by
+    // zero. That is roughly half of all lit-surface pixels. This has to be a
+    // branch, not select() — select evaluates both arms.
+    var sha = 0.0;
+    if (dif > 0.001) { sha = softShadow(p, lDir, pc, 9.0); }
+    let ao   = calcAO(p, n, pc);
     let fill = 0.5 + 0.5 * dot(n, -cam.gdir.xyz);   // sky/ground fill
     let fres = pow(clamp(1.0 + dot(rd, n), 0.0, 1.0), 5.0);
     let hv   = normalize(lDir - rd);
@@ -556,7 +616,12 @@ async function run(device) {
 
   // --- mass pipeline ----------------------------------------------------
   const N = CFG.COARSE, NC = N * N * N;
-  const massUBuf = device.createBuffer({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  // The fold's rotation depends only on the phase, which is a uniform — so the
+  // three cosines are taken here, once per frame, rather than inside the fold
+  // where they cost roughly 135 transcendentals per pixel.
+  const phaseCos = (ph) => [Math.cos(ph), Math.cos(ph + 11), Math.cos(ph + 33)];
+
+  const massUBuf = device.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
   const massBuf  = device.createBuffer({
     size: NC * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
@@ -614,7 +679,7 @@ async function run(device) {
     solving = true;
     try {
       device.queue.writeBuffer(massUBuf, 0,
-        new Float32Array([CFG.HALF, phase, CFG.COARSE, CFG.SUB]));
+        new Float32Array([CFG.HALF, CFG.COARSE, CFG.SUB, 0, ...phaseCos(phase), 0]));
 
       const enc = device.createCommandEncoder();
       const pass = enc.beginComputePass();
@@ -816,7 +881,7 @@ async function run(device) {
   // --- input ------------------------------------------------------------
   const keys = Object.create(null);
   let pointerLocked = false;
-  const opts = { gravity: 1, exposure: 1, glow: 1, ssaa: 1.3 };
+  const opts = { gravity: 1, exposure: 1, glow: 1, ssaa: 1.4, adapt: 1, lockRes: false };
 
   addEventListener('keydown', (e) => {
     keys[e.code] = true;
@@ -1026,19 +1091,26 @@ async function run(device) {
   // The fractal carries detail far below one pixel, so it aliases badly at
   // 1:1. Rendering the backing store larger than the CSS box and letting the
   // compositor downsample is plain supersampling — no resolve pass needed.
+  //
+  // The scale is the TOTAL, deliberately not multiplied by devicePixelRatio.
+  // Nothing in this canvas is text or UI, so device density buys nothing here
+  // that the scale does not already control — but multiplying the two means a
+  // retina display quietly renders 1.75 x 1.4 = 2.45x linear, five to six
+  // times the CSS pixel count, and the same slider position costs wildly
+  // different amounts on different machines.
   let W = 1, H = 1;
   // Sustained-framerate governor. A fractal raymarch is one of the few
   // workloads where the same shader runs three orders of magnitude apart on a
   // discrete GPU and on a software rasteriser, so the sampling rate has to be
   // discovered at runtime rather than picked.
-  let adapt = 1;
   function governor(fps) {
-    if (fps > 0 && fps < 26 && adapt > 0.5) adapt = Math.max(0.5, adapt - 0.08);
-    else if (fps > 52 && adapt < 1) adapt = Math.min(1, adapt + 0.04);
+    if (opts.lockRes) return;
+    if (fps > 0 && fps < 26 && opts.adapt > 0.5) opts.adapt = Math.max(0.5, opts.adapt - 0.08);
+    else if (fps > 52 && opts.adapt < 1) opts.adapt = Math.min(1, opts.adapt + 0.04);
   }
 
   function targetSize() {
-    const dpr = Math.min(devicePixelRatio || 1, 1.75) * opts.ssaa * adapt;
+    const dpr = opts.ssaa * opts.adapt;
     const maxDim = device.limits.maxTextureDimension2D || 8192;
     return [
       Math.min(Math.max(1, Math.round(canvas.clientWidth * dpr)), maxDim),
@@ -1112,7 +1184,7 @@ async function run(device) {
       basis.rz * basis.vx - basis.rx * basis.vz,
       basis.rx * basis.vy - basis.ry * basis.vx, opts.exposure,
       basis.vx, basis.vy, basis.vz, opts.glow,
-      W / H, now / 1000, 0, 0,
+      W / H, ...phaseCos(PHASE),
       basis.gx / gl, basis.gy / gl, basis.gz / gl, gMag,
     ]);
     device.queue.writeBuffer(camBuf, 0, camData);
