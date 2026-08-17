@@ -104,6 +104,48 @@ cell is not resolved, so an unsoftened sum would report noise as gravity right
 where the player spends all their time. Local surface orientation comes from
 the DE gradient instead, and gravity only has to say which way the mass is.
 
+### Walking on a fractal
+
+Three separate defects all presented as "jiggling", and each needed its own
+fix. Numbers are from `walk.mjs`-style harnesses driving the real page.
+
+- **Normals sampled below the detail scale.** At a 3e-4 stencil the physics
+  normal swings **98° between consecutive 120 Hz ticks** — the player stands on
+  grit far finer than they are and "up" flips every step. The swing collapses
+  across a cliff between 3e-3 and 6e-3, reaching 9° at `PHYS_H` = 0.012 (~1.3
+  player radii). Wider than that and the player ignores ledges their own size.
+  This is the same mistake as the render normal, in a different subsystem.
+  *Truncating the fold does not substitute for it* — at depth 6 the swing is
+  still 95° at a narrow stencil, and the coarser solid floats the player 0.035
+  above the visible surface, four times their radius.
+
+- **Walking was ballistic.** Staying on a surface of curvature radius R at
+  speed v needs g > v²/R. At the old walk speed 0.22 and |g| ≈ 0.09 the player
+  left the ground over anything curved tighter than **0.54 units**, and this
+  fractal is nothing but curvature tighter than that. Measured, the player was
+  airborne 25–80% of a walk — being launched and re-landing, not walking.
+  `SNAP` fixes it (grounded 100% of the walk) and is skipped just after a jump
+  and while jump is held, so it can never fight an intentional launch.
+
+- **The horizon was tied to the contour.** Blending the camera's up 65% toward
+  the surface normal sounds right and feels awful, because the face under a
+  walking player reorients constantly while gravity is a smooth field. It also
+  buys nothing here: gravity points at the mass and standable faces point away
+  from it, so the two mostly agree and the blend was contributing mainly
+  wobble. Now 22%, and `UP_TAU` 0.45 — measured 8.3°/s median, 21°/s p90,
+  against 40°/s p90 before.
+
+Once the collider is genuinely glued to the surface it faithfully reproduces
+every bump as head motion, so `EYE_TAU` lags the eye **along the up axis only**
+— horizontal passes through untouched, since lagging that reads as sluggish
+controls. This is ordinary FPS stair-smoothing. 0.10 s measured best (eye
+acceleration 3.67 → 2.29 median); 0.20 was no better.
+
+Beware when benchmarking this: a player who is airborne shows *lower* jitter
+than one who is walking, because free flight is smooth. Any before/after that
+does not also report **fraction of the walk spent grounded** will flatter the
+broken version.
+
 ### Things that were tuned the hard way
 
 Four defects here were only visible on a rendered frame, not in the code:

@@ -128,8 +128,26 @@ const CFG = {
   SUB: 6,                     // DE samples per axis inside each mass cell
                               // -> 192^3 = 7.1M evaluations, once, on the GPU
   PLAYER_R: 0.009,
+  // Stencil width for every physics-side surface normal. This is a measured
+  // number, not a small-epsilon default: walking at 120 Hz and sampling the
+  // gradient at 3e-4, the normal swings 98° between consecutive ticks — the
+  // player is standing on grit far finer than they are, and "up" flips with
+  // every step. The swing collapses across a cliff between 3e-3 and 6e-3, to
+  // 14°, and reaches 9° here at ~1.3 player radii. Wider than this and the
+  // player starts ignoring ledges their own size.
+  //
+  // Truncating the fold instead does not work — at depth 6 the swing is still
+  // 95° at a narrow stencil, and the coarser solid floats the player up to
+  // 0.035 above the visible surface, four times their radius.
+  PHYS_H: 0.012,
+  GN_TAU: 0.07,               // ground-normal low pass, seconds
+  UP_TAU: 0.45,               // camera up slew, seconds
+  CONTACT_SLACK: 0.0012,      // resting-contact deadband (see the resolver)
+  SNAP: 0.024,                // ground-snap reach, ~2.7 player radii
+  EYE_TAU: 0.10,              // eye vertical lag, seconds
+  EYE_LAG_MAX: 0.02,          // hard cap on that lag, world units
   EYE: 0.006,
-  WALK: 0.22,
+  WALK: 0.17,
   AIR: 0.05,
   JUMP: 0.115,
   SUPER: 0.26,
@@ -817,6 +835,10 @@ async function run(device) {
     fx: 0, fy: 0, fz: -1,         // tangent heading
     pitch: 0,
     upx: 0, upy: 1, upz: 0,       // smoothed local "up"
+    gnx: 0, gny: 1, gnz: 0,       // low-passed ground normal
+    ex: 0, ey: 0, ez: 0,          // smoothed eye position
+    hasEye: false,
+    hasGN: false,                 // false = snap on next contact, do not ease
     grounded: false,
     coyote: 0,
     since: 0,
@@ -864,7 +886,7 @@ async function run(device) {
     t = Math.max(t - CFG.PLAYER_R * 14, 0);
     P.x = bx + dx / L * t; P.y = by + dy / L * t; P.z = bz + dz / L * t;
     P.vx = P.vy = P.vz = 0;
-    P.grounded = false; P.coyote = 0; P.since = 0;
+    P.grounded = false; P.coyote = 0; P.since = 0; P.hasGN = false; P.hasEye = false;
 
     // Face the fortress: up is away from the mass, so pitching down looks at
     // it. Seed the heading from any tangent, then let the field take over.
@@ -959,15 +981,41 @@ async function run(device) {
     let ux = 0, uy = 1, uz = 0;
     if (gMag > 1e-7) { ux = -gx / gMag; uy = -gy / gMag; uz = -gz / gMag; }
     const grounded = P.grounded;
-    if (grounded && normalCPU(P.x, P.y, P.z, 3e-4, nv)) {
-      // Standing: blend toward the surface normal so walls become floors.
-      ux = ux * 0.35 + nv[0] * 0.65;
-      uy = uy * 0.35 + nv[1] * 0.65;
-      uz = uz * 0.35 + nv[2] * 0.65;
+    if (grounded && normalCPU(P.x, P.y, P.z, CFG.PHYS_H, nv)) {
+      // The ground normal is low-passed as well as widely sampled. Even at the
+      // wide stencil the residual swing is ~9° per tick, which still reads as
+      // a shimmer on the horizon; this settles it without adding enough lag to
+      // be felt. On the airborne→grounded transition it snaps instead, so
+      // landing is immediate rather than easing in over a fifteenth of a second.
+      if (P.hasGN) {
+        const kg = 1 - Math.exp(-dt / CFG.GN_TAU);
+        P.gnx += (nv[0] - P.gnx) * kg;
+        P.gny += (nv[1] - P.gny) * kg;
+        P.gnz += (nv[2] - P.gnz) * kg;
+        const gl = Math.hypot(P.gnx, P.gny, P.gnz) || 1;
+        P.gnx /= gl; P.gny /= gl; P.gnz /= gl;
+      } else {
+        P.gnx = nv[0]; P.gny = nv[1]; P.gnz = nv[2]; P.hasGN = true;
+      }
+      // The camera's up is mostly gravity, not the surface. Leaning it onto
+      // the contour sounds right and feels awful: gravity is a smooth field,
+      // while the face under a walking player changes orientation constantly,
+      // so tying the horizon to the face means the horizon shakes.
+      //
+      // It costs nothing to give up, either. Gravity here points at the mass
+      // and the surface you can stand on generally faces away from it, so the
+      // two mostly agree — what the blend discards is precisely the local
+      // contour wobble. The ground normal is still what the movement plane and
+      // the contact resolver use; it just no longer steers the horizon.
+      ux = ux * 0.78 + P.gnx * 0.22;
+      uy = uy * 0.78 + P.gny * 0.22;
+      uz = uz * 0.78 + P.gnz * 0.22;
       const l = Math.hypot(ux, uy, uz) || 1;
       ux /= l; uy /= l; uz /= l;
+    } else {
+      P.hasGN = false;
     }
-    const k = 1 - Math.pow(0.0016, dt);      // ~frame-rate independent slerp
+    const k = 1 - Math.exp(-dt / CFG.UP_TAU);
     P.upx += (ux - P.upx) * k; P.upy += (uy - P.upy) * k; P.upz += (uz - P.upz) * k;
     const ul = Math.hypot(P.upx, P.upy, P.upz) || 1;
     P.upx /= ul; P.upy /= ul; P.upz /= ul;
@@ -1033,7 +1081,7 @@ async function run(device) {
     if (keys.Space && (grounded || P.coyote > 0) && P.since > 0.12) {
       const j = (keys.ShiftLeft || keys.ShiftRight) ? CFG.SUPER : CFG.JUMP;
       P.vx += P.upx * j; P.vy += P.upy * j; P.vz += P.upz * j;
-      P.grounded = false; P.coyote = 0; P.since = 0;
+      P.grounded = false; P.coyote = 0; P.since = 0; P.hasGN = false;
     }
 
     // Gravity integration.
@@ -1049,9 +1097,19 @@ async function run(device) {
       let d = deCPU(P.x, P.y, P.z);
       // Resolve penetration; a couple of passes because the surface curves
       // away sharply at fractal scales.
-      for (let it = 0; it < 3 && d < CFG.PLAYER_R; it++) {
-        if (!normalCPU(P.x, P.y, P.z, Math.max(d * 0.5, 2e-4), nv)) break;
-        const push = (CFG.PLAYER_R - d) + 1e-5;
+      //
+      // The push direction uses the same wide stencil as the stance normal. A
+      // narrow one made this the main source of the shaking: each pass shoved
+      // the player along whichever way the grit happened to face, the next
+      // tick shoved them back, and the result was a buzz rather than contact.
+      //
+      // The resolve also stops at a slack band inside the radius instead of
+      // snapping exactly to it. Resting contact leaves d hovering right at the
+      // threshold, so an exact resolve re-fires every single tick; the band
+      // lets the player settle and go quiet.
+      for (let it = 0; it < 3 && d < CFG.PLAYER_R - CFG.CONTACT_SLACK; it++) {
+        if (!normalCPU(P.x, P.y, P.z, CFG.PHYS_H, nv)) break;
+        const push = CFG.PLAYER_R - d;
         P.x += nv[0] * push; P.y += nv[1] * push; P.z += nv[2] * push;
         const vn = P.vx * nv[0] + P.vy * nv[1] + P.vz * nv[2];
         if (vn < 0) {                       // kill inward velocity, keep slide
@@ -1061,6 +1119,37 @@ async function run(device) {
         }
         landed = true;
         d = deCPU(P.x, P.y, P.z);
+      }
+      if (d < CFG.PLAYER_R) { landed = true; }
+    }
+
+    // --- ground snapping -------------------------------------------------
+    //
+    // Without this, walking is ballistic. To stay on a surface of curvature
+    // radius R at speed v you need g > v²/R; at the walk speed of 0.22 and a
+    // field of about 0.09, the player leaves the ground over anything curved
+    // tighter than v²/g = 0.54 units — and a Menger fractal is nothing but
+    // curvature tighter than that. Every bump launched the player, gravity
+    // pulled them back, and the result read as being shaken rather than
+    // walking. So while walking, the controller keeps them attached, which is
+    // what any character controller does on ordinary terrain.
+    //
+    // It deliberately does not apply just after a jump, or while jump is held,
+    // so it can never fight an intentional launch. The snap distance is small
+    // enough that walking off a real ledge still detaches within a tick or two.
+    if (P.grounded && P.since > 0.12 && !keys.Space) {
+      const dSnap = deCPU(P.x, P.y, P.z);
+      if (dSnap > CFG.PLAYER_R && dSnap < CFG.PLAYER_R + CFG.SNAP &&
+          normalCPU(P.x, P.y, P.z, CFG.PHYS_H, nv)) {
+        const pull = dSnap - CFG.PLAYER_R;
+        P.x -= nv[0] * pull; P.y -= nv[1] * pull; P.z -= nv[2] * pull;
+        const vn = P.vx * nv[0] + P.vy * nv[1] + P.vz * nv[2];
+        if (vn > 0) {                       // shed the outward velocity too,
+          P.vx -= nv[0] * vn;               // or the next tick re-launches
+          P.vy -= nv[1] * vn;
+          P.vz -= nv[2] * vn;
+        }
+        landed = true;
       }
     }
 
@@ -1074,6 +1163,40 @@ async function run(device) {
       P.coyote = Math.max(0, P.coyote - dt);
     }
     P.since += dt;
+
+    // --- eye smoothing ---------------------------------------------------
+    //
+    // The collider is now glued to the surface, which is correct and which
+    // means it faithfully reproduces every bump as vertical motion of the
+    // head. On terrain whose features are the player's own size, in a world
+    // 2.6 across, that reads as a permanent bob.
+    //
+    // So the eye lags the body, but only along the up axis: horizontal motion
+    // is passed through untouched, because lagging that just feels like
+    // sluggish controls. This is the same trick an ordinary FPS uses to keep
+    // the view steady while the capsule snaps up a staircase. The lag is
+    // clamped so a genuine drop still moves the camera promptly.
+    const tex = P.x + P.upx * CFG.EYE;
+    const tey = P.y + P.upy * CFG.EYE;
+    const tez = P.z + P.upz * CFG.EYE;
+    if (!P.hasEye) {
+      P.ex = tex; P.ey = tey; P.ez = tez; P.hasEye = true;
+    } else {
+      let dx = tex - P.ex, dy = tey - P.ey, dz = tez - P.ez;
+      const dn = dx * P.upx + dy * P.upy + dz * P.upz;     // along-up part
+      const ke = 1 - Math.exp(-dt / CFG.EYE_TAU);
+      // Perpendicular component in full, along-up component filtered.
+      P.ex += (dx - P.upx * dn) + P.upx * dn * ke;
+      P.ey += (dy - P.upy * dn) + P.upy * dn * ke;
+      P.ez += (dz - P.upz * dn) + P.upz * dn * ke;
+      // Never let the eye trail so far it ends up inside geometry.
+      let lx = P.ex - tex, ly = P.ey - tey, lz = P.ez - tez;
+      const ll = Math.hypot(lx, ly, lz);
+      if (ll > CFG.EYE_LAG_MAX) {
+        const f = CFG.EYE_LAG_MAX / ll;
+        P.ex = tex + lx * f; P.ey = tey + ly * f; P.ez = tez + lz * f;
+      }
+    }
 
     // Leash: the fractal is compact, so anything past the box is escape
     // velocity. Rather than lose the player, fold them back in gently.
@@ -1177,7 +1300,7 @@ async function run(device) {
 
     const gl = Math.hypot(basis.gx, basis.gy, basis.gz) || 1;
     camData.set([
-      P.x + P.upx * CFG.EYE, P.y + P.upy * CFG.EYE, P.z + P.upz * CFG.EYE, PHASE,
+      P.ex, P.ey, P.ez, PHASE,
       basis.rx, basis.ry, basis.rz, Math.tan(0.5 * 1.15),
       // camera up = right × view
       basis.ry * basis.vz - basis.rz * basis.vy,
