@@ -308,7 +308,10 @@ function main() {
     companionOut.textContent = 'Looking up @' + handle + '…';
     kit.bskyGet('app.bsky.actor.getProfile', { actor: handle }).then((profile) => {
       if (kit.hidden(profile)) {
-        companionOut.textContent = "Can't ride with @" + handle + ' — that profile is moderated.';
+        companionOut.textContent = "Can't ride with @" + handle +
+          ' — Bluesky has put a moderation label on that profile (a content warning, or an ' +
+          'account action like a takedown). This site honours that the same way bsky.app ' +
+          'does and won’t pull in their name or picture.';
         return;
       }
       const label = profile.displayName || ('@' + profile.handle);

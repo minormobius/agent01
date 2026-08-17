@@ -1,6 +1,50 @@
 # BRIEF — hey-know / "Möbius Trip"
 
-## Fourth turn (this one) — "That was freaking amazing"
+## Screenshot check (this turn)
+
+Reviewed a 1200x800 screenshot of the default page load under production CSP:
+title, description, the rendered Möbius strip (rainbow vertex colours, faint
+wireframe overlay, correct proportions) and the control bar (labelled "Take
+the trip" / "Reset view" buttons, labelled "Trip length: 16s" slider) all
+render correctly — nothing off-screen, overlapping, blank, or unlabelled. The
+moderated-account copy change from the turn below lives inside the dedication
+panel's hidden-profile branch, which this default view doesn't reach, so
+there's nothing in the screenshot that could confirm or contradict it. No
+code changed.
+
+## Fifth turn — "What does it mean when an account is 'moderated'?"
+
+The requester's message this turn was a genuine question, not a build
+instruction, and per this file's own rule the request overrides the plan when
+it points somewhere else — it does: it's almost certainly a reaction to this
+site's own copy. The dedication panel says "that profile is moderated" when
+`kit.hidden(profile)` trips (see `HIDE_LABELS` in `/_kit/kit.js`), and the
+thread's "let's take @viriditax.bsky.social goo on that" a few messages back
+is a plausible reason someone tried that handle and hit exactly that message.
+
+I have no chat channel to answer in except NOTE.txt (250 chars, no @handles/
+links), so I used it to answer plainly. But the better fix is that the site
+shouldn't need an out-of-band answer at all, so I also **expanded the on-page
+message itself**: `companionOut.textContent` in the `kit.hidden(profile)`
+branch now says *why* — "Bluesky has put a moderation label on that profile
+(a content warning, or an account action like a takedown). This site honours
+that the same way bsky.app does and won't pull in their name or picture" —
+instead of the old bare "that profile is moderated." Same trigger, same
+control flow, copy only. No other code touched this turn.
+
+**Decision:** didn't add a persistent "what does moderated mean?" explainer
+panel/tooltip elsewhere on the page — the confusion is specifically tied to
+the one moment it can happen (a hidden companion lookup), so the fix belongs
+right there, not as standing copy visible on every load. If a future turn
+gets another question like this from a different part of the page, the same
+pattern (explain in-place, at the point of confusion) is the one to reach for
+first before reaching for a general FAQ block.
+
+Plan item 3 (small polish, nothing specific queued) is still open and
+untouched by this turn — this was a targeted copy fix in response to a real
+question, not a scheduled polish pass.
+
+## Fourth turn — "That was freaking amazing"
 
 The requester's message this turn was praise, not an instruction ("That was
 freaking amazing" — reacting to the polygonOffset fix from last turn). Per

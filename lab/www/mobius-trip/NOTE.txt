@@ -1,1 +1,1 @@
-Took the praise as a green light to keep going: added a "Wide orbit" mode — camera circles the strip from outside while the rainbow hue-shifts. Reduced-motion visitors get it skipped, since unlike the trip it never stops on its own.
+Moderated = Bluesky attached a label to that profile — a content warning or an account action like a takedown. This site skips their name/avatar then, same as bsky.app would. Also updated the on-page message to explain this.
