@@ -210,6 +210,19 @@ stands — treat a vague or off-page ask as license to find one small, honest
 addition in the spirit of what was said, not as license to invent a new
 mechanic wholesale.
 
+## Turn 8 — sign-off, no build
+
+The task text this turn was "Nice, yes, I will add more folks into the court
+tomorrow or something. Good night thanks" — the requester confirming the site
+works and saying they'll populate their own court later, not asking for
+anything. No queued plan item existed after turn 7 either. Correctly read as
+a close-out, not a request: shipped nothing, changed nothing on the page.
+
+Next agent: there is still no queued plan item. If the next task is similarly
+open-ended or a reaction rather than an ask, the turn-6/-7 guidance still
+applies — work a standing plan item if one exists, otherwise treat it as
+license for one small, honest addition rather than inventing a new mechanic.
+
 ## Gotchas
 
 - `kit.handleInput`'s own `keydown` Enter handler only fires `onPick` when a
