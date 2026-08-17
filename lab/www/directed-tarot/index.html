@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Directed Tarot — burn through the black box</title>
+<meta name="description" content="Write what's actually going on. The deck reads it for a lane, seals a card inside a black box, and you burn through from the outside to find out what it drew.">
+<meta property="og:title" content="Directed Tarot">
+<meta property="og:description" content="Write what's actually going on. The deck reads it for a lane, seals a card inside a black box, and you burn through from the outside to find out what it drew.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --lane: var(--accent); }
+  #crumb {}
+  .box-wrap {
+    position: relative; width: 100%; max-width: 22rem;
+    aspect-ratio: 1 / 1; margin: 1.5rem auto; touch-action: none;
+    border-radius: 8px; overflow: hidden; border: 1px solid var(--border);
+    cursor: crosshair;
+  }
+  .box-wrap.hidden { display: none; }
+  .box-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #flameCanvas { pointer-events: none; }
+  .hint {
+    text-align: center; color: var(--muted); font-size: .8rem; margin-top: -1rem;
+  }
+  .progress-row {
+    display: flex; align-items: center; gap: .75rem; max-width: 22rem; margin: .75rem auto 0;
+  }
+  .progress-track {
+    flex: 1; height: 8px; border-radius: 4px; background: var(--bg-raised);
+    border: 1px solid var(--border); overflow: hidden;
+  }
+  .progress-fill { height: 100%; background: var(--lane); width: 0%; transition: width .15s linear; }
+  .progress-pct { font-size: .8rem; color: var(--muted); min-width: 3.5em; text-align: right; }
+  .actions-row {
+    display: flex; flex-wrap: wrap; gap: .6rem; justify-content: center; margin-top: 1rem;
+  }
+  .progress-row.hidden, .actions-row.hidden { display: none; }
+  #resultCard {
+    max-width: 26rem; margin: 1.75rem auto 0; padding: 1.25rem 1.4rem;
+    border: 1px solid var(--lane); border-radius: var(--radius); background: var(--bg-raised);
+  }
+  #resultCard.hidden { display: none; }
+  #resultCard h3 { margin: 0 0 .3rem; color: var(--lane); font-size: 1.3rem; }
+  #resultCard .lane-tag {
+    display: inline-block; font-size: .75rem; color: var(--lane); border: 1px solid var(--lane);
+    border-radius: 999px; padding: .15rem .6rem; margin-bottom: .6rem;
+  }
+  #resultCard .mood { color: var(--fg); font-size: .95rem; margin: .4rem 0 .8rem; }
+  #resultCard .why { font-size: .78rem; color: var(--muted); }
+  textarea#situ { min-height: 6rem; resize: vertical; font-size: 1rem; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button:disabled:hover { background: var(--accent-dim); color: var(--accent); }
+  .about { font-size: .78rem; color: var(--muted); margin-top: 3rem; border-top: 1px solid var(--border); padding-top: 1rem; }
+  @media (max-width: 420px) {
+    .box-wrap { max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Directed Tarot</h1>
+  <p class="sub">Write what's actually going on. The deck reads it for a lane, then seals a card inside a black box. It does not open on its own — you burn through it.</p>
+
+  <label for="situ">what's going on</label>
+  <textarea id="situ" placeholder="say it plainly — the deck is only reading for a lane, not judging the sentence"></textarea>
+
+  <div class="actions-row">
+    <button id="sealBtn">seal my reading</button>
+  </div>
+
+  <p class="hint hidden" id="dragHint">drag or tap-and-hold across the box to burn through it. no drag? use "burn it open" below.</p>
+
+  <div class="box-wrap hidden" id="boxWrap" role="img" aria-label="a sealed black box holding your card. drag across it to burn through, or use the burn it open button below.">
+    <canvas id="cardCanvas" width="480" height="480"></canvas>
+    <canvas id="blackCanvas" width="480" height="480"></canvas>
+    <canvas id="flameCanvas" width="480" height="480"></canvas>
+  </div>
+
+  <div class="progress-row hidden" id="progressRow">
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-pct" id="progressPct">0%</div>
+  </div>
+
+  <div class="actions-row hidden" id="burnActions">
+    <button id="burnAllBtn">burn it open</button>
+    <button id="resealBtn">reseal a new one</button>
+  </div>
+
+  <div id="resultCard" class="hidden">
+    <div class="lane-tag" id="resLane"></div>
+    <h3 id="resName"></h3>
+    <div class="mood" id="resMood"></div>
+    <div class="why" id="resWhy"></div>
+  </div>
+
+  <p class="about">
+    Nothing here leaves your browser — the reading and the burning both happen
+    locally, nothing is saved anywhere unless you screenshot it. Card selection
+    is a blunt keyword match against five lanes (heart, drive, mind, ground, the
+    big stuff), the same trick this factory's other read-your-words builds use —
+    not a real assessment of anything. If nothing matches, the deck just picks
+    freely and says so.
+  </p>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('directed-tarot');
+
+  var reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var LANES = {
+    cups:      { glyph: '♥', color: '#5fb3e8', label: 'Cups — the heart' },
+    wands:     { glyph: '♣', color: '#e8a33d', label: 'Wands — the drive' },
+    swords:    { glyph: '♠', color: '#c9c9d4', label: 'Swords — the mind' },
+    pentacles: { glyph: '♦', color: '#7ac387', label: 'Pentacles — the ground' },
+    major:     { glyph: '★', color: '#b489e8', label: 'Major Arcana — the big turn' }
+  };
+
+  var KEYWORDS = {
+    cups: [' love ', ' heart', 'relationship', 'partner', 'breakup', 'break up', 'friend', 'family',
+      'lonely', 'crush', 'feeling', 'cry', 'happy', 'sad', 'marriage', 'dating', ' ex ', 'miss ',
+      'connection', 'trust', 'hurt', 'grief', 'lost her', 'lost him'],
+    wands: ['start', 'build', 'project', 'creat', 'launch', 'goal', 'energy', 'passion', 'hustle',
+      'grind', 'dream', 'motivat', 'inspir', 'spark', 'momentum', 'excited', ' plan ', 'ambition',
+      'drive', 'new idea', 'pitch'],
+    swords: ['decide', 'decision', 'argu', 'conflict', 'fight', 'overthink', 'worry', 'anxious',
+      'stress', 'truth', ' lie ', 'confus', 'doubt', 'choice', 'fear', 'my mind', 'logic', 'problem',
+      'hard truth', 'can\'t stop thinking'],
+    pentacles: ['money', ' job', 'work', 'career', 'salary', 'debt', 'budget', 'rent', 'bills',
+      'save', 'invest', 'house', 'health', 'body', 'gym', 'sleep', 'routine', 'practical', 'stable',
+      'security', 'paycheck'],
+    major: ['life', 'meaning', 'purpose', 'death', 'change', 'fate', 'destiny', 'universe', 'soul',
+      'existential', 'everything', 'lost', 'transform', 'rebirth', 'chaos', 'awakening', 'why am i',
+      'what am i doing']
+  };
+
+  var DECK = {
+    cups: [
+      { name: 'The Two of Cups', mood: 'a bond forming, or one worth repairing' },
+      { name: 'The Ten of Cups', mood: 'the good kind of full — contentment, not excess' },
+      { name: 'The Queen of Cups', mood: 'feeling everything and staying steady anyway' },
+      { name: 'The Five of Cups', mood: 'grieving what spilled, not seeing what is still standing' },
+      { name: 'The Ace of Cups', mood: 'a feeling arriving before you have a name for it' },
+      { name: 'The Knight of Cups', mood: 'chasing something because it moved you, not because it made sense' }
+    ],
+    wands: [
+      { name: 'The Three of Wands', mood: 'the plan is out of your hands now — it is moving' },
+      { name: 'The Ace of Wands', mood: 'a spark that has not decided what it is yet' },
+      { name: 'The King of Wands', mood: 'leading with conviction, whether or not you feel ready' },
+      { name: 'The Eight of Wands', mood: 'everything arriving at once — no time to overthink it' },
+      { name: 'The Seven of Wands', mood: 'holding your ground because somebody has to' },
+      { name: 'The Page of Wands', mood: 'an idea too new to be taken seriously yet' }
+    ],
+    swords: [
+      { name: 'The Two of Swords', mood: 'a choice you are refusing to make by not looking at it' },
+      { name: 'The Ace of Swords', mood: 'the truth, stated plainly, whether or not it is welcome' },
+      { name: 'The Nine of Swords', mood: 'the version of this that only shows up at 3am' },
+      { name: 'The Queen of Swords', mood: 'seeing clearly and saying so, kindly but without softening it' },
+      { name: 'The Eight of Swords', mood: 'boxed in by rules nobody is actually enforcing' },
+      { name: 'Justice', mood: 'a reckoning that is fair, which is not the same as comfortable' }
+    ],
+    pentacles: [
+      { name: 'The Four of Pentacles', mood: 'holding on tight to something that would be fine to let go' },
+      { name: 'The Nine of Pentacles', mood: 'what you built alone, and are allowed to enjoy alone' },
+      { name: 'The Ace of Pentacles', mood: 'an opening that is boring on paper and real anyway' },
+      { name: 'The Ten of Pentacles', mood: 'the long, slow kind of security — not a windfall' },
+      { name: 'The Five of Pentacles', mood: 'harder than it needs to look from outside' },
+      { name: 'The King of Pentacles', mood: 'steady hands, unglamorous work, it adds up' }
+    ],
+    major: [
+      { name: 'The Tower', mood: 'something is coming down whether or not you brace for it' },
+      { name: 'The Star', mood: 'quiet hope after a bad stretch — not fixed, but not broken either' },
+      { name: 'The Wheel of Fortune', mood: 'the part of the cycle that is not up to you' },
+      { name: 'Death', mood: 'an ending doing the actual work an ending does — not literal' },
+      { name: 'The Hermit', mood: 'the answer was never going to arrive from outside' },
+      { name: 'The Sun', mood: 'the plain, unguarded kind of good' },
+      { name: 'Judgement', mood: 'a reckoning with who you have actually been lately' },
+      { name: 'The Fool', mood: 'starting anyway, with the part still unknown' }
+    ]
+  };
+
+  function guessLane(text) {
+    var t = ' ' + text.toLowerCase() + ' ';
+    var lanes = Object.keys(KEYWORDS);
+    var scores = {}, hits = {};
+    lanes.forEach(function (l) { scores[l] = 0; hits[l] = []; });
+    lanes.forEach(function (l) {
+      KEYWORDS[l].forEach(function (kw) {
+        if (t.indexOf(kw) !== -1) { scores[l]++; hits[l].push(kw.trim()); }
+      });
+    });
+    var best = null, bestScore = 0;
+    lanes.forEach(function (l) { if (scores[l] > bestScore) { bestScore = scores[l]; best = l; } });
+    var scored = bestScore > 0;
+    if (!best) best = lanes[Math.floor(Math.random() * lanes.length)];
+    return { lane: best, hits: hits[best], scored: scored };
+  }
+
+  function drawCard(lane) {
+    var pool = DECK[lane];
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  // ---- canvas layers ----
+  var boxWrap = document.getElementById('boxWrap');
+  var cardCanvas = document.getElementById('cardCanvas');
+  var blackCanvas = document.getElementById('blackCanvas');
+  var flameCanvas = document.getElementById('flameCanvas');
+  var cardCtx = cardCanvas.getContext('2d');
+  var blackCtx = blackCanvas.getContext('2d');
+  var flameCtx = flameCanvas.getContext('2d');
+  var W = blackCanvas.width, H = blackCanvas.height;
+
+  var state = null; // { lane, card, hits, scored, revealed }
+  var burning = false;
+  var lastPt = null;
+  var particles = [];
+  var rafId = null;
+  var burnCheckTimer = null;
+
+  function toCanvasCoords(clientX, clientY, el) {
+    var r = el.getBoundingClientRect();
+    return {
+      x: (clientX - r.left) * (el.width / r.width),
+      y: (clientY - r.top) * (el.height / r.height)
+    };
+  }
+
+  function paintCardArt(lane) {
+    var info = LANES[lane];
+    cardCtx.clearRect(0, 0, W, H);
+    var grad = cardCtx.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, W / 2);
+    grad.addColorStop(0, info.color);
+    grad.addColorStop(1, '#0e0e11');
+    cardCtx.fillStyle = grad;
+    cardCtx.fillRect(0, 0, W, H);
+    cardCtx.fillStyle = 'rgba(255,255,255,.9)';
+    cardCtx.font = (W * 0.32) + 'px sans-serif';
+    cardCtx.textAlign = 'center';
+    cardCtx.textBaseline = 'middle';
+    cardCtx.fillText(info.glyph, W / 2, H / 2);
+  }
+
+  function fillBlackBox() {
+    blackCtx.globalCompositeOperation = 'source-over';
+    blackCtx.fillStyle = '#08080a';
+    blackCtx.fillRect(0, 0, W, H);
+    flameCtx.clearRect(0, 0, W, H);
+    particles = [];
+  }
+
+  function erase(x, y) {
+    blackCtx.save();
+    blackCtx.globalCompositeOperation = 'destination-out';
+    var r = 22 + Math.random() * 10;
+    blackCtx.beginPath();
+    blackCtx.arc(x, y, r, 0, Math.PI * 2);
+    blackCtx.fill();
+    blackCtx.restore();
+  }
+
+  function eraseLine(a, b) {
+    var dx = b.x - a.x, dy = b.y - a.y;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    var steps = Math.max(1, Math.ceil(dist / 8));
+    for (var i = 0; i <= steps; i++) {
+      erase(a.x + dx * (i / steps), a.y + dy * (i / steps));
+    }
+  }
+
+  function spawnParticles(x, y) {
+    if (reducedMotion) return;
+    for (var i = 0; i < 3; i++) {
+      particles.push({
+        x: x, y: y,
+        vx: (Math.random() - 0.5) * 1.6,
+        vy: -1 - Math.random() * 1.8,
+        life: 22 + Math.random() * 14,
+        maxLife: 36,
+        r: 6 + Math.random() * 10
+      });
+    }
+    ensureLoop();
+  }
+
+  function ensureLoop() {
+    if (rafId != null || reducedMotion) return;
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function tick() {
+    flameCtx.clearRect(0, 0, W, H);
+    if (particles.length) {
+      flameCtx.save();
+      flameCtx.globalCompositeOperation = 'lighter';
+      particles.forEach(function (p) {
+        p.x += p.vx; p.y += p.vy; p.vy *= 0.97; p.life -= 1;
+        var a = Math.max(0, p.life / p.maxLife);
+        var g = flameCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
+        g.addColorStop(0, 'rgba(255,220,120,' + (0.85 * a) + ')');
+        g.addColorStop(0.5, 'rgba(255,140,40,' + (0.55 * a) + ')');
+        g.addColorStop(1, 'rgba(220,40,20,0)');
+        flameCtx.fillStyle = g;
+        flameCtx.beginPath();
+        flameCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        flameCtx.fill();
+      });
+      flameCtx.restore();
+      particles = particles.filter(function (p) { return p.life > 0; });
+    }
+    if (particles.length) {
+      rafId = requestAnimationFrame(tick);
+    } else {
+      rafId = null;
+    }
+  }
+
+  function measureBurnPct() {
+    var data;
+    try { data = blackCtx.getImageData(0, 0, W, H).data; }
+    catch (e) { return 0; }
+    var stride = 8; // sample every 8th pixel in each axis
+    var total = 0, cleared = 0;
+    for (var y = 0; y < H; y += stride) {
+      for (var x = 0; x < W; x += stride) {
+        var idx = (y * W + x) * 4 + 3;
+        total++;
+        if (data[idx] < 40) cleared++;
+      }
+    }
+    return total ? Math.round((cleared / total) * 100) : 0;
+  }
+
+  function updateProgress() {
+    var pct = measureBurnPct();
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressPct').textContent = pct + '%';
+    if (pct >= 55 && state && !state.revealed) finishReveal();
+    return pct;
+  }
+
+  function finishReveal() {
+    if (!state || state.revealed) return;
+    state.revealed = true;
+    blackCtx.clearRect(0, 0, W, H);
+    document.getElementById('progressFill').style.width = '100%';
+    document.getElementById('progressPct').textContent = '100%';
+    var info = LANES[state.lane];
+    document.documentElement.style.setProperty('--lane', info.color);
+    document.getElementById('resLane').textContent = info.label;
+    document.getElementById('resLane').style.color = info.color;
+    document.getElementById('resLane').style.borderColor = info.color;
+    document.getElementById('resName').textContent = state.card.name;
+    document.getElementById('resName').style.color = info.color;
+    document.getElementById('resMood').textContent = state.card.mood;
+    document.getElementById('resWhy').textContent = state.scored
+      ? 'matched on: "' + state.hits.slice(0, 4).join('", "') + '"'
+      : 'no strong lane in the text — the deck picked freely';
+    document.getElementById('resultCard').classList.remove('hidden');
+    document.getElementById('resultCard').scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'nearest' });
+  }
+
+  function startBurning(clientX, clientY) {
+    burning = true;
+    var pt = toCanvasCoords(clientX, clientY, blackCanvas);
+    lastPt = pt;
+    erase(pt.x, pt.y);
+    spawnParticles(pt.x, pt.y);
+    updateProgress();
+  }
+
+  function moveBurning(clientX, clientY) {
+    if (!burning) return;
+    var pt = toCanvasCoords(clientX, clientY, blackCanvas);
+    eraseLine(lastPt, pt);
+    spawnParticles(pt.x, pt.y);
+    lastPt = pt;
+    if (!burnCheckTimer) {
+      burnCheckTimer = setTimeout(function () { burnCheckTimer = null; updateProgress(); }, 120);
+    }
+  }
+
+  function stopBurning() {
+    burning = false;
+    lastPt = null;
+    updateProgress();
+  }
+
+  boxWrap.addEventListener('pointerdown', function (e) {
+    if (!state || state.revealed) return;
+    boxWrap.setPointerCapture(e.pointerId);
+    startBurning(e.clientX, e.clientY);
+  });
+  boxWrap.addEventListener('pointermove', function (e) {
+    if (e.buttons === 0 && e.pointerType !== 'touch') return;
+    moveBurning(e.clientX, e.clientY);
+  });
+  boxWrap.addEventListener('pointerup', stopBurning);
+  boxWrap.addEventListener('pointercancel', stopBurning);
+  boxWrap.addEventListener('pointerleave', function () { if (burning) stopBurning(); });
+
+  function sealReading() {
+    var text = document.getElementById('situ').value || '';
+    var g = guessLane(text);
+    var card = drawCard(g.lane);
+    state = { lane: g.lane, card: card, hits: g.hits, scored: g.scored, revealed: false };
+
+    document.documentElement.style.setProperty('--lane', LANES[g.lane].color);
+    paintCardArt(g.lane);
+    fillBlackBox();
+
+    boxWrap.classList.remove('hidden');
+    document.getElementById('progressRow').classList.remove('hidden');
+    document.getElementById('burnActions').classList.remove('hidden');
+    document.getElementById('resultCard').classList.add('hidden');
+    document.getElementById('progressFill').style.width = '0%';
+    document.getElementById('progressPct').textContent = '0%';
+    document.getElementById('dragHint').classList.remove('hidden');
+  }
+
+  document.getElementById('sealBtn').addEventListener('click', sealReading);
+  document.getElementById('resealBtn').addEventListener('click', sealReading);
+  document.getElementById('burnAllBtn').addEventListener('click', function () {
+    if (!state) return;
+    finishReveal();
+  });
+})();
+</script>
+</body>
+</html>

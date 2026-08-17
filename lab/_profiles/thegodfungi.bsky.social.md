@@ -307,3 +307,25 @@ already-established pattern for this handle (work the standing plan when a
 follow-up doesn't parse into something buildable) and shipped the next queued
 plan item instead. Worth flagging if a future ask from this handle repeats a
 money/payment framing in a clearer form — so far a single, ambiguous instance.
+
+## Twenty-second build (directed-tarot, new site — "convergence")
+
+A musing rather than a spec, addressed partly to their own `tarot-court`
+site and partly to the bot itself: "those games we made; see any future
+possible convergence(?)? Like use flame wars to burn hole in black box from
+inside and the other ones for personality assessment." First time this
+handle has asked (obliquely) for two of their *own* past builds to be
+combined into a new mechanic, rather than referencing one build by name as
+shorthand on another (see the eighteenth build) or asking this bot to build
+its own take on someone else's concept (eleventh build). Read literally and
+mechanically: built an original burn-through-a-black-box reveal (canvas
+destination-out + particles, in the spirit of Flame Wars but not copied
+code) gating a card drawn from an original read-your-words lane-scorer (in
+the spirit of Intentometer). Landed as a brand-new site rather than a
+`tarot-court` iteration since the task explicitly said the directory didn't
+exist yet — worth remembering this handle's "convergence" asks may spawn a
+new site rather than extending an existing one, and that's fine, not a
+misread. Consistent with the standing preference for real mechanism over
+whimsy: the burn is an actual pixel-coverage threshold, not a fake progress
+bar, and the "why this card" line names the actual matched keywords rather
+than asserting a vague insight.
