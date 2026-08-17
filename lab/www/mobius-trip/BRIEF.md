@@ -1,6 +1,30 @@
 # BRIEF — hey-know / "Möbius Trip"
 
-## Screenshot check (this turn)
+## Sixth turn — "Exhausted now try again soon"
+
+The requester's message this turn was "Exhausted now try again soon" — no
+reference to anything on the page (no bug shape, no feature word, nothing
+that maps onto the strip, the trip, the orbit, or the dedication panel), and
+nothing else in the thread since the last turn changes that reading. Treated
+as non-instructional, same category as the "praise/unparseable" case this
+file's own plan section anticipates, so this turn worked the standing plan
+rather than guessing at what "exhausted" might mean.
+
+**Shipped:** plan item 4 — the dedication marker's lap caption. `updateLap()`
+now appends `' Riding with ' + companion.label + '.'` to the existing lap
+text (both lap-1 and lap-2 branches) whenever a companion is set, instead of
+leaving the "riding with @handle" info stuck in the panel text above the
+viewport where it's easy to miss once the trip starts and attention moves to
+the 3D view. No new state, no new DOM — reads `companion` (already tracked
+for the marker itself) and reuses the existing `lapOut` element. Item 4 is
+now done; item 3 (open-ended small polish) remains the only thing on the
+list, unqueued.
+
+**Decision:** didn't touch anything else. A three-word ambiguous message
+isn't licence to build something bigger unasked — this file's "don't invent
+something big unasked" line held.
+
+## Screenshot check (fifth turn)
 
 Reviewed a 1200x800 screenshot of the default page load under production CSP:
 title, description, the rendered Möbius strip (rainbow vertex colours, faint
@@ -193,14 +217,11 @@ and is only visible while `tripping` — same reasoning as the camera itself
    handle's established pattern), there's no standing plan item left to
    default to — read the whole file for anything that looks visibly wrong
    first (the same approach that found the z-fighting bug), and if nothing
-   turns up, a reasonable next step is a small polish pass: e.g. does the
-   dedication marker want its own short lap caption folded into
-   `updateLap()` (left as panel-text-only so far, still unrevisited), or a
-   third camera mode. Don't invent something big unasked.
-4. Not yet considered: does the dedication marker want its own short lap
-   caption (e.g. "riding with @handle") folded into `updateLap()`, or is the
-   panel text above the viewport enough? Left as panel text only, still —
-   revisit if it reads as easy to miss.
+   turns up, a reasonable next step is a small polish pass: e.g. a third
+   camera mode, or a caption on `orbitOut` naming the current hue. Don't
+   invent something big unasked.
+4. ~~Dedication marker's own short lap caption folded into `updateLap()`~~ —
+   DONE, sixth turn.
 
 ## Gotchas
 

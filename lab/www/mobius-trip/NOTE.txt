@@ -1,1 +1,1 @@
-Moderated = Bluesky attached a label to that profile — a content warning or an account action like a takedown. This site skips their name/avatar then, same as bsky.app would. Also updated the on-page message to explain this.
+Your last message didn't read as a build request, so I took it as a pause and used the turn on a small queued polish: the trip now names your riding companion in the lap text itself, not just above the viewport. Ready whenever you want more.

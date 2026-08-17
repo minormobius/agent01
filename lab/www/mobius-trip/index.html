@@ -475,11 +475,11 @@ function main() {
 
   function updateLap(frac) {
     const deg = Math.round(frac * 720);
-    if (frac < 0.5) {
-      lapOut.textContent = 'Lap 1 of 2 — u = ' + deg + '°. Riding the edge outward.';
-    } else {
-      lapOut.textContent = 'Lap 2 of 2 — u = ' + deg + '°. Tracing what looked like the far side — same single face.';
-    }
+    let msg = frac < 0.5
+      ? 'Lap 1 of 2 — u = ' + deg + '°. Riding the edge outward.'
+      : 'Lap 2 of 2 — u = ' + deg + '°. Tracing what looked like the far side — same single face.';
+    if (companion) msg += ' Riding with ' + companion.label + '.';
+    lapOut.textContent = msg;
   }
 
   // ---------------------------------------------------------------- animate
