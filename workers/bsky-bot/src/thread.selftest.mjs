@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 import {
   stripMention, requesterPosts, ancestorChain, ancestorUris, roomPosts,
   quotedUri, quotedLine, formatHistory, isIdeasPost, linkUris, threadLinks,
+  portraitRequest,
 } from './thread.js';
 // Imported statically, NOT inside the test: `t` calls its callback without
 // awaiting, so an async test reports a tick before it can fail. Exit code still
@@ -32,6 +33,34 @@ const withParent = (node, parent) => ({ ...node, parent });
 
 let n = 0;
 const t = (name, fn) => { fn(); n++; console.log(`  ✓ ${name}`); };
+
+// A PORTRAIT AND A BUILD COST DIFFERENT THINGS AND PRODUCE DIFFERENT OUTPUT, and
+// the matcher that tells them apart runs before anything claims a slot. The
+// asymmetry is the whole design: a build misread as a portrait costs somebody
+// the site they asked for, so every ambiguous phrasing must fall through to the
+// build path. "draw me a poker game" is the case this exists for.
+t('portraitRequest recognises an ask for a portrait', () => {
+  for (const yes of [
+    'portrait: go on then', 'portrait:', 'portrait me',
+    'draw me', 'sketch me', 'draw my account', 'paint my posts', 'draw my vibe.',
+    'draw me a portrait', 'draw me a picture of me', 'a portrait of my account',
+  ]) assert.equal(portraitRequest(yes), true, `should be a portrait: ${yes}`);
+});
+
+t('portraitRequest lets every ambiguous phrasing fall through to a build', () => {
+  for (const no of [
+    'draw me a poker game',            // the obvious one, and the reason for the trailing anchor
+    'draw me a chart of tube lines',
+    'draw me a picture of a dog',      // "picture" is there, the subject is not them
+    'build me a site about portraits',
+    'make a portrait gallery site',
+    'paint me a landing page',
+    'a site where you draw pictures',
+    'portraits are cool',
+    'sketch my account then build me a site',  // a build is named, so it is a build
+    '', '   ',
+  ]) assert.equal(portraitRequest(no), false, `should NOT be a portrait: ${no}`);
+});
 
 t('stripMention removes the handle, case-insensitively, and trims', () => {
   assert.equal(stripMention('@MinoMobi.com build me a clock', BOT), 'build me a clock');

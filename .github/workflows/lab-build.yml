@@ -988,7 +988,34 @@ jobs:
             echo "   picture back for a look. Spend the 250 characters on something they"
             echo "   cannot get anywhere else."
             echo
-            echo "3. $DIR/BRIEF.md — A LETTER TO THE NEXT AGENT, who is you with no memory."
+            echo "3. $DIR/CARD.json — OPTIONAL, and it is a TRADE, not a free extra."
+            echo
+            echo "   The reply that announces your site normally carries a link card: a"
+            echo "   screenshot of the page, its og:title and its og:description, and the"
+            echo "   whole thing is a click target. Write this file and the harness"
+            echo "   generates a picture from your prompt and posts THAT instead:"
+            echo
+            echo "       { \"embed\": \"image\", \"prompt\": \"…\", \"alt\": \"…\" }"
+            echo
+            echo "   A post carries exactly ONE embed and images and link cards are"
+            echo "   alternatives, so choosing the picture GIVES UP the card — the title,"
+            echo "   the description, the screenshot and the big click target, leaving the"
+            echo "   URL as a plain link in the text."
+            echo
+            echo "   SO USUALLY DO NOT. If the site is a thing people need to OPEN — a game,"
+            echo "   a tool, a simulation, anything interactive — the screenshot of it"
+            echo "   working IS the best advert you have, and a generated picture is a"
+            echo "   worse one. Take the trade when the picture is the point: a poster, a"
+            echo "   joke, a single image the page exists to frame, or a refusal where the"
+            echo "   page is the punchline and a screenshot of text is nothing."
+            echo
+            echo "   alt is REQUIRED and the harness drops the whole thing without it —"
+            echo "   describe what is actually depicted, for someone who cannot see it."
+            echo "   The image model is four-step and cannot spell, so ask for no text in"
+            echo "   the picture. It is generated on a shared allowance; one image per"
+            echo "   build, and if it fails you get the screenshot card and no error."
+            echo
+            echo "4. $DIR/BRIEF.md — A LETTER TO THE NEXT AGENT, who is you with no memory."
             echo "   Not documentation of the site; the handoff that makes turn two possible."
             echo "   Plain prose, a few hundred words, written for someone who has never seen"
             echo "   this thread. Four things, and the third is the one that gets skipped:"
@@ -2142,6 +2169,36 @@ jobs:
               echo "push failed, retrying…"; sleep $((attempt * 2)); }
           done
 
+      # THE AGENT MAY HAVE ASKED FOR A PICTURE INSTEAD OF THE CARD.
+      #
+      # <dir>/CARD.json is the agent's second window out, alongside NOTE.txt: it
+      # names a prompt and the alt text for a generated image, and if it is
+      # there the reply carries that image INSTEAD of the screenshot link card.
+      # A post has one embed, so this is a swap and the agent is told so in the
+      # brief — the picture costs the title, the description, the thumbnail and
+      # the click target, and for most sites the screenshot is the better post.
+      #
+      # AFTER the screenshot step, so a failure here falls back to a card that
+      # already exists rather than to nothing. Fail-soft throughout: a missing
+      # credential, a refused prompt or a dead model all exit 0 and write no
+      # files, and the reply below simply does not see them.
+      - name: Draw the card, if the agent asked for one
+        id: cardart
+        if: success() && steps.live.outputs.live == 'true'
+        continue-on-error: true
+        env:
+          DIR: ${{ steps.name.outputs.dir || steps.cfg.outputs.dir }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -uo pipefail
+          node scripts/lab-card-image.mjs "$DIR" /tmp/card-art.jpg /tmp/card-alt.txt || true
+          if [ -s /tmp/card-art.jpg ] && [ -s /tmp/card-alt.txt ]; then
+            echo "image=/tmp/card-art.jpg" >> "$GITHUB_OUTPUT"
+            echo "alt=/tmp/card-alt.txt" >> "$GITHUB_OUTPUT"
+          fi
+          exit 0
+
       - name: Tell the requester
         if: always() && steps.cfg.outputs.root_uri != ''
         env:
@@ -2156,7 +2213,9 @@ jobs:
               --parent '${{ steps.cfg.outputs.parent_uri }}' --parent-cid '${{ steps.cfg.outputs.parent_cid }}' \
               --url "https://minomobi.com/${{ steps.name.outputs.slug || steps.cfg.outputs.slug }}/" \
               --page "${{ steps.name.outputs.dir || steps.cfg.outputs.dir }}/index.html" \
-              --thumb "${{ steps.card.outputs.thumb }}"
+              --thumb "${{ steps.card.outputs.thumb }}" \
+              --image "${{ steps.cardart.outputs.image }}" \
+              --image-alt "${{ steps.cardart.outputs.alt }}"
           else
             # One short line. Never a log excerpt — a stack trace in someone's
             # replies is noise to them and looks broken to everyone else.

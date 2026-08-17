@@ -40,6 +40,44 @@ export function stripMention(text, botHandle) {
   return String(text ?? '').replace(new RegExp(`@${botHandle.replace(/\./g, '\\.')}\\b`, 'gi'), '').trim();
 }
 
+const SELF = String.raw`(?:me|my (?:account|posts|repo|profile|timeline|feed|vibe))`;
+const DRAW = String.raw`(?:draw|paint|sketch|portrait)`;
+
+/** Is this a request for a PORTRAIT rather than for a site?
+ *
+ *  A portrait reads the requester's own repo and posts a generated picture of it
+ *  back (scripts/lab-portrait.mjs). It is a different workflow, a different
+ *  cost and a different output, so it has to be told apart from "build me a
+ *  page" before anything claims a slot — and it must never be told apart WRONG,
+ *  because the two failure directions are not symmetric:
+ *
+ *   - a build misread as a portrait costs somebody the site they asked for;
+ *   - a portrait misread as a build costs a 50-minute run and a page nobody
+ *     wanted.
+ *
+ *  So this is deliberately narrow. `portrait:` is the house command idiom, the
+ *  same shape as `name:` and `rename:`. The prose forms all require the subject
+ *  to be the person themselves — "draw me" alone is NOT enough, because "draw me
+ *  a poker game" is a build request and it is the obvious thing to type.
+ * @param {string | undefined} text
+ * @returns {boolean} */
+export function portraitRequest(text) {
+  const t = String(text ?? '').trim().replace(/\s+/g, ' ');
+
+  // The house command idiom, same shape as `name:` and `rename:`.
+  if (/\bportraits?\s*:/i.test(t)) return true;
+
+  // "draw me", "sketch my posts", "paint my account." — and it ENDS there, so
+  // there is nothing after it that could have been the real subject. This is
+  // the clause that keeps "draw me a poker game" a build request.
+  if (new RegExp(String.raw`\b${DRAW} ${SELF} ?[.!?]?$`, 'i').test(t)) return true;
+
+  // "draw me a portrait", "paint a picture of my account".
+  if (new RegExp(String.raw`\b${DRAW} (?:${SELF} )?(?:a |an |the )?(?:self[- ]?)?(?:portrait|picture)(?: of ${SELF})? ?[.!?]?$`, 'i').test(t)) return true;
+
+  return new RegExp(String.raw`\b(?:portrait|picture) of ${SELF}\b`, 'i').test(t);
+}
+
 /** Every post by `did` in the thread, oldest first, minus the one that triggered
  *  this build (it is already the task). Depth-first over `replies` is document
  *  order, which for a thread is chronological within each branch.

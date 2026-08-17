@@ -360,6 +360,41 @@ every rename, forever, into `lab/www/worker.js` — state, in the component that
 has none. It carries `rel="canonical"` and og tags so the card on the
 already-posted link still renders.
 
+### `portrait:` — a picture instead of a page
+
+Not every mention wants a website. `portraitRequest()` in `thread.js` recognises
+`portrait:` (the house command idiom, same shape as `name:` and `rename:`) and
+the prose forms where the subject is unmistakably the requester — `draw me`,
+`paint my posts`, `a portrait of my account`.
+
+**Matched before the claim, and it returns rather than falling through.** A
+portrait reserves no slug, takes no lock, and leaves no row — otherwise a later
+reply in that thread would read as "iterate on their site", and there is no site.
+
+**Deliberately narrow, and the direction of the narrowing is the design.** The
+two failure modes are not symmetric:
+
+| misread | costs |
+|---|---|
+| a build read as a portrait | somebody does not get the site they asked for |
+| a portrait read as a build | a 50-minute run and a page nobody wanted |
+
+So every ambiguous phrasing falls through to the build path. `draw me a poker
+game` is the case the trailing anchor in that regex exists for, and it is in the
+selftest along with eight others.
+
+**The subject is `mention.author`, never a handle in the text.** `dispatchPortrait`
+writes the same value into `handle` and `requester`, and `lab-portrait.yml`
+refuses to run if they disagree. The text chooses *whether*, never *who* — a
+generated picture of a third party posted by this account is not recoverable by
+deleting it.
+
+Dispatch is the same commit-a-request-file mechanism as a build
+(`.github/lab-portraits/<handle>.json`), and it honours the same `BOT_ENABLED`
+interlock: observe-and-reply, no dispatch, no spend. The work happens on a
+runner because streaming a 90 MB CAR does not fit in a Worker's CPU budget —
+see [`docs/LAB-FACTORY.md`](../../docs/LAB-FACTORY.md) §12.5.
+
 ## Two kinds of state, deliberately separate
 
 They answer different questions and must not be conflated:

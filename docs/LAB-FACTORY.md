@@ -1207,6 +1207,85 @@ passes clean under the production CSP.
 
 ---
 
+## 12.5 The bot can post a picture
+
+Two things ship on top of the reply path, and they share one library
+(`scripts/lib/imagegen.mjs` — Cloudflare Workers AI, `flux-1-schnell`, ~$0.00063
+an image against a 10,000-neuron daily allowance the account already shares with
+`chat/` and `rite/`).
+
+**A post carries exactly one embed.** `app.bsky.embed.images` and
+`app.bsky.embed.external` are alternatives in the same union — `recordWithMedia`
+combines media with a *quote*, not with a link card. So a picture is never an
+addition to the announcement post; it *replaces* the card, and with it the
+title, the description, the screenshot and the click target. Everything below
+follows from that one fact.
+
+### The build agent may choose the picture — `<dir>/CARD.json`
+
+The agent's second window out, alongside `NOTE.txt`:
+
+```json
+{ "embed": "image", "prompt": "…", "alt": "…" }
+```
+
+`scripts/lab-card-image.mjs` runs after the screenshot, generates the image, and
+`bsky-reply.mjs` posts it instead of the card — adding a link facet for the URL,
+because the card was the click target and taking it away would otherwise leave
+the URL as inert characters. Alt text is required and the file is dropped
+without it. Every failure path (no file, bad JSON, refused prompt, dead model,
+oversized blob) exits 0 and falls back to the screenshot card.
+
+The brief tells the agent when to take the trade: **not** for anything
+interactive, where a screenshot of the thing working is the best advert it will
+ever have; yes for a poster, a joke, or a refusal where the page is the
+punchline and a screenshot of text is nothing.
+
+### A portrait of the requester — `lab-portrait.yml`
+
+`portrait:`, `draw me`, `paint my posts` — recognised by `portraitRequest()` in
+`workers/bsky-bot/src/thread.js`, deliberately narrow, because the two failure
+directions are not symmetric: a build misread as a portrait costs somebody the
+site they asked for, so every ambiguous phrasing (`draw me a poker game`) falls
+through to the build path. It is matched **before the claim** and returns, so a
+portrait never consumes a permanent name or the build lock.
+
+The bot commits `.github/lab-portraits/<handle>.json` — the same
+commit-a-request mechanism as a build, for the same reason — and
+`scripts/lab-portrait.mjs` does the work on a runner:
+
+| step | how |
+|---|---|
+| the whole post history | `com.atproto.sync.getRepo`, streamed through `b/palm/car-stream.js` — one request, no pagination, and the only complete source |
+| what they are *about* | `scripts/lib/portrait.mjs` — stoplisted unigrams, phrases, a "lately" window, hashtags, linked hosts, who they talk to |
+| what actually landed | `getAuthorFeed` paged to a budget plus one `searchPosts?sort=top`, ranked likes + 2×reposts. **Replies are not in the score** — a ratio is not a hit |
+| how they post | `b/palm`'s six axes and its archetype |
+| what they chose to look like | the avatar, fetched to disk, which the prompt model *reads as an image* |
+| the prompt | `claude -p` over that digest — a template over the same data draws the same picture with different nouns in it, which is what makes generated art read as generated |
+
+**Why the runner and not the bot worker.** Workers AI is a *binding* inside the
+bot, so generation there would need no token at all — but streaming a repo that
+is routinely tens of megabytes and CBOR-decoding every block does not fit in a
+Worker's 30 seconds of CPU. The bot stays a router.
+
+**The subject is always the requester.** `handle` is written from
+`mention.author`, never from a handle typed in the text, and the workflow
+refuses to run if the request's `requester` and `handle` disagree. A generated
+picture of a third party, posted publicly by this account, is not something
+anyone consented to, and deleting the post does not unmake it.
+
+**Three more things the design leans on.** The prompt is sanitised after the
+model writes it and before the image model sees it (`sanitisePrompt` — URLs,
+handles and newlines out, a short whole-word refusal list, a house style that
+bars text, logos and recognisable real people), because the digest is a
+stranger's posts and the image is posted under the operator's account. The alt
+text says the image is generated, and so does the post. And the digest is
+uploaded as a run artefact with a seven-day retention rather than committed:
+it is the answer to "why did it draw that", and it is also a per-account
+dossier that this repo has no business keeping.
+
+---
+
 ## 13. Unverified — check before building
 
 None of these were confirmable from the sandbox (no Cloudflare auth). Each could

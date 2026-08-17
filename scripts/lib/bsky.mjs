@@ -95,7 +95,60 @@ export function externalEmbed({ uri, title, description }) {
   };
 }
 
-export async function createPost(session, { text, links = {}, mentions = {}, embed = null }) {
+/** Upload bytes and get a blob ref back.
+ *
+ *  Posts raw bytes with an image content-type rather than JSON, which is why it
+ *  does not go through xrpc(). Bluesky rejects image blobs over 1,000,000 bytes
+ *  and the error it returns for one is not obviously about size, so the check is
+ *  here where the number can be named. */
+export async function uploadBlob(session, bytes, mime = 'image/jpeg') {
+  if (!bytes?.length) throw new Error('uploadBlob: no bytes');
+  if (bytes.length > 950_000) throw new Error(`blob is ${bytes.length} bytes, over the ~1MB Bluesky limit`);
+  const res = await fetch(`${PDS}/com.atproto.repo.uploadBlob`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${session.accessJwt}`, 'Content-Type': mime },
+    body: bytes,
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(`uploadBlob ${res.status}: ${json.error || ''} ${json.message || ''}`.trim());
+  return json.blob;
+}
+
+/** An app.bsky.embed.images embed.
+ *
+ *  A POST HAS EXACTLY ONE EMBED, and images and external are alternatives in the
+ *  same union — recordWithMedia combines media with a QUOTE, not with a link
+ *  card. So attaching a picture COSTS the link card: its title, its description,
+ *  its thumbnail and its click target, replaced by a URL sitting in the text as
+ *  plain unlinked characters. That is a real trade and the caller has to make it
+ *  deliberately, which is why nothing here silently prefers one.
+ *
+ *  ALT TEXT IS REQUIRED RATHER THAN OPTIONAL. An image posted by an automated
+ *  account with no alt text is inaccessible to exactly the people least able to
+ *  ask what it said, and b/palm/share.js has done this properly since it
+ *  shipped — cardAlt() spells out every number on the chart. Same bar here. */
+export function imagesEmbed(images) {
+  const list = (Array.isArray(images) ? images : [images]).filter(Boolean);
+  if (!list.length) throw new Error('an images embed needs at least one image');
+  if (list.length > 4) throw new Error('Bluesky allows at most four images per post');
+  return {
+    $type: 'app.bsky.embed.images',
+    images: list.map(({ blob, alt, aspectRatio }) => {
+      if (!blob) throw new Error('each image needs an uploaded blob ref');
+      if (!alt || !alt.trim()) throw new Error('each image needs alt text');
+      return {
+        image: blob,
+        alt: alt.trim().slice(0, 2000),
+        ...(aspectRatio ? { aspectRatio } : {}),
+      };
+    }),
+  };
+}
+
+/** @param {{root:{uri:string,cid:string}, parent:{uri:string,cid:string}}} [reply]
+ *  — omit for a top-level post. Both refs are strong (uri AND cid): a reply with
+ *  a stale cid is rejected rather than silently landing in the wrong place. */
+export async function createPost(session, { text, links = {}, mentions = {}, embed = null, reply = null }) {
   const len = graphemes(text);
   if (len > 300) throw new Error(`post is ${len} graphemes, limit is 300`);
   const created = await xrpc(PDS, 'com.atproto.repo.createRecord', {
@@ -108,6 +161,7 @@ export async function createPost(session, { text, links = {}, mentions = {}, emb
         text,
         createdAt: new Date().toISOString(),
         facets: facets(text, links, mentions),
+        ...(reply ? { reply } : {}),
         ...(embed ? { embed } : {}),
       },
     },
