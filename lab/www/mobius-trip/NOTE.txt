@@ -1,1 +1,1 @@
-Found and fixed a real one: the rainbow strip and its overlay grid were flickering against each other (z-fighting), worst up close during the ride. If it's still off, tell me what it looks like — I have no way to load the page myself to check.
+Took the praise as a green light to keep going: added a "Wide orbit" mode — camera circles the strip from outside while the rainbow hue-shifts. Reduced-motion visitors get it skipped, since unlike the trip it never stops on its own.

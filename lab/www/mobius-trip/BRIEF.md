@@ -1,6 +1,51 @@
 # BRIEF — hey-know / "Möbius Trip"
 
-## Third turn (this one) — "It is bugged"
+## Fourth turn (this one) — "That was freaking amazing"
+
+The requester's message this turn was praise, not an instruction ("That was
+freaking amazing" — reacting to the polygonOffset fix from last turn). Per
+this file's own rule, praise with no counter-request means work the standing
+plan, so this turn built plan item 2: the wide-orbit companion mode.
+
+**Shipped:** a "Wide orbit" button, mutually exclusive with the edge trip. It
+circles the camera around the *outside* of the whole strip at a fixed radius
+(6.5, safely clear of the strip's ~2.7-unit extent) with a gentle sinusoidal
+height bob, while the strip's vertex colours hue-rotate continuously
+(`updateStripHue(shift)`, rewriting the colour attribute in place each frame
+from a stored per-column base-hue formula, not a shader — see Decisions).
+Gated behind `prefers-reduced-motion`: the button is disabled outright and
+says why, because unlike the trip (started on purpose, so it keeps running
+under reduced motion per the existing footer copy) this mode moves on its own
+indefinitely once started, which is exactly what that preference means to
+prevent.
+
+**Decisions:**
+- **Recomputed vertex colours in JS every frame instead of a custom hue-
+  rotate shader (`onBeforeCompile`).** A shader uniform would be cheaper, but
+  the strip is only ~2000 vertices and only 181 distinct colours (one per
+  `u`-column, repeated across the width) — a plain loop writing into the
+  existing `Float32Array` and setting `needsUpdate` is simple, obviously
+  correct, and fast enough at this size. Revisit only if a future turn makes
+  the strip much denser.
+- **Camera path is a fixed circle in the XZ plane with a sinusoidal Y bob**,
+  not an orbit that tracks the strip's own rotation. Deliberately simple —
+  "circles the whole strip from outside" was the ask, not a camera that
+  chases the strip's current drag-rotated orientation.
+- **`endOrbit()` calls both `resetStripHue()` and `resetView()`**, same
+  pattern as `endTrip()` calling `resetView()` — leaving the scene in a
+  surprising state after a decorative mode ends (rotated camera, shifted
+  rainbow) would read as a second bug report.
+- Trip and orbit are mutually exclusive (each disables the other's button)
+  because both take over the camera; nothing in the code assumes they could
+  run together, and building for that combination wasn't asked for.
+
+**Untested claim, flagged honestly:** the hue-rotation math (per-column HSL
+recompute) is straightforward and I traced it against `buildStripGeometry`'s
+own colour-assignment loop to confirm the indexing matches, but there is
+still no way to load a page from here — if the rotation looks offset from the
+mesh or flickers, that's the first thing to check.
+
+## Third turn — "It is bugged"
 
 The requester's whole follow-up was "It is bugged," no detail, no repro. No
 network here and no way to load the page, so this turn was a static read of
@@ -97,21 +142,32 @@ and is only visible while `tripping` — same reasoning as the camera itself
 
 ## The plan (not built yet, roughly in order)
 
-1. ~~Optional dedication feature~~ — DONE, see above.
-2. **Second named "trip"**: a slower, wider-orbit companion mode that
-   circles the whole strip from outside (not on the edge) while the rainbow
-   gently hue-shifts over time — purely decorative, gate it behind
-   `prefers-reduced-motion` like everything else that moves on its own.
-3. If the requester ever reacts with something un-parseable again (this
-   handle's established pattern), default to item 2 above rather than
-   guessing something new.
+1. ~~Optional dedication feature~~ — DONE, second turn.
+2. ~~Second named "trip" / wide-orbit companion mode~~ — DONE, this turn (see
+   "Fourth turn" above).
+3. Nothing queued. If the next message is praise or un-parseable again (this
+   handle's established pattern), there's no standing plan item left to
+   default to — read the whole file for anything that looks visibly wrong
+   first (the same approach that found the z-fighting bug), and if nothing
+   turns up, a reasonable next step is a small polish pass: e.g. does the
+   dedication marker want its own short lap caption folded into
+   `updateLap()` (left as panel-text-only so far, still unrevisited), or a
+   third camera mode. Don't invent something big unasked.
 4. Not yet considered: does the dedication marker want its own short lap
    caption (e.g. "riding with @handle") folded into `updateLap()`, or is the
-   panel text above the viewport enough? Left as panel text only this turn,
-   for time — revisit if it reads as easy to miss.
+   panel text above the viewport enough? Left as panel text only, still —
+   revisit if it reads as easy to miss.
 
 ## Gotchas
 
+- **The hue-shift colour rewrite only touches `stripGeo`'s colour buffer, not
+  `wireMat`'s.** They're separate `BufferGeometry` instances (different
+  tessellation) even though they trace the same surface — `wireMat` is a
+  plain low-opacity white overlay and was never rainbow, so this is correct
+  as-is, but it's easy to assume there's one shared geometry when there
+  isn't. If a future feature wants the wireframe to shift too, it needs its
+  own colour attribute; it currently has none (`vertexColors` isn't even set
+  on `wireMat`).
 - **Two coincident meshes need `polygonOffset` or they z-fight.** `stripMat`
   and `wireMat` draw the same `mobiusPoint()` surface at different
   tessellations; without offsetting one of them the overlap flickers
