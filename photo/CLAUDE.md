@@ -15,7 +15,7 @@ An index of image tools sharing one origin: a layered editor, projections and wa
 | Dir | `photo/` |
 | Endpoint | `photo.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/image-manipulation-platform-g5puxy` |
+| Owning branch | `claude/usda-fruit-paintings-dashboard-kxn1c1` |
 | Deploy | `.github/workflows/deploy-photo.yml` |
 | Uses | `auth.mino.mobi` |
 | Provides | — |
@@ -964,7 +964,17 @@ node photo/harvest-pom.mjs --report            # rebuild the catalogue (needs ne
 
 ## Deploying
 
-Pushes to `claude/image-manipulation-platform-g5puxy` that touch this surface's paths trigger [`.github/workflows/deploy-photo.yml`](../.github/workflows/deploy-photo.yml).
+Pushes to `claude/usda-fruit-paintings-dashboard-kxn1c1` that touch this surface's paths trigger [`.github/workflows/deploy-photo.yml`](../.github/workflows/deploy-photo.yml).
+
+**The owning branch changed on 2026-08-17**, from
+`claude/image-manipulation-platform-g5puxy`, so `/pom` could ship. The check
+that made it safe is the one the `b` surface's registry entry exists to
+remember: a handover to a branch whose tree is *behind* the old owner's
+republishes the surface with the difference missing, from a green run — Workers
+Static Assets replaces the whole manifest, it does not merge. This branch's
+`photo/` was byte-identical to the old owner's at the commit before `/pom`, so
+the deploy carries all of that work plus the new tool. **The old branch no
+longer deploys this surface**; anything still in flight there has to land here.
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,

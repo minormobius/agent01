@@ -604,7 +604,7 @@
       "dir": "photo",
       "endpoint": "photo.mino.mobi",
       "type": "frontend",
-      "branch": "claude/image-manipulation-platform-g5puxy",
+      "branch": "claude/usda-fruit-paintings-dashboard-kxn1c1",
       "uses": [
         "auth.mino.mobi"
       ],
@@ -612,7 +612,9 @@
       "paths": [
         "photo/**"
       ],
-      "cohesion": "integrated"
+      "cohesion": "integrated",
+      "status": "HANDOVER 2026-08-17 — owner moved claude/image-manipulation-platform-g5puxy -> claude/usda-fruit-paintings-dashboard-kxn1c1, so /pom can ship. Checked before the move, because a handover to a branch whose tree is behind is a silent regression (see the `b` entry for the case that taught this): the new owner's photo/ was BYTE-IDENTICAL to the old owner's at the commit before /pom was added, so this deploys the old owner's work plus /pom and drops nothing. The old branch owned no other surface, so nothing else was stranded. IMPORTANT: claude/image-manipulation-platform-g5puxy no longer deploys photo — anything still in flight there has to come here (or the branch field has to come back) or it goes live never.",
+      "note": "The image-tools surface. Adds /pom (2026-08-17): the USDA Pomological Watercolor Collection, 7,581 plates, as a filterable wall that hosts no pixels — every tile is a direct upload.wikimedia.org hotlink built from the NAL barcode, with a committed 600 kB catalogue and an Internet Archive fallback. (full description: photo/CLAUDE.md)"
     },
     {
       "surface": "phylofiction",
