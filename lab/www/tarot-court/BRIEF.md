@@ -20,8 +20,10 @@ glosses on each card/rank), and — if someone in the court is tagged for that
 domain — recommends them, linking to their bsky.app profile. If nobody's
 tagged for it, it says so and invites adding someone.
 
-The court and its tags persist in `localStorage` only. No OAuth, no PDS
-write — see DECISIONS.
+The court and its tags persist in `localStorage` by default; as of turn 5 a
+visitor can optionally sign in with Bluesky OAuth and also save/load the
+court to/from their own repo (`com.minomobi.lab.doc`, key `court`) — see
+DECISIONS and the turn 5 plan entry below.
 
 ## Decisions
 
@@ -39,10 +41,9 @@ write — see DECISIONS.
   "actually" good at. That would be making an unreviewed claim about a real,
   named person's character, which is exactly the kind of thing NO-BUILD.md
   warns against even without an explicit rule against it here.
-- **No OAuth / PDS save this turn.** `localStorage` is enough to prove the
-  mechanic works end to end; wiring `store.save('court', court)` through
-  `/_kit/pds.js` is straightforward but adds sign-in flow, and the hard part
-  (the draw → domain → match logic) was the better use of the turn.
+- **No OAuth / PDS save in turn 1.** `localStorage` was enough to prove the
+  mechanic worked end to end first; the hard part (the draw → domain → match
+  logic) was the better use of that turn. Wired in turn 5 — see below.
 - **Keyword guesser, not real NLP.** Five short keyword lists per domain,
   highest-score wins, ties/no-match fall back to a random non-major lane.
   Honest about being blunt (see the footer note and NOTE.txt) — this is
@@ -50,11 +51,20 @@ write — see DECISIONS.
 
 ## The plan (next steps, in order)
 
-1. **PDS persistence.** Wire `labPds()` from `/_kit/pds.js` so the court
-   survives a cleared browser / follows the visitor to another device.
-   Sign-in stays optional (localStorage first, "sign in to save your court"
-   as an enhancement) per the standing sign-in-optional rule. Schema: reuse
-   `com.minomobi.lab.doc` with `kind: 'court'`, one doc holding the array.
+1. ~~PDS persistence.~~ **Done, turn 5.** Wired `labPds()` from `/_kit/pds.js`.
+   A new block in "your court" (`#authstate`/`#signinRow`/`#signedinRow`) lets
+   the visitor sign in with `kit.handleInput`, then "save court to my repo" /
+   "load court from my repo" / "sign out". localStorage stays the source of
+   truth on load and on every add/remove — sign-in is a pure add-on layer, per
+   the standing sign-in-optional rule, and the page works identically if
+   nobody ever touches it. `store.save('court', court)` / `store.load('court')`
+   round-trip the whole array as one `com.minomobi.lab.doc` record (`site:
+   'tarot-court'`, key `court`) — no custom NSID, no scores scope requested
+   (this isn't a leaderboard). Untested in a real OAuth flow (no network in
+   this sandbox) — the shape follows `lab/www/same-task/index.html`'s working
+   sign-in/save/load block closely, including its error/success styling
+   (`kit.showError` then `el.className = 'ok'`), so it should be solid, but
+   the actual PDS round-trip has not been exercised end to end.
 2. ~~A share card for a drawn reading.~~ **Done, turn 4.** A "copy this
    reading" button next to the recommendation puts a plain-text summary
    (card, mood, domain, who it points to, a link back) on the clipboard via
@@ -131,6 +141,19 @@ actually being reusable/passable now, not just used once on-page.
 Left for next turn: item 1 (PDS persistence) and item 3 (bigger keyword lists)
 from the original plan below, untouched.
 
+## Turn 5 — worked the plan
+
+The task text this turn was just "I was kidding. Will you do what's next
+pretty please" — the requester walking back the turn-4 "$100" line and asking
+for the standing plan, no new ask. Per the brief's own instruction ("if
+BRIEF.md carries a plan... WORK THE PLAN"), did item 1: PDS persistence, the
+one open item that was still first in the ordered list (item 2 had jumped the
+queue in turn 4). See the plan entry above for what shipped.
+
+Item 3 (bigger keyword lists / a "why this lane" one-liner) is still open and
+is the natural next turn — it's the cheapest remaining item and doesn't touch
+anything this turn changed.
+
 ## Gotchas
 
 - `kit.handleInput`'s own `keydown` Enter handler only fires `onPick` when a
@@ -150,3 +173,9 @@ from the original plan below, untouched.
   arrays (`RANKS`, `RANK_MOOD`, `MAJOR`), not hand-written as 78 objects —
   keep it that way if extending the deck; it's much less error-prone than a
   flat literal.
+- `pds.js` exports via `import`, so the main `<script>` had to become
+  `type="module"` (turn 5). The `import` statement itself has to sit at the
+  script's top level — it does NOT work inside the existing IIFE — so it's
+  one line above `(function () { 'use strict'; ...`, and everything else
+  still closes over it fine since it's the same module scope. Don't move the
+  import inside the IIFE if you touch this again; it'll throw a syntax error.

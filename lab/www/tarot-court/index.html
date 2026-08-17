@@ -34,6 +34,11 @@
   .courtCard .rm:hover { background: var(--error-bg); color: var(--error); border-color: var(--error); }
   .emptyNote { color: var(--muted); font-size: .82rem; margin-top: 1.25rem; }
 
+  .authstate { font-size: .82rem; color: var(--muted); margin: 1.25rem 0 .6rem; }
+  .authstate b { color: var(--fg); }
+  .authRow { display: flex; flex-wrap: wrap; gap: .6rem; align-items: stretch; }
+  .authRow input { flex: 1 1 200px; }
+
   #problem { min-height: 5rem; resize: vertical; }
   .drawRow { margin-top: .8rem; display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
   #drawBtn:disabled { opacity: .5; cursor: not-allowed; }
@@ -98,6 +103,18 @@
     <ul id="courtList"></ul>
     <p class="emptyNote" id="emptyNote" hidden>Nobody in your court yet — pick what they're good for above,
       then type their handle and pick them from the list.</p>
+
+    <p class="authstate" id="authstate">checking sign-in…</p>
+    <div class="authRow" id="signinRow">
+      <input type="text" id="pdsHandleInput" placeholder="you.bsky.social" autocomplete="off">
+      <button type="button" id="signinBtn">sign in to save your court</button>
+    </div>
+    <div class="authRow hidden" id="signedinRow" style="margin-top:.6rem">
+      <button type="button" id="saveCourtBtn">save court to my repo</button>
+      <button type="button" id="loadCourtBtn">load court from my repo</button>
+      <button type="button" id="signoutBtn">sign out</button>
+    </div>
+    <div id="pdsErr" class="err hidden" style="margin-top:.6rem;"></div>
   </section>
 
   <section>
@@ -144,7 +161,8 @@
   this device — clear your browsing data and it's gone.</p>
 </main>
 
-<script>
+<script type="module">
+import { labPds } from '../_kit/pds.js';
 (function () {
   'use strict';
 
@@ -359,6 +377,76 @@
   });
 
   renderCourt();
+
+  // ---------------------------------------------------------------------
+  // keep it on your account — localStorage is already the source of truth
+  // above; this is purely an optional "also put it in my repo" layer, so
+  // sign-in stays off the critical path per the standing rule.
+  // ---------------------------------------------------------------------
+  var store = labPds();
+  var pdsHandleInput = document.getElementById('pdsHandleInput');
+  var authstateEl = document.getElementById('authstate');
+  var signinRowEl = document.getElementById('signinRow');
+  var signedinRowEl = document.getElementById('signedinRow');
+  var signinBtn = document.getElementById('signinBtn');
+  var signoutBtn = document.getElementById('signoutBtn');
+  var saveCourtBtn = document.getElementById('saveCourtBtn');
+  var loadCourtBtn = document.getElementById('loadCourtBtn');
+  var pdsErrEl = document.getElementById('pdsErr');
+
+  kit.handleInput(pdsHandleInput, {
+    onPick: function (handle) { pdsHandleInput.value = handle; },
+  });
+
+  function renderAuth() {
+    var u = store.user();
+    authstateEl.textContent = '';
+    if (u) {
+      authstateEl.appendChild(document.createTextNode('saving as '));
+      var b = document.createElement('b'); b.textContent = '@' + u.handle;
+      authstateEl.appendChild(b);
+    } else {
+      authstateEl.textContent = 'court is only in this browser — sign in to also keep a copy in your repo';
+    }
+    signinRowEl.classList.toggle('hidden', !!u);
+    signedinRowEl.classList.toggle('hidden', !u);
+  }
+
+  signinBtn.addEventListener('click', function () {
+    var h = pdsHandleInput.value.trim().replace(/^@/, '');
+    if (!h) { kit.showError(pdsErrEl, 'type a handle first'); return; }
+    kit.clear(pdsErrEl);
+    store.signIn(h).catch(function (e) { kit.showError(pdsErrEl, 'sign-in failed: ' + e.message); });
+  });
+
+  signoutBtn.addEventListener('click', function () {
+    store.signOut().then(renderAuth);
+  });
+
+  saveCourtBtn.addEventListener('click', function () {
+    kit.clear(pdsErrEl);
+    store.save('court', court).then(function () {
+      kit.showError(pdsErrEl, 'saved.'); pdsErrEl.className = 'ok';
+      setTimeout(function () { kit.clear(pdsErrEl); }, 1500);
+    }).catch(function (e) { kit.showError(pdsErrEl, 'save failed: ' + e.message); });
+  });
+
+  loadCourtBtn.addEventListener('click', function () {
+    kit.clear(pdsErrEl);
+    store.load('court').then(function (loaded) {
+      if (!loaded) { kit.showError(pdsErrEl, 'no court saved in your repo yet'); return; }
+      if (!window.confirm('Replace the court in this browser with the one saved in your repo?')) return;
+      court = loaded;
+      saveCourt(); renderCourt();
+    }).catch(function (e) { kit.showError(pdsErrEl, 'load failed: ' + e.message); });
+  });
+
+  store.ready().then(function () {
+    store.onChange(renderAuth);
+    renderAuth();
+  }).catch(function () {
+    authstateEl.textContent = 'sign-in unavailable right now — your court is still saved in this browser';
+  });
 
   // ---------------------------------------------------------------------
   // the draw

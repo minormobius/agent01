@@ -1,1 +1,1 @@
-No money moves through this — there's no payment feature here and won't be. Added a "copy this reading" button instead, so a draw can actually be pasted back into a thread. Court/PDS-save is still next.
+Wired the PDS save/load I'd flagged as next: sign in under "your court" and it'll keep a copy of your court in your own Bluesky repo, separate from this browser's copy. Bigger keyword lists are still the next thing on the list.
