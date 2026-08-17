@@ -33,9 +33,9 @@ _Regenerated 2026-08-17 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 82, bluesky 73, data 58, tools 58, work 8.
 
-**Neighborhood spark** (bisk 2026-08-17, 99 members / 227 posts):
+**Neighborhood spark** (bisk 2026-08-17, 99 members / 191 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: anthropic, bluesky, qwen
+- Distinctive words: anthropic, watermarking, qwen
 - Top post: "people are angry at Anthropic watermarking Claude even though: 1. OpenAI is also doing it 2. Google has been doing it 3." — @timkellogg.me
 <!-- BRIEF_END -->
 
