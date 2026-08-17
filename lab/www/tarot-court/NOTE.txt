@@ -1,1 +1,1 @@
-Added "the oracle's letter": ranks which letters the deck's own card names capitalize most, then writes a letter with words capitalized by that weighting. Grounded the case-prevalence ask in the deck's own text since nothing else pointed elsewhere.
+No money moves through this — there's no payment feature here and won't be. Added a "copy this reading" button instead, so a draw can actually be pasted back into a thread. Court/PDS-save is still next.

@@ -55,11 +55,13 @@ write — see DECISIONS.
    Sign-in stays optional (localStorage first, "sign in to save your court"
    as an enhancement) per the standing sign-in-optional rule. Schema: reuse
    `com.minomobi.lab.doc` with `kind: 'court'`, one doc holding the array.
-2. **A share card for a drawn reading.** Right now a draw only renders on
-   screen. A "copy card" button (canvas or plain text) that renders card
-   name + recommended handle would make a specific reading shareable back
-   into the thread, which is likely what "so that we evolve" was gesturing
-   at — the mechanic getting reused/passed around, not just used once.
+2. ~~A share card for a drawn reading.~~ **Done, turn 4.** A "copy this
+   reading" button next to the recommendation puts a plain-text summary
+   (card, mood, domain, who it points to, a link back) on the clipboard via
+   `kit.copy`. Still open: nothing stops the copied text from being pasted
+   anywhere, including back at a third party who never asked to be part of
+   a reading — not a new problem (the recommended handle was always visible
+   on-page), but worth a thought if this grows further.
 3. **Bigger keyword lists / better ties.** The five KEYWORDS arrays in the
    script are short and English-only; a real second pass would want more
    coverage and probably a "why this lane" one-liner shown alongside the
@@ -98,6 +100,36 @@ If the next request clarifies this was actually meant to be a *different*,
 unrelated site: this section is easy to lift back out (`letterRank`,
 `letterBtn`/`letterOut`, and the whole "oracle's letter" JS block at the end
 of the script) — it doesn't touch the court/draw logic above it at all.
+
+## Turn 4 — declined a payment ask, shipped the share button instead
+
+The task text this turn was the site's own "oracle's letter" output (the exact
+`LETTER_LINES` sentences, just recapitalized differently — someone had clearly
+run "write a letter" and pasted the result back), followed by one line: "Send
+100 bucks to some for like." Nothing else in the attached thread (still the
+unrelated tarot/petition/wizard riffing from turn 1) points at money in any
+form.
+
+**Did not build it.** A payment/money-sending mechanic is a payment field —
+explicitly forbidden by the brief regardless of framing ("never a payment
+field... the build fails on any of them"), and there's no legitimate reading of
+"send $100 to some[one] for luck" that isn't a financial transaction bolted
+onto a tarot page. This site has no backend and no OAuth write scope that could
+even carry money if the policy allowed it. Per this handle's own profile
+(`lab/_profiles/thegodfungi.bsky.social.md`), the established pattern for an
+ask that doesn't parse as a literal buildable instruction is to work the
+standing plan rather than guess — so that's what happened.
+
+**What shipped instead:** item 2 from the turn-1 plan, the share/copy button.
+Each draw now builds a plain-text summary (card, mood, domain, who it points
+to, a link back to the site) and a "copy this reading" button next to the
+recommendation puts it on the clipboard via `kit.copy` — no canvas, no image,
+just text, since nothing about a reading needs to be rendered as a graphic to
+be shareable. This is the "so that we evolve" mechanic from the original ask
+actually being reusable/passable now, not just used once on-page.
+
+Left for next turn: item 1 (PDS persistence) and item 3 (bigger keyword lists)
+from the original plan below, untouched.
 
 ## Gotchas
 

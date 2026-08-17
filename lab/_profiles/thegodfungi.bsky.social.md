@@ -276,3 +276,15 @@ when a follow-up doesn't parse as an instruction AND doesn't point at
 anything buildable on the page, defaulting to "keep executing the plan the
 last turn already laid out" is the safe read for this handle, not a
 last resort.
+
+## Twentieth build (hey-tarot/tarot-court, iteration — declined payment ask)
+
+Task text was the site's own generated "oracle letter" output pasted back,
+followed by "Send 100 bucks to some for like." Read as a financial-transaction
+ask (however garbled) rather than a feature description with no buildable
+mechanic behind it — declined outright, no payment field exists on this site
+or ever will per the standing policy. Rather than stall, defaulted to the
+already-established pattern for this handle (work the standing plan when a
+follow-up doesn't parse into something buildable) and shipped the next queued
+plan item instead. Worth flagging if a future ask from this handle repeats a
+money/payment framing in a clearer form — so far a single, ambiguous instance.

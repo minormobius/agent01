@@ -59,6 +59,7 @@
   .recCard .h { color: var(--muted); font-size: .8rem; }
   .recLead { color: var(--muted); font-size: .8rem; margin-bottom: .5rem; }
   .noMatch { color: var(--muted); font-size: .85rem; margin-top: 1rem; }
+  .shareRow { margin-top: 1rem; display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
 
   .note { margin-top: 2.5rem; }
 
@@ -113,6 +114,10 @@
         <div class="mood" id="cardMood"></div>
       </div>
       <div class="recBlock" id="recBlock"></div>
+      <div class="shareRow">
+        <button type="button" id="shareBtn">copy this reading</button>
+        <span class="hint">copies the card and who it points to as plain text — nothing is sent anywhere</span>
+      </div>
     </div>
   </section>
 
@@ -364,6 +369,8 @@
   var cardMoodEl = document.getElementById('cardMood');
   var recBlockEl = document.getElementById('recBlock');
   var problemEl = document.getElementById('problem');
+  var shareBtn = document.getElementById('shareBtn');
+  var shareText = '';
 
   function recCardNode(member) {
     var a = document.createElement('a');
@@ -393,20 +400,27 @@
 
     var matches = court.filter(function (m) { return m.domain === card.suit; });
     recBlockEl.replaceChildren();
+    var recLine;
     if (matches.length) {
       var pick = matches[Math.floor(Math.random() * matches.length)];
       var lead = document.createElement('div'); lead.className = 'recLead';
       lead.textContent = text ? 'the deck says go talk to —' : 'from your court —';
       recBlockEl.appendChild(lead);
       recBlockEl.appendChild(recCardNode(pick));
+      recLine = 'go talk to @' + pick.handle + ' (bsky.app/profile/' + pick.handle + ')';
     } else {
       var p = document.createElement('p'); p.className = 'noMatch';
       p.textContent = 'nobody in your court is tagged for ' + domainLabel(card.suit) +
         ' yet — add someone above and tag them for it.';
       recBlockEl.appendChild(p);
+      recLine = 'nobody in the court is tagged for ' + domainLabel(card.suit) + ' yet';
     }
+    shareText = card.name + ' — ' + card.mood + '\nfor ' + card.domain + '\n' + recLine +
+      '\n\ndrawn at Tarot Court, minomobi.com/tarot-court/';
     readingEl.classList.remove('hidden');
   });
+
+  shareBtn.addEventListener('click', function () { kit.copy(shareText, shareBtn); });
 
   // ---------------------------------------------------------------------
   // the oracle's letter — the "accessible database" is this deck's own
