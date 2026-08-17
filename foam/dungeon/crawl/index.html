@@ -134,7 +134,9 @@
     <p><b>click / tap</b> any lit tile to walk there — the lit squares are your
     movement range for this turn (set it with the <b>movement</b> slider,
     <b>↻ end turn</b> refreshes it) · <b>WASD / arrows</b> step one tile ·
-    <b>drag</b> to orbit · doors show a button when you stand on their tile.</p>
+    <b>drag</b> to orbit · doorways are open gaps in the walls — walk (or
+    click) straight through them; adjacent chambers come into view as you
+    approach.</p>
     <p class="dim" id="introMeta"></p>
     <button id="begin">descend</button>
   </div>
@@ -233,6 +235,14 @@ let tileMesh = null;       // merged tiles (picking → nearest centre)
 let edgeLines = null;      // tile edges (known tiles only)
 let hiliteMesh = null;     // reachable-neighbour overlay
 let token = null;
+let neighborGroups = new Map();  // adjacent rooms rendered continuously: id → {grp, mesh, info}
+
+// the CONTINUOUS dungeon: no door props — a doorway is a 1–2 tile GAP in
+// the wall. Wall segments within this radius of a certified door station
+// are simply not built, on both sides of the membrane.
+const DOOR_GAP = () => J.tile.size * 1.15;
+const nearDoorGap = (info, x, z) =>
+  info.doors.some((d) => (d.at[0] - x) ** 2 + (d.at[2] - z) ** 2 < DOOR_GAP() ** 2);
 
 // tile color through the fog — the single source for build + recolor
 function colorOf(r, t) {
@@ -258,7 +268,8 @@ function colorOf(r, t) {
   return know === 'stale' ? c.map((v) => v * 0.42) : c;
 }
 
-// recolor tiles + rebuild known edges + marker/mob visibility, in place
+// recolor tiles + rebuild known edges + marker/mob visibility, in place —
+// the current room AND every rendered neighbor, each per its own fog
 function refreshFog() {
   if (!tileMesh) return;
   const r = roomInfo(curRoom);
@@ -269,6 +280,15 @@ function refreshFog() {
     for (let i = 0; i < count; i++) attr.setXYZ(start + i, c[0], c[1], c[2]);
   }
   attr.needsUpdate = true;
+  for (const [, nb] of neighborGroups) {
+    const na = nb.mesh.geometry.getAttribute('color');
+    for (const t of nb.info.tiles) {
+      const [start, count] = nb.mesh.userData.ranges.get(t.key);
+      const c = colorOf(nb.info, t);
+      for (let i = 0; i < count; i++) na.setXYZ(start + i, c[0], c[1], c[2]);
+    }
+    na.needsUpdate = true;
+  }
   const ep = [];
   for (const t of r.tiles) {
     if (knowledge(curRoom, t.key) === 'unknown') continue;
@@ -283,7 +303,7 @@ function refreshFog() {
   edgeLines.geometry.setAttribute('position', new THREE.Float32BufferAttribute(ep, 3));
   roomGroup.traverse((o) => {
     if (o.userData.fogTile === undefined) return;
-    const k = knowledge(curRoom, o.userData.fogTile);
+    const k = knowledge(o.userData.fogRoom ?? curRoom, o.userData.fogTile);
     o.visible = o.userData.isMob ? k === 'live' : k !== 'unknown';
   });
 }
@@ -340,6 +360,7 @@ function pyramid(size, h, color, down, wire = false) {
 function buildRoom(id) {
   disposeGroup(roomGroup);
   spinners = [];
+  neighborGroups = new Map();
   roomGroup = new THREE.Group();
   const R = crawl.rooms.get(id);
   const r = R.info;
@@ -384,6 +405,9 @@ function buildRoom(id) {
     for (const loop of r.outline) {
       for (let i = 0; i + 1 < loop.length; i++) {
         const [ax, az] = loop[i], [bx, bz] = loop[i + 1];
+        // a doorway is a GAP: segments near a certified door station are
+        // simply not walled — the rooms connect continuously
+        if (nearDoorGap(r, (ax + bx) / 2, (az + bz) / 2)) continue;
         const ay = yNear(ax, az), by = yNear(bx, bz);
         pos.push(ax, ay, az, bx, by, bz, bx, by + H, bz);
         pos.push(ax, ay, az, bx, by + H, bz, ax, ay + H, az);
@@ -405,18 +429,14 @@ function buildRoom(id) {
     roomGroup.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: css('#2b6a72'), transparent: true, opacity: 0.8 })));
   }
 
-  // -- doors: glowing columns at the certified stations
+  // -- doorways: no props, the wall gap IS the door. A flat threshold ring
+  //    on the floor marks the opening (and pulses when the guide suggests it)
   for (const d of R.doors) {
-    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 2.3, 10),
-      new THREE.MeshBasicMaterial({ color: css('#ffce78'), transparent: true, opacity: 0.75 }));
-    col.position.set(d.at[0], d.at[1] + 1.15, d.at[2]);
-    col.userData.doorFace = d.face;
-    col.userData.fogTile = d.tile;
-    roomGroup.add(col);
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.05, 8, 28),
-      new THREE.MeshBasicMaterial({ color: css('#ffce78'), transparent: true, opacity: 0.6 }));
+      new THREE.MeshBasicMaterial({ color: css('#ffce78'), transparent: true, opacity: 0.45 }));
     ring.rotation.x = Math.PI / 2;
     ring.position.set(d.at[0], d.at[1] + 0.12, d.at[2]);
+    ring.userData.doorFace = d.face;
     ring.userData.fogTile = d.tile;
     roomGroup.add(ring);
   }
@@ -553,8 +573,108 @@ function buildRoom(id) {
   token.add(tring);
   roomGroup.add(token);
 
+  // -- the CONTINUOUS neighborhood: every room a doorway opens into is
+  //    rendered too — its own fog, its own gapped walls — so spinning the
+  //    camera shows the adjacent chambers through the openings. Rooms
+  //    further than one doorway stay unbuilt: the dungeon reveals itself
+  //    one opening at a time.
+  for (const d of R.doors) {
+    if (d.farTile === null || neighborGroups.has(d.to) || d.to === id) continue;
+    buildNeighbor(d.to);
+  }
+
   hiliteMesh = null;
   scene.add(roomGroup);
+}
+
+// a door-adjacent room, rendered continuously: fog-colored tiles (with
+// recolor ranges), gapped walls a shade dimmer, and whatever content the
+// fog admits. Tagged with fogRoom so refreshFog governs it per ITS tiles.
+function buildNeighbor(id) {
+  const R = crawl.rooms.get(id);
+  const r = R.info;
+  const grp = new THREE.Group();
+  const pos = [], col = [];
+  const ranges = new Map();
+  for (const t of r.tiles) {
+    const start = pos.length / 3;
+    pushTile(pos, col, t, colorOf(r, t));
+    ranges.set(t.key, [start, pos.length / 3 - start]);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  mesh.userData.ranges = ranges;
+  mesh.userData.roomId = id;
+  grp.add(mesh);
+  {
+    const yNear = (x, z) => {
+      let best = r.floorY, bd = Infinity;
+      for (const t of r.tiles) {
+        const d = (t.x - x) ** 2 + (t.z - z) ** 2;
+        if (d < bd) { bd = d; best = t.y; }
+      }
+      return best;
+    };
+    const H = 2.6;
+    const wp = [], lp = [];
+    for (const loop of r.outline) {
+      for (let i = 0; i + 1 < loop.length; i++) {
+        const [ax, az] = loop[i], [bx, bz] = loop[i + 1];
+        if (nearDoorGap(r, (ax + bx) / 2, (az + bz) / 2)) continue;
+        const ay = yNear(ax, az), by = yNear(bx, bz);
+        wp.push(ax, ay, az, bx, by, bz, bx, by + H, bz);
+        wp.push(ax, ay, az, bx, by + H, bz, ax, ay + H, az);
+        lp.push(ax, ay + H, az, bx, by + H, bz);
+      }
+    }
+    const wg = new THREE.BufferGeometry();
+    wg.setAttribute('position', new THREE.Float32BufferAttribute(wp, 3));
+    grp.add(new THREE.Mesh(wg, new THREE.MeshBasicMaterial({
+      color: css('#0d2126'), transparent: true, opacity: 0.4, side: THREE.FrontSide, depthWrite: false,
+    })));
+    const lg = new THREE.BufferGeometry();
+    lg.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3));
+    grp.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: css('#2b6a72'), transparent: true, opacity: 0.5 })));
+  }
+  // content the fog may admit (visibility is set by refreshFog per tile)
+  for (const [k, e] of fx) {
+    if (Number(k.split(':')[0]) !== id || e.done) continue;
+    const t = R.byKey.get(e.tile);
+    if (!t) continue;
+    let m = null;
+    if (e.type === 'obstacle') {
+      m = new THREE.Mesh(new THREE.OctahedronGeometry(J.tile.size * 0.34, 0),
+        new THREE.MeshBasicMaterial({ color: css('#3a4a52') }));
+      m.position.set(t.x, t.y + J.tile.size * 0.3, t.z);
+    } else if (e.type === 'loot' || e.type === 'treasure') {
+      const big = e.type === 'treasure';
+      m = pyramid(J.tile.size * (big ? 0.3 : 0.18), J.tile.size * (big ? 0.5 : 0.3),
+        big ? '#ffdf9e' : '#d8a94e', false);
+      m.position.set(t.x, t.y + J.tile.size * (big ? 0.3 : 0.2), t.z);
+      spinners.push(m);
+    } else if (e.type === 'trap' && e.sprung) {
+      m = pyramid(J.tile.size * 0.2, J.tile.size * 0.4, '#ff6e5a', true);
+      m.position.set(t.x, t.y + J.tile.size * 0.55, t.z);
+      spinners.push(m);
+    }
+    if (m) { m.userData.fogTile = e.tile; m.userData.fogRoom = id; grp.add(m); }
+  }
+  for (const a of mobs) {
+    if (a.room !== id || a.hp <= 0) continue;
+    const t = R.byKey.get(a.tile);
+    if (!t) continue;
+    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(J.tile.size * (0.2 + a.hp * 0.05), 0),
+      new THREE.MeshBasicMaterial({ color: css(ENEMY_TYPES[a.type].color) }));
+    m.position.set(t.x, t.y + 0.55, t.z);
+    m.userData.isMob = true;
+    m.userData.fogTile = a.tile;
+    m.userData.fogRoom = id;
+    grp.add(m);
+  }
+  roomGroup.add(grp);
+  neighborGroups.set(id, { grp, mesh, info: r });
 }
 
 // the LEGAL SQUARES: everything within the remaining movement budget,
@@ -570,9 +690,12 @@ function refreshHilites() {
   for (const [k, cost] of rangeMap) {
     if (cost === 0) continue;
     const [ri, tk] = [Number(k.split(':')[0]), k.slice(k.indexOf(':') + 1)];
-    if (ri !== curRoom) continue;                    // far-room reach shows on doors
-    if (knowledge(curRoom, tk) === 'unknown') continue;   // the fog keeps its secrets
-    const t = R.byKey.get(tk);
+    // the dungeon is continuous: range lights up through doorways into any
+    // rendered neighbor too (the fog still keeps its secrets)
+    if (ri !== curRoom && !neighborGroups.has(ri)) continue;
+    if (knowledge(ri, tk) === 'unknown') continue;
+    const t = crawl.rooms.get(ri).byKey.get(tk);
+    if (!t) continue;
     const f = 1 - (cost - 1) / Math.max(1, moveLeft); // 1 near → 0 at range edge
     pushTile(pos, col, t, [0.10 + 0.28 * f, 0.30 + 0.48 * f, 0.30 + 0.44 * f], 0.06);
   }
@@ -600,10 +723,10 @@ function refreshHilites() {
 // token with line-of-sight: rubble blocks sight, which is what makes it
 // COVER. Walls occlude by construction (vision is per-room).
 const VISION_R = () => J.tile.size * 4.5;
-function losClear(R, from, to) {
+function losClear(rid, R, from, to) {
   // sight is blocked when the segment passes over an obstacle tile
   for (const [k, e] of fx) {
-    if (e.type !== 'obstacle' || Number(k.split(':')[0]) !== curRoom) continue;
+    if (e.type !== 'obstacle' || Number(k.split(':')[0]) !== rid) continue;
     const o = R.byKey.get(e.tile);
     if (!o || o === from || o === to) continue;
     // distance from obstacle centre to the segment
@@ -617,15 +740,33 @@ function losClear(R, from, to) {
   }
   return true;
 }
+// visibility as 'room:tile' keys — the room you stand in, plus PORTAL
+// vision: a doorway you can see acts as a light source into its neighbor,
+// spending whatever sight radius remains past the opening (walls occlude
+// by construction; only the gap lets sight through). Rubble in the far
+// room blocks the far leg the same way it blocks the near one.
 function visibleNow() {
   const R = crawl.rooms.get(curRoom);
   const me = R.byKey.get(curTile);
   const out = new Set();
-  const r2 = VISION_R() ** 2;
+  const r = VISION_R();
   for (const t of roomInfo(curRoom).tiles) {
-    if ((t.x - me.x) ** 2 + (t.z - me.z) ** 2 > r2) continue;
-    if (!losClear(R, me, t)) continue;
-    out.add(t.key);
+    if ((t.x - me.x) ** 2 + (t.z - me.z) ** 2 > r * r) continue;
+    if (!losClear(curRoom, R, me, t)) continue;
+    out.add(curRoom + ':' + t.key);
+  }
+  for (const d of R.doors) {
+    if (d.farTile === null) continue;
+    const gate = { x: d.at[0], z: d.at[2] };
+    const dd = Math.hypot(gate.x - me.x, gate.z - me.z);
+    if (dd > r || !losClear(curRoom, R, me, gate)) continue;
+    const left = r - dd + J.tile.size * 0.5;
+    const NR = crawl.rooms.get(d.to);
+    for (const t of roomInfo(d.to).tiles) {
+      if ((t.x - gate.x) ** 2 + (t.z - gate.z) ** 2 > left * left) continue;
+      if (!losClear(d.to, NR, gate, t)) continue;
+      out.add(d.to + ':' + t.key);
+    }
   }
   return out;
 }
@@ -633,12 +774,9 @@ function recomputeVision() {
   const vis = visibleNow();
   let changed = false;
   for (const [k, st] of seenTiles) {
-    if (Number(k.split(':')[0]) !== curRoom) continue;
-    const tk = k.slice(k.indexOf(':') + 1);
-    if (st === 'live' && !vis.has(tk)) { seenTiles.set(k, 'stale'); changed = true; }
+    if (st === 'live' && !vis.has(k)) { seenTiles.set(k, 'stale'); changed = true; }
   }
-  for (const tk of vis) {
-    const k = curRoom + ':' + tk;
+  for (const k of vis) {
     if (seenTiles.get(k) !== 'live') { seenTiles.set(k, 'live'); changed = true; }
   }
   return changed;
@@ -660,7 +798,7 @@ function enemiesAware() {
     if (m.hp <= 0 || m.room !== curRoom) return false;
     if (alert) return true;
     const t = R.byKey.get(m.tile);
-    return t && (t.x - me.x) ** 2 + (t.z - me.z) ** 2 <= r2 && losClear(R, me, t);
+    return t && (t.x - me.x) ** 2 + (t.z - me.z) ** 2 <= r2 && losClear(curRoom, R, me, t);
   });
 }
 function updateMode() {
@@ -685,7 +823,7 @@ function enemyStep(mob) {
   const me = here ? R.byKey.get(curTile) : null;
   const mt = R.byKey.get(mob.tile);
   const hunting = alert || (here && me && mt &&
-    (mt.x - me.x) ** 2 + (mt.z - me.z) ** 2 <= VISION_R() ** 2 && losClear(R, me, mt));
+    (mt.x - me.x) ** 2 + (mt.z - me.z) ** 2 <= VISION_R() ** 2 && losClear(mob.room, R, me, mt));
   const blocked = mobTiles();
   const stepOk = (nk) => R.byKey.get(nk).kind === 'floor' && !blocked.has(mob.room + ':' + nk) &&
     !(here && nk === curTile);
@@ -1080,31 +1218,53 @@ function stepTo(key) {
   return true;
 }
 
-// walk TOWARD any tile of the room — forgiving movement: if the intent is
-// out of range or unreachable, take the shortest path to the reachable
-// tile nearest it and go as far as this turn's budget allows
-function walkTo(key) {
+// walk TOWARD any tile of any rendered room — the dungeon is continuous,
+// so the path may pass through doorways. Forgiving movement: if the intent
+// is out of range or unreachable, take the shortest path to the reachable
+// tile nearest it and go as far as this turn's budget allows.
+// walkQueue holds [room, tile] pairs; a room change consumes the doorway.
+function walkTo(key, room = curRoom) {
   if (walkQueue.length || dead || moveLeft <= 0) return false;
-  const R = crawl.rooms.get(curRoom);
-  const target = R.byKey.get(key);
+  const target = crawl.rooms.get(room)?.byKey.get(key);
   if (!target) return false;
   const blocked = mobTiles();
-  const prev = new Map([[curTile, null]]);
-  const q = [curTile];
+  const sk = curRoom + ':' + curTile;
+  const prev = new Map([[sk, null]]);
+  const q = [[curRoom, curTile]];
   for (let h = 0; h < q.length; h++) {
-    for (const nk of R.adj.get(q[h]) ?? []) {
-      if (!prev.has(nk) && !blocked.has(curRoom + ':' + nk)) { prev.set(nk, q[h]); q.push(nk); }
-    }
+    const [ri, tk] = q[h];
+    const R = crawl.rooms.get(ri);
+    const grow = (nr, nk) => {
+      const k = nr + ':' + nk;
+      if (!prev.has(k) && !blocked.has(k)) { prev.set(k, [ri, tk]); q.push([nr, nk]); }
+    };
+    for (const nk of R.adj.get(tk) ?? []) grow(ri, nk);
+    for (const d of R.doors) if (d.tile === tk && d.farTile !== null) grow(d.to, d.farTile);
   }
   let best = null, bd = Infinity;
   for (const k of prev.keys()) {
-    const t = R.byKey.get(k);
+    const [ri, tk] = [Number(k.split(':')[0]), k.slice(k.indexOf(':') + 1)];
+    if (ri !== room) continue;                       // land in the intended room
+    const t = crawl.rooms.get(ri).byKey.get(tk);
     const d2 = (t.x - target.x) ** 2 + (t.z - target.z) ** 2;
     if (d2 < bd - 1e-9) { bd = d2; best = k; }
   }
-  if (!best || best === curTile) return false;
+  if (best === null) {                               // room unreachable — go anywhere nearer
+    for (const k of prev.keys()) {
+      const [ri, tk] = [Number(k.split(':')[0]), k.slice(k.indexOf(':') + 1)];
+      const t = crawl.rooms.get(ri).byKey.get(tk);
+      const d2 = (t.x - target.x) ** 2 + (t.z - target.z) ** 2;
+      if (d2 < bd - 1e-9) { bd = d2; best = k; }
+    }
+  }
+  if (!best || best === sk) return false;
   const path = [];
-  for (let k = best; k !== curTile; k = prev.get(k)) path.push(k);
+  for (let k = best; k !== sk; ) {
+    const [ri, tk] = [Number(k.split(':')[0]), k.slice(k.indexOf(':') + 1)];
+    path.push([ri, tk]);
+    const p = prev.get(k);
+    k = p[0] + ':' + p[1];
+  }
   path.reverse();
   walkQueue = mode === 'encounter' ? path.slice(0, moveLeft) : path;
   return walkQueue.length > 0;
@@ -1123,9 +1283,8 @@ function transit(door) {
   buildRoom(curRoom);
   placeToken(false);
   recomputeVision(); refreshFog(); updateMode();
-  const t = crawl.rooms.get(curRoom).byKey.get(curTile);
-  controls.target.set(t.x, t.y + 0.6, t.z);
-  camera.position.set(t.x + 6, t.y + 6.5, t.z + 6);
+  // NO camera snap: the dungeon is continuous — the camera keeps orbiting
+  // and the controls target lerps after the token through the doorway
   // the heist exit: reach the entrance carrying treasure and slip out
   if (roomInfo(curRoom).role === 'entrance' && treasures > 0 && !$('win').classList.contains('on')) {
     $('win').querySelector('h1').textContent = 'escaped the foam';
@@ -1152,8 +1311,12 @@ canvas.addEventListener('pointerup', (e) => {
   if (moved > 6 || !crawl) return;
   const ndc = new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(ndc, camera);
-  const hits = ray.intersectObject(tileMesh, false);
+  // the dungeon is continuous: pick against the current room AND every
+  // rendered neighbor — clicking through a doorway walks through it
+  const pickables = [tileMesh, ...[...neighborGroups.values()].map((n) => n.mesh)];
+  const hits = ray.intersectObjects(pickables, false);
   let p = hits[0]?.point ?? null;
+  let pickRoom = hits[0] ? (hits[0].object.userData.roomId ?? curRoom) : curRoom;
   if (!p) {
     // walls (and empty air) are transparent to clicks: fall back to the
     // room's median floor plane and take the nearest tile to that point
@@ -1170,14 +1333,14 @@ canvas.addEventListener('pointerup', (e) => {
     const t = R.byKey.get(nk);
     if ((t.x - p.x) ** 2 + (t.z - p.z) ** 2 < (J.tile.size * 0.8) ** 2) { attack(mob); return; }
   }
-  // otherwise walk TOWARD the nearest room tile to the click — even out of
-  // range, the token goes as far as the budget allows
+  // otherwise walk TOWARD the nearest tile of the picked room — even out
+  // of range or through a doorway, the token goes as far as it can
   let best = null, bd = Infinity;
-  for (const t of roomInfo(curRoom).tiles) {
+  for (const t of roomInfo(pickRoom).tiles) {
     const d = (t.x - p.x) ** 2 + (t.z - p.z) ** 2;
     if (d < bd) { bd = d; best = t.key; }
   }
-  if (best && bd < (J.tile.size * 1.6) ** 2) walkTo(best);
+  if (best && bd < (J.tile.size * 1.6) ** 2) walkTo(best, pickRoom);
 });
 
 // keys: pick the neighbour best aligned with the camera-relative direction
@@ -1191,14 +1354,23 @@ addEventListener('keydown', (e) => {
   const want = new THREE.Vector3().addScaledVector(right, d[0]).addScaledVector(fwd, -d[1]);
   const R = crawl.rooms.get(curRoom);
   const cur = R.byKey.get(curTile);
-  let best = null, bs = 0.25;
+  let best = null, bs = 0.25, bestDoor = null;
   for (const nk of R.adj.get(curTile) ?? []) {
     const t = R.byKey.get(nk);
     const v = new THREE.Vector3(t.x - cur.x, 0, t.z - cur.z).normalize();
     const s = v.dot(want.clone().normalize());
-    if (s > bs) { bs = s; best = nk; }
+    if (s > bs) { bs = s; best = nk; bestDoor = null; }
   }
-  if (best) { stepTo(best); e.preventDefault(); }
+  // standing in a doorway, stepping onward continues into the next room
+  for (const d of R.doors) {
+    if (d.tile !== curTile || d.farTile === null) continue;
+    const ft = crawl.rooms.get(d.to).byKey.get(d.farTile);
+    const v = new THREE.Vector3(ft.x - cur.x, 0, ft.z - cur.z).normalize();
+    const s = v.dot(want.clone().normalize());
+    if (s > bs) { bs = s; best = null; bestDoor = d; }
+  }
+  if (bestDoor) { transit(bestDoor); e.preventDefault(); }
+  else if (best) { stepTo(best); e.preventDefault(); }
 });
 
 // -------------------------------------------------------------- loading ----
@@ -1330,7 +1502,7 @@ window.__crawl = {
   get range() { return Object.fromEntries(rangeMap); },
   setMove: (n) => { $('moveSlider').value = n; $('moveSlider').oninput(); },
   endTurn: () => $('endTurn').click(),
-  walkTo: (k) => walkTo(k),
+  walkTo: (k, r) => walkTo(k, r ?? curRoom),
   walking: () => walkQueue.length,
   get doc() { return J; },
   neighbors: () => [...(crawl.rooms.get(curRoom).adj.get(curTile) ?? [])],
@@ -1338,6 +1510,8 @@ window.__crawl = {
   doorsHere: () => crawl.rooms.get(curRoom).doors.filter((d) => d.tile === curTile),
   adjOf: (room, tile) => [...(crawl.rooms.get(room).adj.get(tile) ?? [])],
   doorsOf: (room) => crawl.rooms.get(room).doors.map((d) => ({ to: d.to, face: d.face, tile: d.tile, farTile: d.farTile })),
+  neighborsBuilt: () => [...neighborGroups.keys()],
+  knowledgeOf: (room, tile) => knowledge(room, tile),
   linksOf: (room) => crawl.rooms.get(room).links.map((l) => ({ ...l })),
   transit: (face) => {
     const d = crawl.rooms.get(curRoom).doors.find((x) => x.face === face && x.tile === curTile);
@@ -1361,9 +1535,17 @@ start(dungeonToJSON(generateDungeon({
   if (token) {
     token.position.lerp(tokenTarget, 0.22);
     controls.target.lerp(new THREE.Vector3(tokenTarget.x, tokenTarget.y + 0.6, tokenTarget.z), 0.12);
-    // consume a queued multi-step walk one tile at a time, visibly
+    // consume a queued multi-step walk one tile at a time, visibly —
+    // a room change in the queue walks straight through the doorway
     if (walkQueue.length && token.position.distanceTo(tokenTarget) < 0.25) {
-      if (!stepTo(walkQueue.shift())) walkQueue = [];
+      const [nr, nk] = walkQueue.shift();
+      let okStep = false;
+      if (nr === curRoom) okStep = stepTo(nk);
+      else {
+        const d = crawl.rooms.get(curRoom).doors.find((x) => x.tile === curTile && x.to === nr && x.farTile === nk);
+        if (d) { transit(d); okStep = curRoom === nr; }
+      }
+      if (!okStep) walkQueue = [];
     }
   }
   controls.update();
