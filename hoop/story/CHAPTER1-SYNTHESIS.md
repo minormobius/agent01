@@ -9,6 +9,25 @@
 > **No code was changed for this doc.** It is the spec for the pass that follows.
 >
 > Status legend: ✅ built and exercised · 🟡 built, not exercised · 🔴 gap · 🔧 correction · ❓ needs Mobius
+>
+> ---
+>
+> **Update — P0-a is done, and the nave has its own brief now.** The 16-item rev has been run
+> through the live pipeline. Results, replacing the readings below where they differ:
+> - **The rev imports and reviews clean** — 16 bundles → 32 items, unique ids, `verdict: PASS`,
+>   0 conflicts. §2.2's schema reading was right and `expandRoomBundle` is now ✅, not 🟡.
+> - **§4.1 confirmed by execution**: `reactions` really is dropped on import.
+> - **§4.3's worry about `produces` was unfounded** — the review harness does carry it, and
+>   `gates.js` reachability is fine.
+> - 🔧 **§2.3 correction**: I flagged `ZONE_TIER.wards = 1` as inconsistent with the bible's
+>   tier 2. It isn't — `ZONE_TIER` is the tier at which a zone becomes *reachable*, and the whole
+>   nave is walkable from tier 1. No bug.
+> - **New blocker, not visible on paper**: the rev contains **no load-bearing anchors**, so
+>   `proveProgression` returns `no_anchors` — a set of rooms, not a campaign. Adding the two nave
+>   anchors and two missing gate-setters flips it to `solvable: true` (verified synthetically).
+>
+> The nave half of the work now lives in **[`NAVE-CONTENT-BRIEF.md`](NAVE-CONTENT-BRIEF.md)**, with
+> `scripts/nave-readiness.mjs` as its gate. The rinds (§6) are being reworked separately.
 
 ---
 
