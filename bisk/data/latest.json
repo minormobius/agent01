@@ -1,18 +1,18 @@
 {
   "date": "2026-08-18",
-  "generatedAt": "2026-08-18T13:01:36.235Z",
+  "generatedAt": "2026-08-18T13:40:48.452Z",
   "listUri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.graph.list/3mmcwc5lx7o2p",
   "listUrl": "https://bsky.app/profile/did:plc:7zre4plmd5jllccww575j6sb/lists/3mmcwc5lx7o2p",
   "memberCount": 99,
-  "postCount": 258,
+  "postCount": 262,
   "chickens": [
     {
       "handle": "hailey.at",
       "displayName": "hailey",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreic5hxsvugj4yanvd53cngk4ak24iy56r6fnwmw377i5s26hsnlh6i",
       "text": "*Opens X, The Everything App*\n\n\"Shota\" is a trending topic under \"Sports\"\n\nOne of the first posts links to likely CSAM\n\n*Closes X, The Everything App*",
-      "likeCount": 206,
-      "replyCount": 13,
+      "likeCount": 209,
+      "replyCount": 14,
       "repostCount": 19,
       "url": "https://bsky.app/profile/hailey.at/post/3mtczlnc6ys2y"
     },
@@ -21,7 +21,7 @@
       "displayName": "hailey",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreic5hxsvugj4yanvd53cngk4ak24iy56r6fnwmw377i5s26hsnlh6i",
       "text": "\"who is spending money on tokens?\"\n\nevery engineering org worth their salt is who",
-      "likeCount": 186,
+      "likeCount": 187,
       "replyCount": 7,
       "repostCount": 8,
       "url": "https://bsky.app/profile/hailey.at/post/3mtcjktjz5s2j"
@@ -30,11 +30,11 @@
       "handle": "segyges.bsky.social",
       "displayName": "SE Gyges",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiempgjkhvjq2dobqkmd5pqd6lcbkhgejasfwh3zoygncjpwgqc7te",
-      "text": "china hysteria is slopulism that works on Congress, and exists primarily so that larry ellison and other american oligarchs can demand laws and money from the government.\n\nand it works",
-      "likeCount": 153,
-      "replyCount": 4,
-      "repostCount": 22,
-      "url": "https://bsky.app/profile/segyges.bsky.social/post/3mtc3nzsmdk2q"
+      "text": "yeah for what it's worth having a somewhat anti-datacenter stance that nets out to \"make them pay for the shit they are using\" would be extremely helpful because it would hedge out this guy and also not punch local construction unions in the balls",
+      "likeCount": 160,
+      "replyCount": 5,
+      "repostCount": 13,
+      "url": "https://bsky.app/profile/segyges.bsky.social/post/3mtdhiicr7c2h"
     }
   ],
   "delver": {
@@ -50,38 +50,38 @@
     "atUri": "at://did:plc:dzvxvsiy3maw4iarpvizsj67/app.bsky.feed.post/3mtcfprlics2d"
   },
   "weather": {
-    "index": 0.126,
+    "index": 0.143,
     "label": "Fair",
     "glyph": "🌤",
     "mood": "trust",
     "verbosity": 21,
-    "scoredWords": 849,
-    "corpusPosts": 563,
+    "scoredWords": 874,
+    "corpusPosts": 570,
     "emotions": {
-      "anger": 149,
-      "anticipation": 245,
-      "disgust": 105,
-      "fear": 177,
-      "joy": 222,
+      "anger": 150,
+      "anticipation": 255,
+      "disgust": 107,
+      "fear": 184,
+      "joy": 231,
       "sadness": 156,
-      "surprise": 124,
-      "trust": 340
+      "surprise": 128,
+      "trust": 352
     },
     "distinctive": [
       {
         "word": "anthropic",
         "count": 8,
-        "over": 9941.2
+        "over": 9585.1
       },
       {
         "word": "substack",
         "count": 6,
-        "over": 7455.9
+        "over": 7188.8
       },
       {
         "word": "openai",
         "count": 6,
-        "over": 7455.9
+        "over": 7188.8
       }
     ]
   },
@@ -372,7 +372,7 @@
       "handle": "segyges.bsky.social",
       "url": "https://bsky.app/profile/segyges.bsky.social/post/3mtdbtcdfek25",
       "uri": "at://did:plc:vszw3ess46odfhnzdsy4huae/app.bsky.feed.post/3mtdbtcdfek25",
-      "likeCount": 81
+      "likeCount": 82
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:7zre4plmd5jllccww575j6sb/bafkreifk3myvdk2xabhcrff5ktr4pecr2glkorwlelt2vnnsanvejf4m5i",
@@ -382,7 +382,7 @@
       "handle": "minormobius.bsky.social",
       "url": "https://bsky.app/profile/minormobius.bsky.social/post/3mtcguelxhc23",
       "uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3mtcguelxhc23",
-      "likeCount": 43
+      "likeCount": 44
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreibs37nqcwljikhyswxdpxo5g5lqsuo4xjd3s67rf247eopfk72llm",
@@ -392,7 +392,7 @@
       "handle": "timkellogg.me",
       "url": "https://bsky.app/profile/timkellogg.me/post/3mtcrfeyags2v",
       "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mtcrfeyags2v",
-      "likeCount": 38
+      "likeCount": 39
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreigqf2rx2y7bg46jm3q3vc7ddntyriisdwzga6uoyyxd72ohaolwc4",
@@ -402,7 +402,7 @@
       "handle": "isolyth.dev",
       "url": "https://bsky.app/profile/isolyth.dev/post/3mtck4wghf22z",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mtck4wghf22z",
-      "likeCount": 35
+      "likeCount": 36
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreieifztwgoe72466fxwkiloeqelac7omt5ilapsbgetmavyzf4bwui",
@@ -415,6 +415,16 @@
       "likeCount": 34
     },
     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:dzvxvsiy3maw4iarpvizsj67/bafkreibmtm33vyxs6e43a2nlhxjz7b64gasvphih33xry6h627ccg4hdba",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:dzvxvsiy3maw4iarpvizsj67/bafkreibmtm33vyxs6e43a2nlhxjz7b64gasvphih33xry6h627ccg4hdba",
+      "alt": "",
+      "ratio": 4.5616,
+      "handle": "dollspace.gay",
+      "url": "https://bsky.app/profile/dollspace.gay/post/3mtdkcrx5ic2q",
+      "uri": "at://did:plc:dzvxvsiy3maw4iarpvizsj67/app.bsky.feed.post/3mtdkcrx5ic2q",
+      "likeCount": 33
+    },
+    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:565ebob5f6hw33hjdkxty6qj/bafkreiecqibeymjqhrahlxa7fpacuk5tex2h3h3h53fd5tp6z37fugwmpq",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:565ebob5f6hw33hjdkxty6qj/bafkreiecqibeymjqhrahlxa7fpacuk5tex2h3h3h53fd5tp6z37fugwmpq",
       "alt": "Looks like a fragment of user dialogue: \"... the uncertainty interval? Please don't overcomplicate things by constructing a Bayesian meta-model if it can be avoided :) If there *is* a simple bootstrap-py approach here I do prefer the simplicity.\"",
@@ -425,16 +435,6 @@
       "likeCount": 33
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:dzvxvsiy3maw4iarpvizsj67/bafkreibmtm33vyxs6e43a2nlhxjz7b64gasvphih33xry6h627ccg4hdba",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:dzvxvsiy3maw4iarpvizsj67/bafkreibmtm33vyxs6e43a2nlhxjz7b64gasvphih33xry6h627ccg4hdba",
-      "alt": "",
-      "ratio": 4.5616,
-      "handle": "dollspace.gay",
-      "url": "https://bsky.app/profile/dollspace.gay/post/3mtdkcrx5ic2q",
-      "uri": "at://did:plc:dzvxvsiy3maw4iarpvizsj67/app.bsky.feed.post/3mtdkcrx5ic2q",
-      "likeCount": 32
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreihylndivjg5gkfur3qvddwq7oasz5bdvpux5u2uyenekx46m3ju54",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreihylndivjg5gkfur3qvddwq7oasz5bdvpux5u2uyenekx46m3ju54",
       "alt": "",
@@ -442,7 +442,7 @@
       "handle": "astrra.space",
       "url": "https://bsky.app/profile/astrra.space/post/3mtdxwsdink2m",
       "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3mtdxwsdink2m",
-      "likeCount": 29
+      "likeCount": 32
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:7zre4plmd5jllccww575j6sb/bafkreidb2c34ina7mkxrxqi6uqmrd7lm46tvyv76omlpcyxy7exzad6aty",
@@ -505,16 +505,6 @@
       "likeCount": 16
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h6tcd37yr7vk33uuisbidqvw/bafkreibifycauijujjgbi47todfd3adkbsewfrrpbaxrykbmp37tkntsua",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:h6tcd37yr7vk33uuisbidqvw/bafkreibifycauijujjgbi47todfd3adkbsewfrrpbaxrykbmp37tkntsua",
-      "alt": "The old way, so the new way makes sense\n\nThe first well-known scheme (Kirchenbauer's, 2023) did the obvious thing. Take a secret key, hash the previous token with it, and use that to randomly split the whole vocabulary into a \"green list\" and a \"red list\" — a fresh, unpredictable split at every single step. Then nudge: add a small constant to every green token's logit before sampling.",
-      "ratio": 5.6471,
-      "handle": "jefferyharrell.bsky.social",
-      "url": "https://bsky.app/profile/jefferyharrell.bsky.social/post/3mtc7p2iht22u",
-      "uri": "at://did:plc:h6tcd37yr7vk33uuisbidqvw/app.bsky.feed.post/3mtc7p2iht22u",
-      "likeCount": 12
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreiaks6q4qgxrkpg6e7a5mgtzr73c2updw6eeqpoeghp27zrqi7qwi4",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreiaks6q4qgxrkpg6e7a5mgtzr73c2updw6eeqpoeghp27zrqi7qwi4",
       "alt": "Line graph plotting AI model performance on an \"Intelligence Index\" (vertical axis, 30 to 65) against \"Cost per benchmark task in USD\" on a logarithmic scale (horizontal axis, $0.01 to $2.00).\nA dashed purple line illustrates an upward trend where higher intelligence scores correlate with higher task costs. A vertical dotted orange line marks a budget limit at $0.05.\n * Under $0.05 (Budget Tier): Features GPT-5.6 Luna variants scaling from medium (index ~39 at $0.01) to max (index ~52 at $0.05, highlighted in a green circle).\n * $0.10 to $0.50 (Mid-tier): Includes DeepSeek V4 Pro max (index ~53), Gemini 3.7 Flash medium (index ~53), GPT-5.6 Terra xhigh (index ~53), GPT-5.6 Sol medium (index ~56), and Muse Spark 1.2 xhigh (index ~57).\n * $0.50 to $2.00 (High-tier): Includes Claude Opus 5 medium (index ~59), GPT-5.6 Sol xhigh (index ~59), Grok 4.6 high (index ~61), and Claude Opus 5 xhigh reaching the highest score overall (index ~63 at ~$1.80).\n",
@@ -522,6 +512,26 @@
       "handle": "timkellogg.me",
       "url": "https://bsky.app/profile/timkellogg.me/post/3mte4a5qh6k2c",
       "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mte4a5qh6k2c",
+      "likeCount": 14
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:wamidydbgu3u6fk3yckaglnz/bafkreidy7f2x2jjxt7p5evwlngbjbgoupluir7xe5uvqsudj6gkyqb622m",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:wamidydbgu3u6fk3yckaglnz/bafkreidy7f2x2jjxt7p5evwlngbjbgoupluir7xe5uvqsudj6gkyqb622m",
+      "alt": "nvidia-smi across my two machines, showing\n- one machine with a RTX 5090 at 100% utililsation, drawing 571W\n- another machine with two RTX 3090s at 100% utilisation, drawing 230W each ",
+      "ratio": 1.4681,
+      "handle": "philpax.me",
+      "url": "https://bsky.app/profile/philpax.me/post/3mte4bndv6k2b",
+      "uri": "at://did:plc:wamidydbgu3u6fk3yckaglnz/app.bsky.feed.post/3mte4bndv6k2b",
+      "likeCount": 13
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h6tcd37yr7vk33uuisbidqvw/bafkreibifycauijujjgbi47todfd3adkbsewfrrpbaxrykbmp37tkntsua",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:h6tcd37yr7vk33uuisbidqvw/bafkreibifycauijujjgbi47todfd3adkbsewfrrpbaxrykbmp37tkntsua",
+      "alt": "The old way, so the new way makes sense\n\nThe first well-known scheme (Kirchenbauer's, 2023) did the obvious thing. Take a secret key, hash the previous token with it, and use that to randomly split the whole vocabulary into a \"green list\" and a \"red list\" — a fresh, unpredictable split at every single step. Then nudge: add a small constant to every green token's logit before sampling.",
+      "ratio": 5.6471,
+      "handle": "jefferyharrell.bsky.social",
+      "url": "https://bsky.app/profile/jefferyharrell.bsky.social/post/3mtc7p2iht22u",
+      "uri": "at://did:plc:h6tcd37yr7vk33uuisbidqvw/app.bsky.feed.post/3mtc7p2iht22u",
       "likeCount": 12
     },
     {
@@ -543,16 +553,6 @@
       "url": "https://bsky.app/profile/minormobius.bsky.social/post/3mtcgp4d7wk23",
       "uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3mtcgp4d7wk23",
       "likeCount": 12
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:wamidydbgu3u6fk3yckaglnz/bafkreidy7f2x2jjxt7p5evwlngbjbgoupluir7xe5uvqsudj6gkyqb622m",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:wamidydbgu3u6fk3yckaglnz/bafkreidy7f2x2jjxt7p5evwlngbjbgoupluir7xe5uvqsudj6gkyqb622m",
-      "alt": "nvidia-smi across my two machines, showing\n- one machine with a RTX 5090 at 100% utililsation, drawing 571W\n- another machine with two RTX 3090s at 100% utilisation, drawing 230W each ",
-      "ratio": 1.4681,
-      "handle": "philpax.me",
-      "url": "https://bsky.app/profile/philpax.me/post/3mte4bndv6k2b",
-      "uri": "at://did:plc:wamidydbgu3u6fk3yckaglnz/app.bsky.feed.post/3mte4bndv6k2b",
-      "likeCount": 11
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hsqwcidfez66lwm3gxhfv5in/bafkreic2qrsi5lleqo6rwvuayrbh72vjfirjdt5k6gx5mwzsqwtjuc6jom",
@@ -655,26 +655,6 @@
       "likeCount": 6
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreidu7difvmsbxbbvg2lpqtcytz7uy3ec3ys76wt5sketqg47hyi7te",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreidu7difvmsbxbbvg2lpqtcytz7uy3ec3ys76wt5sketqg47hyi7te",
-      "alt": "",
-      "ratio": 0.8658,
-      "handle": "isolyth.dev",
-      "url": "https://bsky.app/profile/isolyth.dev/post/3mtbsqorzas2y",
-      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mtbsqorzas2y",
-      "likeCount": 6
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hovt6k22s64dq63jjmoyibk3/bafkreiekbfg6yh5vur43vkl4judt6ijafoqw5wgttdocrvygmjyimqfzqq",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:hovt6k22s64dq63jjmoyibk3/bafkreiekbfg6yh5vur43vkl4judt6ijafoqw5wgttdocrvygmjyimqfzqq",
-      "alt": "all cats are on the autism spectrum",
-      "ratio": 0.75,
-      "handle": "dave.9000ish.uk",
-      "url": "https://bsky.app/profile/dave.9000ish.uk/post/3mtbs3agcf222",
-      "uri": "at://did:plc:hovt6k22s64dq63jjmoyibk3/app.bsky.feed.post/3mtbs3agcf222",
-      "likeCount": 6
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hsqwcidfez66lwm3gxhfv5in/bafkreiaqm6luqsyaxz34eiio3h43h2fxzcamgcceptabuzy23kpz3psnr4",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:hsqwcidfez66lwm3gxhfv5in/bafkreiaqm6luqsyaxz34eiio3h43h2fxzcamgcceptabuzy23kpz3psnr4",
       "alt": "photo of a big black bird sitting on a column covered in bird poop with its wing out and its beak open",
@@ -722,16 +702,6 @@
       "handle": "tbabb.bsky.social",
       "url": "https://bsky.app/profile/tbabb.bsky.social/post/3mtditcwe222y",
       "uri": "at://did:plc:zrwhncnqel7corjtg2cak3jx/app.bsky.feed.post/3mtditcwe222y",
-      "likeCount": 4
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreienr4blboizkdratgiza63afzyimccuyh26hfa3x3xrxxt2fp5z2q",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreienr4blboizkdratgiza63afzyimccuyh26hfa3x3xrxxt2fp5z2q",
-      "alt": "",
-      "ratio": 0.97,
-      "handle": "norvid-studies.bsky.social",
-      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mtbu7bdz6s25",
-      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mtbu7bdz6s25",
       "likeCount": 4
     },
     {
