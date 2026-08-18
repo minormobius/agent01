@@ -255,6 +255,7 @@ function build(p) {
 
   frame();
   applyMode();
+  syncStoreySlider();
   applyStoreyCut();
   panel.setStats([
     ['storeys', building.stats.levels],
@@ -264,10 +265,6 @@ function build(p) {
     ['glazed', building.stats.glazedRatio.toFixed(0) + '%'],
     ['plot', building.stats.plotRatio.toFixed(2)],
   ]);
-  document.getElementById('upto').max = building.levels.length;
-  if (Number(document.getElementById('upto').value) > building.levels.length) {
-    document.getElementById('upto').value = building.levels.length;
-  }
   updateSun();
 }
 
@@ -352,6 +349,19 @@ function applyMode() {
   }
 }
 
+// The storey cut is a VIEW control, not a building parameter, so it must not
+// ratchet: `storeyCut` is null while the slider sits at "all", and only holds a
+// number once someone deliberately cuts below the top. Rebinding the slider's
+// max to a new building without re-deriving its value is what shrank every
+// subsequent roll to the height of the shortest one seen so far.
+let storeyCut = null;
+function syncStoreySlider() {
+  const el = document.getElementById('upto');
+  const n = building.levels.length;
+  el.max = n;
+  el.value = storeyCut == null ? n : Math.min(storeyCut, n);
+}
+
 function applyStoreyCut() {
   if (!group || !building) return;
   const upto = Number(document.getElementById('upto').value);
@@ -392,7 +402,12 @@ for (const id of ['sun', 'elev']) {
     updateSun();
   });
 }
-document.getElementById('upto').addEventListener('input', applyStoreyCut);
+document.getElementById('upto').addEventListener('input', (e) => {
+  const v = Number(e.target.value);
+  // dragging back to the top means "all" again, not "cut at N"
+  storeyCut = building && v >= building.levels.length ? null : v;
+  applyStoreyCut();
+});
 
 /* ─────────────────────────────── boot ──────────────────────────────────── */
 
