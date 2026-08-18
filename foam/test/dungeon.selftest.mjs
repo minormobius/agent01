@@ -723,6 +723,81 @@ for (const seed of SEEDS) {
   ok(!!dp.twin && repP.complete && !repP.twin.leak, 'twin kagome: generates and certifies');
 }
 
+// -- CONFLUENCE (`starts` ≥ 2): k parties enter far apart on the top
+//    surface and descend to ONE shared chamber, and their routes share no
+//    chamber until they arrive. The disjointness is proved by max-flow at
+//    generation (Menger) and re-proved here from the crawl graph: with the
+//    chamber absorbing, no party can reach any room of another's.
+{
+  const { rollContent, contentBlocked } = await import('../dungeon-content.mjs');
+  const CONF_GOLDEN = { 1: 0x8221908f, 9: 0x658eb050 };
+  const sigOf = (J) => {
+    const str = JSON.stringify({ e: J.entrance, n: J.endpoints, r: J.rooms, d: J.doors, p: J.paths, t: J.trapdoors, c: J.confluence });
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    return h >>> 0;
+  };
+  for (const seed of [1, 9]) {
+    const d = generateDungeon({ seed, starts: 3, tileShape: 'grid', tileScale: 0.35 });
+    const tag = `confluence ${seed}`;
+    ok(!!d.confluence, `${tag}: planned`);
+    const C = d.confluence.chamber;
+    const ents = d.confluence.entrances;
+    ok(ents.length === 3 && new Set(ents).size === 3, `${tag}: three distinct starts`);
+    const L = d.pocket.opts.layers + d.pocket.opts.subLayers;
+    ok(ents.every((e) => d.pocket.cells[d.pocket.nodes[e].cell].layer === L - 1),
+      `${tag}: every start on the top surface`);
+    ok(ents.every((e) => d.roomOf.get(e).isEntrance), `${tag}: start rooms marked`);
+    ok(d.entrance === ents[0], `${tag}: json.entrance is the first start`);
+    // THE PROMISE: the routes share no chamber but the confluence
+    const seenIn = new Map();
+    for (const p of d.paths) for (const ni of p.rooms) seenIn.set(ni, (seenIn.get(ni) ?? 0) + 1);
+    const overlap = [...seenIn.entries()].filter(([ni, c]) => c > 1 && ni !== C);
+    ok(overlap.length === 0, `${tag}: no chamber is on two routes (${overlap.length} shared)`);
+    ok(seenIn.get(C) === 3, `${tag}: all three routes end in the shared chamber`);
+    ok(d.paths.every((p) => p.endpoint === C), `${tag}: one endpoint, shared`);
+    ok(d.roomOf.get(C).confluence === true && d.roomOf.get(C).endpointIndex === 0,
+      `${tag}: the chamber is flagged and is the endpoint`);
+    // deep below: every party walks, and the chamber lies under its starts
+    ok(d.confluence.depth >= 3, `${tag}: shortest approach ${d.confluence.depth} doors`);
+    ok(d.paths.every((p) => p.doors.length >= 3), `${tag}: every approach ≥3 doors`);
+    // far apart: the closest two starts, in plan
+    let sep = Infinity;
+    for (let i = 0; i < ents.length; i++) {
+      for (let j = i + 1; j < ents.length; j++) {
+        const A = d.roomOf.get(ents[i]).centroid, B = d.roomOf.get(ents[j]).centroid;
+        sep = Math.min(sep, Math.hypot(A[0] - B[0], A[2] - B[2]));
+      }
+    }
+    ok(sep > d.pocket.opts.cell, `${tag}: starts far apart (${sep.toFixed(1)} m)`);
+    // territory: loops and trapdoor passages never cross between parties
+    ok(d.rooms.every((r) => r.side === undefined || r.side >= -1), `${tag}: rooms carry a party`);
+    ok(d.trapdoors.every((td) => d.roomOf.get(td.fromRoom).side === d.roomOf.get(td.toRoom).side),
+      `${tag}: trapdoor passages stay with their party`);
+    ok(d.rooms.every((r) => r.doors.every((dd) => {
+      const o = d.roomOf.get(dd.to);
+      return !o || r.id === C || o.id === C || o.side === r.side;
+    })), `${tag}: no door joins two parties except at the chamber`);
+    // determinism + the golden pin
+    const J = dungeonToJSON(d);
+    const J2 = dungeonToJSON(generateDungeon({ seed, starts: 3, tileShape: 'grid', tileScale: 0.35 }));
+    ok(JSON.stringify(J) === JSON.stringify(J2), `${tag}: deterministic`);
+    ok(sigOf(J) === CONF_GOLDEN[seed],
+      `${tag}: golden signature (got 0x${sigOf(J).toString(16)}, pinned 0x${CONF_GOLDEN[seed].toString(16)})`);
+    ok(J.generator.starts === 3 && J.confluence.chamber === C, `${tag}: canonical export carries the mode`);
+    // the crawl certificate: arrive, cover your own ground, see nobody else's
+    const rep = crawlReport(J);
+    ok(rep.complete && !rep.confluence.leak, `${tag}: every party arrives, none leaks`);
+    ok(rep.confluence.sides.every((s) => s.covered && s.arrives && s.leaked === 0),
+      `${tag}: per-party certificate (${rep.confluence.sides.map((s) => s.rooms).join('/')} rooms)`);
+    // content rolls stay safe
+    const Ct = rollContent(J, { roll: 1 });
+    const rep2 = crawlReport(J, { blocked: contentBlocked(Ct) });
+    ok(rep2.complete && !rep2.confluence.leak && rep2.partitionedRoomIds.length === 0,
+      `${tag}: content-safe, no partitions`);
+  }
+}
+
 console.log(`\n${checks} checks, ${failures} failures (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
 if (failures) process.exit(1);
 console.log('DUNGEON SELFTEST PASS');

@@ -378,11 +378,56 @@ export function generateDungeon(opts = {}) {
     tileShape = 'grid',
     tileScale = 0.35,
     minDepth = 4,
-    size = 'm',
     twin = false,
+    starts = 1,
     pocket: given = null,
     ...pocketOpts
   } = opts;
+  // `starts` ≥ 2 is CONFLUENCE mode: k parties, one shared chamber below
+  const wantStarts = Math.min(4, Math.max(1, Math.round(starts) || 1));
+  // Three descents that never meet need room to be separate in: on a small
+  // foam the only chambers k routes can all reach are near the surface. So
+  // confluence mode reaches for a bigger pocket unless told otherwise —
+  // the permalink records the size either way.
+  const size = opts.size ?? (wantStarts > 1 ? 'l' : 'm');
+
+  // A pocket that is merely SOLVABLE need not admit k routes that never
+  // meet: the certified graph is close to a tree, so most foams have a
+  // bottleneck every deep chamber hides behind. So confluence mode keeps
+  // asking the kernel for the next certified pocket until one can carry the
+  // promise — the same discipline `generatePocket` itself uses for
+  // solvability, one level up. Deterministic: the salt walk and the scoring
+  // below are fixed, so a seed always lands on the same foam.
+  if (wantStarts > 1 && !twin && !given) {
+    const CONFLUENT = 6;                  // doors every party must walk alone
+    const tries = { s: 10, m: 10, l: 5, xl: 2 }[size] ?? 5;
+    let best = null, saltFrom = 0;
+    for (let t = 0; t < tries; t++) {
+      let p;
+      try {
+        p = generatePocket({
+          seed: 1, rampFrac: 0.5, parMin: 1, parTarget: 5, maxSalt: 96, saltFrom,
+          ...(SIZES[size] ?? SIZES.m), ...pocketOpts,
+        });
+      } catch { break; }                  // salts exhausted — keep the best
+      const d = generateDungeon({ ...opts, pocket: p });
+      const depth = d.confluence?.depth ?? -1;
+      if (depth > (best?.confluence?.depth ?? -1)) best = d;
+      // far apart is the other half of the brief: the closest two starts
+      // must stand at least a third of the pocket apart in plan
+      let sep = Infinity;
+      const es = d.confluence?.entrances ?? [];
+      for (let i = 0; i < es.length; i++) {
+        for (let j = i + 1; j < es.length; j++) {
+          const A = d.roomOf.get(es[i]).centroid, B = d.roomOf.get(es[j]).centroid;
+          sep = Math.min(sep, Math.hypot(A[0] - B[0], A[2] - B[2]));
+        }
+      }
+      if (depth >= CONFLUENT && sep >= 0.3 * Math.min(p.W, p.D)) return d;
+      saltFrom = p.salt + 1;              // past THIS pocket, not this attempt
+    }
+    if (best) return best;
+  }
   // Dungeon pockets are rampier than the walker's (rampFrac 0.5 — descent
   // must happen on tilted membranes once the flat bottom is excluded), and
   // the kernel's PUZZLE band is relaxed with deep salt retries: the dungeon
@@ -565,15 +610,307 @@ export function generateDungeon(opts = {}) {
     });
     return { dist, picked, paths };
   };
-  const sidesPlan = twinActive
-    ? [planSide(entrance, (ni) => sideOf[ni] === 0, 0), planSide(entranceB, (ni) => sideOf[ni] === 1, 1)]
-    : [planSide(entrance, () => true, 0)];
-  const depthAt = (ni) => (twinActive && sideOf[ni] === 1 ? sidesPlan[1].dist[ni] : sidesPlan[0].dist[ni]);
-  const picked = sidesPlan.flatMap((s) => s.picked);
-  const paths = sidesPlan.flatMap((s, si) => {
-    if (twinActive) for (const p of s.paths) p.side = si;
-    return s.paths;
-  });
+  // -- CONFLUENCE mode (`starts` ≥ 2): k parties enter far apart on the top
+  //    surface and descend to ONE shared chamber deep below, and their
+  //    routes must not touch until they arrive. Disjointness is built in,
+  //    not repaired: the confluence is chosen first, then each start is
+  //    routed to it through basins no earlier route has consumed (a greedy
+  //    vertex-disjoint routing). If a chamber cannot take all k routes it
+  //    is simply not the confluence — try the next candidate.
+  let confluence = null;
+  if (wantStarts > 1 && !twinActive) {
+    // The entrances are NOT chosen up front. Fixing k far-apart starts and
+    // then hunting for a chamber they can all reach separately fails almost
+    // always: the certified graph is a near-tree, so the flow is decided by
+    // a handful of bottlenecks. Instead offer the flow a SPREAD SET of
+    // candidate top-surface chambers and let it pick which k to use — the
+    // set is spread, so whichever k it takes are far apart, and the routes
+    // are disjoint because the flow says so.
+    const tops = [];
+    for (let ni = 0; ni < nodes.length; ni++) {
+      if (comp[ni] !== comp[entrance] || cells[nodes[ni].cell].layer !== L - 1) continue;
+      tops.push(ni);
+    }
+    const spread = [];
+    if (tops.length) {
+      let bA = -1, b0 = tops[0];
+      for (const t of tops) if (floor[t].area > bA) { bA = floor[t].area; b0 = t; }
+      spread.push(b0);
+      while (spread.length < Math.min(16, tops.length)) {
+        let best = -1, bd = -1;
+        for (const c of tops) {
+          if (spread.includes(c)) continue;
+          let dmin = Infinity;
+          for (const p of spread) {
+            const A = floor[c].centroid, B = floor[p].centroid;
+            dmin = Math.min(dmin, (A[0] - B[0]) ** 2 + (A[2] - B[2]) ** 2);
+          }
+          if (dmin > bd || (dmin === bd && c < best)) { bd = dmin; best = c; }
+        }
+        if (best < 0) break;
+        spread.push(best);
+      }
+    }
+
+    // one route from `ent` to `C` avoiding `used` — shortest by door count,
+    // steepest descent among equals (the same oracle rule as every path)
+    const routeTo = (ent, C, used) => {
+      const dT = new Array(nodes.length).fill(-1);
+      dT[C] = 0;
+      const q = [C];
+      for (let h = 0; h < q.length; h++) {
+        const u = q[h];
+        for (const e of adj[u]) {
+          const v = e.a === u ? e.b : e.a;
+          if (dT[v] >= 0 || used.has(v)) continue;
+          dT[v] = dT[u] + 1; q.push(v);
+        }
+      }
+      if (dT[ent] < 0) return null;
+      const rooms = [ent], doors = [];
+      let u = ent;
+      while (u !== C) {
+        let bestE = null, bestV = -1;
+        for (const e of adj[u]) {
+          const v = e.a === u ? e.b : e.a;
+          if (dT[v] !== dT[u] - 1) continue;
+          if (!bestE || floorY(v) < floorY(bestV) - 1e-9 ||
+              (Math.abs(floorY(v) - floorY(bestV)) <= 1e-9 && v < bestV)) { bestE = e; bestV = v; }
+        }
+        if (!bestE) return null;
+        doors.push({ face: bestE.face, from: u, to: bestV, at: bestE.at.slice() });
+        rooms.push(bestV);
+        u = bestV;
+      }
+      return { endpoint: C, rooms, doors };
+    };
+
+    // k VERTEX-DISJOINT routes, or none: by Menger's theorem k routes that
+    // share no chamber exist exactly when the max flow between the chamber
+    // and the surface is k under UNIT NODE capacities. Greedy routing is
+    // not enough here — the certified crossing graph is close to a tree,
+    // and one route taken selfishly walls the others off from a chamber
+    // that could have served everyone; flow's augmenting paths undo that.
+    //   Each basin splits into IN→OUT with capacity 1, every certified
+    //   crossing becomes OUT→IN both ways, and the flow runs OUT of the
+    //   candidate chamber into any k of the spread tops — so the FLOW picks
+    //   which tops become entrances, which is why they can be far apart AND
+    //   separately reachable.
+    //   The graph is built once per pocket; a candidate only resets
+    //   capacities, so every chamber in the foam can be tried.
+    const n = nodes.length;
+    const T = 2 * n + 1;
+    const g = Array.from({ length: 2 * n + 2 }, () => []);
+    const to = [], cap0 = [];
+    const splitEdge = new Int32Array(n).fill(-1);
+    const sinkEdge = new Map();
+    {
+      const add = (a, b, c) => {
+        const i = to.length;
+        g[a].push(i); to.push(b); cap0.push(c);
+        g[b].push(to.length); to.push(a); cap0.push(0);
+        return i;
+      };
+      for (let v = 0; v < n; v++) {
+        if (isFlat[v] || comp[v] !== comp[entrance]) continue;
+        splitEdge[v] = add(2 * v, 2 * v + 1, 1);
+      }
+      for (const e of edges) {
+        if (isFlat[e.a] || isFlat[e.b]) continue;
+        if (comp[e.a] !== comp[entrance] || comp[e.b] !== comp[entrance]) continue;
+        add(2 * e.a + 1, 2 * e.b, 1);
+        add(2 * e.b + 1, 2 * e.a, 1);
+      }
+      for (const t of spread) sinkEdge.set(t, add(2 * t + 1, T, 1));
+    }
+    const base = Int32Array.from(cap0);
+    const cap = new Int32Array(base.length);
+    const prevE = new Int32Array(2 * n + 2);
+    const seen = new Uint8Array(2 * n + 2);
+    const disjointRoutes = (C, k) => {
+      if (splitEdge[C] < 0) return null;
+      cap.set(base);
+      cap[splitEdge[C]] = 0;                         // nobody re-enters the chamber
+      const S = 2 * C + 1;                           // flow starts at its far side
+      for (let f = 0; f < k; f++) {
+        prevE.fill(-1); seen.fill(0);
+        seen[S] = 1;
+        const q = [S];
+        let found = false;
+        for (let h = 0; h < q.length && !found; h++) {
+          for (const ei of g[q[h]]) {
+            if (cap[ei] <= 0 || seen[to[ei]]) continue;
+            seen[to[ei]] = 1; prevE[to[ei]] = ei;
+            if (to[ei] === T) { found = true; break; }
+            q.push(to[ei]);
+          }
+        }
+        if (!found) return null;                     // max-flow < k: impossible here
+        for (let v = T; v !== S; ) {
+          const ei = prevE[v];
+          cap[ei]--; cap[ei ^ 1]++;
+          v = to[ei ^ 1];
+        }
+      }
+      // the k tops the flow chose ARE the entrances; read each route back
+      // off the saturated forward edges, walking chamber → entrance
+      const chosen = spread.filter((t) => cap[sinkEdge.get(t)] === 0);
+      if (chosen.length !== k) return null;
+      const spent = new Set();
+      const out = [];
+      for (const ent of chosen) {
+        const path = [C];
+        let v = C, guard = 0;
+        while (v !== ent && guard++ < n) {
+          let step = -1;
+          for (const ei of g[2 * v + 1]) {
+            if (ei % 2 !== 0 || cap[ei] !== 0 || spent.has(ei)) continue;
+            if ((to[ei] >> 1) === C) continue;
+            step = ei; break;
+          }
+          if (step < 0) return null;
+          spent.add(step);
+          v = to[step] >> 1;
+          path.push(v);
+        }
+        if (v !== ent) return null;
+        out.push(path.reverse());                    // entrance … chamber
+      }
+      return { entrances: chosen, paths: out };
+    };
+
+    // How far from the top surface a chamber lies, in DOORS — the depth the
+    // player actually feels, and the thing to maximise. A chamber can sit
+    // low in the foam and still be two doors from daylight.
+    const dTop = new Array(nodes.length).fill(-1);
+    {
+      const q = [];
+      for (const t of spread) { dTop[t] = 0; q.push(t); }
+      for (let h = 0; h < q.length; h++) {
+        const u = q[h];
+        for (const e of adj[u]) {
+          const v = e.a === u ? e.b : e.a;
+          if (dTop[v] < 0) { dTop[v] = dTop[u] + 1; q.push(v); }
+        }
+      }
+    }
+    // "deep below" is a hard constraint, not a preference: the chamber must
+    // lie under the whole candidate surface, whichever tops the flow picks
+    let surfaceY = Infinity;
+    for (const t of spread) surfaceY = Math.min(surfaceY, floorY(t));
+    // "deep below" is two things at once — far to walk and far down. Score
+    // both: doors from the surface, plus layers of foam overhead.
+    const score = (ni) => dTop[ni] + (L - 1 - cells[nodes[ni].cell].layer);
+    const candsOf = (strict) => {
+      const out = [];
+      for (let ni = 0; ni < nodes.length; ni++) {
+        if (dTop[ni] < 2 || spread.includes(ni)) continue;
+        if (strict && floorY(ni) > surfaceY - 1.5) continue;
+        out.push(ni);
+      }
+      out.sort((a, b) => score(b) - score(a) || floorY(a) - floorY(b) || a - b);
+      return out;
+    };
+    // strictly-below chambers first; if the foam has none that can carry k
+    // routes, take any chamber deep by travel rather than refuse the mode
+    for (const strict of [true, false]) {
+    for (const C of candsOf(strict)) {
+      const flow = disjointRoutes(C, wantStarts);
+      if (!flow) continue;                           // this chamber cannot take k
+      // BEAUTIFY: max-flow proves the routes exist but picks them
+      // arbitrarily. Re-route each party in turn around the others'
+      // chambers with the dungeon's own rule — shortest by door count,
+      // steepest descent among equals. The flow route is always still
+      // available to it, so this can only shorten, never fail.
+      const ents = flow.entrances;
+      const nodesOf = flow.paths.map((p) => p.slice());
+      const out = [];
+      for (let i = 0; i < ents.length; i++) {
+        const used = new Set();
+        for (let j = 0; j < nodesOf.length; j++) {
+          if (j === i) continue;
+          for (const ni of nodesOf[j]) if (ni !== C) used.add(ni);
+        }
+        const p = routeTo(ents[i], C, used);
+        if (!p) { out.length = 0; break; }
+        nodesOf[i] = p.rooms.slice();
+        p.side = i;
+        out.push(p);
+      }
+      if (out.length !== ents.length) continue;
+      confluence = {
+        entrances: ents, chamber: C, paths: out,
+        // the promise, measured: the shortest approach any party walks
+        depth: Math.min(...out.map((p) => p.doors.length)),
+      };
+      break;
+    }
+    if (confluence) break;
+    }
+  }
+
+  let picked, paths, depthAt;
+  if (confluence) {
+    entrance = confluence.entrances[0];   // the flow chose the k starts
+    // territory: each party owns its own route, then the leftover foam is
+    // grown out from the routes (multi-source, first label wins) so loops
+    // and trapdoor passages stay inside the party that can reach them. The
+    // confluence chamber itself is NEUTRAL (side −1) — it belongs to no one
+    // until everybody arrives.
+    sideOf = new Array(nodes.length).fill(-1);
+    const q = [];
+    confluence.paths.forEach((p, i) => {
+      for (const ni of p.rooms) {
+        if (ni === confluence.chamber || sideOf[ni] >= 0) continue;
+        sideOf[ni] = i; q.push(ni);
+      }
+    });
+    for (let h = 0; h < q.length; h++) {
+      const u = q[h];
+      for (const e of adj[u]) {
+        const v = e.a === u ? e.b : e.a;
+        if (v === confluence.chamber || sideOf[v] >= 0) continue;
+        sideOf[v] = sideOf[u]; q.push(v);
+      }
+    }
+    // depth: doors from your OWN entrance, through your own territory (the
+    // confluence is reachable from every party by construction)
+    const dists = confluence.entrances.map((ent, i) => {
+      const d = new Array(nodes.length).fill(-1);
+      d[ent] = 0;
+      const qq = [ent];
+      for (let h = 0; h < qq.length; h++) {
+        const u = qq[h];
+        for (const e of adj[u]) {
+          const v = e.a === u ? e.b : e.a;
+          if (d[v] >= 0) continue;
+          if (v !== confluence.chamber && sideOf[v] !== i) continue;
+          d[v] = d[u] + 1; qq.push(v);
+        }
+      }
+      return d;
+    });
+    depthAt = (ni) => {
+      if (ni === confluence.chamber) return Math.max(...dists.map((d) => d[ni]));
+      const s = sideOf[ni];
+      return s >= 0 ? dists[s][ni] : Math.max(...dists.map((d) => d[ni]), 0);
+    };
+    picked = [confluence.chamber];
+    paths = confluence.paths;
+  } else {
+    const sidesPlan = twinActive
+      ? [planSide(entrance, (ni) => sideOf[ni] === 0, 0), planSide(entranceB, (ni) => sideOf[ni] === 1, 1)]
+      : [planSide(entrance, () => true, 0)];
+    depthAt = (ni) => (twinActive && sideOf[ni] === 1 ? sidesPlan[1].dist[ni] : sidesPlan[0].dist[ni]);
+    picked = sidesPlan.flatMap((s) => s.picked);
+    paths = sidesPlan.flatMap((s, si) => {
+      if (twinActive) for (const p of s.paths) p.side = si;
+      return s.paths;
+    });
+  }
+  // both multi-party modes partition the foam: a loop detour or trapdoor
+  // corkscrew must stay inside the region it started from
+  const partitioned = twinActive || !!confluence;
 
   // -- assemble the room set (union of all paths) and discretize each floor
   const tileSize = pocket.opts.cell * tileScale;
@@ -585,10 +922,12 @@ export function generateDungeon(opts = {}) {
       id: ni, cell: nodes[ni].cell, layer: cells[nodes[ni].cell].layer,
       depth: depthAt(ni), floorY: floorY(ni),
       centroid: floor[ni].centroid.slice(), area: floor[ni].area,
-      isEntrance: ni === entrance || ni === entranceB, endpointIndex: -1,
+      isEntrance: ni === entrance || ni === entranceB ||
+        (confluence ? confluence.entrances.includes(ni) : false), endpointIndex: -1,
       onPaths: [], doors: [], tiles: null,
     };
-    if (twinActive) r.side = sideOf[ni];
+    if (partitioned) r.side = sideOf[ni];
+    if (confluence && ni === confluence.chamber) r.confluence = true;
     roomOf.set(ni, r); rooms.push(r);
     return r;
   };
@@ -667,7 +1006,7 @@ export function generateDungeon(opts = {}) {
           if (prevE.has(v)) continue;
           // twin: a detour must stay in its own territory — a loop that
           // wandered across the frontier would bridge the two dungeons
-          if (twinActive && sideOf[v] !== R1.side) continue;
+          if (partitioned && sideOf[v] !== R1.side) continue;
           if (roomOf.has(v)) {
             if (v !== R1.id && depthB.get(u) >= 1 && !roomOf.get(v).secret && doorDist(R1.id, v) >= 3) {
               prevE.set(v, { from: u, e });
@@ -730,7 +1069,7 @@ export function generateDungeon(opts = {}) {
     const hatchInto = (c, excludeRoom, side) => {
       for (const r of rooms) {
         if (r.id === excludeRoom || r.secret) continue;
-        if (twinActive && r.side !== side) continue;   // never surface in the twin
+        if (partitioned && r.side !== side) continue;   // never surface in another party's region
         for (const ty of r.tiles) {
           const fy = pocket.faces[ty.face];
           if (fy.b < 0 || ty.kind !== 'floor') continue;
@@ -750,7 +1089,7 @@ export function generateDungeon(opts = {}) {
         if (f.b < 0) continue;
         const below = f.a === nodes[R.id].cell ? f.b : f.a;
         const Ls = (basinsOfCell.get(below) ?? []).filter((ni) => !isFlat[ni] && !roomOf.has(ni) && floor[ni].area >= 3 &&
-          (!twinActive || sideOf[ni] === R.side));
+          (!partitioned || sideOf[ni] === R.side));
         if (!Ls.length) continue;
         let L = Ls[0];
         for (const ni of Ls) if (floor[ni].area > floor[L].area) L = ni;
@@ -767,7 +1106,7 @@ export function generateDungeon(opts = {}) {
           }
           for (const e of adj[S]) {
             const v = e.a === S ? e.b : e.a;
-            if (twinActive && sideOf[v] !== R.side) continue;   // corkscrews respect the frontier
+            if (partitioned && sideOf[v] !== R.side) continue;   // corkscrews respect the frontier
             if (!prevE.has(v) && !roomOf.has(v)) { prevE.set(v, { from: S, e }); depth.set(v, depth.get(S) + 1); q.push(v); }
           }
         }
@@ -823,7 +1162,7 @@ export function generateDungeon(opts = {}) {
   //    grows a short annex of rooms on EACH side to reach it, so both
   //    dungeons arrive at opposite faces of one sealed wall. That wall is
   //    the window: ghost-view geometry on both crawls, and never a door.
-  if (twinActive) {
+  if (partitioned) {
     const rngG = mulberry(fnv(0x5EAA5, pocket.seed >>> 0, rooms.length));
     const want = 1 + (rngG() < 0.5 ? 1 : 0);
     // shortest own-side chain of non-room basins from `start` to any room
@@ -897,7 +1236,7 @@ export function generateDungeon(opts = {}) {
   //    renders through, and the certificate that they are ALL sealed is
   //    what makes the twins provably disjoint.
   let seams = null;
-  if (twinActive) {
+  if (partitioned) {
     seams = [];
     const passFace = new Map();          // face → certified crossing station
     for (const e of edges) {
@@ -915,13 +1254,13 @@ export function generateDungeon(opts = {}) {
       if (f.b < 0) return;
       for (const ra of roomsByCell.get(f.a) ?? []) {
         for (const rb of roomsByCell.get(f.b) ?? []) {
-          if (ra.side === rb.side) continue;
+          if (ra.side === rb.side || ra.side < 0 || rb.side < 0) continue;
           const k = fi + ':' + Math.min(ra.id, rb.id) + ':' + Math.max(ra.id, rb.id);
           if (seen.has(k)) continue;
           seen.add(k);
           const at = passFace.get(fi) ?? f.centroid;
           seams.push({
-            rooms: ra.side === 0 ? [ra.id, rb.id] : [rb.id, ra.id],
+            rooms: ra.side < rb.side ? [ra.id, rb.id] : [rb.id, ra.id],
             face: fi, at: at.slice(), passable: passFace.has(fi),
           });
         }
@@ -935,5 +1274,11 @@ export function generateDungeon(opts = {}) {
     tileShape, tileScale, tileSize, size: sizeName,
     requestedEndpoints: wantEndpoints,
     ...(twinActive ? { twin: { entrances: [entrance, entranceB], seams } } : {}),
+    ...(confluence ? {
+      confluence: {
+        entrances: confluence.entrances.slice(), chamber: confluence.chamber,
+        depth: confluence.depth, seams,
+      },
+    } : {}),
   };
 }

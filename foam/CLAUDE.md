@@ -160,6 +160,22 @@ hash and loads exported .json files. **Permalinks are a contract**:
 `DUNGEON_VERSION` (dungeon.mjs) is stamped into the URL hash and every
 export, and the selftest pins golden signatures of seeds 1/2/5 — a change
 that moves any layout must bump the version and re-pin, never re-pin alone.
+CONFLUENCE (`starts=2..4`, `party=` on the crawler): k parties enter far
+apart on the top surface and descend to ONE shared chamber, no two routes
+sharing a chamber until they arrive. Disjointness is PROVED by max-flow
+with unit node capacities (Menger) — greedy routing fails, the certified
+graph is near-tree and one selfish route walls the rest off — and the flow
+also CHOOSES which of a spread set of top chambers become entrances, which
+is what makes them both far apart and separately reachable; routes are then
+re-walked with the descent rule around each other. When no chamber in a
+foam can carry k descents the generator asks the kernel for the next
+certified pocket (`saltFrom`, the only kernel change — a search-start
+offset, default 0 = unchanged) and tries again. Confluence defaults to size
+`l`: three separate descents need room. `confluence.depth` reports the
+shortest approach in doors; quality is foam-dependent and CI asserts the
+real invariant — with the chamber ABSORBING, no party reaches another's
+ground. Generation is heavy (seconds to ~15s), so the API exposes it but it
+usually exceeds the edge CPU limit — import the modules for it.
 `window.__crawl` is the crawl page's harness hook (an automated bot BFSes
 the page's own graph and replays it to an endpoint) — keep it.
 

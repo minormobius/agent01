@@ -57,10 +57,18 @@ export function drawPlan(ctx, o) {
       else if (t.kind === 'trapdoor') ctx.fillStyle = '#0a1418';
       else if (t.kind === 'hatch') ctx.fillStyle = '#2a5f5a';
       else if (r.secret) ctx.fillStyle = 'hsl(210 30% ' + (14 + h * 20).toFixed(0) + '%)';
+      // confluence: each party's ground takes its own approach colour, so
+      // three descents that never meet read apart on one sheet
+      else if (dungeon.confluence && r.side >= 0) {
+        const pc = PATH_COLORS[r.side % PATH_COLORS.length];
+        ctx.fillStyle = pc;
+        ctx.globalAlpha = 0.20 + h * 0.30;
+      }
       // twin: side 1 wears violet so the two interleaved dungeons read apart
       else if (r.side === 1) ctx.fillStyle = 'hsl(265 32% ' + (18 + h * 26).toFixed(0) + '%)';
       else ctx.fillStyle = 'hsl(190 40% ' + (16 + h * 28).toFixed(0) + '%)';
       tilePath(t); ctx.fill();
+      ctx.globalAlpha = 1;
       ctx.strokeStyle = 'rgba(4,6,10,.65)'; ctx.lineWidth = Math.max(0.5, k * 0.02);
       ctx.stroke();
     }
@@ -99,6 +107,19 @@ export function drawPlan(ctx, o) {
   const e = dungeon.roomOf.get(dungeon.entrance).centroid;
   ctx.strokeStyle = '#b8ff9e'; ctx.lineWidth = Math.max(1.5, k * 0.08);
   ctx.beginPath(); ctx.arc(mx(e[0]), mz(e[2]), Math.max(4, s * 0.5 * k), 0, Math.PI * 2); ctx.stroke();
+  if (dungeon.confluence) {
+    // every party's mouth wears its own ring; the shared chamber a halo
+    dungeon.confluence.entrances.forEach((ni, i) => {
+      const c = dungeon.roomOf.get(ni).centroid;
+      ctx.strokeStyle = PATH_COLORS[i % PATH_COLORS.length];
+      ctx.beginPath(); ctx.arc(mx(c[0]), mz(c[2]), Math.max(4, s * 0.5 * k), 0, Math.PI * 2); ctx.stroke();
+    });
+    const cc = dungeon.roomOf.get(dungeon.confluence.chamber).centroid;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(1.5, k * 0.07);
+    for (const rr of [0.55, 0.95]) {
+      ctx.beginPath(); ctx.arc(mx(cc[0]), mz(cc[2]), Math.max(5, s * rr * k), 0, Math.PI * 2); ctx.stroke();
+    }
+  }
   if (dungeon.twin) {
     const e2 = dungeon.roomOf.get(dungeon.twin.entrances[1]).centroid;
     ctx.strokeStyle = '#d9b8ff';

@@ -230,6 +230,52 @@ export function reachableWithin(crawl, room, tile, budget, blocked = null) {
 // asserts and a UI can surface.
 export function crawlReport(json, opts = {}) {
   const crawl = buildCrawl(json, opts);
+  // confluence documents: every party must reach the shared chamber from
+  // its OWN entrance, and must never reach another party's chambers —
+  // the disjoint-until-the-end certificate
+  if (json.confluence) {
+    const sideOfRoom = new Map(json.rooms.map((r) => [r.id, r.side]));
+    const C = json.confluence.chamber;
+    let allOk = true, leak = false;
+    const sides = json.confluence.entrances.map((ent, s) => {
+      // walk from this party's entrance with the SHARED CHAMBER ABSORBING:
+      // you may arrive there, you may not walk on through it. What that
+      // reaches is exactly what this party can see of the dungeon before
+      // everyone meets — and it must be its own territory, nothing else.
+      const crawlS = buildCrawl(json, { ...opts, startRoom: ent });
+      const seen = new Set([crawlS.startRoom + ':' + crawlS.startTile]);
+      const roomsSeen = new Set([crawlS.startRoom]);
+      const q = [[crawlS.startRoom, crawlS.startTile]];
+      for (let h = 0; h < q.length; h++) {
+        const [ri, tk] = q[h];
+        if (ri === C) continue;                    // arrived: go no further
+        const R = crawlS.rooms.get(ri);
+        const step = (nr, nk) => {
+          const k = nr + ':' + nk;
+          if (seen.has(k)) return;
+          seen.add(k); roomsSeen.add(nr); q.push([nr, nk]);
+        };
+        for (const nk of R.adj.get(tk) ?? []) step(ri, nk);
+        for (const d of R.doors) if (d.tile === tk && d.farTile !== null) step(d.to, d.farTile);
+        for (const ln of R.links) if (ln.tile === tk) step(ln.to, ln.toTile);
+      }
+      const mine = json.rooms.filter((r) => r.side === s);
+      const covered = mine.every((r) => roomsSeen.has(r.id));
+      const arrives = roomsSeen.has(C);
+      const leaked = [...roomsSeen].filter((id) => id !== C && sideOfRoom.get(id) !== s);
+      allOk = allOk && covered && arrives;
+      leak = leak || leaked.length > 0;
+      return { side: s, entrance: ent, rooms: roomsSeen.size, covered, arrives, leaked: leaked.length };
+    });
+    const base = crawlReport({ ...json, confluence: undefined }, opts);
+    return {
+      ...base,
+      allRoomsReachable: allOk && !leak,
+      endpointsReachable: sides.every((s) => s.arrives) ? 1 : 0,
+      complete: sides.every((s) => s.arrives) && !leak,
+      confluence: { leak, chamber: C, sides },
+    };
+  }
   // twin documents: each side must be complete from its OWN entrance, and a
   // crawl must never leak across the frontier — the disjointness certificate
   if (json.twin) {

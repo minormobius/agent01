@@ -119,6 +119,9 @@
   <div class="row"><label>dungeons</label>
     <span class="seg" id="twinSeg"><button data-twin="0" class="on">one</button><button data-twin="1">twins ⧉</button></span>
   </div>
+  <div class="row"><label>starts</label>
+    <span class="seg" id="startsSeg"><button data-starts="1" class="on">1</button><button data-starts="2">2</button><button data-starts="3">3</button><button data-starts="4">4</button></span>
+  </div>
   <div class="row"><label>endpoints</label><input id="nend" type="range" min="1" max="6" step="1" value="3"><span class="val" id="nendv">3</span></div>
   <div class="row"><label>tiles</label>
     <select id="shapeSel">
@@ -185,7 +188,7 @@ const COL = {
 const css = (c) => new THREE.Color(c);
 
 // ------------------------------------------------------------- state -------
-const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35, size: 'm', roll: 1, twin: false };
+const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35, size: 'm', roll: 1, twin: false, starts: 1 };
 let dungeon = null, pocket = null, selected = -1;
 let content = null;          // the SSOT content roll — the crawler plays the
                              // same document; here it is a display layer
@@ -200,6 +203,8 @@ function readHash() {
   if (SIZES[h.get('size')]) params.size = h.get('size');
   if (h.get('roll')) params.roll = Math.max(1, parseInt(h.get('roll'), 10) || 1);
   params.twin = h.get('twin') === '1';
+  if (h.get('starts')) params.starts = Math.min(4, Math.max(1, parseInt(h.get('starts'), 10) || 1));
+  if (params.starts > 1 && !h.get('size')) params.size = 'l';   // confluence wants room
   params.tuning = tuningFromParam(h.get('tune'));
 }
 function writeHash() {
@@ -209,6 +214,7 @@ function writeHash() {
   history.replaceState(null, '', '#seed=' + params.seed + '&n=' + params.n +
     '&shape=' + params.shape + '&scale=' + params.scale + '&size=' + params.size +
     '&roll=' + params.roll + (params.twin ? '&twin=1' : '') +
+    (params.starts > 1 ? '&starts=' + params.starts : '') +
     (tune ? '&tune=' + tune : '') + '&v=' + DUNGEON_VERSION);
 }
 
@@ -306,15 +312,24 @@ function buildScene(d) {
   const fxOf = new Map((content?.effects ?? []).map((e) => [e.room + ':' + e.tile, e.type]));
   // twin: side 1 shades violet so the interleaved dungeons read apart in 3D
   const HI = [COL.tileHi, [0.46, 0.36, 0.66]], LO = [COL.tileLo, [0.16, 0.10, 0.28]];
+  // confluence: each party's ground takes its own path colour, so the three
+  // approaches read apart at a glance and the shared chamber reads neutral
+  const partyTint = (r) => {
+    if (!d.confluence || r.side === undefined || r.side < 0) return null;
+    const pc = css(PATH_COLORS[r.side % PATH_COLORS.length]);
+    return [pc.r, pc.g, pc.b];
+  };
   for (const r of d.rooms) {
     const pos = [], col = [];
     const t01 = r.depth / dMax;
     const hi = HI[r.side === 1 ? 1 : 0], lo = LO[r.side === 1 ? 1 : 0];
-    const base = [
+    let base = [
       hi[0] + (lo[0] - hi[0]) * t01,
       hi[1] + (lo[1] - hi[1]) * t01,
       hi[2] + (lo[2] - hi[2]) * t01,
     ];
+    const pt = partyTint(r);
+    if (pt) base = base.map((v, i) => v * 0.45 + pt[i] * (0.18 + 0.22 * (1 - t01)));
     for (const t of r.tiles) {
       let c = base;
       const fxT = show.content ? fxOf.get(r.id + ':' + t.key) : null;
@@ -396,11 +411,13 @@ function buildScene(d) {
   });
   // entrance beacon(s) — the twin's second entrance beams violet
   {
-    const ents = d.twin ? d.twin.entrances : [d.entrance];
+    const ents = d.twin ? d.twin.entrances : d.confluence ? d.confluence.entrances : [d.entrance];
     ents.forEach((ni, si) => {
       const e = d.roomOf.get(ni).centroid;
       const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.2, 6.5, 8),
-        new THREE.MeshBasicMaterial({ color: css(si === 1 ? '#c99eff' : COL.entrance), transparent: true, opacity: 0.6 }));
+        new THREE.MeshBasicMaterial({
+          color: css(d.confluence ? PATH_COLORS[si % PATH_COLORS.length] : si === 1 ? '#c99eff' : COL.entrance),
+          transparent: true, opacity: 0.6 }));
       beam.position.set(e[0], e[1] + 3.2, e[2]);
       pathGroup.add(beam);
     });
@@ -408,8 +425,8 @@ function buildScene(d) {
   // twin seams: the sealed membranes where the two dungeons touch — the
   // passable ones (certified crossings that never open) get a bright pink
   // membrane plate + spinning diamond, mere shared walls a faint plate
-  if (d.twin) {
-    for (const sm of d.twin.seams) {
+  if (d.twin || d.confluence) {
+    for (const sm of (d.twin ?? d.confluence).seams) {
       const pos = [];
       pushFan(pos, P.faces[sm.face].verts);
       const g = new THREE.BufferGeometry();
@@ -714,6 +731,7 @@ function syncUI() {
   $('shapeSel').value = params.shape;
   for (const b of $('sizeSeg').children) b.classList.toggle('on', b.dataset.size === params.size);
   for (const b of $('twinSeg').children) b.classList.toggle('on', b.dataset.twin === (params.twin ? '1' : '0'));
+  for (const b of $('startsSeg').children) b.classList.toggle('on', Number(b.dataset.starts) === params.starts);
   $('rollv').textContent = params.roll;
 }
 
@@ -722,6 +740,9 @@ function stats() {
   const pars = dungeon.paths.map((p) => p.doors.length);
   $('stats').innerHTML =
     'seed <b style="color:#ffce78">' + params.seed + '</b> · ' + dungeon.size + ' · salt ' + dungeon.pocket.salt +
+    (dungeon.confluence ? '<br>⋔ ' + dungeon.confluence.entrances.length +
+      ' starts → one chamber · shortest approach ' + dungeon.confluence.depth + ' doors' +
+      '<br>routes share no chamber until they arrive' : '') +
     (dungeon.twin ? '<br>⧉ twins: ' +
       dungeon.rooms.filter((r) => r.side === 0).length + '+' + dungeon.rooms.filter((r) => r.side === 1).length +
       ' rooms · ' + dungeon.twin.seams.length + ' seam' + (dungeon.twin.seams.length === 1 ? '' : 's') +
@@ -736,7 +757,8 @@ function regen(full) {
   $('busy').classList.add('on');
   setTimeout(() => {
     try {
-      const base = { endpoints: params.n, tileShape: params.shape, tileScale: params.scale, twin: params.twin };
+      const base = { endpoints: params.n, tileShape: params.shape, tileScale: params.scale,
+        twin: params.twin, starts: params.starts };
       dungeon = (full || !pocket)
         ? generateDungeon({ seed: params.seed, size: params.size, ...base })
         : generateDungeon({ pocket, ...base });
@@ -773,6 +795,13 @@ for (const b of $('sizeSeg').children) {
 }
 for (const b of $('twinSeg').children) {
   b.onclick = () => { params.twin = b.dataset.twin === '1'; syncUI(); regen(false); };
+}
+for (const b of $('startsSeg').children) {
+  b.onclick = () => {
+    params.starts = Number(b.dataset.starts);
+    if (params.starts > 1) { params.twin = false; params.size = 'l'; }
+    syncUI(); regen(true);      // confluence searches for a foam that can carry it
+  };
 }
 
 // ------------------------------------------------------------ plan view ----

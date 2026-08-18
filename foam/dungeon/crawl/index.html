@@ -163,11 +163,14 @@ const css = (c) => new THREE.Color(c);
 const $ = (id) => document.getElementById(id);
 
 // ------------------------------------------------------------- params ------
-const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35, size: 'm', roll: 1, twin: false, side: 0 };
+const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35, size: 'm', roll: 1, twin: false, side: 0, starts: 1, party: 0 };
 {
   const h = new URLSearchParams(location.hash.slice(1));
   params.twin = h.get('twin') === '1';
   params.side = h.get('side') === 'b' ? 1 : 0;
+  if (h.get('starts')) params.starts = Math.min(4, Math.max(1, parseInt(h.get('starts'), 10) || 1));
+  if (h.get('party')) params.party = Math.max(0, parseInt(h.get('party'), 10) || 0);
+  if (params.starts > 1 && !h.get('size')) params.size = 'l';
   if (h.get('seed')) params.seed = Math.max(1, parseInt(h.get('seed'), 10) || 1);
   if (h.get('n')) params.n = Math.min(6, Math.max(1, parseInt(h.get('n'), 10) || 3));
   if (TILE_SHAPES.includes(h.get('shape'))) params.shape = h.get('shape');
@@ -184,7 +187,8 @@ const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35, size: 'm', roll: 1, 
   const tune = tuningToParam(params.tuning);
   $('backlink').href = '../#seed=' + params.seed + '&n=' + params.n + '&shape=' + params.shape +
     '&scale=' + params.scale + '&size=' + params.size + '&roll=' + params.roll +
-    (params.twin ? '&twin=1' : '') + (tune ? '&tune=' + tune : '') + '&v=' + DUNGEON_VERSION;
+    (params.twin ? '&twin=1' : '') + (params.starts > 1 ? '&starts=' + params.starts : '') +
+    (tune ? '&tune=' + tune : '') + '&v=' + DUNGEON_VERSION;
 }
 
 // -------------------------------------------------------------- state ------
@@ -1293,6 +1297,13 @@ function transit(door) {
       steps + ' steps.' + (alert ? ' The foam howls behind you.' : '');
     $('win').classList.add('on');
   }
+  if (J.confluence && curRoom === J.confluence.chamber && !$('win').classList.contains('on')) {
+    $('win').querySelector('h1').textContent = 'the confluence';
+    $('winText').innerHTML = 'You came down alone and arrived where all <b>' +
+      J.confluence.entrances.length + '</b> descents meet — <b>' + steps + '</b> steps, ' +
+      discovered.size + ' rooms, ' + gold + ' gold. No other party\'s ground was ever underfoot.';
+    $('win').classList.add('on');
+  }
   if (found.size === myEnds.length && myEnds.length > 0 && !$('win').classList.contains('on')) {
     $('winText').innerHTML = 'All <b>' + myEnds.length + '</b> endpoints found in <b>' + steps +
       '</b> steps, ' + discovered.size + ' of ' + J.rooms.length + ' rooms explored.';
@@ -1383,13 +1394,17 @@ function start(doc, fromFile) {
   mobs = content.agents.map((a) => ({ ...a }));
   // twin documents: crawl from MY side's entrance; the other dungeon is
   // ghost geometry behind sealed seams, never a place this token can stand
-  const mySide = J.twin ? params.side : null;
-  myEnds = J.twin
-    ? J.endpoints.filter((e) => J.rooms.find((r) => r.id === e)?.side === mySide)
+  // confluence: you are ONE of the parties. You start at your own mouth of
+  // the foam and your goal is the shared chamber — the other parties'
+  // approaches are ground you cannot reach until you get there.
+  const myParty = J.confluence ? Math.min(params.party, J.confluence.entrances.length - 1) : null;
+  const mySide = J.twin ? params.side : J.confluence ? myParty : null;
+  myEnds = (J.twin || J.confluence)
+    ? J.endpoints.filter((e) => J.confluence ? true : J.rooms.find((r) => r.id === e)?.side === mySide)
     : J.endpoints.slice();
   seamsByRoom = new Map();
-  if (J.twin) {
-    for (const sm of J.twin.seams) {
+  if (J.twin || J.confluence) {
+    for (const sm of (J.twin ?? J.confluence).seams) {
       const [a, b] = sm.rooms;
       if (!seamsByRoom.has(a)) seamsByRoom.set(a, []);
       if (!seamsByRoom.has(b)) seamsByRoom.set(b, []);
@@ -1397,11 +1412,14 @@ function start(doc, fromFile) {
       seamsByRoom.get(b).push({ other: a, at: sm.at, passable: !!sm.passable });
     }
     $('sideChip').style.display = '';
-    $('sideChip').textContent = '⧉ side ' + (mySide === 1 ? 'B' : 'A');
+    $('sideChip').textContent = J.confluence
+      ? '⋔ party ' + (myParty + 1) + '/' + J.confluence.entrances.length
+      : '⧉ side ' + (mySide === 1 ? 'B' : 'A');
   } else $('sideChip').style.display = 'none';
   crawl = buildCrawl(J, {
     blocked: contentBlocked(content),
-    ...(J.twin ? { startRoom: J.twin.entrances[mySide] } : {}),
+    ...(J.twin ? { startRoom: J.twin.entrances[mySide] }
+      : J.confluence ? { startRoom: J.confluence.entrances[myParty] } : {}),
   });
   loadedFromFile = fromFile;
   curRoom = crawl.startRoom; curTile = crawl.startTile;
@@ -1420,7 +1438,10 @@ function start(doc, fromFile) {
   camera.position.set(t.x + 6, t.y + 7, t.z + 6);
   $('introMeta').textContent = (fromFile ? 'loaded document' : 'seed ' + params.seed) +
     ' · ' + J.tile.shape + ' tiles @ ' + J.tile.size.toFixed(2) + ' m · ' +
-    J.rooms.length + ' rooms · ' + myEnds.length + ' endpoints' + (J.twin ? ' · twin dungeon, side ' + (params.side === 1 ? 'B' : 'A') : '');
+    J.rooms.length + ' rooms · ' + myEnds.length + ' endpoints' +
+    (J.twin ? ' · twin dungeon, side ' + (params.side === 1 ? 'B' : 'A') : '') +
+    (J.confluence ? ' · party ' + (myParty + 1) + ' of ' + J.confluence.entrances.length +
+      ', descending alone to the shared chamber' : '');
   window.__crawl.ready = true;
 }
 
@@ -1432,13 +1453,16 @@ $('guideChip').onclick = () => {
 };
 // twin: hop the frontier — same map, the other entrance
 $('sideChip').onclick = () => {
-  if (!J?.twin) return;
-  params.side = params.side === 1 ? 0 : 1;
-  if (!loadedFromFile) {
-    const h = new URLSearchParams(location.hash.slice(1));
+  if (!J?.twin && !J?.confluence) return;
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (J.confluence) {
+    params.party = (params.party + 1) % J.confluence.entrances.length;   // next party's descent
+    if (params.party) h.set('party', params.party); else h.delete('party');
+  } else {
+    params.side = params.side === 1 ? 0 : 1;
     if (params.side === 1) h.set('side', 'b'); else h.delete('side');
-    history.replaceState(null, '', '#' + h.toString());
   }
+  if (!loadedFromFile) history.replaceState(null, '', '#' + h.toString());
   start(J, loadedFromFile);
 };
 $('rollChip').onclick = () => {
@@ -1524,7 +1548,7 @@ window.__crawl = {
 // --------------------------------------------------------------- boot ------
 start(dungeonToJSON(generateDungeon({
   seed: params.seed, endpoints: params.n, tileShape: params.shape, tileScale: params.scale, size: params.size,
-  twin: params.twin,
+  twin: params.twin, starts: params.starts,
 })), false);
 
 (function loop() {

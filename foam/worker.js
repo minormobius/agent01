@@ -41,6 +41,7 @@ function readParams(sp) {
     scale: Math.min(1, Math.max(0.08, parseFloat(sp.get('scale') ?? '0.35') || 0.35)),
     size: SIZES[sp.get('size')] ? sp.get('size') : 'm',
     twin: sp.get('twin') === '1',
+    starts: Math.min(4, Math.max(1, parseInt(sp.get('starts') ?? '1', 10) || 1)),
     roll: Math.max(1, parseInt(sp.get('roll') ?? '1', 10) || 1),
     tune: sp.get('tune') ?? '',
   };
@@ -52,7 +53,7 @@ function readParams(sp) {
     return { error: 'unknown size "' + sp.get('size') + '" — one of: ' + Object.keys(SIZES).join(', ') };
   }
   const canon = 'seed=' + p.seed + '&n=' + p.n + '&shape=' + p.shape + '&scale=' + p.scale +
-    '&size=' + p.size + (p.twin ? '&twin=1' : '');
+    '&size=' + p.size + (p.twin ? '&twin=1' : '') + (p.starts > 1 ? '&starts=' + p.starts : '');
   return { params: p, canon };
 }
 
@@ -69,6 +70,10 @@ const USAGE = {
         scale: 'tile scale 0.08–1 (default 0.35)',
         size: Object.keys(SIZES).join('|') + ' (default m)',
         twin: '1 = the intertwined pair (two disjoint dungeons, one foam)',
+        starts: '2–4 = confluence: k far-apart starts descending to ONE shared chamber, ' +
+          'routes sharing no chamber until they arrive. CPU-heavy (the generator searches ' +
+          'foams until one can carry k disjoint descents) — often exceeds the edge limit; ' +
+          'import the modules for this mode.',
       },
       versions: { dungeon: DUNGEON_VERSION },
     },
@@ -114,7 +119,8 @@ async function handleApi(url) {
   const t0 = Date.now();
   const dungeon = generateDungeon({
     seed: params.seed, endpoints: params.n, tileShape: params.shape,
-    tileScale: params.scale, size: params.size, twin: params.twin,
+    tileScale: params.scale, twin: params.twin, starts: params.starts,
+    ...(url.searchParams.get('size') ? { size: params.size } : {}),
   });
   const doc = dungeonToJSON(dungeon);
   const body = wantContent

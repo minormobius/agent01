@@ -71,6 +71,37 @@ other dungeon as ghost geometry through seams — visible, never enterable.
 `twin` absent = single dungeon, and nothing about single-mode output
 changes.
 
+### Confluence — many starts, one end (`starts=2..4`)
+
+`starts=3` builds the other multi-party shape: **three parties enter far
+apart on the top surface and descend to ONE shared chamber deep below, and
+no two of their routes share a chamber until they arrive.** Every room and
+path carries `side: 0..k-1` (the shared chamber carries none and is flagged
+`confluence: true` on its room), and a top-level `confluence` block records
+`entrances`, `chamber`, `depth` (the shortest approach, in doors) and the
+same `seams` array the twin uses — here, the near misses between parties.
+
+The disjointness is proved, not attempted. The certified crossing graph is
+close to a tree, so routing three descents greedily fails almost always:
+one route taken selfishly walls the others off. Instead the generator asks
+**max-flow with unit node capacities** whether a chamber can take k routes
+that share nothing (Menger's theorem), and lets the flow choose which of a
+spread set of top chambers become the entrances — so they are both far
+apart and separately reachable. Routes are then re-walked with the
+dungeon's own rule (shortest by doors, steepest descent among equals)
+around each other. If no chamber in a foam can carry k descents, the
+generator asks the kernel for the **next certified pocket** and tries
+again — the same discipline `generatePocket` uses for solvability, one
+level up. Because three separate descents need room to be separate in,
+confluence mode defaults to size `l` unless a size is given.
+
+CI pins the certificate from the crawl graph, not just the plan: with the
+shared chamber treated as absorbing, each party reaches all of its own
+territory, reaches the chamber, and reaches **zero** rooms belonging to
+anyone else. The crawler takes `party=0..k-1` on the hash (a chip cycles
+them), starts you at that party's own mouth, and wins when you arrive at
+the chamber.
+
 ## The crawler
 
 <https://foam.mino.mobi/dungeon/crawl/> is a room's-eye dungeon crawler over
