@@ -9,6 +9,8 @@
 //
 // Per-tick update is documented in tick() below.
 
+import { flagellaForces, flagellaSense } from './flagella.js';
+
 const TWO_PI = Math.PI * 2;
 
 // Multiply the chem field down inside a radius. Used during food dissipation
@@ -184,6 +186,10 @@ export function createSim({ world, N = 256, radius = 60, cx, cy } = {}) {
 
     detached: false,
     tickCount: 0,
+
+    // Optional ciliary apparatus. Null until attachFlagella() is called from
+    // the page; the crawling cell works exactly as before without it.
+    flagella: null,
   };
 }
 
@@ -255,6 +261,11 @@ export function tick(sim, dt) {
     }
     me.nx = nx; me.ny = ny;
   }
+
+  // --- 3b. Ciliary thrust. Runs after the membrane's own forces are assembled
+  //         and before integration, so the beat pushes on the same cortex the
+  //         player is deforming. See flagella.js.
+  if (sim.flagella) flagellaForces(sim.flagella, sim, dt);
 
   // --- 4. Integrate. Adhesion damps velocity. Cap |v| as a safety net so
   //        ill-tuned parameters can't blow up to vmax=1000. -------------
@@ -412,6 +423,13 @@ export function tick(sim, dt) {
     // Slow recovery toward 1.0 so the cell doesn't lock into permanent distortion.
     n.restLenRatio += (1.0 - n.restLenRatio) * 0.05 * dt;
   }
+
+  // --- 7b-bis. Ciliary sensing. Runs after the membrane-flow pass, which
+  //             overwrites every node's readings, so the cilium's distal
+  //             report survives to the map. It also writes tension at the
+  //             anchor, which next tick's EMA carries into the materials
+  //             cycle — swimming costs membrane, as it should.
+  if (sim.flagella) flagellaSense(sim.flagella, sim, world);
 
   // --- 7c. Food engulfment + dissipation + respawn. ---------------------
   // Winding number of the polyline around each unconsumed food point. Food

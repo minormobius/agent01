@@ -26,6 +26,87 @@ Self-intersection isn't explicitly prevented; the internal pressure works agains
 - `sim.js` — hidden cell simulation (polyline + sensor nodes + per-tick update).
 - `render.js` — map rasterization and channel blending.
 - `input.js` — pointer handling and intent painting.
+- `flagella.js` — the ciliary apparatus: waveform, behavioural state machine, thrust.
+- `flagella.selftest.mjs` — `node pokemon/proteus/flagella.selftest.mjs`. Run it before touching `flagella.js`.
+
+## Cilia — the second gait
+
+The cell also carries a **compound cilium**: four cilia at one point on the
+membrane, bundled into one while swimming and unfurled while stopped. Crawling
+is paid for in cortex and needs the substrate; swimming is paid for in beat and
+does not. They sit on the same cell, sharing one membrane and one material
+budget, and they do not cooperate — which is the reason to have both.
+
+Every number in it comes from one paper:
+
+> **Embodied behavioural complexity in a ciliated microorganism.**
+> *Nature Communications* **17**, 8445 (2026).
+> [doi:10.1038/s41467-026-75076-8](https://doi.org/10.1038/s41467-026-75076-8)
+
+It films 125 *Pterosperma* cells — a marine prasinophyte, 9 × 7.1 µm of body
+wearing four 67 µm cilia — and extracts 219,368 ciliary waveforms. Three things
+in it are directly usable, and `flagella.js` is those three:
+
+- **A shape basis.** The waveform is the tangent angle θ(s,t) on Chebyshev
+  polynomials; twenty modes reconstruct a real cilium to 0.368 µm. So a
+  flagellum's *state* is a 20-number vector, not a polyline. The prototype
+  round-trips through that basis every tick on purpose: what the modes cannot
+  hold does not reach the physics.
+- **A dispersion relation.** The first empirical *f*–*k* relation for ciliary
+  beating, and it is linear. Linear dispersion means one fixed wave speed, so
+  beat frequency alone determines the wavelength — the waveform's free
+  parameters collapse to a single scalar. Four quantized bands (37, 88, 184,
+  265 Hz) sit on top of it, which the model snaps toward.
+- **A behavioural state machine with measured rates.** Stop / Swim / Reorient,
+  with a *linear* topology: Stop and Reorient both hang off Swim, so a stopped
+  cell must swim before it can turn. Mean dwells 58 s / 1.42 s / 41 ms — four
+  orders of magnitude — and a steady state of 96.6% stopped.
+
+Thrust is resistive force theory (Gray & Hancock) evaluated on the reconstructed
+centreline: drag is about twice as hard across the filament as along it, and
+that asymmetry alone turns a travelling wave into propulsion. The selftest
+breaks both halves — freezing the wave, and making the fluid isotropic — and
+requires the thrust to vanish each time.
+
+The one parameter the paper does not give is the dispersion relation's
+*constant*. It is pinned by a different measurement in the same paper: given
+the cilium's length and the observed 95 Hz beat, resistive force theory turns
+wavelength into swimming speed, and requiring 646 µm/s leaves about **0.95
+wavelengths along the cilium**. That is the model's one structural prediction,
+and `WAVELENGTHS_PER_CILIUM` will fail the selftest if it drifts from what the
+speed implies.
+
+### Controls
+
+Brush the map at the ciliary band — the tinted vertical strip — and the same
+extend/retract gesture that grows a pseudopod elsewhere means something else
+here: **extend urges the cell to swim, retract urges it to stop**. It leans on
+the transition rates by up to about five-fold; it never sets the state. A
+reorientation in progress ignores you completely. Left alone the cell is
+stopped 96.6% of the time, exactly as measured — a sit-and-wait organism that
+only swims because you lean on it.
+
+### Three knowing departures from the data
+
+Uniformly scaling every rate leaves the occupancy alone, so none of these
+touches the 96.6%:
+
+| | Model | Prototype | Why |
+|---|---|---|---|
+| state rates | as measured | ×8 | a faithful cell sits motionless for 58 s at a time. This deliberately destroys the four-orders-of-magnitude timescale separation the paper is partly about |
+| cilium length | 67 µm on a 4.5 µm body radius, ~15:1 | 2.2 cell radii | 15:1 here is a 900 px whip in an 800 px world |
+| swim vs. crawl speed | ~300:1 | ~2:1 | 300:1 puts the cell off the far edge of the world in under a second, and tears the cortex on the way |
+
+Beat frequency is *displayed* divided by `beatScale` (default 12) because 95 Hz
+cannot be drawn at 30 fps. The model frequency — the one that sets the
+wavelength, the thrust, and the µm/s readout — is untouched.
+
+### Why an amoeba has cilia
+
+*Amoeba proteus* does not. The move is *Naegleria*'s: an amoeba that grows two
+flagella in about an hour when the water changes. The numbers are
+*Pterosperma*'s, the body is neither, and none of that is hidden — it is at the
+top of `flagella.js`.
 
 ## Scientific notes
 

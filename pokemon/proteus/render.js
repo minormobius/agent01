@@ -14,9 +14,19 @@
 //       result(U, V)     = equator * eqWeight(V) + pole * (1 - eqWeight(V))
 //                          eqWeight peaks at V = 0.5 (skirt), falls to 0 at the poles.
 
+import { filamentPaths, STOP, SWIM, REORIENT, STATE_NAMES } from './flagella.js';
+
 const GRID_W = 192;
 const GRID_H = 96;
 const TWO_PI = Math.PI * 2;
+
+// One colour per behavioural state, used identically on the map band, the
+// debug filaments and the HUD so the three always agree.
+const STATE_COLOR = {
+  [STOP]:     [110, 150, 210],
+  [SWIM]:     [240, 200,  90],
+  [REORIENT]: [240, 110,  90],
+};
 
 const COLOR = {
   adhesion: [240, 160,  80],
@@ -272,6 +282,13 @@ function renderMap(renderer, sim, { channels: enabled }) {
   // --- 4. Detached state: TV-static overlay. ---------------------------
   // (The membrane-flow texture overlay was removed -- it was dimming the
   // four sensor channels and adding no information.)
+  // --- 3b. Ciliary band. The cilium occupies one arc position on the
+  // membrane, so on the map it is one vertical strip — the place where
+  // chemistry from two cell-radii away arrives without the membrane ever
+  // having been there. Colour is the behavioural state; the wobble across the
+  // strip is the live tangent-angle profile, i.e. the beat itself.
+  if (sim.flagella && sim.flagella.enabled) drawCiliaryBand(renderer, sim.flagella, sim);
+
   if (detached) {
     const { staticCnv, staticCtx, staticImg } = renderer;
     const td = staticImg.data;
@@ -285,6 +302,51 @@ function renderMap(renderer, sim, { channels: enabled }) {
     ctx.drawImage(staticCnv, 0, 0, canvas.width, canvas.height);
     ctx.restore();
   }
+}
+
+// The ciliary strip on the sensor map, drawn at the anchor's arc position.
+function drawCiliaryBand(renderer, fl, sim) {
+  const { ctx, canvas } = renderer;
+  const W = canvas.width, H = canvas.height;
+  const anchor = sim.nodes[Math.min(fl.anchorIdx, sim.N - 1)];
+  if (!anchor) return;
+  const cx = anchor.mapU * W;
+  const half = Math.max(8, W * 0.035);
+  const col = STATE_COLOR[fl.ctl.state] || STATE_COLOR[SWIM];
+  const rgb = `${col[0]}, ${col[1]}, ${col[2]}`;
+
+  ctx.save();
+  // Soft edge-to-edge wash marking the footprint the cilium reports into.
+  const grad = ctx.createLinearGradient(cx - half, 0, cx + half, 0);
+  grad.addColorStop(0, `rgba(${rgb}, 0)`);
+  grad.addColorStop(0.5, `rgba(${rgb}, 0.20)`);
+  grad.addColorStop(1, `rgba(${rgb}, 0)`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(cx - half, 0, half * 2, H);
+
+  // The beat, drawn as the tangent-angle profile running from the equator
+  // (base of the cilium) up toward the dorsal edge (its tip).
+  const theta = fl.theta;
+  const M = theta.length;
+  ctx.strokeStyle = `rgba(${rgb}, 0.85)`;
+  ctx.lineWidth = Math.max(1.2, W / 900);
+  ctx.beginPath();
+  for (let j = 0; j < M; j++) {
+    const t = j / (M - 1);
+    const y = H * 0.5 - t * H * 0.46;
+    const x = cx + Math.sin(theta[j]) * half * 0.85;
+    if (j === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Tip marker, brightened by what the tip is currently smelling.
+  const tipY = H * 0.5 - H * 0.46;
+  const tipX = cx + Math.sin(theta[M - 1]) * half * 0.85;
+  ctx.fillStyle = `rgba(112, 208, 136, ${0.25 + 0.75 * Math.min(1, fl.tipChem)})`;
+  ctx.beginPath();
+  ctx.arc(tipX, tipY, Math.max(2.5, W / 420), 0, TWO_PI);
+  ctx.fill();
+  ctx.restore();
 }
 
 // Top-down debug view: substrate fields + cell polyline + sensor dots, south
@@ -414,11 +476,54 @@ function renderDebug(renderer, sim, { channels: enabled }) {
     }
   }
 
+  // Cilia. Bundled they draw as one compound cilium; unfurled, as four.
+  const fl = sim.flagella;
+  if (fl && fl.enabled) {
+    const col = STATE_COLOR[fl.ctl.state] || STATE_COLOR[SWIM];
+    const rgb = `${col[0]}, ${col[1]}, ${col[2]}`;
+    const paths = filamentPaths(fl);
+    ctx.lineWidth = (fl.bundle > 0.985 ? 2.0 : 1.2) / scale;
+    ctx.strokeStyle = `rgba(${rgb}, 0.9)`;
+    for (const p of paths) {
+      ctx.beginPath();
+      ctx.moveTo(fl.anchorX, fl.anchorY);
+      for (let j = 0; j < p.length; j += 2) ctx.lineTo(p[j], p[j + 1]);
+      ctx.stroke();
+    }
+    // Basal body.
+    ctx.fillStyle = `rgba(${rgb}, 0.95)`;
+    ctx.beginPath();
+    ctx.arc(fl.anchorX, fl.anchorY, 3.5 / scale, 0, TWO_PI);
+    ctx.fill();
+    // Thrust vector, in the heading frame.
+    if (fl.thrustMag > 0 && fl.ctl.state !== STOP) {
+      const hx = Math.cos(fl.heading), hy = Math.sin(fl.heading);
+      const t = fl.thrustUm;
+      const m = Math.max(1e-9, fl.thrustMag);
+      const len = Math.min(40, 8 + fl.speedUmS * 0.04) / scale;
+      const wx = (t.x * hx - t.y * hy) / m, wy = (t.x * hy + t.y * hx) / m;
+      ctx.strokeStyle = 'rgba(255, 250, 210, 0.9)';
+      ctx.lineWidth = 2 / scale;
+      ctx.beginPath();
+      ctx.moveTo(fl.anchorX, fl.anchorY);
+      ctx.lineTo(fl.anchorX + wx * len, fl.anchorY + wy * len);
+      ctx.stroke();
+    }
+    // Where the tip is sampling from.
+    if (fl.tipX != null) {
+      ctx.strokeStyle = 'rgba(112, 208, 136, 0.8)';
+      ctx.lineWidth = 1.2 / scale;
+      ctx.beginPath();
+      ctx.arc(fl.tipX, fl.tipY, 5 / scale, 0, TWO_PI);
+      ctx.stroke();
+    }
+  }
+
   ctx.restore();
 
   // Legend.
   ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-  ctx.fillRect(8, 8, 280, 96);
+  ctx.fillRect(8, 8, 280, fl && fl.enabled ? 130 : 96);
   ctx.fillStyle = '#e0f0e8';
   ctx.font = '11px ui-monospace, monospace';
   ctx.fillText('DEBUG: top-down view', 16, 24);
@@ -433,4 +538,15 @@ function renderDebug(renderer, sim, { channels: enabled }) {
   const food = (world.food && world.food.length) ? world.food[0] : null;
   const wind = food && food.lastWinding != null ? food.lastWinding.toFixed(2) : '--';
   ctx.fillText('winding ' + wind + '   budget ' + (sim.budget || 0).toFixed(2), 16, 88);
+  if (fl && fl.enabled) {
+    const col = STATE_COLOR[fl.ctl.state] || STATE_COLOR[SWIM];
+    ctx.fillStyle = `rgb(${col[0]}, ${col[1]}, ${col[2]})`;
+    ctx.fillText(
+      `cilia ${STATE_NAMES[fl.ctl.state]}  ${fl.freqHz.toFixed(0)} Hz  ${fl.speedUmS.toFixed(0)} um/s`,
+      16, 106);
+    ctx.fillStyle = '#cfd8d2';
+    ctx.fillText(
+      `bundle ${(fl.bundle * 100) | 0}%   tip chem ${fl.tipChem.toFixed(2)}`,
+      16, 122);
+  }
 }
