@@ -355,11 +355,21 @@ export function sectionSVG(b, opts = {}) {
   // ground poché
   out.push(`<rect x="${pad - 14}" y="${V(0)}" width="${n2(W - 2 * pad + 28)}" height="10" fill="url(#${id}-hatch)" opacity=".6"/>`);
 
-  for (const row of S.rows) {
+  for (let i = 0; i < S.rows.length; i++) {
+    const row = S.rows[i];
+    const aboveSpans = S.rows[i + 1] ? S.rows[i + 1].spans : [];
     for (const [x0, x1] of row.spans) {
       // the storey volume, then the slab cut heavy — that is what a section IS
       out.push(`<rect x="${F.X(x0)}" y="${V(row.y + row.h)}" width="${n2(F.L(x1 - x0))}" height="${n2(F.L(row.h))}" fill="${P.bg}" fill-opacity=".8" stroke="${P.line}" stroke-width=".9"/>`);
       out.push(`<rect x="${F.X(x0)}" y="${V(row.y + 0.42)}" width="${n2(F.L(x1 - x0))}" height="${n2(Math.max(2, F.L(0.42)))}" fill="${P.ink}"/>`);
+      // and the ROOF over whatever the storey above does not stand on — the top
+      // storey and every setback terrace. The model decks exactly these, so the
+      // section has to cut them too or the drawing shows an open building.
+      for (const [r0, r1] of gaps([x0, x1], aboveSpans)) {
+        out.push(`<rect x="${F.X(r0)}" y="${V(row.y + row.h + 0.42)}" width="${n2(F.L(r1 - r0))}" height="${n2(Math.max(2, F.L(0.42)))}" fill="${P.ink}"/>`);
+        out.push(`<rect x="${F.X(r0)}" y="${V(row.y + row.h + 1.5)}" width="${n2(Math.max(1, F.L(0.3)))}" height="${n2(F.L(1.1))}" fill="${P.ink}"/>`);
+        out.push(`<rect x="${F.X(r1) - Math.max(1, F.L(0.3))}" y="${V(row.y + row.h + 1.5)}" width="${n2(Math.max(1, F.L(0.3)))}" height="${n2(F.L(1.1))}" fill="${P.ink}"/>`);
+      }
     }
     out.push(`<line x1="${pad - 22}" y1="${V(row.y)}" x2="${W - pad + 8}" y2="${V(row.y)}" stroke="${P.faint}" stroke-width=".4" stroke-dasharray="3 5"/>`);
     if (F.L(row.h) > 10) out.push(label(pad - 24, V(row.y) - 2, `+${row.y.toFixed(1)}`, P, 7, 'end'));
@@ -379,6 +389,22 @@ export function sectionSVG(b, opts = {}) {
   out.push(label(pad - 12, H - 8, `Section A–A  ·  cut at z = ${S.cutZ.toFixed(1)} m`, P, 10, 'start', P.ink));
   out.push(label(W - pad + 12, H - 8, nominalScale(F.s) + ' @ sheet', P, 9, 'end'));
   return frame(W, H, P, id, out.join('\n'));
+}
+
+// [a,b] minus a set of intervals — the 1D twin of rect.subtract, used to find
+// the part of a storey's span that nothing stands on, i.e. its roof.
+function gaps([a, b], covers) {
+  let out = [[a, b]];
+  for (const [c0, c1] of covers) {
+    const next = [];
+    for (const [s0, s1] of out) {
+      if (c1 <= s0 || c0 >= s1) { next.push([s0, s1]); continue; }
+      if (c0 > s0) next.push([s0, c0]);
+      if (c1 < s1) next.push([c1, s1]);
+    }
+    out = next;
+  }
+  return out.filter(([s0, s1]) => s1 - s0 > 0.05);
 }
 
 function dimV2(F, V, a, b, x, P) {

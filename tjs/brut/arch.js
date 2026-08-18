@@ -88,6 +88,43 @@ const R = {
     if (x1 < R.x1(a) - 1e-6) out.push(R.fromMinMax(Math.max(x1, R.x0(a)), R.z0(a), R.x1(a), R.z1(a)));
     return out.filter((r) => r.w > 1e-6);
   },
+  // a MINUS a list of rects, as a set of disjoint rects. Cut the combined
+  // coordinate lines into a grid, drop the covered cells, then merge each column
+  // back down its z-run so the result is a handful of pieces, not a mosaic.
+  // This is what makes a roof possible: the exposed part of a plate is exactly
+  // the part the level above does not stand on.
+  subtract: (a, list) => {
+    const bs = list.filter((b) => R.overlaps(a, b, 1e-6));
+    if (!bs.length) return [{ x: a.x, z: a.z, w: a.w, d: a.d }];
+    const xs = new Set([R.x0(a), R.x1(a)]), zs = new Set([R.z0(a), R.z1(a)]);
+    for (const b of bs) {
+      for (const v of [R.x0(b), R.x1(b)]) if (v > R.x0(a) + 1e-9 && v < R.x1(a) - 1e-9) xs.add(v);
+      for (const v of [R.z0(b), R.z1(b)]) if (v > R.z0(a) + 1e-9 && v < R.z1(a) - 1e-9) zs.add(v);
+    }
+    const X = [...xs].sort((p, q) => p - q), Z = [...zs].sort((p, q) => p - q);
+    const keep = [];
+    for (let i = 0; i < X.length - 1; i++) {
+      keep.push([]);
+      for (let k = 0; k < Z.length - 1; k++) {
+        const cx = (X[i] + X[i + 1]) / 2, cz = (Z[k] + Z[k + 1]) / 2;
+        keep[i].push(!bs.some((b) => cx > R.x0(b) && cx < R.x1(b) && cz > R.z0(b) && cz < R.z1(b)));
+      }
+    }
+    const out = [];
+    for (let i = 0; i < X.length - 1; i++) {
+      let k = 0;
+      while (k < Z.length - 1) {
+        if (!keep[i][k]) { k++; continue; }
+        let e = k;
+        while (e + 1 < Z.length - 1 && keep[i][e + 1]) e++;
+        out.push(R.fromMinMax(X[i], Z[k], X[i + 1], Z[e + 1]));
+        k = e + 1;
+      }
+    }
+    // Slivers below ~20 mm are floating-point residue from grid snapping, not
+    // roofs; keeping them would emit a slab that rounds to zero extent.
+    return out.filter((r) => r.w > 0.02 && r.d > 0.02);
+  },
   splitZ: (a, z0, z1) => {
     const out = [];
     if (z0 > R.z0(a) + 1e-6) out.push(R.fromMinMax(R.x0(a), R.z0(a), R.x1(a), Math.min(z0, R.z1(a))));
@@ -772,11 +809,16 @@ function facadeSacred(p, geo, mass) {
   const push = (side, nx, nz, len, list, y, h, tag) =>
     facades.push({ level: 0, wing: 0, side, nx, nz, y, h, len: round2(len), tag, bays: list });
 
+  // A bay that falls in the crossing is not a wall — it is the arch into the
+  // transept, so it is left out of the elevation entirely rather than drawn and
+  // then contradicted by the arm standing in front of it.
+  const inCrossing = (cz) => Math.abs(cz - geo.tz) < geo.transeptD / 2;
   for (const side of [['W', -1, 0], ['E', 1, 0]]) {
     const list = [];
     const half = (geo.naveW / 2 + geo.aisleW);
     for (let i = 0; i < bays; i++) {
       const cz = -geo.naveL / 2 + (i + 0.5) * (geo.naveL / bays);
+      if (inCrossing(cz)) continue;
       list.push({ i, module: i % 2 === 0 ? 'buttress' : 'lancet', w: round2(geo.naveL / bays),
                   x: round2(side[1] * half), z: round2(cz) });
     }
@@ -850,10 +892,20 @@ function generateSacred(p) {
   // body (narthex + nave + aisles + chancel + apse) plus every arm and chapel
   // that projects off it. Wings are what the slabs, the section and the bounds
   // are all cut from, so anything a room occupies has to be a wing.
+  // Wings carry their own height and roof kind here, because a basilica is not
+  // one extrusion: the body runs to the nave head under folded plates, the
+  // transept arms match it, and the chapels stop at the aisle. `opensTo` names
+  // the face that is an arch into the church rather than a wall.
   L.wings = [
-    R.fromMinMax(-geo.naveW / 2 - geo.aisleW, -geo.naveL / 2,
-                  geo.naveW / 2 + geo.aisleW, -geo.naveL / 2 + geo.naveL + geo.apseD),
-    ...out.rooms.filter((r) => /transept|chapel/.test(r.program)).map((r) => R.make(r.x, r.z, r.w, r.d)),
+    { ...R.fromMinMax(-geo.naveW / 2 - geo.aisleW, -geo.naveL / 2,
+                       geo.naveW / 2 + geo.aisleW, -geo.naveL / 2 + geo.naveL + geo.apseD),
+      wingH: L.h, roof: 'folded' },
+    ...out.rooms.filter((r) => /transept|chapel/.test(r.program)).map((r) => ({
+      ...R.make(r.x, r.z, r.w, r.d),
+      wingH: round2(/transept/.test(r.program) ? L.h : L.h * 0.42),
+      roof: 'flat',
+      opensTo: r.x < 0 ? 'x+' : 'x-',      // the arm opens back toward the nave
+    })),
   ];
   L.gfa = round2(out.rooms.reduce((s, r) => s + R.area(r), 0));
   L.columns = sacredColumns(p, geo);
@@ -1151,21 +1203,52 @@ export function parts(b) {
     push({ mat: 'concrete', kind: 'tower-cap', x: t.x, y: round2(t.h + 0.35), z: t.z, w: round2(t.w + 0.5), h: 0.7, d: round2(t.d + 0.5) });
   }
 
-  // roof: parapet upstand round the top plate, plant enclosure if it has one.
-  // A folded-plate roof (the cathedral) is its own roof and wants neither.
-  const top = b.levels[b.levels.length - 1];
-  const roofY = top.y + top.h;
-  for (const wg of (b.roof.folded ? [] : top.wings)) {
-    const par = b.roof.parapet;
-    for (const [dx, dz, w2, d2] of [
-      [0, -wg.d / 2, wg.w + 0.3, 0.3], [0, wg.d / 2, wg.w + 0.3, 0.3],
-      [-wg.w / 2, 0, 0.3, wg.d + 0.3], [wg.w / 2, 0, 0.3, wg.d + 0.3],
-    ]) {
-      push({ mat: 'concrete', kind: 'parapet', x: round2(wg.x + dx), y: round2(roofY + par / 2), z: round2(wg.z + dz), w: round2(w2), h: par, d: round2(d2), level: top.index });
+  // ── ROOFS ────────────────────────────────────────────────────────────────
+  // Slabs are cast at each level's FLOOR, so a plate is only roofed by whatever
+  // stands on it. Every square metre the level above does NOT build on is a
+  // roof: the whole top plate, and — on a ziggurat, a setback or a stagger —
+  // the terrace each step leaves behind. Those terraces are half of what makes
+  // a stepped mass read as inhabited rather than as a stack of trays.
+  const topLevel = b.levels[b.levels.length - 1];
+  let biggestDeck = null;
+  for (let i = 0; i < b.levels.length; i++) {
+    const L = b.levels[i];
+    const above = b.levels[i + 1] ? b.levels[i + 1].wings : [];
+    for (const wg of L.wings) {
+      if (wg.roof === 'folded') continue;                 // the cathedral nave brings its own
+      const roofY = round2(L.y + (wg.wingH != null ? wg.wingH : L.h));
+      const exposed = R.subtract(wg, above);
+      if (!exposed.length) continue;
+      for (const r of exposed) {
+        push({ mat: 'concrete', kind: 'roof', x: r.x, y: round2(roofY + SLAB / 2), z: r.z,
+               w: round2(r.w), h: SLAB, d: round2(r.d), level: i });
+        if (i === b.levels.length - 1 && (!biggestDeck || R.area(r) > R.area(biggestDeck.r))) biggestDeck = { r, roofY };
+      }
+      // Parapet round the wing's own perimeter, but only on the edges the level
+      // above does not stand on — where it does, its facade is already the wall.
+      const par = b.roof.parapet;
+      const edges = [
+        [0, -wg.d / 2, wg.w + 0.3, 0.3, 0, 1],
+        [0, wg.d / 2, wg.w + 0.3, 0.3, 0, -1],
+        [-wg.w / 2, 0, 0.3, wg.d + 0.3, 1, 0],
+        [wg.w / 2, 0, 0.3, wg.d + 0.3, -1, 0],
+      ];
+      for (const [dx, dz, w2, d2, ix, iz] of edges) {
+        const px = wg.x + dx + ix * 0.3, pz = wg.z + dz + iz * 0.3;   // just inside the edge
+        if (above.some((u) => px > R.x0(u) && px < R.x1(u) && pz > R.z0(u) && pz < R.z1(u))) continue;
+        push({ mat: 'concrete', kind: 'parapet', x: round2(wg.x + dx), y: round2(roofY + SLAB + par / 2),
+               z: round2(wg.z + dz), w: round2(w2), h: par, d: round2(d2), level: i });
+      }
     }
-    if (b.roof.plant) {
-      push({ mat: 'concrete', kind: 'plant', x: wg.x, y: round2(roofY + 1.7), z: wg.z,
-             w: round2(wg.w * 0.42), h: 3.4, d: round2(wg.d * 0.42), level: top.index });
+  }
+  // the plant enclosure stands on the biggest piece of the top deck, not in mid-air
+  if (b.roof.plant && biggestDeck) {
+    const { r, roofY } = biggestDeck;
+    const pw = Math.min(r.w * 0.55, r.w - 1.6), pd = Math.min(r.d * 0.55, r.d - 1.6);
+    // a deck too small to walk round is too small to put plant on
+    if (pw > 1 && pd > 1) {
+      push({ mat: 'concrete', kind: 'plant', x: r.x, y: round2(roofY + SLAB + 1.7), z: r.z,
+             w: round2(pw), h: 3.4, d: round2(pd), level: topLevel.index });
     }
   }
 
@@ -1175,22 +1258,59 @@ export function parts(b) {
     // A folded-plate roof: alternating deep ribs, the concrete answer to a vault.
     // Shallow ribs read as a comb from any distance, so they are sized against the
     // nave width rather than a fixed depth.
-    const nFolds = Math.max(6, g.bays * 2);
+    // The roof runs the whole body, apse included — the apse is the one bay of a
+    // basilica people forget to cover, and an open one reads as a bomb site.
+    const bodyL = g.naveL + g.apseD;
+    const bodyZ = -g.naveL / 2 + bodyL / 2;
+    const nFolds = Math.max(6, Math.round((g.bays * 2 * bodyL) / g.naveL));
     const rib = g.rib;
     for (let i = 0; i < nFolds; i++) {
-      const z = round2(-g.naveL / 2 + ((i + 0.5) * g.naveL) / nFolds);
+      const z = round2(-g.naveL / 2 + ((i + 0.5) * bodyL) / nFolds);
       const up = i % 2 === 0;
       push({ mat: 'concrete', kind: 'fold', x: 0, y: round2(L.h + (up ? rib * 0.75 : rib * 0.25)), z,
-             w: round2(g.naveW + 0.7), h: round2(up ? rib * 1.5 : rib * 0.5), d: round2((g.naveL / nFolds) * 0.94) });
+             w: round2(g.naveW + 0.7), h: round2(up ? rib * 1.5 : rib * 0.5), d: round2((bodyL / nFolds) * 0.94) });
     }
+    // the deck the folds sit on: without it the nave is a colander
+    push({ mat: 'concrete', kind: 'roof', x: 0, y: round2(L.h + SLAB / 2), z: round2(bodyZ),
+           w: round2(g.naveW + 0.7), h: SLAB, d: round2(bodyL), level: 0 });
     // the ridge beam the folds hang from, so the roof reads as one thing
     push({ mat: 'concrete', kind: 'ridge', x: 0, y: round2(L.h + rib * 1.55), z: 0,
            w: round2(g.naveW * 0.22), h: round2(rib * 0.5), d: round2(g.naveL + 0.7) });
     // aisle roofs, lower — this is what makes the clerestory possible
     for (const s of [-1, 1]) {
       push({ mat: 'concrete', kind: 'aisle-roof',
-             x: round2(s * (g.naveW / 2 + g.aisleW / 2)), y: round2(L.h * 0.42), z: 0,
-             w: round2(g.aisleW + 0.4), h: 0.4, d: round2(g.naveL) });
+             x: round2(s * (g.naveW / 2 + g.aisleW / 2)), y: round2(L.h * 0.42), z: round2(bodyZ),
+             w: round2(g.aisleW + 0.4), h: 0.4, d: round2(bodyL) });
+    }
+    // TRANSEPT ARMS AND CHAPELS. The plan has drawn these all along; without a
+    // volume they were rooms the model simply never built. Each is a walled box
+    // to its own height — the arms to the nave, the chapels to the aisle — and
+    // the general roof pass above decks them, because they are wings like any
+    // other. The face that opens into the church is left out: that is the arch.
+    for (const wg of L.wings) {
+      if (!wg.opensTo) continue;
+      const hh = wg.wingH, t = 0.55;
+      const skip = wg.opensTo;                              // 'x-' | 'x+' | 'z-' | 'z+'
+      const faces = [
+        ['z-', wg.x, R.z0(wg) + t / 2, wg.w, t],
+        ['z+', wg.x, R.z1(wg) - t / 2, wg.w, t],
+        ['x-', R.x0(wg) + t / 2, wg.z, t, wg.d],
+        ['x+', R.x1(wg) - t / 2, wg.z, t, wg.d],
+      ];
+      for (const [id, wx, wz, ww, wd] of faces) {
+        if (id === skip) continue;
+        push({ mat: 'concrete', kind: 'wall', x: round2(wx), y: round2(hh / 2), z: round2(wz),
+               w: round2(ww), h: round2(hh), d: round2(wd), level: 0 });
+      }
+      // one deep light slot in the end wall, so an arm is not a blind box
+      const endIsX = skip.startsWith('x');
+      const sgn = skip === 'x-' ? 1 : skip === 'x+' ? -1 : skip === 'z-' ? 1 : -1;
+      push({ mat: 'glass', kind: 'glazing',
+             x: round2(endIsX ? wg.x + sgn * (wg.w / 2 - t) : wg.x),
+             y: round2(hh * 0.55),
+             z: round2(endIsX ? wg.z : wg.z + sgn * (wg.d / 2 - t)),
+             w: round2(endIsX ? 0.12 : Math.min(wg.w * 0.3, 2.4)), h: round2(hh * 0.5),
+             d: round2(endIsX ? Math.min(wg.d * 0.3, 2.4) : 0.12), level: 0 });
     }
     // the apse, faceted rather than curved — concrete does not do a true hemicycle
     const apse = L.rooms.find((r) => r.program === 'apse');

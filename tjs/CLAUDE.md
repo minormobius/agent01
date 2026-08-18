@@ -51,7 +51,7 @@ generates anything: both read `brut/arch.js`.
 | `brut/ui.js` | the control panel + URL sync **both** pages wear, so neither can invent its own idea of a seed. |
 | `brut/index.html` | the 3D bench (three.js, instanced boxes, per-seed formwork texture, x-ray + section modes). |
 | `brut/plan/index.html` | the blueprint set (print CSS, SVG export). |
-| `brut/arch.selftest.mjs` | **run this before touching the kernel**: `node tjs/brut/arch.selftest.mjs` (41 checks, ~2 s). It is also a gate in `deploy-tjs.yml`. |
+| `brut/arch.selftest.mjs` | **run this before touching the kernel**: `node tjs/brut/arch.selftest.mjs` (47 checks, ~3 s). It is also a gate in `deploy-tjs.yml`. |
 
 **Invariants worth knowing before you edit:**
 
@@ -68,9 +68,15 @@ generates anything: both read `brut/arch.js`.
    scaling the pieces.
 4. **Cut plans along the corridor, never across it.** Cutting across stacks a
    second rank of rooms behind the first with no way in.
-5. **The two sites may not diverge.** If you add a facade module, give it a
+5. **Slabs are cast at each level's FLOOR, so a plate is only roofed by what
+   stands on it.** Anything the level above does not build on — the top storey,
+   and every terrace a setback or a ziggurat leaves behind — needs a deck of its
+   own, which is what `rect.subtract` is for. The selftest samples every plate
+   and fails on any square metre left open to the sky.
+6. **The two sites may not diverge.** If you add a facade module, give it a
    `parts()` case *and* a `bayGlyph()` case — the selftest checks every drawn
-   bay is a built bay.
-6. `paramsToQuery` emits the seed plus only what differs from the seed's own
+   bay is a built bay. Same rule for volume: a room the plan draws (the
+   cathedral's transept arms, its chapels) has to be a thing the model builds.
+7. `paramsToQuery` emits the seed plus only what differs from the seed's own
    reading, so an untouched seed's link is just `?s=<seed>`. Keep it that way:
    it is what makes the cross-link between the two sites short and stable.

@@ -314,5 +314,76 @@ const EPS = 0.02;
   ok(missing === 0, 'every alphabet letter is a defined module');
 }
 
+/* 15. EVERY PLATE IS COVERED. Slabs are cast at each level's floor, so a plate
+       is only roofed by what stands on it — the top storey, and every terrace a
+       setback or a ziggurat leaves behind, need a deck of their own. Sampled
+       rather than summed, so it catches a roof that is present but in the wrong
+       place as well as one that is missing outright. */
+{
+  const COVER = new Set(['roof', 'aisle-roof', 'fold']);
+  let open = 0, sampled = 0, decks = 0;
+  for (const t of TYPOLOGY_IDS) {
+    for (const s of SEEDS) {
+      const b = generate(resolveParams({ s, t }));
+      const ps = parts(b);
+      decks += ps.filter((q) => q.kind === 'roof').length;
+      for (let i = 0; i < b.levels.length; i++) {
+        const L = b.levels[i];
+        const above = b.levels[i + 1] ? b.levels[i + 1].wings : [];
+        const cover = ps.filter((q) => COVER.has(q.kind));
+        for (const wg of L.wings) {
+          for (let a = 1; a <= 7; a++) {
+            for (const c of [1, 2, 3, 4, 5, 6, 7]) {
+              const x = R.x0(wg) + (a / 8) * wg.w, z = R.z0(wg) + (c / 8) * wg.d;
+              sampled++;
+              const built = above.some((u) => x > R.x0(u) && x < R.x1(u) && z > R.z0(u) && z < R.z1(u));
+              if (built) continue;
+              const roofed = cover.some((q) => x > q.x - q.w / 2 - 0.01 && x < q.x + q.w / 2 + 0.01 &&
+                                               z > q.z - q.d / 2 - 0.01 && z < q.z + q.d / 2 + 0.01 &&
+                                               q.y > L.y + 0.5);
+              if (!roofed) open++;
+            }
+          }
+        }
+      }
+    }
+  }
+  ok(sampled > 20000, `the sweep sampled plate area (${sampled} points)`);
+  ok(decks > 200, `roof decks are actually emitted (${decks})`);
+  ok(open === 0, `no plate is left open to the sky (${open} uncovered samples)`);
+  // A parapet has to stand ON a deck: same level, its base flush with that
+  // deck's top. Otherwise it is an upstand round a hole.
+  let floating = 0, parapets = 0;
+  for (const t of TYPOLOGY_IDS) {
+    for (const s of SEEDS) {
+      const ps = parts(generate(resolveParams({ s, t })));
+      const decks = ps.filter((q) => q.kind === 'roof');
+      for (const q of ps.filter((r) => r.kind === 'parapet')) {
+        parapets++;
+        const base = q.y - q.h / 2;
+        if (!decks.some((dk) => dk.level === q.level && Math.abs((dk.y + dk.h / 2) - base) < 0.02)) floating++;
+      }
+    }
+  }
+  ok(parapets > 100, `parapets are emitted (${parapets})`);
+  ok(floating === 0, `every parapet stands on a deck at its own level (${floating} floating)`);
+}
+
+/* 16. THE CATHEDRAL BUILDS WHAT IT DRAWS. The transept arms and chapels are
+       rooms in the plan; before this they had a footprint and no volume. */
+{
+  let missing = 0;
+  for (const s of SEEDS) {
+    const b = generate(resolveParams({ s, t: 'cathedral' }));
+    const ps = parts(b);
+    for (const r of b.levels[0].rooms.filter((q) => /transept|chapel/.test(q.program))) {
+      const walls = ps.filter((q) => q.kind === 'wall' && Math.abs(q.x - r.x) < r.w && Math.abs(q.z - r.z) < r.d);
+      const roof = ps.some((q) => q.kind === 'roof' && Math.abs(q.x - r.x) < 0.6 && Math.abs(q.z - r.z) < 0.6);
+      if (walls.length < 3 || !roof) missing++;
+    }
+  }
+  ok(missing === 0, `every transept arm and chapel is walled and roofed (${missing} unbuilt)`);
+}
+
 console.log(`\nbrut/arch: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
