@@ -152,5 +152,22 @@ eq(shortName('Factor Merid Solen'), 'Merid', 'shortName steps over a title');
 eq(shortName(''), 'they', 'shortName degrades to a pronoun');
 eq(shortName('  Nolana   Krosttyalich '), 'Nolana', 'shortName tolerates loose whitespace');
 
+// ── the bundle's three prose fields all survive the explode ──────────────────────────────────
+// A room_bundle carries the ROOM's description, the NPC's own description, and a voice line. The
+// explode used to keep only the first, so the figure was described by the floor they stood on.
+{
+  const raw = doc.content_pool.items;
+  for (const r of raw) {
+    const served = content.find((c) => c.type === 'npc' && c.roomName === r.content.name);
+    if (!served || !r.content.npc) continue;
+    if (r.content.description) eq(served.content.description, r.content.description, `${served.id} keeps the ROOM prose in description`);
+    if (r.content.npc.description) eq(served.content.figure, r.content.npc.description, `${served.id} keeps the NPC prose in figure`);
+    if (r.content.npc.voice) eq(served.content.voice, r.content.npc.voice, `${served.id} keeps the voice line`);
+    ok(served.content.figure !== served.content.description || !r.content.npc.description,
+       `${served.id}: figure and description are not the same string`);
+  }
+  eq(content.filter((c) => c.type === 'npc' && c.content.figure).length, 16, 'every npc in the rev has a figure line');
+}
+
 console.log(`\nstatblock: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -129,8 +129,17 @@ export function expandRoomBundle(rec, { provider = 'hoopy-export', lane = 'spine
     // the 2026-08 rev. Carry it verbatim; `story/statblock.js` fills whatever slots he left empty from
     // the NPC's rolled cast, so a partial table is now a legitimate way to author one.
     if (npc.reactions && typeof npc.reactions === 'object') c.reactions = npc.reactions;
-    // the voice line is the NPC's manner in his own words — worth keeping distinct from `description`,
-    // which the explode overwrites with the ROOM's prose when both exist.
+    // A bundle carries THREE distinct pieces of prose and the explode used to keep one. `description`
+    // takes the ROOM's ("The floor yields slightly under your boots…") and hoopy's separate NPC
+    // description ("Shaban checks the water lines. Blue sleeves cover their forearms…") was dropped
+    // outright — so the figure you talk to was being described by the floor they stand on.
+    //
+    // Keep all three, under names that say which is which. `description` is left AS-IS (the room's
+    // prose) so nothing that reads it changes behaviour; the two new fields are additive:
+    //   description — the ROOM. What you see on entering the chamber.
+    //   figure      — the PERSON. What you see when the talk card opens.
+    //   voice       — the MANNER. A tone hint, not player-facing prose.
+    if (npc.description) c.figure = npc.description;
     if (npc.voice) c.voice = npc.voice;
     out.push({ id: roomId, type: 'npc', content: c, tags: tags.slice(), room: roomId, roomName: C.name || null, ...(C.lore ? { lore: loreId } : {}), verb: C.verb || null, ...meta });
   }
