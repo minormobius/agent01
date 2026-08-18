@@ -1052,11 +1052,11 @@
       "dir": "pokemon",
       "endpoint": "poke.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/microbial-locomotion-flagellation-uj0l09",
       "uses": [],
       "provides": null,
       "status": "MANAGED — FIXED (zoom-bucket): config renamed mino-poke -> poke + custom_domain route, so wrangler deploy updates the worker that owns poke.mino.mobi. Was deploying stray worker mino-poke. CLEANUP: delete the orphan `mino-poke` worker in the dashboard.",
-      "note": "Critter Red — Pokemon-style game. Static worker-assets (Worker `mino-poke`).",
+      "note": "Critter Red at /, the proteus amoeba prototype at /proteus/, the ciliary instrument at /flag/. Static worker-assets (Worker `poke`).",
       "paths": [
         "pokemon/**"
       ]

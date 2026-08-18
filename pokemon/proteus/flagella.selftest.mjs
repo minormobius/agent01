@@ -31,7 +31,7 @@ import {
   createController, stepController, steadyState, drawFrequency, exitRates,
   STOP, SWIM, REORIENT,
   dragCoefficients, rftForce, swimSpeed,
-  createFlagellation, synthesize, thrust,
+  createFlagellation, synthesize, thrust, advanceFlagellum,
 } from './flagella.js';
 
 const TWO_PI = Math.PI * 2;
@@ -371,6 +371,74 @@ const near = (a, b, tol, m) =>
   // reports stopped cells at 20 um/s or less.
   ok(speedAt(PTEROSPERMA.stopFreqHz.mean) < 20,
     `a 10 Hz unfurled oscillation leaves the cell effectively stationary (${speedAt(10).toFixed(1)} um/s, paper says <= 20)`);
+}
+
+// ── the speed the model REPORTS is the cycle mean, not a peak ───────────────
+{
+  // Everything downstream — the HUD, the /flag swimmer, the force pushed into
+  // the amoeba's cortex — reads fl.speedUmS. Within one beat the instantaneous
+  // thrust swings by more than an order of magnitude, so reporting it raw made
+  // the cell swim about fifty times too fast. Driving the live path here, not
+  // a hand-averaged probe, is the only way to catch that.
+  // stateScale 0 freezes the chain so this measures the beat and nothing else.
+  const fl = createFlagellation(null, { beatScale: 1, seed: 77, stateScale: 0 });
+  fl.ctl.state = SWIM;
+  fl.freqHz = PTEROSPERMA.swimFreqHz.mean;
+  const dt = 1 / (fl.freqHz * 60);
+  let peakInst = 0, samples = [];
+  for (let i = 0; i < 60 * 40; i++) {
+    advanceFlagellum(fl, dt);
+    peakInst = Math.max(peakInst, Math.hypot(fl.thrustInst.x, fl.thrustInst.y));
+    if (i > 60 * 20) samples.push(fl.speedUmS);
+  }
+  const lo = Math.min(...samples), hi = Math.max(...samples);
+  const mean = samples.reduce((a, b) => a + b, 0) / samples.length;
+  const { mean: M, sd } = PTEROSPERMA.swimSpeedUmS;
+  console.log(`  · live-path reported speed: ${mean.toFixed(0)} um/s (range ${lo.toFixed(0)}-${hi.toFixed(0)}); peak instantaneous thrust is ${(peakInst / fl.thrustRef).toFixed(0)}x the cycle mean`);
+  // Tolerance is 15% of the true cycle mean, not the paper's +/- 326 sd: the
+  // sd is the spread across cells, and a bug that reports peaks instead of
+  // means would hide comfortably inside it. What is being checked is that the
+  // live path agrees with the offline cycle average, and the smoothing's known
+  // ~3% high bias is the only gap that should be there.
+  ok(Math.abs(mean - M) < M * 0.15,
+    `the reported speed is the cycle mean, not a within-beat peak (${mean.toFixed(0)} vs ${M})`);
+  ok(hi - lo < M * 0.2,
+    `and is steady across the cycle rather than swinging with it (${lo.toFixed(0)}-${hi.toFixed(0)})`);
+  // The bug this guards is only possible because the raw signal is huge; if it
+  // ever stops being huge this test has stopped proving anything.
+  ok(peakInst > fl.thrustRef * 3,
+    `the raw within-beat thrust really is much larger than the mean (${(peakInst / fl.thrustRef).toFixed(0)}x), so the averaging is load-bearing`);
+}
+
+// ── the display slow-motion must not change the physics ─────────────────────
+{
+  // beatScale is a presentation knob: it slows the waveform on screen and
+  // nothing else. So the speed the model reports has to be the same at every
+  // setting of it. This is the invariant that catches a wrong power of
+  // beatScale in the display-frame correction, which is a whole factor of
+  // twelve at the default and which every fixed-beatScale test misses.
+  // stateScale 0 freezes the behaviour chain — every rate is zero, so the
+  // next-transition time is infinite and the cell stays where it is put. That
+  // matters: at large beatScale the timestep is long enough that the chain
+  // fires inside it, and a comparison across scales would be measuring
+  // transition frequency rather than the physics.
+  function reported(beatScale) {
+    const fl = createFlagellation(null, { beatScale, seed: 5150, stateScale: 0 });
+    fl.ctl.state = SWIM;
+    fl.freqHz = PTEROSPERMA.swimFreqHz.mean;
+    // Same resolution per displayed cycle at every scale.
+    const dt = beatScale / (fl.freqHz * 120);
+    const out = [];
+    for (let i = 0; i < 120 * 30; i++) {
+      advanceFlagellum(fl, dt);
+      if (i > 120 * 15) out.push(fl.speedUmS);
+    }
+    return out.reduce((a, b) => a + b, 0) / out.length;
+  }
+  const at1 = reported(1), at12 = reported(12), at40 = reported(40);
+  console.log(`  · reported speed vs display slow-motion: ${at1.toFixed(0)} at ÷1, ${at12.toFixed(0)} at ÷12, ${at40.toFixed(0)} at ÷40 um/s`);
+  ok(Math.abs(at12 - at1) < at1 * 0.1, `slowing the display 12x does not change the physics (${at1.toFixed(0)} vs ${at12.toFixed(0)})`);
+  ok(Math.abs(at40 - at1) < at1 * 0.1, `nor does 40x (${at1.toFixed(0)} vs ${at40.toFixed(0)})`);
 }
 
 // ── the mode vector really is the state ─────────────────────────────────────

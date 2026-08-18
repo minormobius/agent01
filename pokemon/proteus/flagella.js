@@ -436,14 +436,14 @@ export function createFlagellation(sim, opts = {}) {
     // value at the mean beat, and this is what one such unit buys.
     //
     // Set by measurement, not taste: at this value a swimming cell covers
-    // about 3.9 px per second of swimming against the 1.8 px/s a crawling cell
+    // about 3.7 px per second of swimming against the 1.8 px/s a crawling cell
     // makes under a sustained pseudopod. Swimming beats crawling by roughly
-    // two to one. The real ratio is nearer 300 to 1 — Pterosperma swims at
+    // five to three. The real ratio is nearer 300 to 1 — Pterosperma swims at
     // 646 um/s where an amoeba crawls at single-digit um/s — and reproducing
     // that here would put the cell off the far edge of the world in under a
     // second, and tear the cortex on the way. Third and last of the knowing
     // departures from the data, alongside stateScale and lengthRatio.
-    thrustGain = 300,
+    thrustGain = 700,
     // Ceiling on the normalised thrust, in units of the mean beat. The 304 Hz
     // top of the observed band is worth about 1.6 of these; the cap only
     // catches transients during a reorientation.
@@ -510,8 +510,11 @@ export function createFlagellation(sim, opts = {}) {
     anchorIdx: 0,
     anchorX: 0, anchorY: 0,
 
-    // Telemetry the HUD and the map read.
+    // Telemetry the HUD and the map read. thrustUm is the cycle-averaged
+    // propulsive force — the one that actually moves the cell; thrustInst is
+    // the raw within-beat value, kept only for diagnostics.
     thrustUm: { x: 0, y: 0 },
+    thrustInst: { x: 0, y: 0 },
     thrustMag: 0,
     speedUmS: 0,
     tipChem: 0,
@@ -656,20 +659,12 @@ export function swimSpeed(fl, thrustVec) {
   return Math.hypot(thrustVec.fx, thrustVec.fy) / (bodyDrag + flagDrag);
 }
 
-// ------------------------------------------------------------ the sim hook --
-// Called from sim.tick() after the per-node forces are assembled and before
-// integration. Advances the behaviour chain and the beat, rebuilds the
-// waveform, and pushes the thrust into the polyline at the anchor.
-export function flagellaForces(fl, sim, dt) {
-  if (!fl || !fl.enabled) return;
-
-  // 0. Player pressure. The brush writes `directive` onto membrane nodes; the
-  //    directive sitting on the ciliary anchor is read as drive. Extending
-  //    (positive) urges the cell to swim, retracting (negative) urges it to
-  //    stop. Note this is the same gesture that grows a pseudopod elsewhere on
-  //    the cell — at the anchor it means something else, which is the point.
-  fl.ctl.drive = sim.nodes[Math.min(fl.anchorIdx, sim.N - 1)].directive;
-
+// ------------------------------------------------------ advancing the beat --
+// Everything the ciliary apparatus does on its own: behaviour, bundling, beat
+// phase, reorientation, waveform, thrust. No membrane involved, which is the
+// point — the amoeba hangs this off a polyline, and the /flag instrument hangs
+// it off a free-swimming ellipse. Set fl.ctl.drive before calling.
+export function advanceFlagellum(fl, dt) {
   // 1. Behaviour. dt is wall time; the chain runs on it directly because
   //    rateScale already carries the compression.
   const prevState = fl.ctl.state;
@@ -677,6 +672,14 @@ export function flagellaForces(fl, sim, dt) {
   if (state !== prevState) {
     fl.freqHz = drawFrequency(fl.ctl, state);
     if (state === REORIENT) fl.turnLeft = fl.ctl.turn;
+    // A new frequency is a new wavelength, so the waveform changes shape
+    // between one tick and the next. thrust() gets its material velocities
+    // from a finite difference across exactly that gap, and would read the
+    // discontinuity as an enormous impulse — which then sits in the cycle
+    // average for the better part of a second and reports a cell swimming
+    // several times faster than it can. Dropping the previous frame forces
+    // thrust() to reseed and return zero for one tick instead.
+    fl.havePrev = false;
   }
 
   // 2. Bundling. Swimming and reorienting bundle the four cilia into one
@@ -708,11 +711,67 @@ export function flagellaForces(fl, sim, dt) {
   //    back up (thrust is quadratic in the material velocity, so beatScale^2).
   synthesize(fl, state);
   const t = thrust(fl, dt);
-  const modelScale = fl.beatScale * fl.beatScale;
-  const tx = t.fx * modelScale, ty = t.fy * modelScale;
-  fl.thrustUm = { x: tx, y: ty };
-  fl.thrustMag = Math.hypot(tx, ty);
-  fl.speedUmS = state === STOP ? 0 : swimSpeed(fl, { fx: tx, fy: ty });
+  // The waveform on screen moves at 1/beatScale of the real rate, so the
+  // material velocities thrust() differences out are 1/beatScale of the real
+  // ones. Resistive force theory is LINEAR in velocity — f = zeta*v — so
+  // recovering the model-frame thrust is one factor of beatScale, not two.
+  // It reads like it ought to be quadratic because the cycle-averaged thrust
+  // goes as amplitude squared, but amplitude is not what is being scaled here;
+  // only the rate is. Getting this wrong made the cell swim twelve times too
+  // fast, and was invisible to every test that ran at beatScale = 1.
+  const modelScale = fl.beatScale;
+  fl.thrustInst.x = t.fx * modelScale;
+  fl.thrustInst.y = t.fy * modelScale;
+
+  // Propulsion is the CYCLE AVERAGE of the thrust, not its instantaneous
+  // value. Within one beat the thrust vector swings enormously — its peak
+  // magnitude runs tens of times the mean — and a cell driven by the
+  // instantaneous number swims about fifty times too fast, which is exactly
+  // what the first version of this did (it reported 37,000 um/s against a
+  // measured 646). The oscillating part only rocks the cell back and forth
+  // inside a cycle; what carries it anywhere is the mean. So: an exponential
+  // average over three displayed beat periods. Two costs, both real and both
+  // chosen over the alternatives: the |mean| of a smoothed oscillating vector
+  // still reads about 3% high (669 um/s against the true cycle mean of 649),
+  // and thrust lags a state change by roughly that window. Shortening it makes
+  // the bias worse (1.5 periods reads 11% high); lengthening it makes the lag
+  // eat a whole swim bout at compressed rates.
+  const periodShown = fl.beatScale / Math.max(1, fl.freqHz);
+  const a = 1 - Math.exp(-dt / Math.max(1e-5, periodShown * 3));
+  fl.thrustUm.x += (fl.thrustInst.x - fl.thrustUm.x) * a;
+  fl.thrustUm.y += (fl.thrustInst.y - fl.thrustUm.y) * a;
+  fl.thrustMag = Math.hypot(fl.thrustUm.x, fl.thrustUm.y);
+  fl.speedUmS = state === STOP ? 0 : swimSpeed(fl, { fx: fl.thrustUm.x, fy: fl.thrustUm.y });
+  return state;
+}
+
+// Unit vector, in world coordinates, that the thrust points along. This is the
+// direction a free cell travels: at these Reynolds numbers there is no
+// inertia, so velocity is thrust over drag and nothing coasts.
+export function thrustDirection(fl) {
+  const hx = Math.cos(fl.heading), hy = Math.sin(fl.heading);
+  const m = fl.thrustMag;
+  if (!(m > 0)) return { x: hx, y: hy };
+  const t = fl.thrustUm;
+  return { x: (t.x * hx - t.y * hy) / m, y: (t.x * hy + t.y * hx) / m };
+}
+
+// ------------------------------------------------------------ the sim hook --
+// Called from sim.tick() after the per-node forces are assembled and before
+// integration. Advances the apparatus, then pushes the thrust into the
+// polyline.
+export function flagellaForces(fl, sim, dt) {
+  if (!fl || !fl.enabled) return;
+
+  // 0. Player pressure. The brush writes `directive` onto membrane nodes; the
+  //    directive sitting on the ciliary anchor is read as drive. Extending
+  //    (positive) urges the cell to swim, retracting (negative) urges it to
+  //    stop. Note this is the same gesture that grows a pseudopod elsewhere on
+  //    the cell — at the anchor it means something else, which is the point.
+  fl.ctl.drive = sim.nodes[Math.min(fl.anchorIdx, sim.N - 1)].directive;
+
+  const state = advanceFlagellum(fl, dt);
+  const tx = fl.thrustUm.x, ty = fl.thrustUm.y;
 
   // 6. Locate the anchor: the polyline node nearest the ray leaving the
   //    centroid at fl.heading. Anchoring by direction rather than node index
