@@ -268,6 +268,17 @@ export function rollStatBlock(item, { worldSeed = 0, peers = null, power = 10 } 
   //   { power: 14, quirks: 1 }            — depth and how many characteristics to roll
   // Everything unpinned still rolls. Authoring a reaction slot outright remains the finer control;
   // this is for when the whole character is off, not one line.
+  // SHORT NAMES MUST STAY UNAMBIGUOUS. Derived lines use the given name ("Shaban") because hoopy's
+  // own do — but two keepers can share one ("Ondine Dri2" / "Ondine Con2"), and the murder is exactly
+  // where "Ondine answers…" becomes unreadable. When peers are supplied, a colliding keeper falls back
+  // to their full name. hoopy's 2026-08 rev has no collisions; a few hundred bundles will.
+  const shortForm = (() => {
+    const s = shortName(name);
+    if (!peers) return s;
+    const clash = peers.some((p) => p && p.id !== id && p.content && p.content.name && shortName(p.content.name) === s);
+    return clash ? name : s;
+  })();
+
   const pin = (item.content && item.content.stats) || {};
   const vocation = pin.vocation && VOCATIONS[pin.vocation] ? pin.vocation : verb;
   const ch = rollCharacter(n, {
@@ -288,14 +299,14 @@ export function rollStatBlock(item, { worldSeed = 0, peers = null, power = 10 } 
       to: other.id,
       toName: other.content.name,
       text: fill('{name} ' + pick(BOND_FORMS, n, 'bondform'), {
-        name: shortName(name), other: shortName(other.content.name), ...props,
+        name: shortForm, other: shortName(other.content.name), ...props,
       }),
     };
   }
   const omen = pick(OMEN_FORMS, n, 'omen');
 
   return {
-    id, n, name, short: shortName(name),
+    id, n, name, short: shortForm,
     verb, vocation: ch.vocation, vocTag: ch.vocTag, kit: ch.kit, pinned: Object.keys(pin),
     triad: ch.triad, cast: ch.cast, attrs: ch.attrs, characteristics: ch.characteristics,
     props, bond, omen, power: ch.power,

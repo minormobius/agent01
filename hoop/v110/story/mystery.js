@@ -31,6 +31,7 @@
 
 import { anchorChain } from './anchors.js';
 import { hash32, pickVariant, spliceChoice, anchorWithGate, FACTION_LABEL } from './weave.js';
+import { rollStatBlock, reactionFor } from './statblock.js';
 
 export const MYSTERY_GATE = 'flag.ward.mystery_closed';
 export const TICK_LABEL = ['the dawn watch', 'the morning watch', 'midday', 'the afternoon watch', 'the evening watch', 'the night watch'];
@@ -289,6 +290,34 @@ export function weaveMystery(content, m) {
   if (!m) return content;
   const byId = new Map((content || []).map((c) => [c.id, c]));
 
+  // ── THE REACTION TABLE, SPENT ───────────────────────────────────────────────────────────────────
+  // hoopy authors every keeper a twelve-slot table — grief, accused, questioned, caught_in_a_lie,
+  // someone_else_accused, authority_arrives — and until now nothing in the game ever asked for one.
+  // Six of those twelve are not generic moods: they are THIS scene's beats. An interrogation is
+  // exactly the situation the table was written for, so the murder is where it gets spent.
+  //
+  // `reactionFor` returns hoopy's line when he wrote that slot and a line derived from the keeper's
+  // rolled cast when he didn't, so a suspect always has a manner even in a thin pool. m.seed is the
+  // world seed, so the same world interrogates the same people the same way (invariant 1).
+  // The scene's cast, passed as peers so two keepers who share a given name ("Ondine Dri2" /
+  // "Ondine Con2") both fall back to their full names — an interrogation is the one place where
+  // "Ondine answers…" has to say WHICH Ondine.
+  const castIds = [m.caseGiver.id, ...m.suspects.map((s) => s.id)];
+  const scene = castIds.map((id) => byId.get(id)).filter(Boolean);
+  const react = (id, slot) => {
+    const c = byId.get(id); if (!c) return null;
+    const b = rollStatBlock(c, { worldSeed: m.seed, peers: scene });
+    const r = reactionFor(b, slot, (c.content && c.content.reactions) || null);
+    return r ? r.text : null;
+  };
+  // join a reaction onto authored case prose without doubling spaces or losing either.
+  const withReact = (line, ...rest) => [line, ...rest].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+  // THE NAMING CLUE — the one that closes the board (it eliminates the most suspects; the reluctant
+  // eyewitness when there is one). Hearing it is what makes the culprit's story a LIE rather than
+  // merely uncorroborated, so it is the gate on the caught-in-a-lie follow-up.
+  const namingClue = (m.clues || []).reduce((best, c) =>
+    ((c.eliminates || []).length > ((best && best.eliminates) || []).length ? c : best), null);
+
   // 1 — the anchor: gates + turn-in requires (weave.js anchorWithGate — shared with the mythograph).
   const anchor = byId.get(m.anchorId);
   if (anchor) byId.set(m.anchorId, anchorWithGate(anchor, m.gate));
@@ -309,7 +338,10 @@ export function weaveMystery(content, m) {
       choice: { id: 'q_case_open', goto: 'q_case_intro', text: '☠ Before I carry your word to Solen — the ward is speaking of a death.', requires: { facts: { [m.caseGiver.gate]: true } }, effects: { set_facts: { 'case.opened': true, ...(body ? { ['case.clue.' + body.id]: true } : {}) } } },
       nodes: {
         q_case_intro: {
-          says: (body ? body.text : `${m.victim.name} is dead.`) + ' The Factor will not close the wards ledger while this stands open. Look around; the keepers know more than they volunteer.',
+          // the case-giver knew the dead — they open on GRIEF, then the facts.
+          says: withReact(react(m.caseGiver.id, 'grief'),
+            (body ? body.text : `${m.victim.name} is dead.`),
+            'The Factor will not close the wards ledger while this stands open. Look around; the keepers know more than they volunteer.'),
           choices: [{ id: 'q_case_intro_who', goto: 'q_case_board', text: 'Who wanted this?', effects: { set_facts: rumor ? { ['case.clue.' + rumor.id]: true } : {} } }],
         },
         q_case_board: {
@@ -330,18 +362,33 @@ export function weaveMystery(content, m) {
           choices: [
             ...m.suspects.map((s, i) => (s.id === m.truth.culpritId
               ? { id: 'q_case_pick_' + i, goto: 'q_case_closed', text: `It was ${s.name} — keeper of ${s.room}.`, effects: { set_facts: { [m.gate]: true, 'case.solved': true } } }
-              : { id: 'q_case_pick_' + i, goto: 'q_case_wrong', text: `It was ${s.name} — keeper of ${s.room}.`, effects: { set_facts: { 'case.missed': true } } })),
+              : { id: 'q_case_pick_' + i, goto: 'q_case_wrong_' + i, text: `It was ${s.name} — keeper of ${s.room}.`, effects: { set_facts: { 'case.missed': true } } })),
             { id: 'q_case_notyet', text: 'Not yet.', effects: { end: true } },
           ],
         },
         q_case_closed: {
-          says: `So it was. ${m.truth.name} — ${m.truth.motive.text} The instrument: ${m.truth.item}. The ward will do what wards do; the ledger closes. Solen will want the whole of it from your own mouth.`,
+          // the ward comes for the culprit: their own authority_arrives is the last thing you see of them.
+          says: withReact(`So it was. ${m.truth.name} — ${m.truth.motive.text} The instrument: ${m.truth.item}.`,
+            react(m.truth.culpritId, 'authority_arrives'),
+            'The ward will do what wards do; the ledger closes. Solen will want the whole of it from your own mouth.'),
           choices: [{ id: 'q_case_done', text: 'It is done.', effects: { end: true } }],
         },
-        q_case_wrong: {
-          says: 'The evidence does not carry that name. The accused stares you down, and the benches mutter. Look again — the clues close on exactly one soul.',
-          choices: [{ id: 'q_case_again', text: 'I will look again.', effects: { end: true } }],
-        },
+        // A WRONG NAME IS NOT A GENERIC BEAT. It used to be one shared node — "the accused stares you
+        // down" — for whoever you picked. Now each suspect answers a false accusation in their own
+        // manner, and one of the others reacts to watching it happen: the two slots hoopy already
+        // writes for exactly this (`accused`, `someone_else_accused`), spent where they belong.
+        ...Object.fromEntries(m.suspects.map((s, i) => {
+          if (s.id === m.truth.culpritId) return null;
+          // the bystander is seeded per accusation, so the room answers differently each time.
+          const others = m.suspects.filter((o) => o.id !== s.id);
+          const bystander = others.length ? others[hash32(m.seed, 'bystander', s.id) % others.length] : null;
+          return ['q_case_wrong_' + i, {
+            says: withReact(react(s.id, 'accused'),
+              bystander ? react(bystander.id, 'someone_else_accused') : null,
+              'The evidence does not carry that name. Look again — the clues close on exactly one soul.'),
+            choices: [{ id: 'q_case_again_' + i, text: 'I will look again.', effects: { end: true } }],
+          }];
+        }).filter(Boolean)),
       },
     });
     byId.set(m.caseGiver.id, woven);
@@ -354,11 +401,33 @@ export function weaveMystery(content, m) {
     const alibi = mine.find((x) => x.kind === 'alibi');
     const rest = mine.filter((x) => x !== alibi);
     const nid = 'q_case_w_' + i;
+    const isCulprit = s.id === m.truth.culpritId;
     const closing = rest.length
       ? [{ id: nid + '_more', goto: nid + '_more', text: 'What else did you see?' }]
       : [{ id: nid + '_done', text: 'That is all I needed.', effects: { end: true } }];
+    // PRESS THEM. Once the naming clue is in hand the culprit's account is not merely uncorroborated,
+    // it is a lie — and the player can say so. The choice is gated on that clue's fact, so it appears
+    // only when the evidence actually supports it, and it is offered to the culprit alone.
+    if (isCulprit && namingClue) {
+      closing.unshift({
+        id: nid + '_press', goto: nid + '_press',
+        text: 'That is not what the ward saw.',
+        requires: { facts: { ['case.clue.' + namingClue.id]: true } },
+      });
+    }
+    // being canvassed is a SITUATION, and `questioned` is the slot hoopy writes for it — the manner
+    // first, then the account. Where a keeper has no alibi clue the reaction replaces the old generic
+    // "has nothing to add, and says so twice" outright.
     const nodes = {
-      [nid]: { says: (alibi ? alibi.text : `${s.name} has nothing to add, and says so twice.`), choices: closing },
+      [nid]: {
+        says: withReact(react(s.id, 'questioned'), alibi ? alibi.text : null)
+          || `${s.name} has nothing to add, and says so twice.`,
+        choices: closing,
+      },
+    };
+    if (isCulprit && namingClue) nodes[nid + '_press'] = {
+      says: withReact(react(s.id, 'caught_in_a_lie'), 'They do not offer a second account.'),
+      choices: [{ id: nid + '_press_done', text: 'I will take that to the ward.', effects: { end: true } }],
     };
     if (rest.length) nodes[nid + '_more'] = {
       says: rest.map((x) => x.text).join(' '),

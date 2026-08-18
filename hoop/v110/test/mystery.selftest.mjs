@@ -132,5 +132,73 @@ ok(proveProgression(woven, { forcePlaced: true }).solvable, 'the WOVEN pool (cas
   console.log(`  (eyewitness closer used on ${eyewitnessed}/${SWEEP} seeds)`);
 }
 
+// ── THE REACTION TABLE, SPENT IN THE SCENE (v110) ────────────────────────────────────────────────
+// Six of hoopy's twelve slots are mystery beats. These pin that they actually reach the dialogue,
+// that an authored line is never displaced by a derived one, and that the scene stays readable.
+{
+  const woven = weaveMystery(wovenCast, m);
+  const byId = new Map(woven.map((c) => [c.id, c]));
+  const nodesOf = (id) => (byId.get(id) && byId.get(id).content && byId.get(id).content.dialogue && byId.get(id).content.dialogue.nodes) || {};
+  const allSays = [];
+  for (const id of [m.caseGiver.id, ...m.suspects.map((s) => s.id)])
+    for (const nd of Object.values(nodesOf(id))) if (nd && nd.says) allSays.push(nd.says);
+
+  ok(allSays.length > 0, 'reactions: the case weaves dialogue onto the cast');
+  ok(!allSays.some((t) => /\{\w+\}/.test(t)), 'reactions: no woven line ships an unfilled placeholder');
+  ok(!allSays.some((t) => /[.!?]\s+[a-z]/.test(t)), 'reactions: every woven line is sentence-cased');
+  ok(!allSays.some((t) => /\s{2,}/.test(t)), 'reactions: no doubled whitespace where a reaction was joined on');
+
+  // the canvass: every suspect answers being questioned, and names themselves.
+  m.suspects.forEach((s, i) => {
+    const nd = nodesOf(s.id)['q_case_w_' + i];
+    ok(!!nd && !!nd.says, `reactions: ${s.name} has a canvass node`);
+    if (nd) ok(nd.says.length > 20, `reactions: ${s.name}'s account is not the old two-word stub`);
+  });
+
+  // pressing the culprit is gated on the naming clue, and offered to the culprit ALONE.
+  const ci = m.suspects.findIndex((s) => s.id === m.truth.culpritId);
+  const cNodes = nodesOf(m.truth.culpritId);
+  const press = cNodes['q_case_w_' + ci + '_press'];
+  ok(!!press, 'reactions: the culprit has a caught-in-a-lie node');
+  const pressChoice = (cNodes['q_case_w_' + ci].choices || []).find((c) => /_press$/.test(c.id));
+  ok(!!pressChoice && !!(pressChoice.requires && pressChoice.requires.facts), 'reactions: the press choice is fact-gated, not free');
+  m.suspects.forEach((s, i) => {
+    if (s.id === m.truth.culpritId) return;
+    ok(!nodesOf(s.id)['q_case_w_' + i + '_press'], `reactions: innocent ${s.name} gets no press node`);
+  });
+
+  // a wrong accusation is answered per-suspect, not by one shared line.
+  const cgNodes = nodesOf(m.caseGiver.id);
+  const wrongs = Object.keys(cgNodes).filter((k) => /^q_case_wrong_/.test(k));
+  ok(wrongs.length === m.suspects.length - 1, `reactions: one wrong-accusation node per innocent (${wrongs.length})`);
+  ok(!cgNodes.q_case_wrong, 'reactions: the old shared q_case_wrong node is gone');
+  ok(new Set(wrongs.map((k) => cgNodes[k].says)).size === wrongs.length, 'reactions: each accused answers differently');
+  ok(wrongs.every((k) => /clues close on exactly one soul/.test(cgNodes[k].says)), 'reactions: the wrong-name steer survives');
+  // every wrong pick routes to its own node, and the culprit pick still closes the case.
+  const accuse = cgNodes.q_case_accuse.choices.filter((c) => /^q_case_pick_/.test(c.id));
+  ok(accuse.every((c) => c.goto === 'q_case_closed' || cgNodes[c.goto]), 'reactions: every accusation goto resolves to a real node');
+
+  // determinism — the same world interrogates the same people the same way.
+  const again = weaveMystery(wovenCast, m);
+  ok(JSON.stringify(again) === JSON.stringify(woven), 'reactions: weaveMystery is deterministic');
+
+  // AUTHORED ALWAYS WINS, in the scene as everywhere else.
+  {
+    const MARK = 'A line hoopy wrote himself, verbatim.';
+    const withTables = wovenCast.map((c) => (c.type === 'npc'
+      ? { ...c, content: { ...c.content, reactions: { questioned: MARK, accused: MARK } } } : c));
+    const m2 = buildMystery(withTables, cast, SEED);
+    ok(!!m2, 'reactions: a case still builds when the pool carries reaction tables');
+    const b2 = new Map(weaveMystery(withTables, m2).map((c) => [c.id, c]));
+    const n2 = (id) => (b2.get(id) && b2.get(id).content.dialogue.nodes) || {};
+    const canvass = m2.suspects.map((s, i) => n2(s.id)['q_case_w_' + i]).filter(Boolean);
+    ok(canvass.every((nd) => nd.says.includes(MARK)), 'reactions: an authored `questioned` reaches every canvass node verbatim');
+    const cg2 = n2(m2.caseGiver.id);
+    const wrong2 = Object.keys(cg2).filter((k) => /^q_case_wrong_/.test(k));
+    ok(wrong2.every((k) => cg2[k].says.includes(MARK)), 'reactions: an authored `accused` reaches the wrong-accusation nodes');
+  }
+}
+
+
 console.log(bad === 0 ? `✓ mystery.selftest — ${n} checks passed` : `✗ mystery.selftest — ${bad}/${n} FAILED`);
 if (bad) process.exit(1);
