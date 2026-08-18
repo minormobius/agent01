@@ -33,7 +33,7 @@ _Regenerated 2026-08-18 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 82, bluesky 73, data 58, tools 58, work 8.
 
-**Neighborhood spark** (bisk 2026-08-18, 99 members / 258 posts):
+**Neighborhood spark** (bisk 2026-08-18, 99 members / 262 posts):
 - Mood: Fair 🌤 (trust)
 - Distinctive words: anthropic, substack, openai
 - Top post: "*Opens X, The Everything App* "Shota" is a trending topic under "Sports" One of the first posts links to likely CSAM *Cl" — @hailey.at
