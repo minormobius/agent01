@@ -2,7 +2,7 @@
 
 > **For hoopy's next pass.** What the Commons and the Wards (zones 1–2) need in order to ship as a
 > playable campaign. Everything below was established by running the 16-item content rev
-> (`mobius_sample.html`) through the live v110 pipeline, not by reading it — see §6 for how to
+> (`mobius_sample.html`) through the live v110 pipeline, not by reading it — see §7 for how to
 > re-run the check yourself.
 >
 > Companion to [`CHAPTER1-SYNTHESIS.md`](CHAPTER1-SYNTHESIS.md), which covers the rest of the
@@ -34,10 +34,11 @@ Two things worth knowing about how this lands:
 - **`adjust_standing` is per-NPC and `adjust_rep` is per-faction.** Both persist. You're using
   standing 43× and rep 36×, which is the right ratio for a social zone — standing is the
   relationship, rep is the reputation.
-- **`reactions` is currently dropped.** Your 12-slot tables are 37.7% of the rev's authored prose
-  and `expandRoomBundle` doesn't carry them through. **Don't write more of them until we've wired
-  it** — we're planning to derive most slots from a rolled stat block so you'd only author the 2–3
-  that carry plot. Authoring 12 per NPC in the meantime is throwing away four-fifths of the work.
+- **`reactions` now survives import, and partial tables are the new contract.** They used to be
+  dropped on the floor — 37.7% of the rev's prose. They're carried now, and every slot you leave
+  empty is filled from a stat block rolled deterministically from the NPC's id. **So author the two
+  or three reactions that carry plot, a tell, or the character's one real secret, and leave the
+  rest.** See §6.
 
 ## 2. The three blockers
 
@@ -184,7 +185,54 @@ Three things the checker can't measure, in rough priority:
    watch is that it mostly goes up. A few choices that spend standing for information would make
    the regard economy feel like an economy.
 
-## 6. Checking your own pass
+## 6. Stat blocks: author less, get more
+
+Every NPC now gets a **FLESH · CHASSIS · ANIMA** character rolled from `(worldSeed, npc id)` — the
+same spine the arena and `rind/combat` read. Nothing is authored and nothing is stored; it's a pure
+function of the id, so it costs no content and re-derives identically everywhere.
+
+The seam is free: `stats.js` keys its vocations by **the thirteen verbs**, and your bundles already
+carry `verb`. So a `grow` room's keeper is a Tender, a `govern` room's is a Warden, with no mapping
+in between. The rolled **cast** (one of nine temperaments — Brute, Wired, Wrought, Construct…) then
+decides how each empty reaction slot plays, and the vocation supplies the props.
+
+Two things come along that you don't have to write: a **bond** — a phrased relation to another NPC
+in the pool, which also thickens the `refs` graph — and an **omen**, one line of foreboding. The
+omen is doing real thematic work: under the chapter's premise an omen is *a conclusion reached
+without evidence*, which is exactly the faculty the Seven lack and the player was rebuilt to have.
+
+**Authored always wins.** A slot you write comes back verbatim, marked `authored`; a slot you skip
+comes back marked `derived`. Derived lines are meant to be *right*, not to pass for yours — yours
+are far more specific, which is the point of the split.
+
+If a roll fights a voice you already have in mind, pin it on the bundle:
+
+```jsonc
+"npc": {
+  "name": "Factor Merid Solen",
+  "stats": { "triad": { "flesh": 0, "chassis": 1, "anima": 0 } },   // procedurally cold, not hot-tempered
+  "reactions": { "grief": "…the one line that matters…" }           // the rest derive
+}
+```
+
+`stats` accepts `triad`, `vocation`, `power` and `quirks`; anything you don't pin still rolls.
+
+### The API
+
+Pure, inference-free, no key, no cost, deterministic — the same request returns the same person for
+ever, so the GET form is a permalink the way `table.mino.mobi/cairn` means it.
+
+```
+GET  hoop.mino.mobi/api/story/statblock?id=<id>&name=<name>&verb=<verb>&seed=<worldSeed>
+POST hoop.mino.mobi/api/story/statblock   { worldSeed, npcs: [{ id, name, verb, reactions?, stats? }] }
+```
+
+The POST form takes a batch (up to 500) and returns each block with its **fully resolved table** —
+your authored slots preserved, the rest derived — so you can see while writing exactly which
+reactions are worth your hand. Post the whole pass at once and bonds point *within* it, giving you
+a connected relationship graph for free. CORS is open.
+
+## 7. Checking your own pass
 
 ```bash
 node hoop/scripts/extract-content-rev.mjs <rev.html> --out /tmp/rev.json   # review page → world_export

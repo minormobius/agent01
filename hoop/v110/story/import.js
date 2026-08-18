@@ -124,6 +124,14 @@ export function expandRoomBundle(rec, { provider = 'hoopy-export', lane = 'spine
     if (C.load_bearing && typeof C.load_bearing === 'object') c.load_bearing = C.load_bearing;
     if (C.zone) c.zone = C.zone;
     if (C.nave_faction) c.nave_faction = C.nave_faction;
+    // hoopy's twelve-slot REACTION TABLE (grief/shock/bribed/…) — how this keeper answers a situation
+    // that isn't a dialogue node. It was being dropped here, which quietly binned 37.7% of the prose in
+    // the 2026-08 rev. Carry it verbatim; `story/statblock.js` fills whatever slots he left empty from
+    // the NPC's rolled cast, so a partial table is now a legitimate way to author one.
+    if (npc.reactions && typeof npc.reactions === 'object') c.reactions = npc.reactions;
+    // the voice line is the NPC's manner in his own words — worth keeping distinct from `description`,
+    // which the explode overwrites with the ROOM's prose when both exist.
+    if (npc.voice) c.voice = npc.voice;
     out.push({ id: roomId, type: 'npc', content: c, tags: tags.slice(), room: roomId, roomName: C.name || null, ...(C.lore ? { lore: loreId } : {}), verb: C.verb || null, ...meta });
   }
   if (C.lore) {
