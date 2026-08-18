@@ -6,7 +6,7 @@ name: Deploy tjs (three.js workbenches)
 
 on:
   push:
-    branches: ['claude/dragonfly-pursuit-sim-pv3e8p']
+    branches: ['claude/threejs-procgen-buildings-mprgs6']
     paths:
       - 'tjs/**'
       - '.github/workflows/deploy-tjs.yml'
@@ -18,11 +18,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Kernel selftests (gate the deploy)
+        run: |
+          node tjs/brut/arch.selftest.mjs
+
       - name: Stage site into dist/
         working-directory: tjs
         run: |
           rm -rf dist && mkdir -p dist
-          cp -r index.html docs.html gantry orb infill swarm beelix cube deck geb kite dragon lib AGENTS.md samples dist/
+          cp -r index.html docs.html gantry orb infill swarm beelix cube deck geb kite dragon brut lib AGENTS.md samples dist/
           rm -f dist/wrangler.jsonc dist/wrangler.toml
           # kite: ship only the built wasm (solver/pkg) + kite-vlm.js; drop the Rust
           # sources and the node selftest from the static bundle.
@@ -32,6 +36,8 @@ jobs:
           # Rust sources and the node selftest from the static bundle.
           rm -rf dist/dragon/solver/dragon-solver dist/dragon/solver/dragon-solver-wasm dist/dragon/solver/.gitignore
           rm -f dist/dragon/dragon-sim.selftest.mjs
+          # brut: the node selftest is a build gate, not a page asset
+          rm -f dist/brut/arch.selftest.mjs
           ls -laR dist/ | head -60
 
       - name: Deploy to Cloudflare

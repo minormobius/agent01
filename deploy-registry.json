@@ -894,10 +894,10 @@
       "dir": "tjs",
       "endpoint": "tjs.mino.mobi",
       "type": "frontend",
-      "branch": "claude/dragonfly-pursuit-sim-pv3e8p",
+      "branch": "claude/threejs-procgen-buildings-mprgs6",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — new surface via deploy-tjs.yml (Worker `tjs`). Self-contained static three.js workbench surface; stages tjs/ into dist at build time. Owning branch reassigned to claude/dragonfly-pursuit-sim-pv3e8p (dragonfly aerial-combat sim take-over; the /dragon bench adds a Rust→wasm two-body visual-bearing pursuit solver + a head-cam POV).",
+      "status": "MANAGED — new surface via deploy-tjs.yml (Worker `tjs`). Self-contained static three.js workbench surface; stages tjs/ into dist at build time. Owning branch reassigned to claude/threejs-procgen-buildings-mprgs6 (procedural-brutalism take-over; adds /brut, a seeded architecture generator rendered as a 3D model, and /brut/plan, the same seed drawn as a blueprint set).",
       "op": "create",
       "note": "tjs.mino.mobi — three.js workbenches… (full description: tjs/CLAUDE.md)",
       "paths": [

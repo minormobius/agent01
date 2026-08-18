@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brut · procedural concrete — the model · tjs</title>
+<meta name="description" content="Seeded procedural brutalism in three.js: cathedrals, civic halls, offices, housing slabs, research blocks and car parks whose massing, floor plans and facade grammar are all generated from one permalinked seed — and drawn as a full blueprint set at /brut/plan/ from the same seed.">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  :root{ --bg:#07070c; --panel:#0f0f18ee; --line:#23232e; --ink:#e6e6f0; --soft:#8a8aa0; --accent:#39d6c8; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:#07070c;color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       -webkit-font-smoothing:antialiased;overflow:hidden}
+  #viewport{position:fixed;inset:0}
+  #viewport canvas{display:block}
+  .crumb{position:fixed;top:14px;left:18px;z-index:5;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft)}
+  .crumb a{color:var(--soft);text-decoration:none}
+  .crumb a:hover{color:var(--accent)}
+  #panel{position:fixed;top:42px;left:14px;z-index:6;width:308px;max-width:calc(100vw - 28px);
+    max-height:calc(100vh - 58px);overflow:auto;background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;backdrop-filter:blur(9px);padding:13px 13px 12px;box-shadow:0 18px 50px #0009}
+  #panel h1{font-size:16px;margin:0 0 2px;font-weight:700}
+  #panel .sub{font-size:11.5px;color:var(--soft);margin:0 0 11px}
+  #view{position:fixed;right:14px;bottom:14px;z-index:6;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:10px 12px;backdrop-filter:blur(9px);width:230px}
+  #view .row{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:11.5px;color:var(--soft)}
+  #view .row label{flex:0 0 62px}
+  #view input[type=range]{-webkit-appearance:none;appearance:none;flex:1 1 auto;min-width:0;height:4px;border-radius:3px;background:#26263a;outline:none}
+  #view input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--accent);cursor:pointer}
+  #view input[type=range]::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:50%;background:var(--accent);cursor:pointer}
+  #view .modes{display:flex;gap:5px;margin-bottom:6px}
+  #view .modes button{flex:1 1 auto;background:#12121c;border:1px solid var(--line);color:var(--soft);
+    border-radius:7px;padding:5px 4px;font-size:11px;cursor:pointer}
+  #view .modes button.on{border-color:var(--accent);color:var(--accent)}
+  #legend{position:fixed;right:14px;top:14px;z-index:6;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:9px 11px;backdrop-filter:blur(9px);font-size:11px;color:var(--soft);max-width:220px}
+  #legend b{color:var(--ink);font-weight:600}
+  #err{position:fixed;inset:auto 14px 14px 14px;z-index:9;background:#2b0f14;border:1px solid #7a2230;color:#ffd9de;
+    border-radius:10px;padding:10px 12px;font:12px/1.5 ui-monospace,Menlo,monospace;display:none;white-space:pre-wrap}
+  @media (max-width:760px){ #panel{width:calc(100vw - 28px)} #view{display:none} #legend{display:none} }
+</style>
+</head>
+<body>
+<div id="viewport"></div>
+<div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> / <a href="../">tjs</a> / brut</div>
+
+<div id="panel" class="panel">
+  <h1>Brut</h1>
+  <p class="sub">One seed, one building — massing, plans and facade from the same draw. The <a href="./plan/" style="color:var(--accent)">drawing office</a> reads the same seed.</p>
+  <div id="controls"></div>
+</div>
+
+<div id="legend">
+  <b>béton brut</b><br>concrete · <span style="color:#4fd0e8">glass</span> · <span style="color:#c8a06a">core</span><br>
+  drag to orbit · scroll to zoom
+</div>
+
+<div id="view">
+  <div class="modes">
+    <button data-mode="solid" class="on">solid</button>
+    <button data-mode="xray">x-ray</button>
+    <button data-mode="cut">section</button>
+  </div>
+  <div class="row"><label>sun</label><input id="sun" type="range" min="0" max="360" step="1" value="128"><span id="sunV" style="flex:0 0 34px;text-align:right">128°</span></div>
+  <div class="row"><label>height</label><input id="elev" type="range" min="8" max="80" step="1" value="46"><span id="elevV" style="flex:0 0 34px;text-align:right">46°</span></div>
+  <div class="row"><label>storeys</label><input id="upto" type="range" min="1" max="30" step="1" value="30"><span id="uptoV" style="flex:0 0 34px;text-align:right">all</span></div>
+</div>
+
+<div id="err"></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { generate, parts, bounds, Rand, TYPOLOGIES } from './arch.js';
+import { buildPanel, readURL, PANEL_CSS } from './ui.js';
+
+const errEl = document.getElementById('err');
+const fail = (e) => { errEl.style.display = 'block'; errEl.textContent = String(e && e.stack || e); console.error(e); };
+window.addEventListener('error', (e) => fail(e.error || e.message));
+
+document.head.appendChild(Object.assign(document.createElement('style'), { textContent: PANEL_CSS }));
+
+/* ─────────────────────────── scene scaffolding ─────────────────────────── */
+
+const host = document.getElementById('viewport');
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.18;
+host.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+// A sky, not a void. Concrete is only legible against a bright horizon: with a
+// black background every shaded face crushes and the massing stops reading.
+const sky = new THREE.Mesh(
+  new THREE.SphereGeometry(1, 24, 16),
+  new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false, fog: false,
+    uniforms: { top: { value: new THREE.Color(0x1b2740) }, bot: { value: new THREE.Color(0x9fb0c4) } },
+    vertexShader: 'varying float vY; void main(){ vY = normalize(position).y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+    fragmentShader: 'uniform vec3 top; uniform vec3 bot; varying float vY; void main(){ gl_FragColor = vec4(mix(bot, top, smoothstep(-0.08, 0.55, vY)), 1.0); }',
+  }),
+);
+sky.frustumCulled = false;
+scene.add(sky);
+scene.fog = new THREE.Fog(0x5c6c80, 260, 900);
+
+const camera = new THREE.PerspectiveCamera(42, 1, 0.5, 3000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.07;
+controls.maxPolarAngle = Math.PI * 0.495;
+
+const hemi = new THREE.HemisphereLight(0xbcd2ea, 0x4a4740, 1.35);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff4e4, 3.1);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.bias = -0.0008;
+sun.shadow.normalBias = 0.05;
+scene.add(sun, sun.target);
+// A cool fill from the opposite side, standing in for sky bounce off the ground —
+// without it the shadow side of a deep pier goes to pure black.
+const bounce = new THREE.DirectionalLight(0x9fb4cd, 0.55);
+scene.add(bounce);
+
+/* Board-marked concrete. Brutalism's whole surface argument is the shuttering:
+   the timber boards leave their grain and their joints in the cast face, and a
+   flat grey material reads as foam. Generated per seed so two buildings never
+   wear the same formwork. */
+function concreteTexture(seed, tone = 1) {
+  const r = Rand(seed, 'formwork');
+  const S = 512, c = document.createElement('canvas');
+  c.width = c.height = S;
+  const g = c.getContext('2d');
+  const base = Math.round(176 * tone);
+  g.fillStyle = `rgb(${base},${base - 2},${base - 6})`;
+  g.fillRect(0, 0, S, S);
+  // aggregate speckle
+  for (let i = 0; i < 26000; i++) {
+    const v = base + (r.f() - 0.5) * 34;
+    g.fillStyle = `rgba(${v | 0},${(v - 2) | 0},${(v - 6) | 0},.55)`;
+    g.fillRect(r.f() * S, r.f() * S, 1.4, 1.4);
+  }
+  // board joints: horizontal bands of a seeded width, each with its own grain
+  let y = 0;
+  while (y < S) {
+    const bh = 26 + r.f() * 22;
+    const shade = base + (r.f() - 0.5) * 12;
+    g.fillStyle = `rgba(${shade | 0},${(shade - 2) | 0},${(shade - 7) | 0},.32)`;
+    g.fillRect(0, y, S, bh);
+    for (let k = 0; k < 9; k++) {                    // grain
+      g.strokeStyle = `rgba(${(shade - 16) | 0},${(shade - 18) | 0},${(shade - 22) | 0},.18)`;
+      g.lineWidth = 0.7;
+      g.beginPath();
+      const gy = y + r.f() * bh;
+      g.moveTo(0, gy); g.bezierCurveTo(S / 3, gy + (r.f() - 0.5) * 5, 2 * S / 3, gy + (r.f() - 0.5) * 5, S, gy);
+      g.stroke();
+    }
+    g.strokeStyle = `rgba(${(base - 46) | 0},${(base - 48) | 0},${(base - 52) | 0},.55)`;
+    g.lineWidth = 1.6;
+    g.beginPath(); g.moveTo(0, y); g.lineTo(S, y); g.stroke();
+    y += bh;
+  }
+  // tie holes on a rough grid — the other honest mark formwork leaves
+  for (let i = 0; i < 22; i++) {
+    const tx = r.f() * S, ty = r.f() * S;
+    const grd = g.createRadialGradient(tx, ty, 0, tx, ty, 5);
+    grd.addColorStop(0, `rgba(${(base - 60) | 0},${(base - 62) | 0},${(base - 66) | 0},.75)`);
+    grd.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grd; g.beginPath(); g.arc(tx, ty, 5, 0, Math.PI * 2); g.fill();
+  }
+  // weathering streaks below the parapet line
+  for (let i = 0; i < 40; i++) {
+    g.fillStyle = `rgba(${(base - 34) | 0},${(base - 34) | 0},${(base - 30) | 0},${0.02 + r.f() * 0.05})`;
+    g.fillRect(r.f() * S, 0, 2 + r.f() * 9, S * (0.2 + r.f() * 0.8));
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return tex;
+}
+
+/* ─────────────────────────────── the build ─────────────────────────────── */
+
+const BOX = new THREE.BoxGeometry(1, 1, 1);
+let group = null, building = null, mats = null, mode = 'solid';
+// Materials are cached by seed: the formwork texture costs tens of milliseconds
+// to draw, and a slider drag rebuilds the geometry every frame. The seed is the
+// only thing the texture depends on, so it is the only thing that may evict it.
+let matCache = { key: null, mats: null };
+function getMaterials(seed) {
+  if (matCache.key === seed) return matCache.mats;
+  if (matCache.mats) for (const m of Object.values(matCache.mats)) { if (!m) continue; if (m.map) m.map.dispose(); m.dispose(); }
+  matCache = { key: seed, mats: makeMaterials(seed) };
+  return matCache.mats;
+}
+
+function makeMaterials(seed) {
+  const tex = concreteTexture(seed, 1);
+  const texDark = concreteTexture(seed + '/core', 0.72);
+  return {
+    concrete: new THREE.MeshStandardMaterial({ map: tex, color: 0xf2f1ee, roughness: 0.93, metalness: 0.0 }),
+    core:     new THREE.MeshStandardMaterial({ map: texDark, color: 0xd8d6d1, roughness: 0.96, metalness: 0.0 }),
+    glass:    new THREE.MeshStandardMaterial({ color: 0x1d3f4e, roughness: 0.06, metalness: 0.45, transparent: true, opacity: 0.66, envMapIntensity: 1.4 }),
+    metal:    new THREE.MeshStandardMaterial({ color: 0x8b9196, roughness: 0.42, metalness: 0.75 }),
+    ground:   new THREE.MeshStandardMaterial({ color: 0x3a3d45, roughness: 1.0 }),
+    partition:new THREE.MeshStandardMaterial({ color: 0x7fe8dd, roughness: 0.7, emissive: 0x0d3a37, visible: false }),
+    void:     null,
+  };
+}
+
+function build(p) {
+  if (group) { scene.remove(group); disposeGroup(group); }
+  building = generate(p);
+  const list = parts(building).filter((q) => q.mat !== 'void');
+  mats = getMaterials(p.seed);
+  group = new THREE.Group();
+
+  const byMat = new Map();
+  for (const q of list) {
+    if (!byMat.has(q.mat)) byMat.set(q.mat, []);
+    byMat.get(q.mat).push(q);
+  }
+  const m4 = new THREE.Matrix4(), qt = new THREE.Quaternion(), pos = new THREE.Vector3(), scl = new THREE.Vector3();
+  for (const [matName, items] of byMat) {
+    const mat = mats[matName];
+    if (!mat) continue;
+    const mesh = new THREE.InstancedMesh(BOX, mat, items.length);
+    mesh.castShadow = matName !== 'ground' && matName !== 'partition';
+    mesh.receiveShadow = true;
+    mesh.userData.levels = new Int16Array(items.length);
+    items.forEach((q, i) => {
+      pos.set(q.x, q.y, q.z);
+      scl.set(Math.max(q.w, 0.02), Math.max(q.h, 0.02), Math.max(q.d, 0.02));
+      qt.setFromAxisAngle(new THREE.Vector3(0, 1, 0), q.ry || 0);
+      mesh.setMatrixAt(i, m4.compose(pos, qt, scl));
+      mesh.userData.levels[i] = q.level == null ? -1 : q.level;
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.name = matName;
+    group.add(mesh);
+  }
+  scene.add(group);
+
+  frame();
+  applyMode();
+  applyStoreyCut();
+  panel.setStats([
+    ['storeys', building.stats.levels],
+    ['height', building.stats.height.toFixed(0) + ' m'],
+    ['GIA', Math.round(building.stats.gfa).toLocaleString('en-GB') + ' m²'],
+    ['spaces', building.stats.rooms],
+    ['glazed', building.stats.glazedRatio.toFixed(0) + '%'],
+    ['plot', building.stats.plotRatio.toFixed(2)],
+  ]);
+  document.getElementById('upto').max = building.levels.length;
+  if (Number(document.getElementById('upto').value) > building.levels.length) {
+    document.getElementById('upto').value = building.levels.length;
+  }
+  updateSun();
+}
+
+// Only the instance buffers are this group's to free — the box geometry and the
+// materials are shared and cached, and disposing them here would thrash both.
+function disposeGroup(g) {
+  g.traverse((o) => { if (o.isInstancedMesh) o.dispose(); });
+}
+
+function frame() {
+  const b = bounds(building);
+  const cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2;
+  const span = Math.max(b.x1 - b.x0, b.z1 - b.z0, b.y1);
+  const dist = span * 1.75;
+  controls.target.set(cx, b.y1 * 0.42, cz);
+  camera.position.set(cx + dist * 0.72, b.y1 * 0.78 + span * 0.28, cz + dist * 0.78);
+  camera.near = Math.max(0.4, span / 900); camera.far = span * 14;
+  camera.updateProjectionMatrix();
+  scene.fog.near = span * 1.6; scene.fog.far = span * 7;
+  sky.scale.setScalar(span * 11);
+  sky.position.set(cx, 0, cz);
+  controls.update();
+  // shadow frustum sized to the building, or the shadows go blocky
+  const s = span * 1.1;
+  sun.shadow.camera.left = -s; sun.shadow.camera.right = s;
+  sun.shadow.camera.top = s; sun.shadow.camera.bottom = -s;
+  sun.shadow.camera.near = 1; sun.shadow.camera.far = span * 6;
+  sun.shadow.camera.updateProjectionMatrix();
+  sun.target.position.set(cx, b.y1 * 0.35, cz);
+  sun.target.updateMatrixWorld();
+}
+
+/* ───────────────────────────── view controls ───────────────────────────── */
+
+function updateSun() {
+  const az = Number(document.getElementById('sun').value) * Math.PI / 180;
+  const el = Number(document.getElementById('elev').value) * Math.PI / 180;
+  const b = building ? bounds(building) : { x0: -50, x1: 50, z0: -50, z1: 50, y1: 60 };
+  const span = Math.max(b.x1 - b.x0, b.z1 - b.z0, b.y1) * 2.2;
+  sun.position.set(Math.cos(az) * Math.cos(el) * span, Math.sin(el) * span, Math.sin(az) * Math.cos(el) * span);
+  bounce.position.set(-Math.cos(az) * span, span * 0.4, -Math.sin(az) * span);
+}
+
+// X-ray is the whole reason the two sites share a kernel: it is literally the
+// blueprint, extruded — the same partitions the plan draws, standing inside a
+// ghosted envelope. So it ghosts the concrete hard and lets the plan read solid.
+function applyMode() {
+  if (!group) return;
+  const xray = mode === 'xray';
+  renderer.shadowMap.enabled = !xray;
+  for (const m of group.children) {
+    switch (m.name) {
+      case 'partition':
+        m.visible = xray;
+        m.material.visible = xray;
+        m.material.transparent = false;
+        m.material.opacity = 1;
+        m.material.depthWrite = true;
+        break;
+      case 'concrete':
+      case 'core':
+        m.material.transparent = xray;
+        m.material.opacity = xray ? 0.09 : 1;
+        m.material.depthWrite = !xray;
+        break;
+      case 'glass':
+        m.visible = !xray;
+        break;
+      default: break;
+    }
+    m.material.needsUpdate = true;
+  }
+  // Section mode: clip on the drawing's own A–A line, z = 0, so the model is cut
+  // exactly where the blueprint says it is. Clipped boxes are open shells, so the
+  // back faces have to render or the cut reads as paper.
+  const cut = mode === 'cut';
+  renderer.localClippingEnabled = cut;
+  const plane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
+  for (const m of group.children) {
+    m.material.clippingPlanes = cut ? [plane] : null;
+    m.material.side = cut ? THREE.DoubleSide : THREE.FrontSide;
+  }
+}
+
+function applyStoreyCut() {
+  if (!group || !building) return;
+  const upto = Number(document.getElementById('upto').value);
+  const all = upto >= building.levels.length;
+  document.getElementById('uptoV').textContent = all ? 'all' : upto;
+  // Instanced geometry can't be hidden per instance, so scale the excluded
+  // instances to nothing — cheap, and reversible without a rebuild.
+  const m4 = new THREE.Matrix4(), pos = new THREE.Vector3(), qt = new THREE.Quaternion(), scl = new THREE.Vector3();
+  for (const m of group.children) {
+    const lv = m.userData.levels;
+    if (!lv) continue;
+    for (let i = 0; i < m.count; i++) {
+      m.getMatrixAt(i, m4);
+      m4.decompose(pos, qt, scl);
+      const hidden = lv[i] >= upto;
+      const want = hidden ? 0.0001 : 1;
+      const mark = m.userData.mark || (m.userData.mark = new Float32Array(m.count).fill(1));
+      if (mark[i] === want) continue;
+      const factor = want / mark[i];
+      scl.multiplyScalar(factor);
+      mark[i] = want;
+      m.setMatrixAt(i, m4.compose(pos, qt, scl));
+    }
+    m.instanceMatrix.needsUpdate = true;
+  }
+}
+
+for (const btn of document.querySelectorAll('#view .modes button')) {
+  btn.addEventListener('click', () => {
+    for (const b2 of document.querySelectorAll('#view .modes button')) b2.classList.toggle('on', b2 === btn);
+    mode = btn.dataset.mode;
+    applyMode();
+  });
+}
+for (const id of ['sun', 'elev']) {
+  document.getElementById(id).addEventListener('input', (e) => {
+    document.getElementById(id + 'V').textContent = e.target.value + '°';
+    updateSun();
+  });
+}
+document.getElementById('upto').addEventListener('input', applyStoreyCut);
+
+/* ─────────────────────────────── boot ──────────────────────────────────── */
+
+let params = readURL();
+const panel = buildPanel(document.getElementById('controls'), params, (p, why) => {
+  params = p;
+  try { build(p); } catch (e) { fail(e); }
+}, { siblingPath: './plan/', siblingLabel: '↦ open the blueprints for this seed' });
+
+try { build(params); } catch (e) { fail(e); }
+
+function resize() {
+  const w = host.clientWidth, h2 = host.clientHeight;
+  renderer.setSize(w, h2, false);
+  camera.aspect = w / h2; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+</script>
+</body>
+</html>
