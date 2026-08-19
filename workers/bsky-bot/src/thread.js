@@ -121,6 +121,47 @@ export function dossierRequest(text) {
   return { handle, ask: t.slice(0, 900) };
 }
 
+/** Was the bot ADDRESSED, in a room where most messages are not for it?
+ *
+ *  THE PROBLEM A GROUP CHAT POSES. In a 1-1 every message is addressed to the
+ *  bot by definition — there is nobody else there — which is why the DM matcher
+ *  above is loose about grammar. In a group that premise collapses: most
+ *  messages are people talking to each other, and a bot that answers them all
+ *  is a bot somebody removes from the chat within the hour.
+ *
+ *  ATProto does not help. A chat message CAN carry a mention facet, but clients
+ *  do not reliably make one, and there is no per-message "this one is for you"
+ *  signal the way a post notification carries `reason`. So the test is the
+ *  text, checked both ways: the facet when a client bothered, the written tag
+ *  when it did not.
+ *
+ *  THE TAG MUST CARRY ITS AT-SIGN. Matching the bare handle looks more
+ *  forgiving and
+ *  is wrong here: this bot's handle is `minomobi.com` and it links a site on
+ *  that domain in every announcement it makes, so a bare match would treat
+ *  anyone pasting `minomobi.com/tube-stacker` into the chat as having summoned
+ *  it. People summoning a bot type the at-sign.
+ *
+ *  Prior handles and prior DIDs both count — this account has been renamed
+ *  once, and somebody who learned the old name will type the old name.
+ * @param {string | undefined} text
+ * @param {any[] | undefined} facets
+ * @param {{handles?: string[], dids?: string[]}} identity
+ * @returns {boolean} */
+export function addressesBot(text, facets, { handles = [], dids = [] } = {}) {
+  const wanted = handles.map((h) => String(h ?? '').trim().toLowerCase().replace(/^@/, '')).filter(Boolean);
+  const lower = String(text ?? '').toLowerCase();
+  if (wanted.some((h) => lower.includes(`@${h}`))) return true;
+
+  const mine = new Set(dids.map((d) => String(d ?? '').trim()).filter(Boolean));
+  for (const f of facets ?? []) {
+    for (const feat of f?.features ?? []) {
+      if (String(feat?.$type ?? '').endsWith('#mention') && mine.has(feat.did)) return true;
+    }
+  }
+  return false;
+}
+
 /** Every post by `did` in the thread, oldest first, minus the one that triggered
  *  this build (it is already the task). Depth-first over `replies` is document
  *  order, which for a thread is chronological within each branch.

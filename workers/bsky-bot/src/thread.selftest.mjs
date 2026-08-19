@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import {
   stripMention, requesterPosts, ancestorChain, ancestorUris, roomPosts,
   quotedUri, quotedLine, formatHistory, isIdeasPost, linkUris, threadLinks,
-  portraitRequest, dossierRequest,
+  portraitRequest, dossierRequest, addressesBot,
 } from './thread.js';
 // Imported statically, NOT inside the test: `t` calls its callback without
 // awaiting, so an async test reports a tick before it can fail. Exit code still
@@ -102,6 +102,37 @@ t('dossierRequest does not mistake a pasted URL for the subject', () => {
     dossierRequest('dossier on @real.bsky.social — context at bsky.app/profile/x')?.handle,
     'real.bsky.social',
     'AN EXPLICIT @-HANDLE WINS over a bare domain elsewhere in the message');
+});
+
+// IN A GROUP CHAT ALMOST NOTHING IS ADDRESSED TO THE BOT. A 1-1 has nobody else
+// in it, so every message is a message to the bot; a room does not work that way
+// and a bot that answers everything gets removed from the room. There is no
+// per-message signal in the protocol, so the summons has to be in the text.
+t('addressesBot needs an explicit tag, not a passing mention of the domain', () => {
+  const me = { handles: ['minomobi.com'], dids: ['did:plc:bot'] };
+
+  assert.equal(addressesBot('@minomobi.com dossier on @x.bsky.social about trams', undefined, me), true);
+  assert.equal(addressesBot('hey @MinoMobi.com can you look at this', undefined, me), true,
+    'case-insensitive — nobody types a handle carefully');
+
+  // THE CASE THAT MAKES THE at-sign NON-NEGOTIABLE: this bot links a site on
+  // its own domain in every announcement, so a bare-handle match would treat
+  // anyone pasting one of those URLs as having summoned it.
+  assert.equal(addressesBot('have you seen minomobi.com/tube-stacker', undefined, me), false);
+  assert.equal(addressesBot('lol', undefined, me), false);
+  assert.equal(addressesBot('', undefined, me), false);
+
+  // A client that DID build a mention facet counts, matched on DID.
+  const facets = [{ features: [{ $type: 'app.bsky.richtext.facet#mention', did: 'did:plc:bot' }] }];
+  assert.equal(addressesBot('look at this', facets, me), true);
+  assert.equal(addressesBot('look at this',
+    [{ features: [{ $type: 'app.bsky.richtext.facet#mention', did: 'did:plc:someone-else' }] }], me), false,
+    'somebody else being tagged is not us being tagged');
+
+  // A renamed account still answers to what people learned to call it.
+  assert.equal(addressesBot('@old.example are you there', undefined,
+    { handles: ['minomobi.com', 'old.example'], dids: ['did:plc:bot'] }), true);
+  assert.equal(addressesBot('anything', undefined, {}), false, 'no identity configured admits nothing');
 });
 
 t('stripMention removes the handle, case-insensitively, and trims', () => {

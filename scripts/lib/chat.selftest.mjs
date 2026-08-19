@@ -5,13 +5,38 @@
 // that stop mid-word, or a message the server rejects for being 1,001
 // graphemes. The network half is not tested — it is four fetches.
 
-import { chunk, splitParagraphs, recordEmbed, MAX_MESSAGE_GRAPHEMES } from './chat.mjs';
+import { chunk, splitParagraphs, recordEmbed, reflow, MAX_MESSAGE_GRAPHEMES } from './chat.mjs';
 import { graphemes } from './bsky.mjs';
 
 let failures = 0;
 const ck = (c, m) => { if (c) console.log(`  ✓ ${m}`); else { failures++; console.error(`  ✗ ${m}`); } };
 const threw = (fn) => { try { fn(); return false; } catch { return true; } };
 const within = (parts, limit = MAX_MESSAGE_GRAPHEMES) => parts.every((p) => graphemes(p) <= limit);
+
+console.log('— reflow: the model\'s hard wrap is not the reader\'s line breaks —');
+{
+  // THE BUG THIS EXISTS FOR, reported from a real dossier: prose arrived as a
+  // stack of short lines with one or two words hanging off each. A model writes
+  // wrapped at ~80 columns, those newlines are real characters, the DM client
+  // honours them, and the message box is not 80 columns.
+  const wrapped = 'She is against the current route and has been\nsince late 2023, but not against the\ntram itself.';
+  ck(!reflow(wrapped).includes('\n'), 'a hard-wrapped paragraph becomes one line');
+  ck(reflow(wrapped).includes('been since late 2023'), 'and the join is a space, not a missing space');
+
+  ck(reflow('One.\n\nTwo.').split('\n\n').length === 2, 'a BLANK line is a real paragraph break and survives');
+
+  const md = '## Heading\n\n**Bold** and *italic* and `code`.\n\n- first item that\n  wrapped\n- second item';
+  const out = reflow(md);
+  ck(!out.includes('#') && !out.includes('**') && !out.includes('`'),
+    'markdown furniture goes — a DM renders none of it');
+  ck(out.includes('Bold and italic and code.'), 'the words survive the stripping');
+  ck(out.includes('· first item that wrapped'), 'A WRAPPED LIST ITEM REJOINS ITS ITEM rather than becoming a new one');
+  ck(out.split('\n').filter((l) => l.startsWith('·')).length === 2, 'and there are still exactly two items');
+
+  ck(reflow('> quoted line\n> continues here').startsWith('quoted line continues'), 'blockquote markers go');
+  ck(reflow('') === '' && reflow(null) === '', 'empty in, empty out');
+  ck(!/\n{3,}/.test(reflow('a\n\n\n\nb')), 'runs of blank lines collapse');
+}
 
 console.log('— the limit is never exceeded, whatever the input —');
 {

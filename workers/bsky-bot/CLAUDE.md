@@ -461,6 +461,36 @@ A DM that is not a dossier request gets one short reply explaining what the bot
 can do. Silence is right in a public thread and wrong in a private message: the
 person typed to the bot directly and is owed an answer.
 
+### Summoned in a group chat
+
+`getLog` carries group messages too, so nothing new was needed to hear them.
+What a group breaks is the premise the 1-1 matcher rests on: **in a direct
+message every message is addressed to the bot**, because nobody else is there.
+In a room almost none are.
+
+| | 1-1 | group |
+|---|---|---|
+| a dossier request | dispatched | dispatched **only if the bot is tagged** |
+| anything else | one short help line | **silence** |
+
+`addressesBot()` in `thread.js` is the test, and **the tag must carry its
+at-sign**. Matching the bare handle is the tempting version and it is wrong
+here: this bot's handle is `minomobi.com` and it links a site on that domain in
+every announcement it makes, so a bare match treats anyone pasting
+`minomobi.com/tube-stacker` into the chat as having summoned it. Facets are
+checked too, on DID, for clients that build a real mention — but not relied on,
+because most do not.
+
+Group-ness is a `getConvo` lookup, memoised for the tick, and it **fails
+closed**: an unreadable convo counts as a group, so an explicit tag is required.
+Guessing "1-1" about a convo you could not read is how a bot answers a room it
+was never addressed in.
+
+The dossier is then delivered **into that room** (`--convo`), not into a private
+thread with whoever typed the request. That is a real widening of who reads it,
+and `RESEARCH_WHITELIST` is the only thing holding it — being in the room is not
+permission to ask.
+
 Design record and the stance on researching a third party:
 [`docs/LAB-FACTORY.md`](../../docs/LAB-FACTORY.md) §12.6.
 

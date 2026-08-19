@@ -3,6 +3,7 @@
 //
 //   node scripts/lab-dm.mjs --to did:plc:… --text "…"
 //   node scripts/lab-dm.mjs --to alice.bsky.social --text "…"   (handle works too)
+//   node scripts/lab-dm.mjs --convo <convoId> --text "…"        (into a group)
 //
 // It exists for the failure path. lab-dossier.yml promises somebody an answer
 // the moment it starts, and a run that dies silently leaves that promise
@@ -30,7 +31,12 @@ const args = {};
   for (let i = 0; i < argv.length; i++) {
     if (!argv[i].startsWith('--')) continue;
     const next = argv[i + 1];
-    args[argv[i].slice(2)] = next && !next.startsWith('--') ? next : 'true';
+    // AN EXPLICIT EMPTY VALUE IS EMPTY, NOT `true`. Workflows pass optional
+    // arguments as `--flag ""` when the value is unset, and the old test
+    // (`next && …`) read that falsy string as "no value given" and substituted
+    // the string "true" — so an unset --convo arrived as a convo literally
+    // named "true". Only a missing argument or another flag means "no value".
+    args[argv[i].slice(2)] = next === undefined || next.startsWith('--') ? 'true' : next;
   }
 }
 
@@ -39,8 +45,8 @@ const text = args.text;
 const handle = process.env.BLUESKY_HANDLE;
 const password = process.env.BLUESKY_APP_PASSWORD;
 
-if (!to || !text) {
-  console.log('lab-dm: --to and --text are both required');
+if ((!to && !args.convo) || !text) {
+  console.log('lab-dm: --text plus one of --to or --convo is required');
   process.exit(0);
 }
 if (!handle || !password) {
@@ -51,14 +57,21 @@ if (!handle || !password) {
 try {
   const session = await login(handle, password);
   const chat = await chatClient(session);
-  // A DID addresses a convo; a handle is what a human types. Resolve rather
-  // than making every caller look one up.
-  const did = to.startsWith('did:') ? to : await resolveHandle(to);
-  const convo = await chat.convoWith(did);
+  // --convo names an existing conversation and wins: a message about a request
+  // made in a group belongs in that group. Otherwise open the 1-1, resolving a
+  // handle if that is what was given — a DID addresses a convo, a handle is
+  // what a human types.
+  let convo;
+  if (args.convo) {
+    convo = { id: args.convo };
+  } else {
+    const did = to.startsWith('did:') ? to : await resolveHandle(to);
+    convo = await chat.convoWith(did);
+  }
   await chat.accept(convo.id);
   const body = graphemes(text) > 1000 ? [...text].slice(0, 990).join('') + '…' : text;
   await chat.send(convo.id, { text: body });
-  console.log(`✓ DMed ${to}${did === to ? '' : ` (${did})`}`);
+  console.log(`✓ sent to ${args.convo ? `convo ${args.convo}` : to}`);
 } catch (e) {
   const strict = args.strict === 'true';
   console.log(`::${strict ? 'error' : 'warning'}::lab-dm failed (${e.message.slice(0, 400)})`);
