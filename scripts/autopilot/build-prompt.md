@@ -33,7 +33,7 @@ _Regenerated 2026-08-19 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 82, bluesky 73, data 58, tools 58, work 8.
 
-**Neighborhood spark** (bisk 2026-08-19, 99 members / 297 posts):
+**Neighborhood spark** (bisk 2026-08-19, 99 members / 298 posts):
 - Mood: Overcast ☁ (trust)
 - Distinctive words: anthropic, codex, gpt
 - Top post: "" — @hotrollhottakes.bsky.social
