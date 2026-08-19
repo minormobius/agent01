@@ -656,6 +656,28 @@ wiring up `pds.js` scores for a re-simulation-verified leaderboard on *any*
 site needs to swap in a seeded PRNG first, or claimed scores are
 unverifiable by construction.
 
+## `one-hand` (2026-08-19): a self-initiated math/social request grown from watching a thread, not a "build that" reply to a factory advert
+Unlike the recurring "build that" pattern on factory-posted concept adverts
+(physics/graph-theory/geometry/economics pitches), this request was
+self-devised from a thread the requester was participating in, referencing a
+specific idea floated by someone else in the thread ("linear combination of
+your mufos") and rating it themselves as "beyond the buildabots" — read as
+license to attempt the actual hard math for real rather than defaulting to a
+cosmetic version, consistent with the `that-2`/Sixfold "go for it baby" and
+`honeyflow-chess` "can't cheat the flow, it's gotta be solved not guessed"
+pattern: this requester distinguishes a solver that actually minimizes an
+objective from one that only looks like it does, even in a single-turn build
+with no chance to correct it yet. Also notable: the thread contained a
+pointed complaint (a different person's "imitation guide" had been used to
+doxx a thread participant), and the requester's own phrasing had picked the
+non-doxxing framing ("linear combination" blend across many mutuals) over the
+adjacent "which one tweet was written by someone else" framing that had just
+been criticized in the same thread — worth reading a requester's specific
+word choice in a socially-loaded thread as a deliberate design constraint,
+not just flavor, when an adjacent framing in the same conversation was just
+called out as harmful. No correction received yet to confirm any of this
+lands well.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
