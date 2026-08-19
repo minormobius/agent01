@@ -93,12 +93,33 @@ jobs:
           set -uo pipefail
           # -c here too: without it these land on whichever worker wrangler
           # resolves, which is not this one.
+          # RETRIED, BECAUSE THIS STEP RUNS ONE SECOND AFTER THE UPLOAD.
+          #
+          # The 2026-08-19 deploy went: Deploy ✓, then this step failing
+          # immediately with Cloudflare error 10013 on
+          # /workers/scripts/mino-bsky-bot/secrets. The script had just been
+          # replaced and the secrets API had not caught up. Nothing was wrong
+          # with the deploy, the credentials or the config — but the run went
+          # red, which reads as "the bot did not ship" when the bot had shipped.
+          #
+          # Three tries with a widening gap. A secret that genuinely cannot be
+          # written still fails the step, which is right: an unsynced credential
+          # after a rotation is a bot that stops working at the next refresh.
           put() {
-            if [ -n "${2:-}" ]; then
-              printf '%s' "$2" | npx wrangler secret put "$1" -c wrangler.toml && echo "✓ $1 synced"
-            else
+            if [ -z "${2:-}" ]; then
               echo "::warning::GH secret for $1 is unset — the bot cannot ${3}"
+              return 0
             fi
+            for attempt in 1 2 3; do
+              if printf '%s' "$2" | npx wrangler secret put "$1" -c wrangler.toml; then
+                echo "✓ $1 synced"
+                return 0
+              fi
+              echo "  $1 did not take (attempt $attempt) — waiting for the new script version to settle"
+              sleep $((attempt * 5))
+            done
+            echo "::error::could not sync $1 after 3 attempts"
+            return 1
           }
           put BLUESKY_HANDLE       "${BLUESKY_BOT_HANDLE:-}"       "log in"
           put BLUESKY_APP_PASSWORD "${BLUESKY_BOT_APP_PASSWORD:-}" "log in"
