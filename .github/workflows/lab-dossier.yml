@@ -1,0 +1,208 @@
+name: Lab dossier (research an account, answer by DM)
+
+# Somebody DMs the bot "what has @alice said about the tram extension". This
+# reads @alice's ENTIRE public post history, researches the question against it,
+# and sends the answer back as a series of direct messages with the posts it
+# rests on quoted inline.
+#
+#   request → CAR → greppable corpus → agent searches → harness hydrates threads
+#           → agent writes → citations resolved → a series of DMs
+#
+# THE ANSWER GOES TO THE REQUESTER, IN PRIVATE, AND NOWHERE ELSE. Nothing here
+# posts publicly. The material is public — a repository anyone can fetch, read
+# through the AppView, which honours takedowns — but a reading of somebody's
+# posts delivered to one person who asked and the same reading posted in that
+# person's mentions are different acts. Only the first one is this.
+#
+# ADMISSION IS THE BOT'S, NOT THIS WORKFLOW'S: a DM only becomes a request file
+# if its sender passed the same mutuals/WHITELIST door as a build. This runs on
+# what that door let through.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ask:
+        description: 'The request, in plain English — "dossier on what @alice.bsky.social has said about trams"'
+        required: true
+        type: string
+      to:
+        description: 'DID to DM the answer to. Leave empty to research and print without sending.'
+        required: false
+        type: string
+      dry_run:
+        description: 'Build the corpus and stop before any model call'
+        required: false
+        default: false
+        type: boolean
+
+  # Same commit-a-request mechanism as a build, for the same reason:
+  # workflow_dispatch only resolves for workflows on the DEFAULT branch, and the
+  # factory does not live there.
+  push:
+    branches:
+      - 'claude/minomobi-landing-page-vg37b8'
+    paths:
+      - '.github/lab-dossiers/**'
+
+concurrency:
+  group: lab-dossier-${{ github.event.inputs.to || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  # THE TIP-COMMIT GUARD, copied from lab-build.yml in full because the bug it
+  # exists for is not hypothetical: `paths:` matches a push RANGE, not a commit,
+  # and a request file is permanent. Without this an unrelated infrastructure
+  # push whose range still holds an old request re-runs it, and a squash merge —
+  # which is how this repo makes pull requests — carries every request the
+  # branch ever added. Here that means re-researching a stranger and DMing
+  # somebody a dossier they asked for weeks ago.
+  select:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.pick.outputs.run }}
+      file: ${{ steps.pick.outputs.file }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - id: pick
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          REQ=$(git diff-tree --no-commit-id --name-only -r HEAD -- '.github/lab-dossiers/*.json' | tail -1)
+          if [ -n "$REQ" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "file=$REQ" >> "$GITHUB_OUTPUT"
+            echo "request in tip commit: $REQ"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::no dossier request in the tip commit — this push carried an older one, not a new one."
+          fi
+
+  research:
+    needs: select
+    if: needs.select.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    # The CAR download scales with the account; the two agent passes are capped
+    # at 25 minutes each by the script itself. 70 leaves room for a big repo and
+    # still kills a wedged run well short of GitHub's six-hour default.
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Resolve the request
+        id: cfg
+        env:
+          FILE: ${{ needs.select.outputs.file }}
+          IN_ASK: ${{ github.event.inputs.ask }}
+          IN_TO: ${{ github.event.inputs.to }}
+          IN_DRY: ${{ github.event.inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          if [ -n "${IN_ASK:-}" ]; then
+            ASK="$IN_ASK"; TO="${IN_TO:-}"; DRY="${IN_DRY:-false}"
+          else
+            [ -n "${FILE:-}" ] && [ -f "$FILE" ] || { echo "::error::no request file"; exit 1; }
+            field() { FILE="$FILE" node -p "require(require('path').resolve(process.env.FILE))['$1'] || ''"; }
+            ASK=$(field ask); TO=$(field requester_did); DRY=false
+          fi
+          [ -n "$ASK" ] || { echo "::error::empty request"; exit 1; }
+          # The recipient becomes a DM target, so it is validated as strictly as
+          # a slug: a DID and nothing else. Everything else about the request is
+          # free-form prose, and free-form prose never reaches a shell here —
+          # it goes through GITHUB_OUTPUT to an argv array, not into a command.
+          if [ -n "${TO:-}" ] && ! printf '%s' "$TO" | grep -Eq '^did:(plc:[a-z0-9]{24}|web:[a-z0-9.:-]{1,200})$'; then
+            echo "::error::bad recipient '$TO' — must be a DID"; exit 1
+          fi
+          {
+            echo "to=${TO:-}"
+            echo "dry=${DRY:-false}"
+            echo "ask<<LAB_ASK_EOF"
+            printf '%s\n' "$ASK"
+            echo "LAB_ASK_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Research it
+        id: run
+        env:
+          ASK: ${{ steps.cfg.outputs.ask }}
+          TO: ${{ steps.cfg.outputs.to }}
+          DRY: ${{ steps.cfg.outputs.dry }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_BOT_HANDLE }}
+          # NEEDS DM SCOPE. An app password created without "Allow access to your
+          # direct messages" fails every chat.bsky.* call with `Bad token scope`,
+          # and it cannot be added to an existing password — see scripts/lib/chat.mjs.
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_BOT_APP_PASSWORD }}
+        run: |
+          # `set +e` IS LOAD-BEARING. Actions starts a run block as `bash -e`, so
+          # a non-zero exit from node aborts the step before `code=$?` is ever
+          # reached — the exit-code ladder below would be dead code, and the
+          # distinct refusal codes (3 no account, 4 too few posts, 5 no dossier)
+          # would all surface as one generic failure. preflight checks for this.
+          set +e
+          set -uo pipefail
+          ARGS=(--ask "$ASK" --out /tmp/dossier)
+          [ -n "${TO:-}" ] && ARGS+=(--to "$TO")
+          [ "${DRY:-false}" = "true" ] && ARGS+=(--dry-run)
+          node scripts/lab-dossier.mjs "${ARGS[@]}"
+          code=$?
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          # A REFUSAL IS NOT A CRASH, and the difference decides whether the
+          # requester gets told something useful or told it broke. 3 = no
+          # account named, 4 = the account has almost nothing in it, 5 = the
+          # agent wrote nothing. All three are honest answers; only an
+          # unexpected code is a failure worth the failure notice below.
+          case "$code" in
+            0) echo "done" ;;
+            3) echo "::warning::no account named in the request" ;;
+            4) echo "::warning::that account has too few posts to research" ;;
+            5) echo "::warning::the agent produced no dossier" ;;
+            *) exit $code ;;
+          esac
+
+      # TELL THEM WHEN IT FAILS. A DM that says "reading their whole history now"
+      # and is then never followed by anything is the same usability failure the
+      # public side already fixed with one-reply-per-outcome: a silence after a
+      # promise reads as broken, and it is the traffic that gets a bot reported.
+      - name: Say so if it did not work
+        if: failure() && steps.cfg.outputs.to != ''
+        env:
+          TO: ${{ steps.cfg.outputs.to }}
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_BOT_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_BOT_APP_PASSWORD }}
+        run: |
+          set -uo pipefail
+          node scripts/lab-dm.mjs --to "$TO" --text "That one didn't work out — I couldn't finish reading them. Try me again, or try a different account?" || true
+
+      # THE WORKING FILES ARE THE ANSWER TO "why did it say that", AND THEY ARE
+      # ALSO A DOSSIER ON A PERSON. Not committed, ever: a per-account research
+      # file in this repo's history is a thing that outlives its reason. Seven
+      # days on the run, then gone.
+      #
+      # The CORPUS is excluded on top of that — it is a stranger's complete post
+      # history, tens of megabytes of it, and keeping a copy is not something
+      # reading it publicly entitles anyone to. What is kept is the reasoning:
+      # what was searched, what was written, what it cited.
+      - name: Keep the reasoning, not the corpus
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dossier-${{ github.run_id }}
+          path: |
+            /tmp/dossier/dossier.md
+            /tmp/dossier/plan.json
+            /tmp/dossier/result.json
+            /tmp/dossier/refused.txt
+          retention-days: 7
+          if-no-files-found: ignore

@@ -1207,6 +1207,200 @@ passes clean under the production CSP.
 
 ---
 
+## 12.5 The bot can post a picture
+
+Two things ship on top of the reply path, and they share one library
+(`scripts/lib/imagegen.mjs` — Cloudflare Workers AI, `flux-1-schnell`, ~$0.00063
+an image against a 10,000-neuron daily allowance the account already shares with
+`chat/` and `rite/`).
+
+**A post carries exactly one embed.** `app.bsky.embed.images` and
+`app.bsky.embed.external` are alternatives in the same union — `recordWithMedia`
+combines media with a *quote*, not with a link card. So a picture is never an
+addition to the announcement post; it *replaces* the card, and with it the
+title, the description, the screenshot and the click target. Everything below
+follows from that one fact.
+
+### The build agent may choose the picture — `<dir>/CARD.json`
+
+The agent's second window out, alongside `NOTE.txt`:
+
+```json
+{ "embed": "image", "prompt": "…", "alt": "…" }
+```
+
+`scripts/lab-card-image.mjs` runs after the screenshot, generates the image, and
+`bsky-reply.mjs` posts it instead of the card — adding a link facet for the URL,
+because the card was the click target and taking it away would otherwise leave
+the URL as inert characters. Alt text is required and the file is dropped
+without it. Every failure path (no file, bad JSON, refused prompt, dead model,
+oversized blob) exits 0 and falls back to the screenshot card.
+
+The brief tells the agent when to take the trade: **not** for anything
+interactive, where a screenshot of the thing working is the best advert it will
+ever have; yes for a poster, a joke, or a refusal where the page is the
+punchline and a screenshot of text is nothing.
+
+### A portrait of the requester — `lab-portrait.yml`
+
+`portrait:`, `draw me`, `paint my posts` — recognised by `portraitRequest()` in
+`workers/bsky-bot/src/thread.js`, deliberately narrow, because the two failure
+directions are not symmetric: a build misread as a portrait costs somebody the
+site they asked for, so every ambiguous phrasing (`draw me a poker game`) falls
+through to the build path. It is matched **before the claim** and returns, so a
+portrait never consumes a permanent name or the build lock.
+
+The bot commits `.github/lab-portraits/<handle>.json` — the same
+commit-a-request mechanism as a build, for the same reason — and
+`scripts/lab-portrait.mjs` does the work on a runner:
+
+| step | how |
+|---|---|
+| the whole post history | `com.atproto.sync.getRepo`, streamed through `b/palm/car-stream.js` — one request, no pagination, and the only complete source |
+| what they are *about* | `scripts/lib/portrait.mjs` — stoplisted unigrams, phrases, a "lately" window, hashtags, linked hosts, who they talk to |
+| what actually landed | `getAuthorFeed` paged to a budget plus one `searchPosts?sort=top`, ranked likes + 2×reposts. **Replies are not in the score** — a ratio is not a hit |
+| how they post | `b/palm`'s six axes and its archetype |
+| what they chose to look like | the avatar, fetched to disk, which the prompt model *reads as an image* |
+| the prompt | `claude -p` over that digest — a template over the same data draws the same picture with different nouns in it, which is what makes generated art read as generated |
+
+**Why the runner and not the bot worker.** Workers AI is a *binding* inside the
+bot, so generation there would need no token at all — but streaming a repo that
+is routinely tens of megabytes and CBOR-decoding every block does not fit in a
+Worker's 30 seconds of CPU. The bot stays a router.
+
+**The subject is always the requester.** `handle` is written from
+`mention.author`, never from a handle typed in the text, and the workflow
+refuses to run if the request's `requester` and `handle` disagree. A generated
+picture of a third party, posted publicly by this account, is not something
+anyone consented to, and deleting the post does not unmake it.
+
+**Three more things the design leans on.** The prompt is sanitised after the
+model writes it and before the image model sees it (`sanitisePrompt` — URLs,
+handles and newlines out, a short whole-word refusal list, a house style that
+bars text, logos and recognisable real people), because the digest is a
+stranger's posts and the image is posted under the operator's account. The alt
+text says the image is generated, and so does the post. And the digest is
+uploaded as a run artefact with a seven-day retention rather than committed:
+it is the answer to "why did it draw that", and it is also a per-account
+dossier that this repo has no business keeping.
+
+---
+
+## 12.6 Research by DM
+
+DM the bot *"write me up a dossier on everything @alice has said about the tram
+extension"* and it reads @alice's entire public post history, researches the
+question against it, and answers as a series of direct messages with the posts
+it rests on quoted inline.
+
+    DM → getLog → dispatch → CAR → greppable corpus → agent searches
+       → harness hydrates threads → agent writes → citations → a series of DMs
+
+### The medium is a series of DMs, and the numbers matter
+
+A message is **1,000 graphemes** (`chat.bsky.convo.defs#messageInput`:
+`maxGraphemes: 1000`, `maxLength: 10000`) — three times a post, nowhere near a
+dossier. So `chunk()` in `scripts/lib/chat.mjs` packs prose into numbered
+messages, walking down **paragraph → sentence → word → grapheme** and only ever
+falling to a smaller unit when the larger one will not fit. Numbering reserves
+its own width, because `"3/7 "` on a 999-grapheme message is a rejected message.
+
+**A DM can carry an embed, and that is what makes citations affordable.**
+`messageInput.embed` accepts `app.bsky.embed.record`, so a cited post renders as
+a real quote — author, text, date — for **zero graphemes**. As a URL it would
+cost ~45 of the 1,000. Ten citations is the difference between half a message
+and none.
+
+Sending already worked here: `photo/dm-worker.js` has been doing it in
+production, including the part that is not obvious — `chat.bsky.*` is reached by
+sending to the account's **own PDS host** with an
+`atproto-proxy: did:web:api.bsky.chat#bsky_chat` header, and bsky.social is an
+entryway rather than a host. Receiving is new: `chat.bsky.convo.getLog` is an
+append-only event log with a **forward** cursor, unlike `listNotifications`,
+whose cursor pages backwards and needed a timestamp marker instead.
+
+### Grep is the research tool
+
+The agent gets **no Bash and no network**, exactly like the build agent and for
+exactly the same reason. That reads like a handicap for research and is not:
+Read/Glob/Grep over a complete corpus on disk *is* the dogged loop — search a
+term, read the hits, notice the words they actually use, search again.
+
+So the harness writes the repository out in the shape Grep is good at:
+
+    corpus/all.tsv          one post per line: rkey, date, kind, text
+    corpus/by-year/YYYY.tsv the same, sharded
+    corpus/README.md        the layout, the escaping, and how to cite
+    context/<rkey>.md       hydrated threads — what they were replying to
+
+**One post per line is the whole contract.** Grep reports matching lines, so a
+post spanning lines is a match that arrives without its own text; newlines
+become `\n` and tabs `\t`, and the README says so, or the agent "fixes" the
+data. Verified on a real 49,873-post repository: 5.6 MB, zero malformed lines,
+`grep -i "book club"` returns 161 hits with rkey and date attached.
+
+**Two agent passes, because the agent cannot fetch.** A reply in the corpus is
+one side of an exchange — *"absolutely, and it gets worse in the rain"* means
+nothing without the other half. Pass one searches and names the posts whose
+context it needs; the harness fetches exactly those from the AppView; pass two
+writes with them in hand. The same shape as `lab-fetch-refs.mjs`, one layer up.
+
+**Citations resolve through the AppView**, not from the CAR. A quote embed needs
+a cid and the CAR has one — but asking the AppView means a post the author has
+since deleted, or one under a takedown, comes back missing instead of quoted.
+The same distinction the content gate draws between the AppView and the
+firehose.
+
+### Researching somebody who did not ask — where the line is
+
+The portrait feature (§12.5) draws **only the requester**. This one is
+deliberately different, and the difference deserves to be stated rather than
+assumed.
+
+What makes it defensible: the material is public and is read through public
+endpoints; the AppView honours takedowns and the repository honours deletions;
+`b/sleuth` already offers the same capability to anyone with a browser; and the
+answer is delivered **privately to the person who asked and nowhere else**. A
+reading of somebody's posts sent to one person, and the same reading posted in
+that person's mentions, are different acts. Only the first one is this, and
+nothing in `lab-dossier.yml` can post publicly.
+
+What holds it there:
+
+- **Admission is the bot's existing door** — mutuals of `WHITELIST_MUTUALS_OF`,
+  or `WHITELIST`. This is not open to anyone who can type.
+- **One outstanding dossier per requester.** The request file is keyed on the
+  requester, so a second request supersedes the first. That is the rate limit,
+  and it is also why the filename is *who asked* rather than *who was read* —
+  a directory of subject names is a list this repo should not keep.
+- **The prompt asks what they said, not what they are.** Positions, quotes,
+  dates, changes of mind. No psychoanalysis, no verdict on them as a person,
+  and an explicit instruction that a fabricated quote attributed to a real
+  person is the one unrecoverable failure.
+- **The corpus is never committed and never kept.** Working files go to a run
+  artefact with seven-day retention, and the corpus itself is excluded even
+  from that — reading someone's posts publicly does not entitle anyone to keep
+  a copy of all of them.
+- **Nothing is posted publicly, ever.**
+
+The judgement that remains with the operator: this is a capability that could be
+pointed at someone as easily as at a question. `docs/NO-BUILD.md`'s line about
+target lists and harassment tooling is the standard it has to keep meeting, and
+the admission door is the control that does the work. **If it ever needs
+narrowing, narrow it there** — mutuals-only, or subjects who follow the bot —
+rather than by weakening the citations, which are what make the output
+checkable.
+
+### Human prereq that will bite first
+
+The bot's app password needs **"Allow access to your direct messages"**, ticked
+when the password is created. It cannot be added afterwards, and without it
+every `chat.bsky.*` call fails with `Bad token scope` — which reads like an auth
+bug and is a checkbox. Both `scripts/lib/chat.mjs` and the worker translate that
+error rather than passing it through.
+
+---
+
 ## 13. Unverified — check before building
 
 None of these were confirmable from the sandbox (no Cloudflare auth). Each could

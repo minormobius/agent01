@@ -3,7 +3,8 @@
 //
 //   node scripts/bsky-reply.mjs --root <uri> --root-cid <cid> \
 //                               --parent <uri> --parent-cid <cid> \
-//                               --state live|failed [--url …] [--page …] [--reason …]
+//                               --state live|failed [--url …] [--page …] [--reason …] \
+//                               [--thumb card.png] [--image art.jpg --image-alt alt.txt]
 //
 // WHY THIS EXISTS. The bot replied on dispatch and then never again, so a failed
 // build looked exactly like a slow one. That is a usability failure that becomes
@@ -21,6 +22,7 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { facets } from './lib/bsky.mjs';
 
 const PDS = 'https://bsky.social/xrpc';
 
@@ -43,12 +45,12 @@ const need = (k) => {
  *  this posts raw bytes with an image content-type, not JSON — and because a
  *  failure here must degrade to "post without a thumbnail" rather than swallow
  *  the reply. The picture is the nice-to-have; the reply is the point. */
-async function uploadThumb(token, path) {
+async function uploadThumb(token, path, mime = 'image/png') {
   try {
     const bytes = readFileSync(path);
     const res = await fetch(`${PDS}/com.atproto.repo.uploadBlob`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'image/png' },
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': mime },
       body: bytes,
     });
     const json = await res.json().catch(() => ({}));
@@ -159,8 +161,31 @@ if (state === 'live' || state === 'building') {
     if (room > 40) text += `\n\n${[...note].slice(0, room).join('')}`;
     else console.log('::warning::no room for the agent note after the URL — dropped');
   }
-  const card = cardFrom(args.page);
-  if (card?.title) {
+  // A PICTURE INSTEAD OF THE CARD, WHEN THE AGENT ASKED FOR ONE.
+  //
+  // A post carries exactly one embed and images/external are alternatives in
+  // the same union, so this is a swap, not an addition: choosing the image
+  // gives up the title, the description, the thumbnail and the click target,
+  // and leaves the URL in the text as plain characters. scripts/lab-card-image
+  // .mjs is what decided this happened — it only writes these two files when
+  // <dir>/CARD.json asked for an image AND carried alt text AND the model
+  // produced something under the blob limit. By the time we are here it is a
+  // file on disk or it is not.
+  const altPath = args['image-alt'];
+  if (args.image && altPath && existsSync(args.image) && existsSync(altPath)) {
+    const alt = readFileSync(altPath, 'utf8').trim();
+    const blob = alt ? await uploadThumb(session.accessJwt, args.image, 'image/jpeg') : null;
+    if (blob) {
+      embed = {
+        $type: 'app.bsky.embed.images',
+        images: [{ image: blob, alt: alt.slice(0, 2000), aspectRatio: { width: 1, height: 1 } }],
+      };
+      console.log('posting the agent\'s image INSTEAD of the link card (one embed per post)');
+    }
+  }
+
+  const card = !embed && cardFrom(args.page);
+  if (card && card.title) {
     embed = {
       $type: 'app.bsky.embed.external',
       external: { uri: url, title: card.title, description: card.description || url },
@@ -169,7 +194,7 @@ if (state === 'live' || state === 'building') {
       const blob = await uploadThumb(session.accessJwt, args.thumb);
       if (blob) embed.external.thumb = blob;
     }
-  } else {
+  } else if (!embed) {
     console.log('::warning::no og:title on the page — posting without a link card');
   }
 } else {
@@ -181,11 +206,26 @@ if (state === 'live' || state === 'building') {
 
 if ([...text].length > 300) text = [...text].slice(0, 297).join('') + '…';
 
+// THE CARD WAS THE CLICK TARGET. Take it away and the URL is unfaceted text,
+// which the app renders as characters rather than as a link — so the picture
+// would arrive with no way to reach the page it is about. A link facet puts the
+// click back. Only on the image path: with a card present the URL in the text
+// is redundant with the card's own target, which is how it has always shipped.
+let facetList = [];
+if (embed?.$type === 'app.bsky.embed.images' && args.url && text.includes(args.url)) {
+  try {
+    facetList = facets(text, { [args.url]: args.url });
+  } catch (e) {
+    console.log(`::warning::could not facet the URL (${e.message}) — it will read as plain text`);
+  }
+}
+
 const record = {
   $type: 'app.bsky.feed.post',
   text,
   createdAt: new Date().toISOString(),
   reply: { root: { uri: rootUri, cid: rootCid }, parent: { uri: parentUri, cid: parentCid } },
+  ...(facetList.length ? { facets: facetList } : {}),
   ...(embed ? { embed } : {}),
 };
 
@@ -193,4 +233,6 @@ const created = await xrpc('com.atproto.repo.createRecord', {
   token: session.accessJwt,
   body: { repo: session.did, collection: 'app.bsky.feed.post', record },
 });
-console.log(`✓ replied (${state}${embed ? ', with card' : ''}) — ${created.uri}`);
+const shape = embed?.$type === 'app.bsky.embed.images' ? ', with the agent\'s image'
+  : embed ? ', with card' : '';
+console.log(`✓ replied (${state}${shape}) — ${created.uri}`);
