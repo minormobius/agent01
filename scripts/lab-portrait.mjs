@@ -185,9 +185,39 @@ if (dryRun) {
   process.exit(0);
 }
 
+/** SILENCE AFTER A PROMISE IS THE FAILURE MODE, not the missing picture.
+ *
+ *  The bot has already replied "Reading your posts. I'll draw what I find and
+ *  post it here" by the time this runs. Exiting quietly on a failed generation
+ *  leaves that hanging, which is the exact §11.4 problem: it reads as broken,
+ *  collects "is this working?" replies, and that traffic is what gets an
+ *  automated account reported. The likeliest cause is also invisible from the
+ *  outside — CLOUDFLARE_API_TOKEN without Workers AI permission — so the
+ *  requester has no way to guess.
+ *
+ *  Never fatal: a failed apology must not mask what it was apologising for. */
+async function sayNothingCame(why) {
+  console.log(`::warning::no image (${why}) — telling them`);
+  const h = process.env.BLUESKY_HANDLE, pw = process.env.BLUESKY_APP_PASSWORD;
+  if (!args.root || !args['root-cid'] || !h || !pw) return;
+  try {
+    const session = await login(h, pw);
+    await createPost(session, {
+      text: "I read your posts and had the picture written, then couldn't get it drawn — that one's on my end, not yours. Ask again in a bit?",
+      reply: {
+        root: { uri: args.root, cid: args['root-cid'] },
+        parent: { uri: args.parent || args.root, cid: args['parent-cid'] || args['root-cid'] },
+      },
+    });
+    console.log('  (told them)');
+  } catch (e) {
+    console.log(`::warning::could not deliver the apology (${e.message.slice(0, 160)})`);
+  }
+}
+
 const img = await generateImage(plan.prompt, { model, steps: Number(args.steps || 0) || undefined });
 if (!img.bytes) {
-  console.log(`::warning::no image (${img.why}) — nothing posted`);
+  await sayNothingCame(img.why);
   process.exit(0);
 }
 const imagePath = join(out, 'portrait.jpg');
