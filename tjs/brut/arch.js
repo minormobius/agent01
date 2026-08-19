@@ -31,6 +31,10 @@
 // around a plan: both fall out of the same plate polygons.
 
 import { STAIR_TYPES, STAIR_IDS, stairFootprint, layout as stairLayout, chooseStair, stairParts, RULES as STAIR_RULES } from './stair.js';
+import {
+  deriveParti, heightAt, voidsAt, hallAt, terraceAt, openGround, corridorEvery, roomScaleAt,
+  features as partiFeatures, PARTIS,
+} from './parti.js';
 
 export const VERSION = 'brut/1';
 
@@ -296,7 +300,7 @@ export const TYPOLOGIES = {
     blurb: 'Nave, aisles, transept, apse — a béton-brut basilica with a detached campanile.',
     plan: 'sacred',
     levels: [1, 1], floorH: [22, 30], bay: [5.4, 7.2],
-    stairs: ['spiral', 'helical', 'double-helix', 'three'],
+    stairs: ['spiral', 'helical', 'double-helix', 'triple-helix', 'flying', 'winder', 'three'],
     bx: [4, 6], bz: [9, 15],
     massing: ['basilica'],
     shapes: ['basilica'],
@@ -311,7 +315,7 @@ export const TYPOLOGIES = {
     blurb: 'A city hall / library in the inverted-ziggurat manner: heavy above, undercut below.',
     plan: 'cellular',
     levels: [5, 9], floorH: [4.2, 5.4], bay: [7.2, 9.0],
-    stairs: ['open-well', 'three', 'quarter', 'dogleg', 'helical'],
+    stairs: ['open-well', 'three', 'quarter', 'winder', 'dogleg', 'helical', 'flying'],
     bx: [7, 11], bz: [6, 9],
     massing: ['inverted', 'setback', 'ziggurat'],
     shapes: ['bar', 'cross', 'court'],
@@ -327,7 +331,7 @@ export const TYPOLOGIES = {
     blurb: 'Deep-plan speculative floors, service core, a grid you could set your watch by.',
     plan: 'cellular',
     levels: [8, 18], floorH: [3.5, 4.1], bay: [6.0, 8.1],
-    stairs: ['dogleg', 'scissor', 'three', 'open-well'],
+    stairs: ['dogleg', 'scissor', 'three', 'open-well', 'winder'],
     bx: [6, 10], bz: [5, 8],
     massing: ['slab', 'setback', 'inverted', 'stagger'],
     shapes: ['bar', 'L', 'T'],
@@ -343,7 +347,7 @@ export const TYPOLOGIES = {
     blurb: 'Deck access, cross-over maisonettes, balconies hung off the frame.',
     plan: 'cellular',
     levels: [6, 14], floorH: [2.9, 3.3], bay: [5.4, 6.6],
-    stairs: ['dogleg', 'open-well', 'scissor', 'three'],
+    stairs: ['dogleg', 'open-well', 'scissor', 'three', 'winder', 'ladder'],
     bx: [10, 16], bz: [3, 5],
     massing: ['slab', 'stagger', 'setback'],
     shapes: ['bar', 'L'],
@@ -359,7 +363,7 @@ export const TYPOLOGIES = {
     blurb: 'Served and servant spaces: a blank plant tower strapped to a glazed working floor.',
     plan: 'cellular',
     levels: [5, 10], floorH: [4.0, 4.8], bay: [6.6, 8.4],
-    stairs: ['scissor', 'dogleg', 'three', 'quarter'],
+    stairs: ['scissor', 'dogleg', 'three', 'quarter', 'winder', 'ladder'],
     bx: [6, 9], bz: [5, 7],
     massing: ['slab', 'setback', 'stagger'],
     shapes: ['bar', 'T', 'cross'],
@@ -375,7 +379,7 @@ export const TYPOLOGIES = {
     blurb: 'The purest brutalism there is: slab, upstand, ramp, nothing else.',
     plan: 'deck',
     levels: [4, 8], floorH: [2.8, 3.2], bay: [7.5, 8.4],
-    stairs: ['straight', 'spiral', 'dogleg', 'three'],
+    stairs: ['straight', 'spiral', 'dogleg', 'three', 'winder'],
     bx: [6, 9], bz: [5, 8],
     massing: ['slab', 'stagger'],
     shapes: ['bar'],
@@ -621,7 +625,7 @@ function scheduleAt(massing, i, n, rnd) {
   }
 }
 
-function massing(p) {
+function massing(p, parti) {
   const T = TYPOLOGIES[p.typology];
   const rm = Rand(p.seed, 'massing');
   const w = p.bx * p.bay, d = p.bz * p.bay;
@@ -631,7 +635,10 @@ function massing(p) {
   const podium = (p.massing === 'inverted' || p.massing === 'ziggurat') ? 1 : 0;
 
   for (let i = 0; i < p.levels; i++) {
-    const h = i === 0 && podium ? p.floorH * 1.25 : p.floorH;
+    // the parti decides which storey is the important one, and the important
+    // one is taller. Everything downstream — the stair's riser count, the
+    // shaft it needs — then follows from that rather than from a uniform grid.
+    const h = (i === 0 && podium ? p.floorH * 1.25 : p.floorH) * heightAt(parti, i, p.levels);
     const s = (i === 0 && podium) ? { sx: 1, sz: 1, dx: 0, dz: 0 } : scheduleAt(p.massing, i, p.levels, stagJitter);
     // Snap the scaled plate back onto the structural grid — a brutalist frame does
     // not do fractional bays — then RE-CUT the shape at that size, rather than
@@ -733,6 +740,211 @@ function placeCores(p, mass) {
   return cores;
 }
 
+/* ──────────────────────── the spine, derived once ───────────────────────── */
+//
+// Where the corridor runs is a property of the WING, not of whichever stage
+// happens to be drawing at the time. The plan solver needs it to cut its bands;
+// the hall needs it because a room that does not front the spine is a room with
+// no door. Two stages guessing it separately is how a great hall ends up
+// stranded a metre and a half short of the only corridor on the floor.
+
+function spineFor(p, wing, minRoom) {
+  const along = wing.w >= wing.d;                 // corridor runs along the long axis
+  const span = along ? wing.d : wing.w;           // cross-wing dimension
+  const corW = p.corridorW;
+  const doubleLoaded = span >= 2 * minRoom + corW + 1.2;
+  const cor = doubleLoaded
+    ? (along ? R.make(wing.x, wing.z, wing.w, corW) : R.make(wing.x, wing.z, corW, wing.d))
+    // single-loaded: hug the north / west edge
+    : (along ? R.make(wing.x, R.z1(wing) - corW / 2, wing.w, corW)
+             : R.make(R.x0(wing) + corW / 2, wing.z, corW, wing.d));
+  return { along, cor, doubleLoaded, span };
+}
+
+/* ────────────────────── the atrium, before anyone needs it ──────────────── */
+//
+// The parti's atrium is claimed by the plan solver, but the HALL has to know
+// where it is in order to keep out of it — and the hall is placed first. Two
+// stages deriving the same rect from the same wing by eye is exactly how a
+// great hall ends up with a hole in the floor, so it is derived ONCE, here,
+// from geometry alone (no rng), and both stages call it.
+
+// AN ATRIUM THAT MOVES IS NOT AN ATRIUM. Sizing it off each level's own plate
+// looks right until the massing steps: a setback shrinks the wing, the void
+// re-derives smaller and off-centre, and what reads in section is a stack of
+// unrelated holes rather than one room the height of the building. So it is
+// solved ONCE, against the INTERSECTION of the plates it passes through — the
+// same discipline that sizes a core against the smallest plate, for the same
+// reason. Then every level cuts the identical rect, or none of them do.
+function partiAtriumFor(p, mass, parti) {
+  if (!parti) return null;
+  const lv = mass.levels.filter((L) => voidsAt(parti, L.index, p.levels) > 0 && L.wings.length);
+  if (lv.length < 2) return null;
+  const frac = voidsAt(parti, lv[0].index, p.levels);
+
+  let x0 = -Infinity, z0 = -Infinity, x1 = Infinity, z1 = Infinity;
+  for (const L of lv) {
+    const w = L.wings[0];
+    x0 = Math.max(x0, R.x0(w)); x1 = Math.min(x1, R.x1(w));
+    z0 = Math.max(z0, R.z0(w)); z1 = Math.min(z1, R.z1(w));
+  }
+  if (!(x1 - x0 > 0 && z1 - z0 > 0)) return null;
+  const core2 = R.fromMinMax(x0, z0, x1, z1);
+
+  const aw = Math.max(p.bay * 1.5, Math.round(Math.sqrt(R.area(core2) * frac) / p.bay) * p.bay);
+  const ad = Math.min(aw, core2.d - p.bay * 1.4);
+  if (!(aw < core2.w - p.bay && ad > p.bay)) return null;
+  return {
+    x: round2(core2.x), z: round2(core2.z),
+    w: round2(Math.min(aw, core2.w - p.bay)), d: round2(ad),
+    kind: 'atrium', parti: true,
+  };
+}
+
+// and on a given level it is either cut or it is not — never a different one
+function atriumOn(atrium, p, level, parti) {
+  if (!atrium || !parti) return null;
+  if (!(voidsAt(parti, level.index, p.levels) > 0)) return null;
+  if (!level.wings.length || !R.contains(level.wings[0], atrium, 0.05)) return null;
+  return atrium;
+}
+
+/* ─────────────────────── the hall, and the stair in it ──────────────────── */
+//
+// A hall is not a big room the BSP happened to leave. It is claimed BEFORE the
+// plan is cut, out of the biggest wing the level has — and then the plan is
+// solved around it, which is what "the rest is arranged about it" actually
+// means in code.
+//
+// "Clear of the cores" used to be a nudge in z, which is a hope rather than a
+// guarantee: the nudge is then clamped back inside the wing, and on a tight
+// plate that puts it straight back where it started. And a rect centred in the
+// leftover ground is worse than useless — it can sit a metre off the corridor
+// with nothing but a strip of dead plan between them.
+//
+// So the hall is claimed the way a ROOM is claimed, out of the same bands the
+// plan solver will cut: full depth from the spine to the outside face, and only
+// its length along the corridor is negotiable. That makes three things true at
+// once — the hall fronts the circulation, the plan either side of it still
+// fronts the circulation, and nothing has to be moved afterwards.
+
+function placeHalls(p, mass, parti, cores, atrium) {
+  const out = [];
+  const minRoom = Math.max(3.0, p.bay * 0.45);
+  for (const L of mass.levels) {
+    const spec = hallAt(parti, L.index, p.levels);
+    if (!spec) continue;
+    // biggest wing first, but not ONLY the biggest: a courtyard parti voids the
+    // middle of wing 0, and refusing to look at wing 1 loses the hall entirely
+    let placed = null;
+    for (const wing of L.wings.slice().sort((a, b) => R.area(b) - R.area(a))) {
+      const target = R.area(wing) * spec.frac;
+      const { along, cor } = spineFor(p, wing, minRoom);
+
+      // the bands, cut exactly as planCellular will cut them
+      let bands = along ? R.splitZ(wing, R.z0(cor), R.z1(cor)) : R.splitX(wing, R.x0(cor), R.x1(cor));
+      const av = atriumOn(atrium, p, L, parti);
+      const blockers = cores.filter((c) => R.overlaps(c, wing));
+      if (av && R.overlaps(av, wing)) blockers.push(av);
+      for (const c of blockers) {
+        const next = [];
+        for (const b of bands) {
+          if (!R.overlaps(b, c)) { next.push(b); continue; }
+          for (const q of (along ? R.splitX(b, R.x0(c), R.x1(c)) : R.splitZ(b, R.z0(c), R.z1(c)))) next.push(q);
+        }
+        bands = next;
+      }
+
+      // the biggest band wins; the hall takes its full depth and as much of its
+      // length as the parti asked for, snapped to the grid so the hall lands on
+      // columns rather than having them through it. Depth is whatever the band
+      // is — a 6 m band off a shallow plate still makes a hall, and demanding a
+      // bay and a bit of it silently drops the parti on every slab block.
+      const cand = bands
+        .filter((b) => Math.min(b.w, b.d) >= Math.max(minRoom, 3.5))
+        .sort((a, b) => R.area(b) - R.area(a));
+      for (const b of cand) {
+        const depth = along ? b.d : b.w;              // spine → outside face
+        const run = along ? b.w : b.d;                // along the spine
+        let len = Math.max(p.bay * 2, Math.round((target / depth) / p.bay) * p.bay);
+        len = Math.min(len, run);
+        if (len < Math.max(p.bay * 1.5, minRoom * 1.4)) continue;
+        placed = along ? { x: b.x, z: b.z, w: len, d: depth } : { x: b.x, z: b.z, w: depth, d: len };
+        break;
+      }
+      if (placed) break;
+    }
+    if (!placed) continue;
+
+    out.push({
+      level: L.index, x: round2(placed.x), z: round2(placed.z),
+      w: round2(placed.w), d: round2(placed.d),
+      program: spec.program, doubleHeight: !!spec.doubleHeight, meme: spec.meme,
+      ref: 'HALL', area: round2(placed.w * placed.d),
+    });
+  }
+  return out;
+}
+
+// THE CEREMONIAL STAIR. Not circulation — the reason the room is there. It is
+// placed in whatever the parti says it belongs to (the hall, the atrium void,
+// the open undercroft, or a dwelling), it is wide, and its type is drawn from
+// a set the parti names rather than from whatever fits a leftover shaft.
+//
+// It is also the one stair allowed to be strange. A dog-leg is what you use
+// when the stair has a job; an imperial, a crossed pair or a helix is what you
+// use when the stair IS the job.
+
+function featureStairs(p, mass, parti, halls, cores) {
+  const rf = Rand(p.seed, 'feature');
+  const out = [];
+  for (const F of partiFeatures(parti, p.levels)) {
+    const from = Math.max(0, Math.min(p.levels - 1, F.from));
+    const to = Math.max(0, Math.min(p.levels - 1, F.to));
+    if (to <= from) continue;
+
+    // where it stands, and therefore how much room it has
+    let host = null;
+    if (F.where === 'hall') host = halls.find((h) => h.level === from) || halls[0];
+    if (!host) {
+      // no hall: take the middle of the biggest wing on the level it starts from
+      const wing = mass.levels[from].wings.slice().sort((a, b) => R.area(b) - R.area(a))[0];
+      if (!wing) continue;
+      const side = Math.min(wing.w, wing.d) * (F.where === 'atrium' ? 0.5 : 0.42);
+      host = { x: wing.x, z: wing.z, w: Math.min(wing.w * 0.8, side * 1.6), d: Math.min(wing.d * 0.8, side * 1.6) };
+    }
+    const box = { x: host.x, z: host.z, w: host.w * 0.86, d: host.d * 0.86 };
+
+    // Height is not one storey: a feature stair spans the levels the parti
+    // named, and every one of them may be a different height — the piano nobile
+    // is taller than the plinth under it.
+    const heights = [];
+    for (let i = from; i < to; i++) heights.push(mass.levels[i].h);
+
+    let type = null, width = F.width;
+    for (const w of [F.width, F.width * 0.8, STAIR_RULES.width.public]) {
+      type = chooseStair(box, heights, rf, { width: w, grand: !F.private, prefer: F.prefer });
+      if (type) { width = w; break; }
+    }
+    if (!type) continue;
+
+    for (let i = from; i < to; i++) {
+      const L = mass.levels[i];
+      out.push({
+        core: 'feature/' + F.meme, feature: true, meme: F.meme, where: F.where,
+        level: i,
+        // NOT `note`. The layout spreads the stair TYPE's note over this object,
+        // so the parti's reason for the stair has to have a name of its own —
+        // otherwise the panel quotes what a helix is instead of why this one is
+        // here, which is the only interesting half.
+        featureNote: F.note, partiLabel: F.label, fromLevel: from, toLevel: to,
+        ...stairLayout(type, L.h, box, { width, y0: L.y, grand: !F.private, private: !!F.private }),
+      });
+    }
+  }
+  return out;
+}
+
 /* ──────────────────────────── STAIRS TO GROUND ──────────────────────────── */
 //
 // One stair per core per level, each climbing that level's own floor-to-floor
@@ -765,42 +977,72 @@ function placeStairs(p, mass, cores) {
 // to the structural grid where they can — a plan whose partitions land on
 // columns is the difference between a drawing and a *drawing*.
 
-function planCellular(p, level, cores, rnd) {
+function planCellular(p, level, cores, rnd, parti, atrium) {
   const T = TYPOLOGIES[p.typology];
   const rooms = [], corridors = [], voids = [];
   const isGround = level.index === 0;
   const isTop = level.index === p.levels - 1;
   const minRoom = Math.max(3.0, p.bay * 0.45);
 
+  // ── WHAT THE PARTI DOES TO THE PLAN, rather than to the section ─────────
+  //
+  // SKIP-STOP. The Unité's move, and it is a plan move: a rue intérieure every
+  // third floor and NOTHING on the two between, because the dwellings are
+  // maisonettes that cross over the rue and are entered from it. So on a level
+  // that is not a deck there is no corridor to cut the plate about, the rooms
+  // run the full depth of the wing, and they are reached by the stair inside
+  // the dwelling. That is not a plan with landlocked rooms — it is a section.
+  //
+  // ROOM SCALE. A penthouse is not a taller top floor, it is a top floor with
+  // FEWER rooms in it, so the BSP's step grows and its minimum with it.
+  // The Unité is itself on pilotis: its first rue is not at grade, because
+  // grade was given away. So when the parti opens the ground, the deck sequence
+  // starts a level up — otherwise every maisonette above would name a deck that
+  // has no corridor in it to be entered from.
+  const every = parti ? corridorEvery(parti) : 1;
+  const base = parti && openGround(parti) ? 1 : 0;
+  const deck = every > 1
+    ? base + Math.max(0, Math.floor((level.index - base) / every)) * every
+    : level.index;
+  const isDeck = every === 1 || level.index === deck;
+  const scale = parti ? roomScaleAt(parti, level.index, p.levels) : 1;
+  const minR = minRoom * Math.max(1, Math.min(scale, 2));
+
   for (const wing of level.wings) {
-    const along = wing.w >= wing.d;                 // corridor runs along the long axis
-    const span = along ? wing.d : wing.w;           // cross-wing dimension
-    const doubleLoaded = span >= 2 * minRoom + p.corridorW + 1.2;
-    const corW = p.corridorW;
+    const { along, cor, doubleLoaded, span } = spineFor(p, wing, minRoom);
+    if (isDeck) corridors.push(cor);
 
-    // corridor rect
-    let cor;
-    if (doubleLoaded) {
-      cor = along ? R.make(wing.x, wing.z, wing.w, corW) : R.make(wing.x, wing.z, corW, wing.d);
-    } else {
-      // single-loaded: hug the north / west edge
-      cor = along
-        ? R.make(wing.x, R.z1(wing) - corW / 2, wing.w, corW)
-        : R.make(R.x0(wing) + corW / 2, wing.z, corW, wing.d);
-    }
-    corridors.push(cor);
+    // the bands left over either side of the corridor — or, with no corridor,
+    // the whole plate, cut the same way and so still fronting the same axis
+    let bands = isDeck
+      ? (along ? R.splitZ(wing, R.z0(cor), R.z1(cor)) : R.splitX(wing, R.x0(cor), R.x1(cor)))
+      : [{ x: wing.x, z: wing.z, w: wing.w, d: wing.d }];
 
-    // the bands left over either side of the corridor
-    let bands = along ? R.splitZ(wing, R.z0(cor), R.z1(cor)) : R.splitX(wing, R.x0(cor), R.x1(cor));
-
-    // an atrium on the deepest plates — the light-well that makes a deep plan legal
     const wingVoids = [];
-    if (doubleLoaded && span > p.bay * 4.5 && !isGround && rnd.chance(0.22)) {
+
+    // THE PARTI'S ATRIUM, if it asked for one. This is not the opportunistic
+    // light well below it: it is the same void in the same place on every level
+    // the parti names, so it reads as one room the whole height of the building
+    // and the gallery round it is the circulation. It is claimed first, and the
+    // plan is cut around it.
+    if (wing === level.wings[0]) {
+      const av = atriumOn(atrium, p, level, parti);
+      if (av) { wingVoids.push(av); voids.push(av); }
+    }
+
+    // an opportunistic light-well on the deepest plates — the one that makes a
+    // deep plan legal, rather than the one that makes it about something. It is
+    // drawn AFTER the hall was claimed, so it has to be told about it: a hall
+    // does not need a light well cut out of it, it is already the light.
+    if (!wingVoids.length && doubleLoaded && span > p.bay * 4.5 && !isGround && rnd.chance(0.22)) {
       const av = along
         ? R.make(round2(wing.x + rnd.range(-wing.w * 0.2, wing.w * 0.2)), wing.z, round2(p.bay * 1.5), round2(span * 0.3))
         : R.make(wing.x, round2(wing.z + rnd.range(-wing.d * 0.2, wing.d * 0.2)), round2(span * 0.3), round2(p.bay * 1.5));
-      wingVoids.push({ ...av, kind: 'light well' });
-      voids.push(wingVoids[0]);
+      const hallHere = cores.find((q) => q.ref === 'HALL');
+      if (!(hallHere && R.overlaps(av, hallHere))) {
+        wingVoids.push({ ...av, kind: 'light well' });
+        voids.push(wingVoids[0]);
+      }
     }
 
     // Subtract everything the plan solver may not build in: the cores (served OFF
@@ -821,24 +1063,25 @@ function planCellular(p, level, cores, rnd) {
     for (const band of bands) {
       const cut = along ? 'x' : 'z';
       const len = cut === 'x' ? band.w : band.d;
-      if (len < minRoom || Math.min(band.w, band.d) < 2.2) continue;
+      if (len < minR || Math.min(band.w, band.d) < 2.2) continue;
       const offs = [0];
       let at = 0;
-      while (len - at > minRoom * 1.6) {
+      while (len - at > minR * 1.6) {
         const stepBays = rnd.pickW([[1, 3], [1.5, 2], [2, 2.4], [3, 1.0]]);
-        let step = stepBays * p.bay;
-        if (step < minRoom) step = minRoom;
-        if (len - (at + step) < minRoom) break;
+        let step = stepBays * p.bay * scale;
+        if (step < minR) step = minR;
+        if (len - (at + step) < minR) break;
         at += step; offs.push(round2(at));
       }
       offs.push(round2(len));
       for (let k = 0; k < offs.length - 1; k++) {
         const a = offs[k], b = offs[k + 1];
-        if (b - a < minRoom * 0.8) continue;
+        if (b - a < minR * 0.8) continue;
         const r = cut === 'x'
           ? R.fromMinMax(R.x0(band) + a, R.z0(band), R.x0(band) + b, R.z1(band))
           : R.fromMinMax(R.x0(band), R.z0(band) + a, R.x1(band), R.z0(band) + b);
-        rooms.push({ ...r, program: null });
+        rooms.push(isDeck ? { ...r, program: null }
+          : { ...r, program: null, viaLevel: deck, access: 'internal stair' });
       }
     }
   }
@@ -1093,15 +1336,56 @@ export function generate(paramsOrQuery) {
 
   if (p.typology === 'cathedral') return generateSacred(p);
 
-  const mass = massing(p);
+  // THE PARTI RUNS FIRST. Everything after it is a consequence rather than an
+  // independent draw, which is the whole difference between a building with an
+  // idea and a set of correct parts that have never met.
+  const parti = deriveParti(p, Rand(p.seed, 'parti'));
+  const mass = massing(p, parti);
   const cores = placeCores(p, mass);
+  const atrium = partiAtriumFor(p, mass, parti);
+  const halls = placeHalls(p, mass, parti, cores, atrium);
   const stairs = placeStairs(p, mass, cores);
+  stairs.push(...featureStairs(p, mass, parti, halls, cores));
   const rp = Rand(p.seed, 'plan');
 
   for (const L of mass.levels) {
     L.cores = cores.filter((c) => L.wings.some((w) => R.overlaps(w, c)));
-    const out = T.plan === 'deck' ? planDeck(p, L, L.cores) : planCellular(p, L, L.cores, rp);
+    L.hall = halls.find((h) => h.level === L.index) || null;
+    L.terrace = terraceAt(parti, L.index, p.levels);
+    // the hall and the atrium are things the plan solver must work AROUND, the
+    // same way it works around a core
+    const block = L.cores.concat(L.hall ? [L.hall] : []);
+    // THE UNDERCROFT gives the ground back. Not "mostly": a level on pilotis
+    // has no plan at all — columns, the cores that have to land, and the one
+    // stair standing in the open. Generating rooms and then hiding them would
+    // leave the drawing saying one thing and the model another, so the plan is
+    // simply not cut here.
+    const pilotis = L.index === 0 && openGround(parti);
+    const out = pilotis ? { rooms: [], corridors: [], voids: [] }
+      : T.plan === 'deck' ? planDeck(p, L, block) : planCellular(p, L, block, rp, parti, atrium);
+    L.pilotis = pilotis;
     L.rooms = out.rooms; L.corridors = out.corridors; L.voids = out.voids;
+    // A HALL IS THE CIRCULATION. Both plan solvers lay their spine down the
+    // middle of the plate before anything is subtracted, so it drives straight
+    // through the hall — and the answer is not to move the hall but to stop
+    // pretending you need a corridor inside it. You walk THROUGH a great hall;
+    // that is what it is for. Done here rather than in each solver so the
+    // guarantee is one line and holds for the deck as well as the cells.
+    if (L.hall) {
+      L.corridors = L.corridors
+        .flatMap((c) => (R.overlaps(c, L.hall) ? R.subtract(c, [L.hall]) : [c]))
+        .filter((c) => c.w > 0.4 && c.d > 0.4);
+      L.rooms = L.rooms.flatMap((r) => (R.overlaps(r, L.hall)
+        ? R.subtract(r, [L.hall]).filter((q) => q.w > 1.2 && q.d > 1.2).map((q) => ({ ...r, ...q, area: round2(R.area(q)) }))
+        : [r]));
+      L.rooms.push({ ...L.hall, program: L.hall.program, hall: true });
+    }
+    // a skip-stop section has two kinds of level and the drawing has to say
+    // which is which: the one with the rue in it, and the two that reach it
+    if (corridorEvery(parti) > 1 && !pilotis) {
+      const via = L.rooms.find((r) => r.viaLevel != null);
+      if (via) L.viaDeck = via.viaLevel; else L.deck = true;
+    }
     L.columns = columnsFor(p, L);
     L.label = levelLabel(p, L);
     L.gfa = round2(L.wings.reduce((s, w) => s + R.area(w), 0));
@@ -1112,7 +1396,7 @@ export function generate(paramsOrQuery) {
   stairs.push(...towerStairs(p, mass, towers));
   const b = {
     version: VERSION, params: p, seed: p.seed, typology: p.typology, typologyLabel: T.label,
-    site: mass.site, levels: mass.levels, cores, stairs, facades, towers,
+    site: mass.site, levels: mass.levels, cores, stairs, facades, towers, parti, halls,
     height: round2(mass.height + (p.plant ? 3.2 : 1.1)),
     roof: { parapet: 1.1, plant: p.plant },
     geometry: null,
@@ -1122,7 +1406,10 @@ export function generate(paramsOrQuery) {
 }
 
 function generateSacred(p) {
-  const mass = massing({ ...p, levels: 1 });
+  // the basilica has its own plan generator, but it still takes a position:
+  // a cloister is the one meme a single-volume church can wear
+  const parti = deriveParti(p, Rand(p.seed, 'parti'));
+  const mass = massing({ ...p, levels: 1 }, parti);
   const rs = Rand(p.seed, 'sacred');
   const L = mass.levels[0];
   const out = planSacred(p, L, rs);
@@ -1187,7 +1474,7 @@ function generateSacred(p) {
 
   const b = {
     version: VERSION, params: p, seed: p.seed, typology: 'cathedral', typologyLabel: TYPOLOGIES.cathedral.label,
-    site: mass.site, levels: mass.levels, cores: [], stairs, facades, towers,
+    site: mass.site, levels: mass.levels, cores: [], stairs, facades, towers, parti, halls: [],
     height: round2(L.h + geo.rib * 1.6 + 0.5), roof: { parapet: 0.9, plant: false, folded: true },
     geometry: geo,
   };
@@ -1195,10 +1482,22 @@ function generateSacred(p) {
   return b;
 }
 
+// A LEVEL IS NAMED BY WHAT THE PARTI DID TO IT. "Level 3" is a number; "Level 3
+// (rue intérieure)" is the reason the two floors above it have no corridor, and
+// the drawing is the only place the reader ever sees that.
 function levelLabel(p, L) {
-  if (L.index === 0) return p.pilotis ? 'Ground (undercroft)' : 'Ground';
-  if (L.index === p.levels - 1 && p.plant) return `Level ${L.index} + plant`;
-  return `Level ${L.index}`;
+  const base = L.index === 0 ? 'Ground' : `Level ${L.index}`;
+  const tags = [];
+  if (L.pilotis) tags.push('undercroft');
+  // the pilotis TOGGLE only sets the perimeter back onto columns; saying so
+  // beside a hall that fills the plate would be a contradiction on the drawing
+  else if (L.index === 0 && p.pilotis && !L.hall) tags.push('pilotis');
+  if (L.hall) tags.push(L.hall.program);
+  if (L.deck) tags.push('rue intérieure');
+  if (L.viaDeck != null) tags.push('maisonette');
+  if (L.terrace) tags.push('terrace');
+  if (L.index === p.levels - 1 && p.plant) tags.push('plant');
+  return tags.length ? `${base} (${tags.join(', ')})` : base;
 }
 
 // Columns sit on the grid intersections, and each carries the floor halfway to

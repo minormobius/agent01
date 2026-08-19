@@ -542,6 +542,10 @@ export function titleBlockSVG(b, opts = {}) {
   const rows = [
     ['SEED', p.seed],
     ['TYPE', b.typologyLabel],
+    // The parti belongs in a title block for the same reason a drawing has one
+    // at all: the set is read by someone who was not in the room, and the idea
+    // the scheme is a consequence of is the first thing they need.
+    ['PARTI', (b.parti && b.parti.note) || 'none declared'],
     ['MASSING', `${p.massing} · ${p.shape}${p.symmetric ? ' · symmetric' : ''}`],
     ['GRID', `${p.bay.toFixed(2)} m · ${p.bx}×${p.bz} bays`],
     ['STOREYS', `${S.levels} @ ${p.floorH.toFixed(2)} m`],

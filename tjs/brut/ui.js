@@ -53,6 +53,10 @@ export function buildPanel(root, params, onChange, opts = {}) {
   typeSel.addEventListener('change', () => setSeed(p.seed, typeSel.value));
 
   const blurb = h('p', { class: 'blurb' });
+  // THE PARTI GETS ITS OWN BLOCK, above the numbers. Everything else in this
+  // panel is a dimension; this is the reason the dimensions came out that way,
+  // and a building whose idea is not stated reads as an accident.
+  const partiBox = h('div', { class: 'parti' });
   const stats = h('div', { class: 'stats' });
   const rhythmRow = h('div', { class: 'rhythm' });
   const systems = h('div', { class: 'systems' });
@@ -80,6 +84,7 @@ export function buildPanel(root, params, onChange, opts = {}) {
   ]));
   root.appendChild(h('div', { class: 'grp' }, [h('label', { class: 'k' }, 'type'), typeSel]));
   root.appendChild(blurb);
+  root.appendChild(partiBox);
   root.appendChild(cross);
   root.appendChild(stats);
   root.appendChild(h('div', { class: 'sec' }, 'facade rhythm'));
@@ -217,6 +222,29 @@ export function buildPanel(root, params, onChange, opts = {}) {
       stats.textContent = '';
       for (const [k, v] of rows) stats.appendChild(h('div', { class: 'stat' }, [h('b', {}, String(v)), h('span', {}, k)]));
     },
+    // `parti` is the building's own parti object; `features` the ceremonial
+    // stairs it asked for, already laid out — so the panel quotes what was
+    // BUILT rather than what was intended, and a stair that did not fit shows
+    // up as a stair that is not listed.
+    setParti(parti, features = []) {
+      partiBox.textContent = '';
+      if (!parti || !parti.memes || !parti.memes.length) {
+        partiBox.appendChild(h('p', { class: 'blurb pnote' },
+          'no parti — the ordinary case, and most buildings are it: a plan arranged for its own convenience and nothing declared.'));
+        return;
+      }
+      partiBox.appendChild(h('div', { class: 'sec' }, 'the parti'));
+      partiBox.appendChild(h('p', { class: 'pname' }, parti.note));
+      for (const n of (parti.notes || [])) partiBox.appendChild(h('p', { class: 'blurb pnote' }, n));
+      const seen = new Set();
+      for (const f of features) {
+        const key = `${f.type}:${f.meme}:${f.fromLevel}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        partiBox.appendChild(h('p', { class: 'blurb pstair' },
+          `${f.label || f.type} — ${f.featureNote || ''}`.trim().replace(/ —\s*$/, '')));
+      }
+    },
     reload(next) { p = next; paint(); },
   };
 }
@@ -237,6 +265,13 @@ export const PANEL_CSS = `
 .panel button.primary:hover{filter:brightness(1.1);color:#04121a}
 .panel button.tiny{padding:4px 8px;font-size:12px;line-height:1}
 .panel .blurb{margin:6px 0 10px;font-size:11.5px;line-height:1.5;color:var(--soft)}
+.panel .parti{margin:2px 0 10px;padding:8px 10px;border:1px solid var(--line);border-left:2px solid var(--accent);
+  border-radius:0 8px 8px 0;background:#08080f}
+.panel .parti .sec{margin:0 0 4px}
+.panel .pname{margin:0 0 6px;font-size:13px;letter-spacing:.01em;color:var(--ink)}
+.panel .parti .pnote{margin:0 0 6px}
+.panel .parti .pnote:last-child{margin-bottom:0}
+.panel .parti .pstair{margin:6px 0 0;padding-left:9px;border-left:1px solid var(--line);color:var(--accent);opacity:.85}
 .panel .cross{display:block;margin:0 0 12px;font-size:12px;color:var(--accent);text-decoration:none;
   border:1px dashed var(--accent);border-radius:8px;padding:7px 9px;text-align:center}
 .panel .cross:hover{background:#39d6c81a}

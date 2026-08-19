@@ -351,6 +351,7 @@ function build(p) {
   applyMode();
   syncStoreySlider();
   applyStoreyCut();
+  panel.setParti(building.parti, (building.stairs || []).filter((q) => q.feature));
   panel.setStats([
     ['storeys', building.stats.levels],
     ['height', building.stats.height.toFixed(0) + ' m'],
