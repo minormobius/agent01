@@ -481,7 +481,10 @@ const runFrame = (b, F, extra) => {
   ok(w['board-marked'].shape > 1.1 && w.trencadis.shape > 1.02,
     `a shell cast integral with the rib makes it a T-beam (4πI/A² = ${w['board-marked'].shape.toFixed(3)} ` +
     `for the sprayed shell, ${w.trencadis.shape.toFixed(3)} for the thinner mosaic; a solid circle is exactly 1)`);
-  ok(w['board-marked'].shape > w.trencadis.shape, 'and a thicker flange is a better one');
+  // NOT asserted: that a thicker flange gives a bigger SHAPE factor. It does
+  // not necessarily — a thick flange adds area as fast as it adds inertia, so
+  // 4πI/A² can fall while I rises. The invariant is the presence of a flange,
+  // not a monotone ordering of a dimensionless ratio.
   ok(Math.abs(w.glazed.shape - 1) < 1e-9 && Math.abs(w.lattice.shape - 1) < 1e-9,
     'glass is not a flange — the glazed and bare ribs are exactly circles');
   ok(SURFACES['board-marked'].clad / (MAT.rho * MAT.g) > 0.14,

@@ -296,6 +296,7 @@ export function mountSheet(panes, opts = {}) {
   let active = panes[0].id;
 
   for (const q of panes) {
+    q.el.classList.add('sheet-pane');
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.dataset.pane = q.id;
@@ -392,6 +393,13 @@ body.mobile .sheet[data-state=full]{--h:86vh}
 .sheet .body{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 13px 16px}
 body.mobile .sheet[data-state=peek] .tabs,
 body.mobile .sheet[data-state=peek] .body{display:none}
+/* Only ONE pane lives in the sheet at a time; the others stay parked in the
+   document, and the page's own mobile rules have already stripped them of the
+   position:fixed that was keeping them off-screen. So they must be hidden
+   explicitly, or they lay out in normal flow behind the canvas — which showed
+   up as a column of stray status dots floating over the model. */
+body.mobile .sheet-pane{display:none!important}
+body.mobile .sheet .body > .sheet-pane{display:block!important}
 /* the panes lose their floating-panel chrome once they are inside the sheet */
 body.mobile .sheet .body > *{position:static!important;width:auto!important;max-width:none!important;
   max-height:none!important;border:0!important;background:none!important;box-shadow:none!important;

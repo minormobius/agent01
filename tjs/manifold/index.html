@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manifold · a concrete cobordism · tjs</title>
+<meta name="description" content="Seeded procedural gridshells in three.js: n legs, a collector ring and m mouths, built from doubly-ruled hyperboloids so every rib is straight — with a real space-frame solve over the lattice giving buckling load factor, funicularity and the reinforcement bill.">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  :root{ --bg:#080a0c; --panel:#0d1114ee; --line:#20272c; --ink:#e8ece9; --soft:#8b9a95; --accent:#e2a03f; --tens:#4ea8de; --comp:#e2603f; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       -webkit-font-smoothing:antialiased;overflow:hidden}
+  #viewport{position:fixed;inset:0}
+  #viewport canvas{display:block}
+  .crumb{position:fixed;top:14px;left:18px;z-index:5;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft)}
+  .crumb a{color:var(--soft);text-decoration:none}
+  .crumb a:hover{color:var(--accent)}
+  .pane{background:var(--panel);border:1px solid var(--line);border-radius:13px;backdrop-filter:blur(9px);box-shadow:0 18px 50px #0009}
+  #panel{position:fixed;top:42px;left:14px;z-index:6;width:312px;max-width:calc(100vw - 28px);
+    max-height:calc(100vh - 58px);overflow:auto;overscroll-behavior:contain;padding:13px}
+  #panel h1{font-size:16px;margin:0 0 2px;font-weight:700}
+  #panel .sub{font-size:11.5px;color:var(--soft);margin:0 0 10px}
+  #panel .blurb{font-size:11.5px;color:var(--soft);margin:0 0 10px;line-height:1.5}
+  .fld{display:flex;align-items:center;gap:7px;margin:6px 0;font-size:11.5px;color:var(--soft)}
+  .fld label{flex:0 0 74px}
+  .fld .v{flex:0 0 42px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink);font-size:11px}
+  input[type=text],select{flex:1 1 auto;min-width:0;background:#05070a;border:1px solid var(--line);color:var(--ink);
+    border-radius:7px;padding:5px 6px;font:12px/1.2 ui-monospace,Menlo,monospace}
+  input[type=text]:focus,select:focus{outline:none;border-color:var(--accent)}
+  input[type=range]{-webkit-appearance:none;appearance:none;flex:1 1 auto;min-width:0;height:4px;border-radius:3px;background:#232c31;outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--accent);cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:50%;background:var(--accent);cursor:pointer}
+  button{background:#111619;border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:5px 9px;font-size:11.5px;cursor:pointer}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.on{border-color:var(--accent);color:var(--accent)}
+  .row{display:flex;gap:6px;margin:8px 0}
+  .row button{flex:1 1 auto}
+  .hd{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--soft);margin:12px 0 5px;
+    border-top:1px solid var(--line);padding-top:9px}
+  .stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin:8px 0 2px}
+  .stats div{background:#0a0e10;border:1px solid var(--line);border-radius:6px;padding:4px 6px}
+  .stats b{display:block;font-size:12px;font-variant-numeric:tabular-nums}
+  .stats span{display:block;font-size:9px;color:var(--soft);letter-spacing:.03em;text-transform:uppercase}
+  #view{position:fixed;right:14px;bottom:14px;z-index:6;padding:10px 12px;width:236px}
+  #eng{position:fixed;right:14px;top:14px;z-index:6;width:274px;padding:10px 12px;
+    max-height:calc(100vh - 190px);overflow:auto;overscroll-behavior:contain}
+  #eng .verdict{font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid var(--line);color:var(--soft);float:right}
+  #eng .verdict.ok{border-color:#2e7d5b;color:#67d6a4}
+  #eng .verdict.no{border-color:#8a3b32;color:#f08a72}
+  #eng .chk{display:flex;gap:7px;align-items:baseline;margin:6px 0;font-size:11px}
+  #eng .chk i{flex:0 0 8px;height:8px;border-radius:50%;background:#67d6a4;font-style:normal;position:relative;top:-1px}
+  #eng .chk.bad i{background:#f08a72}
+  #eng .chk .n{flex:1 1 auto;color:var(--soft)}
+  #eng .chk .n b{display:block;color:var(--ink);font-weight:600}
+  #eng .chk .m{flex:0 0 auto;font-variant-numeric:tabular-nums;color:var(--ink)}
+  #eng .note{font-size:10.5px;color:var(--soft);line-height:1.45;margin:8px 0 0}
+  #eng .bar{height:5px;border-radius:3px;background:var(--tens);overflow:hidden;margin:5px 0 3px}
+  #eng .bar i{display:block;height:100%;background:var(--comp)}
+  #legend{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:6;padding:8px 13px;
+    font-size:11px;color:var(--soft);max-width:min(560px,calc(100vw - 620px));text-align:center}
+  #legend b{color:var(--ink);font-weight:600}
+  #busy{position:fixed;left:50%;top:16px;transform:translateX(-50%);z-index:8;font-size:11px;color:var(--accent);
+    background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:4px 13px;display:none}
+  #err{position:fixed;inset:auto 14px 14px 14px;z-index:9;background:#2b0f14;border:1px solid #7a2230;color:#ffd9de;
+    border-radius:10px;padding:10px 12px;font:12px/1.5 ui-monospace,Menlo,monospace;display:none;white-space:pre-wrap}
+  /* On a phone the floating panels are re-parented into one bottom sheet (see
+     mountSheet in ../brut/ui.js) rather than duplicated, so a control can never
+     end up disagreeing with itself. */
+  @media (max-width:760px){
+    .crumb{font-size:11px;top:10px;left:12px}
+    #legend{display:none}
+    #busy{top:auto;bottom:86px}
+    #viewport{bottom:74px}
+    #panel,#view,#eng{position:static;width:auto;max-width:none;max-height:none;box-shadow:none;
+      border:0;background:transparent;backdrop-filter:none;padding:0;overflow:visible}
+  }
+</style>
+</head>
+<body>
+<div id="viewport"></div>
+<div class="crumb"><a href="/">tjs</a> / manifold</div>
+<div id="busy">solving…</div>
+
+<div id="panel" class="pane">
+  <h1>Manifold</h1>
+  <p class="sub">a concrete cobordism — n legs, one ring, m mouths</p>
+  <p class="blurb" id="blurb"></p>
+
+  <div class="fld"><label>seed</label><input type="text" id="seed" spellcheck="false"></div>
+  <div class="row"><button id="roll">Roll</button><button id="copy">Copy link</button></div>
+  <div class="fld"><label>programme</label><select id="prog"></select></div>
+  <div class="fld"><label>surface</label><select id="surf"></select></div>
+
+  <div class="hd">the manifold</div>
+  <div id="shapeCtl"></div>
+
+  <div class="hd">the lattice</div>
+  <div id="latCtl"></div>
+
+  <div class="stats" id="stats"></div>
+</div>
+
+<div id="eng" class="pane">
+  <div class="hd" style="margin-top:0;border-top:0;padding-top:0">verdict <span class="verdict" id="verdict">…</span></div>
+  <div id="checks"></div>
+  <div class="hd">funicularity</div>
+  <div class="bar"><i id="funiBar"></i></div>
+  <p class="note" id="funiNote"></p>
+  <div class="hd">the site</div>
+  <div class="fld"><label>wind</label><select id="wind"></select></div>
+  <div class="fld"><label>exposure</label><select id="expo"></select></div>
+  <div class="fld"><label>snow</label><select id="snow"></select></div>
+  <p class="note" id="pinNote"></p>
+</div>
+
+<div id="view" class="pane">
+  <div class="row" id="modes"></div>
+  <div class="fld"><label>sun</label><input type="range" id="sun" min="5" max="85" value="46"><span class="v" id="sunV"></span></div>
+  <div class="fld"><label>amplitude</label><input type="range" id="amp" min="0" max="100" value="35"><span class="v" id="ampV"></span></div>
+  <div class="row"><button id="animBtn">Animate mode</button></div>
+</div>
+
+<div id="legend" class="pane">
+  <b>Doubly ruled.</b> Every rib is straight — the curve is in the arrangement,
+  not the members. <span id="legForce"></span>
+</div>
+
+<div id="err"></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import {
+  generate, deriveParams, resolveParams, paramsToQuery, rollSeed, pMaxFor,
+  PROGRAMMES, PROGRAMME_IDS, SURFACES, SURFACE_IDS, surfaceGeometry,
+} from './shell.js';
+import { WIND_SCENARIOS, EXPOSURES, SNOW_SCENARIOS, defaultHazard } from './struct.js';
+import { mountSheet, SHEET_CSS } from '../brut/ui.js';
+
+const $ = (id) => document.getElementById(id);
+const errBox = $('err');
+window.addEventListener('error', (e) => { errBox.style.display = 'block'; errBox.textContent = e.message + '\n' + (e.error && e.error.stack || ''); });
+
+const sheetCSS = document.createElement('style');
+sheetCSS.textContent = SHEET_CSS;
+document.head.appendChild(sheetCSS);
+
+/* ─────────────────────────────── state ──────────────────────────────────── */
+
+let params = resolveParams(location.search);
+let build = generate(params);
+let result = null;
+let mode = 'form';                 // form | force | fold | buckle
+let animating = false, animT = 0;
+const hazard = defaultHazard();
+
+const writeURL = () => {
+  const q = '?' + paramsToQuery(params);
+  if (location.search !== q) history.replaceState(null, '', q + location.hash);
+};
+
+/* ─────────────────────────────── the worker ─────────────────────────────── */
+
+let worker = null, reqId = 0, pending = 0;
+try {
+  worker = new Worker(new URL('./solve.worker.js', import.meta.url), { type: 'module' });
+  worker.onmessage = (ev) => {
+    const d = ev.data;
+    if (d.id !== reqId) return;                 // a stale solve; the page moved on
+    pending = 0;
+    $('busy').style.display = 'none';
+    if (d.error) { errBox.style.display = 'block'; errBox.textContent = d.error; return; }
+    result = d;
+    paintEngineer();
+    applyColours();
+  };
+  worker.onerror = (e) => { $('busy').style.display = 'none'; errBox.style.display = 'block'; errBox.textContent = 'worker: ' + e.message; };
+} catch (e) { /* no worker: the page still draws, it just has no verdict */ }
+
+let solveTimer = 0;
+function requestSolve(delay = 220) {
+  if (!worker) return;
+  clearTimeout(solveTimer);
+  solveTimer = setTimeout(() => {
+    reqId++; pending = reqId;
+    $('busy').style.display = 'block';
+    worker.postMessage({ id: reqId, params, hazard });
+  }, delay);
+}
+
+/* ─────────────────────────────── the scene ──────────────────────────────── */
+
+const host = $('viewport');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x080a0c);
+scene.fog = new THREE.Fog(0x080a0c, 120, 620);
+
+const camera = new THREE.PerspectiveCamera(42, 1, 0.5, 3000);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+host.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+let userMoved = false;
+controls.addEventListener('start', () => { userMoved = true; });
+
+const sun = new THREE.DirectionalLight(0xfff1dd, 2.5);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+scene.add(sun, sun.target);
+scene.add(new THREE.HemisphereLight(0x8fb6d6, 0x121418, 1.0));
+
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(1, 96),
+  new THREE.MeshStandardMaterial({ color: 0x14181a, roughness: 1, metalness: 0 }));
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+const grid = new THREE.GridHelper(1, 1, 0x2a3439, 0x1a2124);
+grid.material.transparent = true; grid.material.opacity = 0.5;
+scene.add(grid);
+
+const root = new THREE.Group();
+// The kernel is Z-up and three.js is Y-up. Swap ONCE, here, on the group — so
+// the ribs and the shell cannot end up in different worlds, which is exactly
+// what happened when each did its own axis swap.
+root.rotation.x = -Math.PI / 2;
+scene.add(root);
+
+/* ──────────────────── the surface textures, per seed ────────────────────── */
+//
+// The trencadís is not a picture of a mosaic — it is one, laid the way Gaudí's
+// tilers laid it: a plane broken into shards and each shard given its own
+// glaze. Seeded, so the same permalink gets the same tiles.
+
+function hash32(str) {
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++) { h = Math.imul(h ^ str.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
+  return () => { h = Math.imul(h ^ (h >>> 16), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return ((h ^= h >>> 16) >>> 0) / 4294967296; };
+}
+
+function makeTexture(kind, seed) {
+  const S = 512, c = document.createElement('canvas');
+  c.width = c.height = S;
+  const g = c.getContext('2d');
+  const r = hash32(kind + '|' + seed);
+
+  if (kind === 'trencadis') {
+    g.fillStyle = '#d8d2c4'; g.fillRect(0, 0, S, S);
+    // scatter sites, then grow each into a rough shard around it
+    const pts = Array.from({ length: 220 }, () => [r() * S, r() * S]);
+    const hues = [38, 44, 190, 205, 26, 150, 348];
+    for (const [px, py] of pts) {
+      const hue = hues[Math.floor(r() * hues.length)];
+      g.fillStyle = `hsl(${hue} ${28 + r() * 46}% ${44 + r() * 34}%)`;
+      g.beginPath();
+      const n = 4 + Math.floor(r() * 3), rad = 11 + r() * 15, rot = r() * 6.283;
+      for (let i = 0; i < n; i++) {
+        const a = rot + (i / n) * 6.283, rr = rad * (0.6 + r() * 0.6);
+        const x = px + rr * Math.cos(a), y = py + rr * Math.sin(a);
+        i ? g.lineTo(x, y) : g.moveTo(x, y);
+      }
+      g.closePath(); g.fill();
+      g.strokeStyle = 'rgba(60,56,48,.55)'; g.lineWidth = 1.6; g.stroke();
+    }
+  } else if (kind === 'board-marked') {
+    g.fillStyle = '#9c9a93'; g.fillRect(0, 0, S, S);
+    const bw = S / 7;
+    for (let i = 0; i < 7; i++) {
+      const t = 0.86 + r() * 0.24;
+      g.fillStyle = `rgba(${Math.round(150 * t)},${Math.round(148 * t)},${Math.round(140 * t)},1)`;
+      g.fillRect(0, i * bw, S, bw);
+      for (let k = 0; k < 130; k++) {                     // grain
+        g.strokeStyle = `rgba(0,0,0,${0.02 + r() * 0.05})`;
+        g.lineWidth = 0.6 + r();
+        g.beginPath(); g.moveTo(r() * S, i * bw + r() * bw); g.lineTo(r() * S, i * bw + r() * bw); g.stroke();
+        g.beginPath(); const y = i * bw + r() * bw; g.moveTo(0, y); g.lineTo(S, y + (r() - 0.5) * 3); g.stroke();
+      }
+      g.strokeStyle = 'rgba(30,30,28,.5)'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(0, i * bw); g.lineTo(S, i * bw); g.stroke();
+    }
+  } else if (kind === 'perforated') {
+    g.fillStyle = '#a8a49b'; g.fillRect(0, 0, S, S);
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+      g.fillStyle = 'rgba(6,8,10,.85)';
+      g.beginPath(); g.ellipse((x + 0.5 + (y % 2) * 0.5) * S / 8, (y + 0.5) * S / 8, 15 + r() * 5, 15 + r() * 5, 0, 0, 6.283); g.fill();
+    }
+  } else {                                                 // ribbed and anything else
+    g.fillStyle = '#a5a29a'; g.fillRect(0, 0, S, S);
+    for (let i = 0; i < 10; i++) {
+      g.fillStyle = i % 2 ? 'rgba(255,255,255,.05)' : 'rgba(0,0,0,.11)';
+      g.fillRect(0, (i * S) / 10, S, S / 20);
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+
+/* ──────────────────────────── building the mesh ─────────────────────────── */
+
+const CYL = new THREE.CylinderGeometry(1, 1, 1, 8, 1, false);   // unit, along +Y
+const KIND_COLOUR = {
+  gen: 0xcfcabb, hoop: 0xb9b4a6, ring: 0xe2a03f, ringweb: 0xc08a3a,
+  tie: 0x9fb0a8, deck: 0x7f8a86,
+};
+
+let ribMesh = null, surfMesh = null, texture = null;
+const baseMat = new THREE.MeshStandardMaterial({ roughness: 0.86, metalness: 0.02 });
+const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion();
+const tmpV = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+let restPos = null;                                    // undeformed node positions
+
+function rebuild() {
+  root.clear();
+  if (texture) { texture.dispose(); texture = null; }
+
+  const S = SURFACES[params.surface];
+  const n = build.nodes.length;
+  restPos = new Float64Array(n * 3);
+  for (const nd of build.nodes) { restPos[nd.id * 3] = nd.x; restPos[nd.id * 3 + 1] = nd.y; restPos[nd.id * 3 + 2] = nd.z; }
+
+  // ── the ribs, one instanced cylinder for the lot ──────────────────────
+  ribMesh = new THREE.InstancedMesh(CYL, baseMat.clone(), build.members.length);
+  ribMesh.castShadow = ribMesh.receiveShadow = true;
+  ribMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(build.members.length * 3), 3);
+  root.add(ribMesh);
+
+  // ── the shell ─────────────────────────────────────────────────────────
+  if (S.opacity > 0 && build.tris.length) {
+    const g = surfaceGeometry(build, S.glass ? 3 : 1.6);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(g.position, 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(g.uv, 2));
+    geo.computeVertexNormals();
+    let mat;
+    if (S.glass) {
+      mat = new THREE.MeshPhysicalMaterial({
+        color: 0x9fd8e6, transparent: true, opacity: 0.24, roughness: 0.08,
+        metalness: 0, transmission: 0.5, side: THREE.DoubleSide, depthWrite: false,
+      });
+    } else {
+      texture = makeTexture(params.surface, params.seed);
+      mat = new THREE.MeshStandardMaterial({
+        map: texture, roughness: params.surface === 'trencadis' ? 0.34 : 0.92,
+        metalness: 0.02, side: THREE.DoubleSide,
+        transparent: S.opacity < 1, opacity: S.opacity,
+      });
+    }
+    surfMesh = new THREE.Mesh(geo, mat);
+    surfMesh.castShadow = true; surfMesh.receiveShadow = true;
+    root.add(surfMesh);
+  } else surfMesh = null;
+
+  placeRibs(null, 0);
+  applyColours();
+
+  // ── frame it ──────────────────────────────────────────────────────────
+  const R = Math.max(6, build.radius), H = Math.max(4, build.height);
+  ground.geometry.dispose(); ground.geometry = new THREE.CircleGeometry(R * 3.2, 96);
+  grid.geometry.dispose();
+  const gh = new THREE.GridHelper(R * 6, Math.max(6, Math.round(R / 3)) * 2, 0x2a3439, 0x1a2124);
+  grid.geometry = gh.geometry; gh.geometry = null;
+  grid.position.y = 0.02;
+  sun.shadow.camera.left = -R * 2; sun.shadow.camera.right = R * 2;
+  sun.shadow.camera.top = R * 2; sun.shadow.camera.bottom = -R * 2;
+  sun.shadow.camera.far = R * 10;
+  sun.shadow.camera.updateProjectionMatrix();
+  if (!userMoved) frame();
+  placeSun();
+}
+
+// Instance transform per member: scale a unit cylinder to (r, L, r) and rotate
+// +Y onto the member axis. `disp` is an optional per-node displacement field —
+// how the fold and buckling animations move the actual structure rather than a
+// separate ghost of it.
+function placeRibs(disp, amp) {
+  const A = new THREE.Vector3(), B = new THREE.Vector3();
+  for (let e = 0; e < build.members.length; e++) {
+    const m = build.members[e];
+    A.set(restPos[m.i * 3], restPos[m.i * 3 + 1], restPos[m.i * 3 + 2]);
+    B.set(restPos[m.j * 3], restPos[m.j * 3 + 1], restPos[m.j * 3 + 2]);
+    if (disp && amp) {
+      A.x += amp * disp[m.i * 3]; A.y += amp * disp[m.i * 3 + 1]; A.z += amp * disp[m.i * 3 + 2];
+      B.x += amp * disp[m.j * 3]; B.y += amp * disp[m.j * 3 + 1]; B.z += amp * disp[m.j * 3 + 2];
+    }
+    tmpV.subVectors(B, A);
+    const L = tmpV.length() || 1e-6;
+    tmpQ.setFromUnitVectors(UP, tmpV.clone().divideScalar(L));
+    tmpM.compose(A.clone().add(B).multiplyScalar(0.5), tmpQ, new THREE.Vector3(m.r, L, m.r));
+    ribMesh.setMatrixAt(e, tmpM);
+  }
+  ribMesh.instanceMatrix.needsUpdate = true;
+}
+
+// Deform the shell with the same field, so the surface and the ribs never
+// disagree about where the building is.
+function placeSurface(disp, amp) {
+  if (!surfMesh) return;
+  const pos = surfMesh.geometry.attributes.position;
+  let o = 0;
+  for (const t of build.tris) {
+    for (const i of t) {
+      let x = restPos[i * 3], y = restPos[i * 3 + 1], z = restPos[i * 3 + 2];
+      if (disp && amp) { x += amp * disp[i * 3]; y += amp * disp[i * 3 + 1]; z += amp * disp[i * 3 + 2]; }
+      pos.array[o++] = x; pos.array[o++] = y; pos.array[o++] = z;
+    }
+  }
+  pos.needsUpdate = true;
+  surfMesh.geometry.computeVertexNormals();
+}
+
+const cTens = new THREE.Color(0x4ea8de), cComp = new THREE.Color(0xe2603f), cZero = new THREE.Color(0x2f3a40);
+const cWork = new THREE.Color();
+function applyColours() {
+  if (!ribMesh) return;
+  const arr = ribMesh.instanceColor.array;
+  const showForce = (mode === 'force' || mode === 'fold' || mode === 'buckle') && result && result.force;
+  for (let e = 0; e < build.members.length; e++) {
+    if (showForce) {
+      const f = result.force[e];                        // −1 compression … +1 tension
+      cWork.copy(cZero).lerp(f < 0 ? cComp : cTens, Math.min(1, Math.abs(f) * 3.2));
+    } else {
+      cWork.setHex(KIND_COLOUR[build.members[e].kind] || 0xcfcabb);
+    }
+    arr[e * 3] = cWork.r; arr[e * 3 + 1] = cWork.g; arr[e * 3 + 2] = cWork.b;
+  }
+  ribMesh.instanceColor.needsUpdate = true;
+  $('legForce').innerHTML = showForce
+    ? `<br><br><b style="color:#e2603f">Warm is compression</b>, <b style="color:#4ea8de">cool is tension</b>${
+      result ? `, full scale ${(result.forceScale / 1e3).toFixed(0)} kN.` : '.'}`
+    : '';
+}
+
+// Frame so that EVERY node projects inside the frustum — solved, not estimated.
+//
+// A bounding sphere is safe but loose, and sizing off the vertical FOV alone
+// crops a portrait window. Both were tried and both were wrong here, because
+// these things are squat and wide: the near leg is barely half the eye-to-centre
+// distance away, so perspective makes it far bigger than a radius-based guess
+// allows for.
+//
+// Put the camera at C + t·d. For a point P, its camera-space depth is
+// (P−C)·fwd + t while its lateral offsets (P−C)·right and (P−C)·up do not
+// depend on t at all. So |x| ≤ depth·tan(fovH/2) rearranges to a lower bound on
+// t, and the answer is the largest such bound over every point.
+const _e = new THREE.Vector3(), _C = new THREE.Vector3();
+function frame() {
+  const box = new THREE.Box3();
+  for (const n of build.nodes) box.expandByPoint(_e.set(n.x, n.z, -n.y));
+  box.expandByPoint(_e.set(0, 0, 0));
+  box.getCenter(_C);
+
+  const az = Math.PI * 0.24, el = 0.34;
+  const d = new THREE.Vector3(Math.cos(el) * Math.cos(az), Math.sin(el), Math.cos(el) * Math.sin(az));
+  const fwd = d.clone().negate();
+  const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+  const up = new THREE.Vector3().crossVectors(right, fwd);
+
+  const tanV = Math.tan((camera.fov * Math.PI) / 360);
+  const tanH = tanV * camera.aspect;
+  let t = 1;
+  for (const n of build.nodes) {
+    _e.set(n.x, n.z, -n.y).sub(_C);
+    const df = _e.dot(fwd);
+    t = Math.max(t, Math.abs(_e.dot(right)) / tanH - df, Math.abs(_e.dot(up)) / tanV - df);
+  }
+  t *= 1.07;                                            // a little air around it
+  camera.position.copy(_C).addScaledVector(d, t);
+  controls.target.copy(_C);
+  camera.near = Math.max(0.1, t / 500); camera.far = t * 14;
+  camera.updateProjectionMatrix();
+  controls.update();
+}
+
+function placeSun() {
+  const a = (+$('sun').value * Math.PI) / 180;
+  const R = Math.max(10, build.radius) * 3;
+  sun.position.set(Math.cos(a) * R, Math.sin(a) * R + 4, R * 0.42);
+  sun.target.position.set(0, build.height * 0.4, 0);
+  sun.target.updateMatrixWorld();
+  $('sunV').textContent = $('sun').value + '°';
+}
+
+/* ─────────────────────────────── the panel ──────────────────────────────── */
+
+function fill(sel, ids, label, cur) {
+  sel.innerHTML = '';
+  for (const id of ids) {
+    const o = document.createElement('option');
+    o.value = id; o.textContent = label(id);
+    if (id === cur) o.selected = true;
+    sel.appendChild(o);
+  }
+}
+
+// One slider spec table, so a control cannot drift from the param it edits.
+const SHAPE = [
+  ['legs', 'legs', 1, 10, 1, (p) => p.legs, 'n'],
+  ['mouths', 'mouths', 0, 6, 1, (p) => p.mouths, 'm'],
+  ['spread', 'leg spread', 0, 60, 0.5, (p) => p.spread, 'm'],
+  ['ringZ', 'ring height', 0.1, 1, 0.01, (p) => p.ringZ, '×'],
+  ['ringR', 'ring radius', 0.4, 2, 0.01, (p) => p.ringR, '×'],
+  ['tilt', 'leg splay', 0, 0.6, 0.01, (p) => p.tilt, ''],
+  ['mouthWaist', 'throat', 0.15, 0.95, 0.01, (p) => p.mouthWaist, '×'],
+  ['mouthRise', 'mouth rise', 0.1, 3, 0.01, (p) => p.mouthRise, '×'],
+];
+const LATTICE = [
+  ['N', 'ruling', 7, 16, 1, (p) => p.N, ''],
+  ['waist', 'waist', 1, 30, 0.1, (p) => p.waist, 'm'],
+  ['flare', 'flare c', 1, 60, 0.1, (p) => p.flare, ''],
+  ['pHi', 'reach up', 1, 5, 1, (p) => p.pHi, ''],
+  ['pLo', 'reach down', -5, -1, 1, (p) => p.pLo, ''],
+  ['rib', 'rib ÷ bay', 0.03, 0.3, 0.005, (p) => p.rib, ''],
+  ['ringD', 'ring depth', 0.4, 12, 0.1, (p) => p.ringD, 'm'],
+  ['decks', 'decks', 0, 5, 1, (p) => p.decks, ''],
+];
+
+const sliders = [];
+function buildSliders(host2, spec) {
+  for (const [key, label, lo, hi, step, get, unit] of spec) {
+    const row = document.createElement('div');
+    row.className = 'fld';
+    row.innerHTML = `<label>${label}</label><input type="range"><span class="v"></span>`;
+    const inp = row.querySelector('input'), out = row.querySelector('.v');
+    inp.min = lo; inp.max = hi; inp.step = step;
+    inp.addEventListener('input', () => {
+      params = { ...params, [key]: Number(inp.value) };
+      // the p-range must stay inside the ruling whatever the sliders say
+      const pm = pMaxFor(params.N);
+      params.pHi = Math.max(1, Math.min(pm, params.pHi));
+      params.pLo = Math.min(-1, Math.max(-pm, params.pLo));
+      recompute('slider');
+    });
+    host2.appendChild(row);
+    sliders.push({ key, inp, out, get, unit, lo, hi });
+  }
+}
+buildSliders($('shapeCtl'), SHAPE);
+buildSliders($('latCtl'), LATTICE);
+
+function paintPanel() {
+  $('seed').value = params.seed;
+  const T = PROGRAMMES[params.programme], S = SURFACES[params.surface];
+  $('blurb').textContent = T.note + ' — ' + S.note + '.';
+  for (const s of sliders) {
+    const v = s.get(params);
+    s.inp.value = v;
+    s.out.textContent = (Math.abs(v) < 10 && v % 1 !== 0 ? v.toFixed(2) : v) + s.unit;
+  }
+  const st = build.stats;
+  $('stats').innerHTML = [
+    [build.params.legs + '→' + build.params.mouths, 'n → m'],
+    [st.nodes, 'joints'],
+    [st.members, 'ribs'],
+    [build.height.toFixed(0) + ' m', 'height'],
+    [(build.radius * 2).toFixed(0) + ' m', 'across'],
+    [st.meanBay.toFixed(1) + ' m', 'bay'],
+    [st.ribDia.toFixed(2) + ' m', 'rib'],
+    [st.surfaceArea.toFixed(0) + ' m²', 'surface'],
+    ['χ = ' + st.euler, 'euler'],
+  ].map(([a, b]) => `<div><b>${a}</b><span>${b}</span></div>`).join('');
+}
+
+function paintEngineer() {
+  if (!result) return;
+  const v = $('verdict');
+  v.textContent = result.pass ? 'stands' : 'fails';
+  v.className = 'verdict ' + (result.pass ? 'ok' : 'no');
+  $('checks').innerHTML = result.checks.map((c) => `
+    <div class="chk${c.pass ? '' : ' bad'}"><i></i>
+      <span class="n"><b>${c.label}</b>${c.note}</span>
+      <span class="m">${c.value}</span></div>`).join('');
+  const f = result.funicular;
+  $('funiBar').style.width = (f.byLength * 100).toFixed(1) + '%';
+  $('funiNote').innerHTML =
+    `<b>${(f.byLength * 100).toFixed(0)}%</b> of the ribs are in compression under gravity alone. ` +
+    `A hanging chain inverted is 100% and needs no steel at all; this one needs ` +
+    `<b>${f.steelTonnes} t</b>. That shortfall is the price of not being funicular.`;
+  $('pinNote').textContent = result.pinned ? result.pinned.note : '';
+  if (sheet) {
+    sheet.setSummary(result.pass
+      ? `<b>stands</b> · λ<sub>cr</sub> ${result.buckling ? result.buckling.lambda.toFixed(1) : '—'} · ${(f.byLength * 100).toFixed(0)}% compression`
+      : `<b>fails</b> · ${result.governing.label}`);
+  }
+  applyColours();
+}
+
+/* ─────────────────────────── wiring the controls ────────────────────────── */
+
+function recompute(why) {
+  build = generate(params);
+  writeURL();
+  rebuild();
+  paintPanel();
+  requestSolve(why === 'slider' ? 400 : 120);
+}
+
+function setSeed(seed, prog) {
+  params = resolveParams({ s: seed, pr: prog || undefined });
+  userMoved = false;
+  fill($('prog'), PROGRAMME_IDS, (i) => PROGRAMMES[i].label, params.programme);
+  fill($('surf'), SURFACE_IDS, (i) => SURFACES[i].label, params.surface);
+  recompute('seed');
+}
+
+$('seed').addEventListener('change', () => setSeed($('seed').value.trim() || 'manifold'));
+$('seed').addEventListener('keydown', (e) => { if (e.key === 'Enter') e.target.blur(); });
+$('roll').addEventListener('click', () => setSeed(rollSeed()));
+$('copy').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(location.href); $('copy').textContent = 'Copied'; setTimeout(() => { $('copy').textContent = 'Copy link'; }, 1200); } catch (e) { /* clipboard denied */ }
+});
+$('prog').addEventListener('change', () => setSeed(params.seed, $('prog').value));
+$('surf').addEventListener('change', () => { params = { ...params, surface: $('surf').value }; recompute('surface'); });
+
+for (const [id, key, ids, label] of [
+  ['wind', 'wind', Object.keys(WIND_SCENARIOS), (i) => `${WIND_SCENARIOS[i].label} · ${WIND_SCENARIOS[i].V} m/s`],
+  ['expo', 'exposure', Object.keys(EXPOSURES), (i) => EXPOSURES[i].label],
+  ['snow', 'snow', Object.keys(SNOW_SCENARIOS), (i) => SNOW_SCENARIOS[i].label],
+]) {
+  fill($(id), ids, label, hazard[key]);
+  $(id).addEventListener('change', () => { hazard[key] = $(id).value; requestSolve(60); });
+}
+
+const MODES = [['form', 'Form'], ['force', 'Force'], ['fold', 'Fold'], ['buckle', 'Buckle']];
+$('modes').innerHTML = MODES.map(([id, l]) => `<button data-m="${id}">${l}</button>`).join('');
+for (const btn of $('modes').querySelectorAll('button')) {
+  btn.addEventListener('click', () => {
+    mode = btn.dataset.m;
+    for (const b of $('modes').querySelectorAll('button')) b.classList.toggle('on', b.dataset.m === mode);
+    if (mode === 'form' || mode === 'force') { animT = 0; placeRibs(null, 0); placeSurface(null, 0); }
+    applyColours();
+  });
+}
+$('modes').querySelector('button').classList.add('on');
+$('animBtn').addEventListener('click', () => {
+  animating = !animating;
+  $('animBtn').classList.toggle('on', animating);
+  $('animBtn').textContent = animating ? 'Freeze' : 'Animate mode';
+});
+$('sun').addEventListener('input', placeSun);
+$('amp').addEventListener('input', () => { $('ampV').textContent = $('amp').value; });
+$('ampV').textContent = $('amp').value;
+
+const sheet = mountSheet([
+  { id: 'shape', label: 'Shape', el: $('panel') },
+  { id: 'eng', label: 'Structure', el: $('eng') },
+  { id: 'view', label: 'View', el: $('view') },
+], { onResize: () => resize() });
+
+/* ─────────────────────────────── the loop ───────────────────────────────── */
+
+function resize() {
+  const w = host.clientWidth, h = host.clientHeight;
+  if (!w || !h) return;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  if (!userMoved) frame();
+}
+addEventListener('resize', resize);
+window.__dbg = () => {
+  let R = 0, H = 0;
+  for (const n of build.nodes) { R = Math.max(R, Math.hypot(n.x, n.y)); H = Math.max(H, n.z); }
+  const bb = new THREE.Box3().setFromObject(root);
+  return { R: +R.toFixed(1), H: +H.toFixed(1), aspect: +camera.aspect.toFixed(2),
+    cam: camera.position.toArray().map(v => +v.toFixed(1)),
+    tgt: controls.target.toArray().map(v => +v.toFixed(1)),
+    dist: +camera.position.distanceTo(controls.target).toFixed(1),
+    box: [bb.min.toArray().map(v=>+v.toFixed(1)), bb.max.toArray().map(v=>+v.toFixed(1))],
+    userMoved };
+};
+
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (animating && (mode === 'fold' || mode === 'buckle')) {
+    animT += dt * 1.6;
+    const field = result && (mode === 'buckle' ? result.buck : result.mode);
+    if (field && field.length) {
+      const amp = (+$('amp').value / 100) * Math.max(1, build.radius) * 0.28 * Math.sin(animT);
+      placeRibs(field, amp);
+      placeSurface(field, amp);
+    }
+  }
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+
+fill($('prog'), PROGRAMME_IDS, (i) => PROGRAMMES[i].label, params.programme);
+fill($('surf'), SURFACE_IDS, (i) => SURFACES[i].label, params.surface);
+rebuild();
+paintPanel();
+resize();
+requestSolve(40);
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

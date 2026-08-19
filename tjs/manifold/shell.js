@@ -192,14 +192,26 @@ export function deriveParams(seed, programme) {
     pHi = Math.min(pHi, pMax); pLo = Math.max(pLo, -pMax);
   }
 
+  // PROPORTION. The legs have to be slender enough, and far enough apart, that
+  // the composition reads as legs → ring → mouths rather than as a huddle of
+  // silos. A leg's widest radius is waist/cos(π·p/N) at whichever end reaches
+  // furthest, and two adjacent leg axes are 2·spread·sin(π/legs) apart — so
+  // demanding a real gap between them gives a minimum spread that grows with
+  // the leg count. Without it, an eight-legged basilica drew its legs
+  // interpenetrating and hid its own ring inside them.
+  const waist = scale * r.range(0.12, 0.22);
+  const rMax = waist / Math.cos((Math.PI * Math.max(pHi, -pLo)) / N);
+  const minSpread = legs > 1 ? (rMax * 1.3) / Math.sin(Math.PI / legs) : 0;
+  const spread = Math.max(scale * r.range(0.9, 1.6), minSpread);
+
   return {
     seed: s, programme: prog,
     legs, mouths, N,
-    waist: r2(scale * r.range(0.22, 0.4)),      // leg waist radius
+    waist: r2(waist),                           // leg waist radius
     flare: r2(Math.max(flareFor(legH, N, pLo, pHi),
-      flareFloor(scale * 0.31, N, pHi))),       // hyperboloid c — how fast it opens
+      flareFloor(waist, N, pHi))),              // hyperboloid c — how fast it opens
     pLo, pHi,
-    spread: r2(scale * r.range(0.9, 1.6)),      // leg centres on this radius
+    spread: r2(spread),                         // leg centres on this radius
     ringZ: r2(r.range(0.45, 0.85)),             // ring height as a fraction of leg height
     ringR: r2(r.range(0.82, 1.18)),             // ring radius as a multiple of the spread
     ringD: r2(Math.max(0.8, scale * r.range(0.07, 0.16))), // depth of the ring truss
@@ -210,7 +222,7 @@ export function deriveParams(seed, programme) {
     // 0.4 m rib is right across 4 m and hopeless across 11, and the bay here is
     // set by the ruling, which is set by the node budget — so an absolute
     // diameter made the checks depend on how coarse the model happened to be.
-    rib: r3(r.range(0.1, 0.2)),              // rib diameter ÷ mean bay length
+    rib: r3(r.range(0.11, 0.24)),              // rib diameter ÷ mean bay length
     decks: r.int(T.decks[0], T.decks[1]),
     tilt: r2(r.range(0, 0.22)),                 // legs leaning outward, Gaudí's inclined columns
   };
@@ -657,13 +669,31 @@ export function memberParts(b) {
 }
 
 // The shell itself, as a flat triangle soup ready for a BufferGeometry.
-export function surfaceGeometry(b) {
+//
+// UVs are in METRES along the surface, not normalised: u is arc length around
+// the axis, v is height. That keeps a trencadís shard the same size everywhere
+// on the building instead of stretching it wherever the hyperboloid flares.
+export function surfaceGeometry(b, texScale = 2) {
   const pos = new Float32Array(b.tris.length * 9);
-  let o = 0;
+  const uv = new Float32Array(b.tris.length * 6);
+  let o = 0, w = 0;
   for (const t of b.tris) {
-    for (const i of t) { const n = b.nodes[i]; pos[o++] = n.x; pos[o++] = n.y; pos[o++] = n.z; }
+    // unwrap each triangle about its own centroid's bearing, so a triangle
+    // straddling the ±π seam does not get smeared across the whole texture
+    let cth = 0;
+    for (const i of t) { const n = b.nodes[i]; cth += Math.atan2(n.y, n.x); }
+    cth /= 3;
+    for (const i of t) {
+      const n = b.nodes[i];
+      pos[o++] = n.x; pos[o++] = n.y; pos[o++] = n.z;
+      const r = Math.hypot(n.x, n.y);
+      let d = Math.atan2(n.y, n.x) - cth;
+      d = Math.atan2(Math.sin(d), Math.cos(d));            // wrap into (−π, π]
+      uv[w++] = ((cth + d) * r) / texScale;
+      uv[w++] = n.z / texScale;
+    }
   }
-  return { position: pos, count: b.tris.length * 3 };
+  return { position: pos, uv, count: b.tris.length * 3 };
 }
 
 // Where the surface is, as a function of height — used by the drawings and by

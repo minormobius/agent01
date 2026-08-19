@@ -22,12 +22,13 @@ jobs:
         run: |
           node tjs/brut/arch.selftest.mjs
           node tjs/brut/struct.selftest.mjs
+          node tjs/manifold/shell.selftest.mjs
 
       - name: Stage site into dist/
         working-directory: tjs
         run: |
           rm -rf dist && mkdir -p dist
-          cp -r index.html docs.html gantry orb infill swarm beelix cube deck geb kite dragon brut lib AGENTS.md samples dist/
+          cp -r index.html docs.html gantry orb infill swarm beelix cube deck geb kite dragon brut manifold lib AGENTS.md samples dist/
           rm -f dist/wrangler.jsonc dist/wrangler.toml
           # kite: ship only the built wasm (solver/pkg) + kite-vlm.js; drop the Rust
           # sources and the node selftest from the static bundle.
@@ -39,6 +40,8 @@ jobs:
           rm -f dist/dragon/dragon-sim.selftest.mjs
           # brut: the node selftests are build gates, not page assets
           rm -f dist/brut/arch.selftest.mjs dist/brut/struct.selftest.mjs
+          # manifold: same — the selftest gates the deploy, it is not a page asset
+          rm -f dist/manifold/shell.selftest.mjs
           ls -laR dist/ | head -60
 
       - name: Deploy to Cloudflare
