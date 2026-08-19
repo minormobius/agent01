@@ -29,6 +29,10 @@ on:
         description: 'DID to DM the answer to. Leave empty to research and print without sending.'
         required: false
         type: string
+      convo:
+        description: 'Convo id to answer into (a group chat). Wins over `to`.'
+        required: false
+        type: string
       dry_run:
         description: 'Build the corpus and stop before any model call'
         required: false
@@ -106,14 +110,15 @@ jobs:
           IN_ASK: ${{ github.event.inputs.ask }}
           IN_TO: ${{ github.event.inputs.to }}
           IN_DRY: ${{ github.event.inputs.dry_run }}
+          IN_CONVO: ${{ github.event.inputs.convo }}
         run: |
           set -euo pipefail
           if [ -n "${IN_ASK:-}" ]; then
-            ASK="$IN_ASK"; TO="${IN_TO:-}"; DRY="${IN_DRY:-false}"
+            ASK="$IN_ASK"; TO="${IN_TO:-}"; DRY="${IN_DRY:-false}"; CONVO="${IN_CONVO:-}"
           else
             [ -n "${FILE:-}" ] && [ -f "$FILE" ] || { echo "::error::no request file"; exit 1; }
             field() { FILE="$FILE" node -p "require(require('path').resolve(process.env.FILE))['$1'] || ''"; }
-            ASK=$(field ask); TO=$(field requester_did); DRY=false
+            ASK=$(field ask); TO=$(field requester_did); DRY=false; CONVO=$(field convo_id)
           fi
           [ -n "$ASK" ] || { echo "::error::empty request"; exit 1; }
           # The recipient becomes a DM target, so it is validated as strictly as
@@ -123,8 +128,14 @@ jobs:
           if [ -n "${TO:-}" ] && ! printf '%s' "$TO" | grep -Eq '^did:(plc:[a-z0-9]{24}|web:[a-z0-9.:-]{1,200})$'; then
             echo "::error::bad recipient '$TO' — must be a DID"; exit 1
           fi
+          # A convo id is an opaque token from the chat service and becomes a
+          # delivery target, so it is validated as strictly as the DID above.
+          if [ -n "${CONVO:-}" ] && ! printf '%s' "$CONVO" | grep -Eq '^[A-Za-z0-9_-]{1,64}$'; then
+            echo "::error::bad convo id '$CONVO'"; exit 1
+          fi
           {
             echo "to=${TO:-}"
+            echo "convo=${CONVO:-}"
             echo "dry=${DRY:-false}"
             echo "ask<<LAB_ASK_EOF"
             printf '%s\n' "$ASK"
@@ -157,6 +168,7 @@ jobs:
         env:
           ASK: ${{ steps.cfg.outputs.ask }}
           TO: ${{ steps.cfg.outputs.to }}
+          CONVO: ${{ steps.cfg.outputs.convo }}
           DRY: ${{ steps.cfg.outputs.dry }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -175,6 +187,10 @@ jobs:
           set -uo pipefail
           ARGS=(--ask "$ASK" --out /tmp/dossier)
           [ -n "${TO:-}" ] && ARGS+=(--to "$TO")
+          # Wins over --to inside the script: a request made in a group chat is
+          # answered in that group chat, not in a private thread with whoever
+          # happened to type it.
+          [ -n "${CONVO:-}" ] && ARGS+=(--convo "$CONVO")
           [ "${DRY:-false}" = "true" ] && ARGS+=(--dry-run)
           node scripts/lab-dossier.mjs "${ARGS[@]}"
           code=$?
@@ -197,9 +213,10 @@ jobs:
       # public side already fixed with one-reply-per-outcome: a silence after a
       # promise reads as broken, and it is the traffic that gets a bot reported.
       - name: Say so if it did not work
-        if: failure() && steps.cfg.outputs.to != ''
+        if: failure() && (steps.cfg.outputs.to != '' || steps.cfg.outputs.convo != '')
         env:
           TO: ${{ steps.cfg.outputs.to }}
+          CONVO: ${{ steps.cfg.outputs.convo }}
           BLUESKY_HANDLE: ${{ secrets.BLUESKY_BOT_HANDLE }}
           BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_BOT_APP_PASSWORD }}
         run: |
@@ -210,7 +227,7 @@ jobs:
           # post, so the message invented a plausible cause and sent the
           # operator looking at CAR sizes. A failure notice that guesses is
           # worse than one that admits it does not know.
-          node scripts/lab-dm.mjs --to "$TO" --text "That one broke on my end before I got an answer — nothing to do with the account you asked about. Worth trying again." || true
+          node scripts/lab-dm.mjs --to "$TO" --convo "$CONVO" --text "That one broke on my end before I got an answer — nothing to do with the account you asked about. Worth trying again." || true
 
       # THE WORKING FILES ARE THE ANSWER TO "why did it say that", AND THEY ARE
       # ALSO A DOSSIER ON A PERSON. Not committed, ever: a per-account research

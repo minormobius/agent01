@@ -39,7 +39,12 @@ const args = {};
   for (let i = 0; i < argv.length; i++) {
     if (!argv[i].startsWith('--')) continue;
     const next = argv[i + 1];
-    args[argv[i].slice(2)] = next && !next.startsWith('--') ? next : 'true';
+    // AN EXPLICIT EMPTY VALUE IS EMPTY, NOT `true`. Workflows pass optional
+    // arguments as `--flag ""` when the value is unset, and the old test
+    // (`next && …`) read that falsy string as "no value given" and substituted
+    // the string "true" — so an unset --convo arrived as a convo literally
+    // named "true". Only a missing argument or another flag means "no value".
+    args[argv[i].slice(2)] = next === undefined || next.startsWith('--') ? 'true' : next;
   }
 }
 const need = (k) => {

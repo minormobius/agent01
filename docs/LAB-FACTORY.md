@@ -1311,6 +1311,24 @@ a real quote — author, text, date — for **zero graphemes**. As a URL it woul
 cost ~45 of the 1,000. Ten citations is the difference between half a message
 and none.
 
+**Each quote lands after the message that cites it**, not in a heap at the end.
+The first version sent all the prose and then every citation as a run of embeds,
+and a quote embed is physically large — it renders the whole post. Six in a row
+is a wall that buries the answer they were meant to support, and by the time the
+reader reaches it they have forgotten which claim each was for. The `[rkey]`
+markers the writer leaves inline survive into the chunking and are stripped per
+message once the boundaries are settled; first mention wins, so a post cited
+three times is quoted once.
+
+**A model's hard wrap is not the reader's line breaks**, and this one looked
+like a rendering bug in the wild. Prose comes back wrapped at about 80 columns —
+a newline every eleven words — those newlines are real characters, the DM client
+honours them, and the message box does not agree about where lines end. Every
+paragraph arrived as a stack of short lines with a word or two hanging off each.
+`reflow()` treats a single newline inside a paragraph as an artefact of the
+editor it was written in and joins it; a blank line is a real break and survives;
+a wrapped list item rejoins its item rather than becoming a new one.
+
 Sending already worked here: `photo/dm-worker.js` has been doing it in
 production, including the part that is not obvious — `chat.bsky.*` is reached by
 sending to the account's **own PDS host** with an
@@ -1351,6 +1369,34 @@ since deleted, or one under a takedown, comes back missing instead of quoted.
 The same distinction the content gate draws between the AppView and the
 firehose.
 
+### Summoned in a group chat
+
+`getLog` carries group messages too, so the inbound half needed nothing new.
+What a group breaks is the **premise** the 1-1 matcher rests on: in a direct
+message every message is addressed to the bot, because nobody else is there. In
+a room almost none are, and a bot that answers them all is a bot somebody
+removes from the room within the hour.
+
+ATProto offers no help — a chat message *can* carry a mention facet, but clients
+do not reliably make one, and there is no per-message "this one is for you"
+signal the way a post notification carries `reason`. So `addressesBot()` reads
+the text, checking the facet when a client bothered to build one and the written
+tag when it did not, and **the tag must carry its at-sign**. Matching the bare
+handle looks more forgiving and is wrong here: the bot's handle is
+`minomobi.com` and it links a site on that domain in every announcement it
+makes, so a bare match would treat anyone pasting `minomobi.com/tube-stacker`
+into the chat as having summoned it.
+
+Group-ness is a lookup (`getConvo`, memoised per tick) and it **fails closed**:
+an unreadable convo is treated as a group, which means an explicit tag is
+required before the bot does anything. Guessing "1-1" on an unknown convo is how
+a bot ends up answering a room it was not addressed in. An unaddressed group
+message gets **silence** — the same rule the public side already applies to a
+thread it was not tagged in.
+
+The answer goes back **into the room that asked**, via `--convo`, not into a
+private thread with whoever typed it.
+
 ### Researching somebody who did not ask — where the line is
 
 The portrait feature (§12.5) draws **only the requester**. This one is
@@ -1360,10 +1406,20 @@ assumed.
 What makes it defensible: the material is public and is read through public
 endpoints; the AppView honours takedowns and the repository honours deletions;
 `b/sleuth` already offers the same capability to anyone with a browser; and the
-answer is delivered **privately to the person who asked and nowhere else**. A
-reading of somebody's posts sent to one person, and the same reading posted in
-that person's mentions, are different acts. Only the first one is this, and
-nothing in `lab-dossier.yml` can post publicly.
+answer is **never posted publicly** — nothing in `lab-dossier.yml` can post to a
+feed. A reading of somebody's posts sent to the person who asked, and the same
+reading posted in that person's mentions, are different acts. Only the first is
+this.
+
+**Group chat widens that, and it should be said rather than glossed.** The
+original line was "delivered privately to the person who asked and nowhere
+else", and a dossier summoned in a group is delivered to a room — everyone in
+it reads it, and any of them can screenshot it. That is a real change in
+audience, made deliberately at the operator's request, and the control that
+holds it is `RESEARCH_WHITELIST`: only the handles on that list can summon a
+dossier anywhere, group or otherwise. Being in the room is not permission to ask
+for one. If the audience matters more than the convenience, the answer is to
+keep the list short, not to trust the room.
 
 What holds it there:
 

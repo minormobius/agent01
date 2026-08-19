@@ -121,6 +121,57 @@ export function recordEmbed(uri, cid) {
   return { $type: 'app.bsky.embed.record', record: { uri, cid } };
 }
 
+/**
+ * Markdown as a model writes it → prose a DM can render.
+ *
+ * TWO THINGS ARE WRONG WITH PASSING IT THROUGH RAW, and the second is the one
+ * that looks like a bug to whoever is reading:
+ *
+ *  1. A DM renders no markdown. "## Position" arrives as literal hashes and
+ *     `**word**` as asterisks.
+ *
+ *  2. THE HARD WRAP SURVIVES. A model writes prose wrapped at about 80 columns,
+ *     which is a newline every ~11 words — and those newlines are real
+ *     characters that the DM client honours. The message box is not 80 columns
+ *     and does not agree about where lines end, so every paragraph arrives as
+ *     a stack of short lines with one or two words hanging off each. It reads
+ *     as broken formatting because it IS formatting, imposed by a text editor
+ *     nobody in this conversation is using.
+ *
+ * So a single newline inside a paragraph is not a line break — it is where the
+ * author's editor ran out of room, and it becomes a space. A BLANK line is a
+ * real paragraph break and survives. A list item keeps its own line, and a
+ * wrapped list item is joined back into the item it belongs to rather than
+ * becoming a new one.
+ */
+export function reflow(markdown) {
+  const stripped = String(markdown ?? '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/^#{1,6}\s*/gm, '')            // headings — no rendering in a DM
+    .replace(/^\s*>\s?/gm, '')              // blockquote markers
+    .replace(/\*\*(.+?)\*\*/g, '$1')        // bold
+    .replace(/(^|\s)[*_](?=\S)(.+?)(?<=\S)[*_](?=\s|$)/g, '$1$2') // italic
+    .replace(/`([^`]+)`/g, '$1');           // inline code
+
+  const isItem = (line) => /^\s*(?:[-*+]\s+|\d+[.)]\s+|·\s+)/.test(line);
+  const asItem = (line) => line.replace(/^\s*(?:[-*+]\s+|\d+[.)]\s+)/, '· ').trim();
+
+  const blocks = stripped.split(/\n\s*\n/).map((block) => {
+    /** @type {string[]} */
+    const parts = [];
+    for (const raw of block.split('\n')) {
+      const line = raw.trim();
+      if (!line) continue;
+      if (isItem(line) || !parts.length) parts.push(isItem(line) ? asItem(line) : line);
+      // A continuation line joins what it continues — paragraph or list item.
+      else parts[parts.length - 1] += ` ${line}`;
+    }
+    return parts.join('\n');
+  }).filter(Boolean);
+
+  return blocks.join('\n\n').replace(/[ \t]{2,}/g, ' ').trim();
+}
+
 /** Paragraphs, then sentences, then hard-wrapped words — the ladder a chunker
  *  walks down when a unit does not fit. Exported for the selftest. */
 export function splitParagraphs(text) {

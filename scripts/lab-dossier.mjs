@@ -3,6 +3,8 @@
 //
 //   node scripts/lab-dossier.mjs --ask "dossier on what @alice.bsky.social has
 //        said about the tram extension" --to did:plc:whoasked [--dry-run]
+//   ... --convo <convoId>   answer into an existing conversation (a group chat)
+//                           instead of opening a 1-1 with --to
 //
 // THE SHAPE:
 //
@@ -36,7 +38,7 @@ import { streamRepo } from '../packages/atproto/car.js';
 import { resolveHandle, resolvePds } from '../packages/atproto/pds.js';
 import { writeCorpus, hydrateThreads, resolveCitations, postUrl } from './lib/dossier.mjs';
 import { login, graphemes } from './lib/bsky.mjs';
-import { chatClient, recordEmbed, chunk } from './lib/chat.mjs';
+import { chatClient, recordEmbed, chunk, reflow } from './lib/chat.mjs';
 
 const args = {};
 {
@@ -44,7 +46,12 @@ const args = {};
   for (let i = 0; i < argv.length; i++) {
     if (!argv[i].startsWith('--')) continue;
     const next = argv[i + 1];
-    args[argv[i].slice(2)] = next && !next.startsWith('--') ? next : 'true';
+    // AN EXPLICIT EMPTY VALUE IS EMPTY, NOT `true`. Workflows pass optional
+    // arguments as `--flag ""` when the value is unset, and the old test
+    // (`next && …`) read that falsy string as "no value given" and substituted
+    // the string "true" — so an unset --convo arrived as a convo literally
+    // named "true". Only a missing argument or another flag means "no value".
+    args[argv[i].slice(2)] = next === undefined || next.startsWith('--') ? 'true' : next;
   }
 }
 const need = (k) => {
@@ -83,6 +90,25 @@ const claude = (prompt, { tools = ['Read', 'Glob', 'Grep'], turns = 40, budget =
     '--disallowedTools', 'Bash', 'WebFetch', 'WebSearch', 'Task', 'NotebookEdit',
   ], { encoding: 'utf8', timeout: minutes * 60_000, maxBuffer: 16 << 20 });
 
+/** WHERE THE ANSWER GOES.
+ *
+ *  --convo names an EXISTING conversation and wins, because a request can now
+ *  arrive in a group chat: the answer belongs in the room that asked, not in a
+ *  private thread with whoever typed it. --to is the 1-1 fallback and opens (or
+ *  reuses) the direct conversation with that DID.
+ *
+ *  acceptConvo either way and idempotently: a first-time 1-1 sits in requests
+ *  until accepted, and for a group it is a no-op. */
+async function openConvo(chat) {
+  if (args.convo) {
+    await chat.accept(args.convo);
+    return { id: args.convo };
+  }
+  const convo = await chat.convoWith(args.to);
+  await chat.accept(convo.id);
+  return convo;
+}
+
 /** EVERY EXIT PATH SAYS SOMETHING, and that is not politeness.
  *
  *  The bot has already promised this person an answer — "reading their whole
@@ -98,12 +124,11 @@ async function bail(code, message) {
   console.log(code === 0 ? message : `::warning::${message}`);
   writeFileSync(join(out, 'refused.txt'), message);
   const who = args.to, h = process.env.BLUESKY_HANDLE, pw = process.env.BLUESKY_APP_PASSWORD;
-  if (who && h && pw && !dryRun) {
+  if ((who || args.convo) && h && pw && !dryRun) {
     try {
       const session = await login(h, pw);
       const chat = await chatClient(session);
-      const convo = await chat.convoWith(who);
-      await chat.accept(convo.id);
+      const convo = await openConvo(chat);
       await chat.send(convo.id, { text: message.slice(0, 900) });
       console.log('  (told them)');
     } catch (e) {
@@ -305,6 +330,11 @@ real question and wants a real answer:
   and in what context. The reader can do the judging.
 - Under 1,200 words. It is delivered as a series of direct messages, so length
   is a real cost to the person reading it.
+- CITE WHERE THE CLAIM IS MADE. Each [rkey] you write is quoted into the
+  conversation as the actual post, immediately after the message containing it —
+  so a citation next to its claim arrives next to its claim, and a pile of them
+  at the end arrives as a wall of quoted posts with nothing to attach to. Never
+  collect them into a list.
 
 Then reply with JSON and NOTHING else:
 
@@ -341,26 +371,27 @@ console.log(`dossier: ${dossier.length} chars, ${result.cites?.length ?? 0} cita
 const to = args.to;
 const handle = process.env.BLUESKY_HANDLE;
 const password = process.env.BLUESKY_APP_PASSWORD;
-if (!to || !handle || !password) {
+if ((!to && !args.convo) || !handle || !password) {
   console.log(`::warning::no recipient or no credentials — the dossier is at ${dossierPath} and was not sent`);
   process.exit(0);
 }
 
 const session = await login(handle, password);
 const chat = await chatClient(session);
-const convo = await chat.convoWith(to);
-await chat.accept(convo.id);
+const convo = await openConvo(chat);
 
-// STRIP THE MARKDOWN FURNITURE. A DM renders no headings, no bold and no
-// bullets — "## Position" arrives as literal hashes, and `**word**` as
-// asterisks. The prose survives; the scaffolding has to go.
-const forDm = dossier
-  .replace(/^#{1,6}\s*/gm, '')
-  .replace(/\*\*(.+?)\*\*/g, '$1')
-  .replace(/^\s*[-*]\s+/gm, '· ')
-  .replace(/\[([a-z0-9]{6,20})\]/gi, '')
-  .replace(/\n{3,}/g, '\n\n')
-  .trim();
+// PROSE FIRST, WITH THE CITATION MARKERS STILL IN IT.
+//
+// reflow() undoes the model's hard wrap — a newline every ~11 words that the
+// DM client honours and the message box disagrees with, which is what made
+// every paragraph arrive as a stack of hanging words. See lib/chat.mjs.
+//
+// The [rkey] markers survive into the chunking on purpose: they are how each
+// message says which posts it is talking about, and they are stripped per
+// message once the chunk boundaries are settled. Chunking with them in place
+// makes each message slightly shorter than its budget, which is the safe
+// direction.
+const forDm = reflow(dossier);
 
 const messages = chunk(forDm, { prefix: (i, n) => `${i}/${n} ` });
 const prose = messages.slice(0, MAX_PROSE_MESSAGES);
@@ -368,27 +399,46 @@ if (messages.length > MAX_PROSE_MESSAGES) {
   console.log(`::warning::dossier was ${messages.length} messages, sending the first ${MAX_PROSE_MESSAGES}`);
 }
 
+// Resolve every citation the dossier names, before sending anything — one
+// getPosts call rather than one per message, and it settles which of them are
+// real before the first quote goes out.
+const cites = await resolveCitations(
+  [...new Set([
+    ...[...forDm.matchAll(/\[([a-z0-9]{6,20})\]/gi)].map((m) => m[1]),
+    ...(result.cites || []),
+  ])],
+  { did },
+);
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let sent = 0;
-for (const text of prose) {
+let quoted = 0;
+
+// EACH POST ARRIVES WHERE IT IS USED, NOT IN A HEAP AT THE END.
+//
+// The first version sent all the prose and then every citation as a run of
+// quote embeds. A quote embed is physically large — it renders the whole post,
+// author and all — so six of them in a row is a wall that buries the answer
+// they were supposed to support, and by the time the reader reaches them they
+// have forgotten which claim each one was for.
+//
+// Interleaved, a citation lands immediately after the message that cites it,
+// which is where a reader wants it and is also the only place its relevance is
+// obvious. First mention wins; a post cited three times is quoted once.
+for (const message of prose) {
+  const rkeys = [...message.matchAll(/\[([a-z0-9]{6,20})\]/gi)].map((m) => m[1]);
+  const text = message.replace(/\s*\[[a-z0-9]{6,20}\]/gi, '').replace(/[ \t]{2,}/g, ' ').trim();
+  if (!text) continue;
+
   await chat.send(convo.id, { text });
   sent++;
-  // Paced. A burst of eight messages into one conversation is what a spam
-  // heuristic is for, and the reader is going to be reading rather than racing.
   await sleep(1200);
-}
 
-// The citations, as real quoted posts. Resolved through the AppView, so a post
-// deleted since the CAR was read simply is not here.
-const cites = await resolveCitations((result.cites || []).slice(0, MAX_CITATIONS), { did });
-if (cites.size) {
-  const missing = (result.cites || []).filter((r) => !cites.has(r));
-  await chat.send(convo.id, {
-    text: `${cites.size} post${cites.size === 1 ? '' : 's'} the answer rests on`
-      + `${missing.length ? ` (${missing.length} more could not be resolved — deleted, or I got the id wrong)` : ''}:`,
-  });
-  await sleep(800);
-  for (const c of cites.values()) {
+  for (const rkey of rkeys) {
+    if (quoted >= MAX_CITATIONS) break;
+    const c = cites.get(rkey);
+    if (!c || c.sent) continue;
+    c.sent = true;
     await chat.send(convo.id, {
       text: postUrl(subject, c.rkey),
       facets: [{
@@ -397,9 +447,31 @@ if (cites.size) {
       }],
       embed: recordEmbed(c.uri, c.cid),
     });
+    quoted++;
     sent++;
     await sleep(1200);
   }
+}
+
+// ANYTHING THE MODEL NAMED AS LOAD-BEARING BUT NEVER CITED IN THE TEXT. Rare,
+// and worth sending rather than dropping — but after the prose, because it has
+// no sentence to attach to.
+for (const rkey of (result.cites || [])) {
+  if (quoted >= MAX_CITATIONS) break;
+  const c = cites.get(rkey);
+  if (!c || c.sent) continue;
+  c.sent = true;
+  await chat.send(convo.id, {
+    text: postUrl(subject, c.rkey),
+    facets: [{
+      index: { byteStart: 0, byteEnd: Buffer.byteLength(postUrl(subject, c.rkey), 'utf8') },
+      features: [{ $type: 'app.bsky.richtext.facet#link', uri: postUrl(subject, c.rkey) }],
+    }],
+    embed: recordEmbed(c.uri, c.cid),
+  });
+  quoted++;
+  sent++;
+  await sleep(1200);
 }
 
 // THE LAST MESSAGE IS THE METHOD, and it is not a footnote. Everything above it
@@ -411,5 +483,6 @@ const method = `read all ${stats.total.toLocaleString('en-US')} of @${subject}'s
   + `confidence: ${result.confidence}. ${result.why || ''}`.trim();
 await chat.send(convo.id, { text: graphemes(method) > 1000 ? method.slice(0, 990) + '…' : method });
 sent++;
+console.log(`  ${quoted} posts quoted inline`);
 
-console.log(`✓ sent ${sent} messages to ${to}`);
+console.log(`✓ sent ${sent} messages to ${args.convo ? `convo ${args.convo}` : to}`);
