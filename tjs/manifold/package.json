@@ -1,0 +1,7 @@
+{
+  "name": "tjs-manifold",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Concrete n→m manifolds for tjs.mino.mobi — hyperboloid legs as ruled surfaces, a collector ring, m mouths, solved as a 3D pin-jointed space truss for stability, member forces and buckling."
+}
