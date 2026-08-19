@@ -31,11 +31,34 @@
 // `node` run.
 
 import { writeFileSync } from 'node:fs';
-import { streamRepo } from '../../b/palm/car-stream.js';
-import { readings } from '../../b/palm/axes.js';
-import { score } from '../../b/palm/baseline.js';
-import { archetype } from '../../b/palm/matrix.js';
+import { streamRepo } from '../../packages/atproto/car.js';
 import { resolveHandle, resolvePds } from '../../packages/atproto/pds.js';
+
+/** PALM IS OPTIONAL, AND THAT IS NOT A STYLE PREFERENCE — IT IS NOT ALWAYS
+ *  THERE. b/palm is a surface owned by another branch, so on the branch the
+ *  factory actually deploys from, b/palm/ does not exist. A top-level import of
+ *  it turns "the portrait has no stylometry" into "the script will not start",
+ *  which is the difference between a slightly thinner picture and a feature
+ *  that cannot run at all.
+ *
+ *  The CAR reader was moved into packages/atproto/car.js for exactly this
+ *  reason — it is shared library code and belongs where shared code lives. The
+ *  six axes are palm's own work and stay palm's; this reads them when they are
+ *  in the tree and shrugs when they are not. buildDigest already treats palm as
+ *  absent when there is no baseline, so the degradation path was already built
+ *  and tested; this only widens what counts as absent. */
+async function loadPalm() {
+  try {
+    const [axes, baseline, matrix] = await Promise.all([
+      import('../../b/palm/axes.js'),
+      import('../../b/palm/baseline.js'),
+      import('../../b/palm/matrix.js'),
+    ]);
+    return { readings: axes.readings, score: baseline.score, archetype: matrix.archetype };
+  } catch {
+    return null;
+  }
+}
 
 const APPVIEW = 'https://public.api.bsky.app/xrpc';
 
@@ -414,14 +437,15 @@ export async function buildDigest(actor, {
     : `ranked over the most recent ${feed.items.length} posts plus a "top" search`;
 
   let palm = null;
-  if (baseline) {
+  const palmLib = baseline ? await loadPalm() : null;
+  if (baseline && palmLib) {
     try {
-      const scored = score(readings(repo.posts, did), baseline);
+      const scored = palmLib.score(palmLib.readings(repo.posts, did), baseline);
       palm = {
         axes: scored.axes,
         composite: scored.composite,
         band: scored.band?.name,
-        archetype: archetype(scored.axes),
+        archetype: palmLib.archetype(scored.axes),
       };
     } catch (e) {
       onProgress(`::warning::palm reading failed (${e.message}) — portrait continues without it`);

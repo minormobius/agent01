@@ -1,31 +1,21 @@
-// palm/car-stream.js — pull the posts out of a repo without ever holding the repo.
+// car.js — read an ATProto repository out of a CAR stream, without holding it.
 //
-// WHY THIS EXISTS. `b/` already had two CAR paths (coin/lexicon.js and lathe's
-// `archive` source) and both do the same thing: buffer the entire download,
-// concatenate it, hand it to the Rust/WASM parser, get back NDJSON for EVERY
-// record in the repo, and `.split('\n')` that. For a small account it is fine.
-// For a 90 MB / 50k-post repo it is roughly:
+// THE CANONICAL COPY. This is shared library code, so it lives in packages/ and
+// everything on a server imports it from here. b/palm/car-stream.js is a
+// byte-identical copy that exists only because a STATIC SITE cannot import
+// across directories — the same arrangement packages/dataviz/ has with the
+// sites that use it. Edit this file; copy it outward; never the reverse.
 //
-//     chunk array (90 MB) + contiguous copy (90 MB) + wasm linear memory (90 MB)
-//   + NDJSON of all ~500k records as one JS string (UTF-16, so ~2x its bytes)
-//   + the array of 500k strings that split() allocates
+// It was written for palm (six stylometric lines off a whole repo, in a browser
+// tab) and moved here when the lab factory needed it on a runner — the portrait
+// digest and the dossier corpus both start with "read every post they ever
+// made", which is one unauthenticated getRepo rather than five hundred
+// paginated AppView calls. Nothing about it is palm-specific.
 //
-// ...which is where the tab dies. This module reads the CAR as it arrives, keeps
-// only `app.bsky.feed.post` records, and drops every other block on the floor.
-// Peak memory is one network chunk plus the posts themselves.
+// No dependencies. Runs unchanged in node, in a browser, and in a Worker —
+// though a Worker's 30 seconds of CPU is not enough for a large repository,
+// which is why the factory does this on a runner.
 //
-// WHY NO MST WALK. Prefix compression inside an MST node is node-LOCAL — see
-// os/crates/car-parser/src/mst.rs, where `last_key` is reset at the top of every
-// node. So each node decodes on its own and block order does not matter: collect
-// key -> CID from whatever nodes stream past, collect CID -> record from the
-// record blocks, and join at the end. No roots, no recursion, no block index.
-//
-// Runs unchanged in node and the browser. No dependencies.
-//
-// THE CANONICAL COPY IS packages/atproto/car.js. This one exists because a
-// static site cannot import across directories — same arrangement as
-// packages/dataviz/ and the sites that use it. Fix the canonical one and copy
-// it here; a fix made only here is a fix the servers do not get.
 
 const TD = new TextDecoder('utf-8', { fatal: false });
 

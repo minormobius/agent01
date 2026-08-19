@@ -32,7 +32,7 @@
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { streamRepo } from '../b/palm/car-stream.js';
+import { streamRepo } from '../packages/atproto/car.js';
 import { resolveHandle, resolvePds } from '../packages/atproto/pds.js';
 import { writeCorpus, hydrateThreads, resolveCitations, postUrl } from './lib/dossier.mjs';
 import { login, graphemes } from './lib/bsky.mjs';
