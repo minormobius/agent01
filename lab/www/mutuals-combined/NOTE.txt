@@ -1,1 +1,1 @@
-Built the blend, not a "closest match" — the thread itself flagged why that framing turns into a target list. NNLS is real, solved not faked. Gap: only reads your first ~100 follows/followers, so some mutuals go unseen — that's step one in BRIEF.
+Swapped the whole data source per your note: it now pages your real post history (~1000 posts) and tallies who you actually reply to and quote — up to 100, however many you have — instead of follow-graph mutuals. Same real NNLS solve underneath.

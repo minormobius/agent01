@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>your mutuals, combined — a real least-squares fit</title>
-<meta name="description" content="Type your handle. We pull your mutuals — people you follow who follow you back — turn everyone's recent posts into word-frequency vectors, and solve the non-negative combination of your mutuals that best reconstructs yours. A real linear-algebra fit, with its own error shown, not a single 'written by' guess.">
-<meta property="og:title" content="your mutuals, combined — a real least-squares fit">
-<meta property="og:description" content="Type your handle. We pull your mutuals — people you follow who follow you back — turn everyone's recent posts into word-frequency vectors, and solve the non-negative combination of your mutuals that best reconstructs yours. A real linear-algebra fit, with its own error shown, not a single 'written by' guess.">
+<title>your interaction chart, combined — a real least-squares fit</title>
+<meta name="description" content="Type your handle. We read your own post history — every reply and quote you've made, paginated in full rather than one page — to rank who you actually interact with most, turn their recent posts into word-frequency vectors, and solve the non-negative combination of your top interaction partners that best reconstructs yours. A real linear-algebra fit, with its own error shown, not a single 'written by' guess.">
+<meta property="og:title" content="your interaction chart, combined — a real least-squares fit">
+<meta property="og:description" content="Type your handle. We read your own post history — every reply and quote you've made, paginated in full rather than one page — to rank who you actually interact with most, turn their recent posts into word-frequency vectors, and solve the non-negative combination of your top interaction partners that best reconstructs yours. A real linear-algebra fit, with its own error shown, not a single 'written by' guess.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
@@ -67,10 +67,11 @@
 <body>
 <main>
   <div id="crumb"></div>
-  <h1>your mutuals, combined</h1>
-  <p class="sub">Type your handle. We turn your recent posts and your mutuals' — people you follow who
-    follow you back — into word-frequency vectors, then solve for the non-negative combination of your
-    mutuals that best reconstructs yours. A real fit, not a single "who does this sound like" guess.</p>
+  <h1>your interaction chart, combined</h1>
+  <p class="sub">Type your handle. We page through your own post history to find who you actually
+    reply to and quote most, turn your words and theirs into word-frequency vectors, then solve for
+    the non-negative combination of your top interaction partners that best reconstructs yours. A real
+    fit, not a single "who does this sound like" guess.</p>
 
   <form id="form" class="row">
     <input type="text" id="handle" placeholder="you.bsky.social" autocomplete="off">
@@ -105,29 +106,42 @@
 
   <details>
     <summary>how this is computed, honestly</summary>
-    <p>We resolve your handle, read up to 100 accounts you follow and up to 100 accounts that follow
-       you, and intersect them for your <b>mutuals</b> — up to 8 of them, whichever the API hands back
-       first. For you and each mutual we read up to 100 recent posts (skipping reposts and reply
-       parents that aren't their own words), tokenize the text, drop a short stopword list, and build a
-       relative-frequency vector normalized to unit length. That vector is the "embedding" here — plain
-       bag-of-words, not a trained model. There is no ML embeddings API this environment can reach
-       without a key, so this is the honest substitute, not a pretend one.</p>
-    <p>Let <code>v</code> be your vector and <code>u₁…uₙ</code> your mutuals' vectors. We solve
-       <code>min ‖v − Σwᵢuᵢ‖²</code> subject to <code>wᵢ ≥ 0</code> — non-negative least squares — with a
-       small active-set method: solve the unconstrained system, drop the most negative coefficient,
-       re-solve, repeat until every remaining weight is non-negative. That's a simplified NNLS, not the
-       full Lawson–Hanson algorithm, but exact for the handful of mutuals involved here.</p>
-    <p>The donut's colored slices are each mutual's share of the fit; the grey slice is what the fit
+    <p>We resolve your handle, then <b>page through your own post history with the API's cursor</b> —
+       up to 10 pages, ~1000 posts, not just the first 100 — reading every reply and quote you made
+       along the way. Each reply counts as an interaction with whoever you replied to; each quote counts
+       as an interaction with whoever you quoted. Tally those up, rank by count, and that's your
+       <b>interaction chart</b> — up to 100 of the accounts you actually talk to and about most, not
+       people who merely follow you back. It might not fill up to 100 — most accounts don't reply or
+       quote 100 different people — and that's fine; you get however many you actually have.</p>
+    <p>For you and for each interaction partner we build a relative-frequency, bag-of-words vector from
+       recent posts (skipping reposts and reply parents that aren't their own words), tokenized, a short
+       stopword list dropped, normalized to unit length. That vector is the "embedding" here — plain
+       word counts, not a trained model. There is no ML embeddings API this environment can reach
+       without a key, so this is the honest substitute, not a pretend one. Your own vector is built from
+       every page we read; each interaction partner's is built from their most recent 100 posts only —
+       fetching full histories for up to 100 accounts wasn't feasible in one page load, and that's said
+       here rather than left silent.</p>
+    <p>Let <code>v</code> be your vector and <code>u₁…uₙ</code> your interaction partners' vectors. We
+       solve <code>min ‖v − Σwᵢuᵢ‖²</code> subject to <code>wᵢ ≥ 0</code> — non-negative least squares —
+       with a small active-set method: solve the unconstrained system, drop the most negative
+       coefficient, re-solve, repeat until every remaining weight is non-negative. That's a simplified
+       NNLS, not the full Lawson–Hanson algorithm; exact for the modest n involved here, but if this ever
+       runs against someone with dozens of genuine interaction partners it's the first thing to swap for
+       the full algorithm.</p>
+    <p>The donut's colored slices are each partner's share of the fit; the grey slice is what the fit
        couldn't explain. <b>Cosine fit</b> and <b>residual</b> are two independent checks on the same
        answer, not one number dressed up as two — a high cosine similarity can still hide a lopsided
        reconstruction, so both are shown rather than asserting "solved" from either alone.</p>
-    <p>This deliberately shows a <b>blend across several mutuals</b>, not a single closest match. A
-       "which one account does this sound most like" tool is one short step from a target list; a
-       linear combination across everyone in your circle isn't, and that's the version worth building.</p>
-    <p><b>Real limitations, stated plainly:</b> only the first page (~100) of your follows and followers
-       is read, so mutuals beyond that aren't seen. Bag-of-words has no sense of meaning, sarcasm, or
-       language beyond English-ish tokenizing — a heavily non-English account will look thin here. Small
-       accounts with little recent text won't have enough signal to fit against.</p>
+    <p>This deliberately shows a <b>blend across several people</b>, not a single closest match. A
+       "which one account does this sound most like" tool is one short step from a target list; a linear
+       combination across everyone you actually talk to isn't, and that's the version worth building.</p>
+    <p><b>Real limitations, stated plainly:</b> only replies and quotes are counted as interactions —
+       likes aren't visible through the public API for anyone but you, so they're not part of this chart.
+       A reply whose parent post has been deleted or is otherwise unreadable doesn't count either. Only
+       your own most-recent ~1000 posts are scanned, so a very old exchange won't surface. Bag-of-words
+       has no sense of meaning, sarcasm, or language beyond English-ish tokenizing — a heavily non-English
+       account will look thin here. Small accounts with little recent text won't have enough signal to fit
+       against.</p>
   </details>
 </main>
 
@@ -157,6 +171,10 @@
     'really still even back much many well now amp yeah okay lol its').split(' ');
   var STOPSET = {};
   for (var si = 0; si < STOP.length; si++) STOPSET[STOP[si]] = true;
+
+  var MUTUAL_CAP = 100;          // top interaction partners considered
+  var OWN_FEED_MAX_PAGES = 10;   // ~1000 of your own posts, not just the first 100
+  var FETCH_CONCURRENCY = 8;     // parallel author-feed fetches for interaction partners
 
   function tokenize(text) {
     if (!text) return [];
@@ -276,6 +294,66 @@
     return texts;
   }
 
+  /** Page through an account's own feed with the cursor, not just the first page. */
+  async function fetchOwnFeedPages(did, maxPages, onProgress) {
+    var pages = [];
+    var cursor;
+    for (var p = 0; p < maxPages; p++) {
+      var params = { actor: did, limit: 100 };
+      if (cursor) params.cursor = cursor;
+      var res = await kit.bskyGet('app.bsky.feed.getAuthorFeed', params);
+      pages.push(res);
+      if (onProgress) onProgress(pages.length);
+      if (!res || !res.cursor || !res.feed || !res.feed.length) break;
+      cursor = res.cursor;
+    }
+    return pages;
+  }
+
+  /** Who did this account actually reply to and quote? Ranked by count, most first.
+   *  This is the interaction chart — it replaces reading the follow graph, which
+   *  silently undercounts anyone past the first page of follows/followers. */
+  function tallyInteractions(feedItems, did) {
+    var items = kit.visible(feedItems || []);
+    var counts = new Map(), meta = new Map();
+    function bump(actor) {
+      if (!actor || !actor.did || actor.did === did) return;
+      counts.set(actor.did, (counts.get(actor.did) || 0) + 1);
+      if (!meta.has(actor.did)) meta.set(actor.did, actor);
+    }
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      var post = item.post;
+      if (!post || !post.author || post.author.did !== did) continue;
+      if (item.reply && item.reply.parent && item.reply.parent.author) bump(item.reply.parent.author);
+      var embed = post.embed;
+      if (embed && embed.$type === 'app.bsky.embed.record#view' && embed.record) bump(embed.record.author);
+      if (embed && embed.$type === 'app.bsky.embed.recordWithMedia#view' && embed.record && embed.record.record) {
+        bump(embed.record.record.author);
+      }
+    }
+    var ranked = [];
+    counts.forEach(function (c, actorDid) { ranked.push({ did: actorDid, count: c, actor: meta.get(actorDid) }); });
+    ranked.sort(function (a, b) { return b.count - a.count; });
+    return ranked;
+  }
+
+  /** Run fn over items with at most `limit` in flight at once. */
+  async function mapPool(items, limit, fn) {
+    var results = new Array(items.length);
+    var next = 0;
+    async function worker() {
+      while (next < items.length) {
+        var i = next++;
+        results[i] = await fn(items[i], i);
+      }
+    }
+    var workers = [];
+    for (var w = 0; w < Math.min(limit, items.length); w++) workers.push(worker());
+    await Promise.all(workers);
+    return results;
+  }
+
   var HUE_STEP = 137.508; // golden angle — visually distinct, no picked palette needed
   function colorFor(i) { return 'hsl(' + Math.round((i * HUE_STEP) % 360) + ', 62%, 58%)'; }
   var LEFTOVER_COLOR = '#8b8792';
@@ -311,8 +389,8 @@
 
   function verdictNote(usedCount, foundCount, cos) {
     var lines = [];
-    lines.push('Combined from ' + usedCount + ' of ' + foundCount + ' mutuals with enough recent text.');
-    if (cos < 0.15) lines.push('The fit is weak — your recent words don’t line up much with these mutuals’ recent words, which is a fine and normal outcome.');
+    lines.push('Combined from ' + usedCount + ' of ' + foundCount + ' interaction partners with enough recent text.');
+    if (cos < 0.15) lines.push('The fit is weak — your recent words don’t line up much with theirs, which is a fine and normal outcome.');
     return lines.join(' ');
   }
 
@@ -332,63 +410,62 @@
       var did = await resolveDid(handle);
       var profile = await kit.bskyGet('app.bsky.actor.getProfile', { actor: did });
 
-      setStatus('reading your recent posts…');
-      var myFeed = await kit.bskyGet('app.bsky.feed.getAuthorFeed', { actor: did, limit: 100 });
-      var myVec = buildVector(ownTexts(myFeed.feed, did));
+      function renderEmpty(message) {
+        document.getElementById('youCard').innerHTML =
+          '<img src="' + avatarSrc(profile.avatar) + '" alt="" loading="lazy" onerror="this.src=\'' + BLANK_AVATAR + '\'">' +
+          '<div><div class="name">' + (profile.displayName || profile.handle) + '</div><div class="handle">@' + profile.handle + '</div></div>';
+        document.getElementById('eqn').textContent = message;
+        document.getElementById('donutImg').classList.add('hidden');
+        document.getElementById('copyBtn').classList.add('hidden');
+        document.querySelector('.stats').classList.add('hidden');
+        document.getElementById('contribHead').classList.add('hidden');
+        resultsEl.classList.remove('hidden');
+      }
+
+      var ownPages = await fetchOwnFeedPages(did, OWN_FEED_MAX_PAGES, function (n) {
+        setStatus('reading your post history (' + (n * 100) + ' posts so far)…');
+      });
+      var ownItems = [];
+      for (var pi = 0; pi < ownPages.length; pi++) ownItems = ownItems.concat(ownPages[pi].feed || []);
+
+      var myVec = buildVector(ownTexts(ownItems, did));
       if (!myVec) {
         kit.showError(errEl, 'not enough recent original text from @' + handle + ' to build a vector — try an account with more posts.');
         setStatus('');
         return;
       }
 
-      setStatus('finding mutuals…');
-      var followsRes = await kit.bskyGet('app.bsky.graph.getFollows', { actor: did, limit: 100 });
-      var followersRes = await kit.bskyGet('app.bsky.graph.getFollowers', { actor: did, limit: 100 });
-      var follows = (followsRes && followsRes.follows) || [];
-      var followers = (followersRes && followersRes.followers) || [];
-      var followDids = {};
-      for (var fi = 0; fi < follows.length; fi++) followDids[follows[fi].did] = true;
-      var mutuals = [];
-      for (var mi = 0; mi < followers.length; mi++) {
-        var f = followers[mi];
-        if (f.did !== did && followDids[f.did]) mutuals.push(f);
-      }
-      mutuals = mutuals.slice(0, 8);
+      setStatus('finding who you actually interact with…');
+      var ranked = tallyInteractions(ownItems, did);
+      var candidates = ranked.slice(0, MUTUAL_CAP);
 
-      if (!mutuals.length) {
-        document.getElementById('youCard').innerHTML =
-          '<img src="' + avatarSrc(profile.avatar) + '" alt="" loading="lazy" onerror="this.src=\'' + BLANK_AVATAR + '\'">' +
-          '<div><div class="name">' + (profile.displayName || profile.handle) + '</div><div class="handle">@' + profile.handle + '</div></div>';
-        document.getElementById('eqn').textContent = 'no mutuals found in your first ~100 follows and ~100 followers — nothing to combine yet.';
-        document.getElementById('donutImg').classList.add('hidden');
-        document.getElementById('copyBtn').classList.add('hidden');
-        document.querySelector('.stats').classList.add('hidden');
-        document.getElementById('contribHead').classList.add('hidden');
-        resultsEl.classList.remove('hidden');
+      if (!candidates.length) {
+        renderEmpty('no replies or quotes of anyone else turned up in your recent posts — nothing to build an interaction chart from yet.');
         setStatus('');
         return;
       }
 
-      setStatus('reading ' + mutuals.length + ' mutuals’ recent posts…');
-      var mutualVecs = [], mutualMeta = [];
-      for (var i = 0; i < mutuals.length; i++) {
+      var doneCount = 0;
+      setStatus('reading ' + candidates.length + ' interaction partners’ recent posts (0/' + candidates.length + ')…');
+      var vecResults = await mapPool(candidates, FETCH_CONCURRENCY, async function (cand) {
+        var v = null;
         try {
-          var mf = await kit.bskyGet('app.bsky.feed.getAuthorFeed', { actor: mutuals[i].did, limit: 100 });
-          var v = buildVector(ownTexts(mf.feed, mutuals[i].did));
-          if (v) { mutualVecs.push(v); mutualMeta.push(mutuals[i]); }
-        } catch (e) { /* skip a mutual we can't read */ }
+          var mf = await kit.bskyGet('app.bsky.feed.getAuthorFeed', { actor: cand.did, limit: 100 });
+          v = buildVector(ownTexts(mf.feed, cand.did));
+        } catch (e) { /* skip an account we can't read */ }
+        doneCount++;
+        setStatus('reading interaction partners’ recent posts (' + doneCount + '/' + candidates.length + ')…');
+        return v ? { vec: v, meta: cand.actor, count: cand.count } : null;
+      });
+
+      var mutualVecs = [], mutualMeta = [], mutualCounts = [];
+      for (var vi = 0; vi < vecResults.length; vi++) {
+        var r = vecResults[vi];
+        if (r) { mutualVecs.push(r.vec); mutualMeta.push(r.meta); mutualCounts.push(r.count); }
       }
 
       if (!mutualVecs.length) {
-        document.getElementById('youCard').innerHTML =
-          '<img src="' + avatarSrc(profile.avatar) + '" alt="" loading="lazy" onerror="this.src=\'' + BLANK_AVATAR + '\'">' +
-          '<div><div class="name">' + (profile.displayName || profile.handle) + '</div><div class="handle">@' + profile.handle + '</div></div>';
-        document.getElementById('eqn').textContent = 'found ' + mutuals.length + ' mutuals, but none had enough recent text to build a vector.';
-        document.getElementById('donutImg').classList.add('hidden');
-        document.getElementById('copyBtn').classList.add('hidden');
-        document.querySelector('.stats').classList.add('hidden');
-        document.getElementById('contribHead').classList.add('hidden');
-        resultsEl.classList.remove('hidden');
+        renderEmpty('found ' + candidates.length + ' accounts you interact with, but none had enough recent text to build a vector.');
         setStatus('');
         return;
       }
@@ -431,12 +508,14 @@
         var share = (w[idx] / sumW) * explained;
         if (share < 0.003) continue;
         var meta = mutualMeta[idx];
+        var interactions = mutualCounts[idx];
         var color = colorFor(oj);
         slices.push({ value: share, color: color });
         eqnParts.push('<span class="dot" style="background:' + color + '"></span>' + Math.round(share * 100) + '% · @' + meta.handle);
         listHtml += '<div class="entry">' +
           '<img src="' + avatarSrc(meta.avatar) + '" alt="" loading="lazy" onerror="this.src=\'' + BLANK_AVATAR + '\'">' +
-          '<div class="who"><div class="name">' + (meta.displayName || meta.handle) + ' <span class="handle">@' + meta.handle + '</span></div>' +
+          '<div class="who"><div class="name">' + (meta.displayName || meta.handle) + ' <span class="handle">@' + meta.handle + '</span>' +
+          ' <span class="handle">· ' + interactions + ' ' + (interactions === 1 ? 'interaction' : 'interactions') + '</span></div>' +
           '<div class="track"><div class="fill" style="width:' + Math.round(share * 100) + '%;background:' + color + '"></div></div></div>' +
           '<div class="share">' + Math.round(share * 100) + '%</div></div>';
       }
@@ -449,7 +528,7 @@
 
       document.getElementById('eqn').innerHTML = eqnParts.length
         ? 'you ≈ ' + eqnParts.join(' + ') + (leftover > 0.03 ? ' + <span class="dot" style="background:' + LEFTOVER_COLOR + '"></span>' + Math.round(leftover * 100) + '% not captured' : '')
-        : 'no positive combination found — your words and your mutuals’ words don’t overlap enough to fit.';
+        : 'no positive combination found — your words and theirs don’t overlap enough to fit.';
 
       var canvas = drawDonut(slices.length ? slices : [{ value: 1, color: LEFTOVER_COLOR }]);
       var img = document.getElementById('donutImg');
@@ -480,9 +559,9 @@
 
       document.getElementById('contribHead').classList.remove('hidden');
       document.getElementById('contribHead').textContent = 'contributors';
-      document.getElementById('contribList').innerHTML = listHtml || '<p class="empty">no mutual contributed a positive share.</p>';
+      document.getElementById('contribList').innerHTML = listHtml || '<p class="empty">no interaction partner contributed a positive share.</p>';
 
-      document.getElementById('noteBox').innerHTML = '<div class="note">' + verdictNote(mutualVecs.length, mutuals.length, cos) + '</div>';
+      document.getElementById('noteBox').innerHTML = '<div class="note">' + verdictNote(mutualVecs.length, candidates.length, cos) + '</div>';
 
       resultsEl.classList.remove('hidden');
       setStatus('');

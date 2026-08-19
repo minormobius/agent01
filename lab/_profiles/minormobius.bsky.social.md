@@ -678,6 +678,23 @@ not just flavor, when an adjacent framing in the same conversation was just
 called out as harmful. No correction received yet to confirm any of this
 lands well.
 
+## `one-hand` (2026-08-19), turn 2: a scale complaint comes with the actual replacement mechanism named, not just "do more"
+Follow-up after turn 1's follow-graph mutuals (capped at 8, one page of
+follows/followers): "no way is this gonna work with 100 follows. you gotta
+parse the full follow graph. youd be better suited to use an interaction
+chart, say your top 100 most interacted with accounts (that might not fill
+up, that's ok)." Same pattern as `take-escher` turn 5 ("build a buffer,
+retire tiles exceeding threshold") — this requester's terse critique often
+names the actual replacement data structure/algorithm, not just the symptom,
+and it's meant literally: built exactly "an interaction chart" (tally who
+the visitor replies to and quotes in their own paginated post history, rank
+by count, cap at 100) rather than the more conservative fix of merely
+paginating the old follows/followers intersection, since the message reads
+as "use a different mechanism," not "make the old one bigger." Also notable:
+"that might not fill up, that's ok" pre-empts a defensive design choice
+(don't force the cap) — worth taking a stated tolerance for an undersized
+result at face value rather than second-guessing it into a forced minimum.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
