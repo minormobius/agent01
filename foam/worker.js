@@ -59,6 +59,12 @@ const CONTENT_ROLLERS = {
 // exported so CI can assert the policy holds: the current version is always
 // servable, and every version this service advertises has an implementation
 // behind it (see test/dungeon.selftest.mjs).
+// The response ENVELOPE's revision. Entries are cached immutable for a
+// year, so a change to the headers a response carries (not just its body)
+// must invalidate them — otherwise clients keep getting last month's
+// envelope from the edge. Bump on any change to what handleApi returns
+// around the body.
+const API_REV = 2;
 export const API_VERSIONS = {
   dungeon: Object.keys(GENERATORS).map(Number),
   content: Object.keys(CONTENT_ROLLERS).map(Number),
@@ -181,7 +187,7 @@ async function handleApi(url) {
   // edge cache, keyed on normalized params + the RESOLVED versions
   const key = new Request(url.origin + path + '?' + canon +
     (wantContent ? '&roll=' + params.roll + (params.tune ? '&tune=' + params.tune : '') : '') +
-    '&v=' + wantV + (wantContent ? '.' + wantCV : ''));
+    '&v=' + wantV + (wantContent ? '.' + wantCV : '') + '&rev=' + API_REV);
   const cache = globalThis.caches?.default;
   const hit = await cache?.match(key);
   if (hit) {
