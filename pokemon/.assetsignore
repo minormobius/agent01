@@ -2,3 +2,10 @@
 # surface. assets.directory is this dir, so without this line the file is
 # served at the surface's public URL.
 CLAUDE.md
+
+# Node test harnesses. Nothing the browser loads imports one — they exist to be
+# run by `node` and by preflight — but assets.directory is this dir, so they
+# were being uploaded and served at their public URLs (verified: /proteus/
+# flagella.selftest.mjs returned 200). Gitignore syntax, so a bare pattern
+# matches at any depth.
+*.selftest.mjs
