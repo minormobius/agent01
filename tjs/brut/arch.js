@@ -933,18 +933,29 @@ function levelLabel(p, L) {
   return `Level ${L.index}`;
 }
 
+// Columns sit on the grid intersections, and each carries the floor halfway to
+// its neighbours — so every column records its TRIBUTARY size as well as its
+// position. That is what a load takedown needs, and computing it here (where the
+// grid is defined) keeps struct.js from having to re-derive the grid and get a
+// slightly different answer.
 function columnsFor(p, L) {
   const cols = [];
   for (const wing of L.wings) {
     const nx = Math.max(1, Math.round(wing.w / p.bay));
     const nz = Math.max(1, Math.round(wing.d / p.bay));
+    const dx = wing.w / nx, dz = wing.d / nz;
     for (let i = 0; i <= nx; i++) {
       for (let k = 0; k <= nz; k++) {
-        const x = round2(R.x0(wing) + (i * wing.w) / nx);
-        const z = round2(R.z0(wing) + (k * wing.d) / nz);
+        const x = round2(R.x0(wing) + i * dx);
+        const z = round2(R.z0(wing) + k * dz);
         if (L.cores.some((c) => x > R.x0(c) - 0.3 && x < R.x1(c) + 0.3 && z > R.z0(c) - 0.3 && z < R.z1(c) + 0.3)) continue;
-        if (cols.some((q) => Math.abs(q.x - x) < 0.05 && Math.abs(q.z - z) < 0.05)) continue;
-        cols.push({ x, z });
+        const edge = (i === 0 || i === nx ? 1 : 0) + (k === 0 || k === nz ? 1 : 0);
+        const tw = round2(dx * (i === 0 || i === nx ? 0.5 : 1));
+        const td = round2(dz * (k === 0 || k === nz ? 0.5 : 1));
+        const hit = cols.find((q) => Math.abs(q.x - x) < 0.05 && Math.abs(q.z - z) < 0.05);
+        // a column shared by two wings picks up both tributaries
+        if (hit) { hit.trib = round2(hit.trib + tw * td); continue; }
+        cols.push({ x, z, tw, td, trib: round2(tw * td), edge });
       }
     }
   }
@@ -952,13 +963,20 @@ function columnsFor(p, L) {
 }
 
 function sacredColumns(p, geo) {
-  // the nave arcade: a pier per bay each side, between nave and aisle
+  // The nave arcade: a pier per bay each side, between nave and aisle. Each one
+  // carries half the nave and half its aisle, which is the tributary a load
+  // takedown needs — and every pier is on the perimeter of the nave volume, so
+  // they all count as edge columns for the frame's axial couple.
   const cols = [];
   const n = geo.bays;
+  const bay = geo.naveL / n;
   for (let i = 0; i <= n; i++) {
-    const z = round2(-geo.naveL / 2 + (i * geo.naveL) / n);
-    cols.push({ x: round2(-geo.naveW / 2), z });
-    cols.push({ x: round2(geo.naveW / 2), z });
+    const z = round2(-geo.naveL / 2 + i * bay);
+    const tw = round2(geo.naveW / 2 + geo.aisleW / 2);
+    const td = round2(bay * (i === 0 || i === n ? 0.5 : 1));
+    for (const s of [-1, 1]) {
+      cols.push({ x: round2(s * geo.naveW / 2), z, tw, td, trib: round2(tw * td), edge: 1 });
+    }
   }
   return cols;
 }

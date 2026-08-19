@@ -45,7 +45,32 @@
   #legend b{color:var(--ink);font-weight:600}
   #err{position:fixed;inset:auto 14px 14px 14px;z-index:9;background:#2b0f14;border:1px solid #7a2230;color:#ffd9de;
     border-radius:10px;padding:10px 12px;font:12px/1.5 ui-monospace,Menlo,monospace;display:none;white-space:pre-wrap}
-  @media (max-width:760px){ #panel{width:calc(100vw - 28px)} #view{display:none} #legend{display:none} }
+  #eng{position:fixed;right:14px;bottom:210px;z-index:6;width:262px;background:var(--panel);
+    border:1px solid var(--line);border-radius:12px;padding:10px 12px;backdrop-filter:blur(9px)}
+  #eng .ehead{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);
+    display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  #eng .badge{font-size:10px;padding:2px 7px;border-radius:5px;border:1px solid var(--line);color:var(--soft)}
+  #eng .erow{display:flex;align-items:center;gap:6px;margin:5px 0}
+  #eng select{flex:1 1 auto;min-width:0;background:#05050a;border:1px solid var(--line);color:var(--ink);
+    border-radius:7px;padding:4px 5px;font:11px/1.2 ui-monospace,Menlo,monospace}
+  #eng select:focus{outline:none;border-color:var(--accent)}
+  #eng button{flex:0 0 auto;background:#12121c;border:1px solid var(--line);color:var(--ink);
+    border-radius:7px;padding:4px 9px;font-size:11px;cursor:pointer}
+  #eng button:hover{border-color:var(--accent);color:var(--accent)}
+  #eng button.running{background:var(--accent);color:#04121a;border-color:var(--accent);font-weight:700}
+  #eng label{flex:0 0 58px;font-size:11px;color:var(--soft)}
+  #eng input[type=range]{-webkit-appearance:none;appearance:none;flex:1 1 auto;min-width:0;height:4px;
+    border-radius:3px;background:#26263a;outline:none}
+  #eng input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--accent);cursor:pointer}
+  #eng input[type=range]::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:50%;background:var(--accent);cursor:pointer}
+  #eng #ampV{flex:0 0 28px;text-align:right;font-size:11px;font-variant-numeric:tabular-nums}
+  #eng #estats{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:8px 0 4px}
+  #eng #estats div{background:#0c0c14;border:1px solid var(--line);border-radius:6px;padding:4px 6px}
+  #eng #estats b{display:block;font-size:12px;font-variant-numeric:tabular-nums}
+  #eng #estats span{display:block;font-size:9px;color:var(--soft);letter-spacing:.03em;text-transform:uppercase}
+  #eng #egov{font-size:10.5px;color:var(--soft);line-height:1.45;margin-top:4px}
+  @media (max-width:760px){ #panel{width:calc(100vw - 28px)} #view{display:none} #legend{display:none} #eng{display:none} }
+  @media (max-height:820px){ #eng{bottom:14px;right:256px} }
 </style>
 </head>
 <body>
@@ -68,10 +93,21 @@
     <button data-mode="solid" class="on">solid</button>
     <button data-mode="xray">x-ray</button>
     <button data-mode="cut">section</button>
+    <button data-mode="loads">loads</button>
   </div>
   <div class="row"><label>sun</label><input id="sun" type="range" min="0" max="360" step="1" value="128"><span id="sunV" style="flex:0 0 34px;text-align:right">128°</span></div>
   <div class="row"><label>height</label><input id="elev" type="range" min="8" max="80" step="1" value="46"><span id="elevV" style="flex:0 0 34px;text-align:right">46°</span></div>
   <div class="row"><label>storeys</label><input id="upto" type="range" min="1" max="30" step="1" value="30"><span id="uptoV" style="flex:0 0 34px;text-align:right">all</span></div>
+</div>
+
+<div id="eng">
+  <div class="ehead">Structural <span id="verdict" class="badge">—</span></div>
+  <div class="erow"><select id="quake"></select><button id="shakeBtn">shake it</button></div>
+  <div class="erow"><select id="wind"></select><button id="blowBtn">blow it</button></div>
+  <div class="erow small"><select id="siteCls"></select><select id="expo"></select></div>
+  <div id="estats"></div>
+  <div class="erow"><label>×displace</label><input id="amp" type="range" min="1" max="400" step="1" value="120"><span id="ampV">120</span></div>
+  <div id="egov"></div>
 </div>
 
 <div id="err"></div>
@@ -81,6 +117,12 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { generate, parts, bounds, Rand, TYPOLOGIES } from './arch.js';
 import { buildPanel, readURL, PANEL_CSS } from './ui.js';
+import {
+  verify, lateralModel, modal, newmark, quakeForcing, windForcing,
+  groundMotion, gustRecord, wind as windAnalysis,
+  SEISMIC_SCENARIOS, WIND_SCENARIOS, SITE_CLASSES, EXPOSURES, MAT,
+} from './struct.js';
+import { utilColour } from './structdraw.js';
 
 const errEl = document.getElementById('err');
 const fail = (e) => { errEl.style.display = 'block'; errEl.textContent = String(e && e.stack || e); console.error(e); };
@@ -216,6 +258,13 @@ function makeMaterials(seed) {
     metal:    new THREE.MeshStandardMaterial({ color: 0x8b9196, roughness: 0.42, metalness: 0.75 }),
     ground:   new THREE.MeshStandardMaterial({ color: 0x3a3d45, roughness: 1.0 }),
     partition:new THREE.MeshStandardMaterial({ color: 0x7fe8dd, roughness: 0.7, emissive: 0x0d3a37, visible: false }),
+    frame:    new THREE.MeshStandardMaterial({ map: tex, color: 0xf2f1ee, roughness: 0.93, metalness: 0.0 }),
+    // The loads view swaps in unmapped materials rather than mutating the mapped
+    // ones: an InstancedMesh takes its per-instance colour from `instanceColor`,
+    // and setting material.vertexColors as well makes three look for a geometry
+    // colour attribute that a BoxGeometry does not have — which reads as black.
+    frameLit: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.75, metalness: 0.0, emissive: 0x0a0c11 }),
+    coreLit:  new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0.0, emissive: 0x0a0c11 }),
     void:     null,
   };
 }
@@ -227,10 +276,14 @@ function build(p) {
   mats = getMaterials(p.seed);
   group = new THREE.Group();
 
+  // The columns are 'concrete' like the envelope, but the loads view has to
+  // ghost the envelope and light the frame — which one material cannot do. So
+  // the frame gets its own mesh at build time.
   const byMat = new Map();
   for (const q of list) {
-    if (!byMat.has(q.mat)) byMat.set(q.mat, []);
-    byMat.get(q.mat).push(q);
+    const key = q.kind === 'column' ? 'frame' : q.mat;
+    if (!byMat.has(key)) byMat.set(key, []);
+    byMat.get(key).push(q);
   }
   const m4 = new THREE.Matrix4(), qt = new THREE.Quaternion(), pos = new THREE.Vector3(), scl = new THREE.Vector3();
   for (const [matName, items] of byMat) {
@@ -240,14 +293,23 @@ function build(p) {
     mesh.castShadow = matName !== 'ground' && matName !== 'partition';
     mesh.receiveShadow = true;
     mesh.userData.levels = new Int16Array(items.length);
+    mesh.userData.kinds = items.map((q) => ({ kind: q.kind, level: q.level, x: q.x, z: q.z }));
     items.forEach((q, i) => {
       pos.set(q.x, q.y, q.z);
       scl.set(Math.max(q.w, 0.02), Math.max(q.h, 0.02), Math.max(q.d, 0.02));
       qt.setFromAxisAngle(new THREE.Vector3(0, 1, 0), q.ry || 0);
       mesh.setMatrixAt(i, m4.compose(pos, qt, scl));
-      mesh.userData.levels[i] = q.level == null ? -1 : q.level;
+      // Parts with no storey of their own — towers, parapets, the cathedral's
+      // roof — still have to sway with the building around them, so they take
+      // the storey their own height sits in.
+      mesh.userData.levels[i] = q.level != null ? q.level : levelAtY(q.y);
     });
     mesh.instanceMatrix.needsUpdate = true;
+    // The sway animation displaces whole storeys every frame. Decomposing 5000
+    // matrices per frame to do that would be silly, so keep the undisplaced
+    // matrices and write the offset straight into element 12/14 (the x and z
+    // translation of a column-major 4×4).
+    mesh.userData.base = mesh.instanceMatrix.array.slice();
     mesh.name = matName;
     group.add(mesh);
   }
@@ -266,10 +328,18 @@ function build(p) {
     ['plot', building.stats.plotRatio.toFixed(2)],
   ]);
   updateSun();
+  sway = null;
+  solve();
 }
 
 // Only the instance buffers are this group's to free — the box geometry and the
 // materials are shared and cached, and disposing them here would thrash both.
+function levelAtY(y) {
+  if (!building) return 0;
+  for (let i = building.levels.length - 1; i >= 0; i--) if (y >= building.levels[i].y) return i;
+  return 0;
+}
+
 function disposeGroup(g) {
   g.traverse((o) => { if (o.isInstancedMesh) o.dispose(); });
 }
@@ -314,7 +384,9 @@ function updateSun() {
 function applyMode() {
   if (!group) return;
   const xray = mode === 'xray';
-  renderer.shadowMap.enabled = !xray;
+  const showLoads = mode === 'loads';
+  renderer.shadowMap.enabled = !xray && !showLoads;
+  if (showLoads) paintUtilisation();
   for (const m of group.children) {
     switch (m.name) {
       case 'partition':
@@ -325,13 +397,30 @@ function applyMode() {
         m.material.depthWrite = true;
         break;
       case 'concrete':
-      case 'core':
+        // in the loads view the envelope becomes a ghost so the frame reads
+        m.material.transparent = xray || showLoads;
+        m.material.opacity = xray ? 0.09 : showLoads ? 0.055 : 1;
+        m.material.depthWrite = !(xray || showLoads);
+        break;
+      case 'frame':
+      case 'core': {
+        const lit = m.name === 'core' ? mats.coreLit : mats.frameLit;
+        const plain = m.name === 'core' ? mats.core : mats.frame;
+        m.material = showLoads ? lit : plain;
+        if (!showLoads && m.instanceColor) { m.instanceColor = null; m.material.needsUpdate = true; }
         m.material.transparent = xray;
         m.material.opacity = xray ? 0.09 : 1;
         m.material.depthWrite = !xray;
         break;
+      }
+      case 'metal':
+        m.visible = !showLoads;
+        break;
       case 'glass':
-        m.visible = !xray;
+        m.visible = !xray && !showLoads;
+        break;
+      case 'ground':
+        m.visible = !showLoads;
         break;
       default: break;
     }
@@ -389,6 +478,137 @@ function applyStoreyCut() {
   }
 }
 
+/* ─────────────────────────── the structural solve ───────────────────────── */
+
+const hazard = { seismicScenario: 'high', siteClass: 'D', windScenario: 'cat3', exposure: 'C' };
+let report = null, sway = null, swayT0 = 0;
+
+function fillSelect(id, opts, labelFor, key) {
+  const el = document.getElementById(id);
+  el.innerHTML = opts.map((o) => `<option value="${o}"${o === hazard[key] ? ' selected' : ''}>${labelFor(o)}</option>`).join('');
+  el.addEventListener('change', () => { hazard[key] = el.value; solve(); });
+}
+fillSelect('quake', Object.keys(SEISMIC_SCENARIOS), (o) => SEISMIC_SCENARIOS[o].label, 'seismicScenario');
+fillSelect('wind', Object.keys(WIND_SCENARIOS), (o) => WIND_SCENARIOS[o].label, 'windScenario');
+fillSelect('siteCls', SITE_CLASSES, (o) => 'site ' + o, 'siteClass');
+fillSelect('expo', EXPOSURES, (o) => 'exp ' + o, 'exposure');
+
+function solve() {
+  if (!building) return;
+  try { report = verify(building, hazard); } catch (e) { fail(e); return; }
+  const v = report;
+  const badge = document.getElementById('verdict');
+  badge.textContent = v.verdict;
+  badge.style.color = v.verdict === 'pass' ? '#3fbf7f' : v.verdict === 'marginal' ? '#e8c341' : '#e2564a';
+  badge.style.borderColor = badge.style.color;
+  const S = v.summary;
+  document.getElementById('estats').innerHTML = [
+    ['<b>' + S.T1x.toFixed(2) + ' s</b><span>period T₁</span>'],
+    ['<b>' + S.massTonnes.toLocaleString('en-GB') + ' t</b><span>seismic mass</span>'],
+    ['<b>' + (S.baseShearEq / 1e6).toFixed(0) + ' MN</b><span>base shear, EQ</span>'],
+    ['<b>' + (S.baseShearWind / 1e6).toFixed(1) + ' MN</b><span>base shear, wind</span>'],
+    ['<b>1/' + Math.round(1 / Math.max(1e-9, S.driftEq)) + '</b><span>drift, EQ</span>'],
+    ['<b>' + S.milliG.toFixed(0) + ' mg</b><span>sway felt</span>'],
+  ].map((r) => '<div>' + r + '</div>').join('');
+  document.getElementById('egov').innerHTML =
+    `governing: <b style="color:${utilColour(v.governing.util)}">${v.governing.name}</b> at ${v.governing.util.toFixed(2)} — ${v.governing.note}`;
+  if (mode === 'loads') applyMode();
+}
+
+// Colour the frame by how hard it is working. The same ramp the framing plan
+// uses, so amber means the same thing on the drawing and on the model.
+function paintUtilisation() {
+  if (!group || !report) return;
+  const phiPn = report.gravity.phiPn;
+  const byKey = new Map();
+  for (const c of report.gravity.columns) byKey.set(`${c.level}/${Math.round(c.x * 10)}/${Math.round(c.z * 10)}`, c.P / phiPn);
+  const wallUtil = report.dirs[report.eqDir].wall ? report.dirs[report.eqDir].wall.util : null;
+  const col = new THREE.Color();
+  for (const m of group.children) {
+    if (m.name !== 'frame' && m.name !== 'core') continue;
+    const kinds = m.userData.kinds || [];
+    for (let i = 0; i < m.count; i++) {
+      const k = kinds[i];
+      const u = m.name === 'frame'
+        ? byKey.get(`${k.level}/${Math.round(k.x * 10)}/${Math.round(k.z * 10)}`)
+        : wallUtil;
+      col.set(u == null ? 0x60636b : utilColour(u));
+      m.setColorAt(i, col);
+    }
+    if (m.instanceColor) m.instanceColor.needsUpdate = true;
+  }
+}
+
+/* Run a time history and hand the result to the render loop. */
+function runHistory(kind) {
+  if (!building || !report) return;
+  const dir = kind === 'quake' ? report.eqDir : report.wdDir;
+  const M = report.dirs[dir].M, md = report.dirs[dir].md;
+  const btn = document.getElementById(kind === 'quake' ? 'shakeBtn' : 'blowBtn');
+  btn.classList.add('running');
+  setTimeout(() => {
+    try {
+      let res, label;
+      if (kind === 'quake') {
+        const gm = groundMotion(building.seed, hazard.seismicScenario, 0.01);
+        res = newmark(M, md.K, md, quakeForcing(M, gm), { frames: 900 });
+        label = `${SEISMIC_SCENARIOS[hazard.seismicScenario].label} · PGA ${gm.pga.toFixed(2)}g`;
+      } else {
+        const w = report.dirs[dir].wd;
+        const rec = gustRecord(building.seed, M, w, 0.05, 120);
+        res = newmark(M, md.K, md, windForcing(M, rec), { zeta: MAT.dampingWind, frames: 900 });
+        label = `${WIND_SCENARIOS[hazard.windScenario].label} · ${w.V} m/s gust`;
+      }
+      sway = { dir, res, label, kind };
+      swayT0 = performance.now();
+      document.getElementById('egov').innerHTML =
+        `<b style="color:${utilColour(res.maxDrift / 0.02)}">${label}</b> → peak drift 1/${Math.round(1 / Math.max(1e-9, res.maxDrift))}` +
+        `, top of building moves ${(res.peakU[M.n - 1] * 1000).toFixed(0)} mm`;
+    } catch (e) { fail(e); }
+    btn.classList.remove('running');
+  }, 30);
+}
+document.getElementById('shakeBtn').addEventListener('click', () => runHistory('quake'));
+document.getElementById('blowBtn').addEventListener('click', () => runHistory('gust'));
+document.getElementById('amp').addEventListener('input', (e) => {
+  document.getElementById('ampV').textContent = e.target.value;
+});
+
+// Apply the current frame of the sway: every part moves with the storey it
+// belongs to, which is exactly what a shear-building model says happens.
+function applySway() {
+  if (!group) return;
+  const amp = Number(document.getElementById('amp').value);
+  let u = null;
+  if (sway) {
+    const tr = sway.res.trace;
+    const span = tr[tr.length - 1].t;
+    const t = ((performance.now() - swayT0) / 1000) % span;
+    let k = Math.min(tr.length - 2, Math.max(0, Math.floor((t / span) * (tr.length - 1))));
+    const f = (t - tr[k].t) / Math.max(1e-6, tr[k + 1].t - tr[k].t);
+    u = tr[k].u.map((v, i) => v + (tr[k + 1].u[i] - v) * Math.min(1, Math.max(0, f)));
+  }
+  for (const m of group.children) {
+    const base = m.userData.base, lv = m.userData.levels;
+    if (!base || !lv) continue;
+    const arr = m.instanceMatrix.array;
+    if (!u) {
+      if (!m.userData.swayed) continue;
+      arr.set(base); m.userData.swayed = false; m.instanceMatrix.needsUpdate = true;
+      continue;
+    }
+    const off = sway.dir === 'x' ? 12 : 14;
+    for (let i = 0; i < m.count; i++) {
+      const li = lv[i];
+      const d = li <= 0 ? u[0] * 0.5 : u[Math.min(li, u.length - 1)];
+      const b0 = i * 16;
+      arr[b0 + off] = base[b0 + off] + d * amp;
+    }
+    m.userData.swayed = true;
+    m.instanceMatrix.needsUpdate = true;
+  }
+}
+
 for (const btn of document.querySelectorAll('#view .modes button')) {
   btn.addEventListener('click', () => {
     for (const b2 of document.querySelectorAll('#view .modes button')) b2.classList.toggle('on', b2 === btn);
@@ -426,7 +646,7 @@ function resize() {
 }
 addEventListener('resize', resize); resize();
 
-renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+renderer.setAnimationLoop(() => { controls.update(); applySway(); renderer.render(scene, camera); });
 </script>
 </body>
 </html>

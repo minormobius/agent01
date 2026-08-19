@@ -34,6 +34,14 @@
   .card .tag{position:absolute;top:7px;left:9px;font:10px/1 ui-monospace,Menlo,monospace;letter-spacing:.08em;
     text-transform:uppercase;color:#9dc4e6;pointer-events:none}
   .wide{grid-column:1/-1}
+  .hazbar{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 14px;padding:10px 12px;
+    background:#0d0d16;border:1px solid var(--line);border-radius:10px}
+  .hazbar label{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--soft);
+    letter-spacing:.04em;text-transform:uppercase}
+  .hazbar select{background:#05050a;border:1px solid var(--line);color:var(--ink);border-radius:7px;
+    padding:5px 7px;font:12px/1.2 ui-monospace,Menlo,monospace}
+  .hazbar select:focus{outline:none;border-color:var(--accent)}
+  body.print-theme .hazbar{background:#eef0f3;border-color:#c8ccd2}
   footer{margin-top:40px;font-size:12px;color:var(--soft);border-top:1px solid var(--line);padding-top:14px}
   footer a{color:var(--accent)}
   #err{position:fixed;inset:auto 14px 14px 14px;z-index:9;background:#2b0f14;border:1px solid #7a2230;color:#ffd9de;
@@ -45,7 +53,7 @@
   @media (max-width:900px){ #panel{position:static;width:auto;margin:44px 14px 0;max-height:none} main{margin:0;padding:16px} }
   @media print{
     body{background:#fff;color:#000}
-    .crumb,#panel,.sheetbar,#err{display:none!important}
+    .crumb,#panel,.sheetbar,#err,.hazbar{display:none!important}
     main{margin:0;padding:0;max-width:none}
     .grid{grid-template-columns:1fr 1fr}
     .card{break-inside:avoid;border-color:#999;background:#fff}
@@ -85,6 +93,8 @@
 <script type="module">
 import { generate } from '../arch.js';
 import { planSVG, elevationSVG, sectionSVG, titleBlockSVG, scheduleSVG, sheetSVG, PALETTES, revision } from '../blueprint.js';
+import { verify, SEISMIC_SCENARIOS, WIND_SCENARIOS, SITE_CLASSES, EXPOSURES } from '../struct.js';
+import { verificationSVG, storeySVG, modesSVG, spectrumSVG, framingSVG } from '../structdraw.js';
 import { buildPanel, readURL, PANEL_CSS } from '../ui.js';
 
 const errEl = document.getElementById('err');
@@ -94,7 +104,11 @@ document.head.appendChild(Object.assign(document.createElement('style'), { textC
 
 const sheet = document.getElementById('sheet');
 let theme = 'blueprint';
-let building = null;
+let building = null, report = null;
+// The hazard is a VIEW of the building, not part of it — the same concrete
+// stands in Kent and in Kobe — so it lives in its own control strip rather than
+// in the seed's permalink.
+const hazard = { seismicScenario: 'high', siteClass: 'D', windScenario: 'cat3', exposure: 'C' };
 
 const card = (svg, tag, wide) =>
   `<div class="card${wide ? ' wide' : ''}">${svg}${tag ? `<div class="tag">${tag}</div>` : ''}</div>`;
@@ -127,7 +141,24 @@ function draw(p) {
   html.push(card(sectionSVG(building, { ...opt, width: 980, height: 520, id: 'se' }), 'section A–A', true));
   html.push(`</div>`);
 
+  // ── the engineer's set ────────────────────────────────────────────────────
+  report = verify(building, hazard);
+  html.push(`<h2 class="dw">Structural verification — ASCE 7-16 / ACI 318-19</h2>`);
+  html.push(`<div class="hazbar" id="hazbar"></div>`);
+  html.push(`<div class="grid">`);
+  html.push(card(verificationSVG(report, { palette: P, width: 980 }), '', true));
+  html.push(`</div><div class="grid">`);
+  // every engineering drawing titles itself, so none of them wants a tag on top
+  html.push(card(spectrumSVG(report, { ...opt, height: 300 }), ''));
+  html.push(card(framingSVG(building, report, 0, opt), ''));
+  html.push(card(storeySVG(report, 'x', opt), ''));
+  html.push(card(modesSVG(report, 'x', opt), ''));
+  html.push(card(storeySVG(report, 'z', opt), ''));
+  html.push(card(modesSVG(report, 'z', opt), ''));
+  html.push(`</div>`);
+
   sheet.innerHTML = html.join('\n');
+  paintHazardBar();
   panel.setStats([
     ['storeys', building.stats.levels],
     ['height', building.stats.height.toFixed(0) + ' m'],
@@ -136,6 +167,24 @@ function draw(p) {
     ['glazed', building.stats.glazedRatio.toFixed(0) + '%'],
     ['rev', revision(building)],
   ]);
+}
+
+// The hazard strip: change the earthquake or the hurricane and the whole
+// engineering set re-solves. The architecture does not move — only the demand.
+function paintHazardBar() {
+  const bar = document.getElementById('hazbar');
+  if (!bar) return;
+  const sel = (key, opts2, labelFor) =>
+    `<label>${key === 'seismicScenario' ? 'earthquake' : key === 'windScenario' ? 'wind' : key === 'siteClass' ? 'site class' : 'exposure'}
+      <select data-h="${key}">${opts2.map((o) => `<option value="${o}"${o === hazard[key] ? ' selected' : ''}>${labelFor(o)}</option>`).join('')}</select></label>`;
+  bar.innerHTML =
+    sel('seismicScenario', Object.keys(SEISMIC_SCENARIOS), (o) => SEISMIC_SCENARIOS[o].label) +
+    sel('siteClass', SITE_CLASSES, (o) => o) +
+    sel('windScenario', Object.keys(WIND_SCENARIOS), (o) => WIND_SCENARIOS[o].label) +
+    sel('exposure', EXPOSURES, (o) => o);
+  for (const el of bar.querySelectorAll('select')) {
+    el.addEventListener('change', () => { hazard[el.dataset.h] = el.value; draw(panel.params); });
+  }
 }
 
 document.getElementById('themeBtn').addEventListener('click', (e) => {
