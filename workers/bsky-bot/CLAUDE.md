@@ -558,6 +558,27 @@ already mutuals. Infrastructure should not depend on social-graph state: a follo
 lapsing, or a failed mutual refresh, should not take out the accounts used to
 test the thing. Everyone else arrives through the mutual list.
 
+**`RESEARCH_WHITELIST`** is a third door, narrower than both, and it governs
+only the DM research channel.
+
+The two lists above answer *"may this person ask for a build"*, where the blast
+radius of a wrong answer is a page nobody wanted and the output belongs to the
+requester. A dossier answers a different question: it costs a full CAR download
+and two agent passes, and its output is a reading of a **third party's** posts.
+"Everyone I follow back" is a good answer to the first and not automatically a
+good answer to the second, so research does not inherit that list.
+
+It **narrows and never grants** — everyone on it has already passed `isAllowed`
+— and it is fail-closed like everything else here: empty admits nobody to
+research, and the build factory is unaffected either way.
+
+Two consequences worth knowing, both deliberate: someone not on the list who
+DMs a dossier request is **refused by name rather than ignored**, because they
+addressed the bot directly and silence would read as broken; and the generic
+"here's what I can do" reply does not mention research to someone who cannot
+have it, since advertising it produces one outcome — they try, get refused, and
+the bot looks arbitrary.
+
 **`BOT_ENABLED`** is the other interlock — anything but `"true"` means
 observe-and-reply: the bot routes, claims and answers in-thread, but never
 dispatches and never spends. Leave it off until the routing has been watched in

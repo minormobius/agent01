@@ -44,21 +44,7 @@ crons = ["* * * * *"]
 # Everyone who follows this account AND is followed back may request a build.
 # Unfollowing revokes it. Membership is resolved to DIDs and cached for an hour
 # — never matched on handles, which change hands. Empty disables it.
-#
-# ⚠ NARROWED FOR TESTING, 2026-08-19, and this line is the whole admission
-# policy — restore it when the DM research channel has been exercised.
-#
-# It was "minormobius.bsky.social", which admits every mutual of that account.
-# That is the right steady state for BUILDS: a mention is public, the cost of a
-# bad one is a page nobody wanted, and the social list is the point.
-#
-# It is the wrong state for a channel being tested for the first time. A dossier
-# costs a full CAR download and two agent passes, and its output is a reading of
-# a THIRD PARTY's posts — so "who can trigger this" wants to be one person while
-# the behaviour is still unknown, not everyone the operator follows back.
-#
-# Empty disables the social list entirely, leaving WHITELIST as the only door.
-WHITELIST_MUTUALS_OF = ""
+WHITELIST_MUTUALS_OF = "minormobius.bsky.social"
 
 # Always admitted, regardless of the mutual list. Comma-separated handles.
 #
@@ -66,17 +52,30 @@ WHITELIST_MUTUALS_OF = ""
 # so the account named in WHITELIST_MUTUALS_OF is never in its own mutual set.
 # Left empty, the one person guaranteed to want to test this is the one person
 # the bot ignores. Handles are public, so committing them is fine.
-#
-# ⚠ NARROWED FOR TESTING, 2026-08-19: the operator alone, at their request.
-# Restore morphyxmino when the mutual list goes back on.
-WHITELIST = "minormobius.bsky.social"
+WHITELIST = "minormobius.bsky.social,morphyxmino.bsky.social"
 
 # morphyxmino is a service account of this repo's and ALREADY a mutual, so it was
-# never blocked — it was listed here so the operator's own infrastructure accounts
+# never blocked — it is listed here so the operator's own infrastructure accounts
 # do not depend on social-graph state. A follow lapsing, or the mutual refresh
-# failing, should not take out the accounts used to test the thing. It is off the
-# list only while admission is narrowed to one person; put it back with the
-# mutual list, for the reason above.
+# failing, should not take out the accounts used to test the thing.
+
+# A THIRD DOOR, NARROWER THAN BOTH, AND ONLY FOR RESEARCH.
+#
+# The two lists above admit people to the BUILD factory, where the cost of a bad
+# request is a page nobody wanted and the output is the requester's own site.
+# A dossier is not that: it costs a full CAR download and two agent passes, and
+# its output is a reading of a THIRD PARTY's posts. "Everyone I follow back" is
+# the right answer to the first question and not obviously the right answer to
+# the second, so it gets its own list rather than inheriting one.
+#
+# FAIL-CLOSED, LIKE EVERYTHING ELSE HERE: empty admits NOBODY to research, and
+# the build factory is unaffected either way. Widening this is a one-line change
+# and a 40-second deploy; widening it by accident should not be possible.
+#
+# Handles, comma-separated, matched case-insensitively — the same shape as
+# WHITELIST. Everyone here must also pass the ordinary door above; this narrows,
+# it never grants.
+RESEARCH_WHITELIST = "minormobius.bsky.social"
 
 # IDENTITIES THIS BOT HAS POSTED UNDER, before the current one.
 #
