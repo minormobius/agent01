@@ -59,6 +59,19 @@ const MAX_PROSE_MESSAGES = Number(args['max-messages'] || 8);
 const MAX_CITATIONS = Number(args['max-citations'] || 6);
 mkdirSync(out, { recursive: true });
 
+/** AN EMPTY TOOL LIST MUST OMIT THE FLAG, NOT PASS IT EMPTY.
+ *
+ *  `'--allowedTools', ...[]` leaves the flag with nothing after it, so the next
+ *  argument becomes its value and the command line reads
+ *
+ *      --allowedTools --disallowedTools Bash WebFetch …
+ *
+ *  which asks for a tool literally named "--disallowedTools" and silently drops
+ *  the real disallow list. Caught in the argv dump of the first live failure —
+ *  the run died on something else first, so this had not bitten yet. The
+ *  extraction call is the one that passes no tools: it reads a sentence and
+ *  answers with JSON, and giving a text-in/text-out call file access is a
+ *  capability nobody asked for. */
 const claude = (prompt, { tools = ['Read', 'Glob', 'Grep'], turns = 40, budget = 3, minutes = 20 } = {}) =>
   execFileSync('claude', [
     '-p', prompt,
@@ -66,7 +79,7 @@ const claude = (prompt, { tools = ['Read', 'Glob', 'Grep'], turns = 40, budget =
     '--max-turns', String(turns),
     '--max-budget-usd', String(budget),
     '--permission-mode', 'acceptEdits',
-    '--allowedTools', ...tools,
+    ...(tools.length ? ['--allowedTools', ...tools] : []),
     '--disallowedTools', 'Bash', 'WebFetch', 'WebSearch', 'Task', 'NotebookEdit',
   ], { encoding: 'utf8', timeout: minutes * 60_000, maxBuffer: 16 << 20 });
 
