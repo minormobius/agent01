@@ -231,13 +231,18 @@ const fill = (tmpl, vars) => sentenceCase(String(tmpl).replace(/\{(\w+)\}/g, (m,
 // line that says the full name every time reads like a form letter beside them. Take the first
 // token, stepping over a leading title ("Factor Merid Solen" → "Merid") and stopping before an
 // epithet ("Tzitlil the Twice-Burned" → "Tzitlil").
-const TITLES = new Set(['factor', 'warden', 'keeper', 'steward', 'adept', 'celebrant', 'chirurgeon',
-                        'wright', 'mender', 'tender', 'runner', 'player', 'tenant', 'sister', 'brother']);
+// Leading ARTICLES matter as much as titles: the 720-record live corpus is full of generic names
+// ("The Steward", "A Neighbour", "An Archivist"), and taking the first token there yields "The talks
+// while working". Skip an article or a title; never return one as a name.
+const SKIP_LEAD = new Set(['the', 'a', 'an',
+                           'factor', 'warden', 'keeper', 'steward', 'adept', 'celebrant', 'chirurgeon',
+                           'wright', 'mender', 'tender', 'runner', 'player', 'tenant', 'sister', 'brother']);
 export function shortName(full) {
   const parts = String(full || '').trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return 'they';
   let i = 0;
-  if (parts.length > 1 && TITLES.has(parts[0].toLowerCase().replace(/[^a-z]/g, ''))) i = 1;
+  // step over as many leading articles/titles as there are, while something is left to name.
+  while (i < parts.length - 1 && SKIP_LEAD.has(parts[i].toLowerCase().replace(/[^a-z]/g, ''))) i++;
   return parts[i];
 }
 
