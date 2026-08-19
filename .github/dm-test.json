@@ -1,0 +1,5 @@
+{
+  "to": "minormobius.bsky.social",
+  "text": "Test message from the lab factory — the DM channel works, so the app password does carry DM scope. This is what a message from the research bot looks like: 1000 graphemes each, and a dossier arrives as a numbered series of these with the cited posts quoted underneath. Reply here and nothing happens yet; the research route is on a feature branch, not the factory branch.",
+  "why": "Proves BLUESKY_BOT_APP_PASSWORD carries DM scope. Change the text and push to send again; delete this file and .github/workflows/dm-smoke.yml once the channel is proven."
+}

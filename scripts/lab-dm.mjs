@@ -2,6 +2,7 @@
 // lab-dm.mjs — send one direct message. The whole script.
 //
 //   node scripts/lab-dm.mjs --to did:plc:… --text "…"
+//   node scripts/lab-dm.mjs --to alice.bsky.social --text "…"   (handle works too)
 //
 // It exists for the failure path. lab-dossier.yml promises somebody an answer
 // the moment it starts, and a run that dies silently leaves that promise
@@ -10,11 +11,18 @@
 // says so needs a sender that cannot itself be the thing that failed, so this
 // shares the chat library and nothing else.
 //
-// NEVER FATAL. It is called from `if: failure()`; exiting non-zero there buys
-// nothing and buries the real error under a second one.
+// NEVER FATAL BY DEFAULT. It is called from `if: failure()`; exiting non-zero
+// there buys nothing and buries the real error under a second one.
+//
+// --strict INVERTS THAT, and it is what the smoke test uses. "Did the DM go?"
+// is a question a green run must not be able to answer wrongly: the whole point
+// of the smoke test is to find out whether the app password carries DM scope,
+// and a swallowed `Bad token scope` reported as success is the exact opposite
+// of the information wanted.
 
 import { login, graphemes } from './lib/bsky.mjs';
 import { chatClient } from './lib/chat.mjs';
+import { resolveHandle } from '../packages/atproto/pds.js';
 
 const args = {};
 {
@@ -43,11 +51,16 @@ if (!handle || !password) {
 try {
   const session = await login(handle, password);
   const chat = await chatClient(session);
-  const convo = await chat.convoWith(to);
+  // A DID addresses a convo; a handle is what a human types. Resolve rather
+  // than making every caller look one up.
+  const did = to.startsWith('did:') ? to : await resolveHandle(to);
+  const convo = await chat.convoWith(did);
   await chat.accept(convo.id);
   const body = graphemes(text) > 1000 ? [...text].slice(0, 990).join('') + '…' : text;
   await chat.send(convo.id, { text: body });
-  console.log(`✓ DMed ${to}`);
+  console.log(`✓ DMed ${to}${did === to ? '' : ` (${did})`}`);
 } catch (e) {
-  console.log(`::warning::lab-dm failed (${e.message.slice(0, 200)})`);
+  const strict = args.strict === 'true';
+  console.log(`::${strict ? 'error' : 'warning'}::lab-dm failed (${e.message.slice(0, 400)})`);
+  if (strict) process.exit(1);
 }

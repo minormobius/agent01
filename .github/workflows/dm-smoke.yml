@@ -1,0 +1,113 @@
+name: DM smoke test
+
+# ONE QUESTION: does BLUESKY_BOT_APP_PASSWORD carry DM scope?
+#
+# It cannot be answered from the sandbox — no Bluesky credentials there — and it
+# cannot be answered by reading, because "Allow access to your direct messages"
+# is a checkbox on a password that was created months ago and nothing about the
+# password records whether it was ticked. The only way to know is to send one.
+#
+# So this sends one message and reports the result honestly. It runs on THIS
+# branch rather than the factory's, because a push trigger has no default-branch
+# requirement — the same fact lab-build.yml relies on — which means the test can
+# run without deploying anything or touching the live bot.
+#
+# WHAT IT PROVES, either way:
+#   green   the password has DM scope; the research channel can send
+#   red     `Bad token scope` — the password predates the checkbox or it was not
+#           ticked, and it needs replacing (scope cannot be added to an existing
+#           app password)
+#
+# DELIBERATELY NOT A REUSABLE FACILITY. It fires only on a change to
+# .github/dm-test.json, on one branch, and sends only to the handle in that
+# file. Delete both when the channel is proven.
+
+on:
+  push:
+    branches:
+      - 'claude/buildabot-cheap-images-xrpzed'
+    paths:
+      - '.github/dm-test.json'
+      - '.github/workflows/dm-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  # THE TIP-COMMIT GUARD, for the same reason every other request-file workflow
+  # here has one: `paths:` matches a push RANGE, not a commit, and this file is
+  # permanent. Without it, a later infrastructure push whose range still holds
+  # this commit re-sends the message, and a squash merge re-sends it again.
+  select:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.pick.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - id: pick
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if git diff-tree --no-commit-id --name-only -r HEAD -- '.github/dm-test.json' | grep -q .; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "the tip commit changed the test file — sending"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::this push carried the test file along without changing it — not re-sending."
+          fi
+
+  send:
+    needs: select
+    if: needs.select.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Read the test file
+        id: cfg
+        run: |
+          set -euo pipefail
+          TO=$(node -p "require('./.github/dm-test.json').to")
+          TEXT=$(node -p "require('./.github/dm-test.json').text")
+          [ -n "$TO" ] && [ -n "$TEXT" ] || { echo "::error::dm-test.json needs both to and text"; exit 1; }
+          echo "to=$TO" >> "$GITHUB_OUTPUT"
+          {
+            echo "text<<DM_TEXT_EOF"
+            printf '%s\n' "$TEXT"
+            echo "DM_TEXT_EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "sending to $TO"
+
+      - name: Send it
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_BOT_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_BOT_APP_PASSWORD }}
+          TO: ${{ steps.cfg.outputs.to }}
+          TEXT: ${{ steps.cfg.outputs.text }}
+        run: |
+          set -euo pipefail
+          # --strict: a swallowed failure reported green is the one outcome that
+          # would make this test worse than not running it.
+          node scripts/lab-dm.mjs --to "$TO" --text "$TEXT" --strict
+
+      - name: Say what it proved
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "### DM channel is live" >> "$GITHUB_STEP_SUMMARY"
+            echo "The app password carries DM scope. chat.bsky.* works; the research channel can send." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### DM send failed" >> "$GITHUB_STEP_SUMMARY"
+            echo "If the log says \`Bad token scope\`, the app password was created without" >> "$GITHUB_STEP_SUMMARY"
+            echo "\"Allow access to your direct messages\". That cannot be added to an existing" >> "$GITHUB_STEP_SUMMARY"
+            echo "password — mint a new one and rotate BLUESKY_BOT_APP_PASSWORD." >> "$GITHUB_STEP_SUMMARY"
+          fi
