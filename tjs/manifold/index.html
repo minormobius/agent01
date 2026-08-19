@@ -62,7 +62,14 @@
   #eng .chk .n{flex:1 1 auto;color:var(--soft)}
   #eng .chk .n b{display:block;color:var(--ink);font-weight:600}
   #eng .chk .m{flex:0 0 auto;font-variant-numeric:tabular-nums;color:var(--ink)}
-  #eng .note{font-size:10.5px;color:var(--soft);line-height:1.45;margin:8px 0 0}
+  #eng .note,#panel .note{font-size:10.5px;color:var(--soft);line-height:1.45;margin:8px 0 0}
+  #panel .note b{color:var(--ink)}
+  .lvl{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--soft);margin:2px 0}
+  .lvl .u{flex:0 0 54px;text-transform:capitalize}
+  .lvl .b{flex:1 1 auto;height:8px;background:#0a0e10;border-radius:2px;overflow:hidden}
+  .lvl .b i{display:block;height:100%;background:linear-gradient(90deg,#7a6a45,var(--accent))}
+  .lvl .a{flex:0 0 46px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .lvl .d{flex:0 0 44px;text-align:right;font-variant-numeric:tabular-nums}
   #eng .bar{height:5px;border-radius:3px;background:var(--tens);overflow:hidden;margin:5px 0 3px}
   #eng .bar i{display:block;height:100%;background:var(--comp)}
   #legend{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:6;padding:8px 13px;
@@ -107,6 +114,10 @@
   <div id="latCtl"></div>
 
   <div class="stats" id="stats"></div>
+
+  <div class="hd">the accommodation</div>
+  <div id="place"></div>
+  <p class="note" id="placeNote"></p>
 </div>
 
 <div id="eng" class="pane">
@@ -141,7 +152,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {
   generate, deriveParams, resolveParams, paramsToQuery, rollSeed, pMaxFor,
-  PROGRAMMES, PROGRAMME_IDS, SURFACES, SURFACE_IDS, surfaceGeometry,
+  PROGRAMMES, PROGRAMME_IDS, SURFACES, SURFACE_IDS, surfaceGeometry, schedule,
 } from './shell.js';
 import { WIND_SCENARIOS, EXPOSURES, SNOW_SCENARIOS, defaultHazard } from './struct.js';
 import { mountSheet, SHEET_CSS } from '../brut/ui.js';
@@ -319,11 +330,104 @@ const KIND_COLOUR = {
   tie: 0x9fb0a8, deck: 0x7f8a86,
 };
 
-let ribMesh = null, surfMesh = null, texture = null;
+let ribMesh = null, surfMesh = null, texture = null, floorMesh = null, coreMesh = null;
 const baseMat = new THREE.MeshStandardMaterial({ roughness: 0.86, metalness: 0.02 });
 const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion();
 const tmpV = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
 let restPos = null;                                    // undeformed node positions
+
+
+/* ─────────────────── the habitable parts: floors and cores ──────────────── */
+//
+// The single thing that turns a lattice into a building is a floor you can
+// count. But an opaque shell hides everything inside it, so the floor cannot
+// only be interior — its EDGE has to express on the facade. Each level gets a
+// balcony lip that projects past the surface and a balustrade standing on it,
+// which is both how a real slab reads from outside and the reason these stop
+// looking like wire and start looking like somewhere people live.
+
+const BALC = 0.7;         // how far the floor edge projects past the shell
+const BALUST = 1.0;       // balustrade height
+
+function pushAnnulus(P, I, cx, cy, z, rIn, rOut, seg) {
+  const base = P.length / 3;
+  for (let i = 0; i <= seg; i++) {
+    const a = (i / seg) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
+    P.push(cx + rIn * ca, cy + rIn * sa, z, cx + rOut * ca, cy + rOut * sa, z);
+  }
+  for (let i = 0; i < seg; i++) {
+    const o = base + i * 2;
+    I.push(o, o + 1, o + 3, o, o + 3, o + 2);
+  }
+}
+function pushBand(P, I, cx, cy, z0, z1, r, seg) {
+  const base = P.length / 3;
+  for (let i = 0; i <= seg; i++) {
+    const a = (i / seg) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
+    P.push(cx + r * ca, cy + r * sa, z0, cx + r * ca, cy + r * sa, z1);
+  }
+  for (let i = 0; i < seg; i++) {
+    const o = base + i * 2;
+    I.push(o, o + 1, o + 3, o, o + 3, o + 2);
+  }
+}
+
+function buildFloors() {
+  const P = [], I = [], CP = [], CI = [];
+  const seg = Math.max(16, build.params.N * 2);
+  const topOf = new Map();
+  for (const f of build.floors) topOf.set(f.leg, Math.max(topOf.get(f.leg) ?? -Infinity, f.z));
+  for (const f of build.floors) {
+    pushAnnulus(P, I, f.cx, f.cy, f.z, f.rIn, f.rOut, seg);              // the plate
+    // the roof terrace gets a parapet but no projecting balcony: a lip at the
+    // very top reads as a saucer sitting on the leg rather than as a roof
+    const top = f.z >= topOf.get(f.leg) - 1e-6;
+    const lip = top ? 0 : BALC;
+    if (lip) pushAnnulus(P, I, f.cx, f.cy, f.z, f.rOut, f.rOut + lip, seg);
+    pushBand(P, I, f.cx, f.cy, f.z, f.z + BALUST, f.rOut + lip, seg);
+  }
+  if (build.ringDeck) {
+    const d = build.ringDeck;
+    pushAnnulus(P, I, 0, 0, d.z, d.rIn, d.rOut, seg * 2);                // the street
+    pushBand(P, I, 0, 0, d.z, d.z + BALUST, d.rOut, seg * 2);
+    pushBand(P, I, 0, 0, d.z, d.z + BALUST, d.rIn, seg * 2);
+  }
+  // the cores, as real shafts rather than a thin column — you should be able to
+  // see the lift standing inside the basket
+  for (const L of build.legs) {
+    if (!L.core || L.core.length < 2) continue;
+    for (let i = 0; i + 1 < L.core.length; i++) {
+      const a = build.nodes[L.core[i]], b2 = build.nodes[L.core[i + 1]];
+      const f = build.floors.find((q) => q.core === L.core[i]);
+      const r = f ? f.rIn : 2;
+      const base = CP.length / 3;
+      for (let j = 0; j <= 20; j++) {
+        const t = (j / 20) * Math.PI * 2, ct = Math.cos(t), st = Math.sin(t);
+        CP.push(a.x + r * ct, a.y + r * st, a.z, b2.x + r * ct, b2.y + r * st, b2.z);
+      }
+      for (let j = 0; j < 20; j++) { const o = base + j * 2; CI.push(o, o + 1, o + 3, o, o + 3, o + 2); }
+    }
+  }
+
+  const mk = (pos, idx, mat) => {
+    if (!pos.length) return null;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    const m = new THREE.Mesh(g, mat);
+    m.castShadow = true; m.receiveShadow = true;
+    return m;
+  };
+  floorMesh = mk(P, I, new THREE.MeshStandardMaterial({
+    color: 0xd9d3c6, roughness: 0.95, metalness: 0.02, side: THREE.DoubleSide,
+  }));
+  coreMesh = mk(CP, CI, new THREE.MeshStandardMaterial({
+    color: 0x8d9490, roughness: 0.9, metalness: 0.03, side: THREE.DoubleSide,
+  }));
+  if (floorMesh) root.add(floorMesh);
+  if (coreMesh) root.add(coreMesh);
+}
 
 function rebuild() {
   root.clear();
@@ -366,6 +470,7 @@ function rebuild() {
     root.add(surfMesh);
   } else surfMesh = null;
 
+  buildFloors();
   placeRibs(null, 0);
   applyColours();
 
@@ -521,13 +626,13 @@ const SHAPE = [
 ];
 const LATTICE = [
   ['N', 'ruling', 7, 16, 1, (p) => p.N, ''],
-  ['waist', 'waist', 1, 30, 0.1, (p) => p.waist, 'm'],
+  ['waist', 'plate r', 3, 30, 0.1, (p) => p.waist, 'm'],
   ['flare', 'flare c', 1, 60, 0.1, (p) => p.flare, ''],
   ['pHi', 'reach up', 1, 5, 1, (p) => p.pHi, ''],
   ['pLo', 'reach down', -5, -1, 1, (p) => p.pLo, ''],
   ['rib', 'rib ÷ bay', 0.03, 0.3, 0.005, (p) => p.rib, ''],
   ['ringD', 'ring depth', 0.4, 12, 0.1, (p) => p.ringD, 'm'],
-  ['decks', 'decks', 0, 5, 1, (p) => p.decks, ''],
+  ['storey', 'storey', 2.6, 6, 0.05, (p) => p.storey, 'm'],
 ];
 
 const sliders = [];
@@ -563,17 +668,43 @@ function paintPanel() {
     s.out.textContent = (Math.abs(v) < 10 && v % 1 !== 0 ? v.toFixed(2) : v) + s.unit;
   }
   const st = build.stats;
+  const acc = schedule(build);
   $('stats').innerHTML = [
     [build.params.legs + '→' + build.params.mouths, 'n → m'],
-    [st.nodes, 'joints'],
-    [st.members, 'ribs'],
+    [st.storeys, 'storeys'],
+    [st.storeyLo.toFixed(1) + '–' + st.storeyHi.toFixed(1), 'storey m'],
+    [acc.homes || '—', 'homes'],
+    [acc.people || '—', 'people'],
+    [Math.round(acc.gia).toLocaleString() + ' m²', 'gia'],
     [build.height.toFixed(0) + ' m', 'height'],
     [(build.radius * 2).toFixed(0) + ' m', 'across'],
+    [acc.plotRatio.toFixed(2), 'plot ratio'],
+    [Math.round(acc.street) + ' m²', 'street'],
     [st.meanBay.toFixed(1) + ' m', 'bay'],
-    [st.ribDia.toFixed(2) + ' m', 'rib'],
-    [st.surfaceArea.toFixed(0) + ' m²', 'surface'],
     ['χ = ' + st.euler, 'euler'],
   ].map(([a, b]) => `<div><b>${a}</b><span>${b}</span></div>`).join('');
+  paintPlace(acc);
+}
+
+// The section, drawn as a bar per storey. A hyperboloid's floor area has a
+// minimum at the waist and opens out both ways, so this reads as an hourglass —
+// which IS the type: a generous ground, a pinched middle, a wide crown.
+function paintPlace(S) {
+  const leg0 = S.rows.filter((r) => r.leg === 0);
+  const mx = Math.max(1, ...leg0.map((r) => r.area));
+  $('place').innerHTML = leg0.slice().reverse().map((r) => `
+    <div class="lvl">
+      <span class="u">${r.use}</span>
+      <span class="b"><i style="width:${(r.area / mx * 100).toFixed(1)}%"></i></span>
+      <span class="a">${Math.round(r.area)} m²</span>
+      <span class="d">${r.depth.toFixed(1)} m${r.deep ? ' ⚠' : ''}</span>
+    </div>`).join('');
+  $('placeNote').innerHTML = S.homes
+    ? `<b>${S.homes} homes</b> for about <b>${S.people} people</b>, at ${S.density} homes per hectare of site — ` +
+      `plot ratio ${S.plotRatio}. The ring carries a <b>${Math.round(S.street)} m²</b> street in the air, the one floor every leg touches.`
+    : `<b>${Math.round(S.gia).toLocaleString()} m²</b> over ${S.storeys} storeys, plot ratio ${S.plotRatio}. ` +
+      `The ring carries a <b>${Math.round(S.street)} m²</b> deck — the one floor every leg touches.` +
+      (S.deep ? ` ${S.deep} plates are deeper than daylight reaches and want an atrium.` : '');
 }
 
 function paintEngineer() {

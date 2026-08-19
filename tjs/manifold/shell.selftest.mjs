@@ -21,6 +21,7 @@
 import {
   generate, deriveParams, resolveParams, paramsToQuery, pMaxFor, NODE_BUDGET,
   PROGRAMME_IDS, SURFACE_IDS, SURFACES, MAT, rollSeed, memberParts, surfaceGeometry, profile,
+  schedule, PROGRAMMES, EFFICIENCY,
 } from './shell.js';
 import {
   model, assemble, matVec, endForces, loads, solve, bucklingMode, memberCapacity,
@@ -489,6 +490,95 @@ const runFrame = (b, F, extra) => {
     'glass is not a flange — the glazed and bare ribs are exactly circles');
   ok(SURFACES['board-marked'].clad / (MAT.rho * MAT.g) > 0.14,
     'the board-marked shell really is the ~150 mm its note claims');
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   17. HABITATION — the floors are real floors
+   ══════════════════════════════════════════════════════════════════════════ */
+{
+  // The whole point of putting the storeys ON the p-levels is that a floor
+  // needs no new topology: its edge lands on joints the lattice already has.
+  // If that ever stops being true the floors become decoration.
+  let offLattice = 0, badArea = 0, outside = 0, brokenCore = 0, tot = 0;
+  let worstLo = Infinity, worstHi = 0, worstRatio = 0;
+  for (const prog of PROGRAMME_IDS) {
+    const b = generate(deriveParams(prog + '-hab', prog));
+    const nodeSet = new Set(b.nodes.map((n) => n.id));
+    ok(b.floors.length > 0, `${prog}: it has floors`);
+
+    for (const f of b.floors) {
+      tot++;
+      // every edge node is a lattice node, at this floor's level
+      for (const id of f.ids) {
+        if (!nodeSet.has(id) || Math.abs(b.nodes[id].z - f.z) > 1e-3) offLattice++;
+      }
+      // the plate really is the annulus the schedule bills for
+      if (Math.abs(f.area - Math.PI * (f.rOut * f.rOut - f.rIn * f.rIn)) > 0.05) badArea++;
+      // and it does not stick out through the skin: rOut IS the surface radius
+      const rSurf = b.params.waist / Math.cos((Math.PI * f.p) / b.params.N);
+      if (Math.abs(f.rOut - rSurf) > 1e-3) outside++;
+      if (f.rIn >= f.rOut) badArea++;
+    }
+
+    // the core is a continuous stack — a stair, not a pile of discs
+    for (const L of b.legs) {
+      if (!L.core || L.core.length !== b.params.pHi - b.params.pLo + 1) brokenCore++;
+      for (let i = 0; i + 1 < L.core.length; i++) {
+        if (b.nodes[L.core[i + 1]].z <= b.nodes[L.core[i]].z) brokenCore++;
+      }
+    }
+
+    worstLo = Math.min(worstLo, b.stats.storeyLo);
+    worstHi = Math.max(worstHi, b.stats.storeyHi);
+    worstRatio = Math.max(worstRatio, b.stats.storeyHi / Math.max(0.01, b.stats.storeyLo));
+  }
+  ok(offLattice === 0, `every floor edge sits on lattice joints at its own level (${tot} floors)`);
+  ok(badArea === 0, 'every plate area is the annulus it claims to be');
+  ok(outside === 0, 'no plate reaches past the skin — rOut is the surface radius');
+  ok(brokenCore === 0, 'every core is a continuous rising stack');
+
+  // The storey heights are NOT free: they are c·Δtan, so they widen away from
+  // the waist. What must hold is that the tightest is habitable and the ratio
+  // stays in the band pMaxFor was capped to deliver.
+  ok(worstLo >= 2.6, `the tightest storey anywhere is habitable (${worstLo.toFixed(2)} m)`);
+  ok(worstRatio <= 2.2, `tallest ÷ shortest storey stays under 2.2 (worst ${worstRatio.toFixed(2)})`);
+  ok(worstHi <= 9, `no storey becomes an unusable void (tallest ${worstHi.toFixed(2)} m)`);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   18. THE SCHEDULE — it must add up
+   ══════════════════════════════════════════════════════════════════════════ */
+{
+  for (const prog of PROGRAMME_IDS) {
+    const b = generate(deriveParams(prog + '-sched', prog));
+    const S = schedule(b);
+    const T = PROGRAMMES[prog];
+
+    const sum = b.floors.reduce((a, f) => a + f.area, 0) + b.ringDeck.area;
+    near(S.gia, sum, 1e-6, `${prog}: GIA is the sum of the plates plus the street`);
+    ok(S.rows.length === b.floors.length, `${prog}: one schedule row per floor`);
+    near(S.net, S.rows.reduce((a, r) => a + r.net, 0), 1e-9, `${prog}: net is the sum of its rows`);
+
+    // homes are only ever counted on dwelling floors, and only where the
+    // programme actually has a dwelling unit
+    const stray = S.rows.filter((r) => r.homes > 0 && r.use !== 'dwelling').length;
+    ok(stray === 0, `${prog}: no homes counted outside a dwelling floor`);
+    if (!T.unit) ok(S.homes === 0, `${prog}: a hall programme books no homes`);
+    else ok(S.homes > 0, `${prog}: a residential programme books some (${S.homes} homes, ${S.density}/ha)`);
+
+    // and a home is never smaller than the unit it was sized from
+    for (const r of S.rows) {
+      if (r.homes) ok(r.net / r.homes >= T.unit - 1e-6, `${prog}: level ${r.level} homes are full size`);
+    }
+  }
+
+  // the schedule follows the geometry, so a bigger plate is more accommodation
+  const base = deriveParams('manifold', 'housing');
+  const small = schedule(generate({ ...base, waist: base.waist * 0.8 }));
+  const big = schedule(generate({ ...base, waist: base.waist * 1.25 }));
+  ok(big.gia > small.gia, 'a wider plate books more floor area');
+  ok(big.homes >= small.homes, 'and at least as many homes');
 }
 
 console.log(`\nmanifold/shell: ${pass} passed, ${fail} failed`);

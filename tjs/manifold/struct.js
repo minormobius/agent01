@@ -364,24 +364,36 @@ export function model(b, ndof = 6) {
 
 // The textbook 12×12 Bernoulli beam in local coordinates, lower triangle filled
 // symmetric. Local x is the member axis.
+// Sections may be ANISOTROPIC. A rib is a circle and Iy = Iz, but a floor is a
+// plate, and the strip of slab a spoke stands for is weak out of plane
+// (w·t³/12) and enormously stiff in it (t·w³/12). That difference is not a
+// detail: in-plane slab stiffness is the diaphragm action that ties a building's
+// facade together, and modelling floors as round rods left every seed too soft.
+// Members carry `Iz` (bending along local y) and `Iy` (along local z), both
+// falling back to the isotropic `I`.
 export function beamLocal(m) {
   const L = Math.max(1e-6, m.L);
-  const E = MAT.Ec, A = m.A, I = m.I, J = 2 * m.I;     // circular: J = 2I
+  const E = MAT.Ec, A = m.A;
+  const Iz = m.Iz != null ? m.Iz : m.I;
+  const Iy = m.Iy != null ? m.Iy : m.I;
+  const J = m.J != null ? m.J : Iy + Iz;               // circular: J = 2I
   const k = new Float64Array(144);
   const S = (i, j, v) => { k[i * 12 + j] += v; if (i !== j) k[j * 12 + i] += v; };
   const a = (E * A) / L, t = (GC * J) / L;
-  const c = (12 * E * I) / (L * L * L), d = (6 * E * I) / (L * L);
-  const e4 = (4 * E * I) / L, e2 = (2 * E * I) / L;
+  const cz = (12 * E * Iz) / (L * L * L), dz = (6 * E * Iz) / (L * L);
+  const ez4 = (4 * E * Iz) / L, ez2 = (2 * E * Iz) / L;
+  const cy = (12 * E * Iy) / (L * L * L), dy = (6 * E * Iy) / (L * L);
+  const ey4 = (4 * E * Iy) / L, ey2 = (2 * E * Iy) / L;
   S(0, 0, a); S(6, 6, a); S(0, 6, -a);
   S(3, 3, t); S(9, 9, t); S(3, 9, -t);
   // bending in the local x–y plane (rotation about local z): dofs 1, 5, 7, 11
-  S(1, 1, c); S(7, 7, c); S(1, 7, -c);
-  S(1, 5, d); S(1, 11, d); S(7, 5, -d); S(7, 11, -d);
-  S(5, 5, e4); S(11, 11, e4); S(5, 11, e2);
+  S(1, 1, cz); S(7, 7, cz); S(1, 7, -cz);
+  S(1, 5, dz); S(1, 11, dz); S(7, 5, -dz); S(7, 11, -dz);
+  S(5, 5, ez4); S(11, 11, ez4); S(5, 11, ez2);
   // bending in the local x–z plane (rotation about local y): dofs 2, 4, 8, 10
-  S(2, 2, c); S(8, 8, c); S(2, 8, -c);
-  S(2, 4, -d); S(2, 10, -d); S(8, 4, d); S(8, 10, d);
-  S(4, 4, e4); S(10, 10, e4); S(4, 10, e2);
+  S(2, 2, cy); S(8, 8, cy); S(2, 8, -cy);
+  S(2, 4, -dy); S(2, 10, -dy); S(8, 4, dy); S(8, 10, dy);
+  S(4, 4, ey4); S(10, 10, ey4); S(4, 10, ey2);
   return k;
 }
 
@@ -527,11 +539,34 @@ export function loads(b, hazard = defaultHazard()) {
     for (const id of [ia, ib, ic]) { D[id * 3 + 2] -= w; nodeArea[id] += ar / 3; }
   }
 
+  // ── the floors ───────────────────────────────────────────────────────────
+  //
+  // These are most of the building's mass now, and they are not a uniform
+  // assumption: each plate is an annulus of known area at a known level, so its
+  // slab weight and its occupancy both follow from the geometry. Half the load
+  // goes to the core and half to the facade ring — a spoked plate spanning
+  // between them, which is what the spokes model.
+  const SLAB_T = 0.22;                                   // 220 mm flat slab
+  const FINISH = 1.5e3;                                  // screed, services, partitions
   const L = zero();
-  for (const d of b.decks) {
-    const per = (T.live * d.area) / d.ids.length;
-    const slab = (0.2 * MAT.rho * MAT.g * d.area) / d.ids.length;   // 200 mm deck
-    for (const id of d.ids) { L[id * 3 + 2] -= per; D[id * 3 + 2] -= slab; }
+  for (const f of b.floors) {
+    const dead = (SLAB_T * MAT.rho * MAT.g + FINISH) * f.area;
+    const live = T.live * f.area;
+    if (f.core != null) { D[f.core * 3 + 2] -= dead * 0.5; L[f.core * 3 + 2] -= live * 0.5; }
+    const share = f.ids.length || 1;
+    for (const id of f.ids) {
+      D[id * 3 + 2] -= (dead * 0.5) / share;
+      L[id * 3 + 2] -= (live * 0.5) / share;
+    }
+  }
+  // the ring deck — the street — spread over the ring's own nodes
+  if (b.ringDeck && b.ring.ids && b.ring.ids.length) {
+    const dead = (SLAB_T * MAT.rho * MAT.g + FINISH) * b.ringDeck.area;
+    const live = 5.0e3 * b.ringDeck.area;                // a public street, not a flat
+    for (const id of b.ring.ids) {
+      D[id * 3 + 2] -= dead / b.ring.ids.length;
+      L[id * 3 + 2] -= live / b.ring.ids.length;
+    }
   }
 
   // snow, on the horizontal projection of the upward-facing surface
@@ -696,9 +731,12 @@ function reactions(b, M, Fg, applied) {
 // reading and it keeps this check independent of the buckling eigenvalue, which
 // gets the restraint right and can then be compared against it.
 export function memberCapacity(m) {
-  const Pcr = (Math.PI ** 2 * MAT.Ec * m.I) / (m.L * m.L);
+  // buckling goes about the WEAK axis, so an anisotropic section is checked on
+  // the smaller of its two inertias
+  const Imin = Math.min(m.Iz != null ? m.Iz : m.I, m.Iy != null ? m.Iy : m.I);
+  const Pcr = (Math.PI ** 2 * MAT.Ec * Imin) / (m.L * m.L);
   const Psquash = 0.85 * MAT.fc * m.A;
-  return { Pcr, Psquash, comp: Math.min(Pcr, Psquash), slender: m.L / Math.sqrt(m.I / m.A), euler: Pcr < Psquash };
+  return { Pcr, Psquash, comp: Math.min(Pcr, Psquash), slender: m.L / Math.sqrt(Imin / m.A), euler: Pcr < Psquash };
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
