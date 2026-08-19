@@ -153,6 +153,27 @@ jobs:
             echo "parent=${PARENT:-}"; echo "parent_cid=${PARENT_CID:-}"
           } >> "$GITHUB_OUTPUT"
 
+      # WITHOUT THIS THE RUN DIES ON `spawnSync claude ENOENT`, which is what
+      # happened to the first real request — 48 seconds in, on the very first
+      # model call, before a single byte of the repository was read. The runner
+      # image has node and nothing else; lab-build.yml installs the CLI the same
+      # way and these two workflows simply never did.
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      # A MISSING CREDENTIAL SHOULD SAY SO HERE, not surface as a model call
+      # that returns nothing useful several minutes later. Same check, and the
+      # same two acceptable answers, as lab-build.yml.
+      - name: Check model credentials are present
+        env:
+          API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          if [ -z "${API_KEY:-}" ] && [ -z "${OAUTH:-}" ]; then
+            echo "::error::neither ANTHROPIC_API_KEY nor CLAUDE_CODE_OAUTH_TOKEN is set."
+            exit 1
+          fi
+
       - name: Draw them
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -131,6 +131,27 @@ jobs:
             echo "LAB_ASK_EOF"
           } >> "$GITHUB_OUTPUT"
 
+      # WITHOUT THIS THE RUN DIES ON `spawnSync claude ENOENT`, which is what
+      # happened to the first real request — 48 seconds in, on the very first
+      # model call, before a single byte of the repository was read. The runner
+      # image has node and nothing else; lab-build.yml installs the CLI the same
+      # way and these two workflows simply never did.
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      # A MISSING CREDENTIAL SHOULD SAY SO HERE, not surface as a model call
+      # that returns nothing useful several minutes later. Same check, and the
+      # same two acceptable answers, as lab-build.yml.
+      - name: Check model credentials are present
+        env:
+          API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          if [ -z "${API_KEY:-}" ] && [ -z "${OAUTH:-}" ]; then
+            echo "::error::neither ANTHROPIC_API_KEY nor CLAUDE_CODE_OAUTH_TOKEN is set."
+            exit 1
+          fi
+
       - name: Research it
         id: run
         env:
@@ -183,7 +204,13 @@ jobs:
           BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_BOT_APP_PASSWORD }}
         run: |
           set -uo pipefail
-          node scripts/lab-dm.mjs --to "$TO" --text "That one didn't work out — I couldn't finish reading them. Try me again, or try a different account?" || true
+          # SAY WHAT IS TRUE AND NOTHING MORE. The first version of this line
+          # said "I couldn't finish reading them", and the first real failure
+          # was `spawnSync claude ENOENT` — the run died before it read a single
+          # post, so the message invented a plausible cause and sent the
+          # operator looking at CAR sizes. A failure notice that guesses is
+          # worse than one that admits it does not know.
+          node scripts/lab-dm.mjs --to "$TO" --text "That one broke on my end before I got an answer — nothing to do with the account you asked about. Worth trying again." || true
 
       # THE WORKING FILES ARE THE ANSWER TO "why did it say that", AND THEY ARE
       # ALSO A DOSSIER ON A PERSON. Not committed, ever: a per-account research
