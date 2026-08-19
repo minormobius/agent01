@@ -12,6 +12,7 @@
 import {
   generate, parts, bounds, section, schedule, resolveParams, paramsToQuery,
   deriveParams, TYPOLOGY_IDS, TYPOLOGIES, MODULES, rect as R, Rand,
+  FLOOR_IDS, LATERAL_IDS, FLOOR_SYSTEMS, floorSystem,
 } from './arch.js';
 import { planSVG, elevationSVG, sectionSVG, titleBlockSVG, scheduleSVG, sheetSVG, revision, PALETTES } from './blueprint.js';
 
@@ -383,6 +384,40 @@ const EPS = 0.02;
     }
   }
   ok(missing === 0, `every transept arm and chapel is walled and roofed (${missing} unbuilt)`);
+}
+
+/* 17. THE STRUCTURAL SYSTEMS ARE DRAWN, not just declared. Same rule as the
+       facade: a system that changes the solve has to put members in the model,
+       or the drawings and the analysis are describing different buildings. */
+{
+  const base = resolveParams({ s: 'systems', t: 'office', n: '20', bx: '5', bz: '4', bay: '8' });
+  const kindsFor = (over) => {
+    const set = new Set();
+    for (const q of parts(generate({ ...base, ...over }))) set.add(q.kind);
+    return set;
+  };
+  ok(kindsFor({ lateral: 'outrigger' }).has('outrigger'), 'an outrigger building has outrigger trusses in it');
+  ok(kindsFor({ lateral: 'diagrid' }).has('diagrid'), 'a diagrid building has diagonals in it');
+  ok(kindsFor({ lateral: 'framed-tube' }).has('spandrel-band'), 'a framed tube has its spandrel bands');
+  ok(kindsFor({ tmd: true }).has('tmd-mass'), 'a damped building has a damper mass');
+  ok(!kindsFor({ lateral: 'core-frame', tmd: false }).has('diagrid'), 'and a plain core-and-frame has none of them');
+
+  // beams appear exactly when the floor system has them
+  for (const id of FLOOR_IDS) {
+    const has = kindsFor({ floor: id }).has('beam');
+    const wants = (typeof FLOOR_SYSTEMS[id].beamD === 'function' ? FLOOR_SYSTEMS[id].beamD(8) : FLOOR_SYSTEMS[id].beamD) > 0.05;
+    ok(has === wants, `${id}: downstand beams are drawn iff the system has them`);
+  }
+
+  // the diagonals are rotated into the plane of the facade, not left axis-aligned
+  const dia = parts(generate({ ...base, lateral: 'diagrid' })).filter((q) => q.kind === 'diagrid');
+  ok(dia.every((q) => Math.abs(q.rx || 0) > 1e-6 || Math.abs(q.rz || 0) > 1e-6), 'every diagonal is actually inclined');
+  ok(dia.some((q) => (q.rz || 0) > 0) && dia.some((q) => (q.rz || 0) < 0), 'diagonals cross both ways');
+
+  // the floor system reaches the geometry: a deeper floor makes a thicker slab
+  const thin = parts(generate({ ...base, floor: 'pt-flat' })).find((q) => q.kind === 'slab');
+  const thick = parts(generate({ ...base, floor: 'flat-slab' })).find((q) => q.kind === 'slab');
+  ok(thin.h < thick.h, `a PT plate is drawn thinner than a flat slab (${thin.h} < ${thick.h} m)`);
 }
 
 console.log(`\nbrut/arch: ${pass} passed, ${fail} failed`);

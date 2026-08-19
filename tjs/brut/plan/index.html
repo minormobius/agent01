@@ -50,7 +50,23 @@
   body.print-theme .card{background:#fff;border-color:#c8ccd2}
   body.print-theme .card .tag{color:#4a525c}
   body.print-theme h2.dw{color:#4a525c;border-color:#c8ccd2}
-  @media (max-width:900px){ #panel{position:static;width:auto;margin:44px 14px 0;max-height:none} main{margin:0;padding:16px} }
+  @media (max-width:900px) and (min-width:761px){ #panel{position:static;width:auto;margin:44px 14px 0;max-height:none} main{margin:0;padding:16px} }
+  /* phone: the panel and the hazard strip move into the bottom sheet, and the
+     drawings get the whole screen in one column */
+  @media (max-width:760px){
+    .crumb{font-size:11px;top:10px;left:12px}
+    main{margin:0;padding:38px 12px 96px;max-width:none}
+    #panel{position:static;width:auto;max-height:none;border:0;background:none;
+      box-shadow:none;padding:0;backdrop-filter:none;border-radius:0}
+    .grid,.grid.two{grid-template-columns:1fr}
+    .sheetbar button{padding:9px 12px;font-size:13px}
+    .hazbar{flex-direction:column;align-items:stretch;gap:8px}
+    .hazbar label{justify-content:space-between}
+    .hazbar select{flex:1 1 auto;padding:8px;font-size:13px}
+    .panel select,.panel input[type=text]{padding:8px;font-size:13px}
+    .panel input[type=range]{height:18px;background:transparent}
+    .panel input[type=range]::-webkit-slider-thumb{width:20px;height:20px}
+  }
   @media print{
     body{background:#fff;color:#000}
     .crumb,#panel,.sheetbar,#err,.hazbar{display:none!important}
@@ -77,6 +93,7 @@
     <span class="sp"></span>
     <button id="svgBtn">download SVG set</button>
   </div>
+  <div id="hazwrap"><div class="hazbar" id="hazbar"></div></div>
   <div id="sheet"></div>
   <footer>
     Every drawing on this page is a projection of the generator in
@@ -95,12 +112,12 @@ import { generate } from '../arch.js';
 import { planSVG, elevationSVG, sectionSVG, titleBlockSVG, scheduleSVG, sheetSVG, PALETTES, revision } from '../blueprint.js';
 import { verify, SEISMIC_SCENARIOS, WIND_SCENARIOS, SITE_CLASSES, EXPOSURES } from '../struct.js';
 import { verificationSVG, storeySVG, modesSVG, spectrumSVG, framingSVG } from '../structdraw.js';
-import { buildPanel, readURL, PANEL_CSS } from '../ui.js';
+import { buildPanel, readURL, PANEL_CSS, mountSheet, SHEET_CSS } from '../ui.js';
 
 const errEl = document.getElementById('err');
 const fail = (e) => { errEl.style.display = 'block'; errEl.textContent = String(e && e.stack || e); console.error(e); };
 window.addEventListener('error', (e) => fail(e.error || e.message));
-document.head.appendChild(Object.assign(document.createElement('style'), { textContent: PANEL_CSS }));
+document.head.appendChild(Object.assign(document.createElement('style'), { textContent: PANEL_CSS + SHEET_CSS }));
 
 const sheet = document.getElementById('sheet');
 let theme = 'blueprint';
@@ -138,13 +155,15 @@ function draw(p) {
   html.push(`</div>`);
 
   html.push(`<h2 class="dw">Section</h2><div class="grid">`);
-  html.push(card(sectionSVG(building, { ...opt, width: 980, height: 520, id: 'se' }), 'section A–A', true));
+  html.push(card(sectionSVG(building, {
+    ...opt, width: 980, height: 520, id: 'se',
+    foundation: verify(building, hazard).foundation, bay: building.params.bay,
+  }), 'section A–A', true));
   html.push(`</div>`);
 
   // ── the engineer's set ────────────────────────────────────────────────────
   report = verify(building, hazard);
   html.push(`<h2 class="dw">Structural verification — ASCE 7-16 / ACI 318-19</h2>`);
-  html.push(`<div class="hazbar" id="hazbar"></div>`);
   html.push(`<div class="grid">`);
   html.push(card(verificationSVG(report, { palette: P, width: 980 }), '', true));
   html.push(`</div><div class="grid">`);
@@ -159,6 +178,7 @@ function draw(p) {
 
   sheet.innerHTML = html.join('\n');
   paintHazardBar();
+  if (typeof paintSummary === 'function') paintSummary();
   panel.setStats([
     ['storeys', building.stats.levels],
     ['height', building.stats.height.toFixed(0) + ' m'],
@@ -222,6 +242,7 @@ document.getElementById('svgBtn').addEventListener('click', () => {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 });
 
+let sheetApi = null;
 let params = readURL();
 const panel = buildPanel(document.getElementById('controls'), params, (p) => {
   params = p;
@@ -229,6 +250,20 @@ const panel = buildPanel(document.getElementById('controls'), params, (p) => {
 }, { siblingPath: '../', siblingLabel: '↤ open the 3D model of this seed' });
 
 try { draw(params); } catch (e) { fail(e); }
+
+/* The same bottom sheet the model wears, with the panes this site has. */
+sheetApi = mountSheet([
+  { id: 'design', label: 'Design', el: document.getElementById('panel') },
+  { id: 'hazard', label: 'Hazard', el: document.getElementById('hazwrap') },
+]);
+function paintSummary() {
+  if (!building || !sheetApi) return;
+  const v = report;
+  const vc = !v ? 'var(--soft)' : v.verdict === 'pass' ? '#3fbf7f' : v.verdict === 'marginal' ? '#e8c341' : '#e2564a';
+  sheetApi.setSummary(`<b>${building.seed}</b> · ${building.typologyLabel} · ${building.levels.length} storeys`
+    + (v ? ` · <b style="color:${vc}">${v.verdict}</b>` : ''));
+}
+paintSummary();
 </script>
 </body>
 </html>

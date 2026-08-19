@@ -58,6 +58,9 @@ export function verificationSVG(v, opts = {}) {
   const hz = `${v.site.label}, site class ${v.site.siteClass} · SDS ${v.site.SDS.toFixed(2)}g · wind ${v.windV} m/s, exposure ${v.opts.exposure}`;
   out.push(label(16, 44, hz, P, 8.5));
   out.push(label(16, 58, `T₁ = ${v.summary.T1x.toFixed(2)} s (x) / ${v.summary.T1z.toFixed(2)} s (z) · ${v.summary.massTonnes.toLocaleString('en-GB')} t seismic mass · governing: ${v.governing.name}`, P, 8.5));
+  // the three decisions that made those numbers what they are
+  out.push(label(W - 16, 44, `${v.floor.label} · ${(v.floor.weight / 1e3).toFixed(1)} kPa`, P, 8.5, 'end'));
+  out.push(label(W - 16, 58, `${(v.lateralLabel || v.lateral)}${v.tmd ? ' + tuned mass damper' : ''} · ${v.foundation.type} on ${v.foundation.soil.label}`, P, 8.5, 'end'));
   out.push(`<line x1="10" y1="70" x2="${W - 10}" y2="70" stroke="${P.line}" stroke-width=".9"/>`);
 
   const cols = [16, W * 0.36, W * 0.50, W * 0.62, W * 0.70];
@@ -85,7 +88,7 @@ export function verificationSVG(v, opts = {}) {
   });
 
   out.push(label(16, H - 26, 'ASCE 7-16 (seismic ch. 11–12, wind ch. 26–27) · ACI 318-19 · sections CHECKED, not sized.', P, 7.5));
-  out.push(label(16, H - 14, 'Not covered: foundations, torsion, P-Δ, beam and slab design, diaphragm and connection design.', P, 7.5));
+  out.push(label(16, H - 14, 'Not covered: torsion, P-Δ, beam and slab design, diaphragm and connection design.', P, 7.5));
   return frame(W, H, P, 'ver', out.join('\n'));
 }
 

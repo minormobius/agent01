@@ -160,6 +160,128 @@ export const MODULES = {
 };
 export const MODULE_IDS = Object.keys(MODULES);
 
+/* ─────────────────────────── the floor systems ──────────────────────────── */
+//
+// A floor is not a thickness — it is a SYSTEM, and which one you pick is the
+// single biggest decision in the building. It sets the self-weight (which is
+// most of the seismic mass), the structural depth (which sets the storey height
+// you need for a given clear height), how far you can span (which sets the
+// column grid), and whether there are downstand beams (which sets how much the
+// frame can rack).
+//
+// Modelling every floor as 420 mm of solid concrete made every building here
+// roughly twice as heavy as it should be, and that mass went straight into the
+// earthquake. A post-tensioned plate or a composite deck is not a detail — it
+// halves the base shear.
+//
+// `depth(bay)` is the structural depth in metres; `weight(bay)` the self-weight
+// in Pa (N·m⁻², already including g, because RHO_C is a WEIGHT density). Both
+// are functions of the bay because that is how a floor is really sized:
+// span/28, span/42, and so on.
+
+const RHO_C = 24e3;              // N·m⁻³ — reinforced concrete, weight not mass
+
+export const FLOOR_SYSTEMS = {
+  'flat-slab': {
+    label: 'RC flat slab', short: 'flat slab', maxSpan: 9.0, services: 0.25,
+    depth: (bay) => Math.max(0.18, bay / 28),
+    weight: (bay) => Math.max(0.18, bay / 28) * RHO_C,
+    beamD: 0,
+    note: 'two-way in-situ slab with drop panels; no downstands, so a flat soffit and a soft frame',
+  },
+  'pt-flat': {
+    label: 'post-tensioned flat plate', short: 'PT plate', maxSpan: 12.5, services: 0.25,
+    depth: (bay) => Math.max(0.16, bay / 42),
+    weight: (bay) => Math.max(0.16, bay / 42) * RHO_C,
+    beamD: 0,
+    note: 'prestressed: thinner, longer-spanning and much lighter than the same slab in reinforced concrete',
+  },
+  'one-way': {
+    label: 'one-way slab on beams', short: 'slab + beams', maxSpan: 14.0, services: 0.15,
+    depth: (bay) => 0.15 + Math.min(0.9, Math.max(0.45, bay / 12)),
+    weight: (bay) => 0.15 * RHO_C + (0.4 * Math.min(0.9, Math.max(0.45, bay / 12)) * RHO_C) / 3.5,
+    beamD: (bay) => Math.min(0.9, Math.max(0.45, bay / 12)),
+    note: 'a thin slab spanning 3.5 m to downstand beams, the beams spanning the bay — deep, but the beams stiffen the frame',
+  },
+  ribbed: {
+    label: 'ribbed / waffle slab', short: 'waffle', maxSpan: 14.0, services: 0.2,
+    depth: (bay) => Math.max(0.25, bay / 22),
+    weight: (bay) => 0.55 * Math.max(0.25, bay / 22) * RHO_C,
+    beamD: 0,
+    note: 'voided between the ribs: the depth of a deep slab at a little over half the weight',
+  },
+  'hollow-core': {
+    label: 'precast hollow-core', short: 'hollow-core', maxSpan: 12.0, services: 0.2,
+    depth: (bay) => Math.max(0.2, bay / 34) + 0.6,
+    weight: (bay) => 0.68 * Math.max(0.2, bay / 34) * RHO_C + (0.4 * 0.6 * RHO_C) / bay,
+    beamD: () => 0.6,
+    note: 'precast planks dropped on beams; the voids take about a third of the weight out',
+  },
+  'double-tee': {
+    label: 'precast double-tee', short: 'double-tee', maxSpan: 18.0, services: 0.1,
+    depth: (bay) => Math.max(0.4, bay / 24) + 0.8,
+    weight: (bay) => 0.45 * Math.max(0.4, bay / 24) * RHO_C + (0.4 * 0.8 * RHO_C) / bay,
+    beamD: () => 0.8,
+    note: 'long-span precast units on spandrel beams — what a car park deck is actually made of',
+  },
+  composite: {
+    label: 'composite metal deck', short: 'composite deck', maxSpan: 15.0, services: 0.35,
+    depth: () => 0.13 + 0.55,
+    weight: (bay) => 0.85 * 0.13 * RHO_C + 0.15e3 + 0.5e3,
+    beamD: () => 0.55, steel: true,
+    note: 'thin concrete on profiled steel deck spanning ~3 m to steel secondary beams, the beams spanning the bay — by far the lightest floor here, and the reason tall buildings are framed in steel',
+  },
+};
+export const FLOOR_IDS = Object.keys(FLOOR_SYSTEMS);
+
+// Depth, weight and clear height for a given set of params — the three numbers
+// everything downstream wants, in one place so they cannot drift apart.
+export function floorSystem(p) {
+  const F = FLOOR_SYSTEMS[p.floor] || FLOOR_SYSTEMS['flat-slab'];
+  const depth = round2(F.depth(p.bay));
+  const beamD = typeof F.beamD === 'function' ? round2(F.beamD(p.bay)) : F.beamD || 0;
+  // the slab itself, as opposed to the whole structural zone including downstands
+  const slab = round2(beamD ? Math.max(0.12, depth - beamD) : depth);
+  return {
+    id: p.floor, ...F, depth, slab, beamD,
+    weight: round2(F.weight(p.bay)),
+    zone: round2(depth + F.services),
+    clear: round2(p.floorH - depth - F.services),
+    spanUtil: p.bay / F.maxSpan,
+  };
+}
+
+/* ───────────────────────── the lateral systems ──────────────────────────── */
+//
+// How a tall building resists sideways load is a design choice with a name, and
+// the names are the history of the skyscraper. Each one changes the finite
+// element model in struct.js AND puts visible members into the building here —
+// an outrigger is a two-storey truss you can see, a diagrid IS the elevation.
+
+export const LATERAL_SYSTEMS = {
+  frame: {
+    label: 'moment frame', maxH: 40,
+    note: 'columns and beams alone: it racks, it is soft, and above about ten storeys it stops being sensible',
+  },
+  'core-frame': {
+    label: 'core + frame', maxH: 160,
+    note: 'a concrete core takes the shear, the frame takes the gravity — the ordinary answer, and the default here',
+  },
+  outrigger: {
+    label: 'core + outriggers', maxH: 400,
+    note: 'stiff two-storey trusses tie the core to the perimeter columns, so the columns fight the overturning as a couple; the single most effective move in a tall concrete building',
+  },
+  'framed-tube': {
+    label: 'framed tube', maxH: 350,
+    note: 'columns crowded onto the perimeter with deep spandrels, so the whole envelope works as one hollow cantilever',
+  },
+  diagrid: {
+    label: 'diagrid', maxH: 500,
+    note: 'perimeter diagonals carry shear AXIALLY instead of in bending, which is why a diagrid needs no columns and is stiffer than anything else per kilo of steel',
+  },
+};
+export const LATERAL_IDS = Object.keys(LATERAL_SYSTEMS);
+
 /* ───────────────────────────────  typologies  ───────────────────────────── */
 //
 // Each typology is a *bias*, not a template: it names the ranges the seed draws
@@ -177,6 +299,8 @@ export const TYPOLOGIES = {
     shapes: ['basilica'],
     alphabet: [['buttress', 3], ['lancet', 3], ['blank', 2], ['recess', 1.4], ['pier', 1.2]],
     programs: [],
+    floors: ['one-way'], laterals: ['frame'],
+    clearTarget: 2.4,
     pilotisP: 0, plantP: 0, towerP: 1,
   },
   civic: {
@@ -190,6 +314,8 @@ export const TYPOLOGIES = {
     alphabet: [['pier', 3.2], ['slit', 2.6], ['recess', 1.8], ['brise', 1.4], ['blank', 1.6], ['band', 1.0]],
     programs: [['council chamber', 0.6], ['committee', 1.4], ['reading room', 1.6], ['stacks', 1.4],
                ['registry', 1.0], ['office', 2.4], ['exhibition', 0.8], ['store', 1.0], ['WC', 0.9]],
+    floors: ['flat-slab', 'ribbed', 'one-way'], laterals: ['core-frame', 'outrigger'],
+    clearTarget: 2.7,
     pilotisP: 0.7, plantP: 0.8, towerP: 0.5,
   },
   office: {
@@ -203,6 +329,8 @@ export const TYPOLOGIES = {
     alphabet: [['band', 3.4], ['pier', 2.6], ['brise', 2.0], ['slit', 1.6], ['blank', 1.2], ['recess', 1.0]],
     programs: [['open office', 3.0], ['office', 2.6], ['meeting', 1.8], ['breakout', 1.0],
                ['print', 0.7], ['server', 0.5], ['store', 1.0], ['WC', 0.9]],
+    floors: ['pt-flat', 'composite', 'flat-slab'], laterals: ['core-frame', 'outrigger', 'framed-tube', 'diagrid'],
+    clearTarget: 2.6,
     pilotisP: 0.5, plantP: 0.9, towerP: 0.7,
   },
   housing: {
@@ -216,6 +344,8 @@ export const TYPOLOGIES = {
     alphabet: [['balcony', 3.6], ['pier', 2.2], ['slit', 1.8], ['blank', 1.6], ['recess', 1.2], ['band', 1.0]],
     programs: [['2-bed flat', 3.0], ['1-bed flat', 2.2], ['3-bed flat', 1.4], ['studio', 1.0],
                ['store', 0.9], ['refuse', 0.5], ['drying room', 0.5]],
+    floors: ['flat-slab', 'pt-flat', 'hollow-core'], laterals: ['core-frame', 'frame'],
+    clearTarget: 2.4,
     pilotisP: 0.75, plantP: 0.3, towerP: 0.9,
   },
   lab: {
@@ -229,6 +359,8 @@ export const TYPOLOGIES = {
     alphabet: [['vent', 2.4], ['band', 2.6], ['pier', 2.4], ['blank', 2.2], ['brise', 1.4], ['recess', 1.0]],
     programs: [['wet lab', 2.6], ['dry lab', 1.8], ['write-up', 1.8], ['tissue culture', 0.8],
                ['cold room', 0.6], ['plant', 1.0], ['store', 1.0], ['WC', 0.8]],
+    floors: ['one-way', 'flat-slab', 'composite'], laterals: ['core-frame', 'outrigger'],
+    clearTarget: 2.7,
     pilotisP: 0.25, plantP: 1.0, towerP: 1.0,
   },
   carpark: {
@@ -241,6 +373,8 @@ export const TYPOLOGIES = {
     shapes: ['bar'],
     alphabet: [['open', 4.0], ['pier', 2.6], ['blank', 1.4], ['recess', 1.0]],
     programs: [],
+    floors: ['double-tee', 'pt-flat'], laterals: ['frame', 'core-frame'],
+    clearTarget: 2.1,
     pilotisP: 0.2, plantP: 0.2, towerP: 0.9,
   },
 };
@@ -252,7 +386,7 @@ export const TYPOLOGY_IDS = Object.keys(TYPOLOGIES);
 // carries the seed plus ONLY the fields a human has since overridden, so the
 // canonical link stays short and every knob is still addressable.
 
-const P_KEYS = ['t', 'n', 'bay', 'bx', 'bz', 'h', 'm', 'sh', 'cw', 'sym', 'pil', 'pl', 'tw', 'rh'];
+const P_KEYS = ['t', 'n', 'bay', 'bx', 'bz', 'h', 'm', 'sh', 'cw', 'sym', 'pil', 'pl', 'tw', 'rh', 'fl', 'lat', 'tmd'];
 
 export function deriveParams(seed, typology) {
   const s = String(seed);
@@ -277,8 +411,22 @@ export function deriveParams(seed, typology) {
     pilotis: r.chance(T.pilotisP),
     plant: r.chance(T.plantP),
     towers: r.chance(T.towerP) ? (r.chance(0.25) ? 2 : 1) : 0,
+    // The floor system and the lateral system are design decisions with names,
+    // and both are seeded: they belong to the building, not to the site.
+    floor: r.pick(T.floors || ['flat-slab']),
+    lateral: r.pick(T.laterals || ['core-frame']),
+    tmd: false,
     rhythm: null, // filled below
   };
+  // THE STOREY HEIGHT FOLLOWS THE FLOOR, not the other way round. You choose a
+  // floor system, it has a depth, services go under it, and the storey height is
+  // whatever gives you the clear height you need. A 1.2 m double-tee simply does
+  // not fit in a 2.9 m storey — which is what the model was asserting before the
+  // clear-height check caught it.
+  const fs0 = floorSystem({ ...p, floorH: 99 });
+  p.floorH = round2(Math.max(p.floorH, (T.clearTarget || 2.5) + fs0.depth + fs0.services));
+  // a tuned mass damper is only a real proposition on something tall and slender
+  p.tmd = (p.levels * p.floorH > 90) && r.chance(0.35);
   // The facade rhythm: a repeating cell of 2..5 letters drawn from the typology's
   // alphabet. This is the single most legible thing about a brutalist elevation,
   // so it gets its own sub-stream and its own permalink field.
@@ -321,6 +469,9 @@ export function resolveParams(query) {
   if (q.pil != null && q.pil !== '') p.pilotis = q.pil === '1' || q.pil === 'true';
   if (q.pl != null && q.pl !== '') p.plant = q.pl === '1' || q.pl === 'true';
   set('towers', int('tw', 0, 2));
+  if (q.fl && FLOOR_SYSTEMS[q.fl]) p.floor = q.fl;
+  if (q.lat && LATERAL_SYSTEMS[q.lat]) p.lateral = q.lat;
+  if (q.tmd != null && q.tmd !== '') p.tmd = q.tmd === '1' || q.tmd === 'true';
   if (q.rh) {
     const cell = String(q.rh).split(',').map((c) => c.trim()).filter((c) => MODULES[c]);
     if (cell.length) p.rhythm = cell.slice(0, 8);
@@ -346,6 +497,9 @@ export function paramsToQuery(p) {
   add('m', p.massing, base.massing);
   add('sh', p.shape, base.shape);
   add('tw', p.towers, base.towers);
+  add('fl', p.floor, base.floor);
+  add('lat', p.lateral, base.lateral);
+  if (p.tmd !== base.tmd) out.push('tmd=' + (p.tmd ? 1 : 0));
   if (p.symmetric !== base.symmetric) out.push('sym=' + (p.symmetric ? 1 : 0));
   if (p.pilotis !== base.pilotis) out.push('pil=' + (p.pilotis ? 1 : 0));
   if (p.plant !== base.plant) out.push('pl=' + (p.plant ? 1 : 0));
@@ -1045,7 +1199,12 @@ export function parts(b) {
   const out = [];
   const p = b.params;
   const push = (o) => { out.push(o); return o; };
-  const SLAB = 0.42;
+  // The slab is as thick as the floor system says it is — not a constant. A
+  // post-tensioned plate really is 190 mm where a flat slab is 290 and a
+  // double-tee is 400 over an 800 mm spandrel, and that difference is most of
+  // the seismic mass.
+  const FS = floorSystem(p);
+  const SLAB = FS.slab;
 
   // ground plane / plinth
   const plinth = b.typology === 'carpark' ? 0.15 : 0.6;
@@ -1056,6 +1215,19 @@ export function parts(b) {
     for (const wg of L.wings) {
       push({ mat: 'concrete', kind: 'slab', x: wg.x, y: round2(L.y + SLAB / 2), z: wg.z,
              w: round2(wg.w + 0.3), h: SLAB, d: round2(wg.d + 0.3), level: L.index });
+    }
+    // downstand beams, where the floor system has them. They are what a
+    // section and an x-ray actually show, and they are why a beamed frame racks
+    // less than a flat-slab one.
+    if (FS.beamD > 0.05) {
+      for (const wg of L.wings) {
+        const nx = Math.max(1, Math.round(wg.w / p.bay));
+        for (let i = 0; i <= nx; i++) {
+          const x = round2(R.x0(wg) + (i * wg.w) / nx);
+          push({ mat: 'concrete', kind: 'beam', x, y: round2(L.y + SLAB + FS.beamD / 2), z: wg.z,
+                 w: 0.4, h: FS.beamD, d: round2(wg.d), level: L.index });
+        }
+      }
     }
     // columns
     for (const c of L.columns) {
@@ -1212,6 +1384,98 @@ export function parts(b) {
         default:
           push({ mat: 'concrete', kind: 'wall', x: cx, y: yMid, z: cz, w: bw, h: round2(f.h), d: bd, level: f.level, side: f.side, module: bay.module });
       }
+    }
+  }
+
+  // ── THE LATERAL SYSTEM, as visible structure ─────────────────────────────
+  // Each of these is a real member in the model AND a real term in struct.js's
+  // stiffness. Drawing one without modelling it, or modelling one without
+  // drawing it, is the same divergence the facade rule already forbids.
+  const topL = b.levels[b.levels.length - 1];
+  const H = topL.y + topL.h;
+  if (p.lateral === 'outrigger' && b.cores.length && b.levels.length > 5) {
+    // Two-storey trusses tying the core out to the perimeter. Placed near
+    // mid-height and just under the roof, which is where they do most good.
+    for (const frac of [0.55, 0.92]) {
+      const li = Math.min(b.levels.length - 1, Math.max(1, Math.round(frac * b.levels.length) - 1));
+      const L = b.levels[li];
+      const depth = Math.min(L.h * 1.8, 6.5);
+      for (const c of L.cores) {
+        for (const wg of L.wings) {
+          if (!R.overlaps(wg, c)) continue;
+          push({ mat: 'core', kind: 'outrigger', x: wg.x, y: round2(L.y + depth / 2), z: c.z,
+                 w: round2(wg.w), h: round2(depth), d: 0.6, level: li });
+          push({ mat: 'core', kind: 'outrigger', x: c.x, y: round2(L.y + depth / 2), z: wg.z,
+                 w: 0.6, h: round2(depth), d: round2(wg.d), level: li });
+        }
+      }
+    }
+  }
+  if (p.lateral === 'framed-tube') {
+    // The tube is made by crowding the perimeter and tying it with deep
+    // spandrels — so the spandrel band at every floor is the system.
+    for (const L of b.levels) {
+      for (const wg of L.wings) {
+        const band = Math.min(1.2, L.h * 0.32);
+        for (const [dx, dz, w2, d2] of [
+          [0, -wg.d / 2, wg.w + 0.5, 0.45], [0, wg.d / 2, wg.w + 0.5, 0.45],
+          [-wg.w / 2, 0, 0.45, wg.d + 0.5], [wg.w / 2, 0, 0.45, wg.d + 0.5],
+        ]) {
+          push({ mat: 'concrete', kind: 'spandrel-band', x: round2(wg.x + dx),
+                 y: round2(L.y + SLAB + band / 2), z: round2(wg.z + dz),
+                 w: round2(w2), h: round2(band), d: round2(d2), level: L.index });
+        }
+      }
+    }
+  }
+  if (p.lateral === 'diagrid' && b.levels.length > 3) {
+    // A diagrid IS the elevation: diagonals over a two-storey module, carrying
+    // the shear axially instead of in bending. Members are boxes rotated into
+    // the plane of the facade, so the renderer needs rx/rz as well as ry.
+    const mod = 2;
+    for (let i = 0; i + mod <= b.levels.length; i += mod) {
+      const L0 = b.levels[i], L1 = b.levels[i + mod - 1];
+      const y0 = L0.y, y1 = L1.y + L1.h, dy = y1 - y0;
+      for (const wg of L0.wings) {
+        for (const [along, half, fixed] of [
+          ['x', wg.w / 2, R.z0(wg)], ['x', wg.w / 2, R.z1(wg)],
+          ['z', wg.d / 2, R.x0(wg)], ['z', wg.d / 2, R.x1(wg)],
+        ]) {
+          const span = along === 'x' ? wg.w : wg.d;
+          const cells = Math.max(1, Math.round(span / (p.bay * 2)));
+          const cw = span / cells;
+          const len = Math.hypot(cw, dy);
+          const ang = Math.atan2(dy, cw);
+          for (let c = 0; c < cells; c++) {
+            const t0 = -half + c * cw + cw / 2;
+            for (const sgn of [1, -1]) {
+              const cx = along === 'x' ? round2(wg.x + t0) : round2(fixed);
+              const cz = along === 'x' ? round2(fixed) : round2(wg.z + t0);
+              push({
+                mat: 'metal', kind: 'diagrid', x: cx, y: round2(y0 + dy / 2), z: cz,
+                w: along === 'x' ? round2(len) : 0.45, h: 0.45,
+                d: along === 'x' ? 0.45 : round2(len),
+                rz: along === 'x' ? round2(sgn * ang) : 0,
+                rx: along === 'z' ? round2(-sgn * ang) : 0,
+                level: i,
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+  if (p.tmd) {
+    // A tuned mass damper: a few hundred tonnes hung near the top, tuned to the
+    // building's own first mode so it swings against it.
+    const wg = topL.wings[0];
+    const side = Math.min(wg.w, wg.d) * 0.3;
+    push({ mat: 'core', kind: 'tmd-mass', x: wg.x, y: round2(H - topL.h * 0.55), z: wg.z,
+           w: round2(side), h: round2(side * 0.75), d: round2(side), level: topL.index });
+    for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      push({ mat: 'metal', kind: 'tmd-stay', x: round2(wg.x + dx * side * 0.5),
+             y: round2(H - topL.h * 0.2), z: round2(wg.z + dz * side * 0.5),
+             w: 0.2, h: round2(topL.h * 0.7), d: 0.2, level: topL.index });
     }
   }
 

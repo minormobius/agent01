@@ -41,7 +41,7 @@
 // beam or slab design, and the concrete sections are checked rather than sized.
 // Those are stated in the report rather than quietly omitted.
 
-import { rect as R, Rand } from './arch.js';
+import { rect as R, Rand, floorSystem, FLOOR_SYSTEMS, LATERAL_SYSTEMS, TYPOLOGIES } from './arch.js';
 
 export const VERSION = 'brut-struct/1';
 export const G = 9.80665;                          // m·s⁻²
@@ -65,6 +65,12 @@ MAT.Gc = MAT.Ec / (2 * (1 + MAT.nu));
 // partition allowance of 0.72 kPa where partitions can be relocated; this is
 // that plus screed and services.
 export const SDL = 1.5e3;                          // Pa
+
+// A tuned mass damper: a few hundred tonnes on springs near the top, tuned to
+// the first mode so it swings against it. Den Hartog's optimum for a mass ratio
+// μ gives an effective added damping of roughly 3–4% at μ = 1%, which is what
+// the big ones actually deliver.
+export const TMD = { massRatio: 0.01, addedDamping: 0.035 };
 export const CLADDING = { concrete: 6.0e3, glass: 0.6e3 };   // Pa of elevation
 
 /* Live load by ROOM PROGRAMME. This is the coupling that makes the solve mean
@@ -229,21 +235,27 @@ const areaOf = (rs) => rs.reduce((s, r) => s + R.area(r), 0);
 // does not care which way the wind blows.
 export function loads(b) {
   const p = b.params;
-  const SLABT = 0.42;
+  const FS = floorSystem(p);
   const out = [];
   for (let i = 0; i < b.levels.length; i++) {
     const L = b.levels[i];
     const area = areaOf(L.wings);
-    // dead: slab + superimposed + the columns and cores standing on this floor
-    const slab = SLABT * MAT.rho * G;                                   // Pa
-    let dead = (slab + SDL) * area;
+    // Dead: the FLOOR SYSTEM's own weight — not a nominal slab. This is the
+    // single biggest number in the whole solve, because it is most of the
+    // seismic mass, and it is why a post-tensioned plate and a 420 mm lump of
+    // concrete are not interchangeable.
+    let dead = (FS.weight + SDL) * area;
     for (const c of L.columns) dead += 0.62 * 0.62 * L.h * MAT.rho * G;
     for (const c of L.cores) dead += corePerimeter(c) * 0.30 * L.h * MAT.rho * G;
     // cladding: the facade the generator actually drew, module by module
     let clad = 0;
     for (const f of b.facades.filter((q) => q.level === i)) {
       for (const bay of f.bays) {
-        const gl = bay.module === 'open' ? 0 : glassRatio(bay.module);
+        // 'open' is AIR — a pilotis undercroft or an open car-park deck. It is
+        // neither glass nor concrete, and counting it as concrete was putting a
+        // 6 kPa cladding panel where the building has a hole.
+        if (bay.module === 'open') continue;
+        const gl = glassRatio(bay.module);
         clad += bay.w * f.h * (gl * CLADDING.glass + (1 - gl) * CLADDING.concrete);
       }
     }
@@ -283,8 +295,10 @@ const r2 = (v) => Math.round(v * 100) / 100;
 /* Lateral model in one direction. 'x' means the building sways along +x, so it
    bends about the z axis and the plan dimension B (the width presented to the
    wind) is the x extent. */
-export function lateralModel(b, dir = 'x') {
+export function lateralModel(b, dir = 'x', siteClass = 'D') {
   const p = b.params;
+  const FS = floorSystem(p);
+  const bxPlan = plan(b);
   const W = loads(b);
   const n = b.levels.length;
   const h = [], m = [], EI = [], GA = [], y = [], webArea = [];
@@ -307,8 +321,13 @@ export function lateralModel(b, dir = 'x') {
     // most of the elevation, and is the whole lateral system of a building with
     // no core at all (the cathedral). Web walls bend in their own plane; the
     // walls on the returns act as flanges, at reduced efficiency for shear lag.
+    // Whether the cores are STRUCTURE is the lateral system's decision. A
+    // moment-frame building still has stair and lift shafts — they are just
+    // enclosures, not part of the seismic force-resisting system, and counting
+    // them made 'frame' and 'core + frame' come out identical.
+    const coresActive = p.lateral !== 'frame';
     let EIcore = 0;
-    for (const c of L.cores) {
+    for (const c of (coresActive ? L.cores : [])) {
       const bw = c.w, dd = c.d;
       const I = dir === 'x'
         ? (bw ** 3 * dd - (bw - 2 * wallT) ** 3 * (dd - 2 * wallT)) / 12
@@ -316,41 +335,89 @@ export function lateralModel(b, dir = 'x') {
       const arm = dir === 'x' ? c.x - cx : c.z - cz;
       EIcore += MAT.Ec * (Math.max(0, I) + coreArea(c, wallT) * arm * arm);
     }
-    // the frame's own axial couple, perimeter columns only and heavily discounted:
-    // without deep spandrels a wide-bay frame is nothing like a tube
+    // The frame's own axial couple, perimeter columns only. How much of it is
+    // real depends entirely on the LATERAL SYSTEM: an ordinary wide-bay frame
+    // gets almost none of it, a framed tube gets most of it, because that is
+    // what crowding the columns and deepening the spandrels buys you.
     let EIframe = 0;
     for (const c of L.columns) {
       if (!c.edge) continue;
       const arm = dir === 'x' ? c.x - cx : c.z - cz;
       EIframe += MAT.Ec * Ac * arm * arm;
     }
+    const tubeEff = p.lateral === 'framed-tube' ? 0.55 : p.lateral === 'diagrid' ? 0.30 : 0.15;
     // ACI 318-19 §6.6.3.1 — a lateral analysis uses CRACKED stiffness, not gross:
     // 0.35Ig for cracked walls, 0.70Ig for columns. Ignoring this is the other
     // half of why an uncorrected model comes out stiffer than the code's own
     // lower-bound period.
-    EI.push(0.5 * (EIcore + MAT.Ec * pw.I) + 0.7 * (0.15 * EIframe + MAT.Ec * Ic * L.columns.length));
+    // A diagrid's diagonals carry the overturning AXIALLY on the flange faces —
+    // Moon, Connor & Fernandez (2007): EI ≈ ½ N_df E A_d sin²θ B², GA ≈ 2 N_dw
+    // E A_d cos²θ sinθ. That is the whole reason a diagrid is stiffer per kilo
+    // than anything else: nothing is bending.
+    let EIdia = 0, GAdia = 0;
+    if (p.lateral === 'diagrid') {
+      const Ad = 0.45 * 0.45 * 0.35;                  // hollow section, 450 mm square
+      const Es = 200e9;
+      const face = dir === 'x' ? bxPlan.w : bxPlan.d;
+      const flange = dir === 'x' ? bxPlan.d : bxPlan.w;
+      const cw = p.bay * 2, dyMod = 2 * L.h;
+      const th = Math.atan2(dyMod, cw);
+      const Ndw = 2 * Math.max(1, Math.round(face / cw)) * 2;      // both webs, both directions
+      const Ndf = 2 * Math.max(1, Math.round(flange / cw)) * 2;
+      EIdia = 0.5 * Ndf * Es * Ad * Math.sin(th) ** 2 * face * face;
+      GAdia = 2 * Ndw * Es * Ad * Math.cos(th) ** 2 * Math.sin(th);
+    }
+    // ACI 318-19 §6.6.3.1 — a lateral analysis uses CRACKED stiffness, not gross:
+    // 0.35Ig for cracked walls, 0.70Ig for columns. Ignoring this is the other
+    // half of why an uncorrected model comes out stiffer than the code's own
+    // lower-bound period. Steel diagonals do not crack, so they are not reduced.
+    EI.push(0.5 * (EIcore + MAT.Ec * pw.I) + 0.7 * (tubeEff * EIframe + MAT.Ec * Ic * L.columns.length) + EIdia);
 
     // ── GA: the racking component ─────────────────────────────────────────
     // Muto's D-value: a column between finite-stiffness beams is softer than the
     // fixed-fixed 12EI/h³. K̄ = ΣK_beam/(2K_col); a = K̄/(2+K̄); for the ground
     // storey with a fixed base, a = (0.5+K̄)/(2+K̄).
     const Kcol = Ic / L.h;
-    const beamI = (0.4 * 0.7 ** 3) / 12;                                // 400×700 beam
+    // The beam the columns are framed into is the FLOOR SYSTEM's beam — and a
+    // flat slab has none, which is exactly why flat-slab frames are soft. A
+    // framed tube's deep spandrel is the same term, made large on purpose.
+    const beamI = p.lateral === 'framed-tube'
+      ? (0.45 * Math.min(1.2, L.h * 0.32) ** 3) / 12
+      : FS.beamD > 0.05 ? (0.4 * FS.beamD ** 3) / 12
+        : ((p.bay / 2) * FS.slab ** 3) / 12;
     const Kbeam = beamI / p.bay;
     const Kbar = (2 * Kbeam) / (2 * Kcol);
     const a = i === 0 ? (0.5 + Kbar) / (2 + Kbar) : Kbar / (2 + Kbar);
     const kFrame = L.columns.length * a * (12 * MAT.Ec * Ic) / (L.h ** 3);
-    // webs in shear: core walls plus the solid perimeter, parallel to the sway
+    // webs in shear: core walls plus the solid perimeter, parallel to the sway.
+    // ACI 318-19 §6.6.3.1 cracks the SHEAR stiffness as well as the flexural
+    // one — a cracked wall is roughly half as stiff in shear as the gross
+    // section says, and a core pierced by a door at every landing is worse.
     let Aweb = pw.Aweb;
-    for (const c of L.cores) Aweb += 2 * wallT * (dir === 'x' ? c.w : c.d);
-    const kWall = (MAT.Gc * Aweb) / (1.2 * L.h);                        // κ = 1.2, rectangle
-    GA.push((kFrame + kWall) * L.h);
+    for (const c of (coresActive ? L.cores : [])) Aweb += 2 * wallT * (dir === 'x' ? c.w : c.d) * 0.75;
+    const kWall = (0.5 * MAT.Gc * Aweb) / (1.2 * L.h);                  // κ = 1.2, rectangle
+    GA.push((kFrame + kWall) * L.h + GAdia);
     webArea.push(r2(Aweb));
   }
 
-  const bx = plan(b);
+  const bx = bxPlan;
+  // Outriggers act as a ROTATIONAL restraint on the core at the level they sit:
+  // the core tries to rotate, the perimeter columns below stretch and squash to
+  // stop it. Kθ = 2 E A d² / x, with x the height from the base to the outrigger.
+  const rotSprings = [];
+  if (p.lateral === 'outrigger' && b.cores.length && n > 5) {
+    for (const frac of [0.55, 0.92]) {
+      const li = Math.min(n - 1, Math.max(1, Math.round(frac * n) - 1));
+      const L = b.levels[li];
+      const arm = (dir === 'x' ? bx.w : bx.d) / 2;
+      const Aper = L.columns.filter((c) => c.edge).length * Ac * 0.5;   // one side
+      const x = Math.max(1, y[li]);
+      rotSprings.push({ node: li, K: (2 * MAT.Ec * Aper * arm * arm) / x });
+    }
+  }
   return {
-    dir, n, h, y, m, EI, GA, webArea, loads: W,
+    dir, n, h, y, m, EI, GA, webArea, loads: W, rotSprings, siteClass,
+    floor: FS, lateral: p.lateral, tmd: p.tmd,
     B: dir === 'x' ? bx.w : bx.d,          // plan dimension across the wind
     Lp: dir === 'x' ? bx.d : bx.w,         // plan dimension along the wind
     height: b.height,
@@ -368,13 +435,23 @@ function coreArea(c, t) { return c.w * c.d - Math.max(0, (c.w - 2 * t) * (c.d - 
 // does soften the building.
 const WALL_T = 0.25;                 // effective thickness of the solid facade
 const FLANGE_EFF = 0.30;             // shear-lag efficiency of the return walls
-const COUPLING = 0.45;               // how composite a window-pierced wall really is
+// How composite a window-pierced wall really is. NOT a constant: it falls out
+// of the solidity, by the same series argument as the shear path. A blank wall
+// is half-composite (the rest is lost to the openings that are still there in a
+// brutalist elevation — doors, service risers); a wall that is 40% glass is
+// barely composite at all and behaves as a row of independent piers. Holding
+// this at a flat 0.45 made every building flexure-dominated (α < 1) when a plan
+// twice as wide as it is tall should obviously rack.
+const coupling = (solidity) => 0.5 * solidity * solidity;
 function perimeterWalls(b, i, dir, cx, cz) {
   let Aweb = 0, I = 0, webLen = 0;
   for (const f of b.facades.filter((q) => q.level === i)) {
     const inPlane = dir === 'x' ? f.nz !== 0 : f.nx !== 0;   // wall runs along the sway
+    // Same rule as the cladding: an 'open' bay is a hole, not a wall. Counting
+    // it as solid concrete was making open-sided car parks and pilotis
+    // undercrofts the stiffest storeys in the building.
     let solid = 0;
-    for (const bay of f.bays) solid += bay.w * (1 - glassRatio(bay.module));
+    for (const bay of f.bays) solid += bay.module === 'open' ? 0 : bay.w * (1 - glassRatio(bay.module));
     if (solid <= 0) continue;
     if (inPlane) {
       // A PIERCED wall is not a plate. Every window cuts the in-plane continuity,
@@ -384,16 +461,25 @@ function perimeterWalls(b, i, dir, cx, cz) {
       // (I = tL³/12) overstates the stiffness by an order of magnitude and gives
       // a period shorter than the code's own lower-bound estimate — which is how
       // this was caught.
-      Aweb += solid * WALL_T;
+      // The SHEAR path is pierced too, and more damagingly than the flexural
+      // one: to get from one storey to the next the shear has to pass through a
+      // pier and then through a spandrel, in series. Squaring the solidity is
+      // the crude version of that series stiffness, and without it a long
+      // brutalist elevation reads as an unbroken 250 mm shear wall a hundred
+      // metres long — which put every period here at a quarter of ASCE's own
+      // deliberately-low estimate.
+      const solidity = solid / Math.max(1e-6, f.len);
+      Aweb += solid * WALL_T * solidity;
       webLen += solid;
       const piers = f.bays.map((bay) => ({
-        l: bay.w * (1 - glassRatio(bay.module)),
+        l: bay.module === 'open' ? 0 : bay.w * (1 - glassRatio(bay.module)),
         c: dir === 'x' ? bay.x : bay.z,
       })).filter((q) => q.l > 0.05);
       const At = piers.reduce((s2, q) => s2 + q.l, 0) || 1;
       const cen = piers.reduce((s2, q) => s2 + q.l * q.c, 0) / At;
+      const kappa = coupling(solid / Math.max(1e-6, f.len));
       for (const q of piers) {
-        I += (WALL_T * q.l ** 3) / 12 + COUPLING * WALL_T * q.l * (q.c - cen) ** 2;
+        I += (WALL_T * q.l ** 3) / 12 + kappa * WALL_T * q.l * (q.c - cen) ** 2;
       }
     } else {
       // a flange: too far off-axis to shear, but its area × arm² is the tube
@@ -445,6 +531,11 @@ export function assemble(M) {
         K[map[i]][map[j]] += ke[i][j];
       }
     }
+  }
+  // outrigger restraint, applied to the rotation DOF of the node it ties
+  for (const rs of M.rotSprings || []) {
+    const dof = 2 * rs.node + 1;
+    if (dof < N) K[dof][dof] += rs.K;
   }
   return K;
 }
@@ -641,9 +732,10 @@ export function gustFactor(M, n1, V, exposure, beta = MAT.dampingWind) {
 
 export function wind(b, M, md, opts) {
   const V = opts.V, exposure = opts.exposure || 'C';
+  const beta = opts.beta != null ? opts.beta : MAT.dampingWind;
   const Kzt = 1.0, Kd = 0.85, Ke = 1.0;
   const n1 = md.f1;
-  const g = gustFactor(M, n1, V, exposure);
+  const g = gustFactor(M, n1, V, exposure, beta);
   const Guse = g.flexible ? g.Gf : 0.85;
   const ratio = M.Lp / M.B;
   const CpLee = -interp([1, 2, 4], [0.5, 0.3, 0.2], ratio);
@@ -752,7 +844,7 @@ export function wallCheck(b, M, demandV) {
   const L = b.levels[0];
   const wallT = 0.30;
   let Acv = 0, lw = 0;
-  for (const c of L.cores) {
+  for (const c of (b.params.lateral === 'frame' ? [] : L.cores)) {
     const web = M.dir === 'x' ? c.w : c.d;
     Acv += 2 * wallT * web;
     lw = Math.max(lw, web);
@@ -913,8 +1005,131 @@ export function windForcing(M, rec) {
   };
 }
 
+
+/* ────────────────────────────── foundation ──────────────────────────────── */
+//
+// A building does not end at the ground. The overturning moment the wind and
+// the earthquake produce has to go somewhere, and on soft ground that — not the
+// superstructure — is what decides the design. So the ground is a property of
+// the SITE (it comes off the site class, which the seismic analysis already
+// asked for), and the foundation TYPE is not chosen: it is what the demand and
+// the ground between them force.
+//
+// pads → raft → piles, in that order, each one used until it stops working.
+
+export const SOILS = {
+  B: { label: 'rock',              q: 3000e3, Es: 2000e6, mu: 0.60, pile: 8.0e6 },
+  C: { label: 'very dense soil',   q: 600e3,  Es: 150e6,  mu: 0.50, pile: 3.5e6 },
+  D: { label: 'stiff soil',        q: 250e3,  Es: 50e6,   mu: 0.40, pile: 1.8e6 },
+  E: { label: 'soft clay',         q: 100e3,  Es: 15e6,   mu: 0.30, pile: 0.9e6 },
+};
+
+export function foundation(b, M, gv, demandM, demandV) {
+  const soil = SOILS[M.siteClass] || SOILS.D;
+  const p = b.params;
+
+  // total vertical service load, and the plan the foundation has to sit inside
+  const N = M.loads.reduce((s, q) => s + q.dead + 0.5 * q.live, 0);
+  const foot = b.levels[0].wings.reduce((s, w) => s + R.area(w), 0);
+  const B = M.B, Lp = M.Lp;
+
+  // ── 1. pad footings, one per column ──────────────────────────────────────
+  const padN = gv.maxP * 1.15;                          // + the pad's own weight
+  const padB = Math.sqrt(padN / soil.q);
+  const padsFit = padB < 0.55 * p.bay;
+
+  // ── 2. raft: bearing pressure with the overturning eccentricity ──────────
+  // e = M/N. Inside the middle third (e ≤ B/6) the whole raft stays in
+  // compression; outside it, one edge lifts and the pressure redistributes.
+  const A = Math.max(1, foot * 1.15);                   // raft oversails the plate
+  const Braft = B * 1.08;
+  const e = demandM / Math.max(1, N);
+  const inMiddleThird = e <= Braft / 6;
+  const pMax = inMiddleThird
+    ? (N / A) * (1 + (6 * e) / Braft)
+    : (2 * N) / (3 * A * (Braft / 2 - e) / (Braft / 2));  // triangular, partial bearing
+  const pMin = inMiddleThird ? (N / A) * (1 - (6 * e) / Braft) : 0;
+  // Settlement, elastic half-space under a RIGID raft: s = q·B·(1−ν²)·I/Es with
+  // I ≈ 0.6 for a rigid rectangle (1.0 is the flexible-centre value and
+  // overstates a stiff raft badly).
+  const q0 = N / A;
+  const settleRaft = (q0 * Braft * (1 - 0.09) * 0.6) / soil.Es;
+  // Tolerable TOTAL settlement is not one number: 25 mm is a pad limit, a big
+  // raft is allowed far more because it settles as a dish rather than
+  // differentially, and piles into a stiffer stratum cut it again.
+  const limitPad = 0.025, limitRaft = 0.065;
+  const raftWorks = pMax <= soil.q && inMiddleThird && settleRaft <= limitRaft;
+
+  // ── 3. piles, when the raft cannot hold the pressure or the edge lifts ───
+  const nPiles = Math.ceil((N * 1.1) / soil.pile);
+  // uplift: the overturning couple divided by the lever arm, less the weight
+  const upliftForce = Math.max(0, (demandM / (0.8 * Braft)) - N / 2);
+  const nTension = upliftForce > 0 ? Math.ceil(upliftForce / (0.4 * soil.pile)) : 0;
+
+  // The ladder: pads while they fit and the ground can take them, then a raft,
+  // then piles. Settlement is part of the ladder, not an afterthought — a raft
+  // that settles too far sends you to piles just as surely as one that
+  // overstresses the ground.
+  const type = padsFit && raftWorks && e < Braft / 12 && settleRaft <= limitPad ? 'pads'
+    : raftWorks ? 'raft' : 'piled raft';
+  const settle = type === 'piled raft' ? settleRaft / 4 : settleRaft;
+  const settleLimit = type === 'pads' ? limitPad : type === 'raft' ? limitRaft : 0.04;
+
+  // ── sliding: friction under the base against the governing base shear ────
+  const slidingCap = soil.mu * N * 0.9;
+
+  return {
+    soil: { ...soil, siteClass: M.siteClass }, type,
+    N: r2(N), area: r2(A), B: r2(Braft), e: r2(e), inMiddleThird,
+    pMax: r2(pMax), pMin: r2(pMin), qAllow: soil.q,
+    padB: r2(padB), padsFit, nPiles, nTension, upliftForce: r2(upliftForce),
+    settle, settleLimit, settleRaft, slidingCap: r2(slidingCap), slidingDemand: r2(demandV),
+    depth: type === 'pads' ? 1.2 : type === 'raft' ? Math.max(1.2, M.height / 28) : 1.8,
+    note: type === 'pads'
+      ? `${gv.columns.filter((c) => c.level === 0).length} pads at ${(padB).toFixed(1)} m square on ${soil.label}`
+      : type === 'raft'
+        ? `${A.toFixed(0)} m² raft, ${(pMax / 1e3).toFixed(0)} kPa peak on ${(soil.q / 1e3).toFixed(0)} kPa ${soil.label}`
+        : `${nPiles} piles${nTension ? ` (+${nTension} in tension)` : ''} at ${(soil.pile / 1e6).toFixed(1)} MN each — ${soil.label} cannot take the raft pressure`,
+  };
+}
+
+// The foundation, as boxes, so the section drawing and the loads view can show
+// it. It is drawn below zero, which is where it is.
+export function foundationParts(b, f, gv) {
+  const out = [];
+  const L0 = b.levels[0];
+  if (f.type === 'pads') {
+    for (const c of gv.columns.filter((q) => q.level === 0)) {
+      out.push({ mat: 'core', kind: 'pad', x: c.x, y: -f.depth / 2, z: c.z,
+                 w: r2(f.padB), h: r2(f.depth), d: r2(f.padB) });
+    }
+  } else {
+    for (const wg of L0.wings) {
+      out.push({ mat: 'core', kind: 'raft', x: wg.x, y: -f.depth / 2, z: wg.z,
+                 w: r2(wg.w * 1.08), h: r2(f.depth), d: r2(wg.d * 1.08) });
+    }
+    if (f.type === 'piled raft') {
+      // a grid of piles under the raft, as many as the count calls for
+      const wg = L0.wings[0];
+      const per = Math.max(1, Math.round(Math.sqrt(f.nPiles)));
+      for (let i = 0; i < per; i++) {
+        for (let k = 0; k < per; k++) {
+          out.push({
+            mat: 'core', kind: 'pile',
+            x: r2(R.x0(wg) + ((i + 0.5) * wg.w) / per), y: r2(-f.depth - 9),
+            z: r2(R.z0(wg) + ((k + 0.5) * wg.d) / per),
+            w: 0.75, h: 18, d: 0.75,
+          });
+        }
+      }
+    }
+  }
+  return out;
+}
+
 /* ──────────────────────────── the verification ──────────────────────────── */
 
+const p2 = (v) => v.toFixed(2);
 const check = (id, name, demand, capacity, unit, note) => {
   const util = capacity > 0 ? demand / capacity : Infinity;
   return { id, name, demand, capacity, unit, util, margin: 1 - util, pass: util <= 1, note };
@@ -925,15 +1140,22 @@ export function verify(b, opts = {}) {
     seismicScenario: 'moderate', siteClass: 'D', windScenario: 'inland',
     exposure: 'C', ...opts,
   };
+  const p = b.params;
   const S = spectrumParams(o.seismicScenario, o.siteClass);
   const Vwind = (WIND_SCENARIOS[o.windScenario] || WIND_SCENARIOS.inland).V;
 
   const dirs = {};
   for (const dir of ['x', 'z']) {
-    const M = lateralModel(b, dir);
+    const M = lateralModel(b, dir, o.siteClass);
     const md = modal(M);
     const eq = seismic(b, M, md, S);
-    const wd = wind(b, M, md, { V: Vwind, exposure: o.exposure });
+    // A tuned mass damper does not change the stiffness, so it changes neither
+    // the period nor the base shear. What it changes is the DAMPING in the mode
+    // it is tuned to, which is what the gust factor and the comfort check care
+    // about. Modelled as added modal damping rather than an explicit auxiliary
+    // DOF — the design-office treatment, and stated as such.
+    const beta = MAT.dampingWind + (b.params.tmd ? TMD.addedDamping : 0);
+    const wd = wind(b, M, md, { V: Vwind, exposure: o.exposure, beta });
     dirs[dir] = { M, md, eq, wd, wall: wallCheck(b, M, Math.max(eq.baseShear, wd.baseShear)) };
   }
   const gv = gravity(b, dirs.x.M);
@@ -942,6 +1164,10 @@ export function verify(b, opts = {}) {
   const eqDir = dirs.x.eq.maxDrift >= dirs.z.eq.maxDrift ? 'x' : 'z';
   const wdDir = dirs.x.wd.driftTotal >= dirs.z.wd.driftTotal ? 'x' : 'z';
   const eq = dirs[eqDir].eq, wd = dirs[wdDir].wd;
+  const govM = Math.max(eq.baseMoment, wd.baseMoment);
+  const govV = Math.max(eq.baseShear, wd.baseShear);
+  const fnd = foundation(b, dirs[wdDir].M, gv, govM, govV);
+  const FS = dirs.x.M.floor;
 
   const checks = [
     check('col', 'Column axial (ACI 318 §22.4)', gv.maxP, gv.phiPn, 'N',
@@ -960,6 +1186,29 @@ export function verify(b, opts = {}) {
     checks.push(check('wall', 'Core wall shear (ACI 318 §18.10)', w.demand, w.phiVn, 'N',
       `cores take ${Math.round(w.share * 100)}% of base shear`));
   }
+  // ── the floor system, checked as a system ────────────────────────────────
+  checks.push(check('span', `Floor span — ${FS.label}`, b.params.bay, FS.maxSpan, 'm',
+    `${FS.short} at ${b.params.bay.toFixed(1)} m; economical to ${FS.maxSpan} m`));
+  // what counts as enough headroom depends on what the floor is FOR — a car
+  // park is happy at 2.1 m where an office is not
+  const clearTarget = (TYPOLOGIES[p.typology] || {}).clearTarget || 2.5;
+  checks.push(check('clear', 'Clear height under structure', clearTarget, Math.max(0.01, FS.clear), 'm',
+    `${p2(FS.depth)} m structure + ${p2(FS.services)} m services in a ${p2(p.floorH)} m storey; ${p2(clearTarget)} m wanted`));
+
+  // ── the foundation ───────────────────────────────────────────────────────
+  checks.push(check('bearing', `Bearing pressure — ${fnd.type}`, fnd.pMax, fnd.qAllow, 'Pa', fnd.note));
+  checks.push(check('sliding', 'Sliding at the base', fnd.slidingDemand, fnd.slidingCap, 'N',
+    `friction on ${fnd.soil.label}, μ = ${fnd.soil.mu}`));
+  checks.push(check('settle', 'Settlement', fnd.settle, fnd.settleLimit, 'm',
+    `${(fnd.settle * 1000).toFixed(0)} mm elastic on ${fnd.soil.label}, ${(fnd.settleLimit * 1000).toFixed(0)} mm tolerable for a ${fnd.type}`));
+  if (!fnd.inMiddleThird) {
+    checks.push({
+      id: 'uplift', name: 'Foundation uplift', demand: fnd.e, capacity: fnd.B / 6, unit: 'm',
+      util: fnd.e / (fnd.B / 6), margin: 1 - fnd.e / (fnd.B / 6), pass: false,
+      note: `resultant is outside the middle third — one edge of the base lifts${fnd.nTension ? `, ${fnd.nTension} tension piles needed` : ''}`,
+    });
+  }
+
   checks.push({
     id: 'vortex', name: 'Vortex lock-in', demand: wd.Ur, capacity: 10, unit: 'V/(n₁B)',
     util: wd.lockIn ? 1.05 : wd.Ur / 10, margin: wd.lockIn ? -0.05 : 1 - wd.Ur / 10,
@@ -972,8 +1221,9 @@ export function verify(b, opts = {}) {
 
   return {
     version: VERSION, seed: b.seed, opts: o, site: S, windV: Vwind,
-    dirs, gravity: gv, checks, governing, verdict,
-    eqDir, wdDir,
+    dirs, gravity: gv, foundation: fnd, floor: FS,
+    lateral: b.params.lateral, lateralLabel: (LATERAL_SYSTEMS[b.params.lateral] || {}).label, tmd: b.params.tmd,
+    checks, governing, verdict, eqDir, wdDir,
     summary: {
       T1x: dirs.x.md.T1, T1z: dirs.z.md.T1,
       massTonnes: Math.round(dirs.x.M.totalMass / 1000),
@@ -985,6 +1235,7 @@ export function verify(b, opts = {}) {
       // how the lateral system actually works: α = H√(GA/EI) — small is a
       // cantilever wall, large is a racking frame
       alpha: dirs.x.M.height * Math.sqrt(dirs.x.M.GA[0] / dirs.x.M.EI[0]),
+      floorWeight: FS.weight, clear: FS.clear, foundation: fnd.type,
     },
   };
 }

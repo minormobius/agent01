@@ -69,8 +69,25 @@
   #eng #estats b{display:block;font-size:12px;font-variant-numeric:tabular-nums}
   #eng #estats span{display:block;font-size:9px;color:var(--soft);letter-spacing:.03em;text-transform:uppercase}
   #eng #egov{font-size:10.5px;color:var(--soft);line-height:1.45;margin-top:4px}
-  @media (max-width:760px){ #panel{width:calc(100vw - 28px)} #view{display:none} #legend{display:none} #eng{display:none} }
-  @media (max-height:820px){ #eng{bottom:14px;right:256px} }
+  @media (max-height:820px) and (min-width:761px){ #eng{bottom:14px;right:256px} }
+  /* On a phone the three floating panels are re-parented into one bottom sheet
+     (see mountSheet in ui.js), so the model keeps the screen and the controls
+     are one thumb-reach away. The canvas stops above the peeking sheet rather
+     than hiding behind it. */
+  @media (max-width:760px){
+    .crumb{font-size:11px;top:10px;left:12px}
+    #legend{display:none}
+    #viewport{bottom:74px}
+    #panel,#view,#eng{position:static;width:auto;max-width:none;max-height:none;
+      border:0;background:none;box-shadow:none;padding:0;backdrop-filter:none;border-radius:0}
+    #panel h1{font-size:15px}
+    #view .modes button,#eng button{padding:9px 8px;font-size:12px}
+    #eng select,.panel select,.panel input[type=text]{padding:8px 8px;font-size:13px}
+    .panel input[type=range],#view input[type=range],#eng input[type=range]{height:18px;background:transparent}
+    .panel input[type=range]::-webkit-slider-thumb,#view input[type=range]::-webkit-slider-thumb,
+    #eng input[type=range]::-webkit-slider-thumb{width:20px;height:20px}
+    .panel .stat b{font-size:14px}
+  }
 </style>
 </head>
 <body>
@@ -116,7 +133,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { generate, parts, bounds, Rand, TYPOLOGIES } from './arch.js';
-import { buildPanel, readURL, PANEL_CSS } from './ui.js';
+import { buildPanel, readURL, PANEL_CSS, mountSheet, SHEET_CSS } from './ui.js';
 import {
   verify, lateralModel, modal, newmark, quakeForcing, windForcing,
   groundMotion, gustRecord, wind as windAnalysis,
@@ -128,7 +145,7 @@ const errEl = document.getElementById('err');
 const fail = (e) => { errEl.style.display = 'block'; errEl.textContent = String(e && e.stack || e); console.error(e); };
 window.addEventListener('error', (e) => fail(e.error || e.message));
 
-document.head.appendChild(Object.assign(document.createElement('style'), { textContent: PANEL_CSS }));
+document.head.appendChild(Object.assign(document.createElement('style'), { textContent: PANEL_CSS + SHEET_CSS }));
 
 /* ─────────────────────────── scene scaffolding ─────────────────────────── */
 
@@ -161,6 +178,12 @@ const camera = new THREE.PerspectiveCamera(42, 1, 0.5, 3000);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true; controls.dampingFactor = 0.07;
 controls.maxPolarAngle = Math.PI * 0.495;
+// Once someone has orbited, the view is theirs and a resize must not snatch it
+// back. Until then every resize re-frames — which is what makes the first paint
+// correct on a phone, where the aspect is not known when the model is built,
+// and what keeps it correct when the sheet slides up or the device rotates.
+let userMoved = false;
+controls.addEventListener('start', () => { userMoved = true; });
 
 const hemi = new THREE.HemisphereLight(0xbcd2ea, 0x4a4740, 1.35);
 scene.add(hemi);
@@ -270,6 +293,7 @@ function makeMaterials(seed) {
 }
 
 function build(p) {
+  userMoved = false;                    // a new building gets a fresh framing
   if (group) { scene.remove(group); disposeGroup(group); }
   building = generate(p);
   const list = parts(building).filter((q) => q.mat !== 'void');
@@ -286,6 +310,7 @@ function build(p) {
     byMat.get(key).push(q);
   }
   const m4 = new THREE.Matrix4(), qt = new THREE.Quaternion(), pos = new THREE.Vector3(), scl = new THREE.Vector3();
+  const eul = new THREE.Euler();
   for (const [matName, items] of byMat) {
     const mat = mats[matName];
     if (!mat) continue;
@@ -297,7 +322,10 @@ function build(p) {
     items.forEach((q, i) => {
       pos.set(q.x, q.y, q.z);
       scl.set(Math.max(q.w, 0.02), Math.max(q.h, 0.02), Math.max(q.d, 0.02));
-      qt.setFromAxisAngle(new THREE.Vector3(0, 1, 0), q.ry || 0);
+      // diagrid diagonals lie in the plane of the facade, so a part needs all
+      // three rotations, not just the apse's spin about y
+      eul.set(q.rx || 0, q.ry || 0, q.rz || 0);
+      qt.setFromEuler(eul);
       mesh.setMatrixAt(i, m4.compose(pos, qt, scl));
       // Parts with no storey of their own — towers, parapets, the cathedral's
       // roof — still have to sway with the building around them, so they take
@@ -348,9 +376,14 @@ function frame() {
   const b = bounds(building);
   const cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2;
   const span = Math.max(b.x1 - b.x0, b.z1 - b.z0, b.y1);
-  const dist = span * 1.75;
+  // Frame from BOTH fields of view. A portrait window has a much narrower
+  // horizontal FOV than a landscape one, so a distance picked off the vertical
+  // alone crops the building off the sides of a phone.
+  const vFov = (camera.fov * Math.PI) / 180;
+  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * Math.max(0.2, camera.aspect));
+  const dist = Math.max(span / 2 / Math.tan(vFov / 2), span / 2 / Math.tan(hFov / 2)) * 1.35;
   controls.target.set(cx, b.y1 * 0.42, cz);
-  camera.position.set(cx + dist * 0.72, b.y1 * 0.78 + span * 0.28, cz + dist * 0.78);
+  camera.position.set(cx + dist * 0.62, b.y1 * 0.78 + span * 0.28, cz + dist * 0.68);
   camera.near = Math.max(0.4, span / 900); camera.far = span * 14;
   camera.updateProjectionMatrix();
   scene.fog.near = span * 1.6; scene.fog.far = span * 7;
@@ -482,6 +515,8 @@ function applyStoreyCut() {
 
 const hazard = { seismicScenario: 'high', siteClass: 'D', windScenario: 'cat3', exposure: 'C' };
 let report = null, sway = null, swayT0 = 0;
+// declared here because the first build() runs before the sheet is mounted
+let sheetApi = null;
 
 function fillSelect(id, opts, labelFor, key) {
   const el = document.getElementById(id);
@@ -513,6 +548,7 @@ function solve() {
   document.getElementById('egov').innerHTML =
     `governing: <b style="color:${utilColour(v.governing.util)}">${v.governing.name}</b> at ${v.governing.util.toFixed(2)} — ${v.governing.note}`;
   if (mode === 'loads') applyMode();
+  paintSummary();
 }
 
 // Colour the frame by how hard it is working. The same ramp the framing plan
@@ -640,11 +676,33 @@ const panel = buildPanel(document.getElementById('controls'), params, (p, why) =
 try { build(params); } catch (e) { fail(e); }
 
 function resize() {
-  const w = host.clientWidth, h2 = host.clientHeight;
-  renderer.setSize(w, h2, false);
+  const w = host.clientWidth, h2 = Math.max(120, host.clientHeight);
+  // updateStyle must stay ON: with it off three sets the canvas ATTRIBUTES to
+  // w×dpr but leaves it with no CSS size, so on any retina screen the element
+  // lays out at twice its container and overflows off the bottom-right.
+  renderer.setSize(w, h2);
   camera.aspect = w / h2; camera.updateProjectionMatrix();
+  if (building && !userMoved) frame();
 }
 addEventListener('resize', resize); resize();
+
+/* ─────────────────────────── the mobile sheet ───────────────────────────── */
+sheetApi = mountSheet([
+  { id: 'design', label: 'Design', el: document.getElementById('panel') },
+  { id: 'view', label: 'View', el: document.getElementById('view') },
+  { id: 'struct', label: 'Structural', el: document.getElementById('eng') },
+], { onResize: resize });
+paintSummary();
+
+// the peek line has to be worth reading at a glance: what it is, and whether it stands up
+function paintSummary() {
+  if (!building || !sheetApi) return;
+  const v = report;
+  const vc = !v ? 'var(--soft)' : v.verdict === 'pass' ? '#3fbf7f' : v.verdict === 'marginal' ? '#e8c341' : '#e2564a';
+  sheetApi.setSummary(
+    `<b>${building.seed}</b> · ${building.typologyLabel} · ${building.levels.length} storeys` +
+    (v ? ` · <b style="color:${vc}">${v.verdict}</b>` : ''));
+}
 
 renderer.setAnimationLoop(() => { controls.update(); applySway(); renderer.render(scene, camera); });
 </script>

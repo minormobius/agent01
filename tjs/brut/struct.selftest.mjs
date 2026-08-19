@@ -8,12 +8,12 @@
 // against the anchor values printed in ASCE 7-16's own tables. The rest checks
 // that the physics points the right way: more hazard must mean more demand.
 
-import { generate, resolveParams, TYPOLOGY_IDS } from './arch.js';
+import { generate, resolveParams, TYPOLOGY_IDS, FLOOR_IDS, FLOOR_SYSTEMS, LATERAL_IDS, floorSystem } from './arch.js';
 import {
   modal, condense, staticLateral, lateralModel, loads, gravity, seismic, wind, verify,
   newmark, quakeForcing, groundMotion, gustRecord, windForcing,
   spectrumParams, Sa, Kz, gustFactor, jacobiEig, solveSystem, liveFor,
-  SEISMIC_SCENARIOS, WIND_SCENARIOS, MAT, G, SFRS,
+  SEISMIC_SCENARIOS, WIND_SCENARIOS, MAT, G, SFRS, SOILS, foundation, TMD,
 } from './struct.js';
 
 let pass = 0, fail = 0;
@@ -248,22 +248,38 @@ function uniform(n, H, mTotal, EI, GA, consistent = false) {
   ok(Object.keys(verdicts).length >= 1, `verdicts: ${JSON.stringify(verdicts)}`);
 }
 
-/* 10. THE PERIOD IS IN THE RIGHT UNIVERSE. ASCE's Ta is a deliberately LOW
-       estimate (a short period gives a high, conservative base shear), so a
-       computed period should land within a factor of a few of it — and the
-       design period the code check actually uses must never exceed Cu·Ta. */
+/* 10. THE PERIOD IS IN THE RIGHT UNIVERSE — tested on SLENDER buildings, which
+       is the only place the comparison is fair. ASCE's Ta = Ct·H^x is
+       calibrated on normally-proportioned buildings and is deliberately LOW (a
+       short period gives a high, conservative base shear). A 79 m wide, 37 m
+       tall concrete box genuinely does come out at a quarter of it, and chasing
+       that ratio down was a mistake the first time round: the diagnostic is a
+       slenderness sweep, where the model has to track the empirical band as the
+       building gets tall, and cross it around H/B ≈ 3. */
 {
-  let out = 0, overCu = 0;
+  const ratios = [];
+  for (const n of [8, 14, 22, 32, 45]) {
+    const b = generate(resolveParams({ s: 'slender', t: 'office', n: String(n), bx: '5', bz: '4', bay: '8' }));
+    const M = lateralModel(b, 'x'), md = modal(M);
+    const Ta = SFRS.Ct * Math.pow(M.height, SFRS.x);
+    ratios.push({ n, H: M.height, T: md.T1, r: md.T1 / Ta, alpha: M.height * Math.sqrt(M.GA[0] / M.EI[0]) });
+  }
+  ok(ratios.every((q, i) => i === 0 || q.r > ratios[i - 1].r),
+    `T₁/Ta rises with slenderness (${ratios.map((q) => q.r.toFixed(2)).join(' → ')})`);
+  const tall = ratios[ratios.length - 1];
+  ok(tall.r > 0.8 && tall.r < 2.5, `a 45-storey tower lands in the measured band (T₁/Ta = ${tall.r.toFixed(2)})`);
+  // the old rule of thumb: a shear-wall tower is about n/15 seconds
+  ok(Math.abs(tall.T - 45 / 15) < 1.2, `and near the n/15 rule of thumb (T₁ = ${tall.T.toFixed(2)} s for 45 storeys)`);
+  ok(ratios.every((q, i) => i === 0 || q.alpha > ratios[i - 1].alpha),
+    `α rises with slenderness — squat bends, tall racks (${ratios.map((q) => q.alpha.toFixed(1)).join(' → ')})`);
+
+  let overCu = 0;
   for (const t of TYPOLOGY_IDS) {
     const b = generate(resolveParams({ s: 'period', t }));
     const M = lateralModel(b, 'x'), md = modal(M);
-    const S = spectrumParams('high', 'D');
-    const eq = seismic(b, M, md, S);
-    const Ta = SFRS.Ct * Math.pow(M.height, SFRS.x);
-    if (md.T1 < Ta / 6 || md.T1 > Ta * 4) out++;
-    if (eq.Tused > eq.Cu * Ta + 1e-9) overCu++;
+    const eq = seismic(b, M, md, spectrumParams('high', 'D'));
+    if (eq.Tused > eq.Cu * SFRS.Ct * Math.pow(M.height, SFRS.x) + 1e-9) overCu++;
   }
-  ok(out === 0, `every computed period is within a factor of a few of ASCE Ta (${out} wild)`);
   ok(overCu === 0, 'the design period never exceeds Cu·Ta, as §12.8.2 requires');
 }
 
@@ -319,6 +335,105 @@ function uniform(n, H, mTotal, EI, GA, consistent = false) {
   ok(gv.worst.level <= 1, `the governing column is at the bottom (level ${gv.worst.level})`);
   ok(gv.phiPn > 0 && gv.maxP > 0 && gv.maxUtil > 0, 'the column check has a real demand and capacity');
   ok(gv.required > 0.2 && gv.required < 3, `the required section size is plausible (${gv.required.toFixed(2)} m)`);
+}
+
+/* 14. THE FLOOR SYSTEM IS THE WEIGHT. This is the whole reason the systems
+       exist: modelling every floor as 420 mm of solid concrete made every
+       building about twice as heavy as it should be, and that mass went
+       straight into the seismic base shear. */
+{
+  const at8 = (id) => floorSystem({ floor: id, bay: 8, floorH: 4.2 });
+  const w = Object.fromEntries(FLOOR_IDS.map((id) => [id, at8(id).weight]));
+  ok(w.composite < w['pt-flat'], `a composite deck is lighter than a PT plate (${(w.composite / 1e3).toFixed(1)} < ${(w['pt-flat'] / 1e3).toFixed(1)} kPa)`);
+  ok(w['pt-flat'] < w['flat-slab'], `a PT plate is lighter than a flat slab (${(w['pt-flat'] / 1e3).toFixed(1)} < ${(w['flat-slab'] / 1e3).toFixed(1)} kPa)`);
+  ok(Object.values(w).every((q) => q > 2.5e3 && q < 9e3), `every floor system lands in a real range (${Object.values(w).map((q) => (q / 1e3).toFixed(1)).join(', ')} kPa)`);
+  ok(at8('flat-slab').depth < at8('double-tee').depth, 'a double-tee is deeper than a flat slab');
+  // deeper floors span further — that is what you buy with the depth
+  ok(FLOOR_SYSTEMS['double-tee'].maxSpan > FLOOR_SYSTEMS['flat-slab'].maxSpan, 'precast spans further than a flat slab');
+
+  // and it moves the answer: the SAME building on two floor systems
+  const base = resolveParams({ s: 'floors', t: 'office', bay: '8' });
+  const heavy = verify(generate({ ...base, floor: 'flat-slab' }), { seismicScenario: 'high' });
+  const light = verify(generate({ ...base, floor: 'composite' }), { seismicScenario: 'high' });
+  ok(light.summary.massTonnes < heavy.summary.massTonnes * 0.92,
+    `swapping to a composite deck takes real mass out (${heavy.summary.massTonnes} → ${light.summary.massTonnes} t)`);
+  ok(light.summary.baseShearEq < heavy.summary.baseShearEq,
+    `and the seismic base shear follows the mass down (${(heavy.summary.baseShearEq / 1e6).toFixed(0)} → ${(light.summary.baseShearEq / 1e6).toFixed(0)} MN)`);
+  ok(light.summary.T1x < heavy.summary.T1x, 'a lighter building on the same frame has a shorter period');
+
+  // the storey height follows the floor: a 1.2 m double-tee cannot fit a 2.9 m storey
+  for (const t of TYPOLOGY_IDS) {
+    const b = generate(resolveParams({ s: 'fit-' + t, t }));
+    const FSx = floorSystem(b.params);
+    ok(FSx.clear > 1.9, `${t}: the storey height leaves usable headroom (${FSx.clear.toFixed(2)} m under a ${FSx.depth.toFixed(2)} m floor)`);
+  }
+}
+
+/* 15. 'OPEN' IS AIR. A pilotis undercroft and an open car-park deck are holes,
+       not walls — counting them as solid concrete made the open storeys the
+       stiffest and heaviest in the building. */
+{
+  const p = resolveParams({ s: 'pilotis-test', t: 'housing', pil: '1' });
+  const open = generate(p);
+  const closed = generate({ ...p, pilotis: false });
+  const lo = loads(open), lc = loads(closed);
+  ok(lo[0].clad < lc[0].clad, `an open ground storey is clad lighter than a closed one (${(lo[0].clad / 1e6).toFixed(2)} < ${(lc[0].clad / 1e6).toFixed(2)} MN)`);
+  const Mo = lateralModel(open, 'x'), Mc = lateralModel(closed, 'x');
+  ok(Mo.GA[0] < Mc.GA[0], 'and it is softer, because a hole is not a shear wall');
+}
+
+/* 16. THE FOUNDATION IS CHOSEN BY THE GROUND, not by the designer. Rock takes
+       pads; soft clay forces piles; the ladder is bearing, then settlement. */
+{
+  const b = generate(resolveParams({ s: 'ground', t: 'office' }));
+  const picked = {}, settle = {}, press = {};
+  for (const sc of ['B', 'C', 'D', 'E']) {
+    const v = verify(b, { siteClass: sc, seismicScenario: 'moderate', windScenario: 'coastal' });
+    picked[sc] = v.foundation.type; settle[sc] = v.foundation.settle; press[sc] = v.foundation.pMax;
+  }
+  ok(picked.B === 'pads', `rock takes pad footings (${picked.B})`);
+  ok(picked.E === 'piled raft', `soft clay forces piles (${picked.E})`);
+  ok(settle.E > settle.B, `soft ground settles more (${(settle.E * 1000).toFixed(0)} vs ${(settle.B * 1000).toFixed(0)} mm)`);
+  ok(SOILS.B.q > SOILS.E.q * 10, 'rock carries an order of magnitude more than soft clay');
+
+  // the pieces of the foundation check are all real numbers
+  const v = verify(b, { siteClass: 'D' });
+  const f = v.foundation;
+  ok(f.N > 0 && f.area > 0 && isFinite(f.e), 'the foundation has a load, an area and an eccentricity');
+  ok(f.pMax >= f.pMin, 'peak bearing pressure is not below the minimum');
+  ok(f.slidingCap > 0, 'there is friction to resist sliding');
+  ok(v.checks.some((c) => c.id === 'bearing') && v.checks.some((c) => c.id === 'settle') && v.checks.some((c) => c.id === 'sliding'),
+    'bearing, settlement and sliding all reach the verification schedule');
+  // more overturning must push the resultant further out
+  const calm = foundation(b, v.dirs.x.M, v.gravity, 1e6, 1e5);
+  const storm = foundation(b, v.dirs.x.M, v.gravity, 4e9, 4e7);
+  ok(storm.e > calm.e, 'a bigger overturning moment moves the resultant off centre');
+}
+
+/* 17. SKYSCRAPER TECH actually stiffens. Each lateral system is a real term in
+       the FE, so on the SAME building each one has to move the period the way
+       its name says it does. */
+{
+  const base = resolveParams({ s: 'tall', t: 'office', n: '30', bx: '5', bz: '4', bay: '8' });
+  const T = {};
+  for (const lat of LATERAL_IDS) {
+    const b = generate({ ...base, lateral: lat });
+    T[lat] = modal(lateralModel(b, 'x')).T1;
+  }
+  ok(T.frame > T['core-frame'], `adding a core stiffens a bare frame (${T.frame.toFixed(2)} → ${T['core-frame'].toFixed(2)} s)`);
+  ok(T.outrigger < T['core-frame'], `outriggers stiffen the core (${T['core-frame'].toFixed(2)} → ${T.outrigger.toFixed(2)} s)`);
+  ok(T['framed-tube'] < T['core-frame'], `a framed tube stiffens it (${T['framed-tube'].toFixed(2)} s)`);
+  ok(T.diagrid < T['core-frame'], `a diagrid stiffens it most per kilo (${T.diagrid.toFixed(2)} s)`);
+  ok(Object.values(T).every((q) => q > 0.3 && q < 12), `every system gives a sane tower period (${Object.values(T).map((q) => q.toFixed(1)).join(', ')} s)`);
+
+  // and a tuned mass damper calms it without stiffening it
+  const plain = generate({ ...base, tmd: false });
+  const damped = generate({ ...base, tmd: true });
+  const vp = verify(plain, { windScenario: 'cat4' }), vd = verify(damped, { windScenario: 'cat4' });
+  ok(Math.abs(vp.summary.T1x - vd.summary.T1x) < 1e-9, 'a TMD does not change the period — it is mass on springs, not stiffness');
+  ok(vd.summary.milliG < vp.summary.milliG,
+    `but it cuts the sway people feel (${vp.summary.milliG.toFixed(1)} → ${vd.summary.milliG.toFixed(1)} milli-g)`);
+  ok(TMD.addedDamping > 0.02 && TMD.addedDamping < 0.06, 'the added damping is in the band a real TMD delivers');
 }
 
 console.log(`\nbrut/struct: ${pass} passed, ${fail} failed`);

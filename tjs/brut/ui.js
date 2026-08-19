@@ -5,7 +5,10 @@
 // own form. So the panel, the URL sync and the cross-link all live here: change
 // a slider on either page and the other page's permalink is already correct.
 
-import { TYPOLOGIES, TYPOLOGY_IDS, MODULES, MODULE_IDS, resolveParams, paramsToQuery, deriveParams, rollSeed } from './arch.js';
+import {
+  TYPOLOGIES, TYPOLOGY_IDS, MODULES, MODULE_IDS, FLOOR_SYSTEMS, FLOOR_IDS,
+  LATERAL_SYSTEMS, LATERAL_IDS, floorSystem, resolveParams, paramsToQuery, deriveParams, rollSeed,
+} from './arch.js';
 
 const h = (tag, attrs = {}, kids = []) => {
   const e = document.createElement(tag);
@@ -52,6 +55,7 @@ export function buildPanel(root, params, onChange, opts = {}) {
   const blurb = h('p', { class: 'blurb' });
   const stats = h('div', { class: 'stats' });
   const rhythmRow = h('div', { class: 'rhythm' });
+  const systems = h('div', { class: 'systems' });
   const sliders = h('div', { class: 'sliders' });
   const toggles = h('div', { class: 'toggles' });
 
@@ -80,6 +84,8 @@ export function buildPanel(root, params, onChange, opts = {}) {
   root.appendChild(stats);
   root.appendChild(h('div', { class: 'sec' }, 'facade rhythm'));
   root.appendChild(rhythmRow);
+  root.appendChild(h('div', { class: 'sec' }, 'the structure'));
+  root.appendChild(systems);
   root.appendChild(h('div', { class: 'sec' }, 'the frame'));
   root.appendChild(sliders);
   root.appendChild(toggles);
@@ -127,6 +133,31 @@ export function buildPanel(root, params, onChange, opts = {}) {
   toggles.appendChild(h('div', { class: 'grp' }, [h('label', { class: 'k' }, 'massing'), massSel]));
   toggles.appendChild(h('div', { class: 'grp' }, [h('label', { class: 'k' }, 'plate'), shapeSel]));
 
+  // The floor system and the lateral system are the two decisions that change
+  // the most: the floor is most of the weight, the lateral system is most of
+  // the stiffness. They sit above the geometry sliders for that reason.
+  const floorSel = h('select', {});
+  floorSel.addEventListener('change', () => { p = resolveParams({ ...toQ(p), fl: floorSel.value }); rerender('floor'); });
+  const latSel = h('select', {});
+  latSel.addEventListener('change', () => { p = { ...p, lateral: latSel.value }; rerender('lateral'); });
+  const tmdCb = h('input', { type: 'checkbox' });
+  tmdCb.addEventListener('change', () => { p = { ...p, tmd: tmdCb.checked }; rerender('tmd'); });
+  const floorNote = h('p', { class: 'blurb sysnote' });
+  const latNote = h('p', { class: 'blurb sysnote' });
+  systems.appendChild(h('div', { class: 'grp' }, [h('label', { class: 'k' }, 'floor'), floorSel]));
+  systems.appendChild(floorNote);
+  systems.appendChild(h('div', { class: 'grp' }, [h('label', { class: 'k' }, 'lateral'), latSel]));
+  systems.appendChild(latNote);
+  systems.appendChild(h('label', { class: 'tog' }, [tmdCb, 'tuned mass damper']));
+
+  // changing the floor changes the depth, which changes the storey height it
+  // needs — so re-derive through the codec rather than patching one field
+  const toQ = (q) => {
+    const out = {};
+    for (const kv of paramsToQuery(q).split('&')) { const i = kv.indexOf('='); out[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1)); }
+    return out;
+  };
+
   function paint() {
     const T = TYPOLOGIES[p.typology];
     seedInput.value = p.seed;
@@ -141,6 +172,13 @@ export function buildPanel(root, params, onChange, opts = {}) {
       o.inp.parentElement.style.display = (sacred && (k === 'levels' || k === 'corridorW')) ? 'none' : '';
     }
     for (const [k, cb] of Object.entries(tog)) cb.checked = !!p[k];
+
+    fill(floorSel, FLOOR_IDS, p.floor, (id) => FLOOR_SYSTEMS[id].label);
+    fill(latSel, LATERAL_IDS, p.lateral, (id) => LATERAL_SYSTEMS[id].label);
+    tmdCb.checked = !!p.tmd;
+    const fsNow = floorSystem(p);
+    floorNote.textContent = `${fsNow.depth.toFixed(2)} m deep · ${(fsNow.weight / 1e3).toFixed(1)} kPa · spans to ${fsNow.maxSpan} m · ${fsNow.clear.toFixed(2)} m clear. ${fsNow.note}`;
+    latNote.textContent = LATERAL_SYSTEMS[p.lateral].note;
 
     const massOpts = sacred ? ['basilica'] : ['slab', 'setback', 'inverted', 'ziggurat', 'stagger'];
     const shapeOpts = sacred ? ['basilica'] : ['bar', 'L', 'T', 'cross', 'court'];
@@ -166,9 +204,9 @@ export function buildPanel(root, params, onChange, opts = {}) {
     rhythmRow.appendChild(minus); rhythmRow.appendChild(plus);
   }
 
-  function fill(sel, opts2, cur) {
+  function fill(sel, opts2, cur, labelFor) {
     sel.textContent = '';
-    for (const o of opts2) sel.appendChild(h('option', { value: o, ...(o === cur ? { selected: '' } : {}) }, o));
+    for (const o of opts2) sel.appendChild(h('option', { value: o, ...(o === cur ? { selected: '' } : {}) }, labelFor ? labelFor(o) : o));
     sel.value = cur;
   }
 
@@ -208,6 +246,7 @@ export const PANEL_CSS = `
 .panel .stat span{display:block;font-size:9.5px;color:var(--soft);letter-spacing:.04em;text-transform:uppercase}
 .panel .sec{margin:14px 0 6px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--soft);
   border-top:1px solid var(--line);padding-top:9px}
+.panel .sysnote{margin:2px 0 10px;font-size:10.5px;line-height:1.45}
 .panel .rhythm{display:flex;flex-wrap:wrap;gap:5px}
 .panel .rhythm select.mod{flex:0 1 auto;width:auto;font-size:11px;padding:4px 5px}
 .panel .slider{display:flex;align-items:center;gap:8px;margin:7px 0}
@@ -219,4 +258,143 @@ export const PANEL_CSS = `
 .panel .toggles{display:flex;flex-direction:column;gap:4px;margin-top:8px}
 .panel .tog{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink);cursor:pointer}
 .panel .btns{margin-top:12px;gap:6px}
+`;
+
+/* ─────────────────────── the mobile bottom sheet ────────────────────────── */
+//
+// On a phone there is no room for three floating panels beside a 3D view, and
+// there is no hover to reveal them. What works is the pattern every map and
+// music app has converged on: ONE sheet along the bottom edge, peeking by
+// default so the content owns the screen, dragged up when you want to work,
+// dragged down when you want to look.
+//
+// The panels are not duplicated for mobile — they are MOVED. Above the
+// breakpoint they sit where they always did; below it the same DOM nodes are
+// re-parented into the sheet, so there is exactly one seed input, one hazard
+// select and one set of event handlers in the document at any time. Duplicating
+// them is how a control ends up disagreeing with itself.
+
+const SHEET_STATES = ['peek', 'open', 'full'];
+
+export function mountSheet(panes, opts = {}) {
+  const mq = window.matchMedia(opts.query || '(max-width: 760px)');
+  const el = document.createElement('div');
+  el.id = 'sheet';
+  el.className = 'sheet';
+  el.dataset.state = 'peek';
+  el.innerHTML =
+    '<div class="grab"><span class="bar"></span><div class="sum"></div></div>' +
+    '<div class="tabs"></div><div class="body"></div>';
+  document.body.appendChild(el);
+
+  const grab = el.querySelector('.grab');
+  const tabsEl = el.querySelector('.tabs');
+  const bodyEl = el.querySelector('.body');
+  const sumEl = el.querySelector('.sum');
+  // where each pane lives when the sheet is not in use, so it can go home
+  const home = panes.map((q) => ({ pane: q, parent: q.el.parentNode, next: q.el.nextSibling }));
+  let active = panes[0].id;
+
+  for (const q of panes) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.dataset.pane = q.id;
+    btn.textContent = q.label;
+    btn.addEventListener('click', () => { show(q.id); if (el.dataset.state === 'peek') setState('open'); });
+    tabsEl.appendChild(btn);
+  }
+
+  function show(id) {
+    active = id;
+    for (const b of tabsEl.children) b.classList.toggle('on', b.dataset.pane === id);
+    if (!mq.matches) return;
+    bodyEl.textContent = '';
+    const q = panes.find((x) => x.id === id);
+    if (q) bodyEl.appendChild(q.el);
+  }
+
+  function setState(s) {
+    el.dataset.state = s;
+    document.body.classList.toggle('sheet-open', s !== 'peek');
+    if (opts.onResize) requestAnimationFrame(opts.onResize);
+  }
+
+  // tap the handle to cycle peek → open → full → peek; drag it to aim
+  let dragY = null, dragFrom = null, moved = 0;
+  grab.addEventListener('pointerdown', (e) => {
+    dragY = e.clientY; dragFrom = el.dataset.state; moved = 0;
+    grab.setPointerCapture(e.pointerId);
+  });
+  grab.addEventListener('pointermove', (e) => {
+    if (dragY == null) return;
+    moved = dragY - e.clientY;                    // up is positive
+    el.style.setProperty('--drag', Math.max(-140, Math.min(240, moved)) + 'px');
+  });
+  const endDrag = () => {
+    if (dragY == null) return;
+    el.style.removeProperty('--drag');
+    const i = SHEET_STATES.indexOf(dragFrom);
+    if (moved > 45) setState(SHEET_STATES[Math.min(2, i + 1)]);
+    else if (moved < -45) setState(SHEET_STATES[Math.max(0, i - 1)]);
+    else setState(SHEET_STATES[(i + 1) % 3]);     // a tap cycles
+    dragY = null;
+  };
+  grab.addEventListener('pointerup', endDrag);
+  grab.addEventListener('pointercancel', endDrag);
+
+  function apply() {
+    if (mq.matches) {
+      show(active);
+      document.body.classList.add('mobile');
+    } else {
+      // put every pane back exactly where it came from
+      for (const q of home) {
+        if (q.parent) q.parent.insertBefore(q.pane.el, q.next && q.next.parentNode === q.parent ? q.next : null);
+      }
+      bodyEl.textContent = '';
+      document.body.classList.remove('mobile', 'sheet-open');
+    }
+    if (opts.onResize) requestAnimationFrame(opts.onResize);
+  }
+  mq.addEventListener('change', apply);
+  apply();
+
+  return {
+    get mobile() { return mq.matches; },
+    setSummary(html) { sumEl.innerHTML = html; },
+    show, setState,
+  };
+}
+
+export const SHEET_CSS = `
+.sheet{display:none}
+body.mobile .sheet{
+  display:flex;flex-direction:column;position:fixed;left:0;right:0;bottom:0;z-index:40;
+  background:var(--panel);border-top:1px solid var(--line);
+  border-radius:16px 16px 0 0;backdrop-filter:blur(12px);
+  box-shadow:0 -10px 40px #0009;
+  height:calc(var(--h,56px) + var(--drag,0px));
+  transition:height .18s cubic-bezier(.2,.8,.3,1);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+body.mobile .sheet[data-state=peek]{--h:74px}
+body.mobile .sheet[data-state=open]{--h:46vh}
+body.mobile .sheet[data-state=full]{--h:86vh}
+.sheet .grab{flex:0 0 auto;padding:8px 14px 6px;cursor:grab;touch-action:none;user-select:none}
+.sheet .grab .bar{display:block;width:38px;height:4px;border-radius:3px;background:#4a4a60;margin:0 auto 6px}
+.sheet .sum{font-size:11.5px;color:var(--soft);text-align:center;line-height:1.35;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sheet .sum b{color:var(--ink)}
+.sheet .tabs{flex:0 0 auto;display:flex;gap:5px;padding:2px 12px 8px;overflow-x:auto}
+.sheet .tabs button{flex:1 1 auto;background:#12121c;border:1px solid var(--line);color:var(--soft);
+  border-radius:8px;padding:7px 6px;font-size:12px;cursor:pointer;white-space:nowrap}
+.sheet .tabs button.on{border-color:var(--accent);color:var(--accent)}
+.sheet .body{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 13px 16px}
+body.mobile .sheet[data-state=peek] .tabs,
+body.mobile .sheet[data-state=peek] .body{display:none}
+/* the panes lose their floating-panel chrome once they are inside the sheet */
+body.mobile .sheet .body > *{position:static!important;width:auto!important;max-width:none!important;
+  max-height:none!important;border:0!important;background:none!important;box-shadow:none!important;
+  padding:0!important;backdrop-filter:none!important;border-radius:0!important;bottom:auto!important;
+  right:auto!important;top:auto!important;left:auto!important;overflow:visible!important;display:block!important}
 `;

@@ -354,6 +354,34 @@ export function sectionSVG(b, opts = {}) {
   out.push(`<line x1="${pad - 14}" y1="${V(0)}" x2="${W - pad + 14}" y2="${V(0)}" stroke="${P.ink}" stroke-width="2"/>`);
   // ground poché
   out.push(`<rect x="${pad - 14}" y="${V(0)}" width="${n2(W - 2 * pad + 28)}" height="10" fill="url(#${id}-hatch)" opacity=".6"/>`);
+  // A building does not end at the ground. Where the report knows what the
+  // foundation is, the section cuts it — that is the half of the drawing that
+  // used to be missing.
+  const fnd = opts.foundation;
+  if (fnd) {
+    const bw = fnd.B, x0f = -bw / 2;
+    if (fnd.type === 'pads') {
+      const n = Math.max(2, Math.round(bw / (opts.bay || 8)));
+      for (let i = 0; i <= n; i++) {
+        const cxp = x0f + (i * bw) / n;
+        out.push(`<rect x="${F.X(cxp - fnd.padB / 2)}" y="${V(0)}" width="${n2(F.L(fnd.padB))}" height="${n2(Math.max(3, F.L(fnd.depth)))}" fill="${P.core}" stroke="${P.ink}" stroke-width="1.1"/>`);
+      }
+    } else {
+      out.push(`<rect x="${F.X(x0f)}" y="${V(0)}" width="${n2(F.L(bw))}" height="${n2(Math.max(4, F.L(fnd.depth)))}" fill="${P.core}" stroke="${P.ink}" stroke-width="1.4"/>`);
+      if (fnd.type === 'piled raft') {
+        const n = Math.max(3, Math.min(14, Math.round(Math.sqrt(fnd.nPiles))));
+        const top = V(0) + Math.max(4, F.L(fnd.depth));
+        // the piles are drawn to whatever depth is left on the sheet, not to
+        // their true 18 m, so they never run off the bottom of the drawing
+        const len = Math.max(8, Math.min(F.L(18), H - 26 - top));
+        for (let i = 0; i < n; i++) {
+          const cxp = x0f + ((i + 0.5) * bw) / n;
+          out.push(`<rect x="${F.X(cxp) - 2}" y="${n2(top)}" width="4" height="${n2(len)}" fill="${P.core}" stroke="${P.ink}" stroke-width=".7"/>`);
+        }
+      }
+    }
+    out.push(label(W - pad + 12, H - 22, fnd.note, P, 7.5, 'end'));
+  }
 
   for (let i = 0; i < S.rows.length; i++) {
     const row = S.rows[i];
