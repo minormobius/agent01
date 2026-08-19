@@ -21,10 +21,48 @@
 // No D1, no Durable Object, no secrets beyond the shared Cloudflare deploy creds.
 
 import { generateDungeon, TILE_SHAPES, SIZES, DUNGEON_VERSION } from './dungeon.mjs';
-import { dungeonToJSON } from './dungeon-export.mjs';
+import { dungeonToJSON, layoutSignature } from './dungeon-export.mjs';
 import { rollContent, CONTENT_VERSION, tuningFromParam } from './dungeon-content.mjs';
 
 const CORS = { 'access-control-allow-origin': '*' };
+
+// ------------------------------------------------------ version pinning ----
+// A consumer that SAVED something derived from a dungeon (floor plans,
+// placements, anything keyed to geometry) needs the generator to be a
+// contract, not a moving target. Stamping the version in the response is
+// only advisory — by the time a client reads it, it has already been
+// handed geometry it did not ask for. So `v` (and `cv` for content rolls)
+// PIN the request:
+//
+//   v absent      → whatever is current (the old behaviour, unchanged)
+//   v = a version we can build → that version, exactly
+//   v = anything else          → 409, naming what IS available
+//
+// Never a silent substitution. A pinned request either gets the geometry
+// it asked for or an error it can act on.
+//
+// THE FREEZE POLICY, which is what makes pinning mean anything later:
+// bumping DUNGEON_VERSION must FREEZE the outgoing generator — copy the
+// modules to a versioned path (dungeon-v4.mjs …), import them here, and
+// register them below. The registry is the list of versions this service
+// can honestly serve; preflight asserts every advertised version has an
+// implementation. Until a bump happens there is exactly one entry, and
+// `v=4` is a strict guard: the day v5 ships, a client pinned to v4 keeps
+// getting v4 if it was frozen, and a loud 409 if it was not — never
+// relocated floors.
+const GENERATORS = {
+  [DUNGEON_VERSION]: { generateDungeon, dungeonToJSON },
+};
+const CONTENT_ROLLERS = {
+  [CONTENT_VERSION]: { rollContent },
+};
+// exported so CI can assert the policy holds: the current version is always
+// servable, and every version this service advertises has an implementation
+// behind it (see test/dungeon.selftest.mjs).
+export const API_VERSIONS = {
+  dungeon: Object.keys(GENERATORS).map(Number),
+  content: Object.keys(CONTENT_ROLLERS).map(Number),
+};
 
 const json = (body, status = 200, extra = {}) => new Response(JSON.stringify(body), {
   status,
@@ -44,6 +82,8 @@ function readParams(sp) {
     starts: Math.min(4, Math.max(1, parseInt(sp.get('starts') ?? '1', 10) || 1)),
     roll: Math.max(1, parseInt(sp.get('roll') ?? '1', 10) || 1),
     tune: sp.get('tune') ?? '',
+    v: sp.get('v') === null || sp.get('v') === 'latest' ? null : parseInt(sp.get('v'), 10),
+    cv: sp.get('cv') === null || sp.get('cv') === 'latest' ? null : parseInt(sp.get('cv'), 10),
   };
   // reject typos loudly rather than silently defaulting the two enums
   if (sp.get('shape') && !TILE_SHAPES.includes(sp.get('shape'))) {
@@ -75,7 +115,11 @@ const USAGE = {
           'foams until one can carry k disjoint descents) — often exceeds the edge limit; ' +
           'import the modules for this mode.',
       },
-      versions: { dungeon: DUNGEON_VERSION },
+      versions: { dungeon: DUNGEON_VERSION, servable: Object.keys(GENERATORS).map(Number) },
+      pinning: 'v=<version> pins the generator: served exactly, or 409 naming what is ' +
+        'available — geometry is never silently substituted. Omit (or v=latest) for current. ' +
+        'Every response carries x-dungeon-version and x-layout-signature (the geometry ' +
+        'fingerprint) so a saved artefact can detect drift.',
     },
     '/api/content': {
       returns: 'foam-dungeon-content JSON (the roll) for the same map params',
@@ -84,7 +128,12 @@ const USAGE = {
         tune: 'lo,tr,ob,en,tf,gr — the forge tuning block (optional)',
         '…': 'plus every /api/dungeon param, to name the map',
       },
-      versions: { dungeon: DUNGEON_VERSION, content: CONTENT_VERSION },
+      versions: {
+        dungeon: DUNGEON_VERSION, content: CONTENT_VERSION,
+        servable: { dungeon: Object.keys(GENERATORS).map(Number), content: Object.keys(CONTENT_ROLLERS).map(Number) },
+      },
+      pinning: 'v=<version> pins the map generator, cv=<version> the content roller; ' +
+        'either unservable is a 409.',
     },
   },
   determinism: 'same params → byte-identical response, immutable per version; responses are edge-cached',
@@ -104,10 +153,35 @@ async function handleApi(url) {
   const { params, canon } = r;
   const wantContent = path === '/api/content';
 
-  // edge cache, keyed on normalized params + the versions that pin meaning
+  // resolve the pin BEFORE anything else: an unservable version is a 409,
+  // never a silent substitution
+  const wantV = params.v ?? DUNGEON_VERSION;
+  const gen = GENERATORS[wantV];
+  if (!gen) {
+    return json({
+      error: 'cannot serve dungeon version ' + params.v,
+      requested: params.v, current: DUNGEON_VERSION,
+      available: Object.keys(GENERATORS).map(Number),
+      hint: 'omit v (or v=latest) for the current generator. A pinned version is served ' +
+        'only while this service still carries that generator; geometry is never ' +
+        'silently substituted.',
+    }, 409);
+  }
+  const wantCV = params.cv ?? CONTENT_VERSION;
+  const roller = CONTENT_ROLLERS[wantCV];
+  if (wantContent && !roller) {
+    return json({
+      error: 'cannot serve content version ' + params.cv,
+      requested: params.cv, current: CONTENT_VERSION,
+      available: Object.keys(CONTENT_ROLLERS).map(Number),
+      hint: 'omit cv (or cv=latest) for the current roller.',
+    }, 409);
+  }
+
+  // edge cache, keyed on normalized params + the RESOLVED versions
   const key = new Request(url.origin + path + '?' + canon +
     (wantContent ? '&roll=' + params.roll + (params.tune ? '&tune=' + params.tune : '') : '') +
-    '&v=' + DUNGEON_VERSION + (wantContent ? '.' + CONTENT_VERSION : ''));
+    '&v=' + wantV + (wantContent ? '.' + wantCV : ''));
   const cache = globalThis.caches?.default;
   const hit = await cache?.match(key);
   if (hit) {
@@ -117,18 +191,22 @@ async function handleApi(url) {
   }
 
   const t0 = Date.now();
-  const dungeon = generateDungeon({
+  const dungeon = gen.generateDungeon({
     seed: params.seed, endpoints: params.n, tileShape: params.shape,
     tileScale: params.scale, twin: params.twin, starts: params.starts,
     ...(url.searchParams.get('size') ? { size: params.size } : {}),
   });
-  const doc = dungeonToJSON(dungeon);
+  const doc = gen.dungeonToJSON(dungeon);
   const body = wantContent
-    ? rollContent(doc, { roll: params.roll, tuning: tuningFromParam(params.tune) })
+    ? roller.rollContent(doc, { roll: params.roll, tuning: tuningFromParam(params.tune) })
     : doc;
   const res = json(body, 200, {
     'cache-control': 'public, max-age=31536000, immutable',
-    'x-dungeon-version': String(DUNGEON_VERSION) + (wantContent ? ' content ' + CONTENT_VERSION : ''),
+    'x-dungeon-version': String(wantV) + (wantContent ? ' content ' + wantCV : ''),
+    // the geometry's own fingerprint: hash of the layout-bearing subset of
+    // the canonical document, so a saved artefact can detect drift without
+    // re-deriving anything (it is what CI pins golden signatures against)
+    'x-layout-signature': '0x' + layoutSignature(doc).toString(16),
     'x-generation-ms': String(Date.now() - t0),
     'x-cache': 'miss',
   });

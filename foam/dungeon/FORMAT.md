@@ -266,6 +266,30 @@ GET https://foam.mino.mobi/api
 
 Parameters are exactly the permalink params, same names, same defaults —
 a page permalink's hash pasted after `/api/dungeon?` is a valid query.
+
+**Pinning a version.** If you have SAVED anything derived from a dungeon —
+floor plans, placements, anything keyed to geometry — pin the generator:
+
+```
+GET /api/dungeon?seed=5&shape=hex&v=4     # exactly v4, or an error
+```
+
+`v` (and `cv` for content rolls) is a strict pin, not a hint: the request is
+served by that generator, or refused with **409** naming the current and
+available versions. Geometry is never silently substituted — an unpinned
+request is the only one that follows the current version wherever it goes.
+Every response carries `x-dungeon-version` and **`x-layout-signature`**, a
+hash of the layout-bearing subset of the document (the same fingerprint CI
+pins golden signatures against), so a saved artefact can detect drift
+without re-deriving anything.
+
+What a pin can promise: this service serves a version while it still
+carries that generator. The **freeze policy** is that bumping
+`DUNGEON_VERSION` freezes the outgoing generator at a versioned module and
+registers it, so pinned clients keep their geometry across the bump; CI
+asserts every advertised version has an implementation behind it. If a
+version is ever retired, pinned requests fail loudly rather than quietly
+returning different floors — which is the failure mode worth having.
 Unknown `shape`/`size` values are a 400 (not a silent default). Responses
 are CORS-open and edge-cached immutable, keyed on the normalized params
 plus the generator versions: the first summon of a given dungeon pays the

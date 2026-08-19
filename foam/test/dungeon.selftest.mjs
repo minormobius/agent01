@@ -798,6 +798,54 @@ for (const seed of SEEDS) {
   }
 }
 
+// -- API VERSION PINNING. A consumer that saved anything derived from a
+//    dungeon needs the generator to be a contract. `v` pins the request:
+//    served exactly, or a 409 naming what is available — geometry is never
+//    silently substituted. THE FREEZE POLICY these checks defend: bumping
+//    DUNGEON_VERSION must freeze the outgoing generator at a versioned
+//    module and register it in worker.js, or every pinned client breaks
+//    loudly on the next deploy.
+{
+  const worker = (await import('../worker.js')).default;
+  const { API_VERSIONS } = await import('../worker.js');
+  const { DUNGEON_VERSION } = await import('../dungeon.mjs');
+  const { CONTENT_VERSION } = await import('../dungeon-content.mjs');
+  const { layoutSignature } = await import('../dungeon-export.mjs');
+  const env = { ASSETS: { fetch: () => new Response('asset') } };
+  const get = (q) => worker.fetch(new Request('https://foam.mino.mobi' + q), env);
+
+  ok(API_VERSIONS.dungeon.includes(DUNGEON_VERSION),
+    `api: the current generator v${DUNGEON_VERSION} is servable`);
+  ok(API_VERSIONS.content.includes(CONTENT_VERSION),
+    `api: the current content roller v${CONTENT_VERSION} is servable`);
+
+  const q = '?seed=5&n=2&shape=grid&scale=0.5&size=s';
+  const pinned = await get('/api/dungeon' + q + '&v=' + DUNGEON_VERSION);
+  ok(pinned.status === 200, 'api: a pin on the current version is served');
+  const doc = await pinned.json();
+  ok(doc.version === DUNGEON_VERSION, 'api: the served document carries the pinned version');
+  ok(pinned.headers.get('x-dungeon-version') === String(DUNGEON_VERSION),
+    'api: the response stamps the version it served');
+  ok(pinned.headers.get('x-layout-signature') === '0x' + layoutSignature(doc).toString(16),
+    'api: x-layout-signature is the geometry fingerprint (drift detection without re-deriving)');
+
+  // the whole point: an unservable pin must FAIL, not substitute
+  for (const bad of [DUNGEON_VERSION + 1, DUNGEON_VERSION - 1]) {
+    if (API_VERSIONS.dungeon.includes(bad)) continue;
+    const res = await get('/api/dungeon' + q + '&v=' + bad);
+    ok(res.status === 409, `api: v=${bad} is refused (409), never substituted`);
+    const body = await res.json();
+    ok(body.current === DUNGEON_VERSION && Array.isArray(body.available) && body.available.length > 0,
+      `api: the refusal names the current and available versions`);
+  }
+  const loose = await get('/api/dungeon' + q);
+  ok(loose.status === 200, 'api: an unpinned request still gets the current generator');
+  const latest = await get('/api/dungeon' + q + '&v=latest');
+  ok(latest.status === 200, 'api: v=latest is the current generator');
+  const cvBad = await get('/api/content' + q + '&roll=2&cv=' + (CONTENT_VERSION + 1));
+  ok(cvBad.status === 409, 'api: an unservable content pin is refused too');
+}
+
 console.log(`\n${checks} checks, ${failures} failures (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
 if (failures) process.exit(1);
 console.log('DUNGEON SELFTEST PASS');

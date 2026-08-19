@@ -62,6 +62,17 @@ normalized params + versions (determinism makes every repeat summon a
 cache hit; only the first pays generation CPU). Unknown shape/size = 400.
 The handler is plain ESM — it smoke-tests in node by importing worker.js
 and calling `worker.fetch(new Request(…), {ASSETS: stub})`.
+VERSION PINNING: `v=` (map) and `cv=` (content) are STRICT pins served from
+the `GENERATORS` / `CONTENT_ROLLERS` registries in worker.js — an
+unservable version is a 409 naming what is available, never a silent
+substitution, because a consumer that saved geometry-derived state needs a
+contract rather than a stamp. Responses carry `x-layout-signature` (the
+layoutSignature fingerprint) so saves detect drift without re-deriving.
+**The freeze policy is load-bearing: bumping DUNGEON_VERSION must copy the
+outgoing generator to a versioned module and register it**, or every
+pinned client breaks on the next deploy; `API_VERSIONS` is exported and the
+selftest asserts the registry covers the current version and that
+unservable pins 409.
 
 `/dungeon/crawl/` is the **room's-eye crawler**: three.js view of the current
 room only (tiles at true floor heights, walls extruded from the canonical
