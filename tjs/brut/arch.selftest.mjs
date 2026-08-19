@@ -15,11 +15,16 @@ import {
   FLOOR_IDS, LATERAL_IDS, FLOOR_SYSTEMS, floorSystem,
 } from './arch.js';
 import { planSVG, elevationSVG, sectionSVG, titleBlockSVG, scheduleSVG, sheetSVG, revision, PALETTES } from './blueprint.js';
+import {
+  solveFlight, stairFootprint, layout as stairLayout, fitsBox, chooseStair,
+  STAIR_TYPES, STAIR_IDS, RULES as SR,
+} from './stair.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m); } };
 const SEEDS = ['brut', 'barbican-flint-317', 'nave-gull-902', 'ziggurat-moss-114', 'silo-brine-556', 'x', '⌘-unicode-seed'];
 const EPS = 0.02;
+const r0 = (v) => Math.round(v * 1000) / 1000;
 
 /* 1. DETERMINISM — the load-bearing property. Same seed ⇒ byte-identical
       building AND byte-identical parts list, in every typology. */
@@ -418,6 +423,173 @@ const EPS = 0.02;
   const thin = parts(generate({ ...base, floor: 'pt-flat' })).find((q) => q.kind === 'slab');
   const thick = parts(generate({ ...base, floor: 'flat-slab' })).find((q) => q.kind === 'slab');
   ok(thin.h < thick.h, `a PT plate is drawn thinner than a flat slab (${thin.h} < ${thick.h} m)`);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE STAIRS
+   ══════════════════════════════════════════════════════════════════════════
+   A stair is the one element in the building whose rules are older than the
+   building type, so it is checked against those rather than against a picture:
+   equal risers, Blondel, pitch, the flight cap, landing depth. And then the
+   thing this whole feature exists for — that it REACHES THE GROUND. */
+{
+  // ── the flight solve, against the rule book ─────────────────────────────
+  for (const H of [2.6, 3.0, 3.4, 3.8, 4.5, 5.6, 7.0]) {
+    const f = solveFlight(H);
+    ok(Math.abs(f.risers * f.rise - H) < 1e-9, `H=${H}: the risers add up to the storey exactly`);
+    ok(Number.isInteger(f.risers), `H=${H}: the riser count is an integer`);
+    ok(f.rise >= SR.publicRise[0] - 1e-9 && f.rise <= SR.publicRise[1] + 1e-9,
+      `H=${H}: rise ${Math.round(f.rise * 1000)} mm is inside the code band`);
+    ok(f.blondel >= SR.blondelBand[0] && f.blondel <= SR.blondelBand[1],
+      `H=${H}: 2R+G = ${Math.round(f.blondel * 1000)} mm satisfies Blondel`);
+    ok(f.pitch <= SR.pitchMax.public + 1e-6, `H=${H}: pitch ${f.pitch}° is not a ladder`);
+  }
+  // a taller storey needs more risers — monotone, even though the FOOTPRINT is not
+  let mono = true;
+  for (let H = 2.6; H < 7; H += 0.2) {
+    if (solveFlight(H + 0.2).risers < solveFlight(H).risers) mono = false;
+  }
+  ok(mono, 'a taller storey never needs fewer risers');
+
+  // ── the footprint envelope ──────────────────────────────────────────────
+  // NOT monotone in storey height, because the flight cap is a step function.
+  // This is the property that made a core sized on the tallest floor wrong.
+  const hs = [4.47, 5.59];
+  const env = stairFootprint('dogleg', hs, { width: 1.35 });
+  const each = hs.map((h) => stairFootprint('dogleg', h, { width: 1.35 }));
+  ok(env.w >= Math.max(...each.map((e) => e.w)) - 1e-9 &&
+     env.d >= Math.max(...each.map((e) => e.d)) - 1e-9,
+    'the footprint over a list of heights is the envelope of them all');
+  ok(each[0].d > each[1].d,
+    `and it is not monotone: the ${hs[0]} m storey needs a LONGER shaft (${each[0].d} m) ` +
+    `than the ${hs[1]} m one (${each[1].d} m), because 27 risers split into two flights and 34 into three`);
+
+  // ── every type, laid out in a box that fits it ──────────────────────────
+  for (const id of STAIR_IDS) {
+    const fp = stairFootprint(id, 3.4, { width: 1.2 });
+    if (fp.viable === false) continue;
+    const st = stairLayout(id, 3.4, { x: 0, z: 0, w: fp.w + 0.1, d: fp.d + 0.1 }, { width: 1.2 });
+    ok(st.pass, `${id}: passes every check in a shaft sized for it` +
+      (st.pass ? '' : ` — ${st.governing.id} ${st.governing.value}`));
+    ok(st.steps.length === st.risers * (st.strands || 1), `${id}: one tread per riser`);
+
+    // the treads arrive exactly at the floor above
+    const top = Math.max(...st.steps.map((q) => q.y + q.h / 2));
+    ok(Math.abs(top - st.top) < 0.03, `${id}: the last tread lands on the floor above`);
+
+    // and every tread is inside the shaft, with its rotation taken into account
+    let out2 = 0;
+    for (const q of st.steps) {
+      const c = Math.abs(Math.cos(q.ry || 0)), si = Math.abs(Math.sin(q.ry || 0));
+      const ex = (q.w * c + q.d * si) / 2, ez = (q.w * si + q.d * c) / 2;
+      if (Math.abs(q.x - st.box.x) > st.box.w / 2 + ex + 0.02 ||
+          Math.abs(q.z - st.box.z) > st.box.d / 2 + ez + 0.02) out2++;
+    }
+    ok(out2 === 0, `${id}: no tread escapes its shaft`);
+  }
+
+  // a type that cannot express the flight count it needs is REJECTED, not
+  // silently truncated — this is what stopped a quarter turn dropping its third
+  // flight and arriving two metres below the floor
+  const tall = stairFootprint('quarter', 6.2, { width: 1.2 });
+  ok(tall.viable === false, 'a quarter turn that would need three flights is not a quarter turn');
+  ok(!fitsBox(tall, { w: 99, d: 99 }), 'and it fits no box at all, however big');
+
+  // ── the tread convention survives turning the shaft ─────────────────────
+  const a = stairLayout('dogleg', 3.4, { x: 0, z: 0, w: 2.6, d: 6 }, { width: 1.2 });
+  const bx = stairLayout('dogleg', 3.4, { x: 0, z: 0, w: 6, d: 2.6 }, { width: 1.2 });
+  const worldExt = (q) => {
+    const c = Math.abs(Math.cos(q.ry || 0)), si = Math.abs(Math.sin(q.ry || 0));
+    return [q.w * c + q.d * si, q.w * si + q.d * c];
+  };
+  const ea = worldExt(a.steps[0]), eb = worldExt(bx.steps[0]);
+  ok(Math.abs(ea[0] - eb[1]) < 1e-6 && Math.abs(ea[1] - eb[0]) < 1e-6,
+    'turning the shaft 90° turns the treads with it — the going stays along travel');
+  const trav = Math.hypot(a.steps[1].x - a.steps[0].x, a.steps[1].z - a.steps[0].z);
+  ok(Math.abs(trav - a.going) < 0.02, 'consecutive treads are exactly one going apart');
+}
+
+/* ── STAIRS TO GROUND — the point of the exercise ─────────────────────────── */
+{
+  let checked = 0;
+  for (const t of TYPOLOGY_IDS) {
+    for (const s of ['a', 'b', 'c']) {
+      const b = generate(resolveParams({ s: 'stair-' + t + s, t }));
+      const stairs = b.stairs || [];
+      if (!stairs.length) continue;
+      checked++;
+
+      // every stair passes its own checks
+      const bad = stairs.filter((q) => !q.pass);
+      ok(bad.length === 0, `${t}-${s}: every stair complies` +
+        (bad.length ? ` — ${bad.length} fail, first ${bad[0].governing.id}` : ''));
+
+      // and the flights TILE the height with no gap: shaft by shaft, the first
+      // one starts at the ground and each hands over to the next exactly
+      const byShaft = new Map();
+      for (const q of stairs) {
+        const k = String(q.core);
+        if (!byShaft.has(k)) byShaft.set(k, []);
+        byShaft.get(k).push(q);
+      }
+      for (const [k, list] of byShaft) {
+        list.sort((x, y) => x.y0 - y.y0);
+        ok(list[0].y0 < 0.05, `${t}-${s} shaft ${k}: the bottom flight starts at the ground`);
+        let gap = 0;
+        for (let i = 0; i + 1 < list.length; i++) gap = Math.max(gap, Math.abs(list[i].top - list[i + 1].y0));
+        ok(gap < 0.05, `${t}-${s} shaft ${k}: no gap between storeys (worst ${r0(gap)} m)`);
+      }
+
+      // An external stair tower must stay ATTACHED at every level it passes: it
+      // used to be placed against level 0's wing and so lost a stepped mass on
+      // the way up, serving nine floors of fifteen and then continuing past
+      // thin air. A CAMPANILE is exempt, and deliberately so — a detached bell
+      // tower is the cathedral's whole point, and it reaches the ground on its
+      // own turret stair rather than through the building.
+      for (const tw of b.towers) {
+        if (tw.kind === 'campanile') continue;
+        const detached = b.levels.filter((L) => !L.wings.some((w) =>
+          Math.abs(tw.x - w.x) <= (w.w + tw.w) / 2 + 0.05 &&
+          Math.abs(tw.z - w.z) <= (w.d + tw.d) / 2 + 0.05)).length;
+        ok(detached === 0, `${t}-${s}: the ${tw.kind} touches the building on every level`);
+      }
+    }
+  }
+  ok(checked > 0, `stairs were generated and checked in ${checked} buildings`);
+
+  // the campanile is detached BY DESIGN, and still climbs from grade to the
+  // bells — a turret stair re-solved a storey at a time, because a 25 m
+  // cathedral storey is far too tall for one flight
+  const cath = generate(resolveParams({ s: 'stair-cathedral-a', t: 'cathedral' }));
+  if (cath.towers.length) {
+    const turret = (cath.stairs || []).filter((q) => q.turret);
+    ok(turret.length > 1, `the campanile is climbed in ${turret.length} flights, not one`);
+    ok(turret.every((q) => q.pass), 'and every one of them complies');
+    turret.sort((x, y) => x.y0 - y.y0);
+    ok(turret[0].y0 < 0.05, 'the turret stair starts at the ground');
+    ok(Math.abs(turret[turret.length - 1].top - cath.towers[0].h) < 0.6,
+      'and reaches the top of the tower');
+    ok(STAIR_TYPES[turret[0].type].spend === 'turn',
+      `a bell tower is climbed by a ${turret[0].type} — the only kind that spends its length in rotation`);
+  }
+}
+
+/* ── DRAWN IS BUILT — the same rule the facade already lives by ───────────── */
+{
+  const b = generate(resolveParams({ s: 'stair-drawn', t: 'office' }));
+  const built = parts(b).filter((q) => q.kind === 'tread');
+  const total = (b.stairs || []).reduce((a, q) => a + q.steps.length, 0);
+  ok(built.length === total, `every tread the kernel solves is a tread the model builds (${built.length})`);
+
+  // and the plan draws from the same objects
+  const svg = planSVG(b, 1, { width: 900, height: 640 });
+  ok(svg.includes('UP'), 'the plan marks the direction of travel');
+  ok(svg.length > 2000, 'the plan renders');
+
+  // the core is a shaft, not a solid — or the stair inside it is invisible
+  const walls = parts(b).filter((q) => q.kind === 'core-wall');
+  ok(walls.length > 0 && parts(b).every((q) => q.kind !== 'core'),
+    'cores are built as walls around a shaft rather than as solid blocks');
 }
 
 console.log(`\nbrut/arch: ${pass} passed, ${fail} failed`);

@@ -30,6 +30,8 @@
 // so a floor plan is not decoration on a mass, and a mass is not a box drawn
 // around a plan: both fall out of the same plate polygons.
 
+import { STAIR_TYPES, STAIR_IDS, stairFootprint, layout as stairLayout, chooseStair, stairParts, RULES as STAIR_RULES } from './stair.js';
+
 export const VERSION = 'brut/1';
 
 /* ───────────────────────────────── PRNG ─────────────────────────────────── */
@@ -294,6 +296,7 @@ export const TYPOLOGIES = {
     blurb: 'Nave, aisles, transept, apse — a béton-brut basilica with a detached campanile.',
     plan: 'sacred',
     levels: [1, 1], floorH: [22, 30], bay: [5.4, 7.2],
+    stairs: ['spiral', 'helical', 'double-helix', 'three'],
     bx: [4, 6], bz: [9, 15],
     massing: ['basilica'],
     shapes: ['basilica'],
@@ -308,6 +311,7 @@ export const TYPOLOGIES = {
     blurb: 'A city hall / library in the inverted-ziggurat manner: heavy above, undercut below.',
     plan: 'cellular',
     levels: [5, 9], floorH: [4.2, 5.4], bay: [7.2, 9.0],
+    stairs: ['open-well', 'three', 'quarter', 'dogleg', 'helical'],
     bx: [7, 11], bz: [6, 9],
     massing: ['inverted', 'setback', 'ziggurat'],
     shapes: ['bar', 'cross', 'court'],
@@ -323,6 +327,7 @@ export const TYPOLOGIES = {
     blurb: 'Deep-plan speculative floors, service core, a grid you could set your watch by.',
     plan: 'cellular',
     levels: [8, 18], floorH: [3.5, 4.1], bay: [6.0, 8.1],
+    stairs: ['dogleg', 'scissor', 'three', 'open-well'],
     bx: [6, 10], bz: [5, 8],
     massing: ['slab', 'setback', 'inverted', 'stagger'],
     shapes: ['bar', 'L', 'T'],
@@ -338,6 +343,7 @@ export const TYPOLOGIES = {
     blurb: 'Deck access, cross-over maisonettes, balconies hung off the frame.',
     plan: 'cellular',
     levels: [6, 14], floorH: [2.9, 3.3], bay: [5.4, 6.6],
+    stairs: ['dogleg', 'open-well', 'scissor', 'three'],
     bx: [10, 16], bz: [3, 5],
     massing: ['slab', 'stagger', 'setback'],
     shapes: ['bar', 'L'],
@@ -353,6 +359,7 @@ export const TYPOLOGIES = {
     blurb: 'Served and servant spaces: a blank plant tower strapped to a glazed working floor.',
     plan: 'cellular',
     levels: [5, 10], floorH: [4.0, 4.8], bay: [6.6, 8.4],
+    stairs: ['scissor', 'dogleg', 'three', 'quarter'],
     bx: [6, 9], bz: [5, 7],
     massing: ['slab', 'setback', 'stagger'],
     shapes: ['bar', 'T', 'cross'],
@@ -368,6 +375,7 @@ export const TYPOLOGIES = {
     blurb: 'The purest brutalism there is: slab, upstand, ramp, nothing else.',
     plan: 'deck',
     levels: [4, 8], floorH: [2.8, 3.2], bay: [7.5, 8.4],
+    stairs: ['straight', 'spiral', 'dogleg', 'three'],
     bx: [6, 9], bz: [5, 8],
     massing: ['slab', 'stagger'],
     shapes: ['bar'],
@@ -646,34 +654,111 @@ function massing(p) {
 // floor's stair lands in mid-air — which is exactly the class of bug a shared
 // kernel is meant to make impossible for the plan and the model to disagree on.
 
-function placeCores(p, mass) {
-  const rc = Rand(p.seed, 'cores');
-  // the wing that persists all the way up: intersect wing 0 across levels
+// The plate the building ALWAYS has: wing 0 intersected across every level.
+// Anything that must be true on every storey — a core, and an external stair
+// tower that has to stay attached — is placed against this and nothing else.
+function persistentSpine(mass) {
   let x0 = -1e9, x1 = 1e9, z0 = -1e9, z1 = 1e9;
   for (const L of mass.levels) {
     const wg = L.wings[0];
     x0 = Math.max(x0, R.x0(wg)); x1 = Math.min(x1, R.x1(wg));
     z0 = Math.max(z0, R.z0(wg)); z1 = Math.min(z1, R.z1(wg));
   }
-  const spine = R.fromMinMax(x0, z0, x1, z1);
-  const cw = Math.min(p.bay * 1.6, spine.w * 0.3);
-  const cd = Math.min(p.bay * 1.2, spine.d * 0.55);
+  return R.fromMinMax(x0, z0, x1, z1);
+}
+
+function placeCores(p, mass) {
+  const rc = Rand(p.seed, 'cores');
+  const spine = persistentSpine(mass);
+
+  // THE CORE IS SIZED BY THE STAIR, not the other way round. A core drawn as a
+  // fraction of the bay is a box with a label on it; ask the stair how much room
+  // it needs and the shaft becomes the consequence of something real. The
+  // candidates are laid out and measured, and only ones that FIT the plate the
+  // building always has are allowed — which is the same rule that already keeps
+  // a core from walking off the top floor.
+  // Size against the ENVELOPE over every storey height the building has — not
+  // the typical one, and not the tallest either. The footprint is not monotonic
+  // in storey height, because the flight cap is a step function: a 5.6 m storey
+  // takes 34 risers and splits into three flights of twelve, while a 4.5 m
+  // storey takes 27 and splits into two of fourteen — so the SHORTER storey
+  // needs the longer shaft.
+  const T = TYPOLOGIES[p.typology];
+  const heights = [...new Set(mass.levels.map((L) => L.h))];
+  const maxW = Math.min(p.bay * 2.4, spine.w * 0.44);
+  const maxD = Math.min(p.bay * 2.2, spine.d * 0.62);
+  const prefer = (T.stairs || ['dogleg', 'open-well', 'three', 'scissor', 'quarter', 'spiral', 'helical', 'straight'])
+    .filter((k) => STAIR_TYPES[k]);
+
+  let pick = null;
+  for (const width of [1.35, 1.2, 1.1, 1.0]) {
+    const type = chooseStair({ w: maxW, d: maxD }, heights, rc, { width, prefer });
+    if (type) { pick = { type, width, fp: stairFootprint(type, heights, { width }) }; break; }
+  }
+  // Nothing fits: fall back to the tightest stair the code still allows and let
+  // the checks report it, rather than silently drawing a shaft with no stair.
+  if (!pick) {
+    const width = STAIR_RULES.width.escape;
+    pick = { type: 'three', width, fp: stairFootprint('three', heights, { width }) };
+  }
+
+  const lift = 2.6;                                   // a shaft and its lobby
+  const cw = Math.max(pick.fp.w, Math.min(maxW, pick.fp.w + lift));
+  const cd = Math.max(pick.fp.d, Math.min(maxD, pick.fp.d + 0.6));
   const cores = [];
-  const along = spine.w >= spine.d; // cores march along the long axis
+  const along = spine.w >= spine.d;                   // cores march along the long axis
   const n = spine.w * spine.d > 900 ? 2 : 1;
   for (let k = 0; k < n; k++) {
     const t = n === 1 ? (p.symmetric ? 0.5 : rc.range(0.34, 0.66)) : (k === 0 ? 0.24 : 0.76);
     const cx = along ? R.x0(spine) + t * spine.w : spine.x;
     const cz = along ? spine.z : R.z0(spine) + t * spine.d;
+    const w = round2(along ? cw : cd), d = round2(along ? cd : cw);
+    // the stair takes one end of the shaft; the lift and its lobby take the rest
+    // orient the stair's own footprint the way the core is turned
+    const wide = w >= d;
+    const sw = wide ? Math.max(pick.fp.w, pick.fp.d) : Math.min(pick.fp.w, pick.fp.d);
+    const sd = wide ? Math.min(pick.fp.w, pick.fp.d) : Math.max(pick.fp.w, pick.fp.d);
+    const hasLift = k === 0 && w - sw > 1.4;
     cores.push({
-      x: round2(cx), z: round2(cz),
-      w: round2(along ? cw : cd), d: round2(along ? cd : cw),
-      kind: k === 0 ? 'stair + lift' : 'stair',
+      x: round2(cx), z: round2(cz), w, d,
+      kind: hasLift ? 'stair + lift' : 'stair',
+      stair: { type: pick.type, width: pick.width, label: STAIR_TYPES[pick.type].label },
+      stairBox: {
+        x: round2(cx - (w - sw) / 2 * (hasLift ? 1 : 0)), z: round2(cz),
+        w: round2(sw), d: round2(sd),
+      },
+      lift: hasLift ? { x: round2(cx + sw / 2), z: round2(cz), w: round2(w - sw), d: round2(Math.min(d, 2.6)) } : null,
     });
   }
   return cores;
 }
 
+/* ──────────────────────────── STAIRS TO GROUND ──────────────────────────── */
+//
+// One stair per core per level, each climbing that level's own floor-to-floor
+// height from that level's floor. Because level 0 starts at y = 0, the flights
+// tile the whole height of the building with no gap — the stair reaches the
+// ground by construction rather than by hoping, and the selftest asserts the
+// tiling closes.
+//
+// Storey heights are NOT all equal (a podium ground floor is taller), so the
+// stair is re-solved per level rather than stamped: a taller storey gets more
+// risers, and every riser inside that flight is still exactly equal.
+
+function placeStairs(p, mass, cores) {
+  const out = [];
+  for (let ci = 0; ci < cores.length; ci++) {
+    const c = cores[ci];
+    for (const L of mass.levels) {
+      if (!L.wings.some((w) => R.overlaps(w, c))) continue;   // no plate, no stair
+      const st = stairLayout(c.stair.type, L.h, c.stairBox, {
+        width: c.stair.width, y0: L.y, private: p.typology === 'housing',
+      });
+      out.push({ core: ci, level: L.index, ...st });
+    }
+  }
+  return out;
+}
 /* ─────────────────────────── the cellular floor plan ────────────────────── */
 //
 // A corridor spine, cores subtracted, then a BSP over what is left. Rooms snap
@@ -1010,6 +1095,7 @@ export function generate(paramsOrQuery) {
 
   const mass = massing(p);
   const cores = placeCores(p, mass);
+  const stairs = placeStairs(p, mass, cores);
   const rp = Rand(p.seed, 'plan');
 
   for (const L of mass.levels) {
@@ -1023,9 +1109,10 @@ export function generate(paramsOrQuery) {
 
   const facades = facadeFor(p, mass, cores);
   const towers = serviceTowers(p, mass);
+  stairs.push(...towerStairs(p, mass, towers));
   const b = {
     version: VERSION, params: p, seed: p.seed, typology: p.typology, typologyLabel: T.label,
-    site: mass.site, levels: mass.levels, cores, facades, towers,
+    site: mass.site, levels: mass.levels, cores, stairs, facades, towers,
     height: round2(mass.height + (p.plant ? 3.2 : 1.1)),
     roof: { parapet: 1.1, plant: p.plant },
     geometry: null,
@@ -1065,15 +1152,42 @@ function generateSacred(p) {
   L.columns = sacredColumns(p, geo);
 
   const facades = facadeSacred(p, geo, mass);
+  // THE CAMPANILE IS A TURRET STAIR, which is what a bell tower is for: the
+  // bells are at the top and somebody has to get to them. A cathedral storey is
+  // 20-30 m, far too tall for one flight, so the tower is climbed in landings
+  // a storey apart and the stair is re-solved for each — and a helix is the
+  // only type that spends its length in rotation rather than in plan, which is
+  // why every real bell tower has one.
+  const campH = p.towers ? round2(L.h * rs.range(1.5, 2.2)) : 0;
+  const turret = p.towers
+    ? (chooseStair({ w: p.bay * 1.3, d: p.bay * 1.3 }, [3.6], rs,
+      { width: 1.0, prefer: ['spiral', 'helical', 'double-helix', 'three', 'dogleg'] }) || 'spiral')
+    : null;
   const towers = p.towers ? [{
     x: round2(-geo.naveW / 2 - geo.aisleW - p.bay * 1.4), z: round2(-geo.naveL / 2 + p.bay * 1.2),
     w: round2(p.bay * 1.3), d: round2(p.bay * 1.3),
-    h: round2(L.h * rs.range(1.5, 2.2)), kind: 'campanile',
+    h: campH, kind: 'campanile',
+    stair: { type: turret, width: 1.0, label: STAIR_TYPES[turret].label },
   }] : [];
+
+  // climb it a storey at a time, all the way from the ground to the bells
+  const stairs = [];
+  if (towers.length) {
+    const t = towers[0];
+    const flights = Math.max(1, Math.round(t.h / 3.6));
+    const fh = t.h / flights;
+    for (let i = 0; i < flights; i++) {
+      stairs.push({
+        core: 'campanile', tower: 0, level: 0, turret: true,
+        ...stairLayout(t.stair.type, fh, { x: t.x, z: t.z, w: t.w, d: t.d },
+          { width: 1.0, y0: round2(i * fh), private: true }),
+      });
+    }
+  }
 
   const b = {
     version: VERSION, params: p, seed: p.seed, typology: 'cathedral', typologyLabel: TYPOLOGIES.cathedral.label,
-    site: mass.site, levels: mass.levels, cores: [], facades, towers,
+    site: mass.site, levels: mass.levels, cores: [], stairs, facades, towers,
     height: round2(L.h + geo.rib * 1.6 + 0.5), roof: { parapet: 0.9, plant: false, folded: true },
     geometry: geo,
   };
@@ -1140,19 +1254,72 @@ function serviceTowers(p, mass) {
   const rt = Rand(p.seed, 'towers');
   const out = [];
   const top = mass.levels[mass.levels.length - 1];
+  const T = TYPOLOGIES[p.typology];
+  const heights = [...new Set(mass.levels.map((L) => L.h))];
+
+  // AN EXTERNAL STAIR TOWER MUST STAY ATTACHED ALL THE WAY UP. It was placed
+  // against level 0's wing, which is fine on a slab and wrong on anything
+  // stepped: a ziggurat's upper plates shrink away from it, so the tower served
+  // nine of fifteen floors and then carried on past thin air. Place it against
+  // the plate the building ALWAYS has and it touches every storey by
+  // construction — which is the same rule the cores already lived by.
+  const spine = persistentSpine(mass);
+
   for (let k = 0; k < p.towers; k++) {
-    const wing = mass.levels[0].wings[k % mass.levels[0].wings.length];
+    const isStair = k === 0;
+    // a stair tower is sized by its stair, like a core; a service tower is not
+    let stair = null, w = round2(p.bay * rt.range(0.85, 1.3)), d = round2(p.bay * rt.range(0.85, 1.3));
+    if (isStair) {
+      const prefer = (T.stairs || ['dogleg', 'three', 'spiral', 'helical']).filter((q) => STAIR_TYPES[q]);
+      for (const width of [1.2, 1.1, 1.0]) {
+        const type = chooseStair({ w: p.bay * 2.2, d: p.bay * 2.2 }, heights, rt, { width, prefer });
+        if (type) { stair = { type, width, fp: stairFootprint(type, heights, { width }) }; break; }
+      }
+      if (stair) { w = round2(Math.max(w, stair.fp.w)); d = round2(Math.max(d, stair.fp.d)); }
+    }
     const onX = rt.chance(0.5);
-    const w = round2(p.bay * rt.range(0.85, 1.3));
-    const d = round2(p.bay * rt.range(0.85, 1.3));
     const sx = rt.chance(0.5) ? -1 : 1, sz = rt.chance(0.5) ? -1 : 1;
+    // tangent to the persistent plate, and centred within its extent on the
+    // other axis so it never slides past a corner
+    const x = onX ? (sx < 0 ? R.x0(spine) - w / 2 : R.x1(spine) + w / 2)
+      : spine.x + rt.range(-Math.max(0, spine.w / 2 - w / 2), Math.max(0, spine.w / 2 - w / 2));
+    const z = onX ? spine.z + rt.range(-Math.max(0, spine.d / 2 - d / 2), Math.max(0, spine.d / 2 - d / 2))
+      : (sz < 0 ? R.z0(spine) - d / 2 : R.z1(spine) + d / 2);
     out.push({
-      x: round2(onX ? (sx < 0 ? R.x0(wing) - w / 2 : R.x1(wing) + w / 2) : wing.x + rt.range(-wing.w * 0.3, wing.w * 0.3)),
-      z: round2(onX ? wing.z + rt.range(-wing.d * 0.3, wing.d * 0.3) : (sz < 0 ? R.z0(wing) - d / 2 : R.z1(wing) + d / 2)),
-      w, d,
+      x: round2(x), z: round2(z), w, d,
       h: round2((top.y + top.h) * rt.range(1.02, 1.22)),
-      kind: k === 0 ? 'stair tower' : 'service tower',
+      kind: isStair ? 'stair tower' : 'service tower',
+      stair: stair ? { type: stair.type, width: stair.width, label: STAIR_TYPES[stair.type].label } : null,
     });
+  }
+  return out;
+}
+
+// The tower stair is the literal answer to "drive it to ground": an external
+// escape running the whole height of the building and landing at grade, outside
+// the envelope, where a brutalist one becomes the event of the elevation.
+function towerStairs(p, mass, towers) {
+  const out = [];
+  for (let ti = 0; ti < towers.length; ti++) {
+    const t = towers[ti];
+    if (!t.stair) continue;
+    let y = 0, i = 0;
+    for (const L of mass.levels) {
+      out.push({
+        core: 'tower' + ti, tower: ti, level: L.index,
+        ...stairLayout(t.stair.type, L.h, { x: t.x, z: t.z, w: t.w, d: t.d },
+          { width: t.stair.width, y0: L.y }),
+      });
+      y = L.y + L.h; i++;
+    }
+    // and one more flight to get out onto the roof, which is what the overrun is
+    if (t.h > y + 2) {
+      out.push({
+        core: 'tower' + ti, tower: ti, level: mass.levels.length - 1, roof: true,
+        ...stairLayout(t.stair.type, Math.min(t.h - y, 4.5), { x: t.x, z: t.z, w: t.w, d: t.d },
+          { width: t.stair.width, y0: y }),
+      });
+    }
   }
   return out;
 }
@@ -1196,6 +1363,7 @@ export function schedule(b) {
 // dimension. `mat` is a role, not a colour: the page owns the palette.
 
 export function parts(b) {
+  const stairs = b.stairs || [];
   const out = [];
   const p = b.params;
   const push = (o) => { out.push(o); return o; };
@@ -1243,9 +1411,27 @@ export function parts(b) {
       push({ mat: 'partition', kind: 'partition', x: r.x, y, z: round2(R.z0(r) + t / 2), w: r.w, h, d: t, level: L.index, ref: r.ref });
       push({ mat: 'partition', kind: 'partition', x: round2(R.x0(r) + t / 2), y, z: r.z, w: t, h, d: r.d, level: L.index, ref: r.ref });
     }
-    // cores run the full height as solid shafts
+    // A CORE IS WALLS AROUND A SHAFT, not a solid block. It was a solid block,
+    // which was fine while there was nothing inside it — now there is a stair
+    // in there, and a solid core would bury it. The rect is unchanged, so the
+    // structural model still reads the same shear walls.
     for (const c of L.cores) {
-      push({ mat: 'core', kind: 'core', x: c.x, y: round2(L.y + L.h / 2), z: c.z, w: c.w, h: round2(L.h), d: c.d, level: L.index });
+      const t = 0.25, cy = round2(L.y + L.h / 2), ch = round2(L.h);
+      push({ mat: 'core', kind: 'core-wall', x: c.x, y: cy, z: round2(R.z0(c) + t / 2), w: c.w, h: ch, d: t, level: L.index });
+      push({ mat: 'core', kind: 'core-wall', x: c.x, y: cy, z: round2(R.z1(c) - t / 2), w: c.w, h: ch, d: t, level: L.index });
+      const side = round2(Math.max(0.1, c.d - 2 * t));
+      push({ mat: 'core', kind: 'core-wall', x: round2(R.x0(c) + t / 2), y: cy, z: c.z, w: t, h: ch, d: side, level: L.index });
+      push({ mat: 'core', kind: 'core-wall', x: round2(R.x1(c) - t / 2), y: cy, z: c.z, w: t, h: ch, d: side, level: L.index });
+      // the lift is its own shaft, separated from the stair by a wall
+      if (c.lift) {
+        push({ mat: 'core', kind: 'core-wall', x: round2(R.x0(c.lift)), y: cy, z: c.z, w: t, h: ch, d: side, level: L.index });
+      }
+    }
+
+    // the stairs inside them
+    for (const st of stairs) {
+      if (st.level !== L.index) continue;
+      for (const q of stairParts(st, L.index)) push(q);
     }
     // light wells: punched out of the slab (drawn as an outline, not a solid)
     for (const v of L.voids) {

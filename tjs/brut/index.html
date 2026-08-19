@@ -111,6 +111,7 @@
     <button data-mode="xray">x-ray</button>
     <button data-mode="cut">section</button>
     <button data-mode="loads">loads</button>
+    <button data-mode="stairs">stairs</button>
   </div>
   <div class="row"><label>sun</label><input id="sun" type="range" min="0" max="360" step="1" value="128"><span id="sunV" style="flex:0 0 34px;text-align:right">128°</span></div>
   <div class="row"><label>height</label><input id="elev" type="range" min="8" max="80" step="1" value="46"><span id="elevV" style="flex:0 0 34px;text-align:right">46°</span></div>
@@ -277,6 +278,9 @@ function makeMaterials(seed) {
   return {
     concrete: new THREE.MeshStandardMaterial({ map: tex, color: 0xf2f1ee, roughness: 0.93, metalness: 0.0 }),
     core:     new THREE.MeshStandardMaterial({ map: texDark, color: 0xd8d6d1, roughness: 0.96, metalness: 0.0 }),
+    stair:    new THREE.MeshStandardMaterial({ map: texDark, color: 0xd2cec4, roughness: 0.93, metalness: 0.0 }),
+    stairLit: new THREE.MeshStandardMaterial({ color: 0x39d6c8, roughness: 0.55, metalness: 0.05,
+                                               emissive: 0x0d4a45, emissiveIntensity: 0.9 }),
     glass:    new THREE.MeshStandardMaterial({ color: 0x1d3f4e, roughness: 0.06, metalness: 0.45, transparent: true, opacity: 0.66, envMapIntensity: 1.4 }),
     metal:    new THREE.MeshStandardMaterial({ color: 0x8b9196, roughness: 0.42, metalness: 0.75 }),
     ground:   new THREE.MeshStandardMaterial({ color: 0x3a3d45, roughness: 1.0 }),
@@ -418,6 +422,11 @@ function applyMode() {
   if (!group) return;
   const xray = mode === 'xray';
   const showLoads = mode === 'loads';
+  // The stairs view is the only way to actually LOOK at a stair: everything
+  // else goes to a ghost and the flights light up inside it, so you can read
+  // the fold, the well and the turn from outside the building.
+  const showStairs = mode === 'stairs';
+  const ghost = xray || showLoads || showStairs;
   renderer.shadowMap.enabled = !xray && !showLoads;
   if (showLoads) paintUtilisation();
   for (const m of group.children) {
@@ -431,9 +440,9 @@ function applyMode() {
         break;
       case 'concrete':
         // in the loads view the envelope becomes a ghost so the frame reads
-        m.material.transparent = xray || showLoads;
-        m.material.opacity = xray ? 0.09 : showLoads ? 0.055 : 1;
-        m.material.depthWrite = !(xray || showLoads);
+        m.material.transparent = ghost;
+        m.material.opacity = xray ? 0.09 : showLoads ? 0.055 : showStairs ? 0.05 : 1;
+        m.material.depthWrite = !ghost;
         break;
       case 'frame':
       case 'core': {
@@ -441,16 +450,25 @@ function applyMode() {
         const plain = m.name === 'core' ? mats.core : mats.frame;
         m.material = showLoads ? lit : plain;
         if (!showLoads && m.instanceColor) { m.instanceColor = null; m.material.needsUpdate = true; }
-        m.material.transparent = xray;
-        m.material.opacity = xray ? 0.09 : 1;
-        m.material.depthWrite = !xray;
+        m.material.transparent = ghost;
+        m.material.opacity = xray ? 0.09 : showStairs ? 0.06 : 1;
+        m.material.depthWrite = !ghost;
         break;
       }
+      case 'stair':
+        // never ghosted — the stairs are the subject in their own view and
+        // still worth seeing through the x-ray in the others
+        m.material = showStairs ? mats.stairLit : mats.stair;
+        m.material.transparent = xray && !showStairs;
+        m.material.opacity = xray && !showStairs ? 0.5 : 1;
+        m.material.depthWrite = true;
+        m.visible = true;
+        break;
       case 'metal':
-        m.visible = !showLoads;
+        m.visible = !showLoads && !showStairs;
         break;
       case 'glass':
-        m.visible = !xray && !showLoads;
+        m.visible = !xray && !showLoads && !showStairs;
         break;
       case 'ground':
         m.visible = !showLoads;

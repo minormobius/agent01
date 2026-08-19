@@ -16,6 +16,7 @@
 //     is a hash of its parameters, which is the only thing that can change it.
 
 import { rect as R, MODULES, section as archSection, schedule as archSchedule } from './arch.js';
+import { stairPlan } from './stair.js';
 
 export const PALETTES = {
   blueprint: {
@@ -85,6 +86,82 @@ ${defs(id, P)}<rect width="${W}" height="${H}" fill="${P.paper}"/>
 ${body}
 </svg>`;
 
+/* ─────────────────────────────── the stair ───────────────────────────────── */
+//
+// A stair in plan is NOT a picture of a stair. The convention carries real
+// information and every part of it means something:
+//
+//   · treads are drawn as nosing lines across the width, one per riser;
+//   · a BREAK LINE cuts the flight where the plan's cut plane passes through it
+//     (about 1.4 m above the floor), and NOTHING above that line is drawn,
+//     because you cannot see it from inside the room;
+//   · an arrow runs from the bottom riser in the direction of travel, with a
+//     dot at its tail, and it says UP — so the reader knows which of the two
+//     flights in the shaft is the one they are standing on.
+//
+// Drawing the whole flight, both flights, and no break is the giveaway of a
+// plan that was rendered rather than drawn.
+
+function stairSVG(F, st, P, cutAbove = 1.4) {
+  const out = [];
+  const pl = stairPlan(st, cutAbove);
+
+  // only what is below the cut: the arrival landing belongs to the storey above
+  for (const l of pl.landings) {
+    if (l.y > st.y0 + cutAbove) continue;
+    out.push(box(F, l, `fill="none" stroke="${P.ink}" stroke-width="1.1"`));
+  }
+
+  // every tread below the cut, as a nosing line across the stair
+  let broke = false;
+  for (const n of pl.nosings) {
+    if (n.above) { broke = true; continue; }
+    const c = Math.cos(n.ry), si = Math.sin(n.ry);
+    // the tread's width axis, turned into the sheet
+    const hx = (n.w / 2) * c, hz = -(n.w / 2) * si;
+    out.push(`<line x1="${n2(F.X(n.x - hx))}" y1="${n2(F.Y(n.z - hz))}" ` +
+      `x2="${n2(F.X(n.x + hx))}" y2="${n2(F.Y(n.z + hz))}" stroke="${P.ink}" stroke-width=".8"/>`);
+  }
+
+  // the break line, drawn across the flight where the cut passes it
+  if (broke) {
+    const b = pl.nosings.find((n) => n.above);
+    if (b) {
+      const c = Math.cos(b.ry), si = Math.sin(b.ry);
+      const hx = (b.w * 0.62) * c, hz = -(b.w * 0.62) * si;
+      const ax = -si * F.L(0.35), az = -c * F.L(0.35);
+      const x0 = F.X(b.x - hx), y0 = F.Y(b.z - hz), x1 = F.X(b.x + hx), y1 = F.Y(b.z + hz);
+      for (const k of [-1, 1]) {
+        out.push(`<path d="M${n2(x0 + ax * k)} ${n2(y0 + az * k)} L${n2((x0 + x1) / 2 - ax * k * 0.7)} ` +
+          `${n2((y0 + y1) / 2 - az * k * 0.7)} L${n2(x1 + ax * k)} ${n2(y1 + az * k)}" ` +
+          `fill="none" stroke="${P.ink}" stroke-width="1"/>`);
+      }
+    }
+  }
+
+  // UP, from the bottom riser
+  if (pl.arrow) {
+    const a = pl.arrow;
+    const len = F.L(Math.min(2.2, st.footprint.d * 0.4));
+    const x0 = F.X(a.x), y0 = F.Y(a.z);
+    const x1 = x0 + a.dx * len, y1 = y0 + a.dz * len;
+    out.push(`<circle cx="${n2(x0)}" cy="${n2(y0)}" r="2" fill="${P.accent}"/>`);
+    out.push(`<line x1="${n2(x0)}" y1="${n2(y0)}" x2="${n2(x1)}" y2="${n2(y1)}" stroke="${P.accent}" stroke-width="1.2"/>`);
+    const ang = Math.atan2(y1 - y0, x1 - x0);
+    for (const s2 of [2.5, -2.5]) {
+      out.push(`<line x1="${n2(x1)}" y1="${n2(y1)}" x2="${n2(x1 - 6 * Math.cos(ang - s2 * 0.12))}" ` +
+        `y2="${n2(y1 - 6 * Math.sin(ang - s2 * 0.12))}" stroke="${P.accent}" stroke-width="1.2"/>`);
+    }
+    out.push(label(n2(x1 + a.dx * 7), n2(y1 + a.dz * 7 + 3), 'UP', P, 6.5, 'middle', P.accent));
+  }
+
+  if (pl.newel) {
+    out.push(`<circle cx="${n2(F.X(pl.newel.x))}" cy="${n2(F.Y(pl.newel.z))}" r="${n2(F.L(pl.newel.r))}" ` +
+      `fill="${P.core}" stroke="${P.ink}" stroke-width="1.2"/>`);
+  }
+  return out.join('');
+}
+
 const label = (x, y, t, P, size = 10, anchor = 'start', fill) =>
   `<text x="${n2(x)}" y="${n2(y)}" font-size="${size}" fill="${fill || P.text}" text-anchor="${anchor}">${esc(t)}</text>`;
 
@@ -134,7 +211,19 @@ export function planSVG(b, levelIndex, opts = {}) {
   // cores — poché, the way a real plan marks what you cannot walk through
   for (const c of L.cores) {
     out.push(box(F, c, `fill="url(#${id}-poche)" stroke="${P.ink}" stroke-width="1.6"`));
-    if (F.L(c.w) > 26) out.push(label(F.X(c.x), F.Y(c.z) + 3, 'CORE', P, 7, 'middle', P.ink));
+    const hasStair = (b.stairs || []).some((q) => q.level === L.index && R.overlaps(c, q.box));
+    if (!hasStair && F.L(c.w) > 26) out.push(label(F.X(c.x), F.Y(c.z) + 3, 'CORE', P, 7, 'middle', P.ink));
+  }
+
+  // the stairs inside them — drawn from the same objects the model builds, so
+  // a step in the drawing is a step in the building
+  for (const st of (b.stairs || [])) {
+    if (st.level !== L.index) continue;
+    out.push(stairSVG(F, st, P));
+    if (F.L(st.footprint.w) > 30) {
+      out.push(label(F.X(st.box.x), F.Y(st.box.z) - F.L(st.footprint.d) / 2 + 9,
+        `${st.risers}R @ ${Math.round(st.rise * 1000)}`, P, 6.2, 'middle', P.ink));
+    }
   }
 
   // columns
