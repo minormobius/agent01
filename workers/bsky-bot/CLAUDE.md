@@ -360,6 +360,110 @@ every rename, forever, into `lab/www/worker.js` — state, in the component that
 has none. It carries `rel="canonical"` and og tags so the card on the
 already-posted link still renders.
 
+### `portrait:` — a picture instead of a page
+
+Not every mention wants a website. `portraitRequest()` in `thread.js` recognises
+`portrait:` (the house command idiom, same shape as `name:` and `rename:`) and
+the prose forms where the subject is unmistakably the requester — `draw me`,
+`paint my posts`, `a portrait of my account`.
+
+**Matched before the claim, and it returns rather than falling through.** A
+portrait reserves no slug, takes no lock, and leaves no row — otherwise a later
+reply in that thread would read as "iterate on their site", and there is no site.
+
+**Deliberately narrow, and the direction of the narrowing is the design.** The
+two failure modes are not symmetric:
+
+| misread | costs |
+|---|---|
+| a build read as a portrait | somebody does not get the site they asked for |
+| a portrait read as a build | a 50-minute run and a page nobody wanted |
+
+So every ambiguous phrasing falls through to the build path. `draw me a poker
+game` is the case the trailing anchor in that regex exists for, and it is in the
+selftest along with eight others.
+
+**The subject is `mention.author`, never a handle in the text.** `dispatchPortrait`
+writes the same value into `handle` and `requester`, and `lab-portrait.yml`
+refuses to run if they disagree. The text chooses *whether*, never *who* — a
+generated picture of a third party posted by this account is not recoverable by
+deleting it.
+
+Dispatch is the same commit-a-request-file mechanism as a build
+(`.github/lab-portraits/<handle>.json`), and it honours the same `BOT_ENABLED`
+interlock: observe-and-reply, no dispatch, no spend. The work happens on a
+runner because streaming a 90 MB CAR does not fit in a Worker's CPU budget —
+see [`docs/LAB-FACTORY.md`](../../docs/LAB-FACTORY.md) §12.5.
+
+## DMs are a second inbox, polled the same tick
+
+The bot listens on two streams, and they are not the same mechanism:
+
+| | mentions | DMs |
+|---|---|---|
+| endpoint | `app.bsky.notification.listNotifications` | `chat.bsky.convo.getLog` |
+| reached at | `bsky.social` | the account's **own PDS host**, with a proxy header |
+| cursor | pages **backwards** — unusable as a marker, so a timestamp is kept instead | an append-only log, pages **forwards** — fed straight back |
+| first run | adopt the newest timestamp | **page to the END of the log**, then remember that |
+
+Confusing the two cursor models breaks a different way each time, which is why
+they are stored under different keys and commented apart. The DM one in
+particular: `getLog` with no cursor starts at the BEGINNING, so "read one page
+and adopt its cursor" leaves the bot a few pages into ancient history, marching
+forward and answering months-old DMs as if they had just arrived.
+
+**`chat.bsky.*` is a different service, not a different endpoint.** Requests go
+to the account's real PDS with `atproto-proxy: did:web:api.bsky.chat#bsky_chat`,
+and the PDS forwards them. `bsky.social` is an entryway, not a host, so the PDS
+is resolved from the DID document — once, cached in the DO at `/pds`.
+`photo/dm-worker.js` does the same, for the same reason.
+
+**The app password needs DM scope**, ticked when the password is minted and not
+addable afterwards. Without it every chat call fails `Bad token scope`, which
+reads like an auth bug and is a checkbox. Both this worker and
+`scripts/lib/chat.mjs` translate that error where it appears.
+
+**A DM poll failure never takes the mention loop with it.** The two channels
+share a session and nothing else, and the likeliest failure — that missing
+checkbox — is permanent until a human fixes it. Letting it abort `pollOnce`
+would stop every build in the factory for as long as it went unnoticed. It is
+caught, counted into `lastPoll.dmError`, and the tick continues.
+
+### `dossier on @someone about <topic>`
+
+`dossierRequest()` in `thread.js`. Shaped differently from the mention matchers
+on purpose: **a DM is a different room.** A mention arrives in public, where
+answering something that was not a request means talking at a stranger in their
+own thread — so those matchers are narrow. A DM is addressed to the bot by
+definition; nobody else is there. The risk is not *was this meant for me* but
+*did I understand it*.
+
+So it is loose about grammar and strict about two things: there has to be an
+intent word (`dossier`, `dig into`, `research`, `what has…`) and **an account has
+to be named**. Topic extraction is left to the model on the runner, which is
+better at English than a regex and is checkable — the handle it returns either
+resolves or does not.
+
+One exclusion worth knowing: `bsky.app` is domain-shaped and appears in every
+pasted post link, so it is on a not-a-handle list. Without it, *"dossier on what
+she said, see bsky.app/profile/…"* researches the Bluesky client under a request
+that named a real person the bot then never looked at. An explicit `@handle`
+always wins over a bare domain elsewhere in the message.
+
+Dispatch is the same commit-a-request mechanism as a build, keyed on **the
+requester** — `.github/lab-dossiers/<requester>.json`. One outstanding dossier
+per person (a second request supersedes the first, which is both the rate limit
+and the obvious reading of *"no, do this one instead"*), and it keeps *who is
+being researched* out of a filename in this repo. The `BOT_ENABLED` interlock
+applies unchanged.
+
+A DM that is not a dossier request gets one short reply explaining what the bot
+can do. Silence is right in a public thread and wrong in a private message: the
+person typed to the bot directly and is owed an answer.
+
+Design record and the stance on researching a third party:
+[`docs/LAB-FACTORY.md`](../../docs/LAB-FACTORY.md) §12.6.
+
 ## Two kinds of state, deliberately separate
 
 They answer different questions and must not be conflated:
@@ -453,6 +557,27 @@ one person it ignores.
 already mutuals. Infrastructure should not depend on social-graph state: a follow
 lapsing, or a failed mutual refresh, should not take out the accounts used to
 test the thing. Everyone else arrives through the mutual list.
+
+**`RESEARCH_WHITELIST`** is a third door, narrower than both, and it governs
+only the DM research channel.
+
+The two lists above answer *"may this person ask for a build"*, where the blast
+radius of a wrong answer is a page nobody wanted and the output belongs to the
+requester. A dossier answers a different question: it costs a full CAR download
+and two agent passes, and its output is a reading of a **third party's** posts.
+"Everyone I follow back" is a good answer to the first and not automatically a
+good answer to the second, so research does not inherit that list.
+
+It **narrows and never grants** — everyone on it has already passed `isAllowed`
+— and it is fail-closed like everything else here: empty admits nobody to
+research, and the build factory is unaffected either way.
+
+Two consequences worth knowing, both deliberate: someone not on the list who
+DMs a dossier request is **refused by name rather than ignored**, because they
+addressed the bot directly and silence would read as broken; and the generic
+"here's what I can do" reply does not mention research to someone who cannot
+have it, since advertising it produces one outcome — they try, get refused, and
+the bot looks arbitrary.
 
 **`BOT_ENABLED`** is the other interlock — anything but `"true"` means
 observe-and-reply: the bot routes, claims and answers in-thread, but never
@@ -585,7 +710,12 @@ lands somewhere else entirely.
 1. Create the Bluesky account and give it the `minomobi.com` handle — the
    ordering matters and is in [`lab/www/CLAUDE.md`](../../lab/www/CLAUDE.md).
 2. Mint a Bluesky **app password** for it (not the account password) → GH secrets
-   `BLUESKY_BOT_HANDLE` / `BLUESKY_BOT_APP_PASSWORD`.
+   `BLUESKY_BOT_HANDLE` / `BLUESKY_BOT_APP_PASSWORD`. **Tick "Allow access to
+   your direct messages"** when creating it: the DM research channel needs it,
+   it cannot be added to an existing password, and without it every
+   `chat.bsky.*` call fails with `Bad token scope`. Also set the account's
+   "Allow new messages from" to something that admits the people who will use
+   it — a DM the bot never receives looks identical to a bot that ignored it.
 3. Mint a fine-grained PAT with **`contents:write` on this repo only** → GH secret
    `LAB_DISPATCH_TOKEN`. See below for whose it is.
 4. Follow, and be followed by, whoever should be able to use it. `WHITELIST` can

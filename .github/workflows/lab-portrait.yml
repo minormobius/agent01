@@ -1,0 +1,187 @@
+name: Lab portrait (draw somebody's account)
+
+# Reads one account's repository, invents a picture of it, and posts it back
+# into the thread that asked. No site is built and nothing is deployed.
+#
+#   request → CAR + AppView + profile → claude writes a prompt → Workers AI
+#           → uploadBlob → reply in-thread, with alt text
+#
+# WHY THIS IS NOT PART OF lab-build.yml. A build is fifty minutes of agent,
+# gates, smoke, publish and deploy. A portrait is two network calls and a
+# picture. Sharing the workflow would mean a request for a drawing paid for a
+# deploy pipeline it never touches, and — worse — a portrait failure would show
+# up in the logs of a build that never happened.
+#
+# WHY IT IS NOT IN THE BOT WORKER, where Workers AI is a binding and no token
+# would be needed at all: streaming a 90 MB CAR and CBOR-decoding every block in
+# it does not fit in a Worker's 30 seconds of CPU. The bot stays a router.
+#
+# THE SUBJECT IS THE REQUESTER, ALWAYS. `handle` comes from the mention's AUTHOR
+# — workers/bsky-bot writes it into the request file from mention.author.handle,
+# never from a handle typed in the text. A generated picture of a third party,
+# posted publicly by this account, is not something anyone consented to and
+# deleting the post does not unmake it. The check below is the second lock on
+# that: the requester field and the handle field must agree.
+
+on:
+  workflow_dispatch:
+    inputs:
+      handle:
+        description: "Whose account to draw. Their own, and nobody else's."
+        required: true
+        type: string
+      model:
+        description: 'Image model'
+        required: false
+        default: 'flux-1-schnell'
+        type: choice
+        options:
+          - flux-1-schnell
+          - sdxl-lightning
+      dry_run:
+        description: 'Build the digest and stop before spending anything'
+        required: false
+        default: false
+        type: boolean
+
+  # THE BOT'S ACTUAL TRIGGER, and the same mechanism lab-build.yml uses for the
+  # same reason: workflow_dispatch only resolves for workflows on the DEFAULT
+  # branch, so a factory living on a feature branch could never fire one. The
+  # bot commits .github/lab-portraits/<slug>.json instead.
+  push:
+    branches:
+      - 'claude/minomobi-landing-page-vg37b8'
+    paths:
+      - '.github/lab-portraits/**'
+
+concurrency:
+  group: lab-portrait-${{ github.event.inputs.handle || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  # IS THERE A REQUEST IN *THIS* PUSH? Copied from lab-build.yml's select job,
+  # deliberately and in full, because the bug it exists for is not hypothetical:
+  # `paths:` matches a push RANGE, not a commit, and a request file is permanent.
+  # Without this, an unrelated infrastructure push whose range still contains an
+  # old request re-runs it — and a squash merge, which is how this repo makes
+  # pull requests, carries EVERY request the branch ever added. That replays a
+  # portrait to everyone who ever asked for one, weeks later, at full cost.
+  select:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.pick.outputs.run }}
+      file: ${{ steps.pick.outputs.file }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - id: pick
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          REQ=$(git diff-tree --no-commit-id --name-only -r HEAD -- '.github/lab-portraits/*.json' | tail -1)
+          if [ -n "$REQ" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "file=$REQ" >> "$GITHUB_OUTPUT"
+            echo "request in tip commit: $REQ"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::no portrait request in the tip commit — this push carried an older one, not a new one."
+          fi
+
+  portrait:
+    needs: select
+    if: needs.select.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    # A portrait is a CAR download, a model call and an image. Ten minutes is
+    # generous; the CAR is the only part that scales with the account.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Resolve the request
+        id: cfg
+        env:
+          FILE: ${{ needs.select.outputs.file }}
+          IN_HANDLE: ${{ github.event.inputs.handle }}
+          IN_MODEL: ${{ github.event.inputs.model }}
+          IN_DRY: ${{ github.event.inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          if [ -n "${IN_HANDLE:-}" ]; then
+            HANDLE="$IN_HANDLE"; MODEL="${IN_MODEL:-flux-1-schnell}"; DRY="${IN_DRY:-false}"
+            ROOT=""; ROOT_CID=""; PARENT=""; PARENT_CID=""
+          else
+            [ -n "${FILE:-}" ] && [ -f "$FILE" ] || { echo "::error::no request file"; exit 1; }
+            field() { FILE="$FILE" node -p "require(require('path').resolve(process.env.FILE))['$1'] || ''"; }
+            HANDLE=$(field handle); MODEL=$(field model); DRY=false
+            ROOT=$(field root_uri); ROOT_CID=$(field root_cid)
+            PARENT=$(field parent_uri); PARENT_CID=$(field parent_cid)
+            REQUESTER=$(field requester)
+            # THE SECOND LOCK. The bot writes both fields off the same
+            # mention.author; if they ever disagree, something upstream is
+            # choosing a subject rather than reading one, and the right move is
+            # to stop rather than to draw a stranger.
+            if [ -n "${REQUESTER:-}" ] && [ "$REQUESTER" != "$HANDLE" ]; then
+              echo "::error::requester ($REQUESTER) is not the subject ($HANDLE) — a portrait is of the person who asked, and nobody else"
+              exit 1
+            fi
+          fi
+          # A handle becomes a URL parameter and a filename. Validate it as
+          # strictly as lab-build validates a slug.
+          if ! printf '%s' "$HANDLE" | grep -Eq '^[a-z0-9][a-z0-9.-]{0,60}$'; then
+            echo "::error::bad handle '$HANDLE'"; exit 1
+          fi
+          case "${MODEL:-flux-1-schnell}" in
+            flux-1-schnell|sdxl-lightning) ;;
+            *) echo "::error::unknown model '$MODEL'"; exit 1 ;;
+          esac
+          {
+            echo "handle=$HANDLE"
+            echo "model=${MODEL:-flux-1-schnell}"
+            echo "dry=${DRY:-false}"
+            echo "root=${ROOT:-}"; echo "root_cid=${ROOT_CID:-}"
+            echo "parent=${PARENT:-}"; echo "parent_cid=${PARENT_CID:-}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Draw them
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_BOT_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_BOT_APP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ARGS=(--handle "${{ steps.cfg.outputs.handle }}"
+                --model "${{ steps.cfg.outputs.model }}"
+                --out /tmp/portrait)
+          [ "${{ steps.cfg.outputs.dry }}" = "true" ] && ARGS+=(--dry-run)
+          if [ -n "${{ steps.cfg.outputs.root }}" ]; then
+            ARGS+=(--root "${{ steps.cfg.outputs.root }}" --root-cid "${{ steps.cfg.outputs.root_cid }}")
+            [ -n "${{ steps.cfg.outputs.parent }}" ] && ARGS+=(--parent "${{ steps.cfg.outputs.parent }}" --parent-cid "${{ steps.cfg.outputs.parent_cid }}")
+          fi
+          node scripts/lab-portrait.mjs "${ARGS[@]}"
+
+      # THE DIGEST IS THE ANSWER TO "why did it draw that". It is the only
+      # artefact that explains a portrait, it is somebody's own public posts
+      # rearranged, and it is NOT committed anywhere — the repo does not want a
+      # per-account dossier in its history. Seven days on the run, then gone.
+      - name: Keep the working files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portrait-${{ steps.cfg.outputs.handle }}
+          path: /tmp/portrait/
+          retention-days: 7
+          if-no-files-found: ignore
