@@ -78,6 +78,49 @@ export function portraitRequest(text) {
   return new RegExp(String.raw`\b(?:portrait|picture) of ${SELF}\b`, 'i').test(t);
 }
 
+/** A handle, as people actually write one: with or without a leading at-sign,
+ *  and always with a dot in it. Kept out of the matcher below so both read. */
+const HANDLE = String.raw`@?([a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)+)`;
+
+/** Hosts that look like handles and are not. bsky.app in particular appears in
+ *  every pasted post URL, so without this "dossier on what she said, see
+ *  bsky.app/profile/..." researches the Bluesky client. */
+const NOT_HANDLES = new Set(['bsky.app', 'bsky.social', 'staging.bsky.app', 'atproto.com', 'github.com']);
+
+/** Is this DM asking for a research dossier, and on whom?
+ *
+ *  DIFFERENT SHAPE FROM THE MENTION MATCHERS, because a DM is a different room.
+ *  A mention arrives in public, where the cost of answering something that was
+ *  not a request is a stranger being talked at in their own thread. A DM is
+ *  addressed to the bot by definition — there is nobody else in the room — so
+ *  the risk is not "was this meant for me" but "did I understand it".
+ *
+ *  So this test is deliberately LOOSE about grammar and STRICT about the two
+ *  things it must not get wrong: there has to be an intent word, and there has
+ *  to be an account named. Everything else — what topic, phrased how — is left
+ *  to the model on the runner, which is better at English than a regex and can
+ *  be checked, because the handle it extracts either resolves or does not.
+ *
+ *  Returns { handle, ask } or null.
+ * @param {string | undefined} text
+ * @returns {{handle: string, ask: string} | null} */
+export function dossierRequest(text) {
+  const t = String(text ?? '').trim().replace(/\s+/g, ' ');
+  if (t.length < 12) return null;
+
+  const asks = /\b(dossier|deep[- ]dive|dig (?:up|into|through)|research|write me up|what (?:has|did|does)|everything .{0,20}(?:said|posted|wrote))\b/i.test(t);
+  if (!asks) return null;
+
+  // An @-prefixed handle is unambiguous and wins. A bare domain-shaped token is
+  // the fallback, because people type "dossier on alice.bsky.social" constantly.
+  const explicit = t.match(new RegExp(`@${HANDLE.slice(2)}`, 'i'));
+  const candidates = explicit ? [explicit[1]] : [...t.matchAll(new RegExp(HANDLE, 'gi'))].map((m) => m[1]);
+  const handle = candidates.map((h) => h.toLowerCase()).find((h) => !NOT_HANDLES.has(h));
+  if (!handle) return null;
+
+  return { handle, ask: t.slice(0, 900) };
+}
+
 /** Every post by `did` in the thread, oldest first, minus the one that triggered
  *  this build (it is already the task). Depth-first over `replies` is document
  *  order, which for a thread is chronological within each branch.

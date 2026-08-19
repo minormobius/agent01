@@ -1,0 +1,53 @@
+#!/usr/bin/env node
+// lab-dm.mjs — send one direct message. The whole script.
+//
+//   node scripts/lab-dm.mjs --to did:plc:… --text "…"
+//
+// It exists for the failure path. lab-dossier.yml promises somebody an answer
+// the moment it starts, and a run that dies silently leaves that promise
+// hanging — the same "silence after a promise" failure the public side already
+// fixed with one-reply-per-outcome (docs/LAB-FACTORY.md §11.4). A step that
+// says so needs a sender that cannot itself be the thing that failed, so this
+// shares the chat library and nothing else.
+//
+// NEVER FATAL. It is called from `if: failure()`; exiting non-zero there buys
+// nothing and buries the real error under a second one.
+
+import { login, graphemes } from './lib/bsky.mjs';
+import { chatClient } from './lib/chat.mjs';
+
+const args = {};
+{
+  const argv = process.argv.slice(2);
+  for (let i = 0; i < argv.length; i++) {
+    if (!argv[i].startsWith('--')) continue;
+    const next = argv[i + 1];
+    args[argv[i].slice(2)] = next && !next.startsWith('--') ? next : 'true';
+  }
+}
+
+const to = args.to;
+const text = args.text;
+const handle = process.env.BLUESKY_HANDLE;
+const password = process.env.BLUESKY_APP_PASSWORD;
+
+if (!to || !text) {
+  console.log('lab-dm: --to and --text are both required');
+  process.exit(0);
+}
+if (!handle || !password) {
+  console.log('::warning::lab-dm: no credentials — nothing sent');
+  process.exit(0);
+}
+
+try {
+  const session = await login(handle, password);
+  const chat = await chatClient(session);
+  const convo = await chat.convoWith(to);
+  await chat.accept(convo.id);
+  const body = graphemes(text) > 1000 ? [...text].slice(0, 990).join('') + '…' : text;
+  await chat.send(convo.id, { text: body });
+  console.log(`✓ DMed ${to}`);
+} catch (e) {
+  console.log(`::warning::lab-dm failed (${e.message.slice(0, 200)})`);
+}

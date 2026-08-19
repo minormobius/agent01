@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import {
   stripMention, requesterPosts, ancestorChain, ancestorUris, roomPosts,
   quotedUri, quotedLine, formatHistory, isIdeasPost, linkUris, threadLinks,
-  portraitRequest,
+  portraitRequest, dossierRequest,
 } from './thread.js';
 // Imported statically, NOT inside the test: `t` calls its callback without
 // awaiting, so an async test reports a tick before it can fail. Exit code still
@@ -60,6 +60,48 @@ t('portraitRequest lets every ambiguous phrasing fall through to a build', () =>
     'sketch my account then build me a site',  // a build is named, so it is a build
     '', '   ',
   ]) assert.equal(portraitRequest(no), false, `should NOT be a portrait: ${no}`);
+});
+
+// A DM IS A DIFFERENT ROOM FROM A MENTION, and the matcher is shaped for it:
+// loose about grammar, strict about the two things it cannot get wrong. There
+// is nobody else in a DM, so "was this meant for me" is not the risk — "did I
+// understand it" is, and an account has to be named before anything is read.
+t('dossierRequest finds the subject in however somebody phrased it', () => {
+  const cases = [
+    ['hey write me up a dossier on everything @alice.bsky.social has said on trams', 'alice.bsky.social'],
+    ['dossier on bob.example.com re: housing', 'bob.example.com'],
+    ['what has @carol.bsky.social said about the merger?', 'carol.bsky.social'],
+    ['dig into dave.bsky.social on open source', 'dave.bsky.social'],
+    ['research @eve.bsky.social, everything about pottery', 'eve.bsky.social'],
+    ['DEEP-DIVE @frank.bsky.social on rail policy', 'frank.bsky.social'],
+  ];
+  for (const [text, handle] of cases) {
+    assert.equal(dossierRequest(text)?.handle, handle, text);
+  }
+  assert.equal(dossierRequest('dossier on @UPPER.BSKY.SOCIAL now please')?.handle, 'upper.bsky.social',
+    'handles are lowercased — they are case-insensitive and the runner resolves them');
+});
+
+t('dossierRequest refuses anything that names no account', () => {
+  for (const no of [
+    'hey how are you',
+    'dossier please',                  // intent, no subject
+    'build me a website',              // that is the other channel
+    'what has been going on lately',
+    'hi',
+    '',
+  ]) assert.equal(dossierRequest(no), null, `should not be a dossier: ${no}`);
+});
+
+// bsky.app is domain-shaped and appears in every pasted post link, so without
+// the exclusion this researches the Bluesky client itself — and does it under
+// a request that named a real person the bot then never looked at.
+t('dossierRequest does not mistake a pasted URL for the subject', () => {
+  assert.equal(dossierRequest('dossier on what she said, see bsky.app/profile/x'), null);
+  assert.equal(
+    dossierRequest('dossier on @real.bsky.social — context at bsky.app/profile/x')?.handle,
+    'real.bsky.social',
+    'AN EXPLICIT @-HANDLE WINS over a bare domain elsewhere in the message');
 });
 
 t('stripMention removes the handle, case-insensitively, and trims', () => {
