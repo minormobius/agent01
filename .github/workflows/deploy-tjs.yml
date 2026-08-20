@@ -25,6 +25,7 @@ jobs:
           node tjs/brut/lift.selftest.mjs
           node tjs/brut/plant.selftest.mjs
           node tjs/brut/roller.selftest.mjs
+          node tjs/brut/planting.selftest.mjs
           node tjs/manifold/shell.selftest.mjs
 
       - name: Stage site into dist/
@@ -42,7 +43,7 @@ jobs:
           rm -rf dist/dragon/solver/dragon-solver dist/dragon/solver/dragon-solver-wasm dist/dragon/solver/.gitignore
           rm -f dist/dragon/dragon-sim.selftest.mjs
           # brut: the node selftests are build gates, not page assets
-          rm -f dist/brut/arch.selftest.mjs dist/brut/struct.selftest.mjs dist/brut/lift.selftest.mjs dist/brut/plant.selftest.mjs dist/brut/roller.selftest.mjs
+          rm -f dist/brut/arch.selftest.mjs dist/brut/struct.selftest.mjs dist/brut/lift.selftest.mjs dist/brut/plant.selftest.mjs dist/brut/roller.selftest.mjs dist/brut/planting.selftest.mjs
           # manifold: same — the selftest gates the deploy, it is not a page asset
           rm -f dist/manifold/shell.selftest.mjs
           ls -laR dist/ | head -60

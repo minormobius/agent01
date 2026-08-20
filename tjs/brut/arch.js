@@ -32,6 +32,8 @@
 
 import { STAIR_TYPES, STAIR_IDS, stairFootprint, layout as stairLayout, chooseStair, stairParts, RULES as STAIR_RULES } from './stair.js';
 import { liftsFor, populationFromSchedule, RULES as LIFT_RULES, CARS } from './lift.js';
+import { placePlanting, plantingLoads, plantingSchedule } from './planting.js';
+import { plantParts } from './plant.js';
 import {
   deriveParti, heightAt, voidsAt, hallAt, terraceAt, openGround, corridorEvery, roomScaleAt,
   features as partiFeatures, PARTIS,
@@ -429,6 +431,14 @@ export function deriveParams(seed, typology) {
     floor: r.pick(T.floors || ['flat-slab']),
     lateral: r.pick(T.laterals || ['core-frame']),
     tmd: false,
+    // THE PLANTING AMBITION, as a multiplier on every substrate depth. 1 is
+    // what the site type asks for; 0 is a building with nothing growing on it.
+    // It is a parameter rather than a constant because it is the one knob the
+    // roller can turn when a planted terrace is what made the slab fail —
+    // "shallower substrate" is a real answer an engineer gives, and the
+    // alternative is a generator that quietly shaves the soil until nothing is
+    // ever heavy enough to matter.
+    green: 1,
     rhythm: null, // filled below
   };
   // THE STOREY HEIGHT FOLLOWS THE FLOOR, not the other way round. You choose a
@@ -482,6 +492,7 @@ export function resolveParams(query) {
   if (q.pil != null && q.pil !== '') p.pilotis = q.pil === '1' || q.pil === 'true';
   if (q.pl != null && q.pl !== '') p.plant = q.pl === '1' || q.pl === 'true';
   set('towers', int('tw', 0, 2));
+  set('green', num('gr', 0, 2));
   if (q.fl && FLOOR_SYSTEMS[q.fl]) p.floor = q.fl;
   if (q.lat && LATERAL_SYSTEMS[q.lat]) p.lateral = q.lat;
   if (q.tmd != null && q.tmd !== '') p.tmd = q.tmd === '1' || q.tmd === 'true';
@@ -510,6 +521,7 @@ export function paramsToQuery(p) {
   add('m', p.massing, base.massing);
   add('sh', p.shape, base.shape);
   add('tw', p.towers, base.towers);
+  add('gr', p.green, base.green);
   add('fl', p.floor, base.floor);
   add('lat', p.lateral, base.lateral);
   if (p.tmd !== base.tmd) out.push('tmd=' + (p.tmd ? 1 : 0));
@@ -1624,6 +1636,19 @@ export function generate(paramsOrQuery) {
     geometry: null,
   };
   b.stats = statsFor(b);
+
+  // THE PLANTING, and the load it puts on the frame. Sited off the terraces the
+  // massing has already left and the memes the parti has already named, so it
+  // needs no siting stage of its own — but it needs the finished building, so
+  // it runs last.
+  //
+  // `geometry` is off by default because growing a crown costs a hundred
+  // milliseconds and the roller generates forty buildings a roll. The LOAD is
+  // allometric and costs a millisecond; the skeleton is only wanted by
+  // something that is going to draw it, and the bench asks for it explicitly.
+  b.planting = placePlanting(p, b, parti, { geometry: !!p.plantGeometry });
+  b.plantingLoads = plantingLoads(b.planting);
+  b.plantingStats = plantingSchedule(b.planting);
   return b;
 }
 
@@ -1723,6 +1748,13 @@ function generateSacred(p) {
     geometry: geo,
   };
   b.stats = statsFor(b);
+  // A BASILICA HAS A ROOF TOO, and a cloister is one of the memes it can wear,
+  // so the sacred path runs the same planting stage rather than leaving the
+  // field undefined. A "planting is optional" branch quietly becomes a
+  // "planting does not exist here" bug the moment anything downstream reads it.
+  b.planting = placePlanting(p, b, parti, { geometry: !!p.plantGeometry });
+  b.plantingLoads = plantingLoads(b.planting);
+  b.plantingStats = plantingSchedule(b.planting);
   return b;
 }
 
@@ -1895,6 +1927,36 @@ export function schedule(b) {
   return [...byProg.values()]
     .map((e) => ({ ...e, area: round2(e.area) }))
     .sort((a, b2) => b2.area - a.area);
+}
+
+/* ──────────────────────────── the exposed plates ────────────────────────── */
+//
+// EVERY TERRACE THIS BUILDING HAS, derived once. A plate is only roofed by what
+// stands on it, so the exposed part of a level is the level minus the wings of
+// the level above — which is simultaneously where the roof slab goes, where the
+// parapet goes, and where anything can be PLANTED. Computing it inside `parts()`
+// meant the planting stage could not see the terraces the massing had just
+// made, which is the same mistake `spineFor` exists to prevent: two stages
+// deriving the same rect by eye.
+
+export function roofDecks(b) {
+  const out = [];
+  for (let i = 0; i < b.levels.length; i++) {
+    const L = b.levels[i];
+    const above = b.levels[i + 1] ? b.levels[i + 1].wings : [];
+    for (const wg of L.wings) {
+      if (wg.roof === 'folded') continue;              // the cathedral nave brings its own
+      const roofY = round2(L.y + (wg.wingH != null ? wg.wingH : L.h));
+      const exposed = R.subtract(wg, above);
+      if (!exposed.length) continue;
+      out.push({
+        level: i, L, wg, roofY, exposed, above,
+        top: i === b.levels.length - 1,
+        area: round2(exposed.reduce((a, r) => a + R.area(r), 0)),
+      });
+    }
+  }
+  return out;
 }
 
 /* ────────────────────────────────  parts  ───────────────────────────────── */
@@ -2249,14 +2311,9 @@ export function parts(b) {
   // a stepped mass read as inhabited rather than as a stack of trays.
   const topLevel = b.levels[b.levels.length - 1];
   let biggestDeck = null;
-  for (let i = 0; i < b.levels.length; i++) {
-    const L = b.levels[i];
-    const above = b.levels[i + 1] ? b.levels[i + 1].wings : [];
-    for (const wg of L.wings) {
-      if (wg.roof === 'folded') continue;                 // the cathedral nave brings its own
-      const roofY = round2(L.y + (wg.wingH != null ? wg.wingH : L.h));
-      const exposed = R.subtract(wg, above);
-      if (!exposed.length) continue;
+  for (const dk of roofDecks(b)) {
+    const { level: i, wg, roofY, exposed, above } = dk;
+    {
       for (const r of exposed) {
         push({ mat: 'concrete', kind: 'roof', x: r.x, y: round2(roofY + SLAB / 2), z: r.z,
                w: round2(r.w), h: SLAB, d: round2(r.d), level: i });
@@ -2362,6 +2419,38 @@ export function parts(b) {
       }
     }
   }
+  // THE PLANTING. Only when the geometry was actually grown — the load path
+  // does not need a crown and the roller would pay a hundred milliseconds a
+  // building for one it never draws.
+  for (const q of (b.planting || [])) {
+    // the planter itself is a real thing: an upstand holding a depth of soil,
+    // and at the depths involved it is a wall rather than a kerb
+    // FOUR SIDES, and the soil recessed inside them. Two rims and a full-depth
+    // fill made the planter read as a dark hole in the terrace rather than as
+    // something holding soil up — which is what an upstand is for, and at these
+    // depths it is a wall rather than a kerb.
+    const rim = 0.25, cy = round2(q.y + q.depth / 2), h = round2(q.depth);
+    for (const [dx, dz, w2, d2] of [
+      [0, -q.d / 2 + rim / 2, q.w, rim], [0, q.d / 2 - rim / 2, q.w, rim],
+      [-q.w / 2 + rim / 2, 0, rim, q.d], [q.w / 2 - rim / 2, 0, rim, q.d],
+    ]) {
+      push({ mat: 'concrete', kind: 'planter', x: round2(q.x + dx), y: cy, z: round2(q.z + dz),
+             w: round2(w2), h, d: round2(d2), level: q.level });
+    }
+    // filled to 60 mm below the rim, the way a planter is actually filled so
+    // that watering it does not wash the substrate over the edge
+    const fill = round2(Math.max(0.05, q.depth - 0.06));
+    push({ mat: 'soil', kind: 'substrate', x: q.x, y: round2(q.y + fill / 2), z: q.z,
+           w: round2(Math.max(0.1, q.w - 2 * rim)), h: fill,
+           d: round2(Math.max(0.1, q.d - 2 * rim)), level: q.level });
+    for (const pl of q.plants) {
+      if (!pl.tree) continue;
+      for (const part of plantParts(pl.tree, { x: pl.x, y: round2(q.y + fill), z: pl.z, level: q.level })) {
+        push(part);
+      }
+    }
+  }
+
   return out;
 }
 

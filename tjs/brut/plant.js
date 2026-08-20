@@ -108,24 +108,28 @@ export const SPECIES = {
     label: 'sedum', kind: 'mat', h: [0.06, 0.12], soil: 0.08,
     rho: 0.10, hA: 1.4, hB: 0.5, crownA: 0.3, crownB: 2, pipe: 2.0,
     vogel: -0.3, cd0: 0.4, wind: 40, evergreen: true, lai: 2.0,
+    kgPerM2: 14,
     note: 'a succulent mat that shuts down in drought — the only roof planting that survives with no irrigation at all',
   },
   grass: {
     label: 'ornamental grass', kind: 'tuft', h: [0.4, 1.2], soil: 0.15,
     rho: 0.12, hA: 6, hB: 0.6, crownA: 0.2, crownB: 6, pipe: 2.0,
     vogel: -1.2, cd0: 0.6, wind: 35, evergreen: false, lai: 3.0,
+    kgPerM2: 7,
     note: 'reconfigures more than anything else here — it lies flat in a gale and stands up again, which is why it survives on parapets',
   },
   herb: {
     label: 'herb layer', kind: 'tuft', h: [0.2, 0.6], soil: 0.15,
     rho: 0.15, hA: 4, hB: 0.6, crownA: 0.25, crownB: 5, pipe: 2.0,
     vogel: -1.0, cd0: 0.6, wind: 30, evergreen: false, lai: 2.5,
+    kgPerM2: 5,
     note: 'wildflower and herb — the layer that makes an extensive roof an ecosystem rather than a surface',
   },
   fern: {
     label: 'fern', kind: 'tuft', h: [0.4, 1.0], soil: 0.30,
     rho: 0.14, hA: 5, hB: 0.55, crownA: 0.4, crownB: 5, pipe: 2.0,
     vogel: -0.9, cd0: 0.7, wind: 18, evergreen: true, lai: 4.0,
+    kgPerM2: 9,
     note: 'wants shade and shelter, so it belongs under a soffit or in a court and nowhere near a corner at height',
   },
   shrub: {
@@ -415,7 +419,12 @@ export function grow(sp, opts = {}) {
   }
 
   const realH = nodes.reduce((m, n) => Math.max(m, n.y), 0);
-  const realR = nodes.reduce((m, n) => Math.max(m, Math.hypot(n.x, n.z)), 0);
+  // A SPREAD IS NEVER ZERO. A climber with nothing to climb grows as a bare
+  // stem, and its crown really does have no radius — but zero spread divides
+  // by nothing downstream (spacing, drag area, the plan symbol), so the floor
+  // is the stem itself, which is what is actually there.
+  const realR = Math.max(dbh / 2,
+    nodes.reduce((m, n) => Math.max(m, Math.hypot(n.x, n.z)), 0));
   return {
     version: VERSION, species: sp, label: S.label, kind: S.kind,
     height: r2(realH), spread: r2(realR * 2), dbh: r3(dbh),
@@ -428,15 +437,25 @@ export function grow(sp, opts = {}) {
 
 /* ═══════════════════════════ loads and the wind ════════════════════════════ */
 
+// CHAVE'S EQUATION IS FOR WOODY PLANTS, and asking it for a sedum mat gives a
+// two-hundred-microgram plant — because a 5 mm "trunk" carrying 90 mm of height
+// is outside the domain the equation was fitted on, and outside a fitted domain
+// an allometry does not degrade gracefully, it just lies quietly. A mat and a
+// tuft are measured the way the trade measures them instead: kilograms per
+// square metre of cover, saturated.
 function massAndSail(sp, dbh, height, crownR) {
   const S = SPECIES[sp] || SPECIES.tree;
-  const dry = dryMass(sp, dbh, Math.max(0.1, height));
+  const dry = S.kgPerM2 != null
+    ? S.kgPerM2 * Math.PI * crownR * crownR / MOISTURE
+    : dryMass(sp, dbh, Math.max(0.1, height));
   // the frontal area of the crown, which is what the wind sees — an ellipse,
   // not the plan circle, and the LAI is what makes it porous rather than solid
   const crownH = Math.max(0.1, height * (S.kind === 'tree' ? 0.62 : 0.88));
   const frontal = Math.PI * crownR * (crownH / 2);
   return {
-    dryMass: r2(dry), freshMass: r2(dry * MOISTURE),
+    // NOT rounded to two places: a sedum plant weighs grams, and r2 makes it
+    // weigh nothing at all — which is how a roof of them came out weightless
+    dryMass: r3(dry), freshMass: r3(dry * MOISTURE),
     crownArea: r2(Math.PI * crownR * crownR),
     frontalArea: r2(frontal),
     lai: S.lai,

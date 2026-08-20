@@ -55,6 +55,7 @@ export const REPAIRS = {
   wall: {
     what: 'the cores are taking more shear than their walls can carry',
     moves: [
+      { p: 'green', by: -0.4, why: 'planted terraces are dead load high up, which is the worst place for seismic mass — shallower substrate cuts the base shear more than its own weight suggests' },
       { p: 'lateral', to: 'outrigger', why: 'tie the core to the perimeter columns so they share the overturning couple instead of the core taking all of it' },
       { p: 'lateral', to: 'framed-tube', why: 'move the lateral system out to the facade entirely, where the lever arm is the whole plan' },
       { p: 'lateral', to: 'diagrid', why: 'triangulate the perimeter so the envelope carries shear axially rather than in bending' },
@@ -64,6 +65,7 @@ export const REPAIRS = {
   col: {
     what: 'the columns are carrying more axial load than their section allows',
     moves: [
+      { p: 'green', by: -0.4, why: 'a shallower substrate on the planted terraces — saturated soil is the heaviest thing on a roof, and a metre of it is seven times an office floor’s live load' },
       { p: 'bay', by: -0.12, why: 'a shorter bay is more columns over the same plate, so each carries a smaller tributary area' },
       { p: 'floor', to: 'pt-flat', why: 'a post-tensioned plate is the lightest slab that spans this far, and slab weight is most of the axial load' },
       { p: 'floor', to: 'hollow-core', why: 'precast hollow-core, lighter still, where the span allows it' },
@@ -89,6 +91,7 @@ export const REPAIRS = {
   bearing: {
     what: 'the ground under the foundation is being asked for more pressure than it will give',
     moves: [
+      { p: 'green', by: -0.4, why: 'less soil on the roof is less load through every column to the ground' },
       { p: 'bx', by: 0.2, why: 'a wider footprint spreads the same load over more ground, which is the whole of what a raft is for' },
       { p: 'levels', by: -0.2, why: 'or put less on it, since bearing pressure is the weight above divided by the area under' },
       { p: 'floor', to: 'hollow-core', why: 'a lighter floor system is less load all the way down' },
@@ -97,6 +100,7 @@ export const REPAIRS = {
   settle: {
     what: 'the foundation settles more than the frame will tolerate',
     moves: [
+      { p: 'green', by: -0.5, why: 'a lighter roof settles less, and the planted terraces are where the weight is' },
       { p: 'bx', by: 0.2, why: 'a wider raft spreads the same load over more ground, and settlement follows the pressure rather than the total' },
       { p: 'levels', by: -0.2, why: 'or put less on it — elastic settlement is very nearly proportional to the load above' },
     ],
@@ -176,10 +180,11 @@ export const REPAIRS = {
 
 const KEY = {
   levels: 'n', bay: 'bay', bx: 'bx', bz: 'bz', floorH: 'h', corridorW: 'cw',
-  massing: 'm', shape: 'sh', towers: 'tw', floor: 'fl', lateral: 'lat',
+  massing: 'm', shape: 'sh', towers: 'tw', floor: 'fl', lateral: 'lat', green: 'gr',
 };
 const BOUNDS = {
   levels: [1, 30], bay: [4.2, 11], bx: [3, 20], bz: [2, 18], floorH: [2.6, 30],
+  green: [0, 2],
 };
 
 function toQuery(p) {
@@ -213,7 +218,7 @@ export function applyMove(p, move) {
   const cur = p[move.p];
   if (typeof cur !== 'number') return null;
   const [lo, hi] = BOUNDS[move.p] || [-Infinity, Infinity];
-  const step = move.p === 'bay' || move.p === 'floorH' ? 0.1 : 1;
+  const step = move.p === 'bay' || move.p === 'floorH' ? 0.1 : move.p === 'green' ? 0.1 : 1;
   let next = cur * (1 + move.by);
   next = Math.round(next / step) * step;
   if (next === cur) next = cur + Math.sign(move.by) * step;
@@ -382,7 +387,7 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 export function editsOf(p) {
   const base = deriveParams(p.seed, p.typology);
   const out = [];
-  for (const k of ['levels', 'bay', 'bx', 'bz', 'floorH', 'massing', 'shape', 'floor', 'lateral']) {
+  for (const k of ['levels', 'bay', 'bx', 'bz', 'floorH', 'massing', 'shape', 'floor', 'lateral', 'green']) {
     if (p[k] !== base[k]) out.push({ key: k, from: base[k], to: p[k] });
   }
   if (p.tmd !== base.tmd) out.push({ key: 'tmd', from: base.tmd, to: p.tmd });

@@ -134,6 +134,7 @@ generates anything: both read `brut/arch.js`.
 | `brut/stair.js` | **the stair** — pure solver and typology. `solveFlight` (equal risers, Blondel, pitch), `stairFootprint` (how big a shaft it needs — takes a LIST of storey heights and returns the envelope), `layout` (flights, landings, every tread), `stairParts`, `stairPlan` (the plan symbol), `check`, `chooseStair`. **Twenty types** across three ways of spending the horizontal length: RUN (straight, cantilevered, crossed, amphitheatre, cordonata, alternating-tread), FOLD (dog-leg, open well, quarter turn, winder, three-flight, scissor, imperial, bifurcated, ramp) and TURN (spiral, helical, double helix, triple helix, flying). Four of them do not obey Blondel and say so: a ramp has no risers, seating steps are furniture, a cordonata is ridden, and an alternating tread gives each foot twice the going the plan shows. |
 | `brut/lift.js` | **the lifts** — pure traffic analysis. `probableStops` / `highestReversal` (the two expected-value formulas the whole discipline rests on), `flightTime` (the seven-segment jerk-limited profile), `roundTrip` (CIBSE Guide D's RTT), `service` (interval and handling capacity), `sizeGroup` (the ladder: fewest cars, then smallest car, then zones), `populationFromArea` / `populationFromSchedule`, `check`, `liftsFor`. |
 | `brut/plant.js` | **the botany** — Phase 1 of [`ECOBRUTALISM.md`](brut/ECOBRUTALISM.md). `grow()` (space colonization over an ENVELOPE the architecture supplies), `pipeRadius` (Shinozaki's pipe model, which is simultaneously the shape rule and the structural rule), `dbhFor`/`heightFor`/`crownFor`/`dryMass` (allometry, Chave 2014 for the biomass because the mass IS the load), `dragOn` (Vogel reconfiguration), `SOIL`/`soilFor`/`soilLoad` (the substrate ladder, which runs DOWNWARD from what the slab takes), `plantParts`, `plantPlan`, `check`. |
+| `brut/planting.js` | **where the planting goes** — Phase 2–3 of ECOBRUTALISM.md. `plantingSites` (off the terraces `roofDecks()` already leaves and the memes the parti already named), `SITES` (the ambition by place: extensive roof / setback terrace / roof garden / court / grove), `placePlanting` (with `geometry:false` for the load path and `true` for the bench), `plantingLoads` (per level, as DEAD load, at-grade excluded), `plantingSchedule`, `checkPlanting`. |
 | `brut/roller.js` | **the roller, coupled to the solver** — `rollWorkable` (roll → solve → read the GOVERNING check → walk the repair ladder that check names), `REPAIRS` (the ladder itself, a rung per check id, each move saying what it does structurally), `applyMove` (through the codec, never patched onto the object), `scoreOf`, `editsOf`, `census`. |
 | `brut/struct.js` | **the engineer** — load takedown off the room schedule, the coupled flexural–shear cantilever + Guyan condensation + Jacobi eigensolve, ASCE 7-16 seismic and wind, ACI 318 member checks, seeded Kanai–Tajimi and Davenport records, Newmark-β. `verify(b, hazard)` returns every check with a margin and the governing one. |
 | `brut/structdraw.js` | the engineer's SVG sheets: verification schedule, design spectrum, storey shear/drift, mode shapes, framing plan by utilisation. |
@@ -144,6 +145,7 @@ generates anything: both read `brut/arch.js`.
 | `brut/arch.selftest.mjs` | **run this before touching the kernel**: `node tjs/brut/arch.selftest.mjs` (759 checks, ~25 s). It is also a gate in `deploy-tjs.yml`. |
 | `brut/struct.selftest.mjs` | **run this before touching the solve**: `node tjs/brut/struct.selftest.mjs` (105 checks, ~6 s). Also a deploy gate. |
 | `brut/plant.selftest.mjs` | **run this before touching the botany**: `node tjs/brut/plant.selftest.mjs` (251 checks, ~3 s). Also a deploy gate. Checks the relations rather than the shape — the pipe model at every fork in every tree, the allometry round-tripped, Chave against a hand-computed case, and the drag against its rigid limit. |
+| `brut/planting.selftest.mjs` | **run this before touching the planting**: `node tjs/brut/planting.selftest.mjs` (99 checks, ~8 s). Also a deploy gate. It is where ECOBRUTALISM.md's kill criterion is enforced — the sweep MEASURES how often planting moves the governing check, and fails if it never does. |
 | `brut/roller.selftest.mjs` | **run this before touching the roller**: `node tjs/brut/roller.selftest.mjs` (183 checks, ~2 s). Also a deploy gate. Mostly honesty checks — a PASS must survive an independent re-solve, a failure must say so, the result must still be a permalink, and every rung must be keyed on an id the solver can actually emit. |
 | `brut/lift.selftest.mjs` | **run this before touching the traffic kernel**: `node tjs/brut/lift.selftest.mjs` (82 checks, <1 s). Also a deploy gate. Almost every check is against closed form or against an identity, because the failure mode of a probability calculation is a plausible number for the wrong reason. |
 
@@ -356,7 +358,35 @@ generates anything: both read `brut/arch.js`.
    no-op twice while a move that names a PROPORTION is a different building each
    time; compounding the proportional ones is exactly how it converges.
 
-31. **Stairs reach the ground by construction.** One stair per shaft per level,
+31. **AT GRADE IS FREE; ON A PLATE IS NOT.** The one distinction that lets a
+   generator hang a tree pit off the twentieth floor for nothing. An
+   undercroft's grove stands on the ground and no slab cares; a roof garden is
+   carried, saturated, for the life of the building. `plantingLoads` separates
+   them and the selftest asserts the grove reaches no level's load.
+
+   Four more that the work turned up:
+
+   - **The load is an ALLOMETRIC quantity; the geometry is a GROWTH one.**
+     Growing a crown costs ~100 ms and the roller makes forty buildings a roll,
+     so `geometry: false` is the same planting with the trees un-grown — one
+     millisecond, and it agrees with the grown tonnage to 0.03 %. Where a crown
+     WAS grown its own dimensions win, because a tree clipped by a soffit
+     really is lighter than the allometry would charge for.
+   - **Chave's equation is for WOODY plants.** Asking it for a sedum mat gives a
+     two-hundred-microgram plant, because a 5 mm stem carrying 90 mm of height
+     is outside the domain it was fitted on — and outside a fitted domain an
+     allometry does not degrade gracefully, it lies quietly. Mats and tufts are
+     weighed the way the trade weighs them: kilograms per square metre.
+   - **A climber is not a self-supporting plant.** It needs a wall, and the only
+     wall a terrace has is the face of whatever stands on the rest of the plate.
+     Without that a 450 mm planter grew a ten-metre free-standing climber, which
+     is not a plant, it is a mast.
+   - **The budget is SHARED, not spent first-come.** Sorting biggest-first and
+     taking until it ran out gave every building exactly one planter: a single
+     roof garden swallowed every plant and every setback below it came back
+     bare, which loses the stepped planted section that is the whole form.
+
+32. **Stairs reach the ground by construction.** One stair per shaft per level,
    each climbing that level's own height from that level's floor, so the flights
    tile `[0, top]` with no gap. The selftest asserts the tiling closes and that
    an external stair tower stays attached at every level — it used to be placed

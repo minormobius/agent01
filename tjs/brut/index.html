@@ -261,6 +261,11 @@ function concreteTexture(seed, tone = 1) {
 /* ─────────────────────────────── the build ─────────────────────────────── */
 
 const BOX = new THREE.BoxGeometry(1, 1, 1);
+// A low-poly blob for foliage. Every tip of every crown gets one, so a building
+// carries a thousand of them and the triangle count is the whole constraint —
+// an icosahedron at detail 0 is twenty triangles and reads perfectly well at
+// the size a leaf cluster actually occupies on screen.
+const LEAF = new THREE.IcosahedronGeometry(0.5, 0);
 let group = null, building = null, mats = null, mode = 'solid';
 // Materials are cached by seed: the formwork texture costs tens of milliseconds
 // to draw, and a slider drag rebuilds the geometry every frame. The seed is the
@@ -282,6 +287,9 @@ function makeMaterials(seed) {
     stair:    new THREE.MeshStandardMaterial({ map: texDark, color: 0xd2cec4, roughness: 0.93, metalness: 0.0 }),
     stairLit: new THREE.MeshStandardMaterial({ color: 0x39d6c8, roughness: 0.55, metalness: 0.05,
                                                emissive: 0x0d4a45, emissiveIntensity: 0.9 }),
+    wood:     new THREE.MeshStandardMaterial({ color: 0x5a4632, roughness: 0.92, metalness: 0 }),
+    leaf:     new THREE.MeshStandardMaterial({ color: 0x4f7a3a, roughness: 0.85, metalness: 0, flatShading: true }),
+    soil:     new THREE.MeshStandardMaterial({ color: 0x2e2519, roughness: 1, metalness: 0 }),
     glass:    new THREE.MeshStandardMaterial({ color: 0x1d3f4e, roughness: 0.06, metalness: 0.45, transparent: true, opacity: 0.66, envMapIntensity: 1.4 }),
     metal:    new THREE.MeshStandardMaterial({ color: 0x8b9196, roughness: 0.42, metalness: 0.75 }),
     ground:   new THREE.MeshStandardMaterial({ color: 0x3a3d45, roughness: 1.0 }),
@@ -300,7 +308,11 @@ function makeMaterials(seed) {
 function build(p) {
   userMoved = false;                    // a new building gets a fresh framing
   if (group) { scene.remove(group); disposeGroup(group); }
-  building = generate(p);
+  // THE BENCH IS THE ONE THING THAT DRAWS THE CROWNS, so it is the one thing
+  // that asks for them. Growing them costs about a hundred milliseconds; the
+  // structural load does not need them and the roller makes forty buildings a
+  // roll, so everywhere else gets the planting without its geometry.
+  building = generate({ ...p, plantGeometry: true });
   const list = parts(building).filter((q) => q.mat !== 'void');
   mats = getMaterials(p.seed);
   group = new THREE.Group();
@@ -316,10 +328,13 @@ function build(p) {
   }
   const m4 = new THREE.Matrix4(), qt = new THREE.Quaternion(), pos = new THREE.Vector3(), scl = new THREE.Vector3();
   const eul = new THREE.Euler();
+  const UP = new THREE.Vector3(), DIR = new THREE.Vector3();
   for (const [matName, items] of byMat) {
     const mat = mats[matName];
     if (!mat) continue;
-    const mesh = new THREE.InstancedMesh(BOX, mat, items.length);
+    // foliage is a blob, and a box of leaves reads as a box
+    const geo = matName === 'leaf' ? LEAF : BOX;
+    const mesh = new THREE.InstancedMesh(geo, mat, items.length);
     mesh.castShadow = matName !== 'ground' && matName !== 'partition';
     mesh.receiveShadow = true;
     mesh.userData.levels = new Int16Array(items.length);
@@ -329,8 +344,19 @@ function build(p) {
       scl.set(Math.max(q.w, 0.02), Math.max(q.h, 0.02), Math.max(q.d, 0.02));
       // diagrid diagonals lie in the plane of the facade, so a part needs all
       // three rotations, not just the apse's spin about y
-      eul.set(q.rx || 0, q.ry || 0, q.rz || 0);
-      qt.setFromEuler(eul);
+      // A BRANCH POINTS ANYWHERE, so it carries a direction vector rather than
+      // three Euler angles in a fixed order — which is the same reason the
+      // stair treads carry one convention and not two. `setFromUnitVectors`
+      // takes the box's own +Y onto it in a single rotation with no order to
+      // get wrong.
+      if (q.dir) {
+        UP.set(0, 1, 0);
+        DIR.set(q.dir[0], q.dir[1], q.dir[2]).normalize();
+        qt.setFromUnitVectors(UP, DIR);
+      } else {
+        eul.set(q.rx || 0, q.ry || 0, q.rz || 0);
+        qt.setFromEuler(eul);
+      }
       mesh.setMatrixAt(i, m4.compose(pos, qt, scl));
       // Parts with no storey of their own — towers, parapets, the cathedral's
       // roof — still have to sway with the building around them, so they take
@@ -354,6 +380,7 @@ function build(p) {
   applyStoreyCut();
   panel.setParti(building.parti, (building.stairs || []).filter((q) => q.feature));
   panel.setLifts(building.liftGroup);
+  panel.setPlanting(building.planting, building.plantingStats, building.plantingLoads);
   panel.setStats([
     ['storeys', building.stats.levels],
     ['height', building.stats.height.toFixed(0) + ' m'],

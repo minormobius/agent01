@@ -271,11 +271,28 @@ export function loads(b) {
     const roofArea = L.wings.reduce((s, wg) => s + areaOf(R.subtract(wg, above)), 0);
     live += roofArea * LIVE.roof * 1e3;
     dead += roofArea * SDL * 0.5;                                        // roof build-up
+
+    // THE PLANTING IS A DEAD LOAD, and a very large one. Saturated substrate is
+    // permanently there — it does not come and go like an occupancy — so
+    // calling it live would let the code's own load factors discount the single
+    // heaviest thing on the roof. A metre of it is 16 kPa where an office floor
+    // carries 2.4, which is why a planted terrace SIZES the slab under it
+    // rather than being applied to one.
+    //
+    // Planting at grade is excluded upstream: it sits on the ground, and the
+    // ground was already carrying it.
+    let planted = 0;
+    if (b.plantingLoads) {
+      const e = b.plantingLoads.byLevel.find((q) => q.level === i);
+      if (e) { planted = e.N; dead += planted; }
+    }
+
     // ASCE 12.7.2 effective seismic weight: dead + 25% of storage-type live
     const W = dead + 0.25 * storage;
     out.push({
       level: i, y: L.y, h: L.h, area: r2(area), roofArea: r2(roofArea),
-      dead: r2(dead), live: r2(live), clad: r2(clad), seismicW: r2(W), mass: r2(W / G),
+      dead: r2(dead), live: r2(live), clad: r2(clad), planted: r2(planted),
+      seismicW: r2(W), mass: r2(W / G),
     });
   }
   return out;

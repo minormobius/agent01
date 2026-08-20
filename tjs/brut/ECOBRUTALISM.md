@@ -82,9 +82,14 @@ Four couplings, in the order they bind:
    places the plan has *already* declared. Planting does not need a new siting
    stage — it needs to read `parti.js` the way the stairs do. A ziggurat massing
    is the ecobrutalist form par excellence and this generator already makes one.
-2. **The structure decides how deep.** Soil depth is not a landscape choice, it
-   is whatever the slab will take. So the ladder runs *downward* from the floor
-   system's capacity to the palette, not upward from a wish.
+2. **The structure PAYS for the depth — it does not permit it.** This is the
+   coupling that was easiest to get backwards, and the first draft of this
+   document had it backwards. Clipping the substrate to what the slab already
+   takes gives a generator in which planting can never be the reason anything
+   fails, which makes the whole exercise decorative. The ambition is set by what
+   the place is; the load goes into the model; the solver decides. What DOES run
+   downward is the ladder from depth to palette: 150 mm is sedum and nothing
+   else, whatever anybody wanted.
 3. **The building shapes the tree.** A tree under a soffit grows lopsided; one
    against a facade grows outward toward the light; one in a corner planter
    fills a quadrant. The growth model has to take an ENVELOPE, and the envelope
@@ -125,16 +130,30 @@ Checked against closed form: the pipe model's area conservation at every branch
 point, the allometric round trip, Chave against a hand-computed case, and the
 drag against both its rigid limit and its measured reconfiguration ratio.
 
-### Phase 2 — where it goes
+### Phase 2 — where it goes · **BUILT**
 
-`placePlanting(p, mass, parti, floorSystem)`, alongside `placeHalls` and
-`placeLifts` and reading the same parti. Terraces, setbacks, the court, the
-undercroft grove, the balcony rhythm, the roof. Each planter gets a depth from
-what the slab under it will carry, and the depth picks the palette. Emits
-planters and the plants in them, with the same `drawn == modelled` rule the rest
-of the surface lives by.
+`placePlanting`, reading the same parti the stairs and the lifts read. The
+sites need no siting stage of their own because the massing already made them:
+`roofDecks()` computes exactly the part of each plate the level above does not
+stand on, which is simultaneously where the roof slab goes and where anything
+can be planted. Setbacks become terraces, the top becomes a green roof, a parti
+terrace becomes a garden, a cloister's void becomes a court, and an undercroft
+becomes a grove.
 
-### Phase 3 — the consequences
+**Corrected from the original plan:** the depth is NOT clipped to what the slab
+currently takes. That was written above as coupling 2 and it is the wrong way
+round — a green roof is not *permitted* by a slab, it is *paid for* by one. So
+the ambition is set by what the place IS, the load goes into the structural
+model, and the solver says whether the payment worked. Clipping it the other way
+would have produced a generator that quietly shaves the substrate until nothing
+is ever heavy enough to fail, which is precisely the "garnish" failure the kill
+criteria exist to catch.
+
+**Not built:** planting on the balcony rhythm. The facade bays are a separate
+geometry from the plates, and a balcony planter is a different structural
+problem — a cantilever rather than a slab — so it wants its own pass.
+
+### Phase 3 — the consequences · **BUILT**
 
 The part that makes it real rather than pretty:
 
@@ -148,7 +167,7 @@ The part that makes it real rather than pretty:
 - The schedule gains m² of planting, tree count by species, substrate volume,
   saturated tonnage and litres of irrigation demand.
 
-### Phase 4 — drawing and rendering
+### Phase 4 — drawing and rendering · **BUILT**
 
 The plan symbol every landscape drawing uses (the circle, the canopy hatch, the
 centre cross, the spread dimension), the trees in elevation and section, and the

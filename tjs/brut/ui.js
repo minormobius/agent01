@@ -61,6 +61,10 @@ export function buildPanel(root, params, onChange, opts = {}) {
   // shafts a building has is not a dimension anybody can read off the model,
   // and it is the number that decides whether the plan works.
   const liftBox = h('div', { class: 'lifts' });
+  // The planting gets a block too, and for the same reason: what a planted
+  // terrace WEIGHS is the number that decides whether it can be there, and it
+  // is not a dimension anybody can read off the model.
+  const greenBox = h('div', { class: 'lifts green' });
   const stats = h('div', { class: 'stats' });
   const rhythmRow = h('div', { class: 'rhythm' });
   const systems = h('div', { class: 'systems' });
@@ -164,6 +168,7 @@ export function buildPanel(root, params, onChange, opts = {}) {
   root.appendChild(blurb);
   root.appendChild(partiBox);
   root.appendChild(liftBox);
+  root.appendChild(greenBox);
   root.appendChild(cross);
   root.appendChild(stats);
   root.appendChild(h('div', { class: 'sec' }, 'facade rhythm'));
@@ -184,6 +189,7 @@ export function buildPanel(root, params, onChange, opts = {}) {
     { key: 'floorH', label: 'floor to floor', min: 2.6, max: 30, step: 0.1, fmt: (v) => v.toFixed(1) + ' m' },
     { key: 'corridorW', label: 'corridor', min: 1.8, max: 4.2, step: 0.1, fmt: (v) => v.toFixed(1) + ' m' },
     { key: 'towers', label: 'service towers', min: 0, max: 2, step: 1, fmt: (v) => v },
+    { key: 'green', label: 'substrate', min: 0, max: 2, step: 0.1, fmt: (v) => (v === 0 ? 'none' : '×' + v.toFixed(1)) },
   ];
   const slid = {};
   for (const s of SPECS) {
@@ -353,6 +359,42 @@ export function buildPanel(root, params, onChange, opts = {}) {
       for (const c of bad) {
         liftBox.appendChild(h('p', { class: 'blurb lfail' }, `${c.label}: ${c.value} — ${c.note}`));
       }
+    },
+    // `stats` is the planting schedule; `loads` says how much of it the frame
+    // actually carries, which is the whole distinction between a roof garden
+    // and a grove standing on the ground.
+    setPlanting(planters, stats, loads) {
+      greenBox.textContent = '';
+      if (!stats || !stats.plants) {
+        greenBox.appendChild(h('div', { class: 'sec' }, 'the planting'));
+        greenBox.appendChild(h('p', { class: 'blurb pnote' },
+          'nothing growing on this one — the substrate slider is at zero, or the massing left nowhere open to the sky.'));
+        return;
+      }
+      greenBox.appendChild(h('div', { class: 'sec' }, 'the planting'));
+      greenBox.appendChild(h('p', { class: 'pname' },
+        `${stats.plants} plants over ${Math.round(stats.area)} m²`));
+      greenBox.appendChild(h('div', { class: 'ltab' }, [
+        h('div', { class: 'stat' }, [h('b', {}, `${Math.round(stats.substrate)} m³`), h('span', {}, 'substrate')]),
+        h('div', { class: 'stat' }, [h('b', {}, `${Math.round(loads.carried)} t`), h('span', {}, 'carried')]),
+        h('div', { class: 'stat' }, [h('b', {}, `${Math.round(loads.onGrade)} t`), h('span', {}, 'on grade')]),
+      ]));
+      greenBox.appendChild(h('p', { class: 'blurb pnote' },
+        `Saturated, and carried for the life of the building — a metre of substrate is 16 kPa where an office floor carries 2.4, ` +
+        `which is why planting is the load case that SIZES a slab rather than a finish applied to one. ` +
+        `The ${Math.round(loads.onGrade)} t at grade is on the ground and costs the frame nothing.`));
+      const byKind = new Map();
+      for (const q of (planters || [])) {
+        const e = byKind.get(q.label) || { label: q.label, n: 0, area: 0, depth: q.depth, note: q.note };
+        e.n++; e.area += q.area;
+        byKind.set(q.label, e);
+      }
+      for (const e of byKind.values()) {
+        greenBox.appendChild(h('p', { class: 'blurb pstair' },
+          `${e.label} — ${Math.round(e.area)} m² at ${Math.round(e.depth * 1000)} mm. ${e.note}`));
+      }
+      greenBox.appendChild(h('p', { class: 'blurb pnote' },
+        stats.species.map((q) => `${q.count} × ${q.label}`).join(' · ')));
     },
     reload(next) { p = next; paint(); },
   };

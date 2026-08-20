@@ -215,6 +215,42 @@ export function planSVG(b, levelIndex, opts = {}) {
     if (!hasStair && F.L(c.w) > 26) out.push(label(F.X(c.x), F.Y(c.z) + 3, 'CORE', P, 7, 'middle', P.ink));
   }
 
+  // THE PLANTING, by the landscape convention: the canopy as a circle at its
+  // MATURE spread, a ragged edge for anything deciduous, the trunk at its real
+  // diameter, and a centre cross. The circle is the dimension that matters —
+  // a tree drawn at anything other than its mature spread is a tree that gets
+  // cut down in ten years — and it comes off the allometry rather than off a
+  // pen. The planter itself is drawn as the bed it is.
+  for (const q of (b.planting || [])) {
+    if (Math.abs(q.level - L.index) > 0.5) continue;
+    out.push(box(F, q, `fill="none" stroke="${P.accent}" stroke-width="1.1" stroke-dasharray="5 3" opacity=".8"`));
+    if (F.L(q.w) > 40) {
+      out.push(label(F.X(q.x), F.Y(R.z0(q)) - 4,
+        `${q.label.toUpperCase()} · ${Math.round(q.depth * 1000)} mm`, P, 6, 'middle', P.accent));
+    }
+    for (const pl of q.plants) {
+      const r = F.L(Math.max(0.4, pl.spread / 2));
+      const cx = F.X(pl.x), cy = F.Y(pl.z);
+      if (r < 2.5) { out.push(`<circle cx="${n2(cx)}" cy="${n2(cy)}" r="1.6" fill="${P.accent}" opacity=".55"/>`); continue; }
+      const evergreen = pl.tree ? pl.tree.evergreen : true;
+      if (evergreen) {
+        out.push(`<circle cx="${n2(cx)}" cy="${n2(cy)}" r="${n2(r)}" fill="none" stroke="${P.accent}" stroke-width=".9" opacity=".85"/>`);
+      } else {
+        // the ragged canopy every landscape drawing uses for a deciduous tree
+        const pts = [];
+        for (let i = 0; i < 16; i++) {
+          const th = (i / 16) * Math.PI * 2;
+          const rr = r * (i % 2 ? 0.82 : 1);
+          pts.push(`${n2(cx + rr * Math.cos(th))} ${n2(cy + rr * Math.sin(th))}`);
+        }
+        out.push(`<polygon points="${pts.join(' ')}" fill="none" stroke="${P.accent}" stroke-width=".9" opacity=".85"/>`);
+      }
+      const tr = Math.max(1, F.L(pl.tree ? pl.tree.dbh / 2 : 0.05));
+      out.push(`<circle cx="${n2(cx)}" cy="${n2(cy)}" r="${n2(tr)}" fill="${P.accent}" opacity=".7"/>`);
+      out.push(`<path d="M${n2(cx - r)} ${n2(cy)} H${n2(cx + r)} M${n2(cx)} ${n2(cy - r)} V${n2(cy + r)}" stroke="${P.accent}" stroke-width=".4" opacity=".4"/>`);
+    }
+  }
+
   // THE LIFTS. Drawn by the convention every set uses — the shaft outlined, an
   // X across it, and the car dashed inside — because that mark says two things
   // at once: this is a hole through the slab, and there is a machine in it. A
@@ -567,6 +603,14 @@ function liftLine(b) {
   return `${g.built} × ${g.car.kg} kg @ ${g.speed} m/s${zone} · ${g.interval.toFixed(0)} s INT`;
 }
 
+// What a title block owes the planting: how much of it there is, and — the
+// number that decides whether it can be there at all — what the frame carries.
+function greenLine(b) {
+  const g = b.plantingStats;
+  if (!g || !g.plants) return 'none';
+  return `${g.plants} plants · ${Math.round(g.area)} m² · ${Math.round(g.carried)} t carried`;
+}
+
 export function titleBlockSVG(b, opts = {}) {
   const P = opts.palette || PALETTES.blueprint;
   const W = opts.width || 640, H = opts.height || 250;
@@ -592,6 +636,7 @@ export function titleBlockSVG(b, opts = {}) {
     ['RHYTHM', p.rhythm.map((m) => MODULES[m].label).join(' · ')],
     ['CORES', `${S.cores} core${S.cores === 1 ? '' : 's'} · ${S.towers} tower${S.towers === 1 ? '' : 's'}`],
     ['LIFTS', liftLine(b)],
+    ['PLANTING', greenLine(b)],
     ['REV', revision(b)],
   ];
   out.push(`<rect x="1" y="1" width="${W - 2}" height="${H - 2}" fill="none" stroke="${P.ink}" stroke-width="1.6"/>`);
