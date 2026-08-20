@@ -24,7 +24,7 @@ Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `s
 
 ## How it works
 
-Static worker-assets (Worker `poke`), four things sharing one asset manifest:
+Static worker-assets (Worker `poke`), five things sharing one asset manifest:
 
 | Path | What |
 |---|---|
@@ -32,20 +32,25 @@ Static worker-assets (Worker `poke`), four things sharing one asset manifest:
 | `/proteus/` | [Amoeba qualia prototype](proteus/README.md) — you see only what the cell feels of itself. Also carries `flagella.js`, the ciliary model |
 | `/flag/` | [Ciliary locomotion instrument](flag/README.md) — a free swimmer plus the measurements it comes from |
 | `/qwop/` | [QWOP-like](qwop/README.md) — the same model as a game: four cilia, four keys, dodge the predators |
+| `/graze/` | [Predator-and-prey variant](graze/README.md) — /qwop/'s cell plus an energy budget, prey, and a water column. Its selftest is an experiment: does sit-and-wait *emerge*? |
 
-`/flag/` and `/qwop/` both import the model from `/proteus/flagella.js` rather
-than copying it. Same worker, same asset directory, so a relative import across
-them just works — **do not copy it**, the sync would rot.
+`/flag/` and `/qwop/` import the model from `/proteus/flagella.js`, and
+`/graze/` imports the whole cell from `/qwop/game.js`, rather than copying. Same
+worker, same asset directory, so relative imports across them just work — **do
+not copy**, the sync would rot. `/graze/` also wraps `/qwop/`'s predator table
+rather than editing it, because that balance is measured and shipped.
 
-Three node selftests live here and all run under `preflight` when this dir
+Four node selftests live here and all run under `preflight` when this dir
 changes: `proteus/flagella.selftest.mjs` (the model), `flag/flag.selftest.mjs`
-(that page's loop agrees with the model), and `qwop/qwop.selftest.mjs` (that
-skilled play actually beats unskilled play — the game's whole design claim, and
-not something "it compiles" can tell you). Run them before touching
+(that page's loop agrees with the model), `qwop/qwop.selftest.mjs` (that skilled
+play beats unskilled play — the game's design claim, not something "it compiles"
+can tell you), and `graze/graze.selftest.mjs`, which is an experiment rather
+than a checklist: it sweeps a family of strategies and reports which wins, and
+is allowed to tell you the design is wrong. Run them before touching
 `flagella.js`: the constants in it are transcribed measurements, and the tests
 are what prove the transcription.
 
-**Static Assets replaces the whole manifest; it does not merge.** All four
+**Static Assets replaces the whole manifest; it does not merge.** All five
 paths above ship from one `wrangler deploy`, so this branch has to carry all of
 them. It does — it was checked as a strict superset of the previous owner's
 tree before ownership moved — but any future branch taking this surface over
