@@ -132,7 +132,10 @@ const card = (svg, tag, wide) =>
   `<div class="card${wide ? ' wide' : ''}">${svg}${tag ? `<div class="tag">${tag}</div>` : ''}</div>`;
 
 function draw(p) {
-  building = generate(p);
+  // `plantGeometry` grows the crowns. The 3D bench has always asked for it; the
+  // drawing set did not, which is why the trees were only ever circles in plan
+  // — the elevations and the section had no skeleton to project.
+  building = generate({ ...p, plantGeometry: true });
   const P = PALETTES[theme];
   const opt = { palette: P, width: 640, height: 460 };
   const html = [];

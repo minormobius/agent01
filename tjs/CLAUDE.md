@@ -133,7 +133,7 @@ generates anything: both read `brut/arch.js`.
 | `brut/parti.js` | **the parti** — pure, and it runs FIRST, before the massing. Eight memes (piano nobile, penthouse, great hall, atrium, undercroft, cloister, skip-stop, promenade architecturale), each declaring what it demands of the section (`height`), of the plan (`hall`, `voids`, `rooms`, `openGround`, `every`) and of the ceremony (`feature` — where the stair is, how wide, and which types it is allowed to be). `deriveParti` picks one or two that do not contradict; `heightAt` / `voidsAt` / `hallAt` / `roomScaleAt` / `terraceAt` / `openGround` / `corridorEvery` / `features` are what the rest of the kernel asks it. |
 | `brut/stair.js` | **the stair** — pure solver and typology. `solveFlight` (equal risers, Blondel, pitch), `stairFootprint` (how big a shaft it needs — takes a LIST of storey heights and returns the envelope), `layout` (flights, landings, every tread), `stairParts`, `stairPlan` (the plan symbol), `check`, `chooseStair`. **Twenty types** across three ways of spending the horizontal length: RUN (straight, cantilevered, crossed, amphitheatre, cordonata, alternating-tread), FOLD (dog-leg, open well, quarter turn, winder, three-flight, scissor, imperial, bifurcated, ramp) and TURN (spiral, helical, double helix, triple helix, flying). Four of them do not obey Blondel and say so: a ramp has no risers, seating steps are furniture, a cordonata is ridden, and an alternating tread gives each foot twice the going the plan shows. |
 | `brut/lift.js` | **the lifts** — pure traffic analysis. `probableStops` / `highestReversal` (the two expected-value formulas the whole discipline rests on), `flightTime` (the seven-segment jerk-limited profile), `roundTrip` (CIBSE Guide D's RTT), `service` (interval and handling capacity), `sizeGroup` (the ladder: fewest cars, then smallest car, then zones), `populationFromArea` / `populationFromSchedule`, `check`, `liftsFor`. |
-| `brut/plant.js` | **the botany** — Phase 1 of [`ECOBRUTALISM.md`](brut/ECOBRUTALISM.md). `grow()` (space colonization over an ENVELOPE the architecture supplies), `pipeRadius` (Shinozaki's pipe model, which is simultaneously the shape rule and the structural rule), `dbhFor`/`heightFor`/`crownFor`/`dryMass` (allometry, Chave 2014 for the biomass because the mass IS the load), `dragOn` (Vogel reconfiguration), `SOIL`/`soilFor`/`soilLoad` (the substrate ladder, which runs DOWNWARD from what the slab takes), `plantParts`, `plantPlan`, `check`. |
+| `brut/plant.js` | **the botany** — Phase 1 of [`ECOBRUTALISM.md`](brut/ECOBRUTALISM.md). `grow()` (space colonization over an ENVELOPE the architecture supplies), `pipeRadius` (Shinozaki's pipe model, which is simultaneously the shape rule and the structural rule), `dbhFor`/`heightFor`/`crownFor`/`dryMass` (allometry, Chave 2014 for the biomass because the mass IS the load), `dragOn` (Vogel reconfiguration), `SOIL`/`soilFor`/`soilLoad` (the substrate ladder, which runs DOWNWARD from what the slab takes), `plantParts`, `plantPlan`, `plantElevation`/`plantSection` (the orthographic projections the drawing office reads), `crownProfile`, `foliage`, `HABITS` (eleven crown profiles — the `radiusAt(t)` that is at once the growth envelope, the foliage surface and the drawn silhouette), `check`. |
 | `brut/planting.js` | **where the planting goes** — Phase 2–3 of ECOBRUTALISM.md. `plantingSites` (off the terraces `roofDecks()` already leaves and the memes the parti already named), `SITES` (the ambition by place: extensive roof / setback terrace / roof garden / court / grove), `placePlanting` (with `geometry:false` for the load path and `true` for the bench), `plantingLoads` (per level, as DEAD load, at-grade excluded), `plantingSchedule`, `checkPlanting`. |
 | `brut/roller.js` | **the roller, coupled to the solver** — `rollWorkable` (roll → solve → read the GOVERNING check → walk the repair ladder that check names), `REPAIRS` (the ladder itself, a rung per check id, each move saying what it does structurally), `applyMove` (through the codec, never patched onto the object), `scoreOf`, `editsOf`, `census`. |
 | `brut/struct.js` | **the engineer** — load takedown off the room schedule, the coupled flexural–shear cantilever + Guyan condensation + Jacobi eigensolve, ASCE 7-16 seismic and wind, ACI 318 member checks, seeded Kanai–Tajimi and Davenport records, Newmark-β. `verify(b, hazard)` returns every check with a margin and the governing one. |
@@ -144,7 +144,7 @@ generates anything: both read `brut/arch.js`.
 | `brut/plan/index.html` | the blueprint set (print CSS, SVG export). |
 | `brut/arch.selftest.mjs` | **run this before touching the kernel**: `node tjs/brut/arch.selftest.mjs` (759 checks, ~25 s). It is also a gate in `deploy-tjs.yml`. |
 | `brut/struct.selftest.mjs` | **run this before touching the solve**: `node tjs/brut/struct.selftest.mjs` (105 checks, ~6 s). Also a deploy gate. |
-| `brut/plant.selftest.mjs` | **run this before touching the botany**: `node tjs/brut/plant.selftest.mjs` (251 checks, ~3 s). Also a deploy gate. Checks the relations rather than the shape — the pipe model at every fork in every tree, the allometry round-tripped, Chave against a hand-computed case, and the drag against its rigid limit. |
+| `brut/plant.selftest.mjs` | **run this before touching the botany**: `node tjs/brut/plant.selftest.mjs` (596 checks, ~4 s). Also a deploy gate. Checks the relations rather than the shape — the pipe model at every fork in every tree, the allometry round-tripped, Chave against a hand-computed case, the drag against its rigid limit, and — since the projections landed — that an elevation is the SAME tree the model carries, that the habit survives the projection (a conifer widest at the bottom, a vase at the top), and that the section's root ball and root plate stay two different things. |
 | `brut/planting.selftest.mjs` | **run this before touching the planting**: `node tjs/brut/planting.selftest.mjs` (99 checks, ~8 s). Also a deploy gate. It is where ECOBRUTALISM.md's kill criterion is enforced — the sweep MEASURES how often planting moves the governing check, and fails if it never does. |
 | `brut/roller.selftest.mjs` | **run this before touching the roller**: `node tjs/brut/roller.selftest.mjs` (183 checks, ~2 s). Also a deploy gate. Mostly honesty checks — a PASS must survive an independent re-solve, a failure must say so, the result must still be a permalink, and every rung must be keyed on an id the solver can actually emit. |
 | `brut/lift.selftest.mjs` | **run this before touching the traffic kernel**: `node tjs/brut/lift.selftest.mjs` (82 checks, <1 s). Also a deploy gate. Almost every check is against closed form or against an identity, because the failure mode of a probability calculation is a plausible number for the wrong reason. |
@@ -392,3 +392,34 @@ generates anything: both read `brut/arch.js`.
    an external stair tower stays attached at every level — it used to be placed
    against level 0 and lose a stepped mass on the way up. A campanile is exempt
    and detached on purpose, and climbs on its own turret.
+
+33. **A TREE IN PLAN IS A CIRCLE; A TREE IN ELEVATION IS A HABIT.** Every species
+   makes the same plan symbol, so plan alone never paid for having nineteen of
+   them. `HABITS` gives each one a `radiusAt(t)` — the crown's own profile — and
+   that single function does three jobs at once: it is the envelope
+   `grow()` fills, it is the surface `foliage()` covers, and it is the
+   silhouette `plantElevation()` draws. A poplar is a column, a pine is a cone,
+   a rowan is a vase, and they are those things in the model before they are
+   those things on the sheet. Four things this turned up:
+
+   - **What a tree IS on a sheet depends on the sheet's scale**, and that is not
+     a style choice. `treeGlyph` has three tiers — a stick and a blob below
+     about 11 px, the filled habit silhouette below 46 px, the projected
+     skeleton above it — because drawing 300 branches into a 40-pixel tree
+     produces a firework, which is what the first version did. The tier test
+     reads the SPREAD as well as the height: a climber is twelve metres of plant
+     in 1.26 m of width and height alone sent it to the full skeleton, drawing
+     a green wall as one bare wiggling line.
+   - **A crown is a solid of revolution, not a ball.** `foliage()` took the
+     surface as 4πr², which is only true for `domed`. On a climber the sphere
+     claimed 3 m² where the real lateral surface is nearer 34, so every tall
+     narrow habit came out with a tenth of the leaves it needs. Integrating
+     `radiusAt` costs nothing and is right for all eleven.
+   - **THE ROOT BALL AND THE ROOT PLATE ARE DIFFERENT DRAWINGS.** Nursery stock
+     is sold to ANSI Z60.1, which sizes a ball off the trunk caliper — that is
+     how the tree ARRIVED. A mature tree's roots are a wide shallow plate with
+     ~90 % of the mass in the top 600 mm — that is how it GREW, and it is what
+     takes the overturning moment. Running the nursery rule on a mature trunk
+     claims a 15 m plane sits on a ball nearly three metres deep.
+   - **A planted building is taller than its parapet.** The elevation frame fit
+     `b.height` and guillotined every roof-garden crown at the top of the sheet.

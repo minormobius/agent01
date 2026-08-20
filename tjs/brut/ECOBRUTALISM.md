@@ -174,6 +174,46 @@ centre cross, the spread dimension), the trees in elevation and section, and the
 canopy in the bench — with the deciduous ones able to drop their leaves, because
 the winter case is a different load case and the drawing should say so.
 
+**Where the drawing work actually went.** Plan was the easy half and it is also
+the half that never justified the species list: every species makes the same
+circle. Elevation is where the habit shows, and getting there turned up four
+things worth writing down.
+
+- **What a tree IS on a sheet depends on the sheet's scale.** `treeGlyph` has
+  three tiers — a stick and a blob, the filled habit silhouette, the projected
+  skeleton — chosen by how big the tree lands on *that* drawing. Projecting the
+  full skeleton at every size drew a forty-pixel tree as three hundred radiating
+  hairs under a scatter of dots: a firework. No drawing office has ever done
+  that, because at 1:500 a tree is a symbol and at 1:100 it is a drawing.
+- **The tier test has to read the spread, not just the height.** A climber is
+  twelve metres of plant in 1.26 m of width, so height alone sent it to the full
+  skeleton and drew a green wall as a single bare wiggling line.
+- **A crown is a solid of revolution, not a ball.** `foliage()` took the crown
+  surface as 4πr², which is only true for `domed`. Every tall narrow habit came
+  out with a tenth of the leaves it needs — on the sheet *and in the bench*.
+  The habit already carries its profile; integrating it is exact enough and
+  costs nothing.
+- **Two outlines, meaning two different things.** The dashed line is the design
+  envelope at mature spread — what a landscape architect dimensions. The solid
+  mass is the tree that actually grew inside whatever envelope the architecture
+  handed it. Where the building clipped the crown the two pull apart, and that
+  gap is coupling 3 made visible on a sheet. One outline would have hidden it.
+
+And the section, which is the drawing this whole subsystem exists for, because
+it is where the substrate depth, the drainage layer and the roots become
+visible — the three things the slab is being asked to carry. It carries **two**
+root geometries and they are not interchangeable:
+
+| | what it answers | shape |
+|---|---|---|
+| **root ball**, ANSI Z60.1 off the caliper | can it be *installed*? | ~11 ball-diameters per trunk diameter, dug 60 % as deep as wide |
+| **root plate**, clipped to its planter | can it *stand*? | wide and shallow — ~90 % of root mass in the top 600 mm |
+
+Running the nursery rule on a mature trunk claims a fifteen-metre plane arrives
+on a ball nearly three metres deep, which no plane has ever done. The plate is
+what takes the overturning moment, and on a planter it runs out of room
+sideways long before it runs out of room down — which is what `confined` says.
+
 ### Phase 5 — the whole-building case
 
 The interesting synthesis, and the reason to do the rest: **an ecobrutalist
@@ -199,6 +239,18 @@ Kill criteria, stated up front so they are not negotiated later:
   ship an asset library instead.
 - **If the trees cost more frame time than the building**, the bench stops being
   usable, and a canopy nobody can orbit is worth less than no canopy.
+
+  *Measured, after the fuller crowns landed* (mean over eight seeds): `generate`
+  goes 3.6 ms → 20.8 ms and the part count 4,056 → 11,391. So by both measures
+  the planting IS more than the building — but the cost is `grow()`, not the
+  foliage (0.5 ms a plant against 0.17), it is paid once per parameter change
+  rather than per frame, and the blobs land in a single `InstancedMesh` at 20
+  triangles each. The criterion is about frame time and frame time is unmoved;
+  if that ever stops being true the honest lever is `PLANT_BUDGET`, not thinner
+  crowns. In the drawing office the same appetite had to be capped for real: the
+  first version emitted a 513 KB SVG for one elevation, and the tiers plus a
+  visibility-based stroke budget brought a five-drawing sheet to 1.4–3.5× the
+  bare sheet.
 - **If the soil ladder ever produces a tree on 200 mm**, the coupling has been
   inverted somewhere and the whole point has been lost.
 

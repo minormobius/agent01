@@ -17,6 +17,7 @@
 
 import { rect as R, MODULES, section as archSection, schedule as archSchedule } from './arch.js';
 import { stairPlan } from './stair.js';
+import { plantElevation, plantSection } from './plant.js';
 
 export const PALETTES = {
   blueprint: {
@@ -361,7 +362,10 @@ export function elevationSVG(b, side, opts = {}) {
   const hand = HAND[side];
   const bx = plateBounds(b);
   const uMin = hand.axis === 'x' ? bx.x0 : bx.z0, uMax = hand.axis === 'x' ? bx.x1 : bx.z1;
-  const topY = b.height * 1.06;
+  // A PLANTED BUILDING IS TALLER THAN ITS PARAPET. The frame used to fit
+  // `b.height` and nothing else, so the roof garden's crowns were guillotined
+  // by the top of the sheet — a drawing that says the trees end at the handrail.
+  const topY = Math.max(b.height * 1.06, plantedTop(b) * 1.02);
   const F = fitter(0, uMax - uMin, 0, topY, W, H - 26, pad);
   // u (world) → sheet x, with the handedness applied
   const U = (v) => F.X(hand.sign > 0 ? v - uMin : uMax - v);
@@ -406,6 +410,21 @@ export function elevationSVG(b, side, opts = {}) {
     out.push(`<line x1="${pad - 20}" y1="${V(L.y)}" x2="${W - pad + 6}" y2="${V(L.y)}" stroke="${P.faint}" stroke-width=".5" stroke-dasharray="3 5"/>`);
     if (F.L(L.h) > 9) out.push(label(pad - 22, V(L.y) - 2, `+${L.y.toFixed(1)}`, P, 7, 'end'));
   }
+
+  // THE PLANTING, over the top of everything, because that is where it is: a
+  // terrace garden stands in front of the storey behind it. Painted back to
+  // front by depth into the page, so a grove reads as a grove and not as a
+  // stack of decals — which is the whole reason `plantElevation` hands back v.
+  const treesE = [];
+  for (const q of (b.planting || [])) {
+    for (const pl of q.plants) {
+      if (!pl.tree) continue;
+      treesE.push(plantElevation(pl.tree, { x: pl.x, y: soilTop(q), z: pl.z, axis: hand.axis }));
+    }
+  }
+  const depthOf = (t) => (t.stems[0] ? t.stems[0].v : 0);
+  treesE.sort((a, c) => (hand.sign > 0 ? depthOf(a) - depthOf(c) : depthOf(c) - depthOf(a)));
+  for (const t of treesE) out.push(treeGlyph(t, U, V, F, P));
 
   out.push(label(pad - 12, H - 8, `Elevation from the ${hand.from}  ·  ${b.height.toFixed(1)} m to parapet`, P, 10, 'start', P.ink));
   out.push(label(W - pad + 12, H - 8, nominalScale(F.s) + ' @ sheet', P, 9, 'end'));
@@ -486,6 +505,182 @@ function bayGlyph(mod, x, y, w, h, P, id) {
   return `<g data-module="${mod}">${g.join('')}</g>`;
 }
 
+/* ─────────────────────────  PLANTING, IN ELEVATION  ─────────────────────── */
+
+// Where the soil surface actually is. A planter is filled to 60 mm below its
+// rim — otherwise watering it washes the substrate over the edge — and `parts()`
+// stands the tree on exactly that. The drawing has to use the same number or
+// the sheet and the bench disagree about where the ground is, which is the kind
+// of discrepancy nobody notices until a section is dimensioned off it.
+const soilTop = (q) => q.y + Math.max(0.05, q.depth - 0.06);
+
+// The highest thing on the building, planting included. A twelve-metre plane on
+// a roof garden puts the top of the drawing twelve metres above the parapet,
+// and the elevation frame has to know that or it crops it off.
+function plantedTop(b) {
+  let top = 0;
+  for (const q of (b.planting || [])) {
+    for (const pl of q.plants) top = Math.max(top, soilTop(q) + (pl.tree ? pl.tree.height : 0));
+  }
+  return top;
+}
+
+// A tree in PLAN is a circle, and every species gets the same circle. A tree in
+// ELEVATION is where the habit shows, which is the entire reason there are
+// nineteen species instead of one scaled three ways: a poplar and a willow of
+// the same height and spread are an identical plan symbol and two completely
+// different drawings.
+//
+// Two outlines, meaning two different things. The dashed line is the design
+// envelope — the habit's own profile at this tree's mature dimensions, what a
+// landscape architect dimensions and what the tree WILL be. The solid mass is
+// the tree that actually grew inside whatever envelope the architecture handed
+// it. Where the building clipped the crown, the mass pulls away from the dashed
+// line, and that gap is the coupling this subsystem exists for, drawn.
+//
+// `U` takes a world u to a sheet x (the caller owns handedness); `V` takes a
+// world y to a sheet y; `F.L` is a world length in sheet units.
+const bark0 = (P, o) => o.bark || P.line;
+
+function treeGlyph(el, U, V, F, P, o = {}) {
+  const g = [];
+  const rSheet = F.L(el.spread / 2), hSheet = F.L(el.height);
+  if (hSheet < 3) return '';
+  const green = o.colour || P.accent;
+
+  // WHAT A TREE IS ON A SHEET DEPENDS ON THE SCALE OF THE SHEET, and this is
+  // the thing the first version of this got wrong. Projecting the full skeleton
+  // at every size drew a forty-pixel tree as three hundred radiating hairs with
+  // a scatter of dots over them — a firework, not a tree. No drawing office has
+  // ever done that, because at 1:500 a tree is a SYMBOL and at 1:100 it is a
+  // drawing, and the difference is not a style choice.
+  //
+  // Three tiers, chosen by how big the tree lands on this particular sheet.
+  const env = el.envelope.map((p, i) => `${i ? 'L' : 'M'}${U(p.u)} ${V(p.y)}`).join(' ');
+
+  // 1:1000 and below — a stick and a blob. Anything more is ink pretending.
+  if (hSheet < 11) {
+    g.push(`<line x1="${U(el.u)}" y1="${V(el.y)}" x2="${U(el.u)}" y2="${V(el.y + el.height)}" stroke="${green}" stroke-width=".8" opacity=".8"/>`);
+    g.push(`<circle cx="${U(el.u)}" cy="${V(el.y + el.height * 0.75)}" r="${n2(Math.max(1.5, rSheet))}" fill="${green}" opacity=".4"/>`);
+    return `<g data-plant="${el.label}">${g.join('')}</g>`;
+  }
+
+  // The middle tier, and the one that carries most sheets: THE HABIT AS A
+  // SILHOUETTE. Filled, with the clear stem drawn under it — so a poplar is a
+  // column, a pine is a cone and a willow is a broad weeper at a size where the
+  // branch structure would be illegible anyway. This is the drawing where the
+  // nineteen species pay for themselves.
+  // The test is on the SPREAD as well as the height, and it has to be: a
+  // climber is fifteen metres of plant in six hundred millimetres of width, so
+  // height alone sent it to the full skeleton and drew a green wall as one bare
+  // wiggling line. Anything narrower than about a centimetre and a half on the
+  // sheet has no room for a branch structure whatever its height.
+  if (hSheet < 46 || rSheet < 7) {
+    const stem = Math.max(0.6, F.L(el.trunk * 2));
+    g.push(`<line x1="${U(el.u)}" y1="${V(el.y)}" x2="${U(el.u)}" y2="${V(el.y + el.crownBase + 0.4)}" stroke="${bark0(P, o)}" stroke-width="${n2(stem)}" opacity=".8"/>`);
+    g.push(`<path d="${env} Z" fill="${green}" fill-opacity="${el.evergreen ? 0.42 : 0.28}" stroke="${green}" stroke-width=".8" opacity=".9"/>`);
+    // deciduous gets a broken edge, the same convention the plan symbol uses
+    if (!el.evergreen && rSheet > 6) {
+      const nick = [];
+      for (let i = 2; i < el.envelope.length - 2; i += 3) {
+        const p = el.envelope[i];
+        nick.push(`<circle cx="${U(p.u)}" cy="${V(p.y)}" r="${n2(Math.max(1, rSheet * 0.13))}"/>`);
+      }
+      g.push(`<g fill="${green}" opacity=".3">${nick.join('')}</g>`);
+    }
+    return `<g data-plant="${el.label}" data-habit="${el.habit}">${g.join('')}</g>`;
+  }
+
+  // 1:100 and up — the tree that actually grew. The design envelope goes in
+  // dashed behind it, and the gap between the two is the architecture's
+  // clipping made visible.
+  g.push(`<path d="${env} Z" fill="none" stroke="${green}" stroke-width=".7" stroke-dasharray="4 3" opacity=".45"/>`);
+
+  // THE BRANCH STRUCTURE, ON A BUDGET SET BY THE SHEET. A mature poplar carries
+  // seven hundred segments and a sheet carries four elevations and a section,
+  // so drawing all of them produced a half-megabyte SVG for one drawing — the
+  // "trees cost more frame time than the building" kill criterion, arriving in
+  // the drawing office instead of the bench.
+  //
+  // The budget is a function of how big the tree IS on the sheet rather than a
+  // constant, because that is the honest version of the same cut: a tree twenty
+  // pixels tall has twenty pixels of detail available and a constant budget
+  // spends four hundred strokes rendering them on top of each other. The
+  // thickest survive, so what gets dropped is what was invisible anyway.
+  // Two cuts, both of them about what is actually visible. A segment shorter
+  // than a pixel on the sheet cannot be seen at all, so it goes first; then the
+  // thickest of what is left, up to a budget that scales with the drawing.
+  const budget = Math.max(6, Math.min(180, Math.round(hSheet * 1.1)));
+  const visible = el.stems.filter((s) => Math.hypot(U(s.u1) - U(s.u0), V(s.y1) - V(s.y0)) > 1.1);
+  const keep = visible.length > budget
+    ? [...visible].sort((a, c) => c.r - a.r).slice(0, budget)
+    : visible;
+
+  // Grouped into three pen weights and emitted as three paths. A plotter has
+  // three pens; one `stroke-width` per segment is markup nobody reads. And the
+  // coordinates are rounded to a TENTH of a pixel — two decimals of a sheet
+  // coordinate is precision below what any screen or plotter resolves, and at
+  // three thousand segments a drawing it is the largest single thing in the file.
+  //
+  // The weights come off the radii in each BUCKET, not off the trunk: scaling
+  // all three from the trunk drew a mature plane's twigs at a fifth of a
+  // 500 mm stem, which is 50 mm of twig — a tree made of scaffolding poles.
+  const p1 = (v) => Math.round(v * 10) / 10;
+  const maxR = keep.reduce((m, s) => Math.max(m, s.r), 0) || 1;
+  const pens = [[], [], []], pw = [0, 0, 0];
+  for (const s of keep) {
+    const k = s.r > maxR * 0.5 ? 0 : s.r > maxR * 0.18 ? 1 : 2;
+    pens[k].push(`M${p1(U(s.u0))} ${p1(V(s.y0))}L${p1(U(s.u1))} ${p1(V(s.y1))}`);
+    pw[k] += s.r;
+  }
+  // A tree is drawn in ONE pen colour, the way a landscape elevation is drawn.
+  // Using the building's ink made a canopy read as a bright thicket of sticks
+  // in front of the facade rather than as a tree behind its own leaves.
+  pens.forEach((d, k) => {
+    if (!d.length) return;
+    const w = Math.max(0.35, F.L((pw[k] / d.length) * 2));
+    g.push(`<path d="${d.join('')}" fill="none" stroke="${bark0(P, o)}" stroke-width="${n2(w)}" stroke-linecap="round" opacity=".7"/>`);
+  });
+
+  // THE CANOPY, capped by the area it covers on the sheet rather than by count
+  // — a blob is worth drawing when it is a visible fraction of the crown, and
+  // 190 of them inside a 30-pixel circle is ink for its own sake.
+  //
+  // Evergreen reads as a mass you cannot see through; deciduous is drawn open,
+  // so the branch structure shows. That is the same distinction the plan symbol
+  // makes with a ragged edge, made the way an elevation makes it.
+  // The blobs are drawn SMALLER than the model's leaf clusters and there are
+  // MORE of them. In the 3D bench a cluster is a sphere sized to overlap its
+  // neighbours into one mass; flattened onto a sheet at the same radius it
+  // becomes a grape, and a crown of thirty grapes on bare sticks is a lollipop.
+  // Two thirds the radius and three times the count is the same leaf area
+  // reading as foliage rather than as fruit.
+  // How many blobs is a COVERAGE question, so the cap comes off the area the
+  // crown projects onto the sheet divided by the area one blob covers. Sizing
+  // it off the crown radius squared was the ball-shaped assumption in disguise
+  // and it drew a climber — twelve metres of plant in 1.26 m of width — as
+  // thirty dots on a bare whip, because a green wall's crown has almost no
+  // radius and almost all of the area.
+  if (!el.foliage.length) return `<g data-plant="${el.label}" data-habit="${el.habit}">${g.join('')}</g>`;
+  const op = el.evergreen ? 0.5 : 0.32;
+  const rBlob = Math.max(0.7, F.L(el.foliage[Math.floor(el.foliage.length / 2)].r) * 0.66);
+  const crownSheet = Math.max(4, F.L(el.height - el.crownBase));
+  const fCap = Math.max(3, Math.min(150,
+    Math.round((2 * rSheet * crownSheet * 0.55) / (Math.PI * rBlob * rBlob))));
+  const stride = Math.max(1, Math.ceil(el.foliage.length / fCap));
+  const blobs = [];
+  for (let i = 0; i < el.foliage.length; i += stride) {
+    const f = el.foliage[i];
+    const r = F.L(f.r) * 0.66;
+    if (r < 0.7) continue;
+    blobs.push(`<circle cx="${U(f.u)}" cy="${V(f.y)}" r="${n2(r)}"/>`);
+  }
+  // fill and opacity hoisted onto the group — the same paint applies to all of
+  // them, and repeating it per circle was a third of the file
+  if (blobs.length) g.push(`<g fill="${green}" opacity="${op}">${blobs.join('')}</g>`);
+  return `<g data-plant="${el.label}" data-habit="${el.habit}">${g.join('')}</g>`;
+}
+
 /* ───────────────────────────────  SECTION  ──────────────────────────────── */
 
 export function sectionSVG(b, opts = {}) {
@@ -495,7 +690,7 @@ export function sectionSVG(b, opts = {}) {
   const cutZ = opts.cutZ != null ? opts.cutZ : 0;
   const S = archSection(b, cutZ);
   const bx = plateBounds(b);
-  const topY = b.height * 1.06;
+  const topY = Math.max(b.height * 1.06, plantedTop(b) * 1.02);
   const F = fitter(bx.x0, bx.x1, 0, topY, W, H - 26, pad);
   const V = (y) => F.Y(topY - y);   // y=0 is the ground line, at the bottom of the sheet
   const out = [];
@@ -560,6 +755,44 @@ export function sectionSVG(b, opts = {}) {
   }
   for (const t of S.towers) {
     out.push(`<rect x="${F.X(t.x0)}" y="${V(t.h)}" width="${n2(F.L(t.x1 - t.x0))}" height="${n2(F.L(t.h))}" fill="${P.core}" fill-opacity=".6" stroke="${P.ink}" stroke-width="1.5"/>`);
+  }
+
+  // THE PLANTING, CUT. This is the drawing the whole subsystem is for: a
+  // section is where the substrate depth, the drainage layer and the root plate
+  // become visible, and those three are what the slab is being asked to carry.
+  // An elevation shows a tree on a terrace; a section shows the metre of wet
+  // soil under it, which is seven times an office floor's live load.
+  //
+  // Only planters the cut actually passes through — a section that draws
+  // everything is a perspective.
+  for (const q of (b.planting || [])) {
+    if (cutZ < q.z - q.d / 2 || cutZ > q.z + q.d / 2) continue;
+    const top = soilTop(q), yb = q.y;
+    const x0 = F.X(q.x - q.w / 2), wS = F.L(q.w);
+    if (wS < 2) continue;
+    // the substrate, hatched as the soil it is, and the drainage layer under it
+    const dS = Math.max(1.5, F.L(top - yb));
+    out.push(`<rect x="${x0}" y="${V(top)}" width="${n2(wS)}" height="${n2(dS)}" fill="url(#${id}-hatch)" opacity=".55"/>`);
+    out.push(`<rect x="${x0}" y="${V(top)}" width="${n2(wS)}" height="${n2(dS)}" fill="none" stroke="${P.accent}" stroke-width="1.1"/>`);
+    out.push(`<line x1="${x0}" y1="${V(yb) - 1}" x2="${n2(x0 + wS)}" y2="${V(yb) - 1}" stroke="${P.accent}" stroke-width="1.6" stroke-dasharray="2 2" opacity=".8"/>`);
+    if (wS > 44) {
+      out.push(label(F.X(q.x), V(top) - 4, `${Math.round(q.depth * 1000)} mm ${q.label.toLowerCase()}`, P, 6.5, 'middle', P.accent));
+    }
+    for (const pl of q.plants) {
+      if (!pl.tree) continue;
+      const sec = plantSection(pl.tree, {
+        x: pl.x, y: top, z: pl.z, axis: 'x',
+        depth: top - yb, halfWidth: Math.min(q.w, q.d) / 2,
+      });
+      // the root plate, clipped to the planter it is in — wide and shallow,
+      // because that is what a mature root system is and what takes the
+      // overturning moment. `confined` is the planter saying it is not enough.
+      const pr = F.L(sec.rootPlate.r), pd = Math.max(1.5, F.L(sec.rootPlate.depth));
+      if (pr > 1.5) {
+        out.push(`<path d="M${n2(F.X(pl.x) - pr)} ${V(top)} A ${n2(pr)} ${n2(pd)} 0 0 0 ${n2(F.X(pl.x) + pr)} ${V(top)}" fill="none" stroke="${P.accent}" stroke-width="${sec.rootPlate.confined ? 1.3 : 0.8}" stroke-dasharray="${sec.rootPlate.confined ? '3 2' : '1 2'}" opacity=".85"/>`);
+      }
+      out.push(treeGlyph(sec, F.X, V, F, P));
+    }
   }
 
   out.push(dimV2(F, V, 0, b.height, W - pad + 16, P));

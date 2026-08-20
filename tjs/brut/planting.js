@@ -236,9 +236,17 @@ export function placePlanting(p, b, parti, o = {}) {
     // its own crown diameter is a tree that will be cut down in ten years, and
     // spacing off the allometry is the only way the drawing and the fifteen-
     // year photograph agree.
-    const lead = palette[palette.length - 1];                 // the biggest thing here
-    const leadH = (SPECIES[lead].h[0] + SPECIES[lead].h[1]) / 2;
-    const spread = Math.max(0.6, crownFor(lead, dbhFor(lead, leadH)));
+    // THE BIGGEST THING HERE, by mature spread rather than by position in the
+    // list. Taking the last entry worked only because the palettes happened to
+    // be written smallest-first, which is the kind of coupling that breaks
+    // silently the first time somebody adds a species in the middle.
+    let lead = palette[0], leadSpread = 0;
+    for (const sp of palette) {
+      const hh = (SPECIES[sp].h[0] + SPECIES[sp].h[1]) / 2;
+      const sw = crownFor(sp, dbhFor(sp, hh));
+      if (sw > leadSpread) { leadSpread = sw; lead = sp; }
+    }
+    const spread = Math.max(0.6, leadSpread);
     const pitch = spread * 1.15;
     const nx = Math.max(1, Math.floor(site.w / pitch));
     const nz = Math.max(1, Math.floor(site.d / pitch));
@@ -287,7 +295,7 @@ export function placePlanting(p, b, parti, o = {}) {
           height: capH,
           clear: Number.isFinite(clear) ? clear : undefined,
           half: nearEdge,
-          detail: SPECIES[sp].kind === 'tree' ? 110 : 60,
+          detail: SPECIES[sp].kind === 'tree' ? 1 : 0.9,
         }) : null;
         // when the crown was actually grown, its OWN dimensions win — a tree
         // clipped by a soffit really is lighter, and taking the allometric mass
