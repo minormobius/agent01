@@ -1,6 +1,6 @@
 {
   "date": "2026-08-20",
-  "generatedAt": "2026-08-20T13:01:18.632Z",
+  "generatedAt": "2026-08-20T13:45:21.315Z",
   "listUri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.graph.list/3mmcwc5lx7o2p",
   "listUrl": "https://bsky.app/profile/did:plc:7zre4plmd5jllccww575j6sb/lists/3mmcwc5lx7o2p",
   "memberCount": 99,
@@ -11,7 +11,7 @@
       "displayName": "hailey",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreic5hxsvugj4yanvd53cngk4ak24iy56r6fnwmw377i5s26hsnlh6i",
       "text": "its been said many times but it is absolutely insane to watch the left shoot themselves in the foot by hopping on this anti-AI train. a massive generational L awaits.",
-      "likeCount": 497,
+      "likeCount": 502,
       "replyCount": 34,
       "repostCount": 41,
       "url": "https://bsky.app/profile/hailey.at/post/3mthqrlle4224"
@@ -21,9 +21,9 @@
       "displayName": "SE Gyges",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiempgjkhvjq2dobqkmd5pqd6lcbkhgejasfwh3zoygncjpwgqc7te",
       "text": "RIP to everyone driven insane contemplating the basilisk for their hubris but im different. and smarter. maybe even smarter than the basilisk",
-      "likeCount": 389,
+      "likeCount": 410,
       "replyCount": 20,
-      "repostCount": 39,
+      "repostCount": 40,
       "url": "https://bsky.app/profile/segyges.bsky.social/post/3mtih4p3myk2n"
     },
     {
@@ -31,7 +31,7 @@
       "displayName": "SE Gyges",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiempgjkhvjq2dobqkmd5pqd6lcbkhgejasfwh3zoygncjpwgqc7te",
       "text": "\"spreadsheet people\" is a real \"other than that, mrs lincoln\" from me",
-      "likeCount": 247,
+      "likeCount": 263,
       "replyCount": 8,
       "repostCount": 4,
       "url": "https://bsky.app/profile/segyges.bsky.social/post/3mtidejyh5s2o"
@@ -44,44 +44,44 @@
     "text": "its been said many times but it is absolutely insane to watch the left shoot themselves in the foot by hopping on this anti-AI train. a massive generational L awaits.",
     "maxDepth": 10,
     "topLevelReplies": 16,
-    "interactorCount": 53,
+    "interactorCount": 52,
     "replyCount": 34,
     "url": "https://bsky.app/profile/hailey.at/post/3mthqrlle4224",
     "atUri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3mthqrlle4224"
   },
   "weather": {
-    "index": 0.096,
+    "index": 0.09,
     "label": "Overcast",
     "glyph": "☁",
     "mood": "trust",
     "verbosity": 21,
-    "scoredWords": 993,
-    "corpusPosts": 646,
+    "scoredWords": 987,
+    "corpusPosts": 639,
     "emotions": {
-      "anger": 218,
-      "anticipation": 294,
-      "disgust": 166,
-      "fear": 244,
-      "joy": 216,
-      "sadness": 209,
-      "surprise": 139,
-      "trust": 414
+      "anger": 211,
+      "anticipation": 284,
+      "disgust": 169,
+      "fear": 247,
+      "joy": 213,
+      "sadness": 206,
+      "surprise": 133,
+      "trust": 413
     },
     "distinctive": [
       {
         "word": "qwen",
         "count": 7,
-        "over": 7450.9
+        "over": 7509.8
       },
       {
         "word": "bluesky",
         "count": 6,
-        "over": 6386.5
+        "over": 6436.9
       },
       {
         "word": "llm",
         "count": 5,
-        "over": 5322.1
+        "over": 5364.1
       }
     ]
   },
@@ -91,7 +91,7 @@
       "displayName": "Minor Mobius",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:7zre4plmd5jllccww575j6sb/bafkreidwfsmojqvxxkfve5mic6f7z5ao3ugp4kybdoqyke5df7aj7tadve",
       "text": "Qwop-likes rule actually, here we have them for flagella\n\npoke.mino.mobi/qwop",
-      "likeCount": 45,
+      "likeCount": 47,
       "repostCount": 4,
       "replyCount": 3,
       "url": "https://bsky.app/profile/minormobius.bsky.social/post/3mtigjq7jn22b",
@@ -167,8 +167,8 @@
       "displayName": "Eris",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreicd25pgrehilwmi5ntoslyzzqqs3onxw35odihr6ypast24ent4he",
       "text": "It's a perfectly fine torment nexus... I just didn't expect it to be a macOS desktop pet...",
-      "likeCount": 43,
-      "repostCount": 7,
+      "likeCount": 45,
+      "repostCount": 8,
       "replyCount": 2,
       "url": "https://bsky.app/profile/isolyth.dev/post/3mtinbdc6rc2z",
       "project": {
@@ -419,7 +419,7 @@
       "handle": "cpaxton.bsky.social",
       "url": "https://bsky.app/profile/cpaxton.bsky.social/post/3mtia6wodis2j",
       "uri": "at://did:plc:tq6gqh5aaohgi55y2yofylwj/app.bsky.feed.post/3mtia6wodis2j",
-      "likeCount": 183
+      "likeCount": 198
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreia2byofexynzqol5pi4xwao6x7qfq5ga4bjygbexaballloqkcery",
@@ -429,7 +429,7 @@
       "handle": "segyges.bsky.social",
       "url": "https://bsky.app/profile/segyges.bsky.social/post/3mthktditps24",
       "uri": "at://did:plc:vszw3ess46odfhnzdsy4huae/app.bsky.feed.post/3mthktditps24",
-      "likeCount": 147
+      "likeCount": 150
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zrwhncnqel7corjtg2cak3jx/bafkreick6pjfc6kd4g37sb3bxctxlklyagb3zzthxjicsxzayicokxs6na",
@@ -439,7 +439,7 @@
       "handle": "tbabb.bsky.social",
       "url": "https://bsky.app/profile/tbabb.bsky.social/post/3mtib3h7h2c2p",
       "uri": "at://did:plc:zrwhncnqel7corjtg2cak3jx/app.bsky.feed.post/3mtib3h7h2c2p",
-      "likeCount": 142
+      "likeCount": 147
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:p572wxnsuoogcrhlfrlizlrb/bafkreibfca3wdyimyul4yrgosfio7mkcyl65b2usazmc7lrq3vckodwbei",
@@ -452,6 +452,16 @@
       "likeCount": 141
     },
     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:p2cp5gopk7mgjegy6wadk3ep/bafkreidyyvezzsmxwggdaxfol6gvkfhhvpefcfg2yxikuvfmne3ufcvaie",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:p2cp5gopk7mgjegy6wadk3ep/bafkreidyyvezzsmxwggdaxfol6gvkfhhvpefcfg2yxikuvfmne3ufcvaie",
+      "alt": "Insult deflection meme. Bullet bounces off of “finance bros who don’t care” and hits “eve online players”",
+      "ratio": 1.1048,
+      "handle": "samuel.fm",
+      "url": "https://bsky.app/profile/samuel.fm/post/3mtj5jns63s2w",
+      "uri": "at://did:plc:p2cp5gopk7mgjegy6wadk3ep/app.bsky.feed.post/3mtj5jns63s2w",
+      "likeCount": 108
+    },
+    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreihnuluz5c5xe6u5uexghouurgs54bwjngu4aa3hsi6re43fq7nbki",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreihnuluz5c5xe6u5uexghouurgs54bwjngu4aa3hsi6re43fq7nbki",
       "alt": "orange cat laying in a cat hammock",
@@ -459,7 +469,7 @@
       "handle": "hailey.at",
       "url": "https://bsky.app/profile/hailey.at/post/3mti6vltz6s2q",
       "uri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3mti6vltz6s2q",
-      "likeCount": 93
+      "likeCount": 96
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreie3kn3dckfp7hl7k644eahytksptyc3wc2honvg7br7potz5lz7me",
@@ -469,7 +479,7 @@
       "handle": "hailey.at",
       "url": "https://bsky.app/profile/hailey.at/post/3mti6vltz6s2q",
       "uri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3mti6vltz6s2q",
-      "likeCount": 93
+      "likeCount": 96
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreif3sitqph4xebfmirldo3qjdweqmohw6exchl6r75lqbwqfwyg7wy",
@@ -479,17 +489,7 @@
       "handle": "hailey.at",
       "url": "https://bsky.app/profile/hailey.at/post/3mthzclgsns24",
       "uri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3mthzclgsns24",
-      "likeCount": 85
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:p2cp5gopk7mgjegy6wadk3ep/bafkreidyyvezzsmxwggdaxfol6gvkfhhvpefcfg2yxikuvfmne3ufcvaie",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:p2cp5gopk7mgjegy6wadk3ep/bafkreidyyvezzsmxwggdaxfol6gvkfhhvpefcfg2yxikuvfmne3ufcvaie",
-      "alt": "Insult deflection meme. Bullet bounces off of “finance bros who don’t care” and hits “eve online players”",
-      "ratio": 1.1048,
-      "handle": "samuel.fm",
-      "url": "https://bsky.app/profile/samuel.fm/post/3mtj5jns63s2w",
-      "uri": "at://did:plc:p2cp5gopk7mgjegy6wadk3ep/app.bsky.feed.post/3mtj5jns63s2w",
-      "likeCount": 80
+      "likeCount": 89
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreigsdraxawvaglej7qxq3gw7zsolstx6kcsjvw5wlr4mj7vabam42m",
@@ -499,7 +499,7 @@
       "handle": "hailey.at",
       "url": "https://bsky.app/profile/hailey.at/post/3mti2efrl5s24",
       "uri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3mti2efrl5s24",
-      "likeCount": 79
+      "likeCount": 81
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreic6oagcyfwvxvexlupkw6ympbfi63twthqvhmuhkvzefnivpm3f5m",
@@ -509,7 +509,7 @@
       "handle": "astrra.space",
       "url": "https://bsky.app/profile/astrra.space/post/3mtgxqiu45c2e",
       "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3mtgxqiu45c2e",
-      "likeCount": 75
+      "likeCount": 76
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreidwy4lzv4cnhclc2etney7jfjmvfcubbaj2oktai7f4hwy3n6thfi",
@@ -529,7 +529,7 @@
       "handle": "apex.atproto.ceo",
       "url": "https://bsky.app/profile/apex.atproto.ceo/post/3mti7x6eso22w",
       "uri": "at://did:plc:zjnskcrzfd35gtlso2agki5y/app.bsky.feed.post/3mti7x6eso22w",
-      "likeCount": 48
+      "likeCount": 51
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zjnskcrzfd35gtlso2agki5y/bafkreifzrylikspbupea4w46rrwcn3hlmdc7zzrumxrykf7amxk6caz7mm",
@@ -539,7 +539,7 @@
       "handle": "apex.atproto.ceo",
       "url": "https://bsky.app/profile/apex.atproto.ceo/post/3mti7x6eso22w",
       "uri": "at://did:plc:zjnskcrzfd35gtlso2agki5y/app.bsky.feed.post/3mti7x6eso22w",
-      "likeCount": 48
+      "likeCount": 51
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreifilvqvcr2whdmbt3clmi4hvfbbuev57u3d4o3u4sn5zp3sx3zqq4",
@@ -549,7 +549,17 @@
       "handle": "timkellogg.me",
       "url": "https://bsky.app/profile/timkellogg.me/post/3mthfhmibbs2g",
       "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mthfhmibbs2g",
-      "likeCount": 40
+      "likeCount": 41
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreiaep76taxerl2o2ztovnlue4wndcfbyezddcmb5h4k37ytjaltvxu",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreiaep76taxerl2o2ztovnlue4wndcfbyezddcmb5h4k37ytjaltvxu",
+      "alt": "two ikea hot dogs with ketchup and mustard and a drink",
+      "ratio": 1.3333,
+      "handle": "astrra.space",
+      "url": "https://bsky.app/profile/astrra.space/post/3mtita7l7ms2g",
+      "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3mtita7l7ms2g",
+      "likeCount": 37
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h6tcd37yr7vk33uuisbidqvw/bafkreic5r6ms2bcb3j2sk3xbcatch3bz233dlwyb5llm7mclqy32ka2x2y",
@@ -582,14 +592,14 @@
       "likeCount": 32
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreiaep76taxerl2o2ztovnlue4wndcfbyezddcmb5h4k37ytjaltvxu",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreiaep76taxerl2o2ztovnlue4wndcfbyezddcmb5h4k37ytjaltvxu",
-      "alt": "two ikea hot dogs with ketchup and mustard and a drink",
-      "ratio": 1.3333,
-      "handle": "astrra.space",
-      "url": "https://bsky.app/profile/astrra.space/post/3mtita7l7ms2g",
-      "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3mtita7l7ms2g",
-      "likeCount": 30
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiccwhj4ueou5qix4bntghoyrxzy2udo57yqo5mvxqjfv5ncntbfwe",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiccwhj4ueou5qix4bntghoyrxzy2udo57yqo5mvxqjfv5ncntbfwe",
+      "alt": "",
+      "ratio": 1,
+      "handle": "segyges.bsky.social",
+      "url": "https://bsky.app/profile/segyges.bsky.social/post/3mtiqiowbj22l",
+      "uri": "at://did:plc:vszw3ess46odfhnzdsy4huae/app.bsky.feed.post/3mtiqiowbj22l",
+      "likeCount": 29
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreigcr7yvxudmncx7ibo23dvit6qobxcj4mcmowib2hwlbwyfipncka",
@@ -602,14 +612,14 @@
       "likeCount": 28
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiccwhj4ueou5qix4bntghoyrxzy2udo57yqo5mvxqjfv5ncntbfwe",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiccwhj4ueou5qix4bntghoyrxzy2udo57yqo5mvxqjfv5ncntbfwe",
-      "alt": "",
-      "ratio": 1,
-      "handle": "segyges.bsky.social",
-      "url": "https://bsky.app/profile/segyges.bsky.social/post/3mtiqiowbj22l",
-      "uri": "at://did:plc:vszw3ess46odfhnzdsy4huae/app.bsky.feed.post/3mtiqiowbj22l",
-      "likeCount": 27
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreigrnubwsfu2lfinvwbk7t6rzsxyh3ty6xc3bxorytfvjrtmqepdci",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreigrnubwsfu2lfinvwbk7t6rzsxyh3ty6xc3bxorytfvjrtmqepdci",
+      "alt": "A 3D CAD rendering of a multi-jointed articulated hydraulic boom arm set against a plain white background. The dark gray mechanical arm consists of several hinged metal segments connected by hydraulic cylinders and tubing, curving upward in an arch from a triangular mounting base on the bottom left and extending downward toward a pointed nozzle attachment on the far right.\n",
+      "ratio": 1.6433,
+      "handle": "timkellogg.me",
+      "url": "https://bsky.app/profile/timkellogg.me/post/3mtj5dqufas2e",
+      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mtj5dqufas2e",
+      "likeCount": 23
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:565ebob5f6hw33hjdkxty6qj/bafkreiggqzpp2z2q76iqzxcxw65yoclxgdk4iku6mfkts657hrgnhqmqcm",
@@ -639,27 +649,7 @@
       "handle": "jdp.extropian.net",
       "url": "https://bsky.app/profile/jdp.extropian.net/post/3mthwrpy24c2x",
       "uri": "at://did:plc:5hhbgkktcpofpw4ovz6kjjau/app.bsky.feed.post/3mthwrpy24c2x",
-      "likeCount": 20
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreiajf77p3b4o2gmugguqugw4jxuxlis7sqvvzviixxhomjhkzauivy",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreiajf77p3b4o2gmugguqugw4jxuxlis7sqvvzviixxhomjhkzauivy",
-      "alt": "Infographic titled “Recirculation: The model figures it out—too late.” A normal transformer processes an ambiguous phrase such as “bank” and resolves its meaning only in deep layers, after the shallow cached representation has already gone stale, potentially producing the wrong answer. With recirculation, the resolved deep representation—“river bank”—loops back into a shallower layer during a second pass, refreshing the cache and producing the correct answer. The base model’s weights remain unchanged; only the execution topology changes. The basic, fully training-free method reports about an 8.5% mean perplexity reduction on Gemma 3 1B. An adaptive version trains a tiny two-layer controller for 100 steps, using about 3.3 million token presentations, and reports about a 23% reduction. The cost is two passes through the transformer stack: decoding may be parallelized, while prefill becomes serial.",
-      "ratio": 1.5,
-      "handle": "timkellogg.me",
-      "url": "https://bsky.app/profile/timkellogg.me/post/3mtgs63xvmc2k",
-      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mtgs63xvmc2k",
-      "likeCount": 17
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hu35oubkccqrxl4ldgczpgw7/bafkreiejgm6hye7jvz5ex2tz3wd3frcvozqdvvczu4btzk636gccrk6i2y",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:hu35oubkccqrxl4ldgczpgw7/bafkreiejgm6hye7jvz5ex2tz3wd3frcvozqdvvczu4btzk636gccrk6i2y",
-      "alt": "Prompt: make a post like bluesky user @shibbi.me\n\nTo write like Siobhán (@shibbi.me), your post should mix gentle theological reflection, tech/AI skepticism, queer/poly life warmth, and a slightly weary but loving millennial worldview.\n\nHere is a sample post styled just like her feed:\n\ntired of tech platforms trying to turn human connection into a subscription feature. we are people, not data points. go call a friend, make tea for your partner, and remember that loving each other awkwardly and messily is the only real rebellion left.",
-      "ratio": 0.6443,
-      "handle": "shibbi.me",
-      "url": "https://bsky.app/profile/shibbi.me/post/3mtgu3obijk2o",
-      "uri": "at://did:plc:hu35oubkccqrxl4ldgczpgw7/app.bsky.feed.post/3mtgu3obijk2o",
-      "likeCount": 17
+      "likeCount": 21
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreiawn42j5d3ekuqxbxbjs6lsmozmnqm5lynfy3wgaumkaccotieuqi",
@@ -669,17 +659,7 @@
       "handle": "norvid-studies.bsky.social",
       "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mtibsdvbnk25",
       "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mtibsdvbnk25",
-      "likeCount": 17
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreigrnubwsfu2lfinvwbk7t6rzsxyh3ty6xc3bxorytfvjrtmqepdci",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreigrnubwsfu2lfinvwbk7t6rzsxyh3ty6xc3bxorytfvjrtmqepdci",
-      "alt": "A 3D CAD rendering of a multi-jointed articulated hydraulic boom arm set against a plain white background. The dark gray mechanical arm consists of several hinged metal segments connected by hydraulic cylinders and tubing, curving upward in an arch from a triangular mounting base on the bottom left and extending downward toward a pointed nozzle attachment on the far right.\n",
-      "ratio": 1.6433,
-      "handle": "timkellogg.me",
-      "url": "https://bsky.app/profile/timkellogg.me/post/3mtj5dqufas2e",
-      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mtj5dqufas2e",
-      "likeCount": 16
+      "likeCount": 18
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:tq6gqh5aaohgi55y2yofylwj/bafkreiavf5p3e2cgusmhieqgkqjmz7b7zbn3tw4n3q3gms2ji7aaomzm7e",
@@ -689,7 +669,7 @@
       "handle": "cpaxton.bsky.social",
       "url": "https://bsky.app/profile/cpaxton.bsky.social/post/3mtietm5vjc2j",
       "uri": "at://did:plc:tq6gqh5aaohgi55y2yofylwj/app.bsky.feed.post/3mtietm5vjc2j",
-      "likeCount": 15
+      "likeCount": 16
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h25avmes6g7fgcddc3xj7qmg/bafkreigkcqy2q6rzxiin367scf4u6i6546d6m6mp4gsw2j5vdmqsfcrzci",
@@ -729,6 +709,16 @@
       "handle": "cpaxton.bsky.social",
       "url": "https://bsky.app/profile/cpaxton.bsky.social/post/3mtia424twc2j",
       "uri": "at://did:plc:tq6gqh5aaohgi55y2yofylwj/app.bsky.feed.post/3mtia424twc2j",
+      "likeCount": 13
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreid3ubunolepfrrrmnwj5ytlovozk5zarqjp6n5b4quocnn54qqtee",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreid3ubunolepfrrrmnwj5ytlovozk5zarqjp6n5b4quocnn54qqtee",
+      "alt": "sushiro menu screen showing a Decadent White Chocolate Cake (¥310)",
+      "ratio": 0.75,
+      "handle": "astrra.space",
+      "url": "https://bsky.app/profile/astrra.space/post/3mtjcedrx2s2a",
+      "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3mtjcedrx2s2a",
       "likeCount": 13
     },
     {
@@ -792,6 +782,16 @@
       "likeCount": 9
     },
     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreibiavtaewn3g3k7dowlvy5zmzb6zhzfhtmy3dqvkgpa2f3w627zsm",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreibiavtaewn3g3k7dowlvy5zmzb6zhzfhtmy3dqvkgpa2f3w627zsm",
+      "alt": "",
+      "ratio": 0.8517,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mtjbxmnxkk2z",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mtjbxmnxkk2z",
+      "likeCount": 9
+    },
+    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreic7tu7w7foyfi67x7wkfi3ead3wjbk6c24cazjhnbev255lzydzym",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreic7tu7w7foyfi67x7wkfi3ead3wjbk6c24cazjhnbev255lzydzym",
       "alt": "",
@@ -822,6 +822,26 @@
       "likeCount": 7
     },
     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreid5awjksl2fbw5vwhjqzsmqyliztpugsseylpfqnkrw5kb2bwlzs4",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreid5awjksl2fbw5vwhjqzsmqyliztpugsseylpfqnkrw5kb2bwlzs4",
+      "alt": "I searched the indexed NWP material specifically for earlier uses of “Independent Scholar,” “Independent Researcher,” “unaffiliated,” and related terms, and I couldn't find an earlier NWP contributor who was explicitly designated Independent Scholar. That makes me reasonably confident that Chapman is, at minimum:\n\n\nthe first person I can find whom New Work in Philosophy has explicitly featured under the affiliation “Independent Scholar.”",
+      "ratio": 1.9654,
+      "handle": "hotrollhottakes.bsky.social",
+      "url": "https://bsky.app/profile/hotrollhottakes.bsky.social/post/3mtjbb7pehs2u",
+      "uri": "at://did:plc:4gm5uxjg3tz4nat4qpjk2t6h/app.bsky.feed.post/3mtjbb7pehs2u",
+      "likeCount": 7
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:3dor7kagwyswq4ogboxeqo42/bafkreifuxmxpfrlrrpnq2jsa7gmgxf373fj7rchkrog7a5bttshfxowi2q",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:3dor7kagwyswq4ogboxeqo42/bafkreifuxmxpfrlrrpnq2jsa7gmgxf373fj7rchkrog7a5bttshfxowi2q",
+      "alt": "",
+      "ratio": 1,
+      "handle": "fleetingbits.bsky.social",
+      "url": "https://bsky.app/profile/fleetingbits.bsky.social/post/3mtibz233w22i",
+      "uri": "at://did:plc:3dor7kagwyswq4ogboxeqo42/app.bsky.feed.post/3mtibz233w22i",
+      "likeCount": 7
+    },
+    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreigaadl4wuebij36sv4wp5uhqptkbpy3k4vnucdxi3e3vcvmel4myu",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreigaadl4wuebij36sv4wp5uhqptkbpy3k4vnucdxi3e3vcvmel4myu",
       "alt": "",
@@ -832,26 +852,6 @@
       "likeCount": 7
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreid5awjksl2fbw5vwhjqzsmqyliztpugsseylpfqnkrw5kb2bwlzs4",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreid5awjksl2fbw5vwhjqzsmqyliztpugsseylpfqnkrw5kb2bwlzs4",
-      "alt": "I searched the indexed NWP material specifically for earlier uses of “Independent Scholar,” “Independent Researcher,” “unaffiliated,” and related terms, and I couldn't find an earlier NWP contributor who was explicitly designated Independent Scholar. That makes me reasonably confident that Chapman is, at minimum:\n\n\nthe first person I can find whom New Work in Philosophy has explicitly featured under the affiliation “Independent Scholar.”",
-      "ratio": 1.9654,
-      "handle": "hotrollhottakes.bsky.social",
-      "url": "https://bsky.app/profile/hotrollhottakes.bsky.social/post/3mtjbb7pehs2u",
-      "uri": "at://did:plc:4gm5uxjg3tz4nat4qpjk2t6h/app.bsky.feed.post/3mtjbb7pehs2u",
-      "likeCount": 6
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:3dor7kagwyswq4ogboxeqo42/bafkreifuxmxpfrlrrpnq2jsa7gmgxf373fj7rchkrog7a5bttshfxowi2q",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:3dor7kagwyswq4ogboxeqo42/bafkreifuxmxpfrlrrpnq2jsa7gmgxf373fj7rchkrog7a5bttshfxowi2q",
-      "alt": "",
-      "ratio": 1,
-      "handle": "fleetingbits.bsky.social",
-      "url": "https://bsky.app/profile/fleetingbits.bsky.social/post/3mtibz233w22i",
-      "uri": "at://did:plc:3dor7kagwyswq4ogboxeqo42/app.bsky.feed.post/3mtibz233w22i",
-      "likeCount": 6
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreibojehf6cet34ry2t7vkmis6c46qppge4yjs2fnwmm3n6dq65bhrq",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreibojehf6cet34ry2t7vkmis6c46qppge4yjs2fnwmm3n6dq65bhrq",
       "alt": "",
@@ -859,6 +859,16 @@
       "handle": "isolyth.dev",
       "url": "https://bsky.app/profile/isolyth.dev/post/3mti5bf7vkk2v",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mti5bf7vkk2v",
+      "likeCount": 6
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hovt6k22s64dq63jjmoyibk3/bafkreifgklwiq322kqhz6onaxi6aloyrkgh2i4qrqiwwg4zqa32lbzue4a",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:hovt6k22s64dq63jjmoyibk3/bafkreifgklwiq322kqhz6onaxi6aloyrkgh2i4qrqiwwg4zqa32lbzue4a",
+      "alt": "",
+      "ratio": 2.2775,
+      "handle": "dave.9000ish.uk",
+      "url": "https://bsky.app/profile/dave.9000ish.uk/post/3mtjbq2bfls2l",
+      "uri": "at://did:plc:hovt6k22s64dq63jjmoyibk3/app.bsky.feed.post/3mtjbq2bfls2l",
       "likeCount": 6
     },
     {
@@ -879,16 +889,6 @@
       "handle": "lauragiron.bsky.social",
       "url": "https://bsky.app/profile/lauragiron.bsky.social/post/3mti7jiil2s22",
       "uri": "at://did:plc:w5wzw5xy3ptl7snkar62ggkz/app.bsky.feed.post/3mti7jiil2s22",
-      "likeCount": 5
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreid3ubunolepfrrrmnwj5ytlovozk5zarqjp6n5b4quocnn54qqtee",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreid3ubunolepfrrrmnwj5ytlovozk5zarqjp6n5b4quocnn54qqtee",
-      "alt": "sushiro menu screen showing a Decadent White Chocolate Cake (¥310)",
-      "ratio": 0.75,
-      "handle": "astrra.space",
-      "url": "https://bsky.app/profile/astrra.space/post/3mtjcedrx2s2a",
-      "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3mtjcedrx2s2a",
       "likeCount": 5
     },
     {
@@ -962,6 +962,16 @@
       "likeCount": 4
     },
     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreib63z2zuu6al5scu3lcrd7vubzm6u345rho4os6orl5kfhh2kx3ne",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreib63z2zuu6al5scu3lcrd7vubzm6u345rho4os6orl5kfhh2kx3ne",
+      "alt": "",
+      "ratio": 0.7134,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mtjbpcvxms26",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mtjbpcvxms26",
+      "likeCount": 4
+    },
+    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:wamidydbgu3u6fk3yckaglnz/bafkreigh2g6w2jbniiczpi6zw6utu7hzkjwyy4vmjpjd3vs5cft2vfwru4",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:wamidydbgu3u6fk3yckaglnz/bafkreigh2g6w2jbniiczpi6zw6utu7hzkjwyy4vmjpjd3vs5cft2vfwru4",
       "alt": "Morpheus in the Matrix Reloaded saying \"Neo, if you're out there, I could use some help\", but with Neo replaced with \"Tibo\", and with my dwindling plan usage overlaid next to his face",
@@ -979,16 +989,6 @@
       "handle": "isolyth.dev",
       "url": "https://bsky.app/profile/isolyth.dev/post/3mthblqj5uc2t",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mthblqj5uc2t",
-      "likeCount": 3
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreib63z2zuu6al5scu3lcrd7vubzm6u345rho4os6orl5kfhh2kx3ne",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreib63z2zuu6al5scu3lcrd7vubzm6u345rho4os6orl5kfhh2kx3ne",
-      "alt": "",
-      "ratio": 0.7134,
-      "handle": "norvid-studies.bsky.social",
-      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mtjbpcvxms26",
-      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mtjbpcvxms26",
       "likeCount": 3
     },
     {
