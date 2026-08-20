@@ -18,6 +18,32 @@ controller now, and produces those states by hand.
 - `draw.js` — all rendering. No physics.
 - `qwop.selftest.mjs` — `node pokemon/qwop/qwop.selftest.mjs`.
 
+## Controls
+
+Keyboard **Q W O P** on a desktop. On a coarse pointer or a narrow viewport a
+four-button touch pad appears instead, colour-matched to the filaments, with the
+on-canvas letter badges dropping out (`compactKeys`) so the same thing is not
+said twice — the phase dials stay, since the buttons cannot show those.
+
+The pad is genuine multi-touch, which took some care and is covered by the
+browser tests:
+
+- `touch-action: none` per button. Without it the browser claims the second
+  finger for panning and the game becomes unplayable, because two to four cilia
+  are held at once nearly all the time.
+- `setPointerCapture` per button, so the release always comes back to the
+  button that was pressed even if the finger lifts elsewhere.
+- Capture deliberately suppresses boundary events, so `pointerleave` cannot
+  detect a finger sliding off — that is hit-tested by hand in `pointermove`.
+  Without it, dragging a thumb away to scroll leaves a cilium jammed on.
+- `blur` and `visibilitychange` let go of everything: a key stuck down through
+  a tab switch would be an unfair death.
+
+Tap highlights, text selection, the long-press callout and the 300 ms
+double-tap zoom delay are all off — the last one matters, since on a rhythm
+game it is the difference between the beat landing and not. The prose below the
+game stays selectable.
+
 ## The design, in one paragraph
 
 QWOP's real idea was never "hard controls" — it was taking away the verb you

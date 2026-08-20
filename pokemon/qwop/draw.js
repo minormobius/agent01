@@ -64,7 +64,7 @@ const SNOW = (() => {
 })();
 const TILE_UM = 700;
 
-export function drawGame(cnv, game) {
+export function drawGame(cnv, game, opts = {}) {
   const { ctx, w, h, dpr } = fitCanvas(cnv);
   const { cell, world } = game;
 
@@ -179,7 +179,7 @@ export function drawGame(cnv, game) {
     ctx.setLineDash([]);
   }
 
-  drawHud(ctx, game, w, h, dpr);
+  drawHud(ctx, game, w, h, dpr, opts);
 }
 
 function drawPredator(ctx, p, px, py, r, dpr, t) {
@@ -291,7 +291,7 @@ function drawCell(ctx, cell, toX, toY, pxPerUm, dpr) {
   ctx.restore();
 }
 
-function drawHud(ctx, game, w, h, dpr) {
+function drawHud(ctx, game, w, h, dpr, opts = {}) {
   const { cell } = game;
   const pad = 14 * dpr;
 
@@ -312,25 +312,32 @@ function drawHud(ctx, game, w, h, dpr) {
   meter('noise', cell.signature, 36 * dpr,
     cell.signature > 0.6 ? '#f0655a' : '#f0b03c');
 
-  // Key badges, coloured to match the filaments they drive.
+  // Key badges, coloured to match the filaments they drive. When real touch
+  // buttons are on screen below the canvas these would just say the same thing
+  // twice, so `compactKeys` drops the lettered boxes and keeps only the phase
+  // dials — which are the part the buttons cannot show, and the part you
+  // actually read to tell whether you are in phase.
+  const compact = !!opts.compactKeys;
   const bw = 34 * dpr, gap = 8 * dpr;
   const totalW = bw * 4 + gap * 3;
   let kx = (w - totalW) * 0.5;
   const ky = h - pad - 34 * dpr;
   cell.cilia.forEach((c, i) => {
     const on = c.held;
-    ctx.fillStyle = on ? CILIUM_COLOR[i] : 'rgba(255,255,255,0.07)';
-    ctx.fillRect(kx, ky, bw, 30 * dpr);
-    ctx.strokeStyle = CILIUM_COLOR[i];
-    ctx.globalAlpha = on ? 1 : 0.45;
-    ctx.lineWidth = 1.4 * dpr;
-    ctx.strokeRect(kx, ky, bw, 30 * dpr);
-    ctx.globalAlpha = 1;
-    text(ctx, KEYS[i].toUpperCase(), kx + bw * 0.5, ky + 20 * dpr,
-      on ? '#0a0f14' : CILIUM_COLOR[i], 15, dpr, 'center');
+    if (!compact) {
+      ctx.fillStyle = on ? CILIUM_COLOR[i] : 'rgba(255,255,255,0.07)';
+      ctx.fillRect(kx, ky, bw, 30 * dpr);
+      ctx.strokeStyle = CILIUM_COLOR[i];
+      ctx.globalAlpha = on ? 1 : 0.45;
+      ctx.lineWidth = 1.4 * dpr;
+      ctx.strokeRect(kx, ky, bw, 30 * dpr);
+      ctx.globalAlpha = 1;
+      text(ctx, KEYS[i].toUpperCase(), kx + bw * 0.5, ky + 20 * dpr,
+        on ? '#0a0f14' : CILIUM_COLOR[i], 15, dpr, 'center');
+    }
     // A little phase dial under each key: where that cilium is in its stroke.
     // Four dials converging is what "in phase" looks like.
-    const cxp = kx + bw * 0.5, cyp = ky + 42 * dpr, rr = 7 * dpr;
+    const cxp = kx + bw * 0.5, cyp = ky + (compact ? 16 : 42) * dpr, rr = (compact ? 9 : 7) * dpr;
     ctx.strokeStyle = 'rgba(255,255,255,0.14)';
     ctx.lineWidth = 1 * dpr;
     ctx.beginPath(); ctx.arc(cxp, cyp, rr, 0, TWO_PI); ctx.stroke();

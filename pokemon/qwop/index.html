@@ -15,11 +15,29 @@
     --q: #f0655a; --w: #f0b03c; --o: #4fc6a0; --p: #6aa8f0;
   }
   * { box-sizing: border-box; }
+
+  /* No highlights anywhere. On a touch screen every tap of a cilium key would
+     otherwise flash a grey box over it, and hammering four buttons in rhythm
+     drag-selects the labels and pops the long-press callout. `manipulation`
+     also kills the 300 ms double-tap-to-zoom delay, which on a rhythm game is
+     the difference between the beat landing and not. */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  html { touch-action: manipulation; }
+  /* The prose below the game stays selectable — killing that would be
+     user-hostile, and nobody rhythm-taps a paragraph. */
+  #notes, #notes * { user-select: text; -webkit-user-select: text; }
+
   html, body {
     margin: 0; padding: 0; min-height: 100%;
     background: var(--bg); color: var(--fg);
     font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: contain;   /* no pull-to-refresh mid-run */
   }
   a { color: #78e6bc; }
 
@@ -41,7 +59,44 @@
     position: relative; border: 1px solid var(--border); border-radius: 8px;
     overflow: hidden; background: #050d14;
   }
-  canvas { display: block; width: 100%; height: min(58vh, 560px); }
+  canvas { display: block; width: 100%; height: min(58vh, 560px); touch-action: none; }
+
+  /* ---- touch pad -------------------------------------------------------
+     Four real buttons, one per cilium, colour-matched to the filaments they
+     drive. Shown when the pointer is coarse or the viewport is narrow; on a
+     mouse the keyboard is better and the on-canvas badges already cover it.
+
+     `touch-action: none` on each button is what makes multi-touch work: the
+     game needs two to four cilia held at once, and without it the browser
+     claims the second finger for panning. */
+  #pad { display: none; }
+  @media (pointer: coarse), (max-width: 820px) {
+    #pad {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+      margin-top: 10px;
+    }
+    /* Shorter canvas to make room for the pad; the on-canvas letter
+       badges also drop out (see compactKeys in draw.js). */
+    canvas { height: min(46vh, 460px); }
+  }
+  #pad button {
+    touch-action: none;
+    height: 78px; margin: 0; padding: 0;
+    border-radius: 8px; border: 2px solid;
+    background: #0d1620; font-size: 20px; font-weight: 600;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    transition: background 60ms linear, transform 60ms linear;
+  }
+  #pad button.q { color: var(--q); border-color: var(--q); }
+  #pad button.w { color: var(--w); border-color: var(--w); }
+  #pad button.o { color: var(--o); border-color: var(--o); }
+  #pad button.p { color: var(--p); border-color: var(--p); }
+  #pad button[data-on="1"] { color: #06101a; transform: translateY(2px); }
+  #pad button.q[data-on="1"] { background: var(--q); }
+  #pad button.w[data-on="1"] { background: var(--w); }
+  #pad button.o[data-on="1"] { background: var(--o); }
+  #pad button.p[data-on="1"] { background: var(--p); }
+  #pad .sub { display: block; font-size: 9px; opacity: 0.75; font-weight: 400; }
 
   .overlay {
     position: absolute; inset: 0; display: flex; flex-direction: column;
@@ -120,6 +175,13 @@
       <button id="again">press SPACE to try again</button>
     </div>
   </div>
+
+  <div id="pad" role="group" aria-label="cilia controls">
+    <button class="q" data-cilium="0" type="button" aria-label="outer left cilium">Q<span class="sub">outer L</span></button>
+    <button class="w" data-cilium="1" type="button" aria-label="inner left cilium">W<span class="sub">inner L</span></button>
+    <button class="o" data-cilium="2" type="button" aria-label="inner right cilium">O<span class="sub">inner R</span></button>
+    <button class="p" data-cilium="3" type="button" aria-label="outer right cilium">P<span class="sub">outer R</span></button>
+  </div>
 </div>
 
 <div id="notes">
@@ -150,6 +212,14 @@
   drag them back into phase. Watch the four phase dials under the keys: when
   they converge you are bundled, and the cell glows. Roughly a quarter of a
   second between taps is a good place to start.</p>
+
+  <h3>On a phone</h3>
+  <p>Four buttons appear under the game, one per cilium, in the same colours as
+  the filaments they drive. They are real multi-touch — press two, three or all
+  four at once, which you will need to, because that is the game. Tap anywhere
+  on the title or the death screen to start a run. The on-canvas letter badges
+  drop out when the buttons are showing, leaving just the four phase dials,
+  since those are the part the buttons cannot tell you.</p>
 
   <h3>Turning, and why it costs you</h3>
   <p>Steering falls out of the same mechanic. Drive only the left pair and the
@@ -223,6 +293,7 @@
   ];
 
   function reset() {
+    for (let i = 0; i < 4; i++) held[i] = false;
     game = createGame({ seed: (Math.random() * 1e9) | 0, best });
     started = true;
     dead.hidden = true;
@@ -258,20 +329,79 @@
     const i = KEYS.indexOf(k);
     if (i >= 0) {
       e.preventDefault();
-      if (!held[i]) { held[i] = true; setKey(game.cell, i, true); }
+      if (!held[i]) { held[i] = true; setKey(game.cell, i, true); paintPad(); }
     }
   });
   addEventListener('keyup', (e) => {
     const i = KEYS.indexOf(e.key.toLowerCase());
-    if (i >= 0) { held[i] = false; setKey(game.cell, i, false); }
+    if (i >= 0) { held[i] = false; setKey(game.cell, i, false); paintPad(); }
   });
-  // A key stuck down through a tab switch would be an unfair death.
-  addEventListener('blur', () => {
+  // A key or finger stuck down through a tab switch would be an unfair death.
+  const letGo = () => {
     for (let i = 0; i < 4; i++) { held[i] = false; if (game) setKey(game.cell, i, false); }
-  });
+    paintPad();
+  };
+  addEventListener('blur', letGo);
+  addEventListener('visibilitychange', () => { if (document.hidden) letGo(); });
 
-  document.getElementById('start').addEventListener('click', reset);
-  document.getElementById('again').addEventListener('click', reset);
+  // ---- touch controls --------------------------------------------------
+  // One handler per button rather than one on the pad, and pointer capture on
+  // each, so that four fingers down at once are four independent presses. The
+  // game genuinely needs that: two to four cilia are held simultaneously most
+  // of the time, and a shared handler would let a second finger cancel the
+  // first. `touch-action: none` in the CSS is the other half — without it the
+  // browser claims the second touch for panning before it ever reaches here.
+  const pad = document.getElementById('pad');
+  for (const btn of pad.querySelectorAll('button')) {
+    const i = +btn.dataset.cilium;
+    const press = (e) => {
+      e.preventDefault();
+      if (!started || game.over) { reset(); return; }
+      try { btn.setPointerCapture(e.pointerId); } catch (_) {}
+      if (!held[i]) { held[i] = true; setKey(game.cell, i, true); btn.dataset.on = '1'; }
+    };
+    const release = (e) => {
+      if (e) e.preventDefault();
+      if (held[i]) { held[i] = false; setKey(game.cell, i, false); }
+      btn.dataset.on = '0';
+    };
+    btn.addEventListener('pointerdown', press);
+    btn.addEventListener('pointerup', release);
+    btn.addEventListener('pointercancel', release);
+    // A finger that slides off the button has to let go, or the cilium sticks
+    // on — drag a thumb away to scroll and you would swim off with a key
+    // jammed down. pointerleave cannot do this job: setPointerCapture
+    // deliberately suppresses boundary events, which is exactly why the
+    // capture is worth keeping (it guarantees the pointerup comes back to this
+    // button even if the finger lifts somewhere else). So hit-test by hand.
+    btn.addEventListener('pointermove', (e) => {
+      if (!held[i]) return;
+      const r = btn.getBoundingClientRect();
+      const out = e.clientX < r.left || e.clientX > r.right
+        || e.clientY < r.top || e.clientY > r.bottom;
+      if (out) release(e);
+    });
+    // Suppress the synthetic mouse/context events a long press would produce.
+    btn.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+  // Mirror keyboard presses onto the pad so the two never disagree on screen.
+  function paintPad() {
+    const btns = pad.querySelectorAll('button');
+    for (let i = 0; i < btns.length; i++) btns[i].dataset.on = held[i] ? '1' : '0';
+  }
+
+  // Tapping anywhere on an overlay starts or restarts — on a phone there is no
+  // key to press, and hunting for a small button between runs is friction the
+  // game does not need.
+  for (const el of [intro, dead]) {
+    el.addEventListener('pointerdown', (e) => { e.preventDefault(); reset(); });
+  }
+
+  // Wording follows the input the device actually has.
+  if (matchMedia('(pointer: coarse)').matches) {
+    document.getElementById('start').textContent = 'tap to begin';
+    document.getElementById('again').textContent = 'tap to try again';
+  }
 
   const STEP = 1 / 240;
   let last = performance.now();
@@ -288,7 +418,9 @@
     }
     if (game.over && !wasOver) { wasOver = true; onDeath(); }
     if (!game.over) wasOver = false;
-    drawGame(cnv, game);
+    // The touch pad is what CSS decides to show; ask the DOM rather than
+    // re-deriving the media query here, so the two can never disagree.
+    drawGame(cnv, game, { compactKeys: pad.offsetParent !== null });
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
