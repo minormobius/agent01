@@ -133,6 +133,7 @@ generates anything: both read `brut/arch.js`.
 | `brut/parti.js` | **the parti** — pure, and it runs FIRST, before the massing. Eight memes (piano nobile, penthouse, great hall, atrium, undercroft, cloister, skip-stop, promenade architecturale), each declaring what it demands of the section (`height`), of the plan (`hall`, `voids`, `rooms`, `openGround`, `every`) and of the ceremony (`feature` — where the stair is, how wide, and which types it is allowed to be). `deriveParti` picks one or two that do not contradict; `heightAt` / `voidsAt` / `hallAt` / `roomScaleAt` / `terraceAt` / `openGround` / `corridorEvery` / `features` are what the rest of the kernel asks it. |
 | `brut/stair.js` | **the stair** — pure solver and typology. `solveFlight` (equal risers, Blondel, pitch), `stairFootprint` (how big a shaft it needs — takes a LIST of storey heights and returns the envelope), `layout` (flights, landings, every tread), `stairParts`, `stairPlan` (the plan symbol), `check`, `chooseStair`. **Twenty types** across three ways of spending the horizontal length: RUN (straight, cantilevered, crossed, amphitheatre, cordonata, alternating-tread), FOLD (dog-leg, open well, quarter turn, winder, three-flight, scissor, imperial, bifurcated, ramp) and TURN (spiral, helical, double helix, triple helix, flying). Four of them do not obey Blondel and say so: a ramp has no risers, seating steps are furniture, a cordonata is ridden, and an alternating tread gives each foot twice the going the plan shows. |
 | `brut/lift.js` | **the lifts** — pure traffic analysis. `probableStops` / `highestReversal` (the two expected-value formulas the whole discipline rests on), `flightTime` (the seven-segment jerk-limited profile), `roundTrip` (CIBSE Guide D's RTT), `service` (interval and handling capacity), `sizeGroup` (the ladder: fewest cars, then smallest car, then zones), `populationFromArea` / `populationFromSchedule`, `check`, `liftsFor`. |
+| `brut/plant.js` | **the botany** — Phase 1 of [`ECOBRUTALISM.md`](brut/ECOBRUTALISM.md). `grow()` (space colonization over an ENVELOPE the architecture supplies), `pipeRadius` (Shinozaki's pipe model, which is simultaneously the shape rule and the structural rule), `dbhFor`/`heightFor`/`crownFor`/`dryMass` (allometry, Chave 2014 for the biomass because the mass IS the load), `dragOn` (Vogel reconfiguration), `SOIL`/`soilFor`/`soilLoad` (the substrate ladder, which runs DOWNWARD from what the slab takes), `plantParts`, `plantPlan`, `check`. |
 | `brut/struct.js` | **the engineer** — load takedown off the room schedule, the coupled flexural–shear cantilever + Guyan condensation + Jacobi eigensolve, ASCE 7-16 seismic and wind, ACI 318 member checks, seeded Kanai–Tajimi and Davenport records, Newmark-β. `verify(b, hazard)` returns every check with a margin and the governing one. |
 | `brut/structdraw.js` | the engineer's SVG sheets: verification schedule, design spectrum, storey shear/drift, mode shapes, framing plan by utilisation. |
 | `brut/blueprint.js` | **the drawing office** — pure SVG-string renderers: `planSVG`, `elevationSVG`, `sectionSVG`, `titleBlockSVG`, `scheduleSVG`, `sheetSVG`, `revision`. Takes a building, returns a string; no DOM, no measurement. |
@@ -141,6 +142,7 @@ generates anything: both read `brut/arch.js`.
 | `brut/plan/index.html` | the blueprint set (print CSS, SVG export). |
 | `brut/arch.selftest.mjs` | **run this before touching the kernel**: `node tjs/brut/arch.selftest.mjs` (759 checks, ~25 s). It is also a gate in `deploy-tjs.yml`. |
 | `brut/struct.selftest.mjs` | **run this before touching the solve**: `node tjs/brut/struct.selftest.mjs` (105 checks, ~6 s). Also a deploy gate. |
+| `brut/plant.selftest.mjs` | **run this before touching the botany**: `node tjs/brut/plant.selftest.mjs` (251 checks, ~3 s). Also a deploy gate. Checks the relations rather than the shape — the pipe model at every fork in every tree, the allometry round-tripped, Chave against a hand-computed case, and the drag against its rigid limit. |
 | `brut/lift.selftest.mjs` | **run this before touching the traffic kernel**: `node tjs/brut/lift.selftest.mjs` (82 checks, <1 s). Also a deploy gate. Almost every check is against closed form or against an identity, because the failure mode of a probability calculation is a plausible number for the wrong reason. |
 
 **Invariants worth knowing before you edit:**
@@ -298,7 +300,31 @@ generates anything: both read `brut/arch.js`.
    reversal to be explained by a step in it. That is a stronger claim than the
    one it replaced.
 
-29. **Stairs reach the ground by construction.** One stair per shaft per level,
+29. **A PLANT IS A LOAD.** The whole course is in
+   [`brut/ECOBRUTALISM.md`](brut/ECOBRUTALISM.md); the one number behind it is
+   that a metre of saturated substrate is **16 kPa** against an office floor's
+   2.4 — so planting is the load case that SIZES a slab, not a finish applied
+   to one. `brut/plant.js` is Phase 1 and is deliberately built so the growth
+   rule and the structural rule are the same rule: the pipe model
+   `d_parent^n = Σ d_child^n` is both the botanical plumbing and the cantilever
+   sizing, which is the only reason a generated tree can go into a structural
+   model without lying. Three consequences worth knowing:
+
+   - **The envelope is the coupling.** `grow()` takes the crown envelope as an
+     argument, so a tree under a soffit is genuinely a smaller, lighter tree
+     with less sail area — not the same tree scaled. Growing one in free space
+     and fitting it afterwards is instancing with extra steps, and it is the
+     one shortcut that would make this decorative.
+   - **Bottom-up means reverse index order, not branch depth.** Every node of
+     the clear stem shares depth 0, so sorting the pipe-model pass on depth left
+     the trunk's own order arbitrary and it summed radii that had not been
+     computed yet.
+   - **A tree is not a signboard.** Vogel reconfiguration — the crown furls and
+     the frontal area collapses, so F ∝ U^(2+Ψ) with Ψ ≈ −0.6 in leaf — is
+     worth 40 % of the drag on a mature crown. A bare winter crown is a
+     different load case with almost no reconfiguration left in it.
+
+30. **Stairs reach the ground by construction.** One stair per shaft per level,
    each climbing that level's own height from that level's floor, so the flights
    tile `[0, top]` with no gap. The selftest asserts the tiling closes and that
    an external stair tower stays attached at every level — it used to be placed
