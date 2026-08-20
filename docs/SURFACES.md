@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **86 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **87 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -103,6 +103,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `rite` | fullstack | `rite` | [rite.mino.mobi](https://rite.mino.mobi) | `claude/procedural-name-generator-2qqwfq` | [`rite/CLAUDE.md`](../rite/CLAUDE.md) | Sentence editing drill plus nine surfaces over Bluesky prose—fodder swipe deck, redactle, semantic search, atlas, lexicon lenses, list themes, link knowledge graph, and signal mapping. |
 | `root` | frontend | `.` | [minomobi.com / mino.mobi (landing)](https://minomobi.com) | `claude/root-deploy-spec-doc-f3ucht` | [`CLAUDE.md`](../CLAUDE.md) | Thread analysis. Tidy-tree canvas view of any Bluesky conversation with contributor weighting and YAML export for LLMs. |
 | `scores` | backend | `workers/scores` | [scores.mino.mobi](https://scores.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`workers/scores/CLAUDE.md`](../workers/scores/CLAUDE.md) | Shared multi-game leaderboard worker. One generic game_scores table (own D1: mino-scores-db) keyed by game slug; identity delegated to auth.mino.mobi bearer tokens… |
+| `silk` | frontend | `silk` | [silk.mino.mobi](https://silk.mino.mobi) | `claude/spiderweb-physarium-agent-ta17v4` | [`silk/CLAUDE.md`](../silk/CLAUDE.md) | An agent that weaves orb webs with no plan and no map — it holds eight numbers about its own body and reads everything else off the silk it has already hung, which makes the half-built web its scaffol… |
 | `splice` | frontend | `splice` | [splice.mino.mobi](https://splice.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`splice/CLAUDE.md`](../splice/CLAUDE.md) | Molecular-biology workbench—restriction mapping, PCR, and cloning compiled to WASM and wrapped as a campaign puzzle game. |
 | `tide` | frontend | `tide` | [tide.mino.mobi](https://tide.mino.mobi) | `claude/nave-unified-web-6plmae` | [`tide/CLAUDE.md`](../tide/CLAUDE.md) | The THERMODYNAMICS wing of the O'Neill cylinder modelling package (split out of biome). Assets worker `tide` serving directory 'tide'… |
 | `time` | frontend | `time` | [time.mino.mobi](https://time.mino.mobi) | `claude/audit-time-deploy-ag144t` | [`time/CLAUDE.md`](../time/CLAUDE.md) | The Mino Times—agentic biotech intelligence. Research, articles, editorial panels, and podcast. |

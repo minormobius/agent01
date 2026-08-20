@@ -47,6 +47,7 @@ window.SPEC_CURATED = {
     labglass: 'science', j: 'science', ocr: 'science', splice: 'science',
     neuro: 'science',
     cable: 'science', ar: 'science', tjs: 'science', wars: 'science',
+    silk: 'science',
     hoop: 'oneill', 'hoop-archive': 'oneill', rind: 'oneill', tide: 'oneill', iris: 'oneill',
     biome: 'oneill', duck: 'oneill', mega: 'oneill',
     fable: 'generative', borges: 'generative', games: 'generative',

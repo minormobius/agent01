@@ -1,0 +1,65 @@
+name: Deploy silk (the stigmergic web weaver)
+
+# silk.mino.mobi — an agent that builds orb webs from local rules and the silk
+# it has already laid. Static assets worker, no build, no secrets beyond the
+# shared Cloudflare deploy credentials.
+#
+# The selftests run BEFORE wrangler because this surface's whole claim is a
+# measurement: that one boundary admits a family whose invariants agree to a few
+# percent while its geometry does not, and that the spread inside the family is
+# ordered by construction time. If that stops holding, the page is not a
+# slightly-worse demo, it is a page asserting something false — so it must not
+# ship.
+
+on:
+  push:
+    branches: ['claude/spiderweb-physarium-agent-ta17v4']
+    paths:
+      - 'silk/**'
+      - '.github/workflows/deploy-silk.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: silk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: The fabric holds
+        run: node test/fabric.selftest.mjs
+
+      - name: The claims on the page are still true
+        run: node test/weaver.selftest.mjs
+
+      - name: Install wrangler
+        run: npm install wrangler
+
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # ⭐ GREEN IS NOT PROOF (docs/DEPLOYS.md §4). A deploy that does not bind
+      # the custom domain has updated a stray silk.workers.dev and changed
+      # nothing a visitor can see. The first run also CREATES the hostname, so
+      # this is patient — but it is not `continue-on-error`, because a probe
+      # that is allowed to fail is a probe nobody reads.
+      - name: Verify the custom domain is bound
+        run: |
+          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+            if curl -fsS https://silk.mino.mobi/health | grep -qE '"ok":[[:space:]]*true'; then
+              echo "✓ silk.mino.mobi is serving"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 10
+          done
+          echo "::error::silk.mino.mobi did not answer /health after 2 minutes."
+          echo "::error::Check the wrangler output above for 'silk.mino.mobi (custom domain)'."
+          echo "::error::If it only mentions silk.workers.dev, the routes[] declaration did not take."
+          exit 1

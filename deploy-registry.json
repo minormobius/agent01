@@ -1404,6 +1404,20 @@
         "plant/**",
         ".github/workflows/deploy-plant.yml"
       ]
+    },
+    {
+      "surface": "silk",
+      "dir": "silk",
+      "endpoint": "silk.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/spiderweb-physarium-agent-ta17v4",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "silk/**",
+        ".github/workflows/deploy-silk.yml"
+      ],
+      "note": "The stigmergic orb-web weaver. An agent with no plan and no map builds a web from local rules and the silk it has already laid; the page then measures what it produced\u2014 one boundary admits a FAMILY of webs, tight in the numbers a field biologist takes off a photograph and uncorrelated in geometry, and the spread is construction order rather than noise. Static assets worker, no build, no backends. Two node selftests gate the deploy because they are the page's claims (full description: silk/CLAUDE.md)."
     }
   ],
   "unmanaged": {

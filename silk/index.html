@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>silk — a stigmergic spiderweb weaver</title>
+<meta name="description" content="An agent that builds orb webs with no plan and no map, reading everything it needs off the silk it has already laid. One set of boundary conditions admits a family of correct webs; the spread inside that family is path dependence, not noise.">
+<meta property="og:title" content="silk — a stigmergic spiderweb weaver">
+<meta property="og:description" content="Boundary conditions in, a family of orb webs out. Watch the construction, measure the family, and perturb one early decision to see how far it travels.">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+<header class="top">
+  <h1>silk</h1>
+  <p class="tag">An agent that weaves orb webs with no plan, no map and no memory of where it has been — only the silk it has already hung. Give it a set of boundary conditions and it returns not <em>a</em> web but a <em>family</em> of them, and the spread inside that family is construction order, not chance.</p>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="weave" class="on">weave</button>
+  <button data-tab="family">the family</button>
+  <button data-tab="path">path dependence</button>
+  <button data-tab="notes">what this is</button>
+</nav>
+
+<!-- ─────────────────────────────────────────────────────────── weave ─── -->
+<section class="panel on" id="tab-weave">
+  <div class="stagewrap">
+    <canvas id="stage"></canvas>
+    <div class="rail" id="rail"></div>
+    <div class="note" id="note"></div>
+  </div>
+
+  <aside class="side">
+    <div class="grp">
+      <label class="lb" for="preset">boundary conditions</label>
+      <select id="preset"></select>
+      <p class="blurb" id="blurb"></p>
+    </div>
+
+    <div class="grp">
+      <div class="row"><span class="lb">seed</span>
+        <input type="number" id="seed" min="1" max="99999" value="3">
+        <button class="mini" id="dice" title="new seed, same boundary">↻</button>
+      </div>
+      <div class="btns">
+        <button id="run" class="go">weave</button>
+        <button id="pause">pause</button>
+        <button id="skip">finish</button>
+      </div>
+      <div class="row"><span class="lb">speed</span><input type="range" id="speed" min="1" max="60" value="6"><span class="val" id="speedv"></span></div>
+    </div>
+
+    <div class="grp">
+      <h3>the habitat</h3>
+      <div class="row"><span class="lb">gravity</span><input type="range" id="gravity" min="0" max="40" value="20"><span class="val" id="gravityv"></span></div>
+      <div class="row"><span class="lb">wind</span><input type="range" id="wind" min="0" max="100" value="50"><span class="val" id="windv"></span></div>
+      <div class="row"><span class="lb">silk</span><input type="range" id="silk" min="10" max="100" value="100"><span class="val" id="silkv"></span></div>
+    </div>
+
+    <div class="grp">
+      <h3>the animal</h3>
+      <div class="row"><span class="lb" title="full span — gauges the widest rim gap it will tolerate">leg span</span><input type="range" id="legSpan" min="50" max="160" value="95"><span class="val" id="legSpanv"></span></div>
+      <div class="row"><span class="lb" title="inner-foreleg reach — gauges capture mesh height">gauge</span><input type="range" id="gauge" min="9" max="34" value="17"><span class="val" id="gaugev"></span></div>
+      <div class="row"><span class="lb" title="how much wider it lets the mesh run above the hub than below">up/down bias</span><input type="range" id="asym" min="0" max="70" value="18"><span class="val" id="asymv"></span></div>
+      <div class="row"><span class="lb" title="spread on every gauge the animal makes">sloppiness</span><input type="range" id="tidiness" min="0" max="60" value="16"><span class="val" id="tidinessv"></span></div>
+    </div>
+
+    <div class="grp">
+      <h3>what it built</h3>
+      <table class="mx" id="mx"></table>
+    </div>
+  </aside>
+</section>
+
+<!-- ────────────────────────────────────────────────────────── family ─── -->
+<section class="panel" id="tab-family">
+  <div class="wide">
+    <p class="lead">Same boundary conditions. Sixteen seeds. Every web below is <em>correct</em> — each satisfies every rule the agent has — and no two of them share a single thread position. What they do share is a short list of numbers, and how tightly they share it is the measurement.</p>
+    <div class="famctl">
+      <span class="lb">boundary</span><select id="fpreset"></select>
+      <button id="frun" class="go">run 16 seeds</button>
+      <span class="prog" id="fprog"></span>
+    </div>
+    <div class="famgrid" id="famgrid"></div>
+    <div class="famstats">
+      <table class="mx wide-mx" id="fstats"></table>
+      <p class="foot" id="ffoot"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────── path dependence ─── -->
+<section class="panel" id="tab-path">
+  <div class="wide">
+    <p class="lead">Hold the boundary and the seed. Change exactly one decision, and change nothing else — the streams are separated per decision class, so the spiral's own draws stay bit-identical. Then measure how far the finished web moved. An agent whose environment <em>is</em> its memory cannot un-lay a thread, so the answer depends almost entirely on <em>when</em> you interfered.</p>
+    <div class="famctl">
+      <span class="lb">boundary</span><select id="ppreset"></select>
+      <span class="lb">seed</span><input type="number" id="pseed" min="1" max="99999" value="3">
+      <button id="prun" class="go">run the sweep</button>
+      <span class="prog" id="pprog"></span>
+    </div>
+    <div class="pathwrap">
+      <canvas id="pcanvas"></canvas>
+      <div>
+        <div class="pchart" id="pchart"></div>
+        <p class="foot" id="pfoot"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────── notes ─── -->
+<section class="panel" id="tab-notes">
+  <div class="prose">
+
+    <h2>Has this agent already been made?</h2>
+
+    <p>Partly, twice, in two literatures that do not cite each other much.</p>
+
+    <p><strong>Rule-based orb-web builders exist and are thirty years old.</strong>
+    Krink &amp; Vollrath's <a href="https://www.sciencedirect.com/science/article/abs/pii/S0022519396903069">1997 <em>Journal of Theoretical Biology</em> paper</a>
+    built "cyber spiders" whose construction was driven by rule parameters
+    encoded as artificial genes, then ran a genetic algorithm over a population
+    of them against an adjustable ecological niche. They compared the winners to
+    real <em>Araneus diadematus</em> webs grown in the lab and matched spiral
+    distances, eccentricity and vertical hub position. A
+    <a href="https://www.sciencedirect.com/science/article/abs/pii/S0022519305803947">follow-up</a>
+    put a virtual spider robot under a rule system and evolved the path-finding
+    rules under cost–benefit evaluation. So "an agent that builds a plausible
+    orb from local rules" is settled work, not an open question.</p>
+
+    <p><strong>The behavioural side got a great deal sharper in 2021.</strong>
+    Corver, Wilkerson, Miller &amp; Gordus tracked millions of individual leg
+    movements of <em>Uloborus diversus</em> with machine vision and clustered
+    them without supervision
+    (<a href="https://www.cell.com/current-biology/fulltext/S0960-9822(21)01270-7"><em>Current Biology</em></a>;
+    <a href="https://github.com/GordusLab/Corver-Wilkerson-Miller-Gordus-2021">code</a>).
+    The result that matters here: a hierarchical hidden Markov model recovers
+    <em>stages</em> of web-building as stereotyped action sequences shared across
+    individuals — and those stages can run in atypical order without becoming
+    different behaviour. That is a stage machine with local triggers, which is
+    exactly the shape of the agent on this page.</p>
+
+    <p><strong>The Physarum side is also well developed, separately.</strong>
+    Jeff Jones' multi-agent model of <em>Physarum polycephalum</em>
+    (<a href="https://arxiv.org/abs/1503.06579">arXiv:1503.06579</a>, and the
+    2015 book <em>From Pattern Formation to Material Computation</em>) gets
+    transport networks to form, grow and minimise from particles that only
+    deposit a trace and steer up its gradient. It is the canonical
+    environment-as-memory agent, and it is what "physarum" now means in a
+    simulation context — Fogleman's and others' slime-mould renderers are all
+    downstream of it.</p>
+
+    <p><strong>What is not in the literature, as far as I can find, is the
+    join.</strong> Searching for work that treats web-building explicitly as a
+    stigmergic deposition problem — the Physarum framing applied to silk, with
+    the boundary conditions as the input and the admissible family as the
+    output — turns up the two literatures separately and nothing that puts them
+    together. Web-simulation code on the open web is almost all either
+    decorative (mouse-reactive canvas cobwebs) or Verlet cloth with a spider
+    sprite on it; the one honourable exception, <a href="https://prajwalsouza.github.io/Experiments/Spider-Web-Simulation.html">Prajwal Souza's physics
+    simulation</a>, credits Krink &amp; Vollrath and simulates the finished web's
+    mechanics rather than the construction sequence.</p>
+
+    <p>So: the agent has been made. The <em>reading</em> of it offered here — as
+    an undecaying-trace Physarum, whose admissible outputs form a measurable
+    family, and whose within-family spread is generated by construction order —
+    I could not find made anywhere, and it is what this page is for. Treat that
+    as a literature search, not a priority claim.</p>
+
+    <h2>What properties does such an agent have?</h2>
+
+    <p>Ten, and each one is visible in the code and testable from the page.</p>
+
+    <ol class="props">
+      <li><strong>It is embodied and local.</strong> It has a position, a
+      heading and two reaches. It cannot see the web; it can only touch what it
+      is standing on.</li>
+
+      <li><strong>Its own output is its only road.</strong> It moves on
+      substrate and on silk it has already laid, and nothing else. This is the
+      source of every other property on this list: the structure under
+      construction is simultaneously the scaffolding, the ruler and the map.</li>
+
+      <li><strong>The environment holds the state.</strong> Its internal
+      registers never exceed what an animal could plausibly carry — which side
+      it last worked, which radius it is on, how far out it is. Every other
+      question is answered by measuring the fabric. This is the Physarum
+      correspondence, and it is exact.</li>
+
+      <li><strong>The trace does not decay.</strong> This is where it stops
+      being Physarum. A chemoattractant evaporates, so a slime mould can forget
+      a bad early commitment and re-optimise; the final network is largely
+      independent of the order the tubes were laid in. Silk cannot be un-laid.
+      Construction order is therefore carried into the finished object, and the
+      family is generated by path dependence rather than by noise.</li>
+
+      <li><strong>It runs a stage machine, not a plan.</strong> Bridge, frame,
+      hub, radii, auxiliary spiral, capture spiral, finish. Transitions fire on
+      local conditions — "no rim gap wider than a leg span remains" — never on a
+      clock or a target count.</li>
+
+      <li><strong>Its stopping rules are bodily.</strong> The number of radii is
+      not a parameter. It is rim perimeter divided by leg span, because a gap it
+      cannot straddle is a gap it must split. Mesh height is a different, much
+      shorter reach. Change the animal's size and both move together.</li>
+
+      <li><strong>It is gravity-asymmetric by behaviour, not by mechanics.</strong>
+      It stops short on its drop, so the hub rides high; it lets the mesh run
+      wider above the hub than below. On the square reveal that shows up as a
+      hub rise of about +0.11, roughly 1.4× as much capture area hanging below
+      the hub as above, and a mesh about 1.2× wider above. Set gravity to zero
+      and all three collapse to 0.00, 0.95 and 1.05 — the <em>no gravity</em>
+      preset is the control that proves the asymmetry is the agent's doing and
+      not something the algorithm was going to produce anyway. (The sheet's
+      physical sag is a separate, deliberately small term: at full strength it
+      dragged the hub back down to centre and cancelled the behaviour it was
+      supposed to be illustrating.)</li>
+
+      <li><strong>It destroys as it builds.</strong> The auxiliary spiral is a
+      handrail, not a product. The capture spiral eats it turn by turn, and
+      recovers most of the protein. The agent is standing on the thing it is
+      removing.</li>
+
+      <li><strong>It is resource-bounded, and degrades in a specific order.</strong>
+      Frame and radii are non-negotiable; the capture spiral is what a shortfall
+      lands on. Run it short of silk and it stops mid-inward with a real,
+      usable, unfinished web — not a failure.</li>
+
+      <li><strong>It is deterministic given a seed.</strong> Without this there
+      is no family, only anecdotes. Separate random streams per decision class
+      are what let the path-dependence sweep perturb one decision while holding
+      every other draw bit-identical.</li>
+    </ol>
+
+    <h2>How to read the three views</h2>
+    <p><strong>weave</strong> is one run, animated, with the stage it is in and
+    what it has built so far. <strong>the family</strong> runs sixteen seeds
+    against one boundary and reports the coefficient of variation of each
+    invariant — tight numbers beside wildly different geometry is the claim.
+    <strong>path dependence</strong> nudges a single decision and measures how
+    far the finished web moved, as a function of when the nudge happened.</p>
+
+    <p>The long form of both sections above — the full literature search with
+    citations, the ten properties, the measurement tables, and a list of what
+    this model does <em>not</em> capture and how that would change the answer —
+    is in <a href="./RESEARCH.md">RESEARCH.md</a>. The surface's own operating
+    notes, including the four modelling mistakes that had to be found and fixed
+    before the webs looked like webs, are in
+    <a href="https://github.com/minormobius/agent01/blob/main/silk/CLAUDE.md">silk/CLAUDE.md</a>.</p>
+
+    <p class="foot">Everything runs in your browser; nothing is sent anywhere.
+    The engine is four dependency-free modules — <code>fabric.mjs</code>,
+    <code>weaver.mjs</code>, <code>boundary.mjs</code>, <code>metrics.mjs</code> —
+    and has a node selftest that asserts determinism, stage completion, the
+    gravity control and the shape of the path-dependence curve.</p>
+  </div>
+</section>
+
+<script type="module" src="./js/app.mjs"></script>
+</body>
+</html>

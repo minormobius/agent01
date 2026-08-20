@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+
+  // ⭐ GOLDEN RULE (docs/DEPLOYS.md §4): `name` must be the worker that owns the
+  // live custom domain, and that domain must be declared here in `routes` —
+  // otherwise `wrangler deploy` quietly updates a stray silk.workers.dev, the
+  // run goes green, and nothing a visitor can see changes.
+  //
+  // silk.mino.mobi is a FRESH hostname. Verified unclaimed 2026-08-20: the name
+  // does not resolve at all, and silk.majormobius.workers.dev answers Cloudflare
+  // error 1042 (no such worker) rather than a 404 from an assets worker, so
+  // there is no existing `silk` script to collide with either. The hostname is
+  // created by the first deploy from this `routes` declaration — the path foam,
+  // loop and plant all took. DEPLOYS.md §7's "dashboard only" rule covers
+  // DETACHING and MOVING a domain, not creating a new one on a zone already in
+  // the account.
+  //
+  // EXPECT THE FIRST RUN TO LOOK BROKEN AND NOT BE. DNS takes a few seconds to
+  // resolve and Cloudflare serves error 1104 for a minute or two while the
+  // certificate is issued. That is provisioning, and only a first deploy sees
+  // it — which is why the probe in deploy-silk.yml is patient rather than
+  // permissive: it retries for two minutes and then fails red.
+  "name": "silk",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-01",
+
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+
+  "routes": [
+    { "pattern": "silk.mino.mobi", "custom_domain": true }
+  ]
+}
