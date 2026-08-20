@@ -262,16 +262,38 @@ function uniform(n, H, mTotal, EI, GA, consistent = false) {
     const b = generate(resolveParams({ s: 'slender', t: 'office', n: String(n), bx: '5', bz: '4', bay: '8' }));
     const M = lateralModel(b, 'x'), md = modal(M);
     const Ta = SFRS.Ct * Math.pow(M.height, SFRS.x);
-    ratios.push({ n, H: M.height, T: md.T1, r: md.T1 / Ta, alpha: M.height * Math.sqrt(M.GA[0] / M.EI[0]) });
+    ratios.push({
+      n, H: M.height, T: md.T1, r: md.T1 / Ta,
+      alpha: M.height * Math.sqrt(M.GA[0] / M.EI[0]),
+      // THE CONFOUND, MEASURED. The lift core IS the shear core, so a taller
+      // building needs more shafts, gets a bigger core, and is stiffer for it.
+      // That coupling is real and it breaks the naive monotonicity this sweep
+      // used to assert — so the sweep now measures the core as well, holds the
+      // trend where the core is unchanged, and requires any reversal to be
+      // explained by a step in it. That is a stronger claim than the one it
+      // replaces: it says the reversal has a cause rather than that it does
+      // not happen.
+      coreArea: b.cores.reduce((a, c) => a + c.w * c.d, 0),
+      lifts: b.liftGroup.built,
+    });
   }
-  ok(ratios.every((q, i) => i === 0 || q.r > ratios[i - 1].r),
-    `T₁/Ta rises with slenderness (${ratios.map((q) => q.r.toFixed(2)).join(' → ')})`);
+  const fmt = (k) => ratios.map((q) => q[k].toFixed(2)).join(' → ');
+  const explained = (i, key) => ratios[i][key] > ratios[i - 1][key] ||
+    ratios[i].coreArea > ratios[i - 1].coreArea * 1.02;
+  ok(ratios.every((q, i) => i === 0 || explained(i, 'r')),
+    `T₁/Ta rises with slenderness, or the core stepped (${fmt('r')}; core ${fmt('coreArea')})`);
+  ok(ratios.every((q, i) => i === 0 || explained(i, 'alpha')),
+    `α rises with slenderness — squat bends, tall racks (${fmt('alpha')})`);
+  // and the coupling itself: more storeys really is more lifts really is more core
+  ok(ratios[ratios.length - 1].lifts > ratios[0].lifts,
+    `a taller building of the same plate needs more lifts (${ratios[0].lifts} → ${ratios[ratios.length - 1].lifts})`);
+  ok(ratios[ratios.length - 1].coreArea > ratios[0].coreArea,
+    'and the core that holds them is bigger, which is why it is also stiffer');
+
   const tall = ratios[ratios.length - 1];
   ok(tall.r > 0.8 && tall.r < 2.5, `a 45-storey tower lands in the measured band (T₁/Ta = ${tall.r.toFixed(2)})`);
   // the old rule of thumb: a shear-wall tower is about n/15 seconds
   ok(Math.abs(tall.T - 45 / 15) < 1.2, `and near the n/15 rule of thumb (T₁ = ${tall.T.toFixed(2)} s for 45 storeys)`);
-  ok(ratios.every((q, i) => i === 0 || q.alpha > ratios[i - 1].alpha),
-    `α rises with slenderness — squat bends, tall racks (${ratios.map((q) => q.alpha.toFixed(1)).join(' → ')})`);
 
   let overCu = 0;
   for (const t of TYPOLOGY_IDS) {

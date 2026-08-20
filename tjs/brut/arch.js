@@ -31,6 +31,7 @@
 // around a plan: both fall out of the same plate polygons.
 
 import { STAIR_TYPES, STAIR_IDS, stairFootprint, layout as stairLayout, chooseStair, stairParts, RULES as STAIR_RULES } from './stair.js';
+import { liftsFor, populationFromSchedule, RULES as LIFT_RULES, CARS } from './lift.js';
 import {
   deriveParti, heightAt, voidsAt, hallAt, terraceAt, openGround, corridorEvery, roomScaleAt,
   features as partiFeatures, PARTIS,
@@ -674,7 +675,7 @@ function persistentSpine(mass) {
   return R.fromMinMax(x0, z0, x1, z1);
 }
 
-function placeCores(p, mass) {
+function placeCores(p, mass, group) {
   const rc = Rand(p.seed, 'cores');
   const spine = persistentSpine(mass);
 
@@ -709,35 +710,189 @@ function placeCores(p, mass) {
     pick = { type: 'three', width, fp: stairFootprint('three', heights, { width }) };
   }
 
-  const lift = 2.6;                                   // a shaft and its lobby
-  const cw = Math.max(pick.fp.w, Math.min(maxW, pick.fp.w + lift));
-  const cd = Math.max(pick.fp.d, Math.min(maxD, pick.fp.d + 0.6));
-  const cores = [];
+  // THE CORE IS SIZED BY THE LIFTS AS WELL AS BY THE STAIR, and the lifts are
+  // the half that scales: a stair is one shaft however tall the building is,
+  // and the lift group grows with the population it serves. Shafts go in rows
+  // of at most four, two rows facing across a lobby, because past four doors
+  // nobody can watch them all and the car you want opens behind you.
+  const BANK_ROW = 4, LOBBY = 2.4;
+  const cars = group && group.needed ? group.carsTotal : 0;
+  const shaft = group && group.shaft ? group.shaft : { w: 1.75, d: 1.8 };
   const along = spine.w >= spine.d;                   // cores march along the long axis
-  const n = spine.w * spine.d > 900 ? 2 : 1;
+
+  // How many cores, and how wide. THE CLAMP HERE WAS A LIE: capping the core at
+  // a fraction of the plate and then asking whether a lift still fitted meant a
+  // traffic study could ask for four cars and get none, silently, on exactly
+  // the buildings that needed them most. A core is as big as what has to happen
+  // inside it. If that does not fit the plate, the answer is another core, and
+  // if THAT does not fit, the answer is that this building cannot be served at
+  // this footprint — which is a real finding about deep-plan buildings and is
+  // reported rather than absorbed.
+  const bankFor = (howMany, nn) => {
+    const pc = howMany ? Math.ceil(howMany / nn) : 0;
+    const rw = pc > BANK_ROW ? 2 : 1;
+    const pr = pc ? Math.ceil(pc / rw) : 0;
+    return { perCore: pc, rows: rw, perRow: pr, w: pr * shaft.w, d: rw * shaft.d + (rw > 1 ? LOBBY : 0) };
+  };
+  // the stair's LONG side runs along the content axis, whichever of w/d that
+  // is — using `fp.w` here understated the core by the difference between the
+  // two, which is exactly enough to bury the last shaft in the bank
+  const sLongFP = Math.max(pick.fp.w, pick.fp.d), sShortFP = Math.min(pick.fp.w, pick.fp.d);
+  const fitsIn = (howMany, nn) => sLongFP + bankFor(howMany, nn).w + 0.6 <= maxW + 1e-6;
+
+  let n = Math.max(spine.w * spine.d > 900 ? 2 : 1, 1);
+  while (n < 4 && cars && !fitsIn(cars, n)) n++;
+
+  // WHAT THE PLATE WILL ACTUALLY HOLD. A core hanging off the edge of the floor
+  // it stands on is not a finding, it is nonsense — so when even four cores
+  // will not take the group, the shafts are CAPPED at what the plate holds and
+  // the shortfall comes out as a number. That IS the finding, and it is one of
+  // the real constraints on a deep plan: past a certain population the core
+  // eats the building it serves, which is why floorplate depth is a lift
+  // decision as much as a daylight one.
+  let fitCars = cars;
+  while (fitCars > 0 && !fitsIn(fitCars, n)) fitCars--;
+
+  const bank = bankFor(fitCars, n);
+  const perCore = bank.perCore, rows = bank.rows, perRow = bank.perRow;
+  const bankW = bank.w, bankD = bank.d;
+
+  const cw = sLongFP + (fitCars ? bankW + 0.6 : 0);
+  const cd = Math.max(sShortFP + 0.4, bankD);
+  const coreFits = fitCars === cars;
+  const shortBy = cars - fitCars;
+  // ONE AXIS CARRIES THE CONTENT. The stair and the lift bank sit end to end
+  // along `cw`, and `cd` is across both of them — so whichever way the core is
+  // turned on the plate, the layout has to follow the SAME axis it was sized
+  // on. Sizing the bank along one axis and then laying the shafts out along the
+  // other is how eight lifts end up stacked on top of each other in a 2.8 m
+  // slot: every rect passes its own check and the building has one lift.
+  const cores = [];
   for (let k = 0; k < n; k++) {
-    const t = n === 1 ? (p.symmetric ? 0.5 : rc.range(0.34, 0.66)) : (k === 0 ? 0.24 : 0.76);
+    const t = n === 1 ? (p.symmetric ? 0.5 : rc.range(0.34, 0.66))
+      : 0.18 + (k * 0.64) / Math.max(1, n - 1);
     const cx = along ? R.x0(spine) + t * spine.w : spine.x;
     const cz = along ? spine.z : R.z0(spine) + t * spine.d;
     const w = round2(along ? cw : cd), d = round2(along ? cd : cw);
-    // the stair takes one end of the shaft; the lift and its lobby take the rest
-    // orient the stair's own footprint the way the core is turned
-    const wide = w >= d;
-    const sw = wide ? Math.max(pick.fp.w, pick.fp.d) : Math.min(pick.fp.w, pick.fp.d);
-    const sd = wide ? Math.min(pick.fp.w, pick.fp.d) : Math.max(pick.fp.w, pick.fp.d);
-    const hasLift = k === 0 && w - sw > 1.4;
+
+    // the stair's own footprint, turned to match: its long side runs along cw
+    const sLong = Math.max(pick.fp.w, pick.fp.d), sShort = Math.min(pick.fp.w, pick.fp.d);
+    const sw = round2(along ? sLong : sShort), sd = round2(along ? sShort : sLong);
+
+    // how many of the group land in THIS core — the remainder goes to the last
+    const mine = perCore ? Math.max(0, k === n - 1 ? fitCars - perCore * (n - 1) : perCore) : 0;
+    const hasLift = mine > 0;
+
+    // the stair takes the low end of the cw axis; the bank takes the rest
+    const cwExtent = along ? w : d;                 // the core's cw-axis size
+    const sExtent = along ? sw : sd;                // the stair's, on that axis
+    const bExtent = round2(Math.max(0, cwExtent - sExtent));
+    const half = (cwExtent - sExtent) / 2;
+
     cores.push({
+      coreFits, shortBy, groupCars: fitCars,
       x: round2(cx), z: round2(cz), w, d,
-      kind: hasLift ? 'stair + lift' : 'stair',
+      kind: hasLift ? (mine > 1 ? `stair + ${mine} lifts` : 'stair + lift') : 'stair',
       stair: { type: pick.type, width: pick.width, label: STAIR_TYPES[pick.type].label },
-      stairBox: {
-        x: round2(cx - (w - sw) / 2 * (hasLift ? 1 : 0)), z: round2(cz),
-        w: round2(sw), d: round2(sd),
-      },
-      lift: hasLift ? { x: round2(cx + sw / 2), z: round2(cz), w: round2(w - sw), d: round2(Math.min(d, 2.6)) } : null,
+      stairBox: along
+        ? { x: round2(cx - half * (hasLift ? 1 : 0)), z: round2(cz), w: sw, d: sd }
+        : { x: round2(cx), z: round2(cz - half * (hasLift ? 1 : 0)), w: sw, d: sd },
+      cars: mine, rows: mine > BANK_ROW ? 2 : 1,
+      // the lift zone: everything on the cw axis the stair does not take
+      lift: hasLift
+        ? (along
+          ? { x: round2(cx + sExtent / 2), z: round2(cz), w: bExtent, d }
+          : { x: round2(cx), z: round2(cz + sExtent / 2), w, d: bExtent })
+        : null,
+      liftAlong: along,
     });
   }
   return cores;
+}
+
+/* ────────────────────────── the shafts themselves ───────────────────────── */
+//
+// A LIFT IS NOT A ROOM, IT IS A HOLE — one rectangle repeated at every level it
+// passes, whether it opens there or not, plus a pit below the lowest and an
+// overrun above the highest. That is why it is laid out here rather than by the
+// plan solver: the plan is cut per level and a shaft is the one thing that must
+// be identical on all of them.
+//
+// And it is why a tall building's core TAPERS. In a zoned building every shaft
+// starts at the terminal, so the ground floor carries all of them; the upper
+// zones' shafts run express past the lower floors and the lower zones' shafts
+// stop and are gone. The core is widest where it is least wanted and narrowest
+// where the rent is highest, and that is arithmetic rather than styling.
+
+function placeLifts(p, mass, cores, group, parti) {
+  if (!group || !group.needed) return [];
+  const out = [];
+  const topM = mass.height;
+  const nLevels = mass.levels.length;
+  const perZone = group.cars, zones = group.zones;
+  // the floors each zone opens at, above the terminal it always opens at
+  const zoneSize = Math.ceil(Math.max(1, nLevels - 1) / zones);
+
+  let id = 0;
+  for (const c of cores) {
+    if (!c.lift || !c.cars) continue;
+    const rows = c.rows;
+    const perRow = Math.ceil(c.cars / rows);
+    for (let i = 0; i < c.cars; i++) {
+      const zone = zones > 1 ? Math.min(zones - 1, Math.floor(id / perZone)) : 0;
+      const lo = zones > 1 ? 1 + zone * zoneSize : 1;
+      const hi = zones > 1 ? Math.min(nLevels - 1, lo + zoneSize - 1) : nLevels - 1;
+      const row = Math.floor(i / perRow), col = i % perRow;
+      // NOT clamped to the lift zone. A shaft shrunk to fit the space left over
+      // is not a smaller lift, it is a lift that does not exist — the same
+      // failure as a ramp shortened to fit its shaft and arriving below the
+      // floor it serves. The shaft is the size the car is; whether the core
+      // holds it is `coreFits`, and that is a finding rather than a fix.
+      // laid along the SAME axis the bank was sized on, rows facing each other
+      // across the lobby between them
+      const alongX = c.liftAlong;
+      const sw = alongX ? group.shaft.w : group.shaft.d;
+      const sd = alongX ? group.shaft.d : group.shaft.w;
+      const x = alongX
+        ? R.x0(c.lift) + (col + 0.5) * (c.lift.w / perRow)
+        : (rows === 1 ? c.lift.x : R.x0(c.lift) + (row + 0.5) * (c.lift.w / rows));
+      const z = alongX
+        ? (rows === 1 ? c.lift.z : R.z0(c.lift) + (row + 0.5) * (c.lift.d / rows))
+        : R.z0(c.lift) + (col + 0.5) * (c.lift.d / perRow);
+      out.push({
+        id: id++, core: cores.indexOf(c), zone,
+        x: round2(x), z: round2(z), w: round2(sw), d: round2(sd),
+        car: { w: group.carBox.w, d: group.carBox.d },
+        // it PASSES every level from the terminal to the top of its zone, and
+        // OPENS at only some of them — which is the whole of the skip-stop idea
+        // and the whole of the express idea, in one pair of lists
+        passes: Array.from({ length: hi + 1 }, (_, k) => k),
+        opens: Array.from({ length: hi + 1 }, (_, k) => k)
+          .filter((k) => k === 0 || (k >= lo && k <= hi))
+          .filter((k) => !mass.levels[k] || !mass.levels[k].viaDeck),
+        express: zones > 1 && zone > 0 ? lo : 0,
+        top: round2(mass.levels[Math.min(hi, nLevels - 1)].y),
+        pit: group.pit, overrun: group.overrun, speed: group.speed,
+        kg: group.car.kg, persons: group.car.persons,
+        // one car is the firefighting lift where the height asks for one, and
+        // one is scenic where the parti does
+        firefighting: id === 1 && !!group.firefighting,
+        scenic: id === 2 && !!group.scenic,
+      });
+    }
+  }
+  // the scenic car does not belong in the core at all — it climbs the void it
+  // serves, which is the only time a lift is the view rather than the wait
+  if (group.scenic) {
+    const av = mass.levels.map((L) => (L.voids || []).find((v) => v.parti)).find(Boolean);
+    const sc = out.find((q) => q.scenic);
+    if (av && sc) {
+      sc.x = round2(av.x + av.w / 2 - sc.w / 2);
+      sc.z = round2(av.z);
+      sc.inVoid = true;
+    }
+  }
+  return out;
 }
 
 /* ──────────────────────── the spine, derived once ───────────────────────── */
@@ -1341,7 +1496,48 @@ export function generate(paramsOrQuery) {
   // idea and a set of correct parts that have never met.
   const parti = deriveParti(p, Rand(p.seed, 'parti'));
   const mass = massing(p, parti);
-  const cores = placeCores(p, mass);
+
+  // THE LIFTS ARE SIZED BEFORE THE CORE THEY GO IN, because that is the order
+  // the constraint actually runs: how many shafts a building needs is a
+  // property of its population and its height, and the core is whatever has to
+  // be built to hold them. Sizing the core first and then asking what fits is
+  // how a building ends up with three lifts because that is what was left over.
+  //
+  // At this point there is no room schedule — the plan cannot be cut until the
+  // cores are set out — so the population comes off an AREA TAKE, which is
+  // exactly what a real concept-stage lift study does. It is verified against
+  // the schedule at the bottom of this function, and the two are meant to
+  // disagree: the gap between them is what a verification is for.
+  const giaEst = mass.levels.reduce((s, L) => s + L.wings.reduce((a, w) => a + R.area(w), 0), 0);
+  const liftGroup = liftsFor({
+    typology: p.typology, levels: p.levels, floorH: p.floorH,
+    height: mass.height, gia: giaEst, parti: parti.memes,
+    stops: skipStops(p, parti),
+    topOccupiedM: mass.levels[mass.levels.length - 1].y,
+  });
+
+  const cores = placeCores(p, mass, liftGroup);
+  const lifts = placeLifts(p, mass, cores, liftGroup, parti);
+
+  // THE PLATE MAY REFUSE THE GROUP. `placeCores` caps the shafts at what the
+  // floorplate will actually hold, and when it does, that is a finding about
+  // the building rather than a quiet adjustment to it — so it comes back as a
+  // failing check with the shortfall in it, and `built` becomes the number of
+  // lifts this building HAS as opposed to the number it needs.
+  if (cores.length && liftGroup.needed) {
+    liftGroup.built = cores[0].groupCars;
+    liftGroup.plateShort = cores[0].shortBy || 0;
+    if (liftGroup.plateShort > 0) {
+      liftGroup.pass = false;
+      const c = {
+        id: 'plate', label: 'The plate holds the group', pass: false,
+        value: `${liftGroup.built} of ${liftGroup.carsTotal} shafts`,
+        note: `${liftGroup.plateShort} more shaft${liftGroup.plateShort === 1 ? '' : 's'} than this floorplate will take beside the stair. Past a certain population the core eats the building it serves — which is why floorplate depth is a lift decision as much as a daylight one, and why the answer here is a wider plate or a second core position, not a smaller lift`,
+      };
+      liftGroup.checks = [...(liftGroup.checks || []), c];
+      liftGroup.governing = liftGroup.governing || c;
+    }
+  }
   const atrium = partiAtriumFor(p, mass, parti);
   const halls = placeHalls(p, mass, parti, cores, atrium);
   const stairs = placeStairs(p, mass, cores);
@@ -1394,15 +1590,54 @@ export function generate(paramsOrQuery) {
   const facades = facadeFor(p, mass, cores);
   const towers = serviceTowers(p, mass);
   stairs.push(...towerStairs(p, mass, towers));
+  // THE VERIFICATION, against the building that actually got made. The group
+  // was sized off an area take before the plan existed; now the schedule does
+  // exist, so the same arithmetic is re-run over a population counted room by
+  // room. It is deliberately NOT allowed to resize anything — the shafts are
+  // built, and a verification that quietly moves the thing it is checking is
+  // not a verification. What it produces is a verdict and, when the two counts
+  // disagree enough to matter, the fact that they do.
+  const scheduled = populationFromSchedule(mass.levels, 1);
+  const verified = liftsFor({
+    typology: p.typology, levels: p.levels, floorH: p.floorH,
+    height: mass.height, gia: giaEst, parti: parti.memes,
+    stops: skipStops(p, parti), population: scheduled,
+    topOccupiedM: mass.levels[mass.levels.length - 1].y,
+  });
+  liftGroup.verified = {
+    population: round2(scheduled * 0.8),
+    designPopulation: round2(scheduled),
+    pctPop: verified.pctPop, interval: verified.interval,
+    pass: verified.pass, governing: verified.governing,
+    wouldNeed: verified.carsTotal,
+    // the honest headline: does the building we drew still work with the lifts
+    // we sized for the building we assumed?
+    short: Math.max(0, verified.carsTotal - liftGroup.carsTotal),
+  };
+
   const b = {
     version: VERSION, params: p, seed: p.seed, typology: p.typology, typologyLabel: T.label,
     site: mass.site, levels: mass.levels, cores, stairs, facades, towers, parti, halls,
+    lifts, liftGroup,
     height: round2(mass.height + (p.plant ? 3.2 : 1.1)),
     roof: { parapet: 1.1, plant: p.plant },
     geometry: null,
   };
   b.stats = statsFor(b);
   return b;
+}
+
+// How many floors the lift actually STOPS at. Normally every one above the
+// terminal; in a skip-stop section only the decks — which is where the round
+// trip gets its saving, and the reason the Unité's section pays for itself in
+// lifts as well as in corridors.
+function skipStops(p, parti) {
+  const every = corridorEvery(parti);
+  if (every <= 1) return null;
+  const base = openGround(parti) ? 1 : 0;
+  let n = 0;
+  for (let i = Math.max(1, base); i < p.levels; i++) if ((i - base) % every === 0) n++;
+  return Math.max(1, n);
 }
 
 function generateSacred(p) {
@@ -1475,6 +1710,15 @@ function generateSacred(p) {
   const b = {
     version: VERSION, params: p, seed: p.seed, typology: 'cathedral', typologyLabel: TYPOLOGIES.cathedral.label,
     site: mass.site, levels: mass.levels, cores: [], stairs, facades, towers, parti, halls: [],
+    // A BASILICA IS ONE VOLUME, so the answer is no lift and the reason for it
+    // — which is a real answer rather than an omission. The campanile is
+    // climbed on its own turret helix; nobody has ever put a lift in one.
+    lifts: [],
+    liftGroup: liftsFor({
+      typology: 'cathedral', levels: 1, floorH: L.h, height: L.h,
+      gia: mass.levels.reduce((s, q) => s + q.wings.reduce((a, w) => a + R.area(w), 0), 0),
+      parti: parti.memes,
+    }),
     height: round2(L.h + geo.rib * 1.6 + 0.5), roof: { parapet: 0.9, plant: false, folded: true },
     geometry: geo,
   };
@@ -1725,6 +1969,33 @@ export function parts(b) {
       if (c.lift) {
         push({ mat: 'core', kind: 'core-wall', x: round2(R.x0(c.lift)), y: cy, z: c.z, w: t, h: ch, d: side, level: L.index });
       }
+    }
+
+    // THE SHAFTS. A lift is a hole, so what is built is the four walls round it
+    // — at EVERY level the shaft passes, not only the ones it opens at. A shaft
+    // that stops being drawn where the doors stop is a shaft with nothing
+    // holding it up, and on a zoned building that is most of its height.
+    for (const lf of (b.lifts || [])) {
+      if (!lf.passes.includes(L.index) || lf.inVoid) continue;
+      const t = 0.2, cy = round2(L.y + L.h / 2), ch = round2(L.h);
+      const opens = lf.opens.includes(L.index);
+      push({ mat: 'core', kind: 'shaft-wall', x: lf.x, y: cy, z: round2(R.z0(lf) + t / 2), w: lf.w, h: ch, d: t, level: L.index, lift: lf.id });
+      if (!opens) {
+        // a floor the car runs past has a wall where its doors would be — which
+        // is what an express run looks like from inside the building
+        push({ mat: 'core', kind: 'shaft-wall', x: lf.x, y: cy, z: round2(R.z1(lf) - t / 2), w: lf.w, h: ch, d: t, level: L.index, lift: lf.id, express: true });
+      }
+    }
+    // and the cars, each parked at a level the seed put it at rather than all
+    // sitting at the ground, because a bank of lifts is never all in one place
+    for (const lf of (b.lifts || [])) {
+      const park = lf.opens[(lf.id * 3 + 1) % lf.opens.length];
+      if (park !== L.index) continue;
+      push({
+        mat: lf.scenic ? 'glass' : 'stair', kind: 'car', lift: lf.id,
+        x: lf.x, y: round2(L.y + 1.1), z: lf.z,
+        w: lf.car.w, h: 2.2, d: lf.car.d, level: L.index,
+      });
     }
 
     // the stairs inside them

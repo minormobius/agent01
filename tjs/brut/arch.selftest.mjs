@@ -742,5 +742,119 @@ const r0 = (v) => Math.round(v * 1000) / 1000;
     'and every level is named by what the parti did to it');
 }
 
+/* ── THE LIFTS REACH THE GROUND TOO ───────────────────────────────────────
+      The stairs already have to tile [0, top] with no gap. A lift has the
+      matching invariant and one more besides: it may only OPEN where there is
+      a floor to open onto, and it must PASS every level between the terminal
+      and the top of its zone — because a shaft drawn only where its doors are
+      is a shaft with nothing holding it up. */
+{
+  let checked = 0, noTerminal = 0, gapped = 0, opensNowhere = 0, outsideCore = 0;
+  let shaftsUnbuilt = 0, strandedLevel = 0;
+  for (const t of TYPOLOGY_IDS.filter((x) => x !== 'cathedral')) {
+    for (const s of SEEDS) {
+      const b = generate(resolveParams({ s, t }));
+      const g = b.liftGroup;
+      ok(g && g.version, `${t}-${s}: the building carries a lift group`);
+      if (!g || !g.needed) continue;
+      checked++;
+
+      // every car that got BUILT is a shaft that exists, and any the plate
+      // refused is reported rather than quietly absent
+      ok(b.lifts.length === g.built,
+        `${t}-${s}: every car the building has is a shaft that exists (${b.lifts.length} of ${g.built})`);
+      ok(g.built + (g.plateShort || 0) === g.carsTotal,
+        `${t}-${s}: built + refused accounts for the whole group`);
+      if (g.plateShort > 0) {
+        ok(!g.pass && g.checks.some((q) => q.id === 'plate' && !q.pass),
+          `${t}-${s}: a plate that cannot hold the group says so`);
+      }
+
+      for (const lf of b.lifts) {
+        // it starts at the terminal, whatever zone it serves
+        if (!lf.passes.includes(0) || !lf.opens.includes(0)) noTerminal++;
+        // and passes every level in between, with no holes
+        for (let i = 1; i < lf.passes.length; i++) if (lf.passes[i] !== lf.passes[i - 1] + 1) gapped++;
+        if (!lf.opens.length) opensNowhere++;
+        // every level it opens at is one it passes, and one that exists
+        for (const k of lf.opens) {
+          if (!lf.passes.includes(k)) strandedLevel++;
+          if (!b.levels[k]) strandedLevel++;
+        }
+        // and it is inside the core it belongs to, unless it is the scenic car
+        const c = b.cores[lf.core];
+        if (c && !lf.inVoid && !R.contains(c, lf, 0.35)) outsideCore++;
+      }
+
+      // EVERY LEVEL A SHAFT PASSES IS A LEVEL IT IS BUILT AT
+      const built = parts(b).filter((q) => q.kind === 'shaft-wall');
+      for (const lf of b.lifts) {
+        if (lf.inVoid) continue;
+        for (const k of lf.passes) {
+          if (!built.some((q) => q.lift === lf.id && q.level === k)) shaftsUnbuilt++;
+        }
+      }
+    }
+  }
+  ok(checked > 20, `the sweep actually sized lift groups (${checked})`);
+  ok(noTerminal === 0, `every lift serves the terminal floor (${noTerminal} that do not)`);
+  ok(gapped === 0, `no shaft skips a level it has to pass through (${gapped} gaps)`);
+  ok(opensNowhere === 0, `no lift opens nowhere (${opensNowhere})`);
+  ok(strandedLevel === 0, `no lift opens at a level that is not there (${strandedLevel})`);
+  ok(outsideCore === 0, `every shaft is inside the core it belongs to (${outsideCore} outside)`);
+  ok(shaftsUnbuilt === 0, `every level a shaft passes is a level it is BUILT at (${shaftsUnbuilt} missing)`);
+}
+
+/* ── AND THE CORE IS SIZED BY THEM, the same way it is sized by the stair.
+      This is the invariant that would rot silently: add a lift and the core
+      does not grow, so the shafts quietly overlap the stair. */
+{
+  let overlapStair = 0, tooSmall = 0, n = 0;
+  for (const t of ['office', 'housing', 'civic', 'lab']) {
+    for (let i = 0; i < 25; i++) {
+      const b = generate(resolveParams({ s: `lift-${i}`, t }));
+      if (!b.liftGroup || !b.liftGroup.needed) continue;
+      n++;
+      for (const lf of b.lifts) {
+        if (lf.inVoid) continue;
+        const c = b.cores[lf.core];
+        if (c && R.overlaps(c.stairBox, lf, 0.05)) overlapStair++;
+        if (lf.w < 1.0 || lf.d < 1.0) tooSmall++;
+      }
+    }
+  }
+  ok(n > 50, `the core-sizing sweep ran (${n} buildings)`);
+  ok(overlapStair === 0, `no shaft is cut through the stair beside it (${overlapStair})`);
+  ok(tooSmall === 0, `and no shaft is squeezed below a car's own dimensions (${tooSmall})`);
+
+  // MORE BUILDING IS NEVER FEWER LIFTS — the monotonicity that says the sizing
+  // is a calculation rather than a lookup
+  const short = generate(resolveParams({ s: 'ladder', t: 'office', n: 6 }));
+  const tall = generate(resolveParams({ s: 'ladder', t: 'office', n: 22 }));
+  ok(tall.liftGroup.carsTotal >= short.liftGroup.carsTotal,
+    `a taller building of the same seed never gets fewer lifts (${short.liftGroup.carsTotal} → ${tall.liftGroup.carsTotal})`);
+  ok(tall.cores.reduce((a, c) => a + c.w * c.d, 0) >= short.cores.reduce((a, c) => a + c.w * c.d, 0),
+    'and the core it needs is never smaller');
+
+  // the two population counts are both reported, and the verification does NOT
+  // resize anything — a check that moves what it is checking is not a check
+  const b2 = generate(resolveParams({ s: 'verify-me', t: 'office' }));
+  ok(b2.liftGroup.verified && b2.liftGroup.verified.designPopulation > 0,
+    'the group is verified against the schedule as well as the area take');
+  ok(b2.lifts.length === b2.liftGroup.built,
+    'and the verification changed no shafts');
+
+  // a single-storey building has no lift and says why
+  const flat = generate(resolveParams({ s: 'flat', t: 'office', n: 1 }));
+  ok(!flat.liftGroup.needed && flat.lifts.length === 0, 'a one-storey building has no lift');
+  ok(/nothing above/.test(flat.liftGroup.reason || ''), 'and the reason is stated rather than implied');
+
+  // TWO storeys does, on access grounds, long before any traffic argument
+  const two = generate(resolveParams({ s: 'two', t: 'housing', n: 2 }));
+  ok(two.liftGroup.needed && two.lifts.length >= 1,
+    'two storeys gets a lift on access grounds, at four storeys below the traffic threshold');
+  ok(!two.liftGroup.traffic, 'and the kernel is honest that traffic is not why');
+}
+
 console.log(`\nbrut/arch: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

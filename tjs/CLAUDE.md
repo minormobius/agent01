@@ -132,14 +132,16 @@ generates anything: both read `brut/arch.js`.
 | `brut/arch.js` | **the kernel** — pure, DOM-free, no three.js. `deriveParams` / `resolveParams` / `paramsToQuery` (the permalink codec), `generate()` (massing → cores → plans → facades), `parts()` (the box list the bench instances), `section()`, `schedule()`, `bounds()`. Runs in node and the browser. |
 | `brut/parti.js` | **the parti** — pure, and it runs FIRST, before the massing. Eight memes (piano nobile, penthouse, great hall, atrium, undercroft, cloister, skip-stop, promenade architecturale), each declaring what it demands of the section (`height`), of the plan (`hall`, `voids`, `rooms`, `openGround`, `every`) and of the ceremony (`feature` — where the stair is, how wide, and which types it is allowed to be). `deriveParti` picks one or two that do not contradict; `heightAt` / `voidsAt` / `hallAt` / `roomScaleAt` / `terraceAt` / `openGround` / `corridorEvery` / `features` are what the rest of the kernel asks it. |
 | `brut/stair.js` | **the stair** — pure solver and typology. `solveFlight` (equal risers, Blondel, pitch), `stairFootprint` (how big a shaft it needs — takes a LIST of storey heights and returns the envelope), `layout` (flights, landings, every tread), `stairParts`, `stairPlan` (the plan symbol), `check`, `chooseStair`. **Twenty types** across three ways of spending the horizontal length: RUN (straight, cantilevered, crossed, amphitheatre, cordonata, alternating-tread), FOLD (dog-leg, open well, quarter turn, winder, three-flight, scissor, imperial, bifurcated, ramp) and TURN (spiral, helical, double helix, triple helix, flying). Four of them do not obey Blondel and say so: a ramp has no risers, seating steps are furniture, a cordonata is ridden, and an alternating tread gives each foot twice the going the plan shows. |
+| `brut/lift.js` | **the lifts** — pure traffic analysis. `probableStops` / `highestReversal` (the two expected-value formulas the whole discipline rests on), `flightTime` (the seven-segment jerk-limited profile), `roundTrip` (CIBSE Guide D's RTT), `service` (interval and handling capacity), `sizeGroup` (the ladder: fewest cars, then smallest car, then zones), `populationFromArea` / `populationFromSchedule`, `check`, `liftsFor`. |
 | `brut/struct.js` | **the engineer** — load takedown off the room schedule, the coupled flexural–shear cantilever + Guyan condensation + Jacobi eigensolve, ASCE 7-16 seismic and wind, ACI 318 member checks, seeded Kanai–Tajimi and Davenport records, Newmark-β. `verify(b, hazard)` returns every check with a margin and the governing one. |
 | `brut/structdraw.js` | the engineer's SVG sheets: verification schedule, design spectrum, storey shear/drift, mode shapes, framing plan by utilisation. |
 | `brut/blueprint.js` | **the drawing office** — pure SVG-string renderers: `planSVG`, `elevationSVG`, `sectionSVG`, `titleBlockSVG`, `scheduleSVG`, `sheetSVG`, `revision`. Takes a building, returns a string; no DOM, no measurement. |
 | `brut/ui.js` | the control panel, URL sync and the **mobile bottom sheet** both pages wear, so neither can invent its own idea of a seed. `mountSheet` MOVES the existing panels into the sheet below the breakpoint — duplicating them is how a control ends up disagreeing with itself. |
 | `brut/index.html` | the 3D bench (three.js, instanced boxes, per-seed formwork texture, x-ray + section modes). |
 | `brut/plan/index.html` | the blueprint set (print CSS, SVG export). |
-| `brut/arch.selftest.mjs` | **run this before touching the kernel**: `node tjs/brut/arch.selftest.mjs` (627 checks, ~20 s). It is also a gate in `deploy-tjs.yml`. |
-| `brut/struct.selftest.mjs` | **run this before touching the solve**: `node tjs/brut/struct.selftest.mjs` (103 checks, ~6 s). Also a deploy gate. |
+| `brut/arch.selftest.mjs` | **run this before touching the kernel**: `node tjs/brut/arch.selftest.mjs` (759 checks, ~25 s). It is also a gate in `deploy-tjs.yml`. |
+| `brut/struct.selftest.mjs` | **run this before touching the solve**: `node tjs/brut/struct.selftest.mjs` (105 checks, ~6 s). Also a deploy gate. |
+| `brut/lift.selftest.mjs` | **run this before touching the traffic kernel**: `node tjs/brut/lift.selftest.mjs` (82 checks, <1 s). Also a deploy gate. Almost every check is against closed form or against an identity, because the failure mode of a probability calculation is a plausible number for the wrong reason. |
 
 **Invariants worth knowing before you edit:**
 
@@ -248,7 +250,55 @@ generates anything: both read `brut/arch.js`.
    height's verdict, which sized a core for a stair that then failed its own
    check three levels up.
 
-22. **Stairs reach the ground by construction.** One stair per shaft per level,
+22. **A LIFT IS A QUEUEING PROBLEM, not a geometry one.** Nothing about it is
+   decided by drawing one: how many there are and how big they are fall out of
+   the round-trip time, and that is a function of population, floors served and
+   car size. The two thresholds are DIFFERENT RULES with different reasons and
+   conflating them is the classic error — ACCESS bites at ONE storey above the
+   entrance (a storey nobody in a wheelchair can reach is a storey they are
+   excluded from), TRAFFIC bites at four. `probableStops` and
+   `highestReversal` are EXPECTED VALUES, not worst cases; sizing on the worst
+   case doubles the shafts and the building pays for them on every floor for
+   sixty years.
+
+23. **The population is who is THERE, not who has a desk.** A plate designed at
+   one person per ten square metres never holds that many at nine in the
+   morning — holidays, meetings elsewhere, illness — so the traffic population
+   is about four fifths of the design population. Using the desk count put two
+   extra shafts through every floor of a 14-storey office.
+
+24. **The lifts are sized BEFORE the core they go in**, off an area take,
+   because that is the order the constraint actually runs — and then VERIFIED
+   after the plan exists, off the room schedule. The two counts are meant to
+   disagree; the gap is what the verification is for. The verification may not
+   resize anything: a check that moves the thing it is checking is not a check.
+
+25. **When the plate will not hold the group, the shafts are CAPPED and the
+   shortfall is a number.** A core hanging off the edge of its own floorplate
+   is nonsense, not a finding; `built` is what the building has, `carsTotal`
+   is what it needs, and the difference is a failing check. This is a real
+   constraint on deep plans: past a certain population the core eats the
+   building it serves.
+
+26. **Do not round what a decision is made on.** `service()` returns the
+   interval and the capacity unrounded, for the same reason a riser is
+   unrounded — two identities hold exactly (twice the cars is half the wait and
+   twice the capacity), and rounding to a reported precision turns a ladder
+   choosing between close candidates into one choosing between rounding errors.
+
+27. **A shaft is drawn at every level it PASSES, not only where it opens.** A
+   shaft that stops being built where its doors stop is a shaft with nothing
+   holding it up, and on a zoned building that is most of its height. The
+   express run and the skip-stop are the same idea in one pair of lists:
+   `passes` and `opens`.
+
+28. **The lift core is also the shear core.** More storeys is more lifts is a
+   bigger core is a stiffer building, so the structural slenderness sweep can
+   no longer assume monotonicity — it measures the core and requires any
+   reversal to be explained by a step in it. That is a stronger claim than the
+   one it replaced.
+
+29. **Stairs reach the ground by construction.** One stair per shaft per level,
    each climbing that level's own height from that level's floor, so the flights
    tile `[0, top]` with no gap. The selftest asserts the tiling closes and that
    an external stair tower stays attached at every level — it used to be placed

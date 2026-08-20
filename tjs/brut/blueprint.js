@@ -215,6 +215,30 @@ export function planSVG(b, levelIndex, opts = {}) {
     if (!hasStair && F.L(c.w) > 26) out.push(label(F.X(c.x), F.Y(c.z) + 3, 'CORE', P, 7, 'middle', P.ink));
   }
 
+  // THE LIFTS. Drawn by the convention every set uses — the shaft outlined, an
+  // X across it, and the car dashed inside — because that mark says two things
+  // at once: this is a hole through the slab, and there is a machine in it. A
+  // shaft the car only PASSES on this level gets the X and no doors, which is
+  // exactly what an express run looks like in plan.
+  for (const lf of (b.lifts || [])) {
+    if (!lf.passes.includes(L.index)) continue;
+    const opens = lf.opens.includes(L.index);
+    const x0 = F.X(R.x0(lf)), x1 = F.X(R.x1(lf));
+    const y0 = F.Y(R.z0(lf)), y1 = F.Y(R.z1(lf));
+    out.push(box(F, lf, `fill="none" stroke="${P.ink}" stroke-width="1.4"`));
+    out.push(`<path d="M${n2(x0)} ${n2(y0)} L${n2(x1)} ${n2(y1)} M${n2(x1)} ${n2(y0)} L${n2(x0)} ${n2(y1)}" stroke="${P.ink}" stroke-width=".7" fill="none" opacity=".75"/>`);
+    out.push(box(F, { x: lf.x, z: lf.z, w: lf.car.w, d: lf.car.d },
+      `fill="none" stroke="${P.ink}" stroke-width=".6" stroke-dasharray="3 2" opacity=".8"`));
+    // the door line, on the levels it actually opens at
+    if (opens) {
+      out.push(`<line x1="${n2(x0 + 3)}" y1="${n2(y1)}" x2="${n2(x1 - 3)}" y2="${n2(y1)}" stroke="${P.accent}" stroke-width="2"/>`);
+    }
+    if (F.L(lf.w) > 24) {
+      out.push(label(F.X(lf.x), F.Y(lf.z) - F.L(lf.d) / 2 - 3,
+        lf.scenic ? 'SCENIC' : lf.firefighting ? 'FF' : `L${lf.id + 1}`, P, 6, 'middle', P.ink));
+    }
+  }
+
   // the stairs inside them — drawn from the same objects the model builds, so
   // a step in the drawing is a step in the building
   for (const st of (b.stairs || [])) {
@@ -533,6 +557,16 @@ function dimV2(F, V, a, b, x, P) {
 
 /* ────────────────────────────  TITLE BLOCK  ─────────────────────────────── */
 
+// The one line a lift group deserves in a title block: what is installed, how
+// fast, and the number a client actually feels — the interval. Capacity is the
+// design criterion; the wait is the experience.
+function liftLine(b) {
+  const g = b.liftGroup;
+  if (!g || !g.needed) return 'none — one storey';
+  const zone = g.zones > 1 ? ` in ${g.zones} zones` : '';
+  return `${g.built} × ${g.car.kg} kg @ ${g.speed} m/s${zone} · ${g.interval.toFixed(0)} s INT`;
+}
+
 export function titleBlockSVG(b, opts = {}) {
   const P = opts.palette || PALETTES.blueprint;
   const W = opts.width || 640, H = opts.height || 250;
@@ -557,6 +591,7 @@ export function titleBlockSVG(b, opts = {}) {
     ['GLAZED', `${S.glazedRatio.toFixed(1)} % of envelope`],
     ['RHYTHM', p.rhythm.map((m) => MODULES[m].label).join(' · ')],
     ['CORES', `${S.cores} core${S.cores === 1 ? '' : 's'} · ${S.towers} tower${S.towers === 1 ? '' : 's'}`],
+    ['LIFTS', liftLine(b)],
     ['REV', revision(b)],
   ];
   out.push(`<rect x="1" y="1" width="${W - 2}" height="${H - 2}" fill="none" stroke="${P.ink}" stroke-width="1.6"/>`);

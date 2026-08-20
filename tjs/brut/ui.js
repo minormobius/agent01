@@ -57,6 +57,10 @@ export function buildPanel(root, params, onChange, opts = {}) {
   // panel is a dimension; this is the reason the dimensions came out that way,
   // and a building whose idea is not stated reads as an accident.
   const partiBox = h('div', { class: 'parti' });
+  // The lifts get their own block for the same reason the parti does: how many
+  // shafts a building has is not a dimension anybody can read off the model,
+  // and it is the number that decides whether the plan works.
+  const liftBox = h('div', { class: 'lifts' });
   const stats = h('div', { class: 'stats' });
   const rhythmRow = h('div', { class: 'rhythm' });
   const systems = h('div', { class: 'systems' });
@@ -85,6 +89,7 @@ export function buildPanel(root, params, onChange, opts = {}) {
   root.appendChild(h('div', { class: 'grp' }, [h('label', { class: 'k' }, 'type'), typeSel]));
   root.appendChild(blurb);
   root.appendChild(partiBox);
+  root.appendChild(liftBox);
   root.appendChild(cross);
   root.appendChild(stats);
   root.appendChild(h('div', { class: 'sec' }, 'facade rhythm'));
@@ -245,6 +250,36 @@ export function buildPanel(root, params, onChange, opts = {}) {
           `${f.label || f.type} — ${f.featureNote || ''}`.trim().replace(/ —\s*$/, '')));
       }
     },
+    // The lift group, quoted from the building rather than recomputed — so a
+    // group the plate refused shows up as refused rather than as a plan.
+    setLifts(g) {
+      liftBox.textContent = '';
+      if (!g || !g.needed) {
+        if (g && g.reason) {
+          liftBox.appendChild(h('div', { class: 'sec' }, 'the lifts'));
+          liftBox.appendChild(h('p', { class: 'blurb pnote' }, `none — ${g.reason}.`));
+        }
+        return;
+      }
+      liftBox.appendChild(h('div', { class: 'sec' }, 'the lifts'));
+      const zone = g.zones > 1 ? ` in ${g.zones} zones` : '';
+      liftBox.appendChild(h('p', { class: 'pname' },
+        `${g.built} × ${g.car.kg} kg at ${g.speed} m/s${zone}`));
+      liftBox.appendChild(h('div', { class: 'ltab' }, [
+        h('div', { class: 'stat' }, [h('b', {}, `${g.interval.toFixed(0)} s`), h('span', {}, 'interval')]),
+        h('div', { class: 'stat' }, [h('b', {}, `${g.pctPop.toFixed(1)} %`), h('span', {}, 'in 5 min')]),
+        h('div', { class: 'stat' }, [h('b', {}, `${Math.round(g.population)}`), h('span', {}, 'people')]),
+      ]));
+      liftBox.appendChild(h('p', { class: 'blurb pnote' },
+        `${g.car.persons} rated, ${g.P} sized · round trip ${g.trip.rtt.toFixed(0)} s over ${g.trip.S.toFixed(1)} expected stops, reversing at floor ${g.trip.H.toFixed(1)}. ${g.criteria.note}`));
+      for (const q of (g.parti || [])) {
+        liftBox.appendChild(h('p', { class: 'blurb pstair' }, q.note));
+      }
+      const bad = (g.checks || []).filter((c) => !c.pass);
+      for (const c of bad) {
+        liftBox.appendChild(h('p', { class: 'blurb lfail' }, `${c.label}: ${c.value} — ${c.note}`));
+      }
+    },
     reload(next) { p = next; paint(); },
   };
 }
@@ -272,6 +307,13 @@ export const PANEL_CSS = `
 .panel .parti .pnote{margin:0 0 6px}
 .panel .parti .pnote:last-child{margin-bottom:0}
 .panel .parti .pstair{margin:6px 0 0;padding-left:9px;border-left:1px solid var(--line);color:var(--accent);opacity:.85}
+.panel .lifts{margin:0 0 10px;padding:8px 10px;border:1px solid var(--line);border-left:2px solid var(--accent);
+  border-radius:0 8px 8px 0;background:#08080f}
+.panel .lifts .sec{margin:0 0 4px}
+.panel .lifts .pnote{margin:6px 0 0}
+.panel .lifts .pstair{margin:6px 0 0;padding-left:9px;border-left:1px solid var(--line);color:var(--accent);opacity:.85}
+.panel .ltab{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:6px 0 0}
+.panel .lfail{margin:6px 0 0;padding-left:9px;border-left:2px solid #e2564a;color:#e2564a;opacity:.9}
 .panel .cross{display:block;margin:0 0 12px;font-size:12px;color:var(--accent);text-decoration:none;
   border:1px dashed var(--accent);border-radius:8px;padding:7px 9px;text-align:center}
 .panel .cross:hover{background:#39d6c81a}
