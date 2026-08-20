@@ -134,6 +134,7 @@ generates anything: both read `brut/arch.js`.
 | `brut/stair.js` | **the stair** — pure solver and typology. `solveFlight` (equal risers, Blondel, pitch), `stairFootprint` (how big a shaft it needs — takes a LIST of storey heights and returns the envelope), `layout` (flights, landings, every tread), `stairParts`, `stairPlan` (the plan symbol), `check`, `chooseStair`. **Twenty types** across three ways of spending the horizontal length: RUN (straight, cantilevered, crossed, amphitheatre, cordonata, alternating-tread), FOLD (dog-leg, open well, quarter turn, winder, three-flight, scissor, imperial, bifurcated, ramp) and TURN (spiral, helical, double helix, triple helix, flying). Four of them do not obey Blondel and say so: a ramp has no risers, seating steps are furniture, a cordonata is ridden, and an alternating tread gives each foot twice the going the plan shows. |
 | `brut/lift.js` | **the lifts** — pure traffic analysis. `probableStops` / `highestReversal` (the two expected-value formulas the whole discipline rests on), `flightTime` (the seven-segment jerk-limited profile), `roundTrip` (CIBSE Guide D's RTT), `service` (interval and handling capacity), `sizeGroup` (the ladder: fewest cars, then smallest car, then zones), `populationFromArea` / `populationFromSchedule`, `check`, `liftsFor`. |
 | `brut/plant.js` | **the botany** — Phase 1 of [`ECOBRUTALISM.md`](brut/ECOBRUTALISM.md). `grow()` (space colonization over an ENVELOPE the architecture supplies), `pipeRadius` (Shinozaki's pipe model, which is simultaneously the shape rule and the structural rule), `dbhFor`/`heightFor`/`crownFor`/`dryMass` (allometry, Chave 2014 for the biomass because the mass IS the load), `dragOn` (Vogel reconfiguration), `SOIL`/`soilFor`/`soilLoad` (the substrate ladder, which runs DOWNWARD from what the slab takes), `plantParts`, `plantPlan`, `check`. |
+| `brut/roller.js` | **the roller, coupled to the solver** — `rollWorkable` (roll → solve → read the GOVERNING check → walk the repair ladder that check names), `REPAIRS` (the ladder itself, a rung per check id, each move saying what it does structurally), `applyMove` (through the codec, never patched onto the object), `scoreOf`, `editsOf`, `census`. |
 | `brut/struct.js` | **the engineer** — load takedown off the room schedule, the coupled flexural–shear cantilever + Guyan condensation + Jacobi eigensolve, ASCE 7-16 seismic and wind, ACI 318 member checks, seeded Kanai–Tajimi and Davenport records, Newmark-β. `verify(b, hazard)` returns every check with a margin and the governing one. |
 | `brut/structdraw.js` | the engineer's SVG sheets: verification schedule, design spectrum, storey shear/drift, mode shapes, framing plan by utilisation. |
 | `brut/blueprint.js` | **the drawing office** — pure SVG-string renderers: `planSVG`, `elevationSVG`, `sectionSVG`, `titleBlockSVG`, `scheduleSVG`, `sheetSVG`, `revision`. Takes a building, returns a string; no DOM, no measurement. |
@@ -143,6 +144,7 @@ generates anything: both read `brut/arch.js`.
 | `brut/arch.selftest.mjs` | **run this before touching the kernel**: `node tjs/brut/arch.selftest.mjs` (759 checks, ~25 s). It is also a gate in `deploy-tjs.yml`. |
 | `brut/struct.selftest.mjs` | **run this before touching the solve**: `node tjs/brut/struct.selftest.mjs` (105 checks, ~6 s). Also a deploy gate. |
 | `brut/plant.selftest.mjs` | **run this before touching the botany**: `node tjs/brut/plant.selftest.mjs` (251 checks, ~3 s). Also a deploy gate. Checks the relations rather than the shape — the pipe model at every fork in every tree, the allometry round-tripped, Chave against a hand-computed case, and the drag against its rigid limit. |
+| `brut/roller.selftest.mjs` | **run this before touching the roller**: `node tjs/brut/roller.selftest.mjs` (183 checks, ~2 s). Also a deploy gate. Mostly honesty checks — a PASS must survive an independent re-solve, a failure must say so, the result must still be a permalink, and every rung must be keyed on an id the solver can actually emit. |
 | `brut/lift.selftest.mjs` | **run this before touching the traffic kernel**: `node tjs/brut/lift.selftest.mjs` (82 checks, <1 s). Also a deploy gate. Almost every check is against closed form or against an identity, because the failure mode of a probability calculation is a plausible number for the wrong reason. |
 
 **Invariants worth knowing before you edit:**
@@ -324,7 +326,37 @@ generates anything: both read `brut/arch.js`.
      worth 40 % of the drag on a mature crown. A bare winter crown is a
      different load case with almost no reconfiguration left in it.
 
-30. **Stairs reach the ground by construction.** One stair per shaft per level,
+30. **THE SOLVER ALREADY EMITTED A GRADIENT AND NOBODY WAS READING IT.**
+   `verify()` does not return a boolean — it returns every check with a
+   utilisation and names the GOVERNING one, which is a direction. About two
+   thirds of bare rolls fail at M7 / cat 3 (`census()` measures it, and the
+   selftest asserts the problem is real so this file cannot quietly become
+   dead weight), and the overwhelming majority fail on core wall shear. So
+   `roller.js` rolls, solves, reads what governs, and walks the repair ladder
+   that check names. Four rules hold it honest:
+
+   - **It must not break the permalink.** A repaired building is still exactly
+     its parameters, and the codec has always carried those — `?s=x&n=12&
+     lat=outrigger` is a link that was legal before any of this existed. The
+     selftest re-opens every rolled link and requires an identical building.
+   - **It must not mark its own homework.** Every PASS is re-verified from the
+     permalink by a fresh solve in the selftest.
+   - **It must not lie.** A search that finds nothing returns the closest thing
+     it found, marked failing, with the governing check attached.
+   - **Workability is not a property of the building.** It is a property of the
+     building AND the hazard — which is why the hazard was always kept out of
+     the seed's permalink. A roll is workable AGAINST A STATED HAZARD, records
+     which, and is allowed to go red when you change the earthquake. The panel
+     says so rather than hiding it.
+
+   Two things the ladder got wrong first time and now does not: it took the
+   FIRST move that improved anything, so an outrigger buying 1.6 % spent the
+   rung that a framed tube would have moved 18 % — it now takes the best move on
+   the rung. And `used` blocked every repeat, but a move that names a VALUE is a
+   no-op twice while a move that names a PROPORTION is a different building each
+   time; compounding the proportional ones is exactly how it converges.
+
+31. **Stairs reach the ground by construction.** One stair per shaft per level,
    each climbing that level's own height from that level's floor, so the flights
    tile `[0, top]` with no gap. The selftest asserts the tiling closes and that
    an external stair tower stays attached at every level — it used to be placed

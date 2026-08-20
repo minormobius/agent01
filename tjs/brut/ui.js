@@ -75,8 +75,77 @@ export function buildPanel(root, params, onChange, opts = {}) {
     setTimeout(() => { linkBtn.textContent = 'copy link'; }, 1600);
   });
 
+  // THE ROLL, COUPLED TO THE SOLVER. A bare roll lands a building the engineer
+  // will reject about two thirds of the time, which made half of every session
+  // a slot machine. With `must stand up` on, the roll is a search: it rolls,
+  // solves, reads the GOVERNING check, and walks the repair ladder that check
+  // names — so what comes back is a building that verifies.
+  //
+  // It stays a toggle rather than becoming the only behaviour, because a
+  // building that fails is half the value of having a solver at all. Watching
+  // core wall shear go red as you add storeys is the thing worth seeing.
+  const workCb = h('input', { type: 'checkbox', checked: '' });
+  const rollNote = h('p', { class: 'blurb rollnote' });
   const rollBtn = h('button', { class: 'primary', title: 'the only unseeded roll on the whole surface' }, 'roll');
-  rollBtn.addEventListener('click', () => { seedInput.value = rollSeed(); setSeed(seedInput.value); });
+  rollBtn.addEventListener('click', () => {
+    if (!workCb.checked || !opts.rollWorkable) {
+      rollNote.textContent = '';
+      seedInput.value = rollSeed();
+      setSeed(seedInput.value);
+      return;
+    }
+    // the search is a few hundred solves' worth of arithmetic on the main
+    // thread, so paint the label before starting rather than after
+    rollBtn.disabled = true;
+    rollBtn.textContent = 'solving…';
+    setTimeout(() => {
+      let res = null;
+      try { res = opts.rollWorkable(rollSeed()); } catch (e) { rollNote.textContent = String(e && e.message || e); }
+      rollBtn.disabled = false;
+      rollBtn.textContent = 'roll';
+      if (!res) return;
+      // NOT setSeed — a repaired building is its parameters, not its seed's own
+      // reading of them, and re-deriving from the seed would throw away the
+      // repair that made it stand up
+      p = res.params;
+      seedInput.value = p.seed;
+      typeSel.value = p.typology;
+      rerender('roll');
+      paintRoll(res);
+    }, 0);
+  });
+
+  function paintRoll(res) {
+    rollNote.textContent = '';
+    const hz = res.hazard || {};
+    const where = `${HAZARD[hz.seismicScenario] || hz.seismicScenario || '?'} · ${HAZARD[hz.windScenario] || hz.windScenario || '?'}`;
+    if (!res.pass) {
+      rollNote.className = 'blurb rollnote bad';
+      rollNote.textContent = `no workable building in ${res.tried} tries against ${where}. ` +
+        `The closest still fails ${(res.governing && (res.governing.name || res.governing.label)) || 'a check'} ` +
+        `at ${res.worst}× — shown as it is, rather than pretended past.`;
+      return;
+    }
+    rollNote.className = 'blurb rollnote';
+    const edits = res.edits && res.edits.length
+      ? ` The seed's own building did not stand up, so ${res.edits.map((e) => `${LABEL[e.key] || e.key} went ${e.from} → ${e.to}`).join(' and ')}.`
+      : ' The seed’s own building stood up unaltered.';
+    rollNote.textContent = `workable against ${where} — ${res.tried} ` +
+      `${res.tried === 1 ? 'try' : 'tries'}, worst check at ${res.worst}×.${edits} ` +
+      `Change the hazard and this can go red again: that is the point, not a bug.`;
+  }
+
+  const HAZARD = {
+    high: 'an M7 quake', moderate: 'a moderate quake', low: 'a mild quake', none: 'no quake',
+    cat3: 'a category 3 hurricane', cat5: 'a category 5 hurricane',
+    gale: 'a gale', calm: 'calm air', storm: 'a storm',
+  };
+
+  const LABEL = {
+    levels: 'storeys', bay: 'the bay', bx: 'bays across', bz: 'bays deep',
+    floorH: 'floor to floor', floor: 'the floor system', lateral: 'the lateral system',
+    massing: 'the massing', shape: 'the plate', tmd: 'the damper',
+  };
 
   const resetBtn = h('button', { class: 'ghost', title: 'back to what the seed itself says' }, 'reset');
   resetBtn.addEventListener('click', () => setSeed(p.seed, p.typology));
@@ -86,6 +155,11 @@ export function buildPanel(root, params, onChange, opts = {}) {
   root.appendChild(h('div', { class: 'grp seedgrp' }, [
     h('label', { class: 'k' }, 'seed'), seedInput, rollBtn,
   ]));
+  if (opts.rollWorkable) {
+    root.appendChild(h('label', { class: 'tog rolltog', title: 'roll until the solver says yes' },
+      [workCb, 'must stand up']));
+    root.appendChild(rollNote);
+  }
   root.appendChild(h('div', { class: 'grp' }, [h('label', { class: 'k' }, 'type'), typeSel]));
   root.appendChild(blurb);
   root.appendChild(partiBox);
@@ -314,6 +388,10 @@ export const PANEL_CSS = `
 .panel .lifts .pstair{margin:6px 0 0;padding-left:9px;border-left:1px solid var(--line);color:var(--accent);opacity:.85}
 .panel .ltab{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:6px 0 0}
 .panel .lfail{margin:6px 0 0;padding-left:9px;border-left:2px solid #e2564a;color:#e2564a;opacity:.9}
+.panel .rolltog{margin:2px 0 0}
+.panel .rollnote{margin:6px 0 10px;padding-left:9px;border-left:2px solid var(--accent);opacity:.9}
+.panel .rollnote:empty{display:none}
+.panel .rollnote.bad{border-left-color:#e2564a;color:#e2564a}
 .panel .cross{display:block;margin:0 0 12px;font-size:12px;color:var(--accent);text-decoration:none;
   border:1px dashed var(--accent);border-radius:8px;padding:7px 9px;text-align:center}
 .panel .cross:hover{background:#39d6c81a}

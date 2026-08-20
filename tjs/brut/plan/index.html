@@ -113,6 +113,7 @@ import { planSVG, elevationSVG, sectionSVG, titleBlockSVG, scheduleSVG, sheetSVG
 import { verify, SEISMIC_SCENARIOS, WIND_SCENARIOS, SITE_CLASSES, EXPOSURES } from '../struct.js';
 import { verificationSVG, storeySVG, modesSVG, spectrumSVG, framingSVG } from '../structdraw.js';
 import { buildPanel, readURL, PANEL_CSS, mountSheet, SHEET_CSS } from '../ui.js';
+import { rollWorkable } from '../roller.js';
 
 const errEl = document.getElementById('err');
 const fail = (e) => { errEl.style.display = 'block'; errEl.textContent = String(e && e.stack || e); console.error(e); };
@@ -249,7 +250,16 @@ let params = readURL();
 const panel = buildPanel(document.getElementById('controls'), params, (p) => {
   params = p;
   try { draw(p); } catch (e) { fail(e); }
-}, { siblingPath: '../', siblingLabel: '↤ open the 3D model of this seed' });
+}, {
+  siblingPath: '../', siblingLabel: '↤ open the 3D model of this seed',
+  // THE ROLLER IS HANDED THE LIVE HAZARD, not a fixed one. Workability is a
+  // property of the building AND the place, so a roll is only meaningful
+  // against the earthquake and the wind currently selected — and changing
+  // them afterwards is allowed to turn the same building red again.
+  rollWorkable: (key) => rollWorkable({
+    rollKey: key, hazard: { ...hazard }, budget: 20, repairs: 5,
+  }),
+});
 
 try { draw(params); } catch (e) { fail(e); }
 

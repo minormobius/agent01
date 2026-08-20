@@ -135,6 +135,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { generate, parts, bounds, Rand, TYPOLOGIES } from './arch.js';
 import { buildPanel, readURL, PANEL_CSS, mountSheet, SHEET_CSS } from './ui.js';
+import { rollWorkable } from './roller.js';
 import {
   verify, lateralModel, modal, newmark, quakeForcing, windForcing,
   groundMotion, gustRecord, wind as windAnalysis,
@@ -691,7 +692,16 @@ let params = readURL();
 const panel = buildPanel(document.getElementById('controls'), params, (p, why) => {
   params = p;
   try { build(p); } catch (e) { fail(e); }
-}, { siblingPath: './plan/', siblingLabel: '↦ open the blueprints for this seed' });
+}, {
+  siblingPath: './plan/', siblingLabel: '↦ open the blueprints for this seed',
+  // THE ROLLER IS HANDED THE LIVE HAZARD, not a fixed one. Workability is a
+  // property of the building AND the place, so a roll is only meaningful
+  // against the earthquake and the wind currently selected — and changing
+  // them afterwards is allowed to turn the same building red again.
+  rollWorkable: (key) => rollWorkable({
+    rollKey: key, hazard: { ...hazard }, budget: 20, repairs: 5,
+  }),
+});
 
 try { build(params); } catch (e) { fail(e); }
 
