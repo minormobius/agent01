@@ -169,5 +169,40 @@ eq(shortName('  Nolana   Krosttyalich '), 'Nolana', 'shortName tolerates loose w
   eq(content.filter((c) => c.type === 'npc' && c.content.figure).length, 16, 'every npc in the rev has a figure line');
 }
 
+// ── scene de-duplication (`avoid`) ───────────────────────────────────────────────────────────
+// A canvass lists every suspect in one screen. With two phrasings per cell, three keepers sharing
+// a dominant domain used to answer identically — the first bench run printed one tail clause three
+// times in a single interrogation. `avoid` makes each keeper take a phrasing (and a tint) nobody
+// else in the scene has used.
+{
+  const scene = npcs.slice(0, 6).map((c) => rollStatBlock(c, { worldSeed: 7, peers: npcs }));
+  // WITHOUT avoid: shapes may repeat.
+  const bare = scene.map((b) => reactionFor(b, 'questioned', null).text.split(' ').slice(1).join(' '));
+  // WITH avoid: they must not.
+  const seen = new Set();
+  const deduped = scene.map((b) => reactionFor(b, 'questioned', null, { avoid: seen }).text.split(' ').slice(1).join(' '));
+  eq(new Set(deduped).size, deduped.length, 'no two keepers in a scene share a phrasing');
+  ok(new Set(bare).size <= new Set(deduped).size, 'de-duplication never makes a scene MORE repetitive');
+  // the tint is de-duplicated too — one string per cast, so it repeats even when cells differ.
+  const TINTS = [/The will decides[^.]*\./, /It passes through[^.]*\./, /They set their feet[^.]*\./,
+                 /The body catches up[^.]*\./, /Nothing about the posture[^.]*\./];
+  const tails = deduped.map((t) => { for (const re of TINTS) { const m = t.match(re); if (m) return m[0]; } return null; }).filter(Boolean);
+  eq(new Set(tails).size, tails.length, 'no tail clause repeats within a scene');
+  // authored still wins, and is never consumed from the avoid pool
+  const A = 'An authored line.';
+  const s2 = new Set();
+  eq(reactionFor(scene[0], 'questioned', { questioned: A }, { avoid: s2 }).source, 'authored', 'avoid does not displace an authored line');
+  eq(s2.size, 0, 'an authored line adds nothing to the scene pool');
+  // determinism holds with avoid, given the same order
+  const runA = scene.map((b) => reactionFor(b, 'grief', null, { avoid: new Set() }).text);
+  const runB = scene.map((b) => reactionFor(b, 'grief', null, { avoid: new Set() }).text);
+  eq(JSON.stringify(runA), JSON.stringify(runB), 'de-duplicated output is deterministic');
+  // resolveReactions threads it through
+  const shared = new Set();
+  resolveReactions(scene[0], null, { avoid: shared });
+  ok(shared.size > 0, 'resolveReactions feeds the scene pool');
+}
+
+
 console.log(`\nstatblock: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

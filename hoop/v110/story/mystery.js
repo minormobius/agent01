@@ -304,10 +304,14 @@ export function weaveMystery(content, m) {
   // "Ondine answers…" has to say WHICH Ondine.
   const castIds = [m.caseGiver.id, ...m.suspects.map((s) => s.id)];
   const scene = castIds.map((id) => byId.get(id)).filter(Boolean);
+  // Lines already spoken in this case. The canvass lists every suspect in one screen, so two
+  // keepers of the same cast would otherwise answer identically — `avoid` makes each take a
+  // phrasing nobody else in the scene has used. Per-case, so worlds still repeat harmlessly.
+  const spoken = new Set();
   const react = (id, slot) => {
     const c = byId.get(id); if (!c) return null;
     const b = rollStatBlock(c, { worldSeed: m.seed, peers: scene });
-    const r = reactionFor(b, slot, (c.content && c.content.reactions) || null);
+    const r = reactionFor(b, slot, (c.content && c.content.reactions) || null, { avoid: spoken });
     return r ? r.text : null;
   };
   // join a reaction onto authored case prose without doubling spaces or losing either.

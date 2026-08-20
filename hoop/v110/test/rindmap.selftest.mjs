@@ -15,7 +15,7 @@
 import { readFileSync } from 'node:fs';
 import {
   RIND_FACTIONS, WITNESS_TARGET, FLOOR_PARAMS,
-  floorQuery, floorSignature, readRindFloor, seatBundles, witnessSites, thresholdState, fetchRindFloor,
+  floorQuery, readRindFloor, seatBundles, witnessSites, thresholdState, fetchRindFloor, PINNED_VERSION,
 } from '../story/rindmap.js';
 
 let pass = 0, fail = 0;
@@ -115,14 +115,16 @@ eq(floor.thin.length, 0, 'no faction route is too thin to carry three witnessing
   eq(thresholdState(floor, { ...done, 'flag.chosen_faction': 'drift' }).chosen, 'drift', 'the choice is reported once made');
 }
 
-// ── the signature (version drift) ────────────────────────────────────────────────────────────
+// ── the pin, and the signature that comes with it ────────────────────────────────────────────
+// foam serves the pinned generator or refuses; hoop never re-derives a layout fingerprint, it
+// stores the one foam sends. A retired pin must fail LOUDLY — falling back to latest would hand
+// every player a different rind and orphan their crystallizations.
 {
-  const sig = floorSignature(doc);
-  ok(/^foam-dungeon:v4:seed11:/.test(sig), `the signature names format, version and seed — ${sig}`);
-  eq(sig, floorSignature(doc), 'the signature is stable');
-  ok(floorSignature({ ...doc, version: 5 }) !== sig, 'a generator version bump changes the signature');
-  ok(floorSignature({ ...doc, generator: { ...doc.generator, seed: 12 } }) !== sig, 'a different seed changes the signature');
-  eq(floorSignature(null), null, 'no document → no signature');
+  eq(PINNED_VERSION, 4, 'hoop is pinned to a specific generator');
+  ok(floorQuery(11).includes('v=4'), 'every request carries the pin');
+  eq(readRindFloor(doc, { worldSeed: 1 }).signature, null, 'a floor read from a saved document has no signature to invent');
+  eq(readRindFloor(doc, { worldSeed: 1, layoutSignature: '0x2d652f63' }).signature, '0x2d652f63',
+     'the signature is foam\'s header, carried through verbatim');
 }
 
 // ── the request ──────────────────────────────────────────────────────────────────────────────
@@ -166,6 +168,23 @@ eq(thresholdState(null, {}).open, false, 'thresholdState of nothing is shut, not
   const rThrow = await fetchRindFloor(11, { fetchImpl: async () => { throw new Error('ECONNREFUSED'); } });
   eq(rThrow.ok, false, 'an unreachable foam degrades rather than throwing');
   ok(/unreachable/.test(rThrow.reason), 'the reason names the outage');
+
+  // THE RETIRED PIN. foam answers 409 naming what it has; we must surface it, never retry unpinned.
+  const r409 = await fetchRindFloor(11, { fetchImpl: async () => ({
+    ok: false, status: 409,
+    json: async () => ({ error: 'cannot serve dungeon version 4', requested: 4, current: 5, available: [5] }),
+  }) });
+  eq(r409.ok, false, 'a retired pin fails rather than silently re-serving');
+  eq(r409.retired, true, 'the retirement is flagged distinctly from an outage');
+  eq(r409.current, 5, 'the current version is reported so a re-survey can be planned');
+  ok(/re-surveyed/.test(r409.reason), 'the reason says what has to happen, not just what broke');
+
+  // the signature rides off the response header
+  const rSig = await fetchRindFloor(11, { fetchImpl: async () => ({
+    ok: true, status: 200, headers: { get: (k) => (k === 'x-layout-signature' ? '0xdeadbeef' : null) },
+    json: async () => doc,
+  }) });
+  eq(rSig.signature, '0xdeadbeef', 'fetchRindFloor carries x-layout-signature onto the floor');
 
   const rJunk = await fetchRindFloor(11, { fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ nope: 1 }) }) });
   eq(rJunk.ok, false, 'a 200 carrying junk still degrades cleanly');

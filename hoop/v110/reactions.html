@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="/v110/">
+<title>Reaction bench — the Tabard</title>
+<meta name="description" content="A test bench for hoopy's twelve-slot reaction tables: roll every nave keeper a stat block, see which reactions are authored and which derive, and watch them spend in the tier-2 murder.">
+<style>
+:root{
+  --bg:#14161a; --panel:#1d2128; --panel2:#161a22; --ink:#e6e9ef; --muted:#8b94a3;
+  --accent:#6ee7b7; --line:#2b313b; --warn:#fbbf24; --info:#7dd3fc; --derived:#b39bd8;
+  --continuant:#7da2d9; --rindwalker:#d99a6c; --drift:#8fd3b0; --neutral:#8b94a3;
+}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 ui-monospace,"SF Mono",Menlo,monospace;background:var(--bg);color:var(--ink)}
+a{color:var(--accent)}
+header{padding:1.1rem 1.6rem;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:1rem;align-items:baseline;justify-content:space-between}
+header h1{margin:0;font-size:1.05rem;letter-spacing:.02em}
+header .sub{color:var(--muted);font-size:.8rem}
+main{max-width:1180px;margin:0 auto;padding:1.5rem;display:grid;gap:2rem}
+.section-title{font-size:.7rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin:0 0 .7rem;font-weight:600}
+
+/* controls */
+.controls{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem 1.2rem;display:grid;gap:.9rem}
+.row{display:flex;flex-wrap:wrap;gap:1.1rem;align-items:center}
+.ctl{display:flex;align-items:center;gap:.5rem;font-size:.82rem;color:var(--muted)}
+.ctl input[type=number]{width:6.5rem}
+.ctl input[type=range]{width:12rem}
+input,select,button{font:inherit;font-size:.82rem;background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:.32rem .55rem}
+button{cursor:pointer}
+button:hover{border-color:var(--accent);color:var(--accent)}
+button.on{border-color:var(--accent);color:var(--accent)}
+.hint{color:var(--muted);font-size:.76rem;line-height:1.5;margin:0}
+.stat{color:var(--muted);font-size:.78rem}
+.stat b{color:var(--ink);font-weight:600}
+
+/* keeper cards */
+.grid{display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(430px,1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.95rem 1.1rem}
+.card-head{display:flex;flex-wrap:wrap;gap:.5rem;align-items:baseline;margin-bottom:.5rem}
+.kname{font-weight:700;color:var(--accent);font-size:.98rem}
+.chip{font-size:.68rem;padding:.1rem .5rem;border-radius:999px;background:#1e2a3a;color:var(--info)}
+.chip.fac{background:transparent;border:1px solid currentColor}
+.room{color:#d8c79a;font-size:.8rem;border-left:2px solid #6a5a36;padding-left:.55rem;margin:.35rem 0}
+.figure{color:var(--ink);font-size:.82rem;margin:.35rem 0}
+.voice{color:var(--muted);font-size:.78rem;font-style:italic;margin:.3rem 0 .5rem}
+.block{display:flex;flex-wrap:wrap;gap:.45rem;margin:.5rem 0;font-size:.72rem;color:var(--muted)}
+.block span{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:.12rem .45rem}
+.triad{display:flex;height:5px;border-radius:3px;overflow:hidden;margin:.5rem 0}
+.triad i{display:block}
+.bond,.omen{font-size:.78rem;margin:.3rem 0}
+.bond{color:var(--info)} .omen{color:var(--warn)}
+
+/* reaction table */
+.rx{margin-top:.7rem;border-top:1px solid var(--line);padding-top:.6rem;display:grid;gap:.3rem}
+.rxrow{display:grid;grid-template-columns:1.05rem 10.5rem 1fr;gap:.5rem;align-items:baseline;font-size:.79rem;padding:.16rem 0}
+.rxrow .slot{color:var(--muted);font-size:.72rem}
+.rxrow .mark{font-size:.62rem;text-align:center}
+.rxrow.authored .mark{color:var(--accent)}
+.rxrow.derived  .mark{color:var(--derived)}
+.rxrow.derived  .txt{color:#c9c3dc}
+.rxrow.myst .slot{color:var(--warn)}
+@media(max-width:620px){.rxrow{grid-template-columns:1.05rem 1fr}.rxrow .slot{grid-column:2}}
+
+/* murder */
+.beat{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:8px;padding:.75rem 1rem;margin-bottom:.7rem}
+.beat h4{margin:0 0 .35rem;font-size:.8rem;color:var(--warn);text-transform:uppercase;letter-spacing:.08em}
+.beat p{margin:.25rem 0;font-size:.85rem}
+.who{color:var(--accent);font-weight:600}
+.note{background:#2a1f14;border:1px solid #5a4527;color:#f0d9a8;border-radius:8px;padding:.7rem .95rem;font-size:.82rem;line-height:1.55}
+.bad{background:#2a1616;border-color:#5a2727;color:#f0b4b4}
+.legend{display:flex;gap:1.2rem;flex-wrap:wrap;font-size:.75rem;color:var(--muted)}
+.legend b{font-weight:600}
+</style>
+</head>
+<body>
+<header>
+  <h1>Reaction bench <span class="sub">— hoopy's twelve slots, wired into the nave</span></h1>
+  <div class="sub" id="src">loading…</div>
+</header>
+
+<main>
+  <section>
+    <div class="controls">
+      <div class="row">
+        <label class="ctl">world seed <input type="number" id="seed" value="7" min="0" step="1"></label>
+        <label class="ctl">authored slots kept
+          <input type="range" id="keep" min="0" max="12" value="12">
+          <b id="keepN" style="color:var(--ink)">12</b>
+        </label>
+        <label class="ctl">zone
+          <select id="zone">
+            <option value="nave">nave (commons + wards)</option>
+            <option value="all">all zones</option>
+            <option value="commons">commons</option>
+            <option value="wards">wards</option>
+          </select>
+        </label>
+        <button id="mystOnly">mystery slots only</button>
+      </div>
+      <p class="hint">
+        <b>The bet this bench exists to settle:</b> hoopy authors twelve reactions per keeper — 37.7% of the
+        prose in the 2026-08 rev. The claim is that two or three are worth his hand and the rest can derive
+        from the keeper's rolled cast. Drag <b>authored slots kept</b> down to simulate a thinner pass and read
+        the result. If the page still reads well at 2–3, the claim holds.
+      </p>
+      <div class="legend">
+        <span><b style="color:var(--accent)">◆</b> authored — hoopy's own line, verbatim</span>
+        <span><b style="color:var(--derived)">◇</b> derived — from the rolled cast</span>
+        <span><b style="color:var(--warn)">slot</b> = spent by the tier-2 murder</span>
+      </div>
+      <div class="stat" id="cov"></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="section-title">The murder — where six of the twelve are actually spent</p>
+    <div id="murder"></div>
+  </section>
+
+  <section>
+    <p class="section-title">The keepers</p>
+    <div class="grid" id="keepers"></div>
+  </section>
+</main>
+
+<script type="module">
+import { importWorldExport, servePool } from './story/import.js';
+import { rollStatBlock, resolveReactions, reactionCoverage, REACTION_SLOTS } from './story/statblock.js';
+import { castSpine, weaveCast } from './story/weave.js';
+import { buildMystery, weaveMystery } from './story/mystery.js';
+
+// The six slots the murder spends (mystery.js). The other six still have no trigger — see the
+// note the bench prints under the murder.
+const MYSTERY_SLOTS = new Set(['grief','questioned','accused','caught_in_a_lie','someone_else_accused','authority_arrives']);
+const NAVE = new Set(['commons','wards']);
+const FAC_COLOR = { continuant:'var(--continuant)', rindwalker:'var(--rindwalker)', drift:'var(--drift)', neutral:'var(--neutral)' };
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+const $ = (id) => document.getElementById(id);
+
+let RAW = null;                       // hoopy's world_export
+const state = { seed: 7, keep: 12, zone: 'nave', mystOnly: false };
+
+// Simulate a THINNER authoring pass: keep only the first `n` slots hoopy wrote, drop the rest so
+// they derive. Mystery slots are kept first — they are the ones the scene actually spends, and the
+// point of the bench is to ask how few of those we can get away with.
+function thin(table, n) {
+  if (!table || n >= REACTION_SLOTS.length) return table || null;
+  if (n <= 0) return null;
+  const order = [...REACTION_SLOTS].sort((a, b) => (MYSTERY_SLOTS.has(b) ? 1 : 0) - (MYSTERY_SLOTS.has(a) ? 1 : 0));
+  const out = {};
+  let kept = 0;
+  for (const s of order) { if (kept >= n) break; if (typeof table[s] === 'string' && table[s].trim()) { out[s] = table[s]; kept++; } }
+  return out;
+}
+
+const zoneOf = (c) => String((c.content && c.content.zone) || '').toLowerCase();
+const facOf  = (c) => String((c.content && (c.content.nave_faction || c.content.faction)) || 'neutral').toLowerCase();
+
+function inZone(c) {
+  const z = zoneOf(c);
+  if (state.zone === 'all') return true;
+  if (state.zone === 'nave') return NAVE.has(z);
+  return z === state.zone;
+}
+
+function triadBar(t) {
+  const p = (x) => (x * 100).toFixed(1) + '%';
+  return `<div class="triad">
+    <i style="width:${p(t.flesh)};background:#cf3b3b"></i>
+    <i style="width:${p(t.chassis)};background:#7fd8d0"></i>
+    <i style="width:${p(t.anima)};background:#b39bd8"></i></div>`;
+}
+
+function renderKeepers(content) {
+  const npcs = content.filter((c) => c.type === 'npc' && inZone(c));
+  const host = $('keepers');
+  if (!npcs.length) { host.innerHTML = '<p class="hint">No keepers in this zone.</p>'; return; }
+
+  host.innerHTML = npcs.map((c) => {
+    const block = rollStatBlock(c, { worldSeed: state.seed, peers: npcs });
+    const table = thin(c.content.reactions, state.keep);
+    const rx = resolveReactions(block, table);
+    const fac = facOf(c), col = FAC_COLOR[fac] || 'var(--neutral)';
+    const slots = REACTION_SLOTS.filter((s) => !state.mystOnly || MYSTERY_SLOTS.has(s));
+
+    return `<div class="card">
+      <div class="card-head">
+        <span class="kname">${esc(c.content.name)}</span>
+        <span class="chip">${esc(block.vocTag)}</span>
+        <span class="chip">${esc(block.cast.label)}</span>
+        <span class="chip fac" style="color:${col}">${esc(fac)}</span>
+      </div>
+      ${c.roomName ? `<div class="room">⌂ ${esc(c.roomName)} · ${esc(c.verb || '—')}</div>` : ''}
+      ${c.content.figure ? `<p class="figure">${esc(c.content.figure)}</p>` : ''}
+      ${c.content.voice ? `<p class="voice">${esc(c.content.voice)}</p>` : ''}
+      ${triadBar(block.triad)}
+      <div class="block">${block.characteristics.map((q) => `<span>${esc(q.label)}</span>`).join('')}</div>
+      ${block.bond ? `<p class="bond">⇄ ${esc(block.bond.text)}</p>` : ''}
+      <p class="omen">✦ ${esc(block.omen)}</p>
+      <div class="rx">${slots.map((s) => {
+        const r = rx[s];
+        return `<div class="rxrow ${r.source}${MYSTERY_SLOTS.has(s) ? ' myst' : ''}">
+          <span class="mark">${r.source === 'authored' ? '◆' : '◇'}</span>
+          <span class="slot">${esc(s)}</span>
+          <span class="txt">${esc(r.text)}</span></div>`;
+      }).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+// The murder needs a load-bearing ward anchor and hoopy's rev has none — that is a finding, not a
+// bug in the bench, so it is stated rather than hidden. These two stand-ins exist only so a case
+// can build over his real keepers; they are exactly what NAVE-CONTENT-BRIEF.md asks him to author.
+function testAnchors() {
+  const mk = (name, room, tier, deck, zone, fac, gates) => ({
+    type: 'room_bundle', revelation_tier: tier, narrative_tier: tier, power_tier: 1, status: 'approved',
+    tags: [zone, fac], content: {
+      name: room, zone, faction: fac, nave_faction: fac, verb: 'serve', description: room,
+      load_bearing: { tier, gates },
+      npc: { name, voice: 'a guide', description: name, dialogue: { start: 'greet', nodes: {
+        greet: { says: 'Well?', choices: [{ id: 't', goto: 'end', text: 'I have seen enough.',
+          requires: { facts: Object.fromEntries(gates.map((g) => [g, true])) },
+          effects: { set_facts: { ['flag.deck.' + deck + '.cleared']: true } } }] } } } },
+      lore: { name: 'a note', description: 'a note' } } });
+  return [
+    mk('Olo Vashti', 'Bay 14 Steps', 1, 'nave', 'commons', 'drift',
+       ['flag.commons.continuant_face','flag.commons.drift_face','flag.commons.rindwalker_face']),
+    mk('Factor Merid Solen', 'The Continuants Hall', 2, 'curve', 'wards', 'continuant',
+       ['flag.ward.continuant_known','flag.ward.drift_known','flag.ward.rindwalker_known']),
+  ];
+}
+
+function renderMurder() {
+  const host = $('murder');
+  // Rebuild the pool with test anchors + the thinned tables, so the case's dialogue carries exactly
+  // what the slider says hoopy wrote.
+  const doc = JSON.parse(JSON.stringify(RAW));
+  for (const r of doc.content_pool.items) {
+    if (r.content && r.content.npc) {
+      const t = thin(r.content.npc.reactions, state.keep);
+      if (t) r.content.npc.reactions = t; else delete r.content.npc.reactions;
+    }
+  }
+  doc.content_pool.items.push(...testAnchors());
+
+  const served = servePool(doc.content_pool.items).map((c) => ({ ...c, approved: true }));
+  const cast = castSpine(served, state.seed);
+  const wc = weaveCast(served, cast, state.seed);
+  const m = buildMystery(wc, cast, state.seed);
+  if (!m) {
+    host.innerHTML = `<div class="note bad"><b>No case at seed ${state.seed}.</b> The rev has only
+      ${doc.content_pool.items.length - 2} bundles and the board needs at least three placeable ward
+      keepers plus an unused bundle to retire as the victim. Try another seed — or read this as the
+      coverage gap it is: the wards are 4 bundles where the bible asks for 6.</div>`;
+    return;
+  }
+  const byId = new Map(weaveMystery(wc, m).map((c) => [c.id, c]));
+  const nodesOf = (id) => (byId.get(id) && byId.get(id).content.dialogue && byId.get(id).content.dialogue.nodes) || {};
+  const mark = (id, slot) => {
+    const c = byId.get(id);
+    const t = c && c.content && c.content.reactions;
+    return (t && typeof t[slot] === 'string' && t[slot].trim()) ? '◆' : '◇';
+  };
+  const beat = (title, body, meta) => `<div class="beat"><h4>${esc(title)}</h4>
+    ${meta ? `<p class="stat">${meta}</p>` : ''}<p>${esc(body)}</p></div>`;
+
+  const ci = m.suspects.findIndex((s) => s.id === m.truth.culpritId);
+  const wrongIdx = m.suspects.findIndex((s) => s.id !== m.truth.culpritId);
+  const cg = nodesOf(m.caseGiver.id), cn = nodesOf(m.truth.culpritId);
+  const press = cn['q_case_w_' + ci + '_press'];
+
+  const canvass = m.suspects.map((s, i) => {
+    const n = nodesOf(s.id)['q_case_w_' + i];
+    if (!n) return '';
+    return `<p><span class="mark" style="color:var(--${mark(s.id,'questioned')==='◆'?'accent':'derived'})">${mark(s.id,'questioned')}</span>
+      <span class="who">${esc(s.name)}</span>${s.id === m.truth.culpritId ? ' <span class="chip">culprit</span>' : ''} — ${esc(n.says)}</p>`;
+  }).join('');
+
+  host.innerHTML = `
+    <div class="note">
+      <b>Victim:</b> ${esc(m.victim.name)} · <b>culprit:</b> ${esc(m.truth.name)} ·
+      <b>board:</b> ${m.suspects.length} suspects · <b>clues:</b> ${m.clues.length}.
+      Two stand-in anchors (Olo, Solen) were injected — <b>the rev has none</b>, so without them no case
+      builds at all. That is the blocker in NAVE-CONTENT-BRIEF.md §2, seen from the inside.
+    </div>
+    ${beat('the case opens — grief', cg.q_case_intro ? cg.q_case_intro.says : '—', `${mark(m.caseGiver.id,'grief')} case-giver ${esc(m.caseGiver.name)}`)}
+    <div class="beat"><h4>the canvass — questioned</h4>${canvass}</div>
+    ${press ? beat('pressing the culprit — caught_in_a_lie', press.says, `${mark(m.truth.culpritId,'caught_in_a_lie')} gated on the naming clue; offered to the culprit alone`) : ''}
+    ${cg['q_case_wrong_' + wrongIdx] ? beat('a wrong name — accused + someone_else_accused', cg['q_case_wrong_' + wrongIdx].says, `you named ${esc(m.suspects[wrongIdx].name)}`) : ''}
+    ${cg.q_case_closed ? beat('the close — authority_arrives', cg.q_case_closed.says, `${mark(m.truth.culpritId,'authority_arrives')} the ward comes for ${esc(m.truth.name)}`) : ''}
+    <p class="hint">The other six slots — <b>shock</b>, <b>bribed</b>, <b>flattered</b>, <b>threatened</b>,
+      <b>the_ship_shudders</b>, <b>asked_for_help_they_cannot_give</b> — have no trigger yet. They want a
+      dialogue hook off <code>adjust_standing</code>'s sign, a world event, and an errand refusal.</p>`;
+}
+
+function renderAll() {
+  const { content } = importWorldExport(RAW);
+  const npcs = content.filter((c) => c.type === 'npc' && inZone(c));
+  const cov = reactionCoverage(npcs.map((c) => ({ ...c, content: { ...c.content, reactions: thin(c.content.reactions, state.keep) } })));
+  $('cov').innerHTML = `<b>${npcs.length}</b> keepers · <b>${cov.authored}</b> authored /
+    <b>${cov.derived}</b> derived of ${cov.slots} slots (<b>${cov.pct}%</b> authored) ·
+    world seed <b>${state.seed}</b>`;
+  renderKeepers(content);
+  try { renderMurder(); }
+  catch (err) { $('murder').innerHTML = `<div class="note bad">The case could not be built: ${esc(err.message)}</div>`; }
+}
+
+function bind() {
+  $('seed').addEventListener('change', (e) => { state.seed = (+e.target.value >>> 0); renderAll(); });
+  $('keep').addEventListener('input', (e) => { state.keep = +e.target.value; $('keepN').textContent = state.keep; renderAll(); });
+  $('zone').addEventListener('change', (e) => { state.zone = e.target.value; renderAll(); });
+  $('mystOnly').addEventListener('click', (e) => {
+    state.mystOnly = !state.mystOnly; e.target.classList.toggle('on', state.mystOnly); renderAll();
+  });
+}
+
+// The rev, as extracted by scripts/extract-content-rev.mjs. `?rev=<url>` swaps in another export so
+// a fresh pass can be benched before it is committed.
+const REV = new URL(location.href).searchParams.get('rev') || 'test/fixtures/content-rev-2026-08.json';
+fetch(REV).then((r) => {
+  if (!r.ok) throw new Error(`${REV} → ${r.status}`);
+  return r.json();
+}).then((doc) => {
+  RAW = doc;
+  const items = (doc.content_pool && doc.content_pool.items) || doc.items || [];
+  $('src').textContent = `${items.length} bundles · ${REV.split('/').pop()}`;
+  bind();
+  renderAll();
+}).catch((err) => {
+  $('src').textContent = 'failed to load';
+  document.querySelector('main').insertAdjacentHTML('afterbegin',
+    `<div class="note bad">Could not load <code>${esc(REV)}</code> — ${esc(err.message)}.
+     Run <code>node hoop/scripts/extract-content-rev.mjs &lt;rev.html&gt; --out hoop/v110/test/fixtures/content-rev-2026-08.json</code>,
+     or pass <code>?rev=&lt;url&gt;</code>.</div>`);
+});
+</script>
+</body>
+</html>

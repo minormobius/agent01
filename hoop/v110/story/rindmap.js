@@ -25,13 +25,22 @@
 // only I/O and is a thin wrapper the surface calls; everything below is a pure read of a document,
 // so it is node-testable against a saved fixture and the geometry stays somebody else's problem.
 //
-// ⚠ VERSION DRIFT IS THE ONE REAL HAZARD. foam's generator is deterministic *under one*
-// `DUNGEON_VERSION`, and a bump legitimately moves layouts (v2 removed flat ground, v3 added
-// trapdoors, v4 added loops). The API stamps the version it used but does NOT accept a requested
-// one, so we cannot pin — we can only record what we were served and detect the change. Every
-// floor carries `version`, and `floorSignature` is what a save should store so a drifted floor is
-// detectable instead of silently relocating a player's crystallizations. Asking foam for a `v=`
-// request parameter is the fix; until then, treat a signature mismatch as a re-survey.
+// VERSION DRIFT — closed. foam's generator is deterministic only *under one* `DUNGEON_VERSION`,
+// and a bump legitimately moves layouts (v2 removed flat ground, v3 added trapdoors, v4 added
+// loops), so an unpinned floor could silently relocate a player's crystallizations. The API now
+// takes `v=`: it serves exactly that generator or refuses with a 409 naming the current and
+// available versions. Geometry is never silently substituted. So hoop PINS (`PINNED_VERSION`),
+// and foam's freeze policy — bumping the version must freeze the outgoing generator as a
+// versioned module and register it — is what keeps a pinned floor stable across their bumps.
+//
+// The failure mode this buys is the one worth having: if v4 is ever retired, our requests fail
+// LOUDLY (409) instead of quietly returning different floors. Treat a 409 as "re-survey the rind",
+// never as "fall back to latest" — falling back is exactly the silent substitution the pin exists
+// to prevent.
+//
+// Responses also carry `x-layout-signature`, a hash of the layout-bearing subset of the document
+// and the same fingerprint foam's CI pins golden signatures against. That is what a save should
+// store; we do not re-derive it.
 //
 // Node-tested: test/rindmap.selftest.mjs.
 
@@ -48,7 +57,10 @@ export const WITNESS_TARGET = 3;
 // yields 3–4-room routes where hex yields 7–15, and a route has to hold three witnessings plus
 // texture; `l` because three separate descents need room to be separate in (foam defaults
 // confluence to `l` for the same reason).
-export const FLOOR_PARAMS = { starts: 3, size: 'l', shape: 'hex', scale: 0.35 };
+// The generator hoop is pinned to. Bump this DELIBERATELY, together with a re-survey: every
+// rind floor in every world moves when it changes.
+export const PINNED_VERSION = 4;
+export const FLOOR_PARAMS = { starts: 3, size: 'l', shape: 'hex', scale: 0.35, v: PINNED_VERSION };
 
 export const floorQuery = (worldSeed, params = {}) => {
   const p = { ...FLOOR_PARAMS, ...params, seed: (worldSeed >>> 0) };
@@ -59,19 +71,14 @@ export const floorQuery = (worldSeed, params = {}) => {
 const isConfluence = (doc) => !!(doc && doc.format === 'foam-dungeon' && doc.confluence
   && Array.isArray(doc.confluence.entrances) && doc.confluence.chamber != null);
 
-// A floor's identity: the generator's own parameters plus the version that produced them. Two
-// documents with the same signature are the same floor; a differing signature means the ground
-// moved under a save. This is the string to persist, not the whole 60 KB document.
-export function floorSignature(doc) {
-  if (!doc) return null;
-  const g = doc.generator || {};
-  return [doc.format, 'v' + (doc.version ?? '?'), 'seed' + (g.seed ?? '?'), 'salt' + (g.salt ?? 0),
-    g.tileShape || '?', g.size || '?', 'starts' + (g.starts ?? 1)].join(':');
-}
-
 // doc → the rind floor hoop plays on. Returns { ok:false, reason } rather than throwing: a floor
 // that cannot be read must degrade to "the rind is not available", never break the surface.
-export function readRindFloor(doc, { worldSeed = 0 } = {}) {
+//
+// `layoutSignature` is foam's `x-layout-signature` response header — the fingerprint to persist
+// and compare. It is deliberately NOT derived from the document here: foam computes it over the
+// layout-bearing subset and pins golden values against it in CI, so re-deriving would invent a
+// second, weaker notion of "the same floor" that could disagree with theirs.
+export function readRindFloor(doc, { worldSeed = 0, layoutSignature = null } = {}) {
   if (!isConfluence(doc)) return { ok: false, reason: 'not a confluence document (need starts=3)' };
   const rooms = new Map((doc.rooms || []).map((r) => [r.id, r]));
   const chamberId = doc.confluence.chamber;
@@ -131,7 +138,7 @@ export function readRindFloor(doc, { worldSeed = 0 } = {}) {
 
   return {
     ok: true,
-    signature: floorSignature(doc),
+    signature: layoutSignature,          // foam's x-layout-signature; null when read from a saved doc
     version: doc.version ?? null,
     seed: (doc.generator || {}).seed ?? null,
     worldSeed,
@@ -217,9 +224,26 @@ export async function fetchRindFloor(worldSeed, { params = {}, fetchImpl = null,
   const url = `${base}?${floorQuery(worldSeed, params)}`;
   try {
     const res = await f(url, signal ? { signal } : undefined);
+    // 409 = OUR PIN IS GONE. foam refuses rather than substituting geometry, naming what it has.
+    // This is a re-survey, never a retry without the pin: falling back to latest would hand every
+    // player a different rind and silently orphan their crystallizations — the exact failure the
+    // pin exists to prevent. Surface it; do not paper over it.
+    if (res && res.status === 409) {
+      const body = await res.json().catch(() => ({}));
+      return {
+        ok: false, retired: true, url,
+        requested: body.requested ?? PINNED_VERSION,
+        current: body.current ?? null,
+        available: body.available || [],
+        reason: `foam no longer carries dungeon v${body.requested ?? PINNED_VERSION}`
+          + (body.available && body.available.length ? ` (has ${body.available.join(', ')})` : '')
+          + ' — the rind must be re-surveyed against a new pin, not silently re-served',
+      };
+    }
     if (!res || !res.ok) return { ok: false, reason: `foam responded ${res ? res.status : '(no response)'}`, url };
     const doc = await res.json();
-    const floor = readRindFloor(doc, { worldSeed });
+    const sig = (res.headers && typeof res.headers.get === 'function') ? res.headers.get('x-layout-signature') : null;
+    const floor = readRindFloor(doc, { worldSeed, layoutSignature: sig });
     return floor.ok ? { ...floor, url, doc } : { ...floor, url };
   } catch (err) {
     return { ok: false, reason: 'foam unreachable: ' + String((err && err.message) || err), url };
@@ -227,6 +251,6 @@ export async function fetchRindFloor(worldSeed, { params = {}, fetchImpl = null,
 }
 
 export default {
-  RIND_FACTIONS, WITNESS_TARGET, FLOOR_PARAMS, FOAM_API,
-  floorQuery, floorSignature, readRindFloor, seatBundles, witnessSites, thresholdState, fetchRindFloor,
+  RIND_FACTIONS, WITNESS_TARGET, FLOOR_PARAMS, FOAM_API, PINNED_VERSION,
+  floorQuery, readRindFloor, seatBundles, witnessSites, thresholdState, fetchRindFloor,
 };

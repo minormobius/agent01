@@ -320,27 +320,61 @@ export function rollStatBlock(item, { worldSeed = 0, peers = null, power = 10 } 
 
 // ── reactions ────────────────────────────────────────────────────────────────────────────────────
 // One slot. `authored` is hoopy's table (may be partial or absent). Authored always wins.
-export function reactionFor(block, slot, authored = null) {
+// `avoid` is a Set of lines already spoken IN THIS SCENE. Repetition across a world is fine —
+// nobody compares two keepers a week apart — but a murder canvass lists six suspects one after
+// another, and with two phrasings per cell the pigeonhole guarantees collisions: the first bench
+// run printed "The will decides, and the machine complies" three times in one interrogation.
+// So a caller rendering a group passes an accumulating set and each keeper takes a line nobody
+// else in the scene has used. Deterministic: the order is the caller's, not chance.
+export function reactionFor(block, slot, authored = null, { avoid = null } = {}) {
   if (!block || !SLOT_SET.has(slot)) return null;
   const written = authored && typeof authored[slot] === 'string' ? authored[slot].trim() : '';
   if (written) return { slot, text: written, source: 'authored' };
 
   const dom = block.cast && block.cast.dominant;
   const variants = (CELLS[dom] || CELLS.chassis)[slot];
-  const cell = variants[hash32('variant', block.n, slot) % variants.length];
   const vars = { name: block.short || block.name, ...block.props };
   const tint = CAST_TINT[block.cast && block.cast.key];
+  const base = hash32('variant', block.n, slot);
   // The tint is a tail clause, so it only lands where it won't crowd the line. Seeded, not random.
-  const withTint = tint && (hash32('tint', block.n, slot) % 3 === 0);
-  const text = fill(cell, vars) + (withTint ? ' ' + tint : '');
+  const wantTint = !!tint && (hash32('tint', block.n, slot) % 3 === 0);
+
+  // Candidates in preference order: the keeper's own phrasing first, then the other variants, then
+  // the same set with the tint flipped — two independent axes, so a scene of six still separates.
+  //
+  // The avoid KEY is the phrasing (slot + which variant + whether the tint is on), never the filled
+  // text: the keeper's name is inside the line, so two different people can never produce an
+  // identical string and de-duplicating on the string would silently do nothing. It is the SHAPE
+  // that reads as boilerplate when it repeats, not the wording.
+  const candidates = [];
+  for (const t of [wantTint, !wantTint]) {
+    for (let k = 0; k < variants.length; k++) {
+      const idx = (base + k) % variants.length;
+      candidates.push({ key: `${slot}|${dom}|${idx}|${t ? 1 : 0}`, cell: variants[idx], tinted: t });
+    }
+  }
+  // Two passes when de-duplicating: an unused phrasing whose TINT is also unused, then any unused
+  // phrasing. The tint is one string per cast, so three keepers of a cast would otherwise repeat
+  // the same tail clause even with distinct cells — and a tail clause repeating is what reads as
+  // machine-written. Dropping the tint costs nothing; the cell still carries the character.
+  const tintKey = (c) => (c.tinted && tint ? 'tint|' + tint : null);
+  const free = (c) => !avoid.has(c.key);
+  const pick = (avoid
+    ? (candidates.find((c) => free(c) && !avoid.has(tintKey(c) || ' ')) || candidates.find(free))
+    : null) || candidates[0];
+  if (avoid) {
+    avoid.add(pick.key);
+    const tk = tintKey(pick); if (tk) avoid.add(tk);
+  }
+  const text = fill(pick.cell, vars) + (pick.tinted && tint ? ' ' + tint : '');
   return { slot, text, source: 'derived', cast: block.cast && block.cast.key, dominant: dom };
 }
 
 // The whole table: every slot filled, authored where hoopy wrote one, derived where he didn't.
-export function resolveReactions(block, authored = null) {
+export function resolveReactions(block, authored = null, { avoid = null } = {}) {
   const out = {};
   for (const slot of REACTION_SLOTS) {
-    const r = reactionFor(block, slot, authored);
+    const r = reactionFor(block, slot, authored, { avoid });
     if (r) out[slot] = r;
   }
   return out;
