@@ -100,6 +100,15 @@ pub fn pct(n: usize, d: usize) -> String {
     format!("{:>5.1}%", n as f64 * 100.0 / d as f64)
 }
 
+/// `n / d` as a whole-number percentage, for banding.
+///
+/// Written with `d.max(1)` rather than a zero check so there is no
+/// check-then-divide for a reader — or a future clippy — to worry about. An
+/// empty population reports 0%, which is the honest answer.
+pub fn rate(n: usize, d: usize) -> i32 {
+    (n * 100 / d.max(1)) as i32
+}
+
 pub fn bar(n: usize, of: usize, width: usize) -> String {
     if of == 0 {
         return " ".repeat(width);
@@ -493,6 +502,13 @@ mod tests {
         assert_eq!(quantile(&[], 500), 0);
         assert_eq!(pct(1, 0).trim(), "—");
         assert_eq!(bar(1, 0, 4).len(), 4);
+    }
+
+    #[test]
+    fn rate_handles_an_empty_population() {
+        assert_eq!(rate(1, 2), 50);
+        assert_eq!(rate(0, 0), 0);
+        assert_eq!(rate(3, 3), 100);
     }
 
     #[test]

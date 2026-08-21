@@ -288,19 +288,16 @@ fn sweep(levels: u32, seeds: u32) -> ExitCode {
         committing,
         waves_total,
         lab::pct(committing, waves_total),
-        lab::classify(
-            (committing * 100 / waves_total.max(1)) as i32,
-            lab::BANDS_RATE
-        )
+        lab::classify(lab::rate(committing, waves_total), lab::BANDS_RATE)
     );
     if commit_wanted > 0 {
-        let rate = commit_got * 100 / commit_wanted;
+        let rate = lab::rate(commit_got, commit_wanted);
         println!(
             "  where it was asked {} of {} ({}) — {}",
             commit_got,
             commit_wanted,
             lab::pct(commit_got, commit_wanted),
-            lab::classify(rate as i32, lab::BANDS_RATE)
+            lab::classify(rate, lab::BANDS_RATE)
         );
         if rate < 60 {
             warn.add(format!(

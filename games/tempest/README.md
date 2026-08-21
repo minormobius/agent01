@@ -133,7 +133,7 @@ cargo test -- --ignored          # the whole difficulty curve, every lane (minut
 cargo run --release --bin tempest -- level 42 7     # one level and its certificates
 cargo run --release --bin tempest -- solve 42 7     # the certified play, shot by shot
 cargo run --release --bin tempest -- sweep 12 4     # THE BALANCE REPORT (~12 min)
-cargo run --release --bin tempest -- audit          # re-derive every promise in the pack
+cargo run --release --bin tempest -- audit          # regenerate the pack and re-prove every wave
 cargo run --release --bin tempest -- pack   > ../levels.json
 cargo run --release --bin tempest -- golden > ../test/golden.json
 ```
@@ -207,6 +207,11 @@ cargo run --release --bin tempest -- pack   > ../levels.json
 cargo test                                                  # now the goldens match again
 node ../test/tempest.selftest.mjs
 ```
+
+`audit` regenerates the pack from its seeds and re-proves it, so it checks the
+*generator*; the node selftest checks the *committed* `levels.json` and the
+wasm. Neither alone would catch a hand-edited pack — so do not hand-edit the
+pack.
 
 `SEED_EPOCH` in `core/src/lib.rs` guards the other direction: bump it when a
 change alters what a seed *means*, and a stale `levels.json` next to a fresh
