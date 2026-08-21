@@ -15,7 +15,7 @@ Multiplayer party games for Bluesky, with real-time rooms orchestrated by Durabl
 | Dir | `games/` |
 | Endpoint | `games.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/zombie-horde-defense-game-trsujp` |
+| Owning branch | `claude/tempest-procgen-game-vwj0f1` |
 | Deploy | `.github/workflows/deploy-games.yml` |
 | Uses | `auth.mino.mobi` |
 | Provides | — |
@@ -60,16 +60,37 @@ Three things live here:
   scroll back through. Its `rest` action is the one move that could have made
   the state graph cyclic; the selftest walks ~22k reachable states to prove it
   did not. See [`outbound/README.md`](outbound/README.md).
+- **Tempest at `/tempest/`** — a Tempest whose levels are *proved before they
+  ship*. Sixth in the family and the first written in **Rust**: the engine,
+  the exact solver and the generator live in
+  [`tempest/core/`](tempest/core/) and compile to a committed 64 KB
+  `tempest.wasm`. Every wave in `levels.json` carries a certificate — a play
+  that holds the rim, from **every lane** the previous wave could have left you
+  in — and the difficulty curve is a band on a measured quantity (ticks of
+  slack), not a set of knobs. Its readout is the family's newest shape of
+  correctness: a *direction*, priced in ticks. See
+  [`tempest/README.md`](tempest/README.md).
 - **Pressure at `/pressure/`** — the hub for the whole family: the thesis behind
   them, what each one can measure about a decision, and briefs for the two still
   unbuilt. A single hand-written page. Start here before adding another game
   to this family: [`pressure/README.md`](pressure/README.md).
 
-`/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`
-and `/pressure/` are all **pure
+`/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`,
+`/tempest/` and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
+
+`/tempest/` is static in the same sense, with one wrinkle worth knowing before
+you touch it: its engine is **Rust compiled to wasm and committed**, not built
+at deploy time. That keeps `deploy-games.yml` free of a Rust toolchain — the
+deploy stays a `wrangler deploy` and nothing else — at the cost of the artefact
+being able to drift from its source. `tempest/test/golden.json` closes that:
+`cargo test` asserts the Rust reproduces it and the node selftest asserts the
+committed wasm does. Rebuild instructions are in
+[`tempest/README.md`](tempest/README.md#why-the-wasm-is-committed); the Rust
+side also has its own CI at `.github/workflows/tempest-core.yml`, which
+deploys nothing.
 
 ### Testing the static sub-games
 
@@ -88,7 +109,20 @@ node games/switchboard/test/analysis.mjs 40      # shortfall-from-perfect report
 node games/outbound/test/outbound.selftest.mjs   # invariants; preflight runs this
 node games/outbound/test/analysis.mjs 25         # difficulty + foresight report
 node games/outbound/test/sweep.mjs 12            # parameter sweep — slow (~15 min)
+node games/tempest/test/tempest.selftest.mjs      # invariants + the wasm drift gate; preflight runs this
 node games/gen/test/smoke.mjs                    # Ludographer coherence sweep
+```
+
+Tempest's analysis lives in its Rust crate rather than in a `.mjs`, because the
+solver it reports on is the same code the game runs:
+
+```bash
+cd games/tempest/core
+cargo test                                    # ~90 invariants, ~20s
+cargo test -- --ignored                       # the whole curve, every lane — minutes
+cargo run --release --bin tempest -- sweep 12 4   # THE BALANCE REPORT (~12 min)
+cargo run --release --bin tempest -- audit        # re-derive every promise in the pack
+cargo run --release --bin tempest -- level 42 7   # one level and its certificates
 ```
 
 The analysis reports are built on
@@ -106,15 +140,21 @@ sweep showed.
 `preflight` picks up `*.selftest.mjs` under any directory this branch touched,
 so a change under `games/` runs every one of these selftests automatically. The reports
 are *measurements*, not pass/fail — read each after moving any number in that
-game's config or generator. They take a minute or so; none of them run in CI.
+game's config or generator. They take a minute or so.
+
+The reports do not run in CI. The **selftests** do, via preflight — and
+Tempest's is the one that matters most there, because it is the only thing
+standing between a stale `tempest.wasm` and a site that silently plays a
+different game from the one its certificates describe.
 
 ## Deploying
 
-Pushes to `claude/zombie-horde-defense-game-trsujp` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-games.yml`](../.github/workflows/deploy-games.yml).
+Pushes to `claude/tempest-procgen-game-vwj0f1` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-games.yml`](../.github/workflows/deploy-games.yml).
 
 Ownership moved here from `claude/procedural-board-games-iFAiZ` when /horde/ was
-added — a surface has exactly one owning branch plus `main`, so whichever branch
-is actively shipping this surface holds it. Change it in
+added, and again to `claude/tempest-procgen-game-vwj0f1` when /tempest/ was — a
+surface has exactly one owning branch plus `main`, so whichever branch is
+actively shipping this surface holds it. Change it in
 [`deploy-registry.json`](../deploy-registry.json), never in the YAML, then
 `node scripts/preflight.mjs --fix` to rewrite the trigger.
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.

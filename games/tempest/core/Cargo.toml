@@ -1,0 +1,26 @@
+[package]
+name = "tempest"
+version = "0.1.0"
+edition = "2021"
+description = "A headless, exactly-solvable Tempest: procedural webs whose geometry is the difficulty."
+publish = false
+
+# rlib for the CLI + tests, cdylib for the wasm32 artifact the site ships.
+[lib]
+name = "tempest"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "tempest"
+path = "src/bin/tempest.rs"
+
+# No dependencies. Same house rule as packages/: nothing to audit, nothing to
+# pin, and the wasm stays small enough to commit.
+[dependencies]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

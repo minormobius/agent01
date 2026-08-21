@@ -1,0 +1,242 @@
+/* tempest.css — a vector arcade cabinet, committed to the dark.
+   No build step, no framework: one stylesheet, custom properties at the top. */
+
+:root {
+  --bg: #04070d;
+  --ink: #cfe9f5;
+  --dim: #6f93a6;
+  --rim: #39d0ff;
+  --hot: #ffd23f;
+  --bad: #ff4d6d;
+  --good: #8bd450;
+  --panel: rgba(6, 16, 26, 0.92);
+  --line: rgba(57, 208, 255, 0.24);
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font: 500 15px/1.5 var(--mono);
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  /* The web is the thing; nothing else should ever scroll it off screen. */
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------------ hud -- */
+
+.hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+
+.hud-left, .hud-right { display: flex; align-items: center; gap: 14px; }
+.hud-left span { color: var(--dim); }
+#hud-level { color: var(--rim); }
+.lives { color: var(--hot); letter-spacing: 2px; }
+
+/* The signature numbers, always visible. The full panel is behind P, but a
+   game whose whole point is a measurement should not hide the measurement. */
+.cert-strip {
+  color: var(--dim) !important;
+  border-left: 1px solid var(--line);
+  padding-left: 12px;
+  white-space: nowrap;
+}
+.cert-strip b { color: var(--hot); font-weight: 600; }
+.cert-strip .decides { color: var(--rim); }
+@media (max-width: 720px) { .cert-strip { display: none; } }
+.score { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+.hud button {
+  font: inherit;
+  font-size: 12px;
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 12px;
+  cursor: pointer;
+}
+.hud button:hover { color: var(--ink); border-color: var(--rim); }
+.hud button[aria-pressed="true"] { color: var(--bg); background: var(--rim); border-color: var(--rim); }
+
+/* ---------------------------------------------------------------- stage -- */
+
+.frame { position: relative; min-height: 0; }
+
+#stage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.oracle {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  border: 1px solid currentColor;
+  background: var(--panel);
+  pointer-events: none;
+}
+.oracle[data-state="live"] { color: var(--good); }
+.oracle[data-state="lost"] { color: var(--bad); }
+
+/* ---------------------------------------------------------------- proof -- */
+
+.proof {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: min(330px, calc(100% - 24px));
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 12.5px;
+  display: none;
+}
+.proof.open { display: block; }
+
+.proof h2 {
+  margin: 0 0 2px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--rim);
+}
+.web-name { margin: 0 0 12px; color: var(--dim); }
+.proof dl { margin: 0; }
+.proof dl > div { margin-bottom: 12px; }
+.proof dt {
+  color: var(--dim);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+}
+.proof dd { margin: 2px 0 0; font-size: 15px; }
+.proof dd b { color: var(--hot); font-size: 20px; }
+.note { margin: 3px 0 0; color: var(--dim); font-size: 11px; line-height: 1.45; }
+.fine { opacity: 0.8; }
+
+.openings { display: flex; gap: 10px; flex-wrap: wrap; }
+.op {
+  font-size: 11.5px;
+  color: var(--dim);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+.op b { color: var(--rim); font-size: 13px; }
+.op.dead { border-color: rgba(255, 77, 109, 0.4); }
+.op.dead b { color: var(--bad); }
+
+.verdict-line {
+  margin: 12px 0 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  color: var(--dim);
+}
+.verdict-line.hot { color: var(--hot); }
+
+/* ----------------------------------------------------------- touch pads -- */
+
+.pads { position: absolute; inset: 0; display: none; }
+.pad { position: absolute; bottom: 0; top: 0; }
+.pad-l { left: 0; width: 33%; }
+.pad-r { right: 0; width: 33%; }
+.pad-f { left: 33%; width: 34%; }
+
+@media (pointer: coarse) {
+  .pads { display: block; }
+}
+
+/* -------------------------------------------------------------- overlay -- */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at center, rgba(4, 7, 13, 0.72), rgba(4, 7, 13, 0.94));
+  padding: 20px;
+}
+body[data-phase="playing"] .overlay { display: none; }
+
+.card {
+  max-width: 46ch;
+  text-align: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 26px 28px;
+}
+.card h1 {
+  margin: 0 0 10px;
+  font-size: 26px;
+  letter-spacing: 0.18em;
+  text-transform: lowercase;
+  color: var(--rim);
+}
+.card p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.6; color: var(--ink); }
+.card b { color: var(--hot); }
+.card .verdict {
+  color: var(--bad);
+  border-left: 2px solid var(--bad);
+  padding-left: 12px;
+  text-align: left;
+}
+.cta {
+  margin: 16px 0 0 !important;
+  color: var(--dim) !important;
+  font-size: 12px !important;
+  letter-spacing: 0.1em;
+}
+body[data-phase="error"] .cta { display: none; }
+
+/* ----------------------------------------------------------------- foot -- */
+
+.foot {
+  padding: 8px 14px calc(8px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  font-size: 11.5px;
+  color: var(--dim);
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.foot a { color: var(--dim); }
+.foot a:hover { color: var(--rim); }
+
+@media (max-width: 620px) {
+  .hud { font-size: 11.5px; gap: 8px; padding: 8px 10px; }
+  .hud-left, .hud-right { gap: 9px; }
+  .proof { top: 8px; right: 8px; font-size: 12px; }
+  .foot { font-size: 10.5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}

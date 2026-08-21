@@ -556,12 +556,12 @@
       "dir": "games",
       "endpoint": "games.mino.mobi",
       "type": "frontend",
-      "branch": "claude/zombie-horde-defense-game-trsujp",
+      "branch": "claude/tempest-procgen-game-vwj0f1",
       "uses": [
         "auth.mino.mobi"
       ],
       "provides": null,
-      "note": "Multiplayer party games for Bluesky, with real-time rooms orchestrated by Durable Objects. (full description: games/CLAUDE.md)",
+      "note": "Multiplayer party games for Bluesky, with real-time rooms orchestrated by Durable Objects. Also home to the /pressure/ family of single-player decision games — newest is /tempest/, whose Rust core proves every procedural wave holdable before it ships. (full description: games/CLAUDE.md)",
       "paths": [
         "games/**",
         "packages/oauth-client/**"

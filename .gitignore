@@ -52,3 +52,8 @@ packages/homunculus/log/
 # Recovery-pass transcripts: force-added onto feature branches by the snippet,
 # collected at merge time, and asserted absent before the repo goes public.
 homunculus/inbox/
+
+# games/tempest — Rust build artefacts. tempest.wasm is built from core/ and
+# committed on purpose (the games surface has no build step on its deploy
+# path); the target dir is not.
+games/tempest/core/target/

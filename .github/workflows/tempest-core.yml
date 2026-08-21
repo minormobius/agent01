@@ -1,0 +1,77 @@
+name: Tempest core (Rust)
+
+# The /tempest/ engine is Rust compiled to wasm and *committed* — the games
+# surface deploys as static files with no build step, and that is worth
+# keeping. The cost is that the artefact can drift from its source, so two
+# checks run here and they close the loop between them:
+#
+#   * `cargo test` asserts the Rust still reproduces games/tempest/test/golden.json
+#   * the node selftest asserts the committed games/tempest/tempest.wasm does too
+#
+# Edit the Rust without rebuilding the wasm and the second fails; rebuild
+# without regenerating the goldens and the first fails.
+#
+# This does NOT deploy anything. Deploying the surface is deploy-games.yml's
+# job, and it stays free of a Rust toolchain on purpose.
+
+on:
+  push:
+    branches:
+      - 'claude/tempest-procgen-game-vwj0f1'
+    paths:
+      - 'games/tempest/**'
+      - '.github/workflows/tempest-core.yml'
+  pull_request:
+    paths:
+      - 'games/tempest/**'
+  workflow_dispatch:
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: games/tempest/core
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          rustup default stable
+          rustup target add wasm32-unknown-unknown
+          rustc --version
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            games/tempest/core/target
+          key: tempest-${{ runner.os }}-${{ hashFiles('games/tempest/core/src/**', 'games/tempest/core/Cargo.toml') }}
+          restore-keys: tempest-${{ runner.os }}-
+
+      - name: Format
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Tests
+        # Includes `the_committed_goldens_match_the_source`, which is half the
+        # drift gate.
+        run: cargo test --release
+
+      - name: The wasm still builds
+        run: cargo build --release --target wasm32-unknown-unknown --lib
+
+      - name: Committed wasm matches the goldens
+        working-directory: .
+        run: node games/tempest/test/tempest.selftest.mjs
+
+      - name: Certified levels re-derive from scratch
+        # Every wave in the shipped pack, re-proved holdable from every lane.
+        # This is the claim the game makes on its own front page, so it is
+        # worth the few minutes.
+        run: cargo run --release --bin tempest -- audit

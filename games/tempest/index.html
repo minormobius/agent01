@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tempest — mino.mobi</title>
+<meta name="description" content="A Tempest whose procedural levels are proved holdable before they ship, and which can tell you the exact tick your run was lost and which way round you should have gone.">
+<meta name="theme-color" content="#04070d">
+<meta property="og:title" content="Tempest — every level proved before it ships">
+<meta property="og:description" content="Procedural webs whose geometry is the difficulty, an exact solver behind every wave, and an autopsy that names the moment you lost.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2304070d'/%3E%3Cpath d='M16 3 29 13 24 29 8 29 3 13Z' fill='none' stroke='%2339d0ff' stroke-width='2'/%3E%3Cpath d='M16 12 21 16 19 22 13 22 11 16Z' fill='none' stroke='%2312455a' stroke-width='1.5'/%3E%3Cpath d='M11 27 13 24 16 26 19 24 21 27' fill='none' stroke='%23ffd23f' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="./css/tempest.css">
+</head>
+<body data-phase="loading">
+
+<header class="hud">
+  <div class="hud-left">
+    <span id="hud-level">level —</span>
+    <span id="hud-wave">wave —</span>
+    <span id="hud-lives" class="lives">▮▮▮</span>
+    <span class="cert-strip" id="hud-cert" title="What the solver proved about this wave before it shipped (press P for the rest)">—</span>
+  </div>
+  <div class="hud-right">
+    <span class="score" id="hud-score">0</span>
+    <button id="oracle-toggle" type="button" aria-pressed="false" title="Ask the solver, twice a second, whether this run is still winnable (O)">oracle</button>
+    <button id="proof-toggle" type="button" title="Show what was proved about this wave (P)">proof</button>
+  </div>
+</header>
+
+<main class="frame">
+  <canvas id="stage" aria-label="The web. Enemies climb the lanes toward the rim you are standing on."></canvas>
+
+  <div id="oracle-light" class="oracle" hidden data-state="live">still holdable</div>
+
+  <aside id="proof" class="proof">
+    <h2>what was proved</h2>
+    <p class="web-name" id="web-name">—</p>
+    <dl>
+      <div>
+        <dt>slack</dt>
+        <dd><b id="cert-slack">—</b> ticks</dd>
+        <p class="note">How much room perfect play has. Zero would mean only a frame-perfect line survives.</p>
+      </div>
+      <div>
+        <dt>the wrong way round costs</dt>
+        <dd><b id="cert-cost">—</b> ticks</dd>
+        <p class="note">The difference between the two ways round the web. This is the number the whole game is built to produce.</p>
+      </div>
+      <div>
+        <dt>openings</dt>
+        <dd class="openings" id="cert-openings">—</dd>
+        <p class="note">Slack remaining if you commit that way for your first shot. ✕ means that opening loses outright.</p>
+      </div>
+    </dl>
+    <p class="verdict-line" id="cert-verdict">—</p>
+    <p class="note fine">Every wave in this pack was proved holdable from <em>every</em> lane you could be standing in when it starts — so a wave you just lost was winnable from exactly where you were.</p>
+  </aside>
+
+  <div class="pads" aria-hidden="true">
+    <div id="pad-left" class="pad pad-l"></div>
+    <div id="pad-fire" class="pad pad-f"></div>
+    <div id="pad-right" class="pad pad-r"></div>
+  </div>
+
+  <div class="overlay">
+    <div class="card">
+      <h1 id="overlay-title">tempest</h1>
+      <div id="overlay-body"></div>
+      <p class="cta" id="overlay-action">press space</p>
+    </div>
+  </div>
+</main>
+
+<footer class="foot">
+  <a href="/pressure/">the pressure family</a> ·
+  <a href="https://github.com/minormobius/agent01/tree/main/games/tempest">how it works</a> ·
+  <span>mino.mobi</span>
+</footer>
+
+<script src="./js/engine.js"></script>
+<script src="./js/render.js"></script>
+<script src="./js/game.js"></script>
+</body>
+</html>
