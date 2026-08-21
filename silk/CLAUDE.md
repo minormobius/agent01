@@ -59,9 +59,12 @@ silk/
     render.mjs          canvas drawing; knows nothing about weaving
     app.mjs             the page; knows nothing about weaving either
   word/                 THE LEXICON WEB — /word/, a second, unrelated web
-    build.mjs           CAR → data.json: tokenise, cluster, lay out
-    car.mjs             90-line CAR v1 + DAG-CBOR reader, no dependencies
-    data.json           the built artefact (1.1 MB), committed
+    engine.mjs          THE PIPELINE. Pure: no fs, no DOM, no network
+    car.mjs             CAR v1 + DAG-CBOR reader, DataView, no dependencies
+    stopwords.mjs       GENERATED from rite/lexicon — do not hand-edit
+    build.mjs           node CLI: fetch/read a CAR → engine → data.json
+    analyze.worker.js   Web Worker: the same engine, on a visitor's handle
+    data.json           the prebuilt example (1.1 MB), committed
     index.html app.mjs lexicon.css
   test/
     fabric.selftest.mjs  32 checks — geometry, tension-only, splitting, chains
@@ -80,9 +83,27 @@ like?* 39,554 word types from 49,919 posts, placed by topic (angle), rank
 (radius) and date (colour). It shares nothing with the weaver but the palette
 and the domain — it is a chart, not a simulation.
 
-**Rebuild it:** `node silk/word/build.mjs <handle>`. The 91 MB repo CAR is
-cached in `word/.cache/` and is gitignored *and* `.assetsignore`d; it is an
+**Anyone can build their own.** Type a handle and the whole pipeline runs in a
+Web Worker in the visitor's tab: their PDS is resolved, the repo is fetched
+straight from it, and the analysis happens locally. Nothing is uploaded and
+nothing is stored. All three endpoints it needs — `resolveHandle`,
+`plc.directory`, `com.atproto.sync.getRepo` — send `access-control-allow-origin:
+*`, which is the only reason this is possible at all.
+
+**One engine, two callers.** `engine.mjs` is pure and is imported by both
+`build.mjs` (node) and `analyze.worker.js` (browser). That is the contract worth
+protecting: a second implementation for the browser would drift, and a visitor
+would get a picture built by different rules from the one on the front page. The
+refactor that split it out was verified by rebuilding `data.json` and diffing —
+only `heaps` moved, because its sampling became adaptive.
+
+**Rebuild the example:** `node silk/word/build.mjs <handle>`. The 91 MB repo CAR
+is cached in `word/.cache/` and is gitignored *and* `.assetsignore`d; it is an
 input, not an artefact, and shipping it would blow the asset budget on its own.
+
+**Costs, measured in a real browser:** the full 91 MB / 50k-post repo takes about
+11 seconds end to end. The worker caps at 400 MB and the engine refuses fewer
+than 60 posts-with-words rather than emitting a degenerate layout.
 
 Four things in here were got wrong first and are worth not re-deriving:
 
@@ -104,11 +125,38 @@ at the rim with the interior empty. Log-frequency gives the count-1 shell 9% of
 the radius for 48% of the words. `r = √(r_in² + (r_rim² − r_in²)·p)` makes
 density flat, and the counts go back on as labelled rings.
 
-The selftest asserts the layout invariants the client relies on — in particular
-that each wedge's within-wedge indices are a 0..n−1 permutation, because the
-client turns that index straight into a bearing and a gap or a duplicate is a
-pile of words on one angle. It also asserts the page's privacy claim: no
-whitespace, no non-token strings, no URIs in the data file.
+Two more that only showed up once strangers' corpora were possible:
+
+**Empty wedges are compacted away.** k-means on a thin vocabulary can leave a
+cluster with nothing in it, and the client turns every wedge into an angular
+span and then divides by its member count. The engine now drops empties and
+re-indexes, so "K wedges, all non-empty, ids 0..K−1" is a guarantee rather than
+something the example data happened to satisfy.
+
+**The disc has a gutter.** It used to be inscribed in the square with 4% to
+spare, which left rim labels at 3 and 9 o'clock nowhere to go — dropped by the
+overflow guard, or drawn hard against the border. `R_OUT` now stops well short,
+the gutter holds the wedge names, and a word label that will not fit outward is
+flipped inward before it is given up on.
+
+## Testing the browser build
+
+The selftest asserts the layout invariants for the shipped file **and for
+generated corpora**, because the case that matters now — someone else's repo —
+has no fixture. It also checks the stopword module has not forked from
+rite/lexicon, and the page's privacy claim: no whitespace, no non-token strings,
+no URIs in the data file.
+
+What the selftest cannot reach is the worker itself. That is covered by a
+Playwright run that intercepts the three network calls and serves a local CAR —
+`route.fulfill` for small fixtures, and a **302 to a local HTTP server** for the
+91 MB one, because fulfilling a body that size base64s it through CDP and kills
+the tab. It found the bug that mattered: `const { records, blocks } = readCarBytes(…, () => …blocks)` reads `blocks`
+from its own temporal dead zone, so every browser build died at "reading the
+archive". `readCarBytes` now hands the count to the callback instead. The same
+harness exercises all five failure paths — unknown handle, no PDS, refused
+archive, rate limit, too-small repo — each of which must show a specific message
+and re-enable the button.
 
 ## Five things that are load-bearing, and why
 

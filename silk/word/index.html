@@ -16,6 +16,24 @@
   <p class="tag" id="tag">Every word <span id="tagsub"></span></p>
 </header>
 
+<section class="bring">
+  <div class="bringrow">
+    <label class="lb" for="handle">build it for any Bluesky account</label>
+    <input type="text" id="handle" placeholder="name.bsky.social" autocomplete="off" spellcheck="false">
+    <button id="go" class="go">weave it</button>
+    <button id="reset" class="mini" hidden>back to the example</button>
+  </div>
+  <p class="bringnote">Runs entirely in your browser: the account's public repo is fetched
+  straight from its data server and analysed here. Nothing is uploaded, nothing is stored,
+  and no login is involved. A big account is a big download — 50,000 posts is about 90&nbsp;MB
+  and a minute of work.</p>
+  <div class="prog" id="progress" hidden>
+    <div class="pbarwrap"><i id="pbar"></i></div>
+    <div class="prow"><span id="pstage"></span><span id="pextra"></span></div>
+  </div>
+  <p class="err" id="err" hidden></p>
+</section>
+
 <section class="chartwrap">
   <div class="stage">
     <canvas id="web"></canvas>
@@ -31,6 +49,7 @@
         <dt>radius</dt><dd>rank, spaced so every word gets equal area — the only way to look at a Zipf distribution. Inner is words used thousands of times; the rim haze is the <span id="hapaxn">—</span> used exactly once. The rings are the real counts: 2×, 5×, 13×, 89×…</dd>
         <dt>the hub</dt><dd>the one cluster that has no topic — <span id="genn">—</span> words that turn up everywhere, at 90 tokens each against 6 for every other wedge</dd>
         <dt>colour</dt><dd id="colourlegend">when you were using it</dd>
+        <dt>the names</dt><dd>each wedge is labelled in the margin by its two strongest words, and the counts down one spoke say what a distance from the centre means</dd>
       </dl>
     </div>
 
@@ -49,6 +68,9 @@
       <div class="row"><span class="lb">web lines</span><input type="range" id="weblines" min="0" max="100" value="55"><span class="val" id="weblinesv"></span></div>
       <div class="row"><span class="lb">find</span><input type="search" id="find" placeholder="a word…" autocomplete="off"></div>
       <p class="hint" id="findout"></p>
+      <button id="copy" class="wide">copy web</button>
+      <p class="hint">A 2000px PNG with the handle and the counts on it. Falls back to a
+      download where the browser will not take an image on the clipboard.</p>
     </div>
 
     <div class="grp">
@@ -115,6 +137,20 @@
   types, counts, document frequencies, first and mean dates, and a wedge
   number — a bag of words, which is what the chart is about. Shipping the prose
   would be a different and much more exposing artefact for no gain.</p>
+
+  <p><strong>Your own web is built on your own machine.</strong> Type a handle
+  and the whole pipeline above — the CAR reader, the tokeniser, PPMI, the
+  eigendecomposition, k-means — runs in a Web Worker in your tab. The repo is
+  fetched from that account's data server directly; it never touches this
+  server, and neither does the result. It is the same
+  <a href="./engine.mjs">engine.mjs</a> that produced the committed example, not
+  a second implementation, and the selftest asserts the two agree.</p>
+
+  <p>Two things follow from that which are worth knowing. It is a real download:
+  a 50,000-post account is about 90&nbsp;MB. And a repo only has what its server
+  will hand out — <code>com.atproto.sync.getRepo</code> is public on the main
+  Bluesky hosts, but a self-hosted PDS can decline, and then there is nothing to
+  read.</p>
 
   <p class="foot">Build script: <a href="./build.mjs">build.mjs</a> ·
   CAR reader: <a href="./car.mjs">car.mjs</a> ·

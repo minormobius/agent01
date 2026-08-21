@@ -1,40 +1,38 @@
-// app.mjs — lay 39,554 words out as an orb web and draw them.
+// app.mjs — lay a vocabulary out as an orb web and draw it.
 //
 // The layout is two independent axes and nothing else:
 //
 //   ANGLE  = topic wedge, and position within the wedge by similarity to the
 //            next wedge along, so boundaries are blends rather than seams.
-//   RADIUS = log frequency. Hub-side is thousands of uses; the rim is hapax.
+//   RADIUS = rank, spaced for equal area. See the long note at radiusForP.
 //
-// Both are precomputed once into flat arrays. The draw loop then batches by
-// quantised colour so 39k marks go down in a handful of fill() calls — one
-// path per mark would be a hundred times slower for a picture nobody could tell
-// apart at 1.5 px.
+// Everything is a function of one `data` object, because the page now has two
+// sources for it: the committed data.json, and whatever a visitor's own repo
+// produces in the Web Worker. Nothing below may assume which.
 
 const $ = (id) => document.getElementById(id);
 const TAU = Math.PI * 2;
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 
-const WORLD = 1100;
+// A GUTTER, NOT A TIGHT FIT. The disc used to be inscribed in the square with
+// 4% to spare, which left rim labels at 3 and 9 o'clock nowhere to go: they
+// were dropped by the overflow guard, or drawn hard against the border where
+// they read as running off the page. The ring now stops well short of the edge,
+// and the space it gives back is where the wedge names live.
+const WORLD = 1200;
 const CX = WORLD / 2, CY = WORLD / 2;
-const R_HUB_IN = 15, R_HUB_OUT = 104;
-const R_IN = 120, R_OUT = 508;
-
-const data = await (await fetch('./data.json')).json();
-const N = data.cols.w.length;
-
-// ─── palette ────────────────────────────────────────────────────────────────
+const R_HUB_IN = 16, R_HUB_OUT = 112;
+const R_IN = 128, R_OUT = 448;
+const GUTTER = CY - R_OUT;                                   // 152 world units
 
 const SECTOR_HUE = [205, 34, 168, 12, 265, 96, 320, 52, 188, 145, 285, 72];
 const lerp = (a, b, t) => a + (b - a) * t;
 const mix = (c1, c2, t) => [lerp(c1[0], c2[0], t), lerp(c1[1], c2[1], t), lerp(c1[2], c2[2], t)];
 const rgb = (c) => `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})`;
-
-// cool → neutral → warm, for anything that is a date
 const TIME_RAMP = [[58, 122, 158], [168, 178, 190], [226, 150, 68]];
-function timeColour(t) {
-  return t < 0.5 ? mix(TIME_RAMP[0], TIME_RAMP[1], t * 2) : mix(TIME_RAMP[1], TIME_RAMP[2], (t - 0.5) * 2);
-}
+const timeColour = (t) => (t < 0.5
+  ? mix(TIME_RAMP[0], TIME_RAMP[1], t * 2)
+  : mix(TIME_RAMP[1], TIME_RAMP[2], (t - 0.5) * 2));
 function hsl(h, s, l) {
   const a = s * Math.min(l, 1 - l);
   const f = (n) => {
@@ -43,110 +41,106 @@ function hsl(h, s, l) {
   };
   return [f(0) * 255, f(8) * 255, f(4) * 255];
 }
-
-// ─── layout ─────────────────────────────────────────────────────────────────
-
-const { w: W, c: CNT, d: DF, f: FIRST, m: MEAN, s: SEC, i: IDX } = data.cols;
-const X = new Float32Array(N);
-const Y = new Float32Array(N);
-const SZ = new Float32Array(N);
-const ANG = new Float32Array(N);
-const RAD = new Float32Array(N);
-const isHub = new Uint8Array(N);
-
-const ring = data.order.filter((k) => k !== data.general);   // the eleven topical wedges
-const typesOf = new Map(data.sectors.map((s) => [s.k, s.types]));
-const totalRingTypes = ring.reduce((a, k) => a + typesOf.get(k), 0);
-
-// wedge extents, in ring order, starting at the top and going clockwise
-const wedge = new Map();
-{
-  let a = -Math.PI / 2;
-  for (const k of ring) {
-    const span = TAU * (typesOf.get(k) / totalRingTypes);
-    wedge.set(k, { a0: a, a1: a + span, span });
-    a += span;
-  }
-}
-
-// The rim is not a circle. Each wedge's frame vertex sits further out the deeper
-// that wedge's tail runs, so the outline is a portrait of range rather than a
-// decoration — a topic with four thousand words reaches the edge, one with
-// eight hundred falls short of it.
-const tMin = Math.min(...ring.map((k) => typesOf.get(k)));
-const tMax = Math.max(...ring.map((k) => typesOf.get(k)));
-const vertexR = new Map(ring.map((k) => {
-  const u = tMax > tMin ? (typesOf.get(k) - tMin) / (tMax - tMin) : 1;
-  return [k, R_OUT * (0.83 + 0.17 * u)];
-}));
-
-function rimAt(angle) {
-  // linear blend between the two wedge vertices either side of this bearing
-  let a = ((angle + Math.PI / 2) % TAU + TAU) % TAU;
-  const n = ring.length;
-  let acc = 0;
-  for (let i = 0; i < n; i++) {
-    const k = ring[i];
-    const span = wedge.get(k).span;
-    if (a <= acc + span || i === n - 1) {
-      const t = span > 0 ? (a - acc) / span : 0;
-      return lerp(vertexR.get(k), vertexR.get(ring[(i + 1) % n]), Math.min(1, Math.max(0, t)));
-    }
-    acc += span;
-  }
-  return R_OUT;
-}
-
-let CMAX = 1;
-for (let i = 0; i < N; i++) if (SEC[i] !== data.general && CNT[i] > CMAX) CMAX = CNT[i];
-const LOGMAX = Math.log(CMAX);
-const freqU = (c) => Math.min(1, Math.log(c) / LOGMAX);      // 1 = most used, 0 = hapax
-
 const hash01 = (str) => {
   let h = 2166136261 >>> 0;
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
   return (h >>> 8) / 0xffffff;
 };
 
-// ── RADIUS IS RANK, PLACED FOR EQUAL AREA ───────────────────────────────────
-//
-// The obvious mapping — radius ∝ log frequency — is unusable on a real
-// vocabulary, and it took drawing it to see why. Zipf puts 19,320 of these
-// 39,554 words at exactly one use, and log(1) = 0, so half the lexicon lands on
-// a single hairline circle at the rim while the whole interior sits empty.
-// Widening the band does not fix it: log-frequency gives the count-1 shell 9%
-// of the radius for 48% of the words.
-//
-// So radius carries RANK, and carries it so that every word gets the same area:
-//
-//     r(p) = √( r_in² + (r_rim² − r_in²) · p ),   p = rank / N
-//
-// Density is then flat across the whole disc — which is the only way a picture
-// of a Zipf distribution can be looked at — and frequency is still perfectly
-// legible, because rank is monotone in count and the rings below are drawn at
-// the ranks where the count actually crosses 2×, 5×, 10×, 100×.
-//
-// Ties in count are broken by hash rather than by the alphabet. They arrive
-// alphabetically, and an alphabetical gradient in radius is a lie the eye reads
-// as structure.
-const rankP = new Float32Array(N);
-{
+const SHELLS = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181];
+const RING_LABELS = [1, 3, 8, 21, 55, 144, 377, 987, 2584];
+
+// ─── layout ─────────────────────────────────────────────────────────────────
+
+let D = null;      // the dataset in view
+let L = null;      // everything derived from it
+
+function buildLayout(data) {
+  const N = data.cols.w.length;
+  const { w: W, c: CNT, d: DF, f: FIRST, m: MEAN, s: SEC, i: IDX } = data.cols;
+  const X = new Float32Array(N);
+  const Y = new Float32Array(N);
+  const SZ = new Float32Array(N);
+  const ANG = new Float32Array(N);
+  const isHub = new Uint8Array(N);
+
+  const ring = data.order.filter((k) => k !== data.general);
+  const typesOf = new Map(data.sectors.map((s) => [s.k, s.types]));
+  const totalRingTypes = ring.reduce((a, k) => a + typesOf.get(k), 0) || 1;
+
+  const wedge = new Map();
+  {
+    let a = -Math.PI / 2;
+    for (const k of ring) {
+      const span = TAU * (typesOf.get(k) / totalRingTypes);
+      wedge.set(k, { a0: a, a1: a + span, span, mid: a + span / 2 });
+      a += span;
+    }
+  }
+
+  // The rim is not a circle: each wedge's frame vertex sits further out the
+  // deeper that wedge's tail runs, so the outline is a portrait of range.
+  const tMin = Math.min(...ring.map((k) => typesOf.get(k)));
+  const tMax = Math.max(...ring.map((k) => typesOf.get(k)));
+  const vertexR = new Map(ring.map((k) => {
+    const u = tMax > tMin ? (typesOf.get(k) - tMin) / (tMax - tMin) : 1;
+    return [k, R_OUT * (0.84 + 0.16 * u)];
+  }));
+
+  function rimAt(angle) {
+    const a = ((angle + Math.PI / 2) % TAU + TAU) % TAU;
+    let acc = 0;
+    for (let i = 0; i < ring.length; i++) {
+      const span = wedge.get(ring[i]).span;
+      if (a <= acc + span || i === ring.length - 1) {
+        const t = span > 0 ? (a - acc) / span : 0;
+        return lerp(vertexR.get(ring[i]), vertexR.get(ring[(i + 1) % ring.length]),
+          Math.min(1, Math.max(0, t)));
+      }
+      acc += span;
+    }
+    return R_OUT;
+  }
+
+  let CMAX = 1;
+  for (let i = 0; i < N; i++) if (SEC[i] !== data.general && CNT[i] > CMAX) CMAX = CNT[i];
+  const LOGMAX = Math.log(CMAX) || 1;
+  const freqU = (c) => Math.min(1, Math.log(c) / LOGMAX);
+
+  // ── RADIUS IS RANK, PLACED FOR EQUAL AREA ─────────────────────────────────
+  //
+  // The obvious mapping — radius ∝ log frequency — is unusable on a real
+  // vocabulary, and it took drawing it to see why. Zipf puts about half of any
+  // lexicon at exactly one use, and log(1) = 0, so half the words land on a
+  // single hairline circle at the rim while the whole interior sits empty.
+  // Widening the band does not fix it: log-frequency gave the count-1 shell 9%
+  // of the radius for 48% of the words.
+  //
+  //     r(p) = √( r_in² + (r_rim² − r_in²) · p ),   p = rank / N
+  //
+  // Density is then flat across the disc — the only way a picture of a Zipf
+  // distribution can be looked at — and frequency stays legible, because rank
+  // is monotone in count and the rings are drawn where the counts cross.
+  //
+  // Ties are broken by hash, not by the alphabet: they arrive alphabetically,
+  // and an alphabetical gradient in radius is a lie the eye reads as structure.
+  const rankP = new Float32Array(N);
   const ringIdx = [];
   for (let i = 0; i < N; i++) if (SEC[i] !== data.general) ringIdx.push(i);
   ringIdx.sort((a, b) => CNT[b] - CNT[a] || hash01(W[a]) - hash01(W[b]));
   ringIdx.forEach((i, j) => { rankP[i] = (j + 0.5) / ringIdx.length; });
-}
-const radiusForP = (p, rim) => Math.sqrt(R_IN * R_IN + (rim * rim - R_IN * R_IN) * p);
 
-// the rank at which a given use-count begins, for the contour rings
-function pForCount(c) {
-  let lo = 0, hi = N - 1, best = 1;
-  const ringIdx = [];
-  for (let i = 0; i < N; i++) if (SEC[i] !== data.general && CNT[i] >= c) ringIdx.push(i);
-  return ringIdx.length / Math.max(1, N - (data.sectors.find((s) => s.k === data.general)?.types || 0));
-}
+  const radiusForP = (p, rim) => Math.sqrt(R_IN * R_IN + (rim * rim - R_IN * R_IN) * p);
 
-{
+  // where each use-count begins, as a rank fraction — the contour rings
+  const nRing = ringIdx.length || 1;
+  const pForCount = (c) => {
+    let n = 0;
+    for (const i of ringIdx) if (CNT[i] >= c) n++;
+    return n / nRing;
+  };
+  const shellP = SHELLS.map(pForCount);
+
   // hub: a phyllotaxis disc, most-used at the centre
   const hubIdx = [];
   for (let i = 0; i < N; i++) if (SEC[i] === data.general) hubIdx.push(i);
@@ -154,44 +148,57 @@ function pForCount(c) {
   hubIdx.forEach((i, j) => {
     const r = R_HUB_IN + (R_HUB_OUT - R_HUB_IN) * Math.sqrt((j + 0.5) / hubIdx.length);
     const a = j * GOLDEN;
-    ANG[i] = a; RAD[i] = r; isHub[i] = 1;
+    ANG[i] = a; isHub[i] = 1;
     X[i] = CX + Math.cos(a) * r;
     Y[i] = CY + Math.sin(a) * r;
     SZ[i] = 1.0 + 2.2 * Math.pow(freqU(CNT[i]), 1.4);
   });
 
-  const counts = data.sectorCounts;
   for (let i = 0; i < N; i++) {
     if (isHub[i]) continue;
-    const k = SEC[i];
-    const wd = wedge.get(k);
-    const n = counts[k] || 1;
-    // 4% inset each side so wedges read as separate without a drawn gap
-    const t = (IDX[i] + 0.5) / n;
-    const a = wd.a0 + wd.span * (0.04 + 0.92 * t);
+    const wd = wedge.get(SEC[i]);
+    if (!wd) { X[i] = CX; Y[i] = CY; SZ[i] = 0; continue; }
+    const n = data.sectorCounts[SEC[i]] || 1;
+    const a = wd.a0 + wd.span * (0.04 + 0.92 * ((IDX[i] + 0.5) / n));
     const r = radiusForP(rankP[i], rimAt(a));
-    ANG[i] = a; RAD[i] = r;
+    ANG[i] = a;
     X[i] = CX + Math.cos(a) * r;
     Y[i] = CY + Math.sin(a) * r;
     SZ[i] = 1.15 + 2.4 * Math.pow(freqU(CNT[i]), 1.6);
   }
+
+  // spatial hash for hover
+  const CELL = 9;
+  const GW = Math.ceil(WORLD / CELL);
+  const grid = new Map();
+  for (let i = 0; i < N; i++) {
+    const key = ((Y[i] / CELL) | 0) * GW + ((X[i] / CELL) | 0);
+    let a = grid.get(key);
+    if (!a) { a = []; grid.set(key, a); }
+    a.push(i);
+  }
+
+  return { N, W, CNT, DF, FIRST, MEAN, SEC, X, Y, SZ, ANG, isHub,
+    ring, wedge, rimAt, radiusForP, shellP, freqU, grid, CELL, GW };
 }
 
 // ─── colour ─────────────────────────────────────────────────────────────────
 
 const BUCKETS = 28;
-const bucket = new Uint8Array(N);
+let bucket = null;
 let bucketColour = [];
 
 function recolour(mode) {
-  const days = Math.max(1, data.days);
-  let vals = new Float32Array(N);
+  const { N, CNT, DF, FIRST, MEAN, SEC } = L;
+  bucket = new Uint8Array(N);
+  const days = Math.max(1, D.days);
   if (mode === 'sector') {
-    for (let i = 0; i < N; i++) bucket[i] = ring.indexOf(SEC[i]) + 1;
-    bucketColour = [hsl(0, 0, 0.72)].concat(ring.map((k, i) => hsl(SECTOR_HUE[i % 12], 0.46, 0.62)));
+    for (let i = 0; i < N; i++) bucket[i] = L.ring.indexOf(SEC[i]) + 1;
+    bucketColour = [hsl(0, 0, 0.72)].concat(L.ring.map((k, i) => hsl(SECTOR_HUE[i % 12], 0.46, 0.62)));
     $('colourlegend').textContent = 'which wedge — the hub is grey';
     return;
   }
+  const vals = new Float32Array(N);
   if (mode === 'burst') {
     for (let i = 0; i < N; i++) vals[i] = Math.min(1, (CNT[i] / DF[i] - 1) / 1.4);
     $('colourlegend').textContent = 'repeats within a post — pale means said once and moved on, warm means said again and again in the same breath';
@@ -199,19 +206,25 @@ function recolour(mode) {
     const src = mode === 'first' ? FIRST : MEAN;
     for (let i = 0; i < N; i++) vals[i] = Math.min(1, Math.max(0, src[i] / days));
     $('colourlegend').textContent = mode === 'first'
-      ? `when the word first appeared — ${data.span[0]} is cool, ${data.span[1]} is warm`
-      : `the average date of every use — ${data.span[0]} is cool, ${data.span[1]} is warm`;
+      ? `when the word first appeared — ${D.span[0]} is cool, ${D.span[1]} is warm`
+      : `the average date of every use — ${D.span[0]} is cool, ${D.span[1]} is warm`;
   }
   for (let i = 0; i < N; i++) bucket[i] = Math.min(BUCKETS - 1, (vals[i] * BUCKETS) | 0);
   bucketColour = [];
   for (let b = 0; b < BUCKETS; b++) bucketColour.push(timeColour((b + 0.5) / BUCKETS));
 }
 
-// ─── canvas ─────────────────────────────────────────────────────────────────
+// ─── drawing ────────────────────────────────────────────────────────────────
 
 const cv = $('web');
 const ctx = cv.getContext('2d');
 let S = 1;
+let ready = false;
+
+const state = {
+  mode: 'mean', labels: 150, minc: 1, weblines: 0.55,
+  hidden: new Set(), hit: -1, found: -1,
+};
 
 function size() {
   const w = cv.parentElement.clientWidth;
@@ -224,123 +237,206 @@ function size() {
   draw();
 }
 
-const state = {
-  mode: 'mean',
-  labels: 150,
-  minc: 1,
-  weblines: 0.55,
-  hidden: new Set(),
-  hit: -1,
-  found: -1,
-};
-
-// ── the web itself ──────────────────────────────────────────────────────────
-//
-// Drawn from the same numbers as the marks, so the structure is a reading aid
-// rather than a backdrop: every ring is a frequency contour you can name, and
-// every spoke is a wedge boundary or a subdivision of one.
-
-const SHELLS = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610];
-const SHELL_P = SHELLS.map(pForCount);      // where each count begins, as a rank fraction
-
-function drawStructure(alpha) {
+function drawStructure(c, s, alpha) {
   if (alpha <= 0.001) return;
-  ctx.lineCap = 'round';
+  const { ring, wedge, rimAt, radiusForP, shellP } = L;
+  c.lineCap = 'round';
 
-  // the capture spiral: one continuous curve threading every contour, outside in
-  ctx.beginPath();
+  // the capture spiral: one continuous curve threading every contour
+  c.beginPath();
   const turns = SHELLS.length - 1;
-  const STEP = 0.02;
-  for (let t = 0; t <= turns; t += STEP) {
+  for (let t = 0; t <= turns; t += 0.02) {
     const seg = Math.min(turns - 1, Math.floor(t));
     const f = t - seg;
     const a = -Math.PI / 2 + t * TAU;
     const rim = rimAt(a);
-    const r = lerp(radiusForP(SHELL_P[seg], rim), radiusForP(SHELL_P[seg + 1], rim), f);
+    const r = lerp(radiusForP(shellP[seg], rim), radiusForP(shellP[seg + 1], rim), f);
     const x = CX + Math.cos(a) * r, y = CY + Math.sin(a) * r;
-    if (t === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    if (t === 0) c.moveTo(x, y); else c.lineTo(x, y);
   }
-  ctx.strokeStyle = `rgba(226,240,252,${0.13 * alpha})`;
-  ctx.lineWidth = 0.9 / S;
-  ctx.stroke();
+  c.strokeStyle = `rgba(226,240,252,${0.13 * alpha})`;
+  c.lineWidth = 0.9 / s;
+  c.stroke();
 
-  // spokes: every wedge boundary, then subdivisions to ~44 in total
-  ctx.beginPath();
+  // spokes
+  c.beginPath();
   for (const k of ring) {
     const wd = wedge.get(k);
     const subs = Math.max(1, Math.round(44 * (wd.span / TAU)));
     for (let j = 0; j < subs; j++) {
       const a = wd.a0 + (wd.span * j) / subs;
-      const rim = rimAt(a);
-      ctx.moveTo(CX + Math.cos(a) * R_IN, CY + Math.sin(a) * R_IN);
-      ctx.lineTo(CX + Math.cos(a) * rim, CY + Math.sin(a) * rim);
+      c.moveTo(CX + Math.cos(a) * R_IN, CY + Math.sin(a) * R_IN);
+      c.lineTo(CX + Math.cos(a) * rimAt(a), CY + Math.sin(a) * rimAt(a));
     }
   }
-  ctx.strokeStyle = `rgba(176,192,208,${0.16 * alpha})`;
-  ctx.lineWidth = 0.8 / S;
-  ctx.stroke();
+  c.strokeStyle = `rgba(176,192,208,${0.16 * alpha})`;
+  c.lineWidth = 0.8 / s;
+  c.stroke();
 
-  // frame: the rim polygon, brighter, and the wedge boundaries doubled
-  ctx.beginPath();
+  // frame
+  c.beginPath();
   for (let j = 0; j <= 360; j++) {
     const a = -Math.PI / 2 + (j / 360) * TAU;
     const r = rimAt(a);
     const x = CX + Math.cos(a) * r, y = CY + Math.sin(a) * r;
-    if (j === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    if (j === 0) c.moveTo(x, y); else c.lineTo(x, y);
   }
-  ctx.strokeStyle = `rgba(214,192,154,${0.62 * alpha + 0.18})`;
-  ctx.lineWidth = 1.6 / S;
-  ctx.stroke();
+  c.strokeStyle = `rgba(214,192,154,${0.62 * alpha + 0.18})`;
+  c.lineWidth = 1.6 / s;
+  c.stroke();
 
-  ctx.beginPath();
+  c.beginPath();
   for (const k of ring) {
     const a = wedge.get(k).a0;
-    ctx.moveTo(CX + Math.cos(a) * R_HUB_OUT, CY + Math.sin(a) * R_HUB_OUT);
-    ctx.lineTo(CX + Math.cos(a) * rimAt(a), CY + Math.sin(a) * rimAt(a));
+    c.moveTo(CX + Math.cos(a) * R_HUB_OUT, CY + Math.sin(a) * R_HUB_OUT);
+    c.lineTo(CX + Math.cos(a) * rimAt(a), CY + Math.sin(a) * rimAt(a));
   }
-  ctx.strokeStyle = `rgba(214,192,154,${0.30 * alpha + 0.10})`;
-  ctx.lineWidth = 1.0 / S;
-  ctx.stroke();
+  c.strokeStyle = `rgba(214,192,154,${0.30 * alpha + 0.10})`;
+  c.lineWidth = 1.0 / s;
+  c.stroke();
 
-  // the free zone
   for (const r of [R_HUB_OUT, R_IN]) {
-    ctx.beginPath();
-    ctx.arc(CX, CY, r, 0, TAU);
-    ctx.strokeStyle = `rgba(206,218,230,${0.22 * alpha + 0.06})`;
-    ctx.lineWidth = 0.9 / S;
-    ctx.stroke();
+    c.beginPath();
+    c.arc(CX, CY, r, 0, TAU);
+    c.strokeStyle = `rgba(206,218,230,${0.22 * alpha + 0.06})`;
+    c.lineWidth = 0.9 / s;
+    c.stroke();
   }
 }
 
-// ── marks ───────────────────────────────────────────────────────────────────
-
-function drawMarks() {
+function drawMarks(c, s, cw) {
+  const { N, CNT, SEC, X, Y, SZ } = L;
   const paths = Array.from({ length: bucketColour.length }, () => new Path2D());
   const dim = state.hidden.size > 0;
   const dimPath = new Path2D();
+  // Marks are sized in DEVICE pixels so they stay crisp, but a fixed device
+  // size is wrong on a small canvas: at 366 px the same dots that read as a
+  // fine haze on a desktop merge into a solid disc. Scale the device size with
+  // the canvas, floored so they never vanish entirely.
+  const dot = Math.max(0.45, Math.min(1.35, cw / 1000));
   for (let i = 0; i < N; i++) {
-    if (CNT[i] < state.minc) continue;
-    const s = SZ[i] / S * 1.35;
-    const hid = dim && state.hidden.has(SEC[i]);
-    (hid ? dimPath : paths[bucket[i]]).rect(X[i] - s / 2, Y[i] - s / 2, s, s);
+    if (CNT[i] < state.minc || SZ[i] <= 0) continue;
+    const sz = (SZ[i] / s) * dot;
+    (dim && state.hidden.has(SEC[i]) ? dimPath : paths[bucket[i]])
+      .rect(X[i] - sz / 2, Y[i] - sz / 2, sz, sz);
   }
-  if (dim) { ctx.fillStyle = 'rgba(120,132,148,0.10)'; ctx.fill(dimPath); }
+  if (dim) { c.fillStyle = 'rgba(120,132,148,0.10)'; c.fill(dimPath); }
   for (let b = 0; b < paths.length; b++) {
-    ctx.fillStyle = rgb(bucketColour[b]);
-    ctx.fill(paths[b]);
+    c.fillStyle = rgb(bucketColour[b]);
+    c.fill(paths[b]);
   }
 }
 
-// ── labels ──────────────────────────────────────────────────────────────────
+// ── ANCHORING LABELS ────────────────────────────────────────────────────────
 //
-// Greedy, biggest first, against a coarse occupancy grid. A word that cannot
-// find room is simply not drawn — there is no honest way to fit thirty-nine
-// thousand labels and pretending otherwise is how these charts turn to mud.
+// Without these the picture is a beautiful object you cannot read: no way to
+// know which direction is which topic, or what a given distance from the centre
+// means. The wedge names go in the gutter, radially, each reading outward; the
+// use-counts go along one wedge boundary, so the radial axis is annotated
+// exactly once instead of twelve times.
 
-function drawLabels() {
-  if (state.labels <= 0) return;
-  const CELL = 13;
-  const gw = Math.ceil(cv.width / CELL), gh = Math.ceil(cv.height / CELL);
+function drawAnchors(c, s, px, cw, ch) {
+  const { ring, wedge, rimAt, radiusForP, shellP } = L;
+
+  // EVERYTHING HERE IS DEVICE SPACE. The first version did its trigonometry in
+  // world units and then drew with the identity transform, so a radius of 464
+  // was read as 464 pixels — the wedge names landed halfway across the page and
+  // off the left edge, which is exactly the bug these labels were added to help
+  // with. World → device is a multiply by `s`, applied once, here.
+  const wx = (v) => CX * s + v;
+  const wy = (v) => CY * s + v;
+
+  // wedge names, in the gutter
+  c.save();
+  c.font = `${(13.5 * px).toFixed(1)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  c.textBaseline = 'middle';
+  for (const k of ring) {
+    const wd = wedge.get(k);
+    const sec = D.sectors.find((x) => x.k === k);
+    if (!sec) continue;
+    const a = wd.mid;
+    const r = (rimAt(a) + 14) * s;
+    const ax = wx(Math.cos(a) * r);
+    const ay = wy(Math.sin(a) * r);
+    const left = Math.cos(a) < 0;
+
+    // How much room is there, along the text's own direction, before the edge?
+    // Solve for the distance at which the ray leaves the canvas, then trim the
+    // label to fit it. Truncating is honest; drawing past the edge is not.
+    const dx = Math.cos(a) * (left ? -1 : 1);
+    const dy = Math.sin(a) * (left ? -1 : 1);
+    const pad = 6 * px;
+    let room = Infinity;
+    if (dx > 1e-6) room = Math.min(room, (cw - pad - ax) / dx);
+    if (dx < -1e-6) room = Math.min(room, (pad - ax) / dx);
+    if (dy > 1e-6) room = Math.min(room, (ch - pad - ay) / dy);
+    if (dy < -1e-6) room = Math.min(room, (pad - ay) / dy);
+    if (!(room > 12 * px)) continue;
+
+    let text = sec.label.slice(0, 2).join(' ');
+    if (c.measureText(text).width > room) text = sec.label[0];
+    while (text.length > 3 && c.measureText(text + '…').width > room) text = text.slice(0, -1);
+    if (text !== sec.label[0] && text !== sec.label.slice(0, 2).join(' ')) text += '…';
+    if (c.measureText(text).width > room) continue;
+
+    c.save();
+    c.translate(ax, ay);
+    c.rotate(left ? a + Math.PI : a);
+    c.textAlign = left ? 'right' : 'left';
+    c.fillStyle = 'rgba(214,192,154,0.85)';
+    c.fillText(text, 0, 0);
+    c.restore();
+  }
+  c.restore();
+
+  // the radial axis, annotated once — on a wedge boundary, so the counts sit in
+  // the gap between two wedges rather than on top of anybody's words
+  const axisAngle = wedge.get(ring[0]).a0;
+  c.save();
+  c.font = `${(11 * px).toFixed(1)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  // Outermost first, with a minimum gap. Equal-area radius squeezes the
+  // high-count end hard — 3×, 8×, 21× and 55× all land within a few percent of
+  // the hub — so without this the inner half of the axis is an illegible stack.
+  const rimHere = rimAt(axisAngle);
+  let lastR = Infinity;
+  for (const count of RING_LABELS) {
+    const si = SHELLS.indexOf(count);
+    if (si < 0 || shellP[si] <= 0.0008) continue;
+    const rr = radiusForP(shellP[si], rimHere);
+    if (rr > rimHere - 8 || rr < R_IN + 6) continue;
+    if ((lastR - rr) * s < 34 * px) continue;
+    lastR = rr;
+    const x = wx(Math.cos(axisAngle) * rr * s);
+    const y = wy(Math.sin(axisAngle) * rr * s);
+    const t = `${count}×`;
+    const w = c.measureText(t).width;
+    if (x - w / 2 < 2 || x + w / 2 > cw - 2 || y < 8 * px || y > ch - 8 * px) continue;
+    c.fillStyle = 'rgba(8,10,14,0.94)';
+    c.fillRect(x - w / 2 - 4 * px, y - 8 * px, w + 8 * px, 16 * px);
+    c.fillStyle = 'rgba(186,200,214,0.98)';
+    c.fillText(t, x, y);
+  }
+  // the axis caption sits just OUTSIDE the free-zone ring, not on it
+  const lx = wx(Math.cos(axisAngle) * (R_IN + 13) * s);
+  const ly = wy(Math.sin(axisAngle) * (R_IN + 13) * s);
+  const lw = c.measureText('uses').width;
+  c.fillStyle = 'rgba(8,10,14,0.94)';
+  c.fillRect(lx - lw / 2 - 4 * px, ly - 8 * px, lw + 8 * px, 16 * px);
+  c.fillStyle = 'rgba(150,164,180,0.95)';
+  c.fillText('uses', lx, ly);
+  c.restore();
+}
+
+// ── word labels ─────────────────────────────────────────────────────────────
+
+function drawLabels(c, s, cw, ch, budget) {
+  if (budget <= 0) return;
+  const { N, W, CNT, DF, SEC, X, Y, SZ, ANG, isHub, freqU } = L;
+  const px = cw / 1000;
+  const CELL = 13 * px;
+  const gw = Math.ceil(cw / CELL), gh = Math.ceil(ch / CELL);
   const grid = new Uint8Array(gw * gh);
 
   // STRATIFY BY FREQUENCY BAND, WITH AN EQUAL SHARE EACH.
@@ -348,16 +444,13 @@ function drawLabels() {
   // Two failed versions are worth recording. Straight count-descending order
   // spends the whole budget failing to place labels in the crowded hub and then
   // prints whatever fits out in the hapax fog. Weighting the bands by how many
-  // words they hold is no better, because the count-1 band holds 19,320 of the
-  // 39,554 and swallows the budget again. Both produced the same output: a
+  // words they hold is no better, because the count-1 band holds about half the
+  // lexicon and swallows the budget again. Both printed the same thing: a
   // parade of `aaaaalll`, `abbots`, `abby` — the alphabet, because ties in
   // count arrive alphabetically and nothing was breaking them.
-  //
-  // Equal share per shell, ties broken by hash. Every ring gets named, each
-  // ring shows its most-used members, and no ring gets to shout.
   const bands = SHELLS.map(() => []);
   for (let i = 0; i < N; i++) {
-    if (CNT[i] < state.minc) continue;
+    if (CNT[i] < state.minc || SZ[i] <= 0) continue;
     if (state.hidden.size && state.hidden.has(SEC[i])) continue;
     let b = 0;
     while (b < SHELLS.length - 1 && CNT[i] >= SHELLS[b + 1]) b++;
@@ -366,7 +459,7 @@ function drawLabels() {
   for (const b of bands) b.sort((x, y) => CNT[y] - CNT[x] || DF[y] - DF[x] || hash01(W[x]) - hash01(W[y]));
   const order = [];
   {
-    const per = Math.ceil((state.labels * 2.2) / bands.length);
+    const per = Math.ceil((budget * 2.2) / bands.length);
     const heads = bands.map(() => 0);
     let more = true;
     while (more) {
@@ -377,59 +470,58 @@ function drawLabels() {
     }
   }
 
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.textBaseline = 'middle';
+  c.textBaseline = 'middle';
   let placed = 0;
   for (const i of order) {
-    if (placed >= state.labels) break;
-    const px = X[i] * S, py = Y[i] * S;
-    const fs = Math.max(10, Math.min(17, 9 + 7 * freqU(CNT[i]))) * (cv.width / 1000);
-    ctx.font = `${fs.toFixed(1)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-    const tw = ctx.measureText(W[i]).width;
+    if (placed >= budget) break;
+    const cx = X[i] * s, cy = Y[i] * s;
+    const fs = Math.max(10, Math.min(17, 9 + 7 * freqU(CNT[i]))) * px;
+    c.font = `${fs.toFixed(1)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    const tw = c.measureText(W[i]).width;
 
-    // push the label outward along its own bearing so it never sits on its dot
-    const ox = Math.cos(ANG[i]) * (SZ[i] + 4) * S;
-    const oy = Math.sin(ANG[i]) * (SZ[i] + 4) * S;
-    const anchorLeft = Math.cos(ANG[i]) >= 0;
-    const lx = px + ox + (anchorLeft ? 0 : -tw);
-    const ly = py + oy;
-    if (lx < 2 || lx + tw > cv.width - 2 || ly < fs || ly > cv.height - fs) continue;
+    // TRY OUTWARD, THEN INWARD. Pushing every label away from the centre reads
+    // best, but at 3 and 9 o'clock there is nothing outward to push into — those
+    // labels used to be silently dropped, so the rim lost its names exactly
+    // where the picture is widest. Flipping to the inside is always available.
+    let lx = 0, ly = 0, fits = false;
+    for (const dir of [1, -1]) {
+      const off = (SZ[i] + 4) * s * dir;
+      const ox = Math.cos(ANG[i]) * off;
+      const oy = Math.sin(ANG[i]) * off;
+      const anchorLeft = (Math.cos(ANG[i]) * dir) >= 0;
+      const x = cx + ox + (anchorLeft ? 0 : -tw);
+      const y = cy + oy;
+      if (x >= 3 && x + tw <= cw - 3 && y >= fs && y <= ch - fs) { lx = x; ly = y; fits = true; break; }
+    }
+    if (!fits) continue;
 
     const c0 = Math.floor(lx / CELL), c1 = Math.floor((lx + tw) / CELL);
     const r0 = Math.floor((ly - fs * 0.55) / CELL), r1 = Math.floor((ly + fs * 0.55) / CELL);
     let free = true;
     for (let r = r0; r <= r1 && free; r++) {
-      for (let c = c0; c <= c1; c++) {
-        if (r < 0 || c < 0 || r >= gh || c >= gw || grid[r * gw + c]) { free = false; break; }
+      for (let col = c0; col <= c1; col++) {
+        if (r < 0 || col < 0 || r >= gh || col >= gw || grid[r * gw + col]) { free = false; break; }
       }
     }
     if (!free) continue;
-    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) grid[r * gw + c] = 1;
+    for (let r = r0; r <= r1; r++) for (let col = c0; col <= c1; col++) grid[r * gw + col] = 1;
 
-    ctx.fillStyle = 'rgba(4,6,10,0.72)';
-    ctx.fillText(W[i], lx + 1, ly + 1);
-    ctx.fillStyle = isHub[i] ? '#f0e6d2' : '#e8f0f7';
-    ctx.fillText(W[i], lx, ly);
+    c.fillStyle = 'rgba(4,6,10,0.72)';
+    c.fillText(W[i], lx + 1, ly + 1);
+    c.fillStyle = isHub[i] ? '#f0e6d2' : '#e8f0f7';
+    c.fillText(W[i], lx, ly);
     placed++;
   }
-  ctx.setTransform(S, 0, 0, S, 0, 0);
 }
-
-// ── highlights ──────────────────────────────────────────────────────────────
 
 function drawMarker(i, colour) {
   if (i < 0) return;
   ctx.beginPath();
-  ctx.arc(X[i], Y[i], Math.max(4, SZ[i] * 2.4) / S * 1.6, 0, TAU);
+  ctx.arc(L.X[i], L.Y[i], Math.max(4, L.SZ[i] * 2.4) / S * 1.6, 0, TAU);
   ctx.strokeStyle = colour;
   ctx.lineWidth = 1.6 / S;
   ctx.stroke();
 }
-
-// The control bindings below call draw() as they initialise, which happens
-// before the first recolour() — without this guard the very first paint indexes
-// an empty palette and the page dies on load.
-let ready = false;
 
 function draw() {
   if (!ready) return;
@@ -437,31 +529,96 @@ function draw() {
   ctx.fillStyle = '#080a0e';
   ctx.fillRect(0, 0, cv.width, cv.height);
   ctx.setTransform(S, 0, 0, S, 0, 0);
-  drawStructure(state.weblines);
-  drawMarks();
+  drawStructure(ctx, S, state.weblines);
+  drawMarks(ctx, S, cv.width);
   drawMarker(state.found, 'rgba(216,164,69,0.95)');
   drawMarker(state.hit, 'rgba(255,255,255,0.85)');
-  drawLabels();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  // Words first, anchors last. The anchors are few and carry opaque backing
+  // plates, so when the two collide the anchor should be the one that survives —
+  // a ring labelled `55×` half-covered by the word `currently` tells you neither.
+  drawLabels(ctx, S, cv.width, cv.height, state.labels);
+  drawAnchors(ctx, S, cv.width / 1000, cv.width, cv.height);
+}
+
+// ─── export ─────────────────────────────────────────────────────────────────
+//
+// Rendered fresh at a fixed size with a caption, rather than lifting the pixels
+// off the screen: what gets pasted somewhere else has to say what it is and
+// whose it is, and a screenshot of a 700px canvas does neither.
+
+function renderExport(px = 2000) {
+  const off = document.createElement('canvas');
+  const cap = Math.round(px * 0.085);
+  off.width = px;
+  off.height = px + cap;
+  const c = off.getContext('2d');
+  c.fillStyle = '#080a0e';
+  c.fillRect(0, 0, off.width, off.height);
+
+  const s = px / WORLD;
+  c.setTransform(s, 0, 0, s, 0, 0);
+  drawStructure(c, s, Math.max(0.4, state.weblines));
+  drawMarks(c, s, px);
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  drawLabels(c, s, px, px, Math.round(state.labels * 1.5));
+  drawAnchors(c, s, px / 1000, px, px);
+
+  const u = px / 1000;
+  c.textBaseline = 'middle';
+  c.textAlign = 'left';
+  c.font = `${(19 * u).toFixed(0)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  c.fillStyle = '#d8a445';
+  c.fillText(D.handle || 'a vocabulary', 34 * u, px + cap * 0.36);
+  c.font = `${(15 * u).toFixed(0)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  c.fillStyle = '#8794a3';
+  c.fillText(`${D.types.toLocaleString()} word types · ${D.posts.toLocaleString()} posts · ${D.span[0]} → ${D.span[1]}`,
+    34 * u, px + cap * 0.68);
+  c.textAlign = 'right';
+  c.fillStyle = '#5d6875';
+  c.fillText('silk.mino.mobi/word', px - 34 * u, px + cap * 0.52);
+  return off;
+}
+
+const toBlob = (canvas) => new Promise((res) => canvas.toBlob(res, 'image/png'));
+
+async function copyWeb() {
+  const btn = $('copy');
+  const say = (t) => { btn.textContent = t; setTimeout(() => { btn.textContent = 'copy web'; }, 2200); };
+  btn.disabled = true;
+  try {
+    const blob = await toBlob(renderExport());
+    // Clipboard image writes need a secure context and are refused outright by
+    // some browsers. Falling back to a download means the button always does
+    // something, which is the whole point of it being one button.
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      say('copied ✓');
+    } catch {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${(D.handle || 'lexicon').replace(/[^\w.-]/g, '_')}-web.png`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      say('downloaded ✓');
+    }
+  } catch (err) {
+    say('failed');
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // ─── hover ──────────────────────────────────────────────────────────────────
 
-const CELL = 9;
-const GW = Math.ceil(WORLD / CELL);
-const hashGrid = new Map();
-for (let i = 0; i < N; i++) {
-  const key = ((Y[i] / CELL) | 0) * GW + ((X[i] / CELL) | 0);
-  let a = hashGrid.get(key);
-  if (!a) { a = []; hashGrid.set(key, a); }
-  a.push(i);
-}
-
 function pick(wx, wy) {
+  const { grid, CELL, GW, N, CNT, SEC, X, Y } = L;
   const gx = (wx / CELL) | 0, gy = (wy / CELL) | 0;
   let best = -1, bd = 64;
   for (let dy = -1; dy <= 1; dy++) {
     for (let dx = -1; dx <= 1; dx++) {
-      const a = hashGrid.get((gy + dy) * GW + (gx + dx));
+      const a = grid.get((gy + dy) * GW + (gx + dx));
       if (!a) continue;
       for (const i of a) {
         if (CNT[i] < state.minc) continue;
@@ -474,119 +631,111 @@ function pick(wx, wy) {
   return best;
 }
 
-const dayToDate = (d) => {
-  const t = Date.parse(data.span[0] + 'T00:00:00Z') + d * 86400000;
-  return new Date(t).toISOString().slice(0, 10);
-};
-const labelOf = (k) => (data.sectors.find((s) => s.k === k)?.label || []).slice(0, 3).join(' ');
+const dayToDate = (d) => new Date(Date.parse(D.span[0] + 'T00:00:00Z') + d * 86400000)
+  .toISOString().slice(0, 10);
+const labelOf = (k) => (D.sectors.find((s) => s.k === k)?.label || []).slice(0, 3).join(' ');
 
 cv.addEventListener('mousemove', (e) => {
+  if (!ready) return;
   const b = cv.getBoundingClientRect();
-  const wx = ((e.clientX - b.left) / b.width) * WORLD;
-  const wy = ((e.clientY - b.top) / b.height) * WORLD;
-  const i = pick(wx, wy);
+  const i = pick(((e.clientX - b.left) / b.width) * WORLD, ((e.clientY - b.top) / b.height) * WORLD);
   if (i !== state.hit) { state.hit = i; draw(); }
   const tip = $('tip');
   if (i < 0) { tip.hidden = true; return; }
   tip.hidden = false;
-  const rank = i + 1;
   tip.innerHTML =
-    `<b>${W[i]}</b> <i>#${rank.toLocaleString()}</i><br>` +
-    `${CNT[i].toLocaleString()}× in ${DF[i].toLocaleString()} post${DF[i] === 1 ? '' : 's'}<br>` +
-    `<i>first</i> ${dayToDate(FIRST[i])}<br>` +
-    `<i>${isHub[i] ? 'the hub' : labelOf(SEC[i])}</i>`;
-  const pad = 14;
-  let lx = e.clientX - b.left + pad, ly = e.clientY - b.top + pad;
-  if (lx + 210 > b.width) lx = e.clientX - b.left - 210;
-  if (ly + 90 > b.height) ly = e.clientY - b.top - 90;
-  tip.style.left = lx + 'px';
-  tip.style.top = ly + 'px';
+    `<b>${L.W[i]}</b> <i>#${(i + 1).toLocaleString()}</i><br>` +
+    `${L.CNT[i].toLocaleString()}× in ${L.DF[i].toLocaleString()} post${L.DF[i] === 1 ? '' : 's'}<br>` +
+    `<i>first</i> ${dayToDate(L.FIRST[i])}<br>` +
+    `<i>${L.isHub[i] ? 'the hub' : labelOf(L.SEC[i])}</i>`;
+  // measure rather than assume: a long word made the old fixed 210px clamp
+  // hang the tooltip off the edge of the panel
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  let lx = e.clientX - b.left + 14, ly = e.clientY - b.top + 14;
+  if (lx + tw > b.width - 4) lx = e.clientX - b.left - tw - 14;
+  if (ly + th > b.height - 4) ly = e.clientY - b.top - th - 14;
+  tip.style.left = Math.max(4, lx) + 'px';
+  tip.style.top = Math.max(4, ly) + 'px';
 });
 cv.addEventListener('mouseleave', () => { $('tip').hidden = true; state.hit = -1; draw(); });
 
 // ─── controls ───────────────────────────────────────────────────────────────
 
 $('mode').onchange = () => { state.mode = $('mode').value; recolour(state.mode); draw(); };
+$('copy').onclick = copyWeb;
+
 const bindRange = (id, key, fmt, scale = 1) => {
-  const el = $(id);
-  const out = $(id + 'v');
-  const upd = () => {
-    state[key] = +el.value * scale;
-    out.textContent = fmt(+el.value);
-    draw();
-  };
+  const el = $(id), out = $(id + 'v');
+  const upd = () => { state[key] = +el.value * scale; out.textContent = fmt(+el.value); draw(); };
   el.addEventListener('input', upd);
   upd();
 };
-bindRange('labels', 'labels', (v) => v);
-bindRange('minc', 'minc', (v) => (v === 1 ? 'all' : v + '×'));
-bindRange('weblines', 'weblines', (v) => v + '%', 0.01);
 
 $('find').addEventListener('input', (e) => {
   const q = e.target.value.trim().toLowerCase();
   state.found = -1;
   if (q) {
     let exact = -1, pre = -1;
-    for (let i = 0; i < N; i++) {
-      if (W[i] === q) { exact = i; break; }
-      if (pre < 0 && W[i].startsWith(q)) pre = i;
+    for (let i = 0; i < L.N; i++) {
+      if (L.W[i] === q) { exact = i; break; }
+      if (pre < 0 && L.W[i].startsWith(q)) pre = i;
     }
     state.found = exact >= 0 ? exact : pre;
   }
   const o = $('findout');
   if (state.found >= 0) {
     const i = state.found;
-    o.textContent = `${W[i]} — ${CNT[i]}× · rank ${(i + 1).toLocaleString()} · first ${dayToDate(FIRST[i])} · ${isHub[i] ? 'hub' : labelOf(SEC[i])}`;
+    o.textContent = `${L.W[i]} — ${L.CNT[i]}× · rank ${(i + 1).toLocaleString()} · first ${dayToDate(L.FIRST[i])} · ${L.isHub[i] ? 'hub' : labelOf(L.SEC[i])}`;
   } else o.textContent = q ? 'not in this vocabulary' : '';
   draw();
 });
 
-// ─── the side panels ────────────────────────────────────────────────────────
+// ─── panels ─────────────────────────────────────────────────────────────────
 
-{
+function fillPanels() {
   const ul = $('sectors');
-  const rows = [{ k: data.general, hub: true }].concat(ring.map((k) => ({ k, hub: false })));
+  const rows = [{ k: D.general, hub: true }].concat(L.ring.map((k) => ({ k, hub: false })));
   ul.innerHTML = rows.map(({ k, hub }) => {
-    const s = data.sectors.find((x) => x.k === k);
-    const hue = hub ? null : SECTOR_HUE[ring.indexOf(k) % 12];
-    const sw = hub ? 'background:#8794a3' : `background:${rgb(hsl(hue, 0.46, 0.62))}`;
+    const s = D.sectors.find((x) => x.k === k);
+    if (!s) return '';
+    const sw = hub ? 'background:#8794a3'
+      : `background:${rgb(hsl(SECTOR_HUE[L.ring.indexOf(k) % 12], 0.46, 0.62))}`;
     return `<li data-k="${k}"><span class="sw" style="${sw}"></span>` +
       `<span class="wds">${hub ? '<b>the hub</b> · ' : ''}${s.label.slice(0, 4).join(' ')}</span>` +
       `<span class="n">${s.types.toLocaleString()}</span></li>`;
   }).join('');
-  ul.addEventListener('click', (e) => {
-    const li = e.target.closest('li');
-    if (!li) return;
-    const k = +li.dataset.k;
-    if (state.hidden.has(k)) state.hidden.delete(k); else state.hidden.add(k);
-    li.classList.toggle('off', state.hidden.has(k));
-    draw();
-  });
-}
 
-{
-  const rows = [];
-  const push = (a, b, sep) => rows.push(`<tr${sep ? ' class="sep"' : ''}><td>${a}</td><td>${b}</td></tr>`);
-  push('handle', data.handle);
-  push('posts', data.posts.toLocaleString());
-  push('  of which replies', data.replies.toLocaleString());
-  push('  with a content word', (data.postsWithWords ?? data.posts).toLocaleString());
-  push('span', `${data.span[0]} → ${data.span[1]}`);
-  push('sessions', data.sessions.toLocaleString(), true);
-  push('content tokens', data.tokens.toLocaleString());
-  push('word types', data.types.toLocaleString());
-  push('used exactly once', `${data.hapax.toLocaleString()} (${(100 * data.hapax / data.types).toFixed(0)}%)`);
-  push('type-token ratio', (data.types / data.tokens).toFixed(4), true);
-  push('built', data.built);
-  $('stats').innerHTML = rows.join('');
+  const rr = [];
+  const push = (a, b, sep) => rr.push(`<tr${sep ? ' class="sep"' : ''}><td>${a}</td><td>${b}</td></tr>`);
+  push('handle', D.handle || '—');
+  push('posts', D.posts.toLocaleString());
+  push('  of which replies', D.replies.toLocaleString());
+  push('  with a content word', (D.postsWithWords ?? D.posts).toLocaleString());
+  push('span', `${D.span[0]} → ${D.span[1]}`);
+  push('sessions', D.sessions.toLocaleString(), true);
+  push('content tokens', D.tokens.toLocaleString());
+  push('word types', D.types.toLocaleString());
+  push('used exactly once', `${D.hapax.toLocaleString()} (${(100 * D.hapax / D.types).toFixed(0)}%)`);
+  push('type-token ratio', (D.types / D.tokens).toFixed(4), true);
+  push('built', D.built);
+  $('stats').innerHTML = rr.join('');
 
   $('tagsub').innerHTML =
-    `— all <b>${data.types.toLocaleString()}</b> of them — from <b>${data.posts.toLocaleString()}</b> posts by ` +
-    `<b>${data.handle}</b>, ${data.span[0]} to ${data.span[1]}. Angle is topic, radius is how often, ` +
+    `— all <b>${D.types.toLocaleString()}</b> of them — from <b>${D.posts.toLocaleString()}</b> posts by ` +
+    `<b>${D.handle || 'someone'}</b>, ${D.span[0]} to ${D.span[1]}. Angle is topic, radius is how often, ` +
     `colour is when. The hub is the words that belong to no topic at all.`;
-  $('hapaxn').textContent = data.hapax.toLocaleString();
-  $('genn').textContent = (data.sectors.find((s) => s.k === data.general)?.types || 0).toLocaleString();
+  $('hapaxn').textContent = D.hapax.toLocaleString();
+  $('genn').textContent = (D.sectors.find((s) => s.k === D.general)?.types || 0).toLocaleString();
 }
+
+$('sectors').addEventListener('click', (e) => {
+  const li = e.target.closest('li');
+  if (!li) return;
+  const k = +li.dataset.k;
+  if (state.hidden.has(k)) state.hidden.delete(k); else state.hidden.add(k);
+  li.classList.toggle('off', state.hidden.has(k));
+  draw();
+});
 
 // ─── the flat charts ────────────────────────────────────────────────────────
 
@@ -601,72 +750,171 @@ const fit = (xs, ys) => {
   return { b, a: (sy - b * sx) / n };
 };
 
-{ // Zipf
-  const w = 420, h = 260, m = { l: 34, r: 8, t: 8, b: 26 };
-  const pts = [];
-  for (let i = 0; i < N; i += Math.max(1, Math.floor(N / 900))) pts.push([Math.log10(i + 1), Math.log10(CNT[i])]);
-  const xmax = Math.log10(N), ymax = Math.log10(CNT[0]);
-  const px = (x) => m.l + (x / xmax) * (w - m.l - m.r);
-  const py = (y) => h - m.b - (y / ymax) * (h - m.t - m.b);
-  const f = fit(pts.map((p) => p[0]), pts.map((p) => p[1]));
-  let body = `<line x1="${m.l}" y1="${h - m.b}" x2="${w - m.r}" y2="${h - m.b}" style="${AX}"/>` +
-             `<line x1="${m.l}" y1="${m.t}" x2="${m.l}" y2="${h - m.b}" style="${AX}"/>`;
-  body += `<polyline fill="none" stroke="#56a0ac" stroke-width="1.4" points="${pts.map((p) => `${px(p[0]).toFixed(1)},${py(p[1]).toFixed(1)}`).join(' ')}"/>`;
-  // clip the fitted line to the box — extrapolated back to rank 1 it leaves the
-  // plot entirely, which reads as a drawing error rather than a fit
-  const x0 = Math.max(0, (ymax - f.a) / f.b);
-  body += `<line x1="${px(x0)}" y1="${py(Math.min(ymax, f.a + f.b * x0))}" x2="${px(xmax)}" y2="${py(Math.max(0, f.a + f.b * xmax))}" stroke="#d8a445" stroke-width="1" stroke-dasharray="4 4"/>`;
-  for (const d of [0, 1, 2, 3, 4]) if (d <= xmax) body += `<text x="${px(d)}" y="${h - m.b + 14}" text-anchor="middle">10^${d}</text>`;
-  for (const d of [0, 1, 2, 3]) if (d <= ymax) body += `<text x="${m.l - 6}" y="${py(d) + 3}" text-anchor="end">10^${d}</text>`;
-  $('zipf').innerHTML = svg(w, h, body);
-  $('cap-zipf').innerHTML = `<b>Zipf</b>rank against uses, log–log. The dashed line is the fitted slope, <b style="display:inline">${f.b.toFixed(2)}</b>. A straight line here is why the web cannot put radius on frequency at all: half the vocabulary sits at the far right of this plot, on one value. The web puts radius on <em>rank</em>, spaced for equal area, and draws the counts back on as rings.`;
+function drawFlat() {
+  const { N, CNT } = L;
+  { // Zipf
+    const w = 420, h = 260, m = { l: 40, r: 8, t: 8, b: 26 };
+    const pts = [];
+    for (let i = 0; i < N; i += Math.max(1, Math.floor(N / 900))) pts.push([Math.log10(i + 1), Math.log10(CNT[i])]);
+    const xmax = Math.log10(N) || 1, ymax = Math.log10(CNT[0]) || 1;
+    const px = (x) => m.l + (x / xmax) * (w - m.l - m.r);
+    const py = (y) => h - m.b - (y / ymax) * (h - m.t - m.b);
+    const f = fit(pts.map((p) => p[0]), pts.map((p) => p[1]));
+    let body = `<line x1="${m.l}" y1="${h - m.b}" x2="${w - m.r}" y2="${h - m.b}" style="${AX}"/>` +
+               `<line x1="${m.l}" y1="${m.t}" x2="${m.l}" y2="${h - m.b}" style="${AX}"/>`;
+    body += `<polyline fill="none" stroke="#56a0ac" stroke-width="1.4" points="${pts.map((p) => `${px(p[0]).toFixed(1)},${py(p[1]).toFixed(1)}`).join(' ')}"/>`;
+    const x0 = Math.max(0, (ymax - f.a) / f.b);
+    body += `<line x1="${px(x0)}" y1="${py(Math.min(ymax, f.a + f.b * x0))}" x2="${px(xmax)}" y2="${py(Math.max(0, f.a + f.b * xmax))}" stroke="#d8a445" stroke-width="1" stroke-dasharray="4 4"/>`;
+    for (const d of [0, 1, 2, 3, 4]) if (d <= xmax) body += `<text x="${px(d)}" y="${h - m.b + 14}" text-anchor="middle">10^${d}</text>`;
+    for (const d of [0, 1, 2, 3]) if (d <= ymax) body += `<text x="${m.l - 6}" y="${py(d) + 3}" text-anchor="end">10^${d}</text>`;
+    $('zipf').innerHTML = svg(w, h, body);
+    $('cap-zipf').innerHTML = `<b>Zipf</b>rank against uses, log–log. The dashed line is the fitted slope, <b style="display:inline">${f.b.toFixed(2)}</b>. A straight line here is why the web cannot put radius on frequency at all: half the vocabulary sits at the far right of this plot, on one value. The web puts radius on <em>rank</em>, spaced for equal area, and draws the counts back on as rings.`;
+  }
+
+  { // Heaps
+    const w = 420, h = 260, m = { l: 42, r: 8, t: 8, b: 26 };
+    const pts = D.heaps.filter(([n]) => n > 200);
+    if (pts.length > 2) {
+      const xmax = Math.max(...pts.map((p) => p[0])), ymax = Math.max(...pts.map((p) => p[1]));
+      const px = (x) => m.l + (x / xmax) * (w - m.l - m.r);
+      const py = (y) => h - m.b - (y / ymax) * (h - m.t - m.b);
+      const f = fit(pts.map((p) => Math.log(p[0])), pts.map((p) => Math.log(p[1])));
+      let body = `<line x1="${m.l}" y1="${h - m.b}" x2="${w - m.r}" y2="${h - m.b}" style="${AX}"/>` +
+                 `<line x1="${m.l}" y1="${m.t}" x2="${m.l}" y2="${h - m.b}" style="${AX}"/>`;
+      body += `<polyline fill="none" stroke="#56a0ac" stroke-width="1.6" points="${pts.map((p) => `${px(p[0]).toFixed(1)},${py(p[1]).toFixed(1)}`).join(' ')}"/>`;
+      const K = Math.exp(f.a);
+      const proj = [];
+      for (let x = 200; x <= xmax; x += xmax / 60) proj.push(`${px(x).toFixed(1)},${py(K * Math.pow(x, f.b)).toFixed(1)}`);
+      body += `<polyline fill="none" stroke="#d8a445" stroke-width="1" stroke-dasharray="4 4" points="${proj.join(' ')}"/>`;
+      body += `<text x="${px(xmax)}" y="${h - m.b + 14}" text-anchor="end">${(xmax / 1000).toFixed(0)}k tokens</text>`;
+      body += `<text x="${m.l - 6}" y="${py(ymax) + 3}" text-anchor="end">${(ymax / 1000).toFixed(0)}k</text>`;
+      body += `<text x="${m.l - 6}" y="${py(0) + 3}" text-anchor="end">0</text>`;
+      $('heaps').innerHTML = svg(w, h, body);
+      $('cap-heaps').innerHTML = `<b>Heaps</b>new word types against tokens read. Fitted <b style="display:inline">V = ${K.toFixed(1)}·N^${f.b.toFixed(3)}</b> — still climbing, and it always will. Double this corpus and the model says about <b style="display:inline">${Math.round(K * Math.pow(D.tokens * 2, f.b) / 1000)}k</b> types, not ${Math.round(D.types / 1000)}k×2.`;
+    }
+  }
+
+  { // monthly
+    const w = 420, h = 260, m = { l: 34, r: 30, t: 8, b: 30 };
+    const ms = D.months;
+    const pmax = Math.max(...ms.map((x) => x[1])) || 1;
+    const fmax = Math.max(...ms.map((x) => x[3])) || 1;
+    const bw = (w - m.l - m.r) / ms.length;
+    let body = `<line x1="${m.l}" y1="${h - m.b}" x2="${w - m.r}" y2="${h - m.b}" style="${AX}"/>`;
+    ms.forEach((x, i) => {
+      const bh = (x[1] / pmax) * (h - m.t - m.b);
+      body += `<rect x="${(m.l + i * bw + 0.6).toFixed(1)}" y="${(h - m.b - bh).toFixed(1)}" width="${Math.max(1, bw - 1.2).toFixed(1)}" height="${bh.toFixed(1)}" fill="#2c4450"/>`;
+    });
+    const line = ms.map((x, i) => `${(m.l + i * bw + bw / 2).toFixed(1)},${(h - m.b - (x[3] / fmax) * (h - m.t - m.b)).toFixed(1)}`);
+    body += `<polyline fill="none" stroke="#d8a445" stroke-width="1.6" points="${line.join(' ')}"/>`;
+    body += `<text x="${m.l}" y="${h - m.b + 14}">${ms[0][0]}</text>`;
+    body += `<text x="${w - m.r}" y="${h - m.b + 14}" text-anchor="end">${ms[ms.length - 1][0]}</text>`;
+    body += `<text x="${m.l - 6}" y="${m.t + 8}" text-anchor="end" fill="#d8a445">${fmax}</text>`;
+    $('months').innerHTML = svg(w, h, body);
+    const firstYear = ms.slice(0, 12).reduce((a, x) => a + x[3], 0);
+    $('cap-months').innerHTML = `<b>Acquisition</b>posts a month (bars) against words used for the first time that month (gold). <b style="display:inline">${firstYear.toLocaleString()}</b> of the ${D.types.toLocaleString()} types arrived in the first twelve months. The gold line falling while the bars hold up is the whole reason the web's hub is small and its rim is huge.`;
+  }
 }
 
-{ // Heaps
-  const w = 420, h = 260, m = { l: 42, r: 8, t: 8, b: 26 };
-  const pts = data.heaps.filter(([n]) => n > 200);
-  const xmax = Math.max(...pts.map((p) => p[0])), ymax = Math.max(...pts.map((p) => p[1]));
-  const px = (x) => m.l + (x / xmax) * (w - m.l - m.r);
-  const py = (y) => h - m.b - (y / ymax) * (h - m.t - m.b);
-  const f = fit(pts.map((p) => Math.log(p[0])), pts.map((p) => Math.log(p[1])));
-  let body = `<line x1="${m.l}" y1="${h - m.b}" x2="${w - m.r}" y2="${h - m.b}" style="${AX}"/>` +
-             `<line x1="${m.l}" y1="${m.t}" x2="${m.l}" y2="${h - m.b}" style="${AX}"/>`;
-  body += `<polyline fill="none" stroke="#56a0ac" stroke-width="1.6" points="${pts.map((p) => `${px(p[0]).toFixed(1)},${py(p[1]).toFixed(1)}`).join(' ')}"/>`;
-  const K = Math.exp(f.a);
-  const proj = [];
-  for (let x = 200; x <= xmax; x += xmax / 60) proj.push(`${px(x).toFixed(1)},${py(K * Math.pow(x, f.b)).toFixed(1)}`);
-  body += `<polyline fill="none" stroke="#d8a445" stroke-width="1" stroke-dasharray="4 4" points="${proj.join(' ')}"/>`;
-  body += `<text x="${px(xmax)}" y="${h - m.b + 14}" text-anchor="end">${(xmax / 1000).toFixed(0)}k tokens</text>`;
-  body += `<text x="${m.l - 6}" y="${py(ymax) + 3}" text-anchor="end">${(ymax / 1000).toFixed(0)}k</text>`;
-  body += `<text x="${m.l - 6}" y="${py(0) + 3}" text-anchor="end">0</text>`;
-  $('heaps').innerHTML = svg(w, h, body);
-  $('cap-heaps').innerHTML = `<b>Heaps</b>new word types against tokens read. Fitted <b style="display:inline">V = ${K.toFixed(1)}·N^${f.b.toFixed(3)}</b> — still climbing, and it always will. Double this corpus and the model says about <b style="display:inline">${Math.round(K * Math.pow(data.tokens * 2, f.b) / 1000)}k</b> types, not ${Math.round(data.types / 1000)}k×2.`;
+// ─── loading a dataset ──────────────────────────────────────────────────────
+
+function setData(data) {
+  D = data;
+  L = buildLayout(data);
+  state.hidden.clear();
+  state.hit = -1;
+  state.found = -1;
+  $('find').value = '';
+  $('findout').textContent = '';
+  recolour(state.mode);
+  fillPanels();
+  drawFlat();
+  ready = true;
+  size();
 }
 
-{ // monthly
-  const w = 420, h = 260, m = { l: 34, r: 30, t: 8, b: 30 };
-  const ms = data.months;
-  const pmax = Math.max(...ms.map((x) => x[1]));
-  const fmax = Math.max(...ms.map((x) => x[3]));
-  const bw = (w - m.l - m.r) / ms.length;
-  let body = `<line x1="${m.l}" y1="${h - m.b}" x2="${w - m.r}" y2="${h - m.b}" style="${AX}"/>`;
-  ms.forEach((x, i) => {
-    const bh = (x[1] / pmax) * (h - m.t - m.b);
-    body += `<rect x="${(m.l + i * bw + 0.6).toFixed(1)}" y="${(h - m.b - bh).toFixed(1)}" width="${Math.max(1, bw - 1.2).toFixed(1)}" height="${bh.toFixed(1)}" fill="#2c4450"/>`;
-  });
-  const line = ms.map((x, i) => `${(m.l + i * bw + bw / 2).toFixed(1)},${(h - m.b - (x[3] / fmax) * (h - m.t - m.b)).toFixed(1)}`);
-  body += `<polyline fill="none" stroke="#d8a445" stroke-width="1.6" points="${line.join(' ')}"/>`;
-  body += `<text x="${m.l}" y="${h - m.b + 14}">${ms[0][0]}</text>`;
-  body += `<text x="${w - m.r}" y="${h - m.b + 14}" text-anchor="end">${ms[ms.length - 1][0]}</text>`;
-  body += `<text x="${m.l - 6}" y="${m.t + 8}" text-anchor="end" fill="#d8a445">${fmax}</text>`;
-  $('months').innerHTML = svg(w, h, body);
-  const firstYear = ms.slice(0, 12).reduce((a, x) => a + x[3], 0);
-  $('cap-months').innerHTML = `<b>Acquisition</b>posts a month (bars) against words used for the first time that month (gold). <b style="display:inline">${firstYear.toLocaleString()}</b> of the ${data.types.toLocaleString()} types arrived in the first twelve months. The gold line falling while the bars hold up is the whole reason the web's hub is small and its rim is huge.`;
+// ─── bring your own handle ──────────────────────────────────────────────────
+
+let worker = null;
+let busy = false;
+
+const ERRORS = {
+  NO_HANDLE: (h) => `No account called “${h}”. Handles look like <code>name.bsky.social</code>.`,
+  NO_DID_DOC: () => 'That identity could not be resolved — its directory entry is missing.',
+  NO_PDS: () => 'That account has no data server listed, so there is no repo to read.',
+  RATE_LIMIT: () => 'The data server is rate-limiting. Wait a minute and try again.',
+  GET_REPO: () => 'The data server refused the archive. Some self-hosted servers do not serve it publicly.',
+  TOO_BIG: (h, m) => m,
+  TOO_SMALL: (h, m) => `${m}. Try an account that posts more.`,
+  UNKNOWN: (h, m) => m,
+};
+
+function showProgress(on, stage = '', frac = 0, extra = '') {
+  $('progress').hidden = !on;
+  $('go').disabled = on;
+  $('handle').disabled = on;
+  if (!on) return;
+  $('pstage').textContent = stage;
+  $('pextra').textContent = extra;
+  $('pbar').style.width = `${Math.round(Math.min(1, Math.max(0, frac)) * 100)}%`;
 }
+
+function runHandle(raw) {
+  const handle = raw.trim().replace(/^@/, '');
+  if (!handle || busy) return;
+  $('err').hidden = true;
+  busy = true;
+  showProgress(true, 'starting', 0);
+
+  if (worker) worker.terminate();
+  worker = new Worker('./analyze.worker.js', { type: 'module' });
+  worker.onmessage = (e) => {
+    const msg = e.data;
+    if (msg.type === 'progress') {
+      const extra = msg.bytes
+        ? `${(msg.bytes / 1e6).toFixed(1)} MB${msg.total ? ` of ${(msg.total / 1e6).toFixed(1)}` : ''}`
+        : (msg.blocks ? `${msg.blocks.toLocaleString()} blocks` : '');
+      showProgress(true, msg.stage, msg.frac, extra);
+    } else if (msg.type === 'done') {
+      busy = false;
+      showProgress(false);
+      setData(msg.data);
+      history.replaceState(null, '', `?h=${encodeURIComponent(handle)}`);
+      $('reset').hidden = false;
+      document.querySelector('.stage').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else if (msg.type === 'error') {
+      busy = false;
+      showProgress(false);
+      const f = ERRORS[msg.code] || ERRORS.UNKNOWN;
+      $('err').innerHTML = f(handle, msg.message);
+      $('err').hidden = false;
+    }
+  };
+  worker.onerror = (e) => {
+    busy = false;
+    showProgress(false);
+    $('err').textContent = `The builder crashed: ${e.message || 'unknown error'}`;
+    $('err').hidden = false;
+  };
+  worker.postMessage({ handle });
+}
+
+$('go').onclick = () => runHandle($('handle').value);
+$('handle').addEventListener('keydown', (e) => { if (e.key === 'Enter') runHandle($('handle').value); });
+$('reset').onclick = async () => {
+  $('reset').hidden = true;
+  history.replaceState(null, '', location.pathname);
+  setData(await (await fetch('./data.json')).json());
+};
 
 // ─── go ─────────────────────────────────────────────────────────────────────
 
-recolour(state.mode);
-ready = true;
 window.addEventListener('resize', size);
-size();
+bindRange('labels', 'labels', (v) => v);
+bindRange('minc', 'minc', (v) => (v === 1 ? 'all' : v + '×'));
+bindRange('weblines', 'weblines', (v) => v + '%', 0.01);
+
+setData(await (await fetch('./data.json')).json());
+
+const qh = new URLSearchParams(location.search).get('h');
+if (qh) { $('handle').value = qh; runHandle(qh); }
