@@ -71,7 +71,9 @@ silk/
     weaver.selftest.mjs  62 checks — the four claims the page makes
     word.selftest.mjs    92 checks — the CAR reader, the data file, the promise
     browser/
-      typeahead.browser.mjs  23 checks — Playwright; NOT in CI, see below
+      harness.mjs            serves silk/, resolves Playwright, counts checks
+      typeahead.browser.mjs  23 checks — the handle box; NOT in CI, see below
+      chart.browser.mjs      16 checks — the export, the sliders, the reweave
   worker.js             assets + /health
   wrangler.jsonc
 ```
@@ -163,6 +165,39 @@ span and then divides by its member count. The engine now drops empties and
 re-indexes, so "K wedges, all non-empty, ids 0..K−1" is a guarantee rather than
 something the example data happened to satisfy.
 
+**`min uses` reweaves; it does not filter.** Every positional quantity in the
+layout is a function of *which words are in play*: a wedge's angular span comes
+from how many types the topic has, its rim vertex from how deep its tail runs, a
+word's radius from its rank, its angle from its index within its wedge. Hiding
+marks and leaving the rest where they sat produced a moth-eaten copy of the
+unfiltered picture — the rim eaten away and the survivors still huddled where
+they had been when they had company. `computeGeom(minc)` redoes all of it over
+the survivors and the web genuinely re-forms: wedges breathe, the outline
+changes shape, the contour rings move so `21×` still means 21 uses, and what is
+left spreads out to fill the disc.
+
+It runs on every `input` event of a dragged slider, so it is O(N) with small
+constants: **the sorts happen once**, because filtering removes words but never
+reorders them, so a survivor's rank is just how many survivors came before it in
+a precomputed order. Geometry is twelve wedges and eighteen contour radii, small
+enough to keep three copies of (from, to, now) and lerp — which is what makes
+the change read as a web re-weaving rather than one picture cutting to another.
+Retargeting mid-flight is deliberate: `from` is wherever things are at this
+instant, which is what makes dragging feel continuous. The hover hash is rebuilt
+only when a weave settles — 39k Map inserts a frame is not affordable, and a
+tooltip mid-flight is not worth having.
+
+**Type size is the density control, and there is only one of them.** There used
+to be a label-count slider and a fixed type size, which is the wrong way round:
+asking for 400 labels at 17px asks for something the canvas cannot give, and the
+control silently did nothing past the point where the collision grid filled.
+Size is the honest handle — you can always see what it did — and the count
+follows from it *quadratically*, because labels compete for area. Both readouts
+report a measurement rather than the slider position (labels actually placed,
+words actually left); a control whose number is its own input tells you nothing.
+The collision grid tracks the type size too: held at a constant 13px it made an
+8px label reserve a 13px row it did not need.
+
 **Zoom separates; it does not magnify.** Scroll, drag, pinch, double-click,
 `+`/`-`/`0`. Everything drawn in device units — dot radii, line widths, label
 type, the hover tolerance — stays the same size as `z` rises, so the only thing
@@ -173,6 +208,20 @@ converts its 11px tolerance back to world units or it would grab half a wedge at
 20×. The export ignores the view entirely and always renders the whole web at
 z = 1: a picture that silently depended on where you happened to be looking
 would be a different picture every time you pressed the button.
+
+**A transform carries the size of the surface it is for.** `tf()` returns
+`{s, x, y, w, h}`, and anything that needs to know where the edges are is handed
+one. It did not, once, and the export was the casualty: `drawMarks` culled
+against `cv.width` while rendering into a 2000px canvas, so everything past
+`cv.width / s` world units was dropped and **the copied PNG came out as a
+quarter of a web**. That is the failure mode worth remembering here — the button
+still said `downloaded ✓`, no error was raised, and the test that existed
+checked only that a download happened. `chart.browser.mjs` now reads the actual
+downloaded file back and counts lit pixels per quadrant. (Related, found at the
+same time: the mark-size cap of 1.35 device px put a 2000px export outside the
+linear regime while the screen was inside it, so the export's dots were visibly
+finer than the ones on screen. The cap only exists to stop marks merging, which
+needs a far bigger canvas than an export.)
 
 **HTML chrome over the canvas reserves its own boxes.** The hub caption, the
 zoom readout and the pan hint are DOM, so the label placer cannot see them and
@@ -208,18 +257,22 @@ harness exercises all five failure paths — unknown handle, no PDS, refused
 archive, rate limit, too-small repo — each of which must show a specific message
 and re-enable the button.
 
-The typeahead's run is the one that got **committed**, as
-[`test/browser/typeahead.browser.mjs`](test/browser/typeahead.browser.mjs) —
-`node silk/test/browser/typeahead.browser.mjs`, which serves `silk/` itself and
-stubs every call, so it needs nothing running and reaches nothing real. It is
-not a `*.selftest.mjs` and CI does not run it: the deploy workflow has no
-Playwright and no Chromium. It is in the repo anyway because what it checks is a
-claim the page makes about itself — that the directory lookup never blocks a
-build, and that a stranger's display name arrives as characters — and a claim
-with no runnable check behind it decays into a comment. 23 checks: the escaping,
-the staleness guard, the DID shortcut, the keyboard, `pointerdown` surviving
-blur, and that a 500 from the directory leaves no trace on the page while a
-typed handle still builds.
+Two of these runs got **committed**, under `test/browser/`. Each serves `silk/`
+itself and stubs or avoids every call, so they need nothing running and reach
+nothing real. Neither is a `*.selftest.mjs` and CI runs neither: the deploy
+workflow has no Playwright and no Chromium. They are in the repo because what
+they check are claims the page makes about itself, and a claim with no runnable
+check behind it decays into a comment.
+
+- [`typeahead.browser.mjs`](test/browser/typeahead.browser.mjs) — 23 checks: the
+  escaping, the staleness guard, the DID shortcut, the keyboard, `pointerdown`
+  surviving blur, and that a 500 from the directory leaves no trace on the page
+  while a typed handle still builds.
+- [`chart.browser.mjs`](test/browser/chart.browser.mjs) — 16 checks, all of them
+  about pixels: that the exported PNG is the whole web and not a quadrant (read
+  back off the real download, counted per quadrant), that type size buys labels,
+  and that `min uses` reweaves — survivors still reach the rim and still fill the
+  disc, wedges resize, contour rings move, and it flies rather than cutting.
 
 ## Five things that are load-bearing, and why
 

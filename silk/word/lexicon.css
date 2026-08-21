@@ -97,6 +97,8 @@ dl.legend dd { margin: 2px 0 0; color: var(--dimmer); line-height: 1.5; }
 .row .lb { flex: 0 0 68px; }
 .row input[type="range"] { flex: 1; min-width: 0; }
 .val { font: 11.5px var(--mono); color: var(--dim); flex: 0 0 40px; text-align: right; }
+/* the two readouts that report a measurement alongside the setting */
+.val.wide { flex: 0 0 96px; }
 
 select, input[type="search"] {
   flex: 1; min-width: 0;

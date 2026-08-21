@@ -12,49 +12,11 @@
 // It serves silk/ itself and stubs every network call, so it needs nothing
 // running and reaches nothing real.
 
-import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
-import { extname, join } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { serveSilk, getChromium, noPlaywright, checker } from './harness.mjs';
 
-const ROOT = fileURLToPath(new URL('../..', import.meta.url));   // silk/
-const PORT = 8907;
-
-const MIME = {
-  '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/javascript',
-  '.css': 'text/css', '.json': 'application/json',
-};
-const server = createServer(async (q, r) => {
-  let p = decodeURIComponent(q.url.split('?')[0]);
-  if (p.endsWith('/')) p += 'index.html';
-  try {
-    const body = await readFile(join(ROOT, p));
-    r.writeHead(200, { 'content-type': MIME[extname(p)] || 'application/octet-stream' });
-    r.end(body);
-  } catch { r.writeHead(404); r.end('not here'); }
-});
-await new Promise((res) => server.listen(PORT, '127.0.0.1', res));
-
-// Bare `import('playwright')` ignores NODE_PATH, which is how a globally
-// installed Playwright is usually found. Resolve through require() first, which
-// does honour it, and fall back to the bare specifier for a local install.
-let chromium;
-try {
-  const { createRequire } = await import('node:module');
-  const req = createRequire(import.meta.url);
-  let mod;
-  try { mod = await import(pathToFileURL(req.resolve('playwright')).href); }
-  catch { mod = await import('playwright'); }
-  // require() resolves the package's CJS entry, whose named exports are not
-  // always detected — so take `chromium` from either shape.
-  chromium = mod.chromium || mod.default?.chromium;
-  if (!chromium) throw new Error('no chromium export');
-} catch {
-  console.error('needs playwright: npm i -D playwright && npx playwright install chromium');
-  console.error('(a global install works too: NODE_PATH=/path/to/node_modules node <this file>)');
-  server.close();
-  process.exit(2);
-}
+const srv = await serveSilk(8907);
+const chromium = await getChromium();
+if (!chromium) { srv.close(); noPlaywright(); }
 
 // ── the stubbed directory ───────────────────────────────────────────────────
 //
@@ -107,18 +69,13 @@ const p = await ctx.newPage();
 const pageErrors = [];
 p.on('pageerror', (e) => pageErrors.push(String(e)));
 
-await p.goto(`http://127.0.0.1:${PORT}/word/index.html`, { waitUntil: 'networkidle' });
+await p.goto(`${srv.url}/word/index.html`, { waitUntil: 'networkidle' });
 await p.waitForTimeout(1200);
 
 const rows = () => p.locator('#suggest li');
-let pass = 0;
-const fails = [];
-const ok = (name, cond) => {
-  if (cond) { pass++; console.log(`  ✓ ${name}`); }
-  else { fails.push(name); console.log(`  ✗ ${name}`); }
-};
+const ok = checker('typeahead browser test');
 
-console.log('\nthe list');
+ok.group('the list');
 await p.click('#handle');
 await p.type('#handle', 'min', { delay: 40 });
 await p.waitForTimeout(450);
@@ -133,7 +90,7 @@ ok('a display name full of markup is TEXT',
   await p.evaluate(() => !window.PWNED)
   && (await rows().nth(1).locator('.nm').textContent()).startsWith('<img'));
 
-console.log('\nwhat it does not ask');
+ok.group('what it does not ask');
 await p.fill('#handle', '');
 asked = [];
 await p.type('#handle', 'm', { delay: 40 });
@@ -145,7 +102,7 @@ await p.type('#handle', 'did:plc:ZZZ', { delay: 10 });
 await p.waitForTimeout(400);
 ok('a typed DID asks nothing — it is already the answer', asked.length === 0 && await p.isHidden('#suggest'));
 
-console.log('\nthe staleness guard');
+ok.group('the staleness guard');
 await p.fill('#handle', '');
 await p.type('#handle', 'mi', { delay: 20 });
 await p.waitForTimeout(200);
@@ -154,7 +111,7 @@ await p.waitForTimeout(1100);
 ok('a late answer for a shorter prefix does not win',
   (await rows().count()) === 3 && !(await p.textContent('#suggest')).includes('stale'));
 
-console.log('\nthe keyboard');
+ok.group('the keyboard');
 await p.keyboard.press('ArrowDown');
 ok('down highlights the first row', await rows().nth(0).getAttribute('aria-selected') === 'true');
 await p.keyboard.press('ArrowDown');
@@ -166,7 +123,7 @@ ok('up wraps back', await rows().nth(2).getAttribute('aria-selected') === 'true'
 await p.keyboard.press('Escape');
 ok('escape closes it', await p.isHidden('#suggest'));
 
-console.log('\npicking a row');
+ok.group('picking a row');
 plcLookups.length = 0; resolveCalls = 0;
 await p.fill('#handle', '');
 await p.type('#handle', 'min', { delay: 40 });
@@ -188,7 +145,7 @@ await p.waitForTimeout(900);
 ok('a pointer click picks it too — blur must not eat the event',
   await p.inputValue('#handle') === 'mint.bsky.social' && plcLookups.includes('did:plc:CCC'));
 
-console.log('\nthe escape hatch: it is still an ordinary text box');
+ok.group('the escape hatch: it is still an ordinary text box');
 plcLookups.length = 0; resolveCalls = 0;
 await p.fill('#handle', 'never.indexed.example');
 await p.waitForTimeout(450);
@@ -197,7 +154,7 @@ await p.waitForTimeout(900);
 ok('a handle the directory never offered still builds',
   resolveCalls === 1 && plcLookups.includes('did:plc:VIA_RESOLVE'));
 
-console.log('\na directory that fails is silent');
+ok.group('a directory that fails is silent');
 await p.fill('#handle', '');
 // The banner still carries the previous failed BUILD. The point is that a failed
 // LOOKUP neither raises one of its own nor disturbs that one.
@@ -216,9 +173,5 @@ ok('no uncaught page errors anywhere above', pageErrors.length === 0);
 if (pageErrors.length) console.log(pageErrors);
 
 await b.close();
-server.close();
-
-console.log(fails.length
-  ? `\n✗ typeahead browser test FAILED — ${fails.length} of ${pass + fails.length}:\n  ${fails.join('\n  ')}`
-  : `\n✓ typeahead browser test passed (${pass} checks)`);
-process.exit(fails.length ? 1 : 0);
+srv.close();
+ok.done();

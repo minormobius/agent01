@@ -65,42 +65,10 @@ function buildLayout(data) {
   const isHub = new Uint8Array(N);
 
   const ring = data.order.filter((k) => k !== data.general);
-  const typesOf = new Map(data.sectors.map((s) => [s.k, s.types]));
-  const totalRingTypes = ring.reduce((a, k) => a + typesOf.get(k), 0) || 1;
-
-  const wedge = new Map();
-  {
-    let a = -Math.PI / 2;
-    for (const k of ring) {
-      const span = TAU * (typesOf.get(k) / totalRingTypes);
-      wedge.set(k, { a0: a, a1: a + span, span, mid: a + span / 2 });
-      a += span;
-    }
-  }
-
-  // The rim is not a circle: each wedge's frame vertex sits further out the
-  // deeper that wedge's tail runs, so the outline is a portrait of range.
-  const tMin = Math.min(...ring.map((k) => typesOf.get(k)));
-  const tMax = Math.max(...ring.map((k) => typesOf.get(k)));
-  const vertexR = new Map(ring.map((k) => {
-    const u = tMax > tMin ? (typesOf.get(k) - tMin) / (tMax - tMin) : 1;
-    return [k, R_OUT * (0.84 + 0.16 * u)];
-  }));
-
-  function rimAt(angle) {
-    const a = ((angle + Math.PI / 2) % TAU + TAU) % TAU;
-    let acc = 0;
-    for (let i = 0; i < ring.length; i++) {
-      const span = wedge.get(ring[i]).span;
-      if (a <= acc + span || i === ring.length - 1) {
-        const t = span > 0 ? (a - acc) / span : 0;
-        return lerp(vertexR.get(ring[i]), vertexR.get(ring[(i + 1) % ring.length]),
-          Math.min(1, Math.max(0, t)));
-      }
-      acc += span;
-    }
-    return R_OUT;
-  }
+  // One object per wedge, mutated in place by blendGeom rather than replaced:
+  // drawStructure and drawAnchors hold on to this Map, and swapping it out
+  // under them would leave them drawing last frame's geometry.
+  const wedgeOf = new Map(ring.map((k) => [k, { a0: 0, a1: 0, span: 0, mid: 0 }]));
 
   let CMAX = 1;
   for (let i = 0; i < N; i++) if (SEC[i] !== data.general && CNT[i] > CMAX) CMAX = CNT[i];
@@ -124,62 +92,193 @@ function buildLayout(data) {
   //
   // Ties are broken by hash, not by the alphabet: they arrive alphabetically,
   // and an alphabetical gradient in radius is a lie the eye reads as structure.
-  const rankP = new Float32Array(N);
-  const ringIdx = [];
-  for (let i = 0; i < N; i++) if (SEC[i] !== data.general) ringIdx.push(i);
-  ringIdx.sort((a, b) => CNT[b] - CNT[a] || hash01(W[a]) - hash01(W[b]));
-  ringIdx.forEach((i, j) => { rankP[i] = (j + 0.5) / ringIdx.length; });
-
   const radiusForP = (p, rim) => Math.sqrt(R_IN * R_IN + (rim * rim - R_IN * R_IN) * p);
 
-  // where each use-count begins, as a rank fraction — the contour rings
-  const nRing = ringIdx.length || 1;
-  const pForCount = (c) => {
-    let n = 0;
-    for (const i of ringIdx) if (CNT[i] >= c) n++;
-    return n / nRing;
-  };
-  const shellP = SHELLS.map(pForCount);
-
-  // hub: a phyllotaxis disc, most-used at the centre
-  const hubIdx = [];
-  for (let i = 0; i < N; i++) if (SEC[i] === data.general) hubIdx.push(i);
-  hubIdx.sort((a, b) => CNT[b] - CNT[a]);
-  hubIdx.forEach((i, j) => {
-    const r = R_HUB_IN + (R_HUB_OUT - R_HUB_IN) * Math.sqrt((j + 0.5) / hubIdx.length);
-    const a = j * GOLDEN;
-    ANG[i] = a; isHub[i] = 1;
-    X[i] = CX + Math.cos(a) * r;
-    Y[i] = CY + Math.sin(a) * r;
-    SZ[i] = 1.0 + 2.2 * Math.pow(freqU(CNT[i]), 1.4);
-  });
-
   for (let i = 0; i < N; i++) {
-    if (isHub[i]) continue;
-    const wd = wedge.get(SEC[i]);
-    if (!wd) { X[i] = CX; Y[i] = CY; SZ[i] = 0; continue; }
-    const n = data.sectorCounts[SEC[i]] || 1;
-    const a = wd.a0 + wd.span * (0.04 + 0.92 * ((IDX[i] + 0.5) / n));
-    const r = radiusForP(rankP[i], rimAt(a));
-    ANG[i] = a;
-    X[i] = CX + Math.cos(a) * r;
-    Y[i] = CY + Math.sin(a) * r;
-    SZ[i] = 1.15 + 2.4 * Math.pow(freqU(CNT[i]), 1.6);
+    isHub[i] = SEC[i] === data.general ? 1 : 0;
+    SZ[i] = isHub[i]
+      ? 1.0 + 2.2 * Math.pow(freqU(CNT[i]), 1.4)
+      : (wedgeOf.has(SEC[i]) ? 1.15 + 2.4 * Math.pow(freqU(CNT[i]), 1.6) : 0);
   }
 
-  // spatial hash for hover
+  // ── THE FILTER RE-WEAVES THE WEB ──────────────────────────────────────────
+  //
+  // `min uses` used to hide marks and nothing else, so raising it ate the rim
+  // and left a moth-eaten copy of the same picture — the surviving words still
+  // sitting where they had sat when they had company. But every positional
+  // quantity here is a function of WHICH WORDS ARE IN PLAY: a wedge's angular
+  // span comes from how many types the topic has, its rim vertex from how deep
+  // its tail runs, a word's radius from its rank, its angle from its index
+  // within its wedge. Recompute all of it over the survivors and the web
+  // genuinely re-forms — wedges breathe, the outline changes shape, and what is
+  // left spreads out to fill the disc.
+  //
+  // This runs on every `input` event of a dragged slider, so it has to be O(N)
+  // with small constants. The SORTS HAPPEN ONCE, here: filtering removes words
+  // but never reorders them, so a precomputed order can be walked with the
+  // misses skipped, and the survivor's rank is just how many survivors came
+  // before it.
+  const ringOrder = [];
+  const hubOrder = [];
+  for (let i = 0; i < N; i++) (isHub[i] ? hubOrder : ringOrder).push(i);
+  ringOrder.sort((a, b) => CNT[b] - CNT[a] || hash01(W[a]) - hash01(W[b]));
+  hubOrder.sort((a, b) => CNT[b] - CNT[a]);
+
+  const members = new Map(ring.map((k) => [k, []]));
+  for (let i = 0; i < N; i++) { const a = members.get(SEC[i]); if (a) a.push(i); }
+  for (const a of members.values()) a.sort((x, y) => IDX[x] - IDX[y]);
+
+  // Geometry is twelve wedges and eighteen contour radii — small enough to hold
+  // three copies of (where it was, where it is going, where it is now) and lerp
+  // between them, which is what makes the change read as a web re-weaving
+  // rather than as one picture cutting to another.
+  const K = ring.length;
+  const NS = SHELLS.length;
+  const mkGeom = () => ({
+    a0: new Float64Array(K), span: new Float64Array(K),
+    vr: new Float64Array(K), shellP: new Float64Array(NS),
+  });
+  const gFrom = mkGeom(), gTo = mkGeom(), gNow = mkGeom();
+  const TX = new Float32Array(N), TY = new Float32Array(N), TANG = new Float32Array(N);
+  const FX = new Float32Array(N), FY = new Float32Array(N), FANG = new Float32Array(N);
+
+  // The rim is not a circle: each wedge's frame vertex sits further out the
+  // deeper that wedge's tail runs, so the outline is a portrait of range — and
+  // therefore changes shape as the filter changes what "range" means.
+  const rimOf = (g, angle) => {
+    const a = ((angle + Math.PI / 2) % TAU + TAU) % TAU;
+    let acc = 0;
+    for (let i = 0; i < K; i++) {
+      if (a <= acc + g.span[i] || i === K - 1) {
+        const t = g.span[i] > 0 ? (a - acc) / g.span[i] : 0;
+        return lerp(g.vr[i], g.vr[(i + 1) % K], Math.min(1, Math.max(0, t)));
+      }
+      acc += g.span[i];
+    }
+    return R_OUT;
+  };
+
+  function computeGeom(minc, g, tx, ty, tang) {
+    // wedge spans, from the surviving type count of each topic
+    const live = new Float64Array(K);
+    let total = 0;
+    for (let ki = 0; ki < K; ki++) {
+      let n = 0;
+      for (const i of members.get(ring[ki])) if (CNT[i] >= minc) n++;
+      live[ki] = Math.max(1, n);          // an emptied wedge keeps a hairline slice
+      total += live[ki];
+    }
+    let a = -Math.PI / 2;
+    for (let ki = 0; ki < K; ki++) {
+      g.span[ki] = TAU * (live[ki] / total);
+      g.a0[ki] = a;
+      a += g.span[ki];
+    }
+    let vMin = Infinity, vMax = -Infinity;
+    for (let ki = 0; ki < K; ki++) { vMin = Math.min(vMin, live[ki]); vMax = Math.max(vMax, live[ki]); }
+    for (let ki = 0; ki < K; ki++) {
+      const u = vMax > vMin ? (live[ki] - vMin) / (vMax - vMin) : 1;
+      g.vr[ki] = R_OUT * (0.84 + 0.16 * u);
+    }
+
+    // angle: position within the wedge, over the survivors of that wedge
+    for (let ki = 0; ki < K; ki++) {
+      const list = members.get(ring[ki]);
+      let nn = 0;
+      for (const i of list) if (CNT[i] >= minc) nn++;
+      nn = nn || 1;
+      let j = 0;
+      for (const i of list) {
+        if (CNT[i] < minc) continue;
+        tang[i] = g.a0[ki] + g.span[ki] * (0.04 + 0.92 * ((j + 0.5) / nn));
+        j++;
+      }
+    }
+
+    // radius: rank among survivors, equal-area — and the contour rings in the
+    // same descending walk, so `21×` keeps meaning "where 21 uses starts" for
+    // the vocabulary actually on screen.
+    let nSurv = 0;
+    for (const i of ringOrder) if (CNT[i] >= minc) nSurv++;
+    const denom = nSurv || 1;
+    let si = NS - 1, j = 0;
+    for (const i of ringOrder) {
+      if (CNT[i] < minc) continue;
+      while (si >= 0 && CNT[i] < SHELLS[si]) { g.shellP[si] = j / denom; si--; }
+      const ang = tang[i];
+      const r = radiusForP((j + 0.5) / denom, rimOf(g, ang));
+      tx[i] = CX + Math.cos(ang) * r;
+      ty[i] = CY + Math.sin(ang) * r;
+      j++;
+    }
+    while (si >= 0) { g.shellP[si] = j / denom; si--; }
+
+    // hub: a phyllotaxis disc, most-used at the centre, over the survivors
+    let hn = 0;
+    for (const i of hubOrder) if (CNT[i] >= minc) hn++;
+    const hd = hn || 1;
+    let hj = 0;
+    for (const i of hubOrder) {
+      if (CNT[i] < minc) continue;
+      const r = R_HUB_IN + (R_HUB_OUT - R_HUB_IN) * Math.sqrt((hj + 0.5) / hd);
+      const ang = hj * GOLDEN;
+      tang[i] = ang;
+      tx[i] = CX + Math.cos(ang) * r;
+      ty[i] = CY + Math.sin(ang) * r;
+      hj++;
+    }
+  }
+
+  const copyGeom = (src, dst) => {
+    dst.a0.set(src.a0); dst.span.set(src.span);
+    dst.vr.set(src.vr); dst.shellP.set(src.shellP);
+  };
+  const blendGeom = (e) => {
+    for (let ki = 0; ki < K; ki++) {
+      gNow.a0[ki] = lerp(gFrom.a0[ki], gTo.a0[ki], e);
+      gNow.span[ki] = lerp(gFrom.span[ki], gTo.span[ki], e);
+      gNow.vr[ki] = lerp(gFrom.vr[ki], gTo.vr[ki], e);
+    }
+    for (let s = 0; s < NS; s++) gNow.shellP[s] = lerp(gFrom.shellP[s], gTo.shellP[s], e);
+    for (let ki = 0; ki < K; ki++) {
+      const w = wedgeOf.get(ring[ki]);
+      w.a0 = gNow.a0[ki]; w.span = gNow.span[ki];
+      w.a1 = w.a0 + w.span; w.mid = w.a0 + w.span / 2;
+    }
+  };
+
+  // The spatial hash for hover. Rebuilt when a re-weave settles, never during
+  // one: 39k Map inserts a frame is not affordable, and a tooltip mid-flight is
+  // not worth having.
   const CELL = 9;
   const GW = Math.ceil(WORLD / CELL);
-  const grid = new Map();
-  for (let i = 0; i < N; i++) {
-    const key = ((Y[i] / CELL) | 0) * GW + ((X[i] / CELL) | 0);
-    let a = grid.get(key);
-    if (!a) { a = []; grid.set(key, a); }
-    a.push(i);
+  let grid = new Map();
+  function regrid() {
+    grid = new Map();
+    for (let i = 0; i < N; i++) {
+      const key = ((Y[i] / CELL) | 0) * GW + ((X[i] / CELL) | 0);
+      let a = grid.get(key);
+      if (!a) { a = []; grid.set(key, a); }
+      a.push(i);
+    }
+    out.grid = grid;
   }
 
-  return { N, W, CNT, DF, FIRST, MEAN, SEC, X, Y, SZ, ANG, isHub,
-    ring, wedge, rimAt, radiusForP, shellP, freqU, grid, CELL, GW };
+  // Start settled at "everything", so a page that never touches the slider is
+  // byte-for-byte the picture it was before any of this existed.
+  computeGeom(1, gTo, TX, TY, TANG);
+  copyGeom(gTo, gFrom);
+  copyGeom(gTo, gNow);
+  blendGeom(1);
+  X.set(TX); Y.set(TY); ANG.set(TANG);
+
+  const out = { N, W, CNT, DF, FIRST, MEAN, SEC, X, Y, SZ, ANG, isHub,
+    ring, wedge: wedgeOf, radiusForP, freqU, grid, CELL, GW,
+    rimAt: (a) => rimOf(gNow, a), shellP: gNow.shellP,
+    TX, TY, TANG, FX, FY, FANG, gFrom, gTo, gNow,
+    computeGeom, copyGeom, blendGeom, regrid };
+  regrid();
+  return out;
 }
 
 // ─── colour ─────────────────────────────────────────────────────────────────
@@ -222,9 +321,22 @@ let S = 1;
 let ready = false;
 
 const state = {
-  mode: 'mean', labels: 150, minc: 1, weblines: 0.55,
+  mode: 'mean', tsize: 13, minc: 1, weblines: 0.55, shown: 0,
   hidden: new Set(), hit: -1, found: -1,
 };
+
+// ── HOW MANY LABELS FIT IS A CONSEQUENCE OF HOW BIG THEY ARE ────────────────
+//
+// There used to be a count slider and a fixed type size, which is the wrong way
+// round: asking for 400 labels at 17px is asking for something the canvas
+// cannot give, and the control silently did nothing past the point where the
+// collision grid was full. Type size is the honest handle — you can always see
+// what it did — and the number of labels follows from it, quadratically,
+// because labels compete for AREA. The readout reports what was actually
+// placed, so it is a measurement rather than a setting.
+const TSIZE_REF = 13, LABELS_REF = 150;
+const budgetFor = (size, z) =>
+  Math.round(LABELS_REF * (TSIZE_REF / size) ** 2 * Math.min(3.5, Math.max(1, z * 0.8)));
 
 // ── THE VIEW ────────────────────────────────────────────────────────────────
 //
@@ -238,7 +350,13 @@ const state = {
 // individual words rather than magnify a blob.
 const view = { z: 1, x: 0, y: 0 };
 const MINZ = 1, MAXZ = 40;
-const tf = () => ({ s: S * view.z, x: view.x, y: view.y });
+// The transform carries the size of the SURFACE IT IS FOR, not just the scale.
+// It did not, once, and the export was the casualty: drawMarks culled against
+// the on-screen canvas while rendering into a 2000px one, so everything past
+// `cv.width / s` world units was dropped and the PNG came out as a quarter of a
+// web. Anything that needs to know where the edges are now has to be handed a
+// transform, which is the only object that knows.
+const tf = () => ({ s: S * view.z, x: view.x, y: view.y, w: cv.width, h: cv.height });
 
 function clampPan() {
   // Never let the web leave the frame entirely. At z = 1 it is pinned dead
@@ -264,6 +382,56 @@ function zoomAt(dx, dy, factor) {
 }
 
 function resetView() { view.z = 1; clampPan(); showZoom(); draw(); }
+
+// ─── the re-weave ───────────────────────────────────────────────────────────
+//
+// Changing `min uses` recomputes the whole layout for the surviving words and
+// then flies everything there. The motion is the point: a snap would show you a
+// different web, where a tween shows you THIS web re-forming — wedges opening
+// and closing, the rim changing shape, the tail streaming outward as it stops
+// having to share the disc. Retargeting mid-flight is deliberate and is what
+// makes dragging the slider feel continuous: `from` is wherever things are at
+// this instant, not wherever they started.
+const WEAVE_MS = 480;
+let weaveT0 = 0, weaving = false, weaveRaf = 0;
+const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+function reweave(minc, instant = false) {
+  if (!L) return;
+  const { X, Y, ANG, TX, TY, TANG, FX, FY, FANG, gFrom, gTo, gNow } = L;
+  FX.set(X); FY.set(Y); FANG.set(ANG);
+  L.copyGeom(gNow, gFrom);
+  L.computeGeom(minc, gTo, TX, TY, TANG);
+  if (instant || reducedMotion()) {
+    X.set(TX); Y.set(TY); ANG.set(TANG);
+    L.copyGeom(gTo, gNow);
+    L.blendGeom(1);
+    L.regrid();
+    weaving = false;
+    draw();
+    return;
+  }
+  weaveT0 = performance.now();
+  if (!weaving) { weaving = true; weaveRaf = requestAnimationFrame(weaveStep); }
+}
+
+function weaveStep(now) {
+  const { N, X, Y, ANG, TX, TY, TANG, FX, FY, FANG } = L;
+  const raw = Math.min(1, (now - weaveT0) / WEAVE_MS);
+  const e = easeInOut(raw);
+  for (let i = 0; i < N; i++) {
+    X[i] = FX[i] + (TX[i] - FX[i]) * e;
+    Y[i] = FY[i] + (TY[i] - FY[i]) * e;
+    ANG[i] = FANG[i] + (TANG[i] - FANG[i]) * e;
+  }
+  L.blendGeom(e);
+  draw();
+  if (raw < 1) { weaveRaf = requestAnimationFrame(weaveStep); return; }
+  L.copyGeom(L.gTo, L.gNow);
+  weaving = false;
+  L.regrid();          // the hover hash is only rebuilt once the web has settled
+}
 
 function showZoom() {
   const el = $('zoomtag');
@@ -360,12 +528,18 @@ function drawMarks(c, s, cw, t) {
   // size is wrong on a small canvas: at 366 px the same dots that read as a
   // fine haze on a desktop merge into a solid disc. Scale the device size with
   // the canvas, floored so they never vanish entirely.
-  const dot = Math.max(0.45, Math.min(1.35, cw / 1000));
+  // The cap used to be 1.35, which put the 2000px export outside the linear
+  // regime while the screen was inside it: the same web came out with visibly
+  // finer dots than the one you had been looking at. The cap is only there to
+  // stop marks merging into blobs, which needs a much larger canvas than an
+  // export before it becomes a risk.
+  const dot = Math.max(0.45, Math.min(2.2, cw / 1000));
   // Cull to the visible world rectangle. At 20× this is most of the vocabulary,
-  // and Path2D.rect on 39k invisible marks is pure cost.
+  // and Path2D.rect on 39k invisible marks is pure cost. The bounds come from
+  // the TRANSFORM's own surface, never from `cv` — see the note at tf().
   const vis = t ? {
     x0: (-t.x) / t.s - 8, y0: (-t.y) / t.s - 8,
-    x1: (cv.width - t.x) / t.s + 8, y1: (cv.height - t.y) / t.s + 8,
+    x1: (t.w - t.x) / t.s + 8, y1: (t.h - t.y) / t.s + 8,
   } : null;
   for (let i = 0; i < N; i++) {
     if (CNT[i] < state.minc || SZ[i] <= 0) continue;
@@ -509,12 +683,15 @@ function drawAnchors(c, t, px, cw, ch, collect = false) {
 // ── word labels ─────────────────────────────────────────────────────────────
 
 function drawLabels(c, t, cw, ch, budget, reserved = []) {
-  if (budget <= 0) return;
+  if (budget <= 0) return 0;
   const { N, W, CNT, DF, SEC, X, Y, SZ, ANG, isHub, freqU } = L;
   const px = cw / 1000;
   const sx = (i) => X[i] * t.s + t.x;
   const sy = (i) => Y[i] * t.s + t.y;
-  const CELL = 13 * px;
+  // The collision grid tracks the type size. Held at a constant 13px it made a
+  // 8px label reserve a 13px row it did not need, so turning the text down
+  // stopped buying you more words about halfway through the slider.
+  const CELL = Math.max(5, state.tsize * 0.78) * px;
   const gw = Math.ceil(cw / CELL), gh = Math.ceil(ch / CELL);
   const grid = new Uint8Array(gw * gh);
   for (const b of reserved) {
@@ -563,7 +740,9 @@ function drawLabels(c, t, cw, ch, budget, reserved = []) {
   for (const i of order) {
     if (placed >= budget) break;
     const cx = sx(i), cy = sy(i);
-    const fs = Math.max(10, Math.min(17, 9 + 7 * freqU(CNT[i]))) * px;
+    // Size is the slider, spread around it by frequency: the ±22% keeps the
+    // "this word is used more" cue that a flat size would throw away.
+    const fs = state.tsize * (0.78 + 0.44 * freqU(CNT[i])) * px;
     c.font = `${fs.toFixed(1)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
     const tw = c.measureText(W[i]).width;
 
@@ -600,6 +779,7 @@ function drawLabels(c, t, cw, ch, budget, reserved = []) {
     c.fillText(W[i], lx, ly);
     placed++;
   }
+  return placed;
 }
 
 function drawMarker(i, colour, t) {
@@ -653,10 +833,10 @@ function draw() {
   // budget is what fits at rest, scaled with z and capped, because past ~4×
   // the collision grid is the binding constraint anyway.
   const px = cv.width / 1000;
-  const budget = Math.round(state.labels * Math.min(3.5, Math.max(1, view.z * 0.8)));
   const reserved = drawAnchors(ctx, t, px, cv.width, cv.height, true).concat(chromeBoxes());
-  drawLabels(ctx, t, cv.width, cv.height, budget, reserved);
+  const placed = drawLabels(ctx, t, cv.width, cv.height, budgetFor(state.tsize, view.z), reserved);
   drawAnchors(ctx, t, px, cv.width, cv.height);
+  if (placed !== state.shown) { state.shown = placed; showTsize(); }
 }
 
 // ─── export ─────────────────────────────────────────────────────────────────
@@ -678,13 +858,16 @@ function renderExport(px = 2000) {
   // that silently depended on how far you happened to be zoomed in would be a
   // different picture every time you pressed the button.
   const s = px / WORLD;
-  const et = { s, x: 0, y: 0 };
+  const et = { s, x: 0, y: 0, w: px, h: px };
   c.setTransform(s, 0, 0, s, 0, 0);
   drawStructure(c, s, Math.max(0.4, state.weblines));
   drawMarks(c, s, px, et);
   c.setTransform(1, 0, 0, 1, 0, 0);
   const reserved = drawAnchors(c, et, px / 1000, px, px, true);
-  drawLabels(c, et, px, px, Math.round(state.labels * 1.5), reserved);
+  // The export is 2000px against a screen canvas of maybe 1100, so it has room
+  // for more words at the same apparent size. Ask for what that extra area is
+  // worth rather than for the screen's number.
+  drawLabels(c, et, px, px, Math.round(budgetFor(state.tsize, 1) * (px / cv.width) ** 2), reserved);
   drawAnchors(c, et, px / 1000, px, px);
 
   const u = px / 1000;
@@ -764,6 +947,7 @@ const labelOf = (k) => (D.sectors.find((s) => s.k === k)?.label || []).slice(0, 
 cv.addEventListener('mousemove', (e) => {
   if (!ready) return;
   if (drag) return;
+  if (weaving) return;      // the hover hash is stale until the web settles
   const b = cv.getBoundingClientRect();
   const dpr = cv.width / b.width;
   const dx = (e.clientX - b.left) * dpr;
@@ -894,6 +1078,31 @@ const bindRange = (id, key, fmt, scale = 1) => {
   el.addEventListener('input', upd);
   upd();
 };
+
+// Both readouts report a MEASUREMENT, not the slider position: how many labels
+// actually got placed, and how many words are actually left. A control whose
+// number is its own input tells you nothing you did not already know.
+function showTsize() {
+  $('tsizev').textContent = `${state.tsize}px · ${state.shown}`;
+}
+function showMinc() {
+  let n = 0;
+  for (let i = 0; i < L.N; i++) if (L.CNT[i] >= state.minc && L.SZ[i] > 0) n++;
+  $('mincv').textContent = state.minc === 1
+    ? `all · ${n.toLocaleString()}`
+    : `${state.minc}× · ${n.toLocaleString()}`;
+}
+
+$('tsize').addEventListener('input', () => {
+  state.tsize = +$('tsize').value;
+  draw();                    // draw() writes the readout, because it counts
+});
+
+$('minc').addEventListener('input', () => {
+  state.minc = +$('minc').value;
+  showMinc();
+  reweave(state.minc);
+});
 
 $('find').addEventListener('input', (e) => {
   const q = e.target.value.trim().toLowerCase();
@@ -1062,6 +1271,21 @@ function setData(data) {
   // something in the last one would frame a stranger's web at random.
   view.z = 1;
   showZoom();
+
+  // `min uses` was fixed at 1..40, which is right for a 50,000-post account and
+  // nonsense for a small one: most of the travel did nothing, and the top of it
+  // emptied the web. Set the ceiling where about thirty ring words are left, so
+  // the far end of the slider is always the interesting end.
+  const counts = [];
+  for (let i = 0; i < L.N; i++) if (!L.isHub[i] && L.SZ[i] > 0) counts.push(L.CNT[i]);
+  counts.sort((a, b) => b - a);
+  const el = $('minc');
+  el.max = String(Math.max(4, Math.min(60, counts[Math.min(counts.length - 1, 29)] || 4)));
+  el.value = '1';
+  state.minc = 1;
+  reweave(1, true);
+  showMinc();
+
   recolour(state.mode);
   fillPanels();
   drawFlat();
@@ -1308,11 +1532,19 @@ $('reset').onclick = async () => {
   setData(await (await fetch('./data.json')).json());
 };
 
+// A read-only handle on the layout. The page never reads it; the browser tests
+// do, and so can anyone who opens a console — this page already asks you to go
+// and read engine.mjs, so it may as well let you look at what came out.
+window.silk = {
+  get D() { return D; },
+  get L() { return L; },
+  get weaving() { return weaving; },
+  state, view,
+};
+
 // ─── go ─────────────────────────────────────────────────────────────────────
 
 window.addEventListener('resize', size);
-bindRange('labels', 'labels', (v) => v);
-bindRange('minc', 'minc', (v) => (v === 1 ? 'all' : v + '×'));
 bindRange('weblines', 'weblines', (v) => v + '%', 0.01);
 
 setData(await (await fetch('./data.json')).json());

@@ -59,6 +59,8 @@
         <dt>colour</dt><dd id="colourlegend">when you were using it</dd>
         <dt>the names</dt><dd>each wedge is labelled in the margin by its two strongest words, and the counts down one spoke say what a distance from the centre means</dd>
         <dt>zoom</dt><dd>scroll, pinch or double-click. Dots stay the same size as you go in, so the haze separates into individual words — and the labels follow the viewport, so you get <em>more</em> of them where you are looking, not the same ones bigger</dd>
+        <dt>text size</dt><dd>how many labels fit is a consequence of how big they are, so there is one control and not two. The number beside it is how many were actually placed, not how many were asked for</dd>
+        <dt>min uses</dt><dd>not a filter over a fixed picture — the web is <em>rewoven</em> for whatever survives. Wedges resize to their new type counts, the rim outline changes shape, and the survivors re-rank and spread out to fill the disc</dd>
       </dl>
     </div>
 
@@ -72,8 +74,8 @@
           <option value="burst">burstiness (count ÷ posts)</option>
         </select>
       </div>
-      <div class="row"><span class="lb">labels</span><input type="range" id="labels" min="0" max="400" value="150"><span class="val" id="labelsv"></span></div>
-      <div class="row"><span class="lb">min uses</span><input type="range" id="minc" min="1" max="40" value="1"><span class="val" id="mincv"></span></div>
+      <div class="row"><span class="lb">text size</span><input type="range" id="tsize" min="7" max="26" value="13"><span class="val wide" id="tsizev"></span></div>
+      <div class="row"><span class="lb">min uses</span><input type="range" id="minc" min="1" max="40" value="1"><span class="val wide" id="mincv"></span></div>
       <div class="row"><span class="lb">web lines</span><input type="range" id="weblines" min="0" max="100" value="55"><span class="val" id="weblinesv"></span></div>
       <div class="row"><span class="lb">find</span><input type="search" id="find" placeholder="a word…" autocomplete="off"></div>
       <p class="hint" id="findout"></p>
@@ -96,7 +98,7 @@
 
 <section class="flat">
   <h2>and now the charts that actually work</h2>
-  <p class="lead">The web above is a <em>bad chart</em>. Its whole angular axis is twelve categories, its radial axis is one number, and it has about six hundred legible cells for thirty-nine thousand words — what you are actually reading is a hundred and fifty labels and a density field. It is worth looking at because it is an object, not because it is efficient. These three are efficient.</p>
+  <p class="lead">The web above is a <em>bad chart</em>. Its whole angular axis is twelve categories, its radial axis is one number, and it has about six hundred legible cells for thirty-nine thousand words — what you are actually reading is a couple of hundred labels and a density field. It is worth looking at because it is an object, not because it is efficient. These three are efficient.</p>
   <div class="flatgrid">
     <figure><figcaption id="cap-zipf"></figcaption><div id="zipf"></div></figure>
     <figure><figcaption id="cap-heaps"></figcaption><div id="heaps"></div></figure>
