@@ -551,7 +551,11 @@ function drawMarks(c, s, cw, t) {
     if (CNT[i] < state.minc || SZ[i] <= 0) continue;
     if (vis && (X[i] < vis.x0 || X[i] > vis.x1 || Y[i] < vis.y0 || Y[i] > vis.y1)) continue;
     const sz = (SZ[i] / s) * dot;
-    (dim && state.hidden.has(SEC[i]) ? dimPath : paths[bucket[i]])
+    // `bucket[i] ?? 0`: reading past the end of a Uint8Array gives undefined,
+    // and `paths[undefined].rect` is a TypeError thrown from inside a draw —
+    // which is a blank page rather than a wrong colour. One dot in the default
+    // bucket is the better failure.
+    (dim && state.hidden.has(SEC[i]) ? dimPath : (paths[bucket[i] ?? 0] || paths[0]))
       .rect(X[i] - sz / 2, Y[i] - sz / 2, sz, sz);
   }
   if (dim) { c.fillStyle = 'rgba(120,132,148,0.10)'; c.fill(dimPath); }
@@ -1274,8 +1278,24 @@ function drawFlat() {
 // ─── loading a dataset ──────────────────────────────────────────────────────
 
 function setData(data) {
+  // NOTHING MAY DRAW WHILE THE DATASET IS HALF-INSTALLED. `L`, `bucket` and
+  // `bucketColour` have to describe the same vocabulary, and between the two
+  // assignments below they do not: `L` is the new one and `bucket` is still
+  // sized to the old. Anything that paints in that window indexes `bucket` past
+  // its end, gets `undefined`, and throws out of the middle of this function —
+  // leaving the page with a blank canvas, stale stats and no error, because the
+  // throw happens inside a worker callback where nothing is watching.
+  //
+  // That is not hypothetical. `reweave()` below draws, and it was added above
+  // `recolour()`, so building ANY vocabulary with more word types than the one
+  // on screen broke exactly this way. The example is the author's own 39,554
+  // types, so every smaller account worked and only the author's own — grown to
+  // 39,558 — did not.
+  ready = false;
   D = data;
   L = buildLayout(data);
+  // The palette is part of the dataset, not a decoration applied afterwards.
+  recolour(state.mode);
   state.hidden.clear();
   state.hit = -1;
   state.found = -1;
@@ -1300,7 +1320,6 @@ function setData(data) {
   reweave(1, true);
   showMinc();
 
-  recolour(state.mode);
   fillPanels();
   drawFlat();
   ready = true;
@@ -1648,6 +1667,9 @@ window.silk = {
   get D() { return D; },
   get L() { return L; },
   get weaving() { return weaving; },
+  // the two arrays that must agree with L, exposed so a test can say so
+  get bucketLen() { return bucket ? bucket.length : 0; },
+  get paletteLen() { return bucketColour.length; },
   state, view,
 };
 

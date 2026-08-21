@@ -19,27 +19,51 @@
 // turns gentle mode on by itself.
 
 import { serveSilk, getChromium, noPlaywright, checker } from './harness.mjs';
+import { analyze } from '../../word/engine.mjs';
 
 const srv = await serveSilk(8910);
 const chromium = await getChromium();
 if (!chromium) { srv.close(); noPlaywright(); }
 
 const DID = 'did:plc:TEST';
+
+// The vocabulary has to GROW with the post count, or the second dataset is not
+// bigger than the first and the case below tests nothing. Digits are not
+// tokens, so the index is spelled in letters.
+const spell = (n) => {
+  let s = '';
+  do { s = 'abcdefghijklmnopqrstuvwxyz'[n % 26] + s; n = (n / 26) | 0; } while (n);
+  return `zk${s}`;
+};
 const POSTS = [];
 for (let i = 0; i < 300; i++) {
   POSTS.push({
     uri: `at://${DID}/app.bsky.feed.post/${i}`,
     value: {
       $type: 'app.bsky.feed.post',
-      text: `heron lantern ${'quarry '.repeat(1 + (i % 6))}saltmarsh ${'ember '.repeat(i % 3)}`,
+      text: `heron lantern ${'quarry '.repeat(1 + (i % 6))}saltmarsh ${'ember '.repeat(i % 3)}`
+        + ` ${spell(i)} ${spell(i * 3 + 1)} ${spell(i * 7 + 2)}`,
       createdAt: new Date(Date.UTC(2024, 0, 1) + i * 3607_000).toISOString(),
       ...(i % 7 === 0 ? { reply: { root: { uri: `at://thread/${i % 9}` } } } : {}),
     },
   });
 }
 
+// THE EXAMPLE IS SERVED SMALL ON PURPOSE.
+//
+// The bug this guards against needs the dataset being installed to be LARGER
+// than the one on screen: `L` is replaced first, `bucket` a moment later, and
+// anything that draws in between indexes `bucket` past its end, gets undefined,
+// and throws out of the middle of setData — blank canvas, stale stats, no error.
+// The shipped example is the author's own 39,554 types, so in the wild every
+// smaller account worked and only the author's own, grown to 39,558, did not.
+// Serving a deliberately small example makes any ordinary build reproduce it.
+const SMALL = analyze(POSTS.slice(0, 90).map((r) => r.value), { handle: 'small.example', did: 'did:plc:S', K: 4 });
+
 const b = await chromium.launch();
 const ctx = await b.newContext({ viewport: { width: 1400, height: 1000 } });
+await ctx.route('**/word/data.json', (r) =>
+  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(SMALL) }));
 
 let archiveHits = 0;
 let listHits = 0;
@@ -96,6 +120,26 @@ ok('it walked listRecords in pages', listHits >= 3, `${listHits} requests`);
 ok('it asked for a hundred at a time', biggestPage === 100, `${biggestPage}`);
 const stats = await p.textContent('#stats');
 ok('the posts all arrived', /300/.test(stats.replace(/[,\s]/g, '')) || okBuild, stats.replace(/\s+/g, ' ').slice(0, 70));
+
+// ── the bigger-than-before build ────────────────────────────────────────────
+const grew = await p.evaluate(() => ({
+  N: window.silk.L.N, bucket: window.silk.bucketLen, palette: window.silk.paletteLen,
+}));
+console.log(`    example had ${SMALL.types} types, this build has ${grew.N}`);
+ok('this build really is larger than the example it replaced', grew.N > SMALL.types,
+  `${SMALL.types} → ${grew.N}`);
+ok('the colour buckets were resized with the vocabulary', grew.bucket === grew.N,
+  `bucket ${grew.bucket} vs N ${grew.N}`);
+ok('every bucket has a colour behind it', grew.palette > 0);
+const inkAfterBuild = await p.evaluate(() => {
+  const cv = document.getElementById('web');
+  const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+  let n = 0; for (let i = 0; i < d.length; i += 40) if (d[i] + d[i+1] + d[i+2] > 90) n++;
+  return n;
+});
+ok('and the web is actually drawn, not a blank square', inkAfterBuild > 500, `${inkAfterBuild} lit samples`);
+ok('the page recorded the build', (await p.textContent('#stats')).includes('someone.bsky.social')
+  && !(await p.isVisible('#err')));
 
 // ── the retry offered when the archive is refused ───────────────────────────
 ok.group('a refused archive offers the slow way');

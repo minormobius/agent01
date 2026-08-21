@@ -76,7 +76,8 @@ silk/
       harness.mjs            serves silk/, resolves Playwright, counts checks
       typeahead.browser.mjs  23 checks — the handle box; NOT in CI, see below
       chart.browser.mjs      16 checks — the export, the sliders, the reweave
-      gentle.browser.mjs     24 checks — gentle mode, the crash mark, the repaint
+      gentle.browser.mjs     29 checks — gentle mode, the crash mark, the repaint,
+                             and a build bigger than the one it replaces
   worker.js             assets + /health
   wrangler.jsonc
 ```
@@ -160,6 +161,30 @@ arrival order does not survive into the answer. The selftest asserts that
 directly, on the archive's order, on listRecords' reversed paging, and on a
 shuffle. (The property it rests on: no two posts in a real corpus share a
 millisecond — 50,258 posts, 50,258 distinct `createdAt`.)
+
+**A dataset is installed in one step or not at all.** `L`, `bucket` and
+`bucketColour` must describe the same vocabulary, and for a few statements
+inside `setData` they did not: `L` was the new one and `bucket` was still sized
+to the old. `reweave()` draws, and it got added *above* `recolour()` — so
+anything painting in that window indexed `bucket` past its end, got `undefined`,
+and `paths[undefined].rect` threw out of the middle of `setData`. No error
+reached the page, because the throw happened inside a worker callback with
+nobody watching: `fillPanels`, `ready = true` and `size()` never ran, and the
+result was a blank canvas beside stale stats.
+
+**It only fired when the new vocabulary was LARGER than the one on screen.** The
+shipped example is the author's own 39,554 types, so in the wild every smaller
+account worked perfectly and only the author's own account — grown to 39,558 —
+did not. Reported, exactly and correctly, as *"it works on everyone else's
+profile just not mine"*, which is a sentence worth taking literally: it named a
+size relation, not an identity.
+
+`setData` now sets `ready = false` first and recolours before anything can
+paint, and `drawMarks` falls back to bucket 0 rather than throwing, because "these
+two arrays agree" is an invariant that has now been broken once. The regression
+test serves a deliberately *small* example so that any ordinary build reproduces
+the condition, and asserts `bucket.length === L.N` — verified to fail without
+the fix and pass with it.
 
 **iOS discards canvas backing stores, and a page that draws on events never
 finds out.** The report that led here was *"it finishes and the web is empty"*,
@@ -384,7 +409,7 @@ check behind it decays into a comment.
   escaping, the staleness guard, the DID shortcut, the keyboard, `pointerdown`
   surviving blur, and that a 500 from the directory leaves no trace on the page
   while a typed handle still builds.
-- [`gentle.browser.mjs`](test/browser/gentle.browser.mjs) — 24 checks: that
+- [`gentle.browser.mjs`](test/browser/gentle.browser.mjs) — 29 checks: that
   gentle mode builds without ever touching `getRepo`, that a refused archive
   offers the slow way as a button, and the crash mark in all four of its states —
   a crash arms it, a reported failure does not, walking away mid-build does not,
