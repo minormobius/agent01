@@ -221,8 +221,25 @@ wasm refuses to start instead of quietly playing a different game.
 
 ## Playing
 
-`← →` walk the rim · `space` fire · `O` oracle · `P` proof · touch: left/right
-thirds to walk, middle to fire.
+**Keyboard.** `← →` walk the rim · `space` fire · `O` oracle · `P` proof.
+
+**Touch.** **Drag the web** to walk, **tap it** to fire — one thumb plays the
+whole game. There are also `◀ ▶ FIRE` buttons, held rather than tapped, for
+two-thumb play.
+
+The drag is a *spinner*, the way the arcade cabinet's rotary knob was: it means
+"spin this way", not "put the claw under my thumb". That is not laziness about
+direct manipulation — on a ring, clockwise is rightward at the top of the web
+and leftward at the bottom, so an absolute mapping would silently reverse
+itself as you walked round. Relative is the only mapping that stays true
+wherever the claw is, and it matches the keyboard.
+
+The controls sit **below** the web in portrait. In landscape they become
+floating thumb-rests in the bottom corners instead — a short wide screen has no
+height to spare for a bar, and because the web is drawn to its own aspect ratio
+and never stretched, the corners are empty anyway. The first version was three
+invisible full-height zones laid over the canvas, so your thumb covered the
+lanes you were trying to read.
 
 **Oracle** asks the solver, twice a second, whether the run you are in is still
 winnable, and turns your claw red when it is not. It is not a hint — it never

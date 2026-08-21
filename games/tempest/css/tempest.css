@@ -28,9 +28,17 @@ html, body {
 
 body {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  /* hud · web · touch controls · footer. The controls row collapses to nothing
+     when it is display:none, so pointer devices lose no height to it. */
+  grid-template-rows: auto 1fr auto auto;
   /* The web is the thing; nothing else should ever scroll it off screen. */
   overflow: hidden;
+  /* A game is not a document: a long-press should not offer to select the
+     score, and a double-tap should not zoom the cabinet. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
 }
 
 /* ------------------------------------------------------------------ hud -- */
@@ -39,7 +47,8 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 6px 12px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--line);
   font-size: 13px;
@@ -47,7 +56,15 @@ body {
   text-transform: lowercase;
 }
 
-.hud-left, .hud-right { display: flex; align-items: center; gap: 14px; }
+.hud-left, .hud-right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+/* Wrap between items, never inside one. On a phone the first attempt broke
+   "level 6" across two lines, which reads as a layout bug rather than a HUD. */
+.hud span { white-space: nowrap; }
 .hud-left span { color: var(--dim); }
 #hud-level { color: var(--rim); }
 .lives { color: var(--hot); letter-spacing: 2px; }
@@ -62,7 +79,14 @@ body {
 }
 .cert-strip b { color: var(--hot); font-weight: 600; }
 .cert-strip .decides { color: var(--rim); }
-@media (max-width: 720px) { .cert-strip { display: none; } }
+/* Two versions of the same fact: the readable one, and the one that fits on a
+   phone. Dropping it entirely on small screens was the first attempt, and it
+   threw away the only thing that makes this game worth looking at twice. */
+.cert-short { display: none; }
+@media (max-width: 720px) {
+  .cert-strip { display: none; }
+  .cert-short { display: inline; padding-left: 10px; letter-spacing: 0; }
+}
 .score { color: var(--ink); font-variant-numeric: tabular-nums; }
 
 .hud button {
@@ -161,16 +185,96 @@ body {
 }
 .verdict-line.hot { color: var(--hot); }
 
-/* ----------------------------------------------------------- touch pads -- */
+/* ------------------------------------------------------- touch controls -- */
 
-.pads { position: absolute; inset: 0; display: none; }
-.pad { position: absolute; bottom: 0; top: 0; }
-.pad-l { left: 0; width: 33%; }
-.pad-r { right: 0; width: 33%; }
-.pad-f { left: 33%; width: 34%; }
+/* Below the web, never on top of it. The first version was three invisible
+   full-height zones laid over the canvas, which meant your thumb covered the
+   lanes you were trying to read. */
+.touch {
+  display: none;
+  gap: 10px;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: #060c14;
+}
+
+.tbtn {
+  flex: 1 1 0;
+  min-height: 64px;
+  font: inherit;
+  color: var(--rim);
+  background: rgba(57, 208, 255, 0.07);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  /* The buttons are held, not tapped: no scrolling, no zooming, no delay. */
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.tbtn.dir { flex: 1 1 26%; font-size: 22px; }
+.tbtn.fire {
+  flex: 1 1 48%;
+  color: var(--hot);
+  background: rgba(255, 210, 63, 0.09);
+  border-color: rgba(255, 210, 63, 0.35);
+  font-size: 15px;
+  font-weight: 600;
+}
+.tbtn.down { background: rgba(57, 208, 255, 0.26); }
+.tbtn.fire.down { background: rgba(255, 210, 63, 0.3); }
 
 @media (pointer: coarse) {
-  .pads { display: block; }
+  .touch { display: flex; }
+}
+
+/* Landscape on a phone.
+   
+   The web is drawn to its own aspect ratio and never stretched — the polygon
+   IS the travel-cost table, so distorting it would be drawing a different
+   game. On a short wide screen that leaves big empty margins either side and
+   almost no height, which is the worst possible place to spend a row on a
+   control bar. So in landscape the buttons stop being a row and become
+   floating thumb-rests in the empty corners: the web gets the whole frame,
+   and the controls sit exactly where hands already are. */
+@media (pointer: coarse) and (max-height: 520px) {
+  .touch {
+    position: absolute;
+    /* Above the footer, which stays reachable between the two thumbs. */
+    inset: 0 0 30px 0;
+    z-index: 2;
+    align-items: flex-end;
+    gap: 10px;
+    padding: 0 12px calc(8px + env(safe-area-inset-bottom));
+    background: none;
+    border-top: 0;
+    /* Only the buttons take taps; everything between them is still web, so
+       the drag-spinner keeps working across the middle of the screen. */
+    pointer-events: none;
+  }
+  /* `.tbtn.dir` in the base rules is two classes deep, so a bare `.tbtn`
+     override here loses to it however late it comes — the first attempt left
+     the arrows 184px wide, sprawling across the bottom-left of the web. */
+  .tbtn {
+    pointer-events: auto;
+    min-height: 74px;
+    border-radius: 12px;
+    backdrop-filter: blur(2px);
+  }
+  .tbtn.dir {
+    flex: 0 0 auto;
+    width: 86px;
+    font-size: 20px;
+  }
+  .tbtn.fire {
+    flex: 0 0 auto;
+    /* Thumbs land in the two bottom corners, so the directions pair up on the
+       left and the trigger goes hard right. */
+    order: 3;
+    margin-left: auto;
+    width: 132px;
+    font-size: 14px;
+  }
 }
 
 /* -------------------------------------------------------------- overlay -- */
@@ -230,11 +334,39 @@ body[data-phase="error"] .cta { display: none; }
 .foot a { color: var(--dim); }
 .foot a:hover { color: var(--rim); }
 
-@media (max-width: 620px) {
+@media (max-width: 720px) {
   .hud { font-size: 11.5px; gap: 8px; padding: 8px 10px; }
   .hud-left, .hud-right { gap: 9px; }
-  .proof { top: 8px; right: 8px; font-size: 12px; }
+  .hud button { padding: 5px 12px; }
   .foot { font-size: 10.5px; }
+  .card { padding: 20px 18px; }
+  .card h1 { font-size: 22px; }
+  /* A bottom sheet: it can be read and dismissed without the web scrolling
+     away underneath, and it never covers the rim you are defending. */
+  .proof {
+    top: auto;
+    right: 8px;
+    left: 8px;
+    bottom: 8px;
+    width: auto;
+    max-height: 62%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    font-size: 12px;
+  }
+}
+
+/* Short and wide — a phone on its side. Nothing may push the web off screen. */
+@media (max-height: 520px) {
+  .hud { padding: 5px 10px; font-size: 11px; }
+  .proof { max-height: 78%; }
+  .foot { padding-top: 4px; padding-bottom: calc(4px + env(safe-area-inset-bottom)); }
+}
+
+/* On a touch screen the footer is the only way back out of the game, so it
+   stays — just narrower, and out of the way of the controls above it. */
+@media (pointer: coarse) {
+  .foot { padding: 6px 12px calc(6px + env(safe-area-inset-bottom)); font-size: 10.5px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -280,6 +280,41 @@ section('the browser path');
   run.dispose();
 }
 
+// --- the controls the page promises ------------------------------------------
+// There is no browser here, so this cannot test that a drag walks the claw —
+// the Playwright pass does that. What it can do is hold the three files to
+// each other: the buttons game.js binds must exist in index.html and be styled
+// in the stylesheet. Renaming one id would otherwise remove the mobile
+// controls in complete silence, and nothing else in the suite would notice.
+section('the touch controls are wired end to end');
+{
+  const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
+  const js = readFileSync(join(ROOT, 'js/game.js'), 'utf8');
+  const css = readFileSync(join(ROOT, 'css/tempest.css'), 'utf8');
+
+  for (const id of ['t-ccw', 't-cw', 't-fire', 'stage', 'touch']) {
+    ok(html.includes(`id="${id}"`), `index.html defines #${id}`);
+  }
+  for (const id of ['t-ccw', 't-cw', 't-fire']) {
+    ok(js.includes(`'${id}'`), `game.js binds #${id}`);
+  }
+  ok(/\.touch\s*{/.test(css), 'the control bar is styled');
+  ok(/\.tbtn\s*{/.test(css), 'the control buttons are styled');
+  ok(css.includes('pointer: coarse'), 'the controls appear on touch screens');
+  ok(!html.includes('id="pad-left"'), 'the old full-bleed pads are gone');
+  // The spinner and the tap-to-fire are what make one-thumb play work.
+  ok(js.includes('pointermove'), 'the drag spinner is bound');
+  ok(js.includes('firePulse'), 'a tap queues a shot');
+  ok(js.includes('setPointerCapture'), 'a drag that leaves the canvas is still tracked');
+  // Buttons are held down, not clicked: `click` lands on release, a whole beat
+  // late for a game measured in ticks.
+  ok(!/\$\('t-(ccw|cw|fire)'\)\.addEventListener\('click'/.test(js),
+    'the controls are held, not clicked');
+  ok(js.includes('orientationchange'), 'rotating the phone re-fits the web');
+  ok(css.includes('env(safe-area-inset-bottom)'), 'the controls clear the home indicator');
+  ok(/touch-action:\s*none/.test(css), 'dragging the web does not scroll the page');
+}
+
 section('the pack as a whole');
 ok(waves >= 40, `enough content: ${waves} certified waves`);
 ok(minSlack >= 0, `tightest wave in the pack has ${minSlack} ticks of slack`);
