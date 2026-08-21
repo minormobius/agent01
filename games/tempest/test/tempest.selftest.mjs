@@ -298,7 +298,7 @@ section('the touch controls are wired end to end');
   for (const id of ['dial', 'dial-ring', 'dial-nub', 't-fire']) {
     ok(js.includes(`'${id}'`), `game.js binds #${id}`);
   }
-  ok(/\.dial\s*{/.test(css), 'the spinner is styled');
+  ok(/\.dial\s*{/.test(css), 'the wheel is styled');
   ok(/\.fire\s*{/.test(css), 'the fire button is styled');
   ok(css.includes('pointer: coarse'), 'the controls appear on touch screens');
   ok(!html.includes('id="pad-left"'), 'the old full-bleed pads are gone');
@@ -309,10 +309,17 @@ section('the touch controls are wired end to end');
   // the exact complaint that produced the spinner.
   ok(!/id="t-(ccw|cw)"/.test(html), 'movement is not split across two buttons');
 
-  // The spinner is a rotary control: it reads angle, not left-and-right.
-  ok(js.includes('Math.atan2'), 'the spinner reads an angle');
-  ok(js.includes('DIAL_STEP'), 'turning it commits to a direction');
-  ok(js.includes('DIAL_PUSH'), 'leaning on it works like a stick too');
+  // The wheel is a rotary control: it reads angle, not left-and-right.
+  ok(js.includes('Math.atan2'), 'the wheel reads an angle');
+  ok(js.includes('TICKS_PER_SEC'), 'the clock rate is a named constant, not a magic 60');
+  // …and a POSITION control: how far you turn it is how far the claw goes.
+  ok(js.includes('TURN_LANES'), 'turning it sets a target, not a speed');
+  ok(js.includes('state.aim'), 'the target is a signed lane number');
+  ok(js.includes('trackLane'), 'the claw is followed past the wrap');
+  // Signed targets are what stop the control routing for the player: the
+  // long way round has to stay expressible, because it is the decision the
+  // whole game measures.
+  ok(js.includes('clampAim'), 'a strip has no way round the back');
   ok(js.includes('setPointerCapture'), 'a thumb that slides off is still tracked');
   ok(js.includes('firePulse'), 'a tap on the web queues a shot');
   // Held, not clicked: `click` lands on release, a beat late at 60 ticks/s.
@@ -320,6 +327,12 @@ section('the touch controls are wired end to end');
     !/\$\('t-fire'\)\.addEventListener\('click'/.test(js),
     'the fire button is held, not clicked'
   );
+  // Whether a thumb is on the button belongs to the pointer, not to the game.
+  // Resetting it on a wave change is what made the gun go dead when you held
+  // fire through a wave break.
+  ok(!/clearAim[\s\S]{0,220}state\.firing/.test(js),
+    'a wave change does not un-press the fire button');
+  ok(js.includes('firePointer'), 'the fire button tracks its own pointer');
   ok(js.includes('orientationchange'), 'rotating the phone re-fits the web');
   ok(css.includes('env(safe-area-inset-bottom)'), 'the controls clear the home indicator');
   ok(/touch-action:\s*none/.test(css), 'dragging the spinner does not scroll the page');

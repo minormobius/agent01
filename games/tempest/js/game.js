@@ -10,34 +10,53 @@
 (function () {
   'use strict';
 
-  const TICK_MS = 1000 / 60;
+  // --- how fast the game runs ------------------------------------------------
+  //
+  // Ticks per second, and the honest way to make the game quicker.
+  //
+  // The obvious way — make the claw cover more ground per tick — was tried and
+  // measured, and it quietly wrecks the game. Lane travel cost IS the thing
+  // the solver certifies against and the thing the whole design is about, so a
+  // faster claw means the web's shape matters less: at 1.5x claw speed the
+  // balance sweep showed waves landing in their difficulty band falling from
+  // 97% to 60%, "the web decides" falling from 84% to 51%, and — the tell that
+  // settled it — the deliberately blind `flat-web` control, which plays every
+  // web as a circle, closing from 1.4-against-1.9 to 2.6-against-3.0. If you
+  // can get anywhere cheaply, the shape is scenery.
+  //
+  // The tick is an internal unit. Running more of them per second makes
+  // everything faster in the hand while leaving every ratio, every
+  // certificate and every seed exactly as they were.
+  const TICKS_PER_SEC = 90;
+  const TICK_MS = 1000 / TICKS_PER_SEC;
   const LIVES = 3;
 
   // --- touch feel -----------------------------------------------------------
-  // Dragging on the web is a spinner, the way the arcade cabinet's knob was:
-  // the control is RELATIVE, so it means "spin this way", not "put the claw
-  // under my thumb". That matters because on a ring, clockwise is rightward at
-  // the top of the web and leftward at the bottom — an absolute mapping would
-  // reverse itself as you walked round. Relative matches the keyboard, and it
-  // is the one mapping that stays true wherever the claw is.
-  const DEAD_ZONE = 15; // px of thumb travel before you start walking
-  const STICK_MAX = 58; // the anchor trails the thumb, so stopping is cheap
+  //
+  // The wheel is a POSITION control, not a velocity one. Turn it a quarter and
+  // the claw goes a quarter of the way round, as fast as it can walk; jam it
+  // half a turn and it sets off for the far side of the web. A velocity
+  // control — hold this way to keep walking — was the first attempt and it
+  // felt like steering something heavy, because the amount you turned carried
+  // no information at all.
+  //
+  // What it does NOT do is route for you. The target follows your *accumulated*
+  // rotation, so if you turn clockwise past the halfway point the claw walks
+  // clockwise the whole way, the long way, exactly as you asked. That matters
+  // more here than in most games: which way round the web you go is the thing
+  // this game exists to measure, and a control that quietly picked the short
+  // route would be answering the question for you.
+  const TURN_LANES = 1.0; // one full turn of the wheel = one lap of the web
+  const AIM_DEAD = 0.35; // lanes of slop before the claw bothers to move
+  const DIAL_DEAD_R = 18; // px from the hub where the angle stops meaning anything
+  const DRAG_PX_PER_LANE = 20; // dragging the web itself, for one-thumb play
   const TAP_PX = 12; // a touch that moves less than this…
   const TAP_MS = 300; // …and ends this quickly is a shot, not a drag
   const FIRE_PULSE = 10; // ticks a tapped shot stays queued waiting for cooldown
 
-  // --- the spinner ----------------------------------------------------------
-  // Rotation in, rotation out. Turning the dial clockwise walks the claw
-  // clockwise round the web, and that mapping is true wherever the claw
-  // happens to be — which a left/right control can never be on a ring, because
-  // clockwise is rightward at the top of the web and leftward at the bottom.
-  const DIAL_DEAD_R = 20; // px from the hub where the angle stops meaning anything
-  const DIAL_STEP = 0.075; // radians of turn that commit you to a direction
-  const DIAL_IDLE = 130; // ms of stillness after which the spinner has stopped
-  const DIAL_PUSH = 34; // …at which point leaning on it works like a stick
   // Asking the solver "is this still winnable" is real work. Twice a second is
   // plenty for a light that only ever tells you bad news.
-  const ORACLE_EVERY = 30;
+  const ORACLE_EVERY = Math.round(TICKS_PER_SEC / 2);
 
   const $ = (id) => document.getElementById(id);
 
@@ -47,9 +66,11 @@
   /** Tell the player about the controls they actually have. */
   function controlsHelp() {
     return isTouch()
-      ? '<p><b>Turn the spinner</b> to walk the rim · <b>FIRE</b> to shoot.<br>' +
+      ? '<p><b>Turn the wheel</b> to walk the rim · <b>FIRE</b> to shoot.<br>' +
         'One thumb on each, like the cabinet had.</p>' +
-        '<p class="fine">You can also drag the web itself to walk, and tap it to fire.</p>'
+        '<p class="fine">Turn it a quarter and the claw goes a quarter of the way ' +
+        'round; jam it and it keeps going after you let go. Grab it again to stop. ' +
+        'You can also drag the web itself, and tap it to fire.</p>'
       : '<p><b>← →</b> walk the rim · <b>space</b> fire · ' +
         '<b>O</b> oracle · <b>P</b> proof</p>';
   }
@@ -66,8 +87,13 @@
     lane: 0,
     acc: 0,
     last: 0,
-    held: 0, // -1 ccw, +1 cw — reserved for any future held control
-    drag: 0, // -1 ccw, +1 cw — from dragging the web itself
+    // Where the player has pointed a positional control, as a SIGNED lane
+    // number that keeps counting past the wrap. Signed is what lets "you
+    // turned clockwise past the far side" mean the long way round rather than
+    // the short way back.
+    aim: null,
+    signed: 0, // the claw's own signed position, tracked the same way
+    lastLane: 0,
     firing: false,
     firePulse: 0, // a tapped shot, waiting for the gun to be ready
     oracle: false,
@@ -77,39 +103,58 @@
 
   const keys = new Set();
 
-  const dial = {
-    id: null, // the pointer currently on the dial
-    cx: 0,
-    cy: 0, // hub, in client coords
-    angle: 0, // last thumb angle
-    spin: 0, // total turn, for the visual
-    creep: 0, // turn banked since the last committed step
-    turn: 0, // -1 / +1, the direction the last step went
-    turnedAt: -1e9,
-    x: 0,
-    r: 0, // thumb offset from the hub
-  };
-
-  /**
-   * Which way the spinner says to walk.
-   *
-   * Two ways to drive it, because people reach for both: **swirl** it and the
-   * angular motion steers, or just **lean** on one side and hold, like a
-   * stick. The lean only applies once the swirl has gone quiet, so the two
-   * never fight over the same thumb.
-   */
-  function dialDir() {
-    if (dial.id === null) return 0;
-    if (performance.now() - dial.turnedAt < DIAL_IDLE) return dial.turn;
-    if (dial.r > DIAL_PUSH && Math.abs(dial.x) > DIAL_PUSH) return Math.sign(dial.x);
-    return 0;
-  }
-
   function levelData() {
     return state.pack.levels[state.level];
   }
   function waveData() {
     return levelData().waves[state.wave];
+  }
+
+  const dial = {
+    id: null, // the pointer currently on the wheel
+    cx: 0,
+    cy: 0, // hub, in client coords
+    angle: 0, // last thumb angle
+    turned: 0, // total rotation since this thumb went down — unwrapped
+    spin: 0, // total rotation ever, for the visual
+    base: 0, // the claw's signed position when the thumb went down
+  };
+
+  /** Shortest way round between two angles, so ±π does not read as a lurch. */
+  const wrapAngle = (a) =>
+    ((a + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+
+  /**
+   * Follow the claw's position as a signed number that keeps counting past the
+   * wrap, so "three lanes clockwise from here" is always a bigger number than
+   * "here" — even when that crosses lane 0.
+   */
+  function trackLane(lane) {
+    const web = levelData().web;
+    let d = lane - state.lastLane;
+    if (web.closed) {
+      if (d > web.lanes / 2) d -= web.lanes;
+      else if (d < -web.lanes / 2) d += web.lanes;
+    }
+    state.signed += d;
+    state.lastLane = lane;
+  }
+
+  /** Keep an aim inside a strip, which has no way round the back. */
+  function clampAim(v) {
+    const web = levelData().web;
+    if (web.closed) return v;
+    const first = state.signed - state.lastLane;
+    return Math.min(Math.max(v, first), first + web.lanes - 1);
+  }
+
+  /** Which way the claw should walk to reach where the player pointed. */
+  function aimDir() {
+    if (state.aim === null) return 0;
+    const d = state.aim - state.signed;
+    if (d > AIM_DEAD) return 1;
+    if (d < -AIM_DEAD) return -1;
+    return 0;
   }
 
   // ---------------------------------------------------------------- chrome --
@@ -163,18 +208,18 @@
 
   // ----------------------------------------------------------------- waves --
 
-  function releaseControls() {
-    state.held = 0;
-    state.drag = 0;
-    state.firing = false;
+  /**
+   * Forget where the player had pointed, and nothing else.
+   *
+   * It deliberately does NOT clear whether a thumb is on the fire button or
+   * the wheel: those belong to the pointer, not to the game, and resetting
+   * them here is exactly what made the gun go dead when you held fire through
+   * a wave break. A thumb that is down stays down until the browser says
+   * otherwise.
+   */
+  function clearAim() {
+    state.aim = null;
     state.firePulse = 0;
-    dial.id = null;
-    dial.turn = 0;
-    dial.turnedAt = -1e9;
-    const fire = $('t-fire');
-    if (fire) fire.classList.remove('down');
-    const d = $('dial');
-    if (d) d.classList.remove('live');
   }
 
   function startWave(keepLane) {
@@ -183,6 +228,12 @@
     if (state.run) state.run.dispose();
     if (!keepLane) state.lane = 0;
     state.run = new Tempest.Run(lvl.web, wave, state.lane);
+    // The signed cursor restarts wherever the claw restarts, and any aim from
+    // the last wave is void.
+    state.signed = state.lane;
+    state.lastLane = state.lane;
+    state.aim = null;
+    dial.id = null;
     state.view.setWeb(lvl.web);
     state.view.resize();
     state.doomed = false;
@@ -200,7 +251,7 @@
   }
 
   function waveCleared() {
-    releaseControls();
+    clearAim();
     const cert = waveData().cert;
     // Scoring rewards playing tighter than the proof needed you to.
     state.score += 100 + Math.max(0, cert.slack) + waveData().threats.length * 25;
@@ -234,7 +285,7 @@
   function breached() {
     const a = state.run.autopsy();
     state.lives -= 1;
-    releaseControls();
+    clearAim();
     if (navigator.vibrate) navigator.vibrate(state.lives > 0 ? 30 : [30, 60, 90]);
     const lost =
       a.lostAt >= 0
@@ -287,10 +338,10 @@
     let dir = 0;
     if (keys.has('ArrowLeft') || keys.has('KeyA')) dir -= 1;
     if (keys.has('ArrowRight') || keys.has('KeyD')) dir += 1;
-    if (state.held) dir = state.held;
-    if (state.drag) dir = state.drag;
-    const spun = dialDir();
-    if (spun) dir = spun;
+    // A key press takes the wheel back off the claw: two things steering at
+    // once is worse than either alone.
+    if (dir !== 0) state.aim = null;
+    else dir = aimDir();
     const fire =
       state.firing ||
       state.firePulse > 0 ||
@@ -333,73 +384,74 @@
     addEventListener('blur', () => keys.clear());
 
     // --- the fire button ---
-    // Held, not clicked: `click` fires on release, which is a whole beat too
-    // late for a game measured in ticks. It also doubles as "continue" while an
-    // overlay is up, so a touch player never has to find the small print.
-    const holdButton = (el, on) => {
-      const press = (e) => {
-        e.preventDefault();
-        if (state.phase !== 'playing') {
-          advance();
-          return;
-        }
-        el.classList.add('down');
-        on(true);
-      };
-      const release = (e) => {
-        if (e) e.preventDefault();
-        el.classList.remove('down');
-        on(false);
-      };
-      el.addEventListener('pointerdown', press);
-      el.addEventListener('pointerup', release);
-      el.addEventListener('pointercancel', release);
-      el.addEventListener('pointerleave', release);
-      // Touch keeps the pointer captured on the element it started on, so a
-      // thumb that slides off still has to be released here.
-      el.addEventListener('lostpointercapture', release);
-      el.addEventListener('contextmenu', (e) => e.preventDefault());
+    //
+    // Held, not clicked: `click` lands on release, a whole beat late at sixty
+    // ticks a second. And the held state is the POINTER's state, not something
+    // the game gets to reset — an earlier version cleared it whenever a wave
+    // ended, so holding fire through a wave break left the gun dead until you
+    // lifted your thumb and pressed again. If a thumb is down, it is down.
+    const fireBtn = $('t-fire');
+    let firePointer = null;
+    const firePress = (e) => {
+      e.preventDefault();
+      if (state.phase !== 'playing') {
+        advance();
+        return;
+      }
+      firePointer = e.pointerId;
+      try {
+        fireBtn.setPointerCapture(e.pointerId);
+      } catch {
+        /* capture is a nicety; the release handlers still fire without it */
+      }
+      fireBtn.classList.add('down');
+      state.firing = true;
     };
-    holdButton($('t-fire'), (v) => (state.firing = v));
+    const fireRelease = (e) => {
+      if (e && firePointer !== null && e.pointerId !== firePointer) return;
+      firePointer = null;
+      fireBtn.classList.remove('down');
+      state.firing = false;
+    };
+    fireBtn.addEventListener('pointerdown', firePress);
+    fireBtn.addEventListener('pointerup', fireRelease);
+    fireBtn.addEventListener('pointercancel', fireRelease);
+    fireBtn.addEventListener('lostpointercapture', fireRelease);
+    fireBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 
-    // --- the spinner ---
+    // --- the wheel ---
     const dialEl = $('dial');
     const ringEl = $('dial-ring');
     const nubEl = $('dial-nub');
 
-    /** Shortest way round between two angles, so ±π does not read as a lurch. */
-    const wrap = (a) => ((a + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
-
     const dialTrack = (e) => {
       const dx = e.clientX - dial.cx;
       const dy = e.clientY - dial.cy;
-      dial.x = dx;
-      dial.r = Math.hypot(dx, dy);
+      const r = Math.hypot(dx, dy);
       // Close to the hub the angle is mostly noise — a thumb wobbling over the
-      // centre would spin the dial wildly — so it holds its last reading.
-      if (dial.r < DIAL_DEAD_R) return;
+      // centre would spin the wheel wildly — so it holds its last reading.
+      if (r < DIAL_DEAD_R) return;
       const a = Math.atan2(dy, dx);
-      const da = wrap(a - dial.angle);
+      const da = wrapAngle(a - dial.angle);
       dial.angle = a;
+      dial.turned += da;
       dial.spin += da;
-      dial.creep += da;
-      if (Math.abs(dial.creep) >= DIAL_STEP) {
-        dial.turn = Math.sign(dial.creep);
-        dial.turnedAt = performance.now();
-        dial.creep = 0;
-      }
-      paintDial(a);
+      const web = levelData().web;
+      state.aim = clampAim(
+        dial.base + (dial.turned / (2 * Math.PI)) * web.lanes * TURN_LANES
+      );
+      paintDial(a, r);
     };
 
-    function paintDial(a) {
+    function paintDial(a, r) {
       // The knurling turns exactly as far as the thumb does. This is the whole
-      // feedback loop: you can see the spinner spinning.
+      // feedback loop: you can see the wheel turning.
       ringEl.style.transform = `rotate(${dial.spin * (180 / Math.PI)}deg)`;
       if (a === undefined) {
         nubEl.style.transform = 'translate(0px, 0px)';
         return;
       }
-      const reach = Math.min(dial.r, dialEl.clientWidth / 2 - 16);
+      const reach = Math.min(r, dialEl.clientWidth / 2 - 16);
       nubEl.style.transform = `translate(${Math.cos(a) * reach}px, ${Math.sin(a) * reach}px)`;
     }
 
@@ -414,9 +466,12 @@
       dial.cy = box.top + box.height / 2;
       dial.id = e.pointerId;
       dial.angle = Math.atan2(e.clientY - dial.cy, e.clientX - dial.cx);
-      dial.creep = 0;
-      dial.turn = 0;
-      dial.turnedAt = -1e9;
+      dial.turned = 0;
+      // Taking hold of the wheel re-references it to where the claw actually
+      // is, so picking it up never makes the claw jump — and putting a thumb
+      // back on it is how you cancel a throw you have changed your mind about.
+      dial.base = state.signed;
+      state.aim = state.signed;
       dialEl.setPointerCapture(e.pointerId);
       dialEl.classList.add('live');
       dialTrack(e);
@@ -429,11 +484,11 @@
     const dialRelease = (e) => {
       if (e && dial.id !== e.pointerId) return;
       dial.id = null;
-      dial.turn = 0;
-      dial.turnedAt = -1e9;
       dialEl.classList.remove('live');
-      // The knurling keeps the rotation it was left at, like a real spinner;
-      // only the thumb marker springs home.
+      // The aim SURVIVES the release: throw the wheel and the claw finishes
+      // the journey. That is the whole point of a position control — you say
+      // where, not how long to hold. The knurling keeps its rotation like a
+      // real spinner; only the thumb marker springs home.
       paintDial();
     };
     dialEl.addEventListener('pointerup', dialRelease);
@@ -441,35 +496,36 @@
     dialEl.addEventListener('lostpointercapture', dialRelease);
     dialEl.addEventListener('contextmenu', (e) => e.preventDefault());
 
-    // --- the spinner ---
-    // Drag anywhere on the web to walk; tap it to shoot. That gives one-thumb
-    // play without any of it sitting on top of the thing you are looking at.
+    // --- dragging the web itself, for one-thumb play ---
     const stage = $('stage');
     let spin = null;
     stage.addEventListener('pointerdown', (e) => {
       if (state.phase !== 'playing' || dial.id !== null) return;
       e.preventDefault();
       stage.setPointerCapture(e.pointerId);
-      spin = { id: e.pointerId, anchor: e.clientX, moved: 0, t0: performance.now() };
-      state.drag = 0;
+      spin = {
+        id: e.pointerId,
+        anchor: e.clientX,
+        base: state.signed,
+        moved: 0,
+        t0: performance.now(),
+      };
+      state.aim = state.signed;
     });
     stage.addEventListener('pointermove', (e) => {
       if (!spin || e.pointerId !== spin.id) return;
-      let dx = e.clientX - spin.anchor;
+      const dx = e.clientX - spin.anchor;
       spin.moved = Math.max(spin.moved, Math.abs(dx));
-      // Let the anchor trail the thumb. Without this, a long drag one way
-      // leaves you having to haul the thumb all the way back to stop, which
-      // is exactly the moment you most need to stop.
-      if (dx > STICK_MAX) spin.anchor = e.clientX - (dx = STICK_MAX);
-      else if (dx < -STICK_MAX) spin.anchor = e.clientX - (dx = -STICK_MAX);
-      state.drag = dx > DEAD_ZONE ? 1 : dx < -DEAD_ZONE ? -1 : 0;
+      state.aim = clampAim(spin.base + dx / DRAG_PX_PER_LANE);
     });
     const endSpin = (e) => {
       if (!spin || (e && e.pointerId !== spin.id)) return;
       const quick = performance.now() - spin.t0 < TAP_MS;
-      if (spin.moved < TAP_PX && quick) state.firePulse = FIRE_PULSE;
+      if (spin.moved < TAP_PX && quick) {
+        state.firePulse = FIRE_PULSE;
+        state.aim = null; // a tap is a shot, not a move
+      }
       spin = null;
-      state.drag = 0;
     };
     stage.addEventListener('pointerup', endSpin);
     stage.addEventListener('pointercancel', endSpin);
@@ -521,11 +577,15 @@
     if (state.phase === 'playing') {
       state.acc += dt;
       let snapshot = state.run.state();
+      // At 90 ticks a second on a 60Hz display that is 1.5 ticks a frame; the
+      // cap is only here so a backgrounded tab does not come back and
+      // simulate a minute of game in one frame.
       let guard = 0;
-      while (state.acc >= TICK_MS && guard++ < 8) {
+      while (state.acc >= TICK_MS && guard++ < 12) {
         state.acc -= TICK_MS;
         const outcome = state.run.step(actionFor(snapshot));
         snapshot = state.run.state();
+        trackLane(snapshot.lane);
         if (outcome === 'cleared') {
           waveCleared();
           return;

@@ -223,31 +223,33 @@ wasm refuses to start instead of quietly playing a different game.
 
 **Keyboard.** `← →` walk the rim · `space` fire · `O` oracle · `P` proof.
 
-**Touch.** A **spinner** under the left thumb and a **FIRE** button under the
-right — the way the cabinet had it. Turn the spinner and the claw walks that
-way round the web; lean on it and hold, and it works like a stick. You can also
-drag the web itself to walk and tap it to fire, for one-thumb play.
+**Touch.** A **wheel** under the left thumb and a **FIRE** button under the
+right — the way the cabinet had it. You can also drag the web itself to walk
+and tap it to fire, for one-thumb play.
 
-Two things about that are deliberate.
+The wheel is a **position** control, not a velocity one. Turn it a quarter and
+the claw goes a quarter of the way round the web, at a run; jam it half a turn
+and it sets off for the far side and *finishes the journey after you let go*.
+Take hold of the wheel again to cancel a throw. The first version was a
+velocity control — hold this way to keep walking — and it felt like steering
+something heavy, because the amount you turned carried no information at all.
 
-*Rotation in, rotation out.* Turning the spinner clockwise walks the claw
-clockwise, and that mapping is true wherever the claw happens to be. A
-left/right control can never be, on a ring: clockwise is rightward at the top of
-the web and leftward at the bottom, so an absolute mapping silently reverses
-itself as you walk round.
+What the wheel does **not** do is route for you. The target follows your
+*accumulated* rotation, so turning clockwise past the halfway point walks the
+claw clockwise the whole way — the long way — exactly as you asked. That
+matters more here than it would in most games: which way round the web you go
+is the thing this game exists to measure, and a control that quietly took the
+short route would be answering the question for you.
 
-*One thumb owns all the movement.* The first touch build put the two directions
-on buttons at opposite ends of the screen, which made walking a two-thumb job
-and every change of direction a hand-off. Splitting motion across two thumbs is
-the thing that made it feel clunky; the spinner is what fixed it.
+One thumb owns all the movement. An earlier build put the two directions on
+buttons at opposite ends of the screen, which made walking a two-thumb job and
+every change of direction a hand-off.
 
-In landscape the controls stop being a bar and float in the bottom corners
-instead. A short wide screen has no height to spare, and because the web is
-drawn to its own aspect ratio and never stretched — the polygon *is* the
-travel-cost table, so distorting it would be drawing a different game — the
-corners are empty anyway. The first version of all this was three invisible
-full-height zones laid over the canvas, so your thumb covered the lanes you were
-trying to read.
+In landscape the controls float in the bottom corners rather than sitting in a
+bar. A short wide screen has no height to spare, and because the web is drawn
+to its own aspect ratio and never stretched — the polygon *is* the travel-cost
+table, so distorting it would be drawing a different game — the corners are
+empty anyway.
 
 **Oracle** asks the solver, twice a second, whether the run you are in is still
 winnable, and turns your claw red when it is not. It is not a hint — it never
@@ -260,6 +262,16 @@ default, for obvious reasons.
 
 - **The gun needs the lane.** You cannot fire while walking. That is what makes
   travel cost real, and it is what the whole travel-cost model rests on.
+- **How fast the claw walks is a balance parameter, not a comfort setting.**
+  `PLAYER_SPEED` in `core/src/web.rs` *is* the lane cost table, so the solver
+  certifies against it: raise it and every certificate in the pack is a
+  statement about a different game. It has been raised once, from 34 to 52,
+  because a third of a second to cross one lane read as heavy rather than as
+  arcade — and the slack bands in `gen::recipe` came down by the same factor at
+  the same time, because what decides whether the web matters is slack measured
+  *against* the time it takes to cross the web, not slack in the abstract. If
+  you touch one, touch the other, bump `SEED_EPOCH`, regenerate, and read the
+  sweep.
 - **A breach ends the wave, in any lane.** The rim is defended as a whole.
   There is no "it got past you but you were somewhere else".
 - **Certificates assume no superzapper.** There is no superzapper. If one is
