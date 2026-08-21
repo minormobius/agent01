@@ -214,3 +214,32 @@ button:disabled { opacity: 0.45; cursor: default; }
   border-radius: 7px; padding: 9px 12px;
 }
 .err code { background: rgba(0,0,0,0.3); color: #f0c8bc; padding: 1px 5px; border-radius: 4px; font: 12.5px var(--mono); }
+
+/* ────────────────────────────────────────────────────────── zoom and pan ── */
+
+#web { touch-action: none; cursor: grab; }
+#web:active { cursor: grabbing; }
+
+/* `display: flex` on a class beats the UA's `[hidden] { display: none }`, so
+   the readout stayed on screen at 1× with `.hidden` set — say it explicitly. */
+.zoomtag[hidden] { display: none; }
+.zoomtag {
+  position: absolute; right: 12px; top: 12px;
+  display: flex; align-items: center; gap: 8px;
+  font: 11.5px var(--mono); color: var(--dim);
+  background: rgba(6,8,12,0.86); border: 1px solid var(--edge);
+  border-radius: 999px; padding: 4px 5px 4px 11px;
+}
+.zoomtag button {
+  background: #1a222d; color: var(--dim);
+  border: 1px solid var(--edge); border-radius: 999px;
+  font: 11px var(--mono); padding: 3px 9px; cursor: pointer;
+}
+.zoomtag button:hover { color: var(--fg); background: #232d3a; }
+
+.zoomhint {
+  position: absolute; right: 14px; bottom: 12px;
+  font: 11px var(--mono); color: #38424f;
+  pointer-events: none;
+}
+@media (max-width: 700px) { .zoomhint { display: none; } }

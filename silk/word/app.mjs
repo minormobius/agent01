@@ -226,6 +226,52 @@ const state = {
   hidden: new Set(), hit: -1, found: -1,
 };
 
+// ── THE VIEW ────────────────────────────────────────────────────────────────
+//
+// world → device is  d = w · S · z + pan.  Marks and structure are drawn under
+// that as a canvas transform; labels and anchors are drawn with the identity
+// transform (text does not want to be scaled) and apply it themselves, which is
+// what `tf` is for.
+//
+// Sizes stay constant in DEVICE pixels as you zoom — dots do not grow, lines do
+// not thicken. That is the whole point: zooming has to separate the haze into
+// individual words rather than magnify a blob.
+const view = { z: 1, x: 0, y: 0 };
+const MINZ = 1, MAXZ = 40;
+const tf = () => ({ s: S * view.z, x: view.x, y: view.y });
+
+function clampPan() {
+  // Never let the web leave the frame entirely. At z = 1 it is pinned dead
+  // centre; beyond that you may push the edge of the disc to the middle of the
+  // canvas and no further.
+  const span = WORLD * S * view.z;
+  const slack = view.z <= 1 ? 0 : cv.width / 2;
+  const min = cv.width - span - slack;
+  view.x = Math.min(slack, Math.max(min, view.x));
+  view.y = Math.min(slack, Math.max(cv.height - span - slack, view.y));
+  if (view.z <= 1) { view.x = (cv.width - span) / 2; view.y = (cv.height - span) / 2; }
+}
+
+function zoomAt(dx, dy, factor) {
+  const z0 = view.z;
+  view.z = Math.min(MAXZ, Math.max(MINZ, view.z * factor));
+  const k = view.z / z0;
+  view.x = dx - (dx - view.x) * k;
+  view.y = dy - (dy - view.y) * k;
+  clampPan();
+  showZoom();
+  draw();
+}
+
+function resetView() { view.z = 1; clampPan(); showZoom(); draw(); }
+
+function showZoom() {
+  const el = $('zoomtag');
+  if (!el) return;
+  el.hidden = view.z <= 1.001;
+  el.firstChild.textContent = `${view.z.toFixed(1)}×`;
+}
+
 function size() {
   const w = cv.parentElement.clientWidth;
   if (!w) return;
@@ -234,6 +280,7 @@ function size() {
   cv.height = Math.round(w * dpr);
   cv.style.height = w + 'px';
   S = cv.width / WORLD;
+  clampPan();
   draw();
 }
 
@@ -304,7 +351,7 @@ function drawStructure(c, s, alpha) {
   }
 }
 
-function drawMarks(c, s, cw) {
+function drawMarks(c, s, cw, t) {
   const { N, CNT, SEC, X, Y, SZ } = L;
   const paths = Array.from({ length: bucketColour.length }, () => new Path2D());
   const dim = state.hidden.size > 0;
@@ -314,8 +361,15 @@ function drawMarks(c, s, cw) {
   // fine haze on a desktop merge into a solid disc. Scale the device size with
   // the canvas, floored so they never vanish entirely.
   const dot = Math.max(0.45, Math.min(1.35, cw / 1000));
+  // Cull to the visible world rectangle. At 20× this is most of the vocabulary,
+  // and Path2D.rect on 39k invisible marks is pure cost.
+  const vis = t ? {
+    x0: (-t.x) / t.s - 8, y0: (-t.y) / t.s - 8,
+    x1: (cv.width - t.x) / t.s + 8, y1: (cv.height - t.y) / t.s + 8,
+  } : null;
   for (let i = 0; i < N; i++) {
     if (CNT[i] < state.minc || SZ[i] <= 0) continue;
+    if (vis && (X[i] < vis.x0 || X[i] > vis.x1 || Y[i] < vis.y0 || Y[i] > vis.y1)) continue;
     const sz = (SZ[i] / s) * dot;
     (dim && state.hidden.has(SEC[i]) ? dimPath : paths[bucket[i]])
       .rect(X[i] - sz / 2, Y[i] - sz / 2, sz, sz);
@@ -341,7 +395,7 @@ function drawMarks(c, s, cw) {
 // word underneath visibly clipped: `uses` painted over `currently` read as
 // `current`. Reserving the space first is the difference between an anchor that
 // covers a word and one that never had to.
-function drawAnchors(c, s, px, cw, ch, collect = false) {
+function drawAnchors(c, t, px, cw, ch, collect = false) {
   const boxes = [];
   const box = (x, y, w, h) => { boxes.push({ x, y, w, h }); };
   const { ring, wedge, rimAt, radiusForP, shellP } = L;
@@ -351,8 +405,9 @@ function drawAnchors(c, s, px, cw, ch, collect = false) {
   // was read as 464 pixels — the wedge names landed halfway across the page and
   // off the left edge, which is exactly the bug these labels were added to help
   // with. World → device is a multiply by `s`, applied once, here.
-  const wx = (v) => CX * s + v;
-  const wy = (v) => CY * s + v;
+  const wx = (v) => CX * t.s + t.x + v;
+  const wy = (v) => CY * t.s + t.y + v;
+  const s = t.s;
 
   // wedge names, in the gutter
   c.save();
@@ -453,10 +508,12 @@ function drawAnchors(c, s, px, cw, ch, collect = false) {
 
 // ── word labels ─────────────────────────────────────────────────────────────
 
-function drawLabels(c, s, cw, ch, budget, reserved = []) {
+function drawLabels(c, t, cw, ch, budget, reserved = []) {
   if (budget <= 0) return;
   const { N, W, CNT, DF, SEC, X, Y, SZ, ANG, isHub, freqU } = L;
   const px = cw / 1000;
+  const sx = (i) => X[i] * t.s + t.x;
+  const sy = (i) => Y[i] * t.s + t.y;
   const CELL = 13 * px;
   const gw = Math.ceil(cw / CELL), gh = Math.ceil(ch / CELL);
   const grid = new Uint8Array(gw * gh);
@@ -481,6 +538,8 @@ function drawLabels(c, s, cw, ch, budget, reserved = []) {
   for (let i = 0; i < N; i++) {
     if (CNT[i] < state.minc || SZ[i] <= 0) continue;
     if (state.hidden.size && state.hidden.has(SEC[i])) continue;
+    const px0 = sx(i), py0 = sy(i);
+    if (px0 < -40 || px0 > cw + 40 || py0 < -20 || py0 > ch + 20) continue;
     let b = 0;
     while (b < SHELLS.length - 1 && CNT[i] >= SHELLS[b + 1]) b++;
     bands[b].push(i);
@@ -503,7 +562,7 @@ function drawLabels(c, s, cw, ch, budget, reserved = []) {
   let placed = 0;
   for (const i of order) {
     if (placed >= budget) break;
-    const cx = X[i] * s, cy = Y[i] * s;
+    const cx = sx(i), cy = sy(i);
     const fs = Math.max(10, Math.min(17, 9 + 7 * freqU(CNT[i]))) * px;
     c.font = `${fs.toFixed(1)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
     const tw = c.measureText(W[i]).width;
@@ -514,7 +573,7 @@ function drawLabels(c, s, cw, ch, budget, reserved = []) {
     // where the picture is widest. Flipping to the inside is always available.
     let lx = 0, ly = 0, fits = false;
     for (const dir of [1, -1]) {
-      const off = (SZ[i] + 4) * s * dir;
+      const off = (SZ[i] + 4) * t.s * dir;
       const ox = Math.cos(ANG[i]) * off;
       const oy = Math.sin(ANG[i]) * off;
       const anchorLeft = (Math.cos(ANG[i]) * dir) >= 0;
@@ -543,13 +602,35 @@ function drawLabels(c, s, cw, ch, budget, reserved = []) {
   }
 }
 
-function drawMarker(i, colour) {
+function drawMarker(i, colour, t) {
   if (i < 0) return;
   ctx.beginPath();
-  ctx.arc(L.X[i], L.Y[i], Math.max(4, L.SZ[i] * 2.4) / S * 1.6, 0, TAU);
+  ctx.arc(L.X[i], L.Y[i], Math.max(4, L.SZ[i] * 2.4) / t.s * 1.6, 0, TAU);
   ctx.strokeStyle = colour;
-  ctx.lineWidth = 1.6 / S;
+  ctx.lineWidth = 1.6 / t.s;
   ctx.stroke();
+}
+
+// The HTML chrome floating over the canvas — the hub caption, the zoom readout,
+// the pan hint — sits in real estate the label placer cannot see, so words were
+// being drawn underneath it and read as gibberish. Measure the elements and
+// reserve their rectangles the same way the anchors reserve theirs. Nothing here
+// applies to the export, which has no chrome and paints its own caption band.
+function chromeBoxes() {
+  const b = cv.getBoundingClientRect();
+  if (!b.width) return [];
+  const dpr = cv.width / b.width;
+  const out = [];
+  for (const id of ['hubtag', 'zoomtag', 'zoomhint']) {
+    const el = $(id);
+    if (!el || el.hidden || !el.offsetWidth) continue;
+    const r = el.getBoundingClientRect();
+    out.push({
+      x: (r.left - b.left) * dpr - 4, y: (r.top - b.top) * dpr - 4,
+      w: r.width * dpr + 8, h: r.height * dpr + 8,
+    });
+  }
+  return out;
 }
 
 function draw() {
@@ -557,19 +638,25 @@ function draw() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = '#080a0e';
   ctx.fillRect(0, 0, cv.width, cv.height);
-  ctx.setTransform(S, 0, 0, S, 0, 0);
-  drawStructure(ctx, S, state.weblines);
-  drawMarks(ctx, S, cv.width);
-  drawMarker(state.found, 'rgba(216,164,69,0.95)');
-  drawMarker(state.hit, 'rgba(255,255,255,0.85)');
+  const t = tf();
+  ctx.setTransform(t.s, 0, 0, t.s, t.x, t.y);
+  drawStructure(ctx, t.s, state.weblines);
+  drawMarks(ctx, t.s, cv.width, t);
+  drawMarker(state.found, 'rgba(216,164,69,0.95)', t);
+  drawMarker(state.hit, 'rgba(255,255,255,0.85)', t);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   // Words first, anchors last. The anchors are few and carry opaque backing
   // plates, so when the two collide the anchor should be the one that survives —
   // a ring labelled `55×` half-covered by the word `currently` tells you neither.
+  //
+  // Zooming spends its extra room on more words, not just bigger ones: the
+  // budget is what fits at rest, scaled with z and capped, because past ~4×
+  // the collision grid is the binding constraint anyway.
   const px = cv.width / 1000;
-  const reserved = drawAnchors(ctx, S, px, cv.width, cv.height, true);
-  drawLabels(ctx, S, cv.width, cv.height, state.labels, reserved);
-  drawAnchors(ctx, S, px, cv.width, cv.height);
+  const budget = Math.round(state.labels * Math.min(3.5, Math.max(1, view.z * 0.8)));
+  const reserved = drawAnchors(ctx, t, px, cv.width, cv.height, true).concat(chromeBoxes());
+  drawLabels(ctx, t, cv.width, cv.height, budget, reserved);
+  drawAnchors(ctx, t, px, cv.width, cv.height);
 }
 
 // ─── export ─────────────────────────────────────────────────────────────────
@@ -587,14 +674,18 @@ function renderExport(px = 2000) {
   c.fillStyle = '#080a0e';
   c.fillRect(0, 0, off.width, off.height);
 
+  // Always the WHOLE web at z = 1, whatever the screen is showing. An export
+  // that silently depended on how far you happened to be zoomed in would be a
+  // different picture every time you pressed the button.
   const s = px / WORLD;
+  const et = { s, x: 0, y: 0 };
   c.setTransform(s, 0, 0, s, 0, 0);
   drawStructure(c, s, Math.max(0.4, state.weblines));
-  drawMarks(c, s, px);
+  drawMarks(c, s, px, et);
   c.setTransform(1, 0, 0, 1, 0, 0);
-  const reserved = drawAnchors(c, s, px / 1000, px, px, true);
-  drawLabels(c, s, px, px, Math.round(state.labels * 1.5), reserved);
-  drawAnchors(c, s, px / 1000, px, px);
+  const reserved = drawAnchors(c, et, px / 1000, px, px, true);
+  drawLabels(c, et, px, px, Math.round(state.labels * 1.5), reserved);
+  drawAnchors(c, et, px / 1000, px, px);
 
   const u = px / 1000;
   c.textBaseline = 'middle';
@@ -647,7 +738,10 @@ async function copyWeb() {
 function pick(wx, wy) {
   const { grid, CELL, GW, N, CNT, SEC, X, Y } = L;
   const gx = (wx / CELL) | 0, gy = (wy / CELL) | 0;
-  let best = -1, bd = 64;
+  // The tolerance is a fixed number of SCREEN pixels, converted to world — a
+  // fixed world tolerance would grab half a wedge at 20×.
+  const tol = 11 / (S * view.z);
+  let best = -1, bd = tol * tol;
   for (let dy = -1; dy <= 1; dy++) {
     for (let dx = -1; dx <= 1; dx++) {
       const a = grid.get((gy + dy) * GW + (gx + dx));
@@ -669,8 +763,12 @@ const labelOf = (k) => (D.sectors.find((s) => s.k === k)?.label || []).slice(0, 
 
 cv.addEventListener('mousemove', (e) => {
   if (!ready) return;
+  if (drag) return;
   const b = cv.getBoundingClientRect();
-  const i = pick(((e.clientX - b.left) / b.width) * WORLD, ((e.clientY - b.top) / b.height) * WORLD);
+  const dpr = cv.width / b.width;
+  const dx = (e.clientX - b.left) * dpr;
+  const dy = (e.clientY - b.top) * dpr;
+  const i = pick((dx - view.x) / (S * view.z), (dy - view.y) / (S * view.z));
   if (i !== state.hit) { state.hit = i; draw(); }
   const tip = $('tip');
   if (i < 0) { tip.hidden = true; return; }
@@ -690,6 +788,100 @@ cv.addEventListener('mousemove', (e) => {
   tip.style.top = Math.max(4, ly) + 'px';
 });
 cv.addEventListener('mouseleave', () => { $('tip').hidden = true; state.hit = -1; draw(); });
+
+// ─── zoom and pan ───────────────────────────────────────────────────────────
+//
+// Pointer events throughout, so a mouse drag, a trackpad and two fingers on a
+// phone are all the same three handlers rather than three parallel
+// implementations of the same arithmetic.
+
+let drag = null;
+const pointers = new Map();
+let pinch = null;
+
+const devicePos = (e) => {
+  const b = cv.getBoundingClientRect();
+  const dpr = cv.width / b.width;
+  return { x: (e.clientX - b.left) * dpr, y: (e.clientY - b.top) * dpr };
+};
+
+cv.addEventListener('wheel', (e) => {
+  if (!ready) return;
+  e.preventDefault();
+  const p = devicePos(e);
+  // A trackpad pinch arrives as a wheel event with ctrlKey set, and with much
+  // smaller deltas than a mouse notch; the exponential keeps both feeling the
+  // same rather than one crawling and the other jumping.
+  const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
+  zoomAt(p.x, p.y, Math.exp(-e.deltaY * unit * (e.ctrlKey ? 0.010 : 0.0022)));
+}, { passive: false });
+
+cv.addEventListener('pointerdown', (e) => {
+  if (!ready) return;
+  cv.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, devicePos(e));
+  if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 };
+    drag = null;
+  } else if (pointers.size === 1) {
+    drag = { ...devicePos(e), x0: view.x, y0: view.y, moved: false };
+    cv.style.cursor = 'grabbing';
+    $('tip').hidden = true;
+  }
+});
+
+cv.addEventListener('pointermove', (e) => {
+  if (!pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, devicePos(e));
+
+  if (pinch && pointers.size >= 2) {
+    const [a, b] = [...pointers.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
+    if (pinch.d > 0) zoomAt(cx, cy, d / pinch.d);
+    view.x += cx - pinch.cx;
+    view.y += cy - pinch.cy;
+    clampPan();
+    pinch = { d, cx, cy };
+    draw();
+    return;
+  }
+
+  if (!drag) return;
+  const p = devicePos(e);
+  if (Math.abs(p.x - drag.x) + Math.abs(p.y - drag.y) > 3) drag.moved = true;
+  view.x = drag.x0 + (p.x - drag.x);
+  view.y = drag.y0 + (p.y - drag.y);
+  clampPan();
+  draw();
+});
+
+const endPointer = (e) => {
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2) pinch = null;
+  if (pointers.size === 0) { drag = null; cv.style.cursor = ''; }
+};
+cv.addEventListener('pointerup', endPointer);
+cv.addEventListener('pointercancel', endPointer);
+
+// Double-click zooms IN on the spot, or all the way back out if you are
+// already in — a reset that needs a separate control gets used half as often.
+cv.addEventListener('dblclick', (e) => {
+  if (!ready) return;
+  e.preventDefault();
+  if (view.z > 1.001) resetView();
+  else { const p = devicePos(e); zoomAt(p.x, p.y, 3); }
+});
+
+$('zoomreset').onclick = resetView;
+
+window.addEventListener('keydown', (e) => {
+  if (!ready || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if (e.key === '0' || e.key === 'Escape') { resetView(); return; }
+  if (e.key === '+' || e.key === '=') zoomAt(cv.width / 2, cv.height / 2, 1.4);
+  if (e.key === '-' || e.key === '_') zoomAt(cv.width / 2, cv.height / 2, 1 / 1.4);
+});
 
 // ─── controls ───────────────────────────────────────────────────────────────
 
@@ -719,6 +911,14 @@ $('find').addEventListener('input', (e) => {
     const i = state.found;
     o.textContent = `${L.W[i]} — ${L.CNT[i]}× · rank ${(i + 1).toLocaleString()} · first ${dayToDate(L.FIRST[i])} · ${L.isHub[i] ? 'hub' : labelOf(L.SEC[i])}`;
   } else o.textContent = q ? 'not in this vocabulary' : '';
+  // If you are zoomed in, a highlight somewhere off-screen is no answer at all:
+  // bring the found word into the middle of the view.
+  if (state.found >= 0 && view.z > 1.001) {
+    const se = S * view.z;
+    view.x = cv.width / 2 - L.X[state.found] * se;
+    view.y = cv.height / 2 - L.Y[state.found] * se;
+    clampPan();
+  }
   draw();
 });
 
@@ -858,6 +1058,10 @@ function setData(data) {
   state.found = -1;
   $('find').value = '';
   $('findout').textContent = '';
+  // A new vocabulary is a new picture. Holding 8× on a point that meant
+  // something in the last one would frame a stranger's web at random.
+  view.z = 1;
+  showZoom();
   recolour(state.mode);
   fillPanels();
   drawFlat();

@@ -133,6 +133,26 @@ span and then divides by its member count. The engine now drops empties and
 re-indexes, so "K wedges, all non-empty, ids 0..K−1" is a guarantee rather than
 something the example data happened to satisfy.
 
+**Zoom separates; it does not magnify.** Scroll, drag, pinch, double-click,
+`+`/`-`/`0`. Everything drawn in device units — dot radii, line widths, label
+type, the hover tolerance — stays the same size as `z` rises, so the only thing
+zooming does is pull the haze apart into words. Sizes that scaled with the
+transform just made a bigger blur. The label budget rises with `z` (capped at
+3.5×) because the extra room has to be spent on *more* names, and `pick()`
+converts its 11px tolerance back to world units or it would grab half a wedge at
+20×. The export ignores the view entirely and always renders the whole web at
+z = 1: a picture that silently depended on where you happened to be looking
+would be a different picture every time you pressed the button.
+
+**HTML chrome over the canvas reserves its own boxes.** The hub caption, the
+zoom readout and the pan hint are DOM, so the label placer cannot see them and
+was drawing words underneath. `chromeBoxes()` measures the three elements and
+hands their rectangles to `drawLabels` alongside the anchors'. While fixing that:
+`.zoomtag` sets `display: flex` on a class, which outranks the UA's
+`[hidden] { display: none }` — the readout was pinned on screen at 1× with its
+`hidden` property set, and a test that asserted `el.hidden` agreed with it.
+Assert computed visibility.
+
 **The disc has a gutter.** It used to be inscribed in the square with 4% to
 spare, which left rim labels at 3 and 9 o'clock nowhere to go — dropped by the
 overflow guard, or drawn hard against the border. `R_OUT` now stops well short,
