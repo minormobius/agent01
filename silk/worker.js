@@ -22,6 +22,14 @@ export default {
       });
     }
 
+    // The lexicon web shipped at /lexicon/ for about an hour before moving to
+    // the shorter /word/. Almost nobody can have that link, but a URL that was
+    // once live and now 404s is the kind of small breakage that is free to
+    // avoid and annoying to discover later. 301, because the move is permanent.
+    if (url.pathname === '/lexicon' || url.pathname === '/lexicon/') {
+      return Response.redirect(new URL('/word/', url).toString(), 301);
+    }
+
     return env.ASSETS.fetch(request);
   },
 };

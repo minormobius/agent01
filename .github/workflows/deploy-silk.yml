@@ -42,7 +42,7 @@ jobs:
       # picture nobody can tell from a right one. This also asserts the privacy
       # promise the page makes in as many words: no post text in the data file.
       - name: The lexicon data holds, and carries no prose
-        run: node test/lexicon.selftest.mjs
+        run: node test/word.selftest.mjs
 
       - name: Install wrangler
         run: npm install wrangler

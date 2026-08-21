@@ -58,7 +58,7 @@ silk/
     metrics.mjs         the invariants, the family aggregate, the divergence
     render.mjs          canvas drawing; knows nothing about weaving
     app.mjs             the page; knows nothing about weaving either
-  lexicon/              THE LEXICON WEB — /lexicon/, a second, unrelated web
+  word/                 THE LEXICON WEB — /word/, a second, unrelated web
     build.mjs           CAR → data.json: tokenise, cluster, lay out
     car.mjs             90-line CAR v1 + DAG-CBOR reader, no dependencies
     data.json           the built artefact (1.1 MB), committed
@@ -66,22 +66,22 @@ silk/
   test/
     fabric.selftest.mjs  32 checks — geometry, tension-only, splitting, chains
     weaver.selftest.mjs  62 checks — the four claims the page makes
-    lexicon.selftest.mjs 32 checks — the CAR reader, the data file, the promise
+    word.selftest.mjs    32 checks — the CAR reader, the data file, the promise
   worker.js             assets + /health
   wrangler.jsonc
 ```
 
 `weaver.mjs` is the file. Everything else exists to serve it or to check it.
 
-## The lexicon web (`/lexicon/`)
+## The lexicon web (`/word/`)
 
 A different question on the same shape: *what does a whole vocabulary look
 like?* 39,554 word types from 49,919 posts, placed by topic (angle), rank
 (radius) and date (colour). It shares nothing with the weaver but the palette
 and the domain — it is a chart, not a simulation.
 
-**Rebuild it:** `node silk/lexicon/build.mjs <handle>`. The 91 MB repo CAR is
-cached in `lexicon/.cache/` and is gitignored *and* `.assetsignore`d; it is an
+**Rebuild it:** `node silk/word/build.mjs <handle>`. The 91 MB repo CAR is
+cached in `word/.cache/` and is gitignored *and* `.assetsignore`d; it is an
 input, not an artefact, and shipping it would blow the asset budget on its own.
 
 Four things in here were got wrong first and are worth not re-deriving:

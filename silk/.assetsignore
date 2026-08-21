@@ -6,4 +6,4 @@ CLAUDE.md
 # assets.directory is this dir, so anything under it is uploaded and served.
 # build.mjs caches a 91 MB repo CAR here; it is an input, it is not public, and
 # it would blow the asset budget on its own.
-lexicon/.cache/
+word/.cache/

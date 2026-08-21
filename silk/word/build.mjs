@@ -1,6 +1,6 @@
-// silk/lexicon/build.mjs — turn an ATProto repo CAR into the web's data file.
+// silk/word/build.mjs — turn an ATProto repo CAR into the web's data file.
 //
-//   node silk/lexicon/build.mjs <handle-or-did> [--car path] [--k 12]
+//   node silk/word/build.mjs <handle-or-did> [--car path] [--k 12]
 //
 // Fetches (or reads) the repo, tokenises every post, works out the topic
 // structure from the corpus itself, and writes data.json. There is no API key

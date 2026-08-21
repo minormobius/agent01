@@ -1,4 +1,4 @@
-// silk/test/lexicon.selftest.mjs — the lexicon web's data file, and the reader
+// silk/test/word.selftest.mjs — the lexicon web's data file, and the reader
 // that produced it.
 //
 // This exists because the chart is entirely a function of one generated JSON
@@ -7,16 +7,16 @@
 // the layout actually relies on are asserted here, plus the one privacy
 // property the surface promises.
 //
-// Run: node silk/test/lexicon.selftest.mjs
+// Run: node silk/test/word.selftest.mjs
 
 import { readFileSync, existsSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { readCar } from '../lexicon/car.mjs';
+import { readCar } from '../word/car.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const LEX = join(HERE, '..', 'lexicon');
+const LEX = join(HERE, '..', 'word');
 
 let checks = 0;
 let failures = 0;
@@ -78,7 +78,7 @@ console.log('\nthe CAR reader');
 
 const dataPath = join(LEX, 'data.json');
 if (!existsSync(dataPath)) {
-  console.log('\n  ✗ silk/lexicon/data.json is missing — run build.mjs\n');
+  console.log('\n  ✗ silk/word/data.json is missing — run build.mjs\n');
   process.exit(1);
 }
 const d = JSON.parse(readFileSync(dataPath, 'utf8'));
@@ -178,5 +178,5 @@ console.log('\nno prose escaped the build');
 }
 
 console.log('');
-if (failures) { console.log(`✗ lexicon selftest: ${failures}/${checks} failing\n`); process.exit(1); }
-console.log(`✓ lexicon selftest passed (${checks} checks)\n`);
+if (failures) { console.log(`✗ word selftest: ${failures}/${checks} failing\n`); process.exit(1); }
+console.log(`✓ word selftest passed (${checks} checks)\n`);
