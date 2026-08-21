@@ -292,27 +292,38 @@ section('the touch controls are wired end to end');
   const js = readFileSync(join(ROOT, 'js/game.js'), 'utf8');
   const css = readFileSync(join(ROOT, 'css/tempest.css'), 'utf8');
 
-  for (const id of ['t-ccw', 't-cw', 't-fire', 'stage', 'touch']) {
+  for (const id of ['dial', 'dial-ring', 'dial-nub', 't-fire', 'stage', 'touch']) {
     ok(html.includes(`id="${id}"`), `index.html defines #${id}`);
   }
-  for (const id of ['t-ccw', 't-cw', 't-fire']) {
+  for (const id of ['dial', 'dial-ring', 'dial-nub', 't-fire']) {
     ok(js.includes(`'${id}'`), `game.js binds #${id}`);
   }
-  ok(/\.touch\s*{/.test(css), 'the control bar is styled');
-  ok(/\.tbtn\s*{/.test(css), 'the control buttons are styled');
+  ok(/\.dial\s*{/.test(css), 'the spinner is styled');
+  ok(/\.fire\s*{/.test(css), 'the fire button is styled');
   ok(css.includes('pointer: coarse'), 'the controls appear on touch screens');
   ok(!html.includes('id="pad-left"'), 'the old full-bleed pads are gone');
-  // The spinner and the tap-to-fire are what make one-thumb play work.
-  ok(js.includes('pointermove'), 'the drag spinner is bound');
-  ok(js.includes('firePulse'), 'a tap queues a shot');
-  ok(js.includes('setPointerCapture'), 'a drag that leaves the canvas is still tracked');
-  // Buttons are held down, not clicked: `click` lands on release, a whole beat
-  // late for a game measured in ticks.
-  ok(!/\$\('t-(ccw|cw|fire)'\)\.addEventListener\('click'/.test(js),
-    'the controls are held, not clicked');
+  ok(!html.includes('id="t-ccw"'), 'the split direction buttons are gone');
+
+  // One thumb owns all the movement. If a direction control ever reappears
+  // opposite the fire button, walking becomes a two-thumb job again — which is
+  // the exact complaint that produced the spinner.
+  ok(!/id="t-(ccw|cw)"/.test(html), 'movement is not split across two buttons');
+
+  // The spinner is a rotary control: it reads angle, not left-and-right.
+  ok(js.includes('Math.atan2'), 'the spinner reads an angle');
+  ok(js.includes('DIAL_STEP'), 'turning it commits to a direction');
+  ok(js.includes('DIAL_PUSH'), 'leaning on it works like a stick too');
+  ok(js.includes('setPointerCapture'), 'a thumb that slides off is still tracked');
+  ok(js.includes('firePulse'), 'a tap on the web queues a shot');
+  // Held, not clicked: `click` lands on release, a beat late at 60 ticks/s.
+  ok(
+    !/\$\('t-fire'\)\.addEventListener\('click'/.test(js),
+    'the fire button is held, not clicked'
+  );
   ok(js.includes('orientationchange'), 'rotating the phone re-fits the web');
   ok(css.includes('env(safe-area-inset-bottom)'), 'the controls clear the home indicator');
-  ok(/touch-action:\s*none/.test(css), 'dragging the web does not scroll the page');
+  ok(/touch-action:\s*none/.test(css), 'dragging the spinner does not scroll the page');
+  ok(css.includes('conic-gradient'), 'the spinner has knurling to show it turning');
 }
 
 section('the pack as a whole');

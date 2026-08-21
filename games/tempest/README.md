@@ -223,23 +223,31 @@ wasm refuses to start instead of quietly playing a different game.
 
 **Keyboard.** `← →` walk the rim · `space` fire · `O` oracle · `P` proof.
 
-**Touch.** **Drag the web** to walk, **tap it** to fire — one thumb plays the
-whole game. There are also `◀ ▶ FIRE` buttons, held rather than tapped, for
-two-thumb play.
+**Touch.** A **spinner** under the left thumb and a **FIRE** button under the
+right — the way the cabinet had it. Turn the spinner and the claw walks that
+way round the web; lean on it and hold, and it works like a stick. You can also
+drag the web itself to walk and tap it to fire, for one-thumb play.
 
-The drag is a *spinner*, the way the arcade cabinet's rotary knob was: it means
-"spin this way", not "put the claw under my thumb". That is not laziness about
-direct manipulation — on a ring, clockwise is rightward at the top of the web
-and leftward at the bottom, so an absolute mapping would silently reverse
-itself as you walked round. Relative is the only mapping that stays true
-wherever the claw is, and it matches the keyboard.
+Two things about that are deliberate.
 
-The controls sit **below** the web in portrait. In landscape they become
-floating thumb-rests in the bottom corners instead — a short wide screen has no
-height to spare for a bar, and because the web is drawn to its own aspect ratio
-and never stretched, the corners are empty anyway. The first version was three
-invisible full-height zones laid over the canvas, so your thumb covered the
-lanes you were trying to read.
+*Rotation in, rotation out.* Turning the spinner clockwise walks the claw
+clockwise, and that mapping is true wherever the claw happens to be. A
+left/right control can never be, on a ring: clockwise is rightward at the top of
+the web and leftward at the bottom, so an absolute mapping silently reverses
+itself as you walk round.
+
+*One thumb owns all the movement.* The first touch build put the two directions
+on buttons at opposite ends of the screen, which made walking a two-thumb job
+and every change of direction a hand-off. Splitting motion across two thumbs is
+the thing that made it feel clunky; the spinner is what fixed it.
+
+In landscape the controls stop being a bar and float in the bottom corners
+instead. A short wide screen has no height to spare, and because the web is
+drawn to its own aspect ratio and never stretched — the polygon *is* the
+travel-cost table, so distorting it would be drawing a different game — the
+corners are empty anyway. The first version of all this was three invisible
+full-height zones laid over the canvas, so your thumb covered the lanes you were
+trying to read.
 
 **Oracle** asks the solver, twice a second, whether the run you are in is still
 winnable, and turns your claw red when it is not. It is not a hint — it never

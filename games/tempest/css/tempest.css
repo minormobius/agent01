@@ -187,94 +187,136 @@ body {
 
 /* ------------------------------------------------------- touch controls -- */
 
-/* Below the web, never on top of it. The first version was three invisible
-   full-height zones laid over the canvas, which meant your thumb covered the
-   lanes you were trying to read. */
+/* The cabinet had a rotary spinner under the left hand and a fire button under
+   the right, and that division is the reason it felt good: one hand owns all
+   the movement, the other only shoots. The first touch build split the two
+   directions across two buttons at opposite ends of the screen, which made
+   walking a two-thumb job and every change of direction a hand-off. */
 .touch {
   display: none;
-  gap: 10px;
-  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px calc(12px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line);
   background: #060c14;
 }
 
-.tbtn {
-  flex: 1 1 0;
-  min-height: 64px;
-  font: inherit;
-  color: var(--rim);
-  background: rgba(57, 208, 255, 0.07);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  letter-spacing: 0.12em;
-  cursor: pointer;
-  /* The buttons are held, not tapped: no scrolling, no zooming, no delay. */
+/* --- the spinner --- */
+
+.dial {
+  position: relative;
+  flex: 0 0 auto;
+  width: 132px;
+  height: 132px;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
 }
-.tbtn.dir { flex: 1 1 26%; font-size: 22px; }
-.tbtn.fire {
-  flex: 1 1 48%;
-  color: var(--hot);
-  background: rgba(255, 210, 63, 0.09);
-  border-color: rgba(255, 210, 63, 0.35);
-  font-size: 15px;
-  font-weight: 600;
+
+/* Knurling. It rotates exactly as far as the thumb does, which is the whole
+   feedback loop — you can see the spinner spinning. */
+.dial-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(57, 208, 255, 0.5);
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(57, 208, 255, 0.34) 0deg 5deg,
+    rgba(57, 208, 255, 0.04) 5deg 15deg
+  );
+  will-change: transform;
 }
-.tbtn.down { background: rgba(57, 208, 255, 0.26); }
-.tbtn.fire.down { background: rgba(255, 210, 63, 0.3); }
+
+.dial-hub {
+  position: absolute;
+  inset: 24%;
+  border-radius: 50%;
+  background: #081320;
+  border: 1px solid rgba(57, 208, 255, 0.34);
+  box-shadow: inset 0 0 14px rgba(57, 208, 255, 0.16);
+}
+
+/* Where the thumb is. Springs back to the middle on release; the knurling does
+   not, because a spinner stays where you left it. */
+.dial-nub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border-radius: 50%;
+  background: var(--rim);
+  box-shadow: 0 0 14px rgba(57, 208, 255, 0.6);
+  transition: transform 0.09s ease-out;
+}
+.dial.live .dial-nub { transition: none; }
+.dial.live .dial-ring { border-color: var(--rim); }
+
+/* --- the fire button --- */
+
+.fire {
+  flex: 0 0 auto;
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--hot);
+  border: 2px solid rgba(255, 210, 63, 0.55);
+  background: radial-gradient(
+    circle at 38% 30%,
+    rgba(255, 210, 63, 0.34),
+    rgba(255, 210, 63, 0.1) 62%,
+    rgba(255, 210, 63, 0.04)
+  );
+  box-shadow: 0 0 18px rgba(255, 210, 63, 0.12);
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.05s ease-out;
+}
+.fire.down {
+  background: radial-gradient(
+    circle at 38% 30%,
+    rgba(255, 210, 63, 0.62),
+    rgba(255, 210, 63, 0.28)
+  );
+  transform: scale(0.95);
+}
 
 @media (pointer: coarse) {
   .touch { display: flex; }
 }
 
 /* Landscape on a phone.
-   
+
    The web is drawn to its own aspect ratio and never stretched — the polygon
    IS the travel-cost table, so distorting it would be drawing a different
    game. On a short wide screen that leaves big empty margins either side and
-   almost no height, which is the worst possible place to spend a row on a
-   control bar. So in landscape the buttons stop being a row and become
-   floating thumb-rests in the empty corners: the web gets the whole frame,
-   and the controls sit exactly where hands already are. */
-@media (pointer: coarse) and (max-height: 520px) {
+   almost no height, which is the worst possible place to spend a row on
+   controls. So in landscape they float in the empty corners instead: the web
+   gets the whole frame, and each thumb lands on its own control. */
+@media (pointer: coarse) and (max-height: 560px) {
   .touch {
     position: absolute;
     /* Above the footer, which stays reachable between the two thumbs. */
     inset: 0 0 30px 0;
     z-index: 2;
     align-items: flex-end;
-    gap: 10px;
-    padding: 0 12px calc(8px + env(safe-area-inset-bottom));
+    padding: 0 16px calc(8px + env(safe-area-inset-bottom));
     background: none;
     border-top: 0;
-    /* Only the buttons take taps; everything between them is still web, so
-       the drag-spinner keeps working across the middle of the screen. */
+    /* Only the controls take taps; everything between them is still web, so
+       dragging the middle of the screen keeps working. */
     pointer-events: none;
   }
-  /* `.tbtn.dir` in the base rules is two classes deep, so a bare `.tbtn`
-     override here loses to it however late it comes — the first attempt left
-     the arrows 184px wide, sprawling across the bottom-left of the web. */
-  .tbtn {
-    pointer-events: auto;
-    min-height: 74px;
-    border-radius: 12px;
-    backdrop-filter: blur(2px);
-  }
-  .tbtn.dir {
-    flex: 0 0 auto;
-    width: 86px;
-    font-size: 20px;
-  }
-  .tbtn.fire {
-    flex: 0 0 auto;
-    /* Thumbs land in the two bottom corners, so the directions pair up on the
-       left and the trigger goes hard right. */
-    order: 3;
-    margin-left: auto;
-    width: 132px;
-    font-size: 14px;
-  }
+  .dial, .fire { pointer-events: auto; }
+  .dial { width: 118px; height: 118px; }
+  .fire { width: 100px; height: 100px; font-size: 14px; }
 }
 
 /* -------------------------------------------------------------- overlay -- */
@@ -335,9 +377,12 @@ body[data-phase="error"] .cta { display: none; }
 .foot a:hover { color: var(--rim); }
 
 @media (max-width: 720px) {
-  .hud { font-size: 11.5px; gap: 8px; padding: 8px 10px; }
-  .hud-left, .hud-right { gap: 9px; }
-  .hud button { padding: 5px 12px; }
+  .hud { font-size: 11.5px; gap: 8px; padding: 8px 10px; flex-wrap: nowrap; }
+  .hud-left, .hud-right { gap: 9px; flex-wrap: nowrap; }
+  .hud button { padding: 5px 10px; }
+  /* Keep the numbers, drop the words, and let the overlay carry the score. */
+  .hud .lbl { display: none; }
+  .hud .score { display: none; }
   .foot { font-size: 10.5px; }
   .card { padding: 20px 18px; }
   .card h1 { font-size: 22px; }

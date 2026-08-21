@@ -25,6 +25,16 @@
   const TAP_PX = 12; // a touch that moves less than this…
   const TAP_MS = 300; // …and ends this quickly is a shot, not a drag
   const FIRE_PULSE = 10; // ticks a tapped shot stays queued waiting for cooldown
+
+  // --- the spinner ----------------------------------------------------------
+  // Rotation in, rotation out. Turning the dial clockwise walks the claw
+  // clockwise round the web, and that mapping is true wherever the claw
+  // happens to be — which a left/right control can never be on a ring, because
+  // clockwise is rightward at the top of the web and leftward at the bottom.
+  const DIAL_DEAD_R = 20; // px from the hub where the angle stops meaning anything
+  const DIAL_STEP = 0.075; // radians of turn that commit you to a direction
+  const DIAL_IDLE = 130; // ms of stillness after which the spinner has stopped
+  const DIAL_PUSH = 34; // …at which point leaning on it works like a stick
   // Asking the solver "is this still winnable" is real work. Twice a second is
   // plenty for a light that only ever tells you bad news.
   const ORACLE_EVERY = 30;
@@ -37,8 +47,9 @@
   /** Tell the player about the controls they actually have. */
   function controlsHelp() {
     return isTouch()
-      ? '<p><b>Drag</b> the web to walk the rim · <b>tap</b> it to fire.<br>' +
-        'Or use the buttons below — <b>◀ ▶</b> walk, <b>FIRE</b> holds down.</p>'
+      ? '<p><b>Turn the spinner</b> to walk the rim · <b>FIRE</b> to shoot.<br>' +
+        'One thumb on each, like the cabinet had.</p>' +
+        '<p class="fine">You can also drag the web itself to walk, and tap it to fire.</p>'
       : '<p><b>← →</b> walk the rim · <b>space</b> fire · ' +
         '<b>O</b> oracle · <b>P</b> proof</p>';
   }
@@ -55,8 +66,8 @@
     lane: 0,
     acc: 0,
     last: 0,
-    held: 0, // -1 ccw, +1 cw — from the on-screen buttons
-    drag: 0, // -1 ccw, +1 cw — from the spinner
+    held: 0, // -1 ccw, +1 cw — reserved for any future held control
+    drag: 0, // -1 ccw, +1 cw — from dragging the web itself
     firing: false,
     firePulse: 0, // a tapped shot, waiting for the gun to be ready
     oracle: false,
@@ -65,6 +76,34 @@
   };
 
   const keys = new Set();
+
+  const dial = {
+    id: null, // the pointer currently on the dial
+    cx: 0,
+    cy: 0, // hub, in client coords
+    angle: 0, // last thumb angle
+    spin: 0, // total turn, for the visual
+    creep: 0, // turn banked since the last committed step
+    turn: 0, // -1 / +1, the direction the last step went
+    turnedAt: -1e9,
+    x: 0,
+    r: 0, // thumb offset from the hub
+  };
+
+  /**
+   * Which way the spinner says to walk.
+   *
+   * Two ways to drive it, because people reach for both: **swirl** it and the
+   * angular motion steers, or just **lean** on one side and hold, like a
+   * stick. The lean only applies once the swirl has gone quiet, so the two
+   * never fight over the same thumb.
+   */
+  function dialDir() {
+    if (dial.id === null) return 0;
+    if (performance.now() - dial.turnedAt < DIAL_IDLE) return dial.turn;
+    if (dial.r > DIAL_PUSH && Math.abs(dial.x) > DIAL_PUSH) return Math.sign(dial.x);
+    return 0;
+  }
 
   function levelData() {
     return state.pack.levels[state.level];
@@ -90,8 +129,12 @@
   function renderCert() {
     const lvl = levelData();
     const cert = waveData().cert;
-    $('hud-level').textContent = `level ${lvl.index}`;
-    $('hud-wave').textContent = `wave ${state.wave + 1}/${lvl.waves.length}`;
+    // The words are wrapped so a narrow HUD can drop them and keep the
+    // numbers. On a phone the full labels pushed the row onto a second line,
+    // which cost ~50px of web to say "level" and "wave".
+    $('hud-level').innerHTML = `<span class="lbl">level </span>${lvl.index}`;
+    $('hud-wave').innerHTML =
+      `<span class="lbl">wave </span>${state.wave + 1}/${lvl.waves.length}`;
     $('hud-lives').textContent = '▮'.repeat(Math.max(0, state.lives));
     $('hud-score').textContent = state.score;
     $('web-name').textContent = `${lvl.web.shape} · ${lvl.web.lanes} lanes · ${lvl.web.character}`;
@@ -125,10 +168,13 @@
     state.drag = 0;
     state.firing = false;
     state.firePulse = 0;
-    for (const id of ['t-ccw', 't-cw', 't-fire']) {
-      const el = $(id);
-      if (el) el.classList.remove('down');
-    }
+    dial.id = null;
+    dial.turn = 0;
+    dial.turnedAt = -1e9;
+    const fire = $('t-fire');
+    if (fire) fire.classList.remove('down');
+    const d = $('dial');
+    if (d) d.classList.remove('live');
   }
 
   function startWave(keepLane) {
@@ -188,10 +234,7 @@
   function breached() {
     const a = state.run.autopsy();
     state.lives -= 1;
-    state.held = 0;
-    state.drag = 0;
-    state.firing = false;
-    state.firePulse = 0;
+    releaseControls();
     if (navigator.vibrate) navigator.vibrate(state.lives > 0 ? 30 : [30, 60, 90]);
     const lost =
       a.lostAt >= 0
@@ -246,6 +289,8 @@
     if (keys.has('ArrowRight') || keys.has('KeyD')) dir += 1;
     if (state.held) dir = state.held;
     if (state.drag) dir = state.drag;
+    const spun = dialDir();
+    if (spun) dir = spun;
     const fire =
       state.firing ||
       state.firePulse > 0 ||
@@ -287,10 +332,10 @@
     addEventListener('keyup', (e) => keys.delete(e.code));
     addEventListener('blur', () => keys.clear());
 
-    // --- the on-screen buttons ---
+    // --- the fire button ---
     // Held, not clicked: `click` fires on release, which is a whole beat too
-    // late for a game measured in ticks. These also double as "continue" while
-    // an overlay is up, so a touch player never has to find the small print.
+    // late for a game measured in ticks. It also doubles as "continue" while an
+    // overlay is up, so a touch player never has to find the small print.
     const holdButton = (el, on) => {
       const press = (e) => {
         e.preventDefault();
@@ -315,9 +360,86 @@
       el.addEventListener('lostpointercapture', release);
       el.addEventListener('contextmenu', (e) => e.preventDefault());
     };
-    holdButton($('t-ccw'), (v) => (state.held = v ? -1 : 0));
-    holdButton($('t-cw'), (v) => (state.held = v ? 1 : 0));
     holdButton($('t-fire'), (v) => (state.firing = v));
+
+    // --- the spinner ---
+    const dialEl = $('dial');
+    const ringEl = $('dial-ring');
+    const nubEl = $('dial-nub');
+
+    /** Shortest way round between two angles, so ±π does not read as a lurch. */
+    const wrap = (a) => ((a + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+
+    const dialTrack = (e) => {
+      const dx = e.clientX - dial.cx;
+      const dy = e.clientY - dial.cy;
+      dial.x = dx;
+      dial.r = Math.hypot(dx, dy);
+      // Close to the hub the angle is mostly noise — a thumb wobbling over the
+      // centre would spin the dial wildly — so it holds its last reading.
+      if (dial.r < DIAL_DEAD_R) return;
+      const a = Math.atan2(dy, dx);
+      const da = wrap(a - dial.angle);
+      dial.angle = a;
+      dial.spin += da;
+      dial.creep += da;
+      if (Math.abs(dial.creep) >= DIAL_STEP) {
+        dial.turn = Math.sign(dial.creep);
+        dial.turnedAt = performance.now();
+        dial.creep = 0;
+      }
+      paintDial(a);
+    };
+
+    function paintDial(a) {
+      // The knurling turns exactly as far as the thumb does. This is the whole
+      // feedback loop: you can see the spinner spinning.
+      ringEl.style.transform = `rotate(${dial.spin * (180 / Math.PI)}deg)`;
+      if (a === undefined) {
+        nubEl.style.transform = 'translate(0px, 0px)';
+        return;
+      }
+      const reach = Math.min(dial.r, dialEl.clientWidth / 2 - 16);
+      nubEl.style.transform = `translate(${Math.cos(a) * reach}px, ${Math.sin(a) * reach}px)`;
+    }
+
+    dialEl.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (state.phase !== 'playing') {
+        advance();
+        return;
+      }
+      const box = dialEl.getBoundingClientRect();
+      dial.cx = box.left + box.width / 2;
+      dial.cy = box.top + box.height / 2;
+      dial.id = e.pointerId;
+      dial.angle = Math.atan2(e.clientY - dial.cy, e.clientX - dial.cx);
+      dial.creep = 0;
+      dial.turn = 0;
+      dial.turnedAt = -1e9;
+      dialEl.setPointerCapture(e.pointerId);
+      dialEl.classList.add('live');
+      dialTrack(e);
+    });
+    dialEl.addEventListener('pointermove', (e) => {
+      if (dial.id !== e.pointerId) return;
+      e.preventDefault();
+      dialTrack(e);
+    });
+    const dialRelease = (e) => {
+      if (e && dial.id !== e.pointerId) return;
+      dial.id = null;
+      dial.turn = 0;
+      dial.turnedAt = -1e9;
+      dialEl.classList.remove('live');
+      // The knurling keeps the rotation it was left at, like a real spinner;
+      // only the thumb marker springs home.
+      paintDial();
+    };
+    dialEl.addEventListener('pointerup', dialRelease);
+    dialEl.addEventListener('pointercancel', dialRelease);
+    dialEl.addEventListener('lostpointercapture', dialRelease);
+    dialEl.addEventListener('contextmenu', (e) => e.preventDefault());
 
     // --- the spinner ---
     // Drag anywhere on the web to walk; tap it to shoot. That gives one-thumb
@@ -325,7 +447,7 @@
     const stage = $('stage');
     let spin = null;
     stage.addEventListener('pointerdown', (e) => {
-      if (state.phase !== 'playing') return;
+      if (state.phase !== 'playing' || dial.id !== null) return;
       e.preventDefault();
       stage.setPointerCapture(e.pointerId);
       spin = { id: e.pointerId, anchor: e.clientX, moved: 0, t0: performance.now() };

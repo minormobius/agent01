@@ -67,15 +67,16 @@
   </div>
 </main>
 
-<nav class="touch" id="touch" aria-label="Touch controls">
-  <button class="tbtn dir" id="t-ccw" type="button" aria-label="Walk counter-clockwise">
-    <span aria-hidden="true">◀</span>
-  </button>
-  <button class="tbtn fire" id="t-fire" type="button" aria-label="Fire">
+<nav class="touch" id="touch" aria-label="Touch controls: a spinner for the rim and a fire button">
+  <!-- The cabinet had a rotary spinner under the left hand and fire under the
+       right. One thumb owns all the movement; the other only shoots. -->
+  <div class="dial" id="dial" role="group" aria-label="Spinner — turn it to walk the rim">
+    <div class="dial-ring" id="dial-ring" aria-hidden="true"></div>
+    <div class="dial-hub" aria-hidden="true"></div>
+    <div class="dial-nub" id="dial-nub" aria-hidden="true"></div>
+  </div>
+  <button class="fire" id="t-fire" type="button" aria-label="Fire">
     <span aria-hidden="true">FIRE</span>
-  </button>
-  <button class="tbtn dir" id="t-cw" type="button" aria-label="Walk clockwise">
-    <span aria-hidden="true">▶</span>
   </button>
 </nav>
 
