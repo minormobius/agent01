@@ -335,7 +335,15 @@ function drawMarks(c, s, cw) {
 // use-counts go along one wedge boundary, so the radial axis is annotated
 // exactly once instead of twelve times.
 
-function drawAnchors(c, s, px, cw, ch) {
+// Returns the boxes it occupies, so the word labels can be told to keep off.
+// Drawing the anchors last and letting them win a collision is right — they
+// carry opaque plates and there are only a dozen — but "winning" still left the
+// word underneath visibly clipped: `uses` painted over `currently` read as
+// `current`. Reserving the space first is the difference between an anchor that
+// covers a word and one that never had to.
+function drawAnchors(c, s, px, cw, ch, collect = false) {
+  const boxes = [];
+  const box = (x, y, w, h) => { boxes.push({ x, y, w, h }); };
   const { ring, wedge, rimAt, radiusForP, shellP } = L;
 
   // EVERYTHING HERE IS DEVICE SPACE. The first version did its trigonometry in
@@ -379,6 +387,14 @@ function drawAnchors(c, s, px, cw, ch) {
     if (text !== sec.label[0] && text !== sec.label.slice(0, 2).join(' ')) text += '…';
     if (c.measureText(text).width > room) continue;
 
+    // the rotated run, as an axis-aligned box around both ends
+    const tw2 = c.measureText(text).width;
+    const ex = ax + dx * tw2;
+    const ey = ay + dy * tw2;
+    box(Math.min(ax, ex) - 2 * px, Math.min(ay, ey) - 9 * px,
+      Math.abs(ex - ax) + 4 * px, Math.abs(ey - ay) + 18 * px);
+    if (collect) continue;
+
     c.save();
     c.translate(ax, ay);
     c.rotate(left ? a + Math.PI : a);
@@ -413,6 +429,8 @@ function drawAnchors(c, s, px, cw, ch) {
     const t = `${count}×`;
     const w = c.measureText(t).width;
     if (x - w / 2 < 2 || x + w / 2 > cw - 2 || y < 8 * px || y > ch - 8 * px) continue;
+    box(x - w / 2 - 4 * px, y - 8 * px, w + 8 * px, 16 * px);
+    if (collect) continue;
     c.fillStyle = 'rgba(8,10,14,0.94)';
     c.fillRect(x - w / 2 - 4 * px, y - 8 * px, w + 8 * px, 16 * px);
     c.fillStyle = 'rgba(186,200,214,0.98)';
@@ -422,22 +440,33 @@ function drawAnchors(c, s, px, cw, ch) {
   const lx = wx(Math.cos(axisAngle) * (R_IN + 13) * s);
   const ly = wy(Math.sin(axisAngle) * (R_IN + 13) * s);
   const lw = c.measureText('uses').width;
-  c.fillStyle = 'rgba(8,10,14,0.94)';
-  c.fillRect(lx - lw / 2 - 4 * px, ly - 8 * px, lw + 8 * px, 16 * px);
-  c.fillStyle = 'rgba(150,164,180,0.95)';
-  c.fillText('uses', lx, ly);
+  box(lx - lw / 2 - 4 * px, ly - 8 * px, lw + 8 * px, 16 * px);
+  if (!collect) {
+    c.fillStyle = 'rgba(8,10,14,0.94)';
+    c.fillRect(lx - lw / 2 - 4 * px, ly - 8 * px, lw + 8 * px, 16 * px);
+    c.fillStyle = 'rgba(150,164,180,0.95)';
+    c.fillText('uses', lx, ly);
+  }
   c.restore();
+  return boxes;
 }
 
 // ── word labels ─────────────────────────────────────────────────────────────
 
-function drawLabels(c, s, cw, ch, budget) {
+function drawLabels(c, s, cw, ch, budget, reserved = []) {
   if (budget <= 0) return;
   const { N, W, CNT, DF, SEC, X, Y, SZ, ANG, isHub, freqU } = L;
   const px = cw / 1000;
   const CELL = 13 * px;
   const gw = Math.ceil(cw / CELL), gh = Math.ceil(ch / CELL);
   const grid = new Uint8Array(gw * gh);
+  for (const b of reserved) {
+    const c0 = Math.floor(b.x / CELL), c1 = Math.floor((b.x + b.w) / CELL);
+    const r0 = Math.floor(b.y / CELL), r1 = Math.floor((b.y + b.h) / CELL);
+    for (let r = Math.max(0, r0); r <= Math.min(gh - 1, r1); r++) {
+      for (let col = Math.max(0, c0); col <= Math.min(gw - 1, c1); col++) grid[r * gw + col] = 1;
+    }
+  }
 
   // STRATIFY BY FREQUENCY BAND, WITH AN EQUAL SHARE EACH.
   //
@@ -537,8 +566,10 @@ function draw() {
   // Words first, anchors last. The anchors are few and carry opaque backing
   // plates, so when the two collide the anchor should be the one that survives —
   // a ring labelled `55×` half-covered by the word `currently` tells you neither.
-  drawLabels(ctx, S, cv.width, cv.height, state.labels);
-  drawAnchors(ctx, S, cv.width / 1000, cv.width, cv.height);
+  const px = cv.width / 1000;
+  const reserved = drawAnchors(ctx, S, px, cv.width, cv.height, true);
+  drawLabels(ctx, S, cv.width, cv.height, state.labels, reserved);
+  drawAnchors(ctx, S, px, cv.width, cv.height);
 }
 
 // ─── export ─────────────────────────────────────────────────────────────────
@@ -561,7 +592,8 @@ function renderExport(px = 2000) {
   drawStructure(c, s, Math.max(0.4, state.weblines));
   drawMarks(c, s, px);
   c.setTransform(1, 0, 0, 1, 0, 0);
-  drawLabels(c, s, px, px, Math.round(state.labels * 1.5));
+  const reserved = drawAnchors(c, s, px / 1000, px, px, true);
+  drawLabels(c, s, px, px, Math.round(state.labels * 1.5), reserved);
   drawAnchors(c, s, px / 1000, px, px);
 
   const u = px / 1000;
