@@ -440,10 +440,16 @@ function showZoom() {
   el.firstChild.textContent = `${view.z.toFixed(1)}×`;
 }
 
+// iOS caps how big a canvas may be and enforces it by giving you a blank one
+// rather than by throwing. 2 x device pixels on a large iPad in landscape is
+// already several megapixels, so the side is capped as well as the ratio; the
+// difference is invisible and the failure it avoids is not.
+const MAX_SIDE = 2600;
+
 function size() {
   const w = cv.parentElement.clientWidth;
   if (!w) return;
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const dpr = Math.min(2, window.devicePixelRatio || 1, MAX_SIDE / w);
   cv.width = Math.round(w * dpr);
   cv.height = Math.round(w * dpr);
   cv.style.height = w + 'px';
@@ -892,8 +898,10 @@ async function copyWeb() {
   const btn = $('copy');
   const say = (t) => { btn.textContent = t; setTimeout(() => { btn.textContent = 'copy web'; }, 2200); };
   btn.disabled = true;
+  let off = null;
   try {
-    const blob = await toBlob(renderExport());
+    off = renderExport();
+    const blob = await toBlob(off);
     // Clipboard image writes need a secure context and are refused outright by
     // some browsers. Falling back to a download means the button always does
     // something, which is the whole point of it being one button.
@@ -912,7 +920,13 @@ async function copyWeb() {
     say('failed');
     console.error(err);
   } finally {
+    // Hand the backing store back at once rather than waiting for the collector.
+    // A 2000x2170 canvas is ~17 MB of pixels, and on iOS every live canvas comes
+    // out of one page-wide budget: leaving this one lying around is a good way to
+    // have the browser reclaim the canvas you are actually looking at.
+    if (off) { off.width = 0; off.height = 0; }
     btn.disabled = false;
+    watchPixels();
   }
 }
 
@@ -1293,6 +1307,46 @@ function setData(data) {
   size();
 }
 
+// ─── keeping the pixels ─────────────────────────────────────────────────────
+//
+// iOS Safari DISCARDS CANVAS BACKING STORES UNDER MEMORY PRESSURE. The canvas
+// is not resized, no error is raised, no exception is thrown — the pixels are
+// simply taken away and the element goes blank. A page that draws only in
+// response to events, as this one does, then stays blank forever, because there
+// is no event for "your pixels are gone".
+//
+// The moment it is most likely to happen is the moment right after a build:
+// the tab has just been at its high-water mark, and the system reclaims what it
+// can. Which produces the exact report that led here — *it finishes and the web
+// is empty* — from someone on an iPad, with no error and a fully populated
+// stats panel beside a blank square.
+//
+// Three ways back, cheapest first.
+const repaint = () => { if (ready) draw(); };
+addEventListener('pageshow', repaint);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) repaint(); });
+// Safari fires these for 2D contexts; preventDefault on the loss is what asks
+// for a restore rather than a permanently dead context.
+cv.addEventListener('contextlost', (e) => e.preventDefault());
+cv.addEventListener('contextrestored', repaint);
+
+// And the backstop, because the events above are not guaranteed to arrive: look
+// at the middle of the canvas, which always crosses the hub and the frame, and
+// if there is nothing there, draw again. Reading one four-pixel band costs
+// microseconds and this runs a handful of times after a build, not on a timer.
+function ensurePainted() {
+  if (!ready || !cv.width) return;
+  let blank = true;
+  try {
+    const band = ctx.getImageData(0, Math.max(0, (cv.height >> 1) - 2), cv.width, 4).data;
+    for (let i = 0; i < band.length; i += 4) {
+      if (band[i] + band[i + 1] + band[i + 2] > 90) { blank = false; break; }
+    }
+  } catch { return; }        // tainted or unavailable: not our business
+  if (blank) draw();
+}
+const watchPixels = () => { for (const ms of [0, 250, 1200, 4000]) setTimeout(ensurePainted, ms); };
+
 // ─── bring your own handle ──────────────────────────────────────────────────
 
 let worker = null;
@@ -1384,6 +1438,7 @@ function runHandle(raw, did = null, mode = null) {
       mark(null);
       showProgress(false);
       setData(msg.data);
+      watchPixels();       // the tab has just been at its high-water mark
       history.replaceState(null, '', `?h=${encodeURIComponent(handle)}`);
       $('reset').hidden = false;
       document.querySelector('.stage').scrollIntoView({ behavior: 'smooth', block: 'center' });

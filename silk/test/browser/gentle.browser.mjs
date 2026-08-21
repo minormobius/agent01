@@ -159,6 +159,68 @@ await p3.waitForTimeout(900);
 ok('and neither is walking away from one',
   !(await p3.isChecked('#gentle')) && await p3.isHidden('#gentlenote'));
 
+// ── the pixels coming back ──────────────────────────────────────────────────
+//
+// iOS Safari discards canvas backing stores under memory pressure: no error, no
+// resize, the pixels are simply gone. A page that only draws on events stays
+// blank forever after that, which is what "it finishes and the web is empty"
+// looks like from the outside. Simulated here the only way it can be from a
+// desktop browser — wipe the canvas from outside and see whether the page
+// notices and puts it back.
+ok.group('a blanked canvas repaints itself');
+const inkOf = (pg) => pg.evaluate(() => {
+  const cv = document.getElementById('web');
+  const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+  let n = 0;
+  for (let i = 0; i < d.length; i += 40) if (d[i] + d[i + 1] + d[i + 2] > 90) n++;
+  return n;
+});
+const wipe = (pg) => pg.evaluate(() => {
+  const cv = document.getElementById('web');
+  const g = cv.getContext('2d');
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, cv.width, cv.height);
+});
+
+const before = await inkOf(p);
+ok('there was a web to lose', before > 500, `${before} lit samples`);
+
+// 1. the backstop, on the schedule that follows a build
+await wipe(p);
+ok('wiping it really does blank it', (await inkOf(p)) === 0);
+await p.evaluate(() => window.silk && null);
+await p.evaluate(() => { document.getElementById('go').blur(); });
+await p.evaluate(() => window.dispatchEvent(new Event('pageshow')));
+await p.waitForTimeout(200);
+ok('pageshow brings it back', (await inkOf(p)) > before * 0.9, `${await inkOf(p)}`);
+
+// 2. coming back to the tab
+await wipe(p);
+await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+await p.waitForTimeout(200);
+ok('returning to the tab brings it back', (await inkOf(p)) > before * 0.9);
+
+// 3. the event Safari actually fires for a discarded 2D context
+await wipe(p);
+await p.evaluate(() => document.getElementById('web').dispatchEvent(new Event('contextrestored')));
+await p.waitForTimeout(200);
+ok('contextrestored brings it back', (await inkOf(p)) > before * 0.9);
+
+// 4. and if none of those events arrive — which is the case that matters,
+//    because a discarded backing store may announce itself to nobody — the
+//    sweep scheduled after every build still catches it. Rebuild, blank the
+//    canvas while the sweep is still running, and wait for it to notice.
+await p.evaluate(() => localStorage.clear());
+await p.check('#gentle');
+await p.fill('#handle', 'someone.bsky.social');
+await p.click('#go');
+await built();
+await p.waitForTimeout(350);
+await wipe(p);
+ok('blanked mid-sweep, with no event to tell the page', (await inkOf(p)) === 0);
+await p.waitForTimeout(1600);
+ok('the post-build sweep put it back on its own', (await inkOf(p)) > before * 0.9, `${await inkOf(p)}`);
+
 ok('no uncaught page errors anywhere above', pageErrors.length === 0);
 if (pageErrors.length) console.log(pageErrors);
 

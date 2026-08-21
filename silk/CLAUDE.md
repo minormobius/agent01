@@ -76,7 +76,7 @@ silk/
       harness.mjs            serves silk/, resolves Playwright, counts checks
       typeahead.browser.mjs  23 checks — the handle box; NOT in CI, see below
       chart.browser.mjs      16 checks — the export, the sliders, the reweave
-      gentle.browser.mjs     17 checks — the low-memory path and the crash mark
+      gentle.browser.mjs     24 checks — gentle mode, the crash mark, the repaint
   worker.js             assets + /health
   wrangler.jsonc
 ```
@@ -160,6 +160,37 @@ arrival order does not survive into the answer. The selftest asserts that
 directly, on the archive's order, on listRecords' reversed paging, and on a
 shuffle. (The property it rests on: no two posts in a real corpus share a
 millisecond — 50,258 posts, 50,258 distinct `createdAt`.)
+
+**iOS discards canvas backing stores, and a page that draws on events never
+finds out.** The report that led here was *"it finishes and the web is empty"*,
+on an iPad: stats panel fully populated, no error, blank square. That is not a
+crash and not a data problem — iOS Safari reclaims canvas pixels under memory
+pressure without resizing the element, raising an error or firing anything you
+can rely on, and this page only draws in response to events. The moment it is
+likeliest is straight after a build, when the tab has just been at its
+high-water mark.
+
+Four ways back, in `app.mjs`: `pageshow`, `visibilitychange`, `contextlost`
+(preventDefault, which is what asks for a restore) / `contextrestored`, and —
+the one that matters, because a discarded store may announce itself to nobody —
+`watchPixels()`, which reads a four-pixel band across the middle of the canvas
+at 0/250/1200/4000 ms after a build and redraws if there is no ink in it. The
+band crosses the hub and the frame, so it is never legitimately empty.
+
+Two things that make a purge likelier, both now avoided: the export canvas
+(2000×2170, ~17 MB of pixels) is released with `width = height = 0` the instant
+its blob exists rather than at the collector's convenience, because on iOS every
+live canvas comes out of one page-wide budget; and the drawing surface is capped
+at `MAX_SIDE` as well as at 2× device pixels, because iOS enforces its canvas
+size limit by handing back a blank one rather than by throwing.
+
+**This is a strong hypothesis fitted to the symptom, not a reproduction.**
+Safari's engine is available here (`playwright install webkit`) and both build
+paths render correctly in it at iPhone and iPad sizes — WebKit on a desktop is
+not under memory pressure and will not purge. The repaint guards are right
+whether or not the diagnosis is; if a blank web is still reported after them,
+the purge theory is wrong and the next place to look is the layout, not the
+pipeline.
 
 **The crash mark.** A tab that runs out of memory does not get to report it:
 there is no error, no console line, the page is simply gone. So `runHandle`
@@ -353,13 +384,17 @@ check behind it decays into a comment.
   escaping, the staleness guard, the DID shortcut, the keyboard, `pointerdown`
   surviving blur, and that a 500 from the directory leaves no trace on the page
   while a typed handle still builds.
-- [`gentle.browser.mjs`](test/browser/gentle.browser.mjs) — 17 checks: that
+- [`gentle.browser.mjs`](test/browser/gentle.browser.mjs) — 24 checks: that
   gentle mode builds without ever touching `getRepo`, that a refused archive
   offers the slow way as a button, and the crash mark in all four of its states —
   a crash arms it, a reported failure does not, walking away mid-build does not,
   and a clean load stays fast. The crash is simulated by leaving the mark and
   opening a *second tab*, because reloading fires `pagehide` and correctly clears
-  it; getting that wrong is what made this test fail first time.
+  it; getting that wrong is what made this test fail first time. Plus the repaint
+  guards: the canvas is wiped from outside and must come back via each of
+  `pageshow`, `visibilitychange` and `contextrestored`, and then — the case that
+  matters — wiped mid-sweep with **no event at all**, where only the post-build
+  pixel check can save it.
 - [`chart.browser.mjs`](test/browser/chart.browser.mjs) — 16 checks, all of them
   about pixels: that the exported PNG is the whole web and not a quadrant (read
   back off the real download, counted per quadrant), that type size buys labels,
