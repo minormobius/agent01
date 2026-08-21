@@ -341,6 +341,63 @@ Selftest: `palm/palm.selftest.mjs` (the like trap, chunk-boundary equivalence,
 MST prefix compression, known answers for all six readings, the percentile, and
 the card's grapheme budget and link-facet byte offsets).
 
+## feedgen — and the half of it that is not here
+
+`/feedgen` builds a feed as a block definition, writes it to your PDS as a
+`com.minomobi.feedgen.def` record, and publishes an `app.bsky.feed.generator`
+pointing at a service that will read it back. `b/worker.js` is one such service
+(`did:web:b.mino.mobi`), stateless: it fetches the def, runs the evaluator, and
+serves the skeleton.
+
+**There is one shape of feed it cannot serve, and that is why `workers/hose/`
+exists.** A feed defined by *subtraction* — not politics, not porn, not video,
+not a reply, not in this bot list — has no query to ask the AppView. There is no
+search term for "everything else". You have to see every post and subtract,
+which needs an ingester holding the firehose open, which is state this surface
+does not have.
+
+So the builder now publishes to **two** services and picks by input type:
+
+| the def's inputs | published against | served by |
+|---|---|---|
+| search / list / author | `did:web:b.mino.mobi` | this worker, statelessly |
+| contains a `firehose` input | `did:web:hose.mino.mobi` | `workers/hose/`, off Jetstream |
+
+`serviceDid()` in `feedgen.js` is the whole of that decision. A firehose feed
+still *previews* here, but only against a broad search sample — the preview says
+`sampled` rather than pretending, because judging a subtraction feed by a sample
+would tell you nothing about how full it will be.
+
+### The filters are not in this directory any more
+
+They were, in `feedgen/pipeline.js`. They now live in
+[`packages/feedgen/match.js`](../packages/feedgen/match.js), shared with
+`workers/hose/`, because the same definition has to be filtered over two shapes
+with nothing in common: hydrated `postView`s here, raw Jetstream commit records
+there (where a post is one second old and has no engagement counts at all).
+
+Two copies of that predicate is exactly how a feed's preview quietly stops
+describing the feed people read. `packages/feedgen/feedgen.selftest.mjs` walks a
+filter chain one filter at a time against both shapes and asserts they agree —
+**run it before touching `pipeline.js`.** `pipeline.js` is now only inputs,
+paging, dedupe and sort.
+
+It is imported as `../../packages/feedgen/match.js` and bundled into the worker
+by wrangler — nothing staged, unlike `packages/oauth-client`, because only the
+worker reads it and never the browser. If browser code ever needs it, stage it
+in `deploy-b.yml` the way the OAuth client is staged; do not vendor a second copy.
+
+### Importing a SkyFeed feed
+
+The import box calls `hose.mino.mobi/api/import`, which reads a feed's record
+off its owner's PDS and converts a SkyFeed-era `skyfeedBuilder` into a
+definition this editor can open. It publishes nothing — conversion is lossy in
+a loud way (`warnings`), and you should see what it dropped first.
+
+After an import the editor **offers** a "no video" filter rather than adding
+one. Its absence is why most people are porting — SkyFeed never shipped one —
+but it changes what the feed does, so it stays the owner's choice.
+
 ## Deploying
 
 Pushes to `claude/ai-detection-browser-aw7kq5` that touch this surface's paths trigger [`.github/workflows/deploy-b.yml`](../.github/workflows/deploy-b.yml).

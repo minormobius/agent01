@@ -1,0 +1,8 @@
+{
+  "name": "hose",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "selftest": "node hose.selftest.mjs"
+  }
+}

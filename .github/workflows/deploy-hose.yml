@@ -1,0 +1,78 @@
+name: Deploy hose (firehose feed service)
+
+on:
+  push:
+    branches: ['claude/txt-airports-bluesky-feed-pu4pbh']
+    paths:
+      - 'workers/hose/**'
+      - 'packages/feedgen/**'
+      - '.github/workflows/deploy-hose.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/hose
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The shared matcher lives in packages/feedgen/ and is imported by the
+      # worker as ../../packages/feedgen/*.js. Nothing to stage — wrangler
+      # bundles worker.js from the checked-out repo, so the relative import
+      # resolves. But it only resolves if the files are actually there, and a
+      # missing one would fail at bundle time with a less obvious message.
+      - name: Check the shared feedgen package is present
+        run: test -f ../../packages/feedgen/match.js && test -f ../../packages/feedgen/skyfeed.js
+
+      - name: Selftests
+        run: |
+          node ../../packages/feedgen/feedgen.selftest.mjs
+          node hose.selftest.mjs
+
+      - name: Install wrangler
+        run: npm install wrangler
+
+      - name: Deploy worker
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # The golden rule: a green deploy proves nothing until the log binds the
+      # custom domain. Assert the service DID document is served from the real
+      # hostname — if wrangler quietly published to hose.workers.dev instead,
+      # this is what catches it.
+      - name: Verify the custom domain answers as the feed service
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            DOC=$(curl -fsS https://hose.mino.mobi/.well-known/did.json || true)
+            if echo "$DOC" | grep -q '"did:web:hose.mino.mobi"'; then
+              echo "$DOC"
+              echo "✓ hose.mino.mobi serves did:web:hose.mino.mobi"
+              exit 0
+            fi
+            echo "  attempt $attempt: custom domain not answering yet, sleeping…"
+            sleep 10
+          done
+          echo "::error::hose.mino.mobi did not serve its DID document — check the deploy log bound the custom domain"
+          exit 1
+
+      # Separate and non-fatal: the firehose needs a moment to connect after a
+      # cold start, and a feed's ring buffer fills from empty. Not a deploy failure.
+      - name: Report ingest health
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            H=$(curl -fsS https://hose.mino.mobi/health || true)
+            if echo "$H" | grep -q '"ok":true'; then echo "$H"; echo "✓ ingesting"; exit 0; fi
+            sleep 10
+          done
+          echo "⚠️ not ingesting yet — /status has the detail. Expected on a cold start."
+          curl -fsS https://hose.mino.mobi/status || true

@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hose",
+  "main": "worker.js",
+  "compatibility_date": "2026-02-20",
+  "compatibility_flags": ["nodejs_compat"],
+  // hose.mino.mobi — a feed-generator service whose input is the firehose.
+  // Headless: no `assets` block, nothing static to serve. The DID people point
+  // their feed records at is did:web:hose.mino.mobi, served from
+  // /.well-known/did.json by worker.js.
+  "durable_objects": {
+    "bindings": [
+      { "name": "INGEST", "class_name": "FirehoseIngest" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["FirehoseIngest"] }
+  ],
+  // Backstop only — the object re-arms its own 30s alarm. This restarts the
+  // chain if it is ever broken.
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  },
+  "vars": {
+    // Feeds registered at startup so their ring buffer is warm before anyone
+    // opens them. Whitespace/comma separated at:// generator URIs.
+    "SEED_FEEDS": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.generator/aaaovosdgiz2e"
+  },
+  "routes": [
+    { "pattern": "hose.mino.mobi", "custom_domain": true }
+  ]
+}

@@ -79,6 +79,9 @@ h1 .dot { color: var(--gold); }
 .fg-assistant { display:flex; gap:6px; margin: 0 0 8px; }
 .fg-assistant .fg-input { flex:1; }
 .fg-assistant .fg-add { flex:0 0 auto; }
+.fg-import { display:flex; gap:6px; align-items:center; margin-bottom:8px; }
+.fg-import .fg-input { flex:1 1 auto; min-width:0; }
+.fg-import .fg-add { flex:0 0 auto; }
 .fg-toggles { display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:4px 0; }
 .fg-toggle { display:inline-flex; align-items:center; gap:4px; font:12px var(--mono); color: var(--fg); cursor:pointer; }
 .fg-toggle input { accent-color: var(--sky); }
@@ -90,7 +93,7 @@ h1 .dot { color: var(--gold); }
   <a class="crumb" href="https://b.mino.mobi/">← atmosphere</a>
   <h1>feedgen<span class="dot">.</span></h1>
   <p class="sub">build a Bluesky feed from blocks — stack inputs, filters and a sort, preview it live.</p>
-  <p class="note-firehose">Inputs query the public Bluesky network directly (search, lists, authors). The feed definition you build here is the record we'll write to your PDS — feeds live on ATProto, not a database.</p>
+  <p class="note-firehose">Inputs query the public Bluesky network directly (search, lists, authors), or take the whole firehose. The feed definition you build here is the record we&rsquo;ll write to your PDS &mdash; feeds live on ATProto, not a database. Query feeds are served by b.mino.mobi; firehose feeds by hose.mino.mobi, which holds the stream open and filters as posts arrive.</p>
 
   <div class="grid">
     <!-- builder -->
@@ -105,14 +108,19 @@ h1 .dot { color: var(--gold); }
 
       <div class="section">
         <div class="section-head"><h2>inputs</h2>
-          <select id="fg-add-input" class="fg-add"><option value="">+ add input…</option><option value="search">search</option><option value="list">list</option><option value="author">author</option></select>
+          <select id="fg-add-input" class="fg-add"><option value="">+ add input…</option><option value="search">search</option><option value="list">list</option><option value="author">author</option><option value="firehose">firehose (all posts)</option></select>
         </div>
+        <div class="fg-import">
+          <input id="fg-import-uri" class="fg-input" type="text" placeholder="paste a SkyFeed feed URL to import…">
+          <button id="fg-import-go" class="fg-add" type="button">import</button>
+        </div>
+        <div id="fg-import-msg" class="fg-note"></div>
         <div id="fg-inputs"></div>
       </div>
 
       <div class="section">
         <div class="section-head"><h2>filters</h2>
-          <select id="fg-add-filter" class="fg-add"><option value="">+ add filter…</option><option value="regex">regex</option><option value="media">has media</option><option value="lang">language</option><option value="minLikes">min likes</option><option value="removeReplies">remove replies</option><option value="removeReposts">remove reposts</option></select>
+          <select id="fg-add-filter" class="fg-add"><option value="">+ add filter…</option><option value="regex">regex</option><option value="media">has media</option><option value="lang">language</option><option value="minLikes">min likes</option><option value="removeReplies">remove replies</option><option value="removeReposts">remove reposts</option><option value="minReposts">min reposts</option><option value="noLang">no language tag</option><option value="list">author list</option></select>
         </div>
         <div class="fg-assistant">
           <input id="fg-ai-prompt" class="fg-input" placeholder="✨ describe a filter in words — &ldquo;posts about coffee&rdquo;, &ldquo;no links&rdquo;, &ldquo;not reposts of news&rdquo;">

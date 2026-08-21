@@ -1404,6 +1404,20 @@
         "plant/**",
         ".github/workflows/deploy-plant.yml"
       ]
+    },
+    {
+      "surface": "hose",
+      "dir": "workers/hose",
+      "endpoint": "hose.mino.mobi",
+      "type": "backend",
+      "branch": "claude/txt-airports-bluesky-feed-pu4pbh",
+      "uses": [],
+      "provides": "hose.mino.mobi",
+      "paths": [
+        "workers/hose/**",
+        "packages/feedgen/**"
+      ],
+      "note": "The firehose half of the feed stack, and the other end of b.mino.mobi/feedgen… (full description: workers/hose/CLAUDE.md)"
     }
   ],
   "unmanaged": {
