@@ -16,8 +16,8 @@ import { readFileSync, existsSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { readCarBytes } from '../word/car.mjs';
-import { analyze, tokenize, MIN_POSTS } from '../word/engine.mjs';
+import { readCarBytes, createCarParser } from '../word/car.mjs';
+import { analyze, analyzeCollected, createCollector, tokenize, MIN_POSTS, POST_TYPE, POST_FIELDS } from '../word/engine.mjs';
 import { STOPWORDS } from '../word/stopwords.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -33,36 +33,44 @@ const ok = (name, cond, detail = '') => {
   console.log(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
+// ─── a hand-built CAR ───────────────────────────────────────────────────────
+//
+// Enough of a DAG-CBOR writer to make a real archive out of plain objects, so
+// the reader can be checked against bytes rather than against itself.
+
+const enc = new TextEncoder();
+const head = (major, n) => {
+  if (n < 24) return [major << 5 | n];
+  if (n < 256) return [major << 5 | 24, n];
+  if (n < 65536) return [major << 5 | 25, n >> 8, n & 255];
+  return [major << 5 | 26, (n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
+};
+const cbor = (v) => {
+  if (typeof v === 'number' && Number.isInteger(v) && v >= 0) return head(0, v);
+  if (typeof v === 'string') { const b = [...enc.encode(v)]; return [...head(3, b.length), ...b]; }
+  if (Array.isArray(v)) return [...head(4, v.length), ...v.flatMap(cbor)];
+  if (v === true) return [7 << 5 | 21];
+  if (v === false) return [7 << 5 | 20];
+  if (v === null) return [7 << 5 | 22];
+  const keys = Object.keys(v);
+  return [...head(5, keys.length), ...keys.flatMap((k) => [...cbor(k), ...cbor(v[k])])];
+};
+const varint = (n) => { const o = []; while (n >= 0x80) { o.push((n & 0x7f) | 0x80); n >>>= 7; } o.push(n); return o; };
+const CID = [0x01, 0x71, 0x12, 0x20, ...Array.from({ length: 32 }, (_, i) => i)];
+const block = (obj) => { const b = cbor(obj); const body = [...CID, ...b]; return [...varint(body.length), ...body]; };
+const carOf = (objs) => {
+  const header = cbor({ version: 1, roots: [] });
+  return new Uint8Array([...varint(header.length), ...header, ...objs.flatMap(block)]);
+};
+
 // ─── 1. the CAR + DAG-CBOR reader, against a hand-built file ────────────────
 
 console.log('\nthe CAR reader');
 {
-  const enc = new TextEncoder();
-  const head = (major, n) => {
-    if (n < 24) return [major << 5 | n];
-    if (n < 256) return [major << 5 | 24, n];
-    if (n < 65536) return [major << 5 | 25, n >> 8, n & 255];
-    return [major << 5 | 26, (n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
-  };
-  const cbor = (v) => {
-    if (typeof v === 'number' && Number.isInteger(v) && v >= 0) return head(0, v);
-    if (typeof v === 'string') { const b = [...enc.encode(v)]; return [...head(3, b.length), ...b]; }
-    if (Array.isArray(v)) return [...head(4, v.length), ...v.flatMap(cbor)];
-    if (v === true) return [7 << 5 | 21];
-    if (v === false) return [7 << 5 | 20];
-    if (v === null) return [7 << 5 | 22];
-    const keys = Object.keys(v);
-    return [...head(5, keys.length), ...keys.flatMap((k) => [...cbor(k), ...cbor(v[k])])];
-  };
-  const varint = (n) => { const o = []; while (n >= 0x80) { o.push((n & 0x7f) | 0x80); n >>>= 7; } o.push(n); return o; };
-  const CID = [0x01, 0x71, 0x12, 0x20, ...Array.from({ length: 32 }, (_, i) => i)];
-  const block = (obj) => { const b = cbor(obj); const body = [...CID, ...b]; return [...varint(body.length), ...body]; };
-  const header = cbor({ version: 1, roots: [] });
-  const bytes = new Uint8Array([
-    ...varint(header.length), ...header,
-    ...block({ $type: 'app.bsky.feed.post', text: 'hello there', createdAt: '2024-01-02T03:04:05.000Z', langs: ['en'] }),
-    ...block({ $type: 'app.bsky.feed.like', subject: 'nope' }),
-    ...block({ $type: 'app.bsky.feed.post', text: 'second', createdAt: '2024-01-03T00:00:00.000Z', reply: { root: { uri: 'at://x' } } }),
+  const bytes = carOf([
+    { $type: 'app.bsky.feed.post', text: 'hello there', createdAt: '2024-01-02T03:04:05.000Z', langs: ['en'] },
+    { $type: 'app.bsky.feed.like', subject: 'nope' },
+    { $type: 'app.bsky.feed.post', text: 'second', createdAt: '2024-01-03T00:00:00.000Z', reply: { root: { uri: 'at://x' } } },
   ]);
 
   const { records, blocks, failed } = readCarBytes(bytes, new Set(['app.bsky.feed.post']));
@@ -88,6 +96,102 @@ console.log('\nthe CAR reader');
   let sawBlocks = -1;
   readCarBytes(bytes, new Set(['app.bsky.feed.post']), (f, b) => { sawBlocks = b; });
   ok('onProgress is given the block count', sawBlocks === 3, `saw ${sawBlocks}`);
+}
+
+// ─── 1b. the incremental parser ─────────────────────────────────────────────
+//
+// The streaming reader is what keeps a big repo from killing the tab, and the
+// way a streaming reader goes wrong is at a chunk boundary: a varint split
+// across two pushes, a block that spans three. So it is checked at every
+// pathological chunk size against the whole-buffer reader, which is the thing
+// whose output is already known to be right.
+
+console.log('\nthe incremental parser');
+{
+  // Long, varied text so blocks are bigger than the small chunk sizes below and
+  // some of them span three pushes.
+  const posts = [];
+  for (let i = 0; i < 90; i++) {
+    posts.push({
+      $type: 'app.bsky.feed.post',
+      text: `river stone ${'lantern '.repeat(1 + (i % 11))}bramble number ${i}`,
+      createdAt: new Date(Date.UTC(2024, 0, 1 + (i % 300), i % 24)).toISOString(),
+      langs: ['en'],
+      facets: [{ index: { byteStart: i, byteEnd: i + 4 }, features: [{ tag: 'noise' }] }],
+      ...(i % 5 === 0 ? { reply: { root: { uri: `at://thread/${i % 7}` } } } : {}),
+    });
+    if (i % 9 === 0) posts.push({ $type: 'app.bsky.feed.like', subject: `at://x/${i}` });
+    if (i % 13 === 0) posts.push({ e: [{ k: 'app.bsky.feed.post/3k', p: 0 }], l: null });   // an MST-ish node
+  }
+  const bytes = carOf(posts);
+  const WANT = new Set([POST_TYPE]);
+  const whole = readCarBytes(bytes, WANT).records;
+
+  const run = (size, keep = null) => {
+    const got = [];
+    const parser = createCarParser({ wantTypes: WANT, keep, onRecord: (r) => got.push(r) });
+    for (let p = 0; p < bytes.length; p += size) parser.push(bytes.subarray(p, Math.min(bytes.length, p + size)));
+    return { got, stats: parser.end() };
+  };
+
+  const sizes = [1, 2, 3, 5, 7, 13, 64, 511, 4096, bytes.length * 2];
+  let allMatch = true;
+  let worst = '';
+  for (const size of sizes) {
+    const { got } = run(size);
+    const same = got.length === whole.length
+      && got.every((r, i) => JSON.stringify(r) === JSON.stringify(whole[i]));
+    if (!same) { allMatch = false; worst = `${size} B chunks gave ${got.length} of ${whole.length}`; }
+  }
+  ok(`chunked at ${sizes.length} sizes down to one byte, identical every time`,
+    allMatch && whole.length > 60, allMatch ? `${whole.length} records` : worst);
+
+  const { stats } = run(64);
+  ok('it holds nothing once the stream ends', stats.leftover === 0);
+  ok('it counted every block', stats.blocks === posts.length, `${stats.blocks} of ${posts.length}`);
+  ok('nothing failed to decode', stats.failed === 0);
+
+  // `keep` must lose the fields nobody reads and no others
+  const kept = run(1024, POST_FIELDS).got;
+  const fields = new Set(kept.flatMap((r) => Object.keys(r)));
+  ok('keep drops facets and langs', !fields.has('facets') && !fields.has('langs'),
+    [...fields].join(','));
+  ok('keep keeps what the engine reads',
+    kept.every((r) => r.text && r.createdAt) && kept.some((r) => r.reply?.root?.uri));
+  ok('keep changes nothing about which records match', kept.length === whole.length);
+
+  // A stream cut mid-block stops at the last whole one rather than throwing
+  const cutParser = createCarParser({ wantTypes: WANT, keep: POST_FIELDS, onRecord: () => {} });
+  let survived = true;
+  try {
+    for (let p = 0; p < bytes.length - 40; p += 97) cutParser.push(bytes.subarray(p, Math.min(bytes.length - 40, p + 97)));
+  } catch { survived = false; }
+  const cut = cutParser.end();
+  ok('a stream that stops mid-block stops cleanly', survived && cut.records >= whole.length - 2,
+    survived ? `${cut.records} of ${whole.length}` : 'it threw');
+
+  // THE CONTRACT: the streaming caller and the array caller must produce the
+  // same file. This is the one that would catch the two paths drifting.
+  const collector = createCollector();
+  const streamParser = createCarParser({ wantTypes: WANT, keep: POST_FIELDS, onRecord: (r) => collector.add(r) });
+  for (let p = 0; p < bytes.length; p += 333) streamParser.push(bytes.subarray(p, Math.min(bytes.length, p + 333)));
+  streamParser.end();
+  const viaStream = analyzeCollected(collector, { handle: 'x', did: 'did:plc:x', K: 4 });
+  const viaArray = analyze(whole, { handle: 'x', did: 'did:plc:x', K: 4 });
+  ok('streamed and buffered inputs give the same data file',
+    JSON.stringify(viaStream) === JSON.stringify(viaArray));
+  ok('the collector counted the posts', collector.posts === whole.length, `${collector.posts}`);
+  // interning must be exact: every id in the flat stream names a word, and
+  // every word is named by some id. A leak either way is silent data loss.
+  const seen = new Set();
+  for (let i = 0; i < collector.tokens; i++) seen.add(collector.flat[i]);
+  ok('the words are interned exactly once each',
+    collector.tokens > 0 && seen.size === collector.words.length
+    && [...seen].every((i) => typeof collector.words[i] === 'string'),
+    `${collector.tokens} tokens → ${collector.words.length} types`);
+  ok('the flat stream is one range per post, in order',
+    collector.off[0] === 0 && collector.off[collector.withWords] === collector.tokens
+    && Array.from({ length: collector.withWords }, (_, i) => collector.off[i] <= collector.off[i + 1]).every(Boolean));
 }
 
 // ─── 2. the tokenizer's three fixes ─────────────────────────────────────────

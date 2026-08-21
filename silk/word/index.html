@@ -169,6 +169,18 @@
   press <kbd>Enter</kbd>. Picking a suggestion instead of typing skips a
   round trip, because the list already carries the account's DID.</p>
 
+  <p><strong>The archive is never assembled.</strong> It would be easier to
+  download the whole repo, join it up, decode every record and then start — and
+  that is what this did at first, which cost about 390&nbsp;MB of browser memory
+  for a 91&nbsp;MB account and killed the tab on bigger ones. The response is
+  read as it arrives instead, and each post is reduced to a list of word
+  <em>numbers</em> and a date the moment it is seen: the text, the facets, the
+  embeds, the link cards, the language tags and the reply refs are all walked
+  past or dropped on sight. What is alive at the end of the download is roughly
+  the size of the answer rather than the size of the repo — about 120&nbsp;MB
+  now, and quicker, because most of the old cost was building things in order to
+  throw them away.</p>
+
   <p>Two things follow from that which are worth knowing. It is a real download:
   a 50,000-post account is about 90&nbsp;MB. And a repo only has what its server
   will hand out — <code>com.atproto.sync.getRepo</code> is public on the main

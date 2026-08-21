@@ -7,11 +7,23 @@
 //
 // The pipeline is engine.mjs — the same module that produced the committed
 // data.json under node. There is deliberately no second implementation.
+//
+// NOTHING HOLDS THE ARCHIVE. The first version accumulated every chunk, joined
+// them into one buffer, parsed that into an array of every post record, and only
+// then started work — a peak of the download, plus a second copy of it, plus
+// tens of thousands of live records with their facets and embeds attached. Big
+// accounts killed the tab, which is the one failure this page cannot explain
+// away. Now the response is parsed as it arrives and each record is reduced to
+// word ids and a timestamp on sight, so what is alive at the end of the download
+// is about the size of the answer rather than about the size of the repo.
 
-import { readCarBytes } from './car.mjs';
-import { analyze, resolveHandle, pdsFor } from './engine.mjs';
+import { createCarParser } from './car.mjs';
+import { createCollector, analyzeCollected, resolveHandle, pdsFor, POST_TYPE, POST_FIELDS } from './engine.mjs';
 
-const MAX_BYTES = 400 * 1024 * 1024;
+// A ceiling exists so a broken or hostile server cannot stream forever, not
+// because the archive has to fit anywhere: it is never assembled. The old limit
+// was 400 MB and was about holding the bytes.
+const MAX_BYTES = 2 * 1024 * 1024 * 1024;
 
 const send = (type, payload) => self.postMessage({ type, ...payload });
 
@@ -27,9 +39,6 @@ self.onmessage = async (e) => {
     send('progress', { stage: 'finding the data server', frac: 0.01 });
     const pds = await pdsFor(did);
 
-    // Stream the CAR so the bar means something. A repo is small for most
-    // people and very large for a few, and the difference is the whole
-    // experience: without a byte counter a 90 MB fetch looks like a hang.
     send('progress', { stage: 'downloading the repo', frac: 0.02 });
     const url = `${pds}/xrpc/com.atproto.sync.getRepo?did=${encodeURIComponent(did)}`;
     const res = await fetch(url);
@@ -39,40 +48,41 @@ self.onmessage = async (e) => {
       throw err;
     }
 
+    // Download, parse and reduce are one pass. The bar covers 0.02 → 0.60 and
+    // reports bytes, because for a large account this IS the wait: the arithmetic
+    // afterwards is seconds and the download is a minute.
+    const collector = createCollector();
+    const parser = createCarParser({
+      wantTypes: new Set([POST_TYPE]),
+      keep: POST_FIELDS,
+      onRecord: (rec) => collector.add(rec),
+    });
+
     const total = +(res.headers.get('content-length') || 0);
-    const chunks = [];
-    let got = 0;
     const reader = res.body.getReader();
+    let got = 0;
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      chunks.push(value);
       got += value.length;
       if (got > MAX_BYTES) {
-        const err = new Error(`that repo is over ${Math.round(MAX_BYTES / 1e6)} MB — too big to do in a browser tab`);
+        const err = new Error(`that repo is over ${Math.round(MAX_BYTES / 1e9)} GB — too big to do in a browser tab`);
         err.code = 'TOO_BIG';
         throw err;
       }
+      parser.push(value);
       send('progress', {
-        stage: 'downloading the repo',
-        frac: 0.02 + 0.38 * (total ? got / total : Math.min(0.9, got / 40e6)),
+        stage: 'reading the repo',
+        frac: 0.02 + 0.58 * (total ? got / total : Math.min(0.9, got / 40e6)),
         bytes: got,
         total,
+        posts: collector.withWords,
       });
     }
+    const { blocks } = parser.end();
+    send('progress', { stage: 'reading the repo', frac: 0.6, blocks, posts: collector.withWords });
 
-    const bytes = new Uint8Array(got);
-    let at = 0;
-    for (const c of chunks) { bytes.set(c, at); at += c.length; }
-    chunks.length = 0;
-
-    send('progress', { stage: 'reading the archive', frac: 0.42 });
-    const { records } = readCarBytes(
-      bytes, new Set(['app.bsky.feed.post']),
-      (f, blocks) => send('progress', { stage: 'reading the archive', frac: 0.42 + 0.18 * f, blocks }),
-    );
-
-    const data = analyze(records, {
+    const data = analyzeCollected(collector, {
       handle: handle.trim().replace(/^@/, ''),
       did,
       onProgress: ({ stage, frac }) => send('progress', { stage, frac: 0.6 + 0.4 * frac }),

@@ -14,8 +14,8 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readCar } from './car.mjs';
-import { analyze, resolveHandle, pdsFor } from './engine.mjs';
+import { createCarParser, streamCarFile } from './car.mjs';
+import { createCollector, analyzeCollected, resolveHandle, pdsFor, POST_TYPE, POST_FIELDS } from './engine.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..', '..');
@@ -71,12 +71,23 @@ if (!existsSync(carPath)) {
   console.log(`  ${(buf.length / 1e6).toFixed(1)} MB → ${carPath}`);
 }
 
+// Streamed through the same parser and the same collector the Web Worker uses,
+// off disk instead of off the network. Not for this machine's sake — node would
+// cope with the whole file — but so that rebuilding data.json exercises the
+// exact path a visitor's browser takes. A second, more comfortable code path
+// here is how the two would drift.
 console.log(`reading ${carPath}`);
-const { records, blocks } = await readCar(carPath, new Set(['app.bsky.feed.post']));
-console.log(`${blocks.toLocaleString()} blocks → ${records.length.toLocaleString()} posts`);
+const collector = createCollector();
+const { blocks } = await streamCarFile(carPath, createCarParser({
+  wantTypes: new Set([POST_TYPE]),
+  keep: POST_FIELDS,
+  onRecord: (rec) => collector.add(rec),
+}));
+console.log(`${blocks.toLocaleString()} blocks → ${collector.posts.toLocaleString()} posts`
+  + ` (${collector.withWords.toLocaleString()} with words)`);
 
 let last = '';
-const out = analyze(records, {
+const out = analyzeCollected(collector, {
   handle, did, K,
   onProgress: ({ stage }) => { if (stage !== last) { last = stage; process.stdout.write(`  ${stage}…\n`); } },
 });

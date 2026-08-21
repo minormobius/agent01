@@ -1334,9 +1334,15 @@ function runHandle(raw, did = null) {
   worker.onmessage = (e) => {
     const msg = e.data;
     if (msg.type === 'progress') {
-      const extra = msg.bytes
-        ? `${(msg.bytes / 1e6).toFixed(1)} MB${msg.total ? ` of ${(msg.total / 1e6).toFixed(1)}` : ''}`
-        : (msg.blocks ? `${msg.blocks.toLocaleString()} blocks` : '');
+      // Downloading and reading are one pass now, so the byte counter and the
+      // post counter move together — which is also the reassurance that the
+      // wait is doing something rather than buffering.
+      const bits = [];
+      if (msg.bytes) {
+        bits.push(`${(msg.bytes / 1e6).toFixed(1)} MB${msg.total ? ` of ${(msg.total / 1e6).toFixed(1)}` : ''}`);
+      } else if (msg.blocks) bits.push(`${msg.blocks.toLocaleString()} blocks`);
+      if (msg.posts) bits.push(`${msg.posts.toLocaleString()} posts`);
+      const extra = bits.join(' · ');
       showProgress(true, msg.stage, msg.frac, extra);
     } else if (msg.type === 'done') {
       busy = false;

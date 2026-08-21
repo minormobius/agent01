@@ -97,21 +97,128 @@ const hash01 = (str) => {
 
 export const MIN_POSTS = 60;
 
-export function analyze(records, { handle, did, K = 12, onProgress = () => {} } = {}) {
+// The fields a post record has that this pipeline will ever look at. Handed to
+// the CAR parser so facets, embeds, langs and tags are walked past rather than
+// built — see the note at the top of car.mjs.
+export const POST_TYPE = 'app.bsky.feed.post';
+export const POST_FIELDS = new Set(['$type', 'text', 'createdAt', 'reply']);
+
+// ─── the collector ──────────────────────────────────────────────────────────
+//
+// JUST THE WORDS. Everything a post record carries — the text, the facets, the
+// embed, the langs, the reply refs — is thrown away the instant it has been
+// counted; what survives one post is a list of word IDs and a timestamp.
+//
+// That is what makes a big repo survivable in a tab. Words are interned as they
+// are seen, so 320,000 tokens are 320,000 int32s pointing at 39,554 strings
+// rather than 320,000 separate string objects, and the record itself is garbage
+// before the next one is read. The rest of the analysis is handed back the
+// interned strings, so it is looking at the same objects it always was.
+//
+// Reply roots are hashed rather than kept: a session is grouped by thread
+// identity, and 50,000 at:// URIs is tens of megabytes to answer a question
+// that a 53-bit number answers. A collision merges two threads into one
+// session, which is beneath the noise floor of a co-occurrence count.
+function hash53(s) {
+  let a = 0xdeadbeef, b = 0x41c6ce57;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    a = Math.imul(a ^ c, 2654435761);
+    b = Math.imul(b ^ c, 1597334677);
+  }
+  a = Math.imul(a ^ (a >>> 16), 2246822507) ^ Math.imul(b ^ (b >>> 13), 3266489909);
+  b = Math.imul(b ^ (b >>> 16), 2246822507) ^ Math.imul(a ^ (a >>> 13), 3266489909);
+  return 4294967296 * (2097151 & b) + (a >>> 0);
+}
+
+// Growable typed arrays. One flat token stream for the whole corpus, not one
+// array per post: 48,000 separate Int32Arrays cost more in object and buffer
+// headers than the 317,000 tokens they hold.
+function grow(arr, need, Ctor) {
+  if (need <= arr.length) return arr;
+  let cap = arr.length || 1024;
+  while (cap < need) cap *= 2;
+  const next = new Ctor(cap);
+  next.set(arr);
+  return next;
+}
+
+export function createCollector() {
+  const id = new Map();          // word → id
+  const words = [];              // id → word, interned exactly once
+  let flat = new Int32Array(1 << 16);   // every token of every post, in order
+  let nTok = 0;
+  let off = new Int32Array(1024);       // where post i starts in `flat`
+  let ts = new Float64Array(1024);      // when post i was made
+  let roots = new Float64Array(1024);   // hashed thread root, or 0
+  let nKept = 0;
+  let nPosts = 0;
+  let nReplies = 0;
+
+  const intern = (w) => {
+    let i = id.get(w);
+    if (i === undefined) { i = words.length; id.set(w, i); words.push(w); }
+    return i;
+  };
+
+  /** Take what matters from one record. The record is not retained. */
+  function add(rec) {
+    if (!rec || typeof rec.text !== 'string' || !rec.text.trim() || !rec.createdAt) return;
+    const t = Date.parse(rec.createdAt);
+    if (!Number.isFinite(t)) return;
+    nPosts++;
+    if (rec.reply) nReplies++;
+    const toks = tokenize(rec.text);
+    if (!toks.length) return;
+
+    flat = grow(flat, nTok + toks.length, Int32Array);
+    off = grow(off, nKept + 2, Int32Array);
+    ts = grow(ts, nKept + 1, Float64Array);
+    roots = grow(roots, nKept + 1, Float64Array);
+
+    off[nKept] = nTok;
+    for (let i = 0; i < toks.length; i++) flat[nTok++] = intern(toks[i]);
+    ts[nKept] = t;
+    const uri = rec.reply?.root?.uri;
+    roots[nKept] = typeof uri === 'string' ? hash53(uri) : 0;
+    nKept++;
+    off[nKept] = nTok;
+  }
+
+  return {
+    add, words, wordId: id,
+    get flat() { return flat; },
+    get off() { return off; },
+    get ts() { return ts; },
+    get roots() { return roots; },
+    get posts() { return nPosts; },
+    get replies() { return nReplies; },
+    get withWords() { return nKept; },
+    get tokens() { return nTok; },
+  };
+}
+
+/** The old shape, for fixtures and tests: a whole array of records at once. */
+export function analyze(records, opts = {}) {
+  const c = createCollector();
+  for (const r of records) c.add(r);
+  return analyzeCollected(c, opts);
+}
+
+export function analyzeCollected(collector, { handle, did, K = 12, onProgress = () => {} } = {}) {
   const say = (stage, frac) => onProgress({ stage, frac });
 
   say('reading posts', 0);
-  const posts = records
-    .filter((r) => typeof r.text === 'string' && r.text.trim() && r.createdAt)
-    .map((r) => ({
-      ws: tokenize(r.text),
-      t: Date.parse(r.createdAt),
-      root: r.reply?.root?.uri || null,
-      isReply: !!r.reply,
-    }))
-    .filter((p) => Number.isFinite(p.t))
-    .sort((a, b) => a.t - b.t);
-  const withWords = posts.filter((p) => p.ws.length);
+  const WORDS = collector.words;
+  const FLAT = collector.flat;
+  // A post is a range into the one flat token stream. Filtering commutes with a
+  // stable sort, so sorting only the posts that have words gives the identical
+  // sequence the old code got by sorting all of them and filtering afterwards.
+  const withWords = new Array(collector.withWords);
+  for (let i = 0; i < withWords.length; i++) {
+    withWords[i] = { s: collector.off[i], e: collector.off[i + 1], t: collector.ts[i], root: collector.roots[i] };
+  }
+  withWords.sort((a, b) => a.t - b.t);
 
   if (withWords.length < MIN_POSTS) {
     const e = new Error(`only ${withWords.length} posts with words — needs at least ${MIN_POSTS} to find any structure`);
@@ -134,7 +241,7 @@ export function analyze(records, { handle, did, K = 12, onProgress = () => {} } 
         target = cur;
         if (p.root) byRoot.set(p.root, target);
       }
-      target.push(...p.ws);
+      for (let j = p.s; j < p.e; j++) target.push(FLAT[j]);          // word ids
       lastT = p.t;
     }
   }
@@ -151,7 +258,8 @@ export function analyze(records, { handle, did, K = 12, onProgress = () => {} } 
   for (let i = 0; i < withWords.length; i++) {
     const p = withWords[i];
     const here = new Set();
-    for (const w of p.ws) {
+    for (let j = p.s; j < p.e; j++) {
+      const w = WORDS[FLAT[j]];
       tokens++;
       freq.set(w, (freq.get(w) || 0) + 1);
       if (!first.has(w)) first.set(w, p.t);
@@ -169,11 +277,16 @@ export function analyze(records, { handle, did, K = 12, onProgress = () => {} } 
   const idx = new Map(vocab.map((w, i) => [w, i]));
   const n = vocab.length;
 
+  // vocab position by word id, so a session's ids map straight across
+  const idxById = new Int32Array(WORDS.length).fill(-1);
+  for (let i = 0; i < n; i++) idxById[collector.wordId.get(vocab[i])] = i;
+
   const C = new Float32Array(n * n);
   const marg = new Float64Array(n);
   let pairs = 0;
   for (const doc of docs) {
-    const ids = [...new Set(doc.map((w) => idx.get(w)).filter((i) => i !== undefined))];
+    const ids = [...new Set(doc.map((w) => { const i = idxById[w]; return i < 0 ? undefined : i; })
+      .filter((i) => i !== undefined))];
     if (ids.length > 120) ids.length = 120;
     for (let a = 0; a < ids.length; a++) {
       for (let b = a + 1; b < ids.length; b++) {
@@ -261,10 +374,12 @@ export function analyze(records, { handle, did, K = 12, onProgress = () => {} } 
     for (const doc of docs) {
       const tally = new Float64Array(KK);
       let any = 0;
-      for (const w of doc) { const s = sectorOf.get(w); if (s !== undefined) { tally[s] += 1; any++; } }
+      // `doc` holds word IDs; sectorOf is keyed by the word itself.
+      for (const i of doc) { const s = sectorOf.get(WORDS[i]); if (s !== undefined) { tally[s] += 1; any++; } }
       if (!any) continue;
       for (let k = 0; k < KK; k++) { prior[k] += tally[k]; priorTotal += tally[k]; }
-      for (const w of new Set(doc)) {
+      for (const i of new Set(doc)) {
+        const w = WORDS[i];
         if (sectorOf.has(w)) continue;
         let v = tailVotes.get(w);
         if (!v) { v = new Float64Array(KK); tailVotes.set(w, v); }
@@ -372,7 +487,7 @@ export function analyze(records, { handle, did, K = 12, onProgress = () => {} } 
     if (!months.has(key)) months.set(key, { posts: 0, tokens: 0, fresh: 0 });
     const mm = months.get(key);
     mm.posts++;
-    mm.tokens += p.ws.length;
+    mm.tokens += p.e - p.s;
   }
   for (const [, t] of first) {
     const key = new Date(t).toISOString().slice(0, 7);
@@ -401,9 +516,9 @@ export function analyze(records, { handle, did, K = 12, onProgress = () => {} } 
   return {
     handle: handle || '', did: did || '',
     built: new Date().toISOString().slice(0, 10),
-    posts: posts.length,
+    posts: collector.posts,
     postsWithWords: withWords.length,
-    replies: posts.filter((p) => p.isReply).length,
+    replies: collector.replies,
     span: [new Date(t0).toISOString().slice(0, 10), new Date(tN).toISOString().slice(0, 10)],
     days: day(tN),
     tokens,

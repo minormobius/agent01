@@ -59,8 +59,10 @@ silk/
     render.mjs          canvas drawing; knows nothing about weaving
     app.mjs             the page; knows nothing about weaving either
   word/                 THE LEXICON WEB — /word/, a second, unrelated web
-    engine.mjs          THE PIPELINE. Pure: no fs, no DOM, no network
-    car.mjs             CAR v1 + DAG-CBOR reader, DataView, no dependencies
+    engine.mjs          THE PIPELINE. Pure: no fs, no DOM, no network.
+                        createCollector() keeps word ids and a date, nothing else
+    car.mjs             CAR v1 + DAG-CBOR reader, DataView, no dependencies.
+                        Incremental: push chunks, records come out, nothing is held
     stopwords.mjs       GENERATED from rite/lexicon — do not hand-edit
     build.mjs           node CLI: fetch/read a CAR → engine → data.json
     analyze.worker.js   Web Worker: the same engine, on a visitor's handle
@@ -69,7 +71,7 @@ silk/
   test/
     fabric.selftest.mjs  32 checks — geometry, tension-only, splitting, chains
     weaver.selftest.mjs  62 checks — the four claims the page makes
-    word.selftest.mjs    92 checks — the CAR reader, the data file, the promise
+    word.selftest.mjs   104 checks — the CAR reader, the data file, the promise
     browser/
       harness.mjs            serves silk/, resolves Playwright, counts checks
       typeahead.browser.mjs  23 checks — the handle box; NOT in CI, see below
@@ -134,8 +136,44 @@ is cached in `word/.cache/` and is gitignored *and* `.assetsignore`d; it is an
 input, not an artefact, and shipping it would blow the asset budget on its own.
 
 **Costs, measured in a real browser:** the full 91 MB / 50k-post repo takes about
-11 seconds end to end. The worker caps at 400 MB and the engine refuses fewer
-than 60 posts-with-words rather than emitting a degenerate layout.
+8 seconds end to end and costs the browser about 120 MB of peak RSS. The engine
+refuses fewer than 60 posts-with-words rather than emitting a degenerate layout.
+
+**Nothing holds the archive, and that is what stops the tab dying.** The first
+version accumulated every chunk, joined them into one buffer, parsed that into an
+array of every post record, and only then began work: the download, plus a second
+copy of it, plus tens of thousands of live records with their facets and embeds
+still attached. Measured, that was **+388 MB of browser RSS for a 91 MB repo**,
+and big accounts took the tab down — the one failure this page cannot explain
+away, since the whole pitch is that it runs on your machine.
+
+Now the response is parsed as it arrives and every record is reduced on sight to
+word ids and a timestamp: **+123 MB, and 20% faster** for the same repo, because
+most of the old cost was allocating things to throw away. Four pieces:
+
+- `createCarParser` is fed chunks and holds nothing but the tail of an
+  incomplete block. `skip()` walks a CBOR value without building it, so an MST
+  node — and there are about twice as many of those as there are records — costs
+  a pointer walk instead of an object graph.
+- `keep` (`POST_FIELDS`) names the four fields the pipeline reads. Facets and
+  embeds, usually the bulk of a post record, are never materialised.
+- `createCollector` interns words as it sees them and appends their ids to **one
+  flat `Int32Array` for the whole corpus** — not one array per post, because
+  48,000 typed-array headers cost more than the 317,000 tokens they hold. The
+  record is garbage before the next one is read.
+- Reply roots are hashed to 53 bits rather than kept as `at://` URIs. A collision
+  merges two threads into one session, which is beneath the noise floor of a
+  co-occurrence count; 50,000 URIs is tens of megabytes.
+
+**It is byte-for-byte output-preserving, and that was checked rather than
+assumed:** `data.json` rebuilt through the new path diffs clean against the
+committed file. The one thing that did break in the process is worth knowing —
+sessions now hold word *ids*, and one leftover `sectorOf.get(w)` was still being
+handed a number where it wanted a string. Every doc scored zero, every tail word
+fell through to the fallback, and 38,824 of 39,554 types landed in the hub. It
+looked exactly like the raw-vote bug from the first build. The wedge *labels*
+were identical, which is what said the clustering was fine and only the
+assignment was wrong.
 
 Four things in here were got wrong first and are worth not re-deriving:
 
@@ -242,7 +280,11 @@ flipped inward before it is given up on.
 
 The selftest asserts the layout invariants for the shipped file **and for
 generated corpora**, because the case that matters now — someone else's repo —
-has no fixture. It also checks the stopword module has not forked from
+has no fixture. It also builds a real CAR out of plain objects and feeds it to
+the incremental parser **at ten chunk sizes down to one byte at a time**, which
+is the only way to catch a varint split across two pushes or a block spanning
+three; and it asserts the contract that matters most, that streaming the archive
+and handing over an array of records produce the same file. It also checks the stopword module has not forked from
 rite/lexicon, and the page's privacy claim: no whitespace, no non-token strings,
 no URIs in the data file.
 
