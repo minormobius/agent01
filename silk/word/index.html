@@ -26,7 +26,11 @@
     </div>
     <button id="go" class="go">weave it</button>
     <button id="reset" class="mini" hidden>back to the example</button>
+    <label class="gentle" for="gentle" title="Ask for posts a hundred at a time instead of downloading the whole repository at once. Far less memory, several minutes instead of several seconds.">
+      <input type="checkbox" id="gentle"> gentle mode
+    </label>
   </div>
+  <p class="note-gentle" id="gentlenote" hidden></p>
   <p class="bringnote">Runs entirely in your browser: the account's public repo is fetched
   straight from its data server and analysed here. Nothing is uploaded, nothing is stored,
   and no login is involved. A big account is a big download — 50,000 posts is about 90&nbsp;MB
@@ -168,6 +172,19 @@
   unreachable, or you would rather it were not asked, type the handle in full and
   press <kbd>Enter</kbd>. Picking a suggestion instead of typing skips a
   round trip, because the list already carries the account's DID.</p>
+
+  <p><strong>There are two ways in, and the slow one exists because of a hard
+  floor.</strong> Asking for the whole repository at once is fast — eight seconds
+  for fifty thousand posts — but a single 91&nbsp;MB response costs the browser
+  about 80&nbsp;MB to <em>receive</em>, measured with every byte thrown away
+  unread. No amount of care in the reader touches that number; only not asking
+  for it in one piece does. <b>Gentle mode</b> walks
+  <code>com.atproto.repo.listRecords</code> a hundred posts at a time instead, so
+  nothing larger than about 70&nbsp;KB is ever in flight. It takes several
+  minutes rather than several seconds and produces exactly the same web — posts
+  are sorted by their timestamps, so the order they arrive in does not survive
+  into the answer. If a build ever dies without an explanation, this page turns
+  gentle mode on by itself the next time you open it.</p>
 
   <p><strong>The archive is never assembled.</strong> It would be easier to
   download the whole repo, join it up, decode every record and then start — and

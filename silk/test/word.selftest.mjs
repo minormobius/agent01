@@ -194,6 +194,58 @@ console.log('\nthe incremental parser');
     && Array.from({ length: collector.withWords }, (_, i) => collector.off[i] <= collector.off[i + 1]).every(Boolean));
 }
 
+// ─── 1c. the two ways in agree ──────────────────────────────────────────────
+//
+// The worker can take posts from one big CAR or from pages of listRecords, and
+// the second exists because the first costs about 120 MB of browser memory
+// whatever the parser does — measured, an 80 MB response costs that much just
+// to receive. Two acquisition paths is a licence for two different pictures, so
+// the property that keeps them honest is asserted here: same collector, same
+// engine, and posts are sorted by timestamp, so arrival order does not survive
+// into the answer.
+
+console.log('\nthe archive and the pages agree');
+{
+  const posts = [];
+  for (let i = 0; i < 120; i++) {
+    posts.push({
+      $type: 'app.bsky.feed.post',
+      text: `orchard tide ${'kestrel '.repeat(1 + (i % 7))}wire ${'brine '.repeat(i % 4)}`,
+      // distinct to the millisecond, which is what makes the sort total
+      createdAt: new Date(Date.UTC(2024, 0, 1, 0, 0, 0, 0) + i * 997).toISOString(),
+      ...(i % 6 === 0 ? { reply: { root: { uri: `at://thread/${i % 5}` } } } : {}),
+    });
+  }
+
+  const fromRecords = (list) => {
+    const c = createCollector();
+    for (const r of list) c.add(r);
+    return analyzeCollected(c, { handle: 'x', did: 'did:plc:x', K: 4 });
+  };
+
+  // the archive order is the MST's, which is by rkey — near enough to reversed
+  const viaArchive = fromRecords(readCarBytes(carOf(posts), new Set([POST_TYPE])).records);
+  // listRecords hands back newest first, in pages
+  const paged = [];
+  const rev = posts.slice().reverse();
+  for (let i = 0; i < rev.length; i += 25) paged.push(...rev.slice(i, i + 25));
+  const viaPages = fromRecords(paged);
+
+  ok('a different arrival order gives the same data file',
+    JSON.stringify(viaArchive) === JSON.stringify(viaPages));
+
+  // and the thing that makes that true, stated on its own so it cannot rot
+  const shuffled = posts.slice();
+  let seed = 7;
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    const j = seed % (i + 1);
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  ok('so does any order at all, while timestamps are distinct',
+    JSON.stringify(fromRecords(shuffled)) === JSON.stringify(viaArchive));
+}
+
 // ─── 2. the tokenizer's three fixes ─────────────────────────────────────────
 
 console.log('\nthe tokenizer');

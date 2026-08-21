@@ -1298,16 +1298,44 @@ function setData(data) {
 let worker = null;
 let busy = false;
 
+// A suffix of `· gentle` on an error means gentle mode is a real answer to it,
+// not a consolation: the page offers the retry rather than making you find the
+// checkbox and guess.
+const TRY_GENTLE = ' <button class="inline" id="gogentle">try gentle mode</button>';
 const ERRORS = {
   NO_HANDLE: (h) => `No account called “${h}”. Handles look like <code>name.bsky.social</code>.`,
   NO_DID_DOC: () => 'That identity could not be resolved — its directory entry is missing.',
   NO_PDS: () => 'That account has no data server listed, so there is no repo to read.',
   RATE_LIMIT: () => 'The data server is rate-limiting. Wait a minute and try again.',
-  GET_REPO: () => 'The data server refused the archive. Some self-hosted servers do not serve it publicly.',
-  TOO_BIG: (h, m) => m,
+  GET_REPO: () => 'The data server refused the archive. Some self-hosted servers do not serve it publicly.'
+    + TRY_GENTLE,
+  NO_LIST: () => 'The data server would not list that account’s posts.',
+  TOO_BIG: (h, m) => m + TRY_GENTLE,
   TOO_SMALL: (h, m) => `${m}. Try an account that posts more.`,
   UNKNOWN: (h, m) => m,
 };
+
+// ─── the crash mark ─────────────────────────────────────────────────────────
+//
+// A tab that runs out of memory does not get to tell you so: there is no error,
+// no console line, nothing to catch — the page is simply gone. What it can do is
+// leave a note before it starts and rub it out when it finishes. A note still
+// there on the next load means the last attempt died on its feet, and the only
+// useful response to that is to stop doing the expensive thing.
+//
+// `pagehide` is what separates a crash from a person closing the tab: a
+// navigation fires it, a crash does not.
+const MARK = 'silk.word.building';
+const mark = (v) => { try { v ? localStorage.setItem(MARK, v) : localStorage.removeItem(MARK); } catch { /* private mode */ } };
+const markRead = () => { try { return localStorage.getItem(MARK); } catch { return null; } };
+addEventListener('pagehide', () => mark(null));
+
+function gentleNote(html) {
+  const el = $('gentlenote');
+  if (!html) { el.hidden = true; return; }
+  el.innerHTML = html;
+  el.hidden = false;
+}
 
 function showProgress(on, stage = '', frac = 0, extra = '') {
   $('progress').hidden = !on;
@@ -1322,11 +1350,17 @@ function showProgress(on, stage = '', frac = 0, extra = '') {
 // `did` is optional and is only ever a shortcut: when the typeahead already
 // told us the account's DID, the worker skips resolveHandle. Nothing downstream
 // changes — the handle is still what labels the chart and the URL.
-function runHandle(raw, did = null) {
+function runHandle(raw, did = null, mode = null) {
   const handle = raw.trim().replace(/^@/, '');
   if (!handle || busy) return;
+  if (mode) $('gentle').checked = mode === 'pages';
+  const use = $('gentle').checked ? 'pages' : 'archive';
   $('err').hidden = true;
+  gentleNote(null);
   busy = true;
+  // Leave the note BEFORE the expensive thing starts, naming what was being
+  // attempted, so a crash is legible on the next load.
+  mark(use === 'archive' ? handle : null);
   showProgress(true, 'starting', 0);
 
   if (worker) worker.terminate();
@@ -1341,11 +1375,13 @@ function runHandle(raw, did = null) {
       if (msg.bytes) {
         bits.push(`${(msg.bytes / 1e6).toFixed(1)} MB${msg.total ? ` of ${(msg.total / 1e6).toFixed(1)}` : ''}`);
       } else if (msg.blocks) bits.push(`${msg.blocks.toLocaleString()} blocks`);
+      if (msg.pages) bits.push(`${msg.pages.toLocaleString()} pages`);
       if (msg.posts) bits.push(`${msg.posts.toLocaleString()} posts`);
       const extra = bits.join(' · ');
       showProgress(true, msg.stage, msg.frac, extra);
     } else if (msg.type === 'done') {
       busy = false;
+      mark(null);
       showProgress(false);
       setData(msg.data);
       history.replaceState(null, '', `?h=${encodeURIComponent(handle)}`);
@@ -1353,19 +1389,31 @@ function runHandle(raw, did = null) {
       document.querySelector('.stage').scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else if (msg.type === 'error') {
       busy = false;
+      mark(null);                 // it failed, but it failed by telling us
       showProgress(false);
       const f = ERRORS[msg.code] || ERRORS.UNKNOWN;
       $('err').innerHTML = f(handle, msg.message);
       $('err').hidden = false;
+      const again = $('gogentle');
+      if (again) again.onclick = () => runHandle(handle, did, 'pages');
     }
   };
+  // A worker that dies before it says anything is nearly always the same thing:
+  // `new Worker(url, { type: 'module' })` is not supported. Firefox only shipped
+  // module workers in 114 and Safari in 15, and the failure is silent enough to
+  // look like the page is simply broken. Naming the suspect is worth more than
+  // the raw message, which is usually empty.
   worker.onerror = (e) => {
     busy = false;
+    mark(null);
     showProgress(false);
-    $('err').textContent = `The builder crashed: ${e.message || 'unknown error'}`;
+    const detail = e.message ? `: ${e.message}` : '';
+    $('err').innerHTML = `The builder could not start${detail}. `
+      + 'If this browser is older than Firefox&nbsp;114 or Safari&nbsp;15 it cannot run '
+      + 'the module worker this needs, and there is no way around that from here.';
     $('err').hidden = false;
   };
-  worker.postMessage({ handle, did });
+  worker.postMessage({ handle, did, mode: use });
 }
 
 // ─── typeahead on the handle box ────────────────────────────────────────────
@@ -1554,6 +1602,20 @@ window.addEventListener('resize', size);
 bindRange('weblines', 'weblines', (v) => v + '%', 0.01);
 
 setData(await (await fetch('./data.json')).json());
+
+// Did the last attempt die without saying so? Then stop asking for the whole
+// archive at once, and say why the slow path is on rather than leaving someone
+// to wonder what changed.
+const crashed = markRead();
+mark(null);
+if (crashed) {
+  $('gentle').checked = true;
+  $('handle').value = $('handle').value || crashed;
+  gentleNote(`The last attempt at <b>${crashed.replace(/[<&]/g, '')}</b> stopped without finishing, `
+    + 'which usually means the tab ran out of memory downloading the archive in one piece. '
+    + '<b>Gentle mode is on</b>: the same web, built from pages of a hundred posts instead. '
+    + 'It asks for very little memory and takes several minutes. Untick it to try the fast way again.');
+}
 
 const qh = new URLSearchParams(location.search).get('h');
 if (qh) { $('handle').value = qh; runHandle(qh); }

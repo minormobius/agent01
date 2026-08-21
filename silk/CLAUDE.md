@@ -71,11 +71,12 @@ silk/
   test/
     fabric.selftest.mjs  32 checks — geometry, tension-only, splitting, chains
     weaver.selftest.mjs  62 checks — the four claims the page makes
-    word.selftest.mjs   104 checks — the CAR reader, the data file, the promise
+    word.selftest.mjs   106 checks — the CAR reader, the data file, the promise
     browser/
       harness.mjs            serves silk/, resolves Playwright, counts checks
       typeahead.browser.mjs  23 checks — the handle box; NOT in CI, see below
       chart.browser.mjs      16 checks — the export, the sliders, the reweave
+      gentle.browser.mjs     17 checks — the low-memory path and the crash mark
   worker.js             assets + /health
   wrangler.jsonc
 ```
@@ -138,6 +139,48 @@ input, not an artefact, and shipping it would blow the asset budget on its own.
 **Costs, measured in a real browser:** the full 91 MB / 50k-post repo takes about
 8 seconds end to end and costs the browser about 120 MB of peak RSS. The engine
 refuses fewer than 60 posts-with-words rather than emitting a degenerate layout.
+
+**There are two ways in, because one large response has a hard floor.** Measured
+in Chromium: fetching the 91 MB archive and **throwing every chunk away unread**
+costs ~80 MB of browser RSS. `cache: 'no-store'` does not help. That is the cost
+of receiving one big body, and no work in the reader touches it — which is why
+"stream it and hold nothing" was necessary but not sufficient, and why someone
+whose tab kept dying kept losing it.
+
+So the worker takes a `mode`:
+
+| | `archive` (default) | `pages` (gentle mode) |
+|---|---|---|
+| endpoint | `com.atproto.sync.getRepo` | `com.atproto.repo.listRecords`, 100 at a time |
+| in flight | the whole repo | ~70 KB |
+| 50k posts | ~8 s | ~4 min (≈470 ms per round trip, measured) |
+
+Same collector, same engine, **same output** — posts are sorted by timestamp, so
+arrival order does not survive into the answer. The selftest asserts that
+directly, on the archive's order, on listRecords' reversed paging, and on a
+shuffle. (The property it rests on: no two posts in a real corpus share a
+millisecond — 50,258 posts, 50,258 distinct `createdAt`.)
+
+**The crash mark.** A tab that runs out of memory does not get to report it:
+there is no error, no console line, the page is simply gone. So `runHandle`
+writes the handle to `localStorage` before starting an archive build and removes
+it on success, on a reported failure, and on `pagehide`. A mark still present at
+the next load means the last attempt died on its feet — so gentle mode comes on
+by itself and the page says why. `pagehide` is the discriminator that makes this
+work: navigating away fires it, crashing does not.
+
+Two measurement traps, both of which produced numbers I nearly believed:
+
+- **A leftover harness browser.** A backgrounded Playwright run was still
+  allocating during a measurement and turned +25 MB into +346 MB. Check
+  `pgrep -c -f headless_shell` before trusting a delta.
+- **V8 does not collect when nothing forces it.** In an unconstrained container
+  V8 grows the heap rather than running GC, so `listRecords`' short-lived
+  `JSON.parse` garbage shows up as a +246 MB peak on localhost and +106 MB at
+  120 ms of page latency — the number falls as the network slows, which is the
+  tell. **Every RSS figure here is an upper bound from a machine with no reason
+  to tidy up**; the constrained device these paths exist for will collect
+  instead. Do not quote them as what a phone does.
 
 **Nothing holds the archive, and that is what stops the tab dying.** The first
 version accumulated every chunk, joined them into one buffer, parsed that into an
@@ -310,6 +353,13 @@ check behind it decays into a comment.
   escaping, the staleness guard, the DID shortcut, the keyboard, `pointerdown`
   surviving blur, and that a 500 from the directory leaves no trace on the page
   while a typed handle still builds.
+- [`gentle.browser.mjs`](test/browser/gentle.browser.mjs) — 17 checks: that
+  gentle mode builds without ever touching `getRepo`, that a refused archive
+  offers the slow way as a button, and the crash mark in all four of its states —
+  a crash arms it, a reported failure does not, walking away mid-build does not,
+  and a clean load stays fast. The crash is simulated by leaving the mark and
+  opening a *second tab*, because reloading fires `pagehide` and correctly clears
+  it; getting that wrong is what made this test fail first time.
 - [`chart.browser.mjs`](test/browser/chart.browser.mjs) — 16 checks, all of them
   about pixels: that the exported PNG is the whole web and not a quadrant (read
   back off the real download, counted per quadrant), that type size buys labels,
