@@ -37,6 +37,13 @@ jobs:
       - name: The claims on the page are still true
         run: node test/weaver.selftest.mjs
 
+      # The lexicon web is entirely a function of one generated JSON blob, and a
+      # regression in build.mjs does not throw — it draws a slightly wrong
+      # picture nobody can tell from a right one. This also asserts the privacy
+      # promise the page makes in as many words: no post text in the data file.
+      - name: The lexicon data holds, and carries no prose
+        run: node test/lexicon.selftest.mjs
+
       - name: Install wrangler
         run: npm install wrangler
 

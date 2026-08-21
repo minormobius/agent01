@@ -1,0 +1,172 @@
+/* Same palette as the weaver next door — this is the same surface, and the
+   subject is again a pale structure seen against a dark ground. */
+
+:root {
+  --bg: #080a0e;
+  --panel: #0e1218;
+  --edge: #1c232d;
+  --fg: #d7dee7;
+  --dim: #8794a3;
+  --dimmer: #5d6875;
+  --gold: #d8a445;
+  --cyan: #56a0ac;
+  --warm: #e08a5a;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Inter, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: #8fc2d8; text-decoration-color: rgba(143,194,216,0.35); }
+a:hover { color: #b6ddee; }
+
+.top { padding: 26px 26px 16px; max-width: 1620px; margin: 0 auto; }
+.top h1 {
+  margin: 0 0 6px; font-size: 30px; font-weight: 500;
+  letter-spacing: 0.14em; text-transform: lowercase;
+}
+.top .tag { margin: 0; color: var(--dim); max-width: 90ch; font-size: 14.5px; }
+.top .tag b { color: var(--fg); font-weight: 600; }
+
+/* ─────────────────────────────────────────────────────────────── chart ── */
+
+.chartwrap {
+  max-width: 1620px; margin: 0 auto; padding: 0 26px 10px;
+  display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 20px;
+  align-items: start;
+}
+.stage {
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  overflow: hidden;
+}
+#web { display: block; width: 100%; height: auto; cursor: crosshair; }
+
+.tip {
+  position: absolute; pointer-events: none;
+  background: rgba(6,8,12,0.94);
+  border: 1px solid #2a3543;
+  border-radius: 7px;
+  padding: 7px 10px;
+  font: 12px/1.5 var(--mono);
+  color: var(--fg);
+  white-space: nowrap;
+  z-index: 3;
+  box-shadow: 0 6px 22px rgba(0,0,0,0.6);
+}
+.tip b { color: var(--gold); font-weight: 600; font-size: 13px; }
+.tip i { color: var(--dimmer); font-style: normal; }
+
+.hubtag {
+  position: absolute; left: 14px; top: 14px;
+  font: 11px/1.45 var(--mono); color: var(--dimmer);
+  pointer-events: none;
+}
+.hubtag span { color: #3f4854; }
+
+/* ──────────────────────────────────────────────────────────────── side ── */
+
+.side { display: flex; flex-direction: column; gap: 14px; }
+.grp {
+  background: var(--panel); border: 1px solid var(--edge);
+  border-radius: 10px; padding: 13px 14px;
+}
+.grp h3 {
+  margin: 0 0 10px; font-size: 11px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--dimmer); font-weight: 600;
+}
+.lb { font-size: 12px; color: var(--dim); }
+
+dl.legend { margin: 0; font-size: 12.5px; }
+dl.legend dt {
+  color: var(--gold); font: 11px var(--mono); letter-spacing: 0.06em;
+  text-transform: uppercase; margin-top: 9px;
+}
+dl.legend dt:first-child { margin-top: 0; }
+dl.legend dd { margin: 2px 0 0; color: var(--dimmer); line-height: 1.5; }
+
+.row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+.row .lb { flex: 0 0 68px; }
+.row input[type="range"] { flex: 1; min-width: 0; }
+.val { font: 11.5px var(--mono); color: var(--dim); flex: 0 0 40px; text-align: right; }
+
+select, input[type="search"] {
+  flex: 1; min-width: 0;
+  background: #121821; color: var(--fg);
+  border: 1px solid var(--edge); border-radius: 6px;
+  padding: 6px 8px; font: inherit; font-size: 13px;
+}
+input[type="range"] {
+  -webkit-appearance: none; appearance: none; height: 3px;
+  background: #232c37; border-radius: 2px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 13px; height: 13px; border-radius: 50%; background: var(--dim); cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 13px; height: 13px; border: none; border-radius: 50%; background: var(--dim); cursor: pointer;
+}
+.hint { margin: 6px 0 0; font: 11.5px var(--mono); color: var(--dimmer); min-height: 1.4em; }
+
+ul.sectors { margin: 0; padding: 0; list-style: none; font-size: 12.5px; }
+ul.sectors li {
+  display: grid; grid-template-columns: 10px 1fr auto; gap: 8px;
+  align-items: baseline; padding: 3px 0; cursor: pointer;
+}
+ul.sectors li:hover { color: #fff; }
+ul.sectors li.off { opacity: 0.32; }
+ul.sectors .sw { width: 9px; height: 9px; border-radius: 2px; align-self: center; }
+ul.sectors .wds { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+ul.sectors .n { font: 11px var(--mono); color: var(--dimmer); }
+
+table.mx { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+table.mx td { padding: 3px 0; }
+table.mx td:first-child { color: var(--dimmer); white-space: nowrap; padding-right: 10px; }
+table.mx td:last-child { text-align: right; color: var(--fg); white-space: nowrap; }
+table.mx tr.sep td { border-top: 1px solid var(--edge); padding-top: 7px; }
+
+/* ────────────────────────────────────────────────────── the flat charts ── */
+
+.flat, .prose { max-width: 1620px; margin: 0 auto; padding: 26px 26px 0; }
+.flat h2, .prose h2 {
+  font-size: 19px; font-weight: 600; margin: 18px 0 8px;
+}
+.lead { color: var(--dim); max-width: 88ch; font-size: 14.5px; }
+.lead em { color: var(--fg); font-style: italic; }
+
+.flatgrid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  gap: 14px; margin-top: 16px;
+}
+.flatgrid figure {
+  margin: 0; background: var(--panel); border: 1px solid var(--edge);
+  border-radius: 10px; padding: 13px 14px 8px;
+}
+.flatgrid figcaption {
+  font-size: 12.5px; color: var(--dimmer); margin-bottom: 10px; line-height: 1.5;
+}
+.flatgrid figcaption b { color: var(--fg); font-weight: 600; display: block; font-size: 13px; margin-bottom: 3px; }
+.flatgrid svg { display: block; width: 100%; height: auto; overflow: visible; }
+.flatgrid text { font: 10px var(--mono); fill: var(--dimmer); }
+
+.prose { max-width: 82ch; padding-bottom: 50px; }
+.prose p { color: #b9c3ce; }
+.prose strong { color: var(--fg); }
+.prose code {
+  font: 12.5px var(--mono); color: var(--dim);
+  background: #121821; padding: 1px 5px; border-radius: 4px;
+}
+.foot { color: var(--dimmer); font-size: 13px; }
+
+@media (max-width: 1080px) {
+  .chartwrap { grid-template-columns: minmax(0, 1fr); }
+}

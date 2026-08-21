@@ -58,14 +58,57 @@ silk/
     metrics.mjs         the invariants, the family aggregate, the divergence
     render.mjs          canvas drawing; knows nothing about weaving
     app.mjs             the page; knows nothing about weaving either
+  lexicon/              THE LEXICON WEB — /lexicon/, a second, unrelated web
+    build.mjs           CAR → data.json: tokenise, cluster, lay out
+    car.mjs             90-line CAR v1 + DAG-CBOR reader, no dependencies
+    data.json           the built artefact (1.1 MB), committed
+    index.html app.mjs lexicon.css
   test/
     fabric.selftest.mjs  32 checks — geometry, tension-only, splitting, chains
     weaver.selftest.mjs  62 checks — the four claims the page makes
+    lexicon.selftest.mjs 32 checks — the CAR reader, the data file, the promise
   worker.js             assets + /health
   wrangler.jsonc
 ```
 
 `weaver.mjs` is the file. Everything else exists to serve it or to check it.
+
+## The lexicon web (`/lexicon/`)
+
+A different question on the same shape: *what does a whole vocabulary look
+like?* 39,554 word types from 49,919 posts, placed by topic (angle), rank
+(radius) and date (colour). It shares nothing with the weaver but the palette
+and the domain — it is a chart, not a simulation.
+
+**Rebuild it:** `node silk/lexicon/build.mjs <handle>`. The 91 MB repo CAR is
+cached in `lexicon/.cache/` and is gitignored *and* `.assetsignore`d; it is an
+input, not an artefact, and shipping it would blow the asset budget on its own.
+
+Four things in here were got wrong first and are worth not re-deriving:
+
+**The context unit is a session, not a post.** At 6.4 content words a post,
+post-level co-occurrence is almost all zeros and ones. The first run produced a
+flat eigenvalue spectrum and k-means collapsed six of eight clusters to empty.
+
+**The leading eigenvector is thrown away.** The first component of any PPMI
+matrix is the frequency axis, so keeping it made every "topic" a frequency band.
+
+**The tail is assigned by lift, not by raw vote.** The hub cluster is by
+construction the one whose words appear everywhere, so on a raw vote it wins
+every tail word — the first build put 37,829 of 39,554 types into it.
+
+**Radius is rank, spaced for equal area — not log frequency.** This is the one
+that had to be drawn to be believed. Zipf puts 19,320 of these words at exactly
+one use, and log(1) = 0, so half the lexicon lands on a single hairline circle
+at the rim with the interior empty. Log-frequency gives the count-1 shell 9% of
+the radius for 48% of the words. `r = √(r_in² + (r_rim² − r_in²)·p)` makes
+density flat, and the counts go back on as labelled rings.
+
+The selftest asserts the layout invariants the client relies on — in particular
+that each wedge's within-wedge indices are a 0..n−1 permutation, because the
+client turns that index straight into a bearing and a gap or a duplicate is a
+pile of words on one angle. It also asserts the page's privacy claim: no
+whitespace, no non-token strings, no URIs in the data file.
 
 ## Five things that are load-bearing, and why
 

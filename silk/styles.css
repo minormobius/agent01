@@ -275,3 +275,12 @@ table.wide-mx td.bar { width: 100%; padding-left: 14px; }
 /* the path view's right column carries the chart AND its reading, so the
    column is not two thirds empty on a wide screen */
 .pathwrap .foot { margin: 12px 2px 0; max-width: none; }
+
+/* the other web on this surface — a chart, not a simulation */
+.tabs .sidetab {
+  margin-left: auto; align-self: center;
+  font-size: 13px; color: var(--dimmer);
+  text-decoration: none; padding: 7px 12px;
+  border: 1px solid var(--edge); border-radius: 6px;
+}
+.tabs .sidetab:hover { color: var(--gold); border-color: #3a2f1c; }

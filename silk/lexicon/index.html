@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>the lexicon web — every word, once</title>
+<meta name="description" content="Thirty-nine thousand five hundred and fifty-four words from fifty thousand posts, laid out as an orb web: angle is topic, radius is how often, colour is when. A deliberately bad chart of a real vocabulary.">
+<meta property="og:title" content="the lexicon web">
+<meta property="og:description" content="Every word in a post history, placed by topic, frequency and date. Angle is what you talk about; radius is how often; the hub is the words that go everywhere.">
+<link rel="stylesheet" href="./lexicon.css">
+</head>
+<body>
+
+<header class="top">
+  <h1>the lexicon web</h1>
+  <p class="tag" id="tag">Every word <span id="tagsub"></span></p>
+</header>
+
+<section class="chartwrap">
+  <div class="stage">
+    <canvas id="web"></canvas>
+    <div class="tip" id="tip" hidden></div>
+    <div class="hubtag" id="hubtag">the hub<br><span>words that go everywhere</span></div>
+  </div>
+
+  <aside class="side">
+    <div class="grp">
+      <h3>what you're looking at</h3>
+      <dl class="legend">
+        <dt>angle</dt><dd>topic — twelve clusters found in the corpus's own co-occurrence, ordered so neighbouring wedges are related</dd>
+        <dt>radius</dt><dd>rank, spaced so every word gets equal area — the only way to look at a Zipf distribution. Inner is words used thousands of times; the rim haze is the <span id="hapaxn">—</span> used exactly once. The rings are the real counts: 2×, 5×, 13×, 89×…</dd>
+        <dt>the hub</dt><dd>the one cluster that has no topic — <span id="genn">—</span> words that turn up everywhere, at 90 tokens each against 6 for every other wedge</dd>
+        <dt>colour</dt><dd id="colourlegend">when you were using it</dd>
+      </dl>
+    </div>
+
+    <div class="grp">
+      <h3>controls</h3>
+      <div class="row"><span class="lb">colour by</span>
+        <select id="mode">
+          <option value="mean">when — mean date used</option>
+          <option value="first">when — first appeared</option>
+          <option value="sector">topic</option>
+          <option value="burst">burstiness (count ÷ posts)</option>
+        </select>
+      </div>
+      <div class="row"><span class="lb">labels</span><input type="range" id="labels" min="0" max="400" value="150"><span class="val" id="labelsv"></span></div>
+      <div class="row"><span class="lb">min uses</span><input type="range" id="minc" min="1" max="40" value="1"><span class="val" id="mincv"></span></div>
+      <div class="row"><span class="lb">web lines</span><input type="range" id="weblines" min="0" max="100" value="55"><span class="val" id="weblinesv"></span></div>
+      <div class="row"><span class="lb">find</span><input type="search" id="find" placeholder="a word…" autocomplete="off"></div>
+      <p class="hint" id="findout"></p>
+    </div>
+
+    <div class="grp">
+      <h3>the wedges</h3>
+      <ul class="sectors" id="sectors"></ul>
+    </div>
+
+    <div class="grp">
+      <h3>the corpus</h3>
+      <table class="mx" id="stats"></table>
+    </div>
+  </aside>
+</section>
+
+<section class="flat">
+  <h2>and now the charts that actually work</h2>
+  <p class="lead">The web above is a <em>bad chart</em>. Its whole angular axis is twelve categories, its radial axis is one number, and it has about six hundred legible cells for thirty-nine thousand words — what you are actually reading is a hundred and fifty labels and a density field. It is worth looking at because it is an object, not because it is efficient. These three are efficient.</p>
+  <div class="flatgrid">
+    <figure><figcaption id="cap-zipf"></figcaption><div id="zipf"></div></figure>
+    <figure><figcaption id="cap-heaps"></figcaption><div id="heaps"></div></figure>
+    <figure><figcaption id="cap-months"></figcaption><div id="months"></div></figure>
+  </div>
+</section>
+
+<section class="prose">
+  <h2>How this was made</h2>
+  <p>The repo comes down as one CAR file from the account's PDS
+  (<code>com.atproto.sync.getRepo</code>) — 91 MB, 301,721 blocks, parsed by a
+  ninety-line CAR&nbsp;+&nbsp;DAG-CBOR reader with no dependencies. Every block
+  whose <code>$type</code> is <code>app.bsky.feed.post</code> is a post; the
+  Merkle tree never has to be walked.</p>
+
+  <p>Tokenising uses <a href="https://rite.mino.mobi/lexicon/">/rite/lexicon</a>'s
+  stopword list, read from its source so the two surfaces cannot drift, plus
+  three fixes that each changed the answer here. Pasted <code>bsky.app</code>
+  links had put <em>bsky</em>, <em>app</em> and <em>profile</em> in the top ten
+  most-used words. <code>[a-z']</code> does not match a curly apostrophe, so
+  every phone-typed <em>don't</em> was splitting into <em>don</em> + <em>t</em> —
+  which is why <em>don</em> ranked seventh. And contractions needed folding onto
+  their stems before the stopword list could see the <em>it</em> in
+  <em>it's</em>. Before those three, the top of this vocabulary was punctuation
+  and a URL scheme.</p>
+
+  <p>The topics are not from an embedding service. They are PPMI over
+  co-occurrence within a <em>session</em> — a run of posts with no gap longer
+  than forty-five minutes, plus anything sharing a thread root — reduced by
+  power iteration and clustered with spherical k-means. Two things had to be got
+  right for any structure to appear at all. The context unit had to be the
+  session and not the post: at six content words a post, post-level
+  co-occurrence is almost all zeros and ones, and the first run produced a flat
+  eigenvalue spectrum with six of eight clusters empty. And the leading
+  eigenvector had to be thrown away, because the first component of any PPMI
+  matrix is the frequency axis — keeping it made every "topic" a frequency
+  band.</p>
+
+  <p>Nine hundred words carry the embedding. The other thirty-eight thousand get
+  a wedge by the company they keep: across the sessions a word appears in, sum
+  the wedge membership of the embedded words beside it and take the argmax — but
+  of the <em>lift</em>, not the raw count. On a raw vote the hub cluster wins
+  everything, because being everywhere is what makes it the hub; the first build
+  put 37,829 of 39,554 types into it.</p>
+
+  <p><strong>No post text leaves the build.</strong> The data file carries word
+  types, counts, document frequencies, first and mean dates, and a wedge
+  number — a bag of words, which is what the chart is about. Shipping the prose
+  would be a different and much more exposing artefact for no gain.</p>
+
+  <p class="foot">Build script: <a href="./build.mjs">build.mjs</a> ·
+  CAR reader: <a href="./car.mjs">car.mjs</a> ·
+  data: <a href="./data.json">data.json</a> ·
+  the weaver next door: <a href="../">silk</a></p>
+</section>
+
+<script type="module" src="./app.mjs"></script>
+</body>
+</html>
