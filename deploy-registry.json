@@ -155,7 +155,7 @@
       "dir": "b",
       "endpoint": "b.mino.mobi",
       "type": "frontend",
-      "branch": "claude/ai-detection-browser-aw7kq5",
+      "branch": "claude/bsky-follow-grooming-gjkops",
       "uses": [],
       "provides": null,
       "paths": [
@@ -173,10 +173,11 @@
         "unique",
         "thread",
         "sleuth",
-        "palm"
+        "palm",
+        "groom"
       ],
-      "note": "Portal to every Bluesky tool here—feeds, network maps, account analysis, and the shared OAuth worker in one place. (full description: b/CLAUDE.md) Also hosts palm at /palm (six stylometric lines off a whole repo, as percentiles against an offline pool — explicitly not an AI detector; b/palm/car-stream.js is a pure-JS streaming CAR reader that handles a 90MB repo where the buffering paths OOM) and thread at /thread (paste a post URL, read the whole reply tree with the author's own chain kept unbroken, plus a wall of every post it quoted) and sleuth at /sleuth (a thousand of any account's posts indexed in-tab with TF-IDF for instant keyless search; bring your own API key and the retrieved posts become RAG context, or generate a dossier of themes, narrative arcs and a personality read with every claim cited back to a post). Both moved here from photo, where they had been filed as image tools by accident — photo 301s /thread and /sleuth here and translates the old fragment deep links (#/thread/<url> -> ?p=, #/sleuth/<handle> -> ?u=).",
-      "status": "RECONCILED 2026-08-15 — two branches developed b/ in parallel. Owner is claude/ai-detection-browser-aw7kq5, whose tree this candidate's b/ matches byte for byte (75 files, palm at 2026-08-06). claude/image-manipulation-platform-g5puxy has the older b/ (66 files, 21 of them behind) and contributed the registry record for palm, not the code — deploying b from it would regress the surface."
+      "note": "Portal to every Bluesky tool here—feeds, network maps, account analysis, and the shared OAuth worker in one place. (full description, and the design notes for each tool below, in b/CLAUDE.md) Also hosts groom at /groom (follow grooming: the accounts a handle follows that have not posted or replied in over a year, the deleted ones getFollows silently drops, and the non-mutuals — read from the repo's own follow records, which is what carries the rkey an OAuth sign-in needs to unfollow in place), palm at /palm (six stylometric lines off a whole repo as percentiles against an offline pool — explicitly not an AI detector; car-stream.js is a pure-JS streaming CAR reader that handles a 90MB repo where the buffering paths OOM), thread at /thread (a post URL in, the whole reply tree out, plus a wall of everything it quoted) and sleuth at /sleuth (a thousand posts indexed in-tab with TF-IDF for keyless search; bring your own API key for RAG answers or a cited dossier). thread and sleuth moved here from photo, which 301s both and translates the old fragment deep links.",
+      "status": "HANDOVER 2026-08-21 — owner moved from claude/ai-detection-browser-aw7kq5 to claude/bsky-follow-grooming-gjkops, which adds /groom. The prior owner reconciled the 2026-08-15 two-branch split and its tree is the base this branch built on, so the handover carries no regression; the earlier claude/image-manipulation-platform-g5puxy tree is still the stale one and must never deploy b."
     },
     {
       "surface": "auth",
