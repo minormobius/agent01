@@ -16,10 +16,13 @@ const MAX_BYTES = 400 * 1024 * 1024;
 const send = (type, payload) => self.postMessage({ type, ...payload });
 
 self.onmessage = async (e) => {
-  const { handle } = e.data;
+  const { handle, did: known } = e.data;
   try {
+    // A DID supplied by the caller comes from the page's typeahead, which got it
+    // from the same directory resolveHandle would ask. Trusting it saves a round
+    // trip; anything else about the build is identical.
     send('progress', { stage: 'resolving the handle', frac: 0 });
-    const did = await resolveHandle(handle);
+    const did = known && String(known).startsWith('did:') ? String(known) : await resolveHandle(handle);
 
     send('progress', { stage: 'finding the data server', frac: 0.01 });
     const pds = await pdsFor(did);

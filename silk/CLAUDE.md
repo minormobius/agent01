@@ -69,7 +69,9 @@ silk/
   test/
     fabric.selftest.mjs  32 checks — geometry, tension-only, splitting, chains
     weaver.selftest.mjs  62 checks — the four claims the page makes
-    word.selftest.mjs    32 checks — the CAR reader, the data file, the promise
+    word.selftest.mjs    92 checks — the CAR reader, the data file, the promise
+    browser/
+      typeahead.browser.mjs  23 checks — Playwright; NOT in CI, see below
   worker.js             assets + /health
   wrangler.jsonc
 ```
@@ -89,6 +91,34 @@ straight from it, and the analysis happens locally. Nothing is uploaded and
 nothing is stored. All three endpoints it needs — `resolveHandle`,
 `plc.directory`, `com.atproto.sync.getRepo` — send `access-control-allow-origin:
 *`, which is the only reason this is possible at all.
+
+**The handle box has a typeahead, and it is the page's one outbound call.**
+`app.bsky.actor.searchActorsTypeahead` (also `*`-CORS) after 2 characters and a
+140 ms debounce, avatars from `cdn.bsky.app` with `referrerpolicy="no-referrer"`.
+A handle is the one thing here you must get exactly right and cannot be expected
+to remember, and the only feedback used to be a failed build. Three rules keep it
+honest:
+
+- **it is a convenience, never a gate.** Every failure — offline, 500, rate
+  limit, unexpected body — ends in an empty list and *nothing else*: no banner,
+  no disabled button. Typing a handle in full and pressing Enter always works,
+  which is both the escape hatch for accounts the directory has not indexed and
+  the way to opt out of the request. Proven accidentally: Playwright cannot reach
+  the real endpoint, so every browser test builds with the lookup failing.
+- **the page says so.** The note under the box and a paragraph in the notes name
+  the endpoint and the CDN. A page that claims "nothing leaves your machine" and
+  quietly ships keystrokes to a third party would be worse than one that never
+  claimed it.
+- **rows are built with `textContent`, never `innerHTML`.** Display names are
+  arbitrary strings written by strangers, arriving from a third party — this is
+  the only place on the surface where such a string is rendered.
+
+Picking a row passes the DID the list already carried, so the worker skips
+`resolveHandle`: one fewer round trip, and `NO_HANDLE` cannot happen for a name
+that was offered to you. Two bugs this shape invites, both guarded and tested:
+responses race (`mi` answers after `min` and the stale list wins — hence the
+sequence counter), and `click` fires after the input's `blur` has already closed
+the list (hence `pointerdown`).
 
 **One engine, two callers.** `engine.mjs` is pure and is imported by both
 `build.mjs` (node) and `analyze.worker.js` (browser). That is the contract worth
@@ -178,6 +208,19 @@ harness exercises all five failure paths — unknown handle, no PDS, refused
 archive, rate limit, too-small repo — each of which must show a specific message
 and re-enable the button.
 
+The typeahead's run is the one that got **committed**, as
+[`test/browser/typeahead.browser.mjs`](test/browser/typeahead.browser.mjs) —
+`node silk/test/browser/typeahead.browser.mjs`, which serves `silk/` itself and
+stubs every call, so it needs nothing running and reaches nothing real. It is
+not a `*.selftest.mjs` and CI does not run it: the deploy workflow has no
+Playwright and no Chromium. It is in the repo anyway because what it checks is a
+claim the page makes about itself — that the directory lookup never blocks a
+build, and that a stranger's display name arrives as characters — and a claim
+with no runnable check behind it decays into a comment. 23 checks: the escaping,
+the staleness guard, the DID shortcut, the keyboard, `pointerdown` surviving
+blur, and that a 500 from the directory leaves no trace on the page while a
+typed handle still builds.
+
 ## Five things that are load-bearing, and why
 
 **1. One random stream per decision class.** `rng.mjs` gives bridging, framing,
@@ -241,6 +284,12 @@ was rewritten to say so.
 Both selftests run in CI *before* wrangler. A surface that publishes a
 measurement it no longer passes is worse than one that publishes nothing,
 because it looks like evidence.
+
+`assets.directory` is `.`, so **everything in this dir is uploaded and served**
+unless `.assetsignore` says otherwise. That is how `test/` came to be live at
+`silk.mino.mobi/test/*.mjs`; it is ignored now. The engine, the worker and the
+CAR reader stay public deliberately — the notes link `engine.mjs` so a visitor
+can read the code that is about to run in their tab.
 
 ## Deploy
 

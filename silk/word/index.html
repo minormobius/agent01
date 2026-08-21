@@ -19,14 +19,20 @@
 <section class="bring">
   <div class="bringrow">
     <label class="lb" for="handle">build it for any Bluesky account</label>
-    <input type="text" id="handle" placeholder="name.bsky.social" autocomplete="off" spellcheck="false">
+    <div class="hfield">
+      <input type="text" id="handle" placeholder="name.bsky.social" autocomplete="off" spellcheck="false"
+             role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="suggest">
+      <ul class="suggest" id="suggest" role="listbox" aria-label="matching accounts" hidden></ul>
+    </div>
     <button id="go" class="go">weave it</button>
     <button id="reset" class="mini" hidden>back to the example</button>
   </div>
   <p class="bringnote">Runs entirely in your browser: the account's public repo is fetched
   straight from its data server and analysed here. Nothing is uploaded, nothing is stored,
   and no login is involved. A big account is a big download — 50,000 posts is about 90&nbsp;MB
-  and a minute of work.</p>
+  and a minute of work. <span class="tick">The name box is the one exception: what you type
+  in it goes to Bluesky's public directory to look up matching accounts. Nothing else — no
+  post, no word, no count — ever leaves your machine.</span></p>
   <div class="prog" id="progress" hidden>
     <div class="pbarwrap"><i id="pbar"></i></div>
     <div class="prow"><span id="pstage"></span><span id="pextra"></span></div>
@@ -148,6 +154,18 @@
   server, and neither does the result. It is the same
   <a href="./engine.mjs">engine.mjs</a> that produced the committed example, not
   a second implementation, and the selftest asserts the two agree.</p>
+
+  <p>One outbound call is not covered by that, and it should be said plainly
+  rather than buried: the name box is a typeahead, so the prefix you type is sent
+  to Bluesky's public directory
+  (<code>app.bsky.actor.searchActorsTypeahead</code>) to find matching accounts,
+  and the avatars in the list are loaded from Bluesky's CDN. That is a lookup of
+  public accounts by name and nothing more — but it is a request leaving your
+  machine, which the rest of this page is careful not to make. It is also
+  entirely optional: the box is an ordinary text field, so if the directory is
+  unreachable, or you would rather it were not asked, type the handle in full and
+  press <kbd>Enter</kbd>. Picking a suggestion instead of typing skips a
+  round trip, because the list already carries the account's DID.</p>
 
   <p>Two things follow from that which are worth knowing. It is a real download:
   a 50,000-post account is about 90&nbsp;MB. And a repo only has what its server

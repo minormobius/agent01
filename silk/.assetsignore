@@ -7,3 +7,10 @@ CLAUDE.md
 # build.mjs caches a 91 MB repo CAR here; it is an input, it is not public, and
 # it would blow the asset budget on its own.
 word/.cache/
+
+# Same reason: the selftests were being served at silk.mino.mobi/test/*.mjs,
+# which nobody wanted and nothing links to. They gate the deploy from the
+# workflow's checkout; they are not part of the site. (The engine and the worker
+# ARE — the notes link engine.mjs deliberately, so you can read the thing that
+# is about to run in your tab.)
+test/

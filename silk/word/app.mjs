@@ -1095,7 +1095,10 @@ function showProgress(on, stage = '', frac = 0, extra = '') {
   $('pbar').style.width = `${Math.round(Math.min(1, Math.max(0, frac)) * 100)}%`;
 }
 
-function runHandle(raw) {
+// `did` is optional and is only ever a shortcut: when the typeahead already
+// told us the account's DID, the worker skips resolveHandle. Nothing downstream
+// changes — the handle is still what labels the chart and the URL.
+function runHandle(raw, did = null) {
   const handle = raw.trim().replace(/^@/, '');
   if (!handle || busy) return;
   $('err').hidden = true;
@@ -1132,11 +1135,173 @@ function runHandle(raw) {
     $('err').textContent = `The builder crashed: ${e.message || 'unknown error'}`;
     $('err').hidden = false;
   };
-  worker.postMessage({ handle });
+  worker.postMessage({ handle, did });
 }
 
-$('go').onclick = () => runHandle($('handle').value);
-$('handle').addEventListener('keydown', (e) => { if (e.key === 'Enter') runHandle($('handle').value); });
+// ─── typeahead on the handle box ────────────────────────────────────────────
+//
+// A handle is the one thing on this page you have to get exactly right and
+// cannot be expected to remember — `name.bsky.social`, or `name.com`, or a
+// display name that is not the handle at all — and until now the only feedback
+// was a failed build. Bluesky's public directory has a typeahead for precisely
+// this and sends `access-control-allow-origin: *`.
+//
+// IT IS A CONVENIENCE AND NEVER A GATE. Every failure here — offline, a 500, a
+// rate limit, a body that is not the shape expected — ends in an empty list and
+// nothing else: no error banner, no disabled button. The field stays an ordinary
+// text input, so a self-hosted handle the directory has never indexed still
+// works if you type it out and press Enter. That is also what makes the request
+// defensible on a page that otherwise sends nothing anywhere: you opt out of it
+// by not using it, and the page says so in the note under the box.
+
+const TYPEAHEAD = 'https://public.api.bsky.app/xrpc/app.bsky.actor.searchActorsTypeahead';
+const sug = $('suggest');
+let sugRows = [];       // the actors currently listed
+let sugAt = -1;         // highlighted row, -1 for none
+let sugSeq = 0;         // request counter, for the staleness guard below
+let sugAbort = null;
+let sugTimer = 0;
+
+function closeSuggest() {
+  sug.hidden = true;
+  sug.replaceChildren();
+  sugRows = [];
+  sugAt = -1;
+  $('handle').setAttribute('aria-expanded', 'false');
+  $('handle').removeAttribute('aria-activedescendant');
+}
+
+function highlight(i) {
+  sugAt = i;
+  const items = sug.children;
+  for (let k = 0; k < items.length; k++) {
+    items[k].setAttribute('aria-selected', k === i ? 'true' : 'false');
+  }
+  if (i >= 0) {
+    items[i].scrollIntoView({ block: 'nearest' });
+    $('handle').setAttribute('aria-activedescendant', items[i].id);
+  } else $('handle').removeAttribute('aria-activedescendant');
+}
+
+// Rows are built with DOM calls and textContent, never innerHTML: display names
+// are arbitrary strings written by strangers and arriving from a third party,
+// and this is the one place on the page where such a string would be rendered.
+function renderSuggest(actors, prefix) {
+  sugRows = actors;
+  sug.replaceChildren();
+  actors.forEach((a, i) => {
+    const li = document.createElement('li');
+    li.id = `sug-${i}`;
+    li.setAttribute('role', 'option');
+    li.setAttribute('aria-selected', 'false');
+
+    if (a.avatar) {
+      const img = document.createElement('img');
+      img.src = a.avatar;
+      img.alt = '';
+      img.loading = 'lazy';
+      img.referrerPolicy = 'no-referrer';       // the CDN learns nothing about where you are
+      img.onerror = () => img.remove();
+      li.append(img);
+    }
+
+    const who = document.createElement('span');
+    who.className = 'who';
+    const name = a.displayName?.trim();
+
+    // Bold the part you actually typed, so it is obvious why this row is here.
+    const hd = document.createElement('span');
+    hd.className = 'hd';
+    if (prefix && a.handle.toLowerCase().startsWith(prefix)) {
+      const b = document.createElement('b');
+      b.textContent = a.handle.slice(0, prefix.length);
+      hd.append(b, document.createTextNode(a.handle.slice(prefix.length)));
+    } else hd.textContent = a.handle;
+
+    // An account with no display name gets one line, not the same string twice.
+    if (name) {
+      const nm = document.createElement('span');
+      nm.className = 'nm';
+      nm.textContent = name;
+      who.append(nm, hd);
+    } else {
+      hd.classList.add('solo');
+      who.append(hd);
+    }
+    li.append(who);
+
+    // pointerdown, not click: the input's blur would close the list first and
+    // the click would land on nothing.
+    li.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      pickSuggest(i);
+    });
+    li.addEventListener('pointerenter', () => highlight(i));
+    sug.append(li);
+  });
+  sug.hidden = actors.length === 0;
+  $('handle').setAttribute('aria-expanded', actors.length ? 'true' : 'false');
+  highlight(-1);
+}
+
+function pickSuggest(i) {
+  const a = sugRows[i];
+  if (!a) return;
+  $('handle').value = a.handle;
+  closeSuggest();
+  // The list already carries the DID, so picking a row skips resolveHandle —
+  // one fewer round trip, and the "no such handle" failure cannot happen for a
+  // name that was offered to you.
+  runHandle(a.handle, a.did);
+}
+
+async function askSuggest(q) {
+  const seq = ++sugSeq;
+  if (sugAbort) sugAbort.abort();
+  sugAbort = new AbortController();
+  try {
+    const r = await fetch(`${TYPEAHEAD}?limit=8&q=${encodeURIComponent(q)}`, { signal: sugAbort.signal });
+    if (!r.ok) throw new Error(String(r.status));
+    const body = await r.json();
+    // THE STALENESS GUARD. Responses to `mi` and `minor` race, and the short
+    // query is the one likelier to come back last — without this, typing fast
+    // leaves you looking at the results for a prefix you have already passed.
+    if (seq !== sugSeq) return;
+    const actors = (body.actors || []).filter((a) => a && a.handle && a.did);
+    if (document.activeElement === $('handle')) renderSuggest(actors, q.toLowerCase());
+  } catch {
+    if (seq === sugSeq) closeSuggest();   // silent: this feature never blocks
+  }
+}
+
+$('handle').addEventListener('input', () => {
+  const q = $('handle').value.trim().replace(/^@/, '');
+  clearTimeout(sugTimer);
+  // Under two characters the directory returns the whole firehose, and a DID is
+  // already an answer — neither is worth a request.
+  if (q.length < 2 || q.startsWith('did:')) { sugSeq++; closeSuggest(); return; }
+  sugTimer = setTimeout(() => askSuggest(q), 140);
+});
+
+$('handle').addEventListener('keydown', (e) => {
+  const open = !sug.hidden && sugRows.length > 0;
+  if (e.key === 'ArrowDown' && open) { e.preventDefault(); highlight((sugAt + 1) % sugRows.length); return; }
+  if (e.key === 'ArrowUp' && open) { e.preventDefault(); highlight((sugAt - 1 + sugRows.length) % sugRows.length); return; }
+  if (e.key === 'Escape' && open) { e.preventDefault(); sugSeq++; closeSuggest(); return; }
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    clearTimeout(sugTimer);
+    // Enter on a highlighted row picks it; Enter on anything else runs what you
+    // typed, verbatim. The second case is the one that must not regress — it is
+    // the whole escape hatch for accounts the directory does not know.
+    if (open && sugAt >= 0) pickSuggest(sugAt);
+    else { sugSeq++; closeSuggest(); runHandle($('handle').value); }
+  }
+});
+
+$('handle').addEventListener('blur', () => { sugSeq++; closeSuggest(); });
+
+$('go').onclick = () => { sugSeq++; closeSuggest(); runHandle($('handle').value); };
 $('reset').onclick = async () => {
   $('reset').hidden = true;
   history.replaceState(null, '', location.pathname);
