@@ -33,9 +33,9 @@ _Regenerated 2026-08-22 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 82, bluesky 73, data 58, tools 58, work 8.
 
-**Neighborhood spark** (bisk 2026-08-22, 99 members / 303 posts):
+**Neighborhood spark** (bisk 2026-08-22, 99 members / 299 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: lmao, llm, idk
+- Distinctive words: lmao, llm, atproto
 - Top post: "if youre in the group of people where folks are saying things like “keep bullying them it’s working”, “yea run them the " — @hailey.at
 <!-- BRIEF_END -->
 
