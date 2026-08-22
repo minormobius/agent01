@@ -1417,7 +1417,7 @@
         "workers/hose/**",
         "packages/feedgen/**"
       ],
-      "note": "The firehose half of the feed stack, and the other end of b.mino.mobi/feedgen… (full description: workers/hose/CLAUDE.md)"
+      "note": "Bluesky feed-generator service whose input is the firehose itself — the other half of b.mino.mobi/feedgen. A feed defined only by what it excludes (\"not politics, not porn, not video, not a reply, not in this bot list\") has no query you can ask the AppView for, so a single Durable Object SAMPLES Jetstream: it wakes hourly, holds the socket open 20s, runs every post create through each registered feed's filters as it arrives, and appends matches to a chunked ring that getFeedSkeleton pages. Sampling not streaming is deliberate — the firehose measures 38.8 creates/sec, and holding it open permanently costs ~84% of the account-wide duration allowance to observe posts nobody reads; at 20s/hour it still collects ~680 matches a day and stays inside the free allowances. The ring is keyed by absolute chunk index, so an append writes ONE key and ageing out is a delete. Definitions come off the owner's PDS as a native com.minomobi.feedgen.def record OR a SkyFeed-era skyfeedBuilder, so a SkyFeed feed moves here by repointing one field. The filter predicate is shared with b/ via packages/feedgen/match.js, so b's preview cannot drift from what hose serves."
     }
   ],
   "unmanaged": {

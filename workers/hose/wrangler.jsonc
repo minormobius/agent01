@@ -16,12 +16,22 @@
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["FirehoseIngest"] }
   ],
-  // Backstop only — the object re-arms its own 30s alarm. This restarts the
-  // chain if it is ever broken.
+  // Backstop only — the object re-arms its own alarm after every sample. This
+  // restarts the chain if it is ever broken. Deliberately infrequent: each fire
+  // wakes the object, and waking it is the thing we are rationing.
   "triggers": {
-    "crons": ["*/5 * * * *"]
+    "crons": ["0 */6 * * *"]
   },
   "vars": {
+    // The duty cycle. The object sleeps between samples; these decide how much
+    // of the firehose it pays to look at. Requests are the binding allowance,
+    // not duration — 20s/60min is ~0.56M inbound frames a month against the 1M
+    // included, which stays free even if inbound frames turn out to be billed
+    // 1:1 rather than at the documented 20:1. Read workers/hose/CLAUDE.md
+    // before raising either: the arithmetic is there.
+    "SAMPLE_SECONDS": "20",
+    "SAMPLE_EVERY_MINUTES": "60",
+
     // Feeds registered at startup so their ring buffer is warm before anyone
     // opens them. Whitespace/comma separated at:// generator URIs.
     "SEED_FEEDS": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.generator/aaaovosdgiz2e"

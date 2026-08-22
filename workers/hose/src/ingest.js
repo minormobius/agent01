@@ -3,17 +3,38 @@
 // The thing SkyFeed had that a stateless evaluator cannot fake: a feed whose
 // filters are almost entirely *negative* ("not politics, not porn, not video,
 // not a reply, not in this bot list") has no query you can ask the AppView for.
-// There is no search term for "everything else". You have to see every post and
-// subtract, which means holding the firehose open and deciding at ingest time.
+// There is no search term for "everything else". You have to see posts and
+// subtract, which means reading the firehose and deciding at ingest time.
 //
-// So: one WebSocket to Jetstream, every `app.bsky.feed.post` create run through
-// each registered feed's filters as it arrives, and the matches appended to a
-// bounded per-feed ring buffer. getFeedSkeleton then just pages the ring.
+// ── It SAMPLES the firehose; it does not drink all of it ─────────────────────
 //
-// Cost note, because it is the honest trade: this object is deliberately never
-// idle. A 30-second alarm keeps it resident so the socket stays up, and that
-// heartbeat is what you are paying for. Everything else here is bounded on
-// purpose — buffers, list sizes, replay depth — so the bill cannot surprise.
+// The first version held the socket open permanently. Measured, that is 38.8
+// post-creates/second — 100M messages a month — and a Durable Object that is
+// never evicted, which alone consumes ~84% of the account's entire 400,000
+// GB-s duration allowance. For an ambient feed that nobody reads exhaustively,
+// paying to observe every post on Bluesky is a bad trade.
+//
+// So the object sleeps. Every SAMPLE_EVERY_MINUTES it wakes, opens Jetstream
+// for SAMPLE_SECONDS, keeps what matches, writes, and closes. At the default
+// 20s/hour that is 4 hours of connection a month instead of 720, and it lands
+// inside the free allowances even under the least favourable reading of how
+// inbound WebSocket frames are billed.
+//
+// What you give up is completeness, deliberately: the feed sees roughly 0.5% of
+// the network and still collects ~680 matching posts a day, which is more than
+// anyone scrolls. A feed like this is a mood, not an index. If you ever DO need
+// completeness, raise SAMPLE_SECONDS and read the arithmetic in CLAUDE.md
+// first — the request allowance is the binding constraint, not duration.
+//
+// ── Writes are incremental ───────────────────────────────────────────────────
+//
+// The ring is chunked by an ABSOLUTE, monotonic chunk index rather than by
+// position in a flat array. That is the whole trick: appending touches exactly
+// one storage key, and ageing out a chunk is a delete, not a rewrite. A flat
+// array trimmed from the front renumbers every element, so every chunk becomes
+// dirty and the whole buffer is rewritten on each flush — which is what this
+// used to do, 5 keys every 30 seconds, and which would have been 305 keys every
+// 30 seconds had the window ever been widened to a real 24 hours.
 
 import { fromCommit, passes, listUris } from '../../../packages/feedgen/match.js';
 import { fromSkyfeed } from '../../../packages/feedgen/skyfeed.js';
@@ -27,31 +48,88 @@ const JETSTREAM_HOSTS = [
 ];
 
 const MAX_PER_FEED = 2000;    // ring capacity; a reader never pages this deep
-const CHUNK = 400;            // entries per storage key — keeps values well under the 128KB limit
-const ALARM_MS = 30_000;      // heartbeat: reconnect check + flush
-const DEF_TTL_MS = 5 * 60_000;
-const LIST_TTL_MS = 60 * 60_000;
-const IDLE_DROP_MS = 7 * 24 * 60 * 60_000;   // a feed nobody has opened in a week stops being ingested
-const MAX_REPLAY_US = 5 * 60 * 1_000_000;    // never replay more than 5 minutes on reconnect
+const CHUNK = 400;            // entries per storage key — keeps values far under the 128KB limit
+const IDLE_DROP_MS = 7 * 24 * 60 * 60_000;   // a feed nobody opens in a week stops being ingested
+const MAX_REPLAY_US = 60 * 1_000_000;        // never replay more than a minute on reconnect
+
+const DEFAULT_SAMPLE_SECONDS = 20;
+const DEFAULT_SAMPLE_EVERY_MINUTES = 60;
 
 const nowMs = () => Date.now();
+const chunkKey = (uri, i) => `buf:${uri}:${String(i).padStart(6, '0')}`;
+const maxChunks = () => Math.ceil(MAX_PER_FEED / CHUNK) + 1;
 
 export class FirehoseIngest {
   constructor(state, env) {
     this.state = state;
     this.env = env;
-    this.feeds = new Map();      // feedUri -> { def, source, fetchedAt, lastSeen, buf: [{u,t}], dirty }
+    this.feeds = new Map();      // feedUri -> { def, source, fetchedAt, lastSeen, chunks:Map, head, dirty:Set, gone:Set }
     this.lists = new Map();      // listUri -> Set<did>
-    this.listFetchedAt = new Map();
     this.ws = null;
-    this.connecting = false;
     this.lastTimeUs = 0;
     this.seen = 0;
     this.matched = 0;
-    this.lastEventAt = 0;
-    this.connectedAt = 0;
+    this.samples = 0;
+    this.lastSampleAt = 0;
     this.lastError = null;
     this.state.blockConcurrencyWhile(async () => { await this.load(); });
+  }
+
+  sampleMs() {
+    const n = Number(this.env.SAMPLE_SECONDS);
+    return Math.min(60, Math.max(2, Number.isFinite(n) && n > 0 ? n : DEFAULT_SAMPLE_SECONDS)) * 1000;
+  }
+
+  intervalMs() {
+    const n = Number(this.env.SAMPLE_EVERY_MINUTES);
+    return Math.min(360, Math.max(1, Number.isFinite(n) && n > 0 ? n : DEFAULT_SAMPLE_EVERY_MINUTES)) * 60_000;
+  }
+
+  // Jittered, so the feed is not permanently a portrait of whatever the network
+  // is doing at one fixed offset past the hour. Averages the configured
+  // interval over 0.5x–1.5x.
+  nextDelayMs() { return Math.round(this.intervalMs() * (0.5 + Math.random())); }
+
+  // ── the chunked ring ───────────────────────────────────────────────────────
+
+  static blank() {
+    return { def: null, source: 'pending', fetchedAt: 0, lastSeen: nowMs(),
+             chunks: new Map(), head: 0, dirty: new Set(), gone: new Set(), warnings: [] };
+  }
+
+  append(f, entry) {
+    const ci = Math.floor(f.head / CHUNK);
+    let c = f.chunks.get(ci);
+    if (!c) { c = []; f.chunks.set(ci, c); }
+    c.push(entry);
+    f.head++;
+    f.dirty.add(ci);
+    while (f.chunks.size > maxChunks()) {
+      const oldest = Math.min(...f.chunks.keys());
+      f.chunks.delete(oldest);
+      f.dirty.delete(oldest);
+      f.gone.add(oldest);       // a delete, not a rewrite
+    }
+  }
+
+  entries(f) {
+    const out = [];
+    for (const i of [...f.chunks.keys()].sort((a, b) => a - b)) out.push(...f.chunks.get(i));
+    return out;
+  }
+
+  count(f) {
+    let n = 0;
+    for (const c of f.chunks.values()) n += c.length;
+    return n;
+  }
+
+  clearBuffer(f) {
+    for (const i of f.chunks.keys()) f.gone.add(i);
+    f.chunks.clear();
+    f.dirty.clear();
+    // head is deliberately NOT reset: chunk indices must stay monotonic, or a
+    // new chunk 0 would collide with the key we just scheduled for deletion.
   }
 
   // ── persistence ────────────────────────────────────────────────────────────
@@ -60,33 +138,46 @@ export class FirehoseIngest {
     const reg = (await this.state.storage.get('reg')) || {};
     for (const [uri, meta] of Object.entries(reg)) {
       const stored = (await this.state.storage.get(`def:${uri}`)) || null;
-      const buf = [];
-      const chunks = await this.state.storage.list({ prefix: `buf:${uri}:` });
-      // Keys are written zero-padded so lexical order is chronological order.
-      for (const key of [...chunks.keys()].sort()) buf.push(...(chunks.get(key) || []));
-      this.feeds.set(uri, {
-        def: stored && stored.def, source: (stored && stored.source) || 'unknown',
-        fetchedAt: (stored && stored.fetchedAt) || 0,
-        lastSeen: meta.lastSeen || 0, buf, dirty: false,
-      });
+      const f = FirehoseIngest.blank();
+      f.def = stored && stored.def;
+      f.source = (stored && stored.source) || 'unknown';
+      f.fetchedAt = (stored && stored.fetchedAt) || 0;
+      f.lastSeen = meta.lastSeen || 0;
+
+      const listed = await this.state.storage.list({ prefix: `buf:${uri}:` });
+      for (const key of [...listed.keys()].sort()) {
+        const ci = parseInt(key.slice(key.lastIndexOf(':') + 1), 10);
+        if (Number.isFinite(ci)) f.chunks.set(ci, listed.get(key) || []);
+      }
+      // An older config may have left more chunks than we now retain.
+      while (f.chunks.size > maxChunks()) {
+        const oldest = Math.min(...f.chunks.keys());
+        f.chunks.delete(oldest);
+        f.gone.add(oldest);
+      }
+      const idx = [...f.chunks.keys()];
+      f.head = idx.length ? Math.max(...idx) * CHUNK + f.chunks.get(Math.max(...idx)).length : 0;
+      this.feeds.set(uri, f);
     }
     this.lastTimeUs = (await this.state.storage.get('cursor')) || 0;
   }
 
+  // Writes ONLY the chunks that changed, and deletes the ones that aged out.
+  // In steady state that is a single key per flush.
   async flush() {
     const reg = {};
     for (const [uri, f] of this.feeds) {
       reg[uri] = { lastSeen: f.lastSeen };
-      if (!f.dirty) continue;
-      f.dirty = false;
-      const old = await this.state.storage.list({ prefix: `buf:${uri}:` });
-      const writes = {};
-      for (let i = 0; i * CHUNK < f.buf.length; i++) {
-        writes[`buf:${uri}:${String(i).padStart(3, '0')}`] = f.buf.slice(i * CHUNK, (i + 1) * CHUNK);
+      if (f.gone.size) {
+        await this.state.storage.delete([...f.gone].map((i) => chunkKey(uri, i)));
+        f.gone.clear();
       }
-      const stale = [...old.keys()].filter((k) => !(k in writes));
-      if (stale.length) await this.state.storage.delete(stale);
-      if (Object.keys(writes).length) await this.state.storage.put(writes);
+      if (f.dirty.size) {
+        const writes = {};
+        for (const i of f.dirty) if (f.chunks.has(i)) writes[chunkKey(uri, i)] = f.chunks.get(i);
+        if (Object.keys(writes).length) await this.state.storage.put(writes);
+        f.dirty.clear();
+      }
     }
     await this.state.storage.put('reg', reg);
     if (this.lastTimeUs) await this.state.storage.put('cursor', this.lastTimeUs);
@@ -94,14 +185,11 @@ export class FirehoseIngest {
 
   // ── feed registry ──────────────────────────────────────────────────────────
 
-  async ensureFeed(feedUri, force = false) {
+  async ensureFeed(feedUri, refresh = false) {
     let f = this.feeds.get(feedUri);
-    if (!f) {
-      f = { def: null, source: 'pending', fetchedAt: 0, lastSeen: nowMs(), buf: [], dirty: true };
-      this.feeds.set(feedUri, f);
-    }
+    if (!f) { f = FirehoseIngest.blank(); this.feeds.set(feedUri, f); }
     f.lastSeen = nowMs();
-    if (!force && f.def && nowMs() - f.fetchedAt < DEF_TTL_MS) return f;
+    if (!refresh && f.def) return f;
 
     const m = feedUri.match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.generator\/([^/]+)$/);
     if (!m) { f.source = 'bad-uri'; return f; }
@@ -116,11 +204,7 @@ export class FirehoseIngest {
       // owner edits their feed, everything already ingested was admitted by the
       // old rules, so it goes — otherwise adding "no video" would leave a day
       // of video sitting in the feed, which is the exact complaint.
-      const sig = JSON.stringify(def.filters || []);
-      if (f.def && JSON.stringify(f.def.filters || []) !== sig && f.buf.length) {
-        f.buf = [];
-        f.dirty = true;
-      }
+      if (f.def && JSON.stringify(f.def.filters || []) !== JSON.stringify(def.filters || [])) this.clearBuffer(f);
       f.def = def;
       await this.state.storage.put(`def:${feedUri}`, { def, source, fetchedAt: f.fetchedAt });
     }
@@ -131,9 +215,7 @@ export class FirehoseIngest {
   async refreshLists(f) {
     if (!f.def) return;
     for (const uri of listUris(f.def)) {
-      if (nowMs() - (this.listFetchedAt.get(uri) || 0) < LIST_TTL_MS) continue;
       const members = await getListMembers(uri);
-      this.listFetchedAt.set(uri, nowMs());
       if (members) this.lists.set(uri, members);   // null = fetch failed; keep the old set
     }
   }
@@ -143,43 +225,49 @@ export class FirehoseIngest {
   firehoseFeeds() {
     const out = [];
     for (const [uri, f] of this.feeds) {
-      if (!f.def) continue;
-      if (!(f.def.inputs || []).some((i) => i.type === 'firehose')) continue;
-      out.push([uri, f]);
+      if (f.def && (f.def.inputs || []).some((i) => i.type === 'firehose')) out.push([uri, f]);
     }
     return out;
   }
 
-  // ── the firehose ───────────────────────────────────────────────────────────
+  // ── one sample of the firehose ─────────────────────────────────────────────
 
-  async connect() {
-    if (this.ws || this.connecting) return;
-    this.connecting = true;
+  async sample() {
+    if (!this.firehoseFeeds().length) return;   // nothing to ingest for; stay asleep
     try {
-      const host = JETSTREAM_HOSTS[Math.floor(nowMs() / 60_000) % JETSTREAM_HOSTS.length];
+      const host = JETSTREAM_HOSTS[this.samples % JETSTREAM_HOSTS.length];
       const u = new URL(`https://${host}/subscribe`);
       u.searchParams.set('wantedCollections', 'app.bsky.feed.post');
-      // Resume where we left off, but never replay more than MAX_REPLAY_US —
-      // a cold object should catch up in seconds, not chew through a day.
-      const floorUs = (nowMs() * 1000) - MAX_REPLAY_US;
-      const cursor = Math.max(this.lastTimeUs || 0, floorUs);
-      if (this.lastTimeUs) u.searchParams.set('cursor', String(Math.floor(cursor)));
+      // A short replay smooths the seam between samples. It is capped hard: a
+      // long replay would defeat the entire point of sampling by delivering the
+      // messages we just declined to pay for.
+      if (this.lastTimeUs) {
+        const floorUs = (nowMs() * 1000) - MAX_REPLAY_US;
+        u.searchParams.set('cursor', String(Math.floor(Math.max(this.lastTimeUs, floorUs))));
+      }
 
       const resp = await fetch(u.toString(), { headers: { Upgrade: 'websocket' } });
       const ws = resp.webSocket;
       if (!ws) throw new Error(`jetstream did not upgrade (HTTP ${resp.status})`);
       ws.accept();
       this.ws = ws;
-      this.connectedAt = nowMs();
       this.lastError = null;
-      ws.addEventListener('message', (ev) => { try { this.onMessage(ev.data); } catch { /* one bad frame is not fatal */ } });
-      ws.addEventListener('close', () => { if (this.ws === ws) this.ws = null; });
-      ws.addEventListener('error', () => { if (this.ws === ws) this.ws = null; });
+      this.samples++;
+      this.lastSampleAt = nowMs();
+
+      const done = new Promise((resolve) => {
+        const stop = () => { clearTimeout(timer); resolve(); };
+        const timer = setTimeout(() => { try { ws.close(1000, 'sample complete'); } catch { /* already gone */ } resolve(); }, this.sampleMs());
+        ws.addEventListener('message', (ev) => { try { this.onMessage(ev.data); } catch { /* one bad frame is not fatal */ } });
+        ws.addEventListener('close', stop);
+        ws.addEventListener('error', stop);
+      });
+      await done;
     } catch (e) {
       this.lastError = String((e && e.message) || e);
-      this.ws = null;
     } finally {
-      this.connecting = false;
+      try { if (this.ws) this.ws.close(1000, 'done'); } catch { /* already gone */ }
+      this.ws = null;
     }
   }
 
@@ -191,8 +279,6 @@ export class FirehoseIngest {
     if (c.collection !== 'app.bsky.feed.post' || !c.record) return;
 
     this.seen++;
-    this.lastEventAt = nowMs();
-
     const feeds = this.firehoseFeeds();
     if (!feeds.length) return;
 
@@ -200,10 +286,8 @@ export class FirehoseIngest {
     const t = nowMs();
     for (const [, f] of feeds) {
       if (!passes(p, f.def.filters, { lists: this.lists })) continue;
-      f.buf.push({ u: p.uri, t });
-      f.dirty = true;
+      this.append(f, { u: p.uri, t });
       this.matched++;
-      if (f.buf.length > MAX_PER_FEED) f.buf.splice(0, f.buf.length - MAX_PER_FEED);
     }
   }
 
@@ -214,10 +298,11 @@ export class FirehoseIngest {
     const input = (f.def && (f.def.inputs || []).find((i) => i.type === 'firehose')) || {};
     const windowMs = Math.max(60, Number(input.seconds) || 86400) * 1000;
     const floor = nowMs() - windowMs;
+    const all = this.entries(f);
     const fresh = [];
-    for (let i = f.buf.length - 1; i >= 0; i--) {
-      if (f.buf[i].t < floor) break;   // buf is chronological, so the rest are older still
-      fresh.push(f.buf[i].u);
+    for (let i = all.length - 1; i >= 0; i--) {
+      if (all[i].t < floor) break;   // chronological, so the rest are older still
+      fresh.push(all[i].u);
     }
     return { uris: fresh.slice(offset, offset + limit), total: fresh.length };
   }
@@ -233,37 +318,41 @@ export class FirehoseIngest {
         if (nowMs() - f.lastSeen > IDLE_DROP_MS) {
           this.feeds.delete(uri);
           await this.state.storage.delete(`def:${uri}`);
-          const chunks = await this.state.storage.list({ prefix: `buf:${uri}:` });
-          if (chunks.size) await this.state.storage.delete([...chunks.keys()]);
+          const listed = await this.state.storage.list({ prefix: `buf:${uri}:` });
+          if (listed.size) await this.state.storage.delete([...listed.keys()]);
           continue;
         }
-        if (nowMs() - f.fetchedAt > DEF_TTL_MS) await this.ensureFeed(uri, true);
+        // Once per wake — so a filter edit is live within one sample interval.
+        await this.ensureFeed(uri, true);
       }
-      await this.connect();
+      await this.sample();
       await this.flush();
     } finally {
-      await this.state.storage.setAlarm(nowMs() + ALARM_MS);
+      await this.state.storage.setAlarm(nowMs() + this.nextDelayMs());
     }
   }
 
   async fetch(request) {
     const url = new URL(request.url);
-    // Any touch re-arms the heartbeat, so a cold object starts ingesting on the
-    // first request rather than waiting for a deploy-time kick.
+    // Any touch re-arms the heartbeat, so a cold object starts sampling without
+    // waiting for the cron backstop. It does NOT open the firehose: reading a
+    // feed must never trigger ingestion, or a popular feed would undo the duty
+    // cycle by itself.
     if ((await this.state.storage.getAlarm()) == null) await this.state.storage.setAlarm(nowMs() + 1000);
 
     if (url.pathname === '/status') {
       return Response.json({
         ok: true,
+        sampling: { seconds: this.sampleMs() / 1000, everyMinutes: this.intervalMs() / 60_000 },
+        samples: this.samples,
+        lastSampleAt: this.lastSampleAt || null,
         connected: !!this.ws,
-        connectedAt: this.connectedAt || null,
-        lastEventAt: this.lastEventAt || null,
         seen: this.seen,
         matched: this.matched,
         lastError: this.lastError,
         lists: [...this.lists].map(([uri, s]) => ({ uri, members: s.size })),
         feeds: [...this.feeds].map(([uri, f]) => ({
-          uri, source: f.source, buffered: f.buf.length,
+          uri, source: f.source, buffered: this.count(f), chunks: f.chunks.size,
           firehose: !!(f.def && (f.def.inputs || []).some((i) => i.type === 'firehose')),
           filters: f.def ? (f.def.filters || []).length : 0,
           warnings: f.warnings || [],
@@ -277,9 +366,8 @@ export class FirehoseIngest {
       const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '30', 10) || 30));
       const f = await this.ensureFeed(feedUri);
       if (!f.def) return Response.json({ uris: [], total: 0, source: f.source, def: null });
-      await this.connect();
       const { uris, total } = this.page(f, offset, limit);
-      return Response.json({ uris, total, source: f.source, def: f.def, buffered: f.buf.length });
+      return Response.json({ uris, total, source: f.source, def: f.def, buffered: this.count(f) });
     }
 
     return new Response('not found', { status: 404 });

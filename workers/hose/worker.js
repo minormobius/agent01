@@ -101,13 +101,18 @@ export default {
     if (path === '/api/import') return importSkyfeed(url);
     if (path === '/status') return json(await (await ask(env, '/status')).json());
 
+    // Health is "has it sampled recently", not "is the socket open" — the
+    // socket is SUPPOSED to be shut almost all the time. The window allows for
+    // the 1.5x upper end of the wake jitter plus one missed wake.
     if (path === '/health' || path === '/api/health') {
       const s = await (await ask(env, '/status')).json();
-      const fresh = s.lastEventAt && (Date.now() - s.lastEventAt) < 60_000;
+      const dueMs = s.sampling.everyMinutes * 60_000 * 2.5;
+      const fresh = !!s.lastSampleAt && (Date.now() - s.lastSampleAt) < dueMs;
       return json({
-        ok: !!(s.connected && fresh), connected: s.connected, lastEventAt: s.lastEventAt,
-        seen: s.seen, matched: s.matched, feeds: s.feeds.length, lastError: s.lastError,
-      }, s.connected && fresh ? 200 : 503);
+        ok: fresh, lastSampleAt: s.lastSampleAt, samples: s.samples,
+        sampling: s.sampling, seen: s.seen, matched: s.matched,
+        feeds: s.feeds.length, lastError: s.lastError,
+      }, fresh ? 200 : 503);
     }
 
     return json({ error: 'not found', service: SERVICE_DID }, 404);
