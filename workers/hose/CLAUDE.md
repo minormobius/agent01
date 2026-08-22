@@ -110,6 +110,14 @@ that honest:
 the case where the ring was just emptied on purpose and the feed would otherwise
 look broken for an hour and a half.
 
+**An empty ring with a spent budget is repaired on load**, because it is a state
+the code cannot reach: the budget is only spent while filling, and both things
+that empty a ring reset it. Seeing the pair means a reset was lost somewhere, and
+the feed is stranded — empty, with no budget to refill, and only the hourly
+cadence to dig out with. A feed that still holds entries keeps its spent budget,
+or one that legitimately stopped short of the target would re-prime on every
+eviction.
+
 `/status` reports `priming` and a per-feed `primes` count.
 
 ### Where a feed's definition comes from

@@ -433,6 +433,36 @@ console.log('counters survive eviction');
   eq('lifetime matched survives', o2.matched, 180);
 }
 
+console.log('an empty ring with a spent budget repairs itself');
+{
+  // Unreachable by design: the budget is only spent while filling, and both
+  // things that empty a ring (clearBuffer on a filter edit, the MATCHER_VERSION
+  // purge) reset it. The pair therefore means a reset was LOST — which is what
+  // stranded a live feed at zero entries with no budget to refill.
+  const store = new Map();
+  const uri = FEED;
+  store.set('reg', { [uri]: { lastSeen: Date.now(), primes: 6 } });
+  store.set(`def:${uri}`, { def: DEF, source: 'test', fetchedAt: Date.now() });
+  store.set('matcherVersion', MATCHER_VERSION);   // no purge; the ring is just empty
+
+  const state = fakeState(store);
+  const o = new FirehoseIngest(state, {});
+  await state._ready;
+  eq('the stranded budget is restored', o.feeds.get(uri).primes, 0);
+
+  // A feed with entries must keep its spent budget — otherwise a feed that
+  // legitimately stopped short of the target re-primes on every eviction.
+  const store2 = new Map();
+  store2.set('reg', { [uri]: { lastSeen: Date.now(), primes: 6 } });
+  store2.set(`def:${uri}`, { def: DEF, source: 'test', fetchedAt: Date.now() });
+  store2.set('matcherVersion', MATCHER_VERSION);
+  store2.set(`buf:${uri}:000000`, [{ u: 'at://d/app.bsky.feed.post/a', t: Date.now() }]);
+  const state2 = fakeState(store2);
+  const o2 = new FirehoseIngest(state2, {});
+  await state2._ready;
+  eq('a non-empty ring keeps its spent budget', o2.feeds.get(uri).primes, 6);
+}
+
 console.log('a stuck alarm is re-armed');
 {
   // This killed the service for an hour. fetch() only re-armed when getAlarm()

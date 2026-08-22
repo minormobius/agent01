@@ -220,6 +220,16 @@ export class FirehoseIngest {
       }
       const idx = [...f.chunks.keys()];
       f.head = idx.length ? Math.max(...idx) * CHUNK + f.chunks.get(Math.max(...idx)).length : 0;
+
+      // INVARIANT REPAIR: an empty ring with a spent prime budget is a state the
+      // code cannot reach. The budget is only spent while filling, and the two
+      // things that empty a ring — clearBuffer() on a filter edit, and the
+      // MATCHER_VERSION purge — both reset it. Seeing the pair means a reset was
+      // lost, which is exactly what happened when the purge reset `primes` in
+      // memory and nothing wrote it. Left alone the feed is stranded: empty,
+      // with no budget to refill, and only the hourly cadence to dig out with.
+      if (f.chunks.size === 0 && f.primes > 0) f.primes = 0;
+
       this.feeds.set(uri, f);
     }
     // A buffer is only meaningful under the rules that filled it. clearBuffer()
