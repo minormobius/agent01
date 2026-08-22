@@ -514,6 +514,72 @@ const near = (a, b, tol, m) =>
   ok(bare.sim.N === 256, 'and the bare crawler is untouched by any of this');
 }
 
+// ── which way round the animal swims ───────────────────────────────────────
+{
+  // THIS BLOCK EXISTS BECAUSE THE SIGN WAS WRONG IN SHIPPED CODE. waveDir was
+  // -1 (tip-to-base) on the reasoning that Pterosperma's cilia are anterior and
+  // must therefore pull the body along behind them like Chlamydomonas. The
+  // premise is true and the conclusion does not follow -- "anterior" says where
+  // the basal bodies sit, not which end goes first -- and the paper is explicit:
+  //
+  //   "In the Swim state, the cilia remain bundled. Robust base-to-tip
+  //    travelling waves propagate with highly variable frequency and amplitude."
+  //   "In the Swim state, a travelling wave propagates down the cilium to drive
+  //    forward propulsion."
+  //
+  // Nothing else in this file catches it. Flipping the sign moves the
+  // cycle-mean thrust magnitude by 0.35%, so every speed check above passes
+  // either way and the cell simply swims backwards. Hence an explicit test.
+
+  // 1. The wave travels BASE TO TIP: the crest moves to larger arc length as
+  //    the beat phase advances.
+  const fl = createFlagellation({ nFilaments: 1, seed: 5, beatScale: 1 });
+  fl.ctl.state = SWIM; fl.ctl.stateScale = 0;
+  fl.freqHz = PTEROSPERMA.swimFreqHz.mean;
+  fl.bendAmp = 0;
+  const crestAt = (phase) => {
+    fl.phase = phase;
+    synthesize(fl, SWIM);
+    let best = 0, bestV = -Infinity;
+    for (let j = 0; j < fl.theta.length; j++) {
+      if (fl.theta[j] > bestV) { bestV = fl.theta[j]; best = j; }
+    }
+    return best / (fl.theta.length - 1);      // 0 at the base, 1 at the tip
+  };
+  let outward = 0, inward = 0;
+  for (let i = 0; i < 60; i++) {
+    const a = crestAt(i / 120), b = crestAt((i + 1) / 120);
+    const d = b - a;
+    if (Math.abs(d) > 0.4) continue;          // the crest wrapped off the tip
+    if (d > 0) outward++; else if (d < 0) inward++;
+  }
+  console.log(`  · wave crest travel over one beat: ${outward} steps toward the tip, ${inward} toward the base`);
+  ok(outward > inward * 3,
+    'the travelling wave runs base to tip, as the paper measured it');
+
+  // 2. A base-to-tip wave moves the swimmer OPPOSITE to the way the wave
+  //    travels, so the cell goes toward the BASE: the body leads and the
+  //    ciliary bundle trails behind it, the way a sperm is pushed. In the
+  //    cilium's local frame the cilium extends along +x, so the cycle-mean
+  //    thrust on the cell must be NEGATIVE in x.
+  const probe = createFlagellation({ nFilaments: 1, seed: 5, beatScale: 1 });
+  probe.ctl.state = SWIM; probe.ctl.stateScale = 0;
+  probe.freqHz = PTEROSPERMA.swimFreqHz.mean;
+  probe.bendAmp = 0;
+  const dt = 1 / (probe.freqHz * 200);
+  let sx = 0, n = 0;
+  for (let i = 0; i < 20000; i++) {
+    probe.phase = (probe.phase + probe.freqHz * dt) % 1;
+    synthesize(probe, SWIM);
+    const t = thrust(probe, dt);
+    if (i > 400) { sx += t.fx; n++; }
+  }
+  const meanFx = sx / n;
+  console.log(`  · cycle-mean thrust along the cilium axis: ${meanFx.toExponential(2)} (negative = the bundle trails, the body leads)`);
+  ok(meanFx < 0,
+    'the cell is pushed away from its cilia — it swims body first, with the bundle streaming out behind it, NOT cilia first');
+}
+
 if (failures) {
   console.error(`\n✗ flagella selftest FAILED — ${failures} assertion(s)\n`);
   process.exit(1);

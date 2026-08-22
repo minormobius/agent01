@@ -19,6 +19,24 @@ same asset directory, so a relative import just works.
 
 ## The swimmer is the honest part
 
+## Which way round it swims
+
+**Body first, with the ciliary bundle streaming out behind it.** The cilia are
+anterior, which makes it tempting to assume they lead — they do not. The paper
+measures *"robust base-to-tip travelling waves"*, and a slender filament
+carrying a travelling wave drives its swimmer in the **opposite** direction to
+the wave. Base-to-tip therefore pushes the cell toward the base: the body leads
+and the cilia trail, as a sperm is pushed by its flagellum. "Anterior" says
+where the basal bodies sit, not which end goes first.
+
+This was wrong in shipped code. `flagella.js` had `waveDir = -1` (tip-to-base),
+reasoning from the anterior cilia that the bundle must pull like
+*Chlamydomonas*. Nothing caught it: flipping the sign changes the cycle-mean
+thrust **magnitude** by 0.35%, so every speed assertion still reproduced the
+measured 646 µm/s while the cell swam backwards. `flagella.selftest.mjs` now
+asserts the crest travels base-to-tip and that the cycle-mean thrust points away
+from the tip, and both fail if the sign is put back.
+
 At *Pterosperma*'s Reynolds number there is no inertia and nothing coasts, so
 velocity **is** thrust over drag — which the model already reports as
 `fl.speedUmS`. The whole integration is

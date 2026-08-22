@@ -594,10 +594,29 @@ export function synthesize(fl, state) {
   // about 2 rad the "amplitude" stops meaning anything — the arc folds back.
   const ampTheta = Math.min(2.0, k * ampUm);
 
-  // waveDir = -1: the wave travels tip -> base. Pterosperma's cilia are
-  // anterior, so the bundle pulls the body along behind it (a "puller", like
-  // Chlamydomonas) rather than pushing it like a sperm flagellum.
-  const waveDir = -1;
+  // waveDir = +1: the wave travels BASE -> TIP. Straight from the paper, which
+  // says it twice and in those words:
+  //
+  //   "In the Swim state, the cilia remain bundled. Robust base-to-tip
+  //    travelling waves propagate with highly variable frequency and amplitude."
+  //   "In the Swim state, a travelling wave propagates down the cilium to drive
+  //    forward propulsion."
+  //
+  // A slender filament carrying a travelling wave moves the swimmer OPPOSITE to
+  // the direction the wave travels. Base-to-tip therefore drives the cell
+  // toward the base — the cell body leads and the ciliary bundle trails behind
+  // it, the way a sperm is pushed by its flagellum. That is also what the
+  // prasinophyte literature describes for this genus: an undulatory, sperm-like
+  // beat rather than a Chlamydomonas breaststroke.
+  //
+  // This was -1 until it was checked against the paper, on the reasoning that
+  // the cilia are anterior and must therefore pull like Chlamydomonas. The
+  // premise is true and the conclusion does not follow: "anterior" is where the
+  // basal bodies sit on the cell, not which end goes first. Pterosperma really
+  // does swim with its four cilia streaming out behind it. Flipping the sign
+  // changes the cycle-mean thrust magnitude by 0.35%, so nothing calibrated
+  // against the measured 646 um/s moves — only the direction.
+  const waveDir = 1;
 
   // Envelope: zero at the basal body (it is clamped there), ramping up over
   // the proximal quarter and then flat. A linear ramp instead of this costs

@@ -151,7 +151,15 @@ export function createCell(opts = {}) {
     beatScale,
     // Body state. Position in um, heading in radians. Overdamped — at this
     // Reynolds number there is no inertia, so there is no velocity to carry.
-    x: 0, y: 0, heading: 0,
+    // heading is the axis of the CILIARY APPARATUS, not the direction of
+    // travel. Pterosperma's cilia beat with a base-to-tip wave, which pushes
+    // the cell toward the base — so the body leads and the bundle streams out
+    // behind it, and the cell travels along -heading (flagella.js, waveDir).
+    // Starting at PI therefore points the apparatus at -x and sends the cell
+    // down the course in +x, which is what progressUm and the predator seeding
+    // assume. Every relative geometry below is untouched by this: the groove,
+    // the splay, the torque arms and the detune balance are all as measured.
+    x: 0, y: 0, heading: Math.PI,
     speedUmS: 0, turnRate: 0,
     // Phase coherence of the driven cilia, and the bundle it produces.
     coherence: 0, bundle: 0,

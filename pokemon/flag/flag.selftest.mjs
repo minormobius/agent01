@@ -38,26 +38,60 @@ function play({ drive = 1, secs = 120, beatScale = 12, stateScale = 3, seed = 20
     }
     return curve[curve.length - 1].u;
   };
+  // The curve is a STEADY-STATE, BEND-FREE relation: measureSpeed() sweeps
+  // frequency on a straight probe with bendAmp 0. So it is only the right
+  // reference where the live cilium is also straight and has also reached
+  // steady state, and two things have to be excluded or the comparison is
+  // between different quantities:
+  //
+  //   BENT SAMPLES. A curved filament carrying a travelling wave produces
+  //   different thrust from a straight one at the same frequency. Roughly a
+  //   quarter of Swim samples carry residual bend from the preceding Reorient,
+  //   and they read ~1.8x the bend-free curve.
+  //
+  //   UNSETTLED SAMPLES. The reported speed is an exponential average over
+  //   three displayed beat periods, so for the first few tau of a Swim bout it
+  //   is still climbing out of whatever preceded it. Early-bout samples read
+  //   1.37 on an urged cell (coming off a faster bout) and 0.53 on an idle one
+  //   (coming off a Stop) -- an artifact of bout length, not of the physics.
+  //
+  // Filtering to settled-and-straight is what makes this test sharp rather
+  // than lenient: it moves the agreement from 1.34 to 1.015, and it makes the
+  // urged and idle cells agree with each other (1.015 vs 1.008) instead of
+  // differing twofold. The version before this one compared everything at once
+  // and PASSED BY CANCELLATION -- an idle cell's cold early-bout samples were
+  // offset by its hot bent ones, and the sum landed near 1 for no reason worth
+  // trusting. worstRatio and maxSpeed below are still taken over every sample,
+  // so a genuine scaling blow-up cannot hide in the excluded ones.
   let ratioSum = 0, ratioN = 0, worstRatio = 0, maxSpeed = 0, nonFinite = 0;
-  const headings = [];
+  let rawSum = 0, rawN = 0;
+  let bout = 0, prev = null;
   for (let i = 0; i < secs / STEP; i++) {
     sw.fl.ctl.drive = drive;
     const st = tickSwimmer(sw, STEP);
+    bout = (st === SWIM && prev === SWIM) ? bout + STEP : 0;
+    prev = st;
     if (!Number.isFinite(sw.x) || !Number.isFinite(sw.y) || !Number.isFinite(sw.fl.speedUmS)) nonFinite++;
     if (st === SWIM && sw.fl.speedUmS > 0) {
       const want = expected(sw.fl.freqHz);
       if (want > 20) {
         const r = sw.fl.speedUmS / want;
-        ratioSum += r; ratioN++;
+        rawSum += r; rawN++;
         worstRatio = Math.max(worstRatio, r);
+        // Three displayed beat periods is exactly the averaging constant the
+        // page uses; settled means at least three of those into the bout.
+        const tau = 3 * sw.fl.beatScale / Math.max(1, sw.fl.freqHz);
+        if (bout >= 3 * tau && Math.abs(sw.fl.bendAmp || 0) < 0.01) {
+          ratioSum += r; ratioN++;
+        }
       }
       maxSpeed = Math.max(maxSpeed, sw.fl.speedUmS);
-      if (headings.length === 0 || i % 24 === 0) headings.push(sw.fl.heading);
     }
   }
   return {
     sw, nonFinite, maxSpeed, worstRatio, ratioN,
     meanRatio: ratioN ? ratioSum / ratioN : 0,
+    rawRatio: rawN ? rawSum / rawN : 0,
     swimPct: 100 * sw.occupancy[SWIM] / Math.max(1e-9, sw.elapsed),
   };
 }
@@ -66,10 +100,12 @@ function play({ drive = 1, secs = 120, beatScale = 12, stateScale = 3, seed = 20
 {
   const r = play({ drive: 1 });
   const S = PTEROSPERMA.swimSpeedUmS;
-  console.log(`  · page loop vs model curve: mean reported/expected ${r.meanRatio.toFixed(2)}, worst ${r.worstRatio.toFixed(1)}, peak reported ${r.maxSpeed.toFixed(0)} um/s`);
+  console.log(`  · page loop vs model curve: settled+straight ${r.meanRatio.toFixed(3)} (${r.ratioN} samples), all samples ${r.rawRatio.toFixed(2)}, worst ${r.worstRatio.toFixed(1)}, peak reported ${r.maxSpeed.toFixed(0)} um/s`);
   ok(r.nonFinite === 0, 'nothing goes non-finite over two minutes of play');
-  ok(r.meanRatio > 0.8 && r.meanRatio < 1.3,
-    `the speed the page reports is the speed the model computes (ratio ${r.meanRatio.toFixed(2)})`);
+  // Tightened from 0.8-1.3 to 0.9-1.1 now that the comparison is like-for-like.
+  // The loose window was hiding the fact that nothing was really being checked.
+  ok(r.meanRatio > 0.9 && r.meanRatio < 1.1,
+    `the speed the page reports is the speed the model computes (ratio ${r.meanRatio.toFixed(3)})`);
   // The lag in the cycle-averaging means a bout that follows a much faster one
   // can briefly read high. A few times over is the smoothing; fifty times over
   // is a scaling bug, which is the thing being guarded.
@@ -111,15 +147,25 @@ function play({ drive = 1, secs = 120, beatScale = 12, stateScale = 3, seed = 20
   ok(urged.swimPct > 25, `full drive gets the cell swimming (${urged.swimPct.toFixed(1)}%)`);
   ok(held.swimPct < 2, `negative drive keeps it stopped (${held.swimPct.toFixed(1)}%)`);
   ok(urged.sw.distanceUm > idle.sw.distanceUm * 5, 'and an urged cell travels much further than an idle one');
+  // The speed comparison needs a much longer idle run than the distance
+  // comparison does. An idle cell swims 3.8% of the time in short bouts, so
+  // settled samples -- ones where the cycle-average has actually converged --
+  // are rare: 90 s yields none at all. The distance comparison above stays at
+  // 90 s against 90 s, because that one is only fair at equal durations.
   // Drive must not touch the physics: the speed while actually swimming is a
   // property of the beat, not of how often the cell chooses to beat. Compared
   // against the idle run, not the held one — a cell held in Stop barely swims
   // at all, so its ratio is measured on a handful of samples and would fail
   // this on noise rather than on anything real.
-  console.log(`  · speed/expected ratio while swimming: urged ${urged.meanRatio.toFixed(2)} (${urged.ratioN} samples), idle ${idle.meanRatio.toFixed(2)} (${idle.ratioN})`);
-  ok(urged.ratioN > 200 && idle.ratioN > 100, 'both runs swam enough to compare');
-  ok(Math.abs(urged.meanRatio - idle.meanRatio) < 0.35,
-    'drive changes how often the cell swims, not how fast it swims when it does');
+  const idleLong = play({ drive: 0, secs: 1200 });
+  console.log(`  · settled speed/expected while swimming: urged ${urged.meanRatio.toFixed(3)} (${urged.ratioN} samples), idle ${idleLong.meanRatio.toFixed(3)} (${idleLong.ratioN} samples over 1200 s)`);
+  ok(urged.ratioN > 200 && idleLong.ratioN > 50, 'both runs swam enough to compare');
+  // Tightened from 0.35 to 0.10. An idle cell takes short Swim bouts and an
+  // urged one takes long ones, so before the settled-sample filter this
+  // compared bout length as much as speed and needed a window wide enough to
+  // swallow the difference.
+  ok(Math.abs(urged.meanRatio - idleLong.meanRatio) < 0.10,
+    `drive changes how often the cell swims, not how fast it swims when it does (${urged.meanRatio.toFixed(3)} vs ${idleLong.meanRatio.toFixed(3)})`);
 }
 
 // ── it is a run-and-tumble walk, not a drift ────────────────────────────────

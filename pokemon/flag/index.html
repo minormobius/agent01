@@ -181,6 +181,23 @@
   selftest re-derives the paper's own reported dwell times and occupancies from
   the four transition rates, which is the check that the transcription is right.</p>
 
+  <p><strong>It swims body first, with the bundle streaming out behind it.</strong>
+  That looks wrong the first time you see it — the cilia are anterior, so surely
+  they lead? They do not, and the paper is explicit about why: <em>&ldquo;robust
+  base-to-tip travelling waves&rdquo;</em>. A slender filament carrying a
+  travelling wave drives its swimmer in the <em>opposite</em> direction to the
+  wave, so a base-to-tip wave pushes the cell toward the base — the body goes
+  first and the cilia trail, the way a sperm is pushed by its flagellum rather
+  than pulled by it. &ldquo;Anterior&rdquo; says where the basal bodies sit on
+  the cell, not which end goes first.</p>
+  <p>This page had it backwards until it was checked. The model was written with
+  the wave running tip-to-base, reasoning from the cilia being anterior that the
+  bundle must pull the body along behind it like <em>Chlamydomonas</em>; the
+  premise is true and the conclusion does not follow. Nothing caught it, because
+  reversing the wave changes the cycle-mean thrust <em>magnitude</em> by 0.35% —
+  every speed check still reproduced the measured 646 µm/s while the animal swam
+  backwards. There is now a test that asserts the direction outright.</p>
+
   <h3>The three things worth knowing</h3>
   <p><strong>The cilium's whole state is twenty numbers.</strong> The waveform is
   the tangent angle θ(s,t) decomposed on Chebyshev polynomials, and twenty modes

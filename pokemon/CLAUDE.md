@@ -59,6 +59,19 @@ that deaths-only always ends in extinction (it settles on the S23 core, and a
 block survives it forever). In each case the documentation was changed to match
 the measurement, not the other way round. That is what these files are for.
 
+**A test can also pass for the wrong reason, and one here did.** The cell swam
+the wrong way round for four shipped commits: `flagella.js` ran its travelling
+wave tip-to-base, so the bundle pulled the body along behind it, when the paper
+measures *"robust base-to-tip travelling waves"* — which push the cell toward
+the base, body first, bundle trailing. Reversing the wave moves the cycle-mean
+thrust magnitude by 0.35%, so every speed check reproduced the measured 646 um/s
+either way and none of them could see it. `flag`'s speed check was meanwhile
+passing by cancellation, averaging early-bout samples that read cold against
+bent-cilium samples that read hot. Both are now tested directly: the direction
+has its own assertion in `flagella.selftest.mjs` (with a negative control), and
+`flag` compares only settled, bend-free samples, which tightened its agreement
+from 1.34 to 1.03. **A sign that nothing asserts is a sign that will be wrong.**
+
 Where a page has a browser-driving debug handle (`window.__qwop`, `__graze`,
 `__qgol`), it is for ad-hoc checks with the harness in `scripts/lib/headless.mjs`
 — none of that is wired into `preflight`, which stays node-only and fast.
