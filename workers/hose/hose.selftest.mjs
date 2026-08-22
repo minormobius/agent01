@@ -347,6 +347,32 @@ console.log('the per-sample frame cap');
     wakes * 800 + wakes < 1_000_000);
 }
 
+console.log('counters survive eviction');
+{
+  // A duty-cycled object is evicted between wakes BY DESIGN — it is resident
+  // about 20 seconds an hour. So in-memory counters are readable only by someone
+  // polling during that window, which made the cost instrumentation decorative:
+  // /status reported lastSampleFrames 0 while sampling was demonstrably working.
+  const store = new Map();
+  const { o } = await mount(store);
+  o.samples = 7;
+  o.lastSampleAt = 1234;
+  o.lastSampleFrames = 650;
+  o.lastSampleEndedBy = 'time';
+  o.seen = 5000;
+  o.matched = 180;
+  await o.flush();
+
+  const state2 = fakeState(store);
+  const o2 = new FirehoseIngest(state2, {});
+  await state2._ready;
+  eq('sample count survives', o2.samples, 7);
+  eq('last sample size survives — this is the cost signal', o2.lastSampleFrames, 650);
+  eq('which bound ended it survives', o2.lastSampleEndedBy, 'time');
+  eq('lifetime seen survives', o2.seen, 5000);
+  eq('lifetime matched survives', o2.matched, 180);
+}
+
 console.log('priming a cold feed');
 {
   // The bug this exists for: a feed registered after the last sample sat empty

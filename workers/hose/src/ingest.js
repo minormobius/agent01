@@ -212,6 +212,14 @@ export class FirehoseIngest {
       this.feeds.set(uri, f);
     }
     this.lastTimeUs = (await this.state.storage.get('cursor')) || 0;
+    const stats = (await this.state.storage.get('stats')) || {};
+    this.samples = stats.samples || 0;
+    this.lastSampleAt = stats.lastSampleAt || 0;
+    this.lastSampleFrames = stats.lastSampleFrames || 0;
+    this.lastSampleEndedBy = stats.lastSampleEndedBy || null;
+    this.seen = stats.seen || 0;
+    this.matched = stats.matched || 0;
+    this.lastError = stats.lastError || null;
   }
 
   // Writes ONLY the chunks that changed, and deletes the ones that aged out.
@@ -238,6 +246,15 @@ export class FirehoseIngest {
     }
     await this.state.storage.put('reg', reg);
     if (this.lastTimeUs) await this.state.storage.put('cursor', this.lastTimeUs);
+    // These counters are the ONLY way to see which bound is binding and what the
+    // thing actually costs. In memory they are worthless here: a duty-cycled
+    // object is evicted between wakes by design, so it is resident ~20s an hour
+    // and everything resets. Persist them or the instrumentation is decorative.
+    await this.state.storage.put('stats', {
+      samples: this.samples, lastSampleAt: this.lastSampleAt,
+      lastSampleFrames: this.lastSampleFrames, lastSampleEndedBy: this.lastSampleEndedBy,
+      seen: this.seen, matched: this.matched, lastError: this.lastError,
+    });
   }
 
   // ── feed registry ──────────────────────────────────────────────────────────

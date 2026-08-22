@@ -260,6 +260,14 @@ at a busy one the cap binds (800 frames in ~13s). Sample size self-equalises.
 | `closed` | `error`) so which bound is binding is observable rather than
 inferred.
 
+**Those counters are persisted, and have to be.** A duty-cycled object is
+evicted between wakes by design — it is resident roughly 20 seconds an hour — so
+anything held only in memory resets almost immediately. Kept in memory, `/status`
+reported `lastSampleFrames: 0` and `samples: 0` while sampling was demonstrably
+working, which reads as "it is broken" rather than "it is asleep, as intended".
+Instrumentation that only survives while the object is hot is instrumentation
+for a service that is never hot.
+
 **To raise it:** `frames/month = wakes × cap`, and the request allowance is 1M.
 At hourly wakes the arithmetic ceiling is ~1,380 frames/sample; 800 leaves
 sensible room for feed reads and a busier network. Duration never becomes the
