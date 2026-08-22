@@ -3,7 +3,7 @@ name: Deploy words
 on:
   push:
     branches:
-      - 'claude/word-game-surface-ai-x1nuys'
+      - 'claude/procedural-crossword-generation-p8hv2q'
     paths:
       - 'words/**'
       - 'poll/apps/api/migrations/0035_words.sql'
@@ -50,6 +50,15 @@ jobs:
       # never arrives — so it is checked against numbers somebody else wrote.
       - name: Push selftest
         run: node test/push.selftest.mjs
+
+      # The crossword at /cross/. Its load-bearing check is a PINNED PUZZLE: a
+      # fixed seed's full answer list, compared byte for byte. A permalink is a
+      # promise that a seed means one puzzle forever, and every heuristic in the
+      # generator is an input to that answer — so a tuning change that nobody
+      # meant to make fails here rather than silently rewriting every link
+      # anybody has shared. It also proves every answer has a clue.
+      - name: Crossword selftest
+        run: node cross/test/cross.selftest.mjs
 
       # The committed lexicon must be the one the committed word list builds.
       # A hand-edited enable1.txt with a stale lexicon.dawg would change the
@@ -107,3 +116,14 @@ jobs:
           echo "=== and the manifest, or the PWA will not install ==="
           STATUS=$(curl -fsS -o /dev/null -w "%{http_code}" https://words.mino.mobi/manifest.webmanifest || echo fail)
           echo "  /manifest.webmanifest -> $STATUS"
+          echo ""
+          echo "=== the crossword: its page, its answer list, and a real clue lookup ==="
+          for u in /cross/ /cross/dict/answers.txt; do
+            STATUS=$(curl -fsS -o /dev/null -w "%{http_code}" "https://words.mino.mobi$u" || echo fail)
+            echo "  $u -> $STATUS"
+          done
+          # The clue endpoint reads the sharded assets through the ASSETS
+          # binding. If the shards did not upload, this returns clues:{} with a
+          # 200 — so the check is on the ANSWER, not on the status code.
+          curl -fsS 'https://words.mino.mobi/api/cross/clues?w=ORANGE' || true
+          echo ""

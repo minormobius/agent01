@@ -19,7 +19,7 @@
 
 import { DatabaseSync } from 'node:sqlite';
 import { createServer } from 'node:http';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, statSync } from 'node:fs';
 import { dirname, join, extname, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -51,8 +51,15 @@ const TYPES = {
 
 function fileFor(pathname) {
   const rel = normalize(decodeURIComponent(pathname)).replace(/^(\.\.[/\\])+/, '');
-  const f = join(ROOT, rel === '/' ? 'index.html' : rel);
-  return f.startsWith(ROOT) && existsSync(f) ? f : null;
+  let f = join(ROOT, rel === '/' ? 'index.html' : rel);
+  if (!f.startsWith(ROOT) || !existsSync(f)) return null;
+  // A directory serves its index.html, which is what Workers Static Assets does
+  // and what /cross/ depends on.
+  if (statSync(f).isDirectory()) {
+    f = join(f, 'index.html');
+    if (!existsSync(f)) return null;
+  }
+  return f;
 }
 
 const ASSETS = {

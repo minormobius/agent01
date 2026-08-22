@@ -1,7 +1,20 @@
 # words — words.mino.mobi
 
-Words with friends, without the ads, the accounts or the nagging. One to four
-seats, any of them a bot, on boards that have hazards as well as bonuses.
+**Two apps on one surface.**
+
+- **`/`** — the word game. Words with friends, without the ads, the accounts or
+  the nagging. One to four seats, any of them a bot, on boards that have hazards
+  as well as bonuses. That is what the rest of this file is about.
+- **`/cross/`** — procedurally generated crosswords, deterministic from a seed,
+  where the permalink *is* the puzzle. Its own instructions are in
+  [`cross/CLAUDE.md`](cross/CLAUDE.md); it shares the worker, the origin and the
+  service worker with the game and nothing else.
+
+They are separate on purpose. The crossword needs pattern lookup over a
+clued lexicon and the game needs prefix walks over a rack, so they have separate
+word lists and separate data structures, and the only code they share is
+`engine/rng.js`. What they do share is a deploy, a service worker and one
+worker script — all three are listed under "How it fits together" below.
 
 ## Facts
 
@@ -11,7 +24,7 @@ seats, any of them a bot, on boards that have hazards as well as bonuses.
 | Dir | `words/` |
 | Endpoint | `words.mino.mobi` |
 | Type | fullstack |
-| Owning branch | `claude/word-game-surface-ai-x1nuys` |
+| Owning branch | `claude/procedural-crossword-generation-p8hv2q` |
 | Deploy | `.github/workflows/deploy-words.yml` |
 | Uses | `atpolls-db` (migrations `0035_words.sql`, `0036_words_push.sql`) |
 | Provides | — |
@@ -130,14 +143,19 @@ lexicon of the day it was played. The workflow rebuilds it into a temp file and
 ```
 engine/          the rules. Imported UNCHANGED by both the worker and the browser
   rng · tiles · board · rules · movegen · dawg · game · ai
-worker.js        the API; owns hidden information, runs the bots, writes D1
+worker.js        the API for BOTH apps; owns hidden information, runs the bots,
+                 writes D1, and serves the crossword's clues
 app.js           the client; same engine, for live scoring and offline play
-sw.js            precaches the shell + the engine + the lexicon
+sw.js            precaches both shells. `shellFor()` is load-bearing: it used to
+                 be the literal '/index.html' for every navigation, which meant
+                 opening /cross/ overwrote the game's offline shell
 dict/            enable1.txt (source) and lexicon.dawg (committed artefact)
 lib/webpush.js   VAPID + aes128gcm on WebCrypto; no dependency, no Node
 tools/           build-dawg.mjs, make-icons.mjs — run by hand, output committed
 test/            *.selftest.mjs gate the deploy; *-check.mjs need a browser;
                  serve-local.mjs runs the whole surface with no Cloudflare
+cross/           the crossword. Its own dict/, gen/, tools/ and test/ — see
+                 cross/CLAUDE.md
 ```
 
 **Hidden information never leaves the server.** Racks and the bag order live in
@@ -216,6 +234,7 @@ with handles and a copy bubble over the board.
 
 ```bash
 node words/test/engine.selftest.mjs   # ~4s, no deps; a deploy gate
+node words/cross/test/cross.selftest.mjs  # ~12s; the crossword's gate
 node words/test/worker.selftest.mjs   # the real worker on a real database
 node words/test/push.selftest.mjs     # Web Push crypto vs RFC 8291's vectors
 node words/test/analysis.mjs          # a measurement report, not pass/fail
@@ -268,7 +287,7 @@ it does not run in CI.
 
 ## Deploying
 
-Pushes to `claude/word-game-surface-ai-x1nuys` that touch this surface's paths
+Pushes to `claude/procedural-crossword-generation-p8hv2q` that touch this surface's paths
 trigger [`.github/workflows/deploy-words.yml`](../.github/workflows/deploy-words.yml).
 The sandbox cannot reach Cloudflare — **push to the trigger branch, don't
 `wrangler deploy` locally**; that also skips the D1 migration.

@@ -2,6 +2,7 @@
 # surface. assets.directory is this dir, so without this line the file is
 # served at the surface's public URL.
 CLAUDE.md
+cross/CLAUDE.md
 
 # Neither are these. They are part of the repo, not the site: the deploy would
 # otherwise upload a 1.7 MB word list nothing fetches (the committed
@@ -11,3 +12,11 @@ CLAUDE.md
 dict/enable1.txt
 test/
 tools/
+cross/test/
+cross/tools/
+
+# The crossword's own artefacts, on the other hand, ARE the site:
+# cross/dict/answers.txt is fetched by the generator in the browser, and
+# cross/dict/clues/*.txt are read by the worker through the ASSETS binding —
+# an asset the worker cannot fetch is a puzzle with no clues.
+cross/dict/MANIFEST.json

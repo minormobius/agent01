@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>cross — procedurally generated crosswords</title>
+<meta name="description" content="Crosswords generated from a seed. Every puzzle is a permalink, nothing is stored, and the same link is the same puzzle for everybody who opens it.">
+<meta name="theme-color" content="#1b1d21">
+<meta property="og:title" content="cross">
+<meta property="og:description" content="Procedurally generated crosswords. Deterministic from a seed — the link is the puzzle.">
+<meta property="og:type" content="website">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="/">words</a>
+  <span class="slash">/</span>
+  <a class="brand here" href="./">cross</a>
+  <span class="sub" id="topNote">procedurally generated</span>
+</header>
+
+<main>
+  <section class="setup" id="setup">
+    <div class="row">
+      <label for="size">Size</label>
+      <select id="size">
+        <option value="5">5 × 5 — mini</option>
+        <option value="7">7 × 7</option>
+        <option value="9">9 × 9</option>
+        <option value="11">11 × 11</option>
+        <option value="13">13 × 13</option>
+        <option value="15" selected>15 × 15 — full</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="difficulty">Difficulty</label>
+      <select id="difficulty">
+        <option value="easy">Easy</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="seed">Seed</label>
+      <input id="seed" type="text" maxlength="32" spellcheck="false" autocomplete="off"
+             placeholder="anything at all" aria-describedby="seedHelp">
+      <button class="ghost" id="reseed" type="button" title="A new random seed">↻</button>
+    </div>
+    <p class="help" id="seedHelp">The seed <em>is</em> the puzzle. Same seed, same grid, same answers, forever.</p>
+    <div class="row actions">
+      <button class="primary" id="generate" type="button">Generate</button>
+      <button class="ghost" id="daily" type="button">Today’s puzzle</button>
+    </div>
+  </section>
+
+  <section class="status" id="status" hidden>
+    <span class="spinner" aria-hidden="true"></span>
+    <span id="statusText">Loading the lexicon…</span>
+  </section>
+
+  <section class="puzzle" id="puzzle" hidden>
+    <div class="board-wrap">
+      <div class="grid" id="grid" role="application" aria-label="Crossword grid"></div>
+      <div class="current" id="current" aria-live="polite"></div>
+      <div class="toolbar">
+        <button class="ghost" id="checkBtn" type="button">Check</button>
+        <button class="ghost" id="revealBtn" type="button">Reveal</button>
+        <button class="ghost" id="clearBtn" type="button">Clear</button>
+        <button class="ghost" id="shareBtn" type="button">Copy link</button>
+        <button class="ghost" id="newBtn" type="button">New</button>
+        <span class="timer" id="timer">0:00</span>
+      </div>
+      <p class="meta" id="meta"></p>
+    </div>
+
+    <div class="clues">
+      <div class="cluelist">
+        <h2>Across</h2>
+        <ol id="acrossList"></ol>
+      </div>
+      <div class="cluelist">
+        <h2>Down</h2>
+        <ol id="downList"></ol>
+      </div>
+    </div>
+  </section>
+
+  <section class="done" id="done" hidden>
+    <strong>Solved.</strong> <span id="doneTime"></span>
+    <button class="ghost" id="another" type="button">Another</button>
+  </section>
+
+  <section class="about">
+    <h2>How this works</h2>
+    <p>
+      There is no database of puzzles. A puzzle is a pure function of its seed, its
+      size and its difficulty — the grid is built by placing blocks under the rules
+      a crossword has to obey, and the answers are found by a constraint search over
+      a 50,000-word lexicon in which every word carries a clue. Your browser runs
+      exactly the same generator that produced the link you were sent, so the link
+      <em>is</em> the puzzle.
+    </p>
+    <p>
+      Clues are dictionary definitions, with the answer blanked out where the
+      definition gives it away. They are honest and they are not clever — a real
+      setter misdirects, and this does not. That is the next thing to build.
+    </p>
+  </section>
+</main>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -10,7 +10,7 @@
 // players keep the old engine while the site moves on. That is the single
 // maintenance obligation this file carries.
 
-const CACHE = 'words-v4';
+const CACHE = 'words-v5';
 
 const SHELL = [
   '/',
@@ -29,7 +29,29 @@ const SHELL = [
   '/dict/lexicon.dawg',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
+  // The crossword. Its answer list is what the generator needs, so a precached
+  // /cross/ can still BUILD a puzzle on a train — it just cannot clue it, since
+  // the clues come from /api/cross/clues. See crossClues in worker.js.
+  '/cross/',
+  '/cross/index.html',
+  '/cross/styles.css',
+  '/cross/app.js',
+  '/cross/gen/lexicon.js',
+  '/cross/gen/grid.js',
+  '/cross/gen/fill.js',
+  '/cross/gen/puzzle.js',
+  '/cross/gen/clues.js',
+  '/cross/gen/generate.worker.js',
+  '/cross/dict/answers.txt',
 ];
+
+/**
+ * Which cached document answers a navigation. The surface has TWO apps under
+ * one origin, and this used to be the string '/index.html' in both places —
+ * which meant opening /cross/ overwrote the game's offline shell with the
+ * crossword's, and then opening the game offline served the crossword.
+ */
+const shellFor = (pathname) => (pathname.startsWith('/cross') ? '/cross/index.html' : '/index.html');
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
@@ -64,13 +86,14 @@ self.addEventListener('fetch', (event) => {
   // the cached shell so opening the app on a train still works.
   if (request.mode === 'navigate') {
     event.respondWith((async () => {
+      const shell = shellFor(url.pathname);
       try {
         const fresh = await fetch(request);
         const cache = await caches.open(CACHE);
-        cache.put('/index.html', fresh.clone());
+        cache.put(shell, fresh.clone());
         return fresh;
       } catch {
-        return (await caches.match('/index.html')) || Response.error();
+        return (await caches.match(shell)) || Response.error();
       }
     })());
     return;

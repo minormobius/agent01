@@ -1,0 +1,285 @@
+/* cross — one stylesheet, no framework, no build.
+
+   The palette is the game's, next door, so the two halves of words.mino.mobi
+   look like one site; the shapes are not, because a crossword is a printed
+   object and wants to read like one. Mobile first: the grid is the widest thing
+   on the page and everything else is sized off it. */
+
+:root {
+  --bg: #16181c;
+  --panel: #1e2126;
+  --panel-2: #262a31;
+  --line: #333941;
+  --ink: #e8eaed;
+  --dim: #9aa3ad;
+  --accent: #6ea8fe;
+  --bad: #e3736a;
+
+  --cell: #f2efe6;      /* paper — light in both themes; a crossword is printed */
+  --cell-ink: #1b1d21;
+  --cell-block: #12141a;
+  --cell-active: #cfe0ff;
+  --cell-cursor: #f9d976;
+  --cell-line: #6a6f78;
+
+  color-scheme: dark light;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --panel-2: #eef0f3;
+    --line: #d4d8de;
+    --ink: #1b1d21;
+    --dim: #5d6570;
+    --cell-block: #23262b;
+    --cell-line: #23262b;
+  }
+}
+
+* { box-sizing: border-box; }
+
+/* Any `display` rule silently overrides the hidden attribute, and a
+   `position: fixed` overlay that is "hidden" but laid out eats every click on
+   the page. The game next door shipped exactly that bug; this is the fix, and
+   it belongs at the top of the file where it cannot be lost. */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ---------------------------------------------------------------- header */
+
+.top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.brand {
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--dim);
+  text-decoration: none;
+}
+.brand.here { color: var(--ink); }
+.slash { color: var(--line); }
+.sub { color: var(--dim); font-size: 13px; margin-left: auto; }
+
+main { max-width: 1100px; margin: 0 auto; padding: 14px; }
+
+/* ----------------------------------------------------------------- setup */
+
+.setup {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+  max-width: 560px;
+}
+/* A grid item's min-width is `auto`, not 0, so a row whose contents have an
+   intrinsic minimum refuses to shrink and hangs off the side of a phone. This
+   is the fix, and it is needed on the items rather than on their contents. */
+.setup > * { min-width: 0; }
+.row { display: flex; align-items: center; gap: 10px; }
+.row label { width: 80px; color: var(--dim); font-size: 14px; flex: none; }
+.row.actions { justify-content: flex-start; padding-top: 4px; }
+
+select, input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  background: var(--panel-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 10px;
+  font: inherit;
+}
+input[type="text"] { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+button {
+  font: inherit;
+  border-radius: 8px;
+  padding: 9px 14px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ink);
+  cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); color: #10131a; border-color: transparent; font-weight: 600; }
+button.ghost { background: transparent; }
+
+.help { color: var(--dim); font-size: 13px; margin: 0; }
+.help em { color: var(--ink); font-style: normal; }
+
+/* ---------------------------------------------------------------- status */
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 4px;
+  color: var(--dim);
+}
+.spinner {
+  width: 16px; height: 16px; flex: none;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+
+/* ------------------------------------------------------------------ grid */
+
+.puzzle { display: grid; gap: 18px; margin-top: 4px; }
+@media (min-width: 900px) {
+  .puzzle { grid-template-columns: minmax(0, 1fr) minmax(300px, 420px); align-items: start; }
+}
+
+.grid {
+  --size: 15;
+  display: grid;
+  grid-template-columns: repeat(var(--size), 1fr);
+  gap: 1px;
+  background: var(--cell-line);
+  border: 2px solid var(--cell-line);
+  border-radius: 3px;
+  width: min(100%, 68vh);
+  aspect-ratio: 1;
+  /* Without this the browser scrolls the page instead of registering the tap
+     that was meant for a square. */
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.cell {
+  position: relative;
+  background: var(--cell);
+  color: var(--cell-ink);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  /* The letter scales with the grid rather than with the page: a 5x5 mini and a
+     15x15 are the same object at different resolutions. */
+  font-size: clamp(9px, calc(52vmin / var(--size)), 30px);
+  line-height: 1;
+}
+.cell.block { background: var(--cell-block); }
+.cell.active { background: var(--cell-active); }
+.cell.cursor { background: var(--cell-cursor); }
+.cell.bad .letter { color: var(--bad); text-decoration: line-through; }
+
+.num {
+  position: absolute;
+  top: 1px;
+  left: 2px;
+  font-size: max(7px, 0.42em);
+  font-weight: 500;
+  line-height: 1;
+  color: #5d6570;
+}
+.letter { transform: translateY(0.06em); }
+
+/* The off-screen input that exists only to summon a phone's keyboard. It has
+   to be focusable and rendered, so it cannot be display:none or visibility
+   hidden — it is parked outside the viewport instead. */
+.kbd {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  border: 0;
+  padding: 0;
+}
+
+.current {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: 2.6em;
+  font-size: 15px;
+}
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+.timer {
+  margin-left: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--dim);
+}
+.meta { color: var(--dim); font-size: 12px; margin: 10px 0 0; }
+
+/* ----------------------------------------------------------------- clues */
+
+.clues { display: grid; gap: 16px; }
+@media (min-width: 560px) and (max-width: 899px) { .clues { grid-template-columns: 1fr 1fr; } }
+
+.cluelist h2 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+  margin: 0 0 6px;
+}
+.cluelist ol {
+  margin: 0;
+  padding: 0 0 0 2.4em;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+@media (min-width: 900px) { .cluelist ol { max-height: 44vh; } }
+.cluelist li {
+  padding: 3px 6px 3px 2px;
+  cursor: pointer;
+  border-radius: 5px;
+  font-size: 14px;
+}
+.cluelist li::marker { color: var(--dim); font-variant-numeric: tabular-nums; }
+.cluelist li:hover { background: var(--panel-2); }
+.cluelist li.active { background: var(--cell-active); color: #1b1d21; }
+.cluelist li.noclue { color: var(--dim); font-style: italic; }
+
+/* ------------------------------------------------------------------ rest */
+
+.done {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--panel);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.about {
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  color: var(--dim);
+  font-size: 14px;
+  max-width: 62ch;
+}
+.about h2 { font-size: 14px; color: var(--ink); margin: 0 0 8px; }
+.about em { color: var(--ink); font-style: normal; }

@@ -1342,14 +1342,14 @@
       "dir": "words",
       "endpoint": "words.mino.mobi",
       "type": "fullstack",
-      "branch": "claude/word-game-surface-ai-x1nuys",
+      "branch": "claude/procedural-crossword-generation-p8hv2q",
       "uses": [
         "atpolls-db"
       ],
       "provides": null,
-      "status": "MANAGED — new surface via deploy-words.yml (Worker `words`, custom_domain words.mino.mobi). words.mino.mobi did not resolve before this branch, so the first deploy creates the worker and attaches the domain itself (the `neuro` precedent — mino.mobi is a zone on this account). Engine selftest + a lexicon-freshness check gate the deploy; idempotent D1 migration 0035_words before it.",
+      "status": "MANAGED — deploy-words.yml (Worker `words`, custom_domain words.mino.mobi). OWNERSHIP MOVED to claude/procedural-crossword-generation-p8hv2q, which added the crossword at /cross/; the word game at the root is unchanged and its selftests still gate the deploy. Engine, worker, push and crossword selftests plus a lexicon-freshness check gate the deploy; idempotent D1 migrations 0035_words and 0036_words_push before it.",
       "op": "create",
-      "note": "words.mino.mobi — the word game: Words With Friends without the ads, the accounts or the nagging. 1-4 seats, any of them a bot. THE INNOVATION IS THE BOARD: alongside double/triple letter and word there are four new squares — QUAD LETTER, MIRE (a letter there scores nothing), HALF (the word through it is halved after every multiplier) and TOLL (a flat 8 off the play, so it taxes the filler move and barely dents a good one) — plus STONE, a hole in the board that words break on like the edge, which changes the topology rather than the arithmetic. Three layouts: Fair (no hazards), Hazard, Archipelago (stones). The opponent is a DETERMINISTIC Appel-Jacobson move generator over a minimal DAWG of ENABLE (168,551 words in 474 KiB, committed), with three levels that differ in what they can see rather than in how honestly they play. Installable PWA: the browser runs the same engine, so a game against bots is played entirely offline. Turn notifications are real Web Push (VAPID + aes128gcm implemented on WebCrypto, no dependency) plus the App Badging API, with the keypair self-provisioned into D1 because worker secrets need a human. (full description: words/CLAUDE.md)",
+      "note": "words.mino.mobi — TWO APPS ON ONE SURFACE. / is the word game: Words With Friends without the ads, accounts or nagging, 1-4 seats and any of them a bot, on boards with five squares of our own — quad letter, MIRE (scores zero), HALF (halves the word after every multiplier), TOLL (a flat 8 off the play) and STONE, a hole words break on like the edge. The opponent is a deterministic Appel-Jacobson generator over a committed DAWG of ENABLE; installable PWA, so bot games play entirely offline; turn notifications are real Web Push implemented on WebCrypto. /cross/ is procedurally generated crosswords: a puzzle is a pure function of (seed, size, difficulty, lexicon) generated in the browser, so nothing is stored and the permalink IS the puzzle. Symmetric grids under a min-entry rule that makes every square checked; the fill is a CSP over a separate 50,000-answer clued lexicon, solved with MRV and AC-3 at the level of letters. Difficulty is block density — both vocabulary knobs were built, measured and rejected. (full description: words/CLAUDE.md, words/cross/CLAUDE.md)",
       "paths": [
         "words/**",
         "poll/apps/api/migrations/0035_words.sql",
