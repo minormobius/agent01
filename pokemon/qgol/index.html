@@ -523,6 +523,9 @@
     traceCnv.style.display = m === 'show' ? 'block' : 'none';
     intro.hidden = m !== 'drive' || drive.started;
     over.hidden = m !== 'drive' || !drive.over;
+    // Reset the wall clock when entering the showcase, or the time spent in
+    // DRIVE cashes out as one clamped 0.25 s tick — 37 generations in a jump.
+    if (m === 'show') showLast = 0;
     if (m === 'show' && !show.world) newShowSoup(1);
   }
   document.getElementById('tab-drive').onclick = () => setMode('drive');
