@@ -253,9 +253,23 @@ const partitionOf = (colour, ids) => {
  * `cap` stops a pathological graph rather than pretending it cannot
  * happen.
  */
-export function automorphisms(graph, { cap = 50000 } = {}) {
+export function automorphisms(graph, { cap = 50000, orbitsOnly = false } = {}) {
   const ids = graph.nodes.map((n) => n.id);
   const colour = refine(graph);
+
+  /* An n-node layer of interchangeable turns has n! automorphisms, so the
+     exact search is unusable past about eight turns per layer — a width-10
+     wave alone has 3.6 million. `orbitsOnly` skips the group and returns
+     the refinement partition, which is a COARSENING: an orbit is never
+     larger than its refinement cell, so `largestOrbit` and every
+     replication figure derived from it become UPPER BOUNDS rather than
+     values. Callers that publish those numbers must say so. On every shape
+     in the six-turn catalogue the two agree exactly, which is asserted
+     rather than assumed. */
+  if (orbitsOnly) {
+    const cells = partitionOf(colour, ids).sort((a, b) => a[0].localeCompare(b[0]));
+    return { order: null, orbits: cells, truncated: false, refinementIsExact: null, bound: true };
+  }
   const edgeSet = new Set(graph.edges.map((e) => `${e.from}>${e.to}`));
   const { ins, outs } = adjacency(graph);
   const found = [];
@@ -335,13 +349,13 @@ export function poolable(graph) {
 // ── one table per graph ───────────────────────────────────────────────
 
 /** Every per-node quantity this module computes, joined. */
-export function positionTable(graph) {
+export function positionTable(graph, opts = {}) {
   const { ins, outs } = adjacency(graph);
   const r = roles(graph);
   const k = kenRatio(graph);
   const b = blastRadius(graph);
   const c = betweenness(graph);
-  const { orbits } = automorphisms(graph);
+  const { orbits } = automorphisms(graph, opts);
   const orbitOf = new Map();
   orbits.forEach((cell, i) => cell.forEach((id) => orbitOf.set(id, i)));
   const depth = new Map(graph.nodes.map((n) => [n.id, n.depth ?? 0]));
@@ -363,9 +377,9 @@ export function positionTable(graph) {
 const round = (x) => Math.round(x * 1000) / 1000;
 
 /** Graph-level summary: the row a shape contributes to the catalogue. */
-export function shapeInvariants(graph) {
-  const t = positionTable(graph);
-  const { order, orbits, refinementIsExact } = automorphisms(graph);
+export function shapeInvariants(graph, opts = {}) {
+  const t = positionTable(graph, opts);
+  const { order, orbits, refinementIsExact, bound } = automorphisms(graph, opts);
   const kens = t.map((r) => r.ken);
   const roleCounts = {};
   for (const r of t) roleCounts[r.role] = (roleCounts[r.role] ?? 0) + 1;
@@ -382,6 +396,7 @@ export function shapeInvariants(graph) {
     orbitCount: orbits.length,
     largestOrbit: Math.max(...orbits.map((o) => o.length)),
     refinementIsExact,
+    orbitsAreBounds: bound === true,
     roles: roleCounts,
   };
 }

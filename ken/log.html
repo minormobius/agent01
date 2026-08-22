@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Findings Log — ken</title>
-<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Forty-four entries, seven of them from measurements we made.">
+<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Fifty-four entries, seven of them from measurements we made.">
 <link rel="stylesheet" href="journal.css">
 </head>
 <body>
@@ -16,6 +16,7 @@
   <a href="/methods">II · Methods</a>
   <a href="/lab">Instrument</a>
   <a href="/run">Procedure</a>
+  <a href="/shapes">Shapes</a>
   <a href="/wp1">WP1</a>
   <a href="/wp2">WP2</a>
   <a class="here" href="/log">Log</a>
@@ -29,7 +30,7 @@
   <div class="a-venue">ken · volume 1 <span class="kicker">Running record</span></div>
   <h1 class="a-title">Findings Log</h1>
   <p class="a-sub">Shortest form. Each entry names the code or record that produced it.</p>
-  <div class="a-meta">44 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
+  <div class="a-meta">54 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
   <hr class="a-rule">
 
   <p class="small">Everything here comes from data already paid for or from arithmetic. That is
@@ -387,6 +388,75 @@
       <span class="src"><a href="/wp2">WP2 §1</a> · Leavitt 1951 · Shaw 1964</span></li>
   </ol>
 
+  <h2 class="sec"><span class="secno">§</span>Any n, and the trade</h2>
+
+  <ol class="log" start="45">
+    <li><b>The catalogue generalises with no new idea: a layered plan is a composition of n.</b>
+      Layer widths with source and sink pinned to one, so exactly 2<sup>n−3</sup> profiles, all
+      enumerable to about n = 16. The six shapes of WP2 are recovered exactly as members of the
+      generated family, which the selftest checks rather than assumes.
+      <span class="src"><a href="/shapes">shape explorer</a> · <code>profiles.mjs</code></span></li>
+
+    <li><b>The depth-width trade is isoperimetric and the floor is reached.</b> The interior
+      holds n−2 turns over d−1 layers, so peak width ≥ ⌈(n−2)/(d−1)⌉, with equality when the
+      interior is balanced. Tight at all 52 depth-and-n pairs checked. Volume is what the run
+      costs, depth is the wall clock, peak width is how many agents must exist at once.
+      <span class="src"><code>widthFloor()</code></span></li>
+
+    <li><b>Free replication is concave in depth, so the star is rarely worth its width.</b> At
+      n = 12 the balanced middle at depth 6 keeps 92% of the maximum replication at a fifth of
+      the peak concurrency. The last five turns of latency buy 8%.
+      <span class="src"><code>ladder()</code></span></li>
+
+    <li><b>Sink ken is free at every depth; the price is merge load.</b> Briefing changes no
+      width, no depth and no cost. At n = 12 it takes the last agent's in-degree from 1 to 11,
+      so it must now read the whole run. Free in turns is not free in context.
+      <span class="src"><code>buildProfile({briefed})</code></span></li>
+
+    <li><b>The Pareto frontier held exactly 2n−4 points at every n from 5 to 14.</b> Odd and
+      even alike. An observation, not a theorem; the selftest asserts it under a label saying so,
+      because if it breaks that is a finding rather than a test to relax.
+      <span class="src"><code>frontierOf()</code></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>Ancestry, after hoop</h2>
+
+  <ol class="log" start="50">
+    <li><b>An agent's state is its precedents, so the pooling equivalence is ancestry, not
+      orbit.</b> An orbit is defined by in- and out-structure; an agent reads only the
+      in-structure, because nothing downstream can affect what it does. Within all six shapes
+      the two partitions coincide, so no published figure moves. The correction is to the
+      justification.
+      <span class="src"><a href="/wp2#ancestry">WP2 §11</a> · <code>ancestry.mjs</code></span></li>
+
+    <li><b>The catalogue run once yields 7.65 effective observations against a star's 1.79.</b>
+      A turn fed by one setup turn is the same condition in every shape, so thirteen turns across
+      all six form one pooling cell. They sit in six runs and are clusters of unequal size, so
+      the design effect takes Kish's Σm²/Σm = 35/13 = 2.69. No automorphism relates those graphs;
+      the digest does not need one.
+      <span class="src"><code>poolAcross()</code></span></li>
+
+    <li><b>A digest buys identity, not ken, and hoop already said so.</b>
+      <code>hoop-archive/js/postal.js</code> folds a quadtree into one region hash and states
+      plainly that a Merkle tree does not speed up routing, the index does that, and the hash is
+      purely for verifiable and forkable state. The same limit binds here. An agent handed a root
+      instead of five reports learns only whether it has seen this state before. Briefing still
+      costs in-degree n−1 and no hash makes that cheaper.
+      <span class="src"><code>hoop-archive/js/postal.js</code> · NAV.md</span></li>
+
+    <li><b>Arity has to be folded in before the children, or the digest collides.</b> hoop mixes
+      a node's own coordinates into the accumulator first. Here the analogue is in-degree:
+      without it a turn fed by one parent and a turn fed by two parents of identical ancestry
+      hash the same. Asserted directly.
+      <span class="src"><code>ancestryDigests()</code></span></li>
+
+    <li><b>The digest converts into a rule on the runner, which is R15.</b> A turn's brief must
+      be a function of its ancestry and nothing else. Name the shape to the agent, or dispatch in
+      a fixed order, or share a scratch file, and equal digests no longer mean equal inputs. The
+      digest cannot detect that; only the rule prevents it.
+      <span class="src"><a href="/methods#r15">R15</a></span></li>
+  </ol>
+
   <h2 class="sec"><span class="secno">§</span>The ledger</h2>
 
   <div class="table-fig">
@@ -394,9 +464,9 @@
       <thead><tr><th>Source of finding</th><th class="num">Entries</th></tr></thead>
       <tbody>
         <tr><td>Records already committed</td><td class="num">12</td></tr>
-        <tr><td>Arithmetic and simulation</td><td class="num">14</td></tr>
-        <tr><td>Our own mistakes</td><td class="num">10</td></tr>
-        <tr><td>Prior literature</td><td class="num">1</td></tr>
+        <tr><td>Arithmetic and simulation</td><td class="num">22</td></tr>
+        <tr><td>Our own mistakes</td><td class="num">11</td></tr>
+        <tr><td>Prior literature</td><td class="num">2</td></tr>
         <tr><td><b>New measurement</b></td><td class="num"><b>7</b></td></tr>
       </tbody>
     </table>

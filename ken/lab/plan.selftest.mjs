@@ -1,6 +1,6 @@
 /* ken/lab/plan.selftest.mjs — the four morph laws, as assertions. */
-import { probe, build, probeMatchesBuild, depths, CELLS, FALLBACKS, PlanFailure } from './plan.mjs';
-import { relax, renderPlan } from './layout.mjs';
+import { probe, build, probeMatchesBuild, depths, CELLS, FALLBACKS, PlanFailure } from '../graph/plan.mjs';
+import { relax, renderPlan } from '../graph/layout.mjs';
 
 let checks = 0, failures = 0;
 const ok = (c, m) => { checks++; if (!c) { failures++; console.error(`  ✗ ${m}`); } };

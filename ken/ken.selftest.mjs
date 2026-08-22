@@ -43,8 +43,8 @@ import { NODES, box } from './tree.js';
 import { mde, designComparison, variancePilot, ladyTastingTea, sprtBounds, choose } from './lab/design.mjs';
 import { iccSamplingDistribution, pilotSweep, bimodalityPower, allocationCheck } from './lab/simulate.mjs';
 import { buildFigures, blocksCurrent } from './lab/figures.mjs';
-import { ROLES } from './lab/roles.mjs';
-import { depthKenDesign, collinearity, effectiveReplication, chainBriefedContrast, priceH5, shapeNames } from './lab/shapes.mjs';
+import { ROLES } from './graph/roles.mjs';
+import { depthKenDesign, collinearity, effectiveReplication, chainBriefedContrast, priceH5, shapeNames } from './graph/shapes.mjs';
 import { loadRuns, partition, orderEffect, globalDrift } from './lab/h4.mjs';
 import { loadBakeoff, factorialAnova, cellComponents, contrastSensitivity } from './lab/factorial.mjs';
 import { fitBradleyTerry, swapRate } from './lab/bt.mjs';
@@ -255,6 +255,31 @@ ok(choose(8, 4) === 70 && ladyTastingTea(6).smallestP === 0.05,
   }
 }
 ok(lab.includes('/wp1'), 'the instrument note links to the paper that corrected it');
+
+// (b1a) ken/graph/ is served to the browser, so it must stay import-clean.
+// The widget on /shapes runs these modules directly rather than a copy, which
+// is only safe while none of them reaches for node. lab/ stays unserved.
+{
+  const graphDir = join(HERE, 'graph');
+  const mods = readdirSync(graphDir).filter((f) => f.endsWith('.mjs'));
+  ok(mods.length >= 6, `ken/graph holds the browser-loadable modules (${mods.length})`);
+  for (const f of mods) {
+    const src = readFileSync(join(graphDir, f), 'utf8');
+    ok(!/from '(node:|\.\.\/lab\/)/.test(src),
+      `graph/${f} imports neither node nor lab — it is served to the browser`);
+    ok(!/require\(/.test(src), `graph/${f} is an ES module`);
+  }
+  // and the ignore file must not be hiding them
+  const ignore = readFileSync(join(HERE, '.assetsignore'), 'utf8');
+  ok(!/^graph\/?$/m.test(ignore), 'ken/graph is not assetsignored');
+  ok(/^lab\/?$/m.test(ignore), 'ken/lab still is');
+  // the page imports them by absolute path, which must resolve
+  const sh = readFileSync(join(HERE, 'shapes.html'), 'utf8');
+  for (const m of sh.matchAll(/from '\/graph\/([a-z]+\.mjs)'/g)) {
+    ok(existsSync(join(graphDir, m[1])), `/shapes imports /graph/${m[1]}, which exists`);
+  }
+  ok(/from '\/graph\//.test(sh), '/shapes loads the real modules rather than a copy');
+}
 
 // (b1b) WP2's numbers, recomputed from roles.mjs and shapes.mjs
 function numberWord(n) { return ['zero', 'one', 'two', 'three', 'four', 'five', 'six'][n] ?? String(n); }

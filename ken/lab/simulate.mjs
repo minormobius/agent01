@@ -29,16 +29,13 @@ const { mean, quantile } = stats;
 
 // ── deterministic randomness ──────────────────────────────────────────
 
-/** mulberry32: small, fast, and adequate for design simulation. */
-export function mulberry32(seed) {
-  let a = seed >>> 0;
-  return function rng() {
-    a = (a + 0x6D2B79F5) >>> 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+// mulberry32 lives in ../graph/rng.mjs so the browser-served layout can
+// have it without dragging design.mjs and dataviz into the page.
+// Imported as well as re-exported: `export ... from` forwards the binding
+// without introducing it here, so the calls below would see undefined.
+import { mulberry32 } from '../graph/rng.mjs';
+
+export { mulberry32 };
 
 /** Standard normal by Box–Muller, drawing two uniforms per value. */
 export function normalDeviate(rng) {

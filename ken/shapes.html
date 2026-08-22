@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shape Explorer — ken</title>
+<meta name="description" content="Enter a turn budget and see every org chart it admits: the depth against width trade, what each shape buys in free replication, and the graph drawn from itself.">
+<link rel="stylesheet" href="journal.css">
+<style>
+  .ctl { display: flex; gap: 18px; align-items: center; flex-wrap: wrap;
+    border: 1px solid #e6e1d6; background: #fbfaf6; padding: 10px 12px; margin: 14px 0; }
+  .ctl label { font-family: var(--sans); font-size: 11px; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--ink-faint); display: flex; gap: 7px; align-items: center; }
+  .ctl input[type=number] { font: inherit; font-size: 15px; width: 62px; padding: 2px 5px;
+    border: 1px solid #ccc; }
+  .ctl input[type=range] { width: 150px; }
+  .ctl .big { font-family: var(--sans); font-size: 12px; color: #1a1a1a; }
+  .ctl .big b { font-size: 15px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
+  @media (max-width: 700px) { .grid2 { grid-template-columns: 1fr; } }
+  table.picker { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  table.picker th { font-family: var(--sans); font-size: 9.5px; text-transform: uppercase;
+    letter-spacing: .04em; color: var(--ink-faint); text-align: right; padding: 3px 5px;
+    border-bottom: 1px solid #4a4a4a; }
+  table.picker th:first-child { text-align: left; }
+  table.picker td { padding: 3px 5px; text-align: right; border-bottom: 1px solid #eee; }
+  table.picker td:first-child { text-align: left; font-family: var(--mono, monospace); }
+  table.picker tr { cursor: pointer; }
+  table.picker tr:hover td { background: #f2efe6; }
+  table.picker tr.on td { background: #e8eef7; }
+  table.picker tr.named td:first-child::after { content: attr(data-name);
+    font-family: var(--sans); font-size: 9px; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--accent); margin-left: 6px; }
+  .peek { border: 1px solid #e6e1d6; background: #fbfaf6; padding: 6px; }
+  .peek svg { display: block; width: 100%; height: auto; }
+  .peek dl { font-family: var(--sans); font-size: 10.5px; margin: 6px 2px 2px;
+    display: grid; grid-template-columns: auto 1fr; gap: 1px 8px; }
+  .peek dt { color: var(--ink-faint); }
+  .peek dd { margin: 0; text-align: right; }
+  .warn { font-family: var(--sans); font-size: 11px; color: #8a5a00; }
+  #tradeplot svg { display: block; width: 100%; height: auto; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="brand"><a href="/">ken</a></span>
+  <a href="/">Front matter</a>
+  <a href="/syllabus">I · Curriculum</a>
+  <a href="/methods">II · Methods</a>
+  <a href="/lab">Instrument</a>
+  <a href="/run">Procedure</a>
+  <a href="/wp1">WP1</a>
+  <a href="/wp2">WP2</a>
+  <a class="here" href="/shapes">Shapes</a>
+  <a href="/log">Log</a>
+  <a href="/protocol">III · Protocol</a>
+  <span class="grow"></span>
+  <button onclick="window.print()">Save as PDF</button>
+</div>
+
+<div class="sheet">
+
+  <div class="a-venue">ken · volume 1 <span class="kicker">Instrument</span></div>
+  <h1 class="a-title">Shape Explorer</h1>
+  <p class="a-sub">Every org chart a turn budget admits, and what each one costs</p>
+  <div class="a-meta">Runs <code>ken/graph/*.mjs</code> in the page — the same modules the selftests gate, not a copy</div>
+  <hr class="a-rule">
+
+  <p><a href="/wp2">WP2</a> catalogued six shapes by hand at six turns. The catalogue
+  generalises with no new idea: a layered plan is a <b>composition of n</b>, with the source
+  and sink pinned to width one, so there are exactly 2<sup>n−3</sup> profiles and they can all
+  be enumerated.</p>
+
+  <p>The trade is isoperimetric and it is arithmetic rather than a finding. The interior holds
+  n−2 turns over d−1 layers, so <b>peak width ≥ ⌈(n−2) / (d−1)⌉</b>, with equality exactly when
+  the interior layers are balanced. Read it as volume against surface, with the output in time:
+  <b>n is what the run costs</b>, <b>depth is the wall clock</b> if a layer runs at once, and
+  <b>peak width is how many agents must exist simultaneously</b>. Fix the cost and the product
+  is fixed with it.</p>
+
+  <div class="ctl">
+    <label>turns (n)
+      <input id="n" type="number" min="3" max="16" step="1" value="12">
+      <input id="nr" type="range" min="3" max="16" step="1" value="12">
+    </label>
+    <label><input id="brief" type="checkbox"> brief the sink</label>
+    <label><input id="lanes" type="checkbox"> lane wiring</label>
+    <span class="big" id="counts"></span>
+    <span class="warn" id="warn"></span>
+  </div>
+
+  <div id="tradeplot"></div>
+  <div class="pcap"><b>Figure 1.</b> Peak width against depth. The line is the isoperimetric
+  floor; every point sits on or above it. Filled points are the Pareto frontier.</div>
+
+  <h2 class="sec"><span class="secno">1</span>The ladder</h2>
+
+  <p>One row per achievable depth, showing the best available on every other axis. Click a row
+  to draw it.</p>
+
+  <div class="grid2">
+    <div>
+      <table class="picker" id="ladder">
+        <thead><tr><th>profile</th><th>depth</th><th>width</th><th>floor</th>
+          <th>peak in</th><th>sink ken</th><th>replicates</th><th>effective</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="peek" id="peek"></div>
+  </div>
+
+  <h2 class="sec"><span class="secno">2</span>Ken and replication, which the trade leaves free</h2>
+
+  <p>Two quantities move independently of depth and width, which is why the table is worth
+  reading rather than eyeballing.</p>
+
+  <p><b>Sink ken is free at every depth.</b> Briefing the last turn adds an edge from every
+  other turn to it. That changes no width, no depth and no cost, and it takes sink ken to 1.
+  What it does cost is merge load: at n = 12 the last agent's in-degree goes from 1 to 11, and
+  it must now read the whole run. Free in turns is not free in context, and
+  <a href="/wp2#ancestry">no digest fixes that</a>.</p>
+
+  <p><b>Free replication is concave in depth.</b> The largest orbit is the number of turns a run
+  contains that are replicates by symmetry. It falls off slowly at first and then sharply: at
+  n = 12 the balanced middle at depth 6 keeps 92% of the maximum replication at a fifth of the
+  peak concurrency. The star is rarely worth its width.</p>
+
+  <div class="colophon">
+    ken · shape explorer<br>
+    <code>ken/graph/profiles.mjs</code> · <code>roles.mjs</code> · <code>layout.mjs</code>.
+    Node-only code lives in <code>ken/lab/</code> and is not served; these modules are, so the
+    page and the selftest cannot disagree.
+  </div>
+
+</div>
+
+<script type="module">
+import { family, frontierOf, ladder, buildProfile, summarise, widthFloor, NAMED } from '/graph/profiles.mjs';
+import { renderPlan } from '/graph/layout.mjs';
+
+const $ = (s) => document.querySelector(s);
+const nEl = $('#n'), nr = $('#nr'), brief = $('#brief'), lanes = $('#lanes');
+let rows = [], chosen = null;
+
+const namedBy = new Map(Object.entries(NAMED).map(([name, s]) =>
+  [`${s.profile.join('·')}|${s.wiring}|${s.briefed}`, name]));
+
+function recompute() {
+  const n = Math.max(3, Math.min(16, +nEl.value || 6));
+  nr.value = nEl.value = n;
+  $('#warn').textContent = n >= 15 ? `${2 ** (n - 3)} profiles — this may take a moment` : '';
+
+  const t0 = performance.now();
+  rows = family(n, { wirings: lanes.checked ? ['complete', 'lanes'] : ['complete'],
+    brief: brief.checked ? [false, true] : [false] });
+  const front = new Set(frontierOf(rows).map(key));
+  const lad = ladder(n, { rows });
+  const ms = Math.round(performance.now() - t0);
+  $('#counts').innerHTML = `<b>${rows.length}</b> shapes · <b>${front.size}</b> on the frontier · ${ms} ms`;
+
+  drawTrade(n, rows, front);
+  drawLadder(lad, n);
+  pick(lad[Math.min(1, lad.length - 1)]);
+}
+
+const key = (r) => `${r.depth}|${r.width}|${r.maxInDeg}|${r.sinkKen}|${r.effective}`;
+
+function drawTrade(n, rows, front) {
+  const W = 620, H = 250, m = { l: 44, r: 12, t: 12, b: 34 };
+  const maxD = Math.max(...rows.map((r) => r.depth));
+  const maxW = Math.max(...rows.map((r) => r.width));
+  const sx = (d) => m.l + ((d - 1) / Math.max(1, maxD - 1)) * (W - m.l - m.r);
+  const sy = (w) => H - m.b - ((w - 1) / Math.max(1, maxW - 1)) * (H - m.t - m.b);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Peak width against depth for every shape at n equals ${n}. All points lie on or above the isoperimetric floor.">`;
+  s += `<rect width="${W}" height="${H}" fill="#fbfaf6"/>`;
+  // the floor
+  const pts = [];
+  for (let d = 2; d <= maxD; d++) pts.push(`${sx(d).toFixed(1)},${sy(widthFloor(n, d)).toFixed(1)}`);
+  s += `<polyline points="${pts.join(' ')}" fill="none" stroke="#D55E00" stroke-width="1.6" stroke-dasharray="4,3"/>`;
+  // axes
+  s += `<line x1="${m.l}" y1="${H - m.b}" x2="${W - m.r}" y2="${H - m.b}" stroke="#4a4a4a"/>`;
+  s += `<line x1="${m.l}" y1="${m.t}" x2="${m.l}" y2="${H - m.b}" stroke="#4a4a4a"/>`;
+  for (let d = 1; d <= maxD; d++) if (maxD < 12 || d % 2 === 1) {
+    s += `<text x="${sx(d).toFixed(1)}" y="${H - m.b + 13}" font-size="9" fill="#6b6b6b" text-anchor="middle" font-family="sans-serif">${d}</text>`;
+  }
+  for (let w = 1; w <= maxW; w++) if (maxW < 12 || w % 2 === 1) {
+    s += `<text x="${m.l - 6}" y="${sy(w).toFixed(1) - -3}" font-size="9" fill="#6b6b6b" text-anchor="end" font-family="sans-serif">${w}</text>`;
+  }
+  s += `<text x="${(W + m.l) / 2}" y="${H - 4}" font-size="10.5" fill="#1a1a1a" text-anchor="middle" font-family="sans-serif">depth — wall clock, in turn-times</text>`;
+  s += `<text x="12" y="${(H - m.b + m.t) / 2}" font-size="10.5" fill="#1a1a1a" text-anchor="middle" font-family="sans-serif" transform="rotate(-90 12 ${(H - m.b + m.t) / 2})">peak width — agents at once</text>`;
+  for (const r of rows) {
+    const on = front.has(key(r));
+    s += `<circle cx="${sx(r.depth).toFixed(1)}" cy="${sy(r.width).toFixed(1)}" r="${on ? 4 : 2.6}"`
+      + ` fill="${on ? '#0072B2' : '#bbb'}" fill-opacity="${on ? 0.95 : 0.5}"><title>${r.profile} · depth ${r.depth} · width ${r.width}</title></circle>`;
+  }
+  s += '</svg>';
+  $('#tradeplot').innerHTML = s;
+}
+
+function drawLadder(lad, n) {
+  const tb = $('#ladder').querySelector('tbody');
+  tb.innerHTML = '';
+  for (const l of lad) {
+    const best = rows.filter((r) => r.depth === l.depth)
+      .sort((a, b) => b.effective - a.effective || a.width - b.width || b.sinkKen - a.sinkKen)[0];
+    const tr = document.createElement('tr');
+    const nm = namedBy.get(`${best.profile}|${best.wiring}|${best.briefed}`);
+    if (nm) { tr.classList.add('named'); }
+    tr.innerHTML = `<td${nm ? ` data-name="${nm}"` : ''}>${best.profile}</td>`
+      + [l.depth, best.width, l.widthFloor, best.maxInDeg, best.sinkKen, best.replicates, best.effective]
+        .map((v) => `<td>${v}</td>`).join('');
+    tr.onclick = () => pick(l, best);
+    tr._row = best;
+    tb.appendChild(tr);
+  }
+}
+
+function pick(l, best) {
+  if (!l) return;
+  const row = best ?? rows.filter((r) => r.depth === l.depth)
+    .sort((a, b) => b.effective - a.effective || a.width - b.width)[0];
+  chosen = row;
+  for (const tr of $('#ladder').querySelectorAll('tr')) {
+    tr.classList.toggle('on', tr._row === row);
+  }
+  const g = row.graph;
+  const svg = renderPlan(g, { width: 280, rowHeight: Math.max(26, Math.min(56, 300 / Math.max(1, g.depth))), title: row.profile });
+  const roleList = Object.entries(row.roles).sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => `${v}×${k}`).join(', ');
+  $('#peek').innerHTML = svg + `<dl>
+    <dt>profile</dt><dd>${row.profile}</dd>
+    <dt>turns</dt><dd>${row.turns}</dd>
+    <dt>depth · width</dt><dd>${row.depth} · ${row.width}${row.balanced ? ' (balanced)' : ''}</dd>
+    <dt>edges</dt><dd>${row.edges}</dd>
+    <dt>peak in-degree</dt><dd>${row.maxInDeg}</dd>
+    <dt>sink ken</dt><dd>${row.sinkKen}</dd>
+    <dt>mean ken</dt><dd>${row.meanKen}</dd>
+    <dt>replicates</dt><dd>${row.replicates}${row.orbitsAreBounds ? ' (bound)' : ''}</dd>
+    <dt>effective</dt><dd>${row.effective}</dd>
+    </dl><div style="font-family:var(--sans);font-size:10px;color:var(--ink-faint);padding:2px">${roleList}</div>`;
+}
+
+for (const el of [nEl, brief, lanes]) el.addEventListener('change', recompute);
+nr.addEventListener('input', () => { nEl.value = nr.value; recompute(); });
+recompute();
+</script>
+
+</body>
+</html>

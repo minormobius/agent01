@@ -8,12 +8,12 @@ import {
   ROLE_TABLE, ROLES, ROLE_DUTY, roles, adjacency, topological,
   kenRatio, blastRadius, betweenness, refine, automorphisms, poolable,
   positionTable, shapeInvariants,
-} from './roles.mjs';
+} from '../graph/roles.mjs';
 import {
   SHAPES, buildShape, shapeNames, catalogue, depthKenDesign,
   effectiveReplication, replicationLadder, collinearity,
   chainBriefedContrast, priceH5, H5, H6, TURNS_PER_SHAPE,
-} from './shapes.mjs';
+} from '../graph/shapes.mjs';
 
 let pass = 0, fail = 0;
 const ok = (cond, msg) => { if (cond) { pass++; } else { fail++; console.log(`  ✗ ${msg}`); } };

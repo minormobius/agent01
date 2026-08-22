@@ -20,7 +20,7 @@
    roadmap figure in ../tree.js hand-places every box in COLS and ROW_Y;
    this places none.
    ───────────────────────────────────────────────────────────────────── */
-import { mulberry32 } from './simulate.mjs';
+import { mulberry32 } from './rng.mjs';
 
 export const DEFAULTS = {
   iterations: 600,

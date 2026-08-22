@@ -54,7 +54,16 @@ worker or move the domain, **verify the deploy log binds
 | `log.html` | **The findings log.** Numbered, terse, append-only. Served at `/log`. |
 | `run.html` | **The standard-run procedure.** Written to ASD-STE100. Served at `/run`. |
 | `protocol.html` | **Article III**, the Stage 1 registered-report skeleton. Served at `/protocol`. |
+| `shapes.html` | **the shape explorer.** Enter n, see every org chart it admits. `/shapes` |
 | `tree.js` | the roadmap DAG: node data plus the SVG renderer |
+| **`graph/`** | **served to the browser.** Pure ES modules, no node, no copies |
+| `graph/plan.mjs` | a run plan as **rewrite rules**, on morph's four laws |
+| `graph/roles.mjs` | **the org chart, derived**: nine roles, orbits, the ken ratio |
+| `graph/shapes.mjs` | the six hand-built org charts of WP2 |
+| `graph/profiles.mjs` | **any n**: layer profiles, the trade, the frontier |
+| `graph/ancestry.mjs` | content-addressed state, after hoop's region digest |
+| `graph/layout.mjs` | the picture, **derived** by force relaxation |
+| `graph/rng.mjs` | the one deterministic generator |
 | `lab/design.mjs` | **the harness.** Node-only, not served |
 | `lab/design.selftest.mjs` | 92 known-answer checks for it |
 | `lab/simulate.mjs` | simulate a design before running it. Node-only |
@@ -70,12 +79,9 @@ worker or move the domain, **verify the deploy log binds
 | `lab/runshape.mjs` | the six-turn run, and what a claim costs in them |
 | `lab/ste-lint.mjs` | the structural subset of ASD-STE100 |
 | `lab/runshape.selftest.mjs` | 39 checks for both |
-| `lab/plan.mjs` | a run plan as **rewrite rules**, on morph's four laws |
-| `lab/layout.mjs` | the picture, **derived** from that graph by force relaxation |
 | `lab/plan.selftest.mjs` | 56 checks: the four laws, lane wiring, seed independence |
-| `lab/roles.mjs` | **the org chart, derived**: nine roles, orbits, the ken ratio |
-| `lab/shapes.mjs` | six org charts that all cost six turns, and what they buy |
 | `lab/roles.selftest.mjs` | 189 checks: the basis, the group orders, the design |
+| `lab/profiles.selftest.mjs` | 465 checks: the trade, the frontier, the digests |
 | `lab/resolve-refs.mjs` | links the bibliography against CrossRef / arXiv / OpenLibrary |
 | `fig/*.svg` | **generated.** Committed so figures print and diff |
 | `refs.js` | **the bibliography, as data** — 90 real works, keyed |
@@ -85,7 +91,15 @@ worker or move the domain, **verify the deploy log binds
 | `prose-lint.mjs` | the tic lint; importable, and runnable standalone |
 | `ken.selftest.mjs` | the gate. **Run it before touching anything here** |
 
-`CLAUDE.md`, `ken.selftest.mjs` and `prose-lint.mjs` are `.assetsignore`d; everything else ships.
+`CLAUDE.md`, `ken.selftest.mjs`, `prose-lint.mjs` and **`lab/`** are
+`.assetsignore`d; everything else ships, **including `graph/`**.
+
+That split is load-bearing. `/shapes` runs `graph/*.mjs` in the page — the same
+files the selftests import, not a copy — so the widget and the gate cannot
+disagree. It only works while those modules stay import-clean, so the selftest
+asserts that none of them reaches for `node:` or for `lab/`, and that
+`.assetsignore` still hides `lab/` and still does not hide `graph/`. Put
+anything needing the filesystem in `lab/`.
 
 ## The harness
 
@@ -365,7 +379,7 @@ mismatch silently clips the figure.
 ## Three gates, and why each exists
 
 ```bash
-node ken/ken.selftest.mjs     # ~2s, 967 checks
+node ken/ken.selftest.mjs     # ~2s, 1003 checks
 node ken/prose-lint.mjs       # the tic lint alone, with --verbose for hits
 ```
 

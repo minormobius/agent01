@@ -16,6 +16,7 @@
   <a href="/methods">II · Methods</a>
   <a href="/lab">Instrument</a>
   <a href="/run">Procedure</a>
+  <a href="/shapes">Shapes</a>
   <a href="/wp1">WP1</a>
   <a class="here" href="/wp2">WP2</a>
   <a href="/log">Log</a>
@@ -29,7 +30,7 @@
   <div class="a-venue">ken · volume 1 · working paper 2 <span class="kicker">Unit IV</span></div>
   <h1 class="a-title">The Org Chart of a Six-Turn Run</h1>
   <p class="a-sub">Nine roles, a symmetry that decides what may be pooled, and one intervention that costs nothing</p>
-  <div class="a-meta">Design stage · no runs executed · <code>ken/lab/roles.mjs</code>, <code>shapes.mjs</code>, 189 known-answer checks</div>
+  <div class="a-meta">Design stage · no runs executed · <code>ken/graph/</code> · 189 + 465 known-answer checks</div>
   <hr class="a-rule">
 
   <div class="abstract">
@@ -48,6 +49,11 @@
     for the same six turns. And <code>chain</code> against <code>briefed</code> differ at
     exactly one turn, by four added edges and no added turns, which is the cheapest
     manipulation in the programme so far.</p>
+    <p>The catalogue then generalises: a layered plan is a composition of n, so the family is
+    2<sup>n−3</sup> shapes and the depth-against-width trade is isoperimetric. Hashing a turn's
+    ancestry, after this repo's own Merkle construction in <code>hoop</code>, pools across
+    shapes as well as within them and turns 36 catalogue turns into 7.65 effective
+    observations.</p>
   </div>
 
   <h2 class="sec"><span class="secno">1</span>The question</h2>
@@ -224,6 +230,72 @@
   stronger match than pairing usually affords and is the reason to prefer this contrast over
   any other in the catalogue. The within-run row is a slope, not a shape contrast, and is
   priced on <code>briefed</code> runs only.</p>
+
+  <h2 class="sec"><span class="secno">10</span>The generalisation, and the trade it exposes</h2>
+
+  <p>The catalogue was built by hand at six turns. It generalises with no new idea, because a
+  layered plan is a <b>composition of n</b>: the layer widths with source and sink pinned to
+  one. There are exactly 2<sup>n−3</sup> of them, so the family can be enumerated outright to
+  about n = 16 and every member drawn. <a href="/shapes">The shape explorer</a> does that live,
+  running these same modules in the page.</p>
+
+  <p>Stating it that way makes the trade visible and it is isoperimetric. The interior holds
+  n−2 turns over d−1 layers, so <b>peak width ≥ ⌈(n−2)/(d−1)⌉</b>, with equality exactly when
+  the interior layers are balanced. The floor is reached at all 52 depth-and-n pairs the
+  selftest checks. Read n as volume, depth as time and peak width as surface: fixing what a run
+  costs fixes the product of its latency and its concurrency.</p>
+
+  <p>Two things are not fixed by it, which is why the family is worth computing rather than
+  eyeballing. <b>Sink ken is free at every depth</b>, because briefing changes no width, no
+  depth and no cost. And <b>free replication is concave in depth</b>: at n = 12 the balanced
+  middle at depth 6 keeps 92% of the maximum replication at a fifth of the peak concurrency, so
+  the star is rarely worth its width.</p>
+
+  <p>The frontier held exactly 2n−4 points at every n from 5 to 14. That is an observation, not
+  a theorem, and the selftest labels it so.</p>
+
+  <h2 class="sec" id="ancestry"><span class="secno">11</span>Ancestry, and what a digest does not buy</h2>
+
+  <p>A turn's state is its precedents. Nothing downstream can affect what it does, so the
+  equivalence that licenses pooling <i>behaviour</i> is the ancestry, not the orbit. An orbit is
+  defined by in- and out-structure; an agent reads only the in-structure. That makes the orbit
+  argument of §3 slightly wrong about the agent while staying right about the graph.</p>
+
+  <p>So hash the ancestry. The construction is taken from this repo's own Merkle work in
+  <code>hoop-archive/js/postal.js</code>, which folds a quadtree of world chunks into one digest
+  per region: a leaf hashes contents, an internal node mixes its own coordinates into the
+  accumulator <i>before</i> folding its children, and a sector "at this genome" gets one hash,
+  derived on demand and never stored. Both features transfer. Arity is folded first, or a turn
+  fed by one parent collides with a turn fed by two identical ones. And nothing persists the
+  digest, so nothing can disagree with it.</p>
+
+  <p>Within a shape this changes no published number: orbits and ancestry classes coincide on
+  all six, which the selftest asserts. <b>Across shapes it changes a great deal.</b> A turn fed
+  by exactly one setup turn is fed by exactly one setup turn whichever plan it sits in, so the
+  chain's first turn, both A-wave turns of the standard run, all four star workers, all three
+  bottleneck workers and the briefed chain's first turn are <b>one pooling cell of thirteen</b>.
+  No automorphism relates those graphs; the digest does not need one.</p>
+
+  <p>Priced honestly, those thirteen sit in six runs and are therefore clusters of unequal size,
+  so the design effect takes Kish's average cluster size, Σm²/Σm = 35/13 = 2.69. At the measured
+  ρ that is 7.65 effective observations, against 1.79 for a star run alone. <b>Running the whole
+  catalogue once, 36 turns, yields more than four times the replication of the best single
+  shape</b>, and the six sources form a second cell whose design effect is exactly 1.</p>
+
+  <p><b>What the digest does not do is restore ken, and the temptation to claim otherwise should
+  be resisted.</b> hoop says it plainly for its own case: a Merkle tree does not speed up
+  routing, the quadtree index does that, and the hash is purely for verifiable and forkable
+  state. The same limit binds here. An agent handed a root instead of five upstream reports
+  learns only whether it has seen this state before; it cannot act on the contents. Briefing
+  still costs in-degree n−1 at the last turn and no hash makes that cheaper. What the digest
+  buys is identity, which is cheaper and different.</p>
+
+  <p>It also converts into a requirement on the runner rather than on the graph, which is
+  <a href="/methods#r15">R15</a>: the brief handed to a turn must be a function of its ancestry
+  alone. If the runner tells an agent which shape it is in, or dispatches in a fixed order, or
+  lets two turns share a file, then turns with equal digests were not fed equally and the
+  pooling licence is void. That is the same failure H6 names, with a sharper instrument pointed
+  at it.</p>
 
   <h2 class="sec"><span class="secno">10</span>Limits</h2>
 

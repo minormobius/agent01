@@ -16,6 +16,7 @@
   <a class="here" href="/methods">II · Methods</a>
   <a href="/lab">Instrument</a>
   <a href="/run">Procedure</a>
+  <a href="/shapes">Shapes</a>
   <a href="/wp1">WP1</a>
   <a href="/wp2">WP2</a>
   <a href="/log">Log</a>
@@ -29,7 +30,7 @@
   <div class="a-venue">ken · volume 1 · article II <span class="kicker">House standard</span></div>
   <h1 class="a-title">House Standard for Model Experiments</h1>
   <p class="a-sub">Fourteen rules for running, scoring and reporting a comparison, with the evidence for each</p>
-  <div class="a-meta">Version 1.2 · applies to every run published here</div>
+  <div class="a-meta">Version 1.3 · applies to every run published here</div>
   <hr class="a-rule">
 
   <div class="abstract">
@@ -39,7 +40,7 @@
     instrument returned the same verdict for every subject, and in every case the qualitative
     signal that was supposed to break the tie was specified and never collected. The pattern is
     consistent enough to design against.</p>
-    <p>This document fixes the house standard. Seven of the fourteen rules are already practised
+    <p>This document fixes the house standard. Seven of the fifteen rules are already practised
     in <code>bakeoff/</code> and are written down here so they survive the person who wrote
     them. Seven are new: five address a specific way one of the three runs failed, and two were
     earned by applying the standard to itself. The standard applies to anything published under this masthead, and a run that
@@ -293,6 +294,23 @@
   (d = 0.5) costs 74 runs, or 444. The procedure and both cost tables are at
   <a href="/run">the standard run</a>.</p>
 
+  <h4 class="subsub" id="r15">R15. A turn's brief is a function of its ancestry, and of nothing else. <span class="small">(new)</span></h4>
+
+  <p>Two turns fed the same upstream products must receive the same brief, byte for byte. Do not
+  tell an agent which shape it sits in, which arm it is, or how many siblings it has. Do not let
+  dispatch order, a shared rate limit or a shared scratch file reach it.</p>
+
+  <p>The rule exists because it is what makes pooling legal. Turns are exchangeable when their
+  <a href="/wp2#ancestry">ancestry digests</a> agree, and the digest is computed from the plan.
+  If the runner adds anything the plan does not contain, then equal digests no longer mean equal
+  inputs and every pooled estimate is quietly wrong. The digest cannot detect the violation; only
+  this rule prevents it.</p>
+
+  <p>It is also what makes the catalogue worth running as a set. Under R15 a turn fed by one
+  setup turn is the same experimental condition in a chain, a star and a bottleneck alike, so
+  thirty-six turns of the six-shape catalogue supply 7.65 effective observations in one cell
+  rather than the 1.79 the best single shape supplies. Break R15 and that collapses to nothing.</p>
+
   <h2 class="sec"><span class="secno">3</span>Checklists</h2>
 
   <p>The standard reduces to two lists. Both are short on purpose
@@ -365,7 +383,7 @@
   </div>
 
   <div class="colophon">
-    ken · article II · house standard for model experiments, version 1.2<br>
+    ken · article II · house standard for model experiments, version 1.3<br>
     Table 1 is computed from committed data: <code>.github/loop/{turns,runs}.jsonl</code> and
     <code>bakeoff/results/race-0{1,2}/results.json</code>. <code>ken.selftest.mjs</code>
     recomputes every figure in it on each build and fails if the prose has drifted from the

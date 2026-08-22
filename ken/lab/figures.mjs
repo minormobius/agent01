@@ -19,10 +19,10 @@ import { iccSamplingDistribution, bimodalityPower } from './simulate.mjs';
 import { loadRuns, partition, repeatedBeads, orderEffect } from './h4.mjs';
 import { fitBradleyTerry } from './bt.mjs';
 import { comparisonRows, TABLE_MARK } from './ste-lint.mjs';
-import { build as buildPlan } from './plan.mjs';
-import { renderPlan } from './layout.mjs';
-import { shapeNames, buildShape, depthKenDesign, catalogue, collinearity, priceH5, H5, H6 } from './shapes.mjs';
-import { shapeInvariants, positionTable } from './roles.mjs';
+import { build as buildPlan } from '../graph/plan.mjs';
+import { renderPlan } from '../graph/layout.mjs';
+import { shapeNames, buildShape, depthKenDesign, catalogue, collinearity, priceH5, H5, H6 } from '../graph/shapes.mjs';
+import { shapeInvariants, positionTable } from '../graph/roles.mjs';
 import { readFileSync as _read } from 'node:fs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
