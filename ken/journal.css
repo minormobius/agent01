@@ -315,3 +315,24 @@ table.booktabs tbody tr + tr td { border-top: 0.5px solid #e6e2da; }
   .roadmap-scroll { overflow: visible; }
   .roadmap-scroll svg { min-width: 0; }
 }
+
+/* ---------- findings log ---------- */
+ol.log { list-style: none; counter-reset: none; margin: 10px 0 4px; padding: 0; }
+ol.log li {
+  position: relative; padding: 9px 0 9px 40px; margin: 0;
+  border-top: 1px solid #e6e1d6; font-size: 13.5px; line-height: 1.5;
+}
+ol.log li:first-child { border-top: none; }
+ol.log li::before {
+  content: "L" counter(list-item);
+  position: absolute; left: 0; top: 10px;
+  font-family: var(--sans); font-size: 10px; letter-spacing: .05em;
+  color: #fff; background: var(--accent); padding: 2px 5px; border-radius: 2px;
+}
+ol.log li b { font-weight: 700; }
+ol.log .src {
+  display: block; margin-top: 4px;
+  font-family: var(--sans); font-size: 10px; letter-spacing: .03em; color: var(--ink-faint);
+}
+ol.log .src code { background: none; padding: 0; font-size: 10px; color: var(--ink-faint); }
+ol.log .src a { color: var(--accent-soft); }

@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Findings Log — ken</title>
+<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Fifteen entries, none of them yet from new inference.">
+<link rel="stylesheet" href="journal.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="brand"><a href="/">ken</a></span>
+  <a href="/">Front matter</a>
+  <a href="/syllabus">I · Curriculum</a>
+  <a href="/methods">II · Methods</a>
+  <a href="/lab">Instrument</a>
+  <a href="/wp1">WP1</a>
+  <a class="here" href="/log">Log</a>
+  <a href="/protocol">III · Protocol</a>
+  <span class="grow"></span>
+  <button onclick="window.print()">Save as PDF</button>
+</div>
+
+<div class="sheet">
+
+  <div class="a-venue">ken · volume 1 <span class="kicker">Running record</span></div>
+  <h1 class="a-title">Findings Log</h1>
+  <p class="a-sub">Shortest form. Each entry names the code or record that produced it.</p>
+  <div class="a-meta">15 entries · <b>0 from new inference</b> · every figure regenerated on build</div>
+  <hr class="a-rule">
+
+  <p class="small">Everything here comes from data already paid for or from arithmetic. That is
+  a real limit and the ledger below says so at the top rather than the bottom. Entries are
+  append-only; a corrected entry is struck and restated, never edited away.</p>
+
+  <h2 class="sec"><span class="secno">§</span>The three prior runs</h2>
+
+  <ol class="log">
+    <li><b>The loop recorded 89 turns and zero quality scores.</b> Two of three specified
+      signals were never built. The judge was correctly configured to withhold while
+      uncalibrated, so it withheld 89 times.
+      <span class="src"><code>.github/loop/runs.jsonl</code></span></li>
+
+    <li><b>The signal that did fire took three values and sat at its maximum in 59 of 89
+      turns.</b> Reliability collapses at a ceiling, so it could not have ranked the turns that
+      differed.
+      <span class="src"><code>runs.jsonl</code> · <a href="/methods#evidence">R4</a></span></li>
+
+    <li><b>Across two bake-offs, 23 of 23 entries passed every automated check.</b> Both reports
+      order entries by patch size, which was never claimed to measure quality.
+      <span class="src"><code>bakeoff/results/race-0{1,2}</code></span></li>
+
+    <li><b>Two race-01 entries recorded a zero-byte patch beside a 50 KB entry directory.</b>
+      The patch capture failed, not the agents. The report sorts ascending by patch size, so both
+      sorted to the top; nothing flagged it.
+      <span class="src"><code>race-01/results.json</code> · <a href="/methods">R11</a></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>Design arithmetic</h2>
+
+  <ol class="log" start="5">
+    <li><b>At two samples per cell, a two-cell contrast could detect only d = 2.80.</b> The gap
+      between near-total failure and near-total success. Even a perfectly discriminating
+      instrument had no power in that design.
+      <span class="src"><a href="/lab">lab §2</a> · <code>design.mjs</code></span></li>
+
+    <li><b>Pairing cuts a medium-effect comparison from 126 runs to 38 at ρ = 0.7, and 20 at
+      ρ = 0.85.</b> The saving is a factor of (1 − ρ) and costs nothing to take.
+      <span class="src"><a href="/lab">lab §3</a></span></li>
+
+    <li><b>For a fixed run budget, repeats do not buy precision.</b> With R = tasks × repeats
+      held constant the within-task variance term is σ²<sub>w</sub>/R whatever the split, so one
+      repeat is optimal at every ICC. Repeats buy the variance estimate instead, which is a
+      different and necessary thing.
+      <span class="src"><a href="/lab">lab §4</a> · <code>allocate()</code></span></li>
+
+    <li><b>A 24-run variance pilot returns a 95% interval on ICC of [0.00, 0.80] at a true
+      0.5.</b> Every split of those 24 runs gives the same width. Reaching ±0.16 costs 144 runs.
+      <span class="src"><a href="/wp1">WP1 §4</a> · <code>simulate.mjs</code></span></li>
+
+    <li><b>The same 24 runs detect a two-SD bimodal separation 69% of the time, and a three-SD
+      one always.</b> So the pilot was re-scoped from parameter estimate to model check rather
+      than resized.
+      <span class="src"><a href="/wp1">WP1 §5</a></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>H4 — exchangeability</h2>
+
+  <p class="small"><b>Exploratory, and it cannot be otherwise.</b> The data was collected for
+  another purpose and its outcome columns had been looked at before these tests were written.
+  A confirmatory version needs new runs. The outcome is turn <i>duration</i>, because the loop
+  recorded no quality scores at all.</p>
+
+  <ol class="log" start="10">
+    <li><b>12 of 89 loop runs are flagged infrastructure failures, and the ledger scores them
+      like real turns.</b> Median 61s against 597s for confirmed real runs. Nine of the twelve
+      carry <code>gateFailed: false</code>, so they are absent from the 17-failure count, and all
+      twelve carry a probes score.
+      <span class="src"><code>h4.mjs partition()</code></span></li>
+
+    <li><b>That 12 is a floor.</b> The <code>infra</code> flag was added part-way through: 45 of
+      89 records predate it. A 120-second rule catches 11 of the 12 known cases and misclassifies
+      2 of 32 known-real ones; it flags 5 more among the unclassified. So the true count is
+      somewhere between 12 and 17 — 13% to 19% of the run.
+      <span class="src"><code>INFRA_SECONDS</code></span></li>
+
+    <li><b>The within-task order effect is one bead.</b> Pooled slope −0.47 log-seconds per
+      position (permutation p = 0.012, 20,000 shuffles). Drop <code>lp-16d590</code> and it is
+      −0.10 with p = 0.17. Six other leave-one-outs move it by less than 0.1. <b>H4 is not
+      refuted by the clean test.</b>
+      <span class="src"><code>h4.mjs orderEffect()</code></span></li>
+  </ol>
+
+  <div class="plot">
+    <div class="pwrap"><svg viewBox="0 0 620 248" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Leave-one-out sensitivity for the within-task order effect. Removing any of six beads barely moves the slope; removing lp-16d590 collapses it to near zero." style="width:100%;height:auto;display:block;font-family:'Helvetica Neue', Helvetica, Arial, sans-serif"><rect width="620" height="248" fill="#ffffff"/><line x1="150.0" y1="16.0" x2="150.0" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><text x="150.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">-1.2</text><line x1="220.7" y1="16.0" x2="220.7" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><text x="220.7" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">-1.0</text><line x1="291.3" y1="16.0" x2="291.3" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><text x="291.3" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">-0.8</text><line x1="362.0" y1="16.0" x2="362.0" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><text x="362.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">-0.6</text><line x1="432.7" y1="16.0" x2="432.7" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><text x="432.7" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">-0.4</text><line x1="503.3" y1="16.0" x2="503.3" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><text x="503.3" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">-0.2</text><line x1="574.0" y1="16.0" x2="574.0" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><text x="574.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0</text><line x1="574.0" y1="16.0" x2="574.0" y2="214.0" stroke="#4a4a4a" stroke-width="1" stroke-dasharray="3,3"/><line x1="309.0" y1="28.4" x2="504.4" y2="28.4" stroke="#0072B2" stroke-width="1.4" stroke-linecap="round"/><rect x="403.7" y="25.4" width="6" height="6" fill="#0072B2"/><text x="142.0" y="31.4" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">all 7 beads</text><text x="580.0" y="31.4" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.47</text><line x1="295.0" y1="53.1" x2="502.6" y2="53.1" stroke="#0072B2" stroke-width="1.4" stroke-linecap="round"/><rect x="395.8" y="50.1" width="6" height="6" fill="#0072B2"/><text x="142.0" y="56.1" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">without lp-dfad42</text><text x="580.0" y="56.1" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.50</text><line x1="297.5" y1="77.9" x2="508.3" y2="77.9" stroke="#0072B2" stroke-width="1.4" stroke-linecap="round"/><rect x="399.9" y="74.9" width="6" height="6" fill="#0072B2"/><text x="142.0" y="80.9" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">without lp-574eb2</text><text x="580.0" y="80.9" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.48</text><line x1="215.8" y1="102.6" x2="463.7" y2="102.6" stroke="#0072B2" stroke-width="1.4" stroke-linecap="round"/><rect x="336.8" y="99.6" width="6" height="6" fill="#0072B2"/><text x="142.0" y="105.6" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">without lp-14c7f5</text><text x="580.0" y="105.6" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.66</text><line x1="300.2" y1="127.4" x2="512.0" y2="127.4" stroke="#0072B2" stroke-width="1.4" stroke-linecap="round"/><rect x="403.1" y="124.4" width="6" height="6" fill="#0072B2"/><text x="142.0" y="130.4" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">without lp-250e23</text><text x="580.0" y="130.4" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.48</text><line x1="268.9" y1="152.1" x2="487.8" y2="152.1" stroke="#0072B2" stroke-width="1.4" stroke-linecap="round"/><rect x="375.3" y="149.1" width="6" height="6" fill="#0072B2"/><text x="142.0" y="155.1" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">without lp-fcf387</text><text x="580.0" y="155.1" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.55</text><line x1="295.5" y1="176.9" x2="504.0" y2="176.9" stroke="#0072B2" stroke-width="1.4" stroke-linecap="round"/><rect x="396.7" y="173.9" width="6" height="6" fill="#0072B2"/><text x="142.0" y="179.9" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">without lp-ef6599</text><text x="580.0" y="179.9" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.49</text><line x1="510.4" y1="201.6" x2="569.5" y2="201.6" stroke="#0072B2" stroke-width="1.4" stroke-linecap="round"/><rect x="536.9" y="198.6" width="6" height="6" fill="#0072B2"/><text x="142.0" y="204.6" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">without lp-16d590</text><text x="580.0" y="204.6" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.10</text><text x="362.0" y="244.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle">within-bead slope, log seconds per position (dashed line = no effect)</text></svg></div>
+    <div class="pcap"><b>Figure 1.</b> Leave-one-out on the within-task order effect, with
+    normal-theory 95% intervals. Six removals leave the slope where it was; one collapses it.
+    The dropped bead is the one whose four runs went 774s, 430s, 39s, 37s — all four gate
+    failures, failing progressively faster. That is a fact about the gate, not about
+    exchangeability.</div>
+  </div>
+
+  <ol class="log" start="13">
+    <li><b>Across the whole run, duration rose and then flattened: 213 → 500 → 798 → 546 → 550
+      seconds by block of twenty turns.</b> The rise survives excluding gate failures and gets
+      stronger (t = 6.19). But turn index is confounded with task composition, which nothing in
+      the ledger controls for, so this does not test H4 — it only says something changed.
+      <span class="src"><code>h4.mjs globalDrift()</code></span></li>
+  </ol>
+
+  <div class="plot">
+    <div class="pwrap"><svg viewBox="0 0 620 230" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Median turn duration by block of twenty turns: 213s, 500s, 798s, then 546s and 550s. The rise is confined to the first sixty turns." style="width:100%;height:auto;display:block;font-family:'Helvetica Neue', Helvetica, Arial, sans-serif"><rect width="620" height="230" fill="#ffffff"/><line x1="46.0" y1="194.0" x2="606.0" y2="194.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="164.0" x2="606.0" y2="164.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="134.0" x2="606.0" y2="134.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="104.0" x2="606.0" y2="104.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="74.0" x2="606.0" y2="74.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="44.0" x2="606.0" y2="44.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="14.0" x2="606.0" y2="14.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="14.0" x2="46.0" y2="194.0" stroke="#4a4a4a" stroke-width="1"/><line x1="46.0" y1="194.0" x2="606.0" y2="194.0" stroke="#4a4a4a" stroke-width="1"/><line x1="46.0" y1="194.0" x2="46.0" y2="197.5" stroke="#4a4a4a" stroke-width="1"/><text x="46.0" y="207.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0</text><line x1="158.0" y1="194.0" x2="158.0" y2="197.5" stroke="#4a4a4a" stroke-width="1"/><text x="158.0" y="207.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">20</text><line x1="270.0" y1="194.0" x2="270.0" y2="197.5" stroke="#4a4a4a" stroke-width="1"/><text x="270.0" y="207.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">40</text><line x1="382.0" y1="194.0" x2="382.0" y2="197.5" stroke="#4a4a4a" stroke-width="1"/><text x="382.0" y="207.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">60</text><line x1="494.0" y1="194.0" x2="494.0" y2="197.5" stroke="#4a4a4a" stroke-width="1"/><text x="494.0" y="207.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">80</text><line x1="606.0" y1="194.0" x2="606.0" y2="197.5" stroke="#4a4a4a" stroke-width="1"/><text x="606.0" y="207.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">100</text><line x1="42.5" y1="194.0" x2="46.0" y2="194.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="197.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">200</text><line x1="42.5" y1="164.0" x2="46.0" y2="164.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="167.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">300</text><line x1="42.5" y1="134.0" x2="46.0" y2="134.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="137.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">400</text><line x1="42.5" y1="104.0" x2="46.0" y2="104.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="107.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">500</text><line x1="42.5" y1="74.0" x2="46.0" y2="74.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="77.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">600</text><line x1="42.5" y1="44.0" x2="46.0" y2="44.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="47.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">700</text><line x1="42.5" y1="14.0" x2="46.0" y2="14.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="17.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">800</text><text x="326.0" y="226.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle">turn (block of 20)</text><text x="12" y="104.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle" transform="rotate(-90 12 104.0)">median duration (s)</text><polyline points="104.8,190.0 216.8,103.9 328.8,14.7 440.8,90.3 552.8,88.9" fill="none" stroke="#0072B2" stroke-width="1.6"/><circle cx="104.8" cy="190.0" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="216.8" cy="103.9" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="328.8" cy="14.7" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="440.8" cy="90.3" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="552.8" cy="88.9" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/></svg></div>
+    <div class="pcap"><b>Figure 2.</b> Median turn duration by block of twenty. A single linear
+    slope across the range reports ×2.9 and is the wrong model: the first-half slope is +0.041
+    per turn (t = 7.15) and the second-half slope is −0.011 (t = −1.15).</div>
+  </div>
+
+  <h2 class="sec"><span class="secno">§</span>Our own errors</h2>
+
+  <ol class="log" start="14">
+    <li><b>Excluding gate failures made an OLS return a slope of exactly zero with a standard
+      error of exactly zero.</b> The filtered subset left a constant column duplicating the
+      intercept, and the normal equations returned a singular fit wearing the costume of a null
+      result. Found by a sensitivity check rather than by the maths.
+      <code>globalDrift()</code> now drops a zero-variance term and says it did.
+      <span class="src"><code>h4.mjs</code></span></li>
+
+    <li><b>Title similarity alone matched a PsycEXTRA dataset stub to False-Positive Psychology,
+      and an American Historical Review book review to Chandler.</b> Both scored 1.0, because the
+      title is the same. Filtering registry record types fixed both; 74 of 82 entries now resolve,
+      and the other 8 say "unlinked" rather than pointing somewhere approximate.
+      <span class="src"><code>resolve-refs.mjs</code></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>The ledger</h2>
+
+  <div class="table-fig">
+    <table class="booktabs">
+      <thead><tr><th>Source of finding</th><th class="num">Entries</th></tr></thead>
+      <tbody>
+        <tr><td>Records already committed</td><td class="num">7</td></tr>
+        <tr><td>Arithmetic and simulation</td><td class="num">5</td></tr>
+        <tr><td>Our own mistakes</td><td class="num">3</td></tr>
+        <tr><td><b>New inference</b></td><td class="num"><b>0</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>The fourth row is the one that matters and it is empty. Nothing above required spending a
+  token, which is why there is so much of it.</p>
+
+  <div class="colophon">
+    ken · findings log<br>
+    Every number here is recomputed on each build from the code or record named beside it, by
+    <code>ken.selftest.mjs</code>. Figures are regenerated and byte-compared.
+  </div>
+
+</div>
+
+<script src="refs.js"></script>
+<script src="cite.js"></script>
+</body>
+</html>

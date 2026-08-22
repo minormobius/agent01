@@ -16,6 +16,7 @@
   <a href="/methods">II · Methods</a>
   <a href="/lab">Instrument</a>
   <a href="/wp1">WP1</a>
+  <a href="/log">Log</a>
   <a href="/protocol">III · Protocol</a>
   <span class="grow"></span>
   <a href="https://mino.mobi">mino.mobi</a>
@@ -156,6 +157,16 @@
       <span class="pg">skeleton</span>
     </div>
     <div class="row">
+      <span class="no">Log</span>
+      <span class="body">
+        <a href="/log">Findings Log</a>
+        <span class="dek">Fifteen numbered findings in shortest form, each naming the code or
+        record that produced it, including three of our own errors. None yet from new
+        inference, and the ledger at the foot says so.</span>
+      </span>
+      <span class="pg">15 entries</span>
+    </div>
+    <div class="row">
       <span class="no">Editorial</span>
       <span class="body">
         <a href="#editorial">Three runs, nothing measured</a>
@@ -184,6 +195,14 @@
   ninety-nine times. The bake-off gate was designed as a floor rather than a grade, and it held
   as a floor should. In both bake-offs the judge panel that was supposed to break the tie
   returned <code>null</code>.</p>
+
+  <p><b>The eighty-nine is worse than it looks.</b> Twelve of those runs are flagged
+  infrastructure failures, with a median duration of 61 seconds against 597 for real runs, and
+  nine of the twelve are recorded as having passed the gate. The flag was added part-way
+  through, so twelve is a floor rather than a count: five more of the forty-five unflagged
+  records fall in the duration range where infra failures live. Somewhere between 13% and 19% of
+  the run was the harness failing, scored as though it were work. See
+  <a href="/log">L10 and L11</a>.</p>
 
   <p>The signals that did fire are worth looking at, because they are textbook objects. The
   loop's probe took three distinct values across eighty-nine turns and sat at its maximum in

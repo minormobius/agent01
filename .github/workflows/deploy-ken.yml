@@ -29,6 +29,8 @@ jobs:
         run: node lab/design.selftest.mjs
       - name: Design simulator (32 known-answer checks)
         run: node lab/simulate.selftest.mjs
+      - name: H4 analysis (37 checks, pinned to the committed ledger)
+        run: node lab/h4.selftest.mjs
       - name: Selftest (citations, prose lint, tables, roadmap graph, quoted figures)
         run: node ken.selftest.mjs
       - name: Install wrangler

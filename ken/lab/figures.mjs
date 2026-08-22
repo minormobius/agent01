@@ -12,9 +12,11 @@
 import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { charts } from '../../packages/dataviz/index.mjs';
+import { charts, stats } from '../../packages/dataviz/index.mjs';
+const { median } = stats;
 import { mde, designComparison } from './design.mjs';
 import { iccSamplingDistribution, bimodalityPower } from './simulate.mjs';
+import { loadRuns, partition, repeatedBeads, orderEffect } from './h4.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = join(HERE, '..', 'fig');
@@ -72,6 +74,41 @@ export function buildFigures() {
     aria: 'Runs needed for one medium-effect contrast against the correlation between '
         + 'conditions on shared tasks: 126 unpaired, falling to about 20 at a correlation '
         + 'of 0.85.',
+  });
+
+  // ── H4: the order effect is one bead ──
+  const clean = partition(loadRuns()).cleanRuns;
+  const beads = repeatedBeads(clean);
+  const loo = [{ label: 'all 7 beads', ...orderEffect(clean, { perms: 4000 }) }];
+  for (const g of beads) {
+    const kept = clean.filter((r) => r.bead !== g.bead);
+    loo.push({ label: `without ${g.bead}`, ...orderEffect(kept, { perms: 4000 }) });
+  }
+  figs['h4-leave-one-out'] = charts.forest({
+    rows: loo.map((r) => ({
+      label: r.label,
+      est: r.slope,
+      lo: r.slope - 1.96 * r.se,
+      hi: r.slope + 1.96 * r.se,
+    })),
+    ref: 0, width: 620, height: 40 + loo.length * 26, labelW: 150,
+    xlabel: 'within-bead slope, log seconds per position (dashed line = no effect)',
+    aria: 'Leave-one-out sensitivity for the within-task order effect. Removing any of six '
+        + 'beads barely moves the slope; removing lp-16d590 collapses it to near zero.',
+  });
+
+  // ── H4: duration rises then flattens ──
+  const blocks = [];
+  for (let lo = 1; lo <= 100; lo += 20) {
+    const b = clean.filter((r) => r.turn >= lo && r.turn < lo + 20);
+    if (b.length) blocks.push({ x: lo + 9.5, y: median(b.map((r) => r.dur)) });
+  }
+  figs['h4-drift'] = charts.line({
+    series: [{ name: 'median duration', points: blocks }], markers: true,
+    width: 620, height: 230,
+    xlabel: 'turn (block of 20)', ylabel: 'median duration (s)',
+    aria: 'Median turn duration by block of twenty turns: 213s, 500s, 798s, then 546s and '
+        + '550s. The rise is confined to the first sixty turns.',
   });
 
   return figs;

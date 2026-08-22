@@ -50,6 +50,7 @@ worker or move the domain, **verify the deploy log binds
 | `methods.html` | **Article II**, the house standard for model experiments. Served at `/methods`. |
 | `lab.html` | **Instrument note** for the harness. Served at `/lab`. |
 | `wp1.html` | **Working paper 1**, Unit II worked end to end. Served at `/wp1`. |
+| `log.html` | **The findings log.** Numbered, terse, append-only. Served at `/log`. |
 | `protocol.html` | **Article III**, the Stage 1 registered-report skeleton. Served at `/protocol`. |
 | `tree.js` | the roadmap DAG: node data plus the SVG renderer |
 | `lab/design.mjs` | **the harness.** Node-only, not served |
@@ -57,6 +58,8 @@ worker or move the domain, **verify the deploy log binds
 | `lab/simulate.mjs` | simulate a design before running it. Node-only |
 | `lab/simulate.selftest.mjs` | 32 known-answer checks for it |
 | `lab/figures.mjs` | renders `fig/*.svg` from packages/dataviz. `--write` to regenerate |
+| `lab/h4.mjs` | the exchangeability analysis over the loop ledger |
+| `lab/h4.selftest.mjs` | 37 checks, pinned to the committed ledger |
 | `lab/resolve-refs.mjs` | links the bibliography against CrossRef / arXiv / OpenLibrary |
 | `fig/*.svg` | **generated.** Committed so figures print and diff |
 | `refs.js` | **the bibliography, as data** — 54 real works, keyed |
@@ -122,6 +125,39 @@ Two things follow for anyone editing here:
   unrecoverable move.
 - **The simulation assumes the model the run is partly there to test.** Say so
   wherever its numbers appear. WP1 does, in its limits box.
+
+## The findings log
+
+`/log` is the running record: numbered entries, shortest form, each naming the
+code or record that produced it. **Append-only.** A corrected entry is struck
+and restated in a new entry, never edited away — the site is about honest
+measurement and quietly rewriting its own history is the one unrecoverable
+move.
+
+Its ledger at the foot counts entries by provenance, and the selftest asserts
+the "new inference" row still reads zero. When that changes, change it because
+a run happened.
+
+## Analysing the ledger (H4)
+
+`lab/h4.mjs` joins `runs.jsonl` to `turns.jsonl`, derives a duration per turn,
+and tests exchangeability. Three things to know before touching it:
+
+- **The outcome is duration, not quality.** The loop recorded no quality scores,
+  so there is nothing else continuous to regress. Exchangeability is a claim
+  about the process, which duration measures.
+- **`infra: true` runs must be excluded and the flag is incomplete.** 45 of 89
+  records predate it. `INFRA_SECONDS = 120` is the fallback rule; it catches 11
+  of 12 known cases and misclassifies 2 of 32 known-real, and every threshold
+  from 90s to 200s gives the same split, so nothing hinges on the number.
+- **Sensitivity is not optional at this n.** Seven beads carry the whole
+  within-task test, and the headline slope turned out to be one of them. Always
+  run leave-one-out before believing a slope here.
+
+`globalDrift()` drops a zero-variance predictor. Without that guard, filtering
+to passing runs only left a constant column duplicating the intercept and OLS
+returned slope exactly 0 with SE exactly 0 — a singular fit that reads as a
+clean null. Found by sensitivity, not by the maths.
 
 ## Figures and the bibliography
 

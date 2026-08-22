@@ -43,6 +43,7 @@ import { NODES, box } from './tree.js';
 import { mde, designComparison, variancePilot, ladyTastingTea, sprtBounds, choose } from './lab/design.mjs';
 import { iccSamplingDistribution, pilotSweep, bimodalityPower, allocationCheck } from './lab/simulate.mjs';
 import { buildFigures } from './lab/figures.mjs';
+import { loadRuns, partition, orderEffect, globalDrift } from './lab/h4.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -250,6 +251,35 @@ ok(choose(8, 4) === 70 && ladyTastingTea(6).smallestP === 0.05,
   }
 }
 ok(lab.includes('/wp1'), 'the instrument note links to the paper that corrected it');
+
+// (b2) the findings log's H4 numbers, recomputed from the ledger
+{
+  const log = readFileSync(join(HERE, 'log.html'), 'utf8');
+  const part = partition(loadRuns());
+  ok(part.knownInfra === 12 && part.suspectedInfra === 5 && part.clean === 72,
+     `H4 partition is 12 known infra, 5 suspected, 72 clean (got ${part.knownInfra}/${part.suspectedInfra}/${part.clean})`);
+  for (const v of ['12 of 89', '61s', '597s', '11 of the 12', '2 of 32', '5 more'])
+    ok(log.includes(v), `log states "${v}"`);
+
+  const naive = orderEffect(part.cleanRuns, { perms: 20000, seed: 4242 });
+  const dropped = orderEffect(part.cleanRuns.filter((r) => r.bead !== 'lp-16d590'), { perms: 20000, seed: 4242 });
+  ok(naive.slope.toFixed(2) === '-0.47' && naive.p.toFixed(3) === '0.012',
+     `L12 slope -0.47 at p 0.012 (got ${naive.slope.toFixed(2)}, ${naive.p.toFixed(3)})`);
+  ok(dropped.slope.toFixed(2) === '-0.10' && dropped.p.toFixed(2) === '0.17',
+     `L12 collapses to -0.10 at p 0.17 (got ${dropped.slope.toFixed(2)}, ${dropped.p.toFixed(2)})`);
+  ok(log.includes('−0.47') && log.includes('−0.10') && log.includes('p = 0.012') && log.includes('p = 0.17'),
+     'the log states both slopes and both p-values');
+
+  const noGate = globalDrift(part.cleanRuns.filter((r) => !r.gateFailed));
+  ok(noGate.t.toFixed(2) === '6.19', `L13 t is 6.19 excluding gate failures (got ${noGate.t.toFixed(2)})`);
+  ok(noGate.gateVaries === false, 'and the singular-fit guard fired on that subset');
+  ok(log.includes('213 → 500 → 798 → 546 → 550'), 'the log states the block medians');
+  ok(log.includes('t = 6.19'), 'and the t statistic');
+
+  // the log must keep saying the honest thing about its own provenance
+  ok(/New inference<\/b><\/td><td class="num"><b>0<\/b>/.test(log),
+     'the log ledger still reports zero findings from new inference');
+}
 
 // (c) the committed figures are current
 const figs = buildFigures();
