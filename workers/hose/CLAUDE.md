@@ -197,6 +197,14 @@ deletes the rest via `f.staleKeys`. Both halves are gated by selftests.
 emptying somebody's feed because a `getList` call 500'd is worse than briefly
 leaving a bot in it.
 
+**Membership is cached in DO storage, and that is load-bearing given eviction.**
+The object is evicted between wakes, so `this.lists` starts empty on every wake.
+Without a cached copy, one failed `getList` means that entire sample ingests
+with *no* bot filtering — the filter silently does nothing for an hour. A stale
+membership list is a much better fallback than none. Lists over
+`LIST_PERSIST_MAX` (3000) are not cached, because a DO storage value caps at
+128KB; they still work, they just re-fetch every wake.
+
 ## The running cost
 
 **Target: zero.** At the shipped defaults this surface fits inside the Workers

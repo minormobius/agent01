@@ -76,6 +76,15 @@ const DEFAULT_MAX_FRAMES = 800;
 const PRIME_TARGET = 150;
 const PRIME_SAMPLES = 6;
 const PRIME_INTERVAL_MS = 60_000;
+// Lists are cached in storage as well as memory. passes() skips a list filter
+// whose members it could not resolve — the right call, since silently emptying
+// a feed because getList 500'd is worse than briefly leaving a bot in it. But
+// the object is evicted between wakes, so without a cached copy a single failed
+// fetch means that sample runs with NO bot filtering at all. A stale membership
+// list is a far better fallback than none.
+// Capped because a DO storage value tops out at 128KB; a larger list still
+// works, it just re-fetches every wake as before.
+const LIST_PERSIST_MAX = 3000;
 
 const nowMs = () => Date.now();
 const chunkKey = (uri, i) => `buf:${uri}:${String(i).padStart(6, '0')}`;
@@ -212,6 +221,11 @@ export class FirehoseIngest {
       this.feeds.set(uri, f);
     }
     this.lastTimeUs = (await this.state.storage.get('cursor')) || 0;
+    const cachedLists = await this.state.storage.list({ prefix: 'list:' });
+    for (const key of cachedLists.keys()) {
+      const dids = cachedLists.get(key);
+      if (Array.isArray(dids)) this.lists.set(key.slice('list:'.length), new Set(dids));
+    }
     const stats = (await this.state.storage.get('stats')) || {};
     this.samples = stats.samples || 0;
     this.lastSampleAt = stats.lastSampleAt || 0;
@@ -294,7 +308,11 @@ export class FirehoseIngest {
     if (!f.def) return;
     for (const uri of listUris(f.def)) {
       const members = await getListMembers(uri);
-      if (members) this.lists.set(uri, members);   // null = fetch failed; keep the old set
+      if (!members) continue;                      // fetch failed; keep whatever we had
+      this.lists.set(uri, members);
+      if (members.size <= LIST_PERSIST_MAX) {
+        await this.state.storage.put(`list:${uri}`, [...members]);
+      }
     }
   }
 

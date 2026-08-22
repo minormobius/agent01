@@ -347,6 +347,31 @@ console.log('the per-sample frame cap');
     wakes * 800 + wakes < 1_000_000);
 }
 
+console.log('list membership survives eviction');
+{
+  // passes() skips a list filter it cannot resolve, which is right — emptying a
+  // feed because getList 500'd is worse than leaving one bot in it. But the
+  // object is evicted between wakes, so with no cached copy a single failed
+  // fetch means a whole sample runs with NO bot filtering. Stale beats absent.
+  const store = new Map();
+  const { o } = await mount(store);
+  await o.state.storage.put('list:L', ['did:plc:bot', 'did:plc:bot2']);
+
+  const state2 = fakeState(store);
+  const o2 = new FirehoseIngest(state2, {});
+  await state2._ready;
+  ok('the cached membership is back after a restart', o2.lists.get('L')?.has('did:plc:bot'));
+
+  // And it is actually applied: a listed author must still be dropped on a wake
+  // where the list fetch never ran.
+  const f2 = FirehoseIngest.blank();
+  f2.def = DEF; f2.source = 'test';
+  o2.feeds.set(FEED, f2);
+  o2.onMessage(frame('did:plc:bot', '1', text('beep boop hello there')));
+  o2.onMessage(frame('did:plc:human', '2', text('a quiet runway at dawn')));
+  eq('the bot is filtered from a cold start', o2.entries(f2).map((e) => e.u.split('/')[2]), ['did:plc:human']);
+}
+
 console.log('counters survive eviction');
 {
   // A duty-cycled object is evicted between wakes BY DESIGN — it is resident
