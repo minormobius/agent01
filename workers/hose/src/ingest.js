@@ -60,6 +60,23 @@ const DEFAULT_SAMPLE_EVERY_MINUTES = 60;
 // of mine being right.
 const DEFAULT_MAX_FRAMES = 800;
 
+// PRIMING. A newly registered feed has an empty ring and would otherwise wait a
+// full jittered interval — up to 90 minutes — for its first content, then show
+// one sample's worth. That is an empty feed to anyone who opens it, which is
+// indistinguishable from a broken one.
+//
+// So while a firehose feed is below PRIME_TARGET entries, the object wakes every
+// minute instead of every hour, for at most PRIME_SAMPLES wakes. The cap is what
+// keeps it honest: a feed whose filters genuinely match almost nothing gives up
+// after six tries rather than sampling every minute forever. Whole-lifetime cost
+// of priming one feed is PRIME_SAMPLES x MAX_FRAMES ~ 4,800 frames, one-off.
+//
+// The counter is persisted and reset by clearBuffer(), so editing a feed's
+// filters re-primes it — the case where the ring was just emptied on purpose.
+const PRIME_TARGET = 150;
+const PRIME_SAMPLES = 6;
+const PRIME_INTERVAL_MS = 60_000;
+
 const nowMs = () => Date.now();
 const chunkKey = (uri, i) => `buf:${uri}:${String(i).padStart(6, '0')}`;
 const maxChunks = () => Math.ceil(MAX_PER_FEED / CHUNK) + 1;
@@ -110,6 +127,7 @@ export class FirehoseIngest {
              chunks: new Map(), head: 0, dirty: new Set(),
              gone: new Set(),      // chunk INDICES to delete (mapped through chunkKey)
              staleKeys: new Set(), // raw key strings to delete — see the migration in load()
+             primes: 0,            // consecutive fast wakes spent filling this feed
              warnings: [] };
   }
 
@@ -144,6 +162,7 @@ export class FirehoseIngest {
     for (const i of f.chunks.keys()) f.gone.add(i);
     f.chunks.clear();
     f.dirty.clear();
+    f.primes = 0;   // an emptied ring earns a fresh prime budget
     // head is deliberately NOT reset: chunk indices must stay monotonic, or a
     // new chunk 0 would collide with the key we just scheduled for deletion.
   }
@@ -159,6 +178,7 @@ export class FirehoseIngest {
       f.source = (stored && stored.source) || 'unknown';
       f.fetchedAt = (stored && stored.fetchedAt) || 0;
       f.lastSeen = meta.lastSeen || 0;
+      f.primes = meta.primes || 0;
 
       // Chunk keys are `buf:<feed>:<index padded to 6>`. An earlier build padded
       // to 3, and both parse to the same index while being DIFFERENT keys — so a
@@ -199,7 +219,7 @@ export class FirehoseIngest {
   async flush() {
     const reg = {};
     for (const [uri, f] of this.feeds) {
-      reg[uri] = { lastSeen: f.lastSeen };
+      reg[uri] = { lastSeen: f.lastSeen, primes: f.primes };
       const doomed = [...f.gone].map((i) => chunkKey(uri, i));
       // Deletes run BEFORE writes, so a key that is both doomed and dirty ends
       // up correctly written rather than correctly deleted.
@@ -369,6 +389,7 @@ export class FirehoseIngest {
   // ── lifecycle ──────────────────────────────────────────────────────────────
 
   async alarm() {
+    let nextDelay = this.nextDelayMs();
     try {
       const seeded = new Set((this.env.SEED_FEEDS || '').split(/[\s,]+/).filter(Boolean));
       for (const uri of seeded) {
@@ -388,10 +409,30 @@ export class FirehoseIngest {
         await this.ensureFeed(uri, true);
       }
       await this.sample();
+
+      // Anything still cold gets another fast wake, up to its prime budget.
+      let priming = false;
+      for (const [, f] of this.firehoseFeeds()) {
+        if (this.count(f) >= PRIME_TARGET || f.primes >= PRIME_SAMPLES) continue;
+        f.primes++;
+        priming = true;
+      }
+      this.priming = priming;
       await this.flush();
+      nextDelay = priming ? PRIME_INTERVAL_MS : this.nextDelayMs();
     } finally {
-      await this.state.storage.setAlarm(nowMs() + this.nextDelayMs());
+      await this.state.storage.setAlarm(nowMs() + nextDelay);
     }
+  }
+
+  // Pull the next sample forward. Used when somebody opens a feed that has
+  // nothing to show — waiting up to 90 minutes to find that out is the whole
+  // cold-start problem. Bounded by the caller's prime budget, so a feed that
+  // matches nothing cannot turn every read into a sample.
+  async wakeSoon() {
+    const soon = nowMs() + 2000;
+    const alarm = await this.state.storage.getAlarm();
+    if (alarm == null || alarm > soon) await this.state.storage.setAlarm(soon);
   }
 
   async fetch(request) {
@@ -407,6 +448,7 @@ export class FirehoseIngest {
         ok: true,
         sampling: { seconds: this.sampleMs() / 1000, everyMinutes: this.intervalMs() / 60_000, maxFrames: this.maxFrames() },
         samples: this.samples,
+        priming: !!this.priming,
         lastSampleAt: this.lastSampleAt || null,
         lastSampleFrames: this.lastSampleFrames,
         lastSampleEndedBy: this.lastSampleEndedBy,
@@ -416,7 +458,7 @@ export class FirehoseIngest {
         lastError: this.lastError,
         lists: [...this.lists].map(([uri, s]) => ({ uri, members: s.size })),
         feeds: [...this.feeds].map(([uri, f]) => ({
-          uri, source: f.source, buffered: this.count(f), chunks: f.chunks.size,
+          uri, source: f.source, buffered: this.count(f), chunks: f.chunks.size, primes: f.primes,
           firehose: !!(f.def && (f.def.inputs || []).some((i) => i.type === 'firehose')),
           filters: f.def ? (f.def.filters || []).length : 0,
           warnings: f.warnings || [],
@@ -431,6 +473,8 @@ export class FirehoseIngest {
       const f = await this.ensureFeed(feedUri);
       f.lastSeen = nowMs();   // the one place a feed counts as read
       if (!f.def) return Response.json({ uris: [], total: 0, source: f.source, def: null });
+      const isFirehose = (f.def.inputs || []).some((i) => i.type === 'firehose');
+      if (isFirehose && this.count(f) === 0 && f.primes < PRIME_SAMPLES) await this.wakeSoon();
       const { uris, total } = this.page(f, offset, limit);
       return Response.json({ uris, total, source: f.source, def: f.def, buffered: this.count(f) });
     }

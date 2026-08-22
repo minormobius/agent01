@@ -86,6 +86,32 @@ Wake times are **jittered** (0.5×–1.5× the interval). Sampling at a fixed of
 past the hour would make the feed a permanent portrait of whatever the network
 does in that one 20-second slot.
 
+### Priming — the cold start, which was got wrong once
+
+A feed registered *after* the last sample has an empty ring and waits a full
+jittered interval — **up to 90 minutes** — before it sees anything, then shows
+one sample's worth. Anyone who opens it sees an empty feed, which is
+indistinguishable from a broken one. That is exactly what happened to the first
+published feed.
+
+So while a firehose feed holds fewer than **150** entries, the object wakes
+every **minute** instead of every hour, for at most **6** wakes. Two guards keep
+that honest:
+
+- **the budget is per feed and persisted** — a feed whose filters genuinely
+  match almost nothing gives up after six tries instead of sampling every minute
+  forever. Whole-lifetime priming cost is ~4,800 frames, one-off.
+- **opening an empty feed pulls the next sample forward** (to +2s), but only
+  while that feed still has prime budget. Without the second condition a feed
+  that matches nothing would turn *every read* into a sample and undo the duty
+  cycle completely.
+
+`clearBuffer()` resets the budget, so editing a feed's filters re-primes it —
+the case where the ring was just emptied on purpose and the feed would otherwise
+look broken for an hour and a half.
+
+`/status` reports `priming` and a per-feed `primes` count.
+
 ### Where a feed's definition comes from
 
 Resolved from the owner's PDS, in this order:
@@ -292,10 +318,10 @@ combination that removes every non-zero bucket is exactly "no images".
 
 - **`sort: top` is not available on a firehose input.** Ranking by likes needs
   counts the ingester does not have; firehose feeds serve newest-first.
-- **No backfill, and now a slow fill.** A newly registered feed starts empty and
-  fills only during sample windows — at ~680 matches/day it takes about three
-  days to fill a 2000-entry ring. `SEED_FEEDS` in `wrangler.jsonc` pre-registers
-  feeds at startup so the ring is warming before anyone opens them.
+- **No backfill, and a slow fill after priming.** A new feed primes to ~150
+  entries within minutes (below), then fills at ~680 matches/day — about three
+  days to a full 2000-entry ring. `SEED_FEEDS` pre-registers feeds so the ring
+  is warming before anyone opens them.
 - **The def's `seconds` window rarely binds.** The ring cap is reached first
   unless a feed's filters are very tight. A def saying 86400 usually means "the
   last ~2000 matches", which at the shipped duty cycle is roughly three days.

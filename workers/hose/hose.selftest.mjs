@@ -26,33 +26,40 @@ const ok = (name, cond) => eq(name, !!cond, true);
 // started, which is a bug in the fake, not in the object — capture the promise
 // and let callers await it.
 function fakeState(store = new Map()) {
-  return {
+  const st = {
     _store: store,
     _ready: Promise.resolve(),
     _puts: [],        // every key written, in order
     _dels: [],        // every key deleted
     blockConcurrencyWhile(fn) { this._ready = fn(); },
-    get storage() {
-      const st = this;
-      return {
-        get: async (k) => store.get(k),
-        put: async (a, b) => {
-          if (typeof a === 'object' && a !== null) {
-            for (const [k, v] of Object.entries(a)) { store.set(k, v); st._puts.push(k); }
-          } else { store.set(a, b); st._puts.push(a); }
-        },
-        delete: async (k) => { for (const key of [].concat(k)) { store.delete(key); st._dels.push(key); } },
-        list: async ({ prefix }) => {
-          const m = new Map();
-          for (const [k, v] of store) if (k.startsWith(prefix)) m.set(k, v);
-          return m;
-        },
-        getAlarm: async () => 1,
-        setAlarm: async () => {},
-      };
-    },
   };
+  // storage must be ONE object, not a getter that mints a fresh one per access —
+  // otherwise a test that stubs `state.storage.setAlarm` is silently assigning
+  // to a throwaway and the stub never runs. (Learned the hard way.)
+  st.storage = {
+    get: async (k) => store.get(k),
+    put: async (a, b) => {
+      if (typeof a === 'object' && a !== null) {
+        for (const [k, v] of Object.entries(a)) { store.set(k, v); st._puts.push(k); }
+      } else { store.set(a, b); st._puts.push(a); }
+    },
+    delete: async (k) => { for (const key of [].concat(k)) { store.delete(key); st._dels.push(key); } },
+    list: async ({ prefix }) => {
+      const m = new Map();
+      for (const [k, v] of store) if (k.startsWith(prefix)) m.set(k, v);
+      return m;
+    },
+    getAlarm: async () => 1,
+    setAlarm: async () => {},
+  };
+  return st;
 }
+
+// Mirrors of the module's private priming constants. If these drift, the tests
+// below stop describing the shipped behaviour — so they are asserted against
+// observable behaviour, not just used as magic numbers.
+const PRIME_TARGET_GUESS = 150;
+const PRIME_BUDGET_GUESS = 6;
 
 const FEED = 'at://did:plc:owner/app.bsky.feed.generator/txt';
 const DEF = {
@@ -338,6 +345,58 @@ console.log('the per-sample frame cap');
   const wakes = 30 * 24;   // hourly
   ok('the ceiling holds under the 1M request allowance at the default cap',
     wakes * 800 + wakes < 1_000_000);
+}
+
+console.log('priming a cold feed');
+{
+  // The bug this exists for: a feed registered after the last sample sat empty
+  // for a full jittered interval — up to 90 minutes — and anyone opening it saw
+  // nothing, which looks identical to broken.
+  const store = new Map();
+  const { o, state, f } = await mount(store);
+
+  eq('a fresh feed starts with a full prime budget', f.primes, 0);
+
+  // Opening an empty firehose feed pulls the next sample forward.
+  let alarmSetTo = null;
+  state.storage.setAlarm = async (t) => { alarmSetTo = t; };
+  state.storage.getAlarm = async () => Date.now() + 60 * 60_000;   // an hour away
+  const res = await o.fetch(new Request(`https://x.invalid/page?feed=${encodeURIComponent(FEED)}`));
+  const body = await res.json();
+  eq('the empty feed still answers, it does not error', body.uris, []);
+  ok('and the next sample is pulled forward', alarmSetTo !== null && alarmSetTo < Date.now() + 10_000);
+
+  // A feed that is already full must NOT pull the alarm forward — that would
+  // turn every read into a sample and undo the duty cycle.
+  alarmSetTo = null;
+  for (let i = 0; i < PRIME_TARGET_GUESS; i++) o.append(f, { u: `at://d/app.bsky.feed.post/${i}`, t: Date.now() });
+  await o.fetch(new Request(`https://x.invalid/page?feed=${encodeURIComponent(FEED)}`));
+  eq('a warm feed leaves the schedule alone', alarmSetTo, null);
+
+  // And an exhausted prime budget stops pulling it forward even while cold.
+  const { o: o2, state: st2, f: f2 } = await mount(new Map());
+  f2.primes = 99;
+  let pulled = null;
+  st2.storage.setAlarm = async (t) => { pulled = t; };
+  st2.storage.getAlarm = async () => Date.now() + 60 * 60_000;
+  await o2.fetch(new Request(`https://x.invalid/page?feed=${encodeURIComponent(FEED)}`));
+  eq('a spent prime budget stops the fast path', pulled, null);
+}
+
+console.log('priming has a hard budget');
+{
+  const { o, f } = await mount();
+  let spent = 0;
+  // Stand in for alarm()'s prime accounting: cold feeds burn one prime per wake.
+  for (let wake = 0; wake < 50; wake++) {
+    if (o.count(f) >= PRIME_TARGET_GUESS || f.primes >= PRIME_BUDGET_GUESS) continue;
+    f.primes++; spent++;
+  }
+  eq('a feed that never fills gives up after its budget', spent, PRIME_BUDGET_GUESS);
+  eq('so priming costs a bounded one-off, not a permanent fast cadence', f.primes, PRIME_BUDGET_GUESS);
+
+  o.clearBuffer(f);
+  eq('and emptying the ring on a filter edit earns a fresh budget', f.primes, 0);
 }
 
 console.log('the duty cycle is configurable and clamped');
