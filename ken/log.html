@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Findings Log — ken</title>
-<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Thirty-one entries, seven of them from measurements we made.">
+<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Thirty-five entries, seven of them from measurements we made.">
 <link rel="stylesheet" href="journal.css">
 </head>
 <body>
@@ -28,7 +28,7 @@
   <div class="a-venue">ken · volume 1 <span class="kicker">Running record</span></div>
   <h1 class="a-title">Findings Log</h1>
   <p class="a-sub">Shortest form. Each entry names the code or record that produced it.</p>
-  <div class="a-meta">31 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
+  <div class="a-meta">35 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
   <hr class="a-rule">
 
   <p class="small">Everything here comes from data already paid for or from arithmetic. That is
@@ -243,9 +243,49 @@
       <span class="src"><code>prose-lint.mjs registerOf()</code></span></li>
   </ol>
 
-  <h2 class="sec"><span class="secno">§</span>Our own errors</h2>
+  <h2 class="sec"><span class="secno">§</span>The plan as a graph</h2>
 
   <ol class="log" start="27">
+    <li><b>The run shape is now rewrite rules, on morph's laws.</b> A cell expands into
+      sub-cells; a wave takes its width from the condition bus rather than declaring it; and the
+      only control flow is failure, so the budget stopping rule <i>is</i> the mechanism that ends
+      the recursion rather than a separate check. Ask for ten runs on a 20-turn budget and the
+      planner builds three and records why.
+      <span class="src"><a href="/run">run §5</a> · <code>plan.mjs</code></span></li>
+
+    <li><b>Probe and build are one interpreter behind a flag, so the cost estimate cannot drift
+      from the plan.</b> This is morph's <code>resolve</code> law and it is the one worth
+      importing: a cost table maintained beside a runner eventually disagrees with it, and the
+      same code cannot. Asserted over six designs including two that fail.
+      <span class="src"><code>probeMatchesBuild()</code></span></li>
+
+    <li><b>The derived layout found a wiring bug the hand-drawn figure would have hidden.</b>
+      Wave A fed wave B as a complete bipartite graph, every turn waiting on every turn, because
+      the whole previous wave was passed as the predecessor. Drawn honestly, it was obviously
+      wrong. Drawn by hand I would have drawn lanes, which is what I meant rather than what the
+      code said. Each condition is now a lane, and the selftest asserts the crossing edges are
+      absent.
+      <span class="src"><code>Builder.parallel()</code></span></li>
+
+    <li><b>The layout is seed-independent to about one part in ten million.</b> Positions agree
+      across five seeds, so the seed only breaks the initial symmetry and the picture is a
+      function of the graph. My selftest originally asserted the opposite — that a different seed
+      would move it — which is the assumption a force layout invites and this one does not
+      support. Adding a condition now costs no geometry at all: <code>tree.js</code> hand-places
+      every box, and this places none.
+      <span class="src"><code>layout.mjs relax()</code></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>Our own errors</h2>
+
+  <ol class="log" start="31">
+    <li><b>A fallback that caught more than it could repair answered a nonsense design by
+      growing it.</b> The budget fallback fired on any experiment failure, including a request
+      for zero runs, and then built <code>budget / 6</code> runs, turning an invalid design into
+      a large valid-looking one. It now repairs exactly the failure it was written for and
+      rethrows the rest.
+      <span class="src"><code>FALLBACKS.experiment</code></span></li>
+
     <li><b>Four edits to the worker's route map silently did nothing, and nothing broke.</b>
       Each replacement targeted a string the previous failed edit was supposed to have created,
       and I never asserted that any of them applied. The routes worked anyway: Workers Static
@@ -290,8 +330,8 @@
       <thead><tr><th>Source of finding</th><th class="num">Entries</th></tr></thead>
       <tbody>
         <tr><td>Records already committed</td><td class="num">12</td></tr>
-        <tr><td>Arithmetic and simulation</td><td class="num">6</td></tr>
-        <tr><td>Our own mistakes</td><td class="num">6</td></tr>
+        <tr><td>Arithmetic and simulation</td><td class="num">8</td></tr>
+        <tr><td>Our own mistakes</td><td class="num">9</td></tr>
         <tr><td><b>New measurement</b></td><td class="num"><b>7</b></td></tr>
       </tbody>
     </table>

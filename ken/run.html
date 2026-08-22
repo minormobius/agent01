@@ -115,7 +115,55 @@
     <li>Check each field that orders the report. Report a field that failed.</li>
   </ol>
 
-  <h2 class="sec"><span class="secno">5</span>Cost</h2>
+  <h2 class="sec"><span class="secno">5</span>The plan is a graph</h2>
+
+  <p>The shape above is a graph. We write it as rewrite rules, not as a list of
+  stages. The laws come from <a href="https://g.mino.mobi/morph/">morph</a>, which takes them
+  from MorphoHDL.</p>
+
+  <ol>
+    <li><b>A cell is a rewrite rule.</b> A stage expands into sub-stages and wires them.</li>
+    <li><b>The bus sets the width.</b> A wave is as wide as the condition bus. One definition
+      covers two conditions and six.</li>
+    <li><b>The only control flow is failure.</b> A wave on a one-condition bus fails. A run past
+      the budget fails. The planner unwinds to the fallback of that cell.</li>
+    <li><b>Probe and build are one interpreter.</b> A flag switches them. The cost estimate
+      therefore cannot drift from the plan it estimates.</li>
+  </ol>
+
+  <p>Law 4 is the reason to do this. A cost table kept beside a runner drifts from it. One
+  interpreter does not drift. The selftest checks that the two agree over six designs.</p>
+
+  <p>Law 3 replaces the stopping rule with the same mechanism that ends the recursion. Give the
+  planner a budget of 20 turns. Then ask it for ten runs. It builds three and records why.</p>
+
+  <div class="plot">
+    <div class="pwrap"><svg viewBox="0 0 620 302" role="img" aria-label="Three standard runs over two conditions: 18 turns, depth 3."><path class="pl-edge" d="M 92.9 43 C 92.9 68, 34.0 78, 34.0 103"/><path class="pl-edge" d="M 92.9 43 C 92.9 68, 135.3 78, 135.3 103"/><path class="pl-edge" d="M 34.0 121 C 34.0 146, 34.0 156, 34.0 181"/><path class="pl-edge" d="M 135.3 121 C 135.3 146, 135.3 156, 135.3 181"/><path class="pl-edge" d="M 34.0 199 C 34.0 224, 92.9 234, 92.9 259"/><path class="pl-edge" d="M 135.3 199 C 135.3 224, 92.9 234, 92.9 259"/><path class="pl-edge" d="M 310.0 43 C 310.0 68, 259.4 78, 259.4 103"/><path class="pl-edge" d="M 310.0 43 C 310.0 68, 360.6 78, 360.6 103"/><path class="pl-edge" d="M 259.4 121 C 259.4 146, 259.4 156, 259.4 181"/><path class="pl-edge" d="M 360.6 121 C 360.6 146, 360.6 156, 360.6 181"/><path class="pl-edge" d="M 259.4 199 C 259.4 224, 310.0 234, 310.0 259"/><path class="pl-edge" d="M 360.6 199 C 360.6 224, 310.0 234, 310.0 259"/><path class="pl-edge" d="M 527.1 43 C 527.1 68, 484.7 78, 484.7 103"/><path class="pl-edge" d="M 527.1 43 C 527.1 68, 586.0 78, 586.0 103"/><path class="pl-edge" d="M 484.7 121 C 484.7 146, 484.7 156, 484.7 181"/><path class="pl-edge" d="M 586.0 121 C 586.0 146, 586.0 156, 586.0 181"/><path class="pl-edge" d="M 484.7 199 C 484.7 224, 527.1 234, 527.1 259"/><path class="pl-edge" d="M 586.0 199 C 586.0 224, 527.1 234, 527.1 259"/><g class="pl-node pl-block"><title>setup 1 · depth 0</title><circle cx="92.9" cy="34" r="8"/><text x="92.9" y="56" text-anchor="middle">setup 1</text></g><g class="pl-node pl-turn"><title>A1·control · depth 1</title><circle cx="34.0" cy="112" r="8"/><text x="34.0" y="134" text-anchor="middle">A1·control</text></g><g class="pl-node pl-turn"><title>A1·treatment · depth 1</title><circle cx="135.3" cy="112" r="8"/><text x="135.3" y="134" text-anchor="middle">A1·treatment</text></g><g class="pl-node pl-turn"><title>B1·control · depth 2</title><circle cx="34.0" cy="190" r="8"/><text x="34.0" y="212" text-anchor="middle">B1·control</text></g><g class="pl-node pl-turn"><title>B1·treatment · depth 2</title><circle cx="135.3" cy="190" r="8"/><text x="135.3" y="212" text-anchor="middle">B1·treatment</text></g><g class="pl-node pl-block"><title>cleanup 1 · depth 3</title><circle cx="92.9" cy="268" r="8"/><text x="92.9" y="290" text-anchor="middle">cleanup 1</text></g><g class="pl-node pl-block"><title>setup 2 · depth 0</title><circle cx="310.0" cy="34" r="8"/><text x="310.0" y="56" text-anchor="middle">setup 2</text></g><g class="pl-node pl-turn"><title>A2·control · depth 1</title><circle cx="259.4" cy="112" r="8"/><text x="259.4" y="134" text-anchor="middle">A2·control</text></g><g class="pl-node pl-turn"><title>A2·treatment · depth 1</title><circle cx="360.6" cy="112" r="8"/><text x="360.6" y="134" text-anchor="middle">A2·treatment</text></g><g class="pl-node pl-turn"><title>B2·control · depth 2</title><circle cx="259.4" cy="190" r="8"/><text x="259.4" y="212" text-anchor="middle">B2·control</text></g><g class="pl-node pl-turn"><title>B2·treatment · depth 2</title><circle cx="360.6" cy="190" r="8"/><text x="360.6" y="212" text-anchor="middle">B2·treatment</text></g><g class="pl-node pl-block"><title>cleanup 2 · depth 3</title><circle cx="310.0" cy="268" r="8"/><text x="310.0" y="290" text-anchor="middle">cleanup 2</text></g><g class="pl-node pl-block"><title>setup 3 · depth 0</title><circle cx="527.1" cy="34" r="8"/><text x="527.1" y="56" text-anchor="middle">setup 3</text></g><g class="pl-node pl-turn"><title>A3·control · depth 1</title><circle cx="484.7" cy="112" r="8"/><text x="484.7" y="134" text-anchor="middle">A3·control</text></g><g class="pl-node pl-turn"><title>A3·treatment · depth 1</title><circle cx="586.0" cy="112" r="8"/><text x="586.0" y="134" text-anchor="middle">A3·treatment</text></g><g class="pl-node pl-turn"><title>B3·control · depth 2</title><circle cx="484.7" cy="190" r="8"/><text x="484.7" y="212" text-anchor="middle">B3·control</text></g><g class="pl-node pl-turn"><title>B3·treatment · depth 2</title><circle cx="586.0" cy="190" r="8"/><text x="586.0" y="212" text-anchor="middle">B3·treatment</text></g><g class="pl-node pl-block"><title>cleanup 3 · depth 3</title><circle cx="527.1" cy="268" r="8"/><text x="527.1" y="290" text-anchor="middle">cleanup 3</text></g><text class="pl-depth" x="6" y="38">0</text><text class="pl-depth" x="6" y="116">1</text><text class="pl-depth" x="6" y="194">2</text><text class="pl-depth" x="6" y="272">3</text></svg></div>
+    <div class="pcap"><b>Figure 1.</b> Three standard runs over two conditions. 18 turns, depth
+    3. Each condition is a lane. The vertical axis is depth, computed by a Kahn pass, so height
+    means elapsed time. No coordinate in this figure was written by hand.</div>
+  </div>
+
+  <div class="plot">
+    <div class="pwrap"><svg viewBox="0 0 620 302" role="img" aria-label="The same cell over a four-condition bus: 20 turns, same depth. No geometry was changed."><path class="pl-edge" d="M 156.0 43 C 156.0 68, 34.0 78, 34.0 103"/><path class="pl-edge" d="M 156.0 43 C 156.0 68, 109.7 78, 109.7 103"/><path class="pl-edge" d="M 156.0 43 C 156.0 68, 185.4 78, 185.4 103"/><path class="pl-edge" d="M 156.0 43 C 156.0 68, 269.0 78, 269.0 103"/><path class="pl-edge" d="M 34.0 121 C 34.0 146, 34.0 156, 34.0 181"/><path class="pl-edge" d="M 109.7 121 C 109.7 146, 109.7 156, 109.7 181"/><path class="pl-edge" d="M 185.4 121 C 185.4 146, 185.4 156, 185.4 181"/><path class="pl-edge" d="M 269.0 121 C 269.0 146, 269.0 156, 269.0 181"/><path class="pl-edge" d="M 34.0 199 C 34.0 224, 156.0 234, 156.0 259"/><path class="pl-edge" d="M 109.7 199 C 109.7 224, 156.0 234, 156.0 259"/><path class="pl-edge" d="M 185.4 199 C 185.4 224, 156.0 234, 156.0 259"/><path class="pl-edge" d="M 269.0 199 C 269.0 224, 156.0 234, 156.0 259"/><path class="pl-edge" d="M 459.4 43 C 459.4 68, 349.5 78, 349.5 103"/><path class="pl-edge" d="M 459.4 43 C 459.4 68, 424.8 78, 424.8 103"/><path class="pl-edge" d="M 459.4 43 C 459.4 68, 502.4 78, 502.4 103"/><path class="pl-edge" d="M 459.4 43 C 459.4 68, 586.0 78, 586.0 103"/><path class="pl-edge" d="M 349.5 121 C 349.5 146, 349.5 156, 349.5 181"/><path class="pl-edge" d="M 424.8 121 C 424.8 146, 424.8 156, 424.8 181"/><path class="pl-edge" d="M 502.4 121 C 502.4 146, 502.4 156, 502.4 181"/><path class="pl-edge" d="M 586.0 121 C 586.0 146, 586.0 156, 586.0 181"/><path class="pl-edge" d="M 349.5 199 C 349.5 224, 459.4 234, 459.4 259"/><path class="pl-edge" d="M 424.8 199 C 424.8 224, 459.4 234, 459.4 259"/><path class="pl-edge" d="M 502.4 199 C 502.4 224, 459.4 234, 459.4 259"/><path class="pl-edge" d="M 586.0 199 C 586.0 224, 459.4 234, 459.4 259"/><g class="pl-node pl-block"><title>setup 1 · depth 0</title><circle cx="156.0" cy="34" r="8"/><text x="156.0" y="56" text-anchor="middle">setup 1</text></g><g class="pl-node pl-turn"><title>A1·a · depth 1</title><circle cx="34.0" cy="112" r="8"/><text x="34.0" y="134" text-anchor="middle">A1·a</text></g><g class="pl-node pl-turn"><title>A1·b · depth 1</title><circle cx="109.7" cy="112" r="8"/><text x="109.7" y="134" text-anchor="middle">A1·b</text></g><g class="pl-node pl-turn"><title>A1·c · depth 1</title><circle cx="185.4" cy="112" r="8"/><text x="185.4" y="134" text-anchor="middle">A1·c</text></g><g class="pl-node pl-turn"><title>A1·d · depth 1</title><circle cx="269.0" cy="112" r="8"/><text x="269.0" y="134" text-anchor="middle">A1·d</text></g><g class="pl-node pl-turn"><title>B1·a · depth 2</title><circle cx="34.0" cy="190" r="8"/><text x="34.0" y="212" text-anchor="middle">B1·a</text></g><g class="pl-node pl-turn"><title>B1·b · depth 2</title><circle cx="109.7" cy="190" r="8"/><text x="109.7" y="212" text-anchor="middle">B1·b</text></g><g class="pl-node pl-turn"><title>B1·c · depth 2</title><circle cx="185.4" cy="190" r="8"/><text x="185.4" y="212" text-anchor="middle">B1·c</text></g><g class="pl-node pl-turn"><title>B1·d · depth 2</title><circle cx="269.0" cy="190" r="8"/><text x="269.0" y="212" text-anchor="middle">B1·d</text></g><g class="pl-node pl-block"><title>cleanup 1 · depth 3</title><circle cx="156.0" cy="268" r="8"/><text x="156.0" y="290" text-anchor="middle">cleanup 1</text></g><g class="pl-node pl-block"><title>setup 2 · depth 0</title><circle cx="459.4" cy="34" r="8"/><text x="459.4" y="56" text-anchor="middle">setup 2</text></g><g class="pl-node pl-turn"><title>A2·a · depth 1</title><circle cx="349.5" cy="112" r="8"/><text x="349.5" y="134" text-anchor="middle">A2·a</text></g><g class="pl-node pl-turn"><title>A2·b · depth 1</title><circle cx="424.8" cy="112" r="8"/><text x="424.8" y="134" text-anchor="middle">A2·b</text></g><g class="pl-node pl-turn"><title>A2·c · depth 1</title><circle cx="502.4" cy="112" r="8"/><text x="502.4" y="134" text-anchor="middle">A2·c</text></g><g class="pl-node pl-turn"><title>A2·d · depth 1</title><circle cx="586.0" cy="112" r="8"/><text x="586.0" y="134" text-anchor="middle">A2·d</text></g><g class="pl-node pl-turn"><title>B2·a · depth 2</title><circle cx="349.5" cy="190" r="8"/><text x="349.5" y="212" text-anchor="middle">B2·a</text></g><g class="pl-node pl-turn"><title>B2·b · depth 2</title><circle cx="424.8" cy="190" r="8"/><text x="424.8" y="212" text-anchor="middle">B2·b</text></g><g class="pl-node pl-turn"><title>B2·c · depth 2</title><circle cx="502.4" cy="190" r="8"/><text x="502.4" y="212" text-anchor="middle">B2·c</text></g><g class="pl-node pl-turn"><title>B2·d · depth 2</title><circle cx="586.0" cy="190" r="8"/><text x="586.0" y="212" text-anchor="middle">B2·d</text></g><g class="pl-node pl-block"><title>cleanup 2 · depth 3</title><circle cx="459.4" cy="268" r="8"/><text x="459.4" y="290" text-anchor="middle">cleanup 2</text></g><text class="pl-depth" x="6" y="38">0</text><text class="pl-depth" x="6" y="116">1</text><text class="pl-depth" x="6" y="194">2</text><text class="pl-depth" x="6" y="272">3</text></svg></div>
+    <div class="pcap"><b>Figure 2.</b> The same cell over a four-condition bus. The wave widened
+    because the bus did. The depth did not change, and neither did any geometry.</div>
+  </div>
+
+  <div class="plot">
+    <div class="pwrap"><svg viewBox="0 0 620 302" role="img" aria-label="A bus of one cannot split, so each wave falls back to a single degraded arm."><path class="pl-edge" d="M 37.9 43 C 37.9 68, 34.0 78, 34.0 103"/><path class="pl-edge" d="M 34.0 121 C 34.0 146, 34.0 156, 34.0 181"/><path class="pl-edge" d="M 34.0 199 C 34.0 224, 37.9 234, 37.9 259"/><path class="pl-edge" d="M 582.1 43 C 582.1 68, 586.0 78, 586.0 103"/><path class="pl-edge" d="M 586.0 121 C 586.0 146, 586.0 156, 586.0 181"/><path class="pl-edge" d="M 586.0 199 C 586.0 224, 582.1 234, 582.1 259"/><g class="pl-node pl-block"><title>setup 1 · depth 0</title><circle cx="37.9" cy="34" r="8"/><text x="37.9" y="56" text-anchor="middle">setup 1</text></g><g class="pl-node pl-degraded"><title>A1·solo · depth 1</title><circle cx="34.0" cy="112" r="8"/><text x="34.0" y="134" text-anchor="middle">A1·solo</text></g><g class="pl-node pl-degraded"><title>B1·solo · depth 2</title><circle cx="34.0" cy="190" r="8"/><text x="34.0" y="212" text-anchor="middle">B1·solo</text></g><g class="pl-node pl-block"><title>cleanup 1 · depth 3</title><circle cx="37.9" cy="268" r="8"/><text x="37.9" y="290" text-anchor="middle">cleanup 1</text></g><g class="pl-node pl-block"><title>setup 2 · depth 0</title><circle cx="582.1" cy="34" r="8"/><text x="582.1" y="56" text-anchor="middle">setup 2</text></g><g class="pl-node pl-degraded"><title>A2·solo · depth 1</title><circle cx="586.0" cy="112" r="8"/><text x="586.0" y="134" text-anchor="middle">A2·solo</text></g><g class="pl-node pl-degraded"><title>B2·solo · depth 2</title><circle cx="586.0" cy="190" r="8"/><text x="586.0" y="212" text-anchor="middle">B2·solo</text></g><g class="pl-node pl-block"><title>cleanup 2 · depth 3</title><circle cx="582.1" cy="268" r="8"/><text x="582.1" y="290" text-anchor="middle">cleanup 2</text></g><text class="pl-depth" x="6" y="38">0</text><text class="pl-depth" x="6" y="116">1</text><text class="pl-depth" x="6" y="194">2</text><text class="pl-depth" x="6" y="272">3</text></svg></div>
+    <div class="pcap"><b>Figure 3.</b> A bus of one cannot split. Each wave fails and falls back
+    to a single degraded arm, drawn dashed. The run still completes, at 8 turns instead of 12,
+    and the failure is on the record.</div>
+  </div>
+
+  <p>The layout is a force relaxation. It uses repulsion between nodes, springs along the edges
+  weighted by endpoint degree, and a weak centring pull. Only x relaxes. We pin y to depth.</p>
+
+  <p>The layout settles to the same place from any seed, to about one part in ten million. The
+  picture is therefore a function of the graph. It is not a function of a lucky start.</p>
+
+  <h2 class="sec"><span class="secno">6</span>Cost</h2>
 
   <p>One run costs six turns. The table gives the cost of one comparison. It uses ρ = 0.413.
   That is the only value this programme has measured. Its 95% interval is [0.00, 0.88]. Read
@@ -154,7 +202,7 @@
   <p>Read Table 3 first. A large effect costs 180 turns. A medium effect costs 444 turns. Decide
   which effect is worth the price. Decide it before the first turn.</p>
 
-  <h2 class="sec" id="result"><span class="secno">6</span>Result of the language test</h2>
+  <h2 class="sec" id="result"><span class="secno">7</span>Result of the language test</h2>
 
   <p>We wrote this page to the rules. We did not write the other pages to them. The lint counts violations
   per 100 sentences.</p>
@@ -166,17 +214,17 @@
       <thead><tr><th>Page</th><th class="num">Sentences</th><th class="num">Longest</th><th class="num">Per 100</th></tr></thead>
       <tbody>
 <!-- STE-TABLE:START -->
-        <tr><td><b>This page</b></td><td class="num">95</td><td class="num">14</td><td class="num"><b>0</b></td></tr>
+        <tr><td><b>This page</b></td><td class="num">127</td><td class="num">18</td><td class="num"><b>0</b></td></tr>
         <tr><td>/methods</td><td class="num">163</td><td class="num">50</td><td class="num">34</td></tr>
-        <tr><td>/lab</td><td class="num">90</td><td class="num">37</td><td class="num">33</td></tr>
-        <tr><td>/log</td><td class="num">168</td><td class="num">36</td><td class="num">19</td></tr>
-        <tr><td>/wp1</td><td class="num">99</td><td class="num">39</td><td class="num">21</td></tr>
+        <tr><td>/lab</td><td class="num">90</td><td class="num">37</td><td class="num">32</td></tr>
+        <tr><td>/log</td><td class="num">193</td><td class="num">42</td><td class="num">20</td></tr>
+        <tr><td>/wp1</td><td class="num">99</td><td class="num">39</td><td class="num">22</td></tr>
         <!-- STE-TABLE:END -->
       </tbody>
     </table>
   </div>
 
-  <h2 class="sec"><span class="secno">7</span>Limits</h2>
+  <h2 class="sec"><span class="secno">8</span>Limits</h2>
 
   <ul>
     <li>This lint does not apply the dictionary rule. Part 2 of the specification has a licence.</li>
@@ -184,6 +232,7 @@
     <li>The numeric limits are the commonly cited ones. The specification is the authority.</li>
     <li>ρ = 0.413 rests on one judging pass over twelve entries. Its interval is very wide.</li>
     <li>This shape has never been run. The cost table is a forecast.</li>
+    <li>The planner has never dispatched an agent. It builds plans and prices them.</li>
   </ul>
 
   <div class="colophon">

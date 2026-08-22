@@ -336,3 +336,13 @@ ol.log .src {
 }
 ol.log .src code { background: none; padding: 0; font-size: 10px; color: var(--ink-faint); }
 ol.log .src a { color: var(--accent-soft); }
+
+/* ---------- derived plan graphs (lab/layout.mjs) ---------- */
+.pl-edge { fill: none; stroke: var(--accent-soft); stroke-width: 1.2; opacity: .55; }
+.pl-node circle { stroke: #fbfaf6; stroke-width: 1.5; }
+.pl-node text { font-family: var(--sans); font-size: 8.5px; fill: var(--ink-soft); }
+.pl-turn circle { fill: var(--accent); }
+.pl-block circle { fill: #fff; stroke: var(--accent); stroke-width: 2; }
+.pl-degraded circle { fill: #fff; stroke: var(--flag); stroke-width: 2; stroke-dasharray: 3 2; }
+.pl-degraded text { fill: var(--flag); }
+.pl-depth { font-family: var(--sans); font-size: 8.5px; fill: #b3aca0; }

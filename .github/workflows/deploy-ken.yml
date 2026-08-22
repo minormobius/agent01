@@ -34,8 +34,10 @@ jobs:
         run: node lab/h4.selftest.mjs
       - name: Factorial + Bradley-Terry (36 checks)
         run: node lab/factorial.selftest.mjs
-      - name: Run shape + the STE language test (36 checks)
+      - name: Run shape + the STE language test (39 checks)
         run: node lab/runshape.selftest.mjs
+      - name: Plan rewrite rules + derived layout (56 checks)
+        run: node lab/plan.selftest.mjs
       - name: Selftest (citations, prose lint, tables, roadmap graph, quoted figures)
         run: node ken.selftest.mjs
       - name: Install wrangler

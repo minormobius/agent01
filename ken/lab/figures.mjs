@@ -19,6 +19,8 @@ import { iccSamplingDistribution, bimodalityPower } from './simulate.mjs';
 import { loadRuns, partition, repeatedBeads, orderEffect } from './h4.mjs';
 import { fitBradleyTerry } from './bt.mjs';
 import { comparisonRows, TABLE_MARK } from './ste-lint.mjs';
+import { build as buildPlan } from './plan.mjs';
+import { renderPlan } from './layout.mjs';
 import { readFileSync as _read } from 'node:fs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -129,6 +131,17 @@ export function buildFigures() {
     aria: 'Bradley-Terry ranking of the twelve race-02 entries. The whole scale spans 2.6 '
         + 'log-odds and the standard errors are about 0.9, so only the extremes separate.',
   });
+
+  // ── the run shape, drawn by the graph rather than placed by hand ──
+  figs['plan-2x3'] = renderPlan(
+    buildPlan('experiment', { conditions: ['control', 'treatment'], replicates: 3 }),
+    { width: 620, title: 'Three standard runs over two conditions: 18 turns, depth 3.' });
+  figs['plan-4x2'] = renderPlan(
+    buildPlan('experiment', { conditions: ['a', 'b', 'c', 'd'], replicates: 2 }),
+    { width: 620, title: 'The same cell over a four-condition bus: 20 turns, same depth. No geometry was changed.' });
+  figs['plan-degraded'] = renderPlan(
+    buildPlan('experiment', { conditions: ['solo'], replicates: 2 }),
+    { width: 620, title: 'A bus of one cannot split, so each wave falls back to a single degraded arm.' });
 
   return figs;
 }

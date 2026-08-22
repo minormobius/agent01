@@ -38,7 +38,10 @@ const FUNCTION_WORDS = new Set(('a an the of to in on at by for with from into o
   + 'because across which when while where whether both each every all some any more most less '
   + 'only also other another same before after during between through without within above below '
   + 'first second third next last here their your our you we they them he she him her '
-  + 'one two three four five six seven eight nine ten')
+  + 'one two three four five six seven eight nine ten '
+  // adverbs and modals: 'estimate therefore cannot drift' was flagged
+  + 'therefore cannot however instead rather again still already never always '
+  + 'often very much many few less least much own way thing things')
   .split(' '));
 
 /* A noun cluster is consecutive NOUNS used as modifiers. Without a tagger the
@@ -51,7 +54,8 @@ const COMMON_VERBS = new Set(('costs cost make makes made give gives gave get ge
   + 'become becomes became remove removes removed vary varies separate separates fail fails failed '
   + 'pass passes passed spend spends spent decide decides decided read stop stops start starts '
   + 'find finds found need needs needed hold holds held depend depends means mean sit sits '
-  + 'apply applies rest rests carry carries count counts counted name names named')
+  + 'apply applies rest rests carry carries count counts counted name names named '
+  + 'drift drifts settle settles wire wires wired split splits expand expands')
   .split(' '));
 
 const BE = /\b(is|are|was|were|be|been|being)\b/i;

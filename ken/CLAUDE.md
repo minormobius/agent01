@@ -68,10 +68,13 @@ worker or move the domain, **verify the deploy log binds
 | `lab/factorial.selftest.mjs` | 36 checks for both |
 | `lab/runshape.mjs` | the six-turn run, and what a claim costs in them |
 | `lab/ste-lint.mjs` | the structural subset of ASD-STE100 |
-| `lab/runshape.selftest.mjs` | 36 checks for both |
+| `lab/runshape.selftest.mjs` | 39 checks for both |
+| `lab/plan.mjs` | a run plan as **rewrite rules**, on morph's four laws |
+| `lab/layout.mjs` | the picture, **derived** from that graph by force relaxation |
+| `lab/plan.selftest.mjs` | 56 checks: the four laws, lane wiring, seed independence |
 | `lab/resolve-refs.mjs` | links the bibliography against CrossRef / arXiv / OpenLibrary |
 | `fig/*.svg` | **generated.** Committed so figures print and diff |
-| `refs.js` | **the bibliography, as data** — 54 real works, keyed |
+| `refs.js` | **the bibliography, as data** — 82 real works, keyed |
 | `cite.js` | numbers citations in document order, renders the reference list |
 | `journal.css` | the shared journal typography; prints to real Letter pages |
 | `worker.js` | thin assets worker; maps `/syllabus` and `/protocol` to their `.html` |
@@ -250,7 +253,48 @@ node ken/lab/resolve-refs.mjs --write   # patch accepted hits into refs.js
 Network-only. **Never call it from the selftest** — CI has no business
 reaching out, and the selftest checks URL shape and coverage instead.
 
+## The plan is a graph, and the graph is the primitive
+
+A standard run is a six-turn DAG: a setup, two parallel waves of two, a
+cleanup. Small enough to draw by hand, which is exactly why it was worth not
+drawing by hand. `lab/plan.mjs` builds it as rewrite rules borrowed from
+`clock/morph`, and four of that project's laws carry over intact:
+
+| Law | Here |
+|---|---|
+| a cell expands into sub-cells | `experiment` → `run`s → `wave`s → turns |
+| widths are inferred, never declared | a wave takes its width from the conditions on the bus |
+| failure is the only control flow | the budget stopping rule **is** the recursion's base case, not a check beside it |
+| probe and build are one interpreter | `probe()` and `build()` differ by a flag, so the cost estimate cannot drift from the plan |
+
+The fourth is the one that pays. A cost table maintained next to a runner
+disagrees with it eventually; the same code cannot. `probeMatchesBuild()`
+asserts it over six designs, two of which fail on purpose.
+
+`lab/layout.mjs` then derives the picture: y is pinned to Kahn depth, x relaxes
+under Barnes–Hut repulsion and degree-weighted springs. Adding a condition
+costs no geometry. Two things this bought that a hand-drawn figure would not
+have:
+
+- **A wiring bug.** Wave A fed wave B as a complete bipartite graph, because
+  the whole previous wave was passed as the predecessor. Drawn honestly it was
+  obviously wrong. Each condition is a lane now, and the selftest asserts the
+  crossing edges are absent.
+- **Seed independence.** Positions agree across five seeds to about 1e-7, so
+  the seed only breaks the initial symmetry and the picture is a function of
+  the graph. The selftest asserts convergence — note the sign, it originally
+  asserted the opposite, which is what a force layout invites you to assume.
+
+`FALLBACKS` repairs a design it can repair and **rethrows the rest**. An
+earlier version caught any failure, including a request for zero runs, and
+answered it by building `budget / 6` runs. A fallback broader than its repair
+turns a nonsense design into a large plausible one.
+
 ## The roadmap figure
+
+Not to be confused with the above. This one hand-places every box; the plan
+figure places none.
+
 
 `tree.js` holds the graph as data and renders it to `#roadmap` on the front
 page. Nodes carry `state` (`done` / `active` / `ready` / `blocked`), a `href`
@@ -270,7 +314,7 @@ mismatch silently clips the figure.
 ## Three gates, and why each exists
 
 ```bash
-node ken/ken.selftest.mjs     # ~1s, 558 checks
+node ken/ken.selftest.mjs     # ~1s, 850 checks
 node ken/prose-lint.mjs       # the tic lint alone, with --verbose for hits
 ```
 
