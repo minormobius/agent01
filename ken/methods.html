@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>House Standard for Model Experiments — ken</title>
-<meta name="description" content="Thirteen rules for running, scoring and reporting comparisons between models and agent configurations, derived from three prior runs in this repository and the ways each of them saturated.">
+<meta name="description" content="Fourteen rules for running, scoring and reporting comparisons between models and agent configurations, derived from three prior runs in this repository and the ways each of them saturated.">
 <link rel="stylesheet" href="journal.css">
 </head>
 <body>
@@ -15,6 +15,7 @@
   <a href="/syllabus">I · Curriculum</a>
   <a class="here" href="/methods">II · Methods</a>
   <a href="/lab">Instrument</a>
+  <a href="/run">Procedure</a>
   <a href="/wp1">WP1</a>
   <a href="/log">Log</a>
   <a href="/protocol">III · Protocol</a>
@@ -26,8 +27,8 @@
 
   <div class="a-venue">ken · volume 1 · article II <span class="kicker">House standard</span></div>
   <h1 class="a-title">House Standard for Model Experiments</h1>
-  <p class="a-sub">Thirteen rules for running, scoring and reporting a comparison, with the evidence for each</p>
-  <div class="a-meta">Version 1.1 · applies to every run published here</div>
+  <p class="a-sub">Fourteen rules for running, scoring and reporting a comparison, with the evidence for each</p>
+  <div class="a-meta">Version 1.2 · applies to every run published here</div>
   <hr class="a-rule">
 
   <div class="abstract">
@@ -37,10 +38,10 @@
     instrument returned the same verdict for every subject, and in every case the qualitative
     signal that was supposed to break the tie was specified and never collected. The pattern is
     consistent enough to design against.</p>
-    <p>This document fixes the house standard. Seven of the thirteen rules are already practised
+    <p>This document fixes the house standard. Seven of the fourteen rules are already practised
     in <code>bakeoff/</code> and are written down here so they survive the person who wrote
-    them. Six are new: five address a specific way one of the three runs failed, and the last
-    was earned by applying the standard to itself. The standard applies to anything published under this masthead, and a run that
+    them. Seven are new: five address a specific way one of the three runs failed, and two were
+    earned by applying the standard to itself. The standard applies to anything published under this masthead, and a run that
     departs from it says so in its report.</p>
   </div>
 
@@ -275,6 +276,22 @@
   <p>Report the simulation alongside the design, including its seed, and state plainly that its
   intervals assume the very model the run is partly there to test.</p>
 
+  <h4 class="subsub">R14. The unit of a run is fixed, and each parallel wave is a matched pair. <span class="small">(new)</span></h4>
+
+  <p>One run is six turns in four stages, with no stage wider than two:
+  <b>setup → wave A (2) → wave B (2) → cleanup</b>. Runs of a fixed shape are comparable, and
+  their cost is countable before it is spent.</p>
+
+  <p>The two agents in a wave must receive the <em>same</em> state, varying only the condition
+  under test. That makes the wave a matched pair and buys the pairing saving of R5, which at our
+  measured ρ of 0.413 is a factor of 1.7. Dispatch them with different briefs and the wave is two
+  independent draws instead, with the saving gone and no way to separate brief from condition
+  afterwards.</p>
+
+  <p>Prices at that ρ: a large effect (d = 0.8) costs 30 runs, or 180 turns. A medium one
+  (d = 0.5) costs 74 runs, or 444. The procedure and both cost tables are at
+  <a href="/run">the standard run</a>.</p>
+
   <h2 class="sec"><span class="secno">3</span>Checklists</h2>
 
   <p>The standard reduces to two lists. Both are short on purpose
@@ -295,6 +312,7 @@
         <tr><td class="num">7</td><td>Two cells run first to prove the pipeline.</td><td>R1</td></tr>
         <tr><td class="num">8</td><td>What the instrument cannot see is written down.</td><td>R7</td></tr>
         <tr><td class="num">9</td><td>The design has been simulated and the simulation reported.</td><td>R13</td></tr>
+        <tr><td class="num">10</td><td>Each wave dispatches the same state to both agents.</td><td>R14</td></tr>
       </tbody>
     </table>
   </div>
@@ -346,7 +364,7 @@
   </div>
 
   <div class="colophon">
-    ken · article II · house standard for model experiments, version 1.1<br>
+    ken · article II · house standard for model experiments, version 1.2<br>
     Table 1 is computed from committed data: <code>.github/loop/{turns,runs}.jsonl</code> and
     <code>bakeoff/results/race-0{1,2}/results.json</code>. <code>ken.selftest.mjs</code>
     recomputes every figure in it on each build and fails if the prose has drifted from the

@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Procedure: The Standard Run — ken</title>
+<meta name="description" content="The six-turn standard run: shape, steps, and cost. Written to the structural rules of ASD-STE100 as a test of whether plain prose isolates the subject's difficulty.">
+<link rel="stylesheet" href="journal.css">
+</head>
+<body data-register="procedure">
+
+<div class="toolbar">
+  <span class="brand"><a href="/">ken</a></span>
+  <a href="/">Front matter</a>
+  <a href="/syllabus">I · Curriculum</a>
+  <a href="/methods">II · Methods</a>
+  <a href="/lab">Instrument</a>
+  <a class="here" href="/run">Procedure</a>
+  <a href="/wp1">WP1</a>
+  <a href="/log">Log</a>
+  <a href="/protocol">III · Protocol</a>
+  <span class="grow"></span>
+  <button onclick="window.print()">Save as PDF</button>
+</div>
+
+<div class="sheet">
+
+  <div class="a-venue">ken · volume 1 <span class="kicker">Procedure</span></div>
+  <h1 class="a-title">The Standard Run</h1>
+  <p class="a-sub">Six turns in four stages. Use this shape for every comparison.</p>
+  <div class="a-meta">Written to the structural rules of ASD-STE100 · <code>runshape.mjs</code></div>
+  <hr class="a-rule">
+
+  <div class="caveat">
+    <span class="lbl">About the language of this page</span>
+    <p>This page is a test. It follows the structural rules of ASD-STE100 Simplified Technical
+    English. It does not follow the dictionary rule. Part 2 of that specification has a licence,
+    and we do not hold one.</p>
+    <p>This page is therefore <b>not</b> in Simplified Technical English. It satisfies a subset.
+    <a href="#result">Section 6</a> gives the measurement.</p>
+  </div>
+
+  <h2 class="sec"><span class="secno">1</span>Purpose</h2>
+
+  <p>This procedure gives the standard run. Use it for each comparison that this programme
+  publishes. A fixed shape makes two runs comparable. It also makes the cost countable before
+  you spend it.</p>
+
+  <h2 class="sec"><span class="secno">2</span>The shape</h2>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 1.</b> The four stages.</div>
+    <table class="booktabs">
+      <thead><tr><th class="num">Stage</th><th>Name</th><th class="num">Agents</th><th class="num">Turns</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>Setup</td><td class="num">1</td><td class="num">1</td><td>Block. Prepares the state.</td></tr>
+        <tr><td class="num">2</td><td>Wave A</td><td class="num">2</td><td class="num">2</td><td>Treatment. A matched pair.</td></tr>
+        <tr><td class="num">3</td><td>Wave B</td><td class="num">2</td><td class="num">2</td><td>Treatment. A matched pair.</td></tr>
+        <tr><td class="num">4</td><td>Cleanup</td><td class="num">1</td><td class="num">1</td><td>Block. Collects the result.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>The run has six turns. It has four stages. No stage uses more than two agents.</p>
+
+  <h2 class="sec"><span class="secno">3</span>The reason for two agents in a wave</h2>
+
+  <p>Give the two agents in a wave the same state. Then the wave is a matched pair. A matched
+  pair removes the task difficulty from the difference between the two conditions. This cuts the
+  runs you need by a factor of (1 − ρ).</p>
+
+  <p>The saving is not automatic. It depends on how you dispatch the wave. Give the two agents
+  different state. The wave then becomes two independent draws. The saving is then lost.</p>
+
+  <div class="caveat">
+    <span class="lbl">Warning</span>
+    <p>Do not vary the brief between the two agents in one wave. Vary only the condition under
+    test. If you vary both, you cannot separate them.</p>
+  </div>
+
+  <h2 class="sec"><span class="secno">4</span>Procedure</h2>
+
+  <h3 class="sub">4.1 Before the run</h3>
+
+  <ol>
+    <li>Write the scorer. Write it before the brief.</li>
+    <li>Score the current code with the scorer. Confirm that it fails.</li>
+    <li>Score a minimal correct answer. Confirm that it scores full marks.</li>
+    <li>Set the number of runs. Use <code>costInRuns()</code> in <code>runshape.mjs</code>.</li>
+    <li>Fix the stopping rule. Write it down before the first turn.</li>
+    <li>Name the person who does the human tier. Give a date.</li>
+    <li>Simulate the design. Report what the simulation gives.</li>
+  </ol>
+
+  <h3 class="sub">4.2 During the run</h3>
+
+  <ol>
+    <li>Run stage 1. Record the state that it produces.</li>
+    <li>Dispatch wave A. Give both agents the same state.</li>
+    <li>Record which agent got which condition.</li>
+    <li>Wait for both agents. Do not start stage 3 early.</li>
+    <li>Dispatch wave B. Give both agents the same state again.</li>
+    <li>Run stage 4. Collect every output.</li>
+  </ol>
+
+  <h3 class="sub">4.3 After the run</h3>
+
+  <ol>
+    <li>Report the score variance across cells.</li>
+    <li>Report the number of distinct score values.</li>
+    <li>Report the share of cells at the maximum.</li>
+    <li>Stop here if more than 70% of cells sit at the maximum. The run did not discriminate.</li>
+    <li>Report the spread within a cell next to the difference between cells.</li>
+    <li>Name each signal that did not fire. Put the names in the report header.</li>
+    <li>Check each field that orders the report. Report a field that failed.</li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">5</span>Cost</h2>
+
+  <p>One run costs six turns. The table gives the cost of one comparison. It uses ρ = 0.413.
+  That is the only value this programme has measured. Its 95% interval is [0.00, 0.88]. Read
+  each row as an order of magnitude.</p>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 2.</b> Cost of one two-condition comparison at 5% significance and
+      80% power. Computed by <code>costInRuns()</code>.</div>
+    <table class="booktabs">
+      <thead><tr><th class="num">Effect d</th><th class="num">Unpaired runs</th><th class="num">Paired runs</th><th class="num">Paired turns</th></tr></thead>
+      <tbody>
+        <tr><td class="num">0.3</td><td class="num">350</td><td class="num">206</td><td class="num">1236</td></tr>
+        <tr><td class="num">0.5</td><td class="num">126</td><td class="num">74</td><td class="num">444</td></tr>
+        <tr><td class="num">0.8</td><td class="num">50</td><td class="num">30</td><td class="num">180</td></tr>
+        <tr><td class="num">1.2</td><td class="num">22</td><td class="num">14</td><td class="num">84</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 3.</b> What a turn budget reaches. Computed by
+      <code>budgetLadder()</code>.</div>
+    <table class="booktabs">
+      <thead><tr><th class="num">Turns</th><th class="num">Runs</th><th class="num">Detectable d</th></tr></thead>
+      <tbody>
+        <tr><td class="num">24</td><td class="num">4</td><td class="num">2.15</td></tr>
+        <tr><td class="num">48</td><td class="num">8</td><td class="num">1.52</td></tr>
+        <tr><td class="num">96</td><td class="num">16</td><td class="num">1.07</td></tr>
+        <tr><td class="num">144</td><td class="num">24</td><td class="num">0.88</td></tr>
+        <tr><td class="num">288</td><td class="num">48</td><td class="num">0.62</td></tr>
+        <tr><td class="num">480</td><td class="num">80</td><td class="num">0.48</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Read Table 3 first. A large effect costs 180 turns. A medium effect costs 444 turns. Decide
+  which effect is worth the price. Decide it before the first turn.</p>
+
+  <h2 class="sec" id="result"><span class="secno">6</span>Result of the language test</h2>
+
+  <p>We wrote this page to the rules. We did not write the other pages to them. The lint counts violations
+  per 100 sentences.</p>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 4.</b> Structural violations per 100 sentences. Lower is closer to
+      the standard.</div>
+    <table class="booktabs">
+      <thead><tr><th>Page</th><th class="num">Sentences</th><th class="num">Longest</th><th class="num">Per 100</th></tr></thead>
+      <tbody>
+        <tr><td><b>This page</b></td><td class="num">165</td><td class="num">14</td><td class="num"><b>1</b></td></tr>
+        <tr><td>/methods</td><td class="num">204</td><td class="num">50</td><td class="num">27</td></tr>
+        <tr><td>/lab</td><td class="num">104</td><td class="num">37</td><td class="num">29</td></tr>
+        <tr><td>/log</td><td class="num">166</td><td class="num">36</td><td class="num">17</td></tr>
+        <tr><td>/wp1</td><td class="num">109</td><td class="num">39</td><td class="num">19</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="sec"><span class="secno">7</span>Limits</h2>
+
+  <ul>
+    <li>This lint does not apply the dictionary rule. Part 2 of the specification has a licence.</li>
+    <li>The lint approximates the noun cluster rule. It misses a cluster that holds an -ing noun.</li>
+    <li>The numeric limits are the commonly cited ones. The specification is the authority.</li>
+    <li>ρ = 0.413 rests on one judging pass over twelve entries. Its interval is very wide.</li>
+    <li>This shape has never been run. The cost table is a forecast.</li>
+  </ul>
+
+  <div class="colophon">
+    ken · procedure · the standard run<br>
+    Table 2 and Table 3 are recomputed from <code>ken/lab/runshape.mjs</code> on each build.
+    Table 4 is recomputed by <code>ken/lab/ste-lint.mjs</code>.
+  </div>
+
+</div>
+
+<script src="refs.js"></script>
+<script src="cite.js"></script>
+</body>
+</html>

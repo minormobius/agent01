@@ -51,6 +51,7 @@ worker or move the domain, **verify the deploy log binds
 | `lab.html` | **Instrument note** for the harness. Served at `/lab`. |
 | `wp1.html` | **Working paper 1**, Unit II worked end to end. Served at `/wp1`. |
 | `log.html` | **The findings log.** Numbered, terse, append-only. Served at `/log`. |
+| `run.html` | **The standard-run procedure.** Written to ASD-STE100. Served at `/run`. |
 | `protocol.html` | **Article III**, the Stage 1 registered-report skeleton. Served at `/protocol`. |
 | `tree.js` | the roadmap DAG: node data plus the SVG renderer |
 | `lab/design.mjs` | **the harness.** Node-only, not served |
@@ -65,6 +66,9 @@ worker or move the domain, **verify the deploy log binds
 | `lab/blind.mjs` | prepares a blinded judging pass |
 | `lab/judging/` | blinded material, verdicts, and the key |
 | `lab/factorial.selftest.mjs` | 36 checks for both |
+| `lab/runshape.mjs` | the six-turn run, and what a claim costs in them |
+| `lab/ste-lint.mjs` | the structural subset of ASD-STE100 |
+| `lab/runshape.selftest.mjs` | 36 checks for both |
 | `lab/resolve-refs.mjs` | links the bibliography against CrossRef / arXiv / OpenLibrary |
 | `fig/*.svg` | **generated.** Committed so figures print and diff |
 | `refs.js` | **the bibliography, as data** — 54 real works, keyed |
@@ -130,6 +134,33 @@ Two things follow for anyone editing here:
   unrecoverable move.
 - **The simulation assumes the model the run is partly there to test.** Say so
   wherever its numbers appear. WP1 does, in its limits box.
+
+## Two prose standards, and why they fight
+
+The site runs **two** lints and they do not agree.
+
+`prose-lint.mjs` removes LLM tics and includes a rule against sentence-length
+monotony, because the documented failure of over-correcting is flat prose.
+`ste-lint.mjs` checks the structural rules of ASD-STE100 Simplified Technical
+English, which *mandates* short sentences and therefore produces exactly that
+flatness.
+
+Writing `/run` to ASD-STE100 took it to zero structural violations and made it
+fail the monotony rule at 0.324 against a floor of 0.42. Both lints were
+working correctly.
+
+**The resolution is register, not compromise.** A page may declare
+`<body data-register="procedure">`, and the rhythm rules (monotony, fragment
+cadence) are skipped for it. A procedure should be flat, so every step reads
+the same; an argument should not. Use the procedural register only for actual
+procedures.
+
+`ste-lint.mjs` does **not** implement the approved-vocabulary rule, because
+Part 2 of the specification is licensed and we do not hold it. A page passing
+it is not in Simplified Technical English; it satisfies a structural subset,
+and `/run` says so in its own first paragraph. Two known limitations: the noun
+cluster rule misses clusters containing an `-ing` noun, and the numeric limits
+are the commonly cited ones rather than quotations from the spec.
 
 ## The findings log
 

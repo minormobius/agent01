@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Findings Log — ken</title>
-<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Twenty-six entries, five of them from a blinded judging pass.">
+<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Thirty entries, seven of them from measurements we made.">
 <link rel="stylesheet" href="journal.css">
 </head>
 <body>
@@ -15,6 +15,7 @@
   <a href="/syllabus">I · Curriculum</a>
   <a href="/methods">II · Methods</a>
   <a href="/lab">Instrument</a>
+  <a href="/run">Procedure</a>
   <a href="/wp1">WP1</a>
   <a class="here" href="/log">Log</a>
   <a href="/protocol">III · Protocol</a>
@@ -27,7 +28,7 @@
   <div class="a-venue">ken · volume 1 <span class="kicker">Running record</span></div>
   <h1 class="a-title">Findings Log</h1>
   <p class="a-sub">Shortest form. Each entry names the code or record that produced it.</p>
-  <div class="a-meta">26 entries · <b>5 from new measurement</b> · every figure regenerated on build</div>
+  <div class="a-meta">30 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
   <hr class="a-rule">
 
   <p class="small">Everything here comes from data already paid for or from arithmetic. That is
@@ -218,9 +219,41 @@
       <span class="src"><code>varianceComponents()</code> over the fitted θ</span></li>
   </ol>
 
-  <h2 class="sec"><span class="secno">§</span>Our own errors</h2>
+  <h2 class="sec"><span class="secno">§</span>The standard run, and a language test</h2>
 
   <ol class="log" start="24">
+    <li><b>The run is now a fixed unit: six turns, four stages, width two.</b> Setup, two
+      parallel waves of two, cleanup. Each wave is a matched pair if both agents get the same
+      state, which buys the pairing saving without any extra design. At ρ = 0.413 a large effect
+      (d = 0.8) costs 30 runs or 180 turns; a medium one costs 74 runs or 444. A 96-turn budget
+      reaches d = 1.07 and no further.
+      <span class="src"><a href="/run">the procedure</a> · <code>runshape.mjs</code></span></li>
+
+    <li><b>Writing one page to the structural rules of ASD-STE100 took it from 27
+      violations per 100 sentences to zero.</b> The longest sentence went from 50 words to 14.
+      The rules are cheap to follow on a procedure, where every step wants to read the same.
+      <span class="src"><code>ste-lint.mjs</code>, structural rules only</span></li>
+
+    <li><b>And the two standards contradict each other.</b> The tic lint failed the same page for
+      sentence-length monotony, at 0.324 against a floor of 0.42 — which is precisely the
+      over-correction the declauding register warns about, arrived at by following a different
+      standard faithfully. Simplified Technical English mandates the flatness the other lint
+      treats as a defect. Resolved by register: a page may declare itself a procedure, and the
+      rhythm rules are then skipped. Procedures should be flat; arguments should not.
+      <span class="src"><code>prose-lint.mjs registerOf()</code></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>Our own errors</h2>
+
+  <ol class="log" start="27">
+    <li><b>My Simplified-Technical-English lint was wrong twice on its first run.</b> It called
+      every run of four content words a noun cluster, so "One run costs six turns" failed. And it
+      called every be-verb near an -ed word passive, so "a matched pair" failed. Both were caught
+      by reading its own output on the page written to satisfy it. Fixing them moved the existing
+      pages from 33–47 violations per 100 sentences to 19–29, so the first baseline overstated the
+      problem by about half.
+      <span class="src"><code>ste-lint.mjs</code></span></li>
+
     <li><b>My separation guard checked only half the failure.</b> It refused a Bradley–Terry fit
       when an item never won, and let through two items that never lost — the same divergence
       mirrored. The fit returned strengths spanning 17 log-odds with standard errors of 12,
@@ -249,9 +282,9 @@
       <thead><tr><th>Source of finding</th><th class="num">Entries</th></tr></thead>
       <tbody>
         <tr><td>Records already committed</td><td class="num">12</td></tr>
-        <tr><td>Arithmetic and simulation</td><td class="num">5</td></tr>
-        <tr><td>Our own mistakes</td><td class="num">4</td></tr>
-        <tr><td><b>New measurement</b> (the judging pass)</td><td class="num"><b>5</b></td></tr>
+        <tr><td>Arithmetic and simulation</td><td class="num">6</td></tr>
+        <tr><td>Our own mistakes</td><td class="num">5</td></tr>
+        <tr><td><b>New measurement</b></td><td class="num"><b>7</b></td></tr>
       </tbody>
     </table>
   </div>

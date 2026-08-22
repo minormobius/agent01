@@ -170,7 +170,18 @@ const RULES = [
 ];
 
 // ── runner ────────────────────────────────────────────────────────────
+/* A page may declare <body data-register="procedure">. The rhythm rules —
+   sentence-length variance and fragment cadence — are then skipped.
+   They exist to stop argumentative prose being flattened; a procedure is
+   SUPPOSED to be flat, so that every step reads the same. Writing /run to
+   ASD-STE100 made the two lints contradict each other, which is how this
+   exemption was found. */
+export function registerOf(html) {
+  return /<body[^>]*data-register="procedure"/.test(html) ? 'procedure' : 'prose';
+}
+
 export function lintHtml(html, name = 'page') {
+  const register = registerOf(html);
   const blocks = proseBlocks(html);       // lexical scope: p + li + td
   const paras = paragraphs(html);         // structural scope: p only
   const hdrs = headers(html);
@@ -180,6 +191,7 @@ export function lintHtml(html, name = 'page') {
   const findings = [];
 
   for (const rule of RULES) {
+    if (register === 'procedure' && rule.id === 'fragment-run') continue;
     const text = rule.scope === 'paragraphs' ? paraText : allText;
     const hits = rule.find(text, { hdrs, paras });
     const scopeWords = rule.scope === 'paragraphs' ? words(paraText) : n;
@@ -206,7 +218,7 @@ export function lintHtml(html, name = 'page') {
 
   // sentence-length monotony: too little variation reads as machine-set
   const lens = sentences(paraText).map(words).filter((w) => w > 2);
-  if (lens.length > 25) {
+  if (register !== 'procedure' && lens.length > 25) {
     const mean = lens.reduce((a, b) => a + b, 0) / lens.length;
     const sd = Math.sqrt(lens.reduce((a, b) => a + (b - mean) ** 2, 0) / lens.length);
     if (sd / mean < 0.42) {
@@ -218,7 +230,7 @@ export function lintHtml(html, name = 'page') {
     }
   }
 
-  return { name, words: n, paragraphs: paras.length, findings };
+  return { name, register, words: n, paragraphs: paras.length, findings };
 }
 
 // ── CLI ───────────────────────────────────────────────────────────────
