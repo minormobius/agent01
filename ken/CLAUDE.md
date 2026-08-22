@@ -49,10 +49,13 @@ worker or move the domain, **verify the deploy log binds
 | `syllabus.html` | **Article I**, the seven-unit curriculum. Served at `/syllabus`. |
 | `methods.html` | **Article II**, the house standard for model experiments. Served at `/methods`. |
 | `lab.html` | **Instrument note** for the harness. Served at `/lab`. |
+| `wp1.html` | **Working paper 1**, Unit II worked end to end. Served at `/wp1`. |
 | `protocol.html` | **Article III**, the Stage 1 registered-report skeleton. Served at `/protocol`. |
 | `tree.js` | the roadmap DAG: node data plus the SVG renderer |
 | `lab/design.mjs` | **the harness.** Node-only, not served |
 | `lab/design.selftest.mjs` | 92 known-answer checks for it |
+| `lab/simulate.mjs` | simulate a design before running it. Node-only |
+| `lab/simulate.selftest.mjs` | 32 known-answer checks for it |
 | `refs.js` | **the bibliography, as data** — 54 real works, keyed |
 | `cite.js` | numbers citations in document order, renders the reference list |
 | `journal.css` | the shared journal typography; prints to real Letter pages |
@@ -90,6 +93,32 @@ which is a different and necessary thing: at one repeat `dfWithin = 0` and
 The other lever is pairing. Running conditions on shared tasks cuts required
 observations by `(1 − ρ)`, which at a plausible ρ = 0.7 turns a 126-run
 comparison into a 38-run one. Nothing else in the library saves as much.
+
+## Simulate before you run
+
+`lab/simulate.mjs` is deterministic throughout: a seeded mulberry32, never
+`Math.random`. That is what lets a published sampling distribution be
+reproduced exactly, and it is why `ken.selftest.mjs` can assert WP1's tables
+digit for digit rather than within a tolerance. **If you add a simulation whose
+result gets published, record its seed and trial count in the call, and add the
+assertion.**
+
+The module earned its place immediately. The 24-run variance pilot recommended
+in the first version of `lab.html` turned out, on simulation, to return a 95%
+interval on ICC of about `[0.00, 0.80]` at a true 0.5, and to return exactly
+zero a quarter of the time at a true 0.2. Reallocating the same runs did not
+help; reaching ±0.16 takes 144. The pilot was re-scoped to a model check, which
+it does well, and `variancePilot()`'s doc comment and `note` field now say so.
+
+Two things follow for anyone editing here:
+
+- **A published recommendation that turns out wrong gets corrected in place,
+  visibly.** `lab.html` §5 carries a "Revised after simulation" note rather than
+  a quiet edit, and links to the paper that overturned it. The programme is
+  about honest measurement; silently fixing its own record would be the one
+  unrecoverable move.
+- **The simulation assumes the model the run is partly there to test.** Say so
+  wherever its numbers appear. WP1 does, in its limits box.
 
 ## The roadmap figure
 
@@ -135,6 +164,7 @@ recomputed on every build:
 | Source | Claims checked |
 |---|---|
 | `ken/lab/design.mjs` | every number in the instrument note's Tables 1–3, recomputed and compared |
+| `ken/lab/simulate.mjs` | every interval, width and detection rate in WP1's Tables 2–6, regenerated from the recorded seed and compared digit for digit |
 | `.github/loop/{turns,runs}.jsonl` | 99 orders, 89 turns, 17 gate failures, 59 of 89 at the probe ceiling, 0 quality scores, 1 of 3 signals fired |
 | `bakeoff/results/race-01/results.json` | 11 runs, 11/11 gate, 11/11 primitives, judges `null`, 2 entries with a zero patch beside a real entry directory |
 | `bakeoff/results/race-02/results.json` | 12 runs, 12/12 gate, 12/12 primitives, judges `null` |

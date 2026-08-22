@@ -376,6 +376,57 @@
       t: 'CONSORT 2010 Statement: Updated Guidelines for Reporting Parallel Group Randomised Trials',
       v: 'BMJ 340, c332',
       n: 'The canonical reporting checklist. Our house standard is a smaller version of the same idea: fix what must be reported so that omitting it is visible.' },
+
+    // ── Working paper 1 — variance, and simulating a design ────────────
+    fisher1925: {
+      a: 'Fisher, R. A.', y: 1925,
+      t: 'Statistical Methods for Research Workers',
+      v: 'Oliver & Boyd',
+      n: 'Where the analysis of variance and the intraclass correlation come from. Ch. 7 is the ancestor of every variance decomposition in this programme.' },
+    yates1935: {
+      a: 'Yates, F.', y: 1935,
+      t: 'Complex Experiments',
+      v: 'Supplement to the Journal of the Royal Statistical Society 2(2), 181–247',
+      n: 'The split-plot design: what to do when one factor is expensive to change and another is cheap. Our model is the whole plot and the task is the sub-plot, which means the naive analysis uses the wrong error term.' },
+    cochran1977: {
+      a: 'Cochran, W. G.', y: 1977,
+      t: 'Sampling Techniques (3rd ed.)',
+      v: 'Wiley',
+      n: 'Cluster sampling and the design effect. A task with repeated runs is a cluster, and the effective sample size is smaller than the run count by a factor that depends on the ICC.' },
+    searle1992: {
+      a: 'Searle, S. R., Casella, G. & McCulloch, C. E.', y: 1992,
+      t: 'Variance Components',
+      v: 'Wiley',
+      n: 'The canonical treatment, including the point this working paper rediscovered the expensive way: variance components need far larger samples than means do.' },
+    satterthwaite1946: {
+      a: 'Satterthwaite, F. E.', y: 1946,
+      t: 'An Approximate Distribution of Estimates of Variance Components',
+      v: 'Biometrics Bulletin 2(6), 110–114',
+      n: 'The classical approximate interval for a variance component, and the analytic alternative to the simulation used here.' },
+    efron1993: {
+      a: 'Efron, B. & Tibshirani, R. J.', y: 1993,
+      t: 'An Introduction to the Bootstrap',
+      v: 'Chapman & Hall',
+      n: 'What to reach for when the normal-theory interval on a variance component is not trustworthy, which at these sample sizes it is not.' },
+    burton2006: {
+      a: 'Burton, A., Altman, D. G., Royston, P. & Holder, R. L.', y: 2006,
+      t: 'The design of simulation studies in medical statistics',
+      v: 'Statistics in Medicine 25(24), 4279–4292' },
+    morris2019: {
+      a: 'Morris, T. P., White, I. R. & Crowther, M. J.', y: 2019,
+      t: 'Using simulation studies to evaluate statistical methods',
+      v: 'Statistics in Medicine 38(11), 2074–2102',
+      n: 'The modern standard for simulating a design before running it, including how to report the simulation itself. The direct justification for R13.' },
+    pfister2013: {
+      a: 'Pfister, R., Schwarz, K. A., Janczyk, M., Dale, R. & Freeman, J. B.', y: 2013,
+      t: 'Good things peak in pairs: a note on the bimodality coefficient',
+      v: 'Frontiers in Psychology 4, 700',
+      n: 'Sarle\u2019s coefficient, its reference values, and an honest account of when it misleads.' },
+    wang2023: {
+      a: 'Wang, X., Wei, J., Schuurmans, D., Le, Q., Chi, E., Narang, S., Chowdhery, A. & Zhou, D.', y: 2023,
+      t: 'Self-Consistency Improves Chain of Thought Reasoning in Language Models',
+      v: 'ICLR 2023',
+      n: 'Sampling a model repeatedly and aggregating. Treats run-to-run variation as a resource rather than a nuisance, which is the opposite framing to ours and worth holding alongside it.' },
   };
 
   root.KEN_REFS = REFS;

@@ -29,7 +29,7 @@
 
     // row 1 — what was learned from them
     { id: 'standard', row: 1, col: 'mid', state: 'done', wide: true, href: '/methods',
-      lines: ['House standard · R1–R12'], sub: 'how a run is designed, scored and reported',
+      lines: ['House standard · R1–R13'], sub: 'how a run is designed, scored and reported',
       needs: ['loop', 'race01', 'race02'] },
 
     // row 2 — the three foundational units
@@ -44,15 +44,15 @@
     { id: 'b12', row: 3, col: 'left', state: 'blocked', href: '/protocol#blanks',
       lines: ['B1 construct · B2 reliability'], sub: 'what quality means, and how well it is measured',
       needs: ['u1'] },
-    { id: 'harness', row: 3, col: 'mid', state: 'active', href: '/lab',
+    { id: 'harness', row: 3, col: 'mid', state: 'done', href: '/lab',
       lines: ['The harness'], sub: 'design calculator · 92 known-answer checks',
       needs: ['u2'] },
     { id: 'u4', row: 3, col: 'right', state: 'blocked', href: '/syllabus#unit-4',
       lines: ['Unit IV', 'Organisation & authority'], needs: ['u3'] },
 
     // row 4
-    { id: 'b45', row: 4, col: 'mid', state: 'blocked', href: '/protocol#blanks',
-      lines: ['B4 power · B5 stopping rule'], sub: 'sample size, and when to stop',
+    { id: 'wp1', row: 4, col: 'mid', state: 'active', href: '/wp1',
+      lines: ['WP1 · variance of unattended work'], sub: '4 hypotheses · design simulated, pilot re-scoped',
       needs: ['harness'] },
     { id: 'u6', row: 4, col: 'left', state: 'blocked', href: '/syllabus#unit-6',
       lines: ['Unit VI', 'Judgment as an instrument'], needs: ['b12', 'harness'] },
@@ -63,6 +63,9 @@
     { id: 'b3', row: 5, col: 'left', state: 'blocked', href: '/protocol#blanks',
       lines: ['B3 calibrated judge'], sub: 'agreement against the human ceiling',
       needs: ['u6'] },
+    { id: 'b45', row: 5, col: 'mid', state: 'ready', href: '/protocol#blanks',
+      lines: ['B4 power · B5 stopping rule'], sub: 'sample size, and when to stop',
+      needs: ['wp1'] },
     { id: 'u7', row: 5, col: 'right', state: 'blocked', href: '/syllabus#unit-7',
       lines: ['Unit VII', 'Oversight beyond your ken'], needs: ['u6'] },
 

@@ -19,6 +19,10 @@
        ken/lab/design.mjs. Every one is recomputed here and compared, so the
        note cannot drift from the code it documents.
 
+   (3b) WP1'S SIMULATION TABLES ARE REPRODUCED. Every interval, width and
+       detection rate printed in the working paper is regenerated from the
+       recorded seed and compared digit for digit.
+
    (4) THE ROADMAP IS A VALID DAG. Every `needs` id exists, the graph is
        acyclic, no two nodes occupy the same cell, no boxes overlap, and every
        href resolves to a page that exists and an anchor that is on it.
@@ -37,6 +41,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { lintHtml } from './prose-lint.mjs';
 import { NODES, box } from './tree.js';
 import { mde, designComparison, variancePilot, ladyTastingTea, sprtBounds, choose } from './lab/design.mjs';
+import { iccSamplingDistribution, pilotSweep, bimodalityPower, allocationCheck } from './lab/simulate.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -230,6 +235,80 @@ ok(sb.lower.toFixed(2) === '-1.56', `SPRT lower boundary is -1.56 (computed ${sb
 ok(lab.includes('2.77') && lab.includes('1.56'), 'lab prints both SPRT boundaries');
 ok(choose(8, 4) === 70 && ladyTastingTea(6).smallestP === 0.05,
    'the six-cup design cannot reach p < 0.05, as the note claims');
+
+// ── 4b. WP1's tables are reproduced from the simulator ────────────────
+section('wp1 tables vs simulate.mjs');
+const wp1 = readFileSync(join(HERE, 'wp1.html'), 'utf8');
+const wp1Has = (v, what) => ok(wp1.includes(v), `wp1 states the simulated value for ${what} (${v})`);
+const pct = (x) => `${Math.round(x * 100)}%`;
+const f2 = (x) => x.toFixed(2);
+
+// Table 2 — the 24-run pilot at three true ICCs
+for (const [icc, lo, hi, med, zero] of [
+  [0.2, '0.00', '0.61', '0.17', '25%'],
+  [0.5, '0.00', '0.80', '0.47', '4%'],
+  [0.8, '0.38', '0.93', '0.79', '0%'],
+]) {
+  const d = iccSamplingDistribution({ tasks: 8, repeats: 3, trueIcc: icc, trials: 4000, seed: 21 });
+  ok(f2(d.lo) === lo && f2(d.hi) === hi,
+     `wp1 Table 2, true ICC ${icc}: interval [${lo}, ${hi}] (simulated [${f2(d.lo)}, ${f2(d.hi)}])`);
+  ok(f2(d.median) === med, `wp1 Table 2, true ICC ${icc}: median ${med} (simulated ${f2(d.median)})`);
+  ok(pct(d.atZero) === zero, `wp1 Table 2, true ICC ${icc}: ${zero} clamped at zero (simulated ${pct(d.atZero)})`);
+  wp1Has(`[${lo}, ${hi}]`, `the ICC interval at true ${icc}`);
+}
+
+// Table 3 — every split of a 24-run budget
+{
+  const sweep = pilotSweep({ budget: 24, trueIcc: 0.5, trials: 3000 });
+  const want = { '4x6': '0.82', '6x4': '0.80', '8x3': '0.80', '12x2': '0.82' };
+  for (const r of sweep) {
+    const key = `${r.tasks}x${r.repeats}`;
+    ok(f2(r.width) === want[key],
+       `wp1 Table 3, ${key}: width ${want[key]} (simulated ${f2(r.width)})`);
+  }
+  ok(sweep.length === 4, 'the 24-run sweep has the four splits the table shows');
+}
+
+// Table 4 — the size ladder
+for (const [tasks, runs, lo, hi, width] of [
+  [8, 24, '0.00', '0.80', '0.80'], [12, 36, '0.09', '0.76', '0.66'],
+  [16, 48, '0.16', '0.73', '0.58'], [24, 72, '0.22', '0.69', '0.47'],
+  [32, 96, '0.27', '0.67', '0.40'], [48, 144, '0.32', '0.64', '0.32'],
+  [64, 192, '0.34', '0.62', '0.29'], [96, 288, '0.38', '0.61', '0.23'],
+]) {
+  const d = iccSamplingDistribution({ tasks, repeats: 3, trueIcc: 0.5, trials: 3000, seed: 31 });
+  ok(f2(d.lo) === lo && f2(d.hi) === hi && f2(d.width) === width,
+     `wp1 Table 4, ${tasks} tasks: [${lo}, ${hi}] width ${width} (simulated [${f2(d.lo)}, ${f2(d.hi)}] width ${f2(d.width)})`);
+  ok(d.runs === runs, `wp1 Table 4, ${tasks} tasks is ${runs} runs`);
+}
+
+// Table 5 — bimodality power
+for (const [gap, want] of [[1, '2%'], [2, '69%'], [3, '100%'], [4, '100%']]) {
+  const b = bimodalityPower({ tasks: 8, repeats: 3, p: 0.5, gap, noise: 0.35, trials: 2000, seed: 13 });
+  ok(pct(b.power) === want, `wp1 Table 5, ${gap} SD separation: ${want} (simulated ${pct(b.power)})`);
+}
+
+// Table 6 — predicted against simulated SE, and the allocation conclusion
+{
+  const a = allocationCheck({ budget: 48, betweenVar: 0.5, withinVar: 0.5, trials: 4000, seed: 5 });
+  ok(a.bestRepeats === 1, 'wp1 §4.5: simulation agrees one repeat minimises the SE');
+  const want = {
+    1: ['0.1443', '0.1465'], 2: ['0.1768', '0.1798'], 3: ['0.2041', '0.2023'],
+    4: ['0.2282', '0.2257'], 6: ['0.2700', '0.2693'], 8: ['0.3062', '0.3080'],
+  };
+  for (const r of a.rows) {
+    const [p4, e4] = want[r.repeats];
+    ok(r.predictedSe.toFixed(4) === p4 && r.empiricalSe.toFixed(4) === e4,
+       `wp1 Table 6, ${r.repeats} repeat(s): predicted ${p4} simulated ${e4} ` +
+       `(got ${r.predictedSe.toFixed(4)} and ${r.empiricalSe.toFixed(4)})`);
+    wp1Has(p4, `Table 6 predicted SE at ${r.repeats} repeat(s)`);
+    wp1Has(e4, `Table 6 simulated SE at ${r.repeats} repeat(s)`);
+  }
+}
+
+// the correction must be visible on the page that carried the original claim
+ok(readFileSync(join(HERE, 'lab.html'), 'utf8').includes('/wp1'),
+   'the instrument note links to the working paper that corrected it');
 
 // ── 5. the roadmap is a valid DAG ─────────────────────────────────────
 section('roadmap graph');

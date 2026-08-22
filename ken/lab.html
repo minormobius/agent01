@@ -15,6 +15,7 @@
   <a href="/syllabus">I · Curriculum</a>
   <a href="/methods">II · Methods</a>
   <a class="here" href="/lab">Instrument</a>
+  <a href="/wp1">WP1</a>
   <a href="/protocol">III · Protocol</a>
   <span class="grow"></span>
   <button onclick="window.print()">Save as PDF</button>
@@ -166,30 +167,47 @@
   across two runs can exceed the gap between two models, and one draw cannot tell you which you
   are looking at. Right call, right reason.</p>
 
-  <h2 class="sec"><span class="secno">5</span>The variance pilot</h2>
+  <h2 class="sec"><span class="secno">5</span>The variance pilot, and a correction</h2>
 
-  <p>Not a comparison. A variance pilot: one condition, several tasks, several repeats, which
-  produces the σ² components every calculation above takes as input. Until it exists, every cost
-  estimate here rests on an assumed ρ and should be read as a range.</p>
+  <div class="caveat">
+    <span class="lbl">Revised after simulation</span>
+    <p>An earlier version of this section recommended a 24-run pilot as the way to obtain the
+    variance components. Simulating that pilot before running it showed the recommendation was
+    wrong: at a true ICC of 0.5 it returns a 95% interval of about
+    <span class="mono">[0.00, 0.80]</span>, and at a true 0.2 it returns exactly zero a quarter
+    of the time. The working paper carries the full result and the revised design:
+    <a href="/wp1">WP1, The Variance of Unattended Work</a>. What follows is the corrected
+    version.</p>
+  </div>
+
+  <p>The first run to buy is still not a comparison, and it is still 24 runs of one condition
+  across several tasks. What changed is the job it is being asked to do. It is a model check,
+  which it does well, rather than a parameter estimate, which it does not do at all.</p>
 
   <div class="table-fig">
-    <div class="cap"><b>Table 3.</b> The default pilot from <code>variancePilot()</code>.</div>
+    <div class="cap"><b>Table 3.</b> The default pilot from <code>variancePilot()</code>, and
+      what simulation says it can and cannot support.</div>
     <table class="booktabs">
-      <thead><tr><th>Quantity</th><th class="num">Value</th><th>Why</th></tr></thead>
+      <thead><tr><th>Quantity</th><th class="num">Value</th><th>Reading</th></tr></thead>
       <tbody>
-        <tr><td>Tasks</td><td class="num">8</td><td>Enough groups for a usable between-task mean square.</td></tr>
+        <tr><td>Tasks</td><td class="num">8</td><td>Enough groups for a between-task mean square to exist.</td></tr>
         <tr><td>Repeats</td><td class="num">3</td><td>Enough within-task replication to estimate run-to-run noise.</td></tr>
         <tr><td>Runs</td><td class="num">24</td><td>A cost that does not need a decision.</td></tr>
-        <tr><td>df between</td><td class="num">7</td><td rowspan="2">What the precision of the estimate actually rests on. Both are small, so treat the first ICC as an order of magnitude.</td></tr>
+        <tr><td>df between</td><td class="num">7</td><td rowspan="2">Both small, and this is why the ICC interval comes back almost as wide as the parameter range.</td></tr>
         <tr><td>df within</td><td class="num">16</td></tr>
+        <tr><td><b>Detects bimodality at 2 SD</b></td><td class="num">69%</td><td rowspan="2">What the pilot is actually for. A gross departure from the model is caught; a subtle one is not.</td></tr>
+        <tr><td><b>Detects bimodality at 3 SD</b></td><td class="num">100%</td></tr>
+        <tr><td><b>95% interval on ICC</b></td><td class="num">width 0.80</td><td>At a true value of 0.5. Not an estimate.</td></tr>
+        <tr><td>Runs for an ICC interval of ±0.16</td><td class="num">144</td><td>A separate and deliberate spend.</td></tr>
       </tbody>
     </table>
   </div>
 
   <p>Feed the result to <code>varianceComponents()</code>, which returns σ²<sub>within</sub>,
   σ²<sub>between</sub> and the ICC, clamping a negative between-task moment estimate at zero
-  because a negative variance is not a finding. That ICC then sets ρ in Table 2, and the cost of
-  every claim the programme wants to make becomes a number rather than a worry.</p>
+  because a negative variance is not a finding. Report the interval before the point estimate,
+  and report a clamped zero as clamped, since a bare zero reads as a measurement of no task
+  effect when it is often an artefact of a small sample.</p>
 
   <h2 class="sec"><span class="secno">6</span>Sequential stopping and exact tests</h2>
 

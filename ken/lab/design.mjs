@@ -276,10 +276,19 @@ export function allocateComparison({ interactionVar, withinVar, budget, maxRepea
  * The run to buy first. One condition, `tasks` tasks, `repeats` repeats each,
  * which yields the variance components everything above needs as input.
  *
- * Defaults of 8 × 3 = 24 runs are a deliberate compromise: enough groups for
- * a usable MSB and enough repeats for a usable MSW, at a cost that does not
- * need a decision. The returned `dfWithin` and `dfBetween` are what the
- * estimate's precision actually rests on.
+ * Defaults of 8 × 3 = 24 runs cost little enough not to need a decision.
+ *
+ * WHAT IT DOES NOT DO. This function originally claimed to buy the variance
+ * components. Simulating it (ken/lab/simulate.mjs, written up at /wp1) showed
+ * otherwise: at a true ICC of 0.5 a pilot this size returns a 95% interval of
+ * roughly [0.00, 0.80], and at a true 0.2 it returns exactly zero a quarter of
+ * the time because the moment estimator is clamped. Reallocating the same 24
+ * runs does not help; the limit is the run count.
+ *
+ * What it IS well powered for is checking whether the model holds at all: the
+ * same 24 runs detect a two-SD bimodal separation about 69% of the time and a
+ * three-SD one every time. Use it for that, and treat estimating ICC to a
+ * useful width (~144 runs) as a separate, deliberate spend.
  */
 export function variancePilot({ tasks = 8, repeats = 3, costPerRun = null } = {}) {
   const runs = tasks * repeats;
@@ -288,7 +297,10 @@ export function variancePilot({ tasks = 8, repeats = 3, costPerRun = null } = {}
     dfBetween: tasks - 1,
     dfWithin: runs - tasks,
     cost: costPerRun == null ? null : runs * costPerRun,
-    note: 'One condition only. This buys the variance estimate, not a comparison.',
+    note: 'One condition only. SCOPE REVISED: simulation (see ken/lab/simulate.mjs and '
+        + '/wp1) shows a pilot this size returns a 95% interval on ICC of about [0.00, 0.80] '
+        + 'at a true 0.5, so it is a MODEL CHECK, not a parameter estimate. Reaching an '
+        + 'interval of +/-0.16 takes about 144 runs.',
   };
 }
 
