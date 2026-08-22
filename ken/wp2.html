@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WP2: The Org Chart of a Six-Turn Run — ken</title>
+<meta name="description" content="Nine roles that staff any plan graph, an automorphism argument that decides which turns may be pooled, and a free intervention that six turns can test.">
+<link rel="stylesheet" href="journal.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="brand"><a href="/">ken</a></span>
+  <a href="/">Front matter</a>
+  <a href="/syllabus">I · Curriculum</a>
+  <a href="/methods">II · Methods</a>
+  <a href="/lab">Instrument</a>
+  <a href="/run">Procedure</a>
+  <a href="/wp1">WP1</a>
+  <a class="here" href="/wp2">WP2</a>
+  <a href="/log">Log</a>
+  <a href="/protocol">III · Protocol</a>
+  <span class="grow"></span>
+  <button onclick="window.print()">Save as PDF</button>
+</div>
+
+<div class="sheet">
+
+  <div class="a-venue">ken · volume 1 · working paper 2 <span class="kicker">Unit IV</span></div>
+  <h1 class="a-title">The Org Chart of a Six-Turn Run</h1>
+  <p class="a-sub">Nine roles, a symmetry that decides what may be pooled, and one intervention that costs nothing</p>
+  <div class="a-meta">Design stage · no runs executed · <code>ken/lab/roles.mjs</code>, <code>shapes.mjs</code>, 189 known-answer checks</div>
+  <hr class="a-rule">
+
+  <div class="abstract">
+    <span class="lbl">Abstract</span>
+    <p>A run plan is a directed acyclic graph of turns. This paper reads the org chart off
+    that graph rather than declaring one. Degree gives nine roles, complete by a counting
+    argument. The automorphism group gives the pooling rule: two turns may be averaged
+    exactly when a symmetry of the plan exchanges them, which restates <a href="/log">H4</a>
+    as a property of the design instead of an assumption about agents.</p>
+    <p>Six shapes are then catalogued, all costing six turns. Across them, depth and the ken
+    ratio are near-orthogonal, r = 0.05, so the two can be told apart. Within any one run
+    they are collinear, which corrects the first version of this design and is the reason
+    only one shape supports the cheap test.</p>
+    <p>Two results fall out. A star run holds four structurally interchangeable turns and a
+    chain holds none, so at the measured ICC a star buys 1.79 times the effective replication
+    for the same six turns. And <code>chain</code> against <code>briefed</code> differ at
+    exactly one turn, by four added edges and no added turns, which is the cheapest
+    manipulation in the programme so far.</p>
+  </div>
+
+  <h2 class="sec"><span class="secno">1</span>The question</h2>
+
+  <p>Every measurement this site has priced is bounded by sample size. At the measured
+  ICC of 0.413 a 96-turn budget reaches an effect of d = 1.07 and stops. Adding runs is the
+  obvious response and it is the one we cannot afford.</p>
+
+  <p>Shape is the alternative. Six turns admit many graphs, and rewiring them changes the
+  position of every agent while the bill stays six turns. The question is whether position
+  does anything, and before that, whether position can be described precisely enough to
+  vary on purpose.</p>
+
+  <p>This is an old experiment. Bavelas <a class="cite" data-ref="bavelas1950"></a> wired
+  human groups into fixed communication patterns and treated the pattern as the treatment;
+  Leavitt <a class="cite" data-ref="leavitt1951"></a> ran circle, chain, Y and wheel on
+  five-person groups and found the wheel fastest and most accurate and its peripheral
+  members least satisfied. Shaw <a class="cite" data-ref="shaw1964"></a> then complicated
+  it: centralised networks win on simple tasks and lose on complex ones. WP2 is that
+  design with agents in the seats, and the prior literature is a reason to expect an
+  interaction with task difficulty rather than a clean main effect.</p>
+
+  <h2 class="sec"><span class="secno">2</span>Nine roles, and why nine</h2>
+
+  <p>Four duties are forced by degree and nothing else is. In-degree zero means nothing
+  feeds the node, so it supplies its own brief. In-degree of two or more means several
+  upstream products must be reconciled. Out-degree of two or more means briefs must be
+  written. Out-degree zero means the output goes to the principal.</p>
+
+  <p>Originate and merge cannot co-occur, since in-degree is not both zero and at least
+  two, and neither can report and split. So a node's duties are one in-duty crossed with
+  one out-duty: three by three, nine roles, total on every node of every finite DAG. That
+  is a counting argument, not a survey of cases we happened to think of, and it is what
+  makes an arbitrary shape staffable.</p>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 1.</b> The role basis. Rows are what arrives, columns what leaves.</div>
+    <table class="booktabs">
+      <thead><tr><th></th><th>reports (out 0)</th><th>hands off (out 1)</th><th>splits (out ≥2)</th></tr></thead>
+      <tbody>
+        <tr><td><b>originates</b> (in 0)</td><td><code>solo</code></td><td><code>brief</code></td><td><code>principal</code></td></tr>
+        <tr><td><b>carries</b> (in 1)</td><td><code>deliver</code></td><td><code>relay</code></td><td><code>delegate</code></td></tr>
+        <tr><td><b>merges</b> (in ≥2)</td><td><code>integrate</code></td><td><code>funnel</code></td><td><code>broker</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>One cell is worth naming. <code>broker</code> is the only role that both merges and
+  splits, so it is the only seat that can substitute its own judgment for the brief and
+  have the substitution propagate. That is Aghion and Tirole's real authority
+  <a class="cite" data-ref="aghion1997"></a> arriving as a degree condition, and Garicano's
+  escalation layer <a class="cite" data-ref="garicano2000"></a> is the same node counted
+  differently.</p>
+
+  <h2 class="sec"><span class="secno">3</span>Symmetry decides what may be pooled</h2>
+
+  <p>An automorphism of the plan is a relabelling that preserves every edge. Two turns in
+  the same orbit are structurally indistinguishable: no property of the plan separates
+  them, so nothing but the treatment assignment can. Exchangeability is invariance under a
+  group action <a class="cite" data-ref="orbanz2015"></a>, and here the group is the
+  automorphism group of a graph we wrote down ourselves.</p>
+
+  <p>This does not make H4 true. An agent can still drift inside an orbit, and that is the
+  empirical part. What it settles is which comparisons were ever estimable, before any data
+  exists. The orbits also bound how far the argument goes: a six-turn orbit is a finite
+  exchangeable sequence, not an infinite one, and carries the corresponding correction
+  <a class="cite" data-ref="diaconis1980"></a>.</p>
+
+  <p>The search is colour refinement followed by backtracking inside the refined cells,
+  which is nauty <a class="cite" data-ref="mckay2014"></a> in miniature. Refinement alone is
+  a coarsening of the orbit partition and could be wrong; on all six shapes it happens to be
+  exact, and the selftest asserts that so it keeps being checked rather than assumed. A step
+  cap guards the search, because graph isomorphism has no known polynomial bound
+  <a class="cite" data-ref="babai2016"></a>. On a dozen nodes it has never fired.</p>
+
+  <h2 class="sec"><span class="secno">4</span>The ken ratio</h2>
+
+  <p>The quantity the programme is named after turns out to be one pass over the graph.
+  An agent's <b>ken</b> is its in-neighbours and itself, the only state it holds. Its
+  <b>ancestry</b> is every turn whose product it inherits. The ratio of the two is 1 at a
+  source, by definition, and falls as work accumulates upstream of a narrow inlet.</p>
+
+  <p>It is not depth. The last turn of a six-turn chain holds two turns of state and answers
+  for six, at 0.333. The assembly turn of a six-turn star holds five and answers for six, at
+  0.833. Same budget, same number of agents, ratio different by a factor of two and a half.
+  Blast radius and betweenness <a class="cite" data-ref="freeman1977"></a> come from the same
+  two passes and are reported alongside.</p>
+
+  <h2 class="sec"><span class="secno">5</span>Six org charts at six turns</h2>
+
+  <p>Not one coordinate below was placed by hand. Each figure is the relaxed layout of the
+  graph, so a shape added to <code>shapes.mjs</code> arrives with its own picture.</p>
+
+  <!-- FIG:catalogue-grid:START --><div class="figgrid"><figure><svg viewBox="0 0 300 378" role="img" aria-label="Chain: 6 turns, depth 5, |Aut| 1, sink ken 0.333."><path class="pl-edge" d="M 34.0 43 C 34.0 68, 34.0 62, 34.0 87"/><path class="pl-edge" d="M 34.0 105 C 34.0 130, 34.0 124, 34.0 149"/><path class="pl-edge" d="M 34.0 167 C 34.0 192, 34.0 186, 34.0 211"/><path class="pl-edge" d="M 34.0 229 C 34.0 254, 34.0 248, 34.0 273"/><path class="pl-edge" d="M 34.0 291 C 34.0 316, 34.0 310, 34.0 335"/><g class="pl-node pl-turn"><title>setup · depth 0</title><circle cx="34.0" cy="34" r="8"/><text x="34.0" y="56" text-anchor="middle">setup</text></g><g class="pl-node pl-turn"><title>t1 · depth 1</title><circle cx="34.0" cy="96" r="8"/><text x="34.0" y="118" text-anchor="middle">t1</text></g><g class="pl-node pl-turn"><title>t2 · depth 2</title><circle cx="34.0" cy="158" r="8"/><text x="34.0" y="180" text-anchor="middle">t2</text></g><g class="pl-node pl-turn"><title>t3 · depth 3</title><circle cx="34.0" cy="220" r="8"/><text x="34.0" y="242" text-anchor="middle">t3</text></g><g class="pl-node pl-turn"><title>t4 · depth 4</title><circle cx="34.0" cy="282" r="8"/><text x="34.0" y="304" text-anchor="middle">t4</text></g><g class="pl-node pl-turn"><title>report · depth 5</title><circle cx="34.0" cy="344" r="8"/><text x="34.0" y="366" text-anchor="middle">report</text></g><text class="pl-depth" x="6" y="38">0</text><text class="pl-depth" x="6" y="100">1</text><text class="pl-depth" x="6" y="162">2</text><text class="pl-depth" x="6" y="224">3</text><text class="pl-depth" x="6" y="286">4</text><text class="pl-depth" x="6" y="348">5</text></svg><figcaption><b>Chain</b><br>depth 5 · |Aut| 1 · sink ken 0.333</figcaption></figure><figure><svg viewBox="0 0 300 254" role="img" aria-label="Standard run: 6 turns, depth 3, |Aut| 2, sink ken 0.5."><path class="pl-edge" d="M 150.0 43 C 150.0 68, 34.0 62, 34.0 87"/><path class="pl-edge" d="M 150.0 43 C 150.0 68, 266.0 62, 266.0 87"/><path class="pl-edge" d="M 34.0 105 C 34.0 130, 34.0 124, 34.0 149"/><path class="pl-edge" d="M 266.0 105 C 266.0 130, 266.0 124, 266.0 149"/><path class="pl-edge" d="M 34.0 167 C 34.0 192, 150.0 186, 150.0 211"/><path class="pl-edge" d="M 266.0 167 C 266.0 192, 150.0 186, 150.0 211"/><g class="pl-node pl-turn"><title>setup · depth 0</title><circle cx="150.0" cy="34" r="8"/><text x="150.0" y="56" text-anchor="middle">setup</text></g><g class="pl-node pl-turn"><title>A1 · depth 1</title><circle cx="34.0" cy="96" r="8"/><text x="34.0" y="118" text-anchor="middle">A1</text></g><g class="pl-node pl-turn"><title>A2 · depth 1</title><circle cx="266.0" cy="96" r="8"/><text x="266.0" y="118" text-anchor="middle">A2</text></g><g class="pl-node pl-turn"><title>B1 · depth 2</title><circle cx="34.0" cy="158" r="8"/><text x="34.0" y="180" text-anchor="middle">B1</text></g><g class="pl-node pl-turn"><title>B2 · depth 2</title><circle cx="266.0" cy="158" r="8"/><text x="266.0" y="180" text-anchor="middle">B2</text></g><g class="pl-node pl-turn"><title>cleanup · depth 3</title><circle cx="150.0" cy="220" r="8"/><text x="150.0" y="242" text-anchor="middle">cleanup</text></g><text class="pl-depth" x="6" y="38">0</text><text class="pl-depth" x="6" y="100">1</text><text class="pl-depth" x="6" y="162">2</text><text class="pl-depth" x="6" y="224">3</text></svg><figcaption><b>Standard run</b><br>depth 3 · |Aut| 2 · sink ken 0.5</figcaption></figure><figure><svg viewBox="0 0 300 254" role="img" aria-label="Lattice: 6 turns, depth 3, |Aut| 4, sink ken 0.5."><path class="pl-edge" d="M 150.0 43 C 150.0 68, 34.0 62, 34.0 87"/><path class="pl-edge" d="M 150.0 43 C 150.0 68, 266.0 62, 266.0 87"/><path class="pl-edge" d="M 34.0 105 C 34.0 130, 34.0 124, 34.0 149"/><path class="pl-edge" d="M 34.0 105 C 34.0 130, 266.0 124, 266.0 149"/><path class="pl-edge" d="M 266.0 105 C 266.0 130, 34.0 124, 34.0 149"/><path class="pl-edge" d="M 266.0 105 C 266.0 130, 266.0 124, 266.0 149"/><path class="pl-edge" d="M 34.0 167 C 34.0 192, 150.0 186, 150.0 211"/><path class="pl-edge" d="M 266.0 167 C 266.0 192, 150.0 186, 150.0 211"/><g class="pl-node pl-turn"><title>setup · depth 0</title><circle cx="150.0" cy="34" r="8"/><text x="150.0" y="56" text-anchor="middle">setup</text></g><g class="pl-node pl-turn"><title>A1 · depth 1</title><circle cx="34.0" cy="96" r="8"/><text x="34.0" y="118" text-anchor="middle">A1</text></g><g class="pl-node pl-turn"><title>A2 · depth 1</title><circle cx="266.0" cy="96" r="8"/><text x="266.0" y="118" text-anchor="middle">A2</text></g><g class="pl-node pl-turn"><title>B1 · depth 2</title><circle cx="34.0" cy="158" r="8"/><text x="34.0" y="180" text-anchor="middle">B1</text></g><g class="pl-node pl-turn"><title>B2 · depth 2</title><circle cx="266.0" cy="158" r="8"/><text x="266.0" y="180" text-anchor="middle">B2</text></g><g class="pl-node pl-turn"><title>cleanup · depth 3</title><circle cx="150.0" cy="220" r="8"/><text x="150.0" y="242" text-anchor="middle">cleanup</text></g><text class="pl-depth" x="6" y="38">0</text><text class="pl-depth" x="6" y="100">1</text><text class="pl-depth" x="6" y="162">2</text><text class="pl-depth" x="6" y="224">3</text></svg><figcaption><b>Lattice</b><br>depth 3 · |Aut| 4 · sink ken 0.5</figcaption></figure><figure><svg viewBox="0 0 300 192" role="img" aria-label="Star: 6 turns, depth 2, |Aut| 24, sink ken 0.833."><path class="pl-edge" d="M 146.6 43 C 146.6 68, 34.0 62, 34.0 87"/><path class="pl-edge" d="M 146.6 43 C 146.6 68, 106.1 62, 106.1 87"/><path class="pl-edge" d="M 146.6 43 C 146.6 68, 180.0 62, 180.0 87"/><path class="pl-edge" d="M 146.6 43 C 146.6 68, 266.0 62, 266.0 87"/><path class="pl-edge" d="M 34.0 105 C 34.0 130, 146.6 124, 146.6 149"/><path class="pl-edge" d="M 106.1 105 C 106.1 130, 146.6 124, 146.6 149"/><path class="pl-edge" d="M 180.0 105 C 180.0 130, 146.6 124, 146.6 149"/><path class="pl-edge" d="M 266.0 105 C 266.0 130, 146.6 124, 146.6 149"/><g class="pl-node pl-turn"><title>setup · depth 0</title><circle cx="146.6" cy="34" r="8"/><text x="146.6" y="56" text-anchor="middle">setup</text></g><g class="pl-node pl-turn"><title>w1 · depth 1</title><circle cx="34.0" cy="96" r="8"/><text x="34.0" y="118" text-anchor="middle">w1</text></g><g class="pl-node pl-turn"><title>w2 · depth 1</title><circle cx="106.1" cy="96" r="8"/><text x="106.1" y="118" text-anchor="middle">w2</text></g><g class="pl-node pl-turn"><title>w3 · depth 1</title><circle cx="180.0" cy="96" r="8"/><text x="180.0" y="118" text-anchor="middle">w3</text></g><g class="pl-node pl-turn"><title>w4 · depth 1</title><circle cx="266.0" cy="96" r="8"/><text x="266.0" y="118" text-anchor="middle">w4</text></g><g class="pl-node pl-turn"><title>assemble · depth 2</title><circle cx="146.6" cy="158" r="8"/><text x="146.6" y="180" text-anchor="middle">assemble</text></g><text class="pl-depth" x="6" y="38">0</text><text class="pl-depth" x="6" y="100">1</text><text class="pl-depth" x="6" y="162">2</text></svg><figcaption><b>Star</b><br>depth 2 · |Aut| 24 · sink ken 0.833</figcaption></figure><figure><svg viewBox="0 0 300 254" role="img" aria-label="Bottleneck: 6 turns, depth 3, |Aut| 6, sink ken 0.333."><path class="pl-edge" d="M 148.2 43 C 148.2 68, 34.0 62, 34.0 87"/><path class="pl-edge" d="M 148.2 43 C 148.2 68, 144.5 62, 144.5 87"/><path class="pl-edge" d="M 148.2 43 C 148.2 68, 266.0 62, 266.0 87"/><path class="pl-edge" d="M 34.0 105 C 34.0 130, 148.2 124, 148.2 149"/><path class="pl-edge" d="M 144.5 105 C 144.5 130, 148.2 124, 148.2 149"/><path class="pl-edge" d="M 266.0 105 C 266.0 130, 148.2 124, 148.2 149"/><path class="pl-edge" d="M 148.2 167 C 148.2 192, 148.2 186, 148.2 211"/><g class="pl-node pl-turn"><title>setup · depth 0</title><circle cx="148.2" cy="34" r="8"/><text x="148.2" y="56" text-anchor="middle">setup</text></g><g class="pl-node pl-turn"><title>w1 · depth 1</title><circle cx="34.0" cy="96" r="8"/><text x="34.0" y="118" text-anchor="middle">w1</text></g><g class="pl-node pl-turn"><title>w2 · depth 1</title><circle cx="144.5" cy="96" r="8"/><text x="144.5" y="118" text-anchor="middle">w2</text></g><g class="pl-node pl-turn"><title>w3 · depth 1</title><circle cx="266.0" cy="96" r="8"/><text x="266.0" y="118" text-anchor="middle">w3</text></g><g class="pl-node pl-turn"><title>lead · depth 2</title><circle cx="148.2" cy="158" r="8"/><text x="148.2" y="180" text-anchor="middle">lead</text></g><g class="pl-node pl-turn"><title>report · depth 3</title><circle cx="148.2" cy="220" r="8"/><text x="148.2" y="242" text-anchor="middle">report</text></g><text class="pl-depth" x="6" y="38">0</text><text class="pl-depth" x="6" y="100">1</text><text class="pl-depth" x="6" y="162">2</text><text class="pl-depth" x="6" y="224">3</text></svg><figcaption><b>Bottleneck</b><br>depth 3 · |Aut| 6 · sink ken 0.333</figcaption></figure><figure><svg viewBox="0 0 300 378" role="img" aria-label="Briefed chain: 6 turns, depth 5, |Aut| 1, sink ken 1."><path class="pl-edge" d="M 34.0 43 C 34.0 68, 34.0 62, 34.0 87"/><path class="pl-edge" d="M 34.0 105 C 34.0 130, 34.0 124, 34.0 149"/><path class="pl-edge" d="M 34.0 167 C 34.0 192, 34.0 186, 34.0 211"/><path class="pl-edge" d="M 34.0 229 C 34.0 254, 34.0 248, 34.0 273"/><path class="pl-edge" d="M 34.0 43 C 34.0 68, 34.0 310, 34.0 335"/><path class="pl-edge" d="M 34.0 105 C 34.0 130, 34.0 310, 34.0 335"/><path class="pl-edge" d="M 34.0 167 C 34.0 192, 34.0 310, 34.0 335"/><path class="pl-edge" d="M 34.0 229 C 34.0 254, 34.0 310, 34.0 335"/><path class="pl-edge" d="M 34.0 291 C 34.0 316, 34.0 310, 34.0 335"/><g class="pl-node pl-turn"><title>setup · depth 0</title><circle cx="34.0" cy="34" r="8"/><text x="34.0" y="56" text-anchor="middle">setup</text></g><g class="pl-node pl-turn"><title>t1 · depth 1</title><circle cx="34.0" cy="96" r="8"/><text x="34.0" y="118" text-anchor="middle">t1</text></g><g class="pl-node pl-turn"><title>t2 · depth 2</title><circle cx="34.0" cy="158" r="8"/><text x="34.0" y="180" text-anchor="middle">t2</text></g><g class="pl-node pl-turn"><title>t3 · depth 3</title><circle cx="34.0" cy="220" r="8"/><text x="34.0" y="242" text-anchor="middle">t3</text></g><g class="pl-node pl-turn"><title>t4 · depth 4</title><circle cx="34.0" cy="282" r="8"/><text x="34.0" y="304" text-anchor="middle">t4</text></g><g class="pl-node pl-turn"><title>report · depth 5</title><circle cx="34.0" cy="344" r="8"/><text x="34.0" y="366" text-anchor="middle">report</text></g><text class="pl-depth" x="6" y="38">0</text><text class="pl-depth" x="6" y="100">1</text><text class="pl-depth" x="6" y="162">2</text><text class="pl-depth" x="6" y="224">3</text><text class="pl-depth" x="6" y="286">4</text><text class="pl-depth" x="6" y="348">5</text></svg><figcaption><b>Briefed chain</b><br>depth 5 · |Aut| 1 · sink ken 1</figcaption></figure></div><!-- FIG:catalogue-grid:END -->
+  <div class="pcap"><b>Figure 1.</b> The catalogue. Six turns each, one source, one sink.
+  Depth is the row; horizontal position is relaxed, not placed.</div>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 2.</b> Every invariant, computed. Generated from <code>catalogue()</code>.</div>
+    <!-- TBL:catalogue:START --><table class="booktabs"><thead><tr><th>Shape</th><th class="num">Depth</th><th class="num">Width</th><th class="num">Max in</th><th class="num">Sink ken</th><th class="num">Mean ken</th><th class="num">|Aut|</th><th class="num">Orbits</th><th class="num">Largest orbit</th></tr></thead><tbody><tr><td><b>chain</b> <span class="muted">the naive loop: turn N reads turn N-1</span></td><td class="num">5</td><td class="num">1</td><td class="num">1</td><td class="num">0.333</td><td class="num">0.65</td><td class="num">1</td><td class="num">6</td><td class="num">1</td></tr><tr><td><b>standard</b> <span class="muted">ken R14, the current unit of work</span></td><td class="num">3</td><td class="num">2</td><td class="num">2</td><td class="num">0.5</td><td class="num">0.806</td><td class="num">2</td><td class="num">4</td><td class="num">2</td></tr><tr><td><b>lattice</b> <span class="muted">the wiring bug of revision 13, kept as a deliberate arm</span></td><td class="num">3</td><td class="num">2</td><td class="num">2</td><td class="num">0.5</td><td class="num">0.833</td><td class="num">4</td><td class="num">4</td><td class="num">2</td></tr><tr><td><b>star</b> <span class="muted">the bake-off: parallel entries judged together</span></td><td class="num">2</td><td class="num">4</td><td class="num">4</td><td class="num">0.833</td><td class="num">0.972</td><td class="num">24</td><td class="num">3</td><td class="num">4</td></tr><tr><td><b>bottleneck</b> <span class="muted">a lead who reports up on behalf of a team</span></td><td class="num">3</td><td class="num">3</td><td class="num">3</td><td class="num">0.333</td><td class="num">0.856</td><td class="num">6</td><td class="num">4</td><td class="num">3</td></tr><tr><td><b>briefed</b> <span class="muted">cc the final agent on every intermediate turn — free, and the point of the test</span></td><td class="num">5</td><td class="num">1</td><td class="num">5</td><td class="num">1</td><td class="num">0.761</td><td class="num">1</td><td class="num">6</td><td class="num">1</td></tr></tbody></table><!-- TBL:catalogue:END -->
+  </div>
+
+  <p>Two contrasts in the catalogue are controlled rather than incidental.
+  <code>standard</code> and <code>star</code> have <b>identical role censuses</b>, one
+  principal, four relays, one integrate, and differ in depth and in symmetry by a factor of
+  twelve. If a role census were the whole model they would behave alike. And
+  <code>standard</code> and <code>lattice</code> hold the same turns at the same depths with
+  the same sink ken, differing only in whether wave B is wired in lanes or completely. That
+  was last revision's bug, kept deliberately, because an accident run on purpose is an arm.</p>
+
+  <h2 class="sec"><span class="secno">6</span>Orthogonal across shapes, collinear within one</h2>
+
+  <p>Across the catalogue depth and ken ratio are near-orthogonal, r = 0.05, and all four
+  cells of the two-by-two are occupied. <code>chain</code> is deep and blind,
+  <code>briefed</code> deep and sighted, <code>bottleneck</code> shallow and blind,
+  <code>star</code> shallow and sighted. That is what licenses telling them apart.</p>
+
+  <p><b>Within a single run they are collinear, and the first version of this design assumed
+  otherwise.</b> A chain gets deeper and blinder at every step, r = −0.966, so a regression
+  on both estimates one position effect and reports it under whichever term it loads on. One
+  shape escapes: <code>briefed</code> advances depth while the last turn keeps full ken, and
+  its variance inflation is 1.171 against the chain's 14.758.</p>
+
+  <div class="pwrap-narrow">
+    <!-- FIG:depth-ken:START --><svg viewBox="0 0 380 250" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Depth against ken ratio for every turn of every shape in the catalogue. Across shapes the two are near-orthogonal, which is what makes them separable; within a single run they are not." style="width:100%;height:auto;display:block;font-family:'Helvetica Neue', Helvetica, Arial, sans-serif"><rect width="380" height="250" fill="#ffffff"/><line x1="46.0" y1="214.0" x2="366.0" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="164.0" x2="366.0" y2="164.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="114.0" x2="366.0" y2="114.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="64.0" x2="366.0" y2="64.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="14.0" x2="366.0" y2="14.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="14.0" x2="46.0" y2="214.0" stroke="#4a4a4a" stroke-width="1"/><line x1="46.0" y1="214.0" x2="366.0" y2="214.0" stroke="#4a4a4a" stroke-width="1"/><line x1="46.0" y1="214.0" x2="46.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="46.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0</text><line x1="110.0" y1="214.0" x2="110.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="110.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">1</text><line x1="174.0" y1="214.0" x2="174.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="174.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">2</text><line x1="238.0" y1="214.0" x2="238.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="238.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">3</text><line x1="302.0" y1="214.0" x2="302.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="302.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">4</text><line x1="366.0" y1="214.0" x2="366.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="366.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">5</text><line x1="42.5" y1="214.0" x2="46.0" y2="214.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="217.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.2</text><line x1="42.5" y1="164.0" x2="46.0" y2="164.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="167.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.4</text><line x1="42.5" y1="114.0" x2="46.0" y2="114.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="117.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.6</text><line x1="42.5" y1="64.0" x2="46.0" y2="64.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="67.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.8</text><line x1="42.5" y1="14.0" x2="46.0" y2="14.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="17.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">1.0</text><text x="206.0" y="246.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle">depth (turns from the source)</text><text x="12" y="114.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle" transform="rotate(-90 12 114.0)">ken ratio</text><polygon points="46.0,-18.1 59.3,-9.5 72.7,-1.0 86.0,7.4 99.3,15.7 112.7,23.7 126.0,31.6 139.3,39.3 152.7,46.6 166.0,53.7 179.3,60.5 192.7,67.0 206.0,73.3 219.3,79.4 232.7,85.3 246.0,91.2 259.3,96.9 272.7,102.5 286.0,108.1 299.3,113.7 312.7,119.2 326.0,124.6 339.3,130.1 352.7,135.5 366.0,140.9 366.0,205.2 352.7,196.4 339.3,187.5 326.0,178.7 312.7,169.9 299.3,161.1 286.0,152.3 272.7,143.7 259.3,135.0 246.0,126.5 232.7,118.0 219.3,109.7 206.0,101.5 192.7,93.5 179.3,85.8 166.0,78.3 152.7,71.1 139.3,64.2 126.0,57.5 112.7,51.1 99.3,45.0 86.0,38.9 72.7,33.1 59.3,27.3 46.0,21.6" fill="#0072B2" fill-opacity="0.12"/><circle cx="46.0" cy="14.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="110.0" cy="14.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="174.0" cy="97.3" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="238.0" cy="139.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="302.0" cy="164.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="366.0" cy="180.8" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="46.0" cy="14.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="110.0" cy="14.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="110.0" cy="14.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="174.0" cy="97.3" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="174.0" cy="97.3" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="238.0" cy="139.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="46.0" cy="14.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="110.0" cy="14.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="110.0" cy="14.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="174.0" cy="76.5" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="174.0" cy="76.5" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="238.0" cy="139.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="46.0" cy="14.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="110.0" cy="14.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="110.0" cy="14.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="110.0" cy="14.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="110.0" cy="14.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="174.0" cy="55.8" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="46.0" cy="14.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="110.0" cy="14.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="110.0" cy="14.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="110.0" cy="14.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="174.0" cy="64.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="238.0" cy="180.8" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="46.0" cy="14.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="110.0" cy="14.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="174.0" cy="97.3" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="238.0" cy="139.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="302.0" cy="164.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><circle cx="366.0" cy="14.0" r="2.7" fill="#0072B2" fill-opacity="0.82" stroke="#fff" stroke-width="0.6"/><line x1="46.0" y1="1.8" x2="366.0" y2="173.1" stroke="#1a1a1a" stroke-width="1.6"/><text x="52.0" y="25.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="start" font-weight="600">36 turns over 6 shapes · shape-level r = 0.05</text></svg><!-- FIG:depth-ken:END -->
+  </div>
+  <div class="cap"><b>Figure 2.</b> Every turn of every shape. The fitted line is the
+  within-run relation the shapes were chosen to break.</div>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 3.</b> Whether one run of each shape can separate the two position covariates.</div>
+    <!-- TBL:collinearity:START --><table class="booktabs"><thead><tr><th>Shape</th><th class="num">r(depth, ken)</th><th class="num">VIF</th><th class="num">Ken spread</th><th class="num">Separable within one run</th></tr></thead><tbody><tr><td><b>briefed</b></td><td class="num">-0.382</td><td class="num">1.171</td><td class="num">0.6</td><td><b>yes</b></td></tr><tr><td><b>star</b></td><td class="num">-0.775</td><td class="num">2.5</td><td class="num">0.167</td><td>no</td></tr><tr><td><b>bottleneck</b></td><td class="num">-0.899</td><td class="num">5.213</td><td class="num">0.667</td><td>no</td></tr><tr><td><b>standard</b></td><td class="num">-0.933</td><td class="num">7.678</td><td class="num">0.5</td><td>no</td></tr><tr><td><b>lattice</b></td><td class="num">-0.934</td><td class="num">7.857</td><td class="num">0.5</td><td>no</td></tr><tr><td><b>chain</b></td><td class="num">-0.966</td><td class="num">14.758</td><td class="num">0.667</td><td>no</td></tr></tbody></table><!-- TBL:collinearity:END -->
+  </div>
+
+  <p>The cheap design and the free intervention turn out to be the same shape. That was luck,
+  and it is recorded as luck.</p>
+
+  <h2 class="sec"><span class="secno">7</span>Replication the run already contains</h2>
+
+  <p>The largest orbit is the number of turns in a run that are replicates by symmetry rather
+  than by assertion. A star holds four. A chain holds one, and no care in running a chain will
+  produce a second, because every orbit in a chain is a singleton.</p>
+
+  <p>They sit in one run and are correlated, so the gain is the design effect
+  <a class="cite" data-ref="cochran1977"></a> rather than the raw count: deff = 1 + (m − 1)ρ.
+  At ρ = 0.413 four raw replicates are worth 1.787 effective ones, against a chain's 1.000.
+  <b>A star buys 1.79 times the replication of a chain for the same six turns and the same
+  number of agents.</b> This was not the point of the catalogue and it is the more useful
+  half.</p>
+
+  <h2 class="sec"><span class="secno">8</span>Two hypotheses</h2>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 4.</b> Stated so each can lose. Generated from <code>H5</code> and <code>H6</code>.</div>
+    <!-- TBL:hypotheses:START --><table class="booktabs"><thead><tr><th></th><th class="num">Claim</th><th class="num">Outcome</th><th class="num">Refuted by</th></tr></thead><tbody><tr><td><b>H5</b> position</td><td>Fidelity to the original brief falls with ken ratio, and depth acts only through it.</td><td>Of k constraints planted in the setup brief, how many the sink still honours.<br><span class="muted">unit: the turn, not the run — so one run yields six observations and runs are blocks</span></td><td><ul class="tight"><li>bottleneck and chain differ once ken is matched — then depth acts on its own</li><li>briefed and chain do not differ — then ken ratio predicts nothing and the invariant is decorative</li><li>the ordering holds but tracks in-degree of the sink alone, which is cheaper to compute and would make the ratio surplus</li></ul></td></tr><tr><td><b>H6</b> symmetry</td><td>Turns in one automorphism orbit are exchangeable, so the largest orbit is the replication a run already contains.</td><td>The standard error of a within-run contrast, measured, against the value deff predicts from orbit size.<br><span class="muted">unit: the run, comparing observed SE to predicted SE</span></td><td><ul class="tight"><li>observed SE ratio departs from the predicted one — orbit members are then not exchangeable and the symmetry argument is decorative</li><li>within-orbit variance depends on member identity, e.g. w1 always beats w4 — then dispatch order leaks and the orbit is not an orbit in practice</li></ul></td></tr></tbody></table><!-- TBL:hypotheses:END -->
+  </div>
+
+  <p>H6's headline is arithmetic and is fixed before any data: SE(star) / SE(chain) = 0.75.
+  Only one step in it is empirical, and that step is H4 asked at the turn level with the
+  graph pointing at where to look. The failure to expect is the second refutation. A graph
+  automorphism says the <i>plan</i> cannot tell two turns apart. It says nothing about the
+  runner. If turns are dispatched in a fixed order, or share a rate limit, or one reads a
+  file the other wrote, the symmetry is in the drawing and not in the world.</p>
+
+  <h2 class="sec"><span class="secno">9</span>Cost of the H5 contrast</h2>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 5.</b> H5 priced at the measured ρ = 0.413, α = 0.05, power 0.8.</div>
+    <!-- TBL:price:START --><table class="booktabs"><thead><tr><th>Design</th><th class="num">Runs</th><th class="num">Turns</th><th class="num">What it estimates</th></tr></thead><tbody><tr><td>unpaired, chain against briefed</td><td class="num">50</td><td class="num">300</td><td>chain against briefed on independent tasks</td></tr><tr><td><b>paired on task</b></td><td class="num">30</td><td class="num"><b>180</b></td><td>the same task run as chain and as briefed; the pair is the block; saves 40%</td></tr><tr><td>within-run ken slope</td><td class="num">15</td><td class="num">90</td><td>the ken slope across the six positions of a briefed run, with depth as a covariate. only briefed supports this; every other shape in the catalogue inflates variance 2.5x to 15x</td></tr></tbody></table><!-- TBL:price:END -->
+  </div>
+
+  <p>The paired row is the design. <code>chain</code> and <code>briefed</code> match at every
+  turn but the last, so the same task can be run as both and the pair is the block. That is a
+  stronger match than pairing usually affords and is the reason to prefer this contrast over
+  any other in the catalogue. The within-run row is a slope, not a shape contrast, and is
+  priced on <code>briefed</code> runs only.</p>
+
+  <h2 class="sec"><span class="secno">10</span>Limits</h2>
+
+  <ul>
+    <li>No runs have been executed. Every number here is arithmetic over a graph, plus one
+    measured ICC whose own 95% interval is [0.00, 0.88].</li>
+    <li>The design effect assumes turns within an orbit are exchangeable, which is what H6
+    tests. Using it to justify the design that tests it is circular, and the circle is broken
+    only by reporting the observed SE against the predicted one rather than assuming it.</li>
+    <li>Shaw's interaction <a class="cite" data-ref="shaw1964"></a> predicts that shape effects
+    reverse with task difficulty. The catalogue holds task fixed and would miss that entirely.</li>
+    <li>Six turns is a small graph. Nothing here has been checked on a plan large enough for
+    the orbit search to be slow, and the step cap has never fired, so it is untested.</li>
+    <li>The ken ratio counts turns, not tokens. Two in-edges carrying a paragraph and a
+    hundred pages score the same, which is almost certainly wrong and is the obvious next
+    refinement.</li>
+  </ul>
+
+  <div class="refs"><h2 class="sec"><span class="secno">§</span>References</h2><ol id="reflist"></ol></div>
+
+  <div class="colophon">
+    ken · working paper 2<br>
+    <code>ken/lab/roles.mjs</code> · <code>ken/lab/shapes.mjs</code> · 189 known-answer checks<br>
+    Every table and figure on this page is generated. Regenerate with
+    <code>node ken/lab/figures.mjs --write</code>.
+  </div>
+
+</div>
+
+<script src="refs.js"></script>
+<script src="cite.js"></script>
+</body>
+</html>

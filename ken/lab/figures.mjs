@@ -21,6 +21,8 @@ import { fitBradleyTerry } from './bt.mjs';
 import { comparisonRows, TABLE_MARK } from './ste-lint.mjs';
 import { build as buildPlan } from './plan.mjs';
 import { renderPlan } from './layout.mjs';
+import { shapeNames, buildShape, depthKenDesign, catalogue, collinearity, priceH5, H5, H6 } from './shapes.mjs';
+import { shapeInvariants, positionTable } from './roles.mjs';
 import { readFileSync as _read } from 'node:fs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -143,6 +145,36 @@ export function buildFigures() {
     buildPlan('experiment', { conditions: ['solo'], replicates: 2 }),
     { width: 620, title: 'A bus of one cannot split, so each wave falls back to a single degraded arm.' });
 
+  // ── the six-turn catalogue, one figure per org chart ──────────────
+  // Not one line of geometry here: renderPlan derives every position from
+  // the graph, so adding a shape to shapes.mjs adds its figure.
+  for (const name of shapeNames()) {
+    const g = buildShape(name);
+    const inv = shapeInvariants(g);
+    figs[`shape-${name}`] = renderPlan(g, {
+      width: 300, rowHeight: 62,
+      title: `${g.title}: 6 turns, depth ${inv.depth}, |Aut| ${inv.autOrder}, sink ken ${
+        positionTable(g).find((r) => r.id === g.sink).ken}.`,
+    });
+  }
+
+  // ── depth against ken, the claim the catalogue rests on ───────────
+  {
+    const pts = [];
+    for (const name of shapeNames()) {
+      for (const r of positionTable(buildShape(name))) pts.push({ x: r.depth, y: r.ken });
+    }
+    const d = depthKenDesign();
+    figs['depth-ken'] = charts.scatterFit({
+      points: pts, width: 380, height: 250,
+      xlabel: 'depth (turns from the source)',
+      ylabel: 'ken ratio',
+      annot: `36 turns over 6 shapes · shape-level r = ${d.correlation}`,
+      aria: 'Depth against ken ratio for every turn of every shape in the catalogue. Across shapes the two '
+          + 'are near-orthogonal, which is what makes them separable; within a single run they are not.',
+    });
+  }
+
   return figs;
 }
 
@@ -161,10 +193,103 @@ export function steTableCurrent() {
   return { current: re.test(page) && re.exec(page)[0].replace(/\s+/g, ' ') === want.replace(/\s+/g, ' '), want, re };
 }
 
+/* ── generated blocks on a page ────────────────────────────────────────
+   A page marks a slot with <!-- FIG:name:START --><!-- FIG:name:END -->
+   or TBL:name, and the content between the markers is written from code.
+
+   This generalises what the STE table on /run did for one table. The
+   reason is the same and it is now recorded twice: a number typed into a
+   page beside the code that computes it goes stale, and the two times
+   /run's table did so were both inside one turn. WP2 has five such
+   tables and seven figures, so none of them are typed.
+   ──────────────────────────────────────────────────────────────────── */
+const blockRe = (kind, name) =>
+  new RegExp(`(<!-- ${kind}:${name}:START -->)[\\s\\S]*?(<!-- ${kind}:${name}:END -->)`);
+
+/** Every generated block on wp2.html, as kind -> name -> html. */
+export function buildBlocks() {
+  const out = { FIG: {}, TBL: {} };
+  const figs = buildFigures();
+
+  // the whole catalogue grid is one block, so its captions are generated
+  // with the pictures rather than typed beside them
+  out.FIG['catalogue-grid'] = '<div class="figgrid">' + shapeNames().map((n) => {
+    const g = buildShape(n);
+    const inv = shapeInvariants(g);
+    const sinkKen = positionTable(g).find((r) => r.id === g.sink).ken;
+    return `<figure>${figs[`shape-${n}`]}<figcaption><b>${g.title}</b><br>`
+      + `depth ${inv.depth} · |Aut| ${inv.autOrder} · sink ken ${sinkKen}</figcaption></figure>`;
+  }).join('') + '</div>';
+
+  out.FIG['depth-ken'] = figs['depth-ken'];
+
+  const num = (x) => `<td class="num">${x}</td>`;
+  const cat = catalogue();
+
+  out.TBL.catalogue = table(
+    ['Shape', 'Depth', 'Width', 'Max in', 'Sink ken', 'Mean ken', '|Aut|', 'Orbits', 'Largest orbit'],
+    cat.map((r) => `<tr><td><b>${r.name}</b> <span class="muted">${r.real}</span></td>`
+      + [r.depth, r.width, r.maxInDeg, r.sinkKen, r.meanKen, r.autOrder, r.orbitCount, r.largestOrbit].map(num).join('')
+      + '</tr>'));
+
+  out.TBL.collinearity = table(
+    ['Shape', 'r(depth, ken)', 'VIF', 'Ken spread', 'Separable within one run'],
+    collinearity().map((c) => `<tr><td><b>${c.shape}</b></td>${num(c.r)}${num(c.vif)}${num(c.kenSpread)}`
+      + `<td>${c.separable ? '<b>yes</b>' : 'no'}</td></tr>`));
+
+  out.TBL.hypotheses = table(
+    ['', 'Claim', 'Outcome', 'Refuted by'],
+    [H5, H6].map((h) => `<tr><td><b>${h.id}</b> ${h.name}</td><td>${h.claim}</td>`
+      + `<td>${h.outcome}<br><span class="muted">unit: ${h.unit}</span></td>`
+      + `<td><ul class="tight">${h.refutedBy.map((r) => `<li>${r}</li>`).join('')}</ul></td></tr>`));
+
+  const p = priceH5({ d: 0.8 });
+  out.TBL.price = table(
+    ['Design', 'Runs', 'Turns', 'What it estimates'],
+    [
+      `<tr><td>unpaired, chain against briefed</td>${num(p.unpaired.runs)}${num(p.unpaired.turns)}<td>${p.unpaired.note}</td></tr>`,
+      `<tr><td><b>paired on task</b></td>${num(p.paired.runs)}${num(`<b>${p.paired.turns}</b>`)}<td>${p.paired.note}; saves ${Math.round(p.paired.saving * 100)}%</td></tr>`,
+      `<tr><td>within-run ken slope</td>${num(p.withinRun.runs)}${num(p.withinRun.turns)}<td>${p.withinRun.note}. ${p.withinRun.caveat}</td></tr>`,
+    ]);
+  return out;
+}
+
+const table = (head, rows) => '<table class="booktabs"><thead><tr>'
+  + head.map((h, i) => `<th${i === 0 ? '' : ' class="num"'}>${h}</th>`).join('')
+  + `</tr></thead><tbody>${rows.join('')}</tbody></table>`;
+
+/** Which blocks on wp2.html have drifted from the code. */
+export function blocksCurrent() {
+  const path = join(HERE, '..', 'wp2.html');
+  let page = readFileSync(path, 'utf8');
+  const blocks = buildBlocks();
+  const stale = [];
+  for (const kind of ['FIG', 'TBL']) {
+    for (const [name, html] of Object.entries(blocks[kind])) {
+      const re = blockRe(kind, name);
+      const m = re.exec(page);
+      if (!m) { stale.push(`${kind}:${name} (no slot on the page)`); continue; }
+      if (m[0] !== `${m[1]}${html}${m[2]}`) stale.push(`${kind}:${name}`);
+      page = page.replace(re, `$1${html.replace(/\$/g, '$$$$')}$2`);
+    }
+  }
+  return { stale, page, path };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const figs = buildFigures();
   const write = process.argv.includes('--write');
   let stale = 0;
+
+  // the generated blocks on wp2
+  {
+    const b = blocksCurrent();
+    if (b.stale.length) {
+      stale += b.stale.length;
+      if (write) { writeFileSync(b.path, b.page); console.log(`  → wp2.html: ${b.stale.length} block(s) written`); }
+      else console.log(`  ✗ wp2.html STALE: ${b.stale.join(', ')}`);
+    } else console.log('  ✓ wp2.html generated blocks current');
+  }
 
   // the generated table on /run
 {

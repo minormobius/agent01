@@ -414,6 +414,56 @@
       v: 'Princeton University Press',
       n: 'The reference shelf for the whole unit. Use it to find the survey on a question rather than reading it through.' },
 
+    // ── Unit IV(b) — communication networks: the experiment we are redoing ──
+    bavelas1950: {
+      a: 'Bavelas, A.', y: 1950,
+      t: 'Communication Patterns in Task-Oriented Groups',
+      v: 'Journal of the Acoustical Society of America 22(6), 725–730',
+      n: 'The origin of the whole line. Groups are wired into fixed communication patterns and the pattern is the treatment. Introduces centrality as a structural quantity predicting who leads and how fast the group converges.',
+      u: 'https://doi.org/10.1121/1.1906679' },
+    leavitt1951: {
+      a: 'Leavitt, H. J.', y: 1951,
+      t: 'Some effects of certain communication patterns on group performance',
+      v: 'Journal of Abnormal and Social Psychology 46(1), 38–50',
+      n: 'WP2 is this experiment with agents instead of undergraduates. Five-person groups wired as circle, chain, Y and wheel; the wheel is fastest and most accurate, and its peripheral members are the least satisfied. Read it before running anything here — the design, the confounds and the morale result are all already worked out.',
+      u: 'https://doi.org/10.1037/h0057189' },
+    shaw1964: {
+      a: 'Shaw, M. E.', y: 1964,
+      t: 'Communication Networks',
+      v: 'Advances in Experimental Social Psychology 1, 111–147',
+      n: 'The review that complicates Leavitt: centralised networks win on simple tasks and lose on complex ones. If that interaction reproduces here, task difficulty belongs in the design and shape alone will not do.',
+      u: 'https://doi.org/10.1016/s0065-2601(08)60050-7' },
+    freeman1977: {
+      a: 'Freeman, L. C.', y: 1977,
+      t: 'A Set of Measures of Centrality Based on Betweenness',
+      v: 'Sociometry 40(1), 35–41',
+      n: 'The betweenness definition used in roles.mjs, from the same tradition as Bavelas. Load as the share of paths through a node.',
+      u: 'https://doi.org/10.2307/3033543' },
+    mckay2014: {
+      a: 'McKay, B. D. & Piperno, A.', y: 2014,
+      t: 'Practical graph isomorphism, II',
+      v: 'Journal of Symbolic Computation 60, 94–112',
+      n: 'nauty: refinement plus individualisation, which is the algorithm roles.mjs implements in miniature. Read it before trusting the orbit search on anything larger than a dozen nodes.',
+      u: 'https://doi.org/10.1016/j.jsc.2013.09.003' },
+    babai2016: {
+      a: 'Babai, L.', y: 2016,
+      t: 'Graph Isomorphism in Quasipolynomial Time',
+      v: 'Proceedings of the 48th ACM Symposium on Theory of Computing, 684–697',
+      n: 'Why the orbit search carries a step cap rather than a guarantee. Plan graphs are tiny and the cap has never fired; the point is that it is there.',
+      u: 'https://doi.org/10.1145/2897518.2897542' },
+    orbanz2015: {
+      a: 'Orbanz, P. & Roy, D. M.', y: 2015,
+      t: 'Bayesian Models of Graphs, Arrays and Other Exchangeable Random Structures',
+      v: 'IEEE Transactions on Pattern Analysis and Machine Intelligence 37(2), 437–461',
+      n: 'The bridge WP2 leans on: exchangeability is invariance of a distribution under a group action. Our group is the automorphism group of the plan, so "which turns may be pooled" has a structural answer before any data exists.',
+      u: 'https://doi.org/10.1109/tpami.2014.2334607' },
+    diaconis1980: {
+      a: 'Diaconis, P. & Freedman, D.', y: 1980,
+      t: 'Finite Exchangeable Sequences',
+      v: 'Annals of Probability 8(4), 745–764',
+      n: 'The finite-sample correction to de Finetti, and the reason a six-turn orbit is not an infinite exchangeable sequence. Cite it whenever a small orbit is treated as a sample.',
+      u: 'https://doi.org/10.1214/aop/1176994663' },
+
     // ── Unit V — the case file ─────────────────────────────────────────
     lazear2000: {
       a: 'Lazear, E. P.', y: 2000,

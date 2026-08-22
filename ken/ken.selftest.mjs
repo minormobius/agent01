@@ -42,7 +42,9 @@ import { lintHtml } from './prose-lint.mjs';
 import { NODES, box } from './tree.js';
 import { mde, designComparison, variancePilot, ladyTastingTea, sprtBounds, choose } from './lab/design.mjs';
 import { iccSamplingDistribution, pilotSweep, bimodalityPower, allocationCheck } from './lab/simulate.mjs';
-import { buildFigures } from './lab/figures.mjs';
+import { buildFigures, blocksCurrent } from './lab/figures.mjs';
+import { ROLES } from './lab/roles.mjs';
+import { depthKenDesign, collinearity, effectiveReplication, chainBriefedContrast, priceH5, shapeNames } from './lab/shapes.mjs';
 import { loadRuns, partition, orderEffect, globalDrift } from './lab/h4.mjs';
 import { loadBakeoff, factorialAnova, cellComponents, contrastSensitivity } from './lab/factorial.mjs';
 import { fitBradleyTerry, swapRate } from './lab/bt.mjs';
@@ -253,6 +255,60 @@ ok(choose(8, 4) === 70 && ladyTastingTea(6).smallestP === 0.05,
   }
 }
 ok(lab.includes('/wp1'), 'the instrument note links to the paper that corrected it');
+
+// (b1b) WP2's numbers, recomputed from roles.mjs and shapes.mjs
+function numberWord(n) { return ['zero', 'one', 'two', 'three', 'four', 'five', 'six'][n] ?? String(n); }
+{
+  const wp2 = readFileSync(join(HERE, 'wp2.html'), 'utf8');
+
+  // the generated blocks cannot be stale: the page carries no typed table
+  const b = blocksCurrent();
+  ok(b.stale.length === 0,
+     `wp2's generated blocks are current (stale: ${b.stale.join(', ') || 'none'}) — regenerate with node ken/lab/figures.mjs --write`);
+
+  // the role basis is total and complete, and the page states the count
+  ok(ROLES.length === 9 && wp2.includes('nine roles'), 'wp2 states the nine-role basis');
+  for (const r of ROLES) ok(wp2.includes(`<code>${r}</code>`), `wp2 names the ${r} role`);
+
+  // every headline number, against the function that produced it
+  const design = depthKenDesign();
+  ok(design.crossed, 'the depth-by-ken design is still crossed');
+  ok(wp2.includes(`r = ${design.correlation}`), `wp2 quotes the across-shape correlation (${design.correlation})`);
+
+  const col = Object.fromEntries(collinearity().map((c) => [c.shape, c]));
+  ok(wp2.includes(String(col.briefed.vif)), `wp2 quotes briefed's VIF (${col.briefed.vif})`);
+  ok(wp2.includes(String(col.chain.vif)), `wp2 quotes the chain's VIF (${col.chain.vif})`);
+  ok(wp2.includes(String(col.chain.r)), `wp2 quotes the chain's within-run r (${col.chain.r})`);
+
+  const star = effectiveReplication('star');
+  ok(wp2.includes(String(star.effective)), `wp2 quotes the star's effective replication (${star.effective})`);
+  ok(wp2.includes('1.79'), 'wp2 states the 1.79x replication result in the abstract');
+  ok(star.rawReplicates === 4 && effectiveReplication('chain').rawReplicates === 1,
+     'a star holds four replicates by symmetry and a chain holds one');
+
+  const cb = chainBriefedContrast();
+  ok(cb.differingTurns === 1 && cb.extraTurns === 0,
+     'chain and briefed still differ at exactly one turn and cost the same');
+  ok(wp2.includes(`${cb.extraEdges} added edges`) || wp2.includes(`by ${numberWord(cb.extraEdges)} added edges`),
+     `wp2 states the number of added edges (${cb.extraEdges})`);
+
+  const price = priceH5({ d: 0.8 });
+  ok(wp2.includes(String(price.paired.turns)), `wp2 quotes the paired cost (${price.paired.turns} turns)`);
+
+  // H6's prediction is arithmetic and must match the ladder it came from
+  const predicted = (Math.sqrt(1 / star.effective)).toFixed(2);
+  ok(wp2.includes(predicted), `wp2 quotes H6's predicted SE ratio (${predicted})`);
+
+  // the shapes named in the prose are the shapes in the catalogue
+  for (const n of shapeNames()) ok(wp2.includes(`<code>${n}</code>`), `wp2 names the ${n} shape`);
+
+  // the literature this replicates is cited, not implied
+  for (const k of ['bavelas1950', 'leavitt1951', 'shaw1964', 'orbanz2015', 'mckay2014'])
+    ok(wp2.includes(`data-ref="${k}"`), `wp2 cites ${k}`);
+
+  // the selftest count the page advertises is the real one
+  ok(wp2.includes('189 known-answer checks'), 'wp2 states the roles selftest size');
+}
 
 // (b2) the findings log's H4 numbers, recomputed from the ledger
 {

@@ -182,6 +182,7 @@ export const COMPARISON = [
   { file: 'lab.html', label: '/lab', mode: 'descriptive' },
   { file: 'log.html', label: '/log', mode: 'descriptive' },
   { file: 'wp1.html', label: '/wp1', mode: 'descriptive' },
+  { file: 'wp2.html', label: '/wp2', mode: 'descriptive' },
 ];
 
 export function comparisonRows(dir, read = readFileSync) {

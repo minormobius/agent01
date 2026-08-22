@@ -211,6 +211,20 @@ table.booktabs tbody tr + tr td { border-top: 0.5px solid #e6e2da; }
 .plot .pcap b { font-variant: small-caps; letter-spacing: .03em; }
 @media print { .plot .pwrap { overflow: visible; } .plot svg { min-width: 0; } }
 
+/* the shape catalogue: derived graphs in a grid, captions generated with them */
+.figgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  margin: 16px 0 6px; break-inside: avoid; }
+.figgrid figure { margin: 0; border: 1px solid #e6e1d6; background: #fbfaf6; padding: 5px 4px 2px; }
+.figgrid figure svg { display: block; width: 100%; height: auto; min-width: 0; }
+.figgrid figcaption { font-family: var(--sans); font-size: 9.5px; line-height: 1.4;
+  color: var(--ink-faint); text-align: center; padding: 2px 2px 3px; }
+.figgrid figcaption b { color: #1a1a1a; font-size: 10.5px; }
+@media (max-width: 620px) { .figgrid { grid-template-columns: repeat(2, 1fr); } }
+
+.muted { color: var(--ink-faint); font-size: 10.5px; font-family: var(--sans); }
+ul.tight { margin: 0; padding-left: 14px; }
+ul.tight li { margin: 0 0 3px; }
+
 .colophon { font-family: var(--sans); font-size: 10px; color: var(--ink-faint);
   border-top: 1px solid #ccc; margin-top: 30px; padding-top: 9px; line-height: 1.6; }
 .colophon a { color: var(--accent-soft); }

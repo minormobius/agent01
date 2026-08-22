@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Findings Log — ken</title>
-<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Thirty-five entries, seven of them from measurements we made.">
+<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Forty-four entries, seven of them from measurements we made.">
 <link rel="stylesheet" href="journal.css">
 </head>
 <body>
@@ -17,6 +17,7 @@
   <a href="/lab">Instrument</a>
   <a href="/run">Procedure</a>
   <a href="/wp1">WP1</a>
+  <a href="/wp2">WP2</a>
   <a class="here" href="/log">Log</a>
   <a href="/protocol">III · Protocol</a>
   <span class="grow"></span>
@@ -28,7 +29,7 @@
   <div class="a-venue">ken · volume 1 <span class="kicker">Running record</span></div>
   <h1 class="a-title">Findings Log</h1>
   <p class="a-sub">Shortest form. Each entry names the code or record that produced it.</p>
-  <div class="a-meta">35 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
+  <div class="a-meta">44 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
   <hr class="a-rule">
 
   <p class="small">Everything here comes from data already paid for or from arithmetic. That is
@@ -323,6 +324,69 @@
       <span class="src"><code>resolve-refs.mjs</code></span></li>
   </ol>
 
+  <h2 class="sec"><span class="secno">§</span>The org chart of a run</h2>
+
+  <ol class="log" start="37">
+    <li><b>Degree forces nine roles, and the count is an argument rather than a survey.</b>
+      Originate and merge cannot co-occur, and neither can report and split, so a node's duties
+      are one in-duty crossed with one out-duty. Three by three, total on every node of every
+      finite DAG. That is what makes an arbitrary shape staffable.
+      <span class="src"><a href="/wp2">WP2 §2</a> · <code>ROLE_TABLE</code></span></li>
+
+    <li><b>Exchangeability is a symmetry of the plan, so H4 has a structural half that needs no
+      data.</b> Two turns may be pooled exactly when an automorphism of the graph exchanges them.
+      This does not make H4 true, since an agent can still drift inside an orbit. It settles
+      which comparisons were ever estimable, before anything is run.
+      <span class="src"><a href="/wp2">WP2 §3</a> · <code>poolable()</code></span></li>
+
+    <li><b>A star run holds four replicates by symmetry and a chain holds none.</b> Every orbit
+      in a chain is a singleton, so no care in running one will produce a second. At the measured
+      ρ = 0.413 the design effect turns four raw replicates into 1.787 effective ones against a
+      chain's 1.000: <b>1.79× the replication for the same six turns and the same agents.</b>
+      This was not the point of the catalogue and it is the more useful half.
+      <span class="src"><code>effectiveReplication()</code></span></li>
+
+    <li><b>Depth and ken ratio are orthogonal across shapes and collinear within one.</b> Across
+      the six-shape catalogue r = 0.05 and all four cells of the two-by-two are occupied. Inside
+      a single run they move together, r = −0.966 in a chain, because a chain gets deeper and
+      blinder at every step. So the separation is a between-shape claim and costs between-shape
+      money. <b>My first framing had this backwards</b> and priced the cheap design as though it
+      tested the hypothesis.
+      <span class="src"><a href="/wp2">WP2 §6</a> · <code>collinearity()</code></span></li>
+
+    <li><b>One shape escapes, and it is the one that was already free.</b> <code>briefed</code>
+      advances depth while the last turn keeps full ken, so its variance inflation is 1.171
+      against the chain's 14.758 — the only shape in the catalogue that separates the two
+      covariates inside one run. That the cheap design and the free intervention are the same
+      shape was luck, and is recorded as luck.
+      <span class="src"><code>collinearity()</code></span></li>
+
+    <li><b>The cheapest manipulation in the programme so far: four edges and no turns.</b>
+      <code>chain</code> and <code>briefed</code> match at every turn but the last, where sink
+      ken goes from 0.333 to 1.000. Copying the final agent on every intermediate turn costs
+      nothing and moves the quantity under test by two thirds of its range.
+      <span class="src"><code>chainBriefedContrast()</code></span></li>
+
+    <li><b>Two shapes with identical role censuses differ twelvefold in symmetry.</b>
+      <code>standard</code> and <code>star</code> are both one principal, four relays and one
+      integrate. Depth 3 against 2, |Aut| 2 against 24. If a role census were the whole model
+      they would behave alike, so the pair is a controlled test of whether counting seats is
+      enough.
+      <span class="src"><code>catalogue()</code></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>Prior literature</h2>
+
+  <ol class="log" start="44">
+    <li><b>This experiment was run in 1951, on undergraduates.</b> Bavelas wired groups into
+      fixed communication patterns and treated the pattern as the treatment; Leavitt ran circle,
+      chain, Y and wheel and found the wheel fastest and most accurate and its peripheral members
+      least satisfied. Shaw then reversed it for complex tasks. Our catalogue holds task
+      difficulty fixed and would miss that interaction entirely, which is now a stated limit
+      rather than a discovery waiting to happen.
+      <span class="src"><a href="/wp2">WP2 §1</a> · Leavitt 1951 · Shaw 1964</span></li>
+  </ol>
+
   <h2 class="sec"><span class="secno">§</span>The ledger</h2>
 
   <div class="table-fig">
@@ -330,8 +394,9 @@
       <thead><tr><th>Source of finding</th><th class="num">Entries</th></tr></thead>
       <tbody>
         <tr><td>Records already committed</td><td class="num">12</td></tr>
-        <tr><td>Arithmetic and simulation</td><td class="num">8</td></tr>
-        <tr><td>Our own mistakes</td><td class="num">9</td></tr>
+        <tr><td>Arithmetic and simulation</td><td class="num">14</td></tr>
+        <tr><td>Our own mistakes</td><td class="num">10</td></tr>
+        <tr><td>Prior literature</td><td class="num">1</td></tr>
         <tr><td><b>New measurement</b></td><td class="num"><b>7</b></td></tr>
       </tbody>
     </table>

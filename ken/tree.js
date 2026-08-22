@@ -70,6 +70,9 @@
       lines: ['Unit VII', 'Oversight beyond your ken'], needs: ['u6'] },
 
     // row 6
+    { id: 'wp2', row: 6, col: 'left', state: 'active', href: '/wp2',
+      lines: ['WP2 · the org chart of a run'], sub: '9 roles · orbits decide pooling · shape is free',
+      needs: ['wp1', 'u4'] },
     { id: 'b6', row: 6, col: 'right', state: 'blocked', href: '/protocol#blanks',
       lines: ['B6 outside signal'], sub: 'a verdict from someone who is not this system',
       needs: ['u7'] },

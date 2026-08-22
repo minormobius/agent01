@@ -50,6 +50,7 @@ worker or move the domain, **verify the deploy log binds
 | `methods.html` | **Article II**, the house standard for model experiments. Served at `/methods`. |
 | `lab.html` | **Instrument note** for the harness. Served at `/lab`. |
 | `wp1.html` | **Working paper 1**, Unit II worked end to end. Served at `/wp1`. |
+| `wp2.html` | **Working paper 2**, Unit IV. Every table and figure on it is generated. Served at `/wp2`. |
 | `log.html` | **The findings log.** Numbered, terse, append-only. Served at `/log`. |
 | `run.html` | **The standard-run procedure.** Written to ASD-STE100. Served at `/run`. |
 | `protocol.html` | **Article III**, the Stage 1 registered-report skeleton. Served at `/protocol`. |
@@ -72,9 +73,12 @@ worker or move the domain, **verify the deploy log binds
 | `lab/plan.mjs` | a run plan as **rewrite rules**, on morph's four laws |
 | `lab/layout.mjs` | the picture, **derived** from that graph by force relaxation |
 | `lab/plan.selftest.mjs` | 56 checks: the four laws, lane wiring, seed independence |
+| `lab/roles.mjs` | **the org chart, derived**: nine roles, orbits, the ken ratio |
+| `lab/shapes.mjs` | six org charts that all cost six turns, and what they buy |
+| `lab/roles.selftest.mjs` | 189 checks: the basis, the group orders, the design |
 | `lab/resolve-refs.mjs` | links the bibliography against CrossRef / arXiv / OpenLibrary |
 | `fig/*.svg` | **generated.** Committed so figures print and diff |
-| `refs.js` | **the bibliography, as data** — 82 real works, keyed |
+| `refs.js` | **the bibliography, as data** — 90 real works, keyed |
 | `cite.js` | numbers citations in document order, renders the reference list |
 | `journal.css` | the shared journal typography; prints to real Letter pages |
 | `worker.js` | thin assets worker; maps `/syllabus` and `/protocol` to their `.html` |
@@ -290,10 +294,57 @@ earlier version caught any failure, including a request for zero runs, and
 answered it by building `budget / 6` runs. A fallback broader than its repair
 turns a nonsense design into a large plausible one.
 
+## The org chart, read off the graph
+
+`lab/roles.mjs` answers two questions about a turn, both from structure and
+both in one pass:
+
+**What is this agent's job?** Degree decides. Four duties are forced —
+originate (in 0), merge (in ≥2), split (out ≥2), report (out 0) — and the
+first two are mutually exclusive, as are the last two. So a node's duties are
+one in-duty crossed with one out-duty: **nine roles, total on every node of
+every finite DAG.** That is a counting argument, which is why an arbitrary
+shape is staffable. `broker` is the only role that both merges and splits, so
+it is the only seat that can substitute its judgment and have it propagate —
+Aghion–Tirole real authority as a degree condition.
+
+**Is this agent's job the same as that one's?** The automorphism group
+decides. Turns in one orbit are structurally indistinguishable, so pooling
+them is licensed by symmetry rather than assumed. **This is H4's structural
+half**: it does not make H4 true, since an agent can still drift inside an
+orbit, but it says which comparisons were ever estimable before any data
+exists.
+
+The **ken ratio** — in-neighbours and self, over ancestry and self — is the
+quantity the surface is named after and is one pass over the graph. 1 at a
+source; 0.333 at the end of a six-turn chain; 0.833 at the assembly turn of a
+six-turn star.
+
+### The catalogue, and the trap in it
+
+`lab/shapes.mjs` holds six shapes that all cost six turns, so shape is a
+factor that costs nothing in a programme where sample size binds.
+
+**Depth and ken are orthogonal across shapes (r = 0.05) and collinear within
+one (r = −0.966 in a chain).** The first version of the design had this
+backwards and priced the within-run slope as though it tested the shape
+hypothesis. It does not. Only `briefed` separates the two inside a single run,
+at VIF 1.171 against the chain's 14.758. **Check `collinearity()` before
+claiming a within-run position effect.**
+
+Two results worth knowing before designing anything here:
+
+- **The largest orbit is free replication.** A star run holds four turns that
+  are replicates by symmetry; a chain holds none, and no care in running one
+  will produce a second. At ρ = 0.413 that is 1.79× the effective replication
+  for the same six turns.
+- **`chain` against `briefed` is four edges and no turns**, and they match at
+  every turn but the last. It is the cheapest manipulation the programme has.
+
 ## The roadmap figure
 
-Not to be confused with the above. This one hand-places every box; the plan
-figure places none.
+Not to be confused with either of the above. This one hand-places every box;
+the plan and shape figures place none.
 
 
 `tree.js` holds the graph as data and renders it to `#roadmap` on the front
@@ -314,7 +365,7 @@ mismatch silently clips the figure.
 ## Three gates, and why each exists
 
 ```bash
-node ken/ken.selftest.mjs     # ~1s, 850 checks
+node ken/ken.selftest.mjs     # ~2s, 967 checks
 node ken/prose-lint.mjs       # the tic lint alone, with --verbose for hits
 ```
 
