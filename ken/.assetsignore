@@ -1,0 +1,4 @@
+# Not part of the site: internal instructions and the offline gate.
+# assets.directory is this dir, so without these they'd be served publicly.
+CLAUDE.md
+ken.selftest.mjs

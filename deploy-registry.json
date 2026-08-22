@@ -1391,6 +1391,21 @@
       ]
     },
     {
+      "surface": "ken",
+      "dir": "ken",
+      "endpoint": "ken.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/repo-study-fields-0ftd34",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "ken/**",
+        ".github/workflows/deploy-ken.yml"
+      ],
+      "status": "NEW 2026-08-22 — code and workflow are in place; ken.mino.mobi is NOT yet attached (curl returns 502). Attaching a custom domain is dashboard-only (docs/DEPLOYS.md §7). Until it is attached the golden rule bites: the deploy would go green against a stray worker and the site would never appear. Attach the domain to worker `ken` BEFORE the first deploy, then confirm the run log binds `ken.mino.mobi (custom domain)`.",
+      "note": "The study programme behind the loop next door: how do you know whether work you did not supervise was any good? A six-unit curriculum with real primary sources — construct validity, the design of experiments, the economics of delegation, Go… (full description: ken/CLAUDE.md)"
+    },
+    {
       "surface": "plant",
       "dir": "plant",
       "endpoint": "plant.minomobi.com",

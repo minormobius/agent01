@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stage 1 Protocol: Does Unattended Work Improve With Turn Count? — ken</title>
+<meta name="description" content="A registered-report skeleton for the turn-count curve: hypotheses, design, the blanks each curriculum unit must fill, and the conditions under which the study is abandoned.">
+<link rel="stylesheet" href="journal.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="brand"><a href="/">ken</a></span>
+  <a href="/">Front matter</a>
+  <a href="/syllabus">I · Curriculum</a>
+  <a class="here" href="/protocol">II · Protocol</a>
+  <span class="grow"></span>
+  <button onclick="window.print()">Save as PDF</button>
+</div>
+
+<div class="sheet">
+
+  <div class="a-venue">ken · volume 1 · article II <span class="kicker">Stage 1 Registered Report — skeleton</span></div>
+  <h1 class="a-title">Does Unattended Work Improve With Turn Count?</h1>
+  <p class="a-sub">A protocol, deliberately unfinished, whose blanks are the deliverables of the curriculum</p>
+  <div class="a-meta">Status: <b>SKELETON</b> · not registered · no data collected under it</div>
+  <hr class="a-rule">
+
+  <div class="abstract">
+    <span class="lbl">Abstract</span>
+    <p>A budget-governed agent loop was run for ninety-nine turns and produced no measurement
+    of the quality of its output. This protocol sets out how to run it again so that it does.
+    It is written in the Stage 1 registered-report form — hypotheses, design, and analysis plan
+    fixed before data collection — because the failure mode this programme is most exposed to
+    is a flexible analysis of an expensive run.</p>
+    <p>It is deliberately incomplete. Six blanks are marked in the text, each requiring a
+    quantity that does not yet exist: a defined construct, an established reliability, a
+    calibrated judge, a powered sample size, a stopping rule, and an outside signal. Each blank
+    is the deliverable of a curriculum unit. The protocol is not registrable, and the run is not
+    fundable, until all six are filled. That ordering is the point of the document.</p>
+  </div>
+
+  <h2 class="sec"><span class="secno">1</span>Background, and the state of the evidence</h2>
+
+  <p>The apparatus exists and is disabled. A ticket graph, a budget governor, a contagion
+  firewall and four chain-reaction workflows were built and run; ninety-nine work orders were
+  issued over roughly fifty-three hours in August 2026, of which eighty-nine recorded a
+  completed turn. The programme's stated deliverable was the curve: quality against turn count,
+  measured, over many artifacts.</p>
+
+  <p>No such measurement was produced. The dependent variable was never recorded once. The
+  situation as of the last recorded turn:</p>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 1.</b> The recorded state of the pilot run, from
+      <code>.github/loop/{turns,runs}.jsonl</code>. The final row is the finding.</div>
+    <table class="booktabs">
+      <thead>
+        <tr><th>Quantity</th><th class="num">Value</th><th>Note</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Work orders issued</td><td class="num">99</td><td>over ~53 h</td></tr>
+        <tr><td>Turns with a recorded outcome</td><td class="num">89</td><td></td></tr>
+        <tr><td>Gate failures</td><td class="num">17</td><td>6 in the first half, 11 in the second</td></tr>
+        <tr><td>Signals specified</td><td class="num">3</td><td>probes, rubric, adversarial</td></tr>
+        <tr><td>Signals that ever fired</td><td class="num">1</td><td>probes only</td></tr>
+        <tr><td>Distinct values <code>probes</code> took</td><td class="num">3</td><td>0.6, 0.8, 1.0</td></tr>
+        <tr><td>Turns at the maximum</td><td class="num">59 / 89</td><td>66% — a ceiling</td></tr>
+        <tr><td><b>Quality scores produced</b></td><td class="num"><b>0</b></td><td>judge uncalibrated; score withheld by design</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Two things follow, and it is important to keep them apart. The first is that the study was
+  never run, in the sense that the quantity of interest was never observed; the pilot is
+  therefore evidence about the <em>apparatus</em>, not about the question. The second is that
+  the one signal which did fire could not have answered the question anyway: a measure taking
+  three values, two thirds of them at its maximum, has almost no variance to explain in the
+  region where the interesting turns live.</p>
+
+  <div class="caveat">
+    <span class="lbl">What the pilot data cannot support</span>
+    <p>A faint negative trend in <code>probes</code> across the run (slope ≈ −0.0014 per turn)
+    is not statistically meaningful at this sample size, and <code>probes</code> is in any case
+    a liveness signal rather than a quality measure. The near-doubling of gate failures between
+    the first and second halves is real but confounded: later work may simply have been harder,
+    and nothing in the record distinguishes those explanations. <b>Neither observation should be
+    cited as evidence that quality declined.</b> They are reasons to run the study properly, not
+    substitutes for having run it.</p>
+  </div>
+
+  <h2 class="sec"><span class="secno">2</span>Hypotheses</h2>
+
+  <p>Stated before the fact, and stated so that they can lose.</p>
+
+  <p><b>H1 (monotone improvement).</b> Mean artifact quality is non-decreasing in turn count
+  over the range studied.</p>
+
+  <p><b>H2 (saturation).</b> Quality rises and then plateaus, with the plateau reached well
+  inside the budgeted range — the "where does unattended work stop paying" hypothesis, and the
+  one the programme was built to test.</p>
+
+  <p><b>H3 (overoptimisation).</b> Quality rises, peaks, and then declines with continued
+  turns, as gate-satisfying effort displaces value-producing effort. This is the
+  reward-overoptimisation shape reported for a closely analogous setting
+  <a class="cite" data-ref="gao2023"></a>, and predicted here on independent grounds by the
+  multitask result <a class="cite" data-ref="holmstrom1991"></a>.</p>
+
+  <p>H2 and H3 are the live competitors. H1 is included because it is what the system's own
+  gates would have reported, and the study is partly an audit of that report.</p>
+
+  <p><b>The pre-specified discriminator.</b> H2 and H3 are distinguished by the sign of the
+  quadratic term in a quality-on-turn-count regression over the second half of the range, with
+  the decision rule fixed in §4 before any quality data is seen.</p>
+
+  <h2 class="sec"><span class="secno">3</span>Design</h2>
+
+  <h3 class="sub">3.1 Unit of analysis, and the thing being varied</h3>
+
+  <p>The unit is the <em>artifact</em>, not the turn. Turn count is the manipulated variable:
+  artifacts are developed for a randomly assigned number of turns drawn from a pre-specified
+  grid, and quality is measured once, at the end, by raters blind to the turn count that
+  produced it.</p>
+
+  <p>This is the design decision that matters most, and it is worth being explicit about why
+  it differs from the obvious approach. Measuring the <em>same</em> artifact repeatedly as it
+  develops confounds turn count with the artifact's own trajectory and invites the rater to
+  reward visible change. Randomising turn count across artifacts and measuring once buys a
+  clean between-subjects contrast at the cost of needing more artifacts — which is precisely
+  the trade Unit II's power analysis is for.</p>
+
+  <h3 class="sub">3.2 Conditions</h3>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 2.</b> Arms. The control arm is not optional: a comparison
+      without it cannot distinguish "more turns helped" from "these tasks were easy".</div>
+    <table class="booktabs">
+      <thead><tr><th>Arm</th><th>Turn allocation</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td>Control</td><td>1 turn</td><td>Floor. What a single unattended pass produces.</td></tr>
+        <tr><td>Graded</td><td>drawn from a grid across the budgeted range</td><td>The curve itself.</td></tr>
+        <tr><td>Restart</td><td>equal total turns, split across independent fresh attempts</td><td>Separates "more work" from "more <em>continuous</em> work". If restarts match or beat the graded arm at equal cost, continuity is not what is buying quality.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>The restart arm is the one most likely to be cut for budget and the one most likely to
+  produce the study's most interesting result. It should be defended.</p>
+
+  <h3 class="sub">3.3 Blinding</h3>
+
+  <p>Raters see the artifact and nothing else: no turn count, no commit history, no ledger, no
+  gate outcome. Where a model judge is used, the same applies to its prompt, and artifacts are
+  presented in randomised order with pairwise comparisons run in both orders so that position
+  bias can be estimated rather than assumed away <a class="cite" data-ref="zheng2023"></a>.</p>
+
+  <h2 class="sec"><span class="secno">4</span>The six blanks</h2>
+
+  <p>What follows is the part of the protocol that cannot yet be written. Each blank names the
+  quantity required, the unit that produces it, and the reason the study is not registrable
+  without it.</p>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 3.</b> The blanks, and what fills them. Registration is blocked
+      until every row is closed.</div>
+    <table class="booktabs">
+      <thead><tr><th>#</th><th>Required quantity</th><th>From</th><th>Why the study fails without it</th></tr></thead>
+      <tbody>
+        <tr><td class="num">B1</td><td>A defined construct: what "quality" means for an artifact of this class, written down before any score is seen</td><td>Unit I</td><td>Without it the analysis is a search for a flattering operationalisation, conducted after the fact.</td></tr>
+        <tr><td class="num">B2</td><td>An estimated reliability for the quality measure, with inter-rater agreement reported</td><td>Unit I</td><td>Effect sizes are attenuated by unreliability; an unmeasured reliability makes a null result uninterpretable.</td></tr>
+        <tr><td class="num">B3</td><td>A calibrated judge: agreement with human raters expressed as a fraction of the human–human ceiling, with position and length bias estimated</td><td>Unit V</td><td>An uncalibrated judge is what produced zero scores in the pilot. Repeating that is the one guaranteed failure.</td></tr>
+        <tr><td class="num">B4</td><td>A powered sample size: artifacts per arm, derived from B2 and the smallest effect worth detecting</td><td>Unit II</td><td>An underpowered run spends the whole budget and returns a shrug.</td></tr>
+        <tr><td class="num">B5</td><td>A stopping rule fixed in advance, with its error rate accounted for</td><td>Unit II</td><td>A loop that watches its own results and stops when they look good has an error rate far worse than it reports <a class="cite" data-ref="wald1945"></a>.</td></tr>
+        <tr><td class="num">B6</td><td>An outside signal — at least one quality measure originating from someone who is not this system</td><td>Unit VI</td><td>The pilot's central defect. A loop grading itself against its own gates cannot detect the failure mode it is most prone to.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>B6 deserves emphasis because it is the one that cannot be solved by more care. Every other
+  blank is a technique. B6 requires a person who is not us to look at the output and say
+  something, and no amount of internal rigour substitutes for it. The programme's own operator
+  notes have already identified this as the missing signal; the protocol simply refuses to
+  proceed without it.</p>
+
+  <h2 class="sec"><span class="secno">5</span>Analysis plan</h2>
+
+  <p>To be fixed in full once B1–B4 are closed. The skeleton:</p>
+
+  <ul>
+    <li><b>Primary.</b> Quality regressed on turn count, with artifact-family random effects and
+      a pre-specified quadratic term. H2 versus H3 is decided by the sign and confidence
+      interval of that term, under a decision rule written before unblinding.</li>
+    <li><b>Secondary.</b> The restart contrast at matched total cost; gate-pass rate as a
+      function of turn count, reported <em>separately</em> from quality, so that the divergence
+      between them is visible rather than averaged away. That divergence is the study's most
+      likely publishable finding.</li>
+    <li><b>Measurement model.</b> Pairwise verdicts fitted with Bradley–Terry
+      <a class="cite" data-ref="bradley1952"></a>, with output length as a covariate so that
+      strength is estimated holding verbosity fixed <a class="cite" data-ref="dubois2024"></a>.</li>
+    <li><b>Correction for attenuation.</b> Effect estimates reported both raw and corrected
+      using the reliability from B2, with both shown.</li>
+    <li><b>Everything else is exploratory</b> and will be labelled as such in the report. Any
+      analysis not listed here is exploratory by definition, including analyses that seem
+      obvious later <a class="cite" data-ref="simmons2011"></a>.</li>
+  </ul>
+
+  <h2 class="sec"><span class="secno">6</span>Outcome-neutral checks</h2>
+
+  <p>Conditions that must hold for the data to be interpretable at all, regardless of which
+  hypothesis it favours. These are checked first, and a failure halts the analysis:</p>
+
+  <ul>
+    <li>The comparison graph is connected — every artifact is linked by some chain of
+      comparisons, or it has no estimable rating.</li>
+    <li>Inter-rater agreement meets the floor established in B2. Below it, the raters are
+      measuring different things and the scale does not exist.</li>
+    <li>The control arm is distinguishable from the top arm. If one turn scores like twenty,
+      either the task set is too easy or the measure has a ceiling, and in both cases the study
+      is uninformative about the question rather than informative about the answer.</li>
+    <li>Position-bias effect size is smaller than the smallest quality difference the study
+      claims to detect.</li>
+  </ul>
+
+  <h2 class="sec"><span class="secno">7</span>Kill criteria</h2>
+
+  <p>Stated in advance, because a programme that cannot say what would end it is not an
+  experiment:</p>
+
+  <ul>
+    <li><b>No outside signal by the end of Unit VI.</b> If B6 cannot be closed, the run is not
+      worth its budget and the programme reduces to the curriculum.</li>
+    <li><b>Reliability below the floor after two rubric revisions.</b> If the construct cannot
+      be measured consistently by people who agree on what they are looking for, it is not yet a
+      construct.</li>
+    <li><b>Power analysis demanding more artifacts than the budget affords</b>, with no
+      reduction in the smallest interesting effect that remains honest. Redesign, or stop; do
+      not run underpowered and hope.</li>
+  </ul>
+
+  <h2 class="sec"><span class="secno">8</span>Sequence</h2>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 4.</b> Phases. Model budget is spent only in Phase 4 — everything
+      before it is reading, arithmetic, and analysis of data that already exists.</div>
+    <table class="booktabs">
+      <thead><tr><th>Phase</th><th>Contents</th><th>Closes</th><th>Model budget</th></tr></thead>
+      <tbody>
+        <tr><td>0 · Foundation</td><td>Units I–II. Reading, both replications.</td><td>B1, B2, B4, B5</td><td>none</td></tr>
+        <tr><td>1 · Theory</td><td>Units III–IV. The LEN model fitted to our own run; the overoptimisation curve on a synthetic.</td><td>predictions for H2/H3</td><td>none</td></tr>
+        <tr><td>2 · Instrument</td><td>Unit V. Judge built, calibrated, debiased.</td><td>B3</td><td>small — calibration only</td></tr>
+        <tr><td>3 · Oversight</td><td>Unit VI. Sandwiching trial; outside signal secured.</td><td>B6</td><td>small</td></tr>
+        <tr><td>4 · Registration &amp; run</td><td>Protocol completed and registered, then the run.</td><td>the curve</td><td>the whole of it</td></tr>
+        <tr><td>5 · Report</td><td>Written and published whichever way it came out.</td><td>—</td><td>none</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>The retrospective analysis of the pilot — reconstructing per-turn history from the ledger,
+  characterising why two of three signals never fired — is <b>not</b> a phase. It is a Unit I
+  exercise, and it is listed there deliberately: it is worth doing with the measurement
+  vocabulary in hand and close to worthless without it.</p>
+
+  <h2 class="sec"><span class="secno">9</span>What would make this worth publishing</h2>
+
+  <p>Not a positive result. A curve of any shape, produced under a pre-registered design with a
+  calibrated instrument and an outside signal, would be unusual in this area on methodological
+  grounds alone — most reported evaluations of unattended agent work supply a number without
+  establishing that it measures the construct <a class="cite" data-ref="cronbach1955"></a>, and
+  without a control arm.</p>
+
+  <p>The most likely genuinely novel finding is the <em>divergence</em>: gate-pass rate rising
+  while measured quality does not, quantified, on a real system, with the mechanism identified
+  in advance by a model from 1991 <a class="cite" data-ref="holmstrom1991"></a>. That is a
+  small, checkable, and honest contribution, and it is the one this protocol is designed to be
+  able to detect.</p>
+
+  <div class="refs">
+    <h2>References <span class="small">(<span id="refcount">0</span> works cited in this article)</span></h2>
+    <ol id="reflist"></ol>
+  </div>
+
+  <div class="colophon">
+    ken · article II · Stage 1 protocol skeleton · <b>not registered</b><br>
+    No data has been collected under this protocol. Six blanks (§4) remain open; each is the
+    deliverable of a unit in <a href="/syllabus">Article I</a>. The pilot figures in Table 1 are
+    computed from <code>.github/loop/turns.jsonl</code> and <code>runs.jsonl</code> in this
+    repository.
+  </div>
+
+</div>
+
+<script src="refs.js"></script>
+<script src="cite.js"></script>
+</body>
+</html>

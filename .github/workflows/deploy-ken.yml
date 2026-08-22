@@ -1,0 +1,43 @@
+name: Deploy ken (the measurement of delegated work)
+
+on:
+  push:
+    branches: ['claude/repo-study-fields-0ftd34']
+    paths:
+      - 'ken/**'
+      - '.github/workflows/deploy-ken.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ken
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Selftest (citation integrity + the quoted figures still match the ledger)
+        run: node ken.selftest.mjs
+      - name: Install wrangler
+        run: npm install wrangler
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Verify the custom domain is bound and the site is live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS https://ken.mino.mobi/ | grep -qi 'measurement of delegated work'; then
+              echo "✓ ken is live on its custom domain"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 4
+          done
+          echo "⚠️ ken.mino.mobi did not respond. If this is the FIRST deploy, the domain is"
+          echo "   probably not attached yet — that is dashboard-only (docs/DEPLOYS.md §7)."
+          echo "   Check the deploy log above for 'ken.mino.mobi (custom domain)'. If it is"
+          echo "   absent, this run published to a stray worker and the golden rule has bitten."
