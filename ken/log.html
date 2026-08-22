@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Findings Log — ken</title>
-<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Thirty entries, seven of them from measurements we made.">
+<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Thirty-one entries, seven of them from measurements we made.">
 <link rel="stylesheet" href="journal.css">
 </head>
 <body>
@@ -28,7 +28,7 @@
   <div class="a-venue">ken · volume 1 <span class="kicker">Running record</span></div>
   <h1 class="a-title">Findings Log</h1>
   <p class="a-sub">Shortest form. Each entry names the code or record that produced it.</p>
-  <div class="a-meta">30 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
+  <div class="a-meta">31 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
   <hr class="a-rule">
 
   <p class="small">Everything here comes from data already paid for or from arithmetic. That is
@@ -246,6 +246,14 @@
   <h2 class="sec"><span class="secno">§</span>Our own errors</h2>
 
   <ol class="log" start="27">
+    <li><b>Four edits to the worker's route map silently did nothing, and nothing broke.</b>
+      Each replacement targeted a string the previous failed edit was supposed to have created,
+      and I never asserted that any of them applied. The routes worked anyway: Workers Static
+      Assets resolves clean URLs itself, so the map was never load-bearing. Measured on the live
+      site — <code>/lab</code>, <code>/wp1</code>, <code>/log</code> and <code>/run</code> all
+      returned 200 while absent from it. The map is deleted and the selftest now refuses one.
+      <span class="src"><code>worker.js</code></span></li>
+
     <li><b>My Simplified-Technical-English lint was wrong twice on its first run.</b> It called
       every run of four content words a noun cluster, so "One run costs six turns" failed. And it
       called every be-verb near an -ed word passive, so "a matched pair" failed. Both were caught
@@ -283,7 +291,7 @@
       <tbody>
         <tr><td>Records already committed</td><td class="num">12</td></tr>
         <tr><td>Arithmetic and simulation</td><td class="num">6</td></tr>
-        <tr><td>Our own mistakes</td><td class="num">5</td></tr>
+        <tr><td>Our own mistakes</td><td class="num">6</td></tr>
         <tr><td><b>New measurement</b></td><td class="num"><b>7</b></td></tr>
       </tbody>
     </table>

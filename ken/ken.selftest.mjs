@@ -424,6 +424,19 @@ ok(/ken\.selftest\.mjs/.test(assetsIgnore), 'the selftest is kept out of the ser
 ok(/prose-lint\.mjs/.test(assetsIgnore), 'the prose lint is kept out of the served assets');
 ok(/^lab\/$/m.test(assetsIgnore), 'the node-only lab/ directory is kept out of the served assets');
 
+// The worker must not carry a route map. One drifted silently for four edits;
+// Static Assets resolves clean URLs itself, so a map is dead weight that the
+// next person has to guess about.
+{
+  const worker = readFileSync(join(HERE, 'worker.js'), 'utf8');
+  ok(!/const clean\s*=/.test(worker),
+     'worker.js carries no clean-URL map — Static Assets already resolves them');
+  const routed = pages.map((p) => `/${p.replace(/\.html$/, '')}`).filter((r) => r !== '/index');
+  for (const r of routed) {
+    ok(!worker.includes(`'${r}'`), `worker.js does not hand-route ${r}`);
+  }
+}
+
 const wrangler = readFileSync(join(HERE, 'wrangler.jsonc'), 'utf8');
 ok(/"name":\s*"ken"/.test(wrangler), 'worker name is ken');
 ok(/ken\.mino\.mobi/.test(wrangler) && /custom_domain/.test(wrangler),
