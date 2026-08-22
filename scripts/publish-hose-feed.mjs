@@ -21,7 +21,7 @@
 // `addFilters` in the config is the delta this repo *does* own — the video
 // filter SkyFeed never had.
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, appendFileSync } from 'node:fs';
 import { fromSkyfeed, parseFeedRef } from '../packages/feedgen/skyfeed.js';
 
 const SERVICE_DID = 'did:web:hose.mino.mobi';
@@ -150,7 +150,17 @@ await xrpc(ENTRY, 'com.atproto.repo.putRecord', {
 });
 console.log(`  ✓ ${GEN_COLLECTION}/${cfg.rkey} → ${SERVICE_DID}`);
 
-console.log(`\nfeed uri      : at://${did}/${GEN_COLLECTION}/${cfg.rkey}`);
+const feedUri = `at://${did}/${GEN_COLLECTION}/${cfg.rkey}`;
+console.log(`\nfeed uri      : ${feedUri}`);
 console.log(`open it       : https://bsky.app/profile/${did}/feed/${cfg.rkey}`);
+
+// Report where it actually landed, so no caller has to derive the publisher's
+// DID from a handle it guessed. The handle is a secret; the DID is not, and it
+// is only knowable after the login. Resolving "morphyx" to a public handle gave
+// a real account that was NOT this one, and the wrong DID then went into both a
+// verify step and SEED_FEEDS.
+if (process.env.PUBLISHED_URIS_FILE) {
+  appendFileSync(process.env.PUBLISHED_URIS_FILE, feedUri + '\n');
+}
 console.log(`\nhose ingests for it on its next wake (hourly). The ring starts empty and`);
 console.log(`fills from live samples — give it a few hours before judging how full it looks.`);

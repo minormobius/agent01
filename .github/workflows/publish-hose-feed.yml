@@ -17,7 +17,7 @@ name: Publish hose feed
 # so while this lives on a feature branch there is no UI button — a push that
 # touches one of the paths below is what publishes. Bump the marker to republish
 # without otherwise changing anything.
-# marker: 2026-08-22a
+# marker: 2026-08-22b
 
 on:
   push:
@@ -68,21 +68,37 @@ jobs:
             exit 1
           fi
           shopt -s nullglob
+          : > "$RUNNER_TEMP/published.txt"
           for f in workers/hose/feeds/*.json; do
             echo "── $f"
-            node scripts/publish-hose-feed.mjs "$f"
+            PUBLISHED_URIS_FILE="$RUNNER_TEMP/published.txt" node scripts/publish-hose-feed.mjs "$f"
           done
 
-      # A published feed that the service never ingests for is an empty feed, so
-      # check the record actually points where we think it does.
-      - name: Verify the record points at the hose service
+      # Verify against the URIs the publisher REPORTED, never a DID derived here.
+      # The publishing account is only knowable after the login — a DID guessed
+      # from a public handle lookup was wrong, and this step happily passed a
+      # feed that did not exist at the address it checked.
+      #
+      # Reads the PDS, which is authoritative and immediate, rather than the
+      # AppView, which lags indexing by long enough to make a fresh publish look
+      # like a failure.
+      - name: Verify each published record points at the hose service
         run: |
-          for f in workers/hose/feeds/*.json; do
-            RKEY=$(node -e "console.log(require('./$f').rkey)")
-            DID=did:plc:czzgu7cwl7nwzok2ouzgnvny
-            REC=$(curl -fsS "https://public.api.bsky.app/xrpc/app.bsky.feed.getFeedGenerator?feed=at://$DID/app.bsky.feed.generator/$RKEY" || true)
+          test -s "$RUNNER_TEMP/published.txt" || { echo "::error::nothing was published"; exit 1; }
+          while read -r URI; do
+            DID=$(echo "$URI" | cut -d/ -f3)
+            RKEY=$(echo "$URI" | awk -F/ '{print $NF}')
+            PDS=$(curl -fsS "https://plc.directory/$DID" | node -e "
+              let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
+                const doc=JSON.parse(s);
+                process.stdout.write((doc.service||[]).find(x=>x.id==='#atproto_pds').serviceEndpoint);
+              });")
+            REC=$(curl -fsS "$PDS/xrpc/com.atproto.repo.getRecord?repo=$DID&collection=app.bsky.feed.generator&rkey=$RKEY")
             echo "$REC"
             echo "$REC" | grep -q '"did":"did:web:hose.mino.mobi"' \
-              && echo "✓ $RKEY is served by hose.mino.mobi" \
-              || echo "⚠️ $RKEY did not report hose.mino.mobi yet — the AppView may not have indexed it"
-          done
+              || { echo "::error::$URI does not point at did:web:hose.mino.mobi"; exit 1; }
+            echo "✓ $URI is served by hose.mino.mobi"
+            grep -Fq "$URI" workers/hose/wrangler.jsonc \
+              && echo "✓ and SEED_FEEDS warms it" \
+              || echo "::warning::$URI is not in SEED_FEEDS — it will only start filling once someone opens it"
+          done < "$RUNNER_TEMP/published.txt"
