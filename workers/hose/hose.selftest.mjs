@@ -433,6 +433,63 @@ console.log('counters survive eviction');
   eq('lifetime matched survives', o2.matched, 180);
 }
 
+console.log('a stuck alarm is re-armed');
+{
+  // This killed the service for an hour. fetch() only re-armed when getAlarm()
+  // returned null, so an alarm left set to a time in the PAST — a rolled-back
+  // invocation, an orphaned pending alarm across a deploy — meant nothing ever
+  // woke the object again. Every read still answered 200, so it looked healthy
+  // while the ingester was dead.
+  const { o, state } = await mount();
+  let armed = null;
+  state.storage.setAlarm = async (t) => { armed = t; };
+
+  state.storage.getAlarm = async () => Date.now() - 60 * 60_000;   // an hour overdue
+  await o.fetch(new Request('https://x.invalid/status'));
+  ok('an overdue alarm is treated as no alarm', armed !== null && armed <= Date.now() + 5_000);
+
+  armed = null;
+  state.storage.getAlarm = async () => null;
+  await o.fetch(new Request('https://x.invalid/status'));
+  ok('a missing alarm is still armed', armed !== null);
+
+  armed = null;
+  state.storage.getAlarm = async () => Date.now() + 30 * 60_000;   // legitimately pending
+  await o.fetch(new Request('https://x.invalid/status'));
+  eq('a healthy pending alarm is left alone — reads must not reset the cadence', armed, null);
+
+  armed = null;
+  state.storage.getAlarm = async () => Date.now() - 1000;          // just fired, within grace
+  await o.fetch(new Request('https://x.invalid/status'));
+  eq('an alarm inside the grace window is not disturbed', armed, null);
+}
+
+console.log('a purge persists the prime budget it resets');
+{
+  // The purge deletes buffer keys directly (those commit), but `primes` lives in
+  // `reg`, which only flush() writes — and load() is not followed by a flush. So
+  // the ring emptied while the prime budget stayed spent: the feed went to zero
+  // and had no budget left to refill.
+  const store = new Map();
+  const uri = FEED;
+  store.set('reg', { [uri]: { lastSeen: Date.now(), primes: 6 } });   // budget fully spent
+  store.set(`def:${uri}`, { def: DEF, source: 'test', fetchedAt: Date.now() });
+  store.set(`buf:${uri}:000000`, [{ u: 'at://d/app.bsky.feed.post/old', t: Date.now() }]);
+  store.set('matcherVersion', 1);
+
+  const state = fakeState(store);
+  const o = new FirehoseIngest(state, {});
+  await state._ready;
+  eq('the ring is purged', o.count(o.feeds.get(uri)), 0);
+  eq('and the budget reset is PERSISTED, not just in memory', store.get('reg')[uri].primes, 0);
+
+  // Prove it survives eviction — the case that actually failed.
+  const state2 = fakeState(store);
+  const o2 = new FirehoseIngest(state2, {});
+  await state2._ready;
+  eq('so the purged feed can still re-prime after a restart', o2.feeds.get(uri).primes, 0);
+}
+
 console.log('priming a cold feed');
 {
   // The bug this exists for: a feed registered after the last sample sat empty

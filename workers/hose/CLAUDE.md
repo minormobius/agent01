@@ -138,6 +138,12 @@ Fixing what `packages/feedgen/match.js` admits changes nothing about any feed's
 have admitted stay served after the fix ships. `load()` compares a stored
 version against the exported constant and purges every ring when it moves,
 resetting the prime budget so the feed refills in minutes rather than days.
+
+That reset has to be **written**, not just assigned. The buffer deletes are
+direct storage calls and commit with the invocation, but `primes` lives in
+`reg`, which only `flush()` writes — and `load()` is not followed by a flush. In
+between, the ring was purged while the prime budget stayed spent: the feed went
+to zero with no budget left to refill it.
 **Bump it in `match.js` whenever a change there alters what passes.**
 
 ### One predicate, two shapes
@@ -212,6 +218,32 @@ with *no* bot filtering — the filter silently does nothing for an hour. A stal
 membership list is a much better fallback than none. Lists over
 `LIST_PERSIST_MAX` (3000) are not cached, because a DO storage value caps at
 128KB; they still work, they just re-fetch every wake.
+
+### The alarm chain is the whole service, and it can get stuck
+
+Everything here runs off one self-perpetuating alarm: `alarm()` re-arms itself
+in a `finally`, and that is the only thing that ever wakes the object. If that
+chain breaks, ingestion stops silently — `/status` and `getFeedSkeleton` keep
+answering 200 off the persisted ring, so **a dead ingester looks exactly like a
+quiet one.**
+
+It broke once, for an hour. `fetch()` re-armed only when `getAlarm()` returned
+`null`, and an alarm can be left set to a time in the **past** — a failed
+invocation rolls back its writes (including its own re-arm), and a deploy can
+orphan a pending alarm. `getAlarm()` then returns non-null forever, the re-arm
+branch never fires, and nothing wakes the object again.
+
+So an alarm more than `STUCK_ALARM_MS` (5 min) overdue is now treated as no
+alarm at all. The grace window matters in both directions: too short and every
+read resets the sampling cadence, undoing the duty cycle; too long and a dead
+service stays dead. `/status` reports `nextAlarmAt` and `alarmOverdueMs` so this
+is observable instead of inferred from frozen counters.
+
+The 6-hourly cron is the outer backstop — it pokes `/status`, which now re-arms
+a stuck alarm rather than admiring it.
+
+**If sampling has stopped:** check `alarmOverdueMs` first. Any request to the
+worker re-arms a stuck chain, so simply curling `/status` restarts it.
 
 ## The running cost
 

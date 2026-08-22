@@ -76,6 +76,8 @@ const DEFAULT_MAX_FRAMES = 800;
 const PRIME_TARGET = 150;
 const PRIME_SAMPLES = 6;
 const PRIME_INTERVAL_MS = 60_000;
+// An alarm this far overdue is not pending, it is stuck. See fetch().
+const STUCK_ALARM_MS = 5 * 60_000;
 // Lists are cached in storage as well as memory. passes() skips a list filter
 // whose members it could not resolve — the right call, since silently emptying
 // a feed because getList 500'd is worse than briefly leaving a bot in it. But
@@ -233,6 +235,13 @@ export class FirehoseIngest {
         f.chunks.clear(); f.dirty.clear(); f.gone.clear(); f.staleKeys.clear();
         f.primes = 0;   // and re-prime, so the purged feed refills in minutes
       }
+      // The buffer deletes above are direct storage writes and commit with this
+      // invocation, but `primes` lives in `reg` — which only flush() writes, and
+      // load() is not followed by one. Without this the ring is purged while the
+      // prime budget stays spent, so the feed empties and never refills.
+      const reg2 = {};
+      for (const [uri, f] of this.feeds) reg2[uri] = { lastSeen: f.lastSeen, primes: f.primes };
+      await this.state.storage.put('reg', reg2);
       await this.state.storage.put('matcherVersion', MATCHER_VERSION);
     }
 
@@ -492,11 +501,24 @@ export class FirehoseIngest {
     // waiting for the cron backstop. It does NOT open the firehose: reading a
     // feed must never trigger ingestion, or a popular feed would undo the duty
     // cycle by itself.
-    if ((await this.state.storage.getAlarm()) == null) await this.state.storage.setAlarm(nowMs() + 1000);
+    //
+    // Re-arming on `null` ALONE is not enough, and that killed the service for
+    // an hour. An alarm can be left set to a time in the past — a failed
+    // invocation rolls back its writes, a deploy can orphan a pending alarm —
+    // and then getAlarm() returns non-null forever, this branch never fires, and
+    // nothing ever wakes the object again. Every read looked healthy while the
+    // ingester was simply dead. Treat an overdue alarm as no alarm.
+    const alarm = await this.state.storage.getAlarm();
+    if (alarm == null || alarm < nowMs() - STUCK_ALARM_MS) {
+      await this.state.storage.setAlarm(nowMs() + 1000);
+    }
 
     if (url.pathname === '/status') {
+      const pending = await this.state.storage.getAlarm();
       return Response.json({
         ok: true,
+        nextAlarmAt: pending,
+        alarmOverdueMs: pending == null ? null : Math.max(0, nowMs() - pending),
         sampling: { seconds: this.sampleMs() / 1000, everyMinutes: this.intervalMs() / 60_000, maxFrames: this.maxFrames() },
         samples: this.samples,
         priming: !!this.priming,
