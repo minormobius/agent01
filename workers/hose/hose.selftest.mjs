@@ -11,6 +11,7 @@
 // it did. Only a test that counts keys catches that.
 
 import { FirehoseIngest } from './src/ingest.js';
+import { MATCHER_VERSION } from '../../packages/feedgen/match.js';
 
 let failed = 0;
 const eq = (name, got, want) => {
@@ -226,6 +227,7 @@ console.log('migrating chunk keys from the old 3-digit padding');
   const uri = FEED;
   store.set('reg', { [uri]: { lastSeen: Date.now() } });
   store.set(`def:${uri}`, { def: DEF, source: 'test', fetchedAt: Date.now() });
+  store.set('matcherVersion', MATCHER_VERSION);   // not what this test is about
   store.set(`buf:${uri}:000`, [{ u: 'at://d/app.bsky.feed.post/a', t: 1 }]);
   store.set(`buf:${uri}:001`, [{ u: 'at://d/app.bsky.feed.post/b', t: 2 }]);
 
@@ -259,6 +261,7 @@ console.log('a stale key never shadows the current one');
   store.set(`def:${uri}`, { def: DEF, source: 'test', fetchedAt: Date.now() });
   // Same chunk index, both widths present. ':004' sorts later, so a naive
   // build-the-map-in-sorted-order would pick the stale one.
+  store.set('matcherVersion', MATCHER_VERSION);   // not what this test is about
   store.set(`buf:${uri}:004`, [{ u: 'at://d/app.bsky.feed.post/STALE', t: 1 }]);
   store.set(`buf:${uri}:000004`, [{ u: 'at://d/app.bsky.feed.post/FRESH', t: 2 }]);
 
@@ -345,6 +348,38 @@ console.log('the per-sample frame cap');
   const wakes = 30 * 24;   // hourly
   ok('the ceiling holds under the 1M request allowance at the default cap',
     wakes * 800 + wakes < 1_000_000);
+}
+
+console.log('a matcher change purges buffers built under the old rules');
+{
+  // clearBuffer() handles a filter EDIT. It cannot handle a matcher BUG FIX:
+  // fixing what passes does not touch any feed's filters, so nothing noticed,
+  // and an adult image carousel admitted by the old code stayed served after the
+  // fix shipped. MATCHER_VERSION is the only path a code change has to an
+  // existing ring.
+  const store = new Map();
+  const uri = FEED;
+  store.set('reg', { [uri]: { lastSeen: Date.now(), primes: 6 } });
+  store.set(`def:${uri}`, { def: DEF, source: 'test', fetchedAt: Date.now() });
+  store.set(`buf:${uri}:000000`, [{ u: 'at://d/app.bsky.feed.post/admitted-by-old-rules', t: Date.now() }]);
+  store.set('matcherVersion', 1);
+
+  const state = fakeState(store);
+  const o = new FirehoseIngest(state, {});
+  await state._ready;
+  const f = o.feeds.get(uri);
+  eq('entries from the old matcher are gone', o.count(f), 0);
+  eq('and purged from storage, not just memory', bufKeys(state).length, 0);
+  eq('the feed re-primes so it refills in minutes', f.primes, 0);
+  eq('and the new version is recorded', await state.storage.get('matcherVersion'), MATCHER_VERSION);
+
+  // A matching version must NOT purge — otherwise every restart empties the feed.
+  const store2 = new Map(store);
+  store2.set(`buf:${uri}:000000`, [{ u: 'at://d/app.bsky.feed.post/still-valid', t: Date.now() }]);
+  const state2 = fakeState(store2);
+  const o2 = new FirehoseIngest(state2, {});
+  await state2._ready;
+  eq('an unchanged matcher leaves the buffer alone', o2.count(o2.feeds.get(uri)), 1);
 }
 
 console.log('list membership survives eviction');

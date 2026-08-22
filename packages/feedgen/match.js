@@ -20,6 +20,18 @@
 // engagement filter facing null defers rather than guessing — see
 // `needsHydration()`, which tells a caller to fetch real counts before serving.
 
+// Bump when a change in this file alters WHAT PASSES.
+//
+// A ring buffer is only meaningful under the rules that filled it. Editing a
+// feed's filters already empties it — but fixing a BUG in the matcher does not
+// touch any feed's filters, so nothing noticed, and an adult image carousel
+// admitted by the old code sat in a live feed with the fix already deployed.
+// workers/hose stores this alongside its buffers and purges them when it moves.
+//
+//   1 → initial
+//   2 → app.bsky.embed.gallery counts as an image (the carousel leak)
+export const MATCHER_VERSION = 2;
+
 // ── normalise: hydrated AppView postView ─────────────────────────────────────
 
 const EXT_URI = (e) => (e && e.external && e.external.uri) || null;
@@ -34,6 +46,17 @@ function facetLinks(record) {
   return out;
 }
 
+// WHICH EMBEDS ARE PICTURES. `app.bsky.embed.gallery` is what a post of more
+// than four images became, and it is a DIFFERENT nsid from `app.bsky.embed.images`
+// — it spells its array `items` rather than `images`. A "no images" filter that
+// only knows `embed.images` therefore passes every gallery post straight
+// through, which is how an adult image carousel reached a text-only feed whose
+// single most load-bearing filter is "no pictures".
+//
+// b/thread/thread.js hit the same lexicon split and documents it; this is the
+// same fact in the filter layer rather than the reader layer.
+const isImageEmbed = (t) => t.includes('embed.images') || t.includes('embed.gallery');
+
 // A postView's `embed` is the *view* form (`…#view`), its `record` the raw one.
 // Alt text only exists on the view for images/video, so read both.
 function viewMedia(embed) {
@@ -41,7 +64,7 @@ function viewMedia(embed) {
   const media = (embed && embed.media) || null; // recordWithMedia
   const mt = (media && media.$type) || '';
   return {
-    image: t.includes('embed.images') || mt.includes('embed.images'),
+    image: isImageEmbed(t) || isImageEmbed(mt),
     video: t.includes('embed.video') || mt.includes('embed.video'),
     link: t.includes('embed.external') || mt.includes('embed.external'),
     // recordWithMedia is a quote *plus* media; embed.record alone is a bare quote.
@@ -53,7 +76,7 @@ function viewAltText(embed) {
   const parts = [];
   const walk = (e) => {
     if (!e) return;
-    for (const img of e.images || []) if (img.alt) parts.push(img.alt);
+    for (const img of e.images || e.items || []) if (img.alt) parts.push(img.alt);
     if (e.alt) parts.push(e.alt);
     if (e.external) {
       if (e.external.title) parts.push(e.external.title);
@@ -94,7 +117,7 @@ function recordMedia(embed) {
   const media = (embed && embed.media) || null;
   const mt = (media && media.$type) || '';
   return {
-    image: t.includes('embed.images') || mt.includes('embed.images'),
+    image: isImageEmbed(t) || isImageEmbed(mt),
     video: t.includes('embed.video') || mt.includes('embed.video'),
     link: t.includes('embed.external') || mt.includes('embed.external'),
     quote: t.includes('embed.record'),
@@ -105,7 +128,7 @@ function recordAltText(embed) {
   const parts = [];
   const walk = (e) => {
     if (!e) return;
-    for (const img of e.images || []) if (img.alt) parts.push(img.alt);
+    for (const img of e.images || e.items || []) if (img.alt) parts.push(img.alt);
     if (e.alt) parts.push(e.alt);
     if (e.external) {
       if (e.external.title) parts.push(e.external.title);

@@ -7,7 +7,7 @@
 // and nobody would notice until the feed looked wrong.
 
 import { fromSkyfeed, parseFeedRef } from './skyfeed.js';
-import { fromPostView, fromCommit, passes, needsHydration, listUris } from './match.js';
+import { fromPostView, fromCommit, passes, needsHydration, listUris, MATCHER_VERSION } from './match.js';
 
 let failed = 0;
 const eq = (name, got, want) => {
@@ -122,6 +122,55 @@ ok('an unresolvable list is skipped, not treated as empty',
 ok('minLikes defers when counts are unknown', passes(p(), [{ type: 'minLikes', n: 5 }]));
 ok('minLikes applies when counts are known', !passes(p({ likeCount: 2 }), [{ type: 'minLikes', n: 5 }]));
 eq('needsHydration spots minLikes', needsHydration({ filters: [{ type: 'minLikes', n: 5 }] }), true);
+
+// ── galleries ────────────────────────────────────────────────────────────────
+// `app.bsky.embed.gallery` is what a post of more than four images became. It is
+// a DIFFERENT nsid from `app.bsky.embed.images` and spells its array `items`, so
+// a "no images" filter that only knows embed.images passes every gallery post.
+// That is not hypothetical: an adult image carousel reached a text-only feed
+// through exactly this gap. Fixture shape is the real API response, taken from
+// b/thread/thread.selftest.mjs which hit the same split in the reader layer.
+console.log('galleries are pictures');
+{
+  const noPictures = [{ type: 'media', has: ['image'], mode: 'none' }];
+
+  const galleryView = {
+    $type: 'app.bsky.embed.gallery#view',
+    items: [
+      { $type: 'app.bsky.embed.gallery#viewImage', thumbnail: 't1', fullsize: 'f1', alt: 'a wall' },
+      { $type: 'app.bsky.embed.gallery#viewImage', thumbnail: 't2', fullsize: 'f2', alt: '' },
+    ],
+  };
+  const galleryRecord = {
+    $type: 'app.bsky.embed.gallery',
+    items: [{ image: {}, alt: 'a wall' }, { image: {}, alt: '' }],
+  };
+  const rec = { text: 'five pictures', langs: ['en'], createdAt: 'x', embed: galleryRecord };
+
+  ok('a gallery is detected as an image, hydrated', fromPostView({ uri: 'at://d/c/1', record: rec, embed: galleryView }).media.image);
+  ok('a gallery is detected as an image, off the wire', fromCommit('did:plc:a', '1', rec).media.image);
+  ok('so a no-images feed drops it, hydrated', !passes(fromPostView({ uri: 'at://d/c/1', record: rec, embed: galleryView }), noPictures));
+  ok('and drops it off the wire', !passes(fromCommit('did:plc:a', '1', rec), noPictures));
+  eq('both shapes agree, as always',
+    passes(fromCommit('did:plc:a', '1', rec), noPictures),
+    passes(fromPostView({ uri: 'at://d/c/1', record: rec, embed: galleryView }), noPictures));
+
+  eq('gallery alt text is read from `items`, not `images`',
+    fromPostView({ uri: 'at://d/c/1', record: rec, embed: galleryView }).altText, 'a wall');
+  ok('so an alt_text regex can see inside a gallery',
+    !passes(fromPostView({ uri: 'at://d/c/1', record: rec, embed: galleryView }),
+      [{ type: 'regex', mode: 'exclude', pattern: 'wall', target: 'text|alt_text' }]));
+
+  const wrapped = { $type: 'app.bsky.embed.recordWithMedia#view', media: galleryView, record: {} };
+  ok('a gallery inside recordWithMedia counts too',
+    fromPostView({ uri: 'at://d/c/1', record: { ...rec, embed: { $type: 'app.bsky.embed.recordWithMedia', media: galleryRecord } }, embed: wrapped }).media.image);
+
+  ok('and the old four-image lexicon still works',
+    fromCommit('did:plc:a', '2', { text: 'x y', embed: { $type: 'app.bsky.embed.images', images: [{ alt: 'q' }] } }).media.image);
+
+  ok('MATCHER_VERSION is exported so a buffer built under older rules can be purged',
+    Number.isInteger(MATCHER_VERSION) && MATCHER_VERSION >= 2);
+}
 
 // ── the invariant ────────────────────────────────────────────────────────────
 console.log('one predicate, two shapes');

@@ -36,7 +36,7 @@
 // used to do, 5 keys every 30 seconds, and which would have been 305 keys every
 // 30 seconds had the window ever been widened to a real 24 hours.
 
-import { fromCommit, passes, listUris } from '../../../packages/feedgen/match.js';
+import { fromCommit, passes, listUris, MATCHER_VERSION } from '../../../packages/feedgen/match.js';
 import { fromSkyfeed } from '../../../packages/feedgen/skyfeed.js';
 import { getFeedDef, getListMembers } from './resolve.js';
 
@@ -220,6 +220,22 @@ export class FirehoseIngest {
       f.head = idx.length ? Math.max(...idx) * CHUNK + f.chunks.get(Math.max(...idx)).length : 0;
       this.feeds.set(uri, f);
     }
+    // A buffer is only meaningful under the rules that filled it. clearBuffer()
+    // already handles a filter EDIT, but a matcher bug fix changes what passes
+    // without touching any feed's filters — so nothing noticed, and posts the
+    // old code should never have admitted stayed served after the fix shipped.
+    // Purging here is the only way a code change can reach an existing ring.
+    const storedVersion = await this.state.storage.get('matcherVersion');
+    if (storedVersion !== MATCHER_VERSION) {
+      for (const [uri, f] of this.feeds) {
+        const listed = await this.state.storage.list({ prefix: `buf:${uri}:` });
+        if (listed.size) await this.state.storage.delete([...listed.keys()]);
+        f.chunks.clear(); f.dirty.clear(); f.gone.clear(); f.staleKeys.clear();
+        f.primes = 0;   // and re-prime, so the purged feed refills in minutes
+      }
+      await this.state.storage.put('matcherVersion', MATCHER_VERSION);
+    }
+
     this.lastTimeUs = (await this.state.storage.get('cursor')) || 0;
     const cachedLists = await this.state.storage.list({ prefix: 'list:' });
     for (const key of cachedLists.keys()) {

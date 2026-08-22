@@ -127,10 +127,18 @@ unmaintained, but the definitions it wrote are still records on their owners'
 PDSs. A feed moves here by repointing **one field** (`did`) on a record its
 owner already controls. Same feed URL, same likes, same subscribers.
 
-Definitions are re-read every 5 minutes. **Editing a feed's filters clears its
+Definitions are re-read once per wake. **Editing a feed's filters clears its
 buffer** — everything already ingested was admitted under the old rules, so
 leaving it would mean adding a "no video" filter and still seeing a day of
 video, which is the exact complaint this surface was built to fix.
+
+**A matcher bug fix needs `MATCHER_VERSION`, because it is not a filter edit.**
+Fixing what `packages/feedgen/match.js` admits changes nothing about any feed's
+`filters`, so the flush above never fires and posts the old code should never
+have admitted stay served after the fix ships. `load()` compares a stored
+version against the exported constant and purges every ring when it moves,
+resetting the prime budget so the feed refills in minutes rather than days.
+**Bump it in `match.js` whenever a change there alters what passes.**
 
 ### One predicate, two shapes
 
@@ -329,6 +337,27 @@ Conversion is lossy in a **loud** way: anything that doesn't map comes back in
 `warnings` rather than being dropped quietly. `image_count` is the one to watch
 — SkyFeed spells "how many images" as removable buckets, and only the
 combination that removes every non-zero bucket is exactly "no images".
+
+### Which embeds are pictures
+
+`app.bsky.embed.gallery` is what a post of **more than four images** became. It
+is a *different* nsid from `app.bsky.embed.images` and spells its array `items`
+rather than `images`, so a "no images" filter that only knows `embed.images`
+passes every gallery post untouched.
+
+That is not hypothetical: an adult image carousel reached this text-only feed
+through exactly that gap, in a feed whose single most load-bearing filter is
+"no pictures". `isImageEmbed()` in `match.js` now covers both spellings, on both
+the hydrated and the raw-record paths, and the alt-text walkers read `items` as
+well as `images` so an `alt_text` regex can see inside a gallery.
+
+`b/thread/thread.js` hit the same lexicon split in the reader layer and
+documents it; if a third place ever needs it, that is the moment to promote the
+predicate rather than write it a third time.
+
+**The general lesson:** a media filter keyed on a substring of `$type` is only
+as complete as the list of nsids you knew about when you wrote it. New embed
+types are how it silently gets less complete.
 
 ## Gotchas
 
