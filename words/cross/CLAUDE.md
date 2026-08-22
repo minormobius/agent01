@@ -26,7 +26,7 @@ dict/
   answers.txt         50,000 answers, `WORD rank`, sorted. COMMITTED ARTEFACT
   clues/A.txt … Z.txt one clue per answer, sharded by first letter
   MANIFEST.json       what the artefacts were built from, and their hashes
-app.js                the solver: grid, clues, keyboard, touch, the URL
+app.js                the solver: one screen, two tabs, our own keyboard
 tools/build-lexicon.mjs   rebuilds dict/ from external sources. Run by hand
 test/cross.selftest.mjs   the deploy gate
 test/cross-ui-check.mjs   needs a browser; not a gate
@@ -35,6 +35,41 @@ test/cross-ui-check.mjs   needs a browser; not a gate
 The clues are served by [`../worker.js`](../worker.js) at
 `GET /api/cross/clues?w=…`, not shipped to the client: the store is three
 megabytes and a puzzle wants seventy of them.
+
+## The screen
+
+**One screen, two tabs, and it does not scroll.** The app bar, the grid, the
+selected clue and the keyboard are a flex column pinned to the viewport.
+
+- **Puzzle** — the grid, the selected clue directly beneath it, the keyboard
+  below that. Everything a solve needs is visible at once, which is the whole
+  point: reading a clue and typing into a square must never be two different
+  scroll positions.
+- **Clues** — every entry, scrollable, each with its own squares underneath
+  showing what the grid currently holds. Choosing one selects it and returns to
+  the Puzzle tab, because that is where the keyboard is.
+- **The gear** holds everything else: check, reveal, clear, copy link, and the
+  size/difficulty/seed controls. None of it belongs on a screen you are solving
+  on.
+
+Two things about this are load-bearing:
+
+**The grid is sized in JavaScript, from a measured box.** `sizeGrid()` reads
+what the layout actually left over and sets the grid's pixel side and
+`--cellpx`, which everything inside a cell is sized from. Deriving it from `vh`
+instead is wrong on exactly the device this is built for: a phone's viewport
+changes height when the browser chrome slides away, `100vh` keeps reporting the
+tall figure, and the difference is the bottom row of the crossword sitting under
+the URL bar for the rest of the session. `visualViewport`'s resize event is
+listened to for the same reason — some browsers do not fire `resize` for it.
+
+**The keyboard is ours, not the phone's.** The previous version parked an
+off-screen input to summon the native keyboard, which is the standard trick and
+costs a third of the screen, a caret nobody wants, an autocorrect bar, and a
+layout that changes height underneath you. Drawing 26 letters is less code than
+working around any of that, and it means a tap cannot do anything except what
+`app.js` says. Physical keyboards still work through the `keydown` handler; the
+`⇄` key and tapping the selected square both flip across/down.
 
 ## The three things worth reading the code for
 
@@ -132,9 +167,12 @@ difficulty points the right way, because a difficulty selector that does nothing
 is a lie in the interface.
 
 `cross-ui-check.mjs` covers what only exists in a browser: the Web Worker's
-module graph, the real clue fetch, and the off-screen input that summons a
-phone's keyboard. It is not a gate — it needs a browser binary the repo does not
-carry.
+module graph, the real clue fetch, and **the one-screen contract** — that the
+page does not scroll, and that the grid, the clue and the keyboard are all
+fully within the viewport. It runs at three viewports, and `small` (360×640) is
+the one that matters: a short screen is where the three of them actually compete
+for room, and it is where a fixed layout fails first. It is not a deploy gate —
+it needs a browser binary the repo does not carry.
 
 ## Rebuilding the lexicon
 
@@ -166,6 +204,10 @@ In rough order of value:
 - **Offline clues.** The generator works offline (the answer list is precached);
   the clues do not, because they come from `/api/`. Precaching the 2.7 MB of
   shards is a decision, not a bug fix.
+- **The crossing clue.** On a tall phone a 15×15 grid is limited by the screen's
+  WIDTH, so there is a band of unused height above and below it. The obvious use
+  is a second, dimmed line showing the clue for the entry crossing the cursor,
+  which is what most solvers want next.
 - **A faster hard 15×15.** Easy and medium generate in milliseconds; hard takes
   one to four seconds, which is why generation is in a Web Worker. The remaining
   cost is `masksOf` — see the notes in [`gen/fill.js`](gen/fill.js) for what has

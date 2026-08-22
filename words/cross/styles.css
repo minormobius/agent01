@@ -1,9 +1,15 @@
 /* cross — one stylesheet, no framework, no build.
 
+   THE WHOLE LAYOUT IS ONE SCREEN THAT DOES NOT SCROLL. The app bar, the grid,
+   the selected clue and the keyboard are a flex column pinned to the viewport,
+   and the grid takes whatever is left over. Nothing here uses `vh` arithmetic
+   to guess at that: `app.js` measures the leftover box and sizes the grid to
+   it, because a phone's viewport changes height when the browser chrome slides
+   away and a guess is wrong for the rest of the session.
+
    The palette is the game's, next door, so the two halves of words.mino.mobi
-   look like one site; the shapes are not, because a crossword is a printed
-   object and wants to read like one. Mobile first: the grid is the widest thing
-   on the page and everything else is sized off it. */
+   look like one site. The cells are paper in both themes, because a crossword
+   is a printed object. */
 
 :root {
   --bg: #16181c;
@@ -15,155 +21,152 @@
   --accent: #6ea8fe;
   --bad: #e3736a;
 
-  --cell: #f2efe6;      /* paper — light in both themes; a crossword is printed */
+  --cell: #f2efe6;
   --cell-ink: #1b1d21;
-  --cell-block: #12141a;
+  --cell-block: #0f1115;
   --cell-active: #cfe0ff;
   --cell-cursor: #f9d976;
   --cell-line: #6a6f78;
+  --cell-num: #6b7280;
+
+  --key: #2f343c;
+  --key-ink: #f0f2f5;
+
+  /* Set by app.js from the measured grid box; everything in a cell is sized
+     off this so a 5x5 and a 15x15 are the same object at different scales. */
+  --cellpx: 24px;
 
   color-scheme: dark light;
 }
 
 @media (prefers-color-scheme: light) {
   :root {
-    --bg: #f4f5f7;
+    --bg: #eceef1;
     --panel: #ffffff;
-    --panel-2: #eef0f3;
+    --panel-2: #f2f4f7;
     --line: #d4d8de;
     --ink: #1b1d21;
     --dim: #5d6570;
     --cell-block: #23262b;
     --cell-line: #23262b;
+    --key: #ffffff;
+    --key-ink: #1b1d21;
   }
 }
 
 * { box-sizing: border-box; }
 
-/* Any `display` rule silently overrides the hidden attribute, and a
-   `position: fixed` overlay that is "hidden" but laid out eats every click on
-   the page. The game next door shipped exactly that bug; this is the fix, and
-   it belongs at the top of the file where it cannot be lost. */
+/* Any `display` rule silently overrides the hidden ATTRIBUTE, and a
+   `position: fixed` overlay that is "hidden" but still laid out swallows every
+   click on the page while looking perfect in a screenshot. The game next door
+   shipped exactly that bug. This line is load-bearing. */
 [hidden] { display: none !important; }
 
-body {
+html, body {
+  height: 100%;
   margin: 0;
+  overflow: hidden;            /* one screen: the page itself never scrolls */
+  overscroll-behavior: none;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
   background: var(--bg);
   color: var(--ink);
-  font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 16px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* ---------------------------------------------------------------- header */
+/* ---------------------------------------------------------------- appbar */
 
-.top {
+.appbar {
+  flex: none;
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 10px 14px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--line);
   background: var(--panel);
-  position: sticky;
-  top: 0;
-  z-index: 5;
 }
-.brand {
-  font-weight: 700;
-  font-size: 18px;
-  color: var(--dim);
-  text-decoration: none;
-}
-.brand.here { color: var(--ink); }
-.slash { color: var(--line); }
-.sub { color: var(--dim); font-size: 13px; margin-left: auto; }
 
-main { max-width: 1100px; margin: 0 auto; padding: 14px; }
-
-/* ----------------------------------------------------------------- setup */
-
-.setup {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 14px;
-  display: grid;
-  gap: 10px;
-  max-width: 560px;
-}
-/* A grid item's min-width is `auto`, not 0, so a row whose contents have an
-   intrinsic minimum refuses to shrink and hangs off the side of a phone. This
-   is the fix, and it is needed on the items rather than on their contents. */
-.setup > * { min-width: 0; }
-.row { display: flex; align-items: center; gap: 10px; }
-.row label { width: 80px; color: var(--dim); font-size: 14px; flex: none; }
-.row.actions { justify-content: flex-start; padding-top: 4px; }
-
-select, input[type="text"] {
-  flex: 1;
-  min-width: 0;
+.tabs {
+  display: flex;
   background: var(--panel-2);
-  color: var(--ink);
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 9px 10px;
-  font: inherit;
+  border-radius: 9px;
+  padding: 2px;
+  gap: 2px;
 }
-input[type="text"] { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--dim);
+  font: 600 14px/1 inherit;
+  padding: 8px 14px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); color: #10131a; }
 
-button {
-  font: inherit;
-  border-radius: 8px;
-  padding: 9px 14px;
+.timer {
+  margin-left: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.gear {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
   border: 1px solid var(--line);
+  border-radius: 9px;
   background: var(--panel-2);
   color: var(--ink);
   cursor: pointer;
 }
-button:hover { border-color: var(--accent); }
-button.primary { background: var(--accent); color: #10131a; border-color: transparent; font-weight: 600; }
-button.ghost { background: transparent; }
+.gear[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
 
-.help { color: var(--dim); font-size: 13px; margin: 0; }
-.help em { color: var(--ink); font-style: normal; }
+/* ----------------------------------------------------------------- panes */
 
-/* ---------------------------------------------------------------- status */
+.panes { position: relative; flex: 1; min-height: 0; }
+.pane { position: absolute; inset: 0; }
 
-.status {
+.pane-puzzle {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* The grid takes whatever the clue bar and keyboard leave. `min-height: 0` is
+   what lets it actually give way — without it a flex child refuses to shrink
+   below its content and the keyboard gets pushed off the bottom of the screen. */
+.gridwrap {
+  flex: 1;
+  min-height: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 18px 4px;
-  color: var(--dim);
-}
-.spinner {
-  width: 16px; height: 16px; flex: none;
-  border: 2px solid var(--line);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
-
-/* ------------------------------------------------------------------ grid */
-
-.puzzle { display: grid; gap: 18px; margin-top: 4px; }
-@media (min-width: 900px) {
-  .puzzle { grid-template-columns: minmax(0, 1fr) minmax(300px, 420px); align-items: start; }
+  justify-content: center;
+  padding: 8px;
 }
 
 .grid {
-  --size: 15;
   display: grid;
-  grid-template-columns: repeat(var(--size), 1fr);
+  grid-template-columns: repeat(var(--size, 15), 1fr);
   gap: 1px;
   background: var(--cell-line);
   border: 2px solid var(--cell-line);
-  border-radius: 3px;
-  width: min(100%, 68vh);
-  aspect-ratio: 1;
-  /* Without this the browser scrolls the page instead of registering the tap
-     that was meant for a square. */
+  border-radius: 2px;
+  /* The tap belongs to the square, not to the page. */
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
@@ -177,9 +180,7 @@ button.ghost { background: transparent; }
   display: grid;
   place-items: center;
   font-weight: 600;
-  /* The letter scales with the grid rather than with the page: a 5x5 mini and a
-     15x15 are the same object at different resolutions. */
-  font-size: clamp(9px, calc(52vmin / var(--size)), 30px);
+  font-size: calc(var(--cellpx) * 0.56);
   line-height: 1;
 }
 .cell.block { background: var(--cell-block); }
@@ -189,97 +190,290 @@ button.ghost { background: transparent; }
 
 .num {
   position: absolute;
-  top: 1px;
-  left: 2px;
-  font-size: max(7px, 0.42em);
+  top: 0;
+  left: 1px;
+  font-size: calc(var(--cellpx) * 0.28);
   font-weight: 500;
-  line-height: 1;
-  color: #5d6570;
+  line-height: 1.15;
+  color: var(--cell-num);
 }
 .letter { transform: translateY(0.06em); }
 
-/* The off-screen input that exists only to summon a phone's keyboard. It has
-   to be focusable and rendered, so it cannot be display:none or visibility
-   hidden — it is parked outside the viewport instead. */
-.kbd {
-  position: fixed;
-  left: -9999px;
-  top: 0;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  border: 0;
-  padding: 0;
-}
+/* --------------------------------------------------------------- cluebar */
 
-.current {
-  margin-top: 10px;
-  padding: 10px 12px;
+.cluebar {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 0 6px 6px;
+  /* The clue and the keyboard are thumb furniture. On a wide screen letting
+     them run the full width makes a phone app look like a stretched phone app,
+     so they are capped and centred under the grid instead. */
+  width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
+}
+.cluetext {
+  flex: 1;
+  min-width: 0;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 8px;
-  min-height: 2.6em;
+  border-radius: 10px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* Fixed height on purpose: this screen does not scroll, so the clue may not
+     be allowed to push the keyboard around as the selection moves. Two lines,
+     then an ellipsis. */
+  min-height: 64px;
+}
+.cluenum {
+  flex: none;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.cluebody {
+  min-width: 0;
   font-size: 15px;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
-
-.toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
-.timer {
-  margin-left: auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+.step {
+  appearance: none;
+  flex: none;
+  width: 34px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
   color: var(--dim);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
 }
-.meta { color: var(--dim); font-size: 12px; margin: 10px 0 0; }
+.step:active { background: var(--panel-2); }
+
+/* -------------------------------------------------------------- keyboard */
+
+.keyboard {
+  flex: none;
+  display: grid;
+  gap: 6px;
+  padding: 0 5px 6px;
+  width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+.krow { display: flex; gap: 5px; justify-content: center; }
+.key {
+  appearance: none;
+  flex: 1 1 0;
+  min-width: 0;
+  /* Big enough for a thumb, small enough that three rows plus a grid fit on a
+     short phone in landscape. */
+  height: clamp(38px, 6.6vh, 60px);
+  border: 0;
+  border-radius: 7px;
+  background: var(--key);
+  color: var(--key-ink);
+  font: 600 17px/1 inherit;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+@media (prefers-color-scheme: light) { .key { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16); } }
+.key:active, .key.down { background: var(--accent); color: #10131a; }
+.key.wide { flex: 1.45 1 0; font-size: 15px; }
 
 /* ----------------------------------------------------------------- clues */
 
-.clues { display: grid; gap: 16px; }
-@media (min-width: 560px) and (max-width: 899px) { .clues { grid-template-columns: 1fr 1fr; } }
+.pane-list { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.listinner { padding: 6px 10px 24px; }
 
-.cluelist h2 {
-  font-size: 13px;
+.listhead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 10px 0 4px;
+  padding: 6px 2px;
+  background: var(--bg);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
   color: var(--dim);
-  margin: 0 0 6px;
 }
-.cluelist ol {
-  margin: 0;
-  padding: 0 0 0 2.4em;
-  max-height: 40vh;
-  overflow-y: auto;
-}
-@media (min-width: 900px) { .cluelist ol { max-height: 44vh; } }
-.cluelist li {
-  padding: 3px 6px 3px 2px;
-  cursor: pointer;
-  border-radius: 5px;
-  font-size: 14px;
-}
-.cluelist li::marker { color: var(--dim); font-variant-numeric: tabular-nums; }
-.cluelist li:hover { background: var(--panel-2); }
-.cluelist li.active { background: var(--cell-active); color: #1b1d21; }
-.cluelist li.noclue { color: var(--dim); font-style: italic; }
+.listhead:first-child { margin-top: 0; }
 
-/* ------------------------------------------------------------------ rest */
-
-.done {
-  margin-top: 14px;
-  padding: 12px 14px;
-  border: 1px solid var(--accent);
+.entry {
+  display: block;
+  width: 100%;
+  text-align: left;
+  appearance: none;
+  border: 1px solid transparent;
   border-radius: 10px;
-  background: var(--panel);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 7px 8px;
+  cursor: pointer;
+}
+.entry + .entry { margin-top: 2px; }
+.entry.active { background: var(--panel); border-color: var(--accent); }
+.entry.filled .eclue { color: var(--dim); }
+
+.eclue { display: flex; gap: 8px; align-items: baseline; font-size: 14.5px; line-height: 1.3; }
+.enum { flex: none; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+
+/* The answer's squares, directly under its clue, showing what the grid holds
+   right now — the whole point of this view. Capped at 26px so a 15-letter
+   entry is not a ruler, and allowed to shrink below that on a narrow phone. */
+.eboxes {
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 26px));
+  gap: 2px;
+  margin: 5px 0 0 26px;
+}
+.ebox {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  background: var(--cell);
+  color: var(--cell-ink);
+  border-radius: 2px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  /* Without an edge these run together into one beige bar: the gap between
+     them is the page background, which in the light theme is nearly the same
+     colour as the paper. */
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+.ebox.bad { color: var(--bad); text-decoration: line-through; }
+
+/* ---------------------------------------------------- status and solved */
+
+.status {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  text-align: center;
+  background: var(--bg);
+  color: var(--dim);
+  z-index: 3;
+}
+.spinner {
+  width: 16px; height: 16px; flex: none;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+
+.solved {
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  z-index: 4;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #10131a;
+  font-size: 14px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
 }
 
-.about {
-  margin-top: 32px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
-  color: var(--dim);
-  font-size: 14px;
-  max-width: 62ch;
+/* -------------------------------------------------------------- settings */
+
+.scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 8; }
+
+.sheet {
+  position: fixed;
+  z-index: 9;
+  right: 8px;
+  top: calc(env(safe-area-inset-top) + 54px);
+  width: min(340px, calc(100vw - 16px));
+  max-height: calc(100dvh - 70px);
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  display: grid;
+  gap: 10px;
 }
-.about h2 { font-size: 14px; color: var(--ink); margin: 0 0 8px; }
-.about em { color: var(--ink); font-style: normal; }
+
+.sheetgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.act {
+  appearance: none;
+  padding: 11px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel-2);
+  color: var(--ink);
+  font: 600 15px/1 inherit;
+  cursor: pointer;
+}
+.act:active { border-color: var(--accent); }
+.act.primary { background: var(--accent); color: #10131a; border-color: transparent; }
+
+.sheet hr { border: 0; border-top: 1px solid var(--line); margin: 2px 0; }
+
+.field { display: flex; align-items: center; gap: 8px; }
+/* A grid item's min-width is `auto`, not 0, so a row whose contents have an
+   intrinsic minimum refuses to shrink and hangs off the side of a phone. */
+.sheet > * { min-width: 0; }
+.field label { flex: none; width: 68px; font-size: 13px; color: var(--dim); }
+.field select, .field input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  background: var(--panel-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 10px;
+  font: inherit;
+  font-size: 15px;
+}
+.field input[type="text"] { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+.ghost {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.ghost.tiny { flex: none; width: 38px; height: 38px; font-size: 16px; }
+
+.meta { color: var(--dim); font-size: 11.5px; margin: 0; line-height: 1.4; }
+.fineprint { color: var(--dim); font-size: 11.5px; margin: 0; line-height: 1.4; }
+.fineprint em { color: var(--ink); font-style: normal; }
+
+/* On a wide screen the puzzle and the clues can both be on the tab that is
+   showing, so the Clues tab becomes two columns rather than one long list. */
+@media (min-width: 820px) {
+  .listinner { columns: 2; column-gap: 28px; max-width: 1000px; margin: 0 auto; }
+  .listhead { break-after: avoid; }
+  .entry { break-inside: avoid; }
+}
