@@ -1,0 +1,94 @@
+ZAG		An angular shape characterized by sharp turns in alternating directions
+ZAGS	pl	An angular shape characterized by sharp turns in alternating directions
+ZAIRE		A republic in central Africa
+ZANY		A buffoon in one of the old comedies
+ZAP		A sudden event that imparts energy or excitement, usually with a dramatic impact
+ZAPPED	irr	Strike suddenly and with force
+ZAPPER		An electrical device that can injure or kill by means of electric currents
+ZAPPING	irr	Strike suddenly and with force
+ZAPS	pl	A sudden event that imparts energy or excitement, usually with a dramatic impact
+ZEAL		A feeling of strong eagerness
+ZEALOT		A member of an ancient Jewish sect in Judea in the first century who fought to the death…
+ZEALOTRY		Excessive intolerance of opposing views
+ZEALOTS	pl	A member of an ancient Jewish sect in Judea in the first century who fought to the death…
+ZEALOUS		Marked by active interest and enthusiasm
+ZEALOUSLY		In a ___ manner
+ZEBRA		Any of several fleet black-and-white striped African equines
+ZEBRAS	pl	Any of several fleet black-and-white striped African equines
+ZED		The 26th letter of the Roman alphabet
+ZEE		The 26th letter of the Roman alphabet
+ZEITGEIST		The spirit of the time
+ZENITH		The point above the observer that is directly opposite the nadir on the imaginary sphere…
+ZEOLITE		Any of a family of glassy minerals analogous to feldspar containing hydrated aluminum…
+ZEOLITES	pl	Any of a family of glassy minerals analogous to feldspar containing hydrated aluminum…
+ZEPHYR		A slight wind
+ZEPHYRS	pl	A slight wind
+ZEPPELIN		German inventor who designed and built the first rigid motorized dirigible
+ZERO		A quantity of no importance
+ZEROED	past	Adjust to ___ value
+ZEROES	irr	A quantity of no importance
+ZEROING	ing	Adjust to ___ value
+ZEROS	pl	A quantity of no importance
+ZEROTH		Preceding even the first
+ZEST		Vigorous and enthusiastic enjoyment
+ZESTY		Having an agreeably pungent taste
+ZETA		The 6th letter of the Greek alphabet
+ZIDOVUDINE		An antiviral drug used in the treatment of AIDS
+ZIG		An angular shape characterized by sharp turns in alternating directions
+ZIGGURAT		A rectangular tiered temple or terraced mound erected by the ancient Assyrians and…
+ZIGZAG		An angular shape characterized by sharp turns in alternating directions
+ZILCH		A quantity of no importance
+ZILLION		A very large indefinite number
+ZILLIONS	pl	A very large indefinite number
+ZINC		A bluish-white lustrous metallic element
+ZINFANDEL		Small black grape grown chiefly in California
+ZING		A brief high-pitched buzzing or humming sound
+ZINGER		A striking or amusing or caustic remark
+ZINNIA		Any of various plants of the genus ___ cultivated for their variously and brightly…
+ZINNIAS	pl	Any of various plants of the genus ___ cultivated for their variously and brightly…
+ZIP		A quantity of no importance
+ZIPPED	irr	Move very fast
+ZIPPER		A fastener for locking together two toothed edges by means of a sliding tab
+ZIPPERED	past	Close with a ___
+ZIPPERS	pl	A fastener for locking together two toothed edges by means of a sliding tab
+ZIPPING	irr	Move very fast
+ZIPPY		Quick and energetic
+ZIPS	pl	A quantity of no importance
+ZIRCON		A common mineral occurring in small crystals
+ZIRCONIA		A white crystalline oxide
+ZIRCONIUM		A lustrous grey strong metallic element resembling titanium
+ZIT		A small inflamed elevation of the skin
+ZITHER		A musical stringed instrument with strings stretched over a flat sounding board
+ZITI		Medium-sized tubular pasta in short pieces
+ZITS	pl	A small inflamed elevation of the skin
+ZLOTY		The basic unit of money in Poland
+ZLOTYS	pl	The basic unit of money in Poland
+ZODIAC		A belt-shaped region in the heavens on either side to the ecliptic
+ZODIACAL		Relating to or included in the ___
+ZODIACS	pl	A belt-shaped region in the heavens on either side to the ecliptic
+ZOMBI		A spirit or supernatural force that reanimates a dead body
+ZOMBIE		A dead body that has been brought back to life by a supernatural force
+ZOMBIES	pl	A dead body that has been brought back to life by a supernatural force
+ZONAL		Relating to or of the nature of a zone
+ZONE		A locally circumscribed place characterized by some distinctive features
+ZONED	past	Regulate housing in
+ZONES	pl	A locally circumscribed place characterized by some distinctive features
+ZONING		Dividing an area into zones or sections reserved for different purposes such as residence…
+ZOO		The facility where wild animals are housed for exhibition
+ZOOLOGICAL		Concerning the study of animals and their classification and properties
+ZOOLOGIST		A specialist in the branch of biology dealing with animals
+ZOOLOGISTS	pl	A specialist in the branch of biology dealing with animals
+ZOOLOGY		All the animal life in a particular region or period
+ZOOM		Move along very quickly
+ZOOMED	past	Move along very quickly
+ZOOMING	ing	Move along very quickly
+ZOOMS	pl	A rapid rise
+ZOONOSES	irr	An animal disease that can be transmitted to humans
+ZOONOTIC		Of or relating to or constituting zoonosis
+ZOOPLANKTON		Animal constituent of plankton
+ZOOS	pl	The facility where wild animals are housed for exhibition
+ZOSTER		Eruptions along a nerve path often accompanied by severe neuralgia
+ZUCCHINI		Marrow squash plant whose fruit are eaten when small
+ZYDECO		Music of southern Louisiana that combines French dance melodies with Caribbean music and…
+ZYGOTE		The diploid cell resulting from the union of a haploid spermatozoon and ovum
+ZYGOTIC		Of or relating to a ___

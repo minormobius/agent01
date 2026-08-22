@@ -1,0 +1,121 @@
+YACHT		An expensive vessel propelled by sail or power and used for cruising or racing
+YACHTING		Water travel for pleasure
+YACHTS	pl	An expensive vessel propelled by sail or power and used for cruising or racing
+YACHTSMAN		A person who owns or sails a yacht
+YAGI		A sharply directional antenna
+YAHOO		A person who is not very intelligent or interested in culture
+YAHOOS	pl	A person who is not very intelligent or interested in culture
+YAK		Large long-haired wild ox of Tibet often domesticated
+YAKS	pl	Large long-haired wild ox of Tibet often domesticated
+YAM		Any of a number of tropical vines of the genus Dioscorea many having edible tuberous roots
+YAMS	pl	Any of a number of tropical vines of the genus Dioscorea many having edible tuberous roots
+YANG		The bright positive masculine principle in Chinese dualistic cosmology
+YANK		An American who lives in the North
+YANKED	past	Pull, or move with a sudden movement
+YANKING	ing	Pull, or move with a sudden movement
+YANKS	pl	An American who lives in the North
+YAP		Bark in a high-pitched tone
+YAPPING	irr	Bark in a high-pitched tone
+YARD		A unit of length equal to 3 feet
+YARDAGE		Distance measured in the aggregate number of yards
+YARDBIRDS	pl	A military recruit who is assigned menial tasks
+YARDS	pl	A unit of length equal to 3 feet
+YARDSTICK		A measure or standard used for comparison
+YARN		The act of giving an account describing incidents or a course of events
+YARNS	pl	The act of giving an account describing incidents or a course of events
+YARROW		Ubiquitous strong-scented mat-forming Eurasian herb of wasteland, hedgerow or pasture…
+YAW		An erratic deflection from an intended course
+YAWL		A ship's small boat
+YAWN		An involuntary intake of breath through a wide open mouth
+YAWNED	past	Be wide open
+YAWNING		Gaping open as if threatening to engulf someone or something
+YAWNS	pl	An involuntary intake of breath through a wide open mouth
+YAY		A branch of the Tai languages
+YEA		Not only so, but
+YEAH		Not only so, but
+YEAR		A period of time containing 365 days
+YEARBOOK		A book published annually by the graduating class of a high school or college usually…
+YEARBOOKS	pl	A book published annually by the graduating class of a high school or college usually…
+YEARLING		A young child
+YEARLINGS	pl	A young child
+YEARLONG		Lasting through a year
+YEARLY		Occurring or payable every year
+YEARN		Desire strongly or persistently
+YEARNED	past	Desire strongly or persistently
+YEARNING		Prolonged unfulfilled desire or need
+YEARNINGS	pl	Prolonged unfulfilled desire or need
+YEARNS	3sg	Desire strongly or persistently
+YEARS		A late time of life
+YEAST		Any of various single-celled fungi that reproduce asexually by budding or division
+YEASTS	pl	Any of various single-celled fungi that reproduce asexually by budding or division
+YELL		Utter a sudden loud cry
+YELLED		In a vehement outcry
+YELLER		Someone who communicates vocally in a very loud voice
+YELLING		Uttering a loud inarticulate cry as of pain or excitement
+YELLOW		Of the color intermediate between green and orange in the color spectrum
+YELLOWED		Changed to a ___ color by age
+YELLOWFIN		May reach 400 pounds
+YELLOWISH		Of the color intermediate between green and orange in the color spectrum
+YELLOWLEGS		Either of two North American shorebird with yellow legs
+YELLOWS	pl	___ color or pigment
+YELLOWTAIL		Superior food fish of the tropical Atlantic and Caribbean with broad yellow stripe along…
+YELLS	pl	A loud utterance
+YELP		Bark in a high-pitched tone
+YELPED	past	Bark in a high-pitched tone
+YEN		A yearning for something or to do something
+YENTA		A vulgar shrew
+YEOMAN		Officer in the bodyguard of the British monarch
+YEOMANRY		Class of small freeholders who cultivated their own land
+YEOMEN	pl	Officer in the bodyguard of the British monarch
+YESHIVA		An academy for the advanced study of Jewish texts
+YESTERDAY		The day immediately before today
+YESTERDAYS	pl	The day immediately before today
+YESTERYEAR		The time that has elapsed
+YET		Up to the present time
+YETI		A large hairy humanoid creature said to live in the Himalayas
+YEW		Any of numerous evergreen trees or shrubs having red cup-shaped berries and flattened…
+YIELD		Be the cause or source of
+YIELDED	past	Be the cause or source of
+YIELDING		Inclined to yield to argument or influence or control
+YIELDS	pl	Production of a certain amount
+YIN		The dark negative feminine principle in Chinese dualistic cosmology
+YIP		A sharp high-pitched cry
+YOB		A cruel and brutal fellow
+YOBS	pl	A cruel and brutal fellow
+YODEL		A songlike cry in which the voice fluctuates rapidly between the normal voice and falsetto
+YODELING		Singing by changing back and forth between the chest voice and a falsetto
+YOGA		Discipline aimed at training the consciousness for a state of perfect spiritual insight…
+YOGHURT		A custard-like food made from curdled milk
+YOGI		United States baseball player
+YOGIC		Of or relating to yoga
+YOGIS	pl	United States baseball player
+YOGURT		A custard-like food made from curdled milk
+YOGURTS	pl	A custard-like food made from curdled milk
+YOKE		Fabric comprising a fitted part at the top of a garment
+YOKED	past	Become joined or linked together
+YOKEL		A person who is not very intelligent or interested in culture
+YOKES	pl	Fabric comprising a fitted part at the top of a garment
+YOLK		The yellow spherical part of an egg that is surrounded by the albumen
+YOLKS	pl	The yellow spherical part of an egg that is surrounded by the albumen
+YON		Distant but within sight
+YONDER		Distant but within sight
+YORE		Time long past
+YOUNG		In an early period of life or development or growth
+YOUNGER		Used of the ___ of two persons of the same name especially used to distinguish a son…
+YOUNGEST	irr	In an early period of life or development or growth
+YOUNGS	pl	Any immature animal
+YOUNGSTER		A young person of either sex
+YOUNGSTERS	pl	A young person of either sex
+YOUTH		A young person
+YOUTHFUL		Suggestive of youth
+YOUTHFULNESS		The freshness and vitality characteristic of a young person
+YOUTHS	pl	A young person
+YTTRIUM		A silvery metallic element that is common in rare-earth minerals
+YUAN		The basic unit of money in China
+YUCCA		Any of several evergreen plants of the genus ___ having usually tall stout stems and a…
+YULE		Period extending from Dec. 24 to Jan. 6
+YULETIDE		Period extending from Dec. 24 to Jan. 6
+YUMMY		Extremely pleasing to the sense of taste
+YUPPIE		A young upwardly mobile professional individual
+YUPPIES	pl	A young upwardly mobile professional individual
+YURT		A circular domed dwelling that is portable and self-supporting

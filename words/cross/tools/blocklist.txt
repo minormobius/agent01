@@ -1,0 +1,159 @@
+# Words that must never be a crossword answer, whatever the lexicon says.
+#
+# ENABLE is a Scrabble word list: it takes a word's existence as the only
+# question. A puzzle is different — an answer is something the site ASSERTS at
+# a solver, in a box, with a clue pointing at it, and there is no version of
+# this site where that should be a slur. WordNet marks a handful itself
+# ("(ethnic slur)", "(offensive)") and the builder honours those markers; this
+# file is the rest, which WordNet glosses neutrally or not at all.
+#
+# One base form per line, lowercase. The builder blocks the word AND anything
+# that resolves to it as a base, so `slur` covers `slurs` without listing both.
+# Comments and blank lines are ignored. Alphabetical, please.
+#
+# This is an editorial file, not a generated one. Adding to it is cheap and
+# rebuilding the lexicon after is one command; that is the intended workflow if
+# something gets through.
+
+# ethnic, national and religious slurs
+abo
+bohunk
+chinaman
+chink
+coolie
+coon
+dago
+darkie
+darky
+gook
+goy
+greaser
+gringo
+gyp
+gypped
+heeb
+honky
+hymie
+injun
+jap
+jewed
+kike
+mick
+negress
+negro
+nigger
+niggard
+niggardly
+paddy
+paki
+pickaninny
+polack
+quadroon
+redskin
+sambo
+shiksa
+spic
+spick
+squaw
+towelhead
+wetback
+wog
+wop
+yid
+zipperhead
+
+# sexual-orientation and gender slurs
+dyke
+fag
+faggot
+poof
+poofter
+queer
+shemale
+tranny
+
+# ableist slurs
+cretin
+cripple
+gimp
+imbecile
+midget
+mongoloid
+moron
+retard
+retarded
+spastic
+spaz
+
+# sexual and scatological vulgarity
+arse
+arsehole
+ass
+asshole
+bastard
+bitch
+blowjob
+bollocks
+boner
+bugger
+bukkake
+bullshit
+clit
+clitoris
+cock
+coitus
+copulate
+crap
+cum
+cunnilingus
+cunt
+dick
+dildo
+dong
+douche
+dyking
+ejaculate
+erection
+fellatio
+felch
+fuck
+handjob
+horny
+jerkoff
+jism
+jizz
+masturbate
+nigga
+nutsack
+orgasm
+penis
+piss
+poop
+porn
+pornography
+prick
+pube
+pubes
+pussy
+rimjob
+scat
+schlong
+scrotum
+semen
+shit
+skank
+slut
+smegma
+sodomy
+sperm
+spunk
+testicle
+tit
+tits
+titties
+titty
+turd
+twat
+vagina
+wank
+whore
