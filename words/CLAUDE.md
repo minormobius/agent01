@@ -285,6 +285,20 @@ against each other and measures what the hazards actually do to a game. Read it
 after moving any number in `board.js` or `ai.js`. It is not a pass/fail gate and
 it does not run in CI.
 
+## What is public
+
+`assets.directory` is `.` — **this whole directory is internet-facing**, and
+`.assetsignore` is the only thing that is not. That file is not tidiness; it is
+the access control. It was found to be under-specified after the crossword
+deploy: wrangler writes its bundle and a **full source map** into
+`.wrangler/tmp/deploy-<random>/` while deploying, that directory was inside
+`assets.directory`, and so every deploy published another permanently reachable
+copy of the server's source map. `worker.js` itself was served too.
+
+Ignoring a path there does not affect the worker — `main` is bundled
+separately. Before adding a file to this directory, ask whether the browser
+fetches it; if not, it belongs in `.assetsignore`.
+
 ## Deploying
 
 Pushes to `claude/procedural-crossword-generation-p8hv2q` that touch this surface's paths

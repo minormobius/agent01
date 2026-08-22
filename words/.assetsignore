@@ -20,3 +20,19 @@ cross/tools/
 # cross/dict/clues/*.txt are read by the worker through the ASSETS binding —
 # an asset the worker cannot fetch is a puzzle with no clues.
 cross/dict/MANIFEST.json
+
+# SERVER-ONLY CODE, and a real leak until this was added. `assets.directory` is
+# this whole dir, so anything here that is not ignored is published — and that
+# included the worker itself, plus the bundle and FULL SOURCE MAP wrangler
+# writes into .wrangler/tmp while deploying. The temp directory is named
+# randomly per deploy, so every deploy was leaving another copy of the server's
+# source map in the asset manifest, permanently reachable:
+#
+#     https://words.mino.mobi/.wrangler/tmp/deploy-XXXXXX/worker.js.map   200
+#
+# Ignoring `worker.js` here does NOT unhook the worker: `main` in
+# wrangler.jsonc is bundled separately, and .assetsignore only governs what is
+# uploaded as a STATIC ASSET. Nothing in the browser fetches either path.
+worker.js
+lib/
+.wrangler/
