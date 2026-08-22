@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QGOL — Conway's Game of QWOP</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #04080c;
+    --fg: #d8dde2;
+    --dim: #6a727b;
+    --border: #16202b;
+    --birth: #4fc6a0; --lonely: #6aa8f0; --crowded: #f0655a; --commit: #f0b03c;
+  }
+  * { box-sizing: border-box; }
+
+  /* Same no-highlight rules as the other games on this surface: on a touch
+     screen every tap of an operator key would otherwise flash a grey box over
+     it, and tapping four buttons in sequence drag-selects the labels and pops
+     the long-press callout. `manipulation` also kills the 300 ms
+     double-tap-to-zoom delay. */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  html { touch-action: manipulation; }
+  #notes, #notes * { user-select: text; -webkit-user-select: text; }
+
+  html, body {
+    margin: 0; padding: 0; min-height: 100%;
+    background: var(--bg); color: var(--fg);
+    font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: contain;
+  }
+  a { color: #78e6bc; }
+
+  header {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 12px 18px 10px; border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    margin: 0; font-size: 13px; font-weight: 600;
+    letter-spacing: 0.18em; text-transform: uppercase; color: #78e6bc;
+  }
+  header .sub { color: var(--dim); font-size: 11px; }
+
+  #stage { position: relative; margin: 12px auto 0; max-width: 1100px; padding: 0 18px; }
+
+  #tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+  #tabs button {
+    flex: 0 0 auto; padding: 6px 16px; border-radius: 4px;
+    border: 1px solid var(--border); background: #0a1119; color: var(--dim);
+    font: inherit; cursor: pointer; letter-spacing: 0.08em;
+  }
+  #tabs button[aria-selected="true"] { color: #78e6bc; border-color: #2c4a41; background: #0d1a17; }
+
+  #wrap {
+    position: relative; border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; background: #050d14;
+  }
+  #board { display: block; width: 100%; height: min(52vh, 470px); touch-action: none; }
+  #trace { display: block; width: 100%; height: 72px; border-top: 1px solid var(--border); }
+
+  #hud {
+    display: flex; flex-wrap: wrap; gap: 4px 18px; padding: 8px 12px;
+    border-top: 1px solid var(--border); color: var(--dim); font-size: 11px;
+    background: #070f16;
+  }
+  #hud b { color: var(--fg); font-weight: 600; }
+  #hud .warn { color: var(--commit); }
+
+  /* ---- operator pad ----------------------------------------------------
+     Unlike the cilia pads on /qwop/ and /graze/ these are taps, not holds: an
+     operator is an event, not a state, so there is nothing to keep down. */
+  #pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+  #pad button {
+    touch-action: none;
+    height: 70px; margin: 0; padding: 4px;
+    border-radius: 8px; border: 2px solid;
+    background: #0d1620; font-size: 19px; font-weight: 600;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    cursor: pointer;
+    transition: background 60ms linear, transform 60ms linear;
+  }
+  #pad button .sub { display: block; font-size: 9px; opacity: 0.8; font-weight: 400; letter-spacing: 0.02em; }
+  #pad button.b { color: var(--birth); border-color: var(--birth); }
+  #pad button.l { color: var(--lonely); border-color: var(--lonely); }
+  #pad button.c { color: var(--crowded); border-color: var(--crowded); }
+  #pad button.k { color: var(--commit); border-color: var(--commit); }
+  #pad button[data-on="1"] { color: #06101a; transform: translateY(2px); }
+  #pad button.b[data-on="1"] { background: var(--birth); }
+  #pad button.l[data-on="1"] { background: var(--lonely); }
+  #pad button.c[data-on="1"] { background: var(--crowded); }
+  #pad button.k[data-on="1"] { background: var(--commit); }
+
+  #controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+  #controls select, #controls button {
+    background: #14202b; color: var(--fg); border: 1px solid var(--border);
+    padding: 7px 14px; border-radius: 4px; cursor: pointer; font: inherit;
+  }
+  #controls button:hover, #controls select:hover { background: #1c2b39; }
+  #controls .lab { color: var(--dim); }
+
+  .overlay {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px; text-align: center;
+    background: rgba(4, 10, 16, 0.88); padding: 24px;
+  }
+  .overlay[hidden] { display: none; }
+  .overlay h2 { margin: 0; font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase; color: #78e6bc; }
+  .overlay p { margin: 2px 0; color: var(--dim); max-width: 62ch; }
+  .overlay .big { font-size: 24px; color: var(--fg); letter-spacing: 0.04em; }
+  .overlay button {
+    background: #14202b; color: var(--fg); border: 1px solid var(--border);
+    padding: 7px 18px; border-radius: 4px; cursor: pointer; font: inherit; margin-top: 6px;
+  }
+
+  #notes { padding: 18px 18px 48px; max-width: 78ch; margin: 0 auto; color: var(--dim); }
+  #notes h3 {
+    color: var(--fg); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    margin: 22px 0 6px; border-bottom: 1px solid var(--border); padding-bottom: 4px;
+  }
+  #notes p { margin: 7px 0; }
+  #notes code { color: #78e6bc; background: #14202b; padding: 1px 4px; border-radius: 2px; }
+  #notes table { border-collapse: collapse; margin: 8px 0; font-size: 11px; width: 100%; }
+  #notes th, #notes td { text-align: left; padding: 4px 10px 4px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  #notes th { color: var(--fg); font-weight: 600; }
+  .k { font-weight: 600; }
+  .k.b { color: var(--birth); } .k.l { color: var(--lonely); }
+  .k.c { color: var(--crowded); } .k.k { color: var(--commit); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>QGOL</h1>
+  <span class="sub">Conway's Game of QWOP — a generation, split across four keys</span>
+</header>
+
+<div id="stage">
+  <div id="tabs" role="tablist">
+    <button id="tab-drive" role="tab" aria-selected="true">DRIVE</button>
+    <button id="tab-show" role="tab" aria-selected="false">SHOWCASE</button>
+  </div>
+
+  <div id="wrap">
+    <canvas id="board"></canvas>
+    <canvas id="trace"></canvas>
+    <div id="hud"></div>
+
+    <div class="overlay" id="intro">
+      <h2>Three keys are the rule. The fourth is the clock.</h2>
+      <p><span class="k b">Q</span> marks every dead cell with exactly three
+      neighbours. <span class="k l">W</span> marks every live cell with fewer
+      than two. <span class="k c">O</span> marks every live cell with more than
+      three. None of them touch the board.</p>
+      <p><span class="k k">P</span> applies every mark at once. That is a
+      generation.</p>
+      <p>Press <b>Q W O P</b> and you have run Conway exactly. Leave one out and
+      you have run something else. This soup is one Conway kills —
+      <b id="intro-dies">—</b>. Keep it alive and changing for longer than that.</p>
+      <button id="start">press any key to begin</button>
+    </div>
+
+    <div class="overlay" id="over" hidden>
+      <h2 id="over-title">Extinct</h2>
+      <div class="big" id="over-score">0 generations</div>
+      <p id="over-line"></p>
+      <p id="over-tip"></p>
+      <button id="again">press SPACE to try again</button>
+    </div>
+  </div>
+
+  <div id="pad" role="group" aria-label="operators">
+    <button class="b" data-op="birth" type="button" aria-label="mark births">Q<span class="sub">mark births</span></button>
+    <button class="l" data-op="lonely" type="button" aria-label="mark the lonely">W<span class="sub">mark lonely</span></button>
+    <button class="c" data-op="crowded" type="button" aria-label="mark the crowded">O<span class="sub">mark crowded</span></button>
+    <button class="k" data-op="commit" type="button" aria-label="commit">P<span class="sub">commit</span></button>
+  </div>
+
+  <div id="controls" hidden>
+    <span class="lab">controller</span>
+    <select id="pick"></select>
+    <button id="play" type="button">pause</button>
+    <button id="restart" type="button">restart</button>
+    <button id="seed" type="button">next soup</button>
+  </div>
+</div>
+
+<div id="notes">
+  <h3>The problem this is a solution to</h3>
+  <p>A generation of Life is one button. To make a QWOP out of it you have to
+  split that button four ways so the player is working the machinery underneath
+  the abstraction rather than pressing <em>step</em> — and the obvious splits
+  all fail the same way.</p>
+  <p>Splitting the <strong>ruleset</strong> — Q turns on extra birth conditions,
+  W removes survival conditions — makes the keys into rule-modifier switches.
+  That is a rule editor, not a mechanism. And every attempt to give a key to
+  <strong>survivals</strong> produces one key with nothing to do, because in
+  Life survival is not an operation. It is what happens to a cell when nothing
+  is done to it. There is no work behind that button.</p>
+  <p>The way out is to notice that what makes Life <em>Life</em> is not any of
+  its four clauses. It is <strong>simultaneity</strong>. Every birth and death
+  in a generation is computed from the same frozen snapshot and applied at once;
+  evaluate them one at a time against a board that is already changing and you
+  get a different automaton. So simultaneity is the thing worth a key, and the
+  split is three <strong>marks</strong> and one <strong>commit</strong>:</p>
+  <table>
+    <tr><th>key</th><th>does</th><th>touches the board?</th></tr>
+    <tr><td><span class="k b">Q</span></td><td>mark every dead cell with exactly 3 live neighbours</td><td>no</td></tr>
+    <tr><td><span class="k l">W</span></td><td>mark every live cell with fewer than 2</td><td>no</td></tr>
+    <tr><td><span class="k c">O</span></td><td>mark every live cell with more than 3</td><td>no</td></tr>
+    <tr><td><span class="k k">P</span></td><td>apply every mark at once, wipe the ledger</td><td><strong>yes</strong></td></tr>
+  </table>
+  <p>Because marking never mutates anything, all three marks see the same
+  unchanged board however you interleave them, and <strong>Q W O P is exactly
+  one generation of B3/S23</strong> — not an approximation of it. The selftest
+  checks that cell for cell against an independent implementation across 600
+  random generations, checks that all six orderings of the marks agree, and
+  checks that a glider displaces exactly (1,1) every four generations.</p>
+  <p>The fourth key is not a fourth rule clause. Three of the keys are the rule;
+  the fourth is the clock. Which is also why the ledger is worth looking at: the
+  coloured cells on screen are <em>condemned but still alive</em>, and the green
+  pips are <em>not alive yet</em>. In ordinary Life there is no moment at which
+  that state exists.</p>
+
+  <h3>What the subsets do</h3>
+  <p>Order inside a generation is irrelevant. <em>Which</em> operators you
+  include is everything.</p>
+  <table>
+    <tr><th>you press</th><th>you get</th></tr>
+    <tr><td><span class="k b">Q</span> <span class="k k">P</span></td><td>births with nothing dying — runaway growth</td></tr>
+    <tr><td><span class="k l">W</span> <span class="k c">O</span> <span class="k k">P</span></td><td>a filter, not an executioner — see below</td></tr>
+    <tr><td><span class="k b">Q</span> <span class="k l">W</span> <span class="k k">P</span></td><td>Life with no overcrowding — explosive</td></tr>
+    <tr><td><span class="k b">Q</span> <span class="k c">O</span> <span class="k k">P</span></td><td>Life with no loneliness — sparse and stringy</td></tr>
+    <tr><td><span class="k b">Q</span> <span class="k l">W</span> <span class="k c">O</span> <span class="k k">P</span></td><td>Conway, exactly</td></tr>
+  </table>
+  <p>That second row is a correction. It said <em>guaranteed extinction</em>
+  until the selftest refused it: deaths-only settles on 13 cells and stays
+  there. With no births the population is monotone and bounded, so it must
+  reach a fixed point — and a fixed point is by definition a board where nothing
+  gets marked, which is to say where every live cell has two or three
+  neighbours. Deaths-only is a <strong>filter that extracts the S23 core</strong>
+  of whatever you hand it. A block survives it forever, because each of its
+  cells has exactly three neighbours. Extinction is what usually happens, not
+  what is guaranteed, and on 20 random boards none of the fixed points were
+  empty.</p>
+
+  <h3>DRIVE</h3>
+  <p>You are handed a soup that Conway kills, and the generation it dies at.
+  Beat it. There are two ways to lose and the second one is the interesting
+  one: <strong>extinction</strong>, and <strong>stasis</strong> — eight
+  consecutive commits that change nothing. A board frozen into still lifes has
+  a population and no life in it, so filling the grid and stopping is not a
+  win. Skill is visible in the <em>deviation</em> readout: the fewer generations
+  on which you departed from plain Conway, the better you played.</p>
+
+  <h3>SHOWCASE — the more interesting problem</h3>
+  <p>The hand-driven version is a minute's worth of game. The real question is
+  what a <em>program</em> can do with the same four operators: can a controller
+  that only chooses which of them to run each generation take a soup Conway
+  extinguishes and drive it into proliferation instead?</p>
+  <p>It can, and cheaply. The controller here — <code>mercy(low, drop)</code>,
+  the same function the experiment sweeps and this page animates — runs plain
+  Conway until the population falls below <code>low</code>, then suspends one or
+  both death operators until it recovers. It never adds a rule, never places a
+  cell, never touches the board. It only declines to enforce a clause, and only
+  when things are already desperate.</p>
+  <p>Swept over six soups Conway kills, 600 generations each:</p>
+  <table>
+    <tr><th>mercy</th><th>below</th><th>survived</th><th>final pop</th><th>activity</th><th>deviated on</th></tr>
+    <tr><td>lonely</td><td>8</td><td>6/6</td><td>16</td><td>7.2</td><td>33%</td></tr>
+    <tr><td><strong>lonely</strong></td><td><strong>16</strong></td><td><strong>6/6</strong></td><td><strong>74</strong></td><td><strong>44.6</strong></td><td><strong>1%</strong></td></tr>
+    <tr><td>lonely</td><td>32</td><td>6/6</td><td>127</td><td>89.1</td><td>1%</td></tr>
+    <tr><td>crowded</td><td>8</td><td>0/6</td><td>0</td><td>21.6</td><td>12%</td></tr>
+    <tr><td>crowded</td><td>16</td><td>3/6</td><td>4</td><td>12.0</td><td>55%</td></tr>
+    <tr><td>crowded</td><td>32</td><td>3/6</td><td>6</td><td>10.4</td><td>83%</td></tr>
+    <tr><td>both</td><td>8</td><td>6/6</td><td>12</td><td>1.3</td><td>33%</td></tr>
+    <tr><td>both</td><td>16</td><td>6/6</td><td>65</td><td>35.4</td><td>14%</td></tr>
+    <tr><td>both</td><td>32</td><td>6/6</td><td>147</td><td>90.2</td><td>2%</td></tr>
+  </table>
+  <p>Rescuing every doomed soup costs <strong>one generation in a
+  hundred</strong>. On the other ninety-nine the automaton is running unmodified
+  Conway. That is the result worth having: not that you can keep a board alive
+  by overriding it — anyone can, by never running a death operator — but that
+  an intervention this thin is enough, if it is aimed correctly.</p>
+  <p>And it has to be aimed. The striking row is <strong>crowded</strong>:
+  suspending overcrowding rescues <em>nothing</em>, and does it while
+  intervening twelve times as often as the controller that rescues everything.
+  More meddling, worse outcome. Dying soups are not dying of overcrowding —
+  they are thinning out and fragmenting, and the clause that is killing them is
+  loneliness. Mercy that is not aimed at the actual cause of death is not
+  gentler, it is just noise, and it costs the automaton its ability to prune.</p>
+  <p>The floor of the trace shows an amber tick on every generation the
+  controller deviated. A rescue that works looks almost empty down there. The
+  ghost line is the same soup under plain Conway, with the generation it died
+  at marked; the dashed line near the top is 70% saturation, the point at which
+  &ldquo;still alive&rdquo; would stop meaning anything.</p>
+
+  <h3>Honestly</h3>
+  <p>Six doomed soups is a small sample, chosen as the first six seeds under
+  400 that Conway extinguishes at this board size — not cherry-picked, but not
+  a survey either. The world is a 64&times;48 torus; a closed world with a
+  carrying capacity is the right shape for asking whether a population lives or
+  dies, since on an unbounded plane &ldquo;growth&rdquo; can always be answered
+  by running away. The <em>activity</em> and <em>saturation</em> gates exist
+  because without them the experiment is trivially winnable, and I would rather
+  say that than let the result look stronger than it is.</p>
+  <p>This page shares no physics with the rest of the surface — no cilia, no
+  <em>Pterosperma</em>, nothing measured. It is here because it is the same
+  four keys: <a href="../qwop/">/qwop/</a> and <a href="../graze/">/graze/</a>
+  put Q W O P on a real swimmer, and this one puts them on a rule.</p>
+</div>
+
+<script type="module">
+  import {
+    createWorld, soup, applyOp, step, activity, findDoomed,
+    mercy, stepControlled, CONWAY,
+  } from './life.js';
+  import { drawBoard, drawTrace } from './draw.js';
+
+  const board = document.getElementById('board');
+  const traceCnv = document.getElementById('trace');
+  const hud = document.getElementById('hud');
+  const pad = document.getElementById('pad');
+  const controls = document.getElementById('controls');
+  const intro = document.getElementById('intro');
+  const over = document.getElementById('over');
+
+  let mode = 'drive';
+  let flash = 0;
+
+  // ---------------------------------------------------------------- DRIVE --
+  const DW = 44, DH = 30;
+  const drive = {
+    world: null, seed: 0, conwayDies: 0, trace: [],
+    deviations: 0, still: 0, started: false, over: false, cause: '', best: 0,
+  };
+
+  // The soup has to be one Conway kills, or there is nothing to beat. Searching
+  // at page load costs a few milliseconds and buys a per-seed fair target: your
+  // score is against this exact board, not against a number I picked.
+  function newDriveSoup(from) {
+    const found = findDoomed(DW, DH, { gens: 400, density: 0.28, box: 12, from, limit: 400, count: 1 });
+    const pick = found[0] || { seed: from, diesAt: 0 };
+    drive.seed = pick.seed;
+    drive.conwayDies = pick.diesAt;
+    drive.world = soup(createWorld(DW, DH), { seed: pick.seed, density: 0.28, box: 12 });
+    drive.trace = [];
+    drive.deviations = 0;
+    drive.still = 0;
+    drive.over = false;
+    drive.cause = '';
+    drive.pending = new Set();
+    document.getElementById('intro-dies').textContent = `at generation ${pick.diesAt}`;
+  }
+
+  function driveOp(op) {
+    if (!drive.started || drive.over) return;
+    const w = drive.world;
+    if (op === 'commit') {
+      // Which marks were armed decides whether this generation was Conway.
+      if (drive.pending.size !== 3) drive.deviations++;
+      applyOp(w, 'commit');
+      drive.trace.push({ gen: w.generation, pop: w.population, ops: [...drive.pending], changed: w.lastCommitChanged });
+      drive.pending.clear();
+      flash = 1;
+      if (w.population === 0) { drive.over = true; drive.cause = 'extinct'; showOver(); return; }
+      drive.still = w.lastCommitChanged === 0 ? drive.still + 1 : 0;
+      if (drive.still >= 8) { drive.over = true; drive.cause = 'stasis'; showOver(); }
+    } else {
+      applyOp(w, op);
+      drive.pending.add(op);
+    }
+  }
+
+  const TIPS = [
+    'Marking is free and repeatable. Look at the ledger before you commit — the coloured cells are the ones about to go.',
+    'Q W O P every generation is plain Conway. Deviation is the score you want low, not high.',
+    'A board that has frozen into still lifes is dead too. Eight silent commits and the run ends.',
+    'The clause that kills a thinning soup is loneliness, not crowding. Leaving W out is the cheap mercy.',
+    'Q P alone fills the board fast — and a full board that stops changing loses anyway.',
+  ];
+
+  function showOver() {
+    drive.best = Math.max(drive.best, drive.world.generation);
+    const g = drive.world.generation;
+    document.getElementById('over-title').textContent =
+      drive.cause === 'stasis' ? 'The world stopped' : 'Extinct';
+    document.getElementById('over-score').textContent = `${g} generations`;
+    const beat = g > drive.conwayDies;
+    document.getElementById('over-line').textContent =
+      `Conway died at ${drive.conwayDies} — you ${beat ? 'beat it by ' + (g - drive.conwayDies) : 'fell short by ' + (drive.conwayDies - g)}`
+      + `   ·   deviated on ${(100 * drive.deviations / Math.max(1, drive.trace.length)).toFixed(0)}% of generations`
+      + `   ·   best ${drive.best}`;
+    document.getElementById('over-tip').textContent = TIPS[(Math.random() * TIPS.length) | 0];
+    over.hidden = false;
+  }
+
+  function resetDrive(fresh) {
+    if (fresh) newDriveSoup(1 + ((Math.random() * 3000) | 0));
+    else newDriveSoup(drive.seed);
+    drive.started = true;
+    over.hidden = true;
+    intro.hidden = true;
+  }
+
+  // ------------------------------------------------------------- SHOWCASE --
+  const SW = 64, SH = 48, SGENS = 600;
+  const CONTROLLERS = [
+    { id: 'conway', label: 'plain Conway (the control)', fn: CONWAY },
+    { id: 'l16', label: 'mercy: drop lonely below 16   ← cheapest that works', fn: mercy(16, 'lonely') },
+    { id: 'l8', label: 'mercy: drop lonely below 8', fn: mercy(8, 'lonely') },
+    { id: 'l32', label: 'mercy: drop lonely below 32', fn: mercy(32, 'lonely') },
+    { id: 'c8', label: 'mercy: drop crowded below 8   ← rescues nothing', fn: mercy(8, 'crowded') },
+    { id: 'c16', label: 'mercy: drop crowded below 16', fn: mercy(16, 'crowded') },
+    { id: 'b16', label: 'mercy: drop both below 16', fn: mercy(16, 'both') },
+    { id: 'b32', label: 'mercy: drop both below 32', fn: mercy(32, 'both') },
+  ];
+  const show = {
+    world: null, seed: 0, trace: [], baseline: [], conwayDies: 0,
+    ctrl: CONTROLLERS[1], playing: true, done: false, deviations: 0, seedFrom: 1,
+  };
+
+  const pick = document.getElementById('pick');
+  for (const c of CONTROLLERS) {
+    const o = document.createElement('option');
+    o.value = c.id; o.textContent = c.label;
+    pick.appendChild(o);
+  }
+  pick.value = show.ctrl.id;
+
+  function newShowSoup(from) {
+    const found = findDoomed(SW, SH, { gens: SGENS, density: 0.26, box: 12, from, limit: 400, count: 1 });
+    const p = found[0] || { seed: from, diesAt: 0, trace: [] };
+    show.seed = p.seed;
+    show.conwayDies = p.diesAt;
+    show.baseline = p.trace;          // the same soup under plain Conway
+    restartShow();
+  }
+  function restartShow() {
+    show.world = soup(createWorld(SW, SH), { seed: show.seed, density: 0.26, box: 12 });
+    show.trace = [];
+    show.deviations = 0;
+    show.done = false;
+    showAcc = 0;
+    showDoneAt = 0;
+  }
+
+  // Generations per second, held in WALL TIME rather than per frame. Stepping
+  // a fixed count per frame would tie the run's speed to the display: the same
+  // 600 generations would take 3.3 s on a 60 Hz panel and 1.7 s on a 120 Hz
+  // one, and the whole point of the trace is that two runs are comparable.
+  const SHOW_RATE = 150;
+  let showAcc = 0, showLast = 0, showDoneAt = 0;
+
+  function showTick(now) {
+    const dt = showLast ? Math.min(0.25, (now - showLast) / 1000) : 0;
+    showLast = now;
+    if (show.done) {
+      // Hold the finished run up for a moment, then go again — this is a
+      // showcase, and it should be watchable without touching anything.
+      if (!showDoneAt) showDoneAt = now;
+      else if (now - showDoneAt > 2500) { showDoneAt = 0; restartShow(); }
+      return;
+    }
+    if (!show.playing) return;
+    showAcc += dt * SHOW_RATE;
+    let budget = 400;                       // never let a stalled tab burn the CPU catching up
+    while (showAcc >= 1 && budget-- > 0) {
+      showAcc -= 1;
+      const e = stepControlled(show.world, show.ctrl.fn, show.trace);
+      if (e.ops.length !== 3) show.deviations++;
+      if (show.world.population === 0 || show.world.generation >= SGENS) { show.done = true; break; }
+    }
+    if (showAcc > 400) showAcc = 0;
+  }
+
+  // ------------------------------------------------------------------ HUD --
+  function paintHud() {
+    if (mode === 'drive') {
+      const w = drive.world;
+      const pend = drive.pending ? drive.pending.size : 0;
+      const dev = drive.trace.length ? (100 * drive.deviations / drive.trace.length).toFixed(0) : '0';
+      hud.innerHTML =
+        `gen <b>${w.generation}</b>`
+        + `<span>pop <b>${w.population}</b></span>`
+        + `<span>armed <b>${pend}/3</b></span>`
+        + `<span>deviation <b>${dev}%</b></span>`
+        + `<span>conway dies @<b>${drive.conwayDies}</b></span>`
+        + (drive.still > 0 ? `<span class="warn">still for ${drive.still}/8</span>` : '');
+    } else {
+      const w = show.world;
+      const dev = show.trace.length ? (100 * show.deviations / show.trace.length).toFixed(1) : '0.0';
+      const act = activity(show.trace, 40).toFixed(1);
+      const sat = (100 * w.population / (SW * SH)).toFixed(1);
+      const verdict = !show.done ? ''
+        : (w.population === 0
+          ? `<span class="warn">extinct at ${w.generation}</span>`
+          : `<span class="warn">alive at ${SGENS}</span>`);
+      hud.innerHTML =
+        `gen <b>${w.generation}</b>/${SGENS}`
+        + `<span>pop <b>${w.population}</b></span>`
+        + `<span>activity <b>${act}</b></span>`
+        + `<span>saturation <b>${sat}%</b></span>`
+        + `<span>deviation <b>${dev}%</b></span>`
+        + `<span>conway dies @<b>${show.conwayDies}</b></span>`
+        + verdict;
+    }
+  }
+
+  // ----------------------------------------------------------------- mode --
+  function setMode(m) {
+    mode = m;
+    document.getElementById('tab-drive').setAttribute('aria-selected', String(m === 'drive'));
+    document.getElementById('tab-show').setAttribute('aria-selected', String(m === 'show'));
+    pad.hidden = m !== 'drive';
+    controls.hidden = (m === 'drive');
+    traceCnv.style.display = m === 'show' ? 'block' : 'none';
+    intro.hidden = m !== 'drive' || drive.started;
+    over.hidden = m !== 'drive' || !drive.over;
+    if (m === 'show' && !show.world) newShowSoup(1);
+  }
+  document.getElementById('tab-drive').onclick = () => setMode('drive');
+  document.getElementById('tab-show').onclick = () => setMode('show');
+
+  document.getElementById('play').onclick = (e) => {
+    show.playing = !show.playing;
+    e.target.textContent = show.playing ? 'pause' : 'play';
+  };
+  document.getElementById('restart').onclick = () => restartShow();
+  document.getElementById('seed').onclick = () => newShowSoup(show.seed + 1);
+  pick.onchange = () => {
+    show.ctrl = CONTROLLERS.find((c) => c.id === pick.value) || CONTROLLERS[0];
+    restartShow();
+  };
+
+  // ---------------------------------------------------------------- input --
+  const KEYMAP = { q: 'birth', w: 'lonely', o: 'crowded', p: 'commit' };
+
+  addEventListener('keydown', (e) => {
+    if (mode !== 'drive') return;
+    const k = e.key.toLowerCase();
+    if (!drive.started) {
+      if (k === ' ' || e.key.length === 1) { e.preventDefault(); resetDrive(false); }
+      return;
+    }
+    if (drive.over) {
+      if (k === ' ' || k === 'enter') { e.preventDefault(); resetDrive(true); }
+      return;
+    }
+    const op = KEYMAP[k];
+    if (op) {
+      e.preventDefault();
+      if (e.repeat && op !== 'commit') return;   // holding Q re-marks nothing new
+      driveOp(op);
+      const btn = pad.querySelector(`[data-op="${op}"]`);
+      if (btn) { btn.dataset.on = '1'; setTimeout(() => { btn.dataset.on = '0'; }, 90); }
+    }
+  });
+
+  for (const btn of pad.querySelectorAll('button')) {
+    const op = btn.dataset.op;
+    const press = (e) => {
+      e.preventDefault();
+      if (!drive.started) { resetDrive(false); return; }
+      if (drive.over) { resetDrive(true); return; }
+      btn.dataset.on = '1';
+      driveOp(op);
+    };
+    const release = (e) => { if (e) e.preventDefault(); btn.dataset.on = '0'; };
+    btn.addEventListener('pointerdown', press);
+    btn.addEventListener('pointerup', release);
+    btn.addEventListener('pointercancel', release);
+    btn.addEventListener('pointerleave', release);
+    btn.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+
+  for (const el of [intro, over]) {
+    el.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      resetDrive(el === over);
+    });
+  }
+
+  if (matchMedia('(pointer: coarse)').matches) {
+    document.getElementById('start').textContent = 'tap to begin';
+    document.getElementById('again').textContent = 'tap to try again';
+  }
+
+  // ----------------------------------------------------------------- loop --
+  newDriveSoup(1 + ((Math.random() * 3000) | 0));
+  setMode('drive');
+
+  // A debug handle, same convention as /graze/: lets a headless browser drive
+  // the real page and read back what it actually did.
+  globalThis.__qgol = () => ({ mode, drive, show });
+
+  function frame(now) {
+    if (mode === 'drive') {
+      drawBoard(board, drive.world, { showMarks: true, flash });
+      flash = Math.max(0, flash - 0.09);
+    } else {
+      showTick(now);
+      drawBoard(board, show.world, { showMarks: false });
+      drawTrace(traceCnv, show.trace, {
+        baseline: show.baseline, gens: SGENS, capacity: SW * SH,
+      });
+    }
+    paintHud();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>
