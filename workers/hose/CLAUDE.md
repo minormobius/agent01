@@ -133,11 +133,11 @@ def actually asks for engagement.
 
 | Bound | Value | Why |
 |---|---|---|
-| `SAMPLE_SECONDS` | 20 (clamped 2–60) | how long the socket is open per wake — **this is the cost dial** |
+| `SAMPLE_SECONDS` | 20 (clamped 2–60) | how long the socket may stay open per wake |
+| `MAX_FRAMES_PER_SAMPLE` | 800 (clamped 50–20000) | hard frame ceiling per wake — **this is the real cost dial** |
 | `SAMPLE_EVERY_MINUTES` | 60 (clamped 1–360) | how often it wakes; jittered 0.5×–1.5× |
 | ring buffer | ~2000 URIs/feed | nobody pages that deep. Granularity is one chunk, so it holds 2001–2400 |
 | storage chunk | 400 entries/key | DO values cap at 128KB — 400 lands around 45KB |
-| replay on reconnect | ≤ 60 s | a long replay would deliver exactly the messages sampling declined to pay for |
 | list membership | ≤ 5000 DIDs | a runaway list degrades one filter, not the ingester |
 | idle feed drop | 7 days | a feed nobody opens stops costing anything |
 | def re-read | once per wake | a filter edit is live within one sample interval |
@@ -180,12 +180,15 @@ reading of an ambiguous billing rule rather than the convenient one.
 Measured input: **38.8 post-creates/second**, of which **3.64%** match
 txt for airports.
 
-| Meter | At 20s/60min | Included | Headroom |
+| Meter | At 800 frames/60min | Included | Headroom |
 |---|---|---|---|
-| Requests (inbound WS frames + alarms + reads) | ~0.56M/mo | 1M/mo | 44% |
+| Requests (inbound WS frames + alarms + reads) | ≤ 0.58M/mo | 1M/mo | 42% |
 | Duration | ~3,600 GB-s/mo | 400,000 GB-s/mo | 99% |
 | Rows written | ~3K/mo | 50M/mo | ~100% |
 | Stored data | ~250 KB | 5 GB | ~100% |
+
+That first row is a **ceiling, not an estimate**: 720 wakes × 800 frames is the
+most this can spend no matter what the network does.
 
 **Requests are the binding constraint, not duration.** That is the
 counter-intuitive part. Duration is billed at 128 MB of wall-clock residency, so
@@ -207,14 +210,34 @@ out to be 20:1, there is 20× more headroom than the table shows and
 Object requests will read roughly **19K/day** (1:1) or **~1K/day** (20:1) at the
 current defaults. Before changing anything, check there.
 
-### What raising the dial costs
+### Time is not a budget — this was got wrong once
 
-Connection time scales everything linearly: `frames/month = seconds_connected ×
-38.8`. Against a 1M request allowance, the ceiling is about **7 hours of
-connection a month** at the 1:1 assumption — so 20s/hour (4h) is comfortable,
-30s/hour (6h) is the practical limit, and anything at or above 20s/30min goes
-over. Duration never becomes the problem; it is under 3% at every one of those
-settings.
+The first duty-cycled build bounded a sample by *time alone* and reasoned about
+cost from a measured 38.8 creates/second. Both halves were wrong:
+
+- **The rate is not a constant.** 38.8/s at one hour, **62/s** at another.
+  Bluesky's volume swings with the clock, so a fixed 20-second window silently
+  costs 60% more at a busy hour than the budget assumed.
+- **The replay cursor was thinking left over from streaming.** It asked
+  Jetstream for the last 60 seconds "to smooth the seam between samples" — but
+  under a duty cycle there *is* no seam; the object is skipping 59 minutes on
+  purpose. Measured on the live deploy, a 20-second sample ingested **4,994
+  messages, about 129 seconds' worth** — roughly 4× its budget, spent on backlog
+  nobody asked for.
+
+Hence `MAX_FRAMES_PER_SAMPLE`, and no cursor. Whichever bound trips first ends
+the sample, so the monthly ceiling is `wakes × cap` and does not depend on any
+rate estimate being right. At a quiet hour the 20s window binds (~776 frames);
+at a busy one the cap binds (800 frames in ~13s). Sample size self-equalises.
+
+`/status` reports `lastSampleFrames` and `lastSampleEndedBy` (`time` | `frames`
+| `closed` | `error`) so which bound is binding is observable rather than
+inferred.
+
+**To raise it:** `frames/month = wakes × cap`, and the request allowance is 1M.
+At hourly wakes the arithmetic ceiling is ~1,380 frames/sample; 800 leaves
+sensible room for feed reads and a busier network. Duration never becomes the
+problem — it is under 3% at any of these settings.
 
 ### The other thing occupying the allowance
 

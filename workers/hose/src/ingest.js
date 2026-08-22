@@ -50,10 +50,15 @@ const JETSTREAM_HOSTS = [
 const MAX_PER_FEED = 2000;    // ring capacity; a reader never pages this deep
 const CHUNK = 400;            // entries per storage key — keeps values far under the 128KB limit
 const IDLE_DROP_MS = 7 * 24 * 60 * 60_000;   // a feed nobody opens in a week stops being ingested
-const MAX_REPLAY_US = 60 * 1_000_000;        // never replay more than a minute on reconnect
-
 const DEFAULT_SAMPLE_SECONDS = 20;
 const DEFAULT_SAMPLE_EVERY_MINUTES = 60;
+// A HARD ceiling on frames per sample, independent of how busy Bluesky is.
+// Time alone is not a budget: the post firehose measured 38.8 creates/sec at
+// one hour and 62/sec at another, so a fixed 20s window silently costs 60% more
+// at a busy hour. Whichever bound trips first ends the sample, which means the
+// monthly request total has a ceiling that does not depend on any rate estimate
+// of mine being right.
+const DEFAULT_MAX_FRAMES = 800;
 
 const nowMs = () => Date.now();
 const chunkKey = (uri, i) => `buf:${uri}:${String(i).padStart(6, '0')}`;
@@ -71,6 +76,9 @@ export class FirehoseIngest {
     this.matched = 0;
     this.samples = 0;
     this.lastSampleAt = 0;
+    this.frames = 0;            // frames in the CURRENT sample — what billing counts
+    this.lastSampleFrames = 0;
+    this.lastSampleEndedBy = null;
     this.lastError = null;
     this.state.blockConcurrencyWhile(async () => { await this.load(); });
   }
@@ -83,6 +91,11 @@ export class FirehoseIngest {
   intervalMs() {
     const n = Number(this.env.SAMPLE_EVERY_MINUTES);
     return Math.min(360, Math.max(1, Number.isFinite(n) && n > 0 ? n : DEFAULT_SAMPLE_EVERY_MINUTES)) * 60_000;
+  }
+
+  maxFrames() {
+    const n = Number(this.env.MAX_FRAMES_PER_SAMPLE);
+    return Math.min(20_000, Math.max(50, Number.isFinite(n) && n > 0 ? n : DEFAULT_MAX_FRAMES));
   }
 
   // Jittered, so the feed is not permanently a portrait of whatever the network
@@ -262,13 +275,15 @@ export class FirehoseIngest {
       const host = JETSTREAM_HOSTS[this.samples % JETSTREAM_HOSTS.length];
       const u = new URL(`https://${host}/subscribe`);
       u.searchParams.set('wantedCollections', 'app.bsky.feed.post');
-      // A short replay smooths the seam between samples. It is capped hard: a
-      // long replay would defeat the entire point of sampling by delivering the
-      // messages we just declined to pay for.
-      if (this.lastTimeUs) {
-        const floorUs = (nowMs() * 1000) - MAX_REPLAY_US;
-        u.searchParams.set('cursor', String(Math.floor(Math.max(this.lastTimeUs, floorUs))));
-      }
+      // NO cursor: the sample starts live, deliberately.
+      //
+      // This used to replay the last 60 seconds to "smooth the seam between
+      // samples", which was thinking left over from streaming. Under a duty
+      // cycle there is no seam — the object is skipping 59 minutes on purpose —
+      // so a replay just buys 60 extra seconds of backlog per sample at exactly
+      // the cost the duty cycle exists to avoid. Measured on the live deploy:
+      // a 20-second sample ingested 4,994 messages, about 129 seconds' worth,
+      // roughly 4x its budget.
 
       const resp = await fetch(u.toString(), { headers: { Upgrade: 'websocket' } });
       const ws = resp.webSocket;
@@ -278,15 +293,28 @@ export class FirehoseIngest {
       this.lastError = null;
       this.samples++;
       this.lastSampleAt = nowMs();
+      this.frames = 0;
 
-      const done = new Promise((resolve) => {
-        const stop = () => { clearTimeout(timer); resolve(); };
-        const timer = setTimeout(() => { try { ws.close(1000, 'sample complete'); } catch { /* already gone */ } resolve(); }, this.sampleMs());
-        ws.addEventListener('message', (ev) => { try { this.onMessage(ev.data); } catch { /* one bad frame is not fatal */ } });
-        ws.addEventListener('close', stop);
-        ws.addEventListener('error', stop);
+      const cap = this.maxFrames();
+      await new Promise((resolve) => {
+        let settled = false;
+        const finish = (why) => {
+          if (settled) return;
+          settled = true;
+          this.lastSampleEndedBy = why;
+          clearTimeout(timer);
+          try { ws.close(1000, 'sample complete'); } catch { /* already gone */ }
+          resolve();
+        };
+        const timer = setTimeout(() => finish('time'), this.sampleMs());
+        ws.addEventListener('message', (ev) => {
+          try { this.onMessage(ev.data); } catch { /* one bad frame is not fatal */ }
+          if (this.frames >= cap) finish('frames');
+        });
+        ws.addEventListener('close', () => finish('closed'));
+        ws.addEventListener('error', () => finish('error'));
       });
-      await done;
+      this.lastSampleFrames = this.frames;
     } catch (e) {
       this.lastError = String((e && e.message) || e);
     } finally {
@@ -296,6 +324,9 @@ export class FirehoseIngest {
   }
 
   onMessage(data) {
+    // Counted before any filtering: billing counts frames off the wire, not the
+    // ones we find interesting.
+    this.frames++;
     const evt = JSON.parse(typeof data === 'string' ? data : new TextDecoder().decode(data));
     if (evt.time_us && evt.time_us > this.lastTimeUs) this.lastTimeUs = evt.time_us;
     const c = evt.commit;
@@ -367,9 +398,11 @@ export class FirehoseIngest {
     if (url.pathname === '/status') {
       return Response.json({
         ok: true,
-        sampling: { seconds: this.sampleMs() / 1000, everyMinutes: this.intervalMs() / 60_000 },
+        sampling: { seconds: this.sampleMs() / 1000, everyMinutes: this.intervalMs() / 60_000, maxFrames: this.maxFrames() },
         samples: this.samples,
         lastSampleAt: this.lastSampleAt || null,
+        lastSampleFrames: this.lastSampleFrames,
+        lastSampleEndedBy: this.lastSampleEndedBy,
         connected: !!this.ws,
         seen: this.seen,
         matched: this.matched,

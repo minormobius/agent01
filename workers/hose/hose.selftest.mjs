@@ -104,6 +104,7 @@ console.log('ingest — what reaches the buffer');
   eq('only the two clean text posts are kept', o.entries(f).map((e) => e.u.split('/').pop()), ['1', '9']);
   eq('every post was counted as seen', o.seen, 9);
   eq('matched counts only the kept ones', o.matched, 2);
+  eq('frames counts what came off the wire, which is what is billed', o.frames, 9);
 }
 
 console.log('ingest — frames that are not posts');
@@ -114,6 +115,7 @@ console.log('ingest — frames that are not posts');
   o.onMessage(JSON.stringify({ did: 'd', time_us: 7, kind: 'commit', commit: { operation: 'create', collection: 'app.bsky.feed.like', rkey: 'x', record: {} } }));
   eq('non-post traffic is ignored', o.count(f), 0);
   eq('but the cursor still advances', o.lastTimeUs, 7);
+  eq('and every frame still counts toward the cap, kept or not', o.frames, 3);
 }
 
 console.log('ingest — a feed that does not take the firehose');
@@ -294,6 +296,33 @@ console.log('a filter edit invalidates what the old filters admitted');
   o.append(f, { u: 'at://d/app.bsky.feed.post/fresh', t: 1 });
   await o.flush();
   eq('the next append opens a chunk above the deleted ones', bufKeys(state), ['buf:' + FEED + ':000001']);
+}
+
+console.log('the per-sample frame cap');
+{
+  const { o } = await mount(new Map(), {});
+  eq('default cap', o.maxFrames(), 800);
+  const { o: a } = await mount(new Map(), { MAX_FRAMES_PER_SAMPLE: '250' });
+  eq('configured cap', a.maxFrames(), 250);
+  const { o: b } = await mount(new Map(), { MAX_FRAMES_PER_SAMPLE: '0' });
+  eq('zero falls back to the default rather than sampling nothing', b.maxFrames(), 800);
+  const { o: c } = await mount(new Map(), { MAX_FRAMES_PER_SAMPLE: '99999999' });
+  eq('an absurd cap is clamped', c.maxFrames(), 20_000);
+
+  // The cap is what makes the monthly ceiling independent of the firehose rate.
+  // Time alone is not a budget: measured 38.8 creates/sec one hour and 62/sec
+  // another, so a fixed window costs 60% more at a busy hour.
+  const { o: tiny } = await mount(new Map(), { MAX_FRAMES_PER_SAMPLE: '5' });
+  eq('a cap below the floor is raised to it — a 5-frame sample is not worth waking for', tiny.maxFrames(), 50);
+
+  const { o: d, f: df } = await mount(new Map(), { MAX_FRAMES_PER_SAMPLE: '50' });
+  for (let i = 0; i < 50; i++) d.onMessage(frame('did:plc:a', String(i), text(`quiet runway ${i}`)));
+  ok('the cap is reached exactly when frames hit it', d.frames >= d.maxFrames());
+  eq('and everything up to the cap was still processed', d.count(df), 50);
+
+  const wakes = 30 * 24;   // hourly
+  ok('the ceiling holds under the 1M request allowance at the default cap',
+    wakes * 800 + wakes < 1_000_000);
 }
 
 console.log('the duty cycle is configurable and clamped');
