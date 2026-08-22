@@ -3,7 +3,11 @@
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    const clean = { '/syllabus': '/syllabus.html', '/protocol': '/protocol.html' };
+    const clean = {
+      '/syllabus': '/syllabus.html',
+      '/methods': '/methods.html',
+      '/protocol': '/protocol.html',
+    };
     if (clean[url.pathname]) {
       return env.ASSETS.fetch(new Request(new URL(clean[url.pathname], url), request));
     }

@@ -13,14 +13,15 @@
   <span class="brand"><a href="/">ken</a></span>
   <a href="/">Front matter</a>
   <a href="/syllabus">I · Curriculum</a>
-  <a class="here" href="/protocol">II · Protocol</a>
+  <a href="/methods">II · Methods</a>
+  <a class="here" href="/protocol">III · Protocol</a>
   <span class="grow"></span>
   <button onclick="window.print()">Save as PDF</button>
 </div>
 
 <div class="sheet">
 
-  <div class="a-venue">ken · volume 1 · article II <span class="kicker">Stage 1 Registered Report — skeleton</span></div>
+  <div class="a-venue">ken · volume 1 · article III <span class="kicker">Stage 1 registered report, skeleton</span></div>
   <h1 class="a-title">Does Unattended Work Improve With Turn Count?</h1>
   <p class="a-sub">A protocol, deliberately unfinished, whose blanks are the deliverables of the curriculum</p>
   <div class="a-meta">Status: <b>SKELETON</b> · not registered · no data collected under it</div>
@@ -30,8 +31,8 @@
     <span class="lbl">Abstract</span>
     <p>A budget-governed agent loop was run for ninety-nine turns and produced no measurement
     of the quality of its output. This protocol sets out how to run it again so that it does.
-    It is written in the Stage 1 registered-report form — hypotheses, design, and analysis plan
-    fixed before data collection — because the failure mode this programme is most exposed to
+    It is written in the Stage 1 registered-report form, with hypotheses, design and analysis plan
+    fixed before data collection, because the failure mode this programme is most exposed to
     is a flexible analysis of an expensive run.</p>
     <p>It is deliberately incomplete. Six blanks are marked in the text, each requiring a
     quantity that does not yet exist: a defined construct, an established reliability, a
@@ -47,6 +48,12 @@
   issued over roughly fifty-three hours in August 2026, of which eighty-nine recorded a
   completed turn. The programme's stated deliverable was the curve: quality against turn count,
   measured, over many artifacts.</p>
+
+  <p>Two later bake-off runs met the same fate by a different route, and the
+  <a href="/methods">house standard</a> was written from all three. This protocol assumes that
+  standard and does not restate it; the rules most load-bearing here are R4 on reporting
+  discrimination, R5 on replication within a cell, and R10 on treating an uncollected signal as
+  a failed run.</p>
 
   <p>No such measurement was produced. The dependent variable was never recorded once. The
   situation as of the last recorded turn:</p>
@@ -65,7 +72,7 @@
         <tr><td>Signals specified</td><td class="num">3</td><td>probes, rubric, adversarial</td></tr>
         <tr><td>Signals that ever fired</td><td class="num">1</td><td>probes only</td></tr>
         <tr><td>Distinct values <code>probes</code> took</td><td class="num">3</td><td>0.6, 0.8, 1.0</td></tr>
-        <tr><td>Turns at the maximum</td><td class="num">59 / 89</td><td>66% — a ceiling</td></tr>
+        <tr><td>Turns at the maximum</td><td class="num">59 / 89</td><td>66%, a ceiling</td></tr>
         <tr><td><b>Quality scores produced</b></td><td class="num"><b>0</b></td><td>judge uncalibrated; score withheld by design</td></tr>
       </tbody>
     </table>
@@ -168,10 +175,10 @@
       <tbody>
         <tr><td class="num">B1</td><td>A defined construct: what "quality" means for an artifact of this class, written down before any score is seen</td><td>Unit I</td><td>Without it the analysis is a search for a flattering operationalisation, conducted after the fact.</td></tr>
         <tr><td class="num">B2</td><td>An estimated reliability for the quality measure, with inter-rater agreement reported</td><td>Unit I</td><td>Effect sizes are attenuated by unreliability; an unmeasured reliability makes a null result uninterpretable.</td></tr>
-        <tr><td class="num">B3</td><td>A calibrated judge: agreement with human raters expressed as a fraction of the human–human ceiling, with position and length bias estimated</td><td>Unit V</td><td>An uncalibrated judge is what produced zero scores in the pilot. Repeating that is the one guaranteed failure.</td></tr>
+        <tr><td class="num">B3</td><td>A calibrated judge: agreement with human raters expressed as a fraction of the human–human ceiling, with position and length bias estimated</td><td>Unit VI</td><td>An uncalibrated judge is what produced zero scores in the pilot. Repeating that is the one guaranteed failure.</td></tr>
         <tr><td class="num">B4</td><td>A powered sample size: artifacts per arm, derived from B2 and the smallest effect worth detecting</td><td>Unit II</td><td>An underpowered run spends the whole budget and returns a shrug.</td></tr>
         <tr><td class="num">B5</td><td>A stopping rule fixed in advance, with its error rate accounted for</td><td>Unit II</td><td>A loop that watches its own results and stops when they look good has an error rate far worse than it reports <a class="cite" data-ref="wald1945"></a>.</td></tr>
-        <tr><td class="num">B6</td><td>An outside signal — at least one quality measure originating from someone who is not this system</td><td>Unit VI</td><td>The pilot's central defect. A loop grading itself against its own gates cannot detect the failure mode it is most prone to.</td></tr>
+        <tr><td class="num">B6</td><td>An outside signal: at least one quality measure originating from someone who is not this system</td><td>Unit VII</td><td>The pilot's central defect. A loop grading itself against its own gates cannot detect the failure mode it is most prone to.</td></tr>
       </tbody>
     </table>
   </div>
@@ -210,8 +217,8 @@
   hypothesis it favours. These are checked first, and a failure halts the analysis:</p>
 
   <ul>
-    <li>The comparison graph is connected — every artifact is linked by some chain of
-      comparisons, or it has no estimable rating.</li>
+    <li>The comparison graph is connected, so every artifact is linked by some chain of
+      comparisons. An unlinked artifact has no estimable rating.</li>
     <li>Inter-rater agreement meets the floor established in B2. Below it, the raters are
       measuring different things and the scale does not exist.</li>
     <li>The control arm is distinguishable from the top arm. If one turn scores like twenty,
@@ -227,7 +234,7 @@
   experiment:</p>
 
   <ul>
-    <li><b>No outside signal by the end of Unit VI.</b> If B6 cannot be closed, the run is not
+    <li><b>No outside signal by the end of Unit VII.</b> If B6 cannot be closed, the run is not
       worth its budget and the programme reduces to the curriculum.</li>
     <li><b>Reliability below the floor after two rubric revisions.</b> If the construct cannot
       be measured consistently by people who agree on what they are looking for, it is not yet a
@@ -240,31 +247,31 @@
   <h2 class="sec"><span class="secno">8</span>Sequence</h2>
 
   <div class="table-fig">
-    <div class="cap"><b>Table 4.</b> Phases. Model budget is spent only in Phase 4 — everything
+    <div class="cap"><b>Table 4.</b> Phases. Model budget is spent only in Phase 4. Everything
       before it is reading, arithmetic, and analysis of data that already exists.</div>
     <table class="booktabs">
       <thead><tr><th>Phase</th><th>Contents</th><th>Closes</th><th>Model budget</th></tr></thead>
       <tbody>
         <tr><td>0 · Foundation</td><td>Units I–II. Reading, both replications.</td><td>B1, B2, B4, B5</td><td>none</td></tr>
-        <tr><td>1 · Theory</td><td>Units III–IV. The LEN model fitted to our own run; the overoptimisation curve on a synthetic.</td><td>predictions for H2/H3</td><td>none</td></tr>
-        <tr><td>2 · Instrument</td><td>Unit V. Judge built, calibrated, debiased.</td><td>B3</td><td>small — calibration only</td></tr>
-        <tr><td>3 · Oversight</td><td>Unit VI. Sandwiching trial; outside signal secured.</td><td>B6</td><td>small</td></tr>
+        <tr><td>1 · Theory</td><td>Units III–V. The LEN model fitted to our own run, the knowledge hierarchy fitted to our orchestration, and the overoptimisation curve on a synthetic.</td><td>predictions for H2/H3</td><td>none</td></tr>
+        <tr><td>2 · Instrument</td><td>Unit VI. Judge built, calibrated, debiased.</td><td>B3</td><td>small; calibration only</td></tr>
+        <tr><td>3 · Oversight</td><td>Unit VII. Sandwiching trial; outside signal secured.</td><td>B6</td><td>small</td></tr>
         <tr><td>4 · Registration &amp; run</td><td>Protocol completed and registered, then the run.</td><td>the curve</td><td>the whole of it</td></tr>
         <tr><td>5 · Report</td><td>Written and published whichever way it came out.</td><td>—</td><td>none</td></tr>
       </tbody>
     </table>
   </div>
 
-  <p>The retrospective analysis of the pilot — reconstructing per-turn history from the ledger,
-  characterising why two of three signals never fired — is <b>not</b> a phase. It is a Unit I
+  <p>The retrospective analysis of the pilot, meaning the reconstruction of per-turn history from
+  the ledger and an account of why two of three signals never fired, is <b>not</b> a phase. It is a Unit I
   exercise, and it is listed there deliberately: it is worth doing with the measurement
   vocabulary in hand and close to worthless without it.</p>
 
-  <h2 class="sec"><span class="secno">9</span>What would make this worth publishing</h2>
+  <h2 class="sec"><span class="secno">9</span>Grounds for publication</h2>
 
   <p>Not a positive result. A curve of any shape, produced under a pre-registered design with a
   calibrated instrument and an outside signal, would be unusual in this area on methodological
-  grounds alone — most reported evaluations of unattended agent work supply a number without
+  grounds alone, since most reported evaluations of unattended agent work supply a number without
   establishing that it measures the construct <a class="cite" data-ref="cronbach1955"></a>, and
   without a control arm.</p>
 

@@ -46,44 +46,77 @@ worker or move the domain, **verify the deploy log binds
 | Path | What |
 |---|---|
 | `index.html` | masthead, aims and scope, and the editorial on the pilot run |
-| `syllabus.html` | **Article I** — the six-unit curriculum. Served at `/syllabus`. |
-| `protocol.html` | **Article II** — the Stage 1 registered-report skeleton. Served at `/protocol`. |
+| `syllabus.html` | **Article I**, the seven-unit curriculum. Served at `/syllabus`. |
+| `methods.html` | **Article II**, the house standard for model experiments. Served at `/methods`. |
+| `protocol.html` | **Article III**, the Stage 1 registered-report skeleton. Served at `/protocol`. |
 | `refs.js` | **the bibliography, as data** — 54 real works, keyed |
 | `cite.js` | numbers citations in document order, renders the reference list |
 | `journal.css` | the shared journal typography; prints to real Letter pages |
 | `worker.js` | thin assets worker; maps `/syllabus` and `/protocol` to their `.html` |
-| `ken.selftest.mjs` | the gate — **run it before touching anything here** |
+| `prose-lint.mjs` | the tic lint; importable, and runnable standalone |
+| `ken.selftest.mjs` | the gate. **Run it before touching anything here** |
 
-`CLAUDE.md` and `ken.selftest.mjs` are `.assetsignore`d; everything else ships.
+`CLAUDE.md`, `ken.selftest.mjs` and `prose-lint.mjs` are `.assetsignore`d; everything else ships.
 
-## The one rule for this surface
+## Three gates, and why each exists
 
-**Every work cited here is real, and every citation is machine-checked.**
+```bash
+node ken/ken.selftest.mjs     # ~1s, 558 checks
+node ken/prose-lint.mjs       # the tic lint alone, with --verbose for hits
+```
+
+### 1. Every work cited here is real, and the citation is machine-checked
 
 Pages never hand-number citations. They write `<a class="cite"
 data-ref="holmstrom1991"></a>` and leave an empty `<ol id="reflist">`; `cite.js`
 numbers in document order and renders the list. Add a work to `refs.js`, cite it
 by key, and the numbering takes care of itself.
 
-```bash
-node ken/ken.selftest.mjs     # ~1s, 407 checks
-```
+The selftest asserts across every page that each `data-ref` resolves, that every
+entry in `refs.js` is cited at least once (an uncited entry is usually a sign a
+section was cut), that every entry carries author, year, title and venue, and
+that no key is declared twice.
 
-It asserts, across every page: every `data-ref` resolves; every entry in
-`refs.js` is cited at least once (an uncited entry is dead weight, and usually a
-sign a section was cut); every entry carries author, year, title and venue; no
-duplicate keys; and every citing page loads both modules and has a `#reflist`.
+### 2. The figures in the prose still match the record
 
-**And then the check that actually matters.** The prose makes numerical claims
-about the pilot run — 99 work orders, 89 recorded turns, 17 gate failures, 59 of
-89 at the probe ceiling, **0 quality scores**, 1 of 3 signals ever fired. The
-selftest recomputes every one of those from `.github/loop/turns.jsonl` and
-`runs.jsonl` and fails if the prose has drifted from the ledger. If someone
-re-enables the loop and runs more turns, **this surface goes red until the
-editorial is rewritten**, which is the correct behaviour and the reason the
-check exists.
+The site makes numerical claims about three prior runs. All of them are
+recomputed on every build:
 
-`scripts/preflight.mjs` picks the selftest up automatically for changed dirs.
+| Source | Claims checked |
+|---|---|
+| `.github/loop/{turns,runs}.jsonl` | 99 orders, 89 turns, 17 gate failures, 59 of 89 at the probe ceiling, 0 quality scores, 1 of 3 signals fired |
+| `bakeoff/results/race-01/results.json` | 11 runs, 11/11 gate, 11/11 primitives, judges `null`, 2 entries with a zero patch beside a real entry directory |
+| `bakeoff/results/race-02/results.json` | 12 runs, 12/12 gate, 12/12 primitives, judges `null` |
+
+`deploy-ken.yml` triggers on those paths as well as on `ken/**`, so re-enabling
+the loop or running another bake-off **turns this surface red until the prose is
+rewritten**. That is the designed behaviour and the reason the check exists.
+
+### 3. The prose passes the tic lint
+
+`prose-lint.mjs` is a density lint for the constructions catalogued in the
+declauding register: em-dash density, negation-first reveal ("It is not X. It is
+Y."), significance designation ("load-bearing", "what actually matters"),
+abstraction agency ("the table shows", "the number lies"), aphoristic closers,
+coy or thesis-shaped headers, fragment cadence, unearned intensifiers, one-line
+paragraph share, and sentence-length monotony.
+
+Two things about it are deliberate:
+
+- **It is a density check, not a ban.** Every construction is legitimate once.
+  The documented failure of over-correcting is prose with uniform sentence
+  length, no first-person judgement and no digression, which is worse than the
+  tics. If a rule fires and the sentence is right, widen the budget in
+  `prose-lint.mjs` and say why in the commit.
+- **Lexical rules read `<p>`, `<li>` and `<td>`; structural rules read `<p>`
+  only.** An em-dash in a table cell is the same tic as one in a paragraph, and
+  an earlier version reading only `<p>` let twelve of them hide in one page's
+  tables. But a table cell is *supposed* to be short, so flagging it for
+  paragraph length is noise.
+
+Headers are the rule worth internalising, because it is absolute rather than a
+density: a header names its section, it does not tease or argue it. "Known gaps
+in this standard", not "What this standard does not yet cover".
 
 ## Why it looks like a journal, and why that is not a joke
 

@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>House Standard for Model Experiments — ken</title>
+<meta name="description" content="Twelve rules for running, scoring and reporting comparisons between models and agent configurations, derived from three prior runs in this repository and the ways each of them saturated.">
+<link rel="stylesheet" href="journal.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="brand"><a href="/">ken</a></span>
+  <a href="/">Front matter</a>
+  <a href="/syllabus">I · Curriculum</a>
+  <a class="here" href="/methods">II · Methods</a>
+  <a href="/protocol">III · Protocol</a>
+  <span class="grow"></span>
+  <button onclick="window.print()">Save as PDF</button>
+</div>
+
+<div class="sheet">
+
+  <div class="a-venue">ken · volume 1 · article II <span class="kicker">House standard</span></div>
+  <h1 class="a-title">House Standard for Model Experiments</h1>
+  <p class="a-sub">Twelve rules for running, scoring and reporting a comparison, with the evidence for each</p>
+  <div class="a-meta">Version 1.0 · applies to every run published here</div>
+  <hr class="a-rule">
+
+  <div class="abstract">
+    <span class="lbl">Abstract</span>
+    <p>Three measurement exercises have been run in this repository. All three
+    produced working machinery and none produced a usable comparison: in every case the
+    instrument returned the same verdict for every subject, and in every case the qualitative
+    signal that was supposed to break the tie was specified and never collected. The pattern is
+    consistent enough to design against.</p>
+    <p>This document fixes the house standard. Seven of the twelve rules are already practised
+    in <code>bakeoff/</code> and are written down here so they survive the person who wrote
+    them. Five are new, and each of the five addresses a specific way one of the three runs
+    failed. The standard applies to anything published under this masthead, and a run that
+    departs from it says so in its report.</p>
+  </div>
+
+  <h2 class="sec"><span class="secno">1</span>The evidence this is built on</h2>
+
+  <p>Three runs, all of them in this repository, all of them recoverable from committed data.</p>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 1.</b> What the three prior runs measured. Computed from
+      <code>.github/loop/{turns,runs}.jsonl</code> and
+      <code>bakeoff/results/race-0{1,2}/results.json</code>.</div>
+    <table class="booktabs">
+      <thead><tr><th>Run</th><th class="num">Subjects</th><th>Outcome of the automated score</th><th>Qualitative signal</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>loop</code> (Aug 4–7)</td><td class="num">89 turns</td>
+          <td>One signal of three implemented. It took three values and sat at its maximum in 59 of 89 turns. Zero quality scores were produced.</td>
+          <td>Rubric and adversarial check never built.</td>
+        </tr>
+        <tr>
+          <td><code>race-01</code></td><td class="num">11 runs</td>
+          <td>11 of 11 passed the gate. 11 of 11 scored 4 of 4 on primitives.</td>
+          <td>Judge panel returned <code>null</code>.</td>
+        </tr>
+        <tr>
+          <td><code>race-02</code></td><td class="num">12 runs</td>
+          <td>12 of 12 passed the gate. 12 of 12 scored 4 of 4 on primitives.</td>
+          <td>Judge panel returned <code>null</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Across the two bake-offs, 23 runs out of 23 passed every automated check. The ranking
+  column in both reports is patch size in bytes, which is not a measure of quality and was
+  never claimed to be. So the comparison those runs were built to make was not made, and the
+  reason was the same in all three cases.</p>
+
+  <p>There is a second finding in <code>race-01</code> worth recording, because it is a
+  different kind of failure. Two of the eleven entries recorded <code>patchBytes: 0</code>
+  while also recording <code>hasEntry: true</code>, and their directories contain a 50 KB
+  <code>index.html</code> and a working <code>field.mjs</code>. The agents did the work; the
+  patch capture returned nothing. Those two rows then sorted to the top of the report, because
+  the report sorts ascending by patch size. Nothing in the pipeline noticed.</p>
+
+  <div class="caveat">
+    <span class="lbl">On reading this table fairly</span>
+    <p>A gate that everything passes is not proof the gate was badly designed. It is also
+    consistent with the entries all being adequate, which for a floor is the desired outcome:
+    <code>bakeoff/CLAUDE.md</code> describes the gate as "a floor, not a grade" and never
+    claimed it would rank anything. The failure is not that the floor held. It is that nothing
+    else was collected, so the floor was all there was, and a report with 23 identical rows was
+    the whole result.</p>
+  </div>
+
+  <h2 class="sec"><span class="secno">2</span>The standard</h2>
+
+  <p>Rules marked <b>established</b> are already practised in <code>bakeoff/</code>. Rules
+  marked <b>new</b> respond to something in Table 1.</p>
+
+  <h3 class="sub">Design</h3>
+
+  <h4 class="subsub">R1. The unit of the experiment is a cell, and the matrix is the design. <span class="small">(established)</span></h4>
+
+  <p>A cell fixes every factor that could move the outcome: harness, model, brief, sample
+  index. Asking which model is better without fixing the harness has no answer, and the
+  converse holds as well. Vary one axis at a time or vary them factorially and say which you
+  did <a class="cite" data-ref="box2005"></a>.</p>
+
+  <p>Cells run from identical clean checkouts with no shared state. This is what makes the
+  comparison mean anything, and it is worth the cost of the extra runners.</p>
+
+  <h4 class="subsub">R2. Write the scorer before the task. <span class="small">(established)</span></h4>
+
+  <p>The rubric comes first and the brief is written from it, so that everything scored is
+  something the subjects were told about. A check that exists in the scorer but not in the
+  brief is a rule nobody was given, and any result that turns on it is an artefact of the
+  experimenter's private knowledge.</p>
+
+  <p>This is pre-registration in the form that fits a scoring pipeline
+  <a class="cite" data-ref="nosek2018"></a>, and it forecloses the largest family of analytic
+  degrees of freedom <a class="cite" data-ref="simmons2011"></a>.</p>
+
+  <h4 class="subsub">R3. Calibrate the instrument at both ends before spending anything. <span class="small">(established)</span></h4>
+
+  <p>Two calibration points, both enforced in CI:</p>
+
+  <ul>
+    <li><b>The floor.</b> Reconstruct the shipped code and score it. It must fail, and fail on
+      the specific check the brief is about. A rubric nobody has watched fail is not evidence.</li>
+    <li><b>The ceiling.</b> A minimal correct implementation must score full marks. A rubric
+      nothing can pass is not a rubric.</li>
+  </ul>
+
+  <p>Run the floor check before the run, not after. A rig that has stopped measuring produces a
+  clean sweep that reads as success, which is close to what Table 1 shows.</p>
+
+  <h4 class="subsub">R4. Report a discrimination estimate, and treat saturation as a failed run. <span class="small">(new)</span></h4>
+
+  <p>This is the rule that all three prior runs would have failed, and it is the reason this
+  document exists.</p>
+
+  <p>Before a report is published, compute how much the instrument separated the subjects: the
+  variance of the score across cells, the number of distinct values it took, and the share of
+  cells at the maximum. Publish those three numbers next to the ranking.</p>
+
+  <p>Where every subject lands in the same bucket, the run has not produced a comparison, and
+  the report says so in its first paragraph rather than presenting a table sorted by an
+  incidental column. Reliability collapses as a measure approaches its ceiling, because the
+  true-score variance goes to zero while the error variance does not
+  <a class="cite" data-ref="lord1968"></a><a class="cite" data-ref="cronbach1955"></a>. A
+  saturated instrument is not a weak result. It is an absent one.</p>
+
+  <p><b>Threshold.</b> If more than 70% of cells sit at the maximum, or the score takes fewer
+  than four distinct values across the grid, the automated tier is reported as
+  non-discriminating and the run's conclusions rest on the human tier alone.</p>
+
+  <h4 class="subsub">R5. Replicate within a cell before comparing across cells. <span class="small">(established)</span></h4>
+
+  <p>Every cell runs at least twice, independently, from a clean tree. The spread within one
+  cell across two samples can exceed the gap between two cells, and a single draw cannot tell
+  you which you are looking at.</p>
+
+  <p>Report the within-cell spread alongside the between-cell difference. Where a cell's
+  samples disagree on the gate, say so and treat any single-run claim about that cell as
+  unsupported.</p>
+
+  <h3 class="sub">Scoring</h3>
+
+  <h4 class="subsub">R6. Refuse to aggregate what does not aggregate. <span class="small">(established)</span></h4>
+
+  <p>Where a task has both a correct answer and a matter of taste, report tiers that never sum:
+  a binary gate, a countable checklist, and an unscored tier that a person ranks. Collapsing
+  those into one number ranks whoever best satisfied a checklist and launders a taste
+  judgement through arithmetic until it looks objective.</p>
+
+  <p>The tiers are not equal in status. The gate is a floor and excludes; the checklist keeps
+  entries comparable; the human tier decides. Say which tier a claim rests on.</p>
+
+  <h4 class="subsub">R7. State what the instrument cannot see, from measurement rather than assumption. <span class="small">(established)</span></h4>
+
+  <p>Headless Chromium does not composite the WebGPU surface into a screenshot. Five flag
+  combinations were tried; the ones producing a working adapter still capture the 3D region as
+  blank page background. So the capture step proves an entry is alive and shows its interface,
+  and says nothing about how the game looks.</p>
+
+  <p>Every instrument has a boundary of this kind. Find it by testing, write it into the report,
+  and never let a green capture be reported as evidence of something the capture cannot
+  observe.</p>
+
+  <h4 class="subsub">R8. Prefer a contract the subject exposes over a heuristic applied from outside. <span class="small">(established)</span></h4>
+
+  <p>An early liveness check used pixel-motion magnitude and failed two identical entries
+  differently: peak delta 163 passed and delta 23 failed. The threshold was measuring frame
+  noise. Replacing it with "frames moved <em>or</em> the state clock advanced", where the clock
+  is a contract the brief requires the entry to expose, removed the false discrimination.</p>
+
+  <p>Where a heuristic and a contract are both available, the contract is the instrument and the
+  heuristic is a fallback. A threshold that separates two identical subjects is measuring the
+  apparatus.</p>
+
+  <h3 class="sub">Judgment</h3>
+
+  <h4 class="subsub">R9. Blind the judgment, randomise its order, and measure the bias you did not remove. <span class="small">(new, extending established practice)</span></h4>
+
+  <p>Existing practice relabels entries and strips every mention of harness and model before
+  review, and no model judges its own entry. Both are kept. Three additions:</p>
+
+  <ul>
+    <li><b>Randomise presentation order</b> for human and model judges alike, and record the
+      order actually shown.</li>
+    <li><b>Present each pair in both orders</b> and report the rate at which the verdict flips.
+      Position bias in model judges is large and well documented
+      <a class="cite" data-ref="zheng2023"></a>; an unmeasured swap rate is an unbounded
+      confound.</li>
+    <li><b>Report judge agreement against the human–human ceiling</b>, not against an imagined
+      perfect standard. If two people agree 75% of the time, a judge at 72% is at the
+      measurement limit and further tuning is chasing noise.</li>
+  </ul>
+
+  <p>A judge panel remains a second opinion rather than a verdict, and each judge keeps one lens
+  rather than producing a score to be averaged.</p>
+
+  <h4 class="subsub">R10. A specified signal that does not fire is a failed run, not a missing column. <span class="small">(new)</span></h4>
+
+  <p>In all three prior runs the qualitative signal was designed, documented, and never
+  collected, and in all three the run was reported as having happened. The judge panel returned
+  <code>null</code> in both bake-offs and no report says so on its face.</p>
+
+  <p>The pipeline now asserts that every signal named in the run configuration is present in the
+  results before a report is written, and names the missing ones in the report header where it
+  cannot. A run missing its tie-breaker is a pilot, and calling it one is the honest
+  description.</p>
+
+  <h3 class="sub">Reporting</h3>
+
+  <h4 class="subsub">R11. Every recorded quantity is either used or checked. <span class="small">(new)</span></h4>
+
+  <p>Two entries in <code>race-01</code> recorded a zero-byte patch alongside a 50 KB entry
+  directory, and sorted to the top of a report ordered by that field. The failure was silent
+  because nothing asserted that the two facts were consistent.</p>
+
+  <p>Any field that orders, filters or ranks a report carries a validity check: a patch of zero
+  bytes for an entry that exists is a collection failure and is reported as one. Fields that are
+  neither used nor checked are removed, because an unchecked number in a results file will
+  eventually be read as a finding.</p>
+
+  <h4 class="subsub">R12. Report the whole grid, including what did not run. <span class="small">(established)</span></h4>
+
+  <p>Cells skipped for a missing provider key are listed as skipped with the reason. Runs that
+  errored are listed with their error. Out-of-scope edits are listed even though they are not
+  collected, because they describe how the agent worked.</p>
+
+  <p>A results file that contains only the cells that worked is a filtered sample, and the
+  filter is correlated with the outcome.</p>
+
+  <h2 class="sec"><span class="secno">3</span>Checklists</h2>
+
+  <p>The standard reduces to two lists. Both are short on purpose
+  <a class="cite" data-ref="schulz2010"></a>.</p>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 2.</b> Before a run. Every item is answerable without spending a
+      token, and each one has cost a previous run something.</div>
+    <table class="booktabs">
+      <thead><tr><th class="num">#</th><th>Check</th><th>Rule</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>The scorer exists and the brief was written from it.</td><td>R2</td></tr>
+        <tr><td class="num">2</td><td>The floor fails on the specific check the brief is about.</td><td>R3</td></tr>
+        <tr><td class="num">3</td><td>A minimal correct implementation scores full marks.</td><td>R3</td></tr>
+        <tr><td class="num">4</td><td>Every check in the scorer appears in the brief.</td><td>R2</td></tr>
+        <tr><td class="num">5</td><td>Samples per cell ≥ 2, and the grid is stated.</td><td>R5</td></tr>
+        <tr><td class="num">6</td><td>The qualitative tier has a named owner and a date.</td><td>R10</td></tr>
+        <tr><td class="num">7</td><td>Two cells run first to prove the pipeline.</td><td>R1</td></tr>
+        <tr><td class="num">8</td><td>What the instrument cannot see is written down.</td><td>R7</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 3.</b> Before a report is published.</div>
+    <table class="booktabs">
+      <thead><tr><th class="num">#</th><th>Check</th><th>Rule</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>Discrimination reported: score variance, distinct values, share at maximum.</td><td>R4</td></tr>
+        <tr><td class="num">2</td><td>If saturated, that is the report's first sentence.</td><td>R4</td></tr>
+        <tr><td class="num">3</td><td>Within-cell spread reported next to between-cell differences.</td><td>R5</td></tr>
+        <tr><td class="num">4</td><td>Every signal named in the config is present, or named as absent in the header.</td><td>R10</td></tr>
+        <tr><td class="num">5</td><td>Judge swap rate reported; agreement given against the human ceiling.</td><td>R9</td></tr>
+        <tr><td class="num">6</td><td>Every ordering field passed its validity check.</td><td>R11</td></tr>
+        <tr><td class="num">7</td><td>Skipped and errored cells listed with reasons.</td><td>R12</td></tr>
+        <tr><td class="num">8</td><td>Which tier each conclusion rests on is stated.</td><td>R6</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="sec"><span class="secno">4</span>Known gaps in this standard</h2>
+
+  <p>Stated so that the gaps are visible rather than discovered later.</p>
+
+  <ul>
+    <li><b>Sample size is asserted, not derived.</b> Two samples per cell is a convention, not a
+      power calculation. Deriving it needs a reliability estimate for the scoring tier, which
+      Unit I of the <a href="/syllabus">curriculum</a> produces and nothing here does yet.</li>
+    <li><b>Providers are not neutral ground.</b> Each cell runs against its vendor's endpoint, so
+      a degraded provider costs its models wall-clock time for reasons unrelated to the model.
+      Wall-clock comparisons across vendors are currently uninterpretable and should not be
+      reported as findings.</li>
+    <li><b>No human reliability figure exists.</b> The taste tier is ranked by one person, once.
+      Two independent rankers and an agreement coefficient would tell us whether that tier is an
+      instrument or an opinion, and until then it is an opinion, which is still more than the
+      automated tier delivered.</li>
+    <li><b>The gate has never been shown to fail an entry that a person judged bad.</b> That is
+      the discriminant-validity test <a class="cite" data-ref="campbell1959"></a> and it has not
+      been run.</li>
+  </ul>
+
+  <p>The first and third of these are blocking for any published quality claim. The second and
+  fourth are recorded for now.</p>
+
+  <div class="refs">
+    <h2>References <span class="small">(<span id="refcount">0</span> works cited in this article)</span></h2>
+    <ol id="reflist"></ol>
+  </div>
+
+  <div class="colophon">
+    ken · article II · house standard for model experiments, version 1.0<br>
+    Table 1 is computed from committed data: <code>.github/loop/{turns,runs}.jsonl</code> and
+    <code>bakeoff/results/race-0{1,2}/results.json</code>. <code>ken.selftest.mjs</code>
+    recomputes every figure in it on each build and fails if the prose has drifted from the
+    record. The practices marked <i>established</i> are drawn from
+    <code>bakeoff/CLAUDE.md</code>, which had most of this right first.
+  </div>
+
+</div>
+
+<script src="refs.js"></script>
+<script src="cite.js"></script>
+</body>
+</html>

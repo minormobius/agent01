@@ -13,7 +13,8 @@
   <span class="brand"><a href="/">ken</a></span>
   <a class="here" href="/">Front matter</a>
   <a href="/syllabus">I · Curriculum</a>
-  <a href="/protocol">II · Protocol</a>
+  <a href="/methods">II · Methods</a>
+  <a href="/protocol">III · Protocol</a>
   <span class="grow"></span>
   <a href="https://mino.mobi">mino.mobi</a>
 </div>
@@ -39,31 +40,34 @@
 
   <h2 class="sec"><span class="secno">§</span>Aims and scope</h2>
 
-  <p>This is a study programme with a website attached, not a journal with contributors. It
-  exists because a specific question turned out to have a rigorous literature that nobody had
-  assembled: <b>how do you know whether work you did not supervise was any good?</b></p>
+  <p>This is a study programme with a website attached, rather than a journal with
+  contributors. It exists because a specific question turned out to have a rigorous literature
+  that nobody had assembled: <b>how do you know whether work you did not supervise was any
+  good?</b></p>
 
-  <p>The question is usually treated as new. It is not. It is the intersection of five mature
-  fields — psychometrics, the design of experiments, the economics of delegation, the study of
-  proxy failure, and scalable oversight — which are individually formidable and which
-  substantially do not cite one another. The programme's wager is that the intersection is
-  empty for historical rather than intellectual reasons, and that assembling it is worth a
-  year.</p>
+  <p>The question is usually treated as new, and it is not. It sits at the intersection of six
+  mature fields: psychometrics, the design of experiments, the economics of delegation, the
+  economics of organisation, the study of proxy failure, and scalable oversight. Each is
+  formidable on its own, and they substantially do not cite one another. The programme's wager
+  is that the intersection is empty for historical rather than intellectual reasons, and that
+  assembling it is worth a year.</p>
 
   <p>The organising claim, which everything here is arranged to test:</p>
 
   <blockquote>
     <p>Your abstraction ceiling is your measurement ceiling. You cannot delegate at a higher
-    altitude than your ability to tell whether what came back was any good — so an agent that
+    altitude than your ability to tell whether what came back was any good, so an agent that
     seems unable to climb is very often an evaluator that cannot follow.</p>
   </blockquote>
 
-  <p>Two documents follow. The <a href="/syllabus">curriculum</a> is the foundation: six units,
-  real primary sources, one mathematical model to be derivable in each, and one foundational
-  experiment to be reproduced from scratch. The <a href="/protocol">protocol</a> is the
-  experiment the programme is ultimately for, written as a registered report and deliberately
-  left with six holes in it — because each hole is a quantity that one of the units produces,
-  and publishing the holes is more honest than filling them with guesses.</p>
+  <p>Three documents follow. The <a href="/syllabus">curriculum</a> is the foundation: seven
+  units, real primary sources, one mathematical model to be derivable in each, and one
+  foundational experiment to be reproduced from scratch. The <a href="/methods">house
+  standard</a> governs any run published here, and was written from three prior runs in this
+  repository that each failed the same way. The <a href="/protocol">protocol</a> is the
+  experiment the programme is ultimately for, written as a registered report and left with six
+  holes in it, because each hole is a quantity one of the units produces and publishing the
+  holes beats filling them with guesses.</p>
 
   <h2 class="sec"><span class="secno">§</span>In this volume</h2>
 
@@ -72,15 +76,27 @@
       <span class="no">Article I</span>
       <span class="body">
         <a href="/syllabus">A Curriculum in the Measurement of Delegated Work</a>
-        <span class="dek">Six units — measurement of unobservables; the design of experiments;
-        delegation under unobservable effort; proxy failure made quantitative; judgment as an
-        instrument; oversight beyond your ken. Each with its primary reading, the model to
-        master, and the experiment to replicate. Roughly thirty weeks, honestly estimated.</span>
+        <span class="dek">Seven units: the measurement of unobservables; the design of
+        experiments; delegation under unobservable effort; organisation, authority and the
+        division of knowledge; proxy failure made quantitative; judgment as an instrument;
+        oversight beyond your ken. Each with its primary reading, one model to derive, and one
+        experiment to replicate. Thirty-six weeks, honestly estimated.</span>
       </span>
-      <span class="pg">6 units · 54 works</span>
+      <span class="pg">7 units · 72 works</span>
     </div>
     <div class="row">
       <span class="no">Article II</span>
+      <span class="body">
+        <a href="/methods">House Standard for Model Experiments</a>
+        <span class="dek">Twelve rules for running, scoring and reporting a comparison, with the
+        evidence for each. Seven are already practised in this repository's bake-off rig; five
+        respond to a specific way one of the three prior runs failed. Two checklists, one before
+        a run and one before a report.</span>
+      </span>
+      <span class="pg">v1.0 · 12 rules</span>
+    </div>
+    <div class="row">
+      <span class="no">Article III</span>
       <span class="body">
         <a href="/protocol">Does Unattended Work Improve With Turn Count?</a>
         <span class="dek">A Stage 1 registered-report skeleton. Hypotheses that can lose, a
@@ -93,46 +109,58 @@
     <div class="row">
       <span class="no">Editorial</span>
       <span class="body">
-        <a href="#editorial">Ninety-nine turns, and nothing measured</a>
-        <span class="dek">What the pilot run recorded, what it did not, and why the second fact
-        is the more useful one.</span>
+        <a href="#editorial">Three runs, nothing measured</a>
+        <span class="dek">What the loop and the two bake-offs recorded, what they did not, and
+        why the second fact is more useful than the first.</span>
       </span>
       <span class="pg">below</span>
     </div>
   </div>
 
-  <h2 class="sec" id="editorial"><span class="secno">§</span>Editorial: ninety-nine turns, and nothing measured</h2>
+  <h2 class="sec" id="editorial"><span class="secno">§</span>Editorial: three runs, nothing measured</h2>
 
-  <p>In August 2026 a budget-governed agent loop in this repository issued ninety-nine work
-  orders over about fifty-three hours. Eighty-nine of them recorded a completed turn. The
-  programme's stated deliverable was a curve — quality against turn count — and the number of
-  quality scores it produced was zero.</p>
+  <p>Three measurement exercises have been run in this repository. All three produced working
+  machinery and none produced a usable comparison.</p>
 
-  <p>That is not a malfunction. Every component behaved as written. Three quality signals were
-  specified; one of them, a liveness probe, was implemented and fired. The other two — a rubric
-  and an adversarial check — were never built, and the judge that was to combine them was
-  correctly configured to withhold a score while uncalibrated. So it withheld, ninety-nine
-  times, exactly as instructed.</p>
+  <p>In August 2026 a budget-governed agent loop issued ninety-nine work orders over about
+  fifty-three hours, of which eighty-nine recorded a completed turn. Its stated deliverable was a
+  curve of quality against turn count, and the number of quality scores it produced was zero.
+  Separately, two bake-off runs gave the same brief to six harness-and-model pairs and scored
+  every result the same way. Across those two runs, twenty-three of twenty-three entries passed
+  every automated check.</p>
 
-  <p>The signal that did fire is worth looking at, because it is a textbook object. Across
-  eighty-nine turns it took three distinct values — 0.6, 0.8 and 1.0 — and sat at its maximum
-  in fifty-nine of them. Two thirds of all turns are tied at the top. Whatever else that
-  measure is, it cannot rank the turns that matter, because among the ones that matter it does
-  not vary. A century-old literature has a name for this and a formal account of why the
-  reliability of such a measure collapses precisely where you need it.</p>
+  <p>None of this is a malfunction. Every component behaved as written. The loop specified three
+  quality signals; one, a liveness probe, was implemented and fired, and the judge that was to
+  combine them was correctly configured to withhold a score while uncalibrated, so it withheld
+  ninety-nine times. The bake-off gate was designed as a floor rather than a grade, and it held
+  as a floor should. In both bake-offs the judge panel that was supposed to break the tie
+  returned <code>null</code>.</p>
 
-  <p>The temptation is to read the record for a trend anyway. There is a faint downward drift
-  in the probe across the run, and gate failures nearly doubled between the first and second
-  halves. Neither will bear weight: the drift is not significant at this sample size, the probe
-  is not a quality measure, and the gate failures are confounded with task difficulty, which
-  nothing in the record controls for. Reporting them as evidence of decline would be exactly
-  the error this programme exists to stop making.</p>
+  <p>The signals that did fire are worth looking at, because they are textbook objects. The
+  loop's probe took three distinct values across eighty-nine turns and sat at its maximum in
+  fifty-nine of them, so two thirds of all turns are tied at the top. The bake-off reports rank
+  entries by patch size in bytes, which was never claimed to measure quality and does not. A
+  century-old literature explains why a measure's reliability collapses as it approaches its
+  ceiling, and gives the coefficient that would have caught all three cases before any budget was
+  spent.</p>
 
-  <p>What the pilot does establish is narrower and more useful. The apparatus runs. The
-  instrument does not exist. And the order of work implied by those two facts is the reverse of
-  the intuitive one: there is no point spending model budget on a longer run until there is
-  something capable of telling you what the run produced. Hence a curriculum before a protocol,
-  and a protocol before a single further turn.</p>
+  <p>There is a smaller failure in the first bake-off that is a different kind of instructive.
+  Two of eleven entries recorded a zero-byte patch while their directories held a fifty-kilobyte
+  page and a working module. The agents did the work and the patch capture returned nothing.
+  Because the report sorts ascending by patch size, those two rows sorted to the top, and nothing
+  in the pipeline noticed.</p>
+
+  <p>The temptation is to read these records for a trend anyway. The loop shows a faint downward
+  drift in its probe and a near-doubling of gate failures between halves. Neither will bear
+  weight: the drift is not significant at that sample size, the probe is not a quality measure,
+  and the gate failures are confounded with task difficulty, which nothing recorded controls for.
+  Reporting them as evidence of decline would be the error this programme exists to stop
+  making.</p>
+
+  <p>What the three runs do establish is narrower and more useful. The apparatus runs. The
+  instrument does not exist. The order of work implied by those two facts is the reverse of the
+  intuitive one, so this volume puts a curriculum before a standard, and a standard before a
+  single further turn.</p>
 
   <h2 class="sec"><span class="secno">§</span>Standing notes</h2>
 

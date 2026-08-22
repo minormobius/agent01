@@ -2,3 +2,4 @@
 # assets.directory is this dir, so without these they'd be served publicly.
 CLAUDE.md
 ken.selftest.mjs
+prose-lint.mjs

@@ -9,20 +9,30 @@
        modules and provides a #reflist to render into.
 
    (2) THE QUOTED FIGURES ARE STILL TRUE. The site makes numerical claims about
-       the pilot run (99 orders, 89 turns, 0 scores, 59 at ceiling…). Those are
-       recomputed here from .github/loop/*.jsonl and compared. If the ledger
+       three prior runs: the loop (99 orders, 89 turns, 0 scores, 59 at ceiling)
+       and the two bake-offs (11 and 12 runs, all passing every check, judge
+       panel null in both). Every one of those is recomputed here from
+       .github/loop ledgers and the bakeoff results files. If the record
        changes and the prose does not, this fails.
+
+   (3) THE PROSE PASSES THE TIC LINT. ken/prose-lint.mjs is a density lint for
+       the constructions catalogued in the declauding register: em-dashes,
+       negation-first reveals, significance designation, coy headers, fragment
+       cadence. It is a density check rather than a ban, because prose stripped
+       to satisfy every rule is worse than prose with a few tics in it.
 
    The site next door generates fabricated citations for entertainment. This one
    asserts its own honesty in CI, which is the only difference that means
    anything.
    ───────────────────────────────────────────────────────────────────── */
 import { readFileSync, readdirSync } from 'node:fs';
+import { lintHtml } from './prose-lint.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const LOOP = join(HERE, '..', '.github', 'loop');
+const BAKEOFF = join(HERE, '..', 'bakeoff', 'results');
 
 let checks = 0, failures = 0;
 const ok = (cond, msg) => {
@@ -124,17 +134,66 @@ for (const [n, what] of claims) {
   ok(allHtml.includes(n), `the site states the true figure for ${what} (${n})`);
 }
 ok(actual.scores === 0,
-   `the central claim holds: zero quality scores were produced (found ${actual.scores})`);
+   `loop: zero quality scores were produced (found ${actual.scores})`);
 ok(actual.signalsFired === 1,
-   `the central claim holds: exactly one of three signals ever fired (found ${actual.signalsFired})`);
-ok(/59\s*\/\s*89|59 of/.test(allHtml) || allHtml.includes(`${actual.atCeiling} of`),
-   'the ceiling is stated as a fraction, not just a count');
+   `loop: exactly one of three signals ever fired (found ${actual.signalsFired})`);
+ok(/59\s*\/\s*89|59 of|fifty-nine of/i.test(allHtml),
+   'loop: the ceiling is stated as a fraction, not just a count');
 
-// ── 4. surface hygiene ────────────────────────────────────────────────
+// ── the two bake-offs ─────────────────────────────────────────────────
+let totalRuns = 0, totalPass = 0;
+for (const runId of ['race-01', 'race-02']) {
+  const r = JSON.parse(readFileSync(join(BAKEOFF, runId, 'results.json'), 'utf8'));
+  const e = r.entries;
+  const gatePass = e.filter((x) => x.gate?.passed).length;
+  const primFull = e.filter((x) => {
+    const c = x.skeleton?.checks || {};
+    const v = Object.values(c);
+    return v.length > 0 && v.every((y) => y.passed);
+  }).length;
+  const zeroPatch = e.filter((x) => x.patchBytes === 0 && x.hasEntry).length;
+  totalRuns += e.length; totalPass += gatePass;
+
+  console.log(`  · ${runId}: ${e.length} runs, gate ${gatePass}/${e.length}, ` +
+              `primitives ${primFull}/${e.length}, judges ${r.judges === null ? 'null' : 'present'}, ` +
+              `zero-patch-with-entry ${zeroPatch}`);
+
+  ok(allHtml.includes(String(e.length)),
+     `${runId}: the site states the true run count (${e.length})`);
+  ok(gatePass === e.length,
+     `${runId}: the saturation claim holds, every run passed the gate (${gatePass}/${e.length})`);
+  ok(primFull === e.length,
+     `${runId}: the saturation claim holds, every run scored full primitives (${primFull}/${e.length})`);
+  ok(r.judges === null,
+     `${runId}: the claim that the judge panel never returned a verdict holds`);
+  if (runId === 'race-01') {
+    ok(zeroPatch === 2,
+       `race-01: the collection-failure finding holds, 2 entries have a zero patch but a real entry (found ${zeroPatch})`);
+  }
+}
+ok(totalRuns === 23 && totalPass === 23,
+   `the headline claim holds: ${totalPass} of ${totalRuns} bake-off runs passed every automated check`);
+ok(/23 of 23|twenty-three of twenty-three/i.test(allHtml),
+   'the site states the 23-of-23 figure in words or digits');
+
+// ── 4. prose tic lint ─────────────────────────────────────────────────
+section('prose');
+for (const page of pages) {
+  const r = lintHtml(readFileSync(join(HERE, page), 'utf8'), page);
+  const over = r.findings.map((f) => `${f.rule} ${f.count}>${f.budget}`).join(', ');
+  console.log(`  · ${page}: ${r.words} words, ${r.paragraphs} paragraphs${over ? ' — ' + over : ''}`);
+  for (const f of r.findings) {
+    ok(false, `${page}: ${f.label} — ${f.count} against a budget of ${f.budget}. ${f.note}`);
+  }
+  ok(true, `${page}: prose lint`);
+}
+
+// ── 5. surface hygiene ────────────────────────────────────────────────
 section('surface hygiene');
 const assetsIgnore = readFileSync(join(HERE, '.assetsignore'), 'utf8');
 ok(/CLAUDE\.md/.test(assetsIgnore), 'CLAUDE.md is kept out of the served assets');
 ok(/ken\.selftest\.mjs/.test(assetsIgnore), 'the selftest is kept out of the served assets');
+ok(/prose-lint\.mjs/.test(assetsIgnore), 'the prose lint is kept out of the served assets');
 
 const wrangler = readFileSync(join(HERE, 'wrangler.jsonc'), 'utf8');
 ok(/"name":\s*"ken"/.test(wrangler), 'worker name is ken');

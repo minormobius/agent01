@@ -6,6 +6,12 @@ on:
     paths:
       - 'ken/**'
       - '.github/workflows/deploy-ken.yml'
+      # The selftest recomputes every figure the site quotes from these two
+      # sources. If the record changes and the prose does not, the gate must
+      # run and go red, so a change to either has to wake this workflow.
+      - '.github/loop/turns.jsonl'
+      - '.github/loop/runs.jsonl'
+      - 'bakeoff/results/**'
   workflow_dispatch:
 
 jobs:
@@ -19,7 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Selftest (citation integrity + the quoted figures still match the ledger)
+      - name: Selftest (citations, prose lint, and the quoted figures vs the record)
         run: node ken.selftest.mjs
       - name: Install wrangler
         run: npm install wrangler

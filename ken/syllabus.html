@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>A Curriculum in the Measurement of Delegated Work — ken</title>
-<meta name="description" content="Six units, real papers, a mathematical model and a foundational replication in each: the reading course underneath the measurement of unattended agent work.">
+<meta name="description" content="Seven units, real papers, a mathematical model and a foundational replication in each: the reading course underneath the measurement of unattended agent work.">
 <link rel="stylesheet" href="journal.css">
 </head>
 <body>
@@ -13,7 +13,8 @@
   <span class="brand"><a href="/">ken</a></span>
   <a href="/">Front matter</a>
   <a class="here" href="/syllabus">I · Curriculum</a>
-  <a href="/protocol">II · Protocol</a>
+  <a href="/methods">II · Methods</a>
+  <a href="/protocol">III · Protocol</a>
   <span class="grow"></span>
   <button onclick="window.print()">Save as PDF</button>
 </div>
@@ -22,49 +23,49 @@
 
   <div class="a-venue">ken · volume 1 · article I <span class="kicker">Curriculum</span></div>
   <h1 class="a-title">A Curriculum in the Measurement of Delegated Work</h1>
-  <p class="a-sub">Six units, with the primary sources, the model to master, and the experiment to reproduce in each</p>
+  <p class="a-sub">Seven units, with the primary sources, the model to master, and the experiment to reproduce in each</p>
   <div class="a-meta">Standing document · revised as units are completed</div>
   <hr class="a-rule">
 
   <div class="abstract">
     <span class="lbl">Abstract</span>
-    <p>The problem of knowing whether unattended work was any good is not new and not
-    unstudied; it is old, rigorous, and scattered across five fields that do not cite each
-    other. This curriculum assembles it. Unit I takes the measurement of unobservable
-    quantities from psychometrics, where it has been formalised for a century. Unit II takes
-    the design of experiments, including the sequential designs that a budgeted loop needs.
-    Unit III takes the economics of delegation under unobservable effort, which supplies the
-    only closed-form model in the sequence and, with it, an exact prediction of the failure
-    this programme has already suffered. Unit IV takes proxy failure — Goodhart's law, made
-    quantitative. Unit V takes comparative judgment, which is how a judge becomes an
-    instrument rather than an opinion. Unit VI takes scalable oversight: what remains
-    possible when the supervised party is more capable than the supervisor.</p>
+    <p>The problem of knowing whether unattended work was any good is old, rigorous, and
+    scattered across six fields that do not cite each other. This curriculum assembles it. Unit
+    I takes the measurement of unobservable quantities from psychometrics, where it has been
+    formalised for a century. Unit II takes the design of experiments, including the sequential
+    designs a budgeted run needs. Units III and IV take the economics of delegation: first the
+    contract offered to one agent, then the structure that divides work among many. Unit V takes
+    proxy failure, made quantitative. Unit VI takes comparative judgment, which is how a judge
+    becomes an instrument rather than an opinion. Unit VII takes scalable oversight, and asks
+    what remains possible when the supervised party is more capable than the supervisor.</p>
     <p>Each unit names a small number of primary sources, one mathematical model to be
     understood well enough to derive, and one foundational experiment to be reproduced from
-    scratch. The replications are deliberately cheap: five of the six need no model calls and
-    no budget, only an afternoon and an honest plot.</p>
+    scratch. Six of the seven replications need no model calls and no budget, only an afternoon
+    and an honest plot.</p>
   </div>
 
-  <h2 class="sec"><span class="secno">0</span>How to use this</h2>
+  <h2 class="sec"><span class="secno">0</span>Using this curriculum</h2>
 
-  <p>Read in order. The dependencies are real: Unit IV's formalisation of proxy failure is
+  <p>Read in order. The dependencies are real. Unit V's formalisation of proxy failure is
   unreadable without Unit I's distinction between a construct and its indicators, and Unit
-  VI's oversight results are just anecdotes without Unit V's machinery for turning verdicts
-  into a scale with error bars.</p>
+  VII's oversight results are anecdotes without Unit VI's machinery for turning verdicts into a
+  scale with error bars.</p>
 
-  <p>Each unit is done when its replication runs and its result is written up — not when its
-  reading is finished. The replication is the exam. Where a unit's replication touches this
-  repository's own loop data, it is stated; those can be run today, at zero model cost,
-  because the data already exists.</p>
+  <p>Each unit is done when its replication runs and its result is written up, not when its
+  reading is finished. The replication is the exam. Where a replication touches this
+  repository's own data, it is stated, and those can be run today at zero model cost because
+  the data already exists.</p>
+
+  <p>Runs conducted during the curriculum follow the <a href="/methods">house standard</a>,
+  which is short and was derived from three prior runs here that each failed the same way.</p>
 
   <div class="caveat">
     <span class="lbl">On the shape of this field</span>
-    <p>There is no department, no canonical textbook, and no agreed name. What there is
-    instead is five mature literatures whose intersection nobody has occupied. That is the
-    opportunity and it is also the hazard: nothing here will tell you that you have assembled
-    the pieces correctly, and the failure mode of an autodidact in a pre-paradigmatic field is
-    to reinvent, badly, something that was settled in 1955. The reading lists below are
-    weighted toward old papers for exactly that reason.</p>
+    <p>There is no department, no canonical textbook, and no agreed name. There are instead six
+    mature literatures whose intersection nobody has occupied. That is the opportunity and also
+    the hazard, since nothing here will tell you that you have assembled the pieces correctly,
+    and the characteristic failure of an autodidact in a pre-paradigmatic field is to reinvent,
+    badly, something settled in 1955. The reading lists below lean old for that reason.</p>
   </div>
 
   <!-- ══════════════════════════════════════════════════════════ I ═══ -->
@@ -75,24 +76,23 @@
       <span class="weeks">≈ 5 weeks</span>
     </div>
 
-    <p class="question">If quality cannot be observed directly, on what grounds may a number
-    be said to measure it?</p>
+    <p class="question">If quality cannot be observed directly, on what grounds may a number be
+    said to measure it?</p>
 
-    <p>This is the oldest rigorous part of the field and the part most completely ignored by
-    current practice. Psychometrics has spent a hundred years on precisely one problem:
-    inferring an unobservable quantity from fallible indicators, and establishing when you are
-    entitled to. Spearman <a class="cite" data-ref="spearman1904"></a> began it by noticing that
-    the correlations among unrelated school subjects had a structure that implied a common
-    cause nobody could measure. Everything since is the discipline of not fooling yourself
-    about that inference.</p>
+    <p>This is the oldest rigorous part of the field and the part current practice most
+    completely ignores. Psychometrics has spent a hundred years on one problem: inferring an
+    unobservable quantity from fallible indicators, and establishing when you are entitled to.
+    Spearman <a class="cite" data-ref="spearman1904"></a> began it by noticing that correlations
+    among unrelated school subjects had a structure implying a common cause nobody could
+    measure. Everything since is the discipline of not fooling yourself about that inference.</p>
 
-    <p>The load-bearing idea is <em>construct validity</em> <a class="cite" data-ref="cronbach1955"></a>:
-    a measure is not validated by being precise, reproducible, or agreed upon. It is validated
-    by an accumulating argument that it stands in the relations to other things that the
-    construct would stand in. Campbell and Fiske <a class="cite" data-ref="campbell1959"></a>
-    sharpen this into a two-sided test — a measure must converge with other measures of the
-    same construct <em>and</em> diverge from measures of different ones. Almost every published
-    evaluation of agent output tests neither.</p>
+    <p>Construct validity <a class="cite" data-ref="cronbach1955"></a> carries the unit. A
+    measure is not validated by being precise, reproducible, or agreed upon, but by an
+    accumulating argument that it stands in the relations to other things that the construct
+    would stand in. Campbell and Fiske <a class="cite" data-ref="campbell1959"></a> sharpen this
+    into a two-sided test: a measure must converge with other measures of the same construct and
+    diverge from measures of different ones. Most published evaluations of agent output test
+    neither.</p>
 
     <div class="apparatus">
       <div>
@@ -101,56 +101,55 @@
           <li>Cronbach &amp; Meehl, <em>Construct validity in psychological tests</em> <a class="cite" data-ref="cronbach1955"></a>.
             <span class="why">The unit's centre. Short, and it will change how you read every benchmark paper afterwards.</span></li>
           <li>Campbell &amp; Fiske, <em>the multitrait-multimethod matrix</em> <a class="cite" data-ref="campbell1959"></a>.
-            <span class="why">Convergent and discriminant validation. The design that catches a measure of "how long the output is" wearing a quality costume.</span></li>
-          <li>Spearman <a class="cite" data-ref="spearman1904"></a>, for the founding argument; Lord &amp; Novick <a class="cite" data-ref="lord1968"></a> ch. 2–4 for classical test theory stated properly.
+            <span class="why">Convergent and discriminant validation: the design that catches a measure of output length wearing a quality costume.</span></li>
+          <li>Spearman <a class="cite" data-ref="spearman1904"></a>, then Lord &amp; Novick <a class="cite" data-ref="lord1968"></a> ch. 2–4.
             <span class="why">Skim Spearman for the move, study Lord &amp; Novick for the algebra.</span></li>
-          <li>Cronbach on coefficient α <a class="cite" data-ref="cronbach1951"></a>, then Krippendorff <a class="cite" data-ref="krippendorff2004"></a> ch. 11 and Cohen <a class="cite" data-ref="cohen1960"></a> on agreement.
+          <li>Cronbach on coefficient α <a class="cite" data-ref="cronbach1951"></a>, then Krippendorff <a class="cite" data-ref="krippendorff2004"></a> ch. 11 and Cohen <a class="cite" data-ref="cohen1960"></a>.
             <span class="why">α measures internal consistency, not validity. Learn the distinction here rather than in a review.</span></li>
           <li>Messick <a class="cite" data-ref="messick1995"></a> on consequential validity.
-            <span class="why">Where the act of measuring changes the thing measured — the bridge into Unit IV.</span></li>
-          <li><em>Optional, if the unit goes well:</em> Rasch <a class="cite" data-ref="rasch1960"></a>; Embretson &amp; Reise <a class="cite" data-ref="embretson2000"></a>.
-            <span class="why">Item response theory. The right frame if you ever want a gate whose difficulty is calibrated rather than asserted.</span></li>
+            <span class="why">Where measuring changes the thing measured, which is the bridge into Unit V.</span></li>
+          <li><em>Optional:</em> Rasch <a class="cite" data-ref="rasch1960"></a>; Embretson &amp; Reise <a class="cite" data-ref="embretson2000"></a>.
+            <span class="why">Item response theory, for a gate whose difficulty is calibrated rather than asserted.</span></li>
         </ol>
       </div>
 
       <div>
         <span class="lbl">The model to master</span>
         <div class="model">
-          <p><b>Classical test theory, and reliability as a variance ratio.</b> An observed
-          score decomposes into a true score and independent error:</p>
+          <p><b>Classical test theory, and reliability as a variance ratio.</b> An observed score
+          decomposes into a true score and independent error:</p>
           <div class="eq">X = T + E,&nbsp;&nbsp; E[E] = 0,&nbsp;&nbsp; Cov(T, E) = 0
             <span class="where">so that σ²<sub>X</sub> = σ²<sub>T</sub> + σ²<sub>E</sub></span></div>
           <p>Reliability is the fraction of observed variance that is signal:</p>
           <div class="eq">ρ<sub>XX′</sub> = σ²<sub>T</sub> ⁄ σ²<sub>X</sub>
             <span class="where">equivalently, the correlation between two parallel measurements</span></div>
-          <p>Master three consequences. First, <em>attenuation</em>: the observed correlation
-          between two unreliable measures is bounded by √(ρ<sub>XX′</sub>ρ<sub>YY′</sub>), so a
-          weak judge–human correlation may indicate a noisy judge rather than a wrong one — and
-          you cannot tell which without knowing both reliabilities. Second, the
-          <em>Spearman–Brown</em> relation: lengthening a test raises reliability predictably,
-          which prices the question "how many rubric items do we need?". Third, and most
-          immediately: a measure with a <em>ceiling</em> has σ²<sub>T</sub> crushed toward zero
-          among the cases near the top, so its reliability collapses exactly where you needed
-          it — among your best turns.</p>
+          <p>Master three consequences. <em>Attenuation:</em> the observed correlation between
+          two unreliable measures is bounded by √(ρ<sub>XX′</sub>ρ<sub>YY′</sub>), so a weak
+          judge-to-human correlation may indicate a noisy judge rather than a wrong one, and you
+          cannot tell which without knowing both reliabilities. <em>Spearman–Brown:</em>
+          lengthening a test raises reliability predictably, which prices the question of how
+          many rubric items you need. And a measure with a ceiling has σ²<sub>T</sub> crushed
+          toward zero among the cases near the top, so its reliability collapses exactly where
+          you needed it, among your best subjects.</p>
         </div>
       </div>
 
       <div>
         <span class="lbl">The replication</span>
         <div class="replication">
-          <p><b>A rater study on our own data, and the ceiling it will find.</b> Draw a sample
-          of loop artifacts. Write a five-item rubric. Have three raters score every artifact
-          independently — at least one of them human, at least one of them you. Then compute,
-          from scratch and not from a library: inter-rater agreement (Krippendorff's α, which
-          tolerates a ragged panel), Cronbach's α across the five items, and the item–total
-          correlation of each item.</p>
-          <p>The findings you are looking for are unflattering and specific. Any item whose
-          item–total correlation is near zero is measuring something else and should be cut.
-          If α across items is very high, the five items are one item and you have not
-          measured five things. And the existing <code>probes</code> signal — which took three
-          distinct values across eighty-nine turns and sat at its maximum in two thirds of
-          them — should be shown, formally, to have almost no discriminating power in the
-          region that matters. That demonstration <em>is</em> the unit's exam.</p>
+          <p><b>A rater study on our own data, and the ceiling it will find.</b> Draw a sample of
+          artifacts from the loop and the two bake-offs. Write a five-item rubric. Have three
+          raters score every artifact independently, at least one of them human, at least one of
+          them you. Then compute, from scratch rather than from a library: inter-rater agreement
+          (Krippendorff's α, which tolerates a ragged panel), Cronbach's α across items, and each
+          item's item-total correlation.</p>
+          <p>The findings to look for are unflattering and specific. An item whose item-total
+          correlation is near zero measures something else and should be cut. If α across items
+          is very high, the five items are one item. And the three existing instruments should be
+          shown formally to have almost no discriminating power: the loop's probe sat at its
+          maximum in 59 of 89 turns, and across the two bake-offs 23 runs of 23 passed every
+          automated check. Demonstrating that with a reliability coefficient rather than an
+          eyebrow is the unit's exam.</p>
         </div>
       </div>
     </div>
@@ -165,22 +164,21 @@
     </div>
 
     <p class="question">What must be arranged in advance for a comparison to license a
-    conclusion — and how do you spend a fixed budget across it?</p>
+    conclusion, and how do you spend a fixed budget across it?</p>
 
-    <p>Fisher's insight <a class="cite" data-ref="fisher1935"></a> was that randomisation is
-    not a hygiene measure but the thing that <em>creates</em> the reference distribution
-    against which a result is judged. Without it you have a story; with it you have a
-    calculable probability. The lady tasting tea is the whole argument in one page, and it is
-    still the cleanest introduction to inference ever written.</p>
+    <p>Fisher's insight <a class="cite" data-ref="fisher1935"></a> was that randomisation is not
+    a hygiene measure but the thing that creates the reference distribution against which a
+    result is judged. Without it you have a story; with it you have a calculable probability. The
+    lady tasting tea is the whole argument in one page, and it remains the cleanest introduction
+    to inference ever written.</p>
 
-    <p>The second half of the unit is the part a budgeted loop actually needs. A run that
-    checks its results as it goes and stops when they look good has an error rate far worse
-    than it believes. Wald <a class="cite" data-ref="wald1945"></a> solved this in 1945; the
-    sequential probability ratio test lets you stop early <em>and</em> keep an honest error
-    rate, provided the stopping rule was fixed in advance. Then the allocation question —
-    given a budget, which arm gets the next unit of it — is the bandit literature
-    <a class="cite" data-ref="lai1985"></a><a class="cite" data-ref="auer2002"></a>, of which
-    the relevant chapter for us is best-arm identification rather than regret minimisation
+    <p>The second half of the unit is what a budgeted run needs. A run that checks its results as
+    it goes and stops when they look good has an error rate far worse than it believes. Wald
+    <a class="cite" data-ref="wald1945"></a> solved this in 1945: the sequential probability
+    ratio test permits early stopping while keeping an honest error rate, provided the stopping
+    rule was fixed in advance. The allocation question, given a budget, is the bandit literature
+    <a class="cite" data-ref="lai1985"></a><a class="cite" data-ref="auer2002"></a>, of which the
+    relevant chapter here is best-arm identification rather than regret minimisation
     <a class="cite" data-ref="lattimore2020"></a>.</p>
 
     <div class="apparatus">
@@ -188,15 +186,17 @@
         <span class="lbl">Primary reading</span>
         <ol class="reading">
           <li>Fisher, <em>The Design of Experiments</em> <a class="cite" data-ref="fisher1935"></a>, ch. 1–3.
-            <span class="why">Read the original, not a summary of it. It is short and unusually well written.</span></li>
+            <span class="why">Read the original rather than a summary. It is short and unusually well written.</span></li>
           <li>Box, Hunter &amp; Hunter <a class="cite" data-ref="box2005"></a>, ch. 1–5, then the factorial chapters.
-            <span class="why">The working text. Blocking, confounding, and factorial designs — which is how you test four gate settings without running four separate studies.</span></li>
+            <span class="why">The working text. Blocking, confounding, and factorial designs, which is how you test four gate settings without running four studies.</span></li>
           <li>Neyman <a class="cite" data-ref="neyman1923"></a> and Rubin <a class="cite" data-ref="rubin1974"></a> on potential outcomes.
             <span class="why">The vocabulary for saying precisely what a causal claim claims.</span></li>
           <li>Wald <a class="cite" data-ref="wald1945"></a> on sequential tests.
             <span class="why">The budget governor's missing theory. Read at least the setup and the error-rate argument.</span></li>
           <li>Simmons, Nelson &amp; Simonsohn <a class="cite" data-ref="simmons2011"></a>; Ioannidis <a class="cite" data-ref="ioannidis2005"></a>; Nosek et al. <a class="cite" data-ref="nosek2018"></a>.
-            <span class="why">Researcher degrees of freedom, and the remedy. Read the first immediately before writing your own analysis plan; it is uncomfortable and it should be.</span></li>
+            <span class="why">Researcher degrees of freedom, and the remedy. Read the first immediately before writing your own analysis plan.</span></li>
+          <li>Schulz, Altman &amp; Moher <a class="cite" data-ref="schulz2010"></a>.
+            <span class="why">CONSORT: how a field fixes what must be reported so that omitting it becomes visible. The template for our own house standard.</span></li>
           <li>Student <a class="cite" data-ref="student1908"></a>, for the pleasure of it.
             <span class="why">A brewer solving a small-sample problem because his employer forbade him to publish under his own name.</span></li>
         </ol>
@@ -206,36 +206,36 @@
         <span class="lbl">The model to master</span>
         <div class="model">
           <p><b>Randomisation inference, then power.</b> The permutation test needs no
-          distributional assumption at all: under the null that treatment does nothing, the
-          observed assignment is one of the <span class="mono">C(n, k)</span> equally likely
-          assignments, and the p-value is the fraction of them giving a statistic at least as
-          extreme. For the tea experiment, eight cups and four of each:</p>
+          distributional assumption. Under the null that treatment does nothing, the observed
+          assignment is one of <span class="mono">C(n, k)</span> equally likely assignments, and
+          the p-value is the fraction of them giving a statistic at least as extreme. For eight
+          cups, four of each:</p>
           <div class="eq">P(all four correct | H₀) = 1 ⁄ C(8,4) = 1⁄70 ≈ 0.014</div>
-          <p>Then the design question, which is where most studies are lost before they start.
-          For a two-arm comparison of means at significance α and power 1−β, the required
-          sample per arm is approximately</p>
+          <p>Then the design question, where most studies are lost before they start. For a
+          two-arm comparison of means at significance α and power 1−β, the sample per arm is
+          approximately</p>
           <div class="eq">n ≈ 2(z<sub>1−α/2</sub> + z<sub>1−β</sub>)² ⁄ d²
             <span class="where">d = the standardised effect size you care about detecting</span></div>
-          <p>Master this well enough to run it backwards: given the budget you actually have,
-          what is the smallest effect the study could detect? If that number is larger than
-          any effect you believe in, the study is not worth running, and knowing this
-          <em>beforehand</em> is the single highest-return skill in the unit.</p>
+          <p>Master this well enough to run it backwards. Given the budget you actually have,
+          what is the smallest effect the study could detect? If that number exceeds any effect
+          you believe in, the study is not worth running, and knowing so beforehand is the
+          highest-return skill in the unit.</p>
         </div>
       </div>
 
       <div>
         <span class="lbl">The replication</span>
         <div class="replication">
-          <p><b>The lady tasting tea, exactly — then our own power analysis.</b> Implement
-          the exact null distribution by enumeration, not simulation and not a library call:
-          all 70 assignments, the statistic on each, the p-value by counting. Confirm 1/70.
-          Then extend it honestly: recompute for six cups and for ten, and see how fast the
-          smallest achievable p-value moves. This is why the eight-cup design was chosen and
-          it is a design decision, not a detail.</p>
-          <p>Then turn the machinery on the programme itself. Given a turn budget, and a
-          quality measure with the reliability estimated in Unit I, what is the smallest
-          per-turn improvement the curve could detect? Produce the number before running
-          anything. If it is embarrassing, that is the unit working correctly.</p>
+          <p><b>The lady tasting tea, exactly, then our own power analysis.</b> Implement the
+          exact null distribution by enumeration rather than simulation or a library call: all 70
+          assignments, the statistic on each, the p-value by counting. Confirm 1/70. Then extend
+          it: recompute for six cups and for ten, and watch how fast the smallest achievable
+          p-value moves. This is why the eight-cup design was chosen, and it is a design
+          decision rather than a detail.</p>
+          <p>Then turn the machinery on the programme. Given a turn budget, and a quality measure
+          with the reliability estimated in Unit I, what is the smallest per-turn improvement the
+          curve could detect? Produce the number before running anything. An embarrassing answer
+          means the unit is working.</p>
         </div>
       </div>
     </div>
@@ -252,33 +252,32 @@
     <p class="question">What contract should a principal offer an agent whose effort cannot be
     seen, only inferred from a noisy outcome?</p>
 
-    <p>This is the unit that unifies the two halves of the subject, and the reason to place
-    project management and alignment on one continuum rather than at two ends of a ladder.
-    Both are instances of the principal–agent problem: a principal wants outcomes, an agent
-    chooses actions, and the principal observes a signal that is informative about those
-    actions but not equal to them. Everything interesting follows from that gap
+    <p>This unit and the next put project management and alignment on one continuum rather than
+    at two ends of a ladder. Both are instances of the principal-agent problem: a principal wants
+    outcomes, an agent chooses actions, and the principal observes a signal informative about
+    those actions but not equal to them. Everything interesting follows from that gap
     <a class="cite" data-ref="ross1973"></a><a class="cite" data-ref="holmstrom1979"></a>.</p>
 
-    <p>Two results carry the unit. Holmström's <em>informativeness principle</em>
-    <a class="cite" data-ref="holmstrom1979"></a>: any signal that carries incremental
-    information about the agent's effort should enter the contract, however noisy — which is a
-    formal argument against reducing evaluation to one headline metric, and in favour of the
-    multiple imperfect signals that Unit I taught you to combine. And then the result this
-    programme has already paid for:</p>
+    <p>Two results carry the unit. Holmström's informativeness principle
+    <a class="cite" data-ref="holmstrom1979"></a> holds that any signal carrying incremental
+    information about effort should enter the contract, however noisy, which is a formal argument
+    against reducing evaluation to one headline metric and in favour of the multiple imperfect
+    signals Unit I taught you to combine. Then the result this programme has already paid
+    for:</p>
 
     <blockquote>
-      <p>When an agent's effort is divided among several tasks and only some of them are
-      measurable, effort flows to the measured tasks. The optimal response is frequently to
-      <em>weaken</em> the incentive on the measurable task rather than to strengthen it — and
-      where the unmeasured task matters enough, to offer no performance incentive at all.</p>
+      <p>When an agent's effort is divided among several tasks and only some are measurable,
+      effort flows to the measured tasks. The optimal response is frequently to weaken the
+      incentive on the measurable task rather than to strengthen it, and where the unmeasured
+      task matters enough, to offer no performance incentive at all.</p>
       <cite>the multitask result, Holmström &amp; Milgrom 1991 <a class="cite" data-ref="holmstrom1991"></a></cite>
     </blockquote>
 
     <p>Baker <a class="cite" data-ref="baker1992"></a> completes the picture by separating two
-    distinct defects a metric can have: it can be <em>noisy</em>, which costs the agent risk,
-    and it can be <em>distorted</em>, meaning that maximising it does not maximise value. These
-    call for opposite remedies, and confusing them is the most common error in gate design.
-    Kerr <a class="cite" data-ref="kerr1975"></a> is the same lesson without algebra, and the
+    defects a metric can have. It can be noisy, which costs the agent risk, and it can be
+    distorted, meaning maximising it does not maximise value. These call for opposite remedies,
+    and confusing them is the most common error in gate design. Kerr
+    <a class="cite" data-ref="kerr1975"></a> gives the same lesson without algebra and is the
     right thing to hand a colleague. Gibbons <a class="cite" data-ref="gibbons1998"></a> and
     Prendergast <a class="cite" data-ref="prendergast1999"></a> survey the field.</p>
 
@@ -287,14 +286,14 @@
         <span class="lbl">Primary reading</span>
         <ol class="reading">
           <li>Holmström, <em>Moral Hazard and Observability</em> <a class="cite" data-ref="holmstrom1979"></a>.
-            <span class="why">The informativeness principle. Derive it; do not merely read it.</span></li>
+            <span class="why">The informativeness principle. Derive it rather than merely reading it.</span></li>
           <li>Holmström &amp; Milgrom, <em>Multitask Principal-Agent Analyses</em> <a class="cite" data-ref="holmstrom1991"></a>.
-            <span class="why">The centrepiece of the entire curriculum. §2 is the part to know cold.</span></li>
-          <li>Holmström &amp; Milgrom <a class="cite" data-ref="holmstrom1987"></a> for why linear contracts are optimal in the tractable setting.
+            <span class="why">The centrepiece of the curriculum. §2 is the part to know cold.</span></li>
+          <li>Holmström &amp; Milgrom <a class="cite" data-ref="holmstrom1987"></a> on why linear contracts are optimal in the tractable setting.
             <span class="why">The justification for the model below. Heavy; take the result if the proof resists.</span></li>
           <li>Baker <a class="cite" data-ref="baker1992"></a> on distortion versus risk.</li>
           <li>Kerr <a class="cite" data-ref="kerr1975"></a>; Gibbons <a class="cite" data-ref="gibbons1998"></a>.
-            <span class="why">Read Kerr first if the formalism is cold. It is four pages and it is devastating.</span></li>
+            <span class="why">Read Kerr first if the formalism is cold. Four pages, and devastating.</span></li>
           <li>Ross <a class="cite" data-ref="ross1973"></a>; Grossman &amp; Hart <a class="cite" data-ref="grossman1983"></a>; Prendergast <a class="cite" data-ref="prendergast1999"></a>.
             <span class="why">Origins and survey. Reference rather than front-to-back.</span></li>
         </ol>
@@ -303,28 +302,26 @@
       <div>
         <span class="lbl">The model to master</span>
         <div class="model">
-          <p><b>The linear-exponential-normal (LEN) model.</b> The one closed-form model in
-          this curriculum, and worth knowing by heart. The agent exerts effort
-          <span class="mono">e</span> at cost <span class="mono">½ce²</span>; output is
-          observed with noise, <span class="mono">x = e + ε</span> with
-          <span class="mono">ε ∼ N(0, σ²)</span>; the contract is linear,
-          <span class="mono">w = α + βx</span>; the agent has constant absolute risk aversion
-          <span class="mono">r</span>. Maximising certainty equivalent gives effort
-          <span class="mono">e* = β/c</span>, and the principal's optimal incentive intensity
-          is</p>
+          <p><b>The linear-exponential-normal (LEN) model.</b> The one closed-form model in this
+          curriculum, and worth knowing by heart. An agent exerts effort <span class="mono">e</span>
+          at cost <span class="mono">½ce²</span>; output is observed with noise,
+          <span class="mono">x = e + ε</span> with <span class="mono">ε ∼ N(0, σ²)</span>; the
+          contract is linear, <span class="mono">w = α + βx</span>; the agent has constant
+          absolute risk aversion <span class="mono">r</span>. Maximising certainty equivalent
+          gives effort <span class="mono">e* = β/c</span>, and the principal's optimal incentive
+          intensity is</p>
           <div class="eq">β* = 1 ⁄ (1 + r c σ²)</div>
-          <p>Read what it says. Incentive intensity should fall as the measure gets noisier
-          (σ² up), as the agent is more risk-averse (r up), and as effort gets more costly to
-          vary (c up). A noisy gate should be weighted <em>less</em>, not compensated for by
-          being weighted more — which is the opposite of what a failing loop usually does to
-          itself.</p>
+          <p>Read what it says. Incentive intensity should fall as the measure gets noisier, as
+          the agent grows more risk-averse, and as effort gets costlier to vary. A noisy gate
+          should be weighted less rather than compensated for by being weighted more, which is
+          the opposite of what a failing loop usually does to itself.</p>
           <p>Now extend to two tasks with efforts <span class="mono">e₁, e₂</span>, where only
-          task 1 is measurable and the cost function has a positive cross-partial (the tasks
-          compete for the same effort). The optimal <span class="mono">β₁</span> is pushed
-          below its single-task value, and as task 2's marginal value rises,
-          <span class="mono">β₁ → 0</span>. Derive that. It is the exam question, and it is
-          also a formal statement of why turns 36–50 of our own loop produced seven backend
-          modules and no page.</p>
+          task 1 is measurable and the cost function has a positive cross-partial, so the tasks
+          compete for the same effort. Optimal <span class="mono">β₁</span> is pushed below its
+          single-task value, and as task 2's marginal value rises,
+          <span class="mono">β₁ → 0</span>. Derive that. It is the exam question, and a formal
+          statement of why turns 36 to 50 of our own loop produced seven backend modules and no
+          page.</p>
         </div>
       </div>
 
@@ -333,15 +330,14 @@
         <div class="replication">
           <p><b>Solve the LEN optimum numerically, then reproduce the multitask
           incentive-weakening result.</b> Implement the single-task model, verify
-          <span class="mono">β* = 1/(1 + rcσ²)</span> against a numerical optimiser, and plot
-          β* against σ². Then build the two-task version and produce the paper's qualitative
-          result: the surface of optimal β₁ over (value of task 2, cost cross-partial),
-          showing the region where the optimum is to switch the measured incentive off
-          entirely.</p>
-          <p>Finish by fitting the model to us. Take task 1 as "passes the gates", task 2 as
-          "a stranger would want to use it", estimate what the loop's implied β₁ was, and
-          state what the model says it should have been. This is the first point in the
-          curriculum where the theory makes a falsifiable retrodiction about our own run.</p>
+          <span class="mono">β* = 1/(1 + rcσ²)</span> against a numerical optimiser, and plot β*
+          against σ². Then build the two-task version and produce the paper's qualitative result:
+          the surface of optimal β₁ over task 2's value and the cost cross-partial, showing the
+          region where the optimum switches the measured incentive off entirely.</p>
+          <p>Finish by fitting the model to us. Take task 1 as passing the gates and task 2 as a
+          stranger wanting to use the result, estimate the loop's implied β₁, and state what the
+          model says it should have been. This is the first point in the curriculum where the
+          theory makes a falsifiable retrodiction about our own run.</p>
         </div>
       </div>
     </div>
@@ -351,90 +347,107 @@
   <div class="unit">
     <div class="unit-head">
       <span class="no">Unit IV</span>
-      <h2>Proxy failure, made quantitative</h2>
-      <span class="weeks">≈ 4 weeks</span>
+      <h2>Organisation: structure, authority, and the division of knowledge</h2>
+      <span class="weeks">≈ 6 weeks</span>
     </div>
 
-    <p class="question">Exactly how, and how fast, does optimising a measure destroy its
-    relationship to the thing it measured?</p>
+    <p class="question">How should work be divided among many agents, who is entitled to decide
+    what, and what determines when a problem travels upward?</p>
 
-    <p>Goodhart's original remark <a class="cite" data-ref="goodhart1975"></a> was narrow and
-    about monetary aggregates; Campbell <a class="cite" data-ref="campbell1979"></a> stated the
-    general version better and earlier than the slogan suggests, and Strathern
-    <a class="cite" data-ref="strathern1997"></a> supplied the familiar phrasing along with an
-    ethnographer's account of what a measured institution turns into. The essential modern
-    move is Manheim and Garrabrant's <a class="cite" data-ref="manheim2018"></a>: "Goodhart's
-    law" names at least four distinct mechanisms, and they have different fixes.</p>
+    <p>Unit III fixes the contract with one agent. This unit fixes the structure among several,
+    and it is the unit with the most direct operational payoff, because every question that
+    arises when orchestrating a fleet was asked first about firms and answered with models that
+    still hold.</p>
 
-    <p>The one to internalise first is <em>regressional</em> Goodhart, because it requires no
-    adversary, no gaming, and no intent — only noise and selection. If a proxy equals the true
-    quantity plus independent noise, then selecting the top-scoring item selects partly for
-    quality and partly for luck, and the expected true value of the winner falls short of its
-    measured value by an amount that <em>grows</em> with selection pressure. Nothing has gone
-    wrong. Everyone behaved correctly. The number still lies.</p>
+    <p>Coase <a class="cite" data-ref="coase1937"></a> asked why firms exist rather than
+    contracting everything through markets, and answered that using the market has costs. The
+    same calculation decides whether to spawn a sub-agent or do the work in one context: the
+    sub-agent buys parallelism and a clean context window, and costs a specification, a
+    handoff, and a review. Williamson <a class="cite" data-ref="williamson1985"></a> and Hart
+    and Moore <a class="cite" data-ref="hart1990"></a> develop the boundary further, the latter
+    on incomplete contracts, where you cannot specify everything in advance and what matters is
+    who holds residual control over the unspecified parts.</p>
 
-    <p>Then the quantitative anchor for this entire programme: Gao, Schulman and Hilton
-    <a class="cite" data-ref="gao2023"></a> measure gold-standard quality as a function of how
-    hard a proxy is optimised, and fit functional forms in which quality rises, peaks, and
-    then declines with continued optimisation. Our own question — does turn 20 improve on turn
-    19 — is a special case of theirs, with turn count standing in for optimisation pressure.
-    Pan, Bhatia and Steinhardt <a class="cite" data-ref="pan2022"></a> add the alarming
-    refinement that the transition can be abrupt rather than gradual. Skalse et al.
-    <a class="cite" data-ref="skalse2022"></a> give "unhackable" a formal definition and show
-    how restrictive it is. Amodei et al. <a class="cite" data-ref="amodei2016"></a> §3 stated
-    the agenda in 2016; Krakovna's specimen list <a class="cite" data-ref="krakovna2020"></a> is
-    the cabinet of examples to read before designing any gate.</p>
+    <p>Two papers are worth more than the rest combined for our purposes. Garicano
+    <a class="cite" data-ref="garicano2000"></a> models an organisation as a device for matching
+    problems to knowledge: workers handle routine cases and escalate exceptions to specialists,
+    and the optimum sets span of control and the number of layers from communication cost and
+    the difficulty distribution. It is a theory of orchestration written before there was
+    anything to orchestrate. Aghion and Tirole <a class="cite" data-ref="aghion1997"></a>
+    separate formal authority, the right to decide, from real authority, effective control over
+    what gets decided, and show that an overloaded principal who retains formal authority ends
+    up with less real authority than one who delegates. That is the abstraction-ladder problem
+    stated as a theorem.</p>
+
+    <p>Dessein <a class="cite" data-ref="dessein2002"></a> quantifies the companion question of
+    when to stop specifying and start delegating: because communication loses information,
+    delegation beats an informed principal issuing instructions once the preference gap is small
+    enough. Galbraith <a class="cite" data-ref="galbraith1973"></a> supplies the framing that
+    transfers most cleanly, treating structure as a choice matched to the volume of exceptions
+    that must travel up it.</p>
 
     <div class="apparatus">
       <div>
         <span class="lbl">Primary reading</span>
         <ol class="reading">
-          <li>Manheim &amp; Garrabrant <a class="cite" data-ref="manheim2018"></a>.
-            <span class="why">The taxonomy. Learn to diagnose which of the four you have; the remedies do not transfer.</span></li>
-          <li>Gao, Schulman &amp; Hilton <a class="cite" data-ref="gao2023"></a>.
-            <span class="why">The quantitative core of the unit and the closest published relative of our own study.</span></li>
-          <li>Campbell <a class="cite" data-ref="campbell1979"></a>; Strathern <a class="cite" data-ref="strathern1997"></a>; Goodhart <a class="cite" data-ref="goodhart1975"></a>.
-            <span class="why">The originals, in decreasing order of usefulness and increasing order of fame.</span></li>
-          <li>Pan, Bhatia &amp; Steinhardt <a class="cite" data-ref="pan2022"></a>; Skalse et al. <a class="cite" data-ref="skalse2022"></a>.</li>
-          <li>Amodei et al. <a class="cite" data-ref="amodei2016"></a> §3; Krakovna et al. <a class="cite" data-ref="krakovna2020"></a>.
-            <span class="why">Agenda and specimens. The example list is genuinely funny and should still change your gate design.</span></li>
+          <li>Garicano, <em>Hierarchies and the Organization of Knowledge in Production</em> <a class="cite" data-ref="garicano2000"></a>.
+            <span class="why">The unit's model. Read it as a paper about how many sub-agents to run and when to escalate, because that is what it is.</span></li>
+          <li>Aghion &amp; Tirole, <em>Formal and Real Authority in Organizations</em> <a class="cite" data-ref="aghion1997"></a>.
+            <span class="why">The most useful single result for anyone who feels unable to delegate upward in abstraction.</span></li>
+          <li>Galbraith <a class="cite" data-ref="galbraith1973"></a>; Dessein <a class="cite" data-ref="dessein2002"></a>.
+            <span class="why">Structure as information processing, and the delegate-or-instruct threshold.</span></li>
+          <li>Coase <a class="cite" data-ref="coase1937"></a>; Williamson <a class="cite" data-ref="williamson1985"></a>; Hart &amp; Moore <a class="cite" data-ref="hart1990"></a>.
+            <span class="why">The boundary of the firm, and residual control rights when contracts are incomplete.</span></li>
+          <li>Holmström &amp; Milgrom <a class="cite" data-ref="holmstrom1994"></a>; Milgrom &amp; Roberts <a class="cite" data-ref="milgrom1990"></a>.
+            <span class="why">Incentives, ownership and job design as one decision, and complementarities: practices that pay off together and not separately, so partial adoption can score worse than none.</span></li>
+          <li>Simon <a class="cite" data-ref="simon1947"></a>; March &amp; Simon <a class="cite" data-ref="march1958"></a>; Chandler <a class="cite" data-ref="chandler1962"></a>; Mintzberg <a class="cite" data-ref="mintzberg1979"></a>.
+            <span class="why">The classical shelf. Simon on bounded rationality and attention as the scarce resource; Chandler for the historical evidence that structure follows strategy.</span></li>
+          <li>Gibbons &amp; Roberts <a class="cite" data-ref="gibbons2013"></a>.
+            <span class="why">The handbook. Use it to find the survey on a question rather than reading it through.</span></li>
         </ol>
       </div>
 
       <div>
         <span class="lbl">The model to master</span>
         <div class="model">
-          <p><b>Regressional Goodhart, as an order statistic.</b> Let the true quality be
-          <span class="mono">T</span> and the measured proxy <span class="mono">P = T + E</span>
-          with <span class="mono">E</span> independent noise. Select the best of
-          <span class="mono">n</span> candidates by <span class="mono">P</span>. Then the
-          selected item's expected true quality is</p>
-          <div class="eq">E[T | P = max] = E[P | P = max] · σ²<sub>T</sub> ⁄ (σ²<sub>T</sub> + σ²<sub>E</sub>)
-            <span class="where">in the jointly normal case — the measured score, shrunk by the reliability</span></div>
-          <p>Note what the shrinkage factor is: it is exactly the reliability from Unit I. The
-          two units are the same algebra seen from different ends, and that is the moment the
-          curriculum locks together. As <span class="mono">n</span> grows, the measured maximum
-          keeps climbing while the true value behind it flattens — the gap between what your
-          gate reports and what you actually got widens with every additional candidate you
-          screen. No malice required.</p>
+          <p><b>Garicano's knowledge hierarchy.</b> Production requires solving problems drawn
+          from a known distribution. A worker learns some interval of that distribution and
+          solves the problems falling in it; problems outside it are passed up at communication
+          cost <span class="mono">h</span> to a specialist who has learned rarer material. With a
+          fraction <span class="mono">p</span> of problems solved at the first layer, one
+          specialist can support a span of roughly</p>
+          <div class="eq">s ≈ 1 ⁄ ( h · (1 − p) )
+            <span class="where">specialist time is consumed only by the exceptions that reach them</span></div>
+          <p>Derive the layer structure and the comparative statics. Falling communication cost
+          widens spans; a harder problem distribution deepens the hierarchy; and the value of
+          the specialist's time rises with the number of exceptions they field rather than with
+          the total work below them.</p>
+          <p>Then read the quantities off our own setup. The worker is a sub-agent, the
+          specialist is the orchestrator, and <span class="mono">h</span> is the real cost of a
+          handoff: writing the brief, reading the diff, and repairing a misunderstanding. The
+          model says what your span should be, and it also says the thing people find
+          counter-intuitive, which is that lowering <span class="mono">h</span> by writing better
+          briefs raises the number of agents you can usefully run more than making the agents
+          better does.</p>
         </div>
       </div>
 
       <div>
         <span class="lbl">The replication</span>
         <div class="replication">
-          <p><b>Produce the overoptimisation curve on a synthetic, with no models
-          involved.</b> Draw <span class="mono">T</span> from a normal; form
-          <span class="mono">P = T + E</span> at several noise levels; for each
-          <span class="mono">n</span> in a geometric sweep, select best-of-<span class="mono">n</span>
-          by P and record the mean true quality of the winner. Plot true quality against
-          <span class="mono">log n</span> for each noise level.</p>
-          <p>You will get the qualitative shape of the published curves — rise, flatten, and,
-          once you let the proxy be <em>distorted</em> rather than merely noisy (make E
-          correlate negatively with T beyond some threshold), turn over and fall. Then state
-          the result in the form that matters: for our measured reliability, at what selection
-          pressure does additional optimisation stop buying real quality? That number is a
-          budget policy, derived rather than guessed.</p>
+          <p><b>Fit the knowledge hierarchy to a real orchestration run, then test its
+          prediction.</b> Take the loop's ledger, which records 656 beads and 195 dependency
+          edges, and the two bake-offs. Measure the escalation rate, meaning the fraction of work
+          items that required the orchestrator or a human, and estimate
+          <span class="mono">h</span> from the time and tokens spent on briefs, reviews and
+          repairs. Compute the implied optimal span and compare it to the span actually run.</p>
+          <p>Then the test, which is the part that makes this an experiment rather than an
+          exercise: the model predicts that halving <span class="mono">h</span> should raise the
+          usable span by more than a proportionate improvement in first-layer solve rate
+          <span class="mono">p</span>. Both are manipulable. Better briefs lower
+          <span class="mono">h</span>; a stronger model raises <span class="mono">p</span>. Run
+          the two-by-two under the <a href="/methods">house standard</a> and see whether the
+          ordering holds.</p>
         </div>
       </div>
     </div>
@@ -444,28 +457,137 @@
   <div class="unit">
     <div class="unit-head">
       <span class="no">Unit V</span>
+      <h2>Proxy failure, made quantitative</h2>
+      <span class="weeks">≈ 4 weeks</span>
+    </div>
+
+    <p class="question">Exactly how, and how fast, does optimising a measure destroy its
+    relationship to the thing it measured?</p>
+
+    <p>Goodhart's original remark <a class="cite" data-ref="goodhart1975"></a> was narrow and
+    about monetary aggregates; Campbell <a class="cite" data-ref="campbell1979"></a> stated the
+    general version better and earlier than the slogan's history suggests, and Strathern
+    <a class="cite" data-ref="strathern1997"></a> supplied the familiar phrasing along with an
+    ethnographer's account of what a measured institution becomes. The essential modern move is
+    Manheim and Garrabrant's <a class="cite" data-ref="manheim2018"></a>: Goodhart's law names at
+    least four distinct mechanisms, and they have different fixes.</p>
+
+    <p>Internalise the regressional variant first, because it requires no adversary, no gaming
+    and no intent, only noise and selection. If a proxy equals the true quantity plus independent
+    noise, selecting the top scorer selects partly for quality and partly for luck, and the
+    expected true value of the winner falls short of its measured value by an amount that grows
+    with selection pressure. Nothing has malfunctioned and the number still misleads.</p>
+
+    <p>Then the quantitative anchor for the whole programme. Gao, Schulman and Hilton
+    <a class="cite" data-ref="gao2023"></a> measure gold-standard quality as a function of how
+    hard a proxy is optimised, and fit functional forms in which quality rises, peaks, and
+    declines with continued optimisation. Our own question, whether turn 20 improves on turn 19,
+    is a special case of theirs with turn count standing in for optimisation pressure. Pan,
+    Bhatia and Steinhardt <a class="cite" data-ref="pan2022"></a> add that the transition can be
+    abrupt rather than gradual. Skalse et al. <a class="cite" data-ref="skalse2022"></a> give
+    "unhackable" a formal definition and show how restrictive it is.</p>
+
+    <h4 class="subsub">The case file</h4>
+
+    <p>The unit carries a set of documented cases, because the mechanisms are easier to
+    recognise in institutions than in one's own pipeline. Bevan and Hood
+    <a class="cite" data-ref="bevan2006"></a> is the best empirical study of target gaming in a
+    real system: ambulance clocks restarted, waiting lists reclassified, patients held in
+    corridors so the trolley clock never began. Every one of those has an analogue in an agent
+    gate. Hood <a class="cite" data-ref="hood2006"></a> generalises the taxonomy.</p>
+
+    <p>Lazear <a class="cite" data-ref="lazear2000"></a> is included deliberately as the control
+    case. A switch from hourly wages to piece rates at a windscreen fitter raised output by
+    roughly 44%, about half from existing workers working harder and about half from the change
+    in who the scheme attracted. Incentives work. A unit that only collects failures teaches the
+    wrong lesson, and the interesting question is what distinguished Safelite's setting, where
+    the measure was close to the whole job, from the health-service targets, where it was not.
+    That distinction is Baker's <a class="cite" data-ref="baker1992"></a> from Unit III.</p>
+
+    <p>Amodei et al. <a class="cite" data-ref="amodei2016"></a> §3 stated the agenda in 2016, and
+    Krakovna's specimen list <a class="cite" data-ref="krakovna2020"></a> is the cabinet to read
+    before designing any gate.</p>
+
+    <div class="apparatus">
+      <div>
+        <span class="lbl">Primary reading</span>
+        <ol class="reading">
+          <li>Manheim &amp; Garrabrant <a class="cite" data-ref="manheim2018"></a>.
+            <span class="why">The taxonomy. Learn to diagnose which of the four you have, since the remedies do not transfer.</span></li>
+          <li>Gao, Schulman &amp; Hilton <a class="cite" data-ref="gao2023"></a>.
+            <span class="why">The quantitative core, and the closest published relative of our own study.</span></li>
+          <li>Bevan &amp; Hood <a class="cite" data-ref="bevan2006"></a>; Hood <a class="cite" data-ref="hood2006"></a>; Lazear <a class="cite" data-ref="lazear2000"></a>.
+            <span class="why">The case file: gaming documented in a real institution, and the control case where piece rates worked.</span></li>
+          <li>Campbell <a class="cite" data-ref="campbell1979"></a>; Strathern <a class="cite" data-ref="strathern1997"></a>; Goodhart <a class="cite" data-ref="goodhart1975"></a>.
+            <span class="why">The originals, in decreasing order of usefulness and increasing order of fame.</span></li>
+          <li>Pan, Bhatia &amp; Steinhardt <a class="cite" data-ref="pan2022"></a>; Skalse et al. <a class="cite" data-ref="skalse2022"></a>.</li>
+          <li>Amodei et al. <a class="cite" data-ref="amodei2016"></a> §3; Krakovna et al. <a class="cite" data-ref="krakovna2020"></a>.</li>
+        </ol>
+      </div>
+
+      <div>
+        <span class="lbl">The model to master</span>
+        <div class="model">
+          <p><b>Regressional Goodhart, as an order statistic.</b> Let true quality be
+          <span class="mono">T</span> and the proxy <span class="mono">P = T + E</span> with
+          <span class="mono">E</span> independent noise. Select the best of
+          <span class="mono">n</span> candidates by <span class="mono">P</span>. In the jointly
+          normal case the winner's expected true quality is the measured score shrunk by a
+          factor:</p>
+          <div class="eq">E[T | P] = E[P] · σ²<sub>T</sub> ⁄ (σ²<sub>T</sub> + σ²<sub>E</sub>)
+            <span class="where">and that shrinkage factor is exactly the reliability from Unit I</span></div>
+          <p>Units I and V are the same algebra seen from two ends, which is where the curriculum
+          locks together. As <span class="mono">n</span> grows the measured maximum keeps
+          climbing while the true value behind it flattens, so the gap between what a gate
+          reports and what you received widens with every additional candidate screened. No
+          malice is required.</p>
+        </div>
+      </div>
+
+      <div>
+        <span class="lbl">The replication</span>
+        <div class="replication">
+          <p><b>Produce the overoptimisation curve on a synthetic, with no models involved.</b>
+          Draw <span class="mono">T</span> from a normal; form <span class="mono">P = T + E</span>
+          at several noise levels; for each <span class="mono">n</span> in a geometric sweep,
+          select best-of-<span class="mono">n</span> by P and record the winner's mean true
+          quality. Plot true quality against <span class="mono">log n</span> per noise level.</p>
+          <p>You will recover the qualitative shape of the published curves, and once you let the
+          proxy be distorted rather than merely noisy, the curve turns over and falls. Then state
+          the result in the form that is useful: at our measured reliability, at what selection
+          pressure does further optimisation stop buying real quality? That number is a budget
+          policy, derived rather than guessed.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═════════════════════════════════════════════════════════ VI ═══ -->
+  <div class="unit">
+    <div class="unit-head">
+      <span class="no">Unit VI</span>
       <h2>Judgment as an instrument</h2>
       <span class="weeks">≈ 4 weeks</span>
     </div>
 
-    <p class="question">How do you convert a pile of subjective verdicts into a scale with
-    standard errors, and how do you establish that the judge is measuring the work rather than
-    its length?</p>
+    <p class="question">How do you convert subjective verdicts into a scale with standard errors,
+    and establish that the judge measures the work rather than its length?</p>
 
     <p>Thurstone <a class="cite" data-ref="thurstone1927"></a> established that people are far
-    better at "which of these two" than at "score this out of ten", and gave the model that
-    turns the former into the latter. Bradley and Terry <a class="cite" data-ref="bradley1952"></a>
-    supplied the form still in use; Elo <a class="cite" data-ref="elo1978"></a> made it famous
-    in a setting where the predictions get checked every weekend.</p>
+    better at choosing between two things than at scoring one out of ten, and gave the model
+    turning the former into the latter. Bradley and Terry
+    <a class="cite" data-ref="bradley1952"></a> supplied the form still in use, and Elo
+    <a class="cite" data-ref="elo1978"></a> made it famous in a setting where the predictions get
+    checked every weekend.</p>
 
     <p>The modern half is a warning. Zheng et al. <a class="cite" data-ref="zheng2023"></a>
-    document that model judges exhibit position bias, verbosity bias, and self-enhancement
-    bias, and — crucially — report judge agreement against the <em>human–human</em> agreement
-    ceiling rather than against an imagined perfect standard. That comparison is the correct
-    one and is usually omitted. Dubois et al. <a class="cite" data-ref="dubois2024"></a> then
-    show the professional response to a known bias: measure it, and regress it out. You do not
-    ask a biased instrument to stop being biased; you characterise the bias and correct for
-    it, which is what Unit I would have told you.</p>
+    document position bias, verbosity bias and self-enhancement bias in model judges, and report
+    agreement against the human-to-human ceiling rather than against an imagined perfect
+    standard. That comparison is the correct one and is usually omitted. Dubois et al.
+    <a class="cite" data-ref="dubois2024"></a> then demonstrate the professional response to a
+    known bias, which is to measure it and regress it out. You do not ask a biased instrument to
+    stop being biased; you characterise the bias and correct for it, as Unit I would have told
+    you.</p>
 
     <div class="apparatus">
       <div>
@@ -474,9 +596,9 @@
           <li>Bradley &amp; Terry <a class="cite" data-ref="bradley1952"></a>; Thurstone <a class="cite" data-ref="thurstone1927"></a>.
             <span class="why">The model and its psychophysical motivation. Both short.</span></li>
           <li>Zheng et al. <a class="cite" data-ref="zheng2023"></a>.
-            <span class="why">The methods and limitations sections are the template for calibrating our own judge. Note how they report agreement.</span></li>
+            <span class="why">The methods and limitations sections are the template for calibrating our judge. Note how they report agreement.</span></li>
           <li>Dubois et al. <a class="cite" data-ref="dubois2024"></a>.
-            <span class="why">Debiasing by regression. The most directly copyable technique in the unit.</span></li>
+            <span class="why">Debiasing by regression: the most directly copyable technique in the unit.</span></li>
           <li>Chiang &amp; Lee <a class="cite" data-ref="chiang2023"></a>; Elo <a class="cite" data-ref="elo1978"></a>.</li>
         </ol>
       </div>
@@ -488,41 +610,41 @@
           latent strength <span class="mono">θᵢ</span>, and</p>
           <div class="eq">P(i beats j) = e<sup>θᵢ</sup> ⁄ (e<sup>θᵢ</sup> + e<sup>θⱼ</sup>)
             <span class="where">equivalently, logistic in the strength difference θᵢ − θⱼ</span></div>
-          <p>Fit by maximum likelihood — the minorisation–maximisation update converges in a
-          few dozen iterations and is about forty lines. Get standard errors from the observed
-          information, and note the structural fact that a comparison graph which is not
-          connected has no unique fit: an item nobody compared to anything has no rating, and
-          your scheduler must be told to keep the graph connected.</p>
-          <p>Then extend it the way Unit IV demands: add covariates. A Bradley–Terry model with
-          a length term estimates the strength difference <em>holding output length fixed</em>,
-          which is how you find out whether your judge was ever measuring anything else.</p>
+          <p>Fit by maximum likelihood. The minorisation-maximisation update converges in a few
+          dozen iterations and runs to about forty lines. Take standard errors from the observed
+          information, and note the structural fact that a disconnected comparison graph has no
+          unique fit: an item compared to nothing has no rating, so the scheduler must be told to
+          keep the graph connected.</p>
+          <p>Then extend it as Unit V demands, by adding covariates. A Bradley–Terry model with a
+          length term estimates strength while holding verbosity fixed, which is how you find out
+          whether the judge was ever measuring anything else.</p>
         </div>
       </div>
 
       <div>
         <span class="lbl">The replication</span>
         <div class="replication">
-          <p><b>Fit Bradley–Terry to real verdicts, then measure your judge's position
-          bias.</b> Take a set of artifacts, generate pairwise comparisons, fit the model, and
-          produce a ranking with error bars. Then run the bias experiment from
-          <a class="cite" data-ref="zheng2023"></a>: present every pair twice, in both orders,
-          and measure the rate at which the verdict flips. A judge that flips on a material
-          fraction of swapped pairs has an effect size of "which slot the answer was in" that
-          you can estimate — and compare against the effect size of the quality difference you
-          were trying to detect.</p>
-          <p>The unit passes when you can state your judge's agreement with human raters
-          <em>as a fraction of the human–human agreement ceiling</em>, and not before. If the
-          humans only agree with each other 75% of the time, a judge at 72% is close to the
-          measurement limit and further tuning is chasing noise.</p>
+          <p><b>Fit Bradley–Terry to real verdicts, then measure your judge's position bias.</b>
+          The bake-off entries are sitting there unranked, 23 of them, with a judge panel that
+          returned <code>null</code> twice. Generate pairwise comparisons over them, fit the
+          model, and produce a ranking with error bars. Then run the bias experiment from
+          <a class="cite" data-ref="zheng2023"></a>: present every pair in both orders and measure
+          the flip rate. A judge that flips on a material fraction of swapped pairs has an effect
+          size for slot position that you can estimate and compare against the quality difference
+          you were trying to detect.</p>
+          <p>The unit passes when you can state judge agreement with human raters as a fraction
+          of the human-to-human ceiling, and not before. If people agree with each other 75% of
+          the time, a judge at 72% is near the measurement limit and further tuning chases
+          noise.</p>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ═════════════════════════════════════════════════════════ VI ═══ -->
+  <!-- ════════════════════════════════════════════════════════ VII ═══ -->
   <div class="unit">
     <div class="unit-head">
-      <span class="no">Unit VI</span>
+      <span class="no">Unit VII</span>
       <h2>Oversight beyond your ken</h2>
       <span class="weeks">≈ 6 weeks</span>
     </div>
@@ -530,104 +652,102 @@
     <p class="question">What supervision remains possible when the supervised party is more
     capable, at the task, than the supervisor?</p>
 
-    <p>This is where the curriculum's two halves meet, and where the ordinary management
-    intuition turns out to be the technically load-bearing one. The reason supervision is
-    possible at all is an asymmetry: <em>judging is easier than doing.</em> A manager need not
-    out-code the engineer; a referee need not out-play the players. Wherever verification is
-    cheaper than generation, a weaker party can supervise a stronger one — and the research
-    programme consists of finding how far that asymmetry stretches and what to do where it
-    snaps.</p>
+    <p>Here the curriculum's halves meet, and the ordinary management intuition turns out to be
+    the technically load-bearing one. Supervision is possible because of an asymmetry: judging is
+    easier than doing. A manager need not out-code the engineer and a referee need not out-play
+    the players. Wherever verification is cheaper than generation, a weaker party can supervise a
+    stronger one, and the research programme consists of finding how far that asymmetry stretches
+    and what to do where it snaps.</p>
 
-    <p>Christiano et al. <a class="cite" data-ref="christiano2017"></a> is the hinge: it takes
-    the comparative judgment of Unit V and uses it as a training signal, so that a supervisor
-    who cannot demonstrate the task can still shape it. Debate
+    <p>Christiano et al. <a class="cite" data-ref="christiano2017"></a> is the hinge, taking the
+    comparative judgment of Unit VI and using it as a training signal, so a supervisor who cannot
+    demonstrate the task can still shape it. Debate
     <a class="cite" data-ref="irving2018"></a><a class="cite" data-ref="michael2023"></a> and
-    amplification <a class="cite" data-ref="christiano2018"></a> are two proposals for
-    stretching the asymmetry deliberately; self-critique
-    <a class="cite" data-ref="saunders2022"></a> is the most immediately usable, since critiques
-    demonstrably help humans find flaws they would otherwise miss.</p>
+    amplification <a class="cite" data-ref="christiano2018"></a> propose stretching the asymmetry
+    deliberately; self-critique <a class="cite" data-ref="saunders2022"></a> is the most
+    immediately usable, since critiques demonstrably help humans find flaws they would otherwise
+    miss.</p>
 
     <p>The unit's experimental centre is Bowman et al. <a class="cite" data-ref="bowman2022"></a>
-    and the <em>sandwiching</em> design: place the system between a non-expert supervisor and a
-    ground-truth expert, and measure whether the non-expert, working with the system, reaches
-    the expert's answer. It converts a philosophical worry into a measurable quantity, it is
-    the only design here that directly tests "management beyond your ken", and it is runnable
-    at our scale. Burns et al. <a class="cite" data-ref="burns2023"></a> examine the case where
-    the supervisor is definitively weaker; Bai et al. <a class="cite" data-ref="bai2022"></a>
-    show a working system built on the asymmetry.</p>
+    and the sandwiching design: place the system between a non-expert supervisor and a
+    ground-truth expert, and measure whether the non-expert working with the system reaches the
+    expert's answer. It converts a philosophical worry into a measurable quantity, it is the only
+    design here that directly tests management beyond one's ken, and it runs at our scale. Burns
+    et al. <a class="cite" data-ref="burns2023"></a> examine the case where the supervisor is
+    definitively weaker, and Bai et al. <a class="cite" data-ref="bai2022"></a> show a working
+    system built on the asymmetry.</p>
 
     <div class="apparatus">
       <div>
         <span class="lbl">Primary reading</span>
         <ol class="reading">
           <li>Bowman et al. <a class="cite" data-ref="bowman2022"></a>.
-            <span class="why">The sandwiching paradigm. The unit's experimental template; read the design section twice.</span></li>
+            <span class="why">The sandwiching paradigm and the unit's experimental template. Read the design section twice.</span></li>
           <li>Christiano et al. <a class="cite" data-ref="christiano2017"></a>.
-            <span class="why">Preference learning. The bridge from Unit V, and the reason Unit V comes first.</span></li>
+            <span class="why">Preference learning: the bridge from Unit VI, and the reason Unit VI comes first.</span></li>
           <li>Amodei et al. <a class="cite" data-ref="amodei2016"></a> §4 on scalable supervision.</li>
           <li>Saunders et al. <a class="cite" data-ref="saunders2022"></a>; Burns et al. <a class="cite" data-ref="burns2023"></a>.
             <span class="why">The two most empirically grounded results in the unit.</span></li>
           <li>Irving et al. <a class="cite" data-ref="irving2018"></a>; Christiano et al. <a class="cite" data-ref="christiano2018"></a>; Michael et al. <a class="cite" data-ref="michael2023"></a>; Bai et al. <a class="cite" data-ref="bai2022"></a>.
-            <span class="why">Proposals and one deployed system. Read for the shape of the argument.</span></li>
+            <span class="why">Proposals, and one deployed system. Read for the shape of the argument.</span></li>
         </ol>
       </div>
 
       <div>
         <span class="lbl">The model to master</span>
         <div class="model">
-          <p><b>The verification–generation gap, stated as a decision problem.</b> Let a
-          supervisor's probability of correctly ranking two outputs be a function of the
-          quality gap between them and of the supervisor's own competence. Supervision succeeds
-          when that probability stays above chance in the region where the candidate outputs
-          actually differ. Formalise it, then notice the two ways it fails: the gap shrinks
-          (all candidates are near-equally good, and the judge is reading noise — Unit I's
-          ceiling, again), or the supervisor's discrimination decays faster than the quality
-          difference grows.</p>
-          <p>This is not a settled model with a canonical citation, and you should treat
-          building one as part of the unit's work rather than as background. It is also the
-          most likely place in this curriculum to produce something genuinely new, because the
-          measurement-theoretic framing of Units I and V is not standard in the oversight
-          literature.</p>
+          <p><b>The verification-generation gap, stated as a decision problem.</b> Let a
+          supervisor's probability of correctly ranking two outputs be a function of the quality
+          gap between them and of the supervisor's own competence. Supervision succeeds while
+          that probability stays above chance in the region where candidate outputs actually
+          differ. Formalise it, then notice the two ways it fails: the gap shrinks, so candidates
+          are near-equally good and the judge reads noise, which is Unit I's ceiling again; or
+          the supervisor's discrimination decays faster than the quality difference grows.</p>
+          <p>No settled model with a canonical citation covers this, so treat building one as
+          part of the unit's work rather than as background. It is also the likeliest place in
+          the curriculum to produce something new, because the measurement-theoretic framing of
+          Units I and VI is not standard in the oversight literature.</p>
         </div>
       </div>
 
       <div>
         <span class="lbl">The replication</span>
         <div class="replication">
-          <p><b>A sandwiching trial, on a domain where you are honestly the non-expert.</b>
-          Choose a task in this repository where ground truth exists and you do not personally
-          have it — a proof in the geometry pack, a claim in the crypto stack, a numerical
-          result with a published reference. Establish the expert answer independently. Then
-          measure three conditions: you alone, you assisted by the system, and the system
-          alone. The quantity of interest is the fraction of the gap between "you alone" and
-          "expert" that the assisted condition closes.</p>
-          <p>Report it even if it is negative. A trial where assistance made you
-          <em>more</em> confidently wrong is the most valuable result the unit can produce, and
-          it is the one this curriculum exists to be able to recognise.</p>
+          <p><b>A sandwiching trial on a domain where you are honestly the non-expert.</b> Choose
+          a task in this repository where ground truth exists and you do not personally have it:
+          a proof in the geometry pack, a claim in the crypto stack, a numerical result with a
+          published reference. Establish the expert answer independently. Then measure three
+          conditions: you alone, you assisted by the system, and the system alone. The quantity
+          of interest is the fraction of the gap between you-alone and expert that the assisted
+          condition closes.</p>
+          <p>Report it even if negative. A trial where assistance made you more confidently wrong
+          is the most valuable result the unit can produce, and the one this curriculum exists to
+          be able to recognise.</p>
         </div>
       </div>
     </div>
   </div>
 
-  <h2 class="sec"><span class="secno">7</span>What the sequence adds up to</h2>
+  <h2 class="sec"><span class="secno">8</span>The competence the sequence buys</h2>
 
-  <p>At the end, the claim you are entitled to make is narrow and worth having: that you can
-  state what quality means for a class of delegated work, measure it with a known reliability,
-  detect a stated effect size with a stated power, recognise the point at which further
-  optimisation stops buying real quality, and supervise work you could not have produced
-  yourself — with a number attached to how far that last one stretches.</p>
+  <p>At the end the claim you are entitled to make is narrow and worth having: that you can state
+  what quality means for a class of delegated work, measure it with a known reliability, detect a
+  stated effect size with stated power, choose a span of control and an escalation policy from a
+  model rather than a hunch, recognise the point at which further optimisation stops buying real
+  quality, and supervise work you could not have produced yourself, with a number attached to how
+  far that last one stretches.</p>
 
-  <p>Nobody is going to hand you that. The five parent literatures are mature and the
-  intersection is empty, which is the only reason a project of this size is worth attempting
-  from outside an institution.</p>
+  <p>Nobody is going to hand you that. The six parent literatures are mature and the intersection
+  is empty, which is the only reason a project of this size is worth attempting from outside an
+  institution.</p>
 
   <div class="caveat">
-    <span class="lbl">The order is not negotiable, but the pace is</span>
-    <p>Thirty weeks is the honest estimate at a serious part-time pace, and units III and VI
-    will each take longer than budgeted. Units I, II and IV can be compressed if the
-    replications are done and the reading is skimmed; units III and V cannot, because their
-    models must be derivable rather than merely recognised. If the schedule slips, cut Unit
-    VI's proposals (debate, amplification) and keep its replication.</p>
+    <span class="lbl">The order is fixed; the pace is not</span>
+    <p>Thirty-six weeks is the honest estimate at a serious part-time pace, and Units III, IV and
+    VII will each take longer than budgeted. Units I, II and V can be compressed if the
+    replications are done and the reading skimmed. Units III, IV and VI cannot, because their
+    models must be derivable rather than merely recognised. If the schedule slips, cut Unit VII's
+    proposals (debate, amplification) and keep its replication.</p>
   </div>
 
   <div class="refs">
@@ -637,10 +757,11 @@
 
   <div class="colophon">
     ken · article I · a curriculum in the measurement of delegated work<br>
-    Every citation on this page is a key into <code>ken/refs.js</code>; <code>ken.selftest.mjs</code>
-    asserts that each resolves and that no listed work goes uncited. The fabricated-bibliography
-    site is next door at <a href="https://wormhole.mino.mobi">wormhole.mino.mobi</a>, and the
-    difference between the two is the point of putting a machine check on this one.
+    Every citation on this page is a key into <code>ken/refs.js</code>, and
+    <code>ken.selftest.mjs</code> asserts that each resolves and that no listed work goes
+    uncited. The fabricated-bibliography site is next door at
+    <a href="https://wormhole.mino.mobi">wormhole.mino.mobi</a>, and the machine check is what
+    separates the two.
   </div>
 
 </div>

@@ -283,6 +283,99 @@
       t: 'Weak-to-Strong Generalization: Eliciting Strong Capabilities With Weak Supervision',
       v: 'arXiv:2312.09390',
       n: 'What happens when the supervisor is definitively weaker than the supervised. The empirical core of the ceiling problem.' },
+
+    // ── Unit IV — organisation: structure, authority, knowledge ────────
+    coase1937: {
+      a: 'Coase, R. H.', y: 1937,
+      t: 'The Nature of the Firm',
+      v: 'Economica 4(16), 386–405',
+      n: 'Why organisations exist at all: because using the market has costs. The same question decides when to spawn a sub-agent and when to do the work in one context.' },
+    simon1947: {
+      a: 'Simon, H. A.', y: 1947,
+      t: 'Administrative Behavior',
+      v: 'Macmillan',
+      n: 'Bounded rationality, and the organisation as the structure that copes with it. The founding text for treating attention as the scarce resource.' },
+    march1958: {
+      a: 'March, J. G. & Simon, H. A.', y: 1958,
+      t: 'Organizations',
+      v: 'Wiley' },
+    chandler1962: {
+      a: 'Chandler, A. D.', y: 1962,
+      t: 'Strategy and Structure: Chapters in the History of the American Industrial Enterprise',
+      v: 'MIT Press',
+      n: 'Structure follows strategy, established historically across four firms. The multidivisional form as a response to co-ordination load.' },
+    galbraith1973: {
+      a: 'Galbraith, J. R.', y: 1973,
+      t: 'Designing Complex Organizations',
+      v: 'Addison-Wesley',
+      n: 'The information-processing view: structure is chosen to match the volume of exceptions that must travel up it. The most directly transferable framing in the unit.' },
+    mintzberg1979: {
+      a: 'Mintzberg, H.', y: 1979,
+      t: 'The Structuring of Organizations',
+      v: 'Prentice-Hall' },
+    williamson1985: {
+      a: 'Williamson, O. E.', y: 1985,
+      t: 'The Economic Institutions of Capitalism',
+      v: 'Free Press',
+      n: 'Transaction cost economics. Asset specificity, hold-up, and the make-or-buy boundary.' },
+    hart1990: {
+      a: 'Hart, O. & Moore, J.', y: 1990,
+      t: 'Property Rights and the Nature of the Firm',
+      v: 'Journal of Political Economy 98(6), 1119–1158',
+      n: 'Incomplete contracts: when you cannot specify everything in advance, who holds residual control rights determines behaviour.' },
+    aghion1997: {
+      a: 'Aghion, P. & Tirole, J.', y: 1997,
+      t: 'Formal and Real Authority in Organizations',
+      v: 'Journal of Political Economy 105(1), 1–29',
+      n: 'Formal authority is the right to decide; real authority is effective control over the decision. An overloaded principal who keeps formal authority has less real authority than one who delegates. The direct model of the abstraction-ladder problem.' },
+    garicano2000: {
+      a: 'Garicano, L.', y: 2000,
+      t: 'Hierarchies and the Organization of Knowledge in Production',
+      v: 'Journal of Political Economy 108(5), 874–904',
+      n: 'The model to master in Unit IV. Workers handle routine problems and escalate exceptions; the optimum sets span of control and the number of layers from communication cost and problem difficulty. It is a theory of orchestration written before there was anything to orchestrate.' },
+    dessein2002: {
+      a: 'Dessein, W.', y: 2002,
+      t: 'Authority and Communication in Organizations',
+      v: 'Review of Economic Studies 69(4), 811–838',
+      n: 'Delegation beats an informed principal issuing instructions once the preference gap is small enough, because communication loses information. Quantifies when to stop specifying and start delegating.' },
+    milgrom1990: {
+      a: 'Milgrom, P. & Roberts, J.', y: 1990,
+      t: 'The Economics of Modern Manufacturing: Technology, Strategy, and Organization',
+      v: 'American Economic Review 80(3), 511–528',
+      n: 'Complementarities: practices that pay off together and not separately, so a partial adoption can score worse than none.' },
+    holmstrom1994: {
+      a: 'Holmström, B. & Milgrom, P.', y: 1994,
+      t: 'The Firm as an Incentive System',
+      v: 'American Economic Review 84(4), 972–991',
+      n: 'Incentive intensity, asset ownership and job design are one decision, not three. Read directly after the 1991 multitask paper.' },
+    gibbons2013: {
+      a: 'Gibbons, R. & Roberts, J. (eds.)', y: 2013,
+      t: 'The Handbook of Organizational Economics',
+      v: 'Princeton University Press',
+      n: 'The reference shelf for the whole unit. Use it to find the survey on a question rather than reading it through.' },
+
+    // ── Unit V — the case file ─────────────────────────────────────────
+    lazear2000: {
+      a: 'Lazear, E. P.', y: 2000,
+      t: 'Performance Pay and Productivity',
+      v: 'American Economic Review 90(5), 1346–1361',
+      n: 'The Safelite windscreen study: a switch from hourly wages to piece rates raised output about 44%, roughly half from existing workers and half from who the scheme attracted. The control case where incentives worked, and the reason the unit is not simply a catalogue of failures.' },
+    bevan2006: {
+      a: 'Bevan, G. & Hood, C.', y: 2006,
+      t: 'What\u2019s Measured Is What Matters: Targets and Gaming in the English Public Health Care System',
+      v: 'Public Administration 84(3), 517–538',
+      n: 'The best empirical study of target gaming in a real institution: ambulance clocks restarted, waiting lists reclassified, patients held in corridors so the trolley clock never began. Every mechanism has an analogue in an agent gate.' },
+    hood2006: {
+      a: 'Hood, C.', y: 2006,
+      t: 'Gaming in Targetworld: The Targets Approach to Managing British Public Services',
+      v: 'Public Administration Review 66(4), 515–521' },
+
+    // ── methods ────────────────────────────────────────────────────────
+    schulz2010: {
+      a: 'Schulz, K. F., Altman, D. G. & Moher, D.', y: 2010,
+      t: 'CONSORT 2010 Statement: Updated Guidelines for Reporting Parallel Group Randomised Trials',
+      v: 'BMJ 340, c332',
+      n: 'The canonical reporting checklist. Our house standard is a smaller version of the same idea: fix what must be reported so that omitting it is visible.' },
   };
 
   root.KEN_REFS = REFS;
