@@ -298,6 +298,21 @@ console.log('a filter edit invalidates what the old filters admitted');
   eq('the next append opens a chunk above the deleted ones', bufKeys(state), ['buf:' + FEED + ':000001']);
 }
 
+console.log('the idle drop actually fires');
+{
+  // Regression: ensureFeed() used to set lastSeen, and alarm() refreshes every
+  // feed's def on every wake — so lastSeen was always `now` and a feed nobody
+  // had read in a year would never be dropped. Refreshing is not reading.
+  const { o, f } = await mount();
+  f.lastSeen = 1;                       // last read at the epoch
+  await o.ensureFeed(FEED, true).catch(() => {});
+  eq('refreshing a definition does not count as a read', f.lastSeen, 1);
+
+  const res = await o.fetch(new Request(`https://x.invalid/page?feed=${encodeURIComponent(FEED)}`));
+  await res.json();
+  ok('but serving a page does', f.lastSeen > 1);
+}
+
 console.log('the per-sample frame cap');
 {
   const { o } = await mount(new Map(), {});

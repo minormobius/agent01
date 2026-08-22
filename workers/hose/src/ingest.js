@@ -222,10 +222,14 @@ export class FirehoseIngest {
 
   // ── feed registry ──────────────────────────────────────────────────────────
 
+  // NOTE: this deliberately does NOT touch lastSeen. The alarm refreshes every
+  // feed's definition on every wake, so if refreshing counted as activity then
+  // lastSeen would always be `now` and the idle drop below could never fire —
+  // which is exactly what it did until this was noticed. lastSeen means "last
+  // time somebody READ this feed", and only /page sets it.
   async ensureFeed(feedUri, refresh = false) {
     let f = this.feeds.get(feedUri);
     if (!f) { f = FirehoseIngest.blank(); this.feeds.set(feedUri, f); }
-    f.lastSeen = nowMs();
     if (!refresh && f.def) return f;
 
     const m = feedUri.match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.generator\/([^/]+)$/);
@@ -366,11 +370,14 @@ export class FirehoseIngest {
 
   async alarm() {
     try {
-      for (const uri of (this.env.SEED_FEEDS || '').split(/[\s,]+/).filter(Boolean)) {
+      const seeded = new Set((this.env.SEED_FEEDS || '').split(/[\s,]+/).filter(Boolean));
+      for (const uri of seeded) {
         if (!this.feeds.has(uri)) await this.ensureFeed(uri);
       }
       for (const [uri, f] of [...this.feeds]) {
-        if (nowMs() - f.lastSeen > IDLE_DROP_MS) {
+        // A seeded feed is configured on purpose — it is warmed BEFORE anyone
+        // opens it, so "nobody has read it" is its normal state, not neglect.
+        if (!seeded.has(uri) && nowMs() - f.lastSeen > IDLE_DROP_MS) {
           this.feeds.delete(uri);
           await this.state.storage.delete(`def:${uri}`);
           const listed = await this.state.storage.list({ prefix: `buf:${uri}:` });
@@ -422,6 +429,7 @@ export class FirehoseIngest {
       const offset = Math.max(0, parseInt(url.searchParams.get('offset') || '0', 10) || 0);
       const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '30', 10) || 30));
       const f = await this.ensureFeed(feedUri);
+      f.lastSeen = nowMs();   // the one place a feed counts as read
       if (!f.def) return Response.json({ uris: [], total: 0, source: f.source, def: null });
       const { uris, total } = this.page(f, offset, limit);
       return Response.json({ uris, total, source: f.source, def: f.def, buffered: this.count(f) });

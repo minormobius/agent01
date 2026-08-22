@@ -1,0 +1,88 @@
+name: Publish hose feed
+
+# Puts a hose-backed feed on the network under a SERVICE ACCOUNT, so it can be
+# opened in the Bluesky app and iterated on without anyone hand-writing records
+# to their own PDS.
+#
+# WRITES TO A REAL PDS. Both halves are putRecord at a fixed rkey, so a re-run
+# converges rather than piling up feeds. The conversion is validated with
+# --dry-run first, so a source feed that stopped converting never reaches the
+# publish step.
+#
+# The feed's filters are NOT in this repo — the config names a `source` feed and
+# the definition is read off that record live. See scripts/publish-hose-feed.mjs
+# for why.
+#
+# NOTE: workflow_dispatch does not resolve for workflows off the DEFAULT branch,
+# so while this lives on a feature branch there is no UI button — a push that
+# touches one of the paths below is what publishes. Bump the marker to republish
+# without otherwise changing anything.
+# marker: 2026-08-22a
+
+on:
+  push:
+    branches: ['claude/txt-airports-bluesky-feed-pu4pbh']
+    paths:
+      - 'workers/hose/feeds/**'
+      - 'scripts/publish-hose-feed.mjs'
+      - 'packages/feedgen/**'
+      - '.github/workflows/publish-hose-feed.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: publish-hose-feed
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The converter is shared with the worker; if it regressed, nothing should
+      # be published.
+      - name: Selftest the converter
+        run: node packages/feedgen/feedgen.selftest.mjs
+
+      # Convert every configured feed with no credentials in scope at all. A
+      # source that stopped converting fails here, before any write.
+      - name: Validate every feed config
+        run: |
+          shopt -s nullglob
+          for f in workers/hose/feeds/*.json; do
+            echo "── $f"
+            node scripts/publish-hose-feed.mjs "$f" --dry-run
+          done
+
+      - name: Publish
+        env:
+          BLUESKY_MORPHYX_HANDLE: ${{ secrets.BLUESKY_MORPHYX_HANDLE }}
+          BLUESKY_MORPHYX_APP_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
+        run: |
+          if [ -z "$BLUESKY_MORPHYX_APP_PASSWORD" ]; then
+            echo "::error::BLUESKY_MORPHYX_APP_PASSWORD is not set — nothing published"
+            exit 1
+          fi
+          shopt -s nullglob
+          for f in workers/hose/feeds/*.json; do
+            echo "── $f"
+            node scripts/publish-hose-feed.mjs "$f"
+          done
+
+      # A published feed that the service never ingests for is an empty feed, so
+      # check the record actually points where we think it does.
+      - name: Verify the record points at the hose service
+        run: |
+          for f in workers/hose/feeds/*.json; do
+            RKEY=$(node -e "console.log(require('./$f').rkey)")
+            DID=did:plc:czzgu7cwl7nwzok2ouzgnvny
+            REC=$(curl -fsS "https://public.api.bsky.app/xrpc/app.bsky.feed.getFeedGenerator?feed=at://$DID/app.bsky.feed.generator/$RKEY" || true)
+            echo "$REC"
+            echo "$REC" | grep -q '"did":"did:web:hose.mino.mobi"' \
+              && echo "✓ $RKEY is served by hose.mino.mobi" \
+              || echo "⚠️ $RKEY did not report hose.mino.mobi yet — the AppView may not have indexed it"
+          done

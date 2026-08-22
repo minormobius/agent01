@@ -34,7 +34,7 @@
 
     // Feeds registered at startup so their ring buffer is warm before anyone
     // opens them. Whitespace/comma separated at:// generator URIs.
-    "SEED_FEEDS": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.generator/aaaovosdgiz2e"
+    "SEED_FEEDS": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.generator/aaaovosdgiz2e at://did:plc:czzgu7cwl7nwzok2ouzgnvny/app.bsky.feed.generator/txt-for-airports"
   },
   "routes": [
     { "pattern": "hose.mino.mobi", "custom_domain": true }
