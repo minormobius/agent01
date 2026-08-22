@@ -159,6 +159,14 @@ the buffer to look right.
 `clearBuffer()` deliberately does **not** reset `head`: a reused chunk 0 would
 collide with a key already scheduled for deletion.
 
+**If you ever change the key format, migrate on load.** The first build padded
+the chunk index to 3 digits and this one pads to 6. Both parse to the same
+index while being different keys, and `:004` sorts *after* `:000004` — so a
+stale chunk would shadow the fresh one on every load and could never be removed,
+because deletion maps indices through the current `chunkKey()`. `load()`
+therefore reads any width, prefers the current one, rewrites what it rescued and
+deletes the rest via `f.staleKeys`. Both halves are gated by selftests.
+
 **A list that fails to load is skipped, not treated as empty.** Silently
 emptying somebody's feed because a `getList` call 500'd is worse than briefly
 leaving a bot in it.

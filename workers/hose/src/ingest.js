@@ -94,7 +94,10 @@ export class FirehoseIngest {
 
   static blank() {
     return { def: null, source: 'pending', fetchedAt: 0, lastSeen: nowMs(),
-             chunks: new Map(), head: 0, dirty: new Set(), gone: new Set(), warnings: [] };
+             chunks: new Map(), head: 0, dirty: new Set(),
+             gone: new Set(),      // chunk INDICES to delete (mapped through chunkKey)
+             staleKeys: new Set(), // raw key strings to delete — see the migration in load()
+             warnings: [] };
   }
 
   append(f, entry) {
@@ -144,11 +147,27 @@ export class FirehoseIngest {
       f.fetchedAt = (stored && stored.fetchedAt) || 0;
       f.lastSeen = meta.lastSeen || 0;
 
+      // Chunk keys are `buf:<feed>:<index padded to 6>`. An earlier build padded
+      // to 3, and both parse to the same index while being DIFFERENT keys — so a
+      // stale `:004` would shadow a fresh `:000004` on every load (it sorts
+      // later) and could never be deleted, since deletion maps indices through
+      // chunkKey(). Read any width, prefer the current one, and schedule the
+      // rest for removal.
       const listed = await this.state.storage.list({ prefix: `buf:${uri}:` });
-      for (const key of [...listed.keys()].sort()) {
-        const ci = parseInt(key.slice(key.lastIndexOf(':') + 1), 10);
-        if (Number.isFinite(ci)) f.chunks.set(ci, listed.get(key) || []);
+      const chosen = new Map();   // chunkIdx -> { entries, current }
+      for (const key of listed.keys()) {
+        const suffix = key.slice(key.lastIndexOf(':') + 1);
+        const ci = parseInt(suffix, 10);
+        if (!Number.isFinite(ci)) { f.staleKeys.add(key); continue; }
+        const current = suffix.length === 6;
+        if (!current) f.staleKeys.add(key);
+        const prev = chosen.get(ci);
+        if (!prev || (current && !prev.current)) chosen.set(ci, { entries: listed.get(key) || [], current });
       }
+      for (const ci of [...chosen.keys()].sort((a, b) => a - b)) f.chunks.set(ci, chosen.get(ci).entries);
+      // Anything rescued from an old-format key has to be rewritten under the
+      // current one, or the next flush would leave it only in the doomed key.
+      if (f.staleKeys.size) for (const ci of f.chunks.keys()) f.dirty.add(ci);
       // An older config may have left more chunks than we now retain.
       while (f.chunks.size > maxChunks()) {
         const oldest = Math.min(...f.chunks.keys());
@@ -168,9 +187,14 @@ export class FirehoseIngest {
     const reg = {};
     for (const [uri, f] of this.feeds) {
       reg[uri] = { lastSeen: f.lastSeen };
-      if (f.gone.size) {
-        await this.state.storage.delete([...f.gone].map((i) => chunkKey(uri, i)));
+      const doomed = [...f.gone].map((i) => chunkKey(uri, i));
+      // Deletes run BEFORE writes, so a key that is both doomed and dirty ends
+      // up correctly written rather than correctly deleted.
+      for (const k of f.staleKeys) if (!doomed.includes(k)) doomed.push(k);
+      if (doomed.length) {
+        await this.state.storage.delete(doomed);
         f.gone.clear();
+        f.staleKeys.clear();
       }
       if (f.dirty.size) {
         const writes = {};

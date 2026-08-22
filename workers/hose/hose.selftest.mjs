@@ -207,6 +207,65 @@ console.log('persistence — round trip through absolute chunk keys');
   eq('the append lands in the chunk that was still open', putBufKeys(state2), ['buf:' + FEED + ':000002']);
 }
 
+console.log('migrating chunk keys from the old 3-digit padding');
+{
+  // An earlier build padded chunk indices to 3. Both widths parse to the same
+  // index but are different keys, and ':004' sorts AFTER ':000004' — so without
+  // a migration a stale chunk shadows the fresh one on every load, forever,
+  // because deletion maps indices through the current key format.
+  const store = new Map();
+  const uri = FEED;
+  store.set('reg', { [uri]: { lastSeen: Date.now() } });
+  store.set(`def:${uri}`, { def: DEF, source: 'test', fetchedAt: Date.now() });
+  store.set(`buf:${uri}:000`, [{ u: 'at://d/app.bsky.feed.post/a', t: 1 }]);
+  store.set(`buf:${uri}:001`, [{ u: 'at://d/app.bsky.feed.post/b', t: 2 }]);
+
+  const state = fakeState(store);
+  const o = new FirehoseIngest(state, {});
+  await state._ready;
+  const f = o.feeds.get(uri);
+  eq('old-format entries are read, not dropped', o.entries(f).map((e) => e.u.split('/').pop()), ['a', 'b']);
+  eq('the old keys are marked for removal', f.staleKeys.size, 2);
+  eq('and every rescued chunk is marked for rewrite', [...f.dirty].sort(), [0, 1]);
+
+  await o.flush();
+  const keys = bufKeys(state).sort();
+  eq('after one flush only current-format keys remain', keys.map((k) => k.split(':').pop()), ['000000', '000001']);
+  eq('the old keys are gone from storage', keys.filter((k) => k.endsWith(':000') || k.endsWith(':001')).length, 0);
+
+  const state2 = fakeState(store);
+  const o2 = new FirehoseIngest(state2, {});
+  await state2._ready;
+  const f2 = o2.feeds.get(uri);
+  eq('data survived the migration', o2.entries(f2).map((e) => e.u.split('/').pop()), ['a', 'b']);
+  eq('and a clean load has nothing stale left', f2.staleKeys.size, 0);
+  eq('nor anything spuriously dirty', f2.dirty.size, 0);
+}
+
+console.log('a stale key never shadows the current one');
+{
+  const store = new Map();
+  const uri = FEED;
+  store.set('reg', { [uri]: { lastSeen: Date.now() } });
+  store.set(`def:${uri}`, { def: DEF, source: 'test', fetchedAt: Date.now() });
+  // Same chunk index, both widths present. ':004' sorts later, so a naive
+  // build-the-map-in-sorted-order would pick the stale one.
+  store.set(`buf:${uri}:004`, [{ u: 'at://d/app.bsky.feed.post/STALE', t: 1 }]);
+  store.set(`buf:${uri}:000004`, [{ u: 'at://d/app.bsky.feed.post/FRESH', t: 2 }]);
+
+  const state = fakeState(store);
+  const o = new FirehoseIngest(state, {});
+  await state._ready;
+  const f = o.feeds.get(uri);
+  eq('the current-format value wins', o.entries(f).map((e) => e.u.split('/').pop()), ['FRESH']);
+  ok('and the stale key is scheduled for deletion', f.staleKeys.has(`buf:${uri}:004`));
+  eq('head resumes from the absolute index, not the count', f.head, 4 * 400 + 1);
+
+  await o.flush();
+  eq('only one key for that chunk survives', bufKeys(state).length, 1);
+  eq('and it holds the fresh value', state._store.get(`buf:${uri}:000004`)[0].u.split('/').pop(), 'FRESH');
+}
+
 console.log('paging — newest first, inside the window');
 {
   const { o, f } = await mount();
