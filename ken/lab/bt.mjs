@@ -49,10 +49,23 @@ export function fitBradleyTerry(verdicts, { iters = 500, tol = 1e-10, prior = 0 
   const n = Array.from({ length: k }, (_, i) =>
     Array.from({ length: k }, (_, j) => obs[i][j] + obs[j][i]));
   const w = obs.map((row) => row.reduce((a, b) => a + b, 0));
-  if (w.some((x) => x === 0)) {
-    // an item that never wins sends its θ to −∞; report rather than diverge
-    const loser = items[w.indexOf(0)];
-    throw new Error(`bradleyTerry: "${loser}" never wins, so its strength is unbounded below`);
+  // Separation, both directions. An item that never wins has θ → −∞ and one
+  // that never loses has θ → +∞; in either case the MLE does not exist and the
+  // iteration only stops because it runs out of iterations. The first version
+  // checked wins only, which let an undefeated item through and produced
+  // standard errors of 12 log-odds that looked like numbers.
+  if (prior === 0) {
+    const losses = obs.map((_, i) => obs.reduce((a, row) => a + row[i], 0));
+    const winless = items[w.findIndex((x) => x === 0)];
+    const undefeated = items[losses.findIndex((x) => x === 0)];
+    if (winless !== undefined) {
+      throw new Error(`bradleyTerry: "${winless}" never wins, so its strength is unbounded below. `
+        + 'Add a comparison it can win, or pass a prior.');
+    }
+    if (undefeated !== undefined) {
+      throw new Error(`bradleyTerry: "${undefeated}" never loses, so its strength is unbounded above. `
+        + 'This is not fixable by adding pairs; pass a prior (0.5 is conventional).');
+    }
   }
 
   let p = new Array(k).fill(1);

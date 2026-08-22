@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Findings Log — ken</title>
-<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Fifteen entries, none of them yet from new inference.">
+<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Twenty-six entries, five of them from a blinded judging pass.">
 <link rel="stylesheet" href="journal.css">
 </head>
 <body>
@@ -27,7 +27,7 @@
   <div class="a-venue">ken · volume 1 <span class="kicker">Running record</span></div>
   <h1 class="a-title">Findings Log</h1>
   <p class="a-sub">Shortest form. Each entry names the code or record that produced it.</p>
-  <div class="a-meta">15 entries · <b>0 from new inference</b> · every figure regenerated on build</div>
+  <div class="a-meta">26 entries · <b>5 from new measurement</b> · every figure regenerated on build</div>
   <hr class="a-rule">
 
   <p class="small">Everything here comes from data already paid for or from arithmetic. That is
@@ -136,9 +136,98 @@
     per turn (t = 7.15) and the second-half slope is −0.011 (t = −1.15).</div>
   </div>
 
-  <h2 class="sec"><span class="secno">§</span>Our own errors</h2>
+  <h2 class="sec"><span class="secno">§</span>The bake-off, with the right error term</h2>
 
   <ol class="log" start="14">
+    <li><b>I called this structure a split-plot last revision. It is not one.</b> Each race runs
+      a single brief, so there is no sub-plot factor and no second error term. It is a 2 × 3
+      factorial (harness × model) with two replicates, blocked by race. The consequence survives
+      the correction: a cell contrast still needs the within-cell error term, and no bake-off
+      report has used one, because none reported a standard error at all.
+      <span class="src"><a href="/wp1">WP1 §2.3</a> · <code>factorial.mjs</code></span></li>
+
+    <li><b>On duration, model matters and harness does not.</b> Model F = 8.80 on 2 df,
+      permutation p = 0.001. Harness F = 0.00, p = 0.999. Interaction F = 0.51, p = 0.606. Race
+      block F = 0.02, so the two races are interchangeable. Medians: kimi3 2897s, ds4-flash
+      2248s, ds4-pro 1449s — a 2.0× spread.
+      <span class="src"><code>factorialAnova()</code>, 5,000 permutations</span></li>
+
+    <li><b>And the significant factor is the uninterpretable one.</b> Each model runs against its
+      own vendor's endpoint, so "model" and "provider" cannot be separated by construction —
+      a point <code>bakeoff/CLAUDE.md</code> already makes. The factor that <i>is</i> clean is
+      harness, since both harnesses ran against the same providers, and it shows nothing.
+      <span class="src"><code>bakeoff/CLAUDE.md</code> · known limits</span></li>
+
+    <li><b>Run-to-run duration varies by a factor of 1.46.</b> Residual SD 0.378 in log seconds,
+      16 residual df. At two samples per cell the smallest cell-to-cell duration ratio that
+      design could resolve is 2.88×.
+      <span class="src"><code>contrastSensitivity()</code></span></li>
+
+    <li><b>First measured ICC on this apparatus: 0.436 for log duration by cell</b> (race-01
+      0.776, race-02 0.453). Not the pairing ρ, which is a correlation across shared tasks; this
+      is the share of duration variance attributable to which cell you ran.
+      <span class="src"><code>cellComponents()</code></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>The judging pass</h2>
+
+  <p class="small">The judge is the assistant, in one context, over notes relabelled by a seeded
+  shuffle and scrubbed of harness, model and provider names. Verdicts were committed to git
+  <a href="https://github.com/minormobius/agent01/commit/41ea3cc">before the key was opened</a>,
+  so the order is checkable. The judge had read all twelve entries before any pair was shown, so
+  the swap rate below is a <b>lower bound</b> on what an independent judge would show.</p>
+
+  <ol class="log" start="19">
+    <li><b>The Bradley–Terry MLE does not exist for this data.</b> Two entries went undefeated
+      and one never won, which sends their strengths to ±∞. The winless case was a design gap —
+      the two weakest entries were never compared — and the undefeated case is not fixable by
+      adding pairs. A regularised fit (half a pseudo-win per observed pair) was required.
+      <span class="src"><code>bt.mjs</code>, guard fired before any ranking was produced</span></li>
+
+    <li><b>The judge flips on 18% of pairs, and every flip is a pair it had flagged as
+      close.</b> 5 of 28 pairs disagreed between their two presentations. That is order
+      sensitivity concentrated exactly where discrimination runs out, which is the benign
+      version of the finding.
+      <span class="src"><code>swapRate()</code></span></li>
+
+    <li><b>Fifty-six comparisons cannot rank twelve entries.</b> The fitted scale spans 2.63
+      log-odds end to end and the standard errors are about 0.9. Only the extreme pair separates
+      at two standard errors; everything in between is one undifferentiated block.
+      <span class="src"><code>fitBradleyTerry()</code></span></li>
+  </ol>
+
+  <div class="plot">
+    <div class="pwrap"><svg viewBox="0 0 620 352" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Bradley-Terry ranking of the twelve race-02 entries. The whole scale spans 2.6 log-odds and the standard errors are about 0.9, so only the extremes separate." style="width:100%;height:auto;display:block;font-family:'Helvetica Neue', Helvetica, Arial, sans-serif"><rect width="620" height="352" fill="#ffffff"/><line x1="176.0" y1="16.0" x2="176.0" y2="318.0" stroke="#e8e8e8" stroke-width="1"/><text x="176.0" y="331.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">-4</text><line x1="275.5" y1="16.0" x2="275.5" y2="318.0" stroke="#e8e8e8" stroke-width="1"/><text x="275.5" y="331.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">-2</text><line x1="375.0" y1="16.0" x2="375.0" y2="318.0" stroke="#e8e8e8" stroke-width="1"/><text x="375.0" y="331.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0</text><line x1="474.5" y1="16.0" x2="474.5" y2="318.0" stroke="#e8e8e8" stroke-width="1"/><text x="474.5" y="331.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">2</text><line x1="574.0" y1="16.0" x2="574.0" y2="318.0" stroke="#e8e8e8" stroke-width="1"/><text x="574.0" y="331.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">4</text><line x1="375.0" y1="16.0" x2="375.0" y2="318.0" stroke="#4a4a4a" stroke-width="1" stroke-dasharray="3,3"/><line x1="350.7" y1="28.6" x2="524.4" y2="28.6" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="434.6" y="25.6" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="31.6" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">claude · ds4-flash · s1</text><text x="580.0" y="31.6" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">1.26</text><line x1="341.3" y1="53.8" x2="515.0" y2="53.8" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="425.2" y="50.8" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="56.8" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">claude · ds4-flash · s2</text><text x="580.0" y="56.8" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">1.07</text><line x1="317.1" y1="78.9" x2="526.8" y2="78.9" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="419.0" y="75.9" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="81.9" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">opencode · kimi3 · s1</text><text x="580.0" y="81.9" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">0.94</text><line x1="313.3" y1="104.1" x2="497.5" y2="104.1" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="402.4" y="101.1" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="107.1" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">claude · kimi3 · s1</text><text x="580.0" y="107.1" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">0.61</text><line x1="292.1" y1="129.3" x2="500.6" y2="129.3" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="393.4" y="126.3" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="132.3" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">claude · ds4-pro · s2</text><text x="580.0" y="132.3" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">0.43</text><line x1="297.8" y1="154.4" x2="473.3" y2="154.4" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="382.6" y="151.4" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="157.4" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">claude · kimi3 · s2</text><text x="580.0" y="157.4" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">0.21</text><line x1="281.3" y1="179.6" x2="478.7" y2="179.6" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="377.0" y="176.6" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="182.6" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">opencode · ds4-flash · s2</text><text x="580.0" y="182.6" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">0.10</text><line x1="247.3" y1="204.8" x2="454.0" y2="204.8" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="347.6" y="201.8" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="207.8" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">opencode · kimi3 · s2</text><text x="580.0" y="207.8" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.49</text><line x1="264.7" y1="229.9" x2="417.9" y2="229.9" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="338.3" y="226.9" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="232.9" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">opencode · ds4-flash · s1</text><text x="580.0" y="232.9" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.68</text><line x1="255.7" y1="255.1" x2="413.1" y2="255.1" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="331.4" y="252.1" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="258.1" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">opencode · ds4-pro · s2</text><text x="580.0" y="258.1" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.82</text><line x1="223.3" y1="280.3" x2="400.6" y2="280.3" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="309.0" y="277.3" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="283.3" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">claude · ds4-pro · s1</text><text x="580.0" y="283.3" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-1.27</text><line x1="215.0" y1="305.4" x2="398.3" y2="305.4" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="303.6" y="302.4" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="308.4" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">opencode · ds4-pro · s1</text><text x="580.0" y="308.4" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-1.37</text><text x="375.0" y="348.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle">Bradley–Terry strength (log-odds), 56 verdicts over 28 pairs</text></svg></div>
+    <div class="pcap"><b>Figure 3.</b> The first judged ranking of these entries, unblinded.
+    Intervals are ±1.96 SE. The two best are the same cell run twice, and so are two of the three
+    worst — but with intervals this wide that is as likely to be luck as consistency.</div>
+  </div>
+
+  <ol class="log" start="22">
+    <li><b>Judged quality is not significantly explained by model (p = 0.124) or harness
+      (p = 0.155).</b> The direction is inverted from duration: ds4-pro was the fastest model and
+      produced the notes judged worst (mean θ −0.76 against +0.44 for ds4-flash). Neither
+      contrast is significant at n = 12, so this is a direction, not a result.
+      <span class="src">20,000-permutation test on between-group variance of θ</span></li>
+
+    <li><b>ICC of judged quality by cell is 0.413.</b> Within-cell SD 0.710 against a total scale
+      range of 2.63; two runs of the <i>same</i> cell differ by 0.84 on average, a third of the
+      whole spread. This is the parameter every cost estimate on this site has been assuming, now
+      measured once. And at 6 cells × 2 samples its own 95% interval is [0.00, 0.88], so it is an
+      anchor rather than a number.
+      <span class="src"><code>varianceComponents()</code> over the fitted θ</span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>Our own errors</h2>
+
+  <ol class="log" start="24">
+    <li><b>My separation guard checked only half the failure.</b> It refused a Bradley–Terry fit
+      when an item never won, and let through two items that never lost — the same divergence
+      mirrored. The fit returned strengths spanning 17 log-odds with standard errors of 12,
+      which read as numbers. Now both directions are checked, and the message says which
+      direction and whether adding pairs can fix it.
+      <span class="src"><code>bt.mjs</code></span></li>
+
     <li><b>Excluding gate failures made an OLS return a slope of exactly zero with a standard
       error of exactly zero.</b> The filtered subset left a constant column duplicating the
       intercept, and the normal equations returned a singular fit wearing the costume of a null
@@ -159,16 +248,18 @@
     <table class="booktabs">
       <thead><tr><th>Source of finding</th><th class="num">Entries</th></tr></thead>
       <tbody>
-        <tr><td>Records already committed</td><td class="num">7</td></tr>
+        <tr><td>Records already committed</td><td class="num">12</td></tr>
         <tr><td>Arithmetic and simulation</td><td class="num">5</td></tr>
-        <tr><td>Our own mistakes</td><td class="num">3</td></tr>
-        <tr><td><b>New inference</b></td><td class="num"><b>0</b></td></tr>
+        <tr><td>Our own mistakes</td><td class="num">4</td></tr>
+        <tr><td><b>New measurement</b> (the judging pass)</td><td class="num"><b>5</b></td></tr>
       </tbody>
     </table>
   </div>
 
-  <p>The fourth row is the one that matters and it is empty. Nothing above required spending a
-  token, which is why there is so much of it.</p>
+  <p>The fourth row is no longer empty. It cost one judging pass over twelve entries and it
+  bought the one parameter every cost estimate here had been assuming: an ICC for judged quality
+  of 0.413, with an interval of [0.00, 0.88] around it. That interval is the honest summary of
+  the whole exercise — a first anchor, not a measurement.</p>
 
   <div class="colophon">
     ken · findings log<br>

@@ -60,6 +60,11 @@ worker or move the domain, **verify the deploy log binds
 | `lab/figures.mjs` | renders `fig/*.svg` from packages/dataviz. `--write` to regenerate |
 | `lab/h4.mjs` | the exchangeability analysis over the loop ledger |
 | `lab/h4.selftest.mjs` | 37 checks, pinned to the committed ledger |
+| `lab/factorial.mjs` | the bake-off as a replicated 2×3 factorial |
+| `lab/bt.mjs` | Bradley–Terry over pairwise verdicts |
+| `lab/blind.mjs` | prepares a blinded judging pass |
+| `lab/judging/` | blinded material, verdicts, and the key |
+| `lab/factorial.selftest.mjs` | 36 checks for both |
 | `lab/resolve-refs.mjs` | links the bibliography against CrossRef / arXiv / OpenLibrary |
 | `fig/*.svg` | **generated.** Committed so figures print and diff |
 | `refs.js` | **the bibliography, as data** — 54 real works, keyed |
@@ -158,6 +163,32 @@ and tests exchangeability. Three things to know before touching it:
 to passing runs only left a constant column duplicating the intercept and OLS
 returned slope exactly 0 with SE exactly 0 — a singular fit that reads as a
 clean null. Found by sensitivity, not by the maths.
+
+## Judging passes
+
+`lab/blind.mjs` writes two files: `<race>.blinded.md`, which the judge reads,
+and `<race>.mapping.json`, which must not be opened until verdicts are on disk.
+Entries are relabelled by a seeded shuffle **and** scrubbed of harness, model
+and provider names, because an agent's own notes routinely name what produced
+them.
+
+**Commit the verdicts before opening the key.** The race-02 pass did, so the
+order is checkable in git history rather than asserted. That is the only part
+of a self-judged pass that can be made verifiable, and it is worth the extra
+commit.
+
+Two things `bt.mjs` will refuse, both of which happened here:
+
+- **A disconnected comparison graph.** No unique fit exists.
+- **Separation in either direction.** An item that never wins has θ → −∞; one
+  that never loses has θ → +∞. The first version checked wins only, let two
+  undefeated items through, and returned strengths spanning 17 log-odds with
+  standard errors of 12 — numbers that were not numbers. Pass `prior: 0.5` for
+  the conventional regularised fit; the default of 0 exists so the failure is
+  visible rather than papered over.
+
+A winless item can sometimes be fixed by adding the pair that was missing from
+the design. An undefeated one cannot, and needs the prior.
 
 ## Figures and the bibliography
 

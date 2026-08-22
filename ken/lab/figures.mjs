@@ -17,6 +17,8 @@ const { median } = stats;
 import { mde, designComparison } from './design.mjs';
 import { iccSamplingDistribution, bimodalityPower } from './simulate.mjs';
 import { loadRuns, partition, repeatedBeads, orderEffect } from './h4.mjs';
+import { fitBradleyTerry } from './bt.mjs';
+import { readFileSync as _read } from 'node:fs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = join(HERE, '..', 'fig');
@@ -109,6 +111,22 @@ export function buildFigures() {
     xlabel: 'turn (block of 20)', ylabel: 'median duration (s)',
     aria: 'Median turn duration by block of twenty turns: 213s, 500s, 798s, then 546s and '
         + '550s. The rise is confined to the first sixty turns.',
+  });
+
+  // ── the first judged ranking, and how little it separates ──
+  const jd = JSON.parse(_read(join(HERE, 'judging', 'race-02.verdicts.json'), 'utf8'));
+  const key = JSON.parse(_read(join(HERE, 'judging', 'race-02.mapping.json'), 'utf8')).map;
+  const bt = fitBradleyTerry(jd.verdicts, { prior: 0.5 });
+  figs['bt-ranking'] = charts.forest({
+    rows: bt.map((r) => {
+      const [h, m, s] = key[r.item].split('__');
+      const se = r.se || 0.9;                 // the pinned reference has none of its own
+      return { label: `${h} · ${m} · ${s}`, est: r.theta, lo: r.theta - 1.96 * se, hi: r.theta + 1.96 * se };
+    }),
+    ref: 0, width: 620, height: 40 + bt.length * 26, labelW: 176,
+    xlabel: 'Bradley–Terry strength (log-odds), 56 verdicts over 28 pairs',
+    aria: 'Bradley-Terry ranking of the twelve race-02 entries. The whole scale spans 2.6 '
+        + 'log-odds and the standard errors are about 0.9, so only the extremes separate.',
   });
 
   return figs;

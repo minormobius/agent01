@@ -44,6 +44,8 @@ import { mde, designComparison, variancePilot, ladyTastingTea, sprtBounds, choos
 import { iccSamplingDistribution, pilotSweep, bimodalityPower, allocationCheck } from './lab/simulate.mjs';
 import { buildFigures } from './lab/figures.mjs';
 import { loadRuns, partition, orderEffect, globalDrift } from './lab/h4.mjs';
+import { loadBakeoff, factorialAnova, cellComponents, contrastSensitivity } from './lab/factorial.mjs';
+import { fitBradleyTerry, swapRate } from './lab/bt.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -276,9 +278,45 @@ ok(lab.includes('/wp1'), 'the instrument note links to the paper that corrected 
   ok(log.includes('213 → 500 → 798 → 546 → 550'), 'the log states the block medians');
   ok(log.includes('t = 6.19'), 'and the t statistic');
 
+  // (b3) the factorial and judging findings
+  const rows = loadBakeoff();
+  const dur = factorialAnova(rows, { outcome: 'seconds' });
+  const T = (n) => dur.table.find((r) => r.term === n);
+  ok(T('model').F.toFixed(2) === '8.80', `L15 model F is 8.80 (got ${T('model').F.toFixed(2)})`);
+  ok(T('harness').F < 0.005, `L15 harness F is essentially zero (got ${T('harness').F.toFixed(3)})`);
+  ok(dur.residual.df === 16 && dur.residual.sd.toFixed(3) === '0.378', 'L17 residual SD 0.378 on 16 df');
+  ok(contrastSensitivity(dur).detectableRatio.toFixed(2) === '2.88', 'L17 resolvable ratio 2.88x');
+  ok(cellComponents(rows, { outcome: 'seconds' }).pooled.icc.toFixed(3) === '0.436', 'L18 duration ICC 0.436');
+  for (const v of ['8.80', '0.999', '2897', '1449', '1.46', '2.88', '0.436'])
+    ok(log.includes(v), `log states "${v}"`);
+
+  const jd = JSON.parse(readFileSync(join(HERE, 'lab', 'judging', 'race-02.verdicts.json'), 'utf8'));
+  const key = JSON.parse(readFileSync(join(HERE, 'lab', 'judging', 'race-02.mapping.json'), 'utf8')).map;
+  const sw = swapRate(jd.verdicts);
+  ok(sw.flipped === 5 && sw.pairsShownBothWays === 28, 'L20 swap rate is 5 of 28');
+  const btFit = fitBradleyTerry(jd.verdicts, { prior: 0.5 });
+  const spread = btFit[0].theta - btFit[btFit.length - 1].theta;
+  ok(spread.toFixed(2) === '2.63', `L21 the scale spans 2.63 (got ${spread.toFixed(2)})`);
+  const cells = {};
+  for (const r of btFit) { const c = key[r.item].split('__').slice(0, 2).join('|'); (cells[c] ||= []).push(r.theta); }
+  const q = (await import('./lab/design.mjs')).varianceComponents(Object.values(cells));
+  ok(q.icc.toFixed(3) === '0.413', `L23 judged-quality ICC is 0.413 (got ${q.icc.toFixed(3)})`);
+  for (const v of ['2.63', '0.413', '0.710', '18%', '[0.00, 0.88]'])
+    ok(log.includes(v), `log states "${v}"`);
+
+  // verdicts must have been committed before the mapping was read
+  ok(jd.verdicts.length === 56, '56 verdicts on record');
+  ok(typeof jd.caveat === 'string' && /lower bound/i.test(jd.caveat),
+     'the verdicts file states the swap rate is a lower bound');
+
   // the log must keep saying the honest thing about its own provenance
-  ok(/New inference<\/b><\/td><td class="num"><b>0<\/b>/.test(log),
-     'the log ledger still reports zero findings from new inference');
+  {
+    const counts = [...log.matchAll(/<td>(?:<b>)?([^<]+?)(?:<\/b>)?(?: \(the judging pass\))?<\/td><td class="num">(?:<b>)?(\d+)/g)]
+      .map((m) => Number(m[2]));
+    const entries = (log.match(/<li><b>/g) || []).length;
+    ok(counts.reduce((a, b) => a + b, 0) === entries,
+       `the ledger's rows sum to the number of entries (${counts.join('+')} vs ${entries})`);
+  }
 }
 
 // (c) the committed figures are current
