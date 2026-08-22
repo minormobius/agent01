@@ -218,3 +218,83 @@ table.booktabs tbody tr + tr td { border-top: 0.5px solid #e6e2da; }
   @page { size: letter; margin: 20mm 17mm; }
   .unit, .table-fig, .caveat { break-inside: avoid; }
 }
+
+/* ---------- the roadmap figure ---------- */
+.figure {
+  margin: 22px 0 6px;
+  border: 1px solid #ddd8cd;
+  background: #fbfaf6;
+  padding: 16px 14px 10px;
+  break-inside: avoid;
+}
+.figure .fig-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px;
+  border-bottom: 1px solid #e4dfd4; padding-bottom: 8px; margin-bottom: 10px;
+}
+.figure .fig-head b { font-variant: small-caps; letter-spacing: .03em; font-size: 12px; }
+.figure .fig-head .t { font-size: 12px; color: var(--ink-soft); flex: 1 1 220px; }
+.roadmap-scroll { overflow-x: auto; }
+.roadmap-scroll svg { display: block; width: 100%; min-width: 620px; height: auto; }
+
+/* edges */
+.tedge { fill: none; stroke-width: 1.4; }
+.tedge.done { stroke: var(--accent); opacity: .55; }
+.tedge.live { stroke: var(--accent); opacity: .40; }
+.tedge.dim  { stroke: #b6b0a4; opacity: .55; stroke-dasharray: 4 4; }
+.ttip { stroke: none; }
+.ttip.done { fill: var(--accent); opacity: .55; }
+.ttip.live { fill: var(--accent); opacity: .40; }
+.ttip.dim  { fill: #b6b0a4; opacity: .55; }
+
+/* nodes */
+.tnode { cursor: pointer; }
+.tnode rect { transition: none; }
+.tnode text { pointer-events: none; }
+.tlabel  { font-family: var(--serif); font-size: 13.5px; }
+.tkicker { font-family: var(--sans); font-size: 9.5px; letter-spacing: .13em; text-transform: uppercase; }
+.tsub    { font-family: var(--sans); font-size: 9.5px; }
+
+.tnode.done rect    { fill: var(--accent); stroke: var(--accent); stroke-width: 1; }
+.tnode.done .tlabel, .tnode.done .tkicker { fill: #fff; }
+.tnode.done .tsub   { fill: #c3cfe0; }
+
+.tnode.active rect  { fill: #fff; stroke: var(--flag); stroke-width: 2.4; }
+.tnode.active .tlabel { fill: var(--flag); font-weight: 700; }
+.tnode.active .tkicker { fill: var(--flag); }
+.tnode.active .tsub { fill: #8a5a52; }
+
+.tnode.ready rect   { fill: #fff; stroke: var(--accent); stroke-width: 1.4; }
+.tnode.ready .tlabel { fill: var(--ink); }
+.tnode.ready .tkicker { fill: var(--accent); }
+.tnode.ready .tsub  { fill: var(--ink-faint); }
+
+.tnode.blocked rect { fill: #f2f0ea; stroke: #c0bab0; stroke-width: 1; stroke-dasharray: 5 3; }
+.tnode.blocked .tlabel { fill: #6d6862; }
+.tnode.blocked .tkicker { fill: #8d867c; }
+.tnode.blocked .tsub { fill: #948d83; }
+
+.tnode:hover rect { stroke-width: 2.8; }
+.tnode:focus-visible rect { stroke-width: 2.8; outline: none; }
+
+/* legend */
+.roadmap-legend {
+  display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px;
+  font-family: var(--sans); font-size: 10.5px; color: var(--ink-soft);
+}
+.roadmap-legend .lgd { display: inline-flex; align-items: center; gap: 5px; }
+.roadmap-legend .lgd i {
+  width: 15px; height: 10px; border-radius: 2px; display: inline-block;
+  background: #fff; border: 1.4px solid var(--accent);
+}
+.roadmap-legend .lgd.done i    { background: var(--accent); border-color: var(--accent); }
+.roadmap-legend .lgd.active i  { border: 2.4px solid var(--flag); }
+.roadmap-legend .lgd.blocked i { background: #f2f0ea; border: 1px dashed #c0bab0; }
+
+@media (max-width: 700px) {
+  .figure { padding: 12px 8px 8px; }
+}
+@media print {
+  .figure { background: #fff; }
+  .roadmap-scroll { overflow: visible; }
+  .roadmap-scroll svg { min-width: 0; }
+}

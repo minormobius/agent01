@@ -48,7 +48,11 @@ worker or move the domain, **verify the deploy log binds
 | `index.html` | masthead, aims and scope, and the editorial on the pilot run |
 | `syllabus.html` | **Article I**, the seven-unit curriculum. Served at `/syllabus`. |
 | `methods.html` | **Article II**, the house standard for model experiments. Served at `/methods`. |
+| `lab.html` | **Instrument note** for the harness. Served at `/lab`. |
 | `protocol.html` | **Article III**, the Stage 1 registered-report skeleton. Served at `/protocol`. |
+| `tree.js` | the roadmap DAG: node data plus the SVG renderer |
+| `lab/design.mjs` | **the harness.** Node-only, not served |
+| `lab/design.selftest.mjs` | 92 known-answer checks for it |
 | `refs.js` | **the bibliography, as data** — 54 real works, keyed |
 | `cite.js` | numbers citations in document order, renders the reference list |
 | `journal.css` | the shared journal typography; prints to real Letter pages |
@@ -57,6 +61,52 @@ worker or move the domain, **verify the deploy log binds
 | `ken.selftest.mjs` | the gate. **Run it before touching anything here** |
 
 `CLAUDE.md`, `ken.selftest.mjs` and `prose-lint.mjs` are `.assetsignore`d; everything else ships.
+
+## The harness
+
+`ken/lab/design.mjs` is the design calculator. Node-only, `.assetsignore`d, and
+it takes its statistics from `packages/dataviz` rather than reimplementing
+them.
+
+```bash
+node ken/lab/design.selftest.mjs   # 92 known-answer checks
+```
+
+Every assertion in that selftest is a value derivable by hand or from a table,
+never a snapshot of what the code returned. When one fails, check your
+arithmetic before the code: three of the first failures were wrong test
+expectations, including an n₀ where the sum of squared group sizes was
+miscounted.
+
+The module's practical finding, which is worth knowing before designing any
+run: **for a fixed run budget, repeats do not buy precision.** With
+`R = tasks · repeats` held constant the within-task term of the variance is
+`σ²_within / R` regardless of the split, so every repeat is a task forgone and
+one repeat is optimal at every ICC. What repeats buy is the variance estimate,
+which is a different and necessary thing: at one repeat `dfWithin = 0` and
+`σ²_within` is not estimable at all. Hence `variancePilot()`, and hence
+`allocate()` returning a `finding` string rather than just an argmin.
+
+The other lever is pairing. Running conditions on shared tasks cuts required
+observations by `(1 − ρ)`, which at a plausible ρ = 0.7 turns a 126-run
+comparison into a 38-run one. Nothing else in the library saves as much.
+
+## The roadmap figure
+
+`tree.js` holds the graph as data and renders it to `#roadmap` on the front
+page. Nodes carry `state` (`done` / `active` / `ready` / `blocked`), a `href`
+and a `needs` list; edges are drawn as orthogonal elbows with arrowheads,
+lower-to-upper.
+
+The selftest asserts the graph is acyclic, that every `needs` id exists, that
+every prerequisite sits on a **lower row** than the node needing it (so no edge
+ever points down), that no two boxes overlap, and that every `href` resolves to
+a page that exists and an anchor that is present on it. Adding a node with a
+bad link fails the build.
+
+Geometry lives in `COLS` and `ROW_Y`. To add a row, extend `ROW_Y` and bump the
+`viewBox` height on the `<svg>` in `index.html`; the two are not linked and a
+mismatch silently clips the figure.
 
 ## Three gates, and why each exists
 
@@ -84,6 +134,7 @@ recomputed on every build:
 
 | Source | Claims checked |
 |---|---|
+| `ken/lab/design.mjs` | every number in the instrument note's Tables 1–3, recomputed and compared |
 | `.github/loop/{turns,runs}.jsonl` | 99 orders, 89 turns, 17 gate failures, 59 of 89 at the probe ceiling, 0 quality scores, 1 of 3 signals fired |
 | `bakeoff/results/race-01/results.json` | 11 runs, 11/11 gate, 11/11 primitives, judges `null`, 2 entries with a zero patch beside a real entry directory |
 | `bakeoff/results/race-02/results.json` | 12 runs, 12/12 gate, 12/12 primitives, judges `null` |

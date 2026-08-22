@@ -25,7 +25,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Selftest (citations, prose lint, and the quoted figures vs the record)
+      - name: Design calculator (92 known-answer checks)
+        run: node lab/design.selftest.mjs
+      - name: Selftest (citations, prose lint, tables, roadmap graph, quoted figures)
         run: node ken.selftest.mjs
       - name: Install wrangler
         run: npm install wrangler

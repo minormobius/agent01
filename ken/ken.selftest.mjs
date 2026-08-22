@@ -15,7 +15,15 @@
        .github/loop ledgers and the bakeoff results files. If the record
        changes and the prose does not, this fails.
 
-   (3) THE PROSE PASSES THE TIC LINT. ken/prose-lint.mjs is a density lint for
+   (3) THE PUBLISHED TABLES MATCH THE LIBRARY. /lab prints numbers produced by
+       ken/lab/design.mjs. Every one is recomputed here and compared, so the
+       note cannot drift from the code it documents.
+
+   (4) THE ROADMAP IS A VALID DAG. Every `needs` id exists, the graph is
+       acyclic, no two nodes occupy the same cell, no boxes overlap, and every
+       href resolves to a page that exists and an anchor that is on it.
+
+   (5) THE PROSE PASSES THE TIC LINT. ken/prose-lint.mjs is a density lint for
        the constructions catalogued in the declauding register: em-dashes,
        negation-first reveals, significance designation, coy headers, fragment
        cadence. It is a density check rather than a ban, because prose stripped
@@ -27,6 +35,8 @@
    ───────────────────────────────────────────────────────────────────── */
 import { readFileSync, readdirSync } from 'node:fs';
 import { lintHtml } from './prose-lint.mjs';
+import { NODES, box } from './tree.js';
+import { mde, designComparison, variancePilot, ladyTastingTea, sprtBounds, choose } from './lab/design.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -176,7 +186,113 @@ ok(totalRuns === 23 && totalPass === 23,
 ok(/23 of 23|twenty-three of twenty-three/i.test(allHtml),
    'the site states the 23-of-23 figure in words or digits');
 
-// ── 4. prose tic lint ─────────────────────────────────────────────────
+// ── 4. the published tables match the library ─────────────────────────
+section('lab tables vs design.mjs');
+const lab = readFileSync(join(HERE, 'lab.html'), 'utf8');
+const labHas = (v, what) => ok(lab.includes(`>${v}<`), `lab: table states the computed value for ${what} (${v})`);
+
+// Table 1 — minimum detectable effect by runs per arm
+for (const [n, want] of [[2, '2.80'], [5, '1.77'], [10, '1.25'], [30, '0.72'], [63, '0.50']]) {
+  const got = mde({ n }).toFixed(2);
+  ok(got === want, `mde(n=${n}) = ${want} (computed ${got})`);
+  labHas(want, `mde at n=${n}`);
+}
+
+// Table 2 — runs for one contrast, unpaired and paired
+const T2 = {
+  0.2: [786, 550, 394, 236, 118],
+  0.3: [350, 246, 176, 106, 54],
+  0.5: [126, 88, 64, 38, 20],
+  0.8: [50, 36, 26, 16, 8],
+  1.2: [22, 16, 12, 8, 4],
+};
+for (const [dStr, row] of Object.entries(T2)) {
+  const d = Number(dStr);
+  const got = [
+    designComparison({ d, rho: 0 }).unpairedObservations,
+    ...[0.3, 0.5, 0.7, 0.85].map((rho) => designComparison({ d, rho }).pairedObservations),
+  ];
+  ok(JSON.stringify(got) === JSON.stringify(row),
+     `lab Table 2 row d=${d} matches the library (computed ${got.join(',')}, printed ${row.join(',')})`);
+  for (const v of row) labHas(String(v), `Table 2 d=${d} entry ${v}`);
+}
+
+// Table 3 — the pilot
+const pilot = variancePilot();
+ok(pilot.tasks === 8 && pilot.repeats === 3 && pilot.runs === 24, 'pilot is 8 x 3 = 24');
+ok(pilot.dfBetween === 7 && pilot.dfWithin === 16, 'pilot df are 7 and 16');
+for (const v of [8, 3, 24, 7, 16]) labHas(String(v), `Table 3 value ${v}`);
+
+// §6 quoted constants
+const sb = sprtBounds({ alpha: 0.05, beta: 0.2 });
+ok(sb.upper.toFixed(2) === '2.77', `SPRT upper boundary is +2.77 (computed ${sb.upper.toFixed(2)})`);
+ok(sb.lower.toFixed(2) === '-1.56', `SPRT lower boundary is -1.56 (computed ${sb.lower.toFixed(2)})`);
+ok(lab.includes('2.77') && lab.includes('1.56'), 'lab prints both SPRT boundaries');
+ok(choose(8, 4) === 70 && ladyTastingTea(6).smallestP === 0.05,
+   'the six-cup design cannot reach p < 0.05, as the note claims');
+
+// ── 5. the roadmap is a valid DAG ─────────────────────────────────────
+section('roadmap graph');
+const ids = new Set(NODES.map((n) => n.id));
+ok(ids.size === NODES.length, 'every node id is unique');
+
+for (const n of NODES) {
+  for (const d of n.needs || []) ok(ids.has(d), `node "${n.id}" needs "${d}", which exists`);
+  ok(['done', 'active', 'ready', 'blocked'].includes(n.state), `node "${n.id}" has a known state`);
+}
+
+// acyclic, by depth-first search over needs
+{
+  const byId = new Map(NODES.map((n) => [n.id, n]));
+  const colour = new Map();
+  let cyclic = null;
+  const visit = (id, path) => {
+    if (colour.get(id) === 'black') return;
+    if (colour.get(id) === 'grey') { cyclic = [...path, id].join(' -> '); return; }
+    colour.set(id, 'grey');
+    for (const d of byId.get(id).needs || []) visit(d, [...path, id]);
+    colour.set(id, 'black');
+  };
+  for (const n of NODES) visit(n.id, []);
+  ok(cyclic === null, `the roadmap is acyclic${cyclic ? ` (found ${cyclic})` : ''}`);
+}
+
+// a prerequisite must sit on a lower row than the node needing it
+for (const n of NODES) {
+  for (const d of n.needs || []) {
+    const from = NODES.find((x) => x.id === d);
+    ok(from.row < n.row, `"${d}" (row ${from.row}) sits below "${n.id}" (row ${n.row}), so the edge points up`);
+  }
+}
+
+// no two boxes overlap
+{
+  const boxes = NODES.map((n) => ({ id: n.id, ...box(n) }));
+  const hits = [];
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const A = boxes[i], B = boxes[j];
+      if (A.x < B.x + B.w && B.x < A.x + A.w && A.y < B.y + B.h && B.y < A.y + A.h) {
+        hits.push(`${A.id} overlaps ${B.id}`);
+      }
+    }
+  }
+  ok(hits.length === 0, `no two roadmap boxes overlap${hits.length ? ` (${hits.join('; ')})` : ''}`);
+}
+
+// every href resolves: a real page, and an anchor that is actually on it
+for (const n of NODES) {
+  const [path, frag] = n.href.split('#');
+  const file = path === '/' ? 'index.html'
+    : path.replace(/^\//, '') + (path.endsWith('.html') ? '' : '.html');
+  ok(pages.includes(file), `node "${n.id}" links to ${file}, which exists`);
+  if (frag && pages.includes(file)) {
+    const target = readFileSync(join(HERE, file), 'utf8');
+    ok(target.includes(`id="${frag}"`), `node "${n.id}" anchor #${frag} exists on ${file}`);
+  }
+}
+
+// ── 6. prose tic lint ─────────────────────────────────────────────────
 section('prose');
 for (const page of pages) {
   const r = lintHtml(readFileSync(join(HERE, page), 'utf8'), page);
@@ -188,12 +304,13 @@ for (const page of pages) {
   ok(true, `${page}: prose lint`);
 }
 
-// ── 5. surface hygiene ────────────────────────────────────────────────
+// ── 7. surface hygiene ────────────────────────────────────────────────
 section('surface hygiene');
 const assetsIgnore = readFileSync(join(HERE, '.assetsignore'), 'utf8');
 ok(/CLAUDE\.md/.test(assetsIgnore), 'CLAUDE.md is kept out of the served assets');
 ok(/ken\.selftest\.mjs/.test(assetsIgnore), 'the selftest is kept out of the served assets');
 ok(/prose-lint\.mjs/.test(assetsIgnore), 'the prose lint is kept out of the served assets');
+ok(/^lab\/$/m.test(assetsIgnore), 'the node-only lab/ directory is kept out of the served assets');
 
 const wrangler = readFileSync(join(HERE, 'wrangler.jsonc'), 'utf8');
 ok(/"name":\s*"ken"/.test(wrangler), 'worker name is ken');

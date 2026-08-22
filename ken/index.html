@@ -14,6 +14,7 @@
   <a class="here" href="/">Front matter</a>
   <a href="/syllabus">I · Curriculum</a>
   <a href="/methods">II · Methods</a>
+  <a href="/lab">Instrument</a>
   <a href="/protocol">III · Protocol</a>
   <span class="grow"></span>
   <a href="https://mino.mobi">mino.mobi</a>
@@ -69,6 +70,30 @@
   holes in it, because each hole is a quantity one of the units produces and publishing the
   holes beats filling them with guesses.</p>
 
+  <h2 class="sec"><span class="secno">§</span>The roadmap</h2>
+
+  <p>The programme as a dependency graph. Read it bottom-up: the three prior runs
+  at the base, what was learned from them above that, then the units, each
+  producing an output the protocol needs, and at the top the run itself. Every
+  node is a link.</p>
+
+  <div class="figure">
+    <div class="fig-head">
+      <b>Figure 1.</b>
+      <span class="t">Prerequisites, not a schedule. An arrow means the lower
+      node must exist before the upper one can be attempted.</span>
+    </div>
+    <div class="roadmap-scroll">
+      <svg id="roadmap" viewBox="0 0 924 850" role="img"
+           aria-label="Roadmap: three prior runs feed a house standard, which feeds seven curriculum units; the units produce six protocol blanks, which gate registration and then the run."></svg>
+    </div>
+    <div class="roadmap-legend" id="roadmap-legend"></div>
+  </div>
+
+  <p class="small">Two nodes are live. <b>Unit II</b> is being built now, and the
+  <a href="/lab">harness</a> is being built alongside it, which is the order that
+  suits a programme meant to run experiments rather than read about them.</p>
+
   <h2 class="sec"><span class="secno">§</span>In this volume</h2>
 
   <div class="contents">
@@ -94,6 +119,18 @@
         a run and one before a report.</span>
       </span>
       <span class="pg">v1.0 · 12 rules</span>
+    </div>
+    <div class="row">
+      <span class="no">Instrument</span>
+      <span class="body">
+        <a href="/lab">The Harness</a>
+        <span class="dek">A design calculator, and what it says about the runs already paid
+        for. With two samples per cell the bake-offs could only have detected a difference of
+        2.8 standard deviations; pairing would cut a medium-effect comparison from 126 runs to
+        38. Includes the result that repeats buy a variance estimate rather than
+        precision.</span>
+      </span>
+      <span class="pg">92 checks</span>
     </div>
     <div class="row">
       <span class="no">Article III</span>
@@ -190,6 +227,7 @@
 
 </div>
 
+<script src="tree.js"></script>
 <script src="refs.js"></script>
 <script src="cite.js"></script>
 </body>

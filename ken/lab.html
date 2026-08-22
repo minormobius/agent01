@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Harness — ken</title>
+<meta name="description" content="A design calculator for model experiments: what a run budget can detect, what pairing saves, and why repeats buy a variance estimate rather than precision.">
+<link rel="stylesheet" href="journal.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="brand"><a href="/">ken</a></span>
+  <a href="/">Front matter</a>
+  <a href="/syllabus">I · Curriculum</a>
+  <a href="/methods">II · Methods</a>
+  <a class="here" href="/lab">Instrument</a>
+  <a href="/protocol">III · Protocol</a>
+  <span class="grow"></span>
+  <button onclick="window.print()">Save as PDF</button>
+</div>
+
+<div class="sheet">
+
+  <div class="a-venue">ken · volume 1 <span class="kicker">Instrument note</span></div>
+  <h1 class="a-title">The Harness</h1>
+  <p class="a-sub">A design calculator, and what it says about the runs we have already paid for</p>
+  <div class="a-meta"><code>ken/lab/design.mjs</code> · 92 known-answer checks · node-only, not served</div>
+  <hr class="a-rule">
+
+  <div class="abstract">
+    <span class="lbl">Abstract</span>
+    <p>Replication is the only defence against model variance and replication is what costs
+    money, so the useful work happens before any of it is spent. This note describes a small
+    node library that answers three questions offline: how many runs an effect of a given size
+    would need, what the smallest detectable effect is for a budget already fixed, and which
+    design changes make the same claim cheaper.</p>
+    <p>Applied to the bake-offs, it gives a number worth having early. With two samples per
+    cell, a two-cell contrast could only have detected a difference of about 2.8 standard
+    deviations, which is the gap between total success and total failure. It also produces a
+    result that runs against intuition and against how the existing rig is usually described:
+    for a fixed run budget, repeats do not buy precision. They buy a variance estimate. Beating
+    the noise takes more distinct tasks.</p>
+  </div>
+
+  <h2 class="sec"><span class="secno">1</span>Scope and coverage</h2>
+
+  <p>The library sits at <code>ken/lab/design.mjs</code>, imports its statistics from the shared
+  <code>packages/dataviz</code> rather than reimplementing them, and is covered by
+  <code>design.selftest.mjs</code>, which checks 92 values that can be derived by hand or looked
+  up. The standard it is held to is borrowed from <code>bakeoff/CLAUDE.md</code>, which puts it
+  well: a rubric nobody has watched fail is not evidence of anything. So every assertion in that
+  file is an independently known answer rather than a snapshot of what the code returned:
+  <span class="mono">z(0.975) = 1.959964</span>, <span class="mono">C(8,4) = 70</span>, and a
+  variance decomposition worked out longhand.</p>
+
+  <p>Three questions, in the order they are usually needed:</p>
+
+  <ol>
+    <li><b>Given a budget, what could this run possibly detect?</b> Nearly always the more
+      useful direction, and the one that stops a study before it wastes anything.</li>
+    <li><b>Given an effect worth detecting, what would it cost?</b></li>
+    <li><b>What design change makes the same claim cheaper?</b> This has real answers, and they
+      are worth more than any amount of careful reporting afterwards.</li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">2</span>Power of the bake-off design</h2>
+
+  <p>Six cells with two samples each gives twelve runs, so a contrast between any two cells has
+  two observations per arm. Feeding that to <code>mde()</code>:</p>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 1.</b> Smallest detectable standardised effect at 5% significance
+      and 80% power, two-sided, by runs per arm. Computed by
+      <code>mde({ n })</code>.</div>
+    <table class="booktabs">
+      <thead><tr><th class="num">Runs per arm</th><th class="num">Detectable effect (d)</th><th>What that means</th></tr></thead>
+      <tbody>
+        <tr><td class="num">2</td><td class="num">2.80</td><td>The bake-off design. Only a gap between near-total failure and near-total success would register.</td></tr>
+        <tr><td class="num">5</td><td class="num">1.77</td><td>Still enormous.</td></tr>
+        <tr><td class="num">10</td><td class="num">1.25</td><td>A very large effect, conventionally.</td></tr>
+        <tr><td class="num">30</td><td class="num">0.72</td><td>A medium-to-large effect.</td></tr>
+        <tr><td class="num">63</td><td class="num">0.50</td><td>The conventional medium effect.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>So the twenty-three-of-twenty-three result recorded in the two bake-offs has a second
+  reading alongside the saturated gate described in the <a href="/methods#evidence">house
+  standard</a>. Even with a perfectly discriminating instrument, that design had no power to
+  separate the cells. Both problems were present, and fixing the gate alone would not have
+  produced a comparison.</p>
+
+  <div class="caveat">
+    <span class="lbl">What this does not say</span>
+    <p>None of this shows the bake-offs were a mistake. Their stated purpose was a floor and a
+    side-by-side arena for a person to judge, and two samples per cell was chosen deliberately
+    so that within-cell spread could be seen at all, which §4 below shows was the right call for
+    that purpose. The claim here is narrower: those runs could not have supported a statistical
+    comparison between cells, and nothing in the reports says otherwise or claims they could.</p>
+  </div>
+
+  <h2 class="sec"><span class="secno">3</span>The cost of a comparison</h2>
+
+  <p>The second question, and the one that makes the balance concrete. Pairing is the lever:
+  run every condition on the same tasks, and whatever makes a task hard cancels out of the
+  difference. The required observations fall by a factor of
+  <span class="mono">(1 − ρ)</span>, where ρ is the correlation between conditions on a shared
+  task.</p>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 2.</b> Total runs for one two-condition contrast at 5%
+      significance and 80% power, unpaired and paired at four values of ρ. Computed by
+      <code>designComparison()</code>.</div>
+    <table class="booktabs">
+      <thead><tr><th class="num">Effect d</th><th class="num">Unpaired</th><th class="num">ρ = 0.3</th><th class="num">ρ = 0.5</th><th class="num">ρ = 0.7</th><th class="num">ρ = 0.85</th></tr></thead>
+      <tbody>
+        <tr><td class="num">0.2</td><td class="num">786</td><td class="num">550</td><td class="num">394</td><td class="num">236</td><td class="num">118</td></tr>
+        <tr><td class="num">0.3</td><td class="num">350</td><td class="num">246</td><td class="num">176</td><td class="num">106</td><td class="num">54</td></tr>
+        <tr><td class="num">0.5</td><td class="num">126</td><td class="num">88</td><td class="num">64</td><td class="num">38</td><td class="num">20</td></tr>
+        <tr><td class="num">0.8</td><td class="num">50</td><td class="num">36</td><td class="num">26</td><td class="num">16</td><td class="num">8</td></tr>
+        <tr><td class="num">1.2</td><td class="num">22</td><td class="num">16</td><td class="num">12</td><td class="num">8</td><td class="num">4</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Read the d = 0.5 row. Unpaired, a medium effect needs 126 runs. Paired at a plausible
+  ρ = 0.7, it needs 38. At ρ = 0.85, which is not unreasonable when both conditions attempt the
+  same brief, it needs 20, which is inside what the bake-offs already spend. The same claim, a
+  sixth of the bill, from a design choice that costs nothing to make.</p>
+
+  <p>The two rows above it are the warning. Small effects are brutally expensive whatever you
+  do, and a programme that needs to detect d = 0.2 should decide that in advance rather than
+  discover it after spending. Which is the argument for asking question one first.</p>
+
+  <h2 class="sec"><span class="secno">4</span>Repeats, tasks, and where precision comes from</h2>
+
+  <p>This one surprised me, and it is the reason the note exists rather than just the library.</p>
+
+  <p>The intuition that running the same prompt into the same situation several times should
+  beat the noise is half right. Write the variance of a condition mean under an allocation of
+  <span class="mono">tasks</span> × <span class="mono">repeats</span>:</p>
+
+  <div class="eq">Var(mean) = σ²<sub>between</sub> ⁄ tasks + σ²<sub>within</sub> ⁄ (tasks · repeats)
+    <span class="where">and with the run budget fixed at R = tasks · repeats, the second term is σ²<sub>within</sub> ⁄ R</span></div>
+
+  <p>The second term does not depend on the split at all. Every run spent repeating a task you
+  already have is a run not spent on a task you do not, so maximising tasks wins at every value
+  of the intraclass correlation. <code>allocate()</code> returns one repeat as the optimum at
+  ICC 0.1, 0.35, 0.6 and 0.9 alike, and the selftest asserts it at each.</p>
+
+  <p>The paired two-condition version reaches the same place. Substituting
+  <span class="mono">tasks = R/(2·repeats)</span> into the variance of a paired difference gives
+  a quantity increasing in repeats, flat only when the task-by-condition interaction is exactly
+  zero.</p>
+
+  <p>What repeats do buy is the variance estimate itself. At one repeat per task the within-task
+  degrees of freedom are zero and σ²<sub>within</sub> is not estimable, so you have no idea how
+  noisy the model is and no input for any of the calculations above.
+  <code>allocate()</code> therefore returns the optimum and a <code>finding</code> string
+  saying what that optimum costs, and flags <code>varianceEstimable: false</code>.</p>
+
+  <p>This also settles a question the existing rig raised. Two samples per cell is not a way of
+  averaging out noise, and would be a poor one if it were. It is a way of seeing the noise, and
+  <code>bakeoff/CLAUDE.md</code> justifies it in exactly those terms: the spread within one cell
+  across two runs can exceed the gap between two models, and one draw cannot tell you which you
+  are looking at. Right call, right reason.</p>
+
+  <h2 class="sec"><span class="secno">5</span>The variance pilot</h2>
+
+  <p>Not a comparison. A variance pilot: one condition, several tasks, several repeats, which
+  produces the σ² components every calculation above takes as input. Until it exists, every cost
+  estimate here rests on an assumed ρ and should be read as a range.</p>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 3.</b> The default pilot from <code>variancePilot()</code>.</div>
+    <table class="booktabs">
+      <thead><tr><th>Quantity</th><th class="num">Value</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Tasks</td><td class="num">8</td><td>Enough groups for a usable between-task mean square.</td></tr>
+        <tr><td>Repeats</td><td class="num">3</td><td>Enough within-task replication to estimate run-to-run noise.</td></tr>
+        <tr><td>Runs</td><td class="num">24</td><td>A cost that does not need a decision.</td></tr>
+        <tr><td>df between</td><td class="num">7</td><td rowspan="2">What the precision of the estimate actually rests on. Both are small, so treat the first ICC as an order of magnitude.</td></tr>
+        <tr><td>df within</td><td class="num">16</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Feed the result to <code>varianceComponents()</code>, which returns σ²<sub>within</sub>,
+  σ²<sub>between</sub> and the ICC, clamping a negative between-task moment estimate at zero
+  because a negative variance is not a finding. That ICC then sets ρ in Table 2, and the cost of
+  every claim the programme wants to make becomes a number rather than a worry.</p>
+
+  <h2 class="sec"><span class="secno">6</span>Sequential stopping and exact tests</h2>
+
+  <p>A run that watches its own results and stops when they look good has an error rate far
+  worse than it believes. Wald's sequential test <a class="cite" data-ref="wald1945"></a> gives
+  boundaries on the accumulated log-likelihood ratio that permit early stopping while holding
+  the stated error rates, provided the rule was fixed in advance.
+  <code>sprtBounds({ alpha: 0.05, beta: 0.2 })</code> returns an upper boundary of
+  <span class="mono">ln 16 ≈ +2.77</span> and a lower of <span class="mono">≈ −1.56</span>.</p>
+
+  <p>The library also carries the exact randomisation machinery from Unit II's replication:
+  <code>ladyTastingTea()</code> enumerates the null distribution rather than simulating it, and
+  <code>permutationTest()</code> refuses above a stated assignment cap rather than silently
+  switching to sampling, because a p-value from an undisclosed Monte Carlo is a different
+  object. The design lesson falls straight out of the enumeration: at six cups the smallest
+  achievable p-value is exactly 0.05, so six cups cannot produce a significant result at the
+  conventional threshold and eight is the smallest design that can.</p>
+
+  <h2 class="sec"><span class="secno">7</span>Known gaps</h2>
+
+  <ul>
+    <li><b>Every ρ here is assumed.</b> Nothing in the repository has measured a task-level
+      correlation between two conditions, so Table 2 is a menu rather than a quotation. The
+      pilot in §5 is what turns it into one.</li>
+    <li><b>Normal approximation throughout.</b> Sample sizes run a little light at small n; the
+      <code>exact: true</code> flag adds the conventional correction rather than pretending to
+      more precision than a normal approximation has.</li>
+    <li><b>No cost model in tokens or dollars.</b> <code>costToDetect()</code> takes a
+      <code>costPerRun</code> and refuses to assume one. Bake-off cells ran between about 800
+      and 5,100 seconds of wall clock, which is too wide a spread to convert into a unit price
+      without measuring it.</li>
+    <li><b>No runner yet.</b> This is the design half. Executing a design against real cells
+      still goes through <code>bakeoff/</code>, and connecting the two is the next piece of
+      work.</li>
+  </ul>
+
+  <div class="refs">
+    <h2>References <span class="small">(<span id="refcount">0</span> works cited in this note)</span></h2>
+    <ol id="reflist"></ol>
+  </div>
+
+  <div class="colophon">
+    ken · instrument note · the harness<br>
+    Every figure in Tables 1–3 is recomputed from <code>ken/lab/design.mjs</code> by
+    <code>ken.selftest.mjs</code> on each build and compared against the numbers printed here,
+    so the page cannot drift from the library it documents.
+  </div>
+
+</div>
+
+<script src="refs.js"></script>
+<script src="cite.js"></script>
+</body>
+</html>
