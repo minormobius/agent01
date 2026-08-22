@@ -56,6 +56,9 @@ worker or move the domain, **verify the deploy log binds
 | `lab/design.selftest.mjs` | 92 known-answer checks for it |
 | `lab/simulate.mjs` | simulate a design before running it. Node-only |
 | `lab/simulate.selftest.mjs` | 32 known-answer checks for it |
+| `lab/figures.mjs` | renders `fig/*.svg` from packages/dataviz. `--write` to regenerate |
+| `lab/resolve-refs.mjs` | links the bibliography against CrossRef / arXiv / OpenLibrary |
+| `fig/*.svg` | **generated.** Committed so figures print and diff |
 | `refs.js` | **the bibliography, as data** — 54 real works, keyed |
 | `cite.js` | numbers citations in document order, renders the reference list |
 | `journal.css` | the shared journal typography; prints to real Letter pages |
@@ -119,6 +122,35 @@ Two things follow for anyone editing here:
   unrecoverable move.
 - **The simulation assumes the model the run is partly there to test.** Say so
   wherever its numbers appear. WP1 does, in its limits box.
+
+## Figures and the bibliography
+
+**Figures are server-rendered and committed.** `lab/figures.mjs` builds them
+from `packages/dataviz` (whose Okabe–Ito palette is already validated, so
+nothing here picks a colour) and writes `fig/*.svg`. The selftest regenerates
+and byte-compares, so a figure cannot drift from its data. Regenerate with
+`node ken/lab/figures.mjs --write`. Pages inline the SVG, so figures print and
+need no JavaScript.
+
+**The bibliography links to registry records, not to nothing.**
+`lab/resolve-refs.mjs` queries CrossRef for articles, arXiv for preprints and
+conference papers, and OpenLibrary for books, accepting a candidate only on an
+exact year match plus a close title match. 74 of 82 resolve; the other 8 render
+as "unlinked" rather than pointing somewhere approximate.
+
+The matcher is deliberately fussy, and it earned that. Title similarity alone
+matched a PsycEXTRA *dataset* stub to False-Positive Psychology and an
+*American Historical Review review* to Chandler's book, both scoring 1.0 —
+because the title is the same. The fix was filtering CrossRef record types and
+sending books to OpenLibrary only. Re-run it after adding references:
+
+```bash
+node ken/lab/resolve-refs.mjs           # report
+node ken/lab/resolve-refs.mjs --write   # patch accepted hits into refs.js
+```
+
+Network-only. **Never call it from the selftest** — CI has no business
+reaching out, and the selftest checks URL shape and coverage instead.
 
 ## The roadmap figure
 

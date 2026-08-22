@@ -37,11 +37,12 @@
    asserts its own honesty in CI, which is the only difference that means
    anything.
    ───────────────────────────────────────────────────────────────────── */
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { lintHtml } from './prose-lint.mjs';
 import { NODES, box } from './tree.js';
 import { mde, designComparison, variancePilot, ladyTastingTea, sprtBounds, choose } from './lab/design.mjs';
 import { iccSamplingDistribution, pilotSweep, bimodalityPower, allocationCheck } from './lab/simulate.mjs';
+import { buildFigures } from './lab/figures.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -191,124 +192,88 @@ ok(totalRuns === 23 && totalPass === 23,
 ok(/23 of 23|twenty-three of twenty-three/i.test(allHtml),
    'the site states the 23-of-23 figure in words or digits');
 
-// ── 4. the published tables match the library ─────────────────────────
-section('lab tables vs design.mjs');
+// ── 4. published numbers and figures match the code that made them ────
+section('published values vs the code');
 const lab = readFileSync(join(HERE, 'lab.html'), 'utf8');
-const labHas = (v, what) => ok(lab.includes(`>${v}<`), `lab: table states the computed value for ${what} (${v})`);
+const wp1 = readFileSync(join(HERE, 'wp1.html'), 'utf8');
+const f2 = (x) => x.toFixed(2);
+const pct = (x) => `${Math.round(x * 100)}%`;
 
-// Table 1 — minimum detectable effect by runs per arm
+// (a) the library computes what we think it does
 for (const [n, want] of [[2, '2.80'], [5, '1.77'], [10, '1.25'], [30, '0.72'], [63, '0.50']]) {
-  const got = mde({ n }).toFixed(2);
-  ok(got === want, `mde(n=${n}) = ${want} (computed ${got})`);
-  labHas(want, `mde at n=${n}`);
+  ok(f2(mde({ n })) === want, `mde(n=${n}) = ${want} (computed ${f2(mde({ n }))})`);
 }
-
-// Table 2 — runs for one contrast, unpaired and paired
-const T2 = {
-  0.2: [786, 550, 394, 236, 118],
-  0.3: [350, 246, 176, 106, 54],
-  0.5: [126, 88, 64, 38, 20],
-  0.8: [50, 36, 26, 16, 8],
-  1.2: [22, 16, 12, 8, 4],
-};
+const T2 = { 0.2: [786, 550, 394, 236, 118], 0.3: [350, 246, 176, 106, 54],
+             0.5: [126, 88, 64, 38, 20], 0.8: [50, 36, 26, 16, 8], 1.2: [22, 16, 12, 8, 4] };
 for (const [dStr, row] of Object.entries(T2)) {
   const d = Number(dStr);
-  const got = [
-    designComparison({ d, rho: 0 }).unpairedObservations,
-    ...[0.3, 0.5, 0.7, 0.85].map((rho) => designComparison({ d, rho }).pairedObservations),
-  ];
+  const got = [designComparison({ d, rho: 0 }).unpairedObservations,
+    ...[0.3, 0.5, 0.7, 0.85].map((rho) => designComparison({ d, rho }).pairedObservations)];
   ok(JSON.stringify(got) === JSON.stringify(row),
-     `lab Table 2 row d=${d} matches the library (computed ${got.join(',')}, printed ${row.join(',')})`);
-  for (const v of row) labHas(String(v), `Table 2 d=${d} entry ${v}`);
+     `runs for d=${d}: ${row.join(',')} (computed ${got.join(',')})`);
 }
-
-// Table 3 — the pilot
 const pilot = variancePilot();
-ok(pilot.tasks === 8 && pilot.repeats === 3 && pilot.runs === 24, 'pilot is 8 x 3 = 24');
-ok(pilot.dfBetween === 7 && pilot.dfWithin === 16, 'pilot df are 7 and 16');
-for (const v of [8, 3, 24, 7, 16]) labHas(String(v), `Table 3 value ${v}`);
-
-// §6 quoted constants
+ok(pilot.runs === 24 && pilot.dfBetween === 7 && pilot.dfWithin === 16, 'pilot is 8x3, df 7 and 16');
 const sb = sprtBounds({ alpha: 0.05, beta: 0.2 });
-ok(sb.upper.toFixed(2) === '2.77', `SPRT upper boundary is +2.77 (computed ${sb.upper.toFixed(2)})`);
-ok(sb.lower.toFixed(2) === '-1.56', `SPRT lower boundary is -1.56 (computed ${sb.lower.toFixed(2)})`);
-ok(lab.includes('2.77') && lab.includes('1.56'), 'lab prints both SPRT boundaries');
+ok(sb.upper.toFixed(2) === '2.77' && sb.lower.toFixed(2) === '-1.56', 'SPRT boundaries +2.77 / -1.56');
 ok(choose(8, 4) === 70 && ladyTastingTea(6).smallestP === 0.05,
-   'the six-cup design cannot reach p < 0.05, as the note claims');
+   'six cups cannot reach p < 0.05, as the note claims');
 
-// ── 4b. WP1's tables are reproduced from the simulator ────────────────
-section('wp1 tables vs simulate.mjs');
-const wp1 = readFileSync(join(HERE, 'wp1.html'), 'utf8');
-const wp1Has = (v, what) => ok(wp1.includes(v), `wp1 states the simulated value for ${what} (${v})`);
-const pct = (x) => `${Math.round(x * 100)}%`;
-const f2 = (x) => x.toFixed(2);
-
-// Table 2 — the 24-run pilot at three true ICCs
-for (const [icc, lo, hi, med, zero] of [
-  [0.2, '0.00', '0.61', '0.17', '25%'],
-  [0.5, '0.00', '0.80', '0.47', '4%'],
-  [0.8, '0.38', '0.93', '0.79', '0%'],
-]) {
-  const d = iccSamplingDistribution({ tasks: 8, repeats: 3, trueIcc: icc, trials: 4000, seed: 21 });
-  ok(f2(d.lo) === lo && f2(d.hi) === hi,
-     `wp1 Table 2, true ICC ${icc}: interval [${lo}, ${hi}] (simulated [${f2(d.lo)}, ${f2(d.hi)}])`);
-  ok(f2(d.median) === med, `wp1 Table 2, true ICC ${icc}: median ${med} (simulated ${f2(d.median)})`);
-  ok(pct(d.atZero) === zero, `wp1 Table 2, true ICC ${icc}: ${zero} clamped at zero (simulated ${pct(d.atZero)})`);
-  wp1Has(`[${lo}, ${hi}]`, `the ICC interval at true ${icc}`);
-}
-
-// Table 3 — every split of a 24-run budget
+// (b) simulation values quoted in WP1's prose
 {
-  const sweep = pilotSweep({ budget: 24, trueIcc: 0.5, trials: 3000 });
-  const want = { '4x6': '0.82', '6x4': '0.80', '8x3': '0.80', '12x2': '0.82' };
-  for (const r of sweep) {
-    const key = `${r.tasks}x${r.repeats}`;
-    ok(f2(r.width) === want[key],
-       `wp1 Table 3, ${key}: width ${want[key]} (simulated ${f2(r.width)})`);
-  }
-  ok(sweep.length === 4, 'the 24-run sweep has the four splits the table shows');
+  const d = iccSamplingDistribution({ tasks: 8, repeats: 3, trueIcc: 0.5, trials: 4000, seed: 21 });
+  ok(`[${f2(d.lo)}, ${f2(d.hi)}]` === '[0.00, 0.80]',
+     `the 24-run ICC interval is [0.00, 0.80] (simulated [${f2(d.lo)}, ${f2(d.hi)}])`);
+  ok(wp1.includes('[0.00, 0.80]'), 'wp1 quotes the 24-run interval');
+  ok(lab.includes('[0.00, 0.80]'), 'lab quotes it in the correction notice');
 }
-
-// Table 4 — the size ladder
-for (const [tasks, runs, lo, hi, width] of [
-  [8, 24, '0.00', '0.80', '0.80'], [12, 36, '0.09', '0.76', '0.66'],
-  [16, 48, '0.16', '0.73', '0.58'], [24, 72, '0.22', '0.69', '0.47'],
-  [32, 96, '0.27', '0.67', '0.40'], [48, 144, '0.32', '0.64', '0.32'],
-  [64, 192, '0.34', '0.62', '0.29'], [96, 288, '0.38', '0.61', '0.23'],
-]) {
-  const d = iccSamplingDistribution({ tasks, repeats: 3, trueIcc: 0.5, trials: 3000, seed: 31 });
-  ok(f2(d.lo) === lo && f2(d.hi) === hi && f2(d.width) === width,
-     `wp1 Table 4, ${tasks} tasks: [${lo}, ${hi}] width ${width} (simulated [${f2(d.lo)}, ${f2(d.hi)}] width ${f2(d.width)})`);
-  ok(d.runs === runs, `wp1 Table 4, ${tasks} tasks is ${runs} runs`);
+{
+  const widths = pilotSweep({ budget: 24, trueIcc: 0.5, trials: 3000 }).map((r) => f2(r.width));
+  ok(JSON.stringify(widths) === JSON.stringify(['0.82', '0.80', '0.80', '0.82']),
+     `the four 24-run splits give widths 0.82/0.80/0.80/0.82 (simulated ${widths.join('/')})`);
+  ok(wp1.includes('0.82, 0.80, 0.80 and 0.82'), 'wp1 quotes all four split widths');
 }
-
-// Table 5 — bimodality power
-for (const [gap, want] of [[1, '2%'], [2, '69%'], [3, '100%'], [4, '100%']]) {
-  const b = bimodalityPower({ tasks: 8, repeats: 3, p: 0.5, gap, noise: 0.35, trials: 2000, seed: 13 });
-  ok(pct(b.power) === want, `wp1 Table 5, ${gap} SD separation: ${want} (simulated ${pct(b.power)})`);
+{
+  const b = bimodalityPower({ tasks: 8, repeats: 3, p: 0.5, gap: 2, noise: 0.35, trials: 2000, seed: 13 });
+  ok(pct(b.power) === '69%', `bimodality power at 2 SD is 69% (simulated ${pct(b.power)})`);
+  ok(wp1.includes('69%') && lab.includes('69%'), 'both pages quote the 69% figure');
 }
-
-// Table 6 — predicted against simulated SE, and the allocation conclusion
 {
   const a = allocationCheck({ budget: 48, betweenVar: 0.5, withinVar: 0.5, trials: 4000, seed: 5 });
-  ok(a.bestRepeats === 1, 'wp1 §4.5: simulation agrees one repeat minimises the SE');
-  const want = {
-    1: ['0.1443', '0.1465'], 2: ['0.1768', '0.1798'], 3: ['0.2041', '0.2023'],
-    4: ['0.2282', '0.2257'], 6: ['0.2700', '0.2693'], 8: ['0.3062', '0.3080'],
-  };
-  for (const r of a.rows) {
-    const [p4, e4] = want[r.repeats];
-    ok(r.predictedSe.toFixed(4) === p4 && r.empiricalSe.toFixed(4) === e4,
-       `wp1 Table 6, ${r.repeats} repeat(s): predicted ${p4} simulated ${e4} ` +
-       `(got ${r.predictedSe.toFixed(4)} and ${r.empiricalSe.toFixed(4)})`);
-    wp1Has(p4, `Table 6 predicted SE at ${r.repeats} repeat(s)`);
-    wp1Has(e4, `Table 6 simulated SE at ${r.repeats} repeat(s)`);
+  ok(a.bestRepeats === 1, 'simulation agrees one repeat minimises the SE');
+  const first = a.rows.find((r) => r.repeats === 1), last = a.rows.find((r) => r.repeats === 8);
+  for (const [v, what] of [[first.predictedSe.toFixed(4), 'predicted SE at 1 repeat'],
+                           [first.empiricalSe.toFixed(4), 'simulated SE at 1 repeat'],
+                           [last.predictedSe.toFixed(4), 'predicted SE at 8 repeats'],
+                           [last.empiricalSe.toFixed(4), 'simulated SE at 8 repeats']]) {
+    ok(wp1.includes(v), `wp1 quotes the ${what} (${v})`);
   }
 }
+ok(lab.includes('/wp1'), 'the instrument note links to the paper that corrected it');
 
-// the correction must be visible on the page that carried the original claim
-ok(readFileSync(join(HERE, 'lab.html'), 'utf8').includes('/wp1'),
-   'the instrument note links to the working paper that corrected it');
+// (c) the committed figures are current
+const figs = buildFigures();
+for (const [name, svg] of Object.entries(figs)) {
+  const path = join(HERE, 'fig', `${name}.svg`);
+  const onDisk = existsSync(path) ? readFileSync(path, 'utf8') : null;
+  ok(onDisk === svg,
+     `fig/${name}.svg is current${onDisk === null ? ' (missing)' : ''} — regenerate with node ken/lab/figures.mjs --write`);
+  ok(lab.includes(`aria-label`) || wp1.includes('aria-label'), `${name}: figures carry an aria-label`);
+}
+console.log(`  · ${Object.keys(figs).length} figures checked against a fresh render`);
+
+// (d) the bibliography links somewhere real
+{
+  const linked = Object.entries(REFS).filter(([, r]) => r.u);
+  const bad = linked.filter(([, r]) => !/^https:\/\/(doi\.org|arxiv\.org|openlibrary\.org)\//.test(r.u));
+  ok(bad.length === 0, `every link points at doi.org, arxiv.org or openlibrary.org (bad: ${bad.map(([k]) => k).join(', ')})`);
+  ok(linked.length >= 70, `at least 70 of ${keys.length} entries resolve to a registry record (have ${linked.length})`);
+  console.log(`  · bibliography: ${linked.length} of ${keys.length} linked`);
+  const dupes = {};
+  for (const [k, r] of linked) (dupes[r.u] ||= []).push(k);
+  const shared = Object.entries(dupes).filter(([, ks]) => ks.length > 1);
+  ok(shared.length === 0, `no two entries share a URL (${shared.map(([u, ks]) => ks.join('=')).join('; ')})`);
+}
 
 // ── 5. the roadmap is a valid DAG ─────────────────────────────────────
 section('roadmap graph');

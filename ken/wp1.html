@@ -31,102 +31,71 @@
 
   <div class="abstract">
     <span class="lbl">Abstract</span>
-    <p>Every cost estimate this programme has published rests on an unmeasured quantity: how
-    much of the variation in a model's output is the task it was given, and how much is the run
-    it happened to be. This paper surveys what the design-of-experiments literature says about
-    estimating that split, states four falsifiable hypotheses, and then simulates the planned
-    pilot before running it.</p>
-    <p>The simulation is the result. A 24-run pilot, which this programme recommended one
-    revision ago, returns a 95% interval on the intraclass correlation of
-    <span class="mono">[0.00, 0.80]</span> when the true value is 0.5. On a parameter bounded in
-    <span class="mono">[0, 1]</span> that is not an estimate. Reallocating the same 24 runs does
-    not help, and reaching an interval of ±0.16 takes 144 runs. The same 24 runs are, however,
-    well powered for a different question: they detect a two-standard-deviation bimodal
-    separation 69% of the time and a three-standard-deviation one every time.</p>
-    <p>So the pilot is re-scoped. It becomes a model check rather than a parameter estimate,
-    those being different jobs at different prices, and the parameter estimate becomes an
-    explicit budget decision instead of an assumed side effect.</p>
+    <p>Every cost this programme has quoted rests on an unmeasured quantity: how much of the
+    variation in model output is the task, and how much is the run. This paper surveys what the
+    design literature already settles, states four falsifiable hypotheses, and simulates the
+    planned pilot before running it.</p>
+    <p>The simulation is the result. A 24-run pilot returns a 95% interval on the intraclass
+    correlation of <span class="mono">[0.00, 0.80]</span> at a true 0.5. Reallocating the same
+    runs does not help; ±0.16 costs 144 runs. The same 24 runs do detect a two-SD bimodal
+    separation 69% of the time. So the pilot is re-scoped from parameter estimate to model
+    check.</p>
   </div>
 
   <h2 class="sec"><span class="secno">1</span>The question</h2>
 
-  <p>The <a href="/lab">design calculator</a> prices a comparison in runs, and every price it
-  quotes depends on ρ, the correlation between two conditions on a shared task. At ρ = 0.85 a
-  medium-effect comparison costs 20 runs; at ρ = 0.3 the same comparison costs 88. Nothing in
-  this repository has measured ρ, so the published table is a menu rather than a quotation, and
-  the note saying so is the most important sentence on that page.</p>
+  <p>The <a href="/lab">design calculator</a> prices a comparison in runs, and every price
+  depends on ρ, the correlation between conditions on a shared task. At ρ = 0.85 a medium-effect
+  comparison costs 20 runs; at ρ = 0.3 it costs 88. Nothing here has measured ρ.</p>
 
-  <p>ρ is set by where the variance lives. Write a score as a task effect plus run noise, and
-  the intraclass correlation</p>
+  <p>ρ is set by where the variance lives:</p>
 
-  <div class="eq">ICC = σ²<sub>between</sub> ⁄ (σ²<sub>between</sub> + σ²<sub>within</sub>)
-    <span class="where">the share of variation attributable to which task was drawn</span></div>
+  <div class="eq">ICC = σ²<sub>between</sub> ⁄ (σ²<sub>between</sub> + σ²<sub>within</sub>)</div>
 
-  <p>is the quantity that decides it. A high ICC means most of the spread is task difficulty,
-  which cancels under pairing and makes comparisons cheap. A low ICC means the model itself is
-  the noise, pairing buys little, and every claim is expensive.</p>
+  <p>High ICC means the spread is task difficulty, which cancels under pairing. Low ICC means the
+  model is the noise, and everything is expensive.</p>
 
   <h2 class="sec"><span class="secno">2</span>Survey of the relevant literature</h2>
 
-  <p>The decomposition is Fisher's <a class="cite" data-ref="fisher1925"></a>, and the
-  intraclass correlation arrives with it in 1925. Nothing about the estimator is novel or in
-  doubt. What the literature contributes is four warnings, three of which this programme had
-  not acted on.</p>
+  <p>The decomposition is Fisher's <a class="cite" data-ref="fisher1925"></a> and nothing about
+  the estimator is in doubt. What the literature contributes is four warnings, three of which
+  this programme had not acted on.</p>
 
-  <h3 class="sub">2.1 Variance components need larger samples than means do</h3>
-
-  <p>Searle, Casella and McCulloch <a class="cite" data-ref="searle1992"></a> is the canonical
-  treatment, and it is unambiguous that estimating a variance component is a harder problem
-  than estimating a mean: the sampling distribution is skewed, the moment estimator can go
-  negative, and precision improves with the number of <em>groups</em> rather than the number of
-  observations. Satterthwaite <a class="cite" data-ref="satterthwaite1946"></a> gives the
-  classical approximate interval; Efron and Tibshirani
-  <a class="cite" data-ref="efron1993"></a> supply the resampling alternative for when the
-  normal-theory interval is not trustworthy, which at small group counts it is not.</p>
-
-  <p>This was known and available before the 24-run pilot was proposed. §4 is what happens when
-  you take it seriously.</p>
-
-  <h3 class="sub">2.2 A task with repeated runs is a cluster, not a sample</h3>
-
-  <p>Cochran <a class="cite" data-ref="cochran1977"></a> on cluster sampling supplies the
-  design effect: repeated observations within a cluster carry less information than
-  independent ones, by a factor that grows with the ICC. Twenty-four runs across eight tasks
-  are not twenty-four independent observations of anything, and treating them as such
-  overstates precision by exactly the factor the ICC controls. This is the same fact that
-  produces the allocation result in <a href="/lab">the harness</a>, seen from the sampling side
-  rather than the variance side.</p>
-
-  <h3 class="sub">2.3 The model is a whole plot, and the task is a sub-plot</h3>
-
-  <p>Yates <a class="cite" data-ref="yates1935"></a> named this structure in 1935. Some factors
-  are expensive to change and others are cheap, so an experiment naturally randomises them at
-  different levels, and the resulting design has two error terms rather than one. Ours has
-  exactly that shape: switching model or harness costs a container rebuild and an API key,
-  while switching task costs nothing.</p>
-
-  <p>The consequence is specific and it affects the bake-off rig directly. A comparison between
-  two models, tested across shared tasks, must be judged against the between-model error term,
-  not the pooled run-to-run variation, and an analysis that ignores the distinction reports
-  standard errors that are too small. No analysis in this repository has yet made that
-  distinction, and none has needed to, because none has reported a standard error at all.</p>
-
-  <h3 class="sub">2.4 Variation as a resource: the opposite framing</h3>
-
-  <p>Worth holding alongside the rest as a corrective. Wang et al.
-  <a class="cite" data-ref="wang2023"></a> sample a model repeatedly and aggregate, treating
-  variation as a resource: several attempts, then a vote. Our framing is the opposite, since we
-  are trying to measure through the variation rather than exploit it. Both are legitimate and
-  they answer different questions, but it is a reminder that σ²<sub>within</sub> is a property
-  of a sampling procedure rather than a fixed fact about a model, and that changing temperature
-  or aggregation changes the parameter being estimated.</p>
+  <div class="table-fig">
+    <div class="cap"><b>Table 1.</b> What is already settled, and what it costs us.</div>
+    <table class="booktabs">
+      <thead><tr><th>Source</th><th>Established</th><th>Consequence here</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Searle, Casella &amp; McCulloch <a class="cite" data-ref="searle1992"></a>; Satterthwaite <a class="cite" data-ref="satterthwaite1946"></a>; Efron &amp; Tibshirani <a class="cite" data-ref="efron1993"></a></td>
+          <td>Variance components need far larger samples than means. The estimator is skewed and can go negative; precision tracks the number of <i>groups</i>.</td>
+          <td>§4. Known and available before we proposed a 24-run pilot.</td>
+        </tr>
+        <tr>
+          <td>Cochran <a class="cite" data-ref="cochran1977"></a></td>
+          <td>Repeated runs on one task are a cluster. The design effect shrinks effective sample size by a factor set by the ICC.</td>
+          <td>24 runs over 8 tasks are not 24 independent observations. Same fact as the allocation result, from the sampling side.</td>
+        </tr>
+        <tr>
+          <td>Yates <a class="cite" data-ref="yates1935"></a></td>
+          <td>Split-plot: when one factor is expensive to change and another cheap, the design has two error terms.</td>
+          <td>Model is the whole plot, task the sub-plot. A model comparison judged against pooled run-to-run variation reports standard errors that are too small. <b>No analysis here has made this distinction.</b></td>
+        </tr>
+        <tr>
+          <td>Wang et al. <a class="cite" data-ref="wang2023"></a></td>
+          <td>Sampling repeatedly and aggregating treats variation as a resource.</td>
+          <td>The opposite framing to ours, and a reminder that σ²<sub>within</sub> is a property of a sampling procedure, not of a model.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 
   <h2 class="sec"><span class="secno">3</span>Four hypotheses</h2>
 
   <p>Stated so that each can fail, with the prediction that would falsify it.</p>
 
   <div class="table-fig">
-    <div class="cap"><b>Table 1.</b> The hypotheses, their tests, and what would refute them.</div>
+    <div class="cap"><b>Table 2.</b> The hypotheses, their tests, and what would refute them.</div>
     <table class="booktabs">
       <thead><tr><th>#</th><th>Hypothesis</th><th>Test</th><th>Refuted by</th></tr></thead>
       <tbody>
@@ -164,124 +133,38 @@
 
   <h2 class="sec"><span class="secno">4</span>Simulating the design first</h2>
 
-  <p>Simulation before execution is standard where experiments cost money
-  <a class="cite" data-ref="burton2006"></a><a class="cite" data-ref="morris2019"></a>, and it
-  is cheap here: <code>ken/lab/simulate.mjs</code> generates data from a stated model with a
-  seeded generator, so every figure below is reproducible from its seed and is recomputed by
-  the build.</p>
+  <p>Standard where experiments cost money <a class="cite" data-ref="burton2006"></a><a class="cite" data-ref="morris2019"></a>,
+  and close to free here. <code>ken/lab/simulate.mjs</code> generates data from a stated model
+  with a seeded generator; every figure below is reproducible from its seed and recomputed by the
+  build.</p>
 
-  <h3 class="sub">4.1 Precision of the 24-run pilot</h3>
-
-  <div class="table-fig">
-    <div class="cap"><b>Table 2.</b> Sampling distribution of the ICC estimate from a pilot of
-      8 tasks × 3 repeats, 4,000 simulated pilots per row. The interval is the 2.5th to 97.5th
-      percentile of the estimate.</div>
-    <table class="booktabs">
-      <thead><tr><th class="num">True ICC</th><th>95% interval</th><th class="num">Width</th><th class="num">Median</th><th class="num">Estimates at exactly 0</th></tr></thead>
-      <tbody>
-        <tr><td class="num">0.2</td><td>[0.00, 0.61]</td><td class="num">0.61</td><td class="num">0.17</td><td class="num">25%</td></tr>
-        <tr><td class="num">0.5</td><td>[0.00, 0.80]</td><td class="num">0.80</td><td class="num">0.47</td><td class="num">4%</td></tr>
-        <tr><td class="num">0.8</td><td>[0.38, 0.93]</td><td class="num">0.55</td><td class="num">0.79</td><td class="num">0%</td></tr>
-      </tbody>
-    </table>
+  <div class="plot">
+    <div class="pwrap"><svg viewBox="0 0 620 248" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Forest plot: the 95% interval on the intraclass correlation narrows slowly with pilot size. At 24 runs it spans nearly the whole parameter range; 144 runs are needed before it is usefully narrow." style="width:100%;height:auto;display:block;font-family:'Helvetica Neue', Helvetica, Arial, sans-serif"><rect width="620" height="248" fill="#ffffff"/><line x1="130.0" y1="16.0" x2="130.0" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><text x="130.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0</text><line x1="241.0" y1="16.0" x2="241.0" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><text x="241.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0.2</text><line x1="352.0" y1="16.0" x2="352.0" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><text x="352.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0.4</text><line x1="463.0" y1="16.0" x2="463.0" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><text x="463.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0.6</text><line x1="574.0" y1="16.0" x2="574.0" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><text x="574.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0.8</text><line x1="407.5" y1="16.0" x2="407.5" y2="214.0" stroke="#4a4a4a" stroke-width="1" stroke-dasharray="3,3"/><line x1="130.0" y1="28.4" x2="571.3" y2="28.4" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="400.2" y="25.4" width="6" height="6" fill="#6b6b6b"/><text x="122.0" y="31.4" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">8 tasks · 24 runs</text><text x="580.0" y="31.4" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">0.49</text><line x1="182.5" y1="53.1" x2="550.6" y2="53.1" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="395.7" y="50.1" width="6" height="6" fill="#6b6b6b"/><text x="122.0" y="56.1" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">12 tasks · 36 runs</text><text x="580.0" y="56.1" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">0.48</text><line x1="217.5" y1="77.9" x2="536.8" y2="77.9" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="400.2" y="74.9" width="6" height="6" fill="#6b6b6b"/><text x="122.0" y="80.9" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">16 tasks · 48 runs</text><text x="580.0" y="80.9" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">0.49</text><line x1="254.5" y1="102.6" x2="513.8" y2="102.6" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="398.8" y="99.6" width="6" height="6" fill="#6b6b6b"/><text x="122.0" y="105.6" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">24 tasks · 72 runs</text><text x="580.0" y="105.6" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">0.49</text><line x1="281.0" y1="127.4" x2="502.9" y2="127.4" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="401.9" y="124.4" width="6" height="6" fill="#6b6b6b"/><text x="122.0" y="130.4" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">32 tasks · 96 runs</text><text x="580.0" y="130.4" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">0.50</text><line x1="306.7" y1="152.1" x2="486.0" y2="152.1" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="403.6" y="149.1" width="6" height="6" fill="#6b6b6b"/><text x="122.0" y="155.1" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">48 tasks · 144 runs</text><text x="580.0" y="155.1" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">0.50</text><line x1="316.9" y1="176.9" x2="476.7" y2="176.9" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="405.3" y="173.9" width="6" height="6" fill="#6b6b6b"/><text x="122.0" y="179.9" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">64 tasks · 192 runs</text><text x="580.0" y="179.9" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">0.50</text><line x1="338.3" y1="201.6" x2="465.8" y2="201.6" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="404.0" y="198.6" width="6" height="6" fill="#6b6b6b"/><text x="122.0" y="204.6" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">96 tasks · 288 runs</text><text x="580.0" y="204.6" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">0.50</text><text x="352.0" y="244.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle">estimated ICC (dashed line = true value 0.5)</text></svg></div>
+    <div class="pcap"><b>Figure 1.</b> Sampling distribution of the ICC estimate by pilot size,
+    3,000 simulated pilots per row, three repeats per task, true value 0.5. The estimator is
+    close to unbiased at every size. The interval is the problem: at 24 runs it spans
+    <span class="mono">[0.00, 0.80]</span>, which covers a world where pairing buys nothing and
+    one where it buys a factor of five. At a true ICC of 0.2 (not shown) a quarter of pilots
+    return exactly zero, because the moment estimate goes negative and is clamped.</div>
   </div>
 
-  <p>The estimator is close to unbiased in the middle of the range, which is the reassuring
-  half. The interval is the other half. At a true ICC of 0.5 a 24-run pilot returns something
-  between 0.00 and 0.80, which spans the entire decision-relevant range: at 0.00 pairing buys
-  nothing and at 0.80 it buys a factor of five. A pilot that cannot separate those two worlds
-  has not informed the decision it was run to inform.</p>
+  <p>Reallocating the same 24 runs does not rescue it: 4×6, 6×4, 8×3 and 12×2 give widths of
+  0.82, 0.80, 0.80 and 0.82. The limit is the run count.</p>
 
-  <p>At a true ICC of 0.2, a quarter of pilots return exactly zero, because the moment estimator
-  goes negative and is clamped. A reader handed that single number would conclude, wrongly and
-  with confidence, that task difficulty does not matter.</p>
-
-  <h3 class="sub">4.2 Reallocating the same runs does not rescue it</h3>
-
-  <div class="table-fig">
-    <div class="cap"><b>Table 3.</b> Every split of a 24-run budget, true ICC 0.5, 3,000
-      simulated pilots each. Width of the 95% interval on the estimate.</div>
-    <table class="booktabs">
-      <thead><tr><th class="num">Tasks</th><th class="num">Repeats</th><th class="num">Interval width</th></tr></thead>
-      <tbody>
-        <tr><td class="num">4</td><td class="num">6</td><td class="num">0.82</td></tr>
-        <tr><td class="num">6</td><td class="num">4</td><td class="num">0.80</td></tr>
-        <tr><td class="num">8</td><td class="num">3</td><td class="num">0.80</td></tr>
-        <tr><td class="num">12</td><td class="num">2</td><td class="num">0.82</td></tr>
-      </tbody>
-    </table>
+  <div class="plot">
+    <div class="pwrap"><svg viewBox="0 0 620 240" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Detection rate against mode separation for a 24-run pilot: near zero at one standard deviation, about seven in ten at two, and certain by three." style="width:100%;height:auto;display:block;font-family:'Helvetica Neue', Helvetica, Arial, sans-serif"><rect width="620" height="240" fill="#ffffff"/><line x1="46.0" y1="204.0" x2="606.0" y2="204.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="166.0" x2="606.0" y2="166.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="128.0" x2="606.0" y2="128.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="90.0" x2="606.0" y2="90.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="52.0" x2="606.0" y2="52.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="14.0" x2="606.0" y2="14.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="14.0" x2="46.0" y2="204.0" stroke="#4a4a4a" stroke-width="1"/><line x1="46.0" y1="204.0" x2="606.0" y2="204.0" stroke="#4a4a4a" stroke-width="1"/><line x1="46.0" y1="204.0" x2="46.0" y2="207.5" stroke="#4a4a4a" stroke-width="1"/><text x="46.0" y="217.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">1</text><line x1="232.7" y1="204.0" x2="232.7" y2="207.5" stroke="#4a4a4a" stroke-width="1"/><text x="232.7" y="217.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">2</text><line x1="419.3" y1="204.0" x2="419.3" y2="207.5" stroke="#4a4a4a" stroke-width="1"/><text x="419.3" y="217.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">3</text><line x1="606.0" y1="204.0" x2="606.0" y2="207.5" stroke="#4a4a4a" stroke-width="1"/><text x="606.0" y="217.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">4</text><line x1="42.5" y1="204.0" x2="46.0" y2="204.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="207.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0</text><line x1="42.5" y1="166.0" x2="46.0" y2="166.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="169.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.2</text><line x1="42.5" y1="128.0" x2="46.0" y2="128.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="131.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.4</text><line x1="42.5" y1="90.0" x2="46.0" y2="90.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="93.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.6</text><line x1="42.5" y1="52.0" x2="46.0" y2="52.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="55.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.8</text><line x1="42.5" y1="14.0" x2="46.0" y2="14.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="17.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">1.0</text><text x="326.0" y="236.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle">separation between modes (SD)</text><text x="12" y="109.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle" transform="rotate(-90 12 109.0)">detected</text><polyline points="46.0,199.6 139.3,159.8 232.7,73.2 326.0,23.7 419.3,14.9 606.0,14.0" fill="none" stroke="#0072B2" stroke-width="1.6"/><circle cx="46.0" cy="199.6" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="139.3" cy="159.8" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="232.7" cy="73.2" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="326.0" cy="23.7" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="419.3" cy="14.9" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="606.0" cy="14.0" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/></svg></div>
+    <div class="pcap"><b>Figure 2.</b> What the same 24 runs <i>are</i> good for. Detection rate
+    for Sarle's coefficient against the separation between modes, 2,000 simulated pilots per
+    point. A gross departure from the model is caught reliably and a subtle one is missed
+    entirely, which is the right shape for a screening test. H1 asks whether a task is solved or
+    not solved rather than scored on a continuum, and that failure mode is large by
+    construction.</div>
   </div>
 
-  <p>All four are the same to within simulation noise. The limit is the run count, not the
-  shape, so no cleverness about allocation recovers a usable estimate at this budget.</p>
-
-  <h3 class="sub">4.3 Cost of a usable estimate</h3>
-
-  <div class="table-fig">
-    <div class="cap"><b>Table 4.</b> Interval width against pilot size at three repeats per
-      task, true ICC 0.5, 3,000 simulated pilots per row.</div>
-    <table class="booktabs">
-      <thead><tr><th class="num">Tasks</th><th class="num">Runs</th><th>95% interval</th><th class="num">Width</th></tr></thead>
-      <tbody>
-        <tr><td class="num">8</td><td class="num">24</td><td>[0.00, 0.80]</td><td class="num">0.80</td></tr>
-        <tr><td class="num">12</td><td class="num">36</td><td>[0.09, 0.76]</td><td class="num">0.66</td></tr>
-        <tr><td class="num">16</td><td class="num">48</td><td>[0.16, 0.73]</td><td class="num">0.58</td></tr>
-        <tr><td class="num">24</td><td class="num">72</td><td>[0.22, 0.69]</td><td class="num">0.47</td></tr>
-        <tr><td class="num">32</td><td class="num">96</td><td>[0.27, 0.67]</td><td class="num">0.40</td></tr>
-        <tr><td class="num">48</td><td class="num">144</td><td>[0.32, 0.64]</td><td class="num">0.32</td></tr>
-        <tr><td class="num">64</td><td class="num">192</td><td>[0.34, 0.62]</td><td class="num">0.29</td></tr>
-        <tr><td class="num">96</td><td class="num">288</td><td>[0.38, 0.61]</td><td class="num">0.23</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <p>Returns diminish in the usual way. Getting to ±0.16 takes 144 runs, six times the proposed
-  pilot; halving the width again takes 288. That is a real budget decision and it should be made
-  deliberately rather than discovered afterwards, which is the entire argument for simulating
-  first.</p>
-
-  <h3 class="sub">4.4 Power of the same 24 runs against H1</h3>
-
-  <div class="table-fig">
-    <div class="cap"><b>Table 5.</b> Probability that a 24-run pilot flags a genuinely bimodal
-      process, by separation between the modes, 2,000 simulated pilots per row.</div>
-    <table class="booktabs">
-      <thead><tr><th class="num">Separation</th><th class="num">Detection rate</th></tr></thead>
-      <tbody>
-        <tr><td class="num">1 SD</td><td class="num">2%</td></tr>
-        <tr><td class="num">2 SD</td><td class="num">69%</td></tr>
-        <tr><td class="num">3 SD</td><td class="num">100%</td></tr>
-        <tr><td class="num">4 SD</td><td class="num">100%</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <p>A gross departure from the model is caught reliably and a subtle one is missed almost
-  entirely, which is the right shape for a screening test and should be reported as such. The
-  question H1 asks is whether a task is solved or not solved rather than scored on a continuum,
-  and that failure mode produces a large separation by construction.</p>
-
-  <h3 class="sub">4.5 H3 survives</h3>
-
-  <div class="table-fig">
-    <div class="cap"><b>Table 6.</b> Predicted against simulated standard error of a condition
-      mean, 48-run budget, ICC 0.5, 4,000 draws per row.</div>
-    <table class="booktabs">
-      <thead><tr><th class="num">Repeats</th><th class="num">Tasks</th><th class="num">Predicted SE</th><th class="num">Simulated SE</th></tr></thead>
-      <tbody>
-        <tr><td class="num">1</td><td class="num">48</td><td class="num">0.1443</td><td class="num">0.1465</td></tr>
-        <tr><td class="num">2</td><td class="num">24</td><td class="num">0.1768</td><td class="num">0.1798</td></tr>
-        <tr><td class="num">3</td><td class="num">16</td><td class="num">0.2041</td><td class="num">0.2023</td></tr>
-        <tr><td class="num">4</td><td class="num">12</td><td class="num">0.2282</td><td class="num">0.2257</td></tr>
-        <tr><td class="num">6</td><td class="num">8</td><td class="num">0.2700</td><td class="num">0.2693</td></tr>
-        <tr><td class="num">8</td><td class="num">6</td><td class="num">0.3062</td><td class="num">0.3080</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <p>Prediction and simulation agree to about one per cent, and one repeat wins as the algebra
-  said it would. H3 is settled for the model; whether the model holds is H1 and H4, which is why
-  they come first.</p>
+  <p><b>H3 survives.</b> Predicted and simulated standard error agree to about one per cent
+  across six allocations at a 48-run budget (0.1443 against 0.1465 at one repeat, 0.3062 against
+  0.3080 at eight), and one repeat wins as the algebra said. H3 is settled for the model; whether
+  the model holds is H1 and H4, which is why they come first.</p>
 
   <h2 class="sec"><span class="secno">5</span>The revised design</h2>
 
@@ -289,7 +172,7 @@
   one, so it now does that one and says so.</p>
 
   <div class="table-fig">
-    <div class="cap"><b>Table 7.</b> What the pilot was, and what it becomes.</div>
+    <div class="cap"><b>Table 3.</b> What the pilot was, and what it becomes.</div>
     <table class="booktabs">
       <thead><tr><th></th><th>As proposed</th><th>As revised</th></tr></thead>
       <tbody>
@@ -327,15 +210,10 @@
 
   <h2 class="sec"><span class="secno">7</span>Cost and return of this exercise</h2>
 
-  <p>No inference budget. The simulation runs in about a tenth of a second and the reading was
-  a literature that has been settled since 1992. What it returned was the discovery that the
-  pilot this programme recommended one revision ago could not have answered the question it was
-  proposed for, and would have returned a confident and useless number a quarter of the time at
-  low ICC.</p>
-
-  <p>That is the argument for the step, and it is now rule <b>R13</b> in the
-  <a href="/methods">house standard</a>: simulate the design and report what the simulation
-  said before spending anything on it.</p>
+  <p>No inference budget, a tenth of a second of compute, and a literature settled since 1992. It
+  returned the fact that the pilot recommended one revision ago could not answer the question it
+  was proposed for, and would have returned a confident zero a quarter of the time at low ICC.
+  That is now rule <b>R13</b> in the <a href="/methods">house standard</a>.</p>
 
   <div class="caveat">
     <span class="lbl">Limits of this paper</span>
@@ -348,7 +226,7 @@
   </div>
 
   <div class="refs">
-    <h2>References <span class="small">(<span id="refcount">0</span> works cited in this paper)</span></h2>
+    <h2>References <span class="small">(<span id="refcount">0</span> works cited in this paper, <span id="refcoverage">—</span>)</span></h2>
     <ol id="reflist"></ol>
   </div>
 

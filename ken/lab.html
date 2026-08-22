@@ -60,112 +60,75 @@
   <ol>
     <li><b>Given a budget, what could this run possibly detect?</b> Nearly always the more
       useful direction, and the one that stops a study before it wastes anything.</li>
-    <li><b>Given an effect worth detecting, what would it cost?</b></li>
+    <li><b>Given an effect you want to detect, what does it cost?</b></li>
     <li><b>What design change makes the same claim cheaper?</b> This has real answers, and they
       are worth more than any amount of careful reporting afterwards.</li>
   </ol>
 
   <h2 class="sec"><span class="secno">2</span>Power of the bake-off design</h2>
 
-  <p>Six cells with two samples each gives twelve runs, so a contrast between any two cells has
-  two observations per arm. Feeding that to <code>mde()</code>:</p>
-
-  <div class="table-fig">
-    <div class="cap"><b>Table 1.</b> Smallest detectable standardised effect at 5% significance
-      and 80% power, two-sided, by runs per arm. Computed by
-      <code>mde({ n })</code>.</div>
-    <table class="booktabs">
-      <thead><tr><th class="num">Runs per arm</th><th class="num">Detectable effect (d)</th><th>What that means</th></tr></thead>
-      <tbody>
-        <tr><td class="num">2</td><td class="num">2.80</td><td>The bake-off design. Only a gap between near-total failure and near-total success would register.</td></tr>
-        <tr><td class="num">5</td><td class="num">1.77</td><td>Still enormous.</td></tr>
-        <tr><td class="num">10</td><td class="num">1.25</td><td>A very large effect, conventionally.</td></tr>
-        <tr><td class="num">30</td><td class="num">0.72</td><td>A medium-to-large effect.</td></tr>
-        <tr><td class="num">63</td><td class="num">0.50</td><td>The conventional medium effect.</td></tr>
-      </tbody>
-    </table>
+  <div class="plot">
+    <div class="pwrap"><svg viewBox="0 0 620 240" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Smallest detectable standardised effect against runs per arm. At the two runs per cell the bake-offs used, only a difference of about 2.8 standard deviations would register." style="width:100%;height:auto;display:block;font-family:'Helvetica Neue', Helvetica, Arial, sans-serif"><rect width="620" height="240" fill="#ffffff"/><line x1="46.0" y1="204.0" x2="606.0" y2="204.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="172.3" x2="606.0" y2="172.3" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="140.7" x2="606.0" y2="140.7" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="109.0" x2="606.0" y2="109.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="77.3" x2="606.0" y2="77.3" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="45.7" x2="606.0" y2="45.7" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="14.0" x2="606.0" y2="14.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="14.0" x2="46.0" y2="204.0" stroke="#4a4a4a" stroke-width="1"/><line x1="46.0" y1="204.0" x2="606.0" y2="204.0" stroke="#4a4a4a" stroke-width="1"/><line x1="46.0" y1="204.0" x2="46.0" y2="207.5" stroke="#4a4a4a" stroke-width="1"/><text x="46.0" y="217.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0</text><line x1="186.0" y1="204.0" x2="186.0" y2="207.5" stroke="#4a4a4a" stroke-width="1"/><text x="186.0" y="217.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">20</text><line x1="326.0" y1="204.0" x2="326.0" y2="207.5" stroke="#4a4a4a" stroke-width="1"/><text x="326.0" y="217.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">40</text><line x1="466.0" y1="204.0" x2="466.0" y2="207.5" stroke="#4a4a4a" stroke-width="1"/><text x="466.0" y="217.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">60</text><line x1="606.0" y1="204.0" x2="606.0" y2="207.5" stroke="#4a4a4a" stroke-width="1"/><text x="606.0" y="217.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">80</text><line x1="42.5" y1="204.0" x2="46.0" y2="204.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="207.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0</text><line x1="42.5" y1="172.3" x2="46.0" y2="172.3" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="175.3" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.5</text><line x1="42.5" y1="140.7" x2="46.0" y2="140.7" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="143.7" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">1.0</text><line x1="42.5" y1="109.0" x2="46.0" y2="109.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="112.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">1.5</text><line x1="42.5" y1="77.3" x2="46.0" y2="77.3" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="80.3" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">2.0</text><line x1="42.5" y1="45.7" x2="46.0" y2="45.7" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="48.7" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">2.5</text><line x1="42.5" y1="14.0" x2="46.0" y2="14.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="17.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">3.0</text><text x="326.0" y="236.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle">runs per arm</text><text x="12" y="109.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle" transform="rotate(-90 12 109.0)">detectable effect (d)</text><polyline points="60.0,26.6 67.0,59.1 74.0,78.5 81.0,91.8 88.0,101.6 95.0,109.2 102.0,115.3 109.0,120.4 116.0,124.6 130.0,131.6 144.0,136.9 158.0,141.3 172.0,144.9 186.0,147.9 200.0,150.5 214.0,152.8 228.0,154.8 242.0,156.6 256.0,158.2 270.0,159.6 284.0,161.0 298.0,162.2 312.0,163.3 326.0,164.3 340.0,165.3 354.0,166.2 368.0,167.0 382.0,167.8 396.0,168.5 410.0,169.2 424.0,169.9 438.0,170.5 452.0,171.1 466.0,171.6 480.0,172.1 494.0,172.6 508.0,173.1 522.0,173.6 536.0,174.0 550.0,174.4 564.0,174.8 578.0,175.2 592.0,175.6 606.0,175.9" fill="none" stroke="#0072B2" stroke-width="1.6"/></svg></div>
+    <div class="pcap"><b>Figure 1.</b> Smallest detectable standardised effect against runs per
+    arm, at 5% significance and 80% power, two-sided. The bake-offs ran six cells at two samples
+    each, so a two-cell contrast sits at the far left: <b>d = 2.80</b>, the gap between near-total
+    failure and near-total success. Ten runs per arm still needs d = 1.25; the conventional
+    medium effect of 0.5 needs 63.</div>
   </div>
 
-  <p>So the twenty-three-of-twenty-three result recorded in the two bake-offs has a second
-  reading alongside the saturated gate described in the <a href="/methods#evidence">house
-  standard</a>. Even with a perfectly discriminating instrument, that design had no power to
-  separate the cells. Both problems were present, and fixing the gate alone would not have
-  produced a comparison.</p>
+  <p>So the twenty-three-of-twenty-three result has a second reading alongside the saturated gate
+  in the <a href="/methods#evidence">house standard</a>. Even with a perfectly discriminating
+  instrument, that design had no power to separate the cells. Fixing the gate alone would not
+  have produced a comparison.</p>
 
   <div class="caveat">
     <span class="lbl">What this does not say</span>
-    <p>None of this shows the bake-offs were a mistake. Their stated purpose was a floor and a
-    side-by-side arena for a person to judge, and two samples per cell was chosen deliberately
-    so that within-cell spread could be seen at all, which §4 below shows was the right call for
-    that purpose. The claim here is narrower: those runs could not have supported a statistical
-    comparison between cells, and nothing in the reports says otherwise or claims they could.</p>
+    <p>Not that the bake-offs were a mistake. Their stated purpose was a floor and an arena for a
+    person to judge, and two samples per cell was chosen so within-cell spread could be seen at
+    all, which §4 shows was right for that purpose. The narrow claim: those runs could not have
+    supported a statistical comparison, and nothing in the reports claims they could.</p>
   </div>
 
   <h2 class="sec"><span class="secno">3</span>The cost of a comparison</h2>
 
-  <p>The second question, and the one that makes the balance concrete. Pairing is the lever:
-  run every condition on the same tasks, and whatever makes a task hard cancels out of the
-  difference. The required observations fall by a factor of
-  <span class="mono">(1 − ρ)</span>, where ρ is the correlation between conditions on a shared
-  task.</p>
+  <p>Pairing is the lever. Run every condition on the same tasks and whatever makes a task hard
+  cancels out of the difference, cutting required observations by
+  <span class="mono">(1 − ρ)</span>.</p>
 
-  <div class="table-fig">
-    <div class="cap"><b>Table 2.</b> Total runs for one two-condition contrast at 5%
-      significance and 80% power, unpaired and paired at four values of ρ. Computed by
-      <code>designComparison()</code>.</div>
-    <table class="booktabs">
-      <thead><tr><th class="num">Effect d</th><th class="num">Unpaired</th><th class="num">ρ = 0.3</th><th class="num">ρ = 0.5</th><th class="num">ρ = 0.7</th><th class="num">ρ = 0.85</th></tr></thead>
-      <tbody>
-        <tr><td class="num">0.2</td><td class="num">786</td><td class="num">550</td><td class="num">394</td><td class="num">236</td><td class="num">118</td></tr>
-        <tr><td class="num">0.3</td><td class="num">350</td><td class="num">246</td><td class="num">176</td><td class="num">106</td><td class="num">54</td></tr>
-        <tr><td class="num">0.5</td><td class="num">126</td><td class="num">88</td><td class="num">64</td><td class="num">38</td><td class="num">20</td></tr>
-        <tr><td class="num">0.8</td><td class="num">50</td><td class="num">36</td><td class="num">26</td><td class="num">16</td><td class="num">8</td></tr>
-        <tr><td class="num">1.2</td><td class="num">22</td><td class="num">16</td><td class="num">12</td><td class="num">8</td><td class="num">4</td></tr>
-      </tbody>
-    </table>
+  <div class="plot">
+    <div class="pwrap"><svg viewBox="0 0 620 240" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Runs needed for one medium-effect contrast against the correlation between conditions on shared tasks: 126 unpaired, falling to about 20 at a correlation of 0.85." style="width:100%;height:auto;display:block;font-family:'Helvetica Neue', Helvetica, Arial, sans-serif"><rect width="620" height="240" fill="#ffffff"/><line x1="46.0" y1="204.0" x2="606.0" y2="204.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="172.3" x2="606.0" y2="172.3" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="140.7" x2="606.0" y2="140.7" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="109.0" x2="606.0" y2="109.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="77.3" x2="606.0" y2="77.3" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="45.7" x2="606.0" y2="45.7" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="14.0" x2="606.0" y2="14.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="14.0" x2="46.0" y2="204.0" stroke="#4a4a4a" stroke-width="1"/><line x1="46.0" y1="204.0" x2="606.0" y2="204.0" stroke="#4a4a4a" stroke-width="1"/><line x1="46.0" y1="204.0" x2="46.0" y2="207.5" stroke="#4a4a4a" stroke-width="1"/><text x="46.0" y="217.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0</text><line x1="158.0" y1="204.0" x2="158.0" y2="207.5" stroke="#4a4a4a" stroke-width="1"/><text x="158.0" y="217.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0.2</text><line x1="270.0" y1="204.0" x2="270.0" y2="207.5" stroke="#4a4a4a" stroke-width="1"/><text x="270.0" y="217.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0.4</text><line x1="382.0" y1="204.0" x2="382.0" y2="207.5" stroke="#4a4a4a" stroke-width="1"/><text x="382.0" y="217.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0.6</text><line x1="494.0" y1="204.0" x2="494.0" y2="207.5" stroke="#4a4a4a" stroke-width="1"/><text x="494.0" y="217.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0.8</text><line x1="606.0" y1="204.0" x2="606.0" y2="207.5" stroke="#4a4a4a" stroke-width="1"/><text x="606.0" y="217.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">1.0</text><line x1="42.5" y1="204.0" x2="46.0" y2="204.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="207.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">20</text><line x1="42.5" y1="172.3" x2="46.0" y2="172.3" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="175.3" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">40</text><line x1="42.5" y1="140.7" x2="46.0" y2="140.7" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="143.7" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">60</text><line x1="42.5" y1="109.0" x2="46.0" y2="109.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="112.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">80</text><line x1="42.5" y1="77.3" x2="46.0" y2="77.3" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="80.3" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">100</text><line x1="42.5" y1="45.7" x2="46.0" y2="45.7" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="48.7" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">120</text><line x1="42.5" y1="14.0" x2="46.0" y2="14.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="17.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">140</text><text x="326.0" y="236.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle">correlation between conditions on a shared task (ρ)</text><text x="12" y="109.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle" transform="rotate(-90 12 109.0)">runs for one contrast</text><polyline points="46.0,36.2 74.0,45.7 102.0,55.2 130.0,64.7 158.0,74.2 186.0,83.7 214.0,96.3 242.0,105.8 270.0,115.3 298.0,124.8 326.0,134.3 354.0,143.8 382.0,153.3 410.0,166.0 438.0,175.5 466.0,185.0 494.0,194.5 522.0,204.0" fill="none" stroke="#0072B2" stroke-width="1.6"/><circle cx="46.0" cy="36.2" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="74.0" cy="45.7" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="102.0" cy="55.2" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="130.0" cy="64.7" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="158.0" cy="74.2" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="186.0" cy="83.7" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="214.0" cy="96.3" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="242.0" cy="105.8" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="270.0" cy="115.3" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="298.0" cy="124.8" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="326.0" cy="134.3" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="354.0" cy="143.8" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="382.0" cy="153.3" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="410.0" cy="166.0" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="438.0" cy="175.5" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="466.0" cy="185.0" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="494.0" cy="194.5" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="522.0" cy="204.0" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/></svg></div>
+    <div class="pcap"><b>Figure 2.</b> Runs for one medium-effect contrast (d = 0.5) against the
+    correlation between conditions on a shared task. Unpaired costs 126. At a plausible ρ = 0.7
+    it is 38; at ρ = 0.85, not unreasonable when both conditions attempt the same brief, it is
+    20 — inside what the bake-offs already spend. The same claim, a sixth of the bill, from a
+    design choice that costs nothing to make.</div>
   </div>
 
-  <p>Read the d = 0.5 row. Unpaired, a medium effect needs 126 runs. Paired at a plausible
-  ρ = 0.7, it needs 38. At ρ = 0.85, which is not unreasonable when both conditions attempt the
-  same brief, it needs 20, which is inside what the bake-offs already spend. The same claim, a
-  sixth of the bill, from a design choice that costs nothing to make.</p>
-
-  <p>The two rows above it are the warning. Small effects are brutally expensive whatever you
-  do, and a programme that needs to detect d = 0.2 should decide that in advance rather than
-  discover it after spending. Which is the argument for asking question one first.</p>
+  <p>Small effects stay brutally expensive whatever you do: d = 0.3 needs 350 runs unpaired and
+  106 at ρ = 0.7, and d = 0.2 needs 786 and 236. A programme that needs to detect d = 0.2 should
+  decide that in advance, not after spending. Hence question one.</p>
 
   <h2 class="sec"><span class="secno">4</span>Repeats, tasks, and where precision comes from</h2>
 
-  <p>This one surprised me, and it is the reason the note exists rather than just the library.</p>
-
-  <p>The intuition that running the same prompt into the same situation several times should
-  beat the noise is half right. Write the variance of a condition mean under an allocation of
-  <span class="mono">tasks</span> × <span class="mono">repeats</span>:</p>
+  <p>The intuition that running the same prompt several times should beat the noise is half
+  right. Write the variance of a condition mean:</p>
 
   <div class="eq">Var(mean) = σ²<sub>between</sub> ⁄ tasks + σ²<sub>within</sub> ⁄ (tasks · repeats)
-    <span class="where">and with the run budget fixed at R = tasks · repeats, the second term is σ²<sub>within</sub> ⁄ R</span></div>
+    <span class="where">with the budget fixed at R = tasks · repeats, the second term is σ²<sub>within</sub> ⁄ R</span></div>
 
-  <p>The second term does not depend on the split at all. Every run spent repeating a task you
-  already have is a run not spent on a task you do not, so maximising tasks wins at every value
-  of the intraclass correlation. <code>allocate()</code> returns one repeat as the optimum at
-  ICC 0.1, 0.35, 0.6 and 0.9 alike, and the selftest asserts it at each.</p>
+  <p>The second term does not depend on the split, so every repeat is a task forgone.
+  <code>allocate()</code> returns one repeat as the optimum at ICC 0.1, 0.35, 0.6 and 0.9 alike,
+  and the paired two-condition version reaches the same place.</p>
 
-  <p>The paired two-condition version reaches the same place. Substituting
-  <span class="mono">tasks = R/(2·repeats)</span> into the variance of a paired difference gives
-  a quantity increasing in repeats, flat only when the task-by-condition interaction is exactly
-  zero.</p>
+  <p>What repeats buy is the variance estimate. At one repeat per task the within-task degrees of
+  freedom are zero and σ²<sub>within</sub> is not estimable, so you have no idea how noisy the
+  model is and no input for anything above. <code>allocate()</code> returns the optimum together
+  with a <code>finding</code> string saying what it costs, and flags
+  <code>varianceEstimable: false</code>.</p>
 
-  <p>What repeats do buy is the variance estimate itself. At one repeat per task the within-task
-  degrees of freedom are zero and σ²<sub>within</sub> is not estimable, so you have no idea how
-  noisy the model is and no input for any of the calculations above.
-  <code>allocate()</code> therefore returns the optimum and a <code>finding</code> string
-  saying what that optimum costs, and flags <code>varianceEstimable: false</code>.</p>
-
-  <p>This also settles a question the existing rig raised. Two samples per cell is not a way of
-  averaging out noise, and would be a poor one if it were. It is a way of seeing the noise, and
-  <code>bakeoff/CLAUDE.md</code> justifies it in exactly those terms: the spread within one cell
-  across two runs can exceed the gap between two models, and one draw cannot tell you which you
-  are looking at. Right call, right reason.</p>
+  <p>This settles a question the existing rig raised. Two samples per cell is not a way of
+  averaging out noise and would be a poor one. It is a way of seeing the noise, and
+  <code>bakeoff/CLAUDE.md</code> justifies it in exactly those terms.</p>
 
   <h2 class="sec"><span class="secno">5</span>The variance pilot, and a correction</h2>
 
@@ -175,7 +138,7 @@
     variance components. Simulating that pilot before running it showed the recommendation was
     wrong: at a true ICC of 0.5 it returns a 95% interval of about
     <span class="mono">[0.00, 0.80]</span>, and at a true 0.2 it returns exactly zero a quarter
-    of the time. The working paper carries the full result and the revised design:
+    of the time. Full result and revised design:
     <a href="/wp1">WP1, The Variance of Unattended Work</a>. What follows is the corrected
     version.</p>
   </div>
@@ -185,7 +148,7 @@
   which it does well, rather than a parameter estimate, which it does not do at all.</p>
 
   <div class="table-fig">
-    <div class="cap"><b>Table 3.</b> The default pilot from <code>variancePilot()</code>, and
+    <div class="cap"><b>Table 1.</b> The default pilot from <code>variancePilot()</code>, and
       what simulation says it can and cannot support.</div>
     <table class="booktabs">
       <thead><tr><th>Quantity</th><th class="num">Value</th><th>Reading</th></tr></thead>
@@ -245,7 +208,7 @@
   </ul>
 
   <div class="refs">
-    <h2>References <span class="small">(<span id="refcount">0</span> works cited in this note)</span></h2>
+    <h2>References <span class="small">(<span id="refcount">0</span> works cited in this note, <span id="refcoverage">—</span>)</span></h2>
     <ol id="reflist"></ol>
   </div>
 
