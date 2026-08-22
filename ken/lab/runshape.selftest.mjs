@@ -1,7 +1,8 @@
 /* ken/lab/runshape.selftest.mjs — the standard run's arithmetic, and the
    language test's measurement. */
 import { shapeSummary, costInRuns, reachWithin, budgetLadder, MEASURED_RHO, STANDARD_RUN } from './runshape.mjs';
-import { lintSte, isPassive, nounClusters, LIMITS } from './ste-lint.mjs';
+import { lintSte, isPassive, nounClusters, LIMITS, comparisonRows } from './ste-lint.mjs';
+import { steTableCurrent } from './figures.mjs';
 import { lintHtml, registerOf } from '../prose-lint.mjs';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -56,12 +57,16 @@ ok(ste.violations === 0, `the procedure page has no structural violations (got $
 ok(ste.longestSentence <= 20, `its longest sentence is within the limit (got ${ste.longestSentence})`);
 ok(lintHtml(run, 'run').findings.length === 0, 'and it passes the tic lint under its register');
 
-// the comparison the page publishes must be the one the lint gives
-for (const [file, per100] of [['methods.html', 27], ['lab.html', 29], ['log.html', 17], ['wp1.html', 19]]) {
-  const r = lintSte(page(file), { mode: 'descriptive' });
-  ok(Math.round(r.perHundredSentences) === per100,
-     `${file} is ${per100} violations per 100 (got ${Math.round(r.perHundredSentences)})`);
-  ok(run.includes(`<td class="num">${per100}</td>`), `run.html publishes ${per100} for ${file}`);
+// The published comparison is generated, not typed. Hard-coding it went stale
+// twice — once when /methods gained a rule and once when /log gained an entry.
+{
+  const { current } = steTableCurrent();
+  ok(current, 'run.html\'s comparison table is current — regenerate with node ken/lab/figures.mjs --write');
+  for (const r of comparisonRows(HERE)) {
+    ok(run.includes(r.html), `run.html publishes the computed row for ${r.file}`);
+    if (r.file === 'run.html') ok(r.per100 === 0, 'the procedure page itself is at zero');
+    else ok(r.per100 >= 10, `${r.file} is materially worse than the procedure page (${r.per100} per 100)`);
+  }
 }
 
 // the conflict, asserted so it cannot be quietly lost

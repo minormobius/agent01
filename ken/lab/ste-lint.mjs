@@ -114,9 +114,20 @@ export function compoundInstruction(sentence) {
     && /^(Add|Check|Compute|Do|Draw|Fix|Give|Keep|Make|Measure|Open|Put|Read|Record|Remove|Report|Run|Set|Show|Start|Stop|Take|Use|Verify|Write|Push|Pull|Send|Wait|Count|Fit|Plot|Save|Load|Apply|Split|Drop|Pin|Commit|Publish)\b/.test(sentence.trim());
 }
 
+/* A cell holding "204" is not a sentence. Excluding numeric and near-empty
+   blocks matters for more than tidiness: /run publishes a generated table of
+   its OWN violation counts, so counting those cells made the page's score
+   depend on its score. */
+const isProse = (t) => {
+  const w = words(t);
+  if (w.length < 3) return false;
+  const numeric = w.filter((x) => /^[\d.,%()[\]–-]+$/.test(x)).length;
+  return numeric / w.length < 0.5;
+};
+
 export function lintSte(html, { mode = 'descriptive', declared = [] } = {}) {
-  const blocks = proseBlocks(html).map(strip);
-  const paras = paragraphs(html).map(strip);
+  const blocks = proseBlocks(html).map(strip).filter(isProse);
+  const paras = paragraphs(html).map(strip).filter(isProse);
   const limit = mode === 'procedure' ? LIMITS.procedureSentenceWords : LIMITS.descriptiveSentenceWords;
   const declaredSet = new Set(declared.map((d) => d.toLowerCase()));
 
@@ -157,6 +168,32 @@ export function lintSte(html, { mode = 'descriptive', declared = [] } = {}) {
     perHundredSentences: sentenceCount ? (100 * findings.length) / sentenceCount : 0,
   };
 }
+
+/* The comparison table published on /run. Generated rather than typed,
+   because the prose pages change and a hand-typed count goes stale on the next
+   log entry — which it did, twice. */
+export const COMPARISON = [
+  { file: 'run.html', label: '<b>This page</b>', mode: 'procedure', bold: true },
+  { file: 'methods.html', label: '/methods', mode: 'descriptive' },
+  { file: 'lab.html', label: '/lab', mode: 'descriptive' },
+  { file: 'log.html', label: '/log', mode: 'descriptive' },
+  { file: 'wp1.html', label: '/wp1', mode: 'descriptive' },
+];
+
+export function comparisonRows(dir, read = readFileSync) {
+  return COMPARISON.map((c) => {
+    const r = lintSte(read(`${dir}/${c.file}`, 'utf8'), { mode: c.mode });
+    const v = Math.round(r.perHundredSentences);
+    return {
+      ...c, sentences: r.sentences, longest: r.longestSentence, per100: v,
+      html: `<tr><td>${c.label}</td><td class="num">${r.sentences}</td>`
+          + `<td class="num">${r.longestSentence}</td>`
+          + `<td class="num">${c.bold ? `<b>${v}</b>` : v}</td></tr>`,
+    };
+  });
+}
+
+export const TABLE_MARK = { start: '<!-- STE-TABLE:START -->', end: '<!-- STE-TABLE:END -->' };
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const files = process.argv.slice(2).filter((a) => !a.startsWith('--'));

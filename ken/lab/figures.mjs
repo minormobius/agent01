@@ -18,6 +18,7 @@ import { mde, designComparison } from './design.mjs';
 import { iccSamplingDistribution, bimodalityPower } from './simulate.mjs';
 import { loadRuns, partition, repeatedBeads, orderEffect } from './h4.mjs';
 import { fitBradleyTerry } from './bt.mjs';
+import { comparisonRows, TABLE_MARK } from './ste-lint.mjs';
 import { readFileSync as _read } from 'node:fs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -134,12 +135,38 @@ export function buildFigures() {
 
 // CLI only. ken.selftest.mjs imports buildFigures(), and an unguarded block
 // here would run the staleness check (and possibly exit) on import.
+/** The STE comparison table on /run, kept current the same way figures are. */
+export function buildSteTable() {
+  const rows = comparisonRows(join(HERE, '..'));
+  return `${TABLE_MARK.start}\n${rows.map((r) => `        ${r.html}`).join('\n')}\n        ${TABLE_MARK.end}`;
+}
+
+export function steTableCurrent() {
+  const page = readFileSync(join(HERE, '..', 'run.html'), 'utf8');
+  const want = buildSteTable();
+  const re = new RegExp(`${TABLE_MARK.start}[\\s\\S]*?${TABLE_MARK.end}`);
+  return { current: re.test(page) && re.exec(page)[0].replace(/\s+/g, ' ') === want.replace(/\s+/g, ' '), want, re };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const figs = buildFigures();
   const write = process.argv.includes('--write');
   let stale = 0;
 
-  for (const [name, svg] of Object.entries(figs)) {
+  // the generated table on /run
+{
+  const { current, want, re } = steTableCurrent();
+  if (!current) {
+    stale++;
+    if (write) {
+      const path = join(HERE, '..', 'run.html');
+      writeFileSync(path, readFileSync(path, 'utf8').replace(re, want));
+      console.log('  → run.html STE table written');
+    } else console.log('  ✗ run.html STE table STALE');
+  } else console.log('  ✓ run.html STE table current');
+}
+
+for (const [name, svg] of Object.entries(figs)) {
     const path = join(OUT, `${name}.svg`);
     const current = existsSync(path) ? readFileSync(path, 'utf8') : null;
     if (current === svg) { console.log(`  ✓ ${name}.svg current`); continue; }
