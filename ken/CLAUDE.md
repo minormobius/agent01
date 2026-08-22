@@ -23,17 +23,23 @@ a curriculum and a protocol — in journal dress.
 
 Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `surfaces[]` where `surface == "ken"`.
 
-## ⚠ The domain is not attached yet
+## The domain is attached — verified
 
-`curl -sI https://ken.mino.mobi` returned **502** at the time this surface was
-written — the hostname does not resolve to a worker. Attaching a custom domain
-is **dashboard-only** ([`docs/DEPLOYS.md`](../docs/DEPLOYS.md) §7).
+`ken.mino.mobi` is **live and bound to worker `ken`**, confirmed 2026-08-22 on
+the first deploy (run #1): `/`, `/syllabus` and `/protocol` all return 200 with
+the expected content.
 
-**Attach `ken.mino.mobi` to worker `ken` before the first deploy.** If you
-don't, the golden rule bites in its most annoying form: `wrangler deploy` runs
-green, publishes to a stray `ken.workers.dev`, and the site never appears. The
-deploy workflow's verify step says as much when it fails, but the log is the
-proof — look for `ken.mino.mobi (custom domain)` in the wrangler output.
+Worth recording precisely, because the surface was built expecting otherwise.
+[`docs/DEPLOYS.md`](../docs/DEPLOYS.md) §7 lists attaching a custom domain as
+dashboard-only, and `curl -sI https://ken.mino.mobi` returned 502 before the
+first deploy. In fact **wrangler created the custom domain itself** from the
+`routes` block — the zone is already in the account, so the API token had
+enough authority. §7's rule is about account topology it genuinely cannot
+change; a new hostname on an existing zone is not that.
+
+The golden rule still applies to every future change here: if you rename the
+worker or move the domain, **verify the deploy log binds
+`ken.mino.mobi (custom domain)`**. Green is not proof.
 
 ## Layout
 
