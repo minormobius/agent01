@@ -7,13 +7,17 @@
 
 import {
   compositions, profiles, buildProfile, summarise, family, frontier,
-  frontierOf, ladder, widthFloor, NAMED, WIRINGS,
+  frontierOf, ladder, widthFloor, NAMED, WIRINGS, SKIPS,
 } from '../graph/profiles.mjs';
 import {
   ancestryDigests, ancestryClasses, poolAcross, comparePartitions,
   replicationByAncestry, hashStr, hex,
 } from '../graph/ancestry.mjs';
 import { automorphisms } from '../graph/roles.mjs';
+import {
+  allShapes, countShapes, sampleShapes, coverage, canonical, canonicalOf,
+  refineMatrix, KNOWN_COUNTS, EXACT_LIMIT, searchSize,
+} from '../graph/exhaustive.mjs';
 import { buildShape, shapeNames, catalogue } from '../graph/shapes.mjs';
 
 let pass = 0, fail = 0;
@@ -99,13 +103,36 @@ ok(buildProfile([1, 3, 1], { wiring: 'lanes' }).edges.length
 // ── 4. the frontier, labelled as the empirical claim it is ────────────
 section('the frontier');
 
-// EMPIRICAL: |frontier| = 2n - 4 held for every n from 5 to 14 when this
-// was written. It is not proved. If it fails, that is a finding and the
-// number should be re-reported, not the assertion relaxed.
+/* THE 2n-4 CLAIM WAS AN ARTEFACT OF A NARROW FAMILY, and this is what
+   happened when the family widened, which is why it was labelled
+   EMPIRICAL rather than proved.
+
+   With skip edges off and no briefing, the frontier holds exactly n-2
+   points: one per achievable depth, since depth runs from 2 to n-1. That
+   is not a deep fact, it is a statement that within that family nothing
+   at a given depth dominates anything else at the same depth — and it is
+   exactly why the explorer's first table looked like one shape stretched
+   over many depths. The UI symptom and the structural fact were the same
+   thing.
+
+   Turn briefing on and it doubled to 2n-4. Add skip policies and the
+   pattern dissolves: 8, 12, 16, 21, 26, 32, 38, 45 for n = 5 to 12, with
+   no clean formula. Recorded as measurements rather than fitted. */
 for (const n of [5, 6, 7, 8, 9, 10, 11, 12]) {
-  ok(frontierOf(family(n)).length === 2 * n - 4,
-    `EMPIRICAL: the frontier at n = ${n} holds 2n-4 = ${2 * n - 4} points`);
+  const narrow = frontierOf(family(n, { skips: ['none'], brief: [false] }));
+  ok(narrow.length === n - 2,
+    `the narrow family's frontier at n = ${n} is n-2 = ${n - 2}, one per achievable depth`);
 }
+{
+  const WIDE = { 5: 8, 6: 12, 7: 16, 8: 21, 9: 26, 10: 32, 11: 38, 12: 45 };
+  for (const [n, want] of Object.entries(WIDE)) {
+    ok(frontierOf(family(+n)).length === want,
+      `MEASURED: the full family's frontier at n = ${n} holds ${want} points`);
+  }
+  ok(frontierOf(family(6)).length > 6 - 2,
+    'widening the family strictly grows the frontier, so the narrow count was about the generator');
+}
+
 const f6 = frontier(6);
 ok(f6.every((b) => !f6.some((a) => a !== b
   && a.depth <= b.depth && a.width <= b.width && a.maxInDeg <= b.maxInDeg
@@ -219,6 +246,104 @@ for (const name of shapeNames()) {
   const byAnc = replicationByAncestry(buildShape(name));
   ok(byAnc.rawReplicates === cat[name].largestOrbit,
     `${name}: ancestry gives the same within-shape replication as the orbit`);
+}
+
+// ── 7. the whole space, and how much of it the family covers ──────────
+section('the space the layered family sits in');
+
+// These four counts are the ground truth of this module. They were
+// computed twice by different code — brute force over every relabelling,
+// and a refinement-restricted canonical form — and the second was WRONG
+// the first time, giving 122 and 3274 until two bugs were fixed. Neither
+// method is trusted alone; their agreement is the check.
+for (const [n, want] of Object.entries(KNOWN_COUNTS)) {
+  ok(countShapes(+n) === want, `n = ${n}: ${want} shapes with one source and one sink`);
+}
+ok(KNOWN_COUNTS[6] === 1960, 'the n=6 count is 1960, which every coverage figure is a fraction of');
+ok(searchSize(6) === 32768 && searchSize(8) === 268435456,
+  'the search is 2^(n(n-1)/2): 32,768 masks at n=6 and 268 million at n=8');
+let tooBig = false;
+try { allShapes(EXACT_LIMIT + 1); } catch { tooBig = true; }
+ok(tooBig, `exact enumeration refuses n above ${EXACT_LIMIT} rather than hanging`);
+
+// every enumerated shape really is one
+for (const n of [4, 5, 6]) {
+  const gs = allShapes(n);
+  ok(gs.length === KNOWN_COUNTS[n], `n = ${n}: enumeration returns every shape`);
+  ok(gs.every((g) => g.turns === n), `n = ${n}: each has n turns`);
+  ok(gs.every((g) => g.source && g.sink && g.source !== g.sink),
+    `n = ${n}: each has one source and one sink, and they differ`);
+  ok(new Set(gs.map((g) => canonicalOf(g, n))).size === gs.length,
+    `n = ${n}: no two enumerated shapes are isomorphic`);
+}
+
+// the canonical form is invariant under relabelling, which is the whole
+// property the counts depend on
+{
+  const g = buildShape('standard');
+  const shuffled = {
+    nodes: [...g.nodes].reverse(),
+    edges: [...g.edges].reverse(),
+  };
+  ok(canonicalOf(g, 6) === canonicalOf(shuffled, 6),
+    'the canonical form ignores node order and edge order');
+  const star = buildShape('star'), chain = buildShape('chain');
+  ok(canonicalOf(star, 6) !== canonicalOf(chain, 6), 'and separates two different shapes');
+  ok(refineMatrix([[0, 1], [0, 0]], 2).length === 2, 'refinement returns one colour per node');
+}
+
+// COVERAGE. The number this module exists to publish.
+for (const n of [4, 5, 6]) {
+  const c = coverage(n, family(n).map((r) => r.graph));
+  ok(c.outside === 0, `n = ${n}: every shape the family builds is a valid shape`);
+  ok(c.space === KNOWN_COUNTS[n], `n = ${n}: coverage is measured against the true count`);
+  ok(c.family <= c.space, `n = ${n}: the family cannot exceed the space`);
+}
+{
+  const c = coverage(6, family(6).map((r) => r.graph));
+  ok(c.percent < 5, `the layered family covers under 5% of the n=6 space (${c.percent}%)`);
+  ok(c.family > 20, `and more than twenty shapes of it (${c.family}), since skip policies were added`);
+}
+
+// skip policies widen the family and are a real axis
+ok(SKIPS.length === 4, 'four skip policies');
+{
+  const plain = buildProfile([1, 2, 2, 1], { skip: 'none' });
+  const toSink = buildProfile([1, 2, 2, 1], { skip: 'sink' });
+  const closed = buildProfile([1, 2, 2, 1], { skip: 'all' });
+  ok(toSink.edges.length > plain.edges.length, 'skipping to the sink adds edges');
+  ok(closed.edges.length > toSink.edges.length, 'the transitive closure adds more');
+  ok(plain.depth === toSink.depth && plain.depth === closed.depth,
+    'and none of them changes depth, because depth is the longest path');
+  ok([plain, toSink, closed].every((g) => g.turns === 6), 'nor the turn count, which is 1+2+2+1');
+}
+let badSkip = false;
+try { buildProfile([1, 2, 1], { skip: 'nonsense' }); } catch { badSkip = true; }
+ok(badSkip, 'an unknown skip policy is refused rather than ignored');
+
+// briefed is now a skip policy rather than a special case
+ok(canonicalOf(buildProfile([1, 1, 1, 1, 1, 1], { briefed: true }), 6)
+  === canonicalOf(buildProfile([1, 1, 1, 1, 1, 1], { skip: 'sink' }), 6),
+'briefed and skip:sink build the same graph, so the special case is gone');
+
+// sampling is deterministic and returns valid, distinct shapes
+{
+  const a = sampleShapes(9, 40, { seed: 5 });
+  const b = sampleShapes(9, 40, { seed: 5 });
+  ok(a.length === b.length, 'sampling is deterministic in its seed');
+  ok(a.every((g, i) => canonicalOf(g, 9) === canonicalOf(b[i], 9)), 'and returns the same shapes');
+  ok(a.every((g) => g.turns === 9 && g.source && g.sink), 'every sample is a valid shape');
+  ok(new Set(a.map((g) => canonicalOf(g, 9))).size === a.length, 'and no two are isomorphic');
+  ok(sampleShapes(9, 40, { seed: 6 }).some((g, i) => canonicalOf(g, 9) !== canonicalOf(a[i], 9)),
+    'a different seed gives different shapes, so the seed is doing something');
+}
+
+// a sampled shape summarises like any other, which is what lets the page
+// show all three modes through one table
+for (const g of sampleShapes(10, 5, { seed: 3 })) {
+  const r = summarise(g);
+  ok(r.turns === 10 && Number.isFinite(r.sinkKen) && r.layerCensus.split('·').length === r.depth + 1,
+    'a sampled shape summarises, and its layer census has one entry per depth');
 }
 
 console.log(`\n${fail === 0 ? '✓' : '✗'} profiles + ancestry ${fail === 0 ? 'passed' : 'FAILED'} — ${fail === 0 ? pass : `${fail} of ${pass + fail}`} checks`);

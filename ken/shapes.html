@@ -68,25 +68,51 @@
   <div class="a-meta">Runs <code>ken/graph/*.mjs</code> in the page — the same modules the selftests gate, not a copy</div>
   <hr class="a-rule">
 
-  <p><a href="/wp2">WP2</a> catalogued six shapes by hand at six turns. The catalogue
-  generalises with no new idea: a layered plan is a <b>composition of n</b>, with the source
-  and sink pinned to width one, so there are exactly 2<sup>n−3</sup> profiles and they can all
-  be enumerated.</p>
+  <p><a href="/wp2">WP2</a> catalogued six shapes by hand at six turns, then generalised them to
+  <b>layered</b> plans: a composition of n, wired between adjacent layers. That family is real
+  and so is the trade below. It is also a sliver.</p>
 
-  <p>The trade is isoperimetric and it is arithmetic rather than a finding. The interior holds
-  n−2 turns over d−1 layers, so <b>peak width ≥ ⌈(n−2) / (d−1)⌉</b>, with equality exactly when
-  the interior layers are balanced. Read it as volume against surface, with the output in time:
-  <b>n is what the run costs</b>, <b>depth is the wall clock</b> if a layer runs at once, and
-  <b>peak width is how many agents must exist simultaneously</b>. Fix the cost and the product
-  is fixed with it.</p>
+  <p><b>There are 1,960 distinct shapes on six turns with one source and one sink, and the
+  layered family reaches 33 of them.</b> Two per cent. Only ten of the 1,960 are strictly
+  layered at all: in every other one, some turn feeds something more than one stage later.
+  <code>briefed</code> was the first such shape we wanted and it had to be special-cased into the
+  generator, which was the signal that skip edges belonged inside the family rather than beside
+  it. They are inside it now, and it is still two per cent.</p>
+
+  <p>So there are three modes. <b>Exact</b> enumerates every shape up to isomorphism and stops at
+  seven turns, because eight is 268 million adjacency matrices. <b>Layered</b> is the structured
+  family at any n, and states what fraction of the real space it covers wherever that is known.
+  <b>Sampled</b> draws random plans for the sizes enumeration cannot reach, and is not a uniform
+  sample of anything: it shows the shapes its own construction favours.</p>
+
+  <p>The trade below is isoperimetric and holds in every mode. The interior holds n−2 turns over
+  d−1 layers, so <b>peak width ≥ ⌈(n−2) / (d−1)⌉</b>, with equality when the interior is
+  balanced. Read it as volume against surface with the output in time: <b>n is what the run
+  costs</b>, <b>depth is the wall clock</b> if a layer runs at once, and <b>peak width is how many
+  agents must exist simultaneously</b>.</p>
 
   <div class="ctl">
-    <label>turns (n)
-      <input id="n" type="number" min="3" max="16" step="1" value="12">
-      <input id="nr" type="range" min="3" max="16" step="1" value="12">
+    <label>mode
+      <select id="mode">
+        <option value="exact">exact — every shape</option>
+        <option value="layered" selected>layered — the structured family</option>
+        <option value="sampled">sampled — random plans</option>
+      </select>
     </label>
-    <label><input id="brief" type="checkbox"> brief the sink</label>
-    <label><input id="lanes" type="checkbox"> lane wiring</label>
+    <label>turns (n)
+      <input id="n" type="number" min="3" max="16" step="1" value="6">
+      <input id="nr" type="range" min="3" max="16" step="1" value="6">
+    </label>
+    <label id="skipwrap">skip edges
+      <select id="skip">
+        <option value="all-policies" selected>every policy</option>
+        <option value="none">none</option>
+        <option value="sink">to the sink</option>
+        <option value="one">one layer ahead</option>
+        <option value="all">transitive closure</option>
+      </select>
+    </label>
+    <label id="lanewrap"><input id="lanes" type="checkbox" checked> lane wiring</label>
     <span class="big" id="counts"></span>
     <span class="warn" id="warn"></span>
   </div>
@@ -95,18 +121,24 @@
   <div class="pcap"><b>Figure 1.</b> Peak width against depth. The line is the isoperimetric
   floor; every point sits on or above it. Filled points are the Pareto frontier.</div>
 
-  <h2 class="sec"><span class="secno">1</span>The ladder</h2>
+  <h2 class="sec"><span class="secno">1</span>Every shape, not one per depth</h2>
 
-  <p>One row per achievable depth, showing the best available on every other axis. Click a row
-  to draw it.</p>
+  <p>An earlier version of this table showed one row per depth, which made the family look like
+  a single shape stretched. It is not. Click a column to sort by it and a row to draw it.</p>
 
   <div class="grid2">
     <div>
       <table class="picker" id="ladder">
-        <thead><tr><th>profile</th><th>depth</th><th>width</th><th>floor</th>
-          <th>peak in</th><th>sink ken</th><th>replicates</th><th>effective</th></tr></thead>
+        <thead><tr>
+          <th data-k="profile">layer census</th>
+          <th data-k="depth">depth</th><th data-k="width">width</th>
+          <th data-k="edges">edges</th><th data-k="maxInDeg">peak in</th>
+          <th data-k="sinkKen">sink ken</th><th data-k="replicates">repl</th>
+          <th data-k="effective">effective</th>
+        </tr></thead>
         <tbody></tbody>
       </table>
+      <p class="small" id="showing"></p>
     </div>
     <div class="peek" id="peek"></div>
   </div>
@@ -137,100 +169,156 @@
 </div>
 
 <script type="module">
-import { family, frontierOf, ladder, buildProfile, summarise, widthFloor, NAMED } from '/graph/profiles.mjs';
+import { family, frontierOf, buildProfile, summarise, widthFloor, NAMED } from '/graph/profiles.mjs';
+import { allShapes, sampleShapes, coverage, EXACT_LIMIT, KNOWN_COUNTS } from '/graph/exhaustive.mjs';
 import { renderPlan } from '/graph/layout.mjs';
 
 const $ = (s) => document.querySelector(s);
-const nEl = $('#n'), nr = $('#nr'), brief = $('#brief'), lanes = $('#lanes');
-let rows = [], chosen = null;
+const nEl = $('#n'), nr = $('#nr'), mode = $('#mode'), skipSel = $('#skip'), lanes = $('#lanes');
+let rows = [], sortKey = 'depth', sortDir = 1, chosen = null;
+const LIMIT = 400;                       // rows drawn; the count line says how many exist
 
-const namedBy = new Map(Object.entries(NAMED).map(([name, s]) =>
-  [`${s.profile.join('·')}|${s.wiring}|${s.briefed}`, name]));
+const namedBy = new Map(Object.entries(NAMED).map(([name, sp]) =>
+  [`${sp.profile.join('·')}|${sp.wiring}|${sp.briefed}`, name]));
 
-function recompute() {
+function build() {
   const n = Math.max(3, Math.min(16, +nEl.value || 6));
   nr.value = nEl.value = n;
-  $('#warn').textContent = n >= 15 ? `${2 ** (n - 3)} profiles — this may take a moment` : '';
+  const m = mode.value;
+  $('#skipwrap').style.display = m === 'layered' ? '' : 'none';
+  $('#lanewrap').style.display = m === 'layered' ? '' : 'none';
 
-  const t0 = performance.now();
-  rows = family(n, { wirings: lanes.checked ? ['complete', 'lanes'] : ['complete'],
-    brief: brief.checked ? [false, true] : [false] });
-  const front = new Set(frontierOf(rows).map(key));
-  const lad = ladder(n, { rows });
-  const ms = Math.round(performance.now() - t0);
-  $('#counts').innerHTML = `<b>${rows.length}</b> shapes · <b>${front.size}</b> on the frontier · ${ms} ms`;
-
-  drawTrade(n, rows, front);
-  drawLadder(lad, n);
-  pick(lad[Math.min(1, lad.length - 1)]);
+  let note = '';
+  if (m === 'exact') {
+    if (n > EXACT_LIMIT) { note = `exact enumeration stops at ${EXACT_LIMIT} turns`; return { rows: [], note }; }
+    if (n === EXACT_LIMIT) note = 'n = 7 is 2,097,152 masks and takes a few seconds';
+    return { rows: allShapes(n).map((g) => ({ ...summarise(g), graph: g })), note };
+  }
+  if (m === 'sampled') {
+    note = 'NOT a uniform sample of the space: these are the shapes this construction favours';
+    return { rows: sampleShapes(n, 300, { seed: 7 }).map((g) => ({ ...summarise(g), graph: g })), note };
+  }
+  if (n >= 15) note = `${2 ** (n - 3)} profiles — this may take a moment`;
+  return {
+    rows: family(n, {
+      wirings: lanes.checked ? ['complete', 'lanes'] : ['complete'],
+      brief: [false],
+      skips: skipSel.value === 'all-policies' ? undefined : [skipSel.value],
+    }),
+    note,
+  };
 }
 
-const key = (r) => `${r.depth}|${r.width}|${r.maxInDeg}|${r.sinkKen}|${r.effective}`;
+function recompute() {
+  const t0 = performance.now();
+  const { rows: r, note } = build();
+  rows = r;
+  const ms = Math.round(performance.now() - t0);
+  $('#warn').textContent = note;
 
-function drawTrade(n, rows, front) {
+  const n = +nEl.value;
+  let cov = '';
+  if (mode.value === 'layered' && KNOWN_COUNTS[n]) {
+    const c = coverage(n, rows.map((x) => x.graph));
+    cov = ` · <b>${c.percent}%</b> of the ${c.space} shapes that exist`;
+  } else if (mode.value === 'exact' && KNOWN_COUNTS[n]) {
+    cov = ' · the whole space';
+  }
+  $('#counts').innerHTML = rows.length
+    ? `<b>${rows.length}</b> shapes${cov} · ${ms} ms`
+    : 'nothing to show';
+
+  drawTrade(n, rows);
+  drawTable();
+  pick(rows[0]);
+}
+
+function drawTrade(n, rows) {
+  if (!rows.length) { $('#tradeplot').innerHTML = ''; return; }
   const W = 620, H = 250, m = { l: 44, r: 12, t: 12, b: 34 };
+  const front = new Set(frontierOf(rows).map(key));
   const maxD = Math.max(...rows.map((r) => r.depth));
   const maxW = Math.max(...rows.map((r) => r.width));
   const sx = (d) => m.l + ((d - 1) / Math.max(1, maxD - 1)) * (W - m.l - m.r);
   const sy = (w) => H - m.b - ((w - 1) / Math.max(1, maxW - 1)) * (H - m.t - m.b);
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Peak width against depth for every shape at n equals ${n}. All points lie on or above the isoperimetric floor.">`;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Peak width against depth for every shape shown at n equals ${n}. All points lie on or above the isoperimetric floor.">`;
   s += `<rect width="${W}" height="${H}" fill="#fbfaf6"/>`;
-  // the floor
   const pts = [];
   for (let d = 2; d <= maxD; d++) pts.push(`${sx(d).toFixed(1)},${sy(widthFloor(n, d)).toFixed(1)}`);
   s += `<polyline points="${pts.join(' ')}" fill="none" stroke="#D55E00" stroke-width="1.6" stroke-dasharray="4,3"/>`;
-  // axes
   s += `<line x1="${m.l}" y1="${H - m.b}" x2="${W - m.r}" y2="${H - m.b}" stroke="#4a4a4a"/>`;
   s += `<line x1="${m.l}" y1="${m.t}" x2="${m.l}" y2="${H - m.b}" stroke="#4a4a4a"/>`;
   for (let d = 1; d <= maxD; d++) if (maxD < 12 || d % 2 === 1) {
     s += `<text x="${sx(d).toFixed(1)}" y="${H - m.b + 13}" font-size="9" fill="#6b6b6b" text-anchor="middle" font-family="sans-serif">${d}</text>`;
   }
   for (let w = 1; w <= maxW; w++) if (maxW < 12 || w % 2 === 1) {
-    s += `<text x="${m.l - 6}" y="${sy(w).toFixed(1) - -3}" font-size="9" fill="#6b6b6b" text-anchor="end" font-family="sans-serif">${w}</text>`;
+    s += `<text x="${m.l - 6}" y="${(sy(w) + 3).toFixed(1)}" font-size="9" fill="#6b6b6b" text-anchor="end" font-family="sans-serif">${w}</text>`;
   }
   s += `<text x="${(W + m.l) / 2}" y="${H - 4}" font-size="10.5" fill="#1a1a1a" text-anchor="middle" font-family="sans-serif">depth — wall clock, in turn-times</text>`;
   s += `<text x="12" y="${(H - m.b + m.t) / 2}" font-size="10.5" fill="#1a1a1a" text-anchor="middle" font-family="sans-serif" transform="rotate(-90 12 ${(H - m.b + m.t) / 2})">peak width — agents at once</text>`;
+  // jitter identical points so a dense cloud reads as dense
+  const seenAt = new Map();
   for (const r of rows) {
+    const k = `${r.depth}|${r.width}`;
+    const c = seenAt.get(k) ?? 0; seenAt.set(k, c + 1);
+    const a = c * 2.399963;                        // golden-angle spiral, deterministic
+    const rad = c === 0 ? 0 : Math.min(9, 1.3 * Math.sqrt(c));
     const on = front.has(key(r));
-    s += `<circle cx="${sx(r.depth).toFixed(1)}" cy="${sy(r.width).toFixed(1)}" r="${on ? 4 : 2.6}"`
-      + ` fill="${on ? '#0072B2' : '#bbb'}" fill-opacity="${on ? 0.95 : 0.5}"><title>${r.profile} · depth ${r.depth} · width ${r.width}</title></circle>`;
+    s += `<circle cx="${(sx(r.depth) + rad * Math.cos(a)).toFixed(1)}" cy="${(sy(r.width) + rad * Math.sin(a)).toFixed(1)}"`
+      + ` r="${on ? 3.4 : 1.9}" fill="${on ? '#0072B2' : '#999'}" fill-opacity="${on ? 0.95 : 0.4}">`
+      + `<title>${r.profile} · depth ${r.depth} · width ${r.width}</title></circle>`;
   }
   s += '</svg>';
   $('#tradeplot').innerHTML = s;
 }
 
-function drawLadder(lad, n) {
+const key = (r) => `${r.depth}|${r.width}|${r.maxInDeg}|${r.sinkKen}|${r.effective}`;
+
+function drawTable() {
+  const sorted = [...rows].sort((a, b) => {
+    const x = a[sortKey], y = b[sortKey];
+    const c = typeof x === 'string' ? x.localeCompare(y) : x - y;
+    return c * sortDir || a.depth - b.depth;
+  });
+  const shown = sorted.slice(0, LIMIT);
   const tb = $('#ladder').querySelector('tbody');
   tb.innerHTML = '';
-  for (const l of lad) {
-    const best = rows.filter((r) => r.depth === l.depth)
-      .sort((a, b) => b.effective - a.effective || a.width - b.width || b.sinkKen - a.sinkKen)[0];
+  for (const r of shown) {
     const tr = document.createElement('tr');
-    const nm = namedBy.get(`${best.profile}|${best.wiring}|${best.briefed}`);
-    if (nm) { tr.classList.add('named'); }
-    tr.innerHTML = `<td${nm ? ` data-name="${nm}"` : ''}>${best.profile}</td>`
-      + [l.depth, best.width, l.widthFloor, best.maxInDeg, best.sinkKen, best.replicates, best.effective]
+    const nm = namedBy.get(`${r.profile}|${r.wiring}|${r.briefed}`);
+    if (nm) tr.classList.add('named');
+    tr.innerHTML = `<td${nm ? ` data-name="${nm}"` : ''}>${r.layerCensus}${r.layered ? '' : ' <span class="muted">+skips</span>'}</td>`
+      + [r.depth, r.width, r.edges, r.maxInDeg, r.sinkKen, r.replicates, r.effective]
         .map((v) => `<td>${v}</td>`).join('');
-    tr.onclick = () => pick(l, best);
-    tr._row = best;
+    tr.onclick = () => pick(r);
+    tr._row = r;
     tb.appendChild(tr);
   }
+  $('#showing').textContent = rows.length > LIMIT
+    ? `showing ${LIMIT} of ${rows.length}, sorted by ${sortKey}`
+    : `all ${rows.length}, sorted by ${sortKey}`;
+  if (chosen) markChosen();
 }
 
-function pick(l, best) {
-  if (!l) return;
-  const row = best ?? rows.filter((r) => r.depth === l.depth)
-    .sort((a, b) => b.effective - a.effective || a.width - b.width)[0];
+function markChosen() {
+  for (const tr of $('#ladder').querySelectorAll('tbody tr')) tr.classList.toggle('on', tr._row === chosen);
+}
+
+function pick(row) {
+  if (!row) { $('#peek').innerHTML = ''; return; }
   chosen = row;
-  for (const tr of $('#ladder').querySelectorAll('tr')) {
-    tr.classList.toggle('on', tr._row === row);
-  }
+  markChosen();
   const g = row.graph;
-  const svg = renderPlan(g, { width: 280, rowHeight: Math.max(26, Math.min(56, 300 / Math.max(1, g.depth))), title: row.profile });
+  const svg = renderPlan(g, {
+    width: 280,
+    rowHeight: Math.max(26, Math.min(56, 300 / Math.max(1, g.depth))),
+    title: row.layerCensus,
+  });
   const roleList = Object.entries(row.roles).sort((a, b) => b[1] - a[1])
     .map(([k, v]) => `${v}×${k}`).join(', ');
   $('#peek').innerHTML = svg + `<dl>
-    <dt>profile</dt><dd>${row.profile}</dd>
+    <dt>layer census</dt><dd>${row.layerCensus}</dd>
+    <dt>layered</dt><dd>${row.layered ? 'yes' : 'no, it has skip edges'}</dd>
     <dt>turns</dt><dd>${row.turns}</dd>
     <dt>depth · width</dt><dd>${row.depth} · ${row.width}${row.balanced ? ' (balanced)' : ''}</dd>
     <dt>edges</dt><dd>${row.edges}</dd>
@@ -239,10 +327,19 @@ function pick(l, best) {
     <dt>mean ken</dt><dd>${row.meanKen}</dd>
     <dt>replicates</dt><dd>${row.replicates}${row.orbitsAreBounds ? ' (bound)' : ''}</dd>
     <dt>effective</dt><dd>${row.effective}</dd>
-    </dl><div style="font-family:var(--sans);font-size:10px;color:var(--ink-faint);padding:2px">${roleList}</div>`;
+    </dl><div class="muted" style="padding:2px">${roleList}</div>`;
 }
 
-for (const el of [nEl, brief, lanes]) el.addEventListener('change', recompute);
+for (const th of $('#ladder').querySelectorAll('th[data-k]')) {
+  th.style.cursor = 'pointer';
+  th.onclick = () => {
+    const k = th.dataset.k;
+    sortDir = k === sortKey ? -sortDir : 1;
+    sortKey = k;
+    drawTable();
+  };
+}
+for (const el of [nEl, mode, skipSel, lanes]) el.addEventListener('change', recompute);
 nr.addEventListener('input', () => { nEl.value = nr.value; recompute(); });
 recompute();
 </script>

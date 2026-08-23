@@ -385,3 +385,7 @@ ol.log .src a { color: var(--accent-soft); }
   margin: 10px 0 12px; break-inside: avoid; }
 .revised p { font-size: 12.5px; }
 .revised p:first-child { margin-top: 0; }
+
+.ctl select { font: inherit; font-size: 12px; padding: 2px 4px; border: 1px solid #ccc;
+  font-family: var(--sans); }
+.picker th[data-k]:hover { color: var(--accent); }

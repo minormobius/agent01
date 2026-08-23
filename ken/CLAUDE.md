@@ -62,6 +62,7 @@ worker or move the domain, **verify the deploy log binds
 | `graph/roles.mjs` | **the org chart, derived**: nine roles, orbits, the ken ratio |
 | `graph/shapes.mjs` | the six hand-built org charts of WP2 |
 | `graph/profiles.mjs` | **any n**: layer profiles, the trade, the frontier |
+| `graph/exhaustive.mjs` | **the whole space** up to 7 turns, and the coverage measurement |
 | `graph/ancestry.mjs` | content-addressed state, after hoop's region digest |
 | `graph/hypotheses.mjs` | **the hypotheses, as data** — seven, each with a status |
 | `graph/layout.mjs` | the picture, **derived** by force relaxation |
@@ -83,7 +84,7 @@ worker or move the domain, **verify the deploy log binds
 | `lab/runshape.selftest.mjs` | 39 checks for both |
 | `lab/plan.selftest.mjs` | 56 checks: the four laws, lane wiring, seed independence |
 | `lab/roles.selftest.mjs` | 189 checks: the basis, the group orders, the design |
-| `lab/profiles.selftest.mjs` | 465 checks: the trade, the frontier, the digests |
+| `lab/profiles.selftest.mjs` | 524 checks: the trade, the space, the digests |
 | `lab/resolve-refs.mjs` | links the bibliography against CrossRef / arXiv / OpenLibrary |
 | `fig/*.svg` | **generated.** Committed so figures print and diff |
 | `refs.js` | **the bibliography, as data** — 90 real works, keyed |
@@ -356,6 +357,33 @@ quantity the surface is named after and is one pass over the graph. 1 at a
 source; 0.333 at the end of a six-turn chain; 0.833 at the assembly turn of a
 six-turn star.
 
+### The layered family is 2% of the space
+
+**There are 1,960 distinct shapes on six turns with one source and one sink.
+The layered family reaches 33.** Only ten of the 1,960 are strictly layered at
+all; in every other one some turn feeds something more than one stage later.
+`briefed` was the first such shape we wanted and it was special-cased into the
+generator rather than expressed by it, which was the signal that skip edges
+belonged inside the family. They are inside it now, and it is still 2%.
+
+Two consequences for anyone reading a number off `profiles.mjs`:
+
+- **A frontier or a distribution from the layered family is a statement about
+  the generator**, not about the space. The 2n−4 frontier published in WP2 was
+  exactly that, and it dissolved when the family widened. `coverage(n, built)`
+  gives the honest fraction for n ≤ 6.
+- **The counts in `KNOWN_COUNTS` are ground truth and were computed twice.**
+  Brute force over every relabelling, and a refinement-restricted canonical
+  form. The second was wrong the first time — 122 and 3,274 against the true 98
+  and 1,960 — because it ordered colour classes by discovery rather than by an
+  invariant. Neither method is trusted alone. **If you optimise the
+  canonicaliser, check it against `KNOWN_COUNTS` before trusting one digit.**
+
+Exact enumeration stops at seven turns because the search is 2^(n(n−1)/2):
+32,768 masks at six, 2 million at seven, 268 million at eight. Above that
+`sampleShapes()` draws random plans, and it is **not** a uniform sample of
+anything — say so wherever its numbers appear.
+
 ### The catalogue, and the trap in it
 
 `lab/shapes.mjs` holds six shapes that all cost six turns, so shape is a
@@ -401,7 +429,7 @@ mismatch silently clips the figure.
 ## Three gates, and why each exists
 
 ```bash
-node ken/ken.selftest.mjs     # ~2s, 1085 checks
+node ken/ken.selftest.mjs     # ~2s, 1089 checks
 node ken/prose-lint.mjs       # the tic lint alone, with --verbose for hits
 ```
 

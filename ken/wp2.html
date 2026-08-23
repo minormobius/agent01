@@ -252,8 +252,27 @@
   middle at depth 6 keeps 92% of the maximum replication at a fifth of the peak concurrency, so
   the star is rarely worth its width.</p>
 
-  <p>The frontier held exactly 2n−4 points at every n from 5 to 14. That is an observation, not
-  a theorem, and the selftest labels it so.</p>
+  <div class="revised">
+    <p><b>Corrected at revision 17.</b> This section claimed the Pareto frontier held exactly
+    2n−4 points at every n from 5 to 14, labelled an observation rather than a theorem. Widening
+    the family broke it, which is what that label was for.</p>
+    <p>With skip edges off and no briefing the frontier holds <b>n−2</b> points: one per
+    achievable depth, since depth runs from 2 to n−1. Briefing doubled it to 2n−4, which is the
+    number we published. Add skip policies and the pattern dissolves — 8, 12, 16, 21, 26, 32, 38,
+    45 for n = 5 to 12, with no clean formula.</p>
+    <p>The regularity was a property of the generator, not of the space. And it is the same fact
+    as a complaint about the explorer's first table, which showed one row per depth and so looked
+    like a single shape stretched: within the narrow family the frontier <em>is</em> one shape per
+    depth. The UI symptom and the structural fact were one thing.</p>
+  </div>
+
+  <p><b>And the layered family is a sliver.</b> There are 1,960 distinct shapes on six turns with
+  one source and one sink; the family reaches 33 of them, and only ten of the 1,960 are strictly
+  layered at all. In every other one some turn feeds something more than one stage later.
+  <code>briefed</code> was the first such shape we wanted and it was special-cased into the
+  generator rather than expressed by it, which was the signal. Skip edges are inside the family
+  now and it is still two per cent. <a href="/shapes">The explorer</a> therefore enumerates the
+  true space exactly up to seven turns, and says which mode it is in.</p>
 
   <h2 class="sec" id="ancestry"><span class="secno">11</span>Ancestry, and what a digest does not buy</h2>
 

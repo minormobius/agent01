@@ -71,6 +71,7 @@ export function profiles(n) {
 }
 
 export const WIRINGS = ['complete', 'lanes'];
+export const SKIPS = ['none', 'sink', 'one', 'all'];
 
 /**
  * Build the DAG for a profile.
@@ -83,8 +84,9 @@ export const WIRINGS = ['complete', 'lanes'];
  * `briefed` adds an edge from every turn to the sink. It is a separate
  * flag rather than a wiring because it composes with both.
  */
-export function buildProfile(profile, { wiring = 'complete', briefed = false } = {}) {
+export function buildProfile(profile, { wiring = 'complete', briefed = false, skip = 'none' } = {}) {
   if (!WIRINGS.includes(wiring)) throw new Error(`unknown wiring "${wiring}"`);
+  if (!SKIPS.includes(skip)) throw new Error(`unknown skip policy "${skip}"`);
   const layers = profile.map((w, d) => Array.from({ length: w }, (_, i) => `L${d}.${i}`));
   const nodes = layers.flat().map((id, i) => ({ id, label: id, kind: i === 0 ? 'block' : 'turn', turns: 1 }));
   const edges = [];
@@ -99,14 +101,40 @@ export function buildProfile(profile, { wiring = 'complete', briefed = false } =
     }
   }
   const sink = layers[layers.length - 1][0];
-  if (briefed) {
-    const have = new Set(edges.filter((e) => e.to === sink).map((e) => e.from));
-    for (const n of nodes) if (n.id !== sink && !have.has(n.id)) edges.push({ from: n.id, to: sink });
+
+  /* SKIP EDGES. Every edge above joins adjacent layers, which is what
+     made the layered family a sliver: it covers 0.9% of the real shapes
+     at n = 6. `briefed` was the first skip policy and had to be
+     special-cased, which was the signal that skips belonged in the
+     generator rather than beside it.
+
+       none    adjacent layers only
+       sink    every turn also reports to the last one — `briefed`
+       one     every turn also feeds the layer two ahead
+       all     every turn feeds every later turn: the transitive closure */
+  const add = (from, to) => {
+    if (from === to) return;
+    if (!edges.some((e) => e.from === from && e.to === to)) edges.push({ from, to });
+  };
+  if (briefed || skip === 'sink') {
+    for (const n of nodes) if (n.id !== sink) add(n.id, sink);
+  }
+  if (skip === 'one') {
+    for (let d = 0; d + 2 < layers.length; d++) {
+      for (const u of layers[d]) for (const v of layers[d + 2]) add(u, v);
+    }
+  }
+  if (skip === 'all') {
+    for (let d = 0; d < layers.length; d++) {
+      for (let e = d + 1; e < layers.length; e++) {
+        for (const u of layers[d]) for (const v of layers[e]) add(u, v);
+      }
+    }
   }
   const g = { nodes, edges };
   const d = depths(g);
   return {
-    profile: profile.slice(), wiring, briefed, laneJoints: laneCount,
+    profile: profile.slice(), wiring, briefed, skip, laneJoints: laneCount,
     nodes: nodes.map((n) => ({ ...n, depth: d.get(n.id) })),
     edges,
     turns: nodes.length,
@@ -143,10 +171,22 @@ export function summarise(g, { rho = 0.413, exactBelow = 9 } = {}) {
   const sinkRow = rows.find((r) => r.id === g.sink);
   const m = inv.largestOrbit;
   const deff = 1 + (m - 1) * rho;
+  /* A graph from exhaustive.mjs has no declared profile, so derive one
+     from the depth histogram. For a layered plan the two coincide; for a
+     graph with skip edges the histogram is the honest description and the
+     declared profile is not, which is why it is derived here rather than
+     carried. `layered` records whether every edge joins adjacent depths. */
+  const hist = [];
+  for (const r of rows) hist[r.depth] = (hist[r.depth] ?? 0) + 1;
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  const layered = g.edges.every((e) => byId.get(e.to).depth - byId.get(e.from).depth === 1);
   return {
-    profile: g.profile.join('·'),
-    wiring: g.wiring,
-    briefed: g.briefed,
+    profile: (g.profile ?? [...hist].map((x) => x ?? 0)).join('·'),
+    layerCensus: [...hist].map((x) => x ?? 0).join('·'),
+    layered,
+    wiring: g.wiring ?? 'given',
+    briefed: g.briefed ?? false,
+    skip: g.skip ?? 'given',
     turns: g.turns,
     depth: g.depth,
     width: inv.width,
@@ -174,13 +214,13 @@ const round = (x) => Math.round(x * 1000) / 1000;
  * `complete` on a profile with no equal-width neighbouring pair, and
  * `briefed` is a no-op on a profile whose sink already sees everything.
  */
-export function family(n, { rho = 0.413, wirings = WIRINGS, brief = [false, true] } = {}) {
+export function family(n, { rho = 0.413, wirings = WIRINGS, brief = [false, true], skips = SKIPS } = {}) {
   const seen = new Set();
   const out = [];
   for (const profile of profiles(n)) {
     for (const wiring of wirings) {
-      for (const briefed of brief) {
-        const g = buildProfile(profile, { wiring, briefed });
+      for (const briefed of brief) for (const skip of skips) {
+        const g = buildProfile(profile, { wiring, briefed, skip });
         const key = g.edges.map((e) => `${e.from}>${e.to}`).sort().join('|');
         if (seen.has(key)) continue;
         seen.add(key);

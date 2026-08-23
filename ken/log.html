@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Findings Log — ken</title>
-<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Sixty entries, seven of them from measurements we made.">
+<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Sixty-six entries, seven of them from measurements we made.">
 <link rel="stylesheet" href="journal.css">
 </head>
 <body>
@@ -31,7 +31,7 @@
   <div class="a-venue">ken · volume 1 <span class="kicker">Running record</span></div>
   <h1 class="a-title">Findings Log</h1>
   <p class="a-sub">Shortest form. Each entry names the code or record that produced it.</p>
-  <div class="a-meta">60 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
+  <div class="a-meta">66 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
   <hr class="a-rule">
 
   <p class="small">Everything here comes from data already paid for or from arithmetic. That is
@@ -508,6 +508,49 @@
       <span class="src"><code>REGISTER_EXEMPTIONS</code></span></li>
   </ol>
 
+  <h2 class="sec"><span class="secno">§</span>The size of the space</h2>
+
+  <ol class="log" start="61">
+    <li><b>There are 1,960 shapes on six turns and the layered family reached 18.</b> One source,
+      one sink, up to isomorphism. Counted twice by different code: brute force over every
+      relabelling, and a refinement-restricted canonical form. <b>0.9%.</b> Skip policies took it
+      to 33, which is 1.7%.
+      <span class="src"><code>exhaustive.mjs</code> · <code>coverage()</code></span></li>
+
+    <li><b>Only ten of those 1,960 are strictly layered.</b> In every other one some turn feeds
+      something more than one stage later. The layered restriction is not a mild simplification
+      of the space; it is almost all of the space thrown away.
+      <span class="src"><code>summarise().layered</code></span></li>
+
+    <li><b>The second counting method was wrong and only the first caught it.</b> The
+      refinement-restricted canonical form gave 122 at n = 5 and 3,274 at n = 6 against the true
+      98 and 1,960. Two bugs: a neighbour colour read from the wrong node, and colour classes
+      ordered by discovery rather than by an invariant, so two isomorphic graphs got different
+      canonical forms. <b>A faster method that silently disagrees is the failure this site is
+      about</b>, and it was caught only because the slow ground truth existed first.
+      <span class="src"><code>refineMatrix()</code></span></li>
+
+    <li><b>The 2n−4 frontier was an artefact of the generator, and the label was right.</b>
+      Published one revision ago as an observation rather than a theorem. Widening the family
+      broke it. With skips off and no briefing the frontier is n−2, one point per achievable
+      depth; briefing doubled it to the 2n−4 we published; skip policies dissolve the pattern
+      entirely.
+      <span class="src"><a href="/wp2">WP2 §10, corrected</a></span></li>
+
+    <li><b>The explorer's table and that artefact were the same fault.</b> The table showed one
+      row per depth, so the family looked like a single shape stretched. Within the narrow family
+      the Pareto frontier <em>is</em> one shape per depth, so the display was faithfully
+      reporting how little there was. It now shows every shape, sortable, with the count and the
+      coverage on the line above.
+      <span class="src"><a href="/shapes">shape explorer</a></span></li>
+
+    <li><b>Exact enumeration reaches seven turns and stops.</b> A DAG on n nodes with a fixed
+      topological order is an upper-triangular matrix, so the search is 2<sup>n(n−1)/2</sup>:
+      32,768 masks at six turns, 2,097,152 at seven, 268 million at eight. Six enumerates in
+      about 120 ms and is what the page does live; above seven the page samples and says so.
+      <span class="src"><code>EXACT_LIMIT</code> · <code>searchSize()</code></span></li>
+  </ol>
+
   <h2 class="sec"><span class="secno">§</span>The ledger</h2>
 
   <div class="table-fig">
@@ -515,8 +558,8 @@
       <thead><tr><th>Source of finding</th><th class="num">Entries</th></tr></thead>
       <tbody>
         <tr><td>Records already committed</td><td class="num">12</td></tr>
-        <tr><td>Arithmetic and simulation</td><td class="num">24</td></tr>
-        <tr><td>Our own mistakes</td><td class="num">15</td></tr>
+        <tr><td>Arithmetic and simulation</td><td class="num">27</td></tr>
+        <tr><td>Our own mistakes</td><td class="num">18</td></tr>
         <tr><td>Prior literature</td><td class="num">2</td></tr>
         <tr><td><b>New measurement</b></td><td class="num"><b>7</b></td></tr>
       </tbody>
