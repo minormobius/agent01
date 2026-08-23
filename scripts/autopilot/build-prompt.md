@@ -33,7 +33,7 @@ _Regenerated 2026-08-23 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 82, bluesky 73, data 58, tools 58, work 8.
 
-**Neighborhood spark** (bisk 2026-08-23, 99 members / 246 posts):
+**Neighborhood spark** (bisk 2026-08-23, 99 members / 245 posts):
 - Mood: Overcast ☁ (trust)
 - Distinctive words: synthid, llm, atproto
 - Top post: "if you ever briefly entertain the notion that andreesen horowitz isn't evil please remember," — @segyges.bsky.social
