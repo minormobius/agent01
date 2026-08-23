@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>GRIDDLE — a house of pancakes, four keys</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b0a09;
+    --panel: #141210;
+    --fg: #e8dfd0;
+    --dim: #7a6f60;
+    --border: #241f1b;
+    --q: #e8d9a8; --w: #f0a044; --o: #8fb8d0; --p: #8fd0a0;
+  }
+  * { box-sizing: border-box; }
+
+  /* Same no-highlight rules as the other games on this surface. */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  html { touch-action: manipulation; }
+  #notes, #notes * { user-select: text; -webkit-user-select: text; }
+
+  html, body {
+    margin: 0; padding: 0; min-height: 100%;
+    background: var(--bg); color: var(--fg);
+    font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: contain;
+  }
+  a { color: #e0b070; }
+
+  header {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 12px 18px 10px; border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    margin: 0; font-size: 13px; font-weight: 600;
+    letter-spacing: 0.18em; text-transform: uppercase; color: #e0b070;
+  }
+  header .sub { color: var(--dim); font-size: 11px; }
+
+  #stage { position: relative; margin: 12px auto 0; max-width: 1100px; padding: 0 18px; }
+  #wrap {
+    position: relative; border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; background: #0b0a09;
+  }
+  canvas { display: block; width: 100%; height: min(58vh, 540px); touch-action: none; }
+
+  /* ---- the pad ---------------------------------------------------------
+     Q and W and O are held; P is held too, and how long you hold it is the
+     whole flip-versus-plate decision. So all four are hold buttons and need
+     genuine multi-touch: pouring while riding the burner is normal play. */
+  #pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+  #pad button {
+    touch-action: none;
+    height: 76px; margin: 0; padding: 4px;
+    border-radius: 8px; border: 2px solid;
+    background: #17140f; font-size: 19px; font-weight: 600;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    cursor: pointer;
+    transition: background 60ms linear, transform 60ms linear;
+  }
+  #pad button .sub { display: block; font-size: 9px; opacity: 0.8; font-weight: 400; }
+  #pad button.q { color: var(--q); border-color: var(--q); }
+  #pad button.w { color: var(--w); border-color: var(--w); }
+  #pad button.o { color: var(--o); border-color: var(--o); }
+  #pad button.p { color: var(--p); border-color: var(--p); }
+  #pad button[data-on="1"] { color: #100e0b; transform: translateY(2px); }
+  #pad button.q[data-on="1"] { background: var(--q); }
+  #pad button.w[data-on="1"] { background: var(--w); }
+  #pad button.o[data-on="1"] { background: var(--o); }
+  #pad button.p[data-on="1"] { background: var(--p); }
+  /* The lift button fills as it crosses from "flip" to "carry to the counter". */
+  #pad button.p .fill {
+    position: absolute; left: 0; bottom: 0; width: 100%; height: 0;
+    background: rgba(143, 208, 160, 0.28); pointer-events: none;
+  }
+  #pad button.p { position: relative; overflow: hidden; }
+
+  .overlay {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px; text-align: center;
+    background: rgba(11, 10, 9, 0.90); padding: 24px;
+  }
+  .overlay[hidden] { display: none; }
+  .overlay h2 { margin: 0; font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase; color: #e0b070; }
+  .overlay p { margin: 3px 0; color: var(--dim); max-width: 62ch; }
+  .overlay .big { font-size: 26px; color: var(--fg); }
+  .overlay button {
+    background: #241f1b; color: var(--fg); border: 1px solid var(--border);
+    padding: 7px 18px; border-radius: 4px; cursor: pointer; font: inherit; margin-top: 8px;
+  }
+  .keys { display: flex; gap: 10px; margin: 6px 0 2px; }
+  .keycap { width: 38px; height: 38px; border-radius: 5px; display: grid; place-items: center;
+    font-size: 15px; font-weight: 600; border: 1.5px solid; }
+  .keycap.q { color: var(--q); border-color: var(--q); }
+  .keycap.w { color: var(--w); border-color: var(--w); }
+  .keycap.o { color: var(--o); border-color: var(--o); }
+  .keycap.p { color: var(--p); border-color: var(--p); }
+
+  #notes { padding: 18px 18px 48px; max-width: 78ch; margin: 0 auto; color: var(--dim); }
+  #notes h3 {
+    color: var(--fg); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    margin: 22px 0 6px; border-bottom: 1px solid var(--border); padding-bottom: 4px;
+  }
+  #notes p { margin: 7px 0; }
+  #notes code { color: #e0b070; background: #1c1815; padding: 1px 4px; border-radius: 2px; }
+  #notes table { border-collapse: collapse; margin: 8px 0; font-size: 11px; width: 100%; }
+  #notes th, #notes td { text-align: left; padding: 4px 10px 4px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  #notes th { color: var(--fg); font-weight: 600; }
+  .k { font-weight: 600; }
+  .k.q { color: var(--q); } .k.w { color: var(--w); }
+  .k.o { color: var(--o); } .k.p { color: var(--p); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>GRIDDLE</h1>
+  <span class="sub">one seat, one spatula, and a side you cannot see</span>
+</header>
+
+<div id="stage">
+  <div id="wrap">
+    <canvas id="c"></canvas>
+
+    <div class="overlay" id="intro">
+      <h2>You cannot see the side that is cooking</h2>
+      <div class="keys">
+        <div class="keycap q">Q</div><div class="keycap w">W</div>
+        <div class="keycap o">O</div><div class="keycap p">P</div>
+      </div>
+      <p><span class="k q">Q</span> squeeze the bottle &nbsp;·&nbsp;
+         <span class="k w">W</span> ride the burner &nbsp;·&nbsp;
+         <span class="k o">O</span> work the spatula under &nbsp;·&nbsp;
+         <span class="k p">P</span> lift</p>
+      <p><strong>P is one motion.</strong> Let go early and the cake drops back
+      flipped. Keep holding and you carry it to the counter. How long you hold
+      decides where it lands.</p>
+      <p>The face against the iron is the one that matters and you never see it.
+      Watch the bubbles open and the rim go matte — and watch the gauge, because
+      those cues mean different things on a hot griddle than on a cool one.</p>
+      <button id="start">press any key to begin</button>
+    </div>
+
+    <div class="overlay" id="over" hidden>
+      <h2 id="over-title">Service over</h2>
+      <div class="big" id="over-score">0 served</div>
+      <p id="over-line"></p>
+      <p id="over-tip"></p>
+      <button id="again">press SPACE to run it back</button>
+    </div>
+  </div>
+
+  <div id="pad" role="group" aria-label="station controls">
+    <button class="q" data-i="0" type="button" aria-label="squeeze the batter bottle">Q<span class="sub">squeeze</span></button>
+    <button class="w" data-i="1" type="button" aria-label="burner">W<span class="sub">burner</span></button>
+    <button class="o" data-i="2" type="button" aria-label="slide the spatula under">O<span class="sub">slide under</span></button>
+    <button class="p" data-i="3" type="button" aria-label="lift: tap to flip, hold to plate">P<span class="sub">flip / carry</span><span class="fill" id="pfill"></span></button>
+  </div>
+</div>
+
+<div id="notes">
+  <h3>The problem this is a solution to</h3>
+  <p>A line cook does three things — pour, flip, plate — and handed to a player
+  as three buttons that is not a game, it is a stopwatch with extra steps. So
+  what is the layer underneath?</p>
+  <p><strong>You cannot see the face that is cooking.</strong> The side that
+  matters is against the iron, and everything you know about it is inferred from
+  the top: bubbles opening, the rim going from wet to matte, the batter losing
+  its shine. The flip is the moment you find out whether you were right, and it
+  does not come back. That is the same conceit as
+  <a href="../proteus/">/proteus/</a>, where you see only what the cell feels of
+  itself, and it is what makes this pancakes rather than Whac-A-Mole.</p>
+
+  <h3>The fourth key</h3>
+  <p>Three tools, four keys — so the fourth has to earn its place, and it does,
+  because it is the thing that makes the bubble cue <em>lie</em>.</p>
+  <table>
+    <tr><th>key</th><th>does</th></tr>
+    <tr><td><span class="k q">Q</span></td><td>squeeze the bottle. Volume builds while you hold, and the batter that landed first is already cooking while the rest arrives</td></tr>
+    <tr><td><span class="k w">W</span></td><td>ride the burner. It falls when you let go, the flame lags the key, and a cold cake dropped on the iron drags it down ~20&nbsp;°C</td></tr>
+    <tr><td><span class="k o">O</span></td><td>work the spatula under. How fast it goes depends on how set the cake is; go at a raw one and you tear it</td></tr>
+    <tr><td><span class="k p">P</span></td><td>lift. <strong>One motion.</strong> Release early and it lands back flipped; hold through and you carry it to the counter</td></tr>
+  </table>
+  <p>Browning is a Maillard reaction — Arrhenius, and steep: it roughly doubles
+  every 15&nbsp;°C. Bubbling is gas release and steam, which is much flatter,
+  nearer a doubling every 25&nbsp;°C. Measured off the model rather than asserted:
+  over 165&rarr;215&nbsp;°C, <strong>browning speeds up 10.1&times; and bubbling
+  only 4.0&times;</strong>. So the two cues come apart:</p>
+  <table>
+    <tr><th>griddle</th><th>what happens</th></tr>
+    <tr><td>too hot</td><td>browning outruns bubbling — it is burnt underneath before the top says it is ready</td></tr>
+    <tr><td>too cool</td><td>bubbling outruns browning — the top says go and the underside is still pale</td></tr>
+  </table>
+  <p>Which means <strong>there is no correct bubble cue.</strong> There is a
+  correct cue for the temperature you are running, and holding those two
+  readings together is the whole skill.</p>
+
+  <h3>What the selftest found</h3>
+  <p>That claim is falsifiable, so it is run as an experiment rather than
+  asserted. For each griddle temperature, find the point on the falling edge of
+  the bubbling that produces the best cake, and see whether the answer moves. If
+  it were flat, one fixed rule would play optimally, the burner would be
+  decoration, and this design would be wrong.</p>
+  <p>It moves, hard — expressed as a fraction of how hard the cake was bubbling
+  at its peak:</p>
+  <table>
+    <tr><th>griddle</th><th>best moment to commit</th><th>best cake</th></tr>
+    <tr><td>165 °C</td><td>0.05 — wait until the bubbling has all but stopped</td><td>0.70</td></tr>
+    <tr><td>175 °C</td><td>0.40</td><td>0.74</td></tr>
+    <tr><td>185 °C</td><td>0.95 — commit almost the instant it turns over</td><td>0.73</td></tr>
+    <tr><td>195 °C</td><td>0.95</td><td>0.68</td></tr>
+  </table>
+  <p>Bringing the cool-griddle rule to a 195&nbsp;°C iron drops the cake from
+  0.68 to 0.42. And at 215&nbsp;°C nothing saves you: the underside is golden
+  <em>before the bubbling has even peaked</em>, so the cue you would flip on has
+  not happened yet when it is already too late. The burner is not a difficulty
+  slider, it is a thing you can get wrong.</p>
+  <p>Then the whole station, with each family of players allowed one parameter
+  and made to live with it across a cool, a correct and a hot service — which is
+  the situation a cook is in, since you do not get to retune your stopwatch for
+  every griddle:</p>
+  <table>
+    <tr><th>how they decide when to flip</th><th>quality</th><th>sent back</th></tr>
+    <tr><td>by the clock, at a fixed time</td><td>6.59</td><td>5.7</td></tr>
+    <tr><td>by the cake, at a fixed point in the bubbling</td><td>9.48</td><td>0.0</td></tr>
+    <tr><td><strong>by the cake and the iron together</strong></td><td><strong>9.94</strong></td><td>0.0</td></tr>
+  </table>
+  <p>Reading the cake beats cooking by the clock by 44%, and the stopwatch
+  scores <strong>zero</strong> on the cool service — it cannot adapt, so it
+  serves pale cakes that come back. Reading the temperature as well adds a
+  further 5%, which is a real margin but a modest one, and it is quoted here as
+  measured rather than dressed up.</p>
+
+  <h3>What is honest and what is invented</h3>
+  <p>The <em>shape</em> is real: Maillard browning is steeply
+  temperature-dependent while gas release is much flatter, pancake batter sets
+  from the griddle upward, the rim dries before the middle, and bubbles stop
+  breaking through once the top skins over — which is why "cook until the
+  bubbles stop refilling and the edges look dry" is the instruction everyone is
+  given. None of that is scripted here; the cue's rise-and-fall falls out of gas
+  release against a setting surface.</p>
+  <p>The <em>numbers</em> are a game's. Nothing here is transcribed from a
+  measurement the way <a href="../flag/">/flag/</a>'s constants are, and the
+  clock runs <strong>15&times; real speed</strong> — golden in 70 real seconds
+  becomes golden in 4.7 played seconds — so that a pancake is a decision rather
+  than a wait. The temperature curves and their ratio are not scaled, so the
+  burnt-versus-pale trade-off is the real one running fast. Your own actions —
+  pouring, sliding, carrying — are on wall time, because those are things a hand
+  does rather than reactions in the batter.</p>
+  <p>Same four keys as <a href="../qwop/">/qwop/</a>,
+  <a href="../graze/">/graze/</a> and <a href="../qgol/">/qgol/</a>. This one
+  shares no code with any of them.</p>
+</div>
+
+<script type="module">
+  import {
+    createStation, tickStation, scrape, KEYS, SPATULA, RAIL, COUNTER_STANDARD,
+  } from './game.js';
+  import { drawStation } from './draw.js';
+
+  const cnv = document.getElementById('c');
+  const pad = document.getElementById('pad');
+  const pfill = document.getElementById('pfill');
+  const intro = document.getElementById('intro');
+  const over = document.getElementById('over');
+
+  let st = createStation({ seed: (Math.random() * 1e9) | 0 });
+  let started = false, best = 0, flash = 0, wasOver = false;
+  const held = [false, false, false, false];
+
+  // Debug handle, same convention as the other games here. Returns the input
+  // state as well as the station, because the thing a browser check can tell
+  // you that the node selftest cannot is whether the KEYS ARE WIRED UP — the
+  // model itself is covered in full by griddle.selftest.mjs.
+  globalThis.__griddle = () => ({ st, held, started, frames });
+
+  const TIPS = [
+    'The bubbling rises, peaks, then dies back as the top skins over. The moment it stops refilling is the cue — but how far it has to fall depends on the iron.',
+    'A cold cake pulls about 20 °C out of the griddle. The first seconds of every pancake are cooler than the gauge was a moment ago.',
+    'Going at a cake with the spatula before it sets tears it. The rim going matte is how you know.',
+    'Hold P a little: it flips. Hold P a lot: it goes to the counter. Same motion.',
+    'Too hot and the underside is golden before the bubbles even peak — nothing you flip on can save it.',
+    'Squeezing onto a pancake that is already cooking ruins it. Pour into an empty seat.',
+  ];
+
+  function reset() {
+    for (let i = 0; i < 4; i++) held[i] = false;
+    paintPad();
+    st = createStation({ seed: (Math.random() * 1e9) | 0 });
+    started = true; wasOver = false;
+    intro.hidden = true; over.hidden = true;
+    last = performance.now();
+  }
+
+  function onOver() {
+    best = Math.max(best, st.served);
+    document.getElementById('over-title').textContent = st.cause || 'Service over';
+    document.getElementById('over-score').textContent =
+      `${st.served} sent out`;
+    document.getElementById('over-line').textContent =
+      `quality ${st.quality.toFixed(1)}   ·   ${st.rejected} back   ·   ${st.walked} walked   ·   ${st.elapsed.toFixed(0)}s   ·   best ${best}`;
+    document.getElementById('over-tip').textContent = TIPS[(Math.random() * TIPS.length) | 0];
+    over.hidden = false;
+  }
+
+  addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if (!started) {
+      if (k === ' ' || e.key.length === 1) { e.preventDefault(); reset(); }
+      return;
+    }
+    if (st.over) {
+      if (k === ' ' || k === 'enter') { e.preventDefault(); reset(); }
+      return;
+    }
+    const i = KEYS.indexOf(k);
+    if (i >= 0) { e.preventDefault(); if (!held[i]) { held[i] = true; paintPad(); } }
+    // A ruined cake still occupies the seat until it is scraped off.
+    if (k === 'backspace' || k === 'x') { e.preventDefault(); scrape(st); }
+  });
+  addEventListener('keyup', (e) => {
+    const i = KEYS.indexOf(e.key.toLowerCase());
+    if (i >= 0) { held[i] = false; paintPad(); }
+  });
+  const letGo = () => { for (let i = 0; i < 4; i++) held[i] = false; paintPad(); };
+  addEventListener('blur', letGo);
+  addEventListener('visibilitychange', () => { if (document.hidden) letGo(); });
+
+  // Multi-touch: one capture per button, hit-tested by hand in pointermove
+  // because setPointerCapture suppresses the boundary events — the same lesson
+  // /qwop/'s pad is a monument to.
+  for (const btn of pad.querySelectorAll('button')) {
+    const i = +btn.dataset.i;
+    const press = (e) => {
+      e.preventDefault();
+      if (!started || st.over) { reset(); return; }
+      try { btn.setPointerCapture(e.pointerId); } catch (_) {}
+      if (!held[i]) { held[i] = true; btn.dataset.on = '1'; }
+    };
+    const release = (e) => { if (e) e.preventDefault(); held[i] = false; btn.dataset.on = '0'; };
+    btn.addEventListener('pointerdown', press);
+    btn.addEventListener('pointerup', release);
+    btn.addEventListener('pointercancel', release);
+    btn.addEventListener('pointermove', (e) => {
+      if (!held[i]) return;
+      const r = btn.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) release(e);
+    });
+    btn.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+  function paintPad() {
+    const btns = pad.querySelectorAll('button');
+    for (let i = 0; i < btns.length; i++) btns[i].dataset.on = held[i] ? '1' : '0';
+  }
+
+  for (const el of [intro, over]) {
+    el.addEventListener('pointerdown', (e) => { e.preventDefault(); reset(); });
+  }
+  if (matchMedia('(pointer: coarse)').matches) {
+    document.getElementById('start').textContent = 'tap to begin';
+    document.getElementById('again').textContent = 'tap to run it back';
+  }
+
+  const STEP = 1 / 120;
+  let last = performance.now(), acc = 0;
+  let prevServed = 0, frames = 0;
+
+  function frame(t) {
+    frames++;
+    const wall = Math.min(0.1, (t - last) / 1000);
+    last = t;
+    if (started && !st.over) {
+      acc += wall;
+      let guard = 0;
+      while (acc >= STEP && guard++ < 200) { tickStation(st, STEP, held); acc -= STEP; }
+      if (st.served !== prevServed) { flash = 1; prevServed = st.served; }
+    }
+    if (st.over && !wasOver) { wasOver = true; onOver(); }
+    // The lift button fills as it crosses from flip to carry, so the one
+    // motion's two destinations are visible while you are making the decision.
+    pfill.style.height = `${Math.min(1, st.lifting / SPATULA.carrySecs) * 100}%`;
+    drawStation(cnv, st, { flash, compact: pad.offsetParent !== null && innerWidth < 700 });
+    flash = Math.max(0, flash - 0.06);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>
