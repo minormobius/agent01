@@ -46,9 +46,10 @@ function convertRemove(b, warnings) {
   const subject = b.subject || '';
   if (subject === 'language') {
     if (!b.language) return { type: 'noLang' };            // bare block: drop untagged posts
-    // `!=` removes every *other* language, i.e. keeps this one.
+    // `!=` removes every *other* language, i.e. keeps this one — and keeps it
+    // STRICTLY: a post tagged [en, pt] does have a language that is not en.
     return b.operator === '!='
-      ? { type: 'lang', code: b.language }
+      ? { type: 'lang', code: b.language, strict: true }
       : { type: 'lang', code: b.language, mode: 'exclude' };
   }
   if (subject === 'item') {

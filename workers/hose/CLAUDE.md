@@ -74,9 +74,9 @@ which alone consumes ~84% of the account's entire duration allowance. For an
 ambient feed nobody reads exhaustively, paying to observe every post on Bluesky
 is a bad trade.
 
-At the default 20s/hour the object is connected **4 hours a month instead of
-720**, sees ~0.5% of the network, and still collects **~680 matching posts a
-day** — more than anyone scrolls. The ring turns over completely every ~3 days.
+At 30s twice an hour the object is connected **12 hours a month instead of
+720**, and collects **~88 matching posts an hour** — enough to fill the
+2000-entry ring in ~23 hours, just inside the 24-hour window the def asks for.
 
 **A feed like this is a mood, not an index.** If you ever need completeness, the
 knobs are below and the arithmetic is in *The running cost* — but read it first,
@@ -181,9 +181,9 @@ def actually asks for engagement.
 
 | Bound | Value | Why |
 |---|---|---|
-| `SAMPLE_SECONDS` | 20 (clamped 2–60) | how long the socket may stay open per wake |
-| `MAX_FRAMES_PER_SAMPLE` | 800 (clamped 50–20000) | hard frame ceiling per wake — **this is the real cost dial** |
-| `SAMPLE_EVERY_MINUTES` | 60 (clamped 1–360) | how often it wakes; jittered 0.5×–1.5× |
+| `SAMPLE_SECONDS` | 30 (clamped 2–60) | how long the socket may stay open per wake |
+| `MAX_FRAMES_PER_SAMPLE` | 1100 (clamped 50–20000) | hard frame ceiling per wake — **this is the real cost dial** |
+| `SAMPLE_EVERY_MINUTES` | 30 (clamped 1–360) | how often it wakes; jittered 0.5×–1.5× |
 | ring buffer | ~2000 URIs/feed | nobody pages that deep. Granularity is one chunk, so it holds 2001–2400 |
 | storage chunk | 400 entries/key | DO values cap at 128KB — 400 lands around 45KB |
 | list membership | ≤ 5000 DIDs | a runaway list degrades one filter, not the ingester |
@@ -278,6 +278,35 @@ even a *permanently* resident object only reaches 334,800 GB-s in a 31-day
 month — it cannot exceed the 400,000 allowance on its own. Requests, however,
 count **every inbound WebSocket frame**, and the firehose is 100M frames a month
 if you hold it open.
+
+### Size the sample to fill the ring inside its own window
+
+The first budget optimised the wrong number. It capped at 800 frames/hour, which
+gathers ~32 posts/hour: a 2000-entry ring takes **62 hours** to fill, so the feed
+never held anything like the day of content its `firehose: 86400` asks for, and
+looked permanently thin.
+
+Meanwhile the network offers **5,600–8,900 matching posts an hour** for this
+feed. At 800 frames we were sampling **0.57% of the candidates**. Nowhere near
+any limit — just an over-tight self-imposed cap.
+
+The number that matters is `ring ÷ window`: 2000 posts over 24 hours is 83
+posts/hour, which at a ~4% match rate is ~2,080 frames/hour. Hence 1100 frames
+twice an hour.
+
+**And the cost being optimised was pennies.** Worst case, under the least
+favourable reading of WebSocket billing, this is $0.09/month; under the
+documented 20:1 ratio it is free. The cost curve, measured:
+
+| cap/sample | frames/mo | posts/hr | worst-case | ring full in |
+|---|---|---|---|---|
+| 800 | 0.58M | 32 | $0.00 | 62 h |
+| **1100 ×2/h** | **1.58M** | **88** | **$0.09** | **23 h** |
+| 3000 | 2.16M | 120 | $0.17 | 17 h |
+| 5000 | 3.60M | 200 | $0.39 | 10 h |
+
+Two samples an hour rather than one longer one also spreads coverage across the
+clock, so the feed is less a portrait of two moments a day.
 
 ### The rule I could not resolve
 

@@ -43,7 +43,7 @@ const { def, warnings } = fromSkyfeed({ displayName: 'txt for airports', descrip
 eq('no warnings on a clean feed', warnings, []);
 eq('firehose input carries its window', def.inputs, [{ type: 'firehose', seconds: 86400 }]);
 eq('sort created_at → latest', def.sort, { type: 'latest' });
-eq('language != en → keep en', def.filters[0], { type: 'lang', code: 'en' });
+eq('language != en → keep en, strictly', def.filters[0], { type: 'lang', code: 'en', strict: true });
 eq('remove reply', def.filters[1], { type: 'removeReplies' });
 eq('image_count 1 + 2+ collapse to one no-images filter', def.filters[2], { type: 'media', has: ['image'], mode: 'none' });
 eq('embed post → no quotes', def.filters[3], { type: 'media', has: ['quote'], mode: 'none' });
@@ -99,6 +99,24 @@ ok('en-GB matches en', passes(p({ langs: ['en-GB'] }), [{ type: 'lang', code: 'e
 ok('noLang drops untagged', !passes(p({ langs: [] }), [{ type: 'noLang' }]));
 ok('removeReplies drops a reply', !passes(p({ isReply: true }), [{ type: 'removeReplies' }]));
 ok('removeReposts drops a repost', !passes(p({ isRepost: true }), [{ type: 'removeReposts' }]));
+
+console.log('strict language');
+{
+  const loose  = [{ type: 'lang', code: 'en' }];
+  const strict = [{ type: 'lang', code: 'en', strict: true }];
+  const P = (langs) => ({ ...base, langs });
+
+  ok('monolingual en passes either way', passes(P(['en']), loose) && passes(P(['en']), strict));
+  ok('en-GB still counts as en under strict', passes(P(['en-GB']), strict));
+  ok('a bilingual [en, pt] post passes the loose test', passes(P(['en', 'pt']), loose));
+  ok('but is dropped by strict — it HAS a language that is not en', !passes(P(['en', 'pt']), strict));
+  ok('order does not matter', !passes(P(['pt', 'en']), strict));
+  ok('a purely non-english post is dropped either way',
+    !passes(P(['pt']), loose) && !passes(P(['pt']), strict));
+  ok('an untagged post is dropped by strict rather than sneaking through every()',
+    !passes(P([]), strict));
+  ok('exclude mode is unaffected by strict', !passes(P(['pt', 'en']), [{ type: 'lang', code: 'pt', mode: 'exclude' }]));
+}
 
 console.log('matcher — regex targets');
 const exText = [{ type: 'regex', mode: 'exclude', pattern: 'politics', target: 'text' }];

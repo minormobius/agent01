@@ -10,7 +10,7 @@
 // object used to rewrite its entire buffer every flush, and nothing failed when
 // it did. Only a test that counts keys catches that.
 
-import { FirehoseIngest } from './src/ingest.js';
+import { FirehoseIngest, DEFAULTS } from './src/ingest.js';
 import { MATCHER_VERSION } from '../../packages/feedgen/match.js';
 
 let failed = 0;
@@ -55,12 +55,6 @@ function fakeState(store = new Map()) {
   };
   return st;
 }
-
-// Mirrors of the module's private priming constants. If these drift, the tests
-// below stop describing the shipped behaviour — so they are asserted against
-// observable behaviour, not just used as magic numbers.
-const PRIME_TARGET_GUESS = 150;
-const PRIME_BUDGET_GUESS = 6;
 
 const FEED = 'at://did:plc:owner/app.bsky.feed.generator/txt';
 const DEF = {
@@ -326,11 +320,11 @@ console.log('the idle drop actually fires');
 console.log('the per-sample frame cap');
 {
   const { o } = await mount(new Map(), {});
-  eq('default cap', o.maxFrames(), 800);
+  eq('default cap', o.maxFrames(), DEFAULTS.maxFrames);
   const { o: a } = await mount(new Map(), { MAX_FRAMES_PER_SAMPLE: '250' });
   eq('configured cap', a.maxFrames(), 250);
   const { o: b } = await mount(new Map(), { MAX_FRAMES_PER_SAMPLE: '0' });
-  eq('zero falls back to the default rather than sampling nothing', b.maxFrames(), 800);
+  eq('zero falls back to the default rather than sampling nothing', b.maxFrames(), DEFAULTS.maxFrames);
   const { o: c } = await mount(new Map(), { MAX_FRAMES_PER_SAMPLE: '99999999' });
   eq('an absurd cap is clamped', c.maxFrames(), 20_000);
 
@@ -542,7 +536,7 @@ console.log('priming a cold feed');
   // A feed that is already full must NOT pull the alarm forward — that would
   // turn every read into a sample and undo the duty cycle.
   alarmSetTo = null;
-  for (let i = 0; i < PRIME_TARGET_GUESS; i++) o.append(f, { u: `at://d/app.bsky.feed.post/${i}`, t: Date.now() });
+  for (let i = 0; i < DEFAULTS.primeTarget; i++) o.append(f, { u: `at://d/app.bsky.feed.post/${i}`, t: Date.now() });
   await o.fetch(new Request(`https://x.invalid/page?feed=${encodeURIComponent(FEED)}`));
   eq('a warm feed leaves the schedule alone', alarmSetTo, null);
 
@@ -561,12 +555,12 @@ console.log('priming has a hard budget');
   const { o, f } = await mount();
   let spent = 0;
   // Stand in for alarm()'s prime accounting: cold feeds burn one prime per wake.
-  for (let wake = 0; wake < 50; wake++) {
-    if (o.count(f) >= PRIME_TARGET_GUESS || f.primes >= PRIME_BUDGET_GUESS) continue;
+  for (let wake = 0; wake < DEFAULTS.primeSamples * 5; wake++) {
+    if (o.count(f) >= DEFAULTS.primeTarget || f.primes >= DEFAULTS.primeSamples) continue;
     f.primes++; spent++;
   }
-  eq('a feed that never fills gives up after its budget', spent, PRIME_BUDGET_GUESS);
-  eq('so priming costs a bounded one-off, not a permanent fast cadence', f.primes, PRIME_BUDGET_GUESS);
+  eq('a feed that never fills gives up after its budget', spent, DEFAULTS.primeSamples);
+  eq('so priming costs a bounded one-off, not a permanent fast cadence', f.primes, DEFAULTS.primeSamples);
 
   o.clearBuffer(f);
   eq('and emptying the ring on a filter edit earns a fresh budget', f.primes, 0);
@@ -575,8 +569,8 @@ console.log('priming has a hard budget');
 console.log('the duty cycle is configurable and clamped');
 {
   const { o } = await mount(new Map(), {});
-  eq('default sample window', o.sampleMs(), 20_000);
-  eq('default interval', o.intervalMs(), 60 * 60_000);
+  eq('default sample window', o.sampleMs(), DEFAULTS.sampleSeconds * 1000);
+  eq('default interval', o.intervalMs(), DEFAULTS.everyMinutes * 60_000);
 
   const { o: o2 } = await mount(new Map(), { SAMPLE_SECONDS: '5', SAMPLE_EVERY_MINUTES: '15' });
   eq('configured sample window', o2.sampleMs(), 5_000);
@@ -584,17 +578,18 @@ console.log('the duty cycle is configurable and clamped');
 
   const { o: o3 } = await mount(new Map(), { SAMPLE_SECONDS: '9999', SAMPLE_EVERY_MINUTES: '0' });
   eq('an absurd sample window is clamped to a minute', o3.sampleMs(), 60_000);
-  eq('a zero interval falls back to the default rather than hammering', o3.intervalMs(), 60 * 60_000);
+  eq('a zero interval falls back to the default rather than hammering', o3.intervalMs(), DEFAULTS.everyMinutes * 60_000);
   const { o: o3b } = await mount(new Map(), { SAMPLE_EVERY_MINUTES: '99999' });
   eq('an absurd interval is clamped to 6h', o3b.intervalMs(), 360 * 60_000);
 
   const { o: o4 } = await mount(new Map(), { SAMPLE_SECONDS: 'banana' });
-  eq('garbage falls back to the default', o4.sampleMs(), 20_000);
+  eq('garbage falls back to the default', o4.sampleMs(), DEFAULTS.sampleSeconds * 1000);
 
   const { o: o5 } = await mount(new Map(), {});
   const delays = Array.from({ length: 200 }, () => o5.nextDelayMs());
+  const iv = DEFAULTS.everyMinutes * 60_000;
   ok('jitter stays within 0.5x–1.5x of the interval',
-    delays.every((d) => d >= 30 * 60_000 && d <= 90 * 60_000));
+    delays.every((d) => d >= iv * 0.5 && d <= iv * 1.5));
   ok('jitter actually varies', new Set(delays).size > 100);
 }
 

@@ -30,7 +30,8 @@
 //
 //   1 → initial
 //   2 → app.bsky.embed.gallery counts as an image (the carousel leak)
-export const MATCHER_VERSION = 2;
+//   3 → lang filters can require EVERY declared language to match, not just one
+export const MATCHER_VERSION = 3;
 
 // ── normalise: hydrated AppView postView ─────────────────────────────────────
 
@@ -218,8 +219,17 @@ export function passes(p, filters, ctx = {}) {
     } else if (f.type === 'lang') {
       if (!f.code) continue;
       const code = f.code.toLowerCase();
-      const spoken = p.langs.some((l) => (l || '').toLowerCase().startsWith(code));
-      if (f.mode === 'exclude' ? spoken : !spoken) return false;
+      const has = (l) => (l || '').toLowerCase().startsWith(code);
+      if (f.mode === 'exclude') {
+        if (p.langs.some(has)) return false;
+      } else if (f.strict) {
+        // SkyFeed's "remove language != en" removes anything whose language is
+        // not en. A post tagged [en, pt] HAS a language that is not en, so a
+        // some() test lets every bilingual post through — which is most of what
+        // slips past a language filter, since the tag is self-declared and
+        // people who post in two languages tag both.
+        if (!p.langs.length || !p.langs.every(has)) return false;
+      } else if (!p.langs.some(has)) return false;
     } else if (f.type === 'noLang') {
       // SkyFeed's bare `remove: language` block — drop posts that declare none.
       if (!p.langs.length) return false;

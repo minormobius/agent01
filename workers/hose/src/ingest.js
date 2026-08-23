@@ -50,15 +50,26 @@ const JETSTREAM_HOSTS = [
 const MAX_PER_FEED = 2000;    // ring capacity; a reader never pages this deep
 const CHUNK = 400;            // entries per storage key — keeps values far under the 128KB limit
 const IDLE_DROP_MS = 7 * 24 * 60 * 60_000;   // a feed nobody opens in a week stops being ingested
-const DEFAULT_SAMPLE_SECONDS = 20;
-const DEFAULT_SAMPLE_EVERY_MINUTES = 60;
+const DEFAULT_SAMPLE_SECONDS = 30;
+const DEFAULT_SAMPLE_EVERY_MINUTES = 30;
 // A HARD ceiling on frames per sample, independent of how busy Bluesky is.
 // Time alone is not a budget: the post firehose measured 38.8 creates/sec at
 // one hour and 62/sec at another, so a fixed 20s window silently costs 60% more
 // at a busy hour. Whichever bound trips first ends the sample, which means the
 // monthly request total has a ceiling that does not depend on any rate estimate
 // of mine being right.
-const DEFAULT_MAX_FRAMES = 800;
+// Sized so the ring FILLS INSIDE THE DEF'S OWN WINDOW. That is the number that
+// matters, and the first budget missed it: at 800 frames/hour the feed gathered
+// ~32 posts/hour, so a 2000-entry ring took 62 hours to fill and never held a
+// day's worth of anything. Meanwhile the network offers 5,600-8,900 matching
+// posts an hour, so we were sampling 0.57% of the candidates.
+//
+// 1100 frames twice an hour is ~88 posts/hour, which fills 2000 in ~23h — just
+// inside the 24h window the def asks for. Worst-case cost, under the least
+// favourable reading of WebSocket billing, is $0.09/month; under the documented
+// 20:1 ratio it is free. The first budget optimised a number that was already
+// pennies and paid for it in an empty feed.
+const DEFAULT_MAX_FRAMES = 1100;
 
 // PRIMING. A newly registered feed has an empty ring and would otherwise wait a
 // full jittered interval — up to 90 minutes — for its first content, then show
@@ -73,8 +84,8 @@ const DEFAULT_MAX_FRAMES = 800;
 //
 // The counter is persisted and reset by clearBuffer(), so editing a feed's
 // filters re-primes it — the case where the ring was just emptied on purpose.
-const PRIME_TARGET = 150;
-const PRIME_SAMPLES = 6;
+const PRIME_TARGET = 400;
+const PRIME_SAMPLES = 10;
 const PRIME_INTERVAL_MS = 60_000;
 // An alarm this far overdue is not pending, it is stuck. See fetch().
 const STUCK_ALARM_MS = 5 * 60_000;
@@ -87,6 +98,19 @@ const STUCK_ALARM_MS = 5 * 60_000;
 // Capped because a DO storage value tops out at 128KB; a larger list still
 // works, it just re-fetches every wake as before.
 const LIST_PERSIST_MAX = 3000;
+
+// Exported so tests assert against the SHIPPED values rather than mirroring
+// them. Mirrored constants drift silently: retuning the sample budget broke
+// seven assertions that were only ever restating the old numbers back.
+export const DEFAULTS = {
+  sampleSeconds: DEFAULT_SAMPLE_SECONDS,
+  everyMinutes: DEFAULT_SAMPLE_EVERY_MINUTES,
+  maxFrames: DEFAULT_MAX_FRAMES,
+  primeTarget: PRIME_TARGET,
+  primeSamples: PRIME_SAMPLES,
+  maxPerFeed: MAX_PER_FEED,
+  chunk: CHUNK,
+};
 
 const nowMs = () => Date.now();
 const chunkKey = (uri, i) => `buf:${uri}:${String(i).padStart(6, '0')}`;
