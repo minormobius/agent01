@@ -55,6 +55,9 @@
     ancestry, after this repo's own Merkle construction in <code>hoop</code>, pools across
     shapes as well as within them and turns 36 catalogue turns into 7.65 effective
     observations.</p>
+    <p>All of which holds only under strict isolation. If a turn inherits the worktree of
+    everything upstream, the ken ratio is 1 by construction and the 1,960 shapes on six turns
+    collapse to 16. That precondition went unstated for five revisions and is now §10b.</p>
   </div>
 
   <h2 class="sec"><span class="secno">1</span>The question</h2>
@@ -213,7 +216,7 @@
 
   <div class="table-fig">
     <div class="cap"><b>Table 4.</b> Stated so each can lose. Generated from <code>H5</code> and <code>H6</code>.</div>
-    <!-- TBL:hypotheses:START --><table class="booktabs"><thead><tr><th></th><th class="num">Claim</th><th class="num">Outcome</th><th class="num">Refuted by</th></tr></thead><tbody><tr><td><b>H5</b> position</td><td>Fidelity to the original brief falls with the ken ratio, and depth acts only through it.</td><td>Of k constraints planted in the setup brief, how many the sink still honours.<br><span class="muted">unit: undefined</span></td><td><ul class="tight"><li>bottleneck and chain differ once ken is matched, which would mean depth acts on its own.</li><li>briefed and chain do not differ, which would make the ratio decorative.</li><li>The ordering holds but tracks the sink's in-degree alone, which is cheaper to compute and would make the ratio surplus.</li></ul></td></tr><tr><td><b>H6</b> symmetry</td><td>Turns in one automorphism orbit are exchangeable, so the largest orbit is replication the run already contains.</td><td>The standard error of a within-run contrast, measured, against the value deff predicts from orbit size.<br><span class="muted">unit: undefined</span></td><td><ul class="tight"><li>The observed SE ratio departs from the predicted one, so orbit members are not exchangeable after all.</li><li>Within-orbit variance depends on member identity, say w1 always beating w4, which would mean dispatch order leaks and the orbit is not one in practice.</li></ul></td></tr></tbody></table><!-- TBL:hypotheses:END -->
+    <!-- TBL:hypotheses:START --><table class="booktabs"><thead><tr><th></th><th class="num">Claim</th><th class="num">Outcome</th><th class="num">Refuted by</th></tr></thead><tbody><tr><td><b>H5</b> position</td><td>Fidelity to the original brief falls with the ken ratio, and depth acts only through it.</td><td>Of k constraints planted in the setup brief, how many the sink still honours.<br><span class="muted">unit: undefined</span></td><td><ul class="tight"><li>bottleneck and chain differ once ken is matched, which would mean depth acts on its own.</li><li>briefed and chain do not differ, which would make the ratio decorative.</li><li>The ordering holds but tracks the sink's in-degree alone, which is cheaper to compute and would make the ratio surplus.</li><li>The run is found not to have been isolated, in which case nothing was tested and the result is void rather than null.</li></ul></td></tr><tr><td><b>H6</b> symmetry</td><td>Turns in one automorphism orbit are exchangeable, so the largest orbit is replication the run already contains.</td><td>The standard error of a within-run contrast, measured, against the value deff predicts from orbit size.<br><span class="muted">unit: undefined</span></td><td><ul class="tight"><li>The observed SE ratio departs from the predicted one, so orbit members are not exchangeable after all.</li><li>Within-orbit variance depends on member identity, say w1 always beating w4, which would mean dispatch order leaks and the orbit is not one in practice.</li></ul></td></tr></tbody></table><!-- TBL:hypotheses:END -->
   </div>
 
   <p>H6's headline is arithmetic and is fixed before any data: SE(star) / SE(chain) = 0.75.
@@ -277,6 +280,43 @@
   generator rather than expressed by it, which was the signal. Skip edges are inside the family
   now and it is still two per cent. <a href="/shapes">The explorer</a> therefore enumerates the
   true space exactly up to seven turns, and says which mode it is in.</p>
+
+  <h2 class="sec" id="regime"><span class="secno">10b</span>Whether any of this is enforced</h2>
+
+  <div class="revised">
+    <p><b>A precondition this paper needed from its first revision and did not state.</b> An
+    edge is a permission. The absence of one is a prohibition, and nothing in the plan enforces
+    it. A turn learns things by three channels and the plan controls one: the brief it is
+    handed, the files an earlier turn left in its worktree, and the history it can read.</p>
+  </div>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 6.</b> What the environment does to the 1,960 shapes on six turns.</div>
+    <table class="booktabs">
+      <thead><tr><th>Regime</th><th class="num">Effective shapes</th><th class="num">Sink ken values</th><th class="num">chain vs briefed</th></tr></thead>
+      <tbody>
+        <tr><td><code>isolated</code> — in-edges and nothing else</td><td class="num"><b>1960</b></td><td class="num"><b>5</b></td><td class="num">0.333 against 1.000</td></tr>
+        <tr><td><code>lineage</code> — worktree inherited upstream</td><td class="num">16</td><td class="num">1</td><td class="num">1.000 against 1.000</td></tr>
+        <tr><td><code>shared</code> — one worktree throughout</td><td class="num">8</td><td class="num">1</td><td class="num">1.000 against 1.000</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><b>Under either sharing regime the ken ratio is 1.000 for every turn of every shape</b>, and
+  <code>chain</code> and <code>briefed</code> become the same fifteen-edge graph. The contrast
+  §7 prices at 180 turns is exactly zero, at any sample size. H5 is then undefined rather than
+  underpowered.</p>
+
+  <p>The reason is definitional, and it was sitting in the definition from §4. Ken is the
+  in-neighbourhood over the ancestry; a turn that <em>inherits</em> its ancestry has an
+  in-neighbourhood equal to it. Nobody asked when the numerator and denominator could differ.
+  They differ exactly when the plan withholds, and withholding needs a mechanism.</p>
+
+  <p><code>lineage</code> is the one worth dwelling on, because it is what a per-lane worktree
+  with merges at joins actually gives, and most people would call that isolated. It leaves 16
+  of 1,960. Only the strict regime — fresh context, fresh tree, handoff by explicit artefact —
+  preserves the question. That is now <a href="/methods#r16">R16</a>, and the three shape
+  hypotheses carry it as a stated requirement rather than a caveat.</p>
 
   <h2 class="sec" id="ancestry"><span class="secno">11</span>Ancestry, and what a digest does not buy</h2>
 

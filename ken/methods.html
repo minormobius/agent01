@@ -31,7 +31,7 @@
   <div class="a-venue">ken · volume 1 · article II <span class="kicker">House standard</span></div>
   <h1 class="a-title">House Standard for Model Experiments</h1>
   <p class="a-sub">Fourteen rules for running, scoring and reporting a comparison, with the evidence for each</p>
-  <div class="a-meta">Version 1.4 · applies to every run published here</div>
+  <div class="a-meta">Version 1.5 · applies to every run published here</div>
   <hr class="a-rule">
 
   <div class="abstract">
@@ -41,7 +41,7 @@
     instrument returned the same verdict for every subject, and in every case the qualitative
     signal that was supposed to break the tie was specified and never collected. The pattern is
     consistent enough to design against.</p>
-    <p>This document fixes the house standard. Seven of the fifteen rules are already practised
+    <p>This document fixes the house standard. Seven of the sixteen rules are already practised
     in <code>bakeoff/</code> and are written down here so they survive the person who wrote
     them. Seven are new: five address a specific way one of the three runs failed, and two were
     earned by applying the standard to itself. The standard applies to anything published under this masthead, and a run that
@@ -334,6 +334,47 @@
   thirty-six turns of the six-shape catalogue supply 7.65 effective observations in one cell
   rather than the 1.79 the best single shape supplies. Break R15 and that collapses to nothing.</p>
 
+  <h4 class="subsub" id="r16">R16. A run states its isolation regime and demonstrates it. <span class="small">(new)</span></h4>
+
+  <p>An edge in a plan is a permission. The <em>absence</em> of an edge is a prohibition, and a
+  prohibition nobody enforces is a drawing. A turn learns things by three channels and the plan
+  controls one of them: the brief it is handed, the files an earlier turn left in its worktree,
+  and the history it can read. Draw whatever arrows you like; if the second and third channels
+  are open the turn sees everything anyway.</p>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 4.</b> What each regime does to the 1,960 distinct shapes on six turns.</div>
+    <table class="booktabs">
+      <thead><tr><th>Regime</th><th class="num">Effective shapes</th><th class="num">Distinct sink ken</th><th>What it is</th></tr></thead>
+      <tbody>
+        <tr><td><code>isolated</code></td><td class="num"><b>1960</b></td><td class="num"><b>5</b></td>
+          <td>a turn receives its in-edges and nothing else: fresh context, fresh tree, handoff by explicit artefact</td></tr>
+        <tr><td><code>lineage</code></td><td class="num">16</td><td class="num">1</td>
+          <td>a turn inherits the accumulated worktree of everything upstream. What a per-lane worktree with merges at joins actually gives</td></tr>
+        <tr><td><code>shared</code></td><td class="num">8</td><td class="num">1</td>
+          <td>one worktree throughout, so a turn reads anything that finished before it started</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><b>Under either sharing regime the ken ratio is 1.000 for every turn of every shape.</b>
+  The effect is not small; the independent variable has no variance, so a shape hypothesis run
+  that way is undefined rather than underpowered. The reason is definitional and was sitting in
+  the definition unnoticed: ken is the in-neighbourhood over the ancestry, and a turn that
+  inherits its ancestry has an in-neighbourhood equal to it. The ratio has content only where
+  the plan withholds, and withholding needs a mechanism.</p>
+
+  <p>So a run reports its regime, and reports the <b>leak count</b>: edges the environment
+  supplies that the plan never declared. A six-turn chain declares five edges; run under sharing
+  it has fifteen, so it leaks ten and the drawing overstates what was withheld by a factor of
+  three. <code>chain</code> and <code>briefed</code>, whose contrast is the whole of
+  <a href="/register">H5</a>, become the same fifteen-edge graph with the same sink ken. Zero
+  contrast, whatever the sample size.</p>
+
+  <p>Demonstrating it is the part that cannot be asserted. Plant a marker in a turn that a later
+  turn has no edge from, and check the later turn cannot produce it. A regime is a claim about
+  the harness and the harness is what has to answer for it.</p>
+
   <h2 class="sec"><span class="secno">3</span>Checklists</h2>
 
   <p>The standard reduces to two lists. Both are short on purpose
@@ -406,7 +447,7 @@
   </div>
 
   <div class="colophon">
-    ken · article II · house standard for model experiments, version 1.4<br>
+    ken · article II · house standard for model experiments, version 1.5<br>
     Table 1 is computed from committed data: <code>.github/loop/{turns,runs}.jsonl</code> and
     <code>bakeoff/results/race-0{1,2}/results.json</code>. <code>ken.selftest.mjs</code>
     recomputes every figure in it on each build and fails if the prose has drifted from the

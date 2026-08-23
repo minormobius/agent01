@@ -269,6 +269,9 @@ export function buildRegisterBlocks() {
     const ev = h.evidence
       ? `<p class="small"><b>Evidence.</b> ${h.evidence}</p>`
       : '<p class="small"><b>Evidence.</b> <i>none recorded</i></p>';
+    const req = h.requires
+      ? `<p class="small hyp-req"><b>Requires.</b> ${h.requires}</p>`
+      : '';
     const pred = h.predicts
       ? `<p class="small"><b>Predicts.</b> ${h.predicts.map((p) => `${p[0]} <span class="muted">(${p[1]})</span>`).join('; ')}</p>`
       : '';
@@ -276,6 +279,7 @@ export function buildRegisterBlocks() {
       + `<span class="hyp-status ${h.status}">${h.status}</span>`
       + `<span class="grow"></span><span class="muted">Unit ${h.curriculumUnit} · <a href="${h.owner}">${h.owner}</a></span></div>`
       + `<p class="hyp-claim">${h.claim}</p>`
+      + req
       + `<p class="small"><b>Outcome.</b> ${h.outcome} <span class="muted">Unit of analysis: ${h.analysisUnit}.</span></p>`
       + pred
       + `<p class="small"><b>Refuted by.</b></p><ul class="tight small">${h.refutedBy.map((r) => `<li>${r}</li>`).join('')}</ul>`

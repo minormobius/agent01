@@ -65,6 +65,7 @@ worker or move the domain, **verify the deploy log binds
 | `graph/exhaustive.mjs` | **the whole space** up to 7 turns, and the coverage measurement |
 | `graph/ancestry.mjs` | content-addressed state, after hoop's region digest |
 | `graph/hypotheses.mjs` | **the hypotheses, as data** — seven, each with a status |
+| `graph/visibility.mjs` | **isolation regimes**: what the environment adds to the drawn graph |
 | `graph/layout.mjs` | the picture, **derived** by force relaxation |
 | `graph/rng.mjs` | the one deterministic generator |
 | `lab/design.mjs` | **the harness.** Node-only, not served |
@@ -84,7 +85,7 @@ worker or move the domain, **verify the deploy log binds
 | `lab/runshape.selftest.mjs` | 39 checks for both |
 | `lab/plan.selftest.mjs` | 98 checks: the four laws, lane wiring, seeds, **skip visibility** |
 | `lab/roles.selftest.mjs` | 189 checks: the basis, the group orders, the design |
-| `lab/profiles.selftest.mjs` | 524 checks: the trade, the space, the digests |
+| `lab/profiles.selftest.mjs` | 580 checks: the trade, the space, the digests, the regimes |
 | `lab/resolve-refs.mjs` | links the bibliography against CrossRef / arXiv / OpenLibrary |
 | `fig/*.svg` | **generated.** Committed so figures print and diff |
 | `refs.js` | **the bibliography, as data** — 90 real works, keyed |
@@ -356,6 +357,36 @@ The **ken ratio** — in-neighbours and self, over ancestry and self — is the
 quantity the surface is named after and is one pass over the graph. 1 at a
 source; 0.333 at the end of a six-turn chain; 0.833 at the assembly turn of a
 six-turn star.
+
+### The drawn graph is not the graph
+
+**An edge is a permission. The absence of one is a prohibition, and nothing
+in the plan enforces it.** A turn learns things by three channels and the plan
+controls one: the brief it is handed, the files an earlier turn left in its
+worktree, and the history it can read.
+
+| regime | effective shapes of 1,960 | distinct sink ken |
+|---|---|---|
+| `isolated` — in-edges and nothing else | **1960** | **5** |
+| `lineage` — worktree inherited upstream | 16 | 1 |
+| `shared` — one worktree throughout | 8 | 1 |
+
+**Under either sharing regime the ken ratio is 1.000 for every turn of every
+shape**, and `chain` and `briefed` become the same fifteen-edge graph — so the
+contrast H5 prices at 180 turns is exactly zero. The reason is definitional and
+sat unnoticed in the definition for five revisions: ken is the in-neighbourhood
+over the ancestry, and a turn that *inherits* its ancestry has an
+in-neighbourhood equal to it.
+
+`lineage` is the trap. A worktree per lane merged at joins is what most people
+mean by isolated, and it leaves 16 of 1,960. Only fresh context, fresh tree and
+handoff by explicit artefact preserves the question.
+
+**Before quoting any shape number, check the regime.** `auditRegime(g, regime)`
+gives the leak count — edges the environment supplies that the plan never
+declared. R16 requires a run to state and *demonstrate* its regime, and
+demonstration cannot be asserted: plant a marker in a turn a later one has no
+edge from, and check the later turn cannot produce it.
 
 ### The layered family is 2% of the space
 

@@ -395,3 +395,5 @@ ol.log .src a { color: var(--accent-soft); }
 
 /* the key for a skip edge, so the convention can be named in prose */
 .skipkey { color: #D55E00; border-bottom: 1.5px dashed #D55E00; padding-bottom: 1px; }
+
+.hyp-req { border-left: 2px solid #D55E00; background: #fdf6f2; padding: 4px 8px; margin: 5px 0; }

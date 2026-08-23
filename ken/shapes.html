@@ -116,6 +116,13 @@
       </select>
     </label>
     <label id="lanewrap"><input id="lanes" type="checkbox" checked> lane wiring</label>
+    <label>regime
+      <select id="regime">
+        <option value="isolated" selected>isolated — the plan is enforced</option>
+        <option value="lineage">lineage — worktree inherited</option>
+        <option value="shared">shared — one worktree</option>
+      </select>
+    </label>
     <span class="big" id="counts"></span>
     <span class="warn" id="warn"></span>
   </div>
@@ -152,10 +159,29 @@
     <div class="peek" id="peek"></div>
   </div>
 
-  <h2 class="sec"><span class="secno">2</span>Ken and replication, which the trade leaves free</h2>
+  <h2 class="sec"><span class="secno">2</span>Whether any of this is enforced</h2>
+
+  <p>An edge is a permission and the absence of one is a prohibition. A prohibition nobody
+  enforces is a drawing. Set the regime above to <code>shared</code> and watch the count: the
+  1,960 shapes on six turns become <b>8</b>, because a turn in one worktree reads anything that
+  finished before it started and the effective graph depends only on the depth histogram.</p>
+
+  <p><code>lineage</code> is the one to look at, because it is what a per-lane worktree with
+  merges at joins actually gives, and it is the version most people would call isolated. It
+  leaves 16. <b>Under either, the sink ken ratio is 1.000 for every shape.</b> Not a small
+  effect: no variance at all in the quantity the programme is named after.</p>
+
+  <p>The reason is definitional and it sat unnoticed in the definition. Ken is the
+  in-neighbourhood over the ancestry, and a turn that inherits its ancestry has an
+  in-neighbourhood equal to it. The ratio has content only where the plan <em>withholds</em>,
+  and withholding needs a mechanism. <a href="/methods#r16">R16</a> makes stating and
+  demonstrating the regime a requirement, and the three shape hypotheses in
+  <a href="/register">the register</a> now carry it as a precondition rather than a caveat.</p>
+
+  <h2 class="sec"><span class="secno">3</span>Ken and replication, which the trade leaves free</h2>
 
   <p>Two quantities move independently of depth and width, which is why the table is worth
-  reading rather than eyeballing.</p>
+  reading rather than eyeballing. Both assume the isolated regime.</p>
 
   <p><b>Sink ken is free at every depth.</b> Briefing the last turn adds an edge from every
   other turn to it. That changes no width, no depth and no cost, and it takes sink ken to 1.
@@ -179,11 +205,13 @@
 
 <script type="module">
 import { family, frontierOf, buildProfile, summarise, widthFloor, NAMED } from '/graph/profiles.mjs';
-import { allShapes, sampleShapes, coverage, EXACT_LIMIT, KNOWN_COUNTS } from '/graph/exhaustive.mjs';
+import { allShapes, sampleShapes, coverage, EXACT_LIMIT, KNOWN_COUNTS, canonicalOf } from '/graph/exhaustive.mjs';
+import { effectiveGraph, collapse } from '/graph/visibility.mjs';
 import { renderPlan } from '/graph/layout.mjs';
 
 const $ = (s) => document.querySelector(s);
 const nEl = $('#n'), nr = $('#nr'), mode = $('#mode'), skipSel = $('#skip'), lanes = $('#lanes');
+const regimeSel = $('#regime');
 let rows = [], sortKey = 'depth', sortDir = 1, chosen = null;
 const LIMIT = 400;                       // rows drawn; the count line says how many exist
 
@@ -221,7 +249,13 @@ function build() {
 function recompute() {
   const t0 = performance.now();
   const { rows: r, note } = build();
-  rows = r;
+  const regime = regimeSel.value;
+  // the environment adds edges the plan never declared; re-summarise on
+  // what the turn actually experiences rather than on what was drawn
+  rows = regime === 'isolated' ? r : r.map((x) => {
+    const eff = effectiveGraph(x.graph, regime);
+    return { ...summarise(eff), graph: eff, profile: x.profile, layerCensus: x.layerCensus };
+  });
   const ms = Math.round(performance.now() - t0);
   $('#warn').textContent = note;
 
@@ -233,8 +267,15 @@ function recompute() {
   } else if (mode.value === 'exact' && KNOWN_COUNTS[n]) {
     cov = ' · the whole space';
   }
+  let collapsed = '';
+  if (regimeSel.value !== 'isolated' && rows.length) {
+    const c = collapse(r.map((x) => x.graph), regimeSel.value, canonicalOf);
+    collapsed = ` · <b style="color:#96331f">${c.shapesDrawn} → ${c.shapesEffective}</b> once the `
+      + `environment is counted, sink ken taking ${c.distinctSinkKen} distinct value`
+      + `${c.distinctSinkKen === 1 ? '' : 's'}`;
+  }
   $('#counts').innerHTML = rows.length
-    ? `<b>${rows.length}</b> shapes${cov} · ${ms} ms`
+    ? `<b>${rows.length}</b> shapes${cov}${collapsed} · ${ms} ms`
     : 'nothing to show';
 
   drawTrade(n, rows);
@@ -348,7 +389,7 @@ for (const th of $('#ladder').querySelectorAll('th[data-k]')) {
     drawTable();
   };
 }
-for (const el of [nEl, mode, skipSel, lanes]) el.addEventListener('change', recompute);
+for (const el of [nEl, mode, skipSel, lanes, regimeSel]) el.addEventListener('change', recompute);
 nr.addEventListener('input', () => { nEl.value = nr.value; recompute(); });
 recompute();
 </script>

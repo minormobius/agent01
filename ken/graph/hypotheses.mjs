@@ -100,7 +100,12 @@ export const HYPOTHESES = {
       'bottleneck and chain differ once ken is matched, which would mean depth acts on its own.',
       'briefed and chain do not differ, which would make the ratio decorative.',
       "The ordering holds but tracks the sink's in-degree alone, which is cheaper to compute and would make the ratio surplus.",
+      'The run is found not to have been isolated, in which case nothing was tested and the result is void rather than null.',
     ],
+    /* Added at revision 19. Without this the independent variable has no
+       variance: see visibility.mjs. Stated as a requirement rather than a
+       limitation, because a run that does not meet it does not test this. */
+    requires: 'The isolated regime. Each turn receives its in-edges and nothing else, with no inherited worktree and no readable history. Under lineage or sharing the ken ratio is 1 for every turn of every shape and this hypothesis is undefined.',
     status: 'designed',
     evidence: null,
     cost: '180 turns paired at d = 0.8, and the manipulation is four edges and no extra turns',
@@ -123,6 +128,10 @@ export const HYPOTHESES = {
       'The observed SE ratio departs from the predicted one, so orbit members are not exchangeable after all.',
       'Within-orbit variance depends on member identity, say w1 always beating w4, which would mean dispatch order leaks and the orbit is not one in practice.',
     ],
+    /* Added at revision 19. Without this the independent variable has no
+       variance: see visibility.mjs. Stated as a requirement rather than a
+       limitation, because a run that does not meet it does not test this. */
+    requires: 'The isolated regime. Each turn receives its in-edges and nothing else, with no inherited worktree and no readable history. Under lineage or sharing the ken ratio is 1 for every turn of every shape and this hypothesis is undefined.',
     status: 'designed',
     evidence: null,
     cost: 'no extra turns, being a re-analysis of any run of a shape whose largest orbit exceeds one',
@@ -144,6 +153,10 @@ export const HYPOTHESES = {
       'Cross-shape pooling shows more variance than within-shape pooling of the same digest.',
       'That would mean the runner leaks something the plan does not contain, which is an R15 violation rather than a fact about agents.',
     ],
+    /* Added at revision 19. Without this the independent variable has no
+       variance: see visibility.mjs. Stated as a requirement rather than a
+       limitation, because a run that does not meet it does not test this. */
+    requires: 'The isolated regime. Each turn receives its in-edges and nothing else, with no inherited worktree and no readable history. Under lineage or sharing the ken ratio is 1 for every turn of every shape and this hypothesis is undefined.',
     status: 'designed',
     evidence: null,
     cost: 'nothing beyond running the catalogue, which H5 already pays for',
@@ -179,6 +192,11 @@ export function auditHypotheses() {
     }
     if (!Array.isArray(h.refutedBy) || h.refutedBy.length < 2) {
       problems.push(`${h.id}: needs at least two ways to lose`);
+    }
+    /* A shape hypothesis without a stated regime is one that can be run
+       under sharing and quietly measure nothing. */
+    if (h.curriculumUnit === 'IV' && !h.requires) {
+      problems.push(`${h.id}: a shape hypothesis must state the regime it requires`);
     }
   }
   return problems;

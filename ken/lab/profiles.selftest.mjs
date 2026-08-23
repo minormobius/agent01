@@ -14,11 +14,16 @@ import {
   replicationByAncestry, hashStr, hex,
 } from '../graph/ancestry.mjs';
 import { automorphisms } from '../graph/roles.mjs';
+import { HYPOTHESES } from '../graph/hypotheses.mjs';
 import {
   allShapes, countShapes, sampleShapes, coverage, canonical, canonicalOf,
   refineMatrix, KNOWN_COUNTS, EXACT_LIMIT, searchSize,
 } from '../graph/exhaustive.mjs';
 import { buildShape, shapeNames, catalogue } from '../graph/shapes.mjs';
+import {
+  REGIMES, REGIME_NOTE, effectiveGraph, auditRegime, collapse, ancestors, PRECONDITION,
+} from '../graph/visibility.mjs';
+import { kenRatio } from '../graph/roles.mjs';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log(`  ✗ ${m}`); } };
@@ -344,6 +349,93 @@ for (const g of sampleShapes(10, 5, { seed: 3 })) {
   const r = summarise(g);
   ok(r.turns === 10 && Number.isFinite(r.sinkKen) && r.layerCensus.split('·').length === r.depth + 1,
     'a sampled shape summarises, and its layer census has one entry per depth');
+}
+
+// ── 8. whether the drawn graph is the graph ───────────────────────────
+section('isolation regimes');
+
+/* THE PRECONDITION THAT WENT UNSTATED FOR FIVE REVISIONS. An edge is a
+   permission and the absence of one is a prohibition, but nothing in the
+   plan enforces it. A turn also reads the worktree and the history, and
+   under either sharing regime it sees everything upstream regardless of
+   which arrows were drawn.
+
+   The consequence is not a caveat. The ken ratio is the in-neighbourhood
+   over the ancestry, so a turn that INHERITS its ancestry has a ratio of
+   exactly 1 by construction. Under lineage or sharing the independent
+   variable of H5 has no variance at all. */
+ok(REGIMES.length === 3, 'three regimes');
+ok(REGIMES.every((r) => REGIME_NOTE[r]), 'each regime says what it is');
+ok(PRECONDITION.length > 60, 'the precondition is stated once, for citing');
+let badRegime = false;
+try { effectiveGraph(buildShape('chain'), 'nonsense'); } catch { badRegime = true; }
+ok(badRegime, 'an unknown regime is refused rather than treated as isolated');
+
+// isolated changes nothing, which is what makes it the baseline
+for (const name of shapeNames()) {
+  const g = buildShape(name);
+  ok(effectiveGraph(g, 'isolated') === g, `${name}: the isolated regime returns the graph itself`);
+  ok(auditRegime(g, 'isolated').leaked === 0, `${name}: and leaks nothing`);
+  ok(auditRegime(g, 'isolated').enforced, `${name}: so the plan is enforced`);
+}
+
+// under lineage the effective in-neighbourhood IS the ancestry, so ken is
+// 1 by construction. Asserted as a tautology, because that is what it is.
+for (const name of shapeNames()) {
+  const g = buildShape(name);
+  const up = ancestors(g);
+  const eff = effectiveGraph(g, 'lineage');
+  ok(eff.edges.length === [...up.values()].reduce((s2, v) => s2 + v.size, 0),
+    `${name}: lineage adds exactly one edge per ancestor`);
+  const kens = [...kenRatio(eff).values()];
+  ok(kens.every((k) => Math.abs(k - 1) < 1e-12),
+    `${name}: under lineage every turn's ken ratio is exactly 1`);
+}
+
+// and under sharing likewise, by a different route
+for (const name of shapeNames()) {
+  const eff = effectiveGraph(buildShape(name), 'shared');
+  ok([...kenRatio(eff).values()].every((k) => Math.abs(k - 1) < 1e-12),
+    `${name}: under sharing every turn's ken ratio is exactly 1`);
+}
+
+// THE CONTRAST H5 RESTS ON DISAPPEARS
+{
+  const chainG = buildShape('chain'), briefedG = buildShape('briefed');
+  const iso = [chainG, briefedG].map((g) => auditRegime(g, 'isolated'));
+  ok(iso[0].sinkKenEffective !== iso[1].sinkKenEffective,
+    'isolated: chain and briefed differ in sink ken, which is the whole of H5');
+  for (const r of ['lineage', 'shared']) {
+    const a = auditRegime(chainG, r), b = auditRegime(briefedG, r);
+    ok(a.sinkKenEffective === 1 && b.sinkKenEffective === 1,
+      `${r}: both arms reach sink ken 1`);
+    ok(effectiveGraph(chainG, r).edges.length === effectiveGraph(briefedG, r).edges.length,
+      `${r}: and both become the same size of graph, so the contrast is zero`);
+  }
+  ok(auditRegime(chainG, 'shared').leaked === 10,
+    'a six-turn chain declares 5 edges and gets 15 under sharing, leaking 10');
+}
+
+// the collapse, measured against the whole space
+{
+  const gs = allShapes(6);
+  const iso = collapse(gs, 'isolated', canonicalOf);
+  ok(iso.shapesEffective === 1960 && iso.collapseFactor === 1, 'isolated: 1960 shapes stay 1960');
+  ok(iso.measurable, 'isolated: the independent variable still varies');
+  const lin = collapse(gs, 'lineage', canonicalOf);
+  ok(lin.shapesEffective === 16, `lineage: 1960 shapes become 16 (got ${lin.shapesEffective})`);
+  ok(!lin.measurable && lin.distinctSinkKen === 1, 'lineage: and sink ken takes one value');
+  const sh = collapse(gs, 'shared', canonicalOf);
+  ok(sh.shapesEffective === 8, `shared: 1960 shapes become 8 (got ${sh.shapesEffective})`);
+  ok(!sh.measurable, 'shared: nothing is measurable');
+  ok(sh.shapesEffective < lin.shapesEffective && lin.shapesEffective < iso.shapesEffective,
+    'the three regimes are strictly ordered by how much they destroy');
+}
+
+// the register must carry the precondition, or a run could meet none of it
+for (const id of ['H5', 'H6', 'H7']) {
+  ok(HYPOTHESES[id].requires && /isolated/.test(HYPOTHESES[id].requires),
+    `${id} states that it requires the isolated regime`);
 }
 
 console.log(`\n${fail === 0 ? '✓' : '✗'} profiles + ancestry ${fail === 0 ? 'passed' : 'FAILED'} — ${fail === 0 ? pass : `${fail} of ${pass + fail}`} checks`);
