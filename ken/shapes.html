@@ -31,7 +31,10 @@
   table.picker tr.named td:first-child::after { content: attr(data-name);
     font-family: var(--sans); font-size: 9px; text-transform: uppercase; letter-spacing: .05em;
     color: var(--accent); margin-left: 6px; }
-  .peek { border: 1px solid #e6e1d6; background: #fbfaf6; padding: 6px; }
+  /* sticky, because the table runs to hundreds of rows and clicking one
+     near the bottom otherwise draws the shape far off the top of the screen */
+  .peek { border: 1px solid #e6e1d6; background: #fbfaf6; padding: 6px;
+    position: sticky; top: 10px; }
   .peek svg { display: block; width: 100%; height: auto; }
   .peek dl { font-family: var(--sans); font-size: 10.5px; margin: 6px 2px 2px;
     display: grid; grid-template-columns: auto 1fr; gap: 1px 8px; }
@@ -116,6 +119,12 @@
     <span class="big" id="counts"></span>
     <span class="warn" id="warn"></span>
   </div>
+
+  <p class="small"><b>Reading the drawings.</b> A solid line joins one depth to the next. A
+  <span class="skipkey">dashed arc</span> spans more than one depth: a turn feeding something
+  further ahead than the next stage. The arcs bow sideways because they have to. Drawn straight
+  they run through the node they skip and vanish, which is what they did until this revision, so
+  a chain and a briefed chain were the same picture.</p>
 
   <div id="tradeplot"></div>
   <div class="pcap"><b>Figure 1.</b> Peak width against depth. The line is the isoperimetric

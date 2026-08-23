@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Findings Log — ken</title>
-<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Sixty-six entries, seven of them from measurements we made.">
+<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Seventy entries, seven of them from measurements we made.">
 <link rel="stylesheet" href="journal.css">
 </head>
 <body>
@@ -31,7 +31,7 @@
   <div class="a-venue">ken · volume 1 <span class="kicker">Running record</span></div>
   <h1 class="a-title">Findings Log</h1>
   <p class="a-sub">Shortest form. Each entry names the code or record that produced it.</p>
-  <div class="a-meta">66 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
+  <div class="a-meta">70 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
   <hr class="a-rule">
 
   <p class="small">Everything here comes from data already paid for or from arithmetic. That is
@@ -551,6 +551,40 @@
       <span class="src"><code>EXACT_LIMIT</code> · <code>searchSize()</code></span></li>
   </ol>
 
+  <h2 class="sec"><span class="secno">§</span>An edge nobody could see</h2>
+
+  <ol class="log" start="67">
+    <li><b>Every skip edge was drawn straight through the node it skips, so none of them were
+      visible.</b> The renderer put a bezier's control points directly below the source and above
+      the target. On a graph one turn wide that is a vertical line, painted under the nodes and
+      exactly over the adjacent edges covering the same span. A six-turn chain with 5, 9, 9 and 15
+      edges rendered as <b>four identical pictures</b>. Skip edges now bow sideways by an amount
+      that grows with the span, and carry their own class.
+      <span class="src"><code>renderPlan()</code> · <a href="/shapes">shapes</a></span></li>
+
+    <li><b>WP2's own central contrast was invisible in WP2's own figure.</b> The paper argues that
+      <code>chain</code> against <code>briefed</code> is the cheapest manipulation available, four
+      edges and no extra turns. Those four edges are all skips, so the two panels of Figure 1 were
+      the same drawing with different captions, and had been since the figure was published.
+      <span class="src"><a href="/wp2">WP2 Figure 1, corrected</a></span></li>
+
+    <li><b>Nothing caught it because every layout check was about nodes.</b> Seed independence,
+      no overlapping boxes, depth pinned to the Kahn pass, positions to one part in ten million.
+      Not one check asked whether an edge could be seen. The regression test now renders the four
+      skip policies and requires four distinct drawings, that every multi-depth edge is marked,
+      that no skip is drawn on its endpoints' column, and that no two edges trace the same path.
+      Run against the old renderer it fails seven checks.
+      <span class="src"><code>plan.selftest.mjs</code>, 56 → 98 checks</span></li>
+
+    <li><b>And one of the new assertions was weaker than its own label.</b> "Four distinct
+      pictures" compared SVG source, which differed even on the broken renderer because the path
+      count and endpoints differed while the lines overlapped. Distinct source is not distinct
+      appearance. It is relabelled as the necessary-not-sufficient check it is, and the real
+      visual test is that a drawing with skips must leave the single column a width-one chain
+      otherwise occupies.
+      <span class="src"><code>plan.selftest.mjs</code></span></li>
+  </ol>
+
   <h2 class="sec"><span class="secno">§</span>The ledger</h2>
 
   <div class="table-fig">
@@ -559,7 +593,7 @@
       <tbody>
         <tr><td>Records already committed</td><td class="num">12</td></tr>
         <tr><td>Arithmetic and simulation</td><td class="num">27</td></tr>
-        <tr><td>Our own mistakes</td><td class="num">18</td></tr>
+        <tr><td>Our own mistakes</td><td class="num">22</td></tr>
         <tr><td>Prior literature</td><td class="num">2</td></tr>
         <tr><td><b>New measurement</b></td><td class="num"><b>7</b></td></tr>
       </tbody>

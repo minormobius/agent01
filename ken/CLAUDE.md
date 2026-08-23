@@ -82,7 +82,7 @@ worker or move the domain, **verify the deploy log binds
 | `lab/runshape.mjs` | the six-turn run, and what a claim costs in them |
 | `lab/ste-lint.mjs` | the structural subset of ASD-STE100 |
 | `lab/runshape.selftest.mjs` | 39 checks for both |
-| `lab/plan.selftest.mjs` | 56 checks: the four laws, lane wiring, seed independence |
+| `lab/plan.selftest.mjs` | 98 checks: the four laws, lane wiring, seeds, **skip visibility** |
 | `lab/roles.selftest.mjs` | 189 checks: the basis, the group orders, the design |
 | `lab/profiles.selftest.mjs` | 524 checks: the trade, the space, the digests |
 | `lab/resolve-refs.mjs` | links the bibliography against CrossRef / arXiv / OpenLibrary |
@@ -404,6 +404,36 @@ Two results worth knowing before designing anything here:
   for the same six turns.
 - **`chain` against `briefed` is four edges and no turns**, and they match at
   every turn but the last. It is the cheapest manipulation the programme has.
+
+## Skip edges must bow, or they cannot be seen
+
+`renderPlan` drew every edge as a bezier with control points directly below
+the source and above the target. On a graph one turn wide that is a **straight
+vertical line**: an edge from depth 0 to depth 2 ran through the node it skips,
+under the nodes, exactly on top of the two adjacent edges covering the same
+span.
+
+A six-turn chain with 5, 9, 9 and 15 edges rendered as **four identical
+pictures**. WP2's Figure 1 showed `briefed` and `chain` as the same drawing,
+so the paper's own central contrast — four added edges, the cheapest
+manipulation in the programme — was invisible in the figure arguing for it.
+
+An edge spanning more than one depth now arcs sideways by an amount growing
+with the span, away from the drawing's centre where the nodes are, and carries
+a `pl-skip` class so it reads as a different kind of edge.
+
+**Nothing caught this because every layout check was about nodes** — seed
+independence, no overlapping boxes, positions to one part in ten million. Not
+one asked whether an edge could be seen. The regression test renders all four
+skip policies and requires four distinct drawings, every multi-depth edge
+marked, no skip drawn on its endpoints' column, and no two edges tracing the
+same path. **Run it against the old renderer and it fails seven checks** — that
+was verified, not assumed.
+
+One of those new assertions was itself weaker than its label: "four distinct
+pictures" compares SVG *source*, which differed even on the broken renderer.
+It is relabelled necessary-not-sufficient, and the real visual check is that a
+drawing with skips must leave the single column a width-one chain occupies.
 
 ## The roadmap figure
 

@@ -353,6 +353,9 @@ ol.log .src a { color: var(--accent-soft); }
 
 /* ---------- derived plan graphs (lab/layout.mjs) ---------- */
 .pl-edge { fill: none; stroke: var(--accent-soft); stroke-width: 1.2; opacity: .55; }
+/* an edge spanning more than one depth: bowed by the renderer so it is
+   visible at all, and coloured so it reads as a different kind of edge */
+.pl-skip { stroke: #D55E00; stroke-width: 1.1; opacity: .48; stroke-dasharray: 3.5 2.5; }
 .pl-node circle { stroke: #fbfaf6; stroke-width: 1.5; }
 .pl-node text { font-family: var(--sans); font-size: 8.5px; fill: var(--ink-soft); }
 .pl-turn circle { fill: var(--accent); }
@@ -389,3 +392,6 @@ ol.log .src a { color: var(--accent-soft); }
 .ctl select { font: inherit; font-size: 12px; padding: 2px 4px; border: 1px solid #ccc;
   font-family: var(--sans); }
 .picker th[data-k]:hover { color: var(--accent); }
+
+/* the key for a skip edge, so the convention can be named in prose */
+.skipkey { color: #D55E00; border-bottom: 1.5px dashed #D55E00; padding-bottom: 1px; }

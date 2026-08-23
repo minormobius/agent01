@@ -147,13 +147,56 @@ export function renderPlan(graph, {
   const at = new Map(placed.map((p) => [p.id, p]));
   const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+  /* SKIP EDGES HAVE TO BOW, OR THEY ARE INVISIBLE.
+     An edge from depth 0 to depth 2 was drawn as a bezier whose control
+     points sat directly below its source and above its target. When the
+     two share an x — which every edge of a width-one chain does — that
+     bezier is a straight vertical line running through the node it
+     skips, painted underneath the nodes and exactly on top of the two
+     adjacent edges covering the same span.
+
+     The effect was total. A six-turn chain with no skips (5 edges), with
+     skips to the sink (9), one layer ahead (9), and the full transitive
+     closure (15) all rendered as the same picture. Three times the edges
+     and not one pixel of difference, for exactly the structure that is
+     99.5% of the shape space.
+
+     So an edge spanning more than one depth arcs sideways, by an amount
+     that grows with the span, away from the middle of the drawing where
+     the nodes are, and it carries its own class so it reads as the
+     different kind of thing it is. */
+  const centreX = width / 2;
   let body = '';
   for (const e of graph.edges) {
     const a = at.get(e.from), b = at.get(e.to);
     if (!a || !b) continue;
-    body += `<path class="pl-edge" d="M ${sx(a.x).toFixed(1)} ${sy(a.depth) + 9} `
-          + `C ${sx(a.x).toFixed(1)} ${sy(a.depth) + 34}, ${sx(b.x).toFixed(1)} ${sy(b.depth) - 34}, `
-          + `${sx(b.x).toFixed(1)} ${sy(b.depth) - 9}"/>`;
+    const ax = sx(a.x), bx = sx(b.x);
+    const ay = sy(a.depth) + 9, by = sy(b.depth) - 9;
+    const gap = b.depth - a.depth;
+
+    if (gap <= 1) {
+      body += `<path class="pl-edge" d="M ${ax.toFixed(1)} ${ay} `
+            + `C ${ax.toFixed(1)} ${sy(a.depth) + 34}, ${bx.toFixed(1)} ${sy(b.depth) - 34}, `
+            + `${bx.toFixed(1)} ${by}"/>`;
+      continue;
+    }
+
+    // amplitude grows with the span so a 2-skip and a 5-skip never coincide
+    const amp = inner * (0.10 + 0.055 * (gap - 2));
+    const mid = (ax + bx) / 2;
+    // bow away from the centre, where the nodes are. On a graph one node
+    // wide every edge sits at the centre, so alternate by source depth
+    // rather than piling every arc on one side.
+    let dir = Math.abs(mid - centreX) < 0.5
+      ? (a.depth % 2 === 0 ? 1 : -1)
+      : (mid > centreX ? 1 : -1);
+    // and flip rather than draw outside the viewport
+    if (mid + dir * amp < 6 || mid + dir * amp > width - 6) dir = -dir;
+    const c1 = ax + dir * amp, c2 = bx + dir * amp;
+    const drop = (by - ay) * 0.25;
+    body += `<path class="pl-edge pl-skip" d="M ${ax.toFixed(1)} ${ay} `
+          + `C ${c1.toFixed(1)} ${(ay + drop).toFixed(1)}, ${c2.toFixed(1)} ${(by - drop).toFixed(1)}, `
+          + `${bx.toFixed(1)} ${by}"/>`;
   }
   for (const p of placed) {
     const cls = p.kind === 'block' ? 'pl-block' : p.kind === 'degraded' ? 'pl-degraded' : 'pl-turn';

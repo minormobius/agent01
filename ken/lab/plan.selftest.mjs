@@ -1,6 +1,7 @@
 /* ken/lab/plan.selftest.mjs — the four morph laws, as assertions. */
 import { probe, build, probeMatchesBuild, depths, CELLS, FALLBACKS, PlanFailure } from '../graph/plan.mjs';
 import { relax, renderPlan } from '../graph/layout.mjs';
+import { buildProfile } from '../graph/profiles.mjs';
 
 let checks = 0, failures = 0;
 const ok = (c, m) => { checks++; if (!c) { failures++; console.error(`  ✗ ${m}`); } };
@@ -128,6 +129,85 @@ section('derived layout');
   const svg = renderPlan(four);
   ok(svg.includes('<svg') && svg.length > 1000, 'a four-condition plan renders with no layout changes');
   ok((svg.match(/<circle/g) || []).length === four.nodes.length, 'and draws every node');
+}
+
+// ── skip edges must be visible ────────────────────────────────────────
+section('skip edges');
+
+/* THE REGRESSION THIS SECTION EXISTS FOR. renderPlan drew every edge as a
+   bezier whose control points sat directly below the source and above the
+   target. On a graph one node wide that is a straight vertical line, so an
+   edge from depth 0 to depth 2 ran through the node it skipped, under the
+   nodes, exactly on top of the two adjacent edges covering the same span.
+
+   A six-turn chain with 5, 9, 9 and 15 edges rendered as FOUR IDENTICAL
+   PICTURES. Nothing here noticed, because every check was about node
+   positions and none about whether an edge could be seen. */
+{
+  const variants = ['none', 'sink', 'one', 'all'].map((skip) => {
+    const g = buildProfile([1, 1, 1, 1, 1, 1], { skip });
+    return { skip, g, svg: renderPlan(g, { width: 220, rowHeight: 52 }) };
+  });
+
+  ok(variants.map((v) => v.g.edges.length).join() === '5,9,9,15',
+    'the four skip policies give 5, 9, 9 and 15 edges on a six-turn chain');
+  /* Distinct SVG SOURCE is a weaker claim than distinct APPEARANCE, and
+     the old renderer passed this one: its four strings differed in their
+     path count and endpoints while drawing the same overlapping lines. It
+     is kept because a collision here would still be a fault, and the
+     checks below are the ones that actually caught the bug. */
+  ok(new Set(variants.map((v) => v.svg)).size === 4,
+    'the four policies emit four different SVG sources (necessary, not sufficient)');
+
+  // THE VISUAL CHECK. Every node of a width-one chain shares one column,
+  // so if every drawn point sits on that column the picture is one line
+  // whatever the edge count says.
+  for (const v of variants) {
+    const xs = new Set([...v.svg.matchAll(/[MC] ([\d.-]+) [\d.-]+/g)].map((m) => m[1]));
+    const hasSkips = v.g.edges.length > 5;
+    ok(hasSkips ? xs.size > 1 : xs.size === 1,
+      `skip:${v.skip}: the drawing ${hasSkips ? 'leaves' : 'stays on'} the single column`);
+  }
+
+  // and no two edges may trace the same path
+  for (const v of variants) {
+    const ds = [...v.svg.matchAll(/<path class="[^"]*" d="([^"]+)"/g)].map((m) => m[1]);
+    ok(new Set(ds).size === ds.length, `skip:${v.skip}: no two edges are drawn identically`);
+  }
+
+  const depthOf = (g) => new Map(g.nodes.map((n) => [n.id, n.depth]));
+  for (const v of variants) {
+    const d = depthOf(v.g);
+    const wantSkips = v.g.edges.filter((e) => d.get(e.to) - d.get(e.from) > 1).length;
+    const paths = [...v.svg.matchAll(/<path class="([^"]*)" d="M ([\d.]+) [\d.]+ C ([\d.]+) /g)];
+    ok(paths.length === v.g.edges.length, `skip:${v.skip}: one path drawn per edge`);
+    const skips = paths.filter((m) => m[1].includes('pl-skip'));
+    ok(skips.length === wantSkips, `skip:${v.skip}: all ${wantSkips} multi-depth edges are marked`);
+    // every node of a width-one chain shares an x, so a straight vertical
+    // path is exactly the failure
+    for (const m of skips) {
+      ok(Math.abs(+m[3] - +m[2]) > 1,
+        `skip:${v.skip}: a skip's control point leaves its endpoint x, so it is not drawn straight`);
+    }
+  }
+
+  // the bow grows with the span, or a 2-skip and a 5-skip would coincide
+  {
+    const svg = variants[3].svg;
+    const offs = [...svg.matchAll(/class="pl-edge pl-skip" d="M ([\d.]+) [\d.]+ C ([\d.]+) /g)]
+      .map((m) => Math.abs(+m[2] - +m[1]).toFixed(1));
+    ok(new Set(offs).size >= 3, `skips of different spans bow differently (${new Set(offs).size} amounts)`);
+  }
+
+  // a bow must not leave the drawing
+  for (const v of variants) {
+    const xs = [...v.svg.matchAll(/[MC] ([\d.-]+) [\d.-]+/g)].map((m) => +m[1]);
+    ok(xs.every((x) => x >= 0 && x <= 220), `skip:${v.skip}: no control point leaves the viewport`);
+  }
+
+  // a graph with no skips is drawn exactly as before, so figures do not churn
+  ok(!renderPlan(buildProfile([1, 2, 2, 1], { skip: 'none' }), { width: 220, rowHeight: 52 })
+    .includes('pl-skip'), 'a graph with no skip edges emits no skip class at all');
 }
 
 console.log('');

@@ -36,7 +36,7 @@ jobs:
         run: node lab/factorial.selftest.mjs
       - name: Run shape + the STE language test (39 checks)
         run: node lab/runshape.selftest.mjs
-      - name: Plan rewrite rules + derived layout (56 checks)
+      - name: Plan rewrite rules, derived layout + skip visibility (98 checks)
         run: node lab/plan.selftest.mjs
       - name: Role algebra + the shape catalogue (189 checks)
         run: node lab/roles.selftest.mjs
