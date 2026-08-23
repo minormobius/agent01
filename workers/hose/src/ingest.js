@@ -50,7 +50,7 @@ const JETSTREAM_HOSTS = [
 const MAX_PER_FEED = 2000;    // ring capacity; a reader never pages this deep
 const CHUNK = 400;            // entries per storage key — keeps values far under the 128KB limit
 const IDLE_DROP_MS = 7 * 24 * 60 * 60_000;   // a feed nobody opens in a week stops being ingested
-const DEFAULT_SAMPLE_SECONDS = 30;
+const DEFAULT_SAMPLE_SECONDS = 60;
 const DEFAULT_SAMPLE_EVERY_MINUTES = 30;
 // A HARD ceiling on frames per sample, independent of how busy Bluesky is.
 // Time alone is not a budget: the post firehose measured 38.8 creates/sec at
@@ -135,9 +135,16 @@ export class FirehoseIngest {
     this.state.blockConcurrencyWhile(async () => { await this.load(); });
   }
 
+  // The time bound is a SAFETY STOP, not the budget. The budget is the frame
+  // cap, and it only governs if the window is long enough for the cap to be
+  // reached at the quietest hour — otherwise the sample silently shrinks
+  // exactly when the network is slow. Measured across one day the post
+  // firehose ran 26.9/s, 38.8/s and 62/s: a 2.3x swing. At 30s the cap only
+  // bound above 36.7/s, so 8 of 10 samples ended on time at ~806 frames and the
+  // feed gathered 67 posts/hour instead of the 88 it was sized for.
   sampleMs() {
     const n = Number(this.env.SAMPLE_SECONDS);
-    return Math.min(60, Math.max(2, Number.isFinite(n) && n > 0 ? n : DEFAULT_SAMPLE_SECONDS)) * 1000;
+    return Math.min(180, Math.max(2, Number.isFinite(n) && n > 0 ? n : DEFAULT_SAMPLE_SECONDS)) * 1000;
   }
 
   intervalMs() {

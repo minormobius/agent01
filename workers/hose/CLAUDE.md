@@ -181,7 +181,7 @@ def actually asks for engagement.
 
 | Bound | Value | Why |
 |---|---|---|
-| `SAMPLE_SECONDS` | 30 (clamped 2–60) | how long the socket may stay open per wake |
+| `SAMPLE_SECONDS` | 60 (clamped 2–180) | safety stop, **not** the budget — see below |
 | `MAX_FRAMES_PER_SAMPLE` | 1100 (clamped 50–20000) | hard frame ceiling per wake — **this is the real cost dial** |
 | `SAMPLE_EVERY_MINUTES` | 30 (clamped 1–360) | how often it wakes; jittered 0.5×–1.5× |
 | ring buffer | ~2000 URIs/feed | nobody pages that deep. Granularity is one chunk, so it holds 2001–2400 |
@@ -307,6 +307,21 @@ documented 20:1 ratio it is free. The cost curve, measured:
 
 Two samples an hour rather than one longer one also spreads coverage across the
 clock, so the feed is less a portrait of two moments a day.
+
+**The time bound must be loose enough that the frame cap governs.** They are not
+two equal knobs: `MAX_FRAMES_PER_SAMPLE` is the budget and `SAMPLE_SECONDS` is a
+safety stop. If the window is too short, the sample ends early exactly when the
+network is slow — the feed under-collects at quiet hours and the deterministic
+ceiling the cap was introduced for silently stops holding.
+
+That happened. Measured across one day the post firehose ran **26.9/s, 38.8/s
+and 62/s — a 2.3× swing**. At a 30-second window the cap only bound above
+36.7/s, so 8 of 10 samples ended on time at ~806 frames and the feed gathered 67
+posts/hour instead of the 88 it was sized for. At 60s the cap binds down to
+18.3/s, comfortably below anything observed.
+
+`lastSampleEndedBy` is how you check this: a healthy config reads `frames` most
+of the time. A run of `time` means the window is throttling the budget.
 
 ### The rule I could not resolve
 

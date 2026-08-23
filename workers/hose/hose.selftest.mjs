@@ -317,6 +317,20 @@ console.log('the idle drop actually fires');
   ok('but serving a page does', f.lastSeen > 1);
 }
 
+console.log('the time bound is a safety stop, not the budget');
+{
+  // The frame cap only governs if the window is long enough to reach it at the
+  // QUIETEST hour. Measured across one day the firehose ran 26.9, 38.8 and 62
+  // frames/sec — a 2.3x swing — and at a 30s window the cap only bound above
+  // 36.7/s, so most samples ended early on time and the feed under-collected
+  // exactly when the network was slow.
+  const { o } = await mount(new Map(), {});
+  const capReachableAt = DEFAULTS.maxFrames / (o.sampleMs() / 1000);
+  ok(`the cap is reachable at the slowest rate observed (needs <=26.9/s, needs ${capReachableAt.toFixed(1)}/s)`,
+    capReachableAt <= 26.9);
+  ok('with margin below that, since the floor is not a measured floor', capReachableAt <= 20);
+}
+
 console.log('the per-sample frame cap');
 {
   const { o } = await mount(new Map(), {});
@@ -577,7 +591,7 @@ console.log('the duty cycle is configurable and clamped');
   eq('configured interval', o2.intervalMs(), 15 * 60_000);
 
   const { o: o3 } = await mount(new Map(), { SAMPLE_SECONDS: '9999', SAMPLE_EVERY_MINUTES: '0' });
-  eq('an absurd sample window is clamped to a minute', o3.sampleMs(), 60_000);
+  eq('an absurd sample window is clamped', o3.sampleMs(), 180_000);
   eq('a zero interval falls back to the default rather than hammering', o3.intervalMs(), DEFAULTS.everyMinutes * 60_000);
   const { o: o3b } = await mount(new Map(), { SAMPLE_EVERY_MINUTES: '99999' });
   eq('an absurd interval is clamped to 6h', o3b.intervalMs(), 360 * 60_000);
