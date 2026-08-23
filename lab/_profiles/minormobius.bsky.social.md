@@ -695,6 +695,22 @@ as "use a different mechanism," not "make the old one bigger." Also notable:
 (don't force the cap) — worth taking a stated tolerance for an undersized
 result at face value rather than second-guessing it into a forced minimum.
 
+## `testing-this` (2026-08-23): the "always" preferences generalize to a pure reference/content page, not just games and sims
+Reply to a "good prompt" template floated by a third party in a thread (summarize
+your town's history in detail — timeline, demographics, population, economic
+stats, main events), filled in with "Kansas City" — a self-initiated content
+request, not a "build that" reply to a factory pitch, and not interactive in the
+game/sim sense at all. No back-and-forth to draw a correction from. Confirms the
+standing "always" rules (`want-pairwise`, second pass) apply even here: the one
+chart on the page (population by decade) got the big-shiny-copy-image-button
+treatment and was drawn straight to canvas rather than SVG/DOM specifically so
+mobile long-press "copy image" works natively, per the established mobile-testing
+pattern — worth defaulting to on any future chart for this requester regardless
+of whether the site is a game, a sim, or (as here) a plain informational page.
+No handle-entry field existed on this page (nothing here needs a Bluesky
+identity), so the typeahead half of the "always" rule didn't apply — not a
+deviation, just not applicable.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
