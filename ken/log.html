@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Findings Log — ken</title>
-<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Seventy-five entries, seven of them from measurements we made.">
+<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Eighty-one entries, seven of them from measurements we made.">
 <link rel="stylesheet" href="journal.css">
 </head>
 <body>
@@ -31,7 +31,7 @@
   <div class="a-venue">ken · volume 1 <span class="kicker">Running record</span></div>
   <h1 class="a-title">Findings Log</h1>
   <p class="a-sub">Shortest form. Each entry names the code or record that produced it.</p>
-  <div class="a-meta">75 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
+  <div class="a-meta">81 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
   <hr class="a-rule">
 
   <p class="small">Everything here comes from data already paid for or from arithmetic. That is
@@ -623,6 +623,49 @@
       <span class="src"><a href="/register">register</a> · <code>auditHypotheses()</code></span></li>
   </ol>
 
+  <h2 class="sec"><span class="secno">§</span>One parameter, not two regimes</h2>
+
+  <ol class="log" start="76">
+    <li><b>The isolated-or-inherited dichotomy was false, and it was one revision old.</b> A
+      parent hands over a <em>product</em> shaped by what it received, so a grandparent reaches a
+      grandchild attenuated rather than absent. Let λ be the share surviving one hop; fidelity is
+      λ<sup>d−1</sup> over the shortest path, since the best-preserved copy went through fewest
+      hands.
+      <span class="src"><code>attenuation.mjs</code> · <a href="/wp2#attenuation">WP2 §10c</a></span></li>
+
+    <li><b>λ = 0 reproduces the published ken ratio exactly, on every node of all 1,960 shapes;
+      λ = 1 gives 1 everywhere.</b> The two regimes are the endpoints of a segment, so the
+      argument about which was right was an argument about a number nobody had measured. Both
+      identities are asserted rather than argued.
+      <span class="src"><code>weightedKen()</code></span></li>
+
+    <li><b>The middle discriminates better than either end.</b> Sink ken takes 5 distinct values
+      across the 1,960 shapes at λ = 0 and 1 at λ = 1, but <b>16</b> at every λ between 0.2 and
+      0.8. Smooth decay separates shapes a cliff could not. That was not designed for and is the
+      strongest argument for the model.
+      <span class="src"><code>discrimination()</code></span></li>
+
+    <li><b>Whether skips matter is a question about λ, and the answer moves eightfold.</b> A
+      two-hop skip is worth 0.80 at λ = 0.2 and 0.10 at λ = 0.9. The chain-against-briefed gap
+      that WP2 prices at 180 turns runs 0.667, 0.558, 0.449, 0.273, 0.079, 0.000 as λ goes 0 to
+      1. The design is sound; its effect size was quoted at one unmeasured point.
+      <span class="src"><code>skipValue()</code> · <code>contrastCurve()</code></span></li>
+
+    <li><b>H8 is now the cheapest experiment on the site and it prices H5.</b> Plant k
+      constraints at the source of a chain and count survival at each depth; the decay is λ. One
+      chain run, and a second to check λ does not move with the shape. Unlike H5 it needs no
+      particular regime, because λ is measured for a handoff-and-regime pair — measuring it under
+      sharing is the control that should return λ near 1.
+      <span class="src"><a href="/register">H8</a></span></li>
+
+    <li><b>The ancestry order is a meet-semilattice on every shape enumerated, and a full lattice
+      on 99% of them.</b> Ancestor sets are closed under intersection on all 10, 98 and 1,960
+      shapes at four, five and six turns, and under union on 100%, 100% and 99.0%. The twenty
+      exceptions are the shapes with two branches sharing no join before the sink. The general
+      statement is Birkhoff's; closure of the image is narrower, so it is reported as measured.
+      <span class="src"><code>ancestryOrder()</code> · Birkhoff 1937</span></li>
+  </ol>
+
   <h2 class="sec"><span class="secno">§</span>The ledger</h2>
 
   <div class="table-fig">
@@ -630,8 +673,8 @@
       <thead><tr><th>Source of finding</th><th class="num">Entries</th></tr></thead>
       <tbody>
         <tr><td>Records already committed</td><td class="num">12</td></tr>
-        <tr><td>Arithmetic and simulation</td><td class="num">29</td></tr>
-        <tr><td>Our own mistakes</td><td class="num">25</td></tr>
+        <tr><td>Arithmetic and simulation</td><td class="num">34</td></tr>
+        <tr><td>Our own mistakes</td><td class="num">26</td></tr>
         <tr><td>Prior literature</td><td class="num">2</td></tr>
         <tr><td><b>New measurement</b></td><td class="num"><b>7</b></td></tr>
       </tbody>

@@ -65,7 +65,8 @@ worker or move the domain, **verify the deploy log binds
 | `graph/exhaustive.mjs` | **the whole space** up to 7 turns, and the coverage measurement |
 | `graph/ancestry.mjs` | content-addressed state, after hoop's region digest |
 | `graph/hypotheses.mjs` | **the hypotheses, as data** — seven, each with a status |
-| `graph/visibility.mjs` | **isolation regimes**: what the environment adds to the drawn graph |
+| `graph/visibility.mjs` | isolation regimes: what the environment adds to the drawn graph |
+| `graph/attenuation.mjs` | **λ**, of which those regimes are the two corners |
 | `graph/layout.mjs` | the picture, **derived** by force relaxation |
 | `graph/rng.mjs` | the one deterministic generator |
 | `lab/design.mjs` | **the harness.** Node-only, not served |
@@ -85,7 +86,7 @@ worker or move the domain, **verify the deploy log binds
 | `lab/runshape.selftest.mjs` | 39 checks for both |
 | `lab/plan.selftest.mjs` | 98 checks: the four laws, lane wiring, seeds, **skip visibility** |
 | `lab/roles.selftest.mjs` | 189 checks: the basis, the group orders, the design |
-| `lab/profiles.selftest.mjs` | 580 checks: the trade, the space, the digests, the regimes |
+| `lab/profiles.selftest.mjs` | 626 checks: the trade, the space, the digests, regimes, λ |
 | `lab/resolve-refs.mjs` | links the bibliography against CrossRef / arXiv / OpenLibrary |
 | `fig/*.svg` | **generated.** Committed so figures print and diff |
 | `refs.js` | **the bibliography, as data** — 90 real works, keyed |
@@ -357,6 +358,39 @@ The **ken ratio** — in-neighbours and self, over ancestry and self — is the
 quantity the surface is named after and is one pass over the graph. 1 at a
 source; 0.333 at the end of a six-turn chain; 0.833 at the assembly turn of a
 six-turn star.
+
+### λ, and why the regime dichotomy was false
+
+`visibility.mjs` offers isolated / lineage / shared. **That dichotomy is
+wrong** and `attenuation.mjs` replaces it. A parent hands over a *product*
+shaped by what it received, so a grandparent reaches a grandchild attenuated
+rather than absent — you know your grandfather's output because it was your
+father's input.
+
+Let **λ** be the share surviving one hop. Fidelity from *u* to *v* is
+λ^(d−1) over the **shortest** path, because the best-preserved copy went
+through fewest hands.
+
+- **λ = 0 reproduces the published `kenRatio()` exactly**, on every node of all
+  1,960 shapes. Asserted, not argued.
+- **λ = 1 gives 1 everywhere** — that is `lineage`.
+- **In between, sink ken takes 16 distinct values against λ=0's 5.** The
+  attenuated model discriminates *better* than the binary one. That was not
+  designed for.
+
+So the regimes are the corners of a segment, and the isolated-versus-inherited
+argument was an argument about an unmeasured number.
+
+**Never quote a shape effect size without its λ.** The chain-against-briefed
+gap runs 0.667 → 0.079 as λ goes 0 → 0.95; a two-hop skip is worth 0.80 at
+λ = 0.2 and 0.10 at λ = 0.9. `contrastCurve(a, b)` gives the sweep and that is
+the honest way to state an effect that depends on a parameter nobody has
+measured.
+
+**H8 measures λ and costs one chain run.** Plant k constraints at the source,
+count survival at each depth, fit the decay. It needs no particular regime,
+because λ belongs to a handoff-and-regime pair — measuring it under sharing is
+the control that should return λ ≈ 1. Run it before H5, because it prices H5.
 
 ### The drawn graph is not the graph
 

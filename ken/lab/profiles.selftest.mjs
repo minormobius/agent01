@@ -24,6 +24,10 @@ import {
   REGIMES, REGIME_NOTE, effectiveGraph, auditRegime, collapse, ancestors, PRECONDITION,
 } from '../graph/visibility.mjs';
 import { kenRatio } from '../graph/roles.mjs';
+import {
+  weightedKen, reachDistances, ancestorDistances, skipValue, contrastCurve,
+  discrimination, ancestryOrder, DEFAULT_LAMBDA,
+} from '../graph/attenuation.mjs';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log(`  ✗ ${m}`); } };
@@ -437,6 +441,94 @@ for (const id of ['H5', 'H6', 'H7']) {
   ok(HYPOTHESES[id].requires && /isolated/.test(HYPOTHESES[id].requires),
     `${id} states that it requires the isolated regime`);
 }
+
+// ── 9. attenuation: the two regimes are one parameter's corners ───────
+section('attenuation');
+
+/* THE DICHOTOMY IN visibility.mjs WAS FALSE. It offered either a turn
+   seeing only its in-edges or inheriting the whole tree. A parent hands
+   over a PRODUCT shaped by what it received, so a grandparent reaches a
+   grandchild — attenuated, not absent.
+
+   lambda is the share surviving one hop. The two regimes are its
+   corners, and these two assertions are the whole claim. */
+{
+  const gs = allShapes(6);
+  ok(gs.every((g) => [...weightedKen(g, { lambda: 0 })].every(([id, v]) =>
+    Math.abs(v - kenRatio(g).get(id)) < 1e-12)),
+  'lambda = 0 reproduces the published kenRatio() on every node of all 1960 shapes');
+  ok(gs.every((g) => [...weightedKen(g, { lambda: 1 }).values()].every((v) => Math.abs(v - 1) < 1e-12)),
+    'lambda = 1 gives exactly 1 everywhere, which is the lineage regime');
+
+  // and the middle is sharper than either end, which was not designed for
+  ok(discrimination(gs, 0).distinct === 5, 'at lambda 0 sink ken takes 5 distinct values');
+  ok(discrimination(gs, 1).distinct === 1, 'at lambda 1 it takes 1');
+  for (const lam of [0.2, 0.4, 0.6, 0.8]) {
+    ok(discrimination(gs, lam).distinct === 16,
+      `at lambda ${lam} it takes 16 — the attenuated model discriminates better than the binary one`);
+  }
+}
+
+// fidelity uses the SHORTEST path: the best-preserved copy took the short way
+{
+  const g = buildShape('briefed');
+  const d = ancestorDistances(g);
+  ok(d.get('report').get('setup') === 1,
+    'briefed: the sink is one hop from the source, because the skip edge exists');
+  const c = buildShape('chain');
+  ok(ancestorDistances(c).get('report').get('setup') === 5,
+    'chain: the sink is five hops from the source');
+  ok(reachDistances(c).get('setup').get('report') === 5, 'and the forward distance agrees');
+}
+
+// monotone in lambda, or the parameter would not mean what it says
+for (const name of shapeNames()) {
+  const g = buildShape(name);
+  const sink = g.sink;
+  const vals = [0, 0.25, 0.5, 0.75, 1].map((l) => weightedKen(g, { lambda: l }).get(sink));
+  ok(vals.every((v, i) => i === 0 || v >= vals[i - 1] - 1e-12),
+    `${name}: sink ken is non-decreasing in lambda`);
+  ok(vals.every((v) => v >= 0 && v <= 1 + 1e-12), `${name}: and stays in [0, 1]`);
+}
+let badLambda = false;
+try { weightedKen(buildShape('chain'), { lambda: 1.5 }); } catch { badLambda = true; }
+ok(badLambda, 'a lambda outside [0, 1] is refused');
+
+// what a skip is worth, which is the answer to "do skips matter"
+ok(skipValue(1) === 0, 'an adjacent edge is not a skip and is worth nothing to add');
+near(skipValue(2, 0.2), 0.8, 1e-9, 'at lambda 0.2 a two-hop skip is worth 0.80');
+near(skipValue(2, 0.9), 0.1, 1e-9, 'at lambda 0.9 the same skip is worth 0.10');
+ok(skipValue(5, 0.6) > skipValue(2, 0.6), 'a longer skip is worth more at a given lambda');
+ok(skipValue(2, 0.2) > skipValue(2, 0.9), 'and any skip is worth less as lambda rises');
+
+// the H5 contrast, priced across lambda rather than at one point
+{
+  const curve = contrastCurve(buildShape('chain'), buildShape('briefed'));
+  ok(curve[0].lambda === 0 && Math.abs(curve[0].gap - 0.667) < 1e-3,
+    'the chain-briefed gap is 0.667 at lambda 0');
+  ok(Math.abs(curve[curve.length - 1].gap) < 1e-12, 'and exactly 0 at lambda 1');
+  ok(curve.every((r, i) => i === 0 || r.gap <= curve[i - 1].gap + 1e-12),
+    'the gap shrinks monotonically as fidelity rises');
+  ok(curve.find((r) => r.lambda === 0.95).gap < 0.1,
+    'by lambda 0.95 the manipulation is worth under a tenth of what it is at 0');
+}
+
+// the ancestry order, measured rather than asserted
+for (const n of [4, 5, 6]) {
+  const gs2 = allShapes(n);
+  const meet = gs2.filter((g) => ancestryOrder(g).meetClosed).length;
+  const join = gs2.filter((g) => ancestryOrder(g).joinClosed).length;
+  ok(meet === gs2.length, `n = ${n}: the ancestor-set image is closed under intersection on all ${gs2.length}`);
+  ok(join <= gs2.length, `n = ${n}: and under union on ${join} of them`);
+  if (n === 6) ok(join === 1940, 'n = 6: exactly 20 shapes are not join-closed');
+  ok(gs2.every((g) => ancestryOrder(g).isMeetSemilattice),
+    `n = ${n}: so every shape's ancestry order is a meet-semilattice`);
+}
+
+// H8 exists and is the cheap one
+ok(HYPOTHESES.H8 && /lambda/.test(HYPOTHESES.H8.claim), 'H8 registers the attenuation parameter');
+ok(/ONE chain run/.test(HYPOTHESES.H8.cost), 'and states that it costs one chain run');
+ok(/lambda/.test(HYPOTHESES.H5.cost), 'H5 records that its effect size depends on lambda');
 
 console.log(`\n${fail === 0 ? '✓' : '✗'} profiles + ancestry ${fail === 0 ? 'passed' : 'FAILED'} — ${fail === 0 ? pass : `${fail} of ${pass + fail}`} checks`);
 process.exit(fail === 0 ? 0 : 1);

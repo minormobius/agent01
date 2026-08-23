@@ -55,9 +55,11 @@
     ancestry, after this repo's own Merkle construction in <code>hoop</code>, pools across
     shapes as well as within them and turns 36 catalogue turns into 7.65 effective
     observations.</p>
-    <p>All of which holds only under strict isolation. If a turn inherits the worktree of
-    everything upstream, the ken ratio is 1 by construction and the 1,960 shapes on six turns
-    collapse to 16. That precondition went unstated for five revisions and is now §10b.</p>
+    <p>All of which holds only under strict isolation, a precondition that went unstated for
+    five revisions and is now §10b. §10c then dissolves that dichotomy: isolation and inheritance
+    are λ = 0 and λ = 1 of one attenuation parameter, the published ken ratio is the λ = 0 corner,
+    and the middle discriminates better than either end. What remains is to measure λ, which one
+    chain run does.</p>
   </div>
 
   <h2 class="sec"><span class="secno">1</span>The question</h2>
@@ -317,6 +319,66 @@
   of 1,960. Only the strict regime — fresh context, fresh tree, handoff by explicit artefact —
   preserves the question. That is now <a href="/methods#r16">R16</a>, and the three shape
   hypotheses carry it as a stated requirement rather than a caveat.</p>
+
+  <h2 class="sec" id="attenuation"><span class="secno">10c</span>One parameter, of which the two regimes are corners</h2>
+
+  <div class="revised">
+    <p><b>§10b posed a dichotomy and the dichotomy is false.</b> It offered either a turn seeing
+    only what its in-edges hand it, or a turn inheriting the whole accumulated tree. Neither is
+    how work reaches anyone. A parent hands over a <em>product</em>, and that product was shaped
+    by what the parent received, so a grandparent does reach a grandchild: narrowed, summarised,
+    lossy, but it reaches. You know your grandfather's output because it was your father's
+    input.</p>
+  </div>
+
+  <p>Let <b>λ</b> be the share of an input that survives one summarisation hop. Fidelity from
+  <i>u</i> to <i>v</i> is then λ<sup>d−1</sup>, where <i>d</i> is the <b>shortest</b> path: the
+  best-preserved copy is the one that went through fewest hands, and a direct edge costs
+  nothing.</p>
+
+  <div class="eq">ken(v) = ( 1 + Σ<sub>u ∈ anc(v)</sub> λ<sup>d(u,v)−1</sup> ) ⁄ ( 1 + |anc(v)| )
+    <span class="where">the ancestry, weighted by how much of it actually arrives</span></div>
+
+  <p><b>At λ = 0 this is exactly the ken ratio this site has published since revision 14</b>,
+  asserted on all 1,960 shapes rather than argued. <b>At λ = 1 it is 1 for every turn of every
+  shape</b>, which is §10b's <code>lineage</code>. The two regimes were the endpoints of a
+  segment, and the argument about which was right was an argument about a number nobody had
+  measured.</p>
+
+  <p><b>The middle discriminates better than either end.</b> Across the 1,960 shapes, sink ken
+  takes 5 distinct values at λ = 0 and 1 at λ = 1. In between it takes 16. Smooth decay
+  separates shapes that a cliff could not.</p>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 7.</b> What λ does to the contrast §7 prices at 180 turns.</div>
+    <table class="booktabs">
+      <thead><tr><th>λ</th><th class="num">0.0</th><th class="num">0.4</th><th class="num">0.6</th><th class="num">0.8</th><th class="num">0.95</th><th class="num">1.0</th></tr></thead>
+      <tbody>
+        <tr><td><code>chain</code> sink ken</td><td class="num">0.333</td><td class="num">0.442</td><td class="num">0.551</td><td class="num">0.727</td><td class="num">0.921</td><td class="num">1.000</td></tr>
+        <tr><td><code>briefed</code> sink ken</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">1.000</td></tr>
+        <tr><td><b>gap</b></td><td class="num"><b>0.667</b></td><td class="num"><b>0.558</b></td><td class="num"><b>0.449</b></td><td class="num"><b>0.273</b></td><td class="num"><b>0.079</b></td><td class="num"><b>0.000</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>So <b>whether skip edges matter is not a modelling argument, it is a question about λ</b> —
+  and λ is measurable from a single chain run. Plant <i>k</i> constraints at the source and count
+  how many survive at each depth; the decay of that curve is λ. That is <b>H8</b> in
+  <a href="/register">the register</a>, it is the cheapest experiment on this site, and it should
+  be run before H5 because it prices H5.</p>
+
+  <p>The value of one skip follows directly. Adding an edge takes a distance <i>d</i> to 1, so
+  fidelity goes from λ<sup>d−1</sup> to 1. At λ = 0.9 a two-hop skip is worth 0.10; at λ = 0.2 it
+  is worth 0.80. The same edge, an eightfold difference in what it buys.</p>
+
+  <p>One structural note, since the shape of the ancestry order is what makes this work. The
+  ancestor sets of a plan, ordered by inclusion, are closed under intersection on <b>every</b>
+  shape we have enumerated at four, five and six turns, and under union on 100%, 100% and 99.0%
+  of them. So it is always a meet-semilattice here and usually a lattice; the twenty exceptions
+  at six turns are the shapes with two branches sharing no join before the sink. The general
+  statement is Birkhoff's <a class="cite" data-ref="birkhoff1937"></a> — the downsets of a poset
+  form a distributive lattice — and the closure of the <em>image</em> is a narrower claim, so it
+  is reported as a measurement rather than cited.</p>
 
   <h2 class="sec" id="ancestry"><span class="secno">11</span>Ancestry, and what a digest does not buy</h2>
 

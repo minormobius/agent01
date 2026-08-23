@@ -108,7 +108,10 @@ export const HYPOTHESES = {
     requires: 'The isolated regime. Each turn receives its in-edges and nothing else, with no inherited worktree and no readable history. Under lineage or sharing the ken ratio is 1 for every turn of every shape and this hypothesis is undefined.',
     status: 'designed',
     evidence: null,
-    cost: '180 turns paired at d = 0.8, and the manipulation is four edges and no extra turns',
+    cost: '180 turns paired at d = 0.8, and the manipulation is four edges and no extra turns. '
+      + 'But the effect size depends on lambda, which H8 measures for one chain run: the gap runs '
+      + 'from 0.667 at lambda 0 to 0.079 at lambda 0.95, so H8 should be run first because it '
+      + 'prices this.',
   },
 
   H6: {
@@ -160,6 +163,41 @@ export const HYPOTHESES = {
     status: 'designed',
     evidence: null,
     cost: 'nothing beyond running the catalogue, which H5 already pays for',
+  },
+
+  H8: {
+    id: 'H8', name: 'attenuation', curriculumUnit: 'IV', owner: '/wp2',
+    outcome: 'The survival curve of k constraints planted at the source, counted at each depth '
+      + 'of a chain, and the decay rate lambda fitted to it.',
+    analysisUnit: 'the hop — one observation per depth per planted constraint',
+    claim: 'What an agent receives from an ancestor decays geometrically in the number of hops, '
+      + 'at a rate lambda that is a property of the handoff and the regime rather than of the shape.',
+    test: 'One chain run. Plant k distinguishable constraints in the setup brief and count how '
+      + 'many survive at each depth. Fit lambda to the decay. Repeat on a second shape to check '
+      + 'lambda does not move with it.',
+    predicts: [
+      ['survival is geometric in depth', 'a straight line on a log scale, not a cliff and not flat'],
+      ['lambda is the same on a chain and on a bottleneck', 'it is a property of the handoff, not the plan'],
+      ['lambda under sharing is near 1', 'nothing is lost when nothing is withheld, which is the control'],
+    ],
+    /* This is the parameter every shape claim on this site turns out to
+       depend on, and nobody had measured it. It also dissolves the
+       isolated-versus-lineage argument: those are lambda = 0 and
+       lambda = 1, and the truth is a number between them. */
+    refutedBy: [
+      'Survival does not decay geometrically, in which case one rate does not describe the handoff and the model is wrong rather than imprecise.',
+      'lambda differs by shape, which would mean it is not a property of the handoff and cannot be carried between designs.',
+      'lambda is indistinguishable from 1, which would make every skip edge worthless and H5 undefined.',
+      'lambda is indistinguishable from 0, which would mean nothing survives a hop and the published ken ratio was right all along.',
+    ],
+    requires: 'Only that the run states its regime. lambda is measured for a (handoff, regime) pair '
+      + 'rather than assumed, so unlike H5 this is testable in any regime — and measuring it under '
+      + 'sharing is the control that should return lambda near 1.',
+    status: 'designed',
+    evidence: null,
+    cost: 'ONE chain run, and a second to check lambda does not move with the shape. The cheapest '
+      + 'experiment on this site, and it prices H5: the chain-against-briefed gap runs from 0.667 '
+      + 'at lambda 0 to 0.079 at lambda 0.95.',
   },
 };
 

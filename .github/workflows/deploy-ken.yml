@@ -40,7 +40,7 @@ jobs:
         run: node lab/plan.selftest.mjs
       - name: Role algebra + the shape catalogue (189 checks)
         run: node lab/roles.selftest.mjs
-      - name: Profiles, the space, ancestry + isolation regimes (580 checks)
+      - name: Profiles, the space, ancestry, regimes + attenuation (626 checks)
         run: node lab/profiles.selftest.mjs
       - name: Selftest (citations, prose lint, tables, roadmap graph, quoted figures)
         run: node ken.selftest.mjs

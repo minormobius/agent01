@@ -457,6 +457,12 @@
       v: 'IEEE Transactions on Pattern Analysis and Machine Intelligence 37(2), 437–461',
       n: 'The bridge WP2 leans on: exchangeability is invariance of a distribution under a group action. Our group is the automorphism group of the plan, so "which turns may be pooled" has a structural answer before any data exists.',
       u: 'https://doi.org/10.1109/tpami.2014.2334607' },
+    birkhoff1937: {
+      a: 'Birkhoff, G.', y: 1937,
+      t: 'Rings of sets',
+      v: 'Duke Mathematical Journal 3(3), 443–454',
+      n: 'The representation theorem: the downsets of a finite poset form a distributive lattice, and every finite distributive lattice arises that way. The general statement behind the ancestry order of a plan graph, whose image is a meet-semilattice on every shape we have enumerated and a full lattice on 99% of them.',
+      u: 'https://doi.org/10.1215/s0012-7094-37-00334-x' },
     diaconis1980: {
       a: 'Diaconis, P. & Freedman, D.', y: 1980,
       t: 'Finite Exchangeable Sequences',
