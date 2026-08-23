@@ -1,0 +1,1 @@
+Flow strength now defaults to 100x; viscosity's slider is gone, not just zeroed — nothing was left to adjust. If it strobes instead of storms, the fix is a gentler ambient-flow gain, not lowering strength again.
