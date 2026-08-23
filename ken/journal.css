@@ -360,3 +360,28 @@ ol.log .src a { color: var(--accent-soft); }
 .pl-degraded circle { fill: #fff; stroke: var(--flag); stroke-width: 2; stroke-dasharray: 3 2; }
 .pl-degraded text { fill: var(--flag); }
 .pl-depth { font-family: var(--sans); font-size: 8.5px; fill: #b3aca0; }
+
+/* the hypothesis register */
+.hyp { border: 1px solid #e6e1d6; border-left: 3px solid var(--accent);
+  background: #fbfaf6; padding: 9px 12px 6px; margin: 12px 0; break-inside: avoid; }
+.hyp-head { display: flex; align-items: baseline; gap: 8px; font-family: var(--sans);
+  font-size: 11px; margin-bottom: 5px; }
+.hyp-head b { font-size: 13px; letter-spacing: .04em; }
+.hyp-name { text-transform: uppercase; letter-spacing: .07em; color: var(--ink-faint); font-size: 9.5px; }
+.hyp-head .grow { flex: 1 1 auto; }
+.hyp-status { font-size: 9px; text-transform: uppercase; letter-spacing: .08em;
+  border: 1px solid; border-radius: 2px; padding: 1px 5px; }
+.hyp-status.supported { color: #1a6a3c; border-color: #9ccbb0; background: #eef8f2; }
+.hyp-status.undecided { color: #8a5a00; border-color: #e0c78a; background: #fdf6e6; }
+.hyp-status.refuted   { color: #96331f; border-color: #e0a897; background: #fdefec; }
+.hyp-status.designed  { color: #1f4d80; border-color: #a8c2dd; background: #eef3f9; }
+.hyp-status.untested  { color: #6b6b6b; border-color: #ccc; background: #f4f4f2; }
+.hyp-claim { font-size: 13.5px; margin: 3px 0 6px; }
+.hyp .small { margin: 3px 0; font-size: 11px; line-height: 1.5; }
+.hyp ul.tight { margin: 2px 0 4px; }
+
+/* a correction made in place, per the site's own rule that they stay visible */
+.revised { border-left: 3px solid #D55E00; background: #fdf6f2; padding: 8px 12px 2px;
+  margin: 10px 0 12px; break-inside: avoid; }
+.revised p { font-size: 12.5px; }
+.revised p:first-child { margin-top: 0; }

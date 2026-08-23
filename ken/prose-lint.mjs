@@ -177,8 +177,35 @@ const RULES = [
    ASD-STE100 made the two lints contradict each other, which is how this
    exemption was found. */
 export function registerOf(html) {
-  return /<body[^>]*data-register="procedure"/.test(html) ? 'procedure' : 'prose';
+  const m = /<body[^>]*data-register="([a-z]+)"/.exec(html);
+  return REGISTERS.includes(m?.[1]) ? m[1] : 'prose';
 }
+
+/* Three registers, each earned by a page that could not satisfy the default.
+
+   prose       argument. Every rule applies.
+   procedure   /run, written to ASD-STE100, which MANDATES the short flat
+               sentences the rhythm rules treat as a defect.
+   reference   /register, whose body is generated records rather than
+               argument. A record is a short labelled paragraph by
+               construction, so the paragraph-SHAPE rules measure the
+               format instead of the writing. The LEXICAL rules still
+               apply in full, and caught two real faults on the first run
+               of this very page.
+
+   A register exempts a page from a rule; it never exempts an author from
+   writing well, which is why the exempt set is listed here rather than
+   decided per page. */
+export const REGISTERS = ['prose', 'procedure', 'reference'];
+
+/** Rules a register is excused from, and nothing more. */
+export const REGISTER_EXEMPTIONS = {
+  prose: [],
+  procedure: ['fragment-run', 'monotony'],
+  reference: ['fragment-run', 'monotony', 'one-line-paragraphs'],
+};
+
+const exempt = (register, ruleId) => REGISTER_EXEMPTIONS[register].includes(ruleId);
 
 export function lintHtml(html, name = 'page') {
   const register = registerOf(html);
@@ -191,7 +218,7 @@ export function lintHtml(html, name = 'page') {
   const findings = [];
 
   for (const rule of RULES) {
-    if (register === 'procedure' && rule.id === 'fragment-run') continue;
+    if (exempt(register, rule.id)) continue;
     const text = rule.scope === 'paragraphs' ? paraText : allText;
     const hits = rule.find(text, { hdrs, paras });
     const scopeWords = rule.scope === 'paragraphs' ? words(paraText) : n;
@@ -208,7 +235,7 @@ export function lintHtml(html, name = 'page') {
 
   // one-line paragraphs, as a share of all paragraphs
   const oneLiners = paras.filter((p) => words(p) < 22).length;
-  if (paras.length >= 8 && oneLiners / paras.length > 0.28) {
+  if (!exempt(register, 'one-line-paragraphs') && paras.length >= 8 && oneLiners / paras.length > 0.28) {
     findings.push({
       rule: 'one-line-paragraphs', label: 'one-line paragraphs',
       note: 'a paragraph carrying one sentence is being used for emphasis',
@@ -218,7 +245,7 @@ export function lintHtml(html, name = 'page') {
 
   // sentence-length monotony: too little variation reads as machine-set
   const lens = sentences(paraText).map(words).filter((w) => w > 2);
-  if (register !== 'procedure' && lens.length > 25) {
+  if (!exempt(register, 'monotony') && lens.length > 25) {
     const mean = lens.reduce((a, b) => a + b, 0) / lens.length;
     const sd = Math.sqrt(lens.reduce((a, b) => a + (b - mean) ** 2, 0) / lens.length);
     if (sd / mean < 0.42) {

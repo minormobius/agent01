@@ -55,6 +55,7 @@ worker or move the domain, **verify the deploy log binds
 | `run.html` | **The standard-run procedure.** Written to ASD-STE100. Served at `/run`. |
 | `protocol.html` | **Article III**, the Stage 1 registered-report skeleton. Served at `/protocol`. |
 | `shapes.html` | **the shape explorer.** Enter n, see every org chart it admits. `/shapes` |
+| `register.html` | **the hypothesis register.** Wholly generated. `/register` |
 | `tree.js` | the roadmap DAG: node data plus the SVG renderer |
 | **`graph/`** | **served to the browser.** Pure ES modules, no node, no copies |
 | `graph/plan.mjs` | a run plan as **rewrite rules**, on morph's four laws |
@@ -62,6 +63,7 @@ worker or move the domain, **verify the deploy log binds
 | `graph/shapes.mjs` | the six hand-built org charts of WP2 |
 | `graph/profiles.mjs` | **any n**: layer profiles, the trade, the frontier |
 | `graph/ancestry.mjs` | content-addressed state, after hoop's region digest |
+| `graph/hypotheses.mjs` | **the hypotheses, as data** — seven, each with a status |
 | `graph/layout.mjs` | the picture, **derived** by force relaxation |
 | `graph/rng.mjs` | the one deterministic generator |
 | `lab/design.mjs` | **the harness.** Node-only, not served |
@@ -156,7 +158,27 @@ Two things follow for anyone editing here:
 - **The simulation assumes the model the run is partly there to test.** Say so
   wherever its numbers appear. WP1 does, in its limits box.
 
-## Two prose standards, and why they fight
+## The hypothesis register is the only place status lives
+
+`graph/hypotheses.mjs` holds all seven as data and `/register` renders them.
+Before it, H1–H4 were prose in WP1 and H5–H6 were objects in `shapes.mjs`,
+with no status anywhere — so **WP1 proposed H2, the programme measured it at
+revision 9, and the paper said nothing for six revisions.** That is the failure
+the register exists to prevent, and it is recorded in WP1's addendum rather
+than tidied away.
+
+Two invariants, both asserted:
+
+- A status of `supported`, `undecided` or `refuted` **must name its evidence**;
+  an `untested` or `designed` one **must not carry any**. The failure being
+  guarded against is the quiet upgrade — a status moved while the evidence
+  field stays empty.
+- Every hypothesis's `owner` page must exist and must actually mention it. That
+  check found H7 registered and unnamed in WP2 on its first run.
+
+**Change a status here and nowhere else.** Pages render from it.
+
+## Three prose registers, and why each was earned
 
 The site runs **two** lints and they do not agree.
 
@@ -379,7 +401,7 @@ mismatch silently clips the figure.
 ## Three gates, and why each exists
 
 ```bash
-node ken/ken.selftest.mjs     # ~2s, 1003 checks
+node ken/ken.selftest.mjs     # ~2s, 1085 checks
 node ken/prose-lint.mjs       # the tic lint alone, with --verbose for hits
 ```
 

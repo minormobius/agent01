@@ -19,6 +19,7 @@
   <a href="/shapes">Shapes</a>
   <a href="/wp1">WP1</a>
   <a href="/wp2">WP2</a>
+  <a href="/register">Register</a>
   <a href="/log">Log</a>
   <a href="/protocol">III · Protocol</a>
   <span class="grow"></span>
@@ -30,7 +31,7 @@
   <div class="a-venue">ken · volume 1 · article II <span class="kicker">House standard</span></div>
   <h1 class="a-title">House Standard for Model Experiments</h1>
   <p class="a-sub">Fourteen rules for running, scoring and reporting a comparison, with the evidence for each</p>
-  <div class="a-meta">Version 1.3 · applies to every run published here</div>
+  <div class="a-meta">Version 1.4 · applies to every run published here</div>
   <hr class="a-rule">
 
   <div class="abstract">
@@ -278,20 +279,42 @@
   <p>Report the simulation alongside the design, including its seed, and state plainly that its
   intervals assume the very model the run is partly there to test.</p>
 
-  <h4 class="subsub">R14. The unit of a run is fixed, and each parallel wave is a matched pair. <span class="small">(new)</span></h4>
+  <h4 class="subsub" id="r14">R14. A run declares its shape, and reports the invariants of it. <span class="small">(revised)</span></h4>
 
-  <p>One run is six turns in four stages, with no stage wider than two:
-  <b>setup → wave A (2) → wave B (2) → cleanup</b>. Runs of a fixed shape are comparable, and
-  their cost is countable before it is spent.</p>
+  <div class="revised">
+    <p><b>Revised after our own arithmetic refuted the first version.</b> R14 used to mandate one
+    shape: six turns in four stages, no stage wider than two, setup then two paired waves then
+    cleanup. The justification was that each wave is a matched pair and so takes the pairing
+    saving of R5.</p>
+    <p>That justification argues against the rule. A matched pair is an orbit of size two. The
+    same six turns wired as a star put <em>four</em> turns in one orbit, which is a matched
+    quadruple, and at our measured ρ that is 1.787 effective replicates against the mandated
+    shape's 1.415. The rule forbade the shape its own reasoning preferred, and did so for a year
+    of revisions before anyone computed it.</p>
+  </div>
 
-  <p>The two agents in a wave must receive the <em>same</em> state, varying only the condition
-  under test. That makes the wave a matched pair and buys the pairing saving of R5, which at our
-  measured ρ of 0.413 is a factor of 1.7. Dispatch them with different briefs and the wave is two
-  independent draws instead, with the saving gone and no way to separate brief from condition
-  afterwards.</p>
+  <p>So the rule is now about declaration rather than prescription. A run states its
+  <b>profile</b> — the layer widths — and reports four invariants of it, all of which
+  <a href="/shapes">the explorer</a> computes:</p>
 
-  <p>Prices at that ρ: a large effect (d = 0.8) costs 30 runs, or 180 turns. A medium one
-  (d = 0.5) costs 74 runs, or 444. The procedure and both cost tables are at
+  <ul>
+    <li><b>Depth and peak width.</b> These trade against each other at a fixed turn count and the
+    trade is arithmetic: peak width ≥ ⌈(n−2)/(d−1)⌉. Say which side you bought and why.</li>
+    <li><b>Peak in-degree.</b> The largest number of upstream products any one turn must
+    reconcile. This is the context cost and it is where briefing is paid for.</li>
+    <li><b>Largest orbit.</b> The replication the run already contains. A chain contains none at
+    any size, so a chain-shaped run is a design with no internal replicate and should say so.</li>
+    <li><b>Sink ken ratio.</b> What the last turn holds over what it answers for.</li>
+  </ul>
+
+  <p>Two things carry over from the old rule unchanged, because they were right. Turns in one
+  orbit must receive the <em>same</em> state, varying only the condition under test; give them
+  different briefs and the orbit is not an orbit and the saving is gone. And the six-turn scale
+  remains the default unit, because it keeps a run countable in advance. It is now a default
+  rather than a requirement, and <a href="/shapes">the explorer</a> prices the alternatives.</p>
+
+  <p>Prices at ρ = 0.413 for the six-turn default: a large effect (d = 0.8) costs 30 runs, or 180
+  turns. A medium one (d = 0.5) costs 74 runs, or 444. The procedure and both cost tables are at
   <a href="/run">the standard run</a>.</p>
 
   <h4 class="subsub" id="r15">R15. A turn's brief is a function of its ancestry, and of nothing else. <span class="small">(new)</span></h4>
@@ -383,7 +406,7 @@
   </div>
 
   <div class="colophon">
-    ken · article II · house standard for model experiments, version 1.3<br>
+    ken · article II · house standard for model experiments, version 1.4<br>
     Table 1 is computed from committed data: <code>.github/loop/{turns,runs}.jsonl</code> and
     <code>bakeoff/results/race-0{1,2}/results.json</code>. <code>ken.selftest.mjs</code>
     recomputes every figure in it on each build and fails if the prose has drifted from the

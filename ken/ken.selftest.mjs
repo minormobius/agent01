@@ -43,6 +43,7 @@ import { NODES, box } from './tree.js';
 import { mde, designComparison, variancePilot, ladyTastingTea, sprtBounds, choose } from './lab/design.mjs';
 import { iccSamplingDistribution, pilotSweep, bimodalityPower, allocationCheck } from './lab/simulate.mjs';
 import { buildFigures, blocksCurrent } from './lab/figures.mjs';
+import { HYPOTHESES, HYPOTHESIS_IDS, auditHypotheses, statusCounts } from './graph/hypotheses.mjs';
 import { ROLES } from './graph/roles.mjs';
 import { depthKenDesign, collinearity, effectiveReplication, chainBriefedContrast, priceH5, shapeNames } from './graph/shapes.mjs';
 import { loadRuns, partition, orderEffect, globalDrift } from './lab/h4.mjs';
@@ -255,6 +256,71 @@ ok(choose(8, 4) === 70 && ladyTastingTea(6).smallestP === 0.05,
   }
 }
 ok(lab.includes('/wp1'), 'the instrument note links to the paper that corrected it');
+
+// (a9) the hypothesis register is the single source of hypothesis status.
+{
+  const problems = auditHypotheses();
+  ok(problems.length === 0, `the register is internally consistent (${problems.join('; ') || 'clean'})`);
+  ok(HYPOTHESIS_IDS.length >= 7, `at least seven hypotheses are registered (${HYPOTHESIS_IDS.length})`);
+
+  const reg = readFileSync(join(HERE, 'register.html'), 'utf8');
+  const b = blocksCurrent('register.html');
+  ok(b.stale.length === 0,
+    `the register's generated blocks are current (${b.stale.join(', ') || 'none'})`);
+
+  for (const h of Object.values(HYPOTHESES)) {
+    ok(reg.includes(`>${h.id}</b>`), `the register renders ${h.id}`);
+    // the owning page must exist and must actually mention the hypothesis
+    const ownerFile = h.owner === '/log' ? 'log.html' : `${h.owner.slice(1)}.html`;
+    ok(existsSync(join(HERE, ownerFile)), `${h.id} names an owner page that exists (${ownerFile})`);
+    ok(readFileSync(join(HERE, ownerFile), 'utf8').includes(h.id),
+      `${h.id}'s owner ${h.owner} mentions it`);
+    // a decided hypothesis must carry its evidence into the rendered page
+    if (h.evidence) ok(reg.includes(h.evidence.slice(0, 60)), `${h.id}'s evidence reaches the page`);
+  }
+
+  // no page may assert a status that disagrees with the register
+  const counts = statusCounts();
+  ok(reg.includes(`>${counts.supported}</td>`) || reg.includes(`${counts.supported}</td>`),
+    'the register publishes its own status counts');
+
+  // H2 is the one that went unrecorded; assert WP1 now carries the addendum
+  const wp1b = readFileSync(join(HERE, 'wp1.html'), 'utf8');
+  ok(HYPOTHESES.H2.status === 'undecided', 'H2 is undecided rather than refuted or supported');
+  ok(wp1b.includes('0.413') && /addendum/i.test(wp1b),
+    'WP1 carries the addendum recording H2\'s first measurement');
+}
+
+// (b0) the roadmap's states must be internally coherent.
+// This is the check that was missing: u4 read `blocked` while wp2, which
+// needs it, read `active`. Nothing objected, because every existing check
+// was about geometry and links rather than about the claim the states make.
+{
+  const RANK = { blocked: 0, ready: 1, active: 2, done: 3 };
+  const byId = new Map(NODES.map((n) => [n.id, n]));
+  for (const n of NODES) {
+    ok(RANK[n.state] !== undefined, `roadmap: "${n.id}" has a known state`);
+    for (const dep of n.needs || []) {
+      const d = byId.get(dep);
+      if (!d) continue;
+      // a node cannot have started before something it depends on is at
+      // least started; and it cannot be done while a prerequisite is not.
+      if (RANK[n.state] >= RANK.active) {
+        ok(RANK[d.state] >= RANK.active,
+          `roadmap: "${n.id}" is ${n.state} but its prerequisite "${dep}" is only ${d.state}`);
+      }
+      if (n.state === 'done') {
+        ok(d.state === 'done',
+          `roadmap: "${n.id}" is done but "${dep}" is ${d.state}`);
+      }
+    }
+    // a node with every prerequisite done is at least ready, never blocked
+    if ((n.needs || []).length && (n.needs || []).every((d) => byId.get(d)?.state === 'done')) {
+      ok(n.state !== 'blocked',
+        `roadmap: "${n.id}" has every prerequisite done, so it is not blocked`);
+    }
+  }
+}
 
 // (b1a) ken/graph/ is served to the browser, so it must stay import-clean.
 // The widget on /shapes runs these modules directly rather than a copy, which

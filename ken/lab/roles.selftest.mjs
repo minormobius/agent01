@@ -254,7 +254,7 @@ for (const H of [H5, H6]) {
   ok(typeof H.claim === 'string' && H.claim.length > 20, `${H.id}: has a claim`);
   ok(H.refutedBy.length >= 2, `${H.id}: names at least two ways to lose`);
   ok(H.predicts.length >= 2, `${H.id}: makes at least two ordered predictions`);
-  ok(typeof H.outcome === 'string' && typeof H.unit === 'string', `${H.id}: names an outcome and a unit`);
+  ok(typeof H.outcome === 'string' && typeof H.analysisUnit === 'string', `${H.id}: names an outcome and a unit of analysis`);
 }
 // H6's headline number is arithmetic and should match the ladder
 const predicted = Math.sqrt(1 / effectiveReplication('star').effective);

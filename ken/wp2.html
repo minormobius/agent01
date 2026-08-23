@@ -19,6 +19,7 @@
   <a href="/shapes">Shapes</a>
   <a href="/wp1">WP1</a>
   <a class="here" href="/wp2">WP2</a>
+  <a href="/register">Register</a>
   <a href="/log">Log</a>
   <a href="/protocol">III · Protocol</a>
   <span class="grow"></span>
@@ -208,7 +209,7 @@
 
   <div class="table-fig">
     <div class="cap"><b>Table 4.</b> Stated so each can lose. Generated from <code>H5</code> and <code>H6</code>.</div>
-    <!-- TBL:hypotheses:START --><table class="booktabs"><thead><tr><th></th><th class="num">Claim</th><th class="num">Outcome</th><th class="num">Refuted by</th></tr></thead><tbody><tr><td><b>H5</b> position</td><td>Fidelity to the original brief falls with ken ratio, and depth acts only through it.</td><td>Of k constraints planted in the setup brief, how many the sink still honours.<br><span class="muted">unit: the turn, not the run — so one run yields six observations and runs are blocks</span></td><td><ul class="tight"><li>bottleneck and chain differ once ken is matched — then depth acts on its own</li><li>briefed and chain do not differ — then ken ratio predicts nothing and the invariant is decorative</li><li>the ordering holds but tracks in-degree of the sink alone, which is cheaper to compute and would make the ratio surplus</li></ul></td></tr><tr><td><b>H6</b> symmetry</td><td>Turns in one automorphism orbit are exchangeable, so the largest orbit is the replication a run already contains.</td><td>The standard error of a within-run contrast, measured, against the value deff predicts from orbit size.<br><span class="muted">unit: the run, comparing observed SE to predicted SE</span></td><td><ul class="tight"><li>observed SE ratio departs from the predicted one — orbit members are then not exchangeable and the symmetry argument is decorative</li><li>within-orbit variance depends on member identity, e.g. w1 always beats w4 — then dispatch order leaks and the orbit is not an orbit in practice</li></ul></td></tr></tbody></table><!-- TBL:hypotheses:END -->
+    <!-- TBL:hypotheses:START --><table class="booktabs"><thead><tr><th></th><th class="num">Claim</th><th class="num">Outcome</th><th class="num">Refuted by</th></tr></thead><tbody><tr><td><b>H5</b> position</td><td>Fidelity to the original brief falls with the ken ratio, and depth acts only through it.</td><td>Of k constraints planted in the setup brief, how many the sink still honours.<br><span class="muted">unit: undefined</span></td><td><ul class="tight"><li>bottleneck and chain differ once ken is matched, which would mean depth acts on its own.</li><li>briefed and chain do not differ, which would make the ratio decorative.</li><li>The ordering holds but tracks the sink's in-degree alone, which is cheaper to compute and would make the ratio surplus.</li></ul></td></tr><tr><td><b>H6</b> symmetry</td><td>Turns in one automorphism orbit are exchangeable, so the largest orbit is replication the run already contains.</td><td>The standard error of a within-run contrast, measured, against the value deff predicts from orbit size.<br><span class="muted">unit: undefined</span></td><td><ul class="tight"><li>The observed SE ratio departs from the predicted one, so orbit members are not exchangeable after all.</li><li>Within-orbit variance depends on member identity, say w1 always beating w4, which would mean dispatch order leaks and the orbit is not one in practice.</li></ul></td></tr></tbody></table><!-- TBL:hypotheses:END -->
   </div>
 
   <p>H6's headline is arithmetic and is fixed before any data: SE(star) / SE(chain) = 0.75.
@@ -289,6 +290,13 @@
   learns only whether it has seen this state before; it cannot act on the contents. Briefing
   still costs in-degree n−1 at the last turn and no hash makes that cheaper. What the digest
   buys is identity, which is cheaper and different.</p>
+
+  <p>Stated as a hypothesis this is <b>H7</b>, and it is the cheapest one in
+  <a href="/register">the register</a>: it costs nothing beyond running the catalogue, which H5
+  already pays for. It loses if cross-shape pooling shows more variance than within-shape
+  pooling of the same digest, and that failure would be informative in a specific way. It would
+  mean the runner leaks something the plan does not contain, which is a fact about our harness
+  rather than about agents.</p>
 
   <p>It also converts into a requirement on the runner rather than on the graph, which is
   <a href="/methods#r15">R15</a>: the brief handed to a turn must be a function of its ancestry

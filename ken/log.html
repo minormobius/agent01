@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Findings Log — ken</title>
-<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Fifty-four entries, seven of them from measurements we made.">
+<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Sixty entries, seven of them from measurements we made.">
 <link rel="stylesheet" href="journal.css">
 </head>
 <body>
@@ -19,6 +19,7 @@
   <a href="/shapes">Shapes</a>
   <a href="/wp1">WP1</a>
   <a href="/wp2">WP2</a>
+  <a href="/register">Register</a>
   <a class="here" href="/log">Log</a>
   <a href="/protocol">III · Protocol</a>
   <span class="grow"></span>
@@ -30,7 +31,7 @@
   <div class="a-venue">ken · volume 1 <span class="kicker">Running record</span></div>
   <h1 class="a-title">Findings Log</h1>
   <p class="a-sub">Shortest form. Each entry names the code or record that produced it.</p>
-  <div class="a-meta">54 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
+  <div class="a-meta">60 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
   <hr class="a-rule">
 
   <p class="small">Everything here comes from data already paid for or from arithmetic. That is
@@ -457,6 +458,56 @@
       <span class="src"><a href="/methods#r15">R15</a></span></li>
   </ol>
 
+  <h2 class="sec"><span class="secno">§</span>The self-audit</h2>
+
+  <p class="small">A pass over sixteen revisions of our own output, asking what the direction we
+  ended up in makes wrong. Four of the six findings are faults in work we published.</p>
+
+  <ol class="log" start="55">
+    <li><b>R14 was refuted by our own arithmetic and stood for six revisions.</b> It mandated a
+      shape with no stage wider than two, justified by the pairing saving. A matched pair is an
+      orbit of size two; the same six turns as a star put four turns in one orbit, worth 1.787
+      effective replicates against the mandated shape's 1.415. <b>The rule forbade the shape its
+      own reasoning preferred.</b> R14 now requires a run to declare its profile and report four
+      invariants of it, rather than prescribing one.
+      <span class="src"><a href="/methods#r14">R14</a> · standard now v1.4</span></li>
+
+    <li><b>WP1 proposed H2 and went six revisions without recording its first measurement.</b>
+      H2 claims ICC ≥ 0.5. We measured 0.413 with an interval of [0.00, 0.88] at revision 9, put
+      it in this log, and never carried it back to the paper that asked for it. The estimate is
+      on the wrong side, the interval decides nothing, and H2's own refutation condition needs
+      an upper bound below 0.5, so the status is <b>undecided</b> rather than refuted. The
+      addendum is dated and the status now lives in one place.
+      <span class="src"><a href="/wp1">WP1 addendum</a> · <a href="/register">register</a></span></li>
+
+    <li><b>The roadmap asserted an impossibility and nothing objected.</b> Unit IV read
+      <code>blocked</code> while WP2, which needs it, read <code>active</code>. Every existing
+      check on that figure was about geometry, acyclicity and links; none was about the claim the
+      colours make. A node may not be active unless its prerequisites are, may not be done unless
+      they are done, and may not be blocked when all of them are done.
+      <span class="src"><code>tree.js</code> · ken.selftest.mjs</span></li>
+
+    <li><b>The hypotheses were prose in two papers with no status anywhere.</b> Working out what
+      was still open meant reading both and this log. They are one list now, and a status of
+      supported, undecided or refuted must name its evidence while an undecided one must not.
+      Both directions are asserted, because the failure to guard against is the quiet upgrade.
+      The first run of that check found a real gap: H7 was registered and WP2 never named it.
+      <span class="src"><a href="/register">register</a> · <code>hypotheses.mjs</code></span></li>
+
+    <li><b>The protocol asked the loop's question, not ours.</b> It was written for a turn-count
+      curve needing all six blanks. H5 needs none of B1, B3 or B6, costs 180 turns paired, and
+      its manipulation is four edges. So H5 is Study 1 and the turn-count curve is Study 2. The
+      blanks still gate Study 2; the ordering changed, not the requirement.
+      <span class="src"><a href="/protocol#restated">protocol, restated</a></span></li>
+
+    <li><b>A third prose register was needed, and the lint was right to demand it.</b> The
+      generated register cards failed four rules at once. Two were structural and are format
+      rather than writing, so <code>reference</code> joins <code>procedure</code> in being
+      excused them. The other two were lexical and were real faults in prose we had just
+      written, so they were fixed rather than exempted.
+      <span class="src"><code>REGISTER_EXEMPTIONS</code></span></li>
+  </ol>
+
   <h2 class="sec"><span class="secno">§</span>The ledger</h2>
 
   <div class="table-fig">
@@ -464,8 +515,8 @@
       <thead><tr><th>Source of finding</th><th class="num">Entries</th></tr></thead>
       <tbody>
         <tr><td>Records already committed</td><td class="num">12</td></tr>
-        <tr><td>Arithmetic and simulation</td><td class="num">22</td></tr>
-        <tr><td>Our own mistakes</td><td class="num">11</td></tr>
+        <tr><td>Arithmetic and simulation</td><td class="num">24</td></tr>
+        <tr><td>Our own mistakes</td><td class="num">15</td></tr>
         <tr><td>Prior literature</td><td class="num">2</td></tr>
         <tr><td><b>New measurement</b></td><td class="num"><b>7</b></td></tr>
       </tbody>

@@ -23,6 +23,7 @@ import { build as buildPlan } from '../graph/plan.mjs';
 import { renderPlan } from '../graph/layout.mjs';
 import { shapeNames, buildShape, depthKenDesign, catalogue, collinearity, priceH5, H5, H6 } from '../graph/shapes.mjs';
 import { shapeInvariants, positionTable } from '../graph/roles.mjs';
+import { HYPOTHESES, statusCounts, STATUSES } from '../graph/hypotheses.mjs';
 import { readFileSync as _read } from 'node:fs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -254,15 +255,63 @@ export function buildBlocks() {
   return out;
 }
 
-const table = (head, rows) => '<table class="booktabs"><thead><tr>'
-  + head.map((h, i) => `<th${i === 0 ? '' : ' class="num"'}>${h}</th>`).join('')
+/** The hypothesis register, rendered from hypotheses.mjs. */
+export function buildRegisterBlocks() {
+  const counts = statusCounts();
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const summary = table(
+    ['Status', 'Count', 'Meaning'],
+    STATUSES.map((st) => `<tr><td><code>${st}</code></td><td class="num">${counts[st]}</td>`
+      + `<td>${STATUS_GLOSS[st]}</td></tr>`)
+      .concat(`<tr><td><b>total</b></td><td class="num"><b>${total}</b></td><td></td></tr>`), { num: [1] });
+
+  const rows = Object.values(HYPOTHESES).map((h) => {
+    const ev = h.evidence
+      ? `<p class="small"><b>Evidence.</b> ${h.evidence}</p>`
+      : '<p class="small"><b>Evidence.</b> <i>none recorded</i></p>';
+    const pred = h.predicts
+      ? `<p class="small"><b>Predicts.</b> ${h.predicts.map((p) => `${p[0]} <span class="muted">(${p[1]})</span>`).join('; ')}</p>`
+      : '';
+    return `<div class="hyp"><div class="hyp-head"><b>${h.id}</b> <span class="hyp-name">${h.name}</span>`
+      + `<span class="hyp-status ${h.status}">${h.status}</span>`
+      + `<span class="grow"></span><span class="muted">Unit ${h.curriculumUnit} · <a href="${h.owner}">${h.owner}</a></span></div>`
+      + `<p class="hyp-claim">${h.claim}</p>`
+      + `<p class="small"><b>Outcome.</b> ${h.outcome} <span class="muted">Unit of analysis: ${h.analysisUnit}.</span></p>`
+      + pred
+      + `<p class="small"><b>Refuted by.</b></p><ul class="tight small">${h.refutedBy.map((r) => `<li>${r}</li>`).join('')}</ul>`
+      + ev
+      + `<p class="small"><b>Cost.</b> ${h.cost}</p></div>`;
+  }).join('');
+
+  return { FIG: {}, TBL: { 'status-summary': summary, register: rows } };
+}
+
+const STATUS_GLOSS = {
+  untested: 'stated, nothing run and nothing computed',
+  designed: 'a design exists and is priced, no data collected',
+  undecided: 'measured, and the measurement does not decide it',
+  supported: 'evidence consistent with it, and the evidence is named',
+  refuted: 'evidence against it, and the evidence is named',
+};
+
+/* `num` names the columns that hold numbers, because the first version
+   right-aligned every column but the first and shoved the register's prose
+   "Meaning" header against the right edge. */
+const table = (head, rows, { num = null } = {}) => '<table class="booktabs"><thead><tr>'
+  + head.map((h, i) => {
+    const isNum = num ? num.includes(i) : i > 0;
+    return `<th${isNum ? ' class="num"' : ''}>${h}</th>`;
+  }).join('')
   + `</tr></thead><tbody>${rows.join('')}</tbody></table>`;
 
-/** Which blocks on wp2.html have drifted from the code. */
-export function blocksCurrent() {
-  const path = join(HERE, '..', 'wp2.html');
+/** Pages carrying generated blocks. Add one here and it is gated. */
+export const GENERATED_PAGES = ['wp2.html', 'register.html'];
+
+/** Which blocks on a page have drifted from the code. */
+export function blocksCurrent(pageName = 'wp2.html') {
+  const path = join(HERE, '..', pageName);
   let page = readFileSync(path, 'utf8');
-  const blocks = buildBlocks();
+  const blocks = pageName === 'register.html' ? buildRegisterBlocks() : buildBlocks();
   const stale = [];
   for (const kind of ['FIG', 'TBL']) {
     for (const [name, html] of Object.entries(blocks[kind])) {
@@ -281,14 +330,14 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const write = process.argv.includes('--write');
   let stale = 0;
 
-  // the generated blocks on wp2
-  {
-    const b = blocksCurrent();
+  // the generated blocks on every page that has them
+  for (const pageName of GENERATED_PAGES) {
+    const b = blocksCurrent(pageName);
     if (b.stale.length) {
       stale += b.stale.length;
-      if (write) { writeFileSync(b.path, b.page); console.log(`  → wp2.html: ${b.stale.length} block(s) written`); }
-      else console.log(`  ✗ wp2.html STALE: ${b.stale.join(', ')}`);
-    } else console.log('  ✓ wp2.html generated blocks current');
+      if (write) { writeFileSync(b.path, b.page); console.log(`  → ${pageName}: ${b.stale.length} block(s) written`); }
+      else console.log(`  ✗ ${pageName} STALE: ${b.stale.join(', ')}`);
+    } else console.log(`  ✓ ${pageName} generated blocks current`);
   }
 
   // the generated table on /run

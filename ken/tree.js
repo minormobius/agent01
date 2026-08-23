@@ -29,13 +29,13 @@
 
     // row 1 — what was learned from them
     { id: 'standard', row: 1, col: 'mid', state: 'done', wide: true, href: '/methods',
-      lines: ['House standard · R1–R13'], sub: 'how a run is designed, scored and reported',
+      lines: ['House standard · R1–R15'], sub: 'how a run is designed, scored and reported',
       needs: ['loop', 'race01', 'race02'] },
 
     // row 2 — the three foundational units
     { id: 'u1', row: 2, col: 'left', state: 'ready', href: '/syllabus#unit-1',
       lines: ['Unit I', 'Measurement of unobservables'], needs: ['standard'] },
-    { id: 'u2', row: 2, col: 'mid', state: 'active', href: '/syllabus#unit-2',
+    { id: 'u2', row: 2, col: 'mid', state: 'done', href: '/syllabus#unit-2',
       lines: ['Unit II', 'Design of experiments'], needs: ['standard'] },
     { id: 'u3', row: 2, col: 'right', state: 'ready', href: '/syllabus#unit-3',
       lines: ['Unit III', 'Delegation under unobservable effort'], needs: ['standard'] },
@@ -47,11 +47,11 @@
     { id: 'harness', row: 3, col: 'mid', state: 'done', href: '/lab',
       lines: ['The harness'], sub: 'design calculator · 92 known-answer checks',
       needs: ['u2'] },
-    { id: 'u4', row: 3, col: 'right', state: 'blocked', href: '/syllabus#unit-4',
-      lines: ['Unit IV', 'Organisation & authority'], needs: ['u3'] },
+    { id: 'u4', row: 3, col: 'right', state: 'active', href: '/syllabus#unit-4',
+      lines: ['Unit IV', 'Organisation & authority'], needs: ['standard'] },
 
     // row 4
-    { id: 'wp1', row: 4, col: 'mid', state: 'active', href: '/wp1',
+    { id: 'wp1', row: 4, col: 'mid', state: 'done', href: '/wp1',
       lines: ['WP1 · variance of unattended work'], sub: '4 hypotheses · design simulated, pilot re-scoped',
       needs: ['harness'] },
     { id: 'u6', row: 4, col: 'left', state: 'blocked', href: '/syllabus#unit-6',

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hypothesis Register — ken</title>
+<meta name="description" content="All seven hypotheses in one place, each with its status, the evidence behind that status, what would refute it, and what testing it costs.">
+<link rel="stylesheet" href="journal.css">
+</head>
+<body data-register="reference">
+
+<div class="toolbar">
+  <span class="brand"><a href="/">ken</a></span>
+  <a href="/">Front matter</a>
+  <a href="/syllabus">I · Curriculum</a>
+  <a href="/methods">II · Methods</a>
+  <a href="/lab">Instrument</a>
+  <a href="/run">Procedure</a>
+  <a href="/shapes">Shapes</a>
+  <a href="/wp1">WP1</a>
+  <a href="/wp2">WP2</a>
+  <a class="here" href="/register">Register</a>
+  <a href="/log">Log</a>
+  <a href="/protocol">III · Protocol</a>
+  <span class="grow"></span>
+  <button onclick="window.print()">Save as PDF</button>
+</div>
+
+<div class="sheet">
+
+  <div class="a-venue">ken · volume 1 <span class="kicker">Standing record</span></div>
+  <h1 class="a-title">Hypothesis Register</h1>
+  <p class="a-sub">Every claim this programme has made, with its status and the evidence for it</p>
+  <div class="a-meta">Generated from <code>ken/graph/hypotheses.mjs</code>. The pages cite it; it does not cite them.</div>
+  <hr class="a-rule">
+
+  <p>The hypotheses were prose in two papers with no status recorded anywhere, so working out
+  what was still open meant reading both and the log. They are one list now, and every page that
+  mentions one renders from it.</p>
+
+  <p><b>The status field is the point.</b> A hypothesis with no recorded outcome cannot be told
+  apart from one nobody got round to, and a programme like this accumulates the second kind.
+  A status of <code>supported</code>, <code>undecided</code> or <code>refuted</code> must name
+  its evidence, and one that has not been decided must not name any. The selftest asserts both
+  directions, because the failure to guard against is the quiet upgrade: a status moved while
+  the evidence field stays empty.</p>
+
+  <!-- TBL:status-summary:START --><table class="booktabs"><thead><tr><th>Status</th><th class="num">Count</th><th>Meaning</th></tr></thead><tbody><tr><td><code>untested</code></td><td class="num">1</td><td>stated, nothing run and nothing computed</td></tr><tr><td><code>designed</code></td><td class="num">3</td><td>a design exists and is priced, no data collected</td></tr><tr><td><code>undecided</code></td><td class="num">1</td><td>measured, and the measurement does not decide it</td></tr><tr><td><code>supported</code></td><td class="num">2</td><td>evidence consistent with it, and the evidence is named</td></tr><tr><td><code>refuted</code></td><td class="num">0</td><td>evidence against it, and the evidence is named</td></tr><tr><td><b>total</b></td><td class="num"><b>7</b></td><td></td></tr></tbody></table><!-- TBL:status-summary:END -->
+
+  <h2 class="sec"><span class="secno">1</span>The register</h2>
+
+  <!-- TBL:register:START --><div class="hyp"><div class="hyp-head"><b>H1</b> <span class="hyp-name">structure</span><span class="hyp-status untested">untested</span><span class="grow"></span><span class="muted">Unit II · <a href="/wp1">/wp1</a></span></div><p class="hyp-claim">Per-task quality scores are unimodal rather than bimodal.</p><p class="small"><b>Outcome.</b> Sarle's bimodality coefficient per task. <span class="muted">Unit of analysis: the task.</span></p><p class="small"><b>Refuted by.</b></p><ul class="tight small"><li>A coefficient above 5/9 on tasks with enough runs to see it.</li><li>Or a run count too small to distinguish the two, which makes it untestable rather than false.</li></ul><p class="small"><b>Evidence.</b> <i>none recorded</i></p><p class="small"><b>Cost.</b> a 24-run pilot detects a 2-SD separation 69% of the time and a 3-SD one always</p></div><div class="hyp"><div class="hyp-head"><b>H2</b> <span class="hyp-name">magnitude</span><span class="hyp-status undecided">undecided</span><span class="grow"></span><span class="muted">Unit II · <a href="/wp1">/wp1</a></span></div><p class="hyp-claim">ICC ≥ 0.5, so most variation is task difficulty and pairing pays.</p><p class="small"><b>Outcome.</b> The intraclass correlation of quality by cell, with its interval. <span class="muted">Unit of analysis: the cell.</span></p><p class="small"><b>Refuted by.</b></p><ul class="tight small"><li>An interval whose upper bound falls below 0.5.</li><li>The point estimate alone does not do it, which is why the status below is undecided.</li></ul><p class="small"><b>Evidence.</b> ICC of judged quality by cell is 0.413, 95% interval [0.00, 0.88], from 56 verdicts over 28 pairs of the 12 race-02 entries. The point estimate is below 0.5; the interval does not exclude either side, so the stated refutation condition is not met.</p><p class="small"><b>Cost.</b> reaching ±0.16 on the ICC takes 144 runs</p></div><div class="hyp"><div class="hyp-head"><b>H3</b> <span class="hyp-name">allocation</span><span class="hyp-status supported">supported</span><span class="grow"></span><span class="muted">Unit II · <a href="/wp1">/wp1</a></span></div><p class="hyp-claim">At a fixed run budget the standard error is minimised at one repeat per task.</p><p class="small"><b>Outcome.</b> The standard error of the mean at each allocation. <span class="muted">Unit of analysis: the allocation.</span></p><p class="small"><b>Refuted by.</b></p><ul class="tight small"><li>A simulated allocation beating one repeat by more than simulation error.</li><li>Or a budget model where repeats and tasks do not trade one for one.</li></ul><p class="small"><b>Evidence.</b> Predicted and simulated SE agree to about 1% across six allocations, and one repeat wins at every ICC, as the algebra requires. Settled without spending a run.</p><p class="small"><b>Cost.</b> nothing; it is a claim about the estimator</p></div><div class="hyp"><div class="hyp-head"><b>H4</b> <span class="hyp-name">exchangeability</span><span class="hyp-status supported">supported</span><span class="grow"></span><span class="muted">Unit II · <a href="/log">/log</a></span></div><p class="hyp-claim">Runs of one task are exchangeable: no drift, no within-task order effect.</p><p class="small"><b>Outcome.</b> Turn duration by within-task position. <span class="muted">Unit of analysis: the turn.</span></p><p class="small"><b>Refuted by.</b></p><ul class="tight small"><li>An order effect that survives dropping any single task.</li><li>Or drift across the run that survives controlling for task composition.</li></ul><p class="small"><b>Evidence.</b> Pooled slope −0.47 log-seconds per position (p = 0.012, 20,000 shuffles), but dropping lp-16d590 takes it to −0.10 at p = 0.17 while six other leave-one-outs move it under 0.1. The effect is one bead whose four runs were all gate failures. Exploratory: the outcome is duration, because the loop recorded no quality scores.</p><p class="small"><b>Cost.</b> already paid, since it reuses the loop ledger</p></div><div class="hyp"><div class="hyp-head"><b>H5</b> <span class="hyp-name">position</span><span class="hyp-status designed">designed</span><span class="grow"></span><span class="muted">Unit IV · <a href="/wp2">/wp2</a></span></div><p class="hyp-claim">Fidelity to the original brief falls with the ken ratio, and depth acts only through it.</p><p class="small"><b>Outcome.</b> Of k constraints planted in the setup brief, how many the sink still honours. <span class="muted">Unit of analysis: the turn, not the run — so one run yields six observations and runs are blocks.</span></p><p class="small"><b>Predicts.</b> briefed > chain <span class="muted">(same six turns, same depth, ken 1.00 against 0.33)</span>; bottleneck ~ chain <span class="muted">(ken matched at 0.33 while depth differs, 3 against 5)</span>; star > bottleneck <span class="muted">(depth matched near the shallow end, ken 0.83 against 0.33)</span></p><p class="small"><b>Refuted by.</b></p><ul class="tight small"><li>bottleneck and chain differ once ken is matched, which would mean depth acts on its own.</li><li>briefed and chain do not differ, which would make the ratio decorative.</li><li>The ordering holds but tracks the sink's in-degree alone, which is cheaper to compute and would make the ratio surplus.</li></ul><p class="small"><b>Evidence.</b> <i>none recorded</i></p><p class="small"><b>Cost.</b> 180 turns paired at d = 0.8, and the manipulation is four edges and no extra turns</p></div><div class="hyp"><div class="hyp-head"><b>H6</b> <span class="hyp-name">symmetry</span><span class="hyp-status designed">designed</span><span class="grow"></span><span class="muted">Unit IV · <a href="/wp2">/wp2</a></span></div><p class="hyp-claim">Turns in one automorphism orbit are exchangeable, so the largest orbit is replication the run already contains.</p><p class="small"><b>Outcome.</b> The standard error of a within-run contrast, measured, against the value deff predicts from orbit size. <span class="muted">Unit of analysis: the run, comparing observed SE to predicted SE.</span></p><p class="small"><b>Predicts.</b> SE(star) / SE(chain) = sqrt(1.00 / 1.79) = 0.75 <span class="muted">(from orbit sizes 4 and 1 at rho = 0.413, before any data)</span>; within-orbit variance does not depend on which member <span class="muted">(that is the exchangeability claim itself)</span>; between-orbit contrasts stay confounded with position <span class="muted">(no shape rescues those)</span></p><p class="small"><b>Refuted by.</b></p><ul class="tight small"><li>The observed SE ratio departs from the predicted one, so orbit members are not exchangeable after all.</li><li>Within-orbit variance depends on member identity, say w1 always beating w4, which would mean dispatch order leaks and the orbit is not one in practice.</li></ul><p class="small"><b>Evidence.</b> <i>none recorded</i></p><p class="small"><b>Cost.</b> no extra turns, being a re-analysis of any run of a shape whose largest orbit exceeds one</p></div><div class="hyp"><div class="hyp-head"><b>H7</b> <span class="hyp-name">ancestry</span><span class="hyp-status designed">designed</span><span class="grow"></span><span class="muted">Unit IV · <a href="/wp2">/wp2</a></span></div><p class="hyp-claim">Turns with equal ancestry digests are the same experimental condition, across different plans as well as within one.</p><p class="small"><b>Outcome.</b> Within-cell variance of a digest class, pooled across shapes against pooled within one. <span class="muted">Unit of analysis: the ancestry class.</span></p><p class="small"><b>Predicts.</b> the 13-turn cross-shape cell behaves as one condition <span class="muted">(its within-cell variance matches the within-shape variance for the same digest)</span>; the six sources form a second cell at deff exactly 1 <span class="muted">(one per run, so they are independent)</span></p><p class="small"><b>Refuted by.</b></p><ul class="tight small"><li>Cross-shape pooling shows more variance than within-shape pooling of the same digest.</li><li>That would mean the runner leaks something the plan does not contain, which is an R15 violation rather than a fact about agents.</li></ul><p class="small"><b>Evidence.</b> <i>none recorded</i></p><p class="small"><b>Cost.</b> nothing beyond running the catalogue, which H5 already pays for</p></div><!-- TBL:register:END -->
+
+  <h2 class="sec"><span class="secno">2</span>Reading the table</h2>
+
+  <p><b>Two are settled and neither cost a run.</b> H3 is a claim about an estimator and fell to
+  algebra; H4 reused a ledger already paid for. That is the pattern worth keeping: the cheapest
+  hypotheses are the ones about the instrument rather than about the world.</p>
+
+  <p><b>H2 is the one to read carefully.</b> It claims ICC ≥ 0.5 and would be refuted by an
+  interval whose upper bound falls below 0.5. We measured 0.413 with an interval of [0.00, 0.88].
+  The point estimate is on the wrong side and the interval decides nothing, so the honest status
+  is <code>undecided</code> rather than <code>refuted</code>. <a href="/wp1">WP1</a> proposed H2
+  and did not record that measurement until the addendum, which is a real gap in the record and
+  is now marked as one.</p>
+
+  <p><b>Three are designed and unrun, and they are the affordable ones.</b> H5 costs 180 turns
+  paired; H6 and H7 cost nothing beyond it, being re-analyses of the same runs. That is why
+  <a href="/protocol">the protocol</a> now points at H5 rather than at the turn-count study it
+  was written for.</p>
+
+  <p><b>One is untested and has been since it was stated.</b> H1 needs a pilot that keeps being
+  deferred. It is listed rather than quietly dropped.</p>
+
+  <div class="colophon">
+    ken · hypothesis register<br>
+    Generated from <code>ken/graph/hypotheses.mjs</code> by
+    <code>node ken/lab/figures.mjs --write</code>. Nothing on this page is typed.
+  </div>
+
+</div>
+
+<script src="refs.js"></script>
+<script src="cite.js"></script>
+</body>
+</html>

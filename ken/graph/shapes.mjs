@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────
-   ken/lab/shapes.mjs — six org charts that all cost six turns.
+   ken/graph/shapes.mjs — six org charts that all cost six turns.
 
    The binding constraint on this programme is sample size. /run priced
    it: at the measured rho = 0.413, a 96-turn budget reaches d = 1.07 and
@@ -293,77 +293,14 @@ export function chainBriefedContrast() {
 
 // ── H5, stated so it can lose ─────────────────────────────────────────
 
-/**
- * The hypothesis the catalogue exists to test, with its refutation
- * written next to it, per R2.
- */
-export const H5 = {
-  id: 'H5',
-  name: 'position',
-  claim: 'Fidelity to the original brief falls with ken ratio, and depth acts only through it.',
-  outcome: 'Of k constraints planted in the setup brief, how many the sink still honours.',
-  unit: 'the turn, not the run — so one run yields six observations and runs are blocks',
-  predicts: [
-    ['briefed > chain', 'same six turns, same depth, ken 1.00 against 0.33'],
-    ['bottleneck ~ chain', 'ken matched at 0.33 while depth differs, 3 against 5'],
-    ['star > bottleneck', 'depth matched near the shallow end, ken 0.83 against 0.33'],
-  ],
-  refutedBy: [
-    'bottleneck and chain differ once ken is matched — then depth acts on its own',
-    'briefed and chain do not differ — then ken ratio predicts nothing and the invariant is decorative',
-    'the ordering holds but tracks in-degree of the sink alone, which is cheaper to compute and would make the ratio surplus',
-  ],
-  /**
-   * The honest read on what a null would mean. A null here is a result:
-   * it says copying the last agent on everything does not help, which is
-   * worth knowing precisely because it is free to do and widely assumed
-   * to work.
-   */
-  nullIsInformative: true,
-};
+/* H5 and H6 moved to hypotheses.mjs, where all seven live as one list
+   with a status field. Re-exported here so every existing importer and
+   every published figure is unaffected by the move. */
+import { HYPOTHESES } from './hypotheses.mjs';
 
-/**
- * H6 is the design half, and it is cheaper to test than H5 because most
- * of it is arithmetic. Only one step is empirical, and that step is H4
- * asked at the turn level with the graph pointing at where to look.
- */
-export const H6 = {
-  id: 'H6',
-  name: 'symmetry',
-  claim: 'Turns in one automorphism orbit are exchangeable, so the largest orbit is the replication a run already contains.',
-  outcome: 'The standard error of a within-run contrast, measured, against the value deff predicts from orbit size.',
-  unit: 'the run, comparing observed SE to predicted SE',
-  predicts: [
-    ['SE(star) / SE(chain) = sqrt(1.00 / 1.79) = 0.75', 'from orbit sizes 4 and 1 at rho = 0.413, before any data'],
-    ['within-orbit variance does not depend on which member', 'that is the exchangeability claim itself'],
-    ['between-orbit contrasts stay confounded with position', 'no shape rescues those'],
-  ],
-  refutedBy: [
-    'observed SE ratio departs from the predicted one — orbit members are then not exchangeable and the symmetry argument is decorative',
-    'within-orbit variance depends on member identity, e.g. w1 always beats w4 — then dispatch order leaks and the orbit is not an orbit in practice',
-  ],
-  /**
-   * The second refutation is the one to expect, and it is worth expecting:
-   * a graph automorphism says the PLAN cannot tell two turns apart. It
-   * says nothing about the runner. If turns are dispatched in a fixed
-   * order, or share a rate limit, or read a file the other wrote, the
-   * symmetry is in the drawing and not in the world. That gap is the
-   * whole content of the test.
-   */
-  nullIsInformative: true,
-};
+export const H5 = HYPOTHESES.H5;
+export const H6 = HYPOTHESES.H6;
 
-/**
- * What H5 costs, priced against the measured parameters rather than
- * hopeful ones.
- *
- * Two arithmetics, and the gap between them is the whole argument for
- * testing shape rather than models:
- *
- *   between-run   a shape contrast compared run to run. n is runs.
- *   within-run    a position contrast inside one run. n is turns, and
- *                 the run absorbs its own between-run variance.
- */
 export function priceH5({ d = 0.8, rho = 0.413, alpha = 0.05, power = 0.8 } = {}) {
   const zA = 1.959963984540054, zB = 0.8416212335729143; // two-tailed 0.05, power 0.8
   const perArm = Math.ceil(2 * ((zA + zB) / d) ** 2);
