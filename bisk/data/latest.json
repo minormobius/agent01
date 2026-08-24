@@ -1,19 +1,19 @@
 {
   "date": "2026-08-24",
-  "generatedAt": "2026-08-24T13:00:48.683Z",
+  "generatedAt": "2026-08-24T13:53:28.120Z",
   "listUri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.graph.list/3mmcwc5lx7o2p",
   "listUrl": "https://bsky.app/profile/did:plc:7zre4plmd5jllccww575j6sb/lists/3mmcwc5lx7o2p",
   "memberCount": 99,
-  "postCount": 307,
+  "postCount": 316,
   "chickens": [
     {
       "handle": "astrra.space",
       "displayName": "Astra ⭐",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreiedsbqy3voqnouitnjhcyohz3njz4txeq2xmz2s5ixaytft5itbpi",
       "text": "ok i'm extremely proud of this shot actually",
-      "likeCount": 346,
+      "likeCount": 363,
       "replyCount": 12,
-      "repostCount": 22,
+      "repostCount": 23,
       "url": "https://bsky.app/profile/astrra.space/post/3mtsp7ahix22k"
     },
     {
@@ -21,7 +21,7 @@
       "displayName": "SE Gyges",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiempgjkhvjq2dobqkmd5pqd6lcbkhgejasfwh3zoygncjpwgqc7te",
       "text": "gross is largely a function of moisture. it is very difficult for anything to be gross without involving fluid in some way. to a first approximation, the wetter something is the more gross it is",
-      "likeCount": 273,
+      "likeCount": 277,
       "replyCount": 51,
       "repostCount": 11,
       "url": "https://bsky.app/profile/segyges.bsky.social/post/3mtrdjcks7c2z"
@@ -31,8 +31,8 @@
       "displayName": "hailey",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreic5hxsvugj4yanvd53cngk4ak24iy56r6fnwmw377i5s26hsnlh6i",
       "text": "i’m sorry but what dude is out there buying MENTHOLE menthol infused dude wipes?",
-      "likeCount": 181,
-      "replyCount": 42,
+      "likeCount": 185,
+      "replyCount": 43,
       "repostCount": 21,
       "url": "https://bsky.app/profile/hailey.at/post/3mtrwk3lkks26"
     }
@@ -50,38 +50,38 @@
     "atUri": "at://did:plc:vszw3ess46odfhnzdsy4huae/app.bsky.feed.post/3mtrdjcks7c2z"
   },
   "weather": {
-    "index": 0.122,
+    "index": 0.128,
     "label": "Fair",
     "glyph": "🌤",
     "mood": "trust",
-    "verbosity": 21,
-    "scoredWords": 1121,
-    "corpusPosts": 741,
+    "verbosity": 20,
+    "scoredWords": 1122,
+    "corpusPosts": 746,
     "emotions": {
       "anger": 199,
-      "anticipation": 288,
-      "disgust": 171,
-      "fear": 240,
+      "anticipation": 290,
+      "disgust": 173,
+      "fear": 235,
       "joy": 271,
-      "sadness": 159,
-      "surprise": 143,
-      "trust": 436
+      "sadness": 154,
+      "surprise": 146,
+      "trust": 424
     },
     "distinctive": [
       {
         "word": "agi",
         "count": 16,
-        "over": 15578.4
+        "over": 15665.5
+      },
+      {
+        "word": "bluesky",
+        "count": 13,
+        "over": 12728.2
       },
       {
         "word": "idk",
         "count": 12,
-        "over": 11683.8
-      },
-      {
-        "word": "bluesky",
-        "count": 11,
-        "over": 10710.2
+        "over": 11749.1
       }
     ]
   },
@@ -91,7 +91,7 @@
       "displayName": "Minor Mobius",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:7zre4plmd5jllccww575j6sb/bafkreidwfsmojqvxxkfve5mic6f7z5ao3ugp4kybdoqyke5df7aj7tadve",
       "text": "Good news everyone! Introducing iQwop, a house of pancakes qwoplike at\n\npoke.mino.mobi/griddle",
-      "likeCount": 47,
+      "likeCount": 48,
       "repostCount": 4,
       "replyCount": 1,
       "url": "https://bsky.app/profile/minormobius.bsky.social/post/3mtrrtlg5q22g",
@@ -358,7 +358,7 @@
       "handle": "astrra.space",
       "url": "https://bsky.app/profile/astrra.space/post/3mtsp7ahix22k",
       "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3mtsp7ahix22k",
-      "likeCount": 346
+      "likeCount": 363
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreiffhm3l5ndrounb6k53zuw75yin2ro6uextg4oxh6ibzbj5teuh7q",
@@ -368,7 +368,7 @@
       "handle": "hailey.at",
       "url": "https://bsky.app/profile/hailey.at/post/3mtrwk3lkks26",
       "uri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3mtrwk3lkks26",
-      "likeCount": 181
+      "likeCount": 185
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreif7i744i5lpbqmw2zgzxq57zlpsdos7dgcxjrxit6ni5jzx564sa4",
@@ -408,7 +408,7 @@
       "handle": "yetanotheruseless.com",
       "url": "https://bsky.app/profile/yetanotheruseless.com/post/3mtstc3ugcs2h",
       "uri": "at://did:plc:bjaceaxgoto5p7gor2rcov3g/app.bsky.feed.post/3mtstc3ugcs2h",
-      "likeCount": 65
+      "likeCount": 77
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreibpltbsgfhk7ensbu73cg4m5f4obpi7z7b4onvewvpkky2dn6hjjy",
@@ -418,7 +418,7 @@
       "handle": "isolyth.dev",
       "url": "https://bsky.app/profile/isolyth.dev/post/3mtsj63ufck22",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mtsj63ufck22",
-      "likeCount": 60
+      "likeCount": 69
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreid5mbqtlcc75gve6pyjtr6hsmtfg2zdavck3viamnj7ozvtegvmru",
@@ -428,7 +428,7 @@
       "handle": "astrra.space",
       "url": "https://bsky.app/profile/astrra.space/post/3mtsgzowtcc2k",
       "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3mtsgzowtcc2k",
-      "likeCount": 53
+      "likeCount": 55
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreid2muq2kita4yrknwi2g4hz64vyivgpjuwirps2cji3zhmg6t6ywa",
@@ -441,16 +441,6 @@
       "likeCount": 50
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreibykkgul72znbodkqf364jsx5hhifijriqejgk35sb4lc4k432674",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreibykkgul72znbodkqf364jsx5hhifijriqejgk35sb4lc4k432674",
-      "alt": "",
-      "ratio": 0.75,
-      "handle": "thebadcode.com",
-      "url": "https://bsky.app/profile/thebadcode.com/post/3mtrn5wq2lk2x",
-      "uri": "at://did:plc:4vvaxwovyg4yo4n7dyyncaiu/app.bsky.feed.post/3mtrn5wq2lk2x",
-      "likeCount": 48
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreigs7n6lgxexsoxpdyiyp5v54lmikxomxzq4km7pjoyrwjablpv23u",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreigs7n6lgxexsoxpdyiyp5v54lmikxomxzq4km7pjoyrwjablpv23u",
       "alt": "",
@@ -458,7 +448,27 @@
       "handle": "sneptech.bsky.social",
       "url": "https://bsky.app/profile/sneptech.bsky.social/post/3mtsef5ir6k24",
       "uri": "at://did:plc:2p7a3z4uzfpoepv3aa36ykjq/app.bsky.feed.post/3mtsef5ir6k24",
-      "likeCount": 48
+      "likeCount": 50
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreibykkgul72znbodkqf364jsx5hhifijriqejgk35sb4lc4k432674",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreibykkgul72znbodkqf364jsx5hhifijriqejgk35sb4lc4k432674",
+      "alt": "",
+      "ratio": 0.75,
+      "handle": "thebadcode.com",
+      "url": "https://bsky.app/profile/thebadcode.com/post/3mtrn5wq2lk2x",
+      "uri": "at://did:plc:4vvaxwovyg4yo4n7dyyncaiu/app.bsky.feed.post/3mtrn5wq2lk2x",
+      "likeCount": 49
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreih57lsns6ibsrkletgobpo6uxtufp4ovp5howfqlyqzdgq3wkimbi",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreih57lsns6ibsrkletgobpo6uxtufp4ovp5howfqlyqzdgq3wkimbi",
+      "alt": "",
+      "ratio": 0.7528,
+      "handle": "hikikomorphism.bsky.social",
+      "url": "https://bsky.app/profile/hikikomorphism.bsky.social/post/3mtsrf4regs2q",
+      "uri": "at://did:plc:qvywnipfiyrd6v4qdf4x27wy/app.bsky.feed.post/3mtsrf4regs2q",
+      "likeCount": 46
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreigrst2dkkmnzyuy4fg6ruv2eactt6sjp3wrz5vjsznna3ltpdfr3y",
@@ -471,16 +481,6 @@
       "likeCount": 43
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreih57lsns6ibsrkletgobpo6uxtufp4ovp5howfqlyqzdgq3wkimbi",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreih57lsns6ibsrkletgobpo6uxtufp4ovp5howfqlyqzdgq3wkimbi",
-      "alt": "",
-      "ratio": 0.7528,
-      "handle": "hikikomorphism.bsky.social",
-      "url": "https://bsky.app/profile/hikikomorphism.bsky.social/post/3mtsrf4regs2q",
-      "uri": "at://did:plc:qvywnipfiyrd6v4qdf4x27wy/app.bsky.feed.post/3mtsrf4regs2q",
-      "likeCount": 38
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreicr6lxsrr56jac36k3s7dujackcrt5e52wbygjybuibrcidvcaxim",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreicr6lxsrr56jac36k3s7dujackcrt5e52wbygjybuibrcidvcaxim",
       "alt": "",
@@ -488,7 +488,7 @@
       "handle": "hailey.at",
       "url": "https://bsky.app/profile/hailey.at/post/3mtsimdklyk26",
       "uri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3mtsimdklyk26",
-      "likeCount": 34
+      "likeCount": 35
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreibykvu7fqpkafkeq5ivx6zbucyzj6mj6gsqcdacyc6wh7633kxtnm",
@@ -498,7 +498,7 @@
       "handle": "hailey.at",
       "url": "https://bsky.app/profile/hailey.at/post/3mtsimdklyk26",
       "uri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3mtsimdklyk26",
-      "likeCount": 34
+      "likeCount": 35
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreibzrgcep4iclnvi4mljv2d4bz5cy4swqesmuxbosmwnzjtchz3cri",
@@ -508,7 +508,7 @@
       "handle": "hailey.at",
       "url": "https://bsky.app/profile/hailey.at/post/3mtsimdklyk26",
       "uri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3mtsimdklyk26",
-      "likeCount": 34
+      "likeCount": 35
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreibsfemwwax35xy3dnvz3ryx6yng5h7z2io74saqf7cdpx4zmmeteq",
@@ -518,6 +518,16 @@
       "handle": "sneptech.bsky.social",
       "url": "https://bsky.app/profile/sneptech.bsky.social/post/3mtsexyf7lc23",
       "uri": "at://did:plc:2p7a3z4uzfpoepv3aa36ykjq/app.bsky.feed.post/3mtsexyf7lc23",
+      "likeCount": 35
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreifpg32gnmio3dljldjtu6sgu4qkeqev5q57ucjde2ncv3q3mvt3ua",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreifpg32gnmio3dljldjtu6sgu4qkeqev5q57ucjde2ncv3q3mvt3ua",
+      "alt": "Fireside Alpha @firesidealpha\nx.com\nSam Altman admits he was wrong on Al's timeline and says society and the economy will adapt more slowly\n\"I thought when we got to GPT-4, which was back in 2023, that very quickly after that there was going to be much more disruption, software businesses up for grabs right away, than it turned out to be.\"\n\"I think I was wrong about a few things, but one in terms of the speed: the economy just has so much inertia.\"\n\"People keep doing the same things, buying from the same company, wanting to use their tools the same way. I think this is actually a positive in many ways, and it's going to make this big transition go smoother and slower. I'm grateful for it.\"",
+      "ratio": 0.6838,
+      "handle": "timkellogg.me",
+      "url": "https://bsky.app/profile/timkellogg.me/post/3mttbgsb7kk27",
+      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mttbgsb7kk27",
       "likeCount": 34
     },
     {
@@ -528,7 +538,7 @@
       "handle": "moultano.bsky.social",
       "url": "https://bsky.app/profile/moultano.bsky.social/post/3mtsbbfunnc2c",
       "uri": "at://did:plc:h25avmes6g7fgcddc3xj7qmg/app.bsky.feed.post/3mtsbbfunnc2c",
-      "likeCount": 29
+      "likeCount": 30
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreib75cw55k5dpeurkygy4v2fqdgphfnhhnhtmmllrr7gjuqhhfyk4i",
@@ -541,14 +551,34 @@
       "likeCount": 26
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreifpg32gnmio3dljldjtu6sgu4qkeqev5q57ucjde2ncv3q3mvt3ua",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreifpg32gnmio3dljldjtu6sgu4qkeqev5q57ucjde2ncv3q3mvt3ua",
-      "alt": "Fireside Alpha @firesidealpha\nx.com\nSam Altman admits he was wrong on Al's timeline and says society and the economy will adapt more slowly\n\"I thought when we got to GPT-4, which was back in 2023, that very quickly after that there was going to be much more disruption, software businesses up for grabs right away, than it turned out to be.\"\n\"I think I was wrong about a few things, but one in terms of the speed: the economy just has so much inertia.\"\n\"People keep doing the same things, buying from the same company, wanting to use their tools the same way. I think this is actually a positive in many ways, and it's going to make this big transition go smoother and slower. I'm grateful for it.\"",
-      "ratio": 0.6838,
-      "handle": "timkellogg.me",
-      "url": "https://bsky.app/profile/timkellogg.me/post/3mttbgsb7kk27",
-      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mttbgsb7kk27",
-      "likeCount": 24
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreiaomfuaur7zmjbe57crgpai5o3xuyhkp3yni74tki3omnlahz6fii",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreiaomfuaur7zmjbe57crgpai5o3xuyhkp3yni74tki3omnlahz6fii",
+      "alt": "",
+      "ratio": 0.6573,
+      "handle": "sneptech.bsky.social",
+      "url": "https://bsky.app/profile/sneptech.bsky.social/post/3mtsen3uqoc24",
+      "uri": "at://did:plc:2p7a3z4uzfpoepv3aa36ykjq/app.bsky.feed.post/3mtsen3uqoc24",
+      "likeCount": 26
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreichkpdibsbt2zj2robrno7y6h7jlumufqvgvns4unldsoqsc7kioi",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreichkpdibsbt2zj2robrno7y6h7jlumufqvgvns4unldsoqsc7kioi",
+      "alt": "",
+      "ratio": 0.75,
+      "handle": "astrra.space",
+      "url": "https://bsky.app/profile/astrra.space/post/3mtst3lr5n22k",
+      "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3mtst3lr5n22k",
+      "likeCount": 22
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreiaai556i5yi23a5uztimmcehq4lxrmn3zg2e73sqxjckrfz6i2uxi",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreiaai556i5yi23a5uztimmcehq4lxrmn3zg2e73sqxjckrfz6i2uxi",
+      "alt": "",
+      "ratio": 0.7502,
+      "handle": "thebadcode.com",
+      "url": "https://bsky.app/profile/thebadcode.com/post/3mtrhye2onk2i",
+      "uri": "at://did:plc:4vvaxwovyg4yo4n7dyyncaiu/app.bsky.feed.post/3mtrhye2onk2i",
+      "likeCount": 20
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hsqwcidfez66lwm3gxhfv5in/bafkreicvfnlpjz7a4qingujfplwv3xif7pqrjeizyx5cwddrj6s2mbxwbu",
@@ -561,23 +591,13 @@
       "likeCount": 20
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreichkpdibsbt2zj2robrno7y6h7jlumufqvgvns4unldsoqsc7kioi",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreichkpdibsbt2zj2robrno7y6h7jlumufqvgvns4unldsoqsc7kioi",
-      "alt": "",
-      "ratio": 0.75,
-      "handle": "astrra.space",
-      "url": "https://bsky.app/profile/astrra.space/post/3mtst3lr5n22k",
-      "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3mtst3lr5n22k",
-      "likeCount": 19
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreiaai556i5yi23a5uztimmcehq4lxrmn3zg2e73sqxjckrfz6i2uxi",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreiaai556i5yi23a5uztimmcehq4lxrmn3zg2e73sqxjckrfz6i2uxi",
-      "alt": "",
-      "ratio": 0.7502,
-      "handle": "thebadcode.com",
-      "url": "https://bsky.app/profile/thebadcode.com/post/3mtrhye2onk2i",
-      "uri": "at://did:plc:4vvaxwovyg4yo4n7dyyncaiu/app.bsky.feed.post/3mtrhye2onk2i",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreiebmcmgirs4dvdv7afzve66x775vt3d42xg6il3ceziwtwo2bdyki",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreiebmcmgirs4dvdv7afzve66x775vt3d42xg6il3ceziwtwo2bdyki",
+      "alt": "Two 3D-printed car-shaped parts sit side by side on a white surface: a smooth bright-blue shell on the left with a circular recessed opening and square hole, and a detailed metallic green-and-gold car body on the right with wheels, raised contours, and a matching circular opening.",
+      "ratio": 2.0294,
+      "handle": "timkellogg.me",
+      "url": "https://bsky.app/profile/timkellogg.me/post/3mttarg4oz227",
+      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mttarg4oz227",
       "likeCount": 19
     },
     {
@@ -609,16 +629,6 @@
       "url": "https://bsky.app/profile/dollspace.gay/post/3mtry7rcjwc2x",
       "uri": "at://did:plc:dzvxvsiy3maw4iarpvizsj67/app.bsky.feed.post/3mtry7rcjwc2x",
       "likeCount": 18
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreiebmcmgirs4dvdv7afzve66x775vt3d42xg6il3ceziwtwo2bdyki",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreiebmcmgirs4dvdv7afzve66x775vt3d42xg6il3ceziwtwo2bdyki",
-      "alt": "Two 3D-printed car-shaped parts sit side by side on a white surface: a smooth bright-blue shell on the left with a circular recessed opening and square hole, and a detailed metallic green-and-gold car body on the right with wheels, raised contours, and a matching circular opening.",
-      "ratio": 2.0294,
-      "handle": "timkellogg.me",
-      "url": "https://bsky.app/profile/timkellogg.me/post/3mttarg4oz227",
-      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mttarg4oz227",
-      "likeCount": 15
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:3dor7kagwyswq4ogboxeqo42/bafkreig64v2mwb4whjv5l3wv7sqokmoydfhhrve2kwizfdyix7quectpty",
@@ -701,16 +711,6 @@
       "likeCount": 10
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreiaomfuaur7zmjbe57crgpai5o3xuyhkp3yni74tki3omnlahz6fii",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreiaomfuaur7zmjbe57crgpai5o3xuyhkp3yni74tki3omnlahz6fii",
-      "alt": "",
-      "ratio": 0.6573,
-      "handle": "sneptech.bsky.social",
-      "url": "https://bsky.app/profile/sneptech.bsky.social/post/3mtsen3uqoc24",
-      "uri": "at://did:plc:2p7a3z4uzfpoepv3aa36ykjq/app.bsky.feed.post/3mtsen3uqoc24",
-      "likeCount": 10
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zjnskcrzfd35gtlso2agki5y/bafkreigw4fszbylinybdln5hctreyy2xfjfcsal4k6dq2s3td47la5sc2u",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:zjnskcrzfd35gtlso2agki5y/bafkreigw4fszbylinybdln5hctreyy2xfjfcsal4k6dq2s3td47la5sc2u",
       "alt": "",
@@ -721,6 +721,16 @@
       "likeCount": 9
     },
     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreifyhfrldz5f6wqkrg2b5lfemmstljicv6ehdj3cxtjchr5mz4xoyq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreifyhfrldz5f6wqkrg2b5lfemmstljicv6ehdj3cxtjchr5mz4xoyq",
+      "alt": "",
+      "ratio": 0.8012,
+      "handle": "sneptech.bsky.social",
+      "url": "https://bsky.app/profile/sneptech.bsky.social/post/3mtsf2bzwmk23",
+      "uri": "at://did:plc:2p7a3z4uzfpoepv3aa36ykjq/app.bsky.feed.post/3mtsf2bzwmk23",
+      "likeCount": 8
+    },
+    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreicmelvfxrvahl5z2eowrbw3hqbnostv54owimxyphvfjptiq62c7e",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreicmelvfxrvahl5z2eowrbw3hqbnostv54owimxyphvfjptiq62c7e",
       "alt": "",
@@ -729,16 +739,6 @@
       "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mtsicrtjfk2q",
       "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mtsicrtjfk2q",
       "likeCount": 8
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreifyhfrldz5f6wqkrg2b5lfemmstljicv6ehdj3cxtjchr5mz4xoyq",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreifyhfrldz5f6wqkrg2b5lfemmstljicv6ehdj3cxtjchr5mz4xoyq",
-      "alt": "",
-      "ratio": 0.8012,
-      "handle": "sneptech.bsky.social",
-      "url": "https://bsky.app/profile/sneptech.bsky.social/post/3mtsf2bzwmk23",
-      "uri": "at://did:plc:2p7a3z4uzfpoepv3aa36ykjq/app.bsky.feed.post/3mtsf2bzwmk23",
-      "likeCount": 7
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreieoo7izbsvgaxokgndyoipe7oi6pqjvyvmnwexz2i7ubw4vlxxzma",
@@ -801,6 +801,26 @@
       "likeCount": 6
     },
     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreia4qotbutp7lvm24ba2dyfssxzwztu3xy7x2opjvn4h2prnrtacde",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreia4qotbutp7lvm24ba2dyfssxzwztu3xy7x2opjvn4h2prnrtacde",
+      "alt": "",
+      "ratio": 1.0975,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mttdbzms5c2e",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mttdbzms5c2e",
+      "likeCount": 6
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreigfxguuymge3xqva7fcm3k622mmkd6lvbzqcualwnjw7uh2ore66i",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreigfxguuymge3xqva7fcm3k622mmkd6lvbzqcualwnjw7uh2ore66i",
+      "alt": "",
+      "ratio": 1.0944,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mttdbzms5c2e",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mttdbzms5c2e",
+      "likeCount": 6
+    },
+    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hsqwcidfez66lwm3gxhfv5in/bafkreifspojluwj3fgx7excim4ywdo3qwnjhjh7lwgzc34ljsrcys2l4tq",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:hsqwcidfez66lwm3gxhfv5in/bafkreifspojluwj3fgx7excim4ywdo3qwnjhjh7lwgzc34ljsrcys2l4tq",
       "alt": "\nExpand each item below to view related exam topics.\n\n\n5.1 Describe the role of agentic AI in network operations\n\n5.2 (highlighted) Select a prompt to send to a generative AI system to support network operations considering prompt components such as data classification, output format, persona, and instructions\n\n5.3 Describe network management approaches (device-based, cloud-based, controller-based, automation-based, and infrastructure as code)\n\n5.4 Describe the function of SNMP in network operations\n\n5.5 Use configuration management mechanisms such as Ansible to execute commands\n\n5.6 Interpret syslog message content, severity levels, and facilities\n",
@@ -821,13 +841,13 @@
       "likeCount": 4
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hu35oubkccqrxl4ldgczpgw7/bafkreifvd3joeemdwgoevziogbn2oft2tuy6wuv3mmqtqzspeqaqbc263m",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:hu35oubkccqrxl4ldgczpgw7/bafkreifvd3joeemdwgoevziogbn2oft2tuy6wuv3mmqtqzspeqaqbc263m",
-      "alt": "A Google query and AI overview response.\n\nQuery: “who asked levinas if a snake…”\n\nResponse: The question about whether a snake has a face was posed to French philosopher Emmanuel Levinas by interviewers Tamra Wright, Peter Hughes, and Alison Ainley during a 1986 interview published as \"The Paradox of Morality:\nAn Interview with Emmanuel Levinas\".",
-      "ratio": 1.31,
-      "handle": "shibbi.me",
-      "url": "https://bsky.app/profile/shibbi.me/post/3mtrarfciuc2r",
-      "uri": "at://did:plc:hu35oubkccqrxl4ldgczpgw7/app.bsky.feed.post/3mtrarfciuc2r",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreibo6ngwlnroxaqogxuyybafz7ao5jei7gzy7rennu7eouikzldlcm",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreibo6ngwlnroxaqogxuyybafz7ao5jei7gzy7rennu7eouikzldlcm",
+      "alt": "Garden hermits or ornamental hermits were people encouraged to live alone in purpose-built hermitages, follies, grottoes, or rockeries on the estates of wealthy landowners, primarily during the 18th century. Such hermits would be encouraged to remain permanently on site, where they could be fed, cared for, and consulted for advice, or viewed for entertainment.",
+      "ratio": 0.988,
+      "handle": "hotrollhottakes.bsky.social",
+      "url": "https://bsky.app/profile/hotrollhottakes.bsky.social/post/3mtsjshdvgc2t",
+      "uri": "at://did:plc:4gm5uxjg3tz4nat4qpjk2t6h/app.bsky.feed.post/3mtsjshdvgc2t",
       "likeCount": 4
     },
     {
@@ -838,6 +858,46 @@
       "handle": "yetanotheruseless.com",
       "url": "https://bsky.app/profile/yetanotheruseless.com/post/3mtsw2b6tgc2h",
       "uri": "at://did:plc:bjaceaxgoto5p7gor2rcov3g/app.bsky.feed.post/3mtsw2b6tgc2h",
+      "likeCount": 4
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hu35oubkccqrxl4ldgczpgw7/bafkreifvd3joeemdwgoevziogbn2oft2tuy6wuv3mmqtqzspeqaqbc263m",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:hu35oubkccqrxl4ldgczpgw7/bafkreifvd3joeemdwgoevziogbn2oft2tuy6wuv3mmqtqzspeqaqbc263m",
+      "alt": "A Google query and AI overview response.\n\nQuery: “who asked levinas if a snake…”\n\nResponse: The question about whether a snake has a face was posed to French philosopher Emmanuel Levinas by interviewers Tamra Wright, Peter Hughes, and Alison Ainley during a 1986 interview published as \"The Paradox of Morality:\nAn Interview with Emmanuel Levinas\".",
+      "ratio": 1.31,
+      "handle": "shibbi.me",
+      "url": "https://bsky.app/profile/shibbi.me/post/3mtrarfciuc2r",
+      "uri": "at://did:plc:hu35oubkccqrxl4ldgczpgw7/app.bsky.feed.post/3mtrarfciuc2r",
+      "likeCount": 4
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zjnskcrzfd35gtlso2agki5y/bafkreifoz72qmkimsskee53vtrtpaxvtxjl4hqwvxioimec5tpigmdcfsm",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:zjnskcrzfd35gtlso2agki5y/bafkreifoz72qmkimsskee53vtrtpaxvtxjl4hqwvxioimec5tpigmdcfsm",
+      "alt": "",
+      "ratio": 1.3868,
+      "handle": "apex.atproto.ceo",
+      "url": "https://bsky.app/profile/apex.atproto.ceo/post/3mtsa4okhbk22",
+      "uri": "at://did:plc:zjnskcrzfd35gtlso2agki5y/app.bsky.feed.post/3mtsa4okhbk22",
+      "likeCount": 3
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:bjaceaxgoto5p7gor2rcov3g/bafkreie6ybxglvg4g4nxlsiywhbm2rmkac5brr4ycolpt5is7jfjbbxkoe",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:bjaceaxgoto5p7gor2rcov3g/bafkreie6ybxglvg4g4nxlsiywhbm2rmkac5brr4ycolpt5is7jfjbbxkoe",
+      "alt": "The Main Theorem is incompatible with a published result. CDP proved\nin [CDP98] that a compact complex threefold X with bz(X) = 0 and a (X) > 0 has c3(X) = e(X) = 0, and deduced that a compact complex threefold homeomorphic to S° has algebraic dimension O. That proof rests on [CDP98, L1.5], which is incorrect as stated; the corrigendum says so and re-proves the results in two cases. [CDP20, T2.1] treats the case in which there exists a non-constant meromorphic map g: X -- P' which is not holomorphic (this case is written out in detail in [LRS,\nThm. 3.1, Cor. 3.2]), while [CDP20, T2.2] treats the case H' (X, Z) = H2(X,Z) = 0,\na (X) = 1 with holomorphic algebraic reduction f: X → C, concluding (a) H' (X, Tx 8 M) = 0 for i ‡ 1 and generic M є Pic (X), (b) x (X, Tx 8 M) ≤ 0 and (c) c3 (X) ≤ 0; together these give [CDP20, Cor. 2.3]: if X\nis homeomorphic to S' then a (X) = 0. The manifold of the Main Theorem has H' (X, Z) = H-(X,Z) = 0,\na(X) = 1, holomorphic algebraic reduction f: X → P1, and c3(X) = 2 > 0, so that conclusion (c) fails; so does conclusion (b), since c (X) = c2(X) = 0 and Pic(X) = Pic® (X) give, by Riemann-Roch,\nx (X, Tx @ M) = 5c3 (X) = 1 > 0 for every M e Pic(X). It therefore contradicts [CDP20, Thm. 2.2] and\n[CDP20, Cor. 2.3], as well as [CDP20, L4.2] (the special case 8 = 0, b1 = 0 of [CDP98, L\n3.21), [CDP20, C5.2] and [CDP20, Prop. 5.5] (= [CDP98, Thm. 3.1, Rem. 3.8(1)]), whose conclusions fail for X (their printed proofs presuppose trivial monodromy); this failure is repairable for the purpose of the proof of Cor. 2.3 at X (§10), unlike the reduction at the non-normal fibre, which is decisive. It does not contradict [CDP20, Thm. 2.1] or [LRS], whose hypothesis is the existence of some non-constant non-holomorphic meromorphic map X -- P', and no such map exists on our X: by item (5) of the Main Theorem M (X) = f*C(t), so every non-constant meromorphic map X --> P' is of the form h.f with h.a non-constant rational function on B, hence is holomorphic.",
+      "ratio": 1.1948,
+      "handle": "yetanotheruseless.com",
+      "url": "https://bsky.app/profile/yetanotheruseless.com/post/3mtszri3scs2d",
+      "uri": "at://did:plc:bjaceaxgoto5p7gor2rcov3g/app.bsky.feed.post/3mtszri3scs2d",
+      "likeCount": 3
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreieu5p5yknnvxjyvo27tli4squghscyei43wh5axrixpcotcnuuvr4",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreieu5p5yknnvxjyvo27tli4squghscyei43wh5axrixpcotcnuuvr4",
+      "alt": "",
+      "ratio": 0.874,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mttd7vjjss2w",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mttd7vjjss2w",
       "likeCount": 3
     },
     {
@@ -851,16 +911,6 @@
       "likeCount": 3
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zjnskcrzfd35gtlso2agki5y/bafkreifoz72qmkimsskee53vtrtpaxvtxjl4hqwvxioimec5tpigmdcfsm",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:zjnskcrzfd35gtlso2agki5y/bafkreifoz72qmkimsskee53vtrtpaxvtxjl4hqwvxioimec5tpigmdcfsm",
-      "alt": "",
-      "ratio": 1.3868,
-      "handle": "apex.atproto.ceo",
-      "url": "https://bsky.app/profile/apex.atproto.ceo/post/3mtsa4okhbk22",
-      "uri": "at://did:plc:zjnskcrzfd35gtlso2agki5y/app.bsky.feed.post/3mtsa4okhbk22",
-      "likeCount": 2
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:uynpich2hsqmryyhr3moz5re/bafkreiajmvua2dxbfdy4spbcxocz3bmvbxqmj3ztuwvjgocuzhqrdncyda",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:uynpich2hsqmryyhr3moz5re/bafkreiajmvua2dxbfdy4spbcxocz3bmvbxqmj3ztuwvjgocuzhqrdncyda",
       "alt": "not very happy",
@@ -871,26 +921,6 @@
       "likeCount": 2
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreibo6ngwlnroxaqogxuyybafz7ao5jei7gzy7rennu7eouikzldlcm",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreibo6ngwlnroxaqogxuyybafz7ao5jei7gzy7rennu7eouikzldlcm",
-      "alt": "Garden hermits or ornamental hermits were people encouraged to live alone in purpose-built hermitages, follies, grottoes, or rockeries on the estates of wealthy landowners, primarily during the 18th century. Such hermits would be encouraged to remain permanently on site, where they could be fed, cared for, and consulted for advice, or viewed for entertainment.",
-      "ratio": 0.988,
-      "handle": "hotrollhottakes.bsky.social",
-      "url": "https://bsky.app/profile/hotrollhottakes.bsky.social/post/3mtsjshdvgc2t",
-      "uri": "at://did:plc:4gm5uxjg3tz4nat4qpjk2t6h/app.bsky.feed.post/3mtsjshdvgc2t",
-      "likeCount": 2
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:bjaceaxgoto5p7gor2rcov3g/bafkreie6ybxglvg4g4nxlsiywhbm2rmkac5brr4ycolpt5is7jfjbbxkoe",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:bjaceaxgoto5p7gor2rcov3g/bafkreie6ybxglvg4g4nxlsiywhbm2rmkac5brr4ycolpt5is7jfjbbxkoe",
-      "alt": "The Main Theorem is incompatible with a published result. CDP proved\nin [CDP98] that a compact complex threefold X with bz(X) = 0 and a (X) > 0 has c3(X) = e(X) = 0, and deduced that a compact complex threefold homeomorphic to S° has algebraic dimension O. That proof rests on [CDP98, L1.5], which is incorrect as stated; the corrigendum says so and re-proves the results in two cases. [CDP20, T2.1] treats the case in which there exists a non-constant meromorphic map g: X -- P' which is not holomorphic (this case is written out in detail in [LRS,\nThm. 3.1, Cor. 3.2]), while [CDP20, T2.2] treats the case H' (X, Z) = H2(X,Z) = 0,\na (X) = 1 with holomorphic algebraic reduction f: X → C, concluding (a) H' (X, Tx 8 M) = 0 for i ‡ 1 and generic M є Pic (X), (b) x (X, Tx 8 M) ≤ 0 and (c) c3 (X) ≤ 0; together these give [CDP20, Cor. 2.3]: if X\nis homeomorphic to S' then a (X) = 0. The manifold of the Main Theorem has H' (X, Z) = H-(X,Z) = 0,\na(X) = 1, holomorphic algebraic reduction f: X → P1, and c3(X) = 2 > 0, so that conclusion (c) fails; so does conclusion (b), since c (X) = c2(X) = 0 and Pic(X) = Pic® (X) give, by Riemann-Roch,\nx (X, Tx @ M) = 5c3 (X) = 1 > 0 for every M e Pic(X). It therefore contradicts [CDP20, Thm. 2.2] and\n[CDP20, Cor. 2.3], as well as [CDP20, L4.2] (the special case 8 = 0, b1 = 0 of [CDP98, L\n3.21), [CDP20, C5.2] and [CDP20, Prop. 5.5] (= [CDP98, Thm. 3.1, Rem. 3.8(1)]), whose conclusions fail for X (their printed proofs presuppose trivial monodromy); this failure is repairable for the purpose of the proof of Cor. 2.3 at X (§10), unlike the reduction at the non-normal fibre, which is decisive. It does not contradict [CDP20, Thm. 2.1] or [LRS], whose hypothesis is the existence of some non-constant non-holomorphic meromorphic map X -- P', and no such map exists on our X: by item (5) of the Main Theorem M (X) = f*C(t), so every non-constant meromorphic map X --> P' is of the form h.f with h.a non-constant rational function on B, hence is holomorphic.",
-      "ratio": 1.1948,
-      "handle": "yetanotheruseless.com",
-      "url": "https://bsky.app/profile/yetanotheruseless.com/post/3mtszri3scs2d",
-      "uri": "at://did:plc:bjaceaxgoto5p7gor2rcov3g/app.bsky.feed.post/3mtszri3scs2d",
-      "likeCount": 2
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:3dor7kagwyswq4ogboxeqo42/bafkreig4f554qrvmnofyw64oourvvg2awrqkz5knoq4m2ly4ajkqs6orai",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:3dor7kagwyswq4ogboxeqo42/bafkreig4f554qrvmnofyw64oourvvg2awrqkz5knoq4m2ly4ajkqs6orai",
       "alt": "",
@@ -898,26 +928,6 @@
       "handle": "fleetingbits.bsky.social",
       "url": "https://bsky.app/profile/fleetingbits.bsky.social/post/3mtr4b2ji2c22",
       "uri": "at://did:plc:3dor7kagwyswq4ogboxeqo42/app.bsky.feed.post/3mtr4b2ji2c22",
-      "likeCount": 2
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreia4qotbutp7lvm24ba2dyfssxzwztu3xy7x2opjvn4h2prnrtacde",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreia4qotbutp7lvm24ba2dyfssxzwztu3xy7x2opjvn4h2prnrtacde",
-      "alt": "",
-      "ratio": 1.0975,
-      "handle": "norvid-studies.bsky.social",
-      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mttdbzms5c2e",
-      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mttdbzms5c2e",
-      "likeCount": 2
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreigfxguuymge3xqva7fcm3k622mmkd6lvbzqcualwnjw7uh2ore66i",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreigfxguuymge3xqva7fcm3k622mmkd6lvbzqcualwnjw7uh2ore66i",
-      "alt": "",
-      "ratio": 1.0944,
-      "handle": "norvid-studies.bsky.social",
-      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mttdbzms5c2e",
-      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mttdbzms5c2e",
       "likeCount": 2
     },
     {
@@ -935,16 +945,6 @@
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ye5vqk5rwyizerhg3r7otrh2/bafkreic5oxbbtbrsnm7yrfueerg6vhtjmnf3ekceo6435ztuxxua6osscy",
       "alt": "",
       "ratio": 1.8849,
-      "handle": "tk0l.bsky.social",
-      "url": "https://bsky.app/profile/tk0l.bsky.social/post/3mtrkhbs4b22z",
-      "uri": "at://did:plc:ye5vqk5rwyizerhg3r7otrh2/app.bsky.feed.post/3mtrkhbs4b22z",
-      "likeCount": 1
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ye5vqk5rwyizerhg3r7otrh2/bafkreicqyh5pmsx6dru34bljf7uo5xffrp6l3ytmvpt7r4obftgpjbsp54",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ye5vqk5rwyizerhg3r7otrh2/bafkreicqyh5pmsx6dru34bljf7uo5xffrp6l3ytmvpt7r4obftgpjbsp54",
-      "alt": "",
-      "ratio": 1.004,
       "handle": "tk0l.bsky.social",
       "url": "https://bsky.app/profile/tk0l.bsky.social/post/3mtrkhbs4b22z",
       "uri": "at://did:plc:ye5vqk5rwyizerhg3r7otrh2/app.bsky.feed.post/3mtrkhbs4b22z",
