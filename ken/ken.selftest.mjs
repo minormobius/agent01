@@ -50,6 +50,8 @@ import { loadRuns, partition, orderEffect, globalDrift } from './lab/h4.mjs';
 import { loadBakeoff, factorialAnova, cellComponents, contrastSensitivity } from './lab/factorial.mjs';
 import { fitBradleyTerry, swapRate } from './lab/bt.mjs';
 import { costToPin, simulateFit, fitLambda } from './lab/probe.mjs';
+import { exchangeRate, residue, density, bandFor, PARAMETERS } from './graph/equivalence.mjs';
+import { costLadder } from './lab/seeded.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -436,6 +438,64 @@ function numberWord(n) { return ['zero', 'one', 'two', 'three', 'four', 'five', 
   ok(wp2.includes(`biased up by ${low.bias}`), `wp2 quotes the bias at low lambda (${low.bias})`);
   ok(wp2.includes(`${low.unidentified} of\n  1500`) || wp2.includes(`${low.unidentified} of 1500`),
      `wp2 quotes the failure rate at low lambda (${low.unidentified})`);
+}
+
+/* (b1d) WP3. Its tables and figures are generated, so what is gated here
+   is the prose around them plus the two structural claims the paper is
+   built on: that an unattended chain has a floor and a directed one does
+   not, and that a third of the plausible parameter space is unreachable. */
+{
+  const wp3 = readFileSync(join(HERE, 'wp3.html'), 'utf8');
+
+  const b3 = blocksCurrent('wp3.html');
+  ok(b3.stale.length === 0,
+     `wp3's generated blocks are current (stale: ${b3.stale.join(', ') || 'none'})`);
+
+  // the asymmetry the paper turns on, asserted here as well as in the lab selftest
+  ok(residue({ q: 0.5, lambda: 1 }) === 0 && residue({ q: 0.5, lambda: 0.6 }) > 0,
+     'the floor is zero for a directed chain and positive for an unattended one');
+
+  // the never share
+  let never = 0, total = 0;
+  for (let i = 1; i <= 19; i++) {
+    for (let j = 1; j <= 19; j++) {
+      total++;
+      if (!exchangeRate({ lambda: Number((i * 0.05).toFixed(2)), g: Number((j * 0.05).toFixed(2)) }).reachable) never++;
+    }
+  }
+  const share = `${(Math.round((never / total) * 1000) / 10).toFixed(1)}%`;
+  ok(wp3.includes(share), `wp3 quotes the share of the grid that is never (${share})`);
+  ok(wp3.includes(`${total} cells`) || wp3.includes('19 × 19'), 'and says how big the sweep was');
+
+  // where six is the answer
+  const band = bandFor();
+  ok(wp3.includes(`g only from ${band.gRange[0].toFixed(2)} to ${band.gRange[1].toFixed(2)}`),
+     `wp3 quotes the g range of the five-to-seven band (${band.gRange.join('-')})`);
+  const six = band.hits.filter((x) => x.n === 6).map((x) => x.g);
+  ok(wp3.includes(`g from ${Math.min(...six).toFixed(2)} to ${Math.max(...six).toFixed(2)}`),
+     `wp3 quotes the g range for exactly six (${Math.min(...six)}-${Math.max(...six)})`);
+
+  // the substitution claim, which is the paper's engineering conclusion
+  const weak = exchangeRate({ lambda: 0.4, g: 0.35 });
+  const briefed = exchangeRate({ lambda: 0.8, g: 0.35 });
+  ok(weak.n === null && briefed.n !== null,
+     'raising lambda at a fixed gate really does move a design from never to finite');
+  ok(wp3.includes(`raised to 0.8 it is ${numberWord(briefed.n)} turns`)
+     || wp3.includes(`raised to 0.8 it is ${briefed.n} turns`),
+     `wp3 quotes what briefing rescues (${briefed.n} turns)`);
+
+  // the R13 result, and that the page reports the band rather than the number
+  const big = costLadder().rows.at(-1);
+  ok(wp3.includes(`${Math.round(big.hardVerdict * 1000) / 10}%`),
+     `wp3 quotes the near-boundary band accuracy (${big.hardVerdict})`);
+  ok(wp3.includes(`${Math.round(big.hardNumeric * 1000) / 10}%`),
+     `wp3 quotes the near-boundary rate accuracy (${big.hardNumeric})`);
+  ok(big.hardVerdict > big.hardNumeric,
+     'and the band really is the more attainable of the two, which is why the design reports it');
+
+  // the widget runs the real module rather than a copy
+  ok(/from '\/graph\/equivalence\.mjs'/.test(wp3), 'wp3 loads graph/equivalence.mjs in the page');
+  ok(PARAMETERS.length === 4, 'the parameter table has four rows, one of which cancels');
 }
 
 // (b2) the findings log's H4 numbers, recomputed from the ledger

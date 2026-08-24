@@ -25,6 +25,8 @@ import { shapeNames, buildShape, depthKenDesign, catalogue, collinearity, priceH
 import { shapeInvariants, positionTable } from '../graph/roles.mjs';
 import { HYPOTHESES, statusCounts, STATUSES } from '../graph/hypotheses.mjs';
 import { RESIDUES, costToPin, simulateFit } from './probe.mjs';
+import { curve, grid, exchangeRate, residue, PARAMETERS, ILLUSTRATIVE } from '../graph/equivalence.mjs';
+import { costLadder } from './seeded.mjs';
 import { readFileSync as _read } from 'node:fs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -177,6 +179,50 @@ export function buildFigures() {
     });
   }
 
+  /* ── WP3: what direction buys, and where it stops being buyable ──
+     Two figures, and the pair is the argument. The first shows the
+     unattended arm flattening while the directed one keeps falling. The
+     second shows where that flattening happens above the target, which
+     is the region no chain length reaches. */
+  {
+    const c = curve({ upTo: 14 });
+    figs['equiv-curve'] = charts.line({
+      series: [
+        { name: 'unattended', points: c.rows.map((r) => ({ x: r.n, y: r.automated })) },
+        { name: 'directed', points: c.rows.map((r) => ({ x: r.n, y: r.directed })) },
+        { name: 'unattended floor', points: c.rows.map((r) => ({ x: r.n, y: c.floor })) },
+      ],
+      markers: true, width: 620, height: 250,
+      xlabel: 'turns in the chain', ylabel: 'defect density (units of r)',
+      aria: 'Defect density against chain length for an unattended chain and a directed one. The '
+          + 'unattended curve flattens onto a floor above zero; the directed curve keeps falling, '
+          + 'because a person`s context does not decay and their later chances stay worth something.',
+    });
+
+    /* The boundary: the smallest catch rate that lets ANY number of
+       unattended turns reach three directed ones, swept over lambda.
+       Computed by bisection rather than a scan, since the predicate is
+       monotone in g and a 0.01 scan was both slower and coarser. */
+    const boundary = [];
+    for (let i = 1; i <= 19; i++) {
+      const lambda = Number((i * 0.05).toFixed(2));
+      let lo = 0, hi = 1;
+      for (let it = 0; it < 40; it++) {
+        const mid = (lo + hi) / 2;
+        if (exchangeRate({ lambda, g: mid }).reachable) hi = mid; else lo = mid;
+      }
+      boundary.push({ x: lambda, y: Number(hi.toFixed(3)) });
+    }
+    figs['equiv-boundary'] = charts.line({
+      series: [{ name: 'smallest workable catch rate', points: boundary }],
+      markers: true, width: 620, height: 250,
+      xlabel: 'λ — context surviving one handoff', ylabel: 'g — catch rate needed',
+      aria: 'The feasibility boundary. Below and left of the curve no number of unattended turns '
+          + 'reaches the density of three directed ones. The curve falls steeply, so attenuation '
+          + 'and gate quality substitute for each other.',
+    });
+  }
+
   return figs;
 }
 
@@ -285,6 +331,55 @@ export function buildBlocks() {
   return out;
 }
 
+/** WP3's generated blocks. */
+export function buildEquivalenceBlocks() {
+  const figs = buildFigures();
+  const num = (x) => `<td class="num">${x}</td>`;
+  const out = { FIG: {}, TBL: {} };
+
+  out.FIG['equiv-curve'] = figs['equiv-curve'];
+  out.FIG['equiv-boundary'] = figs['equiv-boundary'];
+
+  /* The grid is the paper's centre, so it is generated and its "never"
+     cells are rendered as the word rather than as a blank. A blank reads
+     as missing data; this is a result. */
+  const gs = [0.2, 0.35, 0.5, 0.65, 0.8];
+  out.TBL['exchange-grid'] = table(
+    ['λ \\ g', ...gs.map((g) => g.toFixed(2))],
+    grid({ gs }).map((row) => `<tr><td><b>${row.lambda.toFixed(2)}</b></td>`
+      + row.cells.map((c) => (c.n === null
+        ? '<td class="num never">never</td>'
+        : `<td class="num${c.n <= 6 ? ' within' : ''}">${c.n}</td>`)).join('')
+      + '</tr>'));
+
+  out.TBL['equiv-params'] = table(
+    ['', 'What it is', 'What would measure it', 'What stands behind it now'],
+    PARAMETERS.map((p) => `<tr><td><b>${p.symbol}</b><br><span class="muted">${p.name}</span></td>`
+      + `<td>${p.role}</td><td>${p.instrument}</td><td>${p.standing}</td></tr>`), { num: [] });
+
+  const ladder = costLadder();
+  out.TBL['seeded-cost'] = table(
+    ['Seeds', 'Runs', 'Turns', 'Far: width on g', 'Far: band right', 'Near: width on g', 'Near: band right', 'Near: rate right'],
+    ladder.rows.map((r) => `<tr><td class="num">${r.k}</td>${num(r.runs)}${num(r.turns)}`
+      + `${num(r.easyWidth)}${num(pct(r.easyVerdict))}${num(r.hardWidth)}`
+      + `${num(pct(r.hardVerdict))}${num(pct(r.hardNumeric))}</tr>`));
+
+  const ill = exchangeRate();
+  out.TBL['equiv-illustration'] = table(
+    ['Quantity', 'Value', 'Where it comes from'],
+    [
+      `<tr><td>λ, context surviving a handoff</td>${num(ILLUSTRATIVE.lambda)}<td>assumed — H8 would measure it</td></tr>`,
+      `<tr><td>g, unattended catch rate</td>${num(ILLUSTRATIVE.g)}<td>assumed — H9's seeded arm would measure it</td></tr>`,
+      `<tr><td>h, directed catch rate</td>${num(ILLUSTRATIVE.h)}<td>assumed — H9 observes the directed arm's density instead</td></tr>`,
+      `<tr><td>target: density of ${ILLUSTRATIVE.directedTurns} directed turns</td>${num(ill.target)}<td>computed</td></tr>`,
+      `<tr><td>floor: density no chain length beats</td>${num(ill.floor)}<td>computed</td></tr>`,
+      `<tr><td><b>exchange rate</b></td>${num(`<b>${ill.n ?? 'never'}</b>`)}<td><b>computed</b></td></tr>`,
+    ]);
+  return out;
+}
+
+const pct = (x) => `${Math.round(x * 1000) / 10}%`;
+
 /** The hypothesis register, rendered from hypotheses.mjs. */
 export function buildRegisterBlocks() {
   const counts = statusCounts();
@@ -339,13 +434,15 @@ const table = (head, rows, { num = null } = {}) => '<table class="booktabs"><the
   + `</tr></thead><tbody>${rows.join('')}</tbody></table>`;
 
 /** Pages carrying generated blocks. Add one here and it is gated. */
-export const GENERATED_PAGES = ['wp2.html', 'register.html'];
+export const GENERATED_PAGES = ['wp2.html', 'register.html', 'wp3.html'];
 
 /** Which blocks on a page have drifted from the code. */
 export function blocksCurrent(pageName = 'wp2.html') {
   const path = join(HERE, '..', pageName);
   let page = readFileSync(path, 'utf8');
-  const blocks = pageName === 'register.html' ? buildRegisterBlocks() : buildBlocks();
+  const blocks = pageName === 'register.html' ? buildRegisterBlocks()
+    : pageName === 'wp3.html' ? buildEquivalenceBlocks()
+      : buildBlocks();
   const stale = [];
   for (const kind of ['FIG', 'TBL']) {
     for (const [name, html] of Object.entries(blocks[kind])) {

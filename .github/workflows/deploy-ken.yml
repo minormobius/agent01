@@ -44,6 +44,8 @@ jobs:
         run: node lab/profiles.selftest.mjs
       - name: The attenuation probe, and the R13 simulation that priced it (66 checks)
         run: node lab/probe.selftest.mjs
+      - name: The exchange rate, the floor, and the seeded-defect price of H9 (81 checks)
+        run: node lab/equivalence.selftest.mjs
       - name: Selftest (citations, prose lint, tables, roadmap graph, quoted figures)
         run: node ken.selftest.mjs
       - name: Install wrangler

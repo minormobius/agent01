@@ -15,7 +15,11 @@
 
   // Layout grid. Rows are laid out bottom-up: row 0 is the base.
   const COLS = { left: 158, mid: 462, right: 766 };
-  const ROW_Y = [806, 716, 612, 508, 404, 314, 224, 138, 52];
+  /* Ten rows in the same 850-high viewBox. Row 7 was added for WP3, so
+     `reg` and `run` each moved up one index and the ladder was re-spaced
+     rather than extended — the viewBox is NOT linked to this array, and a
+     taller ladder would have silently clipped the top box. */
+  const ROW_Y = [806, 721, 636, 551, 466, 381, 296, 211, 126, 41];
   const W = 262, H = 50, WIDE = 566, R = 7;
 
   const NODES = [
@@ -73,17 +77,20 @@
     { id: 'wp2', row: 6, col: 'left', state: 'active', href: '/wp2',
       lines: ['WP2 · the org chart of a run'], sub: '9 roles · orbits decide pooling · explorer for any n',
       needs: ['wp1', 'u4'] },
+    { id: 'wp3', row: 7, col: 'mid', state: 'active', href: '/wp3',
+      lines: ['WP3 · what direction buys'], sub: 'an exchange rate, and where it is infinite',
+      needs: ['wp2'] },
     { id: 'b6', row: 6, col: 'right', state: 'blocked', href: '/protocol#blanks',
       lines: ['B6 outside signal'], sub: 'a verdict from someone who is not this system',
       needs: ['u7'] },
 
     // row 7 — the gate
-    { id: 'reg', row: 7, col: 'mid', state: 'blocked', wide: true, href: '/protocol',
+    { id: 'reg', row: 8, col: 'mid', state: 'blocked', wide: true, href: '/protocol',
       lines: ['Registration · all six blanks closed'], sub: 'the protocol becomes registrable',
       needs: ['b12', 'b45', 'b3', 'b6'] },
 
     // row 8 — the point of the whole thing
-    { id: 'run', row: 8, col: 'mid', state: 'blocked', wide: true, href: '/protocol#sequence',
+    { id: 'run', row: 9, col: 'mid', state: 'blocked', wide: true, href: '/protocol#sequence',
       lines: ['The run, and the curve'], sub: 'published whichever way it comes out',
       needs: ['reg'] },
   ];

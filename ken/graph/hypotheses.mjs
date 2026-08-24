@@ -209,6 +209,60 @@ export const HYPOTHESES = {
       + 'HURTS: recall reaches the floor and the extra points are noise, taking the width from '
       + '0.25 at depth 6 to 0.30 at depth 12 and the bias from -0.005 to +0.073.',
   },
+
+  H9: {
+    id: 'H9', name: 'exchange rate', curriculumUnit: 'IV', owner: '/wp3',
+    outcome: 'Defect density — surviving seeded defects per turn of delivered work — for an '
+      + 'unattended chain at each length, against the same quantity for a chain a person reads at '
+      + 'every handoff. The reported quantity is which of three bands the crossing falls in, not '
+      + 'where exactly it falls.',
+    analysisUnit: 'the seeded defect, observed at each gap from the turn that introduced it',
+    claim: 'Six unattended turns reach the defect density of three directed ones, and whether they '
+      + 'do is decided by two rates: how much context survives a handoff, and what share of live '
+      + 'defects an unattended turn removes.',
+    test: 'Seed k defects into the setup artefact without announcing them. Run the chain. Score '
+      + 'removals by the gap between the seeding turn and the turn that removed them, which gives '
+      + 'the catch rate g discounted by the attenuation lambda that H8 measures. Run the same '
+      + 'design with a person at each handoff and take that arm`s density as the target rather '
+      + 'than modelling it, so h is never estimated and one unknown disappears.',
+    predicts: [
+      ['defect density falls with chain length and then flattens',
+        'the flattening height is the residue, and it is above zero for any lambda under 1'],
+      ['the directed arm keeps falling where the unattended arm has flattened',
+        'a person`s context does not decay, so their later chances stay worth something'],
+      ['the crossing is finite when g and lambda are both moderate and absent when both are low',
+        'the two rates substitute for each other, so briefing can rescue a weak gate'],
+      ['giving turns better tools moves g and not lambda',
+        'a compiler or a search catches more of what a turn can already see; it does not restore what a handoff dropped'],
+    ],
+    /* THE FAILURE THIS DESIGN EXISTS TO AVOID is the seeded-defect twin
+       of H8's: a turn told the artefact contains twelve planted faults
+       hunts for twelve planted faults, and the number that comes back is
+       a hunting rate rather than a working rate. */
+    refutedBy: [
+      'Defect density does not flatten with chain length, in which case there is no residue and the model`s central asymmetry between watched and unwatched work is wrong.',
+      'The unattended arm matches the directed one at equal length, which would mean direction supplies nothing this model can see and the whole decomposition is idle.',
+      'g varies with chain length rather than staying a property of the turn, which would make it not a rate and nothing here would compose.',
+      'The seeded defects turn out to have been announced or inferable, in which case a hunting rate was measured and the result is void rather than null.',
+    ],
+    requires: 'A stated regime, as every Unit IV hypothesis does, and the seeds must be invisible: '
+      + 'no brief names them, and they must be the kind of fault the task would plausibly contain. '
+      + 'It also requires lambda, so H8 runs first — g is estimated by discounting exposure by '
+      + 'lambda, and a wrong lambda biases g in the direction that flatters the unattended arm.',
+    status: 'designed',
+    evidence: null,
+    /* Simulated before proposing. The simulation did not change the price
+       so much as change the OUTCOME: the exchange rate is not estimable
+       near its own feasibility boundary at any affordable size, because
+       it is genuinely steep there. */
+    cost: 'SEVENTY-TWO TURNS, half of them read by a person, at forty seeded defects across six '
+      + 'six-turn chains per arm. THE SIMULATION CHANGED THE OUTCOME RATHER THAN THE PRICE. Far '
+      + 'from the feasibility boundary that design calls the three-way verdict right 100% of the '
+      + 'time. Near it, the same design is right 96% on the three-way verdict and only 37% on the '
+      + 'exchange rate itself, because a swing of 0.05 in g moves the rate from 40 turns to 9. So '
+      + 'the outcome is the band and not the number, and a study sized on parameter precision '
+      + 'would have bought a figure nobody could act on.',
+  },
 };
 
 export const HYPOTHESIS_IDS = Object.keys(HYPOTHESES);

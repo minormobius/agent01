@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Findings Log — ken</title>
-<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Eighty-six entries, seven of them from measurements we made.">
+<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Ninety-five entries, seven of them from measurements we made.">
 <link rel="stylesheet" href="journal.css">
 </head>
 <body>
@@ -19,6 +19,7 @@
   <a href="/shapes">Shapes</a>
   <a href="/wp1">WP1</a>
   <a href="/wp2">WP2</a>
+  <a href="/wp3">WP3</a>
   <a href="/register">Register</a>
   <a class="here" href="/log">Log</a>
   <a href="/protocol">III · Protocol</a>
@@ -31,7 +32,7 @@
   <div class="a-venue">ken · volume 1 <span class="kicker">Running record</span></div>
   <h1 class="a-title">Findings Log</h1>
   <p class="a-sub">Shortest form. Each entry names the code or record that produced it.</p>
-  <div class="a-meta">86 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
+  <div class="a-meta">95 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
   <hr class="a-rule">
 
   <p class="small">Everything here comes from data already paid for or from arithmetic. That is
@@ -707,6 +708,66 @@
       <span class="src"><code>simulateFit()</code></span></li>
   </ol>
 
+
+  <h2 class="sec"><span class="secno">§</span>Direction, priced</h2>
+
+  <ol class="log" start="87">
+    <li><b>A person at a handoff supplies two goods, and one of them is already free.</b> Context,
+      which is λ and which <code>briefed</code> takes to 1.000 for zero extra turns, and
+      correction, which no wiring supplies. Modelling only the second makes the six-versus-three
+      question arithmetic.
+      <span class="src"><code>equivalence.mjs</code> · <a href="/wp3">WP3</a></span></li>
+
+    <li><b>The defect introduction rate cancels.</b> Comparing two densities divides it out, so how
+      buggy a turn is drops out of the comparison entirely and three parameters remain where four
+      seemed to be. That was not designed for; it fell out of writing the ratio down.
+      <span class="src"><code>density()</code></span></li>
+
+    <li><b>An unattended chain has a defect density it never beats. A directed one does not.</b>
+      Survival is a product of (1 − g·λ<sup>k−1</sup>), which converges to a positive number for
+      every λ below 1 and to zero at λ = 1. The asymmetry is not that a person is sharper per turn:
+      it holds even at equal catch rates. It is that their context does not decay, so their later
+      chances stay worth something.
+      <span class="src"><code>residue()</code> · <a href="/wp3#floor">WP3 §3</a></span></li>
+
+    <li><b>Across a 19 × 19 sweep of the two rates, 110 of 361 cells are unreachable at any chain
+      length.</b> 30.5%, and it is the whole lower-left region rather than an extreme corner. In
+      those cells the honest answer to how many unattended turns match three directed ones is
+      never, and it is reported as that rather than as a large number.
+      <span class="src"><code>exchangeRate()</code></span></li>
+
+    <li><b>Six is a claim about the catch rate and says almost nothing about attenuation.</b> Cells
+      whose exchange rate falls between five and seven span λ from 0.05 to 0.95 but g only from
+      0.30 to 0.70; exactly six spans g from 0.35 to 0.65. So the six-turn intuition amounts to
+      saying an unattended turn removes about half of what a directed one would.
+      <span class="src"><code>bandFor()</code></span></li>
+
+    <li><b>Briefing rescues a weak gate; a better gate does not rescue a lossy handoff.</b> At
+      g = 0.35 and λ = 0.4 the answer is never. At the same gate with λ = 0.8 it is 8 turns. The
+      two rates substitute for each other and the λ direction is the steeper one near the boundary,
+      so wiring is the first lever and capability the second.
+      <span class="src"><a href="/wp3#boundary">WP3 §5</a></span></li>
+
+    <li><b>Better tools move g and leave λ alone, which makes the decomposition falsifiable.</b> A
+      turn that can compile catches compile errors it could already see the code for. It recovers
+      nothing about a decision three handoffs upstream that no longer reaches it. If a compiler
+      moves the measured λ, this model is wrong.
+      <span class="src"><a href="/register">H9</a></span></li>
+
+    <li><b>The R13 pass on H9 changed what it reports rather than what it costs.</b> The exchange
+      rate is a step function of g with a discontinuity at the feasibility boundary. Forty seeded
+      defects over six chains, 36 turns, call the three-way band right 96.3% of the time near the
+      boundary and the rate itself right 37.4%. A swing of 0.05 in g moves the rate from 40 turns
+      to 9, so no affordable study does better and the outcome is the band.
+      <span class="src"><code>costLadder()</code> · <a href="/methods#r13">R13</a></span></li>
+
+    <li><b>More items per run beat more runs, for the second time.</b> Forty seeds over six chains
+      is 36 turns; ten seeds over twenty-four chains is 144 turns for a comparable width. The
+      attenuation probe found the same shape a revision earlier. Two instruments, same lesson:
+      lengthen the observation, do not multiply the runs.
+      <span class="src"><code>simulateSeeded()</code> · entry 85</span></li>
+  </ol>
+
   <h2 class="sec"><span class="secno">§</span>The ledger</h2>
 
   <div class="table-fig">
@@ -714,7 +775,7 @@
       <thead><tr><th>Source of finding</th><th class="num">Entries</th></tr></thead>
       <tbody>
         <tr><td>Records already committed</td><td class="num">12</td></tr>
-        <tr><td>Arithmetic and simulation</td><td class="num">37</td></tr>
+        <tr><td>Arithmetic and simulation</td><td class="num">46</td></tr>
         <tr><td>Our own mistakes</td><td class="num">28</td></tr>
         <tr><td>Prior literature</td><td class="num">2</td></tr>
         <tr><td><b>New measurement</b></td><td class="num"><b>7</b></td></tr>

@@ -51,6 +51,7 @@ worker or move the domain, **verify the deploy log binds
 | `lab.html` | **Instrument note** for the harness. Served at `/lab`. |
 | `wp1.html` | **Working paper 1**, Unit II worked end to end. Served at `/wp1`. |
 | `wp2.html` | **Working paper 2**, Unit IV. Every table and figure on it is generated. Served at `/wp2`. |
+| `wp3.html` | **Working paper 3**, Unit IV. The exchange rate, with a live calculator. `/wp3` |
 | `log.html` | **The findings log.** Numbered, terse, append-only. Served at `/log`. |
 | `run.html` | **The standard-run procedure.** Written to ASD-STE100. Served at `/run`. |
 | `protocol.html` | **Article III**, the Stage 1 registered-report skeleton. Served at `/protocol`. |
@@ -64,9 +65,10 @@ worker or move the domain, **verify the deploy log binds
 | `graph/profiles.mjs` | **any n**: layer profiles, the trade, the frontier |
 | `graph/exhaustive.mjs` | **the whole space** up to 7 turns, and the coverage measurement |
 | `graph/ancestry.mjs` | content-addressed state, after hoop's region digest |
-| `graph/hypotheses.mjs` | **the hypotheses, as data** — seven, each with a status |
+| `graph/hypotheses.mjs` | **the hypotheses, as data** — nine, each with a status |
 | `graph/visibility.mjs` | isolation regimes: what the environment adds to the drawn graph |
 | `graph/attenuation.mjs` | **λ**, of which those regimes are the two corners |
+| `graph/equivalence.mjs` | **the exchange rate**: how many unattended turns buy one directed one |
 | `graph/layout.mjs` | the picture, **derived** by force relaxation |
 | `graph/rng.mjs` | the one deterministic generator |
 | `lab/design.mjs` | **the harness.** Node-only, not served |
@@ -89,6 +91,8 @@ worker or move the domain, **verify the deploy log binds
 | `lab/profiles.selftest.mjs` | 627 checks: the trade, the space, the digests, regimes, λ |
 | `lab/probe.mjs` | **measuring λ** from incidental residue: the floor arm, the estimator, the R13 simulation |
 | `lab/probe.selftest.mjs` | 66 checks: exact recovery, the floor, where the fit refuses, the price |
+| `lab/seeded.mjs` | **measuring g** by seeded defects, and the R13 pass that changed H9's outcome |
+| `lab/equivalence.selftest.mjs` | 81 checks: closed forms, the floor at both ends, the never region, H9 |
 | `lab/resolve-refs.mjs` | links the bibliography against CrossRef / arXiv / OpenLibrary |
 | `fig/*.svg` | **generated.** Committed so figures print and diff |
 | `refs.js` | **the bibliography, as data** — 90 real works, keyed |
@@ -443,6 +447,73 @@ Six chains at k=40, 36 turns, reach 0.193. Two results worth carrying:
 λ = 0.95; median 0.446 and biased up 0.229 at true λ = 0.2, with 280 of 1500
 failing. What it does reliably is exclude the top of the range, which is what
 H5 needs.
+
+### The exchange rate: six unattended turns against three directed ones
+
+`graph/equivalence.mjs`, published as [WP3](wp3.html). A person at a handoff
+supplies **two** goods and they are separately purchasable:
+
+- **context** — they carry the thread. That is λ, and `briefed` buys λ = 1 for
+  zero extra turns. Already cheap.
+- **correction** — they see a defect and say so. Nothing in the wiring
+  supplies this, and it is what the model is about.
+
+Let g be the share of live defects an unattended turn removes. A defect made
+*k* handoffs upstream is removed with probability g·λ^(k−1), so its chance of
+surviving *m* downstream turns is a product, and defect density after n turns
+is the running mean of it.
+
+**Two things fall out of writing that down, and neither was designed for.**
+
+- **The introduction rate r cancels.** Comparing two densities divides it out.
+  Three parameters remain where four seemed to be.
+- **An unattended chain has a floor and a directed one does not.** The product
+  converges to a positive number for every λ < 1 and to zero at λ = 1. This is
+  *not* a claim that people are sharper per turn — it holds at equal catch
+  rates. Their context does not decay, so their later chances stay worth
+  something; a chain's decay geometrically and the sum is finite.
+
+| Result | Value |
+|---|---|
+| cells of a 19×19 (λ, g) sweep where **no** chain length suffices | **110 of 361, 30.5%** |
+| where the answer is 5–7 turns | λ 0.05–0.95, but **g only 0.30–0.70** |
+| where it is exactly 6 | **g 0.35–0.65**, at essentially any λ |
+| g = 0.35 at λ = 0.4 / at λ = 0.8 | **never** / **8 turns** |
+
+So **six is a claim about the catch rate**, not about attenuation: it says an
+unattended turn removes roughly half what a directed one would.
+
+**Wiring is the first lever, capability the second.** Briefing moves a design
+from never to affordable at a fixed gate; a better gate at a lossy λ may not.
+And this is falsifiable rather than rhetorical: better tools (a compiler, a
+search) should move the measured **g** and leave the measured **λ** where it
+was. If a compiler moves λ, the decomposition is wrong.
+
+### Seeded defects, and the second time R13 changed a design
+
+`lab/seeded.mjs`. Plant k defects in the setup artefact, run the chain, score
+removals by gap; pooling gives ĝ = removals / Σ(live·λ^(gap−1)), where the
+denominator is exposure discounted by how much context reached each chance.
+
+**The seeds must not be announced** — a turn told there are twelve planted
+faults hunts for twelve planted faults. Same failure as the π design in H8,
+and it is a stated precondition of H9.
+
+**What the simulation changed was the OUTCOME, not the price.** The exchange
+rate is a step function of g with a discontinuity at the feasibility boundary.
+At 40 seeds over 6 chains (36 turns), near that boundary:
+
+- three-way band right (six suffices / more than six / never): **96.3%**
+- the exchange rate itself, to 25%: **37.4%**
+
+A swing of 0.05 in g moves the rate from 40 turns to 9, so no affordable study
+does better. **The instability is a property of the question, not the
+instrument**, and H9 reports the band. A study sized on parameter precision
+would have bought a figure nobody could act on.
+
+And, for the second time: **more items per run beat more runs.** 40×6 is 36
+turns; 10×24 is 144 for a comparable width. The λ probe found the same shape a
+revision earlier.
 
 ### The drawn graph is not the graph
 

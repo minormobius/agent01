@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WP3: Six Unattended Turns, in Units of Directed Ones — ken</title>
+<meta name="description" content="A two-parameter model for what human direction buys, the exchange rate between unattended and directed turns, and the region where no number of unattended turns is enough.">
+<link rel="stylesheet" href="journal.css">
+<style>
+  .ctl { display: flex; gap: 18px; align-items: center; flex-wrap: wrap;
+    border: 1px solid #e6e1d6; background: #fbfaf6; padding: 10px 12px; margin: 14px 0; }
+  .ctl label { font-family: var(--sans); font-size: 11px; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--ink-faint); display: flex; gap: 7px; align-items: center; }
+  .ctl input[type=range] { width: 130px; }
+  .ctl output { font-family: var(--mono, monospace); font-size: 13px; color: #1a1a1a;
+    min-width: 34px; text-align: right; }
+  .verdict { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+  .verdict div { border: 1px solid #e6e1d6; background: #fbfaf6; padding: 9px 11px; }
+  .verdict .k { font-family: var(--sans); font-size: 9.5px; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--ink-faint); display: block; margin-bottom: 3px; }
+  .verdict .v { font-size: 21px; font-family: var(--mono, monospace); }
+  .verdict .v.never { color: #9a2b2b; font-size: 17px; }
+  .verdict .v.good { color: #1d6b3a; }
+  .verdict .n { font-size: 10.5px; color: var(--ink-faint); font-family: var(--sans); }
+  #live svg { display: block; width: 100%; height: auto; }
+  td.never { color: #9a2b2b; font-family: var(--sans); font-size: 10px;
+    text-transform: uppercase; letter-spacing: .04em; }
+  td.within { background: #e8f2ea; font-weight: 700; }
+  .nojs { font-family: var(--sans); font-size: 11px; color: #8a5a00; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="brand"><a href="/">ken</a></span>
+  <a href="/">Front matter</a>
+  <a href="/syllabus">I · Curriculum</a>
+  <a href="/methods">II · Methods</a>
+  <a href="/lab">Instrument</a>
+  <a href="/run">Procedure</a>
+  <a href="/shapes">Shapes</a>
+  <a href="/wp1">WP1</a>
+  <a href="/wp2">WP2</a>
+  <a class="here" href="/wp3">WP3</a>
+  <a href="/register">Register</a>
+  <a href="/log">Log</a>
+  <a href="/protocol">III · Protocol</a>
+  <span class="grow"></span>
+  <button onclick="window.print()">Save as PDF</button>
+</div>
+
+<div class="sheet">
+
+  <div class="a-venue">ken · volume 1 · working paper 3 <span class="kicker">Unit IV</span></div>
+  <h1 class="a-title">Six Unattended Turns, in Units of Directed Ones</h1>
+  <p class="a-sub">What a person at the handoff supplies, which half of it is already free, and the region where no chain length is enough</p>
+  <div class="a-meta">Design stage · no runs executed · <code>ken/graph/equivalence.mjs</code> · 1 hypothesis · interactive</div>
+  <hr class="a-rule">
+
+  <div class="abstract">
+    <span class="lbl">Abstract</span>
+    <p>A working session here looks like three turns in a chain with a person reading every
+    handoff. The question this paper makes answerable is whether six turns of nobody watching
+    would rival it, and the answer turns out to be a quantity rather than an opinion.</p>
+    <p>Direction supplies two goods and they are separately purchasable. The first is context,
+    which a person carries across a handoff; <a href="/wp2#attenuation">WP2 §10c</a> already
+    prices that as λ, and <code>briefed</code> buys λ = 1 structurally for no extra turns. The
+    second is correction, which nothing in the wiring supplies. This paper models only the
+    second.</p>
+    <p>Writing g for the share of live defects an unattended turn removes, a defect made
+    <i>k</i> handoffs upstream is removed with probability g·λ<sup>k−1</sup>, so its chance of
+    surviving <i>m</i> downstream turns is a product. Two consequences follow and both are
+    arithmetic. The defect introduction rate cancels, leaving three parameters where there
+    seemed to be four. And the product converges whenever λ &lt; 1, so an unattended chain has
+    a <b>floor</b> it never beats, while a directed chain, whose context does not decay, has
+    none.</p>
+    <p>The exchange rate between the two is therefore a small number, a large one, or infinite,
+    and 30.5% of a plausible parameter grid holds the third. Six is the answer in a specific
+    place: over almost the whole range of λ, but only for g between 0.35 and 0.65.</p>
+    <p>H9 measures it by seeding unannounced defects and scoring removals by gap. Simulation
+    did not change its price so much as its reported outcome: near the feasibility boundary the
+    exchange rate is not estimable at any affordable size, because it is genuinely steep there,
+    so the design reports which of three bands it falls in.</p>
+  </div>
+
+  <h2 class="sec"><span class="secno">1</span>The question, split in two</h2>
+
+  <p>Having a person in the loop is not one thing, and separating it is what makes the question
+  arithmetic. A person at a handoff supplies <b>context</b>, carrying the thread so the next turn
+  starts where the last one stopped, and <b>correction</b>, seeing a defect and saying so.</p>
+
+  <p>The first is already cheap. <a href="/wp2#attenuation">WP2</a> gives it a name, λ, the share
+  of an input surviving one summarisation hop, and <code>briefed</code> in the catalogue reaches
+  sink ken 1.000 for zero extra turns by copying every intermediate turn to the last one. Wiring
+  buys context. That is the whole of H5 and it is the cheapest manipulation the programme has.</p>
+
+  <p>Correction has no such trick. A turn removes a defect only if it can see one, and this paper
+  is about what that costs.</p>
+
+  <p>The split is not new in substance. Dessein <a class="cite" data-ref="dessein2002"></a> sets
+  the loss from delegating a decision against the loss from communicating it imperfectly, and shows
+  which dominates as the two parties' interests converge. Garicano
+  <a class="cite" data-ref="garicano2000"></a> organises production so that problems a worker
+  cannot solve escalate to someone who can, which is a catch rate arranged by design. What follows
+  keeps that decomposition and replaces the agents' incentives with two rates, because the agents
+  here have no interests to diverge and the question is entirely about what reaches whom.</p>
+
+  <h2 class="sec"><span class="secno">2</span>A defect, and its chances</h2>
+
+  <p>Let every turn introduce defects at some rate <i>r</i>. A defect introduced at turn <i>i</i>
+  is removed by a later turn <i>j</i> with probability</p>
+
+  <div class="eq">q · λ<sup>j−i−1</sup>
+    <span class="where">q is the per-turn catch rate: g when unattended, h when read by a person</span></div>
+
+  <p>The λ factor carries the argument. A turn removes only what it can still see, and what it can
+  see decays with the number of handoffs since the defect was made. Write S(<i>m</i>) for the
+  chance a defect survives <i>m</i> downstream turns:</p>
+
+  <div class="eq">S(m) = ∏<sub>k=1..m</sub> ( 1 − q·λ<sup>k−1</sup> )
+    <span class="where">S(0) = 1, because the last turn's mistakes have nobody after them</span></div>
+
+  <p>After <i>n</i> turns the run holds <i>r</i>·∑<sub>m&lt;n</sub> S(m) defects and has delivered
+  <i>n</i> turns of work, so <b>defect density</b> is <i>r</i> times the running mean of S. Two
+  things follow, and both are consequences rather than assumptions.</p>
+
+  <p><b>The introduction rate cancels.</b> Comparing two densities divides <i>r</i> out, so how
+  buggy a turn is drops out of the comparison entirely. Three parameters remain where there
+  appeared to be four, and one of them already has an instrument in H8.</p>
+
+  <h2 class="sec" id="floor"><span class="secno">3</span>The floor</h2>
+
+  <p><b>An unattended chain has a density it never beats, and a directed one does not.</b> At
+  λ = 1 the product S(<i>m</i>) = (1−q)<sup>m</sup> falls to zero, so enough turns drive density
+  to nothing. At λ &lt; 1 the product <em>converges</em> to a positive number: the later chances
+  are discounted so heavily that they stop helping, and some share of defects becomes permanently
+  invisible.</p>
+
+  <p>That is the difference between watched and unwatched work in this model, and it is worth
+  being precise about what it is not. It is not that a person is sharper per turn; h and g could
+  be equal and the asymmetry would remain. It is that a person's context does not decay, so their
+  later chances stay worth something, while a chain's decay geometrically and the sum of them is
+  finite.</p>
+
+  <p>That structure has an empirical ancestor. Bavelas
+  <a class="cite" data-ref="bavelas1950"></a> and Leavitt
+  <a class="cite" data-ref="leavitt1951"></a> wired small groups into fixed communication patterns
+  and measured errors as well as speed, finding both to depend on the pattern rather than on the
+  people in it. This model makes the same move with one difference: their patterns were undirected
+  and could carry a message back, and a turn graph cannot.</p>
+
+  <div class="fig">
+    <!-- FIG:equiv-curve:START --><svg viewBox="0 0 620 250" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Defect density against chain length for an unattended chain and a directed one. The unattended curve flattens onto a floor above zero; the directed curve keeps falling, because a person`s context does not decay and their later chances stay worth something." style="width:100%;height:auto;display:block;font-family:'Helvetica Neue', Helvetica, Arial, sans-serif"><rect width="620" height="250" fill="#ffffff"/><line x1="46.0" y1="214.0" x2="606.0" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="174.0" x2="606.0" y2="174.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="134.0" x2="606.0" y2="134.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="94.0" x2="606.0" y2="94.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="54.0" x2="606.0" y2="54.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="14.0" x2="606.0" y2="14.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="14.0" x2="46.0" y2="214.0" stroke="#4a4a4a" stroke-width="1"/><line x1="46.0" y1="214.0" x2="606.0" y2="214.0" stroke="#4a4a4a" stroke-width="1"/><line x1="46.0" y1="214.0" x2="46.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="46.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0</text><line x1="232.7" y1="214.0" x2="232.7" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="232.7" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">5</text><line x1="419.3" y1="214.0" x2="419.3" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="419.3" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">10</text><line x1="606.0" y1="214.0" x2="606.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="606.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">15</text><line x1="42.5" y1="214.0" x2="46.0" y2="214.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="217.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0</text><line x1="42.5" y1="174.0" x2="46.0" y2="174.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="177.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.2</text><line x1="42.5" y1="134.0" x2="46.0" y2="134.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="137.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.4</text><line x1="42.5" y1="94.0" x2="46.0" y2="94.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="97.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.6</text><line x1="42.5" y1="54.0" x2="46.0" y2="54.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="57.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.8</text><line x1="42.5" y1="14.0" x2="46.0" y2="14.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="17.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">1.0</text><text x="326.0" y="246.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle">turns in the chain</text><text x="12" y="114.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle" transform="rotate(-90 12 114.0)">defect density (units of r)</text><polyline points="83.3,14.0 120.7,59.0 158.0,83.9 195.3,99.6 232.7,110.3 270.0,118.1 307.3,123.9 344.7,128.4 382.0,132.0 419.3,134.9 456.7,137.3 494.0,139.3 531.3,141.0 568.7,142.5" fill="none" stroke="#0072B2" stroke-width="1.6"/><circle cx="83.3" cy="14.0" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="120.7" cy="59.0" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="158.0" cy="83.9" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="195.3" cy="99.6" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="232.7" cy="110.3" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="270.0" cy="118.1" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="307.3" cy="123.9" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="344.7" cy="128.4" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="382.0" cy="132.0" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="419.3" cy="134.9" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="456.7" cy="137.3" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="494.0" cy="139.3" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="531.3" cy="141.0" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="568.7" cy="142.5" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><polyline points="83.3,14.0 120.7,84.0 158.0,121.3 195.3,143.1 232.7,157.0 270.0,166.4 307.3,173.2 344.7,178.3 382.0,182.3 419.3,185.4 456.7,188.0 494.0,190.2 531.3,192.0 568.7,193.6" fill="none" stroke="#D55E00" stroke-width="1.6"/><circle cx="83.3" cy="14.0" r="1.9" fill="#D55E00" stroke="#fff" stroke-width="0.5"/><circle cx="120.7" cy="84.0" r="1.9" fill="#D55E00" stroke="#fff" stroke-width="0.5"/><circle cx="158.0" cy="121.3" r="1.9" fill="#D55E00" stroke="#fff" stroke-width="0.5"/><circle cx="195.3" cy="143.1" r="1.9" fill="#D55E00" stroke="#fff" stroke-width="0.5"/><circle cx="232.7" cy="157.0" r="1.9" fill="#D55E00" stroke="#fff" stroke-width="0.5"/><circle cx="270.0" cy="166.4" r="1.9" fill="#D55E00" stroke="#fff" stroke-width="0.5"/><circle cx="307.3" cy="173.2" r="1.9" fill="#D55E00" stroke="#fff" stroke-width="0.5"/><circle cx="344.7" cy="178.3" r="1.9" fill="#D55E00" stroke="#fff" stroke-width="0.5"/><circle cx="382.0" cy="182.3" r="1.9" fill="#D55E00" stroke="#fff" stroke-width="0.5"/><circle cx="419.3" cy="185.4" r="1.9" fill="#D55E00" stroke="#fff" stroke-width="0.5"/><circle cx="456.7" cy="188.0" r="1.9" fill="#D55E00" stroke="#fff" stroke-width="0.5"/><circle cx="494.0" cy="190.2" r="1.9" fill="#D55E00" stroke="#fff" stroke-width="0.5"/><circle cx="531.3" cy="192.0" r="1.9" fill="#D55E00" stroke="#fff" stroke-width="0.5"/><circle cx="568.7" cy="193.6" r="1.9" fill="#D55E00" stroke="#fff" stroke-width="0.5"/><polyline points="83.3,161.6 120.7,161.6 158.0,161.6 195.3,161.6 232.7,161.6 270.0,161.6 307.3,161.6 344.7,161.6 382.0,161.6 419.3,161.6 456.7,161.6 494.0,161.6 531.3,161.6 568.7,161.6" fill="none" stroke="#009E73" stroke-width="1.6"/><circle cx="83.3" cy="161.6" r="1.9" fill="#009E73" stroke="#fff" stroke-width="0.5"/><circle cx="120.7" cy="161.6" r="1.9" fill="#009E73" stroke="#fff" stroke-width="0.5"/><circle cx="158.0" cy="161.6" r="1.9" fill="#009E73" stroke="#fff" stroke-width="0.5"/><circle cx="195.3" cy="161.6" r="1.9" fill="#009E73" stroke="#fff" stroke-width="0.5"/><circle cx="232.7" cy="161.6" r="1.9" fill="#009E73" stroke="#fff" stroke-width="0.5"/><circle cx="270.0" cy="161.6" r="1.9" fill="#009E73" stroke="#fff" stroke-width="0.5"/><circle cx="307.3" cy="161.6" r="1.9" fill="#009E73" stroke="#fff" stroke-width="0.5"/><circle cx="344.7" cy="161.6" r="1.9" fill="#009E73" stroke="#fff" stroke-width="0.5"/><circle cx="382.0" cy="161.6" r="1.9" fill="#009E73" stroke="#fff" stroke-width="0.5"/><circle cx="419.3" cy="161.6" r="1.9" fill="#009E73" stroke="#fff" stroke-width="0.5"/><circle cx="456.7" cy="161.6" r="1.9" fill="#009E73" stroke="#fff" stroke-width="0.5"/><circle cx="494.0" cy="161.6" r="1.9" fill="#009E73" stroke="#fff" stroke-width="0.5"/><circle cx="531.3" cy="161.6" r="1.9" fill="#009E73" stroke="#fff" stroke-width="0.5"/><circle cx="568.7" cy="161.6" r="1.9" fill="#009E73" stroke="#fff" stroke-width="0.5"/><rect x="491.2" y="21.0" width="107.8" height="45" rx="3" fill="#ffffff" fill-opacity="0.74"/><rect x="496.2" y="20.5" width="9" height="9" rx="1.5" fill="#0072B2"/><text x="509.2" y="28.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#1a1a1a" text-anchor="start">unattended</text><rect x="496.2" y="33.5" width="9" height="9" rx="1.5" fill="#D55E00"/><text x="509.2" y="41.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#1a1a1a" text-anchor="start">directed</text><rect x="496.2" y="46.5" width="9" height="9" rx="1.5" fill="#009E73"/><text x="509.2" y="54.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#1a1a1a" text-anchor="start">unattended floor</text></svg><!-- FIG:equiv-curve:END -->
+    <div class="cap"><b>Figure 1.</b> Defect density against chain length, at the illustrative
+    values of Table 1. The unattended curve flattens onto its floor while the directed curve keeps
+    falling. Nothing here is measured; the shape of the two curves is the claim, not their
+    height.</div>
+  </div>
+
+  <h2 class="sec"><span class="secno">4</span>The exchange rate</h2>
+
+  <p>Given the three rates, ask for the smallest <i>n</i> at which an unattended chain reaches the
+  density of three directed turns. When the unattended floor sits above that target the answer is
+  that no <i>n</i> does, and it is reported as <b>never</b> rather than as a large number, because
+  those are different claims and only one of them is true.</p>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 1.</b> One worked point. Every input is assumed; the last two rows
+    are computed from them.</div>
+    <!-- TBL:equiv-illustration:START --><table class="booktabs"><thead><tr><th>Quantity</th><th class="num">Value</th><th class="num">Where it comes from</th></tr></thead><tbody><tr><td>λ, context surviving a handoff</td><td class="num">0.6</td><td>assumed — H8 would measure it</td></tr><tr><td>g, unattended catch rate</td><td class="num">0.45</td><td>assumed — H9's seeded arm would measure it</td></tr><tr><td>h, directed catch rate</td><td class="num">0.7</td><td>assumed — H9 observes the directed arm's density instead</td></tr><tr><td>target: density of 3 directed turns</td><td class="num">0.4633</td><td>computed</td></tr><tr><td>floor: density no chain length beats</td><td class="num">0.2618</td><td>computed</td></tr><tr><td><b>exchange rate</b></td><td class="num"><b>7</b></td><td><b>computed</b></td></tr></tbody></table><!-- TBL:equiv-illustration:END -->
+  </div>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 2.</b> Unattended turns needed to match three directed ones, over λ
+    and g at h = 0.7. Shaded cells are within a six-turn budget.</div>
+    <!-- TBL:exchange-grid:START --><table class="booktabs"><thead><tr><th>λ \ g</th><th class="num">0.20</th><th class="num">0.35</th><th class="num">0.50</th><th class="num">0.65</th><th class="num">0.80</th></tr></thead><tbody><tr><td><b>0.20</b></td><td class="num never">never</td><td class="num never">never</td><td class="num">26</td><td class="num within">5</td><td class="num within">3</td></tr><tr><td><b>0.40</b></td><td class="num never">never</td><td class="num never">never</td><td class="num">8</td><td class="num within">4</td><td class="num within">3</td></tr><tr><td><b>0.60</b></td><td class="num never">never</td><td class="num">14</td><td class="num within">6</td><td class="num within">4</td><td class="num within">3</td></tr><tr><td><b>0.80</b></td><td class="num">22</td><td class="num">8</td><td class="num within">5</td><td class="num within">4</td><td class="num within">3</td></tr><tr><td><b>0.95</b></td><td class="num">11</td><td class="num within">6</td><td class="num within">5</td><td class="num within">4</td><td class="num within">3</td></tr></tbody></table><!-- TBL:exchange-grid:END -->
+  </div>
+
+  <p><b>Across a 19 × 19 sweep of the two rates, 30.5% of cells are <span
+  class="never-word">never</span>.</b> That is the result this paper would most like to be wrong
+  about, and it is not an artefact of extreme parameters: it is the whole lower-left region, where
+  a weak gate meets a lossy handoff.</p>
+
+  <p><b>Six is the answer somewhere specific.</b> Sweeping at a step of 0.05, the cells whose
+  exchange rate falls between five and seven span λ from 0.05 to 0.95 but
+  g only from 0.30 to 0.70, and the cells that give exactly six span
+  g from 0.35 to 0.65. So the six-turn intuition
+  is a claim about the catch rate rather than about attenuation: it says an unattended turn
+  removes somewhere around half of what a directed one would, and at that rate six of them buy
+  three.</p>
+
+  <h2 class="sec" id="boundary"><span class="secno">5</span>The feasibility boundary</h2>
+
+  <p>The line between a finite exchange rate and none is a curve in the two rates, and it falls
+  steeply. <b>Attenuation and gate quality substitute for each other.</b> With context surviving
+  almost intact, even a weak gate eventually finds everything, because its later chances are still
+  worth having. With context evaporating, only a gate nearly as good as the person keeps up.</p>
+
+  <div class="fig">
+    <!-- FIG:equiv-boundary:START --><svg viewBox="0 0 620 250" preserveAspectRatio="xMidYMid meet" role="img" aria-label="The feasibility boundary. Below and left of the curve no number of unattended turns reaches the density of three directed ones. The curve falls steeply, so attenuation and gate quality substitute for each other." style="width:100%;height:auto;display:block;font-family:'Helvetica Neue', Helvetica, Arial, sans-serif"><rect width="620" height="250" fill="#ffffff"/><line x1="46.0" y1="214.0" x2="606.0" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="180.7" x2="606.0" y2="180.7" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="147.3" x2="606.0" y2="147.3" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="114.0" x2="606.0" y2="114.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="80.7" x2="606.0" y2="80.7" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="47.3" x2="606.0" y2="47.3" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="14.0" x2="606.0" y2="14.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="14.0" x2="46.0" y2="214.0" stroke="#4a4a4a" stroke-width="1"/><line x1="46.0" y1="214.0" x2="606.0" y2="214.0" stroke="#4a4a4a" stroke-width="1"/><line x1="46.0" y1="214.0" x2="46.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="46.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0</text><line x1="158.0" y1="214.0" x2="158.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="158.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0.2</text><line x1="270.0" y1="214.0" x2="270.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="270.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0.4</text><line x1="382.0" y1="214.0" x2="382.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="382.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0.6</text><line x1="494.0" y1="214.0" x2="494.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="494.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0.8</text><line x1="606.0" y1="214.0" x2="606.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="606.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">1.0</text><line x1="42.5" y1="214.0" x2="46.0" y2="214.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="217.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0</text><line x1="42.5" y1="180.7" x2="46.0" y2="180.7" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="183.7" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.1</text><line x1="42.5" y1="147.3" x2="46.0" y2="147.3" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="150.3" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.2</text><line x1="42.5" y1="114.0" x2="46.0" y2="114.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="117.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.3</text><line x1="42.5" y1="80.7" x2="46.0" y2="80.7" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="83.7" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.4</text><line x1="42.5" y1="47.3" x2="46.0" y2="47.3" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="50.3" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.5</text><line x1="42.5" y1="14.0" x2="46.0" y2="14.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="17.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.6</text><text x="326.0" y="246.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle">λ — context surviving one handoff</text><text x="12" y="114.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle" transform="rotate(-90 12 114.0)">g — catch rate needed</text><polyline points="74.0,39.3 102.0,44.3 130.0,49.7 158.0,55.3 186.0,62.0 214.0,68.7 242.0,76.3 270.0,84.0 298.0,92.7 326.0,101.7 354.0,111.0 382.0,121.0 410.0,131.3 438.0,142.3 466.0,153.3 494.0,165.0 522.0,176.7 550.0,189.0 578.0,201.3" fill="none" stroke="#0072B2" stroke-width="1.6"/><circle cx="74.0" cy="39.3" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="102.0" cy="44.3" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="130.0" cy="49.7" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="158.0" cy="55.3" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="186.0" cy="62.0" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="214.0" cy="68.7" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="242.0" cy="76.3" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="270.0" cy="84.0" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="298.0" cy="92.7" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="326.0" cy="101.7" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="354.0" cy="111.0" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="382.0" cy="121.0" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="410.0" cy="131.3" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="438.0" cy="142.3" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="466.0" cy="153.3" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="494.0" cy="165.0" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="522.0" cy="176.7" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="550.0" cy="189.0" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="578.0" cy="201.3" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/></svg><!-- FIG:equiv-boundary:END -->
+    <div class="cap"><b>Figure 2.</b> The smallest catch rate at which any number of unattended
+    turns reaches three directed ones, against λ. Below the curve the answer is never. Located by
+    bisection on a predicate that is monotone in g.</div>
+  </div>
+
+  <p>The engineering consequence is immediate and it inverts the obvious priority. At g = 0.35 and
+  λ = 0.4 the answer is never; at the same g with λ raised to 0.8 it is 8 turns. <b>Briefing,
+  which costs no turns, can move a design from impossible to affordable, while a better gate at
+  the same λ may not.</b> The cheapest way to make an unattended run more capable is to stop its
+  context decaying, and only then to sharpen what it checks.</p>
+
+  <h2 class="sec" id="calculator"><span class="secno">6</span>Calculator</h2>
+
+  <p>The three rates below are yours to set, because nobody has measured them. The page runs
+  <code>graph/equivalence.mjs</code> directly, so this widget and the gate cannot disagree.</p>
+
+  <div class="ctl">
+    <label>λ context surviving a hop
+      <input id="lam" type="range" min="0.02" max="0.98" step="0.02" value="0.6">
+      <output id="lamv">0.60</output></label>
+    <label>g unattended catch rate
+      <input id="g" type="range" min="0.02" max="0.98" step="0.02" value="0.45">
+      <output id="gv">0.45</output></label>
+    <label>h directed catch rate
+      <input id="h" type="range" min="0.02" max="0.98" step="0.02" value="0.7">
+      <output id="hv">0.70</output></label>
+    <label>directed turns to match
+      <input id="dt" type="range" min="1" max="8" step="1" value="3">
+      <output id="dtv">3</output></label>
+  </div>
+
+  <div class="verdict">
+    <div><span class="k">unattended turns needed</span><span class="v" id="rate">—</span>
+      <span class="n" id="ratenote"></span></div>
+    <div><span class="k">target density · 3 directed</span><span class="v" id="target">—</span>
+      <span class="n">defects per turn, in units of r</span></div>
+    <div><span class="k">unattended floor</span><span class="v" id="floor">—</span>
+      <span class="n" id="floornote"></span></div>
+  </div>
+
+  <div id="live"></div>
+  <p class="nojs" id="nojs">This section needs JavaScript. Tables 1 and 2 carry the same
+  arithmetic without it.</p>
+
+  <h2 class="sec"><span class="secno">7</span>Three numbers, and what stands behind them</h2>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 3.</b> The model's parameters and their instruments. Two of the
+    three have none.</div>
+    <!-- TBL:equiv-params:START --><table class="booktabs"><thead><tr><th></th><th>What it is</th><th>What would measure it</th><th>What stands behind it now</th></tr></thead><tbody><tr><td><b>lambda</b><br><span class="muted">attenuation</span></td><td>how much of a defect`s context survives one handoff</td><td>H8, the incidental-residue probe, priced at 36 turns</td><td>designed, not run</td></tr><tr><td><b>g</b><br><span class="muted">automated catch rate</span></td><td>the share of live defects one unattended turn removes</td><td>a seeded-defect run: plant known faults, count removals by depth</td><td>nothing. The loop ledger records 17 gate failures over 89 turns, which counts what the gate CAUGHT and says nothing about what it missed</td></tr><tr><td><b>h</b><br><span class="muted">directed catch rate</span></td><td>the same, for a turn a person is reading</td><td>the same seeded-defect run with a person at the handoff</td><td>nothing, and it is the expensive one to get</td></tr><tr><td><b>r</b><br><span class="muted">defect introduction rate</span></td><td>defects made per turn</td><td>not needed</td><td>CANCELS. It scales both densities equally and leaves the ratio alone</td></tr></tbody></table><!-- TBL:equiv-params:END -->
+  </div>
+
+  <p>The loop ledger records 17 gate failures across 89 turns, and that number is not g. It counts
+  what the gate <em>caught</em> and is silent about what went past it, which is the quantity the
+  model needs. Measuring g requires knowing the denominator, and the only way to know it is to put
+  the defects there yourself.</p>
+
+  <h2 class="sec" id="h9"><span class="secno">8</span>H9, and what the simulation changed</h2>
+
+  <p>Seed <i>k</i> defects into the setup artefact. Run the chain. Score removals by the gap
+  between the seeding turn and the turn that removed them; pooling over gaps gives a
+  method-of-moments estimate needing no likelihood, where the denominator is exposure discounted
+  by λ.</p>
+
+  <div class="eq">ĝ = removals ⁄ ∑<sub>gaps</sub> ( live · λ<sup>gap−1</sup> )
+    <span class="where">how many chances there were, weighted by how much context reached them</span></div>
+
+  <p><b>The seeds must not be announced.</b> A turn told the artefact holds twelve planted faults
+  hunts for twelve planted faults, and what comes back is a hunting rate. This is the seeded-defect
+  twin of the failure that sank H8's first design, so it is a stated precondition of H9 rather than
+  a caveat at the end.</p>
+
+  <p>Following <a href="/methods#r13">R13</a>, whose practice is Burton's
+  <a class="cite" data-ref="burton2006"></a> and Morris's
+  <a class="cite" data-ref="morris2019"></a>, the design was simulated before being proposed, and
+  the simulation changed its <em>outcome</em> rather than its price. The exchange rate is a step
+  function of g with a discontinuity at the feasibility boundary, so an estimator good enough for
+  a figure can be useless for the decision.</p>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 4.</b> Verdict accuracy against study size, at λ = 0.6 and h = 0.7,
+    1200 replications. <i>Far</i> is g = 0.65; <i>near</i> is g = 0.32, four hundredths above the
+    boundary. <i>Band</i> is the three-way verdict — six suffices, more than six, never. <i>Rate</i>
+    is the exchange rate itself to within 25%.</div>
+    <!-- TBL:seeded-cost:START --><table class="booktabs"><thead><tr><th>Seeds</th><th class="num">Runs</th><th class="num">Turns</th><th class="num">Far: width on g</th><th class="num">Far: band right</th><th class="num">Near: width on g</th><th class="num">Near: band right</th><th class="num">Near: rate right</th></tr></thead><tbody><tr><td class="num">6</td><td class="num">1</td><td class="num">6</td><td class="num">0.648</td><td class="num">84%</td><td class="num">0.608</td><td class="num">43.8%</td><td class="num">0.8%</td></tr><tr><td class="num">12</td><td class="num">1</td><td class="num">6</td><td class="num">0.498</td><td class="num">92.7%</td><td class="num">0.431</td><td class="num">55.1%</td><td class="num">9.7%</td></tr><tr><td class="num">12</td><td class="num">2</td><td class="num">12</td><td class="num">0.374</td><td class="num">97.9%</td><td class="num">0.293</td><td class="num">66.3%</td><td class="num">14.4%</td></tr><tr><td class="num">12</td><td class="num">3</td><td class="num">18</td><td class="num">0.297</td><td class="num">99.3%</td><td class="num">0.241</td><td class="num">74.5%</td><td class="num">15.4%</td></tr><tr><td class="num">20</td><td class="num">3</td><td class="num">18</td><td class="num">0.232</td><td class="num">100%</td><td class="num">0.187</td><td class="num">77.5%</td><td class="num">19.8%</td></tr><tr><td class="num">20</td><td class="num">6</td><td class="num">36</td><td class="num">0.165</td><td class="num">100%</td><td class="num">0.137</td><td class="num">87.3%</td><td class="num">25.7%</td></tr><tr><td class="num">40</td><td class="num">6</td><td class="num">36</td><td class="num">0.111</td><td class="num">100%</td><td class="num">0.096</td><td class="num">96.3%</td><td class="num">37.4%</td></tr></tbody></table><!-- TBL:seeded-cost:END -->
+  </div>
+
+  <p>Read the last two columns together. Forty seeded defects over six chains, 36 turns, call the
+  band right 96.3% of the time near the boundary and 100% far from it. The same study gets the
+  exchange rate itself right 37.4% of the time near the boundary, and no affordable study does
+  better, because a swing of 0.05 in g moves the rate from 40 turns to 9. <b>The instability is a
+  property of the question rather than a defect of the instrument</b>, and the design's answer is
+  to report the side rather than the number.</p>
+
+  <p>A study sized on parameter precision alone would have bought a figure nobody could act on.
+  That is the second time on this site that simulating before running changed a design rather than
+  merely costing it, and both times the correction went in the same direction: the quantity worth
+  reporting was coarser than the one first proposed.</p>
+
+  <p>H9 therefore costs <b>72 turns, half of them read by a person</b>: forty seeded defects across
+  six six-turn chains in each arm. The directed arm's density is observed rather than modelled, so
+  h is never estimated and one unknown disappears from the comparison.</p>
+
+  <h2 class="sec"><span class="secno">9</span>Better tools move g, and leave λ alone</h2>
+
+  <p>The obvious way to make unattended runs stronger is to give the turns more capability: let
+  them compile, let them search, let them run the thing they wrote. In this model all of that lands
+  on g and none of it on λ. A turn that can compile catches compile errors it could already see the
+  code for; it recovers nothing about a decision three handoffs upstream that no longer reaches
+  it.</p>
+
+  <p>That gives two levers with different prices and different effects, and Figure 2 says which to
+  pull. Capability raises g, costs engineering, and moves you along the horizontal. Wiring raises
+  λ, costs nothing per <a href="/wp2">WP2</a>, and moves you along the vertical, which is the
+  steeper direction near the boundary. <b>The prediction is testable and falsifiable: tool upgrades
+  should move the measured g and leave the measured λ where it was.</b> If a compiler moves λ, this
+  decomposition is wrong.</p>
+
+  <h2 class="sec"><span class="secno">10</span>Limits</h2>
+
+  <ul>
+    <li>No runs have been executed and nothing here is measured. λ is designed for in H8; g and h
+    have no instrument until H9 runs. Every number on this page is arithmetic over assumed
+    inputs.</li>
+    <li>Defects are treated as independent, equally hard to see, and either present or absent. Real
+    faults come in families, and one fix often reveals or repairs several, which this model has no
+    way to represent.</li>
+    <li>The catch probability is assumed to depend on the gap and nothing else. If turns differ in
+    diligence, or if a defect gets easier to see as work accumulates around it, g is not a rate and
+    the composition fails. H9's third refutation condition tests exactly that.</li>
+    <li>The directed arm is idealised as λ = 1. A person forgets too, which is the observation that
+    produced <a href="/wp2#attenuation">WP2 §10c</a> in the first place, so the target density here
+    is optimistic about direction and the exchange rate is correspondingly generous to it.</li>
+    <li>Density counts defects per turn, and a turn is not a fixed amount of work. The same
+    criticism applies to the ken ratio, which counts turns rather than tokens, and is the same
+    obvious next refinement.</li>
+    <li>Shaw <a class="cite" data-ref="shaw1964"></a> found the ranking of communication patterns
+    to reverse with task complexity. Nothing here lets g depend on the task, so a design chosen on
+    this model would be chosen for one difficulty and applied to another.</li>
+    <li>The simulation in §8 draws from the model the estimator assumes, so Table 4 measures
+    precision and not robustness.</li>
+  </ul>
+
+  <div class="refs"><h2 class="sec"><span class="secno">§</span>References</h2><ol id="reflist"></ol></div>
+
+</div>
+
+<script src="refs.js"></script>
+<script src="cite.js"></script>
+<script type="module">
+import { exchangeRate, density, residue, curve } from '/graph/equivalence.mjs';
+
+document.getElementById('nojs').style.display = 'none';
+
+const el = (id) => document.getElementById(id);
+const inputs = { lam: el('lam'), g: el('g'), h: el('h'), dt: el('dt') };
+
+/* A compact line chart, hand-rolled. packages/dataviz is not served under
+   this surface, and the committed figures come from it at build time; this
+   one has to exist in the page. */
+function plot(rows, floor) {
+  const W = 620, H = 230, L = 52, R = 12, T = 12, B = 34;
+  const maxY = 1, maxX = rows.length;
+  const x = (n) => L + ((n - 1) / (maxX - 1)) * (W - L - R);
+  const y = (v) => T + (1 - v / maxY) * (H - T - B);
+  const path = (key) => rows.map((r, i) => `${i ? 'L' : 'M'}${x(r.n).toFixed(1)},${y(r[key]).toFixed(1)}`).join('');
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((v) =>
+    `<line x1="${L}" y1="${y(v)}" x2="${W - R}" y2="${y(v)}" stroke="#e8e8e8"/>`
+    + `<text x="${L - 6}" y="${y(v) + 3}" font-size="9" fill="#6b6b6b" text-anchor="end">${v}</text>`).join('');
+  const xticks = rows.filter((r) => r.n % 2 === 0).map((r) =>
+    `<text x="${x(r.n)}" y="${H - B + 15}" font-size="9" fill="#6b6b6b" text-anchor="middle">${r.n}</text>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Defect density against chain length for the rates set above."
+    style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif"><rect width="${W}" height="${H}" fill="#fff"/>
+    ${ticks}${xticks}
+    <line x1="${L}" y1="${y(floor)}" x2="${W - R}" y2="${y(floor)}" stroke="#9a2b2b" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="${W - R}" y="${y(floor) - 4}" font-size="9" fill="#9a2b2b" text-anchor="end">unattended floor ${floor}</text>
+    <path d="${path('automated')}" fill="none" stroke="#0072b2" stroke-width="1.8"/>
+    <path d="${path('directed')}" fill="none" stroke="#d55e00" stroke-width="1.8"/>
+    <text x="${W - R}" y="${T + 12}" font-size="10" fill="#d55e00" text-anchor="end">directed</text>
+    <text x="${W - R}" y="${T + 26}" font-size="10" fill="#0072b2" text-anchor="end">unattended</text>
+    <text x="${(L + W - R) / 2}" y="${H - 4}" font-size="10" fill="#1a1a1a" text-anchor="middle">turns in the chain</text>
+  </svg>`;
+}
+
+function recompute() {
+  const lambda = Number(inputs.lam.value);
+  const g = Number(inputs.g.value);
+  const h = Number(inputs.h.value);
+  const directedTurns = Number(inputs.dt.value);
+  el('lamv').textContent = lambda.toFixed(2);
+  el('gv').textContent = g.toFixed(2);
+  el('hv').textContent = h.toFixed(2);
+  el('dtv').textContent = directedTurns;
+
+  const r = exchangeRate({ lambda, g, h, directedTurns });
+  const rate = el('rate');
+  rate.textContent = r.n === null ? 'never' : r.n;
+  rate.className = 'v' + (r.n === null ? ' never' : r.n <= 6 ? ' good' : '');
+  el('ratenote').textContent = r.n === null
+    ? 'the floor sits above the target'
+    : r.n <= 6 ? 'within a six-turn budget' : 'more than six turns';
+  el('target').textContent = r.target;
+  el('floor').textContent = r.floor;
+  el('floornote').textContent = r.floor === 0
+    ? 'no floor at λ = 1'
+    : `${Math.round((r.floor / r.target) * 100)}% of the target`;
+
+  const c = curve({ lambda, g, h, upTo: 14 });
+  el('live').innerHTML = plot(c.rows, c.floor);
+}
+
+for (const i of Object.values(inputs)) i.addEventListener('input', recompute);
+recompute();
+</script>
+</body>
+</html>
