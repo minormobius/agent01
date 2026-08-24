@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ARMLINE — six axes, four keys</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0a0c0f;
+    --fg: #dfe4ea;
+    --dim: #6f7883;
+    --border: #1b2027;
+    --q: #8fb4e0; --w: #f0b03c; --o: #f08a2a; --p: #6fd08a;
+  }
+  * { box-sizing: border-box; }
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none; -webkit-user-select: none;
+  }
+  html { touch-action: manipulation; }
+  #notes, #notes * { user-select: text; -webkit-user-select: text; }
+
+  html, body {
+    margin: 0; padding: 0; min-height: 100%;
+    background: var(--bg); color: var(--fg);
+    font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: contain;
+  }
+  a { color: #7fc0f0; }
+
+  header {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 12px 18px 10px; border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    margin: 0; font-size: 13px; font-weight: 600;
+    letter-spacing: 0.18em; text-transform: uppercase; color: #f08a2a;
+  }
+  header .sub { color: var(--dim); font-size: 11px; }
+
+  #stage { position: relative; margin: 12px auto 0; max-width: 1100px; padding: 0 18px; }
+  #wrap {
+    position: relative; border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; background: #0a0c0f;
+  }
+  canvas { display: block; width: 100%; height: min(60vh, 560px); touch-action: none; }
+
+  #hud {
+    display: flex; flex-wrap: wrap; gap: 4px 18px; padding: 8px 12px;
+    border-top: 1px solid var(--border); color: var(--dim); font-size: 11px;
+    background: #0d1014;
+  }
+  #hud b { color: var(--fg); font-weight: 600; }
+  #hud .bad { color: #e0463c; }
+  #hud .good { color: #6fd08a; }
+
+  #pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+  #pad button {
+    touch-action: none; position: relative; overflow: hidden;
+    height: 76px; margin: 0; padding: 4px;
+    border-radius: 8px; border: 2px solid;
+    background: #12161b; font-size: 19px; font-weight: 600;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    cursor: pointer; transition: background 60ms linear, transform 60ms linear;
+  }
+  #pad button .sub { display: block; font-size: 9px; opacity: 0.8; font-weight: 400; }
+  #pad button.q { color: var(--q); border-color: var(--q); }
+  #pad button.w { color: var(--w); border-color: var(--w); }
+  #pad button.o { color: var(--o); border-color: var(--o); }
+  #pad button.p { color: var(--p); border-color: var(--p); }
+  #pad button[data-on="1"] { color: #0a0c0f; transform: translateY(2px); }
+  #pad button.q[data-on="1"] { background: var(--q); }
+  #pad button.w[data-on="1"] { background: var(--w); }
+  #pad button.o[data-on="1"] { background: var(--o); }
+  #pad button.p[data-on="1"] { background: var(--p); }
+
+  .overlay {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px; text-align: center;
+    background: rgba(10, 12, 15, 0.92); padding: 24px;
+  }
+  .overlay[hidden] { display: none; }
+  .overlay h2 { margin: 0; font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase; color: #f08a2a; }
+  .overlay p { margin: 3px 0; color: var(--dim); max-width: 64ch; }
+  .overlay .big { font-size: 26px; color: var(--fg); }
+  .overlay button {
+    background: #1b2027; color: var(--fg); border: 1px solid var(--border);
+    padding: 7px 18px; border-radius: 4px; cursor: pointer; font: inherit; margin-top: 8px;
+  }
+  .keys { display: flex; gap: 10px; margin: 6px 0 2px; }
+  .keycap { width: 38px; height: 38px; border-radius: 5px; display: grid; place-items: center;
+    font-size: 15px; font-weight: 600; border: 1.5px solid; }
+  .keycap.q { color: var(--q); border-color: var(--q); }
+  .keycap.w { color: var(--w); border-color: var(--w); }
+  .keycap.o { color: var(--o); border-color: var(--o); }
+  .keycap.p { color: var(--p); border-color: var(--p); }
+
+  #notes { padding: 18px 18px 48px; max-width: 78ch; margin: 0 auto; color: var(--dim); }
+  #notes h3 {
+    color: var(--fg); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    margin: 22px 0 6px; border-bottom: 1px solid var(--border); padding-bottom: 4px;
+  }
+  #notes p { margin: 7px 0; }
+  #notes code { color: #f0a860; background: #161b21; padding: 1px 4px; border-radius: 2px; }
+  #notes table { border-collapse: collapse; margin: 8px 0; font-size: 11px; width: 100%; }
+  #notes th, #notes td { text-align: left; padding: 4px 10px 4px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  #notes th { color: var(--fg); font-weight: 600; }
+  .k { font-weight: 600; }
+  .k.q { color: var(--q); } .k.w { color: var(--w); }
+  .k.o { color: var(--o); } .k.p { color: var(--p); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ARMLINE</h1>
+  <span class="sub">an AR4 on a moving line — teach it three poses and a grip</span>
+</header>
+
+<div id="stage">
+  <div id="wrap">
+    <canvas id="c"></canvas>
+    <div id="hud"></div>
+
+    <div class="overlay" id="intro">
+      <h2>Pull the red ones</h2>
+      <div class="keys">
+        <div class="keycap q">Q</div><div class="keycap w">W</div>
+        <div class="keycap o">O</div><div class="keycap p">P</div>
+      </div>
+      <p><span class="k q">Q</span> tote &nbsp;·&nbsp;
+         <span class="k w">W</span> approach &nbsp;·&nbsp;
+         <span class="k o">O</span> pick &nbsp;·&nbsp;
+         <span class="k p">P</span> grip</p>
+      <p>Hold a key and the arm servos toward that taught pose at its real
+      60&nbsp;°/s joint limit. Let go and it stops where it is.</p>
+      <p><strong>Q&nbsp;→&nbsp;O straight down is 40% quicker — and it comes in
+      sideways across the line.</strong> The approach pose is what turns the
+      last leg into a vertical descent. That is why real robot programs carry
+      approach points, and the line does not stop while you take the long way.</p>
+      <button id="start">press any key to start the line</button>
+    </div>
+
+    <div class="overlay" id="over" hidden>
+      <h2 id="over-title">Line stopped</h2>
+      <div class="big" id="over-score">0 pulled</div>
+      <p id="over-line"></p>
+      <p id="over-tip"></p>
+      <button id="again">press SPACE to run it again</button>
+    </div>
+  </div>
+
+  <div id="pad" role="group" aria-label="arm controls">
+    <button class="q" data-i="0" type="button" aria-label="tote pose">Q<span class="sub">tote</span></button>
+    <button class="w" data-i="1" type="button" aria-label="approach pose">W<span class="sub">approach</span></button>
+    <button class="o" data-i="2" type="button" aria-label="pick pose">O<span class="sub">pick</span></button>
+    <button class="p" data-i="3" type="button" aria-label="close the gripper">P<span class="sub">grip</span></button>
+  </div>
+</div>
+
+<div id="notes">
+  <h3>The arm is a real arm</h3>
+  <p>This is an <strong>Annin Robotics AR4 MK3</strong> — open-source hardware,
+  CAD and firmware and robot description all published. Every number in the
+  kinematics is transcribed from its
+  <a href="https://github.com/ycheng517/ar4_ros_driver" target="_blank" rel="noopener">MIT-licensed
+  ROS&nbsp;2 description package</a>: the joint origins and axes from
+  <code>ar_macro.xacro</code>, the travel limits and <code>l6_length</code> from
+  <code>config/mk3.yaml</code>, the two-jaw gripper from
+  <code>ar_gripper_macro.xacro</code>.</p>
+  <table>
+    <tr><th>joint</th><th>travel</th><th>offset from the previous joint</th></tr>
+    <tr><td>1</td><td>±170°</td><td>at the base, about the column</td></tr>
+    <tr><td>2</td><td>−42…+90°</td><td>64 mm out, 170 mm up — the shoulder</td></tr>
+    <tr><td>3</td><td>−89…+52°</td><td>305 mm — the upper arm</td></tr>
+    <tr><td>4</td><td>±180°</td><td>coincident with 3 — forearm roll</td></tr>
+    <tr><td>5</td><td>±105°</td><td>223 mm — the forearm</td></tr>
+    <tr><td>6</td><td>±180°</td><td>41 mm — the wrist</td></tr>
+  </table>
+  <p>All six are limited to <strong>1.0472 rad/s</strong>, which is 60&nbsp;°/s,
+  exactly as the URDF has it. The selftest checks the joint table field for
+  field against those files, checks that the chain composes the way URDF
+  specifies (<code>&lt;origin&gt;</code> first, then rotation about
+  <code>&lt;axis&gt;</code>), and checks that the tool can never reach beyond the
+  sum of the link lengths — 0.800&nbsp;m, which is the norms of the joint
+  offsets, not their z components.</p>
+  <p>What is <em>not</em> transcribed: the shells. The AR4's real STL meshes are
+  megabytes and this page ships as a static asset with no build step, so the
+  links are drawn as machined housings spanning the true joint origins. Change
+  the transcription and the arm on screen changes shape, because the drawing
+  reads the kinematics rather than repeating them.</p>
+
+  <h3>Three poses and a grip</h3>
+  <p>Six joints, four keys — so driving joints directly is off the table. But
+  that is not how anyone operates an industrial arm anyway: you teach it poses
+  and play them back. A teach pendant records a handful of joint configurations
+  and the program walks between them. <strong>You are the program.</strong></p>
+  <p>The three poses were <em>solved</em> on the real chain, not hand-set — each
+  is the joint vector that puts the tool centre point at the named place with
+  the gripper pointing straight down, found by search inside the AR4's real
+  joint limits. They are stored as joint angles, because that is what the arm
+  stores.</p>
+
+  <h3>Why the middle key exists</h3>
+  <p>A joint-space move does not travel in a straight line, and the joints are
+  not time-synchronised — each runs at up to 60&nbsp;°/s and arrives when it
+  arrives. Measured on the real chain:</p>
+  <table>
+    <tr><th>route</th><th>time</th><th>sideways travel at part height</th></tr>
+    <tr><td>Q → O</td><td>0.82 s</td><td><strong>200 mm</strong></td></tr>
+    <tr><td>Q → W → O</td><td>1.38 s</td><td>1 mm</td></tr>
+  </table>
+  <p>The shortcut saves 40% of the time, and it saves it by coming in
+  <strong>sideways across the belt at pick height</strong> — straight through the
+  line of parts. The approach pose turns the final leg into a vertical descent.
+  Flown against a full line, going straight in scatters <strong>1.75 parts a
+  trip</strong> against <strong>0.63</strong>.</p>
+  <p>None of that is a rule bolted on to make a game. It is why approach
+  waypoints exist in real robot programs, it falls out of the AR4's own joint
+  geometry, and the selftest measures it rather than asserting it.</p>
+
+  <h3>Lead the target</h3>
+  <p>The jaws take 0.22 s to close and the line runs at 105 mm/s, so a part
+  travels 23 mm during the close — further than the grasp radius. You cannot
+  close when the part is under the tool; you have to close <em>before</em> it
+  gets there. That was not designed in, it fell out of the numbers, and the
+  selftest found it: a test controller that gripped only while the part was dead
+  centre never picked anything up, because the jaws reopened as it drifted.</p>
+
+  <h3>What is invented</h3>
+  <p>The arm, its limits and its speeds are the AR4's. The cell around it is
+  ours: the belt speed, the part spacing, how often a reject comes past, what
+  counts as scrap. There is no dynamics here — no torque, no payload, no
+  compliance — the joints simply move at their rate limit, which is what a
+  position-controlled arm looks like from outside and is not what one feels like
+  from inside.</p>
+  <p>Same four keys as <a href="../qwop/">/qwop/</a>,
+  <a href="../graze/">/graze/</a>, <a href="../qgol/">/qgol/</a> and
+  <a href="../griddle/">/griddle/</a>. Rendering is
+  <a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> r169
+  (MIT), vendored — no CDN, nothing fetched at runtime.</p>
+</div>
+
+<script type="module">
+  import { createCell, tickCell, KEYS, CELL, SHIFT, POSES } from './game.js';
+  import { buildScene } from './scene.js';
+
+  const canvas = document.getElementById('c');
+  const hud = document.getElementById('hud');
+  const pad = document.getElementById('pad');
+  const intro = document.getElementById('intro');
+  const over = document.getElementById('over');
+
+  const view = buildScene(canvas);
+  let st = createCell({ seed: (Math.random() * 1e9) | 0 });
+  let started = false, best = 0, wasOver = false, frames = 0;
+  const held = [false, false, false, false];
+
+  globalThis.__armline = () => ({ st, held, started, frames });
+
+  const TIPS = [
+    'Q to O is quicker and comes in sideways across the line. That is what the approach pose is for.',
+    'The jaws take 0.22 s to close and the line moves 23 mm in that time. Close before the part arrives, not when it does.',
+    'Let go of every key and the arm stops where it is. A half-finished move blends into whatever you press next.',
+    'Blue spheres are product. Dropping one in the tote is a wrong part, and it counts against you.',
+    'Six joints, and each runs at its own 60 deg/s. They do not arrive together, which is why the tool swings.',
+    'A reject that reaches the end of the line got through. Scrap is what stops the line.',
+  ];
+
+  function reset() {
+    for (let i = 0; i < 4; i++) held[i] = false;
+    paintPad();
+    st = createCell({ seed: (Math.random() * 1e9) | 0 });
+    started = true; wasOver = false;
+    intro.hidden = true; over.hidden = true;
+    last = performance.now();
+  }
+
+  function onOver() {
+    best = Math.max(best, st.picked);
+    document.getElementById('over-title').textContent = st.cause || 'Line stopped';
+    document.getElementById('over-score').textContent = `${st.picked} rejects pulled`;
+    document.getElementById('over-line').textContent =
+      `${st.wrongPart} wrong parts · ${st.dropped} dropped · ${st.missed} got through · ${st.elapsed.toFixed(0)}s · best ${best}`;
+    document.getElementById('over-tip').textContent = TIPS[(Math.random() * TIPS.length) | 0];
+    over.hidden = false;
+  }
+
+  addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if (!started) { if (k === ' ' || e.key.length === 1) { e.preventDefault(); reset(); } return; }
+    if (st.over) { if (k === ' ' || k === 'enter') { e.preventDefault(); reset(); } return; }
+    const i = KEYS.indexOf(k);
+    if (i >= 0) { e.preventDefault(); if (!held[i]) { held[i] = true; paintPad(); } }
+  });
+  addEventListener('keyup', (e) => {
+    const i = KEYS.indexOf(e.key.toLowerCase());
+    if (i >= 0) { held[i] = false; paintPad(); }
+  });
+  const letGo = () => { for (let i = 0; i < 4; i++) held[i] = false; paintPad(); };
+  addEventListener('blur', letGo);
+  addEventListener('visibilitychange', () => { if (document.hidden) letGo(); });
+
+  for (const btn of pad.querySelectorAll('button')) {
+    const i = +btn.dataset.i;
+    const press = (e) => {
+      e.preventDefault();
+      if (!started || st.over) { reset(); return; }
+      try { btn.setPointerCapture(e.pointerId); } catch (_) {}
+      if (!held[i]) { held[i] = true; btn.dataset.on = '1'; }
+    };
+    const release = (e) => { if (e) e.preventDefault(); held[i] = false; btn.dataset.on = '0'; };
+    btn.addEventListener('pointerdown', press);
+    btn.addEventListener('pointerup', release);
+    btn.addEventListener('pointercancel', release);
+    btn.addEventListener('pointermove', (e) => {
+      if (!held[i]) return;
+      const r = btn.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) release(e);
+    });
+    btn.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+  function paintPad() {
+    const btns = pad.querySelectorAll('button');
+    for (let i = 0; i < btns.length; i++) btns[i].dataset.on = held[i] ? '1' : '0';
+  }
+
+  for (const el of [intro, over]) {
+    el.addEventListener('pointerdown', (e) => { e.preventDefault(); reset(); });
+  }
+  if (matchMedia('(pointer: coarse)').matches) {
+    document.getElementById('start').textContent = 'tap to start the line';
+    document.getElementById('again').textContent = 'tap to run it again';
+  }
+
+  function paintHud() {
+    const t = st.target ? st.target.toLowerCase() : 'holding';
+    hud.innerHTML =
+      `<span>pulled <b class="good">${st.picked}</b></span>`
+      + `<span>scrap <b class="${st.scrap ? 'bad' : ''}">${st.scrap}</b>/${SHIFT.scrapLimit}</span>`
+      + `<span>wrong <b>${st.wrongPart}</b></span>`
+      + `<span>got through <b>${st.missed}</b></span>`
+      + `<span>arm <b>${t}</b>${st.arrived ? '' : ' …'}</span>`
+      + `<span>jaws <b>${(100 - st.jaw * 100).toFixed(0)}%</b> closed</span>`
+      + `<span>tool z <b>${(st.tcp.z * 1000).toFixed(0)}</b> mm</span>`;
+  }
+
+  const STEP = 1 / 240;
+  let last = performance.now(), acc = 0;
+
+  function frame(t) {
+    frames++;
+    const wall = Math.min(0.1, (t - last) / 1000);
+    last = t;
+    if (started && !st.over) {
+      acc += wall;
+      let guard = 0;
+      while (acc >= STEP && guard++ < 400) { tickCell(st, STEP, held); acc -= STEP; }
+    }
+    if (st.over && !wasOver) { wasOver = true; onOver(); }
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    view.resize(w, h);
+    view.update(st, wall);
+    view.render();
+    paintHud();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>
