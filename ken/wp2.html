@@ -361,11 +361,11 @@
     </table>
   </div>
 
-  <p>So <b>whether skip edges matter is not a modelling argument, it is a question about λ</b> —
-  and λ is measurable from a single chain run. Plant <i>k</i> constraints at the source and count
-  how many survive at each depth; the decay of that curve is λ. That is <b>H8</b> in
-  <a href="/register">the register</a>, it is the cheapest experiment on this site, and it should
-  be run before H5 because it prices H5.</p>
+  <p>So <b>whether skip edges matter is not a modelling argument, it is a question about λ</b>,
+  and λ is a quantity that can be measured. That is <b>H8</b> in
+  <a href="/register">the register</a>, and it should be run before H5 because it prices H5.
+  <b>How</b> to measure it is <a href="#probe">§12</a>, and the obvious method there does not
+  work.</p>
 
   <p>The value of one skip follows directly. Adding an edge takes a distance <i>d</i> to 1, so
   fidelity goes from λ<sup>d−1</sup> to 1. At λ = 0.9 a two-hop skip is worth 0.10; at λ = 0.2 it
@@ -430,7 +430,97 @@
   pooling licence is void. That is the same failure H6 names, with a sharper instrument pointed
   at it.</p>
 
-  <h2 class="sec"><span class="secno">10</span>Limits</h2>
+  <h2 class="sec" id="probe"><span class="secno">12</span>Measuring λ without asking for it</h2>
+
+  <div class="revised">
+    <p><b>§10c said λ was measurable from a single chain run, and described a method that
+    measures nothing.</b> Plant <i>k</i> constraints in the setup brief, say carry these
+    forward, count the survivors at each depth. Tell a chain to preserve π to twenty places and
+    it will preserve π to twenty places. λ comes back at 1, and what has been measured is
+    compliance with an instruction to copy.</p>
+  </div>
+
+  <p>The quantity we want is the one you would fail on if asked today how the literature search
+  for module three went. It was doing real work when it happened. Nobody told you to keep it. It
+  is not your current task, and you cannot bluff it, because there was a specific answer.</p>
+
+  <p>So the probe asks about <b>residue</b>: something a turn produced in the course of doing its
+  job, which no brief ever mentioned. Four properties, and dropping any one breaks the
+  measurement. It must be <b>incidental</b>, never named anywhere as something to carry forward.
+  It must have been <b>doing work</b> when it was made, because noise decays too and its decay
+  says nothing about handoff. It must be <b>recoverable</b>, meaning there is a well-posed
+  question whose answer is a set, scoreable by overlap without a judge, which keeps
+  <a href="/protocol">B3</a> off the critical path. And it must be <b>hard to guess</b>. That
+  last one is not assumed. It is measured, and subtracted.</p>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 8.</b> The three residues the instrument can score, from
+    <code>lab/probe.mjs</code>. Each is a set rather than a token: a single memorable token is
+    the salience trap that sank the first design.</div>
+    <!-- TBL:residues:START --><table class="booktabs"><thead><tr><th>Residue</th><th>Where it comes from</th><th>Why it is incidental</th><th>How it is scored</th><th>Guessable?</th></tr></thead><tbody><tr><td><code>readSet</code><br><b>files read and not changed</b></td><td>the harness already logs every file each turn opened. The first turn reads a dozen and changes two; the ten it read and left alone are residue.</td><td>no brief mentions reading, only the task; the decision was made by reading them</td><td>set overlap against the tool log, which is ground truth and needs no annotation</td><td>partly — a later turn can name plausible files, which is what the floor arm measures</td></tr><tr><td><code>rejected</code><br><b>alternatives considered and rejected</b></td><td>the first turn is asked to weigh several approaches and proceed with one. Its handoff carries the choice. The others, and the ground for dropping them, are residue.</td><td>the brief asks for a choice, never for a record of the rejects; the choice was made against them</td><td>set overlap against the first turn`s own stated list</td><td>a fresh agent can propose alternatives, and some will coincide. The floor arm measures exactly that coincidence.</td></tr><tr><td><code>obstacles</code><br><b>errors hit and worked around</b></td><td>failures the first turn recovered from without the fix reaching the artefact: a wrong path, a stale cache, a flag that did not exist.</td><td>never mentioned; the artefact records the fix, not the stumble; they cost real turns</td><td>set overlap against the transcript</td><td>least of the three, since a fresh agent has no reason to invent our exact errors</td></tr></tbody></table><!-- TBL:residues:END -->
+  </div>
+
+  <p><b>The floor arm is the design.</b> A descendant asked which files the first turn read can
+  guess, and some guesses land, because the plausible files often are the real ones. Score that
+  guessing rate as memory and λ inflates toward 1 by a quieter route than π but the same one. So
+  every probe runs an arm with no lineage at all: an agent given the task statement only, asked
+  the same question. Its recall <i>f</i> is what the question is worth to somebody who was never
+  there, and retention is measured above <i>f</i> rather than against zero.</p>
+
+  <div class="eq">recall(d) = f + (1 − f) · λ<sup>d−1</sup>
+    <span class="where">at d = 1 recall is 1 by construction, so one free parameter and a
+    measured floor</span></div>
+
+  <h3 class="sub">The cost, simulated before it is spent</h3>
+
+  <p><a href="/methods#r13">R13</a> says simulate the design before spending turns on it, and
+  the simulation refuted the claim in §10c a second time. <b>One chain does not identify λ.</b>
+  At <i>k</i> = 10 residue items and depth 6, the 95% interval on λ̂ is 0.361 wide, which
+  is nearly as wide as the parameter, and 92 of 1500 replications produce no estimate at all.</p>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 9.</b> Sampling distribution of λ̂ against replication, at true
+    λ = 0.6, floor 0.2, <i>k</i> = 10, depth 6, 1500 replications. The bold row is the first
+    design reaching a width of 0.25.</div>
+    <!-- TBL:probe-cost:START --><table class="booktabs"><thead><tr><th>Chains</th><th class="num">Turns</th><th class="num">95% width on λ</th><th class="num">Bias</th><th class="num">Failed to identify λ</th></tr></thead><tbody><tr><td>1</td><td class="num">6</td><td class="num">0.361</td><td class="num">+0.065</td><td class="num">92 of 1500</td></tr><tr><td>2</td><td class="num">12</td><td class="num">0.328</td><td class="num">+0.025</td><td class="num">19 of 1500</td></tr><tr><td>3</td><td class="num">18</td><td class="num">0.298</td><td class="num">+0.007</td><td class="num">6 of 1500</td></tr><tr><td>5</td><td class="num">30</td><td class="num">0.273</td><td class="num">+0.001</td><td class="num">1 of 1500</td></tr><tr><td><b>8</b></td><td class="num"><b>48</b></td><td class="num"><b>0.234</b></td><td class="num"><b>-0.006</b></td><td class="num"><b>0 of 1500</b></td></tr><tr><td>12</td><td class="num">72</td><td class="num">0.228</td><td class="num">-0.009</td><td class="num">0 of 1500</td></tr><tr><td>20</td><td class="num">120</td><td class="num">0.208</td><td class="num">-0.012</td><td class="num">0 of 1500</td></tr></tbody></table><!-- TBL:probe-cost:END -->
+  </div>
+
+  <p><b>More residue per chain is cheaper than more chains.</b> Six chains at <i>k</i> = 40, or
+  36 turns, reach a width of 0.193 with a bias of −0.01 and nothing unidentified; eight chains
+  at <i>k</i> = 10, which costs 48 turns, only reach 0.234. So the register prices H8 at
+  <b>36 turns</b>, and the residue kinds in Table 8 are chosen partly for how many items each
+  yields.</p>
+
+  <p><b>Depth beyond six hurts</b>, which a geometric fit would not suggest. Recall has reached
+  the floor by then and the extra points are noise on a quantity that has stopped moving, so
+  they drag the slope: at three chains of <i>k</i> = 20 the width goes from 0.254 at depth 6 to
+  0.297 at depth 12, and the bias from −0.005 to +0.073. Long chains are the wrong purchase.</p>
+
+  <h3 class="sub">Range, bias, and where it refuses</h3>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 10.</b> λ̂ across the range, at three chains of <i>k</i> = 20 with
+    a 60-draw floor arm.</div>
+    <!-- TBL:probe-range:START --><table class="booktabs"><thead><tr><th class="num">True λ</th><th class="num">Median estimate</th><th class="num">95% interval</th><th class="num">Width</th><th class="num">Failed to identify λ</th></tr></thead><tbody><tr><td class="num">0.20</td><td class="num">0.446</td><td class="num">[0.157, 0.6]</td><td class="num">0.443</td><td class="num">280 of 1500</td></tr><tr><td class="num">0.50</td><td class="num">0.532</td><td class="num">[0.34, 0.659]</td><td class="num">0.319</td><td class="num">10 of 1500</td></tr><tr><td class="num">0.70</td><td class="num">0.697</td><td class="num">[0.552, 0.77]</td><td class="num">0.218</td><td class="num">0 of 1500</td></tr><tr><td class="num">0.95</td><td class="num">0.95</td><td class="num">[0.927, 0.967]</td><td class="num">0.04</td><td class="num">0 of 1500</td></tr></tbody></table><!-- TBL:probe-range:END -->
+  </div>
+
+  <p>The asymmetry is the honest characterisation. At true λ = 0.95 the interval is 0.04 wide
+  and unbiased. At true λ = 0.2 the median estimate is 0.446, biased up by 0.229, and 280 of
+  1500 replications fail outright, because a curve that has hit the floor by depth 2 has no
+  slope left to fit. <b>This is a threshold test, not an estimator.</b> What it does reliably is
+  exclude the top of the range: at true λ of 0.3, 0.5 and 0.7 the interval excludes 0.9, so the
+  claim that skips buy nothing is refutable, which is the claim §10c needs settled to price
+  H5.</p>
+
+  <p>Three things void the result rather than making it null. A brief that names the residue
+  anywhere turns the probe back into the π test. A floor arm that scores as well as the
+  descendants means the question was guessable and no retention was measured. And recall that
+  does not decay geometrically above the floor means one rate does not describe the handoff, in
+  which case the model is wrong rather than imprecise, and Table 7 is arithmetic on a parameter
+  that does not exist. All three are in H8's refutation list, and the estimator refuses to
+  return a number in the cases where it cannot support one.</p>
+
+  <h2 class="sec"><span class="secno">13</span>Limits</h2>
 
   <ul>
     <li>No runs have been executed. Every number here is arithmetic over a graph, plus one
@@ -442,6 +532,9 @@
     reverse with task difficulty. The catalogue holds task fixed and would miss that entirely.</li>
     <li>Six turns is a small graph. Nothing here has been checked on a plan large enough for
     the orbit search to be slow, and the step cap has never fired, so it is untested.</li>
+    <li>§12's simulation draws from the model the estimator assumes, so Tables 9 and 10 measure
+    its precision and not its robustness. If real recall decays with a different shape, those
+    widths are optimistic by an unknown amount.</li>
     <li>The ken ratio counts turns, not tokens. Two in-edges carrying a paragraph and a
     hundred pages score the same, which is almost certainly wrong and is the obvious next
     refinement.</li>

@@ -261,7 +261,7 @@
   <p>A results file that contains only the cells that worked is a filtered sample, and the
   filter is correlated with the outcome.</p>
 
-  <h4 class="subsub">R13. Simulate the design before running it, and report what the simulation said. <span class="small">(new)</span></h4>
+  <h4 class="subsub" id="r13">R13. Simulate the design before running it, and report what the simulation said. <span class="small">(new)</span></h4>
 
   <p>Generate data from the model the design assumes, at the size the design proposes, and
   report the sampling distribution of whatever the run is meant to estimate. Where experiments
@@ -275,6 +275,14 @@
   0.5, and to return exactly zero a quarter of the time at a true 0.2. Reallocating the same
   runs did not help. The full result and the revised design are in
   <a href="/wp1">WP1</a>.</p>
+
+  <p>It has since earned itself a second time, on a design that had not been priced at all.
+  H8 claimed one six-turn chain would measure the attenuation parameter λ. Simulated, that
+  chain returns a 95% interval 0.361 wide on a parameter bounded in [0, 1], and fails to
+  produce an estimate in 92 of 1500 replications. The design that works costs six chains, and
+  the simulation also showed that buying depth beyond six makes the estimate worse rather than
+  better, which no amount of reasoning about geometric decay would have suggested.
+  <a href="/wp2#probe">WP2 §12</a>.</p>
 
   <p>Report the simulation alongside the design, including its seed, and state plainly that its
   intervals assume the very model the run is partly there to test.</p>

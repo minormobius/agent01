@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Findings Log — ken</title>
-<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Eighty-one entries, seven of them from measurements we made.">
+<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Eighty-six entries, seven of them from measurements we made.">
 <link rel="stylesheet" href="journal.css">
 </head>
 <body>
@@ -31,7 +31,7 @@
   <div class="a-venue">ken · volume 1 <span class="kicker">Running record</span></div>
   <h1 class="a-title">Findings Log</h1>
   <p class="a-sub">Shortest form. Each entry names the code or record that produced it.</p>
-  <div class="a-meta">81 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
+  <div class="a-meta">86 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
   <hr class="a-rule">
 
   <p class="small">Everything here comes from data already paid for or from arithmetic. That is
@@ -651,11 +651,11 @@
       1. The design is sound; its effect size was quoted at one unmeasured point.
       <span class="src"><code>skipValue()</code> · <code>contrastCurve()</code></span></li>
 
-    <li><b>H8 is now the cheapest experiment on the site and it prices H5.</b> Plant k
-      constraints at the source of a chain and count survival at each depth; the decay is λ. One
-      chain run, and a second to check λ does not move with the shape. Unlike H5 it needs no
-      particular regime, because λ is measured for a handoff-and-regime pair — measuring it under
-      sharing is the control that should return λ near 1.
+    <li><b>H8 prices H5, so it should be run first.</b> Unlike H5 it needs no particular
+      regime, because λ is measured for a handoff-and-regime pair, and measuring it under
+      sharing is the control that should return λ near 1. The design first proposed for it,
+      planting constraints at the source and counting survivors, does not work; entries 82 to 86
+      are what replaced it.
       <span class="src"><a href="/register">H8</a></span></li>
 
     <li><b>The ancestry order is a meet-semilattice on every shape enumerated, and a full lattice
@@ -666,6 +666,47 @@
       <span class="src"><code>ancestryOrder()</code> · Birkhoff 1937</span></li>
   </ol>
 
+
+  <h2 class="sec"><span class="secno">§</span>Asking for what nobody was told to keep</h2>
+
+  <ol class="log" start="82">
+    <li><b>The first H8 design measured compliance with an instruction to copy.</b> Plant k
+      constraints in the setup brief, say carry these forward, count survivors at each depth.
+      Tell a chain to preserve π to twenty places and it preserves π to twenty places: λ comes
+      back at 1 and nothing has been measured. The quantity wanted is the one you would fail on
+      if asked today how the literature search for module three went.
+      <span class="src"><code>probe.mjs</code> · <a href="/wp2#probe">WP2 §12</a></span></li>
+
+    <li><b>A residue has to satisfy four properties at once, and the fourth is measured rather
+      than assumed.</b> Incidental, so no brief names it. Doing real work when it was made, since
+      noise decays too. Recoverable as a set, so overlap scores it and no judge is needed. And
+      hard to guess, which is not asserted: a floor arm with no lineage answers the same question
+      from the task statement alone, and λ is fitted above that floor. Fitting a floor of 0.3
+      against zero inflates λ from 0.4 to 0.748, which is the π failure by a quieter route.
+      <span class="src"><code>fitLambda()</code> · <code>RESIDUES</code></span></li>
+
+    <li><b>One chain run does not identify λ, and the entry above claiming it does stood for one
+      revision.</b> At ten residue items over six depths the 95% interval is 0.361 wide on a
+      parameter bounded in [0, 1], and 92 of 1500 replications return no estimate at all. Six
+      chains of forty items reach 0.193. So H8 costs <b>36 turns</b>, not one run, and it is no
+      longer the cheapest thing here.
+      <span class="src"><code>simulateFit()</code> · <a href="/methods#r13">R13</a></span></li>
+
+    <li><b>More residue per chain is cheaper than more chains, and depth beyond six makes the
+      estimate worse.</b> Six chains of forty items, 36 turns, beat eight chains of ten items,
+      48 turns, at 0.193 against 0.234. Extending a chain from six turns to twelve widens the
+      interval from 0.254 to 0.297 and moves the bias from −0.005 to +0.073: recall has reached
+      the floor and the extra points are noise on a quantity that stopped moving.
+      <span class="src"><code>costToPin()</code></span></li>
+
+    <li><b>The instrument is a threshold test, not an estimator.</b> At true λ = 0.95 the
+      interval is 0.04 wide and unbiased; at true λ = 0.2 the median estimate is 0.446, biased up
+      by 0.229, with 280 of 1500 replications failing outright. What it does reliably is exclude
+      the top of the range, and that is enough: at λ of 0.3, 0.5 and 0.7 the interval excludes
+      0.9, so the claim that skips buy nothing is refutable.
+      <span class="src"><code>simulateFit()</code></span></li>
+  </ol>
+
   <h2 class="sec"><span class="secno">§</span>The ledger</h2>
 
   <div class="table-fig">
@@ -673,8 +714,8 @@
       <thead><tr><th>Source of finding</th><th class="num">Entries</th></tr></thead>
       <tbody>
         <tr><td>Records already committed</td><td class="num">12</td></tr>
-        <tr><td>Arithmetic and simulation</td><td class="num">34</td></tr>
-        <tr><td>Our own mistakes</td><td class="num">26</td></tr>
+        <tr><td>Arithmetic and simulation</td><td class="num">37</td></tr>
+        <tr><td>Our own mistakes</td><td class="num">28</td></tr>
         <tr><td>Prior literature</td><td class="num">2</td></tr>
         <tr><td><b>New measurement</b></td><td class="num"><b>7</b></td></tr>
       </tbody>

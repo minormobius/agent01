@@ -24,6 +24,7 @@ import { renderPlan } from '../graph/layout.mjs';
 import { shapeNames, buildShape, depthKenDesign, catalogue, collinearity, priceH5, H5, H6 } from '../graph/shapes.mjs';
 import { shapeInvariants, positionTable } from '../graph/roles.mjs';
 import { HYPOTHESES, statusCounts, STATUSES } from '../graph/hypotheses.mjs';
+import { RESIDUES, costToPin, simulateFit } from './probe.mjs';
 import { readFileSync as _read } from 'node:fs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -252,6 +253,35 @@ export function buildBlocks() {
       `<tr><td><b>paired on task</b></td>${num(p.paired.runs)}${num(`<b>${p.paired.turns}</b>`)}<td>${p.paired.note}; saves ${Math.round(p.paired.saving * 100)}%</td></tr>`,
       `<tr><td>within-run ken slope</td>${num(p.withinRun.runs)}${num(p.withinRun.turns)}<td>${p.withinRun.note}. ${p.withinRun.caveat}</td></tr>`,
     ]);
+
+  // ── §12, the attenuation probe ──────────────────────────────────────
+  // These are generated for the same reason as the rest: the residue
+  // definitions and the price of the probe both live in lab/probe.mjs,
+  // and a copy of either typed into the page would be free to drift from
+  // the simulator that produced it.
+  out.TBL.residues = table(
+    ['Residue', 'Where it comes from', 'Why it is incidental', 'How it is scored', 'Guessable?'],
+    Object.entries(RESIDUES).map(([k, r]) => `<tr><td><code>${k}</code><br><b>${r.name}</b></td>`
+      + `<td>${r.how}</td><td>${r.incidental}; ${r.loadBearing}</td>`
+      + `<td>${r.scoring}</td><td>${r.guessable}</td></tr>`), { num: [] });
+
+  const cost = costToPin({ target: 0.25 });
+  out.TBL['probe-cost'] = table(
+    ['Chains', 'Turns', '95% width on λ', 'Bias', 'Failed to identify λ'],
+    cost.rows.map((r) => {
+      const win = cost.enough && r.chains === cost.enough.chains;
+      const cell = (x) => num(win ? `<b>${x}</b>` : x);
+      return `<tr><td>${win ? `<b>${r.chains}</b>` : r.chains}</td>${cell(r.turns)}${cell(r.width)}`
+        + `${cell(r.bias > 0 ? `+${r.bias}` : r.bias)}${cell(`${r.unidentified} of 1500`)}</tr>`;
+    }));
+
+  out.TBL['probe-range'] = table(
+    ['True λ', 'Median estimate', '95% interval', 'Width', 'Failed to identify λ'],
+    [0.2, 0.5, 0.7, 0.95].map((lambda) => {
+      const s = simulateFit({ lambda, k: 20, chains: 3, floorK: 60, trials: 1500, seed: 7 });
+      return `<tr><td class="num">${lambda.toFixed(2)}</td>${num(s.median)}`
+        + `<td class="num">[${s.lo}, ${s.hi}]</td>${num(s.width)}${num(`${s.unidentified} of 1500`)}</tr>`;
+    }), { num: [0, 1, 2, 3, 4] });
   return out;
 }
 

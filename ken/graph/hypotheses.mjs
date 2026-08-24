@@ -167,37 +167,47 @@ export const HYPOTHESES = {
 
   H8: {
     id: 'H8', name: 'attenuation', curriculumUnit: 'IV', owner: '/wp2',
-    outcome: 'The survival curve of k constraints planted at the source, counted at each depth '
-      + 'of a chain, and the decay rate lambda fitted to it.',
-    analysisUnit: 'the hop — one observation per depth per planted constraint',
-    claim: 'What an agent receives from an ancestor decays geometrically in the number of hops, '
-      + 'at a rate lambda that is a property of the handoff and the regime rather than of the shape.',
-    test: 'One chain run. Plant k distinguishable constraints in the setup brief and count how '
-      + 'many survive at each depth. Fit lambda to the decay. Repeat on a second shape to check '
-      + 'lambda does not move with it.',
+    outcome: 'Recall of an INCIDENTAL residue at each depth of a chain, scored as set overlap '
+      + 'against the harness log, minus the recall a fresh agent achieves on the same question.',
+    analysisUnit: 'the residue item — k items observed at each of d depths',
+    claim: 'What an agent still holds from an ancestor decays geometrically in hops, at a rate '
+      + 'lambda belonging to the handoff and the regime rather than to the shape.',
+    test: 'Six standard runs. The first turn of each does real work that leaves a residue it was '
+      + 'never asked to keep: the files it read and did not change, the alternatives it weighed '
+      + 'and dropped, the errors it worked around. At each later depth a probe asks for that '
+      + 'residue and recall is scored by set overlap against the tool log. A FLOOR ARM of agents '
+      + 'with no lineage answers the same question from the task statement alone; lambda is '
+      + 'fitted above that floor, never against zero.',
     predicts: [
-      ['survival is geometric in depth', 'a straight line on a log scale, not a cliff and not flat'],
-      ['lambda is the same on a chain and on a bottleneck', 'it is a property of the handoff, not the plan'],
-      ['lambda under sharing is near 1', 'nothing is lost when nothing is withheld, which is the control'],
+      ['recall decays geometrically above the floor', 'straight on a log scale, not a cliff and not flat'],
+      ['lambda is the same on a chain and on a bottleneck', 'it belongs to the handoff, not the plan'],
+      ['lambda under a shared worktree is near 1', 'nothing is lost when nothing is withheld — the control'],
+      ['the floor is well above zero', 'if it were zero the residue would be unguessable, which no real residue is'],
     ],
-    /* This is the parameter every shape claim on this site turns out to
-       depend on, and nobody had measured it. It also dissolves the
-       isolated-versus-lineage argument: those are lambda = 0 and
-       lambda = 1, and the truth is a number between them. */
+    /* THE FAILURE THIS DESIGN EXISTS TO AVOID, and the first version of
+       H8 walked straight into it. "Plant k constraints and carry them
+       forward" measures compliance with an instruction to copy. Tell a
+       chain to preserve pi to twenty places and it will, and lambda comes
+       back at 1 having measured nothing. The residue must never be named
+       in any brief, and must be a SET rather than a memorable token. */
     refutedBy: [
-      'Survival does not decay geometrically, in which case one rate does not describe the handoff and the model is wrong rather than imprecise.',
+      'Recall does not decay geometrically above the floor, in which case one rate does not describe the handoff and the model is wrong rather than imprecise.',
       'lambda differs by shape, which would mean it is not a property of the handoff and cannot be carried between designs.',
-      'lambda is indistinguishable from 1, which would make every skip edge worthless and H5 undefined.',
-      'lambda is indistinguishable from 0, which would mean nothing survives a hop and the published ken ratio was right all along.',
+      'The floor arm scores as well as the descendants, in which case the probe measures guessability and not retention at all.',
+      'The residue turns out to have been named or implied somewhere in the briefs, in which case it is a copying test and the result is void rather than null.',
     ],
-    requires: 'Only that the run states its regime. lambda is measured for a (handoff, regime) pair '
-      + 'rather than assumed, so unlike H5 this is testable in any regime — and measuring it under '
-      + 'sharing is the control that should return lambda near 1.',
+    requires: 'Only that the run states its regime, since lambda belongs to a handoff-and-regime '
+      + 'pair rather than to the world. Measuring it under a shared worktree is the control, not a '
+      + 'mistake. What it does require absolutely is that no brief anywhere names the residue.',
     status: 'designed',
     evidence: null,
-    cost: 'ONE chain run, and a second to check lambda does not move with the shape. The cheapest '
-      + 'experiment on this site, and it prices H5: the chain-against-briefed gap runs from 0.667 '
-      + 'at lambda 0 to 0.079 at lambda 0.95.',
+    /* Simulated before proposing, per R13, and the simulation corrected
+       the first estimate by a factor of six. */
+    cost: 'THIRTY-SIX TURNS, not the one this originally claimed. Simulation puts a single '
+      + 'six-turn chain at a 95% width of 0.36 on lambda, with 6% of runs failing to identify it '
+      + 'at all. Six chains at forty residue items each reach a width of 0.19. Depth beyond six '
+      + 'HURTS: recall reaches the floor and the extra points are noise, taking the width from '
+      + '0.25 at depth 6 to 0.30 at depth 12 and the bias from -0.005 to +0.073.',
   },
 };
 

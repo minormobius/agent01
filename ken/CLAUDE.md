@@ -86,7 +86,9 @@ worker or move the domain, **verify the deploy log binds
 | `lab/runshape.selftest.mjs` | 39 checks for both |
 | `lab/plan.selftest.mjs` | 98 checks: the four laws, lane wiring, seeds, **skip visibility** |
 | `lab/roles.selftest.mjs` | 189 checks: the basis, the group orders, the design |
-| `lab/profiles.selftest.mjs` | 626 checks: the trade, the space, the digests, regimes, λ |
+| `lab/profiles.selftest.mjs` | 627 checks: the trade, the space, the digests, regimes, λ |
+| `lab/probe.mjs` | **measuring λ** from incidental residue: the floor arm, the estimator, the R13 simulation |
+| `lab/probe.selftest.mjs` | 66 checks: exact recovery, the floor, where the fit refuses, the price |
 | `lab/resolve-refs.mjs` | links the bibliography against CrossRef / arXiv / OpenLibrary |
 | `fig/*.svg` | **generated.** Committed so figures print and diff |
 | `refs.js` | **the bibliography, as data** — 90 real works, keyed |
@@ -387,10 +389,60 @@ gap runs 0.667 → 0.079 as λ goes 0 → 0.95; a two-hop skip is worth 0.80 at
 the honest way to state an effect that depends on a parameter nobody has
 measured.
 
-**H8 measures λ and costs one chain run.** Plant k constraints at the source,
-count survival at each depth, fit the decay. It needs no particular regime,
-because λ belongs to a handoff-and-regime pair — measuring it under sharing is
-the control that should return λ ≈ 1. Run it before H5, because it prices H5.
+**H8 measures λ. It needs no particular regime**, because λ belongs to a
+handoff-and-regime pair — measuring it under sharing is the control that should
+return λ ≈ 1. Run it before H5, because it prices H5. How to measure it is the
+next section, and the obvious way does not work.
+
+### The probe: what an agent still has, without telling it to keep anything
+
+`lab/probe.mjs`. **The design that does not work, and it was the first one
+written down:** plant k constraints in the setup brief, say carry these
+forward, count survivors. That measures compliance with an instruction to copy.
+Tell a chain to preserve π to twenty places and it will; λ comes back 1 having
+measured nothing.
+
+The quantity wanted is the one you would fail on if asked today how the
+literature search for module three went. So the probe asks about **residue**,
+and a residue must be all four of:
+
+| | |
+|---|---|
+| **incidental** | no brief anywhere names it. The moment one does, this is a copying test |
+| **doing work** | it mattered when it was produced; noise decays too and tells you nothing |
+| **recoverable** | a well-posed question whose answer is a *set*, scored by overlap, no judge |
+| **hard to guess** | not assumed. **Measured**, by the floor arm, and subtracted |
+
+Three kinds are specified in `RESIDUES`: files read and not changed,
+alternatives weighed and dropped, errors worked around. Each is a set, never a
+token — a single memorable token is the salience trap that sank the first
+design.
+
+**The floor arm is the design.** An agent with no lineage, given the task
+statement only, is asked the same question. Its recall *f* is what the question
+is worth to somebody who was never there.
+
+    recall(d) = f + (1 − f) · λ^(d−1)
+
+Retention is fitted above *f*, never against zero. Fitting a real floor of 0.3
+against zero takes λ from 0.4 to **0.748** — the π failure by a quieter route.
+`fitLambda()` returns `{lambda: null, reason}` rather than a plausible number
+when the data cannot support a fit.
+
+**What R13 cost H8: one run became 36 turns.** One six-turn chain at k=10
+gives a 95% width of 0.361 and fails to identify λ in 92 of 1500 replications.
+Six chains at k=40, 36 turns, reach 0.193. Two results worth carrying:
+
+- **More residue per chain beats more chains.** 6×40 (36 turns, 0.193) beats
+  8×10 (48 turns, 0.234).
+- **Depth beyond six hurts.** Six to twelve turns widens 0.254 → 0.297 and
+  moves bias −0.005 → +0.073. Recall has hit the floor; the extra points are
+  noise on a quantity that stopped moving.
+
+**It is a threshold test, not an estimator.** Width 0.04 and unbiased at true
+λ = 0.95; median 0.446 and biased up 0.229 at true λ = 0.2, with 280 of 1500
+failing. What it does reliably is exclude the top of the range, which is what
+H5 needs.
 
 ### The drawn graph is not the graph
 

@@ -525,9 +525,13 @@ for (const n of [4, 5, 6]) {
     `n = ${n}: so every shape's ancestry order is a meet-semilattice`);
 }
 
-// H8 exists and is the cheap one
+/* H8 exists, and it is no longer the cheap one. This assertion used to
+   read "states that it costs ONE chain run", which is what H8 claimed
+   before anybody simulated it. lab/probe.selftest.mjs owns the price
+   now; what belongs here is that the two files cannot disagree. */
 ok(HYPOTHESES.H8 && /lambda/.test(HYPOTHESES.H8.claim), 'H8 registers the attenuation parameter');
-ok(/ONE chain run/.test(HYPOTHESES.H8.cost), 'and states that it costs one chain run');
+ok(!/ONE chain run/.test(HYPOTHESES.H8.cost), 'and no longer claims one chain run measures it');
+ok(/THIRTY-SIX TURNS/.test(HYPOTHESES.H8.cost), 'but the thirty-six the simulation priced');
 ok(/lambda/.test(HYPOTHESES.H5.cost), 'H5 records that its effect size depends on lambda');
 
 console.log(`\n${fail === 0 ? '✓' : '✗'} profiles + ancestry ${fail === 0 ? 'passed' : 'FAILED'} — ${fail === 0 ? pass : `${fail} of ${pass + fail}`} checks`);

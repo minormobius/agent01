@@ -49,6 +49,7 @@ import { depthKenDesign, collinearity, effectiveReplication, chainBriefedContras
 import { loadRuns, partition, orderEffect, globalDrift } from './lab/h4.mjs';
 import { loadBakeoff, factorialAnova, cellComponents, contrastSensitivity } from './lab/factorial.mjs';
 import { fitBradleyTerry, swapRate } from './lab/bt.mjs';
+import { costToPin, simulateFit, fitLambda } from './lab/probe.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -399,6 +400,42 @@ function numberWord(n) { return ['zero', 'one', 'two', 'three', 'four', 'five', 
 
   // the selftest count the page advertises is the real one
   ok(wp2.includes('189 known-answer checks'), 'wp2 states the roles selftest size');
+
+  /* §12 quotes the simulator that priced H8. Tables 9 and 10 are generated
+     and cannot drift, but the prose around them is typed, and it is the
+     prose that carries the correction. A minus sign here is U+2212, so the
+     page is checked against the number with the sign it renders. */
+  const minus = (x) => String(x).replace('-', '−');
+  const cost = costToPin({ target: 0.25 });
+  const byChains = Object.fromEntries(cost.rows.map((r) => [r.chains, r]));
+  ok(wp2.includes(`${byChains[1].width} wide`), `wp2 quotes the single-chain width (${byChains[1].width})`);
+  ok(wp2.includes(`${byChains[1].unidentified} of 1500`),
+     `wp2 quotes how often one chain fails to identify lambda (${byChains[1].unidentified})`);
+  ok(wp2.includes(String(byChains[8].width)), `wp2 quotes the eight-chain width (${byChains[8].width})`);
+
+  const six = simulateFit({ k: 40, chains: 6, floorK: 240, trials: 1500, seed: 13 });
+  ok(six.settings.chains * six.settings.depth === 36 && wp2.includes('<b>36 turns</b>'),
+     'wp2 prices H8 at the 36 turns the six-chain design costs');
+  ok(wp2.includes(`width of ${six.width}`) && wp2.includes(`bias of ${minus(six.bias)}`),
+     `wp2 quotes the six-chain width and bias (${six.width}, ${six.bias})`);
+  ok(six.width < byChains[8].width,
+     'and more residue per chain really is cheaper than more chains, which is why the page says so');
+
+  const d6 = simulateFit({ k: 20, chains: 3, depth: 6, floorK: 60, trials: 1500, seed: 9 });
+  const d12 = simulateFit({ k: 20, chains: 3, depth: 12, floorK: 60, trials: 1500, seed: 9 });
+  ok(wp2.includes(`${d6.width} at depth 6 to\n  ${d12.width} at depth 12`)
+     || (wp2.includes(`${d6.width} at depth 6`) && wp2.includes(`${d12.width} at depth 12`)),
+     `wp2 quotes the depth penalty (${d6.width} to ${d12.width})`);
+  ok(wp2.includes(`${minus(d6.bias)} to +${d12.bias}`),
+     `wp2 quotes the depth bias (${d6.bias} to ${d12.bias})`);
+
+  const low = simulateFit({ lambda: 0.2, k: 20, chains: 3, floorK: 60, trials: 1500, seed: 7 });
+  const high = simulateFit({ lambda: 0.95, k: 20, chains: 3, floorK: 60, trials: 1500, seed: 7 });
+  ok(wp2.includes(`interval is ${high.width} wide`), `wp2 quotes the width at high lambda (${high.width})`);
+  ok(wp2.includes(`median estimate is ${low.median}`), `wp2 quotes the median at low lambda (${low.median})`);
+  ok(wp2.includes(`biased up by ${low.bias}`), `wp2 quotes the bias at low lambda (${low.bias})`);
+  ok(wp2.includes(`${low.unidentified} of\n  1500`) || wp2.includes(`${low.unidentified} of 1500`),
+     `wp2 quotes the failure rate at low lambda (${low.unidentified})`);
 }
 
 // (b2) the findings log's H4 numbers, recomputed from the ledger
@@ -455,6 +492,21 @@ function numberWord(n) { return ['zero', 'one', 'two', 'three', 'four', 'five', 
   ok(jd.verdicts.length === 56, '56 verdicts on record');
   ok(typeof jd.caveat === 'string' && /lower bound/i.test(jd.caveat),
      'the verdicts file states the swap rate is a lower bound');
+
+  /* the log's probe entries quote the estimator, so they are recomputed
+     here rather than trusted. The inflated value is the one that matters:
+     it is what fitting against zero when the floor is real actually does. */
+  {
+    const f = 0.3, lam = 0.4;
+    const pts = [1, 2, 3, 4, 5, 6].map((d) => ({ depth: d, recall: f + (1 - f) * lam ** (d - 1) }));
+    const right = fitLambda(pts, f).lambda;
+    const wrong = fitLambda(pts, 0).lambda;
+    ok(log.includes(`from ${right} to ${wrong}`),
+       `the log quotes what ignoring the floor does to lambda (${right} to ${wrong})`);
+    const one = costToPin({ target: 0.25 }).rows[0];
+    ok(log.includes(`${one.width} wide`) && log.includes(`${one.unidentified} of 1500`),
+       `the log quotes the single-chain width and failure count (${one.width}, ${one.unidentified})`);
+  }
 
   // the log must keep saying the honest thing about its own provenance
   {
