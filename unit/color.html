@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>unit — wavelength ↔ color · the visible spectrum, ad-free</title>
+<meta name="description" content="Type a wavelength in nanometres and see the color. Pick a color and get its dominant wavelength back. A clean, ad-free map of the visible spectrum with frequency, photon energy and the CIE 1931 chromaticity diagram — plus the laser and spectral lines you actually meet.">
+<meta property="og:title" content="unit — wavelength ↔ color">
+<meta property="og:description" content="Put in nanometres, get a color splash. Pick a color, get the wavelength. Ad-free.">
+<meta name="theme-color" content="#0e9f7e">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='84'%3E%F0%9F%8C%88%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">unit<span class="dot">.</span><small>converter</small></a>
+    <nav class="nav">
+      <a href="/">Convert</a>
+      <a href="/color" class="active">Color</a>
+      <a href="/reference">Reference</a>
+      <a href="https://mino.mobi">↖ mino.mobi</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="lite-hero">
+    <h1>Wavelength ↔ color</h1>
+    <p>Put in a wavelength and get the color. Pick a color and get the wavelength back out — where there is one to give.</p>
+  </section>
+
+  <div class="splash" id="splash">
+    <div class="splash-in">
+      <div class="big" id="splashBig">589.3<small>nm</small></div>
+      <div class="tag">
+        <span class="chip" id="chipBand">Yellow</span>
+        <span class="chip mono" id="chipHex" title="Click to copy">#ffb400</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="map">
+    <div class="strip" id="strip" tabindex="0" role="slider" aria-label="Wavelength, nanometres"
+         aria-valuemin="380" aria-valuemax="780" aria-valuenow="589">
+      <div class="needle" id="needle" style="left:52%"></div>
+    </div>
+    <div class="axis" id="axis"></div>
+  </div>
+
+  <div class="duo">
+    <section class="card" id="cardNm">
+      <h2>From a wavelength</h2>
+      <p class="hint">Nanometres. The eye runs about 380–780; outside that the math still works, the color does not.</p>
+      <div class="field">
+        <input id="nmIn" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" value="589.3" placeholder="—" aria-label="Wavelength in nanometres">
+        <span class="usym">nm</span>
+      </div>
+      <input class="nmslide" id="nmSlide" type="range" min="380" max="780" step="0.5" value="589.3" aria-label="Wavelength slider">
+      <div class="pair">
+        <label class="field" style="padding:7px 11px" title="Frequency">
+          <input id="thzIn" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="—" style="font-size:16px" aria-label="Frequency in terahertz">
+          <span class="usym">THz</span>
+        </label>
+        <label class="field" style="padding:7px 11px" title="Photon energy">
+          <input id="evIn" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="—" style="font-size:16px" aria-label="Photon energy in electronvolts">
+          <span class="usym">eV</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="card" id="cardColor">
+      <h2>From a color</h2>
+      <p class="hint">Its <em>dominant</em> wavelength: the pure light it points at, seen from white.</p>
+      <div class="pickrow">
+        <input class="swatchin" id="pick" type="color" value="#ffb400" aria-label="Pick a color">
+        <div class="field" style="flex:1">
+          <span class="usym">#</span>
+          <input id="hexIn" type="text" autocomplete="off" spellcheck="false" value="ffb400" style="font-size:19px" aria-label="Hex color">
+        </div>
+        <button class="swap" id="dropper" title="Pick a color from the screen" aria-label="Pick a color from the screen" hidden>◎</button>
+      </div>
+      <p class="verdict" id="verdict"></p>
+      <div class="pair" id="comparePair" hidden>
+        <div class="pc"><div class="sw" id="swYours"></div><div class="lb">your color</div></div>
+        <div class="pc"><div class="sw" id="swPure"></div><div class="lb" id="lbPure">pure light</div></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="readouts" id="readouts"></div>
+
+  <div class="gamut">
+    <span>Screen can reach</span>
+    <span class="bar"><i id="gbar" style="width:0%"></i></span>
+    <span id="gtext"></span>
+  </div>
+
+  <div class="sec-h">
+    <h2>Where it sits</h2>
+    <span>CIE 1931 chromaticity — every color a human eye can see</span>
+  </div>
+  <div class="diagram">
+    <canvas id="cie" width="340" height="340" aria-label="CIE 1931 chromaticity diagram"></canvas>
+    <div class="legend">
+      <p>The rim of the horseshoe is pure light — one wavelength, nothing mixed in. Everything inside it is a blend, and the further in you go the closer to white.</p>
+      <p>The straight edge along the bottom is the <b>line of purples</b>. Those colors are real, but no wavelength makes them: they take red and blue cones together with nothing in between. That is why this page converts one way cleanly and the other way only sometimes.</p>
+      <p>The dashed triangle is sRGB — everything your screen can actually show. Notice how much of the horseshoe falls outside it.</p>
+      <div class="key"><i style="background:none;border-radius:50%;border-color:var(--ink)"></i> D65 white point</div>
+      <div class="key"><i style="background:var(--ink);border-radius:50%;border-color:var(--ink)"></i> the color on screen now</div>
+      <div class="key"><i style="background:none;border:2.5px solid var(--ink);border-radius:50%"></i> its wavelength on the rim</div>
+    </div>
+  </div>
+
+  <div class="sec-h">
+    <h2>Lines worth knowing</h2>
+    <span>tap one to jump there</span>
+  </div>
+  <div class="lines" id="lines"></div>
+
+  <footer>
+    <p><b>How the colors are made.</b> Wavelength → CIE 1931 2° standard observer → XYZ → sRGB. Every pure spectral color lies <em>outside</em> the sRGB gamut, so no screen can show one: the swatches here are the closest it gets, and the meter above says how close. The strip is drawn saturated, the way a spectrum poster is; the “true” chip in the readouts is the desaturated color that keeps the dominant wavelength exact.</p>
+    <p><b>Why the reverse only half works.</b> A wavelength has exactly one color. A color does not have one wavelength — greys have none, magentas have none, and every other color names only the pure light it leans toward. Color-matching data: CIE 1931 2° observer at 5 nm, linearly interpolated.</p>
+    <p><a href="/">← converter</a> · <a href="/reference">reference tables</a> · <a href="https://moji.mino.mobi">moji</a> · <a href="https://uni.mino.mobi">uni</a> · <a href="https://mino.mobi">mino.mobi</a></p>
+  </footer>
+</main>
+
+<div class="toast" id="toast">Copied</div>
+
+<script type="module">
+import S from '/lib/spectrum.js';
+
+const $ = id => document.getElementById(id);
+const V = S.VISIBLE;
+const TOAST = $('toast');
+
+// ── formatting ──
+const fmt = (x, sig = 6) => {
+  if (!Number.isFinite(x)) return '—';
+  if (x === 0) return '0';
+  const a = Math.abs(x);
+  if (a >= 1e9 || a < 1e-4) return x.toExponential(3).replace('e', ' × 10^').replace('^-', '^−').replace('^+', '^');
+  let s = x.toPrecision(sig);
+  if (s.includes('.')) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  const [i, f] = s.split('.');
+  return i.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (f ? '.' + f : '');
+};
+const nmLabel = (v) => (v >= 1e6 ? fmt(v / 1e6, 4) + ' mm' : v >= 1000 ? fmt(v / 1000, 4) + ' µm' : fmt(v, 5) + ' nm');
+
+// ── state ──
+// One of two sources drives the page. 'nm' means a wavelength was given and the
+// color is derived; 'color' means a color was given and the wavelength — if it
+// has one at all — is derived back out of it.
+let mode = 'nm';
+let nm = 589.3;
+let rgb = { r: 255, g: 180, b: 0 };
+let match = null;
+
+const activeNm = () => (mode === 'nm' ? nm : (match && match.nm));
+
+// ── the spectrum strip: painted from the engine, not from a hand-picked gradient ──
+(() => {
+  const stops = [];
+  for (let w = V.min; w <= V.max; w += 5) {
+    stops.push(`${S.hex(w)} ${((w - V.min) / (V.max - V.min) * 100).toFixed(2)}%`);
+  }
+  $('strip').style.background = `linear-gradient(90deg, ${stops.join(',')})`;
+})();
+
+// ticks + landmark pips under the strip
+(() => {
+  const ax = $('axis');
+  let h = '';
+  for (let w = 400; w <= 780; w += 50) {
+    h += `<span class="tick" style="left:${(w - V.min) / (V.max - V.min) * 100}%"><i></i>${w}</span>`;
+  }
+  for (const l of S.LINES) {
+    if (l.nm < V.min || l.nm > V.max) continue;
+    h += `<button class="lm" style="left:${(l.nm - V.min) / (V.max - V.min) * 100}%" data-nm="${l.nm}" title="${l.name} — ${l.nm} nm">▲</button>`;
+  }
+  ax.innerHTML = h;
+  ax.querySelectorAll('.lm').forEach(b => b.addEventListener('click', () => setNm(+b.dataset.nm)));
+})();
+
+// landmark list
+(() => {
+  $('lines').innerHTML = S.LINES.map(l => {
+    const vis = l.nm >= V.min && l.nm <= V.max;
+    const bg = vis ? S.hex(l.nm, { fade: false }) : 'transparent';
+    const border = vis ? '' : 'background:repeating-linear-gradient(135deg,#666,#666 3px,#333 3px,#333 6px)';
+    return `<button class="lrow" data-nm="${l.nm}">
+      <span class="dot" style="background:${bg};${border}"></span>
+      <span class="txt">
+        <span class="ln">${l.name}</span>
+        <span class="lnote">${l.note}</span>
+      </span>
+      <span class="lnm">${l.nm} nm</span>
+    </button>`;
+  }).join('');
+  $('lines').querySelectorAll('.lrow').forEach(b => b.addEventListener('click', () => {
+    setNm(+b.dataset.nm);
+    $('splash').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }));
+})();
+
+// ── setters ──
+function setNm(v, { silent } = {}) {
+  if (!Number.isFinite(v)) return;
+  nm = Math.min(1e7, Math.max(0.001, v));
+  mode = 'nm';
+  match = null;
+  render(silent);
+}
+function setColor(c, { silent } = {}) {
+  rgb = c;
+  mode = 'color';
+  match = S.spectralMatch(c);
+  render(silent);
+}
+
+// ── render ──
+function render(silentField) {
+  const w = activeNm();
+  const shown = mode === 'nm' ? S.rgb(nm) : rgb;              // what the splash paints
+  const hex = S.toHex(shown);
+  const visible = mode === 'nm' ? S.rgb(nm).visible : true;
+  const band = w != null ? S.band(w) : null;
+
+  // splash
+  const sp = $('splash');
+  sp.style.background = visible ? hex : '';
+  sp.classList.toggle('invisible', !visible);
+  $('splashBig').innerHTML = mode === 'nm'
+    ? `${fmt(nm, 6)}<small>nm</small>`
+    : (match.nm != null ? `${fmt(match.nm, 5)}<small>nm</small>` : (match.achromatic ? 'no hue' : 'no wavelength'));
+  $('chipBand').textContent = mode === 'color' && match.purple ? 'Non-spectral'
+    : mode === 'color' && match.achromatic ? 'Neutral'
+    : band ? band.name : '—';
+  $('chipHex').textContent = hex;
+
+  // needle
+  const pos = Math.min(100, Math.max(0, ((w == null ? V.min : w) - V.min) / (V.max - V.min) * 100));
+  $('needle').style.left = pos + '%';
+  $('needle').style.opacity = (w != null && w >= V.min && w <= V.max) ? 1 : 0.25;
+  $('strip').setAttribute('aria-valuenow', w == null ? '' : Math.round(w));
+
+  // fields
+  if (silentField !== 'nm') $('nmIn').value = mode === 'nm' ? fmt(nm, 6) : (w != null ? fmt(w, 5) : '');
+  if (w != null) $('nmSlide').value = Math.min(V.max, Math.max(V.min, w));
+  if (silentField !== 'thz') $('thzIn').value = w != null ? fmt(S.terahertz(w), 6) : '';
+  if (silentField !== 'ev') $('evIn').value = w != null ? fmt(S.photonEV(w), 5) : '';
+  if (silentField !== 'hex') $('hexIn').value = hex.slice(1);
+  $('pick').value = hex;
+  $('cardNm').classList.toggle('on', mode === 'nm');
+  $('cardColor').classList.toggle('on', mode === 'color');
+
+  // the color card's verdict
+  const vd = $('verdict');
+  if (mode === 'nm') {
+    vd.innerHTML = `Showing the color of <b>${fmt(nm, 6)} nm</b>. Pick or paste one to go the other way.`;
+    $('comparePair').hidden = true;
+  } else if (match.achromatic) {
+    vd.innerHTML = `<span class="warn">No dominant wavelength.</span> Neutrals are every wavelength at once — there is nothing for the ray to point at.`;
+    $('comparePair').hidden = true;
+  } else if (match.purple) {
+    vd.innerHTML = `<span class="warn">Not a spectral color.</span> Magentas fire the red and blue cones with nothing in between, and no single wavelength does that. Its complement — the light that cancels it — is <b>${fmt(match.complement, 5)} nm</b>.`;
+    $('comparePair').hidden = false;
+    $('swYours').style.background = hex;
+    $('swPure').style.background = match.complementHex;
+    $('lbPure').textContent = `complement · ${fmt(match.complement, 4)} nm`;
+  } else {
+    vd.innerHTML = `Dominant wavelength <b>${fmt(match.nm, 5)} nm</b>, at <b>${Math.round(match.purity * 100)}%</b> purity — the rest is white mixed in.`;
+    $('comparePair').hidden = false;
+    $('swYours').style.background = hex;
+    $('swPure').style.background = match.hex;
+    $('lbPure').textContent = `pure light · ${fmt(match.nm, 4)} nm`;
+  }
+
+  renderReadouts(w, shown, visible);
+  drawMarkers();
+  syncURL();
+}
+
+function renderReadouts(w, shown, visible) {
+  const rows = [];
+  const conv = (path, label) => `<a href="${path}" style="text-decoration:none;color:var(--accent)">${label}</a>`;
+  if (w != null) {
+    rows.push(['Wavelength', `${nmLabel(w)}`, conv(`/length/nanometer/meter?v=${w}`, 'in metres →')]);
+    rows.push(['Frequency', `${fmt(S.terahertz(w), 6)} <small>THz</small>`, conv(`/frequency/terahertz/gigahertz?v=${S.terahertz(w).toPrecision(9)}`, 'in GHz →')]);
+    rows.push(['Photon energy', `${fmt(S.photonEV(w), 5)} <small>eV</small>`, conv(`/energy/electronvolt/joule?v=${S.photonEV(w).toPrecision(9)}`, 'in joules →')]);
+    rows.push(['Wavenumber', `${fmt(S.wavenumber(w), 6)} <small>cm⁻¹</small>`, '']);
+    rows.push(['Band', S.band(w).name, `<small>${S.band(w).region}</small>`]);
+  } else if (mode === 'color' && match.purple) {
+    rows.push(['Complement', `${fmt(match.complement, 5)} <small>nm</small>`, '<small>the light that cancels it</small>']);
+  }
+  rows.push(['sRGB', S.toHex(shown), `<small>${shown.r}, ${shown.g}, ${shown.b}</small>`]);
+  if (w != null && visible) {
+    const t = S.rgb(w, { mode: 'true', fade: false });
+    rows.push(['True chromaticity', S.toHex(t),
+      `<small>same wavelength, honest purity</small>`]);
+  }
+  $('readouts').innerHTML = rows.map(([k, v, sub]) =>
+    `<div class="ro"><span class="k">${k}</span><span class="v">${v}</span><span class="k" style="text-transform:none;letter-spacing:0;font-weight:500">${sub || ''}</span></div>`).join('');
+
+  // gamut meter
+  const purity = mode === 'color' ? (match.purity || 0) : (w != null && visible ? S.rgb(w).purity : 0);
+  $('gbar').style.width = Math.round(purity * 100) + '%';
+  const pc = Math.round(purity * 100);
+  $('gtext').textContent =
+      mode === 'color' && match.achromatic ? 'no hue to reach for'
+    : mode === 'color' && match.purple ? `${pc}% of the way from white to the line of purples`
+    : w == null || !visible ? '—'
+    : mode === 'color' ? `${pc}% of the way from white to pure ${fmt(w, 4)} nm`
+    : `${pc}% of pure ${fmt(w, 4)} nm — sRGB cannot go further`;
+}
+
+// ── CIE 1931 diagram ──
+const cie = $('cie');
+const CX0 = 34, CY0 = 10, CW = 296, CH = 296;        // plot box inside the canvas
+const XMAX = 0.8, YMAX = 0.9;
+const px = (x) => CX0 + (x / XMAX) * CW;
+const py = (y) => CY0 + CH - (y / YMAX) * CH;
+let base = null;
+
+function buildBase() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cie.width = 340 * dpr; cie.height = 340 * dpr;
+  base = document.createElement('canvas');
+  base.width = cie.width; base.height = cie.height;
+  const g = base.getContext('2d');
+  g.scale(dpr, dpr);
+
+  // paint every chromaticity in the box, then clip it to the horseshoe
+  const off = document.createElement('canvas');
+  off.width = CW; off.height = CH;
+  const octx = off.getContext('2d');
+  const img = octx.createImageData(CW, CH);
+  for (let j = 0; j < CH; j++) {
+    const y = (1 - j / CH) * YMAX;
+    for (let i = 0; i < CW; i++) {
+      const x = (i / CW) * XMAX;
+      const c = S.xyToRgb(x, y);
+      const o = (j * CW + i) * 4;
+      img.data[o] = c.r; img.data[o + 1] = c.g; img.data[o + 2] = c.b; img.data[o + 3] = 255;
+    }
+  }
+  octx.putImageData(img, 0, 0);
+
+  const pts = S.locus(1);
+  const path = new Path2D();
+  pts.forEach((p, i) => (i ? path.lineTo(px(p.x), py(p.y)) : path.moveTo(px(p.x), py(p.y))));
+  path.closePath();
+
+  g.save(); g.clip(path); g.drawImage(off, CX0, CY0, CW, CH); g.restore();
+
+  const ink = getComputedStyle(document.body).color;
+  const faint = getComputedStyle($('gtext')).color;
+
+  g.strokeStyle = ink; g.lineWidth = 1.1; g.stroke(path);
+
+  // sRGB gamut
+  const P = S.PRIMARIES;
+  g.setLineDash([4, 3]); g.strokeStyle = faint; g.lineWidth = 1;
+  g.beginPath();
+  g.moveTo(px(P.r.x), py(P.r.y)); g.lineTo(px(P.g.x), py(P.g.y)); g.lineTo(px(P.b.x), py(P.b.y)); g.closePath();
+  g.stroke(); g.setLineDash([]);
+
+  // axes
+  g.strokeStyle = faint; g.fillStyle = faint; g.lineWidth = 1;
+  g.font = '10px ui-monospace, monospace';
+  g.beginPath(); g.moveTo(CX0, CY0 + CH); g.lineTo(CX0 + CW, CY0 + CH); g.moveTo(CX0, CY0); g.lineTo(CX0, CY0 + CH); g.stroke();
+  for (let x = 0; x <= 0.8001; x += 0.2) { g.textAlign = 'center'; g.fillText(x.toFixed(1), px(x), CY0 + CH + 12); }
+  for (let y = 0; y <= 0.9001; y += 0.2) { g.textAlign = 'right'; g.fillText(y.toFixed(1), CX0 - 5, py(y) + 3); }
+
+  // a few wavelength labels around the rim
+  g.fillStyle = ink; g.font = '9px ui-monospace, monospace';
+  for (const w of [460, 480, 500, 520, 540, 560, 580, 600, 620]) {
+    const c = S.chromaticity(w);
+    const d = Math.hypot(c.x - S.WHITE.x, c.y - S.WHITE.y);
+    const ox = (c.x - S.WHITE.x) / d * 11, oy = (c.y - S.WHITE.y) / d * 11;
+    g.textAlign = 'center';
+    g.fillText(String(w), px(c.x) + ox * 1.2, py(c.y) - oy * 1.2 + 3);
+  }
+}
+
+function drawMarkers() {
+  if (!base) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const g = cie.getContext('2d');
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, cie.width, cie.height);
+  g.drawImage(base, 0, 0);
+  g.scale(dpr, dpr);
+
+  const ink = getComputedStyle(document.body).color;
+
+  // white point
+  g.strokeStyle = ink; g.lineWidth = 1;
+  g.beginPath(); g.arc(px(S.WHITE.x), py(S.WHITE.y), 3.5, 0, 7); g.stroke();
+
+  const w = activeNm();
+  const sample = mode === 'color' ? match : (S.rgb(nm).visible ? S.dominantWavelength(S.rgb(nm, { mode: 'true', fade: false })) : null);
+  if (!sample || Number.isNaN(sample.xy.x)) return;
+
+  // the ray: white → the color → out to the rim
+  if (!sample.achromatic && sample.purity > 0) {
+    const dx = (sample.xy.x - S.WHITE.x) / sample.purity, dy = (sample.xy.y - S.WHITE.y) / sample.purity;
+    g.setLineDash([3, 3]); g.strokeStyle = ink; g.globalAlpha = 0.75;
+    g.beginPath(); g.moveTo(px(S.WHITE.x), py(S.WHITE.y)); g.lineTo(px(S.WHITE.x + dx), py(S.WHITE.y + dy)); g.stroke();
+    g.setLineDash([]); g.globalAlpha = 1;
+  }
+
+  // where the wavelength sits on the rim
+  if (w != null && w >= V.min && w <= S.LOCUS_MAX) {
+    const c = S.chromaticity(w);
+    g.strokeStyle = ink; g.lineWidth = 2;
+    g.beginPath(); g.arc(px(c.x), py(c.y), 5, 0, 7); g.stroke();
+  }
+
+  // the color itself
+  g.fillStyle = mode === 'color' ? S.toHex(rgb) : S.hex(nm, { fade: false });
+  g.strokeStyle = ink; g.lineWidth = 1.5;
+  g.beginPath(); g.arc(px(sample.xy.x), py(sample.xy.y), 5.5, 0, 7); g.fill(); g.stroke();
+}
+
+// ── inputs ──
+$('nmIn').addEventListener('input', () => { const v = parseFloat($('nmIn').value); if (Number.isFinite(v)) setNm(v, { silent: 'nm' }); });
+$('nmSlide').addEventListener('input', () => setNm(parseFloat($('nmSlide').value)));
+$('thzIn').addEventListener('input', () => { const v = parseFloat($('thzIn').value); if (v > 0) setNm(S.fromTerahertz(v), { silent: 'thz' }); });
+$('evIn').addEventListener('input', () => { const v = parseFloat($('evIn').value); if (v > 0) setNm(S.fromEV(v), { silent: 'ev' }); });
+$('pick').addEventListener('input', () => setColor(S.parseHex($('pick').value)));
+$('hexIn').addEventListener('input', () => { const c = S.parseHex($('hexIn').value); if (c) setColor(c, { silent: 'hex' }); });
+$('chipHex').addEventListener('click', () => copy($('chipHex').textContent, 'Copied ' + $('chipHex').textContent));
+
+if (window.EyeDropper) {
+  const d = $('dropper');
+  d.hidden = false;
+  d.addEventListener('click', async () => {
+    try { const r = await new window.EyeDropper().open(); setColor(S.parseHex(r.sRGBHex)); } catch { /* cancelled */ }
+  });
+}
+
+// dragging and keys on the strip
+(() => {
+  const strip = $('strip');
+  const at = (e) => {
+    const r = strip.getBoundingClientRect();
+    const f = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    setNm(Math.round((V.min + f * (V.max - V.min)) * 10) / 10);
+  };
+  let down = false;
+  strip.addEventListener('pointerdown', e => { down = true; strip.setPointerCapture(e.pointerId); at(e); });
+  strip.addEventListener('pointermove', e => { if (down) at(e); });
+  strip.addEventListener('pointerup', () => { down = false; });
+  strip.addEventListener('pointercancel', () => { down = false; });
+  strip.addEventListener('keydown', e => {
+    const step = e.shiftKey ? 10 : 1;
+    const w = activeNm() ?? V.min;
+    if (e.key === 'ArrowLeft') { setNm(Math.max(V.min, w - step)); e.preventDefault(); }
+    if (e.key === 'ArrowRight') { setNm(Math.min(V.max, w + step)); e.preventDefault(); }
+    if (e.key === 'Home') { setNm(V.min); e.preventDefault(); }
+    if (e.key === 'End') { setNm(V.max); e.preventDefault(); }
+  });
+})();
+
+async function copy(text, msg) {
+  try { await navigator.clipboard.writeText(text); }
+  catch { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+  TOAST.textContent = msg; TOAST.classList.add('show');
+  clearTimeout(copy._t); copy._t = setTimeout(() => TOAST.classList.remove('show'), 1300);
+}
+
+// ── deep links: /color/<nm> or /color?hex=rrggbb ──
+function syncURL() {
+  const base = location.pathname.split('/').filter(Boolean)[0] || 'color';
+  history.replaceState(null, '',
+    mode === 'nm' ? `/${base}/${+fmt(nm, 6).replace(/,/g, '')}` : `/${base}?hex=${S.toHex(rgb).slice(1)}`);
+}
+(() => {
+  const parts = location.pathname.split('/').filter(Boolean);
+  const q = new URLSearchParams(location.search);
+  const qHex = S.parseHex(q.get('hex') || '');
+  const qNm = parseFloat(q.get('nm') || parts[1] || '');
+  buildBase();
+  if (qHex) setColor(qHex);
+  else if (Number.isFinite(qNm)) setNm(qNm);
+  else setNm(589.3);
+})();
+window.addEventListener('resize', () => { buildBase(); drawMarkers(); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { buildBase(); drawMarkers(); });
+</script>
+</body>
+</html>
