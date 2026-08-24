@@ -15,7 +15,7 @@ The unit converter (reference wing, sibling to moji + uni). Thin assets Worker (
 | Dir | `unit/` |
 | Endpoint | `unit.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/emoji-wiki-platform-support-v6ubju` |
+| Owning branch | `claude/wavelength-color-calc-nsew9x` |
 | Deploy | `.github/workflows/deploy-unit.yml` |
 | Uses | — |
 | Provides | — |
@@ -70,7 +70,13 @@ fails loudly.
 
 ## Deploying
 
-Pushes to `claude/emoji-wiki-platform-support-v6ubju` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-unit.yml`](../.github/workflows/deploy-unit.yml).
+Pushes to `claude/wavelength-color-calc-nsew9x` that touch this surface's paths
+trigger [`.github/workflows/deploy-unit.yml`](../.github/workflows/deploy-unit.yml).
+**`main` does not deploy this surface** — see the root CLAUDE.md on why that is
+deliberate. This surface used to be owned by `claude/emoji-wiki-platform-support-v6ubju`
+alongside its siblings moji and uni; it was handed over when /color was built,
+and those two still live on the old branch. Pushing unit/ there no longer
+deploys anything.
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
