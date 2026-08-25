@@ -33,9 +33,9 @@ _Regenerated 2026-08-25 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 82, bluesky 73, data 58, tools 58, work 8.
 
-**Neighborhood spark** (bisk 2026-08-25, 99 members / 276 posts):
+**Neighborhood spark** (bisk 2026-08-25, 99 members / 290 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: idk, deepfates, bluesky
+- Distinctive words: idk, anthropic, deepfates
 - Top post: "you say trains are real. this is curious. because jd rockefeller is a very unpleasant person, and he owns most of the tr" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
