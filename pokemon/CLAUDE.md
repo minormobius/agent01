@@ -111,12 +111,35 @@ serves `lab`, so a cross-surface import would 404 in production. **One copy for
 the whole surface**: any further 3D page imports that same file rather than
 vendoring another.
 
-Both 3D pages share a couple of hard-won rendering habits worth keeping: the
-environment map is generated procedurally in a few lines rather than shipped as
-an HDR (metal with nothing to reflect looks like grey plastic), and any mesh
-stretched between two points must be **unit height**, because the span helper
-scales it — a mesh with its own natural length gets scaled twice and comes out
-a fraction of the right size.
+Both 3D pages share some hard-won rendering habits worth keeping:
+
+- The environment map is generated procedurally in a few lines rather than
+  shipped as an HDR — metal with nothing to reflect looks like grey plastic.
+- Any mesh stretched between two points must be **unit height**, because the
+  span helper scales it; a mesh with its own natural length gets scaled twice
+  and comes out a fraction of the right size.
+- **FIT THE CAMERA TO THE ASPECT, always.** A `PerspectiveCamera`'s `fov` is the
+  VERTICAL field of view, so the horizontal one is
+  `2*atan(tan(fov/2) * aspect)` and it collapses as the viewport narrows. A
+  camera parked at a fixed distance frames beautifully on a laptop and runs the
+  scene off both edges of a phone. Both pages shipped with exactly that bug.
+  `mimic` fits a world-space box (and closes the gap between the two puppets
+  below 1.15 aspect); `armline`'s view is oblique, so it keeps the direction and
+  pushes back along it by `max(1, refAspect/aspect)`, which cannot swing the
+  composition around by accident.
+- On a portrait screen a **shorter** canvas makes the subject BIGGER, which is
+  the opposite of the instinct. Wide content on a tall screen is
+  horizontally-bound; more height lowers the aspect, tightens the horizontal
+  fit, and shrinks everything.
+
+**Headless Chrome will not go narrower than 500 CSS px.** `--window-size=390,844`
+silently yields `innerWidth === 500` — 360 and 500 both report 500, while 600 and
+900 track — so a screenshot at a phone width is the 500 px layout cropped to 390,
+which reads as an overflow bug that is not there. It also ignores the viewport
+meta, so that is no way round it either. To check a real phone width, run the
+window at 500 (the `<=720px` rules a phone gets are already active there) and
+constrain the content box to 360/390/430 from the driver, then assert no
+element's right edge passes it.
 
 **Static Assets replaces the whole manifest; it does not merge.** All nine
 paths above ship from one `wrangler deploy`, so this branch has to carry all of

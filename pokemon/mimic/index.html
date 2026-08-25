@@ -136,6 +136,66 @@
   .k { font-weight: 600; }
   .k.q { color: var(--q); } .k.w { color: var(--w); }
   .k.o { color: var(--o); } .k.p { color: var(--p); }
+
+  /* ---- narrow screens --------------------------------------------------
+     The camera fits itself to the viewport (scene.js), so the stage no longer
+     crops — but three things still needed doing by hand.
+
+     A SHORTER canvas, which is the counterintuitive one. The content here is
+     WIDE (two figures side by side) on a screen that is TALL, and the fit takes
+     whichever of width or height binds. Making the canvas taller lowers the
+     aspect ratio, which makes the horizontal fit bind harder and the puppets
+     come out SMALLER. Shorter is bigger, on portrait.
+
+     Then the two rows that genuinely did not fit: four meters across a 354 px
+     content box left nothing per column, and the controls row could not wrap
+     because the slider had a fixed 200 px width. */
+  @media (max-width: 720px) {
+    header { padding: 10px 12px 8px; gap: 8px; }
+    header .sub { font-size: 10px; }
+    #stage { padding: 0 10px; margin-top: 8px; }
+    canvas { height: min(42vh, 340px); }
+    #banner { font-size: 11px; }
+    #banner .big { font-size: 30px; }
+    #labels { bottom: 40px; font-size: 9px; }
+    #hud { font-size: 10px; gap: 3px 12px; padding: 6px 9px; }
+    #bars { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+    #pad { gap: 6px; }
+    #pad button { height: 62px; font-size: 17px; }
+    #pad button .sub { font-size: 8px; }
+    #controls { gap: 8px; }
+    #controls input[type=range] { flex: 1 1 120px; width: auto; min-width: 100px; }
+    #controls button { flex: 0 0 auto; }
+    #notes { padding: 14px 12px 40px; }
+  }
+  /* Very short landscape — a phone turned sideways — has the opposite problem:
+     plenty of width, almost no height. Cap the stage so the pad stays reachable
+     without scrolling, since the pad is the whole interface. */
+  @media (max-height: 560px) and (orientation: landscape) {
+    /* A phone on its side is the tightest case: plenty of width, almost no
+       height, and THE PAD IS THE ENTIRE INTERFACE — if it falls below the fold
+       the game is unplayable without scrolling mid-dance. So everything else
+       gives way to keep the stage and the four buttons on one screen: the
+       meters lose their labels and become a thin strip of state, and the
+       controls tuck up small. */
+    header { padding: 6px 12px 5px; }
+    header h1 { font-size: 11px; }
+    header .sub { display: none; }
+    #stage { margin-top: 6px; }
+    canvas { height: min(46vh, 200px); }
+    #banner .big { font-size: 24px; }
+    #labels { bottom: 30px; }
+    #hud { padding: 4px 8px; font-size: 9px; }
+    #bars { grid-template-columns: repeat(4, 1fr); gap: 5px; margin-top: 6px; }
+    .meter { padding: 3px 5px; }
+    .meter .lab { display: none; }
+    .meter .track { margin-top: 0; }
+    #pad { margin-top: 6px; }
+    #pad button { height: 50px; font-size: 15px; }
+    #pad button .sub { display: none; }
+    #controls { margin-top: 6px; gap: 6px; }
+    #controls button { padding: 5px 12px; font-size: 11px; }
+  }
 </style>
 </head>
 <body>

@@ -196,9 +196,31 @@ export function buildScene(canvas) {
   scene.environment = makeEnvironment(renderer);
   scene.fog = new THREE.Fog(0x0d0a09, 3.2, 8.0);
 
+  // FRAMING IS COMPUTED, NOT FIXED, and that is the whole of the mobile fix.
+  // A PerspectiveCamera's `fov` is the VERTICAL field of view, so the
+  // horizontal one is 2*atan(tan(fov/2) * aspect) — it collapses as the
+  // viewport narrows. A camera parked at a fixed distance therefore frames two
+  // side-by-side puppets fine on a laptop and crops one of them clean off the
+  // edge on a phone, which is exactly what it did.
+  //
+  // So the camera is fitted to a world-space box every resize: pull back far
+  // enough that both halfW and halfH are inside the frustum, whichever binds.
   const camera = new THREE.PerspectiveCamera(36, 1, 0.05, 30);
-  camera.position.set(0, 0.62, 3.05);
-  camera.lookAt(0, 0.34, 0);
+  const FIT = { cy: 0.16, halfH: 0.96, margin: 1.05 };
+  let separation = 0.72;
+
+  function frameCamera(aspect) {
+    // A puppet reaches about 0.45 from its own centre with its arms out and its
+    // control bar counted, so the box is the separation plus that.
+    const halfW = separation + 0.50;
+    const t = Math.tan((camera.fov * Math.PI / 180) / 2);
+    const dH = FIT.halfH / t;
+    const dW = halfW / (t * Math.max(0.0001, aspect));
+    const d = Math.max(dH, dW) * FIT.margin;
+    camera.position.set(0, FIT.cy + 0.26, d);
+    camera.lookAt(0, FIT.cy, 0);
+  }
+  frameCamera(1.6);
 
   // ---- the stage --------------------------------------------------------
   const boards = new THREE.Mesh(
@@ -266,10 +288,24 @@ export function buildScene(canvas) {
   // ---- the two figures --------------------------------------------------
   const rival = buildPuppet({ body: PAL.rivalBody, joint: PAL.rivalJoint, cloth: PAL.rivalCloth });
   const mine = buildPuppet({ body: PAL.mineBody, joint: PAL.mineJoint, cloth: PAL.mineCloth });
-  rival.group.position.set(-0.72, 0, 0);
-  mine.group.position.set(0.72, 0, 0);
   scene.add(rival.group);
   scene.add(mine.group);
+
+  // On a narrow screen the two figures also move closer together. Fitting the
+  // camera alone would keep them both on screen but shrink them to nothing;
+  // closing the gap buys back most of that size, and two puppets standing
+  // nearer each other is no worse a picture.
+  const pools = [];
+  function setSeparation(sep) {
+    separation = sep;
+    rival.group.position.set(-sep, 0, 0);
+    mine.group.position.set(sep, 0, 0);
+    for (let i = 0; i < pools.length; i++) pools[i].position.x = i === 0 ? -sep : sep;
+    for (let i = 0; i < spots.length; i++) {
+      spots[i].position.x = (i === 0 ? -sep : sep) * 0.7;
+      spots[i].target.position.x = (i === 0 ? -sep : sep);
+    }
+  }
 
   // A dim floor pool under each, so a puppet that is not being lit still reads
   // as standing somewhere.
@@ -281,7 +317,9 @@ export function buildScene(canvas) {
     pool.rotation.x = -Math.PI / 2;
     pool.position.set(x, -0.678, 0);
     scene.add(pool);
+    pools.push(pool);
   }
+  setSeparation(0.72);
 
   function update(duel, rivalHeld, myHeld, focus) {
     rival.update(duel.rival, rivalHeld);
@@ -294,10 +332,20 @@ export function buildScene(canvas) {
     for (let i = 0; i < 2; i++) spots[i].intensity += (want[i] - spots[i].intensity) * 0.10;
   }
 
+  let lastFit = '';
   function resize(w, h) {
     renderer.setPixelRatio(Math.min(2, globalThis.devicePixelRatio || 1));
     renderer.setSize(w, h, false);
-    camera.aspect = w / h;
+    const aspect = w / h;
+    camera.aspect = aspect;
+    // Narrow viewports get the figures closer together as well as the pull-back.
+    const want = aspect < 1.15 ? 0.50 : 0.72;
+    const key = `${want}|${aspect.toFixed(3)}`;
+    if (key !== lastFit) {
+      lastFit = key;
+      if (want !== separation) setSeparation(want);
+      frameCamera(aspect);
+    }
     camera.updateProjectionMatrix();
   }
 

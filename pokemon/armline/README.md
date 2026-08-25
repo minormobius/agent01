@@ -116,6 +116,16 @@ Two bugs it also caught:
   *norms*, 0.800 m, because joint 2 is offset in y as well and joint 3 in z. A
   correct arm was failing a sloppy assertion.
 
+## Fitting the cell to the screen
+
+This cropped on mobile for the same reason `/mimic/` did: a
+`PerspectiveCamera`'s `fov` is the **vertical** field of view, so the horizontal
+one collapses as the viewport narrows and the conveyor ran off both edges of a
+phone. The view here is oblique, so rather than solve a box fit the camera keeps
+its direction and pushes back along it by `max(1, 1.5/aspect)` — exact enough,
+and it cannot swing the composition around by accident. At any aspect wider than
+1.5 the factor is 1, so the desktop framing is untouched.
+
 ## What is invented
 
 The arm, its limits and its speeds are the AR4's. The cell around it is ours:

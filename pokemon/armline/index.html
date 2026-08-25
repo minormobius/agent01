@@ -111,6 +111,31 @@
   .k { font-weight: 600; }
   .k.q { color: var(--q); } .k.w { color: var(--w); }
   .k.o { color: var(--o); } .k.p { color: var(--p); }
+
+  /* Narrow screens. The camera fits itself by aspect (scene.js), so the cell no
+     longer runs off the edges; this is the rest of the page catching up. */
+  @media (max-width: 720px) {
+    header { padding: 10px 12px 8px; gap: 8px; }
+    header .sub { font-size: 10px; }
+    #stage { padding: 0 10px; margin-top: 8px; }
+    canvas { height: min(44vh, 360px); }
+    #hud { font-size: 10px; gap: 3px 12px; padding: 6px 9px; }
+    #pad { gap: 6px; }
+    #pad button { height: 62px; font-size: 17px; }
+    #pad button .sub { font-size: 8px; }
+    #notes { padding: 14px 12px 40px; }
+  }
+  /* A phone on its side: the pad is the whole interface and has to stay on
+     screen, so the stage gives way rather than the controls. */
+  @media (max-height: 560px) and (orientation: landscape) {
+    header { padding: 6px 12px 5px; }
+    header .sub { display: none; }
+    canvas { height: min(52vh, 230px); }
+    #hud { padding: 4px 8px; font-size: 9px; }
+    #pad { margin-top: 6px; }
+    #pad button { height: 50px; font-size: 15px; }
+    #pad button .sub { display: none; }
+  }
 </style>
 </head>
 <body>

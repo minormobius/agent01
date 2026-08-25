@@ -125,6 +125,31 @@ the pulls get short. Hard here means denser and flickier, not more continuous.
   different from either alone, the separability and correlation numbers were
   re-measured afterwards rather than assumed to survive.
 
+## Fitting the stage to the screen
+
+It shipped cropping on mobile. A `PerspectiveCamera`'s `fov` is the **vertical**
+field of view, so the horizontal one is `2*atan(tan(fov/2) * aspect)` and
+collapses as the viewport narrows — a camera parked at a fixed distance framed
+both puppets on a laptop and cut one clean off the edge of a phone.
+
+The camera is now fitted to a world-space box on every resize, pulling back far
+enough that whichever of width or height binds is inside the frustum. Below an
+aspect of 1.15 the two figures also move closer together: fitting alone keeps
+them both on screen but shrinks them to nothing, and closing the gap buys most
+of that back.
+
+Two things worth knowing for next time:
+
+- On a portrait screen a **shorter** canvas makes the puppets *bigger*. The
+  content is wide and the screen is tall, so the fit is horizontally bound;
+  adding height lowers the aspect and tightens that bind.
+- **Headless Chrome will not go narrower than 500 CSS px** — `--window-size=390`
+  silently gives `innerWidth === 500`, so a phone-width screenshot is really the
+  500 px layout cropped, which looks exactly like an overflow bug that is not
+  there. It ignores the viewport meta too. The layout at 360/390/430 was checked
+  instead by running the window at 500, where the `<=720px` rules a phone gets
+  are already active, and constraining the content box from the driver.
+
 ## One deliberate piece of theatre
 
 The strings brighten and go taut when their key is down. That makes the watch

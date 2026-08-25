@@ -86,9 +86,25 @@ export function buildScene(canvas) {
   // that the belt leads the eye in from the left, and offset so the tote is in
   // shot without competing with the gripper.
   const camera = new THREE.PerspectiveCamera(34, 1, 0.05, 20);
-  camera.position.set(0.70, -1.00, 0.62);
   camera.up.set(0, 0, 1);
-  camera.lookAt(0.02, -0.30, 0.17);
+
+  // FRAMED BY ASPECT, not parked at a fixed distance. A PerspectiveCamera's
+  // `fov` is the VERTICAL field of view, so the horizontal one collapses as the
+  // viewport narrows — a camera that frames the cell nicely on a laptop runs
+  // the conveyor straight off both edges of a phone. This view is oblique, so
+  // rather than solve a box fit, keep the direction and push back along it:
+  // exact enough, and it cannot swing the composition around by accident.
+  const CAM_TARGET = new THREE.Vector3(0.02, -0.30, 0.17);
+  const CAM_DIR = new THREE.Vector3(0.70, -1.00, 0.62).sub(CAM_TARGET);
+  const CAM_DIST = CAM_DIR.length();
+  CAM_DIR.normalize();
+  const REF_ASPECT = 1.5;          // the aspect the framing was composed at
+  function frameCamera(aspect) {
+    const k = Math.max(1, REF_ASPECT / Math.max(0.0001, aspect));
+    camera.position.copy(CAM_TARGET).addScaledVector(CAM_DIR, CAM_DIST * k);
+    camera.lookAt(CAM_TARGET);
+  }
+  frameCamera(REF_ASPECT);
 
   // ---- lighting ---------------------------------------------------------
   // Key from high and to the side so the arm casts a readable shadow onto the
@@ -397,10 +413,13 @@ export function buildScene(canvas) {
     for (let i = n; i < partPool.length; i++) if (partPool[i]) partPool[i].visible = false;
   }
 
+  let lastAspect = 0;
   function resize(w, h) {
     renderer.setPixelRatio(Math.min(2, globalThis.devicePixelRatio || 1));
     renderer.setSize(w, h, false);
-    camera.aspect = w / h;
+    const aspect = w / h;
+    camera.aspect = aspect;
+    if (Math.abs(aspect - lastAspect) > 1e-4) { lastAspect = aspect; frameCamera(aspect); }
     camera.updateProjectionMatrix();
   }
 
