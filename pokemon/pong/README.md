@@ -101,9 +101,10 @@ warm-up:
   lift drops by a factor of fifteen. The literature says 1.8–1.9. Close, and it
   is a *measurement of a phenomenon*, not a fit.
 - **The drag is 13% high** and **the Strouhal number 8% high**. Both are real
-  biases rather than rounding, and the section below is an account of failing to
-  explain them: the obvious culprit was blockage, blockage was measured, and
-  blockage turned out to be worth under two points of the thirteen.
+  biases rather than rounding. The section below tracks them down, and the
+  answer is not the obvious one: blockage turns out to be worth under two points
+  of the thirteen, and the inlet — five diameters upstream, where the literature
+  uses ten to twenty — is worth the rest.
 
 The plain rms of the lift is **not** the shedding amplitude, and using it as one
 is a trap this sweep fell into first. Lattice Boltzmann is weakly compressible;
@@ -115,52 +116,49 @@ swamps an rms. The table's shedding column is the amplitude of the strongest
 spectral line inside the shedding band, found by a direct DFT scan. At α = 1.75
 the raw rms is 2.76 and the shedding line is 0.018.
 
-### The 13%, and what it is not
+### Where the 13% comes from
 
 The obvious story is blockage: the cylinder is 24 cells across a 256-cell
-channel, so it occupies 9.4% of the width, the lateral boundaries are held at
-the free stream rather than being far away, and confinement accelerates the flow
-past the body. It is a good story. It is also the kind of story that invites you
-to widen the assertion until the number fits inside it.
-
-So it was tested instead, and **it is wrong**.
+channel, so it occupies 9.4% of the width, and confinement accelerates the flow
+past the body. It is a good story, it is the one this README told first, and it
+is **wrong** — or rather, it is worth about a seventh of what it needed to be.
 
 *Halving the blockage.* Re-running the whole sweep on 768×512 — same cylinder,
 same Reynolds number, twice the channel — moves C_D from 1.5287 to **1.5015**.
-That is 1.8%, not 13%. (Lift is untouched: C_L at α = 1 goes 2.5667 → 2.5519,
-which is a useful check on its own.)
+That is 1.8%, not 13%.
 
 *Making the cylinder finer.* At a fixed 5.8% blockage, taking D from 14 cells to
-40 — an eightfold increase in cells — leaves the drag flat:
+40 leaves the drag flat: 1.5814, 1.5721, 1.5361, 1.5638. Converged, and
+converged on the wrong number.
 
-| D | grid | C_D |
-|---|---|---|
-| 14 | 240×240 | 1.5814 |
-| 20 | 344×344 | 1.5721 |
-| 28 | 482×482 | 1.5361 |
-| 40 | 688×688 | 1.5638 |
+*Moving the inlet.* This is it. The solver holds a fixed velocity at the inlet,
+and the sweep puts the cylinder a quarter of the way along the box — about five
+diameters downstream of it. That is close enough to squeeze the flow past the
+body, and it is much nearer than the ten to twenty diameters the literature
+uses. At Re = 60, holding blockage and resolution fixed and moving only the
+inlet:
 
-Converged, and converged on the wrong number.
+| inlet | C_D |
+|---|---|
+| 4.3 D | 1.5683 |
+| 8.6 D | 1.4468 |
+| 12.9 D | 1.4390 |
 
-There is a real blockage effect and it is large when the walls are genuinely
-close — squeezing the same cylinder into a 17.5% channel puts C_D at 2.017, and
-the selftest measures that, because it is worth knowing which way confinement
-pushes. But at the blockage this sweep actually runs, it accounts for under two
-points of the thirteen.
+An 8% fall, converging on 1.439 against a published Re = 60 value of about
+1.39–1.42. The near inlet was the whole thing.
 
-**So the residual is not explained.** It is systematic, it is about 10-13% high
-at both Re = 60 and Re = 100, it survives an eightfold refinement and a halving
-of the blockage, and this page does not know what it is. Candidates not ruled
-out: the Mach number (0.14, which buys 1-2% at most), the classic Ladd
-momentum-exchange formula's known tendency to overread the force, and the inlet
-sitting 5 diameters upstream where the literature uses ten to twenty. Saying
-"blockage" and moving on would have been easy, and this section said exactly
-that until the confirmation run came back.
+The selftest keeps a three-run version of this — one that changes the channel
+width, one that changes the inlet distance, nothing else — because the useful
+artefact here is not the number, it is the habit of changing one thing at a
+time instead of naming the first plausible culprit.
 
-What the discrepancy does NOT touch is the game: the flight uses a constant drag
-coefficient taken from ball measurements, and the lift is normalised. A
-systematic drag offset on the cylinder changes nothing downstream of here. It is
-recorded because it is true, not because it matters.
+**What it does to the game: nothing, and that is measured too.** The flight uses
+a constant drag coefficient from ball measurements, so the cylinder's drag never
+reaches it. The lift does — but the lift is normalised at α = 1, so a
+multiplicative bias cancels exactly and only a change in the *shape* of the
+curve could propagate. Moving the inlet from 4.3 D to 12.9 D changes C_L at
+α = 1 by 4%, and changes the ratio C_L(0.5)/C_L(1) — which is all the game
+actually consumes — from 0.4922 to 0.4863. **1.2%.**
 
 ## From a cylinder to a ball
 
@@ -250,18 +248,19 @@ Against one representative incoming ball, sweeping the brush:
 
 | | with the solver's lift | with it off |
 |---|---|---|
-| legal brush window | 6.37 – 9.57 m/s | 5.63 – 7.48 m/s |
-| width of it | **3.20 m/s** | 1.85 m/s |
-| furthest a landing point moved | **2.08 m** | |
+| legal brush window | 6.37 – 9.62 m/s | 5.62 – 7.47 m/s |
+| width of it | **3.25 m/s** | 1.85 m/s |
+| furthest a landing point moved | **2.10 m** | |
 
-**The aerodynamics is worth 73% more margin for error.** Not a nudge — brush at
-9 m/s and the solver's lift lands it 1.22 m over the net; without the lift the
-same shot is 65 cm past the end line. That is the game.
+**The aerodynamics is worth 76% more margin for error.** Not a nudge — brush at
+9 m/s and the solver's lift lands the ball 1.22 m past the net, comfortably in;
+without the lift the same shot is 2.04 m past the net, which is 67 cm beyond the
+end line. That is the game.
 
 The other half of the claim is that a rally has to *survive*. Playing both sides
 at the depth a real player aims for, the exchange settles into a stable two-beat
 cycle — a fast loop, a slower one, repeat — rather than dying or running away:
-ten exchanges with the slowest shot at 6.8 m/s and the fastest at 11.2.
+ten exchanges with the slowest shot at 6.8 m/s and the fastest at 11.9.
 
 ## Is topspin worth playing?
 

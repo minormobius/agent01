@@ -122,42 +122,51 @@ if (wasm) {
   check('more spin, more lift', cheap[1].cl > cheap[0.5].cl && cheap[0.5].cl > cheap[0].cl,
     `${cheap[0].cl.toFixed(2)} < ${cheap[0.5].cl.toFixed(2)} < ${cheap[1].cl.toFixed(2)}`);
 
-  // --- how much of the drag bias is blockage? ---
+  // --- where the 13% comes from ---
   //
   // The shipped sweep puts the stationary-cylinder drag at Re = 100 at 1.529
-  // where every published study says 1.32 to 1.38. The obvious explanation is
-  // blockage — the cylinder is in a channel, not in free air — and this
-  // measures how much of it that actually buys.
+  // where every published study says 1.32 to 1.38. Three runs, changing one
+  // thing at a time, say which part of the setup is responsible.
   //
-  // The answer, for the record, is "some, but not the excess". Confinement is
-  // clearly real and clearly large when the walls are close, which is what the
-  // three runs below show. But re-running the full sweep at HALF the shipped
-  // blockage moved the drag by 1.8%, not by 13%, and an eightfold refinement of
-  // the cylinder at fixed blockage did not move it either. The residual is not
-  // explained; see README. This block stays because knowing which way
-  // confinement pushes is worth knowing, not because it settles the question.
-  console.log('  same cylinder, wider and wider channel:');
-  const widen = [[160, 80], [200, 160], [240, 240]];
+  //   A -> B  widens the CHANNEL at fixed everything else (blockage)
+  //   B -> C  moves the INLET further upstream at fixed everything else
+  //
+  // The answer was not the one this file first asserted. Blockage is real and
+  // large when the walls are close, but at the blockage the sweep actually runs
+  // it is worth under two points of the thirteen — re-running the whole sweep
+  // on 768x512 moved the drag by 1.8%, and an eightfold refinement of the
+  // cylinder moved it not at all. The inlet is the term that matters: this
+  // solver holds a fixed velocity at the inlet, and at five diameters upstream
+  // that is close enough to squeeze the flow past the body.
+  console.log('  one thing at a time, D = 14, Re = 60:');
+  const STUDY = [
+    { tag: 'A', nx: 160, ny: 80, note: '17.5% blockage, 2.9D inlet' },
+    { tag: 'B', nx: 240, ny: 240, note: ' 5.8% blockage, 4.3D inlet' },
+    { tag: 'C', nx: 480, ny: 240, note: ' 5.8% blockage, 8.6D inlet' },
+  ];
   const cds = [];
-  for (const [nx, ny] of widen) {
-    wasm.init(nx, ny, CHEAP.r, CHEAP.u0, CHEAP.re);
+  for (const st of STUDY) {
+    wasm.init(st.nx, st.ny, CHEAP.r, CHEAP.u0, CHEAP.re);
     wasm.set_alpha(0);
-    wasm.run(CHEAP.warm);
+    wasm.run(1700);
     wasm.reset_stats();
-    wasm.run(CHEAP.avg);
+    wasm.run(1100);
     const cd = wasm.cd_mean();
     cds.push(cd);
-    console.log(`    ${String(nx).padStart(3)}x${String(ny).padStart(3)}  ` +
-      `blockage ${((2 * CHEAP.r) / ny * 100).toFixed(1).padStart(4)}%   CD ${cd.toFixed(4)}`);
+    console.log(`    ${st.tag}  ${String(st.nx).padStart(3)}x${String(st.ny).padStart(3)}  ` +
+      `${st.note}   CD ${cd.toFixed(4)}`);
   }
+  const dBlock = cds[0] - cds[1];
+  const dInlet = cds[1] - cds[2];
+  console.log(`    widening the channel: ${dBlock >= 0 ? '-' : '+'}${Math.abs(dBlock).toFixed(3)}   ` +
+    `moving the inlet back: ${dInlet >= 0 ? '-' : '+'}${Math.abs(dInlet).toFixed(3)}`);
   check('confinement raises the drag, and widening the channel lowers it',
-    cds[0] > cds[1] && cds[1] > cds[2],
-    `${cds[0].toFixed(3)} -> ${cds[1].toFixed(3)} -> ${cds[2].toFixed(3)} ` +
-    `as blockage goes ${((2 * CHEAP.r) / 80 * 100).toFixed(0)}% -> ` +
-    `${((2 * CHEAP.r) / 240 * 100).toFixed(0)}%`);
-  check('and it is converging rather than drifting',
-    Math.abs(cds[2] - cds[1]) < 0.5 * Math.abs(cds[1] - cds[0]),
-    `step 1 ${(cds[1] - cds[0]).toFixed(3)}, step 2 ${(cds[2] - cds[1]).toFixed(3)}`);
+    dBlock > 0, `${cds[0].toFixed(3)} -> ${cds[1].toFixed(3)}`);
+  check('AND a near inlet raises it too — this is the term that was missed',
+    dInlet > 0.04, `${cds[1].toFixed(3)} -> ${cds[2].toFixed(3)} on the inlet alone`);
+  check('moving the inlet back lands the drag near the published Re=60 value',
+    cds[2] > 1.32 && cds[2] < 1.52,
+    `${cds[2].toFixed(3)} against a published 1.39-1.42 at Re=60`);
 }
 
 // ===========================================================================

@@ -74,7 +74,11 @@ jaws take longer to close than a part takes to cross the grasp radius, so you
 have to commit the grip *before* the part arrives; `pong`'s killed the design
 outright on its first run — a bat confined to a VERTICAL plane cannot replace
 what air drag takes out of a 2.7 g ball, and the rally died in one exchange, so
-the stroke plane now leans 30 degrees forward. In each case the documentation
+the stroke plane now leans 30 degrees forward — and then, on a second pass,
+falsified the README: the solver's 13% drag excess was written up as blockage,
+and re-running the sweep at half the blockage moved it 1.8%. Changing one thing
+at a time found the real term (a fixed-velocity inlet five diameters upstream,
+worth 8%). In each case the documentation
 was changed to match the measurement, not the other way round. That is what
 these files are for.
 
@@ -107,6 +111,26 @@ node-only and fast. **Headless Chrome throttles `requestAnimationFrame` to about
 0.5 Hz**, so a browser check cannot exercise gameplay that advances on the frame
 clock; use it for what node cannot see — that the keys are wired up, the canvas
 paints, nothing throws — and leave the simulation to the selftests.
+
+**RUN THAT CHECK BEFORE CALLING A 3D PAGE DONE.** `/pong/` shipped, deployed
+green, served byte-identical bytes, and passed every one of its 40-odd node
+assertions while rendering NOTHING: `scene.js` threw on load
+(`Object.assign(light, { position })` — `Object3D.position` is a read-only
+accessor), which took the whole module graph down and left a dead 300x150
+canvas. Node cannot see it, `curl` cannot see it, and preflight cannot see it.
+Three things make the check actually diagnostic:
+
+- **Have the page report into itself.** A fixed banner listing `webgl=`,
+  canvas size, frame count and scene-graph positions turns one screenshot into
+  the whole answer. `--dump-dom` never returns on a page with an endless
+  `requestAnimationFrame` pump, and Chrome will not do `--dump-dom` and
+  `--screenshot` in one run at all.
+- **Read the collector.** `serveTenant` injects a listener that writes errors
+  into hidden divs; surfacing them on screen is what named the throw.
+- **Remember the pixels can be older than the numbers.** rAF is throttled to a
+  handful of frames, so the scene graph can have moved on since the last paint.
+  Half an hour went into "the bat is drawn in the wrong place" before it turned
+  out the driver was holding a key and the bat had simply swung.
 
 **3D lives in `vendor/`.** `armline`, `mimic` and `pong` render in 3D and all import
 `vendor/three.module.min.js` (r169, MIT), a byte-identical copy of the one the
