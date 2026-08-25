@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Findings Log — ken</title>
-<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. One hundred and seventeen entries, seven of them from measurements we made.">
+<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. One hundred and twenty-four entries, seven of them from measurements we made.">
 <link rel="stylesheet" href="journal.css">
 </head>
 <body>
@@ -33,7 +33,7 @@
   <div class="a-venue">ken · volume 1 <span class="kicker">Running record</span></div>
   <h1 class="a-title">Findings Log</h1>
   <p class="a-sub">Shortest form. Each entry names the code or record that produced it.</p>
-  <div class="a-meta">117 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
+  <div class="a-meta">124 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
   <hr class="a-rule">
 
   <p class="small">Everything here comes from data already paid for or from arithmetic. That is
@@ -917,15 +917,62 @@
       <span class="src"><code>tasks/tb-001/reference.mjs</code></span></li>
   </ol>
 
+
+  <h2 class="sec"><span class="secno">§</span>A runner that can run things</h2>
+
+  <ol class="log" start="118">
+    <li><b>The tool grant should follow the provenance of the prompt, not the model.</b> The loop
+      denies Bash and subagents because it assembles its brief from a ticket graph outside parties
+      can push into, so its grant has to survive a brief nobody here wrote. A bank run's brief is a
+      committed file with an author and a diff, started by hand. Same model, different threat
+      model, so a fuller grant is the correct answer rather than an inconsistency.
+      <span class="src"><code>.github/workflows/ken-run.yml</code></span></li>
+
+    <li><b>The unlobotomised invocation already existed.</b> <code>bakeoff/run-cell.sh</code> has
+      run <code>claude -p --dangerously-skip-permissions</code> with a subagent model configured
+      for both bake-offs. Building a new executor was unnecessary; pointing the existing one at a
+      six-turn plan was the work.
+      <span class="src"><code>bakeoff/run-cell.sh</code></span></li>
+
+    <li><b>Isolation is now demonstrated per run rather than claimed.</b> A marker is planted in
+      one turn's output; the turns the plan gives no path from are computed from its own edges, and
+      any of them carrying the token voids the run. R16 asked for exactly this and until now no
+      run could have supplied it.
+      <span class="src"><code>auditIsolation()</code> · <a href="/methods#r16">R16</a></span></li>
+
+    <li><b>A leaked run still produces an artefact that passes.</b> The harness selftest smuggles
+      the marker into a blind turn and the integrated solution passes every held-out check anyway.
+      Passing is not evidence the plan was enforced, which is why the isolation audit gates
+      separately and why a leak is recorded as measuring nothing rather than as a failure.
+      <span class="src"><code>runner.selftest.mjs</code></span></li>
+
+    <li><b>A run measures WP4's two parameters as a by-product.</b> The run's own checks are graded
+      by the bank: against the reference for soundness, against the mutants for coverage. So u and
+      c come out of any run that writes a check, at no cost beyond the run.
+      <span class="src"><code>score()</code> · <a href="/wp4">WP4</a></span></li>
+
+    <li><b>A check that passes everything looks sound and has coverage 0.</b> The scorer reports
+      both, and the stub arm is what separates them: an empty check is sound by construction,
+      kills nothing, and fails to reject a do-nothing solution. That is the probe ceiling in
+      miniature, and reporting soundness alone would have called it a good check.
+      <span class="src"><code>score()</code></span></li>
+
+    <li><b>A job named <code>run</code> is indistinguishable from a step's <code>run:</code>
+      key.</b> Preflight extracts shell line-wise, so naming the job <code>run</code> made it parse
+      the entire job body as bash and fail. The lint was right and the name was wrong; the job is
+      <code>bank-run</code> now.
+      <span class="src"><code>scripts/preflight.mjs</code></span></li>
+  </ol>
+
   <h2 class="sec"><span class="secno">§</span>The ledger</h2>
 
   <div class="table-fig">
     <table class="booktabs">
       <thead><tr><th>Source of finding</th><th class="num">Entries</th></tr></thead>
       <tbody>
-        <tr><td>Records already committed</td><td class="num">14</td></tr>
-        <tr><td>Arithmetic and simulation</td><td class="num">62</td></tr>
-        <tr><td>Our own mistakes</td><td class="num">32</td></tr>
+        <tr><td>Records already committed</td><td class="num">16</td></tr>
+        <tr><td>Arithmetic and simulation</td><td class="num">66</td></tr>
+        <tr><td>Our own mistakes</td><td class="num">33</td></tr>
         <tr><td>Prior literature</td><td class="num">2</td></tr>
         <tr><td><b>New measurement</b></td><td class="num"><b>7</b></td></tr>
       </tbody>

@@ -99,6 +99,9 @@ worker or move the domain, **verify the deploy log binds
 | `lab/taskbank.mjs` | **the admission gate for a task**: sound, discerning, not free. `node lab/taskbank.mjs` for the report |
 | `lab/tasks/<id>/` | one task: statement, checks, reference, stub, seeded mutants |
 | `lab/taskbank.selftest.mjs` | 40 checks: the three conditions in both directions, and the survivor |
+| `lab/runner.mjs` | **executes a six-turn run**: fresh tree per turn, demonstrated isolation, held-out scoring. `--dry-run` needs no key |
+| `lab/runner.selftest.mjs` | 64 checks, most of them faults it must catch — a leak, a silent turn, an unsound check |
+| `lab/runs/` | one JSON record per executed run, committed |
 | `lab/resolve-refs.mjs` | links the bibliography against CrossRef / arXiv / OpenLibrary |
 | `fig/*.svg` | **generated.** Committed so figures print and diff |
 | `refs.js` | **the bibliography, as data** — 96 real works, keyed |
@@ -648,6 +651,58 @@ Task**. Two consequences worth knowing before designing any run:
 **Measured gate coverage of the live ticket graph: 5 of 656 beads, 0.8%.** That
 is WP4's c on the real system, and it puts the programme at the far left of
 Figure 1 where the first assertions are always worth writing.
+
+### The runner, and why its grant differs from the loop's
+
+`lab/runner.mjs`, driven by `.github/workflows/ken-run.yml`.
+**Dispatch only** — no push trigger, no schedule, nothing in `mayWake`.
+
+**THE TOOL GRANT FOLLOWS THE PROVENANCE OF THE PROMPT, NOT THE MODEL.**
+`loop-work.yml` denies Bash and subagents because it assembles its brief from a
+ticket graph outside parties can push into; its grant must survive a brief
+nobody here wrote. A bank run's brief is `statement.md`, a committed file with
+an author and a diff, started by hand. Same model, different threat model.
+
+The full-power invocation already existed — `bakeoff/run-cell.sh` has used
+`claude -p --dangerously-skip-permissions` for both bake-offs. The work was
+pointing it at a six-turn plan, not building an executor.
+
+**The grant is required, not convenient.** H10 needs a turn that can *re-run* a
+check. A turn that cannot execute can only read one, and a read check is a
+remembered check.
+
+| | |
+|---|---|
+| **isolation** | each turn gets a fresh dir holding exactly its in-edges. No repo, no history, no other lane |
+| **the bank is not in the tree** | reference, mutants and bank checks stay in the checkout; scoring happens after, in the workflow |
+| **demonstrated, not claimed** | a marker is planted in one turn; `blindTo()` computes which turns have no path from it; any of them carrying the token **voids the run** |
+
+⚠️ **A LEAKED RUN STILL PRODUCES A PASSING ARTEFACT.** The selftest smuggles the
+marker into a blind turn and the solution passes every held-out check anyway.
+Passing is not evidence the plan held, so isolation gates separately and a leak
+is recorded as *measuring nothing* rather than as a failure.
+
+**What a run measures.** The integrated artefact goes against the bank's
+held-out checks. More usefully, the run's **own** checks are graded by the bank:
+against the reference for **soundness (u)**, against the mutants for
+**coverage (c)**. WP4's two unmeasured parameters, out of any run that writes a
+check.
+
+A check that passes everything is *sound* and has coverage 0 — the stub arm is
+what separates a strong check from an empty one.
+
+```bash
+node ken/lab/runner.mjs --task tb-001-binomial-interval --dry-run   # no key needed
+```
+
+The dry run executes the whole plan with a scripted agent: trees, isolation,
+leak audit, scoring and ledger all run for real, only the model call is
+replaced. **It copies the bank's answers in, so its scores are the harness
+working and never a result about agents.**
+
+⚠️ **Do not name a workflow job `run`.** `scripts/preflight.mjs` extracts shell
+line-wise by matching `run:`, so a job with that name has its entire body parsed
+as bash. The job is `bank-run`.
 
 ### The drawn graph is not the graph
 

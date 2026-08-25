@@ -50,6 +50,8 @@ jobs:
         run: node lab/gate.selftest.mjs
       - name: The task bank's admission gate (40 checks, runs 12 mutant trials)
         run: node lab/taskbank.selftest.mjs
+      - name: The run harness, including a leak it must catch (64 checks)
+        run: node lab/runner.selftest.mjs
       - name: Selftest (citations, prose lint, tables, roadmap graph, quoted figures)
         run: node ken.selftest.mjs
       - name: Install wrangler

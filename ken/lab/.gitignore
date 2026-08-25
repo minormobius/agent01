@@ -1,0 +1,6 @@
+# Scratch trees the runner builds. A run's RECORD is committed (runs/);
+# the trees it worked in are not, because they hold six copies of the
+# task and nothing that is not already in the record.
+.run/
+.runscore/
+.selftest-run/

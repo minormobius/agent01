@@ -655,6 +655,19 @@ function numberWord(n) { return ['zero', 'one', 'two', 'three', 'four', 'five', 
        `the log quotes the ticket graph's gate coverage (${gated.length} of ${all.length}, ${pctGated})`);
   }
 
+  /* the runner's guarantees, asserted here as well as in its own
+     selftest, because the log makes claims about them. */
+  {
+    const { plan, blindTo, MARKER_TURN, MARKER_BLIND } = await import('./lab/runner.mjs');
+    const p = plan();
+    ok(p.turns.length === 6 && p.shape === 'standard',
+       'the runner executes the six-turn standard shape');
+    ok(blindTo(p, MARKER_TURN).includes(MARKER_BLIND),
+       `${MARKER_BLIND} has no path from ${MARKER_TURN}, which is what makes the marker a test`);
+    ok(log.includes('demonstrated per run'), 'the log states that isolation is demonstrated per run');
+    ok(log.includes('bank-run'), 'and records why the job is not called run');
+  }
+
   // the log must keep saying the honest thing about its own provenance
   {
     const counts = [...log.matchAll(/<td>(?:<b>)?([^<]+?)(?:<\/b>)?(?: \(the judging pass\))?<\/td><td class="num">(?:<b>)?(\d+)/g)]
