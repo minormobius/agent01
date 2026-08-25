@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Findings Log — ken</title>
-<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. Ninety-five entries, seven of them from measurements we made.">
+<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. One hundred and seven entries, seven of them from measurements we made.">
 <link rel="stylesheet" href="journal.css">
 </head>
 <body>
@@ -20,6 +20,7 @@
   <a href="/wp1">WP1</a>
   <a href="/wp2">WP2</a>
   <a href="/wp3">WP3</a>
+  <a href="/wp4">WP4</a>
   <a href="/register">Register</a>
   <a class="here" href="/log">Log</a>
   <a href="/protocol">III · Protocol</a>
@@ -32,7 +33,7 @@
   <div class="a-venue">ken · volume 1 <span class="kicker">Running record</span></div>
   <h1 class="a-title">Findings Log</h1>
   <p class="a-sub">Shortest form. Each entry names the code or record that produced it.</p>
-  <div class="a-meta">95 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
+  <div class="a-meta">107 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
   <hr class="a-rule">
 
   <p class="small">Everything here comes from data already paid for or from arithmetic. That is
@@ -768,6 +769,84 @@
       <span class="src"><code>simulateSeeded()</code> · entry 85</span></li>
   </ol>
 
+
+  <h2 class="sec"><span class="secno">§</span>The gate</h2>
+
+  <ol class="log" start="96">
+    <li><b>A check is context that does not attenuate.</b> Everything else a turn knows about its
+      ancestors arrives discounted by λ<sup>k−1</sup>. An executable check arrives at full
+      strength, because it is re-run rather than remembered. A defect inside its coverage
+      contributes nothing to the floor at any gap.
+      <span class="src"><code>gate.mjs</code> · <a href="/wp4#noattenuate">WP4 §2</a></span></li>
+
+    <li><b>A check has somebody after the last turn.</b> WP3's floor is partly S(0) = 1: the final
+      turn's mistakes have nobody downstream, so no chain length drives density to zero. A check
+      runs on the integrator's output too, which is the one thing in this programme that removes
+      that term rather than shrinking it.
+      <span class="src"><a href="/register">H10</a></span></li>
+
+    <li><b>What a check gets wrong, it certifies.</b> An assertion stating the wrong thing turns a
+      would-be-correct implementation into a defect and marks it passing, so the failure is
+      invisible to the mechanism that created it. At full coverage and unsoundness 0.15 the
+      surviving density is exactly 0.15 and <b>100% of it was put there by the gate</b>.
+      <span class="src"><code>specifyFirst()</code></span></li>
+
+    <li><b>More coverage can be worse, so there is a stopping point rather than a target.</b> At
+      unsoundness 0.45 and a difficulty tail of 3, coverage 0.95 leaves more defects than coverage
+      0.80. Specify up to c* = (M/γu)<sup>1/(γ−1)</sup> and stop.
+      <span class="src"><a href="/wp4#stopping">WP4 §4</a></span></li>
+
+    <li><b>Improving the briefing reduces the optimal amount of specification.</b> The stopping
+      point runs 0.98, 0.90, 0.80, 0.70, 0.62 as λ goes 0.2 to 0.95, because the ungated density it
+      is compared against falls. Context and verification are substitutes, not complements. WP3
+      argued for wiring first; this is the bill for that.
+      <span class="src"><code>stoppingPoint()</code></span></li>
+
+    <li><b>The premise, as an inequality.</b> D(1) = u and D(0) = M, so specifying everything beats
+      specifying nothing exactly when u &lt; M: you have to be likelier to get an assertion right
+      than the chain is to leave the defect anyway. That is "at least as hard to verify as to
+      design" with the arithmetic attached.
+      <span class="src"><code>unsoundnessCeiling()</code></span></li>
+
+    <li><b>Two independent attempts do not fail independently, and the floor is not p².</b> Knight
+      and Leveson had 27 versions written independently from one specification and rejected the
+      independence assumption at the 99% level. Under Eckhardt and Lee's model the surviving share
+      is p at ρ = 1, where a second version buys nothing at all. One model sampled twice has less
+      reason to differ than two universities did.
+      <span class="src"><code>agreementFloor()</code> · Knight 1986 · Eckhardt 1985</span></li>
+
+    <li><b>Neither verification strategy wins everywhere, and the crossing is the pattern.</b> At
+      error correlation 0.02 build-twice wins; at 0.8 specify-first does. With an unreliable
+      check-writer, unsoundness 0.55, build-twice wins throughout. Which side you are on is a
+      measurement, and none of the three quantities that decide it has been made.
+      <span class="src"><a href="/wp4#crossing">WP4 §6</a> · <code>strategies()</code></span></li>
+
+    <li><b>The three strategies were incomparable until they shared a scale.</b> The first version
+      of <code>strategies()</code> took the per-version error rate as a free parameter set to 0.2,
+      so two rows were densities and one was something else, and build-twice won everywhere by
+      choosing its own units. It now defaults to the ungated density.
+      <span class="src"><code>strategies()</code></span></li>
+
+    <li><b>The proposed six-turn verification shape is <code>standard</code>, already catalogued.</b>
+      Break into two, two turns write checks, two build against them, one integrates: that is the
+      profile [1,2,2,1] with lane wiring. Nothing about the graph is new. What is new is that a
+      turn has a <b>duty</b> as well as a role, and degree cannot recover it: all four middle turns
+      are <code>relay</code>s whichever duty they carry.
+      <span class="src"><code>VERIFICATION_FIRST</code> · <a href="/wp4">WP4 §1</a></span></li>
+
+    <li><b>Letting the builder read the brief as well as its check changes four of the six roles.</b>
+      Specifiers become <code>delegate</code>s and builders become <code>funnel</code>s. A wiring
+      question that reads like a preference is a different graph, and two runs differing only in
+      that answer are not two runs of one design.
+      <span class="src"><code>positionTable()</code> over both wirings</span></li>
+
+    <li><b>The role table's first version invented role names the code does not produce.</b> It
+      said splitter, broker and reporter; <code>roles.mjs</code> derives principal, relay and
+      integrate for this shape. Caught by asserting the table against the derivation rather than
+      against itself, which is the same class as the STE table and the plan figure before it.
+      <span class="src"><code>gate.selftest.mjs</code></span></li>
+  </ol>
+
   <h2 class="sec"><span class="secno">§</span>The ledger</h2>
 
   <div class="table-fig">
@@ -775,8 +854,8 @@
       <thead><tr><th>Source of finding</th><th class="num">Entries</th></tr></thead>
       <tbody>
         <tr><td>Records already committed</td><td class="num">12</td></tr>
-        <tr><td>Arithmetic and simulation</td><td class="num">46</td></tr>
-        <tr><td>Our own mistakes</td><td class="num">28</td></tr>
+        <tr><td>Arithmetic and simulation</td><td class="num">56</td></tr>
+        <tr><td>Our own mistakes</td><td class="num">30</td></tr>
         <tr><td>Prior literature</td><td class="num">2</td></tr>
         <tr><td><b>New measurement</b></td><td class="num"><b>7</b></td></tr>
       </tbody>

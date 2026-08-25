@@ -27,6 +27,10 @@ import { HYPOTHESES, statusCounts, STATUSES } from '../graph/hypotheses.mjs';
 import { RESIDUES, costToPin, simulateFit } from './probe.mjs';
 import { curve, grid, exchangeRate, residue, PARAMETERS, ILLUSTRATIVE } from '../graph/equivalence.mjs';
 import { costLadder } from './seeded.mjs';
+import {
+  ungated, specifyFirst, stoppingPoint, optimalCoverage, unsoundnessCeiling,
+  agreementFloor, strategies, VERIFICATION_FIRST, CHOICE,
+} from '../graph/gate.mjs';
 import { readFileSync as _read } from 'node:fs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -223,6 +227,51 @@ export function buildFigures() {
     });
   }
 
+  /* ── WP4: what a check does to the floor ──────────────────────────
+     Two figures, and the pair is the argument: where to stop specifying,
+     and where the two strategies cross. */
+  {
+    const cov = [];
+    for (let c = 0; c <= 1.0001; c += 0.02) {
+      const cc = Math.round(c * 100) / 100;
+      cov.push({ x: cc, ...specifyFirst({ coverage: cc }) });
+    }
+    figs['gate-coverage'] = charts.line({
+      series: [
+        { name: 'total density', points: cov.map((r) => ({ x: r.x, y: r.density })) },
+        { name: 'missed by the check', points: cov.map((r) => ({ x: r.x, y: r.missed })) },
+        { name: 'created by the check', points: cov.map((r) => ({ x: r.x, y: r.certified })) },
+      ],
+      width: 620, height: 250,
+      xlabel: 'coverage — share of defects the check detects', ylabel: 'defect density (units of r)',
+      aria: 'Defect density against check coverage, split into what the check misses and what its '
+          + 'own wrong assertions create. The total falls and then rises, so there is a coverage '
+          + 'past which more specification makes the artefact worse.',
+    });
+
+    /* The crossing. Correlation is the honest axis, being the quantity
+       Knight and Leveson showed is not zero. */
+    const cross = [];
+    for (let rho = 0; rho <= 0.9001; rho += 0.05) {
+      const r = Math.round(rho * 100) / 100;
+      const by = Object.fromEntries(strategies({ correlation: r }).rows.map((x) => [x.name, x.density]));
+      cross.push({ x: r, sf: by['specify-first'], bt: by['build-twice'], un: by.ungated });
+    }
+    figs['gate-crossing'] = charts.line({
+      series: [
+        { name: 'specify-first', points: cross.map((r) => ({ x: r.x, y: r.sf })) },
+        { name: 'build-twice', points: cross.map((r) => ({ x: r.x, y: r.bt })) },
+        { name: 'ungated', points: cross.map((r) => ({ x: r.x, y: r.un })) },
+      ],
+      width: 620, height: 250,
+      xlabel: 'ρ — how much two independent attempts fail together',
+      ylabel: 'defect density (units of r)',
+      aria: 'Defect density for the three strategies against error correlation. Specify-first is '
+          + 'flat in correlation; build-twice rises with it and meets the ungated line at one, '
+          + 'where two correlated attempts buy nothing at all.',
+    });
+  }
+
   return figs;
 }
 
@@ -380,6 +429,55 @@ export function buildEquivalenceBlocks() {
 
 const pct = (x) => `${Math.round(x * 1000) / 10}%`;
 
+/** WP4's generated blocks. */
+export function buildGateBlocks() {
+  const figs = buildFigures();
+  const num = (x) => `<td class="num">${x}</td>`;
+  const out = { FIG: {}, TBL: {} };
+
+  out.FIG['gate-coverage'] = figs['gate-coverage'];
+  out.FIG['gate-crossing'] = figs['gate-crossing'];
+
+  out.TBL.duties = table(
+    ['Turn', 'Duty', 'Role · lanes only', 'Role · builder also briefed', 'Makes'],
+    VERIFICATION_FIRST.duties.map((d) => `<tr><td><code>${d.turn}</code></td><td><b>${d.duty}</b></td>`
+      + `<td><code>${d.roleLanes}</code></td>`
+      + `<td><code${d.roleLanes === d.roleBriefed ? '' : ' class="changed"'}>${d.roleBriefed}</code></td>`
+      + `<td>${d.makes}</td></tr>`), { num: [] });
+
+  /* The inversion, which is the paper's least comfortable result: better
+     briefing lowers the optimal amount of specification. */
+  out.TBL.stopping = table(
+    ['λ', 'Ungated density M', 'Stop specifying at', 'Density there', 'Against no gate'],
+    [0.2, 0.4, 0.6, 0.8, 0.95].map((lambda) => {
+      const sp = stoppingPoint({ lambda });
+      const opt = optimalCoverage({ lambda });
+      return `<tr><td class="num">${lambda.toFixed(2)}</td>${num(ungated({ lambda }))}${num(sp.coverage)}`
+        + `${num(opt.density)}${num(opt.noGate)}</tr>`;
+    }), { num: [0, 1, 2, 3, 4] });
+
+  out.TBL.agreement = table(
+    ['ρ', 'Two versions', 'Three versions', 'One version'],
+    [0, 0.15, 0.3, 0.5, 0.8, 1].map((rho) => {
+      const p = ungated();
+      return `<tr><td class="num">${rho.toFixed(2)}</td>`
+        + `${num(agreementFloor({ p, correlation: rho }))}`
+        + `${num(agreementFloor({ p, correlation: rho, versions: 3 }))}${num(p)}</tr>`;
+    }), { num: [0, 1, 2, 3] });
+
+  out.TBL.choice = table(
+    ['', 'What it is', 'What it decides', 'What stands behind it'],
+    CHOICE.map((c) => `<tr><td><b>${c.symbol}</b><br><span class="muted">${c.quantity}</span></td>`
+      + `<td>${c.is}</td><td>${c.decides}</td><td>${c.standing}</td></tr>`), { num: [] });
+
+  out.TBL['open-questions'] = table(
+    ['The profile does not settle', 'Which changes what the run measures'],
+    VERIFICATION_FIRST.openQuestions.map((q) => `<tr><td><b>${q[0]}</b></td><td>${q[1]}</td></tr>`),
+    { num: [] });
+
+  return out;
+}
+
 /** The hypothesis register, rendered from hypotheses.mjs. */
 export function buildRegisterBlocks() {
   const counts = statusCounts();
@@ -434,7 +532,7 @@ const table = (head, rows, { num = null } = {}) => '<table class="booktabs"><the
   + `</tr></thead><tbody>${rows.join('')}</tbody></table>`;
 
 /** Pages carrying generated blocks. Add one here and it is gated. */
-export const GENERATED_PAGES = ['wp2.html', 'register.html', 'wp3.html'];
+export const GENERATED_PAGES = ['wp2.html', 'register.html', 'wp3.html', 'wp4.html'];
 
 /** Which blocks on a page have drifted from the code. */
 export function blocksCurrent(pageName = 'wp2.html') {
@@ -442,7 +540,8 @@ export function blocksCurrent(pageName = 'wp2.html') {
   let page = readFileSync(path, 'utf8');
   const blocks = pageName === 'register.html' ? buildRegisterBlocks()
     : pageName === 'wp3.html' ? buildEquivalenceBlocks()
-      : buildBlocks();
+      : pageName === 'wp4.html' ? buildGateBlocks()
+        : buildBlocks();
   const stale = [];
   for (const kind of ['FIG', 'TBL']) {
     for (const [name, html] of Object.entries(blocks[kind])) {

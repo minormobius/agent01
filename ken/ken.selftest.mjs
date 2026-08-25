@@ -52,6 +52,10 @@ import { fitBradleyTerry, swapRate } from './lab/bt.mjs';
 import { costToPin, simulateFit, fitLambda } from './lab/probe.mjs';
 import { exchangeRate, residue, density, bandFor, PARAMETERS } from './graph/equivalence.mjs';
 import { costLadder } from './lab/seeded.mjs';
+import {
+  ungated, specifyFirst, stoppingPoint, unsoundnessCeiling, agreementFloor,
+  strategies, VERIFICATION_FIRST, CHOICE,
+} from './graph/gate.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -496,6 +500,55 @@ function numberWord(n) { return ['zero', 'one', 'two', 'three', 'four', 'five', 
   // the widget runs the real module rather than a copy
   ok(/from '\/graph\/equivalence\.mjs'/.test(wp3), 'wp3 loads graph/equivalence.mjs in the page');
   ok(PARAMETERS.length === 4, 'the parameter table has four rows, one of which cancels');
+}
+
+/* (b1e) WP4. Same discipline as WP3: the tables are generated, so what is
+   gated is the prose and the three structural claims. The role table is
+   the one worth guarding — its first version invented role names that
+   roles.mjs does not produce for this shape. */
+{
+  const wp4 = readFileSync(join(HERE, 'wp4.html'), 'utf8');
+
+  const b4 = blocksCurrent('wp4.html');
+  ok(b4.stale.length === 0, `wp4's generated blocks are current (stale: ${b4.stale.join(', ') || 'none'})`);
+
+  // the shape is the catalogue's, and the paper says so
+  ok(VERIFICATION_FIRST.sameShapeAs === 'standard' && wp4.includes('<code>standard</code>'),
+     'wp4 names the shape it reuses');
+  const changed = VERIFICATION_FIRST.duties.filter((d) => d.roleLanes !== d.roleBriefed).length;
+  ok(changed === 4 && wp4.includes('four of the six roles change'),
+     `wp4 states how many roles the first wiring decision moves (${changed})`);
+  for (const r of ['relay', 'delegate', 'funnel'])
+    ok(wp4.includes(`<code>${r}</code>`), `wp4 names the ${r} role it actually derives`);
+
+  // a check does not attenuate: the two corners
+  ok(specifyFirst({ coverage: 1, unsoundness: 0 }).density === 0,
+     'a complete sound check leaves nothing, which no chain length can do');
+  const M = ungated();
+  ok(Math.abs(specifyFirst({ coverage: 0 }).density - M) < 5e-5,
+     'and at zero coverage the model is WP3 unchanged');
+
+  // the inversion, which is the paper's least comfortable claim
+  const cs = [0.2, 0.4, 0.6, 0.8, 0.95].map((lambda) => stoppingPoint({ lambda }).coverage);
+  ok(cs.every((c, i) => i === 0 || c < cs[i - 1]),
+     `raising lambda lowers the stopping point (${cs.join(' > ')})`);
+  ok(wp4.includes('reduces the optimal amount of specification'), 'and wp4 states it');
+  ok(Math.abs(unsoundnessCeiling().ceiling - M) < 5e-5 && wp4.includes('u &lt; M'),
+     'wp4 states the bare inequality, u under M');
+
+  // the crossing: neither strategy wins everywhere
+  const lo = strategies({ correlation: 0.02 }).best;
+  const hi = strategies({ correlation: 0.8 }).best;
+  ok(lo !== hi, `the strategies cross (${lo} at low correlation, ${hi} at high)`);
+  ok(wp4.includes('build-twice') && wp4.includes('specify-first') && wp4.includes('Ungated'),
+     'and wp4 names all three');
+  ok(Math.abs(agreementFloor({ p: M, correlation: 1 }) - M) < 5e-5,
+     'at correlation 1 two versions buy nothing, which is the table`s last row');
+  ok(wp4.includes('buy nothing at all'), 'and wp4 says so');
+
+  ok(CHOICE.length === 3 && CHOICE.every((c) => /nothing/.test(c.standing)),
+     'all three deciding quantities are recorded as unmeasured');
+  ok(/from '\/graph\/gate\.mjs'/.test(wp4), 'wp4 loads graph/gate.mjs in the page');
 }
 
 // (b2) the findings log's H4 numbers, recomputed from the ledger

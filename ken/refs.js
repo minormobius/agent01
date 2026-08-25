@@ -433,6 +433,24 @@
       v: 'Advances in Experimental Social Psychology 1, 111–147',
       n: 'The review that complicates Leavitt: centralised networks win on simple tasks and lose on complex ones. If that interaction reproduces here, task difficulty belongs in the design and shape alone will not do.',
       u: 'https://doi.org/10.1016/s0065-2601(08)60050-7' },
+    fagan1976: {
+      a: 'Fagan, M. E.', y: 1976,
+      t: 'Design and Code Inspections to Reduce Errors in Program Development',
+      v: 'IBM Systems Journal 15(3), 182–211',
+      n: 'The origin of formal inspection, and of counting defect-removal efficiency as a rate rather than describing it. WP4 borrows the rate and drops the ceremony.',
+      u: 'https://doi.org/10.1147/sj.153.0182' },
+    knight1986: {
+      a: 'Knight, J. C. and Leveson, N. G.', y: 1986,
+      t: 'An Experimental Evaluation of the Assumption of Independence in Multiversion Programming',
+      v: 'IEEE Transactions on Software Engineering SE-12(1), 96–109',
+      n: 'Twenty-seven versions written independently from one specification. The hypothesis that they fail independently was rejected at the 99% level. Read before believing that two agents disagreeing is a reliable detector — this is the paper that says it is not, for people, and one model sampled twice has less reason to differ than two universities do.',
+      u: 'https://doi.org/10.1109/TSE.1986.6312924' },
+    eckhardt1985: {
+      a: 'Eckhardt, D. E. and Lee, L. D.', y: 1985,
+      t: 'A Theoretical Basis for the Analysis of Multiversion Software Subject to Coincident Errors',
+      v: 'IEEE Transactions on Software Engineering SE-11(12), 1511–1517',
+      n: 'The model behind agreementFloor(): inputs vary in difficulty, versions fail independently given the difficulty, and so fail together on the hard ones. Correlation enters as the variance of that difficulty, which is why the floor is not p^k.',
+      u: 'https://doi.org/10.1109/TSE.1985.231894' },
     freeman1977: {
       a: 'Freeman, L. C.', y: 1977,
       t: 'A Set of Measures of Centrality Based on Betweenness',

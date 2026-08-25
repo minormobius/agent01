@@ -52,6 +52,7 @@ worker or move the domain, **verify the deploy log binds
 | `wp1.html` | **Working paper 1**, Unit II worked end to end. Served at `/wp1`. |
 | `wp2.html` | **Working paper 2**, Unit IV. Every table and figure on it is generated. Served at `/wp2`. |
 | `wp3.html` | **Working paper 3**, Unit IV. The exchange rate, with a live calculator. `/wp3` |
+| `wp4.html` | **Working paper 4**, Unit IV. A theory of the gate, with a strategy chooser. `/wp4` |
 | `log.html` | **The findings log.** Numbered, terse, append-only. Served at `/log`. |
 | `run.html` | **The standard-run procedure.** Written to ASD-STE100. Served at `/run`. |
 | `protocol.html` | **Article III**, the Stage 1 registered-report skeleton. Served at `/protocol`. |
@@ -65,10 +66,11 @@ worker or move the domain, **verify the deploy log binds
 | `graph/profiles.mjs` | **any n**: layer profiles, the trade, the frontier |
 | `graph/exhaustive.mjs` | **the whole space** up to 7 turns, and the coverage measurement |
 | `graph/ancestry.mjs` | content-addressed state, after hoop's region digest |
-| `graph/hypotheses.mjs` | **the hypotheses, as data** — nine, each with a status |
+| `graph/hypotheses.mjs` | **the hypotheses, as data** — eleven, each with a status |
 | `graph/visibility.mjs` | isolation regimes: what the environment adds to the drawn graph |
 | `graph/attenuation.mjs` | **λ**, of which those regimes are the two corners |
 | `graph/equivalence.mjs` | **the exchange rate**: how many unattended turns buy one directed one |
+| `graph/gate.mjs` | **the theory of the gate**: coverage, unsoundness, and the agreement floor |
 | `graph/layout.mjs` | the picture, **derived** by force relaxation |
 | `graph/rng.mjs` | the one deterministic generator |
 | `lab/design.mjs` | **the harness.** Node-only, not served |
@@ -93,9 +95,10 @@ worker or move the domain, **verify the deploy log binds
 | `lab/probe.selftest.mjs` | 66 checks: exact recovery, the floor, where the fit refuses, the price |
 | `lab/seeded.mjs` | **measuring g** by seeded defects, and the R13 pass that changed H9's outcome |
 | `lab/equivalence.selftest.mjs` | 81 checks: closed forms, the floor at both ends, the never region, H9 |
+| `lab/gate.selftest.mjs` | 72 checks: the corners, the stopping point, the agreement floor, derived roles |
 | `lab/resolve-refs.mjs` | links the bibliography against CrossRef / arXiv / OpenLibrary |
 | `fig/*.svg` | **generated.** Committed so figures print and diff |
-| `refs.js` | **the bibliography, as data** — 90 real works, keyed |
+| `refs.js` | **the bibliography, as data** — 94 real works, keyed |
 | `cite.js` | numbers citations in document order, renders the reference list |
 | `journal.css` | the shared journal typography; prints to real Letter pages |
 | `worker.js` | thin assets worker; maps `/syllabus` and `/protocol` to their `.html` |
@@ -514,6 +517,73 @@ would have bought a figure nobody could act on.
 And, for the second time: **more items per run beat more runs.** 40×6 is 36
 turns; 10×24 is 144 for a comparable width. The λ probe found the same shape a
 revision earlier.
+
+### The theory of the gate: a check does not attenuate
+
+`graph/gate.mjs`, published as [WP4](wp4.html). Everything a turn knows about
+its ancestors arrives discounted by λ^(k−1). **An executable check does not**,
+because it is *re-run rather than remembered*. Two consequences:
+
+- **No decay.** A defect inside its coverage is detected at any gap.
+- **No last turn.** WP3's floor is partly S(0) = 1 — the final turn's mistakes
+  have nobody after them. A check does. It runs on the integrator too.
+
+**Then the check turns out to be written by a turn.** A wrong assertion turns a
+correct implementation into a defect *and marks it passing*, so the failure is
+invisible to the mechanism that made it. Three parameters:
+
+| | |
+|---|---|
+| **c** coverage | share of defects the check detects |
+| **u** unsoundness | share a *complete* specification would get wrong |
+| **γ** tail | how much harder the last assertions are than the first |
+
+    D(c) = (1 − c)(1 + βc)·M + u·c^γ        M = WP3's ungated density
+
+**There is a stopping point, not a target:** `c* = (M / γu)^(1/(γ−1))`. At
+u = 0.45 and γ = 3, coverage 0.95 leaves *more* defects than 0.80.
+
+**The bare inequality, which is the premise with arithmetic attached:**
+D(1) = u and D(0) = M, so **specify everything iff u < M** — you must be
+likelier to get an assertion right than the chain is to leave the defect anyway.
+
+**The unwelcome corollary: improving λ lowers the optimal coverage.** c* runs
+0.98 → 0.62 as λ goes 0.2 → 0.95. Context and verification are **substitutes**.
+WP3 said wire first; this is the bill.
+
+### Build-twice, and why its floor is not p²
+
+Knight & Leveson had 27 versions written independently from one spec and
+**rejected the independence assumption at the 99% level**. `agreementFloor()`
+implements Eckhardt–Lee instead: inputs vary in difficulty, versions fail
+together on the hard ones, and the surviving share is **p at ρ = 1** — a second
+version buying nothing at all. One model sampled twice has less reason to differ
+than two universities did, so expect ρ high.
+
+**Neither strategy wins everywhere.** At ρ = 0.02 build-twice wins; at ρ = 0.8
+specify-first does; with u = 0.55 build-twice wins throughout. That crossing is
+the generalizable pattern, and all three quantities deciding it are unmeasured.
+
+⚠️ `strategies()` **defaults `p` to the ungated density.** Its first version
+took it as a free parameter set to 0.2, so two rows were densities and one was
+not, and build-twice won everywhere by choosing its own units.
+
+### Duty is not role
+
+The verification-first six-turn shape (split → two checks → two builds →
+integrate) **is `standard`**, profile [1,2,2,1], already catalogued. Nothing
+about the graph is new. What is new is that a turn has a **duty** as well as a
+role, and **degree cannot recover it**: all four middle turns are `relay`s
+whichever duty they carry.
+
+**One wiring decision is structural, not stylistic.** Give the builder an edge
+from setup so it reads the brief beside its check, and **four of six roles
+change** — specifiers become `delegate`s, builders become `funnel`s. Two runs
+differing only in that answer are not two runs of one design.
+
+The first version of that table invented `splitter`/`broker`/`reporter`, none of
+which `roles.mjs` produces here. **Assert a role table against `positionTable()`,
+never against itself.**
 
 ### The drawn graph is not the graph
 

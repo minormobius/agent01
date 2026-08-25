@@ -263,6 +263,80 @@ export const HYPOTHESES = {
       + 'the outcome is the band and not the number, and a study sized on parameter precision '
       + 'would have bought a figure nobody could act on.',
   },
+
+  H10: {
+    id: 'H10', name: 'the non-attenuating gate', curriculumUnit: 'IV', owner: '/wp4',
+    outcome: 'Detection rate for seeded defects, by the gap between the turn that made the defect '
+      + 'and the turn that ran the check, for defects inside the check`s coverage.',
+    analysisUnit: 'the seeded defect at one gap',
+    claim: 'An executable check does not attenuate. Its detection rate is flat in gap, where an '
+      + 'unattended turn`s falls geometrically, because a check is re-run rather than remembered.',
+    test: 'H9`s seeded-defect run with one turn added: a check written at turn 2 and re-run at '
+      + 'every later turn. Fit detection against gap for in-coverage defects and compare the fitted '
+      + 'slope with the one the same run measures for turns.',
+    predicts: [
+      ['in-coverage detection is flat in gap', 'a check written at turn 2 is as sharp at turn 6 as at turn 3'],
+      ['out-of-coverage detection decays at the lambda H8 measured', 'the control, and it is in the same run'],
+      ['the integrator`s own defects are detected at the same rate as anyone else`s',
+        'a check has somebody after the last turn, which is the part WP3`s model could not have'],
+      ['some passing artefacts are wrong in a way the check asserts',
+        'unsoundness is not zero and this measures it directly'],
+    ],
+    refutedBy: [
+      'In-coverage detection falls with gap, which would mean a check is remembered rather than re-run and the whole distinction collapses.',
+      'In-coverage and out-of-coverage detection decay alike, in which case coverage is not the right partition and the model is wrong rather than imprecise.',
+      'Detection is flat because it is flat at zero — a check nothing trips is not a gate, and the loop ledger`s probe ceiling is what that looks like.',
+      'The checks turn out to have been written against the seeded defects, in which case the seeds were announced by the back door and the result is void rather than null.',
+    ],
+    requires: 'A stated regime, and the same absolute condition as H9: no brief names the seeds, and '
+      + 'the check-writing turn must not see them. It also requires that the check be genuinely '
+      + 're-run at each later turn rather than summarised, since a summarised check IS a remembered '
+      + 'one and would attenuate as the model says everything else does.',
+    status: 'designed',
+    evidence: null,
+    cost: 'TWELVE TURNS on top of H9, being two six-turn chains with a check-writing turn, since the '
+      + 'control arm is H9`s own out-of-coverage defects and is already paid for. The cheapest '
+      + 'hypothesis on the site since H7, and the one with the largest consequence if it holds: a '
+      + 'gate would be the only known way to put a floor under an unattended run.',
+  },
+
+  H11: {
+    id: 'H11', name: 'specify-first against build-twice', curriculumUnit: 'IV', owner: '/wp4',
+    outcome: 'Surviving defect density of the integrated artefact under three assignments of the '
+      + 'same six turns: ungated, specify-first, and build-twice with disagreement as the detector.',
+    analysisUnit: 'the run, paired on task across the three assignments',
+    claim: 'Which verification strategy wins is decided by whether a check can be written more '
+      + 'reliably than the work can be done twice: specify-first below an unsoundness of about the '
+      + 'ungated density, build-twice above it, and the crossing moves with error correlation.',
+    test: 'Three arms over the same tasks, all six turns, differing only in what the middle four do. '
+      + 'Score the integrated artefact against a held-out check written by nobody in the run. The '
+      + 'build-twice arm also yields the error correlation directly, by how often the two versions '
+      + 'fail on the same input.',
+    predicts: [
+      ['the two versions in build-twice fail together more often than independence predicts',
+        'Knight and Leveson found this for people; one model sampled twice has less reason to differ'],
+      ['specify-first leaves defects the check certifies as passing', 'that is the term with no other source'],
+      ['specify-first`s advantage shrinks as the briefing improves',
+        'context and verification are substitutes, so raising lambda lowers the optimal coverage'],
+      ['neither beats the other everywhere', 'if one did, the theory has one strategy in it and not three'],
+    ],
+    refutedBy: [
+      'One strategy wins at every setting, which would mean the crossing this theory is built around does not exist.',
+      'The two versions in build-twice fail independently, which would contradict the only empirical anchor the strategy has and make its floor p squared after all.',
+      'Specify-first leaves no certified defects at all, in which case unsoundness is zero, checks are free, and the interesting half of the model is idle.',
+      'Density does not differ across arms by more than the run-to-run variation, in which case six turns cannot resolve this and the design is underpowered rather than the theory wrong.',
+    ],
+    requires: 'A stated regime, and a held-out scorer: the check used to score the artefact must be '
+      + 'written by somebody outside all three arms, or specify-first is graded by its own homework. '
+      + 'It also requires that the three arms be paired on task, since the run-to-run variance here '
+      + 'is the ICC of 0.413 and unpaired arms at this size would resolve nothing.',
+    status: 'designed',
+    evidence: null,
+    cost: 'EIGHTEEN TURNS PER TASK, three six-turn arms, and the pairing is what makes that '
+      + 'affordable: at the measured rho of 0.413 the paired design needs about 40% fewer tasks '
+      + 'than three independent arms would. The held-out scorer is the real expense and it is human '
+      + 'or it is worthless.',
+  },
 };
 
 export const HYPOTHESIS_IDS = Object.keys(HYPOTHESES);

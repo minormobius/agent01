@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WP4: A Theory of the Gate — ken</title>
+<meta name="description" content="A check is context that does not attenuate. What that buys, what a wrong assertion costs, where to stop specifying, and when to build the thing twice instead.">
+<link rel="stylesheet" href="journal.css">
+<style>
+  .ctl { display: flex; gap: 18px; align-items: center; flex-wrap: wrap;
+    border: 1px solid #e6e1d6; background: #fbfaf6; padding: 10px 12px; margin: 14px 0; }
+  .ctl label { font-family: var(--sans); font-size: 11px; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--ink-faint); display: flex; gap: 7px; align-items: center; }
+  .ctl input[type=range] { width: 118px; }
+  .ctl output { font-family: var(--mono, monospace); font-size: 13px; color: #1a1a1a;
+    min-width: 34px; text-align: right; }
+  .podium { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+  .podium div { border: 1px solid #e6e1d6; background: #fbfaf6; padding: 9px 11px; }
+  .podium div.win { border-color: #1d6b3a; background: #eef5f0; }
+  .podium .k { font-family: var(--sans); font-size: 9.5px; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--ink-faint); display: block; margin-bottom: 3px; }
+  .podium .v { font-size: 21px; font-family: var(--mono, monospace); }
+  .podium .n { font-size: 10.5px; color: var(--ink-faint); font-family: var(--sans); display: block; margin-top: 2px; }
+  #stop { font-family: var(--sans); font-size: 12px; border-left: 3px solid var(--accent);
+    padding: 6px 11px; margin: 10px 0; background: #fbfaf6; }
+  .nojs { font-family: var(--sans); font-size: 11px; color: #8a5a00; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="brand"><a href="/">ken</a></span>
+  <a href="/">Front matter</a>
+  <a href="/syllabus">I · Curriculum</a>
+  <a href="/methods">II · Methods</a>
+  <a href="/lab">Instrument</a>
+  <a href="/run">Procedure</a>
+  <a href="/shapes">Shapes</a>
+  <a href="/wp1">WP1</a>
+  <a href="/wp2">WP2</a>
+  <a href="/wp3">WP3</a>
+  <a class="here" href="/wp4">WP4</a>
+  <a href="/register">Register</a>
+  <a href="/log">Log</a>
+  <a href="/protocol">III · Protocol</a>
+  <span class="grow"></span>
+  <button onclick="window.print()">Save as PDF</button>
+</div>
+
+<div class="sheet">
+
+  <div class="a-venue">ken · volume 1 · working paper 4 <span class="kicker">Unit IV</span></div>
+  <h1 class="a-title">A Theory of the Gate</h1>
+  <p class="a-sub">Why a check behaves unlike everything else a turn knows, what a wrong assertion costs, and when to build the thing twice instead</p>
+  <div class="a-meta">Design stage · no runs executed · <code>ken/graph/gate.mjs</code> · 2 hypotheses · interactive</div>
+  <hr class="a-rule">
+
+  <div class="abstract">
+    <span class="lbl">Abstract</span>
+    <p><a href="/wp3">WP3</a> gave an unattended chain a floor: a share of defects nothing
+    downstream can see any more, because what a turn can see decays at λ per handoff. This paper
+    asks what a check does to that floor, and the answer rests on one property.</p>
+    <p><b>A check does not attenuate.</b> Everything else a turn knows about its ancestors arrives
+    discounted by λ<sup>k−1</sup>; an executable check arrives at full strength, because it is
+    re-run rather than remembered. Two things follow. A defect inside its coverage contributes
+    nothing to the floor at any gap. And the final turn's mistakes, which in WP3 had nobody after
+    them, now have somebody.</p>
+    <p>That would end the matter if checks were free and correct. They are neither, and the
+    premise this paper was handed says how: it is at least as hard to verify as to design. A
+    check that covers more asserts more, and the assertions added last are the ambitious ones. So
+    the gate needs an unsoundness <i>u</i> and a difficulty tail γ, and the defects a wrong
+    assertion creates are certified as passing by the very mechanism that made them.</p>
+    <p>Density is then (1−c)(1+βc)·M + u·c<sup>γ</sup>, which gives a stopping point rather than a
+    target: <b>specify up to c* = (M / γu)<sup>1/(γ−1)</sup> and no further</b>. It also gives an
+    uncomfortable corollary. M falls as λ rises, so <b>improving the briefing lowers the optimal
+    amount of specification</b>. Context and verification are substitutes.</p>
+    <p>When a sound check cannot be written, build the thing twice and treat disagreement as the
+    detector. That has a floor too, and it is not p². Knight and Leveson rejected the independence
+    assumption at the 99% level for human programmers, and one model sampled twice has less reason
+    to differ than two universities do. The crossing between the two strategies is the
+    generalizable pattern, and which side of it you are on is a measurement nobody here has
+    made.</p>
+  </div>
+
+  <h2 class="sec"><span class="secno">1</span>The shape was already in the catalogue</h2>
+
+  <p>The pattern this paper was handed runs: break the problem into two efforts, have two turns
+  build verification tools for those efforts, have two successors build to pass them, and let an
+  integrator glue the result together. That is four stages of widths 1, 2, 2, 1, which is six
+  turns, which is <code>standard</code> in <a href="/wp2">WP2</a>'s catalogue with lane
+  wiring.</p>
+
+  <p><b>Nothing about the graph is new, and that is the useful part.</b> Every number WP2 computes
+  for <code>standard</code> carries over unchanged: depth 3, peak width 2, sink ken 0.5, an
+  automorphism group of order 2. What is new is what the turns are <em>for</em>, and WP2's nine
+  roles cannot express it, because those are read off degree and degree cannot tell a
+  specification from an implementation. Under lane wiring all four middle turns are
+  <code>relay</code>s, whichever of the two duties they carry.</p>
+
+  <p>So a turn has a <b>role</b>, which its in- and out-degree force, and a <b>duty</b>, which the
+  assignment chooses. The two are orthogonal, and a run is not described until both are stated.</p>
+
+  <p>One decision does move the roles, and finding that out is the reason this table is generated
+  from <code>roles.mjs</code> rather than typed. Give the builder an edge from the setup turn, so
+  it can read the original problem beside its check, and <b>four of the six roles change</b>: the
+  specifiers become <code>delegate</code>s and the builders become <code>funnel</code>s. What
+  reads like a preference in §8 is a different graph.</p>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 1.</b> The verification-first assignment over <code>standard</code>.
+    Roles are derived; duties are chosen.</div>
+    <!-- TBL:duties:START --><table class="booktabs"><thead><tr><th>Turn</th><th>Duty</th><th>Role · lanes only</th><th>Role · builder also briefed</th><th>Makes</th></tr></thead><tbody><tr><td><code>setup</code></td><td><b>split</b></td><td><code>principal</code></td><td><code>principal</code></td><td>two briefs, one per effort</td></tr><tr><td><code>wave A · 1</code></td><td><b>specify</b></td><td><code>relay</code></td><td><code class="changed">delegate</code></td><td>an executable check for effort 1</td></tr><tr><td><code>wave A · 2</code></td><td><b>specify</b></td><td><code>relay</code></td><td><code class="changed">delegate</code></td><td>an executable check for effort 2</td></tr><tr><td><code>wave B · 1</code></td><td><b>build</b></td><td><code>relay</code></td><td><code class="changed">funnel</code></td><td>effort 1, against check 1</td></tr><tr><td><code>wave B · 2</code></td><td><b>build</b></td><td><code>relay</code></td><td><code class="changed">funnel</code></td><td>effort 2, against check 2</td></tr><tr><td><code>cleanup</code></td><td><b>integrate</b></td><td><code>integrate</code></td><td><code>integrate</code></td><td>the artefact, with both checks still running</td></tr></tbody></table><!-- TBL:duties:END -->
+  </div>
+
+  <h2 class="sec" id="noattenuate"><span class="secno">2</span>A check does not attenuate</h2>
+
+  <p>Every input a turn receives about its ancestors is discounted by λ<sup>k−1</sup>, which is
+  what produced WP3's floor. An executable check is the exception, and the reason is mechanical
+  rather than clever: <b>it is re-run, not remembered</b>. A check written at turn 2 is exactly as
+  sharp at turn 6 as it was at turn 3, because turn 6 does not recall it. Turn 6 executes it.</p>
+
+  <p>Two consequences, and the second is the one WP3's model had no way to produce.</p>
+
+  <ul>
+    <li><b>No decay.</b> A defect inside the check's coverage is detected at any gap, so it
+    contributes nothing to the floor.</li>
+    <li><b>No last turn.</b> WP3's floor is partly S(0) = 1: the final turn's mistakes have nobody
+    after them, so no chain length drives density to zero. A check has somebody after them. It
+    runs on the integrator's output too.</li>
+  </ul>
+
+  <p>Fagan <a class="cite" data-ref="fagan1976"></a> established the practice of counting defect
+  removal as a rate rather than describing it, which is the move this whole model depends on.
+  What is added here is the observation that the rate has a <em>gap</em> argument, and that for a
+  check the gap argument is constant.</p>
+
+  <p>That claim is directly testable and is <b>H10</b>. It rides on <a href="/wp3#h9">H9</a>'s
+  seeded-defect machinery with one turn added, so it costs twelve turns on top of a run already
+  budgeted. It also carries its own null: a check nothing trips is flat at zero, and the loop
+  ledger's 59 of 89 turns at the probe ceiling is what that looks like from the outside.</p>
+
+  <h2 class="sec"><span class="secno">3</span>The check can be wrong, and it certifies itself</h2>
+
+  <p>An assertion that states the wrong thing does more damage than no assertion at all. It turns
+  a would-be-correct implementation into a defect, and it marks that defect as passing.
+  <b>The failure is invisible to the mechanism that created it</b>, which is why it needs a
+  parameter of its own rather than a caveat.</p>
+
+  <p>The premise this paper was handed says what shape that parameter has. It is at least as hard
+  to verify as to design, so a check covering more asserts more, and the assertions you add last
+  are the ambitious ones you are likeliest to get wrong. Two numbers, then: <b>u</b>, the share of
+  defects a <em>complete</em> specification would itself introduce, and <b>γ</b>, how much harder
+  the last assertions are than the first. A third, <b>β</b>, covers what happens to the parts
+  nobody specified, since the pattern instructs the implementer to optimise for the check. That is
+  Goodhart's law <a class="cite" data-ref="goodhart1975"></a> arranged deliberately rather than
+  stumbled into, and Manheim and Garrabrant's taxonomy
+  <a class="cite" data-ref="manheim2018"></a> names this variety regressional.</p>
+
+  <div class="eq">D(c) = (1 − c)(1 + βc)·M + u·c<sup>γ</sup>
+    <span class="where">M is WP3's ungated density; the second term is what the gate itself put there</span></div>
+
+  <h2 class="sec" id="stopping"><span class="secno">4</span>Where to stop specifying</h2>
+
+  <p>The gate-created term is superlinear whenever γ &gt; 1, which gives an interior optimum and
+  two statements worth arguing with.</p>
+
+  <p><b>The first assertions are always worth writing.</b> At γ &gt; 1 the derivative at c = 0 is
+  −M, so a little coverage always pays. The question was never whether to check.</p>
+
+  <div class="eq">c* = ( M ⁄ γu )<sup>1/(γ−1)</sup>
+    <span class="where">where to stop, at β = 0</span></div>
+
+  <div class="fig">
+    <!-- FIG:gate-coverage:START --><svg viewBox="0 0 620 250" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Defect density against check coverage, split into what the check misses and what its own wrong assertions create. The total falls and then rises, so there is a coverage past which more specification makes the artefact worse." style="width:100%;height:auto;display:block;font-family:'Helvetica Neue', Helvetica, Arial, sans-serif"><rect width="620" height="250" fill="#ffffff"/><line x1="46.0" y1="214.0" x2="606.0" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="174.0" x2="606.0" y2="174.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="134.0" x2="606.0" y2="134.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="94.0" x2="606.0" y2="94.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="54.0" x2="606.0" y2="54.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="14.0" x2="606.0" y2="14.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="14.0" x2="46.0" y2="214.0" stroke="#4a4a4a" stroke-width="1"/><line x1="46.0" y1="214.0" x2="606.0" y2="214.0" stroke="#4a4a4a" stroke-width="1"/><line x1="46.0" y1="214.0" x2="46.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="46.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0</text><line x1="158.0" y1="214.0" x2="158.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="158.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0.2</text><line x1="270.0" y1="214.0" x2="270.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="270.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0.4</text><line x1="382.0" y1="214.0" x2="382.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="382.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0.6</text><line x1="494.0" y1="214.0" x2="494.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="494.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0.8</text><line x1="606.0" y1="214.0" x2="606.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="606.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">1.0</text><line x1="42.5" y1="214.0" x2="46.0" y2="214.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="217.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0</text><line x1="42.5" y1="174.0" x2="46.0" y2="174.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="177.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.1</text><line x1="42.5" y1="134.0" x2="46.0" y2="134.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="137.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.2</text><line x1="42.5" y1="94.0" x2="46.0" y2="94.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="97.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.3</text><line x1="42.5" y1="54.0" x2="46.0" y2="54.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="57.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.4</text><line x1="42.5" y1="14.0" x2="46.0" y2="14.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="17.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.5</text><text x="326.0" y="246.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle">coverage — share of defects the check detects</text><text x="12" y="114.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle" transform="rotate(-90 12 114.0)">defect density (units of r)</text><polyline points="46.0,22.2 57.2,25.9 68.4,29.6 79.6,33.2 90.8,36.7 102.0,40.1 113.2,43.4 124.4,46.6 135.6,49.8 146.8,52.8 158.0,55.7 169.2,58.6 180.4,61.3 191.6,63.9 202.8,66.5 214.0,68.9 225.2,71.2 236.4,73.5 247.6,75.7 258.8,77.7 270.0,79.7 281.2,81.6 292.4,83.3 303.6,85.0 314.8,86.6 326.0,88.1 337.2,89.5 348.4,90.8 359.6,92.0 370.8,93.0 382.0,94.1 393.2,95.0 404.4,95.8 415.6,96.5 426.8,97.1 438.0,97.6 449.2,98.1 460.4,98.4 471.6,98.6 482.8,98.8 494.0,98.8 505.2,98.8 516.4,98.6 527.6,98.4 538.8,98.0 550.0,97.6 561.2,97.1 572.4,96.4 583.6,95.7 594.8,94.9 606.0,94.0" fill="none" stroke="#0072B2" stroke-width="1.6"/><polyline points="46.0,22.2 57.2,26.0 68.4,29.8 79.6,33.7 90.8,37.5 102.0,41.3 113.2,45.2 124.4,49.0 135.6,52.8 146.8,56.7 158.0,60.5 169.2,64.4 180.4,68.2 191.6,72.0 202.8,75.9 214.0,79.7 225.2,83.6 236.4,87.4 247.6,91.2 258.8,95.0 270.0,98.9 281.2,102.7 292.4,106.6 303.6,110.4 314.8,114.2 326.0,118.1 337.2,121.9 348.4,125.8 359.6,129.6 370.8,133.4 382.0,137.3 393.2,141.1 404.4,144.9 415.6,148.8 426.8,152.6 438.0,156.4 449.2,160.3 460.4,164.1 471.6,168.0 482.8,171.8 494.0,175.6 505.2,179.5 516.4,183.3 527.6,187.2 538.8,191.0 550.0,194.8 561.2,198.6 572.4,202.5 583.6,206.3 594.8,210.2 606.0,214.0" fill="none" stroke="#D55E00" stroke-width="1.6"/><polyline points="46.0,214.0 57.2,214.0 68.4,213.8 79.6,213.6 90.8,213.2 102.0,212.8 113.2,212.3 124.4,211.6 135.6,210.9 146.8,210.1 158.0,209.2 169.2,208.2 180.4,207.1 191.6,205.9 202.8,204.6 214.0,203.2 225.2,201.7 236.4,200.1 247.6,198.4 258.8,196.7 270.0,194.8 281.2,192.8 292.4,190.8 303.6,188.6 314.8,186.4 326.0,184.0 337.2,181.6 348.4,179.0 359.6,176.4 370.8,173.6 382.0,170.8 393.2,167.9 404.4,164.8 415.6,161.7 426.8,158.5 438.0,155.2 449.2,151.8 460.4,148.3 471.6,144.7 482.8,141.0 494.0,137.2 505.2,133.3 516.4,129.3 527.6,125.2 538.8,121.1 550.0,116.8 561.2,112.4 572.4,108.0 583.6,103.4 594.8,98.8 606.0,94.0" fill="none" stroke="#009E73" stroke-width="1.6"/><rect x="470.0" y="21.0" width="129.0" height="45" rx="3" fill="#ffffff" fill-opacity="0.74"/><rect x="475.0" y="20.5" width="9" height="9" rx="1.5" fill="#0072B2"/><text x="488.0" y="28.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#1a1a1a" text-anchor="start">total density</text><rect x="475.0" y="33.5" width="9" height="9" rx="1.5" fill="#D55E00"/><text x="488.0" y="41.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#1a1a1a" text-anchor="start">missed by the check</text><rect x="475.0" y="46.5" width="9" height="9" rx="1.5" fill="#009E73"/><text x="488.0" y="54.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#1a1a1a" text-anchor="start">created by the check</text></svg><!-- FIG:gate-coverage:END -->
+    <div class="cap"><b>Figure 1.</b> Density against coverage, split into what the check misses
+    and what its own wrong assertions create. The total falls and then rises: past c* more
+    specification makes the artefact worse, and the second term is the reason.</div>
+  </div>
+
+  <p>The comparative statics are all interpretable, and one of them is unwelcome. A better
+  check-writer, meaning a lower u, should specify more. A steeper difficulty tail moves the
+  stopping point without moving it monotonically, because a very large γ concentrates all the
+  difficulty in the final assertion and lets you specify nearly everything. And <b>M falls as λ
+  rises</b>, which gives the result this paper would least like to be true.</p>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 2.</b> The inversion: better context flow, less specification. At
+    u = 0.3, γ = 2, g = 0.45, six turns.</div>
+    <!-- TBL:stopping:START --><table class="booktabs"><thead><tr><th class="num">λ</th><th class="num">Ungated density M</th><th class="num">Stop specifying at</th><th class="num">Density there</th><th class="num">Against no gate</th></tr></thead><tbody><tr><td class="num">0.20</td><td class="num">0.5868</td><td class="num">0.9781</td><td class="num">0.2999</td><td class="num">0.5868</td></tr><tr><td class="num">0.40</td><td class="num">0.538</td><td class="num">0.8966</td><td class="num">0.2968</td><td class="num">0.538</td></tr><tr><td class="num">0.60</td><td class="num">0.4796</td><td class="num">0.7994</td><td class="num">0.2879</td><td class="num">0.4796</td></tr><tr><td class="num">0.80</td><td class="num">0.4171</td><td class="num">0.6952</td><td class="num">0.2721</td><td class="num">0.4171</td></tr><tr><td class="num">0.95</td><td class="num">0.3732</td><td class="num">0.6221</td><td class="num">0.2572</td><td class="num">0.3732</td></tr></tbody></table><!-- TBL:stopping:END -->
+  </div>
+
+  <p><b>Improving the briefing reduces the optimal amount of specification.</b> Context and
+  verification are substitutes rather than complements: fix the handoff and some of your tests
+  stop paying for themselves, because the chain would have caught those defects anyway. WP3's
+  conclusion was that wiring is the first lever; this is the bill for that, and it says a
+  programme that improves λ should expect to write fewer checks, not more.</p>
+
+  <p>The bare version of the comparison is worth stating on its own, because it is the premise
+  turned into an inequality. D(1) = u and D(0) = M, so <b>specifying everything beats specifying
+  nothing exactly when u &lt; M</b>: you have to be likelier to get an assertion right than the
+  chain is to leave the defect anyway.</p>
+
+  <h2 class="sec" id="buildtwice"><span class="secno">5</span>When a sound check cannot be written</h2>
+
+  <p>Build the thing twice, independently, and treat disagreement as the detector. This spends a
+  whole second implementation rather than one specification turn, and it asks nothing of anyone's
+  ability to state what correct means in advance.</p>
+
+  <p><b>Its floor is not p².</b> Knight and Leveson <a class="cite" data-ref="knight1986"></a> had
+  twenty-seven versions written independently from one specification and rejected the assumption
+  of independent failure at the 99% level. Eckhardt and Lee
+  <a class="cite" data-ref="eckhardt1985"></a> give the model that replaces it: inputs vary in
+  difficulty, versions fail independently given the difficulty, and therefore fail together on the
+  hard ones. Correlation enters as the variance of that difficulty, and
+  <code>agreementFloor()</code> implements that model rather than the independence one, because
+  the independence one is known to be false.</p>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 3.</b> Surviving density under independent attempts, at a
+    per-version density of 0.4796. At ρ = 1 two versions buy nothing at all.</div>
+    <!-- TBL:agreement:START --><table class="booktabs"><thead><tr><th class="num">ρ</th><th class="num">Two versions</th><th class="num">Three versions</th><th class="num">One version</th></tr></thead><tbody><tr><td class="num">0.00</td><td class="num">0.23</td><td class="num">0.1103</td><td class="num">0.4796</td></tr><tr><td class="num">0.15</td><td class="num">0.2675</td><td class="num">0.1646</td><td class="num">0.4796</td></tr><tr><td class="num">0.30</td><td class="num">0.3049</td><td class="num">0.2195</td><td class="num">0.4796</td></tr><tr><td class="num">0.50</td><td class="num">0.3548</td><td class="num">0.2933</td><td class="num">0.4796</td></tr><tr><td class="num">0.80</td><td class="num">0.4297</td><td class="num">0.4048</td><td class="num">0.4796</td></tr><tr><td class="num">1.00</td><td class="num">0.4796</td><td class="num">0.4796</td><td class="num">0.4796</td></tr></tbody></table><!-- TBL:agreement:END -->
+  </div>
+
+  <p>That result was obtained from people at different universities working from a written
+  specification. <b>One model sampled twice has less reason to differ than they did</b>, so ρ here
+  should be expected to sit high rather than low, and treating agreement as confirmation is the
+  error this table exists to price.</p>
+
+  <h2 class="sec" id="crossing"><span class="secno">6</span>The pattern, generalized</h2>
+
+  <p>Putting the three on one scale answers the question this paper was asked. Each independent
+  attempt carries the density an unattended effort carries, so what survives build-twice is the
+  share both get wrong together, and the three rows become comparable.</p>
+
+  <div class="fig">
+    <!-- FIG:gate-crossing:START --><svg viewBox="0 0 620 250" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Defect density for the three strategies against error correlation. Specify-first is flat in correlation; build-twice rises with it and meets the ungated line at one, where two correlated attempts buy nothing at all." style="width:100%;height:auto;display:block;font-family:'Helvetica Neue', Helvetica, Arial, sans-serif"><rect width="620" height="250" fill="#ffffff"/><line x1="46.0" y1="214.0" x2="606.0" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="180.7" x2="606.0" y2="180.7" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="147.3" x2="606.0" y2="147.3" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="114.0" x2="606.0" y2="114.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="80.7" x2="606.0" y2="80.7" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="47.3" x2="606.0" y2="47.3" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="14.0" x2="606.0" y2="14.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="14.0" x2="46.0" y2="214.0" stroke="#4a4a4a" stroke-width="1"/><line x1="46.0" y1="214.0" x2="606.0" y2="214.0" stroke="#4a4a4a" stroke-width="1"/><line x1="46.0" y1="214.0" x2="46.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="46.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0</text><line x1="158.0" y1="214.0" x2="158.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="158.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0.2</text><line x1="270.0" y1="214.0" x2="270.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="270.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0.4</text><line x1="382.0" y1="214.0" x2="382.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="382.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0.6</text><line x1="494.0" y1="214.0" x2="494.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="494.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0.8</text><line x1="606.0" y1="214.0" x2="606.0" y2="217.5" stroke="#4a4a4a" stroke-width="1"/><text x="606.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">1.0</text><line x1="42.5" y1="214.0" x2="46.0" y2="214.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="217.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.20</text><line x1="42.5" y1="180.7" x2="46.0" y2="180.7" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="183.7" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.25</text><line x1="42.5" y1="147.3" x2="46.0" y2="147.3" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="150.3" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.30</text><line x1="42.5" y1="114.0" x2="46.0" y2="114.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="117.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.35</text><line x1="42.5" y1="80.7" x2="46.0" y2="80.7" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="83.7" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.40</text><line x1="42.5" y1="47.3" x2="46.0" y2="47.3" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="50.3" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.45</text><line x1="42.5" y1="14.0" x2="46.0" y2="14.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="17.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">0.50</text><text x="326.0" y="246.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle">ρ — how much two independent attempts fail together</text><text x="12" y="114.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle" transform="rotate(-90 12 114.0)">defect density (units of r)</text><polyline points="46.0,147.5 74.0,147.5 102.0,147.5 130.0,147.5 158.0,147.5 186.0,147.5 214.0,147.5 242.0,147.5 270.0,147.5 298.0,147.5 326.0,147.5 354.0,147.5 382.0,147.5 410.0,147.5 438.0,147.5 466.0,147.5 494.0,147.5 522.0,147.5 550.0,147.5" fill="none" stroke="#0072B2" stroke-width="1.6"/><polyline points="46.0,194.0 74.0,185.7 102.0,177.3 130.0,169.0 158.0,160.7 186.0,152.4 214.0,144.1 242.0,135.7 270.0,127.4 298.0,119.1 326.0,110.8 354.0,102.5 382.0,94.1 410.0,85.8 438.0,77.5 466.0,69.2 494.0,60.9 522.0,52.5 550.0,44.2" fill="none" stroke="#D55E00" stroke-width="1.6"/><polyline points="46.0,27.6 74.0,27.6 102.0,27.6 130.0,27.6 158.0,27.6 186.0,27.6 214.0,27.6 242.0,27.6 270.0,27.6 298.0,27.6 326.0,27.6 354.0,27.6 382.0,27.6 410.0,27.6 438.0,27.6 466.0,27.6 494.0,27.6 522.0,27.6 550.0,27.6" fill="none" stroke="#009E73" stroke-width="1.6"/><rect x="507.1" y="162.0" width="91.9" height="45" rx="3" fill="#ffffff" fill-opacity="0.74"/><rect x="512.1" y="161.5" width="9" height="9" rx="1.5" fill="#0072B2"/><text x="525.1" y="169.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#1a1a1a" text-anchor="start">specify-first</text><rect x="512.1" y="174.5" width="9" height="9" rx="1.5" fill="#D55E00"/><text x="525.1" y="182.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#1a1a1a" text-anchor="start">build-twice</text><rect x="512.1" y="187.5" width="9" height="9" rx="1.5" fill="#009E73"/><text x="525.1" y="195.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#1a1a1a" text-anchor="start">ungated</text></svg><!-- FIG:gate-crossing:END -->
+    <div class="cap"><b>Figure 2.</b> The three strategies against error correlation, at u = 0.3,
+    γ = 2, c = 0.6. Specify-first does not depend on ρ; build-twice rises with it and meets the
+    ungated line at ρ = 1.</div>
+  </div>
+
+  <p>So the generalizable pattern is not the six-turn shape. <b>It is a choice between three
+  strategies, decided by whether you can write a sound check more reliably than you can do the
+  work twice.</b></p>
+
+  <ul>
+    <li><b>Ungated.</b> Every turn builds. Correct when the work is cheap relative to any check
+    worth writing and the defects are ones a later turn can still see.</li>
+    <li><b>Specify-first.</b> One turn writes an executable check, which then runs at every later
+    turn and on the integrator. Correct when u sits below M, which is to say when you can state
+    what correct means more reliably than the chain can stumble into it.</li>
+    <li><b>Build-twice.</b> Two independent attempts; disagreement is the detector. Correct when
+    stating correctness in advance is the hard part, and only while ρ stays low enough that the
+    two attempts fail differently.</li>
+  </ul>
+
+  <p>The quantity that decides between the first two deserves a name, and it is the one this
+  theory most needs and least has: the <b>verification discount</b>, the cost of checking an
+  answer over the cost of producing one. When it is well under 1, spend width on definitions. When
+  it approaches 1, a check that costs as much as the work has no advantage over a second attempt,
+  and the honest move is the one the premise implies.</p>
+
+  <h2 class="sec" id="calculator"><span class="secno">7</span>Calculator</h2>
+
+  <p>The page runs <code>graph/gate.mjs</code> directly, so this widget and the gate that tests it
+  cannot disagree.</p>
+
+  <div class="ctl">
+    <label>λ context per hop
+      <input id="lam" type="range" min="0.05" max="0.95" step="0.05" value="0.6">
+      <output id="lamv">0.60</output></label>
+    <label>g catch rate
+      <input id="g" type="range" min="0.05" max="0.95" step="0.05" value="0.45">
+      <output id="gv">0.45</output></label>
+    <label>c coverage
+      <input id="c" type="range" min="0" max="1" step="0.05" value="0.6">
+      <output id="cv">0.60</output></label>
+    <label>u unsoundness at full coverage
+      <input id="u" type="range" min="0.02" max="0.9" step="0.02" value="0.3">
+      <output id="uv">0.30</output></label>
+    <label>γ difficulty tail
+      <input id="t" type="range" min="1" max="5" step="0.25" value="2">
+      <output id="tv">2.00</output></label>
+    <label>ρ error correlation
+      <input id="r" type="range" min="0" max="1" step="0.05" value="0.3">
+      <output id="rv">0.30</output></label>
+  </div>
+
+  <div class="podium" id="podium"></div>
+  <div id="stop"></div>
+  <p class="nojs" id="nojs">This section needs JavaScript. Tables 2 and 3 carry the same arithmetic
+  without it.</p>
+
+  <h2 class="sec"><span class="secno">8</span>Decisions the profile leaves open</h2>
+
+  <p>Fixing the shape and the duties still does not fix the run. Three wiring decisions remain, and
+  the first version of this pattern left all three implicit, which would have made two runs of it
+  incomparable.</p>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 4.</b> Decisions the profile does not settle, each of which changes
+    what the run measures.</div>
+    <!-- TBL:open-questions:START --><table class="booktabs"><thead><tr><th>The profile does not settle</th><th>Which changes what the run measures</th></tr></thead><tbody><tr><td><b>does the builder see the problem statement, or only the check</b></td><td>ONLY THE CHECK is maximum independence and makes coverage the whole specification. BOTH lets the builder notice an unsound assertion, and changes four of the six derived roles: the specifiers become delegates and the builders become funnels</td></tr><tr><td><b>does the builder run the check, or only the integrator</b></td><td>the builder running it is a tighter loop and also self-certification against a possibly-wrong check, which is the unsoundness term with the blindfold on</td></tr><tr><td><b>do the two lanes see each other`s checks</b></td><td>lane wiring says no, which preserves the pairing WP2 prices at a 40% saving but forgoes the cross-check that would measure unsoundness for free</td></tr></tbody></table><!-- TBL:open-questions:END -->
+  </div>
+
+  <p>The first is structural rather than stylistic, as §1 noted: it changes four of the six
+  derived roles, so two runs differing only in that answer are not two runs of one design.</p>
+
+  <p>The second is the sharpest for what gets measured. A builder that runs its own check has a
+  tight loop and is also certifying itself against a possibly-wrong check, which is the u term
+  with the blindfold on. A held-out scorer is the only construction that measures u at all, and
+  <b>H11</b> requires one.</p>
+
+  <h2 class="sec"><span class="secno">9</span>Three numbers, none of them measured</h2>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 5.</b> What the theory turns on and what stands behind each.</div>
+    <!-- TBL:choice:START --><table class="booktabs"><thead><tr><th></th><th>What it is</th><th>What it decides</th><th>What stands behind it</th></tr></thead><tbody><tr><td><b>v</b><br><span class="muted">verification discount</span></td><td>cost to check an answer over cost to produce one</td><td>v well under 1 favours specify-first; v near 1 favours build-twice, because a check that costs as much as the work has no advantage over a second attempt</td><td>nothing. It is the quantity this theory most needs and the one nobody here has measured</td></tr><tr><td><b>u</b><br><span class="muted">unsoundness at full coverage</span></td><td>the share of defects a COMPLETE specification would itself introduce by asserting the wrong thing</td><td>where to stop specifying, against the ungated density the chain would have left anyway</td><td>nothing, though it is measurable the same way as g: write checks against a seeded artefact and count wrong assertions</td></tr><tr><td><b>rho</b><br><span class="muted">error correlation</span></td><td>how much two independent attempts fail on the same inputs</td><td>the floor under build-twice, which is p at rho = 1 and p^2 at rho = 0</td><td>nothing here, but the assumption of independence was rejected for human programmers and there is no reason to expect better from one model sampled twice</td></tr></tbody></table><!-- TBL:choice:END -->
+  </div>
+
+  <p>H10 measures the first claim, that a check does not attenuate, for twelve turns on top of
+  H9. H11 puts the three strategies against each other over the same tasks, paired, at eighteen
+  turns per task, and yields ρ as a by-product of running the build-twice arm at all. Both are in
+  <a href="/register">the register</a>, and neither can start before H8 gives λ, since M is a
+  function of it.</p>
+
+  <h2 class="sec"><span class="secno">10</span>Limits</h2>
+
+  <ul>
+    <li>No runs. Every number here is arithmetic over parameters that are assumed, and two of them
+    have no instrument even in design.</li>
+    <li>Coverage folds together what a check examines and how reliably it detects a defect there.
+    Splitting them would add a parameter and change nothing in the comparative statics, which is
+    the argument for folding them, not a proof that folding them is right.</li>
+    <li>A defect inside coverage is treated as caught with certainty. Flaky and partial checks
+    exist, and they enter here as lower coverage rather than as their own failure mode.</li>
+    <li>The unsoundness term assumes a wrong assertion always produces a surviving defect. In
+    practice some wrong assertions are so wrong that the builder notices, which this model has no
+    way to represent and which would make specify-first look better than it does here.</li>
+    <li>β is carried through the algebra and set to zero in every figure, because no measurement
+    would distinguish it from u at present. Its effect is to move c* down, so the stopping points
+    in Table 2 are upper bounds.</li>
+    <li>The Eckhardt–Lee model gives correlated failure a single parameter. Real correlation
+    varies by input and by failure kind, and a single ρ will average over that.</li>
+  </ul>
+
+  <div class="refs"><h2 class="sec"><span class="secno">§</span>References</h2><ol id="reflist"></ol></div>
+
+</div>
+
+<script src="refs.js"></script>
+<script src="cite.js"></script>
+<script type="module">
+import { strategies, stoppingPoint, specifyFirst, ungated } from '/graph/gate.mjs';
+
+document.getElementById('nojs').style.display = 'none';
+const el = (id) => document.getElementById(id);
+const ins = { lam: el('lam'), g: el('g'), c: el('c'), u: el('u'), t: el('t'), r: el('r') };
+
+const NOTE = {
+  'ungated': 'every turn builds',
+  'specify-first': 'one turn writes the check',
+  'build-twice': 'two attempts, disagreement detects',
+};
+
+function recompute() {
+  const lambda = +ins.lam.value, g = +ins.g.value, coverage = +ins.c.value;
+  const unsoundness = +ins.u.value, tail = +ins.t.value, correlation = +ins.r.value;
+  el('lamv').textContent = lambda.toFixed(2);
+  el('gv').textContent = g.toFixed(2);
+  el('cv').textContent = coverage.toFixed(2);
+  el('uv').textContent = unsoundness.toFixed(2);
+  el('tv').textContent = tail.toFixed(2);
+  el('rv').textContent = correlation.toFixed(2);
+
+  const st = strategies({ lambda, g, coverage, unsoundness, tail, correlation });
+  el('podium').innerHTML = st.rows.map((row, i) => `<div class="${i === 0 ? 'win' : ''}">
+    <span class="k">${row.name}${i === 0 ? ' · best here' : ''}</span>
+    <span class="v">${row.density}</span>
+    <span class="n">${NOTE[row.name]} · ${row.overhead} turn${row.overhead === 1 ? '' : 's'} of overhead</span></div>`).join('');
+
+  const sp = stoppingPoint({ lambda, g, unsoundness, tail });
+  const here = specifyFirst({ lambda, g, coverage, unsoundness, tail });
+  const M = ungated({ lambda, g });
+  const verdict = unsoundness < M
+    ? `u = ${unsoundness.toFixed(2)} is under the ungated density M = ${M}, so a complete specification would beat none.`
+    : `u = ${unsoundness.toFixed(2)} is above the ungated density M = ${M}, so a complete specification would be worse than none.`;
+  el('stop').innerHTML = `<b>Stop specifying at c = ${sp.coverage}</b>`
+    + `${sp.interior ? '' : ` (a corner: ${sp.reason})`}. `
+    + `At the coverage set above, ${Math.round(here.selfInflicted * 100)}% of what survives was put there by the check itself. `
+    + verdict;
+}
+
+for (const i of Object.values(ins)) i.addEventListener('input', recompute);
+recompute();
+</script>
+</body>
+</html>

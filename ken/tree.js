@@ -85,6 +85,10 @@
       needs: ['u7'] },
 
     // row 7 — the gate
+    { id: 'wp4', row: 7, col: 'right', state: 'active', href: '/wp4',
+      lines: ['WP4 · a theory of the gate'], sub: 'a check does not attenuate; three strategies, one crossing',
+      needs: ['wp2'] },
+
     { id: 'reg', row: 8, col: 'mid', state: 'blocked', wide: true, href: '/protocol',
       lines: ['Registration · all six blanks closed'], sub: 'the protocol becomes registrable',
       needs: ['b12', 'b45', 'b3', 'b6'] },

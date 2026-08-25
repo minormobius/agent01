@@ -46,6 +46,8 @@ jobs:
         run: node lab/probe.selftest.mjs
       - name: The exchange rate, the floor, and the seeded-defect price of H9 (81 checks)
         run: node lab/equivalence.selftest.mjs
+      - name: "The gate: coverage, unsoundness, and the agreement floor (72 checks)"
+        run: node lab/gate.selftest.mjs
       - name: Selftest (citations, prose lint, tables, roadmap graph, quoted figures)
         run: node ken.selftest.mjs
       - name: Install wrangler
