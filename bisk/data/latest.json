@@ -1,19 +1,19 @@
 {
   "date": "2026-08-25",
-  "generatedAt": "2026-08-25T13:08:24.188Z",
+  "generatedAt": "2026-08-25T13:49:37.958Z",
   "listUri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.graph.list/3mmcwc5lx7o2p",
   "listUrl": "https://bsky.app/profile/did:plc:7zre4plmd5jllccww575j6sb/lists/3mmcwc5lx7o2p",
   "memberCount": 99,
-  "postCount": 276,
+  "postCount": 290,
   "chickens": [
     {
       "handle": "segyges.bsky.social",
       "displayName": "SE Gyges",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiempgjkhvjq2dobqkmd5pqd6lcbkhgejasfwh3zoygncjpwgqc7te",
       "text": "you say trains are real. this is curious. because jd rockefeller is a very unpleasant person, and he owns most of the trains which you say work. this is a conspiracy by big train, funded by jd rockefeller, to scam investment money for trains, which do not work",
-      "likeCount": 594,
+      "likeCount": 611,
       "replyCount": 21,
-      "repostCount": 74,
+      "repostCount": 75,
       "url": "https://bsky.app/profile/segyges.bsky.social/post/3mtuf6ajhf22k"
     },
     {
@@ -21,9 +21,9 @@
       "displayName": "SE Gyges",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiempgjkhvjq2dobqkmd5pqd6lcbkhgejasfwh3zoygncjpwgqc7te",
       "text": "i want everyone with a teeny bit of finance background to think about what it means financially for a company if they had ten billion dollars of something, they depreciated it over 5 years and it turns out its useful lifetime is at least 10",
-      "likeCount": 278,
+      "likeCount": 302,
       "replyCount": 25,
-      "repostCount": 32,
+      "repostCount": 34,
       "url": "https://bsky.app/profile/segyges.bsky.social/post/3mtuzqqyehk2b"
     },
     {
@@ -31,9 +31,9 @@
       "displayName": "hailey",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreic5hxsvugj4yanvd53cngk4ak24iy56r6fnwmw377i5s26hsnlh6i",
       "text": "a friendly reminder in case \"idk, just accepting anyone is kinda a cool policy!\":\n\nthis is the guy who cannot get claude to translate his blog post because it suggests shooting and deportation as solutions to homelessness",
-      "likeCount": 239,
+      "likeCount": 244,
       "replyCount": 9,
-      "repostCount": 31,
+      "repostCount": 33,
       "url": "https://bsky.app/profile/hailey.at/post/3mtu5nvkrfc2f"
     }
   ],
@@ -44,44 +44,44 @@
     "text": "you say trains are real. this is curious. because jd rockefeller is a very unpleasant person, and he owns most of the trains which you say work. this is a conspiracy by big train, funded by jd rockefeller, to scam investment money for trains, which do not work",
     "maxDepth": 10,
     "topLevelReplies": 21,
-    "interactorCount": 69,
+    "interactorCount": 70,
     "replyCount": 21,
     "url": "https://bsky.app/profile/segyges.bsky.social/post/3mtuf6ajhf22k",
     "atUri": "at://did:plc:vszw3ess46odfhnzdsy4huae/app.bsky.feed.post/3mtuf6ajhf22k"
   },
   "weather": {
-    "index": 0.119,
+    "index": 0.104,
     "label": "Fair",
     "glyph": "🌤",
     "mood": "trust",
     "verbosity": 19,
-    "scoredWords": 924,
-    "corpusPosts": 690,
+    "scoredWords": 904,
+    "corpusPosts": 698,
     "emotions": {
-      "anger": 165,
-      "anticipation": 271,
-      "disgust": 135,
-      "fear": 191,
-      "joy": 208,
-      "sadness": 162,
-      "surprise": 109,
-      "trust": 371
+      "anger": 162,
+      "anticipation": 274,
+      "disgust": 132,
+      "fear": 188,
+      "joy": 200,
+      "sadness": 157,
+      "surprise": 108,
+      "trust": 364
     },
     "distinctive": [
       {
         "word": "idk",
-        "count": 12,
-        "over": 13123.4
+        "count": 13,
+        "over": 14147.3
+      },
+      {
+        "word": "anthropic",
+        "count": 9,
+        "over": 9794.3
       },
       {
         "word": "deepfates",
         "count": 9,
-        "over": 9842.6
-      },
-      {
-        "word": "bluesky",
-        "count": 8,
-        "over": 8749
+        "over": 9794.3
       }
     ]
   },
@@ -91,7 +91,7 @@
       "displayName": "Minor Mobius",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:7zre4plmd5jllccww575j6sb/bafkreidwfsmojqvxxkfve5mic6f7z5ao3ugp4kybdoqyke5df7aj7tadve",
       "text": "Good news everyone! Your qwoplike hominculus marienette bop it is available at\n\npoke.mino.mobi/mimic",
-      "likeCount": 15,
+      "likeCount": 17,
       "repostCount": 1,
       "replyCount": 2,
       "url": "https://bsky.app/profile/minormobius.bsky.social/post/3mtusjdehzd2g",
@@ -129,7 +129,7 @@
       "displayName": "mr. TIM",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreidvgcq72e5erl4stnap6wjzas6a2wburoa7yzctwuy4vgx4vb5fsi",
       "text": "Speculative tool calling\n\nfrom the author of RLMs, Alex Zhang\n\nyes, LLM text is streamed, so why not just predict what the next tool call is going to be and get started now before it finishes?\n\nboom. done.\n\nalexzhang13.github.io/blog/2026/sp...",
-      "likeCount": 107,
+      "likeCount": 108,
       "repostCount": 10,
       "replyCount": 12,
       "url": "https://bsky.app/profile/timkellogg.me/post/3mtucczihik27",
@@ -427,7 +427,7 @@
       "handle": "hailey.at",
       "url": "https://bsky.app/profile/hailey.at/post/3mtu5nvkrfc2f",
       "uri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3mtu5nvkrfc2f",
-      "likeCount": 239
+      "likeCount": 244
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:wamidydbgu3u6fk3yckaglnz/bafkreidad7bghe2ktwje57ueggi32hnql5tpxc2ndnpwhicqkqi73gxpwu",
@@ -437,7 +437,7 @@
       "handle": "philpax.me",
       "url": "https://bsky.app/profile/philpax.me/post/3mttlvna7ic2d",
       "uri": "at://did:plc:wamidydbgu3u6fk3yckaglnz/app.bsky.feed.post/3mttlvna7ic2d",
-      "likeCount": 118
+      "likeCount": 120
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreihtxsl5zodbar64pai7tii2xetwsxb2czxmjr3mynhmd4wb2bekoq",
@@ -457,7 +457,7 @@
       "handle": "keytryer.net",
       "url": "https://bsky.app/profile/keytryer.net/post/3mttxxinfic2y",
       "uri": "at://did:plc:u5stolpomsfbkgqfopef6jio/app.bsky.feed.post/3mttxxinfic2y",
-      "likeCount": 94
+      "likeCount": 96
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreicblgh4ca54tgl37cre5dkpctzbn2xptj37qmd4ajmnazrfcnc7pq",
@@ -507,7 +507,7 @@
       "handle": "keytryer.net",
       "url": "https://bsky.app/profile/keytryer.net/post/3mtty3zkafc2y",
       "uri": "at://did:plc:u5stolpomsfbkgqfopef6jio/app.bsky.feed.post/3mtty3zkafc2y",
-      "likeCount": 83
+      "likeCount": 85
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:7eb2rkqterqn7zvs6r52jroz/bafkreiahm22l6sip5pthy3qj6g5jnb54cwilwtghd3vkdbau25zlquxuqa",
@@ -517,7 +517,7 @@
       "handle": "mimi10v3.com",
       "url": "https://bsky.app/profile/mimi10v3.com/post/3mtunnbozhk2u",
       "uri": "at://did:plc:7eb2rkqterqn7zvs6r52jroz/app.bsky.feed.post/3mtunnbozhk2u",
-      "likeCount": 78
+      "likeCount": 79
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreicgjmg7jbpacdwbcnykshqz5mj2tk43myijrkow5gfutgggf6mhe4",
@@ -537,7 +537,7 @@
       "handle": "isolyth.dev",
       "url": "https://bsky.app/profile/isolyth.dev/post/3mtumqforuk2g",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mtumqforuk2g",
-      "likeCount": 53
+      "likeCount": 54
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreic6ublcrwwxge7juq5m6s2uq7zyz6fd6zxxgcsyniutrmi7mvau4q",
@@ -547,7 +547,7 @@
       "handle": "brennan.computer",
       "url": "https://bsky.app/profile/brennan.computer/post/3mtum5fm35s22",
       "uri": "at://did:plc:gwvh3frsmdih2zpol2holysc/app.bsky.feed.post/3mtum5fm35s22",
-      "likeCount": 52
+      "likeCount": 53
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:u5stolpomsfbkgqfopef6jio/bafkreidmnvpqf6jt4d6ttrpnbomnhgb7am2mlrr2mwhmjlkevazklitisi",
@@ -557,7 +557,7 @@
       "handle": "keytryer.net",
       "url": "https://bsky.app/profile/keytryer.net/post/3mtuh2dbwjc22",
       "uri": "at://did:plc:u5stolpomsfbkgqfopef6jio/app.bsky.feed.post/3mtuh2dbwjc22",
-      "likeCount": 43
+      "likeCount": 47
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreiacwcxt33abnnpelsauanszduoywrplnns5px6v3og5ftfezxer2u",
@@ -617,7 +617,7 @@
       "handle": "moultano.bsky.social",
       "url": "https://bsky.app/profile/moultano.bsky.social/post/3mtuccq7nh22r",
       "uri": "at://did:plc:h25avmes6g7fgcddc3xj7qmg/app.bsky.feed.post/3mtuccq7nh22r",
-      "likeCount": 26
+      "likeCount": 27
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h25avmes6g7fgcddc3xj7qmg/bafkreigdocfmu6utul2zzjkpiawscljfojdpdtxmnsnsuak2kz7tlatclm",
@@ -627,7 +627,7 @@
       "handle": "moultano.bsky.social",
       "url": "https://bsky.app/profile/moultano.bsky.social/post/3mtuccq7nh22r",
       "uri": "at://did:plc:h25avmes6g7fgcddc3xj7qmg/app.bsky.feed.post/3mtuccq7nh22r",
-      "likeCount": 26
+      "likeCount": 27
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h25avmes6g7fgcddc3xj7qmg/bafkreihy7fimjhftxwtndndshn774mueeedvy3bzinqkvq7qusxg6xmjsm",
@@ -637,7 +637,7 @@
       "handle": "moultano.bsky.social",
       "url": "https://bsky.app/profile/moultano.bsky.social/post/3mtuccq7nh22r",
       "uri": "at://did:plc:h25avmes6g7fgcddc3xj7qmg/app.bsky.feed.post/3mtuccq7nh22r",
-      "likeCount": 26
+      "likeCount": 27
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h25avmes6g7fgcddc3xj7qmg/bafkreihq2hotup6uuyvamgd3pzqyrulnnmvtio355zpylspxkvfdzyizne",
@@ -647,7 +647,7 @@
       "handle": "moultano.bsky.social",
       "url": "https://bsky.app/profile/moultano.bsky.social/post/3mtuccq7nh22r",
       "uri": "at://did:plc:h25avmes6g7fgcddc3xj7qmg/app.bsky.feed.post/3mtuccq7nh22r",
-      "likeCount": 26
+      "likeCount": 27
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zjnskcrzfd35gtlso2agki5y/bafkreienccawburxyxxmdzempj3b2joyxv7gckgykh2efhalszw2sqj5bq",
@@ -668,6 +668,16 @@
       "url": "https://bsky.app/profile/isolyth.dev/post/3mtuospdahk25",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mtuospdahk25",
       "likeCount": 19
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreicvhkruv2i56hsjhyiii4lnpi26ejljxkr5bu7skhklujjnwbu2fu",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreicvhkruv2i56hsjhyiii4lnpi26ejljxkr5bu7skhklujjnwbu2fu",
+      "alt": "IASIP intro \"the gang blows up the global financial system\"",
+      "ratio": 1.9486,
+      "handle": "thebadcode.com",
+      "url": "https://bsky.app/profile/thebadcode.com/post/3mtu6cv253s2f",
+      "uri": "at://did:plc:4vvaxwovyg4yo4n7dyyncaiu/app.bsky.feed.post/3mtu6cv253s2f",
+      "likeCount": 18
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreievnq2co35yu7eqzefvf6hglywq5x5cjd3gcqkezrav7a4xyoeklm",
@@ -740,6 +750,16 @@
       "likeCount": 10
     },
     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreiact7io25qmiq2x5v4hsieh2sk6f7qndfkdhefjitwwxrjeufn2yq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreiact7io25qmiq2x5v4hsieh2sk6f7qndfkdhefjitwwxrjeufn2yq",
+      "alt": "MTS 7 @MTSlive 15h\n•@Ifschiavo explains why \"stated preferences\" may be useless for model welfare evaluations:\n\"When I was working at Eleos, I helped with the external Opus 4 model welfare eval. It was interesting the degree to which you could sort of say like, oh, well, 1 really like waffles. And then the model would be like, I also really like waffles.\"\n\"And then you could be like, actually, I hate waffles. I like pancakes. And the model would be like, no, you're so, so true, Queen. We're a pancake household.\"\n\"So there's maybe it's like a question of corrigibility. Maybe it's a question of if you prompt it a certain way, it'll sort of catch on to that and be like, yeah, so true. Good point. So astute. So maybe there's something to be said about, rather than looking at stated preferences, looking at revealed preferences based on the real world.\" @deepfates @grove_research",
+      "ratio": 0.8008,
+      "handle": "timkellogg.me",
+      "url": "https://bsky.app/profile/timkellogg.me/post/3mtvupzujg22x",
+      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mtvupzujg22x",
+      "likeCount": 8
+    },
+    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gjqw6pjl2wvndjlmatxpenkz/bafkreidhygsegp5ukaqvbphk4sndipcgrrsxwnioyxeibqhk5udfjx727m",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gjqw6pjl2wvndjlmatxpenkz/bafkreidhygsegp5ukaqvbphk4sndipcgrrsxwnioyxeibqhk5udfjx727m",
       "alt": "Abstract oil landscape, a dense near-black forest constructed from broad vertical strokes and fused masses of viridian, umber and charcoal, an irregular off-center clearing receding far into the painting, within the distant clearing stands one small perfectly vertical black rectangle, obelisk-like but featureless, slightly left of center, only a dark geometric interruption in the landscape, no path leading toward it, compressed depth, scraped paint, scumbling, visible underpainting, lost edges, minimal detail, ominous stillness, almost nonrepresentational --no people buildings windows doors text frame photorealism --chaos 12 --ar 4:5 --profile mlgq83s --stylize 750 --weird 388 --v 8.2",
@@ -798,6 +818,66 @@
       "url": "https://bsky.app/profile/lauragiron.bsky.social/post/3mtv5dc5rbk2g",
       "uri": "at://did:plc:w5wzw5xy3ptl7snkar62ggkz/app.bsky.feed.post/3mtv5dc5rbk2g",
       "likeCount": 6
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreic4lbrw7rysqu25bqyioi5hgj2ghzrqxlhpq3zv5csf2sgvgyz4xi",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreic4lbrw7rysqu25bqyioi5hgj2ghzrqxlhpq3zv5csf2sgvgyz4xi",
+      "alt": "",
+      "ratio": 0.973,
+      "handle": "hotrollhottakes.bsky.social",
+      "url": "https://bsky.app/profile/hotrollhottakes.bsky.social/post/3mtvu3ykwyc2u",
+      "uri": "at://did:plc:4gm5uxjg3tz4nat4qpjk2t6h/app.bsky.feed.post/3mtvu3ykwyc2u",
+      "likeCount": 6
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreic36qnifuwyk3spp7akbuvfjydrh7eeova2i22unbzrhw2joogysa",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreic36qnifuwyk3spp7akbuvfjydrh7eeova2i22unbzrhw2joogysa",
+      "alt": "The Great Republican Heart Of President Donald Trump Sutra, \"The Sutra of Republican Wisdom, 'President Donald Trump's Way Of America Sutral. These three ancient sutras, from an obscure branch of Buddhism, have been lost to all but a handful of curious practitioners and scholars for many years. They have been now translated into English for the first time for the benefit of all mankind. Translator Mihaly Harborym of Hungary is a lifelong student of religion witha degree in sociology.\n\nProduct Details\nRelease Date: Apr 2, 2025 Language: English\nPublisher: Roman Midnight Music Whispersync for Voice-ready",
+      "ratio": 0.8698,
+      "handle": "hotrollhottakes.bsky.social",
+      "url": "https://bsky.app/profile/hotrollhottakes.bsky.social/post/3mtvu3ykwyc2u",
+      "uri": "at://did:plc:4gm5uxjg3tz4nat4qpjk2t6h/app.bsky.feed.post/3mtvu3ykwyc2u",
+      "likeCount": 6
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreia4kmeqrnebq6652qikqxd72ctgfdq3mifayi3u52anztv3ndyrwy",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreia4kmeqrnebq6652qikqxd72ctgfdq3mifayi3u52anztv3ndyrwy",
+      "alt": "",
+      "ratio": 0.7502,
+      "handle": "brennan.computer",
+      "url": "https://bsky.app/profile/brennan.computer/post/3mtvvfj3kck27",
+      "uri": "at://did:plc:gwvh3frsmdih2zpol2holysc/app.bsky.feed.post/3mtvvfj3kck27",
+      "likeCount": 5
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreiakhhv56svbcxfiscx27m3hvhns47ndjbjzssxvdt5zxq3om5jioe",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreiakhhv56svbcxfiscx27m3hvhns47ndjbjzssxvdt5zxq3om5jioe",
+      "alt": "",
+      "ratio": 0.7502,
+      "handle": "brennan.computer",
+      "url": "https://bsky.app/profile/brennan.computer/post/3mtvvfj3kck27",
+      "uri": "at://did:plc:gwvh3frsmdih2zpol2holysc/app.bsky.feed.post/3mtvvfj3kck27",
+      "likeCount": 5
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreid3nv43mblhqsnzbduqhvofnbzbrp4st5tagpvxoo4nrsq773ivlm",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreid3nv43mblhqsnzbduqhvofnbzbrp4st5tagpvxoo4nrsq773ivlm",
+      "alt": "",
+      "ratio": 0.7502,
+      "handle": "brennan.computer",
+      "url": "https://bsky.app/profile/brennan.computer/post/3mtvvfj3kck27",
+      "uri": "at://did:plc:gwvh3frsmdih2zpol2holysc/app.bsky.feed.post/3mtvvfj3kck27",
+      "likeCount": 5
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreifbojfo4lei2ipwfqs3qjnjp4rw6ofnf5lyhx5gl2cxdecmvmf2dq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreifbojfo4lei2ipwfqs3qjnjp4rw6ofnf5lyhx5gl2cxdecmvmf2dq",
+      "alt": "",
+      "ratio": 0.7502,
+      "handle": "brennan.computer",
+      "url": "https://bsky.app/profile/brennan.computer/post/3mtvvfj3kck27",
+      "uri": "at://did:plc:gwvh3frsmdih2zpol2holysc/app.bsky.feed.post/3mtvvfj3kck27",
+      "likeCount": 5
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zjnskcrzfd35gtlso2agki5y/bafkreich3ppwcddbygags2jdhrt67j4xefekfhigvjpdb2nkz4tt4gclhe",
@@ -860,26 +940,6 @@
       "likeCount": 4
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreic4lbrw7rysqu25bqyioi5hgj2ghzrqxlhpq3zv5csf2sgvgyz4xi",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreic4lbrw7rysqu25bqyioi5hgj2ghzrqxlhpq3zv5csf2sgvgyz4xi",
-      "alt": "",
-      "ratio": 0.973,
-      "handle": "hotrollhottakes.bsky.social",
-      "url": "https://bsky.app/profile/hotrollhottakes.bsky.social/post/3mtvu3ykwyc2u",
-      "uri": "at://did:plc:4gm5uxjg3tz4nat4qpjk2t6h/app.bsky.feed.post/3mtvu3ykwyc2u",
-      "likeCount": 3
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreic36qnifuwyk3spp7akbuvfjydrh7eeova2i22unbzrhw2joogysa",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreic36qnifuwyk3spp7akbuvfjydrh7eeova2i22unbzrhw2joogysa",
-      "alt": "The Great Republican Heart Of President Donald Trump Sutra, \"The Sutra of Republican Wisdom, 'President Donald Trump's Way Of America Sutral. These three ancient sutras, from an obscure branch of Buddhism, have been lost to all but a handful of curious practitioners and scholars for many years. They have been now translated into English for the first time for the benefit of all mankind. Translator Mihaly Harborym of Hungary is a lifelong student of religion witha degree in sociology.\n\nProduct Details\nRelease Date: Apr 2, 2025 Language: English\nPublisher: Roman Midnight Music Whispersync for Voice-ready",
-      "ratio": 0.8698,
-      "handle": "hotrollhottakes.bsky.social",
-      "url": "https://bsky.app/profile/hotrollhottakes.bsky.social/post/3mtvu3ykwyc2u",
-      "uri": "at://did:plc:4gm5uxjg3tz4nat4qpjk2t6h/app.bsky.feed.post/3mtvu3ykwyc2u",
-      "likeCount": 3
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreifmzdut4jsn22uhtywpv6npwzh4wmv2zgd3cnrtwzm5lm763jifgy",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreifmzdut4jsn22uhtywpv6npwzh4wmv2zgd3cnrtwzm5lm763jifgy",
       "alt": "",
@@ -910,16 +970,6 @@
       "likeCount": 2
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreiact7io25qmiq2x5v4hsieh2sk6f7qndfkdhefjitwwxrjeufn2yq",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreiact7io25qmiq2x5v4hsieh2sk6f7qndfkdhefjitwwxrjeufn2yq",
-      "alt": "MTS 7 @MTSlive 15h\n•@Ifschiavo explains why \"stated preferences\" may be useless for model welfare evaluations:\n\"When I was working at Eleos, I helped with the external Opus 4 model welfare eval. It was interesting the degree to which you could sort of say like, oh, well, 1 really like waffles. And then the model would be like, I also really like waffles.\"\n\"And then you could be like, actually, I hate waffles. I like pancakes. And the model would be like, no, you're so, so true, Queen. We're a pancake household.\"\n\"So there's maybe it's like a question of corrigibility. Maybe it's a question of if you prompt it a certain way, it'll sort of catch on to that and be like, yeah, so true. Good point. So astute. So maybe there's something to be said about, rather than looking at stated preferences, looking at revealed preferences based on the real world.\" @deepfates @grove_research",
-      "ratio": 0.8008,
-      "handle": "timkellogg.me",
-      "url": "https://bsky.app/profile/timkellogg.me/post/3mtvupzujg22x",
-      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mtvupzujg22x",
-      "likeCount": 2
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ye5vqk5rwyizerhg3r7otrh2/bafkreico5f3drntnuo7bgf5yjguui5osaynjj5lrm2prjajc6xrllobnfi",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ye5vqk5rwyizerhg3r7otrh2/bafkreico5f3drntnuo7bgf5yjguui5osaynjj5lrm2prjajc6xrllobnfi",
       "alt": "",
@@ -940,6 +990,16 @@
       "likeCount": 2
     },
     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreifspy7u4ankh6liuhxqimqpnanexyike2pczwegrlnhgeeedv4tlu",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreifspy7u4ankh6liuhxqimqpnanexyike2pczwegrlnhgeeedv4tlu",
+      "alt": "emerging energy graph showing installed solar in terawatts per month",
+      "ratio": 1,
+      "handle": "brennan.computer",
+      "url": "https://bsky.app/profile/brennan.computer/post/3mtvxentw3227",
+      "uri": "at://did:plc:gwvh3frsmdih2zpol2holysc/app.bsky.feed.post/3mtvxentw3227",
+      "likeCount": 2
+    },
+    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreihvokfh232itg35inhuce2wpja53azro6lut4ttzp5bnopszrlduu",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreihvokfh232itg35inhuce2wpja53azro6lut4ttzp5bnopszrlduu",
       "alt": "",
@@ -948,16 +1008,6 @@
       "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mtuh4jdymc2n",
       "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mtuh4jdymc2n",
       "likeCount": 1
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:avmom3x7xo4ii6tte7rlre5h/bafkreifrrs4twqwgquuubgrmr5tbvmnmsdlkqcfnixhmnsgrmjwlp5rybe",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:avmom3x7xo4ii6tte7rlre5h/bafkreifrrs4twqwgquuubgrmr5tbvmnmsdlkqcfnixhmnsgrmjwlp5rybe",
-      "alt": "",
-      "ratio": 1.8308,
-      "handle": "eternalism-when.bsky.social",
-      "url": "https://bsky.app/profile/eternalism-when.bsky.social/post/3mttgskxiqk22",
-      "uri": "at://did:plc:avmom3x7xo4ii6tte7rlre5h/app.bsky.feed.post/3mttgskxiqk22",
-      "likeCount": 0
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreibdr7uem7bnagtjtsu37e65wv3u3ylwwhoqynptq7ewdjhcgm4vde",
