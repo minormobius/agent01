@@ -89,3 +89,41 @@ button.primary { border-color: var(--accent); color: var(--accent); font-weight:
 .about p { margin: 0 0 10px; }
 .about a { color: var(--accent); }
 .about code { font-family: var(--mono); font-size: 12px; background: var(--panel); padding: 1px 4px; border-radius: 2px; }
+
+/* ---------------------------------------------------------- the pen panel -- */
+.panel {
+  max-width: 480px; margin: 18px auto 0;
+  border: 1px solid var(--rule); border-radius: 3px; background: var(--panel);
+  padding: 0 12px 10px;
+}
+.panel summary {
+  cursor: pointer; padding: 9px 0; font-size: 12px;
+  text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted);
+}
+.panel summary::marker { color: var(--rule); }
+#sliders { display: grid; gap: 5px; }
+.slider {
+  display: grid; grid-template-columns: 96px 1fr 44px; align-items: center; gap: 9px;
+  font-size: 12px; cursor: help;
+}
+.sl-name { color: var(--muted); }
+.slider output { font-family: var(--mono); font-size: 11px; text-align: right; color: var(--text); }
+.slider input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 3px; border-radius: 2px; background: var(--rule); outline: none;
+}
+.slider input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--accent); cursor: pointer; border: none;
+}
+.slider input[type=range]::-moz-range-thumb {
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--accent); cursor: pointer; border: none;
+}
+.panel-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--rule);
+}
+.panel-foot button { font-size: 12px; padding: 4px 11px; }
+.panel-note { margin: 8px 0 0; font-size: 11px; line-height: 1.5; }

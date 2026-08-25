@@ -47,6 +47,20 @@
     <div id="genomes"></div>
   </div>
 
+  <details class="panel" open>
+    <summary>the pen</summary>
+    <div id="sliders"></div>
+    <div class="panel-foot">
+      <span class="quiet"><b id="strokes">&mdash;</b> strokes</span>
+      <button id="reset">reset</button>
+    </div>
+    <p class="quiet panel-note">
+      Only <b>ink</b> re-runs the organism &mdash; and even that cannot change the
+      verdict above, because reserve decides how far a brush travels and provably
+      never touches the field. The rest repaint the strokes you already have.
+    </p>
+  </details>
+
   <div class="controls secondary">
     <button id="save">save png</button>
     <button id="share">copy link</button>
@@ -63,11 +77,20 @@
     </p>
     <p>
       Fluoddity keeps a velocity field and renders it as light. This keeps the
-      <em>paths</em>. Every step of every agent is a stroke with a width from
-      its speed &mdash; dwelling broadens the mark, a fast drag thins it &mdash;
-      and an opacity from how much ink that brush has left. Brushes run dry and
-      stop. Pigment composites subtractively onto paper, so where the two hands
-      cross you get a third colour rather than a blown-out white.
+      <em>paths</em>, which is what lets it hold a pen. Each population has a
+      <b>broad-edge nib</b> at its own angle: a stroke running along the edge is
+      a hairline, one running across it is full width, so the thicks and thins
+      come from the organism&rsquo;s own turning rather than from a filter.
+      Dwelling broadens the mark, a fast drag thins it, and opacity falls as the
+      brush dries out. Pigment composites subtractively onto paper, so where the
+      two hands cross you get a third colour rather than a blown-out white.
+    </p>
+    <p>
+      And where one hand crosses the other&rsquo;s <em>fresh</em> ink, the mark
+      <b>bleeds</b>. Each population keeps a decaying map of the pigment it has
+      just laid down; every stroke records how much of the other hand&rsquo;s
+      wet ink it ran through, and blooms a soft halo under itself in proportion.
+      Roughly the top tenth of strokes are wet enough to show it.
     </p>
 
     <h2>why the duds don&rsquo;t reach the sheet</h2>

@@ -59,7 +59,33 @@ const K3 = (() => {
   return raw.map((v) => v / sum);
 })();
 
-export const SEG_STRIDE = 7;   // x0,y0,x1,y1,speed,ink,pop
+export const SEG_STRIDE = 8;   // x0,y0,x1,y1,speed,ink,pop,wet
+
+// Wet-pigment memory, per population. This is RENDER-ONLY state — it is
+// written by the drawing layer and read by the renderer, and the agent update
+// never sees it. That is not an accident: the moment wetness could steer an
+// agent, the invariant that lets the probe predict the painting would be gone.
+//
+// Each drawing agent lays pigment into its OWN population's map; each segment
+// records how much of the OTHER population's pigment was already there. That
+// is what "bleed into close enough trails" means here — a mark blooms where it
+// crosses the other hand's fresh ink, not its own. Decay-only (no diffusion):
+// the 3x3 deposit already gives about a three-cell tolerance, which at field
+// 128 is ~17px of "close enough" on a 720px sheet, and a blur pass per channel
+// per step would cost more than the effect is worth.
+export const WET_DECAY = 0.988;
+// Maps accumulated pigment to a 0..1 wetness reading. Measured, not guessed:
+// the first value here was 0.08 and produced a reading of exactly zero for
+// every segment — the effect was invisible and looked like it was working.
+// Over 416k segments the raw readings run p50 1.6e-3, p90 1.4e-2, p99 3.3e-2,
+// so 30 puts the 99th percentile at 1.0.
+//
+// The square is the important half. At a linear mapping 85% of all segments
+// carry SOME of the other hand's pigment, so bleeding on that reads as a
+// global haze rather than as two hands meeting. Squaring drops the median to
+// 0.003 — under the renderer's threshold — while leaving the crossings at 1.0,
+// so roughly the top tenth of segments bloom and the rest stay crisp.
+const WET_SCALE = 30;
 
 export class InkSim {
   constructor(opts = {}) {
@@ -70,6 +96,7 @@ export class InkSim {
     this.field = new Float32Array(N * 2);
     this.next = new Float32Array(N * 2);
     this.dep = new Float32Array(N * 2);
+    this.wet = [new Float32Array(N), new Float32Array(N)];
     // agent state, both populations in one flat block
     this.px = new Float64Array(this.count);
     this.py = new Float64Array(this.count);
@@ -93,10 +120,11 @@ export class InkSim {
 
   // pops: [genomeA, genomeB]. rand seeds the per-agent ink reserves only —
   // spawn positions come from the genome's own hash, as on the GPU.
-  load(pops, rand) {
+  load(pops, rand, inkMul = 1) {
     this.pops = pops;
     this.frame = 0;
     this.field.fill(0); this.next.fill(0); this.dep.fill(0);
+    this.wet[0].fill(0); this.wet[1].fill(0);
     this.centers = [];
     for (let p = 0; p < 2; p++) {
       const g = pops[p];
@@ -115,7 +143,7 @@ export class InkSim {
         // uniform reserves make a picture with no depth to it.
         // r^1.5 via sqrt rather than Math.pow: same skew, exactly specified.
         const r = rand.float();
-        this.ink[idx] = (0.4 + 3.9 * (r * Math.sqrt(r))) * (0.45 + 0.11 * (pops[p].ink || 3));
+        this.ink[idx] = (0.4 + 3.9 * (r * Math.sqrt(r))) * (0.45 + 0.11 * (pops[p].ink || 3)) * inkMul;
       }
     }
   }
@@ -141,6 +169,21 @@ export class InkSim {
     const bigger = new Float32Array(this.seg.length * 2);
     bigger.set(this.seg);
     this.seg = bigger;
+  }
+
+  // Bilinear read of one population's wet-pigment map (toroidal), returned as a
+  // 0..1 reading.
+  _wetAt(p, x, y) {
+    const F = this.F, w = this.wet[p];
+    let u = (x * 0.5 + 0.5) * F - 0.5, v = (y * 0.5 + 0.5) * F - 0.5;
+    let x0 = Math.floor(u), y0 = Math.floor(v);
+    const fx = u - x0, fy = v - y0;
+    x0 = ((x0 % F) + F) % F; y0 = ((y0 % F) + F) % F;
+    const x1 = (x0 + 1) % F, y1 = (y0 + 1) % F;
+    const a = w[y0 * F + x0] * (1 - fx) * (1 - fy) + w[y0 * F + x1] * fx * (1 - fy)
+            + w[y1 * F + x0] * (1 - fx) * fy + w[y1 * F + x1] * fx * fy;
+    const t = a * WET_SCALE;
+    return t >= 1 ? 1 : t * t;
   }
 
   step(n = 1) {
@@ -224,8 +267,18 @@ export class InkSim {
           sg[o + 4] = len;
           sg[o + 5] = reserve > 1 ? 1 : reserve;   // 0..1 remaining, for the dry tail
           sg[o + 6] = p;
+          sg[o + 7] = this._wetAt(1 - p, nx, ny);  // the OTHER hand's wet ink
           this.segCount++;
           this.ink[idx] = reserve - len;
+          // lay this agent's own pigment into its population's wet map
+          const wm = this.wet[p], wu = (nx * 0.5 + 0.5) * F, wv = (ny * 0.5 + 0.5) * F;
+          const wx = Math.floor(wu), wy = Math.floor(wv);
+          for (let ddy = -1, k = 0; ddy <= 1; ddy++) {
+            const yy = ((wy + ddy) % F + F) % F;
+            for (let ddx = -1; ddx <= 1; ddx++, k++) {
+              wm[yy * F + ((wx + ddx) % F + F) % F] += K3[k] * len;
+            }
+          }
         }
 
         // ---- deposit into the shared field (all agents, ink or not) ----
@@ -275,6 +328,8 @@ export class InkSim {
     } else {
       for (let i = 0; i < N * 2; i++) f[i] = f[i] * pers + (1 - pers) * dep[i];
     }
+    const w0 = this.wet[0], w1 = this.wet[1];
+    for (let i = 0; i < N; i++) { w0[i] *= WET_DECAY; w1[i] *= WET_DECAY; }
     this.frame++;
   }
 }

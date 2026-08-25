@@ -28,6 +28,17 @@ fluoddity's own interestingness rubric ever reach the paper.
 Everything else here is taste. These three are load-bearing, and each has a
 selftest that goes red if you break it.
 
+### 0. The stroke log is the artwork; the renderer is a view of it
+
+Every segment the simulation emits is kept in a log (`js/app.js`), not just
+drawn. That is what makes the pen sliders usable: nib angle, contrast, weight,
+speed-thinning, bleed and grain are all decisions about how to **draw** a
+stroke, so moving them repaints the same marks instead of re-running the
+organism. Only `ink` touches the simulation — and even it cannot change the
+gate's verdict, because reserve decides how far a brush travels and provably
+never touches the field (invariant 1). At the default reserve a sheet is
+~200–450k segments; `LOG_CAP` is a memory backstop at 1.6M.
+
 ### 1. Drawing must not touch the dynamics
 
 An agent whose ink has run out **keeps moving and keeps depositing into the
@@ -146,6 +157,65 @@ deploy both creates worker `ink` and binds the domain from the `custom_domain`
 route. Green is not proof: confirm the run log says `ink.mino.mobi (custom
 domain)` and that `/api/health` returns `"service": "ink"`. The workflow probes
 it and prints a pointer to [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) §4 if not.
+
+## The pen
+
+Two things give the marks their character, both driven by the organism rather
+than applied as a filter:
+
+**A broad-edge nib.** Width depends on the DIRECTION of travel, not only its
+speed. Each population carries its own nib angle, derived from its rule seed
+(`nibBase` in `paper.js`) so it is part of the organism's identity; the slider
+adds a global offset, which keeps the two hands' nibs at a fixed angle to each
+other however you turn them — that relationship is what stops the two pigments
+reading as one texture. A stroke along the edge is a hairline, across it is full
+width, so the thicks and thins arrive from the swarm's own turning.
+
+The obvious implementation is `|sin(strokeAngle − nibAngle)|`, needing an
+`atan2` and a `sin` per segment. It needs neither: expanding the difference
+gives `sin(A−B) = sinA·cosB − cosA·sinB`, and `(cosA, sinA)` is just the
+segment's unit direction — `dx/len, dy/len` — which is already in the log. Two
+multiplies and a divide, with the nib's cos/sin hoisted out of the loop. At 600k
+segments that is 1.2M transcendentals a repaint saved.
+
+**Wet-on-wet bleed.** Each population keeps a decaying scalar map of the pigment
+it has just laid down (`sim.js`, `WET_DECAY`); every segment records how much of
+the **other** population's wet pigment it ran through, and the renderer blooms a
+soft wide halo under the crisp mark in proportion. This is render-only state —
+written and read by the drawing layer, never by the agent update, per invariant
+1.
+
+`WET_SCALE` is measured, and the measurement mattered twice. The first value was
+guessed at 0.08 and produced a reading of exactly zero for every segment: the
+feature was inert and looked like it was working. With the scale set from the
+data (raw readings run p50 1.6e-3, p90 1.4e-2, p99 3.3e-2, so 30 puts p99 at
+1.0), a **linear** mapping then had 85% of all segments carrying some of the
+other hand's pigment — which reads as a global haze, not as two hands meeting.
+Squaring drops the median under the renderer's threshold and leaves the
+crossings at 1.0, so roughly the top tenth bloom.
+
+## The paint cap was ending the paintings
+
+`PAINT_MAX` was 900 and was not a backstop — it was the thing stopping most
+sheets. Measured across seeds, agents at the default reserve are still drawing
+at step 3200, so the sheet was being cut off at roughly a quarter of the marks
+the organism had in it. Every roll looked like it had run out early because it
+had. It is now 6000, a real backstop, and reserve is a slider.
+
+Coverage of a 256² grid at 192 agents, by reserve multiplier — and note this
+metric is a poor guide to how a sheet *looks*, because grid coverage counts a
+touched cell the same whether it holds one line or forty:
+
+| reserve | segments | coverage | how it reads |
+|---|---|---|---|
+| 1× | 247k | 21% | clear network, paper breathing |
+| 3× | ~500k | ~55% | full and still legible — **the default** |
+| 7× | 629k | ~80% | the lower half goes to mud |
+| 25× | 860k | 96% | no paper left |
+
+The axis saturates fast (1→2 adds 130k segments, 4→7 adds 47k) because with the
+cap fixed the agents are bounded by how far they **travel**, not by what they
+carry.
 
 ## What the gate does not do — read before "improving" it
 

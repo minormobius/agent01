@@ -25,20 +25,29 @@
 
 import { InkSim, SEG_STRIDE } from './sim.js';
 import { Rand } from './prng.js';
-import { randomGenome, genomeDistance } from './genome.js';
+import { randomGenome, genomeDistance, encodePair } from './genome.js';
 import {
   fieldLuminance, downsample, readDescriptors, fitness2, verdict, vec, dist,
   PROBE, PROBE_FIELD, PROBE_AGENTS, PROBE_STEPS, PROBE_T1, REF_INK,
 } from './probe.js';
 
-// A painting is finished when the brushes are dry, and measurement says that
-// is not a fixed number of steps: across genomes the last stroke lands anywhere
-// between step 380 and step 900, because reserve is spent per unit of path and
-// some organisms travel far more than others. So the render loop runs until
-// nothing has been drawn for PAINT_QUIET steps, and PAINT_MAX only bounds the
-// cost of an organism that wanders for ever.
-export const PAINT_MAX = 900;
-export const PAINT_QUIET = 24;
+// A painting is finished when the brushes are dry — and PAINT_MAX used to lie
+// about when that was. At 900 it was not a backstop, it was the thing ending
+// most paintings: measured across seeds, agents at the default reserve are
+// still drawing at step 3200, so the sheet was being cut off at roughly a
+// quarter of the marks the organism had in it. That is what made every roll
+// look like it had stopped early, because it had.
+//
+// Coverage of a 256^2 grid, two seeds, by reserve multiplier at 192 agents:
+//
+//     1x   247k segments   dry ~3200   21% covered
+//     5x   360k                        49%
+//    10x   625k                        82%     <- DEFAULT_STYLE.ink
+//    25x   860k                        96%     (no paper left)
+//
+// So PAINT_MAX is now a real backstop, and the reserve multiplier is a slider.
+export const PAINT_MAX = 6000;
+export const PAINT_QUIET = 40;
 
 export const ACCEPT_FIT = 0.35;    // ~50% of uniform draws clear this
 export const MAX_TRIES = 3;        // the "snappy" budget: ~112ms per candidate
@@ -65,10 +74,20 @@ function drawPair(seed, slot, archive, fix) {
 }
 
 // Run one candidate for PROBE_STEPS, keeping every stroke it makes.
-function probe(pops, seed) {
+function probe(pops, seed, inkMul = 1) {
   const F = PROBE_FIELD;
   const sim = new InkSim({ field: F, agents: PROBE_AGENTS });
-  sim.load(pops, new Rand(seed + '::ink'));
+  // The per-agent ink reserves are seeded from the GENOME PAIR, not from the
+  // roll seed or the candidate slot.
+  //
+  // This is what makes ?g= mean anything. It used to be seeded from
+  // `${seed}::cand${slot}`, so a painting that cleared the gate on candidate 2
+  // re-opened from its share link with candidate 0's reserves — every brush
+  // ran a different distance and the sheet was visibly a different picture,
+  // while the readout happily said it was the same one. Any path that holds
+  // these two genomes must now produce these strokes, which is exactly the
+  // promise the link makes.
+  sim.load(pops, new Rand('ink::' + encodePair(pops)), inkMul);
   const buf = new Float32Array(PROBE_STEPS * PROBE_AGENTS * SEG_STRIDE);
   let n = 0;
 
@@ -101,8 +120,8 @@ function probe(pops, seed) {
 // Score and prepare a pair we were GIVEN rather than one we drew — a shared
 // ?g= link, or a re-paint at a new canvas size. Same probe, no sampling, so the
 // readout says the same thing about it that the roller would have.
-export function prepare(pops, seed) {
-  const p = probe(pops, `${seed}::cand0`);
+export function prepare(pops, seed, inkMul = 1) {
+  const p = probe(pops, `${seed}::cand0`, inkMul);
   return { ...p, pops, novelty: Infinity, tries: 0, rejected: [], given: true };
 }
 
@@ -112,7 +131,7 @@ const noveltyOf = (vv, archive) =>
 // Roll one painting. Returns the accepted candidate with its live sim, already
 // at step PROBE_STEPS with its strokes buffered, plus the record of what was
 // rejected on the way (the roller shows its working).
-export function roll(seed, archive = [], fix = null) {
+export function roll(seed, archive = [], fix = null, inkMul = 1) {
   const seen = [];
   let fallback = null;
   const score = (p) => p.fit + 0.3 * Math.min(1, p.novelty);
@@ -120,7 +139,7 @@ export function roll(seed, archive = [], fix = null) {
 
   for (let slot = 0; slot < MAX_TRIES; slot++) {
     const pops = drawPair(seed, slot, archive, fix);
-    const p = probe(pops, `${seed}::cand${slot}`);
+    const p = probe(pops, `${seed}::cand${slot}`, inkMul);
     p.pops = pops;
     p.novelty = noveltyOf(p.vv, archive);
     p.slot = slot;

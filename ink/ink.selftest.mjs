@@ -15,8 +15,9 @@ import { Rand } from './js/prng.js';
 import { buildCenters, evalRule } from './js/rule.js';
 import { randomGenome, genomeDistance, encodePair, decodePair, PARAM_KEYS } from './js/genome.js';
 import { InkSim, SEG_STRIDE } from './js/sim.js';
+import { DEFAULT_STYLE, STYLE_KEYS, quantizeStyle, encodeStyle, decodeStyle } from './js/paper.js';
 import { downsample, readDescriptors, fitness, verdict, PROBE, PROBE_FIELD, PROBE_AGENTS } from './js/probe.js';
-import { roll, PAINT_MAX, ACCEPT_FIT, MAX_TRIES } from './js/roll.js';
+import { roll, prepare, PAINT_MAX, ACCEPT_FIT, MAX_TRIES } from './js/roll.js';
 
 let fails = 0;
 const ok = (name, cond, detail = '') => {
@@ -117,6 +118,46 @@ console.log('sim — determinism and the ink invariant');
   let segD = 0;
   for (let i = 0; i < 120; i++) segD += d.step(1);
   ok('more ink means more strokes, same field', segD > segA && sum(d.field) === sum(a.field));
+
+  // The reserve multiplier is a UI slider, so this is the property that lets the
+  // slider move without re-rolling: it changes how much of the organism gets
+  // drawn and nothing about the organism.
+  {
+    const mkMul = (mul) => {
+      const r = new Rand('sim::1');
+      const s2 = new InkSim({ field: 64, agents: 64 });
+      s2.load([randomGenome(r.fork('A')), randomGenome(r.fork('B'))], r.fork('ink'), mul);
+      return s2;
+    };
+    const lo = mkMul(1), hi = mkMul(12);
+    let sl = 0, sh = 0;
+    for (let i = 0; i < 120; i++) { sl += lo.step(1); sh += hi.step(1); }
+    ok('the ink multiplier cannot move the field', sum(lo.field) === sum(hi.field));
+    ok('...but it does draw more', sh > sl, `${sl} vs ${sh} segments`);
+  }
+
+  // Wet-pigment maps are render-only state. They are written and read by the
+  // drawing layer; if they ever reached the agent update, the gate would stop
+  // predicting the painting.
+  {
+    const e = mk();
+    for (let i = 0; i < 120; i++) e.step(1);
+    let wetSeen = 0, total = 0;
+    const f2 = mk();
+    for (let i = 0; i < 400; i++) {
+      const n = f2.step(1);
+      for (let j = 0; j < n; j++) { total++; if (f2.seg[j * SEG_STRIDE + 7] > 0) wetSeen++; }
+    }
+    ok('segments carry a wetness reading', total > 0 && wetSeen > 0, `${wetSeen}/${total} wet`);
+    ok('wetness stays in 0..1', (() => {
+      const g2 = mk();
+      for (let i = 0; i < 300; i++) {
+        const n = g2.step(1);
+        for (let j = 0; j < n; j++) { const w = g2.seg[j * SEG_STRIDE + 7]; if (!(w >= 0 && w <= 1)) return false; }
+      }
+      return true;
+    })());
+  }
 }
 
 console.log('probe — the rubric');
@@ -169,6 +210,20 @@ console.log('codec — a genome pair in a URL');
   ok('a round-tripped pair paints the identical picture', runField(pops) === runField(back));
 }
 
+console.log('style codec — the pen settings ride in the link too');
+{
+  const st = quantizeStyle(DEFAULT_STYLE);
+  const back = decodeStyle(encodeStyle(st));
+  let exact = true;
+  for (const k of STYLE_KEYS) if (st[k] !== back[k]) exact = false;
+  // `ink` feeds the simulation, so a lossy style round-trip is a different
+  // painting, not a slightly different one.
+  ok('a quantised style survives encode/decode exactly', exact);
+  ok('an unquantised style does NOT (which is why quantizeStyle exists)',
+    decodeStyle(encodeStyle({ ...DEFAULT_STYLE, ink: 3.0001 })).ink !== 3.0001);
+  ok('a junk style code is rejected', decodeStyle('xx') === null);
+}
+
 console.log('roll — the gate');
 {
   const a = roll('seed::alpha', []);
@@ -191,6 +246,33 @@ console.log('roll — the gate');
       if (r.rejected.some((x) => x.fit === r.fit && x.reason === r.reason)) return false;
     }
     return true;
+  })());
+
+  // THE SHARE CONTRACT. A ?g= link carries the genomes and nothing else, so a
+  // pair re-opened from a link must paint the identical strokes to the roll it
+  // came from — including when the roll cleared the gate on a later candidate.
+  // It did not: the ink reserves were seeded per candidate SLOT, so any
+  // painting that passed on candidate 2 or 3 re-opened with candidate 0's
+  // reserves and was quietly a different picture.
+  ok('a pair re-opened from its link paints the identical strokes', (() => {
+    for (const seed of ['sc1', 'sc2', 'sc3', 'sc4', 'sc5', 'sc6']) {
+      const r = roll(seed, []);
+      const q = prepare(r.pops, seed);
+      if (q.bufCount !== r.bufCount) return false;
+      for (let i = 0; i < r.bufCount * SEG_STRIDE; i++) if (q.buf[i] !== r.buf[i]) return false;
+    }
+    return true;
+  })());
+  ok('...and that holds for rolls that needed more than one candidate', (() => {
+    let sawLate = false;
+    for (const seed of ['sc1', 'sc2', 'sc3', 'sc4', 'sc5', 'sc6', 'sc7', 'sc8']) {
+      const r = roll(seed, []);
+      if (r.tries === 1) continue;
+      sawLate = true;
+      const q = prepare(r.pops, seed);
+      if (q.bufCount !== r.bufCount) return false;
+    }
+    return sawLate;   // if no roll ever needed a second candidate, this proves nothing
   })());
 
   // The archive must actually push the roller away from a repeat.
