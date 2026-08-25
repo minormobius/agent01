@@ -122,17 +122,20 @@ if (wasm) {
   check('more spin, more lift', cheap[1].cl > cheap[0.5].cl && cheap[0.5].cl > cheap[0].cl,
     `${cheap[0].cl.toFixed(2)} < ${cheap[0.5].cl.toFixed(2)} < ${cheap[1].cl.toFixed(2)}`);
 
-  // --- where the drag bias comes from ---
+  // --- how much of the drag bias is blockage? ---
   //
-  // The shipped sweep puts the stationary-cylinder drag at Re = 100 at 1.529,
-  // and every published study puts it between 1.32 and 1.38. That is a 14%
-  // excess, and the honest thing is not to widen the assertion until it passes
-  // — it is to find out where the 14% comes from. The suspicion is blockage:
-  // the cylinder sits in a channel, not in free air, and confinement
-  // accelerates the flow past it.
+  // The shipped sweep puts the stationary-cylinder drag at Re = 100 at 1.529
+  // where every published study says 1.32 to 1.38. The obvious explanation is
+  // blockage — the cylinder is in a channel, not in free air — and this
+  // measures how much of it that actually buys.
   //
-  // So: run the same cylinder in progressively wider channels. If the drag
-  // falls as the walls move away, the excess is the walls.
+  // The answer, for the record, is "some, but not the excess". Confinement is
+  // clearly real and clearly large when the walls are close, which is what the
+  // three runs below show. But re-running the full sweep at HALF the shipped
+  // blockage moved the drag by 1.8%, not by 13%, and an eightfold refinement of
+  // the cylinder at fixed blockage did not move it either. The residual is not
+  // explained; see README. This block stays because knowing which way
+  // confinement pushes is worth knowing, not because it settles the question.
   console.log('  same cylinder, wider and wider channel:');
   const widen = [[160, 80], [200, 160], [240, 240]];
   const cds = [];
@@ -147,7 +150,7 @@ if (wasm) {
     console.log(`    ${String(nx).padStart(3)}x${String(ny).padStart(3)}  ` +
       `blockage ${((2 * CHEAP.r) / ny * 100).toFixed(1).padStart(4)}%   CD ${cd.toFixed(4)}`);
   }
-  check('the drag excess is BLOCKAGE — it falls as the walls move away',
+  check('confinement raises the drag, and widening the channel lowers it',
     cds[0] > cds[1] && cds[1] > cds[2],
     `${cds[0].toFixed(3)} -> ${cds[1].toFixed(3)} -> ${cds[2].toFixed(3)} ` +
     `as blockage goes ${((2 * CHEAP.r) / 80 * 100).toFixed(0)}% -> ` +
@@ -172,11 +175,11 @@ for (const [a, cl, cd, shed, st] of T) {
 
 // The stationary-cylinder drag at Re = 100 is one of the most-measured numbers
 // in fluid mechanics: every published study puts it between about 1.32 and
-// 1.38. The shipped sweep gives 1.529 — 14% high, in a 9.4%-blockage channel,
-// and section 1 above established by direct measurement that widening the
-// channel is what brings it down. So this asserts the value AND its known
-// bias, rather than either pretending to hit the benchmark or quietly widening
-// the window until it passes.
+// 1.38. The shipped sweep gives 1.529 — 13% high. Section 1 measured the
+// obvious suspect and cleared it: at the blockage this sweep runs, confinement
+// is worth under two points of the thirteen. The rest is UNEXPLAINED, and this
+// asserts the value together with the size of the bias rather than pretending
+// to hit the benchmark or widening the window until it passes.
 const cd0 = T.find((r) => r[0] === 0)?.[2];
 const BENCH = [1.32, 1.38];
 const excess = cd0 / BENCH[1] - 1;

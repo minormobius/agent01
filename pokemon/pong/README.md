@@ -100,9 +100,10 @@ warm-up:
 - **Shedding is suppressed** between α = 1.5 and α = 1.75, where the fluctuating
   lift drops by a factor of fifteen. The literature says 1.8–1.9. Close, and it
   is a *measurement of a phenomenon*, not a fit.
-- **The drag is 13% high** and **the Strouhal number 8% high**, both in the
-  direction confinement pushes them. See below — that is a real bias, not a
-  rounding error, and it has a cause that was measured rather than assumed.
+- **The drag is 13% high** and **the Strouhal number 8% high**. Both are real
+  biases rather than rounding, and the section below is an account of failing to
+  explain them: the obvious culprit was blockage, blockage was measured, and
+  blockage turned out to be worth under two points of the thirteen.
 
 The plain rms of the lift is **not** the shedding amplitude, and using it as one
 is a trap this sweep fell into first. Lattice Boltzmann is weakly compressible;
@@ -114,29 +115,52 @@ swamps an rms. The table's shedding column is the amplitude of the strongest
 spectral line inside the shedding band, found by a direct DFT scan. At α = 1.75
 the raw rms is 2.76 and the shedding line is 0.018.
 
-### The 13%
+### The 13%, and what it is not
 
-Blockage. The cylinder is 24 cells across a 256-cell channel, so it occupies
-9.4% of the width, and the lateral boundaries are held at the free stream rather
-than being far away. Confinement accelerates the flow past the body and raises
-both the drag and the shedding frequency.
+The obvious story is blockage: the cylinder is 24 cells across a 256-cell
+channel, so it occupies 9.4% of the width, the lateral boundaries are held at
+the free stream rather than being far away, and confinement accelerates the flow
+past the body. It is a good story. It is also the kind of story that invites you
+to widen the assertion until the number fits inside it.
 
-That is a story, though, and the temptation with a story is to widen the
-assertion until the number fits inside it. So the selftest tests it instead: it
-runs the *same cylinder* in progressively wider channels and watches what
-happens.
+So it was tested instead, and **it is wrong**.
 
-| channel | blockage | C_D |
+*Halving the blockage.* Re-running the whole sweep on 768×512 — same cylinder,
+same Reynolds number, twice the channel — moves C_D from 1.5287 to **1.5015**.
+That is 1.8%, not 13%. (Lift is untouched: C_L at α = 1 goes 2.5667 → 2.5519,
+which is a useful check on its own.)
+
+*Making the cylinder finer.* At a fixed 5.8% blockage, taking D from 14 cells to
+40 — an eightfold increase in cells — leaves the drag flat:
+
+| D | grid | C_D |
 |---|---|---|
-| 160×80 | 17.5% | 2.017 |
-| 200×160 | 8.8% | 1.664 |
-| 240×240 | 5.8% | 1.581 |
+| 14 | 240×240 | 1.5814 |
+| 20 | 344×344 | 1.5721 |
+| 28 | 482×482 | 1.5361 |
+| 40 | 688×688 | 1.5638 |
 
-It falls, and it is converging rather than drifting — the second halving of the
-blockage moves it a quarter as far as the first. The walls are the excess. What
-is left at 5.8% is the coarse cylinder: 14 cells across is not many, and this
-particular run is at Re = 60 rather than 100, which is why the residual value is
-above the Re = 100 benchmark rather than at it.
+Converged, and converged on the wrong number.
+
+There is a real blockage effect and it is large when the walls are genuinely
+close — squeezing the same cylinder into a 17.5% channel puts C_D at 2.017, and
+the selftest measures that, because it is worth knowing which way confinement
+pushes. But at the blockage this sweep actually runs, it accounts for under two
+points of the thirteen.
+
+**So the residual is not explained.** It is systematic, it is about 10-13% high
+at both Re = 60 and Re = 100, it survives an eightfold refinement and a halving
+of the blockage, and this page does not know what it is. Candidates not ruled
+out: the Mach number (0.14, which buys 1-2% at most), the classic Ladd
+momentum-exchange formula's known tendency to overread the force, and the inlet
+sitting 5 diameters upstream where the literature uses ten to twenty. Saying
+"blockage" and moving on would have been easy, and this section said exactly
+that until the confirmation run came back.
+
+What the discrepancy does NOT touch is the game: the flight uses a constant drag
+coefficient taken from ball measurements, and the lift is normalised. A
+systematic drag offset on the cylinder changes nothing downstream of here. It is
+recorded because it is true, not because it matters.
 
 ## From a cylinder to a ball
 

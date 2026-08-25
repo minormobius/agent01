@@ -103,11 +103,20 @@ function tableTexture() {
   return t;
 }
 
-/// `dir` is +1 for the near bat, -1 for the far one. The group is rotated so
-/// its face normal is the one game.js is actually doing the physics with — the
-/// bat is CLOSED, and a bat drawn square-on while the impulse is being computed
-/// against a tilted face is a picture of a different game.
-function bat(colorNear, dir) {
+/// `dir` is +1 for the near bat, -1 for the far one, and `seen` is the colour of
+/// the side that ends up FACING THE CAMERA — which is the side you never hit
+/// with, and the only side you ever look at.
+///
+/// Getting that backwards is not cosmetic. The player's bat was built with its
+/// black rubber toward the camera, against a background of #090b0e, and it was
+/// simply not there: correctly positioned, correctly lit, and invisible. It
+/// took a screenshot to notice, because every number said the bat was fine.
+///
+/// The group is rotated so its face normal is the one game.js does the physics
+/// with — the bat is CLOSED, and a bat drawn square-on while the impulse is
+/// computed against a tilted face is a picture of a different game.
+function bat(seen, dir) {
+  const colorNear = seen === PAL.rubberRed ? PAL.rubberBlack : PAL.rubberRed;
   const g = new THREE.Group();
   g.rotation.y = dir > 0 ? FACE_CLOSE : Math.PI - FACE_CLOSE;
   const blade = new THREE.Mesh(
@@ -160,8 +169,11 @@ export function buildScene(canvas) {
   // shipped cropped on phones for exactly this reason; this one keeps the view
   // direction and pushes back along it, which cannot swing the composition
   // around by accident.
-  const CAM_TARGET = new THREE.Vector3(0.05, 0, 0.10);
-  const CAM_EYE = new THREE.Vector3(-2.85, 0.34, 0.86);
+  // Over the player's shoulder. Far enough back and high enough that YOUR bat
+  // is in shot — it was off the bottom edge at the first framing, which for the
+  // one object you control is not a small thing.
+  const CAM_TARGET = new THREE.Vector3(-0.10, 0, 0.16);
+  const CAM_EYE = new THREE.Vector3(-3.20, 0.40, 1.15);
   const CAM_DIR = CAM_EYE.clone().sub(CAM_TARGET);
   const CAM_DIST = CAM_DIR.length();
   CAM_DIR.normalize();
@@ -189,9 +201,15 @@ export function buildScene(canvas) {
   key.shadow.normalBias = 0.01;
   scene.add(key);
 
-  scene.add(Object.assign(new THREE.DirectionalLight(0x9fc0e8, 0.55), {
-    position: new THREE.Vector3(2.4, -1.8, 1.4),
-  }));
+  // `light.position.set(...)`, NOT `Object.assign(light, { position })`.
+  // Object3D.position is a read-only accessor, so assigning to it throws — and
+  // a throw here takes the whole module down, which takes index.html's import
+  // down, which ships a page with a dead 300x150 canvas and no error anywhere a
+  // node test can see. This one did exactly that, live, until a browser check
+  // asked the page what it thought had happened.
+  const fill = new THREE.DirectionalLight(0x9fc0e8, 0.55);
+  fill.position.set(2.4, -1.8, 1.4);
+  scene.add(fill);
   scene.add(new THREE.HemisphereLight(0x93a8c4, 0.30));
 
   // ---- table ------------------------------------------------------------
@@ -260,6 +278,12 @@ export function buildScene(canvas) {
   // ---- bats and ball ----------------------------------------------------
   const playerBat = bat(PAL.rubberRed, 1);
   const rivalBat = bat(PAL.rubberBlack, -1);
+  // A soft fill from behind the camera. Both bats present their back face to
+  // the viewer, and the key light is over the table, so without this the near
+  // one sits in its own shadow at the front of the frame.
+  const front = new THREE.DirectionalLight(0xdbe6f5, 0.85);
+  front.position.set(-3.4, 0.9, 1.3);
+  scene.add(front);
   scene.add(playerBat, rivalBat);
 
   // The stroke plane each bat is confined to, drawn as a faint quad. Without it
@@ -270,15 +294,24 @@ export function buildScene(canvas) {
     const plane = new THREE.Mesh(
       new THREE.PlaneGeometry(BAT.maxY - BAT.minY, h / Math.cos(STROKE_TILT)),
       new THREE.MeshBasicMaterial({
-        color: 0x2f5f96, transparent: true, opacity: 0.10,
+        color: 0x2f5f96, transparent: true, opacity: 0.09,
         side: THREE.DoubleSide, depthWrite: false,
       })
     );
-    plane.rotation.set(Math.PI / 2 - STROKE_TILT * dir, 0, Math.PI / 2);
+    // Built from a BASIS, not from Euler angles. A PlaneGeometry spans x and y
+    // with its normal along +z, and the stroke plane wants its height along the
+    // tilted stroke direction and its width along the table's y. Setting
+    // rotation.x and rotation.z together composes in XYZ order and gives a
+    // quad at an angle nobody asked for, which is what the first version drew.
+    const up = new THREE.Vector3(Math.sin(STROKE_TILT) * dir, 0, Math.cos(STROKE_TILT));
+    const nrm = new THREE.Vector3(Math.cos(STROKE_TILT) * dir, 0, -Math.sin(STROKE_TILT));
+    const side = new THREE.Vector3().crossVectors(up, nrm);
+    plane.quaternion.setFromRotationMatrix(
+      new THREE.Matrix4().makeBasis(side, up, nrm)
+    );
+    const mid = BAT.minZ + h / 2;
     plane.position.set(
-      (dir > 0 ? PLAYER_X : RIVAL_X) + dir * (BAT.minZ + h / 2) * Math.tan(STROKE_TILT),
-      0,
-      BAT.minZ + h / 2
+      (dir > 0 ? PLAYER_X : RIVAL_X) + dir * mid * Math.tan(STROKE_TILT), 0, mid
     );
     scene.add(plane);
   }

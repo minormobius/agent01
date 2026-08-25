@@ -111,6 +111,12 @@
     position: absolute; inset: 0; display: grid; place-items: center; text-align: center;
     background: rgba(7, 10, 13, 0.93); padding: 24px; cursor: pointer;
   }
+  /* REQUIRED, not tidiness. `intro.hidden = true` only works if nothing beats
+     the UA stylesheet's [hidden] rule, and `#intro { display: grid }` beats it
+     on specificity — so without this the overlay stays up over a game that is
+     already running. The other three pages on this surface all carry this line;
+     this one shipped without it. */
+  #intro[hidden] { display: none; }
   #intro h2 { margin: 0 0 8px; font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; color: #6fa8e0; }
   #intro p { margin: 4px auto; max-width: 46ch; color: var(--dim); }
   #intro .go { margin-top: 12px; color: var(--fg); letter-spacing: 0.16em; }
@@ -264,7 +270,10 @@
   let g = newGame((Math.random() * 1e9) | 0, 0.45);
   let started = false, frames = 0;
 
-  globalThis.__pong = () => ({ g, held, started, frames, flow });
+  // `view` is in here on purpose: a headless check needs to be able to ask
+  // the scene where it actually put things, which is the only way the near
+  // bat being invisible was ever going to be diagnosed.
+  globalThis.__pong = () => ({ g, held, started, frames, flow, view });
 
   // ---- the solver panel -------------------------------------------------
   // Loaded lazily and allowed to fail: a browser that will not give us wasm
@@ -374,7 +383,12 @@
     const b = g.ball;
     const spin = b ? len(b.spin) : 0;
     const speed = b ? len(b.vel) : 0;
-    const a = spinRatio(speed, spin);
+    // Signed the same way the solver panel signs it — positive when the Magnus
+    // force is lifting the ball, negative when it is pushing it down. An
+    // unsigned readout next to a signed panel just looks like one of them is
+    // wrong.
+    const lift = b ? b.spin[0] * b.vel[1] - b.spin[1] * b.vel[0] : 0;
+    const a = spinRatio(speed, spin) * (lift < 0 ? -1 : 1);
     let s = `<span>you <b class="big">${g.score.player}</b> &mdash; <b class="big">${g.score.rival}</b> them</span>`
       + `<span>rally <b>${g.rally}</b></span>`
       + `<span>best <b>${g.bestRally}</b></span>`
