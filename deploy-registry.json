@@ -568,6 +568,19 @@
       ]
     },
     {
+      "surface": "ink",
+      "dir": "ink",
+      "endpoint": "ink.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/p5js-procgen-exploration-efdhws",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "ink/**"
+      ],
+      "status": "NEW — ink.mino.mobi was unattached (verified: nothing answered it). wrangler.jsonc declares the custom_domain route, so the first deploy creates worker `ink` and binds the domain. UNVERIFIED FROM THE SANDBOX: the sandbox cannot reach Cloudflare, so the binding must be confirmed from the deploy log (`ink.mino.mobi (custom domain)`) and /api/health."
+    },
+    {
       "surface": "io",
       "dir": "io",
       "endpoint": "io.mino.mobi",

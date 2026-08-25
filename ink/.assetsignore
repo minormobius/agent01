@@ -1,0 +1,6 @@
+# Not part of the site: internal instructions for whoever works on this surface,
+# and the node-only test rigs. assets.directory is this dir, so without these
+# lines they would be served at the surface's public URL.
+CLAUDE.md
+ink.selftest.mjs
+test

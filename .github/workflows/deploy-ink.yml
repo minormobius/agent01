@@ -1,0 +1,56 @@
+name: Deploy ink (fluoddity roller)
+
+on:
+  push:
+    branches: ['claude/p5js-procgen-exploration-efdhws']
+    paths:
+      - 'ink/**'
+      - '.github/workflows/deploy-ink.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ink
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The selftest is the gate that matters here. It asserts the load-bearing
+      # invariant (drawing cannot perturb the simulation), that the simulation is
+      # bit-deterministic, that a shared ?g= link decodes to the identical
+      # painting, and — as a canary — that the measured DEPOSIT / REF_INK
+      # constants still put the rubric in its calibrated band. If someone retunes
+      # the substrate without re-measuring, this goes red rather than the roller
+      # silently starting to pass everything.
+      - name: Selftest (ink invariant, determinism, codec, rubric calibration)
+        working-directory: .
+        run: node ink/ink.selftest.mjs
+
+      - name: Install wrangler
+        run: npm install wrangler
+
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Green is not proof. This surface attaches a NEW custom domain on its
+      # first deploy, so the binding is the thing most likely to be wrong.
+      - name: Verify ink.mino.mobi is live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            if curl -fsS https://ink.mino.mobi/api/health | grep -q '"service": "ink"'; then
+              echo "✓ ink.mino.mobi is serving this worker"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 5
+          done
+          echo "⚠️ ink.mino.mobi did not answer within 30s."
+          echo "   Check the deploy log above binds 'ink.mino.mobi (custom domain)'."
+          echo "   If it does not, the golden rule was broken — see docs/DEPLOYS.md §4."

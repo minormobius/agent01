@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // GOLDEN RULE: `name` must be the worker that owns the live custom domain, and
+  // that domain must appear in routes with custom_domain:true — otherwise
+  // `wrangler deploy` goes green while updating a stray ink.workers.dev and the
+  // live site never changes. ink.mino.mobi was unattached when this surface was
+  // added (verified: no worker answered it), so the first deploy of THIS worker
+  // both creates it and binds the domain. Confirm the run log says
+  // `ink.mino.mobi (custom domain)`.
+  "name": "ink",
+  "main": "worker.js",
+  "compatibility_date": "2026-03-21",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  "routes": [
+    { "pattern": "ink.mino.mobi", "custom_domain": true }
+  ]
+}

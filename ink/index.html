@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ink &mdash; a fluoddity roller</title>
+<meta name="description" content="Roll two Fluoddity populations onto one sheet of paper and watch them draw. Only organisms that clear fluoddity's own interestingness rubric get painted.">
+<meta name="theme-color" content="#f2ece0">
+<meta property="og:type" content="website">
+<meta property="og:title" content="ink &mdash; a fluoddity roller">
+<meta property="og:description" content="Two populations of vector-trail organisms, one shared field, real pigment on paper. Rolled against fluoddity's interestingness rubric so the duds never reach the sheet.">
+<meta property="og:url" content="https://ink.mino.mobi">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header>
+  <h1>ink</h1>
+  <p class="tag">two hands, one sheet</p>
+</header>
+
+<main>
+  <div id="sheetwrap">
+    <canvas id="sheet" width="480" height="480"></canvas>
+    <div id="status"></div>
+  </div>
+
+  <div class="controls">
+    <button id="roll" class="primary">roll</button>
+    <button id="rerollA">reroll first hand</button>
+    <button id="rerollB">reroll second hand</button>
+  </div>
+
+  <div class="readout">
+    <div class="line">
+      <span id="verdict" class="verdict">&nbsp;</span>
+      <span class="k">fitness</span> <span id="fit" class="v">&mdash;</span>
+      <span class="k">cost</span> <span id="cost" class="v">&mdash;</span>
+    </div>
+    <div class="line">
+      <span id="swatchA" class="chip"></span><span id="swatchB" class="chip"></span>
+      <span id="pigment" class="v">&mdash;</span>
+    </div>
+    <div class="line quiet" id="how"></div>
+    <div class="line quiet" id="rejected"></div>
+    <div id="genomes"></div>
+  </div>
+
+  <div class="controls secondary">
+    <button id="save">save png</button>
+    <button id="share">copy link</button>
+  </div>
+
+  <section class="about">
+    <h2>what this is</h2>
+    <p>
+      Two populations of <a href="https://fluoddity.mino.mobi">Fluoddity</a>
+      organisms are dropped onto one sheet. Each is a swarm steering on a
+      chemical trail it lays down itself &mdash; but both write into and sense
+      the <em>same</em> field, so the first hand&rsquo;s wet marks bend the
+      second hand&rsquo;s path. That interference is the picture.
+    </p>
+    <p>
+      Fluoddity keeps a velocity field and renders it as light. This keeps the
+      <em>paths</em>. Every step of every agent is a stroke with a width from
+      its speed &mdash; dwelling broadens the mark, a fast drag thins it &mdash;
+      and an opacity from how much ink that brush has left. Brushes run dry and
+      stop. Pigment composites subtractively onto paper, so where the two hands
+      cross you get a third colour rather than a blown-out white.
+    </p>
+
+    <h2>why the duds don&rsquo;t reach the sheet</h2>
+    <p>
+      Most randomly drawn genomes are boring. So a roll isn&rsquo;t one draw,
+      it&rsquo;s up to three, each scored by
+      <a href="https://fluoddity.mino.mobi">fluoddity&rsquo;s own rubric</a>
+      &mdash; coverage, motion, spatial coherence, blow-out, read off two
+      snapshots so an organism that looks alive once and then dies is caught.
+      The first candidate to clear the bar gets painted; if it repeats something
+      already on your wall this session, it spends one more candidate looking
+      for something you haven&rsquo;t seen.
+    </p>
+    <p>
+      The scoring run is not a preview. It is <em>the painting&rsquo;s own first
+      120 steps</em> &mdash; same field, same agents, same integration &mdash;
+      kept and replayed when the candidate passes. A cheaper probe would be a
+      different substrate, and would certify an organism you never get shown.
+    </p>
+
+    <h2>the same picture, everywhere</h2>
+    <p>
+      <b>copy link</b> puts the two genomes in the URL, so a shared sheet paints
+      identically on any machine. That needs more care than it sounds like: the
+      simulation is a chaotic feedback loop, so it uses its own
+      <code>sin</code>/<code>cos</code> rather than the platform&rsquo;s
+      (<code>Math.sin</code> is not specified to the bit, and one bit at step
+      three is a different painting by step four hundred), and genomes are
+      minted already snapped to the grid the URL encodes.
+    </p>
+    <p class="quiet">
+      Source: <code>ink/</code> &middot; the organisms come from
+      <a href="https://fluoddity.mino.mobi">fluoddity.mino.mobi</a>, the
+      generate-and-certify pattern from <a href="https://fable.mino.mobi/forge/">fable/forge</a>.
+    </p>
+  </section>
+</main>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
