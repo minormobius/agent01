@@ -16,6 +16,16 @@ name: Build pong solver (wasm)
 # The trigger is scoped to the Rust SOURCE, never to the .wasm, so there is no
 # loop. A GITHUB_TOKEN push does not trigger other workflows, so the deploy is
 # dispatched explicitly.
+#
+# It is scoped NARROWLY to the source, and that matters more here than it does
+# for the bearings solver this was copied from. This crate does not build
+# reproducibly — two runs of the same rustc on the same source give binaries
+# that differ byte for byte — so every run that rebuilds also commits and
+# redeploys. Listing pong.selftest.mjs in the paths, as the original did, meant
+# that editing a TEST rebuilt the binary, committed a different one, and shipped
+# it: three rounds of pure churn before anyone noticed. The selftest is already
+# run against the committed wasm by preflight on every push, so nothing is lost
+# by leaving it out.
 
 on:
   push:
@@ -24,7 +34,6 @@ on:
       - 'claude/microbial-locomotion-flagellation-uj0l09'
     paths:
       - 'pokemon/pong/solver/**'
-      - 'pokemon/pong/pong.selftest.mjs'
       - '.github/workflows/build-pong-solver.yml'
   workflow_dispatch:
 
