@@ -433,6 +433,18 @@
       v: 'Advances in Experimental Social Psychology 1, 111–147',
       n: 'The review that complicates Leavitt: centralised networks win on simple tasks and lose on complex ones. If that interaction reproduces here, task difficulty belongs in the design and shape alone will not do.',
       u: 'https://doi.org/10.1016/s0065-2601(08)60050-7' },
+    demillo1978: {
+      a: 'DeMillo, R. A., Lipton, R. J. and Sayward, F. G.', y: 1978,
+      t: 'Hints on Test Data Selection: Help for the Practicing Programmer',
+      v: 'Computer 11(4), 34–41',
+      n: 'Mutation testing, proposed. Seed a fault, see whether the test suite notices; the share it notices is the only way to know the denominator, which is what the loop ledger`s 17 gate failures over 89 turns cannot tell you.',
+      u: 'https://doi.org/10.1109/C-M.1978.218136' },
+    jia2011: {
+      a: 'Jia, Y. and Harman, M.', y: 2011,
+      t: 'An Analysis and Survey of the Development of Mutation Testing',
+      v: 'IEEE Transactions on Software Engineering 37(5), 649–678',
+      n: 'Four decades of it, including the equivalent-mutant problem: a mutant that survives because it is actually correct inflates nothing and means nothing. The bank`s survivor is checked against the reference for exactly that reason.',
+      u: 'https://doi.org/10.1109/TSE.2010.62' },
     fagan1976: {
       a: 'Fagan, M. E.', y: 1976,
       t: 'Design and Code Inspections to Reduce Errors in Program Development',

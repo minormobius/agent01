@@ -96,9 +96,12 @@ worker or move the domain, **verify the deploy log binds
 | `lab/seeded.mjs` | **measuring g** by seeded defects, and the R13 pass that changed H9's outcome |
 | `lab/equivalence.selftest.mjs` | 81 checks: closed forms, the floor at both ends, the never region, H9 |
 | `lab/gate.selftest.mjs` | 72 checks: the corners, the stopping point, the agreement floor, derived roles |
+| `lab/taskbank.mjs` | **the admission gate for a task**: sound, discerning, not free. `node lab/taskbank.mjs` for the report |
+| `lab/tasks/<id>/` | one task: statement, checks, reference, stub, seeded mutants |
+| `lab/taskbank.selftest.mjs` | 40 checks: the three conditions in both directions, and the survivor |
 | `lab/resolve-refs.mjs` | links the bibliography against CrossRef / arXiv / OpenLibrary |
 | `fig/*.svg` | **generated.** Committed so figures print and diff |
-| `refs.js` | **the bibliography, as data** — 94 real works, keyed |
+| `refs.js` | **the bibliography, as data** — 96 real works, keyed |
 | `cite.js` | numbers citations in document order, renders the reference list |
 | `journal.css` | the shared journal typography; prints to real Letter pages |
 | `worker.js` | thin assets worker; maps `/syllabus` and `/protocol` to their `.html` |
@@ -584,6 +587,67 @@ differing only in that answer are not two runs of one design.
 The first version of that table invented `splitter`/`broker`/`reporter`, none of
 which `roles.mjs` produces here. **Assert a role table against `positionTable()`,
 never against itself.**
+
+### The task bank, and why it is the blocker
+
+`lab/taskbank.mjs`. **Every hypothesis here is priced in turns spent on "the
+same task" and no task exists.** H5 wants 180 turns paired on task, H9 six
+chains doing real work, H11 three arms over the same tasks. None can start.
+
+A task is admissible on three conditions, checked in both directions by
+`lab/taskbank.selftest.mjs`:
+
+| | |
+|---|---|
+| **sound** | the reference passes every check. A check that fails a correct solution certifies the wrong answer — WP4's **u**, per task |
+| **discerning** | each seeded defect fails some check. The share that do is the **mutation score**, WP4's **c**, per task |
+| **not free** | a do-nothing `stub.mjs` must fail. Same discipline as the probe's floor arm |
+
+```bash
+node ken/lab/taskbank.mjs        # the report; exits non-zero if a task is inadmissible
+```
+
+**tb-001 scores 0.833 and the survivor is named.** `m6-large-n` is wrong only
+for n > 100, which neither check exercises, and the selftest verifies it differs
+materially from the reference there — an equivalent mutant would inflate nothing.
+A bank admitting only perfect scores would be a bank whose mutants were chosen
+to die.
+
+**Redundancy is 1.00: both checks killed every mutant either killed.** The
+two-effort split bought no diversity of detection on this task, which is WP4 §5's
+correlated failure with checks in place of implementations. First measured result
+about the verification-first pattern, and not the flattering one.
+
+⚠️ **THE BANK MUST NOT BE IN THE RUN'S TREE.** A turn with Read can open
+`reference.mjs` and the mutants. Brief from `statement.md` copied into a fresh
+tree and run the checks in the harness afterwards, exactly as `loop-work.yml`
+already runs a ticket's gate outside the turn. Nothing in the bank can enforce
+this — it is a property of the runner.
+
+**Writing a check against a remembered table is how u happens.** The first
+`check-a.mjs` asserted 0.2027 for the upper limit of 3/40 where the answer is
+0.2039, so it would have failed a correct implementation. Checks here rest on
+the **defining equations**, evaluated by the check's own independent binomial,
+with the table only as a cross-check.
+
+### What the loop's executor can and cannot do
+
+`loop-work.yml` runs `claude -p`, opus, 60 turns, $5, `acceptEdits`, and grants
+**Read, Write, Edit, Glob, Grep** while disallowing **Bash, WebFetch, WebSearch,
+Task**. Two consequences worth knowing before designing any run:
+
+- **A turn cannot execute its own gate.** The loop found this on turn one: a
+  ticket whose gate was a shell command was unverifiable by the only party in a
+  position to satisfy it, and the turn marked the bead done on an honest belief.
+  Gates now run in the workflow, from human-authored beads only.
+- **H10 cannot be tested on this harness.** It requires the check to be *re-run*
+  at each later turn; a turn that cannot execute can only read it, and a read
+  check is a remembered one that attenuates like everything else. Granting Bash
+  is the precondition, and it widens the blast radius, which is why it is off.
+
+**Measured gate coverage of the live ticket graph: 5 of 656 beads, 0.8%.** That
+is WP4's c on the real system, and it puts the programme at the far left of
+Figure 1 where the first assertions are always worth writing.
 
 ### The drawn graph is not the graph
 

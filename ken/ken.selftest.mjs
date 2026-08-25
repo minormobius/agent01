@@ -56,6 +56,7 @@ import {
   ungated, specifyFirst, stoppingPoint, unsoundnessCeiling, agreementFloor,
   strategies, VERIFICATION_FIRST, CHOICE,
 } from './graph/gate.mjs';
+import { audit, auditAll, ADMISSION } from './lab/taskbank.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -619,6 +620,39 @@ function numberWord(n) { return ['zero', 'one', 'two', 'three', 'four', 'five', 
     const one = costToPin({ target: 0.25 }).rows[0];
     ok(log.includes(`${one.width} wide`) && log.includes(`${one.unidentified} of 1500`),
        `the log quotes the single-chain width and failure count (${one.width}, ${one.unidentified})`);
+  }
+
+  /* the log's task-bank entries quote the bank and the reference, so both
+     are recomputed here. The interval was quoted wrong once already:
+     [0.9509, 0.9736] against the true [0.9511, 0.9732]. */
+  {
+    const r = audit('tb-001-binomial-interval');
+    ok(log.includes(`scores ${r.coverage}`), `the log quotes tb-001's mutation score (${r.coverage})`);
+    ok(r.survivors.length === 1 && log.includes(r.survivors[0].replace('.mjs', '')),
+       `and names the survivor (${r.survivors.join(', ')})`);
+    ok(log.includes(`redundancy ${r.redundancy.toFixed(2)}`),
+       `and the check redundancy (${r.redundancy})`);
+    ok(r.sound && r.admissible, 'and the task is sound and admissible, as the log says');
+    ok(r.coverage >= ADMISSION.minCoverage, 'and clears the admission bar');
+
+    const ref = await import('./lab/tasks/tb-001-binomial-interval/reference.mjs');
+    const acc = ref.interval(1156, 1200);
+    ok(log.includes(`[${acc.lower.toFixed(4)}, ${acc.upper.toFixed(4)}]`),
+       `the log quotes the interval on WP3's verdict accuracy ([${acc.lower.toFixed(4)}, ${acc.upper.toFixed(4)}])`);
+    const zero = ref.interval(0, 12);
+    ok(log.includes(`[0, ${zero.upper.toFixed(3)}]`),
+       `and on 0 of 12 ([0, ${zero.upper.toFixed(3)}])`);
+
+    // the live ticket graph's gate coverage, recomputed from the ledger
+    const beads = new Map();
+    for (const b of readFileSync(join(LOOP, 'beads.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l))) beads.set(b.id, b);
+    const all = [...beads.values()];
+    const gated = all.filter((b) => b.gate && b.gate.length);
+    const pctGated = `${(Math.round((gated.length / all.length) * 1000) / 10).toFixed(1)}%`;
+    const word = ['zero', 'One', 'Two', 'Three', 'Four', 'Five'][gated.length] ?? String(gated.length);
+    ok(log.includes(pctGated)
+       && (log.includes(`${gated.length} of ${all.length} beads`) || log.includes(`${word} of ${all.length} beads`)),
+       `the log quotes the ticket graph's gate coverage (${gated.length} of ${all.length}, ${pctGated})`);
   }
 
   // the log must keep saying the honest thing about its own provenance

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Findings Log — ken</title>
-<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. One hundred and seven entries, seven of them from measurements we made.">
+<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. One hundred and seventeen entries, seven of them from measurements we made.">
 <link rel="stylesheet" href="journal.css">
 </head>
 <body>
@@ -33,7 +33,7 @@
   <div class="a-venue">ken · volume 1 <span class="kicker">Running record</span></div>
   <h1 class="a-title">Findings Log</h1>
   <p class="a-sub">Shortest form. Each entry names the code or record that produced it.</p>
-  <div class="a-meta">107 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
+  <div class="a-meta">117 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
   <hr class="a-rule">
 
   <p class="small">Everything here comes from data already paid for or from arithmetic. That is
@@ -847,15 +847,85 @@
       <span class="src"><code>gate.selftest.mjs</code></span></li>
   </ol>
 
+
+  <h2 class="sec"><span class="secno">§</span>The task bank</h2>
+
+  <ol class="log" start="108">
+    <li><b>Every hypothesis here is priced in turns spent on "the same task", and no task
+      exists.</b> H5 wants 180 turns paired on task, H9 six chains doing real work, H11 three arms
+      over the same tasks. The bank is the blocker, and it is also the one artefact whose own
+      quality is measurable without a judge.
+      <span class="src"><code>taskbank.mjs</code></span></li>
+
+    <li><b>The live ticket graph has machine-checkable coverage of 0.8%.</b> Five of 656 beads
+      carry a <code>gate</code>, and all five are still proposals. That is WP4's c, measured on the
+      real system rather than assumed, and it puts the programme at the far left of the curve where
+      the first assertions are always worth writing.
+      <span class="src"><code>.github/loop/beads.jsonl</code></span></li>
+
+    <li><b>A task is admissible on three conditions, and the second is the instrument.</b> Sound:
+      the reference passes every check, since a check that fails a correct solution certifies the
+      wrong answer. Discerning: each seeded defect fails at least one check, and the share that do
+      is the mutation score <a class="cite" data-ref="demillo1978"></a>. Not free: a do-nothing
+      stub must fail, which is the probe's floor arm in another costume.
+      <span class="src"><code>audit()</code> · <code>ADMISSION</code></span></li>
+
+    <li><b>tb-001 scores 0.833, and the survivor is named rather than hidden.</b> Six seeded
+      defects, five killed. The survivor is wrong only for n &gt; 100, which neither check
+      exercises, and it is verified to differ materially from the reference there so it is not an
+      equivalent mutant <a class="cite" data-ref="jia2011"></a>. A bank admitting only perfect
+      scores would be a bank whose mutants were chosen to die.
+      <span class="src"><code>m6-large-n.mjs</code></span></li>
+
+    <li><b>The two efforts detect the same things: redundancy 1.00.</b> Every mutant either check
+      killed, both checks killed. On this task the verification-first split bought no diversity of
+      detection at all, which is WP4 §5's correlated failure with checks in place of
+      implementations. First measured result about the pattern, and it is not the flattering one.
+      <span class="src"><code>audit().redundancy</code></span></li>
+
+    <li><b>The first check written for the bank contained an unsound assertion.</b> It graded the
+      solution against a published table recalled from memory, and asserted 0.2027 for the upper
+      limit of 3/40 where the answer is 0.2039 — so it would have failed a correct implementation.
+      Caught only because the limit is defined by an equation the check could evaluate for itself.
+      Checks now rest on the defining equations, with the table as a cross-check.
+      <span class="src"><code>check-a.mjs</code></span></li>
+
+    <li><b>The loop's executor cannot run anything, and the loop found that out on turn one.</b>
+      <code>loop-work.yml</code> grants Read, Write, Edit, Glob and Grep, and disallows Bash and
+      subagents. A ticket whose gate is a shell command was therefore unverifiable by the only
+      party in a position to satisfy it, and the first live turn marked a bead done on an honest
+      belief. The gate now runs in the workflow rather than in the turn.
+      <span class="src"><code>.github/workflows/loop-work.yml</code></span></li>
+
+    <li><b>That grant is also why H10 cannot be tested on the current harness.</b> H10 requires the
+      check to be re-run at each later turn rather than summarised, because a summarised check is a
+      remembered one and would attenuate like everything else. A turn that cannot execute can only
+      read its check. Turning Bash on is the precondition, and it widens the blast radius, which is
+      why it was off.
+      <span class="src"><a href="/register">H10</a> · <a href="/wp4#noattenuate">WP4 §2</a></span></li>
+
+    <li><b>The bank must not be in the run's tree, and no check in it can enforce that.</b> A turn
+      with Read over the repository can open the reference and the mutants. A run is briefed from
+      the statement copied into a fresh tree, with the checks executed by the harness afterwards. A
+      run that gets this wrong measures reading comprehension and reports it as work.
+      <span class="src"><code>taskbank.mjs</code> preconditions</span></li>
+
+    <li><b>Ken has been printing rates with no intervals, and tb-001's reference fixes that.</b>
+      WP3's 96.3% verdict accuracy over 1200 replications is [0.9511, 0.9732]. A floor arm scoring
+      0 of 12 is [0, 0.265], not 0. Every rate on this site is a binomial proportion and none of
+      them carried a statement of how well it was known.
+      <span class="src"><code>tasks/tb-001/reference.mjs</code></span></li>
+  </ol>
+
   <h2 class="sec"><span class="secno">§</span>The ledger</h2>
 
   <div class="table-fig">
     <table class="booktabs">
       <thead><tr><th>Source of finding</th><th class="num">Entries</th></tr></thead>
       <tbody>
-        <tr><td>Records already committed</td><td class="num">12</td></tr>
-        <tr><td>Arithmetic and simulation</td><td class="num">56</td></tr>
-        <tr><td>Our own mistakes</td><td class="num">30</td></tr>
+        <tr><td>Records already committed</td><td class="num">14</td></tr>
+        <tr><td>Arithmetic and simulation</td><td class="num">62</td></tr>
+        <tr><td>Our own mistakes</td><td class="num">32</td></tr>
         <tr><td>Prior literature</td><td class="num">2</td></tr>
         <tr><td><b>New measurement</b></td><td class="num"><b>7</b></td></tr>
       </tbody>
@@ -866,6 +936,8 @@
   bought the one parameter every cost estimate here had been assuming: an ICC for judged quality
   of 0.413, with an interval of [0.00, 0.88] around it. That interval is the honest summary of
   the whole exercise — a first anchor, not a measurement.</p>
+
+  <div class="refs"><h2 class="sec"><span class="secno">§</span>References</h2><ol id="reflist"></ol></div>
 
   <div class="colophon">
     ken · findings log<br>
