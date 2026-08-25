@@ -79,7 +79,8 @@
   #hud b { color: var(--fg); font-weight: 600; }
   #hud .big { color: #6fa8e0; }
 
-  #pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+  #padhint { margin-top: 10px; color: var(--dim); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; }
+  #pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 6px; }
   #pad button {
     touch-action: none; height: 76px; margin: 0; padding: 4px;
     border: 1px solid var(--border); border-radius: 6px; background: #0a0f15;
@@ -119,6 +120,7 @@
   #intro[hidden] { display: none; }
   #intro h2 { margin: 0 0 8px; font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; color: #6fa8e0; }
   #intro p { margin: 4px auto; max-width: 46ch; color: var(--dim); }
+  #intro p.alt { margin-top: 10px; font-size: 11px; opacity: 0.75; }
   #intro .go { margin-top: 12px; color: var(--fg); letter-spacing: 0.16em; }
 
   #notes { padding: 18px 18px 48px; max-width: 78ch; margin: 0 auto; color: var(--dim); }
@@ -180,21 +182,24 @@
     </div>
     <div id="intro">
       <div>
-        <h2>Four keys, one plane</h2>
+        <h2>One plane, one pointer</h2>
         <p>Your bat never leaves one flat, forward-leaning plane, and its face
         is fixed — you cannot open it, close it, or angle it. Everything you do
         is the velocity the bat happens to have at the instant of contact.</p>
-        <p><b>Q</b> up the plane &nbsp; <b>W</b> down it &nbsp;
-        <b>O</b> left &nbsp; <b>P</b> right. Because the plane leans forward,
-        brushing up buys pace and topspin together — which is what a loop is,
-        and why you cannot hit hard without spinning hard.</p>
-        <div class="go">press any key, or tap</div>
+        <p><b>Move the cursor</b> over the table and the bat goes there.
+        <b>On a phone, drag.</b> How fast you move IS how hard you brush —
+        flick upward through the ball and it comes off with topspin, which is
+        the only thing that will bring a hard shot down in time.</p>
+        <p class="alt">Still four keys if you want them: Q up the plane,
+        W down it, O left, P right.</p>
+        <div class="go">click or tap to begin</div>
       </div>
     </div>
   </div>
 
   <div id="hud"></div>
 
+  <div id="padhint">or use the keys</div>
   <div id="pad">
     <button class="q" data-i="0">Q<span class="sub">brush up</span></button>
     <button class="w" data-i="1">W<span class="sub">brush down</span></button>
@@ -203,7 +208,7 @@
   </div>
 
   <div id="ctl">
-    <label>rival <input id="diff" type="range" min="0" max="100" value="45" /> <b id="diffval">45%</b></label>
+    <label>rival <input id="diff" type="range" min="0" max="100" value="30" /> <b id="diffval">30%</b></label>
     <button id="again">new match</button>
     <label><input id="showflow" type="checkbox" checked /> solver panel</label>
   </div>
@@ -240,7 +245,22 @@
   exchange, because air drag takes about 40% of a table tennis ball's speed in a
   single crossing and a bat that cannot advance has nothing to put back.</p>
 
-  <h2>Same four keys</h2>
+  <h2>How you play it</h2>
+  <p>The bat has two degrees of freedom and lives in a plane, which is exactly
+  what a pointer is, so the pointer drives it: the bat sits where your cursor
+  is — found by casting a ray through the cursor onto the stroke plane, so it
+  really is under your finger rather than approximately under it — and the
+  speed you move at is the speed it brushes. That speed is smoothed over 45 ms,
+  because raw frame-to-frame pointer deltas are metres per second of noise, and
+  clamped to the same top speed the keys can reach, so a flick cannot put spin
+  on the ball that the contact model was never measured against.</p>
+  <p>It started as four keys, like everything else on this surface, and four
+  keys turned out to be too much to ask: you have to arrive in the right PLACE
+  at the right SPEED out of a single integrator, and the legal band of brush
+  speeds is about 3 m/s wide out of 13. The keys still work. They are just no
+  longer the way in.</p>
+
+  <h2>Same four keys, elsewhere</h2>
   <p>Same four as <a href="../qwop/">/qwop/</a>, <a href="../graze/">/graze/</a>,
   <a href="../qgol/">/qgol/</a>, <a href="../griddle/">/griddle/</a>,
   <a href="../armline/">/armline/</a> and <a href="../mimic/">/mimic/</a>.
@@ -267,13 +287,46 @@
   const view = buildScene(canvas);
   const KEYS = ['q', 'w', 'o', 'p'];
   const held = [false, false, false, false];
-  let g = newGame((Math.random() * 1e9) | 0, 0.45);
+
+  // --- pointing ----------------------------------------------------------
+  // The bat has exactly two degrees of freedom in a plane, which is what a
+  // pointer is, so the pointer drives it directly: the bat goes where the
+  // cursor is and its speed is how fast you moved. Mouse tracks on hover;
+  // touch tracks while a finger is down. The keys still work, and whichever
+  // was touched last is the one in charge.
+  let aim = null, pointing = false, dragging = false;
+
+  function pointerAt(e) {
+    const r = canvas.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    const nx = ((e.clientX - r.left) / r.width) * 2 - 1;
+    const ny = -(((e.clientY - r.top) / r.height) * 2 - 1);
+    const p = view.pointerToPlane(nx, ny);
+    // A ray aimed above the horizon never meets the stroke plane. Keep the
+    // last good position rather than snapping the bat somewhere arbitrary.
+    if (p) { aim = p; pointing = true; }
+  }
+  canvas.addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse' && !dragging) return;
+    pointerAt(e);
+  });
+  canvas.addEventListener('pointerdown', (e) => {
+    dragging = true;
+    try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+    pointerAt(e);
+    if (!started) reset(true);
+  });
+  const endDrag = () => { dragging = false; };
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+  let g = newGame((Math.random() * 1e9) | 0, 0.30);
   let started = false, frames = 0;
 
   // `view` is in here on purpose: a headless check needs to be able to ask
   // the scene where it actually put things, which is the only way the near
   // bat being invisible was ever going to be diagnosed.
-  globalThis.__pong = () => ({ g, held, started, frames, flow, view });
+  globalThis.__pong = () => ({ g, held, started, frames, flow, view, aim, pointing });
 
   // ---- the solver panel -------------------------------------------------
   // Loaded lazily and allowed to fail: a browser that will not give us wasm
@@ -321,7 +374,7 @@
     const k = e.key.toLowerCase();
     if (!started) { if (k === ' ' || e.key.length === 1) { e.preventDefault(); reset(true); } return; }
     const i = KEYS.indexOf(k);
-    if (i >= 0) { e.preventDefault(); if (!held[i]) { held[i] = true; paintPad(); } }
+    if (i >= 0) { e.preventDefault(); pointing = false; if (!held[i]) { held[i] = true; paintPad(); } }
   });
   addEventListener('keyup', (e) => {
     const i = KEYS.indexOf(e.key.toLowerCase());
@@ -336,6 +389,7 @@
     const press = (e) => {
       e.preventDefault();
       if (!started) { reset(true); return; }
+      pointing = false;
       try { btn.setPointerCapture(e.pointerId); } catch (_) {}
       if (!held[i]) { held[i] = true; btn.dataset.on = '1'; }
     };
@@ -412,7 +466,9 @@
     const wall = Math.min(0.1, (t - last) / 1000);
     last = t;
     if (started) {
-      const input = { Q: held[0], W: held[1], O: held[2], P: held[3] };
+      const input = pointing && aim
+        ? { aim }
+        : { Q: held[0], W: held[1], O: held[2], P: held[3] };
       stepGame(g, wall, input);
       if (g.rally !== lastRally || g.phase === 'point') { g.trailReset = g.rally !== lastRally; lastRally = g.rally; }
     }

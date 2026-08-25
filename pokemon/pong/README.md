@@ -24,12 +24,10 @@ from the Rust in `solver/`. Nothing else is fetched at runtime.
 - `index.html` — shell, input, main loop.
 - `pong.selftest.mjs` — `node pokemon/pong/pong.selftest.mjs`.
 
-| key | bat |
-|---|---|
-| `Q` | brush up the stroke plane |
-| `W` | brush down it |
-| `O` | brush left |
-| `P` | brush right |
+**Move the cursor** over the table and the bat goes there; on a phone, **drag**.
+How fast you move is how hard you brush. The four keys still work — `Q` up the
+stroke plane, `W` down it, `O` left, `P` right — but they are no longer the way
+in, and the section below says why.
 
 ## What the solver is
 
@@ -202,6 +200,69 @@ and not what a sphere does. Using a curve measured for a different body, running
 in a direction a ball does not go, would have been worse than using no curve at
 all, so the flight uses a constant C_D = 0.45, the accepted subcritical value
 for a ball this size.
+
+## Why it is not four keys any more
+
+Everything else on this surface is four keys, and this started that way. It was
+too hard, and not in an interesting way.
+
+The bat has two degrees of freedom in a plane and the physics reads exactly one
+thing off it — the velocity at contact. The legal band of brush speeds is about
+**3.2 m/s wide out of a 13 m/s range**, and with bang-bang keys the only way to
+trade position against speed is to start the swing earlier, from further down.
+So you were being asked to arrive in the right *place* at the right *speed* out
+of a single integrator with four bits of input.
+
+A bat with two degrees of freedom in a plane is a **pointer**. So the pointer
+drives it: the bat sits where the cursor is, found by casting a ray through the
+cursor onto the stroke plane rather than by scaling the canvas onto the reach
+box — the view is a perspective one, and a linear map is only right at one
+depth. The bat is under your finger, not approximately under it.
+
+Two things are deliberately not direct:
+
+- **The velocity is smoothed** over 45 ms. Raw frame-to-frame pointer deltas are
+  metres per second of noise, and the difference between a drive and a loop here
+  is a couple of m/s.
+- **The velocity is clamped** to the same top speed the keys could reach.
+  Without it a fast flick is a bat doing ninety, which is outside every regime
+  the contact model was measured in.
+
+What that costs, measured: three scripted players, same aim, same rival, same
+seeds, differing only in how they drive the bat.
+
+| | points won | longest rally |
+|---|---|---|
+| pointer | 51% | **43** |
+| keys | 56% | 26 |
+| pointer, brushing at random | 9% | 5 |
+
+A perfect machine is slightly *better* with keys, because bang-bang can hold a
+more extreme velocity than a hand can drag. A person is not a perfect machine,
+and the rally length is where the difference shows.
+
+## Can a hand actually do it?
+
+To brush at *v* you must cover *v · t* metres in *t* seconds, and the metres
+have to fit inside the reach. Driving the real bat along real pointer paths,
+sampled at 120 Hz:
+
+| drag | 60 ms | 90 ms | 130 ms | 200 ms |
+|---|---|---|---|---|
+| 0.20 m | 2.5 | 1.9 | 1.5 | 1.0 |
+| 0.60 m | 7.4 | 5.8 | 4.4 | 3.0 |
+| 1.00 m | 9.8 | 9.6 | 7.3 | 4.9 |
+| 1.20 m | 9.8 | 11.5 | 8.7 | 5.9 |
+
+At the shipped framing the stroke plane covers about 0.0032 m per pixel, so the
+legal window of 6.4–9.6 m/s is a cursor drag of **2000–3000 px/s** — a brisk
+flick, and half the reach in 60 ms already lands in it. A leisurely 200 ms sweep
+of the entire reach makes only 6.0 m/s, which is the bottom of the window: you
+still have to mean it.
+
+An earlier version of this test fixed the flick at 130 ms, found the top of the
+window unreachable, and would have had the page redesigned around what was
+really an assumption about how fast a hand moves.
 
 ## The bat cannot push
 

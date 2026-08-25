@@ -76,13 +76,82 @@ export const dirOf = (n) => (n[0] < 0 ? -1 : 1);
 /// `x0` is where the plane crosses table height; the bat's actual x follows its
 /// height, because the plane is tilted.
 export function newBat(x0, n) {
-  const b = { x0, n, y: BAT.restY, z: BAT.restZ, vy: 0, vz: 0, x: 0 };
+  const b = {
+    x0, n, y: BAT.restY, z: BAT.restZ, vy: 0, vz: 0, x: 0,
+    fromY: BAT.restY, fromZ: BAT.restZ, toY: BAT.restY, toZ: BAT.restZ, slid: 1,
+  };
   placeBat(b);
   return b;
 }
 
 function placeBat(b) {
   b.x = b.x0 + dirOf(b.n) * b.z * STROKE_TAN;
+}
+
+/// Fastest the bat can move, either way it is driven.
+export const BAT_TOP = BAT.drive / BAT.damp;
+const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+
+// --- pointing at it -------------------------------------------------------
+//
+// The four keys stayed, but they are not how you play this any more. A bat with
+// exactly two degrees of freedom in a plane is a POINTER, and asking someone to
+// hit a 3.2 m/s-wide velocity window out of a 13 m/s range with bang-bang keys
+// was asking too much: you have to arrive in the right PLACE at the right SPEED
+// out of one integrator, and with keys the only way to trade one against the
+// other is to start the swing earlier.
+//
+// So the bat can also be driven by a target position, which is where the cursor
+// or the finger is. The bat goes exactly there — no lag, no smoothing on the
+// position, because a paddle that trails your hand feels broken — and its
+// VELOCITY, which is the only thing the physics reads, is the rate that
+// position is changing.
+//
+// Two things are deliberately not direct:
+//
+//   The velocity is smoothed over POINTER_TAU. A raw frame-to-frame difference
+//   is enormously noisy — one 8 ms frame with a 3-pixel jitter is metres per
+//   second — and the difference between a drive and a loop here is a couple of
+//   m/s, so unsmoothed input would be indistinguishable from a dice roll.
+//
+//   The velocity is CLAMPED to the same top speed the keys can reach. Without
+//   it, a fast flick of a mouse is a bat doing 90 m/s, which is outside every
+//   regime the contact model was measured in and would let you put 400 rev/s on
+//   the ball by twitching. The clamp is what keeps pointer play inside the same
+//   physics the keys were tuned against.
+export const POINTER_TAU = 0.045;
+
+/// Take a new pointer target. Call ONCE per frame with the real elapsed time,
+/// because this differentiates: feeding it a 1/480 s substep against a target
+/// that only changes once a frame reports one enormous velocity followed by a
+/// string of zeros.
+export function aimBat(bat, dt, ty, tz) {
+  const y = clamp(ty, BAT.minY, BAT.maxY);
+  const z = clamp(tz, BAT.minZ, BAT.maxZ);
+  const h = Math.max(dt, 1e-4);
+  let vy = (y - bat.y) / h;
+  let vz = (z - bat.z) / h;
+  const sp = Math.hypot(vy, vz);
+  if (sp > BAT_TOP) { vy *= BAT_TOP / sp; vz *= BAT_TOP / sp; }
+  const a = 1 - Math.exp(-h / POINTER_TAU);
+  bat.vy += (vy - bat.vy) * a;
+  bat.vz += (vz - bat.vz) * a;
+  // Where it starts and ends this frame. The position is walked across the
+  // frame's substeps rather than snapped at one end of it: at full tilt the bat
+  // covers 0.22 m in a 60 Hz frame, which is three bat widths, and a contact
+  // test against a bat that spent the whole frame at its destination would
+  // score hits it never made and miss ones it did.
+  bat.fromY = bat.y; bat.fromZ = bat.z;
+  bat.toY = y; bat.toZ = z;
+  bat.slid = 0;
+}
+
+/// Walk the bat `frac` of the way through the frame set up by `aimBat`.
+export function slideBat(bat, frac) {
+  bat.slid = Math.min(1, bat.slid + frac);
+  bat.y = bat.fromY + (bat.toY - bat.fromY) * bat.slid;
+  bat.z = bat.fromZ + (bat.toZ - bat.fromZ) * bat.slid;
+  placeBat(bat);
 }
 
 /// One bat substep. `up`/`down`/`left`/`right` are booleans.
@@ -228,16 +297,23 @@ export const SUBSTEP = 1 / 480;
 
 /// Advance the whole game by `dt` seconds. `input` has Q/W/O/P booleans.
 export function stepGame(g, dt, input) {
-  let left = Math.min(dt, 0.1);
+  const frame = Math.min(dt, 0.1);
+  const aim = input && input.aim;
+  if (aim) aimBat(g.player, frame, aim.y, aim.z);
+  let left = frame;
   while (left > 1e-9) {
     const h = Math.min(SUBSTEP, left);
     left -= h;
     g.t += h;
     g.since += h;
 
-    stepBat(g.player, h, {
-      up: !!input.Q, down: !!input.W, left: !!input.O, right: !!input.P,
-    });
+    if (aim) {
+      slideBat(g.player, h / frame);
+    } else {
+      stepBat(g.player, h, {
+        up: !!input.Q, down: !!input.W, left: !!input.O, right: !!input.P,
+      });
+    }
 
     if (g.phase === 'live') {
       driveRival(g);
@@ -523,7 +599,6 @@ export function solveBrush(incVel, incSpin, at, targetX, targetY, n, x0) {
 // the stationary face. It still won, because a parked bat returns the ball; it
 // just never played a shot.
 
-export const BAT_TOP = BAT.drive / BAT.damp;
 const BAT_TAU = 1 / BAT.damp;
 
 /// How long a brush of `v` takes to build from rest, and how far the bat
@@ -602,7 +677,64 @@ export function autopilot(g, side, aim) {
     clamp(p.at.z - p.sw.travel, BAT.minZ + 0.02, BAT.maxZ - 0.02));
 }
 
-const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+
+/// The same controller, expressed as a CURSOR TARGET rather than key presses —
+/// where a hand would put the pointer this instant to play the planned shot.
+///
+/// It exists so the selftest can drive the pointer the way the page does,
+/// through one controller rather than two that have to be kept in step. Before
+/// the swing it parks the cursor below the contact point by exactly the
+/// distance the flick will cover; during the swing it drags at the brush speed.
+export function autoAim(g, side, aim) {
+  const bat = side === SIDE.PLAYER ? g.player : g.rival;
+  const x0 = side === SIDE.PLAYER ? PLAYER_X : RIVAL_X;
+  const key = side === SIDE.PLAYER ? 'planP' : 'planR';
+  const b = g.ball;
+  const coming = side === SIDE.PLAYER ? b.vel[0] < 0 : b.vel[0] > 0;
+  const rest = () => ({ y: BAT.restY, z: BAT.restZ });
+  if (!coming) { g[key] = null; return rest(); }
+
+  const stamp = g.rally + 1000 * (g.total.player + g.total.rival);
+  let p = g[key];
+  if (p && (p.stamp !== stamp || g.t - p.t0 > p.at.dt + 0.15)) p = g[key] = null;
+  if (!p && g.bounced === 0) {
+    const land = landing(b.vel, b.spin, b.pos);
+    const dir = side === SIDE.PLAYER ? 1 : -1;
+    const mine = !land.netted && land.x * dir < -0.02
+      && Math.abs(land.x) <= TABLE.halfLength && Math.abs(land.y) <= TABLE.halfWidth;
+    if (!mine) { g[key] = { stamp, duck: true, at: { dt: 0 }, t0: g.t }; return rest(); }
+  }
+  if (!p) {
+    const at = predict(b, x0, side === SIDE.PLAYER ? PLAYER_N : RIVAL_N);
+    if (!at) return { y: bat.y, z: bat.z };
+    const want = aim(at, side);
+    if (!want) { g[key] = { at, stamp, duck: true, t0: g.t }; return rest(); }
+    // A flick is a distance as much as a speed: to move at v you must cover
+    // v*SWING metres in SWING seconds, and that is what has to fit inside the
+    // reach.
+    p = { at, stamp, vz: want.vz, vy: want.vy || 0, t0: g.t };
+    g[key] = p;
+  }
+  if (p.duck) return rest();
+
+  const tLeft = p.at.dt - (g.t - p.t0);
+  if (tLeft > POINTER_SWING) {
+    return {
+      y: clamp(p.at.y - p.vy * POINTER_SWING, BAT.minY, BAT.maxY),
+      z: clamp(p.at.z - p.vz * POINTER_SWING, BAT.minZ, BAT.maxZ),
+    };
+  }
+  // Inside the swing: drag through the contact point at the planned speed.
+  const done = POINTER_SWING - Math.max(0, tLeft);
+  return {
+    y: clamp(p.at.y - p.vy * (POINTER_SWING - done), BAT.minY, BAT.maxY),
+    z: clamp(p.at.z - p.vz * (POINTER_SWING - done), BAT.minZ, BAT.maxZ),
+  };
+}
+
+/// How long a flick lasts. Longer means a gentler drag for the same brush
+/// speed, but more of the reach spent getting there.
+export const POINTER_SWING = 0.13;
 
 /// The rival's choice of shot. Difficulty moves three things at once: how deep
 /// and wide it aims, how much it shakes, and how well it reads the ball.

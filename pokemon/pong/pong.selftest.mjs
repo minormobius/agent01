@@ -28,8 +28,9 @@ import {
 } from './aero.js';
 import {
   BAT, PLAYER_N, RIVAL_N, STROKE_DEG, FACE_DEG, STROKE_TAN,
-  newGame, stepGame, newBat, stepBat, batVel,
-  tryShot, legalWindow, solveBrush, autopilot, swingFor, BAT_TOP, rng, SIDE, SUBSTEP,
+  newGame, stepGame, newBat, stepBat, batVel, aimBat, slideBat,
+  autoAim, POINTER_SWING, POINTER_TAU, BAT_TOP,
+  tryShot, legalWindow, solveBrush, autopilot, swingFor, rng, SIDE, SUBSTEP,
 } from './game.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -506,44 +507,76 @@ check('the hardest ball that still lands is a spinning one',
   `${(fastest.arrive * 3.6).toFixed(1)} km/h on arrival`);
 
 // ===========================================================================
-head('6. can the bat this game gives you actually get there?');
+head('6. can you get there with a pointer?');
 // ===========================================================================
 //
-// A legal window is no use if the bat cannot reach it. This drives the real bat
-// integrator with the real key inputs, from the bottom of its reach, and asks
-// what brush speed it has after a given travel — because TRAVEL is the
-// constraint. You have to be in the right PLACE with the right VELOCITY, out of
-// one integrator, and that is where the QWOP is.
+// The page is played with a cursor now, not the keys, so the question changed.
+// It is no longer "can bang-bang keys reach the legal window" but "does moving
+// a pointer at human speeds land inside it" — and, because the bat's position
+// IS the cursor's, the flick has to fit inside the reach: to brush at v you
+// must cover v * SWING metres in SWING seconds.
 
-console.log(`  bat: ${BAT.drive} m/s^2 while held, ${BAT.damp}/s drag, ` +
-  `top speed ${(BAT.drive / BAT.damp).toFixed(1)} m/s`);
-console.log(`  reach: ${(BAT.maxZ - BAT.minZ).toFixed(2)} m of travel`);
-console.log('    travelled   brush speed');
+console.log(`  reach ${(BAT.maxZ - BAT.minZ).toFixed(2)} m, smoothing ${POINTER_TAU * 1000} ms, ` +
+  `speed clamped at ${BAT_TOP.toFixed(1)} m/s`);
+
+/// Drive the real bat along a real pointer path: a straight drag of `dist`
+/// metres over `secs` seconds, sampled at 120 Hz the way a browser would.
+function flick(dist, secs) {
+  const b = newBat(PLAYER_X, PLAYER_N);
+  b.z = BAT.minZ; b.y = 0;
+  const steps = Math.max(1, Math.round(secs * 120));
+  let z = BAT.minZ;
+  for (let i = 0; i < steps; i++) {
+    z += dist / steps;
+    aimBat(b, secs / steps, 0, z);
+    slideBat(b, 1);
+  }
+  return b.vz;
+}
+
+// The reach and the clock trade off: to brush at v you must cover v*t metres in
+// t seconds, and the metres have to fit. Sweeping both is the honest picture —
+// an earlier version of this fixed the flick at 130 ms, found the top of the
+// window unreachable, and would have had the page redesigned around a
+// constraint that was really an assumption about how fast a hand moves.
+const REACH = BAT.maxZ - BAT.minZ;
+const DURS = [0.06, 0.09, 0.13, 0.20];
+console.log('  brush speed from a straight drag (blank = longer than the reach):');
+console.log('    drag      ' + DURS.map((d) => `${(d * 1000).toFixed(0)}ms`.padStart(8)).join(''));
+let topFlick = 0;
+for (const dist of [0.20, 0.40, 0.60, 0.80, 1.00, 1.20]) {
+  const row = DURS.map((d) => {
+    if (dist > REACH) return '       -';
+    const v = flick(dist, d);
+    topFlick = Math.max(topFlick, v);
+    return `${v.toFixed(1)} m/s`.padStart(8);
+  });
+  console.log(`    ${dist.toFixed(2)} m ` + row.join(''));
+}
+
+// What a hand has to do on screen, which is the number that decides whether
+// this is playable. The stroke plane covers roughly 0.0032 m per pixel at the
+// shipped framing, measured off the rendered scene.
+const M_PER_PX = 0.0032;
+console.log(`  the legal window ${wOn.lo.toFixed(2)}-${wOn.hi.toFixed(2)} m/s is a drag of ` +
+  `${(wOn.lo / M_PER_PX).toFixed(0)}-${(wOn.hi / M_PER_PX).toFixed(0)} px/s at the shipped framing`);
+
+check('a pointer flick inside the reach covers the whole legal window',
+  topFlick >= wOn.hi, `fastest reachable ${topFlick.toFixed(2)} m/s against a window top of ${wOn.hi.toFixed(2)}`);
+check('but not at any speed — the slow end of the window is still a real drag',
+  flick(REACH, 0.20) < wOn.hi,
+  `a leisurely 200 ms sweep of the whole reach only makes ${flick(REACH, 0.20).toFixed(2)} m/s`);
+
+// The velocity clamp is what keeps a twitchy input inside the physics the
+// contact model was measured against. Without it a 3000 px flick in one frame
+// is a bat doing ninety.
 {
   const b = newBat(PLAYER_X, PLAYER_N);
-  b.z = BAT.minZ;
-  const marks = [0.15, 0.30, 0.50, 0.80, 1.10];
-  let mi = 0;
-  const got = [];
-  for (let i = 0; i < Math.round(3.0 / SUBSTEP) && mi < marks.length; i++) {
-    stepBat(b, SUBSTEP, { up: true });
-    if (b.z - BAT.minZ >= marks[mi]) {
-      got.push({ d: marks[mi], v: b.vz });
-      console.log(`    ${marks[mi].toFixed(2)} m      ${b.vz.toFixed(2).padStart(6)} m/s`);
-      mi++;
-    }
-  }
-  const atFull = got.length ? got[got.length - 1].v : 0;
-  check('a full swing reaches the top of the legal window',
-    atFull >= wOn.hi * 0.95,
-    `${atFull.toFixed(2)} m/s after ${(BAT.maxZ - BAT.minZ).toFixed(2)} m, ` +
-    `window tops out at ${wOn.hi.toFixed(2)}`);
-  const half = got.find((x) => x.d === 0.50);
-  check('but half a swing does NOT — the reach is the constraint',
-    half && half.v < wOn.hi,
-    `${half ? half.v.toFixed(2) : '?'} m/s at half travel`);
-  check('and the window is not simply everything the bat can do',
-    wOn.lo > 1.0, `you still have to get past ${wOn.lo.toFixed(2)} m/s`);
+  b.z = 0; b.y = 0;
+  for (let i = 0; i < 12; i++) { aimBat(b, 1 / 120, 0, i % 2 ? 0.6 : -0.3); slideBat(b, 1); }
+  check('a violent flick is clamped, not passed through',
+    Math.hypot(b.vy, b.vz) <= BAT_TOP + 1e-6,
+    `${Math.hypot(b.vy, b.vz).toFixed(2)} m/s against a ${BAT_TOP.toFixed(2)} ceiling`);
 }
 
 // ===========================================================================
@@ -554,13 +587,13 @@ head('7. does playing well beat playing badly?');
 // players, same physics, same rival, same seeds: one aims with solveBrush, one
 // brushes at whatever. If they score the same, the skill is not in the keys.
 
+// Three scripted players, same physics, same rival, same seeds. Two of them
+// aim identically and differ only in HOW they drive the bat; the third has the
+// pointer but no idea where to put it.
 function scripted(kind, seed, points = 20) {
   const g = newGame(seed, 0.45);
   const rnd = rng(seed ^ 0x9e3779b9);
-  // Both players use the SAME controller the rival uses. The only difference is
-  // what they ask it for — which is the point: the skill on trial is choosing
-  // the shot, not moving the bat.
-  const aim = (at) => (kind === 'random'
+  const pick = (at) => (kind === 'random'
     ? { vz: -3 + rnd() * 16, vy: (rnd() - 0.5) * 6 }
     : (() => {
         const sol = solveBrush(at.vel, at.spin, at, 0.85, (rnd() - 0.5) * 1.0,
@@ -568,42 +601,54 @@ function scripted(kind, seed, points = 20) {
         return sol ? { vz: sol.vz, vy: sol.vy } : { vz: 8, vy: 0 };
       })());
   let guard = 0;
-  // g.score resets at 11 — g.total is the cumulative one.
   while (g.total.player + g.total.rival < points && guard++ < 600000) {
-    let ctl = {};
+    let input = {};
     if (g.phase === 'live' && g.ball) {
-      const c = autopilot(g, SIDE.PLAYER, aim);
-      ctl = { Q: c.up, W: c.down, O: c.left, P: c.right };
+      if (kind === 'keys') {
+        const c = autopilot(g, SIDE.PLAYER, pick);
+        input = { Q: c.up, W: c.down, O: c.left, P: c.right };
+      } else {
+        input = { aim: autoAim(g, SIDE.PLAYER, pick) };
+      }
     }
-    stepGame(g, SUBSTEP * 2, ctl);
+    stepGame(g, SUBSTEP * 2, input);
   }
   return g;
 }
 
 const seeds = [11, 29, 47, 83, 101, 137];
-const tally = { aimed: { w: 0, l: 0, rally: 0 }, random: { w: 0, l: 0, rally: 0 } };
+const tally = {
+  pointer: { w: 0, l: 0, rally: 0 },
+  keys: { w: 0, l: 0, rally: 0 },
+  random: { w: 0, l: 0, rally: 0 },
+};
 for (const sd of seeds) {
-  for (const kind of ['aimed', 'random']) {
+  for (const kind of Object.keys(tally)) {
     const g = scripted(kind, sd);
     tally[kind].w += g.total.player;
     tally[kind].l += g.total.rival;
     tally[kind].rally = Math.max(tally[kind].rally, g.bestRally);
   }
 }
-for (const kind of ['aimed', 'random']) {
+for (const kind of Object.keys(tally)) {
   const t = tally[kind];
-  console.log(`  ${kind.padEnd(7)} won ${String(t.w).padStart(3)} of ` +
+  console.log(`  ${kind.padEnd(8)} won ${String(t.w).padStart(3)} of ` +
     `${t.w + t.l} points  (${((100 * t.w) / (t.w + t.l)).toFixed(0)}%), ` +
     `longest rally ${t.rally}`);
 }
-const aimedRate = tally.aimed.w / (tally.aimed.w + tally.aimed.l);
-const randomRate = tally.random.w / (tally.random.w + tally.random.l);
-check('aiming beats flailing', aimedRate > randomRate + 0.10,
-  `${(aimedRate * 100).toFixed(0)}% against ${(randomRate * 100).toFixed(0)}%`);
-check('the rival is beatable', aimedRate > 0.25,
-  `${(aimedRate * 100).toFixed(0)}% of points to the aimed player`);
-check('and rallies happen', tally.aimed.rally >= 3,
-  `longest ${tally.aimed.rally} strokes`);
+const rate = (k) => tally[k].w / (tally[k].w + tally[k].l);
+check('aiming beats flailing', rate('pointer') > rate('random') + 0.10,
+  `${(rate('pointer') * 100).toFixed(0)}% against ${(rate('random') * 100).toFixed(0)}%`);
+check('the rival is beatable', rate('pointer') > 0.25,
+  `${(rate('pointer') * 100).toFixed(0)}% of points to the pointer player`);
+// The reason the page changed control scheme. The same intent, expressed
+// through a pointer instead of four keys, should not be WORSE — and the rally
+// length is where the difference actually shows.
+check('the pointer is at least as good as the keys it replaced',
+  rate('pointer') > rate('keys') - 0.08,
+  `pointer ${(rate('pointer') * 100).toFixed(0)}%, keys ${(rate('keys') * 100).toFixed(0)}%`);
+check('and it sustains longer rallies', tally.pointer.rally > tally.keys.rally,
+  `${tally.pointer.rally} strokes against ${tally.keys.rally}`);
 
 // ===========================================================================
 head('8. the game runs');
@@ -617,10 +662,7 @@ head('8. the game runs');
   let worst = 0;
   for (let i = 0; i < 120000; i++) {
     let ctl = {};
-    if (g.phase === 'live' && g.ball) {
-      const c = autopilot(g, SIDE.PLAYER, aim);
-      ctl = { Q: c.up, W: c.down, O: c.left, P: c.right };
-    }
+    if (g.phase === 'live' && g.ball) ctl = { aim: autoAim(g, SIDE.PLAYER, aim) };
     stepGame(g, SUBSTEP * 2, ctl);
     worst = Math.max(worst, Math.abs(g.ball.pos[0]), Math.abs(g.ball.vel[0]));
     if (!Number.isFinite(worst)) break;

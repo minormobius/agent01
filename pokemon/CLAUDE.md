@@ -37,7 +37,7 @@ Static worker-assets (Worker `poke`), ten things sharing one asset manifest:
 | `/griddle/` | [A house of pancakes](griddle/README.md) — squirt bottle, one-seat stove, spatula. You never see the face that is cooking; the burner is the fourth key because it is what makes the bubble cue lie |
 | `/armline/` | [Six axes, four keys](armline/README.md) — a real **AR4 MK3** kinematic chain, transcribed from its MIT URDF, picking rejects off a moving line. 3D; uses `vendor/three.module.min.js` |
 | `/mimic/` | [Dueling marionettes](mimic/README.md) — watch a puppet dance, then reproduce the *inputs* from what you saw. 3D. Its selftest measures whether the input-to-motion map is legible at all |
-| `/pong/` | [Spin, solved](pong/README.md) — table tennis where the bat cannot leave its plane and the Magnus force comes out of a **D2Q9 lattice Boltzmann solver** in Rust, compiled to wasm and committed as `pong/solver.wasm`. 3D. Its selftest flies every shot twice, with the solved lift and without it |
+| `/pong/` | [Spin, solved](pong/README.md) — table tennis where the bat cannot leave its plane and the Magnus force comes out of a **D2Q9 lattice Boltzmann solver** in Rust, compiled to wasm and committed as `pong/solver.wasm`. 3D. Its selftest flies every shot twice, with the solved lift and without it. **The one page here not played with the four keys** — see below |
 
 `/flag/` and `/qwop/` import the model from `/proteus/flagella.js`, and
 `/graze/` imports the whole cell from `/qwop/game.js`, rather than copying. Same
@@ -47,6 +47,19 @@ rather than editing it, because that balance is measured and shipped. `/qgol/`,
 `/griddle/`, `/armline/`, `/mimic/` and `/pong/` are the exceptions to all of
 this: they import nothing from the others and share no physics with them. They
 are on this surface because they are the same four keys.
+
+**`/pong/` is the exception to THAT.** It is driven by a pointer — cursor on a
+desktop, drag on a phone — and the keys are left in as an alternative rather
+than as the way in. The reason is measured rather than felt: its bat has two
+degrees of freedom in a plane and the physics reads only the velocity at
+contact, and the legal band of brush speeds is about 3.2 m/s wide out of 13, so
+four bits of input meant arriving in the right PLACE at the right SPEED out of
+one integrator. A bat with two degrees of freedom in a plane is a pointer. The
+selftest runs the same scripted aim through both control schemes against the
+same rival and the same seeds — pointer 51% of points and rallies to 43, keys
+56% and rallies to 26 — so a perfect machine is slightly better with keys, and
+a person is not a perfect machine. If another page here ever outgrows the keys,
+that comparison is the shape of the argument to make.
 
 Nine node selftests live here and all run under `preflight` when this dir
 changes: `proteus/flagella.selftest.mjs` (the model), `flag/flag.selftest.mjs`

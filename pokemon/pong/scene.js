@@ -386,6 +386,33 @@ export function buildScene(canvas) {
     trailGeo.attributes.position.needsUpdate = true;
   }
 
+  // ---- pointing ---------------------------------------------------------
+  //
+  // Turn a place on the canvas into a place on the player's stroke plane, by
+  // casting a ray from the camera through the cursor and intersecting the
+  // plane the bat is confined to. Doing it properly rather than scaling the
+  // canvas rect onto the reach box is the whole difference between "the bat is
+  // under my finger" and "the bat is somewhere to the left of my finger": the
+  // view is a perspective one, and a linear map is only right at one depth.
+  //
+  // The plane is x = x0 + z*tan(T), which normalises to
+  //   (cos T) x - (sin T) z - (cos T) x0 = 0.
+  const planeNormal = new THREE.Vector3(Math.cos(STROKE_TILT), 0, -Math.sin(STROKE_TILT));
+  const strokePlane = new THREE.Plane(planeNormal, -Math.cos(STROKE_TILT) * PLAYER_X);
+  const ray = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+  const hit = new THREE.Vector3();
+
+  /// `nx`, `ny` are normalised device coordinates (-1..1, y up). Returns the
+  /// bat-plane coordinates, or null if the ray misses the plane entirely —
+  /// which happens when the cursor is above the horizon.
+  function pointerToPlane(nx, ny) {
+    ndc.set(nx, ny);
+    ray.setFromCamera(ndc, camera);
+    if (!ray.ray.intersectPlane(strokePlane, hit)) return null;
+    return { y: hit.y, z: hit.z };
+  }
+
   let lastAspect = 0;
   function resize(w, h) {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -398,7 +425,10 @@ export function buildScene(canvas) {
   }
 
   const render = () => renderer.render(scene, camera);
-  return { scene, camera, renderer, update, resize, render, ballMesh, playerBat, rivalBat };
+  return {
+    scene, camera, renderer, update, resize, render, pointerToPlane,
+    ballMesh, playerBat, rivalBat,
+  };
 }
 
 export { PLAYER_X, RIVAL_X };
