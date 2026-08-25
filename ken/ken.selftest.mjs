@@ -628,6 +628,18 @@ function numberWord(n) { return ['zero', 'one', 'two', 'three', 'four', 'five', 
   {
     const r = audit('tb-001-binomial-interval');
     ok(log.includes(`scores ${r.coverage}`), `the log quotes tb-001's mutation score (${r.coverage})`);
+
+    /* tb-002's headline is the redundancy contrast: splitting the two
+       efforts by kind rather than by subject is what bought detection
+       diversity, and the log states both numbers. */
+    const r2 = audit('tb-002-summon-solids');
+    ok(log.includes(`1.00 to
+      ${r2.redundancy}`) || log.includes(`1.00 to ${r2.redundancy}`),
+       `the log quotes the redundancy contrast (1 to ${r2.redundancy})`);
+    ok(r2.redundancy < r.redundancy, 'and tb-002 really is the less redundant of the two');
+    ok(r2.sound && r2.admissible && r2.coverage === 0.875,
+       `tb-002 is sound, admissible and scores 0.875 (got ${r2.coverage})`);
+    ok(auditAll().tasks === 2, 'the bank holds two tasks');
     ok(r.survivors.length === 1 && log.includes(r.survivors[0].replace('.mjs', '')),
        `and names the survivor (${r.survivors.join(', ')})`);
     ok(log.includes(`redundancy ${r.redundancy.toFixed(2)}`),

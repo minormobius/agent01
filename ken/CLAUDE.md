@@ -98,7 +98,7 @@ worker or move the domain, **verify the deploy log binds
 | `lab/gate.selftest.mjs` | 72 checks: the corners, the stopping point, the agreement floor, derived roles |
 | `lab/taskbank.mjs` | **the admission gate for a task**: sound, discerning, not free. `node lab/taskbank.mjs` for the report |
 | `lab/tasks/<id>/` | one task: statement, checks, reference, stub, seeded mutants |
-| `lab/taskbank.selftest.mjs` | 40 checks: the three conditions in both directions, and the survivor |
+| `lab/taskbank.selftest.mjs` | 56 checks: the three conditions in both directions, the survivors, the redundancy contrast |
 | `lab/runner.mjs` | **executes a six-turn run**: fresh tree per turn, demonstrated isolation, held-out scoring. `--dry-run` needs no key |
 | `lab/runner.selftest.mjs` | 64 checks, most of them faults it must catch — a leak, a silent turn, an unsound check |
 | `lab/runs/` | one JSON record per executed run, committed |
@@ -620,6 +620,66 @@ to die.
 two-effort split bought no diversity of detection on this task, which is WP4 §5's
 correlated failure with checks in place of implementations. First measured result
 about the verification-first pattern, and not the flattering one.
+
+### Picking a target: the layer, not the project
+
+`foam/` is the loop's declared target ([`FACTORIO.md`](../foam/FACTORIO.md)) and
+it is three things of very different size:
+
+| | lines | oracle |
+|---|---|---|
+| `app.js` | 1113 | none — WebGL2, not checkable headlessly. **This is the part that burns you.** |
+| `foamworld.js` | 798 | constructive solvability certificate, 184 checks over 8 seeds, **10s** |
+| `solids.mjs` | 197 | `verify()` exact to floating point, **0.055s**, no imports |
+
+**A target is not one size. Pick the layer whose oracle is cheap.** tb-002 is
+`solids.mjs`, and its reference is pinned **byte-identical** to the real module
+so the task cannot measure a stale snapshot.
+
+### The beads are a mutant source, not a target set
+
+656 beads: 196 findings, 177 decisions, 34 questions, 18 dead-ends, **10 tasks**.
+It was never a graded curriculum. What it holds is better — **a catalogue of
+real defects with known shapes**, and two of tb-002's seeded mutants are those
+defects re-injected rather than invented:
+
+- **`lp-01d08f`** → `m1-naive-constellation`. Naive seed constellations are 22°
+  wrong and **the cube still looks perfect**, so the first thing anyone tries
+  passes. A naturally occurring coverage hole.
+- **`lp-273253`** → `m2-rotate-not-returned`. A verifier grading against the
+  wrong reference failed correct geometry by exactly the yaw angle. Its own note:
+  *"a checker that FAILS CORRECT WORK is worse than no checker: it retires a
+  mechanic that was fine, and the retirement looks like evidence."* That is WP4's
+  **u**, found in the wild before the model for it existed.
+
+**A mutant I write is one I chose, and choosing them is how a coverage score
+gets flattered.** Harvest from the ledger where you can.
+
+### Split the efforts by KIND, not by subject
+
+| task | split | redundancy |
+|---|---|---|
+| tb-001 | one problem, two halves (estimator / coverage property) | **1.00** — both checks killed everything either killed |
+| tb-002 | the placement against **the checker that grades it** | **0.429** |
+
+Three of tb-002's seven killed mutants fall to exactly one lane: argument
+validation to A alone; the unreturned yaw, the ill-conditioned error measure and
+the widened tolerance to B alone, because A never looks at `verify()`.
+
+**The checker deserves its own lane because it has two ways to be useless** —
+too lax passes the 22° bug, too strict retires a mechanic that was fine — and
+only an acceptance test that feeds it *known-bad* input catches a tolerance
+widened until it stops complaining.
+
+⚠️ **Do not grade against a remembered reference.** tb-002's first `check-a.mjs`
+carried its own table of face normals, used (0, 1/φ, φ) for the dodecahedron
+where the answer is (0, 1, φ), and silently dropped twelve of the icosahedron's
+twenty. It failed correct geometry by 10.8° — the exact failure the task is
+about, committed while writing the check for it. The rewrite carries **no
+coordinates**: face count, unit normals summing to zero, equal inradius, and
+**face-transitivity** (every Platonic solid is isohedral, so the sorted angle
+multiset from one face normal is the same for all — and a metric that rotates
+off-axis normals destroys exactly that).
 
 ⚠️ **THE BANK MUST NOT BE IN THE RUN'S TREE.** A turn with Read can open
 `reference.mjs` and the mutants. Brief from `statement.md` copied into a fresh

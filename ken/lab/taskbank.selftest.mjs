@@ -137,14 +137,65 @@ section('what a passing task earns');
   ok(small.upper > 0.2, `and 0 of 12 is [0, ${small.upper.toFixed(3)}], which is why zero needs an interval`);
 }
 
-// ── 7. the whole-bank audit agrees with the per-task one ──────────────
+// ── 7. tb-002, and the reason it exists ───────────────────────────────
+section('tb-002 · summon solids');
+
+const T2 = 'tb-002-summon-solids';
+const R2 = audit(T2);
+
+{
+  /* THE REFERENCE IS PINNED TO THE REAL MODULE. A bank task whose
+     reference has drifted from the code it was cut from measures a
+     snapshot nobody uses. If foam/solids.mjs changes, this goes red and
+     somebody re-pins on purpose. */
+  const bank = readFileSync(join(TASKS_DIR, T2, 'reference.mjs'), 'utf8');
+  const live = readFileSync(join(TASKS_DIR, '..', '..', '..', 'foam', 'solids.mjs'), 'utf8');
+  ok(bank === live, 'tb-002`s reference is byte-identical to foam/solids.mjs');
+
+  ok(R2.sound, 'the reference passes both checks');
+  ok(R2.admissible, 'and tb-002 is admissible');
+  ok(R2.coverage === 0.875, `mutation score 0.875 (got ${R2.coverage})`);
+  ok(R2.survivors.length === 1 && R2.survivors[0] === 'm8-extent-anisotropic.mjs',
+    `one survivor, named (${R2.survivors.join(', ')})`);
+
+  /* THE POINT OF tb-002. tb-001 split its two efforts by SUBJECT and got
+     redundancy 1.00 — both checks killed everything either killed, so
+     the split bought no detection diversity. tb-002 splits by KIND, the
+     placement against the checker, and the redundancy falls by more than
+     half. That is a design rule the bank can carry forward. */
+  ok(R2.redundancy < 0.5, `redundancy ${R2.redundancy}, against tb-001's ${REPORT.redundancy}`);
+  ok(R2.redundancy < REPORT.redundancy / 2, 'splitting by kind more than halves it');
+
+  const by = Object.fromEntries(R2.matrix.map((m) => [m.mutant, m.byCheck.map((c) => c.killed)]));
+  ok(by['m7-no-validation.mjs'][0] && !by['m7-no-validation.mjs'][1],
+    'argument validation is caught by A alone');
+  for (const only of ['m2-rotate-not-returned.mjs', 'm4-acos-error-measure.mjs', 'm5-tolerance-widened.mjs']) {
+    ok(!by[only][0] && by[only][1], `${only} is caught by B alone, because A never looks at the checker`);
+  }
+
+  /* TWO MUTANTS ARE NOT INVENTED. They are defects the loop actually
+     made on this target and recorded as beads, re-injected. */
+  const m1 = readFileSync(join(TASKS_DIR, T2, 'mutants', 'm1-naive-constellation.mjs'), 'utf8');
+  const m2 = readFileSync(join(TASKS_DIR, T2, 'mutants', 'm2-rotate-not-returned.mjs'), 'utf8');
+  ok(/lp-01d08f/.test(m1), 'm1 names the bead it was harvested from');
+  ok(/lp-273253/.test(m2), 'and so does m2');
+
+  // the statement must not give away the algebra it is asking for
+  const st = readFileSync(join(TASKS_DIR, T2, 'statement.md'), 'utf8');
+  ok(!/mutant|seeded|reference\.mjs|stub/i.test(st), 'the statement names no mutant, seed or reference');
+  ok(!/M\^?-1|inverse|22 degree|u\^T/i.test(st), 'and gives away no part of the fix');
+  ok(/anisotropic/i.test(st) && /inradius/i.test(st), 'while stating the complication and the parameter, which is the task');
+}
+
+// ── 8. the whole-bank audit agrees with the per-task ones ─────────────
 section('auditAll');
 
 {
   const all = auditAll();
-  ok(all.tasks === taskIds().length, 'every task is audited');
-  ok(all.admissible === all.tasks, 'and all of them are admissible');
-  ok(all.meanCoverage === REPORT.coverage, 'mean coverage agrees with the single task');
+  ok(all.tasks === taskIds().length && all.tasks === 2, 'both tasks are audited');
+  ok(all.admissible === all.tasks, 'and both are admissible');
+  ok(all.meanCoverage === Math.round(((REPORT.coverage + R2.coverage) / 2) * 1000) / 1000,
+    `mean coverage is the mean of the two (${all.meanCoverage})`);
   ok(existsSync(TASKS_DIR), 'the bank directory exists');
 }
 

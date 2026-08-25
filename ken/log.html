@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Findings Log — ken</title>
-<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. One hundred and twenty-four entries, seven of them from measurements we made.">
+<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. One hundred and thirty-two entries, seven of them from measurements we made.">
 <link rel="stylesheet" href="journal.css">
 </head>
 <body>
@@ -33,7 +33,7 @@
   <div class="a-venue">ken · volume 1 <span class="kicker">Running record</span></div>
   <h1 class="a-title">Findings Log</h1>
   <p class="a-sub">Shortest form. Each entry names the code or record that produced it.</p>
-  <div class="a-meta">124 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
+  <div class="a-meta">132 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
   <hr class="a-rule">
 
   <p class="small">Everything here comes from data already paid for or from arithmetic. That is
@@ -964,15 +964,77 @@
       <span class="src"><code>scripts/preflight.mjs</code></span></li>
   </ol>
 
+
+  <h2 class="sec"><span class="secno">§</span>The target, and the second task</h2>
+
+  <ol class="log" start="125">
+    <li><b>The campaign is too big and the kernel is not, and the difference is measurable.</b>
+      <code>foam/app.js</code> is 1,113 lines of WebGL2 that cannot be checked headlessly.
+      <code>foam/foamworld.js</code> is 798 lines carrying a constructive solvability certificate,
+      selftested in 10s. <code>foam/solids.mjs</code> is 197 lines with no imports and an oracle
+      that runs in <b>0.055s</b>. A target is not one size; pick the layer whose oracle is cheap.
+      <span class="src"><code>foam/test/</code></span></li>
+
+    <li><b>The bead graph is a memory, not a curriculum.</b> 656 beads: 196 findings, 177
+      decisions, 34 questions, 18 dead-ends and <b>10 tasks</b>. 492 are done. It was never a
+      graded target set and reading it as one is the mistake. What it holds instead is better: a
+      catalogue of real defects with known shapes.
+      <span class="src"><code>.github/loop/beads.jsonl</code></span></li>
+
+    <li><b>The loop already produced both of WP4's failure modes on this target, unprompted.</b>
+      <code>lp-01d08f</code> is a coverage hole: naive seed constellations are 22° wrong and the
+      cube still looks perfect, so the first thing anyone tries passes. <code>lp-273253</code> is
+      unsoundness: a verifier grading against the wrong reference failed correct geometry by
+      exactly the yaw angle, and its own note reads "a checker that FAILS CORRECT WORK is worse
+      than no checker: it retires a mechanic that was fine, and the retirement looks like
+      evidence."
+      <span class="src">beads <code>lp-01d08f</code>, <code>lp-273253</code></span></li>
+
+    <li><b>Two of tb-002's seeded defects are not invented.</b> They are those two beads,
+      re-injected into the module they were found in. A mutant harvested from a recorded failure
+      is a defect the world produced; a mutant I write is one I chose, and choosing them is how a
+      coverage score gets flattered.
+      <span class="src"><code>m1-naive-constellation</code> · <code>m2-rotate-not-returned</code></span></li>
+
+    <li><b>Splitting the two efforts by KIND rather than by subject cuts redundancy from 1.00 to
+      0.429.</b> tb-001 split one problem into two halves and both checks killed everything either
+      killed. tb-002 splits the placement from the checker that grades it, and three of seven
+      mutants are caught by exactly one lane: argument validation by A alone, and the unreturned
+      yaw, the ill-conditioned error measure and the widened tolerance by B alone.
+      <span class="src"><code>audit().redundancy</code></span></li>
+
+    <li><b>The checker deserves its own lane because it has two ways to be useless.</b> Too lax
+      passes the 22° bug; too strict retires a mechanic that was fine. Effort B's acceptance test
+      feeds <code>verify()</code> known-good and known-bad geometry and requires the right verdict
+      on both, which is the only construction that catches a tolerance widened until the check
+      stops complaining.
+      <span class="src"><code>check-b.mjs</code></span></li>
+
+    <li><b>The first check written for tb-002 failed correct geometry by 10.8°, which is the
+      failure the task is about.</b> It carried its own table of face normals and used
+      (0, 1/φ, φ) for the dodecahedron where the answer is (0, 1, φ), while its de-duplicator
+      silently ate twelve of the icosahedron's twenty. The rewrite carries <b>no coordinates at
+      all</b>: face count, unit normals summing to zero, every face at the requested inradius, and
+      face-transitivity — every Platonic solid is isohedral, so the sorted angle multiset from one
+      face normal is the same for all of them, and a metric that rotates off-axis normals destroys
+      exactly that.
+      <span class="src"><code>check-a.mjs</code></span></li>
+
+    <li><b>tb-002's reference is pinned byte-identical to <code>foam/solids.mjs</code>.</b> A bank
+      task whose reference has drifted from the code it was cut from measures a snapshot nobody
+      uses. If the module changes the gate goes red and somebody re-pins deliberately.
+      <span class="src"><code>taskbank.selftest.mjs</code></span></li>
+  </ol>
+
   <h2 class="sec"><span class="secno">§</span>The ledger</h2>
 
   <div class="table-fig">
     <table class="booktabs">
       <thead><tr><th>Source of finding</th><th class="num">Entries</th></tr></thead>
       <tbody>
-        <tr><td>Records already committed</td><td class="num">16</td></tr>
-        <tr><td>Arithmetic and simulation</td><td class="num">66</td></tr>
-        <tr><td>Our own mistakes</td><td class="num">33</td></tr>
+        <tr><td>Records already committed</td><td class="num">19</td></tr>
+        <tr><td>Arithmetic and simulation</td><td class="num">70</td></tr>
+        <tr><td>Our own mistakes</td><td class="num">34</td></tr>
         <tr><td>Prior literature</td><td class="num">2</td></tr>
         <tr><td><b>New measurement</b></td><td class="num"><b>7</b></td></tr>
       </tbody>
