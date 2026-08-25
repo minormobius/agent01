@@ -24,7 +24,7 @@ Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `s
 
 ## How it works
 
-Static worker-assets (Worker `poke`), eight things sharing one asset manifest:
+Static worker-assets (Worker `poke`), nine things sharing one asset manifest:
 
 | Path | What |
 |---|---|
@@ -35,30 +35,32 @@ Static worker-assets (Worker `poke`), eight things sharing one asset manifest:
 | `/graze/` | [Predator-and-prey variant](graze/README.md) — /qwop/'s cell plus an energy budget, prey, and a water column. Its selftest is an experiment: does sit-and-wait *emerge*? |
 | `/qgol/` | [Conway's Game of QWOP](qgol/README.md) — the same four keys on a rule instead of a swimmer. Three keys mark, the fourth commits, so Q W O P is exactly one B3/S23 generation. Shares no physics with the rest |
 | `/griddle/` | [A house of pancakes](griddle/README.md) — squirt bottle, one-seat stove, spatula. You never see the face that is cooking; the burner is the fourth key because it is what makes the bubble cue lie |
-| `/armline/` | [Six axes, four keys](armline/README.md) — a real **AR4 MK3** kinematic chain, transcribed from its MIT URDF, picking rejects off a moving line. The only 3D page here; uses `vendor/three.module.min.js` |
+| `/armline/` | [Six axes, four keys](armline/README.md) — a real **AR4 MK3** kinematic chain, transcribed from its MIT URDF, picking rejects off a moving line. 3D; uses `vendor/three.module.min.js` |
+| `/mimic/` | [Dueling marionettes](mimic/README.md) — watch a puppet dance, then reproduce the *inputs* from what you saw. 3D. Its selftest measures whether the input-to-motion map is legible at all |
 
 `/flag/` and `/qwop/` import the model from `/proteus/flagella.js`, and
 `/graze/` imports the whole cell from `/qwop/game.js`, rather than copying. Same
 worker, same asset directory, so relative imports across them just work — **do
 not copy**, the sync would rot. `/graze/` also wraps `/qwop/`'s predator table
 rather than editing it, because that balance is measured and shipped. `/qgol/`,
-`/griddle/` and `/armline/` are the exceptions to all of this: they import
-nothing from the others and share no physics with them. They are on this surface
+`/griddle/`, `/armline/` and `/mimic/` are the exceptions to all of this: they
+import nothing from the others and share no physics with them. They are on this surface
 because they are the same four keys.
 
-Seven node selftests live here and all run under `preflight` when this dir
+Eight node selftests live here and all run under `preflight` when this dir
 changes: `proteus/flagella.selftest.mjs` (the model), `flag/flag.selftest.mjs`
 (that page's loop agrees with the model), `qwop/qwop.selftest.mjs` (that skilled
 play beats unskilled play — the game's design claim, not something "it compiles"
-can tell you), `graze/graze.selftest.mjs`, `qgol/qgol.selftest.mjs`, and
-`griddle/griddle.selftest.mjs` and `armline/armline.selftest.mjs`. Run them
-before touching `flagella.js` or `armline/arm.js`: the constants in both are
-transcribed from published sources, and the tests are what prove the
+can tell you), `graze/graze.selftest.mjs`, `qgol/qgol.selftest.mjs`,
+`griddle/griddle.selftest.mjs`, `armline/armline.selftest.mjs` and
+`mimic/mimic.selftest.mjs`. Run them before touching `flagella.js` or
+`armline/arm.js`: the constants in both are transcribed from published sources,
+and the tests are what prove the
 transcription. `armline`'s checks its joint table field for field against the
 AR4's URDF, from a second copy written out independently, so a typo has to be
 made twice in the same way to survive.
 
-Four of them are experiments rather than checklists — they sweep a family of
+Five of them are experiments rather than checklists — they sweep a family of
 strategies or controllers, report which wins, and are allowed to tell you the
 design is wrong. **All of them have.** `graze`'s said the growth curve plateaus
 rather than turning over, against my stated prediction; `qgol`'s rejected the
@@ -71,6 +73,14 @@ jaws take longer to close than a part takes to cross the grasp radius, so you
 have to commit the grip *before* the part arrives. In each case the
 documentation was changed to match the measurement, not the other way round.
 That is what these files are for.
+
+`mimic`'s is the one that goes furthest: it does not test the game, it tests
+whether the game is POSSIBLE. The whole premise is that you can watch a puppet
+and infer which strings were pulled, which needs the input-to-motion map to be
+both repeatable and separable — so the test measures the correlation between
+input distance and motion distance (r = -0.955) and is entitled to come back and
+say no such game exists. That is the shape to reach for when a design rests on a
+perceptual claim rather than a mechanical one.
 
 **A test can also pass for the wrong reason, and one here did.** The cell swam
 the wrong way round for four shipped commits: `flagella.js` ran its travelling
@@ -86,21 +96,29 @@ has its own assertion in `flagella.selftest.mjs` (with a negative control), and
 from 1.34 to 1.03. **A sign that nothing asserts is a sign that will be wrong.**
 
 Where a page has a browser-driving debug handle (`window.__qwop`, `__graze`,
-`__qgol`, `__griddle`, `__armline`), it is for ad-hoc checks with the harness in
+`__qgol`, `__griddle`, `__armline`, `__mimic`), it is for ad-hoc checks with the
+harness in
 `scripts/lib/headless.mjs` — none of that is wired into `preflight`, which stays
 node-only and fast. **Headless Chrome throttles `requestAnimationFrame` to about
 0.5 Hz**, so a browser check cannot exercise gameplay that advances on the frame
 clock; use it for what node cannot see — that the keys are wired up, the canvas
 paints, nothing throws — and leave the simulation to the selftests.
 
-**3D lives in `vendor/`.** `armline` is the only page here that renders in 3D;
-it imports `vendor/three.module.min.js` (r169, MIT), a byte-identical copy of
-the one the `lab` surface vendors at `lab/_kit/`. It has to be a copy — a
-different worker serves `lab`, so a cross-surface import would 404 in
-production. Any future 3D page here should import that same file rather than
-vendoring a second one.
+**3D lives in `vendor/`.** `armline` and `mimic` render in 3D and both import
+`vendor/three.module.min.js` (r169, MIT), a byte-identical copy of the one the
+`lab` surface vendors at `lab/_kit/`. It has to be a copy — a different worker
+serves `lab`, so a cross-surface import would 404 in production. **One copy for
+the whole surface**: any further 3D page imports that same file rather than
+vendoring another.
 
-**Static Assets replaces the whole manifest; it does not merge.** All eight
+Both 3D pages share a couple of hard-won rendering habits worth keeping: the
+environment map is generated procedurally in a few lines rather than shipped as
+an HDR (metal with nothing to reflect looks like grey plastic), and any mesh
+stretched between two points must be **unit height**, because the span helper
+scales it — a mesh with its own natural length gets scaled twice and comes out
+a fraction of the right size.
+
+**Static Assets replaces the whole manifest; it does not merge.** All nine
 paths above ship from one `wrangler deploy`, so this branch has to carry all of
 them. It does — it was checked as a strict superset of the previous owner's
 tree before ownership moved — but any future branch taking this surface over

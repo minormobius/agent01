@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>MIMIC — dueling marionettes</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0d0a09;
+    --fg: #e8ded0;
+    --dim: #7d7062;
+    --border: #241a16;
+    --q: #8fb4e0; --w: #e0a84c; --o: #9fd08a; --p: #d08a9f;
+    --rival: #8fa8c8; --mine: #d8a04c;
+  }
+  * { box-sizing: border-box; }
+  * {
+    -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none;
+    user-select: none; -webkit-user-select: none;
+  }
+  html { touch-action: manipulation; }
+  #notes, #notes * { user-select: text; -webkit-user-select: text; }
+
+  html, body {
+    margin: 0; padding: 0; min-height: 100%;
+    background: var(--bg); color: var(--fg);
+    font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased; overscroll-behavior-y: contain;
+  }
+  a { color: #e0a84c; }
+
+  header {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 12px 18px 10px; border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    margin: 0; font-size: 13px; font-weight: 600;
+    letter-spacing: 0.18em; text-transform: uppercase; color: #e0a84c;
+  }
+  header .sub { color: var(--dim); font-size: 11px; }
+
+  #stage { position: relative; margin: 12px auto 0; max-width: 1100px; padding: 0 18px; }
+  #wrap {
+    position: relative; border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; background: #0d0a09;
+  }
+  canvas { display: block; width: 100%; height: min(60vh, 560px); touch-action: none; }
+
+  /* The phase banner sits over the stage, because looking away from the
+     puppets to read a status line is exactly what you cannot afford to do. */
+  #banner {
+    position: absolute; top: 12px; left: 0; right: 0; text-align: center;
+    pointer-events: none; font-size: 13px; letter-spacing: 0.20em;
+    text-transform: uppercase; color: #ffe0a8;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.9);
+  }
+  #banner .big { display: block; font-size: 40px; letter-spacing: 0.06em; margin-top: 2px; }
+  #labels {
+    position: absolute; bottom: 44px; left: 0; right: 0;
+    display: flex; justify-content: space-around; pointer-events: none;
+    font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+  }
+  #labels .r { color: var(--rival); } #labels .m { color: var(--mine); }
+
+  #hud {
+    display: flex; flex-wrap: wrap; gap: 4px 18px; padding: 8px 12px;
+    border-top: 1px solid var(--border); color: var(--dim); font-size: 11px;
+    background: #120d0b;
+  }
+  #hud b { color: var(--fg); font-weight: 600; }
+
+  #bars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+  .meter { border: 1px solid var(--border); border-radius: 4px; padding: 5px 7px; background: #120d0b; }
+  .meter .lab { font-size: 9px; color: var(--dim); letter-spacing: 0.08em; }
+  .meter .track { height: 5px; background: #221812; border-radius: 3px; margin-top: 4px; overflow: hidden; }
+  .meter .fill { height: 100%; width: 0%; transition: width 120ms linear; }
+
+  #pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+  #pad button {
+    touch-action: none; height: 76px; margin: 0; padding: 4px;
+    border-radius: 8px; border: 2px solid; background: #16100d;
+    font-size: 19px; font-weight: 600;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    cursor: pointer; transition: background 60ms linear, transform 60ms linear;
+  }
+  #pad button .sub { display: block; font-size: 9px; opacity: 0.8; font-weight: 400; }
+  #pad button.q { color: var(--q); border-color: var(--q); }
+  #pad button.w { color: var(--w); border-color: var(--w); }
+  #pad button.o { color: var(--o); border-color: var(--o); }
+  #pad button.p { color: var(--p); border-color: var(--p); }
+  #pad button[data-on="1"] { color: #0d0a09; transform: translateY(2px); }
+  #pad button.q[data-on="1"] { background: var(--q); }
+  #pad button.w[data-on="1"] { background: var(--w); }
+  #pad button.o[data-on="1"] { background: var(--o); }
+  #pad button.p[data-on="1"] { background: var(--p); }
+
+  #controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 10px; }
+  #controls label { color: var(--dim); font-size: 11px; }
+  #controls input[type=range] { width: 200px; accent-color: #e0a84c; }
+  #controls button {
+    background: #241a16; color: var(--fg); border: 1px solid var(--border);
+    padding: 7px 16px; border-radius: 4px; cursor: pointer; font: inherit;
+  }
+
+  .overlay {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px; text-align: center;
+    background: rgba(13, 10, 9, 0.92); padding: 24px;
+  }
+  .overlay[hidden] { display: none; }
+  .overlay h2 { margin: 0; font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase; color: #e0a84c; }
+  .overlay p { margin: 3px 0; color: var(--dim); max-width: 64ch; }
+  .overlay button {
+    background: #241a16; color: var(--fg); border: 1px solid var(--border);
+    padding: 7px 18px; border-radius: 4px; cursor: pointer; font: inherit; margin-top: 8px;
+  }
+  .keys { display: flex; gap: 10px; margin: 6px 0 2px; }
+  .keycap { width: 38px; height: 38px; border-radius: 5px; display: grid; place-items: center;
+    font-size: 15px; font-weight: 600; border: 1.5px solid; }
+  .keycap.q { color: var(--q); border-color: var(--q); }
+  .keycap.w { color: var(--w); border-color: var(--w); }
+  .keycap.o { color: var(--o); border-color: var(--o); }
+  .keycap.p { color: var(--p); border-color: var(--p); }
+
+  #notes { padding: 18px 18px 48px; max-width: 78ch; margin: 0 auto; color: var(--dim); }
+  #notes h3 {
+    color: var(--fg); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    margin: 22px 0 6px; border-bottom: 1px solid var(--border); padding-bottom: 4px;
+  }
+  #notes p { margin: 7px 0; }
+  #notes code { color: #e0a84c; background: #1c1410; padding: 1px 4px; border-radius: 2px; }
+  #notes table { border-collapse: collapse; margin: 8px 0; font-size: 11px; width: 100%; }
+  #notes th, #notes td { text-align: left; padding: 4px 10px 4px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  #notes th { color: var(--fg); font-weight: 600; }
+  .k { font-weight: 600; }
+  .k.q { color: var(--q); } .k.w { color: var(--w); }
+  .k.o { color: var(--o); } .k.p { color: var(--p); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>MIMIC</h1>
+  <span class="sub">watch the dance, then pull the same strings</span>
+</header>
+
+<div id="stage">
+  <div id="wrap">
+    <canvas id="c"></canvas>
+    <div id="banner"></div>
+    <div id="labels"><span class="r">rival</span><span class="m">you</span></div>
+    <div id="hud"></div>
+
+    <div class="overlay" id="intro">
+      <h2>Pull the same strings</h2>
+      <div class="keys">
+        <div class="keycap q">Q</div><div class="keycap w">W</div>
+        <div class="keycap o">O</div><div class="keycap p">P</div>
+      </div>
+      <p><span class="k q">Q</span> left hand &nbsp;·&nbsp;
+         <span class="k w">W</span> right hand &nbsp;·&nbsp;
+         <span class="k o">O</span> left foot &nbsp;·&nbsp;
+         <span class="k p">P</span> right foot</p>
+      <p>The rival dances for five seconds. Then it is your turn, from memory —
+      the same strings, in the same order, held for the same lengths. Then you
+      both dance at once and watch how far apart you are.</p>
+      <p>Accuracy is intersection-over-union per string. Holding everything down
+      scores <strong>0.25</strong>; a uniform lag is forgiven, the wrong strings
+      are not.</p>
+      <button id="start">press any key to begin</button>
+    </div>
+  </div>
+
+  <div id="bars"></div>
+
+  <div id="pad" role="group" aria-label="strings">
+    <button class="q" data-i="0" type="button" aria-label="left hand">Q<span class="sub">left hand</span></button>
+    <button class="w" data-i="1" type="button" aria-label="right hand">W<span class="sub">right hand</span></button>
+    <button class="o" data-i="2" type="button" aria-label="left foot">O<span class="sub">left foot</span></button>
+    <button class="p" data-i="3" type="button" aria-label="right foot">P<span class="sub">right foot</span></button>
+  </div>
+
+  <div id="controls">
+    <label for="diff">erratic</label>
+    <input id="diff" type="range" min="0" max="100" value="40" />
+    <span id="diffval" style="color:var(--fg)">40%</span>
+    <button id="again" type="button">next dance</button>
+  </div>
+</div>
+
+<div id="notes">
+  <h3>What this is</h3>
+  <p>A mimicry duel. The rival marionette dances a choreography you have never
+  seen — half a dozen string pulls over five seconds — and then you have to
+  reproduce <em>the inputs</em> from what you saw the puppet do. Watch, recall,
+  and then both figures dance at once so you can see where you went wrong.</p>
+
+  <h3>Why a marionette and not a ragdoll</h3>
+  <p>The game only works if the map from input to motion is <strong>legible</strong>,
+  and legibility is two properties that pull against each other:</p>
+  <table>
+    <tr><th>property</th><th>why it is needed</th></tr>
+    <tr><td><strong>repeatable</strong></td><td>the same strings must give the same dance, or "that move means Q" is not something a player can learn</td></tr>
+    <tr><td><strong>separable</strong></td><td>different strings must give a visibly different dance, or you are guessing and the score is noise</td></tr>
+  </table>
+  <p>A free ragdoll fails both. It is chaotic, so the same input twice does not
+  look the same, and once it is thrashing every input looks like every other
+  one. A marionette passes both, and that is the whole reason it is a
+  marionette: strings make the motion bounded and restoring. Pull and the limb
+  rises along a path it always takes; let go and gravity brings it back the same
+  way.</p>
+  <p>That is not asserted. The selftest measures it:</p>
+  <table>
+    <tr><th>measurement</th><th>result</th></tr>
+    <tr><td>same choreography danced twice</td><td>pose distance <strong>0.000</strong> — bit-identical</td></tr>
+    <tr><td>closest pair of <em>different</em> choreographies</td><td><strong>0.229</strong> of a figure apart</td></tr>
+    <tr><td>…at maximum erraticness</td><td><strong>0.154</strong> — still plainly different</td></tr>
+  </table>
+
+  <h3>The one that mattered most</h3>
+  <p>Neither property on its own is enough. The real question is whether
+  <strong>motion distance tracks input distance</strong> — if you press 90% of
+  the right strings, does it look 90% right? If not, partial credit means
+  nothing and a player can never tell how close they were.</p>
+  <p>Corrupting a choreography by degrees and measuring both:</p>
+  <table>
+    <tr><th>corruption</th><th>input match</th><th>how different it looks</th></tr>
+    <tr><td>none</td><td>1.000</td><td>0.000</td></tr>
+    <tr><td>0.15</td><td>0.970</td><td>0.012</td></tr>
+    <tr><td>0.30</td><td>0.692</td><td>0.096</td></tr>
+    <tr><td>0.50</td><td>0.507</td><td>0.162</td></tr>
+    <tr><td>1.00</td><td>0.290</td><td>0.237</td></tr>
+  </table>
+  <p>Correlation across all of them: <strong>r = −0.950</strong>. Looking right
+  really does track being right.</p>
+
+  <h3>Scoring</h3>
+  <p>Temporal <strong>intersection-over-union</strong> per string, averaged over
+  the four. IoU is the right shape because it charges for both errors in the
+  same currency: pulling a string you should not have grows the union, and
+  holding one for the wrong length shrinks the intersection.</p>
+  <table>
+    <tr><th>what you play</th><th>scores</th></tr>
+    <tr><td>an exact copy</td><td>1.000</td></tr>
+    <tr><td>a uniform 0.18 s lag</td><td>0.953 — reaction time is not the skill being tested</td></tr>
+    <tr><td>right rhythm, wrong strings</td><td>0.154</td></tr>
+    <tr><td>right strings and moments, a third of the length</td><td>0.299 — duration is part of the answer</td></tr>
+    <tr><td><strong>holding all four down the whole time</strong></td><td><strong>0.246</strong></td></tr>
+    <tr><td>nothing at all</td><td>0.000</td></tr>
+  </table>
+  <p>It is scored at the best single global shift within a quarter-second — one
+  shift for all four strings, not one each, because letting each slide
+  independently would forgive an ordering error, which is exactly the error
+  worth catching.</p>
+
+  <h3>The slider is three kinds of harder</h3>
+  <table>
+    <tr><th>erratic</th><th>moves</th><th>each held</th><th>two-plus strings at once</th></tr>
+    <tr><td>0%</td><td>5.0</td><td>0.80 s</td><td>5%</td></tr>
+    <tr><td>50%</td><td>8.6</td><td>0.55 s</td><td>17%</td></tr>
+    <tr><td>100%</td><td>12.0</td><td>0.31 s</td><td>27%</td></tr>
+  </table>
+  <p>More to remember, shorter pulls that read as flicks rather than poses, and
+  far more overlap. The third is the one that bites: two strings pulled together
+  make the body lean and lift in a way neither does alone, so a compound shape
+  has to be decomposed rather than just seen. It is also where separability was
+  most at risk, which is why the test checks the hard end
+  <em>separately</em> — cranking the slider has to make the dance harder to
+  <em>remember</em>, not harder to <em>see</em>.</p>
+
+  <h3>One deliberate piece of theatre</h3>
+  <p>The strings brighten and go taut when their key is down. That makes the
+  watch phase easier than pure mimicry would be, and it is a real cost, taken
+  knowingly: a player who cannot see the strings is not reading a puppet, they
+  are decoding a cipher. Everything else on screen is drawn straight from the
+  physics — no limb is nudged for looks.</p>
+
+  <h3>What is invented</h3>
+  <p>All of it. Unlike <a href="../armline/">/armline/</a>, whose arm is a real
+  AR4 transcribed from its URDF, nothing here is a measurement of anything —
+  the limb masses, the string tensions, the coupling between the strings and
+  the body are chosen to make a legible puppet, not to model one. The claim is
+  not that this is how a marionette behaves; it is that this one is repeatable
+  and separable enough to play, and that claim is tested.</p>
+  <p>Same four keys as <a href="../qwop/">/qwop/</a>,
+  <a href="../graze/">/graze/</a>, <a href="../qgol/">/qgol/</a>,
+  <a href="../griddle/">/griddle/</a> and <a href="../armline/">/armline/</a>.
+  Rendering is <a href="https://threejs.org" target="_blank" rel="noopener">three.js</a>
+  r169 (MIT), vendored — no CDN, nothing fetched at runtime.</p>
+</div>
+
+<script type="module">
+  import {
+    createDuel, begin, tickDuel, nextRound, verdict,
+    PHASE, DANCE_SECS, COUNT_IN_SECS, KEYS, heldFrom,
+  } from './game.js';
+  import { STEP } from './puppet.js';
+  import { buildScene } from './scene.js';
+
+  const canvas = document.getElementById('c');
+  const banner = document.getElementById('banner');
+  const hud = document.getElementById('hud');
+  const bars = document.getElementById('bars');
+  const pad = document.getElementById('pad');
+  const intro = document.getElementById('intro');
+  const diff = document.getElementById('diff');
+  const diffval = document.getElementById('diffval');
+
+  const view = buildScene(canvas);
+  let duel = createDuel({ seed: (Math.random() * 1e9) | 0, difficulty: 0.4 });
+  let started = false, frames = 0;
+  const held = [false, false, false, false];
+
+  globalThis.__mimic = () => ({ duel, held, started, frames });
+
+  const LABEL = ['left hand', 'right hand', 'left foot', 'right foot'];
+  const COLS = ['--q', '--w', '--o', '--p'];
+  for (let i = 0; i < 4; i++) {
+    const d = document.createElement('div');
+    d.className = 'meter';
+    d.innerHTML = `<span class="lab">${KEYS[i].toUpperCase()} · ${LABEL[i]}</span>`
+      + `<div class="track"><div class="fill" id="f${i}" style="background:var(${COLS[i]})"></div></div>`;
+    bars.appendChild(d);
+  }
+
+  function reset(fresh) {
+    for (let i = 0; i < 4; i++) held[i] = false;
+    paintPad();
+    duel.difficulty = (+diff.value) / 100;
+    if (fresh) { duel = createDuel({ seed: (Math.random() * 1e9) | 0, difficulty: duel.difficulty }); begin(duel); }
+    else nextRound(duel);
+    started = true;
+    intro.hidden = true;
+    last = performance.now();
+  }
+
+  addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if (!started) { if (k === ' ' || e.key.length === 1) { e.preventDefault(); reset(true); } return; }
+    if (duel.phase === PHASE.REVIEW && (k === ' ' || k === 'enter')) { e.preventDefault(); reset(false); return; }
+    const i = KEYS.indexOf(k);
+    if (i >= 0) { e.preventDefault(); if (!held[i]) { held[i] = true; paintPad(); } }
+  });
+  addEventListener('keyup', (e) => {
+    const i = KEYS.indexOf(e.key.toLowerCase());
+    if (i >= 0) { held[i] = false; paintPad(); }
+  });
+  const letGo = () => { for (let i = 0; i < 4; i++) held[i] = false; paintPad(); };
+  addEventListener('blur', letGo);
+  addEventListener('visibilitychange', () => { if (document.hidden) letGo(); });
+
+  for (const btn of pad.querySelectorAll('button')) {
+    const i = +btn.dataset.i;
+    const press = (e) => {
+      e.preventDefault();
+      if (!started) { reset(true); return; }
+      try { btn.setPointerCapture(e.pointerId); } catch (_) {}
+      if (!held[i]) { held[i] = true; btn.dataset.on = '1'; }
+    };
+    const release = (e) => { if (e) e.preventDefault(); held[i] = false; btn.dataset.on = '0'; };
+    btn.addEventListener('pointerdown', press);
+    btn.addEventListener('pointerup', release);
+    btn.addEventListener('pointercancel', release);
+    btn.addEventListener('pointermove', (e) => {
+      if (!held[i]) return;
+      const r = btn.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) release(e);
+    });
+    btn.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+  function paintPad() {
+    const b = pad.querySelectorAll('button');
+    for (let i = 0; i < b.length; i++) b[i].dataset.on = held[i] ? '1' : '0';
+  }
+
+  intro.addEventListener('pointerdown', (e) => { e.preventDefault(); reset(true); });
+  document.getElementById('again').addEventListener('click', () => reset(started ? false : true));
+  diff.addEventListener('input', () => {
+    diffval.textContent = diff.value + '%';
+    duel.difficulty = (+diff.value) / 100;
+  });
+  if (matchMedia('(pointer: coarse)').matches) {
+    document.getElementById('start').textContent = 'tap to begin';
+  }
+
+  function paintBanner() {
+    if (!started) { banner.innerHTML = ''; return; }
+    if (duel.phase === PHASE.WATCH) {
+      banner.innerHTML = `watch<span class="big">${Math.max(0, DANCE_SECS - duel.t).toFixed(1)}</span>`;
+    } else if (duel.phase === PHASE.COUNT) {
+      const n = Math.ceil(COUNT_IN_SECS - duel.t);
+      banner.innerHTML = `your turn<span class="big">${n > 0 ? n : 'go'}</span>`;
+    } else if (duel.phase === PHASE.RECALL) {
+      banner.innerHTML = `copy it<span class="big">${Math.max(0, DANCE_SECS - duel.t).toFixed(1)}</span>`;
+    } else if (duel.phase === PHASE.REVIEW && duel.result) {
+      const a = duel.result.accuracy;
+      banner.innerHTML = `${verdict(a)}<span class="big">${(a * 100).toFixed(0)}%</span>`;
+    } else banner.innerHTML = '';
+  }
+
+  function paintHud() {
+    if (!started) { hud.innerHTML = ''; return; }
+    const avg = duel.rounds ? duel.total / duel.rounds : 0;
+    let s = `<span>round <b>${duel.round}</b></span>`
+      + `<span>erratic <b>${(duel.difficulty * 100).toFixed(0)}%</b></span>`
+      + `<span>moves in the dance <b>${duel.target.length}</b></span>`;
+    if (duel.result) {
+      s += `<span>per string <b>${duel.result.perString.map((v) => (v * 100).toFixed(0) + '%').join(' ')}</b></span>`
+        + `<span>lag <b>${(duel.result.shiftSecs * 1000).toFixed(0)} ms</b></span>`;
+    }
+    if (duel.rounds) s += `<span>average <b>${(avg * 100).toFixed(0)}%</b> over ${duel.rounds}</span>`;
+    if (duel.phase === PHASE.REVIEW) s += `<span>SPACE for the next dance</span>`;
+    hud.innerHTML = s;
+  }
+
+  let last = performance.now(), acc = 0;
+  const rivalTL = () => heldFrom(duel.target);
+  const playedTL = () => heldFrom(duel.played);
+
+  function frame(t) {
+    frames++;
+    const wall = Math.min(0.1, (t - last) / 1000);
+    last = t;
+    if (started) {
+      acc += wall;
+      let guard = 0;
+      while (acc >= STEP && guard++ < 400) { tickDuel(duel, held); acc -= STEP; }
+    }
+
+    // What each puppet's strings are doing right now, for the renderer.
+    let rHeld = [false, false, false, false], mHeld = [false, false, false, false];
+    let focus = 'both';
+    if (duel.phase === PHASE.WATCH) { rHeld = rivalTL()(duel.t); focus = 'rival'; }
+    else if (duel.phase === PHASE.RECALL) { mHeld = held.slice(); focus = 'mine'; }
+    else if (duel.phase === PHASE.REVIEW) {
+      const tt = duel.t % (DANCE_SECS + 1.0);
+      if (tt <= DANCE_SECS) { rHeld = rivalTL()(tt); mHeld = playedTL()(tt); }
+      focus = 'both';
+    } else if (duel.phase === PHASE.COUNT) focus = 'mine';
+
+    for (let i = 0; i < 4; i++) {
+      const on = duel.phase === PHASE.WATCH ? rHeld[i]
+        : duel.phase === PHASE.REVIEW ? (rHeld[i] || mHeld[i]) : held[i];
+      document.getElementById('f' + i).style.width = on ? '100%' : '0%';
+    }
+
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    view.resize(w, h);
+    view.update(duel, rHeld, mHeld, focus);
+    view.render();
+    paintBanner();
+    paintHud();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>
