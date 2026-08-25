@@ -180,6 +180,19 @@ future ask pushes this kind of exhaustive-sweep pattern to a much larger
 N, that's the point actual parallelism (workers) would start earning its
 keep — not before.
 
+Sixteenth request (2026-08-25), "user-inputs": another bare-formula math ask
+with no reference link — Fourier coefficients of functions on S^1 with
+f(θ+π)=−f(θ), used as a radial field to warp a checkerboard via polar
+{r,θ}→{r+t·f(θ),θ}. Consistent with the fourth/fifth/fifteenth pattern of
+taking the literal math seriously: named the actual basis (half-wave
+symmetry ⇒ only odd harmonics survive, n=0 term forced to zero) rather than
+just offering generic sliders, and added one secondary view — a live plot of
+f(θ) itself — on top of the canvas the spec explicitly asked for, matching
+the "provide multiple forms of visualization" pattern from the knot/complex-map
+requests even though not stated this time. Only real simplification was
+capping the basis at 5 odd harmonics (n=1..9) since the request implies an
+infinite series; flagged in BRIEF.md rather than silently truncating.
+
 Thirteenth request (2026-07-31), continuing meta-todo: asked for two
 prioritized backlog entries — a max-priority one about pointing future build
 agents at general-template as their base, a high-priority one about rolling
