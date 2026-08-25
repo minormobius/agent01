@@ -1,0 +1,86 @@
+name: Build pong solver (wasm)
+
+# Compiles pokemon/pong/solver (Rust) to wasm and commits the result as
+# pokemon/pong/solver.wasm — the binary the browser actually downloads for the
+# live flow panel at poke.mino.mobi/pong.
+#
+# The coefficients the game flies on are a TABLE in pokemon/pong/aero.js,
+# produced by a long converged sweep of this same solver that takes half an
+# hour and cannot run here. So this workflow's job is narrower than
+# build-bearings-solver's: keep the committed binary in step with its source,
+# and let pong.selftest.mjs — which runs the freshly built binary on a cheap
+# grid and checks it against recorded values — catch it if the physics moved.
+# If that step fails after a deliberate change to the solver, the numbers in
+# CHEAP_EXPECT need re-recording AND the shipped table needs re-sweeping.
+#
+# The trigger is scoped to the Rust SOURCE, never to the .wasm, so there is no
+# loop. A GITHUB_TOKEN push does not trigger other workflows, so the deploy is
+# dispatched explicitly.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/microbial-locomotion-flagellation-uj0l09'
+    paths:
+      - 'pokemon/pong/solver/**'
+      - 'pokemon/pong/pong.selftest.mjs'
+      - '.github/workflows/build-pong-solver.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Cache cargo + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            pokemon/pong/solver/target
+          key: cargo-pong-${{ runner.os }}-${{ hashFiles('pokemon/pong/solver/**/Cargo.toml', 'pokemon/pong/solver/src/**') }}
+          restore-keys: cargo-pong-${{ runner.os }}-
+
+      - name: Build wasm
+        working-directory: pokemon/pong/solver
+        run: |
+          cargo build --release --target wasm32-unknown-unknown
+          cp target/wasm32-unknown-unknown/release/pong_solver.wasm ../solver.wasm
+          ls -l ../solver.wasm
+
+      - name: Selftest the freshly built module
+        run: node pokemon/pong/pong.selftest.mjs
+
+      - name: Commit the wasm
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f pokemon/pong/solver.wasm
+          git commit -m "build: pong solver wasm" || { echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # GITHUB_TOKEN pushes don't trigger other workflows, so publish explicitly.
+      - name: Deploy (dispatch deploy-pokemon)
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy-pokemon.yml/dispatches" \
+            -d '{"ref":"${{ github.ref_name }}"}' || echo "dispatch skipped (non-fatal)"

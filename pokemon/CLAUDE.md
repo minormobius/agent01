@@ -24,7 +24,7 @@ Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `s
 
 ## How it works
 
-Static worker-assets (Worker `poke`), nine things sharing one asset manifest:
+Static worker-assets (Worker `poke`), ten things sharing one asset manifest:
 
 | Path | What |
 |---|---|
@@ -37,30 +37,31 @@ Static worker-assets (Worker `poke`), nine things sharing one asset manifest:
 | `/griddle/` | [A house of pancakes](griddle/README.md) — squirt bottle, one-seat stove, spatula. You never see the face that is cooking; the burner is the fourth key because it is what makes the bubble cue lie |
 | `/armline/` | [Six axes, four keys](armline/README.md) — a real **AR4 MK3** kinematic chain, transcribed from its MIT URDF, picking rejects off a moving line. 3D; uses `vendor/three.module.min.js` |
 | `/mimic/` | [Dueling marionettes](mimic/README.md) — watch a puppet dance, then reproduce the *inputs* from what you saw. 3D. Its selftest measures whether the input-to-motion map is legible at all |
+| `/pong/` | [Spin, solved](pong/README.md) — table tennis where the bat cannot leave its plane and the Magnus force comes out of a **D2Q9 lattice Boltzmann solver** in Rust, compiled to wasm and committed as `pong/solver.wasm`. 3D. Its selftest flies every shot twice, with the solved lift and without it |
 
 `/flag/` and `/qwop/` import the model from `/proteus/flagella.js`, and
 `/graze/` imports the whole cell from `/qwop/game.js`, rather than copying. Same
 worker, same asset directory, so relative imports across them just work — **do
 not copy**, the sync would rot. `/graze/` also wraps `/qwop/`'s predator table
 rather than editing it, because that balance is measured and shipped. `/qgol/`,
-`/griddle/`, `/armline/` and `/mimic/` are the exceptions to all of this: they
-import nothing from the others and share no physics with them. They are on this surface
-because they are the same four keys.
+`/griddle/`, `/armline/`, `/mimic/` and `/pong/` are the exceptions to all of
+this: they import nothing from the others and share no physics with them. They
+are on this surface because they are the same four keys.
 
-Eight node selftests live here and all run under `preflight` when this dir
+Nine node selftests live here and all run under `preflight` when this dir
 changes: `proteus/flagella.selftest.mjs` (the model), `flag/flag.selftest.mjs`
 (that page's loop agrees with the model), `qwop/qwop.selftest.mjs` (that skilled
 play beats unskilled play — the game's design claim, not something "it compiles"
 can tell you), `graze/graze.selftest.mjs`, `qgol/qgol.selftest.mjs`,
-`griddle/griddle.selftest.mjs`, `armline/armline.selftest.mjs` and
-`mimic/mimic.selftest.mjs`. Run them before touching `flagella.js` or
-`armline/arm.js`: the constants in both are transcribed from published sources,
-and the tests are what prove the
+`griddle/griddle.selftest.mjs`, `armline/armline.selftest.mjs`,
+`mimic/mimic.selftest.mjs` and `pong/pong.selftest.mjs`. Run them before
+touching `flagella.js` or `armline/arm.js`: the constants in both are
+transcribed from published sources, and the tests are what prove the
 transcription. `armline`'s checks its joint table field for field against the
 AR4's URDF, from a second copy written out independently, so a typo has to be
 made twice in the same way to survive.
 
-Five of them are experiments rather than checklists — they sweep a family of
+Six of them are experiments rather than checklists — they sweep a family of
 strategies or controllers, report which wins, and are allowed to tell you the
 design is wrong. **All of them have.** `graze`'s said the growth curve plateaus
 rather than turning over, against my stated prediction; `qgol`'s rejected the
@@ -70,9 +71,12 @@ reading the cake, which was correct — at a genuinely constant temperature a
 timer IS a perfect proxy, and the fix was to ask a fairer question rather than
 to soften the assertion; `armline`'s turned up a mechanic nobody designed — the
 jaws take longer to close than a part takes to cross the grasp radius, so you
-have to commit the grip *before* the part arrives. In each case the
-documentation was changed to match the measurement, not the other way round.
-That is what these files are for.
+have to commit the grip *before* the part arrives; `pong`'s killed the design
+outright on its first run — a bat confined to a VERTICAL plane cannot replace
+what air drag takes out of a 2.7 g ball, and the rally died in one exchange, so
+the stroke plane now leans 30 degrees forward. In each case the documentation
+was changed to match the measurement, not the other way round. That is what
+these files are for.
 
 `mimic`'s is the one that goes furthest: it does not test the game, it tests
 whether the game is POSSIBLE. The whole premise is that you can watch a puppet
@@ -96,7 +100,7 @@ has its own assertion in `flagella.selftest.mjs` (with a negative control), and
 from 1.34 to 1.03. **A sign that nothing asserts is a sign that will be wrong.**
 
 Where a page has a browser-driving debug handle (`window.__qwop`, `__graze`,
-`__qgol`, `__griddle`, `__armline`, `__mimic`), it is for ad-hoc checks with the
+`__qgol`, `__griddle`, `__armline`, `__mimic`, `__pong`), it is for ad-hoc checks with the
 harness in
 `scripts/lib/headless.mjs` — none of that is wired into `preflight`, which stays
 node-only and fast. **Headless Chrome throttles `requestAnimationFrame` to about
@@ -104,14 +108,26 @@ node-only and fast. **Headless Chrome throttles `requestAnimationFrame` to about
 clock; use it for what node cannot see — that the keys are wired up, the canvas
 paints, nothing throws — and leave the simulation to the selftests.
 
-**3D lives in `vendor/`.** `armline` and `mimic` render in 3D and both import
+**3D lives in `vendor/`.** `armline`, `mimic` and `pong` render in 3D and all import
 `vendor/three.module.min.js` (r169, MIT), a byte-identical copy of the one the
 `lab` surface vendors at `lab/_kit/`. It has to be a copy — a different worker
 serves `lab`, so a cross-surface import would 404 in production. **One copy for
 the whole surface**: any further 3D page imports that same file rather than
 vendoring another.
 
-Both 3D pages share some hard-won rendering habits worth keeping:
+**Rust lives in `pong/solver/`, and its build product is committed.**
+`pong/solver.wasm` is a 33 kB module built from that crate — raw `extern "C"`
+and a shared linear memory, no wasm-bindgen, no glue, like `clock/bearings`.
+A committed build product can drift from its source, so
+[`build-pong-solver.yml`](../.github/workflows/build-pong-solver.yml) rebuilds
+and re-commits it on any change to the crate, and `pong.selftest.mjs` runs the
+*committed binary* on a cheap grid against recorded values. The coefficients the
+game flies on are a separate, longer thing: a converged sweep that takes about
+half an hour on four cores and is reproduced with
+`cd pokemon/pong/solver && cargo run --release --example sweep`. Change the
+solver and BOTH have to be redone.
+
+The three 3D pages share some hard-won rendering habits worth keeping:
 
 - The environment map is generated procedurally in a few lines rather than
   shipped as an HDR — metal with nothing to reflect looks like grey plastic.
@@ -141,7 +157,7 @@ window at 500 (the `<=720px` rules a phone gets are already active there) and
 constrain the content box to 360/390/430 from the driver, then assert no
 element's right edge passes it.
 
-**Static Assets replaces the whole manifest; it does not merge.** All nine
+**Static Assets replaces the whole manifest; it does not merge.** All ten
 paths above ship from one `wrangler deploy`, so this branch has to carry all of
 them. It does — it was checked as a strict superset of the previous owner's
 tree before ownership moved — but any future branch taking this surface over

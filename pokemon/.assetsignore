@@ -9,3 +9,8 @@ CLAUDE.md
 # flagella.selftest.mjs returned 200). Gitignore syntax, so a bare pattern
 # matches at any depth.
 *.selftest.mjs
+
+# The Rust source of the /pong/ lattice Boltzmann solver. The browser downloads
+# the compiled pong/solver.wasm; nothing needs the crate, and assets.directory
+# is this dir, so without this line every .rs file is served.
+pong/solver/

@@ -26,6 +26,10 @@ data/yum-compounds.json
 
 # j/ (ImageJ in the browser) — Rust build artifacts; pkg/ is rebuilt in CI
 j/wasm/target/
+
+# pokemon/pong — the lattice Boltzmann solver's Rust build artifacts. The
+# committed product is pokemon/pong/solver.wasm, not this.
+pokemon/pong/solver/target/
 j/pkg/
 golem/js/vendor/
 # board/ — deploy-time copy of packages/oauth-client/auth.js (scripts/vendor-board.sh)

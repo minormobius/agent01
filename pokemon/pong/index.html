@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>PONG — spin, solved</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #070a0d;
+    --fg: #dce6ef;
+    --dim: #6b7c8c;
+    --border: #16202b;
+    --q: #8fb4e0; --w: #e0a84c; --o: #9fd08a; --p: #d08a9f;
+    --hot: #e2483a; --cold: #3f7fd0;
+  }
+  * { box-sizing: border-box; }
+  * {
+    -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none;
+    user-select: none; -webkit-user-select: none;
+  }
+  html { touch-action: manipulation; }
+  #notes, #notes * { user-select: text; -webkit-user-select: text; }
+
+  html, body {
+    margin: 0; padding: 0; min-height: 100%;
+    background: var(--bg); color: var(--fg);
+    font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased; overscroll-behavior-y: contain;
+  }
+  a { color: #6fa8e0; }
+
+  header {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 12px 18px 10px; border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    margin: 0; font-size: 13px; font-weight: 600;
+    letter-spacing: 0.18em; text-transform: uppercase; color: #6fa8e0;
+  }
+  header .sub { color: var(--dim); font-size: 11px; }
+
+  #stage { position: relative; margin: 12px auto 0; max-width: 1100px; padding: 0 18px; }
+  #wrap {
+    position: relative; border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; background: #070a0d;
+  }
+  #c { display: block; width: 100%; height: min(58vh, 540px); touch-action: none; }
+
+  #banner {
+    position: absolute; top: 10px; left: 0; right: 0; text-align: center;
+    pointer-events: none; font-size: 12px; letter-spacing: 0.20em;
+    text-transform: uppercase; color: #cfe3f6;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.95);
+  }
+  #banner .big { display: block; font-size: 34px; letter-spacing: 0.06em; margin-top: 2px; }
+
+  /* The solver panel. It sits over the stage on purpose: the whole point of the
+     page is that the thing making the ball curve is a real flow, and putting it
+     in a separate section further down would make it a footnote. */
+  #flow {
+    position: absolute; right: 10px; bottom: 10px; width: 236px;
+    border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+    background: #0b1017; box-shadow: 0 6px 22px rgba(0,0,0,0.6);
+  }
+  #flow canvas { display: block; width: 100%; height: 118px; }
+  #flow .cap {
+    display: flex; justify-content: space-between; gap: 6px;
+    padding: 4px 7px; font-size: 9px; color: var(--dim);
+    border-top: 1px solid var(--border); letter-spacing: 0.06em;
+  }
+  #flow .cap b { color: #cfe3f6; font-weight: 600; }
+
+  #hud {
+    display: flex; flex-wrap: wrap; gap: 4px 18px; padding: 8px 12px;
+    margin-top: 8px; border: 1px solid var(--border); border-radius: 6px;
+    background: #0a0f15; color: var(--dim); font-size: 11px;
+  }
+  #hud b { color: var(--fg); font-weight: 600; }
+  #hud .big { color: #6fa8e0; }
+
+  #pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+  #pad button {
+    touch-action: none; height: 76px; margin: 0; padding: 4px;
+    border: 1px solid var(--border); border-radius: 6px; background: #0a0f15;
+    color: var(--fg); font: 600 20px/1.1 ui-monospace, Menlo, monospace;
+    letter-spacing: 0.08em; cursor: pointer;
+  }
+  #pad button .sub { display: block; font-size: 9px; opacity: 0.8; font-weight: 400; margin-top: 4px; }
+  #pad button.q { color: var(--q); border-color: var(--q); }
+  #pad button.w { color: var(--w); border-color: var(--w); }
+  #pad button.o { color: var(--o); border-color: var(--o); }
+  #pad button.p { color: var(--p); border-color: var(--p); }
+  #pad button[data-on="1"] { color: #070a0d; transform: translateY(2px); }
+  #pad button.q[data-on="1"] { background: var(--q); }
+  #pad button.w[data-on="1"] { background: var(--w); }
+  #pad button.o[data-on="1"] { background: var(--o); }
+  #pad button.p[data-on="1"] { background: var(--p); }
+
+  #ctl {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-top: 8px; color: var(--dim); font-size: 11px;
+  }
+  #ctl input[type=range] { width: 150px; accent-color: #6fa8e0; }
+  #ctl button {
+    border: 1px solid var(--border); background: #0a0f15; color: var(--fg);
+    padding: 6px 14px; border-radius: 4px; cursor: pointer; font: inherit;
+  }
+
+  #intro {
+    position: absolute; inset: 0; display: grid; place-items: center; text-align: center;
+    background: rgba(7, 10, 13, 0.93); padding: 24px; cursor: pointer;
+  }
+  #intro h2 { margin: 0 0 8px; font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; color: #6fa8e0; }
+  #intro p { margin: 4px auto; max-width: 46ch; color: var(--dim); }
+  #intro .go { margin-top: 12px; color: var(--fg); letter-spacing: 0.16em; }
+
+  #notes { padding: 18px 18px 48px; max-width: 78ch; margin: 0 auto; color: var(--dim); }
+  #notes h2 {
+    color: var(--fg); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+    margin: 22px 0 6px; border-bottom: 1px solid var(--border); padding-bottom: 4px;
+  }
+  #notes p { margin: 8px 0; }
+  #notes code { color: #6fa8e0; background: #101821; padding: 1px 4px; border-radius: 2px; }
+  #notes table { border-collapse: collapse; margin: 10px 0; font-size: 11px; width: 100%; }
+  #notes th, #notes td { text-align: left; padding: 4px 10px 4px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  #notes th { color: var(--fg); font-weight: 600; }
+
+  @media (max-width: 720px) {
+    header { padding: 10px 12px 8px; gap: 8px; }
+    header h1 { font-size: 12px; }
+    #stage { padding: 0 10px; margin-top: 8px; }
+    #c { height: min(46vh, 360px); }
+    #flow { width: 156px; right: 6px; bottom: 6px; }
+    #flow canvas { height: 78px; }
+    #hud { font-size: 10px; gap: 3px 12px; padding: 6px 9px; }
+    #pad { gap: 6px; }
+    #pad button { height: 64px; font-size: 17px; }
+    #pad button .sub { font-size: 8px; }
+    #notes { padding: 14px 12px 40px; }
+  }
+
+  /* Landscape phones: plenty of width, no height. The pad is the whole
+     interface, so cap the stage rather than let it push the pad off-screen. */
+  @media (max-height: 560px) and (orientation: landscape) {
+    header { padding: 6px 12px 5px; }
+    #stage { margin-top: 6px; }
+    #c { height: 46vh; }
+    #flow { width: 140px; }
+    #flow canvas { height: 66px; }
+    #hud { padding: 4px 8px; font-size: 9px; }
+    #pad { margin-top: 6px; }
+    #pad button { height: 50px; font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Pong</h1>
+  <span class="sub">a table-tennis QWOP where the only thing you control is spin — and the spin is solved, not faked</span>
+</header>
+
+<div id="stage">
+  <div id="wrap">
+    <canvas id="c"></canvas>
+    <div id="banner"></div>
+    <div id="flow">
+      <canvas id="fc" width="224" height="112"></canvas>
+      <div class="cap">
+        <span>flow round the ball</span>
+        <span>&alpha; <b id="fa">0.00</b></span>
+      </div>
+    </div>
+    <div id="intro">
+      <div>
+        <h2>Four keys, one plane</h2>
+        <p>Your bat never leaves one flat, forward-leaning plane, and its face
+        is fixed — you cannot open it, close it, or angle it. Everything you do
+        is the velocity the bat happens to have at the instant of contact.</p>
+        <p><b>Q</b> up the plane &nbsp; <b>W</b> down it &nbsp;
+        <b>O</b> left &nbsp; <b>P</b> right. Because the plane leans forward,
+        brushing up buys pace and topspin together — which is what a loop is,
+        and why you cannot hit hard without spinning hard.</p>
+        <div class="go">press any key, or tap</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="hud"></div>
+
+  <div id="pad">
+    <button class="q" data-i="0">Q<span class="sub">brush up</span></button>
+    <button class="w" data-i="1">W<span class="sub">brush down</span></button>
+    <button class="o" data-i="2">O<span class="sub">brush left</span></button>
+    <button class="p" data-i="3">P<span class="sub">brush right</span></button>
+  </div>
+
+  <div id="ctl">
+    <label>rival <input id="diff" type="range" min="0" max="100" value="45" /> <b id="diffval">45%</b></label>
+    <button id="again">new match</button>
+    <label><input id="showflow" type="checkbox" checked /> solver panel</label>
+  </div>
+</div>
+
+<div id="notes">
+  <h2>What is actually being solved</h2>
+  <p>A ball does not <em>have</em> a lift coefficient. It has a boundary layer,
+  and when the surface is turning, that layer is dragged further round one side
+  than the other, so the two separation points sit at different angles and the
+  wake leaves at a slant. The reaction to that slanted wake is the Magnus
+  force. <code>solver/</code> in this directory is a D2Q9 lattice Boltzmann
+  solver in Rust, compiled to a 34&nbsp;kB WebAssembly module, that solves that
+  flow past a rotating cylinder and measures the momentum the fluid hands over.
+  Nothing in it knows the word Magnus.</p>
+  <p>The panel over the table is that solver running live at whatever spin ratio
+  the ball currently has — a smaller, cheaper grid than the one that produced
+  the numbers, so it is an illustration rather than the measurement. The
+  coefficients the flight actually uses come from a long converged sweep, and
+  what the sweep is and is not honest about is in
+  <a href="README.md">README.md</a>.</p>
+
+  <h2>Why one plane is a game</h2>
+  <p>Brush gently and the ball goes into the net; brush hard and it sails long —
+  except that brushing hard is also what puts topspin on it, and topspin is what
+  pulls it back down. The window between those is the game, and it exists
+  because of the aerodynamics rather than in spite of them. With the solved lift
+  that window is <b>3.2 m/s wide</b>; with the lift switched off and everything
+  else identical it is <b>1.85</b>. The same brush that lands 1.2 m over the net
+  is 65 cm past the end line without it.</p>
+  <p>The plane leans forward 30&deg; and the face is closed 12&deg;, and both of
+  those are load-bearing. The first version had a vertical plane, which is the
+  obvious reading of "the bat is stuck in a plane" — and the rally died in one
+  exchange, because air drag takes about 40% of a table tennis ball's speed in a
+  single crossing and a bat that cannot advance has nothing to put back.</p>
+
+  <h2>Same four keys</h2>
+  <p>Same four as <a href="../qwop/">/qwop/</a>, <a href="../graze/">/graze/</a>,
+  <a href="../qgol/">/qgol/</a>, <a href="../griddle/">/griddle/</a>,
+  <a href="../armline/">/armline/</a> and <a href="../mimic/">/mimic/</a>.
+  Rendering is <a href="https://threejs.org" target="_blank" rel="noopener">three.js</a>
+  r169 (MIT), vendored — no CDN, nothing fetched at runtime but the solver.</p>
+</div>
+
+<script type="module">
+  import { newGame, stepGame, SIDE } from './game.js';
+  import { spinRatio, len, clOf, cdOf } from './aero.js';
+  import { buildScene } from './scene.js';
+  import { Flow, PANEL, paintVorticity, blit } from './solver.js';
+
+  const canvas = document.getElementById('c');
+  const fc = document.getElementById('fc');
+  const banner = document.getElementById('banner');
+  const hud = document.getElementById('hud');
+  const pad = document.getElementById('pad');
+  const intro = document.getElementById('intro');
+  const diff = document.getElementById('diff');
+  const diffval = document.getElementById('diffval');
+  const showflow = document.getElementById('showflow');
+
+  const view = buildScene(canvas);
+  const KEYS = ['q', 'w', 'o', 'p'];
+  const held = [false, false, false, false];
+  let g = newGame((Math.random() * 1e9) | 0, 0.45);
+  let started = false, frames = 0;
+
+  globalThis.__pong = () => ({ g, held, started, frames, flow });
+
+  // ---- the solver panel -------------------------------------------------
+  // Loaded lazily and allowed to fail: a browser that will not give us wasm
+  // still gets the whole game, because the coefficients are a table.
+  let flow = null, fimg = null, fctx = fc.getContext('2d');
+  Flow.load('./solver.wasm').then((f) => {
+    flow = f.init(PANEL);
+    fc.width = flow.nx; fc.height = flow.ny;
+    fimg = fctx.createImageData(flow.nx, flow.ny);
+    flow.run(400);
+  }).catch((e) => {
+    document.getElementById('flow').style.display = 'none';
+    console.warn('solver panel unavailable:', e);
+  });
+
+  function paintFlow() {
+    if (!flow || !fimg || !showflow.checked) return;
+    const b = g.ball;
+    // Sign the panel's spin ratio by which way the Magnus force is actually
+    // pointing in the vertical, so the wake on screen leans the way the ball
+    // in play is being pushed rather than the way a raw omega_y happens to sit.
+    let a = 0;
+    if (b) {
+      const lift = b.spin[0] * b.vel[1] - b.spin[1] * b.vel[0];
+      a = spinRatio(len(b.vel), len(b.spin)) * (lift < 0 ? -1 : 1);
+    }
+    flow.setAlpha(a);
+    flow.run(9);
+    paintVorticity(fimg, flow.field(0), 26);
+    blit(fctx, fimg, fc);
+    document.getElementById('fa').textContent = a.toFixed(2);
+  }
+
+  // ---- input ------------------------------------------------------------
+  function reset(fresh) {
+    for (let i = 0; i < 4; i++) held[i] = false;
+    paintPad();
+    if (fresh) g = newGame((Math.random() * 1e9) | 0, (+diff.value) / 100);
+    started = true;
+    intro.hidden = true;
+    last = performance.now();
+  }
+
+  addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if (!started) { if (k === ' ' || e.key.length === 1) { e.preventDefault(); reset(true); } return; }
+    const i = KEYS.indexOf(k);
+    if (i >= 0) { e.preventDefault(); if (!held[i]) { held[i] = true; paintPad(); } }
+  });
+  addEventListener('keyup', (e) => {
+    const i = KEYS.indexOf(e.key.toLowerCase());
+    if (i >= 0) { held[i] = false; paintPad(); }
+  });
+  const letGo = () => { for (let i = 0; i < 4; i++) held[i] = false; paintPad(); };
+  addEventListener('blur', letGo);
+  addEventListener('visibilitychange', () => { if (document.hidden) letGo(); });
+
+  for (const btn of pad.querySelectorAll('button')) {
+    const i = +btn.dataset.i;
+    const press = (e) => {
+      e.preventDefault();
+      if (!started) { reset(true); return; }
+      try { btn.setPointerCapture(e.pointerId); } catch (_) {}
+      if (!held[i]) { held[i] = true; btn.dataset.on = '1'; }
+    };
+    const release = (e) => { if (e) e.preventDefault(); held[i] = false; btn.dataset.on = '0'; };
+    btn.addEventListener('pointerdown', press);
+    btn.addEventListener('pointerup', release);
+    btn.addEventListener('pointercancel', release);
+    btn.addEventListener('pointermove', (e) => {
+      if (!held[i]) return;
+      const r = btn.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) release(e);
+    });
+    btn.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+  function paintPad() {
+    const b = pad.querySelectorAll('button');
+    for (let i = 0; i < b.length; i++) b[i].dataset.on = held[i] ? '1' : '0';
+  }
+
+  intro.addEventListener('pointerdown', (e) => { e.preventDefault(); reset(true); });
+  document.getElementById('again').addEventListener('click', () => reset(true));
+  diff.addEventListener('input', () => {
+    diffval.textContent = diff.value + '%';
+    g.difficulty = (+diff.value) / 100;
+  });
+  showflow.addEventListener('change', () => {
+    document.getElementById('flow').style.display = showflow.checked ? '' : 'none';
+  });
+  if (matchMedia('(pointer: coarse)').matches) {
+    intro.querySelector('.go').textContent = 'tap to begin';
+  }
+
+  // ---- readouts ---------------------------------------------------------
+  function paintBanner() {
+    if (!started) { banner.innerHTML = ''; return; }
+    if (g.phase === 'point' && g.lastPoint) {
+      const w = g.lastPoint.winner === SIDE.PLAYER ? 'your point' : 'their point';
+      banner.innerHTML = `${g.lastPoint.why}<span class="big">${w}</span>`;
+    } else if (g.rally === 0) {
+      banner.innerHTML = 'return it';
+    } else banner.innerHTML = '';
+  }
+
+  function paintHud() {
+    const b = g.ball;
+    const spin = b ? len(b.spin) : 0;
+    const speed = b ? len(b.vel) : 0;
+    const a = spinRatio(speed, spin);
+    let s = `<span>you <b class="big">${g.score.player}</b> &mdash; <b class="big">${g.score.rival}</b> them</span>`
+      + `<span>rally <b>${g.rally}</b></span>`
+      + `<span>best <b>${g.bestRally}</b></span>`
+      + `<span>ball <b>${(speed * 3.6).toFixed(0)} km/h</b></span>`
+      + `<span>spin <b>${(spin / (2 * Math.PI)).toFixed(0)} rev/s</b></span>`
+      + `<span>&alpha; <b>${a.toFixed(2)}</b></span>`
+      + `<span>C<sub>L</sub> <b>${clOf(a).toFixed(3)}</b></span>`
+      + `<span>C<sub>D</sub> <b>${cdOf(a).toFixed(3)}</b></span>`;
+    if (g.lastHit) {
+      s += `<span>your brush <b>${g.lastHit.brush.toFixed(1)} m/s</b>`
+        + `${g.lastHit.sliding ? ' (slipped)' : ''}</span>`;
+    }
+    hud.innerHTML = s;
+  }
+
+  // ---- loop -------------------------------------------------------------
+  let last = performance.now();
+  let lastRally = 0;
+  function frame(t) {
+    frames++;
+    const wall = Math.min(0.1, (t - last) / 1000);
+    last = t;
+    if (started) {
+      const input = { Q: held[0], W: held[1], O: held[2], P: held[3] };
+      stepGame(g, wall, input);
+      if (g.rally !== lastRally || g.phase === 'point') { g.trailReset = g.rally !== lastRally; lastRally = g.rally; }
+    }
+    view.resize(canvas.clientWidth, canvas.clientHeight);
+    view.update(g, wall);
+    view.render();
+    paintFlow();
+    paintBanner();
+    paintHud();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>
