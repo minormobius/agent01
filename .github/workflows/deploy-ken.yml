@@ -48,9 +48,9 @@ jobs:
         run: node lab/equivalence.selftest.mjs
       - name: "The gate: coverage, unsoundness, and the agreement floor (72 checks)"
         run: node lab/gate.selftest.mjs
-      - name: The task bank's admission gate (40 checks, runs 12 mutant trials)
+      - name: The task bank's admission gate (70 checks, including a mutation that never applied)
         run: node lab/taskbank.selftest.mjs
-      - name: The run harness, including a leak it must catch (64 checks)
+      - name: The run harness, including a leak it must catch (84 checks, both shapes)
         run: node lab/runner.selftest.mjs
       - name: Selftest (citations, prose lint, tables, roadmap graph, quoted figures)
         run: node ken.selftest.mjs
