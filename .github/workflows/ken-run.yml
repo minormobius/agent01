@@ -193,6 +193,23 @@ jobs:
             }, null, 2));
           ' "$F"
 
+      # A turn that worked inside the checkout could have read the
+      # reference and the mutants. Same class of failure as a leak, and
+      # it is the one that actually happened on the first live runs.
+      - name: Containment must have held
+        if: always()
+        run: |
+          F="ken/lab/runs/run-$GITHUB_RUN_ID.json"
+          [ -f "$F" ] || exit 0
+          node -e '
+            const r = require("./" + process.argv[1]);
+            const c = r.containment;
+            if (!c || c.contained) { console.log("contained"); process.exit(0); }
+            console.error("::error::CONTAINMENT BREACHED — " + c.note);
+            for (const b of c.breaches) console.error("  " + b.turn + " changed the checkout");
+            process.exit(1);
+          ' "$F"
+
       # A leaked run is not a failed run, it is a run that measured
       # nothing, and the two must not be recorded the same way.
       - name: Isolation must have held

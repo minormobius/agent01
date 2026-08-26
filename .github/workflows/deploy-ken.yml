@@ -50,7 +50,7 @@ jobs:
         run: node lab/gate.selftest.mjs
       - name: The task bank's admission gate (70 checks, including a mutation that never applied)
         run: node lab/taskbank.selftest.mjs
-      - name: The run harness, including a leak it must catch (103 checks, both shapes, both engines)
+      - name: The run harness, including a leak and a containment breach it must catch (119 checks)
         run: node lab/runner.selftest.mjs
       - name: Selftest (citations, prose lint, tables, roadmap graph, quoted figures)
         run: node ken.selftest.mjs

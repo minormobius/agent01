@@ -100,7 +100,7 @@ worker or move the domain, **verify the deploy log binds
 | `lab/tasks/<id>/` | one task: statement, checks, reference, stub, seeded mutants |
 | `lab/taskbank.selftest.mjs` | 70 checks: the three conditions in both directions, the survivors, the redundancy contrast, the applied-mutation guard |
 | `lab/runner.mjs` | **executes a run**, `standard` (six turns) or `solo` (one, fanning out), on the paid or the **free** engine: fresh tree per turn, demonstrated isolation, held-out scoring. `--dry-run` needs no key |
-| `lab/runner.selftest.mjs` | 103 checks, most of them faults it must catch — a leak, a silent turn, an unsound check, a paid model on the free arm |
+| `lab/runner.selftest.mjs` | 119 checks, most of them faults it must catch — a leak, a silent turn, an unsound check, a paid model on the free arm |
 | `lab/runs/` | one JSON record per executed run, committed |
 | `lab/resolve-refs.mjs` | links the bibliography against CrossRef / arXiv / OpenLibrary |
 | `fig/*.svg` | **generated.** Committed so figures print and diff |
@@ -782,6 +782,36 @@ cancels and a weaker model moves both arms together. λ and g are per-model
 parameters: a free run would report the free model's while the page labelled
 them the study's. That is also why the arm is worth having, since H12 is 360
 turns and about **$1,800** at the per-turn budget.
+
+⚠️ **`--dir` IS NOT OPTIONAL, AND IS NOT THE SAME AS `cwd`.** opencode
+**ignores the spawn `cwd`**: started with its working directory set to a turn
+tree under `/tmp`, its own `pwd` reported `/home/user/agent01`. The first two
+live runs therefore worked **inside the checkout**, wrote the turn artefacts to
+the repo root, and were recorded as "wrote 0/3". A turn standing in the checkout
+can read `reference.mjs` and the mutants — the one precondition `taskbank.mjs`
+says it cannot enforce itself — so such a run is **void, not null**.
+
+**Isolation had a marker from the first day; containment had a `cwd` argument
+and a belief.** That asymmetry is the whole failure, and the fix is the same
+trick one level down: `containmentCanary()` fingerprints the checkout's
+top-level entries before and after every turn, any difference voids the run, and
+`ken-run.yml` gates on it beside the isolation gate. **Never add an engine
+without demonstrating containment for it.**
+
+⚠️ **LISTED IS NOT SERVING.** `deepseek-v4-flash-free` and `mimo-v2.5-free` are
+in the catalogue; the first killed a run in 77s with "Model is unavailable",
+which is what its very first probe had already returned. `FREE_MODELS` carries
+only models that answered, and `CATALOGUED_BUT_NOT_SERVING` is asserted disjoint
+from it. Same rule as a seeded mutant: the catalogue is a claim, the response is
+the evidence.
+
+⚠️ **A TURN THAT PRODUCES NOTHING MUST LEAVE EVIDENCE OF WHY.** The first live
+free-tier run spent **581 seconds, exited 0 and wrote 0 of 3 artefacts** — and
+the record said exactly that and nothing more, because `execute()` was throwing
+the agent's own output away. The run that most needed diagnosing was the one
+that could not be. Each turn record now carries `logTail` (last `LOG_TAIL`
+bytes), always rather than only on failure, because "only on failure" is a
+judgement the record should not be making.
 
 **Scope is a rule, not a preference.** A turn on this arm sends its brief to a
 third party whose retention terms cannot be verified from here, and some of the

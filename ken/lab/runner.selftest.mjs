@@ -16,7 +16,8 @@
 import {
   plan, producerOf, blindTo, brief, execute, score, auditIsolation,
   scriptedAgent, marker, MARKER_TURN, MARKER_BLIND, SHAPES,
-  ENGINES, PAID_ENGINES, FREE_MODELS, ZEN_BASE, opencodeConfig,
+  ENGINES, PAID_ENGINES, FREE_MODELS, ZEN_BASE, opencodeConfig, LOG_TAIL,
+  repoFingerprint, containmentCanary, CATALOGUED_BUT_NOT_SERVING,
 } from './runner.mjs';
 import { readTask } from './taskbank.mjs';
 import { rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -160,6 +161,18 @@ section('the silent turn');
   const r = execute({ taskId: TASK, root: ROOT, runId: 'lazy', agent: lazy });
   const specB = r.turns.find((t) => t.turn === 'specB');
   ok(specB.wrote === 0, 'a turn that produced nothing is recorded as producing nothing');
+
+  /* AND IT MUST RECORD WHY, or the run that most needs diagnosing is
+     the one that cannot be. The first live free-tier run spent 581
+     seconds, exited 0 and wrote 0 of 3 artefacts, and its record said
+     exactly that and nothing else, because the agent's own output had
+     been thrown away. */
+  ok(typeof specB.logTail === 'string' && specB.logTail.length > 0,
+    'and its own output is kept, so a silent turn can be diagnosed afterwards');
+  ok(specB.logTail === 'wrote nothing', `the tail is the agent's actual output (${specB.logTail})`);
+  ok(r.turns.every((t) => typeof t.logTail === 'string'),
+    'every turn keeps one, not only the failing ones — which is not the record`s judgement to make');
+  ok(specB.logTail.length <= LOG_TAIL, `and it is bounded (${LOG_TAIL})`);
   const buildB = r.turns.find((t) => t.turn === 'buildB');
   ok(buildB.missingInputs.includes('check-b.mjs'), 'and its successor records the missing input');
   ok(r.scores.ownChecks.length === 1, 'only the one check that exists is scored');
@@ -271,6 +284,15 @@ section('the free arm');
     'and only the claude one is marked as costing money');
   ok(FREE_MODELS.length >= 5, `at least five verified free models (${FREE_MODELS.length})`);
 
+  /* LISTED IS NOT SERVING, and the list must carry only what answered.
+     Two models were taken from the catalogue and one of them killed a
+     run in 77s with "Model is unavailable" — which the very first probe
+     of it had already returned. Same rule as a seeded mutant: the
+     catalogue is a claim, the response is the evidence. */
+  for (const m of CATALOGUED_BUT_NOT_SERVING) {
+    ok(!FREE_MODELS.includes(m), `${m} is catalogued but never answered, so it is NOT offered`);
+  }
+
   const cfg = opencodeConfig({ model: FREE_MODELS[0], steps: 40 });
 
   /* THE EMPTY STRING IS THE WHOLE TRICK, and it is the opposite of what
@@ -336,7 +358,50 @@ section('the free arm');
   ok(paid.engine === 'claude', 'and so does the paid one, so two ledgers cannot be confused');
 }
 
-// ── 10. the harness leaves nothing behind ─────────────────────────────
+// ── 10. CONTAINMENT. The guarantee that turned out not to hold. ───────
+section('containment');
+
+{
+  /* ISOLATION HAD A MARKER FROM THE FIRST DAY; CONTAINMENT HAD ONLY A
+     `cwd` ARGUMENT AND A BELIEF. The belief was wrong: opencode ignores
+     the spawn cwd, so the first two live runs worked inside this
+     checkout, wrote the turn artefacts to the repo ROOT, and were
+     recorded as "wrote 0/3" because execute() looked in the tree. A turn
+     standing in the checkout can read reference.mjs and the mutants,
+     which voids the run rather than nulling it. */
+  const same = containmentCanary('a\nb', 'a\nb');
+  ok(same.checked && same.contained, 'an unchanged checkout is contained');
+  ok(same.note === null, 'and says nothing, because nothing happened');
+
+  const breached = containmentCanary('a\nb', 'a\nb\ncheck-a.mjs');
+  ok(breached.checked && !breached.contained, 'a NEW entry in the checkout is a BREACH');
+  ok(breached.appeared.join() === 'check-a.mjs', `and the intruder is named (${breached.appeared.join()})`);
+  ok(/void rather than null/.test(breached.note), 'and the report says void, not failed');
+
+  const vanished = containmentCanary('a\nb', 'a');
+  ok(!vanished.contained && vanished.vanished.join() === 'b', 'a DELETION is a breach too');
+
+  const unknown = containmentCanary(null, 'a');
+  ok(unknown.checked === false && /UNCHECKED/.test(unknown.note),
+    'and an unreadable checkout is UNCHECKED rather than quietly contained');
+
+  ok(typeof repoFingerprint() === 'string' && repoFingerprint().includes('ken'),
+    'the fingerprint reads the real checkout');
+}
+
+{
+  /* END TO END: a clean run reports containment, and every turn carries
+     its own verdict. The scripted agent writes only into its tree, so
+     this is the passing direction; the refusals above are the other. */
+  clean();
+  const r = execute({ taskId: TASK, root: ROOT, runId: 'contain', agent: scriptedAgent(TASK) });
+  ok(r.containment.contained && r.containment.breaches.length === 0,
+    'a scripted run is contained');
+  ok(r.turns.every((t) => t.contained === true), 'and every turn records that it was');
+  clean();
+}
+
+// ── 11. the harness leaves nothing behind ─────────────────────────────
 section('hygiene');
 
 ok(!existsSync(ROOT), 'no scratch tree survives the selftest');

@@ -33,7 +33,7 @@
   <div class="a-venue">ken · volume 1 <span class="kicker">Running record</span></div>
   <h1 class="a-title">Findings Log</h1>
   <p class="a-sub">Shortest form. Each entry names the code or record that produced it.</p>
-  <div class="a-meta">142 entries · <b>9 from new measurement</b> · every figure regenerated on build</div>
+  <div class="a-meta">147 entries · <b>10 from new measurement</b> · every figure regenerated on build</div>
   <hr class="a-rule">
 
   <p class="small">Everything here comes from data already paid for or from arithmetic. That is
@@ -1115,6 +1115,55 @@
       <span class="src"><code>/zen/v1/chat/completions</code></span></li>
   </ol>
 
+  <h2 class="sec"><span class="secno">§</span>Containment, and the guarantee that was never checked</h2>
+
+  <ol class="log" start="143">
+    <li><b>The isolation guarantee did not hold, and nothing noticed for two runs.</b>
+      <code>opencode</code> <b>ignores the spawn <code>cwd</code></b>: started with its working
+      directory set to a turn tree under <code>/tmp</code>, its own <code>pwd</code> reported the
+      repository root. So the first two live runs did their work <b>inside the checkout</b>,
+      wrote <code>check-a.mjs</code>, <code>check-b.mjs</code> and <code>solution.mjs</code> to
+      the repo root, and were recorded as "wrote 0/3" because the harness looked in the tree and
+      found nothing. A turn standing in the checkout can read <code>reference.mjs</code> and the
+      seeded mutants — the one precondition the task bank says it cannot enforce itself. Those
+      runs are <b>void</b>, not null.
+      <span class="src"><code>runner.mjs</code> · reproduced with <code>pwd</code></span></li>
+
+    <li><b>Isolation had a marker from the first day; containment had a <code>cwd</code> argument
+      and a belief.</b> That asymmetry is the whole failure. One property was demonstrated per
+      run and the other was configured and assumed, and the assumed one is the one that broke.
+      <code>containmentCanary()</code> now takes the checkout's top-level entries before and
+      after every turn; any difference voids the run, and the workflow gates on it beside the
+      isolation gate. The fix itself is <code>--dir</code>, which binds opencode where
+      <code>cwd</code> does not.
+      <span class="src"><code>containmentCanary()</code> · <code>ken-run.yml</code></span></li>
+
+    <li><b>The failure was disguised as a null result and reported as one.</b> "wrote 0/3 in
+      581s" reads as a weak model that could not do the task. It was in fact a capable-enough
+      agent doing the task in the wrong directory. The two have opposite remedies — pick a better
+      model, or fix the harness — and the record could not tell them apart because
+      <code>execute()</code> was discarding the agent's own output. Turn records now keep a
+      <code>logTail</code>, always rather than only on failure, since "only on failure" is a
+      judgement the record should not be making.
+      <span class="src"><code>LOG_TAIL</code></span></li>
+
+    <li><b>Two models were put on the verified-free list from the catalogue rather than from a
+      response, and one of them was already known not to answer.</b>
+      <code>deepseek-v4-flash-free</code> killed a run in 77s with "Model is unavailable" — which
+      is exactly what the first probe of it had returned, in the same session, before it was
+      added. Listed is not serving. The list now carries only models that answered, and
+      <code>CATALOGUED_BUT_NOT_SERVING</code> is asserted to be disjoint from it.
+      <span class="src"><code>FREE_MODELS</code></span></li>
+
+    <li><b>Three files written by an agent were committed to the repository root.</b>
+      <code>git add -A</code> ran while a live run was still in flight and swept up its output.
+      Removed in the following commit rather than rewritten away, because the log is append-only
+      and a corrected entry is restated rather than edited. The containment canary would have
+      caught the write; nothing would have caught the commit, and the lesson is that a broad
+      <code>add</code> during a live run is its own hazard.
+      <span class="src">commit <code>4f5f86a</code></span></li>
+  </ol>
+
   <h2 class="sec"><span class="secno">§</span>The ledger</h2>
 
   <div class="table-fig">
@@ -1123,9 +1172,9 @@
       <tbody>
         <tr><td>Records already committed</td><td class="num">19</td></tr>
         <tr><td>Arithmetic and simulation</td><td class="num">74</td></tr>
-        <tr><td>Our own mistakes</td><td class="num">38</td></tr>
+        <tr><td>Our own mistakes</td><td class="num">42</td></tr>
         <tr><td>Prior literature</td><td class="num">2</td></tr>
-        <tr><td><b>New measurement</b></td><td class="num"><b>9</b></td></tr>
+        <tr><td><b>New measurement</b></td><td class="num"><b>10</b></td></tr>
       </tbody>
     </table>
   </div>

@@ -262,8 +262,15 @@ export const FREE_MODELS = [
   'hy3-free',
   'x-preview-f-free',
   'laguna-s-2.1-free',
-  'deepseek-v4-flash-free',
 ];
+/* LISTED IS NOT SERVING. `deepseek-v4-flash-free` and `mimo-v2.5-free`
+   are in the catalogue and were put in this list from it — then a run
+   on the first died in 77s with "Model is unavailable", which is what
+   the very first probe of it had already returned. A model belongs here
+   only after it has answered, and that is the same rule the bank
+   applies to a mutant: the catalogue is a claim, the response is the
+   evidence. */
+export const CATALOGUED_BUT_NOT_SERVING = ['deepseek-v4-flash-free', 'mimo-v2.5-free'];
 
 /**
  * The opencode config for one turn. Pure, so the selftest can assert
@@ -330,7 +337,23 @@ export function opencodeAgent({ dir, promptFile, model, maxTurns }) {
     mkdirSync(join(home, 'data'), { recursive: true });
     writeFileSync(join(cfgDir, 'opencode.json'),
       JSON.stringify(opencodeConfig({ model, steps: maxTurns }), null, 2));
-    const r = spawnSync('opencode', ['run', '--auto', '-'], {
+    /* --dir IS NOT OPTIONAL AND IS NOT THE SAME AS cwd.
+       opencode IGNORES the spawn cwd: started with cwd set to a turn
+       tree under /tmp, its bash tool reported /home/user/agent01 — the
+       PARENT's directory. The first two live runs therefore did their
+       work in the repository, wrote check-a.mjs, check-b.mjs and
+       solution.mjs to the repo ROOT, and were recorded as "wrote 0/3"
+       because `execute()` looked in the tree and found nothing.
+
+       That is not an inconvenience, it is the isolation guarantee
+       failing: a turn standing in this repository can read
+       ken/lab/tasks/<id>/reference.mjs and the seeded mutants, which is
+       the one precondition taskbank.mjs says it cannot enforce itself.
+       Any measurement from such a run is void, not merely null.
+
+       `--dir` binds it. `containmentCanary()` below proves it, per run,
+       rather than trusting this comment. */
+    const r = spawnSync('opencode', ['run', '--auto', '--dir', dir, '-'], {
       cwd: dir,
       input: readFileSync(promptFile, 'utf8'),
       encoding: 'utf8',
@@ -344,6 +367,48 @@ export function opencodeAgent({ dir, promptFile, model, maxTurns }) {
 }
 
 /** The engines a run can be executed on. */
+/** How much of a turn's own output the record keeps, for diagnosis. */
+export const LOG_TAIL = 4000;
+
+/**
+ * CONTAINMENT, DEMONSTRATED RATHER THAN CONFIGURED.
+ *
+ * Isolation had a marker from the first day; containment had only a
+ * `cwd` argument and a belief, and the belief was wrong — opencode
+ * ignores the spawn cwd, so two live runs did their work inside this
+ * repository and the harness reported them as having produced nothing.
+ * A turn standing here can read the reference and the mutants, so the
+ * run is VOID and not null.
+ *
+ * The canary is the same trick as the isolation marker, one level down:
+ * take the checkout's top-level entries before the turn and after it,
+ * and any difference means the turn was not where the plan put it.
+ * Cheap, and it fails loudly on exactly the fault that got through.
+ */
+export function repoFingerprint(root = join(HERE, '..', '..')) {
+  try {
+    return readdirSync(root).sort().join('\n');
+  } catch {
+    return null;
+  }
+}
+
+export function containmentCanary(before, after) {
+  if (before === null || after === null) {
+    return { checked: false, contained: true, note: 'the checkout could not be listed, so containment is UNCHECKED' };
+  }
+  if (before === after) return { checked: true, contained: true, note: null };
+  const b = new Set(before.split('\n')), a = new Set(after.split('\n'));
+  return {
+    checked: true,
+    contained: false,
+    appeared: [...a].filter((x) => !b.has(x)),
+    vanished: [...b].filter((x) => !a.has(x)),
+    note: 'A TURN WROTE INTO THE CHECKOUT. It could have read the reference and the mutants, '
+      + 'so this run measured nothing and its numbers are void rather than null.',
+  };
+}
+
 export const ENGINES = { claude: realAgent, opencode: opencodeAgent };
 /** Which engines cost money, so a ledger cannot imply a budget it never had. */
 export const PAID_ENGINES = ['claude'];
@@ -384,6 +449,7 @@ export function execute({
 
   const artefacts = {};                  // name -> contents, the run's whole memory
   const turnLog = [];
+  const breaches = [];                   // turns that wrote outside their tree
 
   for (const turn of p.turns) {
     const dir = join(root, turn.id);
@@ -402,8 +468,11 @@ export function execute({
     writeFileSync(promptFile, brief(p, turn, { statement, runId, artefacts }));
 
     const started = Date.now();
+    const fpBefore = repoFingerprint();
     const res = agent({ dir, promptFile, model, maxTurns: perTurnSteps, budgetUsd: perTurnBudget, turn, artefacts, runId });
     const elapsed = Math.round((Date.now() - started) / 1000);
+    const containment = containmentCanary(fpBefore, repoFingerprint());
+    if (!containment.contained) breaches.push({ turn: turn.id, ...containment });
 
     const produced = {};
     for (const w of turn.writes) {
@@ -415,6 +484,15 @@ export function execute({
       missingInputs: missing, produced: Object.keys(produced),
       wrote: turn.writes.filter((w) => produced[w] !== undefined).length,
       exit: res.code, seconds: elapsed,
+      /* A TURN THAT PRODUCES NOTHING MUST LEAVE EVIDENCE OF WHY.
+         The first live free-tier run spent 581 seconds, exited 0 and
+         wrote 0 of 3 artefacts, and the record said only that — the
+         agent's own output had been discarded, so the one run that
+         most needed diagnosing was the one that could not be. The tail
+         is kept always rather than only on failure, because "only on
+         failure" is a judgement the record should not be making. */
+      logTail: String(res.log ?? '').slice(-LOG_TAIL),
+      contained: containment.contained,
     });
   }
 
@@ -431,6 +509,15 @@ export function execute({
       perTurnSteps, totalSteps: perTurnSteps * p.turns.length, turns: p.turns.length,
     },
     isolation: auditIsolation(p, artefacts, runId),
+    /* A BREACH VOIDS THE RUN. Reported beside isolation because it is
+       the same kind of failure: the plan said where the work happens
+       and the environment did something else. */
+    containment: {
+      contained: breaches.length === 0,
+      breaches,
+      note: breaches.length === 0 ? null
+        : 'a turn worked inside the checkout, where the bank is — these numbers are void',
+    },
     scores: score(taskId, artefacts),
   };
 }
@@ -616,6 +703,14 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const verdict = i.applicable === false ? 'INAPPLICABLE (one turn, no handoffs)'
     : i.demonstrated ? 'DEMONSTRATED' : i.clean ? 'clean but undemonstrated' : 'LEAKED';
   console.log(`\n  isolation  ${verdict}`);
+  /* CONTAINMENT IS PRINTED BESIDE ISOLATION because it is the same kind
+     of failure and it is the one that actually happened. */
+  if (!out.containment.contained) {
+    console.log(`  CONTAINMENT BREACHED — ${out.containment.note}`);
+    for (const b of out.containment.breaches) {
+      console.log(`             ${b.turn} changed the checkout: +${b.appeared.join(' ') || '-'} -${b.vanished.join(' ') || '-'}`);
+    }
+  } else console.log('  contained  the checkout was untouched');
   if (i.applicable !== false) {
     console.log(`             marker planted: ${i.planted}; blind turns: ${i.blindTurns.join(', ') || 'none'}; leaks: ${i.leaks.length}`);
   }
