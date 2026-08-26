@@ -77,8 +77,13 @@ on:
         description: 'Agent steps for the WHOLE run, split across its turns. Same reason'
         required: false
         default: ''
+      engine:
+        description: 'claude (paid, per-turn dollar budget) or opencode (OpenCode Zen free tier, no key, matched on steps)'
+        type: choice
+        options: [claude, opencode]
+        default: claude
       model:
-        description: 'Model id'
+        description: 'Model id. For engine=opencode this must be a verified free model, e.g. nemotron-3-ultra-free'
         required: true
         default: 'claude-opus-5'
       budget_usd:
@@ -126,15 +131,22 @@ jobs:
       - name: Harness dry run
         run: node ken/lab/runner.mjs --task "${{ inputs.task }}" --shape "${{ inputs.shape }}" --dry-run --run-id "dry-$GITHUB_RUN_ID"
 
+      # The free arm needs opencode; the paid arm needs the Claude CLI.
+      # Installing only what the chosen engine uses keeps a free run from
+      # depending on a credential it does not have.
       - name: Install the CLI
-        run: npm install -g @anthropic-ai/claude-code
+        run: |
+          if [ "${{ inputs.engine }}" = "opencode" ]; then
+            npm install -g opencode-ai
+          else
+            npm install -g @anthropic-ai/claude-code
+          fi
 
       - name: Execute the run
         id: exec
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        env:
           TOTAL_BUDGET: ${{ inputs.total_budget_usd }}
           TOTAL_STEPS: ${{ inputs.total_max_turns }}
         run: |
@@ -145,6 +157,7 @@ jobs:
           node ken/lab/runner.mjs \
             --task "${{ inputs.task }}" \
             --shape "${{ inputs.shape }}" \
+            --engine "${{ inputs.engine }}" \
             --run-id "$GITHUB_RUN_ID" \
             --model "${{ inputs.model }}" \
             --budget "${{ inputs.budget_usd }}" \
@@ -225,7 +238,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "$F"
           git diff --cached --quiet && exit 0
-          git commit -m "ken: run record $GITHUB_RUN_ID (${{ inputs.task }}, ${{ inputs.shape }})"
+          git commit -m "ken: run record $GITHUB_RUN_ID (${{ inputs.task }}, ${{ inputs.shape }}, ${{ inputs.engine }})"
           for i in 1 2 3 4; do
             git pull --rebase origin "$GITHUB_REF_NAME" && git push origin "HEAD:$GITHUB_REF_NAME" && exit 0
             sleep $((2 ** i))

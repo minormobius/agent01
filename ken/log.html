@@ -33,7 +33,7 @@
   <div class="a-venue">ken · volume 1 <span class="kicker">Running record</span></div>
   <h1 class="a-title">Findings Log</h1>
   <p class="a-sub">Shortest form. Each entry names the code or record that produced it.</p>
-  <div class="a-meta">136 entries · <b>7 from new measurement</b> · every figure regenerated on build</div>
+  <div class="a-meta">142 entries · <b>9 from new measurement</b> · every figure regenerated on build</div>
   <hr class="a-rule">
 
   <p class="small">Everything here comes from data already paid for or from arithmetic. That is
@@ -1061,6 +1061,60 @@
       <span class="src"><code>auditIsolation()</code> · R16</span></li>
   </ol>
 
+  <h2 class="sec"><span class="secno">§</span>The free arm</h2>
+
+  <ol class="log" start="137">
+    <li><b>OpenCode Zen serves models that answer with no API key, no account and no billing.</b>
+      Measured from the sandbox on 2026-08-26 rather than taken from an announcement: the
+      catalogue returns 64 models, 8 of them <code>-free</code>; five of those returned real
+      completions with <code>"cost":"0"</code>; 15 sequential requests all succeeded in 23s with
+      no throttling. A full agentic loop ran on one of them — the agent wrote a file, shelled out
+      to <code>node</code>, read the output and confirmed it.
+      <span class="src"><code>opencode.ai/zen/v1</code> · <code>FREE_MODELS</code></span></li>
+
+    <li><b>A bad API key fails where NO key succeeds, which inverts the safe default.</b>
+      Against the same endpoint: no <code>Authorization</code> header returns 200, an empty
+      <code>Bearer</code> returns 200, and <code>Bearer none</code> returns <b>401 Invalid API
+      key</b>. The first attempt at this arm died on exactly that, because the obvious
+      placeholder is the one value that breaks it — <code>bakeoff/run-cell.sh</code> writes a key
+      reference there, correctly for a keyed provider and fatally for this one. The config now
+      carries the empty string and the selftest asserts it is neither a word nor an env
+      reference.
+      <span class="src"><code>opencodeConfig()</code></span></li>
+
+    <li><b>A free model removes the dollar ceiling rather than lowering it, so the arms are
+      matched on steps.</b> <code>opencode run</code> has no <code>--max-turns</code> and no
+      budget flag; the equivalent is <code>agent.build.steps</code> in its config, and the
+      stopping rule is the base case of this design rather than a check beside it. A run record
+      now carries <code>currency</code>, and a free run reports <b>no</b> dollar ceiling instead
+      of a ceiling of zero — which would have read as a budget that was applied and came in
+      under.
+      <span class="src"><code>runner.mjs</code> · <code>spend.currency</code></span></li>
+
+    <li><b>The free arm is for H12 and must not be used to price λ or g.</b> H12 is a paired
+      within-arm contrast — solo against standard on the same model — so model identity cancels
+      and a weaker model moves both arms together. λ and g are per-model parameters, and a free
+      run would report the free model's while the page labelled them the study's. The same
+      distinction makes the arm worth having at all: H12 is 360 turns, about $1,800 at the
+      per-turn budget, and $0 here.
+      <span class="src"><a href="/wp4#h12">WP4 §10</a> · <a href="/register">H12</a></span></li>
+
+    <li><b>Two <code>env:</code> blocks on one workflow step silently drop the first.</b> Adding
+      the total-budget variables to <code>ken-run.yml</code> produced a second <code>env:</code>
+      key on the same step; YAML takes the last, so the step would have run with
+      <code>TOTAL_BUDGET</code> and <code>TOTAL_STEPS</code> and <b>no credentials at all</b>.
+      Found by parsing the file rather than by reading it, and before any dispatch. The
+      workflow shell lint passes either way, because this is a YAML fault and not a shell one.
+      <span class="src"><code>.github/workflows/ken-run.yml</code></span></li>
+
+    <li><b>The model that prompted the search was already gone.</b> <code>ox-alpha</code>, the
+      stealth 1M-context model offered free for one week from 2026-08-20, is absent from the
+      catalogue, and a direct call returns "Model ox-alpha is not supported". The durable free
+      tier was the thing worth having, and it was found by probing the endpoint rather than by
+      reading the coverage.
+      <span class="src"><code>/zen/v1/chat/completions</code></span></li>
+  </ol>
+
   <h2 class="sec"><span class="secno">§</span>The ledger</h2>
 
   <div class="table-fig">
@@ -1068,10 +1122,10 @@
       <thead><tr><th>Source of finding</th><th class="num">Entries</th></tr></thead>
       <tbody>
         <tr><td>Records already committed</td><td class="num">19</td></tr>
-        <tr><td>Arithmetic and simulation</td><td class="num">72</td></tr>
-        <tr><td>Our own mistakes</td><td class="num">36</td></tr>
+        <tr><td>Arithmetic and simulation</td><td class="num">74</td></tr>
+        <tr><td>Our own mistakes</td><td class="num">38</td></tr>
         <tr><td>Prior literature</td><td class="num">2</td></tr>
-        <tr><td><b>New measurement</b></td><td class="num"><b>7</b></td></tr>
+        <tr><td><b>New measurement</b></td><td class="num"><b>9</b></td></tr>
       </tbody>
     </table>
   </div>
@@ -1080,6 +1134,12 @@
   bought the one parameter every cost estimate here had been assuming: an ICC for judged quality
   of 0.413, with an interval of [0.00, 0.88] around it. That interval is the honest summary of
   the whole exercise — a first anchor, not a measurement.</p>
+
+  <p>Two of the nine are of a different kind, and the distinction is worth keeping. The judging
+  pass measured a quantity of this programme's own; the free-tier probes measured a third party's
+  behaviour, which is a fact about an instrument rather than about unattended work. Both were
+  measured rather than quoted, which is why they sit in the same row, but only the first can
+  close a blank in <a href="/protocol">§4</a>.</p>
 
   <div class="refs"><h2 class="sec"><span class="secno">§</span>References</h2><ol id="reflist"></ol></div>
 

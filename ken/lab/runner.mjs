@@ -59,7 +59,8 @@
    ───────────────────────────────────────────────────────────────────── */
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, cpSync, readdirSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync, cpSync, readdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readTask, runCheck, TASKS_DIR } from './taskbank.mjs';
@@ -220,6 +221,133 @@ export function realAgent({ dir, promptFile, model, maxTurns, budgetUsd }) {
   return { code: r.status, log: (r.stdout ?? '') + (r.stderr ?? '') };
 }
 
+/* ─── THE FREE ARM ───────────────────────────────────────────────────
+   Every hypothesis here is priced in turns and dollars, and the dollars
+   are what has kept them unrun: H12 alone is 2 arms x 30 runs x 6 turns
+   = 360 turns, about $1,800 at the per-turn budget above.
+
+   OpenCode Zen serves a standing free tier, and it needs no key and no
+   account at all. Measured from the sandbox on 2026-08-26, not quoted
+   from anybody's announcement:
+
+     GET  /zen/v1/models              64 models, 8 of them `-free`
+     POST /zen/v1/chat/completions    five of those answered, "cost":"0"
+     15 sequential requests           15 ok, 0 throttled, 23s
+
+   (`ox-alpha`, the stealth model this was chased for, is GONE: absent
+   from the catalogue, and a direct call returns "Model ox-alpha is not
+   supported". The durable free tier is the thing worth having.)
+
+   WHAT THIS DOES NOT BUY. A free model does not make the programme
+   cheaper in the currency that binds, which `design.mjs` says is TASKS.
+   What it does buy is the one hypothesis where model identity CANCELS:
+   H12 is a paired within-arm contrast — solo against standard on the
+   same model — so a weaker model moves both arms together and the
+   redundancy comparison survives. Do NOT price lambda or g from this
+   arm; those are per-model parameters and a free run would report the
+   free model's, labelled as though they were the study's.
+
+   SCOPE, and it is a rule rather than a preference. A turn briefed
+   through this arm sends its brief to a third party whose retention
+   terms cannot be verified from here, and some of the free models are
+   unidentified. The brief is `statement.md` — a committed, public-safe
+   file with an author and a diff — and the runner already gives each
+   turn a fresh tree with no repository in it. That is the whole
+   exposure, and it must stay that way. */
+export const ZEN_BASE = 'https://opencode.ai/zen/v1';
+export const ZEN_VERIFIED = '2026-08-26';
+export const FREE_MODELS = [
+  'nemotron-3-ultra-free',
+  'nemotron-3.5-lightning-free',
+  'hy3-free',
+  'x-preview-f-free',
+  'laguna-s-2.1-free',
+  'deepseek-v4-flash-free',
+];
+
+/**
+ * The opencode config for one turn. Pure, so the selftest can assert
+ * its shape without reaching the network — this repo's rule is that a
+ * gate never calls out.
+ */
+export function opencodeConfig({ model, steps }) {
+  if (!FREE_MODELS.includes(model)) {
+    throw new Error(`opencodeConfig: "${model}" is not a verified free model (have ${FREE_MODELS.join(', ')})`);
+  }
+  if (!Number.isInteger(steps) || steps < 1) throw new Error(`opencodeConfig: steps must be a positive integer, got ${steps}`);
+  return {
+    $schema: 'https://opencode.ai/config.json',
+    provider: {
+      zenfree: {
+        npm: '@ai-sdk/openai-compatible',
+        name: 'OpenCode Zen (free tier, keyless)',
+        /* THE EMPTY STRING IS LOAD-BEARING AND IS NOT A PLACEHOLDER.
+           Measured against the live endpoint:
+
+             no Authorization header      -> 200, "cost":"0"
+             Authorization: Bearer        -> 200, "cost":"0"
+             Authorization: Bearer none   -> 401 "Invalid API key."
+
+           A BAD key fails where NO key succeeds, so the obvious
+           placeholder is the one value that breaks it. bakeoff's
+           run-cell.sh writes "{env:OPENCODE_CELL_KEY}" here, which is
+           correct for a keyed provider and fatal for this one — the
+           first run of this arm died on exactly that. */
+        options: { baseURL: ZEN_BASE, apiKey: '' },
+        models: { [model]: { name: model } },
+      },
+    },
+    model: `zenfree/${model}`,
+    small_model: `zenfree/${model}`,
+    /* STEPS ARE THE CEILING BECAUSE DOLLARS ARE NOT AVAILABLE.
+       `opencode run` has no --max-turns and no budget flag; the
+       equivalent is agent.build.steps in the config. With a free model
+       the dollar budget is not merely unenforceable, it is meaningless,
+       so H12's "equal total budget" is matched in STEPS here and the
+       ledger says so rather than reporting a spend of zero as though a
+       ceiling had been applied. */
+    agent: { build: { steps } },
+    /* The root turn may fan out; its subagents may not fan out again.
+       H12's solo arm needs the first and does not need the second, and
+       leaving the default explicit keeps the two arms comparable. */
+    subagent_depth: 1,
+  };
+}
+
+/**
+ * One turn through opencode against a free Zen model.
+ *
+ * The XDG dirs are deliberately OUTSIDE the turn's tree. Writing them
+ * into `dir` would put files in the worktree that no in-edge put there,
+ * which is precisely the invariant `execute()` maintains and the
+ * isolation audit assumes.
+ */
+export function opencodeAgent({ dir, promptFile, model, maxTurns }) {
+  const home = mkdtempSync(join(tmpdir(), 'ken-oc-'));
+  try {
+    const cfgDir = join(home, 'config', 'opencode');
+    mkdirSync(cfgDir, { recursive: true });
+    mkdirSync(join(home, 'data'), { recursive: true });
+    writeFileSync(join(cfgDir, 'opencode.json'),
+      JSON.stringify(opencodeConfig({ model, steps: maxTurns }), null, 2));
+    const r = spawnSync('opencode', ['run', '--auto', '-'], {
+      cwd: dir,
+      input: readFileSync(promptFile, 'utf8'),
+      encoding: 'utf8',
+      timeout: 1800000,
+      env: { ...process.env, XDG_CONFIG_HOME: join(home, 'config'), XDG_DATA_HOME: join(home, 'data') },
+    });
+    return { code: r.status, log: (r.stdout ?? '') + (r.stderr ?? '') };
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+}
+
+/** The engines a run can be executed on. */
+export const ENGINES = { claude: realAgent, opencode: opencodeAgent };
+/** Which engines cost money, so a ledger cannot imply a budget it never had. */
+export const PAID_ENGINES = ['claude'];
+
 /**
  * Execute the plan.
  *
@@ -228,9 +356,15 @@ export function realAgent({ dir, promptFile, model, maxTurns, budgetUsd }) {
  * identically, which is the point.
  */
 export function execute({
-  taskId, root, runId = 'dry', agent = realAgent, briefBuilder = false, shape = 'standard',
+  taskId, root, runId = 'dry', agent = null, engine = 'claude', briefBuilder = false, shape = 'standard',
   model = 'claude-opus-5', maxTurns = 60, budgetUsd = 5, totalBudgetUsd = null, totalMaxTurns = null,
 } = {}) {
+  if (!ENGINES[engine]) throw new Error(`unknown engine "${engine}" (have ${Object.keys(ENGINES).join(', ')})`);
+  const paid = PAID_ENGINES.includes(engine);
+  if (!paid && !FREE_MODELS.includes(model)) {
+    throw new Error(`engine "${engine}" runs the free tier; "${model}" is not one of ${FREE_MODELS.join(', ')}`);
+  }
+  agent = agent ?? ENGINES[engine];
   const task = readTask(taskId);
   const statement = readFileSync(join(task.dir, 'statement.md'), 'utf8');
   const p = plan({ briefBuilder, shape });
@@ -285,9 +419,17 @@ export function execute({
   }
 
   return {
-    taskId, runId, shape: p.shape, plan: p, artefacts, turns: turnLog,
-    spend: { perTurnBudget: round(perTurnBudget), perTurnSteps, turns: p.turns.length,
-      totalBudgetUsd: round(perTurnBudget * p.turns.length) },
+    taskId, runId, shape: p.shape, engine, model, plan: p, artefacts, turns: turnLog,
+    /* A FREE ARM HAS NO DOLLAR CEILING, AND REPORTING ONE AS ZERO WOULD
+       READ AS A CEILING THAT WAS APPLIED. `currency` says which quantity
+       was actually held equal across arms, which is what H12's matched
+       comparison rests on. */
+    spend: {
+      currency: paid ? 'usd' : 'steps',
+      perTurnBudget: paid ? round(perTurnBudget) : null,
+      totalBudgetUsd: paid ? round(perTurnBudget * p.turns.length) : null,
+      perTurnSteps, totalSteps: perTurnSteps * p.turns.length, turns: p.turns.length,
+    },
     isolation: auditIsolation(p, artefacts, runId),
     scores: score(taskId, artefacts),
   };
@@ -428,17 +570,22 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const runId = String(arg('run-id', dry ? 'dry' : `r${process.pid}`));
   const root = String(arg('root', join(HERE, '.run', runId)));
 
-  if (!dry && !process.env.ANTHROPIC_API_KEY && !process.env.CLAUDE_CODE_OAUTH_TOKEN) {
-    console.error('runner: no credential in the environment. Use --dry-run to exercise the harness.');
+  const engine = String(arg('engine', 'claude'));
+  /* The free arm needs NO credential, which is the entire point of it,
+     so the key check applies to the paid engines only. */
+  if (!dry && PAID_ENGINES.includes(engine)
+      && !process.env.ANTHROPIC_API_KEY && !process.env.CLAUDE_CODE_OAUTH_TOKEN) {
+    console.error('runner: no credential in the environment. Use --dry-run to exercise the harness,'
+      + ` or --engine opencode --model ${FREE_MODELS[0]} for the free arm.`);
     process.exit(2);
   }
 
   const out = execute({
-    taskId, root, runId,
-    agent: dry ? scriptedAgent(taskId) : realAgent,
+    taskId, root, runId, engine,
+    agent: dry ? scriptedAgent(taskId) : undefined,
     briefBuilder: process.argv.includes('--brief-builder'),
     shape: String(arg('shape', 'standard')),
-    model: String(arg('model', 'claude-opus-5')),
+    model: String(arg('model', engine === 'claude' ? 'claude-opus-5' : FREE_MODELS[0])),
     maxTurns: Number(arg('max-turns', 60)),
     budgetUsd: Number(arg('budget', 5)),
     totalBudgetUsd: arg('total-budget', null) === null ? null : Number(arg('total-budget')),
@@ -456,8 +603,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.log(`\n  record     ${ledger}`);
   }
 
-  console.log(`\n${taskId} · run ${runId} · shape ${out.shape}`
-    + ` · ${out.spend.turns} turn(s) at $${out.spend.perTurnBudget}/${out.spend.perTurnSteps} steps`
+  console.log(`\n${taskId} · run ${runId} · shape ${out.shape} · ${out.engine}/${out.model}`
+    + ` · ${out.spend.turns} turn(s) at `
+    + (out.spend.currency === 'usd'
+      ? `$${out.spend.perTurnBudget}/${out.spend.perTurnSteps} steps`
+      : `${out.spend.perTurnSteps} steps each, FREE (matched on steps, not dollars)`)
     + `${dry ? ' · DRY (scripted agent, measures the harness only)' : ''}`);
   for (const t of out.turns) {
     console.log(`  ${t.turn.padEnd(10)} ${t.duty.padEnd(10)} reads ${t.reads.length}  wrote ${t.wrote}/${t.writes.length}  ${t.seconds}s  exit ${t.exit}`);

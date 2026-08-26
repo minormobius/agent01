@@ -99,8 +99,8 @@ worker or move the domain, **verify the deploy log binds
 | `lab/taskbank.mjs` | **the admission gate for a task**: sound, discerning, not free. `node lab/taskbank.mjs` for the report |
 | `lab/tasks/<id>/` | one task: statement, checks, reference, stub, seeded mutants |
 | `lab/taskbank.selftest.mjs` | 70 checks: the three conditions in both directions, the survivors, the redundancy contrast, the applied-mutation guard |
-| `lab/runner.mjs` | **executes a run**, `standard` (six turns) or `solo` (one, fanning out): fresh tree per turn, demonstrated isolation, held-out scoring. `--dry-run` needs no key |
-| `lab/runner.selftest.mjs` | 84 checks, most of them faults it must catch — a leak, a silent turn, an unsound check |
+| `lab/runner.mjs` | **executes a run**, `standard` (six turns) or `solo` (one, fanning out), on the paid or the **free** engine: fresh tree per turn, demonstrated isolation, held-out scoring. `--dry-run` needs no key |
+| `lab/runner.selftest.mjs` | 103 checks, most of them faults it must catch — a leak, a silent turn, an unsound check, a paid model on the free arm |
 | `lab/runs/` | one JSON record per executed run, committed |
 | `lab/resolve-refs.mjs` | links the bibliography against CrossRef / arXiv / OpenLibrary |
 | `fig/*.svg` | **generated.** Committed so figures print and diff |
@@ -741,6 +741,60 @@ is right for one shape alone and wrong for comparing them.
 so there was nothing to leak and nothing a marker could demonstrate. Recording it
 as a pass would credit the run with a property it never had the opportunity to
 lose — the same error as calling an unplanted marker a demonstration.
+
+### The free arm, and what it may and may not measure
+
+`lab/runner.mjs` has two engines: `claude` (paid, dollar budget per turn) and
+`opencode` against **OpenCode Zen's free tier**, which needs **no API key, no
+account and no billing**. Measured from the sandbox on 2026-08-26 rather than
+taken from an announcement:
+
+| probe | result |
+|---|---|
+| `GET /zen/v1/models` | 64 models, **8 of them `-free`** |
+| `POST /zen/v1/chat/completions` on five of them | real completions, **`"cost":"0"`** |
+| 15 sequential requests | 15 ok, 0 throttled, 23s |
+| a full `opencode run --auto` loop | wrote a file, ran `node`, verified the output |
+
+```bash
+node ken/lab/runner.mjs --task tb-001-binomial-interval \
+  --engine opencode --shape solo --total-steps 120
+```
+
+⚠️ **THE API KEY MUST BE THE EMPTY STRING, and that is the opposite of the safe
+default.** Against the live endpoint: no `Authorization` header → 200, empty
+`Bearer` → 200, **`Bearer none` → 401**. A *bad* key fails where *no* key
+succeeds, so the obvious placeholder is the one value that breaks it. The first
+run of this arm died on exactly that, because `bakeoff/run-cell.sh` writes
+`{env:OPENCODE_CELL_KEY}` there — correct for a keyed provider, fatal here.
+
+⚠️ **A FREE MODEL REMOVES THE DOLLAR CEILING RATHER THAN LOWERING IT.**
+`opencode run` has no `--max-turns` and no budget flag; the equivalent is
+`agent.build.steps` in its config, and the stopping rule is this design's base
+case rather than a check beside it. So a run record carries `spend.currency`,
+and a free run reports **no** dollar ceiling instead of a ceiling of zero —
+which would read as a budget that was applied and came in under. H12's arms are
+matched on **steps** here, not dollars.
+
+⚠️ **USE IT FOR H12, NEVER TO PRICE λ OR g.** H12 is a paired within-arm
+contrast — solo against standard on the *same* model — so model identity
+cancels and a weaker model moves both arms together. λ and g are per-model
+parameters: a free run would report the free model's while the page labelled
+them the study's. That is also why the arm is worth having, since H12 is 360
+turns and about **$1,800** at the per-turn budget.
+
+**Scope is a rule, not a preference.** A turn on this arm sends its brief to a
+third party whose retention terms cannot be verified from here, and some of the
+free models are unidentified. The brief is `statement.md` — committed,
+public-safe, with an author and a diff — and each turn already gets a fresh tree
+with no repository in it. **That is the whole exposure and it must stay that
+way.** Never point this arm at anything `homunculus/` touches.
+
+`ox-alpha`, the stealth model this was chased for, is **gone**: absent from the
+catalogue, and a direct call returns "Model ox-alpha is not supported". It was
+free for one week from 2026-08-20. The durable free tier is the thing worth
+having, and it was found by probing the endpoint rather than by reading the
+coverage.
 
 ### What the loop's executor can and cannot do
 

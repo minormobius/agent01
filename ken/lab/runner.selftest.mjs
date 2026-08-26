@@ -16,6 +16,7 @@
 import {
   plan, producerOf, blindTo, brief, execute, score, auditIsolation,
   scriptedAgent, marker, MARKER_TURN, MARKER_BLIND, SHAPES,
+  ENGINES, PAID_ENGINES, FREE_MODELS, ZEN_BASE, opencodeConfig,
 } from './runner.mjs';
 import { readTask } from './taskbank.mjs';
 import { rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -258,7 +259,84 @@ section('solo');
     'while the six-turn arm demonstrates it, which is what makes the arms comparable');
 }
 
-// ── 9. the harness leaves nothing behind ──────────────────────────────
+// ── 9. THE FREE ARM. Asserted without touching the network. ───────────
+section('the free arm');
+
+{
+  /* This repo's rule is that a gate never reaches out, so nothing here
+     calls Zen. What is checked is the config the arm WRITES, because
+     every property that matters about it is a property of that file. */
+  ok(Object.keys(ENGINES).join(',') === 'claude,opencode', 'two engines are registered');
+  ok(PAID_ENGINES.includes('claude') && !PAID_ENGINES.includes('opencode'),
+    'and only the claude one is marked as costing money');
+  ok(FREE_MODELS.length >= 5, `at least five verified free models (${FREE_MODELS.length})`);
+
+  const cfg = opencodeConfig({ model: FREE_MODELS[0], steps: 40 });
+
+  /* THE EMPTY STRING IS THE WHOLE TRICK, and it is the opposite of what
+     a careful person writes. Measured against the live endpoint: no
+     header and an empty Bearer both return 200 with cost 0, while
+     `Bearer none` returns 401. bakeoff's run-cell.sh writes a real key
+     reference here, which is correct there and fatal here. */
+  ok(cfg.provider.zenfree.options.apiKey === '',
+    'the api key is the EMPTY STRING, because a bad key 401s where no key succeeds');
+  ok(cfg.provider.zenfree.options.apiKey !== 'none' && !/\{env:/.test(String(cfg.provider.zenfree.options.apiKey)),
+    'and is neither a placeholder word nor an env reference');
+  ok(cfg.provider.zenfree.options.baseURL === ZEN_BASE, 'it points at the Zen base');
+
+  /* STEPS ARE THE CEILING. `opencode run` has no --max-turns and no
+     budget flag, so a run with no steps set would have no stopping rule
+     at all — and the stopping rule is the base case of this design, not
+     a check beside it. */
+  ok(cfg.agent.build.steps === 40, 'the step ceiling reaches agent.build.steps');
+  ok(cfg.subagent_depth === 1, 'and the fan-out depth is explicit rather than defaulted');
+  ok(cfg.model === `zenfree/${FREE_MODELS[0]}` && cfg.small_model === cfg.model,
+    'both model slots are pinned, so no turn silently falls back to a paid one');
+
+  /* THE REFUSALS. A free arm that accepted a paid model id would either
+     fail with a confusing 401 or, worse, quietly bill somebody. */
+  let threw = false;
+  try { opencodeConfig({ model: 'claude-opus-5', steps: 10 }); } catch { threw = true; }
+  ok(threw, 'a model outside the verified free list is REFUSED');
+  threw = false;
+  try { opencodeConfig({ model: FREE_MODELS[0], steps: 0 }); } catch { threw = true; }
+  ok(threw, 'and so is a step ceiling of zero, which would be no ceiling');
+
+  threw = false;
+  try { execute({ taskId: TASK, root: ROOT, engine: 'gpt' }); } catch { threw = true; }
+  ok(threw, 'an unknown engine is refused before any turn runs');
+  threw = false;
+  try { execute({ taskId: TASK, root: ROOT, engine: 'opencode', model: 'claude-opus-5' }); } catch { threw = true; }
+  ok(threw, 'and so is the free engine pointed at a paid model');
+  clean();
+}
+
+{
+  /* THE LEDGER MUST NOT IMPLY A DOLLAR CEILING IT NEVER APPLIED. A free
+     run reporting totalBudgetUsd 0 reads as "budgeted at zero and came
+     in under", which is not what happened: no dollar ceiling existed
+     and the arms were matched on steps instead. */
+  clean();
+  const free = execute({ taskId: TASK, root: ROOT, runId: 'free', engine: 'opencode',
+    model: FREE_MODELS[0], shape: 'solo', agent: scriptedAgent(TASK), totalMaxTurns: 120 });
+  clean();
+  const paid = execute({ taskId: TASK, root: ROOT, runId: 'paid', engine: 'claude',
+    shape: 'solo', agent: scriptedAgent(TASK), totalBudgetUsd: 30, totalMaxTurns: 120 });
+  clean();
+
+  ok(free.spend.currency === 'steps' && paid.spend.currency === 'usd',
+    'each run records WHICH quantity was held equal');
+  ok(free.spend.totalBudgetUsd === null && free.spend.perTurnBudget === null,
+    'the free run reports no dollar ceiling rather than a ceiling of zero');
+  ok(paid.spend.totalBudgetUsd === 30, 'while the paid run still reports its own');
+  ok(free.spend.totalSteps === 120 && paid.spend.totalSteps === 120,
+    'and both report total steps, which is what a free comparison matches on');
+  ok(free.engine === 'opencode' && free.model === FREE_MODELS[0],
+    'the record names the engine and model that produced it');
+  ok(paid.engine === 'claude', 'and so does the paid one, so two ledgers cannot be confused');
+}
+
+// ── 10. the harness leaves nothing behind ─────────────────────────────
 section('hygiene');
 
 ok(!existsSync(ROOT), 'no scratch tree survives the selftest');
