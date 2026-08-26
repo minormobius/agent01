@@ -33,9 +33,9 @@ _Regenerated 2026-08-26 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 82, bluesky 73, data 58, tools 58, work 8.
 
-**Neighborhood spark** (bisk 2026-08-26, 99 members / 269 posts):
+**Neighborhood spark** (bisk 2026-08-26, 99 members / 289 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: llm, clanker, qwen
+- Distinctive words: clanker, llm, qwen
 - Top post: "" — @thebadcode.com
 <!-- BRIEF_END -->
 
