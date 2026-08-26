@@ -678,5 +678,69 @@ head('8. the game runs');
     `${((100 * g.total.player) / (g.total.player + g.total.rival)).toFixed(0)}% to the player`);
 }
 
+// ===========================================================================
+head('9. bullet time is one clock, not two');
+// ===========================================================================
+//
+// The page ships at half speed. The tempting way to do that is to slow the
+// BALL, which quietly gives you a bat moving at full speed through a world that
+// is not — two clocks, and a contact model being handed relative velocities it
+// was never measured against. The way it is actually done is to scale wall time
+// into game time once, at the top of stepGame, so everything downstream is on
+// one clock.
+//
+// Which means this has to be true: the same amount of GAME time produces the
+// same game, whatever wall clock delivered it.
+{
+  const play = (scale) => {
+    const g = newGame(5, 0.4);
+    g.timeScale = scale;
+    for (let i = 0; i < 900; i++) stepGame(g, (1 / 120) / scale, { Q: (i % 50) < 14 });
+    return g;
+  };
+  const full = play(1);
+  const half = play(0.5);
+  const quarter = play(0.25);
+  const same = (a, b) => JSON.stringify(a.ball.pos) === JSON.stringify(b.ball.pos)
+    && a.total.player === b.total.player && a.total.rival === b.total.rival;
+  console.log(`  7.5 s of game time, delivered over 7.5 s / 15 s / 30 s of wall time:`);
+  for (const [name, g] of [['1x', full], ['1/2x', half], ['1/4x', quarter]]) {
+    console.log(`    ${name.padEnd(5)} ball ${g.ball.pos.map((v) => v.toFixed(4)).join(', ')}` +
+      `  score ${g.total.player}-${g.total.rival}`);
+  }
+  check('half speed is bit-identical to full speed at the same game time',
+    same(full, half), 'not "close enough" — identical');
+  check('and so is quarter speed', same(full, quarter));
+  check('the game clock really did advance the same amount',
+    Math.abs(full.t - half.t) < 1e-9 && Math.abs(full.t - quarter.t) < 1e-9,
+    `${full.t.toFixed(4)} s in every case`);
+}
+
+// What bullet time DOES change is the hand. The bat's position is the cursor's,
+// so the same hand movement covers the same metres in half the game time, and
+// the brush it produces doubles. That is the point — a gentler flick reaches the
+// same shot — and it is worth having written down, because it means the px/s
+// figures in section 6 halve at half speed.
+{
+  const brushFor = (scale) => {
+    const b = newBat(PLAYER_X, PLAYER_N);
+    b.z = BAT.minZ; b.y = 0;
+    const realStep = 1 / 120;
+    let z = BAT.minZ;
+    for (let i = 0; i < 16; i++) {
+      z += 0.60 / 16;
+      aimBat(b, realStep * scale, 0, z, realStep);
+      slideBat(b, 1);
+    }
+    return b.vz;
+  };
+  const one = brushFor(1);
+  const half = brushFor(0.5);
+  console.log(`  the same 0.60 m hand flick brushes at ${one.toFixed(2)} m/s at full speed, ` +
+    `${half.toFixed(2)} m/s at half`);
+  check('the same hand movement buys twice the brush at half speed',
+    Math.abs(half / one - 2) < 0.05, `${(half / one).toFixed(3)}x`);
+}
+
 console.log(`\n${failures ? `${failures} FAILED` : 'all checks passed'}\n`);
 process.exit(failures ? 1 : 0);

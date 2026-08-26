@@ -103,6 +103,10 @@
     margin-top: 8px; color: var(--dim); font-size: 11px;
   }
   #ctl input[type=range] { width: 150px; accent-color: #6fa8e0; }
+  #speedbox button {
+    padding: 5px 10px; margin-left: 4px; font-size: 11px;
+  }
+  #speedbox button[data-on="1"] { border-color: #6fa8e0; color: #6fa8e0; }
   #ctl button {
     border: 1px solid var(--border); background: #0a0f15; color: var(--fg);
     padding: 6px 14px; border-radius: 4px; cursor: pointer; font: inherit;
@@ -190,6 +194,9 @@
         <b>On a phone, drag.</b> How fast you move IS how hard you brush —
         flick upward through the ball and it comes off with topspin, which is
         the only thing that will bring a hard shot down in time.</p>
+        <p>It runs at <b>half speed</b>. Real table tennis is not a game you can
+        read at full rate through a mouse, and the speed control under the table
+        goes back to 1&times; when you want it.</p>
         <p class="alt">Still four keys if you want them: Q up the plane,
         W down it, O left, P right.</p>
         <div class="go">click or tap to begin</div>
@@ -209,6 +216,7 @@
 
   <div id="ctl">
     <label>rival <input id="diff" type="range" min="0" max="100" value="30" /> <b id="diffval">30%</b></label>
+    <span>speed</span><span id="speedbox"></span>
     <button id="again">new match</button>
     <label><input id="showflow" type="checkbox" checked /> solver panel</label>
   </div>
@@ -259,6 +267,20 @@
   at the right SPEED out of a single integrator, and the legal band of brush
   speeds is about 3 m/s wide out of 13. The keys still work. They are just no
   longer the way in.</p>
+
+  <h2>Bullet time</h2>
+  <p>The page runs at half speed by default. That is <em>one clock running
+  slower</em>, not the ball being slowed while the bat is left alone: wall time
+  is turned into game time once, at the top of the step function, and everything
+  after that — the flight, the contact, the rival, every number measured on this
+  page — is in game seconds. The selftest asserts it, and asserts it the strict
+  way: the same amount of game time delivered over twice the wall clock produces
+  a <em>bit-identical</em> game, not a nearly-identical one.</p>
+  <p>What it does change is your hand. The bat is pinned to the cursor, so the
+  same movement covers the same distance in half the game time and the brush it
+  produces doubles — a 0.60 m flick that makes 4.3 m/s at full speed makes 8.5
+  at half. That is the whole benefit: a gentler, more readable stroke reaches the
+  same shot, and you get twice as long to decide on it.</p>
 
   <h2>Same four keys, elsewhere</h2>
   <p>Same four as <a href="../qwop/">/qwop/</a>, <a href="../graze/">/graze/</a>,
@@ -320,7 +342,24 @@
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+  // BULLET TIME by default. Half a second of game per second of life. This is
+  // one clock running slower, not the ball being slowed and the bat left alone:
+  // everything downstream of stepGame is in game seconds, so the physics, the
+  // rival and every measured claim on this page are bit-identical at any speed —
+  // all that changes is how much of it happens per second of yours.
+  const SPEEDS = [
+    { label: '1/4', v: 0.25 },
+    { label: '1/2', v: 0.5 },
+    { label: '1', v: 1 },
+  ];
+  // NOT `speed`: paintHud() already has a local `const speed` for how fast the
+  // BALL is going, and a module-level one gets shadowed by it. The first
+  // version did exactly that, looked up 5.8 m/s in the speed table, got
+  // undefined, and threw on the first frame — which killed the render loop
+  // dead while the page still looked half-right in a screenshot.
+  let timeScale = 0.5;
   let g = newGame((Math.random() * 1e9) | 0, 0.30);
+  g.timeScale = timeScale;
   let started = false, frames = 0;
 
   // `view` is in here on purpose: a headless check needs to be able to ask
@@ -365,6 +404,7 @@
     for (let i = 0; i < 4; i++) held[i] = false;
     paintPad();
     if (fresh) g = newGame((Math.random() * 1e9) | 0, (+diff.value) / 100);
+    g.timeScale = timeScale;
     started = true;
     intro.hidden = true;
     last = performance.now();
@@ -415,6 +455,24 @@
     diffval.textContent = diff.value + '%';
     g.difficulty = (+diff.value) / 100;
   });
+  // `speedbox`, not `speed`: an element id becomes a property of `window`, so a
+  // bare `speed` in this scope silently resolves to the SPAN rather than
+  // throwing. The first version compared a number against a DOM node, marked no
+  // button selected, and made clicking one a no-op — with no error anywhere.
+  const speedBox = document.getElementById('speedbox');
+  for (const sp of SPEEDS) {
+    const b = document.createElement('button');
+    b.textContent = sp.label + '\u00d7';
+    b.dataset.on = sp.v === timeScale ? '1' : '0';
+    b.addEventListener('click', () => {
+      timeScale = sp.v;
+      g.timeScale = timeScale;
+      for (const other of speedBox.querySelectorAll('button')) other.dataset.on = '0';
+      b.dataset.on = '1';
+    });
+    speedBox.appendChild(b);
+  }
+
   showflow.addEventListener('change', () => {
     document.getElementById('flow').style.display = showflow.checked ? '' : 'none';
   });
@@ -450,7 +508,10 @@
       + `<span>spin <b>${(spin / (2 * Math.PI)).toFixed(0)} rev/s</b></span>`
       + `<span>&alpha; <b>${a.toFixed(2)}</b></span>`
       + `<span>C<sub>L</sub> <b>${clOf(a).toFixed(3)}</b></span>`
-      + `<span>C<sub>D</sub> <b>${cdOf(a).toFixed(3)}</b></span>`;
+      + `<span>C<sub>D</sub> <b>${cdOf(a).toFixed(3)}</b></span>`
+      + (timeScale !== 1
+        ? `<span>bullet time <b>${(SPEEDS.find((x) => x.v === timeScale) || {}).label}&times;</b></span>`
+        : '');
     if (g.lastHit) {
       s += `<span>your brush <b>${g.lastHit.brush.toFixed(1)} m/s</b>`
         + `${g.lastHit.sliding ? ' (slipped)' : ''}</span>`;

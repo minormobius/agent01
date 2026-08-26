@@ -121,11 +121,16 @@ const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 //   physics the keys were tuned against.
 export const POINTER_TAU = 0.045;
 
-/// Take a new pointer target. Call ONCE per frame with the real elapsed time,
-/// because this differentiates: feeding it a 1/480 s substep against a target
-/// that only changes once a frame reports one enormous velocity followed by a
-/// string of zeros.
-export function aimBat(bat, dt, ty, tz) {
+/// Take a new pointer target. Call ONCE per frame, because this differentiates:
+/// feeding it a 1/480 s substep against a target that only changes once a frame
+/// reports one enormous velocity followed by a string of zeros.
+///
+/// `dt` is GAME seconds and `realDt` is wall seconds, and under bullet time they
+/// differ. The velocity has to be measured in game time — that is the clock the
+/// contact model runs on — while the smoothing has to be in real time, because
+/// it exists to reject jitter in a human hand and a hand does not slow down when
+/// the game does.
+export function aimBat(bat, dt, ty, tz, realDt = dt) {
   const y = clamp(ty, BAT.minY, BAT.maxY);
   const z = clamp(tz, BAT.minZ, BAT.maxZ);
   const h = Math.max(dt, 1e-4);
@@ -133,7 +138,7 @@ export function aimBat(bat, dt, ty, tz) {
   let vz = (z - bat.z) / h;
   const sp = Math.hypot(vy, vz);
   if (sp > BAT_TOP) { vy *= BAT_TOP / sp; vz *= BAT_TOP / sp; }
-  const a = 1 - Math.exp(-h / POINTER_TAU);
+  const a = 1 - Math.exp(-Math.max(realDt, 1e-4) / POINTER_TAU);
   bat.vy += (vy - bat.vy) * a;
   bat.vz += (vz - bat.vz) * a;
   // Where it starts and ends this frame. The position is walked across the
@@ -223,6 +228,11 @@ export function newGame(seed = 12345, difficulty = 0.5) {
     owner: SIDE.RIVAL,
     bounced: 0,
     bouncedSide: 0,
+    /// Wall seconds to game seconds. Everything downstream of stepGame runs on
+    /// GAME time, so the physics, the rival and every number the selftest
+    /// measures are untouched by this — the only thing it changes is how much
+    /// game happens per second of your life.
+    timeScale: 1,
     phase: 'serve',
     since: 0,
     message: 'serve incoming',
@@ -295,11 +305,15 @@ function point(g, winner, why) {
 /// than the endpoint.
 export const SUBSTEP = 1 / 480;
 
-/// Advance the whole game by `dt` seconds. `input` has Q/W/O/P booleans.
+/// Advance the game. `dt` is WALL seconds; `g.timeScale` turns it into game
+/// seconds. Passing wall time in rather than pre-scaled game time is deliberate:
+/// the pointer's velocity needs both clocks, and a caller that scales before
+/// calling has already thrown one of them away.
 export function stepGame(g, dt, input) {
-  const frame = Math.min(dt, 0.1);
+  const real = Math.min(dt, 0.1);
+  const frame = real * (g.timeScale || 1);
   const aim = input && input.aim;
-  if (aim) aimBat(g.player, frame, aim.y, aim.z);
+  if (aim) aimBat(g.player, frame, aim.y, aim.z, real);
   let left = frame;
   while (left > 1e-9) {
     const h = Math.min(SUBSTEP, left);

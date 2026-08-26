@@ -61,6 +61,16 @@ same rival and the same seeds — pointer 51% of points and rallies to 43, keys
 a person is not a perfect machine. If another page here ever outgrows the keys,
 that comparison is the shape of the argument to make.
 
+It also runs at **half speed** by default, and the way that is done is worth
+copying. Wall time is turned into game time ONCE, at the top of `stepGame`, so
+everything downstream is on a single clock — the tempting alternative, slowing
+the ball and leaving the input alone, hands the contact model relative
+velocities it was never measured against and quietly makes every spin number on
+the page a fiction. The selftest asserts the strict version: the same game time
+delivered over twice or four times the wall clock produces a BIT-IDENTICAL game,
+not a nearly-identical one. If you ever add a slow-motion mode anywhere on this
+surface, that assertion is the one that makes it safe.
+
 Nine node selftests live here and all run under `preflight` when this dir
 changes: `proteus/flagella.selftest.mjs` (the model), `flag/flag.selftest.mjs`
 (that page's loop agrees with the model), `qwop/qwop.selftest.mjs` (that skilled

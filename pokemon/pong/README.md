@@ -29,6 +29,8 @@ How fast you move is how hard you brush. The four keys still work — `Q` up the
 stroke plane, `W` down it, `O` left, `P` right — but they are no longer the way
 in, and the section below says why.
 
+It runs at **half speed** by default, with a control for ¼×, ½× and 1×.
+
 ## What the solver is
 
 A ball does not *have* a lift coefficient. It has a boundary layer, and when the
@@ -263,6 +265,35 @@ still have to mean it.
 An earlier version of this test fixed the flick at 130 ms, found the top of the
 window unreachable, and would have had the page redesigned around what was
 really an assumption about how fast a hand moves.
+
+## Bullet time
+
+Half speed by default, and it is **one clock running slower** rather than the
+ball being slowed while the bat is left alone. Wall time is turned into game
+time once, at the top of `stepGame`, and everything after that — flight,
+contact, the rival, every number measured on this page — runs in game seconds.
+
+The selftest asserts that the strict way rather than the comfortable one: the
+same amount of game time, delivered over twice or four times the wall clock,
+produces a **bit-identical** game.
+
+| | ball after 7.5 s of game time | score |
+|---|---|---|
+| 1× | −1.9027, 0.2481, 0.2853 | 0–4 |
+| ½× | −1.9027, 0.2481, 0.2853 | 0–4 |
+| ¼× | −1.9027, 0.2481, 0.2853 | 0–4 |
+
+What bullet time *does* change is the hand, and it changes it in the helpful
+direction. The bat is pinned to the cursor, so the same movement covers the same
+metres in half the game time and the brush doubles: a 0.60 m flick that makes
+4.27 m/s at full speed makes 8.54 at half. So the px/s figures in the section
+above halve — the legal window becomes a drag of about **1000–1500 px/s** — and
+you get twice as long to choose the shot.
+
+The two clocks it would have been easy to end up with instead — a slow ball and
+a full-speed bat — would hand the contact model relative velocities it was never
+measured against, and quietly make every spin number on this page a fiction.
+That is what the bit-identical assertion is guarding.
 
 ## The bat cannot push
 
