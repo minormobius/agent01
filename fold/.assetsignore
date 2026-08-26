@@ -2,6 +2,9 @@
 # so the Rust sources, the build script, the node-only selftest and the surface
 # instructions are excluded here rather than by a staging copy.
 wrangler.jsonc
+# wrangler bundles the worker into .wrangler/tmp inside this directory during
+# deploy, so without this the build's own worker.js.map ships as a public asset.
+.wrangler/
 CLAUDE.md
 engine/
 *.selftest.mjs
