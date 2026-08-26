@@ -3,5 +3,6 @@
 lab/tensor.json
 lab/cb-1h-ohlcv.json
 lab/micro.json
-lab/.micro.log
+lab/*.log
+lab/.*.log
 lab/.tmp/
