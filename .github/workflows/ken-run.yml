@@ -37,6 +37,21 @@ name: ken run (one six-turn verification-first run)
 # Isolation is demonstrated rather than asserted: a marker is planted in
 # one turn's output, and a turn the plan gives no path from must not be
 # able to produce it. A leak voids the run.
+#
+# ── TWO SHAPES, AND THE BUDGET GOES WITH THE RUN ───────────────────────
+#
+# `shape: solo` is one turn told it may delegate freely; `standard` is
+# the six-turn verification-first plan. They are H12's two arms, so the
+# comparison is only meaningful at EQUAL TOTAL SPEND: set
+# total_budget_usd and total_max_turns, which the runner divides across
+# whatever turns the shape has. Leaving them empty falls back to the
+# per-turn figures, which is right for running one shape on its own and
+# wrong for comparing them.
+#
+# A solo run reports isolation as INAPPLICABLE rather than clean. One
+# turn has no handoffs, so it never had the opportunity to leak, and
+# recording it as a pass would credit it with a property it could not
+# have lost.
 
 on:
   workflow_dispatch:
@@ -45,10 +60,23 @@ on:
         description: 'Task id from ken/lab/tasks/'
         required: true
         default: 'tb-001-binomial-interval'
+      shape:
+        description: 'standard (six turns, isolation demonstrated) or solo (one turn, told to delegate) — the two arms of H12'
+        type: choice
+        options: [standard, solo]
+        default: standard
       brief_builder:
         description: 'Give the builder the original brief as well as its check (changes 4 of 6 roles)'
         type: boolean
         default: false
+      total_budget_usd:
+        description: 'Budget for the WHOLE run, split across its turns. Set this, not budget_usd, when comparing shapes'
+        required: false
+        default: ''
+      total_max_turns:
+        description: 'Agent steps for the WHOLE run, split across its turns. Same reason'
+        required: false
+        default: ''
       model:
         description: 'Model id'
         required: true
@@ -96,7 +124,7 @@ jobs:
       # the isolation or the scoring is broken, that is cheaper to find
       # here than after six paid turns.
       - name: Harness dry run
-        run: node ken/lab/runner.mjs --task "${{ inputs.task }}" --dry-run --run-id "dry-$GITHUB_RUN_ID"
+        run: node ken/lab/runner.mjs --task "${{ inputs.task }}" --shape "${{ inputs.shape }}" --dry-run --run-id "dry-$GITHUB_RUN_ID"
 
       - name: Install the CLI
         run: npm install -g @anthropic-ai/claude-code
@@ -106,15 +134,23 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        env:
+          TOTAL_BUDGET: ${{ inputs.total_budget_usd }}
+          TOTAL_STEPS: ${{ inputs.total_max_turns }}
         run: |
           set -uo pipefail
+          EXTRA=""
+          [ -n "$TOTAL_BUDGET" ] && EXTRA="$EXTRA --total-budget $TOTAL_BUDGET"
+          [ -n "$TOTAL_STEPS" ] && EXTRA="$EXTRA --total-steps $TOTAL_STEPS"
           node ken/lab/runner.mjs \
             --task "${{ inputs.task }}" \
+            --shape "${{ inputs.shape }}" \
             --run-id "$GITHUB_RUN_ID" \
             --model "${{ inputs.model }}" \
             --budget "${{ inputs.budget_usd }}" \
             --max-turns "${{ inputs.max_turns }}" \
             ${{ inputs.brief_builder && '--brief-builder' || '' }} \
+            $EXTRA \
             --ledger ken/lab/runs/run-$GITHUB_RUN_ID.json
           echo "rc=$?" >> "$GITHUB_OUTPUT"
 
@@ -133,7 +169,10 @@ jobs:
             const r = require("./" + process.argv[1]);
             console.log(JSON.stringify({
               task: r.taskId,
-              isolation: r.isolation.demonstrated ? "demonstrated" : (r.isolation.clean ? "clean" : "LEAKED"),
+              shape: r.shape,
+              spend: r.spend,
+              isolation: r.isolation.applicable === false ? "inapplicable (one turn)"
+                : r.isolation.demonstrated ? "demonstrated" : (r.isolation.clean ? "clean" : "LEAKED"),
               heldOut: r.scores.heldOutPassed,
               soundness: r.scores.measuredSoundness,
               coverage: r.scores.measuredCoverage,
@@ -150,6 +189,13 @@ jobs:
           [ -f "$F" ] || exit 0
           node -e '
             const r = require("./" + process.argv[1]);
+            // A one-turn shape has no handoffs, so there was nothing to
+            // leak and nothing a marker could demonstrate. Neither a
+            // pass nor a warning: the regime does not apply.
+            if (r.isolation.applicable === false) {
+              console.log("isolation INAPPLICABLE — " + r.shape + " has one turn and no handoffs");
+              process.exit(0);
+            }
             if (!r.isolation.clean) {
               console.error("::error::ISOLATION LEAKED — this run measured nothing and its numbers are void.");
               for (const l of r.isolation.leaks) console.error("  " + l.artefact + " produced by " + l.producedBy + " carries the marker");
@@ -179,7 +225,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "$F"
           git diff --cached --quiet && exit 0
-          git commit -m "ken: run record $GITHUB_RUN_ID (${{ inputs.task }})"
+          git commit -m "ken: run record $GITHUB_RUN_ID (${{ inputs.task }}, ${{ inputs.shape }})"
           for i in 1 2 3 4; do
             git pull --rebase origin "$GITHUB_REF_NAME" && git push origin "HEAD:$GITHUB_REF_NAME" && exit 0
             sleep $((2 ** i))

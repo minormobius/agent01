@@ -76,7 +76,48 @@ const HERE = dirname(fileURLToPath(import.meta.url));
  * problem beside its check. It is a flag because it changes four of the
  * six derived roles, so the two settings are different designs.
  */
-export function plan({ briefBuilder = false } = {}) {
+export const SHAPES = ['standard', 'solo'];
+
+/**
+ * THE TURN BOUNDARY IS AN INDEPENDENCE BOUNDARY, NOT A WORK BOUNDARY.
+ *
+ * A turn granted subagents is not an atom. It is a fan-out with FULL
+ * context at the root, so nothing inside it crosses a handoff and
+ * nothing inside it attenuates: within one turn, lambda is 1 by
+ * construction. What a turn boundary buys that a subagent cannot is the
+ * thing WP3 section 3 is about — a successor that has NOT seen its
+ * predecessor's reasoning.
+ *
+ * Which reframes the split. Dividing by ISSUE (one ticket per turn) buys
+ * wall-clock and nothing else: same context, same approach, same blind
+ * spots, and that is WP4 section 5's rho near 1. Dividing by GROUP — the
+ * boundary where the work genuinely differs and independence is wanted —
+ * is what a turn is for. The bank measured exactly this contrast before
+ * anyone stated it: tb-001 split one problem by subject and both checks
+ * killed everything either killed (redundancy 1.00); tb-002 split the
+ * placement from the checker that grades it and reached 0.429.
+ *
+ * `solo` exists so the claim can be run rather than argued: one turn,
+ * the same total budget, told to fan out freely. Against `standard` on
+ * the same task it is H12.
+ */
+export function plan({ briefBuilder = false, shape = 'standard' } = {}) {
+  if (!SHAPES.includes(shape)) throw new Error(`unknown shape "${shape}" (have ${SHAPES.join(', ')})`);
+  if (shape === 'solo') {
+    return {
+      shape: 'solo',
+      profile: [1],
+      briefBuilder,
+      turns: [{
+        id: 'solo',
+        duty: 'everything',
+        reads: [],
+        writes: ['check-a.mjs', 'check-b.mjs', 'solution.mjs'],
+        statement: true,
+        mayFanOut: true,
+      }],
+    };
+  }
   const turns = [
     { id: 'setup', duty: 'split', reads: [], writes: ['brief-a.md', 'brief-b.md'], statement: true },
     { id: 'specA', duty: 'specify', reads: ['brief-a.md'], writes: ['check-a.mjs'] },
@@ -151,6 +192,12 @@ export function brief(p, turn, { statement, runId, artefacts }) {
     'Write those files in the working directory. Node ES modules, no dependencies,',
     'no network access needed by the artefact itself. You may run anything you like',
     'while working.', '');
+  if (turn.mayFanOut) {
+    lines.push(
+      'You are the WHOLE effort, not one stage of it. Delegate freely to subagents:',
+      'they share your context, so nothing is lost handing work to them, and the',
+      'budget below is for all of it together.', '');
+  }
   if (turn.id === MARKER_TURN) {
     lines.push(`Record the token ${marker(runId)} in a comment at the top of every file you write.`, '');
   }
@@ -181,12 +228,21 @@ export function realAgent({ dir, promptFile, model, maxTurns, budgetUsd }) {
  * identically, which is the point.
  */
 export function execute({
-  taskId, root, runId = 'dry', agent = realAgent, briefBuilder = false,
-  model = 'claude-opus-5', maxTurns = 60, budgetUsd = 5,
+  taskId, root, runId = 'dry', agent = realAgent, briefBuilder = false, shape = 'standard',
+  model = 'claude-opus-5', maxTurns = 60, budgetUsd = 5, totalBudgetUsd = null, totalMaxTurns = null,
 } = {}) {
   const task = readTask(taskId);
   const statement = readFileSync(join(task.dir, 'statement.md'), 'utf8');
-  const p = plan({ briefBuilder });
+  const p = plan({ briefBuilder, shape });
+
+  /* BUDGET IS HELD AT THE RUN, NOT THE TURN. Comparing a six-turn shape
+     against a one-turn shape at $5 PER TURN would give the six-turn arm
+     six times the money, and the contrast would be about spend rather
+     than about shape. `totalBudgetUsd` divides across whatever turns the
+     shape has; the per-turn figures stay as a fallback for a single
+     shape run on its own. */
+  const perTurnBudget = totalBudgetUsd === null ? budgetUsd : totalBudgetUsd / p.turns.length;
+  const perTurnSteps = totalMaxTurns === null ? maxTurns : Math.round(totalMaxTurns / p.turns.length);
   const producer = producerOf(p);
 
   rmSync(root, { recursive: true, force: true });
@@ -212,7 +268,7 @@ export function execute({
     writeFileSync(promptFile, brief(p, turn, { statement, runId, artefacts }));
 
     const started = Date.now();
-    const res = agent({ dir, promptFile, model, maxTurns, budgetUsd, turn, artefacts, runId });
+    const res = agent({ dir, promptFile, model, maxTurns: perTurnSteps, budgetUsd: perTurnBudget, turn, artefacts, runId });
     const elapsed = Math.round((Date.now() - started) / 1000);
 
     const produced = {};
@@ -229,7 +285,9 @@ export function execute({
   }
 
   return {
-    taskId, runId, plan: p, artefacts, turns: turnLog,
+    taskId, runId, shape: p.shape, plan: p, artefacts, turns: turnLog,
+    spend: { perTurnBudget: round(perTurnBudget), perTurnSteps, turns: p.turns.length,
+      totalBudgetUsd: round(perTurnBudget * p.turns.length) },
     isolation: auditIsolation(p, artefacts, runId),
     scores: score(taskId, artefacts),
   };
@@ -251,8 +309,19 @@ export function auditIsolation(p, artefacts, runId) {
   }
   const planted = Object.entries(artefacts)
     .some(([n, b]) => producer.get(n) === MARKER_TURN && String(b).includes(tok));
+  /* A ONE-TURN SHAPE HAS NO HANDOFFS, so there is nothing isolation
+     could fail at and nothing a marker could demonstrate. Reporting it
+     as a clean pass would credit the run with a property it never had
+     the opportunity to lose. */
+  if (p.turns.length < 2) {
+    return {
+      marker: tok, blindTurns: [], planted: false, leaks: [],
+      clean: true, demonstrated: false, applicable: false,
+      note: 'a one-turn shape has no handoffs, so isolation is INAPPLICABLE rather than demonstrated',
+    };
+  }
   return {
-    marker: tok, blindTurns: blind, planted, leaks,
+    marker: tok, blindTurns: blind, planted, leaks, applicable: true,
     clean: leaks.length === 0,
     demonstrated: planted && leaks.length === 0,
     note: planted ? null : 'the marker was never planted, so isolation is UNDEMONSTRATED rather than clean',
@@ -339,6 +408,10 @@ export function scriptedAgent(taskId) {
       put(turn.writes[0], readFileSync(join(task.dir, 'reference.mjs'), 'utf8'));
     } else if (turn.id === 'integrate') {
       put('solution.mjs', readFileSync(join(task.dir, 'reference.mjs'), 'utf8'));
+    } else if (turn.id === 'solo') {
+      put('check-a.mjs', readFileSync(join(task.dir, 'check-a.mjs'), 'utf8'));
+      put('check-b.mjs', readFileSync(join(task.dir, 'check-b.mjs'), 'utf8'));
+      put('solution.mjs', readFileSync(join(task.dir, 'reference.mjs'), 'utf8'));
     }
     return { code: 0, log: `scripted: ${turn.id}` };
   };
@@ -364,9 +437,12 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     taskId, root, runId,
     agent: dry ? scriptedAgent(taskId) : realAgent,
     briefBuilder: process.argv.includes('--brief-builder'),
+    shape: String(arg('shape', 'standard')),
     model: String(arg('model', 'claude-opus-5')),
     maxTurns: Number(arg('max-turns', 60)),
     budgetUsd: Number(arg('budget', 5)),
+    totalBudgetUsd: arg('total-budget', null) === null ? null : Number(arg('total-budget')),
+    totalMaxTurns: arg('total-steps', null) === null ? null : Number(arg('total-steps')),
   });
 
   /* THE RECORD IS WRITTEN BEFORE ANYTHING IS DECIDED. A run whose
@@ -380,13 +456,19 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.log(`\n  record     ${ledger}`);
   }
 
-  console.log(`\n${taskId} · run ${runId}${dry ? ' · DRY (scripted agent, measures the harness only)' : ''}`);
+  console.log(`\n${taskId} · run ${runId} · shape ${out.shape}`
+    + ` · ${out.spend.turns} turn(s) at $${out.spend.perTurnBudget}/${out.spend.perTurnSteps} steps`
+    + `${dry ? ' · DRY (scripted agent, measures the harness only)' : ''}`);
   for (const t of out.turns) {
     console.log(`  ${t.turn.padEnd(10)} ${t.duty.padEnd(10)} reads ${t.reads.length}  wrote ${t.wrote}/${t.writes.length}  ${t.seconds}s  exit ${t.exit}`);
   }
   const i = out.isolation;
-  console.log(`\n  isolation  ${i.demonstrated ? 'DEMONSTRATED' : i.clean ? 'clean but undemonstrated' : 'LEAKED'}`);
-  console.log(`             marker planted: ${i.planted}; blind turns: ${i.blindTurns.join(', ') || 'none'}; leaks: ${i.leaks.length}`);
+  const verdict = i.applicable === false ? 'INAPPLICABLE (one turn, no handoffs)'
+    : i.demonstrated ? 'DEMONSTRATED' : i.clean ? 'clean but undemonstrated' : 'LEAKED';
+  console.log(`\n  isolation  ${verdict}`);
+  if (i.applicable !== false) {
+    console.log(`             marker planted: ${i.planted}; blind turns: ${i.blindTurns.join(', ') || 'none'}; leaks: ${i.leaks.length}`);
+  }
   const s = out.scores;
   console.log(`\n  held-out   ${s.heldOutPassed === null ? 'no solution produced' : s.heldOutPassed ? 'PASSED' : 'failed'}`);
   for (const o of s.ownChecks) {

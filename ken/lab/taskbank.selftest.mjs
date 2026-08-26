@@ -10,8 +10,8 @@
    nobody has tested, which is the probe-ceiling failure in miniature. */
 
 import { audit, auditAll, runCheck, readTask, taskIds, ADMISSION, TASKS_DIR } from './taskbank.mjs';
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log(`  ✗ ${m}`); } };
@@ -197,6 +197,72 @@ section('auditAll');
   ok(all.meanCoverage === Math.round(((REPORT.coverage + R2.coverage) / 2) * 1000) / 1000,
     `mean coverage is the mean of the two (${all.meanCoverage})`);
   ok(existsSync(TASKS_DIR), 'the bank directory exists');
+}
+
+// ── 9. AN UNAPPLIED MUTATION IS AN ERROR, NEVER A DATA POINT ──────────
+section('the mutation must have applied');
+
+{
+  /* lp-a427fe, harvested from the loop's own ledger: a mutation script
+     that silently matched nothing left the file untouched, the test
+     suite passed it, and the run recorded SURVIVED — a coverage hole
+     that did not exist, and an accusation against tests that were fine.
+     All fourteen mutants in this bank had applied when the guard was
+     written, but nothing had checked, so the guard is exercised here
+     against a mutant built to have not applied. */
+  const TMP = join(TASKS_DIR, 'tmp-selftest-unapplied');
+  const REF = 'export const f = (x) => x + 1;\n';
+  const CHECK = [
+    'const p = process.argv[2] ?? "./reference.mjs";',
+    'const { f } = await import(new URL(p, "file://" + process.cwd() + "/").href);',
+    'if (f(1) !== 2 || f(10) !== 11) process.exit(1);',
+  ].join('\n') + '\n';
+  const write = (rel, body) => {
+    mkdirSync(dirname(join(TMP, rel)), { recursive: true });
+    writeFileSync(join(TMP, rel), body);
+  };
+  try {
+    write('statement.md', '# add one\n\nExport `f(x)` returning x plus one.\n');
+    write('reference.mjs', REF);
+    write('check-a.mjs', CHECK);
+    write('stub.mjs', 'export const f = () => 0;\n');
+    write('mutants/m1-off-by-one.mjs', '/* seeded: adds two */\n' + REF.replace('x + 1', 'x + 2'));
+    write('mutants/m2-subtract.mjs', '/* seeded: subtracts */\n' + REF.replace('x + 1', 'x - 1'));
+    /* THE FAULT. A different header comment over an identical body: the
+       stripper removes the header, so this is the reference verbatim. */
+    write('mutants/m3-never-applied.mjs', '/* seeded: the patch matched nothing */\n' + REF);
+
+    const r = audit('tmp-selftest-unapplied');
+    ok(r.sound, 'the synthetic task`s check passes its reference');
+    ok(r.unapplied.length === 1 && r.unapplied[0] === 'm3-never-applied.mjs',
+      `the unapplied mutant is identified by name (${r.unapplied.join(', ') || 'none'})`);
+    ok(r.problems.some((p) => /never applied/.test(p)),
+      'and it is recorded as a PROBLEM rather than as a result');
+    ok(r.admissible === false, 'so the task is INADMISSIBLE while it is there');
+
+    /* IT IS NOT A SURVIVOR, AND IT IS NOT IN THE DENOMINATOR. Counting
+       it either way would understate coverage against a hole nobody
+       has. Two mutants applied and both die, so coverage is 1. */
+    ok(!r.survivors.includes('m3-never-applied.mjs'), 'an unapplied mutant is not listed as a survivor');
+    ok(r.survivors.length === 0, 'and here there are none, because both real mutants die');
+    ok(r.coverage === 1, `coverage is over the APPLIED mutants only (${r.coverage})`);
+    ok(r.matrix.length === 3 && r.matrix.filter((m) => m.applied).length === 2,
+      'the matrix carries all three rows and marks two of them applied');
+    ok(r.matrix.find((m) => m.mutant === 'm3-never-applied.mjs').killed === false,
+      'and the unapplied row is never marked killed, whatever the checks said about it');
+
+    /* THE OTHER DIRECTION. Apply the mutation and the same task is
+       admissible, so the guard is refusing the fault and not the shape. */
+    write('mutants/m3-never-applied.mjs', '/* seeded: now it applies */\n' + REF.replace('x + 1', 'x + 3'));
+    const r2 = audit('tmp-selftest-unapplied');
+    ok(r2.unapplied.length === 0, 'once the mutation applies, nothing is flagged');
+    ok(r2.admissible, 'and the task is admissible');
+    ok(r2.coverage === 1 && r2.matrix.length === 3, 'with all three mutants now in the denominator');
+  } finally {
+    rmSync(TMP, { recursive: true, force: true });
+  }
+  ok(!existsSync(TMP), 'the synthetic task is removed, so the bank is as it was');
+  ok(taskIds().length === 2, 'and the bank still holds exactly its two real tasks');
 }
 
 console.log(`\n${fail === 0 ? '✓' : '✗'} taskbank ${fail === 0 ? 'passed' : 'FAILED'} — ${fail === 0 ? pass : `${fail} of ${pass + fail}`} checks`);

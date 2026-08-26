@@ -30,6 +30,26 @@
    DeMillo, Lipton and Sayward proposed it in 1978 and Jia and Harman
    survey four decades of it.
 
+   ── AN UNAPPLIED MUTATION IS AN ERROR, NEVER A DATA POINT ────────────
+
+   This rule is not mine. The loop earned it on turn 7 and filed it as
+   `lp-a427fe`: two mutations reported SURVIVED and both were no-ops —
+   one replaced a bare string where the source used a longer message, the
+   other matched a single-quoted throw where the source used a template
+   literal. Neither edit changed a byte.
+
+   A mutation that does not apply is INDISTINGUISHABLE from a test that
+   fails to catch it. Both report survived, and the error runs in the
+   direction that matters: it accuses good checks of being weak, and
+   acting on it produces busywork strengthening checks that were already
+   fine.
+
+   So `audit()` compares every mutant against the reference before it
+   scores anything, and a byte-identical one is reported as a PROBLEM
+   that makes the task inadmissible. The fourteen mutants in the bank
+   when this guard was added had all applied, but nothing had checked —
+   which the same bead calls luck rather than method.
+
    ── A SURVIVING MUTANT IS A RESULT, NOT A BUG ────────────────────────
 
    tb-001 ships six mutants and one survives both checks. That is
@@ -119,13 +139,29 @@ export function audit(id) {
   const unsound = reference.filter((r) => !r.passed);
   for (const r of unsound) problems.push(`check ${r.check} FAILS the reference solution, so it is unsound`);
 
+  /* APPLIED? Before anything is scored. A mutant equal to the reference
+     once its header is stripped never mutated anything, and would be
+     counted as a survivor — a coverage hole that does not exist. */
+  const reference_src = t.hasReference ? readFileSync(join(t.dir, 'reference.mjs'), 'utf8') : null;
+  const strip = (src) => src.replace(/^\/\*[\s\S]*?\*\/\n/, '');
+  const unapplied = [];
+  for (const m of t.mutants) {
+    if (reference_src === null) break;
+    if (strip(readFileSync(join(t.dir, 'mutants', m), 'utf8')) === strip(reference_src)) unapplied.push(m);
+  }
+  for (const m of unapplied) {
+    problems.push(`mutant ${m} is byte-identical to the reference — it never applied, so its verdict is not a data point (lp-a427fe)`);
+  }
+
   // DISCERNING: each mutant against each check
   const matrix = t.mutants.map((m) => {
+    const applied = !unapplied.includes(m);
     const byCheck = t.checks.map((c) => ({ check: c, killed: !runCheck(t.dir, c, `./mutants/${m}`).passed }));
-    return { mutant: m, byCheck, killed: byCheck.some((x) => x.killed) };
+    return { mutant: m, applied, byCheck, killed: applied && byCheck.some((x) => x.killed) };
   });
-  const killed = matrix.filter((m) => m.killed).length;
-  const coverage = t.mutants.length ? round(killed / t.mutants.length) : null;
+  const scorable = matrix.filter((m) => m.applied);
+  const killed = scorable.filter((m) => m.killed).length;
+  const coverage = scorable.length ? round(killed / scorable.length) : null;
 
   // NOT FREE: a stub that returns a constant must fail
   const stub = existsSync(join(t.dir, 'stub.mjs'))
@@ -136,7 +172,7 @@ export function audit(id) {
   /* REDUNDANCY. Of the mutants some check killed, how many did EVERY
      check kill. 1 means the two efforts detect the same things and the
      split bought nothing. */
-  const killedRows = matrix.filter((m) => m.killed);
+  const killedRows = scorable.filter((m) => m.killed);
   const byAll = killedRows.filter((m) => m.byCheck.every((x) => x.killed)).length;
   const redundancy = killedRows.length ? round(byAll / killedRows.length) : null;
 
@@ -145,12 +181,18 @@ export function audit(id) {
     checks: t.checks,
     mutants: t.mutants,
     sound: unsound.length === 0,
+    unapplied,
     coverage,
-    survivors: matrix.filter((m) => !m.killed).map((m) => m.mutant),
+    /* An unapplied mutant is NOT a survivor. Listing it as one would
+       reproduce, in the report, the exact confusion the guard exists to
+       prevent: a mutation that never happened reading as a coverage
+       hole. */
+    survivors: matrix.filter((m) => m.applied && !m.killed).map((m) => m.mutant),
     redundancy,
     matrix,
     stub: stub ? { checked: true, allPassed: stub.every((s) => s.passed) } : { checked: false },
-    admissible: problems.length === 0 && unsound.length === 0 && coverage !== null && coverage >= 0.8,
+    admissible: problems.length === 0 && unsound.length === 0 && unapplied.length === 0
+      && coverage !== null && coverage >= 0.8,
     problems,
   };
 }
@@ -173,6 +215,7 @@ export function auditAll() {
 export const ADMISSION = {
   minCoverage: 0.8,
   minMutants: 3,
+  appliedRequired: true,
   note: 'A surviving mutant is reported, not hidden. The bar is 0.8 rather than 1.0 because a '
     + 'bank admitting only perfect scores would be a bank whose mutants were chosen to die.',
 };
@@ -188,7 +231,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     if (r.survivors.length) console.log(`  survives ${r.survivors.join(', ')}  ← a coverage hole, reported`);
     console.log(`  redundancy ${r.redundancy} of kills were made by every check`);
     for (const m of r.matrix) {
-      console.log(`    ${m.killed ? '·' : '!'} ${m.mutant.padEnd(28)} ${m.byCheck.map((c) => `${c.check[6]}=${c.killed ? 'kill' : 'pass'}`).join(' ')}`);
+      const mark = !m.applied ? 'E' : m.killed ? '·' : '!';
+      console.log(`    ${mark} ${m.mutant.padEnd(28)} ${m.applied ? m.byCheck.map((c) => `${c.check[6]}=${c.killed ? 'kill' : 'pass'}`).join(' ') : 'NEVER APPLIED'}`);
     }
     if (r.problems.length) for (const p of r.problems) console.log(`  PROBLEM  ${p}`);
     console.log(`  ${r.admissible ? '✓ admissible' : '✗ not admissible'}`);

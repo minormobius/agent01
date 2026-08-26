@@ -66,7 +66,7 @@ worker or move the domain, **verify the deploy log binds
 | `graph/profiles.mjs` | **any n**: layer profiles, the trade, the frontier |
 | `graph/exhaustive.mjs` | **the whole space** up to 7 turns, and the coverage measurement |
 | `graph/ancestry.mjs` | content-addressed state, after hoop's region digest |
-| `graph/hypotheses.mjs` | **the hypotheses, as data** — eleven, each with a status |
+| `graph/hypotheses.mjs` | **the hypotheses, as data** — twelve, each with a status |
 | `graph/visibility.mjs` | isolation regimes: what the environment adds to the drawn graph |
 | `graph/attenuation.mjs` | **λ**, of which those regimes are the two corners |
 | `graph/equivalence.mjs` | **the exchange rate**: how many unattended turns buy one directed one |
@@ -98,9 +98,9 @@ worker or move the domain, **verify the deploy log binds
 | `lab/gate.selftest.mjs` | 72 checks: the corners, the stopping point, the agreement floor, derived roles |
 | `lab/taskbank.mjs` | **the admission gate for a task**: sound, discerning, not free. `node lab/taskbank.mjs` for the report |
 | `lab/tasks/<id>/` | one task: statement, checks, reference, stub, seeded mutants |
-| `lab/taskbank.selftest.mjs` | 56 checks: the three conditions in both directions, the survivors, the redundancy contrast |
-| `lab/runner.mjs` | **executes a six-turn run**: fresh tree per turn, demonstrated isolation, held-out scoring. `--dry-run` needs no key |
-| `lab/runner.selftest.mjs` | 64 checks, most of them faults it must catch — a leak, a silent turn, an unsound check |
+| `lab/taskbank.selftest.mjs` | 70 checks: the three conditions in both directions, the survivors, the redundancy contrast, the applied-mutation guard |
+| `lab/runner.mjs` | **executes a run**, `standard` (six turns) or `solo` (one, fanning out): fresh tree per turn, demonstrated isolation, held-out scoring. `--dry-run` needs no key |
+| `lab/runner.selftest.mjs` | 84 checks, most of them faults it must catch — a leak, a silent turn, an unsound check |
 | `lab/runs/` | one JSON record per executed run, committed |
 | `lab/resolve-refs.mjs` | links the bibliography against CrossRef / arXiv / OpenLibrary |
 | `fig/*.svg` | **generated.** Committed so figures print and diff |
@@ -178,7 +178,7 @@ Two things follow for anyone editing here:
 
 ## The hypothesis register is the only place status lives
 
-`graph/hypotheses.mjs` holds all seven as data and `/register` renders them.
+`graph/hypotheses.mjs` holds all twelve as data and `/register` renders them.
 Before it, H1–H4 were prose in WP1 and H5–H6 were objects in `shapes.mjs`,
 with no status anywhere — so **WP1 proposed H2, the programme measured it at
 revision 9, and the paper said nothing for six revisions.** That is the failure
@@ -621,6 +621,17 @@ two-effort split bought no diversity of detection on this task, which is WP4 §5
 correlated failure with checks in place of implementations. First measured result
 about the verification-first pattern, and not the flattering one.
 
+⚠️ **AN UNAPPLIED MUTATION IS AN ERROR, NEVER A DATA POINT.** Bead
+`lp-a427fe` recorded it on the live loop: a patch that matched nothing left the
+file untouched, the suite passed, and the run wrote down a coverage hole that
+did not exist — an accusation against tests that were fine. This bank had no
+such guard, and all fourteen mutants had applied by luck rather than by check.
+`audit()` now strips each mutant's header comment, compares the body to the
+reference, and makes an identical one a **problem**: the task is inadmissible,
+the mutant is excluded from the survivors *and* from the coverage denominator,
+and the CLI prints `E … NEVER APPLIED`. The selftest exercises it against a
+synthetic task built to commit the fault, in both directions.
+
 ### Picking a target: the layer, not the project
 
 `foam/` is the loop's declared target ([`FACTORIO.md`](../foam/FACTORIO.md)) and
@@ -692,6 +703,44 @@ this — it is a property of the runner.
 0.2039, so it would have failed a correct implementation. Checks here rest on
 the **defining equations**, evaluated by the check's own independent binomial,
 with the table only as a cross-check.
+
+### Group division, not issue division
+
+**The turn boundary is an independence boundary, not a work boundary.** A turn
+granted subagents is not an atom: it is a fan-out with full context at the root,
+so nothing inside it crosses a handoff and **λ = 1 within a turn by
+construction**. That shares the parent's reading of the task, and therefore its
+misreading — WP4 §5's ρ near 1 with subagents in place of versions. What a turn
+boundary buys, and nothing else here does, is a successor that has **not seen
+its predecessor's reasoning**.
+
+So the two divisions are not competitors. Dividing by **issue** — more pieces of
+the same problem — belongs *inside* a turn, where it is free. Dividing by
+**group**, at the boundary where the work genuinely differs and a second opinion
+is wanted, is what a turn boundary is for. Read that way a six-turn run is one
+unit of work and five purchases of independence.
+
+The bank measured the contrast before anyone stated it: tb-001 split by subject
+and got redundancy 1.00; tb-002 split by kind and got 0.429. That is suggestive,
+not a measurement of the claim, so the claim is **H12** and the harness carries a
+second shape:
+
+```bash
+node ken/lab/runner.mjs --task tb-002-summon-solids --shape solo \
+  --total-budget 30 --total-steps 360 --dry-run
+```
+
+⚠️ **BUDGET IS HELD AT THE RUN, NOT THE TURN.** Comparing `solo` against
+`standard` at `--budget 5` would give the six-turn arm six times the money and
+the contrast would be about spend. `--total-budget` divides across whatever turns
+the shape has. `ken-run.yml` exposes both as `total_budget_usd` and
+`total_max_turns`; leaving them empty falls back to the per-turn figures, which
+is right for one shape alone and wrong for comparing them.
+
+⚠️ **A one-turn run's isolation is INAPPLICABLE, not clean.** It has no handoffs,
+so there was nothing to leak and nothing a marker could demonstrate. Recording it
+as a pass would credit the run with a property it never had the opportunity to
+lose — the same error as calling an unplanted marker a demonstration.
 
 ### What the loop's executor can and cannot do
 

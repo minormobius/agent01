@@ -15,7 +15,7 @@
 
 import {
   plan, producerOf, blindTo, brief, execute, score, auditIsolation,
-  scriptedAgent, marker, MARKER_TURN, MARKER_BLIND,
+  scriptedAgent, marker, MARKER_TURN, MARKER_BLIND, SHAPES,
 } from './runner.mjs';
 import { readTask } from './taskbank.mjs';
 import { rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -198,7 +198,67 @@ section('the scorer');
   ok(useless.ownChecks[0].stubRejected === false, 'and does not reject the stub, which is what catches it');
 }
 
-// ── 8. the harness leaves nothing behind ──────────────────────────────
+// ── 8. THE SOLO SHAPE, which is H12's other arm ───────────────────────
+section('solo');
+
+{
+  const p = plan({ shape: 'solo' });
+  ok(p.shape === 'solo' && p.turns.length === 1, 'solo is one turn');
+  ok(p.turns[0].writes.length === 3, 'and it produces everything the six-turn shape does');
+  ok(p.turns[0].reads.length === 0, 'reading nothing, because there is no predecessor');
+  ok(p.turns[0].mayFanOut === true, 'and it is permitted to fan out');
+  ok(SHAPES.includes('solo') && SHAPES.includes('standard'), 'both shapes are declared');
+
+  let threw = false;
+  try { plan({ shape: 'chain' }); } catch { threw = true; }
+  ok(threw, 'and an unknown shape is REFUSED rather than silently treated as standard');
+
+  /* THE BRIEF MUST SAY IT MAY DELEGATE. H12 requires it: a solo turn
+     that does not fan out is a chain of one and tests nothing. */
+  const task = readTask(TASK);
+  const statement = readFileSync(join(task.dir, 'statement.md'), 'utf8');
+  const b = brief(p, p.turns[0], { statement, runId: 'x', artefacts: {} });
+  ok(/subagent/i.test(b) && /Delegate freely/.test(b), 'the solo brief tells it to delegate');
+  ok(!brief(plan(), plan().turns[0], { statement, runId: 'x', artefacts: {} }).includes('Delegate freely'),
+    'and no standard turn is told that, because a standard turn is one stage');
+  ok(!b.includes(marker('x')), 'the solo turn is never told the marker exists');
+}
+
+{
+  /* BUDGET IS HELD AT THE RUN. Comparing shapes at a per-turn budget
+     would give the six-turn arm six times the money, and the contrast
+     would be about spend rather than about shape. */
+  clean();
+  const solo = execute({ taskId: TASK, root: ROOT, runId: 'solo', shape: 'solo',
+    agent: scriptedAgent(TASK), totalBudgetUsd: 30, totalMaxTurns: 360 });
+  clean();
+  const std = execute({ taskId: TASK, root: ROOT, runId: 'std', shape: 'standard',
+    agent: scriptedAgent(TASK), totalBudgetUsd: 30, totalMaxTurns: 360 });
+  clean();
+
+  ok(solo.spend.totalBudgetUsd === std.spend.totalBudgetUsd,
+    `both arms spend the same total (${solo.spend.totalBudgetUsd} against ${std.spend.totalBudgetUsd})`);
+  ok(solo.spend.perTurnBudget === 30 && std.spend.perTurnBudget === 5,
+    'divided across the turns each shape has');
+  ok(solo.spend.perTurnSteps === 360 && std.spend.perTurnSteps === 60, 'and so are the steps');
+
+  ok(solo.turns.length === 1 && std.turns.length === 6, 'one turn against six');
+  ok(solo.turns[0].wrote === 3, 'the solo turn produced all three artefacts');
+  ok(solo.scores.heldOutPassed === true, 'and its artefact passes the held-out checks');
+  ok(solo.scores.ownChecks.length === 2, 'and it wrote two checks, so redundancy is measurable');
+
+  /* ISOLATION IS INAPPLICABLE, NOT CLEAN. A one-turn shape never had
+     the opportunity to leak, and crediting it with a property it could
+     not have lost is how a regime gets recorded as tested when it was
+     not. */
+  ok(solo.isolation.applicable === false, 'solo isolation is INAPPLICABLE');
+  ok(solo.isolation.demonstrated === false, 'and therefore not demonstrated');
+  ok(/INAPPLICABLE/.test(solo.isolation.note), 'and the note says so rather than implying a pass');
+  ok(std.isolation.applicable === true && std.isolation.demonstrated,
+    'while the six-turn arm demonstrates it, which is what makes the arms comparable');
+}
+
+// ── 9. the harness leaves nothing behind ──────────────────────────────
 section('hygiene');
 
 ok(!existsSync(ROOT), 'no scratch tree survives the selftest');

@@ -337,6 +337,48 @@ export const HYPOTHESES = {
       + 'than three independent arms would. The held-out scorer is the real expense and it is human '
       + 'or it is worthless.',
   },
+
+  H12: {
+    id: 'H12', name: 'the turn boundary is an independence boundary', curriculumUnit: 'IV', owner: '/wp4',
+    outcome: 'The REDUNDANCY between a run`s two checks — the share of seeded defects that both '
+      + 'kill, of those either kills — for the same task done as one turn with subagents and as six '
+      + 'turns in isolation, at equal total budget.',
+    analysisUnit: 'the run, paired on task across the two shapes',
+    claim: 'A turn boundary buys independence and nothing else buys it. Subagents inside one turn '
+      + 'share the root`s context, so they fan out at lambda 1 and their errors correlate; two turns '
+      + 'that cannot see each other`s reasoning do not. So dividing work by ISSUE belongs inside a '
+      + 'turn, and dividing it by GROUP is what a turn boundary is for.',
+    test: 'The same task run as `solo` (one turn, told to delegate freely) and as `standard` (six '
+      + 'turns, isolation demonstrated), with the total budget held at the RUN so the contrast is '
+      + 'about shape rather than spend. Both arms write two checks; the bank scores each check '
+      + 'against the reference and the mutants, and the redundancy between them is the outcome.',
+    predicts: [
+      ['solo`s two checks are more redundant than standard`s',
+        'they were written in one context, which is rho near 1 with checks in place of implementations'],
+      ['solo is not worse on the held-out checks',
+        'more context and a concentrated budget should if anything help — the claim is about correlation, not quality'],
+      ['measured coverage is similar and redundancy is not',
+        'if both move together the outcome is confounded with effort and the design says nothing'],
+      ['isolation is reported INAPPLICABLE for solo rather than clean',
+        'a one-turn shape has no handoffs, so it never had the opportunity to leak'],
+    ],
+    refutedBy: [
+      'solo`s checks are no more redundant than standard`s, in which case a turn boundary buys no independence and the graph programme is measuring something that does not exist.',
+      'standard beats solo on the held-out checks at equal budget WITH equal redundancy, which would mean something other than independence is doing the work and this decomposition has not found it.',
+      'Redundancy tracks measured coverage across both arms, in which case the outcome is a proxy for effort and the contrast is confounded.',
+      'The solo arm cannot spend its budget — a single turn hits the step ceiling before the work is done — in which case the arms are not matched and the result is void rather than null.',
+    ],
+    requires: 'Equal TOTAL budget across arms, not equal per-turn budget, or the six-turn arm gets six '
+      + 'times the money and the comparison is about spend. The solo turn must be told it may delegate, '
+      + 'since a turn that does not fan out is a chain of one and tests nothing. And standard`s '
+      + 'isolation must be demonstrated, or its independence is assumed rather than shown.',
+    status: 'designed',
+    evidence: null,
+    cost: 'SIXTY DOLLARS AND TWELVE TURNS PER TASK PER REPLICATION, two arms of thirty. The bank '
+      + 'already scores both arms for free, so the only new expense is the runs. It is the cheapest '
+      + 'test of the programme`s central premise that exists: the whole apparatus assumes a turn '
+      + 'boundary is worth something, and nothing has ever checked.',
+  },
 };
 
 export const HYPOTHESIS_IDS = Object.keys(HYPOTHESES);

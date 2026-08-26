@@ -324,7 +324,64 @@
   <a href="/register">the register</a>, and neither can start before H8 gives λ, since M is a
   function of it.</p>
 
-  <h2 class="sec"><span class="secno">10</span>Limits</h2>
+  <h2 class="sec" id="h12"><span class="secno">10</span>Group division and issue division</h2>
+
+  <p>Everything above assigns duties to <em>turns</em>, and it is worth asking why the duties need
+  turns at all. A single agent with a large budget can delegate: it spawns subordinates, hands each
+  a piece, and collects the results. On the face of it that buys the same division of labour with
+  none of the handoff loss this programme spends its time measuring.</p>
+
+  <p>It buys a different thing. A subordinate spawned inside a turn is briefed <em>by</em> that
+  turn, from the context that turn already holds, so the fan-out happens at λ = 1 and nothing is
+  attenuated. That is the good news and the bad news together. Sharing the context also shares the
+  misreading of it: if the parent has mistaken what the task requires, every subordinate inherits
+  the mistake, and their agreement is not evidence. Two turns that cannot see each other's
+  reasoning can be wrong in two different ways. One turn's delegates mostly cannot.</p>
+
+  <p>So the turn boundary is an <b>independence</b> boundary rather than a work boundary, and the
+  two kinds of division are not competitors:</p>
+
+  <div class="table-fig">
+    <div class="cap"><b>Table 6.</b> What each kind of division is for, and what it costs.</div>
+    <table class="booktabs">
+      <thead><tr><th></th><th>Divide by issue</th><th>Divide by group</th></tr></thead>
+      <tbody>
+        <tr><td><b>Mechanism</b></td><td>subagents inside one turn</td><td>a turn boundary</td></tr>
+        <tr><td><b>Context</b></td><td>λ = 1 — the parent hands over what it holds</td><td>λ &lt; 1 — the successor gets an artefact, not a mind</td></tr>
+        <tr><td><b>Error correlation</b></td><td>high; one reading of the task, fanned out</td><td>lower; that is the whole purchase</td></tr>
+        <tr><td><b>Buys</b></td><td>throughput and breadth, cheaply</td><td>a second opinion that had no way to inherit the first</td></tr>
+        <tr><td><b>Costs</b></td><td>nothing this model prices</td><td>the attenuation of §1, paid once per hop</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Read that way, the six-turn shape is not six units of work. It is one unit of work and five
+  purchases of independence, and the strategy comparison of §6 is a claim about how many of those
+  purchases are worth their attenuation. A run that split by issue would want its pieces inside one
+  turn; a run that splits by group is buying exactly what a subagent cannot supply.</p>
+
+  <p>The bank has already measured the contrast in miniature, with checks in place of turns.
+  <b>tb-001</b> split its two efforts by subject — one check for the estimator, one for the coverage
+  property — and both killed every mutant either killed: redundancy 1.00, no detection diversity for
+  the second effort. <b>tb-002</b> split by kind, placing the second check against the checker
+  rather than against another part of the same subject, and redundancy fell to 0.429. Same task
+  size, same two efforts, and the division rule accounts for the difference.</p>
+
+  <p>That is a suggestive analogy rather than a measurement of the claim, so the claim is
+  registered as <b>H12</b> and the harness carries a second shape to test it.
+  <code>lab/runner.mjs</code> accepts <code>--shape solo</code>: one turn, told it may delegate
+  freely, with the run's whole budget rather than one turn's share. Against <code>standard</code> on
+  the same task at equal total spend, the outcome is the redundancy between the two checks each arm
+  writes, which the bank scores for nothing. H12 is refuted if solo's checks are no more redundant
+  than standard's — in which case a turn boundary buys no independence, and the graph half of this
+  programme is measuring something that does not exist.</p>
+
+  <p>One reporting consequence follows immediately and is implemented rather than noted. A
+  one-turn run has no handoffs, so it never had the opportunity to leak; its isolation audit
+  returns <b>inapplicable</b>, not clean. A regime that was never tested must not be recorded as one
+  that held.</p>
+
+  <h2 class="sec"><span class="secno">11</span>Limits</h2>
 
   <ul>
     <li>No runs. Every number here is arithmetic over parameters that are assumed, and two of them
