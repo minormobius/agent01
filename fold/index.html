@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fold — watch a protein fold, in your browser</title>
+<meta name="description" content="A structure-based protein folding engine in Rust and WebAssembly. Real Langevin dynamics on a C-alpha chain, folding live at 60fps in a browser tab.">
+<meta name="color-scheme" content="dark">
+<meta property="og:title" content="Fold — watch a protein fold, in your browser">
+<meta property="og:description" content="A structure-based folding engine in Rust and WebAssembly. Real Langevin dynamics, folding live in a browser tab.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 24c6-14 18 6 24-8' stroke='%23c98500' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #06070c;
+    --surface: #0e1119;
+    --panel: rgba(255,255,255,0.035);
+    --line: rgba(255,255,255,0.075);
+    --line-strong: rgba(255,255,255,0.14);
+    --ink: #e8e9ee;
+    --ink-2: #a7abbb;
+    --ink-3: #767b8c;
+    --gold: #c98500;
+    --gold-lift: #e0a63c;
+    --blue: #3987e5;
+    --aqua: #199e70;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
+    --r: 11px;
+  }
+
+  * { box-sizing: border-box; }
+  /* A specific `display` beats the UA sheet's [hidden]{display:none}, and #sheet
+     and #tip both set one. Without this the About panel opens on load. */
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #app {
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr) 320px;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "head head head"
+      "left stage right"
+      "strip strip strip"
+      "ctrl ctrl ctrl";
+    height: 100dvh;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  /* ---------------------------------------------------------- header */
+  header {
+    grid-area: head;
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding: 2px 4px 0;
+    min-height: 34px;
+  }
+  .brand {
+    font-family: var(--mono);
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: 0.34em;
+    margin: 0;
+    background: linear-gradient(96deg, #7b2fb0 0%, #d43a6a 42%, #f0803a 72%, #ffd86b 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .tag { color: var(--ink-3); font-size: 12px; letter-spacing: 0.02em; }
+  .tag b { color: var(--ink-2); font-weight: 500; }
+  header .spacer { flex: 1; }
+
+  /* ---------------------------------------------------------- panels */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    backdrop-filter: blur(8px);
+  }
+  .panel h2 {
+    margin: 0;
+    padding: 8px 12px 6px;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* ---------------------------------------------------------- left rail */
+  #left {
+    grid-area: left;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  #picker {
+    overflow-y: auto;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-height: 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.16) transparent;
+  }
+  .pick {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    text-align: left;
+    padding: 7px 9px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: none;
+    color: var(--ink-2);
+    cursor: pointer;
+    font: inherit;
+    transition: background 0.12s, color 0.12s;
+  }
+  .pick:hover { background: rgba(255,255,255,0.05); color: var(--ink); }
+  .pick[aria-current="true"] {
+    background: rgba(201,133,0,0.14);
+    border-color: rgba(201,133,0,0.42);
+    color: var(--ink);
+  }
+  .pick-name { font-size: 13px; font-weight: 550; letter-spacing: -0.01em; }
+  .pick-meta { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+  .pick[aria-current="true"] .pick-meta { color: var(--gold-lift); }
+
+  /* ---------------------------------------------------------- stage */
+  #stage {
+    grid-area: stage;
+    position: relative;
+    border-radius: var(--r);
+    overflow: hidden;
+    border: 1px solid var(--line);
+    min-height: 0;
+    background: #06070c;
+  }
+  #scene { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+  #scene:active { cursor: grabbing; }
+
+  .overlay {
+    position: absolute;
+    pointer-events: none;
+    font-family: var(--mono);
+  }
+  #caption {
+    top: 14px; left: 16px; right: 16px;
+    max-width: 460px;
+  }
+  #pName {
+    font-family: var(--sans);
+    font-size: 21px;
+    font-weight: 600;
+    letter-spacing: -0.018em;
+    margin: 0;
+    text-shadow: 0 2px 18px rgba(0,0,0,0.85);
+  }
+  #pSub { font-size: 11.5px; color: var(--ink-2); letter-spacing: 0.01em; }
+  #pBlurb {
+    font-family: var(--sans);
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--ink-2);
+    margin: 8px 0 0;
+    text-wrap: pretty;
+    text-shadow: 0 1px 12px rgba(0,0,0,0.9);
+  }
+  #pId {
+    pointer-events: auto;
+    color: var(--ink-3);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(255,255,255,0.16);
+  }
+  #pId:hover { color: var(--gold-lift); border-color: var(--gold); }
+
+  #verdict {
+    position: absolute;
+    right: 14px; top: 14px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    background: rgba(6,7,12,0.6);
+    color: var(--ink-3);
+  }
+  #verdict[data-state="mid"] { color: var(--blue); border-color: rgba(57,135,229,0.5); }
+  #verdict[data-state="folded"] { color: var(--gold-lift); border-color: rgba(201,133,0,0.6); }
+
+  #hud {
+    bottom: 12px; left: 16px;
+    display: flex; gap: 16px; flex-wrap: wrap;
+    font-size: 10.5px;
+    color: var(--ink-3);
+  }
+  #hud b { color: var(--ink-2); font-weight: 500; }
+
+  /* ---------------------------------------------------------- right rail */
+  #right {
+    grid-area: right;
+    /* scrolls when it must; the sizes above are picked so it does not have to
+       at 1080p, where the History panel is the first thing to fall off */
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.16) transparent;
+  }
+  .metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--line);
+    border-radius: 0 0 var(--r) var(--r);
+    overflow: hidden;
+  }
+  .metric {
+    background: var(--surface);
+    padding: 7px 11px 8px;
+  }
+  .metric dt {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 2px;
+  }
+  .metric dd {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  canvas.chart { display: block; width: 100%; }
+  #map { height: 166px; }
+  #funnel { height: 118px; }
+  #traceQ, #traceR { height: 44px; }
+  .chartwrap { padding: 7px 10px 8px; }
+  .legend {
+    display: flex; gap: 14px; flex-wrap: wrap;
+    padding: 0 12px 8px;
+    font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .sw { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+
+  /* ---------------------------------------------------------- strip */
+  #stripwrap { grid-area: strip; padding: 7px 10px 4px; }
+  #strip { display: block; width: 100%; height: 42px; touch-action: none; }
+
+  /* ---------------------------------------------------------- controls */
+  #ctrl {
+    grid-area: ctrl;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 8px 10px;
+  }
+  button, select {
+    font: inherit;
+    font-size: 12.5px;
+    color: var(--ink);
+    background: rgba(255,255,255,0.055);
+    border: 1px solid var(--line-strong);
+    border-radius: 7px;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  button:hover, select:hover { background: rgba(255,255,255,0.1); }
+  button.primary {
+    background: rgba(201,133,0,0.18);
+    border-color: rgba(201,133,0,0.5);
+    color: var(--gold-lift);
+    min-width: 74px;
+  }
+  button.primary:hover { background: rgba(201,133,0,0.28); }
+  :focus-visible { outline: 2px solid var(--gold-lift); outline-offset: 2px; }
+
+  .slider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 11px 3px 10px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: rgba(255,255,255,0.02);
+  }
+  .slider label {
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.11em; text-transform: uppercase; color: var(--ink-3);
+  }
+  .slider output {
+    font-family: var(--mono); font-size: 12px;
+    font-variant-numeric: tabular-nums; color: var(--ink);
+    min-width: 38px; text-align: right;
+  }
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    width: 106px; height: 20px; background: none; cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 3px; border-radius: 2px; background: rgba(255,255,255,0.18);
+  }
+  input[type="range"]::-moz-range-track {
+    height: 3px; border-radius: 2px; background: rgba(255,255,255,0.18);
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 13px; height: 13px; margin-top: -5px;
+    border-radius: 50%; background: var(--gold-lift);
+    border: 2px solid #14161f;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 13px; height: 13px; border: 2px solid #14161f;
+    border-radius: 50%; background: var(--gold-lift);
+  }
+  .toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 10.5px;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2);
+    cursor: pointer; user-select: none;
+    padding: 6px 10px; border: 1px solid var(--line); border-radius: 7px;
+  }
+  .toggle:hover { background: rgba(255,255,255,0.045); }
+  .toggle input { accent-color: var(--gold); width: 13px; height: 13px; }
+  #ctrl .spacer { flex: 1; }
+  .hint {
+    font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+    letter-spacing: 0.04em;
+  }
+
+  /* ---------------------------------------------------------- tooltip + sheets */
+  #tip {
+    position: fixed; top: 0; left: 0;
+    pointer-events: none; z-index: 40;
+    background: rgba(10,12,18,0.96);
+    border: 1px solid var(--line-strong);
+    border-radius: 7px;
+    padding: 6px 9px;
+    font-family: var(--mono); font-size: 11px;
+    display: flex; flex-direction: column; gap: 1px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+    max-width: 260px;
+  }
+  #tip b { color: var(--gold-lift); font-weight: 600; }
+  #tip span { color: var(--ink-2); }
+
+  #sheet {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(4,5,9,0.72);
+    backdrop-filter: blur(6px);
+    display: grid; place-items: center;
+    padding: 20px;
+    overflow-y: auto;
+  }
+  .sheet-body {
+    max-width: 680px;
+    background: #0c0e15;
+    border: 1px solid var(--line-strong);
+    border-radius: 14px;
+    padding: 26px 30px 30px;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.7);
+  }
+  .sheet-body h2 { font-size: 18px; margin: 0 0 4px; letter-spacing: -0.02em; }
+  .sheet-body h3 {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--gold-lift);
+    margin: 22px 0 7px;
+  }
+  .sheet-body p { color: var(--ink-2); font-size: 13.5px; margin: 0 0 10px; text-wrap: pretty; }
+  .sheet-body a { color: var(--gold-lift); }
+  .sheet-body code {
+    font-family: var(--mono); font-size: 12px;
+    background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 4px;
+  }
+  .sheet-body table {
+    width: 100%; border-collapse: collapse;
+    font-family: var(--mono); font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+  }
+  .sheet-body th {
+    text-align: left; color: var(--ink-3); font-weight: 500;
+    border-bottom: 1px solid var(--line); padding: 4px 8px 4px 0;
+  }
+  .sheet-body td { padding: 3px 8px 3px 0; color: var(--ink-2); border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .sheet-body td:first-child { color: var(--ink); }
+  .scroller { overflow-x: auto; }
+  .close-row { display: flex; justify-content: flex-end; margin-top: 22px; }
+
+  #fail, #diverged {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    z-index: 60; max-width: 440px;
+    background: #0c0e15; border: 1px solid rgba(227,73,72,0.5);
+    border-radius: 12px; padding: 20px 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+  }
+  #diverged { border-color: rgba(201,133,0,0.5); }
+  #fail h2, #diverged h2 { margin: 0 0 6px; font-size: 15px; }
+  #fail p, #diverged p { color: var(--ink-2); font-size: 13px; margin: 0; }
+  #failMsg { font-family: var(--mono); font-size: 11.5px; color: #e66767; margin-top: 8px; }
+
+  /* ---------------------------------------------------------- responsive */
+  @media (max-width: 1180px) {
+    #app { grid-template-columns: 186px minmax(0, 1fr) 260px; }
+    #map { height: 156px; }
+    #funnel { height: 116px; }
+  }
+  @media (max-width: 900px) {
+    body { overflow: auto; }
+    header .tag { display: none; }
+    #about { white-space: nowrap; }
+    #app {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto 58vh auto auto auto auto;
+      grid-template-areas: "head" "stage" "strip" "ctrl" "left" "right";
+      height: auto;
+    }
+    #left { max-height: 260px; }
+    #right { overflow: visible; }
+    #caption { max-width: none; }
+    #pBlurb { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <h1 class="brand">FOLD</h1>
+    <span class="tag">a protein folding engine in <b>Rust</b> + <b>WebAssembly</b>, running in this tab</span>
+    <span class="spacer"></span>
+    <button id="about" type="button">What am I looking at?</button>
+  </header>
+
+  <section id="left" class="panel" aria-label="Protein">
+    <h2>Protein</h2>
+    <div id="picker" role="group" aria-label="Choose a protein"></div>
+  </section>
+
+  <section id="stage">
+    <canvas id="scene" aria-label="Three-dimensional view of the folding chain"></canvas>
+    <div id="caption" class="overlay">
+      <h2 id="pName">—</h2>
+      <div id="pSub"></div>
+      <p id="pBlurb"></p>
+      <p style="margin:8px 0 0;font-size:11px">
+        <a id="pId" href="#" target="_blank" rel="noopener">—</a>
+      </p>
+    </div>
+    <div id="verdict" data-state="coil">searching</div>
+    <div id="hud" class="overlay">
+      <span><b id="mSteps">0</b> steps</span>
+      <span><b id="mRate">—</b></span>
+      <span><b id="mFps">—</b></span>
+      <span><b id="mLen">—</b></span>
+      <span><b id="mContacts">—</b> native contacts</span>
+    </div>
+  </section>
+
+  <aside id="right" aria-label="Measurements">
+    <section class="panel">
+      <h2>Now</h2>
+      <dl class="metrics">
+        <div class="metric"><dt>Q</dt><dd id="mQ">0.000</dd></div>
+        <div class="metric"><dt>contacts made</dt><dd id="mFormed">0/0</dd></div>
+        <div class="metric"><dt>RMSD to native</dt><dd id="mRmsd">— Å</dd></div>
+        <div class="metric"><dt>radius of gyration</dt><dd id="mRg">— Å</dd></div>
+        <div class="metric" style="grid-column: span 2"><dt>potential energy</dt><dd id="mEnergy">—</dd></div>
+      </dl>
+    </section>
+
+    <section class="panel">
+      <h2>Contact map</h2>
+      <div class="chartwrap"><canvas id="map" class="chart"></canvas></div>
+      <div class="legend">
+        <span><i class="sw" style="background:rgba(255,255,255,0.22)"></i> native contact</span>
+        <span><i class="sw" style="background:#c98500"></i> made right now</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>States visited</h2>
+      <div class="chartwrap"><canvas id="funnel" class="chart"></canvas></div>
+      <div class="legend">
+        <span>darker → brighter = more time spent</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>History</h2>
+      <div class="chartwrap">
+        <canvas id="traceQ" class="chart"></canvas>
+        <canvas id="traceR" class="chart"></canvas>
+      </div>
+    </section>
+  </aside>
+
+  <section id="stripwrap" class="panel" aria-label="Sequence">
+    <canvas id="strip"></canvas>
+  </section>
+
+  <section id="ctrl" class="panel">
+    <button id="play" class="primary" type="button" aria-pressed="true">Pause</button>
+    <button id="restart" type="button">Restart</button>
+    <select id="startMode" aria-label="Starting conformation">
+      <option value="coil">from a random coil</option>
+      <option value="extended">from an extended chain</option>
+      <option value="native">from the native structure</option>
+    </select>
+
+    <div class="slider">
+      <label for="temp">Temp</label>
+      <input id="temp" type="range" min="0.1" max="1.6" step="0.01" value="0.8">
+      <output id="tempVal">0.80</output>
+    </div>
+
+    <div class="slider">
+      <label for="speed">Speed</label>
+      <input id="speed" type="range" min="0.1" max="6" step="0.1" value="1">
+      <output id="speedVal">1.0×</output>
+    </div>
+
+    <label class="toggle"><input id="ghost" type="checkbox" checked> Native ghost</label>
+    <label class="toggle"><input id="wires" type="checkbox" checked> Contacts</label>
+
+    <span class="spacer"></span>
+    <span class="hint">drag to orbit · scroll to zoom · space r g c</span>
+  </section>
+</div>
+
+<div id="tip" hidden></div>
+
+<div id="diverged" hidden>
+  <h2>The integrator blew up.</h2>
+  <p>Too large a timestep or too high a temperature can send a bead to infinity.
+     Hit Restart. If it keeps happening, bring the temperature down.</p>
+</div>
+
+<div id="fail" hidden>
+  <h2>Could not start.</h2>
+  <p>This needs WebGL2 and WebAssembly. Both are standard in current browsers,
+     but a hardware-acceleration setting or an old device can block them.</p>
+  <p id="failMsg"></p>
+</div>
+
+<div id="sheet" hidden>
+  <div class="sheet-body" role="dialog" aria-modal="true" aria-label="About Fold">
+    <h2>This is a real simulation, and it is cheating.</h2>
+    <p>Both halves of that sentence matter, so here is exactly what is running.</p>
+
+    <h3>The physics</h3>
+    <p>Each residue is one bead at its α-carbon. The beads obey Langevin dynamics
+      under a <em>structure-based</em> potential — a Gō model, in the Clementi–Onuchic
+      form: harmonic bonds and bond angles, a two-term torsion potential, a
+      10-12 well for every native contact, and a repulsive <code>r⁻¹²</code> core
+      for every other pair. Nothing is scripted. The chain finds its way there by
+      integrating forces, and every force in it is checked against a numerical
+      gradient of the energy before the build ships.</p>
+
+    <h3>The cheat</h3>
+    <p>The reference bond angles, torsions and contact distances are all read off
+      the deposited structure. The native state is the global energy minimum
+      <em>by construction</em>. So this model can reproduce a fold; it cannot
+      predict one. Real de-novo folding from sequence alone is not something a
+      browser — or, with physics, anything else — currently does. That gap is why
+      AlphaFold happened.</p>
+    <p>What the model does earn you is the shape of the process: the collapse,
+      the search, the order contacts form in, how a β-sheet is more frustrated
+      than a helix bundle, and what happens as you push the temperature toward
+      the folding transition. Those are real, and they are what you are watching.</p>
+
+    <h3>What the numbers mean</h3>
+    <p><b>Q</b> is the fraction of native contacts currently made — the standard
+      reaction coordinate for folding. A contact counts as made inside 1.2× its
+      native distance. <b>RMSD</b> is the C-alpha deviation from the deposited
+      structure after optimal superposition. <b>States visited</b> accumulates
+      every (Q, energy) pair the run has passed through: the funnel that textbooks
+      draw as a cartoon, drawn instead from the trajectory in front of you.</p>
+
+    <h3>Measured, on one core of a 2.8 GHz Xeon</h3>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>protein</th><th>residues</th><th>contacts</th><th>steps to fold</th><th>steps/s</th><th>seconds</th></tr></thead>
+        <tbody>
+          <tr><td>Chignolin</td><td>10</td><td>13</td><td>40k</td><td>427,000</td><td>0.1</td></tr>
+          <tr><td>Trp-cage</td><td>20</td><td>33</td><td>70k</td><td>193,000</td><td>0.4</td></tr>
+          <tr><td>Villin HP-35</td><td>35</td><td>70</td><td>50k</td><td>85,000</td><td>0.6</td></tr>
+          <tr><td>LDLR LA5</td><td>37</td><td>83</td><td>40k</td><td>71,000</td><td>0.6</td></tr>
+          <tr><td>Protein G B1</td><td>56</td><td>138</td><td>80k</td><td>42,000</td><td>1.9</td></tr>
+          <tr><td>Ubiquitin</td><td>76</td><td>177</td><td>90k</td><td>29,000</td><td>3.1</td></tr>
+          <tr><td>TBEV protein E</td><td>395</td><td>1111</td><td>never</td><td>2,200</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:10px">Folds are deliberately slowed to about twelve seconds
+      so there is something to watch; the Speed control gives the time back.
+      The last row is the honest edge: 395 residues never reached Q ≥ 0.85 inside
+      the cap, and an all-atom simulation of the same molecule in explicit water
+      would be years of tab. WebAssembly costs about 1.1–1.6× native here — the
+      wall is the timescale, not the language.</p>
+
+    <h3>Where it came from</h3>
+    <p>It started as a question about a cryo-EM paper —
+      <a href="https://www.biorxiv.org/content/10.64898/2026.08.22.744730v1" target="_blank" rel="noopener">Ji
+      et al., <em>Orthoflaviviruses use diverse binding modes to engage LDLR family
+      receptors</em></a> — and how much of protein physics a browser could actually
+      afford. Two of the proteins here are from that paper's world: the LDLR
+      LA5 module, and the tick-borne encephalitis virus envelope protein.</p>
+    <p>Structures from the <a href="https://www.rcsb.org/" target="_blank" rel="noopener">RCSB
+      Protein Data Bank</a>. Engine in Rust, compiled to WebAssembly with no
+      bindgen; renderer is hand-written WebGL2.</p>
+
+    <div class="close-row"><button id="sheetClose" type="button" class="primary">Close</button></div>
+  </div>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

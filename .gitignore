@@ -26,6 +26,7 @@ data/yum-compounds.json
 
 # j/ (ImageJ in the browser) — Rust build artifacts; pkg/ is rebuilt in CI
 j/wasm/target/
+fold/engine/target/
 j/pkg/
 golem/js/vendor/
 # board/ — deploy-time copy of packages/oauth-client/auth.js (scripts/vendor-board.sh)
@@ -52,3 +53,4 @@ packages/homunculus/log/
 # Recovery-pass transcripts: force-added onto feature branches by the snippet,
 # collected at merge time, and asserted absent before the repo goes public.
 homunculus/inbox/
+.pdb-cache/

@@ -1255,6 +1255,20 @@
       ]
     },
     {
+      "surface": "fold",
+      "dir": "fold",
+      "endpoint": "fold.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/protein-folding-rust-wasm-dyceu3",
+      "uses": [],
+      "provides": null,
+      "status": "NEW — first deploy. fold.mino.mobi did not resolve beforehand; wrangler is expected to create the custom domain itself, as it did for neuro (mino.mobi is a zone on this account). Confirm the run binds `fold.mino.mobi (custom domain)` — green alone is not proof.",
+      "note": "Watch a protein fold. A Clementi–Onuchic structure-based (Gō) C-alpha model under Langevin dynamics, written in Rust and compiled to wasm32-unknown-unknown with no wasm-bindgen; hand-written WebGL2 renderer with an HDR bloom pass. Nine deposited structures ship with the site… (full description: fold/CLAUDE.md)",
+      "paths": [
+        "fold/**"
+      ]
+    },
+    {
       "surface": "rant",
       "dir": "rant",
       "endpoint": "rant.mino.mobi",

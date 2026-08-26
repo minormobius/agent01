@@ -1,0 +1,18 @@
+[package]
+name = "fold-engine"
+version = "0.1.0"
+edition = "2021"
+description = "Structure-based (Go) C-alpha folding engine for fold.mino.mobi. No wasm-bindgen: raw C ABI + linear memory."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "check"
+path = "src/check.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"

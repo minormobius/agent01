@@ -1,0 +1,7 @@
+# Not web assets. Workers Static Assets uploads everything under the directory,
+# so the Rust sources, the build script, the node-only selftest and the surface
+# instructions are excluded here rather than by a staging copy.
+wrangler.jsonc
+CLAUDE.md
+engine/
+*.selftest.mjs

@@ -1,0 +1,22 @@
+# fold.mino.mobi — the egress boundary for this surface.
+#
+# This file, not worker.js, is what actually applies: Workers Static Assets
+# serves an asset match directly without invoking the Worker.
+#
+# The site is self-contained. Everything it needs — the wasm engine, the
+# coordinate set, the modules — ships with it, so connect-src is 'self' and
+# nothing else. It fetches no structures at runtime and talks to no API.
+#
+# 'wasm-unsafe-eval' is the one non-obvious entry: without it the browser
+# refuses WebAssembly.instantiate and the page dead-ends at its "could not
+# start" panel. It permits wasm compilation only, not eval() of JavaScript.
+
+/*
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()
+
+/fold.wasm
+  Content-Type: application/wasm
+  Cache-Control: public, max-age=3600
