@@ -100,10 +100,15 @@ code, .num { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospa
 .sw { width: 11px; height: 11px; border-radius: 3px; flex: none; }
 .sw.line { height: 3px; border-radius: 2px; width: 15px; }
 
-.plot { position: relative; width: 100%; touch-action: pan-y; }
+.plot { position: relative; width: 100%; touch-action: pan-y; overscroll-behavior: contain; }
 .plot canvas { display: block; width: 100%; height: 100%; }
 #priceplot { height: 300px; } #premplot { height: 232px; }
 .cursor { position: absolute; inset: 0; pointer-events: none; }
+/* crosshair axis readouts — the value under the pointer, on the axis it belongs to */
+.axb { position: absolute; transform: translateY(-50%); background: var(--text-secondary);
+       color: var(--surface-1); font: 10.5px/1 ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums;
+       padding: 3px 5px; border-radius: 3px; white-space: nowrap; pointer-events: none; }
+.axb-x { transform: translateX(-50%); top: auto; bottom: 2px; }
 
 .tip { position: absolute; z-index: 5; pointer-events: none; background: var(--surface-1);
        border: 1px solid var(--hairline); border-radius: 8px; padding: 9px 11px; font-size: 12.5px;
@@ -157,7 +162,11 @@ bitcoin, and the price of holding bitcoin <em>synthetically</em>.</p>
     <button data-range="365" aria-pressed="true">1Y</button>
     <button data-range="all" aria-pressed="false">ALL</button>
   </div>
-  <span class="hint">drag to pan · scroll to zoom · <span id="reso">—</span></span>
+  <div class="seg" role="group" aria-label="Mark style">
+    <button data-mode="candles" aria-pressed="true">Candles</button>
+    <button data-mode="line" aria-pressed="false">Line</button>
+  </div>
+  <span class="hint">drag to pan · scroll or pinch to zoom · <span id="reso">—</span></span>
 </div>
 
 <!-- ---------------------------------------------------------- chart 1 --- -->

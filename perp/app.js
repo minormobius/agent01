@@ -41,7 +41,8 @@ const S = {
   stats: null,
   from: 0, to: 0,           // visible window, ms
   bounds: [0, 0],
-  hover: null,
+  mode: 'candles',          // 'candles' | 'line'
+  scales: {},               // per-chart y-scale, so the crosshair can invert it
 };
 const RESOS = {
   '1d': { file: 'btc-1d.json', step: DAY,     label: 'daily candles' },
@@ -167,11 +168,11 @@ function columns(t, i0, i1, xScale, pw) {
 // ------------------------------------------------------------- price chart ---
 // The chart switches marks when candles get too thin to read; the legend has to
 // switch with it or it describes marks that are not on screen.
-function setPriceLegend(candles) {
+function setPriceLegend(mode) {
   const el = document.getElementById('pricelegend');
-  if (!el || el.dataset.mode === String(candles)) return;
-  el.dataset.mode = String(candles);
-  el.innerHTML = candles
+  if (!el || el.dataset.mode === mode) return;
+  el.dataset.mode = mode;
+  el.innerHTML = mode === 'candles'
     ? `<span><i class="sw" style="background:var(--pole-up)"></i>close up</span>
        <span><i class="sw" style="background:var(--pole-down)"></i>close down</span>`
     : `<span><i class="sw" style="background:var(--band)"></i>high–low range</span>
@@ -201,12 +202,13 @@ function drawPrice() {
   const step = RESOS[S.reso].step;
   const bucketPx = (step / (S.to - S.from)) * pw;
   const UP = css('--pole-up'), DOWN = css('--pole-down');
-  setPriceLegend(bucketPx >= CANDLE_MIN_PX);
+  setPriceLegend(S.mode);
+  S.scales.price = { lo, up, ph, fmt: usd };
 
   ctx.save();
   ctx.beginPath(); ctx.rect(PAD.l, PAD.t, pw, ph); ctx.clip();
 
-  if (bucketPx >= CANDLE_MIN_PX) {
+  if (S.mode === 'candles' && bucketPx >= CANDLE_MIN_PX) {
     // Real candles. 2px surface gap between adjacent bodies, never a border.
     const bw = Math.max(1, bucketPx - 2);
     for (let i = i0; i < i1; i++) {
@@ -220,8 +222,21 @@ function drawPrice() {
       const yo = yScale(o[i]), yc = yScale(series.c[i]);
       ctx.fillRect(x - bw / 2, Math.min(yo, yc), bw, Math.max(1, Math.abs(yc - yo)));
     }
+  } else if (S.mode === 'candles') {
+    // Thinner than a candle can be drawn: one direction-coloured high–low bar
+    // per pixel column. Still a candle chart, just out of horizontal room.
+    const cols = columns(t, i0, i1, xScale, pw);
+    ctx.lineWidth = 1;
+    for (let cx = 0; cx < cols.length; cx++) {
+      const c = cols[cx]; if (!c) continue;
+      let ch = -Infinity, cl = Infinity;
+      for (let i = c.i0; i <= c.i1; i++) { ch = Math.max(ch, series.h[i]); cl = Math.min(cl, series.l[i]); }
+      ctx.strokeStyle = series.c[c.i1] >= o[c.i0] ? UP : DOWN;
+      const x = PAD.l + cx + 0.5;
+      ctx.beginPath(); ctx.moveTo(x, yScale(ch)); ctx.lineTo(x, yScale(cl)); ctx.stroke();
+    }
   } else {
-    // Too dense for candles: high/low envelope + a close line, per pixel column.
+    // Line mode: high/low envelope behind a close line, per pixel column.
     const cols = columns(t, i0, i1, xScale, pw);
     ctx.fillStyle = css('--band');
     ctx.beginPath();
@@ -275,6 +290,7 @@ function drawPremium() {
   const pw = w - PAD.l - PAD.r, ph = h - PAD.t - PAD.b;
   const xScale = (x) => PAD.l + ((x - S.from) / (S.to - S.from)) * pw;
   const yScale = (v) => PAD.t + (1 - (v - lo) / (up - lo)) * ph;
+  S.scales.prem = { lo, up, ph, fmt: (v) => bp(v, 2) + ' bp' };
 
   // the clamp corridor, painted under the grid so it reads as ground, not as a mark
   const yTop = clamp(yScale(CLAMP), PAD.t, PAD.t + ph), yBot = clamp(yScale(-CLAMP), PAD.t, PAD.t + ph);
@@ -363,39 +379,72 @@ function drawPremium() {
 function draw() { drawPrice(); drawPremium(); }
 
 // -------------------------------------------------------------- crosshair ---
-function makeCursor(el) {
-  const line = document.createElement('div');
-  line.style.cssText = 'position:absolute;top:0;bottom:0;width:1px;background:var(--text-muted);opacity:0;';
-  el.appendChild(line);
-  return line;
-}
-const cursors = [];
+// DOM, not canvas: pointer movement must never trigger a redraw of 28k marks.
+const CUR = {};
 
-function moveCursor(clientX, rect) {
-  const x = clientX - rect.left;
-  const pw = rect.width - PAD.l - PAD.r;
-  if (x < PAD.l || x > PAD.l + pw) return hideCursor();
-  const t = S.from + ((x - PAD.l) / pw) * (S.to - S.from);
-  for (const c of cursors) { c.style.left = `${x}px`; c.style.opacity = '1'; }
-  showTip(t, clientX);
+function makeCursor(hostId, key) {
+  const host = document.getElementById(hostId);
+  const mk = (cls, style) => {
+    const d = document.createElement('div');
+    d.className = cls; d.style.cssText = style; host.appendChild(d); return d;
+  };
+  CUR[key] = {
+    host,
+    v: mk('', 'position:absolute;top:0;bottom:0;width:1px;background:var(--text-muted);opacity:0'),
+    h: mk('', 'position:absolute;left:0;right:0;height:1px;background:var(--text-muted);opacity:0'),
+    y: mk('axb', 'opacity:0'),
+    x: mk('axb axb-x', 'opacity:0'),
+  };
 }
+
 function hideCursor() {
-  for (const c of cursors) c.style.opacity = '0';
+  for (const c of Object.values(CUR)) for (const k of ['v', 'h', 'y', 'x']) c[k].style.opacity = '0';
   $('#tip').classList.remove('on');
 }
 
+// `key` is the chart the pointer is actually over: it gets the full crosshair,
+// the other gets only the shared time line.
+function moveCursor(key, clientX, clientY) {
+  const rect = CUR[key].host.getBoundingClientRect();
+  const x = clientX - rect.left, y = clientY - rect.top;
+  const pw = rect.width - PAD.l - PAD.r;
+  if (x < PAD.l || x > PAD.l + pw) return hideCursor();
+
+  const t = S.from + ((x - PAD.l) / pw) * (S.to - S.from);
+  for (const [k, c] of Object.entries(CUR)) {
+    c.v.style.left = `${x}px`; c.v.style.opacity = '1';
+    const on = k === key;
+    c.h.style.opacity = c.y.style.opacity = on ? '1' : '0';
+    if (!on) { c.x.style.opacity = '0'; continue; }
+
+    const sc = S.scales[k === 'price' ? 'price' : 'prem'];
+    if (sc && y >= PAD.t && y <= PAD.t + sc.ph) {
+      c.h.style.top = `${y}px`;
+      c.y.style.top = `${y}px`; c.y.style.left = '0px';
+      c.y.textContent = sc.fmt(sc.lo + (1 - (y - PAD.t) / sc.ph) * (sc.up - sc.lo));
+    } else {
+      c.h.style.opacity = c.y.style.opacity = '0';
+    }
+    const step = RESOS[S.reso].step;
+    c.x.textContent = step >= DAY ? fmtDay(t) : fmtHour(t);
+    c.x.style.left = `${x}px`; c.x.style.opacity = '1';
+  }
+  showTip(t, clientX);
+}
 function showTip(t, clientX) {
   const tip = $('#tip'), series = S.candles[S.reso], F = S.funding;
   if (!series) return;
   const ci = clamp(lower(series.t, t, series.n) - 1, 0, series.n - 1);
-  const rows = [];
   const step = RESOS[S.reso].step;
-  rows.push(['open', usd(series.o[ci])], ['high', usd(series.h[ci])], ['low', usd(series.l[ci])], ['close', usd(series.c[ci])]);
-  let stamp = step >= DAY ? fmtDay(series.t[ci]) : fmtHour(series.t[ci]);
+  const rows = [['open', usd(series.o[ci])], ['high', usd(series.h[ci])],
+                ['low', usd(series.l[ci])], ['close', usd(series.c[ci])]];
+  const stamp = step >= DAY ? fmtDay(series.t[ci]) : fmtHour(series.t[ci]);
 
   if (F) {
+    // nearest funding hour, but only if it is actually near
     const fi = lower(F.t, t, F.n);
-    const j = clamp(Math.abs((F.t[fi] ?? Infinity) - t) < Math.abs(t - (F.t[fi - 1] ?? -Infinity)) ? fi : fi - 1, 0, F.n - 1);
+    const j = clamp(Math.abs((F.t[fi] ?? Infinity) - t) < Math.abs(t - (F.t[fi - 1] ?? -Infinity)) ? fi : fi - 1,
+                    0, F.n - 1);
     if (Math.abs(F.t[j] - t) < Math.max(step, HOUR) * 1.5) {
       rows.push(['premium', `${bp(F.p[j])} bp`], ['funding', `${bp(F.f[j], 3)} bp/hr`],
                 ['annualised', pct(annual(F.f[j]))]);
@@ -405,8 +454,7 @@ function showTip(t, clientX) {
     rows.map(([k, v]) => `<div class="r"><span>${k}</span><b>${v}</b></div>`).join('');
   tip.classList.add('on');
   const w = tip.offsetWidth || 190;
-  const left = clamp(clientX + 16, 8, innerWidth - w - 8);
-  tip.style.left = `${left + scrollX}px`;
+  tip.style.left = `${clamp(clientX + 16, 8, innerWidth - w - 8) + scrollX}px`;
   tip.style.top = `${$('#priceplot').getBoundingClientRect().top + scrollY + 12}px`;
 }
 
@@ -414,60 +462,140 @@ function showTip(t, clientX) {
 function setView(from, to) {
   const [lo, hi] = S.bounds;
   const minSpan = 6 * HOUR;
-  let span = clamp(to - from, minSpan, hi - lo);
+  const span = clamp(to - from, minSpan, hi - lo);
   from = clamp(from, lo, hi - span);
   S.from = from; S.to = from + span;
   const want = resoFor(span, innerWidth);
   if (want !== S.reso) {
-    if (S.candles[want]) { S.reso = want; }
+    if (S.candles[want]) S.reso = want;
     else loadCandles(want).then(() => { S.reso = want; syncReso(); draw(); });
   }
   syncReso();
+  if (typeof window !== 'undefined') window.__span = +((S.to - S.from) / DAY).toFixed(2);
   draw();
 }
-function syncReso() { $('#reso').textContent = RESOS[S.reso].label; }
+function syncReso() {
+  const step = RESOS[S.reso].step;
+  const bucketPx = (step / (S.to - S.from)) * (innerWidth - PAD.l - PAD.r);
+  $('#reso').textContent = S.mode === 'candles' && bucketPx < CANDLE_MIN_PX
+    ? `${RESOS[S.reso].label} · too dense to open, drawn as bars`
+    : RESOS[S.reso].label;
+}
+
+// Zoom about a fixed point: whatever sits under `anchor` stays under it.
+function zoomAbout(anchorT, factor) {
+  setView(anchorT - (anchorT - S.from) * factor, anchorT + (S.to - anchorT) * factor);
+}
 
 function wireInteraction() {
-  for (const id of ['priceplot', 'premplot']) {
-    const el = document.getElementById(id);
-    cursors.push(makeCursor(document.getElementById(id === 'priceplot' ? 'pricecur' : 'premcur')));
+  const PLOTS = [['priceplot', 'pricecur', 'price'], ['premplot', 'premcur', 'prem']];
+  for (const [plotId, curId, key] of PLOTS) {
+    makeCursor(curId, key);
+    const el = document.getElementById(plotId);
+    el.style.cursor = 'crosshair';
+
+    // One map of live pointers drives both gestures: one down = pan,
+    // two down = pinch. Touch, pen and mouse all arrive through the same path.
+    const live = new Map();
+    let pan = null, pinch = null;
+
+    const geom = () => {
+      const r = el.getBoundingClientRect();
+      return { r, pw: r.width - PAD.l - PAD.r };
+    };
+    const timeAt = (clientX) => {
+      const { r, pw } = geom();
+      return S.from + clamp((clientX - r.left - PAD.l) / pw, 0, 1) * (S.to - S.from);
+    };
+
+    el.addEventListener('pointerdown', (e) => {
+      live.set(e.pointerId, e);
+      el.setPointerCapture(e.pointerId);
+      if (live.size === 2) {
+        const [p, q] = [...live.values()];
+        pan = null;
+        pinch = { dist: Math.abs(p.clientX - q.clientX) || 1, from: S.from, to: S.to,
+                  anchor: timeAt((p.clientX + q.clientX) / 2) };
+        hideCursor();
+      } else if (live.size === 1) {
+        pan = { x: e.clientX, from: S.from, to: S.to };
+        el.style.cursor = 'grabbing';
+      }
+    });
+
     el.addEventListener('pointermove', (e) => {
-      if (el._drag) {
-        const rect = el.getBoundingClientRect();
-        const pw = rect.width - PAD.l - PAD.r;
-        const dt = ((el._drag.x - e.clientX) / pw) * (el._drag.to - el._drag.from);
-        setView(el._drag.from + dt, el._drag.to + dt);
+      if (live.has(e.pointerId)) live.set(e.pointerId, e);
+
+      if (pinch && live.size === 2) {
+        const [p, q] = [...live.values()];
+        const d = Math.abs(p.clientX - q.clientX) || 1;
+        const span = (pinch.to - pinch.from) * (pinch.dist / d);
+        const frac = (pinch.anchor - pinch.from) / (pinch.to - pinch.from);
+        setView(pinch.anchor - span * frac, pinch.anchor + span * (1 - frac));
+        e.preventDefault();
         return;
       }
-      moveCursor(e.clientX, el.getBoundingClientRect());
+      if (pan && live.size === 1) {
+        const { pw } = geom();
+        const dt = ((pan.x - e.clientX) / pw) * (pan.to - pan.from);
+        setView(pan.from + dt, pan.to + dt);
+        return;
+      }
+      moveCursor(key, e.clientX, e.clientY);
     });
-    el.addEventListener('pointerleave', hideCursor);
-    el.addEventListener('pointerdown', (e) => {
-      el._drag = { x: e.clientX, from: S.from, to: S.to };
-      el.setPointerCapture(e.pointerId); el.style.cursor = 'grabbing';
-    });
-    const end = () => { el._drag = null; el.style.cursor = 'crosshair'; };
-    el.addEventListener('pointerup', end);
-    el.addEventListener('pointercancel', end);
-    el.style.cursor = 'crosshair';
+
+    const release = (e) => {
+      live.delete(e.pointerId);
+      if (live.size < 2) pinch = null;
+      if (live.size === 0) { pan = null; el.style.cursor = 'crosshair'; }
+      else if (live.size === 1) { const [p] = [...live.values()]; pan = { x: p.clientX, from: S.from, to: S.to }; }
+    };
+    el.addEventListener('pointerup', release);
+    el.addEventListener('pointercancel', release);
+    el.addEventListener('pointerleave', (e) => { if (!live.size) hideCursor(); });
+
     el.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      const rect = el.getBoundingClientRect();
-      const pw = rect.width - PAD.l - PAD.r;
-      const frac = clamp((e.clientX - rect.left - PAD.l) / pw, 0, 1);
-      const anchor = S.from + frac * (S.to - S.from);
-      const k = Math.exp(e.deltaY * 0.0016);
-      setView(anchor - (anchor - S.from) * k, anchor + (S.to - anchor) * k);
+      e.preventDefault();           // also swallows ctrl+wheel trackpad pinch
+      zoomAbout(timeAt(e.clientX), Math.exp(e.deltaY * 0.0016));
     }, { passive: false });
+
+    // Two-finger pinch on touch surfaces that do not emit pointer events for the
+    // second finger. touch-action: pan-y keeps single-finger page scrolling.
+    let tdist = 0, tstate = null;
+    el.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 2) return;
+      tdist = Math.abs(e.touches[0].clientX - e.touches[1].clientX) || 1;
+      tstate = { from: S.from, to: S.to,
+                 anchor: timeAt((e.touches[0].clientX + e.touches[1].clientX) / 2) };
+      e.preventDefault();
+    }, { passive: false });
+    el.addEventListener('touchmove', (e) => {
+      if (e.touches.length !== 2 || !tstate) return;
+      const d = Math.abs(e.touches[0].clientX - e.touches[1].clientX) || 1;
+      const span = (tstate.to - tstate.from) * (tdist / d);
+      const frac = (tstate.anchor - tstate.from) / (tstate.to - tstate.from);
+      setView(tstate.anchor - span * frac, tstate.anchor + span * (1 - frac));
+      e.preventDefault();
+    }, { passive: false });
+    el.addEventListener('touchend', () => { tstate = null; });
   }
+
   for (const b of document.querySelectorAll('[data-range]')) {
     b.addEventListener('click', () => {
       for (const o of document.querySelectorAll('[data-range]')) o.setAttribute('aria-pressed', String(o === b));
-      const r = b.dataset.range;
       const hi = S.bounds[1];
-      setView(r === 'all' ? S.bounds[0] : hi - (+r) * DAY, hi);
+      setView(b.dataset.range === 'all' ? S.bounds[0] : hi - (+b.dataset.range) * DAY, hi);
     });
   }
+  for (const b of document.querySelectorAll('[data-mode]')) {
+    b.addEventListener('click', () => {
+      for (const o of document.querySelectorAll('[data-mode]')) o.setAttribute('aria-pressed', String(o === b));
+      S.mode = b.dataset.mode;
+      syncReso();
+      draw();
+    });
+  }
+
   let rt;
   addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(draw, 90); });
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
