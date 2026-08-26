@@ -71,6 +71,16 @@ delivered over twice or four times the wall clock produces a BIT-IDENTICAL game,
 not a nearly-identical one. If you ever add a slow-motion mode anywhere on this
 surface, that assertion is the one that makes it safe.
 
+And the bat sits a slider-controlled number of screen pixels ABOVE the pointer,
+because on a phone your thumb is on top of the thing you are aiming and a 40 mm
+bat disappears under it entirely. Two things about that generalise. The offset
+goes on the SAMPLE POINT, not the result, so it moves the bat and leaves the
+velocity alone — a constant differentiates to zero — and the selftest asserts
+that rather than assuming it. And it is a slider rather than a constant because
+what a thumb occludes is not something a page can know; the cost is measured
+either way, 0.0045 m of bat travel per pixel of lift at phone framing, which is
+the sort of number worth putting in a README before someone tunes it blind.
+
 Nine node selftests live here and all run under `preflight` when this dir
 changes: `proteus/flagella.selftest.mjs` (the model), `flag/flag.selftest.mjs`
 (that page's loop agrees with the model), `qwop/qwop.selftest.mjs` (that skilled

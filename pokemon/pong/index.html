@@ -197,6 +197,8 @@
         <p>It runs at <b>half speed</b>. Real table tennis is not a game you can
         read at full rate through a mouse, and the speed control under the table
         goes back to 1&times; when you want it.</p>
+        <p>On a phone the bat sits <b>above your thumb</b> so you can see what
+        you are hitting &mdash; the <b>bat lift</b> slider sets how far.</p>
         <p class="alt">Still four keys if you want them: Q up the plane,
         W down it, O left, P right.</p>
         <div class="go">click or tap to begin</div>
@@ -217,6 +219,7 @@
   <div id="ctl">
     <label>rival <input id="diff" type="range" min="0" max="100" value="30" /> <b id="diffval">30%</b></label>
     <span>speed</span><span id="speedbox"></span>
+    <label>bat lift <input id="lift" type="range" min="0" max="140" step="4" /> <b id="liftval">0</b>px</label>
     <button id="again">new match</button>
     <label><input id="showflow" type="checkbox" checked /> solver panel</label>
   </div>
@@ -268,6 +271,23 @@
   speeds is about 3 m/s wide out of 13. The keys still work. They are just no
   longer the way in.</p>
 
+  <h2>Getting your thumb out of the way</h2>
+  <p>On a phone the thing you are aiming is underneath the thing you are aiming
+  with. A 40&nbsp;mm bat vanishes completely under a thumb, and you end up
+  playing by feel with your own hand as the occluder. So the bat can sit a fixed
+  number of screen pixels <em>above</em> the pointer, and the slider sets how
+  many, because what a thumb covers is not something this page can know.</p>
+  <p>It is a constant offset applied to the sample point, so it moves the bat
+  and leaves the brush alone &mdash; a constant differentiates to zero, and the
+  selftest asserts exactly that. What it does cost is <b>travel</b>. Measured on
+  a 328&nbsp;px canvas at phone width, the band you can actually point at runs
+  from bat height 0.86&nbsp;m down to &minus;0.18, about 0.0045&nbsp;m per pixel;
+  64&nbsp;px of lift spends 0.29&nbsp;m of the bottom of that, leaving
+  0.78&nbsp;m of the 1.22&nbsp;m reach. At half speed, where the same hand
+  movement buys twice the brush, that is plenty. At 1&times; with a large lift it
+  starts to bite, and the honest answer is to use less lift or less speed.</p>
+  <p>The setting is remembered in this browser.</p>
+
   <h2>Bullet time</h2>
   <p>The page runs at half speed by default. That is <em>one clock running
   slower</em>, not the ball being slowed while the bat is left alone: wall time
@@ -318,11 +338,34 @@
   // was touched last is the one in charge.
   let aim = null, pointing = false, dragging = false;
 
+  // How far ABOVE the pointer the bat sits, in CSS pixels. On a phone your
+  // thumb is on top of the thing you are trying to aim, and a bat 40 mm across
+  // vanishes entirely under it — you end up playing by feel with your own hand
+  // as the occluder. Lifting the bat off the contact point fixes that, and it
+  // costs travel: the lowest bat position you can still reach is whatever the
+  // BOTTOM of the canvas maps to, minus the lift.
+  //
+  // Measured at 328 px of canvas on a phone, the pointable band runs from bat
+  // z = 0.86 down to -0.18, about 0.0045 m per pixel. So 64 px of lift spends
+  // roughly 0.29 m of the bottom of the swing. That is affordable at the
+  // shipped half speed, where the same hand movement buys twice the brush, and
+  // it is the reason the slider exists rather than a constant: what a thumb
+  // occludes is not something this page can know.
+  const COARSE = matchMedia('(pointer: coarse)').matches;
+  let aimLift = COARSE ? 64 : 0;
+  try {
+    const saved = localStorage.getItem('pong.lift');
+    if (saved !== null && Number.isFinite(+saved)) aimLift = Math.max(0, Math.min(140, +saved));
+  } catch (_) { /* private window, blocked storage — the default is fine */ }
+
   function pointerAt(e) {
     const r = canvas.getBoundingClientRect();
     if (!r.width || !r.height) return;
     const nx = ((e.clientX - r.left) / r.width) * 2 - 1;
-    const ny = -(((e.clientY - r.top) / r.height) * 2 - 1);
+    // The lift shifts the SAMPLE POINT, not the result, so it moves the bat's
+    // position and leaves its velocity alone — a constant offset differentiates
+    // to zero, and the physics never sees it.
+    const ny = -((((e.clientY - r.top) - aimLift) / r.height) * 2 - 1);
     const p = view.pointerToPlane(nx, ny);
     // A ray aimed above the horizon never meets the stroke plane. Keep the
     // last good position rather than snapping the bat somewhere arbitrary.
@@ -365,7 +408,7 @@
   // `view` is in here on purpose: a headless check needs to be able to ask
   // the scene where it actually put things, which is the only way the near
   // bat being invisible was ever going to be diagnosed.
-  globalThis.__pong = () => ({ g, held, started, frames, flow, view, aim, pointing });
+  globalThis.__pong = () => ({ g, held, started, frames, flow, view, aim, pointing, aimLift });
 
   // ---- the solver panel -------------------------------------------------
   // Loaded lazily and allowed to fail: a browser that will not give us wasm
@@ -459,6 +502,16 @@
   // bare `speed` in this scope silently resolves to the SPAN rather than
   // throwing. The first version compared a number against a DOM node, marked no
   // button selected, and made clicking one a no-op — with no error anywhere.
+  const lift = document.getElementById('lift');
+  const liftval = document.getElementById('liftval');
+  lift.value = String(aimLift);
+  liftval.textContent = String(aimLift);
+  lift.addEventListener('input', () => {
+    aimLift = +lift.value;
+    liftval.textContent = lift.value;
+    try { localStorage.setItem('pong.lift', String(aimLift)); } catch (_) {}
+  });
+
   const speedBox = document.getElementById('speedbox');
   for (const sp of SPEEDS) {
     const b = document.createElement('button');

@@ -29,7 +29,9 @@ How fast you move is how hard you brush. The four keys still work — `Q` up the
 stroke plane, `W` down it, `O` left, `P` right — but they are no longer the way
 in, and the section below says why.
 
-It runs at **half speed** by default, with a control for ¼×, ½× and 1×.
+It runs at **half speed** by default, with a control for ¼×, ½× and 1×. On a
+phone the bat sits **above your thumb** by default, and a **bat lift** slider
+sets how far.
 
 ## What the solver is
 
@@ -265,6 +267,40 @@ still have to mean it.
 An earlier version of this test fixed the flick at 130 ms, found the top of the
 window unreachable, and would have had the page redesigned around what was
 really an assumption about how fast a hand moves.
+
+## Getting your thumb out of the way
+
+On a phone the thing you are aiming is underneath the thing you are aiming with.
+A 40 mm bat vanishes entirely under a thumb. So the bat can sit a fixed number
+of screen pixels *above* the pointer, and a slider sets how many — because what
+a thumb covers is not something this page can know.
+
+It is a constant offset applied to the **sample point**, so it moves the bat and
+leaves the brush alone: a constant differentiates to zero, and the selftest
+asserts that rather than assuming it (same 4.268 m/s brush, 0.27 m higher).
+
+What it costs is **travel**, and that was measured rather than guessed. On a
+328 px canvas at phone width:
+
+| lift | pointable bat height | of a 1.22 m reach |
+|---|---|---|
+| 0 px | −0.18 … 0.86 | 1.04 m |
+| 64 px | +0.08 … 0.86 | 0.78 m |
+
+About 0.0045 m per pixel, so 64 px spends 0.29 m off the bottom of the swing —
+the part you use to *start* a big flick. At the shipped half speed, where the
+same hand movement buys twice the brush, 0.78 m is far more than enough. At 1×
+with a large lift it starts to bite, and the honest answer is to use less of one
+or the other.
+
+Two things worth knowing about the framing while we are here. The top 29% of the
+canvas is dead — it maps above the top of the reach and clamps — so the usable
+band is smaller than the stage looks. And a headless browser reports
+`pointer: fine`, so the coarse-pointer default cannot be verified in the harness;
+the mechanism was checked by driving the slider instead.
+
+The setting is remembered per browser in `localStorage`, wrapped in try/catch
+because a private window throws on the accessor itself.
 
 ## Bullet time
 

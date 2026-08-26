@@ -567,6 +567,30 @@ check('but not at any speed — the slow end of the window is still a real drag'
   flick(REACH, 0.20) < wOn.hi,
   `a leisurely 200 ms sweep of the whole reach only makes ${flick(REACH, 0.20).toFixed(2)} m/s`);
 
+// The bat can be LIFTED above the pointer, because on a phone your thumb sits
+// on top of the thing you are aiming. That is a constant offset applied to the
+// sample point, and a constant differentiates to zero — so it must move the bat
+// and leave the brush completely alone. If it ever stops being constant (a lift
+// that scaled with height, say) this is the check that would notice.
+{
+  const drag = (offset) => {
+    const b = newBat(PLAYER_X, PLAYER_N);
+    b.z = BAT.minZ + offset; b.y = 0;
+    let z = b.z;
+    for (let i = 0; i < 16; i++) {
+      z += 0.60 / 16;
+      aimBat(b, 1 / 120, 0, z);
+      slideBat(b, 1);
+    }
+    return { v: b.vz, z: b.z };
+  };
+  const flat = drag(0);
+  const lifted = drag(0.27); // what 64 px of lift is worth at phone framing
+  check('lifting the bat off the pointer moves it and nothing else',
+    Math.abs(lifted.v - flat.v) < 1e-9 && Math.abs((lifted.z - flat.z) - 0.27) < 1e-9,
+    `same ${flat.v.toFixed(3)} m/s brush, ${(lifted.z - flat.z).toFixed(2)} m higher`);
+}
+
 // The velocity clamp is what keeps a twitchy input inside the physics the
 // contact model was measured against. Without it a 3000 px flick in one frame
 // is a bat doing ninety.
