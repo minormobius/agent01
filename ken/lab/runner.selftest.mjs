@@ -205,6 +205,36 @@ section('the scorer');
     'even though it "kills" every mutant, which is why soundness is reported beside coverage');
   ok(unsound.measuredSoundness === 0, 'and the run`s measured soundness is 0');
 
+  /* A CHECK THAT NEVER LOADED IS NOT A VERDICT, and from the outside it
+     looks exactly like the strongest possible check: it rejects the
+     reference (unsound) and it "kills" every mutant (coverage 1). A
+     real free-tier run produced precisely that — checks importing
+     './solution.mjs' by name, dead on ERR_MODULE_NOT_FOUND before their
+     first assertion — and u and c would have been published from a
+     check that executed no code. Same rule as lp-a427fe's unapplied
+     mutation, one level up. */
+  const crashed = score(TASK, { 'check-a.mjs': "import './nope-does-not-exist.mjs';" });
+  ok(crashed.ownChecks[0].ran === false, 'a check that cannot load is recorded as NOT HAVING RUN');
+  ok(crashed.ownChecks[0].sound === null && crashed.ownChecks[0].coverage === null,
+    'and reports no soundness and no coverage, rather than 0 and 1');
+  ok(crashed.checksRan === 0 && crashed.checksErrored.includes('check-a.mjs'),
+    'the run counts how many checks actually ran, and names the ones that did not');
+  ok(crashed.measuredSoundness === null && crashed.measuredCoverage === null,
+    'so the run measures NOTHING rather than measuring the crash');
+  ok(/Cannot find module|ERR_MODULE_NOT_FOUND/.test(crashed.ownChecks[0].error ?? ''),
+    'and the reason is kept');
+
+  /* BOTH CALLING CONVENTIONS WORK. The bank's checks take argv[2]; the
+     first real run wrote one that imports './solution.mjs' by name, and
+     nothing had told it otherwise. A check written either way must
+     grade, or the instrument is measuring the brief's omissions. */
+  const byName = score(TASK, { 'check-a.mjs': "import { interval } from './solution.mjs';\nif (interval(0,10).lower !== 0) process.exit(1);" });
+  ok(byName.ownChecks[0].ran === true, 'a check that imports ./solution.mjs by name RUNS');
+  ok(byName.ownChecks[0].sound === true, 'and grades the reference correctly');
+  const byArgv = score(TASK, { 'check-a.mjs': "const p = process.argv[2] ?? './solution.mjs';\nconst { interval } = await import(p);\nif (interval(0,10).lower !== 0) process.exit(1);" });
+  ok(byArgv.ownChecks[0].ran === true && byArgv.ownChecks[0].sound === true,
+    'and so does one that takes the path from argv');
+
   // a check that passes everything is the probe ceiling in miniature
   const useless = score(TASK, { 'check-a.mjs': 'process.exit(0);' });
   ok(useless.ownChecks[0].sound === true, 'a check that passes everything looks sound');

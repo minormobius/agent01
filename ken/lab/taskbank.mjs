@@ -86,14 +86,35 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 export const TASKS_DIR = join(HERE, 'tasks');
 
 /** Run one check against one solution. Exit code is the verdict. */
+/* A CHECK THAT COULD NOT RUN HAS NOT JUDGED ANYTHING, and it must not
+   be recorded as a rejection. This is the applied-mutation rule of
+   lp-a427fe a second time, one level up: there, a mutation that never
+   applied was reported as SURVIVED; here, a check that never loaded was
+   reported as a considered NO.
+
+   It happened, and it produced the worst kind of number. A free-tier
+   run wrote a CORRECT solution — it passes the held-out checks — and
+   two checks that import './solution.mjs' by name instead of taking the
+   candidate path. Scored against the bank they died with
+   ERR_MODULE_NOT_FOUND before their first assertion, which the scorer
+   read as "fails the reference" (unsound) and as "kills every mutant"
+   (coverage 1). Those are WP4's u and c, and both would have been
+   published from a check that never executed a line.
+
+   The classifier is a heuristic over stderr and is stated as one. It
+   errs toward calling a thing ERRORED, because a false "errored" costs
+   a data point and a false "rejected" invents one. */
+export const LOAD_FAILURE = /ERR_MODULE_NOT_FOUND|Cannot find module|ERR_UNSUPPORTED_[A-Z_]+|ERR_REQUIRE_ESM|SyntaxError|ReferenceError: \w+ is not defined/;
+
 export function runCheck(taskDir, check, solutionRelPath) {
   try {
     execFileSync('node', [join(taskDir, check), solutionRelPath], {
       cwd: taskDir, stdio: 'pipe', timeout: 120000,
     });
-    return { passed: true, error: null };
+    return { passed: true, errored: false, error: null };
   } catch (e) {
-    return { passed: false, error: (e.stdout?.toString() || e.message).slice(0, 400) };
+    const err = `${e.stderr?.toString() ?? ''}\n${e.stdout?.toString() ?? ''}`.trim() || e.message;
+    return { passed: false, errored: LOAD_FAILURE.test(err), error: err.slice(0, 400) };
   }
 }
 

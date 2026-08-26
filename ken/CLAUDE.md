@@ -100,7 +100,7 @@ worker or move the domain, **verify the deploy log binds
 | `lab/tasks/<id>/` | one task: statement, checks, reference, stub, seeded mutants |
 | `lab/taskbank.selftest.mjs` | 70 checks: the three conditions in both directions, the survivors, the redundancy contrast, the applied-mutation guard |
 | `lab/runner.mjs` | **executes a run**, `standard` (six turns) or `solo` (one, fanning out), on the paid or the **free** engine: fresh tree per turn, demonstrated isolation, held-out scoring. `--dry-run` needs no key |
-| `lab/runner.selftest.mjs` | 119 checks, most of them faults it must catch — a leak, a silent turn, an unsound check, a paid model on the free arm |
+| `lab/runner.selftest.mjs` | 127 checks, most of them faults it must catch — a leak, a silent turn, an unsound check, a paid model on the free arm |
 | `lab/runs/` | one JSON record per executed run, committed |
 | `lab/resolve-refs.mjs` | links the bibliography against CrossRef / arXiv / OpenLibrary |
 | `fig/*.svg` | **generated.** Committed so figures print and diff |
@@ -804,6 +804,28 @@ which is what its very first probe had already returned. `FREE_MODELS` carries
 only models that answered, and `CATALOGUED_BUT_NOT_SERVING` is asserted disjoint
 from it. Same rule as a seeded mutant: the catalogue is a claim, the response is
 the evidence.
+
+⚠️ **A CHECK THAT NEVER RAN IS NOT A VERDICT.** The bank's checks take the
+candidate from `process.argv[2]`; nothing in the brief said so; the first real
+run's checks imported `./solution.mjs` by name and died on
+`ERR_MODULE_NOT_FOUND` before their first assertion. From outside, a check that
+always crashes looks like the strongest check imaginable — it rejects the
+reference (unsound) and kills every mutant (coverage 1) — so **WP4's u and c
+would have been published from a check that executed no code.** This is
+`lp-a427fe`'s rule one level up. `runCheck()` now classifies a load failure as
+`errored`, `ownChecks[].ran` records it, and an errored check is excluded from
+`measuredSoundness` and `measuredCoverage` rather than counted as a rejection.
+`brief()` states the convention to check-writing turns, and `score()` accepts
+both — the candidate is written in as `solution.mjs` **and** passed as argv.
+
+⚠️ **MEASURED u IS CONFOUNDED WITH STATEMENT AMBIGUITY.** Rescored properly, the
+first run's `check-b` is sound and `check-a` fails the reference on one
+assertion of 23: it demands `interval(0, 0)` return `[0, 1]` where the reference
+throws. **`tb-001/statement.md` never says what n = 0 does.** A u that comes from
+an ambiguous statement is not the same quantity as one that comes from a wrong
+belief, and this instrument cannot tell them apart. **Pin a task's domain in its
+statement, or every run will manufacture u out of the gap** — that is a defect in
+the task, not only in the run.
 
 ⚠️ **A TURN THAT PRODUCES NOTHING MUST LEAVE EVIDENCE OF WHY.** The first live
 free-tier run spent **581 seconds, exited 0 and wrote 0 of 3 artefacts** — and

@@ -33,7 +33,7 @@
   <div class="a-venue">ken · volume 1 <span class="kicker">Running record</span></div>
   <h1 class="a-title">Findings Log</h1>
   <p class="a-sub">Shortest form. Each entry names the code or record that produced it.</p>
-  <div class="a-meta">147 entries · <b>10 from new measurement</b> · every figure regenerated on build</div>
+  <div class="a-meta">152 entries · <b>12 from new measurement</b> · every figure regenerated on build</div>
   <hr class="a-rule">
 
   <p class="small">Everything here comes from data already paid for or from arithmetic. That is
@@ -1164,6 +1164,53 @@
       <span class="src">commit <code>4f5f86a</code></span></li>
   </ol>
 
+  <h2 class="sec"><span class="secno">§</span>The first artefact a run produced</h2>
+
+  <ol class="log" start="148">
+    <li><b>A free model wrote a correct Clopper–Pearson implementation and it passes the bank's
+      held-out checks.</b> <code>nemotron-3-ultra-free</code>, one turn, no key: the inverse
+      incomplete beta by bisection on the regularized incomplete beta, both closed-form corners
+      handled, plus two checks of its own. The capability question that the two void runs left
+      open is answered, and the answer is yes.
+      <span class="src"><code>score()</code> · <code>heldOutPassed: true</code></span></li>
+
+    <li><b>Both of its checks were first scored as unsound with coverage 1, and both numbers were
+      artefacts of a contract nobody stated.</b> The bank's checks take the candidate from
+      <code>process.argv[2]</code>; nothing in the brief said so; the run's checks imported
+      <code>./solution.mjs</code> by name and died on <code>ERR_MODULE_NOT_FOUND</code> before
+      their first assertion. From outside, a check that always crashes is indistinguishable from
+      the strongest check imaginable — it rejects the reference and it kills every mutant — so
+      <b>WP4's u and c would have been published from a check that executed no code.</b> This is
+      <code>lp-a427fe</code>'s rule one level up: an unapplied mutation is not a result, and a
+      check that never ran is not a verdict.
+      <span class="src"><code>runCheck().errored</code> · <code>ownChecks[].ran</code></span></li>
+
+    <li><b>The turn could not have satisfied the convention, because nothing told it.</b> Same
+      fault as the loop's first turn, where a ticket's gate was a shell command the only party
+      able to satisfy it could not run. The brief now states the calling convention to
+      check-writing turns only, and the scorer accepts both conventions — the candidate is
+      written into the scratch directory as <code>solution.mjs</code> <em>and</em> passed as
+      <code>argv[2]</code>.
+      <span class="src"><code>brief()</code> · <code>score()</code></span></li>
+
+    <li><b>Rescored properly, one of the two checks is genuinely unsound: 22 assertions pass and
+      one rejects a correct reference.</b> <code>check-b</code> is sound with coverage 1;
+      <code>check-a</code> demands that <code>interval(0, 0)</code> return
+      <code>{point: 0, lower: 0, upper: 1}</code> where the reference throws on a non-positive
+      n. That is the <code>lp-273253</code> failure — a checker that fails correct work — arising
+      unprompted in the first real run, and it is what WP4 calls <b>u</b>.
+      <span class="src"><code>measuredSoundness 0.5</code></span></li>
+
+    <li><b>But the statement never says what n = 0 does, so this u is partly manufactured by the
+      bank.</b> With no trials there is no data, and <code>[0, 1]</code> is at least as
+      defensible an answer as an exception; the reference simply chose. A measured unsoundness
+      that comes from an <em>ambiguous statement</em> is not the same quantity as one that comes
+      from a wrong belief, and this instrument cannot yet tell them apart. <b>Until a task's
+      statement pins its domain, measured u from this bank is confounded with the statement's own
+      gaps.</b> That is a defect in the task, not only in the run.
+      <span class="src"><code>tb-001/statement.md</code></span></li>
+  </ol>
+
   <h2 class="sec"><span class="secno">§</span>The ledger</h2>
 
   <div class="table-fig">
@@ -1172,9 +1219,9 @@
       <tbody>
         <tr><td>Records already committed</td><td class="num">19</td></tr>
         <tr><td>Arithmetic and simulation</td><td class="num">74</td></tr>
-        <tr><td>Our own mistakes</td><td class="num">42</td></tr>
+        <tr><td>Our own mistakes</td><td class="num">45</td></tr>
         <tr><td>Prior literature</td><td class="num">2</td></tr>
-        <tr><td><b>New measurement</b></td><td class="num"><b>10</b></td></tr>
+        <tr><td><b>New measurement</b></td><td class="num"><b>12</b></td></tr>
       </tbody>
     </table>
   </div>

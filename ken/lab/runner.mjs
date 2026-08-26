@@ -193,6 +193,20 @@ export function brief(p, turn, { statement, runId, artefacts }) {
     'Write those files in the working directory. Node ES modules, no dependencies,',
     'no network access needed by the artefact itself. You may run anything you like',
     'while working.', '');
+  /* THE CALLING CONVENTION, STATED. It was not, and the first real run
+     wrote checks that import './solution.mjs' by name; scored against
+     the bank they died before their first assertion and were recorded
+     as an unsound check that kills every mutant. A turn cannot satisfy
+     a contract nobody gave it — the same fault the loop hit on turn one
+     with a gate its only executor could not run. */
+  if (turn.writes.some((w) => /^check-[a-z]\.mjs$/.test(w))) {
+    lines.push(
+      'A check is run as `node check-x.mjs <path-to-candidate>`, and it is run against',
+      'implementations OTHER than the one you were given. Take the candidate path from',
+      '`process.argv[2]`, defaulting to `./solution.mjs`, and import that. A check that',
+      'hard-codes one filename cannot grade anything else and will score nothing.',
+      'Exit non-zero to reject, zero to accept.', '');
+  }
   if (turn.mayFanOut) {
     lines.push(
       'You are the WHOLE effort, not one stage of it. Delegate freely to subagents:',
@@ -580,23 +594,43 @@ export function score(taskId, artefacts) {
     });
   }
 
-  // (2) the run's OWN checks, graded by the bank's reference and mutants
+  /* (2) the run's OWN checks, graded by the bank's reference and mutants.
+
+     BOTH CALLING CONVENTIONS ARE SUPPORTED, and that is a fix rather
+     than a courtesy. The bank's own checks read the candidate from
+     process.argv[2]; nothing in the brief said so, and the first real
+     run wrote checks that import './solution.mjs' by name. So the
+     candidate is written INTO the scratch directory under that name and
+     ALSO passed as argv — a check written either way now runs. The
+     brief states the contract as well, because a turn cannot satisfy a
+     convention nobody told it. */
   const own = [];
+  const against = (name, candidatePath) => {
+    writeFileSync(join(tmp, 'solution.mjs'), readFileSync(candidatePath, 'utf8'));
+    return runCheck(tmp, name, './solution.mjs');
+  };
   for (const name of Object.keys(artefacts).filter((n) => /^check-[a-z]\.mjs$/.test(n))) {
-    const cf = join(tmp, name);
-    writeFileSync(cf, artefacts[name]);
-    const sound = runCheck(tmp, name, join(task.dir, 'reference.mjs')).passed;
-    const kills = task.mutants.map((m) => ({
-      mutant: m,
-      killed: !runCheck(tmp, name, join(task.dir, 'mutants', m)).passed,
-    }));
-    const stubRejected = existsSync(join(task.dir, 'stub.mjs'))
-      ? !runCheck(tmp, name, join(task.dir, 'stub.mjs')).passed : null;
+    writeFileSync(join(tmp, name), artefacts[name]);
+    const onRef = against(name, join(task.dir, 'reference.mjs'));
+    const kills = task.mutants.map((m) => {
+      const r = against(name, join(task.dir, 'mutants', m));
+      return { mutant: m, killed: !r.passed && !r.errored, errored: r.errored };
+    });
+    const onStub = existsSync(join(task.dir, 'stub.mjs')) ? against(name, join(task.dir, 'stub.mjs')) : null;
+
+    /* A CHECK THAT CANNOT LOAD IS NOT A VERDICT. Reported as `ran:
+       false` with soundness and coverage NULL rather than as an unsound
+       check that kills everything, which is what a crash looks like
+       from the outside and is the shape this exact fault produced. */
+    const ran = !onRef.errored;
     own.push({
       check: name,
-      sound,                                     // WP4's u, inverted, per check
-      coverage: task.mutants.length ? round(kills.filter((k) => k.killed).length / task.mutants.length) : null,
-      stubRejected,
+      ran,
+      sound: ran ? onRef.passed : null,          // WP4's u, inverted, per check
+      coverage: ran && task.mutants.length
+        ? round(kills.filter((k) => k.killed).length / task.mutants.length) : null,
+      stubRejected: ran && onStub ? (!onStub.passed && !onStub.errored) : null,
+      error: ran ? null : onRef.error,
       kills,
     });
   }
@@ -606,9 +640,17 @@ export function score(taskId, artefacts) {
     heldOut: held,
     heldOutPassed: held === null ? null : held.every((h) => h.passed),
     ownChecks: own,
-    /* The measurement this whole apparatus exists for. */
-    measuredSoundness: own.length ? round(own.filter((o) => o.sound).length / own.length) : null,
-    measuredCoverage: own.length ? round(own.reduce((a, o) => a + (o.coverage ?? 0), 0) / own.length) : null,
+    /* The measurement this whole apparatus exists for — over the checks
+       that RAN. A check that never loaded is excluded from both, the
+       way an unapplied mutant is excluded from a coverage score, and
+       `checksRan` says how many were left so a number over one check is
+       never mistaken for a number over two. */
+    checksRan: own.filter((o) => o.ran).length,
+    checksErrored: own.filter((o) => !o.ran).map((o) => o.check),
+    measuredSoundness: own.some((o) => o.ran)
+      ? round(own.filter((o) => o.ran && o.sound).length / own.filter((o) => o.ran).length) : null,
+    measuredCoverage: own.some((o) => o.ran)
+      ? round(own.filter((o) => o.ran).reduce((a, o) => a + (o.coverage ?? 0), 0) / own.filter((o) => o.ran).length) : null,
   };
 }
 
