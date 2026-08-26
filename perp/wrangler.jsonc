@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "perp",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-26",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  // GOLDEN RULE: this `name` must be the worker that owns the live custom
+  // domain, and the domain must be declared here as a custom_domain route —
+  // otherwise wrangler silently updates a stray perp.workers.dev and the
+  // subdomain never changes. perp.mino.mobi was verified unclaimed on
+  // 2026-08-26 (HTTP 502, no worker bound); the first deploy creates the DNS
+  // record and the binding. Confirm the deploy log prints
+  // "perp.mino.mobi (custom domain)" — a green run alone proves nothing.
+  "routes": [
+    { "pattern": "perp.mino.mobi", "custom_domain": true }
+  ]
+}

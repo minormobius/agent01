@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>perp — what a perpetual future actually costs</title>
+<meta name="description" content="BTC spot against the Hyperliquid perpetual's premium and funding rate, hourly since 2023. The clamp corridor, drawn.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='14'>∞</text></svg>">
+<style>
+/* ---- palette: dataviz reference instance, both scopes declared ---- */
+:root {
+  color-scheme: light;
+  --surface-0:      #f6f5f2;
+  --surface-1:      #fcfcfb;
+  --surface-2:      #efeeea;
+  --hairline:       #e2e1dc;
+  --text-primary:   #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted:     #85837c;
+  --series-1:       #2a78d6;  /* premium  */
+  --series-2:       #eb6834;  /* funding  */
+  --pole-up:        #2a78d6;  /* diverging: perp rich / candle up   */
+  --pole-down:      #e34948;  /* diverging: perp cheap / candle down */
+  --neutral-mid:    #f0efec;  /* diverging midpoint + clamp corridor */
+  --band:           #e6e5e0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-0:      #121211;
+    --surface-1:      #1a1a19;
+    --surface-2:      #232322;
+    --hairline:       #34342f;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #8b8a80;
+    --series-1:       #3987e5;
+    --series-2:       #d95926;
+    --pole-up:        #3987e5;
+    --pole-down:      #e66767;
+    --neutral-mid:    #383835;
+    --band:           #2b2b28;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0:      #121211;
+  --surface-1:      #1a1a19;
+  --surface-2:      #232322;
+  --hairline:       #34342f;
+  --text-primary:   #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted:     #8b8a80;
+  --series-1:       #3987e5;
+  --series-2:       #d95926;
+  --pole-up:        #3987e5;
+  --pole-down:      #e66767;
+  --neutral-mid:    #383835;
+  --band:           #2b2b28;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--surface-0);
+  color: var(--text-primary);
+  font: 15px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding: 40px 20px 96px; }
+h1 { font-size: 30px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -0.02em; }
+h2 { font-size: 19px; margin: 44px 0 4px; letter-spacing: -0.01em; }
+h3 { font-size: 15px; margin: 26px 0 6px; }
+p  { margin: 0 0 14px; max-width: 68ch; color: var(--text-secondary); }
+p.lede { font-size: 17px; color: var(--text-primary); max-width: 62ch; }
+a { color: var(--series-1); }
+strong { color: var(--text-primary); font-weight: 600; }
+code, .num { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+.sub { color: var(--text-muted); font-size: 13px; }
+
+/* ---- stat tiles: the number IS the chart ---- */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: 1px;
+         background: var(--hairline); border: 1px solid var(--hairline); border-radius: 10px;
+         overflow: hidden; margin: 26px 0 8px; }
+.tile { background: var(--surface-1); padding: 15px 17px; }
+.tile .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); }
+.tile .v { font-size: 25px; line-height: 1.25; margin-top: 5px; letter-spacing: -0.02em;
+           font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+.tile .n { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.up { color: var(--pole-up); } .down { color: var(--pole-down); }
+
+/* ---- chart cards ---- */
+.card { background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 10px;
+        padding: 16px 18px 12px; margin: 12px 0; }
+.chead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 2px; }
+.chead .t { font-weight: 600; font-size: 15px; }
+.chead .s { color: var(--text-muted); font-size: 12.5px; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin-left: auto; font-size: 12.5px; color: var(--text-secondary); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+.sw.line { height: 3px; border-radius: 2px; width: 15px; }
+
+.plot { position: relative; width: 100%; touch-action: pan-y; }
+.plot canvas { display: block; width: 100%; height: 100%; }
+#priceplot { height: 300px; } #premplot { height: 232px; }
+.cursor { position: absolute; inset: 0; pointer-events: none; }
+
+.tip { position: absolute; z-index: 5; pointer-events: none; background: var(--surface-1);
+       border: 1px solid var(--hairline); border-radius: 8px; padding: 9px 11px; font-size: 12.5px;
+       box-shadow: 0 6px 22px rgba(0,0,0,.14); min-width: 176px; opacity: 0; transition: opacity .09s; }
+.tip.on { opacity: 1; }
+.tip .d { color: var(--text-muted); font-size: 11.5px; margin-bottom: 5px; }
+.tip .r { display: flex; justify-content: space-between; gap: 16px; }
+.tip .r b { font-weight: 600; font-family: ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+
+/* ---- controls ---- */
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 22px 0 4px; }
+.seg { display: inline-flex; border: 1px solid var(--hairline); border-radius: 8px; overflow: hidden; background: var(--surface-1); }
+.seg button { appearance: none; border: 0; background: transparent; color: var(--text-secondary);
+              padding: 7px 13px; font: inherit; font-size: 13px; cursor: pointer; border-right: 1px solid var(--hairline); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--series-1); color: #fff; }
+.seg button:hover:not([aria-pressed="true"]) { background: var(--surface-2); }
+.hint { color: var(--text-muted); font-size: 12.5px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--pole-up); display: inline-block; margin-right: 5px; }
+
+/* ---- tables ---- */
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; margin: 10px 0 4px; }
+th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--hairline); }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--text-muted); font-weight: 500; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; }
+td { font-family: ui-monospace, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+td:first-child { font-family: inherit; color: var(--text-primary); }
+details { margin: 14px 0; }
+summary { cursor: pointer; color: var(--series-1); font-size: 14px; }
+.note { border-left: 2px solid var(--hairline); padding: 2px 0 2px 14px; margin: 18px 0; }
+.wide { overflow-x: auto; }
+footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--hairline); color: var(--text-muted); font-size: 13px; }
+footer a { color: var(--text-secondary); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>What a perpetual future actually costs</h1>
+<p class="lede">A perpetual future never expires, so nothing forces it to converge on spot. Instead it pays
+<strong>funding</strong> — an hourly cash transfer between longs and shorts. These two charts are the price of
+bitcoin, and the price of holding bitcoin <em>synthetically</em>.</p>
+
+<div class="tiles" id="tiles"></div>
+<p class="sub" id="asof">loading…</p>
+
+<div class="controls">
+  <div class="seg" role="group" aria-label="Time range">
+    <button data-range="30" aria-pressed="false">1M</button>
+    <button data-range="90" aria-pressed="false">3M</button>
+    <button data-range="365" aria-pressed="true">1Y</button>
+    <button data-range="all" aria-pressed="false">ALL</button>
+  </div>
+  <span class="hint">drag to pan · scroll to zoom · <span id="reso">—</span></span>
+</div>
+
+<!-- ---------------------------------------------------------- chart 1 --- -->
+<div class="card">
+  <div class="chead">
+    <span class="t">BTC-USD spot</span>
+    <span class="s">Coinbase, from 2015-07-20</span>
+    <span class="legend" id="pricelegend">
+      <span><i class="sw" style="background:var(--pole-up)"></i>close up</span>
+      <span><i class="sw" style="background:var(--pole-down)"></i>close down</span>
+    </span>
+  </div>
+  <div class="plot" id="priceplot"><canvas id="pricecv"></canvas><div class="cursor" id="pricecur"></div></div>
+</div>
+
+<!-- ---------------------------------------------------------- chart 2 --- -->
+<div class="card">
+  <div class="chead">
+    <span class="t">Hyperliquid BTC perp — premium and funding</span>
+    <span class="s">hourly, from 2023-05-12</span>
+    <span class="legend">
+      <span><i class="sw line" style="background:var(--series-1)"></i>premium (perp − spot)</span>
+      <span><i class="sw line" style="background:var(--series-2)"></i>funding paid</span>
+      <span><i class="sw" style="background:var(--band)"></i>clamp corridor ±5bp</span>
+    </span>
+  </div>
+  <div class="plot" id="premplot"><canvas id="premcv"></canvas><div class="cursor" id="premcur"></div></div>
+  <p class="sub" style="margin:6px 2px 2px">Both series are in basis points per hour — one axis, one unit. Positive premium
+  means the perp trades <em>above</em> spot and longs are crowded.</p>
+</div>
+
+<div class="tip" id="tip"></div>
+
+<!-- ------------------------------------------------------------- prose --- -->
+<h2>Read the second chart</h2>
+<p>The grey corridor is the part almost nobody draws, and it explains the shape of everything else.
+Hyperliquid sets funding as</p>
+<p style="font-family:ui-monospace,Menlo,monospace;font-size:13.5px;color:var(--text-primary);background:var(--surface-2);padding:11px 13px;border-radius:7px;max-width:none">
+funding = premium + clamp(<span style="color:var(--series-2)">baseline</span> − premium, ±<span id="clampbp">5</span>bp)</p>
+<p>Work the algebra. Whenever the premium sits within ±5bp of the baseline, the two premium terms cancel
+<em>exactly</em> and funding equals the baseline — <span id="pinnedpct" class="num">—</span> of all hours on record.
+Inside that corridor, <strong>funding is completely blind to the premium</strong>. There is no restoring force. The perp
+can drift away from spot and nothing pulls it back, because unlike a dated future there is no expiry to force
+convergence.</p>
+<p>So the orange line is flat as a table until the blue line escapes the grey band — and then it moves. That is
+the entire mechanism, and it is why the premium wanders as freely as it does.</p>
+
+<div class="note">
+<h3 style="margin-top:0">Does the premium predict price?</h3>
+<p style="margin-bottom:8px">No. It is worth being blunt, because funding rates are sold as a signal constantly.
+Correlation of premium against log return, over <span id="nsamp" class="num">—</span> aligned hours:</p>
+<div class="wide"><table id="corrtable"><thead><tr><th>window</th><th>trailing return</th><th>forward return</th></tr></thead><tbody></tbody></table></div>
+<p style="margin:8px 0 0">Premium tracks the <em>integral</em> of past returns over several days — positioning that
+accumulated while price ground in one direction. It carries essentially nothing about the future. It tells you where
+the crowd <em>is</em>, not where price is <em>going</em>.</p>
+</div>
+
+<h2>The regime, not the constant</h2>
+<p>Funding is often described as structurally positive, and over the full record it is: longs paid in
+<span id="longspaid" class="num">—</span> of hours, for <span id="annualised" class="num">—</span> a year. But the
+average hides a total inversion of character.</p>
+<div class="wide"><table id="regimetable"><thead><tr><th>year</th><th>hours</th><th>mean premium</th><th>funding paid</th><th>annualised</th><th>premium &gt; 0</th></tr></thead><tbody></tbody></table></div>
+<p>2024 was a crowded-long market — the perp traded above spot nearly three quarters of the time and longs paid
+around a quarter of notional a year for the privilege. 2026 is its mirror: the perp sits <em>below</em> spot almost
+always, and carry has collapsed. Same instrument, same formula, opposite world.</p>
+
+<details>
+  <summary>Table view — the most recent 48 hours</summary>
+  <div class="wide"><table id="recent"><thead><tr><th>hour (UTC)</th><th>spot close</th><th>premium (bp)</th><th>funding (bp/hr)</th><th>annualised</th></tr></thead><tbody></tbody></table></div>
+</details>
+
+<h2>Where the numbers come from</h2>
+<p>Two public endpoints, no API key, no account. Both send <code>access-control-allow-origin: *</code>, so this page
+tops the static history up with a live tail straight from the browser.</p>
+<div class="wide"><table>
+<thead><tr><th>series</th><th>source</th><th>endpoint</th><th>cap per request</th></tr></thead>
+<tbody>
+<tr><td>BTC-USD spot candles</td><td>Coinbase Exchange</td><td><code>/products/BTC-USD/candles</code></td><td>300 candles</td></tr>
+<tr><td>perp premium + funding</td><td>Hyperliquid</td><td><code>/info · fundingHistory</code></td><td>500 hours</td></tr>
+</tbody></table></div>
+<p class="sub">Both caps are why <code>scripts/backfill.mjs</code> is mostly pagination. It runs incrementally — a
+scheduled workflow refetches only the tail and merges. <code>scripts/analyse.mjs</code> derives every statistic quoted
+above into <code>data/stats.json</code>, so the prose cannot drift from the data.</p>
+
+<div class="note">
+<h3 style="margin-top:0">Honest limits</h3>
+<p style="margin-bottom:0">Spot is Coinbase's BTC-USD; Hyperliquid's own oracle is a composite of several venues, so
+the premium here is not exactly <code>markPx/oraclePx − 1</code> at the same instant. The published funding is computed
+from a time-weighted average of premium samples taken through the hour, while the <code>premium</code> field is a single
+figure — reproducing funding from it gives a median error of <span id="mederr" class="num">—</span> but a tail out to
+<span id="maxerr" class="num">—</span>. That gap has a visible signature, and it is the best evidence the corridor
+story is right: the identity holds <span id="pindeep" class="num">—</span> of the time when the premium sits deep
+inside the corridor and only <span id="pinedge" class="num">—</span> at its edge, because near the boundary the
+hidden average crosses where the published figure did not. The clamp and baseline are Hyperliquid's parameters, not universal: other venues
+use different widths and 8-hour intervals. And none of this is advice — it is a chart of what a thing has cost.</p>
+</div>
+
+<footer>
+<p style="color:inherit"><strong style="color:var(--text-secondary)">perp.mino.mobi</strong> — a learning surface.
+Data refreshed daily. <span id="gen"></span></p>
+<p style="color:inherit;margin:0">Sources: <a href="https://docs.hyperliquid.xyz/">Hyperliquid</a> ·
+<a href="https://docs.cdp.coinbase.com/exchange/docs/welcome">Coinbase Exchange</a>. Candles are blue-up / red-down
+rather than the usual green/red: green-versus-red is the least colourblind-legible pair in finance.</p>
+</footer>
+
+</div>
+<script type="module" src="/app.js"></script>
+</body>
+</html>

@@ -58,7 +58,7 @@ window.SPEC_CURATED = {
     foam: 'games', farm: 'games', 'farm-next': 'games', words: 'games',
     moji: 'reference', uni: 'reference', unit: 'reference', fix: 'reference',
     read: 'reading', rite: 'reading', chat: 'reading',
-    math: 'math', 'ai-edu': 'math',
+    math: 'math', 'ai-edu': 'math', perp: 'math',
   },
 
   // ----------------------------------------------- description capsules ----

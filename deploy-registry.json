@@ -325,6 +325,20 @@
       ]
     },
     {
+      "surface": "perp",
+      "dir": "perp",
+      "endpoint": "perp.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/futures-finance-learning-r7p47e",
+      "uses": [],
+      "provides": null,
+      "note": "Learning surface for perpetual futures. Two linked canvas time-series: BTC-USD spot candles (Coinbase, daily from 2015-07-20, with 6h and 1h resolutions swapped in by zoom level) and the Hyperliquid BTC perp's hourly premium and funding rate from 2023-05-12, drawn against the ±5bp clamp corridor inside which funding is mathematically blind to premium. Static column-encoded JSON in data/ built by scripts/backfill.mjs (both upstreams paginate — 300 candles and 500 hours per request); scripts/analyse.mjs derives every statistic the prose quotes into data/stats.json so the copy cannot drift from the series. The page tops the static history up with a live tail fetched straight from the browser (both APIs send CORS *), with bounded timeouts so an unreachable endpoint degrades to committed data. Refreshed daily by refresh-perp-data.yml, which commits and deploys. Pure static + assets worker, no build, no D1/DO/secrets.",
+      "paths": [
+        "perp/**",
+        ".github/workflows/deploy-perp.yml"
+      ]
+    },
+    {
       "surface": "tide",
       "dir": "tide",
       "endpoint": "tide.mino.mobi",
