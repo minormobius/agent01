@@ -124,28 +124,162 @@ which is exactly why hour-shuffling costs so little. The yearly means of
 factors 1 and 2 drift monotonically from 2023 to 2026, tracking the same funding
 regime inversion the surface's front page shows.
 
+---
+
+# Part two: the same question at 19 events/sec
+
+Hourly bars sample 24×/day. Bedbrook et al. sample at **20 Hz — 1,728,000×/day**.
+That is not a resolution difference, it is a different measurement regime, so
+the analysis was rebuilt on tick data.
+
+`microstructure.mjs` streams Binance aggTrades and reduces each day to 288
+five-minute slots of 13 microstructure features, deleting the raw as it goes.
+**Binance's API is geo-blocked from this sandbox but `data.binance.vision`, its
+public S3 archive, is not** — that is what makes deep tick history reachable
+here at all. BTCUSDT perp aggTrades run **1,612,809 events/day (18.7/sec)**,
+which is 93% of the killifish sampling rate. One year = 588M trades → 104,832
+slots.
+
+### Rate ladder (all measured, not quoted)
+
+| feed | events/day | Hz | vs fish 20 Hz | history |
+|---|---|---|---|---|
+| hourly candles *(part one)* | 24 | 0.0003 | 0.00001× | 2015→ |
+| 1s klines | 86,400 | 1.0 | 0.05× | 2017-08-17 → yesterday |
+| **aggTrades** | 1,612,809 | **18.7** | **0.93×** | 2017 → yesterday |
+| raw trades | 6,249,114 | 72.3 | 3.6× | 2017 → yesterday |
+| bookTicker (every BBO change) | ~11.4M | 132 | 6.6× | **only to 2024-04, partial** |
+
+### Trade signing is exact, and verified
+
+aggTrades carries `is_buyer_maker`, so trades are signed without Lee-Ready
+inference. The check that this is the right way round:
+
+```
+corr(OFI_t, return_t)      +0.4708     order flow moves price as it happens
+corr(OFI_t, return_{t+1})  -0.0038     and carries nothing forward
+```
+
+### 1. Yes, something is predictive — but it is activity, not microstructure
+
+Next-slot log realised volatility, n = 104,544, blocked CV:
+
+| model | OOS R² |
+|---|---|
+| persistence only | 0.3871 |
+| benchmark: 3 horizons + time-of-day | 0.4911 |
+| **+ all 13 microstructure features** | **0.5111** (+0.0200) |
+
+Marginal contribution of each feature added alone to the benchmark:
+
+```
+logcount   +0.0151      rollSpread -0.0000
+logvolume  +0.0088      ofi        -0.0000
+amihud     +0.0072      kyleLambda -0.0001
+burstiness +0.0010      ...rest ~0
+```
+
+The whole gain is **activity intensity**. Kyle's lambda, Roll's implied spread
+and order-flow imbalance add *exactly nothing* once trade count is known. This
+is the volume-volatility relation (Clark 1973, mixture-of-distributions)
+recovered at 5-minute resolution — real, long known, and not what tick data was
+supposed to buy.
+
+**Direction: R² = -0.0000 and -0.0011.** Not weakly positive. Negative. Nothing
+in the behaviourome forecasts the sign of the next 5 minutes.
+
+### 2. There IS a behaviourome: three reproducible axes
+
+| R | observed R² | day-shuffled | slot-shuffled | restart similarity |
+|---|---|---|---|---|
+| 1 | 0.1491 | 0.0209 | 0.1461 | 1.000 |
+| 2 | 0.2007 | 0.0519 | 0.1927 | 0.997 |
+| **3** | **0.2413** | 0.0604 | 0.2181 | **1.000** |
+| 4 | 0.2800 | 0.0666 | 0.2286 | 0.573 |
+| 5 | 0.2959 | 0.0703 | 0.2334 | 0.474 |
+
+Cliff-edge rank selection: perfect reproducibility through R=3, collapse at R=4.
+Thirteen features, three axes (`axes.mjs` prints this table directly):
+
+| axis | share | loads on | within-day peak | day lag-1 AC |
+|---|---|---|---|---|
+| **1 fragmentation** | 41.5% | burstiness .50, count .45, amihud .33 — *minus* meanSize .38, largeFrac .36 | 21:45, nearly flat | **0.828** |
+| **2 activity** | 38.9% | count .54, burstiness .50, volume .49, amihud .36 | **14:30 (US open)** | 0.385 |
+| **3 stress** | 19.6% | rvTick .78, amihud .39, rollSpread .38, kyleLambda .26 | 10:00, flatness 4.6 | **0.002** |
+
+Axis 1 separates *many small clustered trades* from *few large blocks* and is
+strongly persistent day to day. Axis 3 is volatility-with-impact: the strongest
+intraday rhythm of the three and **no day-to-day memory whatsoever**.
+`ofi` and `ret` load ≈0.00 on all three — direction is orthogonal to the entire
+structure.
+
+### 3. There is no market clock
+
+The paper's headline is a behavioural clock reading a fish's age off its
+movement. The chart analogue, with purged blocked CV so a test day never has its
+neighbours in training, and predictions clipped to the training range:
+
+```
+span 363 days; a useless clock errs by ~91 days
+daily feature means -> date    median error  98.6 days
+TCA day-factors     -> date    median error 112.6 days
+per fold (TCA): -0.30  0.43  -3.44  0.29  0.11
+```
+
+Worse than useless. And the reason is the sharpest thing this whole exercise
+found: **a fish ages, a market cycles.** Aging is monotone and irreversible, so
+behaviour encodes elapsed time. Market regimes are recurrent — axis 1 has
+memory (AC 0.83) but no arrow. A day in 2025 can look exactly like a day in
+2026, so there is nothing to read a date off.
+
 ## Verdict
 
-The method transfers, and it is not merely PCA in a costume — but the gain is
-**+0.026 OOS R² on next-day volatility**, not a new lens on markets. The reason
-is specific and worth stating: TCA earns its third mode when the within-cycle
-pattern *changes across cycles*. In killifish it does, and that change is the
-aging signal. In BTC the daily rhythm is close to static, so the third mode
-mostly holds a constant.
+Two passes, at 24 samples/day and at 1.6M events/day.
 
-Where it would likely pay off better, in rough order of promise:
+**The method transfers. The organism's arrow of time does not.**
 
-1. **Many assets as "individuals."** The fish study's real power is a
-   population with outcomes. Crypto has thousands of tokens and genuine death
-   events (delisting, volume collapse) — a direct analogue of lifespan, which a
-   single asset cannot provide.
-2. **Assets whose daily rhythm actually changes** — anything with a session
-   structure that shifts (equities across earnings, FX across policy regimes).
-3. **Finer within-cycle resolution.** At 15-minute bars the intraday shape has
-   far more room to vary; Hyperliquid retains ~5000 candles per interval, so
-   that is ~7 weeks deep there and would need another source for history.
+At hourly resolution TCA added +0.026 OOS R² on next-day volatility over HAR-RV.
+At tick resolution the behaviourome is sharper — three perfectly reproducible
+axes instead of a smeared four — and microstructure adds +0.020 OOS R² on
+next-slot volatility over persistence-plus-seasonality. Both are real, both are
+modest, and at both scales the gain is carried by *how much is happening*, not
+by the theoretically-motivated microstructure. Kyle's lambda and Roll's spread
+contributed nothing either time.
+
+What high rate did buy, concretely:
+
+- **A cleaner behaviourome.** Rank selection went from ambiguous (similarity
+  0.93 at R=3, 0.97 at R=4, 0.55 at R=5) to a clean cliff (1.000 through R=3,
+  0.573 at R=4). The axes are stable enough to name.
+- **A real answer on direction.** With n = 104,544 and exact trade signing,
+  "returns are unpredictable" stops being an assumption and becomes a measured
+  R² of -0.001.
+- **The decisive negative.** The behavioural clock — the paper's headline —
+  fails outright.
+
+That last one is the finding. The killifish work succeeds because aging is
+**monotone and irreversible**: an old fish never moves like a young one again,
+so its behaviour encodes elapsed time and a clock can read it. Market behaviour
+is **recurrent**: axis 1 carries a day of memory (lag-1 AC 0.83) but no
+direction. Regimes return. There is no market age to estimate, and no amount of
+extra sampling rate creates one.
+
+Where it would still pay to look, in order:
+
+1. **Many assets as individuals, with real deaths.** The population structure is
+   what the single-asset framing cannot supply. Tokens delist and go to zero;
+   that is a genuine lifespan, and predicting it from early trading behaviour is
+   the actual analogue of the paper.
+2. **Cross-sectional axes.** If the three axes here are universal, they should
+   appear in every liquid asset — and an asset's *position* on them relative to
+   peers may carry what its own time series does not.
+3. **Volume time rather than clock time.** The fish's clock is the sun. A
+   market's may be volume; the intraday rhythm found here is a clock-time
+   artefact of session overlap, and resampling on a volume clock would test
+   whether the rhythm survives.
 
 ## Constraints found along the way
+
 
 - **Hyperliquid `candleSnapshot` retains ~5000 candles per interval, whatever
   the interval** — 1d covers all history, 4h reaches 2024-05, 1h only 2026-01,

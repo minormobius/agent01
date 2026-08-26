@@ -165,7 +165,7 @@ console.log('\n=== 3. behaviorome: rank sweep vs surrogates ===');
 console.log('R    observed  day-shuf  slot-shuf   restart similarity');
 const nd = shufDays(X, 1), ns = shufSlots(X, 2);
 const RANKS = [1, 2, 3, 4, 5, 6];
-let bestFits = {};
+let bestFits = {}, simByRank = {};
 for (const R of RANKS) {
   const fits = [0, 1, 2].map((s) => cpAls(X, R, { seed: 400 + s * 13 + R, iters: 120 }));
   const best = fits.reduce((a, b) => a.err < b.err ? a : b);
@@ -173,11 +173,19 @@ for (const R of RANKS) {
   let sim = 0, n = 0;
   for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) { sim += similarity(fits[i], fits[j]); n++; }
   const a = cpAls(nd, R, { seed: 700 + R, iters: 120 }), b = cpAls(ns, R, { seed: 800 + R, iters: 120 });
+  simByRank[R] = sim / n;
   console.log(String(R).padEnd(5) + best.fitR2.toFixed(4).padStart(8) + a.fitR2.toFixed(4).padStart(10)
     + b.fitR2.toFixed(4).padStart(11) + (sim / n).toFixed(3).padStart(20));
 }
 
-const R_SHOW = 4, fit = bestFits[R_SHOW];
+// Use the largest rank whose components are actually reproducible across
+// restarts. Reading loadings off an over-parameterised fit describes noise:
+// at R=4 here the similarity is 0.57, so those axes differ run to run.
+const sims = {};
+for (const R of RANKS) sims[R] = simByRank[R];
+const R_SHOW = Math.max(...RANKS.filter((R) => sims[R] >= 0.9));
+const fit = bestFits[R_SHOW];
+console.log(`\nreproducible rank = ${R_SHOW} (largest with restart similarity >= 0.9)`);
 console.log(`\n=== the ${R_SHOW} axes (feature loadings) ===`);
 console.log('feature      ' + Array.from({ length: R_SHOW }, (_, r) => `axis${r + 1}`.padStart(9)).join(''));
 FEAT.forEach((f, i) => console.log(f.padEnd(13) + Array.from({ length: R_SHOW }, (_, r) => fit.A[i][r].toFixed(3).padStart(9)).join('')));
@@ -203,7 +211,7 @@ for (let r = 0; r < R_SHOW; r++) {
 // training set. Without the purge, day-to-day persistence alone dates a day
 // almost perfectly and the test measures nothing.
 console.log('\n=== 4. the market clock: predicting a day\'s DATE from how it traded ===');
-const PURGE = 7, CFOLD = 5, R_CLOCK = 4;
+const PURGE = 7, CFOLD = 5, R_CLOCK = R_SHOW;
 
 function project(Y, A, B) {
   const R = A[0].length;
