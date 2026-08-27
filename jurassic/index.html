@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Jurassic — a 165-million-year-old forest, and who could hear it</title>
-<meta name="description" content="Walk a Middle Jurassic forest floor and listen. A Rust/WASM stridulation synthesiser and ISO 9613 propagation model turn the Daohugou katydid assemblage into a soundscape you can move around inside — including the oldest ultrasound known, which you cannot hear without a detector.">
+<meta name="description" content="Walk a Middle Jurassic forest floor and listen. A Rust/WASM stridulation synthesiser and ISO 9613 propagation model turn the nine Daohugou ensiferans of Gu et al. 2026 into a soundscape you can move around inside — including the oldest ultrasound known, which you cannot hear without a detector.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d1210'/%3E%3Cpath d='M4 16q3-9 6 0t6 0q3-9 6 0t6 0' fill='none' stroke='%236da7ec' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -17,13 +17,16 @@
 </header>
 
 <p class="lede">
-  Nine ensiferans sang in this forest. Eight of them in pure tone around 5 kHz,
-  and one — <em>Sigmaboilus peregrinus</em> — above 20 kHz, which is the oldest
-  ultrasonic communication known from any animal, and a hundred and thirteen
-  million years before the first bat. <strong>Press play and walk about.</strong>
-  Everything you hear is synthesised from the instrument: a tooth-strike train
-  driving a wing resonator, then thrown across the air by ISO 9613 with the
-  distance, the temperature and the leaves all taken off it.
+  Nine ensiferans sang in this forest, and we know roughly what each of them
+  sounded like. Five called in low pure tones below 7 kHz; three sang above
+  10 kHz; and one — <em>Sigmaboilus peregrinus</em> — sang at 22.5 kHz, above
+  the top of human hearing. That is the oldest ultrasonic communication known
+  from any animal, about a hundred and ten million years before the first bat.
+  <strong>Press play and walk about.</strong> Every call here is synthesised
+  from its own instrument — the tooth-by-tooth spacing of that species'
+  fossilised file, driving a wing resonator at its published sharpness — and
+  then thrown across the air by ISO 9613, with the distance, the weather and
+  the leaves all taken off it.
 </p>
 
 <div class="transport">
@@ -93,6 +96,11 @@
     </section>
 
     <section class="card">
+      <h2>How hard each call is to locate</h2>
+      <div id="sharpness" class="reach"></div>
+    </section>
+
+    <section class="card">
       <h2>The singer</h2>
       <select id="species-select" aria-label="Choose a species"></select>
       <div id="dossier" class="dossier"></div>
@@ -126,13 +134,13 @@
       <line x1="248" y1="14" x2="248" y2="44"></line>
       <circle cx="248" cy="31" r="4.5"></circle>
       <text x="248" y="8" text-anchor="middle">Daohugou · 165 Ma · ultrasound</text>
-      <text x="248" y="74" text-anchor="middle" class="sub">Sigmaboilus peregrinus sings above 20 kHz</text>
+      <text x="248" y="74" text-anchor="middle" class="sub">Sigmaboilus peregrinus sings at 22.5 kHz</text>
     </g>
     <g class="marker marker-late">
-      <line x1="564.4" y1="14" x2="564.4" y2="44"></line>
-      <circle cx="564.4" cy="31" r="4.5"></circle>
-      <text x="564.4" y="8" text-anchor="middle">first bats · ~52 Ma</text>
-      <text x="564.4" y="74" text-anchor="middle" class="sub">113 Myr later</text>
+      <line x1="556" y1="14" x2="556" y2="44"></line>
+      <circle cx="556" cy="31" r="4.5"></circle>
+      <text x="556" y="8" text-anchor="middle">first bats · ~55 Ma</text>
+      <text x="556" y="74" text-anchor="middle" class="sub">110 Myr later</text>
     </g>
     <g class="axis">
       <line x1="10" y1="88" x2="710" y2="88"></line>
@@ -142,36 +150,50 @@
   </svg>
   <p>
     Katydid ultrasound has usually been explained as an answer to bats. These
-    fossils are 113 million years too early for that, which is the 2026 paper's
-    point and the reason the <strong>who is listening</strong> control above
-    matters more than it looks. Switch between an early mammal and an archosaur
-    and watch the ultrasonic circle swell and vanish: on one reading ultrasound
-    bought no privacy at all, on the other it bought a private channel. The
-    fossils do not settle it. The physics only tells you what each answer costs.
+    fossils are a hundred and ten million years too early for that, and Gu
+    <em>et al.</em> say so plainly: they <em>reject the hypothesis that bats
+    were the sole driver of ultrasound evolution in katydids</em>, and propose
+    instead that early mammals and non-mammalian ancestors were already
+    listening in. Bats, in their phrase, emerged into a soundscape already busy
+    with ultrasounds.
+  </p>
+  <p>
+    That is why the <strong>who is listening</strong> control matters more than
+    it looks. Switch between an early mammal and an archosaur and watch the
+    ultrasonic circle swell and vanish: against one ear the pitch bought no
+    privacy at all, against the other it bought a private channel. The fossils
+    do not settle it. The physics only tells you what each answer costs — and
+    the <strong>Q</strong> panel shows the other half of the same defence, the
+    one that does not depend on pitch at all.
   </p>
 </section>
 
 <footer>
-  <h2>What is measured here, and what is not</h2>
+  <h2>What is published here, and what is not</h2>
   <p>
-    Two numbers on this page are published results.
-    <em>Archaboilus musicus</em> sang at <strong>6.4 kHz</strong> — Gu, Engel &amp; Ren
-    2012, <a href="https://doi.org/10.1073/pnas.1118372109">PNAS 109:3868</a>, from a
-    file of 107 teeth over 9.34 mm. <em>Sigmaboilus peregrinus</em> sang above
-    <strong>20 kHz</strong> — Gu <em>et al.</em> 2026,
-    <a href="https://doi.org/10.1073/pnas.2615107123">PNAS 123(36):e2615107123</a>,
-    the paper this surface was built for. That paper was paywalled when this was
-    written; its per-species table has not been transcribed here, and the roster
-    below is the described singing ensiferans of the Daohugou beds rather than a
-    copy of its particular nine.
+    The nine species on this page are the nine of
+    <a href="https://doi.org/10.1073/pnas.2615107123">Gu <em>et al.</em> 2026,
+    <em>Reconstruction of an extinct soundscape reveals ultrasonic communication
+    in the Jurassic</em>, PNAS 123(36):e2615107123</a> (open access, CC BY 4.0):
+    twenty fossil forewings from the Jiulongshan Formation at Daohugou, seven
+    prophalangopsids and two haglids, co-occurring at 157–165 Ma. Their
+    <strong>carrier frequencies</strong> and <strong>quality factors</strong> are
+    that paper's, from the FFT of each reconstructed syllable (their Fig. 4D);
+    the <strong>wing resonances</strong> are their finite-element
+    eigenfrequencies (Fig. 3); the <strong>tooth counts and file shapes</strong>
+    are read off their Fig. 4B, tooth by tooth. Those are tagged
+    <span class="badge badge-published">published</span> and
+    <span class="badge badge-digitised">digitised</span> wherever they appear.
   </p>
   <p>
-    <strong>Every other frequency is ours</strong> — modelled from how
-    stridulation works and from the shape of the assemblage as described, and
-    labelled <span class="badge badge-modelled">modelled</span> wherever it
-    appears. The Jurassic audiograms are worse than that: no ear fossilises, so
-    they are labelled <span class="badge badge-hypothesis">hypothesis</span> and
-    are best read as three positions in an argument you can switch between.
+    <strong>What is ours</strong>, and tagged
+    <span class="badge badge-modelled">modelled</span>: source levels, chirp
+    rhythm, and how many males stand on the plot. The paper predicts syllable
+    rates with a Gaussian-process model, but reports them in its SI Appendix,
+    which we did not have — so the rhythm you hear is plausible rather than
+    theirs. The four audiograms are weaker still: no ear fossilises, so they are
+    tagged <span class="badge badge-hypothesis">hypothesis</span> and are best
+    read as positions in the argument you can switch between.
   </p>
   <p>
     The <strong>propagation</strong> is not a guess. Spreading, atmospheric
@@ -180,6 +202,13 @@
     at four temperature–humidity conditions across eight octaves. That test runs
     in CI. If it ever fails, every radius on this page is wrong and the build
     goes red.
+  </p>
+  <p>
+    Earlier work this builds on: Gu, Engel &amp; Ren 2012,
+    <a href="https://doi.org/10.1073/pnas.1118372109">PNAS 109:3868</a>, which
+    reconstructed the ~6.4 kHz song of <em>Archaboilus musicus</em> from a file
+    of 107 teeth — the first extinct animal whose song was recovered from the
+    instrument that made it, and the precedent this assemblage extends.
   </p>
   <p class="colophon">
     Sound and physics: a zero-dependency Rust kernel compiled to raw

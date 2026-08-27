@@ -49,12 +49,20 @@ class DaohugouProcessor extends AudioWorkletProcessor {
     switch (m.t) {
       case "scene":
         ex.clear_scene();
-        for (const v of m.voices) {
+        // Kept byte-for-byte in step with addVoice() in js/engine.js — the
+        // worklet cannot import it, so if you change one, change both.
+        m.voices.forEach((v, i) => {
           ex.add_voice(
-            v.x, v.y, v.carrierHz, v.q, v.toothRate, v.teeth, v.sweep, v.jitter,
+            v.x, v.y, v.carrierHz, v.q, v.toothRate, v.teeth,
             v.syllables, v.gapS, v.periodS, v.splDb, v.seed
           );
-        }
+          const f = v.file || {};
+          ex.set_voice_file(
+            i, f.sweep || 0, f.flare || 1, f.ripple || 0, f.rippleCycles || 0,
+            f.jitter || 0, f.pegs || 0, f.pegRatio || 1
+          );
+          ex.set_voice_stroke(i, v.opening || 0, v.strokeGapS || 0.01);
+        });
         this.n = m.voices.length;
         this.act = new Float32Array(this.n);
         break;

@@ -22,6 +22,25 @@
 const WASM_URL = new URL("../engine/jurassic.wasm", import.meta.url);
 const WORKLET_URL = new URL("./worklet.js", import.meta.url);
 
+/**
+ * Push one voice into a kernel instance. Three calls rather than one enormous
+ * one: the placement and the resonator, then the file's SHAPE, then whether the
+ * animal sings on both strokes. Both the main-thread instance and the worklet's
+ * go through this, so they cannot drift apart.
+ */
+export function addVoice(ex, i, v) {
+  ex.add_voice(
+    v.x, v.y, v.carrierHz, v.q, v.toothRate, v.teeth,
+    v.syllables, v.gapS, v.periodS, v.splDb, v.seed
+  );
+  const f = v.file || {};
+  ex.set_voice_file(
+    i, f.sweep || 0, f.flare || 1, f.ripple || 0, f.rippleCycles || 0,
+    f.jitter || 0, f.pegs || 0, f.pegRatio || 1
+  );
+  ex.set_voice_stroke(i, v.opening || 0, v.strokeGapS || 0.01);
+}
+
 export class Soundscape {
   constructor(bytes, instance) {
     this.bytes = bytes;
@@ -61,12 +80,7 @@ export class Soundscape {
     this.voices = voices.slice(0, this.maxVoices);
     this.activity = new Float32Array(this.voices.length);
     this.ex.clear_scene();
-    for (const v of this.voices) {
-      this.ex.add_voice(
-        v.x, v.y, v.carrierHz, v.q, v.toothRate, v.teeth, v.sweep, v.jitter,
-        v.syllables, v.gapS, v.periodS, v.splDb, v.seed
-      );
-    }
+    this.voices.forEach((v, i) => addVoice(this.ex, i, v));
     this.post({ t: "scene", voices: this.voices });
   }
 
@@ -118,6 +132,16 @@ export class Soundscape {
   /** Fraction of the time voice `i` is actually radiating. */
   duty(i) {
     return this.ex.voice_duty(i);
+  }
+
+  /** One traverse of the file, in seconds — derived by the kernel, not set. */
+  hemisyllableS(i) {
+    return this.ex.voice_hemisyllable_s(i);
+  }
+
+  /** A full syllable, both strokes included where the species uses both. */
+  syllableS(i) {
+    return this.ex.voice_syllable_s(i);
   }
 
   /**
@@ -180,7 +204,13 @@ export class Soundscape {
       this.node.port.onmessage = (e) => this.fromWorklet(e.data);
       this.node.connect(this.ctx.destination);
       await this.ctx.resume();
-      // Push the scene we already have; the worklet started empty.
+      // Re-init the query instance at the real rate, so `ceilingHz` and the
+      // worklet agree, then push the scene we already have — the worklet
+      // started empty.
+      this.ex.init(this.ctx.sampleRate);
+      this.ex.set_air(this.air.tempC, this.air.humidity, this.air.pressureKpa, this.air.canopy);
+      this.setScene(this.voices);
+      this.setListener(this.listener.x, this.listener.y, this.listener.heading);
       this.resend();
       this.setState("playing");
     } catch (err) {
@@ -200,12 +230,16 @@ export class Soundscape {
   }
 
   /**
-   * The highest frequency this output can carry. Above it a call is not
-   * quiet — it is absent, folded away by the anti-alias filter of whatever is
-   * downstream. Worth saying out loud on a page about ultrasound.
+   * The highest carrier this output can actually carry, in Hz — asked of the
+   * kernel rather than computed here, so the page's warning and the kernel's
+   * silence agree about which calls are lost.
+   *
+   * Above it a call is not quiet, it is absent. On a 44.1 kHz context that is
+   * true of Sigmaboilus peregrinus at 22.5 kHz, which is the most useful thing
+   * this page can tell you about why a detector exists.
    */
-  get nyquist() {
-    return this.ctx ? this.ctx.sampleRate / 2 : null;
+  get ceilingHz() {
+    return this.ctx ? this.ex.reproducible_ceiling_hz() : null;
   }
 
   resend() {

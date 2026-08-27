@@ -290,9 +290,21 @@ select {
   padding: 1px 6px; border-radius: 4px; vertical-align: 1px;
   border: 1px solid currentColor;
 }
-.badge-measured { color: var(--good); }
+.badge-published, .badge-measured { color: var(--good); }
+.badge-digitised { color: var(--accent); }
 .badge-modelled { color: var(--warn); }
 .badge-hypothesis { color: var(--bad); }
+
+/* the Q strip plot */
+.sharp-band { fill: var(--warn); opacity: .13; }
+.sharp-tick, .sharp-axis { font: 500 9px var(--mono); fill: var(--text-muted); }
+.sharp-stem { stroke: var(--border); stroke-width: 2; }
+.sharp-name { font: 500 11.5px var(--sans); fill: var(--text-secondary); }
+.sharp-val { font: 500 11px var(--mono); fill: var(--text-primary); }
+.sharp-hit { fill: transparent; }
+.sharp-row { cursor: pointer; }
+.sharp-row:hover .sharp-hit { fill: var(--surface-2); }
+.sharp-row.is-selected .sharp-name { fill: var(--text-primary); font-weight: 700; }
 
 /* -------------------------------------------------------------- deep time -- */
 

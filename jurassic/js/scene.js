@@ -81,11 +81,14 @@ export function buildPlot(seed) {
         carrierHz: carrier,
         // A resonant stridulator drives its mirror at its own frequency, so
         // the strike rate detunes with it.
-        toothRate: sp.toothRate * detune,
+        toothRate: sp.carrierHz * detune,
         q: sp.q,
         teeth: sp.teeth,
-        sweep: sp.sweep,
-        jitter: sp.jitter,
+        // The file's shape is the species', not the individual's — one animal
+        // does not re-cut its own wing.
+        file: sp.file,
+        opening: sp.opening,
+        strokeGapS: sp.strokeGapS,
         syllables: sp.syllables,
         gapS: sp.gapS,
         // ±15 % on the repeat interval, so the chorus drifts in and out of

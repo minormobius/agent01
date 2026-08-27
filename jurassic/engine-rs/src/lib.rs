@@ -27,7 +27,7 @@ pub mod synth;
 #[cfg(test)]
 mod tests;
 
-use synth::{Voice, VoiceParams};
+use synth::{FileShape, Voice, VoiceParams};
 
 /// Room for every described singer in the assemblage several times over.
 pub const MAX_VOICES: usize = 64;
@@ -293,6 +293,10 @@ pub extern "C" fn clear_scene() {
     scene().clear();
 }
 
+/// Place a singer. The file's *shape* and the stroke pattern are set
+/// separately, by `set_voice_file` and `set_voice_stroke`, so that this call
+/// stays readable and a caller that only has a carrier and a tooth count can
+/// still make a sound.
 #[allow(clippy::too_many_arguments)]
 #[no_mangle]
 pub extern "C" fn add_voice(
@@ -302,8 +306,6 @@ pub extern "C" fn add_voice(
     q: f32,
     tooth_rate_hz: f32,
     teeth: u32,
-    sweep: f32,
-    jitter: f32,
     syllables: u32,
     gap_s: f32,
     chirp_period_s: f32,
@@ -317,14 +319,78 @@ pub extern "C" fn add_voice(
         q,
         tooth_rate_hz,
         teeth,
-        sweep,
-        jitter,
+        file: FileShape::plain(),
+        opening: 0.0,
+        stroke_gap_s: 0.01,
         syllables,
         gap_s,
         chirp_period_s,
         spl_db,
         seed,
     })
+}
+
+/// The inter-tooth spacing profile of voice `i`'s file, after Gu et al. 2026
+/// Fig. 4B. All terms are multipliers on the mean spacing.
+#[no_mangle]
+pub extern "C" fn set_voice_file(
+    i: u32,
+    sweep: f32,
+    flare: f32,
+    ripple: f32,
+    ripple_cycles: f32,
+    jitter: f32,
+    pegs: u32,
+    peg_ratio: f32,
+) {
+    let s = scene();
+    if (i as usize) < s.n {
+        s.voices[i as usize].p.file = FileShape {
+            sweep,
+            flare: flare.max(0.05),
+            ripple,
+            ripple_cycles,
+            jitter: jitter.clamp(0.0, 1.0),
+            pegs,
+            peg_ratio: peg_ratio.max(0.01),
+        };
+    }
+}
+
+/// Whether voice `i` radiates on the opening stroke as well as the closing one,
+/// and how long it pauses between them. The Daohugou fossils are symmetric
+/// winged, which Gu et al. read as sound on both phases; a modern katydid would
+/// pass 0.
+#[no_mangle]
+pub extern "C" fn set_voice_stroke(i: u32, opening: f32, stroke_gap_s: f32) {
+    let s = scene();
+    if (i as usize) < s.n {
+        s.voices[i as usize].p.opening = opening.clamp(0.0, 1.0);
+        s.voices[i as usize].p.stroke_gap_s = stroke_gap_s.max(0.0);
+    }
+}
+
+/// Duration of one hemisyllable — one traverse of the file — in seconds.
+/// Derived, never set: it is `teeth × mean spacing / strike rate`.
+#[no_mangle]
+pub extern "C" fn voice_hemisyllable_s(i: u32) -> f32 {
+    let s = scene();
+    if (i as usize) < s.n {
+        s.voices[i as usize].p.hemisyllable_s()
+    } else {
+        0.0
+    }
+}
+
+/// Duration of a full syllable (both strokes, if this species uses both).
+#[no_mangle]
+pub extern "C" fn voice_syllable_s(i: u32) -> f32 {
+    let s = scene();
+    if (i as usize) < s.n {
+        s.voices[i as usize].p.syllable_s()
+    } else {
+        0.0
+    }
 }
 
 #[no_mangle]
@@ -436,6 +502,13 @@ pub extern "C" fn voice_activity(i: u32) -> f32 {
     // 0 dB SPL at the listener reads as nothing; 90 dB reads as full.
     let loud = ((db) / 90.0).clamp(0.0, 1.0);
     v.gate * loud
+}
+
+/// The highest carrier this output can actually carry, in Hz. Above it a call
+/// is not quiet but absent, and the page says so rather than pretending.
+#[no_mangle]
+pub extern "C" fn reproducible_ceiling_hz() -> f32 {
+    scene().sample_rate * synth::REPRODUCIBLE_FRACTION
 }
 
 #[no_mangle]

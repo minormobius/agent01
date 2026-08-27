@@ -9,7 +9,7 @@
 import { Soundscape } from "./engine.js";
 import { buildPlot } from "./scene.js";
 import { ForestMap, F_LO, F_HI } from "./map.js";
-import { SPECIES, EARS, LOCALITY, threshold, PLOT_M } from "./fauna.js";
+import { SPECIES, EARS, LOCALITY, MAMMAL_LOCALISATION_Q, threshold, PLOT_M } from "./fauna.js";
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n, d = 0) => n.toLocaleString(undefined, { maximumFractionDigits: d, minimumFractionDigits: d });
@@ -46,7 +46,10 @@ async function boot() {
   };
   map.onhover = (hit, px, py) => showTooltip(hit, px, py);
   // The chart is painted with the map's ramp, so it re-steps with the theme too.
-  map.onscheme = () => renderReach();
+  map.onscheme = () => {
+    renderReach();
+    renderSharpness();
+  };
 
   try {
     sound = await Soundscape.load();
@@ -97,6 +100,7 @@ function selectSpecies(sp) {
   map.selectedSpecies = sp.id;
   $("species-select").value = sp.id;
   renderDossier(sp);
+  renderSharpness();
   refreshRings();
   refreshLive();
   renderAirNote();
@@ -135,33 +139,133 @@ function refreshRings() {
 function renderDossier(sp) {
   const badge = (kind) =>
     `<span class="badge badge-${kind}" title="${provenanceTitle(kind)}">${kind}</span>`;
+  const i = plot.voices.findIndex((v) => v.speciesId === sp.id);
+  const hemi = i >= 0 ? sound.hemisyllableS(i) : sp.teeth / sp.carrierHz;
+  const { lo, hi } = MAMMAL_LOCALISATION_Q;
+  const sharp = sp.q > hi;
+
   const rows = [
-    ["carrier", `${kHz(sp.carrierHz)} ${badge(sp.from)}`],
-    ["resonator Q", `${sp.q} — ${sp.q >= 30 ? "pure tone" : sp.q >= 22 ? "tonal" : "buzzy"}`],
-    ["file", `${sp.teeth} teeth per stroke${sp.fileMm ? `, ${sp.fileMm} mm` : ""}`],
-    ["syllable", `${fmt((sp.teeth / sp.toothRate) * 1000, 1)} ms — the traverse`],
-    ["chirp", `${sp.syllables} × per chirp, one every ${fmt(sp.periodS, 1)} s`],
-    ["source level", `${sp.splDb} dB SPL at 1 m`],
+    ["call", `${kHz(sp.carrierHz)} ${badge(sp.from)}`],
+    ["wing resonance", `${kHz(sp.feaHz)} ${badge(sp.from)}`],
+    ["Q", `${sp.q} — ${sharp ? "sharper than a mammal can place" : "inside the mammalian band"}`],
+    ["file", `${sp.teeth} teeth ${badge("digitised")}`],
+    ["traverse", `${fmt(hemi * 1000, 1)} ms per stroke`],
+    ["strokes", sp.opening > 0 ? "both — opening and closing" : "closing only"],
+    ["chirp", `${sp.syllables} syllable${sp.syllables > 1 ? "s" : ""}, one every ${fmt(sp.periodS, 1)} s ${badge("modelled")}`],
+    ["source level", `${sp.splDb} dB SPL at 1 m ${badge("modelled")}`],
     ["on this plot", `${sp.count} males`],
   ];
-  if (sp.forewingMm) rows.splice(3, 0, ["forewing", `${sp.forewingMm} mm`]);
+
+  const detune = Math.abs(sp.feaHz - sp.carrierHz) / sp.carrierHz;
+  const detuneNote =
+    detune > 0.12
+      ? `<p class="caveat">Its wing wants to ring at ${kHz(sp.feaHz)}; the file drives it to
+         ${kHz(sp.carrierHz)}. The instrument and the string disagree by ${fmt(detune * 100)} %.</p>`
+      : "";
 
   $("dossier").innerHTML = `
     <h3><em>${sp.name}</em></h3>
-    <p class="authority">${sp.author} · ${sp.family}</p>
-    ${sp.familyNote ? `<p class="caveat">${sp.familyNote}</p>` : ""}
+    <p class="authority">${sp.family}</p>
     <dl>${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>
-    ${sp.cite ? `<p class="cite">Frequency after ${sp.cite}</p>` : `<p class="cite">Carrier and file are modelled — see the note at the foot of the page.</p>`}
+    ${detuneNote}
+    <p class="note"><strong>The file.</strong> ${sp.fileNote}</p>
     <p class="note">${sp.note}</p>
+    <p class="cite">Call, wing resonance, Q and tooth count after Gu <em>et al.</em> 2026,
+      PNAS 123(36):e2615107123, Figs. 3 and 4.</p>
   `;
 }
 
 function provenanceTitle(kind) {
   return {
-    measured: "Published for this fossil, in the cited paper.",
-    modelled: "Our value. Consistent with the assemblage and with how stridulation works — but nobody measured it.",
+    published: "Printed as a number in Gu et al. 2026.",
+    digitised: "Read off one of that paper's published figures rather than a printed number.",
+    measured: "A measurement of a living animal.",
+    modelled: "Our value — not in the paper. Plausible, not a result.",
     hypothesis: "A claim about something that does not fossilise. Argument, not datum.",
   }[kind] || "";
+}
+
+/**
+ * Where each call sits against the sharpness a mammalian ear can resolve.
+ *
+ * This is the paper's pure-tone argument as a picture. Gu et al. put the
+ * directional resolution of a mammalian cochlea at about Q 9–13: a call much
+ * narrower than that is hard for a mammal to place, so narrowing the band lets
+ * a male sing loudly and still be difficult to find. Four of these nine sit
+ * more than twice above the band — and two sit inside it.
+ *
+ * One series, so no legend box; the marks are labelled and the title names the
+ * measure. Fill is the same frequency ramp as the map, so a dot here and a dot
+ * there are the same animal.
+ */
+function renderSharpness() {
+  if (!plot) return;
+  const { lo, hi } = MAMMAL_LOCALISATION_Q;
+  const rows = [...SPECIES].sort((a, b) => b.q - a.q);
+  const W = 320;
+  const PAD_L = 4;
+  const VAL_W = 34;              // reserved right column, so a value label can
+  const AXIS = W - VAL_W;        // never land on top of a species name
+  const ROW = 32;
+  const TOP = 16;                // room for the tick row
+  const H = TOP + rows.length * ROW + 6;
+  const QLO = 6;
+  const QHI = 80;
+  const x = (q) =>
+    PAD_L + ((Math.log(Math.min(Math.max(q, QLO), QHI)) - Math.log(QLO)) /
+      (Math.log(QHI) - Math.log(QLO))) * (AXIS - PAD_L);
+
+  const ticks = [10, 20, 40, 80]
+    .map((q) => `<text class="sharp-tick" x="${x(q)}" y="9" text-anchor="middle">${q}</text>`)
+    .join("");
+
+  const marks = rows
+    .map((sp, k) => {
+      const y = TOP + k * ROW + 18;
+      const sel = sp.id === state.selected.id;
+      return `
+      <g class="sharp-row${sel ? " is-selected" : ""}" data-species="${sp.id}" tabindex="0"
+         role="button" aria-label="${sp.name}, quality factor ${sp.q}, against a mammalian localisation limit of Q ${lo} to ${hi}">
+        <rect class="sharp-hit" x="0" y="${y - 17}" width="${W}" height="${ROW}"></rect>
+        <line class="sharp-stem" x1="${PAD_L}" y1="${y}" x2="${x(sp.q)}" y2="${y}"></line>
+        <circle cx="${x(sp.q)}" cy="${y}" r="5.5" fill="${map.freqColor(sp.carrierHz)}"
+                stroke="var(--surface-1)" stroke-width="2"></circle>
+        <text class="sharp-name" x="${PAD_L}" y="${y - 8}" font-style="italic">${sp.name}</text>
+        <text class="sharp-val" x="${W}" y="${y + 4}" text-anchor="end">${sp.q}</text>
+      </g>`;
+    })
+    .join("");
+
+  $("sharpness").innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" width="100%" role="img"
+         aria-label="Quality factor of each species' call against the Q ${lo} to ${hi} band a mammalian ear can resolve a direction within">
+      <rect class="sharp-band" x="${x(lo)}" y="${TOP - 4}" width="${x(hi) - x(lo)}"
+            height="${H - TOP - 2}"></rect>
+      <text class="sharp-axis" x="${PAD_L}" y="9">Q</text>
+      ${ticks}
+      ${marks}
+    </svg>
+    <p class="reach-foot">
+      Shaded: <strong>Q ${lo}–${hi}</strong>, the sharpness a mammalian cochlea can
+      resolve a direction within. A call to the right of it is loud and hard to
+      place — which is what Gu <em>et al.</em> argue pure tones were for. Two of
+      the nine are no sharper than that band, and would have been the easy ones
+      to find.
+    </p>`;
+
+  $("sharpness").querySelectorAll(".sharp-row").forEach((g) => {
+    const pick = () => {
+      const sp = SPECIES.find((s) => s.id === g.dataset.species);
+      if (sp) selectSpecies(sp);
+    };
+    g.addEventListener("click", pick);
+    g.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        pick();
+      }
+    });
+  });
 }
 
 /**
@@ -412,12 +516,17 @@ function onAudioState(s, err) {
     return;
   }
   if (s === "playing") {
-    const ny = sound.nyquist;
-    const over = SPECIES.filter((sp) => sp.carrierHz > ny);
+    const ceiling = sound.ceilingHz;
+    const over = SPECIES.filter((sp) => sp.carrierHz > ceiling);
+    // Selection and every radius are unchanged by the sample rate, but the
+    // dossier's chirp figures come from the kernel, which has just been
+    // re-initialised at the real rate.
+    refreshRings();
+    refreshLive();
     $("status").dataset.tone = over.length ? "warn" : "ok";
     $("status").textContent = over.length
-      ? `playing at ${fmt(sound.sampleRate / 1000, 1)} kHz — ${over.length} species sing above this output’s ${fmt(ny / 1000, 1)} kHz ceiling and are being lost entirely. Switch the detector on.`
-      : `playing at ${fmt(sound.sampleRate / 1000, 1)} kHz — everything on the roster fits under the ${fmt(ny / 1000, 1)} kHz ceiling, though your ears may not agree.`;
+      ? `playing at ${fmt(sound.sampleRate / 1000, 1)} kHz — ${over.map((sp) => sp.name).join(", ")} sings above this output’s ${fmt(ceiling / 1000, 1)} kHz ceiling, so it is rendering as silence, exactly as a recording of it would. Switch the detector on to hear it.`
+      : `playing at ${fmt(sound.sampleRate / 1000, 1)} kHz — every call on the roster fits under the ${fmt(ceiling / 1000, 1)} kHz ceiling, though your ears may not agree.`;
   }
 }
 

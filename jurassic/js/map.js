@@ -22,8 +22,8 @@
 import { PLOT_M } from "./fauna.js";
 
 /** Ends of the frequency ramp, Hz. Bracketing the roster with room to spare. */
-export const F_LO = 3500;
-export const F_HI = 22000;
+export const F_LO = 4500;
+export const F_HI = 23000;
 
 const HIT_PX = 14;
 

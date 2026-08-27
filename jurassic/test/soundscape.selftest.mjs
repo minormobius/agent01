@@ -13,7 +13,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { SPECIES, EARS, threshold } from '../js/fauna.js';
+import { SPECIES, EARS, MAMMAL_LOCALISATION_Q, threshold } from '../js/fauna.js';
 import { buildPlot } from '../js/scene.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -28,9 +28,11 @@ console.log('— the committed artifact is the engine we think it is —');
 {
   const need = [
     'engine_version', 'max_voices', 'init', 'clear_scene', 'add_voice',
-    'set_voice_trim', 'set_listener', 'set_air', 'set_detector', 'set_master',
-    'render', 'out_ptr', 'voice_count', 'voice_received_db',
-    'voice_audible_radius_m', 'voice_duty', 'voice_activity', 'peak_out',
+    'set_voice_file', 'set_voice_stroke', 'set_voice_trim', 'set_listener',
+    'set_air', 'set_detector', 'set_master', 'render', 'out_ptr', 'voice_count',
+    'voice_received_db', 'voice_audible_radius_m', 'voice_duty',
+    'voice_hemisyllable_s', 'voice_syllable_s', 'voice_activity', 'peak_out',
+    'reproducible_ceiling_hz',
     'absorption_db_per_m', 'transmission_loss_db', 'memory',
   ];
   const missing = need.filter((n) => !(n in ex));
@@ -66,23 +68,56 @@ console.log('— ISO 9613-2 Table 2, straight out of the wasm —');
 
 console.log('— the roster declares its provenance —');
 {
-  const KINDS = ['measured', 'modelled', 'hypothesis'];
+  const KINDS = ['published', 'digitised', 'modelled', 'hypothesis'];
+  ck(SPECIES.length === 9, `nine species, as in Gu et al. 2026 (${SPECIES.length})`);
   ck(SPECIES.every((s) => KINDS.includes(s.from)), 'every species carries a valid provenance tag');
-  const measured = SPECIES.filter((s) => s.from === 'measured');
-  ck(measured.length === 2, `exactly two carriers claim to be measured (${measured.map((s) => s.name).join(', ')})`);
-  ck(measured.every((s) => s.cite && s.cite.length > 8), 'each measured carrier cites its paper');
-  ck(SPECIES.every((s) => !s.cite || s.from === 'measured'), 'nothing modelled dresses itself in a citation');
-  ck(EARS.every((e) => KINDS.includes(e.from)), 'every audiogram carries a provenance tag');
-  ck(EARS.filter((e) => e.from === 'hypothesis').length === 3, 'the three Jurassic ears are flagged as hypothesis');
+  ck(SPECIES.every((s) => s.from === 'published'),
+    'every carrier and Q claims to come from the paper — because it does');
+  ck(SPECIES.every((s) => s.feaHz > 0),
+    'every species carries both the reconstructed-call fc and the wing FEA frequency');
+  ck(EARS.every((e) => KINDS.includes(e.from) || e.from === 'measured'),
+    'every audiogram carries a provenance tag');
+  ck(EARS.filter((e) => e.from === 'hypothesis').length === 3,
+    'the three Jurassic ears are flagged as hypothesis');
+
+  // The paper's own summary of its assemblage, as a test.
+  const low = SPECIES.filter((s) => s.carrierHz <= 7000);
+  ck(low.length === 5, `five of the nine call in low pure tones below 7 kHz (${low.length})`);
+  const high = SPECIES.filter((s) => s.carrierHz > 10000).map((s) => s.name);
+  ck(high.length === 3 && high.some((n) => n.includes('peregrinus')) &&
+     high.some((n) => n.includes('stratosus')) && high.some((n) => n.includes('polyneurus')),
+    `three sing above 10 kHz: ${high.join(', ')}`);
+  const ultra = SPECIES.filter((s) => s.carrierHz >= 20000);
+  ck(ultra.length === 1 && ultra[0].name === 'Sigmaboilus peregrinus',
+    'exactly one is ultrasonic, and it is Sigmaboilus peregrinus');
+  ck(Math.min(...SPECIES.map((s) => s.q)) > 8 && Math.max(...SPECIES.map((s) => s.q)) < 64,
+    `Q runs ${Math.min(...SPECIES.map((s) => s.q))}–${Math.max(...SPECIES.map((s) => s.q))}, as reported`);
 
   const total = SPECIES.reduce((n, s) => n + s.count, 0);
   ck(total <= ex.max_voices(), `the roster asks for ${total} voices, kernel holds ${ex.max_voices()}`);
-  ck(SPECIES.every((s) => s.toothRate === s.carrierHz),
-    'every species is modelled as a resonant stridulator — strike rate equals carrier');
-  ck(SPECIES.every((s) => s.teeth / s.toothRate > 0.002 && s.teeth / s.toothRate < 0.08),
-    'every syllable is 2–80 ms, the range extant ensiferans occupy');
+  ck(SPECIES.every((s) => s.opening > 0),
+    'every species radiates on both strokes — these wings are symmetric');
   ck(SPECIES.every((s) => s.splDb >= 75 && s.splDb <= 100),
-    'every source level is 75–100 dB at 1 m, the range extant katydids occupy');
+    'every (modelled) source level is 75–100 dB at 1 m, the range extant katydids occupy');
+  ck(SPECIES.filter((s) => s.file.pegs > 0).length === 1 &&
+     SPECIES.find((s) => s.file.pegs > 0).name === 'Allaboilus gigantus',
+    'the one bipartite file belongs to Allaboilus gigantus');
+  ck(SPECIES.find((s) => s.name === 'Archaboilus polyneurus').file.ripple > 0.2,
+    'Archaboilus polyneurus carries the rippled file the authors read as frequency modulation');
+}
+
+console.log('— the pure-tone argument, as the paper frames it —');
+{
+  // Gu et al.: a mammalian cochlea resolves direction only to about Q 9-13, so
+  // a call much sharper than that is hard to place. Five of the nine sit far
+  // above the band and two sit inside it — the spread that makes the argument
+  // interesting rather than a slogan.
+  const { lo, hi } = MAMMAL_LOCALISATION_Q;
+  ck(lo === 9 && hi === 13, `the mammalian localisation band is Q ${lo}-${hi}`);
+  const hard = SPECIES.filter((s) => s.q > hi * 2);
+  const easy = SPECIES.filter((s) => s.q <= hi);
+  ck(hard.length >= 4, `${hard.length} species sing more than twice as sharp as a mammal can resolve`);
+  ck(easy.length >= 2, `${easy.length} sit inside the band a mammal can place (${easy.map((s) => s.name).join(', ')})`);
 }
 
 // A scene we can ask real questions of: one individual of each species, all at
@@ -93,8 +128,11 @@ const scene = () => {
   ex.set_air(24, 80, 101.325, 0.6);
   ex.set_listener(0, 0, 0);
   SPECIES.forEach((s, i) => {
-    ex.add_voice(30, 0, s.carrierHz, s.q, s.toothRate, s.teeth, s.sweep, s.jitter,
+    ex.add_voice(30, 0, s.carrierHz, s.q, s.carrierHz, s.teeth,
       s.syllables, s.gapS, s.periodS, s.splDb, i + 1);
+    const f = s.file;
+    ex.set_voice_file(i, f.sweep, f.flare, f.ripple, f.rippleCycles, f.jitter, f.pegs, f.pegRatio);
+    ex.set_voice_stroke(i, s.opening, s.strokeGapS);
   });
 };
 
@@ -193,6 +231,22 @@ console.log('— the kernel actually makes a sound outside a browser —');
   ck(peak > 0.02, `the chorus is audible (peak ${peak.toFixed(3)} of full scale)`);
   ck(peak <= 1, `and does not clip (peak ${peak.toFixed(3)})`);
 
+  // The traverse IS the note: check the kernel's derived durations against
+  // teeth / strike-rate for each published file.
+  SPECIES.forEach((sp, i) => {
+    const h = ex.voice_hemisyllable_s(i);
+    const naive = sp.teeth / sp.carrierHz;
+    const ratio = h / naive;
+    // Equal for a flat file; longer for the bipartite one, whose pegs stretch
+    // the traverse.
+    const expectStretch = sp.file.pegs > 0;
+    if (expectStretch ? !(ratio > 1.4) : !(Math.abs(ratio - 1) < 0.06)) {
+      failures++;
+      console.error(`  ✗ ${sp.name}: hemisyllable ${(h * 1000).toFixed(1)} ms vs teeth/fc ${(naive * 1000).toFixed(1)} ms (×${ratio.toFixed(2)})`);
+    }
+  });
+  ck(true, `every syllable length is the file traverse (${SPECIES.map((s, i) => (ex.voice_hemisyllable_s(i) * 1000).toFixed(0)).join(', ')} ms)`);
+
   const duty = SPECIES.map((_, i) => ex.voice_duty(i));
   ck(duty.every((d) => d > 0.005 && d < 0.9),
     `every singer sings between 0.5 % and 90 % of the time (${(Math.min(...duty) * 100).toFixed(1)}–${(Math.max(...duty) * 100).toFixed(1)} %)`);
@@ -214,8 +268,11 @@ console.log('— the detector actually moves the ultrasound into the audible ban
     ex.set_air(24, 80, 101.325, 0.3);
     ex.set_listener(0, 0, 0);
     ex.set_master(Math.pow(10, 40 / 20));
-    ex.add_voice(3, 0, sp.carrierHz, sp.q, sp.toothRate, sp.teeth, sp.sweep, sp.jitter,
+    ex.add_voice(3, 0, sp.carrierHz, sp.q, sp.carrierHz, sp.teeth,
       sp.syllables, sp.gapS, sp.periodS, sp.splDb, 99);
+    ex.set_voice_file(0, sp.file.sweep, sp.file.flare, sp.file.ripple,
+      sp.file.rippleCycles, sp.file.jitter, sp.file.pegs, sp.file.pegRatio);
+    ex.set_voice_stroke(0, sp.opening, sp.strokeGapS);
   };
   const capture = (n) => {
     const out = new Float32Array(n);
@@ -247,7 +304,7 @@ console.log('— the detector actually moves the ultrasound into the audible ban
   build();
   ex.set_detector(1, 14000);
   const dry = capture(48000);
-  const dryUltra = band(dry, 19000, 23000);
+  const dryUltra = band(dry, 20000, 23800);
   const dryAudible = band(dry, 300, 9000);
   ck(dryUltra > 0, `detector off: the call is there, up at ${(sp.carrierHz / 1000).toFixed(0)} kHz`);
   ck(dryAudible < dryUltra * 0.01,
@@ -256,11 +313,52 @@ console.log('— the detector actually moves the ultrasound into the audible ban
   build();
   ex.set_detector(10, 14000);
   const wet = capture(48000);
-  const shifted = band(wet, 1700, 2700);
-  const original = band(wet, 19000, 23000);
+  const shifted = band(wet, 1900, 2900);
+  const original = band(wet, 20000, 23800);
   ck(shifted > original * 100,
-    `detector on: the energy has moved to ~${(sp.carrierHz / 10000).toFixed(1)} kHz and left the ultrasonic band behind`);
+    `detector on: the energy has moved to ~${(sp.carrierHz / 10000).toFixed(2)} kHz and left the ultrasonic band behind`);
   ck(shifted > dryAudible * 100, 'detector on: and it is now loud where a human can hear it');
+  ex.set_detector(1, 14000);
+}
+
+console.log('— a call the output cannot carry renders as silence, not as a squashed tone —');
+{
+  // The kernel is initialised at a sample rate; a carrier above that rate's
+  // ceiling must vanish rather than be transposed to just under it. Getting
+  // this wrong would put an audible 19.8 kHz buzz where a 22.5 kHz call
+  // belongs — a lie in exactly the direction this page exists to correct.
+  const sp = SPECIES.find((x) => x.carrierHz > 20000);
+  const runAt = (rate, div) => {
+    ex.init(rate);
+    ex.clear_scene();
+    ex.set_air(24, 80, 101.325, 0.3);
+    ex.set_listener(0, 0, 0);
+    ex.set_master(Math.pow(10, 40 / 20));
+    ex.set_detector(div, 14000);
+    ex.add_voice(3, 0, sp.carrierHz, sp.q, sp.carrierHz, sp.teeth,
+      sp.syllables, sp.gapS, sp.periodS, sp.splDb, 42);
+    ex.set_voice_file(0, sp.file.sweep, sp.file.flare, sp.file.ripple,
+      sp.file.rippleCycles, sp.file.jitter, sp.file.pegs, sp.file.pegRatio);
+    ex.set_voice_stroke(0, sp.opening, sp.strokeGapS);
+    let peak = 0;
+    for (let b = 0; b < 300; b++) {
+      const ptr = ex.render(512);
+      const buf = new Float32Array(ex.memory.buffer, ptr, 1024);
+      for (const v of buf) peak = Math.max(peak, Math.abs(v));
+    }
+    return peak;
+  };
+
+  ex.init(44100);
+  const ceil441 = ex.reproducible_ceiling_hz();
+  ex.init(48000);
+  const ceil480 = ex.reproducible_ceiling_hz();
+  ck(ceil441 < sp.carrierHz && ceil480 > sp.carrierHz,
+    `${(sp.carrierHz / 1000).toFixed(1)} kHz clears a 48 kHz output (${(ceil480 / 1000).toFixed(1)} kHz) but not a 44.1 kHz one (${(ceil441 / 1000).toFixed(1)} kHz)`);
+
+  ck(runAt(44100, 1) === 0, 'at 44.1 kHz with the detector off it is silent — as a real recording would be');
+  ck(runAt(44100, 10) > 0.01, 'at 44.1 kHz with the detector on it comes back');
+  ck(runAt(48000, 1) > 0.005, 'at 48 kHz it fits, and sounds');
   ex.set_detector(1, 14000);
 }
 

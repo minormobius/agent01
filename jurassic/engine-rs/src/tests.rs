@@ -3,7 +3,7 @@
 //! standard, a published fossil — rather than against itself.
 
 use crate::air::{absorption_db_per_m, audible_radius_m, foliage_db_per_m, transmission_loss_db};
-use crate::synth::{Voice, VoiceParams};
+use crate::synth::{FileShape, Voice, VoiceParams};
 use crate::{Scene, MAX_FRAMES};
 
 /// ISO 9613-2:1996 Table 2 — the atmospheric attenuation coefficient in dB per
@@ -94,35 +94,165 @@ fn foliage_matches_iso_table() {
     assert!(foliage_db_per_m(20_000.0) > foliage_db_per_m(8_000.0));
 }
 
-/// `Archaboilus musicus` — Gu, Engel & Ren 2012 measured 107 teeth over a
-/// 9.34 mm file and inferred a 6.4 kHz call. Drive the synthesiser with that
-/// file and it must ring at that pitch. This is the one place the synthesiser
-/// is pinned to a published fossil rather than to itself.
+/// *Bacharaboilus curvus* — Gu et al. 2026 reconstruct a 5.0 kHz call from a
+/// file of ~185 teeth whose spacing runs flat then flares toward the basal end
+/// (their Figs. 3 and 4). Drive the synthesiser with that file and it must ring
+/// at that pitch. This is where the synthesiser is pinned to a published fossil
+/// rather than to itself.
 #[test]
-fn archaboilus_musicus_rings_at_its_published_pitch() {
+fn bacharaboilus_curvus_rings_at_its_published_pitch() {
     let sr = 48_000.0f32;
     let mut v = Voice::new();
     let mut p = VoiceParams::silent();
-    p.carrier_hz = 6_400.0;
-    p.tooth_rate_hz = 6_400.0;
-    p.teeth = 107;
-    p.q = 30.0;
+    p.carrier_hz = 5_000.0;
+    p.tooth_rate_hz = 5_000.0;
+    p.teeth = 185;
+    p.q = 56.8;
+    p.file = FileShape {
+        sweep: 1.6,
+        flare: 6.0,
+        ripple: 0.0,
+        ripple_cycles: 0.0,
+        jitter: 0.04,
+        pegs: 0,
+        peg_ratio: 1.0,
+    };
+    p.opening = 0.7;
+    p.stroke_gap_s = 0.012;
     p.syllables = 1;
-    p.gap_s = 0.02;
-    p.chirp_period_s = 0.2;
+    p.gap_s = 0.05;
+    p.chirp_period_s = 0.4;
     p.spl_db = 90.0;
     p.seed = 7;
     v.set(p);
 
-    // 107 teeth at 6.4 kHz is a 16.7 ms syllable — the traverse *is* the note.
-    assert!((p.syllable_s() - 107.0 / 6400.0).abs() < 1e-6);
+    // 185 teeth at 5 kHz is a ~37 ms traverse — the note IS the traverse.
+    let h = p.hemisyllable_s();
+    assert!(
+        (h - 0.037).abs() < 0.004,
+        "hemisyllable {h:.4} s, expected ~0.037 s"
+    );
+    // Both strokes, so the whole syllable is twice that plus the turnaround.
+    assert!((p.syllable_s() - (2.0 * h + 0.012)).abs() < 1e-6);
 
-    // Hunt for a window with signal in it: the voice is silent between chirps.
     let buf = loudest_window(&mut v, sr, p.carrier_hz, p.tooth_rate_hz, 4096, 60);
     let f = dominant_hz(&buf, sr);
     assert!(
-        (f - 6_400.0).abs() < 250.0,
-        "dominant partial {f:.0} Hz, expected 6400 Hz"
+        (f - 5_000.0).abs() < 250.0,
+        "dominant partial {f:.0} Hz, expected 5000 Hz"
+    );
+}
+
+/// The file's shape has to reach the sound, or Fig. 4B is decoration.
+///
+/// *Allaboilus gigantus* carries about eight widely spaced pegs before a dense
+/// regular file. At constant scraper velocity those pegs must arrive as
+/// separated clicks — a slow start — and the file proper as a fast burst. So
+/// the strike rate early in the stroke must be far below the rate later in it.
+#[test]
+fn a_bipartite_file_starts_slow_and_finishes_fast() {
+    let plain = FileShape::plain();
+    let bipartite = FileShape {
+        pegs: 8,
+        peg_ratio: 5.0,
+        ..FileShape::plain()
+    };
+    let teeth = 43;
+    // Spacing is private, so probe it through the duration it produces.
+    let mut p = VoiceParams::silent();
+    p.tooth_rate_hz = 4_930.0;
+    p.teeth = teeth;
+    p.file = plain;
+    let flat = p.hemisyllable_s();
+    p.file = bipartite;
+    let pegged = p.hemisyllable_s();
+    assert!(
+        pegged > flat * 1.5,
+        "the pegs should stretch the traverse: {pegged:.4} s vs {flat:.4} s"
+    );
+
+    // And the effect must be at the START of the file, not spread over it.
+    let early = bipartite.mean_spacing(8);
+    assert!(early > 4.0, "the first eight teeth should be the pegs, got {early}");
+}
+
+/// *Archaboilus polyneurus*'s file rises and falls regularly along its length,
+/// which the authors read as deliberate frequency modulation. A rippled file
+/// must therefore spread the call's energy over a wider band than a flat one
+/// with the same carrier and Q.
+#[test]
+fn a_rippled_file_modulates_the_call() {
+    let sr = 48_000.0f32;
+    let render = |file: FileShape| {
+        let mut v = Voice::new();
+        let mut p = VoiceParams::silent();
+        p.carrier_hz = 10_200.0;
+        p.tooth_rate_hz = 10_200.0;
+        p.teeth = 92;
+        p.q = 36.0;
+        p.file = file;
+        p.syllables = 1;
+        p.gap_s = 0.02;
+        p.chirp_period_s = 0.25;
+        p.spl_db = 88.0;
+        p.seed = 4;
+        v.set(p);
+        loudest_window(&mut v, sr, p.carrier_hz, p.tooth_rate_hz, 4096, 60)
+    };
+    // Energy away from the carrier, relative to energy at it.
+    let spread = |buf: &[f32]| {
+        let peak = goertzel(buf, sr, 10_200.0).max(1e-12);
+        let side = band_energy(buf, sr, 6_000.0, 9_000.0).sqrt()
+            + band_energy(buf, sr, 11_500.0, 14_500.0).sqrt();
+        side / peak
+    };
+    let flat = spread(&render(FileShape::plain()));
+    let rippled = spread(&render(FileShape {
+        ripple: 0.28,
+        ripple_cycles: 3.0,
+        ..FileShape::plain()
+    }));
+    assert!(
+        rippled > flat * 1.5,
+        "a rippled file should broaden the call: {rippled:.4} vs flat {flat:.4}"
+    );
+}
+
+/// Symmetric wings mean sound on both strokes, so a syllable must contain two
+/// bursts of energy separated by the turnaround, not one.
+#[test]
+fn both_strokes_radiate() {
+    let sr = 48_000.0f32;
+    let mut p = VoiceParams::silent();
+    p.carrier_hz = 6_140.0;
+    p.tooth_rate_hz = 6_140.0;
+    p.teeth = 100;
+    p.q = 60.0;
+    p.syllables = 1;
+    p.gap_s = 0.05;
+    p.chirp_period_s = 0.6;
+    p.spl_db = 90.0;
+    p.seed = 9;
+
+    let energy_of = |opening: f32| {
+        let mut q = p;
+        q.opening = opening;
+        q.stroke_gap_s = 0.015;
+        let mut v = Voice::new();
+        v.set(q);
+        let n = (sr * 0.6) as usize;
+        let mut e = 0.0f64;
+        for _ in 0..n {
+            let s = v.tick(sr, q.carrier_hz, q.tooth_rate_hz);
+            e += (s as f64).powi(2);
+        }
+        e
+    };
+    let closing_only = energy_of(0.0);
+    let both = energy_of(0.8);
+    assert!(
+        both > closing_only * 1.3,
+        "the opening stroke should add energy: {both:.5} vs {closing_only:.5}"
     );
 }
 
@@ -135,10 +265,10 @@ fn ultrasonic_voice_does_not_alias_into_the_audible_band() {
     let sr = 48_000.0f32;
     let mut v = Voice::new();
     let mut p = VoiceParams::silent();
-    p.carrier_hz = 22_000.0;
-    p.tooth_rate_hz = 22_000.0;
-    p.teeth = 60;
-    p.q = 40.0;
+    p.carrier_hz = 22_500.0;
+    p.tooth_rate_hz = 22_500.0;
+    p.teeth = 50;
+    p.q = 18.9;
     p.syllables = 4;
     p.gap_s = 0.01;
     p.chirp_period_s = 0.4;
@@ -147,7 +277,7 @@ fn ultrasonic_voice_does_not_alias_into_the_audible_band() {
     v.set(p);
 
     let buf = loudest_window(&mut v, sr, p.carrier_hz, p.tooth_rate_hz, 4096, 60);
-    let carrier = band_energy(&buf, sr, 20_000.0, 23_500.0);
+    let carrier = band_energy(&buf, sr, 20_500.0, 23_800.0);
     let audible = band_energy(&buf, sr, 200.0, 11_000.0);
     assert!(carrier > 0.0, "the ultrasonic voice produced no carrier at all");
     assert!(
@@ -156,15 +286,56 @@ fn ultrasonic_voice_does_not_alias_into_the_audible_band() {
     );
 }
 
+/// A carrier this output cannot carry must be silent, not transposed down to
+/// the edge of the band. The detector is the only honest way to hear it.
+#[test]
+fn a_carrier_above_nyquist_is_silent_not_squashed() {
+    let sr = 44_100.0f32;
+    let mut v = Voice::new();
+    let mut p = VoiceParams::silent();
+    p.carrier_hz = 22_500.0;
+    p.tooth_rate_hz = 22_500.0;
+    p.teeth = 50;
+    p.q = 18.9;
+    p.syllables = 6;
+    p.gap_s = 0.012;
+    p.chirp_period_s = 0.4;
+    p.spl_db = 88.0;
+    p.seed = 17;
+    v.set(p);
+
+    let mut peak = 0.0f32;
+    for _ in 0..(sr as usize) {
+        peak = peak.max(v.tick(sr, p.carrier_hz, p.tooth_rate_hz).abs());
+    }
+    assert_eq!(peak, 0.0, "22.5 kHz at a 44.1 kHz rate must render as silence");
+
+    // Divide it by ten and it comes back.
+    let mut heard = 0.0f32;
+    for _ in 0..(sr as usize) {
+        heard = heard.max(v.tick(sr, p.carrier_hz / 10.0, p.tooth_rate_hz / 10.0).abs());
+    }
+    assert!(heard > 0.01, "the detector should make it audible again, got {heard}");
+
+    // At 48 kHz the same call fits and must NOT be silent.
+    let mut w = Voice::new();
+    w.set(p);
+    let mut at48 = 0.0f32;
+    for _ in 0..48_000 {
+        at48 = at48.max(w.tick(48_000.0, p.carrier_hz, p.tooth_rate_hz).abs());
+    }
+    assert!(at48 > 0.005, "22.5 kHz fits under 48 kHz and should sound, got {at48}");
+}
+
 /// The detector divides what you hear without touching what the air hears.
 #[test]
 fn detector_shifts_pitch_but_not_physics() {
     let mut s = Scene::new();
     s.sample_rate = 48_000.0;
     let mut p = VoiceParams::silent();
-    p.carrier_hz = 22_000.0;
-    p.tooth_rate_hz = 22_000.0;
-    p.teeth = 60;
+    p.carrier_hz = 22_500.0;
+    p.tooth_rate_hz = 22_500.0;
+    p.teeth = 50;
     p.spl_db = 88.0;
     p.seed = 11;
     p.x = 12.0;
@@ -178,8 +349,8 @@ fn detector_shifts_pitch_but_not_physics() {
     assert_eq!(r_plain, s.audible_radius(0, 20.0), "nor the audible radius");
 
     let (carrier, rate) = s.render_freqs(0);
-    assert!((carrier - 2_200.0).abs() < 1.0, "carrier should divide to 2.2 kHz, got {carrier}");
-    assert!((rate - 2_200.0).abs() < 1.0, "strike rate should divide with it, got {rate}");
+    assert!((carrier - 2_250.0).abs() < 1.0, "carrier should divide to 2.25 kHz, got {carrier}");
+    assert!((rate - 2_250.0).abs() < 1.0, "strike rate should divide with it, got {rate}");
 
     // A 5 kHz singer is below the detector threshold and must be left alone.
     let mut q = VoiceParams::silent();
@@ -203,6 +374,7 @@ fn a_full_chorus_stays_inside_full_scale() {
         p.tooth_rate_hz = p.carrier_hz;
         p.teeth = 90;
         p.q = 25.0;
+        p.opening = 0.7;
         p.syllables = 3;
         p.gap_s = 0.03;
         p.chirp_period_s = 1.5;
