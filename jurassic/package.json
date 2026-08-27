@@ -1,0 +1,10 @@
+{
+  "name": "jurassic",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A walkable reconstruction of the Daohugou soundscape: a Rust/WASM stridulation synthesiser and ISO 9613 propagation model, mapped.",
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
+}

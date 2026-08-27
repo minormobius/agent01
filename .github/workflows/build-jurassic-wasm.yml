@@ -1,0 +1,85 @@
+name: Build jurassic engine (wasm)
+
+# Compiles jurassic/engine-rs (the stridulation synthesiser and the ISO 9613
+# propagation model) to a raw wasm32-unknown-unknown module and commits it to
+# jurassic/engine/. No wasm-bindgen — the AudioWorklet instantiates the bytes
+# directly and reads the render buffer out of linear memory by hand.
+#
+# Unlike most of the committed-artifact surfaces here, the site does NOT have a
+# JS fallback: this module IS the audio. So the gate is stricter — the crate's
+# own known-answer tests must pass on the host, and then the built artifact must
+# reproduce ISO 9613-2 Table 2 before it is allowed near the repo.
+#
+# Committing the .wasm wakes deploy-jurassic (paths: jurassic/**), so this only
+# triggers on engine-rs changes — no build loop.
+
+on:
+  push:
+    branches:
+      - 'claude/jurassic-forest-sounds-iym7ya'
+    paths:
+      - 'jurassic/engine-rs/**'
+      - '.github/workflows/build-jurassic-wasm.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Cache cargo + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            jurassic/engine-rs/target
+          key: cargo-jurassic-${{ runner.os }}-${{ hashFiles('jurassic/engine-rs/Cargo.toml', 'jurassic/engine-rs/src/**') }}
+          restore-keys: cargo-jurassic-${{ runner.os }}-
+
+      # The acoustics are proved here: ISO 9613-2 Table 2 at 32 points, the
+      # published 6.4 kHz of Archaboilus musicus, and no aliasing from a 22 kHz
+      # carrier at a 48 kHz sample rate.
+      - name: Test (host)
+        working-directory: jurassic/engine-rs
+        run: cargo test --release
+
+      - name: Build wasm
+        working-directory: jurassic/engine-rs
+        run: cargo build --target wasm32-unknown-unknown --release
+
+      - name: Copy artifact
+        run: cp jurassic/engine-rs/target/wasm32-unknown-unknown/release/jurassic_engine.wasm jurassic/engine/jurassic.wasm
+
+      # Prove the ARTIFACT, not just the source — a stale or mis-built .wasm is
+      # exactly the failure a green `cargo test` cannot catch.
+      - name: Gate the built artifact
+        run: node jurassic/test/soundscape.selftest.mjs
+
+      - name: Commit artifact
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f jurassic/engine/jurassic.wasm
+          git commit -m "build: jurassic wasm audio kernel" || { echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # GITHUB_TOKEN pushes don't trigger other workflows, so kick the deploy
+      # explicitly to publish the freshly-built kernel.
+      - name: Deploy the new engine (dispatch deploy-jurassic)
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy-jurassic.yml/dispatches" \
+            -d '{"ref":"${{ github.ref_name }}"}' || echo "dispatch skipped (non-fatal)"

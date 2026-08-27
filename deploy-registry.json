@@ -628,6 +628,21 @@
       ]
     },
     {
+      "surface": "jurassic",
+      "dir": "jurassic",
+      "endpoint": "jurassic.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/jurassic-forest-sounds-iym7ya",
+      "uses": [],
+      "provides": null,
+      "status": "NEW — jurassic.mino.mobi did not exist before this surface, so the FIRST deploy provisions the custom domain and its DNS record from the routes[] declaration. Expect what plant/ documented for its own first run: DNS not resolving for ~10 s, then Cloudflare error 1104 for ~60 s while the certificate issues, then it works. Only a first deploy sees that, so do not read it as a failure — but DO confirm the run's log binds `jurassic.mino.mobi (custom domain)` (the golden rule, docs/DEPLOYS.md §4). The build-jurassic-wasm.yml artifact is committed to the branch, so the site is complete in the repo before any deploy runs.",
+      "note": "The Daohugou soundscape, walkable… (full description: jurassic/CLAUDE.md)",
+      "paths": [
+        "jurassic/**",
+        ".github/workflows/deploy-jurassic.yml"
+      ]
+    },
+    {
       "surface": "ocr",
       "dir": "ocr",
       "endpoint": "ocr.mino.mobi, ocr.ascential.work",

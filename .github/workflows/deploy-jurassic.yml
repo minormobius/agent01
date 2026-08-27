@@ -1,0 +1,70 @@
+name: Deploy Jurassic
+
+# Static site + committed Rust/WASM audio kernel → Cloudflare Worker (assets
+# binding) at jurassic.mino.mobi. Every sample and every metre of propagation is
+# computed client-side, so there are no secrets beyond the shared Cloudflare
+# credentials. The wasm artifact is built and committed by
+# build-jurassic-wasm.yml; this workflow just ships what is in the repo.
+#
+# FIRST RUN: jurassic.mino.mobi did not exist before this surface. wrangler
+# provisions the custom domain and its DNS record from the routes[] entry in
+# wrangler.jsonc, and for about a minute afterwards the name may not resolve or
+# may serve Cloudflare error 1104 while the certificate issues. The verify step
+# below is therefore continue-on-error and patient — but a run that never binds
+# `jurassic.mino.mobi (custom domain)` in its deploy log has NOT shipped,
+# whatever colour it went (docs/DEPLOYS.md §4).
+
+on:
+  push:
+    branches:
+      - 'claude/jurassic-forest-sounds-iym7ya'
+    paths:
+      - 'jurassic/**'
+      - '.github/workflows/deploy-jurassic.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: jurassic
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The kernel is the site. If the committed artifact has drifted from the
+      # roster or from ISO 9613, ship nothing.
+      - name: Gate on the surface selftest
+        run: node test/soundscape.selftest.mjs
+
+      - name: Install wrangler
+        run: npm install wrangler
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify the site is live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5 6 7 8; do
+            if curl -fsS https://jurassic.mino.mobi/ | grep -qi 'Jurassic'; then
+              echo "✓ jurassic is live"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 10
+          done
+          echo "⚠️ jurassic didn't answer within 80s. On a FIRST deploy that is expected while DNS and the certificate settle; on any later one, check the deploy log bound the custom domain."
+
+      - name: Verify the engine is served with the right type
+        continue-on-error: true
+        run: |
+          ct=$(curl -fsSI https://jurassic.mino.mobi/engine/jurassic.wasm | tr -d '\r' | awk 'tolower($1)=="content-type:"{print $2}')
+          echo "engine/jurassic.wasm → ${ct:-<none>}"
+          case "$ct" in
+            application/wasm*) echo "✓ served as application/wasm" ;;
+            *) echo "⚠️ not application/wasm — WebAssembly.instantiateStreaming would reject it. The loader uses arrayBuffer() so the site still works, but this is worth knowing." ;;
+          esac

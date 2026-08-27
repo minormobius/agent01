@@ -44,7 +44,7 @@ window.SPEC_CURATED = {
     fifty: 'social',
     bakery: 'work', wave: 'work', org: 'work', crm: 'work', pm: 'work',
     finance: 'work', os: 'work', 'os-api': 'work', audio: 'work', board: 'work',
-    labglass: 'science', j: 'science', ocr: 'science', splice: 'science',
+    labglass: 'science', jurassic: 'science', j: 'science', ocr: 'science', splice: 'science',
     neuro: 'science',
     cable: 'science', ar: 'science', tjs: 'science', wars: 'science',
     hoop: 'oneill', 'hoop-archive': 'oneill', rind: 'oneill', tide: 'oneill', iris: 'oneill',
@@ -117,7 +117,7 @@ window.SPEC_CURATED = {
       ]},
       { head: 'Realtime & compute in the browser', items: [
         'WebSocket multiplayer via DOs (games platform, ar two-phone AR, hoop live positions).',
-        'Rust→WASM engines built in CI and committed: OCR, phylofiction evolution, biome/rind solvers, the aub roguelike, wiki markdown.',
+        'Rust→WASM engines built in CI and committed: OCR, phylofiction evolution, biome/rind solvers, the aub roguelike, wiki markdown, the jurassic stridulation synthesiser (driven live from an AudioWorklet).',
         'WebGPU sims (duck flight, hourglass, the g gallery), DuckDB-WASM + Pyodide workbenches (labglass, photo, os).',
       ]},
       { head: 'Publishing & pipelines', items: [

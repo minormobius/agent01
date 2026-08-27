@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jurassic — a 165-million-year-old forest, and who could hear it</title>
+<meta name="description" content="Walk a Middle Jurassic forest floor and listen. A Rust/WASM stridulation synthesiser and ISO 9613 propagation model turn the Daohugou katydid assemblage into a soundscape you can move around inside — including the oldest ultrasound known, which you cannot hear without a detector.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d1210'/%3E%3Cpath d='M4 16q3-9 6 0t6 0q3-9 6 0t6 0' fill='none' stroke='%236da7ec' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header>
+  <h1><span class="glyph">〜</span> Jurassic</h1>
+  <span class="tagline">Daohugou, ~165 Ma — a forest you can walk around in, in the dark, by ear</span>
+  <a class="crumb" href="https://mino.mobi">↩ mino.mobi</a>
+</header>
+
+<p class="lede">
+  Nine ensiferans sang in this forest. Eight of them in pure tone around 5 kHz,
+  and one — <em>Sigmaboilus peregrinus</em> — above 20 kHz, which is the oldest
+  ultrasonic communication known from any animal, and a hundred and thirteen
+  million years before the first bat. <strong>Press play and walk about.</strong>
+  Everything you hear is synthesised from the instrument: a tooth-strike train
+  driving a wing resonator, then thrown across the air by ISO 9613 with the
+  distance, the temperature and the leaves all taken off it.
+</p>
+
+<div class="transport">
+  <button id="play" class="play" data-on="false">▶ play</button>
+  <label class="ctl"><span>volume</span>
+    <input id="gain" type="range" min="0" max="60" step="1" value="36" data-unit=" dB"><output id="gain-out"></output>
+  </label>
+  <div class="meter" title="output level"><div id="meter-fill"></div></div>
+  <label class="ctl toggle">
+    <input id="detector" type="checkbox">
+    <span>ultrasound detector ÷10</span>
+  </label>
+  <span id="engine-version" class="chip"></span>
+</div>
+<p id="detector-note" class="detector-note">off — ultrasound is being rendered at its true pitch, where you almost certainly cannot hear it</p>
+<p id="status" class="status" data-tone="">loading the engine…</p>
+
+<main>
+  <section class="map-wrap">
+    <div class="map-head">
+      <h2>The plot</h2>
+      <div class="plot-nav">
+        <button id="plot-prev" title="previous plot">‹</button>
+        <label>plot <input id="plot-seed" type="number" min="1" max="999999" value="1" inputmode="numeric"></label>
+        <button id="plot-next" title="next plot">›</button>
+      </div>
+    </div>
+    <div class="canvas-host">
+      <canvas id="map" aria-label="Top-down map of a 180-metre forest plot with singing insects and your position in it"></canvas>
+      <div id="tip" class="tip" hidden></div>
+    </div>
+    <p class="map-help">
+      <strong>Click or drag</strong> the forest to walk there · <strong>WASD / arrows</strong> to step
+      (hold shift to stride) · <strong>click a dot</strong> to select that species.
+    </p>
+    <p class="map-reach" id="map-reach"></p>
+
+    <div class="dials">
+      <label class="ctl"><span>air temperature</span>
+        <input id="temp" type="range" min="5" max="38" step="1" data-unit=" °C"><output id="temp-out"></output>
+      </label>
+      <label class="ctl"><span>relative humidity</span>
+        <input id="humidity" type="range" min="10" max="100" step="1" data-unit=" %"><output id="humidity-out"></output>
+      </label>
+      <label class="ctl"><span>canopy density</span>
+        <input id="canopy" type="range" min="0" max="1" step="0.05"><output id="canopy-out"></output>
+      </label>
+      <p class="dials-note" id="air-note"></p>
+    </div>
+  </section>
+
+  <aside>
+    <section class="card">
+      <h2>Who is listening</h2>
+      <select id="ear-select" aria-label="Choose whose ears to use"></select>
+      <p id="ear-blurb" class="ear-blurb"></p>
+      <div id="live" class="live"></div>
+    </section>
+
+    <section class="card">
+      <h2>How far each call carries</h2>
+      <div id="reach" class="reach"></div>
+      <details class="table-view">
+        <summary>the same numbers as a table</summary>
+        <div id="reach-table"></div>
+      </details>
+    </section>
+
+    <section class="card">
+      <h2>The singer</h2>
+      <select id="species-select" aria-label="Choose a species"></select>
+      <div id="dossier" class="dossier"></div>
+    </section>
+
+    <section class="card">
+      <h2>Where and when</h2>
+      <div id="locality" class="locality"></div>
+    </section>
+  </aside>
+</main>
+
+<section class="deeptime">
+  <h2>The gap this closes</h2>
+  <svg viewBox="0 0 720 110" role="img" width="100%"
+       aria-label="Deep time from 250 million years ago to the present. Daohugou sits at 165 million years ago, in the Middle Jurassic. The first bats appear at about 52 million years ago — 113 million years later.">
+    <!-- x = (250 − Ma) / 250 × 700 + 10 -->
+    <g class="periods">
+      <rect x="10"    y="22" width="137.2" height="18"></rect><!-- Triassic 252–201 -->
+      <rect x="147.2" y="22" width="156.8" height="18"></rect><!-- Jurassic 201–145 -->
+      <rect x="304"   y="22" width="221.2" height="18"></rect><!-- Cretaceous 145–66 -->
+      <rect x="525.2" y="22" width="184.8" height="18"></rect><!-- Cenozoic 66–0 -->
+    </g>
+    <g class="period-labels" text-anchor="middle">
+      <text x="78.6"  y="56">Triassic</text>
+      <text x="225.6" y="56">Jurassic</text>
+      <text x="414.6" y="56">Cretaceous</text>
+      <text x="617.6" y="56">Cenozoic</text>
+    </g>
+    <g class="marker">
+      <line x1="248" y1="14" x2="248" y2="44"></line>
+      <circle cx="248" cy="31" r="4.5"></circle>
+      <text x="248" y="8" text-anchor="middle">Daohugou · 165 Ma · ultrasound</text>
+      <text x="248" y="74" text-anchor="middle" class="sub">Sigmaboilus peregrinus sings above 20 kHz</text>
+    </g>
+    <g class="marker marker-late">
+      <line x1="564.4" y1="14" x2="564.4" y2="44"></line>
+      <circle cx="564.4" cy="31" r="4.5"></circle>
+      <text x="564.4" y="8" text-anchor="middle">first bats · ~52 Ma</text>
+      <text x="564.4" y="74" text-anchor="middle" class="sub">113 Myr later</text>
+    </g>
+    <g class="axis">
+      <line x1="10" y1="88" x2="710" y2="88"></line>
+      <text x="10" y="104">250 Ma</text>
+      <text x="710" y="104" text-anchor="end">today</text>
+    </g>
+  </svg>
+  <p>
+    Katydid ultrasound has usually been explained as an answer to bats. These
+    fossils are 113 million years too early for that, which is the 2026 paper's
+    point and the reason the <strong>who is listening</strong> control above
+    matters more than it looks. Switch between an early mammal and an archosaur
+    and watch the ultrasonic circle swell and vanish: on one reading ultrasound
+    bought no privacy at all, on the other it bought a private channel. The
+    fossils do not settle it. The physics only tells you what each answer costs.
+  </p>
+</section>
+
+<footer>
+  <h2>What is measured here, and what is not</h2>
+  <p>
+    Two numbers on this page are published results.
+    <em>Archaboilus musicus</em> sang at <strong>6.4 kHz</strong> — Gu, Engel &amp; Ren
+    2012, <a href="https://doi.org/10.1073/pnas.1118372109">PNAS 109:3868</a>, from a
+    file of 107 teeth over 9.34 mm. <em>Sigmaboilus peregrinus</em> sang above
+    <strong>20 kHz</strong> — Gu <em>et al.</em> 2026,
+    <a href="https://doi.org/10.1073/pnas.2615107123">PNAS 123(36):e2615107123</a>,
+    the paper this surface was built for. That paper was paywalled when this was
+    written; its per-species table has not been transcribed here, and the roster
+    below is the described singing ensiferans of the Daohugou beds rather than a
+    copy of its particular nine.
+  </p>
+  <p>
+    <strong>Every other frequency is ours</strong> — modelled from how
+    stridulation works and from the shape of the assemblage as described, and
+    labelled <span class="badge badge-modelled">modelled</span> wherever it
+    appears. The Jurassic audiograms are worse than that: no ear fossilises, so
+    they are labelled <span class="badge badge-hypothesis">hypothesis</span> and
+    are best read as three positions in an argument you can switch between.
+  </p>
+  <p>
+    The <strong>propagation</strong> is not a guess. Spreading, atmospheric
+    absorption and foliage scattering are ISO 9613-1:1993 and ISO 9613-2:1996,
+    implemented in Rust and checked against the standard's own published table
+    at four temperature–humidity conditions across eight octaves. That test runs
+    in CI. If it ever fails, every radius on this page is wrong and the build
+    goes red.
+  </p>
+  <p class="colophon">
+    Sound and physics: a zero-dependency Rust kernel compiled to raw
+    <code>wasm32-unknown-unknown</code>, run from an AudioWorklet — no
+    wasm-bindgen, no allocator on the audio thread. The kernel knows nothing
+    about insects; the roster is <a href="js/fauna.js">one editable file</a>.
+    Source: <a href="README.md">README</a>.
+    Plot <span class="muted">?plot=</span> is a permalink — the same number
+    grows the same forest anywhere.
+  </p>
+</footer>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
