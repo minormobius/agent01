@@ -33,10 +33,10 @@ _Regenerated 2026-08-27 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 82, bluesky 73, data 58, tools 58, work 8.
 
-**Neighborhood spark** (bisk 2026-08-27, 99 members / 260 posts):
+**Neighborhood spark** (bisk 2026-08-27, 99 members / 250 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: llms, openai, llm
-- Top post: "lol, bill gates is dooming, "won't somebody do something" bitch, you're somebody. you might even be the main somebody" — @segyges.bsky.social
+- Distinctive words: openai, bluesky, anthropic
+- Top post: "inspired by the post" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
