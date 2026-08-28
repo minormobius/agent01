@@ -33,10 +33,10 @@ _Regenerated 2026-08-28 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 82, bluesky 73, data 58, tools 58, work 8.
 
-**Neighborhood spark** (bisk 2026-08-28, 99 members / 226 posts):
-- Mood: Fair 🌤 (trust)
-- Distinctive words: anthropic, bluesky, llms
-- Top post: "inspired by the post" — @segyges.bsky.social
+**Neighborhood spark** (bisk 2026-08-28, 99 members / 237 posts):
+- Mood: Overcast ☁ (trust)
+- Distinctive words: imo, anthropic, bluesky
+- Top post: "" — @sneptech.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
