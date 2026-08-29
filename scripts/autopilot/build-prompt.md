@@ -33,10 +33,10 @@ _Regenerated 2026-08-29 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 82, bluesky 73, data 58, tools 58, work 8.
 
-**Neighborhood spark** (bisk 2026-08-29, 99 members / 272 posts):
+**Neighborhood spark** (bisk 2026-08-29, 99 members / 275 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: imo, glm, bluesky
-- Top post: "I think you all should know that this bird exists." — @moultano.bsky.social
+- Distinctive words: glm, idk, anthropic
+- Top post: "andreessen horowitz's pro-datacenter propaganda is so bad that i sort of hope someone burns one of them down purely to g" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
