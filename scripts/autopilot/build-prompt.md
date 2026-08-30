@@ -33,9 +33,9 @@ _Regenerated 2026-08-30 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 82, bluesky 73, data 58, tools 58, work 8.
 
-**Neighborhood spark** (bisk 2026-08-30, 99 members / 258 posts):
+**Neighborhood spark** (bisk 2026-08-30, 99 members / 248 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: llms, wib, cumulative
+- Distinctive words: llms, wib, llm
 - Top post: "Objecting to the destruction of USAID is a pretty clean litmus test for being a serious person and not evil a surprising" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
