@@ -206,6 +206,18 @@ lattice, rather than building a separate feature — worth trying this move
 again on future bare-formula asks: look for a "draw the same vectors
 everywhere" generalization before reaching for a second panel/canvas.
 
+Eighteenth request (2026-08-31), same turn as "draw-gaussian" / lattice-preimage:
+an immediate same-session follow-up ("very nice. now...") extending the single-
+point construction into a recursive one — grow a tree from the origin, a fresh
+random matrix per newly-linked point, recurse only on unvisited points, "for
+like 8 levels." Confirms the standing pattern of quick, terse iterations on a
+site they just got (cf. the Newman-polynomial fifth request) rather than a new
+build. New data point: branching recursion on a lattice construction blows up
+combinatorially (4x per level here) well before the requested depth is
+practically reachable — flagged the safety cap explicitly in the UI/BRIEF
+rather than silently truncating or letting the tab hang, consistent with the
+"say when something is approximate" instinct already established.
+
 Thirteenth request (2026-07-31), continuing meta-todo: asked for two
 prioritized backlog entries — a max-priority one about pointing future build
 agents at general-template as their base, a high-priority one about rolling

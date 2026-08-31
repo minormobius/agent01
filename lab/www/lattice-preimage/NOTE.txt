@@ -1,1 +1,1 @@
-Built the exact pullback: pick p and M in GL(2,Z), see q=Mp's axis-aligned von Neumann neighborhood and its true preimage under M⁻¹ around p (usually a skewed diamond, not a plus). Added a full-lattice M⁻¹ basis-grid toggle as a second view of the same vectors.
+Added "grow tree from origin": fresh random matrix per newly-linked point, recursive. Branching is up to 4x/level, so it hits a 3000-node safety cap before level 8 in practice — the readout says so rather than hanging your tab or faking the depth.

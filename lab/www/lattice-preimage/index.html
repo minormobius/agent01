@@ -56,6 +56,7 @@
   .toggle-row input { width: auto; min-height: auto; }
   label.check { display: flex; align-items: center; gap: .5rem; font-size: .8rem; color: var(--muted); min-height: 44px; }
   .checkbox { width: 1.2rem; height: 1.2rem; accent-color: var(--accent); }
+  .hidden { display: none; }
 </style>
 </head>
 <body>
@@ -72,6 +73,12 @@
   definition, wherever q lands. This page computes the <b>preimage</b> of that
   neighborhood: the five points M⁻¹ sends to it. Since M⁻¹ need not preserve the
   grid's axes, that preimage shape around p is usually a skewed diamond, not a plus.</p>
+
+  <p><b>Growing a tree</b> repeats this construction recursively: starting at the
+  origin, pick a fresh random M ∈ GL(2,ℤ) for that point, connect it to the
+  preimage points its own M induces, then recurse — a new random M for each
+  newly-linked point, skipping any point already visited — for up to the given
+  number of levels. Colour marks distance (in levels) from the origin.</p>
 
   <div class="panel">
     <div class="row">
@@ -112,6 +119,14 @@
       <label class="check"><input class="checkbox" id="showgrid" type="checkbox"> show M⁻¹ basis grid</label>
       <button id="resetview" type="button">reset view</button>
     </div>
+    <div class="row" style="margin-top:.8rem">
+      <div class="field">
+        <label for="levels">levels</label>
+        <input id="levels" type="number" step="1" min="1" max="10" value="8">
+      </div>
+      <button id="grow" type="button">grow tree from origin</button>
+      <button id="exitTree" type="button" class="hidden">back to single point</button>
+    </div>
     <div id="err" class="err hidden" role="alert"></div>
   </div>
 
@@ -122,11 +137,17 @@
       <button id="zoomout" type="button" aria-label="zoom out">−</button>
     </div>
   </div>
-  <div class="legend">
+  <div class="legend" id="legendSingle">
     <span><span class="swatch" style="background:#e8a33d"></span>p</span>
     <span><span class="swatch" style="background:#5fc9e8"></span>q = Mp, and its von Neumann neighborhood</span>
     <span><span class="swatch" style="background:#7ac387"></span>preimage of that neighborhood, around p</span>
     <span>tap/click the canvas to move p · drag to pan · wheel or +/− to zoom</span>
+  </div>
+  <div class="legend hidden" id="legendTree">
+    <span><span class="swatch" style="background:#e8a33d"></span>origin</span>
+    <span><span class="swatch" style="background:#4e8fe0"></span>younger (near origin)</span>
+    <span><span class="swatch" style="background:#e0672f"></span>older (deeper recursion)</span>
+    <span>drag to pan · wheel or +/− to zoom</span>
   </div>
 
   <div class="panel readout" id="readout"></div>
@@ -141,6 +162,10 @@ kit.crumb && (document.getElementById('crumb').innerHTML = kit.crumb('draw-gauss
 var M = { a: 1, b: 1, c: 0, d: 1 };   // last VALID matrix (det = ±1)
 var P = { x: 3, y: 2 };
 var showGrid = false;
+
+var treeMode = false;
+var tree = null;              // { edges, visited, levelCounts, capped }
+var MAX_TREE_NODES = 3000;    // safety cap: branching is up to 4x per level
 
 var view = { scale: 30, panX: 0, panY: 0 }; // panX/panY = screen position of world (0,0)
 var drag = null; // {startX,startY,startPanX,startPanY,moved}
@@ -165,6 +190,21 @@ function matMul(m1, m2) {
     a: m1.a * m2.a + m1.b * m2.c, b: m1.a * m2.b + m1.b * m2.d,
     c: m1.c * m2.a + m1.d * m2.c, d: m1.c * m2.b + m1.d * m2.d,
   };
+}
+
+// composes random shear steps (det-preserving) into a genuinely random
+// unimodular matrix — same construction the single-point "random M" uses.
+function randomUnimodular() {
+  var m = { a: 1, b: 0, c: 0, d: 1 };
+  var steps = 3 + Math.floor(Math.random() * 4);
+  for (var i = 0; i < steps; i++) {
+    var k = 0;
+    while (k === 0) k = Math.floor(Math.random() * 5) - 2; // -2..2, nonzero
+    var op = Math.random() < 0.5 ? { a: 1, b: k, c: 0, d: 1 } : { a: 1, b: 0, c: k, d: 1 };
+    m = matMul(op, m);
+  }
+  if (Math.random() < 0.3) m = matMul({ a: 0, b: 1, c: 1, d: 0 }, m); // occasional swap for variety
+  return m;
 }
 
 // -------------------------------------------------------- coord helpers ---
@@ -193,6 +233,8 @@ function resetView() {
 function render() {
   var s = cssSize();
   ctx.clearRect(0, 0, s.w, s.h);
+
+  if (treeMode && tree) { renderTree(s); return; }
 
   var topLeft = screenToWorld(0, 0);
   var bottomRight = screenToWorld(s.w, s.h);
@@ -269,6 +311,128 @@ function render() {
   markPoint(q, '#5fc9e8', 'q');
 
   updateReadout(q, inv, u, v, pNbrs, qNbrs);
+}
+
+// ----------------------------------------------------------- tree growth ---
+function keyOf(p) { return p.x + ',' + p.y; }
+function parseKey(k) { var i = k.indexOf(','); return { x: parseInt(k.slice(0, i), 10), y: parseInt(k.slice(i + 1), 10) }; }
+
+// starting at the origin: pick a fresh random M for the point, connect it to
+// the preimage of the von Neumann neighborhood M induces (same u/v construction
+// as the single-point view), and recurse only on points not visited yet.
+function growTree(maxLevel) {
+  var origin = { x: 0, y: 0 };
+  var visited = {};
+  visited[keyOf(origin)] = 0;
+  var nodeCount = 1;
+  var edges = [];
+  var levelCounts = [1];
+  var frontier = [origin];
+  var capped = false;
+
+  for (var level = 0; level < maxLevel && frontier.length > 0 && !capped; level++) {
+    var next = [];
+    for (var i = 0; i < frontier.length; i++) {
+      var p = frontier[i];
+      var m = randomUnimodular();
+      var inv = inverse(m);
+      var u = { x: inv.a, y: inv.c };
+      var v = { x: inv.b, y: inv.d };
+      var nbrs = [
+        { x: p.x + u.x, y: p.y + u.y }, { x: p.x - u.x, y: p.y - u.y },
+        { x: p.x + v.x, y: p.y + v.y }, { x: p.x - v.x, y: p.y - v.y },
+      ];
+      for (var j = 0; j < nbrs.length; j++) {
+        var nb = nbrs[j];
+        edges.push({ x1: p.x, y1: p.y, x2: nb.x, y2: nb.y, level: level });
+        var k = keyOf(nb);
+        if (k in visited) continue;
+        if (nodeCount >= MAX_TREE_NODES) { capped = true; continue; }
+        visited[k] = level + 1;
+        nodeCount++;
+        next.push(nb);
+      }
+    }
+    levelCounts.push(next.length);
+    frontier = next;
+  }
+  return { edges: edges, visited: visited, levelCounts: levelCounts, capped: capped };
+}
+
+function fitViewToPoints(points) {
+  var s = cssSize();
+  var minX = points[0].x, maxX = points[0].x, minY = points[0].y, maxY = points[0].y;
+  for (var i = 1; i < points.length; i++) {
+    if (points[i].x < minX) minX = points[i].x;
+    if (points[i].x > maxX) maxX = points[i].x;
+    if (points[i].y < minY) minY = points[i].y;
+    if (points[i].y > maxY) maxY = points[i].y;
+  }
+  var w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY);
+  var scale = Math.min((s.w - 40) / w, (s.h - 40) / h);
+  scale = Math.max(4, Math.min(140, scale));
+  view.scale = scale;
+  view.panX = s.w / 2 - (minX + maxX) / 2 * scale;
+  view.panY = s.h / 2 + (minY + maxY) / 2 * scale;
+}
+
+function levelColor(level, maxLevel) {
+  var t = maxLevel > 0 ? level / maxLevel : 0;
+  var hue = 205 - t * 175; // blue (young) -> red/orange (old)
+  return 'hsl(' + hue + ', 70%, 60%)';
+}
+
+function renderTree(s) {
+  var topLeft = screenToWorld(0, 0);
+  var bottomRight = screenToWorld(s.w, s.h);
+  var minX = Math.min(topLeft.x, bottomRight.x), maxX = Math.max(topLeft.x, bottomRight.x);
+  var minY = Math.min(topLeft.y, bottomRight.y), maxY = Math.max(topLeft.y, bottomRight.y);
+
+  ctx.strokeStyle = '#2c2a33';
+  ctx.lineWidth = 1;
+  if (minX <= 0 && maxX >= 0) {
+    var ax = worldToScreen(0, minY), ax2 = worldToScreen(0, maxY);
+    ctx.beginPath(); ctx.moveTo(ax[0], ax[1]); ctx.lineTo(ax2[0], ax2[1]); ctx.stroke();
+  }
+  if (minY <= 0 && maxY >= 0) {
+    var ay = worldToScreen(minX, 0), ay2 = worldToScreen(maxX, 0);
+    ctx.beginPath(); ctx.moveTo(ay[0], ay[1]); ctx.lineTo(ay2[0], ay2[1]); ctx.stroke();
+  }
+
+  var maxLevel = tree.levelCounts.length - 1;
+
+  for (var i = 0; i < tree.edges.length; i++) {
+    var e = tree.edges[i];
+    var p1 = worldToScreen(e.x1, e.y1), p2 = worldToScreen(e.x2, e.y2);
+    ctx.strokeStyle = levelColor(e.level, maxLevel);
+    ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.stroke();
+  }
+
+  var keys = Object.keys(tree.visited);
+  for (var j = 0; j < keys.length; j++) {
+    var pt = parseKey(keys[j]);
+    var lvl = tree.visited[keys[j]];
+    var sp = worldToScreen(pt.x, pt.y);
+    ctx.fillStyle = lvl === 0 ? '#e8a33d' : levelColor(lvl, maxLevel);
+    ctx.beginPath(); ctx.arc(sp[0], sp[1], lvl === 0 ? 6 : 3, 0, Math.PI * 2); ctx.fill();
+  }
+
+  updateTreeReadout(keys.length, maxLevel);
+}
+
+function updateTreeReadout(nodeCount, maxLevel) {
+  var html = '';
+  html += '<div><b>recursive growth from the origin</b> — ' + maxLevel + ' level' + (maxLevel === 1 ? '' : 's') +
+    ', a fresh random M ∈ GL(2,ℤ) chosen for every newly-linked point</div>';
+  html += '<div style="margin-top:.5rem">nodes: <span class="mono">' + nodeCount +
+    '</span> &nbsp; edges: <span class="mono">' + tree.edges.length + '</span></div>';
+  html += '<div>points per level: ' + tree.levelCounts.join(', ') + '</div>';
+  if (tree.capped) {
+    html += '<div style="margin-top:.5rem;color:#e8a33d">stopped early — hit the ' + MAX_TREE_NODES +
+      '-node safety cap before finishing the requested depth. Branching is up to 4× per level, so this is expected well before level 10.</div>';
+  }
+  document.getElementById('readout').innerHTML = html;
 }
 
 function drawCross(center, nbrs, color) {
@@ -359,15 +523,7 @@ document.getElementById('preset').addEventListener('change', function (e) {
 });
 
 document.getElementById('randomize').addEventListener('click', function () {
-  var m = { a: 1, b: 0, c: 0, d: 1 };
-  var steps = 3 + Math.floor(Math.random() * 4);
-  for (var i = 0; i < steps; i++) {
-    var k = 0;
-    while (k === 0) k = Math.floor(Math.random() * 5) - 2; // -2..2, nonzero
-    var op = Math.random() < 0.5 ? { a: 1, b: k, c: 0, d: 1 } : { a: 1, b: 0, c: k, d: 1 };
-    m = matMul(op, m);
-  }
-  if (Math.random() < 0.3) m = matMul({ a: 0, b: 1, c: 1, d: 0 }, m); // occasional swap for variety
+  var m = randomUnimodular();
   document.getElementById('preset').value = 'custom';
   setMatrixFields(m);
   readMatrixInputs();
@@ -388,7 +544,32 @@ document.getElementById('showgrid').addEventListener('change', function (e) {
   render();
 });
 
-document.getElementById('resetview').addEventListener('click', resetView);
+document.getElementById('resetview').addEventListener('click', function () {
+  if (treeMode) return;
+  resetView();
+});
+
+document.getElementById('grow').addEventListener('click', function () {
+  var levels = parseInt(document.getElementById('levels').value, 10);
+  if (isNaN(levels) || levels < 1) levels = 8;
+  levels = Math.min(levels, 12);
+  tree = growTree(levels);
+  treeMode = true;
+  document.getElementById('exitTree').classList.remove('hidden');
+  document.getElementById('legendSingle').classList.add('hidden');
+  document.getElementById('legendTree').classList.remove('hidden');
+  var pts = Object.keys(tree.visited).map(parseKey);
+  fitViewToPoints(pts);
+  render();
+});
+
+document.getElementById('exitTree').addEventListener('click', function () {
+  treeMode = false;
+  document.getElementById('exitTree').classList.add('hidden');
+  document.getElementById('legendTree').classList.add('hidden');
+  document.getElementById('legendSingle').classList.remove('hidden');
+  resetView();
+});
 
 function zoomBy(factor, cx, cy) {
   var s = cssSize();
@@ -423,7 +604,7 @@ canvas.addEventListener('pointermove', function (e) {
   render();
 });
 canvas.addEventListener('pointerup', function (e) {
-  if (drag && !drag.moved) {
+  if (drag && !drag.moved && !treeMode) {
     var rect = canvas.getBoundingClientRect();
     var w = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
     P = { x: Math.round(w.x), y: Math.round(w.y) };
