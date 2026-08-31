@@ -126,7 +126,7 @@
     <div class="row" style="margin-top:.8rem">
       <div class="field">
         <label for="levels">levels</label>
-        <input id="levels" type="number" step="1" min="1" max="10" value="8">
+        <input id="levels" type="number" step="1" min="1" max="1000" value="8">
       </div>
       <button id="grow" type="button">grow tree from origin</button>
       <button id="exitTree" type="button" class="hidden">back to single point</button>
@@ -177,7 +177,12 @@ var showGrid = false;
 
 var treeMode = false;
 var tree = null;              // { edges, visited, levelCounts, capped, degree }
-var MAX_TREE_NODES = 3000;    // safety cap: branching is up to 4x per level
+// safety cap, not a depth cap: branching is up to 4x per FRONTIER POINT, so
+// levels alone can't runaway — growTree stops the moment this many nodes
+// exist regardless of how many levels were requested. Raised from 3000 after
+// a report that "there's still a limit to the number of points that show up"
+// at high depth — this was it.
+var MAX_TREE_NODES = 20000;
 var pointsOnly = false;       // tree view: hide edges, show only nodes
 var colorBy = 'level';        // tree view: 'level' or 'degree'
 
@@ -490,8 +495,8 @@ function updateTreeReadout(nodeCount, maxLevel, maxDegree) {
     ? extra + ' edge' + (extra === 1 ? '' : 's') + ' more than a tree on ' + nodeCount + ' nodes would have (' + (nodeCount - 1) + ') — this run merged branches back together, so it is a graph, not a tree.'
     : 'exactly tree-shaped this run: ' + tree.edges.length + ' edges on ' + nodeCount + ' nodes, no branches merged back together.') + '</div>';
   if (tree.capped) {
-    html += '<div style="margin-top:.5rem;color:#e8a33d">stopped early — hit the ' + MAX_TREE_NODES +
-      '-node safety cap before finishing the requested depth. Branching is up to 4× per level, so this is expected well before level 10.</div>';
+    html += '<div style="margin-top:.5rem;color:#e8a33d">stopped early, after ' + maxLevel + ' level' + (maxLevel === 1 ? '' : 's') +
+      ' — hit the ' + MAX_TREE_NODES + '-node safety cap before reaching the requested depth. Branching is up to 4× per frontier point, so this can happen well short of it.</div>';
   }
   if (minScaleFloor < MIN_SCALE) {
     html += '<div style="margin-top:.5rem;color:#8b8792">this run\'s points spread far enough that the view had to zoom out past the usual limit to fit all of them — zooming in and back out will still reach that point.</div>';
@@ -640,7 +645,7 @@ document.getElementById('colorBy').addEventListener('change', function (e) {
 document.getElementById('grow').addEventListener('click', function () {
   var levels = parseInt(document.getElementById('levels').value, 10);
   if (isNaN(levels) || levels < 1) levels = 8;
-  levels = Math.min(levels, 12);
+  levels = Math.min(levels, 1000); // the real limit is MAX_TREE_NODES, not this
   minScaleFloor = MIN_SCALE; // recomputed fresh for this run's own bounding box
   tree = growTree(levels);
   treeMode = true;

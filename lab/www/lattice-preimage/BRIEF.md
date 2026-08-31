@@ -1,6 +1,42 @@
 # draw-gaussian / lattice-preimage — handoff
 
-## Turn five (this turn)
+## Turn six (this turn)
+
+Requester: "there still seems to be a limit to the number of points that show
+up... also there's a cap at 10 on the depth. that's way too low." Two direct
+numeric complaints, both about caps that were genuinely too tight, not about
+the fitting bug turn five fixed (that was a different bug — points computed
+but drawn off-screen; this is points never computed at all).
+
+1. **`MAX_TREE_NODES` raised 3000 → 20000.** This is the actual limit on "how
+   many points show up" — `growTree` stops adding new nodes the instant this
+   is hit, however many levels remain. Picked 20000 as a real increase (6.7×)
+   while staying inside what canvas can redraw per frame during pan/drag
+   without becoming unusable — untested in a browser (no tool here), so if a
+   future report says panning a full 20000-node tree feels laggy, the fix is
+   batching draw calls (single path, many `arc()` calls, one `fill()`) rather
+   than lowering the cap back down; see "the plan" below, new item.
+2. **`levels` input cap raised 10/12 → 1000** (HTML `max` attribute and the
+   `growTree` call's clamp — these had quietly drifted apart, 10 vs 12; now
+   both match). The old caps were a leftover UX guess, not a real safety
+   limit: `MAX_TREE_NODES` is what actually bounds the work, since the level
+   loop exits the moment `capped` is set regardless of how many levels are
+   left. A degenerate matrix sequence that barely grows the frontier could in
+   principle run many level-iterations before hitting the node cap, but each
+   iteration is cheap (proportional to current frontier size, not a fresh
+   scan), so there's no runaway risk in raising this — verified by reading
+   `growTree`'s loop condition (`level < maxLevel && frontier.length > 0 &&
+   !capped`), not by running it.
+3. **The "stopped early" readout message no longer hardcodes "level 10".**
+   It quoted the old level cap even though the actual stopping condition is
+   the node cap, which could fire at any depth — reworded to state how many
+   levels were actually completed before the cap hit, and dropped the
+   specific-number claim entirely.
+
+Not touched: everything else — see "the plan" below, unchanged except the new
+performance item.
+
+## Turn five
 
 Requester: "hmm when i put the depth real high some points don't render." A bug
 report, not a feature ask, and a real one: `fitViewToPoints` computed the scale
@@ -263,7 +299,16 @@ vectors already being computed rather than a separate feature.
    the edges-vs-tree comparison in words, but a small level→count or
    degree→count bar chart would read faster than the comma-joined lists
    currently in `updateTreeReadout` if that turns out to matter.
-6. **Degree is a raw incident-edge count, not deduplicated** — if the same
+6. **Untested at the new 20000-node cap: canvas draw performance during pan/
+   zoom.** `renderTree` issues a separate `beginPath`/`arc`/`fill` (and, for
+   edges, `beginPath`/`moveTo`/`lineTo`/`stroke`) per point and per edge —
+   fine at a few thousand, unverified at 20000 since panning re-runs `render`
+   every pointermove. If a report says dragging a big tree stutters, batch:
+   group points by fill colour (they're already computed per point) and
+   build one `Path2D`/one `fill()` call per colour bucket instead of one
+   per point; same idea for edges grouped by stroke colour. Don't lower
+   `MAX_TREE_NODES` as the fix — that's undoing what this turn was asked for.
+7. **Degree is a raw incident-edge count, not deduplicated** — if the same
    pair of points ends up connected by more than one edge (possible across
    levels, not checked for), each counts separately toward both endpoints'
    degree. Reads as "how many segments touch this point," which is what's

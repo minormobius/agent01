@@ -1,1 +1,1 @@
-Found it: the auto-fit zoom had a floor that stopped it zooming out far enough for a deep tree's farthest points, so they were computed and drawn correctly but just off-screen. Floor now adapts to how far each run actually spreads.
+Both were real caps, not last time's zoom bug. Node cap 3000→20000 (the actual points-shown limit); depth field 10→1000, since the node cap was always the true ceiling. Untested at full size — if a huge tree pans laggy, that's next.
