@@ -3,6 +3,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>tape — firmware</title>
 <meta name="description" content="What runs on the box: five components, one store, and the rule that ingest is only awake when nothing is playing.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/styles.css"></head><body>
 <div class="topbar"><div class="topbar-inner">
   <a class="brand" href="/">tape<span class="dot">.</span><small>card audio player</small></a>
@@ -18,20 +19,28 @@
   &mdash; but the parts that are portable across every candidate brain are already written, as
   JavaScript, in <code>tape/lib/</code>, and tested.</p>
 
-  <div class="note"><strong>Status: specified, not written.</strong> The data model and the wire
-  protocol exist as tested code today; the C or Python around them waits on
-  <a href="/hardware/">component selection</a>.</div>
+  <div class="note"><strong>Status: specified, not written.</strong> The data model, the wire
+  protocol and the power budget exist as tested code today. The target is now fixed:
+  <strong>ESP32-S3 + ESP-IDF/ESP-ADF</strong> &mdash; see <a href="/hardware/">the parts</a>.</div>
 
   <h2>Components</h2>
-  <pre><code>CardWatcher   poll the reader at 8 Hz → present / absent, debounced
-              a card is only "gone" after 3 consecutive missed reads
+  <pre><code>CardWatcher   poll the PN532 at 8 Hz → present / absent, debounced
+              · a card is only "gone" after 3 consecutive missed reads
+              · the RF field is pulsed 10 ms in every 125 — a continuous
+                field costs 50–80 mA and ends the battery version
+              · two or more targets in the field → refuse, blink, wait
+                (a deck of cards is a stack by nature)
 Library       manifest.json → binary index, cached until mtime changes
               card id → playlist → track files → resume position
 Player        queue · decode · volume · save position every 15 s and on removal
+              ESP-ADF decodes MP3 · AAC · WAV · OGG · Opus · FLAC · AMR,
+              so whatever the parent's phone recorded simply plays
   OutputStage   begin() · write(pcm) · setVolume()      ← one interface
-                I²S → DAC → amp   (default)  |  A2DP source (optional)
-Controls      debounced back / next, volume pot with a hard end stop
-Ingest        HTTP: serves the studio from the SD card, plus /api/*</code></pre>
+                I²S → MAX98357A → 4Ω driver             ← one implementation
+Net           SoftAP always (192.168.4.1, captive portal) + station mode
+              once it knows your WiFi. Up when idle, down when playing.
+Ingest        HTTP: a file input, a name field, a progress bar, plus /api/*
+              — NOT the studio; the box cannot serve a microphone</code></pre>
 
   <h2>The rule</h2>
   <p><strong>Ingest is awake only when nothing is playing.</strong> WiFi comes up when the box is
@@ -46,12 +55,19 @@ Ingest        HTTP: serves the studio from the SD card, plus /api/*</code></pre>
           │  │                     │  └────── back / next ─────────────┘
           │  └──enrol requested──▶ ENROLLING ──blank tag written──▶ IDLE
           │                                                             
-          └──────────── card leaves (save position) ────────────────────┘
+          ├──────────── card leaves (save position) ────────────────────┘
+          │
+          └──30 min quiet──▶ DEEP SLEEP ──button──▶ IDLE
 
-IDLE       WiFi up, ingest serving, reader polling
-PLAYING    WiFi down, ingest asleep, audio out live
+IDLE       WiFi up, ingest serving, field pulsing        ~13 mA
+PLAYING    WiFi down, ingest asleep, audio out live     ~129 mA
 ENROLLING  armed for 60 s; the next blank tag on the pad is written and bound
-FINISHED   card still on the pad, nothing left to play; LED off, no auto-repeat</code></pre>
+FINISHED   card still on the pad, nothing left to play; LED off, no auto-repeat
+CROWDED    two or more tags in the field; blink, play nothing, wait
+DEEP SLEEP ~0.02 mA — bounded by the cell's self-discharge, not the circuit</code></pre>
+  <p>Draws come from <a href="/hardware/#power">the power budget</a>. The rule that WiFi and audio
+  are never both awake is what stops <code>PLAYING</code> and <code>IDLE</code> ever adding up
+  &mdash; and it is why one 18650 gives about twenty hours of stories.</p>
 
   <h2>What is already written and tested</h2>
   <p>The model is shared between the firmware and the studio so the two cannot drift, and it lives
@@ -60,8 +76,11 @@ FINISHED   card still on the pad, nothing left to play; LED off, no auto-repeat<
     <li><code>lib/tag.js</code> &mdash; the card byte layout, Crockford base32 ids, the NDEF records,
       and the size assertion that keeps NTAG213 the target</li>
     <li><code>lib/catalog.js</code> &mdash; the manifest, SD paths, validation, orphan sweep</li>
-    <li><code>lib/protocol.js</code> &mdash; the HTTP API, the SSE events, the three transports</li>
-    <li><code>lib/tape.selftest.mjs</code> &mdash; 19 known-answer checks, run by the repo&rsquo;s
+    <li><code>lib/protocol.js</code> &mdash; the HTTP API, the SSE events, the network modes, and
+      <code>originCapabilities()</code>: the two browser rules that force the pipeline into two
+      halves, written as a function so they are tested rather than remembered</li>
+    <li><code>lib/power.js</code> &mdash; the power budget, per component and per state</li>
+    <li><code>lib/tape.selftest.mjs</code> &mdash; 28 known-answer checks, run by the repo&rsquo;s
       preflight and again by the deploy workflow before anything ships</li>
   </ul>
   <p>Porting the model to the box is then a transcription with a test suite to check it against,
@@ -76,10 +95,13 @@ DELETE /api/title/:titleId
 PUT    /api/card/:cardId       bind a card to a playlist
 DELETE /api/card/:cardId
 POST   /api/enroll             write the next blank tag on the pad
+POST   /api/wifi               join a home network (also enables station mode)
 POST   /api/say                speak a line through the box</code></pre>
-  <p>Plus the studio itself, served from <code>/tape/studio/</code> on the SD card &mdash; the same
-  bytes as <a href="/studio/">the copy on this site</a>, because
-  <a href="/design/#mixed">an HTTPS page cannot reach the box</a>.</p>
+  <p>Plus the receiving page at <code>/</code> on the box: a file input, a name field and a progress
+  bar. It is deliberately <em>not</em> the studio &mdash;
+  <a href="/design/#mixed">the box cannot serve a microphone</a>, so it does the half it is allowed
+  to do while the recording happens on <a href="/studio/">the HTTPS side</a> or in the phone&rsquo;s
+  own voice-memo app.</p>
 </main>
 <footer><div class="inner"><strong>tape</strong> &middot; part of <a href="https://mino.mobi">mino.mobi</a> &middot; <a href="/">home</a> &middot; <a href="/design/">design record</a></div></footer>
 </body></html>

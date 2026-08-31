@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>tape — studio</title>
 <meta name="description" content="Record a book in the browser, one track per sitting, and get it onto the box.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -24,6 +25,18 @@
   which is what makes &ldquo;go back a bit&rdquo; land somewhere sensible.</p>
 
   <div id="where" class="note"></div>
+
+  <details class="card" style="padding:14px 18px">
+    <summary style="cursor:pointer;font-weight:650">You may not need this page at all</summary>
+    <p style="margin:12px 0 0">Your phone&rsquo;s own voice-memo app is already installed, already
+    handles pausing and an incoming call in the middle of chapter three, and saves into storage that
+    is <em>already backed up</em> &mdash; which matters, because the recordings are the only
+    irreplaceable thing here. The box accepts what it produces: <code>.m4a</code>,
+    <code>.mp3</code>, <code>.wav</code>, <code>.ogg</code>, <code>.opus</code>, <code>.amr</code>,
+    <code>.flac</code>. Use this page when you want the one thing it adds: <strong>splitting a book
+    into tracks as you read it</strong>, so &ldquo;go back a bit&rdquo; lands on a chapter instead of
+    a guess.</p>
+  </details>
 
   <div class="card">
     <label for="title">Book</label>
@@ -58,12 +71,18 @@
   paths are derived from the title id rather than typed, so a manifest can never point at a file
   that is not there.</p>
 
-  <h2 id="dual">Why this page exists twice</h2>
-  <p>This copy, on <code>tape.mino.mobi</code>, is served over HTTPS &mdash; and an HTTPS page is not
-  allowed to talk to <code>http://tape.local</code>. So here it records and hands you files. The
-  <em>same page</em> ships on the box&rsquo;s SD card and is served by the box over plain HTTP, where
-  recording and uploading share an origin and the upload button works.
-  <a href="/design/#mixed">The reasoning.</a></p>
+  <h2 id="dual">Why this page cannot just send it</h2>
+  <p>Two browser rules pull in opposite directions, and no configuration escapes them.</p>
+  <p><strong>The microphone needs a secure context.</strong> On a plain-HTTP page
+  <code>navigator.mediaDevices</code> is not restricted &mdash; it is <em>undefined</em>. So
+  recording can only happen here, on HTTPS.</p>
+  <p><strong>An HTTPS page cannot reach <code>http://192.168.4.1</code>.</strong> It is blocked as
+  mixed content. The box has no public name and no way to renew a certificate, so it serves plain
+  HTTP. Uploading can only happen from the box&rsquo;s own origin.</p>
+  <p>So no single origin has both, and the two halves are joined by the one thing that works
+  everywhere: a file. A file input needs no secure context, no permission and no network.
+  <a href="/design/#mixed">The full argument, and the TLS trick that would one day collapse the two
+  pages into one.</a></p>
 
   <script type="module">
   import * as proto from '/lib/protocol.js';
@@ -74,19 +93,14 @@
   const tracks = [];
   let rec = null, chunks = [], started = 0, timer = null, audioCtx = null, analyser = null;
 
-  const ctx = {
-    // The box serves this same page from its own origin; that is the only place
-    // `lan` is available. See design/#mixed.
-    sameOriginAsBox: location.hostname !== 'tape.mino.mobi',
-    pageIsHttps: location.protocol === 'https:',
-    relayEnabled: false,
-  };
+  const caps = proto.capabilitiesHere();
 
-  $('where').innerHTML = ctx.sameOriginAsBox
-    ? '<strong>Served from the box.</strong> Recordings upload straight to it.'
-    : '<strong>Served from tape.mino.mobi.</strong> Everything here works except the upload &mdash; the '
-      + 'browser will not let an HTTPS page reach <code>http://tape.local</code>. Record away; you will get '
-      + 'files to drop on the SD card. <a href="#dual">Why.</a>';
+  $('where').innerHTML = caps.canRecord
+    ? '<strong>The microphone works here, and only here.</strong> Record, then take the file to the box '
+      + '&mdash; an HTTPS page is not allowed to reach it, and the box is not allowed a microphone. '
+      + '<a href="#dual">Why.</a>'
+    : '<strong>No microphone on this origin.</strong> <code>getUserMedia</code> needs a secure context, '
+      + 'so this page has to be loaded over HTTPS from tape.mino.mobi.';
 
   const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
@@ -167,19 +181,20 @@
   }
 
   function renderTransports() {
-    const available = proto.availableTransports(ctx);
-    const rows = proto.TRANSPORTS.map((t) => {
-      const on = available.includes(t);
-      const why = on ? '' : (proto.transportBlockedReason(t, ctx) || 'Not available here.');
-      const label = { lan: 'Upload to the box', card: 'Download and copy to the SD card', relay: 'Send via the relay' }[t];
-      return `<div class="row" style="align-items:flex-start;margin:10px 0">
-        <button ${on ? 'class="primary"' : 'disabled'} data-transport="${t}" style="min-width:230px">${label}</button>
-        <span style="flex:1;min-width:200px;font-size:14px;color:var(--muted)">${why}</span></div>`;
-    }).join('');
-    $('transports').innerHTML = rows;
-    $('transports').querySelectorAll('[data-transport]').forEach((b) => {
-      b.onclick = () => b.dataset.transport === 'card' ? downloadAll() : uploadToBox();
-    });
+    const order = proto.suggestPath({ sameOriginAsBox: false, boxReachable: false, relayEnabled: false });
+    $('transports').innerHTML = `
+      <ol style="margin:0 0 16px;padding-left:20px">
+        <li><strong>Save the tracks.</strong> They land in your downloads, or wherever your phone puts files.</li>
+        <li><strong>Open the box.</strong> Its address on your home WiFi, or join its access point
+            <code>tape-xxxx</code> and the page opens itself at <code>${proto.AP_ADDRESS.replace('http://', '')}</code>.</li>
+        <li><strong>Choose the files and upload.</strong> Then put a blank card on the pad &mdash; the box
+            writes it and binds it to this book.</li>
+      </ol>
+      <div class="row"><button class="primary" id="dl">Save ${tracks.length} track${tracks.length > 1 ? 's' : ''} + the manifest</button></div>
+      <p style="font-size:13px;color:var(--muted);margin:12px 0 0">Preferred route from here:
+        <code>${order.join(' → ')}</code>. This page cannot upload directly and no browser will let it;
+        the file is the bridge. <a href="#dual">The reasoning.</a></p>`;
+    $('dl').onclick = downloadAll;
   }
 
   function manifestFragment() {
@@ -187,7 +202,7 @@
     const m = cat.emptyManifest();
     cat.addTitle(m, {
       id, title: $('title').value || id, reader: $('reader').value,
-      tracks: tracks.map((t, i) => ({ name: t.name, seconds: t.seconds })),
+      tracks: tracks.map((t) => ({ name: t.name, seconds: t.seconds })),
     });
     return m;
   }
@@ -195,35 +210,21 @@
   function downloadAll() {
     const id = slug($('title').value);
     tracks.forEach((t, i) => save(t.blob, `${String(i).padStart(3, '0')}.opus`));
-    save(new Blob([JSON.stringify(manifestFragment(), null, 2)], { type: 'application/json' }), `${id}.manifest.json`);
+    save(new Blob([JSON.stringify(manifestFragment(), null, 2)], { type: 'application/json' }),
+      `${id}.manifest.json`);
     status.className = 'status ok';
-    status.innerHTML = `Put the numbered files in <code>${cat.titleDir(id)}/</code> on the SD card and merge the manifest fragment into <code>${cat.MANIFEST_PATH}</code>.`;
+    status.innerHTML = 'Saved. Now open the box and upload them &mdash; it writes '
+      + `<code>${cat.titleDir(id)}/</code> and merges the manifest itself. `
+      + 'Doing it by hand with the SD card works too.';
   }
 
   function save(blob, name) {
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = name;
-    document.body.appendChild(a); a.click(); a.remove();
-  }
-
-  async function uploadToBox() {
-    const origin = location.origin;
-    status.className = 'status'; status.textContent = 'Asking the box who it is…';
-    try {
-      const hello = await (await fetch(proto.url(origin, 'hello'))).json();
-      const bad = proto.validateHello(hello);
-      if (bad.length) throw new Error(bad.join('; '));
-      const form = new FormData();
-      form.append('manifest', JSON.stringify(manifestFragment()));
-      tracks.forEach((t, i) => form.append('track', t.blob, `${String(i).padStart(3, '0')}.opus`));
-      const res = await fetch(proto.url(origin, 'putTitle'), { method: 'POST', body: form });
-      if (!res.ok) throw new Error(`box said ${res.status}`);
-      status.className = 'status ok';
-      status.textContent = `On the box. Put a blank card on the pad to bind it.`;
-    } catch (e) {
-      status.className = 'status err';
-      status.textContent = `Upload failed: ${e.message}`;
-    }
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   }
 
   $('title').addEventListener('input', renderTracks);
@@ -233,7 +234,7 @@
 
 <footer><div class="inner">
   <strong>tape</strong> &middot; part of <a href="https://mino.mobi">mino.mobi</a> &middot;
-  <a href="/">home</a> &middot; <a href="/design/#mixed">why this page exists twice</a>
+  <a href="/">home</a> &middot; <a href="/design/#mixed">why it cannot just send it</a>
 </div></footer>
 
 </body>

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>tape — design record</title>
 <meta name="description" content="Product and site architecture for an open-source NFC card audio player: why the card holds no audio, why Bluetooth is probably the wrong default, and why the box has to serve its own studio.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -37,8 +38,11 @@
         <a href="#pointer">the card holds no audio</a> &middot;
         <a href="#nfc">RFID is the wrong radio</a> &middot;
         <a href="#bluetooth">Arduino cannot, and Bluetooth probably should not</a> &middot;
-        <a href="#mixed">the phone cannot reach the box</a></li>
+        <a href="#mixed">no origin can do the whole job</a> &middot;
+        <a href="#transport">WiFi, not Bluetooth</a> &middot;
+        <a href="#flow">the whole flow</a></li>
       <li><a href="#product">Product architecture</a></li>
+      <li><a href="/hardware/">Component selection &rarr;</a> (chosen: the parts, the losers, the power budget)</li>
       <li><a href="#interaction">The interaction model</a></li>
       <li><a href="#site">Site architecture</a></li>
       <li><a href="#open">Open questions for component selection</a></li>
@@ -241,37 +245,137 @@ record 2  external    minomobi.com:tape                  13&ndash;45 bytes
     decision at component selection, not decided here.
   </div>
 
-  <h3 id="mixed">3.4 &nbsp;The phone cannot talk to the box &mdash; so the box serves the studio</h3>
+  <h3 id="mixed">3.4 &nbsp;Neither origin can do the whole job &mdash; so a file crosses between them</h3>
 
-  <p>The natural design is: a recording page on <code>tape.mino.mobi</code> that uploads to the box
-  on the home network. <strong>Browsers will not allow it.</strong> A page served over HTTPS cannot
-  fetch <code>http://tape.local</code>; it is blocked as mixed content, and no header on either side
-  changes that. The box cannot practically hold a real TLS certificate &mdash; it has no public name
-  and no way to renew one.</p>
+  <div class="note" style="border-color:var(--bad);background:color-mix(in srgb,var(--bad) 7%,transparent)">
+    <strong>Correction.</strong> An earlier version of this section concluded &ldquo;the box serves
+    the studio, so recording and uploading share an origin.&rdquo; <strong>That does not work,</strong>
+    and the reason is a second rule pulling the opposite way from the first. Half the conclusion
+    survives; the half about recording does not.
+  </div>
 
-  <p>Three transports, and the design leans on the first:</p>
+  <p><strong>Rule one, which was right.</strong> A page served over HTTPS cannot fetch
+  <code>http://192.168.4.1</code>. It is blocked as mixed content and no header on either side
+  changes it. The box has no public name and no way to renew a certificate, so it serves plain HTTP.
+  <em>Uploading can only happen from the box&rsquo;s own origin.</em></p>
+
+  <p><strong>Rule two, which was missed.</strong> <code>getUserMedia()</code> &mdash; the microphone
+  &mdash; is gated on a <em>secure context</em>. On a plain-HTTP page
+  <code>navigator.mediaDevices</code> is not restricted, it is <strong>undefined</strong>; touching
+  it throws a <code>TypeError</code>. A LAN IP over HTTP is not a secure context and never will be.
+  <em>Recording can only happen on <code>https://tape.mino.mobi</code>.</em> Web NFC is gated the
+  same way, so tag-writing from a phone lands on the same side of the line.</p>
+
+  <p style="font-size:17px"><strong>So no single origin has both. That is the whole shape of the
+  pipeline.</strong></p>
 
   <div class="scroll-x">
   <table>
-    <thead><tr><th>Transport</th><th>How</th><th>Needs</th><th>Role</th></tr></thead>
+    <thead><tr><th>&nbsp;</th><th>record</th><th>write a tag</th><th>upload to the box</th><th>accept a file</th></tr></thead>
     <tbody>
-      <tr><td><strong>LAN</strong></td><td>The box serves the studio itself, over plain HTTP, from its own SD card. Recording and uploading share an origin, so nothing is mixed.</td><td>the box on WiFi</td><td><strong>default.</strong> Zero cloud, zero accounts, works with the internet down</td></tr>
-      <tr><td><strong>Card</strong></td><td>Record here, download the files, write them to the SD card from a computer.</td><td>a card reader</td><td>the fallback that always works</td></tr>
-      <tr><td><strong>Relay</strong></td><td>The studio encrypts the recording in the browser and parks the ciphertext in an inbox the box polls over HTTPS.</td><td>opt-in, both ends online</td><td>the grandparent-in-another-city case. The only path that touches a server, and the server only ever holds a blob it cannot read</td></tr>
+      <tr><td><code>https://tape.mino.mobi</code></td><td><span class="pill yes">yes</span></td><td><span class="pill yes">Android</span></td><td><span class="pill no">no</span></td><td><span class="pill yes">yes</span></td></tr>
+      <tr><td><code>http://192.168.4.1</code> (the box)</td><td><span class="pill no">no</span></td><td><span class="pill no">no</span></td><td><span class="pill yes">yes</span></td><td><span class="pill yes">yes</span></td></tr>
     </tbody>
   </table>
   </div>
 
-  <p>The same conclusion arrives from a second direction. <strong>Web NFC &mdash; the browser API for
-  writing tags &mdash; ships on Chrome for Android and nothing else.</strong> Not Safari, not iOS at
-  all, not any desktop browser; about 6% of browsers worldwide. Half of all parents cannot write a
-  card from their phone, and never will be able to without a native app.</p>
+  <p>Look at the last column. <strong>A file input works on any origin</strong> &mdash; it needs no
+  secure context, no permission and no network. So the two halves are joined by something inert: an
+  audio file, which the phone is extremely good at holding on to.</p>
 
-  <p>So: <strong>the box is the tag writer of record.</strong> <code>POST /api/enroll</code> arms it,
-  the next blank tag laid on the pad gets written, and an event comes back. The phone only ever
-  needs a microphone. Web NFC, where it exists, is a shortcut that skips one step &mdash; never a
-  dependency. This also means the tag-writing hardware is bought once, in the box, rather than being
-  a property of whichever phone happens to be in the room.</p>
+  <p>This is asserted rather than remembered: <code>originCapabilities()</code> in
+  <code>lib/protocol.js</code> is exhaustively tested over every combination, and the test fails if
+  any of them ever claims both. The impossible combination &mdash; secure <em>and</em> on the
+  box&rsquo;s origin &mdash; throws, because the box serves plain HTTP; passing
+  <code>boxHasCertificate</code> is the only way to get it, and that models
+  <a href="#tls">the upgrade below</a>.</p>
+
+  <h4 style="font-size:15px;margin-top:26px">The nice consequence: most parents never open our recorder</h4>
+  <p>If a file has to cross anyway, then the phone&rsquo;s <em>own voice-memo app</em> is a first
+  class way to make one, and for most people it is the better one. It is already installed. It
+  handles pausing, backgrounding and an incoming phone call in the middle of chapter three &mdash;
+  all things we would otherwise implement badly. And the recording lands in the phone&rsquo;s own
+  storage, which means <strong>it inherits the phone&rsquo;s backups for free.</strong> Given that
+  the recordings are the only irreplaceable thing in this project, that is not a small point.</p>
+
+  <p>The box accepts what phones make: ESP-ADF decodes MP3, AAC, WAV, OGG, Opus, FLAC and AMR, which
+  covers iOS Voice Memos (<code>.m4a</code>), Android Recorder (<code>.m4a</code>/<code>.ogg</code>),
+  and the ripped audiobook MP3s a parent probably already owns. Our studio remains worth using for
+  what it adds &mdash; splitting a book into tracks as you read it, so &ldquo;go back a bit&rdquo;
+  lands on a chapter &mdash; but it is an option, not a gate.</p>
+
+  <h4 style="font-size:15px;margin-top:26px" id="tls">The upgrade that would collapse this to one page</h4>
+  <p>There is a known trick, and Plex ships it: publish a wildcard DNS record whose names resolve to
+  <em>private</em> addresses (<code>192-168-4-1.box.tape.mino.mobi</code> &rarr; 192.168.4.1) and get
+  a real certificate for it. The box&rsquo;s own page is then HTTPS: secure context, no mixed
+  content, record and upload together. It is genuinely the right long-term answer.</p>
+  <p>It is not in version one for three concrete reasons: the certificate&rsquo;s private key would
+  ship inside every firmware image and therefore be public; it expires every ninety days, which
+  turns a toy into something that must be maintained; and on the box&rsquo;s own access point there
+  is no internet to resolve the name with, so the box would also have to run a DNS server answering
+  for it. Each is solvable. None is solvable in the first build. It is recorded in
+  <code>TLS_UPGRADE</code> so the next person does not have to rediscover it.</p>
+
+  <h3 id="transport">3.5 &nbsp;WiFi, not Bluetooth &mdash; and the box brings its own network</h3>
+
+  <p>Bluetooth was one of the two candidates for getting the file across. It loses on two
+  independent counts, either of which would be enough:</p>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th></th><th>BLE</th><th>Bluetooth Classic (SPP)</th><th>WiFi</th></tr></thead>
+    <tbody>
+      <tr><td>Real throughput</td><td class="num">~15 kB/s</td><td class="num">~100 kB/s</td><td class="num">~1&ndash;3 MB/s</td></tr>
+      <tr><td>A 20-minute book</td><td class="num">4 minutes</td><td class="num">36 s</td><td class="num">2&ndash;4 s</td></tr>
+      <tr><td>A browser can speak it</td><td>Chrome/Android only</td><td><span class="pill no">no browser, ever</span></td><td><span class="pill yes">it is just HTTP</span></td></tr>
+      <tr><td>On iOS</td><td><span class="pill no">never — Apple has said so</span></td><td><span class="pill no">native app only</span></td><td><span class="pill yes">yes</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>BLE is the only Bluetooth a browser can reach, it is four minutes a book, and Safari has never
+  shipped Web Bluetooth and has stated it will not. SPP is fast enough but no browser speaks it at
+  all, so it means a native app on two platforms. Neither is worth it when the alternative is an
+  ordinary HTTP POST.</p>
+
+  <p><strong>The specific WiFi shape is where the design earns something.</strong> The box runs
+  <em>SoftAP and station mode at the same time</em>:</p>
+  <ul>
+    <li><strong>Access point</strong> &mdash; the box publishes <code>tape-a4f2</code> at
+      <code>http://192.168.4.1</code>, with a captive portal so joining it opens the page by itself.
+      This is the mode that needs <em>no router at all</em>: a grandparent&rsquo;s spare room, a
+      holiday cottage, the back of a car. It is also first-run setup, so the box works out of the
+      box before it knows anything about your house.</li>
+    <li><strong>Station</strong> &mdash; give it your home WiFi once and it also joins your LAN, so
+      from then on there is no network switching: you open its address from your normal network.</li>
+  </ul>
+  <p>A literal IP rather than <code>tape.local</code> is deliberate for the AP path: Android does
+  not resolve <code>.local</code> reliably, and this is not the moment to depend on mDNS. The name is
+  offered as a convenience on the LAN path, where a failure is recoverable.</p>
+
+  <h3 id="flow">3.6 &nbsp;The whole flow, end to end</h3>
+  <div class="card">
+    <p style="margin:0 0 10px"><strong>Once, ever:</strong> power the box, join <code>tape-a4f2</code>
+    on your phone, and the setup page opens itself. Optionally hand it your home WiFi.</p>
+    <ol style="margin:0">
+      <li><strong>Record.</strong> Either the phone&rsquo;s voice-memo app &mdash; nothing to install,
+        and it is backed up &mdash; or <a href="/studio/">the studio</a> on
+        <code>https://tape.mino.mobi</code>, which splits the book into tracks as you read.</li>
+      <li><strong>Open the box.</strong> Its address on your home WiFi, or join its access point.</li>
+      <li><strong>Choose the file, name the book, upload.</strong> The box writes
+        <code>/tape/audio/&lt;title&gt;/</code> and adds it to the manifest.</li>
+      <li><strong>Put a card on the pad.</strong> The box writes the sticker with a fresh id and binds
+        it to the book. This is why the box needs a reader that can <em>write</em>.</li>
+      <li><strong>Put the card in the book.</strong> That is the filing system.</li>
+    </ol>
+  </div>
+  <p>No app. No account. No cloud. No Bluetooth pairing. The only thing that ever needed the
+  internet was loading our studio, and even that is optional.</p>
+
+  <p>The <strong>relay</strong> stays in the design as an opt-in extra, and it is the one path that
+  touches a server: the studio encrypts a recording in the browser and parks the ciphertext in an
+  inbox the box pulls over HTTPS. It exists for exactly one case &mdash; a grandparent in another
+  city recording a story &mdash; and the server only ever holds a blob it cannot read.</p>
 
   <h2 id="product">4. Product architecture</h2>
 
@@ -352,8 +456,9 @@ record 2  external    minomobi.com:tape                  13&ndash;45 bytes
     <tbody>
       <tr><td><code>tape/lib/tag.js</code></td><td>What is on a card. Byte layout, Crockford base32 ids, the NDEF records, and the size check that keeps NTAG213 the target.</td></tr>
       <tr><td><code>tape/lib/catalog.js</code></td><td>The manifest: titles, cards, playlists, SD paths, validation, orphan sweep, and the size arithmetic quoted on this page.</td></tr>
-      <tr><td><code>tape/lib/protocol.js</code></td><td>The box HTTP API, the SSE event list, the three transports, and the mixed-content rule expressed as a function so it is tested rather than remembered.</td></tr>
-      <tr><td><code>tape/lib/tape.selftest.mjs</code></td><td>19 known-answer checks, run by <code>scripts/preflight.mjs</code> and by the deploy workflow before it ships.</td></tr>
+      <tr><td><code>tape/lib/protocol.js</code></td><td>The box HTTP API, the SSE events, the network modes, and <code>originCapabilities()</code> &mdash; the two browser rules expressed as a function, so &ldquo;no origin can do both&rdquo; is tested rather than remembered.</td></tr>
+      <tr><td><code>tape/lib/power.js</code></td><td>The power budget: per-component draw in each state, runtime on a given cell, days between charges. Rendered live on <a href="/hardware/#power">the hardware page</a>.</td></tr>
+      <tr><td><code>tape/lib/tape.selftest.mjs</code></td><td>28 known-answer checks, run by <code>scripts/preflight.mjs</code> and by the deploy workflow before it ships.</td></tr>
     </tbody>
   </table>
   </div>
@@ -422,7 +527,7 @@ POST   /api/say                speak a line through the box (for setup + testing
 
   <h3>Recording, on the phone</h3>
   <ol>
-    <li>Open the studio (on the box, over the LAN, or here for a trial run).</li>
+    <li>Record it &mdash; the phone&rsquo;s own voice-memo app, or open the studio for track splitting.</li>
     <li>Type the title, hit record, read the book. Pause between chapters if you like &mdash; each
       resume starts a new track, which is how &ldquo;go back a bit&rdquo; gets useful boundaries.</li>
     <li>The browser encodes Opus at 24&nbsp;kbps mono, which is a good voice at 180&nbsp;kB a
@@ -446,7 +551,7 @@ POST   /api/say                speak a line through the box (for setup + testing
       <tr><td><code>/design/</code></td><td>This document &mdash; the decision record</td><td>here</td></tr>
       <tr><td><code>/hardware/</code></td><td>Bill of materials, shortlists, wiring, enclosure</td><td>here</td></tr>
       <tr><td><code>/firmware/</code></td><td>Firmware architecture, the state machine, releases</td><td>here</td></tr>
-      <tr><td><code>/studio/</code></td><td><strong>The recorder.</strong> Record, encode, download or upload</td><td><strong>dual-homed:</strong> here for trying out, and shipped on the box&rsquo;s SD card at <code>http://tape.local/</code> where it can actually upload</td></tr>
+      <tr><td><code>/studio/</code></td><td><strong>The recorder.</strong> Record a book in tracks, encode, hand back a file</td><td>here, and only here &mdash; the microphone needs HTTPS (&sect;3.4). The box serves a separate, much simpler <em>receiving</em> page</td></tr>
       <tr><td><code>/tags/</code>, <code>/c/&lt;id&gt;</code></td><td><strong>The card writer.</strong> The byte layout, a Web NFC writer, and the page every card&rsquo;s URL points at</td><td>here (Web NFC needs HTTPS)</td></tr>
       <tr><td><code>/sim/</code></td><td><strong>The box simulator.</strong> The whole interaction, in a tab</td><td>here</td></tr>
       <tr><td><code>/build/</code></td><td>Assembly guide for a parent on a Sunday</td><td>here</td></tr>
@@ -454,11 +559,12 @@ POST   /api/say                speak a line through the box (for setup + testing
   </table>
   </div>
 
-  <h3>Why the studio is dual-homed</h3>
-  <p>One source directory, two origins, for the mixed-content reason in &sect;3.4. Served from here
-  it can record and hand you a file; served from the box it can record <em>and upload</em>. Building
-  it twice would guarantee the two drift; building it once and shipping the same bytes to the SD
-  card means the box&rsquo;s studio is the site&rsquo;s studio.</p>
+  <h3>Why the studio is not on the box</h3>
+  <p>It cannot be. The microphone needs a secure context and the box cannot serve one (&sect;3.4). So
+  the surface splits along the capability line rather than by taste: <strong>this site records and
+  writes tags; the box receives files and writes cards.</strong> The box&rsquo;s page is a file
+  input, a text field and a progress bar &mdash; small enough to live in the firmware image and
+  never drift.</p>
 
   <h3>Why there is a worker at all</h3>
   <p>Everything here is static except one route. <code>/c/&lt;cardId&gt;</code> &mdash; the URL every
@@ -488,20 +594,20 @@ POST   /api/say                speak a line through the box (for setup + testing
     tag.js  catalog.js  protocol.js  the model, shared with the firmware
     tape.selftest.mjs                19 checks, run by preflight and by deploy</code></pre>
 
-  <h2 id="open">7. Open questions for component selection</h2>
-  <p>These are deliberately open. Each one has the architecture arranged so that answering it later
-  is cheap.</p>
+  <h2 id="open">7. Component selection &mdash; answered</h2>
+  <p>All six are resolved. The parts, the candidates they beat, and the live power budget are on
+  <a href="/hardware/">the hardware page</a>; the short version:</p>
 
   <div class="scroll-x">
   <table>
-    <thead><tr><th>#</th><th>Question</th><th>Candidates</th><th>What makes it cheap to defer</th></tr></thead>
+    <thead><tr><th>#</th><th>Question</th><th>Answer</th><th>The deciding fact</th></tr></thead>
     <tbody>
-      <tr><td>Q1</td><td><strong>Audio out: wired or Bluetooth?</strong></td><td>I&sup2;S DAC + class-D amp + driver &middot; A2DP source to a BT speaker</td><td><code>OutputStage</code> is one interface with two implementations; changing our mind is one file</td></tr>
-      <tr><td>Q2</td><td><strong>The brain</strong></td><td>ESP32-WROOM (BT Classic, 1 s boot, $6) &middot; ESP32-S3 (faster, more RAM, <em>no</em> A2DP) &middot; Pi Zero 2 W (does everything, 25 s boot)</td><td>Q1 constrains this hard: choosing wired audio unlocks the whole modern ESP32 line</td></tr>
-      <tr><td>Q3</td><td><strong>NFC reader</strong></td><td>PN532 (~$6, proper NFC stack, Type 2 + 4) &middot; MFRC522 (~$2, bare ISO 14443A frontend)</td><td>we parse exactly one NDEF record type, so MFRC522 is viable with ~100 lines; PN532 buys library support and antenna quality</td></tr>
-      <tr><td>Q4</td><td><strong>Power: battery or cable?</strong></td><td>USB-C wall &middot; 18650 + charge/protection board</td><td>a battery changes the enclosure and adds a safety review; the reference build should ship on a cable and grow one</td></tr>
-      <tr><td>Q5</td><td><strong>Codec on the box</strong></td><td>Opus (best at 24 kbps, costs CPU) &middot; MP3 (universal decoders, bigger) &middot; WAV (free CPU, 20&times; the bytes &mdash; and we established storage is free)</td><td>the manifest names the file; the decoder is behind the Player</td></tr>
-      <tr><td>Q6</td><td><strong>Enclosure</strong></td><td>3D print &middot; laser-cut ply &middot; a wooden box from a craft shop</td><td>the only hard requirement so far is a recessed card nest that positions the card by geometry (&sect;3.2)</td></tr>
+      <tr><td>Q1</td><td>Audio out: wired or Bluetooth?</td><td><strong>Wired</strong> &mdash; MAX98357A I&sup2;S amp + 4&Omega; driver</td><td>Settled by you: the wireless speaker is not important. That one sentence is what unlocked Q2.</td></tr>
+      <tr><td>Q2</td><td>The brain</td><td><strong>ESP32-S3-WROOM-1 N16R8</strong></td><td>With A2DP gone, nothing holds us to 2016 silicon. ESP-ADF on the S3 decodes every format a phone produces, which is what makes the voice-memo path work.</td></tr>
+      <tr><td>Q3</td><td>NFC reader</td><td><strong>PN532</strong></td><td>The box has to <em>write</em> tags, not just read them &mdash; on its own access point there is no internet to load a phone-side writer with. MFRC522 would mean writing the NDEF layer ourselves.</td></tr>
+      <tr><td>Q4</td><td>Battery or cable?</td><td><strong>Battery</strong> &mdash; protected 18650, MCP73871 power path</td><td>~20 h of stories, ~8 days between charges. The budget also disqualified the IP5306: its boost cuts out below ~45 mA and idle is 13 mA, so the box would switch itself off waiting for a card.</td></tr>
+      <tr><td>Q5</td><td>Codec</td><td><strong>Whatever arrives</strong>; MP3 64k mono from the studio</td><td>ESP-ADF decodes MP3/AAC/WAV/OGG/Opus/FLAC/AMR. Deciding a codec turned out to be unnecessary, which is the best kind of answer.</td></tr>
+      <tr><td>Q6</td><td>Enclosure</td><td><span class="pill">still open</span></td><td>But no longer unconstrained &mdash; five requirements have accumulated from decisions elsewhere. <a href="/hardware/#enclosure">Listed.</a></td></tr>
     </tbody>
   </table>
   </div>
@@ -515,12 +621,18 @@ POST   /api/say                speak a line through the box (for setup + testing
       <tr><td>D2</td><td>13.56 MHz NFC, NTAG213 as the floor</td><td><span class="pill on">settled</span></td><td>125 kHz cannot be read or written by a phone at all (&sect;3.2)</td></tr>
       <tr><td>D3</td><td>Two NDEF records: a URL for humans, an external record for the box</td><td><span class="pill on">settled</span></td><td>a lost card should be able to say what it is; 103 of 144 bytes worst case</td></tr>
       <tr><td>D4</td><td>Many books per card is in the data model from day one</td><td><span class="pill on">settled</span></td><td>it is the length of an array; omitting it would be extra work</td></tr>
-      <tr><td>D5</td><td>The box serves the studio; the site&rsquo;s copy is for trying out</td><td><span class="pill on">settled</span></td><td>HTTPS pages cannot reach <code>http://tape.local</code> (&sect;3.4)</td></tr>
-      <tr><td>D6</td><td>The box is the tag writer of record; Web NFC is a shortcut</td><td><span class="pill on">settled</span></td><td>Web NFC is Android-Chrome-only, ~6% of browsers (&sect;3.4)</td></tr>
+      <tr><td>D5</td><td><s>The box serves the studio</s> &rarr; <strong>the site records, the box receives, a file crosses</strong></td><td><span class="pill on">revised</span></td><td><strong>Corrected.</strong> The mixed-content half was right; the microphone half was wrong. <code>getUserMedia</code> needs a secure context, so recording cannot happen on the box (&sect;3.4)</td></tr>
+      <tr><td>D6</td><td>The box is the tag writer of record; Web NFC is a shortcut</td><td><span class="pill on">settled, and stronger</span></td><td>Web NFC is Android-Chrome-only <em>and</em> needs HTTPS &mdash; but on the box&rsquo;s access point there is no internet to load an HTTPS page with. The box is the only writer always present (&sect;3.4)</td></tr>
       <tr><td>D7</td><td>Presence is the play state; no play button</td><td><span class="pill on">settled</span></td><td>hands already know it; needs a 3-read debounce in firmware (&sect;5)</td></tr>
       <tr><td>D8</td><td>Ingest is awake only when nothing is playing</td><td><span class="pill on">settled</span></td><td>removes radio coexistence and SD contention at zero user cost (&sect;4)</td></tr>
       <tr><td>D9</td><td>Volume is a potentiometer with a physical end stop</td><td><span class="pill on">settled</span></td><td>a hard maximum a child cannot exceed &mdash; hearing safety (&sect;5)</td></tr>
-      <tr><td>D10</td><td>Audio output is a swappable stage; wired is the recommended default</td><td><span class="pill">recommended, open</span></td><td>latency, pairing, a second battery, and BLE-only silicon (&sect;3.3) &mdash; Q1</td></tr>
+      <tr><td>D10</td><td>Audio output is wired; the swappable stage stays but has one implementation</td><td><span class="pill on">settled</span></td><td>Q1 answered: the wireless speaker is not important, which freed the brain choice entirely (&sect;3.3)</td></tr>
+      <tr><td>D13</td><td>WiFi, never Bluetooth, for moving files</td><td><span class="pill on">settled</span></td><td>BLE is ~4 minutes a book and Safari will never ship Web Bluetooth; SPP is fast but no browser speaks it (&sect;3.5)</td></tr>
+      <tr><td>D14</td><td>The box runs SoftAP <em>and</em> station mode together</td><td><span class="pill on">settled</span></td><td>AP means it works with no router at all &mdash; a grandparent&rsquo;s house, a car; STA means no network switching at home (&sect;3.5)</td></tr>
+      <tr><td>D15</td><td>The phone&rsquo;s own voice-memo app is a first-class input</td><td><span class="pill on">settled</span></td><td>Nothing to install, handles interruptions properly, and the recording inherits the phone&rsquo;s backups &mdash; which matters most for the one irreplaceable asset (&sect;3.4)</td></tr>
+      <tr><td>D16</td><td>The card goes in the book</td><td><span class="pill on">settled</span></td><td>The pairing between book and recording is maintained by the object, in the place you next look. Cards are consumable at ~14&cent;; the recordings are the asset</td></tr>
+      <tr><td>D17</td><td>The reader refuses to act on more than one tag in the field</td><td><span class="pill on">settled</span></td><td>A deck of cards is a stack by nature; two tags is an anticollision event, not a read</td></tr>
+      <tr><td>D18</td><td>The NFC field is duty-cycled, 10 ms in every 125</td><td><span class="pill on">settled</span></td><td>A continuous field costs 50&ndash;80 mA and would end the portable version on its own (<a href="/hardware/#power">budget</a>)</td></tr>
       <tr><td>D11</td><td>Relay is opt-in, end-to-end encrypted, off by default</td><td><span class="pill on">settled</span></td><td>a child&rsquo;s family recordings should not sit on anyone&rsquo;s server in the clear</td></tr>
       <tr><td>D12</td><td>Cold start under two seconds is a requirement, not a preference</td><td><span class="pill on">settled</span></td><td>it is the difference between a toy and a broken toy &mdash; constrains Q2</td></tr>
     </tbody>
@@ -536,12 +648,16 @@ POST   /api/say                speak a line through the box (for setup + testing
     <li><a href="https://github.com/pschatzmann/ESP32-A2DP">pschatzmann/ESP32-A2DP</a> and <a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/bluetooth/esp_a2dp.html">Espressif A2DP API</a> &mdash; what A2DP source needs and which parts have it</li>
     <li><a href="https://github.com/pabera/RPi-Jukebox-RFID">Phoniebox (RPi-Jukebox-RFID)</a> and <a href="https://blog.schallbert.de/en/projects-software/tonuino/">TonUINO</a> &mdash; prior art</li>
     <li><a href="https://www.bedtime-stories.fun/blog/is-toniebox-worth-it">Yoto vs Toniebox, true cost</a> and <a href="https://www.bedtime-stories.fun/blog/toniebox-alternatives">Toniebox alternatives</a> &mdash; 2026 pricing</li>
+    <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia">MDN, <code>getUserMedia()</code></a> &mdash; the secure-context rule that forced the correction in &sect;3.4</li>
+    <li><a href="https://caniuse.com/web-bluetooth">Can I use, Web Bluetooth</a> and <a href="https://www.esp32.com/viewtopic.php?t=20151">BLE throughput to an ESP32</a> &mdash; why Bluetooth loses (&sect;3.5)</li>
+    <li><a href="https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/current-consumption-measurement-modules.html">Espressif, ESP32-S3 module current measurements</a> and the <a href="https://www.analog.com/media/en/technical-documentation/data-sheets/max98357a-max98357b.pdf">MAX98357A datasheet</a> &mdash; the power budget&rsquo;s inputs</li>
+    <li><a href="https://github.com/espressif/esp-adf">ESP-ADF</a> &mdash; the decoder list that makes any phone recording acceptable</li>
     <li><a href="https://www.crockford.com/base32.html">Crockford base32</a> &mdash; the id alphabet</li>
   </ul>
 
   <hr>
   <p style="color:var(--muted);font-size:14.5px">Next: <a href="/hardware/">component selection</a>
-  &mdash; resolve Q1 through Q6, price the bill of materials, and draw the wiring.</p>
+  &mdash; the parts are chosen and the power budget is live. What is left before anything is bought: the enclosure (Q6), the wiring diagram, and a first board on a bench.</p>
 </main>
 
 <footer><div class="inner">

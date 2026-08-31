@@ -1,9 +1,24 @@
 <!doctype html>
-<html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>tape — hardware</title>
-<meta name="description" content="The bill of materials, and the six open questions that have to be answered before it can be written.">
-<link rel="stylesheet" href="/styles.css"></head><body>
+<meta name="description" content="The bill of materials, why each part beat the alternatives, and a live power budget that answers whether the box can run on a battery.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .bars { display:grid; gap:6px; margin:14px 0; }
+  .bars .b { display:grid; grid-template-columns: 150px 1fr 74px; gap:10px; align-items:center; font-size:13.5px; }
+  .bars .t { height:16px; border-radius:5px; background:var(--accent); min-width:2px; }
+  .bars .t.dim { background:var(--accent-soft); }
+  .big { font-size:30px; font-weight:700; letter-spacing:-.02em; }
+  .big small { display:block; font-size:12px; font-weight:600; color:var(--faint); text-transform:uppercase; letter-spacing:.06em; }
+  .four { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); }
+</style>
+</head>
+<body>
+
 <div class="topbar"><div class="topbar-inner">
   <a class="brand" href="/">tape<span class="dot">.</span><small>card audio player</small></a>
   <nav class="navlinks">
@@ -12,53 +27,197 @@
     <a href="/sim/">simulator</a><a href="/build/">build</a>
   </nav>
 </div></div>
-<main class="narrow">
+
+<main>
   <h1>Hardware</h1>
-  <p class="lede">This page is where the bill of materials goes. It is empty on purpose: the
-  <a href="/design/">design record</a> fixes the <em>shape</em> of every part, and this fixes the
-  actual chips. Doing them in that order is what stops a shortlist from being an opinion.</p>
+  <p class="lede">Parts chosen, with the losing candidates and why they lost. Dropping the Bluetooth
+  speaker unlocked the modern ESP32 line, and doing the power budget before buying anything
+  disqualified the charger everyone reaches for first.</p>
 
-  <div class="note"><strong>Status: next round.</strong> Six questions are open, and each is written
-  up with its candidates and its trade-off in <a href="/design/#open">&sect;7 of the design
-  record</a>. Nothing has been bought.</div>
+  <div class="note">
+    <strong>Yes, it can be portable.</strong> About <strong id="hero-play">20 hours</strong> of
+    stories on one 18650, and roughly <strong id="hero-days">8 days</strong> between charges on an
+    hour a day. The budget is <a href="#power">live below</a> — change the cell and watch it move.
+  </div>
 
-  <h2>What the architecture already fixes</h2>
-  <p>These are settled, and any part that violates one is out regardless of price:</p>
-  <ul>
-    <li><strong>13.56 MHz NFC, ISO 14443A.</strong> Not 125 kHz &mdash; a phone can neither read nor
-      write those, which removes the entire phone-side pipeline. <a href="/design/#nfc">Why.</a></li>
-    <li><strong>NTAG213 is the floor.</strong> Everything is sized to its 144 bytes, and a test
-      fails the build if that ever stops being true. That is what makes a story cost 20&cent;.</li>
-    <li><strong>An SD card, not on-board flash.</strong> Audio is megabytes per book; a 32 GB card
-      holds ~3,100 hours and costs less than the flash it replaces.</li>
-    <li><strong>Under two seconds from power to a working card.</strong> This is a hard requirement
-      and it is the main thing standing between us and a Raspberry Pi. <a href="/design/#interaction">Why.</a></li>
-    <li><strong>A recessed card nest</strong> that positions the card by geometry. Read range is
-      1&ndash;4 cm and orientation matters; a four-year-old aims badly. This is an enclosure
-      requirement derived from the radio, and it is free now and expensive after the case is
-      printed.</li>
-    <li><strong>Volume is a potentiometer with an end stop</strong>, trimmed once to a maximum a
-      child cannot exceed.</li>
-    <li><strong>The audio output is a swappable stage</strong> behind one small interface, so Q1 can
-      be answered late and changed cheaply.</li>
-  </ul>
-
-  <h2>The shortlist, unpriced</h2>
-  <p>Carried over from the survey so the next round starts with candidates rather than a blank page.
-  The trade-offs behind each are in <a href="/design/#open">&sect;7</a>.</p>
+  <h2>The bill of materials</h2>
   <div class="scroll-x">
   <table>
-    <thead><tr><th>Block</th><th>Candidates</th><th>The thing that decides it</th></tr></thead>
+    <thead><tr><th>Block</th><th>Part</th><th>~$</th><th>Why this one</th></tr></thead>
     <tbody>
-      <tr><td>Brain</td><td>ESP32-WROOM &middot; ESP32-S3 &middot; Pi Zero 2 W</td><td>Q1 does. Bluetooth output forces the old ESP32; wired output opens the whole modern line. Boot time rules out the Pi unless something else forces it.</td></tr>
-      <tr><td>NFC reader</td><td>PN532 &middot; MFRC522</td><td>Antenna quality and read reliability in a child&rsquo;s hands, more than the $4.</td></tr>
-      <tr><td>Audio out</td><td>I&sup2;S DAC + class-D amp + full-range driver &middot; A2DP to a BT speaker</td><td>Latency, pairing, and whether the box is one object or two.</td></tr>
-      <tr><td>Storage</td><td>microSD on the brain&rsquo;s own SPI &middot; a separate module</td><td>Whether the reader and the card share a bus, and what that does to poll jitter.</td></tr>
-      <tr><td>Power</td><td>USB-C wall &middot; 18650 + charge/protect</td><td>Whether it has to be carried to bed. A battery adds a safety review.</td></tr>
-      <tr><td>Enclosure</td><td>3D print &middot; laser-cut ply &middot; a wooden craft box</td><td>The nest geometry, and whether a second one can be made by someone else.</td></tr>
+      <tr><td>Brain</td><td><strong>ESP32-S3-WROOM-1 N16R8</strong> devkit<br><span style="color:var(--faint);font-size:13px">16 MB flash, 8 MB PSRAM</span></td><td class="num">12</td><td>Two cores at 240 MHz, PSRAM to buffer an upload and a decode at once, native USB so it flashes from a browser with no toolchain. <strong>ESP-ADF decodes MP3, AAC, WAV, OGG, Opus, FLAC and AMR</strong> — which is what makes &ldquo;just upload whatever your phone recorded&rdquo; work.</td></tr>
+      <tr><td>NFC</td><td><strong>PN532</strong> module, I&sup2;C</td><td class="num">6</td><td>Reads <em>and writes</em> NDEF on NTAG213. Writing is not optional — the box is the tag writer, because on its own access point there is no internet to load a phone-side writer with.</td></tr>
+      <tr><td>Audio</td><td><strong>MAX98357A</strong> I&sup2;S mono amp</td><td class="num">4</td><td>DAC and class-D amp in one part, straight off the S3&rsquo;s I&sup2;S. 2.4 mA quiescent. 3.2 W into 4&Omega; at 5 V, ~1.4 W at cell voltage &mdash; which is a volume ceiling arriving for free.</td></tr>
+      <tr><td>Speaker</td><td>4&Omega; 3 W, 50 mm full-range</td><td class="num">4</td><td>Speech, in a bedroom. A bigger driver buys bass nobody needs and a bigger box.</td></tr>
+      <tr><td>Storage</td><td>microSD 32 GB, SDMMC 1-bit</td><td class="num">6</td><td>~1,200 hours at MP3 64k. Storage stopped being a design topic three decisions ago.</td></tr>
+      <tr><td>Power path</td><td><strong>MCP73871</strong> USB-C charger</td><td class="num">5</td><td>True load sharing: it powers the box <em>and</em> charges the cell at the same time. See the rejected list &mdash; this is where the obvious part fails.</td></tr>
+      <tr><td>Cell</td><td>18650 Li-ion 3000 mAh, <strong>protected</strong>, in a holder</td><td class="num">8</td><td>Replaceable, standard, and the protection circuit is not optional in a child&rsquo;s toy.</td></tr>
+      <tr><td>Regulator</td><td>MCP1700-3302 LDO</td><td class="num">1</td><td>1.6 &micro;A quiescent. A sloppier regulator would show up directly in the standby figure.</td></tr>
+      <tr><td>Controls</td><td>2&times; 24 mm arcade buttons, 10 k&Omega; pot + knob, power switch</td><td class="num">6</td><td>The pot is the safety part: a physical end stop, trimmed once, that a child cannot get past.</td></tr>
+      <tr><td>Misc</td><td>perfboard, wire, LED, screws</td><td class="num">4</td><td></td></tr>
+      <tr style="border-top:2px solid var(--line)"><td colspan="2"><strong>Box, portable</strong></td><td class="num"><strong>~56</strong></td><td>Drop the cell and charger, add a USB supply: <strong>~$45</strong> mains-only.</td></tr>
+      <tr><td>Cards</td><td>NTAG213 25 mm stickers &times;100, plus a deck of playing cards</td><td class="num">14</td><td><strong>~14&cent; a story.</strong> <a href="#cards">The card design</a>.</td></tr>
+      <tr><td>Enclosure</td><td>3D print, laser-cut ply, or a wooden craft box</td><td class="num">5&ndash;15</td><td>One hard requirement so far: the card nest. <a href="#enclosure">Below</a>.</td></tr>
     </tbody>
   </table>
   </div>
+  <p style="font-size:14px;color:var(--muted)">Prices are single-unit hobbyist, mid-2026, and will
+  vary by a factor of two depending on where you buy. Last round I guessed &ldquo;~$35 in
+  parts&rdquo; before choosing anything; with real parts it is <strong>$45&ndash;$56</strong>, and
+  that estimate is corrected across the site.</p>
+
+  <h2>What lost, and why</h2>
+  <p>The useful half of a parts list.</p>
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Rejected</th><th>For</th><th>Because</th></tr></thead>
+    <tbody>
+      <tr><td><strong>IP5306</strong> charge/boost module</td><td>MCP73871</td><td><strong>The one the power budget caught.</strong> It is cheaper and more integrated, and its boost converter shuts down when the load falls below roughly 45 mA. Waiting-for-a-card draws 13 mA. The box would switch itself off every time a story ended. You cannot find this by reading a parts list; you find it by writing the budget first.</td></tr>
+      <tr><td><strong>TP4056</strong> charger</td><td>MCP73871</td><td>No power path. Running the box off the cell while it charges puts the load across the charger&rsquo;s sense circuit, which is bad for the cell and worse for the charge termination. It is the module everyone reaches for and it is wrong for anything that runs while plugged in.</td></tr>
+      <tr><td><strong>ESP32</strong> (classic WROOM)</td><td>ESP32-S3</td><td>Its one advantage over the S3 was Bluetooth Classic, i.e. A2DP to a wireless speaker. That requirement is gone, so what remains is older silicon, less RAM and a library ecosystem drifting away from it.</td></tr>
+      <tr><td><strong>Raspberry Pi Zero 2 W</strong></td><td>ESP32-S3</td><td>Twenty-five seconds to boot against about one, an SD filesystem a toddler corrupts by pulling the plug, and an idle draw around ten times higher &mdash; which on its own ends the portable version.</td></tr>
+      <tr><td><strong>MFRC522</strong> reader</td><td>PN532</td><td>$4 cheaper and a bare ISO 14443A front end: you implement the NDEF layer yourself, including writing, which is the part we actually depend on. Smaller antenna, shorter range, and range is what a four-year-old&rsquo;s aim spends.</td></tr>
+      <tr><td><strong>PN5180</strong> reader</td><td>PN532</td><td>Genuinely better &mdash; longer range and hardware low-power card detection that would improve standby. Also ~$15, two supply rails, and thinner library support. Worth revisiting if standby ever matters more than it does.</td></tr>
+      <tr><td><strong>DFPlayer Mini</strong></td><td>SD + software decode</td><td>The TonUINO choice, and the reason TonUINO cannot do what we want: it is a sealed MP3 player that owns its own SD card. The firmware cannot see the filesystem, so there is no manifest, no upload, no playlists &mdash; the entire ingest story dies with it.</td></tr>
+      <tr><td><strong>PCM5102 DAC + PAM8302 amp</strong></td><td>MAX98357A</td><td>Two parts, two board areas, and an analogue link between them that picks up switching noise on hand-wired perfboard. The MAX98357A takes I&sup2;S straight in.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2 id="power">The power budget</h2>
+  <p>Every figure below comes from <code>tape/lib/power.js</code> and is pinned by the selftest, so
+  the prose cannot drift away from the arithmetic. Change the cell and the numbers move:</p>
+
+  <div class="card">
+    <div class="row">
+      <div style="flex:1;min-width:200px">
+        <label for="cell">Cell</label>
+        <select id="cell"></select>
+      </div>
+      <div style="flex:1;min-width:180px">
+        <label for="play">Stories per day: <b id="play-v">1</b> h</label>
+        <input type="range" id="play" min="0.5" max="6" step="0.5" value="1" style="width:100%">
+      </div>
+      <div style="min-width:150px">
+        <label style="margin-top:26px"><input type="checkbox" id="loud"> volume at the end stop</label>
+      </div>
+    </div>
+
+    <div class="four" style="margin-top:22px">
+      <div class="big" id="o-play">&mdash;<small>continuous play</small></div>
+      <div class="big" id="o-days">&mdash;<small>between charges</small></div>
+      <div class="big" id="o-idle">&mdash;<small>waiting for a card</small></div>
+      <div class="big" id="o-draw">&mdash;<small>draw while playing</small></div>
+    </div>
+
+    <h3 style="margin:30px 0 4px;padding-top:16px;border-top:1px solid var(--line-soft)">Where it goes while a story plays</h3>
+    <div class="bars" id="breakdown"></div>
+  </div>
+
+  <div class="note" id="nfc-note"></div>
+
+  <h2 id="cards">The cards</h2>
+  <p>A deck of playing cards, a sheet of NFC stickers, and a biro. <strong>The card lives in the
+  book</strong> &mdash; that is the whole idea, and it is better than anything a product designer
+  would have arrived at: the pairing between the physical book and the recording is maintained by
+  the object itself, in the place you will next look for it.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>The stack</h3>
+      <ul style="margin:0">
+        <li>A standard poker deck, 63&times;88 mm. About $2.</li>
+        <li>An NTAG213 25 mm round sticker on the back. ~12&cent; in hundreds.</li>
+        <li>The 13-character id written on it in biro. The alphabet has no I, L, O or U precisely so that a hand-written id reads back unambiguously.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Two things that will bite</h3>
+      <ul style="margin:0">
+        <li><strong>Cards get stacked.</strong> A deck is a stack by nature, and two tags in the field is an anticollision event, not a read. The firmware counts targets and refuses to act on more than one &mdash; the box blinks rather than guessing. <a href="/firmware/">In the state machine</a>.</li>
+        <li><strong>Not every deck works.</strong> Paper, linen-finish and PVC are all fine. A foil or metallic-backed deck detunes the antenna and will not read at all. Test one card before you sticker fifty.</li>
+      </ul>
+    </div>
+  </div>
+  <p>Treating the cards as consumable is the right instinct, and it is what the architecture already
+  assumes: the recordings are the asset and they live on the SD card, backed up wherever you like. A
+  chewed card is a 12&cent; problem &mdash; write a new sticker, bind it to the same book, and the
+  audio never moved.</p>
+
+  <h2 id="enclosure">The enclosure</h2>
+  <p>Still open, but no longer unconstrained. The requirements that have accumulated from decisions
+  elsewhere:</p>
+  <ul>
+    <li><strong>A recessed card nest</strong> that positions a 63&times;88 mm card by geometry. Read range is a few centimetres and orientation matters; a four-year-old aims badly, and the case is what makes that not matter. The PN532&rsquo;s antenna sits directly under it, with no metal between.</li>
+    <li><strong>A screwed battery compartment</strong>, not a friction lid. A protected 18650 in a child&rsquo;s toy needs to be a deliberate job to get to.</li>
+    <li><strong>The pot&rsquo;s end stop reachable for trimming</strong> once, at build time, then left.</li>
+    <li><strong>The speaker firing upward or forward</strong>, not into a table.</li>
+    <li>Big enough to be carried by a four-year-old with two hands, which is the actual size specification.</li>
+  </ul>
+
+  <h2>Still open</h2>
+  <ol>
+    <li><strong>MP3 or WAV as the studio&rsquo;s output.</strong> Both play. MP3 at 64 kbps mono gives ~1,200 hours on the card and needs an encoder in the browser; WAV needs nothing but <code>AudioContext</code> and gives ~220 hours. Both are far more than a childhood.</li>
+    <li><strong>Enclosure material</strong>, above.</li>
+    <li><strong>Whether standby is worth more silicon.</strong> The PN532&rsquo;s duty-cycled field is the largest idle load. A PN5180 with hardware card detection would roughly triple standby. At eight days it does not feel worth $9 and a harder build.</li>
+  </ol>
+
+  <script type="module">
+  import * as power from '/lib/power.js';
+  const $ = (id) => document.getElementById(id);
+
+  $('cell').innerHTML = power.CELLS
+    .map((c) => `<option value="${c.mAh}"${c.mAh === 3000 ? ' selected' : ''}>${c.name} — ${c.mAh} mAh</option>`).join('');
+
+  function render() {
+    const mAh = +$('cell').value;
+    const loud = $('loud').checked;
+    const playHours = +$('play').value;
+    $('play-v').textContent = playHours;
+
+    const b = power.budget(mAh, { loud, playHours, idleHours: 15 });
+    $('o-play').innerHTML = `${b.hours.play} h<small>continuous play</small>`;
+    $('o-days').innerHTML = `${b.daysPerCharge} days<small>between charges</small>`;
+    $('o-idle').innerHTML = `${Math.round(b.hours.idle / 24)} days<small>waiting for a card</small>`;
+    $('o-draw').innerHTML = `${b.draw.play} mA<small>draw while playing</small>`;
+
+    const rows = power.LOADS.map((l) => ({
+      name: l.name,
+      ma: l.id === 'amp' && loud ? power.LOUD_AMP_MA : l.ma.play,
+      note: l.note,
+    }));
+    rows.push({ name: 'regulator + housekeeping', ma: +(b.draw.play - rows.reduce((n, r) => n + r.ma, 0)).toFixed(1), note: '' });
+    const max = Math.max(...rows.map((r) => r.ma));
+    $('breakdown').innerHTML = rows.map((r) => `<div class="b" title="${r.note.replace(/"/g, '&quot;')}">
+        <span>${r.name}</span>
+        <span class="t${r.ma < max / 4 ? ' dim' : ''}" style="width:${Math.max(2, (r.ma / max) * 100)}%"></span>
+        <span style="font-family:var(--mono);text-align:right">${r.ma} mA</span>
+      </div>`).join('');
+
+    const nfc = power.LOADS.find((l) => l.id === 'nfc');
+    $('nfc-note').innerHTML = `<strong>The decision that makes the battery possible.</strong> `
+      + `The PN532's RF field costs 50–80 mA whenever it is on. Left running continuously it would `
+      + `swamp everything else and cut standby from `
+      + `<strong>${Math.round(power.hours(mAh, 'idle') / 24)} days to well under one</strong>. `
+      + `So the firmware pulses it — 10 ms on every 125 ms — which still reads a card the instant `
+      + `it lands but costs ${nfc.ma.idle} mA instead of 65. It is the single most important line `
+      + `in the poll loop, and the selftest fails if someone simplifies it away.`;
+  }
+
+  for (const el of ['cell', 'play', 'loud']) $(el).addEventListener('input', render);
+  render();
+
+  // The lede quotes the default configuration; keep it honest.
+  const d = power.budget(3000);
+  $('hero-play').textContent = `${Math.round(d.hours.play)} hours`;
+  $('hero-days').textContent = `${Math.round(d.daysPerCharge)} days`;
+  </script>
 </main>
-<footer><div class="inner"><strong>tape</strong> &middot; part of <a href="https://mino.mobi">mino.mobi</a> &middot; <a href="/">home</a> &middot; <a href="/design/">design record</a></div></footer>
-</body></html>
+
+<footer><div class="inner">
+  <strong>tape</strong> &middot; part of <a href="https://mino.mobi">mino.mobi</a> &middot;
+  <a href="/">home</a> &middot; <a href="/design/">design record</a>
+</div></footer>
+
+</body>
+</html>

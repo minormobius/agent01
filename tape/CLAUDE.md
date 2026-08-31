@@ -44,9 +44,9 @@ that puts bytes-per-book on the tag, stop and re-read
 |---|---|
 | `/` | the pitch, the block diagram, the cost arithmetic |
 | `/design/` | **the design record** — product + site architecture, four corrections, the decision log. Read this before changing anything here |
-| `/hardware/` | bill of materials — deliberately empty until components are selected |
+| `/hardware/` | the bill of materials, what each part beat, and a **live power budget** |
 | `/firmware/` | firmware architecture and the state machine |
-| `/studio/` | **working**: records a book in the browser, MediaRecorder → Opus |
+| `/studio/` | **working**: records a book in tracks and hands back files (it cannot upload — see the two rules below) |
 | `/tags/`, `/c/<id>` | **working**: the card byte layout and a Web NFC writer |
 | `/sim/` | **working**: the whole box in a tab — presence playback, debounce, resume |
 | `/build/` | assembly guide — waiting on hardware |
@@ -60,34 +60,55 @@ the eventual firmware cannot drift apart:
   records, `TAG_CAPACITY`, and `fitsTag()`
 - `lib/catalog.js` — the manifest (titles, cards, playlists), SD paths,
   validation, the size arithmetic quoted across the site
-- `lib/protocol.js` — the box HTTP API, the SSE events, and the three transports
-- `lib/tape.selftest.mjs` — 19 known-answer checks, run by
+- `lib/protocol.js` — the box HTTP API, the SSE events, the network modes, and
+  `originCapabilities()`
+- `lib/power.js` — the power budget: per-component draw per state, runtime on a
+  given cell, days between charges. `/hardware/` renders it live
+- `lib/tape.selftest.mjs` — 28 known-answer checks, run by
   `node scripts/preflight.mjs` and again by the deploy workflow
 
-**Two assertions in that selftest are load-bearing. Do not weaken them:**
+**Three assertions in that selftest are load-bearing. Do not weaken them:**
 
 1. *A maximal card still fits an NTAG213.* The day it stops fitting is the day
    the project stops being cheap.
 2. *No tag on the market can hold a minute of speech.* If that ever becomes
    false, the whole pointer design is worth revisiting — and it should be
    revisited deliberately, with a red test in front of you.
+3. *No origin can both record and upload* (see below). If a browser change ever
+   makes that test fail, the studio can collapse into one page — so it failing
+   is information, not an annoyance.
 
 Every page imports from `lib/` as ES modules over the wire. There is no build
 step and there must not be one.
 
-## Two constraints that bite whoever edits this next
+## The two browser rules that shape everything
 
-**Web NFC is Chrome-on-Android only.** Not Safari, not iOS at all, not any
-desktop browser — about 6% of browsers. `/tags/` degrades to an explanation
-rather than an error. The box is the tag writer of record; Web NFC is a
-shortcut, never a dependency.
+They pull in opposite directions, and no configuration escapes either.
 
-**An HTTPS page cannot fetch `http://tape.local`.** Mixed content, and no header
-fixes it. This is why `/studio/` is *dual-homed*: this copy records and hands you
-files, and the same source is shipped on the box's SD card and served by the box
-over plain HTTP, where the upload button works. If you change `/studio/`, you are
-changing the box's UI too. `lib/protocol.js` expresses the rule as
-`availableTransports()` so it is tested rather than remembered.
+1. **`getUserMedia` needs a secure context.** On plain HTTP,
+   `navigator.mediaDevices` is *undefined*, not merely restricted. So recording
+   can only happen on `https://tape.mino.mobi`. Web NFC is gated the same way.
+2. **An HTTPS page cannot fetch `http://192.168.4.1`.** Mixed content; no header
+   fixes it. The box has no public name and cannot renew a certificate, so it
+   serves plain HTTP. So uploading can only happen from the box's own origin.
+
+**Therefore no single origin can do both, and a file crosses between them.** A
+file input works on any origin — that is the bridge. `originCapabilities()` in
+`lib/protocol.js` encodes this and the selftest checks every combination; the
+contradictory pair (secure *and* on the box's origin) throws, because the box
+serves HTTP. `TLS_UPGRADE` documents the Plex-style wildcard-DNS trick that would
+one day collapse the two pages into one, and the three reasons it is not in v1.
+
+A consequence worth not undoing: **the phone's own voice-memo app is a
+first-class input.** It is already installed, handles interruptions properly, and
+its output is already backed up. ESP-ADF on the box decodes MP3/AAC/WAV/OGG/
+Opus/FLAC/AMR, so there is nothing to convert. Our studio earns its place only by
+splitting a book into tracks as you read it.
+
+**Web NFC is Chrome-on-Android only** — about 6% of browsers, never Safari. And
+on the box's own access point there is no internet to load an HTTPS page with
+anyway. So the box is the tag writer of record; Web NFC is a shortcut, never a
+dependency.
 
 ## Deploying
 
@@ -109,3 +130,20 @@ Everything is static except one route. `/c/<cardId>` — the URL every card carr
 as its first NDEF record — rewrites to `/tags/`, so a stray card tapped on any
 phone, with no app installed and the box switched off, says what it is. That
 affordance is the whole reason there is a worker rather than plain assets.
+
+## Chosen parts
+
+ESP32-S3-WROOM-1 N16R8 · PN532 · MAX98357A + 4Ω driver · microSD · MCP73871
+power path · protected 18650 · MCP1700 LDO · two arcade buttons and a volume
+**potentiometer** (a physical end stop is the hearing-safety part). ~$56
+portable, ~$45 on mains. Full reasoning and the rejected candidates:
+[`hardware/`](hardware/index.html).
+
+Two firmware rules that came out of the power budget and the card form factor,
+and that a well-meaning simplification would break:
+
+- **Pulse the NFC field**, 10 ms in every 125. A continuous field is 50–80 mA
+  and ends the portable version on its own.
+- **Refuse more than one tag in the field.** The cards are a deck of playing
+  cards; a deck is a stack by nature, and two tags is an anticollision event,
+  not a read.

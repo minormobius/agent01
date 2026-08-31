@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import * as tag from './tag.js';
 import * as cat from './catalog.js';
 import * as proto from './protocol.js';
+import * as power from './power.js';
 
 let n = 0;
 const t = (name, fn) => { fn(); n++; };
@@ -152,38 +153,153 @@ t('the size sums the design record quotes', () => {
 // -------------------------------------------------------------- protocol --
 
 t('routes build absolute urls and refuse missing parameters', () => {
-  assert.equal(proto.url(proto.DEFAULT_BOX_ORIGIN, 'hello'), 'http://tape.local/api/hello');
+  assert.equal(proto.url(proto.AP_ADDRESS, 'hello'), 'http://192.168.4.1/api/hello');
   assert.equal(proto.url('http://192.168.1.40', 'putCard', { cardId: 'ABC' }), 'http://192.168.1.40/api/card/ABC');
-  assert.throws(() => proto.url(proto.DEFAULT_BOX_ORIGIN, 'putCard'), /needs a cardId/);
-  assert.throws(() => proto.url(proto.DEFAULT_BOX_ORIGIN, 'nope'), /no such route/);
+  assert.throws(() => proto.url(proto.AP_ADDRESS, 'putCard'), /needs a cardId/);
+  assert.throws(() => proto.url(proto.AP_ADDRESS, 'nope'), /no such route/);
 });
 
 t('hello is checked before the studio writes anything', () => {
   const ok = { api: 1, name: 'tape', firmware: '0.1.0', freeBytes: 1e9, titles: 2, cards: 1 };
   assert.deepEqual(proto.validateHello(ok), []);
   assert.ok(proto.validateHello({ ...ok, api: 2 })[0].includes('box speaks api 2'));
-  assert.ok(proto.validateHello({ ...ok, freeBytes: undefined }).length === 1);
+  assert.equal(proto.validateHello({ ...ok, freeBytes: undefined }).length, 1);
 });
 
-t('mixed content is why the public studio cannot reach the box', () => {
-  const fromPublicSite = { sameOriginAsBox: false, pageIsHttps: true, relayEnabled: false };
-  assert.deepEqual(proto.availableTransports(fromPublicSite), ['card']);
-  assert.match(proto.transportBlockedReason('lan', fromPublicSite), /http:\/\/tape\.local/);
+t('THE INVARIANT: no origin can both record and upload', () => {
+  // getUserMedia needs a secure context; the box cannot serve one; an HTTPS page
+  // cannot reach the box. Every combination is checked, because this single fact
+  // is why the pipeline has two halves with a file passing between them. If a
+  // browser change ever makes this test fail, the whole studio can collapse into
+  // one page — so failing loudly is the point.
+  for (const isSecureContext of [true, false]) {
+    for (const sameOriginAsBox of [true, false]) {
+      if (isSecureContext && sameOriginAsBox) {
+        // Not a combination the world offers: the box serves plain HTTP.
+        assert.throws(() => proto.originCapabilities({ isSecureContext, sameOriginAsBox }),
+          /cannot be a secure context/);
+        continue;
+      }
+      const c = proto.originCapabilities({ isSecureContext, sameOriginAsBox });
+      assert.ok(!(c.canRecord && c.canUpload),
+        `secure=${isSecureContext} atBox=${sameOriginAsBox} claimed both`);
+      assert.ok(c.canPickFile, 'a file input works on any origin — that is the bridge');
+    }
+  }
+  // The one thing that would collapse the two halves into one page, and the
+  // reason it is not in version one.
+  const upgraded = proto.originCapabilities({
+    isSecureContext: true, sameOriginAsBox: true, boxHasCertificate: true,
+  });
+  assert.ok(upgraded.canRecord && upgraded.canUpload);
+  assert.equal(proto.TLS_UPGRADE.inVersionOne, false);
+  assert.equal(proto.TLS_UPGRADE.costs.length, 3);
+});
 
-  const fromTheBox = { sameOriginAsBox: true, pageIsHttps: false, relayEnabled: false };
-  assert.deepEqual(proto.availableTransports(fromTheBox), ['lan', 'card']);
-  assert.equal(proto.transportBlockedReason('lan', fromTheBox), null);
+t('the public site records and writes tags; the box receives', () => {
+  const site = proto.originCapabilities({ isSecureContext: true, sameOriginAsBox: false, hasNfc: true });
+  assert.deepEqual(site, { canRecord: true, canWriteTag: true, canUpload: false, canPickFile: true });
+  const box = proto.originCapabilities({ isSecureContext: false, sameOriginAsBox: true, hasNfc: false });
+  assert.deepEqual(box, { canRecord: false, canWriteTag: false, canUpload: true, canPickFile: true });
+  // An iPhone on the public site: records fine, cannot write a tag. Hence enrolment.
+  const iphone = proto.originCapabilities({ isSecureContext: true, sameOriginAsBox: false, hasNfc: false });
+  assert.equal(iphone.canRecord, true);
+  assert.equal(iphone.canWriteTag, false);
+});
 
-  const withRelay = { sameOriginAsBox: false, pageIsHttps: true, relayEnabled: true };
-  assert.deepEqual(proto.availableTransports(withRelay), ['relay', 'card']);
+t('localhost is the trap: the one origin where both halves work', () => {
+  // A developer serving the box page from localhost sees recording and uploading
+  // work together, because localhost is a secure context that is also plain HTTP.
+  // Nothing else in the world behaves like that, so it must not be mistaken for
+  // evidence that the constraint is soft.
+  const fake = (hostname, protocol, secure) => ({
+    location: { hostname, protocol }, isSecureContext: secure,
+  });
+  const dev = proto.capabilitiesHere(fake('localhost', 'http:', true));
+  assert.ok(dev.canRecord && dev.canUpload, 'localhost is the misleading case');
+  assert.ok(proto.isLocalDev(fake('127.0.0.1', 'http:', true)));
+
+  // The same page on a real LAN address loses the microphone, which is the
+  // failure a localhost-only test would never have shown.
+  const real = proto.capabilitiesHere(fake('192.168.4.1', 'http:', false));
+  assert.equal(real.canRecord, false);
+  assert.equal(real.canUpload, true);
+  assert.ok(!proto.isLocalDev(fake('192.168.4.1', 'http:', false)));
+
+  // And the public site is the mirror image.
+  const site = proto.capabilitiesHere(fake('tape.mino.mobi', 'https:', true));
+  assert.equal(site.canRecord, true);
+  assert.equal(site.canUpload, false);
+});
+
+t('the box is findable on its own AP with no router at all', () => {
+  assert.deepEqual(proto.boxOrigins({ mode: 'ap' }), [proto.AP_ADDRESS]);
+  assert.deepEqual(proto.boxOrigins({ mode: 'ap+sta', lanAddress: '192.168.1.40' }),
+    ['http://192.168.1.40', 'http://tape.local', proto.AP_ADDRESS]);
+  // A literal IP is first on the AP path on purpose: Android does not resolve
+  // .local reliably, and the AP has no DNS worth trusting anyway.
+  assert.ok(proto.AP_ADDRESS.includes('192.168.4.1'));
+});
+
+t('the path suggestion matches the situation', () => {
+  assert.deepEqual(proto.suggestPath({ sameOriginAsBox: true, relayEnabled: false }), ['box', 'card']);
+  assert.deepEqual(proto.suggestPath({ boxReachable: true, relayEnabled: true }), ['box', 'relay', 'card']);
+  // Away from home the box is unreachable however much you want it to be.
+  assert.deepEqual(proto.suggestPath({ remote: true, relayEnabled: true }), ['relay', 'card']);
+  assert.deepEqual(proto.suggestPath({ remote: true, relayEnabled: false }), ['card']);
+  assert.equal(proto.PATHS.box.cloud, false);
+  assert.equal(proto.PATHS.card.cloud, false);
+  assert.equal(proto.PATHS.relay.cloud, true);
+});
+
+t('a phone voice memo is an accepted upload', () => {
+  assert.ok(proto.acceptsFile('New Recording 4.m4a'));   // iOS Voice Memos
+  assert.ok(proto.acceptsFile('Recording_001.ogg'));     // Android Recorder
+  assert.ok(proto.acceptsFile('chapter one.MP3'));       // a ripped audiobook
+  assert.ok(!proto.acceptsFile('cover.jpg'));
 });
 
 t('an iPhone still gets a working flow, via the box', () => {
-  // No NDEFReader in node, and none in Safari either.
-  assert.equal(proto.hasWebNfc(), false);
+  assert.equal(proto.hasWebNfc(), false);   // none in node, and none in Safari
   const body = proto.enrollBody({ cardId: 'ABCDEFGHJKMNP', label: 'bedtime' });
   assert.equal(body.ttlSeconds, 60);
   assert.equal(body.cardId, 'ABCDEFGHJKMNP');
+});
+
+// ----------------------------------------------------------------- power --
+
+t('the box is comfortably portable on one 18650', () => {
+  const b = power.budget(3000);
+  assert.ok(b.draw.play > 100 && b.draw.play < 160, `play draw ${b.draw.play} mA`);
+  assert.ok(b.hours.play > 15, `${b.hours.play} h of stories on a charge`);
+  assert.ok(b.daysPerCharge > 5, `${b.daysPerCharge} days between charges`);
+});
+
+t('even at the volume end stop it lasts an evening many times over', () => {
+  assert.ok(power.hours(3000, 'play', { loud: true }) > 6);
+});
+
+t('duty-cycling the NFC field is what makes standby possible', () => {
+  // Undo the duty cycle and idle draw roughly quadruples — this is the check
+  // that stops someone "simplifying" the poll loop into a continuous field.
+  const idle = power.drawMa('idle');
+  const nfc = power.LOADS.find((l) => l.id === 'nfc');
+  const continuous = idle - nfc.ma.idle + 65;
+  assert.ok(idle < 20, `idle is ${idle} mA`);
+  assert.ok(continuous / idle > 3, 'a continuous field should be visibly worse');
+  assert.ok(power.hours(3000, 'idle') > 100);
+});
+
+t('deep sleep is bounded by the cell, not by the circuit', () => {
+  assert.equal(power.hours(3000, 'sleep'), power.SELF_DISCHARGE_MONTHS * 730);
+});
+
+t('smaller cells still work; the model just says by how much', () => {
+  for (const c of power.CELLS) {
+    const h = power.hours(c.mAh, 'play');
+    assert.ok(h > 5, `${c.name} gives only ${h} h`);
+  }
+  assert.throws(() => power.drawMa('dancing'), /no such state/);
 });
 
 console.log(`tape: ${n} checks passed`);

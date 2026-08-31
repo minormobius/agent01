@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>tape — the open-source card audio player</title>
 <meta name="description" content="Build a Toniebox for the price of the tags. A child puts a card on the box and hears a parent read a book. Open hardware, open firmware, and a browser studio that records and writes the cards.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -111,9 +112,9 @@
   <table>
     <thead><tr><th>&nbsp;</th><th>Toniebox</th><th>Yoto Player</th><th>tape</th></tr></thead>
     <tbody>
-      <tr><td>The player</td><td class="num">$129.99</td><td class="num">$79.99&ndash;$109.99</td><td class="num">~$35 in parts<sup>*</sup></td></tr>
-      <tr><td>One more story</td><td class="num">$19.99</td><td class="num">$9.99&ndash;$14.99</td><td class="num">$0.20</td></tr>
-      <tr><td>Ten more stories</td><td class="num">$199.90</td><td class="num">$99.90+</td><td class="num">$2.00</td></tr>
+      <tr><td>The player</td><td class="num">$129.99</td><td class="num">$79.99&ndash;$109.99</td><td class="num">~$45, or ~$56 portable<sup>*</sup></td></tr>
+      <tr><td>One more story</td><td class="num">$19.99</td><td class="num">$9.99&ndash;$14.99</td><td class="num">$0.14</td></tr>
+      <tr><td>Ten more stories</td><td class="num">$199.90</td><td class="num">$99.90+</td><td class="num">$1.40</td></tr>
       <tr><td>Who reads it</td><td>a voice actor</td><td>a voice actor</td><td>whoever the child misses</td></tr>
       <tr><td>Works with no internet</td><td><span class="pill yes">yes</span></td><td><span class="pill yes">yes</span></td><td><span class="pill yes">yes</span></td></tr>
       <tr><td>Where the recording lives</td><td>vendor cloud</td><td>vendor cloud</td><td>an SD card in your house</td></tr>
@@ -121,9 +122,10 @@
     </tbody>
   </table>
   </div>
-  <p style="font-size:14px;color:var(--muted)"><sup>*</sup> An order-of-magnitude figure from
-  parts we have shortlisted but not yet chosen. Real prices land with the
-  <a href="/hardware/">bill of materials</a>, next.</p>
+  <p style="font-size:14px;color:var(--muted)"><sup>*</sup> Real parts, now chosen &mdash; the
+  <a href="/hardware/">bill of materials</a> has every line and what it beat. (Last round this said
+  &ldquo;~$35&rdquo;, guessed before choosing anything; the honest figure is higher.) Add ~$14 for a
+  deck of cards and a hundred stickers, which is <strong>14&cent; a story</strong>.</p>
 
   <h2>Where things are</h2>
   <div class="grid">
@@ -134,9 +136,10 @@
       and it is cheaper to find out here than at the soldering iron.</p>
     </div>
     <div class="card">
-      <h3><a href="/hardware/">Hardware</a> <span class="pill">next round</span></h3>
-      <p>The bill of materials, the shortlist behind each line, wiring, and the enclosure. The
-      architecture below fixes the <em>shape</em> of each part; this picks the actual chips.</p>
+      <h3><a href="/hardware/">Hardware</a> <span class="pill on">chosen</span></h3>
+      <p>Every part, what it beat and why, and a <strong>live power budget</strong> &mdash; change
+      the cell and watch the runtime move. Short answer: about twenty hours of stories on one 18650,
+      so yes, it can be portable.</p>
     </div>
     <div class="card">
       <h3><a href="/firmware/">Firmware</a> <span class="pill">specified</span></h3>
@@ -160,17 +163,28 @@
     </div>
   </div>
 
-  <h2>The design is not finished</h2>
-  <p>Three questions are open and are deliberately being left open until parts are chosen. They are
-  written up properly in <a href="/design/#open">the design record</a>:</p>
-  <ol>
-    <li><strong>Bluetooth or wire?</strong> Bluetooth was the starting assumption. It is probably
-      the wrong one for a four-year-old, for reasons that are specific rather than aesthetic.</li>
-    <li><strong>Which brain?</strong> An ESP32 boots in a second and costs $6 but fights itself over
-      WiFi and Bluetooth; a Pi Zero 2 W does everything and takes 25 seconds to boot.</li>
-    <li><strong>Battery, or a cable?</strong> A cable is honest, cheap, and safe. A battery is what
-      makes a child carry the thing to bed.</li>
-  </ol>
+  <h2>What is settled, and what is not</h2>
+  <p>The three questions this page carried last round are answered, and the answers are in
+  <a href="/design/#log">the decision log</a> with their reasoning:</p>
+  <ul>
+    <li><strong>Bluetooth or wire?</strong> Wire. The wireless speaker turned out not to matter, and
+      dropping it freed the brain choice entirely &mdash; there is no longer any reason to be stuck
+      on 2016 silicon.</li>
+    <li><strong>Which brain?</strong> ESP32-S3. It boots in about a second and decodes every audio
+      format a phone can produce, which is what lets a parent just upload a voice memo.</li>
+    <li><strong>Battery or cable?</strong> Battery. ~20 hours of stories, ~8 days between charges.</li>
+  </ul>
+  <p>Still open: <strong>the enclosure</strong> &mdash; though it now has five requirements that
+  arrived from other decisions, including a card nest shaped by the read range. And nothing has been
+  built yet. Everything on this site works; none of it has been soldered.</p>
+
+  <div class="note">
+    <strong>The cards are a deck of playing cards.</strong> A poker deck, an NFC sticker on the back,
+    the id written on in biro &mdash; and <em>the card lives in the book it belongs to</em>, which is
+    a better filing system than anything a product designer would have reached. Cards are consumable
+    at 14&cent;; the recordings are the asset, and they never move.
+  </div>
+
 </main>
 
 <footer><div class="inner">
