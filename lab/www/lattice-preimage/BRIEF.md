@@ -1,6 +1,53 @@
 # draw-gaussian / lattice-preimage — handoff
 
-## Turn three (this turn)
+## Turn four (this turn)
+
+Requester: "can you make a toggle to just show the points and no lines, and an
+option to color by vertex degree? despite how it's constructed it's not
+necessarily a tree btw." Two additions, both tree-mode only (a new "row" of
+controls, `#treeOptions`, hidden until `grow` is clicked, hidden again on
+`exitTree`):
+
+1. **"points only, no edges" checkbox** (`pointsOnly`). `renderTree` just skips
+   the whole edge-drawing loop when set; node drawing is unchanged.
+2. **"colour by" select: recursion level (existing) / vertex degree (new).**
+   Degree is now computed in `growTree` — a plain object keyed the same way as
+   `visited`, incremented on both endpoints every time an edge is pushed — and
+   returned as `tree.degree`. `degreeColor(deg, maxDeg)` maps degree onto a
+   violet(leaf)→yellow(hub) hue scale, deliberately not reusing `levelColor`'s
+   blue→orange range so the two modes are never visually ambiguous about which
+   is active — the legend swatches also switch via `updateTreeLegend()`. When
+   colour is by degree, edges are drawn in a single desaturated grey rather
+   than by level, since level-coloured edges next to degree-coloured nodes
+   would read as two overlapping encodings.
+
+   The requester's aside ("it's not necessarily a tree") was already true and
+   already known — turn two's decision doc says edges to already-visited
+   points are kept, not skipped. Made it visible instead of just documented:
+   the readout now compares `edges.length` to `nodeCount - 1` (what a tree on
+   that many nodes would have) and states plainly whether this run merged
+   branches back together or happened to come out tree-shaped. That's the
+   concrete, checkable version of "it's not necessarily a tree" — a good
+   degree-coloured run should show visible hubs above degree 2 wherever a
+   merge happened, and the readout's edge-count line will confirm it did.
+
+   **Incidental correctness fix while wiring degree**: `growTree` previously
+   pushed an edge (and would now have counted degree) toward a target that hit
+   the node cap and was therefore *never added to `visited`* — a dangling edge
+   to a point with no dot, rendered but never a node. Reordered so the edge
+   (and degree increment) is only recorded for a capped target if it was
+   already visited before the cap; a genuinely new-and-over-cap target now
+   contributes no edge and no degree, matching what's actually drawn. Only
+   visible before this turn if you looked very closely at a capped tree's edge
+   count; harmless but wrong, so fixed while already in this function.
+
+Not touched: single-point mode, the basis-grid toggle, presets, pinch-zoom,
+deep-linking, the filled-parallelogram idea, Moore neighborhoods — all still
+open, see "the plan" below (unchanged from turn three except item 5, which
+this turn's readout line partially addresses — a level histogram is still not
+built).
+
+## Turn three
 
 Requester: "hmm kinda a mess, and i can't zoom out far enough to see the whole
 thing... add more extreme zooms and also make it a random matrix per
@@ -157,11 +204,18 @@ vectors already being computed rather than a separate feature.
    neighborhood-shape toggle — the math is identical (just two more basis
    combinations, u+v and u−v), the current code structure (`drawCross`
    taking an arbitrary neighbor list) already supports it without rework.
-5. **Tree mode has no legend-swatch equivalent of the readout's per-level
-   counts** — `legendTree` just says "younger"/"older" in words. If the
-   node/level counts turn out to matter more than the current text readout
-   suggests, a small histogram (level → count) would read faster than the
-   comma-joined list currently in `updateTreeReadout`.
+5. **Tree mode still has no visual histogram** — legend swatches now cover
+   both colour modes (turn four), and the readout states the level counts and
+   the edges-vs-tree comparison in words, but a small level→count or
+   degree→count bar chart would read faster than the comma-joined lists
+   currently in `updateTreeReadout` if that turns out to matter.
+6. **Degree is a raw incident-edge count, not deduplicated** — if the same
+   pair of points ends up connected by more than one edge (possible across
+   levels, not checked for), each counts separately toward both endpoints'
+   degree. Reads as "how many segments touch this point," which is what's
+   drawn, so this was left as is rather than switching to distinct-neighbor
+   count — flag if a visitor asks why degree looks higher than the number of
+   lines they can see meeting at a point.
 
 ## Gotchas
 

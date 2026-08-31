@@ -79,7 +79,10 @@
   recursion level, connect each point in the frontier to the preimage points
   that level's M induces, then recurse — a new random M for the next level,
   skipping any point already visited — for up to the given number of levels.
-  Colour marks distance (in levels) from the origin.</p>
+  Colour marks either distance (in levels) from the origin, or vertex degree —
+  how many edges meet at each point — since a later point's induced neighbor
+  can land back on an already-visited one, so this is a graph that can merge
+  branches together, not strictly a tree. A points-only view is available too.</p>
 
   <div class="panel">
     <div class="row">
@@ -128,6 +131,16 @@
       <button id="grow" type="button">grow tree from origin</button>
       <button id="exitTree" type="button" class="hidden">back to single point</button>
     </div>
+    <div class="row hidden" id="treeOptions" style="margin-top:.8rem">
+      <label class="check"><input class="checkbox" id="pointsOnly" type="checkbox"> points only, no edges</label>
+      <div class="field">
+        <label for="colorBy">colour by</label>
+        <select id="colorBy">
+          <option value="level" selected>recursion level</option>
+          <option value="degree">vertex degree</option>
+        </select>
+      </div>
+    </div>
     <div id="err" class="err hidden" role="alert"></div>
   </div>
 
@@ -145,9 +158,7 @@
     <span>tap/click the canvas to move p · drag to pan · wheel or +/− to zoom</span>
   </div>
   <div class="legend hidden" id="legendTree">
-    <span><span class="swatch" style="background:#e8a33d"></span>origin</span>
-    <span><span class="swatch" style="background:#4e8fe0"></span>younger (near origin)</span>
-    <span><span class="swatch" style="background:#e0672f"></span>older (deeper recursion)</span>
+    <span id="legendTreeColor" style="display:contents"></span>
     <span>drag to pan · wheel or +/− to zoom</span>
   </div>
 
@@ -165,8 +176,10 @@ var P = { x: 3, y: 2 };
 var showGrid = false;
 
 var treeMode = false;
-var tree = null;              // { edges, visited, levelCounts, capped }
+var tree = null;              // { edges, visited, levelCounts, capped, degree }
 var MAX_TREE_NODES = 3000;    // safety cap: branching is up to 4x per level
+var pointsOnly = false;       // tree view: hide edges, show only nodes
+var colorBy = 'level';        // tree view: 'level' or 'degree'
 
 // zoom range: extreme on both ends since the tree's bounding box can span
 // thousands of units (needs a tiny scale to fit) or a visitor may want to
@@ -336,6 +349,8 @@ function growTree(maxLevel) {
   var levelCounts = [1];
   var frontier = [origin];
   var capped = false;
+  var degree = {};
+  degree[keyOf(origin)] = 0;
 
   for (var level = 0; level < maxLevel && frontier.length > 0 && !capped; level++) {
     var next = [];
@@ -351,10 +366,14 @@ function growTree(maxLevel) {
       ];
       for (var j = 0; j < nbrs.length; j++) {
         var nb = nbrs[j];
-        edges.push({ x1: p.x, y1: p.y, x2: nb.x, y2: nb.y, level: level });
         var k = keyOf(nb);
+        // if the recursion has already stopped (cap hit), don't record a
+        // dangling edge to a point that was never added to `visited`
+        if (!(k in visited) && nodeCount >= MAX_TREE_NODES) { capped = true; continue; }
+        edges.push({ x1: p.x, y1: p.y, x2: nb.x, y2: nb.y, level: level });
+        degree[keyOf(p)] = (degree[keyOf(p)] || 0) + 1;
+        degree[k] = (degree[k] || 0) + 1;
         if (k in visited) continue;
-        if (nodeCount >= MAX_TREE_NODES) { capped = true; continue; }
         visited[k] = level + 1;
         nodeCount++;
         next.push(nb);
@@ -363,7 +382,7 @@ function growTree(maxLevel) {
     levelCounts.push(next.length);
     frontier = next;
   }
-  return { edges: edges, visited: visited, levelCounts: levelCounts, capped: capped };
+  return { edges: edges, visited: visited, levelCounts: levelCounts, capped: capped, degree: degree };
 }
 
 function fitViewToPoints(points) {
@@ -389,6 +408,13 @@ function levelColor(level, maxLevel) {
   return 'hsl(' + hue + ', 70%, 60%)';
 }
 
+// degree is >= 1 for every visited node except a single-node tree (degree 0)
+function degreeColor(deg, maxDeg) {
+  var t = maxDeg > 1 ? (deg - 1) / (maxDeg - 1) : 0;
+  var hue = 280 - t * 235; // violet (leaf, degree 1) -> yellow (hub, high degree)
+  return 'hsl(' + hue + ', 70%, 60%)';
+}
+
 function renderTree(s) {
   var topLeft = screenToWorld(0, 0);
   var bottomRight = screenToWorld(s.w, s.h);
@@ -407,34 +433,47 @@ function renderTree(s) {
   }
 
   var maxLevel = tree.levelCounts.length - 1;
-
-  for (var i = 0; i < tree.edges.length; i++) {
-    var e = tree.edges[i];
-    var p1 = worldToScreen(e.x1, e.y1), p2 = worldToScreen(e.x2, e.y2);
-    ctx.strokeStyle = levelColor(e.level, maxLevel);
-    ctx.lineWidth = 1.6;
-    ctx.beginPath(); ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.stroke();
+  var keys = Object.keys(tree.visited);
+  var maxDegree = 1;
+  for (var d = 0; d < keys.length; d++) {
+    var dg = tree.degree[keys[d]] || 0;
+    if (dg > maxDegree) maxDegree = dg;
   }
 
-  var keys = Object.keys(tree.visited);
+  if (!pointsOnly) {
+    for (var i = 0; i < tree.edges.length; i++) {
+      var e = tree.edges[i];
+      var p1 = worldToScreen(e.x1, e.y1), p2 = worldToScreen(e.x2, e.y2);
+      ctx.strokeStyle = colorBy === 'degree' ? 'rgba(120,116,128,0.5)' : levelColor(e.level, maxLevel);
+      ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.stroke();
+    }
+  }
+
   for (var j = 0; j < keys.length; j++) {
     var pt = parseKey(keys[j]);
     var lvl = tree.visited[keys[j]];
+    var deg = tree.degree[keys[j]] || 0;
     var sp = worldToScreen(pt.x, pt.y);
-    ctx.fillStyle = lvl === 0 ? '#e8a33d' : levelColor(lvl, maxLevel);
+    var color = colorBy === 'degree' ? degreeColor(deg, maxDegree) : (lvl === 0 ? '#e8a33d' : levelColor(lvl, maxLevel));
+    ctx.fillStyle = color;
     ctx.beginPath(); ctx.arc(sp[0], sp[1], lvl === 0 ? 6 : 3, 0, Math.PI * 2); ctx.fill();
   }
 
-  updateTreeReadout(keys.length, maxLevel);
+  updateTreeReadout(keys.length, maxLevel, maxDegree);
 }
 
-function updateTreeReadout(nodeCount, maxLevel) {
+function updateTreeReadout(nodeCount, maxLevel, maxDegree) {
   var html = '';
   html += '<div><b>recursive growth from the origin</b> — ' + maxLevel + ' level' + (maxLevel === 1 ? '' : 's') +
     ', a fresh random M ∈ GL(2,ℤ) chosen for every recursion level</div>';
   html += '<div style="margin-top:.5rem">nodes: <span class="mono">' + nodeCount +
-    '</span> &nbsp; edges: <span class="mono">' + tree.edges.length + '</span></div>';
+    '</span> &nbsp; edges: <span class="mono">' + tree.edges.length + '</span> &nbsp; max vertex degree: <span class="mono">' + maxDegree + '</span></div>';
   html += '<div>points per level: ' + tree.levelCounts.join(', ') + '</div>';
+  var extra = tree.edges.length - (nodeCount - 1);
+  html += '<div>' + (extra > 0
+    ? extra + ' edge' + (extra === 1 ? '' : 's') + ' more than a tree on ' + nodeCount + ' nodes would have (' + (nodeCount - 1) + ') — this run merged branches back together, so it is a graph, not a tree.'
+    : 'exactly tree-shaped this run: ' + tree.edges.length + ' edges on ' + nodeCount + ' nodes, no branches merged back together.') + '</div>';
   if (tree.capped) {
     html += '<div style="margin-top:.5rem;color:#e8a33d">stopped early — hit the ' + MAX_TREE_NODES +
       '-node safety cap before finishing the requested depth. Branching is up to 4× per level, so this is expected well before level 10.</div>';
@@ -556,6 +595,30 @@ document.getElementById('resetview').addEventListener('click', function () {
   resetView();
 });
 
+function updateTreeLegend() {
+  var html;
+  if (colorBy === 'degree') {
+    html = '<span><span class="swatch" style="background:hsl(280,70%,60%)"></span>degree 1 (leaf)</span>' +
+      '<span><span class="swatch" style="background:hsl(45,70%,60%)"></span>highest degree (hub / merge point)</span>';
+  } else {
+    html = '<span><span class="swatch" style="background:#e8a33d"></span>origin</span>' +
+      '<span><span class="swatch" style="background:#4e8fe0"></span>younger (near origin)</span>' +
+      '<span><span class="swatch" style="background:#e0672f"></span>older (deeper recursion)</span>';
+  }
+  document.getElementById('legendTreeColor').innerHTML = html;
+}
+
+document.getElementById('pointsOnly').addEventListener('change', function (e) {
+  pointsOnly = e.target.checked;
+  if (treeMode) render();
+});
+
+document.getElementById('colorBy').addEventListener('change', function (e) {
+  colorBy = e.target.value;
+  updateTreeLegend();
+  if (treeMode) render();
+});
+
 document.getElementById('grow').addEventListener('click', function () {
   var levels = parseInt(document.getElementById('levels').value, 10);
   if (isNaN(levels) || levels < 1) levels = 8;
@@ -563,8 +626,10 @@ document.getElementById('grow').addEventListener('click', function () {
   tree = growTree(levels);
   treeMode = true;
   document.getElementById('exitTree').classList.remove('hidden');
+  document.getElementById('treeOptions').classList.remove('hidden');
   document.getElementById('legendSingle').classList.add('hidden');
   document.getElementById('legendTree').classList.remove('hidden');
+  updateTreeLegend();
   var pts = Object.keys(tree.visited).map(parseKey);
   fitViewToPoints(pts);
   render();
@@ -573,6 +638,7 @@ document.getElementById('grow').addEventListener('click', function () {
 document.getElementById('exitTree').addEventListener('click', function () {
   treeMode = false;
   document.getElementById('exitTree').classList.add('hidden');
+  document.getElementById('treeOptions').classList.add('hidden');
   document.getElementById('legendTree').classList.add('hidden');
   document.getElementById('legendSingle').classList.remove('hidden');
   resetView();

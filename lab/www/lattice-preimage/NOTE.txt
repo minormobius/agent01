@@ -1,1 +1,1 @@
-Matrix is now shared per level, not per point — much less tangled. Zoom widened a lot (0.02x-600x) so grow+fit should show the whole tree; if it still clips, that's the 3000-node safety cap, not the zoom.
+Both added, in tree controls. Also made your aside checkable, not just true: the readout now counts how many edges exceed what a plain tree would have, so a degree-coloured run shows exactly where branches merged back together.
