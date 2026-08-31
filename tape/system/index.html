@@ -47,13 +47,12 @@
   <p id="bench-total" style="margin-top:10px"></p>
 
   <div class="note">
-    <strong>The Fluke changes one recommendation.</strong> The case against buying a crimper was
-    never the money &mdash; it was that a marginal crimp fails <em>intermittently, months later</em>,
-    and you would blame the firmware. That argument assumes crimps cannot be checked. With a good
-    meter each one can be: tug it, then beep it end to end, then beep it to its neighbours to catch
-    a whisker. Verified individually, a crimp is no longer a thing you trust. So: <strong>buy the
-    crimper if you intend to keep building.</strong> Buy the pre-crimped kit as well, so the first
-    box is not waiting on a new skill.
+    <strong>A JST-XH connection is three parts, and it is easy to buy two of them.</strong>
+    The plastic <em>housing</em> and the loose female <em>crimp contacts</em> make up the cable end.
+    The board end is a separate <em>shrouded male header</em> (JST calls the family
+    <code>B2B-XH-A</code>) that solders into the PCB. Plenty of kits sold as &ldquo;JST-XH
+    connectors&rdquo; are cable-end only, and you find out when you have a finished loom and nowhere
+    to plug it. <a href="/parts.json">The kit in the parts list</a> has all three.
   </div>
 
   <h2 id="permaproto">2 &middot; What a Perma-Proto is</h2>
@@ -133,10 +132,14 @@
     </div>
     <div class="card">
       <div class="n">Tier 2 &middot; board to panel</div>
-      <h3>JST-XH 2.54&nbsp;mm.</h3>
-      <p>Latching and polarised. Dupont is friction-fit only and explicitly not for anything that
-      moves; this is a toy that gets shaken and carried by the wrong end. Polarised also means you
-      cannot plug it in backwards at eleven at night, which you will otherwise eventually do.</p>
+      <h3>JST-XH.</h3>
+      <p>Latching and polarised. Dupont is friction-fit only and not for anything that moves; this is
+      a toy that gets shaken and carried by the wrong end.</p>
+      <p><strong>XH is genuinely 2.5&nbsp;mm pitch, not 2.54.</strong> Listings say
+      &ldquo;XH-2.54&rdquo; constantly and it is wrong. At 0.04&nbsp;mm per pin it drops into an
+      0.1&Prime; grid happily up to about 6 ways; by 10 ways the accumulated 0.36&nbsp;mm will not
+      go. Our longest run is 3 pins, so it is a non-issue here &mdash; worth knowing before it is
+      one.</p>
     </div>
     <div class="card">
       <div class="n">Tier 3 &middot; power</div>
@@ -167,11 +170,11 @@
     <p>A zip tie round the wire and a heavy mug on the tail. You have the zip ties.</p>
   </div>
   <div class="trick">
-    <h4>Checking a crimp, now that there is a Fluke on the bench</h4>
-    <p>Three checks, in order, every time: <strong>tug it</strong> firmly by the wire &mdash; a bad
-    crimp comes off in your hand and is cheap to find now; <strong>beep it end to end</strong>;
-    <strong>beep it to its neighbours</strong> to catch a whisker bridging two pins in the housing.
-    Ten seconds, and it converts crimping from a thing you trust into a thing you know.</p>
+    <h4>Beeping a loom before it goes in</h4>
+    <p>Not about crimp quality &mdash; about the two mistakes that survive a good crimp: a contact
+    seated in the wrong housing cavity, and a whisker bridging two pins. Beep each way end to end,
+    then beep each pin to its neighbours. Thirty seconds for the whole loom, and it is the check
+    that catches a wiring error rather than a workmanship one.</p>
   </div>
   <div class="trick">
     <h4>Before powering anything for the first time</h4>
@@ -243,7 +246,8 @@
       <tr><td>JST-XH panel-side, JST-PH for power</td><td>Latching and polarised; Dupont is not for things that move</td><td>this page</td></tr>
       <tr><td>Zip tie every cable that leaves the board</td><td>The tug lands on the board, not a joint</td><td>this page</td></tr>
       <tr><td>Beep the rails before first power-up</td><td>A short found by a meter is free</td><td>this page</td></tr>
-      <tr><td>Buy the crimper, but not the SN-28B</td><td>Its anvil is too wide and bites the insulation rather than wrapping it</td><td><code>parts.json</code></td></tr>
+      <tr><td>Buy the board-side header too</td><td>A JST-XH connection is housing + contacts + shrouded header, and kits often omit the third</td><td><code>parts.json</code></td></tr>
+      <tr><td>XH is 2.5&nbsp;mm, whatever the listing says</td><td>Fine to ~6 ways on an 0.1&Prime; grid; not fine at 10</td><td>this page</td></tr>
       <tr><td>Never add two things between tests</td><td>Debugging becomes a search instead of a look</td><td><a href="/build/">the stage gates</a></td></tr>
       <tr><td>Transfer to protoboard only after it runs loose</td><td>Soldering an unproven design turns an evening into a weekend</td><td>this page</td></tr>
       <tr><td>13.56&nbsp;MHz NFC, never 125&nbsp;kHz</td><td>A phone can neither read nor write 125&nbsp;kHz &mdash; it deletes the whole phone-side pipeline</td><td><a href="/design/#nfc">design &sect;3.2</a></td></tr>
@@ -281,9 +285,10 @@
   const opt = tools.filter((t) => t.owned === false && t.priority > 4);
   document.getElementById('bench-total').innerHTML =
     `<strong>$${need.reduce((n, t) => n + t.usd, 0)} of things you actually need</strong> `
-    + `(${need.map((t) => esc(t.name.split(',')[0].split(' — ')[0])).join(', ')}), `
+    + `(${need.map((t) => esc(t.name.split(' — ')[0].split(' (')[0].split(',')[0])).join(', ')}), `
     + `plus $${opt.reduce((n, t) => n + t.usd, 0)} of optional. `
-    + `The bench was most of the cost and you already own it. Links checked ${bom.checked.at}.`;
+    + `The iron, the meter and the ties were the expensive part of a bench and they are already here; `
+    + `what is left is consumables and one tool. Links checked ${bom.checked.at}.`;
   </script>
 </main>
 

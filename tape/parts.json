@@ -405,15 +405,15 @@
       "id": "jstxh",
       "priority": 3,
       "owned": false,
-      "name": "JST-XH 2.54 mm kit, pre-crimped",
-      "usd": 22,
-      "why": "Latching, polarised, and the pins arrive already crimped so the first box is not gated on a new skill. Buy this even if you also buy the crimper — $22 to keep the build moving while you practise on scrap.",
+      "name": "JST-XH connector kit — housings, loose contacts, AND board headers",
+      "usd": 25,
+      "why": "Three parts, not one, which is easy to under-order: the plastic HOUSING and the loose female CRIMP CONTACTS go on the cable, and a shrouded MALE HEADER (JST part family B2B-XH-A) solders into the board. A kit that omits the third one leaves you with cables and nowhere to plug them. This 560-piece kit has all three — 200 loose contacts and 20 each of 2/3/4/5-pin housings and headers.",
       "sources": [
         {
-          "vendor": "Amazon",
-          "sku": "B08G17QHSD",
-          "url": "https://www.amazon.com/Connector-pre-crimped-Housing-Adapter-Compatible/dp/B08G17QHSD",
-          "expect": "JST-XH",
+          "vendor": "Adafruit",
+          "sku": "4423",
+          "url": "https://www.adafruit.com/product/4423",
+          "expect": "JST XH",
           "status": "ok"
         }
       ]
@@ -437,11 +437,11 @@
     },
     {
       "id": "crimper",
-      "priority": 5,
+      "priority": 4,
       "owned": false,
-      "name": "Crimper — now a reasonable buy",
+      "name": "Crimper for XH contacts (0.08–1.0 mm², 28–20 AWG)",
       "usd": 35,
-      "why": "Revised: with a Fluke on the bench the main objection is gone, because every crimp can be verified individually rather than trusted. If the intent is to keep building, buy it. IWISS IWS-2820M or SN-025 — NOT the SN-28B, whose anvil is too wide and bites into the insulation rather than wrapping it, despite being the tool every guide recommends.",
+      "why": "XH contacts are JST SXH-001T-P0.6, taking 22–28 AWG. Any ratcheting crimper with a die in that range does it. The one thing worth knowing if you have not bought one for this size before: the very common SN-28B has an anvil wide enough to bite into the insulation rather than wrap it — SN-025 or IWISS IWS-2820M are sized properly.",
       "sources": []
     },
     {

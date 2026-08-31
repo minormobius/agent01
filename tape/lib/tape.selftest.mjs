@@ -404,16 +404,16 @@ t('the bench records what is owned, so the shopping list stays honest', () => {
   assert.equal(dmm.owned, true);
 });
 
-t('the crimper advice is contingent on being able to check a crimp', () => {
-  const crimper = parts.tools.find((t) => t.id === 'crimper');
-  const dmm = parts.tools.find((t) => t.id === 'dmm');
-  // The whole argument: a marginal crimp fails intermittently, which is only
-  // acceptable if each one can be verified. Owning a meter is the precondition.
-  assert.ok(dmm.owned === true, 'without a meter the crimper recommendation must be revisited');
-  assert.match(crimper.why, /SN-28B/, 'name the trap, not just the recommendation');
-  assert.equal(crimper.sources.length, 0, 'no purchase link for a judgement call');
-  // Pre-crimped stays recommended regardless, so build one is never gated on a new skill.
-  assert.ok(parts.tools.some((t) => t.id === 'jstxh' && t.owned === false && t.priority <= 4));
+t('the connector line covers all three parts of a JST-XH connection', () => {
+  // A JST-XH connection is housing + loose crimp contacts + a shrouded header
+  // that solders into the board. Kits routinely ship the first two and not the
+  // third, which is not visible from the product title — so the link check
+  // (which verifies identity, not sufficiency) cannot catch it. This can.
+  const kit = parts.tools.find((t) => t.id === 'jstxh');
+  for (const part of [/housing/i, /contact/i, /header/i]) {
+    assert.match(kit.why, part, `the kit description must account for ${part}`);
+  }
+  assert.ok(kit.sources.some((s) => s.status === 'ok'));
 });
 
 t('headers are the top of the shopping list', () => {
@@ -423,11 +423,19 @@ t('headers are the top of the shopping list', () => {
   assert.equal(needed[0].id, 'headers', `top of the list is ${needed[0].id}`);
 });
 
-t('the shopping list is small, because the bench was most of the cost', () => {
+t('nothing already owned is counted in the shopping list', () => {
+  // The claim this protects is not "the list is small" — that moved the moment
+  // the crimper became a real recommendation, and the test failing is what
+  // forced the prose to be restated. The durable claim is narrower: an owned
+  // tool contributes nothing, so the total is what is actually being spent.
+  const owned = parts.tools.filter((t) => t.owned === true);
+  assert.ok(owned.length >= 3, 'the bench should be recorded, not assumed');
+  assert.equal(owned.reduce((n, t) => n + t.usd, 0), 0);
+
   const must = parts.tools.filter((t) => t.owned === false && t.priority <= 4);
-  const total = must.reduce((n, t) => n + t.usd, 0);
-  assert.ok(total < 60, `must-buy total is $${total}`);
   assert.ok(must.length >= 3);
+  const total = must.reduce((n, t) => n + t.usd, 0);
+  assert.ok(total > 0 && total < 150, `must-buy total is $${total}`);
 });
 
 // ------------------------------------------------------------ power chain --

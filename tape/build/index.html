@@ -86,17 +86,17 @@
   <h3>JST-XH, and whether to crimp</h3>
   <p><strong>JST-XH rather than Dupont</strong>, because Dupont is friction-fit only and is
   explicitly not for anything that moves. This is a toy a four-year-old will shake, drop and carry
-  by the wrong end. JST-XH latches, and it is polarised &mdash; you cannot plug it in backwards at
-  eleven at night, which you will otherwise eventually do.</p>
-  <p><strong>Buy the pre-crimped kit either way.</strong> The pins arrive already crimped; you push
-  them into the housing and solder the bare end. $22 to keep the first box off the critical path of
-  a new skill.</p>
-  <p><strong>Whether to also buy the crimper depends on one thing: can you check a crimp?</strong>
-  The risk was never cost, it was that a marginal crimp fails intermittently months later and gets
-  blamed on the firmware. With a decent meter that risk is manageable &mdash; tug it, beep it end to
-  end, beep it to its neighbours. <a href="/system/#tricks">The three checks.</a> If you can do
-  that, buy it. And not the SN-28B: its anvil is too wide and bites into the insulation rather than
-  wrapping it, despite being the tool every guide recommends. IWISS IWS-2820M or SN-025.</p>
+  by the wrong end. JST-XH latches and is polarised.</p>
+
+  <p><strong>Order all three parts.</strong> A JST-XH connection is a plastic housing plus loose
+  female crimp contacts on the cable, and a <em>shrouded male header</em> on the board &mdash; JST's
+  <code>B2B-XH-A</code> family. Kits sold as &ldquo;JST-XH connectors&rdquo; are frequently cable-end
+  only. <a href="/system/#interconnect">The three parts.</a></p>
+
+  <p><strong>Contacts are SXH-001T-P0.6, 22&ndash;28 AWG</strong>, so any ratcheting crimper with a
+  0.08&ndash;1.0&nbsp;mm&sup2; die will do them. And the pitch is really 2.5&nbsp;mm despite every
+  listing saying 2.54 &mdash; fine on an 0.1&Prime; grid up to about 6 ways, and our longest run is
+  three.</p>
 
   <h3>Strain relief is the part people skip</h3>
   <p>Every cable that leaves the board gets anchored before it reaches its connector, so a tug pulls
@@ -220,7 +220,7 @@
   const need = bom.tools.filter((t) => t.owned === false && t.priority <= 4);
   document.getElementById('bench-short').innerHTML =
     `Short version: <strong>$${need.reduce((n, t) => n + t.usd, 0)}</strong> of things not already `
-    + `on the bench — ${need.map((t) => esc(t.name.split(',')[0].split(' — ')[0])).join(', ')}. `
+    + `on the bench — ${need.map((t) => esc(t.name.split(' — ')[0].split(' (')[0].split(',')[0])).join(', ')}. `
     + `Everything else is bought once and lasts for every project after this one.`;
   </script>
 </main>

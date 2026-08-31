@@ -186,11 +186,25 @@ keeping it next to a real build is what stops it becoming aspirational. **When
 there is a second project, rehome it** (`scripts/rehome.mjs`).
 
 `parts.json` `tools[]` carries an `owned` field, so the shopping list reflects an
-actual bench rather than a generic one. Two selftests depend on it, and one is
-deliberately *contingent*: the crimper recommendation is only valid because a
-multimeter is owned — a marginal crimp fails intermittently, which is tolerable
-only if each crimp can be verified. If `dmm.owned` ever goes false, that advice
-has to change with it, and the test says so.
+actual bench rather than a generic one, and a selftest asserts an owned tool
+costs nothing — the total is what is actually being spent.
+
+## Who this is written for
+
+The principal fabricates confidently — has crimped a great many cables and knows
+the failure modes — and has no formal EE education, having deliberately avoided
+the coursework. **The gap is vocabulary, not capability.** So:
+
+- **Name things.** "The shrouded male header, JST's `B2B-XH-A` family" beats "the
+  board-side bit". Naming a part is what makes it orderable and searchable.
+- **Give the spec, not the technique.** `SXH-001T-P0.6, 22–28 AWG` is useful;
+  "how to make a good crimp" is not.
+- **Say the non-obvious fact and stop.** XH is really 2.5 mm despite every
+  listing saying 2.54. That is worth a sentence; a tutorial around it is not.
+
+Two rounds of advice have been miscalibrated by assuming inexperience — a
+pre-crimped kit was recommended to someone who crimps for a living. When in
+doubt, state the fact and let them judge.
 
 ## Prices have gone up twice, both times for the same reason
 
