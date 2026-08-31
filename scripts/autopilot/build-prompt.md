@@ -33,10 +33,10 @@ _Regenerated 2026-08-31 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 82, bluesky 73, data 58, tools 58, work 8.
 
-**Neighborhood spark** (bisk 2026-08-31, 99 members / 240 posts):
+**Neighborhood spark** (bisk 2026-08-31, 99 members / 235 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: glm, llms, openai
-- Top post: "my car is throwing an engine trouble code, and I can just directly plug an intelligence into it and it will talk to the " — @tbabb.bsky.social
+- Distinctive words: llms, bluesky, idk
+- Top post: "i haven't even posted the most deranged gta6 nazi slop i have seen, which is the long post about how it's meant to honey" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
