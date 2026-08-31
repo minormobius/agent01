@@ -1,5 +1,5 @@
 {
-  "$comment": "The bill of materials, as data. /hardware/ renders this; check-links.mjs verifies every url and writes back the `checked` block. Prices are approximate single-unit hobbyist figures and are NOT verified — only the links are. Edit here, never in the HTML. `usd` is the named part linked here; `usdGeneric` is the same chip on an unbranded module. `tools` is the bench, ordered by priority for someone starting with only a soldering iron. A tool is on the shopping list when owned === false and optional !== true; priority is display order only and must not be overloaded to mean anything else.",
+  "$comment": "The bill of materials, as data. /hardware/ renders this; check-links.mjs verifies every url and writes back the `checked` block. Prices are approximate single-unit hobbyist figures and are NOT verified — only the links are. Edit here, never in the HTML. `usd` is the named part linked here; `usdGeneric` is the same chip on an unbranded module. `tools` is the bench, ordered by priority for someone starting with only a soldering iron. A tool is on the shopping list when owned === false and optional !== true; priority is display order only and must not be overloaded to mean anything else. `enclosure` holds the routes rendered on /hardware/#enclosure; its sources go through the same link check.",
   "schemaVersion": 1,
   "checked": {
     "at": "2026-08-31",
@@ -531,6 +531,53 @@
         }
       ],
       "optional": false
+    }
+  ],
+  "enclosure": [
+    {
+      "route": "A · wooden box",
+      "note": "Search any general retailer for an unfinished pine or bamboo box with a hinged lid, ~150×100×80 mm inside. Stock turns over constantly so no single listing is worth linking — buy on the spec, not the SKU. Solid wood, not foil-wrapped MDF.",
+      "sources": []
+    },
+    {
+      "route": "B · Hammond 1599",
+      "note": "Hand-held ABS, stocked by every distributor. Pick the variant with the battery compartment. 1591 is the plain box family if you want a simpler shape.",
+      "sources": [
+        {
+          "vendor": "Hammond 1599 series",
+          "sku": "1599",
+          "url": "https://www.hammfg.com/electronics/small-case/plastic/1599",
+          "expect": "Hand Held Enclosures",
+          "status": "ok"
+        },
+        {
+          "vendor": "Hammond 1591 series",
+          "sku": "1591",
+          "url": "https://www.hammfg.com/electronics/small-case/plastic/1591",
+          "expect": "1591",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "route": "C · laser-cut panel",
+      "note": "Upload a DXF, get one panel back. Order acrylic or plywood — NEVER metal, which kills the reader. Both services quote online without an account.",
+      "sources": [
+        {
+          "vendor": "Ponoko",
+          "sku": "laser",
+          "url": "https://www.ponoko.com/",
+          "expect": "laser cutting",
+          "status": "ok"
+        },
+        {
+          "vendor": "SendCutSend",
+          "sku": "laser",
+          "url": "https://sendcutsend.com/",
+          "expect": "SendCutSend",
+          "status": "ok"
+        }
+      ]
     }
   ]
 }

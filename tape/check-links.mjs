@@ -26,7 +26,7 @@ const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Geck
 const write = process.argv.includes('--write');
 
 const doc = JSON.parse(fs.readFileSync(FILE, 'utf8'));
-const sources = [...doc.parts, ...(doc.tools || [])]
+const sources = [...doc.parts, ...(doc.tools || []), ...(doc.enclosure || []).map((e) => ({ ...e, name: e.route }))]
   .flatMap((p) => p.sources.map((s) => ({ part: p.name, s })));
 
 async function verdictFor({ url, expect }) {

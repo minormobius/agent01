@@ -455,6 +455,25 @@ t('nothing already owned is counted in the shopping list', () => {
   assert.ok(total > 0 && total < 200, `must-buy total is $${total}`);
 });
 
+t('the enclosure routes keep metal away from the reader', () => {
+  // The one enclosure failure that is silent: a conductive layer over the
+  // antenna detunes it and the card just never reads. Every route has to say so.
+  assert.ok(Array.isArray(parts.enclosure) && parts.enclosure.length >= 3);
+  const laser = parts.enclosure.find((e) => /laser/i.test(e.route));
+  assert.match(laser.note, /NEVER metal|never metal/,
+    'the laser-cut route must warn against ordering it in metal');
+  for (const e of parts.enclosure) {
+    assert.ok(e.note && e.note.length > 40, `${e.route} needs a real note`);
+    for (const src of e.sources) {
+      assert.ok(src.url.startsWith('https://'));
+      assert.ok(Object.keys(parts.checked.verdicts).includes(src.status));
+    }
+  }
+  // At least one route must be buyable from a verified link; the craft-box route
+  // deliberately has none, because stock turns over and the spec is the answer.
+  assert.ok(parts.enclosure.some((e) => e.sources.some((s) => s.status === 'ok')));
+});
+
 // ------------------------------------------------------------ power chain --
 
 t('the power chain the BOM buys is the one the budget assumes', () => {

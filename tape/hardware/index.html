@@ -23,8 +23,8 @@
   <a class="brand" href="/">tape<span class="dot">.</span><small>card audio player</small></a>
   <nav class="navlinks">
     <a href="/design/">design</a><a href="/hardware/" aria-current="page">hardware</a><a href="/firmware/">firmware</a>
-    <a href="/build/">build</a><a href="/system/">system</a><a href="/first-story/">first story</a>
-    <a href="/studio/">studio</a><a href="/tags/">cards</a><a href="/sim/">simulator</a>
+    <a href="/build/">build</a><a href="/system/">system</a><a href="/thousand/">&times;1000</a>
+    <a href="/first-story/">first story</a><a href="/studio/">studio</a><a href="/sim/">simulator</a>
   </nav>
 </div></div>
 
@@ -216,15 +216,88 @@
   audio never moved.</p>
 
   <h2 id="enclosure">The enclosure</h2>
-  <p>Still open, but no longer unconstrained. The requirements that have accumulated from decisions
-  elsewhere:</p>
-  <ul>
-    <li><strong>A recessed card nest</strong> that positions a 63&times;88 mm card by geometry. Read range is a few centimetres and orientation matters; a four-year-old aims badly, and the case is what makes that not matter. The PN532&rsquo;s antenna sits directly under it, with no metal between.</li>
-    <li><strong>A screwed battery compartment</strong>, not a friction lid. A protected 18650 in a child&rsquo;s toy needs to be a deliberate job to get to.</li>
-    <li><strong>The pot&rsquo;s end stop reachable for trimming</strong> once, at build time, then left.</li>
-    <li><strong>The speaker firing upward or forward</strong>, not into a table.</li>
-    <li>Big enough to be carried by a four-year-old with two hands, which is the actual size specification.</li>
-  </ul>
+  <p>Two constraints arrive from elsewhere in the design and rule out most of what looks suitable.
+  Get these right and the rest is carpentry.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>It must be RF-transparent over the reader</h3>
+      <p>No metal tin, no metallised or foil-lined finish, no steel lid, no magnetic catch anywhere
+      near the nest. A conductive layer over the antenna detunes it and the card simply never reads
+      &mdash; the same physics that <a href="#cards">kills foil-backed playing cards</a>. Wood,
+      plywood, ABS and acrylic are all fine.</p>
+      <p>Lid thickness eats read range directly. Measure yours at
+      <a href="/build/">assembly stage 4</a>, through the material you actually intend to use,
+      before you commit to a design.</p>
+    </div>
+    <div class="card">
+      <h3>A speaker needs a box, not a hole</h3>
+      <p>This is the part that is not trivial. A driver radiates from both faces in antiphase; if
+      front and back air can meet around the rim, the bass cancels and it sounds like a telephone.
+      Two rules fix it:</p>
+      <ul style="margin:0">
+        <li><strong>Seal the driver to its baffle.</strong> A ring of self-adhesive foam
+          draught-excluder, compressed by the screws. This one step is most of the difference.</li>
+        <li><strong>Leave enclosed air behind it.</strong> Even 200&ndash;500&nbsp;cm&sup3; is
+          plenty for a 40&nbsp;mm driver, and the box is that anyway &mdash; just do not leave the
+          back open or shared with a vented battery bay.</li>
+      </ul>
+      <p>Grille: many small holes rather than few large. Total open area at least the cone area,
+      each hole under 4&nbsp;mm so a child cannot get a finger or a crumb to the cone.</p>
+    </div>
+  </div>
+
+  <h3>Three routes, none of which need a printer</h3>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Route</th><th>Good for</th><th>The catch</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>A &middot; A wooden box</strong><br><span style="color:var(--faint);font-size:13px">craft shop, ~$8&ndash;20</span></td>
+        <td><strong>The recommendation for build one.</strong> RF-transparent by nature, acoustically
+          better than thin plastic, drills with hand tools, a hinged lid gives you access forever, and
+          it looks like something that belongs in a child&rsquo;s room rather than a gadget that
+          wandered in. Unfinished pine and bamboo boxes are stocked by every craft retailer and
+          general online store.</td>
+        <td>Not precise. Buy solid wood, not MDF with a printed foil wrap. Check the catch and hinges
+          are away from the card nest, or replace them with wooden ones. Sizes vary, so measure
+          before ordering: you want roughly 150&times;100&times;80&nbsp;mm inside.</td>
+      </tr>
+      <tr>
+        <td><strong>B &middot; Hammond 1599</strong><br><span style="color:var(--faint);font-size:13px">hand-held ABS, widely stocked</span></td>
+        <td>Precise, repeatable, moulded for hand-held use, and available from every distributor
+          rather than depending on what a shop happens to have. Some variants have an integral
+          battery compartment, which solves the screwed-shut requirement for you.</td>
+        <td>Thin ABS is a poor speaker baffle &mdash; it will need bracing or the panel resonates.
+          And drilling a tidy grille pattern in a moulded face by hand is fiddlier than it sounds.</td>
+      </tr>
+      <tr>
+        <td><strong>C &middot; A laser-cut front panel</strong><br><span style="color:var(--faint);font-size:13px">~$25&ndash;40, no machine of your own</span></td>
+        <td><strong>Best combined with A.</strong> Send a 2D drawing to a cutting service and get back
+          one precise panel: the speaker grille, the card nest, the button and pot holes, all exactly
+          where the schematic says. The box supplies the volume and the charm; the panel supplies the
+          precision. No printer, no machine, and a DXF is a morning&rsquo;s work.</td>
+        <td>Order it in <strong>acrylic or plywood, never metal</strong> &mdash; a metal panel over
+          the reader is exactly the failure mode above. And you will want two, because the first
+          panel is where you discover a hole is 2&nbsp;mm out.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="scroll-x">
+  <table id="enclosure-links"></table>
+  </div>
+
+  <div class="note">
+    <strong>Requirements checklist, for whichever route.</strong> A card nest that positions a
+    63&times;88&nbsp;mm card by geometry, with nothing conductive between it and the reader &middot;
+    a battery compartment that needs a tool to open &middot; the speaker sealed to its baffle with
+    enclosed air behind &middot; the volume pot&rsquo;s end stop reachable once at build time
+    &middot; the speaker firing up or forward, never into a table &middot; and small enough that a
+    four-year-old carries it with two hands, which is the actual size specification.
+  </div>
 
   <h2>Still open</h2>
   <ol>
@@ -334,6 +407,16 @@
         ? `${r.pins[0]}–${r.pins[r.pins.length - 1]}` : r.pins.join(', ')}</code></td>
       <td style="color:var(--muted)">${esc(r.why)}</td></tr>`).join('') + '</tbody></table></div>';
   $('spare').textContent = pinmap.spare().join(', ');
+
+  // ------------------------------------------------------------- enclosure --
+  const encl = bom.enclosure || [];
+  $('enclosure-links').innerHTML = encl.length
+    ? '<thead><tr><th>Route</th><th>Where</th><th>Note</th></tr></thead><tbody>'
+      + encl.map((e) => `<tr><td><strong>${esc(e.route)}</strong></td>
+          <td>${e.sources.map((src) => `<div style="white-space:nowrap"><a href="${src.url}" rel="noopener">${esc(src.vendor)}</a>
+              <span class="pill ${PILL[src.status]}" title="${esc(TIP[src.status])}">${src.status}</span></div>`).join('')}</td>
+          <td>${esc(e.note)}</td></tr>`).join('') + '</tbody>'
+    : '';
 
 
   $('cell').innerHTML = power.CELLS

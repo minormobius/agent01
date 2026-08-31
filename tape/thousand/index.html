@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>tape — a thousand of them</title>
+<meta name="description" content="What changes at 1,000 units: the BOM collapses to about $30, and is then no longer the interesting number. Certification, tooling, and the fact that a deck of chipped cards costs more than the microcontroller.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .money { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); margin:20px 0; }
+  .money .b { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; }
+  .money .v { font-size:26px; font-weight:700; letter-spacing:-.02em; }
+  .money .k { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--faint); font-weight:650; }
+  .money .n { font-size:13px; color:var(--muted); margin-top:6px; }
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-inner">
+  <a class="brand" href="/">tape<span class="dot">.</span><small>card audio player</small></a>
+  <nav class="navlinks">
+    <a href="/design/">design</a><a href="/hardware/">hardware</a><a href="/firmware/">firmware</a>
+    <a href="/build/">build</a><a href="/system/">system</a><a href="/thousand/" aria-current="page">&times;1000</a>
+    <a href="/first-story/">first story</a><a href="/studio/">studio</a><a href="/sim/">simulator</a>
+  </nav>
+</div></div>
+
+<main>
+  <h1>A thousand of them</h1>
+  <p class="lede">The BOM does collapse, roughly as expected &mdash; about $103 of hobby parts
+  becomes about $30 of production parts. And then it stops being the interesting number, because
+  four things that cost nothing at quantity one now cost more than all the silicon put together.</p>
+
+  <div class="note">
+    <strong>The short version.</strong> Landed cost lands near <strong>$40&ndash;$48</strong> a unit
+    for the US only, of which BOM is about two thirds and compliance most of the rest. The design
+    needs almost no change &mdash; one early decision turns out to have been worth five figures. But
+    there is a business problem underneath, and it is not a cost problem.
+    <a href="#razor">It is at the bottom of this page.</a>
+  </div>
+
+  <h2 id="bom">1 &middot; What the BOM does</h2>
+  <p>Modules become chips, retail becomes reel, and the hobby premium disappears. Indicative
+  quantity-1,000 pricing:</p>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Line</th><th>At one</th><th>At 1,000</th><th>What changed</th></tr></thead>
+    <tbody>
+      <tr><td>ESP32-S3 module</td><td class="num">$15</td><td class="num">~$3.00</td><td>Devkit &rarr; the bare WROOM-1 module soldered down. Still a <em>module</em>, deliberately &mdash; see &sect;3.</td></tr>
+      <tr><td>NFC reader</td><td class="num">$40</td><td class="num">~$4.00</td><td>Breakout &rarr; PN532 die and a PCB-trace antenna. The single biggest drop, and the one with a certification string attached.</td></tr>
+      <tr><td>Amplifier</td><td class="num">$6</td><td class="num">~$1.20</td><td>Breakout &rarr; MAX98357A in a QFN</td></tr>
+      <tr><td>Speaker</td><td class="num">$3</td><td class="num">~$1.00</td><td>&mdash;</td></tr>
+      <tr><td>Storage</td><td class="num">$12</td><td class="num">~$2.80</td><td>Breakout &rarr; a microSD socket; card bought on a reel</td></tr>
+      <tr><td>Power (charger, buck-boost, cell)</td><td class="num">$60</td><td class="num">~$6.20</td><td>Three breakouts &rarr; two ICs and a pouch cell</td></tr>
+      <tr><td>Controls, connectors, passives</td><td class="num">$10</td><td class="num">~$2.70</td><td>The panel harness mostly stops existing &mdash; it becomes copper</td></tr>
+      <tr><td>PCB + assembly</td><td class="num">$5</td><td class="num">~$3.50</td><td>Protoboard and an evening &rarr; a 4-layer board and a pick-and-place</td></tr>
+      <tr><td><strong>A deck of 52 chipped cards</strong></td><td class="num">$14</td><td class="num">~$6.00</td><td><strong>Barely drops, and becomes the second-largest line.</strong> <a href="#cards">Below.</a></td></tr>
+      <tr><td>Enclosure + packaging</td><td class="num">$15</td><td class="num">~$4.00</td><td>Depends entirely on tooling &mdash; <a href="#tooling">&sect;4</a></td></tr>
+      <tr style="border-top:2px solid var(--line)"><td><strong>BOM</strong></td><td class="num"><strong>~$180</strong></td><td class="num"><strong>~$34</strong></td><td>with the enclosure and a full deck</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="font-size:14px;color:var(--muted)">Indicative, not quoted. Treat every figure as
+  &plusmn;30% until a distributor has actually priced a line.</p>
+
+  <h2 id="cards">2 &middot; The surprise: the cards cost more than the microcontroller</h2>
+  <p>Shipping a full deck means <strong>52 tags per box, 52,000 tags across the run.</strong> Printed
+  PVC NFC cards land somewhere around 10&ndash;15&cent; each at that volume, so a deck is roughly
+  <strong>$6</strong> &mdash; twice the ESP32 and second only to the whole power subsystem.</p>
+  <p>This is the one place the design and the business disagree with each other. Three ways out, and
+  they are genuinely different products:</p>
+  <ul>
+    <li><strong>Ship ten cards, sell decks.</strong> The obvious move, and it quietly turns tape into
+      the thing it was built to not be &mdash; a razor with blades.</li>
+    <li><strong>Ship stickers, not cards.</strong> 25&nbsp;mm NTAG213 stickers are a third the price
+      of printed cards and the buyer supplies a deck of playing cards from a supermarket. Cheaper,
+      more charming, entirely in keeping with the project, and it puts an assembly step on the
+      customer.</li>
+    <li><strong>Ship the full deck and eat it.</strong> Honest, and it is $6.</li>
+  </ul>
+  <p>Worth noticing that this decision was invisible at quantity one, where cards are 14&cent; and
+  nobody counts them.</p>
+
+  <h2 id="cert">3 &middot; Certification, and the decision that already paid for itself</h2>
+
+  <p>A radio, a lithium cell, and a four-year-old. That is three regulated things at once, and it is
+  where garage hardware usually stops.</p>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>What</th><th>Why it applies</th><th>Indicative</th></tr></thead>
+    <tbody>
+      <tr><td><strong>FCC Part 15B</strong>, SDoC</td><td>Any digital device sold in the US. Unintentional emissions from the finished product.</td><td class="num">$1.5k&ndash;3k</td></tr>
+      <tr><td><strong>FCC Part 15.225</strong></td><td>The 13.56&nbsp;MHz reader is an <em>intentional</em> radiator in its own right. Chip-down means certifying it yourself.</td><td class="num">$2k&ndash;4k<sup>?</sup></td></tr>
+      <tr><td><strong>CPC</strong> &mdash; CPSIA + ASTM&nbsp;F963</td><td>It is a children's product. Lead and phthalate content, mechanical hazards, battery-compartment security, a permanent tracking label.</td><td class="num">$0.5k&ndash;3k</td></tr>
+      <tr><td><strong>UN 38.3</strong></td><td>Lithium cells cannot be shipped without a test report. Often supplied by the cell vendor &mdash; ask before you design one in.</td><td class="num">$0&ndash;3k</td></tr>
+      <tr><td>CE / UKCA, EN&nbsp;71, EN&nbsp;IEC&nbsp;62115, RED</td><td>Only if you sell into the EU or UK. Effectively doubles the exercise.</td><td class="num">$5k&ndash;15k</td></tr>
+      <tr style="border-top:2px solid var(--line)"><td colspan="2"><strong>US only, once</strong></td><td class="num"><strong>~$6k&ndash;12k</strong></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="font-size:14px;color:var(--muted)"><sup>?</sup> The 15.225 figure is the least certain
+  number on this page and should be quoted, not assumed.</p>
+
+  <div class="note">
+    <strong>The decision that already paid for itself.</strong> Keeping the ESP32-S3 as a
+    <em>pre-certified module</em> rather than going chip-down means the module&rsquo;s own FCC ID
+    covers the WiFi radio. The finished product then needs only Part&nbsp;15B unintentional-emissions
+    testing on the self-declaration path &mdash; no FCC filing, no fee. Published estimates put the
+    difference at <strong>$5,500&ndash;$14,500</strong> and roughly half the timeline, and modules
+    win on total cost below about 50,000 units. That choice was made back when the reason was
+    &ldquo;ESP-ADF decodes whatever the phone recorded&rdquo;; it turns out to have been worth more
+    than the entire BOM of the first hundred units.
+  </div>
+
+  <p>The mirror image: <strong>going chip-down on the PN532 is the opposite trade.</strong> It saves
+  perhaps $3 a unit and buys an intentional-radiator certification, an antenna you now have to tune,
+  and a re-test every time the enclosure changes. At 1,000 units it is close to a wash and probably
+  the wrong way round. At 10,000 it is obviously right.</p>
+
+  <h2 id="tooling">4 &middot; Tooling, and why you would not injection-mould at 1,000</h2>
+  <p>A simple two-part moulded box is roughly <strong>$3,000&ndash;$15,000</strong> of aluminium
+  tooling. Across 1,000 units that is $3&ndash;15 each, on a part that costs $1.50 to mould &mdash;
+  the tool costs more than the parts. Moulding starts paying back somewhere around 5,000&ndash;10,000
+  units.</p>
+  <p>So at a thousand you do what the one-off build does, industrialised: an off-the-shelf enclosure
+  with a laser-cut front panel, or CNC-routed plywood. It costs more per unit and nothing up front,
+  which is the right shape of risk for a first run. <a href="/hardware/#enclosure">The enclosure
+  routes.</a></p>
+
+  <h2 id="line">5 &middot; Things that do not exist at quantity one</h2>
+  <ul>
+    <li><strong>A test jig.</strong> You cannot plug in a thousand boards by hand. A pogo-pin bed
+      that powers the board, flashes it, exercises the reader with a known card, plays a tone into a
+      microphone, and reads the battery divider &mdash; a day of work and it defines your yield.</li>
+    <li><strong>A tracking label.</strong> Not optional: CPSIA <em>requires</em> permanent marking
+      with manufacturer, location and batch. That is a design requirement, not paperwork &mdash; it
+      needs a place on the moulding or the label artwork.</li>
+    <li><strong>Serialisation.</strong> Each box wants an identity for support, and each SD card an
+      image. Both are production-line steps.</li>
+    <li><strong>Returns and support.</strong> At a 3% return rate that is thirty boxes coming back,
+      and someone reads the emails.</li>
+    <li><strong>Product liability insurance.</strong> A lithium cell in a toy for a four-year-old is
+      the sharp end of the consumer-goods risk pool. Get a quote before committing; it can change
+      the arithmetic on its own.</li>
+  </ul>
+
+  <h2 id="landed">6 &middot; Where it lands</h2>
+  <div class="money">
+    <div class="b"><div class="k">BOM</div><div class="v">~$34</div><div class="n">parts, board, assembly, a full deck</div></div>
+    <div class="b"><div class="k">Compliance</div><div class="v">~$9</div><div class="n">$6k–12k over 1,000 units</div></div>
+    <div class="b"><div class="k">Packaging + line</div><div class="v">~$4</div><div class="n">box, print, test, serialise</div></div>
+    <div class="b"><div class="k">Landed COGS</div><div class="v">~$47</div><div class="n">before labour, support or margin</div></div>
+  </div>
+  <p>Against a Toniebox at $129.99 and a Yoto at $109.99, a $99 retail price is comfortable on paper.
+  Through distribution, at a 2&times; wholesale multiple, it is thin.</p>
+
+  <h2 id="razor">7 &middot; The problem, and it is not cost</h2>
+  <p>The thing that makes tape good is that <strong>a parent records the story themselves.</strong>
+  That is the whole point, and it means there is nothing to sell afterwards.</p>
+  <p>A Toniebox is $129.99 and every figure after it is $19.99. Over two years a modest collection
+  runs $610&ndash;$850, and almost all of that is content. <strong>The hardware is not the
+  business</strong> &mdash; it is customer acquisition for the business, and the margin lives in a
+  catalogue we deliberately do not have.</p>
+  <p>So a thousand tapes is a hardware company with one transaction per customer, competing against
+  two companies for whom the hardware is a loss leader. That is a real and specific disadvantage, and
+  it is worth being clear-eyed about before a tool is cut. It also has a shape of answer &mdash; sell
+  the thing whose margin you are structurally good at, which here is cards and enclosures and
+  possibly nothing else, or do not sell it at all and publish the design so that a thousand people
+  build one.</p>
+  <p>Which is what the repository is already for.</p>
+
+  <h2 id="now">8 &middot; What to do differently now, at quantity one</h2>
+  <p>Very little, which is the useful finding. Three things, all cheap today and expensive to
+  retrofit:</p>
+  <ol>
+    <li><strong>Keep the ESP32-S3 as a module, forever.</strong> &sect;3. It is already the plan; the
+      point is not to talk yourself out of it later for $2 of BOM.</li>
+    <li><strong>Put test points on everything</strong> &mdash; the rails, I&sup2;C, I&sup2;S, the
+      battery divider. On protoboard they are a pad and a label. They are what a pogo-pin jig lands
+      on, and adding them to a laid-out board later means a respin.</li>
+    <li><strong>Never let the audio format become the box&rsquo;s problem.</strong> The manifest
+      names the file and ESP-ADF plays what arrives. That is what keeps a firmware update from
+      orphaning somebody&rsquo;s recordings, and at a thousand units in the field that stops being a
+      nicety.</li>
+  </ol>
+</main>
+
+<footer><div class="inner">
+  <strong>tape</strong> &middot; part of <a href="https://mino.mobi">mino.mobi</a> &middot;
+  <a href="/">home</a> &middot; <a href="/hardware/">parts</a>
+</div></footer>
+
+</body>
+</html>
