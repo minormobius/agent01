@@ -1,1 +1,1 @@
-Added "grow tree from origin": fresh random matrix per newly-linked point, recursive. Branching is up to 4x/level, so it hits a 3000-node safety cap before level 8 in practice — the readout says so rather than hanging your tab or faking the depth.
+Matrix is now shared per level, not per point — much less tangled. Zoom widened a lot (0.02x-600x) so grow+fit should show the whole tree; if it still clips, that's the 3000-node safety cap, not the zoom.

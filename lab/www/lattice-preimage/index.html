@@ -75,10 +75,11 @@
   grid's axes, that preimage shape around p is usually a skewed diamond, not a plus.</p>
 
   <p><b>Growing a tree</b> repeats this construction recursively: starting at the
-  origin, pick a fresh random M ∈ GL(2,ℤ) for that point, connect it to the
-  preimage points its own M induces, then recurse — a new random M for each
-  newly-linked point, skipping any point already visited — for up to the given
-  number of levels. Colour marks distance (in levels) from the origin.</p>
+  origin, pick a fresh random M ∈ GL(2,ℤ) shared by every point in that
+  recursion level, connect each point in the frontier to the preimage points
+  that level's M induces, then recurse — a new random M for the next level,
+  skipping any point already visited — for up to the given number of levels.
+  Colour marks distance (in levels) from the origin.</p>
 
   <div class="panel">
     <div class="row">
@@ -167,6 +168,11 @@ var treeMode = false;
 var tree = null;              // { edges, visited, levelCounts, capped }
 var MAX_TREE_NODES = 3000;    // safety cap: branching is up to 4x per level
 
+// zoom range: extreme on both ends since the tree's bounding box can span
+// thousands of units (needs a tiny scale to fit) or a visitor may want to
+// inspect a single skewed diamond up close (needs a large one).
+var MIN_SCALE = 0.02;
+var MAX_SCALE = 600;
 var view = { scale: 30, panX: 0, panY: 0 }; // panX/panY = screen position of world (0,0)
 var drag = null; // {startX,startY,startPanX,startPanY,moved}
 
@@ -317,9 +323,10 @@ function render() {
 function keyOf(p) { return p.x + ',' + p.y; }
 function parseKey(k) { var i = k.indexOf(','); return { x: parseInt(k.slice(0, i), 10), y: parseInt(k.slice(i + 1), 10) }; }
 
-// starting at the origin: pick a fresh random M for the point, connect it to
-// the preimage of the von Neumann neighborhood M induces (same u/v construction
-// as the single-point view), and recurse only on points not visited yet.
+// starting at the origin: pick one fresh random M for the whole frontier at
+// this level, connect every point in it to the preimage of the von Neumann
+// neighborhood that M induces (same u/v construction as the single-point
+// view), and recurse only on points not visited yet.
 function growTree(maxLevel) {
   var origin = { x: 0, y: 0 };
   var visited = {};
@@ -332,12 +339,12 @@ function growTree(maxLevel) {
 
   for (var level = 0; level < maxLevel && frontier.length > 0 && !capped; level++) {
     var next = [];
+    var m = randomUnimodular();
+    var inv = inverse(m);
+    var u = { x: inv.a, y: inv.c };
+    var v = { x: inv.b, y: inv.d };
     for (var i = 0; i < frontier.length; i++) {
       var p = frontier[i];
-      var m = randomUnimodular();
-      var inv = inverse(m);
-      var u = { x: inv.a, y: inv.c };
-      var v = { x: inv.b, y: inv.d };
       var nbrs = [
         { x: p.x + u.x, y: p.y + u.y }, { x: p.x - u.x, y: p.y - u.y },
         { x: p.x + v.x, y: p.y + v.y }, { x: p.x - v.x, y: p.y - v.y },
@@ -370,7 +377,7 @@ function fitViewToPoints(points) {
   }
   var w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY);
   var scale = Math.min((s.w - 40) / w, (s.h - 40) / h);
-  scale = Math.max(4, Math.min(140, scale));
+  scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale));
   view.scale = scale;
   view.panX = s.w / 2 - (minX + maxX) / 2 * scale;
   view.panY = s.h / 2 + (minY + maxY) / 2 * scale;
@@ -424,7 +431,7 @@ function renderTree(s) {
 function updateTreeReadout(nodeCount, maxLevel) {
   var html = '';
   html += '<div><b>recursive growth from the origin</b> — ' + maxLevel + ' level' + (maxLevel === 1 ? '' : 's') +
-    ', a fresh random M ∈ GL(2,ℤ) chosen for every newly-linked point</div>';
+    ', a fresh random M ∈ GL(2,ℤ) chosen for every recursion level</div>';
   html += '<div style="margin-top:.5rem">nodes: <span class="mono">' + nodeCount +
     '</span> &nbsp; edges: <span class="mono">' + tree.edges.length + '</span></div>';
   html += '<div>points per level: ' + tree.levelCounts.join(', ') + '</div>';
@@ -576,7 +583,7 @@ function zoomBy(factor, cx, cy) {
   var atX = cx === undefined ? s.w / 2 : cx;
   var atY = cy === undefined ? s.h / 2 : cy;
   var before = screenToWorld(atX, atY);
-  view.scale = Math.max(6, Math.min(140, view.scale * factor));
+  view.scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, view.scale * factor));
   view.panX = atX - before.x * view.scale;
   view.panY = atY + before.y * view.scale;
   render();

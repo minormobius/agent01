@@ -1,5 +1,37 @@
 # draw-gaussian / lattice-preimage — handoff
 
+## Turn three (this turn)
+
+Requester: "hmm kinda a mess, and i can't zoom out far enough to see the whole
+thing... add more extreme zooms and also make it a random matrix per
+recursion level rather than per point pls." Two explicit, unambiguous asks:
+
+1. **Zoom range widened.** `MIN_SCALE`/`MAX_SCALE` (was a hardcoded 6–140 in
+   `zoomBy`, 4–140 in `fitViewToPoints`) are now named constants, 0.02–600,
+   used consistently by both. The actual complaint was "can't zoom out far
+   enough to see the whole thing" — `fitViewToPoints` was clamping its
+   computed scale to a floor of 4, so a tree whose bounding box needed a
+   smaller scale than that to fit the canvas was silently cropped even though
+   `fitViewToPoints` had done the math correctly. That's what was fixed;
+   0.02 is comfortably below anything the 3000-node cap can produce.
+2. **Matrix is now per-level, not per-point** — reverses turn two's explicit
+   decision. `growTree` picks one `randomUnimodular()` per level, shared by
+   every point in that level's frontier, instead of one per point. This
+   directly answers "kinda a mess" too: a shared-per-level matrix makes each
+   level self-similar (same u/v shear applied everywhere at that depth), so
+   the tree reads as a coherent fractal-ish shape rather than a tangle of
+   independently-skewed branches. Turn two's reasoning for per-point ("read
+   the request literally") no longer applies — this is a direct, explicit
+   correction from the person who owns the site, which wins outright per the
+   standing instruction here. Node-growth math (branching still up to 4× per
+   *point*, hence the safety cap) is unaffected — only how many independent
+   matrices are drawn per level changed, not how many neighbors each point
+   gets.
+
+Not touched: single-point mode, the basis-grid toggle, presets, all deferred
+items in "the plan" below (pinch-zoom, deep-link, filled parallelogram, Moore
+neighborhood, level histogram) — still open, still in that order.
+
 ## What this is
 
 Requester asked: "draw a gaussian integer lattice. user specifies a
@@ -78,12 +110,11 @@ vectors already being computed rather than a separate feature.
   readout ("stopped early — hit the N-node safety cap"). This is the same
   "say when it's approximate" instinct as the harmonic-count cap on the
   S¹-warp site — see the profile.
-- **New matrix per point, not per level.** Read "a new matrix for each point
-  linked up but not yet visited" literally: every node in the frontier gets
-  its *own* independent `randomUnimodular()` call, not one shared matrix for
-  the whole level. This is why the tree looks organic/lopsided rather than
-  self-similar — a single shared-per-level matrix would produce a more
-  regular fractal, which is not what was asked for.
+- ~~New matrix per point, not per level.~~ **Reversed in turn three** — the
+  requester explicitly asked for per-level after seeing the per-point result
+  ("kinda a mess" + "make it a random matrix per recursion level rather than
+  per point"). See "Turn three" above. Left the original reasoning here since
+  it explains why per-point was tried first, not because it's still current.
 - **Edges are still drawn to already-visited neighbors, no recursion just
   stops there.** "connect ... induced in this way" is about the edge, "but
   not yet visited" gates only the *recursion*. So a point can pick up extra
