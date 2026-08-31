@@ -44,7 +44,9 @@ that puts bytes-per-book on the tag, stop and re-read
 |---|---|
 | `/` | the pitch, the block diagram, the cost arithmetic |
 | `/design/` | **the design record** — product + site architecture, four corrections, the decision log. Read this before changing anything here |
-| `/hardware/` | the bill of materials, what each part beat, and a **live power budget** |
+| `/hardware/` | BOM rendered from `parts.json` (checked links, two price tiers), the schematic and power-chain diagrams, and a live power budget |
+| `/build/` | assembly — eight stages, each ending at a gate. Structure written, steps wait on a real box |
+| `/first-story/` | **the instructions** — for a parent with a phone, not an engineer |
 | `/firmware/` | firmware architecture and the state machine |
 | `/studio/` | **working**: records a book in tracks and hands back files (it cannot upload — see the two rules below) |
 | `/tags/`, `/c/<id>` | **working**: the card byte layout and a Web NFC writer |
@@ -62,9 +64,11 @@ the eventual firmware cannot drift apart:
   validation, the size arithmetic quoted across the site
 - `lib/protocol.js` — the box HTTP API, the SSE events, the network modes, and
   `originCapabilities()`
+- `lib/pinmap.js` — the GPIO assignment. The schematic is *drawn from this*, so
+  the picture and the firmware cannot disagree about a pin number
 - `lib/power.js` — the power budget: per-component draw per state, runtime on a
   given cell, days between charges. `/hardware/` renders it live
-- `lib/tape.selftest.mjs` — 28 known-answer checks, run by
+- `lib/tape.selftest.mjs` — 37 known-answer checks, run by
   `node scripts/preflight.mjs` and again by the deploy workflow
 
 **Three assertions in that selftest are load-bearing. Do not weaken them:**
@@ -147,3 +151,32 @@ and that a well-meaning simplification would break:
 - **Refuse more than one tag in the field.** The cards are a deck of playing
   cards; a deck is a stack by nature, and two tags is an anticollision event,
   not a read.
+
+## parts.json and the link check
+
+`parts.json` is the only place the BOM is written down; `/hardware/` fetches and
+renders it. **Never hand-edit the table in the HTML.**
+
+`node tape/check-links.mjs [--write]` verifies every source URL. The check is
+*not* "does it return 200" — vendors retire and reuse product ids, so a dead
+link resolves cheerfully to something else. It matches each source's `expect`
+against the page. Three verdicts, because two would be a lie: `ok` (identity
+confirmed), `resolves` (200 but JS-rendered or bot-walled), `blocked` (the
+vendor refuses automated requests — normal for Amazon and DigiKey).
+
+It is deliberately **not** a `*.selftest.mjs`: preflight must not depend on
+twenty third-party websites being up. Run it by hand and commit the result.
+
+Two more selftest invariants worth keeping:
+
+- **No pin is assigned twice, reserved, or absent.** GPIO33–37 carry the octal
+  PSRAM on any R8 module and look free on the pinout drawing; GPIO22–25 do not
+  exist at all. The test also breaks the map on purpose to prove the check works.
+- **Parts with a specific chip have a source verified `ok`** — not merely
+  present.
+
+## Prices have gone up twice, both times for the same reason
+
+"~$35" (guessed) → "~$56" (generic modules) → **"$69 unbranded / $145 with the
+parts actually linked"**. Each revision came from making the estimate more real.
+If you quote a price anywhere, take it from `parts.json`, and say which tier.

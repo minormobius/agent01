@@ -1,45 +1,155 @@
 <!doctype html>
-<html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>tape — build it</title>
-<meta name="description" content="The assembly guide, once there is something to assemble.">
+<meta name="description" content="Assembly, stage by stage. The structure is here; the photographs and the gotchas arrive when the first box is built.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/styles.css"></head><body>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .stage { border-left: 3px solid var(--line); padding: 2px 0 2px 18px; margin: 0 0 26px; }
+  .stage.done { border-color: var(--accent); }
+  .stage h3 { margin: 0 0 4px; font-size: 17px; }
+  .stage .meta { font-size: 12.5px; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+  .gate { background: var(--accent-bg); border: 1px solid var(--accent-soft); border-radius: 10px; padding: 10px 14px; margin: 10px 0 0; font-size: 14.5px; }
+  .gate strong { color: var(--accent-2); }
+</style>
+</head>
+<body>
 <div class="topbar"><div class="topbar-inner">
   <a class="brand" href="/">tape<span class="dot">.</span><small>card audio player</small></a>
   <nav class="navlinks">
     <a href="/design/">design</a><a href="/hardware/">hardware</a><a href="/firmware/">firmware</a>
-    <a href="/studio/">studio</a><a href="/tags/">cards</a>
-    <a href="/sim/">simulator</a><a href="/build/" aria-current="page">build</a>
+    <a href="/build/" aria-current="page">build</a><a href="/first-story/">first story</a>
+    <a href="/studio/">studio</a><a href="/tags/">cards</a><a href="/sim/">simulator</a>
   </nav>
 </div></div>
 <main class="narrow">
   <h1>Build it</h1>
-  <p class="lede">The step-by-step for a parent with a Sunday afternoon and no electronics
-  background. It does not exist yet, and saying so is more useful than a guide to parts nobody has
-  chosen.</p>
+  <p class="lede">Eight stages, each ending at a test you can actually fail. The order exists so
+  that when something does not work you know which one thing you just changed.</p>
 
-  <div class="note"><strong>Status: waiting on hardware.</strong> This page gets written once the
-  <a href="/hardware/">bill of materials</a> is settled and one box has actually been built and
-  handed to a four-year-old, which is the only test that counts.</div>
+  <div class="note">
+    <strong>Status: structure written, steps not.</strong> Every stage below is real and in the
+    right order, and the parts and pin assignments it refers to are
+    <a href="/hardware/">chosen and linked</a>. What is missing is what only building one produces:
+    photographs, torque-and-fit details, and the list of things that went wrong the first time.
+    <strong>No box has been built yet.</strong> Saying so is more useful than a confident guide to
+    an assembly nobody has performed.
+  </div>
 
-  <h2>What it will have to cover</h2>
-  <ol>
-    <li>What to buy, with links, and what the total comes to.</li>
-    <li>Wiring &mdash; a photograph, not only a schematic.</li>
-    <li>Flashing the firmware from a browser, so no toolchain has to be installed.</li>
-    <li>First boot: joining WiFi, and setting the volume end stop.</li>
-    <li>Recording the first book, and turning it into a card.</li>
-    <li>The enclosure, including the card nest geometry that
-      <a href="/design/#nfc">the read range forces</a>.</li>
-    <li>What to do when it does not work &mdash; which is the section that decides whether anyone
-      else ever finishes one.</li>
-  </ol>
+  <h2>Before you order anything</h2>
+  <ul>
+    <li>Read <a href="/design/">the design record</a>, or at least &sect;3. It is short and it will
+      stop you buying a 125 kHz reader or a foil-backed deck of cards.</li>
+    <li>Decide branded or unbranded on <a href="/hardware/#bom">the bill of materials</a>. If you buy
+      one branded part, buy the PN532 &mdash; the antenna is the part that decides whether a
+      four-year-old&rsquo;s aim is good enough.</li>
+    <li>Buy one deck of cards and <strong>test a single sticker on it before you sticker fifty.</strong></li>
+  </ul>
 
-  <h2>In the meantime</h2>
-  <p>The <a href="/sim/">simulator</a> is the whole interaction in a tab, and the
-  <a href="/studio/">studio</a> already records books and hands you the files. Everything except the
-  box is real.</p>
+  <h2>Tools</h2>
+  <p>Soldering iron, side cutters, wire strippers, a multimeter, a small screwdriver set, and
+  something to make an enclosure with. No oscilloscope, no hot-air station, nothing surface-mount
+  &mdash; every part in the bill of materials is a through-hole module on 0.1&Prime; headers, which
+  is deliberate.</p>
+
+  <h2>The stages</h2>
+
+  <div class="stage">
+    <h3>1 &middot; Flash the board on its own</h3>
+    <div class="meta">~15 min &middot; nothing but the dev board and a USB cable</div>
+    <p>Before anything is soldered. Confirm the board enumerates, takes firmware, and prints to the
+    serial console.</p>
+    <div class="gate"><strong>Gate:</strong> the box says hello over serial. If this does not work,
+    nothing after it will, and you will not be able to tell why.</div>
+  </div>
+
+  <div class="stage">
+    <h3>2 &middot; SD card</h3>
+    <div class="meta">~20 min &middot; + microSD breakout</div>
+    <p>Four wires and power. Format a card, put a file on it, read it back.</p>
+    <div class="gate"><strong>Gate:</strong> the firmware lists the card&rsquo;s contents over serial.</div>
+  </div>
+
+  <div class="stage">
+    <h3>3 &middot; Sound</h3>
+    <div class="meta">~20 min &middot; + amplifier and speaker</div>
+    <p>Three I&sup2;S wires plus the mute line. Play a file off the card. Do this before the NFC
+    reader, because audio working is what makes every later stage debuggable by ear.</p>
+    <div class="gate"><strong>Gate:</strong> a story plays, at a sensible volume, with no hiss when
+    it stops. Hiss when idle means the amplifier&rsquo;s mute line is not wired or not being used.</div>
+  </div>
+
+  <div class="stage">
+    <h3>4 &middot; The reader</h3>
+    <div class="meta">~30 min &middot; + PN532</div>
+    <p>Two I&sup2;C wires and the interrupt. <strong>Set the module&rsquo;s DIP switches to
+    I&sup2;C</strong> &mdash; this is the step everyone misses and it looks exactly like a dead
+    board. Then read a card, then write one.</p>
+    <div class="gate"><strong>Gate:</strong> reads a card at the range you actually need, through
+    whatever thickness your enclosure lid will be. Measure it now, with a ruler. This number decides
+    the enclosure.</div>
+  </div>
+
+  <div class="stage">
+    <h3>5 &middot; Controls</h3>
+    <div class="meta">~20 min &middot; + two buttons, pot, LED</div>
+    <p>Buttons to ground with internal pull-ups. The pot across 3V3 and GND, wiper to the ADC.
+    <strong>Set the volume ceiling here</strong>, with the pot at maximum and a child in the room,
+    and then leave it.</p>
+    <div class="gate"><strong>Gate:</strong> the pot at its end stop is loud enough to hear across a
+    bedroom and not loud enough to be unpleasant close up.</div>
+  </div>
+
+  <div class="stage">
+    <h3>6 &middot; Power</h3>
+    <div class="meta">~40 min &middot; + charger, cell, buck-boost</div>
+    <p>Last, and on purpose: everything before this ran off USB, so a fault here cannot be confused
+    with a fault anywhere else. Follow <a href="/hardware/#wiring">the power chain</a> exactly.</p>
+    <div class="gate"><strong>Gate:</strong> it plays on the cell, it plays while charging, and the
+    measured current while playing is somewhere near
+    <a href="/hardware/#power">the budget&rsquo;s figure</a>. If it is double, something is not
+    sleeping &mdash; most likely the NFC field is on continuously.</div>
+  </div>
+
+  <div class="stage">
+    <h3>7 &middot; Bench test the whole thing, before it goes in a box</h3>
+    <div class="meta">~30 min &middot; all of it, still loose on the bench</div>
+    <p>Record a real story, upload it, write a card, play it, take the card off mid-sentence, put it
+    back. Leave it idle for an hour and confirm it went to sleep and wakes on a button.</p>
+    <div class="gate"><strong>Gate:</strong> everything on
+    <a href="/first-story/">the first-story page</a> works, start to finish, with wires everywhere.
+    Do not close a box around a system you have not seen work.</div>
+  </div>
+
+  <div class="stage">
+    <h3>8 &middot; The enclosure</h3>
+    <div class="meta">unknown &middot; not yet designed</div>
+    <p>Requirements have accumulated from the electronics and are
+    <a href="/hardware/#enclosure">listed</a>: the card nest sized by the range you measured at
+    stage 4, a screwed battery compartment, the speaker firing up or forward, and small enough that
+    a four-year-old can carry it with two hands.</p>
+    <div class="gate"><strong>Gate:</strong> a four-year-old picks it up and puts a card on it
+    without being shown how.</div>
+  </div>
+
+  <h2>What this page still owes you</h2>
+  <ul>
+    <li>A photograph of each stage, which is worth more than the schematic for anyone who has not
+      soldered before</li>
+    <li>Wire colours and lengths, and where the ground rail goes</li>
+    <li>Browser flashing, so no toolchain has to be installed &mdash; the S3&rsquo;s native USB
+      makes this possible and it is not yet built</li>
+    <li>The enclosure files</li>
+    <li>The section that decides whether anyone else finishes one: <strong>what went wrong, and what
+      it looked like when it did</strong></li>
+  </ul>
+
+  <p style="color:var(--muted);font-size:14.5px;margin-top:30px">Meanwhile the
+  <a href="/sim/">simulator</a> is the whole interaction in a tab, and the
+  <a href="/studio/">studio</a> already records books. Everything except the box is real.</p>
 </main>
 <footer><div class="inner"><strong>tape</strong> &middot; part of <a href="https://mino.mobi">mino.mobi</a> &middot; <a href="/">home</a> &middot; <a href="/design/">design record</a></div></footer>
 </body></html>

@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>tape — record your first story</title>
+<meta name="description" content="Fifteen minutes from a box on the table to a child putting a card on it and hearing you read.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .steps { counter-reset: step; list-style: none; padding: 0; margin: 26px 0; }
+  .steps > li { counter-increment: step; position: relative; padding: 0 0 4px 54px; margin: 0 0 30px; }
+  .steps > li::before { content: counter(step); position: absolute; left: 0; top: -2px;
+    width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: #fff;
+    display: grid; place-items: center; font-weight: 700; font-size: 17px; }
+  .steps h3 { margin: 2px 0 8px; font-size: 18px; }
+  .steps .aside { border-left: 3px solid var(--line); padding-left: 14px; color: var(--muted); font-size: 14.5px; margin: 12px 0 0; }
+  .checklist { list-style: none; padding: 0; }
+  .checklist li { padding-left: 26px; position: relative; }
+  .checklist li::before { content: "☐"; position: absolute; left: 0; color: var(--accent); font-size: 17px; }
+</style>
+</head>
+<body>
+<div class="topbar"><div class="topbar-inner">
+  <a class="brand" href="/">tape<span class="dot">.</span><small>card audio player</small></a>
+  <nav class="navlinks">
+    <a href="/design/">design</a><a href="/hardware/">hardware</a><a href="/firmware/">firmware</a>
+    <a href="/build/">build</a><a href="/first-story/" aria-current="page">first story</a>
+    <a href="/studio/">studio</a><a href="/tags/">cards</a><a href="/sim/">simulator</a>
+  </nav>
+</div></div>
+<main class="narrow">
+  <h1>Record your first story</h1>
+  <p class="lede">About fifteen minutes, most of it spent reading a book out loud. You need the box,
+  a phone, a book, and one blank card.</p>
+
+  <div class="note">
+    <strong>Nothing to install.</strong> No app, no account, no sign-in, and after setup no internet.
+    If any instruction below seems to want one of those, it is a mistake in the instruction.
+  </div>
+
+  <h2>Before you start</h2>
+  <ul class="checklist">
+    <li>The box, charged or plugged in</li>
+    <li>A phone &mdash; any phone, iPhone or Android</li>
+    <li>A book you like reading and have read before</li>
+    <li>One playing card with a sticker on the back, not yet used</li>
+    <li>A quiet-ish room. Not silent &mdash; a normal room is fine</li>
+  </ul>
+
+  <ol class="steps">
+    <li>
+      <h3>Turn the box on and find it</h3>
+      <p>Slide the switch. The light comes on within a second or two.</p>
+      <p>On your phone, open WiFi settings and join the network called <strong>tape-</strong>
+      followed by four characters &mdash; it is printed on the bottom of the box. A page opens by
+      itself. If it does not, open a browser and go to <code>192.168.4.1</code>.</p>
+      <p class="aside"><strong>Your phone will say this network has no internet.</strong> That is
+      correct and you should stay connected anyway. The box is not on the internet; it is just the
+      box.</p>
+      <p class="aside"><strong>Optional, but do it once:</strong> the page offers to join your home
+      WiFi. Give it your network and password and from then on you can reach the box from your normal
+      network without switching. It keeps its own network as well, so it still works at a
+      grandparent&rsquo;s house or in the car.</p>
+    </li>
+
+    <li>
+      <h3>Record the book</h3>
+      <p><strong>Use your phone&rsquo;s voice recorder.</strong> Voice Memos on an iPhone, Recorder on
+      most Android phones. It is already installed, it handles a phone call interrupting you, and
+      what it records is already backed up with everything else on your phone.</p>
+      <p>Hold the phone about a hand&rsquo;s width away, off to one side so page turns are not
+      right in the microphone. Press record and read the book.</p>
+      <div class="aside">
+        <strong>Reading it well, which matters more than any of the electronics:</strong>
+        <ul style="margin:8px 0 0">
+          <li>Read slower than feels natural. On a recording it will sound right.</li>
+          <li>Leave two full seconds of silence at the start and end. Silence is easy to keep and impossible to add later.</li>
+          <li>Say the page-turn out loud if the child will be following along in the book &mdash; &ldquo;turn the page&rdquo; is a feature, not a blemish.</li>
+          <li>Do not restart because of a stumble. A stumble sounds like a person. A retake sounds like a product.</li>
+          <li>A long book: stop at the end of each chapter and start a new recording. Each one becomes a track, which is what makes the back button land somewhere sensible.</li>
+        </ul>
+      </div>
+      <p class="aside">If you would rather have level meters and track splitting built in, use
+      <a href="/studio/">the studio</a> instead &mdash; it does the same job and hands you the same
+      files. It has to run on this website rather than on the box, for
+      <a href="/design/#mixed">a browser reason</a>.</p>
+    </li>
+
+    <li>
+      <h3>Put it on the box</h3>
+      <p>Go back to the box&rsquo;s page &mdash; its address on your home WiFi, or rejoin its own
+      network. Then:</p>
+      <ol style="margin:8px 0">
+        <li>Tap <strong>Add a book</strong>.</li>
+        <li>Tap <strong>Choose files</strong> and pick your recording. If you made several, pick them
+          all &mdash; they become tracks in the order you recorded them.</li>
+        <li>Type the title, and who read it. The child will never see this; you will, when you have
+          forty of them.</li>
+        <li>Tap <strong>Upload</strong>. A twenty-minute book takes a few seconds.</li>
+      </ol>
+      <p class="aside">Nothing leaves your house. The file goes from your phone to the box's SD card
+      and stops there.</p>
+    </li>
+
+    <li>
+      <h3>Make the card</h3>
+      <p>The box now says <strong>Put a card on the pad</strong>. Lay your blank card flat in the
+      recess on top, sticker side down. The box writes it and the page says which book it belongs to.</p>
+      <p>Write the code shown on the card, in biro, somewhere it will not rub off. You will not
+      normally need it &mdash; but the day a card ends up in the wrong book, it is how you find out
+      which one it is.</p>
+      <p class="aside"><strong>One card at a time.</strong> Do not rest the rest of the deck on the
+      pad. Two cards at once and the box blinks and does nothing, on purpose &mdash; it will not
+      guess which one you meant.</p>
+    </li>
+
+    <li>
+      <h3>Put the card in the book</h3>
+      <p>That is the filing system, and it is the whole trick. The card lives inside the front cover
+      of the book it belongs to. When the child brings you the book, the card is already there.</p>
+    </li>
+
+    <li>
+      <h3>Give it to them</h3>
+      <p>Card on the box: it plays. Card off: it stops, and remembers where. Card back on tomorrow:
+      it carries on. There is nothing else to explain, and you should not explain it &mdash; hand
+      them the box and the card and let them work it out, which takes most four-year-olds about
+      four seconds.</p>
+    </li>
+  </ol>
+
+  <h2>When something is wrong</h2>
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>What you see</th><th>Almost always</th></tr></thead>
+    <tbody>
+      <tr><td>Card on the pad, nothing happens</td><td>The card is upside down, or the sticker is not over the recess. Try the other face. If it never reads, that card may be on a foil-backed deck &mdash; those cannot work, the metal detunes the antenna.</td></tr>
+      <tr><td>The box blinks and refuses</td><td>More than one card in range. Take the deck off the box.</td></tr>
+      <tr><td>Playback stutters or restarts</td><td>The card is at the edge of range and the box keeps losing it. Push it fully into the recess.</td></tr>
+      <tr><td>The phone will not join the box</td><td>Your phone dropped it for having no internet. Rejoin, and choose &ldquo;stay connected&rdquo;.</td></tr>
+      <tr><td>The upload page will not load</td><td>You are on your home WiFi and the box is not, or the other way round. Both have to be on the same one.</td></tr>
+      <tr><td>Recording is quiet or boomy</td><td>The phone was too far away, or too close. A hand&rsquo;s width, off to one side.</td></tr>
+      <tr><td>It plays the wrong book</td><td>That card was bound to something else. Re-bind it from the box&rsquo;s page &mdash; the audio does not move and nothing is lost.</td></tr>
+      <tr><td>Chewed, bent or lost card</td><td>New sticker, new card, bind it to the same book. Fourteen cents. The recording was never on the card.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>Keeping the recordings</h2>
+  <p>The box is a box. It can be dropped, and SD cards fail. <strong>The recordings are the only
+  part of this that cannot be replaced</strong> &mdash; a grandparent reading a book is not
+  re-recordable later.</p>
+  <ul>
+    <li>If you recorded on your phone, the originals are already in your phone&rsquo;s backups. This
+      is the single best reason to record there rather than in a browser.</li>
+    <li>Copy <code>/tape/</code> off the SD card to a computer now and then. It is a folder of audio
+      files and one small JSON file; there is no format to be locked into.</li>
+    <li>Cards are consumable. Boxes are replaceable. The folder is the thing to keep.</li>
+  </ul>
+
+  <p style="color:var(--muted);font-size:14.5px;margin-top:34px">Building one first?
+  <a href="/build/">Assembly</a>. Curious why any of it works this way?
+  <a href="/design/">The design record</a>.</p>
+</main>
+<footer><div class="inner"><strong>tape</strong> &middot; part of <a href="https://mino.mobi">mino.mobi</a> &middot; <a href="/">home</a> &middot; <a href="/design/">design record</a></div></footer>
+</body></html>

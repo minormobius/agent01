@@ -1,0 +1,317 @@
+{
+  "$comment": "The bill of materials, as data. /hardware/ renders this; check-links.mjs verifies every url and writes back the `checked` block. Prices are approximate single-unit hobbyist figures and are NOT verified — only the links are. Edit here, never in the HTML. `usd` is the named part linked here; `usdGeneric` is the same chip on an unbranded module.",
+  "schemaVersion": 1,
+  "checked": {
+    "at": "2026-08-31",
+    "how": "tape/check-links.mjs — GET each url, follow redirects, match `expect` against the page title",
+    "verdicts": {
+      "ok": "200, and the page identified itself as the right part",
+      "resolves": "200, but the title is JS-rendered or bot-walled so identity could not be machine-checked",
+      "blocked": "the vendor refuses automated requests (403/503). Works in a browser; open it yourself"
+    }
+  },
+  "parts": [
+    {
+      "id": "mcu",
+      "block": "Brain",
+      "name": "ESP32-S3-DevKitC-1",
+      "spec": "ESP32-S3-WROOM-1, 8 MB flash, 8 MB PSRAM (N8R8). N16R8 also fine — the audio lives on the SD card, so flash size is not the constraint.",
+      "qty": 1,
+      "usd": 15,
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "5312",
+          "url": "https://www.adafruit.com/product/5312",
+          "expect": "ESP32-S3-DevKitC-1",
+          "status": "ok"
+        },
+        {
+          "vendor": "Espressif",
+          "sku": "devkits",
+          "url": "https://www.espressif.com/en/products/devkits",
+          "expect": "devkit",
+          "status": "ok",
+          "note": "the official page, for finding a local distributor"
+        },
+        {
+          "vendor": "Mouser",
+          "sku": "ESP32-S3-DevKitC-1-N16R8",
+          "url": "https://www.mouser.com/ProductDetail/Espressif-Systems/ESP32-S3-DevKitC-1-N16R8",
+          "expect": "ESP32-S3",
+          "status": "resolves",
+          "note": "the 16 MB variant; Mouser renders in JS so identity is unverified"
+        }
+      ],
+      "usdGeneric": 8
+    },
+    {
+      "id": "nfc",
+      "block": "NFC reader",
+      "name": "PN532 NFC/RFID breakout v1.6",
+      "spec": "13.56 MHz, I²C. Reads and writes NDEF on NTAG213. Ships with a tuned stripline antenna, which is the part that decides read range.",
+      "qty": 1,
+      "usd": 40,
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "364",
+          "url": "https://www.adafruit.com/product/364",
+          "expect": "PN532",
+          "status": "ok"
+        }
+      ],
+      "note": "Adafruit's is the expensive one. Generic red 'PN532 V3' modules are $6 and use the same chip; the antenna tuning is where they differ, and this project spends its read range on a four-year-old's aim.",
+      "usdGeneric": 6
+    },
+    {
+      "id": "amp",
+      "block": "Audio",
+      "name": "MAX98357A I²S class-D amp",
+      "spec": "DAC and 3.2 W mono amp in one part, straight off the S3's I²S. 2.4 mA quiescent.",
+      "qty": 1,
+      "usd": 6,
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "3006",
+          "url": "https://www.adafruit.com/product/3006",
+          "expect": "MAX98357A",
+          "status": "ok"
+        },
+        {
+          "vendor": "SparkFun",
+          "sku": "BOB-14809",
+          "url": "https://www.sparkfun.com/sparkfun-i2s-audio-breakout-max98357a.html",
+          "expect": "MAX98357A",
+          "status": "ok"
+        },
+        {
+          "vendor": "Analog Devices",
+          "sku": "datasheet",
+          "url": "https://www.analog.com/media/en/technical-documentation/data-sheets/max98357a-max98357b.pdf",
+          "expect": "",
+          "status": "blocked",
+          "note": "datasheet, not a shop"
+        }
+      ],
+      "usdGeneric": 3
+    },
+    {
+      "id": "speaker",
+      "block": "Audio",
+      "name": "Speaker, 40 mm, 4Ω 5 W",
+      "spec": "Full-range. Speech in a bedroom; a bigger driver buys bass nobody needs and a bigger box.",
+      "qty": 1,
+      "usd": 3,
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "3968",
+          "url": "https://www.adafruit.com/product/3968",
+          "expect": "Speaker",
+          "status": "ok"
+        }
+      ],
+      "usdGeneric": 3
+    },
+    {
+      "id": "sd",
+      "block": "Storage",
+      "name": "microSD breakout, 3 V only",
+      "spec": "SPI or SDIO. The 3 V-only version is right here — the S3 is a 3.3 V part and the level-shifted board just adds parts.",
+      "qty": 1,
+      "usd": 4,
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "4682",
+          "url": "https://www.adafruit.com/product/4682",
+          "expect": "Micro SD",
+          "status": "ok"
+        },
+        {
+          "vendor": "Adafruit",
+          "sku": "254",
+          "url": "https://www.adafruit.com/product/254",
+          "expect": "MicroSD",
+          "status": "ok",
+          "note": "the level-shifted one, if you want 5 V tolerance"
+        }
+      ],
+      "usdGeneric": 2
+    },
+    {
+      "id": "card",
+      "block": "Storage",
+      "name": "microSD card, 32 GB",
+      "spec": "Any class-10 card. ~1,200 hours at MP3 64 kbps mono.",
+      "qty": 1,
+      "usd": 8,
+      "sources": [],
+      "usdGeneric": 6
+    },
+    {
+      "id": "charger",
+      "block": "Power",
+      "name": "MCP73871 USB / DC / solar Li-ion charger",
+      "spec": "True power path: runs the box and charges the cell at the same time. JST connectors for cell and load.",
+      "qty": 1,
+      "usd": 18,
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "390",
+          "url": "https://www.adafruit.com/product/390",
+          "expect": "Lithium Ion/Polymer charger",
+          "status": "ok"
+        }
+      ],
+      "usdGeneric": 8
+    },
+    {
+      "id": "cell",
+      "block": "Power",
+      "name": "Li-ion pack, 2500 mAh, 3.7 V, protected, JST",
+      "spec": "A packaged pack rather than a loose 18650 — no holder, no exposed cell, and it plugs straight into the charger.",
+      "qty": 1,
+      "usd": 15,
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "328",
+          "url": "https://www.adafruit.com/product/328",
+          "expect": "2500mAh",
+          "status": "ok"
+        },
+        {
+          "vendor": "Adafruit",
+          "sku": "2011",
+          "url": "https://www.adafruit.com/product/2011",
+          "expect": "2000mAh",
+          "status": "ok",
+          "note": "smaller and cheaper"
+        }
+      ],
+      "note": "A protected 18650 in a holder is cheaper per mAh and replaceable, but it needs a screwed compartment and a JST pigtail you make yourself.",
+      "usdGeneric": 8
+    },
+    {
+      "id": "boost",
+      "block": "Power",
+      "name": "5 V buck-boost (VERTER, TPS63060)",
+      "spec": "Holds 5 V across the whole discharge curve, so the volume does not sag as the cell empties.",
+      "qty": 1,
+      "usd": 10,
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "2190",
+          "url": "https://www.adafruit.com/product/2190",
+          "expect": "VERTER",
+          "status": "ok"
+        }
+      ],
+      "note": "See the power chain below — this is choice A, and it is the reason the budget assumes an 18% conversion loss rather than 5%.",
+      "usdGeneric": 3
+    },
+    {
+      "id": "pot",
+      "block": "Controls",
+      "name": "Panel-mount 10 kΩ linear potentiometer",
+      "spec": "The safety part. A physical end stop, trimmed once at build time, that a child cannot get past.",
+      "qty": 1,
+      "usd": 1,
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "562",
+          "url": "https://www.adafruit.com/product/562",
+          "expect": "potentiometer",
+          "status": "ok"
+        },
+        {
+          "vendor": "SparkFun",
+          "sku": "COM-09806",
+          "url": "https://www.sparkfun.com/trimpot-10k-ohm-with-knob.html",
+          "expect": "Trimpot",
+          "status": "ok"
+        }
+      ],
+      "usdGeneric": 1
+    },
+    {
+      "id": "buttons",
+      "block": "Controls",
+      "name": "Arcade button, 30 mm",
+      "spec": "Back and next. Big enough to hit without looking, which is the whole specification.",
+      "qty": 2,
+      "usd": 3,
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "476",
+          "url": "https://www.adafruit.com/product/476",
+          "expect": "Arcade Button",
+          "status": "ok"
+        },
+        {
+          "vendor": "Adafruit",
+          "sku": "3487",
+          "url": "https://www.adafruit.com/product/3487",
+          "expect": "Arcade Button",
+          "status": "ok",
+          "note": "the LED version, if you want the back button lit"
+        }
+      ],
+      "usdGeneric": 3
+    },
+    {
+      "id": "tags",
+      "block": "Cards",
+      "name": "NTAG213 stickers, 25 mm round",
+      "spec": "144 bytes. A tape card uses 96 of them.",
+      "qty": 100,
+      "usd": 12,
+      "sources": [
+        {
+          "vendor": "Tagstand",
+          "sku": "25-25-25",
+          "url": "https://www.tagstand.com/products/1000-count-25-25-25-stickers/",
+          "expect": "NTAG213",
+          "status": "ok",
+          "note": "1000-count reel; they sell smaller counts too"
+        },
+        {
+          "vendor": "Amazon",
+          "sku": "B07K6FKXT3",
+          "url": "https://www.amazon.com/TimesKey-Stickers-Programmable-Compatible-Devices-100/dp/B07K6FKXT3",
+          "expect": "NTAG213",
+          "status": "ok",
+          "note": "100-pack; Amazon does not answer automated identity checks"
+        }
+      ],
+      "usdGeneric": 10
+    },
+    {
+      "id": "deck",
+      "block": "Cards",
+      "name": "A deck of playing cards",
+      "spec": "63×88 mm, paper or PVC. NOT foil or metallic-backed — a metal layer detunes the antenna and the card will not read at all. Test one before you sticker fifty.",
+      "qty": 1,
+      "usd": 2,
+      "sources": [],
+      "usdGeneric": 2
+    },
+    {
+      "id": "misc",
+      "block": "Misc",
+      "name": "Perfboard, hookup wire, LED + resistor, SPDT switch, screws",
+      "spec": "",
+      "qty": 1,
+      "usd": 8,
+      "sources": [],
+      "usdGeneric": 6
+    }
+  ]
+}

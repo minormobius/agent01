@@ -10,6 +10,9 @@ import * as tag from './tag.js';
 import * as cat from './catalog.js';
 import * as proto from './protocol.js';
 import * as power from './power.js';
+import * as pinmap from './pinmap.js';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 let n = 0;
 const t = (name, fn) => { fn(); n++; };
@@ -268,15 +271,17 @@ t('an iPhone still gets a working flow, via the box', () => {
 
 // ----------------------------------------------------------------- power --
 
-t('the box is comfortably portable on one 18650', () => {
-  const b = power.budget(3000);
+t('the box is comfortably portable on the cell the BOM buys', () => {
+  const cell = power.CELLS.find((c) => c.id === power.BOM_CELL);
+  assert.ok(cell, 'BOM_CELL must name a cell in CELLS');
+  const b = power.budget(cell.mAh);
   assert.ok(b.draw.play > 100 && b.draw.play < 160, `play draw ${b.draw.play} mA`);
-  assert.ok(b.hours.play > 15, `${b.hours.play} h of stories on a charge`);
-  assert.ok(b.daysPerCharge > 5, `${b.daysPerCharge} days between charges`);
+  assert.ok(b.hours.play > 12, `${b.hours.play} h of stories on a charge`);
+  assert.ok(b.daysPerCharge > 4, `${b.daysPerCharge} days between charges`);
 });
 
 t('even at the volume end stop it lasts an evening many times over', () => {
-  assert.ok(power.hours(3000, 'play', { loud: true }) > 6);
+  assert.ok(power.hours(2500, 'play', { loud: true }) > 5);
 });
 
 t('duty-cycling the NFC field is what makes standby possible', () => {
@@ -300,6 +305,97 @@ t('smaller cells still work; the model just says by how much', () => {
     assert.ok(h > 5, `${c.name} gives only ${h} h`);
   }
   assert.throws(() => power.drawMa('dancing'), /no such state/);
+});
+
+// ---------------------------------------------------------------- pinmap --
+
+t('no pin is assigned twice, reserved, or absent from the part', () => {
+  // The whole reason this file exists. GPIO33–37 carry the octal PSRAM on any
+  // R8 module and look completely free on the pinout drawing; GPIO22–25 do not
+  // exist at all. Finding either with a multimeter costs an evening.
+  assert.deepEqual(pinmap.problems(), []);
+  assert.equal(new Set(pinmap.PINS.map((p) => p.gpio)).size, pinmap.PINS.length);
+});
+
+t('the reserved list actually catches a bad assignment', () => {
+  // A test that only ever passes proves nothing, so break it on purpose.
+  const good = pinmap.PINS.find((p) => p.net === 'LED');
+  const original = good.gpio;
+  for (const [bad, why] of [[35, 'octal PSRAM'], [24, 'does not exist'], [0, 'strapping'], [19, 'USB']]) {
+    good.gpio = bad;
+    assert.ok(pinmap.problems().length > 0, `GPIO${bad} (${why}) should have been rejected`);
+  }
+  good.gpio = original;
+  assert.deepEqual(pinmap.problems(), []);
+});
+
+t('the analogue inputs are on ADC1, because ADC2 dies when WiFi is on', () => {
+  for (const net of ['VOL_WIPER', 'VBAT_SENSE']) {
+    const pin = pinmap.PINS.find((p) => p.net === net);
+    assert.ok(pinmap.ADC1_PINS.has(pin.gpio), `${net} is on GPIO${pin.gpio}, not an ADC1 pin`);
+  }
+});
+
+t('every part in the schematic has somewhere to be drawn', () => {
+  for (const p of pinmap.PINS) assert.ok(p.group in pinmap.GROUPS, `${p.net} has group ${p.group}`);
+  assert.equal(pinmap.byGroup().reduce((n, g) => n + g.pins.length, 0), pinmap.PINS.length);
+  assert.ok(pinmap.spare().length > 4, 'leave room for whoever adds a screen');
+  assert.ok(!pinmap.spare().some((g) => pinmap.NONEXISTENT.has(g)));
+});
+
+// ------------------------------------------------------------------- BOM --
+
+const parts = JSON.parse(fs.readFileSync(
+  new URL('../parts.json', import.meta.url), 'utf8'));
+
+t('the bill of materials is well formed and priced two ways', () => {
+  assert.equal(parts.schemaVersion, 1);
+  assert.ok(parts.parts.length >= 10);
+  const ids = new Set();
+  for (const p of parts.parts) {
+    assert.ok(!ids.has(p.id), `duplicate part id ${p.id}`);
+    ids.add(p.id);
+    for (const k of ['block', 'name', 'qty', 'usd', 'usdGeneric']) {
+      assert.ok(p[k] !== undefined, `part ${p.id} is missing ${k}`);
+    }
+    assert.ok(p.usd >= p.usdGeneric, `${p.id}: the branded part should not be cheaper`);
+  }
+});
+
+t('every source link is absolute, https, and carries a checked verdict', () => {
+  const allowed = new Set(Object.keys(parts.checked.verdicts));
+  let sources = 0;
+  for (const p of parts.parts) {
+    for (const src of p.sources) {
+      sources++;
+      assert.ok(src.url.startsWith('https://'), `${p.id}: ${src.url} is not https`);
+      assert.ok(allowed.has(src.status), `${p.id}: unknown verdict ${src.status}`);
+      assert.ok(src.vendor && src.sku !== undefined, `${p.id}: source needs a vendor and sku`);
+    }
+  }
+  assert.ok(sources >= 15, `only ${sources} sources`);
+  assert.match(parts.checked.at, /^\d{4}-\d{2}-\d{2}$/);
+});
+
+t('the parts that must be buyable have a verified link', () => {
+  // Generic lines (an SD card, a deck of cards, hookup wire) need no link.
+  // The ones with a specific chip in them do, and it must have been confirmed
+  // to still be that chip — not merely to return 200.
+  for (const id of ['mcu', 'nfc', 'amp', 'charger', 'cell']) {
+    const p = parts.parts.find((x) => x.id === id);
+    assert.ok(p.sources.some((s) => s.status === 'ok'),
+      `${id} has no source verified as still being the right part`);
+  }
+});
+
+// ------------------------------------------------------------ power chain --
+
+t('the power chain the BOM buys is the one the budget assumes', () => {
+  assert.equal(power.DEFAULT_CHAIN, 'boost5v');
+  assert.ok(parts.parts.some((p) => p.id === 'boost'), 'the BOM must contain the buck-boost');
+  // The boost path costs runtime. If that ever stops being true the model is wrong.
+  assert.ok(power.drawMa('play', { chain: 'boost5v' }) > power.drawMa('play', { chain: 'direct' }));
+  assert.throws(() => power.drawMa('play', { chain: 'wishful' }), /no such power chain/);
 });
 
 console.log(`tape: ${n} checks passed`);

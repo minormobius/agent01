@@ -11,7 +11,20 @@
 
 export const CELL_VOLTS = 3.7;
 export const USABLE_FRACTION = 0.85;   // protection cutoff + the flat part of the curve
-export const CONVERSION_LOSS = 0.05;   // regulator + power-path overhead
+/**
+ * How the cell's energy reaches the rails, and what that costs. The BOM picks
+ * `boost5v`: cell -> power path -> 5 V buck-boost -> the board's own 3.3 V
+ * regulator and the amp at 5 V. Two conversions, but the volume does not sag as
+ * the cell empties, and nothing browns out at 3.4 V.
+ */
+export const CHAINS = {
+  boost5v: { loss: 0.18, label: 'cell → power path → 5 V buck-boost → 3V3 + amp at 5 V',
+             why: 'constant volume across the discharge curve; no brownout at the bottom of the cell' },
+  direct:  { loss: 0.05, label: 'cell → power path → amp direct, 3V3 LDO for logic',
+             why: 'one conversion and ~13% more runtime, but the amp gets quieter as the cell sags '
+                + 'and the logic browns out around 3.45 V, losing the bottom of the cell anyway' },
+};
+export const DEFAULT_CHAIN = 'boost5v';
 export const HOUSEKEEPING_MA = 1.0;    // LED, pull-ups, quiescent bits and pieces
 
 // The four states the box is ever in. The design rule that WiFi is only awake
@@ -53,13 +66,14 @@ export const LOADS = [
 
 export const LOUD_AMP_MA = 250;   // the same box with the volume at its end stop
 
-export function drawMa(state, { loud = false } = {}) {
+export function drawMa(state, { loud = false, chain = DEFAULT_CHAIN } = {}) {
   if (!(state in STATES)) throw new Error(`no such state: ${state}`);
+  if (!(chain in CHAINS)) throw new Error(`no such power chain: ${chain}`);
   const raw = LOADS.reduce((n, l) => {
     if (l.id === 'amp' && loud && state === 'play') return n + LOUD_AMP_MA;
     return n + l.ma[state];
   }, 0);
-  return round1(raw * (1 + CONVERSION_LOSS) + (state === 'sleep' ? 0 : HOUSEKEEPING_MA));
+  return round1(raw * (1 + CHAINS[chain].loss) + (state === 'sleep' ? 0 : HOUSEKEEPING_MA));
 }
 
 /**
@@ -77,19 +91,22 @@ export function hours(mAh, state, opts) {
  * Days between charges for a household pattern: `playHours` of stories a day,
  * `idleHours` awake-but-quiet, the rest asleep.
  */
-export function daysPerCharge(mAh, { playHours = 1, idleHours = 15, loud = false } = {}) {
+export function daysPerCharge(mAh, { playHours = 1, idleHours = 15, loud = false, chain = DEFAULT_CHAIN } = {}) {
   const sleepHours = Math.max(0, 24 - playHours - idleHours);
-  const perDay = playHours * drawMa('play', { loud })
-               + idleHours * drawMa('idle')
-               + sleepHours * drawMa('sleep');
+  const perDay = playHours * drawMa('play', { loud, chain })
+               + idleHours * drawMa('idle', { chain })
+               + sleepHours * drawMa('sleep', { chain });
   return round1((mAh * USABLE_FRACTION) / perDay);
 }
+
+/** The cell the bill of materials actually buys — quoted figures use this one. */
+export const BOM_CELL = 'lipo-2500';
 
 /** Candidate cells, so the page can offer a comparison rather than one answer. */
 export const CELLS = [
   { id: '18650-3000', name: '18650 Li-ion, protected', mAh: 3000, note: 'replaceable, needs a screwed-shut compartment' },
   { id: '18650-2000', name: '18650 Li-ion, budget', mAh: 2000, note: 'the ones in cheap power banks' },
-  { id: 'lipo-2500', name: 'LiPo pouch 2500 mAh', mAh: 2500, note: 'flat, packs better, puncture-sensitive' },
+  { id: 'lipo-2500', name: 'Li-ion pack 2500 mAh (the BOM default)', mAh: 2500, note: 'protected, JST — plugs straight into the charger' },
   { id: 'lipo-1200', name: 'LiPo pouch 1200 mAh', mAh: 1200, note: 'small enough to make the box pocket-sized' },
 ];
 

@@ -23,8 +23,8 @@
   <a class="brand" href="/">tape<span class="dot">.</span><small>card audio player</small></a>
   <nav class="navlinks">
     <a href="/design/">design</a><a href="/hardware/" aria-current="page">hardware</a><a href="/firmware/">firmware</a>
-    <a href="/studio/">studio</a><a href="/tags/">cards</a>
-    <a href="/sim/">simulator</a><a href="/build/">build</a>
+    <a href="/build/">build</a><a href="/first-story/">first story</a>
+    <a href="/studio/">studio</a><a href="/tags/">cards</a><a href="/sim/">simulator</a>
   </nav>
 </div></div>
 
@@ -40,31 +40,23 @@
     hour a day. The budget is <a href="#power">live below</a> — change the cell and watch it move.
   </div>
 
-  <h2>The bill of materials</h2>
-  <div class="scroll-x">
-  <table>
-    <thead><tr><th>Block</th><th>Part</th><th>~$</th><th>Why this one</th></tr></thead>
-    <tbody>
-      <tr><td>Brain</td><td><strong>ESP32-S3-WROOM-1 N16R8</strong> devkit<br><span style="color:var(--faint);font-size:13px">16 MB flash, 8 MB PSRAM</span></td><td class="num">12</td><td>Two cores at 240 MHz, PSRAM to buffer an upload and a decode at once, native USB so it flashes from a browser with no toolchain. <strong>ESP-ADF decodes MP3, AAC, WAV, OGG, Opus, FLAC and AMR</strong> — which is what makes &ldquo;just upload whatever your phone recorded&rdquo; work.</td></tr>
-      <tr><td>NFC</td><td><strong>PN532</strong> module, I&sup2;C</td><td class="num">6</td><td>Reads <em>and writes</em> NDEF on NTAG213. Writing is not optional — the box is the tag writer, because on its own access point there is no internet to load a phone-side writer with.</td></tr>
-      <tr><td>Audio</td><td><strong>MAX98357A</strong> I&sup2;S mono amp</td><td class="num">4</td><td>DAC and class-D amp in one part, straight off the S3&rsquo;s I&sup2;S. 2.4 mA quiescent. 3.2 W into 4&Omega; at 5 V, ~1.4 W at cell voltage &mdash; which is a volume ceiling arriving for free.</td></tr>
-      <tr><td>Speaker</td><td>4&Omega; 3 W, 50 mm full-range</td><td class="num">4</td><td>Speech, in a bedroom. A bigger driver buys bass nobody needs and a bigger box.</td></tr>
-      <tr><td>Storage</td><td>microSD 32 GB, SDMMC 1-bit</td><td class="num">6</td><td>~1,200 hours at MP3 64k. Storage stopped being a design topic three decisions ago.</td></tr>
-      <tr><td>Power path</td><td><strong>MCP73871</strong> USB-C charger</td><td class="num">5</td><td>True load sharing: it powers the box <em>and</em> charges the cell at the same time. See the rejected list &mdash; this is where the obvious part fails.</td></tr>
-      <tr><td>Cell</td><td>18650 Li-ion 3000 mAh, <strong>protected</strong>, in a holder</td><td class="num">8</td><td>Replaceable, standard, and the protection circuit is not optional in a child&rsquo;s toy.</td></tr>
-      <tr><td>Regulator</td><td>MCP1700-3302 LDO</td><td class="num">1</td><td>1.6 &micro;A quiescent. A sloppier regulator would show up directly in the standby figure.</td></tr>
-      <tr><td>Controls</td><td>2&times; 24 mm arcade buttons, 10 k&Omega; pot + knob, power switch</td><td class="num">6</td><td>The pot is the safety part: a physical end stop, trimmed once, that a child cannot get past.</td></tr>
-      <tr><td>Misc</td><td>perfboard, wire, LED, screws</td><td class="num">4</td><td></td></tr>
-      <tr style="border-top:2px solid var(--line)"><td colspan="2"><strong>Box, portable</strong></td><td class="num"><strong>~56</strong></td><td>Drop the cell and charger, add a USB supply: <strong>~$45</strong> mains-only.</td></tr>
-      <tr><td>Cards</td><td>NTAG213 25 mm stickers &times;100, plus a deck of playing cards</td><td class="num">14</td><td><strong>~14&cent; a story.</strong> <a href="#cards">The card design</a>.</td></tr>
-      <tr><td>Enclosure</td><td>3D print, laser-cut ply, or a wooden craft box</td><td class="num">5&ndash;15</td><td>One hard requirement so far: the card nest. <a href="#enclosure">Below</a>.</td></tr>
-    </tbody>
-  </table>
+  <h2 id="bom">The bill of materials</h2>
+  <p>Rendered from <a href="/parts.json"><code>parts.json</code></a>, which is the only place it is
+  written down. Every link is checked by <code>tape/check-links.mjs</code> &mdash; and the check is
+  not &ldquo;does it return 200&rdquo;, because vendors retire and reuse product ids, so a dead link
+  resolves cheerfully to something else. The check is <strong>does the page still say the part&rsquo;s
+  name</strong>.</p>
+
+  <div class="row" style="margin:18px 0 6px">
+    <label style="margin:0"><input type="radio" name="tier" value="usd" checked> the parts linked here</label>
+    <label style="margin:0"><input type="radio" name="tier" value="usdGeneric"> unbranded modules, same chips</label>
+    <span id="bom-total" class="pill on" style="margin-left:auto"></span>
   </div>
-  <p style="font-size:14px;color:var(--muted)">Prices are single-unit hobbyist, mid-2026, and will
-  vary by a factor of two depending on where you buy. Last round I guessed &ldquo;~$35 in
-  parts&rdquo; before choosing anything; with real parts it is <strong>$45&ndash;$56</strong>, and
-  that estimate is corrected across the site.</p>
+
+  <div class="scroll-x"><table id="bom-table"></table></div>
+  <div id="bom-checked" style="font-size:13px;color:var(--faint);margin-top:6px"></div>
+
+  <div class="note" id="tier-note"></div>
 
   <h2>What lost, and why</h2>
   <p>The useful half of a parts list.</p>
@@ -84,6 +76,80 @@
   </table>
   </div>
 
+  <h2 id="wiring">Electrical</h2>
+
+  <h3>Power chain</h3>
+  <p>The one non-obvious choice. A 3.7 V cell sags to 3.0 V when flat, so a 3.3 V rail taken
+  straight off it browns out before the cell is empty, and an amplifier fed from it gets quieter as
+  the evening goes on. Boosting to a steady 5 V costs about 13% of the runtime and removes both
+  problems &mdash; the budget below assumes it.</p>
+
+  <figure class="scroll-x">
+  <svg viewBox="0 0 880 210" width="880" style="max-width:100%;height:auto" role="img"
+       aria-label="Power chain: USB-C and cell into the MCP73871 power path, out to a 5V buck-boost, feeding the dev board's own 3.3V regulator and the amplifier.">
+    <rect class="box" x="10" y="20" width="112" height="46" rx="9"/>
+    <text class="lbl" x="26" y="41">USB-C 5 V</text><text class="sub" x="26" y="58">charge + run</text>
+    <rect class="box" x="10" y="104" width="112" height="52" rx="9"/>
+    <text class="lbl" x="26" y="126">Li-ion cell 3.0–4.2 V</text><text class="sub" x="26" y="143">2500 mAh</text>
+
+    <rect class="box hot" x="162" y="52" width="160" height="72" rx="11"/>
+    <text class="lbl" x="178" y="76">MCP73871</text>
+    <text class="sub" x="178" y="94">power path:</text>
+    <text class="sub" x="178" y="110">runs AND charges</text>
+
+    <path class="wire" d="M122 43 H 142 V 78 H 161"/>
+    <path class="wire" d="M122 130 H 142 V 100 H 161"/>
+
+    <rect class="box hot" x="362" y="52" width="150" height="72" rx="11"/>
+    <text class="lbl" x="378" y="76">5 V buck-boost</text>
+    <text class="sub" x="378" y="94">TPS63060</text>
+    <text class="sub" x="378" y="110">steady across 3.0–4.2</text>
+    <path class="wire hot" d="M322 88 H 361"/>
+    <text class="sub" x="326" y="80">VSYS</text>
+
+    <rect class="box" x="562" y="14" width="180" height="58" rx="10"/>
+    <text class="lbl" x="578" y="36">MAX98357A</text><text class="sub" x="578" y="54">at 5 V → 3.2 W into 4Ω</text>
+    <rect class="box" x="562" y="96" width="180" height="58" rx="10"/>
+    <text class="lbl" x="578" y="118">DevKitC 3V3 regulator</text><text class="sub" x="578" y="136">→ S3, PN532, microSD</text>
+    <path class="wire hot" d="M512 88 H 540 V 43 H 561"/>
+    <path class="wire hot" d="M512 88 H 540 V 125 H 561"/>
+
+    <rect class="box" x="162" y="160" width="160" height="38" rx="9"/>
+    <text class="sub" x="178" y="184" style="fill:var(--ink)">2:1 divider → GPIO2</text>
+    <path class="wire" d="M242 124 V 160"/>
+    <text class="sub" x="336" y="184">the cell can reach 4.2 V; the ADC cannot</text>
+  </svg>
+  <figcaption>Choice A, which the BOM buys. Choice B &mdash; amp straight off the cell, LDO for the
+  logic &mdash; is one conversion and ~13% more runtime, but the volume sags and the logic browns out
+  at about 3.45 V, which gives most of that back. Switch the chain in the calculator below.</figcaption>
+  </figure>
+
+  <h3>Schematic</h3>
+  <p>Every net, drawn from <code>tape/lib/pinmap.js</code> &mdash; so this picture and the firmware
+  cannot disagree about a pin number.</p>
+
+  <figure class="scroll-x">
+  <svg viewBox="0 0 880 470" width="880" style="max-width:100%;height:auto" id="schematic" role="img"
+       aria-label="Schematic: the ESP32-S3 module with I2S to the amplifier, I2C to the PN532, SPI to the microSD card, and the controls."></svg>
+  <figcaption>3V3 and GND go to every part and are left off for legibility. The amplifier&rsquo;s
+  GAIN pin is left floating for 9 dB; the PN532&rsquo;s two DIP switches must be set to I&sup2;C.</figcaption>
+  </figure>
+
+  <h3>Connections</h3>
+  <div class="scroll-x"><table id="pin-table"></table></div>
+
+  <div class="note">
+    <strong>The pins you may not have.</strong> The ESP32-S3 looks like it has 45 free GPIOs and it
+    does not. The costly one: <strong>GPIO33&ndash;37 carry the octal PSRAM</strong> on any
+    &ldquo;R8&rdquo; module, and they look completely free on the pinout drawing. GPIO22&ndash;25 do
+    not exist at all &mdash; the numbering jumps from 21 to 26. The full list is in
+    <code>pinmap.js</code> and the selftest fails if an assignment lands on one, which is cheaper
+    than finding out with a multimeter.
+    <div id="reserved" style="margin-top:10px"></div>
+    <p style="margin:10px 0 0;font-size:14px">Left over for whoever adds a screen or a third button:
+    <code id="spare"></code></p>
+  </div>
+
   <h2 id="power">The power budget</h2>
   <p>Every figure below comes from <code>tape/lib/power.js</code> and is pinned by the selftest, so
   the prose cannot drift away from the arithmetic. Change the cell and the numbers move:</p>
@@ -101,6 +167,10 @@
       <div style="min-width:150px">
         <label style="margin-top:26px"><input type="checkbox" id="loud"> volume at the end stop</label>
       </div>
+      <div style="flex:1;min-width:220px">
+        <label for="chain">Power chain</label>
+        <select id="chain"></select>
+      </div>
     </div>
 
     <div class="four" style="margin-top:22px">
@@ -110,6 +180,7 @@
       <div class="big" id="o-draw">&mdash;<small>draw while playing</small></div>
     </div>
 
+    <p id="chain-why" style="font-size:13px;color:var(--muted);margin:10px 0 0"></p>
     <h3 style="margin:30px 0 4px;padding-top:16px;border-top:1px solid var(--line-soft)">Where it goes while a story plays</h3>
     <div class="bars" id="breakdown"></div>
   </div>
@@ -164,23 +235,124 @@
 
   <script type="module">
   import * as power from '/lib/power.js';
+  import * as pinmap from '/lib/pinmap.js';
   const $ = (id) => document.getElementById(id);
+  const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+  // ------------------------------------------------------------------- BOM --
+  const bom = await (await fetch('/parts.json')).json();
+  const PILL = { ok: 'yes', resolves: '', blocked: 'no' };
+  const TIP = bom.checked.verdicts;
+
+  function renderBom() {
+    const tier = document.querySelector('[name=tier]:checked').value;
+    const total = bom.parts.reduce((n, p) => n + p[tier], 0);
+    $('bom-total').textContent = `$${total} total`;
+    $('bom-table').innerHTML =
+      '<thead><tr><th>Block</th><th>Part</th><th>Qty</th><th>~$</th><th>Buy</th><th>Why this one</th></tr></thead><tbody>' +
+      bom.parts.map((p) => `<tr>
+        <td>${esc(p.block)}</td>
+        <td><strong>${esc(p.name)}</strong></td>
+        <td class="num">${p.qty}</td>
+        <td class="num">${p[tier]}</td>
+        <td>${p.sources.length
+          ? p.sources.map((src) => `<div style="margin:2px 0;white-space:nowrap">
+              <a href="${src.url}" rel="noopener">${esc(src.vendor)} ${esc(src.sku)}</a>
+              <span class="pill ${PILL[src.status]}" title="${esc(TIP[src.status])}">${src.status}</span></div>`).join('')
+          : '<span style="color:var(--faint)">any</span>'}</td>
+        <td>${esc(p.spec)}${p.note ? `<div style="margin-top:6px;color:var(--muted)">${esc(p.note)}</div>` : ''}
+          ${p.sources.filter((x) => x.note).map((x) => `<div style="font-size:12.5px;color:var(--faint)">${esc(x.vendor)}: ${esc(x.note)}</div>`).join('')}</td>
+      </tr>`).join('') + '</tbody>';
+
+    const tally = bom.parts.flatMap((p) => p.sources).reduce((a, x) => ((a[x.status] = (a[x.status] || 0) + 1), a), {});
+    $('bom-checked').innerHTML = `Links checked ${bom.checked.at}: `
+      + Object.entries(tally).map(([k, v]) => `${v} ${k}`).join(', ')
+      + `. <em>${esc(TIP.resolves)}</em>`;
+
+    $('tier-note').innerHTML = tier === 'usd'
+      ? `<strong>$${total} of named parts, every link verified.</strong> That is a lot more than the `
+        + `&ldquo;~$56&rdquo; this page carried last round, and the difference is almost all Adafruit`
+        + ` retail — their PN532 breakout alone is $40. Switch to unbranded modules above and it is `
+        + `$${bom.parts.reduce((n, p) => n + p.usdGeneric, 0)} for the same chips.`
+      : `<strong>$${total} of unbranded modules.</strong> Same silicon, and for most of these lines `
+        + `that is genuinely all that differs. The one place it might not be: the <strong>PN532 `
+        + `antenna</strong>. Read range is what a four-year-old's aim spends, and a well-tuned `
+        + `stripline is the difference between a card that reads and one that reads sometimes. If `
+        + `you buy one branded part, buy that one.`;
+  }
+  for (const el of document.querySelectorAll('[name=tier]')) el.addEventListener('change', renderBom);
+  renderBom();
+
+  // ------------------------------------------------------------- schematic --
+  const bad = pinmap.problems();
+  if (bad.length) console.error('pinmap problems', bad);
+
+  const COLW = 250, X0 = 40, XM = 330, X1 = 600;
+  const groups = pinmap.byGroup();
+  let y = 20;
+  const parts = [];
+  for (const g of groups) {
+    const h = 33 + g.pins.length * 19;
+    parts.push({ ...g, x: X1, y, h });
+    y += h + 14;
+  }
+  const mcuH = y - 34;
+  const rows = pinmap.PINS;
+
+  const svg = [
+    `<rect class="box hot" x="${XM - 150}" y="20" width="150" height="${mcuH}" rx="12"/>`,
+    `<text class="lbl" x="${XM - 134}" y="44">ESP32-S3</text>`,
+    `<text class="sub" x="${XM - 134}" y="62">WROOM-1 N8R8</text>`,
+  ];
+  rows.forEach((pin, i) => {
+    const py = 84 + i * ((mcuH - 80) / rows.length);
+    svg.push(`<text class="sub" x="${XM - 134}" y="${py + 4}" style="fill:var(--accent-2);font-weight:700">${pin.gpio}</text>`);
+    svg.push(`<text class="sub" x="${XM - 110}" y="${py + 4}">${pin.net}</text>`);
+    const tgt = parts.find((p) => p.id === pin.group);
+    const ti = tgt.pins.indexOf(pin);
+    const ty = tgt.y + 38 + ti * 19;
+    svg.push(`<path class="wire${pin.group === 'audio' || pin.group === 'nfc' ? ' hot' : ''}" d="M${XM} ${py} H ${XM + 40} V ${ty} H ${X1}"/>`);
+  });
+  for (const g of parts) {
+    svg.push(`<rect class="box" x="${g.x}" y="${g.y}" width="${COLW}" height="${g.h}" rx="10"/>`);
+    svg.push(`<text class="lbl" x="${g.x + 14}" y="${g.y + 20}">${g.label} <tspan class="sub">${g.part}</tspan></text>`);
+    g.pins.forEach((pin, i) => {
+      svg.push(`<text class="sub" x="${g.x + 14}" y="${g.y + 42 + i * 19}">${pin.to}</text>`);
+    });
+  }
+  const el = $('schematic');
+  el.setAttribute('viewBox', `0 0 ${X1 + COLW + 20} ${y + 4}`);
+  el.innerHTML = svg.join('');
+
+  $('pin-table').innerHTML =
+    '<thead><tr><th>GPIO</th><th>Net</th><th>Goes to</th><th>Notes</th></tr></thead><tbody>' +
+    rows.map((p) => `<tr><td class="num"><strong>${p.gpio}</strong></td><td><code>${p.net}</code></td>
+      <td>${esc(p.to)}</td><td style="color:var(--muted)">${esc(p.note || '')}</td></tr>`).join('') + '</tbody>';
+
+  $('reserved').innerHTML = '<div class="scroll-x"><table style="margin:0"><tbody>'
+    + pinmap.RESERVED.map((r) => `<tr><td class="num" style="white-space:nowrap"><code>${r.pins.length > 3
+        ? `${r.pins[0]}–${r.pins[r.pins.length - 1]}` : r.pins.join(', ')}</code></td>
+      <td style="color:var(--muted)">${esc(r.why)}</td></tr>`).join('') + '</tbody></table></div>';
+  $('spare').textContent = pinmap.spare().join(', ');
+
 
   $('cell').innerHTML = power.CELLS
-    .map((c) => `<option value="${c.mAh}"${c.mAh === 3000 ? ' selected' : ''}>${c.name} — ${c.mAh} mAh</option>`).join('');
+    .map((c) => `<option value="${c.mAh}"${c.id === power.BOM_CELL ? ' selected' : ''}>${c.name} — ${c.mAh} mAh</option>`).join('');
 
   function render() {
     const mAh = +$('cell').value;
     const loud = $('loud').checked;
+    const chain = $('chain').value;
     const playHours = +$('play').value;
     $('play-v').textContent = playHours;
 
-    const b = power.budget(mAh, { loud, playHours, idleHours: 15 });
+    const b = power.budget(mAh, { loud, chain, playHours, idleHours: 15 });
     $('o-play').innerHTML = `${b.hours.play} h<small>continuous play</small>`;
     $('o-days').innerHTML = `${b.daysPerCharge} days<small>between charges</small>`;
     $('o-idle').innerHTML = `${Math.round(b.hours.idle / 24)} days<small>waiting for a card</small>`;
     $('o-draw').innerHTML = `${b.draw.play} mA<small>draw while playing</small>`;
 
+    $('chain-why').textContent = power.CHAINS[chain].why;
     const rows = power.LOADS.map((l) => ({
       name: l.name,
       ma: l.id === 'amp' && loud ? power.LOUD_AMP_MA : l.ma.play,
@@ -195,6 +367,7 @@
       </div>`).join('');
 
     const nfc = power.LOADS.find((l) => l.id === 'nfc');
+    void 0;
     $('nfc-note').innerHTML = `<strong>The decision that makes the battery possible.</strong> `
       + `The PN532's RF field costs 50–80 mA whenever it is on. Left running continuously it would `
       + `swamp everything else and cut standby from `
@@ -204,11 +377,13 @@
       + `in the poll loop, and the selftest fails if someone simplifies it away.`;
   }
 
-  for (const el of ['cell', 'play', 'loud']) $(el).addEventListener('input', render);
+  $('chain').innerHTML = Object.entries(power.CHAINS)
+    .map(([id, c]) => `<option value="${id}"${id === power.DEFAULT_CHAIN ? ' selected' : ''}>${c.label}</option>`).join('');
+  for (const el of ['cell', 'play', 'loud', 'chain']) $(el).addEventListener('input', render);
   render();
 
   // The lede quotes the default configuration; keep it honest.
-  const d = power.budget(3000);
+  const d = power.budget(2500);
   $('hero-play').textContent = `${Math.round(d.hours.play)} hours`;
   $('hero-days').textContent = `${Math.round(d.daysPerCharge)} days`;
   </script>
