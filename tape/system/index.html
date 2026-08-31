@@ -150,6 +150,42 @@
     </div>
   </div>
 
+  <h3 id="colours">Wire colours</h3>
+  <p>Four, with one inviolable rule and one that earns its keep the first time a battery is
+  involved. A six-spool set covers these with two spare.</p>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Colour</th><th>Means</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td style="white-space:nowrap"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#111;border:1px solid var(--line);vertical-align:-1px"></span> <strong>Black</strong></td>
+          <td>Ground. Only ever ground.</td>
+          <td>The one rule that is never bent for convenience. If black is ever anything else, every future debugging session starts by re-deriving what it is this time.</td></tr>
+      <tr><td style="white-space:nowrap"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#c0392b;vertical-align:-1px"></span> <strong>Red</strong></td>
+          <td>V+ <em>upstream</em> of the power switch.</td>
+          <td>Live off the cell whatever the switch is doing.</td></tr>
+      <tr><td style="white-space:nowrap"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#2a6fb5;vertical-align:-1px"></span> <strong>Blue</strong></td>
+          <td>V+ <em>downstream</em> of the switch.</td>
+          <td>The useful one. With a battery there are two positive nets and only one of them goes dead when the box is off — telling them apart at a glance is worth a whole colour.</td></tr>
+      <tr><td style="white-space:nowrap"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#d8a41a;vertical-align:-1px"></span> <strong>Yellow</strong></td>
+          <td>Signal.</td>
+          <td>Buttons, pot wiper, LED, I&sup2;S. Anything that is neither power nor ground.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p><strong>Stranded, not solid.</strong> Solid core work-hardens and snaps inside something that
+  gets carried, and it is wrong in a crimp barrel &mdash; the barrel wings are shaped to gather
+  strands. Worth saying because the two are sold under near-identical names: Adafruit&rsquo;s
+  stranded set is 3111 and its solid twin is 1311. 22 AWG throughout: it is the fat end of
+  XH&rsquo;s 22&ndash;28 range, and it carries the speaker&rsquo;s ~0.9&nbsp;A RMS without thinking
+  about it, so one gauge does the whole box.</p>
+
+  <p><strong>Heat shrink goes on soldered joints, not crimped ones.</strong> Speaker tabs, switch
+  lugs, pot lugs, LED legs &mdash; yes. A crimped contact gets none: it has to seat inside its
+  housing and shrink on the barrel stops it going home. 3/32, 1/8 and 3/16 covers a single 22 AWG
+  wire up to a small pair.</p>
+
   <p><strong>And on every cable that leaves the board: a zip tie through two holes, before the
   connector.</strong> A tug then pulls on the board and not on a solder joint. It is the step people
   skip, it costs nothing, and it is most of the difference between a box that survives a
@@ -248,6 +284,10 @@
       <tr><td>Beep the rails before first power-up</td><td>A short found by a meter is free</td><td>this page</td></tr>
       <tr><td>Buy the board-side header too</td><td>A JST-XH connection is housing + contacts + shrouded header, and kits often omit the third</td><td><code>parts.json</code></td></tr>
       <tr><td>XH is 2.5&nbsp;mm, whatever the listing says</td><td>Fine to ~6 ways on an 0.1&Prime; grid; not fine at 10</td><td>this page</td></tr>
+      <tr><td>Black is ground and nothing else, ever</td><td>Otherwise every debug session starts by re-deriving what black means this time</td><td><a href="#colours">the colours</a></td></tr>
+      <tr><td>Red is V+ before the switch, blue after it</td><td>A battery gives two positive nets and only one dies when the box is off</td><td><a href="#colours">the colours</a></td></tr>
+      <tr><td>Stranded wire only</td><td>Solid work-hardens and snaps, and is wrong in a crimp barrel</td><td><code>parts.json</code></td></tr>
+      <tr><td>Heat shrink on soldered joints only</td><td>Shrink on a crimp barrel stops the contact seating in its housing</td><td><a href="#colours">the colours</a></td></tr>
       <tr><td>Never add two things between tests</td><td>Debugging becomes a search instead of a look</td><td><a href="/build/">the stage gates</a></td></tr>
       <tr><td>Transfer to protoboard only after it runs loose</td><td>Soldering an unproven design turns an evening into a weekend</td><td>this page</td></tr>
       <tr><td>13.56&nbsp;MHz NFC, never 125&nbsp;kHz</td><td>A phone can neither read nor write 125&nbsp;kHz &mdash; it deletes the whole phone-side pipeline</td><td><a href="/design/#nfc">design &sect;3.2</a></td></tr>
@@ -271,7 +311,7 @@
     + tools.map((t) => {
       const state = t.owned === true ? '<span class="pill yes">yes</span>'
         : t.owned === 'partial' ? '<span class="pill">sort of</span>'
-        : t.priority > 4 ? '<span class="pill">optional</span>' : '<span class="pill no">need</span>';
+        : t.optional ? '<span class="pill">optional</span>' : '<span class="pill no">need</span>';
       return `<tr class="${t.owned ? 'have' : ''}"><td>${state}</td>
         <td><strong>${esc(t.name)}</strong></td>
         <td class="num">${t.usd || '—'}</td>
@@ -281,8 +321,8 @@
         <td>${esc(t.why)}</td></tr>`;
     }).join('') + '</tbody>';
 
-  const need = tools.filter((t) => t.owned === false && t.priority <= 4);
-  const opt = tools.filter((t) => t.owned === false && t.priority > 4);
+  const need = tools.filter((t) => t.owned === false && !t.optional);
+  const opt = tools.filter((t) => t.owned === false && t.optional);
   document.getElementById('bench-total').innerHTML =
     `<strong>$${need.reduce((n, t) => n + t.usd, 0)} of things you actually need</strong> `
     + `(${need.map((t) => esc(t.name.split(' — ')[0].split(' (')[0].split(',')[0])).join(', ')}), `

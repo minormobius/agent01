@@ -217,7 +217,7 @@
   <script type="module">
   const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const bom = await (await fetch('/parts.json')).json();
-  const need = bom.tools.filter((t) => t.owned === false && t.priority <= 4);
+  const need = bom.tools.filter((t) => t.owned === false && !t.optional);
   document.getElementById('bench-short').innerHTML =
     `Short version: <strong>$${need.reduce((n, t) => n + t.usd, 0)}</strong> of things not already `
     + `on the bench — ${need.map((t) => esc(t.name.split(' — ')[0].split(' (')[0].split(',')[0])).join(', ')}. `

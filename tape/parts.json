@@ -1,5 +1,5 @@
 {
-  "$comment": "The bill of materials, as data. /hardware/ renders this; check-links.mjs verifies every url and writes back the `checked` block. Prices are approximate single-unit hobbyist figures and are NOT verified — only the links are. Edit here, never in the HTML. `usd` is the named part linked here; `usdGeneric` is the same chip on an unbranded module. `tools` is the bench, ordered by priority for someone starting with only a soldering iron.",
+  "$comment": "The bill of materials, as data. /hardware/ renders this; check-links.mjs verifies every url and writes back the `checked` block. Prices are approximate single-unit hobbyist figures and are NOT verified — only the links are. Edit here, never in the HTML. `usd` is the named part linked here; `usdGeneric` is the same chip on an unbranded module. `tools` is the bench, ordered by priority for someone starting with only a soldering iron. A tool is on the shopping list when owned === false and optional !== true; priority is display order only and must not be overloaded to mean anything else.",
   "schemaVersion": 1,
   "checked": {
     "at": "2026-08-31",
@@ -322,7 +322,8 @@
       "name": "Soldering iron, solder, tip cleaner",
       "usd": 0,
       "why": "Owned, and known how to use — which is the part that cannot be bought.",
-      "sources": []
+      "sources": [],
+      "optional": false
     },
     {
       "id": "dmm",
@@ -339,7 +340,8 @@
           "expect": "Multimeter",
           "status": "ok"
         }
-      ]
+      ],
+      "optional": false
     },
     {
       "id": "ziptie",
@@ -348,7 +350,8 @@
       "name": "Zip ties, assorted",
       "usd": 0,
       "why": "Strain relief, solved. Every cable leaving the board gets one through two holes so a tug pulls on the board and not on a solder joint.",
-      "sources": []
+      "sources": [],
+      "optional": false
     },
     {
       "id": "strippers",
@@ -365,7 +368,8 @@
           "expect": "Wire Stripper",
           "status": "ok"
         }
-      ]
+      ],
+      "optional": false
     },
     {
       "id": "headers",
@@ -382,7 +386,8 @@
           "expect": "Female header",
           "status": "ok"
         }
-      ]
+      ],
+      "optional": false
     },
     {
       "id": "protoboard",
@@ -399,11 +404,12 @@
           "expect": "Perma-Proto",
           "status": "ok"
         }
-      ]
+      ],
+      "optional": false
     },
     {
       "id": "jstxh",
-      "priority": 3,
+      "priority": 5,
       "owned": false,
       "name": "JST-XH connector kit — housings, loose contacts, AND board headers",
       "usd": 25,
@@ -416,15 +422,16 @@
           "expect": "JST XH",
           "status": "ok"
         }
-      ]
+      ],
+      "optional": false
     },
     {
       "id": "cutters",
-      "priority": 4,
+      "priority": 7,
       "owned": false,
       "name": "Flush diagonal cutters",
       "usd": 7,
-      "why": "Specifically for trimming header pins flat to the board. Ordinary cutters leave a spike that shorts to whatever sits above it — and with modules stacked on headers, something always sits above it.",
+      "why": "Specifically for trimming header pins flat to the board; ordinary cutters leave a spike that shorts to whatever sits above it, and with modules on headers something always does. Skip this line if you buy the crimper bundled with cutters.",
       "sources": [
         {
           "vendor": "Adafruit",
@@ -433,20 +440,39 @@
           "expect": "cutters",
           "status": "ok"
         }
-      ]
+      ],
+      "optional": false
     },
     {
       "id": "crimper",
-      "priority": 4,
+      "priority": 6,
       "owned": false,
-      "name": "Crimper for XH contacts (0.08–1.0 mm², 28–20 AWG)",
+      "name": "Crimper for open-barrel contacts, 28–20 AWG",
       "usd": 35,
-      "why": "XH contacts are JST SXH-001T-P0.6, taking 22–28 AWG. Any ratcheting crimper with a die in that range does it. The one thing worth knowing if you have not bought one for this size before: the very common SN-28B has an anvil wide enough to bite into the insulation rather than wrap it — SN-025 or IWISS IWS-2820M are sized properly.",
-      "sources": []
+      "why": "XH contacts are JST SXH-001T-P0.6 open-barrel, so the die has to wrap two wings separately — insulation crimp and conductor crimp. The IWS-2820M is 0.08–0.5 mm² (28–20 AWG), six die widths, double-hinged so the jaws stay parallel. Correction to what this page said last week: it is 0.08–0.5, not 0.08–1.0. The SN-28B is the one to skip — its anvil is wide enough to bite the insulation rather than wrap it.",
+      "sources": [
+        {
+          "vendor": "IWISS",
+          "sku": "IWS-2820M",
+          "url": "https://www.iwiss.com/products/iws-2820m-mini-micro-open-barrel-crimping-tools-works-on-awg28-20-jam-molex-tyco-jst-terminals-and-connectors",
+          "expect": "Open Barrel Crimping",
+          "status": "ok",
+          "note": "the manufacturer's own page — the stable link"
+        },
+        {
+          "vendor": "Amazon",
+          "sku": "B08ZSD1QXK",
+          "url": "https://www.amazon.com/IWISS-IWS-2820M-Crimping-AWG28-20-Cutters/dp/B08ZSD1QXK",
+          "expect": "IWS-2820M",
+          "status": "ok",
+          "note": "bundled with 6-inch flush cutters — buy this and skip the cutters line below"
+        }
+      ],
+      "optional": false
     },
     {
       "id": "hands",
-      "priority": 6,
+      "priority": 99,
       "owned": false,
       "name": "Helping hands — skippable",
       "usd": 12,
@@ -459,7 +485,52 @@
           "expect": "Helping",
           "status": "ok"
         }
-      ]
+      ],
+      "optional": true
+    },
+    {
+      "id": "wire",
+      "priority": 3,
+      "owned": false,
+      "name": "Hook-up wire, 22 AWG STRANDED, 6 × 25 ft",
+      "usd": 20,
+      "why": "Stranded, not solid — solid core work-hardens and snaps inside a thing that gets carried, and it is wrong in a crimp barrel. Adafruit sells a near-identically-named solid-core twin (1311); the stranded one is 3111. 22 AWG sits at the fat end of XH's 22–28 range, so one gauge covers the speaker's ~0.9 A RMS and the signal runs both. Six colours covers the four-colour convention with two spare.",
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "3111",
+          "url": "https://www.adafruit.com/product/3111",
+          "expect": "Stranded-Core",
+          "status": "ok"
+        },
+        {
+          "vendor": "Adafruit",
+          "sku": "3175",
+          "url": "https://www.adafruit.com/product/3175",
+          "expect": "Stranded-Core",
+          "status": "ok",
+          "note": "same thing in ten colours"
+        }
+      ],
+      "optional": false
+    },
+    {
+      "id": "heatshrink",
+      "priority": 4,
+      "owned": false,
+      "name": "Heat shrink, 3/32 + 1/8 + 3/16",
+      "usd": 5,
+      "why": "For the SOLDERED joints only — wire to speaker tabs, switch lugs, pot lugs, LED legs. Crimped contacts get none: they seat inside a housing and shrink on the barrel stops them going in. Those three diameters cover 22 AWG single wires up to a small twisted pair.",
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "1649",
+          "url": "https://www.adafruit.com/product/1649",
+          "expect": "Heat Shrink",
+          "status": "ok"
+        }
+      ],
+      "optional": false
     }
   ]
 }

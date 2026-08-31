@@ -392,8 +392,13 @@ t('the bench records what is owned, so the shopping list stays honest', () => {
   assert.ok(Array.isArray(parts.tools) && parts.tools.length >= 8);
   const ids = parts.tools.map((t) => t.id);
   assert.equal(new Set(ids).size, ids.length, 'duplicate tool id');
+  // priority is display order and NOTHING else — it briefly meant "is this on
+  // the shopping list" too, and quietly swept an optional tool onto it.
+  const shopping = parts.tools.filter((t) => !t.optional && t.owned === false).map((t) => t.priority);
+  assert.equal(new Set(shopping).size, shopping.length, 'two shopping-list tools share a priority');
   for (const t of parts.tools) {
     assert.ok([true, false, 'partial'].includes(t.owned), `tool ${t.id}: owned must be set`);
+    assert.equal(typeof t.optional, 'boolean', `tool ${t.id}: optional must be explicit`);
     assert.ok(t.why && t.why.length > 40, `tool ${t.id} needs a reason, not a label`);
     assert.ok(typeof t.usd === 'number');
     if (t.owned === true) assert.equal(t.usd, 0, `${t.id} is owned; it should not be in the total`);
@@ -416,10 +421,22 @@ t('the connector line covers all three parts of a JST-XH connection', () => {
   assert.ok(kit.sources.some((s) => s.status === 'ok'));
 });
 
+t('the wire line names stranded, because solid is the adjacent trap', () => {
+  // Adafruit 3111 (stranded) and 1311 (solid) have near-identical titles, and
+  // the link check cannot tell them apart — it matches on "Stranded-Core"
+  // precisely so a slip to the solid twin fails here rather than at the bench.
+  const wire = parts.tools.find((t) => t.id === 'wire');
+  assert.match(wire.name, /STRANDED/);
+  assert.ok(wire.sources.every((s) => /Stranded-Core/i.test(s.expect)),
+    'every wire source must be verified as stranded, not merely as wire');
+  assert.ok(wire.sources.some((s) => s.status === 'ok'));
+});
+
 t('headers are the top of the shopping list', () => {
   // If this ever gets demoted as "just a passive", the build turns back into a
   // harness project and four interconnects come back as cables.
-  const needed = parts.tools.filter((t) => t.owned === false).sort((a, b) => a.priority - b.priority);
+  const needed = parts.tools.filter((t) => t.owned === false && !t.optional)
+    .sort((a, b) => a.priority - b.priority);
   assert.equal(needed[0].id, 'headers', `top of the list is ${needed[0].id}`);
 });
 
@@ -432,10 +449,10 @@ t('nothing already owned is counted in the shopping list', () => {
   assert.ok(owned.length >= 3, 'the bench should be recorded, not assumed');
   assert.equal(owned.reduce((n, t) => n + t.usd, 0), 0);
 
-  const must = parts.tools.filter((t) => t.owned === false && t.priority <= 4);
+  const must = parts.tools.filter((t) => t.owned === false && !t.optional);
   assert.ok(must.length >= 3);
   const total = must.reduce((n, t) => n + t.usd, 0);
-  assert.ok(total > 0 && total < 150, `must-buy total is $${total}`);
+  assert.ok(total > 0 && total < 200, `must-buy total is $${total}`);
 });
 
 // ------------------------------------------------------------ power chain --
