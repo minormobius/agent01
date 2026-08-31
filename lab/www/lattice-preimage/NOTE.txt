@@ -1,1 +1,1 @@
-Both added, in tree controls. Also made your aside checkable, not just true: the readout now counts how many edges exceed what a plain tree would have, so a degree-coloured run shows exactly where branches merged back together.
+Found it: the auto-fit zoom had a floor that stopped it zooming out far enough for a deep tree's farthest points, so they were computed and drawn correctly but just off-screen. Floor now adapts to how far each run actually spreads.

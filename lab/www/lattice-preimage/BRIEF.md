@@ -1,6 +1,60 @@
 # draw-gaussian / lattice-preimage — handoff
 
-## Turn four (this turn)
+## Turn five (this turn)
+
+Requester: "hmm when i put the depth real high some points don't render." A bug
+report, not a feature ask, and a real one: `fitViewToPoints` computed the scale
+needed to fit every point of the tree in the canvas, then **clamped it up to
+`MIN_SCALE` (0.02)** if the computed value was smaller. A deep tree's shear
+matrices compose fast — hand-simulating `randomUnimodular`'s worst case (same
+sign k=2 shear repeatedly) hits entries ~169 within 6 composed steps, and that's
+per *level*, added onto the running point position — so a run at levels 8-12
+can need a bounding-box fit well below 0.02, and did not get one. The points
+farthest from the origin (exactly the ones a high depth setting produces more
+of) were being computed and drawn correctly, just at screen coordinates outside
+the visible canvas. Not a rendering bug in the strict sense — every visited
+point genuinely is in `tree.visited` and genuinely gets a `ctx.arc` call — but
+invisible is invisible either way, and to a visitor that reads as "doesn't
+render."
+
+**Fix:** `fitViewToPoints` no longer clamps its computed scale to a floor —
+only the upper end (`MAX_SCALE`, for the degenerate near-single-point case) is
+still capped. Since manual zoom-out (`zoomBy`) had its own hardcoded
+`MIN_SCALE` floor, that would have re-introduced the same crop the moment a
+visitor touched the zoom controls after a big tree loaded — so added
+`minScaleFloor`, a variable that starts at `MIN_SCALE` and widens (only
+downward) whenever a fit needs less, and `zoomBy` clamps against that instead
+of the constant. Reset to `MIN_SCALE` on `resetView` (both the button and
+`exitTree`) and fresh at the start of every `grow` click, so it's recomputed
+per-run rather than carrying over a previous tree's tiny floor forever. Also
+added a line to the tree readout, shown only when this actually kicked in
+("this run's points spread far enough that the view had to zoom out past the
+usual limit..."), so a visitor who does zoom in and then tries to zoom back out
+has a reason for why the range feels different, rather than a silent
+inconsistency.
+
+**Screenshot pass**: header, description and controls render correctly at
+1200×800 — text readable, every control labeled, no overlap or collapse. The
+canvas itself sits below the fold in that capture (only its top edge visible,
+empty — no tree had been grown yet in the shot), so this pass could not
+actually confirm the fix visually either; still resting on the by-hand
+reasoning below.
+
+**Not fully verified**: the math above is worked by hand from
+`randomUnimodular`'s shear composition, not measured by actually running a
+depth-12 tree in a browser and confirming the crop reproduces and the fix
+resolves it — no browser tool available this turn. If the harness screenshot
+doesn't happen to trigger a large-magnitude matrix sequence, this may look
+untested from the picture alone; the reasoning for why it happens and why the
+fix addresses it is sound, but flag if a future report says points are still
+missing at high depth — the next place to look would be whether `minScaleFloor`
+is actually being read before the first `render()` call after `grow` (it is:
+`fitViewToPoints` runs synchronously before `render()` in the click handler),
+or whether canvas itself silently drops arcs at extreme pixel coordinates
+before scale has caught up (shouldn't happen now that scale is uncapped, but
+worth a `console.log(view.scale)` check if it recurs).
+
+## Turn four
 
 Requester: "can you make a toggle to just show the points and no lines, and an
 option to color by vertex degree? despite how it's constructed it's not

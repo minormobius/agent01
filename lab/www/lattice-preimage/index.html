@@ -186,6 +186,14 @@ var colorBy = 'level';        // tree view: 'level' or 'degree'
 // inspect a single skewed diamond up close (needs a large one).
 var MIN_SCALE = 0.02;
 var MAX_SCALE = 600;
+// a deep tree's shear matrices can compose to offsets in the hundreds per
+// level (worst case: composing 6 shear steps of the same sign already
+// reaches entries ~169), which accumulates across levels far past what
+// MIN_SCALE=0.02 can fit on screen — so fitViewToPoints is allowed to ask
+// for less than MIN_SCALE, and this tracks how far zoom-out must reach to
+// still show every point of the current tree, rather than silently
+// cropping the ones that landed outside a fixed floor.
+var minScaleFloor = MIN_SCALE;
 var view = { scale: 30, panX: 0, panY: 0 }; // panX/panY = screen position of world (0,0)
 var drag = null; // {startX,startY,startPanX,startPanY,moved}
 
@@ -242,6 +250,7 @@ function resizeCanvas() {
 
 function resetView() {
   var s = cssSize();
+  minScaleFloor = MIN_SCALE; // single-point view never needs less than this
   view.scale = 30;
   view.panX = s.w / 2;
   view.panY = s.h / 2;
@@ -396,7 +405,13 @@ function fitViewToPoints(points) {
   }
   var w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY);
   var scale = Math.min((s.w - 40) / w, (s.h - 40) / h);
-  scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale));
+  // no lower clamp here: fitting is supposed to guarantee every point is on
+  // screen, and clamping this scale UP to MIN_SCALE is exactly what cropped
+  // the farthest-out points of a deep tree. Only cap the upper end, for the
+  // degenerate near-single-point case. Widen the zoom-out floor to match, so
+  // a visitor can zoom back out to this same fit after zooming in.
+  scale = Math.min(MAX_SCALE, scale);
+  if (scale < minScaleFloor) minScaleFloor = scale;
   view.scale = scale;
   view.panX = s.w / 2 - (minX + maxX) / 2 * scale;
   view.panY = s.h / 2 + (minY + maxY) / 2 * scale;
@@ -477,6 +492,9 @@ function updateTreeReadout(nodeCount, maxLevel, maxDegree) {
   if (tree.capped) {
     html += '<div style="margin-top:.5rem;color:#e8a33d">stopped early — hit the ' + MAX_TREE_NODES +
       '-node safety cap before finishing the requested depth. Branching is up to 4× per level, so this is expected well before level 10.</div>';
+  }
+  if (minScaleFloor < MIN_SCALE) {
+    html += '<div style="margin-top:.5rem;color:#8b8792">this run\'s points spread far enough that the view had to zoom out past the usual limit to fit all of them — zooming in and back out will still reach that point.</div>';
   }
   document.getElementById('readout').innerHTML = html;
 }
@@ -623,6 +641,7 @@ document.getElementById('grow').addEventListener('click', function () {
   var levels = parseInt(document.getElementById('levels').value, 10);
   if (isNaN(levels) || levels < 1) levels = 8;
   levels = Math.min(levels, 12);
+  minScaleFloor = MIN_SCALE; // recomputed fresh for this run's own bounding box
   tree = growTree(levels);
   treeMode = true;
   document.getElementById('exitTree').classList.remove('hidden');
@@ -649,7 +668,7 @@ function zoomBy(factor, cx, cy) {
   var atX = cx === undefined ? s.w / 2 : cx;
   var atY = cy === undefined ? s.h / 2 : cy;
   var before = screenToWorld(atX, atY);
-  view.scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, view.scale * factor));
+  view.scale = Math.max(minScaleFloor, Math.min(MAX_SCALE, view.scale * factor));
   view.panX = atX - before.x * view.scale;
   view.panY = atY + before.y * view.scale;
   render();
