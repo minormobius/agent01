@@ -371,9 +371,9 @@
       "id": "headers",
       "priority": 1,
       "owned": false,
-      "name": "0.1\" female headers, 36-pin strips",
+      "name": "0.1\" FEMALE header sockets, 36-pin strips",
       "usd": 6,
-      "why": "The single highest-value thing on this list. Every module in the parts list is on 0.1\" pins; solder sockets to the board and they plug in. Four interconnects stop being cables, and a dead module becomes a swap.",
+      "why": "The single highest-value thing on this list, and the half nobody includes. Modules ship with MALE pins loose in the bag for you to solder on; the Perma-Proto is a bare board with no pins at all. These sockets are what goes in the board so the modules plug in — which makes a dead module a swap rather than a desoldering job. A five-pack of 36-pin strips is ~180 positions; this build needs about 66.",
       "sources": [
         {
           "vendor": "Adafruit",
