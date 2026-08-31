@@ -1,0 +1,13 @@
+{
+  "slug": "lattice-preimage",
+  "task": "very nice. now starting from the origin, do a random GL matrix & and connect the origin to neighbors induced in this way, then recurse w/ a new matrix for each point linked up but not yet visited, for like 8 levels of recursion.\n\n--- earlier in this thread, from the person who asked (oldest first) ---\n\ndraw a gaussian integer lattice. user specifies a transformation in GL(2,Z), you calculate and show the preimage of the von neumann neighborhood of the image of any given lattice point",
+  "thread_root": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mudybaikm222",
+  "requester": "ponder.ooo",
+  "named": "no",
+  "root_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mudybaikm222",
+  "root_cid": "bafyreibx72zy3zzdkpxwz2x35ro7g7i4yzwhusbeq7t4iqctgyom3rw5wa",
+  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mudyxcmez222",
+  "parent_cid": "bafyreigsmun4xaddshab2n3wp5asusea2ehle6ishfhphfzr7kvjxvn3um",
+  "refs_from": "very nice. now starting from the origin, do a random GL matrix & and connect the origin to neighbors induced in this way, then recurse w/ a new matrix for each point linked up but not yet visited, for like 8 levels of recursion.\ndraw a gaussian integer lattice. user specifies a transformation in GL(2,Z), you calculate and show the preimage of the von neumann neighborhood of the image of any given lattice point",
+  "requestedAt": "2026-08-31T03:52:37.712Z"
+}
