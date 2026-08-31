@@ -498,6 +498,17 @@ t('the order splits so that wave two depends on what wave one measures', () => {
     'if wave two is trivial, splitting the order is theatre');
 });
 
+t('no page quotes a cell the parts list does not sell', () => {
+  // A hero line said "on one 18650" for two rounds after the BOM moved to a
+  // 2500 mAh pack, because a search-and-replace silently matched nothing. The
+  // durable fix is to assert it rather than to look again.
+  const html = fs.readFileSync(new URL('../hardware/index.html', import.meta.url), 'utf8');
+  const cellLine = parts.parts.find((p) => p.id === 'cell');
+  assert.match(cellLine.name, /2500 mAh/);
+  assert.ok(!/18650/.test(html),
+    'hardware/ still names an 18650; the parts list sells a pouch pack');
+});
+
 // ------------------------------------------------------------ power chain --
 
 t('the power chain the BOM buys is the one the budget assumes', () => {

@@ -36,8 +36,9 @@
 
   <div class="note">
     <strong>Yes, it can be portable.</strong> About <strong id="hero-play">20 hours</strong> of
-    stories on one 18650, and roughly <strong id="hero-days">8 days</strong> between charges on an
-    hour a day. The budget is <a href="#power">live below</a> — change the cell and watch it move.
+    stories on the 2500&nbsp;mAh pack in the parts list, and roughly
+    <strong id="hero-days">6 days</strong> between charges on an hour a day. A bigger cell buys
+    proportionally more. The budget is <a href="#power">live below</a> — change the cell and watch it move.
   </div>
 
   <h2 id="bom">The bill of materials</h2>
@@ -50,7 +51,7 @@
   <div class="row" style="margin:18px 0 6px">
     <label style="margin:0"><input type="radio" name="tier" value="usd" checked> the parts linked here</label>
     <label style="margin:0"><input type="radio" name="tier" value="usdGeneric"> unbranded modules, same chips</label>
-    <span id="bom-total" class="pill on" style="margin-left:auto"></span>
+    <span id="bom-total" style="margin-left:auto;font-size:14px;white-space:nowrap"></span>
   </div>
 
   <div class="scroll-x"><table id="bom-table"></table></div>
@@ -316,16 +317,27 @@
   const bom = await (await fetch('/parts.json')).json();
   const PILL = { ok: 'yes', resolves: '', blocked: 'no' };
   const TIP = bom.checked.verdicts;
+  const PHASE_TIP = {
+    1: 'Phase one — runs off USB, and answers the read-range question everything else waits on',
+    2: 'Phase two — order after phase one has been measured, because its answer can change these',
+  };
+  const phasePill = (w) =>
+    `<span class="pill ${w === 1 ? 'on' : ''}" title="${PHASE_TIP[w]}">${w}</span>`;
 
   function renderBom() {
     const tier = document.querySelector('[name=tier]:checked').value;
     const total = bom.parts.reduce((n, p) => n + p[tier], 0);
-    $('bom-total').textContent = `$${total} total`;
+    const ph = (w) => bom.parts.filter((p) => p.wave === w).reduce((n, p) => n + p[tier], 0);
+    $('bom-total').innerHTML =
+      `<span title="${PHASE_TIP[1]}">phase 1 &middot; $${ph(1)}</span>`
+      + ` &nbsp;+&nbsp; <span title="${PHASE_TIP[2]}" style="opacity:.7">phase 2 &middot; $${ph(2)}</span>`
+      + ` &nbsp;=&nbsp; <strong>$${total}</strong>`;
     $('bom-table').innerHTML =
-      '<thead><tr><th>Block</th><th>Part</th><th>Qty</th><th>~$</th><th>Buy</th><th>Why this one</th></tr></thead><tbody>' +
+      '<thead><tr><th>Block</th><th>Part</th><th>Phase</th><th>Qty</th><th>~$</th><th>Buy</th><th>Why this one</th></tr></thead><tbody>' +
       bom.parts.map((p) => `<tr>
         <td>${esc(p.block)}</td>
         <td><strong>${esc(p.name)}</strong></td>
+        <td>${phasePill(p.wave)}</td>
         <td class="num">${p.qty}</td>
         <td class="num">${p[tier]}</td>
         <td>${p.sources.length
@@ -411,8 +423,9 @@
   // ------------------------------------------------------------- enclosure --
   const encl = bom.enclosure || [];
   $('enclosure-links').innerHTML = encl.length
-    ? '<thead><tr><th>Route</th><th>Where</th><th>Note</th></tr></thead><tbody>'
+    ? '<thead><tr><th>Route</th><th>Phase</th><th>Where</th><th>Note</th></tr></thead><tbody>'
       + encl.map((e) => `<tr><td><strong>${esc(e.route)}</strong></td>
+          <td>${phasePill(2)}</td>
           <td>${e.sources.map((src) => `<div style="white-space:nowrap"><a href="${src.url}" rel="noopener">${esc(src.vendor)}</a>
               <span class="pill ${PILL[src.status]}" title="${esc(TIP[src.status])}">${src.status}</span></div>`).join('')}</td>
           <td>${esc(e.note)}</td></tr>`).join('') + '</tbody>'

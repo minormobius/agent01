@@ -303,16 +303,24 @@
   const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const bom = await (await fetch('/parts.json')).json();
   const PILL = { ok: 'yes', resolves: '', blocked: 'no' };
+  const PHASE_TIP = {
+    1: 'Phase one — runs off USB, and answers the read-range question everything else waits on',
+    2: 'Phase two — order after phase one has been measured, because its answer can change these',
+  };
   const tools = [...bom.tools].sort((a, b) => (a.owned === false ? 0 : 1) - (b.owned === false ? 0 : 1)
     || a.priority - b.priority);
 
   document.getElementById('bench-table').innerHTML =
-    '<thead><tr><th>Have</th><th>Tool</th><th>~$</th><th>Buy</th><th>Why, and why here</th></tr></thead><tbody>'
+    '<thead><tr><th>Have</th><th>Phase</th><th>Tool</th><th>~$</th><th>Buy</th><th>Why, and why here</th></tr></thead><tbody>'
     + tools.map((t) => {
       const state = t.owned === true ? '<span class="pill yes">yes</span>'
         : t.owned === 'partial' ? '<span class="pill">sort of</span>'
         : t.optional ? '<span class="pill">optional</span>' : '<span class="pill no">need</span>';
+      const phase = t.owned === true
+        ? '<span style="color:var(--faint)">&mdash;</span>'
+        : `<span class="pill ${t.wave === 1 ? 'on' : ''}" title="${PHASE_TIP[t.wave]}">${t.wave}</span>`;
       return `<tr class="${t.owned ? 'have' : ''}"><td>${state}</td>
+        <td>${phase}</td>
         <td><strong>${esc(t.name)}</strong></td>
         <td class="num">${t.usd || '—'}</td>
         <td>${t.sources.map((s) => `<div style="white-space:nowrap"><a href="${s.url}" rel="noopener">${esc(s.vendor)} ${esc(s.sku)}</a>
@@ -323,8 +331,10 @@
 
   const need = tools.filter((t) => t.owned === false && !t.optional);
   const opt = tools.filter((t) => t.owned === false && t.optional);
+  const ph = (w) => need.filter((t) => t.wave === w).reduce((n, t) => n + t.usd, 0);
   document.getElementById('bench-total').innerHTML =
     `<strong>$${need.reduce((n, t) => n + t.usd, 0)} of things you actually need</strong> `
+    + `&mdash; $${ph(1)} of it in phase one, $${ph(2)} in phase two `
     + `(${need.map((t) => esc(t.name.split(' — ')[0].split(' (')[0].split(',')[0])).join(', ')}), `
     + `plus $${opt.reduce((n, t) => n + t.usd, 0)} of optional. `
     + `The iron, the meter and the ties were the expensive part of a bench and they are already here; `
