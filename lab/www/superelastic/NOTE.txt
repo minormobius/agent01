@@ -1,0 +1,1 @@
+Skipped g/'s WebGPU shelf (different origin, can't import cross-subdomain) for real canvas2D restitution physics instead. The threshold is genuinely emergent from the collision rule, not scripted. Crystallization and a leaderboard are next.
