@@ -245,6 +245,13 @@ function cssSize() { return { w: canvas.clientWidth, h: canvas.clientHeight }; }
 function worldToScreen(x, y) { return [view.panX + x * view.scale, view.panY - y * view.scale]; }
 function screenToWorld(sx, sy) { return { x: (sx - view.panX) / view.scale, y: -(sy - view.panY) / view.scale }; }
 
+// every point this page draws sits on Z^2, so no two distinct points are
+// closer than 1 world unit apart — i.e. `view.scale` screen px apart. Capping
+// a marker's on-screen radius to less than half that guarantees two markers
+// at the closest possible spacing never touch, however small the fixed
+// "base" radius below would otherwise want to draw at this zoom level.
+function pointRadius(base) { return Math.min(base, view.scale * 0.42); }
+
 function resizeCanvas() {
   var s = cssSize();
   var dpr = window.devicePixelRatio || 1;
@@ -321,10 +328,11 @@ function render() {
 
   // lattice dots
   ctx.fillStyle = '#4a4750';
+  var latticeR = pointRadius(1.6);
   for (var x = minX; x <= maxX; x++) {
     for (var y = minY; y <= maxY; y++) {
       var pt = worldToScreen(x, y);
-      ctx.beginPath(); ctx.arc(pt[0], pt[1], 1.6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(pt[0], pt[1], latticeR, 0, Math.PI * 2); ctx.fill();
     }
   }
 
@@ -477,7 +485,7 @@ function renderTree(s) {
     var sp = worldToScreen(pt.x, pt.y);
     var color = colorBy === 'degree' ? degreeColor(deg, maxDegree) : (lvl === 0 ? '#e8a33d' : levelColor(lvl, maxLevel));
     ctx.fillStyle = color;
-    ctx.beginPath(); ctx.arc(sp[0], sp[1], lvl === 0 ? 6 : 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sp[0], sp[1], pointRadius(lvl === 0 ? 6 : 3), 0, Math.PI * 2); ctx.fill();
   }
 
   updateTreeReadout(keys.length, maxLevel, maxDegree);
@@ -513,16 +521,17 @@ function drawCross(center, nbrs, color) {
     ctx.beginPath(); ctx.moveTo(c0[0], c0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
   }
   ctx.fillStyle = color;
+  var nbrR = pointRadius(4);
   for (var j = 0; j < nbrs.length; j++) {
     var p2 = worldToScreen(nbrs[j].x, nbrs[j].y);
-    ctx.beginPath(); ctx.arc(p2[0], p2[1], 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(p2[0], p2[1], nbrR, 0, Math.PI * 2); ctx.fill();
   }
 }
 
 function markPoint(pt, color, label) {
   var s = worldToScreen(pt.x, pt.y);
   ctx.fillStyle = color;
-  ctx.beginPath(); ctx.arc(s[0], s[1], 6, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(s[0], s[1], pointRadius(6), 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = '#0a0a0d'; ctx.lineWidth = 1.5; ctx.stroke();
   ctx.fillStyle = color;
   ctx.font = 'bold 13px ui-monospace, monospace';

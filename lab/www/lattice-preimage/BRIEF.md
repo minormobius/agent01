@@ -1,6 +1,44 @@
 # draw-gaussian / lattice-preimage — handoff
 
-## Turn six (this turn)
+## Turn seven (this turn)
+
+Requester: "can you make it so points never render so large as to overlap
+each other." Every point marker (lattice background dots, the cross
+neighbors around p/q, p and q themselves, tree nodes) was drawn at a fixed
+**screen-pixel** radius regardless of zoom — 1.6/4/6/3–6px. Since every point
+drawn here sits on ℤ², no two distinct points are ever closer than 1 world
+unit apart, i.e. `view.scale` screen px apart at the current zoom. Zoom out
+far enough (small `view.scale`, which the tree view's auto-fit routinely
+produces for a spread-out run) and that on-screen spacing drops below the
+fixed radius's diameter, so neighboring dots visually merge into a blob —
+exactly the overlap reported.
+
+**Fix:** one helper, `pointRadius(base) { return Math.min(base,
+view.scale * 0.42); }`, called at all four `ctx.arc` call sites (lattice
+dots, `drawCross`'s neighbor markers, `markPoint`'s p/q markers, tree node
+dots) instead of the literal radius. `0.42` leaves a visible gap even for
+two points at the closest possible spacing (exact non-overlap boundary is
+`0.5`); at any zoom loose enough that the fixed radius was already smaller
+than that bound, `pointRadius` is a no-op (`Math.min` picks `base`) so normal
+zoom levels look exactly as before — this only ever shrinks a radius, never
+grows one.
+
+**Not done / worth knowing:** no floor was added, so at an extremely small
+`view.scale` (deep zoom-out, e.g. a huge capped tree) markers can shrink to
+sub-pixel and become hard to see — that's the correct tradeoff for "never
+overlap" but means very zoomed-out views may look sparse/faint rather than
+just small. If a future report is "points are too small to see" rather than
+"overlapping," that tension is why, and the fix would be a minimum radius
+traded against re-permitting slight overlap at extreme zoom-out (maybe only
+below some scale threshold, since at that point individual points aren't the
+point anyway).
+
+**Not screenshot-verified** — no browser tool this turn; reasoning is
+geometric (worked from `worldToScreen`'s scale factor and ℤ²'s minimum
+point spacing), not measured. The harness's post-build screenshot pass is
+the first real check.
+
+## Turn six
 
 Requester: "there still seems to be a limit to the number of points that show
 up... also there's a cap at 10 on the depth. that's way too low." Two direct
