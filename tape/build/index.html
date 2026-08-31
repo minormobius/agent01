@@ -49,11 +49,71 @@
     <li>Buy one deck of cards and <strong>test a single sticker on it before you sticker fifty.</strong></li>
   </ul>
 
-  <h2>Tools</h2>
-  <p>Soldering iron, side cutters, wire strippers, a multimeter, a small screwdriver set, and
-  something to make an enclosure with. No oscilloscope, no hot-air station, nothing surface-mount
-  &mdash; every part in the bill of materials is a through-hole module on 0.1&Prime; headers, which
-  is deliberate.</p>
+  <h2 id="bench">Starting from one soldering iron</h2>
+  <p>The tool list matters more than the parts list if you do not already have a bench, and the
+  order below is not the order you would guess. <strong>A crimper is ninth.</strong></p>
+
+  <div class="scroll-x"><table id="tools-table"></table></div>
+  <p id="tools-total" style="font-size:14px;color:var(--muted)"></p>
+
+  <div class="note">
+    <strong>The first box costs more than the box.</strong> Roughly $100 of that is bench, not
+    project &mdash; you buy it once and every build after this is just parts. Worth knowing before
+    the total on the checkout page is a surprise.
+  </div>
+
+  <h2 id="interconnect">How things connect</h2>
+
+  <h3>Most of the wiring is not wiring</h3>
+  <p>Every module in the parts list &mdash; the ESP32 board, the PN532, the amplifier, the SD
+  breakout &mdash; comes on 0.1&Prime; pins. <strong>Solder female headers to the board and plug them
+  in.</strong> The four fiddliest interconnects stop being cables at all, a dead module becomes a
+  swap rather than a desoldering job, and you can lift the PN532 out to test read range through
+  different lid thicknesses without unwiring anything.</p>
+
+  <p>What is genuinely left as cable, once the modules plug in:</p>
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Run</th><th>Conductors</th><th>Terminate with</th></tr></thead>
+    <tbody>
+      <tr><td>Board → speaker</td><td class="num">2</td><td>JST-XH 2-pin</td></tr>
+      <tr><td>Board → back button</td><td class="num">2</td><td>JST-XH 2-pin</td></tr>
+      <tr><td>Board → next button</td><td class="num">2</td><td>JST-XH 2-pin</td></tr>
+      <tr><td>Board → volume pot</td><td class="num">3</td><td>JST-XH 3-pin</td></tr>
+      <tr><td>Board → LED</td><td class="num">2</td><td>JST-XH 2-pin</td></tr>
+      <tr><td>Board → power switch</td><td class="num">2</td><td>JST-XH 2-pin</td></tr>
+      <tr><td>Charger → cell, charger → board</td><td class="num">2 each</td><td><strong>already done</strong> — both ends ship with JST-PH</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Six short runs. That is not a harness, it is an afternoon &mdash; and the highest-current
+  connection in the box, the battery, arrives already connectorised.</p>
+
+  <h3>JST-XH, and no crimper</h3>
+  <p>Two decisions, and the second one is the useful one.</p>
+  <p><strong>JST-XH rather than Dupont</strong>, because Dupont is friction-fit only and is
+  explicitly not for anything that moves. This is a toy a four-year-old will shake, drop and carry
+  by the wrong end. JST-XH latches, and it is polarised &mdash; you cannot plug it in backwards at
+  eleven at night, which you will otherwise eventually do.</p>
+  <p><strong>Buy the kit with the pins already crimped on.</strong> You push the pre-crimped pin into
+  the housing by hand and solder the bare end to the board. You get the latch and the polarisation
+  and you need no crimping tool at all. Do this for build one; find out whether you actually resent
+  the fixed lengths before spending on a tool to fix a problem you may not have.</p>
+
+  <div class="note">
+    <strong>When you do buy a crimper &mdash; not now &mdash; do not buy the SN-28B.</strong> It is
+    the one every guide recommends and its anvil is too wide: it bites into the insulation rather
+    than wrapping it. IWISS IWS-2820M or SN-025 instead, about $35. This matters more here than in
+    most projects, because <strong>a marginal crimp fails intermittently, months later</strong>. It
+    will pass your tug test, work all through the bench build, and then start dropping out in a
+    bedroom &mdash; and you will spend a weekend suspecting the firmware.
+  </div>
+
+  <h3>Strain relief is the part people skip</h3>
+  <p>Every cable that leaves the board should be anchored to something structural before it reaches
+  its connector, so that a tug pulls on the anchor and not on a solder joint. A zip tie through two
+  holes in the perfboard costs nothing and is the difference between a box that survives a
+  four-year-old and one that does not.</p>
 
   <h2>The stages</h2>
 
@@ -150,6 +210,26 @@
   <p style="color:var(--muted);font-size:14.5px;margin-top:30px">Meanwhile the
   <a href="/sim/">simulator</a> is the whole interaction in a tab, and the
   <a href="/studio/">studio</a> already records books. Everything except the box is real.</p>
+  <script type="module">
+  const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const bom = await (await fetch('/parts.json')).json();
+  const PILL = { ok: 'yes', resolves: '', blocked: 'no' };
+  const tools = [...bom.tools].sort((a, b) => a.priority - b.priority);
+  document.getElementById('tools-table').innerHTML =
+    '<thead><tr><th>#</th><th>Tool</th><th>~$</th><th>Buy</th><th>Why, and why here</th></tr></thead><tbody>'
+    + tools.map((t) => `<tr${t.priority === 99 ? ' style="opacity:.72"' : ''}>
+        <td class="num">${t.priority === 99 ? '<span class="pill">later</span>' : t.priority}</td>
+        <td><strong>${esc(t.name)}</strong></td>
+        <td class="num">${t.usd}</td>
+        <td>${t.sources.map((s) => `<div style="white-space:nowrap"><a href="${s.url}" rel="noopener">${esc(s.vendor)} ${esc(s.sku)}</a>
+            <span class="pill ${PILL[s.status]}" title="${esc(bom.checked.verdicts[s.status])}">${s.status}</span></div>`).join('')
+          || '<span style="color:var(--faint)">—</span>'}</td>
+        <td>${esc(t.why)}</td></tr>`).join('') + '</tbody>';
+  const now = tools.filter((t) => t.priority < 99).reduce((n, t) => n + t.usd, 0);
+  document.getElementById('tools-total').innerHTML =
+    `<strong>$${now}</strong> for the first eight, which is the whole bench. Links checked ${bom.checked.at}. `
+    + `Parts for the box itself are on <a href="/hardware/#bom">the hardware page</a>.`;
+  </script>
 </main>
 <footer><div class="inner"><strong>tape</strong> &middot; part of <a href="https://mino.mobi">mino.mobi</a> &middot; <a href="/">home</a> &middot; <a href="/design/">design record</a></div></footer>
 </body></html>

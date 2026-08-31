@@ -388,6 +388,35 @@ t('the parts that must be buyable have a verified link', () => {
   }
 });
 
+t('the bench is ordered, priced, and puts the crimper last', () => {
+  assert.ok(Array.isArray(parts.tools) && parts.tools.length >= 8);
+  const pri = parts.tools.map((t) => t.priority);
+  assert.equal(new Set(pri).size, pri.length, 'two tools claim the same priority');
+
+  // The multimeter outranks everything except solder. Two assembly gates cannot
+  // be passed without one, so it must not drift down the list.
+  const dmm = parts.tools.find((t) => t.id === 'dmm');
+  assert.ok(dmm.priority <= 2, `multimeter is #${dmm.priority}`);
+
+  // And the crimper stays last: pre-crimped JST-XH covers build one.
+  const crimper = parts.tools.find((t) => t.id === 'crimper');
+  assert.ok(crimper.priority > Math.max(...pri.filter((x) => x !== crimper.priority)),
+    'the crimper must be the last thing recommended');
+  assert.equal(crimper.sources.length, 0, 'do not link a tool we are telling them not to buy yet');
+  assert.match(crimper.why, /SN-28B/, 'name the trap, not just the recommendation');
+
+  for (const t of parts.tools) {
+    assert.ok(t.why && t.why.length > 40, `tool ${t.id} needs a reason, not a label`);
+    assert.ok(typeof t.usd === 'number');
+  }
+});
+
+t('headers are in the bench, because they are what removes the wiring', () => {
+  // If this line ever gets dropped as "just a passive", the build turns back
+  // into a harness project.
+  assert.ok(parts.tools.some((t) => t.id === 'headers'));
+});
+
 // ------------------------------------------------------------ power chain --
 
 t('the power chain the BOM buys is the one the budget assumes', () => {
