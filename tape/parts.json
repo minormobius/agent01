@@ -316,27 +316,21 @@
   ],
   "tools": [
     {
-      "id": "solder",
-      "priority": 1,
-      "name": "Solder, 60/40 rosin core, 0.3–0.8 mm",
-      "usd": 6,
-      "why": "You said you have an iron. Solder is sold separately, and leaded 60/40 is markedly easier to learn on than lead-free — flows at a lower temperature and wets properly. Wash your hands.",
-      "sources": [
-        {
-          "vendor": "Adafruit",
-          "sku": "145",
-          "url": "https://www.adafruit.com/product/145",
-          "expect": "solder",
-          "status": "ok"
-        }
-      ]
+      "id": "iron",
+      "priority": 0,
+      "owned": true,
+      "name": "Soldering iron, solder, tip cleaner",
+      "usd": 0,
+      "why": "Owned, and known how to use — which is the part that cannot be bought.",
+      "sources": []
     },
     {
       "id": "dmm",
-      "priority": 2,
-      "name": "Digital multimeter",
-      "usd": 30,
-      "why": "The most important thing you do not have. Two of the assembly gates cannot be passed without one — measuring read range is a ruler, but 'is the current near the budget' and 'is this joint actually connected' are not. Continuity beep alone will save this build twice.",
+      "priority": 0,
+      "owned": true,
+      "name": "Fluke multimeter",
+      "usd": 0,
+      "why": "Owned, and better than anything that would have been recommended. This is not just a nicety: it is what lets every crimp and every joint be verified individually, which is what removes the case against buying a crimper.",
       "sources": [
         {
           "vendor": "Adafruit",
@@ -348,11 +342,21 @@
       ]
     },
     {
+      "id": "ziptie",
+      "priority": 0,
+      "owned": true,
+      "name": "Zip ties, assorted",
+      "usd": 0,
+      "why": "Strain relief, solved. Every cable leaving the board gets one through two holes so a tug pulls on the board and not on a solder joint.",
+      "sources": []
+    },
+    {
       "id": "strippers",
-      "priority": 3,
-      "name": "Wire strippers, 20–30 AWG",
+      "priority": 0,
+      "owned": "partial",
+      "name": "Wire strippers (old, cheap)",
       "usd": 15,
-      "why": "The biggest quality-of-life jump after the iron. Stripping with side cutters nicks strands, and nicked strands break later — inside a finished box, months in.",
+      "why": "Serviceable. The failure mode to watch for: cheap strippers with imprecise gauge slots nick strands on 24–26 AWG, and a nicked strand breaks months later inside a closed box. If a stripped end looks ragged or loses a strand, that is the signal to spend $15. Not a blocker.",
       "sources": [
         {
           "vendor": "Adafruit",
@@ -364,59 +368,12 @@
       ]
     },
     {
-      "id": "cutters",
-      "priority": 4,
-      "name": "Flush diagonal cutters",
-      "usd": 7,
-      "why": "For trimming header pins flat against a board. Ordinary side cutters leave a spike that shorts to whatever sits above it.",
-      "sources": [
-        {
-          "vendor": "Adafruit",
-          "sku": "152",
-          "url": "https://www.adafruit.com/product/152",
-          "expect": "cutters",
-          "status": "ok"
-        }
-      ]
-    },
-    {
-      "id": "hands",
-      "priority": 5,
-      "name": "Helping hands with magnifier",
-      "usd": 12,
-      "why": "Soldering a header to a board needs three hands: board, iron, solder. This is the difference between an enjoyable evening and a burnt finger.",
-      "sources": [
-        {
-          "vendor": "Adafruit",
-          "sku": "291",
-          "url": "https://www.adafruit.com/product/291",
-          "expect": "Helping",
-          "status": "ok"
-        }
-      ]
-    },
-    {
-      "id": "protoboard",
-      "priority": 6,
-      "name": "Perma-Proto half-size board",
-      "usd": 5,
-      "why": "Perfboard laid out like a breadboard, with the same power rails. You can prototype on a breadboard and then solder the identical layout, which removes a whole class of transcription mistake.",
-      "sources": [
-        {
-          "vendor": "Adafruit",
-          "sku": "1609",
-          "url": "https://www.adafruit.com/product/1609",
-          "expect": "Perma-Proto",
-          "status": "ok"
-        }
-      ]
-    },
-    {
       "id": "headers",
-      "priority": 7,
+      "priority": 1,
+      "owned": false,
       "name": "0.1\" female headers, 36-pin strips",
       "usd": 6,
-      "why": "THE thing that removes most of the wiring. Every module in the parts list comes with 0.1\" pins; solder sockets to the board and they plug in. Four of the fiddliest interconnects stop being cables at all, and a dead module becomes a swap rather than a desolder.",
+      "why": "The single highest-value thing on this list. Every module in the parts list is on 0.1\" pins; solder sockets to the board and they plug in. Four interconnects stop being cables, and a dead module becomes a swap.",
       "sources": [
         {
           "vendor": "Adafruit",
@@ -428,11 +385,29 @@
       ]
     },
     {
+      "id": "protoboard",
+      "priority": 2,
+      "owned": false,
+      "name": "Perma-Proto half-size board",
+      "usd": 5,
+      "why": "A PCB wired exactly like a solderless breadboard — 30 double 5-hole rows and 4 power rails, same silkscreen. Breadboard the circuit, then transfer it hole-for-hole with no transcription step. Buy two; the second one is for when you want to change the layout.",
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "1609",
+          "url": "https://www.adafruit.com/product/1609",
+          "expect": "Perma-Proto",
+          "status": "ok"
+        }
+      ]
+    },
+    {
       "id": "jstxh",
-      "priority": 8,
+      "priority": 3,
+      "owned": false,
       "name": "JST-XH 2.54 mm kit, pre-crimped",
       "usd": 22,
-      "why": "Latching, polarised connectors with NO crimper: the pins arrive already crimped onto wire and you push them into the housing. Solder the bare end to the board. This is the whole answer for build one.",
+      "why": "Latching, polarised, and the pins arrive already crimped so the first box is not gated on a new skill. Buy this even if you also buy the crimper — $22 to keep the build moving while you practise on scrap.",
       "sources": [
         {
           "vendor": "Amazon",
@@ -444,28 +419,47 @@
       ]
     },
     {
-      "id": "jstph",
-      "priority": 9,
-      "name": "JST-PH 2-pin cable, 100 mm",
-      "usd": 1,
-      "why": "Battery side. The cell and the charger already terminate in JST-PH, so the highest-current connection in the box needs no work from you at all — but a spare pigtail is worth a dollar.",
+      "id": "cutters",
+      "priority": 4,
+      "owned": false,
+      "name": "Flush diagonal cutters",
+      "usd": 7,
+      "why": "Specifically for trimming header pins flat to the board. Ordinary cutters leave a spike that shorts to whatever sits above it — and with modules stacked on headers, something always sits above it.",
       "sources": [
         {
           "vendor": "Adafruit",
-          "sku": "261",
-          "url": "https://www.adafruit.com/product/261",
-          "expect": "JST PH",
+          "sku": "152",
+          "url": "https://www.adafruit.com/product/152",
+          "expect": "cutters",
           "status": "ok"
         }
       ]
     },
     {
       "id": "crimper",
-      "priority": 99,
-      "name": "Crimper — NOT YET",
+      "priority": 5,
+      "owned": false,
+      "name": "Crimper — now a reasonable buy",
       "usd": 35,
-      "why": "Buy this for project two or three, when you are making custom lengths often enough to resent the pre-crimped kit. When you do: skip the SN-28B, which is the tool everyone recommends and whose anvil is too wide — it bites into the insulation instead of wrapping it. IWISS IWS-2820M or SN-025 instead. A marginal crimp fails INTERMITTENTLY, months later, and you will blame the firmware.",
+      "why": "Revised: with a Fluke on the bench the main objection is gone, because every crimp can be verified individually rather than trusted. If the intent is to keep building, buy it. IWISS IWS-2820M or SN-025 — NOT the SN-28B, whose anvil is too wide and bites into the insulation rather than wrapping it, despite being the tool every guide recommends.",
       "sources": []
+    },
+    {
+      "id": "hands",
+      "priority": 6,
+      "owned": false,
+      "name": "Helping hands — skippable",
+      "usd": 12,
+      "why": "Nice, not needed. A header can be held square by plugging it into a breadboard and setting the board on top; a wire can be held by a zip tie and a heavy mug. Buy it when the workarounds start to annoy, not before.",
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "291",
+          "url": "https://www.adafruit.com/product/291",
+          "expect": "Helping",
+          "status": "ok"
+        }
+      ]
     }
   ]
 }

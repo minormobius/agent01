@@ -21,7 +21,7 @@
   <a class="brand" href="/">tape<span class="dot">.</span><small>card audio player</small></a>
   <nav class="navlinks">
     <a href="/design/">design</a><a href="/hardware/">hardware</a><a href="/firmware/">firmware</a>
-    <a href="/build/" aria-current="page">build</a><a href="/first-story/">first story</a>
+    <a href="/build/" aria-current="page">build</a><a href="/system/">system</a><a href="/first-story/">first story</a>
     <a href="/studio/">studio</a><a href="/tags/">cards</a><a href="/sim/">simulator</a>
   </nav>
 </div></div>
@@ -49,18 +49,12 @@
     <li>Buy one deck of cards and <strong>test a single sticker on it before you sticker fifty.</strong></li>
   </ul>
 
-  <h2 id="bench">Starting from one soldering iron</h2>
-  <p>The tool list matters more than the parts list if you do not already have a bench, and the
-  order below is not the order you would guess. <strong>A crimper is ninth.</strong></p>
-
-  <div class="scroll-x"><table id="tools-table"></table></div>
-  <p id="tools-total" style="font-size:14px;color:var(--muted)"></p>
-
-  <div class="note">
-    <strong>The first box costs more than the box.</strong> Roughly $100 of that is bench, not
-    project &mdash; you buy it once and every build after this is just parts. Worth knowing before
-    the total on the checkout page is a surprise.
-  </div>
+  <h2 id="bench">The bench</h2>
+  <p>What you need on the table, what you probably already have, and the four tricks that replace
+  the tools you do not: <strong><a href="/system/#bench">the system page</a></strong>. It is kept
+  there rather than here because it outlives this project &mdash; the bench is bought once and every
+  build after this one is just parts.</p>
+  <p id="bench-short"></p>
 
   <h2 id="interconnect">How things connect</h2>
 
@@ -89,31 +83,26 @@
   <p>Six short runs. That is not a harness, it is an afternoon &mdash; and the highest-current
   connection in the box, the battery, arrives already connectorised.</p>
 
-  <h3>JST-XH, and no crimper</h3>
-  <p>Two decisions, and the second one is the useful one.</p>
+  <h3>JST-XH, and whether to crimp</h3>
   <p><strong>JST-XH rather than Dupont</strong>, because Dupont is friction-fit only and is
   explicitly not for anything that moves. This is a toy a four-year-old will shake, drop and carry
   by the wrong end. JST-XH latches, and it is polarised &mdash; you cannot plug it in backwards at
   eleven at night, which you will otherwise eventually do.</p>
-  <p><strong>Buy the kit with the pins already crimped on.</strong> You push the pre-crimped pin into
-  the housing by hand and solder the bare end to the board. You get the latch and the polarisation
-  and you need no crimping tool at all. Do this for build one; find out whether you actually resent
-  the fixed lengths before spending on a tool to fix a problem you may not have.</p>
-
-  <div class="note">
-    <strong>When you do buy a crimper &mdash; not now &mdash; do not buy the SN-28B.</strong> It is
-    the one every guide recommends and its anvil is too wide: it bites into the insulation rather
-    than wrapping it. IWISS IWS-2820M or SN-025 instead, about $35. This matters more here than in
-    most projects, because <strong>a marginal crimp fails intermittently, months later</strong>. It
-    will pass your tug test, work all through the bench build, and then start dropping out in a
-    bedroom &mdash; and you will spend a weekend suspecting the firmware.
-  </div>
+  <p><strong>Buy the pre-crimped kit either way.</strong> The pins arrive already crimped; you push
+  them into the housing and solder the bare end. $22 to keep the first box off the critical path of
+  a new skill.</p>
+  <p><strong>Whether to also buy the crimper depends on one thing: can you check a crimp?</strong>
+  The risk was never cost, it was that a marginal crimp fails intermittently months later and gets
+  blamed on the firmware. With a decent meter that risk is manageable &mdash; tug it, beep it end to
+  end, beep it to its neighbours. <a href="/system/#tricks">The three checks.</a> If you can do
+  that, buy it. And not the SN-28B: its anvil is too wide and bites into the insulation rather than
+  wrapping it, despite being the tool every guide recommends. IWISS IWS-2820M or SN-025.</p>
 
   <h3>Strain relief is the part people skip</h3>
-  <p>Every cable that leaves the board should be anchored to something structural before it reaches
-  its connector, so that a tug pulls on the anchor and not on a solder joint. A zip tie through two
-  holes in the perfboard costs nothing and is the difference between a box that survives a
-  four-year-old and one that does not.</p>
+  <p>Every cable that leaves the board gets anchored before it reaches its connector, so a tug pulls
+  on the board and not on a solder joint. A zip tie through two holes in the protoboard costs
+  nothing and is most of the difference between a box that survives a four-year-old and one that
+  comes back in pieces.</p>
 
   <h2>The stages</h2>
 
@@ -213,22 +202,11 @@
   <script type="module">
   const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const bom = await (await fetch('/parts.json')).json();
-  const PILL = { ok: 'yes', resolves: '', blocked: 'no' };
-  const tools = [...bom.tools].sort((a, b) => a.priority - b.priority);
-  document.getElementById('tools-table').innerHTML =
-    '<thead><tr><th>#</th><th>Tool</th><th>~$</th><th>Buy</th><th>Why, and why here</th></tr></thead><tbody>'
-    + tools.map((t) => `<tr${t.priority === 99 ? ' style="opacity:.72"' : ''}>
-        <td class="num">${t.priority === 99 ? '<span class="pill">later</span>' : t.priority}</td>
-        <td><strong>${esc(t.name)}</strong></td>
-        <td class="num">${t.usd}</td>
-        <td>${t.sources.map((s) => `<div style="white-space:nowrap"><a href="${s.url}" rel="noopener">${esc(s.vendor)} ${esc(s.sku)}</a>
-            <span class="pill ${PILL[s.status]}" title="${esc(bom.checked.verdicts[s.status])}">${s.status}</span></div>`).join('')
-          || '<span style="color:var(--faint)">—</span>'}</td>
-        <td>${esc(t.why)}</td></tr>`).join('') + '</tbody>';
-  const now = tools.filter((t) => t.priority < 99).reduce((n, t) => n + t.usd, 0);
-  document.getElementById('tools-total').innerHTML =
-    `<strong>$${now}</strong> for the first eight, which is the whole bench. Links checked ${bom.checked.at}. `
-    + `Parts for the box itself are on <a href="/hardware/#bom">the hardware page</a>.`;
+  const need = bom.tools.filter((t) => t.owned === false && t.priority <= 4);
+  document.getElementById('bench-short').innerHTML =
+    `Short version: <strong>$${need.reduce((n, t) => n + t.usd, 0)}</strong> of things not already `
+    + `on the bench — ${need.map((t) => esc(t.name.split(',')[0].split(' — ')[0])).join(', ')}. `
+    + `Everything else is bought once and lasts for every project after this one.`;
   </script>
 </main>
 <footer><div class="inner"><strong>tape</strong> &middot; part of <a href="https://mino.mobi">mino.mobi</a> &middot; <a href="/">home</a> &middot; <a href="/design/">design record</a></div></footer>

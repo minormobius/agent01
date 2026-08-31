@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>tape — the system</title>
+<meta name="description" content="The house standard for building these: the bench, the interconnect tiers, the build loop, and the documentation habits that make the second project fast.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .have { opacity: .62; }
+  .tier { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); margin: 18px 0; }
+  .tier .card { margin: 0; }
+  .tier .n { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--accent-2); }
+  .trick { border-left: 3px solid var(--accent-soft); padding: 4px 0 4px 16px; margin: 16px 0; }
+  .trick h4 { margin: 0 0 4px; font-size: 15px; }
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-inner">
+  <a class="brand" href="/">tape<span class="dot">.</span><small>card audio player</small></a>
+  <nav class="navlinks">
+    <a href="/design/">design</a><a href="/hardware/">hardware</a><a href="/firmware/">firmware</a>
+    <a href="/build/">build</a><a href="/system/" aria-current="page">system</a><a href="/first-story/">first story</a>
+    <a href="/studio/">studio</a><a href="/tags/">cards</a><a href="/sim/">simulator</a>
+  </nav>
+</div></div>
+
+<main>
+  <h1>The system</h1>
+  <p class="lede">The tooling is one part of it. This is the rest, written down for the version of
+  you that comes back in two months having forgotten why any of it was decided &mdash; which is the
+  only readership this page has.</p>
+
+  <div class="note">
+    <strong>This page is not about tape.</strong> It is the house standard for building things like
+    tape, and it happens to live here because tape is the first one. When there is a second project,
+    lift it out to a repo-level doc &mdash; <code>scripts/rehome.mjs</code> exists for exactly that
+    move. Until then, keeping it next to a real build is what stops it becoming aspirational.
+  </div>
+
+  <h2 id="bench">1 &middot; The bench</h2>
+  <p>Ordered by what is missing, not by what is impressive. The greyed rows are already on the
+  bench.</p>
+  <div class="scroll-x"><table id="bench-table"></table></div>
+  <p id="bench-total" style="margin-top:10px"></p>
+
+  <div class="note">
+    <strong>The Fluke changes one recommendation.</strong> The case against buying a crimper was
+    never the money &mdash; it was that a marginal crimp fails <em>intermittently, months later</em>,
+    and you would blame the firmware. That argument assumes crimps cannot be checked. With a good
+    meter each one can be: tug it, then beep it end to end, then beep it to its neighbours to catch
+    a whisker. Verified individually, a crimp is no longer a thing you trust. So: <strong>buy the
+    crimper if you intend to keep building.</strong> Buy the pre-crimped kit as well, so the first
+    box is not waiting on a new skill.
+  </div>
+
+  <h2 id="permaproto">2 &middot; What a Perma-Proto is</h2>
+  <p>A circuit board wired to look exactly like a solderless breadboard: 30 rows of double five-hole
+  columns, four power rails down the sides, the same silkscreen numbering, 51&times;81&nbsp;mm,
+  about $4.50. Thru-plated and gold-finished, so it takes rework without lifting pads.</p>
+  <p><strong>Why it matters more than it sounds:</strong> the usual route from breadboard to
+  permanent is to look at a working breadboard and rebuild the circuit on plain perfboard, which has
+  no layout at all. That rebuild is a transcription, and transcriptions are where errors come from
+  &mdash; you are copying a working thing into a different topology by eye, at night. A Perma-Proto
+  has the <em>same topology</em>, so the move is hole-for-hole. What worked keeps working.</p>
+
+  <figure class="scroll-x">
+  <svg viewBox="0 0 880 268" width="880" style="max-width:100%;height:auto" role="img" aria-label="Three boards compared: a solderless breadboard, a Perma-Proto with an identical layout, and plain perfboard with no layout at all."><text class="lbl" x="14" y="18">solderless breadboard</text><text class="sub" x="14" y="34">where it works first</text><rect class="box" x="14" y="46" width="250" height="150" rx="8"/><line x1="30" y1="56" x2="248" y2="56" stroke="var(--accent)" stroke-width="1.4" opacity=".65"/><line x1="30" y1="63" x2="248" y2="63" stroke="var(--accent)" stroke-width="1.4" opacity=".65"/><line x1="30" y1="179" x2="248" y2="179" stroke="var(--accent)" stroke-width="1.4" opacity=".65"/><line x1="30" y1="186" x2="248" y2="186" stroke="var(--accent)" stroke-width="1.4" opacity=".65"/><rect x="28" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="28" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="32" cy="78" r="1.7" fill="var(--faint)"/><circle cx="32" cy="128" r="1.7" fill="var(--faint)"/><circle cx="32" cy="86" r="1.7" fill="var(--faint)"/><circle cx="32" cy="136" r="1.7" fill="var(--faint)"/><circle cx="32" cy="94" r="1.7" fill="var(--faint)"/><circle cx="32" cy="144" r="1.7" fill="var(--faint)"/><circle cx="32" cy="102" r="1.7" fill="var(--faint)"/><circle cx="32" cy="152" r="1.7" fill="var(--faint)"/><circle cx="32" cy="110" r="1.7" fill="var(--faint)"/><circle cx="32" cy="160" r="1.7" fill="var(--faint)"/><rect x="45" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="45" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="49" cy="78" r="1.7" fill="var(--faint)"/><circle cx="49" cy="128" r="1.7" fill="var(--faint)"/><circle cx="49" cy="86" r="1.7" fill="var(--faint)"/><circle cx="49" cy="136" r="1.7" fill="var(--faint)"/><circle cx="49" cy="94" r="1.7" fill="var(--faint)"/><circle cx="49" cy="144" r="1.7" fill="var(--faint)"/><circle cx="49" cy="102" r="1.7" fill="var(--faint)"/><circle cx="49" cy="152" r="1.7" fill="var(--faint)"/><circle cx="49" cy="110" r="1.7" fill="var(--faint)"/><circle cx="49" cy="160" r="1.7" fill="var(--faint)"/><rect x="62" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="62" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="66" cy="78" r="1.7" fill="var(--faint)"/><circle cx="66" cy="128" r="1.7" fill="var(--faint)"/><circle cx="66" cy="86" r="1.7" fill="var(--faint)"/><circle cx="66" cy="136" r="1.7" fill="var(--faint)"/><circle cx="66" cy="94" r="1.7" fill="var(--faint)"/><circle cx="66" cy="144" r="1.7" fill="var(--faint)"/><circle cx="66" cy="102" r="1.7" fill="var(--faint)"/><circle cx="66" cy="152" r="1.7" fill="var(--faint)"/><circle cx="66" cy="110" r="1.7" fill="var(--faint)"/><circle cx="66" cy="160" r="1.7" fill="var(--faint)"/><rect x="79" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="79" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="83" cy="78" r="1.7" fill="var(--faint)"/><circle cx="83" cy="128" r="1.7" fill="var(--faint)"/><circle cx="83" cy="86" r="1.7" fill="var(--faint)"/><circle cx="83" cy="136" r="1.7" fill="var(--faint)"/><circle cx="83" cy="94" r="1.7" fill="var(--faint)"/><circle cx="83" cy="144" r="1.7" fill="var(--faint)"/><circle cx="83" cy="102" r="1.7" fill="var(--faint)"/><circle cx="83" cy="152" r="1.7" fill="var(--faint)"/><circle cx="83" cy="110" r="1.7" fill="var(--faint)"/><circle cx="83" cy="160" r="1.7" fill="var(--faint)"/><rect x="96" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="96" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="100" cy="78" r="1.7" fill="var(--faint)"/><circle cx="100" cy="128" r="1.7" fill="var(--faint)"/><circle cx="100" cy="86" r="1.7" fill="var(--faint)"/><circle cx="100" cy="136" r="1.7" fill="var(--faint)"/><circle cx="100" cy="94" r="1.7" fill="var(--faint)"/><circle cx="100" cy="144" r="1.7" fill="var(--faint)"/><circle cx="100" cy="102" r="1.7" fill="var(--faint)"/><circle cx="100" cy="152" r="1.7" fill="var(--faint)"/><circle cx="100" cy="110" r="1.7" fill="var(--faint)"/><circle cx="100" cy="160" r="1.7" fill="var(--faint)"/><rect x="113" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="113" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="117" cy="78" r="1.7" fill="var(--faint)"/><circle cx="117" cy="128" r="1.7" fill="var(--faint)"/><circle cx="117" cy="86" r="1.7" fill="var(--faint)"/><circle cx="117" cy="136" r="1.7" fill="var(--faint)"/><circle cx="117" cy="94" r="1.7" fill="var(--faint)"/><circle cx="117" cy="144" r="1.7" fill="var(--faint)"/><circle cx="117" cy="102" r="1.7" fill="var(--faint)"/><circle cx="117" cy="152" r="1.7" fill="var(--faint)"/><circle cx="117" cy="110" r="1.7" fill="var(--faint)"/><circle cx="117" cy="160" r="1.7" fill="var(--faint)"/><rect x="130" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="130" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="134" cy="78" r="1.7" fill="var(--faint)"/><circle cx="134" cy="128" r="1.7" fill="var(--faint)"/><circle cx="134" cy="86" r="1.7" fill="var(--faint)"/><circle cx="134" cy="136" r="1.7" fill="var(--faint)"/><circle cx="134" cy="94" r="1.7" fill="var(--faint)"/><circle cx="134" cy="144" r="1.7" fill="var(--faint)"/><circle cx="134" cy="102" r="1.7" fill="var(--faint)"/><circle cx="134" cy="152" r="1.7" fill="var(--faint)"/><circle cx="134" cy="110" r="1.7" fill="var(--faint)"/><circle cx="134" cy="160" r="1.7" fill="var(--faint)"/><rect x="147" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="147" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="151" cy="78" r="1.7" fill="var(--faint)"/><circle cx="151" cy="128" r="1.7" fill="var(--faint)"/><circle cx="151" cy="86" r="1.7" fill="var(--faint)"/><circle cx="151" cy="136" r="1.7" fill="var(--faint)"/><circle cx="151" cy="94" r="1.7" fill="var(--faint)"/><circle cx="151" cy="144" r="1.7" fill="var(--faint)"/><circle cx="151" cy="102" r="1.7" fill="var(--faint)"/><circle cx="151" cy="152" r="1.7" fill="var(--faint)"/><circle cx="151" cy="110" r="1.7" fill="var(--faint)"/><circle cx="151" cy="160" r="1.7" fill="var(--faint)"/><rect x="164" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="164" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="168" cy="78" r="1.7" fill="var(--faint)"/><circle cx="168" cy="128" r="1.7" fill="var(--faint)"/><circle cx="168" cy="86" r="1.7" fill="var(--faint)"/><circle cx="168" cy="136" r="1.7" fill="var(--faint)"/><circle cx="168" cy="94" r="1.7" fill="var(--faint)"/><circle cx="168" cy="144" r="1.7" fill="var(--faint)"/><circle cx="168" cy="102" r="1.7" fill="var(--faint)"/><circle cx="168" cy="152" r="1.7" fill="var(--faint)"/><circle cx="168" cy="110" r="1.7" fill="var(--faint)"/><circle cx="168" cy="160" r="1.7" fill="var(--faint)"/><rect x="181" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="181" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="185" cy="78" r="1.7" fill="var(--faint)"/><circle cx="185" cy="128" r="1.7" fill="var(--faint)"/><circle cx="185" cy="86" r="1.7" fill="var(--faint)"/><circle cx="185" cy="136" r="1.7" fill="var(--faint)"/><circle cx="185" cy="94" r="1.7" fill="var(--faint)"/><circle cx="185" cy="144" r="1.7" fill="var(--faint)"/><circle cx="185" cy="102" r="1.7" fill="var(--faint)"/><circle cx="185" cy="152" r="1.7" fill="var(--faint)"/><circle cx="185" cy="110" r="1.7" fill="var(--faint)"/><circle cx="185" cy="160" r="1.7" fill="var(--faint)"/><rect x="198" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="198" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="202" cy="78" r="1.7" fill="var(--faint)"/><circle cx="202" cy="128" r="1.7" fill="var(--faint)"/><circle cx="202" cy="86" r="1.7" fill="var(--faint)"/><circle cx="202" cy="136" r="1.7" fill="var(--faint)"/><circle cx="202" cy="94" r="1.7" fill="var(--faint)"/><circle cx="202" cy="144" r="1.7" fill="var(--faint)"/><circle cx="202" cy="102" r="1.7" fill="var(--faint)"/><circle cx="202" cy="152" r="1.7" fill="var(--faint)"/><circle cx="202" cy="110" r="1.7" fill="var(--faint)"/><circle cx="202" cy="160" r="1.7" fill="var(--faint)"/><rect x="215" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="215" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="219" cy="78" r="1.7" fill="var(--faint)"/><circle cx="219" cy="128" r="1.7" fill="var(--faint)"/><circle cx="219" cy="86" r="1.7" fill="var(--faint)"/><circle cx="219" cy="136" r="1.7" fill="var(--faint)"/><circle cx="219" cy="94" r="1.7" fill="var(--faint)"/><circle cx="219" cy="144" r="1.7" fill="var(--faint)"/><circle cx="219" cy="102" r="1.7" fill="var(--faint)"/><circle cx="219" cy="152" r="1.7" fill="var(--faint)"/><circle cx="219" cy="110" r="1.7" fill="var(--faint)"/><circle cx="219" cy="160" r="1.7" fill="var(--faint)"/><rect x="232" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="232" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="236" cy="78" r="1.7" fill="var(--faint)"/><circle cx="236" cy="128" r="1.7" fill="var(--faint)"/><circle cx="236" cy="86" r="1.7" fill="var(--faint)"/><circle cx="236" cy="136" r="1.7" fill="var(--faint)"/><circle cx="236" cy="94" r="1.7" fill="var(--faint)"/><circle cx="236" cy="144" r="1.7" fill="var(--faint)"/><circle cx="236" cy="102" r="1.7" fill="var(--faint)"/><circle cx="236" cy="152" r="1.7" fill="var(--faint)"/><circle cx="236" cy="110" r="1.7" fill="var(--faint)"/><circle cx="236" cy="160" r="1.7" fill="var(--faint)"/><text class="lbl" x="314" y="18">Perma-Proto</text><text class="sub" x="314" y="34">identical layout, soldered</text><rect class="box hot" x="314" y="46" width="250" height="150" rx="8"/><line x1="330" y1="56" x2="548" y2="56" stroke="var(--accent)" stroke-width="1.4" opacity=".65"/><line x1="330" y1="63" x2="548" y2="63" stroke="var(--accent)" stroke-width="1.4" opacity=".65"/><line x1="330" y1="179" x2="548" y2="179" stroke="var(--accent)" stroke-width="1.4" opacity=".65"/><line x1="330" y1="186" x2="548" y2="186" stroke="var(--accent)" stroke-width="1.4" opacity=".65"/><rect x="328" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="328" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="332" cy="78" r="1.7" fill="var(--faint)"/><circle cx="332" cy="128" r="1.7" fill="var(--faint)"/><circle cx="332" cy="86" r="1.7" fill="var(--faint)"/><circle cx="332" cy="136" r="1.7" fill="var(--faint)"/><circle cx="332" cy="94" r="1.7" fill="var(--faint)"/><circle cx="332" cy="144" r="1.7" fill="var(--faint)"/><circle cx="332" cy="102" r="1.7" fill="var(--faint)"/><circle cx="332" cy="152" r="1.7" fill="var(--faint)"/><circle cx="332" cy="110" r="1.7" fill="var(--faint)"/><circle cx="332" cy="160" r="1.7" fill="var(--faint)"/><rect x="345" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="345" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="349" cy="78" r="1.7" fill="var(--faint)"/><circle cx="349" cy="128" r="1.7" fill="var(--faint)"/><circle cx="349" cy="86" r="1.7" fill="var(--faint)"/><circle cx="349" cy="136" r="1.7" fill="var(--faint)"/><circle cx="349" cy="94" r="1.7" fill="var(--faint)"/><circle cx="349" cy="144" r="1.7" fill="var(--faint)"/><circle cx="349" cy="102" r="1.7" fill="var(--faint)"/><circle cx="349" cy="152" r="1.7" fill="var(--faint)"/><circle cx="349" cy="110" r="1.7" fill="var(--faint)"/><circle cx="349" cy="160" r="1.7" fill="var(--faint)"/><rect x="362" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="362" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="366" cy="78" r="1.7" fill="var(--faint)"/><circle cx="366" cy="128" r="1.7" fill="var(--faint)"/><circle cx="366" cy="86" r="1.7" fill="var(--faint)"/><circle cx="366" cy="136" r="1.7" fill="var(--faint)"/><circle cx="366" cy="94" r="1.7" fill="var(--faint)"/><circle cx="366" cy="144" r="1.7" fill="var(--faint)"/><circle cx="366" cy="102" r="1.7" fill="var(--faint)"/><circle cx="366" cy="152" r="1.7" fill="var(--faint)"/><circle cx="366" cy="110" r="1.7" fill="var(--faint)"/><circle cx="366" cy="160" r="1.7" fill="var(--faint)"/><rect x="379" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="379" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="383" cy="78" r="1.7" fill="var(--faint)"/><circle cx="383" cy="128" r="1.7" fill="var(--faint)"/><circle cx="383" cy="86" r="1.7" fill="var(--faint)"/><circle cx="383" cy="136" r="1.7" fill="var(--faint)"/><circle cx="383" cy="94" r="1.7" fill="var(--faint)"/><circle cx="383" cy="144" r="1.7" fill="var(--faint)"/><circle cx="383" cy="102" r="1.7" fill="var(--faint)"/><circle cx="383" cy="152" r="1.7" fill="var(--faint)"/><circle cx="383" cy="110" r="1.7" fill="var(--faint)"/><circle cx="383" cy="160" r="1.7" fill="var(--faint)"/><rect x="396" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="396" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="400" cy="78" r="1.7" fill="var(--faint)"/><circle cx="400" cy="128" r="1.7" fill="var(--faint)"/><circle cx="400" cy="86" r="1.7" fill="var(--faint)"/><circle cx="400" cy="136" r="1.7" fill="var(--faint)"/><circle cx="400" cy="94" r="1.7" fill="var(--faint)"/><circle cx="400" cy="144" r="1.7" fill="var(--faint)"/><circle cx="400" cy="102" r="1.7" fill="var(--faint)"/><circle cx="400" cy="152" r="1.7" fill="var(--faint)"/><circle cx="400" cy="110" r="1.7" fill="var(--faint)"/><circle cx="400" cy="160" r="1.7" fill="var(--faint)"/><rect x="413" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="413" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="417" cy="78" r="1.7" fill="var(--faint)"/><circle cx="417" cy="128" r="1.7" fill="var(--faint)"/><circle cx="417" cy="86" r="1.7" fill="var(--faint)"/><circle cx="417" cy="136" r="1.7" fill="var(--faint)"/><circle cx="417" cy="94" r="1.7" fill="var(--faint)"/><circle cx="417" cy="144" r="1.7" fill="var(--faint)"/><circle cx="417" cy="102" r="1.7" fill="var(--faint)"/><circle cx="417" cy="152" r="1.7" fill="var(--faint)"/><circle cx="417" cy="110" r="1.7" fill="var(--faint)"/><circle cx="417" cy="160" r="1.7" fill="var(--faint)"/><rect x="430" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="430" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="434" cy="78" r="1.7" fill="var(--faint)"/><circle cx="434" cy="128" r="1.7" fill="var(--faint)"/><circle cx="434" cy="86" r="1.7" fill="var(--faint)"/><circle cx="434" cy="136" r="1.7" fill="var(--faint)"/><circle cx="434" cy="94" r="1.7" fill="var(--faint)"/><circle cx="434" cy="144" r="1.7" fill="var(--faint)"/><circle cx="434" cy="102" r="1.7" fill="var(--faint)"/><circle cx="434" cy="152" r="1.7" fill="var(--faint)"/><circle cx="434" cy="110" r="1.7" fill="var(--faint)"/><circle cx="434" cy="160" r="1.7" fill="var(--faint)"/><rect x="447" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="447" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="451" cy="78" r="1.7" fill="var(--faint)"/><circle cx="451" cy="128" r="1.7" fill="var(--faint)"/><circle cx="451" cy="86" r="1.7" fill="var(--faint)"/><circle cx="451" cy="136" r="1.7" fill="var(--faint)"/><circle cx="451" cy="94" r="1.7" fill="var(--faint)"/><circle cx="451" cy="144" r="1.7" fill="var(--faint)"/><circle cx="451" cy="102" r="1.7" fill="var(--faint)"/><circle cx="451" cy="152" r="1.7" fill="var(--faint)"/><circle cx="451" cy="110" r="1.7" fill="var(--faint)"/><circle cx="451" cy="160" r="1.7" fill="var(--faint)"/><rect x="464" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="464" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="468" cy="78" r="1.7" fill="var(--faint)"/><circle cx="468" cy="128" r="1.7" fill="var(--faint)"/><circle cx="468" cy="86" r="1.7" fill="var(--faint)"/><circle cx="468" cy="136" r="1.7" fill="var(--faint)"/><circle cx="468" cy="94" r="1.7" fill="var(--faint)"/><circle cx="468" cy="144" r="1.7" fill="var(--faint)"/><circle cx="468" cy="102" r="1.7" fill="var(--faint)"/><circle cx="468" cy="152" r="1.7" fill="var(--faint)"/><circle cx="468" cy="110" r="1.7" fill="var(--faint)"/><circle cx="468" cy="160" r="1.7" fill="var(--faint)"/><rect x="481" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="481" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="485" cy="78" r="1.7" fill="var(--faint)"/><circle cx="485" cy="128" r="1.7" fill="var(--faint)"/><circle cx="485" cy="86" r="1.7" fill="var(--faint)"/><circle cx="485" cy="136" r="1.7" fill="var(--faint)"/><circle cx="485" cy="94" r="1.7" fill="var(--faint)"/><circle cx="485" cy="144" r="1.7" fill="var(--faint)"/><circle cx="485" cy="102" r="1.7" fill="var(--faint)"/><circle cx="485" cy="152" r="1.7" fill="var(--faint)"/><circle cx="485" cy="110" r="1.7" fill="var(--faint)"/><circle cx="485" cy="160" r="1.7" fill="var(--faint)"/><rect x="498" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="498" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="502" cy="78" r="1.7" fill="var(--faint)"/><circle cx="502" cy="128" r="1.7" fill="var(--faint)"/><circle cx="502" cy="86" r="1.7" fill="var(--faint)"/><circle cx="502" cy="136" r="1.7" fill="var(--faint)"/><circle cx="502" cy="94" r="1.7" fill="var(--faint)"/><circle cx="502" cy="144" r="1.7" fill="var(--faint)"/><circle cx="502" cy="102" r="1.7" fill="var(--faint)"/><circle cx="502" cy="152" r="1.7" fill="var(--faint)"/><circle cx="502" cy="110" r="1.7" fill="var(--faint)"/><circle cx="502" cy="160" r="1.7" fill="var(--faint)"/><rect x="515" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="515" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="519" cy="78" r="1.7" fill="var(--faint)"/><circle cx="519" cy="128" r="1.7" fill="var(--faint)"/><circle cx="519" cy="86" r="1.7" fill="var(--faint)"/><circle cx="519" cy="136" r="1.7" fill="var(--faint)"/><circle cx="519" cy="94" r="1.7" fill="var(--faint)"/><circle cx="519" cy="144" r="1.7" fill="var(--faint)"/><circle cx="519" cy="102" r="1.7" fill="var(--faint)"/><circle cx="519" cy="152" r="1.7" fill="var(--faint)"/><circle cx="519" cy="110" r="1.7" fill="var(--faint)"/><circle cx="519" cy="160" r="1.7" fill="var(--faint)"/><rect x="532" y="74" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><rect x="532" y="124" width="8" height="40" rx="4" fill="var(--accent-soft)" opacity=".5"/><circle cx="536" cy="78" r="1.7" fill="var(--faint)"/><circle cx="536" cy="128" r="1.7" fill="var(--faint)"/><circle cx="536" cy="86" r="1.7" fill="var(--faint)"/><circle cx="536" cy="136" r="1.7" fill="var(--faint)"/><circle cx="536" cy="94" r="1.7" fill="var(--faint)"/><circle cx="536" cy="144" r="1.7" fill="var(--faint)"/><circle cx="536" cy="102" r="1.7" fill="var(--faint)"/><circle cx="536" cy="152" r="1.7" fill="var(--faint)"/><circle cx="536" cy="110" r="1.7" fill="var(--faint)"/><circle cx="536" cy="160" r="1.7" fill="var(--faint)"/><text class="lbl" x="614" y="18">plain perfboard</text><text class="sub" x="614" y="34">no layout at all</text><rect class="box" x="614" y="46" width="250" height="150" rx="8"/><circle cx="632" cy="58" r="1.7" fill="var(--faint)"/><circle cx="632" cy="68" r="1.7" fill="var(--faint)"/><circle cx="632" cy="78" r="1.7" fill="var(--faint)"/><circle cx="632" cy="88" r="1.7" fill="var(--faint)"/><circle cx="632" cy="98" r="1.7" fill="var(--faint)"/><circle cx="632" cy="108" r="1.7" fill="var(--faint)"/><circle cx="632" cy="118" r="1.7" fill="var(--faint)"/><circle cx="632" cy="128" r="1.7" fill="var(--faint)"/><circle cx="632" cy="138" r="1.7" fill="var(--faint)"/><circle cx="632" cy="148" r="1.7" fill="var(--faint)"/><circle cx="632" cy="158" r="1.7" fill="var(--faint)"/><circle cx="632" cy="168" r="1.7" fill="var(--faint)"/><circle cx="632" cy="178" r="1.7" fill="var(--faint)"/><circle cx="649" cy="58" r="1.7" fill="var(--faint)"/><circle cx="649" cy="68" r="1.7" fill="var(--faint)"/><circle cx="649" cy="78" r="1.7" fill="var(--faint)"/><circle cx="649" cy="88" r="1.7" fill="var(--faint)"/><circle cx="649" cy="98" r="1.7" fill="var(--faint)"/><circle cx="649" cy="108" r="1.7" fill="var(--faint)"/><circle cx="649" cy="118" r="1.7" fill="var(--faint)"/><circle cx="649" cy="128" r="1.7" fill="var(--faint)"/><circle cx="649" cy="138" r="1.7" fill="var(--faint)"/><circle cx="649" cy="148" r="1.7" fill="var(--faint)"/><circle cx="649" cy="158" r="1.7" fill="var(--faint)"/><circle cx="649" cy="168" r="1.7" fill="var(--faint)"/><circle cx="649" cy="178" r="1.7" fill="var(--faint)"/><circle cx="666" cy="58" r="1.7" fill="var(--faint)"/><circle cx="666" cy="68" r="1.7" fill="var(--faint)"/><circle cx="666" cy="78" r="1.7" fill="var(--faint)"/><circle cx="666" cy="88" r="1.7" fill="var(--faint)"/><circle cx="666" cy="98" r="1.7" fill="var(--faint)"/><circle cx="666" cy="108" r="1.7" fill="var(--faint)"/><circle cx="666" cy="118" r="1.7" fill="var(--faint)"/><circle cx="666" cy="128" r="1.7" fill="var(--faint)"/><circle cx="666" cy="138" r="1.7" fill="var(--faint)"/><circle cx="666" cy="148" r="1.7" fill="var(--faint)"/><circle cx="666" cy="158" r="1.7" fill="var(--faint)"/><circle cx="666" cy="168" r="1.7" fill="var(--faint)"/><circle cx="666" cy="178" r="1.7" fill="var(--faint)"/><circle cx="683" cy="58" r="1.7" fill="var(--faint)"/><circle cx="683" cy="68" r="1.7" fill="var(--faint)"/><circle cx="683" cy="78" r="1.7" fill="var(--faint)"/><circle cx="683" cy="88" r="1.7" fill="var(--faint)"/><circle cx="683" cy="98" r="1.7" fill="var(--faint)"/><circle cx="683" cy="108" r="1.7" fill="var(--faint)"/><circle cx="683" cy="118" r="1.7" fill="var(--faint)"/><circle cx="683" cy="128" r="1.7" fill="var(--faint)"/><circle cx="683" cy="138" r="1.7" fill="var(--faint)"/><circle cx="683" cy="148" r="1.7" fill="var(--faint)"/><circle cx="683" cy="158" r="1.7" fill="var(--faint)"/><circle cx="683" cy="168" r="1.7" fill="var(--faint)"/><circle cx="683" cy="178" r="1.7" fill="var(--faint)"/><circle cx="700" cy="58" r="1.7" fill="var(--faint)"/><circle cx="700" cy="68" r="1.7" fill="var(--faint)"/><circle cx="700" cy="78" r="1.7" fill="var(--faint)"/><circle cx="700" cy="88" r="1.7" fill="var(--faint)"/><circle cx="700" cy="98" r="1.7" fill="var(--faint)"/><circle cx="700" cy="108" r="1.7" fill="var(--faint)"/><circle cx="700" cy="118" r="1.7" fill="var(--faint)"/><circle cx="700" cy="128" r="1.7" fill="var(--faint)"/><circle cx="700" cy="138" r="1.7" fill="var(--faint)"/><circle cx="700" cy="148" r="1.7" fill="var(--faint)"/><circle cx="700" cy="158" r="1.7" fill="var(--faint)"/><circle cx="700" cy="168" r="1.7" fill="var(--faint)"/><circle cx="700" cy="178" r="1.7" fill="var(--faint)"/><circle cx="717" cy="58" r="1.7" fill="var(--faint)"/><circle cx="717" cy="68" r="1.7" fill="var(--faint)"/><circle cx="717" cy="78" r="1.7" fill="var(--faint)"/><circle cx="717" cy="88" r="1.7" fill="var(--faint)"/><circle cx="717" cy="98" r="1.7" fill="var(--faint)"/><circle cx="717" cy="108" r="1.7" fill="var(--faint)"/><circle cx="717" cy="118" r="1.7" fill="var(--faint)"/><circle cx="717" cy="128" r="1.7" fill="var(--faint)"/><circle cx="717" cy="138" r="1.7" fill="var(--faint)"/><circle cx="717" cy="148" r="1.7" fill="var(--faint)"/><circle cx="717" cy="158" r="1.7" fill="var(--faint)"/><circle cx="717" cy="168" r="1.7" fill="var(--faint)"/><circle cx="717" cy="178" r="1.7" fill="var(--faint)"/><circle cx="734" cy="58" r="1.7" fill="var(--faint)"/><circle cx="734" cy="68" r="1.7" fill="var(--faint)"/><circle cx="734" cy="78" r="1.7" fill="var(--faint)"/><circle cx="734" cy="88" r="1.7" fill="var(--faint)"/><circle cx="734" cy="98" r="1.7" fill="var(--faint)"/><circle cx="734" cy="108" r="1.7" fill="var(--faint)"/><circle cx="734" cy="118" r="1.7" fill="var(--faint)"/><circle cx="734" cy="128" r="1.7" fill="var(--faint)"/><circle cx="734" cy="138" r="1.7" fill="var(--faint)"/><circle cx="734" cy="148" r="1.7" fill="var(--faint)"/><circle cx="734" cy="158" r="1.7" fill="var(--faint)"/><circle cx="734" cy="168" r="1.7" fill="var(--faint)"/><circle cx="734" cy="178" r="1.7" fill="var(--faint)"/><circle cx="751" cy="58" r="1.7" fill="var(--faint)"/><circle cx="751" cy="68" r="1.7" fill="var(--faint)"/><circle cx="751" cy="78" r="1.7" fill="var(--faint)"/><circle cx="751" cy="88" r="1.7" fill="var(--faint)"/><circle cx="751" cy="98" r="1.7" fill="var(--faint)"/><circle cx="751" cy="108" r="1.7" fill="var(--faint)"/><circle cx="751" cy="118" r="1.7" fill="var(--faint)"/><circle cx="751" cy="128" r="1.7" fill="var(--faint)"/><circle cx="751" cy="138" r="1.7" fill="var(--faint)"/><circle cx="751" cy="148" r="1.7" fill="var(--faint)"/><circle cx="751" cy="158" r="1.7" fill="var(--faint)"/><circle cx="751" cy="168" r="1.7" fill="var(--faint)"/><circle cx="751" cy="178" r="1.7" fill="var(--faint)"/><circle cx="768" cy="58" r="1.7" fill="var(--faint)"/><circle cx="768" cy="68" r="1.7" fill="var(--faint)"/><circle cx="768" cy="78" r="1.7" fill="var(--faint)"/><circle cx="768" cy="88" r="1.7" fill="var(--faint)"/><circle cx="768" cy="98" r="1.7" fill="var(--faint)"/><circle cx="768" cy="108" r="1.7" fill="var(--faint)"/><circle cx="768" cy="118" r="1.7" fill="var(--faint)"/><circle cx="768" cy="128" r="1.7" fill="var(--faint)"/><circle cx="768" cy="138" r="1.7" fill="var(--faint)"/><circle cx="768" cy="148" r="1.7" fill="var(--faint)"/><circle cx="768" cy="158" r="1.7" fill="var(--faint)"/><circle cx="768" cy="168" r="1.7" fill="var(--faint)"/><circle cx="768" cy="178" r="1.7" fill="var(--faint)"/><circle cx="785" cy="58" r="1.7" fill="var(--faint)"/><circle cx="785" cy="68" r="1.7" fill="var(--faint)"/><circle cx="785" cy="78" r="1.7" fill="var(--faint)"/><circle cx="785" cy="88" r="1.7" fill="var(--faint)"/><circle cx="785" cy="98" r="1.7" fill="var(--faint)"/><circle cx="785" cy="108" r="1.7" fill="var(--faint)"/><circle cx="785" cy="118" r="1.7" fill="var(--faint)"/><circle cx="785" cy="128" r="1.7" fill="var(--faint)"/><circle cx="785" cy="138" r="1.7" fill="var(--faint)"/><circle cx="785" cy="148" r="1.7" fill="var(--faint)"/><circle cx="785" cy="158" r="1.7" fill="var(--faint)"/><circle cx="785" cy="168" r="1.7" fill="var(--faint)"/><circle cx="785" cy="178" r="1.7" fill="var(--faint)"/><circle cx="802" cy="58" r="1.7" fill="var(--faint)"/><circle cx="802" cy="68" r="1.7" fill="var(--faint)"/><circle cx="802" cy="78" r="1.7" fill="var(--faint)"/><circle cx="802" cy="88" r="1.7" fill="var(--faint)"/><circle cx="802" cy="98" r="1.7" fill="var(--faint)"/><circle cx="802" cy="108" r="1.7" fill="var(--faint)"/><circle cx="802" cy="118" r="1.7" fill="var(--faint)"/><circle cx="802" cy="128" r="1.7" fill="var(--faint)"/><circle cx="802" cy="138" r="1.7" fill="var(--faint)"/><circle cx="802" cy="148" r="1.7" fill="var(--faint)"/><circle cx="802" cy="158" r="1.7" fill="var(--faint)"/><circle cx="802" cy="168" r="1.7" fill="var(--faint)"/><circle cx="802" cy="178" r="1.7" fill="var(--faint)"/><circle cx="819" cy="58" r="1.7" fill="var(--faint)"/><circle cx="819" cy="68" r="1.7" fill="var(--faint)"/><circle cx="819" cy="78" r="1.7" fill="var(--faint)"/><circle cx="819" cy="88" r="1.7" fill="var(--faint)"/><circle cx="819" cy="98" r="1.7" fill="var(--faint)"/><circle cx="819" cy="108" r="1.7" fill="var(--faint)"/><circle cx="819" cy="118" r="1.7" fill="var(--faint)"/><circle cx="819" cy="128" r="1.7" fill="var(--faint)"/><circle cx="819" cy="138" r="1.7" fill="var(--faint)"/><circle cx="819" cy="148" r="1.7" fill="var(--faint)"/><circle cx="819" cy="158" r="1.7" fill="var(--faint)"/><circle cx="819" cy="168" r="1.7" fill="var(--faint)"/><circle cx="819" cy="178" r="1.7" fill="var(--faint)"/><circle cx="836" cy="58" r="1.7" fill="var(--faint)"/><circle cx="836" cy="68" r="1.7" fill="var(--faint)"/><circle cx="836" cy="78" r="1.7" fill="var(--faint)"/><circle cx="836" cy="88" r="1.7" fill="var(--faint)"/><circle cx="836" cy="98" r="1.7" fill="var(--faint)"/><circle cx="836" cy="108" r="1.7" fill="var(--faint)"/><circle cx="836" cy="118" r="1.7" fill="var(--faint)"/><circle cx="836" cy="128" r="1.7" fill="var(--faint)"/><circle cx="836" cy="138" r="1.7" fill="var(--faint)"/><circle cx="836" cy="148" r="1.7" fill="var(--faint)"/><circle cx="836" cy="158" r="1.7" fill="var(--faint)"/><circle cx="836" cy="168" r="1.7" fill="var(--faint)"/><circle cx="836" cy="178" r="1.7" fill="var(--faint)"/><path class="wire hot" d="M266 121 H 306"/><path class="wire hot" d="M300 115 l7 6 l-7 6 z" style="fill:var(--accent)" stroke="none"/><text class="sub" x="262" y="111" style="fill:var(--accent-2)">hole for hole</text><text class="sub" x="14" y="220">five-hole columns, split down the middle</text><text class="sub" x="314" y="220">the same five-hole columns, same numbering</text><text class="sub" x="614" y="220">every connection is yours to invent</text><text class="sub" x="614" y="248" style="fill:var(--bad)">…so getting here is a transcription,</text><text class="sub" x="614" y="262" style="fill:var(--bad)">and that is where mistakes live</text></svg>
+  <figcaption>The middle board is the point. Two dollars more than perfboard, and it removes an
+  entire class of error rather than a bit of effort.</figcaption>
+  </figure>
+
+  <h2 id="interconnect">3 &middot; The interconnect standard</h2>
+  <p>Three tiers. The rule is that you never think about this again &mdash; you look it up here and
+  do what it says.</p>
+
+  <div class="tier">
+    <div class="card">
+      <div class="n">Tier 1 &middot; board to module</div>
+      <h3>0.1&Prime; headers. No cable.</h3>
+      <p>Female sockets soldered to the board; modules plug in. A dead module is a swap, not a
+      desoldering job, and the reader can be lifted out to test read range through different lid
+      thicknesses without unwiring anything.</p>
+    </div>
+    <div class="card">
+      <div class="n">Tier 2 &middot; board to panel</div>
+      <h3>JST-XH 2.54&nbsp;mm.</h3>
+      <p>Latching and polarised. Dupont is friction-fit only and explicitly not for anything that
+      moves; this is a toy that gets shaken and carried by the wrong end. Polarised also means you
+      cannot plug it in backwards at eleven at night, which you will otherwise eventually do.</p>
+    </div>
+    <div class="card">
+      <div class="n">Tier 3 &middot; power</div>
+      <h3>JST-PH 2.0&nbsp;mm.</h3>
+      <p>Not a preference &mdash; it is what the battery ecosystem already ships. Cells and chargers
+      arrive with it fitted, so the highest-current connection in the box needs no work and no
+      decision.</p>
+    </div>
+  </div>
+
+  <p><strong>And on every cable that leaves the board: a zip tie through two holes, before the
+  connector.</strong> A tug then pulls on the board and not on a solder joint. It is the step people
+  skip, it costs nothing, and it is most of the difference between a box that survives a
+  four-year-old and one that comes back in pieces.</p>
+
+  <h2 id="tricks">4 &middot; Tricks that replace tools</h2>
+  <p>Written down because they are the kind of thing you work out once and then forget you knew.</p>
+
+  <div class="trick">
+    <h4>Soldering a header in square, with no third hand</h4>
+    <p>Plug the header&rsquo;s pins into a solderless breadboard and set the board face-down on top.
+    The breadboard holds everything square and level. Tack <em>one</em> corner pin, pick it up, check
+    it is flush, reheat that single joint to correct it if not, then solder the rest. Correcting one
+    joint is easy; correcting thirty-six is a new board.</p>
+  </div>
+  <div class="trick">
+    <h4>Holding a wire while you tin it</h4>
+    <p>A zip tie round the wire and a heavy mug on the tail. You have the zip ties.</p>
+  </div>
+  <div class="trick">
+    <h4>Checking a crimp, now that there is a Fluke on the bench</h4>
+    <p>Three checks, in order, every time: <strong>tug it</strong> firmly by the wire &mdash; a bad
+    crimp comes off in your hand and is cheap to find now; <strong>beep it end to end</strong>;
+    <strong>beep it to its neighbours</strong> to catch a whisker bridging two pins in the housing.
+    Ten seconds, and it converts crimping from a thing you trust into a thing you know.</p>
+  </div>
+  <div class="trick">
+    <h4>Before powering anything for the first time</h4>
+    <p>Beep between the power rails with everything unplugged. A short found by a meter costs
+    nothing; a short found by a battery costs a module and possibly the board.</p>
+  </div>
+
+  <h2 id="loop">5 &middot; The build loop</h2>
+  <p>Breadboard &rarr; transfer &rarr; box, with a gate between every stage.</p>
+  <ol>
+    <li><strong>Breadboard one subsystem at a time</strong> and prove it against
+      <a href="/build/">its gate</a> before adding the next. The whole reason the assembly page is
+      staged that way is so a fault is always inside the one thing you just changed.</li>
+    <li><strong>Never add two things between tests.</strong> The moment you do, debugging becomes a
+      search instead of a look.</li>
+    <li><strong>Transfer to the Perma-Proto hole-for-hole</strong> once the whole thing works loose
+      on the bench. Not before &mdash; soldering a design you have not seen run is how an evening
+      becomes a weekend.</li>
+    <li><strong>Box it last</strong>, and only after the full first-story flow works with wires
+      everywhere.</li>
+  </ol>
+
+  <h2 id="docs">6 &middot; How this gets written down</h2>
+  <p>This is the actual system, and it is the part that makes a second project fast. Four habits,
+  each of which has already paid for itself here:</p>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Habit</th><th>Here</th><th>What it bought</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Parts as data, not prose</strong></td>
+        <td><a href="/parts.json"><code>parts.json</code></a> &rarr; rendered by two pages</td>
+        <td>One place to edit. A link checker that can verify the whole BOM in one command &mdash; and which caught that a 200 response proves nothing, because vendors reuse product ids.</td>
+      </tr>
+      <tr>
+        <td><strong>Pin map as code, diagram generated from it</strong></td>
+        <td><code>lib/pinmap.js</code> &rarr; <a href="/hardware/#wiring">the schematic</a></td>
+        <td>The drawing cannot lie about a pin number. It also holds the reserved list, so GPIO33&ndash;37 being PSRAM is caught by a test instead of by a multimeter at midnight.</td>
+      </tr>
+      <tr>
+        <td><strong>Every hard-won constraint becomes a test</strong></td>
+        <td>a full card still fits NTAG213 &middot; no origin can both record and upload &middot; the multimeter stays high on the bench list</td>
+        <td>A comment saying &ldquo;don't do X&rdquo; gets skimmed. A failing test gets read. Three times now a fact learned the hard way has been frozen this way, and one of them caught a real modelling error the same afternoon.</td>
+      </tr>
+      <tr>
+        <td><strong>Decisions logged with their reasons</strong></td>
+        <td><a href="/design/#log">the decision log</a> &mdash; eighteen rows, each with a because</td>
+        <td>In two months you remember <em>what</em> was decided and never <em>why</em>. Without the why you relitigate it, and usually arrive somewhere worse, because the reason was load-bearing and invisible.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>To start project two</h3>
+  <p>Copy the shape, not the content: a <code>parts.json</code>, a <code>pinmap.js</code>, a
+  selftest that enforces the constraints you have already learned, and a design record whose
+  decision log has a <em>because</em> column. Then the bench, the interconnect tiers and the tricks
+  above are already answered and you start at the interesting part.</p>
+
+  <h2 id="standing">7 &middot; Standing decisions</h2>
+  <p>The forget-proof table. If future-you is about to do something on the left, the middle column is
+  why not.</p>
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Do this</th><th>Because</th><th>Enforced by</th></tr></thead>
+    <tbody>
+      <tr><td>0.1&Prime; headers for anything module-shaped</td><td>Removes four interconnects and makes a dead module a swap</td><td><a href="/build/#interconnect">build</a></td></tr>
+      <tr><td>JST-XH panel-side, JST-PH for power</td><td>Latching and polarised; Dupont is not for things that move</td><td>this page</td></tr>
+      <tr><td>Zip tie every cable that leaves the board</td><td>The tug lands on the board, not a joint</td><td>this page</td></tr>
+      <tr><td>Beep the rails before first power-up</td><td>A short found by a meter is free</td><td>this page</td></tr>
+      <tr><td>Buy the crimper, but not the SN-28B</td><td>Its anvil is too wide and bites the insulation rather than wrapping it</td><td><code>parts.json</code></td></tr>
+      <tr><td>Never add two things between tests</td><td>Debugging becomes a search instead of a look</td><td><a href="/build/">the stage gates</a></td></tr>
+      <tr><td>Transfer to protoboard only after it runs loose</td><td>Soldering an unproven design turns an evening into a weekend</td><td>this page</td></tr>
+      <tr><td>13.56&nbsp;MHz NFC, never 125&nbsp;kHz</td><td>A phone can neither read nor write 125&nbsp;kHz &mdash; it deletes the whole phone-side pipeline</td><td><a href="/design/#nfc">design &sect;3.2</a></td></tr>
+      <tr><td>The tag holds a pointer, never audio</td><td>Off by ~4,000&times;. And pointers give playlists and re-binding for free</td><td><code>tape.selftest.mjs</code></td></tr>
+      <tr><td>Pulse the NFC field, 10&nbsp;ms in 125</td><td>A continuous field is 50&ndash;80&nbsp;mA and ends the battery version alone</td><td><a href="/hardware/#power">the budget</a></td></tr>
+      <tr><td>Volume is a pot with a physical end stop</td><td>A maximum a child cannot exceed. Buttons have no end stop</td><td><a href="/design/#log">D9</a></td></tr>
+      <tr><td>Quote prices from <code>parts.json</code>, with the tier</td><td>The estimate has been revised upward three times; guesses do not survive contact with a checkout page</td><td><code>parts.json</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <script type="module">
+  const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const bom = await (await fetch('/parts.json')).json();
+  const PILL = { ok: 'yes', resolves: '', blocked: 'no' };
+  const tools = [...bom.tools].sort((a, b) => (a.owned === false ? 0 : 1) - (b.owned === false ? 0 : 1)
+    || a.priority - b.priority);
+
+  document.getElementById('bench-table').innerHTML =
+    '<thead><tr><th>Have</th><th>Tool</th><th>~$</th><th>Buy</th><th>Why, and why here</th></tr></thead><tbody>'
+    + tools.map((t) => {
+      const state = t.owned === true ? '<span class="pill yes">yes</span>'
+        : t.owned === 'partial' ? '<span class="pill">sort of</span>'
+        : t.priority > 4 ? '<span class="pill">optional</span>' : '<span class="pill no">need</span>';
+      return `<tr class="${t.owned ? 'have' : ''}"><td>${state}</td>
+        <td><strong>${esc(t.name)}</strong></td>
+        <td class="num">${t.usd || '—'}</td>
+        <td>${t.sources.map((s) => `<div style="white-space:nowrap"><a href="${s.url}" rel="noopener">${esc(s.vendor)} ${esc(s.sku)}</a>
+            <span class="pill ${PILL[s.status]}" title="${esc(bom.checked.verdicts[s.status])}">${s.status}</span></div>`).join('')
+          || '<span style="color:var(--faint)">—</span>'}</td>
+        <td>${esc(t.why)}</td></tr>`;
+    }).join('') + '</tbody>';
+
+  const need = tools.filter((t) => t.owned === false && t.priority <= 4);
+  const opt = tools.filter((t) => t.owned === false && t.priority > 4);
+  document.getElementById('bench-total').innerHTML =
+    `<strong>$${need.reduce((n, t) => n + t.usd, 0)} of things you actually need</strong> `
+    + `(${need.map((t) => esc(t.name.split(',')[0].split(' — ')[0])).join(', ')}), `
+    + `plus $${opt.reduce((n, t) => n + t.usd, 0)} of optional. `
+    + `The bench was most of the cost and you already own it. Links checked ${bom.checked.at}.`;
+  </script>
+</main>
+
+<footer><div class="inner">
+  <strong>tape</strong> &middot; part of <a href="https://mino.mobi">mino.mobi</a> &middot;
+  <a href="/">home</a> &middot; <a href="/build/">assembly</a>
+</div></footer>
+
+</body>
+</html>

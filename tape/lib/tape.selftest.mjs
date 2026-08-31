@@ -388,33 +388,46 @@ t('the parts that must be buyable have a verified link', () => {
   }
 });
 
-t('the bench is ordered, priced, and puts the crimper last', () => {
+t('the bench records what is owned, so the shopping list stays honest', () => {
   assert.ok(Array.isArray(parts.tools) && parts.tools.length >= 8);
-  const pri = parts.tools.map((t) => t.priority);
-  assert.equal(new Set(pri).size, pri.length, 'two tools claim the same priority');
-
-  // The multimeter outranks everything except solder. Two assembly gates cannot
-  // be passed without one, so it must not drift down the list.
-  const dmm = parts.tools.find((t) => t.id === 'dmm');
-  assert.ok(dmm.priority <= 2, `multimeter is #${dmm.priority}`);
-
-  // And the crimper stays last: pre-crimped JST-XH covers build one.
-  const crimper = parts.tools.find((t) => t.id === 'crimper');
-  assert.ok(crimper.priority > Math.max(...pri.filter((x) => x !== crimper.priority)),
-    'the crimper must be the last thing recommended');
-  assert.equal(crimper.sources.length, 0, 'do not link a tool we are telling them not to buy yet');
-  assert.match(crimper.why, /SN-28B/, 'name the trap, not just the recommendation');
-
+  const ids = parts.tools.map((t) => t.id);
+  assert.equal(new Set(ids).size, ids.length, 'duplicate tool id');
   for (const t of parts.tools) {
+    assert.ok([true, false, 'partial'].includes(t.owned), `tool ${t.id}: owned must be set`);
     assert.ok(t.why && t.why.length > 40, `tool ${t.id} needs a reason, not a label`);
     assert.ok(typeof t.usd === 'number');
+    if (t.owned === true) assert.equal(t.usd, 0, `${t.id} is owned; it should not be in the total`);
   }
+  // The meter is on the bench already. If a future edit ever un-owns it, the
+  // crimper advice below has to change with it — they are linked.
+  const dmm = parts.tools.find((t) => t.id === 'dmm');
+  assert.equal(dmm.owned, true);
 });
 
-t('headers are in the bench, because they are what removes the wiring', () => {
-  // If this line ever gets dropped as "just a passive", the build turns back
-  // into a harness project.
-  assert.ok(parts.tools.some((t) => t.id === 'headers'));
+t('the crimper advice is contingent on being able to check a crimp', () => {
+  const crimper = parts.tools.find((t) => t.id === 'crimper');
+  const dmm = parts.tools.find((t) => t.id === 'dmm');
+  // The whole argument: a marginal crimp fails intermittently, which is only
+  // acceptable if each one can be verified. Owning a meter is the precondition.
+  assert.ok(dmm.owned === true, 'without a meter the crimper recommendation must be revisited');
+  assert.match(crimper.why, /SN-28B/, 'name the trap, not just the recommendation');
+  assert.equal(crimper.sources.length, 0, 'no purchase link for a judgement call');
+  // Pre-crimped stays recommended regardless, so build one is never gated on a new skill.
+  assert.ok(parts.tools.some((t) => t.id === 'jstxh' && t.owned === false && t.priority <= 4));
+});
+
+t('headers are the top of the shopping list', () => {
+  // If this ever gets demoted as "just a passive", the build turns back into a
+  // harness project and four interconnects come back as cables.
+  const needed = parts.tools.filter((t) => t.owned === false).sort((a, b) => a.priority - b.priority);
+  assert.equal(needed[0].id, 'headers', `top of the list is ${needed[0].id}`);
+});
+
+t('the shopping list is small, because the bench was most of the cost', () => {
+  const must = parts.tools.filter((t) => t.owned === false && t.priority <= 4);
+  const total = must.reduce((n, t) => n + t.usd, 0);
+  assert.ok(total < 60, `must-buy total is $${total}`);
+  assert.ok(must.length >= 3);
 });
 
 // ------------------------------------------------------------ power chain --

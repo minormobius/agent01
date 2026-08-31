@@ -46,6 +46,7 @@ that puts bytes-per-book on the tag, stop and re-read
 | `/design/` | **the design record** — product + site architecture, four corrections, the decision log. Read this before changing anything here |
 | `/hardware/` | BOM rendered from `parts.json` (checked links, two price tiers), the schematic and power-chain diagrams, and a live power budget |
 | `/build/` | assembly — eight stages, each ending at a gate. Structure written, steps wait on a real box |
+| `/system/` | **the house standard** — bench, interconnect tiers, build loop, documentation habits, standing decisions. Not tape-specific; lift it out when project two starts |
 | `/first-story/` | **the instructions** — for a parent with a phone, not an engineer |
 | `/firmware/` | firmware architecture and the state machine |
 | `/studio/` | **working**: records a book in tracks and hands back files (it cannot upload — see the two rules below) |
@@ -68,7 +69,7 @@ the eventual firmware cannot drift apart:
   the picture and the firmware cannot disagree about a pin number
 - `lib/power.js` — the power budget: per-component draw per state, runtime on a
   given cell, days between charges. `/hardware/` renders it live
-- `lib/tape.selftest.mjs` — 37 known-answer checks, run by
+- `lib/tape.selftest.mjs` — 41 known-answer checks, run by
   `node scripts/preflight.mjs` and again by the deploy workflow
 
 **Three assertions in that selftest are load-bearing. Do not weaken them:**
@@ -174,6 +175,22 @@ Two more selftest invariants worth keeping:
   exist at all. The test also breaks the map on purpose to prove the check works.
 - **Parts with a specific chip have a source verified `ok`** — not merely
   present.
+
+## The system page is meant to outlive this surface
+
+`/system/` is the house standard for building things like tape — the bench, the
+three interconnect tiers, the build loop, and the four documentation habits
+(parts as data, pin map as code, constraints as tests, decisions logged with
+their *reasons*). It lives here because tape is the first hardware project and
+keeping it next to a real build is what stops it becoming aspirational. **When
+there is a second project, rehome it** (`scripts/rehome.mjs`).
+
+`parts.json` `tools[]` carries an `owned` field, so the shopping list reflects an
+actual bench rather than a generic one. Two selftests depend on it, and one is
+deliberately *contingent*: the crimper recommendation is only valid because a
+multimeter is owned — a marginal crimp fails intermittently, which is tolerable
+only if each crimp can be verified. If `dmm.owned` ever goes false, that advice
+has to change with it, and the test says so.
 
 ## Prices have gone up twice, both times for the same reason
 
