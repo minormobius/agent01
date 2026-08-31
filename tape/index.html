@@ -170,20 +170,31 @@
     </div>
   </div>
 
-  <h2>What is settled, and what is not</h2>
-  <p>The three questions this page carried last round are answered, and the answers are in
-  <a href="/design/#log">the decision log</a> with their reasoning:</p>
-  <ul>
-    <li><strong>Bluetooth or wire?</strong> Wire. The wireless speaker turned out not to matter, and
-      dropping it freed the brain choice entirely &mdash; there is no longer any reason to be stuck
-      on 2016 silicon.</li>
-    <li><strong>Which brain?</strong> ESP32-S3. It boots in about a second and decodes every audio
-      format a phone can produce, which is what lets a parent just upload a voice memo.</li>
-    <li><strong>Battery or cable?</strong> Battery. ~20 hours of stories, ~8 days between charges.</li>
-  </ul>
-  <p>Still open: <strong>the enclosure</strong> &mdash; though it now has five requirements that
-  arrived from other decisions, including a card nest shaped by the read range. And nothing has been
-  built yet. Everything on this site works; none of it has been soldered.</p>
+  <h2 id="status">Where this actually is</h2>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>&nbsp;</th><th>State</th><th></th></tr></thead>
+    <tbody>
+      <tr><td>Product &amp; site architecture</td><td><span class="pill on">settled</span></td><td>18 decisions with their reasons, three of them corrections found before anything was bought</td></tr>
+      <tr><td>Components</td><td><span class="pill on">chosen</span></td><td>Every line linked and the link verified &mdash; not that it returns 200, that the page still says the part&rsquo;s name</td></tr>
+      <tr><td>Schematic &amp; pin map</td><td><span class="pill on">done</span></td><td>Generated from code, so the drawing cannot disagree with the firmware</td></tr>
+      <tr><td>Power budget</td><td><span class="pill on">modelled</span></td><td>~15 h of stories a charge, ~6 days between them</td></tr>
+      <tr><td>The web half</td><td><span class="pill on">working</span></td><td><a href="/studio/">studio</a>, <a href="/tags/">card writer</a>, <a href="/sim/">simulator</a> &mdash; all live, all tested</td></tr>
+      <tr><td>Enclosure</td><td><span class="pill">3 routes, none chosen</span></td><td>Waits on one measurement</td></tr>
+      <tr><td><strong>Firmware</strong></td><td><span class="pill no">not one line</span></td><td>Fully specified, entirely unwritten. This is the long pole and it is honest to say so</td></tr>
+      <tr><td><strong>Anything physical</strong></td><td><span class="pill no">nothing built</span></td><td>No part has been bought, no joint soldered, no card read</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <strong>The next move is a $145 order and a ruler.</strong> Wave one is everything that runs off
+    USB; it answers the one question the enclosure, the panel layout and the connectors all depend
+    on &mdash; how far this actually reads, through the material you meant to use, with a sticker on
+    a real playing card. <a href="/build/#order">The two-wave split, and the five things most likely
+    to go wrong.</a>
+  </div>
 
   <div class="note">
     <strong>The cards are a deck of playing cards.</strong> A poker deck, an NFC sticker on the back,

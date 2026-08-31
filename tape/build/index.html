@@ -39,13 +39,97 @@
     an assembly nobody has performed.
   </div>
 
-  <h2>Before you order anything</h2>
+  <h2 id="order">Order in two waves</h2>
+  <p>Not to spread the cost &mdash; because <strong>the expensive half of the list is exactly the
+  half that depends on a question nothing has answered yet.</strong> Read range through your actual
+  lid material, with a sticker on an actual playing card, aimed by an actual four-year-old. That
+  number decides the enclosure; the enclosure decides the panel layout; the panel layout decides
+  what you crimp. Buying all of it now means guessing three times.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Wave one <span class="pill on" id="w1-total">&mdash;</span></h3>
+      <p>Everything that runs off USB. Gets you through <a href="#stages">stages 0&ndash;5</a>:
+      headers on, board flashing, card reading, sound coming out, buttons and volume working. And it
+      answers the range question on the bench, with a ruler, before anything is committed.</p>
+      <div id="w1-list" style="font-size:13.5px;color:var(--muted)"></div>
+    </div>
+    <div class="card">
+      <h3>Wave two <span class="pill" id="w2-total">&mdash;</span></h3>
+      <p>The power chain, the connector kit, the crimper, and the enclosure. Every one of these is
+      cheaper to buy <em>after</em> wave one than before it &mdash; and if range disappoints, at
+      least two of them change.</p>
+      <div id="w2-list" style="font-size:13.5px;color:var(--muted)"></div>
+    </div>
+  </div>
+
+  <h2 id="risks">What I would expect to go wrong</h2>
+  <p>Written down now so that when one of them happens it is a known unknown rather than a bad
+  evening. Ordered by how much I would bet on it.</p>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>#</th><th>Risk</th><th>Cheapest test</th><th>If it fails</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="num">1</td>
+        <td><strong>Read range is short and fussy.</strong> A 25&nbsp;mm sticker is a small antenna,
+          and it has to work through a lid, off-axis, aimed badly.</td>
+        <td>Stage 4, with a ruler, through each candidate material. Fifteen minutes and it is the
+          highest-information fifteen minutes in the project.</td>
+        <td>A card-format tag has a far bigger antenna and reads much further &mdash; but printed PVC
+          cards cost more and lose the deck-of-cards charm. Or: thinner panel, deeper nest.</td>
+      </tr>
+      <tr>
+        <td class="num">2</td>
+        <td><strong>Writing NDEF to NTAG213 from the PN532.</strong> Libraries are stronger at
+          reading than writing, and stronger on MIFARE Classic than on NTAG2xx. This path is
+          load-bearing &mdash; box-side enrolment is the entire reason an iPhone works.</td>
+        <td>Immediately after stage 4. Write a card, read it back on a phone.</td>
+        <td>Write the pages directly. A Type 2 tag is a TLV and some records from page 4 onward, and
+          <code>lib/tag.js</code> already produces the exact bytes &mdash; perhaps a hundred lines.</td>
+      </tr>
+      <tr>
+        <td class="num">3</td>
+        <td><strong>ESP-ADF is heavier than it looks.</strong> Its build system is fussier than
+          Arduino-style development, and it is the thing that makes &ldquo;upload whatever your phone
+          recorded&rdquo; true.</td>
+        <td>Stage 3, playing a real <code>.m4a</code> off the card &mdash; not a test tone.</td>
+        <td>Fall back to a single-format decoder and constrain uploads to MP3. That weakens the
+          voice-memo story rather than breaking it, and the studio can transcode.</td>
+      </tr>
+      <tr>
+        <td class="num">4</td>
+        <td><strong>The captive portal misbehaves</strong> on one platform or the other. This is
+          famously fiddly and every OS probes differently.</td>
+        <td>Both phones in the house, at stage 7.</td>
+        <td>Print the IP on the bottom of the box and tell people to type it. Uglier, always works.</td>
+      </tr>
+      <tr>
+        <td class="num">5</td>
+        <td><strong>The power chain.</strong> Genuinely the least worrying thing here, which is why
+          it is deliberately last.</td>
+        <td>Stage 6, meter in series.</td>
+        <td>Measured draw far above <a href="/hardware/#power">the budget</a> means something is not
+          sleeping &mdash; almost certainly a continuous NFC field.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <strong>The honest shape of it: the hardware risk is read range, and the schedule risk is all
+    firmware.</strong> Not one line of it is written. Nothing on the parts list unblocks that, and
+    nothing about it blocks the parts list either &mdash; the two proceed in parallel, and having a
+    board on the desk is what makes the firmware get written.
+  </div>
+
+  <h2>Before you order</h2>
   <ul>
     <li>Read <a href="/design/">the design record</a>, or at least &sect;3. It is short and it will
-      stop you buying a 125 kHz reader or a foil-backed deck of cards.</li>
+      stop you buying a 125&nbsp;kHz reader or a foil-backed deck of cards.</li>
     <li>Decide branded or unbranded on <a href="/hardware/#bom">the bill of materials</a>. If you buy
-      one branded part, buy the PN532 &mdash; the antenna is the part that decides whether a
-      four-year-old&rsquo;s aim is good enough.</li>
+      one branded part, buy the PN532 &mdash; the antenna is what risk&nbsp;1 is about.</li>
     <li>Buy one deck of cards and <strong>test a single sticker on it before you sticker fifty.</strong></li>
   </ul>
 
@@ -104,7 +188,7 @@
   nothing and is most of the difference between a box that survives a four-year-old and one that
   comes back in pieces.</p>
 
-  <h2>The stages</h2>
+  <h2 id="stages">The stages</h2>
   <p style="color:var(--muted);font-size:14.5px">Nine, counting the one before the first.</p>
 
   <div class="stage">
@@ -217,7 +301,18 @@
   <script type="module">
   const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const bom = await (await fetch('/parts.json')).json();
-  const need = bom.tools.filter((t) => t.owned === false && !t.optional);
+  const buy = (t) => t.owned === false && !t.optional;
+  const wave = (n) => [...bom.parts.filter((p) => p.wave === n),
+                       ...bom.tools.filter((t) => t.wave === n && buy(t))];
+  for (const n of [1, 2]) {
+    const items = wave(n);
+    document.getElementById(`w${n}-total`).textContent =
+      `$${items.reduce((a, x) => a + x.usd, 0)}`;
+    document.getElementById(`w${n}-list`).textContent =
+      items.map((x) => x.name.split(' — ')[0].split(' (')[0].split(',')[0]).join(' · ')
+      + (n === 2 ? ' · the enclosure' : '');
+  }
+  const need = bom.tools.filter(buy);
   document.getElementById('bench-short').innerHTML =
     `Short version: <strong>$${need.reduce((n, t) => n + t.usd, 0)}</strong> of things not already `
     + `on the bench — ${need.map((t) => esc(t.name.split(' — ')[0].split(' (')[0].split(',')[0])).join(', ')}. `

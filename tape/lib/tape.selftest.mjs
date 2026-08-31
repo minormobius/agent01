@@ -474,6 +474,30 @@ t('the enclosure routes keep metal away from the reader', () => {
   assert.ok(parts.enclosure.some((e) => e.sources.some((s) => s.status === 'ok')));
 });
 
+t('the order splits so that wave two depends on what wave one measures', () => {
+  const all = [...parts.parts, ...parts.tools];
+  for (const x of all) assert.ok([1, 2].includes(x.wave), `${x.id} has no wave`);
+
+  // Wave one has to contain everything needed to answer the read-range question,
+  // because that answer is what wave two is waiting on. If the reader or the tags
+  // ever drift into wave two the split stops meaning anything.
+  for (const id of ['nfc', 'mcu', 'tags', 'deck']) {
+    assert.equal(parts.parts.find((p) => p.id === id).wave, 1, `${id} must be in wave one`);
+  }
+  // And wave two must be the things that answer can change.
+  for (const id of ['charger', 'cell', 'boost']) {
+    assert.equal(parts.parts.find((p) => p.id === id).wave, 2, `${id} should wait`);
+  }
+  const buy = (t) => t.owned === false && !t.optional;
+  assert.equal(parts.tools.find((t) => t.id === 'crimper').wave, 2,
+    'nothing gets crimped until the panel layout is known');
+  const w1 = [...parts.parts.filter((p) => p.wave === 1), ...parts.tools.filter((t) => t.wave === 1 && buy(t))];
+  const w2 = [...parts.parts.filter((p) => p.wave === 2), ...parts.tools.filter((t) => t.wave === 2 && buy(t))];
+  assert.ok(w1.length > 0 && w2.length > 0);
+  assert.ok(w2.reduce((n, x) => n + x.usd, 0) > 50,
+    'if wave two is trivial, splitting the order is theatre');
+});
+
 // ------------------------------------------------------------ power chain --
 
 t('the power chain the BOM buys is the one the budget assumes', () => {
