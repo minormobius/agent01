@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>tape — firmware</title>
+<meta name="description" content="What runs on the box: five components, one store, and the rule that ingest is only awake when nothing is playing.">
+<link rel="stylesheet" href="/styles.css"></head><body>
+<div class="topbar"><div class="topbar-inner">
+  <a class="brand" href="/">tape<span class="dot">.</span><small>card audio player</small></a>
+  <nav class="navlinks">
+    <a href="/design/">design</a><a href="/hardware/">hardware</a><a href="/firmware/" aria-current="page">firmware</a>
+    <a href="/studio/">studio</a><a href="/tags/">cards</a>
+    <a href="/sim/">simulator</a><a href="/build/">build</a>
+  </nav>
+</div></div>
+<main class="narrow">
+  <h1>Firmware</h1>
+  <p class="lede">Five components and one store. Specified here, written once the brain is chosen
+  &mdash; but the parts that are portable across every candidate brain are already written, as
+  JavaScript, in <code>tape/lib/</code>, and tested.</p>
+
+  <div class="note"><strong>Status: specified, not written.</strong> The data model and the wire
+  protocol exist as tested code today; the C or Python around them waits on
+  <a href="/hardware/">component selection</a>.</div>
+
+  <h2>Components</h2>
+  <pre><code>CardWatcher   poll the reader at 8 Hz → present / absent, debounced
+              a card is only "gone" after 3 consecutive missed reads
+Library       manifest.json → binary index, cached until mtime changes
+              card id → playlist → track files → resume position
+Player        queue · decode · volume · save position every 15 s and on removal
+  OutputStage   begin() · write(pcm) · setVolume()      ← one interface
+                I²S → DAC → amp   (default)  |  A2DP source (optional)
+Controls      debounced back / next, volume pot with a hard end stop
+Ingest        HTTP: serves the studio from the SD card, plus /api/*</code></pre>
+
+  <h2>The rule</h2>
+  <p><strong>Ingest is awake only when nothing is playing.</strong> WiFi comes up when the box is
+  idle and goes down when a card lands. That removes the ESP32&rsquo;s WiFi/Bluetooth coexistence
+  problem, removes SD contention between the decoder and the uploader, and removes a whole class of
+  audio glitch &mdash; at no cost anyone notices, because nobody uploads a story while their child is
+  listening to one.</p>
+
+  <h2>State machine</h2>
+  <pre><code>BOOT ──▶ IDLE ──card arrives──▶ PLAYING ──track ends, none left──▶ FINISHED
+          ▲  │                     │  ▲                                │
+          │  │                     │  └────── back / next ─────────────┘
+          │  └──enrol requested──▶ ENROLLING ──blank tag written──▶ IDLE
+          │                                                             
+          └──────────── card leaves (save position) ────────────────────┘
+
+IDLE       WiFi up, ingest serving, reader polling
+PLAYING    WiFi down, ingest asleep, audio out live
+ENROLLING  armed for 60 s; the next blank tag on the pad is written and bound
+FINISHED   card still on the pad, nothing left to play; LED off, no auto-repeat</code></pre>
+
+  <h2>What is already written and tested</h2>
+  <p>The model is shared between the firmware and the studio so the two cannot drift, and it lives
+  in this repository as dependency-free ES modules that run in a browser and in node:</p>
+  <ul>
+    <li><code>lib/tag.js</code> &mdash; the card byte layout, Crockford base32 ids, the NDEF records,
+      and the size assertion that keeps NTAG213 the target</li>
+    <li><code>lib/catalog.js</code> &mdash; the manifest, SD paths, validation, orphan sweep</li>
+    <li><code>lib/protocol.js</code> &mdash; the HTTP API, the SSE events, the three transports</li>
+    <li><code>lib/tape.selftest.mjs</code> &mdash; 19 known-answer checks, run by the repo&rsquo;s
+      preflight and again by the deploy workflow before anything ships</li>
+  </ul>
+  <p>Porting the model to the box is then a transcription with a test suite to check it against,
+  rather than a second design.</p>
+
+  <h2>The API the box serves</h2>
+  <pre><code>GET    /api/hello              version handshake
+GET    /api/manifest           the catalogue
+GET    /api/events             SSE: card | playback | enrolled | ingest | error
+POST   /api/title              upload a recording
+DELETE /api/title/:titleId
+PUT    /api/card/:cardId       bind a card to a playlist
+DELETE /api/card/:cardId
+POST   /api/enroll             write the next blank tag on the pad
+POST   /api/say                speak a line through the box</code></pre>
+  <p>Plus the studio itself, served from <code>/tape/studio/</code> on the SD card &mdash; the same
+  bytes as <a href="/studio/">the copy on this site</a>, because
+  <a href="/design/#mixed">an HTTPS page cannot reach the box</a>.</p>
+</main>
+<footer><div class="inner"><strong>tape</strong> &middot; part of <a href="https://mino.mobi">mino.mobi</a> &middot; <a href="/">home</a> &middot; <a href="/design/">design record</a></div></footer>
+</body></html>

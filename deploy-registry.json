@@ -1404,6 +1404,19 @@
         "plant/**",
         ".github/workflows/deploy-plant.yml"
       ]
+    },
+    {
+      "surface": "tape",
+      "dir": "tape",
+      "endpoint": "tape.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/rfid-book-reader-design-ainq0k",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "tape/**"
+      ],
+      "note": "The open-source NFC card audio player — a Toniebox you build for the price of the tags. Thin assets Worker (worker `tape`, custom_domain tape.mino.mobi) — no build/D1/AI/secrets… (full description: tape/CLAUDE.md)"
     }
   ],
   "unmanaged": {

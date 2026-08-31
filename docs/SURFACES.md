@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **86 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **87 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -104,6 +104,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `root` | frontend | `.` | [minomobi.com / mino.mobi (landing)](https://minomobi.com) | `claude/root-deploy-spec-doc-f3ucht` | [`CLAUDE.md`](../CLAUDE.md) | Thread analysis. Tidy-tree canvas view of any Bluesky conversation with contributor weighting and YAML export for LLMs. |
 | `scores` | backend | `workers/scores` | [scores.mino.mobi](https://scores.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`workers/scores/CLAUDE.md`](../workers/scores/CLAUDE.md) | Shared multi-game leaderboard worker. One generic game_scores table (own D1: mino-scores-db) keyed by game slug; identity delegated to auth.mino.mobi bearer tokens… |
 | `splice` | frontend | `splice` | [splice.mino.mobi](https://splice.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`splice/CLAUDE.md`](../splice/CLAUDE.md) | Molecular-biology workbench—restriction mapping, PCR, and cloning compiled to WASM and wrapped as a campaign puzzle game. |
+| `tape` | frontend | `tape` | [tape.mino.mobi](https://tape.mino.mobi) | `claude/rfid-book-reader-design-ainq0k` | [`tape/CLAUDE.md`](../tape/CLAUDE.md) | The open-source card audio player, designed in the open. A Toniebox charges $19.99 a story and a Yoto card $9.99… |
 | `tide` | frontend | `tide` | [tide.mino.mobi](https://tide.mino.mobi) | `claude/nave-unified-web-6plmae` | [`tide/CLAUDE.md`](../tide/CLAUDE.md) | The THERMODYNAMICS wing of the O'Neill cylinder modelling package (split out of biome). Assets worker `tide` serving directory 'tide'… |
 | `time` | frontend | `time` | [time.mino.mobi](https://time.mino.mobi) | `claude/audit-time-deploy-ag144t` | [`time/CLAUDE.md`](../time/CLAUDE.md) | The Mino Times—agentic biotech intelligence. Research, articles, editorial panels, and podcast. |
 | `tjs` | frontend | `tjs` | [tjs.mino.mobi](https://tjs.mino.mobi) | `claude/dragonfly-pursuit-sim-pv3e8p` | [`tjs/CLAUDE.md`](../tjs/CLAUDE.md) | tjs.mino.mobi — three.js workbenches… (full description: tjs/CLAUDE.md) |

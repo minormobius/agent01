@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>tape — hardware</title>
+<meta name="description" content="The bill of materials, and the six open questions that have to be answered before it can be written.">
+<link rel="stylesheet" href="/styles.css"></head><body>
+<div class="topbar"><div class="topbar-inner">
+  <a class="brand" href="/">tape<span class="dot">.</span><small>card audio player</small></a>
+  <nav class="navlinks">
+    <a href="/design/">design</a><a href="/hardware/" aria-current="page">hardware</a><a href="/firmware/">firmware</a>
+    <a href="/studio/">studio</a><a href="/tags/">cards</a>
+    <a href="/sim/">simulator</a><a href="/build/">build</a>
+  </nav>
+</div></div>
+<main class="narrow">
+  <h1>Hardware</h1>
+  <p class="lede">This page is where the bill of materials goes. It is empty on purpose: the
+  <a href="/design/">design record</a> fixes the <em>shape</em> of every part, and this fixes the
+  actual chips. Doing them in that order is what stops a shortlist from being an opinion.</p>
+
+  <div class="note"><strong>Status: next round.</strong> Six questions are open, and each is written
+  up with its candidates and its trade-off in <a href="/design/#open">&sect;7 of the design
+  record</a>. Nothing has been bought.</div>
+
+  <h2>What the architecture already fixes</h2>
+  <p>These are settled, and any part that violates one is out regardless of price:</p>
+  <ul>
+    <li><strong>13.56 MHz NFC, ISO 14443A.</strong> Not 125 kHz &mdash; a phone can neither read nor
+      write those, which removes the entire phone-side pipeline. <a href="/design/#nfc">Why.</a></li>
+    <li><strong>NTAG213 is the floor.</strong> Everything is sized to its 144 bytes, and a test
+      fails the build if that ever stops being true. That is what makes a story cost 20&cent;.</li>
+    <li><strong>An SD card, not on-board flash.</strong> Audio is megabytes per book; a 32 GB card
+      holds ~3,100 hours and costs less than the flash it replaces.</li>
+    <li><strong>Under two seconds from power to a working card.</strong> This is a hard requirement
+      and it is the main thing standing between us and a Raspberry Pi. <a href="/design/#interaction">Why.</a></li>
+    <li><strong>A recessed card nest</strong> that positions the card by geometry. Read range is
+      1&ndash;4 cm and orientation matters; a four-year-old aims badly. This is an enclosure
+      requirement derived from the radio, and it is free now and expensive after the case is
+      printed.</li>
+    <li><strong>Volume is a potentiometer with an end stop</strong>, trimmed once to a maximum a
+      child cannot exceed.</li>
+    <li><strong>The audio output is a swappable stage</strong> behind one small interface, so Q1 can
+      be answered late and changed cheaply.</li>
+  </ul>
+
+  <h2>The shortlist, unpriced</h2>
+  <p>Carried over from the survey so the next round starts with candidates rather than a blank page.
+  The trade-offs behind each are in <a href="/design/#open">&sect;7</a>.</p>
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Block</th><th>Candidates</th><th>The thing that decides it</th></tr></thead>
+    <tbody>
+      <tr><td>Brain</td><td>ESP32-WROOM &middot; ESP32-S3 &middot; Pi Zero 2 W</td><td>Q1 does. Bluetooth output forces the old ESP32; wired output opens the whole modern line. Boot time rules out the Pi unless something else forces it.</td></tr>
+      <tr><td>NFC reader</td><td>PN532 &middot; MFRC522</td><td>Antenna quality and read reliability in a child&rsquo;s hands, more than the $4.</td></tr>
+      <tr><td>Audio out</td><td>I&sup2;S DAC + class-D amp + full-range driver &middot; A2DP to a BT speaker</td><td>Latency, pairing, and whether the box is one object or two.</td></tr>
+      <tr><td>Storage</td><td>microSD on the brain&rsquo;s own SPI &middot; a separate module</td><td>Whether the reader and the card share a bus, and what that does to poll jitter.</td></tr>
+      <tr><td>Power</td><td>USB-C wall &middot; 18650 + charge/protect</td><td>Whether it has to be carried to bed. A battery adds a safety review.</td></tr>
+      <tr><td>Enclosure</td><td>3D print &middot; laser-cut ply &middot; a wooden craft box</td><td>The nest geometry, and whether a second one can be made by someone else.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</main>
+<footer><div class="inner"><strong>tape</strong> &middot; part of <a href="https://mino.mobi">mino.mobi</a> &middot; <a href="/">home</a> &middot; <a href="/design/">design record</a></div></footer>
+</body></html>

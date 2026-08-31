@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>tape — cards</title>
+<meta name="description" content="What is on a tape card, byte by byte, and a writer that puts it there over Web NFC.">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-inner">
+  <a class="brand" href="/">tape<span class="dot">.</span><small>card audio player</small></a>
+  <nav class="navlinks">
+    <a href="/design/">design</a><a href="/hardware/">hardware</a><a href="/firmware/">firmware</a>
+    <a href="/studio/">studio</a><a href="/tags/" aria-current="page">cards</a>
+    <a href="/sim/">simulator</a><a href="/build/">build</a>
+  </nav>
+</div></div>
+
+<main class="narrow">
+  <div id="found" hidden></div>
+
+  <h1>Cards</h1>
+  <p class="lede">A card costs about twenty cents and holds a 64-bit number. Here is exactly what
+  goes on it, and a writer that puts it there.</p>
+
+  <div class="card">
+    <h3>Make a card</h3>
+    <label for="label">Label &mdash; a fallback name, so an unknown card can announce itself</label>
+    <input type="text" id="label" value="bedtime" maxlength="40" placeholder="bedtime">
+    <label for="id">Card id</label>
+    <div class="row">
+      <input type="text" id="id" style="flex:1;min-width:200px;font-family:var(--mono)">
+      <button id="reroll">new id</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label style="margin:0"><input type="checkbox" id="f-resume" checked> resume where it stopped</label>
+      <label style="margin:0"><input type="checkbox" id="f-shuffle"> shuffle the playlist</label>
+      <label style="margin:0"><input type="checkbox" id="f-locked"> lock against rewriting</label>
+    </div>
+    <div class="row" style="margin-top:16px">
+      <button class="primary" id="write">Write this to a card</button>
+      <button id="copy">Copy the id</button>
+    </div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <h2>What that produces</h2>
+  <p>Two NDEF records. The first is a URL, so that a card found under the sofa and tapped on any
+  phone &mdash; no app, box switched off &mdash; opens this page and says what it is. The second is
+  the compact record the box reads.</p>
+
+  <pre id="dump">&hellip;</pre>
+
+  <div id="fit" class="note"></div>
+
+  <h2>Why so small?</h2>
+  <p>Because it has to fit an NTAG213, the 20&cent; sticker, which has <strong>144 bytes</strong> of
+  user memory. That is not a limitation we are working around &mdash; it is the design.
+  A minute of a parent reading is 183,600 bytes; the biggest cheap tag on the market holds
+  <strong>0.3 seconds</strong> of speech. So the card is a pointer and the box owns the audio, which
+  is also how a Toniebox and a Yoto card work.
+  <a href="/design/#pointer">The full argument, with the table.</a></p>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Tag</th><th>User memory</th><th>Fits a tape card?</th></tr></thead>
+    <tbody id="captable"></tbody>
+  </table>
+  </div>
+
+  <h2 id="nowebnfc">No Web NFC? That is the normal case</h2>
+  <p>Writing tags from a browser works on Chrome for Android and nowhere else &mdash; not Safari,
+  not iOS at all, not any desktop browser. So <strong>the box writes cards too</strong>, and that is
+  the primary path rather than the fallback: in the studio, press <em>enrol a card</em>, put a blank
+  card on the pad, and the box writes it. Your phone only ever needs a microphone.</p>
+
+  <script type="module">
+  import * as tag from '/lib/tag.js';
+
+  const $ = (id) => document.getElementById(id);
+  const status = $('status');
+
+  function flags() {
+    return ($('f-resume').checked ? tag.FLAG_RESUME : 0)
+         | ($('f-shuffle').checked ? tag.FLAG_SHUFFLE : 0)
+         | ($('f-locked').checked ? tag.FLAG_LOCKED : 0);
+  }
+  function card() {
+    return { id: $('id').value.trim().toUpperCase(), label: $('label').value, flags: flags() };
+  }
+
+  const hex = (b) => [...b].map((x) => x.toString(16).padStart(2, '0')).join(' ');
+
+  function render() {
+    let c, records, body;
+    try {
+      c = card();
+      body = tag.encodeCard(c);
+      records = tag.ndefRecords(c);
+    } catch (e) {
+      $('dump').textContent = String(e.message);
+      return;
+    }
+    const total = tag.ndefByteLength(records);
+    $('dump').textContent =
+      `record 1   url        ${records[0].data}\n` +
+      `record 2   ${tag.CARD_EXTERNAL_TYPE}\n\n` +
+      `           ${hex(body.subarray(0, 2))}                                magic 'TP'\n` +
+      `           ${hex(body.subarray(2, 3))}                                      version ${body[2]}\n` +
+      `           ${hex(body.subarray(3, 4))}                                      flags` +
+        `${(flags() & tag.FLAG_SHUFFLE) ? ' shuffle' : ''}` +
+        `${(flags() & tag.FLAG_RESUME) ? ' resume' : ''}` +
+        `${(flags() & tag.FLAG_LOCKED) ? ' locked' : ''}\n` +
+      `           ${hex(body.subarray(4, 12))}   card id ${c.id}\n` +
+      `           ${hex(body.subarray(12, 13))}                                      label length ${body[12]}\n` +
+      `           ${hex(body.subarray(13)).replace(/(.{47})/g, '$1\n           ')}\n` +
+      `             ${JSON.stringify(c.label)}\n\n` +
+      `on the tag, TLV wrapper included: ${total} bytes`;
+
+    const cap = tag.TAG_CAPACITY[tag.TARGET_TAG];
+    $('fit').innerHTML = total <= cap
+      ? `<strong>${total} of ${cap} bytes</strong> on an ${tag.TARGET_TAG}. ${cap - total} to spare.`
+      : `<strong>${total} bytes &mdash; too big for an ${tag.TARGET_TAG} (${cap}).</strong> Shorten the label.`;
+
+    $('captable').innerHTML = Object.entries(tag.TAG_CAPACITY)
+      .sort((a, b) => a[1] - b[1])
+      .map(([name, bytes]) => `<tr><td>${name}${name === tag.TARGET_TAG ? ' <span class="pill on">our floor</span>' : ''}</td>` +
+        `<td class="num">${bytes} B</td>` +
+        `<td>${bytes >= total ? '<span class="pill yes">yes</span>' : '<span class="pill no">no</span>'}</td></tr>`).join('');
+  }
+
+  $('reroll').onclick = () => { $('id').value = tag.newCardId(); render(); };
+  for (const el of ['label', 'id', 'f-resume', 'f-shuffle', 'f-locked']) $(el).addEventListener('input', render);
+
+  $('copy').onclick = async () => {
+    await navigator.clipboard.writeText($('id').value);
+    status.className = 'status ok'; status.textContent = 'Copied.';
+  };
+
+  $('write').onclick = async () => {
+    if (typeof NDEFReader !== 'function') {
+      status.className = 'status err';
+      status.innerHTML = 'This browser cannot write NFC tags &mdash; Web NFC is Chrome-on-Android only. '
+        + '<a href="#nowebnfc">Let the box write it instead</a>, which is the path that works everywhere.';
+      return;
+    }
+    status.className = 'status'; status.textContent = 'Hold a blank card against the back of the phone…';
+    try {
+      await new NDEFReader().write({ records: tag.ndefRecords(card()) });
+      status.className = 'status ok';
+      status.textContent = `Written. Card ${$('id').value} is now "${$('label').value}".`;
+    } catch (e) {
+      status.className = 'status err';
+      status.textContent = `Did not write: ${e.message}`;
+    }
+  };
+
+  // /c/<id> — the URL every card carries. Show what we know about it.
+  const m = location.pathname.match(/^\/c\/([^/]+)\/?$/);
+  if (m && tag.isCardId(m[1])) {
+    const id = m[1].toUpperCase();
+    $('id').value = id;
+    const box = $('found');
+    box.hidden = false;
+    box.className = 'note';
+    box.innerHTML = `<strong>Card ${id}.</strong> That is all a card carries &mdash; this page cannot `
+      + `know what is on it, because only your box does. Put it on the box and it will play; or use `
+      + `the form below to point it at something else.`;
+  } else {
+    $('id').value = tag.newCardId();
+  }
+  render();
+  </script>
+</main>
+
+<footer><div class="inner">
+  <strong>tape</strong> &middot; part of <a href="https://mino.mobi">mino.mobi</a> &middot;
+  <a href="/">home</a> &middot; <a href="/design/#pointer">why the card holds no audio</a>
+</div></footer>
+
+</body>
+</html>

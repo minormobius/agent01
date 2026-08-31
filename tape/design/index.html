@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>tape — design record</title>
+<meta name="description" content="Product and site architecture for an open-source NFC card audio player: why the card holds no audio, why Bluetooth is probably the wrong default, and why the box has to serve its own studio.">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-inner">
+  <a class="brand" href="/">tape<span class="dot">.</span><small>card audio player</small></a>
+  <nav class="navlinks">
+    <a href="/design/" aria-current="page">design</a>
+    <a href="/hardware/">hardware</a>
+    <a href="/firmware/">firmware</a>
+    <a href="/studio/">studio</a>
+    <a href="/tags/">cards</a>
+    <a href="/sim/">simulator</a>
+    <a href="/build/">build</a>
+  </nav>
+</div></div>
+
+<main>
+  <h1>Design record</h1>
+  <p class="lede">Product architecture, site architecture, and the four assumptions that do not
+  survive contact with the datasheets. Written before any parts are bought, which is the only time
+  writing it is worth anything.</p>
+
+  <div class="card">
+    <h3>Contents</h3>
+    <ol>
+      <li><a href="#brief">The brief, and what &ldquo;done&rdquo; means</a></li>
+      <li><a href="#landscape">The landscape: what exists and what it costs</a></li>
+      <li><a href="#corrections">Four corrections</a> &mdash;
+        <a href="#pointer">the card holds no audio</a> &middot;
+        <a href="#nfc">RFID is the wrong radio</a> &middot;
+        <a href="#bluetooth">Arduino cannot, and Bluetooth probably should not</a> &middot;
+        <a href="#mixed">the phone cannot reach the box</a></li>
+      <li><a href="#product">Product architecture</a></li>
+      <li><a href="#interaction">The interaction model</a></li>
+      <li><a href="#site">Site architecture</a></li>
+      <li><a href="#open">Open questions for component selection</a></li>
+      <li><a href="#log">Decision log</a></li>
+      <li><a href="#sources">Sources</a></li>
+    </ol>
+  </div>
+
+  <h2 id="brief">1. The brief, and what &ldquo;done&rdquo; means</h2>
+
+  <p>A four-year-old has discovered books on tape. The cassette workflow it replaces was good in a
+  way the modern products are not: the physical object <em>was</em> the content, you could hand it
+  to a child, and a grandparent could make one.</p>
+
+  <p><strong>Done, for version one:</strong> a child can take a card off a shelf, put it on a box,
+  and hear a person they know reading a book; take the card off and it stops; put it back and it
+  carries on. A parent can record a new book on a phone in under five minutes without reading any
+  documentation, and turn it into a card without buying anything but the card.</p>
+
+  <p>Everything else &mdash; battery, buttons, enclosure, multiple boxes, remote grandparents &mdash;
+  is version two, and the architecture below is arranged so that none of them require a rewrite.</p>
+
+  <h2 id="landscape">2. The landscape</h2>
+
+  <h3>What you can buy</h3>
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Product</th><th>Player</th><th>Per story</th><th>How the card works</th></tr></thead>
+    <tbody>
+      <tr><td>Toniebox 2</td><td class="num">$129.99</td><td class="num">$19.99</td><td>NFC figurine; audio downloads from the vendor cloud on first play, then cached</td></tr>
+      <tr><td>Yoto Player (3rd gen)</td><td class="num">$109.99</td><td class="num">$9.99&ndash;$14.99</td><td>NFC card carrying a <em>link</em>; audio streams or caches from the vendor</td></tr>
+      <tr><td>Yoto Mini</td><td class="num">$79.99</td><td class="num">$9.99&ndash;$14.99</td><td>as above</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Note what both of them do with the card: <strong>the card is a pointer, not a container.</strong>
+  Neither commercial product puts audio on the tag either. Over two years a Toniebox with a modest
+  collection runs $610&ndash;$850, a Yoto $350&ndash;$470 &mdash; almost all of it content.</p>
+
+  <h3>What has already been built by other people</h3>
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Project</th><th>Brain</th><th>Shape</th><th>What we take from it</th></tr></thead>
+    <tbody>
+      <tr><td><strong>TonUINO</strong></td><td>Arduino Nano</td><td>MFRC522 reader + DFPlayer&nbsp;Mini MP3 module + buttons</td><td>Proof that the cheap, instant-on, no-OS version works. Boots in under a second, sips power. Its limit is that a DFPlayer is a sealed black box: no WiFi ingest, so new content means pulling the SD card.</td></tr>
+      <tr><td><strong>Phoniebox</strong> (RPi&nbsp;Jukebox&nbsp;RFID)</td><td>Raspberry Pi</td><td>USB RFID reader, mpd, web UI, Spotify/streams</td><td>Proof that the web-managed version is what parents actually want. Its limit is boot time &mdash; well over a minute from cold &mdash; and a filesystem a toddler can corrupt by pulling the plug.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>The gap between them is the design space we are in: <strong>TonUINO&rsquo;s instant-on with
+  Phoniebox&rsquo;s ingest story.</strong> That is the whole product thesis, and it is what pushes
+  us toward an ESP32-class part rather than either an AVR or a full Linux box.</p>
+
+  <h2 id="corrections">3. Four corrections</h2>
+  <p>The obvious version of this project contains four assumptions. Each is wrong, and each one
+  being wrong makes the design <em>simpler</em>, not harder.</p>
+
+  <h3 id="pointer">3.1 &nbsp;The card holds no audio &mdash; and cannot, by three orders of magnitude</h3>
+
+  <p>The intuition that audio is small and tags are big is exactly inverted. Here is the arithmetic
+  laid side by side:</p>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Tag</th><th>User memory</th><th>Speech it could hold at 24&nbsp;kbps</th></tr></thead>
+    <tbody>
+      <tr><td>MIFARE Ultralight</td><td class="num">48 B</td><td class="num">0.016 s</td></tr>
+      <tr><td><strong>NTAG213</strong> (the 20&cent; sticker)</td><td class="num">144 B</td><td class="num">0.048 s</td></tr>
+      <tr><td>NTAG215 (the Amiibo chip)</td><td class="num">504 B</td><td class="num">0.168 s</td></tr>
+      <tr><td>NTAG216 (biggest cheap tag)</td><td class="num">888 B</td><td class="num">0.30 s</td></tr>
+      <tr><td>MIFARE DESFire EV3 8K (expensive)</td><td class="num">8,192 B</td><td class="num">2.7 s</td></tr>
+      <tr><td colspan="3" style="border-top:2px solid var(--line)"></td></tr>
+      <tr><td>One minute of a parent reading</td><td class="num">183,600 B</td><td class="num">&mdash;</td></tr>
+      <tr><td>A 20-minute picture book</td><td class="num">3,672,000 B</td><td class="num">&mdash;</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>A picture book is <strong>4,100&times;</strong> the biggest cheap tag. There is no clever codec
+  that closes a gap that size; at the bitrate where 20 minutes fits in 888 bytes you have 6 bits per
+  second, which is roughly enough to transmit the title in Morse.</p>
+
+  <p><strong>So the card carries a 64-bit identifier, and the box owns the audio.</strong> Four
+  things fall out of that, all of them good:</p>
+
+  <ul>
+    <li><strong>Many books per card is free.</strong> It was on the list as a stretch goal. In a
+      pointer design a card maps to a <em>playlist</em>, and a card holding six books differs from a
+      card holding one by the length of an array. It is in the data model from day one because
+      leaving it out would have taken extra work.</li>
+    <li><strong>Re-pointing a card never touches the card.</strong> Changing what a card plays is an
+      edit to a JSON file on the box. The card is never rewritten, never wears out, and never has to
+      be found in order to be changed.</li>
+    <li><strong>The cheapest tag on the market is the target.</strong> Everything is sized to fit
+      NTAG213&rsquo;s 144 bytes, which is what makes the marginal story cost 20&cent;.</li>
+    <li><strong>Storage stops being a topic.</strong> A 32&nbsp;GB SD card holds about
+      <strong>3,100 hours</strong> of speech &mdash; on the order of nine thousand picture books.
+      We will never fill it and should never optimise for it.</li>
+  </ul>
+
+  <p>What actually goes on the tag is two NDEF records:</p>
+  <pre><code>record 1  URL         https://tape.mino.mobi/c/&lt;id&gt;      ~35 bytes
+          &mdash; so a card found under the sofa, tapped on any phone, with no app
+            installed and the box switched off, says what it is.
+
+record 2  external    minomobi.com:tape                  13&ndash;45 bytes
+          0   'T' 'P'        magic
+          2   version        1
+          3   flags          shuffle | resume | locked
+          4   card id        8 random bytes
+          12  label length
+          13  label          UTF-8, up to 32 bytes &mdash; a fallback name so an
+                             unknown card can still announce itself
+
+          total on tag, worst case: 103 of NTAG213's 144 bytes.</code></pre>
+
+  <p>That last line is asserted by a test, not by hope &mdash;
+  <code>tape/lib/tape.selftest.mjs</code> fails the build if a maximal card ever stops fitting an
+  NTAG213, because the day it stops fitting is the day the project gets more expensive.</p>
+
+  <p>The id is rendered as 13 characters of <a href="https://www.crockford.com/base32.html">Crockford
+  base32</a>: no I, L, O or U, and the decoder reads a hand-written <code>O</code> as
+  <code>0</code>. That is for the case where a parent writes the id on the back of the card with a
+  biro.</p>
+
+  <h3 id="nfc">3.2 &nbsp;&ldquo;RFID&rdquo; is the wrong radio &mdash; this is an NFC project</h3>
+
+  <p>The two things sold as &ldquo;RFID reader modules&rdquo; are not interchangeable here:</p>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th></th><th>125 kHz (EM4100 / T5577)</th><th>13.56 MHz NFC (NTAG21x)</th></tr></thead>
+    <tbody>
+      <tr><td>Tag cost</td><td class="num">~$0.10</td><td class="num">~$0.20</td></tr>
+      <tr><td>Reader cost</td><td class="num">~$3 (RDM6300)</td><td class="num">~$2&ndash;$6</td></tr>
+      <tr><td>A phone can read it</td><td><span class="pill no">no</span></td><td><span class="pill yes">yes</span></td></tr>
+      <tr><td>A phone can write it</td><td><span class="pill no">no</span></td><td><span class="pill yes">yes</span> (Android)</td></tr>
+      <tr><td>Carries structured data</td><td>a fixed serial number only</td><td>NDEF records</td></tr>
+      <tr><td>Tap-to-open-a-URL</td><td><span class="pill no">no</span></td><td><span class="pill yes">yes</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Saving ten cents a card on 125&nbsp;kHz costs the entire phone-side pipeline and the
+  card-tells-you-what-it-is affordance. <strong>13.56&nbsp;MHz, ISO&nbsp;14443A, NTAG213 or
+  better.</strong> Not negotiable; it is the hinge the rest of the product hangs on.</p>
+
+  <p>One consequence to design for rather than discover: <strong>read range is short and a
+  four-year-old aims badly.</strong> These tags work over roughly 1&ndash;4 cm and care about
+  orientation. The enclosure needs a recessed nest that puts the card in the right place by
+  geometry, not by the child being careful. That is an enclosure requirement derived from the
+  radio, and it is the kind of thing that is free now and expensive after the case is printed.</p>
+
+  <h3 id="bluetooth">3.3 &nbsp;Arduino cannot do Bluetooth audio, and Bluetooth is probably the wrong default anyway</h3>
+
+  <p><strong>The factual half.</strong> No classic Arduino board has a Bluetooth radio at all. Of the
+  parts that do:</p>
+  <ul>
+    <li><strong>ESP32</strong> (the original WROOM/WROVER) has Bluetooth Classic and can act as an
+      <em>A2DP source</em> &mdash; it can be the thing that sends audio to a Bluetooth speaker. This
+      works; <code>pschatzmann/ESP32-A2DP</code> plus <code>arduino-audio-tools</code> is the known
+      path, and it decodes MP3 or Opus off an SD card into the stream.</li>
+    <li><strong>ESP32-S3, -C3, -C6, -H2 are BLE-only.</strong> They have no Bluetooth Classic and
+      therefore <em>cannot do A2DP at all.</em> This is the trap: the newest, cheapest, most
+      available, best-supported modules are exactly the ones that cannot do the thing. If we commit
+      to Bluetooth output we are committing to a 2016 silicon generation for the life of the
+      project.</li>
+    <li>The A2DP library also carries a live maintenance tax &mdash; it is known to break on newer
+      Arduino-ESP32 cores, with the working advice being to pin an older core. For a project meant
+      to be built by strangers from a README in three years, a pinned-to-an-old-toolchain dependency
+      is a real cost.</li>
+    <li>WiFi and Bluetooth share one radio on the ESP32 and coexistence is genuinely poor. Uploading
+      a recording while a story plays would be a bad time.</li>
+  </ul>
+
+  <p><strong>The judgement half.</strong> Bluetooth was the starting assumption for this build, and
+  the concern is specific rather than aesthetic:</p>
+  <ul>
+    <li>A Bluetooth speaker is a <em>second device with its own battery and its own power
+      button</em>. The failure mode is a four-year-old putting a card on a silent box.</li>
+    <li>A2DP adds roughly 150&ndash;400&nbsp;ms of latency. For playing a story that is invisible.
+      For &ldquo;I put the card on and nothing happened yet&rdquo; and for button feedback, it is
+      the difference between a toy that feels alive and one that feels broken.</li>
+    <li>Pairing is a state that can be lost, and speakers helpfully re-connect to whichever phone
+      walked into the room.</li>
+    <li>It is $25&ndash;$40 and one more thing to charge, to lose, and to explain.</li>
+  </ul>
+
+  <p>An I&sup2;S DAC, a 3&nbsp;W class-D amp and a small full-range driver inside the box come to
+  roughly $8, have no latency, no pairing, and one power switch, and make the box a single object a
+  child can carry.</p>
+
+  <div class="note">
+    <strong>Recommendation, not a veto.</strong> Default the reference build to wired audio inside
+    the box, and keep Bluetooth as a <em>swappable output stage</em> &mdash; one small interface
+    (<code>begin / write(pcm) / setVolume</code>) with two implementations, selected at build time.
+    Bluetooth then remains genuinely useful for the cases where it is the right answer: playing a
+    story through the good speaker in the living room, and headphones in the car. If the wired
+    default turns out to be wrong, the cost of changing our mind is one file. This is flagged for
+    decision at component selection, not decided here.
+  </div>
+
+  <h3 id="mixed">3.4 &nbsp;The phone cannot talk to the box &mdash; so the box serves the studio</h3>
+
+  <p>The natural design is: a recording page on <code>tape.mino.mobi</code> that uploads to the box
+  on the home network. <strong>Browsers will not allow it.</strong> A page served over HTTPS cannot
+  fetch <code>http://tape.local</code>; it is blocked as mixed content, and no header on either side
+  changes that. The box cannot practically hold a real TLS certificate &mdash; it has no public name
+  and no way to renew one.</p>
+
+  <p>Three transports, and the design leans on the first:</p>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Transport</th><th>How</th><th>Needs</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td><strong>LAN</strong></td><td>The box serves the studio itself, over plain HTTP, from its own SD card. Recording and uploading share an origin, so nothing is mixed.</td><td>the box on WiFi</td><td><strong>default.</strong> Zero cloud, zero accounts, works with the internet down</td></tr>
+      <tr><td><strong>Card</strong></td><td>Record here, download the files, write them to the SD card from a computer.</td><td>a card reader</td><td>the fallback that always works</td></tr>
+      <tr><td><strong>Relay</strong></td><td>The studio encrypts the recording in the browser and parks the ciphertext in an inbox the box polls over HTTPS.</td><td>opt-in, both ends online</td><td>the grandparent-in-another-city case. The only path that touches a server, and the server only ever holds a blob it cannot read</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>The same conclusion arrives from a second direction. <strong>Web NFC &mdash; the browser API for
+  writing tags &mdash; ships on Chrome for Android and nothing else.</strong> Not Safari, not iOS at
+  all, not any desktop browser; about 6% of browsers worldwide. Half of all parents cannot write a
+  card from their phone, and never will be able to without a native app.</p>
+
+  <p>So: <strong>the box is the tag writer of record.</strong> <code>POST /api/enroll</code> arms it,
+  the next blank tag laid on the pad gets written, and an event comes back. The phone only ever
+  needs a microphone. Web NFC, where it exists, is a shortcut that skips one step &mdash; never a
+  dependency. This also means the tag-writing hardware is bought once, in the box, rather than being
+  a property of whichever phone happens to be in the room.</p>
+
+  <h2 id="product">4. Product architecture</h2>
+
+  <figure class="scroll-x">
+  <svg viewBox="0 0 880 430" width="880" style="max-width:100%;height:auto" role="img" aria-label="Layered architecture of the box firmware and its inputs and outputs.">
+    <text class="lbl" x="12" y="20" style="fill:var(--muted)">INPUTS</text>
+    <rect class="box hot" x="10" y="32" width="150" height="52" rx="10"/>
+    <text class="lbl" x="26" y="54">card on the pad</text><text class="sub" x="26" y="72">NFC reader, 8 Hz</text>
+    <rect class="box" x="10" y="96" width="150" height="52" rx="10"/>
+    <text class="lbl" x="26" y="118">buttons + volume</text><text class="sub" x="26" y="136">debounced</text>
+    <rect class="box" x="10" y="160" width="150" height="52" rx="10"/>
+    <text class="lbl" x="26" y="182">studio upload</text><text class="sub" x="26" y="200">HTTP, when idle</text>
+
+    <text class="lbl" x="212" y="20" style="fill:var(--muted)">THE BOX</text>
+    <rect class="box" x="200" y="32" width="440" height="366" rx="14"/>
+
+    <rect class="box hot" x="220" y="52" width="180" height="56" rx="10"/>
+    <text class="lbl" x="236" y="76">CardWatcher</text><text class="sub" x="236" y="94">presence, debounced</text>
+
+    <rect class="box" x="420" y="52" width="200" height="56" rx="10"/>
+    <text class="lbl" x="436" y="76">Ingest server</text><text class="sub" x="436" y="94">studio + /api/*, idle only</text>
+
+    <rect class="box hot" x="220" y="128" width="400" height="56" rx="10"/>
+    <text class="lbl" x="236" y="152">Library &mdash; manifest.json &rarr; binary index</text>
+    <text class="sub" x="236" y="170">card id &rarr; playlist &rarr; track files &rarr; resume position</text>
+
+    <rect class="box hot" x="220" y="204" width="400" height="56" rx="10"/>
+    <text class="lbl" x="236" y="228">Player</text>
+    <text class="sub" x="236" y="246">queue &middot; Opus decode &middot; volume &middot; position save every 15 s</text>
+
+    <rect class="box" x="220" y="280" width="400" height="56" rx="10"/>
+    <text class="lbl" x="236" y="304">OutputStage &mdash; one interface, two builds</text>
+    <text class="sub" x="236" y="322">begin() &middot; write(pcm) &middot; setVolume()</text>
+
+    <rect class="box" x="220" y="352" width="190" height="34" rx="8"/>
+    <text class="sub" x="236" y="374" style="fill:var(--ink)">I&sup2;S &rarr; DAC &rarr; amp  (default)</text>
+    <rect class="box" x="430" y="352" width="190" height="34" rx="8"/>
+    <text class="sub" x="446" y="374" style="fill:var(--ink)">A2DP source  (optional)</text>
+
+    <path class="wire hot" d="M160 58 H 219"/>
+    <path class="wire" d="M160 122 H 180 V 232 H 219"/>
+    <path class="wire" d="M160 186 H 190 V 80 H 419"/>
+    <path class="wire hot" d="M420 108 V 128"/>
+    <path class="wire hot" d="M420 184 V 204"/>
+    <path class="wire hot" d="M420 260 V 280"/>
+    <path class="wire" d="M315 336 V 352"/>
+    <path class="wire" d="M525 336 V 352"/>
+
+    <text class="lbl" x="672" y="20" style="fill:var(--muted)">STORE</text>
+    <rect class="box" x="670" y="128" width="200" height="132" rx="10"/>
+    <text class="lbl" x="686" y="152">SD card</text>
+    <text class="sub" x="686" y="176">/tape/manifest.json</text>
+    <text class="sub" x="686" y="194">/tape/audio/&lt;title&gt;/000.opus</text>
+    <text class="sub" x="686" y="212">/tape/studio/  (served)</text>
+    <text class="sub" x="686" y="230">/tape/state/   (resume)</text>
+    <path class="wire hot" d="M620 156 H 670"/>
+    <path class="wire" d="M620 80 H 645 V 200 H 670"/>
+  </svg>
+  <figcaption>Five components, one store. The dashed rule that makes it all work: the ingest server
+  is only awake when nothing is playing.</figcaption>
+  </figure>
+
+  <h3>The rule that keeps it simple</h3>
+  <p><strong>Ingest runs only when nothing is playing.</strong> WiFi comes up when the box is idle
+  and goes down when a card lands. That single rule removes the WiFi/Bluetooth coexistence problem,
+  removes SD contention between the decoder and the uploader, removes a class of audio glitches, and
+  costs nothing a parent would notice &mdash; nobody uploads a story while their child is listening
+  to one.</p>
+
+  <h3>The data model, in three files</h3>
+  <p>The architecture is written as code, not only as prose, so that it is testable and so the
+  firmware and the studio cannot drift apart. All three are dependency-free ES modules that run in a
+  browser and in node:</p>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>File</th><th>Owns</th></tr></thead>
+    <tbody>
+      <tr><td><code>tape/lib/tag.js</code></td><td>What is on a card. Byte layout, Crockford base32 ids, the NDEF records, and the size check that keeps NTAG213 the target.</td></tr>
+      <tr><td><code>tape/lib/catalog.js</code></td><td>The manifest: titles, cards, playlists, SD paths, validation, orphan sweep, and the size arithmetic quoted on this page.</td></tr>
+      <tr><td><code>tape/lib/protocol.js</code></td><td>The box HTTP API, the SSE event list, the three transports, and the mixed-content rule expressed as a function so it is tested rather than remembered.</td></tr>
+      <tr><td><code>tape/lib/tape.selftest.mjs</code></td><td>19 known-answer checks, run by <code>scripts/preflight.mjs</code> and by the deploy workflow before it ships.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>The manifest is the box&rsquo;s entire state, and it is one file:</p>
+  <pre><code>/tape/manifest.json
+{
+  "schema": 1,
+  "titles": {
+    "wild-things": { "title": "Where the Wild Things Are", "reader": "Dad",
+                     "tracks": [ { "file": "/tape/audio/wild-things/000.opus",
+                                   "name": "The whole thing", "seconds": 380 } ] }
+  },
+  "cards": {
+    "4S9NY0QP0TZEC": { "label": "bedtime", "mode": "sequence", "resume": true,
+                       "playlist": [ "wild-things", "owl-babies" ] }
+  }
+}</code></pre>
+  <p>Track file paths are <em>derived</em> from the title id and never author-supplied &mdash; the
+  validator rejects a manifest where they disagree, which closes the obvious path traversal and the
+  obvious way to end up with a card pointing at a file that is not there.</p>
+
+  <h3>The box API</h3>
+  <pre><code>GET    /api/hello              version handshake; the studio refuses to write
+                               to firmware it does not understand
+GET    /api/manifest           the whole catalogue
+GET    /api/events             SSE: card | playback | enrolled | ingest | error
+POST   /api/title              upload a new recording
+DELETE /api/title/:titleId
+PUT    /api/card/:cardId       bind a card to a playlist
+DELETE /api/card/:cardId
+POST   /api/enroll             arm the box to write the next blank tag
+POST   /api/say                speak a line through the box (for setup + testing)</code></pre>
+
+  <h2 id="interaction">5. The interaction model</h2>
+
+  <h3>Presence, not events</h3>
+  <p>The reader is polled continuously, and <em>the card being there is the play state</em>. Card
+  arrives &rarr; play. Card leaves &rarr; pause and remember. There is no play button and a
+  four-year-old needs no instruction, because &ldquo;take it off to stop it&rdquo; is a thing hands
+  already know.</p>
+  <p>This is a firmware requirement rather than a free lunch: RF reads are flaky, so &ldquo;the card
+  left&rdquo; must survive three consecutive missed reads before it is believed, or a story will
+  stutter every time the child leans on the table.</p>
+
+  <h3>Cold start is a product feature</h3>
+  <p>Power to &ldquo;a card works&rdquo; should be under two seconds. This is the single strongest
+  argument against a Raspberry Pi and the reason TonUINO&rsquo;s architecture is worth taking
+  seriously: a child does not wait 25 seconds, they conclude it is broken and go and do something
+  else.</p>
+
+  <h3>Controls</h3>
+  <p>The brief called these a bonus. Proposed set, and one of them is a safety feature:</p>
+  <ul>
+    <li><strong>Back</strong> &mdash; jumps back 30 seconds on short press, previous track on hold.
+      This is the button that actually gets used, because children ask for the bit with the
+      monsters again.</li>
+    <li><strong>Next</strong> &mdash; next track; on a single-track title, forward 30 seconds.</li>
+    <li><strong>Volume: a rotary potentiometer, not buttons.</strong> A pot has a physical end stop,
+      so the maximum volume is set once with a trimmer and a child cannot exceed it. Buttons have no
+      end stop and a four-year-old will find the top of the range on the first day. This is a
+      hearing-safety argument and it is why the extra $1 part is the right call.</li>
+    <li><strong>One LED</strong> that breathes while playing. No screen &mdash; a screen turns this
+      into a device you look at, which is the thing it exists not to be.</li>
+  </ul>
+
+  <h3>Recording, on the phone</h3>
+  <ol>
+    <li>Open the studio (on the box, over the LAN, or here for a trial run).</li>
+    <li>Type the title, hit record, read the book. Pause between chapters if you like &mdash; each
+      resume starts a new track, which is how &ldquo;go back a bit&rdquo; gets useful boundaries.</li>
+    <li>The browser encodes Opus at 24&nbsp;kbps mono, which is a good voice at 180&nbsp;kB a
+      minute.</li>
+    <li>Upload. The box writes it under <code>/tape/audio/&lt;title-id&gt;/</code> and adds it to the
+      manifest.</li>
+    <li>Put a blank card on the pad. The box writes it and binds it. Done &mdash; or, on Android,
+      write the card from the phone directly and skip the trip to the box.</li>
+  </ol>
+
+  <h2 id="site">6. Site architecture</h2>
+
+  <p>This surface is not a brochure for the project; it is <em>part of</em> the project. Three of its
+  pages are the actual software.</p>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Path</th><th>What it is</th><th>Runs where</th></tr></thead>
+    <tbody>
+      <tr><td><code>/</code></td><td>The pitch, the diagram, the arithmetic</td><td>here</td></tr>
+      <tr><td><code>/design/</code></td><td>This document &mdash; the decision record</td><td>here</td></tr>
+      <tr><td><code>/hardware/</code></td><td>Bill of materials, shortlists, wiring, enclosure</td><td>here</td></tr>
+      <tr><td><code>/firmware/</code></td><td>Firmware architecture, the state machine, releases</td><td>here</td></tr>
+      <tr><td><code>/studio/</code></td><td><strong>The recorder.</strong> Record, encode, download or upload</td><td><strong>dual-homed:</strong> here for trying out, and shipped on the box&rsquo;s SD card at <code>http://tape.local/</code> where it can actually upload</td></tr>
+      <tr><td><code>/tags/</code>, <code>/c/&lt;id&gt;</code></td><td><strong>The card writer.</strong> The byte layout, a Web NFC writer, and the page every card&rsquo;s URL points at</td><td>here (Web NFC needs HTTPS)</td></tr>
+      <tr><td><code>/sim/</code></td><td><strong>The box simulator.</strong> The whole interaction, in a tab</td><td>here</td></tr>
+      <tr><td><code>/build/</code></td><td>Assembly guide for a parent on a Sunday</td><td>here</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Why the studio is dual-homed</h3>
+  <p>One source directory, two origins, for the mixed-content reason in &sect;3.4. Served from here
+  it can record and hand you a file; served from the box it can record <em>and upload</em>. Building
+  it twice would guarantee the two drift; building it once and shipping the same bytes to the SD
+  card means the box&rsquo;s studio is the site&rsquo;s studio.</p>
+
+  <h3>Why there is a worker at all</h3>
+  <p>Everything here is static except one route. <code>/c/&lt;cardId&gt;</code> &mdash; the URL every
+  card carries as its first NDEF record &mdash; is rewritten to the card page, so that tapping a
+  stray card on any phone, with no app installed and the box switched off, tells you what it is.
+  That affordance is worth 25 lines of worker.</p>
+
+  <h3>Why the simulator exists</h3>
+  <p>The sandbox this repo is developed in cannot touch hardware, and hardware has not been bought.
+  The simulator is where the interaction gets designed and got wrong: presence-based playback, the
+  debounce, resume behaviour, what a card with six books does when you take it off during book four.
+  Those are the decisions that make the toy feel right, and none of them need a soldering iron to
+  discover. It also stays useful afterwards, as the place a firmware behaviour change can be argued
+  about before it is written.</p>
+
+  <h3>On disk</h3>
+  <pre><code>tape/
+  CLAUDE.md            instructions for this surface
+  wrangler.jsonc       worker `tape`, custom_domain tape.mino.mobi
+  worker.js            static assets + the /c/&lt;id&gt; rewrite
+  index.html           the pitch
+  styles.css           one stylesheet, no build step
+  design/              this document
+  hardware/  firmware/  build/       documentation pages
+  studio/  tags/  sim/               the working software
+  lib/
+    tag.js  catalog.js  protocol.js  the model, shared with the firmware
+    tape.selftest.mjs                19 checks, run by preflight and by deploy</code></pre>
+
+  <h2 id="open">7. Open questions for component selection</h2>
+  <p>These are deliberately open. Each one has the architecture arranged so that answering it later
+  is cheap.</p>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>#</th><th>Question</th><th>Candidates</th><th>What makes it cheap to defer</th></tr></thead>
+    <tbody>
+      <tr><td>Q1</td><td><strong>Audio out: wired or Bluetooth?</strong></td><td>I&sup2;S DAC + class-D amp + driver &middot; A2DP source to a BT speaker</td><td><code>OutputStage</code> is one interface with two implementations; changing our mind is one file</td></tr>
+      <tr><td>Q2</td><td><strong>The brain</strong></td><td>ESP32-WROOM (BT Classic, 1 s boot, $6) &middot; ESP32-S3 (faster, more RAM, <em>no</em> A2DP) &middot; Pi Zero 2 W (does everything, 25 s boot)</td><td>Q1 constrains this hard: choosing wired audio unlocks the whole modern ESP32 line</td></tr>
+      <tr><td>Q3</td><td><strong>NFC reader</strong></td><td>PN532 (~$6, proper NFC stack, Type 2 + 4) &middot; MFRC522 (~$2, bare ISO 14443A frontend)</td><td>we parse exactly one NDEF record type, so MFRC522 is viable with ~100 lines; PN532 buys library support and antenna quality</td></tr>
+      <tr><td>Q4</td><td><strong>Power: battery or cable?</strong></td><td>USB-C wall &middot; 18650 + charge/protection board</td><td>a battery changes the enclosure and adds a safety review; the reference build should ship on a cable and grow one</td></tr>
+      <tr><td>Q5</td><td><strong>Codec on the box</strong></td><td>Opus (best at 24 kbps, costs CPU) &middot; MP3 (universal decoders, bigger) &middot; WAV (free CPU, 20&times; the bytes &mdash; and we established storage is free)</td><td>the manifest names the file; the decoder is behind the Player</td></tr>
+      <tr><td>Q6</td><td><strong>Enclosure</strong></td><td>3D print &middot; laser-cut ply &middot; a wooden box from a craft shop</td><td>the only hard requirement so far is a recessed card nest that positions the card by geometry (&sect;3.2)</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2 id="log">8. Decision log</h2>
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>#</th><th>Decision</th><th>Status</th><th>Because</th></tr></thead>
+    <tbody>
+      <tr><td>D1</td><td>The card holds a 64-bit id, never audio</td><td><span class="pill on">settled</span></td><td>4,100&times; too small; and pointers give playlists and re-pointing for free (&sect;3.1)</td></tr>
+      <tr><td>D2</td><td>13.56 MHz NFC, NTAG213 as the floor</td><td><span class="pill on">settled</span></td><td>125 kHz cannot be read or written by a phone at all (&sect;3.2)</td></tr>
+      <tr><td>D3</td><td>Two NDEF records: a URL for humans, an external record for the box</td><td><span class="pill on">settled</span></td><td>a lost card should be able to say what it is; 103 of 144 bytes worst case</td></tr>
+      <tr><td>D4</td><td>Many books per card is in the data model from day one</td><td><span class="pill on">settled</span></td><td>it is the length of an array; omitting it would be extra work</td></tr>
+      <tr><td>D5</td><td>The box serves the studio; the site&rsquo;s copy is for trying out</td><td><span class="pill on">settled</span></td><td>HTTPS pages cannot reach <code>http://tape.local</code> (&sect;3.4)</td></tr>
+      <tr><td>D6</td><td>The box is the tag writer of record; Web NFC is a shortcut</td><td><span class="pill on">settled</span></td><td>Web NFC is Android-Chrome-only, ~6% of browsers (&sect;3.4)</td></tr>
+      <tr><td>D7</td><td>Presence is the play state; no play button</td><td><span class="pill on">settled</span></td><td>hands already know it; needs a 3-read debounce in firmware (&sect;5)</td></tr>
+      <tr><td>D8</td><td>Ingest is awake only when nothing is playing</td><td><span class="pill on">settled</span></td><td>removes radio coexistence and SD contention at zero user cost (&sect;4)</td></tr>
+      <tr><td>D9</td><td>Volume is a potentiometer with a physical end stop</td><td><span class="pill on">settled</span></td><td>a hard maximum a child cannot exceed &mdash; hearing safety (&sect;5)</td></tr>
+      <tr><td>D10</td><td>Audio output is a swappable stage; wired is the recommended default</td><td><span class="pill">recommended, open</span></td><td>latency, pairing, a second battery, and BLE-only silicon (&sect;3.3) &mdash; Q1</td></tr>
+      <tr><td>D11</td><td>Relay is opt-in, end-to-end encrypted, off by default</td><td><span class="pill on">settled</span></td><td>a child&rsquo;s family recordings should not sit on anyone&rsquo;s server in the clear</td></tr>
+      <tr><td>D12</td><td>Cold start under two seconds is a requirement, not a preference</td><td><span class="pill on">settled</span></td><td>it is the difference between a toy and a broken toy &mdash; constrains Q2</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2 id="sources">9. Sources</h2>
+  <ul>
+    <li><a href="https://www.nxp.com/docs/en/data-sheet/NTAG213_215_216.pdf">NXP, NTAG213/215/216 datasheet</a> &mdash; user memory figures</li>
+    <li><a href="https://seritag.com/learn/using-nfc/which-nfc-chip">Seritag, which NFC chip</a> and <a href="https://nfcore.app/guides/nfc-tag-data-capacity-by-chip">NFCore, capacity by chip</a> &mdash; the capacity table</li>
+    <li><a href="https://developer.chrome.com/docs/capabilities/nfc">Chrome for Developers, Web NFC</a> and <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_NFC_API">MDN, Web NFC API</a> &mdash; availability and the <code>NDEFReader</code> contract</li>
+    <li><a href="https://webnfc.org/documentation/browser-support">WebNfc.org, browser support</a> &mdash; the ~6% figure and the Safari position</li>
+    <li><a href="https://github.com/pschatzmann/ESP32-A2DP">pschatzmann/ESP32-A2DP</a> and <a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/bluetooth/esp_a2dp.html">Espressif A2DP API</a> &mdash; what A2DP source needs and which parts have it</li>
+    <li><a href="https://github.com/pabera/RPi-Jukebox-RFID">Phoniebox (RPi-Jukebox-RFID)</a> and <a href="https://blog.schallbert.de/en/projects-software/tonuino/">TonUINO</a> &mdash; prior art</li>
+    <li><a href="https://www.bedtime-stories.fun/blog/is-toniebox-worth-it">Yoto vs Toniebox, true cost</a> and <a href="https://www.bedtime-stories.fun/blog/toniebox-alternatives">Toniebox alternatives</a> &mdash; 2026 pricing</li>
+    <li><a href="https://www.crockford.com/base32.html">Crockford base32</a> &mdash; the id alphabet</li>
+  </ul>
+
+  <hr>
+  <p style="color:var(--muted);font-size:14.5px">Next: <a href="/hardware/">component selection</a>
+  &mdash; resolve Q1 through Q6, price the bill of materials, and draw the wiring.</p>
+</main>
+
+<footer><div class="inner">
+  <strong>tape</strong> &middot; part of <a href="https://mino.mobi">mino.mobi</a> &middot;
+  <a href="/">home</a>
+</div></footer>
+
+</body>
+</html>

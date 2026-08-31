@@ -28,7 +28,7 @@ window.SPEC_CURATED = {
     { id: 'reference',  label: 'Reference wing',
       blurb: 'Fast, pastable lookup sites generated from canonical standards data: emoji, Unicode, units, FIX protocol. No backend, no auth — the data is committed at build time.' },
     { id: 'reading',    label: 'Reading & language',
-      blurb: 'Deep-reading apparatus for medieval tales, sentence-editing drills with AI grading, and conversation practice.' },
+      blurb: 'Deep-reading apparatus for medieval tales, sentence-editing drills with AI grading, conversation practice — and the design shop for an open-source card audio player, so a four-year-old can put a book on and hear a parent read it.' },
     { id: 'math',       label: 'Math & explainers',
       blurb: 'Interactive single-file explainers of extremal geometry and other results, plus AI-pair numerics education.' },
   ],
@@ -57,7 +57,7 @@ window.SPEC_CURATED = {
     aub: 'games', fluoddity: 'games', cards: 'games', human: 'games',
     foam: 'games', farm: 'games', 'farm-next': 'games', words: 'games',
     moji: 'reference', uni: 'reference', unit: 'reference', fix: 'reference',
-    read: 'reading', rite: 'reading', chat: 'reading',
+    read: 'reading', rite: 'reading', chat: 'reading', tape: 'reading',
     math: 'math', 'ai-edu': 'math',
   },
 

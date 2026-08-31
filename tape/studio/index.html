@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>tape — studio</title>
+<meta name="description" content="Record a book in the browser, one track per sitting, and get it onto the box.">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-inner">
+  <a class="brand" href="/">tape<span class="dot">.</span><small>card audio player</small></a>
+  <nav class="navlinks">
+    <a href="/design/">design</a><a href="/hardware/">hardware</a><a href="/firmware/">firmware</a>
+    <a href="/studio/" aria-current="page">studio</a><a href="/tags/">cards</a>
+    <a href="/sim/">simulator</a><a href="/build/">build</a>
+  </nav>
+</div></div>
+
+<main class="narrow">
+  <h1>Studio</h1>
+  <p class="lede">Read a book out loud. Stop between chapters &mdash; each stretch becomes a track,
+  which is what makes &ldquo;go back a bit&rdquo; land somewhere sensible.</p>
+
+  <div id="where" class="note"></div>
+
+  <div class="card">
+    <label for="title">Book</label>
+    <input type="text" id="title" placeholder="Where the Wild Things Are">
+    <label for="reader">Read by</label>
+    <input type="text" id="reader" placeholder="Dad">
+
+    <div class="row" style="margin-top:18px">
+      <button class="primary" id="rec">Record</button>
+      <button id="stop" disabled>Stop this track</button>
+      <span id="clock" style="font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:20px">0:00</span>
+      <span id="level" style="flex:1;min-width:80px;height:8px;border-radius:4px;background:var(--line-soft);overflow:hidden"><i id="levelbar" style="display:block;height:100%;width:0;background:var(--accent)"></i></span>
+    </div>
+    <div class="status" id="status">Nothing recorded yet.</div>
+  </div>
+
+  <div id="tracks"></div>
+
+  <div class="card" id="done" hidden>
+    <h3>Get it onto the box</h3>
+    <div id="transports"></div>
+  </div>
+
+  <h2>What this is doing</h2>
+  <p>Recording straight to Opus, which the browser gives us for free through
+  <code>MediaRecorder</code>. Speech at 24&nbsp;kbps mono is about <strong>180&nbsp;kB a
+  minute</strong> &mdash; a twenty-minute picture book is 3.6&nbsp;MB, and a 32&nbsp;GB SD card
+  holds roughly 3,100 hours of it. Storage is not a constraint in this project and never will be.</p>
+
+  <p>Each stop-and-start writes a new track under
+  <code>/tape/audio/&lt;title-id&gt;/000.opus</code>, <code>001.opus</code>, and so on. The file
+  paths are derived from the title id rather than typed, so a manifest can never point at a file
+  that is not there.</p>
+
+  <h2 id="dual">Why this page exists twice</h2>
+  <p>This copy, on <code>tape.mino.mobi</code>, is served over HTTPS &mdash; and an HTTPS page is not
+  allowed to talk to <code>http://tape.local</code>. So here it records and hands you files. The
+  <em>same page</em> ships on the box&rsquo;s SD card and is served by the box over plain HTTP, where
+  recording and uploading share an origin and the upload button works.
+  <a href="/design/#mixed">The reasoning.</a></p>
+
+  <script type="module">
+  import * as proto from '/lib/protocol.js';
+  import * as cat from '/lib/catalog.js';
+
+  const $ = (id) => document.getElementById(id);
+  const status = $('status');
+  const tracks = [];
+  let rec = null, chunks = [], started = 0, timer = null, audioCtx = null, analyser = null;
+
+  const ctx = {
+    // The box serves this same page from its own origin; that is the only place
+    // `lan` is available. See design/#mixed.
+    sameOriginAsBox: location.hostname !== 'tape.mino.mobi',
+    pageIsHttps: location.protocol === 'https:',
+    relayEnabled: false,
+  };
+
+  $('where').innerHTML = ctx.sameOriginAsBox
+    ? '<strong>Served from the box.</strong> Recordings upload straight to it.'
+    : '<strong>Served from tape.mino.mobi.</strong> Everything here works except the upload &mdash; the '
+      + 'browser will not let an HTTPS page reach <code>http://tape.local</code>. Record away; you will get '
+      + 'files to drop on the SD card. <a href="#dual">Why.</a>';
+
+  const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+  function slug(s) {
+    return (s || 'untitled').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32) || 'untitled';
+  }
+
+  function pickMime() {
+    for (const m of ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/webm', 'audio/mp4']) {
+      if (window.MediaRecorder?.isTypeSupported?.(m)) return m;
+    }
+    return '';
+  }
+
+  $('rec').onclick = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { channelCount: 1, echoCancellation: false, noiseSuppression: true, autoGainControl: true },
+      });
+      audioCtx ||= new AudioContext();
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      audioCtx.createMediaStreamSource(stream).connect(analyser);
+
+      chunks = [];
+      rec = new MediaRecorder(stream, { mimeType: pickMime(), audioBitsPerSecond: cat.DEFAULT_BITRATE_KBPS * 1000 });
+      rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+      rec.onstop = () => {
+        const blob = new Blob(chunks, { type: rec.mimeType });
+        const seconds = (Date.now() - started) / 1000;
+        tracks.push({ blob, seconds, name: `Part ${tracks.length + 1}` });
+        stream.getTracks().forEach((t) => t.stop());
+        renderTracks();
+      };
+      rec.start(1000);
+      started = Date.now();
+      $('rec').disabled = true; $('stop').disabled = false;
+      status.className = 'status'; status.textContent = 'Recording. Read at the pace you would read it aloud.';
+      timer = setInterval(tick, 100);
+    } catch (e) {
+      status.className = 'status err';
+      status.textContent = `No microphone: ${e.message}`;
+    }
+  };
+
+  function tick() {
+    $('clock').textContent = mmss((Date.now() - started) / 1000);
+    if (!analyser) return;
+    const buf = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteTimeDomainData(buf);
+    let peak = 0;
+    for (const v of buf) peak = Math.max(peak, Math.abs(v - 128) / 128);
+    $('levelbar').style.width = `${Math.min(100, peak * 180)}%`;
+  }
+
+  $('stop').onclick = () => {
+    rec?.stop();
+    clearInterval(timer);
+    $('rec').disabled = false; $('stop').disabled = true;
+    $('clock').textContent = '0:00'; $('levelbar').style.width = '0';
+    status.className = 'status ok'; status.textContent = 'Track saved. Record again for the next chapter, or finish below.';
+  };
+
+  function renderTracks() {
+    const id = slug($('title').value);
+    const total = tracks.reduce((n, t) => n + t.seconds, 0);
+    $('tracks').innerHTML = tracks.length ? `<div class="card"><h3>${tracks.length} track${tracks.length > 1 ? 's' : ''} &middot; ${mmss(total)} &middot; ~${(cat.encodedBytes(total) / 1e6).toFixed(1)} MB</h3>` +
+      '<div class="scroll-x"><table><thead><tr><th>#</th><th>On the SD card</th><th>Length</th><th></th></tr></thead><tbody>' +
+      tracks.map((t, i) => `<tr><td class="num">${i}</td><td><code>${cat.trackPath(id, i)}</code></td>` +
+        `<td class="num">${mmss(t.seconds)}</td><td><button data-play="${i}">play</button></td></tr>`).join('') +
+      '</tbody></table></div></div>' : '';
+    $('tracks').querySelectorAll('[data-play]').forEach((b) => {
+      b.onclick = () => new Audio(URL.createObjectURL(tracks[+b.dataset.play].blob)).play();
+    });
+    $('done').hidden = tracks.length === 0;
+    renderTransports();
+  }
+
+  function renderTransports() {
+    const available = proto.availableTransports(ctx);
+    const rows = proto.TRANSPORTS.map((t) => {
+      const on = available.includes(t);
+      const why = on ? '' : (proto.transportBlockedReason(t, ctx) || 'Not available here.');
+      const label = { lan: 'Upload to the box', card: 'Download and copy to the SD card', relay: 'Send via the relay' }[t];
+      return `<div class="row" style="align-items:flex-start;margin:10px 0">
+        <button ${on ? 'class="primary"' : 'disabled'} data-transport="${t}" style="min-width:230px">${label}</button>
+        <span style="flex:1;min-width:200px;font-size:14px;color:var(--muted)">${why}</span></div>`;
+    }).join('');
+    $('transports').innerHTML = rows;
+    $('transports').querySelectorAll('[data-transport]').forEach((b) => {
+      b.onclick = () => b.dataset.transport === 'card' ? downloadAll() : uploadToBox();
+    });
+  }
+
+  function manifestFragment() {
+    const id = slug($('title').value);
+    const m = cat.emptyManifest();
+    cat.addTitle(m, {
+      id, title: $('title').value || id, reader: $('reader').value,
+      tracks: tracks.map((t, i) => ({ name: t.name, seconds: t.seconds })),
+    });
+    return m;
+  }
+
+  function downloadAll() {
+    const id = slug($('title').value);
+    tracks.forEach((t, i) => save(t.blob, `${String(i).padStart(3, '0')}.opus`));
+    save(new Blob([JSON.stringify(manifestFragment(), null, 2)], { type: 'application/json' }), `${id}.manifest.json`);
+    status.className = 'status ok';
+    status.innerHTML = `Put the numbered files in <code>${cat.titleDir(id)}/</code> on the SD card and merge the manifest fragment into <code>${cat.MANIFEST_PATH}</code>.`;
+  }
+
+  function save(blob, name) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  async function uploadToBox() {
+    const origin = location.origin;
+    status.className = 'status'; status.textContent = 'Asking the box who it is…';
+    try {
+      const hello = await (await fetch(proto.url(origin, 'hello'))).json();
+      const bad = proto.validateHello(hello);
+      if (bad.length) throw new Error(bad.join('; '));
+      const form = new FormData();
+      form.append('manifest', JSON.stringify(manifestFragment()));
+      tracks.forEach((t, i) => form.append('track', t.blob, `${String(i).padStart(3, '0')}.opus`));
+      const res = await fetch(proto.url(origin, 'putTitle'), { method: 'POST', body: form });
+      if (!res.ok) throw new Error(`box said ${res.status}`);
+      status.className = 'status ok';
+      status.textContent = `On the box. Put a blank card on the pad to bind it.`;
+    } catch (e) {
+      status.className = 'status err';
+      status.textContent = `Upload failed: ${e.message}`;
+    }
+  }
+
+  $('title').addEventListener('input', renderTracks);
+  renderTransports();
+  </script>
+</main>
+
+<footer><div class="inner">
+  <strong>tape</strong> &middot; part of <a href="https://mino.mobi">mino.mobi</a> &middot;
+  <a href="/">home</a> &middot; <a href="/design/#mixed">why this page exists twice</a>
+</div></footer>
+
+</body>
+</html>

@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>tape — simulator</title>
+<meta name="description" content="The whole box in a tab: presence-based playback, the read debounce, resume, and multi-book cards — designed before any solder is bought.">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .stage { display:grid; gap:20px; grid-template-columns: minmax(260px, 340px) 1fr; align-items:start; }
+  @media (max-width: 760px) { .stage { grid-template-columns: 1fr; } }
+  .box3d { background:var(--panel); border:1px solid var(--line); border-radius:22px; padding:22px; box-shadow:var(--shadow); }
+  .nest { height:130px; border-radius:16px; border:2px dashed var(--line); display:grid; place-items:center;
+          color:var(--faint); font-size:14px; background:var(--line-soft); transition:.15s; }
+  .nest.hot { border-color:var(--accent); background:var(--accent-bg); color:var(--accent-2); border-style:solid; }
+  .led { width:14px; height:14px; border-radius:50%; background:var(--line); margin:0 auto 14px; }
+  .led.on { background:var(--accent); animation:breathe 2.4s ease-in-out infinite; }
+  @keyframes breathe { 0%,100%{opacity:.35} 50%{opacity:1} }
+  .keys { display:flex; gap:10px; margin-top:16px; }
+  .keys button { flex:1; padding:14px 0; font-size:15px; }
+  .bar { height:8px; border-radius:4px; background:var(--line-soft); overflow:hidden; margin-top:14px; }
+  .bar i { display:block; height:100%; background:var(--accent); width:0; transition:width .25s linear; }
+  .cards { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+  .chip { border:1px solid var(--line); background:var(--panel); border-radius:12px; padding:10px 14px; cursor:pointer;
+          font-size:14px; text-align:left; line-height:1.35; }
+  .chip.active { border-color:var(--accent); background:var(--accent-bg); }
+  .chip small { display:block; color:var(--faint); font-family:var(--mono); font-size:11px; }
+  .log { font-family:var(--mono); font-size:12.5px; line-height:1.7; max-height:300px; overflow-y:auto;
+         background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px; }
+  .log b { color:var(--accent-2); }
+  .log .dim { color:var(--faint); }
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-inner">
+  <a class="brand" href="/">tape<span class="dot">.</span><small>card audio player</small></a>
+  <nav class="navlinks">
+    <a href="/design/">design</a><a href="/hardware/">hardware</a><a href="/firmware/">firmware</a>
+    <a href="/studio/">studio</a><a href="/tags/">cards</a>
+    <a href="/sim/" aria-current="page">simulator</a><a href="/build/">build</a>
+  </nav>
+</div></div>
+
+<main>
+  <h1>The box, before it exists</h1>
+  <p class="lede">Presence-based playback, the read debounce, resume, and a card carrying three books.
+  These are the decisions that make the toy feel right, and none of them need a soldering iron to
+  get wrong. Put a card on the nest.</p>
+
+  <div class="stage">
+    <div>
+      <div class="box3d">
+        <div class="led" id="led"></div>
+        <div class="nest" id="nest">put a card here</div>
+        <div class="bar"><i id="prog"></i></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--faint);margin-top:6px">
+          <span id="now">idle</span><span id="clock">0:00</span>
+        </div>
+        <div class="keys">
+          <button id="back" title="short: back 30s · hold: previous track">&#9198;</button>
+          <button id="next" title="next track">&#9197;</button>
+        </div>
+        <label for="vol">volume &mdash; a pot, with a hard end stop</label>
+        <input type="range" id="vol" min="0" max="100" value="55" style="width:100%">
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h3 style="font-size:14px">Reader conditions</h3>
+        <label style="margin:8px 0"><input type="checkbox" id="flaky"> flaky reads (drops 25% of polls)</label>
+        <label style="margin:8px 0"><input type="checkbox" id="fast"> run at 20&times; so tracks end</label>
+        <p style="font-size:13px;color:var(--muted);margin:8px 0 0">Turn on flaky reads and watch the
+        debounce hold the card present. Without it, a child leaning on the table stutters the story.</p>
+      </div>
+    </div>
+
+    <div>
+      <h3 style="margin-top:0">Cards on the shelf</h3>
+      <div class="cards" id="shelf"></div>
+
+      <h3>What the box is doing</h3>
+      <div class="log" id="log"></div>
+
+      <h3>State</h3>
+      <pre id="state" style="font-size:12.5px">&hellip;</pre>
+    </div>
+  </div>
+
+  <h2>What this is faithful to</h2>
+  <ul>
+    <li><strong>Presence is the play state.</strong> No play button. Card on plays, card off pauses
+      and saves &mdash; and the saved position is per card, so a card put back tomorrow resumes.</li>
+    <li><strong>Three missed polls before &ldquo;gone&rdquo;.</strong> The reader is polled at 8 Hz
+      and RF reads drop. Believing the first miss would stutter constantly; the debounce is the
+      difference between a toy that works and one that seems haunted.</li>
+    <li><strong>A card is a playlist.</strong> The six-book card and the one-book card differ only in
+      the length of an array &mdash; <a href="/design/#pointer">that is what a pointer buys</a>.</li>
+    <li><strong>The volume pot has an end stop</strong> that a child cannot get past. Buttons do not,
+      and a four-year-old finds the top of a button range on day one.</li>
+  </ul>
+  <p style="color:var(--muted);font-size:14.5px">Not faithful: the audio is a tone, the reader is a
+  timer, and nothing here has to fit in 320&nbsp;kB of RAM. The interaction is the point.</p>
+
+  <script type="module">
+  import * as cat from '/lib/catalog.js';
+  import * as tag from '/lib/tag.js';
+
+  const $ = (id) => document.getElementById(id);
+
+  // ---- a demo library, built through the real model ------------------------
+  const m = cat.emptyManifest();
+  cat.addTitle(m, { id: 'wild-things', title: 'Where the Wild Things Are', reader: 'Dad',
+    tracks: [{ name: 'The whole thing', seconds: 380 }] });
+  cat.addTitle(m, { id: 'owl-babies', title: 'Owl Babies', reader: 'Mum',
+    tracks: [{ name: 'Part one', seconds: 150 }, { name: 'Part two', seconds: 140 }] });
+  cat.addTitle(m, { id: 'gruffalo', title: 'The Gruffalo', reader: 'Grandma',
+    tracks: [{ name: 'The wood', seconds: 210 }, { name: 'The Gruffalo', seconds: 240 }] });
+
+  const ids = { one: tag.newCardId(), bedtime: tag.newCardId(), unknown: tag.newCardId() };
+  cat.bindCard(m, ids.one, ['wild-things'], { label: 'wild things' });
+  cat.bindCard(m, ids.bedtime, ['owl-babies', 'gruffalo', 'wild-things'], { label: 'bedtime', resume: true });
+
+  const shelf = [
+    { id: ids.one, label: 'wild things', note: 'one book' },
+    { id: ids.bedtime, label: 'bedtime', note: 'three books, one card' },
+    { id: ids.unknown, label: 'a blank card', note: 'written, but not bound to anything' },
+  ];
+
+  // ---- box state ----------------------------------------------------------
+  const POLL_HZ = 8, MISSES_BEFORE_GONE = 3;
+  const resume = Object.create(null);        // cardId -> { track, position }
+  let onPad = null;                          // what is physically on the nest
+  let believed = null;                       // what the box believes is there
+  let misses = 0, queue = [], track = 0, position = 0, playing = false;
+
+  const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  let lines = [];
+  function log(msg, dim) {
+    lines.unshift(`<span class="${dim ? 'dim' : ''}">${new Date().toLocaleTimeString([], { hour12: false })} ${msg}</span>`);
+    lines = lines.slice(0, 120);
+    $('log').innerHTML = lines.join('<br>');
+  }
+
+  // ---- a tone, so "playing" is audible ------------------------------------
+  let ac, osc, gain;
+  function tone(on) {
+    if (!on) { gain && (gain.gain.value = 0); return; }
+    ac ||= new AudioContext();
+    if (!osc) {
+      osc = ac.createOscillator(); gain = ac.createGain();
+      osc.type = 'sine'; osc.connect(gain); gain.connect(ac.destination); osc.start();
+    }
+    ac.resume();
+    osc.frequency.value = 160 + track * 40;
+    gain.gain.value = ($('vol').value / 100) * 0.03;
+  }
+
+  function arrive(cardId) {
+    const card = m.cards[cardId];
+    if (!card) {
+      log(`<b>card ${cardId}</b> — written, but this box has never heard of it`);
+      $('now').textContent = 'unknown card';
+      return;
+    }
+    queue = cat.playlistTracks(m, cardId);
+    const r = card.resume ? resume[cardId] : null;
+    track = r?.track ?? 0;
+    position = r?.position ?? 0;
+    playing = true;
+    log(`<b>card ${cardId}</b> — “${card.label}”, ${card.playlist.length} title(s), ${queue.length} track(s)`);
+    log(r ? `resuming ${queue[track].title} at ${mmss(position)}` : `starting ${queue[0].title}`, true);
+    tone(true);
+  }
+
+  function leave(cardId) {
+    if (queue.length) {
+      resume[cardId] = { track, position };
+      log(`card removed — saved ${queue[track]?.title} at ${mmss(position)}`);
+    }
+    playing = false; queue = []; tone(false);
+  }
+
+  // ---- the poll loop, with the debounce that firmware needs ---------------
+  setInterval(() => {
+    const read = onPad && !($('flaky').checked && Math.random() < 0.25) ? onPad : null;
+    if (read) {
+      misses = 0;
+      if (believed !== read) { believed = read; arrive(read); }
+    } else if (believed) {
+      misses++;
+      if (misses >= MISSES_BEFORE_GONE) { leave(believed); believed = null; misses = 0; }
+      else log(`missed read ${misses}/${MISSES_BEFORE_GONE} — holding`, true);
+    }
+    paint();
+  }, 1000 / POLL_HZ);
+
+  // ---- playback -----------------------------------------------------------
+  setInterval(() => {
+    if (!playing || !queue.length) return;
+    position += 0.25 * ($('fast').checked ? 20 : 1);
+    if (position >= queue[track].seconds) {
+      if (track + 1 < queue.length) { track++; position = 0; log(`→ ${queue[track].title} · ${queue[track].name}`); tone(true); }
+      else { playing = false; position = queue[track].seconds; tone(false); log('end of the card'); }
+    }
+    paint();
+  }, 250);
+
+  function paint() {
+    const here = believed && m.cards[believed];
+    $('nest').classList.toggle('hot', !!believed);
+    $('nest').textContent = believed ? (here ? `“${here.label}”` : 'unknown card') : 'put a card here';
+    $('led').classList.toggle('on', playing);
+    const t = queue[track];
+    $('now').textContent = t ? `${t.title} — ${t.name}` : (believed ? 'nothing bound to this card' : 'idle');
+    $('clock').textContent = t ? `${mmss(position)} / ${mmss(t.seconds)}` : '0:00';
+    $('prog').style.width = t ? `${(position / t.seconds) * 100}%` : '0';
+    $('state').textContent = JSON.stringify({
+      onPad, believed, misses, playing,
+      track: t ? `${track + 1}/${queue.length}` : null,
+      position: Math.round(position),
+      resume: Object.fromEntries(Object.entries(resume).map(([k, v]) => [k, `${v.track}@${Math.round(v.position)}s`])),
+    }, null, 2);
+    for (const el of $('shelf').children) el.classList.toggle('active', el.dataset.id === onPad);
+  }
+
+  // ---- controls -----------------------------------------------------------
+  $('back').onclick = () => {
+    if (!queue.length) return;
+    if (position > 30) { position -= 30; log('back 30s'); }
+    else if (track > 0) { track--; position = 0; log(`← ${queue[track].title} · ${queue[track].name}`); tone(true); }
+    else position = 0;
+    playing = true; tone(true); paint();
+  };
+  $('next').onclick = () => {
+    if (!queue.length) return;
+    if (track + 1 < queue.length) { track++; position = 0; log(`→ ${queue[track].title} · ${queue[track].name}`); tone(true); }
+    else { position = Math.min(position + 30, queue[track].seconds); log('forward 30s'); }
+    paint();
+  };
+  $('vol').oninput = () => { if (playing) tone(true); };
+
+  $('shelf').innerHTML = shelf.map((c) => `<button class="chip" data-id="${c.id}">
+      <strong>${c.label}</strong> — ${c.note}<small>${c.id}</small></button>`).join('');
+  $('shelf').querySelectorAll('.chip').forEach((b) => {
+    b.onclick = () => { onPad = onPad === b.dataset.id ? null : b.dataset.id; paint(); };
+  });
+
+  log('box up. 8 Hz poll, 3 missed reads before a card is believed gone.', true);
+  paint();
+  </script>
+</main>
+
+<footer><div class="inner">
+  <strong>tape</strong> &middot; part of <a href="https://mino.mobi">mino.mobi</a> &middot;
+  <a href="/">home</a> &middot; <a href="/design/#interaction">the interaction model</a>
+</div></footer>
+
+</body>
+</html>

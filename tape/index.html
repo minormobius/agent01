@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>tape — the open-source card audio player</title>
+<meta name="description" content="Build a Toniebox for the price of the tags. A child puts a card on the box and hears a parent read a book. Open hardware, open firmware, and a browser studio that records and writes the cards.">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-inner">
+  <a class="brand" href="/">tape<span class="dot">.</span><small>card audio player</small></a>
+  <nav class="navlinks">
+    <a href="/design/">design</a>
+    <a href="/hardware/">hardware</a>
+    <a href="/firmware/">firmware</a>
+    <a href="/studio/">studio</a>
+    <a href="/tags/">cards</a>
+    <a href="/sim/">simulator</a>
+    <a href="/build/">build</a>
+  </nav>
+</div></div>
+
+<main>
+  <h1>A book you can put on the table.</h1>
+  <p class="lede">A four-year-old picks a card off the shelf, puts it on the box, and hears their
+  dad read <em>Where the Wild Things Are</em>. Takes it off, playback stops. Puts it back tomorrow,
+  it carries on where it stopped. No screen, no account, no subscription, no internet.</p>
+
+  <p>Commercial versions of this exist and they are good. They are also priced like razor blades:
+  the player is $80&ndash;$130 and every story after that is $10&ndash;$20, forever, and the
+  catalogue is somebody else&rsquo;s. The part that does the magic &mdash; the chip in the card
+  &mdash; costs about twenty cents.</p>
+
+  <p><strong>This surface is where that gets designed and built, in the open.</strong> Hardware,
+  firmware, the phone-side recording pipeline, and the enclosure. Everything here is either a
+  finished decision with the reasoning attached, or an open question marked as one.</p>
+
+  <div class="note">
+    <strong>The one fact that shapes everything.</strong> An NFC tag cannot hold the audio. The
+    cheapest sticker (NTAG213) has <strong>144 bytes</strong> of user memory; the biggest tag anyone
+    sells cheaply (NTAG216) has 888. One minute of speech is about <strong>180,000 bytes</strong>.
+    So the card holds a 64-bit <em>pointer</em> and the audio lives on an SD card inside the box.
+    Everything nice about this design falls out of that &mdash; including &ldquo;many books on one
+    card&rdquo;, which stops being a feature and becomes the length of an array.
+    <a href="/design/#pointer">The full argument</a>.
+  </div>
+
+  <h2>How it works</h2>
+
+  <figure class="scroll-x">
+  <svg viewBox="0 0 900 300" width="900" style="max-width:100%;height:auto" role="img" aria-label="Block diagram: a phone records and uploads to the box; a card carries an id the box's NFC reader reads; the box plays audio from its SD card.">
+    <rect class="box hot" x="10" y="30" width="150" height="86" rx="12"/>
+    <text class="lbl" x="30" y="60">phone or laptop</text>
+    <text class="sub" x="30" y="80">record a parent</text>
+    <text class="sub" x="30" y="96">reading it aloud</text>
+
+    <path class="wire hot" d="M160 73 H 250"/>
+    <text class="sub" x="176" y="63">upload</text>
+    <path class="wire hot" d="M243 67 l10 6 l-10 6 z" fill="currentColor" stroke="none" style="fill:var(--accent)"/>
+
+    <rect class="box" x="255" y="10" width="360" height="280" rx="14"/>
+    <text class="lbl" x="272" y="34">the box</text>
+
+    <rect class="box hot" x="275" y="48" width="150" height="60" rx="10"/>
+    <text class="lbl" x="291" y="72">NFC reader</text>
+    <text class="sub" x="291" y="90">13.56 MHz</text>
+
+    <rect class="box" x="445" y="48" width="150" height="60" rx="10"/>
+    <text class="lbl" x="461" y="72">SD card</text>
+    <text class="sub" x="461" y="90">audio + manifest</text>
+
+    <rect class="box" x="275" y="128" width="320" height="60" rx="10"/>
+    <text class="lbl" x="291" y="152">microcontroller</text>
+    <text class="sub" x="291" y="170">card id &rarr; playlist &rarr; decode &rarr; audio out</text>
+
+    <rect class="box" x="275" y="208" width="150" height="60" rx="10"/>
+    <text class="lbl" x="291" y="232">buttons</text>
+    <text class="sub" x="291" y="250">back / next / vol</text>
+
+    <rect class="box" x="445" y="208" width="150" height="60" rx="10"/>
+    <text class="lbl" x="461" y="232">audio out</text>
+    <text class="sub" x="461" y="250">wired, or Bluetooth</text>
+
+    <path class="wire" d="M350 108 V 128"/>
+    <path class="wire" d="M520 108 V 128"/>
+    <path class="wire" d="M350 188 V 208"/>
+    <path class="wire" d="M520 188 V 208"/>
+
+    <rect class="box hot" x="10" y="185" width="150" height="86" rx="12"/>
+    <text class="lbl" x="30" y="215">a card</text>
+    <text class="sub" x="30" y="235">one 64-bit id</text>
+    <text class="sub" x="30" y="251">~20&cent;, no battery</text>
+    <path class="wire hot" d="M160 228 H 250 V 118 H 274"/>
+    <path class="wire hot" d="M267 112 l7 6 l-7 6 z" style="fill:var(--accent)" stroke="none"/>
+
+    <rect class="box" x="655" y="208" width="150" height="60" rx="10"/>
+    <text class="lbl" x="671" y="232">speaker</text>
+    <text class="sub" x="671" y="250">loud, but not too</text>
+    <path class="wire" d="M595 238 H 655"/>
+  </svg>
+  <figcaption>The card never carries audio. It carries an id; the manifest on the SD card turns
+  that id into a playlist of one book or six. The upload takes whichever of three routes is open
+  &mdash; the box&rsquo;s own page over the LAN, the SD card by hand, or an opt-in encrypted relay
+  for a grandparent in another city.</figcaption>
+  </figure>
+
+  <h2>What it costs</h2>
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>&nbsp;</th><th>Toniebox</th><th>Yoto Player</th><th>tape</th></tr></thead>
+    <tbody>
+      <tr><td>The player</td><td class="num">$129.99</td><td class="num">$79.99&ndash;$109.99</td><td class="num">~$35 in parts<sup>*</sup></td></tr>
+      <tr><td>One more story</td><td class="num">$19.99</td><td class="num">$9.99&ndash;$14.99</td><td class="num">$0.20</td></tr>
+      <tr><td>Ten more stories</td><td class="num">$199.90</td><td class="num">$99.90+</td><td class="num">$2.00</td></tr>
+      <tr><td>Who reads it</td><td>a voice actor</td><td>a voice actor</td><td>whoever the child misses</td></tr>
+      <tr><td>Works with no internet</td><td><span class="pill yes">yes</span></td><td><span class="pill yes">yes</span></td><td><span class="pill yes">yes</span></td></tr>
+      <tr><td>Where the recording lives</td><td>vendor cloud</td><td>vendor cloud</td><td>an SD card in your house</td></tr>
+      <tr><td>Still works if the company folds</td><td><span class="pill no">partly</span></td><td><span class="pill no">partly</span></td><td><span class="pill yes">yes</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="font-size:14px;color:var(--muted)"><sup>*</sup> An order-of-magnitude figure from
+  parts we have shortlisted but not yet chosen. Real prices land with the
+  <a href="/hardware/">bill of materials</a>, next.</p>
+
+  <h2>Where things are</h2>
+  <div class="grid">
+    <div class="card">
+      <h3><a href="/design/">Design record</a> <span class="pill on">this is the meat</span></h3>
+      <p>The product architecture, the landscape survey, and every decision with its reason. Read
+      this first &mdash; four of the obvious assumptions about this project turn out to be wrong,
+      and it is cheaper to find out here than at the soldering iron.</p>
+    </div>
+    <div class="card">
+      <h3><a href="/hardware/">Hardware</a> <span class="pill">next round</span></h3>
+      <p>The bill of materials, the shortlist behind each line, wiring, and the enclosure. The
+      architecture below fixes the <em>shape</em> of each part; this picks the actual chips.</p>
+    </div>
+    <div class="card">
+      <h3><a href="/firmware/">Firmware</a> <span class="pill">specified</span></h3>
+      <p>What runs on the box: the card-presence state machine, the manifest index, the ingest
+      server, and the audio pipeline behind a swappable output stage.</p>
+    </div>
+    <div class="card">
+      <h3><a href="/studio/">Studio</a> <span class="pill on">works today</span></h3>
+      <p>Record a book in the browser. Runs here for trying out, and ships inside the box so that
+      the recording and the upload share an origin &mdash; which they have to.</p>
+    </div>
+    <div class="card">
+      <h3><a href="/tags/">Cards</a> <span class="pill on">works today</span></h3>
+      <p>What is actually on a card, byte by byte, and a writer that puts it there over Web NFC.
+      Every card&rsquo;s URL lands here, so a card found under the sofa can say what it is.</p>
+    </div>
+    <div class="card">
+      <h3><a href="/sim/">Simulator</a> <span class="pill on">works today</span></h3>
+      <p>The whole box, in a tab. Tap a card, hear it play, press the buttons. The point is to get
+      the interaction wrong here, where being wrong is free.</p>
+    </div>
+  </div>
+
+  <h2>The design is not finished</h2>
+  <p>Three questions are open and are deliberately being left open until parts are chosen. They are
+  written up properly in <a href="/design/#open">the design record</a>:</p>
+  <ol>
+    <li><strong>Bluetooth or wire?</strong> Bluetooth was the starting assumption. It is probably
+      the wrong one for a four-year-old, for reasons that are specific rather than aesthetic.</li>
+    <li><strong>Which brain?</strong> An ESP32 boots in a second and costs $6 but fights itself over
+      WiFi and Bluetooth; a Pi Zero 2 W does everything and takes 25 seconds to boot.</li>
+    <li><strong>Battery, or a cable?</strong> A cable is honest, cheap, and safe. A battery is what
+      makes a child carry the thing to bed.</li>
+  </ol>
+</main>
+
+<footer><div class="inner">
+  <strong>tape</strong> &middot; part of <a href="https://mino.mobi">mino.mobi</a> &middot;
+  designed in the open, built by a parent who did the arithmetic.
+</div></footer>
+
+</body>
+</html>
