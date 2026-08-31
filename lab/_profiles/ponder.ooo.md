@@ -193,6 +193,19 @@ requests even though not stated this time. Only real simplification was
 capping the basis at 5 odd harmonics (n=1..9) since the request implies an
 infinite series; flagged in BRIEF.md rather than silently truncating.
 
+Seventeenth request (2026-08-31), "draw-gaussian": another bare-formula ask
+with no reference link — GL(2,Z) acting on the integer lattice, show the
+preimage of the von Neumann neighborhood of an image point. Consistent with
+the fourth/fifth/fifteenth/sixteenth pattern: took the actual algebraic
+condition seriously (GL(2,Z) means det = ±1, not merely "integer entries" —
+that's what guarantees an integer inverse) and enforced it live rather than
+letting an arbitrary integer matrix through. Extended the single-point
+construction into a second view for free by reusing the same computed
+vectors (M⁻¹'s two columns) as a full alternate grid over the whole visible
+lattice, rather than building a separate feature — worth trying this move
+again on future bare-formula asks: look for a "draw the same vectors
+everywhere" generalization before reaching for a second panel/canvas.
+
 Thirteenth request (2026-07-31), continuing meta-todo: asked for two
 prioritized backlog entries — a max-priority one about pointing future build
 agents at general-template as their base, a high-priority one about rolling

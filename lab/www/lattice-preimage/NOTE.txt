@@ -1,0 +1,1 @@
+Built the exact pullback: pick p and M in GL(2,Z), see q=Mp's axis-aligned von Neumann neighborhood and its true preimage under M⁻¹ around p (usually a skewed diamond, not a plus). Added a full-lattice M⁻¹ basis-grid toggle as a second view of the same vectors.
