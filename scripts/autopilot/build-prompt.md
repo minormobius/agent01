@@ -33,9 +33,9 @@ _Regenerated 2026-09-01 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 82, bluesky 73, data 58, tools 58, work 8.
 
-**Neighborhood spark** (bisk 2026-09-01, 99 members / 297 posts):
+**Neighborhood spark** (bisk 2026-09-01, 99 members / 290 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: idk, llms, bluesky
+- Distinctive words: idk, llms, anthropic
 - Top post: "translation: open source ai is only slightly worse than Anthropic's flagship at hacking, once you fix it so that it stop" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
