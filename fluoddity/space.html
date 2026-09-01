@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fluoddity — parameter space</title>
+<meta name="description" content="A map of Fluoddity's 16-dimensional genome, scored by the landing hero's interestingness engine. A 2-D slice through any two parameters, a spectrum sweep along every axis at once, and the basin around one organism on the hypersphere — all sampled live in your browser.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fluoddity.mino.mobi/space.html">
+<meta property="og:title" content="fluoddity — parameter space">
+<meta property="og:description" content="The genome's hypersphere, mapped by the hero's interestingness engine: slices, spectra, and basins around any organism.">
+<meta property="og:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<style>
+:root {
+  --bg: #050608; --panel: #0e1014; --fg: #e7e9ee; --muted: #8b909c;
+  --rule: #23272f; --accent: #38e1c0; --accent-dim: rgba(56,225,192,0.16);
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--mono); height: 100%; }
+a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+#topbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 14px; padding: 12px 16px; background: rgba(5,6,8,0.85); backdrop-filter: blur(10px); border-bottom: 1px solid var(--rule); }
+.crumb { color: var(--muted); font-size: 13px; white-space: nowrap; } .crumb:hover { color: var(--accent); }
+.title { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; white-space: nowrap; } .title b { color: var(--accent); }
+.spacer { flex: 1; }
+.pill { background: var(--panel); border: 1px solid var(--rule); border-radius: 7px; padding: 6px 10px; font-size: 12px; color: var(--fg); white-space: nowrap; }
+.pill:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+#status { padding: 8px 16px; color: var(--muted); font-size: 12px; border-bottom: 1px solid var(--rule); display: flex; gap: 14px; align-items: center; }
+#status .bar { flex: 1; height: 3px; background: var(--panel); border-radius: 2px; overflow: hidden; max-width: 320px; }
+#status .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.15s; }
+#wrap { display: flex; min-height: calc(100vh - 82px); }
+#side { width: 292px; flex: none; border-right: 1px solid var(--rule); padding: 16px; }
+#main { flex: 1; min-width: 0; padding: 16px 20px 40px; }
+h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin: 18px 0 8px; }
+h3:first-child { margin-top: 0; }
+h3 .sub { text-transform: none; letter-spacing: 0; font-weight: 400; margin-left: 8px; }
+#preview { display: block; width: 100%; aspect-ratio: 1; background: #000; border: 1px solid var(--rule); border-radius: 10px; }
+.stat { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 3px 0; border-bottom: 1px dashed rgba(255,255,255,0.06); font-size: 11.5px; }
+.stat .k { color: var(--muted); white-space: nowrap; } .stat .v { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.stat .v.vd { font-weight: 700; }
+.btnrow { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+button, select { font: inherit; font-family: var(--mono); font-size: 11.5px; color: var(--fg); background: var(--panel); border: 1px solid var(--rule); border-radius: 7px; padding: 6px 9px; cursor: pointer; }
+button:hover, select:hover { border-color: var(--accent); color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: default; }
+button.primary { color: #04110e; background: var(--accent); border-color: var(--accent); font-weight: 600; }
+button.primary:hover { color: #04110e; filter: brightness(1.08); }
+.field { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); padding: 3px 0; }
+.field select { padding: 4px 6px; max-width: 160px; }
+.note { font-size: 10px; color: var(--muted); line-height: 1.55; margin-top: 8px; }
+.legend { display: flex; flex-direction: column; gap: 4px; }
+.legend .li { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--muted); }
+.legend .sw { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.legend .ramp { height: 10px; flex: 1; border-radius: 3px; }
+canvas.view { display: block; width: 100%; background: transparent; }
+#slicewrap, #specwrap { position: relative; }
+#slicehead { display: flex; align-items: baseline; gap: 12px; font-size: 11.5px; color: var(--muted); margin-bottom: 6px; flex-wrap: wrap; }
+#slicehead b { color: var(--fg); }
+#tip { position: fixed; pointer-events: none; display: none; z-index: 30; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 8px; width: 130px; }
+#tip canvas { width: 114px; height: 114px; display: block; border-radius: 6px; background: #000; }
+#tip .tn { font-size: 11px; font-weight: 600; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#tip .tv { font-size: 10px; color: var(--muted); white-space: pre-line; line-height: 1.4; }
+#basin { display: block; width: 100%; height: 160px; }
+#nogl { display: none; padding: 40px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+@media (max-width: 860px) {
+  #wrap { flex-direction: column; }
+  #side { width: auto; border-right: 0; border-bottom: 1px solid var(--rule); }
+  #preview { max-width: 320px; }
+}
+</style>
+</head>
+<body>
+<div id="topbar">
+  <a class="crumb" href="./">← fluoddity</a>
+  <span class="title"><b>fluoddity</b> parameter space</span>
+  <span class="spacer"></span>
+  <span id="auth"></span>
+  <a class="pill" href="./map.html">phase space ↗</a>
+  <a class="pill" href="./play/">playground ↗</a>
+</div>
+<div id="status"><span id="statustext">warming up…</span><span class="bar"><i id="statusbar"></i></span></div>
+<div id="wrap">
+  <div id="side">
+    <h3>selected <span class="sub" id="selrole">= base</span></h3>
+    <canvas id="preview"></canvas>
+    <div id="selinfo"></div>
+    <div class="btnrow">
+      <button id="btn-base" class="primary" title="Re-centre every view on the selected organism">make base ⤓</button>
+      <button id="btn-back" disabled title="Return to the previous base">← back</button>
+      <button id="btn-play" title="Open the selected organism in the playground">playground ↗</button>
+      <button id="btn-link" title="Copy a link to this map, centred on the selected organism">copy link</button>
+      <button id="btn-shuffle" title="Draw ten random genomes from the viable box, keep the most interesting, make it the base">shuffle base</button>
+    </div>
+
+    <h3>basin <span class="sub">fitness vs distance from base</span></h3>
+    <canvas id="basin"></canvas>
+    <div class="note">Random directions on the unit hypersphere in normalised genome space (all axes but spawn), walked outward from the base. How far you can go before it dies is the size of this organism's basin. Dots are samples; the line is the mean per radius.</div>
+
+    <h3>settings</h3>
+    <div class="field"><span>slice x</span><select id="sel-x"></select></div>
+    <div class="field"><span>slice y</span><select id="sel-y"></select></div>
+    <div class="field"><span>grid</span><select id="sel-n"><option value="8">8 × 8</option><option value="12" selected>12 × 12</option><option value="16">16 × 16</option><option value="24">24 × 24</option></select></div>
+    <div class="field"><span>colour by</span><select id="sel-col"><option value="fit" selected>interestingness</option><option value="verdict">verdict</option></select></div>
+    <div class="field"><span>engine</span><select id="sel-q"><option value="fast">fast · 224² / 14k</option><option value="hot" selected>hot-or-not · 320² / 32k</option><option value="hero">hero · 480² / 55k</option></select></div>
+
+    <h3>legend</h3>
+    <div class="legend" id="legend"></div>
+    <div class="note">Every cell is one full run of the landing hero's interestingness engine: two snapshots at 268 and 468 steps, scored by <code>fitness2</code> — structured, moving, healthily covered scores high; dead, sparse, boiling, blown-out scores low. Scored in the trail view regardless of the display toggle, at the landing's density-matched energy. The genome is not scale-invariant, so smaller engines shift the numbers a little; "hero" is the landing's exact engine.</div>
+  </div>
+  <div id="main">
+    <h3>slice <span class="sub" id="slicesub"></span></h3>
+    <div id="slicehead"></div>
+    <div id="slicewrap"><canvas id="slice" class="view"></canvas></div>
+    <h3 style="margin-top:26px">spectrum <span class="sub">every axis swept through the base, one row each</span></h3>
+    <div id="specwrap"><canvas id="spec" class="view"></canvas></div>
+    <div class="note">Each row holds every other parameter at the base and walks this one across its viable range; the white tick is where the base sits. A row that stays bright is a knob the organism doesn't much care about; a row that flickers is a lottery. Click any cell to preview it; make it the base to dive in.</div>
+  </div>
+</div>
+<div id="tip"><canvas width="114" height="114"></canvas><div class="tn"></div><div class="tv"></div></div>
+
+<script type="module">
+"use strict";
+import { FluoddityEngine, PARAMS, defaultConfig, randomConfig } from './engine.js';
+import { readDescriptors, fitness2, verdict, VIT_COLOR } from './descriptors.js';
+import { mountViewControls, getViewMode } from './viewcontrols.js';
+
+const $ = (s) => document.querySelector(s);
+const clamp01 = (x) => x < 0 ? 0 : x > 1 ? 1 : x;
+
+// ── the genome's axes ────────────────────────────────────────────────────────
+// PARAMS is the canonical evolvable box (engine.js). rule_seed, cohorts and the
+// spawn pattern are the structural genes mutate() jumps; they join as axes so
+// the map covers everything a genome can be. hazard_rate is pinned at 0.
+const AXES = [
+  { k: 'rule_seed', lo: 0, hi: 1, label: 'rule seed' },
+  ...Object.keys(PARAMS).map(k => ({ k, lo: PARAMS[k][0], hi: PARAMS[k][1], label: k.replace(/_/g, ' ') })),
+  { k: 'cohorts', lo: 1, hi: 48, int: true, label: 'cohorts' },
+  { k: 'initial_conditions', lo: 0, hi: 2, int: true, label: 'spawn', names: ['grid', 'scatter', 'ring'] },
+];
+const AX = Object.fromEntries(AXES.map(a => [a.k, a]));
+const BASIN_AXES = AXES.filter(a => a.k !== 'initial_conditions');
+const u2v = (a, u) => { const x = a.lo + u * (a.hi - a.lo); return a.int ? Math.round(x) : x; };
+const v2u = (a, v) => (v - a.lo) / (a.hi - a.lo);
+const uwrap = (a, u) => a.k === 'hue' ? ((u % 1) + 1) % 1 : clamp01(u);
+const fmt = (a, v) => a.names ? a.names[v] : a.int ? String(v) : (a.hi - a.lo < 1.5 ? v.toFixed(3) : v.toFixed(2));
+function normCfg(c) {
+  const o = Object.assign(defaultConfig(), c || {});
+  o.hazard_rate = 0;
+  for (const a of AXES) { let v = +o[a.k]; if (!Number.isFinite(v)) v = defaultConfig()[a.k]; v = a.k === 'hue' ? ((v % 1) + 1) % 1 : Math.min(a.hi, Math.max(a.lo, v)); o[a.k] = a.int ? Math.round(v) : v; }
+  return o;
+}
+const withAxis = (c, kv) => normCfg(Object.assign({}, c, kv));
+
+// ── URL hash: same base64url(JSON) as the playground's #c= ──────────────────
+function encodeConfig(c) { return btoa(unescape(encodeURIComponent(JSON.stringify(c)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function decodeConfig(s) { try { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return JSON.parse(decodeURIComponent(escape(atob(s)))); } catch { return null; } }
+function readHash() {
+  const out = {};
+  for (const part of location.hash.replace(/^#/, '').split('&')) { const i = part.indexOf('='); if (i > 0) out[part.slice(0, i)] = decodeURIComponent(part.slice(i + 1)); }
+  return out;
+}
+function writeHash() {
+  const h = `#c=${encodeConfig(base)}&x=${slice.xk}&y=${slice.yk}&n=${slice.n}&q=${quality}&col=${colorBy}`;
+  try { history.replaceState(null, '', h); } catch {}
+}
+
+// ── colour ───────────────────────────────────────────────────────────────────
+// Sequential, one hue (the site accent), dark → light: magnitude reads as light.
+const RAMP = [[0x0a, 0x0d, 0x12], [0x0f, 0x3d, 0x3a], [0x1a, 0x8a, 0x78], [0x38, 0xe1, 0xc0], [0xc9, 0xff, 0xf2]];
+function rampColor(t) {
+  t = clamp01(t) * (RAMP.length - 1); const i = Math.min(RAMP.length - 2, t | 0), f = t - i;
+  const a = RAMP[i], b = RAMP[i + 1];
+  return `rgb(${(a[0] + (b[0] - a[0]) * f) | 0},${(a[1] + (b[1] - a[1]) * f) | 0},${(a[2] + (b[2] - a[2]) * f) | 0})`;
+}
+const colorOf = (r) => !r ? null : colorBy === 'verdict' ? (VIT_COLOR[r.verd] || '#888') : rampColor(r.fit);
+// verdict mode: sparse and frozen are both yellow-ish, so sparse also gets a dot
+function markCell(ctx, r, x, y, w, h) {
+  if (colorBy !== 'verdict' || !r || r.verd !== 'sparse' || w < 7) return;
+  ctx.fillStyle = 'rgba(5,6,8,0.75)'; ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, Math.max(1.5, Math.min(w, h) * 0.14), 0, 7); ctx.fill();
+}
+
+// ── the sampler: the hero's interestingness protocol, sliced across frames ──
+const QUALITY = { fast: [224, 14000], hot: [320, 32000], hero: [480, 55000] };
+const PROTO = [[260, 'a1'], [8, 'v1'], [192, 'a2'], [8, 'v2']];
+let engine = null, quality = 'hot';
+const cache = new Map();     // key → result {fit, verd, v1, v2, thumb}
+const pending = new Map();   // key → job
+let jobs = [];               // queued jobs, in the order they'll run
+let current = null, phase = 0, left = 0, st = {};
+let budget = 96, doneCount = 0, totalCount = 0, emaMs = 0;
+
+function keyOf(c) { return quality + '|' + AXES.map(a => a.int ? c[a.k] : (+c[a.k]).toPrecision(7)).join(','); }
+function makeEngine() {
+  const [dim, count] = QUALITY[quality];
+  const e = new FluoddityEngine(dim, count);
+  e.displayMode = 'trail'; // the map scores the canonical trail render, whatever the view toggle says
+  // Density-match to the landing, exactly as viewcontrols does for the hero on
+  // mount (M_REF = 1.8, energy ×1): field energy ∝ count·brush², so this is what
+  // keeps a score comparable across the three engine sizes.
+  e.setSubstrate(Math.sqrt(1.8 / (count * e._baseBrush * e._baseBrush)));
+  return e;
+}
+function enqueue(cfg, sink, front = false) {
+  const key = keyOf(cfg);
+  const hit = cache.get(key);
+  if (hit) { sink(hit, cfg); return; }
+  let job = pending.get(key);
+  if (job) { job.sinks.push(sink); if (front && current !== job) { jobs = jobs.filter(j => j !== job); jobs.unshift(job); } return; }
+  job = { cfg, key, sinks: [sink] };
+  pending.set(key, job); totalCount++;
+  if (front) jobs.unshift(job); else jobs.push(job);
+}
+function resetQueue() { jobs = []; pending.clear(); if (current) { pending.set(current.key, current); } totalCount = doneCount = 0; if (current) totalCount = 1; }
+function startJob(job) { current = job; engine.load(job.cfg, job.key); phase = 0; left = PROTO[0][0]; st = {}; }
+function advance(steps) {
+  while (steps > 0) {
+    const n = Math.min(steps, left); engine.step(n); left -= n; steps -= n;
+    if (left > 0) return false;
+    engine.render();
+    const tag = PROTO[phase][1];
+    if (tag === 'a1') st.a1 = readDescriptors(engine.cv, null);
+    else if (tag === 'v1') st.v1 = readDescriptors(engine.cv, st.a1.lum);
+    else if (tag === 'a2') st.a2 = readDescriptors(engine.cv, null);
+    else { st.v2 = readDescriptors(engine.cv, st.a2.lum); return true; }
+    phase++; left = PROTO[phase][0];
+  }
+  return false;
+}
+function finishJob() {
+  const { v1, v2 } = st;
+  const thumb = document.createElement('canvas'); thumb.width = thumb.height = 96;
+  thumb.getContext('2d').drawImage(engine.cv, 0, 0, 96, 96);
+  const res = { fit: fitness2(v1, v2), verd: verdict(v2, false), v1, v2, thumb };
+  cache.set(current.key, res); pending.delete(current.key); doneCount++;
+  const job = current; current = null;
+  for (const s of job.sinks) { try { s(res, job.cfg); } catch (e) { console.error(e); } }
+}
+
+// ── state ────────────────────────────────────────────────────────────────────
+let base = null, baseRes = null, baseHistory = [], placeholderBase = true;
+let selected = null, selRes = null;
+let colorBy = 'fit';
+const slice = { xk: 'global_force_mult', yk: 'sensor_gain', n: 12, cells: [], cfgs: [] };
+const spec = { m: 20, rows: [] };
+const basin = { radii: [0.15, 0.3, 0.45, 0.6, 0.8, 1.0, 1.25, 1.5], D: 6, dirs: [], samples: [] };
+let dirty = { slice: true, spec: true, basin: true, info: true };
+
+function gaussDir(n) { const v = []; let s = 0; for (let i = 0; i < n; i++) { let u = 0, w = 0; while (!u) u = Math.random(); while (!w) w = Math.random(); const g = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * w); v.push(g); s += g * g; } const m = Math.sqrt(s) || 1; return v.map(x => x / m); }
+if (!basin.dirs.length) for (let d = 0; d < basin.D; d++) basin.dirs.push(gaussDir(BASIN_AXES.length));
+
+const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+
+function rebuild() {
+  resetQueue();
+  const lists = [];
+  // base itself (the r=0 point of the basin, and the spectrum's reference)
+  baseRes = null;
+  lists.push([{ cfg: base, sink: (r) => { baseRes = r; if (selected && keyOf(selected) === keyOf(base)) selRes = r; dirty.basin = dirty.info = true; } }]);
+  // slice
+  const n = slice.n, ax = AX[slice.xk], ay = AX[slice.yk];
+  slice.cells = new Array(n * n).fill(null); slice.cfgs = new Array(n * n);
+  const cellJobs = [];
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const cfg = withAxis(base, { [ax.k]: u2v(ax, (i + 0.5) / n), [ay.k]: u2v(ay, (j + 0.5) / n) });
+    const idx = j * n + i; slice.cfgs[idx] = cfg;
+    cellJobs.push({ o: BAYER4[(j % 4) * 4 + (i % 4)] * n * n + idx, cfg, sink: (r) => { slice.cells[idx] = r; dirty.slice = true; } });
+  }
+  cellJobs.sort((a, b) => a.o - b.o); lists.push(cellJobs);
+  // spectrum
+  spec.rows = AXES.map(a => { const m = a.names ? a.names.length : spec.m; return { a, m, cells: new Array(m).fill(null), cfgs: new Array(m) }; });
+  const specJobs = [];
+  for (const row of spec.rows) for (let i = 0; i < row.m; i++) {
+    const u = row.a.names ? i / (row.m - 1) : (i + 0.5) / row.m;
+    const cfg = withAxis(base, { [row.a.k]: u2v(row.a, u) }); row.cfgs[i] = cfg;
+    specJobs.push({ cfg, sink: (r) => { row.cells[i] = r; dirty.spec = true; } });
+  }
+  lists.push(specJobs);
+  // basin
+  basin.samples = [];
+  const bu = BASIN_AXES.map(a => v2u(a, base[a.k]));
+  const basinJobs = [];
+  for (const r of basin.radii) for (const dir of basin.dirs) {
+    const kv = {}; BASIN_AXES.forEach((a, i) => { kv[a.k] = u2v(a, uwrap(a, bu[i] + r * dir[i])); });
+    const cfg = withAxis(base, kv); const s = { r, cfg, res: null }; basin.samples.push(s);
+    basinJobs.push({ cfg, sink: (res) => { s.res = res; dirty.basin = true; } });
+  }
+  lists.push(basinJobs);
+  // interleave so every view fills at the same relative rate
+  const merged = [];
+  lists.forEach((L, li) => L.forEach((j, i) => merged.push({ t: i / L.length, li, j })));
+  merged.sort((a, b) => a.t - b.t || a.li - b.li);
+  for (const m of merged) enqueue(m.j.cfg, m.j.sink);
+  dirty = { slice: true, spec: true, basin: true, info: true };
+  writeHash();
+}
+
+function setBase(cfg, { push = true } = {}) {
+  if (push && base && !placeholderBase) baseHistory.push(base);
+  placeholderBase = false;
+  base = normCfg(cfg);
+  $('#btn-back').disabled = !baseHistory.length;
+  select(base, null);
+  rebuild();
+}
+function select(cfg, res) {
+  selected = normCfg(cfg); selRes = res || cache.get(keyOf(selected)) || null;
+  if (!selRes) enqueue(selected, (r, c) => { if (selected && keyOf(selected) === keyOf(c)) { selRes = r; dirty.info = true; } }, true);
+  if (preview) preview.load(selected, 'sel' + Math.random());
+  dirty.info = true;
+}
+
+// ── preview engine (live, follows the display toggle) ───────────────────────
+let preview = null;
+const pcv = $('#preview'), pctx = pcv.getContext('2d');
+function blitPreview() {
+  const W = pcv.clientWidth, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (!W) return;
+  if (pcv.width !== W * dpr) { pcv.width = pcv.height = W * dpr; }
+  pctx.drawImage(preview.cv, 0, 0, pcv.width, pcv.height);
+}
+
+// ── drawing ──────────────────────────────────────────────────────────────────
+function prep(cv, W, H) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (cv.width !== W * dpr || cv.height !== H * dpr) { cv.width = W * dpr; cv.height = H * dpr; }
+  cv.style.height = H + 'px';
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+  ctx.font = '10px ' + getComputedStyle(document.body).fontFamily;
+  return ctx;
+}
+const SL = { left: 46, bottom: 34, top: 6, right: 6 };
+let sliceGeom = null;
+function drawSlice() {
+  const cv = $('#slice'), wrap = $('#slicewrap');
+  const W = wrap.clientWidth; if (!W) return;
+  const n = slice.n, ax = AX[slice.xk], ay = AX[slice.yk];
+  const maxH = Math.min(window.innerHeight * 0.68, 680);
+  const cell = Math.max(4, Math.floor(Math.min((W - SL.left - SL.right) / n, (maxH - SL.top - SL.bottom) / n)));
+  const gw = cell * n, H = SL.top + gw + SL.bottom;
+  const ctx = prep(cv, W, H);
+  const ox = SL.left, oy = SL.top;
+  sliceGeom = { ox, oy, cell, n };
+  const gap = cell >= 10 ? 1 : 0;
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const r = slice.cells[j * n + i];
+    const x = ox + i * cell, y = oy + (n - 1 - j) * cell;
+    ctx.fillStyle = colorOf(r) || '#0e1014';
+    ctx.fillRect(x, y, cell - gap, cell - gap);
+    markCell(ctx, r, x, y, cell - gap, cell - gap);
+  }
+  // the cell being sampled
+  if (current) { const idx = slice.cfgs.findIndex(c => c && keyOf(c) === current.key); if (idx >= 0) { const i = idx % n, j = (idx / n) | 0; ctx.strokeStyle = 'rgba(56,225,192,0.8)'; ctx.lineWidth = 1; ctx.strokeRect(ox + i * cell + 0.5, oy + (n - 1 - j) * cell + 0.5, cell - gap - 1, cell - gap - 1); } }
+  // base crosshair
+  const bx = ox + v2u(ax, base[ax.k]) * gw, by = oy + (1 - v2u(ay, base[ay.k])) * gw;
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
+  ctx.beginPath(); ctx.moveTo(bx, oy); ctx.lineTo(bx, oy + gw); ctx.moveTo(ox, by); ctx.lineTo(ox + gw, by); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(bx, by, 3, 0, 7); ctx.fill();
+  // selected cell
+  if (selected) { const k = keyOf(selected); const idx = slice.cfgs.findIndex(c => c && keyOf(c) === k); if (idx >= 0) { const i = idx % n, j = (idx / n) | 0; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(ox + i * cell + 1, oy + (n - 1 - j) * cell + 1, cell - gap - 2, cell - gap - 2); } }
+  // axes
+  ctx.fillStyle = '#8b909c'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText(fmt(ax, ax.lo), ox, oy + gw + 5);
+  ctx.textAlign = 'right'; ctx.fillText(fmt(ax, ax.hi), ox + gw, oy + gw + 5);
+  ctx.textAlign = 'center'; ctx.fillStyle = '#e7e9ee'; ctx.fillText(ax.label + ' →', ox + gw / 2, oy + gw + 18);
+  ctx.save(); ctx.translate(12, oy + gw / 2); ctx.rotate(-Math.PI / 2); ctx.textBaseline = 'middle'; ctx.fillText(ay.label + ' →', 0, 0); ctx.restore();
+  ctx.save(); ctx.translate(30, oy + gw); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#8b909c'; ctx.fillText(fmt(ay, ay.lo), 0, 0); ctx.restore();
+  ctx.save(); ctx.translate(30, oy); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#8b909c'; ctx.fillText(fmt(ay, ay.hi), 0, 0); ctx.restore();
+  // header stats
+  const done = slice.cells.filter(Boolean);
+  let best = -1, bi = -1; done.length && slice.cells.forEach((r, i) => { if (r && r.fit > best) { best = r.fit; bi = i; } });
+  const alive = done.filter(r => r.verd === 'alive').length;
+  let html = `<span><b>${done.length}</b>/${n * n} sampled</span>`;
+  if (done.length) html += `<span>alive <b>${Math.round(100 * alive / done.length)}%</b></span><span>mean <b>${(done.reduce((s, r) => s + r.fit, 0) / done.length).toFixed(2)}</b></span>`;
+  if (bi >= 0) { const c = slice.cfgs[bi]; html += `<span>best <b>${best.toFixed(2)}</b> at ${ax.label} ${fmt(ax, c[ax.k])}, ${ay.label} ${fmt(ay, c[ay.k])} <a href="#" id="pick-best">select</a></span>`; }
+  $('#slicehead').innerHTML = html;
+  const pb = $('#pick-best'); if (pb) pb.addEventListener('click', (e) => { e.preventDefault(); select(slice.cfgs[bi], slice.cells[bi]); });
+  $('#slicesub').textContent = `${ax.label} × ${ay.label}, everything else at the base`;
+}
+function sliceHit(mx, my) {
+  if (!sliceGeom) return null; const { ox, oy, cell, n } = sliceGeom;
+  const i = Math.floor((mx - ox) / cell), jj = Math.floor((my - oy) / cell);
+  if (i < 0 || i >= n || jj < 0 || jj >= n) return null;
+  const j = n - 1 - jj, idx = j * n + i;
+  return { cfg: slice.cfgs[idx], res: slice.cells[idx], idx };
+}
+
+const SP = { label: 118, right: 64, rowH: 22, gapY: 4 };
+let specGeom = null;
+function drawSpec() {
+  const cv = $('#spec'), wrap = $('#specwrap');
+  const W = wrap.clientWidth; if (!W) return;
+  const rows = spec.rows, H = rows.length * (SP.rowH + SP.gapY);
+  const ctx = prep(cv, W, H);
+  const sw = W - SP.label - SP.right; specGeom = { sw, rows: [] };
+  rows.forEach((row, ri) => {
+    const y = ri * (SP.rowH + SP.gapY), cw = sw / row.m;
+    specGeom.rows.push({ y, cw });
+    ctx.fillStyle = '#e7e9ee'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(row.a.label, 0, y + SP.rowH / 2);
+    for (let i = 0; i < row.m; i++) {
+      const r = row.cells[i]; const x = SP.label + i * cw;
+      ctx.fillStyle = colorOf(r) || '#0e1014';
+      ctx.fillRect(x, y, Math.max(1, cw - 1), SP.rowH);
+      markCell(ctx, r, x, y, cw - 1, SP.rowH);
+    }
+    // base tick
+    const bu = v2u(row.a, base[row.a.k]);
+    const bx = row.a.names ? SP.label + (bu * (row.m - 1) + 0.5) * cw : SP.label + bu * sw;
+    ctx.fillStyle = '#fff'; ctx.fillRect(Math.round(bx) - 1, y - 2, 2, SP.rowH + 4);
+    // selected cell
+    if (selected) { const k = keyOf(selected); const i = row.cfgs.findIndex(c => keyOf(c) === k); if (i >= 0 && keyOf(base) !== k) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(SP.label + i * cw + 1, y + 1, cw - 3, SP.rowH - 2); } }
+    // base value + row summary
+    const done = row.cells.filter(Boolean);
+    ctx.fillStyle = '#8b909c'; ctx.textAlign = 'right';
+    ctx.fillText(fmt(row.a, base[row.a.k]), W, y + SP.rowH / 2 - 5);
+    if (done.length) { const alive = done.filter(r => r.verd === 'alive').length; ctx.fillText(`${Math.round(100 * alive / done.length)}% alive`, W, y + SP.rowH / 2 + 6); }
+  });
+}
+function specHit(mx, my) {
+  if (!specGeom) return null;
+  const ri = Math.floor(my / (SP.rowH + SP.gapY)); const row = spec.rows[ri]; if (!row) return null;
+  const g = specGeom.rows[ri]; if (my - g.y > SP.rowH) return null;
+  const i = Math.floor((mx - SP.label) / g.cw); if (i < 0 || i >= row.m) return null;
+  return { cfg: row.cfgs[i], res: row.cells[i], row };
+}
+
+const BS = { left: 26, right: 8, top: 8, bottom: 18 };
+let basinGeom = null;
+function drawBasin() {
+  const cv = $('#basin'); const W = cv.clientWidth, H = 160; if (!W) return;
+  const ctx = prep(cv, W, H);
+  const pw = W - BS.left - BS.right, ph = H - BS.top - BS.bottom, rmax = 1.6;
+  const X = (r) => BS.left + (r / rmax) * pw, Y = (f) => BS.top + (1 - clamp01(f)) * ph;
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
+  for (const f of [0, 0.5, 1]) { ctx.beginPath(); ctx.moveTo(BS.left, Y(f) + 0.5); ctx.lineTo(W - BS.right, Y(f) + 0.5); ctx.stroke(); }
+  ctx.fillStyle = '#8b909c'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  ctx.fillText('1', BS.left - 5, Y(1)); ctx.fillText('.5', BS.left - 5, Y(0.5)); ctx.fillText('0', BS.left - 5, Y(0));
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (const r of [0, 0.5, 1, 1.5]) ctx.fillText(String(r), X(r), H - BS.bottom + 4);
+  if (baseRes) { ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.setLineDash([3, 4]); ctx.beginPath(); ctx.moveTo(BS.left, Y(baseRes.fit) + 0.5); ctx.lineTo(W - BS.right, Y(baseRes.fit) + 0.5); ctx.stroke(); ctx.setLineDash([]); }
+  // mean line
+  const pts = [];
+  if (baseRes) pts.push([0, baseRes.fit]);
+  for (const r of basin.radii) { const rs = basin.samples.filter(s => s.r === r && s.res); if (rs.length) pts.push([r, rs.reduce((a, s) => a + s.res.fit, 0) / rs.length]); }
+  if (pts.length > 1) { ctx.strokeStyle = '#38e1c0'; ctx.lineWidth = 2; ctx.beginPath(); pts.forEach(([r, f], i) => i ? ctx.lineTo(X(r), Y(f)) : ctx.moveTo(X(r), Y(f))); ctx.stroke(); }
+  // dots
+  basinGeom = [];
+  for (const s of basin.samples) {
+    if (!s.res) continue;
+    const x = X(s.r), y = Y(s.res.fit);
+    ctx.fillStyle = colorOf(s.res); ctx.strokeStyle = '#050608'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 7); ctx.fill(); ctx.stroke();
+    basinGeom.push({ x, y, s });
+  }
+  if (baseRes) { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(X(0), Y(baseRes.fit), 3.5, 0, 7); ctx.fill(); }
+}
+function basinHit(mx, my) {
+  if (!basinGeom) return null; let best = null, bd = 9;
+  for (const g of basinGeom) { const d = Math.hypot(g.x - mx, g.y - my); if (d < bd) { bd = d; best = g.s; } }
+  return best ? { cfg: best.cfg, res: best.res, r: best.r } : null;
+}
+
+function diffText(cfg) {
+  const parts = [];
+  if (keyOf(base) !== keyOf(cfg)) for (const a of AXES) { if (Math.abs(cfg[a.k] - base[a.k]) > 1e-9) parts.push(`${a.label} ${fmt(a, cfg[a.k])}`); }
+  return parts.length ? parts.slice(0, 4).join(' · ') + (parts.length > 4 ? ` · +${parts.length - 4}` : '') : '= base';
+}
+function drawInfo() {
+  const stat = (k, v, cls = '') => `<div class="stat"><span class="k">${k}</span><span class="v ${cls}">${v}</span></div>`;
+  const isBase = selected && base && keyOf(selected) === keyOf(base);
+  $('#selrole').textContent = isBase ? '= base' : diffText(selected);
+  let html = '';
+  if (selRes) {
+    const c = VIT_COLOR[selRes.verd] || '#888';
+    html += stat('interestingness', selRes.fit.toFixed(3)) + stat('verdict', `<span style="color:${c}">${selRes.verd}</span>`, 'vd');
+    html += stat('fill · motion', `${selRes.v2.fill.toFixed(3)} · ${selRes.v2.motion.toFixed(4)}`);
+    html += stat('structure · blowout', `${selRes.v2.struct.toFixed(3)} · ${selRes.v2.blowout.toFixed(3)}`);
+    html += stat('Δfill · Δmotion (T2−T1)', `${(selRes.v2.fill - selRes.v1.fill).toFixed(3)} · ${(selRes.v2.motion - selRes.v1.motion).toFixed(4)}`);
+  } else html += stat('interestingness', 'scoring…');
+  if (baseRes && !isBase && selRes) html += stat('vs base', (selRes.fit - baseRes.fit >= 0 ? '+' : '') + (selRes.fit - baseRes.fit).toFixed(3));
+  html += stat('rule seed', selected.rule_seed.toFixed(4)) + stat('cohorts · spawn', `${selected.cohorts} · ${AX.initial_conditions.names[selected.initial_conditions]}`);
+  $('#selinfo').innerHTML = html;
+  $('#btn-base').disabled = !!isBase;
+}
+function drawLegend() {
+  if (colorBy === 'fit') {
+    $('#legend').innerHTML = `<div class="li"><span>0</span><span class="ramp" style="background:linear-gradient(90deg,${RAMP.map((c, i) => `rgb(${c.join(',')}) ${i * 100 / (RAMP.length - 1)}%`).join(',')})"></span><span>1</span></div><div class="li">interestingness (fitness2), dark → light</div><div class="li"><span class="sw" style="background:transparent;border:1px dashed #fff"></span>white crosshair · tick · dot = the base</div>`;
+  } else {
+    $('#legend').innerHTML = ['alive', 'boiling', 'frozen', 'sparse', 'dead', 'blown out'].map(k => `<div class="li"><span class="sw" style="background:${VIT_COLOR[k]}"></span>${k}${k === 'sparse' ? ' (also marked with a dot)' : ''}</div>`).join('') + `<div class="li"><span class="sw" style="background:transparent;border:1px dashed #fff"></span>white crosshair · tick · dot = the base</div>`;
+  }
+}
+
+// ── tooltip + hit-testing ────────────────────────────────────────────────────
+const tip = $('#tip'), tipCtx = tip.querySelector('canvas').getContext('2d');
+function showTip(e, hit, extra) {
+  if (!hit || !hit.cfg) { tip.style.display = 'none'; return; }
+  const r = hit.res;
+  if (r) tipCtx.drawImage(r.thumb, 0, 0, 114, 114); else { tipCtx.fillStyle = '#000'; tipCtx.fillRect(0, 0, 114, 114); }
+  tip.querySelector('.tn').textContent = r ? `${r.verd} · ${r.fit.toFixed(2)}` : 'not sampled yet';
+  tip.querySelector('.tv').textContent = (extra ? extra + '\n' : '') + diffText(hit.cfg);
+  tip.style.borderColor = r ? (colorOf(r) || '#23272f') : '#23272f';
+  tip.style.display = 'block';
+  tip.style.left = Math.min(e.clientX + 14, window.innerWidth - 146) + 'px';
+  tip.style.top = Math.min(e.clientY + 14, window.innerHeight - 190) + 'px';
+}
+function wire(cv, hitFn, extraFn) {
+  const pos = (e) => { const b = cv.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; };
+  cv.addEventListener('pointermove', (e) => { const h = hitFn(...pos(e)); showTip(e, h, h && extraFn ? extraFn(h) : ''); cv.style.cursor = h && h.cfg ? 'pointer' : 'default'; });
+  cv.addEventListener('pointerleave', () => { tip.style.display = 'none'; });
+  cv.addEventListener('click', (e) => { const h = hitFn(...pos(e)); if (h && h.cfg) { select(h.cfg, h.res); dirty.slice = dirty.spec = true; } });
+}
+wire($('#slice'), sliceHit, (h) => { const ax = AX[slice.xk], ay = AX[slice.yk]; return `${ax.label} ${fmt(ax, h.cfg[ax.k])}\n${ay.label} ${fmt(ay, h.cfg[ay.k])}`; });
+wire($('#spec'), specHit, (h) => `${h.row.a.label} ${fmt(h.row.a, h.cfg[h.row.a.k])}`);
+wire($('#basin'), basinHit, (h) => `radius ${h.r}`);
+
+// ── controls ─────────────────────────────────────────────────────────────────
+for (const id of ['#sel-x', '#sel-y']) { const s = $(id); for (const a of AXES) { const o = document.createElement('option'); o.value = a.k; o.textContent = a.label; s.appendChild(o); } }
+function syncControls() { $('#sel-x').value = slice.xk; $('#sel-y').value = slice.yk; $('#sel-n').value = String(slice.n); $('#sel-col').value = colorBy; $('#sel-q').value = quality; }
+$('#sel-x').addEventListener('change', (e) => { if (e.target.value === slice.yk) slice.yk = slice.xk; slice.xk = e.target.value; syncControls(); rebuild(); });
+$('#sel-y').addEventListener('change', (e) => { if (e.target.value === slice.xk) slice.xk = slice.yk; slice.yk = e.target.value; syncControls(); rebuild(); });
+$('#sel-n').addEventListener('change', (e) => { slice.n = +e.target.value; rebuild(); });
+$('#sel-col').addEventListener('change', (e) => { colorBy = e.target.value; drawLegend(); dirty.slice = dirty.spec = dirty.basin = true; writeHash(); });
+$('#sel-q').addEventListener('change', (e) => {
+  quality = e.target.value; current = null;
+  try { const lose = engine && engine.gl.getExtension('WEBGL_lose_context'); if (lose) lose.loseContext(); } catch {} // free the old context; browsers cap them
+  try { engine = makeEngine(); } catch (err) { $('#statustext').textContent = 'could not build that engine: ' + (err.message || err); engine = null; return; }
+  if (selected) selRes = cache.get(keyOf(selected)) || null;
+  rebuild();
+});
+$('#btn-base').addEventListener('click', () => { if (selected) setBase(selected); });
+$('#btn-back').addEventListener('click', () => { if (baseHistory.length) setBase(baseHistory.pop(), { push: false }); $('#btn-back').disabled = !baseHistory.length; });
+$('#btn-play').addEventListener('click', () => { if (selected) window.open('./play/#c=' + encodeConfig(selected), '_blank', 'noopener'); });
+$('#btn-link').addEventListener('click', async () => {
+  const url = location.origin + location.pathname + `#c=${encodeConfig(selected || base)}&x=${slice.xk}&y=${slice.yk}&n=${slice.n}&q=${quality}&col=${colorBy}`;
+  try { await navigator.clipboard.writeText(url); $('#btn-link').textContent = 'copied ✓'; } catch { prompt('link', url); }
+  setTimeout(() => { $('#btn-link').textContent = 'copy link'; }, 1600);
+});
+// Shuffle: the hero's own procedure — ten draws from the viable box, keep the
+// most interesting — run through the same queue at the front.
+let shuffling = false;
+$('#btn-shuffle').addEventListener('click', () => {
+  if (shuffling) return; shuffling = true; $('#btn-shuffle').textContent = 'shuffling…';
+  const N = 10; let best = null, bs = -Infinity, got = 0;
+  for (let i = 0; i < N; i++) {
+    const c = randomConfig(); c.initial_conditions = base ? base.initial_conditions : 0;
+    enqueue(normCfg(c), (r, cfg) => { got++; if (r.fit > bs) { bs = r.fit; best = cfg; } if (got === N) { shuffling = false; $('#btn-shuffle').textContent = 'shuffle base'; setBase(best); } }, true);
+  }
+});
+
+// ── main loop ────────────────────────────────────────────────────────────────
+function status() {
+  const el = $('#statustext'), bar = $('#statusbar');
+  const remaining = jobs.length + (current ? 1 : 0);
+  if (!remaining) { el.textContent = `${doneCount} organisms scored · ${cache.size} cached · click a cell to preview, make it the base to dive in`; bar.style.width = '100%'; return; }
+  const eta = emaMs ? Math.round(remaining * emaMs / 1000) : null;
+  el.textContent = `sampling ${doneCount}/${totalCount}${eta != null ? ` · ~${eta}s left` : ''}${shuffling ? ' · shuffling the base' : ''}`;
+  bar.style.width = (100 * doneCount / Math.max(1, totalCount)) + '%';
+}
+let lastStart = 0;
+function frame() {
+  if (engine) {
+    if (!current && jobs.length) { startJob(jobs.shift()); lastStart = performance.now(); dirty.slice = true; }
+    if (current) {
+      const t0 = performance.now();
+      const done = advance(budget);
+      const dt = performance.now() - t0;
+      if (dt > 40) budget = Math.max(8, budget * 0.7 | 0); else if (dt < 18) budget = Math.min(600, budget * 1.25 | 0);
+      if (done) { const ms = performance.now() - lastStart; emaMs = emaMs ? emaMs * 0.85 + ms * 0.15 : ms; finishJob(); }
+    }
+  }
+  if (preview) { preview.step(4); preview.render(); blitPreview(); }
+  if (dirty.slice) { drawSlice(); dirty.slice = false; }
+  if (dirty.spec) { drawSpec(); dirty.spec = false; }
+  if (dirty.basin) { drawBasin(); dirty.basin = false; }
+  if (dirty.info) { drawInfo(); dirty.info = false; }
+  status();
+  requestAnimationFrame(frame);
+}
+window.addEventListener('resize', () => { dirty.slice = dirty.spec = dirty.basin = true; });
+
+(function main() {
+  const h = readHash();
+  if (h.x && AX[h.x]) slice.xk = h.x;
+  if (h.y && AX[h.y] && h.y !== slice.xk) slice.yk = h.y;
+  if (h.n && [8, 12, 16, 24].includes(+h.n)) slice.n = +h.n;
+  if (h.q && QUALITY[h.q]) quality = h.q;
+  if (h.col === 'verdict') colorBy = 'verdict';
+  syncControls(); drawLegend();
+  try { engine = makeEngine(); }
+  catch (e) { $('#statustext').textContent = 'parameter space needs WebGL2 with float render targets — ' + (e.message || e); document.querySelectorAll('button,select').forEach(b => b.disabled = true); return; }
+  try { preview = new FluoddityEngine(256, 24000); preview.displayMode = getViewMode(); } catch { preview = null; }
+  mountViewControls($('#topbar'), { engines: () => preview, substrate: true, onReset: () => { if (selected && preview) preview.load(selected, 'r' + Math.random()); }, resetLabel: '↻ replay' });
+  const fromHash = h.c ? decodeConfig(h.c) : null;
+  if (fromHash && typeof fromHash === 'object') setBase(fromHash, { push: false });
+  else {
+    // No organism in the URL: hold a placeholder while the hero's own ten-draw
+    // shuffle finds a lively base, then map around that.
+    base = normCfg(defaultConfig()); select(base, null); $('#btn-shuffle').click();
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+<script type="module">import { mountAuthChip } from './authchip.js'; mountAuthChip(document.getElementById('auth'));</script>
+</body>
+</html>

@@ -530,13 +530,13 @@
       "dir": "fluoddity",
       "endpoint": "fluoddity.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/fluoddity-param-space-viz-9d5g4b",
       "uses": [],
       "provides": null,
       "paths": [
         "fluoddity/**"
       ],
-      "status": "MANAGED — FIXED: added custom_domain route (fluoddity.mino.mobi) to make the binding declarative. Name kept (fluoddity-minomobi); no twin worker found, so it was already deploying the right worker."
+      "status": "MANAGED — owning branch moved to claude/fluoddity-param-space-viz-9d5g4b (parameter-space map, /space.html). Earlier: added custom_domain route (fluoddity.mino.mobi) to make the binding declarative. Name kept (fluoddity-minomobi); no twin worker found, so it was already deploying the right worker."
     },
     {
       "surface": "fred-proxy",
