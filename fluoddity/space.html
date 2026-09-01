@@ -309,7 +309,7 @@ function select(cfg, res) {
   selected = normCfg(cfg); selRes = res || cache.get(keyOf(selected)) || null;
   if (!selRes) enqueue(selected, (r, c) => { if (selected && keyOf(selected) === keyOf(c)) { selRes = r; dirty.info = true; } }, true);
   if (preview) preview.load(selected, 'sel' + Math.random());
-  dirty.info = true;
+  drawInfo(); dirty.info = false; // synchronous: on a slow GPU the next frame can be seconds away
 }
 
 // ── preview engine (live, follows the display toggle) ───────────────────────
@@ -511,8 +511,8 @@ function wire(cv, hitFn, extraFn) {
   cv.addEventListener('pointerleave', () => { tip.style.display = 'none'; });
   cv.addEventListener('click', (e) => { const h = hitFn(...pos(e)); if (h && h.cfg) { select(h.cfg, h.res); dirty.slice = dirty.spec = true; } });
 }
-wire($('#slice'), sliceHit, (h) => { const ax = AX[slice.xk], ay = AX[slice.yk]; return `${ax.label} ${fmt(ax, h.cfg[ax.k])}\n${ay.label} ${fmt(ay, h.cfg[ay.k])}`; });
-wire($('#spec'), specHit, (h) => `${h.row.a.label} ${fmt(h.row.a, h.cfg[h.row.a.k])}`);
+wire($('#slice'), sliceHit, null); // the diff line already names the two axes
+wire($('#spec'), specHit, null);
 wire($('#basin'), basinHit, (h) => `radius ${h.r}`);
 
 // ── controls ─────────────────────────────────────────────────────────────────
