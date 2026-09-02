@@ -109,6 +109,17 @@ export function genome(seed) {
   return g;
 }
 
+// The quasicrystal namespace (/q/<seed>): the same genome, grown on a plane
+// tiling picked by its own PRNG stream — so adding this changed no cubic
+// specimen. The disk nucleus and the tiling radius scale with the budget.
+export const QUASI_SHAPES = ["penrose", "penrose", "ammann", "seven", "hex", "rhombille", "snub", "kagome", "rhombitri", "truncsq"];
+export function quasiSubstrate(seed, shape) {
+  seed = normalizeSeed(seed);
+  const r = stream(seed, "substrate");
+  const pick_ = QUASI_SHAPES[Math.floor(r() * QUASI_SHAPES.length)];
+  return { shape: shape && QUASI_SHAPES.includes(shape) ? shape : pick_, R: 44, ic: { disk: 2.2 + r() * 1.6, thickness: 2 }, z0: 6 };
+}
+
 export function normalizeSeed(s) {
   const n = parseInt(String(s), 10);
   if (!Number.isFinite(n) || n < 1) return 1;

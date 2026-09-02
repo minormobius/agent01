@@ -40,6 +40,10 @@ const EXTRA = [
   // picture straight to Bluesky; a stale copy would post through last month's
   // token handling.
   ["packages/oauth-client/auth.js", "photo/public/shop/js/vendor/auth.js"],
+  // bismuth grows crystals on the plane tilings in packages/tilings/ (the
+  // same generators the foam dungeon draws rooms with). Its page and worker
+  // import /js/tilings.js from the site's own asset root.
+  ["packages/tilings/tilings.js", "bismuth/js/tilings.js"],
 ];
 
 const args = process.argv.slice(2);

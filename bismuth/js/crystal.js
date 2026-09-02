@@ -1,4 +1,4 @@
-// bismuth — the growth engine. A cubic lattice, a colony of MASONS, and the
+// bismuth — the growth engine. A SUBSTRATE, a colony of MASONS, and the
 // crystal they lay brick by brick.
 //
 // This is a kinetic simulation of hopper-crystal growth, not a drawing of one.
@@ -20,8 +20,16 @@
 //   and is. So every layer is a ring one step further out than the last — the
 //   hopper steps down into its own pit and flares outward at 45°.
 //
-//   Anisotropy — a per-seed growth-rate weight for each of the six face
-//   normals, which is the difference between a funnel, a tower and a stair.
+//   Anisotropy — a per-seed growth-rate weight for each face normal, which
+//   is the difference between a funnel, a tower and a stair.
+//
+// The SUBSTRATE is the geometry: which sites exist, which touch, what a
+// straight line through the plane means. The masons never see it directly —
+// they ask it for neighbours, for bonds, and for the terrace verdict. Two
+// substrates: `Lattice`, the cubic lattice the seeded specimens grow on (the
+// fast path, kept bit-identical — the selftest pins golden brick hashes), and
+// `Prism` (prism.js), any plane tiling from packages/tilings stacked into
+// layers — a Penrose substrate grows a decagonal quasicrystal.
 //
 // Everything is integer arithmetic or IEEE basic ops on doubles, no
 // transcendental functions in any decision, one PRNG stream drawn in a fixed
@@ -29,6 +37,7 @@
 
 import { stream } from "./prng.js";
 import { genome as makeGenome, GRID, DEFAULT_BRAIN, DEFAULT_POPULATION } from "./genome.js";
+import { Prism } from "./prism.js";
 
 const G = GRID;
 const IDX = (x, y, z) => (z * G + y) * G + x;
@@ -43,22 +52,29 @@ const LAT = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1
 const MARGIN = 3;                                 // bricks never touch the lattice wall
 const LOOK = 40;                                  // how far "beyond the drop" is scanned
 
+// ---------------------------------------------------------------- Lattice ----
+// The cubic substrate. Sites are (x, y, z) on a GRID³ lattice; a site index is
+// IDX(x, y, z). Six face neighbours, the 26-cell walk, and six EXTENT MAPS
+// (the crystal's furthest brick along each face normal, per lateral column)
+// that the terrace rule reads.
 export class Lattice {
   constructor() {
+    this.kind = "cubic";
+    this.sites = G * G * G;
     this.occ = new Uint8Array(G * G * G);         // 1 = brick
     this.nb = new Uint8Array(G * G * G);          // occupied face-neighbours, 0..6
-    // ext[f]: for face normal f, the crystal's furthest extent along f in each
-    // lateral column, as a height h (0 = the near wall of the lattice), -1 = none.
     this.ext = [];
     for (let f = 0; f < 6; f++) this.ext.push(new Int16Array(G * G).fill(-1));
     this.count = 0;
     this.sx = 0; this.sy = 0; this.sz = 0;        // centroid accumulators
     this.min = [G, G, G]; this.max = [-1, -1, -1];
+    this.moteOffset = [0.5, 0.5, 0.5];            // a mote sits at the centre of its cell
   }
-  inBounds(x, y, z) {
+  inBoundsXYZ(x, y, z) {
     return x >= MARGIN && y >= MARGIN && z >= MARGIN && x < G - MARGIN && y < G - MARGIN && z < G - MARGIN;
   }
-  place(x, y, z) {
+  inBounds(s) { return this.inBoundsXYZ(s % G, ((s - s % G) / G) % G, (s / (G * G)) | 0); }
+  placeXYZ(x, y, z) {
     const i = IDX(x, y, z);
     if (this.occ[i]) return false;
     this.occ[i] = 1;
@@ -76,9 +92,37 @@ export class Lattice {
     if (x > this.max[0]) this.max[0] = x; if (y > this.max[1]) this.max[1] = y; if (z > this.max[2]) this.max[2] = z;
     return true;
   }
+  place(s) { return this.placeXYZ(s % G, ((s - s % G) / G) % G, (s / (G * G)) | 0); }
   centroid() {
     const n = this.count || 1;
     return [Math.round(this.sx / n), Math.round(this.sy / n), Math.round(this.sz / n)];
+  }
+  bounds() { return { min: this.min, max: [this.max[0] + 1, this.max[1] + 1, this.max[2] + 1], count: this.count }; }
+  open(s) { const x = s % G, y = ((s - x) / G) % G, z = (s / (G * G)) | 0; return this.ext[4][x * G + y] < z; }
+  kossel(s) { return this.nb[s]; }               // on the cubic lattice the bond count is the class
+  pos(s, m) { m.x = s % G; m.y = ((s - m.x) / G) % G; m.z = (s / (G * G)) | 0; }
+  brick(s, tick, mason) { const x = s % G, y = ((s - x) / G) % G, z = (s / (G * G)) | 0; return { x, y, z, t: tick, m: mason }; }
+
+  // The nucleus is laid by nobody — it is the grain the melt froze around.
+  // An explicit voxel list (the playground's initial condition, offsets from
+  // the lattice centre) takes precedence over the seeded nucleus plates.
+  seed(genome) {
+    const bricks = [];
+    if (genome.voxels) {
+      const c = G >> 1;
+      for (const v of genome.voxels) {
+        const x = c + v[0], y = c + v[1], z = c - 20 + v[2];
+        if (this.inBoundsXYZ(x, y, z) && this.placeXYZ(x, y, z)) bricks.push({ x, y, z, t: 0, m: -1 });
+      }
+      return bricks;
+    }
+    for (const n of genome.nuclei) {
+      const x0 = n.x - (n.sx >> 1), y0 = n.y - (n.sy >> 1), z0 = n.z - (n.sz >> 1);
+      for (let z = 0; z < n.sz; z++) for (let y = 0; y < n.sy; y++) for (let x = 0; x < n.sx; x++) {
+        if (this.placeXYZ(x0 + x, y0 + y, z0 + z)) bricks.push({ x: x0 + x, y: y0 + y, z: z0 + z, t: 0, m: -1 });
+      }
+    }
+    return bricks;
   }
 
   // The terrace rule. Is the empty site c, attached to a brick on its
@@ -113,6 +157,181 @@ export class Lattice {
     }
     return false;
   }
+
+  // The anisotropy weight of the strongest FED face this empty site would
+  // attach to. For a terrace nucleation (nb = 1) two more things must hold,
+  // both from the 2D-nucleation picture: a new LAYER needs a real terrace
+  // under it (a brick perched on a spike or a one-brick fin touches almost
+  // nothing in its plane), and a layer widens OUTWARD only at the crystal's
+  // top lip — the edge with the richest supply — never off the side of a
+  // lower step. 0 if the site touches nothing or every face it touches is
+  // starved.
+  fedBias(s, nb, axis, rim, B) {
+    const x = s % G, y = ((s - x) / G) % G, z = (s / (G * G)) | 0;
+    const i = s, occ = this.occ;
+    const c = this._c || (this._c = [0, 0, 0]); c[0] = x; c[1] = y; c[2] = z;
+    let bias = 0;
+    const topHere = this.ext[4][x * G + y];          // highest brick in this column
+    for (let f = 0; f < 5; f++) {                  // never -z: the melt is above
+      let w = axis[f];
+      if (w <= bias) continue;
+      const below = i - STRIDE[f];
+      if (!occ[below]) continue;                     // no brick on the far side of this face
+      if (nb === 1) {
+        if (f < 4) {
+          // lateral: the lip rule
+          if (B.lipRule) {
+            if (topHere >= z) continue;                                   // something above this site
+            const bx = x - FACE[f][0], by = y - FACE[f][1];
+            if (this.ext[4][bx * G + by] !== z) continue;                  // the brick is not the top of its column
+          }
+          const su = STRIDE[f < 2 ? 2 : 0];                                // along the lip
+          const along = occ[below + su] + occ[below - su];
+          w *= along === 2 ? 1 : along === 1 ? B.lipAlong : 0;
+          // and the melt thins with depth: the top lip is at the surface, a
+          // skirt at the foot of the crystal is not
+          if (B.lipDepth > 0) {
+            const depth = (z - this.min[2]) / Math.max(1, this.max[2] - this.min[2]);
+            let d = depth;
+            for (let k = 1; k < B.lipDepth; k++) d *= depth;
+            w *= d;
+          }
+        } else {
+          const su = STRIDE[0], sv = STRIDE[2];
+          const c8 = occ[below + su] + occ[below - su] + occ[below + sv] + occ[below - sv]
+                   + occ[below + su + sv] + occ[below + su - sv] + occ[below - su + sv] + occ[below - su - sv];
+          w *= c8 >= B.patchFull ? 1 : c8 >= B.patchMin ? B.patchPart : 0;
+        }
+        if (w <= bias) continue;
+      }
+      if (this.fed(c, f, rim)) bias = w;
+    }
+    return bias;
+  }
+
+  // Walk candidates from site s: the 26 neighbours that are empty and touch
+  // the crystal, in a fixed order. Returns the count written into `out`.
+  walk(s, out) {
+    const x0 = s % G, y0 = ((s - x0) / G) % G, z0 = (s / (G * G)) | 0;
+    let nc = 0;
+    for (let k = 0; k < 26; k++) {
+      const o = HOOD[k];
+      const x = x0 + o[0], y = y0 + o[1], z = z0 + o[2];
+      if (x < 1 || y < 1 || z < 1 || x >= G - 1 || y >= G - 1 || z >= G - 1) continue;
+      const q = IDX(x, y, z);
+      if (this.occ[q]) continue;
+      if (this.nb[q] === 0) continue;
+      out[nc++] = q;
+    }
+    return nc;
+  }
+
+  // Arrival from the melt: pick a point on a box just outside the crystal and
+  // fly a straight lattice ray toward (near) the centroid; land on the last
+  // empty cell before the first brick. Rays strike protrusions first — the
+  // diffusion-limited supply that feeds corners before faces. Returns a site
+  // or -1.
+  arrive(r, B) {
+    const c = this.centroid();
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const pad = 6 + attempt;
+      const lo = [this.min[0] - pad, this.min[1] - pad, this.min[2] - pad];
+      const hi = [this.max[0] + pad, this.max[1] + pad, this.max[2] + pad];
+      // the melt is above: most arrivals come down onto the crystal
+      const u = r(), a = B.arriveFromAbove;
+      const face = u < a ? 5 : Math.floor((u - a) * (5 / (1 - a)));   // 5 = the box's top (+z side)
+      const p = [
+        lo[0] + Math.floor(r() * (hi[0] - lo[0] + 1)),
+        lo[1] + Math.floor(r() * (hi[1] - lo[1] + 1)),
+        lo[2] + Math.floor(r() * (hi[2] - lo[2] + 1)),
+      ];
+      p[face >> 1] = (face & 1) ? hi[face >> 1] : lo[face >> 1];
+      const j = 2 + Math.floor((this.max[0] - this.min[0] + this.max[1] - this.min[1] + this.max[2] - this.min[2]) / 6);
+      const t = [
+        c[0] + Math.floor(r() * (2 * j + 1)) - j,
+        c[1] + Math.floor(r() * (2 * j + 1)) - j,
+        c[2] + Math.floor(r() * (2 * j + 1)) - j,
+      ];
+      const hit = this.ray(p, t);
+      if (hit) return IDX(hit[0], hit[1], hit[2]);
+    }
+    return -1;
+  }
+
+  // Integer lattice ray from p through t, stepping ONE axis per move so the
+  // cell before a hit is face-adjacent to it. Exact rational comparison of
+  // crossing times — no floats where it matters.
+  ray(p, t) {
+    let x = p[0], y = p[1], z = p[2];
+    const dx = t[0] - x, dy = t[1] - y, dz = t[2] - z;
+    const ax = Math.abs(dx), ay = Math.abs(dy), az = Math.abs(dz);
+    const sx = dx > 0 ? 1 : -1, sy = dy > 0 ? 1 : -1, sz = dz > 0 ? 1 : -1;
+    if (ax + ay + az === 0) return null;
+    let nx = 0, ny = 0, nz = 0;
+    let px, py, pz;
+    const limit = 3 * G;
+    for (let k = 0; k < limit; k++) {
+      let a;
+      if (ax && ay && az) {
+        const cx = (2 * nx + 1) * ay * az, cy = (2 * ny + 1) * ax * az, cz = (2 * nz + 1) * ax * ay;
+        a = cx <= cy ? (cx <= cz ? 0 : 2) : (cy <= cz ? 1 : 2);
+      } else {
+        const rx = ax ? (2 * nx + 1) / ax : Infinity;
+        const ry = ay ? (2 * ny + 1) / ay : Infinity;
+        const rz = az ? (2 * nz + 1) / az : Infinity;
+        a = rx <= ry ? (rx <= rz ? 0 : 2) : (ry <= rz ? 1 : 2);
+      }
+      px = x; py = y; pz = z;
+      if (a === 0) { x += sx; nx++; } else if (a === 1) { y += sy; ny++; } else { z += sz; nz++; }
+      if (x < 0 || y < 0 || z < 0 || x >= G || y >= G || z >= G) return null;
+      if (this.occ[IDX(x, y, z)]) {
+        if (px < 0 || py < 0 || pz < 0 || px >= G || py >= G || pz >= G) return null;
+        return [px, py, pz];
+      }
+    }
+    return null;
+  }
+
+  // Measured, not asserted: the numbers the page shows come from the lattice.
+  stats(growth) {
+    const box = [this.max[0] - this.min[0] + 1, this.max[1] - this.min[1] + 1, this.max[2] - this.min[2] + 1];
+    // pit volume: empty cells fenced laterally on all four sides AND below —
+    // the hollow a hopper steps down into.
+    let pit = 0, exposed = 0;
+    const occ = this.occ, lat = this;
+    for (let z = lat.min[2]; z <= lat.max[2]; z++) for (let y = lat.min[1]; y <= lat.max[1]; y++) {
+      for (let x = lat.min[0]; x <= lat.max[0]; x++) {
+        const i = IDX(x, y, z);
+        if (occ[i]) { exposed += 6 - lat.nb[i]; continue; }
+        if (lat.nb[i] === 0) continue;
+        let fenced = 0;
+        for (let k = x + 1; k <= lat.max[0]; k++) if (occ[IDX(k, y, z)]) { fenced++; break; }
+        for (let k = x - 1; k >= lat.min[0]; k--) if (occ[IDX(k, y, z)]) { fenced++; break; }
+        for (let k = y + 1; k <= lat.max[1]; k++) if (occ[IDX(x, k, z)]) { fenced++; break; }
+        for (let k = y - 1; k >= lat.min[1]; k--) if (occ[IDX(x, k, z)]) { fenced++; break; }
+        for (let k = z - 1; k >= lat.min[2]; k--) if (occ[IDX(x, y, k)]) { fenced++; break; }
+        if (fenced === 5) pit++;
+      }
+    }
+    // terraces: distinct top heights along the crystal's midline in x
+    const heights = new Set();
+    const ym = Math.round(lat.sy / (lat.count || 1));
+    for (let x = lat.min[0]; x <= lat.max[0]; x++) {
+      for (let z = lat.max[2]; z >= lat.min[2]; z--) if (occ[IDX(x, ym, z)]) { heights.add(z); break; }
+    }
+    return {
+      bricks: lat.count,
+      box,
+      pit,
+      hollowness: pit / Math.max(1, lat.count),
+      exposedFaces: exposed,
+      terraces: heights.size,
+      ticks: growth.tick,
+      masons: growth.masons.length,
+      retired: growth.retired,
+      laidPerMason: growth.masons.map((m) => m.laid),
+    };
+  }
 }
 
 // ---------------------------------------------------------------- Mason ----
@@ -125,7 +344,8 @@ export class Mason {
     this.id = id;
     this.state = "melt";
     this.wait = 0;
-    this.x = 0; this.y = 0; this.z = 0;
+    this.site = -1;
+    this.x = 0; this.y = 0; this.z = 0;             // world position, for the renderer
     this.patience = 0;
     this.laid = 0;
     this.walked = 0;
@@ -141,8 +361,10 @@ export class Growth {
     this.brain = Object.assign({}, DEFAULT_BRAIN, g.brain || {});
     this.pop = Object.assign({}, DEFAULT_POPULATION, g.population || {});
     this.rng = stream(g.seed, "growth");
-    this.lat = new Lattice();
-    this.K = [0, g.k1, g.k2, g.k3, 1, 1, 1];
+    const sp = g.substrate;
+    this.sub = sp && sp.shape && sp.shape !== "grid" ? new Prism(sp) : new Lattice();
+    this.lat = this.sub;                            // the cubic name, kept for callers
+    this.K = [0, g.k1, g.k2, g.k3, 1, 1, 1, 1, 1, 1, 1];
     this.axis = g.axis.slice();
     this.rim = g.rim;
     this.masons = [];
@@ -158,82 +380,14 @@ export class Growth {
     this.done = false;
     this.cooling = false;
     this.stalled = 0;
-    this._c = [0, 0, 0];
-    this._cand = new Float64Array(26);
-    this._candIdx = new Int32Array(26);
+    this._cand = new Int32Array(512);            // a Penrose vertex can touch ten tiles; 26 on the cubic lattice
+    this._wts = new Float64Array(512);
     this.seedNuclei();
   }
 
   seedNuclei() {
-    // The nucleus is laid by nobody — it is the grain the melt froze around.
-    // An explicit voxel list (the playground's initial condition, offsets from
-    // the lattice centre) takes precedence over the seeded nucleus plates.
-    if (this.genome.voxels) {
-      const c = G >> 1;
-      for (const v of this.genome.voxels) {
-        const x = c + v[0], y = c + v[1], z = c - 20 + v[2];
-        if (this.lat.inBounds(x, y, z) && this.lat.place(x, y, z)) this.bricks.push({ x, y, z, t: 0, m: -1 });
-      }
-      this.nucleusBricks = this.bricks.length;
-      return;
-    }
-    for (const n of this.genome.nuclei) {
-      const x0 = n.x - (n.sx >> 1), y0 = n.y - (n.sy >> 1), z0 = n.z - (n.sz >> 1);
-      for (let z = 0; z < n.sz; z++) for (let y = 0; y < n.sy; y++) for (let x = 0; x < n.sx; x++) {
-        if (this.lat.place(x0 + x, y0 + y, z0 + z)) this.bricks.push({ x: x0 + x, y: y0 + y, z: z0 + z, t: 0, m: -1 });
-      }
-    }
+    this.bricks = this.sub.seed(this.genome);
     this.nucleusBricks = this.bricks.length;
-  }
-
-  // The anisotropy weight of the strongest FED face this empty site would
-  // attach to. For a terrace nucleation (nb = 1) two more things must hold,
-  // both from the 2D-nucleation picture: a new LAYER needs a real terrace
-  // under it (a brick perched on a spike or a one-brick fin touches almost
-  // nothing in its plane), and a layer widens OUTWARD only at the crystal's
-  // top lip — the edge with the richest supply — never off the side of a
-  // lower step. 0 if the site touches nothing or every face it touches is
-  // starved.
-  fedBias(x, y, z, nb) {
-    const lat = this.lat, i = IDX(x, y, z), occ = lat.occ, B = this.brain;
-    const c = this._c; c[0] = x; c[1] = y; c[2] = z;
-    let bias = 0;
-    const topHere = lat.ext[4][x * G + y];          // highest brick in this column
-    for (let f = 0; f < 5; f++) {                  // never -z: the melt is above
-      let w = this.axis[f];
-      if (w <= bias) continue;
-      const below = i - STRIDE[f];
-      if (!occ[below]) continue;                     // no brick on the far side of this face
-      if (nb === 1) {
-        if (f < 4) {
-          // lateral: the lip rule
-          if (B.lipRule) {
-            if (topHere >= z) continue;                                   // something above this site
-            const bx = x - FACE[f][0], by = y - FACE[f][1];
-            if (lat.ext[4][bx * G + by] !== z) continue;                   // the brick is not the top of its column
-          }
-          const su = STRIDE[f < 2 ? 2 : 0];                                // along the lip
-          const along = occ[below + su] + occ[below - su];
-          w *= along === 2 ? 1 : along === 1 ? B.lipAlong : 0;
-          // and the melt thins with depth: the top lip is at the surface, a
-          // skirt at the foot of the crystal is not
-          if (B.lipDepth > 0) {
-            const depth = (z - lat.min[2]) / Math.max(1, lat.max[2] - lat.min[2]);
-            let d = depth;
-            for (let k = 1; k < B.lipDepth; k++) d *= depth;
-            w *= d;
-          }
-        } else {
-          const su = STRIDE[0], sv = STRIDE[2];
-          const c8 = occ[below + su] + occ[below - su] + occ[below + sv] + occ[below - sv]
-                   + occ[below + su + sv] + occ[below + su - sv] + occ[below - su + sv] + occ[below - su - sv];
-          w *= c8 >= B.patchFull ? 1 : c8 >= B.patchMin ? B.patchPart : 0;
-        }
-        if (w <= bias) continue;
-      }
-      if (lat.fed(c, f, this.rim)) bias = w;
-    }
-    return bias;
   }
 
   // One tick: every mason acts once, in id order. Returns the bricks laid.
@@ -294,78 +448,18 @@ export class Growth {
     return this;
   }
 
-  // Arrival from the melt: pick a point on a box just outside the crystal and
-  // fly a straight lattice ray toward (near) the centroid; land on the last
-  // empty cell before the first brick. Rays strike protrusions first — the
-  // diffusion-limited supply that feeds corners before faces.
   arrive(m) {
-    const lat = this.lat, r = this.rng;
-    const c = lat.centroid();
-    for (let attempt = 0; attempt < 12; attempt++) {
-      const pad = 6 + attempt;
-      const lo = [lat.min[0] - pad, lat.min[1] - pad, lat.min[2] - pad];
-      const hi = [lat.max[0] + pad, lat.max[1] + pad, lat.max[2] + pad];
-      // the melt is above: most arrivals come down onto the crystal
-      const u = r(), a = this.brain.arriveFromAbove;
-      const face = u < a ? 5 : Math.floor((u - a) * (5 / (1 - a)));   // 5 = the box's top (+z side)
-      const p = [
-        lo[0] + Math.floor(r() * (hi[0] - lo[0] + 1)),
-        lo[1] + Math.floor(r() * (hi[1] - lo[1] + 1)),
-        lo[2] + Math.floor(r() * (hi[2] - lo[2] + 1)),
-      ];
-      p[face >> 1] = (face & 1) ? hi[face >> 1] : lo[face >> 1];
-      const j = 2 + Math.floor((lat.max[0] - lat.min[0] + lat.max[1] - lat.min[1] + lat.max[2] - lat.min[2]) / 6);
-      const t = [
-        c[0] + Math.floor(r() * (2 * j + 1)) - j,
-        c[1] + Math.floor(r() * (2 * j + 1)) - j,
-        c[2] + Math.floor(r() * (2 * j + 1)) - j,
-      ];
-      const hit = this.ray(p, t);
-      if (hit) {
-        m.from = m.state === "surface" ? [m.x, m.y, m.z] : null;
-        m.x = hit[0]; m.y = hit[1]; m.z = hit[2];
-        m.state = "surface";
-        m.patience = this.genome.patience;
-        return true;
-      }
+    const s = this.sub.arrive(this.rng, this.brain);
+    if (s >= 0) {
+      m.from = m.state === "surface" ? [m.x, m.y, m.z] : null;
+      m.site = s;
+      this.sub.pos(s, m);
+      m.state = "surface";
+      m.patience = this.genome.patience;
+      return true;
     }
     m.wait = this.genome.flight;                   // missed; try again later
     return false;
-  }
-
-  // Integer lattice ray from p through t, stepping ONE axis per move so the
-  // cell before a hit is face-adjacent to it. Exact rational comparison of
-  // crossing times — no floats where it matters.
-  ray(p, t) {
-    const lat = this.lat;
-    let x = p[0], y = p[1], z = p[2];
-    const dx = t[0] - x, dy = t[1] - y, dz = t[2] - z;
-    const ax = Math.abs(dx), ay = Math.abs(dy), az = Math.abs(dz);
-    const sx = dx > 0 ? 1 : -1, sy = dy > 0 ? 1 : -1, sz = dz > 0 ? 1 : -1;
-    if (ax + ay + az === 0) return null;
-    let nx = 0, ny = 0, nz = 0;
-    let px, py, pz;
-    const limit = 3 * G;
-    for (let k = 0; k < limit; k++) {
-      let a;
-      if (ax && ay && az) {
-        const cx = (2 * nx + 1) * ay * az, cy = (2 * ny + 1) * ax * az, cz = (2 * nz + 1) * ax * ay;
-        a = cx <= cy ? (cx <= cz ? 0 : 2) : (cy <= cz ? 1 : 2);
-      } else {
-        const rx = ax ? (2 * nx + 1) / ax : Infinity;
-        const ry = ay ? (2 * ny + 1) / ay : Infinity;
-        const rz = az ? (2 * nz + 1) / az : Infinity;
-        a = rx <= ry ? (rx <= rz ? 0 : 2) : (ry <= rz ? 1 : 2);
-      }
-      px = x; py = y; pz = z;
-      if (a === 0) { x += sx; nx++; } else if (a === 1) { y += sy; ny++; } else { z += sz; nz++; }
-      if (x < 0 || y < 0 || z < 0 || x >= G || y >= G || z >= G) return null;
-      if (lat.occ[IDX(x, y, z)]) {
-        if (px < 0 || py < 0 || pz < 0 || px >= G || py >= G || pz >= G) return null;
-        return [px, py, pz];
-      }
-    }
-    return null;
   }
 
   // One surface decision: lay the brick here (Kossel rate, then the terrace
@@ -373,23 +467,23 @@ export class Growth {
   // patience spent — desorb back into the melt. Never a forced brick: a mason
   // that finds no good site leaves, which is what keeps the faces flat.
   act(m, laid) {
-    const lat = this.lat, g = this.genome, r = this.rng, B = this.brain;
-    const here = IDX(m.x, m.y, m.z);
-    const nbHere = lat.nb[here];
-    if (lat.occ[here] || nbHere === 0) {           // ground moved under us
+    const sub = this.sub, g = this.genome, r = this.rng, B = this.brain;
+    const here = m.site;
+    const nbHere = sub.kossel(here);
+    if (sub.occ[here] || nbHere === 0) {           // ground moved under us
       m.state = "melt"; m.wait = g.flight; return;
     }
     // The melt is above. A site with any brick over it in its column is in
     // shadow and gets nothing — the underside of a lip never fills, and the
     // crystal has a floor, not a second hopper growing down. Cheap Kossel
     // gate next; the terrace scan only runs when both pass.
-    const open = !this.brain.skyRule || lat.ext[4][m.x * G + m.y] < m.z;
+    const open = !B.skyRule || sub.open(here);
     if (open && r() < this.K[nbHere]) {
-      const bias = this.fedBias(m.x, m.y, m.z, nbHere);
+      const bias = sub.fedBias(here, nbHere, this.axis, this.rim, B);
       if (bias > 0 && (bias >= 1 || r() < bias)) {
-        if (!lat.inBounds(m.x, m.y, m.z)) { m.state = "melt"; m.wait = g.flight * 3; return; }
-        lat.place(m.x, m.y, m.z);
-        laid.push({ x: m.x, y: m.y, z: m.z, t: this.tick, m: m.id });
+        if (!sub.inBounds(here)) { m.state = "melt"; m.wait = g.flight * 3; return; }
+        sub.place(here);
+        laid.push(sub.brick(here, this.tick, m.id));
         m.laid++;
         m.from = [m.x, m.y, m.z];
         m.state = "melt"; m.wait = g.flight;
@@ -398,31 +492,26 @@ export class Growth {
     }
     if (--m.patience < 0) { m.state = "melt"; m.wait = g.flight; return; }
     // walk: candidates are empty cells touching the crystal, drawn in
-    // proportion to 1 + nb²·mobility (bonds attract), and toward open sky
-    const cand = this._cand, candIdx = this._candIdx;
-    let nc = 0, total = 0;
-    for (let k = 0; k < 26; k++) {
-      const o = HOOD[k];
-      const x = m.x + o[0], y = m.y + o[1], z = m.z + o[2];
-      if (x < 1 || y < 1 || z < 1 || x >= G - 1 || y >= G - 1 || z >= G - 1) continue;
-      const q = IDX(x, y, z);
-      if (lat.occ[q]) continue;
-      const nb = lat.nb[q];
-      if (nb === 0) continue;
+    // proportion to 1 + nb^bondPull·mobility (bonds attract), and toward open sky
+    const cand = this._cand, wts = this._wts;
+    const nc = sub.walk(here, cand);
+    let total = 0;
+    for (let i = 0; i < nc; i++) {
+      const q = cand[i], nb = sub.nb[q];
       let bp = 1;
       for (let e = 0; e < B.bondPull; e++) bp *= nb;
       let w = 1 + bp * g.mobility;
-      if (lat.ext[4][x * G + y] < z) w *= B.skyPull;  // open sky pulls: that is where the melt is
-      cand[nc] = w; candIdx[nc] = k; nc++;
+      if (sub.open(q)) w *= B.skyPull;             // open sky pulls: that is where the melt is
+      wts[i] = w;
       total += w;
     }
     if (total <= 0) { m.state = "melt"; m.wait = g.flight; return; }
     let u = r() * total;
     for (let i = 0; i < nc; i++) {
-      u -= cand[i];
+      u -= wts[i];
       if (u < 0) {
-        const o = HOOD[candIdx[i]];
-        m.x += o[0]; m.y += o[1]; m.z += o[2];
+        m.site = cand[i];
+        sub.pos(cand[i], m);
         m.walked++;
         break;
       }
@@ -430,47 +519,7 @@ export class Growth {
   }
 
   // ------------------------------------------------------------ readouts --
-  // Measured, not asserted: the numbers the page shows come from the lattice.
-  stats() {
-    const lat = this.lat;
-    const box = [lat.max[0] - lat.min[0] + 1, lat.max[1] - lat.min[1] + 1, lat.max[2] - lat.min[2] + 1];
-    // pit volume: empty cells fenced laterally on all four sides AND below —
-    // the hollow a hopper steps down into.
-    let pit = 0, exposed = 0;
-    const occ = lat.occ;
-    for (let z = lat.min[2]; z <= lat.max[2]; z++) for (let y = lat.min[1]; y <= lat.max[1]; y++) {
-      for (let x = lat.min[0]; x <= lat.max[0]; x++) {
-        const i = IDX(x, y, z);
-        if (occ[i]) { exposed += 6 - lat.nb[i]; continue; }
-        if (lat.nb[i] === 0) continue;
-        let fenced = 0;
-        for (let k = x + 1; k <= lat.max[0]; k++) if (occ[IDX(k, y, z)]) { fenced++; break; }
-        for (let k = x - 1; k >= lat.min[0]; k--) if (occ[IDX(k, y, z)]) { fenced++; break; }
-        for (let k = y + 1; k <= lat.max[1]; k++) if (occ[IDX(x, k, z)]) { fenced++; break; }
-        for (let k = y - 1; k >= lat.min[1]; k--) if (occ[IDX(x, k, z)]) { fenced++; break; }
-        for (let k = z - 1; k >= lat.min[2]; k--) if (occ[IDX(x, y, k)]) { fenced++; break; }
-        if (fenced === 5) pit++;
-      }
-    }
-    // terraces: distinct top heights along the crystal's midline in x
-    const heights = new Set();
-    const ym = Math.round(lat.sy / (lat.count || 1));
-    for (let x = lat.min[0]; x <= lat.max[0]; x++) {
-      for (let z = lat.max[2]; z >= lat.min[2]; z--) if (occ[IDX(x, ym, z)]) { heights.add(z); break; }
-    }
-    return {
-      bricks: lat.count,
-      box,
-      pit,
-      hollowness: pit / Math.max(1, lat.count),
-      exposedFaces: exposed,
-      terraces: heights.size,
-      ticks: this.tick,
-      masons: this.masons.length,
-      retired: this.retired,
-      laidPerMason: this.masons.map((m) => m.laid),
-    };
-  }
+  stats() { return this.sub.stats(this); }
 }
 
 export { IDX, G as GRIDSIZE, FACE };

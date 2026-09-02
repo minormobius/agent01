@@ -13,7 +13,7 @@
 // /c/<seed> from breaking relative URLs.
 
 import { Growth } from "./js/crystal.js";
-import { genome, normalizeSeed } from "./js/genome.js";
+import { genome, normalizeSeed, quasiSubstrate } from "./js/genome.js";
 
 const CORS = {
   "access-control-allow-origin": "*",
@@ -49,24 +49,32 @@ export default {
     }
     if (p === "/api/crystal") {
       const seed = normalizeSeed(url.searchParams.get("seed") || "1");
+      const quasi = url.searchParams.get("q") === "1";
       const full = url.searchParams.get("full") === "1";
       const nParam = parseInt(url.searchParams.get("n") || "", 10);
-      const g = new Growth(seed);
-      const n = full ? Infinity : (Number.isFinite(nParam) && nParam > 0 ? Math.min(nParam, 20000) : DEFAULT_N);
+      const gen = genome(seed);
+      if (quasi) gen.substrate = quasiSubstrate(seed);
+      const g = new Growth(gen);
+      // a prism crystal costs several times a cubic one per brick
+      const cap = quasi ? 6000 : 20000, dflt = quasi ? 1200 : DEFAULT_N;
+      const n = full ? Infinity : (Number.isFinite(nParam) && nParam > 0 ? Math.min(nParam, cap) : dflt);
       while (!g.done && g.bricks.length < n) g.step();
       return json({
         seed,
         genome: g.genome,
         complete: g.done,
         ticks: g.tick,
-        bricks: g.bricks.map((b) => [b.x, b.y, b.z, b.t, b.m]),
+        substrate: gen.substrate || { shape: "grid" },
+        bricks: g.bricks.map((b) => (quasi ? [b.x, b.y, b.z, b.t, b.m, b.tile] : [b.x, b.y, b.z, b.t, b.m])),
         stats: g.done ? g.stats() : null,
-        _format: "bricks are [x, y, z, tick, mason] in laying order; mason -1 is the nucleus",
+        _format: quasi
+          ? "bricks are [x, y, z, tick, mason, tile] in laying order (x, y the tile centroid in edge lengths); mason -1 is the nucleus"
+          : "bricks are [x, y, z, tick, mason] in laying order; mason -1 is the nucleus",
       });
     }
 
     // ── crystal permalinks → index.html ──
-    if (/^\/c\/\d+\/?$/.test(p)) {
+    if (/^\/[cq]\/\d+\/?$/.test(p)) {
       // "/" not "/index.html": the assets layer 307s /index.html to / and the seed would be lost
       const res = await env.ASSETS.fetch(new Request(new URL("/", url.origin), request));
       return new Response(res.body, { status: res.status, headers: withHeaders(res.headers) });

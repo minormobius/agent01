@@ -4,18 +4,25 @@
 // engine's, and the same whether you watch it or skip to the end.
 
 import { Growth } from "./crystal.js";
-import { genome, normalizeSeed } from "./genome.js";
+import { genome, normalizeSeed, quasiSubstrate } from "./genome.js";
 import { Renderer } from "./render.js";
+import { SHAPE_INFO } from "./tilings.js";
 
 const $ = (s) => document.querySelector(s);
 const fmt = (n) => n.toLocaleString("en-US");
 
+// Two namespaces: /c/<seed> is a cubic specimen, /q/<seed> its quasicrystal
+// cousin — the same genome grown on a plane tiling chosen by the seed.
 function seedFromURL() {
-  const m = location.pathname.match(/^\/c\/(\d+)/);
-  if (m) return normalizeSeed(m[1]);
+  const m = location.pathname.match(/^\/([cq])\/(\d+)/);
+  if (m) return normalizeSeed(m[2]);
   const q = new URLSearchParams(location.search).get("seed");
   if (q) return normalizeSeed(q);
   return null;
+}
+function quasiFromURL() {
+  if (/^\/q\//.test(location.pathname)) return true;
+  return new URLSearchParams(location.search).has("q");
 }
 function randomSeed() {
   const a = new Uint32Array(1);
@@ -23,12 +30,13 @@ function randomSeed() {
   return (a[0] % 900000) + 1;
 }
 // Pretty permalinks need the worker; a bare static server gets the query form.
-function pathFor(seed) {
-  const pretty = /^\/c\//.test(location.pathname) || location.pathname === "/" || location.pathname === "/index.html";
+function pathFor(seed, quasi) {
+  const pretty = /^\/[cq]\//.test(location.pathname) || location.pathname === "/" || location.pathname === "/index.html";
   const q = new URLSearchParams(location.search);
-  q.delete("seed");
+  q.delete("seed"); q.delete("q");
+  if (!pretty && quasi) q.set("q", "1");
   const rest = q.toString() ? "?" + q.toString() : "";
-  return pretty && location.protocol !== "file:" ? `/c/${seed}${rest}` : `${location.pathname}?seed=${seed}${rest.replace(/^\?/, "&")}`;
+  return pretty && location.protocol !== "file:" ? `/${quasi ? "q" : "c"}/${seed}${rest}` : `${location.pathname}?seed=${seed}${rest.replace(/^\?/, "&")}`;
 }
 
 class App {
@@ -40,11 +48,13 @@ class App {
     this.last = performance.now();
     this.debt = 0;
     this.instant = new URLSearchParams(location.search).has("instant");
+    this.quasi = quasiFromURL();
+    this.shapeOverride = new URLSearchParams(location.search).get("shape");
     this.bind();
     const seed = seedFromURL();
     if (seed === null) {
       const s = randomSeed();
-      history.replaceState(null, "", pathFor(s));
+      history.replaceState(null, "", pathFor(s, this.quasi));
       this.start(s);
     } else this.start(seed);
     requestAnimationFrame((t) => this.loop(t));
@@ -52,7 +62,9 @@ class App {
 
   start(seed) {
     this.seed = seed;
-    this.growth = new Growth(seed);
+    const gen = genome(seed);
+    if (this.quasi || this.shapeOverride) gen.substrate = quasiSubstrate(seed, this.shapeOverride);
+    this.growth = new Growth(gen);
     this.renderer.setGrowth(this.growth);
     this.renderer.sync(true);                 // the nucleus is already cold
     this.renderer.snapCamera();
@@ -64,18 +76,21 @@ class App {
     // pace: a whole crystal in 20–55 s, whatever its budget
     this.duration = Math.max(20, Math.min(55, g.budget / 200));
     this.rate = g.budget / this.duration;
-    $("#seed").textContent = "№ " + fmt(seed);
-    $("#habit").textContent = g.label;
-    $("#masons").textContent = `${g.masons} masons · rim ${g.rim} · ${g.habitDesc}`;
+    const sub = g.substrate;
+    $("#seed").textContent = (sub ? "Q " : "№ ") + fmt(seed);
+    $("#habit").textContent = sub ? `${g.label} · on ${SHAPE_INFO[sub.shape].label}` : g.label;
+    $("#masons").textContent = `${g.masons} masons · rim ${g.rim} · ${sub ? SHAPE_INFO[sub.shape].note : g.habitDesc}`;
     $("#stats").textContent = "";
-    document.title = `bismuth № ${seed}`;
+    $("#cousin").textContent = sub ? "cubic cousin" : "quasicrystal cousin";
+    $("#cousin").href = pathFor(seed, !sub);
+    document.title = `bismuth ${sub ? "Q" : "№"} ${seed}`;
     if (this.instant) this.skip();
     this.updateHUD();
   }
 
   go(seed, push = true) {
     seed = normalizeSeed(seed);
-    if (push) history.pushState(null, "", pathFor(seed));
+    if (push) history.pushState(null, "", pathFor(seed, this.quasi));
     this.start(seed);
   }
 
@@ -142,7 +157,7 @@ class App {
     $("#skip").addEventListener("click", () => this.skip());
     $("#pause").addEventListener("click", () => { this.paused = !this.paused; this.updateHUD(); });
     $("#share").addEventListener("click", async () => {
-      const url = location.origin + pathFor(this.seed);
+      const url = location.origin + pathFor(this.seed, this.quasi);
       try { await navigator.clipboard.writeText(url); this.toast("link copied — this crystal, forever"); }
       catch (e) { this.toast(url); }
     });
@@ -155,7 +170,8 @@ class App {
       $("#seedinput").value = "";
       $("#seedinput").blur();
     });
-    window.addEventListener("popstate", () => { const s = seedFromURL(); if (s !== null) this.start(s); });
+    window.addEventListener("popstate", () => { this.quasi = quasiFromURL(); const s = seedFromURL(); if (s !== null) this.start(s); });
+    $("#cousin").addEventListener("click", (e) => { e.preventDefault(); this.quasi = !this.quasi; this.go(this.seed); });
     window.addEventListener("keydown", (e) => {
       if (e.target && (e.target.tagName === "INPUT")) return;
       if (e.key === " ") { e.preventDefault(); this.paused = !this.paused; this.updateHUD(); }

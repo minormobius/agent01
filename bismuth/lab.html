@@ -92,16 +92,23 @@
 
 <aside id="panel">
   <h1><a href="/"><span class="bi">bi</span>smuth</a><small>playground</small></h1>
-  <div id="lede">The engine with the lid off. Paint the <b>initial condition</b>, rewrite the <b>laws</b> of the mason brain, breed or thin the <b>colony</b>. Every state here is a permalink — <a href="#" id="share2">share</a> copies it. Edits mid-growth apply live; <em>reset</em> replays the whole thing from scratch, which is what the link reproduces.</div>
+  <div id="lede">The engine with the lid off. Pick the <b>substrate</b> — a cubic lattice or any plane tiling, Penrose included — paint the <b>initial condition</b>, rewrite the <b>laws</b> of the mason brain, breed or thin the <b>colony</b>. Every state here is a permalink — <a href="#" id="share2">share</a> copies it. Edits mid-growth apply live; <em>reset</em> replays the whole thing from scratch, which is what the link reproduces.</div>
+
+  <details open id="sec-sub">
+    <summary>substrate <span class="hint">the geometry the masons build on</span></summary>
+    <div class="chips" id="shapes"></div>
+    <div class="note" id="shapenote"></div>
+    <div class="row" id="rrow"><label title="radius of the tiling disk, in edge lengths">radius</label><input type="range" id="tileR" min="12" max="44" step="2" value="30"><output id="tileR-out">30</output></div>
+  </details>
 
   <details open id="sec-ic">
     <summary>initial condition <span class="hint">paint heights; the crystal grows on what you draw</span></summary>
     <canvas id="paint" width="384" height="384"></canvas>
     <div id="painttools">
       <div class="row"><label>brush</label><input type="range" id="brush" min="0" max="12" step="1" value="2"><output id="brush-out">2</output></div>
-      <div class="row"><label>grid</label><input type="range" id="gridn" min="12" max="40" step="4" value="24"><output id="gridn-out">24</output></div>
+      <div class="row" id="gridrow"><label>grid</label><input type="range" id="gridn" min="12" max="40" step="4" value="24"><output id="gridn-out">24</output></div>
     </div>
-    <div class="note">left-drag paints columns of <em>brush</em> bricks; right-drag or brush 0 erases. Heights are the substrate: plates, bars, rings, pillars, walls.</div>
+    <div class="note">left-drag paints columns of <em>brush</em> bricks; right-drag or brush 0 erases. Heights are the initial condition: plates, bars, rings, pillars, walls.</div>
     <div class="chips" id="presets">
       <button data-preset="plate">plate</button>
       <button data-preset="wide">wide plate</button>

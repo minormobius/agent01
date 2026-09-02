@@ -33,7 +33,9 @@ build, no D1, no AI, no secrets. Pure ES modules, no dependencies.
 |---|---|
 | `js/prng.js` | xmur3 + mulberry32, and `stream(seed, label)` — named sub-streams so the genome and the growth never share state |
 | `js/genome.js` | seed → every parameter (habit, masons, budget, rim, Kossel rates, anisotropy, nucleus, oxide palette). Pure. `GRID` (128) and `CHUNK` (16) live here |
-| `js/crystal.js` | **the engine** — `Lattice` (occupancy, bond counts, the six extent maps), `Mason` (the agent), `Growth` (the colony: arrival, walk, deposit, cool-down, `stats()`) |
+| `js/crystal.js` | **the engine** — `Growth` (the colony: arrival, walk, deposit, population, cool-down) over a SUBSTRATE; `Lattice` (the cubic substrate: occupancy, bond counts, the six extent maps, the lattice-line terrace scan); `Mason` (the agent) |
+| `js/prism.js` | **the Prism substrate** — any plane tiling stacked into layers; bonds, open sky, the walk, arrival rays and the terrace verdict as geometric rays over cached per-tile ray tables |
+| `js/tilings.js` | byte-identical copy of `packages/tilings/tilings.js` (kept honest by `scripts/sync-dataviz.mjs --check`) — **edit the package, never this** |
 | `js/render.js` | WebGL1 renderer — chunked voxel mesher with baked AO, the thin-film shader, orbit camera, mason motes |
 | `js/app.js` | the page: URL ↔ seed, pacing, HUD, keys |
 | `js/crystal.selftest.mjs` | ~34k checks, ~12 s. **Run before touching the engine or the genome** |
@@ -96,6 +98,41 @@ growth from `stream(seed,"growth")` — so **the genome can gain fields without
 re-rolling any existing crystal**, but changing any rule or rate in the engine
 re-rolls them all. That is the cost of a permalink; do it knowingly.
 
+## Substrates — the geometry is not the brain
+
+`Growth` talks to a substrate through a small interface (`occ`, `nb`,
+`kossel(s)`, `open(s)`, `inBounds(s)`, `walk(s, out)`, `fedBias(s, nb, axis,
+rim, brain)`, `arrive(rng, brain)`, `place`, `brick`, `seed`, `bounds`,
+`stats`). The masons never see geometry; they ask for neighbours, bonds and
+the terrace verdict. So the lattice is fundamental and the shape is emergent.
+
+- **`Lattice`** (cubic) is the fast path and is bit-identical to the engine
+  before the split: the selftest pins four seeds' first 2000 bricks to golden
+  hashes.
+- **`Prism`** (`prism.js`) stacks a `packages/tilings` tiling into `LAYERS`
+  (96) layers; a site is (tile, z), lateral neighbours share an edge. Rays for
+  the terrace rule are 12 fixed integer directions sampled every half tile
+  and point-located, cached per tile (`ray(t, d)`); `fedTop` is the cubic
+  scan verbatim over that sequence, `fedSide` is what the cubic lateral scan
+  reduces to for a lip — open sky plus no lower step within `rim` below the
+  site or outward of it. Two things are substrate-specific and deliberate:
+  `kossel()` counts corner-only contacts as half bonds (a rhomb outline is
+  jagged, a lip row must be able to propagate as ledges) and, with nothing
+  below, counts only *supported* lateral bricks (else unsupported sheets
+  spread at ledge rates); and the lip's "along" count is o's other
+  edge-neighbours holding bricks. A Penrose substrate grows a decagonal
+  quasicrystal; hex grows a hexagonal hopper.
+- Everything in the prism is integer arithmetic on the tiling's fixed-point
+  coordinates (`FIX` = 1024 per edge). One `Math.sqrt` normalises an outward
+  direction to pick one of the 12 rays; it is correctly rounded everywhere.
+
+**`/q/<seed>`** is the quasicrystal namespace: `quasiSubstrate(seed)` draws a
+shape from `stream(seed, "substrate")` (its own stream — no cubic specimen
+moved) and a disk nucleus; R = 44, z0 = 6. `?shape=` overrides it. The
+selftest pins the Penrose cousin of seed 7 to a golden hash and grows every
+shape. Prism growth is slower than cubic (~100–300 ticks per brick; a full
+crystal is 5–20 s of CPU), which is why the API caps quasi requests lower.
+
 ## The colour (`js/render.js`)
 
 Real bismuth is grey; the rainbow is a Bi₂O₃ skin a few hundred nm thick. The
@@ -109,7 +146,11 @@ cools silver, and takes its colour over `cool` (1.6 s). Everything else is
 plain: wrapped Lambert key, hemisphere ambient, Blinn-Phong specular, Fresnel
 rim, baked voxel AO (the stair-wells go dark on their own), a filmic curve.
 
-The mesher rebuilds ≤ 12 dirty 16³ chunks per frame; laying a brick dirties
+For the prism substrate `meshPrismChunk` extrudes each tile's polygon (a fan
+per cap, a quad per open edge), with occlusion from the tiles around each
+corner at the relevant layer; chunks are (16 layers × 128 tiles). The cubic
+mesher rebuilds ≥ 12 dirty 16³ chunks per frame and then as many as fit in
+8 ms; laying a brick dirties
 its chunk (and a neighbour when it sits on a chunk face). Mason motes are
 `gl.POINTS` with a short trail, drawn additively over the depth buffer.
 
@@ -127,9 +168,14 @@ seeds · a about.
 
 The same engine and renderer with every knob on the outside. Three panels:
 
-- **initial condition** — a painted height map (`ic: {n, z, h}`; heights
-  0–15, packed two per byte in the URL). It becomes `genome.voxels`, offsets
-  from the lattice centre at the melt floor, and replaces the seeded nucleus.
+- **substrate** — the cubic grid or any of the ten tilings (`sub: {shape,
+  R}`); on a tiling the painter draws the real polygons and paints per tile
+  (`tic: {z, cells}`, three bytes per painted tile in the URL) and the genome
+  gets `substrate: {shape, R, ic: {cells}, z0}`.
+- **initial condition** — on the grid, a painted height map (`ic: {n, z, h}`;
+  heights 0–15, packed two per byte in the URL). It becomes `genome.voxels`,
+  offsets from the lattice centre at the melt floor, and replaces the seeded
+  nucleus. Presets paint the same footprint on either substrate.
   Presets: plate (what specimens use), wide plate, ring, cross, bar, twins,
   pillar, walled yard. The substrate is fundamental — masons only ever choose
   which lattice site to fill; the shape that emerges is theirs, the geometry

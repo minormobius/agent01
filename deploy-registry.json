@@ -1247,9 +1247,11 @@
       "provides": null,
       "paths": [
         "bismuth/**",
+        "packages/tilings/**",
+        "scripts/sync-dataviz.mjs",
         ".github/workflows/deploy-bismuth.yml"
       ],
-      "note": "Bismuth hopper crystals grown brick by brick by a seeded colony of mason agents (Kossel kinetics + the Berg effect as local rules), rendered in WebGL with per-pixel thin-film interference. Thin assets Worker (worker `bismuth`, custom_domain bismuth.mino.mobi) — no build, no D1, no AI, no secrets. /c/<seed> is a permanent permalink; /lab is the playground (painted initial condition, editable brain laws, population control, state in the URL); /api/crystal?seed= returns the brick list… (full description: bismuth/CLAUDE.md)"
+      "note": "Bismuth hopper crystals grown brick by brick by a seeded colony of mason agents (Kossel kinetics + the Berg effect as local rules) on a substrate — the cubic lattice, or any plane tiling from packages/tilings stacked into prisms (Penrose = a decagonal quasicrystal) — rendered in WebGL with per-pixel thin-film interference. Thin assets Worker (worker `bismuth`, custom_domain bismuth.mino.mobi) — no build, no D1, no AI, no secrets. /c/<seed> cubic and /q/<seed> quasicrystal permalinks; /lab the playground; /api/crystal… (full description: bismuth/CLAUDE.md)"
     },
     {
       "surface": "neuro",

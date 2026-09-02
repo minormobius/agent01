@@ -5,6 +5,8 @@ on:
     branches: ['claude/bismuth-crystal-procgen-g6t0dh']
     paths:
       - 'bismuth/**'
+      - 'packages/tilings/**'
+      - 'scripts/sync-dataviz.mjs'
       - '.github/workflows/deploy-bismuth.yml'
   workflow_dispatch:
 
@@ -19,7 +21,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Engine selftest (determinism, connectivity, hopper morphology, habit coverage)
+      - name: Tilings library selftest (exact, closed, covering, golden signatures)
+        working-directory: .
+        run: node packages/tilings/tilings.selftest.mjs
+      - name: Served copies in sync with packages/ (tilings)
+        working-directory: .
+        run: node scripts/sync-dataviz.mjs --check
+      - name: Engine selftest (golden hashes, connectivity, hopper morphology, habits, playground, prism)
         run: node js/crystal.selftest.mjs
       - name: Install wrangler
         run: npm install wrangler

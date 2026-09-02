@@ -16,7 +16,8 @@
    plus the API contract the worker relies on. */
 
 import { Growth, IDX, GRIDSIZE as G } from "./crystal.js";
-import { genome, normalizeSeed, GRID, DEFAULT_BRAIN, DEFAULT_POPULATION } from "./genome.js";
+import { genome, normalizeSeed, GRID, DEFAULT_BRAIN, DEFAULT_POPULATION, quasiSubstrate, QUASI_SHAPES } from "./genome.js";
+import { SHAPES } from "./tilings.js";
 import { stream } from "./prng.js";
 import { createHash } from "node:crypto";
 
@@ -180,7 +181,72 @@ section("playground: brain overrides, population control, explicit voxels");
   ok(Object.keys(DEFAULT_BRAIN).length === 11 && Object.keys(DEFAULT_POPULATION).length === 4, "brain/population defaults have the documented fields");
 }
 
-/* ── 6. the API contract the worker relies on ───────────────────────── */
+/* ── 6. the prism substrate: any plane tiling, stacked ───────────────── */
+section("prism substrate (quasicrystals): determinism, connectivity, hoppering, every shape grows");
+{
+  // determinism + golden hash for the Penrose cousin of seed 7
+  const q7 = () => { const g = genome(7); g.substrate = quasiSubstrate(7, "penrose"); return g; };
+  ok(q7().substrate.shape === "penrose" && q7().substrate.R === 44, "quasiSubstrate honours a shape override");
+  ok(JSON.stringify(quasiSubstrate(7)) === JSON.stringify(quasiSubstrate(7)), "quasiSubstrate is pure");
+  ok(QUASI_SHAPES.every((sh) => SHAPES.includes(sh)) && !QUASI_SHAPES.includes("grid"), "the /q namespace draws from real, non-cubic shapes");
+  const seqQ = (g) => g.bricks.map((b) => `${b.tile},${b.z},${b.t},${b.m}`).join(";");
+  const a = new Growth(q7()).run(1500), b = new Growth(q7()).run(1500);
+  ok(seqQ(a) === seqQ(b), "penrose seed 7: the same 1500 bricks twice");
+  const hq = createHash("sha256").update(seqQ(a)).digest("hex").slice(0, 16);
+  const GOLD_Q = "80fd0272e0700549";
+  ok(hq === GOLD_Q, `penrose seed 7: golden hash ${GOLD_Q} (got ${hq}) — quasicrystal permalinks re-rolled!`);
+  // connectivity + the melt-is-above rule on the prism
+  {
+    const sub = a.sub, n = sub.n;
+    const seen = new Uint8Array(sub.sites), top = new Int16Array(n).fill(-1);
+    let floating = 0, shadowed = 0, outside = 0;
+    for (const br of a.bricks) {
+      const t = br.tile, z = br.z, s = z * n + t;
+      if (br.m >= 0) {
+        let touch = (z > 0 && seen[s - n]) || (z + 1 < sub.Z && seen[s + n]);
+        for (let k = sub.T.nbrStart[t]; !touch && k < sub.T.nbrStart[t + 1]; k++) if (seen[z * n + sub.T.nbrList[k]]) touch = true;
+        if (!touch) floating++;
+        if (top[t] > z) shadowed++;
+        if (!sub.T.deep[t]) outside++;
+      }
+      seen[s] = 1;
+      if (z > top[t]) top[t] = z;
+    }
+    ok(floating === 0, `penrose: every mason brick shares an edge or a layer face with an earlier brick (${floating} floating)`);
+    ok(shadowed === 0, `penrose: no brick laid under an existing brick (${shadowed})`);
+    ok(outside === 0, `penrose: nothing laid on the tiling's boundary ring (${outside})`);
+    ok(a.bricks.every((br) => Number.isInteger(br.tile) && Number.isInteger(br.z) && typeof br.x === "number"), "prism bricks carry tile, z and world x/y");
+  }
+  // morphology: a hoppered decagonal disc, not a tower and not a slab
+  {
+    const g = q7(); g.budget = 3500;
+    const gr = new Growth(g).run();
+    const st = gr.stats();
+    ok(gr.done && st.bricks - gr.nucleusBricks >= 3500, `penrose: completes its budget (${st.bricks})`);
+    ok(st.terraces >= 5, `penrose: terraced (${st.terraces} step heights along +x, want ≥ 5)`);
+    ok(st.box[2] < st.box[0] && st.box[2] < st.box[1], `penrose: broader than tall (${st.box.map((v) => Math.round(v)).join("×")})`);
+    ok(st.hollowness > 0.3, `penrose: hollow (${st.hollowness.toFixed(2)})`);
+    ok(st.tiling === "penrose" && st.tiles > 1000, `penrose: stats name the tiling (${st.tiles} tiles)`);
+  }
+  // every shape grows without stalling (small budget, the seed's own brain)
+  for (const sh of SHAPES) {
+    if (sh === "grid") continue;
+    const g = genome(3); g.substrate = quasiSubstrate(3, sh); g.substrate.R = 24; g.budget = 700;
+    const gr = new Growth(g).run();
+    ok(gr.done && gr.bricks.length - gr.nucleusBricks >= 700, `${sh}: grows 700 bricks without stalling (${gr.bricks.length - gr.nucleusBricks}, ${gr.tick} ticks)`);
+  }
+  // the playground's explicit tile heights seed the prism
+  {
+    const probe = new Growth(Object.assign(genome(3), { substrate: { shape: "hex", R: 20, ic: { cells: [] }, z0: 6 } })).sub;
+    const t0 = probe.T.locate(0, 0), t1 = probe.T.nbrList[probe.T.nbrStart[t0]], t2 = probe.T.nbrList[probe.T.nbrStart[t0] + 1];
+    const g = genome(3); g.substrate = { shape: "hex", R: 20, ic: { cells: [[t0, 3], [t1, 3], [t2, 1]] }, z0: 6 };
+    const gr = new Growth(g);
+    ok(gr.nucleusBricks === 7, `prism ic.cells: 3+3+1 bricks placed (${gr.nucleusBricks})`);
+    ok(gr.bricks[0].z === 6 && gr.bricks[0].tile === t0, "prism ic.cells: laid from z0 on the named tiles");
+  }
+}
+
+/* ── 7. the API contract the worker relies on ───────────────────────── */
 section("API contract");
 {
   const g = new Growth(48112);

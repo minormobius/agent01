@@ -256,8 +256,18 @@ export class Renderer {
   // ------------------------------------------------------------ crystal --
   setGrowth(growth) {
     this.growth = growth;
-    this.occ.fill(0);
-    this.bid.fill(-1);
+    this.kind = growth.sub ? growth.sub.kind : "cubic";
+    if (this.kind === "prism") {
+      // the prism substrate: sites are (tile, layer); the engine's occupancy
+      // is read directly, bricks are identified by the brick id we stamp
+      this.pr = growth.sub;
+      this.pbid = new Int32Array(this.pr.sites).fill(-1);
+      this.NBK = Math.ceil(this.pr.n / 128);
+    } else {
+      this.pr = null;
+      this.occ.fill(0);
+      this.bid.fill(-1);
+    }
     for (const c of this.chunks.values()) this.gl.deleteBuffer(c.buf);
     this.chunks.clear();
     this.dirty.clear();
@@ -272,6 +282,21 @@ export class Renderer {
   sync(instant = false) {
     const br = this.growth.bricks;
     const now = this.time;
+    if (this.kind === "prism") {
+      const pr = this.pr, n = pr.n, T = pr.T, NBK = this.NBK;
+      const chunkOf = (t, z) => (z >> 4) * NBK + (t >> 7);
+      for (let i = this.synced; i < br.length; i++) {
+        const b = br[i], t = b.tile, z = b.z;
+        this.pbid[z * n + t] = i;
+        this.born[i] = instant ? now - 60 : now;
+        this.dirty.add(chunkOf(t, z));
+        for (let k = T.nbrStart[t]; k < T.nbrStart[t + 1]; k++) this.dirty.add(chunkOf(T.nbrList[k], z));
+        if (z > 0) this.dirty.add(chunkOf(t, z - 1));
+        if (z + 1 < pr.Z) this.dirty.add(chunkOf(t, z + 1));
+      }
+      this.synced = br.length;
+      return;
+    }
     for (let i = this.synced; i < br.length; i++) {
       const b = br[i], k = IDX(b.x, b.y, b.z);
       this.occ[k] = 1; this.bid[k] = i;
@@ -306,7 +331,82 @@ export class Renderer {
     return (h / 4294967296 - 0.5) * 2 * g.grain;
   }
 
+  // The prism mesher: each brick is the prism over its tile — a fan for each
+  // cap, one quad per edge whose neighbour is empty. Ambient occlusion per
+  // vertex from how many of the tiles around that corner hold a brick at the
+  // relevant layer.
+  meshPrismChunk(ci) {
+    const gl = this.gl, pr = this.pr, T = pr.T, n = pr.n, pbid = this.pbid;
+    const zb = Math.floor(ci / this.NBK), bk = ci % this.NBK;
+    const out = [];
+    const F = 1 / 1024;
+    const has = (t, z) => z >= 0 && z < pr.Z && pbid[z * n + t] >= 0;
+    // occlusion at a vertex v for the layer z: tiles around v holding a brick, excluding `skip`
+    const aoAt = (v, z, skip1, skip2) => {
+      const list = T.atVertex.get(v);
+      let cnt = 0, m = 0;
+      for (const o of list) { if (o === skip1 || o === skip2) continue; m++; if (has(o, z)) cnt++; }
+      if (m === 0) return 3;
+      return 3 - Math.min(3, Math.round((cnt * 3) / m));
+    };
+    const push = (v, zh, nx, ny, nz, ao, thick, born, grain) => out.push(T.vx[v] * F, T.vy[v] * F, zh, nx, ny, nz, ao, thick, born, grain);
+    for (let z = zb * 16; z < zb * 16 + 16 && z < pr.Z; z++) {
+      for (let t = bk * 128; t < bk * 128 + 128 && t < n; t++) {
+        const i = pbid[z * n + t];
+        if (i < 0) continue;
+        const thick = this.thickness(i), born = this.born[i], grain = this.grain(i);
+        const s = T.polyStart[t], L = T.polyLen[t];
+        // top cap
+        if (!has(t, z + 1)) {
+          const ao = [];
+          for (let k = 0; k < L; k++) ao.push(aoAt(T.polyVerts[s + k], z + 1, -1, -1));
+          for (let k = 1; k + 1 < L; k++) {
+            push(T.polyVerts[s], z + 1, 0, 0, 1, ao[0], thick, born, grain);
+            push(T.polyVerts[s + k], z + 1, 0, 0, 1, ao[k], thick, born, grain);
+            push(T.polyVerts[s + k + 1], z + 1, 0, 0, 1, ao[k + 1], thick, born, grain);
+          }
+        }
+        // bottom cap
+        if (!has(t, z - 1)) {
+          const ao = [];
+          for (let k = 0; k < L; k++) ao.push(aoAt(T.polyVerts[s + k], z - 1, -1, -1));
+          for (let k = 1; k + 1 < L; k++) {
+            push(T.polyVerts[s], z, 0, 0, -1, ao[0], thick, born, grain);
+            push(T.polyVerts[s + k + 1], z, 0, 0, -1, ao[k + 1], thick, born, grain);
+            push(T.polyVerts[s + k], z, 0, 0, -1, ao[k], thick, born, grain);
+          }
+        }
+        // sides
+        for (let k = 0; k < L; k++) {
+          const o = T.across[s + k];
+          if (o >= 0 && has(o, z)) continue;
+          const a = T.polyVerts[s + k], b = T.polyVerts[s + (k + 1) % L];
+          let nx = (T.vy[b] - T.vy[a]), ny = -(T.vx[b] - T.vx[a]);
+          const len = Math.hypot(nx, ny) || 1; nx /= len; ny /= len;
+          const a0 = aoAt(a, z, t, o), b0 = aoAt(b, z, t, o), a1 = aoAt(a, z + 1, -1, -1), b1 = aoAt(b, z + 1, -1, -1);
+          // two triangles: (a,z) (b,z) (b,z+1) and (a,z) (b,z+1) (a,z+1)
+          push(a, z, nx, ny, 0, a0, thick, born, grain);
+          push(b, z, nx, ny, 0, b0, thick, born, grain);
+          push(b, z + 1, nx, ny, 0, b1, thick, born, grain);
+          push(a, z, nx, ny, 0, a0, thick, born, grain);
+          push(b, z + 1, nx, ny, 0, b1, thick, born, grain);
+          push(a, z + 1, nx, ny, 0, a1, thick, born, grain);
+        }
+      }
+    }
+    let ch = this.chunks.get(ci);
+    if (!out.length) {
+      if (ch) { gl.deleteBuffer(ch.buf); this.chunks.delete(ci); }
+      return;
+    }
+    if (!ch) { ch = { buf: gl.createBuffer(), count: 0 }; this.chunks.set(ci, ch); }
+    gl.bindBuffer(gl.ARRAY_BUFFER, ch.buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(out), gl.DYNAMIC_DRAW);
+    ch.count = out.length / FLOATS;
+  }
+
   meshChunk(ci) {
+    if (this.kind === "prism") return this.meshPrismChunk(ci);
     const gl = this.gl;
     const cz = Math.floor(ci / (NC * NC)), cy = Math.floor(ci / NC) % NC, cx = ci % NC;
     if (cx < 0 || cy < 0 || cz < 0 || cx >= NC || cy >= NC || cz >= NC) return;
@@ -356,12 +456,15 @@ export class Renderer {
   // re-mesh everything (the playground recolours a grown crystal live)
   remesh() { for (const ci of this.chunks.keys()) this.dirty.add(ci); }
 
+  // Re-mesh dirty chunks: at least `limit`, then as many as fit in ~8 ms —
+  // after a skip the whole crystal is dirty at once
   rebuild(limit = 12) {
     let n = 0;
+    const deadline = performance.now() + 8;
     for (const ci of this.dirty) {
       this.meshChunk(ci);
       this.dirty.delete(ci);
-      if (++n >= limit) break;
+      if (++n >= limit && performance.now() > deadline) break;
     }
   }
 
@@ -410,10 +513,10 @@ export class Renderer {
   snapCamera() { this.updateCamera(1e9); }
 
   updateCamera(dt) {
-    const lat = this.growth && this.growth.lat;
-    if (lat && lat.count) {
-      const c = [(lat.min[0] + lat.max[0] + 1) / 2, (lat.min[1] + lat.max[1] + 1) / 2, (lat.min[2] + lat.max[2] + 1) / 2];
-      const ex = lat.max[0] - lat.min[0] + 1, ey = lat.max[1] - lat.min[1] + 1, ez = lat.max[2] - lat.min[2] + 1;
+    const bb = this.growth && this.growth.sub && this.growth.sub.bounds();
+    if (bb && bb.count) {
+      const c = [(bb.min[0] + bb.max[0]) / 2, (bb.min[1] + bb.max[1]) / 2, (bb.min[2] + bb.max[2]) / 2];
+      const ex = bb.max[0] - bb.min[0], ey = bb.max[1] - bb.min[1], ez = bb.max[2] - bb.min[2];
       const r = Math.max(6, Math.hypot(ex, ey, ez) * 0.5);
       const aspect = this.canvas.width / Math.max(1, this.canvas.height);
       const fovFit = aspect < 1 ? 1.35 / aspect : 1.0;
@@ -503,7 +606,8 @@ export class Renderer {
           const p = tr[i];
           const fade = Math.max(0, 1 - (this.time - p[3]) / 0.9);
           const head = (m.state === "surface" && i === tr.length - 1) ? 1 : fade * 0.55;
-          pts.push(p[0] + 0.5, p[1] + 0.5, p[2] + 0.5, head);
+          const mo = this.growth.sub.moteOffset;
+          pts.push(p[0] + mo[0], p[1] + mo[1], p[2] + mo[2], head);
         }
       }
       if (pts.length) {
