@@ -33,10 +33,10 @@ _Regenerated 2026-09-02 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 82, bluesky 73, data 58, tools 58, work 8.
 
-**Neighborhood spark** (bisk 2026-09-02, 98 members / 294 posts):
-- Mood: Fair 🌤 (trust)
-- Distinctive words: fable, personhood, openai
-- Top post: "incredible that you can thanklessly work on something for 22 years and then be retroactively declared a hack because you" — @philpax.me
+**Neighborhood spark** (bisk 2026-09-02, 98 members / 310 posts):
+- Mood: Overcast ☁ (trust)
+- Distinctive words: openai, fable, anthropic
+- Top post: "i will say one thing for the increasingly popular pro-cancer takes: they helpfully relieve me of any residual feeling th" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
