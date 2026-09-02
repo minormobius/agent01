@@ -1,14 +1,14 @@
-name: Deploy bismuth (hopper crystals grown brick by brick)
+name: Deploy hopper (climb the crystal, drop in the bucket)
 
 on:
   push:
     branches: ['claude/bismuth-crystal-procgen-g6t0dh']
     paths:
-      - 'bismuth/**'
-      - 'packages/tilings/**'
+      - 'hopper/**'
       - 'packages/bismuth/**'
+      - 'packages/tilings/**'
       - 'scripts/sync-dataviz.mjs'
-      - '.github/workflows/deploy-bismuth.yml'
+      - '.github/workflows/deploy-hopper.yml'
   workflow_dispatch:
 
 jobs:
@@ -16,21 +16,21 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: bismuth
+        working-directory: hopper
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Tilings library selftest (exact, closed, covering, golden signatures)
-        working-directory: .
-        run: node packages/tilings/tilings.selftest.mjs
-      - name: Served copies in sync with packages/ (tilings, the bismuth engine)
+      - name: Served copies in sync with packages/ (the bismuth engine, tilings)
         working-directory: .
         run: node scripts/sync-dataviz.mjs --check
-      - name: Engine selftest (golden hashes, connectivity, hopper morphology, habits, playground, prism)
+      - name: Engine selftest (golden hashes, connectivity, deploy and remove)
         working-directory: .
         run: node packages/bismuth/crystal.selftest.mjs
+      - name: Level selftest (levels are permalinks, the survey reaches, the bucket lands, the body jumps one layer)
+        working-directory: .
+        run: node hopper/hopper.selftest.mjs
       - name: Install wrangler
         run: npm install wrangler
       - name: Deploy worker + assets
@@ -38,14 +38,14 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: Verify the crystal is live
+      - name: Verify the game is live
         continue-on-error: true
         run: |
           for attempt in 1 2 3 4 5; do
-            if curl -fsS https://bismuth.mino.mobi/c/48112 | grep -qi 'bismuth hopper crystal' \
-               && curl -fsS 'https://bismuth.mino.mobi/api/health' | grep -q '"ok":true'; then
-              echo "✓ bismuth is live"; exit 0
+            if curl -fsS https://hopper.mino.mobi/l/1 | grep -qi 'a slab in the void' \
+               && curl -fsS 'https://hopper.mino.mobi/api/health' | grep -q '"ok":true'; then
+              echo "✓ hopper is live"; exit 0
             fi
             echo "  attempt $attempt: not yet, sleeping…"; sleep 4
           done
-          echo "⚠️ bismuth didn't respond within 20s — edge propagation may be slow, continuing."
+          echo "⚠️ hopper didn't respond within 20s — edge propagation may be slow, continuing."

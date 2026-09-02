@@ -31,14 +31,15 @@ build, no D1, no AI, no secrets. Pure ES modules, no dependencies.
 
 | File | Is |
 |---|---|
+| `js/{prng,genome,crystal,prism,render,tilings}.js` | **synced copies of [`packages/bismuth/`](../packages/bismuth/)** — the engine is a package now (hopper.mino.mobi runs the same one). Edit the package, `node scripts/sync-dataviz.mjs --write`; `--check` fails preflight and the deploy if a copy drifts |
 | `js/prng.js` | xmur3 + mulberry32, and `stream(seed, label)` — named sub-streams so the genome and the growth never share state |
 | `js/genome.js` | seed → every parameter (habit, masons, budget, rim, Kossel rates, anisotropy, nucleus, oxide palette). Pure. `GRID` (128) and `CHUNK` (16) live here |
 | `js/crystal.js` | **the engine** — `Growth` (the colony: arrival, walk, deposit, population, cool-down) over a SUBSTRATE; `Lattice` (the cubic substrate: occupancy, bond counts, the six extent maps, the lattice-line terrace scan); `Mason` (the agent) |
 | `js/prism.js` | **the Prism substrate** — any plane tiling stacked into layers; bonds, open sky, the walk, arrival rays and the terrace verdict as geometric rays over cached per-tile ray tables |
 | `js/tilings.js` | byte-identical copy of `packages/tilings/tilings.js` (kept honest by `scripts/sync-dataviz.mjs --check`) — **edit the package, never this** |
-| `js/render.js` | WebGL1 renderer — chunked voxel mesher with baked AO, the thin-film shader, orbit camera, mason motes |
+| `js/render.js` | WebGL1 renderer — chunked voxel mesher with baked AO, the thin-film shader, orbit camera (or first person via `renderer.fp`), mason motes, props and beacons for hopper |
 | `js/app.js` | the page: URL ↔ seed, pacing, HUD, keys |
-| `js/crystal.selftest.mjs` | ~34k checks, ~12 s. **Run before touching the engine or the genome** |
+| `packages/bismuth/crystal.selftest.mjs` | ~34k checks, ~40 s. **Run before touching the engine or the genome** |
 | `worker.js` | `/c/<seed>` → index.html; `/api/crystal`, `/api/genome`, `/api/health` |
 | `index.html` | the page; loads `/js/app.js` as a module (root-absolute, so `/c/<seed>` works) |
 
@@ -47,7 +48,7 @@ There is no second copy and there must not be — the selftest is evidence
 about the live page, and the API agrees with the page brick for brick.
 
 ```bash
-node bismuth/js/crystal.selftest.mjs     # determinism, connectivity, morphology, coverage, API
+node packages/bismuth/crystal.selftest.mjs   # determinism, connectivity, morphology, coverage, API
 ```
 
 `scripts/preflight.mjs` picks the selftest up for changed dirs; the deploy

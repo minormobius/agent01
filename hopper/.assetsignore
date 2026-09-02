@@ -3,6 +3,7 @@
 # served at the surface's public URL.
 CLAUDE.md
 
-# Not an asset either: the worker entry.
+# Not assets either: the worker entry and the node selftest.
 worker.js
+hopper.selftest.mjs
 .wrangler/

@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **87 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **88 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -72,6 +72,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `golem` | frontend | `golem` | [golem.mino.mobi](https://golem.mino.mobi) | `claude/cube3d-browser-port-ufh9gy` | [`golem/CLAUDE.md`](../golem/CLAUDE.md) | golem.mino.mobi — Minecraft-like builder world over cube3D's smart cellular bricks (sequel to tjs.mino.mobi/cube/)… (full description: golem/CLAUDE.md) |
 | `hoop` | frontend | `hoop` | [hoop.mino.mobi](https://hoop.mino.mobi) | `claude/hoop-mino-mobi-deploy-3au5qn` | [`hoop/CLAUDE.md`](../hoop/CLAUDE.md) | The GAME wing of the O’Neill cylinder pack: “the infinite game” — a deterministic glyph-world adventure over an endless ship engine, every place and save an ATProto record… |
 | `hoop-archive` | frontend | `hoop-archive` | [hoop-archive.mino.mobi](https://hoop-archive.mino.mobi) | `claude/hoop-mino-mobi-deploy-3au5qn` | [`hoop-archive/CLAUDE.md`](../hoop-archive/CLAUDE.md) | The hoop museum… |
+| `hopper` | frontend | `hopper` | [hopper.mino.mobi](https://hopper.mino.mobi) | `claude/bismuth-crystal-procgen-g6t0dh` | [`hopper/CLAUDE.md`](../hopper/CLAUDE.md) | A puzzle platformer on the bismuth engine. You wake on a slab in the void; look up and there is a bucket… |
 | `human` | fullstack | `human` | [human.mino.mobi](https://human.mino.mobi) | `claude/human-machinery-Hm7qX2` | [`human/CLAUDE.md`](../human/CLAUDE.md) | Human Machinery — an arcade of user error… |
 | `idol` | frontend | `idol` | [idol.mino.mobi](https://idol.mino.mobi) | `claude/anime-waifu-generator-9QwRt` | [`idol/CLAUDE.md`](../idol/CLAUDE.md) | The waifu generator — an AI-safety piece about beguilement, built as the thing it's about… (full description: idol/CLAUDE.md) |
 | `io` | fullstack | `io` | [io.mino.mobi](https://io.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`io/CLAUDE.md`](../io/CLAUDE.md) | ATProto issue tracker. Bug reports and feature requests live on your own PDS; doubles as a StumbleUpon-style portal across the mino.mobi sites. |

@@ -1247,11 +1247,29 @@
       "provides": null,
       "paths": [
         "bismuth/**",
+        "packages/bismuth/**",
         "packages/tilings/**",
         "scripts/sync-dataviz.mjs",
         ".github/workflows/deploy-bismuth.yml"
       ],
       "note": "Bismuth hopper crystals grown brick by brick by a seeded colony of mason agents (Kossel kinetics + the Berg effect as local rules) on a substrate — the cubic lattice, or any plane tiling from packages/tilings stacked into prisms (Penrose = a decagonal quasicrystal) — rendered in WebGL with per-pixel thin-film interference. Thin assets Worker (worker `bismuth`, custom_domain bismuth.mino.mobi) — no build, no D1, no AI, no secrets. /c/<seed> cubic and /q/<seed> quasicrystal permalinks; /lab the playground; /api/crystal… (full description: bismuth/CLAUDE.md)"
+    },
+    {
+      "surface": "hopper",
+      "dir": "hopper",
+      "endpoint": "hopper.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/bismuth-crystal-procgen-g6t0dh",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "hopper/**",
+        "packages/bismuth/**",
+        "packages/tilings/**",
+        "scripts/sync-dataviz.mjs",
+        ".github/workflows/deploy-hopper.yml"
+      ],
+      "note": "hopper — a first-person puzzle platformer on the bismuth engine: a slab in the void, a bucket above, a pocket of mason packs. Deploy a pack on a plane and it grows a hopper crystal from there (freezing what was growing — the plane is the next platform), climb it as it grows, drop into the bucket. Every level number is a permalink; the bucket sits where the engine's own survey says a stack of the packs reaches. Thin assets Worker (worker `hopper`, custom_domain hopper.mino.mobi) — no build, no D1, no AI, no secrets. /l/<n> levels; /api/level?n=… (full description: hopper/CLAUDE.md)"
     },
     {
       "surface": "neuro",

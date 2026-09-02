@@ -43,7 +43,17 @@ const EXTRA = [
   // bismuth grows crystals on the plane tilings in packages/tilings/ (the
   // same generators the foam dungeon draws rooms with). Its page and worker
   // import /js/tilings.js from the site's own asset root.
-  ["packages/tilings/tilings.js", "bismuth/js/tilings.js"],
+  ["packages/tilings/tilings.js", "packages/bismuth/tilings.js"],
+  // The bismuth growth engine (masons, substrates, the thin-film renderer)
+  // is a package too: packages/bismuth/ is the source, and each site that
+  // runs it serves a byte-identical copy from its own asset root — bismuth
+  // (the specimens and the playground) and hopper (the platformer built on
+  // the same engine). tilings.js rides along so prism.js can import
+  // ./tilings.js wherever the copy lands.
+  ...["prng.js", "genome.js", "crystal.js", "prism.js", "render.js", "tilings.js"].flatMap((f) => [
+    [`packages/bismuth/${f}`, `bismuth/js/${f}`],
+    [`packages/bismuth/${f}`, `hopper/js/${f}`],
+  ]),
 ];
 
 const args = process.argv.slice(2);
