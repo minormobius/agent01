@@ -28,7 +28,7 @@
 // order — so a seed is the same brick sequence in every engine, forever.
 
 import { stream } from "./prng.js";
-import { genome as makeGenome, GRID } from "./genome.js";
+import { genome as makeGenome, GRID, DEFAULT_BRAIN, DEFAULT_POPULATION } from "./genome.js";
 
 const G = GRID;
 const IDX = (x, y, z) => (z * G + y) * G + x;
@@ -138,14 +138,18 @@ export class Growth {
   constructor(seedOrGenome) {
     this.genome = typeof seedOrGenome === "object" ? seedOrGenome : makeGenome(seedOrGenome);
     const g = this.genome;
+    this.brain = Object.assign({}, DEFAULT_BRAIN, g.brain || {});
+    this.pop = Object.assign({}, DEFAULT_POPULATION, g.population || {});
     this.rng = stream(g.seed, "growth");
     this.lat = new Lattice();
     this.K = [0, g.k1, g.k2, g.k3, 1, 1, 1];
     this.axis = g.axis.slice();
     this.rim = g.rim;
     this.masons = [];
+    this.nextId = 0;
+    this.retired = 0;
     for (let i = 0; i < g.masons; i++) {
-      const m = new Mason(i);
+      const m = new Mason(this.nextId++);
       m.wait = (i * g.flight) % (g.flight * 3) + 1;  // staggered first arrivals
       this.masons.push(m);
     }
@@ -162,6 +166,17 @@ export class Growth {
 
   seedNuclei() {
     // The nucleus is laid by nobody — it is the grain the melt froze around.
+    // An explicit voxel list (the playground's initial condition, offsets from
+    // the lattice centre) takes precedence over the seeded nucleus plates.
+    if (this.genome.voxels) {
+      const c = G >> 1;
+      for (const v of this.genome.voxels) {
+        const x = c + v[0], y = c + v[1], z = c - 20 + v[2];
+        if (this.lat.inBounds(x, y, z) && this.lat.place(x, y, z)) this.bricks.push({ x, y, z, t: 0, m: -1 });
+      }
+      this.nucleusBricks = this.bricks.length;
+      return;
+    }
     for (const n of this.genome.nuclei) {
       const x0 = n.x - (n.sx >> 1), y0 = n.y - (n.sy >> 1), z0 = n.z - (n.sz >> 1);
       for (let z = 0; z < n.sz; z++) for (let y = 0; y < n.sy; y++) for (let x = 0; x < n.sx; x++) {
@@ -180,7 +195,7 @@ export class Growth {
   // lower step. 0 if the site touches nothing or every face it touches is
   // starved.
   fedBias(x, y, z, nb) {
-    const lat = this.lat, i = IDX(x, y, z), occ = lat.occ;
+    const lat = this.lat, i = IDX(x, y, z), occ = lat.occ, B = this.brain;
     const c = this._c; c[0] = x; c[1] = y; c[2] = z;
     let bias = 0;
     const topHere = lat.ext[4][x * G + y];          // highest brick in this column
@@ -192,21 +207,27 @@ export class Growth {
       if (nb === 1) {
         if (f < 4) {
           // lateral: the lip rule
-          if (topHere >= z) continue;                                     // something above this site
-          const bx = x - FACE[f][0], by = y - FACE[f][1];
-          if (lat.ext[4][bx * G + by] !== z) continue;                     // the brick is not the top of its column
+          if (B.lipRule) {
+            if (topHere >= z) continue;                                   // something above this site
+            const bx = x - FACE[f][0], by = y - FACE[f][1];
+            if (lat.ext[4][bx * G + by] !== z) continue;                   // the brick is not the top of its column
+          }
           const su = STRIDE[f < 2 ? 2 : 0];                                // along the lip
           const along = occ[below + su] + occ[below - su];
-          w *= along === 2 ? 1 : along === 1 ? 0.35 : 0;
+          w *= along === 2 ? 1 : along === 1 ? B.lipAlong : 0;
           // and the melt thins with depth: the top lip is at the surface, a
           // skirt at the foot of the crystal is not
-          const depth = (z - lat.min[2]) / Math.max(1, lat.max[2] - lat.min[2]);
-          w *= depth * depth;
+          if (B.lipDepth > 0) {
+            const depth = (z - lat.min[2]) / Math.max(1, lat.max[2] - lat.min[2]);
+            let d = depth;
+            for (let k = 1; k < B.lipDepth; k++) d *= depth;
+            w *= d;
+          }
         } else {
           const su = STRIDE[0], sv = STRIDE[2];
           const c8 = occ[below + su] + occ[below - su] + occ[below + sv] + occ[below - sv]
                    + occ[below + su + sv] + occ[below + su - sv] + occ[below - su + sv] + occ[below - su - sv];
-          w *= c8 >= 8 ? 1 : c8 >= 5 ? 0.45 : 0;
+          w *= c8 >= B.patchFull ? 1 : c8 >= B.patchMin ? B.patchPart : 0;
         }
         if (w <= bias) continue;
       }
@@ -231,6 +252,7 @@ export class Growth {
     if (laid.length) { this.stalled = 0; for (const b of laid) this.bricks.push(b); }
     else if (++this.stalled > (this.cooling ? 1500 : 20000)) this.done = true;  // nowhere left to grow
     const laidTotal = this.bricks.length - this.nucleusBricks;
+    if (laid.length) this.population(laidTotal - laid.length, laidTotal);
     if (!this.cooling && laidTotal >= this.genome.budget) {
       // The melt cools: no new layers nucleate, but every ledge already
       // started runs to its end, so the crystal finishes with clean edges
@@ -239,8 +261,29 @@ export class Growth {
       this.coolTick = this.tick;
       this.K[1] = 0;
     }
-    if (this.cooling && (laidTotal >= this.genome.budget * 1.15 || this.tick - this.coolTick > 25000)) this.done = true;
+    if (this.cooling && (laidTotal >= this.genome.budget * (1 + this.brain.coolExtra) || this.tick - this.coolTick > 25000)) this.done = true;
     return laid;
+  }
+
+  // Population control, applied after a tick that laid bricks. Births come in
+  // at the melt and arrive like anyone else; a retiring mason simply does not
+  // come back for another brick. With the defaults neither ever happens.
+  population(before, after) {
+    const P = this.pop, g = this.genome;
+    if (P.retireAfter > 0) {
+      for (let i = this.masons.length - 1; i >= 0 && this.masons.length > P.min; i--) {
+        const m = this.masons[i];
+        if (m.laid >= P.retireAfter && m.state === "melt") { this.masons.splice(i, 1); this.retired++; }
+      }
+    }
+    if (P.birthEvery > 0) {
+      const births = Math.floor(after / P.birthEvery) - Math.floor(before / P.birthEvery);
+      for (let k = 0; k < births && this.masons.length < P.max; k++) {
+        const m = new Mason(this.nextId++);
+        m.wait = g.flight;
+        this.masons.push(m);
+      }
+    }
   }
 
   // Run to completion (or n more bricks). Used by the API, the selftest, and
@@ -263,8 +306,8 @@ export class Growth {
       const lo = [lat.min[0] - pad, lat.min[1] - pad, lat.min[2] - pad];
       const hi = [lat.max[0] + pad, lat.max[1] + pad, lat.max[2] + pad];
       // the melt is above: most arrivals come down onto the crystal
-      const u = r();
-      const face = u < 0.6 ? 5 : Math.floor((u - 0.6) * 12.5);   // 5 = the box's top (+z side)
+      const u = r(), a = this.brain.arriveFromAbove;
+      const face = u < a ? 5 : Math.floor((u - a) * (5 / (1 - a)));   // 5 = the box's top (+z side)
       const p = [
         lo[0] + Math.floor(r() * (hi[0] - lo[0] + 1)),
         lo[1] + Math.floor(r() * (hi[1] - lo[1] + 1)),
@@ -330,7 +373,7 @@ export class Growth {
   // patience spent — desorb back into the melt. Never a forced brick: a mason
   // that finds no good site leaves, which is what keeps the faces flat.
   act(m, laid) {
-    const lat = this.lat, g = this.genome, r = this.rng;
+    const lat = this.lat, g = this.genome, r = this.rng, B = this.brain;
     const here = IDX(m.x, m.y, m.z);
     const nbHere = lat.nb[here];
     if (lat.occ[here] || nbHere === 0) {           // ground moved under us
@@ -340,7 +383,7 @@ export class Growth {
     // shadow and gets nothing — the underside of a lip never fills, and the
     // crystal has a floor, not a second hopper growing down. Cheap Kossel
     // gate next; the terrace scan only runs when both pass.
-    const open = lat.ext[4][m.x * G + m.y] < m.z;
+    const open = !this.brain.skyRule || lat.ext[4][m.x * G + m.y] < m.z;
     if (open && r() < this.K[nbHere]) {
       const bias = this.fedBias(m.x, m.y, m.z, nbHere);
       if (bias > 0 && (bias >= 1 || r() < bias)) {
@@ -366,8 +409,10 @@ export class Growth {
       if (lat.occ[q]) continue;
       const nb = lat.nb[q];
       if (nb === 0) continue;
-      let w = 1 + nb * nb * g.mobility;
-      if (lat.ext[4][x * G + y] < z) w *= 2.5;      // open sky pulls: that is where the melt is
+      let bp = 1;
+      for (let e = 0; e < B.bondPull; e++) bp *= nb;
+      let w = 1 + bp * g.mobility;
+      if (lat.ext[4][x * G + y] < z) w *= B.skyPull;  // open sky pulls: that is where the melt is
       cand[nc] = w; candIdx[nc] = k; nc++;
       total += w;
     }
@@ -422,6 +467,7 @@ export class Growth {
       terraces: heights.size,
       ticks: this.tick,
       masons: this.masons.length,
+      retired: this.retired,
       laidPerMason: this.masons.map((m) => m.laid),
     };
   }

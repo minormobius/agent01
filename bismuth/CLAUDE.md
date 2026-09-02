@@ -123,6 +123,40 @@ bricks is laid or ~7 ms elapse. `?instant=1` skips to the finished crystal
 finished). Keys: space pause · s skip · r again · n new · ←/→ neighbouring
 seeds · a about.
 
+## The playground (`lab.html` + `js/lab.js`) — `/lab`
+
+The same engine and renderer with every knob on the outside. Three panels:
+
+- **initial condition** — a painted height map (`ic: {n, z, h}`; heights
+  0–15, packed two per byte in the URL). It becomes `genome.voxels`, offsets
+  from the lattice centre at the melt floor, and replaces the seeded nucleus.
+  Presets: plate (what specimens use), wide plate, ring, cross, bar, twins,
+  pillar, walled yard. The substrate is fundamental — masons only ever choose
+  which lattice site to fill; the shape that emerges is theirs, the geometry
+  is not.
+- **brain** — the Kossel rates, rim, the five anisotropy weights (−z is always
+  0: the melt is above), the walk (patience, mobility, flight), and the laws
+  that used to be constants, now `DEFAULT_BRAIN` in `genome.js` and read via
+  `genome.brain`: arrive-from-above fraction, sky pull, bond-pull exponent,
+  the patch gate (min/full/part), the lip gate (along weight, depth exponent),
+  the sky rule and lip rule toggles, the cool-down allowance. "Load specimen
+  №" imports any seed's laws onto the painted substrate.
+- **colony** — starting size plus `DEFAULT_POPULATION` overrides via
+  `genome.population`: `birthEvery` (a mason born per N bricks, up to `max`),
+  `retireAfter` (a mason leaves after N bricks, down to `min`).
+  `Growth.population()` runs after any tick that laid bricks; retirements
+  wait until the mason is in the melt. Born masons get fresh ids.
+
+Edits apply **live** (`Lab.applyLive` rewrites `brain`, `pop`, `axis`, `rim`,
+`K`, and the genome's budget/walk/oxide on the running `Growth`) except the
+initial condition, colony size and seed, which reset. The URL hash `#s=…` is
+the full state (base64url JSON); **reset replays it from scratch, and that
+replay is what the link reproduces** — the HUD says "edited live" until you do.
+
+**Permalink safety.** All of this merges over defaults that equal the old
+hard-coded constants, and the selftest pins four seeds' first 2000 bricks to
+**golden hashes**. If those fail, you have re-rolled every specimen.
+
 ## API (`worker.js`)
 
 CORS-open, pure compute, the same engine module the page runs:

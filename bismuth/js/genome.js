@@ -21,6 +21,34 @@ import { stream, rint, rf, pick } from "./prng.js";
 export const GRID = 128;           // lattice edge; the crystal lives inside it
 export const CHUNK = 16;           // renderer chunk edge (mesh rebuild unit)
 
+// The laws of the mason brain that are not per-seed. The engine reads these
+// through genome.brain (merged over the defaults), so the playground can
+// rewrite a law without touching the seeded surface: with the defaults, every
+// permalink lays exactly the bricks it always did (the selftest pins that
+// with golden hashes).
+export const DEFAULT_BRAIN = {
+  arriveFromAbove: 0.6,   // fraction of arrivals that come down from the melt's surface
+  skyPull: 2.5,           // walk weight multiplier for cells with open sky above
+  bondPull: 2,            // walk weight is 1 + nb^bondPull · mobility (integer exponent)
+  lipAlong: 0.35,         // lip nucleation weight with only one neighbour along the lip
+  lipDepth: 2,            // lip nucleation × depth^lipDepth (0 = a skirt spreads from the foot)
+  patchMin: 5,            // in-plane neighbours a terrace needs under a new layer…
+  patchFull: 8,           // …and how many for the full rate
+  patchPart: 0.45,        // the rate between patchMin and patchFull
+  skyRule: true,          // the melt is above: nothing is laid under an existing brick
+  lipRule: true,          // lateral nucleation only at a top lip
+  coolExtra: 0.15,        // bricks the cool-down may add, as a fraction of the budget
+};
+
+// Population control: a fixed colony by default (what the seeded surface
+// does). The playground can grow or thin it.
+export const DEFAULT_POPULATION = {
+  birthEvery: 0,          // add a mason every N bricks laid (0 = never)
+  retireAfter: 0,         // a mason retires after laying N bricks (0 = never)
+  min: 1,                 // never retire below this many
+  max: 64,                // never breed above this many
+};
+
 const HABITS = [
   // name, axis-weight recipe, nucleus recipe. Weights are for +x -x +y -y +z -z.
   { id: "hopper",    w: () => [0.6, 0.6, 0.6, 0.6, 1.0, 0],       desc: "a single funnel, stepping down into its own pit" },

@@ -16,8 +16,9 @@
    plus the API contract the worker relies on. */
 
 import { Growth, IDX, GRIDSIZE as G } from "./crystal.js";
-import { genome, normalizeSeed, GRID } from "./genome.js";
+import { genome, normalizeSeed, GRID, DEFAULT_BRAIN, DEFAULT_POPULATION } from "./genome.js";
 import { stream } from "./prng.js";
+import { createHash } from "node:crypto";
 
 let failures = 0, checks = 0;
 function ok(cond, msg) { checks++; if (!cond) { failures++; console.error("  ✗ " + msg); } }
@@ -47,6 +48,17 @@ ok(JSON.stringify(genome(5)) === JSON.stringify(genome(5)), "genome is pure");
   const r1 = stream(42, "growth")(), r2 = stream(42, "growth")();
   ok(r1 === r2, "named PRNG streams are reproducible");
   ok(stream(42, "growth")() !== stream(42, "genome")(), "named PRNG streams are independent");
+}
+{
+  // GOLDEN HASHES — the permalink contract. The first 2000 bricks of these
+  // seeds, as laid on 2026-09-02. If this fails you have re-rolled every
+  // crystal on the site; only do that knowingly, and update the hashes.
+  const GOLD = { 1: "eda472f9ca124c56", 7: "fabebde190e618c9", 48112: "eab26156eb51cd55", 314159: "c4c98879ba10f056" };
+  for (const seed of Object.keys(GOLD)) {
+    const g = new Growth(Number(seed)).run(2000);
+    const h = createHash("sha256").update(seq(g)).digest("hex").slice(0, 16);
+    ok(h === GOLD[seed], `seed ${seed}: golden hash ${GOLD[seed]} (got ${h}) — permalinks re-rolled!`);
+  }
 }
 ok(normalizeSeed("abc") === 1 && normalizeSeed("-4") === 1 && normalizeSeed("12x") === 12, "normalizeSeed clamps garbage");
 ok(normalizeSeed(1e12) === 999999999, "normalizeSeed caps huge seeds");
@@ -132,7 +144,43 @@ section("coverage (genome over 400 seeds; growth over 12)");
   }
 }
 
-/* ── 5. the API contract the worker relies on ───────────────────────── */
+/* ── 5. the playground contract: brain laws, population, initial condition ── */
+section("playground: brain overrides, population control, explicit voxels");
+{
+  const base = genome(48112);
+  const lab = (over) => Object.assign({}, base, over);
+  // explicit voxels replace the seeded nucleus, placed as offsets from the centre
+  const vox = [];
+  for (let x = -3; x <= 3; x++) for (let y = -3; y <= 3; y++) vox.push([x, y, 0], [x, y, 1]);
+  const gv = new Growth(lab({ voxels: vox }));
+  ok(gv.nucleusBricks === vox.length, `voxels: all ${vox.length} placed as the nucleus (${gv.nucleusBricks})`);
+  ok(gv.bricks[0].x === (G >> 1) - 3 && gv.bricks[0].z === (G >> 1) - 20, "voxels: offsets are from the lattice centre at the melt floor");
+  gv.run(600);
+  ok(gv.bricks.length >= 600, "voxels: growth proceeds from an explicit nucleus");
+  // a brain with no terrace nucleation never starts a new layer: growth stalls
+  // once the nucleus's own ledges are done
+  const gk = new Growth(lab({ k1: 0 })).run(400);
+  ok(gk.done && gk.bricks.length < 400, `k1 = 0: no new layers, growth ends early (${gk.bricks.length} bricks)`);
+  // population: births add masons, retirement removes them, both bounded
+  const gb = new Growth(lab({ masons: 4, population: { birthEvery: 100, max: 12 } })).run(1500);
+  ok(gb.masons.length === 12, `birthEvery 100, max 12: colony grew to the cap (${gb.masons.length})`);
+  ok(gb.masons[gb.masons.length - 1].id === 11 && gb.masons[gb.masons.length - 1].laid > 0, "born masons get fresh ids and lay bricks");
+  const gr = new Growth(lab({ masons: 10, population: { retireAfter: 30, min: 3 } })).run(1500);
+  ok(gr.masons.length === 3 && gr.retired === 7, `retireAfter 30, min 3: thinned to the floor (${gr.masons.length} alive, ${gr.retired} retired)`);
+  ok(gr.masons.reduce((n, m) => n + m.laid, 0) + 7 * 30 <= 1500, "the retired laid at least their quota before leaving");
+  // brain overrides are read (skyRule off lets bricks be laid under a lip)
+  const gs = new Growth(lab({ brain: { skyRule: false, lipDepth: 0 } })).run(2500);
+  const top = new Int16Array(G * G).fill(-1);
+  let shadowed = 0;
+  for (const b of gs.bricks) { if (b.m >= 0 && top[b.x * G + b.y] > b.z) shadowed++; if (b.z > top[b.x * G + b.y]) top[b.x * G + b.y] = b.z; }
+  ok(shadowed > 0, `skyRule off: bricks do get laid under existing bricks (${shadowed})`);
+  // the defaults are what the engine merges
+  const gd = new Growth(48112);
+  ok(JSON.stringify(gd.brain) === JSON.stringify(DEFAULT_BRAIN) && JSON.stringify(gd.pop) === JSON.stringify(DEFAULT_POPULATION), "a seeded genome runs on the default brain and a fixed population");
+  ok(Object.keys(DEFAULT_BRAIN).length === 11 && Object.keys(DEFAULT_POPULATION).length === 4, "brain/population defaults have the documented fields");
+}
+
+/* ── 6. the API contract the worker relies on ───────────────────────── */
 section("API contract");
 {
   const g = new Growth(48112);

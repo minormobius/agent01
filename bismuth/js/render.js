@@ -353,6 +353,9 @@ export class Renderer {
     ch.count = out.length / FLOATS;
   }
 
+  // re-mesh everything (the playground recolours a grown crystal live)
+  remesh() { for (const ci of this.chunks.keys()) this.dirty.add(ci); }
+
   rebuild(limit = 12) {
     let n = 0;
     for (const ci of this.dirty) {
