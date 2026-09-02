@@ -2,3 +2,8 @@
 # surface. assets.directory is this dir, so without this line the file is
 # served at the surface's public URL.
 CLAUDE.md
+
+# Not assets either: the worker entry and the node selftest.
+worker.js
+js/crystal.selftest.mjs
+.wrangler/

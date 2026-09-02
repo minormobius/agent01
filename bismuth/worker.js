@@ -67,7 +67,8 @@ export default {
 
     // ── crystal permalinks → index.html ──
     if (/^\/c\/\d+\/?$/.test(p)) {
-      const res = await env.ASSETS.fetch(new Request(new URL("/index.html", url.origin), request));
+      // "/" not "/index.html": the assets layer 307s /index.html to / and the seed would be lost
+      const res = await env.ASSETS.fetch(new Request(new URL("/", url.origin), request));
       return new Response(res.body, { status: res.status, headers: withHeaders(res.headers) });
     }
     // ── everything else: static assets ──
