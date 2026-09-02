@@ -1269,7 +1269,7 @@
         "scripts/sync-dataviz.mjs",
         ".github/workflows/deploy-hopper.yml"
       ],
-      "note": "hopper — a first-person puzzle platformer on the bismuth engine: a slab in the void, a bucket above, a pocket of mason packs. Deploy a pack on a plane and it grows a hopper crystal from there (freezing what was growing — the plane is the next platform), climb it as it grows, drop into the bucket. Every level number is a permalink; the bucket sits where the engine's own survey says a stack of the packs reaches. Thin assets Worker (worker `hopper`, custom_domain hopper.mino.mobi) — no build, no D1, no AI, no secrets. /l/<n> levels; /api/level?n=… (full description: hopper/CLAUDE.md)"
+      "note": "hopper — a first-person puzzle platformer on the bismuth engine: a slab in the void, a bucket above, a pocket of mason packs. Deploy a pack on a plane and it grows a hopper crystal from there (freezing what was growing — the plane is the next platform), climb it as it grows, drop into the bucket. Every level number is a permalink; the bucket sits where the engine's own survey says a stack of the packs reaches; /l/<n>/<tiling> plays the same level on prisms over any of the ten plane tilings (Penrose included). Thin assets Worker (worker `hopper`, custom_domain hopper.mino.mobi) — no build, no D1, no AI, no secrets. /l/<n> levels; /api/level?n=…&t=… (full description: hopper/CLAUDE.md)"
     },
     {
       "surface": "neuro",

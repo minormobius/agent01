@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>hopper</title>
-<meta name="description" content="A puzzle platformer on a slab in the void. Deploy packs of mason agents to grow bismuth crystals from the plane you stand on, climb them as they grow, and drop into the bucket. Every level is a permalink.">
+<meta name="description" content="A puzzle platformer on a slab in the void. Deploy packs of mason agents to grow bismuth crystals from the plane you stand on, climb them as they grow, and drop into the bucket. Every level is a permalink, on the cubic lattice or any of ten plane tilings — Penrose included.">
 <meta property="og:title" content="hopper — climb the crystal, drop in the bucket">
 <meta property="og:description" content="A slab in the void, a bucket above, a pocket of masons. Grow bismuth hopper crystals brick by brick from wherever you stand, and climb.">
 <meta name="theme-color" content="#050508">
@@ -81,6 +81,10 @@
   .ctl { margin: 16px 0 0; padding: 0; list-style: none; text-align: left; font-size: 13px; color: #cdc8be; columns: 2; column-gap: 20px; }
   .ctl li { margin: 3px 0; break-inside: avoid; }
   .ctl kbd { margin: 0 4px 0 0; }
+  .chips { margin: 14px 0 0; display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+  .chip { font: inherit; font-size: 12px; letter-spacing: 0.04em; color: var(--dim); background: rgba(20, 20, 28, 0.55); border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; cursor: pointer; }
+  .chip:hover { border-color: var(--gold); color: var(--ink); }
+  .chip.sel { border-color: var(--gold); color: var(--gold); }
   #play { margin-top: 20px; font-size: 14px; padding: 10px 24px; border-color: rgba(224, 179, 90, 0.6); }
   #ov-won .row { margin-top: 20px; display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
   #ov-won .big { font-size: 14px; padding: 10px 22px; }
@@ -160,6 +164,7 @@
   <div id="card">
     <h2 id="ov-title">level 1</h2>
     <p id="ov-sub"></p>
+    <div id="tilings" class="chips" title="the substrate: the same level on any tiling"></div>
     <div id="ov-body">
       <p>You are on a slab in the void. Look up: there is a <b>bucket</b>. In your pocket, a few <b>packs of masons</b>. Lay a pack on a plane and it grows a bismuth crystal from there, brick by brick, freezing whatever was still growing &mdash; the plane you choose is the platform for the next growth. <b>Climb it as it grows.</b> Deploy again from higher up. Get above the bucket and <b>drop in.</b></p>
       <ul class="ctl">
@@ -188,6 +193,8 @@
   <button class="b" id="help-close">close</button>
   <h2>What this is</h2>
   <p>A puzzle platformer built on <a href="https://bismuth.mino.mobi">bismuth</a>, the hopper-crystal engine: the same mason agents, the same three rules from real crystal growth, the same thin-film iridescence. Here they are your tools. Every level number is a permalink: same slab, same packs, same bucket, forever.</p>
+  <h2>Tilings</h2>
+  <p>The lattice is the substrate, not the brain. Pick a tiling on the level card and the same level &mdash; same slab width, same pocket, same offset &mdash; is played on prisms over that tiling: Penrose rhombs, hexagons, kagome triangles, Ammann&ndash;Beenker squares and rhombs, the 7-fold quasicrystal and the rest. The packs grow what the geometry allows (a Penrose substrate gives a decagonal quasicrystal), the survey is re-run there, and the bucket hangs where that stack reaches. <code>/l/&lt;n&gt;/&lt;tiling&gt;</code> is its permalink.</p>
   <h2>Packs</h2>
   <p>Each pack is a specimen's laws &mdash; a habit (hopper, plate, tower, stair, twin), a crew, a budget &mdash; and a plate it lands as. Deploy it on a brick and the plate is laid on that column's <b>top plane</b>; that plane is the new colony's floor and nothing is ever laid beneath it. Deploying <b>freezes</b> whatever was still growing: what has grown is terrain now. So each deploy is you choosing which plane of the world becomes the platform for the next growth.</p>
   <h2>The bucket</h2>

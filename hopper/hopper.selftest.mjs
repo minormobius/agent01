@@ -9,7 +9,7 @@
    change to the engine or the level generator moves it, every level moves,
    and that is a re-roll of the whole campaign — change it on purpose. */
 
-import { level, world, survey, bucketOf, bucketCells, inBucket, slabTop, normalizeLevel, SLAB_Z, C } from "./js/level.js";
+import { level, world, survey, bucketOf, bucketCells, inBucket, slabTop, normalizeLevel, normalizeShape, origin, SLAB_Z, C } from "./js/level.js";
 import { GRID } from "./js/genome.js";
 import { player, stepPlayer, pushOut, raycast, HALF } from "./js/physics.js";
 
@@ -88,7 +88,8 @@ section("survey and bucket");
 section("the body");
 {
   // a floor at z = 0; along y = 1 a one-layer step from x = 3 up to a two-layer wall at x = 8
-  const solid = (x, y, z) => z === 0 || (y === 1 && x >= 3 && x <= 7 && z === 1) || (x >= 8 && x <= 10 && (z === 1 || z === 2));
+  const cell = (x, y, z) => z === 0 || (y === 1 && x >= 3 && x <= 7 && z === 1) || (x >= 8 && x <= 10 && (z === 1 || z === 2));
+  const solid = (x, y, z) => cell(Math.floor(x), Math.floor(y), Math.floor(z));   // the body asks about points
   const settle = (p, ctl, s) => { for (let i = 0; i < s; i++) stepPlayer(p, solid, ctl, 1 / 60); };
   const p = player(1.5, 1.5, 1.2, 0, 0);
   settle(p, {}, 60);
@@ -112,19 +113,61 @@ section("the body");
   ok(w.x < 8 - HALF + 0.01 && Math.abs(w.z - 1) < 0.01, `but never from the floor: two layers is too high (x ${w.x.toFixed(2)}, z ${w.z.toFixed(2)})`);
   // pushOut: a brick laid where the feet are lifts the body onto it
   const r = player(1.5, 1.5, 1, 0, 0);
-  const laid = (x, y, z) => solid(x, y, z) || (x === 1 && y === 1 && z === 1);
+  const laid = (x, y, z) => solid(x, y, z) || (Math.floor(x) === 1 && Math.floor(y) === 1 && Math.floor(z) === 1);
   ok(pushOut(r, laid) && Math.abs(r.z - 2) < 0.01, `ridden up onto the new brick (z ${r.z.toFixed(2)})`);
   ok(!pushOut(r, laid), "and not again");
   // the crosshair ray: from (2.5, 1.5) at eye height looking +x, the wall at x = 8, entered through its -x face
   const e = player(2.5, 1.5, 1, 0, 0);
   const hit = raycast(e, solid);
-  ok(hit && hit.x === 8 && hit.z === 2 && hit.nx === -1 && hit.ny === 0 && hit.nz === 0, `ray hits the wall's near face (${JSON.stringify(hit)})`);
+  ok(hit && Math.floor(hit.x) === 8 && Math.floor(hit.z) === 2 && hit.x < 8.06, `ray hits the wall's near face (${JSON.stringify(hit)})`);
   e.pitch = -1.4;
   const down = raycast(e, solid);
-  ok(down && down.z === 0 && down.nz === 1, `ray down hits the floor from above (${JSON.stringify(down)})`);
+  ok(down && Math.floor(down.z) === 0 && down.z > 0.94, `ray down hits the floor from above (${JSON.stringify(down)})`);
   e.pitch = 1.2;
   ok(raycast(e, solid) === null, "ray up finds the void");
   ok(raycast(player(1.5, 1.5, 1, 0, 0), solid, 3) === null, "the wall is out of a 3-cell reach");
+}
+
+section("prism worlds");
+{
+  const GOLDEN_PRISM = { hex: [2.59765625, 7.5, 43], penrose: [-2.7724609375, -26.1865234375, 40] };
+  const cubic = level(1);
+  ok(normalizeShape("penrose") === "penrose" && normalizeShape("nope") === "grid" && normalizeShape(undefined) === "grid", "normalizeShape");
+  ok(!level(1, "grid").prism && level(1, "grid").shape === "grid", "grid is the cubic level");
+  const reaches = {};
+  for (const shape of ["hex", "penrose", "kagome"]) {
+    const lv = level(1, shape);
+    ok(lv.prism && lv.shape === shape && lv.packs.every((p) => p.size === 5), `${shape}: a prism level, two-ring plates`);
+    ok(JSON.stringify(lv.packs.map((p) => p.seed)) === JSON.stringify(cubic.packs.map((p) => p.seed)) && lv.slab.size === cubic.slab.size && lv.off.dx === cubic.off.dx, `${shape}: the same pocket, slab and offset as the cubic level`);
+    const g = world(lv);
+    ok(g.sub.kind === "prism" && g.done && g.bricks.length > 100, `${shape}: a frozen disk slab (${g.bricks.length} tiles)`);
+    ok(g.bricks.every((b) => b.z >= SLAB_Z && b.z <= slabTop(lv)), `${shape}: slab layers where declared`);
+    const o = origin(lv);
+    const under = g.sub.siteAtWorld(o[0] + 0.5, o[1] + 0.5, slabTop(lv) + 0.5), above = g.sub.siteAtWorld(o[0] + 0.5, o[1] + 0.5, slabTop(lv) + 1.5);
+    ok(under >= 0 && g.sub.occ[under] === 1 && above >= 0 && g.sub.occ[above] === 0, `${shape}: solid under the spawn, air above it`);
+    const solidAt = (x, y, z) => { const q = g.sub.siteAtWorld(x, y, z); return q >= 0 && g.sub.occ[q] === 1; };
+    const p = player(o[0] + 0.5, o[1] + 0.5, slabTop(lv) + 1.2, 0, 0);
+    for (let i = 0; i < 60; i++) stepPlayer(p, solidAt, { mx: 1 }, 1 / 60);
+    ok(p.ground && Math.abs(p.z - (slabTop(lv) + 1)) < 0.01 && p.x > o[0] + 3, `${shape}: the body walks the slab (x ${p.x.toFixed(1)}, z ${p.z.toFixed(2)})`);
+    for (let i = 0; i < 400; i++) stepPlayer(p, solidAt, { mx: 1 }, 1 / 60);
+    ok(p.z < SLAB_Z, `${shape}: and falls off its edge (x ${p.x.toFixed(1)}, z ${p.z.toFixed(1)})`);
+    const n0 = g.bricks.length;
+    const idx = g.deploy(lv.packs[0], { x: o[0], y: o[1], z: slabTop(lv) + 1 });
+    ok(idx === 1 && g.colonies[1].floor === slabTop(lv) + 1, `${shape}: a pack lands on the slab's plane`);
+    while (!g.colonies[1].done) g.step();
+    ok(g.bricks.length - n0 > 200, `${shape}: and grows (${g.bricks.length - n0} bricks, summit z ${g.sub.describe(g.sub.summit()).z})`);
+    ok(g.bricks.slice(n0).every((b) => b.z >= slabTop(lv) + 1), `${shape}: nothing beneath its plane`);
+    if (shape !== "kagome") {
+      const t0 = performance.now();
+      const res = survey(lv);
+      reaches[shape] = [res.reach.x, res.reach.y, res.reach.z];
+      ok(res.reach.z >= slabTop(lv) + 12, `${shape}: the survey reaches (z ${res.reach.z}, ${res.bricks} bricks, ${(performance.now() - t0).toFixed(0)} ms)`);
+      const b = bucketOf(lv, res.reach);
+      ok(b.z >= slabTop(lv) + 8 && b.z <= Math.max(res.reach.z, slabTop(lv) + 8) && Math.abs(b.x) <= 32 && Math.abs(b.y) <= 32, `${shape}: bucket inside the tiling, between the slab and the reach (${b.x}, ${b.y}, z ${b.z})`);
+      if (GOLDEN_PRISM[shape]) ok(JSON.stringify(GOLDEN_PRISM[shape]) === JSON.stringify(reaches[shape]), `${shape}: golden reach ${JSON.stringify(GOLDEN_PRISM[shape])} (got ${JSON.stringify(reaches[shape])})`);
+    }
+  }
+  if (pin) console.log("  pin prism: " + JSON.stringify(reaches));
 }
 
 console.log(`\n${checks} checks, ${fails} failures`);
