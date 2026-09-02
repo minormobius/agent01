@@ -1,0 +1,1 @@
+Boundary is periodic and coupling/field/temperature are separate sliders: drop T near 1 for a clean redraw, push toward Tc≈2.27J to watch it dissolve into critical noise. Whole thing runs client-side — your photo never leaves the browser.

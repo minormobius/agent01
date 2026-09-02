@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ising Sketch — draw your photo in spin-up and spin-down</title>
+<meta name="description" content="Upload a photo and it becomes an external field driving a real 2D Ising model. Glauber dynamics relax a lattice of up/down spins toward it at whatever temperature you set — pick the two colors, watch the drawing settle out of the noise.">
+<meta property="og:title" content="Ising Sketch">
+<meta property="og:description" content="Upload a photo and it becomes an external field driving a real 2D Ising model. Glauber dynamics relax a lattice of up/down spins toward it at whatever temperature you set — pick the two colors, watch the drawing settle out of the noise.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    padding: 1rem 1.1rem;
+    margin: 1rem 0;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: .6rem 0; }
+  .row label { font-size: .8rem; color: var(--muted); min-width: 7.5rem; }
+  .row input[type=range] { flex: 1 1 140px; min-width: 120px; accent-color: var(--accent); height: 44px; }
+  .row .val { font-size: .85rem; color: var(--accent); min-width: 5.5rem; text-align: right; }
+  .colorRow input[type=color] {
+    width: 3.2rem; height: 44px; padding: 2px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    cursor: pointer;
+  }
+  .colorRow span.lbl { font-size: .8rem; color: var(--muted); }
+  .btnRow { display: flex; flex-wrap: wrap; gap: .6rem; }
+  .btnRow button { min-height: 44px; flex: 1 1 auto; }
+  input[type=file] {
+    width: 100%; padding: .7rem; min-height: 44px;
+    background: var(--bg); color: var(--fg); border: 1px dashed var(--border);
+    border-radius: var(--radius); font: inherit;
+  }
+  #stage {
+    display: flex; flex-direction: column; align-items: center; gap: .6rem;
+    margin: 1rem 0;
+  }
+  #latticeCanvas {
+    width: 100%; max-width: 520px; aspect-ratio: 1/1;
+    image-rendering: pixelated;
+    background: #000;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    touch-action: none;
+  }
+  .stat { font-size: .8rem; color: var(--muted); text-align: center; }
+  .stat b { color: var(--accent); }
+  select {
+    min-height: 44px; font: inherit; background: var(--bg); color: var(--fg);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: .4rem .6rem;
+  }
+  footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Ising Sketch</h1>
+  <p class="sub">The 2D Ising model is a grid of atoms that can each point only
+    "up" or "down", each one nudged by its four neighbours toward agreeing with
+    them, and by temperature toward disagreeing at random. Feed it a photo as an
+    <strong>external field</strong> — bright pixels pull spins up, dark pixels
+    pull them down — and Glauber dynamics relax the lattice toward a drawing of
+    it, redrawn one flipped spin at a time.</p>
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <div class="panel">
+    <label for="fileInput" style="display:block;font-size:.8rem;color:var(--muted);margin-bottom:.5rem;">Upload an image</label>
+    <input type="file" id="fileInput" accept="image/*">
+  </div>
+
+  <div id="stage">
+    <canvas id="latticeCanvas" width="96" height="96"></canvas>
+    <p class="stat" id="statOut">upload an image to begin</p>
+  </div>
+
+  <div class="panel">
+    <div class="btnRow">
+      <button id="playBtn" disabled>Run ▸</button>
+      <button id="stepBtn" disabled>Step</button>
+      <button id="resetBtn" disabled>Reset to image</button>
+      <button id="shuffleBtn" disabled>Shuffle</button>
+      <button id="downloadBtn" disabled>Download PNG</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <p class="stat" style="margin:0 0 .4rem;text-align:left">Lattice</p>
+    <div class="row">
+      <label for="gridSel">resolution</label>
+      <select id="gridSel">
+        <option value="48">48 × 48</option>
+        <option value="64">64 × 64</option>
+        <option value="96" selected>96 × 96</option>
+        <option value="128">128 × 128</option>
+        <option value="160">160 × 160</option>
+      </select>
+    </div>
+    <div class="row colorRow">
+      <span class="lbl">spin up</span>
+      <input type="color" id="upColor" value="#f2ede4">
+      <span class="lbl">spin down</span>
+      <input type="color" id="downColor" value="#12111a">
+      <button id="swapBtn" style="min-height:44px">Swap</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <p class="stat" style="margin:0 0 .4rem;text-align:left">Dynamics</p>
+    <div class="row">
+      <label for="tempRange">temperature T</label>
+      <input type="range" id="tempRange" min="0.3" max="6" step="0.05" value="2.3">
+      <span class="val" id="tempOut">2.30</span>
+    </div>
+    <div class="row">
+      <label for="jRange">coupling J</label>
+      <input type="range" id="jRange" min="0.2" max="3" step="0.05" value="1">
+      <span class="val" id="jOut">1.00</span>
+    </div>
+    <div class="row">
+      <label for="hRange">image strength h</label>
+      <input type="range" id="hRange" min="0" max="6" step="0.1" value="2.5">
+      <span class="val" id="hOut">2.5</span>
+    </div>
+    <div class="row">
+      <label for="speedRange">sweeps / frame</label>
+      <input type="range" id="speedRange" min="1" max="8" step="1" value="2">
+      <span class="val" id="speedOut">2</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">What's actually happening</h2>
+    <p style="margin:.2rem 0">Energy is
+      <code>E = &minus;J&sum;s<sub>i</sub>s<sub>j</sub> &minus; &sum;h<sub>i</sub>s<sub>i</sub></code>,
+      summed over neighbouring pairs on a periodic (wrap-around) square lattice,
+      where each pixel's own field <code>h<sub>i</sub></code> is set from its
+      brightness — bright pixels pull toward <code>+1</code>, dark pixels toward
+      <code>&minus;1</code>, scaled by the <b>image strength</b> slider. Every
+      sweep visits every site in a random order and applies the Glauber
+      (heat-bath) rule: the local field <code>J&sum;s<sub>j</sub> +
+      h<sub>i</sub></code> sets the probability of landing spin-up as
+      <code>1 / (1 + e<sup>&minus;2·local/T</sup>)</code>, so a low temperature
+      makes the lattice follow the image closely and a high one lets thermal
+      noise win, the same competition that gives the real model its phase
+      transition. This square lattice's critical temperature is
+      <code>T<sub>c</sub> = 2J / ln(1+&radic;2) &approx; 2.269J</code> — the
+      readout below shows how close the current T is to it, since that is
+      roughly where structure stops holding and dissolves into noise.</p>
+  </div>
+
+  <footer class="foot">
+    Runs entirely in your browser: the image never leaves your device. This is
+    a genuine Metropolis-free Glauber/heat-bath simulation on a periodic square
+    lattice, not a stylised filter pretending to be one — which also means it is
+    not the fastest way to draw a photo in two colours, just the most honest one.
+  </footer>
+</main>
+
+<script>
+function main() {
+  document.getElementById('crumb').innerHTML = kit.crumb('ising sketch');
+
+  const reducedMotion = window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const canvas = document.getElementById('latticeCanvas');
+  const ctx = canvas.getContext('2d');
+  const statOut = document.getElementById('statOut');
+  const errEl = document.getElementById('err');
+
+  const fileInput = document.getElementById('fileInput');
+  const gridSel = document.getElementById('gridSel');
+  const upColorEl = document.getElementById('upColor');
+  const downColorEl = document.getElementById('downColor');
+  const swapBtn = document.getElementById('swapBtn');
+  const tempRange = document.getElementById('tempRange');
+  const jRange = document.getElementById('jRange');
+  const hRange = document.getElementById('hRange');
+  const speedRange = document.getElementById('speedRange');
+  const playBtn = document.getElementById('playBtn');
+  const stepBtn = document.getElementById('stepBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const shuffleBtn = document.getElementById('shuffleBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+
+  let size = Number(gridSel.value);
+  let spins = null;      // Int8Array, +1/-1
+  let field = null;      // Float32Array, per-site external field
+  let loadedImg = null;  // the uploaded <img>, kept to re-sample on resolution change
+  let sweeps = 0;
+  let playing = false;
+
+  let T = Number(tempRange.value);
+  let J = Number(jRange.value);
+  let h0 = Number(hRange.value);
+  let sweepsPerFrame = Number(speedRange.value);
+
+  function fmt2(n) { return Number(n).toFixed(2); }
+
+  tempRange.addEventListener('input', () => {
+    T = Number(tempRange.value);
+    document.getElementById('tempOut').textContent = fmt2(T);
+    updateStat();
+  });
+  jRange.addEventListener('input', () => {
+    J = Number(jRange.value);
+    document.getElementById('jOut').textContent = fmt2(J);
+    updateStat();
+  });
+  hRange.addEventListener('input', () => {
+    h0 = Number(hRange.value);
+    document.getElementById('hOut').textContent = Number(hRange.value).toFixed(1);
+    if (loadedImg) sampleFieldFromImage();
+  });
+  speedRange.addEventListener('input', () => {
+    sweepsPerFrame = Number(speedRange.value);
+    document.getElementById('speedOut').textContent = String(sweepsPerFrame);
+  });
+
+  function updateStat() {
+    if (!spins) { statOut.textContent = 'upload an image to begin'; return; }
+    let up = 0;
+    for (let i = 0; i < spins.length; i++) if (spins[i] > 0) up++;
+    const mag = (2 * up / spins.length - 1);
+    const Tc = 2 * J / Math.log(1 + Math.sqrt(2));
+    statOut.innerHTML = 'sweep <b>' + sweeps + '</b> &middot; magnetisation <b>' +
+      mag.toFixed(2) + '</b> &middot; T/T<sub>c</sub> <b>' + (T / Tc).toFixed(2) + '</b>';
+  }
+
+  // ---------------------------------------------------------------- image -> field
+
+  function sampleFieldFromImage() {
+    const off = document.createElement('canvas');
+    off.width = size; off.height = size;
+    const octx = off.getContext('2d');
+    const iw = loadedImg.naturalWidth, ih = loadedImg.naturalHeight;
+    const scale = Math.max(size / iw, size / ih); // cover-crop to a square
+    const sw = size / scale, sh = size / scale;
+    const sx = (iw - sw) / 2, sy = (ih - sh) / 2;
+    octx.drawImage(loadedImg, sx, sy, sw, sh, 0, 0, size, size);
+    const data = octx.getImageData(0, 0, size, size).data;
+    field = new Float32Array(size * size);
+    for (let i = 0; i < size * size; i++) {
+      const r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2];
+      const gray = 0.299 * r + 0.587 * g + 0.114 * b; // 0..255
+      field[i] = h0 * (gray / 127.5 - 1); // -h0..h0
+    }
+  }
+
+  function resetToImage() {
+    if (!field) return;
+    spins = new Int8Array(size * size);
+    for (let i = 0; i < spins.length; i++) spins[i] = field[i] >= 0 ? 1 : -1;
+    sweeps = 0;
+    render();
+    updateStat();
+  }
+
+  function shuffleSpins() {
+    if (!spins) return;
+    for (let i = 0; i < spins.length; i++) spins[i] = Math.random() < 0.5 ? 1 : -1;
+    sweeps = 0;
+    render();
+    updateStat();
+  }
+
+  // ---------------------------------------------------------------- Glauber dynamics
+
+  function sweep() {
+    const n = size;
+    const total = n * n;
+    for (let k = 0; k < total; k++) {
+      const idx = (Math.random() * total) | 0;
+      const x = idx % n, y = (idx / n) | 0;
+      const left = spins[y * n + ((x - 1 + n) % n)];
+      const right = spins[y * n + ((x + 1) % n)];
+      const up = spins[((y - 1 + n) % n) * n + x];
+      const down = spins[((y + 1) % n) * n + x];
+      const local = J * (left + right + up + down) + field[idx];
+      const pUp = 1 / (1 + Math.exp(-2 * local / T));
+      spins[idx] = Math.random() < pUp ? 1 : -1;
+    }
+    sweeps++;
+  }
+
+  // ---------------------------------------------------------------- render
+
+  let imgData = null;
+  let upRgb = [242, 237, 228], downRgb = [18, 17, 26];
+
+  function hexToRgb(hex) {
+    const v = parseInt(hex.slice(1), 16);
+    return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+  }
+
+  function refreshColors() {
+    upRgb = hexToRgb(upColorEl.value);
+    downRgb = hexToRgb(downColorEl.value);
+    render();
+  }
+  upColorEl.addEventListener('input', refreshColors);
+  downColorEl.addEventListener('input', refreshColors);
+  swapBtn.addEventListener('click', () => {
+    const t = upColorEl.value;
+    upColorEl.value = downColorEl.value;
+    downColorEl.value = t;
+    refreshColors();
+  });
+
+  function render() {
+    if (!spins) return;
+    if (canvas.width !== size) { canvas.width = size; canvas.height = size; }
+    if (!imgData || imgData.width !== size) imgData = ctx.createImageData(size, size);
+    const d = imgData.data;
+    for (let i = 0; i < spins.length; i++) {
+      const c = spins[i] > 0 ? upRgb : downRgb;
+      const o = i * 4;
+      d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = 255;
+    }
+    ctx.putImageData(imgData, 0, 0);
+  }
+
+  // ---------------------------------------------------------------- upload
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    if (!file.type || file.type.indexOf('image/') !== 0) {
+      kit.showError(errEl, 'That is not an image file.');
+      return;
+    }
+    kit.clear(errEl);
+    const reader = new FileReader();
+    reader.onerror = () => kit.showError(errEl, 'Could not read that file.');
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => kit.showError(errEl, 'Could not decode that image.');
+      img.onload = () => {
+        loadedImg = img;
+        sampleFieldFromImage();
+        resetToImage();
+        [stepBtn, resetBtn, shuffleBtn, downloadBtn].forEach((b) => b.disabled = false);
+        if (!reducedMotion) { playBtn.disabled = false; playBtn.textContent = 'Run ▸'; }
+        playing = false;
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  gridSel.addEventListener('change', () => {
+    size = Number(gridSel.value);
+    if (loadedImg) {
+      sampleFieldFromImage();
+      resetToImage();
+    }
+  });
+
+  resetBtn.addEventListener('click', resetToImage);
+  shuffleBtn.addEventListener('click', shuffleSpins);
+  stepBtn.addEventListener('click', () => { sweep(); render(); updateStat(); });
+
+  playBtn.addEventListener('click', () => {
+    playing = !playing;
+    playBtn.textContent = playing ? 'Pause ⏸' : 'Run ▸';
+  });
+
+  downloadBtn.addEventListener('click', () => {
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'ising-sketch.png';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+  });
+
+  // ---------------------------------------------------------------- animation
+
+  function tick() {
+    requestAnimationFrame(tick);
+    if (playing && spins) {
+      for (let s = 0; s < sweepsPerFrame; s++) sweep();
+      render();
+      updateStat();
+    }
+  }
+  tick();
+
+  if (reducedMotion) {
+    playing = false;
+    playBtn.disabled = true;
+    playBtn.textContent = 'Run (disabled — reduced motion)';
+  }
+}
+
+try {
+  main();
+} catch (e) {
+  const el = document.getElementById('err');
+  kit.showError(el, 'Something broke: ' + (e && e.message ? e.message : e));
+  console.error(e);
+}
+</script>
+</body>
+</html>
