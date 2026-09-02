@@ -40,6 +40,7 @@
   --c-viazovska:#97781a;
   --c-cohom:    #5f6b16;
   --c-voronoi:  #7b2d8b;
+  --c-arnold:   #b5521b;
   /* Status colours */
   --st-proved:    #3a8a40;
   --st-tight:     #1a7a5e;
@@ -78,6 +79,7 @@
     --c-viazovska:#d4b454;
     --c-cohom:    #c0c65e;
     --c-voronoi:  #d38ce0;
+    --c-arnold:   #e8905c;
     --st-proved:    #6abf6f;
     --st-tight:     #4ec0a0;
     --st-partial:   #d4a850;
@@ -377,6 +379,7 @@ footer a:hover { color: var(--accent); }
     <a href="https://mino.mobi/borsuk/">borsuk</a> ·
     <a href="https://mino.mobi/cohomology/">cohomology</a> ·
     <a href="https://mino.mobi/voronoi/">voronoi</a> ·
+    <a href="https://mino.mobi/arnold/">arnold</a> ·
     <a href="https://mino.mobi/viazovska/">viazovska</a>
     · adjacent: <a href="https://mino.mobi/elements/">elements</a>
     · sibling hub: <a href="https://math.mino.mobi/conjectures/">conjectures</a>
@@ -545,6 +548,7 @@ footer a:hover { color: var(--accent); }
   <a href="https://mino.mobi/borsuk/">borsuk</a>
   <a href="https://mino.mobi/cohomology/">cohomology</a>
   <a href="https://mino.mobi/voronoi/">voronoi</a>
+  <a href="https://mino.mobi/arnold/">arnold</a>
   <a href="https://mino.mobi/viazovska/">viazovska</a>
   <a href="https://mino.mobi/elements/">elements</a>
 </footer>
@@ -649,6 +653,18 @@ const PACK = [
     status: 'open',
     statusRank: 3,
     statusText: 'no classification',
+  },
+  {
+    name: 'arnold',
+    url:  'https://mino.mobi/arnold/',
+    accent: 'var(--c-arnold)',
+    problem: 'Square onto cube at Hölder 2/3',
+    era: 2026,
+    eraText: 'Arnold 1988, Badger–Palmer 2026',
+    tech: 'space-filling surface',
+    status: 'proved',
+    statusRank: 0,
+    statusText: 'α = 2/3 attained',
   },
   {
     name: 'hadwiger',

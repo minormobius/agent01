@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>arnold — a square filling a cube</title>
+<link rel="icon" href="data:,">
+<meta name="description" content="A (2/3)-Hölder surjection from the square onto the colour cube, rendered: every colour equally often, neighbouring pixels a couple of levels apart, no seams. Badger–Palmer's space-filling surface, folded flat, warped by area-preserving maps of the torus. Every image is a seed, so every image is a URL.">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --fg: #222;
+  --muted: #777;
+  --rule: #ccc;
+  --accent: #b5521b;
+  --accent-faint: rgba(181, 82, 27, 0.12);
+  --accent-tint: rgba(181, 82, 27, 0.06);
+  --panel: #f2efe8;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --good: #2a6a4a;
+  --bad: #b04030;
+  --warn: #a35a00;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0e10;
+    --fg: #ddd;
+    --muted: #888;
+    --rule: #333;
+    --accent: #e8905c;
+    --accent-faint: rgba(232, 144, 92, 0.14);
+    --accent-tint: rgba(232, 144, 92, 0.06);
+    --panel: #171519;
+    --good: #6ec48f;
+    --bad: #d36a6a;
+    --warn: #d9974a;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+body { max-width: 880px; margin: 0 auto; padding: 2rem 1.4rem 4rem; line-height: 1.55; }
+header { margin-bottom: 1.5rem; }
+.crumb { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-decoration: none; display: inline-block; margin-bottom: 0.8rem; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-size: 2.4rem; letter-spacing: -0.01em; font-weight: 600; }
+.subtitle { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 0.3rem 0 0; }
+.crossref { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-top: 0.4rem; }
+.crossref a, .prose a, footer a, .lede a { color: var(--accent); text-decoration: none; }
+.crossref a:hover, .prose a:hover, footer a:hover, .lede a:hover { text-decoration: underline; }
+
+nav.tabs { display: flex; gap: 0.4rem; margin: 1.6rem 0 1rem; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+.tab { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); padding: 0.5rem 0.7rem; cursor: pointer; margin-bottom: -1px; }
+.tab:hover { color: var(--fg); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.pane { display: none; }
+.pane.active { display: block; }
+.lede { font-size: 1.02rem; margin: 0 0 1.1rem; }
+.lede strong { font-weight: 600; }
+
+.stage { position: relative; width: 100%; aspect-ratio: 1 / 1; background: #000; border: 1px solid var(--rule); overflow: hidden; cursor: grab; touch-action: none; }
+.stage:active { cursor: grabbing; }
+.stage canvas { width: 100%; height: 100%; display: block; image-rendering: auto; }
+.stage .nogl { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: #ddd; font-family: var(--mono); font-size: 0.8rem; padding: 2rem; text-align: center; }
+.readout { font-family: var(--mono); font-size: 0.66rem; color: var(--muted); margin: 0.45rem 0 0.9rem; display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; }
+.readout b { color: var(--fg); font-weight: 500; }
+
+.controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.6rem 1rem; background: var(--panel); border: 1px solid var(--rule); padding: 0.8rem 0.9rem; margin-bottom: 0.9rem; }
+.controls label { display: flex; flex-direction: column; gap: 0.25rem; font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.controls .row { display: flex; gap: 0.4rem; align-items: center; }
+.controls .row > * { min-width: 0; }
+.controls input[type=text], .controls select { font-family: var(--mono); font-size: 0.8rem; padding: 0.3rem 0.4rem; border: 1px solid var(--rule); background: var(--bg); color: var(--fg); width: 100%; }
+.controls input[type=range] { width: 100%; accent-color: var(--accent); }
+.controls input[type=checkbox] { accent-color: var(--accent); }
+.controls .val { color: var(--fg); font-size: 0.72rem; min-width: 2.6em; text-align: right; }
+.controls .check { flex-direction: row; align-items: center; gap: 0.5rem; text-transform: none; letter-spacing: 0; font-size: 0.74rem; color: var(--fg); }
+button.btn { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.38rem 0.7rem; border: 1px solid var(--accent); background: none; color: var(--accent); cursor: pointer; white-space: nowrap; }
+button.btn:hover { background: var(--accent-faint); }
+button.btn:disabled { opacity: 0.45; cursor: default; }
+button.btn.primary { background: var(--accent); color: #fff; }
+button.btn.primary:hover { filter: brightness(1.08); }
+.actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0.6rem 0 1rem; }
+.hint { font-family: var(--mono); font-size: 0.66rem; color: var(--muted); }
+
+table.ledger { border-collapse: collapse; width: 100%; font-family: var(--mono); font-size: 0.74rem; margin: 0.8rem 0; }
+table.ledger td, table.ledger th { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+table.ledger th { font-weight: 500; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; font-size: 0.62rem; }
+table.ledger td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.badge { display: inline-block; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.1rem 0.45rem; border: 1px solid currentColor; border-radius: 2px; }
+.badge.good { color: var(--good); }
+.badge.warn { color: var(--warn); }
+.badge.bad { color: var(--bad); }
+.bars { display: grid; grid-template-columns: 4em 1fr 5em; gap: 0.25rem 0.6rem; font-family: var(--mono); font-size: 0.68rem; align-items: center; margin: 0.4rem 0 1rem; }
+.bars .bar { height: 0.7rem; background: var(--accent); min-width: 1px; }
+.bars .lbl { color: var(--muted); text-align: right; }
+.bars .pct { color: var(--muted); }
+h3 { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin: 1.6rem 0 0.5rem; font-weight: 500; }
+.prose h3 { margin-top: 2rem; }
+.prose p, .prose li { font-size: 0.98rem; }
+.prose code, .lede code, .hint code, td code { font-family: var(--mono); font-size: 0.85em; background: var(--accent-tint); padding: 0.05em 0.3em; border-radius: 2px; }
+.prose table.ledger { font-size: 0.72rem; }
+.prose .math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", var(--serif); }
+.status { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); min-height: 1.2em; }
+.status.bad { color: var(--bad); }
+.status.good { color: var(--good); }
+footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>arnold</h1>
+  <p class="subtitle">a square filling a cube — every colour equally often, no seams</p>
+  <p class="crossref">
+    part of the pack ·
+    <a href="https://mino.mobi/geometry/">geometry</a> ·
+    <a href="https://mino.mobi/voronoi/">voronoi</a> ·
+    <a href="https://mino.mobi/cohomology/">cohomology</a> ·
+    <a href="https://mino.mobi/kakeya/">kakeya</a> ·
+    <a href="https://mino.mobi/heilbronn/">heilbronn</a>
+  </p>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button class="tab active" data-pane="surface">surface</button>
+  <button class="tab" data-pane="census">census</button>
+  <button class="tab" data-pane="print">print</button>
+  <button class="tab" data-pane="docs">docs</button>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════ SURFACE ══ -->
+<section class="pane active" id="pane-surface">
+  <p class="lede">
+    Pixel <span class="math">(x,&thinsp;y)</span> is coloured by a continuous map from the
+    square <em>onto</em> the RGB cube. That is impossible to do smoothly: a square
+    has two dimensions to spend and a cube costs three, so the best exponent any
+    such map can have is <strong>2/3</strong>, and until 2026 nobody knew whether
+    2/3 itself was reachable (Arnold's problem 1988–5). Badger and Palmer
+    <a href="https://arxiv.org/abs/2608.21246">reached it</a>. This page renders
+    their surface, folded so that <strong>every colour appears equally
+    often</strong>, then bends it with area-preserving maps of the torus so a
+    seed makes a family. Drag to pan, wheel to zoom: it is the same surface at
+    every scale.
+  </p>
+
+  <div class="stage" id="stage">
+    <canvas id="view"></canvas>
+    <div class="nogl" id="nogl">This page draws the surface on the GPU and needs WebGL2, which this browser does not expose. The census and print tabs still work on the CPU.</div>
+  </div>
+  <div class="readout" id="readout"></div>
+
+  <div class="controls">
+    <label>seed
+      <div class="row"><input type="text" id="seed" maxlength="32" spellcheck="false"><button class="btn" id="roll">roll</button></div>
+    </label>
+    <label>warp strength <span class="val" id="strengthVal"></span>
+      <input type="range" id="strength" min="0" max="100" step="1">
+    </label>
+    <label>palette
+      <select id="palette"></select>
+    </label>
+    <label>red channel
+      <select id="mode">
+        <option value="fold">fold — continuous, flat histogram</option>
+        <option value="wrap">wrap — Stong's bijection, with its seam</option>
+      </select>
+    </label>
+    <label class="check"><input type="checkbox" id="cat"> Arnold's cat map first</label>
+    <label class="check"><input type="checkbox" id="stretch"> stretch contrast to the view</label>
+  </div>
+  <div class="actions">
+    <button class="btn" id="resetView">reset view</button>
+    <button class="btn" id="copyLink">copy link</button>
+    <span class="status" id="linkStatus"></span>
+  </div>
+  <p class="hint">Strength 0 is the bare surface of the paper. Every setting lives in the URL, so a good one is a link.</p>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════ CENSUS ══ -->
+<section class="pane" id="pane-census">
+  <p class="lede">
+    The claims are countable, so count them. The engine renders the current seed
+    on the CPU at a chosen size, quantises to a colour cube whose volume divides
+    the pixel count, and reports how often each colour occurs and how far apart
+    neighbours are. At the sizes marked <em>exact</em>, the bare surface hits
+    every colour <strong>precisely</strong> the same number of times.
+  </p>
+  <div class="controls">
+    <label>size
+      <select id="censusSize">
+        <option value="256">256² → 16³ colours (16 each, exact)</option>
+        <option value="512" selected>512² → 32³ colours (8 each, exact)</option>
+        <option value="1024">1024² → 64³ colours (4 each, the poster regime)</option>
+        <option value="2048">2048² → 64³ colours (16 each, exact)</option>
+      </select>
+    </label>
+    <label>&nbsp;
+      <div class="row"><button class="btn primary" id="runCensus">count</button><button class="btn" id="selfCheck">GPU = CPU?</button></div>
+    </label>
+  </div>
+  <div class="status" id="censusStatus"></div>
+  <div id="censusOut"></div>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════ PRINT ══ -->
+<section class="pane" id="pane-print">
+  <p class="lede">
+    Render the whole torus tile of the current seed as a PNG. At the exact sizes
+    the channels are quantised to the number of levels the count works for, so
+    the file <em>is</em> the census: every colour in it appears the same number of
+    times, and no two neighbours differ by more than a couple of levels.
+  </p>
+  <div class="controls">
+    <label>size
+      <select id="printSize">
+        <option value="512">512² — 32 levels per channel, each colour 8×</option>
+        <option value="1024">1024² — 64 levels, each colour 4× on average</option>
+        <option value="2048" selected>2048² — 64 levels, each colour 16×</option>
+        <option value="4096">4096² — 128 levels, each colour 8×</option>
+      </select>
+    </label>
+    <label>levels
+      <select id="printLevels">
+        <option value="exact" selected>exact — quantise to the counted cube</option>
+        <option value="256">256 — full 8-bit, histogram only nearly flat</option>
+      </select>
+    </label>
+    <label>&nbsp;
+      <div class="row"><button class="btn primary" id="runPrint">render png</button></div>
+    </label>
+  </div>
+  <div class="status" id="printStatus"></div>
+  <p class="hint">Rendered on the GPU, so it takes a moment and a 4096² file is about 64 MB of pixels before compression. The print ignores the view: it is always the full tile, which repeats seamlessly in both directions. Exactness holds for the bare surface (strength 0, no cat map); warps keep the histogram flat in the limit but not to the pixel.</p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ DOCS ══ -->
+<section class="pane prose" id="pane-docs">
+  <h3>the problem</h3>
+  <p>
+    A continuous map from the square onto the cube exists by Hahn–Mazurkiewicz,
+    but that argument says nothing about how violently it must tear distances.
+    Measure the violence with a Hölder exponent: <span class="math">‖f(x)−f(y)‖ ≤
+    H‖x−y‖<sup>α</sup></span>. Larger α means gentler. Cut the square into
+    <span class="math">k²</span> cells; each image has diameter at most
+    <span class="math">Hk<sup>−α</sup></span>, and those <span class="math">k²</span>
+    blobs must cover a cube of volume one, so <span class="math">k² · (Hk<sup>−α</sup>)³ ≥ 1</span>
+    for every k, which forces <span class="math">α ≤ 2/3</span>. Arnold asked in
+    1988 whether 2/3 is attained. Shchepin got every exponent below it in 2010.
+    Badger and Palmer's
+    <a href="https://arxiv.org/abs/2608.21246">Space-filling surfaces</a>
+    (arXiv:2608.21246, August 2026) attains it, with the explicit constant
+    <span class="math">‖f(x)−f(y)‖<sub>∞</sub> ≤ 48‖x−y‖<sub>∞</sub><sup>2/3</sup></span>.
+  </p>
+  <p>
+    For a picture the exponent is a budget, not a style. A square image of side
+    N whose neighbours differ by at most d colour levels can reach at most about
+    <span class="math">(N · d)<sup>2/3</sup></span> distinct values per channel.
+    Hitting all of <span class="math">256³</span> colours with every one used
+    equally often, on a square, with small d, is exactly the α&nbsp;=&nbsp;2/3
+    case. Anything smoother must miss colours.
+  </p>
+
+  <h3>the construction</h3>
+  <p>The engine in <code>surface.js</code> runs the paper's map in four steps.</p>
+  <ol>
+    <li><strong>A staircase curve.</strong> In the isosceles right triangle with
+      hypotenuse [0,1], nine points climb from (0,0) to the apex (½,½) in steps of
+      ¼ and descend to (1,0). Each of the eight steps is the hypotenuse of a
+      smaller copy of the triangle, so the curve refines itself: eight parameter
+      steps for a spatial factor of four, <span class="math">8<sup>2/3</sup> = 4</span>.
+      That is the exponent, before anything three-dimensional has happened.</li>
+    <li><strong>An X.</strong> Four rotated copies of the staircase, concatenated,
+      fill the self-similar set you get by keeping only the 8 of the 16 sub-squares
+      that meet a diagonal, then repeating. It has dimension 3/2, it is a closed
+      curve, and the parameter is uniform on it: each of the eight sub-squares
+      gets exactly an eighth of the parameter.</li>
+    <li><strong>Square it.</strong> <span class="math">(u, v) ↦ (g(u), g(v))</span>
+      sends the square into the product of two X's, a 3-dimensional set in
+      <span class="math">ℝ⁴</span>. This is where the two dimensions become three,
+      and it is trivially continuous: no stitching, no seams. The cheap trick of
+      composing a plane-filling curve with a cube-filling curve fails precisely
+      here, because plane-adjacent points can be far apart along the curve.</li>
+    <li><strong>Stong's linear map.</strong> <span class="math">L(a₁,b₁,a₂,b₂) =
+      (a₁ + 2a₂, b₁, b₂)</span>. Linear, hence continuous, hence the whole map is
+      2/3-Hölder. The miracle, due to Stong (1998), is that on the lattice points
+      of the X the base-4 digits of a and b agree or complement each other in
+      every place, and then <span class="math">a₁ + 2a₂</span> runs through every
+      residue class exactly once. L is a bijection from lattice pairs onto
+      <span class="math">ℤ³</span>.</li>
+  </ol>
+
+  <h3>what the paper does not do, and what this page does</h3>
+  <p>
+    The paper needs an onto map with a clean constant, so it takes the image of
+    L, a box of size 3×1×1, clips it to a small central cube, and rescales. For a
+    picture that is a catastrophe: 98% of the square lands on the clipped faces.
+    The paper also never claims measure preservation, and the clipped map has
+    none.
+  </p>
+  <p>
+    So this page folds instead. The first coordinate <span class="math">P = a₁ + 2a₂</span>
+    is the sum of two independent uniforms on [0,1] and [0,2], which is a
+    trapezoid on [0,3]: ramp up, plateau at 3/2, ramp down. A triangle wave of
+    period 2 lays the two ramps on top of each other and they add up to the
+    plateau. So <span class="math">(fold P, b₁, b₂)</span> has a flat histogram
+    in the limit, and folding is continuous, so the exponent survives. The
+    <em>joint</em> flatness, not just the marginal, is what the lattice
+    bijection buys: at image sizes aligned to the lattice the count is exact to
+    the pixel, which the selftest holds it to and the census tab lets you check.
+    The fold's phase is not free: any other crease misaligns the ramps and the
+    histogram develops holes.
+  </p>
+  <table class="ledger">
+    <tr><th>image</th><th>colour cube</th><th class="num">pixels per colour</th><th>counted</th><th class="num">max neighbour jump</th></tr>
+    <tr><td>256²</td><td>16³</td><td class="num">16</td><td>exactly 16, every colour</td><td class="num">2 of 16</td></tr>
+    <tr><td>512²</td><td>32³</td><td class="num">8</td><td>exactly 8, every colour</td><td class="num">2 of 32</td></tr>
+    <tr><td>1024²</td><td>64³</td><td class="num">4</td><td>0 to 8, 99.9% of colours hit</td><td class="num">2 of 64</td></tr>
+    <tr><td>2048²</td><td>64³</td><td class="num">16</td><td>exactly 16, every colour</td><td class="num">2 of 64</td></tr>
+    <tr><td>4096²</td><td>128³</td><td class="num">8</td><td>exactly 8, every colour</td><td class="num">2 of 128</td></tr>
+    <tr><td>8192²</td><td>256³</td><td class="num">4</td><td>0 to 8, 99.95% of colours hit (offline, 67M pixels)</td><td class="num">2 of 256</td></tr>
+  </table>
+  <p>
+    The 8192² row is the regime of the image that prompted this page, which was
+    described as every RGB value between 1 and 10 times, average 4, neighbours
+    within 4/255. The surface here does the same job slightly tighter. The rule
+    for exactness is that the image side is <span class="math">4·8<sup>k</sup></span>
+    or twice that and the cube side is <span class="math">4<sup>k</sup></span> or
+    twice that, so every pixel sits inside one lattice square and every lattice
+    square inside one colour cell.
+  </p>
+
+  <h3>what is rigid, and where the family comes from</h3>
+  <p>
+    The surface itself is one object. Its symmetries are the symmetries of the
+    image: the parameter curve is closed, so the square is a torus and the image
+    tiles; rotating the X shifts the tile by a quarter; reflecting it flips the
+    tile. Zooming into any cell shows the whole surface again, rotated and
+    linearly recoloured, which is why the zoom never runs out. None of that
+    makes a second image.
+  </p>
+  <p>Two things do, and both keep the histogram flat by construction.</p>
+  <ul>
+    <li><strong>Area-preserving maps of the torus, applied first.</strong> A seed
+      draws two to four shears <span class="math">x ↦ x + ε sin 2π(ky + φ)</span>,
+      alternating axes. Each has Jacobian determinant exactly 1, so the uniform
+      measure pushes forward to itself and the fold stays flat in the limit. The
+      cost is a Lipschitz factor of about <span class="math">1 + 2πkε</span> per
+      shear, which the Hölder bound pays for at power 2/3: the census shows the
+      neighbour jump growing from 2 to about 7 levels of 32 at full strength with the cat map on. The cat
+      map <span class="math">(x,y) ↦ (2x+y, x+y)</span> is the same idea with a
+      hyperbolic linear map and a factor of 2.6.</li>
+    <li><strong>The 48 symmetries of the cube.</strong> Which of the three
+      coordinates becomes red, and which channels are inverted. Six by eight.</li>
+  </ul>
+  <p>
+    What does <em>not</em> work: exact-histogram post-processing. Sorting pixels
+    into slices to force every count to 4 moves colours by up to 8 levels and
+    lifts the neighbour jump from 2 to 12. The continuum object is flat; the
+    discrete render is flat exactly where the lattice says so and within a few
+    counts elsewhere. That is the honest statement and it is what the census
+    reports.
+  </p>
+
+  <h3>the render</h3>
+  <p>
+    The GPU evaluates the map per pixel from a 32-bit fixed-point torus
+    coordinate: two bits choose which copy of the staircase, ten octal digits
+    walk the similarities, and the walk finishes at the centre of the last
+    square, which is exactly where every quarter-triangle's apex is. Warps are
+    integer adds of a float displacement, so zoom stays precise to about
+    <span class="math">2<sup>−14</sup></span> of the tile. The CPU engine in
+    <code>surface.js</code> does the same in doubles; the census uses it, the
+    selftest imports it, and the <em>GPU = CPU?</em> button compares the two.
+  </p>
+  <p>
+    References: Badger &amp; Palmer,
+    <a href="https://arxiv.org/abs/2608.21246">arXiv:2608.21246</a>;
+    R. Stong, <em>Mapping ℤʳ into ℤˢ with maximal contraction</em>, Discrete
+    Comput. Geom. 20 (1998); V. I. Arnold, <em>Arnold's Problems</em>, 1988–5;
+    E. V. Shchepin, <em>On Hölder maps of cubes</em>, Math. Notes 87 (2010).
+    Engine and checks: <code>arnold/surface.js</code>,
+    <code>node arnold/surface.selftest.mjs</code>.
+  </p>
+</section>
+
+<footer>
+  <a href="https://mino.mobi/geometry/">geometry</a>
+  <a href="https://mino.mobi/voronoi/">voronoi</a>
+  <a href="https://mino.mobi/cohomology/">cohomology</a>
+  <a href="https://mino.mobi/kakeya/">kakeya</a>
+  <a href="https://mino.mobi/heilbronn/">heilbronn</a>
+  <a href="https://mino.mobi/borsuk/">borsuk</a>
+  <a href="https://mino.mobi/viazovska/">viazovska</a>
+  <a href="https://mino.mobi/aztec/">aztec</a>
+</footer>
+
+<script type="module">
+import {
+  genome, colourAt, renderLevels, renderRows, census, encodeState, decodeState,
+  stateGenome, paletteOf, PALETTES, PERMS, LEVELS, randomSeed,
+} from './surface.js';
+
+// ------------------------------------------------------------------ state --
+const $ = (id) => document.getElementById(id);
+const state = decodeState(location.hash);
+if (!state.view) state.view = { x: 0, y: 0, w: 1 };
+let stretch = false;
+let gen = stateGenome(state);
+
+// ------------------------------------------------------------------- tabs --
+for (const b of document.querySelectorAll('.tab')) {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === b));
+    document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('active', p.id === 'pane-' + b.dataset.pane));
+  });
+}
+
+// ----------------------------------------------------------------- shader --
+const VS = `#version 300 es
+in vec2 aPos; void main() { gl_Position = vec4(aPos, 0.0, 1.0); }`;
+const FS = `#version 300 es
+precision highp float;
+precision highp int;
+out vec4 fragColor;
+uniform vec2 uRes;
+uniform uvec2 uOrigin;
+uniform float uWidth;
+uniform int uCat;
+uniform int uNT;
+uniform vec4 uTwist[4];
+uniform int uMode;
+uniform int uDepth;
+uniform mat3 uPerm;
+uniform vec3 uInv;
+uniform float uLevels;
+uniform vec3 uLo;
+uniform vec3 uHi;
+const float TWO32 = 4294967296.0;
+const vec2 STAIR[8] = vec2[8](vec2(0.0,0.0), vec2(0.25,0.0), vec2(0.25,0.25), vec2(0.5,0.25), vec2(0.5,0.5), vec2(0.5,0.25), vec2(0.75,0.25), vec2(0.75,0.0));
+const int TURN[8] = int[8](0, 1, 0, 1, 3, 0, 3, 0);
+const vec2 CORNER[4] = vec2[4](vec2(0.0,0.0), vec2(1.0,0.0), vec2(1.0,1.0), vec2(0.0,1.0));
+vec2 rot(int r, vec2 p) {
+  if (r == 0) return p;
+  if (r == 1) return vec2(-p.y, p.x);
+  if (r == 2) return -p;
+  return vec2(p.y, -p.x);
+}
+vec2 gPoint(uint u) {
+  int c = int(u >> 30u);
+  vec2 o = CORNER[c];
+  int r = c;
+  float s = 1.0;
+  for (int i = 0; i < 10; i++) {
+    if (i >= uDepth) break;
+    int d = int((u >> uint(27 - 3 * i)) & 7u);
+    o += s * rot(r, STAIR[d]);
+    r = (r + TURN[d]) & 3;
+    s *= 0.25;
+  }
+  return o + s * rot(r, vec2(0.5, 0.5));
+}
+void main() {
+  vec2 f = gl_FragCoord.xy / uRes;
+  f.y = 1.0 - f.y;
+  vec2 t = f * uWidth;
+  uint ux = uOrigin.x + uint(fract(t.x) * TWO32);
+  uint uy = uOrigin.y + uint(fract(t.y) * TWO32);
+  if (uCat == 1) { uint nx = 2u * ux + uy; uint ny = ux + uy; ux = nx; uy = ny; }
+  for (int i = 0; i < 4; i++) {
+    if (i >= uNT) break;
+    vec4 tw = uTwist[i];
+    if (tw.x < 0.5) {
+      float yf = float(uy) / TWO32;
+      float d = tw.w * sin(6.28318530718 * (tw.y * yf + tw.z));
+      ux += uint(int(d * TWO32));
+    } else {
+      float xf = float(ux) / TWO32;
+      float d = tw.w * sin(6.28318530718 * (tw.y * xf + tw.z));
+      uy += uint(int(d * TWO32));
+    }
+  }
+  vec2 g1 = gPoint(ux);
+  vec2 g2 = gPoint(uy);
+  float P = g1.x + 2.0 * g2.x;
+  float R;
+  if (uMode == 0) { float m = mod(P, 2.0); R = m < 1.0 ? m : 2.0 - m; } else { R = fract(P); }
+  vec3 base = vec3(R, g1.y, g2.y);
+  base = mix(base, 1.0 - base, uInv);
+  vec3 col = uPerm * base;
+  if (uLevels > 0.0) { col = min(floor(col * uLevels), uLevels - 1.0) / (uLevels - 1.0); }
+  col = (col - uLo) / max(uHi - uLo, vec3(1e-6));
+  fragColor = vec4(col, 1.0);
+}`;
+
+function makeRenderer(canvas, opts = {}) {
+  const gl = canvas.getContext('webgl2', { antialias: false, preserveDrawingBuffer: !!opts.preserve, premultipliedAlpha: false });
+  if (!gl) return null;
+  const compile = (type, src) => {
+    const sh = gl.createShader(type);
+    gl.shaderSource(sh, src);
+    gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh));
+    return sh;
+  };
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  gl.useProgram(prog);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(prog, 'aPos');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+  const U = {};
+  for (const n of ['uRes', 'uOrigin', 'uWidth', 'uCat', 'uNT', 'uTwist', 'uMode', 'uDepth', 'uPerm', 'uInv', 'uLevels', 'uLo', 'uHi']) U[n] = gl.getUniformLocation(prog, n);
+  const fixed = (v) => { v -= Math.floor(v); return Math.floor(v * 4294967296) >>> 0; };
+  function draw(g, view, mode, { width, height, depth = 10, levels = 0, lo = [0, 0, 0], hi = [1, 1, 1] } = {}) {
+    if (width && (canvas.width !== width || canvas.height !== height)) { canvas.width = width; canvas.height = height; }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.useProgram(prog);
+    gl.uniform2f(U.uRes, canvas.width, canvas.height);
+    gl.uniform2ui(U.uOrigin, fixed(view.x), fixed(view.y));
+    gl.uniform1f(U.uWidth, view.w);
+    gl.uniform1i(U.uCat, g.cat ? 1 : 0);
+    gl.uniform1i(U.uNT, g.twists.length);
+    const tw = new Float32Array(16);
+    g.twists.forEach((t, i) => { tw[i * 4] = t.axis; tw[i * 4 + 1] = t.k; tw[i * 4 + 2] = t.phase; tw[i * 4 + 3] = t.amp; });
+    gl.uniform4fv(U.uTwist, tw);
+    gl.uniform1i(U.uMode, mode === 'wrap' ? 1 : 0);
+    gl.uniform1i(U.uDepth, depth);
+    // out[perm[i]] = base[i]  ⇒  column i of the matrix is e_{perm[i]}
+    const m = new Float32Array(9);
+    for (let i = 0; i < 3; i++) m[i * 3 + g.palette.perm[i]] = 1;
+    gl.uniformMatrix3fv(U.uPerm, false, m);
+    gl.uniform3f(U.uInv, g.palette.inv[0] ? 1 : 0, g.palette.inv[1] ? 1 : 0, g.palette.inv[2] ? 1 : 0);
+    gl.uniform1f(U.uLevels, levels);
+    gl.uniform3fv(U.uLo, lo);
+    gl.uniform3fv(U.uHi, hi);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+  return { gl, draw, canvas };
+}
+
+// ------------------------------------------------------------------- view --
+const viewCanvas = $('view');
+let renderer = null;
+try { renderer = makeRenderer(viewCanvas); } catch (e) { console.error(e); }
+if (!renderer) $('nogl').style.display = 'flex';
+
+function contrastWindow() {
+  if (!stretch) return { lo: [0, 0, 0], hi: [1, 1, 1] };
+  const lo = [1, 1, 1], hi = [0, 0, 0], n = 40;
+  const v = state.view;
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const c = colourAt(gen, v.x + (i + 0.5) / n * v.w, v.y + (j + 0.5) / n * v.w, { mode: state.mode, depth: 10 });
+    for (let k = 0; k < 3; k++) { if (c[k] < lo[k]) lo[k] = c[k]; if (c[k] > hi[k]) hi[k] = c[k]; }
+  }
+  for (let k = 0; k < 3; k++) {
+    const pad = Math.max(0.02 * (hi[k] - lo[k]), 1e-4);
+    lo[k] = Math.max(0, lo[k] - pad); hi[k] = Math.min(1, hi[k] + pad);
+  }
+  return { lo, hi };
+}
+
+let drawQueued = false;
+function requestDraw() {
+  if (drawQueued) return;
+  drawQueued = true;
+  requestAnimationFrame(() => { drawQueued = false; drawView(); });
+}
+function drawView() {
+  if (!renderer) return;
+  const rect = viewCanvas.getBoundingClientRect();
+  const px = Math.min(2048, Math.max(256, Math.round(rect.width * (window.devicePixelRatio || 1))));
+  const { lo, hi } = contrastWindow();
+  renderer.draw(gen, state.view, state.mode, { width: px, height: px, depth: 10, lo, hi });
+  updateReadout(px);
+}
+function updateReadout(px) {
+  const v = state.view, zoom = 1 / v.w;
+  const du = v.w / px;
+  const jump = 4 * Math.pow(du, 2 / 3) * 255;
+  $('readout').innerHTML =
+    `<span>zoom <b>×${zoom >= 10 ? zoom.toFixed(0) : zoom.toFixed(2)}</b></span>` +
+    `<span>origin <b>${v.x.toFixed(6)}, ${v.y.toFixed(6)}</b></span>` +
+    `<span>screen pixel <b>Δu = ${du.toExponential(2)}</b></span>` +
+    `<span>Hölder budget per pixel <b>≤ 4·Δu^(2/3) = ${jump < 10 ? jump.toFixed(2) : jump.toFixed(0)} levels of 255</b></span>` +
+    `<span>palette <b>${paletteLabel(gen.palette.index)}</b></span>`;
+}
+
+// pan and zoom
+const stage = $('stage');
+let dragging = null;
+stage.addEventListener('pointerdown', (e) => {
+  dragging = { x: e.clientX, y: e.clientY, vx: state.view.x, vy: state.view.y };
+  stage.setPointerCapture(e.pointerId);
+});
+stage.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  const rect = stage.getBoundingClientRect();
+  state.view.x = dragging.vx - (e.clientX - dragging.x) / rect.width * state.view.w;
+  state.view.y = dragging.vy - (e.clientY - dragging.y) / rect.height * state.view.w;
+  requestDraw();
+});
+const endDrag = () => { if (dragging) { dragging = null; pushState(); } };
+stage.addEventListener('pointerup', endDrag);
+stage.addEventListener('pointercancel', endDrag);
+stage.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const rect = stage.getBoundingClientRect();
+  const fx = (e.clientX - rect.left) / rect.width, fy = (e.clientY - rect.top) / rect.height;
+  const factor = Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0015));
+  const w0 = state.view.w;
+  const w1 = Math.min(4, Math.max(Math.pow(2, -14), w0 / factor));
+  state.view.x += fx * (w0 - w1);
+  state.view.y += fy * (w0 - w1);
+  state.view.w = w1;
+  requestDraw();
+  pushStateSoon();
+}, { passive: false });
+stage.addEventListener('dblclick', () => { state.view = { x: 0, y: 0, w: 1 }; requestDraw(); pushState(); });
+window.addEventListener('resize', requestDraw);
+
+// --------------------------------------------------------------- controls --
+function paletteLabel(i) {
+  const p = paletteOf(i);
+  const names = ['P', 'b₁', 'b₂'];
+  const out = ['', '', ''];
+  for (let k = 0; k < 3; k++) out[p.perm[k]] = (p.inv[k] ? '¬' : '') + names[k];
+  return `R←${out[0]} G←${out[1]} B←${out[2]}`;
+}
+{
+  const sel = $('palette');
+  const o = document.createElement('option');
+  o.value = ''; o.textContent = 'from the seed';
+  sel.appendChild(o);
+  for (let i = 0; i < PALETTES; i++) {
+    const op = document.createElement('option');
+    op.value = String(i); op.textContent = `${String(i).padStart(2, '0')} · ${paletteLabel(i)}`;
+    sel.appendChild(op);
+  }
+}
+function syncControls() {
+  $('seed').value = state.seed;
+  $('strength').value = Math.round(state.strength * 100);
+  $('strengthVal').textContent = Math.round(state.strength * 100) + '%';
+  $('palette').value = state.palette == null ? '' : String(state.palette);
+  $('mode').value = state.mode;
+  $('cat').checked = state.cat;
+  $('stretch').checked = stretch;
+}
+function apply() {
+  gen = stateGenome(state);
+  syncControls();
+  requestDraw();
+  pushState();
+}
+$('seed').addEventListener('change', () => { state.seed = ($('seed').value.trim() || 'poster').slice(0, 32); apply(); });
+$('roll').addEventListener('click', () => { state.seed = randomSeed(); if (state.strength === 0) state.strength = 0.6; state.palette = null; apply(); });
+$('strength').addEventListener('input', () => { state.strength = (+$('strength').value) / 100; $('strengthVal').textContent = $('strength').value + '%'; gen = stateGenome(state); requestDraw(); pushStateSoon(); });
+$('palette').addEventListener('change', () => { state.palette = $('palette').value === '' ? null : +$('palette').value; apply(); });
+$('mode').addEventListener('change', () => { state.mode = $('mode').value; apply(); });
+$('cat').addEventListener('change', () => { state.cat = $('cat').checked; apply(); });
+$('stretch').addEventListener('change', () => { stretch = $('stretch').checked; requestDraw(); });
+$('resetView').addEventListener('click', () => { state.view = { x: 0, y: 0, w: 1 }; requestDraw(); pushState(); });
+$('copyLink').addEventListener('click', async () => {
+  pushState();
+  try { await navigator.clipboard.writeText(location.href); $('linkStatus').textContent = 'copied'; }
+  catch { $('linkStatus').textContent = location.href; }
+  setTimeout(() => { $('linkStatus').textContent = ''; }, 2500);
+});
+
+let pushTimer = null;
+function pushState() {
+  const h = '#' + encodeState(state);
+  if (location.hash !== h) history.replaceState(null, '', h);
+}
+function pushStateSoon() { clearTimeout(pushTimer); pushTimer = setTimeout(pushState, 250); }
+window.addEventListener('hashchange', () => {
+  const st = decodeState(location.hash);
+  Object.assign(state, st);
+  if (!st.view) state.view = { x: 0, y: 0, w: 1 };
+  gen = stateGenome(state);
+  syncControls();
+  requestDraw();
+});
+
+// ----------------------------------------------------------------- census --
+const yieldNow = () => new Promise((r) => setTimeout(r, 0));
+async function renderChunked(g, N, C, mode, onProgress) {
+  const bare = g.twists.every((t) => t.amp === 0) && !g.cat;
+  if (bare) { onProgress && onProgress(0.5); await yieldNow(); return renderLevels(g, N, { C, mode }); }
+  const out = new Uint8Array(N * N * 3);
+  const step = Math.max(8, Math.floor(65536 / N));
+  for (let y = 0; y < N; y += step) {
+    renderRows(g, N, y, Math.min(N, y + step), { C, mode, out });
+    onProgress && onProgress((y + step) / N);
+    await yieldNow();
+  }
+  return out;
+}
+function bars(rows, total) {
+  const max = Math.max(...rows.map((r) => r[1]));
+  return '<div class="bars">' + rows.map(([lbl, v]) =>
+    `<span class="lbl">${lbl}</span><div class="bar" style="width:${(100 * v / max).toFixed(2)}%"></div><span class="pct">${(100 * v / total).toFixed(2)}%</span>`).join('') + '</div>';
+}
+let censusBusy = false;
+$('runCensus').addEventListener('click', async () => {
+  if (censusBusy) return;
+  censusBusy = true;
+  const N = +$('censusSize').value, C = LEVELS[N];
+  const st = $('censusStatus');
+  st.className = 'status';
+  st.textContent = `rendering ${N}² on the CPU…`;
+  $('runCensus').disabled = true;
+  try {
+    const t0 = performance.now();
+    const lv = await renderChunked(gen, N, C, state.mode, (p) => { st.textContent = `rendering ${N}² on the CPU… ${Math.round(100 * Math.min(1, p))}%`; });
+    st.textContent = 'counting…';
+    await yieldNow();
+    const c = census(lv, N, C);
+    const ms = Math.round(performance.now() - t0);
+    const bare = gen.twists.every((t) => t.amp === 0) && !gen.cat;
+    const exactBadge = c.exact ? '<span class="badge good">exact</span>' :
+      (c.hit / c.colours > 0.99 ? '<span class="badge warn">nearly flat</span>' : '<span class="badge bad">holes</span>');
+    $('censusOut').innerHTML = `
+      <table class="ledger">
+        <tr><th>subject</th><td>seed <code>${escapeHtml(state.seed)}</code> · strength ${Math.round(state.strength * 100)}% · ${state.cat ? 'cat map · ' : ''}${state.mode} · palette ${gen.palette.index}${bare ? ' · <em>bare surface</em>' : ''}</td></tr>
+        <tr><th>pixels</th><td class="num">${c.pixels.toLocaleString()} = ${N}²</td></tr>
+        <tr><th>colours</th><td class="num">${c.colours.toLocaleString()} = ${C}³ · ${c.mean} pixels per colour on average</td></tr>
+        <tr><th>counts</th><td>${c.min} to ${c.max} per colour · ${c.hit.toLocaleString()} hit, ${c.missing.toLocaleString()} missing ${exactBadge}</td></tr>
+        <tr><th>neighbours</th><td>max jump <b>${c.maxDiff}</b> of ${C} levels over ${c.edges.toLocaleString()} edges (torus included) · ${(100 * c.cdf[Math.min(2, c.cdf.length - 1)]).toFixed(2)}% within 2</td></tr>
+        <tr><th>Hölder</th><td>measured constant ${c.holder.toFixed(2)} on pixel neighbours · the paper's bound for this normalisation is ${c.holderBound} per channel${c.holder <= c.holderBound ? ' <span class="badge good">under</span>' : ' <span class="badge warn">over — warps cost Lipschitz</span>'}</td></tr>
+        <tr><th>time</th><td class="num">${ms} ms</td></tr>
+      </table>
+      <h3>how many colours appear n times</h3>
+      ${bars(c.countHist.map(([n, k]) => [String(n) + '×', k]), c.colours)}
+      <h3>how far apart neighbours are</h3>
+      ${bars(c.diffHist.map((k, d) => [String(d), k]), c.edges)}`;
+    st.className = 'status good';
+    st.textContent = 'done';
+  } catch (e) {
+    st.className = 'status bad';
+    st.textContent = 'failed: ' + e.message;
+  } finally {
+    censusBusy = false;
+    $('runCensus').disabled = false;
+  }
+});
+function escapeHtml(s) { return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+// GPU = CPU?
+let offscreen = null;
+function getOffscreen() {
+  if (offscreen) return offscreen;
+  const c = document.createElement('canvas');
+  try { offscreen = makeRenderer(c, { preserve: true }); } catch (e) { offscreen = null; }
+  return offscreen;
+}
+$('selfCheck').addEventListener('click', async () => {
+  const st = $('censusStatus');
+  const r = getOffscreen();
+  if (!r) { st.className = 'status bad'; st.textContent = 'no WebGL2 here — nothing to compare'; return; }
+  st.className = 'status'; st.textContent = 'comparing a 256² render on both engines…';
+  await yieldNow();
+  const N = 256, C = 256;
+  const depth = Math.ceil(Math.log(N / 4) / Math.log(8)) + 3;
+  r.draw(gen, { x: 0, y: 0, w: 1 }, state.mode, { width: N, height: N, depth, levels: C });
+  const px = new Uint8Array(N * N * 4);
+  r.gl.readPixels(0, 0, N, N, r.gl.RGBA, r.gl.UNSIGNED_BYTE, px);
+  const cpu = renderLevels(gen, N, { C, mode: state.mode, depth });
+  let worst = 0, off = 0;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const gpuRow = N - 1 - y; // readPixels is bottom-up
+    const o = (gpuRow * N + x) * 4, p = (y * N + x) * 3;
+    const d = Math.max(Math.abs(px[o] - cpu[p]), Math.abs(px[o + 1] - cpu[p + 1]), Math.abs(px[o + 2] - cpu[p + 2]));
+    if (d > worst) worst = d;
+    if (d > 1) off++;
+  }
+  st.className = worst <= 2 ? 'status good' : 'status bad';
+  st.textContent = `GPU vs CPU at 256², 256 levels: worst difference ${worst} level${worst === 1 ? '' : 's'}, ${off} of ${N * N} pixels differ by more than 1`;
+});
+
+// ------------------------------------------------------------------ print --
+$('runPrint').addEventListener('click', async () => {
+  const st = $('printStatus');
+  const r = getOffscreen();
+  if (!r) { st.className = 'status bad'; st.textContent = 'printing needs WebGL2'; return; }
+  const N = +$('printSize').value;
+  const exact = $('printLevels').value === 'exact';
+  const C = exact ? LEVELS[N] : 256;
+  st.className = 'status'; st.textContent = `rendering ${N}²…`;
+  $('runPrint').disabled = true;
+  await yieldNow();
+  try {
+    const depth = Math.ceil(Math.log(N / 4) / Math.log(8)) + 3;
+    r.draw(gen, { x: 0, y: 0, w: 1 }, state.mode, { width: N, height: N, depth, levels: exact ? C : 0 });
+    const err = r.gl.getError();
+    if (err) throw new Error('WebGL error ' + err + ' — the canvas may be too large for this GPU');
+    const blob = await new Promise((res) => r.canvas.toBlob(res, 'image/png'));
+    if (!blob) throw new Error('the browser refused to encode a canvas this large');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `arnold-${state.seed}-${Math.round(state.strength * 100)}${state.cat ? '-cat' : ''}-p${gen.palette.index}-${state.mode}-${N}.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+    st.className = 'status good';
+    st.textContent = `${N}² png, ${(blob.size / 1048576).toFixed(1)} MB · ${C} levels per channel`;
+  } catch (e) {
+    st.className = 'status bad';
+    st.textContent = 'failed: ' + e.message;
+  } finally {
+    $('runPrint').disabled = false;
+  }
+});
+
+// ------------------------------------------------------------------- boot --
+// Debug hook: the selftest-in-a-browser and anyone poking at the console.
+window.arnold = { state, get gen() { return gen; }, renderer, getOffscreen, colourAt, renderLevels, census };
+syncControls();
+requestDraw();
+pushState();
+</script>
+</body>
+</html>

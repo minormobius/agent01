@@ -810,11 +810,12 @@
         "elements",
         "prop",
         "cohomology",
-        "voronoi"
+        "voronoi",
+        "arnold"
       ],
       "endpoint": "math.mino.mobi",
       "type": "frontend",
-      "branch": "claude/conway-voronoi-procgen-wens91",
+      "branch": "claude/holder-continuous-procgen-arqnj4",
       "uses": [],
       "provides": null,
       "status": "MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain math.mino.mobi). Members are STAGED from root at build time, not moved; root still serves the canonical mino.mobi/<x>/ URLs so nothing breaks.",
@@ -836,7 +837,8 @@
         "elements/**",
         "prop/**",
         "cohomology/**",
-        "voronoi/**"
+        "voronoi/**",
+        "arnold/**"
       ]
     },
     {
