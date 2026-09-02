@@ -261,6 +261,11 @@ section("deploy + remove: reseed a pack on the summit, take bricks away, replay 
   };
   const a = build(), b = build();
   ok(a.colonies.length === 3 && b.colonies.length === 3, `three colonies after two deployments (${a.colonies.length})`);
+  ok(a.colonies[0].frozen && a.colonies[0].done && a.colonies[0].masons.length === 0, "deploying freezes the colonies that were growing: colony 0 stopped and its masons left");
+  ok(a.colonies[1].done && a.colonies[1].masons.length === 0 && a.colonies[2].frozen === false, "the second deployment stopped the first pack; the newest pack is the only one growing");
+  ok(a.masons.every((m) => m.colony === 2), "growth.masons lists only the growing colony's masons");
+  ok(a.colonies[1].floor === a.events[0].at.z && a.colonies[2].floor === a.events[3].at.z, `each pack's floor is the plane it was seeded on (${a.colonies[1].floor}, ${a.colonies[2].floor})`);
+  ok(a.bricks.filter((br) => br.c === 1).every((br) => br.z >= a.colonies[1].floor), "a pack never lays a brick beneath its floor");
   ok(seq(a) === seq(b), "the same seed and the same event sequence replay identically");
   ok(JSON.stringify(a.events) === JSON.stringify(b.events), "the event log is identical too");
   ok(a.events.filter((e) => e.kind === "deploy").length === 2 && a.events.filter((e) => e.kind === "remove").length === 2, "events: 2 deployments, 2 removals, with ticks");
@@ -270,7 +275,7 @@ section("deploy + remove: reseed a pack on the summit, take bricks away, replay 
   ok(first.at.z === 67 || first.at.z > 40, `reseed landed above the old crystal (z ${first.at.z})`);
   const c1 = a.bricks.filter((br) => br.c === 1);
   ok(c1.length > 9 && a.colonies[1].laid > 0, `pack 1 laid bricks (${a.colonies[1].laid}) on its plate (${c1.length} incl. nucleus)`);
-  ok(a.masons.length === a.colonies.reduce((n, c) => n + c.masons.length, 0), "growth.masons spans every colony");
+  ok(a.masons.length === a.colonies.reduce((n, c) => n + (c.done ? 0 : c.masons.length), 0), "growth.masons spans every growing colony");
   ok(a.masons.every((m, i, arr) => arr.findIndex((o) => o.id === m.id) === i), "mason ids are unique across colonies");
   // deployed colony 0 is untouched by a deployment: its stream and laws are its own
   const plain = new Growth(7).run(1500);
@@ -287,13 +292,29 @@ section("deploy + remove: reseed a pack on the summit, take bricks away, replay 
     ok(a.removed.length === 2 && a.lat.occ[a.removed[0]] === 0, "removed sites are logged for the renderer and empty");
     ok(!a.remove(a.removed[0]), "removing an empty site is a no-op");
   }
+  // reseed on a plateau: with the plane as its floor the pack grows a hopper
+  // out of the plane; without freezing, the old colony keeps going
+  {
+    const g = genome(7); g.voxels = []; for (let x = -12; x <= 12; x++) for (let y = -12; y <= 12; y++) g.voxels.push([x, y, 0], [x, y, 1]); g.budget = 30;
+    const gr = new Growth(g).run();
+    const idx = gr.deploy({ masons: 10, budget: 800 }, { x: 64, y: 64, z: 46 });
+    gr.run();
+    const col = gr.colonies[idx];
+    ok(col.laid >= 800 && gr.lat.max[2] >= 52, `on a 25×25 plateau the pack grows up out of its plane (${col.laid} bricks, to z ${gr.lat.max[2]})`);
+    ok(gr.bricks.filter((br) => br.c === idx).every((br) => br.z >= 46), "…and nothing beneath the plane");
+    const near = gr.bricks.filter((br) => br.c === idx && Math.abs(br.x - 64) <= 22 && Math.abs(br.y - 64) <= 22).length;
+    ok(near === gr.bricks.filter((br) => br.c === idx).length, "…and all of it around where it was seeded (arrivals aim at the pack)");
+    const g2 = new Growth(7).run(1500);
+    g2.deploy({ masons: 4, budget: 200 }, null, { freeze: false });
+    ok(!g2.colonies[0].frozen && g2.colonies[0].masons.length > 0, "freeze: false keeps the old colony growing alongside the pack");
+  }
   // the prism substrate has the same primitives
   {
     const g = genome(3); g.substrate = quasiSubstrate(3, "hex"); g.substrate.R = 20; g.budget = 300;
     const gr = new Growth(g).run();
     const idx = gr.deploy({ masons: 4, budget: 120 }, null);
     ok(idx === 1 && gr.colonies[1].masons.length === 4, "prism: a pack deploys on the summit");
-    gr.run(150);
+    for (let i = 0; i < 3000 && gr.colonies[1].laid === 0; i++) gr.step();
     ok(gr.colonies[1].laid > 0, `prism: the pack lays bricks (${gr.colonies[1].laid})`);
     const s = gr.bricks[20].z * gr.sub.n + gr.bricks[20].tile;
     const before = gr.sub.top[gr.bricks[20].tile];

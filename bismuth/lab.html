@@ -162,10 +162,11 @@
 
   <details open id="sec-packs">
     <summary>packs <span class="hint">reseed from this plane · demolish</span></summary>
-    <div class="note">The platformer primitives. <b>Reseed</b> lays a small plate on the highest point of what has grown and starts a new colony there with the brain and colony above — its own budget, its own dice. <b>Demolish</b> takes bricks away with a click; masons standing on them fall back into the melt. Both are live edits: the link replays the base crystal, not your interventions.</div>
+    <div class="note">The platformer primitives. <b>Reseed</b>: click a brick and a pack lands on the plane above it with the brain and colony above — its own budget, its own dice — and everything that was growing <em>freezes</em>: the old crystal is terrain now, the chosen plane is the new floor, and the pack builds only on and above it. <b>Demolish</b> takes bricks away with a click; masons standing on them fall back into the melt. Both are live edits: the link replays the base crystal, not your interventions.</div>
     <div class="row"><label title="plate width of a deployed pack, in cells">plate</label><input type="range" id="packsize" min="1" max="9" step="1" value="3"><output id="packsize-out">3</output></div>
     <div class="btns">
-      <button id="deploy" class="primary">reseed on the summit</button>
+      <button id="reseed" class="primary">reseed: click a brick</button>
+      <button id="deploy">reseed on the summit</button>
       <button id="demolish">demolish: off</button>
     </div>
     <div class="note" id="packnote"></div>

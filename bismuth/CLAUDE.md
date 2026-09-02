@@ -139,14 +139,25 @@ crystal is 5–20 s of CPU), which is why the API caps quasi requests lower.
 to the single-colony engine (colony 0 draws from `stream(seed, "growth")`
 and steps first). The primitives a level needs:
 
-- **`growth.deploy(pack, at)`** — *reseed from this plane.* Lays a plate
-  (`pack.size` cells wide, `pack.thick` layers, default 3×1) at `at` — a site
-  index, `{x, y, z}` (cubic), `{tile, z}` or `{x, y, z}` in world units
+- **`growth.deploy(pack, at, {freeze})`** — *reseed from this plane.* Lays a
+  plate (`pack.size` cells wide, `pack.thick` layers, default 3×1) at `at` — a
+  site index, `{x, y, z}` (cubic), `{tile, z}` or `{x, y, z}` in world units
   (prism), or `null` for the **summit** (the site above the highest brick) —
   and starts a new colony on it with `pack` merged over the base genome:
   masons, budget, rates, rim, axis, brain, population, oxide, anything. The
   colony draws from `stream(seed, "growth:<idx>:<tick>")`, so a level is
   reproducible from its seed and its event log. Returns the colony index.
+  **By default every colony that was growing freezes** (`done`, `frozen`,
+  masons gone): what has grown is terrain now. `{freeze: false}` keeps them.
+  **The plane is the pack's floor** (`col.floor`, override with
+  `pack.floor`): beneath it the world is void to that colony — `kossel`,
+  `fedBias`/`fed`, the patch and lip gates all ignore bricks below the floor,
+  and a mason that wanders below it returns to the melt. Without this a plate
+  on a wide plateau is starved by the Berg rule (the plateau never "drops");
+  with it the pack grows a fresh hopper out of the plane it was seeded on.
+  Arrivals aim at the pack's own bricks (`col.region`), not the whole
+  structure. Colony 0 has floor 0 and the global region, so nothing about a
+  seeded specimen changed (golden hashes).
 - **`growth.remove(at)`** — destructible terrain. `Lattice.remove` rescans
   the six affected extent-map columns; `Prism.remove` rescans the column top.
   Bonds stay exact (the selftest compares against a rebuild). Masons whose
@@ -160,8 +171,9 @@ and steps first). The primitives a level needs:
 - `renderer.pick(px, py)` marches the camera ray through the substrate and
   returns the brick under a pixel — what a click means.
 
-The playground exposes them under **packs**: reseed on the summit with the
-current laws, and a demolish mode (click bricks). Both are live edits — the
+The playground exposes them under **packs**: reseed by clicking a brick
+(the pack lands on the plane above it and everything else freezes), reseed
+on the summit, and a demolish mode (click bricks). Both are live edits — the
 link replays the base crystal, not the interventions; a game would persist
 the event log.
 

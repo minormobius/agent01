@@ -222,23 +222,18 @@ class Lab {
   skip() { this.growth.run(); this.renderer.sync(true); this.renderer.snapCamera(); this.finish(); }
 
   // reseed from this plane: a new colony on the summit, with the current laws
-  deployPack() {
+  deployPack(at) {
     const st = this.state, gen = toGenome(st);
     const pack = { masons: gen.masons, budget: gen.budget, rim: gen.rim, k1: gen.k1, k2: gen.k2, k3: gen.k3, patience: gen.patience, mobility: gen.mobility, flight: gen.flight,
       axis: gen.axis, brain: gen.brain, population: gen.population, oxide: gen.oxide, size: +$("#packsize").value, thick: 1 };
-    const idx = this.growth.deploy(pack, null);
+    const idx = this.growth.deploy(pack, at);
     if (idx < 0) { this.toast("nowhere to reseed"); return; }
     this.finished = false;
     this.edited = true;
     this.renderer.sync(false);
-    this.toast(`pack ${idx} deployed on the summit — ${gen.masons} masons, budget ${fmt(gen.budget)}`);
+    const col = this.growth.colonies[idx];
+    this.toast(`pack ${idx} on the plane at z ${col.floor} — ${gen.masons} masons, budget ${fmt(gen.budget)}; everything else froze`);
     this.updateHUD();
-  }
-  demolishAt(px, py) {
-    const r = this.canvas.getBoundingClientRect();
-    const s = this.renderer.pick(px - r.left, py - r.top);
-    if (s < 0) return;
-    if (this.growth.remove(s)) { this.edited = true; this.renderer.sync(false); this.updateHUD(); }
   }
 
   finish() {
@@ -265,7 +260,8 @@ class Lab {
     $("#pause").textContent = this.paused ? "resume" : "pause";
     $("#pause").hidden = g.done; $("#step").hidden = g.done; $("#skip").hidden = g.done;
     const ev = g.events.length, cols = g.colonies.length;
-    $("#packnote").textContent = cols > 1 || ev ? `${cols} colonies · ${ev} events (${g.events.filter((e) => e.kind === "deploy").length} deployed, ${g.events.filter((e) => e.kind === "remove").length} removed)` : "one colony, no interventions yet";
+    const growing = g.colonies.filter((c) => !c.done).length, frozen = g.colonies.filter((c) => c.frozen).length;
+    $("#packnote").textContent = cols > 1 || ev ? `${cols} colonies (${growing} growing, ${frozen} frozen) · floor z ${g.colonies[cols - 1].floor} · ${ev} events (${g.events.filter((e) => e.kind === "deploy").length} deployed, ${g.events.filter((e) => e.kind === "remove").length} removed)` : "one colony, no interventions yet";
     const P = this.state.pop;
     $("#popnote").textContent = P.birthEvery || P.retireAfter
       ? `${P.birthEvery ? "a birth every " + P.birthEvery + " bricks" : "no births"}, ${P.retireAfter ? "retire after " + P.retireAfter : "nobody retires"}; ${P.min}–${P.max} alive`
@@ -315,9 +311,26 @@ class Lab {
     for (const el of $$("[data-ox]")) { const k = el.dataset.ox; wire(el, () => st.oxide[k], (v) => { st.oxide[k] = v; }); }
     $("#pace").addEventListener("input", (e) => { this.pace = +e.target.value; $("#pace-out").textContent = this.pace; });
     $("#packsize").addEventListener("input", (e) => { $("#packsize-out").textContent = e.target.value; });
-    $("#deploy").addEventListener("click", () => this.deployPack());
-    $("#demolish").addEventListener("click", () => { this.demolish = !this.demolish; $("#demolish").textContent = "demolish: " + (this.demolish ? "on — click bricks" : "off"); $("#demolish").classList.toggle("primary", this.demolish); this.canvas.style.cursor = this.demolish ? "crosshair" : "grab"; });
-    this.canvas.addEventListener("pointerdown", (e) => { if (this.demolish && e.button === 0) { this.demolishAt(e.clientX, e.clientY); e.stopImmediatePropagation(); } }, true);
+    $("#deploy").addEventListener("click", () => this.deployPack(null));
+    const setMode = (mode) => {
+      this.mode = this.mode === mode ? null : mode;
+      $("#reseed").textContent = this.mode === "reseed" ? "reseed: click a brick — on" : "reseed: click a brick";
+      $("#reseed").classList.toggle("primary", this.mode === "reseed");
+      $("#demolish").textContent = "demolish: " + (this.mode === "demolish" ? "on — click bricks" : "off");
+      $("#demolish").classList.toggle("primary", this.mode === "demolish");
+      this.canvas.style.cursor = this.mode ? "crosshair" : "grab";
+    };
+    $("#reseed").addEventListener("click", () => setMode("reseed"));
+    $("#demolish").addEventListener("click", () => setMode("demolish"));
+    this.canvas.addEventListener("pointerdown", (e) => {
+      if (!this.mode || e.button !== 0) return;
+      const r = this.canvas.getBoundingClientRect();
+      const s = this.renderer.pick(e.clientX - r.left, e.clientY - r.top);
+      if (s < 0) return;
+      e.stopImmediatePropagation();
+      if (this.mode === "demolish") { if (this.growth.remove(s)) { this.edited = true; this.renderer.sync(false); this.updateHUD(); } }
+      else { const at = this.growth.sub.describe(s); at.z += 1; this.deployPack(at); }
+    }, true);
     $("#turbo").addEventListener("change", (e) => { this.turbo = e.target.checked; });
     $("#brain-default").addEventListener("click", () => { this.loadBrain(genome(48112), true); });
     $("#brain-random").addEventListener("click", () => { this.loadBrain(genome(1 + Math.floor(Math.random() * 900000))); });

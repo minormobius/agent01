@@ -99,7 +99,23 @@ export class Lattice {
   }
   bounds() { return { min: this.min, max: [this.max[0] + 1, this.max[1] + 1, this.max[2] + 1], count: this.count }; }
   open(s) { const x = s % G, y = ((s - x) / G) % G, z = (s / (G * G)) | 0; return this.ext[4][x * G + y] < z; }
-  kossel(s) { return this.nb[s]; }               // on the cubic lattice the bond count is the class
+  // Bonds as the rate table reads them. Below a colony's FLOOR the world is
+  // void to it: a pack reseeded on a plane counts nothing beneath that plane.
+  zOf(s) { return (s / (G * G)) | 0; }
+  kossel(s, floor) {
+    const nb = this.nb[s];
+    if (!floor) return nb;                        // colony 0: the bond count is the class
+    const z = (s / (G * G)) | 0;
+    return z - 1 < floor && this.occ[s - G * G] ? nb - 1 : nb;
+  }
+  // per-colony arrival regions: where its own bricks are
+  regionNew() { return { min: [G, G, G], max: [-1, -1, -1], sx: 0, sy: 0, sz: 0, count: 0 }; }
+  regionAdd(r, s) {
+    const x = s % G, y = ((s - x) / G) % G, z = (s / (G * G)) | 0;
+    r.count++; r.sx += x; r.sy += y; r.sz += z;
+    if (x < r.min[0]) r.min[0] = x; if (y < r.min[1]) r.min[1] = y; if (z < r.min[2]) r.min[2] = z;
+    if (x > r.max[0]) r.max[0] = x; if (y > r.max[1]) r.max[1] = y; if (z > r.max[2]) r.max[2] = z;
+  }
   pos(s, m) { m.x = s % G; m.y = ((s - m.x) / G) % G; m.z = (s / (G * G)) | 0; }
   brick(s, tick, mason) { const x = s % G, y = ((s - x) / G) % G, z = (s / (G * G)) | 0; return { x, y, z, t: tick, m: mason }; }
 
@@ -174,18 +190,21 @@ export class Lattice {
 
   // The terrace rule. Is the empty site c, attached to a brick on its
   // face-f side (i.e. growing the crystal along normal f), fed by the melt?
-  fed(c, f, rim) {
+  fed(c, f, rim, floor = 0) {
     const n = f >> 1, u = (n + 1) % 3, v = (n + 2) % 3;
     const h = (f & 1) ? G - 1 - c[n] : c[n];    // the site's height along f
     const a = c[u], b = c[v];
     const ext = this.ext[f];
+    // which lateral coordinate is z, for the floor: +z faces read column tops
+    const zIsA = n === 1, zIsB = n === 0;
     for (let d = 0; d < 8; d++) {
       const da = LAT[d][0], db = LAT[d][1];
       let drop = 0, ok = true;
       for (let k = 1; k <= LOOK; k++) {
         const aa = a + k * da, bb = b + k * db;
         if (aa < 0 || bb < 0 || aa >= G || bb >= G) { if (!drop) drop = k; break; }   // lattice edge: open sky
-        const e = ext[aa * G + bb];
+        let e = ext[aa * G + bb];
+        if (floor && (n === 2 ? e < floor : (zIsA ? aa : bb) < floor)) e = -1;      // below the floor: void
         if (!drop) {
           if (e >= h) { ok = false; break; }          // a wall between here and the outside
           if (e < h - 1) { drop = k; if (k > rim) { ok = false; break; } }
@@ -198,7 +217,9 @@ export class Lattice {
       for (let k = 1; k <= rim; k++) {
         const aa = a - k * da, bb = b - k * db;
         if (aa < 0 || bb < 0 || aa >= G || bb >= G) break;
-        if (ext[aa * G + bb] >= h) { sheltered = true; break; }
+        let e = ext[aa * G + bb];
+        if (floor && (n === 2 ? e < floor : (zIsA ? aa : bb) < floor)) e = -1;
+        if (e >= h) { sheltered = true; break; }
       }
       if (!sheltered) return true;
     }
@@ -213,7 +234,7 @@ export class Lattice {
   // top lip — the edge with the richest supply — never off the side of a
   // lower step. 0 if the site touches nothing or every face it touches is
   // starved.
-  fedBias(s, nb, axis, rim, B) {
+  fedBias(s, nb, axis, rim, B, floor = 0) {
     const x = s % G, y = ((s - x) / G) % G, z = (s / (G * G)) | 0;
     const i = s, occ = this.occ;
     const c = this._c || (this._c = [0, 0, 0]); c[0] = x; c[1] = y; c[2] = z;
@@ -224,6 +245,7 @@ export class Lattice {
       if (w <= bias) continue;
       const below = i - STRIDE[f];
       if (!occ[below]) continue;                     // no brick on the far side of this face
+      if (f === 4 && z - 1 < floor) continue;        // the brick below is under this colony's floor: void
       if (nb === 1) {
         if (f < 4) {
           // lateral: the lip rule
@@ -238,7 +260,8 @@ export class Lattice {
           // and the melt thins with depth: the top lip is at the surface, a
           // skirt at the foot of the crystal is not
           if (B.lipDepth > 0) {
-            const depth = (z - this.min[2]) / Math.max(1, this.max[2] - this.min[2]);
+            const lo = floor > this.min[2] ? floor : this.min[2];
+            const depth = (z - lo) / Math.max(1, this.max[2] - lo);
             let d = depth;
             for (let k = 1; k < B.lipDepth; k++) d *= depth;
             w *= d;
@@ -251,7 +274,7 @@ export class Lattice {
         }
         if (w <= bias) continue;
       }
-      if (this.fed(c, f, rim)) bias = w;
+      if (this.fed(c, f, rim, floor)) bias = w;
     }
     return bias;
   }
@@ -278,12 +301,15 @@ export class Lattice {
   // empty cell before the first brick. Rays strike protrusions first — the
   // diffusion-limited supply that feeds corners before faces. Returns a site
   // or -1.
-  arrive(r, B) {
-    const c = this.centroid();
+  arrive(r, B, region) {
+    // colony 0 aims at the whole crystal; a deployed pack at its own bricks
+    const R = region || this;
+    const cnt = R.count || 1;
+    const c = region ? [Math.round(R.sx / cnt), Math.round(R.sy / cnt), Math.round(R.sz / cnt)] : this.centroid();
     for (let attempt = 0; attempt < 12; attempt++) {
       const pad = 6 + attempt;
-      const lo = [this.min[0] - pad, this.min[1] - pad, this.min[2] - pad];
-      const hi = [this.max[0] + pad, this.max[1] + pad, this.max[2] + pad];
+      const lo = [R.min[0] - pad, R.min[1] - pad, R.min[2] - pad];
+      const hi = [R.max[0] + pad, R.max[1] + pad, R.max[2] + pad];
       // the melt is above: most arrivals come down onto the crystal
       const u = r(), a = B.arriveFromAbove;
       const face = u < a ? 5 : Math.floor((u - a) * (5 / (1 - a)));   // 5 = the box's top (+z side)
@@ -293,7 +319,7 @@ export class Lattice {
         lo[2] + Math.floor(r() * (hi[2] - lo[2] + 1)),
       ];
       p[face >> 1] = (face & 1) ? hi[face >> 1] : lo[face >> 1];
-      const j = 2 + Math.floor((this.max[0] - this.min[0] + this.max[1] - this.min[1] + this.max[2] - this.min[2]) / 6);
+      const j = 2 + Math.floor((R.max[0] - R.min[0] + R.max[1] - R.min[1] + R.max[2] - R.min[2]) / 6);
       const t = [
         c[0] + Math.floor(r() * (2 * j + 1)) - j,
         c[1] + Math.floor(r() * (2 * j + 1)) - j,
@@ -421,7 +447,10 @@ export class Colony {
     this.cooling = false;
     this.coolTick = 0;
     this.done = false;
+    this.frozen = false;
     this.stalled = 0;
+    this.floor = 0;                                 // below this height the world is void to this colony
+    this.region = null;                             // arrival region: null = the whole crystal (colony 0)
     for (let i = 0; i < genome.masons; i++) {
       const m = new Mason(growth.nextId++);
       m.colony = idx;
@@ -460,7 +489,7 @@ export class Growth {
   get rng() { return this.colonies[0].rng; }
   get cooling() { return this.colonies[0].cooling; } set cooling(v) { this.colonies[0].cooling = v; }
   get stalled() { return this.colonies[0].stalled; } set stalled(v) { this.colonies[0].stalled = v; }
-  get masons() { return this.colonies.length === 1 ? this.colonies[0].masons : this.colonies.flatMap((c) => c.masons); }
+  get masons() { return this.colonies.length === 1 ? this.colonies[0].masons : this.colonies.flatMap((c) => (c.done ? [] : c.masons)); }
   get retired() { let n = 0; for (const c of this.colonies) n += c.retired; return n; }
   get done() { for (const c of this.colonies) if (!c.done) return false; return true; }
   set done(v) { for (const c of this.colonies) c.done = v; }
@@ -479,7 +508,8 @@ export class Growth {
   // from its own stream, keyed by its index and the tick it was deployed, so
   // a level is reproducible from its seed and its event log. Returns the
   // colony index, or -1 if nothing could be laid there.
-  deploy(pack = {}, at = null) {
+  deploy(pack = {}, at = null, opts = {}) {
+    const freeze = opts.freeze !== false;
     const base = this.genome;
     const gen = Object.assign({}, base, pack);
     gen.brain = Object.assign({}, base.brain || {}, pack.brain || {});
@@ -493,10 +523,26 @@ export class Growth {
     if (!plate.length) return -1;
     for (const b of plate) { b.t = this.tick; this.bricks.push(b); }
     this.nucleusBricks += plate.length;
+    if (freeze) this.freeze();
     const col = new Colony(this, gen, idx, stream(gen.seed, "growth:" + idx + ":" + this.tick));
+    // the plane is this colony's floor: everything beneath it is terrain, not crystal
+    const where = this.sub.describe(site);
+    col.floor = pack.floor !== undefined ? pack.floor : where.z;
+    col.region = this.sub.regionNew();
+    for (const b of plate) this.sub.regionAdd(col.region, this.sub.siteAt(b));
     this.colonies.push(col);
-    this.events.push({ kind: "deploy", tick: this.tick, at: this.sub.describe(site), pack, colony: idx });
+    this.events.push({ kind: "deploy", tick: this.tick, at: where, pack, colony: idx, freeze });
     return idx;
+  }
+
+  // Stop every colony that is still growing: what has grown is terrain now.
+  // Their masons leave; the bricks stay.
+  freeze() {
+    for (const col of this.colonies) {
+      if (!col.done) col.frozen = true;
+      col.done = true;
+      col.masons.length = 0;
+    }
   }
 
   // Destructible terrain: take a brick away. Masons standing on it desorb on
@@ -575,7 +621,7 @@ export class Growth {
   }
 
   arrive(m, col) {
-    const s = this.sub.arrive(col.rng, col.brain);
+    const s = this.sub.arrive(col.rng, col.brain, col.region);
     if (s >= 0) {
       m.from = m.state === "surface" ? [m.x, m.y, m.z] : null;
       m.site = s;
@@ -595,20 +641,24 @@ export class Growth {
   act(m, col, laid) {
     const sub = this.sub, g = col.genome, r = col.rng, B = col.brain;
     const here = m.site;
-    const nbHere = sub.kossel(here);
+    const nbHere = sub.kossel(here, col.floor);
     if (sub.occ[here] || nbHere === 0) {           // ground moved under us
       m.state = "melt"; m.wait = g.flight; return;
     }
+    // a pack builds on its plane and above it, never beneath: below the floor
+    // the melt is gone, and a mason that wandered down there goes back up
+    if (col.floor && sub.zOf(here) < col.floor) { m.state = "melt"; m.wait = g.flight; return; }
     // The melt is above. A site with any brick over it in its column is in
     // shadow and gets nothing — the underside of a lip never fills, and the
     // crystal has a floor, not a second hopper growing down. Cheap Kossel
     // gate next; the terrace scan only runs when both pass.
     const open = !B.skyRule || sub.open(here);
     if (open && r() < col.K[nbHere]) {
-      const bias = sub.fedBias(here, nbHere, col.axis, col.rim, B);
+      const bias = sub.fedBias(here, nbHere, col.axis, col.rim, B, col.floor);
       if (bias > 0 && (bias >= 1 || r() < bias)) {
         if (!sub.inBounds(here)) { m.state = "melt"; m.wait = g.flight * 3; return; }
         sub.place(here);
+        if (col.region) sub.regionAdd(col.region, here);
         const b = sub.brick(here, this.tick, m.id);
         b.c = col.idx;
         laid.push(b);
@@ -650,6 +700,7 @@ export class Growth {
   stats() {
     const st = this.sub.stats(this);
     st.colonies = this.colonies.length;
+    st.frozen = this.colonies.filter((c) => c.frozen).length;
     st.events = this.events.length;
     return st;
   }

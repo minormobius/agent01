@@ -96,14 +96,21 @@ export class Prism {
   }
   siteAtWorld(x, y, z) { return this.siteAt({ x, y, z: Math.floor(z) }); }
   describe(s) { const t = s % this.n; return { tile: t, z: (s - t) / this.n, x: this.T.cx[t] / FIX, y: this.T.cy[t] / FIX }; }
-  // a disk of tiles within size/2 edge lengths of the site's centroid, `thick` layers
+  // the tile and its rings of edge-neighbours (depth size/2), `thick` layers —
+  // rings rather than a metric disk, so a plate is never a single tile on a
+  // coarse tiling (a lone tile can nucleate nothing: no patch, no lip to run)
   plate(s, size, thick, colony) {
     const T = this.T, n = this.n, t0 = s % n, z0 = (s - t0) / n, out = [];
-    const r2 = (size / 2) * FIX * ((size / 2) * FIX);
-    const cx = T.cx[t0], cy = T.cy[t0];
-    for (let t = 0; t < n; t++) {
-      const dx = T.cx[t] - cx, dy = T.cy[t] - cy;
-      if (dx * dx + dy * dy > r2 || !T.deep[t]) continue;
+    const depth = Math.max(1, size >> 1);
+    const seen = new Set([t0]);
+    let frontier = [t0];
+    for (let d = 0; d < depth; d++) {
+      const next = [];
+      for (const t of frontier) for (let k = T.nbrStart[t]; k < T.nbrStart[t + 1]; k++) { const u = T.nbrList[k]; if (!seen.has(u)) { seen.add(u); next.push(u); } }
+      frontier = next;
+    }
+    for (const t of [...seen].sort((a, b) => a - b)) {
+      if (!T.deep[t]) continue;
       for (let k = 0; k < thick; k++) {
         const z = z0 + k;
         if (z < 1 || z >= this.Z - 2) continue;
@@ -123,13 +130,14 @@ export class Prism {
   // those as ledges lets sheets spread at ledge rates; so with nothing below,
   // only SUPPORTED lateral bricks count — standing on the layer below, or one
   // tile along from one that does (a lip row is one tile of overhang).
-  kossel(s) {
+  kossel(s, floor = 0) {
     const nb = this.nb[s];
     if (!nb) return 0;
     const n = this.n, t = s % n, z = (s - t) / n, T = this.T, occ = this.occ;
-    const below = z > 0 && occ[s - n] ? 1 : 0;
+    const below = z > 0 && z - 1 >= floor && occ[s - n] ? 1 : 0;   // beneath the colony's floor: void
     const above = z + 1 < this.Z && occ[s + n] ? 1 : 0;
     const base = z * n, under = (z - 1) * n;
+    if (z - 1 < floor && !above && nb === 1 && occ[s - n]) return 1;   // only the void beneath: a lone contact
     let bonds = below + above;
     // edge neighbours (full) — every edge neighbour is also in the vertex list, so
     // walk the vertex list once and weight by whether the pair shares an edge
@@ -137,8 +145,9 @@ export class Prism {
       const u = T.vnbrList[k];
       if (!occ[base + u]) continue;
       if (!below) {
-        let sup = z > 0 && occ[under + u];
-        for (let j = T.nbrStart[u]; !sup && j < T.nbrStart[u + 1]; j++) { const v = T.nbrList[j]; if (occ[base + v] && z > 0 && occ[under + v]) sup = true; }
+        const canUnder = z > 0 && z - 1 >= floor;
+        let sup = canUnder && occ[under + u];
+        for (let j = T.nbrStart[u]; !sup && j < T.nbrStart[u + 1]; j++) { const v = T.nbrList[j]; if (occ[base + v] && canUnder && occ[under + v]) sup = true; }
         if (!sup) continue;
       }
       let edge = false;
@@ -147,6 +156,13 @@ export class Prism {
     }
     const c = Math.round(bonds);
     return c < 1 ? 1 : c > 6 ? 6 : c;
+  }
+  regionNew() { return { fminX: Infinity, fminY: Infinity, fmaxX: -Infinity, fmaxY: -Infinity, minZ: this.Z, maxZ: -1, sx: 0, sy: 0, sz: 0, count: 0 }; }
+  regionAdd(r, s) {
+    const T = this.T, t = s % this.n, z = (s - t) / this.n, cx = T.cx[t], cy = T.cy[t];
+    r.count++; r.sx += cx; r.sy += cy; r.sz += z;
+    if (cx < r.fminX) r.fminX = cx; if (cx > r.fmaxX) r.fmaxX = cx; if (cy < r.fminY) r.fminY = cy; if (cy > r.fmaxY) r.fmaxY = cy;
+    if (z < r.minZ) r.minZ = z; if (z > r.maxZ) r.maxZ = z;
   }
   pos(s, m) { const t = s % this.n; m.x = this.T.cx[t] / FIX; m.y = this.T.cy[t] / FIX; m.z = (s - t) / this.n; }
   brick(s, tick, mason) {
@@ -247,7 +263,7 @@ export class Prism {
   // The terrace rule for a site on top of a brick (growing +z): fed iff some
   // direction drops away within `rim` tiles, with nothing at that level beyond
   // the drop, and no overhang within `rim` on the opposite side.
-  fedTop(t, z, rim) {
+  fedTop(t, z, rim, floor = 0) {
     const top = this.top, h = z;
     const kRim = 2 * rim;
     for (let d = 0; d < 12; d++) {
@@ -257,7 +273,8 @@ export class Prism {
         const u = seq[i], k = seq[i + 1];
         if (u === -2) break;                        // scanned LOOK tiles without a verdict: treat as clear
         if (u < 0) { if (!drop) drop = k; break; }  // off the tiling: open sky
-        const e = top[u];
+        let e = top[u];
+        if (e < floor) e = -1;                       // beneath the colony's floor: void
         if (!drop) {
           if (e >= h) { ok = false; break; }
           if (e < h - 1) { drop = k; if (k > kRim) { ok = false; break; } }
@@ -269,7 +286,7 @@ export class Prism {
       for (let i = 0; i < opp.length; i += 2) {
         const u = opp[i], k = opp[i + 1];
         if (u < 0 || k > kRim) break;
-        if (top[u] >= h) { sheltered = true; break; }
+        if (top[u] >= h && top[u] >= floor) { sheltered = true; break; }
       }
       if (!sheltered) return true;
     }
@@ -283,12 +300,12 @@ export class Prism {
   // below it, in its own column or outward along the growth direction. A
   // lip may only overhang the melt, never roof over a terrace below it;
   // that is what keeps the outside a staircase.
-  fedSide(t, o, z, rim) {
+  fedSide(t, o, z, rim, floor = 0) {
     const T = this.T, n = this.n, occ = this.occ;
     const seq = this.ray(t, this.nearestDir(T.cx[t] - T.cx[o], T.cy[t] - T.cy[o]));
     for (let k = 1; k <= rim; k++) {
       const zz = z - k;
-      if (zz < 0) break;
+      if (zz < floor) break;
       if (occ[zz * n + t]) return false;
       for (let i = 0; i < seq.length && i < 6; i += 2) {
         const u = seq[i];
@@ -306,11 +323,11 @@ export class Prism {
     return ((dx > 0 ? axis[0] : axis[1]) * ax + (dy > 0 ? axis[2] : axis[3]) * ay) / tot;
   }
 
-  fedBias(s, nb, axis, rim, B) {
+  fedBias(s, nb, axis, rim, B, floor = 0) {
     const T = this.T, n = this.n, t = s % n, z = (s - t) / n, occ = this.occ;
     let bias = 0;
-    // +z: a brick below
-    if (z > 0 && occ[s - n]) {
+    // +z: a brick below (and not beneath this colony's floor)
+    if (z > 0 && z - 1 >= floor && occ[s - n]) {
       let w = axis[4];
       if (w > bias) {
         if (nb === 1) {
@@ -322,7 +339,7 @@ export class Prism {
           const c8 = vd ? Math.floor((cnt * 8) / vd + 0.5) : 0;
           w *= c8 >= B.patchFull ? 1 : c8 >= B.patchMin ? B.patchPart : 0;
         }
-        if (w > bias && this.fedTop(t, z, rim)) bias = w;
+        if (w > bias && this.fedTop(t, z, rim, floor)) bias = w;
       }
     }
     // lateral: each edge-neighbour holding a brick at this layer
@@ -344,14 +361,15 @@ export class Prism {
         for (let k = T.nbrStart[o]; k < T.nbrStart[o + 1]; k++) { const v = T.nbrList[k]; if (v !== t && occ[z * n + v]) along++; }
         w *= along >= 2 ? 1 : along === 1 ? B.lipAlong : 0;
         if (B.lipDepth > 0) {
-          const depth = (z - this.minZ) / Math.max(1, this.maxZ - this.minZ);
+          const lo = floor > this.minZ ? floor : this.minZ;
+          const depth = (z - lo) / Math.max(1, this.maxZ - lo);
           let d = depth;
           for (let k = 1; k < B.lipDepth; k++) d *= depth;
           w *= d;
         }
         if (w <= bias) continue;
       }
-      if (this.fedSide(t, o, z, rim)) bias = w;
+      if (this.fedSide(t, o, z, rim, floor)) bias = w;
     }
     return bias;
   }
@@ -359,14 +377,14 @@ export class Prism {
   // Arrival from the melt: a random point on a box just outside the crystal,
   // a straight line toward (near) the centroid sampled every half tile, land
   // on the last empty site before the first brick.
-  arrive(r, B) {
-    const T = this.T, n = this.n;
-    const cnt = this.count || 1;
-    const cx = Math.round(this.sx / cnt), cy = Math.round(this.sy / cnt), cz = Math.round(this.sz / cnt);
+  arrive(r, B, region) {
+    const T = this.T, n = this.n, R = region || this;
+    const cnt = R.count || 1;
+    const cx = Math.round(R.sx / cnt), cy = Math.round(R.sy / cnt), cz = Math.round(R.sz / cnt);
     for (let attempt = 0; attempt < 12; attempt++) {
       const pad = (6 + attempt) * FIX;
-      const lo = [this.fminX - pad, this.fminY - pad, (this.minZ - 6 - attempt) * FIX];
-      const hi = [this.fmaxX + pad, this.fmaxY + pad, (this.maxZ + 7 + attempt) * FIX];
+      const lo = [R.fminX - pad, R.fminY - pad, (R.minZ - 6 - attempt) * FIX];
+      const hi = [R.fmaxX + pad, R.fmaxY + pad, (R.maxZ + 7 + attempt) * FIX];
       const u = r(), a = B.arriveFromAbove;
       const face = u < a ? 5 : Math.floor((u - a) * (5 / (1 - a)));
       const p = [
@@ -375,7 +393,7 @@ export class Prism {
         lo[2] + Math.floor(r() * (hi[2] - lo[2] + 1)),
       ];
       p[face >> 1] = (face & 1) ? hi[face >> 1] : lo[face >> 1];
-      const ext = (this.fmaxX - this.fminX + this.fmaxY - this.fminY) / FIX + (this.maxZ - this.minZ);
+      const ext = (R.fmaxX - R.fminX + R.fmaxY - R.fminY) / FIX + (R.maxZ - R.minZ);
       const j = (2 + Math.floor(ext / 6)) * FIX;
       const tgt = [
         cx + Math.floor(r() * (2 * j + 1)) - j,
