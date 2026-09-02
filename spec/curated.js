@@ -52,7 +52,7 @@ window.SPEC_CURATED = {
     fable: 'generative', borges: 'generative', games: 'generative',
     phylofiction: 'generative', golem: 'generative', reef: 'generative', civ: 'generative',
     polis: 'generative', mappa: 'generative', fipo: 'generative',
-    wormhole: 'generative', idol: 'generative',
+    wormhole: 'generative', idol: 'generative', bismuth: 'generative',
     g: 'games', torus: 'games', canvas: 'games', pokemon: 'games',
     aub: 'games', fluoddity: 'games', cards: 'games', human: 'games',
     foam: 'games', farm: 'games', 'farm-next': 'games', words: 'games',

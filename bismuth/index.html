@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>bismuth</title>
+<meta name="description" content="Bismuth hopper crystals grown brick by brick by a colony of mason agents. One seed, one crystal, forever — a permalink. Iridescence is real thin-film interference, computed per pixel.">
+<meta property="og:title" content="bismuth — hopper crystals, grown brick by brick">
+<meta property="og:description" content="A seeded colony of masons lays a bismuth crystal one brick at a time. Same seed, same crystal, forever.">
+<meta name="theme-color" content="#07070c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='18' width='28' height='12' fill='%23d7a24a'/%3E%3Crect x='6' y='12' width='20' height='6' fill='%23b64a9c'/%3E%3Crect x='10' y='6' width='12' height='6' fill='%234c6fd6'/%3E%3Crect x='13' y='2' width='6' height='4' fill='%2360c8b8'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --ink: #e8e4dc;
+    --dim: #8f8a80;
+    --faint: #4a4741;
+    --gold: #e0b35a;
+    --line: rgba(232, 228, 220, 0.14);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(120% 80% at 50% 45%, #171821 0%, #0c0d14 45%, #050508 100%);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  #gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  #gl:active { cursor: grabbing; }
+  .hud { position: fixed; z-index: 2; pointer-events: none; }
+  .hud > * { pointer-events: auto; }
+  #top { top: max(18px, env(safe-area-inset-top)); left: max(22px, env(safe-area-inset-left)); right: 22px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  h1 { margin: 0; font-weight: 300; font-size: 30px; letter-spacing: 0.22em; text-transform: lowercase; line-height: 1; }
+  h1 a { color: var(--ink); text-decoration: none; }
+  h1 .bi { color: var(--gold); }
+  #seed { display: block; margin-top: 8px; font-size: 18px; letter-spacing: 0.06em; font-variant-numeric: tabular-nums; color: var(--ink); }
+  #habit { display: block; margin-top: 3px; color: var(--dim); font-size: 13px; letter-spacing: 0.04em; }
+  #masons { display: block; margin-top: 2px; color: var(--faint); font-size: 12px; }
+  #seedform { display: flex; align-items: center; gap: 6px; }
+  #seedinput {
+    width: 108px; background: transparent; border: 0; border-bottom: 1px solid var(--line); color: var(--ink);
+    font: inherit; font-size: 14px; padding: 4px 2px; outline: none; font-variant-numeric: tabular-nums; text-align: right;
+  }
+  #seedinput::placeholder { color: var(--faint); }
+  #seedinput:focus { border-color: var(--gold); }
+  #bottom { left: max(22px, env(safe-area-inset-left)); right: max(22px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
+  #progress { width: min(320px, 46vw); }
+  #track { height: 2px; background: var(--line); overflow: hidden; border-radius: 1px; }
+  #bar { height: 100%; width: 100%; background: linear-gradient(90deg, #e0b35a, #d95fa8 45%, #5d7fe0 80%, #62d0bd); transform-origin: left; transform: scaleX(0); transition: transform 0.25s linear; }
+  #count { margin-top: 8px; color: var(--dim); font-size: 13px; font-variant-numeric: tabular-nums; }
+  #stats { margin-top: 3px; color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; max-width: 60ch; }
+  #actions { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  button {
+    font: inherit; font-size: 13px; letter-spacing: 0.08em; text-transform: lowercase; color: var(--ink);
+    background: rgba(20, 20, 28, 0.55); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; cursor: pointer;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); transition: border-color 0.15s, background 0.15s;
+  }
+  button:hover { border-color: var(--gold); background: rgba(40, 34, 20, 0.6); }
+  button.primary { border-color: rgba(224, 179, 90, 0.6); }
+  button[hidden] { display: none; }
+  kbd { font: inherit; font-size: 11px; color: var(--dim); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-left: 4px; }
+  #about {
+    position: fixed; z-index: 3; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); padding: 28px 28px 40px;
+    background: rgba(9, 9, 14, 0.9); border-left: 1px solid var(--line); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    transform: translateX(102%); transition: transform 0.28s cubic-bezier(.2,.8,.2,1); overflow-y: auto;
+  }
+  #about.open { transform: none; }
+  #about h2 { font-weight: 400; letter-spacing: 0.1em; font-size: 14px; text-transform: uppercase; color: var(--gold); margin: 22px 0 8px; }
+  #about h2:first-of-type { margin-top: 0; }
+  #about p { margin: 0 0 12px; color: #cdc8be; font-size: 14px; }
+  #about p b { color: var(--ink); font-weight: 500; }
+  #about-close { position: absolute; top: 18px; right: 18px; padding: 4px 10px; }
+  #about a { color: var(--gold); }
+  #about ul { padding-left: 18px; margin: 0 0 12px; color: #cdc8be; font-size: 14px; }
+  #about li { margin: 3px 0; }
+  #toast {
+    position: fixed; z-index: 4; left: 50%; bottom: 84px; transform: translate(-50%, 12px); opacity: 0;
+    background: rgba(20, 20, 28, 0.85); border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; font-size: 13px;
+    transition: opacity 0.2s, transform 0.2s; pointer-events: none; max-width: 90vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+  #err { position: fixed; z-index: 5; inset: auto 20px 20px 20px; background: #2a1414; color: #f3d0d0; padding: 14px 18px; border-radius: 8px; font-size: 14px; }
+  #err[hidden] { display: none; }
+  @media (max-width: 640px) {
+    h1 { font-size: 24px; }
+    #seed { font-size: 16px; }
+    #masons { display: none; }
+    #seedform { display: none; }
+    #stats { display: none; }
+    button { padding: 7px 11px; font-size: 12px; }
+    kbd { display: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<div id="top" class="hud">
+  <div>
+    <h1><a href="/"><span class="bi">bi</span>smuth</a></h1>
+    <span id="seed">№ —</span>
+    <span id="habit"></span>
+    <span id="masons"></span>
+  </div>
+  <form id="seedform" autocomplete="off">
+    <input id="seedinput" type="number" min="1" max="999999999" inputmode="numeric" placeholder="specimen №" aria-label="go to specimen number">
+  </form>
+</div>
+
+<div id="bottom" class="hud">
+  <div id="progress">
+    <div id="track"><div id="bar"></div></div>
+    <div id="count">—</div>
+    <div id="stats"></div>
+  </div>
+  <div id="actions">
+    <button id="pause">pause<kbd>space</kbd></button>
+    <button id="skip">skip<kbd>s</kbd></button>
+    <button id="again">again<kbd>r</kbd></button>
+    <button id="new" class="primary">new crystal<kbd>n</kbd></button>
+    <button id="share">share</button>
+    <button id="about-btn">about<kbd>a</kbd></button>
+  </div>
+</div>
+
+<aside id="about">
+  <button id="about-close">close</button>
+  <h2>What this is</h2>
+  <p>A bismuth hopper crystal, <b>grown</b> rather than drawn. The seed in the URL fixes everything: the number of masons, their kinetics, the crystal's habit, the oxide palette. <b>Same seed, same crystal, forever</b> &mdash; nobody designed it, and <em>share</em> gives you its permanent address.</p>
+
+  <h2>The masons</h2>
+  <p>Each glowing mote is an agent carrying one brick. It arrives from the melt along a straight line, so it strikes the crystal's outermost corners and edges first. On the surface it random-walks, pulled toward places where a brick would touch more faces, and lays its brick with a probability set by three rules from real crystal growth:</p>
+  <ul>
+    <li><b>Kossel&ndash;Stranski kinetics.</b> A brick touching one face needs a rare nucleation; touching two, it fills at the unit rate; three or more, at once. That is why the walls come out flat and the corners square.</li>
+    <li><b>The Berg effect.</b> Supersaturation is highest at a crystal's corners and edges, lowest over the middle of a face &mdash; so a face grows as a rim and its centre starves. Every layer is a ring one step further out than the last, and the crystal steps down into its own pit. That is the hopper.</li>
+    <li><b>Anisotropy.</b> Six growth-rate weights, one per face normal, decide whether the seed becomes a funnel, a stair, a tower, twins, or a skeletal frame.</li>
+  </ul>
+  <p>If a mason finds no good site, it leaves. It is never forced to lay a brick, and that restraint is what keeps the crystal a crystal.</p>
+
+  <h2>The colour</h2>
+  <p>Real bismuth is grey. The rainbow is a skin of bismuth oxide a few hundred nanometres thick, and the colour you see is <b>thin-film interference</b> in that skin. This page computes it: the reflected spectrum of air / Bi&#8322;O&#8323; / metal is sampled at nine wavelengths per pixel and folded through colour-matching curves, so the hue changes with the film's thickness and with the angle you view it from. Bricks laid earlier were hot longer and carry thicker oxide; a brick is laid glowing, cools silver, and only then takes its colour.</p>
+
+  <h2>Controls</h2>
+  <ul>
+    <li>drag to orbit, scroll or pinch to zoom; it turns on its own when left alone</li>
+    <li><kbd>space</kbd> pause &middot; <kbd>s</kbd> skip to the finished crystal &middot; <kbd>r</kbd> grow it again</li>
+    <li><kbd>n</kbd> a new random specimen &middot; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> the neighbouring seeds</li>
+  </ul>
+  <p>Everything runs in your browser; nothing is stored. <a href="/api/crystal?seed=48112">/api/crystal?seed=</a> returns any specimen's brick list as JSON. Part of <a href="https://mino.mobi">mino.mobi</a>.</p>
+</aside>
+
+<div id="toast"></div>
+<div id="err" hidden></div>
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>

@@ -1238,6 +1238,20 @@
       "note": "Academic Wormhole Roulette. Thin assets Worker (worker `wormhole`, custom_domain wormhole.mino.mobi) — no build, no D1, no AI, no secrets… (full description: wormhole/CLAUDE.md)"
     },
     {
+      "surface": "bismuth",
+      "dir": "bismuth",
+      "endpoint": "bismuth.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/bismuth-crystal-procgen-g6t0dh",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "bismuth/**",
+        ".github/workflows/deploy-bismuth.yml"
+      ],
+      "note": "Bismuth hopper crystals grown brick by brick by a seeded colony of mason agents (Kossel kinetics + the Berg effect as local rules), rendered in WebGL with per-pixel thin-film interference. Thin assets Worker (worker `bismuth`, custom_domain bismuth.mino.mobi) — no build, no D1, no AI, no secrets. /c/<seed> is a permanent permalink; /api/crystal?seed= returns the brick list… (full description: bismuth/CLAUDE.md)"
+    },
+    {
       "surface": "neuro",
       "dir": "neuro",
       "endpoint": "neuro.mino.mobi",
