@@ -25,6 +25,7 @@ generalises to a family. It does, and the docs tab says exactly how and how not.
 | **surface** | the GPU render; pan, zoom, seed, strength, palette, cat map |
 | **census** | CPU render at 256²–2048², counts every colour and every neighbour jump |
 | **print** | full-tile PNG at 512²–4096², quantised so the file is the census |
+| **build** | paints a 256² tile pixel by pixel with the machinery shown per pixel (the two X-curves, the cube), or level by level at depth 1, 2, 3, 5 |
 | **docs** | the argument, the numbers, what is rigid and what is free |
 
 ## Files

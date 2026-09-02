@@ -104,6 +104,15 @@ h3 { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em; text-
 .status { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); min-height: 1.2em; }
 .status.bad { color: var(--bad); }
 .status.good { color: var(--good); }
+.build { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 0.6rem; align-items: start; }
+.build .main { width: 100%; aspect-ratio: 1 / 1; display: block; background: #000; border: 1px solid var(--rule); image-rendering: pixelated; }
+.build .side { display: grid; grid-template-rows: auto auto auto; gap: 0.6rem; }
+.build .side canvas { width: 100%; aspect-ratio: 1 / 1; display: block; background: var(--panel); border: 1px solid var(--rule); }
+.build .side .lbl { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 0 0 0.2rem; }
+.trace { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); margin: 0.5rem 0 0.9rem; line-height: 1.7; word-break: break-word; }
+.trace b { color: var(--fg); font-weight: 500; }
+.trace .sw { display: inline-block; width: 0.9em; height: 0.9em; vertical-align: -0.15em; border: 1px solid var(--rule); margin-left: 0.3em; }
+@media (max-width: 640px) { .build { grid-template-columns: 1fr; } .build .side { grid-template-rows: none; grid-template-columns: repeat(3, 1fr); } }
 footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; }
 </style>
 </head>
@@ -127,6 +136,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <button class="tab active" data-pane="surface">surface</button>
   <button class="tab" data-pane="census">census</button>
   <button class="tab" data-pane="print">print</button>
+  <button class="tab" data-pane="build">build</button>
   <button class="tab" data-pane="docs">docs</button>
 </nav>
 
@@ -233,6 +243,56 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   </div>
   <div class="status" id="printStatus"></div>
   <p class="hint">Rendered on the GPU, so it takes a moment and a 4096² file is about 64 MB of pixels before compression. The print ignores the view: it is always the full tile, which repeats seamlessly in both directions. Exactness holds for the bare surface (strength 0, no cat map); warps keep the histogram flat in the limit but not to the pixel.</p>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════ BUILD ══ -->
+<section class="pane" id="pane-build">
+  <p class="lede">
+    Watch it get built. Each pixel is one run of the same four steps: its two
+    coordinates each walk the staircase curve into the X-shaped fractal, Stong's
+    map adds the two x-coordinates and keeps the two y-coordinates, the fold lays
+    the sum flat, and the palette names the channels. <strong>Scan</strong>
+    paints pixel by pixel with the machinery shown for the pixel in hand.
+    <strong>Refine</strong> paints the whole square at depth 1, then 2, then 3,
+    then 5: the same algorithm, allowed one more octal digit each pass.
+  </p>
+  <div class="build">
+    <canvas class="main" id="buildCanvas" width="256" height="256"></canvas>
+    <div class="side">
+      <div><p class="lbl">g(u) — the x coordinate walks the X</p><canvas id="curveU" width="300" height="300"></canvas></div>
+      <div><p class="lbl">g(v) — the y coordinate walks the X</p><canvas id="curveV" width="300" height="300"></canvas></div>
+      <div><p class="lbl">L, folded — where the pixel lands in the cube</p><canvas id="cubeCanvas" width="300" height="300"></canvas></div>
+    </div>
+  </div>
+  <div class="trace" id="buildTrace"></div>
+  <div class="controls">
+    <label>mode
+      <select id="buildMode">
+        <option value="scan">scan — pixel by pixel</option>
+        <option value="refine">refine — depth 1, 2, 3, 5</option>
+      </select>
+    </label>
+    <label>speed <span class="val" id="buildSpeedVal"></span>
+      <select id="buildSpeed">
+        <option value="1">1 pixel per frame</option>
+        <option value="8">8 per frame</option>
+        <option value="64" selected>64 per frame</option>
+        <option value="512">512 per frame</option>
+        <option value="4096">4096 per frame</option>
+      </select>
+    </label>
+    <label>depth (scan) <span class="val" id="buildDepthVal"></span>
+      <input type="range" id="buildDepth" min="1" max="6" step="1" value="5">
+    </label>
+    <label>&nbsp;
+      <div class="row">
+        <button class="btn primary" id="buildPlay">play</button>
+        <button class="btn" id="buildStep">step</button>
+        <button class="btn" id="buildRestart">restart</button>
+      </div>
+    </label>
+  </div>
+  <p class="hint">Uses the seed, strength, cat map, palette and red-channel mode from the surface tab, on a 256² canvas. At depth 1 the staircase has one octal digit and the image is 32 blocks a side; depth 2 is one block per pixel here; deeper passes only move colours by a level or two, which is the Hölder condition again.</p>
 </section>
 
 <!-- ══════════════════════════════════════════════════════════════ DOCS ══ -->
@@ -400,6 +460,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 import {
   genome, colourAt, renderLevels, renderRows, census, encodeState, decodeState,
   stateGenome, paletteOf, PALETTES, PERMS, LEVELS, randomSeed,
+  gPoint, warp, fold, wrap,
 } from './surface.js';
 
 // ------------------------------------------------------------------ state --
@@ -819,9 +880,196 @@ $('runPrint').addEventListener('click', async () => {
   }
 });
 
+// ------------------------------------------------------------------ build --
+const BN = 256;
+const build = {
+  ctx: $('buildCanvas').getContext('2d'),
+  img: null, playing: false, i: 0, pass: 0, order: null, gen: null, last: null, trail: [],
+  curveLevel: 4, curve: null,
+};
+build.img = build.ctx.createImageData(BN, BN);
+const REFINE_PASSES = [1, 2, 3, 5];
+function buildGen() { return stateGenome(state); }
+function buildPlan() {
+  // one pass = a list of (x, y, blockSize); scan mode is one pass at the slider depth
+  const mode = $('buildMode').value;
+  const depth = mode === 'scan' ? +$('buildDepth').value : REFINE_PASSES[build.pass];
+  const cells = 4 * Math.pow(8, depth);
+  const block = Math.max(1, Math.round(BN / cells));
+  build.depth = depth; build.block = block; build.count = (BN / block) * (BN / block);
+}
+function buildReset() {
+  build.gen = buildGen(); build.i = 0; build.pass = 0; build.trail = []; build.last = null;
+  build.img.data.fill(0);
+  for (let i = 3; i < build.img.data.length; i += 4) build.img.data[i] = 255;
+  buildPlan();
+  build.ctx.putImageData(build.img, 0, 0);
+  drawMachinery(null);
+  $('buildTrace').textContent = 'nothing painted yet';
+}
+function paintOne() {
+  const n = BN / build.block, k = build.i;
+  if (k >= build.count) return false;
+  const bx = k % n, by = (k - bx) / n;
+  const x = (bx * build.block + build.block / 2) / BN, y = (by * build.block + build.block / 2) / BN;
+  const g = build.gen, depth = build.depth;
+  const [u, v] = warp(g, x, y);
+  const [a1, b1] = gPoint(u, depth), [a2, b2] = gPoint(v, depth);
+  const P = a1 + 2 * a2;
+  const R = state.mode === 'wrap' ? wrap(P) : fold(P);
+  const base = [R, b1, b2], rgb = [0, 0, 0];
+  for (let i = 0; i < 3; i++) rgb[g.palette.perm[i]] = g.palette.inv[i] ? 1 - base[i] : base[i];
+  const c8 = rgb.map((c) => Math.min(255, Math.floor(c * 256)));
+  const d = build.img.data;
+  for (let yy = 0; yy < build.block; yy++) for (let xx = 0; xx < build.block; xx++) {
+    const o = ((by * build.block + yy) * BN + bx * build.block + xx) * 4;
+    d[o] = c8[0]; d[o + 1] = c8[1]; d[o + 2] = c8[2]; d[o + 3] = 255;
+  }
+  build.last = { bx, by, x, y, u, v, a1, b1, a2, b2, P, R, rgb, c8, depth };
+  build.trail.push(rgb); if (build.trail.length > 240) build.trail.shift();
+  build.i++;
+  return true;
+}
+function buildTick(budget = +$('buildSpeed').value) {
+  let painted = 0;
+  while (painted < budget) {
+    if (!paintOne()) {
+      if ($('buildMode').value === 'refine' && build.pass < REFINE_PASSES.length - 1) { build.pass++; build.i = 0; buildPlan(); continue; }
+      build.playing = false; $('buildPlay').textContent = 'play';
+      break;
+    }
+    painted++;
+  }
+  build.ctx.putImageData(build.img, 0, 0);
+  if (build.last) {
+    const { bx, by } = build.last, b = build.block;
+    build.ctx.strokeStyle = '#fff'; build.ctx.lineWidth = 1;
+    build.ctx.strokeRect(bx * b + 0.5, by * b + 0.5, Math.max(b, 3) - 1, Math.max(b, 3) - 1);
+  }
+  drawMachinery(build.last);
+  writeTrace(build.last);
+}
+// Speed is "pixels per 60 Hz frame"; the budget scales with the real frame
+// time so a slow compositor gets the same pixels per second, capped at 100 ms.
+let buildLastT = 0;
+function buildLoop(t) {
+  if (!build.playing) return;
+  if (document.getElementById('pane-build').classList.contains('active')) {
+    const dt = buildLastT ? Math.min(100, t - buildLastT) : 16.7;
+    buildLastT = t;
+    buildTick(Math.max(1, Math.round((+$('buildSpeed').value) * dt / 16.7)));
+  }
+  requestAnimationFrame(buildLoop);
+}
+// the X, as the polyline of g at a fixed level (drawn once per panel per frame)
+function curvePolyline() {
+  if (build.curve) return build.curve;
+  const n = 4 * Math.pow(8, build.curveLevel), pts = new Float32Array(n * 2);
+  for (let i = 0; i < n; i++) { const [a, b] = gPoint((i + 0.5) / n, build.curveLevel); pts[i * 2] = a; pts[i * 2 + 1] = b; }
+  build.curve = pts; return pts;
+}
+function drawCurvePanel(canvas, u, point, colour) {
+  const ctx = canvas.getContext('2d'), W = canvas.width, pad = 14, S = W - 2 * pad;
+  const cs = getComputedStyle(document.documentElement);
+  ctx.clearRect(0, 0, W, W);
+  const X = (a) => pad + a * S, Y = (b) => pad + (1 - b) * S;
+  // level-1 squares of the X, faint
+  ctx.fillStyle = cs.getPropertyValue('--accent-tint') || 'rgba(0,0,0,0.05)';
+  for (let p = 0; p < 4; p++) for (let q = 0; q < 4; q++) if (p === q || p + q === 3) ctx.fillRect(X(p / 4), Y((q + 1) / 4), S / 4, S / 4);
+  ctx.strokeStyle = cs.getPropertyValue('--rule').trim() || '#ccc'; ctx.lineWidth = 1;
+  ctx.strokeRect(X(0) + 0.5, Y(1) + 0.5, S - 1, S - 1);
+  const pts = curvePolyline(), n = pts.length / 2;
+  const upto = u == null ? 0 : Math.min(n, Math.floor(((u % 1) + 1) % 1 * n) + 1);
+  const path = (from, to, style, width) => {
+    if (to <= from) return;
+    ctx.beginPath(); ctx.strokeStyle = style; ctx.lineWidth = width;
+    ctx.moveTo(X(pts[from * 2]), Y(pts[from * 2 + 1]));
+    for (let i = from + 1; i < to; i++) ctx.lineTo(X(pts[i * 2]), Y(pts[i * 2 + 1]));
+    ctx.stroke();
+  };
+  path(0, n, 'rgba(128,128,128,0.35)', 0.6);
+  path(0, upto, cs.getPropertyValue('--accent').trim() || '#b5521b', 1.4);
+  if (point) {
+    ctx.beginPath(); ctx.arc(X(point[0]), Y(point[1]), 5, 0, Math.PI * 2);
+    ctx.fillStyle = colour; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.beginPath(); ctx.arc(X(point[0]), Y(point[1]), 6.5, 0, Math.PI * 2); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke();
+  }
+  ctx.fillStyle = cs.getPropertyValue('--muted').trim() || '#777';
+  ctx.font = '10px ui-monospace, Menlo, monospace';
+  ctx.fillText(u == null ? '' : `u = ${u.toFixed(4)}`, pad, W - 3);
+}
+function drawCubePanel(canvas, last) {
+  const ctx = canvas.getContext('2d'), W = canvas.width;
+  const cs = getComputedStyle(document.documentElement);
+  ctx.clearRect(0, 0, W, W);
+  const sc = W * 0.36, ox = W * 0.5, oy = W * 0.72;
+  const ax = [0.866, -0.5], az = [-0.866, -0.5], ay = [0, -1];
+  const P = (r, g, b) => [ox + sc * (r * ax[0] + b * az[0] + g * ay[0]), oy + sc * (r * ax[1] + b * az[1] + g * ay[1])];
+  const corners = [];
+  for (let i = 0; i < 8; i++) corners.push(P(i & 1, (i >> 1) & 1, (i >> 2) & 1));
+  ctx.strokeStyle = cs.getPropertyValue('--rule').trim() || '#ccc'; ctx.lineWidth = 1;
+  for (let i = 0; i < 8; i++) for (const bit of [1, 2, 4]) if (!(i & bit)) {
+    const j = i | bit; ctx.beginPath(); ctx.moveTo(corners[i][0], corners[i][1]); ctx.lineTo(corners[j][0], corners[j][1]); ctx.stroke();
+  }
+  ctx.font = '10px ui-monospace, Menlo, monospace'; ctx.fillStyle = cs.getPropertyValue('--muted').trim() || '#777';
+  const lab = (t, p, dx, dy) => ctx.fillText(t, p[0] + dx, p[1] + dy);
+  lab('R', P(1.08, 0, 0), -3, 4); lab('G', P(0, 1.08, 0), -3, 0); lab('B', P(0, 0, 1.08), -3, 4);
+  // trail
+  for (let i = 0; i < build.trail.length; i++) {
+    const c = build.trail[i], q = P(c[0], c[1], c[2]);
+    ctx.fillStyle = `rgba(${(c[0] * 255) | 0},${(c[1] * 255) | 0},${(c[2] * 255) | 0},${(0.15 + 0.6 * i / build.trail.length).toFixed(2)})`;
+    ctx.fillRect(q[0] - 1.5, q[1] - 1.5, 3, 3);
+  }
+  if (last) {
+    const c = last.rgb, q = P(c[0], c[1], c[2]);
+    // drop lines to the floor make the height readable
+    const f = P(c[0], 0, c[2]);
+    ctx.strokeStyle = 'rgba(128,128,128,0.6)'; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(q[0], q[1]); ctx.lineTo(f[0], f[1]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(q[0], q[1], 6, 0, Math.PI * 2);
+    ctx.fillStyle = `rgb(${last.c8.join(',')})`; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.beginPath(); ctx.arc(q[0], q[1], 7.5, 0, Math.PI * 2); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke();
+  }
+}
+function drawMachinery(last) {
+  const col = last ? `rgb(${last.c8.join(',')})` : '#888';
+  drawCurvePanel($('curveU'), last ? last.u : null, last ? [last.a1, last.b1] : null, col);
+  drawCurvePanel($('curveV'), last ? last.v : null, last ? [last.a2, last.b2] : null, col);
+  drawCubePanel($('cubeCanvas'), last);
+}
+function writeTrace(l) {
+  if (!l) return;
+  const f4 = (v) => v.toFixed(4);
+  const warped = build.gen.cat || build.gen.twists.some((t) => t.amp !== 0);
+  const names = ['fold P', 'b₁', 'b₂'];
+  if (state.mode === 'wrap') names[0] = 'P mod 1';
+  const chan = ['R', 'G', 'B'], parts = [];
+  for (let i = 0; i < 3; i++) parts[build.gen.palette.perm[i]] = `${chan[build.gen.palette.perm[i]]} = ${build.gen.palette.inv[i] ? '1 − ' : ''}${names[i]}`;
+  $('buildTrace').innerHTML =
+    `pixel <b>(${l.bx}, ${l.by})</b> of ${BN / build.block}² at depth <b>${l.depth}</b> · ` +
+    `torus (${f4(l.x)}, ${f4(l.y)})` + (warped ? ` → warp → (u, v) = (<b>${f4(l.u)}</b>, <b>${f4(l.v)}</b>)` : ` = (u, v)`) + `<br>` +
+    `g(u) = (a₁, b₁) = (<b>${f4(l.a1)}</b>, <b>${f4(l.b1)}</b>) · g(v) = (a₂, b₂) = (<b>${f4(l.a2)}</b>, <b>${f4(l.b2)}</b>)<br>` +
+    `L: P = a₁ + 2a₂ = <b>${f4(l.P)}</b> → ${state.mode === 'wrap' ? 'wrap' : 'fold'} → <b>${f4(l.R)}</b> · ` +
+    `${parts.join(', ')} → <b>rgb(${l.c8.join(', ')})</b><span class="sw" style="background:rgb(${l.c8.join(',')})"></span>`;
+}
+$('buildPlay').addEventListener('click', () => {
+  if (build.playing) { build.playing = false; $('buildPlay').textContent = 'play'; return; }
+  if (build.i >= build.count && ($('buildMode').value === 'scan' || build.pass === REFINE_PASSES.length - 1)) buildReset();
+  build.playing = true; buildLastT = 0; $('buildPlay').textContent = 'pause'; requestAnimationFrame(buildLoop);
+});
+$('buildStep').addEventListener('click', () => { build.playing = false; $('buildPlay').textContent = 'play'; if (paintOne()) { build.ctx.putImageData(build.img, 0, 0); drawMachinery(build.last); writeTrace(build.last); } });
+$('buildRestart').addEventListener('click', () => { build.playing = false; $('buildPlay').textContent = 'play'; buildReset(); });
+$('buildMode').addEventListener('change', () => { build.playing = false; $('buildPlay').textContent = 'play'; buildReset(); });
+$('buildDepth').addEventListener('input', () => { $('buildDepthVal').textContent = $('buildDepth').value; if ($('buildMode').value === 'scan') { build.playing = false; $('buildPlay').textContent = 'play'; buildReset(); } });
+$('buildDepthVal').textContent = $('buildDepth').value;
+// a change on the surface tab restarts the build with the new genome
+for (const id of ['seed', 'roll', 'palette', 'mode', 'cat']) $(id).addEventListener(id === 'roll' ? 'click' : 'change', () => { build.playing = false; $('buildPlay').textContent = 'play'; buildReset(); });
+$('strength').addEventListener('change', () => { build.playing = false; $('buildPlay').textContent = 'play'; buildReset(); });
+document.querySelector('.tab[data-pane="build"]').addEventListener('click', () => { if (!build.last && build.i === 0) buildReset(); });
+buildReset();
+
 // ------------------------------------------------------------------- boot --
 // Debug hook: the selftest-in-a-browser and anyone poking at the console.
-window.arnold = { state, get gen() { return gen; }, renderer, getOffscreen, colourAt, renderLevels, census };
+window.arnold = { state, get gen() { return gen; }, renderer, getOffscreen, colourAt, renderLevels, census, build, buildTick, buildReset };
 syncControls();
 requestDraw();
 pushState();
