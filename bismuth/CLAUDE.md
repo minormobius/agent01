@@ -133,6 +133,38 @@ selftest pins the Penrose cousin of seed 7 to a golden hash and grows every
 shape. Prism growth is slower than cubic (~100–300 ticks per brick; a full
 crystal is 5–20 s of CPU), which is why the API caps quasi requests lower.
 
+## Colonies, deploy, remove — the platformer primitives
+
+`Growth` holds `colonies[]`. Colony 0 is the seeded crystal and is bit-identical
+to the single-colony engine (colony 0 draws from `stream(seed, "growth")`
+and steps first). The primitives a level needs:
+
+- **`growth.deploy(pack, at)`** — *reseed from this plane.* Lays a plate
+  (`pack.size` cells wide, `pack.thick` layers, default 3×1) at `at` — a site
+  index, `{x, y, z}` (cubic), `{tile, z}` or `{x, y, z}` in world units
+  (prism), or `null` for the **summit** (the site above the highest brick) —
+  and starts a new colony on it with `pack` merged over the base genome:
+  masons, budget, rates, rim, axis, brain, population, oxide, anything. The
+  colony draws from `stream(seed, "growth:<idx>:<tick>")`, so a level is
+  reproducible from its seed and its event log. Returns the colony index.
+- **`growth.remove(at)`** — destructible terrain. `Lattice.remove` rescans
+  the six affected extent-map columns; `Prism.remove` rescans the column top.
+  Bonds stay exact (the selftest compares against a rebuild). Masons whose
+  ground vanished desorb on their next move. Removed sites queue in
+  `growth.removed` for the renderer (`drainRemoved`).
+- **`growth.events`** — `{kind: "deploy"|"remove", tick, at, pack, colony}`
+  in order. Seed + events = level.
+- `growth.done` is true only when every colony is done; `growth.masons`
+  spans all colonies (mason ids stay unique); `growth.brain/K/axis/rim/pop`
+  are colony 0's (what the playground edits live).
+- `renderer.pick(px, py)` marches the camera ray through the substrate and
+  returns the brick under a pixel — what a click means.
+
+The playground exposes them under **packs**: reseed on the summit with the
+current laws, and a demolish mode (click bricks). Both are live edits — the
+link replays the base crystal, not the interventions; a game would persist
+the event log.
+
 ## The colour (`js/render.js`)
 
 Real bismuth is grey; the rainbow is a Bi₂O₃ skin a few hundred nm thick. The

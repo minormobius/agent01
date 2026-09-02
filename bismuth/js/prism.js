@@ -68,6 +68,52 @@ export class Prism {
   }
   open(s) { const t = s % this.n; return this.top[t] < (s - t) / this.n; }
 
+  // Take a brick away; bonds and the column top stay exact.
+  remove(s) {
+    if (!this.occ[s]) return false;
+    const T = this.T, n = this.n, t = s % n, z = (s - t) / n;
+    this.occ[s] = 0;
+    for (let k = T.nbrStart[t]; k < T.nbrStart[t + 1]; k++) this.nb[z * n + T.nbrList[k]]--;
+    if (z + 1 < this.Z) this.nb[s + n]--;
+    if (z > 0) this.nb[s - n]--;
+    if (this.top[t] === z) { let h = z - 1; while (h >= 0 && !this.occ[h * n + t]) h--; this.top[t] = h; }
+    this.count--;
+    this.sx -= T.cx[t]; this.sy -= T.cy[t]; this.sz -= z;
+    return true;
+  }
+  summit() {
+    let best = -1, bt = -1;
+    for (let t = 0; t < this.n; t++) if (this.top[t] > best) { best = this.top[t]; bt = t; }
+    return best < 0 || best + 1 >= this.Z ? -1 : this.site(bt, best + 1);
+  }
+  siteAt(at) {
+    if (typeof at === "number") return at;
+    const z = Math.round(at.z);
+    if (z < 0 || z >= this.Z) return -1;
+    if (at.tile !== undefined) return at.tile >= 0 && at.tile < this.n ? this.site(at.tile, z) : -1;
+    const t = this.T.locate(Math.round(at.x * FIX), Math.round(at.y * FIX));
+    return t < 0 ? -1 : this.site(t, z);
+  }
+  siteAtWorld(x, y, z) { return this.siteAt({ x, y, z: Math.floor(z) }); }
+  describe(s) { const t = s % this.n; return { tile: t, z: (s - t) / this.n, x: this.T.cx[t] / FIX, y: this.T.cy[t] / FIX }; }
+  // a disk of tiles within size/2 edge lengths of the site's centroid, `thick` layers
+  plate(s, size, thick, colony) {
+    const T = this.T, n = this.n, t0 = s % n, z0 = (s - t0) / n, out = [];
+    const r2 = (size / 2) * FIX * ((size / 2) * FIX);
+    const cx = T.cx[t0], cy = T.cy[t0];
+    for (let t = 0; t < n; t++) {
+      const dx = T.cx[t] - cx, dy = T.cy[t] - cy;
+      if (dx * dx + dy * dy > r2 || !T.deep[t]) continue;
+      for (let k = 0; k < thick; k++) {
+        const z = z0 + k;
+        if (z < 1 || z >= this.Z - 2) continue;
+        const q = this.site(t, z);
+        if (this.place(q)) { const b = this.brick(q, 0, -1); b.c = colony; out.push(b); }
+      }
+    }
+    return out;
+  }
+
   // The Kossel class of a site: how many bonds a brick there would make, as
   // the rate table K[] reads it. Two things differ from the square lattice.
   // (1) A rhomb outline is jagged: consecutive tiles along it often meet

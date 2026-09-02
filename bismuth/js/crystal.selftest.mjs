@@ -15,7 +15,7 @@
                      any crystal)
    plus the API contract the worker relies on. */
 
-import { Growth, IDX, GRIDSIZE as G } from "./crystal.js";
+import { Growth, Lattice, IDX, GRIDSIZE as G } from "./crystal.js";
 import { genome, normalizeSeed, GRID, DEFAULT_BRAIN, DEFAULT_POPULATION, quasiSubstrate, QUASI_SHAPES } from "./genome.js";
 import { SHAPES } from "./tilings.js";
 import { stream } from "./prng.js";
@@ -246,7 +246,64 @@ section("prism substrate (quasicrystals): determinism, connectivity, hoppering, 
   }
 }
 
-/* ── 7. the API contract the worker relies on ───────────────────────── */
+/* ── 7. the platformer primitives: deploy (reseed from this plane) + remove ── */
+section("deploy + remove: reseed a pack on the summit, take bricks away, replay from the event log");
+{
+  const build = () => {
+    const g = new Growth(7).run(1500);
+    const idx = g.deploy({ masons: 5, budget: 300, size: 3 }, null);
+    g.run(400);
+    g.remove(IDX(g.bricks[50].x, g.bricks[50].y, g.bricks[50].z));
+    g.remove(IDX(g.bricks[51].x, g.bricks[51].y, g.bricks[51].z));
+    g.deploy({ masons: 3, budget: 200, k1: 0.02 }, { x: g.bricks[60].x, y: g.bricks[60].y, z: g.lat.max[2] + 2 });
+    g.run(300);
+    return g;
+  };
+  const a = build(), b = build();
+  ok(a.colonies.length === 3 && b.colonies.length === 3, `three colonies after two deployments (${a.colonies.length})`);
+  ok(seq(a) === seq(b), "the same seed and the same event sequence replay identically");
+  ok(JSON.stringify(a.events) === JSON.stringify(b.events), "the event log is identical too");
+  ok(a.events.filter((e) => e.kind === "deploy").length === 2 && a.events.filter((e) => e.kind === "remove").length === 2, "events: 2 deployments, 2 removals, with ticks");
+  ok(a.events.every((e) => Number.isInteger(e.tick) && e.at && Number.isInteger(e.at.z)), "every event carries a tick and a place");
+  // the deployed colony really built on the structure: its bricks touch earlier bricks, and it rose above the old summit
+  const first = a.events[0];
+  ok(first.at.z === 67 || first.at.z > 40, `reseed landed above the old crystal (z ${first.at.z})`);
+  const c1 = a.bricks.filter((br) => br.c === 1);
+  ok(c1.length > 9 && a.colonies[1].laid > 0, `pack 1 laid bricks (${a.colonies[1].laid}) on its plate (${c1.length} incl. nucleus)`);
+  ok(a.masons.length === a.colonies.reduce((n, c) => n + c.masons.length, 0), "growth.masons spans every colony");
+  ok(a.masons.every((m, i, arr) => arr.findIndex((o) => o.id === m.id) === i), "mason ids are unique across colonies");
+  // deployed colony 0 is untouched by a deployment: its stream and laws are its own
+  const plain = new Growth(7).run(1500);
+  ok(seq({ bricks: a.bricks.slice(0, plain.bricks.length) }) === seq(plain), "deploying does not rewrite what colony 0 already laid");
+  // removal keeps bonds and extent maps exact: compare against a rebuild
+  {
+    const L = a.lat;
+    const fresh = new Lattice();
+    for (let i = 0; i < L.occ.length; i++) if (L.occ[i]) fresh.place(i);
+    let nbBad = 0, extBad = 0;
+    for (let i = 0; i < L.occ.length; i += 7) if (L.nb[i] !== fresh.nb[i]) nbBad++;
+    for (let f = 0; f < 6; f++) for (let k = 0; k < L.ext[f].length; k += 5) if (L.ext[f][k] !== fresh.ext[f][k]) extBad++;
+    ok(nbBad === 0 && extBad === 0 && L.count === fresh.count, `after removals the lattice equals a rebuild (nb ${nbBad}, ext ${extBad}, count ${L.count} vs ${fresh.count})`);
+    ok(a.removed.length === 2 && a.lat.occ[a.removed[0]] === 0, "removed sites are logged for the renderer and empty");
+    ok(!a.remove(a.removed[0]), "removing an empty site is a no-op");
+  }
+  // the prism substrate has the same primitives
+  {
+    const g = genome(3); g.substrate = quasiSubstrate(3, "hex"); g.substrate.R = 20; g.budget = 300;
+    const gr = new Growth(g).run();
+    const idx = gr.deploy({ masons: 4, budget: 120 }, null);
+    ok(idx === 1 && gr.colonies[1].masons.length === 4, "prism: a pack deploys on the summit");
+    gr.run(150);
+    ok(gr.colonies[1].laid > 0, `prism: the pack lays bricks (${gr.colonies[1].laid})`);
+    const s = gr.bricks[20].z * gr.sub.n + gr.bricks[20].tile;
+    const before = gr.sub.top[gr.bricks[20].tile];
+    ok(gr.remove(s) && gr.sub.occ[s] === 0, "prism: a brick can be removed");
+    let top = -1; for (let z = gr.sub.Z - 1; z >= 0; z--) if (gr.sub.occ[z * gr.sub.n + gr.bricks[20].tile]) { top = z; break; }
+    ok(gr.sub.top[gr.bricks[20].tile] === top && top <= before, "prism: the column top is rescanned after removal");
+  }
+}
+
+/* ── 8. the API contract the worker relies on ───────────────────────── */
 section("API contract");
 {
   const g = new Growth(48112);

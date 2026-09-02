@@ -160,6 +160,17 @@
     <div id="seedrow"><span class="note" style="margin:0">or specimen №</span><input id="seedload" type="number" min="1" placeholder="48112"><button id="seedload-btn" class="chip">load</button></div>
   </details>
 
+  <details open id="sec-packs">
+    <summary>packs <span class="hint">reseed from this plane · demolish</span></summary>
+    <div class="note">The platformer primitives. <b>Reseed</b> lays a small plate on the highest point of what has grown and starts a new colony there with the brain and colony above — its own budget, its own dice. <b>Demolish</b> takes bricks away with a click; masons standing on them fall back into the melt. Both are live edits: the link replays the base crystal, not your interventions.</div>
+    <div class="row"><label title="plate width of a deployed pack, in cells">plate</label><input type="range" id="packsize" min="1" max="9" step="1" value="3"><output id="packsize-out">3</output></div>
+    <div class="btns">
+      <button id="deploy" class="primary">reseed on the summit</button>
+      <button id="demolish">demolish: off</button>
+    </div>
+    <div class="note" id="packnote"></div>
+  </details>
+
   <details open id="sec-pop">
     <summary>colony <span class="hint">population control</span></summary>
     <div class="row"><label title="masons at the start">masons</label><input type="range" data-k="masons" min="1" max="64" step="1"><output></output></div>

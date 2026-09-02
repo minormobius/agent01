@@ -125,6 +125,53 @@ export class Lattice {
     return bricks;
   }
 
+  // Take a brick away (destructible terrain). Bonds and the six extent maps
+  // are kept exact: each affected column is rescanned along its normal.
+  remove(s) {
+    if (!this.occ[s]) return false;
+    const x = s % G, y = ((s - x) / G) % G, z = (s / (G * G)) | 0;
+    this.occ[s] = 0;
+    for (let f = 0; f < 6; f++) this.nb[s + STRIDE[f]]--;
+    const c = [x, y, z];
+    for (let f = 0; f < 6; f++) {
+      const n = f >> 1, u = (n + 1) % 3, v = (n + 2) % 3;
+      const key = c[u] * G + c[v];
+      let best = -1;
+      const q = [x, y, z];
+      for (let h = G - 1; h >= 0; h--) {
+        q[n] = (f & 1) ? G - 1 - h : h;
+        if (this.occ[IDX(q[0], q[1], q[2])]) { best = h; break; }
+      }
+      this.ext[f][key] = best;
+    }
+    this.count--;
+    this.sx -= x; this.sy -= y; this.sz -= z;
+    return true;
+  }
+  // the site directly above the highest brick (the first such column in scan order)
+  summit() {
+    let best = -1, bx = 0, by = 0;
+    const e = this.ext[4];
+    for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) { const h = e[x * G + y]; if (h > best) { best = h; bx = x; by = y; } }
+    return best < 0 ? -1 : IDX(bx, by, best + 1);
+  }
+  siteAt(at) {
+    if (typeof at === "number") return at;
+    const x = Math.round(at.x), y = Math.round(at.y), z = Math.round(at.z);
+    return x >= 0 && y >= 0 && z >= 0 && x < G && y < G && z < G ? IDX(x, y, z) : -1;
+  }
+  siteAtWorld(x, y, z) { return this.siteAt({ x: Math.floor(x), y: Math.floor(y), z: Math.floor(z) }); }
+  describe(s) { return { x: s % G, y: ((s - s % G) / G) % G, z: (s / (G * G)) | 0 }; }
+  // a size×size plate, `thick` layers, centred on the site — the nucleus a deployed pack grows from
+  plate(s, size, thick, colony) {
+    const c = this.describe(s), half = size >> 1, out = [];
+    for (let k = 0; k < thick; k++) for (let dy = -half; dy < size - half; dy++) for (let dx = -half; dx < size - half; dx++) {
+      const x = c.x + dx, y = c.y + dy, z = c.z + k;
+      if (this.inBoundsXYZ(x, y, z) && this.placeXYZ(x, y, z)) out.push({ x, y, z, t: 0, m: -1, c: colony });
+    }
+    return out;
+  }
+
   // The terrace rule. Is the empty site c, attached to a brick on its
   // face-f side (i.e. growing the crystal along normal f), fed by the melt?
   fed(c, f, rim) {
@@ -353,89 +400,168 @@ export class Mason {
   }
 }
 
+// --------------------------------------------------------------- Colony ----
+// One deployed pack: its own genome (laws, kinetics, budget), its own masons,
+// its own PRNG stream, its own cool-down. Colony 0 is the crystal a seed
+// grows; every later colony was DEPLOYED onto the structure at some tick
+// (`Growth.deploy`), which is the reseed-from-this-plane primitive.
+export class Colony {
+  constructor(growth, genome, idx, rng) {
+    this.idx = idx;
+    this.genome = genome;
+    this.brain = Object.assign({}, DEFAULT_BRAIN, genome.brain || {});
+    this.pop = Object.assign({}, DEFAULT_POPULATION, genome.population || {});
+    this.rng = rng;
+    this.K = [0, genome.k1, genome.k2, genome.k3, 1, 1, 1, 1, 1, 1, 1];
+    this.axis = genome.axis.slice();
+    this.rim = genome.rim;
+    this.masons = [];
+    this.retired = 0;
+    this.laid = 0;
+    this.cooling = false;
+    this.coolTick = 0;
+    this.done = false;
+    this.stalled = 0;
+    for (let i = 0; i < genome.masons; i++) {
+      const m = new Mason(growth.nextId++);
+      m.colony = idx;
+      m.wait = (i * genome.flight) % (genome.flight * 3) + 1;  // staggered first arrivals
+      this.masons.push(m);
+    }
+  }
+}
+
 // --------------------------------------------------------------- Growth ----
 export class Growth {
   constructor(seedOrGenome) {
     this.genome = typeof seedOrGenome === "object" ? seedOrGenome : makeGenome(seedOrGenome);
     const g = this.genome;
-    this.brain = Object.assign({}, DEFAULT_BRAIN, g.brain || {});
-    this.pop = Object.assign({}, DEFAULT_POPULATION, g.population || {});
-    this.rng = stream(g.seed, "growth");
     const sp = g.substrate;
     this.sub = sp && sp.shape && sp.shape !== "grid" ? new Prism(sp) : new Lattice();
     this.lat = this.sub;                            // the cubic name, kept for callers
-    this.K = [0, g.k1, g.k2, g.k3, 1, 1, 1, 1, 1, 1, 1];
-    this.axis = g.axis.slice();
-    this.rim = g.rim;
-    this.masons = [];
     this.nextId = 0;
-    this.retired = 0;
-    for (let i = 0; i < g.masons; i++) {
-      const m = new Mason(this.nextId++);
-      m.wait = (i * g.flight) % (g.flight * 3) + 1;  // staggered first arrivals
-      this.masons.push(m);
-    }
-    this.bricks = [];                               // {x,y,z,t,m} in laying order
+    this.colonies = [];
+    this.events = [];                               // deployments and removals, with ticks: a level is seed + events
+    this.removed = [];                              // sites taken away, for the renderer to drain
+    this.bricks = [];                               // {x,y,z,t,m,c} in laying order
     this.tick = 0;
-    this.done = false;
-    this.cooling = false;
-    this.stalled = 0;
-    this._cand = new Int32Array(512);            // a Penrose vertex can touch ten tiles; 26 on the cubic lattice
+    this._cand = new Int32Array(512);               // a Penrose vertex can touch ten tiles; 26 on the cubic lattice
     this._wts = new Float64Array(512);
+    this.colonies.push(new Colony(this, g, 0, stream(g.seed, "growth")));
     this.seedNuclei();
   }
 
+  // colony 0's laws, as the page and the playground edit them live
+  get brain() { return this.colonies[0].brain; }   set brain(v) { this.colonies[0].brain = v; }
+  get pop() { return this.colonies[0].pop; }       set pop(v) { this.colonies[0].pop = v; }
+  get K() { return this.colonies[0].K; }           set K(v) { this.colonies[0].K = v; }
+  get axis() { return this.colonies[0].axis; }     set axis(v) { this.colonies[0].axis = v; }
+  get rim() { return this.colonies[0].rim; }       set rim(v) { this.colonies[0].rim = v; }
+  get rng() { return this.colonies[0].rng; }
+  get cooling() { return this.colonies[0].cooling; } set cooling(v) { this.colonies[0].cooling = v; }
+  get stalled() { return this.colonies[0].stalled; } set stalled(v) { this.colonies[0].stalled = v; }
+  get masons() { return this.colonies.length === 1 ? this.colonies[0].masons : this.colonies.flatMap((c) => c.masons); }
+  get retired() { let n = 0; for (const c of this.colonies) n += c.retired; return n; }
+  get done() { for (const c of this.colonies) if (!c.done) return false; return true; }
+  set done(v) { for (const c of this.colonies) c.done = v; }
+  get laidTotal() { let n = 0; for (const c of this.colonies) n += c.laid; return n; }
+
   seedNuclei() {
     this.bricks = this.sub.seed(this.genome);
+    for (const b of this.bricks) b.c = 0;
     this.nucleusBricks = this.bricks.length;
   }
 
-  // One tick: every mason acts once, in id order. Returns the bricks laid.
+  // Reseed from this plane: lay a small plate at `at` (a site, {x,y,z}, or
+  // null for the summit — the site above the highest brick) and start a new
+  // colony on it with `pack` merged over the base genome (masons, budget,
+  // rates, rim, axis, brain, population — anything). The new colony draws
+  // from its own stream, keyed by its index and the tick it was deployed, so
+  // a level is reproducible from its seed and its event log. Returns the
+  // colony index, or -1 if nothing could be laid there.
+  deploy(pack = {}, at = null) {
+    const base = this.genome;
+    const gen = Object.assign({}, base, pack);
+    gen.brain = Object.assign({}, base.brain || {}, pack.brain || {});
+    gen.population = Object.assign({}, base.population || {}, pack.population || {});
+    gen.axis = (pack.axis || base.axis).slice();
+    delete gen.voxels; delete gen.nuclei;
+    const idx = this.colonies.length;
+    const site = at === null || at === undefined ? this.sub.summit() : this.sub.siteAt(at);
+    if (site < 0) return -1;
+    const plate = this.sub.plate(site, pack.size || 3, pack.thick || 1, idx);
+    if (!plate.length) return -1;
+    for (const b of plate) { b.t = this.tick; this.bricks.push(b); }
+    this.nucleusBricks += plate.length;
+    const col = new Colony(this, gen, idx, stream(gen.seed, "growth:" + idx + ":" + this.tick));
+    this.colonies.push(col);
+    this.events.push({ kind: "deploy", tick: this.tick, at: this.sub.describe(site), pack, colony: idx });
+    return idx;
+  }
+
+  // Destructible terrain: take a brick away. Masons standing on it desorb on
+  // their next move (the ground moved under them).
+  remove(at) {
+    const s = typeof at === "number" ? at : this.sub.siteAt(at);
+    if (s < 0 || !this.sub.remove(s)) return false;
+    this.removed.push(s);
+    this.events.push({ kind: "remove", tick: this.tick, at: this.sub.describe(s) });
+    return true;
+  }
+
+  // One tick: every colony, every mason, in order. Returns the bricks laid.
   step() {
     if (this.done) return [];
     const laid = [];
     this.tick++;
-    for (const m of this.masons) {
-      if (m.state === "melt") {
-        if (--m.wait > 0) continue;
-        this.arrive(m);
-        continue;
+    for (const col of this.colonies) {
+      if (col.done) continue;
+      const before = laid.length;
+      for (const m of col.masons) {
+        if (m.state === "melt") {
+          if (--m.wait > 0) continue;
+          this.arrive(m, col);
+          continue;
+        }
+        this.act(m, col, laid);
       }
-      this.act(m, laid);
+      const n = laid.length - before;
+      if (n) { col.stalled = 0; for (let i = before; i < laid.length; i++) this.bricks.push(laid[i]); }
+      else if (++col.stalled > (col.cooling ? 1500 : 20000)) col.done = true;  // nowhere left to grow
+      const was = col.laid;
+      col.laid += n;
+      if (n) this.population(col, was, col.laid);
+      if (!col.cooling && col.laid >= col.genome.budget) {
+        // The melt cools: no new layers nucleate, but every ledge already
+        // started runs to its end, so the crystal finishes with clean edges
+        // rather than mid-brick.
+        col.cooling = true;
+        col.coolTick = this.tick;
+        col.K[1] = 0;
+      }
+      if (col.cooling && (col.laid >= col.genome.budget * (1 + col.brain.coolExtra) || this.tick - col.coolTick > 25000)) col.done = true;
     }
-    if (laid.length) { this.stalled = 0; for (const b of laid) this.bricks.push(b); }
-    else if (++this.stalled > (this.cooling ? 1500 : 20000)) this.done = true;  // nowhere left to grow
-    const laidTotal = this.bricks.length - this.nucleusBricks;
-    if (laid.length) this.population(laidTotal - laid.length, laidTotal);
-    if (!this.cooling && laidTotal >= this.genome.budget) {
-      // The melt cools: no new layers nucleate, but every ledge already
-      // started runs to its end, so the crystal finishes with clean edges
-      // rather than mid-brick.
-      this.cooling = true;
-      this.coolTick = this.tick;
-      this.K[1] = 0;
-    }
-    if (this.cooling && (laidTotal >= this.genome.budget * (1 + this.brain.coolExtra) || this.tick - this.coolTick > 25000)) this.done = true;
     return laid;
   }
 
   // Population control, applied after a tick that laid bricks. Births come in
   // at the melt and arrive like anyone else; a retiring mason simply does not
   // come back for another brick. With the defaults neither ever happens.
-  population(before, after) {
-    const P = this.pop, g = this.genome;
+  population(col, before, after) {
+    const P = col.pop, g = col.genome;
     if (P.retireAfter > 0) {
-      for (let i = this.masons.length - 1; i >= 0 && this.masons.length > P.min; i--) {
-        const m = this.masons[i];
-        if (m.laid >= P.retireAfter && m.state === "melt") { this.masons.splice(i, 1); this.retired++; }
+      for (let i = col.masons.length - 1; i >= 0 && col.masons.length > P.min; i--) {
+        const m = col.masons[i];
+        if (m.laid >= P.retireAfter && m.state === "melt") { col.masons.splice(i, 1); col.retired++; }
       }
     }
     if (P.birthEvery > 0) {
       const births = Math.floor(after / P.birthEvery) - Math.floor(before / P.birthEvery);
-      for (let k = 0; k < births && this.masons.length < P.max; k++) {
+      for (let k = 0; k < births && col.masons.length < P.max; k++) {
         const m = new Mason(this.nextId++);
+        m.colony = col.idx;
         m.wait = g.flight;
-        this.masons.push(m);
+        col.masons.push(m);
       }
     }
   }
@@ -448,17 +574,17 @@ export class Growth {
     return this;
   }
 
-  arrive(m) {
-    const s = this.sub.arrive(this.rng, this.brain);
+  arrive(m, col) {
+    const s = this.sub.arrive(col.rng, col.brain);
     if (s >= 0) {
       m.from = m.state === "surface" ? [m.x, m.y, m.z] : null;
       m.site = s;
       this.sub.pos(s, m);
       m.state = "surface";
-      m.patience = this.genome.patience;
+      m.patience = col.genome.patience;
       return true;
     }
-    m.wait = this.genome.flight;                   // missed; try again later
+    m.wait = col.genome.flight;                    // missed; try again later
     return false;
   }
 
@@ -466,8 +592,8 @@ export class Growth {
   // rule), else walk to a neighbouring surface cell drawn toward bonds, else —
   // patience spent — desorb back into the melt. Never a forced brick: a mason
   // that finds no good site leaves, which is what keeps the faces flat.
-  act(m, laid) {
-    const sub = this.sub, g = this.genome, r = this.rng, B = this.brain;
+  act(m, col, laid) {
+    const sub = this.sub, g = col.genome, r = col.rng, B = col.brain;
     const here = m.site;
     const nbHere = sub.kossel(here);
     if (sub.occ[here] || nbHere === 0) {           // ground moved under us
@@ -478,12 +604,14 @@ export class Growth {
     // crystal has a floor, not a second hopper growing down. Cheap Kossel
     // gate next; the terrace scan only runs when both pass.
     const open = !B.skyRule || sub.open(here);
-    if (open && r() < this.K[nbHere]) {
-      const bias = sub.fedBias(here, nbHere, this.axis, this.rim, B);
+    if (open && r() < col.K[nbHere]) {
+      const bias = sub.fedBias(here, nbHere, col.axis, col.rim, B);
       if (bias > 0 && (bias >= 1 || r() < bias)) {
         if (!sub.inBounds(here)) { m.state = "melt"; m.wait = g.flight * 3; return; }
         sub.place(here);
-        laid.push(sub.brick(here, this.tick, m.id));
+        const b = sub.brick(here, this.tick, m.id);
+        b.c = col.idx;
+        laid.push(b);
         m.laid++;
         m.from = [m.x, m.y, m.z];
         m.state = "melt"; m.wait = g.flight;
@@ -519,7 +647,12 @@ export class Growth {
   }
 
   // ------------------------------------------------------------ readouts --
-  stats() { return this.sub.stats(this); }
+  stats() {
+    const st = this.sub.stats(this);
+    st.colonies = this.colonies.length;
+    st.events = this.events.length;
+    return st;
+  }
 }
 
 export { IDX, G as GRIDSIZE, FACE };

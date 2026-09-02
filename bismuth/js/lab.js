@@ -204,6 +204,7 @@ class Lab {
   applyLive() {
     const g = this.growth, st = this.state;
     const gen = toGenome(st);
+    // colony 0 follows the panel; deployed packs keep the laws they were deployed with
     Object.assign(g.genome, { budget: gen.budget, patience: gen.patience, mobility: gen.mobility, flight: gen.flight, oxide: gen.oxide });
     g.brain = Object.assign({}, DEFAULT_BRAIN, gen.brain);
     g.pop = Object.assign({}, DEFAULT_POPULATION, gen.population);
@@ -211,13 +212,34 @@ class Lab {
     g.rim = gen.rim;
     if (!g.cooling) g.K = [0, gen.k1, gen.k2, gen.k3, 1, 1, 1, 1, 1, 1, 1];
     else g.K = [0, 0, gen.k2, gen.k3, 1, 1, 1, 1, 1, 1, 1];
-    if (g.done && g.bricks.length - g.nucleusBricks < gen.budget) { g.done = false; g.cooling = false; g.stalled = 0; this.finished = false; }
+    const c0 = g.colonies[0];
+    if (c0.done && c0.laid < gen.budget) { c0.done = false; c0.cooling = false; c0.stalled = 0; this.finished = false; }
     this.edited = true;
     this.writeHash();
     this.updateHUD();
   }
 
   skip() { this.growth.run(); this.renderer.sync(true); this.renderer.snapCamera(); this.finish(); }
+
+  // reseed from this plane: a new colony on the summit, with the current laws
+  deployPack() {
+    const st = this.state, gen = toGenome(st);
+    const pack = { masons: gen.masons, budget: gen.budget, rim: gen.rim, k1: gen.k1, k2: gen.k2, k3: gen.k3, patience: gen.patience, mobility: gen.mobility, flight: gen.flight,
+      axis: gen.axis, brain: gen.brain, population: gen.population, oxide: gen.oxide, size: +$("#packsize").value, thick: 1 };
+    const idx = this.growth.deploy(pack, null);
+    if (idx < 0) { this.toast("nowhere to reseed"); return; }
+    this.finished = false;
+    this.edited = true;
+    this.renderer.sync(false);
+    this.toast(`pack ${idx} deployed on the summit — ${gen.masons} masons, budget ${fmt(gen.budget)}`);
+    this.updateHUD();
+  }
+  demolishAt(px, py) {
+    const r = this.canvas.getBoundingClientRect();
+    const s = this.renderer.pick(px - r.left, py - r.top);
+    if (s < 0) return;
+    if (this.growth.remove(s)) { this.edited = true; this.renderer.sync(false); this.updateHUD(); }
+  }
 
   finish() {
     if (this.finished) return;
@@ -242,6 +264,8 @@ class Lab {
     if (!g.done && this.finished === false) $("#stats").textContent = "";
     $("#pause").textContent = this.paused ? "resume" : "pause";
     $("#pause").hidden = g.done; $("#step").hidden = g.done; $("#skip").hidden = g.done;
+    const ev = g.events.length, cols = g.colonies.length;
+    $("#packnote").textContent = cols > 1 || ev ? `${cols} colonies · ${ev} events (${g.events.filter((e) => e.kind === "deploy").length} deployed, ${g.events.filter((e) => e.kind === "remove").length} removed)` : "one colony, no interventions yet";
     const P = this.state.pop;
     $("#popnote").textContent = P.birthEvery || P.retireAfter
       ? `${P.birthEvery ? "a birth every " + P.birthEvery + " bricks" : "no births"}, ${P.retireAfter ? "retire after " + P.retireAfter : "nobody retires"}; ${P.min}–${P.max} alive`
@@ -290,6 +314,10 @@ class Lab {
     for (const el of $$("[data-pop]")) { const k = el.dataset.pop; wire(el, () => st.pop[k], (v) => { st.pop[k] = v; }); }
     for (const el of $$("[data-ox]")) { const k = el.dataset.ox; wire(el, () => st.oxide[k], (v) => { st.oxide[k] = v; }); }
     $("#pace").addEventListener("input", (e) => { this.pace = +e.target.value; $("#pace-out").textContent = this.pace; });
+    $("#packsize").addEventListener("input", (e) => { $("#packsize-out").textContent = e.target.value; });
+    $("#deploy").addEventListener("click", () => this.deployPack());
+    $("#demolish").addEventListener("click", () => { this.demolish = !this.demolish; $("#demolish").textContent = "demolish: " + (this.demolish ? "on — click bricks" : "off"); $("#demolish").classList.toggle("primary", this.demolish); this.canvas.style.cursor = this.demolish ? "crosshair" : "grab"; });
+    this.canvas.addEventListener("pointerdown", (e) => { if (this.demolish && e.button === 0) { this.demolishAt(e.clientX, e.clientY); e.stopImmediatePropagation(); } }, true);
     $("#turbo").addEventListener("change", (e) => { this.turbo = e.target.checked; });
     $("#brain-default").addEventListener("click", () => { this.loadBrain(genome(48112), true); });
     $("#brain-random").addEventListener("click", () => { this.loadBrain(genome(1 + Math.floor(Math.random() * 900000))); });

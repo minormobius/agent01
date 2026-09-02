@@ -272,9 +272,75 @@ export class Renderer {
     this.chunks.clear();
     this.dirty.clear();
     this.synced = 0;
+    this.syncedRemoved = 0;
     this.born = [];
     this.trails.clear();
     this.userZoom = 1;
+  }
+
+  // chunk bookkeeping for one cubic cell and the neighbours whose faces it changes
+  dirtyCubic(x, y, z) {
+    const id = (cx, cy, cz) => (cz * NC + cy) * NC + cx;
+    const cx = x >> 4, cy = y >> 4, cz = z >> 4;
+    this.dirty.add(id(cx, cy, cz));
+    const lx = x & 15, ly = y & 15, lz = z & 15;
+    if (lx === 0) this.dirty.add(id(cx - 1, cy, cz));
+    if (lx === 15) this.dirty.add(id(cx + 1, cy, cz));
+    if (ly === 0) this.dirty.add(id(cx, cy - 1, cz));
+    if (ly === 15) this.dirty.add(id(cx, cy + 1, cz));
+    if (lz === 0) this.dirty.add(id(cx, cy, cz - 1));
+    if (lz === 15) this.dirty.add(id(cx, cy, cz + 1));
+  }
+  dirtyPrism(t, z) {
+    const pr = this.pr, T = pr.T, NBK = this.NBK;
+    const chunkOf = (tt, zz) => (zz >> 4) * NBK + (tt >> 7);
+    this.dirty.add(chunkOf(t, z));
+    for (let k = T.nbrStart[t]; k < T.nbrStart[t + 1]; k++) this.dirty.add(chunkOf(T.nbrList[k], z));
+    if (z > 0) this.dirty.add(chunkOf(t, z - 1));
+    if (z + 1 < pr.Z) this.dirty.add(chunkOf(t, z + 1));
+  }
+
+  // bricks taken away since the last sync (destructible terrain)
+  drainRemoved() {
+    const rm = this.growth.removed;
+    for (let i = this.syncedRemoved; i < rm.length; i++) {
+      const s = rm[i];
+      if (this.kind === "prism") {
+        this.pbid[s] = -1;
+        const t = s % this.pr.n;
+        this.dirtyPrism(t, (s - t) / this.pr.n);
+      } else {
+        this.occ[s] = 0; this.bid[s] = -1;
+        const x = s % G, y = ((s - x) / G) % G, z = (s / (G * G)) | 0;
+        this.dirtyCubic(x, y, z);
+      }
+    }
+    this.syncedRemoved = rm.length;
+  }
+
+  // The brick under a canvas pixel (CSS px), or -1: the camera ray marched
+  // through the substrate in small steps. What a click on the crystal means.
+  pick(px, py) {
+    const cam = this.cam;
+    if (!cam) return -1;
+    const W = this.canvas.width, H = this.canvas.height, dpr = this.dpr || 1;
+    const xn = (px * dpr / W) * 2 - 1, yn = 1 - (py * dpr / H) * 2;
+    const f = Math.tan(0.31), aspect = W / Math.max(1, H);
+    const dx = xn * f * aspect, dy = yn * f, dz = -1;
+    // world direction = dx·right + dy·up − dz·back (the lookAt basis)
+    const wx = dx * cam.xaxis[0] + dy * cam.yaxis[0] + dz * cam.zaxis[0];
+    const wy = dx * cam.xaxis[1] + dy * cam.yaxis[1] + dz * cam.zaxis[1];
+    const wz = dx * cam.xaxis[2] + dy * cam.yaxis[2] + dz * cam.zaxis[2];
+    const len = Math.hypot(wx, wy, wz) || 1;
+    // world (x, up, −y) + target → substrate coordinates
+    const sx = cam.eye[0] + this.target[0], sy = -cam.eye[2] + this.target[1], sz = cam.eye[1] + this.target[2];
+    const vx = wx / len, vy = -wz / len, vz = wy / len;
+    const sub = this.growth.sub, step = 0.15;
+    for (let d = 0; d < 400; d += step) {
+      const s = sub.siteAtWorld(sx + vx * d, sy + vy * d, sz + vz * d);
+      if (s >= 0 && sub.occ[s]) return s;
+    }
+    return -1;
   }
 
   // Pull bricks laid since the last sync. `instant` stamps them as already
@@ -282,6 +348,7 @@ export class Renderer {
   sync(instant = false) {
     const br = this.growth.bricks;
     const now = this.time;
+    if (this.growth.removed && this.growth.removed.length > this.syncedRemoved) this.drainRemoved();
     if (this.kind === "prism") {
       const pr = this.pr, n = pr.n, T = pr.T, NBK = this.NBK;
       const chunkOf = (t, z) => (z >> 4) * NBK + (t >> 7);
@@ -565,6 +632,8 @@ export class Renderer {
     ];
     const proj = perspective(0.62, W / Math.max(1, H), 0.5, dist * 4 + 200);
     const view = lookAt(eye, [0, 0, 0], [0, 1, 0]);
+    // the camera basis, for picking: columns of the rotation part
+    this.cam = { eye, xaxis: [view[0], view[4], view[8]], yaxis: [view[1], view[5], view[9]], zaxis: [view[2], view[6], view[10]] };
 
     gl.useProgram(this.prog);
     gl.uniformMatrix4fv(this.loc.uProj, false, proj);
