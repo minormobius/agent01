@@ -98,6 +98,8 @@
         <option value="96" selected>96 × 96</option>
         <option value="128">128 × 128</option>
         <option value="160">160 × 160</option>
+        <option value="256">256 × 256</option>
+        <option value="512">512 × 512 (slow)</option>
       </select>
     </div>
     <div class="row colorRow">
@@ -288,6 +290,13 @@ function main() {
     sweeps++;
   }
 
+  // Sliders were tuned against the 96x96 default; scale actual sweeps/frame
+  // down for bigger lattices so 512x512 doesn't try to do 16x the site
+  // updates per frame that 128x128 does at the same slider position.
+  function effectiveSweepsPerFrame() {
+    return Math.max(1, Math.round(sweepsPerFrame * (96 * 96) / (size * size)));
+  }
+
   // ---------------------------------------------------------------- render
 
   let imgData = null;
@@ -386,7 +395,8 @@ function main() {
   function tick() {
     requestAnimationFrame(tick);
     if (playing && spins) {
-      for (let s = 0; s < sweepsPerFrame; s++) sweep();
+      const n = effectiveSweepsPerFrame();
+      for (let s = 0; s < n; s++) sweep();
       render();
       updateStat();
     }

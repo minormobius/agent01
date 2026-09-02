@@ -17,6 +17,8 @@ with the two spin colors configurable. That shipped, complete and working:
 - Temperature `T`, coupling `J`, image strength `h`, and sweeps/frame are all
   live sliders. Spin-up and spin-down colors are `<input type=color>`, with a
   swap button.
+- **This turn:** raised the max lattice resolution to 512×512 (was 160×160),
+  per request. Added 256×256 as an intermediate step too.
 - Run/Pause (rAF-driven continuous sweeping), Step (one sweep), Reset to
   image (re-threshold from the field), Shuffle (randomize spins so you can
   watch order re-emerge from noise), Download PNG.
@@ -45,6 +47,15 @@ with the two spin colors configurable. That shipped, complete and working:
 - **rAF loop runs unconditionally and checks a `playing` boolean each frame**
   rather than starting/stopping the loop itself — simpler, and the idle cost
   of an empty rAF tick is negligible.
+- **The "sweeps/frame" slider is scaled by `effectiveSweepsPerFrame()`,
+  not used raw**, once 256/512 were added as options. The slider was tuned
+  against the 96×96 default (max 8 sweeps/frame there is ~74k site updates);
+  used raw at 512×512 the same "8" would be 2.1M site updates/frame and lock
+  up a phone. It now scales down by `(96*96)/(size*size)` so the *rate of
+  visible settling* stays roughly constant across resolutions instead of the
+  *sweep count*. Only the continuous Run loop is scaled — Step still does
+  exactly one full sweep at whatever the true resolution is, since that's a
+  single click, not a per-frame budget.
 
 ## The plan (not built yet, roughly in order)
 
@@ -56,11 +67,18 @@ with the two spin colors configurable. That shipped, complete and working:
 2. **A pan/zoom or aspect-ratio choice for the crop**, if a visitor complains
    the cover-crop cuts off the wrong part of their photo. Would need a small
    crop-preview UI before committing to a resolution.
-3. **Web Worker for the sweep loop** if someone wants very large lattices
-   (>200×200) at high sweeps/frame — right now it's all on the main thread
-   and stays smooth up to 160×160 at 8 sweeps/frame on a normal laptop, but
-   nothing stops a visitor cranking both sliders on a slow phone and janking
-   the page. Not urgent; the sliders are already capped conservatively.
+3. **Web Worker for the sweep loop.** Resolution now goes to 512×512 (was
+   capped at 160×160); `effectiveSweepsPerFrame()` scales the continuous-run
+   loop down so it doesn't try 2M+ site updates/frame at max res, but this is
+   a band-aid — it makes 512×512 update *slower*, not free. It's still all on
+   the main thread, so a slow phone at 512×512 can still jank the rest of the
+   page (scrolling, the sliders) even though the animation itself throttles.
+   A worker would fix that properly; not done this turn since it's a bigger
+   change (postMessage the spins buffer back for render, or use a
+   SharedArrayBuffer — the latter needs COOP/COEP headers this site doesn't
+   currently set).
+   Untested at 512×512 on an actual slow device — only reasoned about from
+   the update count.
 4. Possibly a second external-field mode where color channels (not just
    grayscale) map to two independent lattices rendered as a duotone — bigger
    scope, only worth it if requested.

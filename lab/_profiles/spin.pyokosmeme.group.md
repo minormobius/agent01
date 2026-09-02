@@ -18,7 +18,11 @@ No stated preference yet — one build so far.
 ## Features they reach for
 Wants simulation parameters exposed as live controls (temperature, coupling,
 field strength) rather than hidden/fixed — the request implied wanting to
-actually play with the physics, not just see one fixed output.
+actually play with the physics, not just see one fixed output. Also came back
+to ask for a higher max resolution (512x512, up from a launch cap of
+160x160) — reaches for finer-grained output once the basic mechanic works,
+worth defaulting new grid-based sims to a generous resolution ceiling rather
+than a conservative one.
 
 ## Said no to
 Nothing yet.
