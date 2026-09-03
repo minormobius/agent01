@@ -43,6 +43,7 @@ build, no D1, no AI, no secrets. Pure ES modules, no dependencies.
 | `packages/bismuth/crystal.selftest.mjs` | ~34k checks, ~40 s. **Run before touching the engine or the genome** |
 | `worker.js` | `/c/<seed>` → index.html; `/api/crystal`, `/api/genome`, `/api/health` |
 | `index.html` | the page; loads `/js/app.js` as a module (root-absolute, so `/c/<seed>` works) |
+| `study.html` | **generated** — `/study`, the two-agent phase-space study rendered from `packages/bismuth/phase/*.json` by `node packages/bismuth/phase-report.mjs … --full --out bismuth/study.html`. Regenerate after re-running `phase.mjs`; never edit by hand |
 
 **`index.html`, `worker.js` and the selftest import the same `js/crystal.js`.**
 There is no second copy and there must not be — the selftest is evidence

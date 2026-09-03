@@ -13,6 +13,9 @@
 //   node packages/bismuth/phase.mjs --exp C         # C: predator dynamics — spawnAfter × starve, cycles or extinction
 //   node packages/bismuth/phase.mjs --exp C2        # C2: the chemostat — small appetites against a producer with capacity, a closed melt
 //   node packages/bismuth/phase.mjs --exp D         # D: one mason vs many — the front count does not move
+//   node packages/bismuth/phase.mjs --exp T         # T: across tilings — lay rate, fronts, the sink with healing, grazers, per substrate
+//   --shapes grid,hex,penrose,kagome,ammann         # the substrates T runs on (default those five)
+//   --shape penrose                                 # run any other experiment on a prism substrate instead of the lattice
 //   --out path.json                                 # where the runs and series go (default: packages/bismuth/phase.json)
 //   --quick                                         # a coarser grid for a look
 //
@@ -21,6 +24,7 @@
 import { Growth } from "./crystal.js";
 import { genome } from "./genome.js";
 import { Worms } from "./worms.js";
+import { SHAPE_INFO } from "./tilings.js";
 import { writeFileSync } from "node:fs";
 
 const args = process.argv.slice(2);
@@ -29,19 +33,26 @@ const EXP = opt("--exp", "all");
 const OUT = opt("--out", new URL("./phase.json", import.meta.url).pathname);
 const QUICK = args.includes("--quick");
 const SEED = 48112;
+const SHAPE = opt("--shape", "grid");
+const SHAPES = opt("--shapes", "grid,hex,penrose,kagome,ammann").split(",");
 
-function world(budget, masons, seed = SEED) {
+// a prism substrate for a shape: the same nucleus size as the cubic plates, a tiling of radius 44
+const substrate = (shape) => (shape === "grid" ? null : { shape, R: 44, ic: { disk: 2.6, thickness: 2 }, z0: 6 });
+
+function world(budget, masons, seed = SEED, shape = SHAPE) {
   const gen = genome(seed);
   gen.budget = budget;
   gen.masons = masons;
+  const sub = substrate(shape);
+  if (sub) gen.substrate = sub;
   return new Growth(gen);
 }
 
 // One run: grow to `release` bricks, loose the worms, run `tmax` ticks (or
 // until the mass is gone), sampling mass, worms, eaten, laid every `sample`.
 function run(p) {
-  const { budget = 4000, masons = 8, release = 600, worms = {}, recycle = false, tmax = 300000, sample = 2000, seed = SEED } = p;
-  const g = world(budget, masons, seed);
+  const { budget = 4000, masons = 8, release = 600, worms = {}, recycle = false, tmax = 300000, sample = 2000, seed = SEED, shape = SHAPE } = p;
+  const g = world(budget, masons, seed, shape);
   while (!g.done && g.sub.count < release) g.step();
   const t0 = g.tick, laid0 = g.bricks.length;
   const layRate = laid0 / Math.max(1, t0);                      // bricks per tick before the worms
@@ -209,6 +220,56 @@ if (EXP === "all" || EXP === "D") {
   }
   results.experiments.D = { runs };
 }
+
+// ── T: across tilings. The bond graph changes with the substrate — six face-neighbours on the lattice,
+//      edge-neighbours plus two on a prism (hexagons 8, rhombs 6, kagome triangles 5) — and with it the
+//      walk, the healing, and what "exposed" means. Per shape: the free lay rate, the fronts for one
+//      mason and eight, the sink at two pressures with and without recycling (with the repair count),
+//      and grazers on a capped crystal. ──
+if (EXP === "all" || EXP === "T") {
+  const runs = [];
+  log("\nT — across tilings");
+  for (const shape of SHAPES) {
+    const info = SHAPE_INFO[shape] || { label: shape };
+    const t0 = performance.now();
+    // free lay rate: 8 masons to a budget of 3000
+    const gf = world(3000, 8, SEED, shape);
+    while (!gf.done) gf.step();
+    const layRate = (gf.bricks.length - gf.nucleusBricks) / gf.tick;
+    const stF = gf.stats();
+    // fronts: one mason and eight, to 1500 bricks
+    const fronts = [];
+    for (const masons of [1, 8]) {
+      const g = world(6000, masons, SEED, shape);
+      while (!g.done && g.bricks.length < 1500) g.step();
+      const st = g.stats();
+      fronts.push({ masons, ticks: g.tick, perBrick: g.tick / 1500, terraces: st.terraces, box: st.box, hollowness: st.hollowness });
+    }
+    // the edible surface: bricks with three bonds or fewer, as a fraction, at 1500 bricks
+    const g15 = world(6000, 8, SEED, shape);
+    while (!g15.done && g15.bricks.length < 1500) g15.step();
+    let exposed3 = 0, maxNb = 0;
+    for (const b of g15.bricks) { const s = b.tile !== undefined ? g15.sub.siteAt({ tile: b.tile, z: b.z }) : g15.sub.siteAt(b); if (s >= 0 && g15.sub.occ[s]) { const nb = g15.sub.nb[s]; if (nb <= 3) exposed3++; if (nb > maxNb) maxNb = nb; } }
+    const edible = exposed3 / g15.sub.count;
+    // the sink: 8 masons, budget 3000, released at 500, P 0.012 and 0.036, recycling off and on
+    const sink = [];
+    for (const recycle of [false, true]) for (const bite of [0.1, 0.3]) {
+      const r = run({ budget: 3000, masons: 8, release: 500, worms: { count: 3, speed: 0.04, bite }, recycle, tmax: 200000, shape });
+      r.P = 3 * 0.04 * bite;
+      delete r.series;
+      sink.push(r);
+    }
+    // grazers on a capped crystal
+    const gz = run({ budget: 3000, masons: 8, release: 800, worms: { count: 4, speed: 0.04, bite: 0.05, spawnAfter: 15, starve: 400, exposed: 3, depth: -1 }, recycle: true, tmax: 400000, sample: 4000, shape });
+    const rec = { shape, label: info.label, layRate, freeTicks: gf.tick, freeTerraces: stF.terraces, freeBox: stF.box, fronts, edible, maxNb, sink, grazers: gz, ms: performance.now() - t0 };
+    runs.push(rec);
+    log(`  ${shape.padEnd(8)} lay ${layRate.toFixed(4)}/tick · fronts 1 mason ${fmt6(fronts[0].ticks)} ticks (${fronts[0].terraces} terraces) vs 8 masons ${fmt6(fronts[1].ticks)} (${fronts[1].terraces}) · edible ${(edible * 100).toFixed(0)}% (max bonds ${maxNb})`);
+    for (const r of sink) log(`           sink ${r.params.recycle ? "on " : "off"} P ${r.P.toFixed(3)}: ${r.outcome.padEnd(16)} mass ${r.mass} of ${r.peak} · laid ${r.laid} eaten ${r.eaten} healed ${r.repairs}`);
+    log(`           grazers: ${gz.outcome.padEnd(16)} mass ${gz.mass} of ${gz.peak} · worms peak ${gz.wormPeak}, left ${gz.wormsLeft}, born ${gz.births}, faded ${gz.deaths}, eaten ${gz.eaten} · ${(rec.ms / 1000).toFixed(0)} s`);
+  }
+  results.experiments.T = { shapes: SHAPES, runs };
+}
+function fmt6(n) { return String(n).padStart(6); }
 
 writeFileSync(OUT, JSON.stringify(results));
 log(`\nwrote ${OUT}`);

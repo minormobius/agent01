@@ -1,8 +1,9 @@
 # Masons and worms — the two-agent phase space
 
-What `phase.mjs` found, at seed 48112 on the cubic lattice, deterministic. The
-page version with figures is what `phase-report.mjs` renders from the JSON;
-the tables here are the numbers that matter. Ticks are engine ticks: every
+What `phase.mjs` found, at seed 48112, deterministic. The page with the
+figures is `bismuth.mino.mobi/study`, rendered by `phase-report.mjs` from
+the JSON kept in `packages/bismuth/phase/`; the tables here are the numbers
+that matter. Ticks are engine ticks: every
 mason and every worm moving once.
 
 ## The framing
@@ -123,15 +124,42 @@ and fewer edges to give — they erode their own niche and starve. A smaller
 crystal (higher surface-to-mass) loses instead. Long coexistence, eight times
 the crystal's own growth time, but not a fixed point.
 
+## T · across tilings (8 masons, budget 3,000; `--exp T`)
+
+| substrate | max bonds | lay rate | 1 mason → 1,500 | 8 masons → 1,500 | edible (≤ 3 bonds) | healed of eaten, sink 0.012 | grazers on a capped crystal |
+|---|---|---|---|---|---|---|---|
+| square grid (cubes) | 6 | 0.0220 | 341,996 | 42,825 | 20% | 20% | bloom, collapse (326 worms) |
+| hexagons | 8 | 0.0113 | 1,167,530 | 90,723 | 21% | 30% | churn: ~100 alive, 858 born, 757 faded, crystal 1,956 at 400k |
+| Penrose P3 | 6 | 0.0134 | 486,359 | 68,659 | 49% | 22% | bloom, collapse (243 worms) |
+| kagome | 8 | 0.0187 | 526,166 | 55,742 | 58% | 19% | bloom, collapse (256 worms) |
+| Ammann–Beenker | 6 | 0.0122 | 788,440 | 80,124 | 50% | 27% | bloom, collapse (196 worms) |
+
+The sink does not move with the substrate: at P 0.012 without recycling every
+crystal reaches its budget and then loses about two thirds of it; at 0.036
+every one collapses; with recycling every one holds. The lay rate halves off
+the lattice (more neighbours to satisfy before a site is fed), the single
+mason's handicap grows with coordination (×8 on cubes, ×13 on hexagons:
+nucleation is the whole bottleneck), and hexagons heal best (a bite in an
+eight-bond wall is a deeper kink).
+
+The grazers are where the substrate speaks. `exposed 3` is a fifth of the
+bricks on cubes and hexagons and half of them on the rhomb and kagome
+tilings, whose crystals are skeletal. Where half the crystal is edible the
+grazers are not surface-limited and bloom with nobody fading; on the lattice
+they bloom slower; on hexagons, where edible tips are scarce and walls heal
+fast, the population churns near a hundred while the crystal holds near two
+thousand. A functional response is a property of diet and geometry together.
+
 ## Next
 
 - Shape as potential: B across habits at equal mass (towers should defend, plates not).
 - Miners (`depth +1`) at the same drain: hollowed into a shell that fails at once, a different collapse.
 - The grazers' fixed point: a colony that never cools (budget beyond the window) with `exposed 3`, so healing never stops.
 - `birthEvery` on the masons with breeding worms, and a law that lets a worm eat a mason: the first place cycles could appear.
-- Tilings: coordination number changes the walk, the healing, and what "exposed" means (kagome triangles have three edge-neighbours, hexagons six); the grazers' coexistence time should move with it.
+- Tilings, properly: set `exposed` per substrate as a fraction of its coordination rather than a count, and rerun the grazers so the diet is the same slice of each crystal.
 
 ```bash
 node packages/bismuth/phase.mjs --exp A --out /tmp/A.json      # ~10 min each for A, B; C2 ~7 min; D ~1 min
-node packages/bismuth/phase-report.mjs /tmp/A.json /tmp/B.json /tmp/C.json /tmp/C2.json /tmp/D.json --out report.html
+node packages/bismuth/phase.mjs --exp T --out packages/bismuth/phase/T.json   # ~2 min: five substrates
+node packages/bismuth/phase-report.mjs packages/bismuth/phase/{A,B,C,C2,D,L,G,T}.json --full --out bismuth/study.html
 ```

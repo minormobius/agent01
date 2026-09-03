@@ -12,6 +12,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 const args = process.argv.slice(2);
 const outIdx = args.indexOf("--out");
 const OUT = outIdx >= 0 ? args[outIdx + 1] : "phase-report.html";
+const FULL = args.includes("--full");          // a whole document with a site header (bismuth.mino.mobi/study); without it, a fragment for an artifact
 const files = args.filter((a, i) => a.endsWith(".json") && i !== outIdx + 1);
 const EX = {};
 for (const f of files) { const j = JSON.parse(readFileSync(f, "utf8")); Object.assign(EX, j.experiments); }
@@ -66,15 +67,15 @@ function lines({ title, note, series, xmax, ymax, xLabel, yLabel, unit }) {
   s += `<text class="ax-title" transform="translate(12 ${T + ph / 2}) rotate(-90)" text-anchor="middle">${esc(yLabel)}</text>`;
   series.forEach((sr, k) => {
     const pts = sr.points.filter((p) => p[0] <= xmax).map((p) => `${xs(p[0]).toFixed(1)},${ys(Math.min(ymax, p[1])).toFixed(1)}`).join(" ");
-    s += `<polyline class="ln s${(k % 4) + 1}" points="${pts}"/>`;
+    s += `<polyline class="ln s${(k % 5) + 1}" points="${pts}"/>`;
     const last = sr.points[sr.points.length - 1];
-    s += `<circle class="dot s${(k % 4) + 1}" cx="${xs(Math.min(xmax, last[0]))}" cy="${ys(Math.min(ymax, last[1]))}" r="3.5"/>`;
+    s += `<circle class="dot s${(k % 5) + 1}" cx="${xs(Math.min(xmax, last[0]))}" cy="${ys(Math.min(ymax, last[1]))}" r="3.5"/>`;
   });
-  s += `</svg></div><ul class="legend">${series.map((sr, k) => `<li><i class="sw s${(k % 4) + 1}"></i>${esc(sr.label)}</li>`).join("")}</ul></figure>`;
+  s += `</svg></div><ul class="legend">${series.map((sr, k) => `<li><i class="sw s${(k % 5) + 1}"></i>${esc(sr.label)}</li>`).join("")}</ul></figure>`;
   return s;
 }
 
-const A = EX.A, B = EX.B, C = EX.C, C2 = EX.C2, D = EX.D, L = EX.L, Gz = EX.G;
+const A = EX.A, B = EX.B, C = EX.C, C2 = EX.C2, D = EX.D, L = EX.L, Gz = EX.G, T = EX.T;
 const find = (runs, pred) => runs.find(pred);
 const Pof = (bite) => (3 * 0.04 * bite);
 
@@ -145,6 +146,32 @@ if (D) {
   dTable += `</tbody></table></div>`;
 }
 
+// ── T: across tilings ──
+let figT = "", tableT = "", grazeT = "";
+if (T) {
+  const fate = (r) => (FATE[r.outcome] || FATE.steady);
+  tableT = `<div class="scroll"><table><thead><tr><th>substrate</th><th>bonds, max</th><th>lay rate, 8 masons</th><th>1 mason → 1,500</th><th>8 masons → 1,500</th><th>terraces (1 / 8)</th><th>edible surface</th></tr></thead><tbody>`;
+  for (const r of T.runs) tableT += `<tr><td>${esc(r.label)}</td><td>${r.maxNb}</td><td>${r.layRate.toFixed(4)}</td><td>${fmt(r.fronts[0].ticks)}</td><td>${fmt(r.fronts[1].ticks)}</td><td>${r.fronts[0].terraces} / ${r.fronts[1].terraces}</td><td>${(100 * r.edible).toFixed(0)}%</td></tr>`;
+  tableT += `</tbody></table></div>`;
+  // the sink per substrate: rows substrates, columns (recycle, P)
+  const cols = [[false, 0.1], [false, 0.3], [true, 0.1], [true, 0.3]];
+  figT = heatmap({
+    rows: T.runs, cols,
+    cell: (r, c) => r.sink.find((x) => x.params.recycle === c[0] && x.params.worms.bite === c[1]),
+    rowLabel: (r) => r.label.length > 12 ? r.label.slice(0, 11) + "…" : r.label, colLabel: (c) => `${c[0] ? "recycle" : "sink"} ${(3 * 0.04 * c[1]).toFixed(3)}`,
+    rowTitle: "substrate", colTitle: "worm pressure, bricks a tick, without and with recycling",
+    title: "T · the sink across tilings", note: "8 masons, budget 3,000, worms released at 500 bricks, 200k ticks; the number is the crystal's mass at the end",
+  });
+  grazeT = `<div class="scroll"><table><thead><tr><th>substrate</th><th>sink 0.012: healed of eaten</th><th>grazers</th><th>worms peak</th><th>left</th><th>born</th><th>faded</th><th>eaten</th><th>mass</th></tr></thead><tbody>`;
+  for (const r of T.runs) { const sk = r.sink[0], gz = r.grazers; grazeT += `<tr><td>${esc(r.label)}</td><td>${fmt(sk.repairs)} of ${fmt(sk.eaten)} (${(100 * sk.repairs / Math.max(1, sk.eaten)).toFixed(0)}%)</td><td class="${fate(gz).cls}-t">${fate(gz).label}</td><td>${fmt(gz.wormPeak)}</td><td>${fmt(gz.wormsLeft)}</td><td>${fmt(gz.births)}</td><td>${fmt(gz.deaths)}</td><td>${fmt(gz.eaten)}</td><td>${fmt(gz.mass)} of ${fmt(gz.peak)}</td></tr>`; }
+  grazeT += `</tbody></table></div>`;
+  const gseries = T.runs.map((r) => ({ label: r.label, points: r.grazers.series.map((s) => [s[0], s[2]]) }));
+  const xmax = Math.max(...T.runs.map((r) => r.grazers.ticks));
+  const wmax = Math.max(4, ...T.runs.map((r) => r.grazers.wormPeak));
+  grazeT += lines({ title: "T · grazers across tilings — worms", note: "8 masons, budget 3,000, released at 800; only bricks with three bonds or fewer are edible; split after 15, fade after 400, recycling on", xmax, ymax: Math.ceil(wmax / 10) * 10, xLabel: "ticks after release", yLabel: "worms alive", series: gseries });
+  grazeT += lines({ title: "T · grazers across tilings — crystal", note: "the same runs: the crystal's mass", xmax, ymax: Math.ceil(Math.max(...T.runs.map((r) => r.grazers.peak)) / 500) * 500, xLabel: "ticks after release", yLabel: "bricks in the crystal", series: T.runs.map((r) => ({ label: r.label, points: r.grazers.series.map((s) => [s[0], s[1]]) })) });
+}
+
 // ── A repair table: healing fraction ──
 let repairNote = "";
 if (A) {
@@ -160,21 +187,21 @@ const html = `<title>Masons and Worms</title>
   --bg: #f6f4f9; --paper: #fdfcfe; --ink: #1c1730; --ink-2: #4d4763; --ink-3: #7d7790; --line: #d9d4e4;
   --accent: #8a5cf5; --gold: #b07b1d;
   --grew: #2a78d6; --growing: #86b6ef; --steady: #d8d4e2; --eroding: #f0a39a; --collapse: #e34948;
-  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #4a3aa7;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #4a3aa7; --s5: #eda100;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #100d18; --paper: #17131f; --ink: #ece8f4; --ink-2: #b9b2c9; --ink-3: #857e97; --line: #2b2638;
   --accent: #a98cff; --gold: #d9a54a;
   --grew: #3987e5; --growing: #1c5cab; --steady: #383547; --eroding: #8f3b34; --collapse: #e66767;
-  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #9085e9;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #9085e9; --s5: #c98500;
   color-scheme: dark;
 } }
 :root[data-theme="dark"] {
   --bg: #100d18; --paper: #17131f; --ink: #ece8f4; --ink-2: #b9b2c9; --ink-3: #857e97; --line: #2b2638;
   --accent: #a98cff; --gold: #d9a54a;
   --grew: #3987e5; --growing: #1c5cab; --steady: #383547; --eroding: #8f3b34; --collapse: #e66767;
-  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #9085e9;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #9085e9; --s5: #c98500;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -214,12 +241,15 @@ svg .cell { cursor: default; }
 svg .cell:hover rect { stroke: var(--ink); }
 svg .grid { stroke: var(--line); stroke-width: 1; }
 svg .ln { fill: none; stroke-width: 2; stroke-linejoin: round; }
-svg .s1 { stroke: var(--s1); } svg .s2 { stroke: var(--s2); } svg .s3 { stroke: var(--s3); } svg .s4 { stroke: var(--s4); }
+svg .s1 { stroke: var(--s1); } svg .s2 { stroke: var(--s2); } svg .s3 { stroke: var(--s3); } svg .s4 { stroke: var(--s4); } svg .s5 { stroke: var(--s5); }
 svg .dot { stroke: var(--paper); stroke-width: 2; }
-svg .dot.s1 { fill: var(--s1); } svg .dot.s2 { fill: var(--s2); } svg .dot.s3 { fill: var(--s3); } svg .dot.s4 { fill: var(--s4); }
+svg .dot.s1 { fill: var(--s1); } svg .dot.s2 { fill: var(--s2); } svg .dot.s3 { fill: var(--s3); } svg .dot.s4 { fill: var(--s4); } svg .dot.s5 { fill: var(--s5); }
 .legend { display: flex; gap: 18px; flex-wrap: wrap; margin: 10px 0 0; padding: 0; list-style: none; font: 13px "Bricolage Grotesque", sans-serif; color: var(--ink-2); }
 .legend .sw { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 6px; border-radius: 2px; }
-.sw.s1 { background: var(--s1); } .sw.s2 { background: var(--s2); } .sw.s3 { background: var(--s3); } .sw.s4 { background: var(--s4); }
+.sw.s1 { background: var(--s1); } .sw.s2 { background: var(--s2); } .sw.s3 { background: var(--s3); } .sw.s4 { background: var(--s4); } .sw.s5 { background: var(--s5); }
+.site { font-family: "Bricolage Grotesque", sans-serif; font-size: 13px; letter-spacing: 0.06em; text-transform: lowercase; color: var(--ink-3); display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
+.site a { color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--line); }
+.site a:hover { color: var(--accent); border-color: var(--accent); }
 .key { display: flex; gap: 14px; flex-wrap: wrap; margin: 14px 0 0; font: 13px "Bricolage Grotesque", sans-serif; color: var(--ink-2); }
 .key i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; }
 table { border-collapse: collapse; width: 100%; margin: 18px 0 0; font: 13.5px/1.4 "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
@@ -242,6 +272,7 @@ a { color: var(--accent); }
 <p><b>The masons are a rate, not a front.</b> One mason or sixteen lay the same crystal with the same terraces; sixteen lay it seventeen times faster. Fronts are the terrace rule's; masons are flux.</p>
 <p><b>Without recycling every worm wins eventually.</b> The budget is a finite potential and the worms are a constant drain; the crystal's life is budget ÷ pressure. With recycling the melt is a closed pool and the crystal becomes a living steady state: a thousand bricks standing while twenty-five thousand pass through.</p>
 <p><b>The crystal heals, but only at its edges.</b> A worm's bite leaves a kink, and kinks fill first; up to half the wounds close. Bites in the middle of a face starve like everything else in the middle of a face: the Berg effect is the immune system's blind spot.</p>
+<p><b>Across tilings the sink is a sink, and the diet is not.</b> Every substrate reaches its budget, loses it without recycling, holds it with recycling, and heals a fifth to a third of its wounds. But "exposed" cuts a different slice of each crystal: a fifth of the bricks on cubes and hexagons, half on rhombs and kagome, so the same grazers bloom on the skeletal tilings, bloom slowly on the lattice, and churn on hexagons.</p>
 <p><b>Worms that breed have two fates, and neither is a cycle.</b> Below a threshold appetite they starve out; above it they bloom and eat the crystal to nothing, however slowly they start (a run that looked steady at 300k ticks hit a thousand worms by 700k). No cycles anywhere, because a worm inside a crystal always has a brick under it: its intake does not fall with the crystal's density until the crystal is nearly gone. Restricting worms to exposed bricks, so the surface bounds intake, buys long coexistence, 480k ticks on a capped crystal, that ends in the grazers' own extinction: eating edges smooths the crystal and removes their food.</p>
 </div>
 
@@ -288,6 +319,16 @@ ${figG}
 <p>On an uncapped crystal the grazers hold at six to sixteen for 700k ticks while the crystal grows to 13,000 bricks, then bloom and eat it, because the surface grew with the crystal until it could feed a bloom: the crystal grows itself into its own consumer. On a crystal capped at 6,000 the same grazers hold at four to twelve for 480k ticks, 35 born and 39 faded, and then die out with the crystal intact at 5,980 bricks. They ate the corners and edges, the masons healed what they could while the colony was live, and when it cooled the grazers were left smoothing a crystal that had fewer and fewer edges to give. A grazer erodes its own niche. On a crystal capped at 3,000 the surface-to-mass ratio is high enough that the same grazers win and the crystal collapses; at twice the bite, so does the 6,000 one.</p>
 <p>That is the phase space of the breeding worm, then: extinction, bloom, and, for a consumer that can only eat what the geometry exposes, a long coexistence that ends one way or the other. Long relative to everything else in the system (the crystal's whole growth takes 60k ticks), but not a fixed point. Cycles would need one more thing this system lacks: a prey that breeds. The colony's <code>birthEvery</code> can give the masons that; nothing yet lets a worm eat a mason.</p>
 
+<h2>T · Across tilings</h2>
+<p>The lattice is the substrate, not the brain, and the substrate is a bond graph. On the cubic lattice a brick has six face-neighbours; on a prism over a tiling it has its tile's edge-neighbours plus the layer above and below: eight on hexagons, six on Penrose or Ammann rhombs, five on kagome's triangles and eight on its hexagons. That changes the mason's walk, the Kossel rates (a kink on hexagons is a deeper hole), what a worm can reach, what heals, and what "exposed" means. So the same experiments, per substrate: the free lay rate, the fronts for one mason and eight, the sink at two pressures with and without recycling, and grazers on a capped crystal.</p>
+${tableT}
+<p class="note">Edible surface: the fraction of bricks with three bonds or fewer at 1,500 bricks, which is what a grazer with <code>exposed 3</code> can eat. The bond count is the substrate's, so the same threshold cuts a different slice of each crystal.</p>
+${figT}
+${grazeT}
+${T ? "" : "<p class='note'>(experiment T not loaded)</p>"}
+<p>Three things move with the substrate and one does not. <b>The lay rate</b> halves off the lattice (0.022 a tick on cubes against 0.011 to 0.019 on prisms at the same budget and colony): a prism brick has more neighbours to satisfy before the terrace rule feeds it. <b>The single mason's handicap</b> grows with coordination: one mason is eight times slower than eight on the lattice and thirteen times slower on hexagons, because on an eight-bond substrate nucleation is the whole bottleneck and one mason waits at every front in turn. <b>The healing fraction</b> is highest on hexagons (30% of wounds closed, against 20% on the lattice): a bite in an eight-bond wall leaves a deeper kink, which fills faster. <b>The sink does not move.</b> At the same pressures every substrate reaches its budget and then loses two thirds of it without recycling, collapses at three times the pressure, and holds with recycling. The drain is a drain whatever the geometry.</p>
+<p>The grazers are where the substrate speaks. "Three bonds or fewer" is 20% of the bricks on the lattice and on hexagons, and half of them on Penrose, Ammann–Beenker and kagome, whose crystals are skeletal, all rhomb tips and triangle corners. Where half the crystal is edible the grazers are not surface-limited at all, and they bloom and eat it inside 400k ticks with nobody fading. On the lattice they bloom too, slower. On hexagons, the one substrate where the edible tips are scarce <em>and</em> the walls heal fast, the population churns instead, 858 born and 757 faded, holding near a hundred while the crystal holds near two thousand. A functional response is a property of the diet and the geometry together, and hexagons are the only tiling here on which "exposed" means what it meant on cubes.</p>
+
 <h2>Where this sits</h2>
 <p>The nearest relatives are not Life-like automata but the growth models: the Eden model and diffusion-limited aggregation for the masons (an Eden cluster with a Berg rule is close to what a hopper is), and etching or corrosion models for the worms. Growth plus a constant sink is harvested logistic growth, which has the Allee-like collapse seen in A and B. Growth plus a consumer that breeds on a stock is overshoot; a consumer whose intake is bounded by the surface is a consumer–resource system with a functional response, which here gives long transients rather than a fixed point; a consumer that breeds <em>and</em> a producer that breeds is where the oscillations live. In the language of the lab: the masons' colony has <code>birthEvery</code> and <code>retireAfter</code>, so the producer can be made to breed today; the missing law is worms that eat masons.</p>
 
@@ -313,5 +354,18 @@ ${figG}
 })();
 </script>
 `;
-writeFileSync(OUT, html);
+const doc = FULL
+  ? `<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Masons and worms: the two-agent phase space of the bismuth engine, measured. The sink, the Allee threshold, healing at the rims, breeding worms that bloom, grazers that starve on the crystal they smoothed, and the same across tilings.">
+<meta name="theme-color" content="#100d18">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='18' width='28' height='12' fill='%23d7a24a'/%3E%3Crect x='6' y='12' width='20' height='6' fill='%23b64a9c'/%3E%3Crect x='10' y='6' width='12' height='6' fill='%234c6fd6'/%3E%3Crect x='13' y='2' width='6' height='4' fill='%2360c8b8'/%3E%3C/svg%3E">
+${html.replace("<main>\n", '<main>\n<nav class="site"><a href="/">bismuth</a><a href="/lab">the playground</a><a href="https://hopper.mino.mobi">hopper</a><a href="https://mino.mobi">mino.mobi</a></nav>\n')}
+</html>
+`
+  : html;
+writeFileSync(OUT, doc);
 console.log("wrote " + OUT);
