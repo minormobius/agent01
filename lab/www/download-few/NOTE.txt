@@ -1,0 +1,1 @@
+The bunny link cut off mid-vertex-list before any face data (2503 verts blows the 40k budget), and stanford.edu isn't a source the real asset pipeline recognizes anyway. Added a 6th shape instead — Loop, a torus, iced and sprinkled.

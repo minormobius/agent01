@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tarot Court — draw an advisor from your own circle</title>
+<meta property="og:title" content="Tarot Court">
+<meta property="og:description" content="Add a few people you trust to a small court and tag what each is good for. Describe what's going on and it reads your palm (or draws a card, your call), and points at one of them.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  section { margin-top: 2.25rem; }
+  .addRow { display: flex; flex-wrap: wrap; gap: .6rem; align-items: stretch; }
+  .addRow select { flex: 1 1 220px; }
+  .addRow .ta-wrap { flex: 2 1 260px; position: relative; }
+  select { width: 100%; padding: .8rem 1rem; background: var(--bg-raised); color: var(--fg);
+    border: 1px solid var(--border); border-radius: var(--radius); font: inherit; }
+  select:focus { outline: none; border-color: var(--accent); }
+
+  #courtList { list-style: none; margin: 1.25rem 0 0; padding: 0; display: flex; flex-direction: column; gap: .6rem; }
+  .courtCard { display: flex; align-items: center; gap: .75rem; padding: .6rem .8rem;
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-raised); }
+  .courtCard .av { width: 40px; height: 40px; border-radius: 50%; flex: none; object-fit: cover;
+    background: var(--bg); display: block; }
+  .courtCard .avFallback { width: 40px; height: 40px; border-radius: 50%; flex: none; background: var(--bg);
+    display: flex; align-items: center; justify-content: center; color: var(--fg); font-weight: 700; }
+  .courtCard .meta { flex: 1 1 auto; min-width: 0; }
+  .courtCard .h { color: var(--fg); font-size: .88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .courtCard .dn { color: var(--muted); font-size: .76rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .courtCard .badge { flex: none; font-size: .72rem; color: var(--accent); border: 1px solid var(--accent-dim);
+    background: var(--accent-dim); border-radius: var(--radius); padding: .25rem .5rem; white-space: nowrap; }
+  .courtCard .rm { flex: none; min-width: 44px; min-height: 44px; padding: 0; font-size: 1rem;
+    background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .courtCard .rm:hover { background: var(--error-bg); color: var(--error); border-color: var(--error); }
+  .emptyNote { color: var(--muted); font-size: .82rem; margin-top: 1.25rem; }
+
+  .subhead { font-size: .8rem; color: var(--muted); font-weight: 600; margin: 1.1rem 0 .4rem; text-transform: uppercase; letter-spacing: .02em; }
+  #clearHistoryBtn:disabled { opacity: .5; cursor: not-allowed; }
+  #clearHistoryBtn:disabled:hover { background: var(--accent-dim); color: var(--accent); }
+
+  .authstate { font-size: .82rem; color: var(--muted); margin: 1.25rem 0 .6rem; }
+  .authstate b { color: var(--fg); }
+  .authRow { display: flex; flex-wrap: wrap; gap: .6rem; align-items: stretch; }
+  .authRow input { flex: 1 1 200px; }
+
+  #problem { min-height: 5rem; resize: vertical; }
+  .drawRow { margin-top: .8rem; display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+  #drawBtn:disabled { opacity: .5; cursor: not-allowed; }
+  #drawBtn:disabled:hover { background: var(--accent-dim); color: var(--accent); }
+  .modeBtn { padding: .75rem 1rem; font-size: .82rem; min-height: 44px; }
+  .modeBtn[aria-pressed="false"] { background: transparent; color: var(--muted); border-color: var(--border); }
+  .modeBtn[aria-pressed="false"]:hover { background: var(--bg-raised); color: var(--fg); border-color: var(--border); }
+  .hint { color: var(--muted); font-size: .78rem; }
+
+  #reading { margin-top: 1.5rem; }
+  .card { border: 1px solid var(--accent); border-radius: var(--radius); background: var(--accent-dim);
+    padding: 1.1rem 1.25rem; }
+  .card .name { font-size: 1.2rem; color: var(--accent); font-weight: 700; }
+  .cardGlyph { display: inline-block; margin-right: .4rem; font-size: 1.1em; }
+  .card .domainLine { color: var(--fg); font-size: .85rem; margin-top: .3rem; }
+  .card .mood { color: var(--muted); font-size: .82rem; margin-top: .5rem; font-style: italic; }
+
+  .recBlock { margin-top: 1rem; }
+  .recCard { display: flex; align-items: center; gap: .8rem; padding: .8rem 1rem;
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-raised);
+    text-decoration: none; }
+  .recCard .av { width: 46px; height: 46px; border-radius: 50%; flex: none; object-fit: cover; background: var(--bg); }
+  .recCard .avFallback { width: 46px; height: 46px; border-radius: 50%; flex: none; background: var(--bg);
+    display: flex; align-items: center; justify-content: center; color: var(--fg); font-weight: 700; }
+  .recCard .meta { min-width: 0; }
+  .recCard .dn { color: var(--fg); font-size: .95rem; font-weight: 600; }
+  .recCard .h { color: var(--muted); font-size: .8rem; }
+  .recLead { color: var(--muted); font-size: .8rem; margin-bottom: .5rem; }
+  .noMatch { color: var(--muted); font-size: .85rem; margin-top: 1rem; }
+  .shareRow { margin-top: 1rem; display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+
+  .note { margin-top: 2.5rem; }
+
+  .letterRank { display: flex; flex-wrap: wrap; gap: .4rem; list-style: none; padding: 0; margin: .9rem 0 0; }
+  .letterRank li { border: 1px solid var(--border); border-radius: var(--radius); padding: .3rem .55rem;
+    background: var(--bg-raised); color: var(--muted); font-size: .76rem; }
+  .letterRank li b { color: var(--fg); }
+  .letterText { white-space: pre-wrap; font-family: inherit; background: var(--bg-raised);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.15rem; line-height: 1.55;
+    margin: 1rem 0 0; color: var(--fg); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Tarot Court</h1>
+  <p class="sub">Build a small court of people you trust, and tag what each of them is actually good for.
+  When something's going on, describe it below — this reads your palm (or draws a card, whichever you pick)
+  and points at whichever one of your court covers that ground.</p>
+
+  <div class="shareRow">
+    <button type="button" id="siteShareBtn">copy a link to this site</button>
+    <span class="hint">plain text — a title, a one-line description, and the address. nothing is posted for you.</span>
+  </div>
+
+  <section>
+    <h2>your court</h2>
+    <div class="addRow">
+      <select id="domainSelect" aria-label="what this person is good for">
+        <option value="cups">♥ Cups — heart &amp; feelings</option>
+        <option value="wands">♣ Wands — action &amp; creativity</option>
+        <option value="swords">♠ Swords — conflict &amp; hard truths</option>
+        <option value="pentacles">♦ Pentacles — money &amp; practical</option>
+        <option value="major">★ Major Arcana — the big stuff</option>
+      </select>
+      <span class="ta-wrap">
+        <input type="text" id="handleInput" placeholder="type a handle to add them">
+      </span>
+    </div>
+    <div id="addErr" class="err hidden" style="margin-top:.75rem;"></div>
+    <p class="hint" id="signLegend">♥ cups &nbsp; ♣ wands &nbsp; ♠ swords &nbsp; ♦ pentacles &nbsp; ★ major arcana —
+      the four suits are often traced to where playing-card suits came from (hearts, clubs, spades, diamonds);
+      the star just marks "bigger than one lane." Same signs mark badges below, drawn cards, and your patterns.</p>
+    <ul id="courtList"></ul>
+    <p class="emptyNote" id="emptyNote" hidden>Nobody in your court yet — pick what they're good for above,
+      then type their handle and pick them from the list.</p>
+
+    <p class="authstate" id="authstate">checking sign-in…</p>
+    <div class="authRow" id="signinRow">
+      <input type="text" id="pdsHandleInput" placeholder="you.bsky.social" autocomplete="off">
+      <button type="button" id="signinBtn">sign in to save your court</button>
+    </div>
+    <div class="authRow hidden" id="signedinRow" style="margin-top:.6rem">
+      <button type="button" id="saveCourtBtn">save court to my repo</button>
+      <button type="button" id="loadCourtBtn">load court from my repo</button>
+      <button type="button" id="signoutBtn">sign out</button>
+    </div>
+    <div id="pdsErr" class="err hidden" style="margin-top:.6rem;"></div>
+  </section>
+
+  <section>
+    <h2>ask the deck</h2>
+    <textarea id="problem" placeholder="what's going on? (optional — leave blank to just shuffle)"></textarea>
+    <div class="drawRow" style="margin-top:.6rem;">
+      <span class="hint">reading style:</span>
+      <button type="button" id="modePalmBtn" class="modeBtn" aria-pressed="false">palm lines</button>
+      <button type="button" id="modeCardsBtn" class="modeBtn" aria-pressed="false">tarot cards</button>
+    </div>
+    <p class="hint" id="modeLegend">the same five lanes map onto five palm lines, not just the four suits and
+      the major arcana: heart line (♥), head line (♠), life line (★), fate line (♦), sun line (♣).</p>
+    <div class="drawRow">
+      <button type="button" id="drawBtn">draw a card</button>
+      <span class="hint" id="drawHint"></span>
+    </div>
+    <div id="reading" class="hidden">
+      <div class="card">
+        <div class="name"><span id="cardGlyph" class="cardGlyph" aria-hidden="true"></span><span id="cardName"></span></div>
+        <div class="domainLine" id="cardDomain"></div>
+        <div class="mood" id="cardMood"></div>
+        <div class="hint" id="cardWhy" style="margin-top:.5rem;"></div>
+        <div class="hint" id="cardRepeat" style="margin-top:.3rem;"></div>
+      </div>
+      <div class="recBlock" id="recBlock"></div>
+      <div class="shareRow">
+        <button type="button" id="shareBtn">copy this reading</button>
+        <span class="hint">copies the card and who it points to as plain text — nothing is sent anywhere</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>patterns in your readings</h2>
+    <p class="sub" style="margin-top:.4rem;">Every card this page draws for you gets tallied here, on this
+    device only — a crosscheck against your own prior readings, not a prediction about anyone.
+    <span id="patternsCount"></span></p>
+    <p class="emptyNote" id="patternsEmpty">Draw a card above and it'll start showing up here.</p>
+    <div id="patternsBody" class="hidden">
+      <p class="subhead">by lane</p>
+      <ol id="domainFreq" class="letterRank" aria-label="how often each lane has come up in your readings"></ol>
+      <p class="subhead">by card</p>
+      <ol id="cardFreq" class="letterRank" aria-label="which individual cards have repeated in your readings"></ol>
+    </div>
+    <div class="drawRow" style="margin-top:1rem;">
+      <button type="button" id="clearHistoryBtn" disabled>clear my reading history</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>the oracle's letter</h2>
+    <p class="sub" style="margin-top:.4rem;">This deck's own card names and moods are the only "database"
+    a page with no network can honestly read from. Count which letters it already capitalizes most — mostly
+    an accident of proper nouns like "The Chariot" or "Cups" — and you get a ranking. Write a short letter
+    where each word's capital is a coin-flip weighted by that same ranking, and you get this.</p>
+    <ol id="letterRank" class="letterRank" aria-label="how often each letter appears capitalized in this deck's own text"></ol>
+    <div class="drawRow">
+      <button type="button" id="letterBtn">write a letter</button>
+    </div>
+    <div id="letterOut" class="hidden">
+      <pre id="letterText" class="letterText"></pre>
+      <p class="hint" id="letterStat"></p>
+    </div>
+  </section>
+
+  <p class="note">The reading of "what's going on" is a blunt keyword guess at which lane it falls
+  in — heart, action, conflict, money — not an analysis of you or of anyone in your court. Which suit
+  each person is filed under is whatever you told this page when you added them; the deck doesn't know
+  anything real about them beyond that. Your court, its tags, and the tally of your past readings all
+  live only in this browser's storage on this device — clear your browsing data and it's gone.</p>
+</main>
+
+<script type="module">
+import { labPds } from '../_kit/pds.js';
+(function () {
+  'use strict';
+
+  document.getElementById('crumb').innerHTML = kit.crumb('hey-tarot');
+
+  var STORE_KEY = 'hey-tarot-court-v1';
+
+  var SUITS = [
+    { key: 'cups', label: 'Cups', glyph: '♥', domain: 'matters of the heart — love, family, feelings' },
+    { key: 'wands', label: 'Wands', glyph: '♣', domain: 'action, ambition, creative fire' },
+    { key: 'swords', label: 'Swords', glyph: '♠', domain: 'conflict, truth, hard conversations' },
+    { key: 'pentacles', label: 'Pentacles', glyph: '♦', domain: 'money, work, practical matters' },
+  ];
+  var SUIT_BY_KEY = {};
+  SUITS.forEach(function (s) { SUIT_BY_KEY[s.key] = s; });
+  var MAJOR_DOMAIN = 'the big stuff — the calls too large for one lane';
+  var MAJOR_GLYPH = '★';
+
+  function domainGlyph(key) {
+    if (key === 'major') return MAJOR_GLYPH;
+    return SUIT_BY_KEY[key] ? SUIT_BY_KEY[key].glyph : '';
+  }
+
+  var RANKS = ['Ace', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+    'Page', 'Knight', 'Queen', 'King'];
+  var RANK_MOOD = {
+    Ace: 'a fresh start', Two: 'a choice, or a pairing', Three: 'the first result showing',
+    Four: 'a pause, taking stock', Five: 'friction, a setback', Six: 'things evening out',
+    Seven: 'a test of nerve', Eight: 'movement, momentum', Nine: 'nearly there',
+    Ten: 'the full weight of it', Page: "a beginner's question", Knight: 'chasing it hard',
+    Queen: 'holding it steady', King: 'command of the whole thing',
+  };
+  var MAJOR = [
+    ['The Fool', 'a leap with no net'], ['The Magician', 'you already have what you need'],
+    ['The High Priestess', "trust what you're not saying out loud"],
+    ['The Empress', 'let it grow instead of forcing it'],
+    ['The Emperor', 'someone needs to set the terms'],
+    ['The Hierophant', 'the old way, for a reason'],
+    ['The Lovers', 'a real choice, not a comfortable one'],
+    ['The Chariot', 'push straight through'],
+    ['Strength', 'patience is the strength here'],
+    ['The Hermit', 'sit with it alone first'],
+    ['Wheel of Fortune', 'the timing is out of your hands'],
+    ['Justice', 'be honest about your part in it'],
+    ['The Hanged Man', 'stop, and see it upside down'],
+    ['Death', 'something has to end for the rest to start'],
+    ['Temperance', 'find the mix, not the extreme'],
+    ['The Devil', "notice what you're actually stuck to"],
+    ['The Tower', 'it was going to fall either way'],
+    ['The Star', 'quiet hope, not a fix'],
+    ['The Moon', "you don't have the whole picture yet"],
+    ['The Sun', "this one's actually fine"],
+    ['Judgement', 'a reckoning, overdue'],
+    ['The World', "this chapter's closed — start the next one"],
+  ];
+
+  var DECK = [];
+  MAJOR.forEach(function (m) {
+    DECK.push({ name: m[0], suit: 'major', domain: MAJOR_DOMAIN, mood: m[1] });
+  });
+  SUITS.forEach(function (s) {
+    RANKS.forEach(function (r) {
+      DECK.push({ name: r + ' of ' + s.label, suit: s.key, domain: s.domain, mood: RANK_MOOD[r] });
+    });
+  });
+  // ---------------------------------------------------------------------
+  // palm lines — an alternate reading style over the exact same five lanes
+  // the tarot deck already uses. Real palmistry correspondences, not
+  // invented ones: heart line (emotion), head line (intellect/decisions),
+  // life line (the big turns), fate line (career/practical path), and the
+  // sun/Apollo line (creative success) — which line by line onto this
+  // page's cups/swords/major/pentacles/wands domains.
+  // ---------------------------------------------------------------------
+  var PALM_LINES = [
+    { suit: 'cups', name: 'Heart Line', where: 'runs across the top of the palm, under the fingers' },
+    { suit: 'swords', name: 'Head Line', where: 'runs straight through the middle of the palm' },
+    { suit: 'major', name: 'Life Line', where: 'curves around the base of the thumb' },
+    { suit: 'pentacles', name: 'Fate Line', where: 'runs vertically up the centre of the palm' },
+    { suit: 'wands', name: 'Sun Line', where: 'runs up toward the ring finger — also called the Apollo line' },
+  ];
+  var LINE_BY_SUIT = {};
+  PALM_LINES.forEach(function (l) { LINE_BY_SUIT[l.suit] = l; });
+
+  var TRAITS = ['deep and unbroken', 'faint, still forming', 'forked into two', 'broken, then mended',
+    'crossed by another line', 'curving wide', 'short and sharp', 'doubled, running close alongside itself'];
+  var TRAIT_MOOD = {
+    'deep and unbroken': 'this one is settled — trust it',
+    'faint, still forming': "it hasn't decided what it is yet",
+    'forked into two': 'a real choice, not a comfortable one',
+    'broken, then mended': 'something ended so this could keep going',
+    'crossed by another line': 'someone else is tangled up in this',
+    'curving wide': 'more room here than it looks like',
+    'short and sharp': 'quick, and it means it',
+    'doubled, running close alongside itself': "you're not doing this one alone",
+  };
+
+  function drawPalm(suit) {
+    var line = LINE_BY_SUIT[suit];
+    var domain = suit === 'major' ? MAJOR_DOMAIN : SUIT_BY_KEY[suit].domain;
+    var trait = TRAITS[Math.floor(Math.random() * TRAITS.length)];
+    return { name: line.name + ' — ' + trait, suit: suit, domain: domain, mood: TRAIT_MOOD[trait], where: line.where };
+  }
+
+  var KEYWORDS = {
+    cups: ['love', 'heart', 'relationship', 'breakup', 'break up', 'family', 'friend', 'feel',
+      'feeling', 'lonely', 'miss', 'crush', 'grief', 'sad', 'partner', 'marriage', 'divorce',
+      'dating', ' ex ', 'ex-', 'mom', 'dad', 'parent', 'sibling', 'brother', 'sister', 'wedding',
+      'engaged', 'engagement', 'jealous', 'insecure', 'anxious', 'anxiety', 'depress', 'heartbreak',
+      'heartbroken', 'affection', 'romance', 'romantic', 'wife', 'husband', 'boyfriend',
+      'girlfriend', 'kids', 'child', 'children', 'friendship', 'trust him', 'trust her',
+      'homesick', 'forgive', 'forgiveness', 'crying', 'emotional', 'attachment'],
+    wands: ['creative', 'career', 'ambition', 'motivat', 'starting', 'start a', 'project',
+      'passion', 'stuck', 'goal', 'dream', 'burnout', 'inspir', 'new job', 'idea', 'art',
+      'artistic', 'writing', 'music', 'business', 'startup', 'launch', 'hustle', 'drive',
+      'momentum', 'procrastinat', 'lazy', 'lack of motivation', 'side project', 'hobby',
+      'invent', 'build', 'building', 'pursue', 'pursuing', 'risk', 'bold', 'adventure',
+      'travel', 'move abroad', 'quit my job', 'promotion', 'leadership', 'leader',
+      'initiative', 'entrepreneur'],
+    swords: ['fight', 'conflict', 'argu', 'lie', 'betray', 'truth', 'confront', 'communicat',
+      'anger', 'hurt', 'honest', 'trust issue', 'apolog', 'deceit', 'deception', 'gossip',
+      'rumor', 'drama', 'tension', 'disagreement', 'misunderstanding', 'cut off', 'boundaries',
+      'boundary', 'harsh', 'criticism', 'criticize', 'blunt', 'difficult conversation',
+      'ultimatum', 'ghosted', 'ghosting', 'backstab', 'feud', 'rivalry', 'lawsuit', 'legal',
+      'dispute', 'cheat', 'cheating', 'unfair'],
+    pentacles: ['money', 'rent', 'job', 'work', 'debt', 'budget', 'bills', 'salary', 'finance',
+      'practical', 'house', 'move', 'career change', 'savings', 'mortgage', 'invest',
+      'investment', 'retirement', 'taxes', ' tax ', 'paycheck', 'income', 'expenses', 'broke',
+      'poor', 'wealth', 'rich', 'raise', 'business plan', 'loan', 'credit', 'bank', 'property',
+      'apartment', 'landlord', 'insurance', 'inheritance', 'financial'],
+    major: ['life', 'everything', 'existential', 'crisis', 'huge', 'death', 'future', 'meaning',
+      'identity', 'who am i', 'big decision', 'whole life', 'purpose', 'spiritual',
+      'spirituality', 'fate', 'destiny', 'transformation', 'rebirth', 'ending an era',
+      'life path', 'soul', 'universe', 'cosmic', 'mortality', 'legacy', 'journey', 'awakening',
+      'midlife', 'turning point'],
+  };
+
+  function guessDomain(text) {
+    var t = ' ' + text.toLowerCase() + ' ';
+    var best = null, bestScore = 0, bestHits = [];
+    Object.keys(KEYWORDS).forEach(function (domain) {
+      var score = 0, hits = [];
+      KEYWORDS[domain].forEach(function (kw) {
+        if (t.indexOf(kw) !== -1) { score++; hits.push(kw.trim()); }
+      });
+      if (score > bestScore) { bestScore = score; best = domain; bestHits = hits; }
+    });
+    if (best) return { domain: best, hits: bestHits };
+    var pool = ['cups', 'wands', 'swords', 'pentacles'];
+    return { domain: pool[Math.floor(Math.random() * pool.length)], hits: [] };
+  }
+
+  // ---------------------------------------------------------------------
+  // court — persisted in this browser only, per the standing sign-in-optional
+  // rule: a page that demands OAuth before showing anything is one most
+  // visitors bounce off, and nothing here needs a second device to be useful.
+  // ---------------------------------------------------------------------
+  var court = [];
+  try {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (raw) court = JSON.parse(raw) || [];
+  } catch (e) { court = []; }
+
+  function saveCourt() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(court)); } catch (e) { /* private mode: not fatal */ }
+  }
+
+  var courtListEl = document.getElementById('courtList');
+  var emptyNoteEl = document.getElementById('emptyNote');
+  var drawBtn = document.getElementById('drawBtn');
+  var drawHint = document.getElementById('drawHint');
+
+  function domainLabel(key) {
+    if (key === 'major') return 'Major Arcana';
+    return SUIT_BY_KEY[key] ? SUIT_BY_KEY[key].label : key;
+  }
+
+  function fillAvatar(container, url, label) {
+    if (url) {
+      var img = document.createElement('img');
+      img.className = 'av'; img.src = url; img.alt = ''; img.loading = 'lazy';
+      img.onerror = function () {
+        var span = document.createElement('span');
+        span.className = 'avFallback';
+        span.textContent = (label || '?').replace(/^@/, '').slice(0, 1).toUpperCase();
+        img.replaceWith(span);
+      };
+      container.appendChild(img);
+    } else {
+      var span = document.createElement('span');
+      span.className = 'avFallback';
+      span.textContent = (label || '?').replace(/^@/, '').slice(0, 1).toUpperCase();
+      container.appendChild(span);
+    }
+  }
+
+  function renderCourt() {
+    courtListEl.replaceChildren();
+    emptyNoteEl.hidden = court.length > 0;
+    court.forEach(function (member, idx) {
+      var li = document.createElement('li');
+      li.className = 'courtCard';
+      fillAvatar(li, member.avatar, member.displayName || member.handle);
+      var meta = document.createElement('span'); meta.className = 'meta';
+      var h = document.createElement('span'); h.className = 'h'; h.textContent = '@' + member.handle;
+      var dn = document.createElement('span'); dn.className = 'dn';
+      dn.textContent = member.displayName || '';
+      meta.appendChild(h);
+      if (member.displayName) { meta.appendChild(document.createElement('br')); meta.appendChild(dn); }
+      li.appendChild(meta);
+      var badge = document.createElement('span'); badge.className = 'badge';
+      badge.textContent = domainGlyph(member.domain) + ' ' + domainLabel(member.domain);
+      li.appendChild(badge);
+      var rm = document.createElement('button'); rm.type = 'button'; rm.className = 'rm';
+      rm.textContent = '×'; rm.setAttribute('aria-label', 'remove @' + member.handle + ' from your court');
+      rm.addEventListener('click', function () {
+        court.splice(idx, 1);
+        saveCourt(); renderCourt(); updateDrawState();
+      });
+      li.appendChild(rm);
+      courtListEl.appendChild(li);
+    });
+    updateDrawState();
+  }
+
+  function updateDrawState() {
+    var has = court.length > 0;
+    drawBtn.disabled = !has;
+    drawHint.textContent = has ? '' : 'add someone to your court first';
+  }
+
+  var domainSelect = document.getElementById('domainSelect');
+  var handleInput = document.getElementById('handleInput');
+  var addErrEl = document.getElementById('addErr');
+
+  function addToCourt(handle, actor) {
+    kit.clear(addErrEl);
+    var h = handle.toLowerCase();
+    var domain = domainSelect.value;
+    var existing = court.filter(function (m) { return m.handle.toLowerCase() === h; })[0];
+    if (existing) {
+      existing.domain = domain;
+      if (actor) { existing.displayName = actor.displayName || existing.displayName; existing.avatar = actor.avatar || existing.avatar; }
+    } else {
+      court.push({
+        handle: handle,
+        domain: domain,
+        displayName: actor && actor.displayName,
+        avatar: actor && actor.avatar,
+      });
+    }
+    saveCourt(); renderCourt();
+    handleInput.value = '';
+  }
+
+  kit.handleInput(handleInput, {
+    onPick: function (handle, actor) { addToCourt(handle, actor); },
+  });
+
+  // Enter-with-no-suggestion-picked: try to resolve the typed handle directly,
+  // rather than silently doing nothing — kit.handleInput only fires onPick
+  // when a suggestion row is actually chosen.
+  handleInput.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    var box = document.querySelector('.kit-ta');
+    if (box) return; // a suggestion list is open — let kit.handleInput's own handler take it
+    var raw = handleInput.value.trim().replace(/^@/, '');
+    if (!raw) return;
+    e.preventDefault();
+    kit.clear(addErrEl);
+    kit.bskyGet('com.atproto.identity.resolveHandle', { handle: raw }).then(function (res) {
+      return kit.bskyGet('app.bsky.actor.getProfile', { actor: res.did });
+    }).then(function (profile) {
+      addToCourt(profile.handle, profile);
+    }).catch(function () {
+      kit.showError(addErrEl, 'could not find "@' + raw + '" — check the spelling.');
+    });
+  });
+
+  renderCourt();
+
+  // ---------------------------------------------------------------------
+  // keep it on your account — localStorage is already the source of truth
+  // above; this is purely an optional "also put it in my repo" layer, so
+  // sign-in stays off the critical path per the standing rule.
+  // ---------------------------------------------------------------------
+  var store = labPds();
+  var pdsHandleInput = document.getElementById('pdsHandleInput');
+  var authstateEl = document.getElementById('authstate');
+  var signinRowEl = document.getElementById('signinRow');
+  var signedinRowEl = document.getElementById('signedinRow');
+  var signinBtn = document.getElementById('signinBtn');
+  var signoutBtn = document.getElementById('signoutBtn');
+  var saveCourtBtn = document.getElementById('saveCourtBtn');
+  var loadCourtBtn = document.getElementById('loadCourtBtn');
+  var pdsErrEl = document.getElementById('pdsErr');
+
+  kit.handleInput(pdsHandleInput, {
+    onPick: function (handle) { pdsHandleInput.value = handle; },
+  });
+
+  function renderAuth() {
+    var u = store.user();
+    authstateEl.textContent = '';
+    if (u) {
+      authstateEl.appendChild(document.createTextNode('saving as '));
+      var b = document.createElement('b'); b.textContent = '@' + u.handle;
+      authstateEl.appendChild(b);
+    } else {
+      authstateEl.textContent = 'court is only in this browser — sign in to also keep a copy in your repo';
+    }
+    signinRowEl.classList.toggle('hidden', !!u);
+    signedinRowEl.classList.toggle('hidden', !u);
+  }
+
+  signinBtn.addEventListener('click', function () {
+    var h = pdsHandleInput.value.trim().replace(/^@/, '');
+    if (!h) { kit.showError(pdsErrEl, 'type a handle first'); return; }
+    kit.clear(pdsErrEl);
+    store.signIn(h).catch(function (e) { kit.showError(pdsErrEl, 'sign-in failed: ' + e.message); });
+  });
+
+  signoutBtn.addEventListener('click', function () {
+    store.signOut().then(renderAuth);
+  });
+
+  saveCourtBtn.addEventListener('click', function () {
+    kit.clear(pdsErrEl);
+    store.save('court', court).then(function () {
+      kit.showError(pdsErrEl, 'saved.'); pdsErrEl.className = 'ok';
+      setTimeout(function () { kit.clear(pdsErrEl); }, 1500);
+    }).catch(function (e) { kit.showError(pdsErrEl, 'save failed: ' + e.message); });
+  });
+
+  loadCourtBtn.addEventListener('click', function () {
+    kit.clear(pdsErrEl);
+    store.load('court').then(function (loaded) {
+      if (!loaded) { kit.showError(pdsErrEl, 'no court saved in your repo yet'); return; }
+      if (!window.confirm('Replace the court in this browser with the one saved in your repo?')) return;
+      court = loaded;
+      saveCourt(); renderCourt();
+    }).catch(function (e) { kit.showError(pdsErrEl, 'load failed: ' + e.message); });
+  });
+
+  store.ready().then(function () {
+    store.onChange(renderAuth);
+    renderAuth();
+  }).catch(function () {
+    authstateEl.textContent = 'sign-in unavailable right now — your court is still saved in this browser';
+  });
+
+  // ---------------------------------------------------------------------
+  // the draw
+  // ---------------------------------------------------------------------
+  var readingEl = document.getElementById('reading');
+  var cardNameEl = document.getElementById('cardName');
+  var cardGlyphEl = document.getElementById('cardGlyph');
+  var cardDomainEl = document.getElementById('cardDomain');
+  var cardMoodEl = document.getElementById('cardMood');
+  var recBlockEl = document.getElementById('recBlock');
+  var cardWhyEl = document.getElementById('cardWhy');
+  var cardRepeatEl = document.getElementById('cardRepeat');
+  var problemEl = document.getElementById('problem');
+  var shareBtn = document.getElementById('shareBtn');
+  var shareText = '';
+
+  // ---------------------------------------------------------------------
+  // reading style — cards or palm lines over the same domain-guess/court-
+  // match logic below. Defaults to palm: that's what was actually asked
+  // for this turn. Remembered per-browser so it doesn't reset on reload.
+  // ---------------------------------------------------------------------
+  var MODE_KEY = 'hey-tarot-mode-v1';
+  var mode = 'palm';
+  try {
+    var storedMode = localStorage.getItem(MODE_KEY);
+    if (storedMode === 'cards' || storedMode === 'palm') mode = storedMode;
+  } catch (e) { /* private mode: default stands */ }
+
+  var modeCardsBtn = document.getElementById('modeCardsBtn');
+  var modePalmBtn = document.getElementById('modePalmBtn');
+
+  function renderMode() {
+    modeCardsBtn.setAttribute('aria-pressed', mode === 'cards' ? 'true' : 'false');
+    modePalmBtn.setAttribute('aria-pressed', mode === 'palm' ? 'true' : 'false');
+    drawBtn.textContent = mode === 'palm' ? 'read my palm' : 'draw a card';
+  }
+  function setMode(m) {
+    mode = m;
+    try { localStorage.setItem(MODE_KEY, mode); } catch (e) { /* private mode: not fatal */ }
+    renderMode();
+  }
+  modeCardsBtn.addEventListener('click', function () { setMode('cards'); });
+  modePalmBtn.addEventListener('click', function () { setMode('palm'); });
+  renderMode();
+
+  // ---------------------------------------------------------------------
+  // prior readings — a per-device tally of what this page has drawn for
+  // this visitor before. Crosschecks the CURRENT draw against THEIR OWN
+  // history only; never touches or ranks the court. Ranking court members
+  // against each other is the thing the standing plan explicitly rules
+  // out (it erodes the "named subject only" boundary) — this is a
+  // different axis: which lanes and cards keep recurring for one visitor,
+  // same spirit as the oracle's-letter section, no new data source.
+  // ---------------------------------------------------------------------
+  var HISTORY_KEY = 'hey-tarot-history-v1';
+  var history = [];
+  try {
+    var rawH = localStorage.getItem(HISTORY_KEY);
+    if (rawH) history = JSON.parse(rawH) || [];
+  } catch (e) { history = []; }
+
+  function saveHistory() {
+    try {
+      if (history.length > 300) history = history.slice(history.length - 300);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    } catch (e) { /* private mode: not fatal */ }
+  }
+
+  var patternsEmptyEl = document.getElementById('patternsEmpty');
+  var patternsBodyEl = document.getElementById('patternsBody');
+  var patternsCountEl = document.getElementById('patternsCount');
+  var domainFreqEl = document.getElementById('domainFreq');
+  var cardFreqEl = document.getElementById('cardFreq');
+  var clearHistoryBtn = document.getElementById('clearHistoryBtn');
+
+  function renderPatterns() {
+    var has = history.length > 0;
+    patternsEmptyEl.hidden = has;
+    patternsBodyEl.classList.toggle('hidden', !has);
+    clearHistoryBtn.disabled = !has;
+    patternsCountEl.textContent = has
+      ? (history.length + ' reading' + (history.length === 1 ? '' : 's') + ' drawn so far.') : '';
+    if (!has) { domainFreqEl.replaceChildren(); cardFreqEl.replaceChildren(); return; }
+
+    var byDomain = {}, byCard = {};
+    history.forEach(function (rec) {
+      byDomain[rec.suit] = (byDomain[rec.suit] || 0) + 1;
+      if (!byCard[rec.name]) byCard[rec.name] = { count: 0, suit: rec.suit };
+      byCard[rec.name].count++;
+    });
+
+    var domainRows = Object.keys(byDomain).map(function (k) { return { key: k, count: byDomain[k] }; })
+      .sort(function (a, b) { return b.count - a.count; });
+    domainFreqEl.replaceChildren();
+    domainRows.forEach(function (row) {
+      var li = document.createElement('li');
+      var pct = Math.round((row.count / history.length) * 100);
+      li.innerHTML = '<b>' + domainGlyph(row.key) + ' ' + domainLabel(row.key) + '</b> ' + row.count + ' (' + pct + '%)';
+      domainFreqEl.appendChild(li);
+    });
+
+    var cardRows = Object.keys(byCard).map(function (k) { return { key: k, count: byCard[k].count, suit: byCard[k].suit }; })
+      .filter(function (r) { return r.count > 1; })
+      .sort(function (a, b) { return b.count - a.count; })
+      .slice(0, 8);
+    cardFreqEl.replaceChildren();
+    if (!cardRows.length) {
+      var li0 = document.createElement('li');
+      li0.textContent = 'nothing has repeated yet';
+      cardFreqEl.appendChild(li0);
+    } else {
+      cardRows.forEach(function (row) {
+        var li = document.createElement('li');
+        li.innerHTML = '<b>' + domainGlyph(row.suit) + ' ' + row.key + '</b> ' + row.count + '×';
+        cardFreqEl.appendChild(li);
+      });
+    }
+  }
+
+  clearHistoryBtn.addEventListener('click', function () {
+    if (!history.length) return;
+    if (!window.confirm('Clear the reading history stored on this device? This cannot be undone.')) return;
+    history = [];
+    saveHistory(); renderPatterns();
+  });
+
+  renderPatterns();
+
+  function recCardNode(member) {
+    var a = document.createElement('a');
+    a.className = 'recCard';
+    a.href = 'https://bsky.app/profile/' + encodeURIComponent(member.handle);
+    a.target = '_blank'; a.rel = 'noopener noreferrer';
+    fillAvatar(a, member.avatar, member.displayName || member.handle);
+    var meta = document.createElement('span'); meta.className = 'meta';
+    var dn = document.createElement('span'); dn.className = 'dn';
+    dn.textContent = member.displayName || ('@' + member.handle);
+    var h = document.createElement('span'); h.className = 'h'; h.textContent = '@' + member.handle;
+    meta.appendChild(dn); meta.appendChild(document.createElement('br')); meta.appendChild(h);
+    a.appendChild(meta);
+    return a;
+  }
+
+  drawBtn.addEventListener('click', function () {
+    if (!court.length) return;
+    var text = problemEl.value.trim();
+    var guess = text ? guessDomain(text) : { domain: DECK[Math.floor(Math.random() * DECK.length)].suit, hits: [] };
+    var domain = guess.domain;
+    var card;
+    if (mode === 'palm') {
+      card = drawPalm(domain);
+    } else {
+      var poolCards = DECK.filter(function (c) { return c.suit === domain; });
+      card = poolCards[Math.floor(Math.random() * poolCards.length)];
+    }
+
+    cardNameEl.textContent = card.name;
+    cardGlyphEl.textContent = domainGlyph(card.suit);
+    cardDomainEl.textContent = 'for ' + card.domain + (card.where ? ' — ' + card.where : '');
+    cardMoodEl.textContent = card.mood;
+    var whyText;
+    if (!text) {
+      whyText = 'no problem was typed, so the lane was picked at random.';
+    } else if (guess.hits.length) {
+      whyText = 'guessed ' + domainLabel(domain) + ' because of: "' + guess.hits.slice(0, 4).join('", "') + '"';
+    } else {
+      whyText = 'nothing in what you wrote matched a lane strongly, so this one was picked at random.';
+    }
+    cardWhyEl.textContent = whyText;
+
+    var priorCount = history.filter(function (r) { return r.name === card.name; }).length;
+    var repeatText = priorCount > 0
+      ? 'crosschecked against your prior readings: this exact reading has now come up ' + (priorCount + 1) +
+        ' time' + (priorCount + 1 === 1 ? '' : 's') + ' for you.'
+      : 'first time this exact reading has come up for you.';
+    cardRepeatEl.textContent = repeatText;
+    history.push({ name: card.name, suit: card.suit, ts: Date.now() });
+    saveHistory(); renderPatterns();
+
+    var matches = court.filter(function (m) { return m.domain === card.suit; });
+    recBlockEl.replaceChildren();
+    var recLine;
+    if (matches.length) {
+      var pick = matches[Math.floor(Math.random() * matches.length)];
+      var lead = document.createElement('div'); lead.className = 'recLead';
+      lead.textContent = domainGlyph(card.suit) + ' ' + (text ? 'the reading says go talk to —' : 'from your court —');
+      recBlockEl.appendChild(lead);
+      recBlockEl.appendChild(recCardNode(pick));
+      recLine = 'go talk to @' + pick.handle + ' (bsky.app/profile/' + pick.handle + ')';
+    } else {
+      var p = document.createElement('p'); p.className = 'noMatch';
+      p.textContent = 'nobody in your court is tagged for ' + domainLabel(card.suit) +
+        ' yet — add someone above and tag them for it.';
+      recBlockEl.appendChild(p);
+      recLine = 'nobody in the court is tagged for ' + domainLabel(card.suit) + ' yet';
+    }
+    shareText = domainGlyph(card.suit) + ' ' + card.name + ' — ' + card.mood + '\nfor ' + card.domain + '\n' + whyText + '\n' + repeatText +
+      '\n' + recLine + '\n\ndrawn at Tarot Court, minomobi.com/tarot-court/';
+    readingEl.classList.remove('hidden');
+  });
+
+  shareBtn.addEventListener('click', function () { kit.copy(shareText, shareBtn); });
+
+  var siteShareBtn = document.getElementById('siteShareBtn');
+  siteShareBtn.addEventListener('click', function () {
+    kit.copy('Tarot Court — draw an advisor from your own circle. minomobi.com/tarot-court/', siteShareBtn);
+  });
+
+  // ---------------------------------------------------------------------
+  // the oracle's letter — the "accessible database" is this deck's own
+  // text (card names + moods + suit labels), read client-side, no network.
+  // Rank the 26 letters by how often the deck already capitalizes them,
+  // then write a short letter where each word's capitalization is a
+  // coin-flip weighted by that ranking. Not a claim any letter *means*
+  // more — it's what "The Chariot" vs "the chariot" leaves behind, made
+  // visible and then reused.
+  // ---------------------------------------------------------------------
+  var CORPUS = DECK.map(function (c) { return c.name + ' ' + c.mood; })
+    .concat(SUITS.map(function (s) { return s.label + ' ' + s.domain; }))
+    .concat([MAJOR_DOMAIN])
+    .join(' ');
+
+  var letterUpper = {}, letterLower = {};
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(function (l) { letterUpper[l] = 0; letterLower[l] = 0; });
+  CORPUS.split('').forEach(function (ch) {
+    if (ch >= 'A' && ch <= 'Z') letterUpper[ch]++;
+    else if (ch >= 'a' && ch <= 'z') letterLower[ch.toUpperCase()]++;
+  });
+  var LETTER_RANK = Object.keys(letterUpper).map(function (l) {
+    return { letter: l, upper: letterUpper[l], total: letterUpper[l] + letterLower[l] };
+  }).sort(function (a, b) { return b.upper - a.upper || b.total - a.total; });
+
+  var letterRankEl = document.getElementById('letterRank');
+  LETTER_RANK.forEach(function (row) {
+    var li = document.createElement('li');
+    var pct = row.total ? Math.round((row.upper / row.total) * 100) : 0;
+    li.innerHTML = '<b>' + row.letter + '</b> ' + row.upper + '/' + row.total + ' (' + pct + '%)';
+    letterRankEl.appendChild(li);
+  });
+
+  var RANK_INDEX = {};
+  LETTER_RANK.forEach(function (row, i) { RANK_INDEX[row.letter] = i; });
+
+  function capChance(letter) {
+    var idx = RANK_INDEX[letter];
+    if (idx === undefined) return 0.15;
+    return 0.15 + 0.7 * (25 - idx) / 25; // rank 0 (most-capitalized in deck) -> .85, rank 25 -> .15
+  }
+
+  var LETTER_LINES = [
+    'dear seeker, the deck remembers you',
+    'the cards do not sleep, they only wait for a question',
+    'what you fear to ask is already halfway drawn',
+    'listen for the suit that answers back',
+    'the court you keep says more about you than any single reading does',
+    'a name written twice does not choose which time is true',
+    'the tower falls the same whether tower is capital or not',
+    'we sign nothing here, because a letter that signs itself is a summons, not a letter',
+    'some letters get capitalized often in this deck only because it keeps saying the same few words',
+    'that is not fate, it is just what got counted',
+  ];
+
+  function shuffled(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function versalizeWord(word) {
+    var m = word.match(/^([a-zA-Z]+)(.*)$/);
+    if (!m) return word;
+    var core = m[1], rest = m[2];
+    var first = core.charAt(0).toUpperCase();
+    if (Math.random() < capChance(first)) return first + core.slice(1).toLowerCase() + rest;
+    return core.toLowerCase() + rest;
+  }
+
+  var letterBtn = document.getElementById('letterBtn');
+  var letterOutEl = document.getElementById('letterOut');
+  var letterTextEl = document.getElementById('letterText');
+  var letterStatEl = document.getElementById('letterStat');
+
+  letterBtn.addEventListener('click', function () {
+    var lines = shuffled(LETTER_LINES).slice(0, 4 + Math.floor(Math.random() * 2));
+    var raw = lines.join('. ') + '.';
+    var capped = 0, totalWords = 0;
+    var out = raw.split(/(\s+)/).map(function (tok) {
+      if (!tok || /^\s+$/.test(tok)) return tok;
+      totalWords++;
+      var v = versalizeWord(tok);
+      if (/^[A-Z]/.test(v)) capped++;
+      return v;
+    }).join('');
+    letterTextEl.textContent = out;
+    letterStatEl.textContent = capped + ' of ' + totalWords + ' words came out capitalized this time — ' +
+      'weighted by how often the deck itself capitalizes each starting letter, not by anything the words mean.';
+    letterOutEl.classList.remove('hidden');
+  });
+})();
+</script>
+</body>
+</html>
