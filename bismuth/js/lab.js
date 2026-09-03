@@ -270,7 +270,7 @@ class Lab {
     $("#packnote").textContent = cols > 1 || ev ? `${cols} colonies (${growing} growing, ${frozen} frozen) · floor z ${g.colonies[cols - 1].floor} · ${ev} events (${g.events.filter((e) => e.kind === "deploy").length} deployed, ${g.events.filter((e) => e.kind === "remove").length} removed)` : "one colony, no interventions yet";
     const ws = this.worms.stats();
     $("#wormnote").textContent = ws.released
-      ? `${ws.worms} worm${ws.worms === 1 ? "" : "s"} loose · ${fmt(ws.eaten)} bricks eaten${this.state.worms.recycle ? ` · ${fmt(ws.recycled)} recycled into the melt` : ""}${g.done ? " · the crystal is done; the worms are not" : ""}`
+      ? `${ws.worms} worm${ws.worms === 1 ? "" : "s"} loose · ${fmt(ws.eaten)} bricks eaten${this.state.worms.recycle ? ` · ${fmt(ws.recycled)} recycled into the melt` : ""}${ws.births || ws.deaths ? ` · ${ws.births} born, ${ws.deaths} faded` : ""}${g.done ? " · the crystal is done; the worms are not" : ""}`
       : "no worms yet — release a wave into the crystal";
     const P = this.state.pop;
     $("#popnote").textContent = P.birthEvery || P.retireAfter

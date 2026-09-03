@@ -18,6 +18,7 @@ source; every site serves a byte-identical copy** from its own asset root
 | `render.js` | WebGL1: chunked voxel + prism meshers with baked AO, per-pixel thin-film interference, mason motes; an orbit camera or a first-person one (`renderer.fp`); props (`setProps`) and beacons for a page that puts things in the world that are not crystal |
 | `tilings.js` | a synced copy of `packages/tilings/tilings.js`, so `prism.js` can import `./tilings.js` wherever the copy lands |
 | `crystal.selftest.mjs` | determinism + golden brick hashes, connectivity, the melt-is-above rule, morphology, the playground contracts, the prism, deploy + remove, the API contract |
+| `phase.mjs` / `phase-report.mjs` | the two-agent phase space: experiment grids over mason flux × worm pressure (the sink, the Allee threshold, breeding worms, the chemostat, one mason vs sixteen), JSON out; the report renders it as a page. Findings: `PHASE.md` |
 | `worms.selftest.mjs` | worms release, tunnel, bite exactly, are deterministic, stay a small effect against the masons, recycle only into a live colony, work on a tiling |
 
 Determinism is the contract: every decision is integer arithmetic or IEEE

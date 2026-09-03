@@ -35,6 +35,13 @@ export const DEFAULT_WORMS = {
   bite: 0.015,     // chance the site a worm leaves goes with it
   length: 7,       // segments drawn behind the head
   recycle: false,  // a bitten brick feeds the live colony one brick of budget
+  // the brain — the laws behind the four dials
+  depth: 0,        // where it likes to be: −1 grazes the surface (bricks with few bonds), +1 tunnels deep (many bonds), 0 wanders
+  reverse: 0,      // chance it may turn straight back along its own trail
+  spawnAfter: 0,   // it splits after eating this many bricks (0 = never): the predator's reproduction
+  starve: 0,       // moves without a bite before it fades (0 = never): the predator's death
+  lostAfter: 24,   // moves in open void before a ghost sinks into the masonry somewhere else
+  exposed: 0,      // only bricks with at most this many bonds are edible (0 = any brick): a grazer that cannot eat the interior
 };
 
 export class Worm {
@@ -47,6 +54,8 @@ export class Worm {
     this.eaten = 0;
     this.moves = 0;
     this.lost = 0;                                  // moves spent in open void
+    this.fed = 0;                                   // bricks eaten since it was born or last split
+    this.since = 0;                                 // moves since its last bite
   }
 }
 
@@ -61,10 +70,14 @@ export class Worms {
     this.eaten = 0;
     this.recycled = 0;
     this.released = 0;
+    this.births = 0;
+    this.deaths = 0;
     this.tick = 0;
+    this._spawn = [];
     this._cand = new Int32Array(64);
     this._void = new Int32Array(64);
     this._all = new Int32Array(64);
+    this._wts = new Float64Array(64);
     this._nall = 0;
   }
 
@@ -138,11 +151,35 @@ export class Worms {
   step(ticks = 1) {
     for (let k = 0; k < ticks; k++) {
       this.tick++;
+      let dead = 0;
       for (const w of this.worms) {
         w.acc += this.opts.speed;
-        while (w.acc >= 1) { w.acc -= 1; this.move(w); }
+        while (w.acc >= 1 && !w.dead) { w.acc -= 1; this.move(w); }
+        if (w.dead) dead++;
       }
+      if (dead) this.worms = this.worms.filter((w) => !w.dead);
+      if (this._spawn.length) { for (const w of this._spawn) this.worms.push(w); this._spawn.length = 0; }
     }
+  }
+
+  // pick among occupied neighbours by the brain's taste for depth: weight
+  // 1 + depth·(bonds − 3)/3, so a grazer (depth −1) favours bricks with one
+  // bond and a miner (depth +1) bricks buried six deep; the trail's last
+  // site is excluded unless `reverse` allows it
+  choose(w, no) {
+    const o = this.opts, sub = this.sub, cand = this._cand;
+    let total = 0;
+    for (let i = 0; i < no; i++) {
+      const q = cand[i];
+      let wt = 1 + o.depth * (sub.nb[q] - 3) / 3;
+      if (wt < 0.05) wt = 0.05;
+      if (q === w.prev && no > 1 && !(o.reverse > 0 && this.rng() < o.reverse)) wt = 0;
+      this._wts[i] = wt; total += wt;
+    }
+    if (total <= 0) return cand[Math.floor(this.rng() * no)];
+    let r = this.rng() * total;
+    for (let i = 0; i < no; i++) { r -= this._wts[i]; if (r < 0) return cand[i]; }
+    return cand[no - 1];
   }
 
   move(w) {
@@ -150,12 +187,10 @@ export class Worms {
     const no = packed >> 8, nv = packed & 255;
     let next = -1;
     if (no > 0) {
-      let k = Math.floor(this.rng() * no);
-      next = this._cand[k];
-      if (no > 1 && next === w.prev) next = this._cand[(k + 1) % no];   // don't turn straight back
+      next = this.choose(w, no);
     } else if (nv > 0) {
       next = this._void[Math.floor(this.rng() * nv)];                   // drift along the crystal's skin
-    } else if (++w.lost > 24) {
+    } else if (++w.lost > this.opts.lostAfter) {
       // lost in open void: a ghost sinks into the masonry somewhere else
       const s = this.somewhere();
       if (s < 0) return;
@@ -167,12 +202,24 @@ export class Worms {
     if (next < 0) return;
     if (no > 0 || nv > 0) w.lost = 0;
     // the bite: the brick it leaves goes with it, sometimes
-    if (this.sub.occ[w.site] && this.rng() < this.opts.bite) {
+    let bit = false;
+    const edible = this.sub.occ[w.site] && (!this.opts.exposed || this.sub.nb[w.site] <= this.opts.exposed);
+    if (edible && this.rng() < this.opts.bite) {
       if (this.growth.remove(w.site)) {
-        this.eaten++; w.eaten++;
+        bit = true;
+        this.eaten++; w.eaten++; w.fed++; w.since = 0;
         if (this.opts.recycle) this.recycle();
+        // reproduction: a well-fed worm splits, the child starting where it stands
+        if (this.opts.spawnAfter > 0 && w.fed >= this.opts.spawnAfter) {
+          w.fed = 0;
+          const c = new Worm(this.nextId++, next);
+          c.prev = w.site;
+          this._spawn.push(c);
+          this.births++;
+        }
       }
     }
+    if (!bit && this.opts.starve > 0 && ++w.since > this.opts.starve) { w.dead = true; this.deaths++; return; }
     w.prev = w.site;
     w.site = next;
     w.moves++;
@@ -205,6 +252,6 @@ export class Worms {
   }
 
   stats() {
-    return { worms: this.worms.length, eaten: this.eaten, recycled: this.recycled, released: this.released, tick: this.tick };
+    return { worms: this.worms.length, eaten: this.eaten, recycled: this.recycled, released: this.released, births: this.births, deaths: this.deaths, tick: this.tick };
   }
 }

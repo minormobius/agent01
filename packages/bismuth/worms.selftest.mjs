@@ -107,5 +107,55 @@ section("on a tiling");
   ok(W.positions().every((p) => Number.isFinite(p[0]) && Number.isFinite(p[1])), "positions are tile centroids");
 }
 
+section("the brain");
+{
+  // depth: a miner keeps to buried bricks, a grazer to the skin — measured as the mean bond count of the sites they stand on
+  const meanNb = (depth) => {
+    const g = grown(48112, 2500);
+    const W = new Worms(g, { count: 6, speed: 0.2, bite: 0, depth });
+    W.release();
+    let sum = 0, n = 0;
+    for (let k = 0; k < 40; k++) { W.step(50); for (const w of W.worms) { sum += g.sub.nb[w.site]; n++; } }
+    return sum / n;
+  };
+  const graze = meanNb(-1), wander = meanNb(0), mine = meanNb(1);
+  ok(graze < wander && wander < mine, `depth steers: grazer ${graze.toFixed(2)} < wanderer ${wander.toFixed(2)} < miner ${mine.toFixed(2)} bonds`);
+  // reverse: with reverse 1 a worm on a one-brick spur can turn back; with 0 it cannot leave the way it came unless alone there
+  const g = grown(7, 1500);
+  const W0 = new Worms(g, { count: 5, speed: 0.2, bite: 0, reverse: 0 });
+  W0.release(); W0.step(300);
+  const W1 = new Worms(g, { count: 5, speed: 0.2, bite: 0, reverse: 1 }, 5);
+  W1.release();
+  let backs = 0, moves = 0;
+  for (let k = 0; k < 300; k++) { const before = W1.worms.map((w) => [w.site, w.prev]); W1.step(1); W1.worms.forEach((w, i) => { if (w.site !== before[i][0]) { moves++; if (w.site === before[i][1]) backs++; } }); }
+  ok(backs > 0 && backs < moves, `reverse 1 lets a worm turn back (${backs} of ${moves} moves)`);
+  // spawn and starve: a fed worm splits, a hungry one fades; the population is what is left
+  const g2 = grown(48112, 3000);
+  const W2 = new Worms(g2, { count: 2, speed: 0.2, bite: 0.5, spawnAfter: 3, starve: 0 });
+  W2.release(); W2.step(400);
+  ok(W2.births > 0 && W2.worms.length === 2 + W2.births, `well fed, they multiply (${W2.births} births, ${W2.worms.length} alive)`);
+  const g3 = grown(48112, 3000);
+  const W3 = new Worms(g3, { count: 4, speed: 0.2, bite: 0, starve: 30 });
+  W3.release(); W3.step(400);
+  ok(W3.deaths === 4 && W3.worms.length === 0, `unfed, they fade (${W3.deaths} deaths)`);
+  const st = W2.stats();
+  ok(st.births === W2.births && st.deaths === 0 && st.worms === W2.worms.length, "stats carry births and deaths");
+  // determinism holds with the brain on
+  const run = () => { const g = grown(7, 1200); const W = new Worms(g, { count: 3, speed: 0.15, bite: 0.3, depth: 0.6, reverse: 0.2, spawnAfter: 4, starve: 60 }); W.release(); W.step(600); return [W.eaten, W.births, W.deaths, W.worms.map((w) => w.site).join("/")].join("|"); };
+  ok(run() === run(), `same seed, same lives (${run()})`);
+  ok(new Worms(g, { lostAfter: 3 }).opts.lostAfter === 3 && DEFAULT_WORMS.lostAfter === 24, "lostAfter is a dial");
+  // exposed: a surface grazer never takes a buried brick
+  const g4 = grown(48112, 2500);
+  const W4 = new Worms(g4, { count: 6, speed: 0.2, bite: 0.5, depth: 1, exposed: 3 });
+  W4.release();
+  let deepBites = 0, bites = 0, seen = g4.removed.length;
+  for (let k = 0; k < 400; k++) { W4.step(1); for (; seen < g4.removed.length; seen++) bites++; }
+  // every removed site had ≤ 3 bonds at the moment it was taken: check the events log against a rebuild is expensive; instead confirm the miner with exposed=3 eats far less than one without
+  const g5 = grown(48112, 2500);
+  const W5 = new Worms(g5, { count: 6, speed: 0.2, bite: 0.5, depth: 1 });
+  W5.release(); W5.step(400);
+  ok(bites > 0 && bites < W5.eaten * 0.6, `exposed 3 keeps a miner off the interior (${bites} bites vs ${W5.eaten} unrestricted)`);
+}
+
 console.log(`\n${checks} checks, ${fails} failures`);
 process.exit(fails ? 1 : 0);

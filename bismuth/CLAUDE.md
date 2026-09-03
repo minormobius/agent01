@@ -224,6 +224,28 @@ extent maps, the events log and the renderer's removed list all see it, and
 masons standing on it desorb. `positions()` gives `[x, y, z, fade]` segments
 for `renderer.worms`, drawn as a chain of cold motes.
 
+The brain behind the dials: `depth` (−1 grazes the skin, +1 mines the
+interior; the choice among occupied neighbours is weighted 1 + depth·(bonds −
+3)/3), `reverse` (chance to turn back along its own trail), `spawnAfter` and
+`starve` (a worm splits after eating that many bricks; fades after that many
+unfed moves — reproduction and death, which make it a consumer with a
+population rather than a dial), `lostAfter` (moves in open void before a
+ghost sinks into the masonry elsewhere), `exposed` (only bricks with at most
+that many bonds are edible; 0 = any — the grazer's functional response). All
+in `DEFAULT_WORMS`, all live in the lab, all in the URL state.
+
+`packages/bismuth/phase.mjs` runs the two-agent phase space (the sink,
+the Allee threshold, breeding worms, the chemostat, one mason vs sixteen)
+and `phase-report.mjs` renders it; the findings are in
+`packages/bismuth/PHASE.md`. In one line: without recycling every drain wins
+eventually (life = budget ÷ pressure); with recycling the crystal is a
+living steady state; the crystal heals bites at its rims and not at face
+centres (the Berg effect is the immune system's blind spot); breeding worms
+starve out or bloom (overshoot on a stock, never a cycle: a worm inside a
+crystal always has a brick under it); grazers limited to exposed bricks
+(`exposed`) coexist for hundreds of thousands of ticks and then starve on
+the crystal they smoothed, or eat a small one.
+
 `recycle` answers the "eats its own tail" question honestly: a bitten brick
 refunds one brick of budget to the youngest colony still growing and not yet
 cooling (`col.laid--`). It is not perpetual growth — a colony past its

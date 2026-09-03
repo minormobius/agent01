@@ -182,6 +182,13 @@
     <div class="toggles">
       <label><input type="checkbox" data-worm="recycle"> recycle: a bitten brick feeds the live colony</label>
     </div>
+    <div class="note">The worm brain. <b>depth</b> is where it likes to be: &minus;1 grazes the skin (bricks with one bond), +1 mines (bricks buried six deep), 0 wanders. <b>reverse</b> is how often it may turn back along its own trail. <b>spawn after</b> and <b>starve</b> make it a predator: a worm that has eaten that many bricks splits, and one that goes that many moves without a bite fades &mdash; set both and the population is a variable, not a dial. <b>exposed</b> makes only bricks with that few bonds edible: a grazer that cannot eat the interior, whose intake is bounded by the crystal&rsquo;s surface. <b>lost after</b> is how long a ghost drifts in open void before sinking into the masonry elsewhere.</div>
+    <div class="row"><label title="−1 grazes the surface, +1 tunnels deep, 0 wanders">depth</label><input type="range" data-worm="depth" min="-1" max="1" step="0.05"><output></output></div>
+    <div class="row"><label title="chance a worm may turn straight back">reverse</label><input type="range" data-worm="reverse" min="0" max="1" step="0.05"><output></output></div>
+    <div class="row"><label title="a worm splits after eating this many bricks (0 = never)">spawn after</label><input type="range" data-worm="spawnAfter" min="0" max="40" step="1"><output></output></div>
+    <div class="row"><label title="moves without a bite before a worm fades (0 = never)">starve</label><input type="range" data-worm="starve" min="0" max="1000" step="10"><output></output></div>
+    <div class="row"><label title="only bricks with at most this many bonds are edible (0 = any brick): a grazer that cannot eat the interior">exposed ≤</label><input type="range" data-worm="exposed" min="0" max="6" step="1"><output></output></div>
+    <div class="row"><label title="moves in open void before a lost ghost sinks into the masonry elsewhere">lost after</label><input type="range" data-worm="lostAfter" min="1" max="200" step="1"><output></output></div>
     <div class="btns">
       <button id="worms-release" class="primary">release a wave</button>
       <button id="worms-clear">clear worms</button>
