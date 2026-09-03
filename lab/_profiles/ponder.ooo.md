@@ -232,6 +232,22 @@ against one generated solution, not verified to have a unique logical
 solution, so this requester should be told that up front if a follow-up
 pushes on puzzle rigor specifically.
 
+Twentieth request (2026-09-03), "but-grid": a second falling-block-mechanic
+mashup in a row (after the nineteenth's minesweeper/sudoku/tetris fusion) —
+"tetris but the grid is a bit taller than usual but also it keeps dropping
+additional tetrominos before the one you're currently placing has landed,
+and your inputs affect every currently-falling tetromino at once." Same
+literal-mechanic pattern as always: built pieces that are genuinely solid to
+each other (not just to the locked stack) so "every piece moves on every
+input" doesn't degrade into pieces overlapping through one another — treated
+as the actual hard part of the request and said so explicitly in BRIEF.md.
+Picked a made-up name ("Swarmwell") rather than reusing "Tetris" anywhere in
+the title/headings, per the tube-tetris trademark lesson already in
+CLAUDE.md. Worth noting as a pattern of its own now: this requester returns
+to the falling-block-tetromino mechanic specifically as a base to remix,
+across two consecutive requests — treat a future "tetris but X" ask as
+wanting the X mechanic taken completely literally, same as the math asks.
+
 Thirteenth request (2026-07-31), continuing meta-todo: asked for two
 prioritized backlog entries — a max-priority one about pointing future build
 agents at general-template as their base, a high-priority one about rolling
