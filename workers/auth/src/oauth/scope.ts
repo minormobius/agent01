@@ -66,6 +66,11 @@ const WRITE_COLLECTIONS = [
   'com.minomobi.fluoddity.expedition',
   'com.minomobi.fluoddity.organism',
   'com.minomobi.fluoddity.rubric',
+  // hopper (hopper.mino.mobi) — a run: the level's numbers, the events with
+  // their clocks, and the player's path. A world is a seed plus an event log,
+  // so the record replays the whole crystal anywhere; written to the player's
+  // own repo, and anyone can watch it or continue it from the public read.
+  'com.minomobi.hopper.run',
   // lab factory (minomobi.com) — TWO collections for EVERY agent-built tenant
   // site, not two per site. A lab site is written by an agent from a stranger's
   // Bluesky mention, so its lexicon name is not known when this file is

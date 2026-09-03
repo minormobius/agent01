@@ -257,9 +257,9 @@ stalls. Defaults (3 worms, speed 0.05, bite 0.15) eat an order of magnitude
 less than a colony lays; the selftest pins that ratio below 15%.
 
 Not in the specimens (`/c/`, `/q/`): a permalink is still the bricks the
-masons laid. Not in hopper yet either — the plan there is a wave released
-into the frozen terrain that damages the player and takes bricks slowly,
-tried here first.
+masons laid. In hopper they are the weather (`hopper/js/run.js`, `WEATHER`):
+a wave of grazers with every pack, recycling on, hearts for the player —
+the settings the study picked.
 
 ## The playground (`lab.html` + `js/lab.js`) — `/lab`
 

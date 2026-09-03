@@ -290,6 +290,7 @@ export class Renderer {
     this.props = null;                     // {buf, count, color}: the world's non-crystal solids
     this.beacons = null;                   // extra motes: [x, y, z, fade] in substrate coordinates
     this.worms = null;                     // worm segments: [x, y, z, fade], drawn cold
+    this.ghosts = null;                    // a recorded player's body: [x, y, z, fade], drawn pale
     // first person: {eye: [x, y, z] in substrate coordinates, yaw, pitch, fov}
     // — set by a page that walks the crystal instead of orbiting it
     this.fp = null;
@@ -823,6 +824,11 @@ export class Renderer {
       const pts = [];
       for (const w of this.worms) pts.push(w[0], w[1], w[2], w[3]);
       this.drawPoints(pts, proj, view, H, [0.42, 0.34, 0.95], [0.86, 0.9, 1.0], 1.7);
+    }
+    if (this.ghosts && this.ghosts.length) {
+      const pts = [];
+      for (const g of this.ghosts) pts.push(g[0], g[1], g[2], g[3]);
+      this.drawPoints(pts, proj, view, H, [0.85, 0.8, 0.6], [1.0, 0.98, 0.9], 2.4);
     }
   }
 

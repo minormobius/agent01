@@ -38,6 +38,14 @@
   #lvl { display: block; margin-top: 8px; font-size: 17px; letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
   #alt { display: block; margin-top: 3px; color: var(--dim); font-size: 13px; font-variant-numeric: tabular-nums; }
   #clock { display: block; margin-top: 2px; color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+  #hearts { display: block; margin-top: 4px; color: #e0637a; font-size: 16px; letter-spacing: 0.1em; text-shadow: 0 0 10px rgba(224, 99, 122, 0.5); }
+  #replay { position: fixed; z-index: 2; left: 50%; top: max(16px, env(safe-area-inset-top)); transform: translateX(-50%); background: rgba(20, 20, 28, 0.6); border: 1px solid rgba(224, 179, 90, 0.4); border-radius: 999px; padding: 6px 14px; font-size: 12px; letter-spacing: 0.06em; color: var(--gold); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); pointer-events: none; white-space: nowrap; }
+  #replay[hidden] { display: none; }
+  .chips + .chips { margin-top: 8px; }
+  #handle { width: 180px; background: transparent; border: 0; border-bottom: 1px solid var(--line); color: var(--ink); font: inherit; font-size: 13px; padding: 4px 2px; outline: none; }
+  #handle:focus { border-color: var(--gold); }
+  #publish-row { margin-top: 10px; display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; }
+  #publish-row[hidden] { display: none; }
   #right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
   #lvlform { display: flex; align-items: center; gap: 6px; }
   #lvlinput { width: 84px; background: transparent; border: 0; border-bottom: 1px solid var(--line); color: var(--ink); font: inherit; font-size: 14px; padding: 4px 2px; outline: none; text-align: right; font-variant-numeric: tabular-nums; }
@@ -150,6 +158,7 @@
     <span id="lvl">level —</span>
     <span id="alt"></span>
     <span id="clock">0:00</span>
+    <span id="hearts"></span>
   </div>
   <div id="right">
     <form id="lvlform" autocomplete="off">
@@ -160,6 +169,7 @@
 </div>
 
 <div id="meter"><i id="m-bucket" hidden></i><i id="m-you"></i></div>
+<div id="replay" hidden><span id="replay-note">watching a run</span></div>
 <div id="cross"></div>
 <div id="target"></div>
 
@@ -186,6 +196,7 @@
     <h2 id="ov-title">level 1</h2>
     <p id="ov-sub"></p>
     <div id="tilings" class="chips" title="the substrate: the same level on any tiling"></div>
+    <div id="weather" class="chips" title="the weather: calm, or worms"></div>
     <div id="ov-body">
       <p>You are on a slab in the void. Look up: there is a <b>bucket</b>. In your pocket, a few <b>packs of masons</b>. Lay a pack on a plane and it grows a bismuth crystal from there, brick by brick, freezing whatever was still growing &mdash; the plane you choose is the platform for the next growth. <b>Climb it as it grows.</b> Deploy again from higher up. Get above the bucket and <b>drop in.</b></p>
       <ul class="ctl">
@@ -197,15 +208,36 @@
         <li><kbd>1&ndash;6</kbd> / <kbd>scroll</kbd> choose a pack</li>
         <li><kbd>F</kbd> hold to grow faster</li>
         <li><kbd>R</kbd> start the level over</li>
+        <li><kbd>V</kbd> in a replay: their eyes or your own</li>
         <li class="touch-only">on a phone: the left stick walks, dragging the right half looks, the buttons do the rest</li>
       </ul>
       <button class="b" id="play">click to play</button>
+      <div class="row" style="margin-top:10px"><button class="b" id="watch-best" hidden>watch your best run</button></div>
     </div>
     <div id="ov-won" hidden>
-      <p>The bucket has you. The crystal stays as you left it; the next level is a new slab, a new pocket, a higher bucket.</p>
+      <p>The bucket has you. The crystal stays as you left it; the next level is a new slab, a new pocket, a higher bucket. Your run is a record now: a few kilobytes that replay the whole crystal anywhere. Share it, watch it through your own eyes, or hand the crystal to someone to continue.</p>
       <div class="row">
         <a class="b big" id="next" href="/l/2">next level<kbd>n</kbd></a>
         <button class="b" id="again">this one again<kbd>r</kbd></button>
+        <button class="b" id="share-run">share this run</button>
+        <button class="b" id="watch-run">watch it back</button>
+      </div>
+      <div id="publish-row" hidden><input id="handle" placeholder="your.bsky.social" autocomplete="username" spellcheck="false"><button class="b" id="publish">publish to your repo</button></div>
+    </div>
+    <div id="ov-record" hidden>
+      <p>Someone's run, carried in the link. <b>Watch</b> it through their eyes as the crystal grows the way it grew. <b>Continue</b> it: their crystal, frozen where they left it, with your own full pocket. Or play the level fresh.</p>
+      <div class="row">
+        <button class="b big" id="watch">watch</button>
+        <button class="b" id="continue">continue this crystal</button>
+        <button class="b" id="fresh">play it fresh</button>
+      </div>
+    </div>
+    <div id="ov-replayed" hidden>
+      <p>That was their run. The crystal is as they left it.</p>
+      <div class="row">
+        <button class="b big" id="continue-2">continue this crystal</button>
+        <button class="b" id="watch-again">watch again</button>
+        <button class="b" id="fresh-2">play it fresh</button>
       </div>
     </div>
   </div>
@@ -223,6 +255,10 @@
   <p>It hangs where a naive stack of your packs would reach, times a margin, off to one side. You cannot build on it. You have to get <em>above</em> its rim and drop in.</p>
   <h2>The body</h2>
   <p>Two layers tall, jumps one. A brick laid where you stand carries you up with it, so standing on a growing plane is a way to rise. Fall into the void and you wake on the slab; the crystal keeps.</p>
+  <h2>Weather</h2>
+  <p>With <b>worms</b> on, a wave of grazers rides in with every pack you deploy. They tunnel the crystal along its bonds and eat exposed bricks &mdash; corners and edges, the treads of your staircase &mdash; and what they eat goes back to the melt as budget for the growth still live, so a growth under weather lasts longer. The live growth heals its own rim; the frozen terrain behind you does not. A worm's head in your body costs a heart; three hearts and you wake on the slab.</p>
+  <h2>Runs</h2>
+  <p>A world is a seed plus an event log, and the engine is deterministic, so a finished run is a record a few kilobytes long: the level, every deploy and break with its clock, and your path. <b>Share this run</b> puts it in the link. Anyone who opens it can <b>watch</b> it through your eyes, with the crystal growing at the pace it grew, or <b>continue</b> it: your crystal as you left it, with a fresh pocket, and their run carries yours as its prefix. Publishing a run to your own Bluesky repo (as <code>com.minomobi.hopper.run</code>) is built and waits on the shared auth worker learning the collection.</p>
   <h2>Breaking</h2>
   <p>Any brick can be broken, slab included. Bonds and the crystal's extent maps stay exact, so a growth continues around the hole as if it had never been there.</p>
   <p>Everything runs in your browser; only your best times are kept, locally. Part of <a href="https://mino.mobi">mino.mobi</a>.</p>

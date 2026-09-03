@@ -170,5 +170,59 @@ section("prism worlds");
   if (pin) console.log("  pin prism: " + JSON.stringify(reaches));
 }
 
+import { Run, encodeRecord, decodeRecord, validateRecord, ghostAt, parseAtUri, WEATHER, COLLECTION } from "./js/run.js";
+
+section("runs, records, replays");
+{
+  // a scripted run under weather: two deploys at known clocks, a break, then run on
+  const run = new Run(1, "grid", true);
+  ok(run.W !== null && run.worms && run.clock === 0 && !run.busy, "a run with weather starts calm and stopped");
+  const lv = run.lv, sub = run.growth.sub;
+  const site0 = sub.siteAt({ x: C, y: C, z: slabTop(lv) + 1 });
+  run.tick(50);
+  ok(run.deploy(0, site0) === 1 && run.events.length === 1 && run.events[0][0] === 50, "a deploy is an event at its clock");
+  ok(run.W.worms.length === WEATHER.count, `a wave rides in with the pack (${run.W.worms.length} worms)`);
+  run.tick(20000);
+  const midBricks = run.growth.bricks.length;
+  ok(midBricks > 100, `the growth grows on the clock (${midBricks} bricks at clock ${run.clock})`);
+  const summit = sub.summit();
+  const brk = run.growth.bricks[run.growth.bricks.length - 1];
+  const brkSite = sub.siteAt(brk);
+  ok(run.remove(brkSite) && run.events.length === 2 && run.events[1][1] === "b", "a break is an event");
+  run.tick(3000);
+  ok(run.deploy(1, summit) === 2 && run.W.worms.length === 2 * WEATHER.count, "a second pack, a second wave");
+  run.tick(30000);
+  const p = player(C + 0.5, C + 0.5, slabTop(lv) + 1, 0.3, -0.2);
+  run.sample(12.3, p);
+  run.t = 61.5;
+  const rec = run.record({ won: true, t: 61.5, deploys: 2, breaks: 1, falls: 0, bites: 1 });
+  ok(rec.v === 1 && rec.n === 1 && rec.worms && rec.clock === run.clock && rec.events.length === 3 && rec.path.length === 1 && rec.path[0][0] === 123, "the record carries the level, the clock, the events and the path");
+  // the codec round-trips
+  const enc = await encodeRecord(rec);
+  ok(/^[01]\./.test(enc) && enc.length < 2000, `encoded to ${enc.length} characters`);
+  const back = await decodeRecord(enc);
+  ok(back && JSON.stringify(back.events) === JSON.stringify(rec.events) && back.clock === rec.clock && back.result.won === true && back.path[0][2] === rec.path[0][2], "and decodes to the same record");
+  ok((await decodeRecord("garbage")) === null && (await decodeRecord("0.AAAA")) === null && validateRecord({ v: 1, n: 1, clock: 5, events: [[9, "d", 0, 1]] }) === null, "junk and out-of-order events are refused");
+  // replay: the same world, brick for brick, worm for worm
+  const again = new Run(rec.n, rec.shape, rec.worms);
+  again.advanceTo(rec.clock, rec.events, { i: 0 });
+  ok(again.clock === run.clock && again.growth.bricks.length === run.growth.bricks.length && again.growth.sub.count === run.growth.sub.count, `replayed: ${again.growth.bricks.length} bricks, ${again.growth.sub.count} standing, as recorded`);
+  ok(again.W.eaten === run.W.eaten && again.W.worms.length === run.W.worms.length && JSON.stringify(again.W.worms.map((w) => w.site)) === JSON.stringify(run.W.worms.map((w) => w.site)), `and the worms are where they were (${run.W.eaten} eaten)`);
+  ok(JSON.stringify(again.events) === JSON.stringify(rec.events), "the replay re-logs the same events");
+  const lastA = again.growth.bricks[again.growth.bricks.length - 1], lastR = run.growth.bricks[run.growth.bricks.length - 1];
+  ok(lastA.x === lastR.x && lastA.y === lastR.y && lastA.z === lastR.z && lastA.t === lastR.t, "down to the last brick");
+  // continue: the crystal as they left it, frozen, the events kept as a prefix
+  const cont = Run.continueFrom(rec);
+  ok(cont.growth.done && cont.growth.bricks.length === run.growth.bricks.length && cont.parentEvents === 3 && cont.events.length === 3, "a continuation starts from their crystal, frozen, with their events as its prefix");
+  const site2 = cont.growth.sub.summit();
+  ok(cont.deploy(0, site2) >= 0 && cont.events.length === 4 && cont.growth.colonies.length === 4, "and takes new deploys on top");
+  // the ghost
+  const path = [[0, 0, 100, 100, 800, 0, 0], [100, 500, 300, 100, 900, 157, 0]];
+  const gh = ghostAt(path, 5);
+  ok(gh && Math.abs(gh.x - 2) < 1e-9 && Math.abs(gh.z - 8.5) < 1e-9 && gh.clock === 250 && Math.abs(gh.yaw - 0.785) < 1e-6, `the ghost interpolates (${JSON.stringify(gh)})`);
+  ok(ghostAt(path, 99).clock === 500 && ghostAt(path, -1).clock === 0 && ghostAt([], 1) === null, "and clamps at the ends");
+  ok(parseAtUri("at://did:plc:abc/" + COLLECTION + "/3k2a").rkey === "3k2a" && parseAtUri("at://did:plc:abc/com.other/3k2a") === null && parseAtUri("nope") === null, "at-uris are parsed for the run collection only");
+}
+
 console.log(`\n${checks} checks, ${fails} failures`);
 process.exit(fails ? 1 : 0);

@@ -20,7 +20,9 @@ build, no D1, no AI, no secrets. Deploys from
 | `js/game.js` | the loop: input (pointer lock, keys, touch), the growth's real-time pacing, the camera, the HUD, deploy and break |
 | `js/level.js` | `level(n, shape)` → slab, packs, bucket offset; `world(lv)` → the Growth (cubic, or a Prism over the tiling); `survey(lv)` → how high a naive stack reaches; `bucketOf`, `bucketCells`, `inBucket` |
 | `js/physics.js` | the body: nine footprint points asked of a continuous `solidAt(x, y, z)` at every body layer, so the same body walks cubes and prisms; jump, `pushOut` (ride a brick laid underfoot), `raycast` (the crosshair's first solid point) |
+| `js/run.js` | **a run**: the world on its clock (`Run.tick`), the event log (`deploy`, `remove` with their clocks), the weather (`WEATHER`: a wave of grazers with every pack, recycling on), replay (`advanceTo`), continuation (`Run.continueFrom`), the record and its codec (`encodeRecord` / `decodeRecord`: JSON → deflate-raw → base64url), the ghost (`ghostAt`), the published-run read (`fetchRun` from the public appview) |
 | `js/oracle.js` | a module Worker that runs the survey off the main thread |
+| `js/auth.js` | a **synced copy** of `packages/oauth-client/auth.js` — publishing a run to the player's own PDS |
 | `js/{prng,genome,crystal,prism,render,tilings}.js` | **synced copies** of `packages/bismuth/` — never edit here; `scripts/sync-dataviz.mjs --check` fails the deploy if they drift |
 | `worker.js` | `/l/<n>` and `/l/<n>/<tiling>` → index.html; `/api/level?n=…[&t=penrose][&bucket=1]`; `/api/health` |
 | `hopper.selftest.mjs` | levels are permalinks, the world is a frozen slab, the survey reaches, the bucket lands, the body jumps one layer and not two; golden reaches for levels 1–3 |
@@ -79,8 +81,47 @@ build, no D1, no AI, no secrets. Deploys from
   hundredths, which is invisible. A brick laid where the body stands lifts
   it (`pushOut`) — standing on a growing plane is a way to rise. Falling
   below `SLAB_Z − 16` respawns on the slab; the crystal keeps.
-- **Pacing**: 60 bricks/s real time (×6 holding F), stepped with a 7 ms/frame
-  budget like the specimen page; the renderer syncs every frame.
+- **The clock.** The game never steps the growth directly: `Run.tick(n)`
+  advances the world's clock, stepping the growth while it is live and the
+  worms always. Pacing is still bricks per second (60, ×6 holding F) with a
+  7 ms/frame budget; once nothing grows, the worms get `IDLE_TICKS` (240) a
+  second. Every deploy and break is logged with the clock it happened at.
+- **Weather** (`?w=1`, the chip on the level card, kept in `localStorage`):
+  with worms on, `Run.deploy` releases a wave (`WEATHER`: 3 grazers, speed
+  0.04, bite 0.015, `exposed 3`, `depth −1`, recycling on) after every pack.
+  They eat exposed bricks — the treads — and feed the live colony with what
+  they eat, so a growth under weather lasts longer while the frozen terrain
+  loses its edges. A worm's head in the body (within 0.9 laterally, 1.4
+  vertically) costs a heart, shoves the player, and grants 1.4 s of grace;
+  three hearts and you respawn. The study (`packages/bismuth/PHASE.md`) is
+  where those numbers come from; on the skeletal tilings (Penrose, kagome,
+  Ammann) the same worms find half the crystal edible and bloom — the
+  threshold should become a fraction of coordination before weather is
+  turned on there by default.
+- **Records.** A world is a seed plus an event log, so a finished run is a
+  record: `{v, n, shape, worms, clock, t, parent, events, path, result}`,
+  with the path sampled every 0.2 s as `[tenths, clock, x·100, y·100, z·100,
+  yaw·100, pitch·100]`. `encodeRecord` deflates it into a few kilobytes of
+  base64url; "share this run" puts it in the link as `#r=…`; the best run
+  per level/substrate/weather is kept in `localStorage` (`hopper:run:<key>`).
+  `validateRecord` checks anything that arrives from a URL or a PDS.
+- **Replay** (`#r=` → the record overlay → watch): real time drives the
+  recorded clock through the path samples, so the crystal grows at the pace
+  it grew and the ghost walks at the pace it walked; `advanceTo` applies the
+  events at their clocks; the camera is the ghost's eyes (V for a free
+  spectator body, drawn as three pale motes when detached). The selftest
+  pins that a replay reproduces the run brick for brick and worm for worm.
+- **Continue** (`Run.continueFrom`): the record replayed to its end, every
+  colony frozen, the events kept as the new run's prefix (`parent`), a fresh
+  pocket. A continuation's record replays the whole lineage.
+- **Publishing** (`?pds=1` or `localStorage hopper:pds=1` to try it): the
+  record goes to the player's own repo as `com.minomobi.hopper.run` through
+  the shared OAuth worker (`packages/oauth-client`); `?run=at://…` fetches a
+  published run from the public appview (`fetchRun`). The origin is covered
+  by the worker's `*.mino.mobi` wildcard; the collection is added to
+  `WRITE_COLLECTIONS` in `workers/auth/src/oauth/scope.ts` on this branch
+  and lands only when the auth worker deploys from its own owning branch —
+  until then a login with that scope is refused, so the button stays gated.
 - **Progress**: `localStorage` only — `hopper:reached` (the landing page
   opens the highest level reached) and `hopper:best:<n>`.
 
