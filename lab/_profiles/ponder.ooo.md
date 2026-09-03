@@ -218,6 +218,20 @@ practically reachable — flagged the safety cap explicitly in the UI/BRIEF
 rather than silently truncating or letting the tab hang, consistent with the
 "say when something is approximate" instinct already established.
 
+Nineteenth request (2026-09-03), "minesweeper-but": asked for a genre mashup
+rather than a math/paper build — minesweeper + sudoku + tetris fused, with a
+specific mechanic named outright ("every time you hit a mine... it just puts
+a tetromino in ur tetris game") rather than left to invent. Consistent with
+the standing pattern of taking a literal mechanic seriously rather than
+softening it: read "puts a tetromino in" as "force-locks whatever piece is
+currently falling" (reusing the existing hard-drop path) rather than a vaguer
+"something bad happens to the tetris board". New data point, same shape as
+the cyclotomic-Littlewood note: flagged a real simplification explicitly
+instead of taking it silently — the sudoku puzzle's correctness check is
+against one generated solution, not verified to have a unique logical
+solution, so this requester should be told that up front if a follow-up
+pushes on puzzle rigor specifically.
+
 Thirteenth request (2026-07-31), continuing meta-todo: asked for two
 prioritized backlog entries — a max-priority one about pointing future build
 agents at general-template as their base, a high-priority one about rolling
