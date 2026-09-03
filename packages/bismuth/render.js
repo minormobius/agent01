@@ -148,22 +148,27 @@ uniform mat4 uView;
 uniform vec3 uCenter;
 uniform float uPx;
 uniform float uH;
+uniform float uSize;
 varying float vFade;
 void main() {
   vec3 w = vec3(aPos.x - uCenter.x, aPos.z - uCenter.z, -(aPos.y - uCenter.y));
   vec4 p = uView * vec4(w, 1.0);
   gl_Position = uProj * p;
-  gl_PointSize = clamp(uPx * 0.9 * uH / max(1.0, -p.z), 4.0, 40.0) * (0.55 + 0.45 * aFade);
+  gl_PointSize = clamp(uPx * 0.9 * uSize * uH / max(1.0, -p.z), 4.0, 48.0) * (0.55 + 0.45 * aFade);
   vFade = aFade;
 }`;
+// the same sprite in two palettes: warm for masons and beacons, cold for
+// the worms (ghosts of the masonry, drawn as a chain of fading motes)
 const PFS = `
 precision mediump float;
 varying float vFade;
+uniform vec3 uTint;
+uniform vec3 uCore;
 void main() {
   vec2 q = gl_PointCoord - 0.5;
   float r = length(q) * 2.0;
   float a = exp(-r * r * 5.0) * (1.0 - smoothstep(0.7, 1.0, r));
-  vec3 c = mix(vec3(1.0, 0.55, 0.2), vec3(1.0, 0.95, 0.85), exp(-r * r * 14.0));
+  vec3 c = mix(uTint, uCore, exp(-r * r * 14.0));
   gl_FragColor = vec4(c * a * (0.35 + 0.65 * vFade), a * vFade);
 }`;
 
@@ -276,7 +281,7 @@ export class Renderer {
     for (const n of ["uProj", "uView", "uCenter", "uTime", "uKey", "uCool"]) this.loc[n] = gl.getUniformLocation(this.prog, n);
     this.ploc = {};
     for (const n of ["aPos", "aFade"]) this.ploc[n] = gl.getAttribLocation(this.pprog, n);
-    for (const n of ["uProj", "uView", "uCenter", "uPx", "uH"]) this.ploc[n] = gl.getUniformLocation(this.pprog, n);
+    for (const n of ["uProj", "uView", "uCenter", "uPx", "uH", "uSize", "uTint", "uCore"]) this.ploc[n] = gl.getUniformLocation(this.pprog, n);
     this.pbuf = gl.createBuffer();
     this.rprog = program(gl, RVS, RFS);
     this.rloc = {};
@@ -284,6 +289,7 @@ export class Renderer {
     for (const n of ["uProj", "uView", "uCenter", "uColor", "uTime", "uKey"]) this.rloc[n] = gl.getUniformLocation(this.rprog, n);
     this.props = null;                     // {buf, count, color}: the world's non-crystal solids
     this.beacons = null;                   // extra motes: [x, y, z, fade] in substrate coordinates
+    this.worms = null;                     // worm segments: [x, y, z, fade], drawn cold
     // first person: {eye: [x, y, z] in substrate coordinates, yaw, pitch, fov}
     // — set by a page that walks the crystal instead of orbiting it
     this.fp = null;
@@ -810,24 +816,36 @@ export class Renderer {
           pts.push(p[0] + mo[0], p[1] + mo[1], p[2] + mo[2], head);
         }
       }
-      if (pts.length) {
-        gl.useProgram(this.pprog);
-        gl.uniformMatrix4fv(this.ploc.uProj, false, proj);
-        gl.uniformMatrix4fv(this.ploc.uView, false, view);
-        gl.uniform3f(this.ploc.uCenter, this.target[0], this.target[1], this.target[2]);
-        gl.uniform1f(this.ploc.uPx, this.dpr);
-        gl.uniform1f(this.ploc.uH, H / this.dpr);
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.pbuf);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pts), gl.STREAM_DRAW);
-        gl.enableVertexAttribArray(this.ploc.aPos); gl.vertexAttribPointer(this.ploc.aPos, 3, gl.FLOAT, false, 16, 0);
-        gl.enableVertexAttribArray(this.ploc.aFade); gl.vertexAttribPointer(this.ploc.aFade, 1, gl.FLOAT, false, 16, 12);
-        gl.enable(gl.BLEND);
-        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-        gl.depthMask(false);
-        gl.drawArrays(gl.POINTS, 0, pts.length / 4);
-        gl.depthMask(true);
-        gl.disable(gl.BLEND);
-      }
+      if (pts.length) this.drawPoints(pts, proj, view, H, [1.0, 0.55, 0.2], [1.0, 0.95, 0.85], 1.0);
     }
+    // the worms: a chain of cold motes per worm, head brightest
+    if (this.worms && this.worms.length) {
+      const pts = [];
+      for (const w of this.worms) pts.push(w[0], w[1], w[2], w[3]);
+      this.drawPoints(pts, proj, view, H, [0.42, 0.34, 0.95], [0.86, 0.9, 1.0], 1.7);
+    }
+  }
+
+  drawPoints(pts, proj, view, H, tint, core, size) {
+    const gl = this.gl;
+    gl.useProgram(this.pprog);
+    gl.uniformMatrix4fv(this.ploc.uProj, false, proj);
+    gl.uniformMatrix4fv(this.ploc.uView, false, view);
+    gl.uniform3f(this.ploc.uCenter, this.target[0], this.target[1], this.target[2]);
+    gl.uniform1f(this.ploc.uPx, this.dpr);
+    gl.uniform1f(this.ploc.uH, H / this.dpr);
+    gl.uniform1f(this.ploc.uSize, size);
+    gl.uniform3f(this.ploc.uTint, tint[0], tint[1], tint[2]);
+    gl.uniform3f(this.ploc.uCore, core[0], core[1], core[2]);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.pbuf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pts), gl.STREAM_DRAW);
+    gl.enableVertexAttribArray(this.ploc.aPos); gl.vertexAttribPointer(this.ploc.aPos, 3, gl.FLOAT, false, 16, 0);
+    gl.enableVertexAttribArray(this.ploc.aFade); gl.vertexAttribPointer(this.ploc.aFade, 1, gl.FLOAT, false, 16, 12);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    gl.depthMask(false);
+    gl.drawArrays(gl.POINTS, 0, pts.length / 4);
+    gl.depthMask(true);
+    gl.disable(gl.BLEND);
   }
 }

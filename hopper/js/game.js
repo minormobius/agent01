@@ -53,7 +53,9 @@ class Game {
     this.canvas = $("#gl");
     this.renderer = new Renderer(this.canvas);
     this.keys = new Set();
-    this.touch = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
+    // touch mode: a coarse pointer up front, or the first touch on the canvas
+    // (a laptop with a touchscreen keeps its mouse until a finger arrives)
+    this.touch = !!(window.matchMedia && matchMedia("(pointer: coarse)").matches);
     this.state = "intro";
     this.last = performance.now();
     this.hudTimer = 0;
@@ -380,6 +382,7 @@ class Game {
     if (this.state !== "play") return;
     this.state = "paused";
     this.fast = false;
+    $("#t-fast").classList.remove("on");
     this.stick = null;
     this.overlay("paused");
   }
@@ -428,6 +431,7 @@ class Game {
     });
     cv.addEventListener("wheel", (e) => { e.preventDefault(); if (this.state === "play") this.cycle(e.deltaY > 0 ? 1 : -1); }, { passive: false });
     $("#play").addEventListener("click", () => this.play());
+    $("#play").addEventListener("touchstart", (e) => { e.preventDefault(); this.enableTouch(); this.play(); }, { passive: false });
     $("#overlay").addEventListener("click", (e) => { if (e.target === e.currentTarget && this.state !== "won") this.play(); });
     $("#again").addEventListener("click", () => this.go(this.n, this.shape, false));
     $("#next").addEventListener("click", (e) => { e.preventDefault(); this.go(this.n + 1); });
@@ -448,25 +452,57 @@ class Game {
     this.bindTouch();
   }
 
-  bindTouch() {
-    if (!this.touch) return;
+  enableTouch() {
+    if (this.touch && document.body.classList.contains("touch")) return;
+    this.touch = true;
     document.body.classList.add("touch");
+    if (document.pointerLockElement === this.canvas && document.exitPointerLock) document.exitPointerLock();
+    if (!this.lv) return;                            // called from bind(), before the first level
+    if (this.state === "intro" || this.state === "paused") this.overlay(this.state);
+    this.renderHUD();
+  }
+
+  // The on-screen controller. The left 45% of the screen is the stick: it
+  // appears where the finger lands and the thumb follows it, so walking
+  // never needs a look at the corner. The rest of the screen looks. The
+  // buttons on the right are the verbs. The stick and buttons are DOM over
+  // the canvas; the stick is pointer-events: none so the canvas gets the
+  // touches, and the buttons take their own.
+  bindTouch() {
     const cv = this.canvas;
+    if (this.touch) this.enableTouch();
+    const stickEl = $("#stick"), thumb = $("#thumb");
+    const R = 40;                                   // thumb travel in px; full deflection at the ring's edge
     let moveT = null, lookT = null;
+    const thumbTo = (dx, dy) => { thumb.style.transform = `translate(${dx}px, ${dy}px)`; };
+    const settle = () => { moveT = null; this.stick = null; stickEl.classList.remove("live"); stickEl.style.left = ""; stickEl.style.top = ""; thumbTo(0, 0); };
     cv.addEventListener("touchstart", (e) => {
       e.preventDefault();
+      this.enableTouch();
       if (this.state === "intro" || this.state === "paused") { this.play(); return; }
       for (const t of e.changedTouches) {
-        if (t.clientX < innerWidth / 2 && !moveT) moveT = { id: t.identifier, x: t.clientX, y: t.clientY };
-        else if (!lookT) lookT = { id: t.identifier, x: t.clientX, y: t.clientY };
+        if (t.clientX < innerWidth * 0.45 && !moveT) {
+          moveT = { id: t.identifier, x: t.clientX, y: t.clientY };
+          // the ring floats to the finger
+          stickEl.style.left = (t.clientX - 62) + "px";
+          stickEl.style.top = (t.clientY - 62) + "px";
+          stickEl.classList.add("live");
+          thumbTo(0, 0);
+        } else if (!lookT) lookT = { id: t.identifier, x: t.clientX, y: t.clientY };
       }
     }, { passive: false });
     cv.addEventListener("touchmove", (e) => {
       e.preventDefault();
       for (const t of e.changedTouches) {
         if (moveT && t.identifier === moveT.id) {
-          const r = 56;
-          this.stick = { f: clamp((moveT.y - t.clientY) / r, -1, 1), r: clamp((t.clientX - moveT.x) / r, -1, 1) };
+          let dx = t.clientX - moveT.x, dy = t.clientY - moveT.y;
+          const len = Math.hypot(dx, dy);
+          if (len > R) { dx *= R / len; dy *= R / len; }
+          thumbTo(dx, dy);
+          // a dead zone in the middle, full speed at the rim
+          const m = Math.min(1, Math.max(0, (Math.hypot(dx, dy) / R - 0.12) / 0.88));
+          const ang = Math.atan2(-dy, dx);
+          this.stick = { f: Math.sin(ang) * m, r: Math.cos(ang) * m };
         }
         if (lookT && t.identifier === lookT.id) {
           this.look((t.clientX - lookT.x) * 2.4, (t.clientY - lookT.y) * 2.4);
@@ -476,19 +512,21 @@ class Game {
     }, { passive: false });
     const end = (e) => {
       for (const t of e.changedTouches) {
-        if (moveT && t.identifier === moveT.id) { moveT = null; this.stick = null; }
+        if (moveT && t.identifier === moveT.id) settle();
         if (lookT && t.identifier === lookT.id) lookT = null;
       }
     };
     cv.addEventListener("touchend", end);
     cv.addEventListener("touchcancel", end);
-    const tb = (id, fn) => $(id).addEventListener("touchstart", (e) => { e.preventDefault(); fn(); }, { passive: false });
+    const tb = (id, fn) => $(id).addEventListener("touchstart", (e) => { e.preventDefault(); this.enableTouch(); if (this.state === "play") fn(); }, { passive: false });
     tb("#t-jump", () => { this.jumpQueued = true; });
     tb("#t-deploy", () => this.deploy());
     tb("#t-break", () => this.demolish());
     tb("#t-pack", () => this.cycle(1));
     tb("#t-fast", () => { this.fast = !this.fast; $("#t-fast").classList.toggle("on", this.fast); });
     tb("#t-pause", () => this.pause());
+    // a finger on the overlay's backdrop plays too
+    $("#overlay").addEventListener("touchstart", (e) => { if (e.target === e.currentTarget) { e.preventDefault(); this.enableTouch(); if (this.state !== "won") this.play(); } }, { passive: false });
   }
 
   toast(msg) {

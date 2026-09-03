@@ -100,13 +100,33 @@
   #toast { position: fixed; z-index: 4; left: 50%; bottom: 120px; transform: translate(-50%, 12px); opacity: 0; background: rgba(20, 20, 28, 0.85); border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; font-size: 13px; transition: opacity 0.2s, transform 0.2s; pointer-events: none; max-width: 90vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #toast.show { opacity: 1; transform: translate(-50%, 0); }
   #err { position: fixed; z-index: 7; inset: auto 20px 20px 20px; background: #2a1414; color: #f3d0d0; padding: 14px 18px; border-radius: 8px; font-size: 14px; }
-  #touchui { display: none; position: fixed; z-index: 3; right: max(16px, env(safe-area-inset-right)); bottom: max(120px, calc(env(safe-area-inset-bottom) + 120px)); flex-direction: column; gap: 8px; align-items: flex-end; }
-  #touchui button { width: 64px; height: 64px; border-radius: 50%; font: inherit; font-size: 12px; letter-spacing: 0.04em; color: var(--ink); background: rgba(20, 20, 28, 0.6); border: 1px solid var(--line); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); touch-action: none; }
+  /* the on-screen controller: a floating stick on the left, buttons on the right */
+  #stick { display: none; position: fixed; z-index: 3; left: max(26px, env(safe-area-inset-left)); bottom: max(34px, env(safe-area-inset-bottom)); width: 124px; height: 124px; border-radius: 50%; border: 1px solid var(--line); background: rgba(20, 20, 28, 0.32); pointer-events: none; transition: border-color 0.15s; }
+  #stick.live { border-color: rgba(224, 179, 90, 0.55); background: rgba(20, 20, 28, 0.45); }
+  #stick::before { content: ""; position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px; border-radius: 50%; background: var(--faint); }
+  #thumb { position: absolute; left: 37px; top: 37px; width: 50px; height: 50px; border-radius: 50%; background: rgba(232, 228, 220, 0.28); border: 1px solid rgba(232, 228, 220, 0.55); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35); }
+  #touchui { display: none; position: fixed; z-index: 3; right: max(16px, env(safe-area-inset-right)); bottom: max(30px, env(safe-area-inset-bottom)); flex-direction: column; gap: 10px; align-items: flex-end; }
+  #touchui button { width: 60px; height: 60px; border-radius: 50%; font: inherit; font-size: 11px; letter-spacing: 0.05em; text-transform: lowercase; color: var(--ink); background: rgba(20, 20, 28, 0.55); border: 1px solid var(--line); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); touch-action: none; -webkit-tap-highlight-color: transparent; }
+  #touchui button:active { background: rgba(60, 50, 30, 0.7); border-color: var(--gold); }
   #touchui button.on { border-color: var(--gold); color: var(--gold); }
-  #touchui .row { display: flex; gap: 8px; }
+  #touchui .row { display: flex; gap: 10px; align-items: flex-end; }
+  #touchui .row.small button { width: 46px; height: 46px; font-size: 10px; }
+  #touchui #t-jump { width: 78px; height: 78px; font-size: 13px; border-color: rgba(224, 179, 90, 0.5); }
+  #touchui #t-deploy { border-color: rgba(224, 179, 90, 0.35); }
   body.touch #touchui { display: flex; }
+  body.touch #stick { display: block; }
   body.touch kbd { display: none; }
   body.touch #cross { opacity: 0.7; }
+  body.touch #bottom { top: 112px; bottom: auto; align-items: flex-start; }
+  body.touch #growthbox { width: 100%; text-align: left; }
+  body.touch #actions { justify-content: flex-start; }
+  body.touch #pocket .pack { min-width: 0; padding: 5px 10px 5px 8px; }
+  body.touch #pocket .pack .d { display: none; }
+  body.touch #meter { right: 8px; top: 32vh; bottom: 40vh; }
+  body.touch #target { top: calc(50% + 22px); font-size: 11px; }
+  body.touch #gl { cursor: default; }
+  .touch-only { display: none; }
+  body.touch .touch-only { display: list-item; }
   @media (max-width: 640px) {
     h1 { font-size: 22px; }
     #alt, #clock { display: none; }
@@ -155,8 +175,9 @@
   </div>
 </div>
 
+<div id="stick"><div id="thumb"></div></div>
 <div id="touchui">
-  <div class="row"><button id="t-pack">pack</button><button id="t-fast">fast</button><button id="t-pause">pause</button></div>
+  <div class="row small"><button id="t-pack">pack</button><button id="t-fast">fast</button><button id="t-pause">pause</button></div>
   <div class="row"><button id="t-break">break</button><button id="t-deploy">deploy</button><button id="t-jump">jump</button></div>
 </div>
 
@@ -176,6 +197,7 @@
         <li><kbd>1&ndash;6</kbd> / <kbd>scroll</kbd> choose a pack</li>
         <li><kbd>F</kbd> hold to grow faster</li>
         <li><kbd>R</kbd> start the level over</li>
+        <li class="touch-only">on a phone: the left stick walks, dragging the right half looks, the buttons do the rest</li>
       </ul>
       <button class="b" id="play">click to play</button>
     </div>

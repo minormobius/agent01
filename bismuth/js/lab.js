@@ -15,6 +15,7 @@
 import { Growth } from "./crystal.js";
 import { genome, normalizeSeed, GRID, DEFAULT_BRAIN, DEFAULT_POPULATION } from "./genome.js";
 import { Renderer } from "./render.js";
+import { Worms, DEFAULT_WORMS } from "./worms.js";
 import { SHAPES, SHAPE_INFO, tiling, FIX } from "./tilings.js";
 
 const $ = (s) => document.querySelector(s);
@@ -36,6 +37,7 @@ function defaultState() {
     oxide: { base: Math.round(g.oxide.base), ramp: Math.round(g.oxide.ramp), grain: 3, warp: 0.6, wavelength: 16 },
     brain: Object.assign({}, DEFAULT_BRAIN),
     pop: Object.assign({}, DEFAULT_POPULATION),
+    worms: Object.assign({}, DEFAULT_WORMS),
     sub: { shape: "grid", R: 30 },
     ic: { n: 24, z: 0, h: null },     // cubic: h Uint8Array n*n, heights 0..15
     tic: { z: 0, cells: new Map() },  // tilings: tile index → height
@@ -84,6 +86,7 @@ function decodeState(str) {
     Object.assign(st.oxide, o.oxide || {});
     Object.assign(st.brain, o.brain || {});
     Object.assign(st.pop, o.pop || {});
+    Object.assign(st.worms, o.worms || {});
     if (o.sub && SHAPES.includes(o.sub.shape)) st.sub = { shape: o.sub.shape, R: Math.max(12, Math.min(44, +o.sub.R || 30)) };
     const n = Math.max(4, Math.min(48, o.ic && o.ic.n || 24));
     st.ic = { n, z: (o.ic && o.ic.z) || 0, h: unpackHeights((o.ic && o.ic.h) || "", n) };
@@ -188,6 +191,8 @@ class Lab {
   // --------------------------------------------------------- growth ----
   reset() {
     this.growth = new Growth(toGenome(this.state));
+    this.worms = new Worms(this.growth, this.state.worms);
+    this.renderer.worms = null;
     this.renderer.setGrowth(this.growth);
     this.renderer.sync(true);
     this.renderer.snapCamera();
@@ -210,6 +215,7 @@ class Lab {
     g.pop = Object.assign({}, DEFAULT_POPULATION, gen.population);
     g.axis = gen.axis.slice();
     g.rim = gen.rim;
+    Object.assign(this.worms.opts, st.worms);
     if (!g.cooling) g.K = [0, gen.k1, gen.k2, gen.k3, 1, 1, 1, 1, 1, 1, 1];
     else g.K = [0, 0, gen.k2, gen.k3, 1, 1, 1, 1, 1, 1, 1];
     const c0 = g.colonies[0];
@@ -262,6 +268,10 @@ class Lab {
     const ev = g.events.length, cols = g.colonies.length;
     const growing = g.colonies.filter((c) => !c.done).length, frozen = g.colonies.filter((c) => c.frozen).length;
     $("#packnote").textContent = cols > 1 || ev ? `${cols} colonies (${growing} growing, ${frozen} frozen) · floor z ${g.colonies[cols - 1].floor} · ${ev} events (${g.events.filter((e) => e.kind === "deploy").length} deployed, ${g.events.filter((e) => e.kind === "remove").length} removed)` : "one colony, no interventions yet";
+    const ws = this.worms.stats();
+    $("#wormnote").textContent = ws.released
+      ? `${ws.worms} worm${ws.worms === 1 ? "" : "s"} loose · ${fmt(ws.eaten)} bricks eaten${this.state.worms.recycle ? ` · ${fmt(ws.recycled)} recycled into the melt` : ""}${g.done ? " · the crystal is done; the worms are not" : ""}`
+      : "no worms yet — release a wave into the crystal";
     const P = this.state.pop;
     $("#popnote").textContent = P.birthEvery || P.retireAfter
       ? `${P.birthEvery ? "a birth every " + P.birthEvery + " bricks" : "no births"}, ${P.retireAfter ? "retire after " + P.retireAfter : "nobody retires"}; ${P.min}–${P.max} alive`
@@ -271,14 +281,15 @@ class Lab {
   loop(t) {
     const dt = Math.min(0.1, (t - this.last) / 1000);
     this.last = t;
-    const g = this.growth;
+    const g = this.growth, W = this.worms;
     if (!g.done && !this.paused) {
       this.debt += this.pace * dt;
       const deadline = performance.now() + 7;
-      const before = g.bricks.length;
+      const before = g.bricks.length, tick0 = g.tick;
       let steps = 0;
       while (!g.done && (this.turbo || g.bricks.length - before < this.debt)) {
         g.step();
+        W.step();                                   // the worms keep the engine's clock
         if ((++steps & 63) === 0 && performance.now() > deadline) break;
       }
       this.debt -= g.bricks.length - before;
@@ -286,7 +297,14 @@ class Lab {
       this.renderer.sync(false);
       if (g.done) this.finish();
       this.updateHUD();
+      this.wormClock = g.tick - tick0;
+    } else if (W.worms.length && !this.paused) {
+      // the crystal is done; the worms are not — they keep tunnelling at the engine's pace
+      W.step(Math.max(1, Math.round(dt * 240)));
+      if (g.removed.length > this.renderer.syncedRemoved) this.renderer.sync(false);
+      if ((this.wormHud = (this.wormHud || 0) + dt) > 0.25) { this.wormHud = 0; this.updateHUD(); }
     }
+    this.renderer.worms = W.worms.length ? W.positions() : null;
     this.renderer.frame(dt, g.done ? null : g.masons);
     requestAnimationFrame((tt) => this.loop(tt));
   }
@@ -308,10 +326,19 @@ class Lab {
     for (const el of $$("[data-axis]")) { const i = +el.dataset.axis; wire(el, () => st.axis[i].toFixed(2), (v) => { st.axis[i] = v; }); }
     for (const el of $$("[data-brain]")) { const k = el.dataset.brain; wire(el, () => st.brain[k], (v) => { st.brain[k] = v; }); }
     for (const el of $$("[data-pop]")) { const k = el.dataset.pop; wire(el, () => st.pop[k], (v) => { st.pop[k] = v; }); }
+    for (const el of $$("[data-worm]")) { const k = el.dataset.worm; wire(el, () => st.worms[k], (v) => { st.worms[k] = v; }); }
     for (const el of $$("[data-ox]")) { const k = el.dataset.ox; wire(el, () => st.oxide[k], (v) => { st.oxide[k] = v; }); }
     $("#pace").addEventListener("input", (e) => { this.pace = +e.target.value; $("#pace-out").textContent = this.pace; });
     $("#packsize").addEventListener("input", (e) => { $("#packsize-out").textContent = e.target.value; });
     $("#deploy").addEventListener("click", () => this.deployPack(null));
+    $("#worms-release").addEventListener("click", () => {
+      const n = this.worms.release();
+      if (!n) { this.toast("no crystal to release them into"); return; }
+      this.edited = true;
+      this.toast(`${n} worm${n === 1 ? "" : "s"} loose in the crystal`);
+      this.updateHUD();
+    });
+    $("#worms-clear").addEventListener("click", () => { this.worms.clear(); this.renderer.worms = null; this.updateHUD(); });
     const setMode = (mode) => {
       this.mode = this.mode === mode ? null : mode;
       $("#reseed").textContent = this.mode === "reseed" ? "reseed: click a brick — on" : "reseed: click a brick";
@@ -408,6 +435,7 @@ class Lab {
     for (const el of $$("[data-axis]")) put(el, st.axis[+el.dataset.axis]);
     for (const el of $$("[data-brain]")) put(el, st.brain[el.dataset.brain]);
     for (const el of $$("[data-pop]")) put(el, st.pop[el.dataset.pop]);
+    for (const el of $$("[data-worm]")) put(el, st.worms[el.dataset.worm]);
     for (const el of $$("[data-ox]")) put(el, st.oxide[el.dataset.ox]);
     $("#gridn").value = st.ic.n; $("#gridn-out").textContent = st.ic.n;
     $("#tileR").value = st.sub.R; $("#tileR-out").textContent = st.sub.R;

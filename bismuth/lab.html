@@ -172,6 +172,23 @@
     <div class="note" id="packnote"></div>
   </details>
 
+  <details open id="sec-worms">
+    <summary>worms <span class="hint">ghosts of the masonry</span></summary>
+    <div class="note">A second wave, released <em>into</em> the crystal: worms tunnel from brick to brick along the bonds the masons made, never turning straight back, and now and then the brick they leave goes with them. A small effect by design &mdash; a wave of three eats an order of magnitude slower than a colony lays. With <b>recycle</b> on, every bitten brick returns to the melt as one more brick of budget for the colony still growing, so the system eats its own tail: not perpetual (a colony past its cool-down is past feeding), but a steady state of laying and erosion while it lives. Deterministic: same seed, same worms.</div>
+    <div class="row"><label title="worms per release">worms</label><input type="range" data-worm="count" min="1" max="16" step="1"><output></output></div>
+    <div class="row"><label title="sites per tick">speed</label><input type="range" data-worm="speed" min="0.01" max="0.6" step="0.01"><output></output></div>
+    <div class="row"><label title="chance the brick a worm leaves goes with it">bite</label><input type="range" data-worm="bite" min="0" max="1" step="0.005"><output></output></div>
+    <div class="row"><label title="segments drawn behind the head">length</label><input type="range" data-worm="length" min="1" max="24" step="1"><output></output></div>
+    <div class="toggles">
+      <label><input type="checkbox" data-worm="recycle"> recycle: a bitten brick feeds the live colony</label>
+    </div>
+    <div class="btns">
+      <button id="worms-release" class="primary">release a wave</button>
+      <button id="worms-clear">clear worms</button>
+    </div>
+    <div class="note" id="wormnote"></div>
+  </details>
+
   <details open id="sec-pop">
     <summary>colony <span class="hint">population control</span></summary>
     <div class="row"><label title="masons at the start">masons</label><input type="range" data-k="masons" min="1" max="64" step="1"><output></output></div>

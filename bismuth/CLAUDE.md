@@ -35,6 +35,7 @@ build, no D1, no AI, no secrets. Pure ES modules, no dependencies.
 | `js/prng.js` | xmur3 + mulberry32, and `stream(seed, label)` — named sub-streams so the genome and the growth never share state |
 | `js/genome.js` | seed → every parameter (habit, masons, budget, rim, Kossel rates, anisotropy, nucleus, oxide palette). Pure. `GRID` (128) and `CHUNK` (16) live here |
 | `js/crystal.js` | **the engine** — `Growth` (the colony: arrival, walk, deposit, population, cool-down) over a SUBSTRATE; `Lattice` (the cubic substrate: occupancy, bond counts, the six extent maps, the lattice-line terrace scan); `Mason` (the agent) |
+| `js/worms.js` | **the worms** — a second wave of agents released *into* the crystal: they tunnel along the bond graph, bite the brick they leave with probability `bite`, and with `recycle` feed it back to the live colony. Deterministic on `stream(seed, "worms")`; substrate-agnostic. Only the playground uses them so far |
 | `js/prism.js` | **the Prism substrate** — any plane tiling stacked into layers; bonds, open sky, the walk, arrival rays and the terrace verdict as geometric rays over cached per-tile ray tables |
 | `js/tilings.js` | byte-identical copy of `packages/tilings/tilings.js` (kept honest by `scripts/sync-dataviz.mjs --check`) — **edit the package, never this** |
 | `js/render.js` | WebGL1 renderer — chunked voxel mesher with baked AO, the thin-film shader, orbit camera (or first person via `renderer.fp`), mason motes, props and beacons for hopper |
@@ -208,6 +209,34 @@ bricks is laid or ~7 ms elapse. `?instant=1` skips to the finished crystal
 (what the deploy verify and screenshots use; `window.__done` flips when
 finished). Keys: space pause · s skip · r again · n new · ←/→ neighbouring
 seeds · a about.
+
+## The worms (`js/worms.js`)
+
+"Ghosts of the masonry": a second wave, deployed in the substrate rather than
+from the melt. `new Worms(growth, opts, seed)`; `release(n)` puts `n` worms
+at random bricks; `step(ticks)` moves each `speed` sites per tick along the
+substrate's bond graph (six face-neighbours on the lattice; edge-neighbours
+and the layers above and below on a prism), preferring occupied sites, never
+turning straight back, drifting along the crystal's skin when it finds
+itself in void, and heading for the centroid from open void. On leaving a
+brick it takes it with probability `bite`, through `growth.remove` — so the
+extent maps, the events log and the renderer's removed list all see it, and
+masons standing on it desorb. `positions()` gives `[x, y, z, fade]` segments
+for `renderer.worms`, drawn as a chain of cold motes.
+
+`recycle` answers the "eats its own tail" question honestly: a bitten brick
+refunds one brick of budget to the youngest colony still growing and not yet
+cooling (`col.laid--`). It is not perpetual growth — a colony past its
+cool-down is past feeding — but while a colony is live the crystal is a
+steady state of laying and erosion. The masons themselves never run out of
+fuel; a colony ends when it has laid its budget (plus the cool-down) or
+stalls. Defaults (3 worms, speed 0.05, bite 0.15) eat an order of magnitude
+less than a colony lays; the selftest pins that ratio below 15%.
+
+Not in the specimens (`/c/`, `/q/`): a permalink is still the bricks the
+masons laid. Not in hopper yet either — the plan there is a wave released
+into the frozen terrain that damages the player and takes bricks slowly,
+tried here first.
 
 ## The playground (`lab.html` + `js/lab.js`) — `/lab`
 

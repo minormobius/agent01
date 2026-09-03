@@ -96,8 +96,17 @@ deployed colony's own oxide, so each pack wears its own palette.
 
 WASD walk · space jump · mouse look (pointer lock; middle-drag without it) ·
 E / right-click deploy · click break · 1–6 / scroll choose a pack · F hold
-fast · R restart · H how · Esc pause. Touch: left half = stick, right half =
-look, buttons for jump / deploy / break / pack / fast / pause.
+fast · R restart · H how · Esc pause.
+
+**Touch** (a coarse pointer, or the first finger on the canvas, turns it on):
+an on-screen controller over the canvas. The left 45% of the screen is a
+floating stick — the ring appears where the finger lands, the thumb follows
+it with a small dead zone and full speed at the rim; the rest of the screen
+looks by dragging; the right-hand buttons are jump (big), deploy, break, and
+a small row for pack / fast (toggle) / pause. In touch mode the pocket and
+growth bar move up under the title so the controller has the bottom of the
+screen. The stick is `pointer-events: none` so the canvas takes the touches;
+the buttons take their own.
 
 ## Verifying a deploy
 

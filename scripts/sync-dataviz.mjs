@@ -50,7 +50,7 @@ const EXTRA = [
   // (the specimens and the playground) and hopper (the platformer built on
   // the same engine). tilings.js rides along so prism.js can import
   // ./tilings.js wherever the copy lands.
-  ...["prng.js", "genome.js", "crystal.js", "prism.js", "render.js", "tilings.js"].flatMap((f) => [
+  ...["prng.js", "genome.js", "crystal.js", "prism.js", "worms.js", "render.js", "tilings.js"].flatMap((f) => [
     [`packages/bismuth/${f}`, `bismuth/js/${f}`],
     [`packages/bismuth/${f}`, `hopper/js/${f}`],
   ]),
