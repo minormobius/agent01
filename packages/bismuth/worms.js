@@ -95,6 +95,20 @@ export class Worms {
     return made;
   }
 
+  // A wave at given sites — the bricks of a plate a pack just landed as, so
+  // the worms ride in with the pack rather than waking somewhere in the slab.
+  // Sites that are not bricks fall back to a random one.
+  releaseAt(sites, n = this.opts.count) {
+    let made = 0;
+    for (let i = 0; i < n; i++) {
+      let s = sites.length ? sites[i % sites.length] : -1;
+      if (s < 0 || !this.sub.occ[s]) s = this.somewhere();
+      if (s >= 0) { this.worms.push(new Worm(this.nextId++, s)); made++; }
+    }
+    this.released += made;
+    return made;
+  }
+
   // a random brick still standing, or -1
   somewhere() {
     const br = this.growth.bricks, sub = this.sub;

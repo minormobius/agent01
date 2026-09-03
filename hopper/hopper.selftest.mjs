@@ -182,6 +182,7 @@ section("runs, records, replays");
   run.tick(50);
   ok(run.deploy(0, site0) === 1 && run.events.length === 1 && run.events[0][0] === 50, "a deploy is an event at its clock");
   ok(run.W.worms.length === WEATHER.count, `a wave rides in with the pack (${run.W.worms.length} worms)`);
+  ok(run.W.worms.every((w) => run.growth.bricks.slice(-25).some((b) => sub.siteAt(b) === w.site && b.c === 1)), "and lands on the pack's own plate");
   run.tick(20000);
   const midBricks = run.growth.bricks.length;
   ok(midBricks > 100, `the growth grows on the clock (${midBricks} bricks at clock ${run.clock})`);

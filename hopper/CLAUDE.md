@@ -87,11 +87,16 @@ build, no D1, no AI, no secrets. Deploys from
   7 ms/frame budget; once nothing grows, the worms get `IDLE_TICKS` (240) a
   second. Every deploy and break is logged with the clock it happened at.
 - **Weather** (`?w=1`, the chip on the level card, kept in `localStorage`):
-  with worms on, `Run.deploy` releases a wave (`WEATHER`: 3 grazers, speed
-  0.04, bite 0.015, `exposed 3`, `depth −1`, recycling on) after every pack.
-  They eat exposed bricks — the treads — and feed the live colony with what
-  they eat, so a growth under weather lasts longer while the frozen terrain
-  loses its edges. A worm's head in the body (within 0.9 laterally, 1.4
+  with worms on, `Run.deploy` releases a wave on the plate the pack landed
+  as (`Worms.releaseAt`; `WEATHER`: 4 grazers, speed 0.06, bite 0.06,
+  `exposed 4` so edges and treads are edible, `depth −1`, recycling on).
+  That is far above the study's defaults on purpose: a run is tens of
+  thousands of ticks, not hundreds, and the wave should be seen — about
+  5–9 bricks a second eaten while a pack grows (a seventh of the laying,
+  refunded to the colony) and 1.6 a second from frozen terrain at the idle
+  clock. They eat exposed bricks — the treads — and feed the live colony
+  with what they eat, so a growth under weather lasts longer while the
+  frozen terrain loses its edges. A worm's head in the body (within 0.9 laterally, 1.4
   vertically) costs a heart, shoves the player, and grants 1.4 s of grace;
   three hearts and you respawn. The study (`packages/bismuth/PHASE.md`) is
   where those numbers come from; on the skeletal tilings (Penrose, kagome,

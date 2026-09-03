@@ -42,6 +42,11 @@ section("release and tunnel");
   ok(st.worms === 4 && st.eaten === W.eaten && st.released === 4 && st.tick === 600, "stats");
   W.clear();
   ok(W.worms.length === 0 && W.positions().length === 0, "clear");
+  // a wave at given sites: the worms start where they are told
+  const sites = g.bricks.slice(-5).map((b) => g.sub.siteAt(b));
+  ok(W.releaseAt(sites, 3) === 3 && W.worms.every((w, i) => w.site === sites[i]), "releaseAt puts the wave on the given bricks");
+  ok(W.releaseAt([-1, 99999999], 2) === 2 && W.worms.length === 5, "and falls back to a random brick for a site that is not one");
+  W.clear();
 }
 
 section("determinism");

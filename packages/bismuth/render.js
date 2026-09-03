@@ -823,7 +823,7 @@ export class Renderer {
     if (this.worms && this.worms.length) {
       const pts = [];
       for (const w of this.worms) pts.push(w[0], w[1], w[2], w[3]);
-      this.drawPoints(pts, proj, view, H, [0.42, 0.34, 0.95], [0.86, 0.9, 1.0], 1.7);
+      this.drawPoints(pts, proj, view, H, [0.42, 0.34, 0.95], [0.86, 0.9, 1.0], 2.1);
     }
     if (this.ghosts && this.ghosts.length) {
       const pts = [];

@@ -21,7 +21,13 @@ import { Worms } from "./worms.js";
 
 export const RECORD_VERSION = 1;
 export const COLLECTION = "com.minomobi.hopper.run";     // the ATProto lexicon a published run is written to
-export const WEATHER = { count: 3, speed: 0.04, bite: 0.015, length: 6, recycle: true, depth: -1, exposed: 3, spawnAfter: 0, starve: 0, lostAfter: 24 };
+// The study's defaults are a tenth of a colony's laying over 300k ticks; a
+// hopper run is a few tens of thousands, so the weather is set for the
+// game's clock: four grazers a wave, edges and corners edible (exposed 4 —
+// the treads of a staircase are four-bond bricks), a bite every sixteen
+// moves. About two bricks a second gone from the frozen terrain at the idle
+// clock, a seventh of what a live colony lays while it lays.
+export const WEATHER = { count: 4, speed: 0.06, bite: 0.06, length: 6, recycle: true, depth: -1, exposed: 4, spawnAfter: 0, starve: 0, lostAfter: 24 };
 export const IDLE_TICKS = 240;                            // ticks a second once nothing grows (the worms' clock)
 
 export class Run {
@@ -57,7 +63,12 @@ export class Run {
     if (!pack) return -1;
     const idx = this.growth.deploy(pack, site);
     if (idx < 0) return -1;
-    if (this.W !== null) this.W.release();           // weather: a wave rides in with every pack
+    if (this.W !== null) {
+      // weather: a wave rides in with every pack, on the plate it landed as
+      const br = this.growth.bricks, sub = this.growth.sub, plate = [];
+      for (let i = br.length - 1; i >= 0 && br[i].c === idx; i--) plate.push(br[i].tile !== undefined ? sub.siteAt({ tile: br[i].tile, z: br[i].z }) : sub.siteAt(br[i]));
+      this.W.releaseAt(plate);
+    }
     return idx;
   }
   _remove(site) { return this.growth.remove(site); }
