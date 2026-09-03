@@ -166,6 +166,11 @@ against a static server that maps `/l/*` to `index.html` renders the slab.
 
 - `/l/<n>` must be rewritten to `/`, not `/index.html` — the assets layer
   307s `/index.html` and the level would be lost.
+- After a green deploy an edge can keep serving the previous build's
+  `/js/*.js` (cf-cache-status HIT, old ETag) for several minutes while a
+  cache-busted URL (`?x=1`) already shows the new one. Probe with a cache
+  buster before concluding a deploy did not ship; a player who loads the
+  page in that window gets a consistent old build, not a mix.
 - The survey goldens (levels 1–3 cubic; level 1 on hex and Penrose):
   changing the engine, `pack()`, `level()`, or the slab moves every bucket.
   That is a campaign re-roll; do it on purpose and re-pin with
