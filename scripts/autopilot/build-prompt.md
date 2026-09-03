@@ -33,8 +33,8 @@ _Regenerated 2026-09-03 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 82, bluesky 73, data 58, tools 58, work 8.
 
-**Neighborhood spark** (bisk 2026-09-03, 98 members / 297 posts):
-- Mood: Fair 🌤 (trust)
+**Neighborhood spark** (bisk 2026-09-03, 98 members / 316 posts):
+- Mood: Overcast ☁ (trust)
 - Distinctive words: eris, bluesky, idk
 - Top post: "The most frustrating thing about the Twitter acquisition is that Musk won. He successfully took over the conversation hu" — @jdp.extropian.net
 <!-- BRIEF_END -->
