@@ -33,7 +33,7 @@ _Regenerated 2026-09-04 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 82, bluesky 73, data 58, tools 58, work 8.
 
-**Neighborhood spark** (bisk 2026-09-04, 98 members / 335 posts):
+**Neighborhood spark** (bisk 2026-09-04, 98 members / 340 posts):
 - Mood: Overcast ☁ (trust)
 - Distinctive words: astra, gpt, agi
 - Top post: "if i say i'm an "ai and mind upload maximalist" here it's weird and alienating but if i say "everyone gets to be a sexy " — @segyges.bsky.social
