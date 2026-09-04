@@ -590,9 +590,8 @@ export class Renderer {
     const gl = this.gl, sub = this.ico, T = sub.T, pbid = this.pbid, n = sub.n;
     const out = [];
     const aoAt = (v, skip) => {
-      const list = T.atVertex[v];
       let cnt = 0, m = 0;
-      for (const o of list) { if (o === skip) continue; m++; if (pbid[o] >= 0) cnt++; }
+      for (let k = T.vtStart[v]; k < T.vtStart[v + 1]; k++) { const o = T.vtList[k]; if (o === skip) continue; m++; if (pbid[o] >= 0) cnt++; }
       if (m === 0) return 3;
       return 3 - Math.min(3, Math.round((cnt * 3) / m));
     };

@@ -24,7 +24,8 @@ const $ = (s) => document.querySelector(s);
 const fmt = (n) => n.toLocaleString("en-US");
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const bkey = (x, y, z) => x + "," + y + "," + z;   // a bucket cell: world integers, negative on a tiling
-const shapeLabel = (sh) => (sh === "grid" ? "the cubic lattice" : SHAPE_INFO[sh].label);
+const tilingLabel = (sh) => (sh === "ico" ? "icosahedral" : SHAPE_INFO[sh].label);
+const shapeLabel = (sh) => (sh === "grid" ? "the cubic lattice" : sh === "ico" ? "the icosahedral quasicrystal" : SHAPE_INFO[sh].label);
 
 const PACE = 60;                       // bricks per second, real time
 const FAST = 6;                        // …while fast-forwarding
@@ -143,8 +144,8 @@ class Game {
     this.crystalAt = (x, y, z) => { const q = sub.siteAtWorld(x, y, z); return q >= 0 && sub.occ[q] === 1; };
     this.solidAt = (x, y, z) => this.crystalAt(x, y, z) || (this.bucketSet !== null && this.bucketSet.has(bkey(Math.floor(x), Math.floor(y), Math.floor(z))));
     pushOut(this.p, this.crystalAt);                 // a continued crystal may stand where the slab's spawn is
-    document.title = `hopper · level ${this.n}` + (this.lv.prism ? ` · ${this.shape}` : "") + (this.weather ? " · worms" : "");
-    $("#lvl").textContent = `level ${this.n}` + (this.lv.prism ? ` · ${SHAPE_INFO[this.shape].label}` : "") + (this.weather ? " · worms" : "");
+    document.title = `hopper · level ${this.n}` + (this.lv.prism || this.lv.ico ? ` · ${this.shape}` : "") + (this.weather ? " · worms" : "");
+    $("#lvl").textContent = `level ${this.n}` + (this.lv.prism || this.lv.ico ? ` · ${tilingLabel(this.shape)}` : "") + (this.weather ? " · worms" : "");
     this.survey();
     this.buildTilings();
     this.buildPocket();
@@ -221,10 +222,19 @@ class Game {
     // the column under the crosshair, or under the feet
     const s = t ? sub.siteAtWorld(t.x, t.y, t.z) : sub.siteAtWorld(this.p.x, this.p.y, this.p.z - 0.03);
     if (s < 0) { this.toast("nothing to build on there"); return; }
-    const top = this.columnTop(s);
-    if (top < 0) { this.toast("nothing to build on there"); return; }
-    const d = sub.describe(s);
-    const site = sub.siteAt(sub.kind === "prism" ? { tile: d.tile, z: top + 1 } : { x: d.x, y: d.y, z: top + 1 });
+    let site = -1, plane;
+    if (sub.kind === "ico") {
+      // the rhombohedra have no columns: the first empty tile straight above the one under the crosshair
+      const T = sub.T;
+      for (let k = T.aboveStart[s]; k < T.aboveStart[s + 1]; k++) if (!sub.occ[T.aboveList[k]]) { site = T.aboveList[k]; break; }
+      plane = site >= 0 ? T.zBot[site].toFixed(1) : "";
+    } else {
+      const top = this.columnTop(s);
+      if (top < 0) { this.toast("nothing to build on there"); return; }
+      const d = sub.describe(s);
+      site = sub.siteAt(sub.kind === "prism" ? { tile: d.tile, z: top + 1 } : { x: d.x, y: d.y, z: top + 1 });
+      plane = top + 1;
+    }
     if (site < 0) { this.toast("nothing to build on there"); return; }
     const wasGrowing = this.growth.colonies.some((c) => !c.done);
     const idx = this.run.deploy(this.sel, site);
@@ -235,7 +245,7 @@ class Game {
     pushOut(this.p, this.crystalAt);
     const next = this.pocket.findIndex((x) => !x.used);
     if (next >= 0) this.sel = next;
-    this.toast(`${slot.pack.habit} pack on the plane at z ${top + 1}` + (wasGrowing ? " — the old growth froze" : "") + (this.weather ? " · a wave of worms rides in" : ""));
+    this.toast(`${slot.pack.habit} pack on the plane at z ${plane}` + (wasGrowing ? " — the old growth froze" : "") + (this.weather ? " · a wave of worms rides in" : ""));
     this.buildPocket();
     this.renderHUD();
   }
@@ -420,11 +430,11 @@ class Game {
   buildTilings() {
     const el = $("#tilings");
     el.innerHTML = "";
-    for (const sh of SHAPES) {
+    for (const sh of SHAPES.concat(["ico"])) {
       const b = document.createElement("button");
       b.className = "chip" + (sh === this.shape ? " sel" : "");
-      b.textContent = sh === "grid" ? "cubic" : SHAPE_INFO[sh].label;
-      b.title = sh === "grid" ? "the square grid stacked into cubes" : SHAPE_INFO[sh].note;
+      b.textContent = sh === "grid" ? "cubic" : sh === "ico" ? "icosahedral" : SHAPE_INFO[sh].label;
+      b.title = sh === "grid" ? "the square grid stacked into cubes" : sh === "ico" ? "golden rhombohedra: the three-dimensional quasicrystal — its faces slope, and you walk them. A few seconds to build" : SHAPE_INFO[sh].note;
       b.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); if (sh !== this.shape) this.go(this.n, sh); });
       el.appendChild(b);
     }

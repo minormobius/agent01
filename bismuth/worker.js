@@ -2,8 +2,10 @@
 //
 // The site is fully static: index.html + js/*.js, the growth engine runs
 // client-side. This worker does two things:
-//   1. Pretty permalinks: /c/<seed> serves index.html, which reads the seed
-//      from the path and grows the crystal in the browser.
+//   1. Pretty permalinks: /c/<seed> (cubic), /q/<seed> (a plane-tiling
+//      quasicrystal) and /i/<seed> (the icosahedral quasicrystal) serve
+//      index.html, which reads the seed and the namespace from the path and
+//      grows the crystal in the browser.
 //   2. A public JSON API (CORS-open, pure compute) for anyone who wants the
 //      raw brick list: /api/crystal?seed=…[&n=…], /api/genome?seed=…,
 //      /api/health. The same engine module the page runs, so the API and the
@@ -50,6 +52,7 @@ export default {
     if (p === "/api/crystal") {
       const seed = normalizeSeed(url.searchParams.get("seed") || "1");
       const quasi = url.searchParams.get("q") === "1";
+      if (url.searchParams.get("i") === "1") return json({ error: "the icosahedral crystal is grown client-side only, at /i/<seed>: its tiling is 95k rhombohedra and several seconds to build, more than a request should carry" }, 400);
       const full = url.searchParams.get("full") === "1";
       const nParam = parseInt(url.searchParams.get("n") || "", 10);
       const gen = genome(seed);
@@ -74,7 +77,7 @@ export default {
     }
 
     // ── crystal permalinks → index.html ──
-    if (/^\/[cq]\/\d+\/?$/.test(p)) {
+    if (/^\/[cqi]\/\d+\/?$/.test(p)) {
       // "/" not "/index.html": the assets layer 307s /index.html to / and the seed would be lost
       const res = await env.ASSETS.fetch(new Request(new URL("/", url.origin), request));
       return new Response(res.body, { status: res.status, headers: withHeaders(res.headers) });

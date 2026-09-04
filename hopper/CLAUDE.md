@@ -181,3 +181,29 @@ against a static server that maps `/l/*` to `index.html` renders the slab.
   there against 118 on the lattice.
 - `Growth.deploy` lands the plate regardless of support; a plate aimed at a
   column top near the lattice margin (3 cells) loses the cells outside it.
+
+## The icosahedral world (`/l/<n>/ico`)
+
+`level(n, "ico")` is the same slab, pocket and offset on the `Ico`
+substrate (`packages/bismuth/ico.js`): a cylinder of golden rhombohedra,
+radius `ICO_R` = 16 (49k tiles, 2–3 s to build on the page and again in the
+survey worker, ~20 MB each), standing 2.5·R high. `lv.ico` is set; `prism`
+is not. The slab is a disk of rhombohedra 1.7 edges deep from `SLAB_Z`;
+`slabTop` is `SLAB_Z + 2` (its top is bumpy) and the player wakes a layer
+above it and settles. Packs land as 5-wide disks; a deploy takes the first
+empty rhombohedron straight above the one under the crosshair (`above[]`),
+since there are no columns, and the toast names that plane's height. The
+bucket is the same cubic prop, clamped inside `ICO_R − 5`, its floor an
+integer height between the slab and the survey's reach; the survey runs the
+packs to the end as always (about 20 s in the worker for level 1). The
+worker's `/api/level` will not run the ico survey (`bucket` stays null).
+
+**Slopes** (`physics.js`). The body now probes its feet as well as every
+half layer, so a sloped face is felt where it is; a fall lands where the
+face holds the feet (the layer snap is kept exactly when that is the top of
+a layer, so the cubic game is unchanged — the body selftest's numbers did
+not move); and on the ground the feet step up anything under `STEP` (0.55)
+and settle back onto it, so the body walks up gentle faces and low steps
+while a whole cubic layer still takes a jump. A box on a slope rests on its
+leading foot, half a width ahead of its centre. The selftest walks a ramp
+up and down, lands on it at its own height, and refuses a whole layer.

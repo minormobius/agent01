@@ -43,8 +43,9 @@ export default {
       // only computed on request
       const withBucket = url.searchParams.get("bucket") === "1";
       let bucket = null, reach = null;
-      if (withBucket) { reach = survey(lv).reach; bucket = bucketOf(lv, reach); }
-      return json({ level: lv, slabTop: slabTop(lv), bucket, reach, _note: "t= is the tiling (grid, hex, penrose, ammann, seven, rhombille, snub, kagome, rhombitri, truncsq); bucket needs &bucket=1 (runs the survey: the engine stacks the packs to the end)" });
+      // the icosahedral survey builds a 49k-tile quasicrystal first: the page's worker does that, not a request
+      if (withBucket && !lv.ico) { reach = survey(lv).reach; bucket = bucketOf(lv, reach); }
+      return json({ level: lv, slabTop: slabTop(lv), bucket, reach, _note: "t= is the tiling (grid, hex, penrose, ammann, seven, rhombille, snub, kagome, rhombitri, truncsq, ico); bucket needs &bucket=1 (runs the survey: the engine stacks the packs to the end; not for ico, whose survey runs client-side)" });
     }
 
     // ── level permalinks → index.html ──

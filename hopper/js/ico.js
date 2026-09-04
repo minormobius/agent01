@@ -171,15 +171,18 @@ export class IcoTiling {
         else { this.across[prev] = t; this.across[t * 6 + f] = (prev - prev % 6) / 6; }
       }
     }
-    // vertex adjacency: every tile at each vertex
-    const atV = new Array(this.vx.length);
-    for (let t = 0; t < n; t++) for (let q = 0; q < 8; q++) { const v = this.tv[t * 8 + q]; (atV[v] || (atV[v] = [])).push(t); }
-    this.atVertex = atV;
+    // vertex adjacency: every tile at each vertex, as CSR (`vtStart`, `vtList`)
+    const nv = this.vx.length, vtCount = new Int32Array(nv + 1);
+    for (let i = 0; i < n * 8; i++) vtCount[this.tv[i] + 1]++;
+    for (let v = 0; v < nv; v++) vtCount[v + 1] += vtCount[v];
+    const vtList = new Int32Array(n * 8), vtFill = vtCount.slice(0, nv);
+    for (let t = 0; t < n; t++) for (let q = 0; q < 8; q++) { const v = this.tv[t * 8 + q]; vtList[vtFill[v]++] = t; }
+    this.vtStart = vtCount; this.vtList = vtList;
     const vStart = new Int32Array(n + 1), vList = [];
     const seen = new Int32Array(n).fill(-1);
     for (let t = 0; t < n; t++) {
       vStart[t] = vList.length;
-      for (let q = 0; q < 8; q++) for (const o of atV[this.tv[t * 8 + q]]) if (o !== t && seen[o] !== t) { seen[o] = t; vList.push(o); }
+      for (let q = 0; q < 8; q++) { const v = this.tv[t * 8 + q]; for (let k = vtCount[v]; k < vtCount[v + 1]; k++) { const o = vtList[k]; if (o !== t && seen[o] !== t) { seen[o] = t; vList.push(o); } } }
     }
     vStart[n] = vList.length;
     this.vnbrStart = vStart; this.vnbrList = Int32Array.from(vList);
@@ -229,6 +232,7 @@ export class IcoTiling {
       for (const c of cells) (colCell[c] || (colCell[c] = [])).push(t);
     }
     this.cellsOf = cellsOf;
+    this.footprint = null;                         // the hulls served their purpose
     for (let c = 0; c < colCell.length; c++) if (colCell[c]) colCell[c] = Int32Array.from(colCell[c].sort((p, q) => this.cz[q] - this.cz[p] || p - q));   // highest centroid first
     this.colCell = colCell;
     // the column through each tile's centroid: the tiles the vertical line

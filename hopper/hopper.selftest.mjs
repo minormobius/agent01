@@ -9,7 +9,7 @@
    change to the engine or the level generator moves it, every level moves,
    and that is a re-roll of the whole campaign — change it on purpose. */
 
-import { level, world, survey, bucketOf, bucketCells, inBucket, slabTop, normalizeLevel, normalizeShape, origin, SLAB_Z, C } from "./js/level.js";
+import { level, world, survey, bucketOf, bucketCells, inBucket, slabTop, normalizeLevel, normalizeShape, origin, SLAB_Z, C, ICO_R } from "./js/level.js";
 import { GRID } from "./js/genome.js";
 import { player, stepPlayer, pushOut, raycast, HALF } from "./js/physics.js";
 
@@ -126,6 +126,72 @@ section("the body");
   e.pitch = 1.2;
   ok(raycast(e, solid) === null, "ray up finds the void");
   ok(raycast(player(1.5, 1.5, 1, 0, 0), solid, 3) === null, "the wall is out of a 3-cell reach");
+}
+
+section("slopes");
+{
+  // a ramp rising half a unit per unit of x from x = 0, over a floor at z = 0
+  const ramp = (x, y, z) => z < 0 || (x > 0 && z < 0.5 * x);
+  const p = player(-1.5, 0, 0.2, 0, 0);
+  for (let i = 0; i < 60; i++) stepPlayer(p, ramp, {}, 1 / 60);
+  ok(p.ground && Math.abs(p.z) < 0.02, `stands on the floor before the ramp (z ${p.z.toFixed(3)})`);
+  for (let i = 0; i < 300; i++) stepPlayer(p, ramp, { mx: 1 }, 1 / 60);
+  // a box on a slope rests on its leading foot, half a width ahead of its centre
+  ok(p.x > 5 && p.ground && Math.abs(p.z - 0.5 * (p.x + HALF)) < 0.08, `walks up the ramp on the ground (x ${p.x.toFixed(2)}, z ${p.z.toFixed(2)}, ramp under the leading foot ${(0.5 * (p.x + HALF)).toFixed(2)})`);
+  // dropped onto the ramp, the body lands where the face holds its feet, not on a layer
+  const q = player(6, 0, 6, 0, 0);
+  for (let i = 0; i < 120; i++) stepPlayer(q, ramp, {}, 1 / 60);
+  ok(q.ground && Math.abs(q.z - 0.5 * (6 + HALF)) < 0.06, `lands on the slope at its own height (z ${q.z.toFixed(3)} for a face at ${(0.5 * (6 + HALF)).toFixed(2)} under the leading foot), not on a layer`);
+  // and walks back down it
+  for (let i = 0; i < 300; i++) stepPlayer(q, ramp, { mx: -1 }, 1 / 60);
+  ok(q.x < 1 && q.ground && q.z < 0.6, `walks down again (x ${q.x.toFixed(2)}, z ${q.z.toFixed(2)})`);
+  // a step higher than STEP is still a wall from the ground: the cubic layer needs its jump
+  const wall = (x, y, z) => z < 0 || (x >= 2 && z < 1);
+  const w = player(0, 0, 0.1, 0, 0);
+  for (let i = 0; i < 200; i++) stepPlayer(w, wall, { mx: 1 }, 1 / 60);
+  ok(w.x < 2 - HALF + 0.01 && Math.abs(w.z) < 0.02, `a whole layer is not stepped up (x ${w.x.toFixed(2)}, z ${w.z.toFixed(3)})`);
+  const s = (x, y, z) => z < 0 || (x >= 2 && z < 0.4);
+  const v = player(0, 0, 0.1, 0, 0);
+  for (let i = 0; i < 200; i++) stepPlayer(v, s, { mx: 1 }, 1 / 60);
+  ok(v.x > 3 && Math.abs(v.z - 0.4) < 0.08, `a low step is (x ${v.x.toFixed(2)}, z ${v.z.toFixed(3)})`);
+}
+
+section("the icosahedral world");
+{
+  const lv = level(1, "ico");
+  ok(lv.ico && !lv.prism && lv.shape === "ico" && normalizeShape("ico") === "ico" && lv.packs.every((p) => p.size === 5), "level 1 on ico: an icosahedral level, five-wide disks");
+  ok(origin(lv)[0] === 0 && slabTop(lv) === SLAB_Z + 2 && lv.zMax === Math.floor(2.5 * ICO_R) - 3, "the slab is on the axis, its top two above its floor, the ceiling near the cylinder's");
+  const cubic = level(1, "grid");
+  ok(lv.slab.size === cubic.slab.size && lv.packs.length === cubic.packs.length && lv.off.dx === cubic.off.dx && lv.packs.every((p, i) => p.seed === cubic.packs[i].seed), "the same number is the same slab, pocket and offset");
+  const t0 = Date.now();
+  const g = world(lv);
+  ok(g.sub.kind === "ico" && g.done && g.bricks.length > 100, `a frozen disk slab of rhombohedra (${g.bricks.length} tiles, ${Date.now() - t0} ms to build)`);
+  const solid = (x, y, z) => { const q = g.sub.siteAtWorld(x, y, z); return q >= 0 && g.sub.occ[q] === 1; };
+  // the player wakes above the slab and settles on its bumpy top, wherever a face holds the feet
+  const p = player(0.5, 0.5, slabTop(lv) + 1, 0, 0);
+  for (let i = 0; i < 180; i++) stepPlayer(p, solid, {}, 1 / 60);
+  ok(p.ground && p.z > SLAB_Z + 1 && p.z < slabTop(lv) + 1.2, `settles on the slab's bumpy top (z ${p.z.toFixed(2)})`);
+  // and can walk around on it (a short way: the disk is a few edges wide)
+  let moved = 0;
+  for (let i = 0; i < 50; i++) { const x0 = p.x; stepPlayer(p, solid, { mx: 1 }, 1 / 60); moved += Math.abs(p.x - x0); }
+  for (let i = 0; i < 30; i++) stepPlayer(p, solid, {}, 1 / 60);   // and comes to rest, off whatever bump it was stepping down from
+  ok(moved > 2 && p.ground && p.z > SLAB_Z + 1 && p.z < slabTop(lv) + 1.2, `walks across the sloped faces (${moved.toFixed(1)} covered, still on the slab at z ${p.z.toFixed(2)})`);
+  // a pack deploys on the first empty rhombohedron above a slab tile and grows
+  const under = g.sub.siteAtWorld(0.5, 0.5, SLAB_Z + 0.8);
+  let site = -1; for (let k = g.sub.T.aboveStart[under]; k < g.sub.T.aboveStart[under + 1]; k++) if (!g.sub.occ[g.sub.T.aboveList[k]]) { site = g.sub.T.aboveList[k]; break; }
+  ok(under >= 0 && g.sub.occ[under] && site >= 0, "the tile under the feet and the empty one above it");
+  const idx = g.deploy(lv.packs[0], site);
+  ok(idx === 1, "the first pack lands there");
+  for (let i = 0; i < 30000 && g.colonies[1].laid < 40; i++) g.step();
+  ok(g.colonies[1].laid >= 40, `and grows (${g.colonies[1].laid} bricks in ${g.tick} ticks)`);
+  // the survey and the bucket
+  const t1 = Date.now();
+  const res = survey(lv);
+  const b = bucketOf(lv, res.reach);
+  ok(res.reach.z > slabTop(lv) + 3 && res.bricks > 1000, `the survey stacks the packs (reach z ${res.reach.z.toFixed(1)}, ${res.bricks} bricks, ${Date.now() - t1} ms)`);
+  ok(b.z >= slabTop(lv) + 8 && b.z <= Math.max(Math.round(res.reach.z), slabTop(lv) + 8) && b.z <= lv.zMax && Math.abs(b.x) <= ICO_R - 5 && Math.abs(b.y) <= ICO_R - 5 && Number.isInteger(b.z), `the bucket is inside the cylinder, between the slab and the reach (${b.x}, ${b.y}, z ${b.z})`);
+  ok(survey(lv).reach.z === res.reach.z, "and the survey is the same twice");
+  if (pin) console.log("  ico reach: " + JSON.stringify(res.reach));
 }
 
 section("prism worlds");

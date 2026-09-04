@@ -16,7 +16,7 @@
    plus the API contract the worker relies on. */
 
 import { Growth, Lattice, IDX, GRIDSIZE as G } from "./crystal.js";
-import { genome, normalizeSeed, GRID, DEFAULT_BRAIN, DEFAULT_POPULATION, quasiSubstrate, QUASI_SHAPES } from "./genome.js";
+import { genome, normalizeSeed, GRID, DEFAULT_BRAIN, DEFAULT_POPULATION, quasiSubstrate, QUASI_SHAPES, icoSubstrate, icoBudget, ICO_SITE_R } from "./genome.js";
 import { SHAPES } from "./tilings.js";
 import { stream } from "./prng.js";
 import { createHash } from "node:crypto";
@@ -495,6 +495,10 @@ section("icosahedral substrate: the tiling closes, adjacency is exact, φ, point
     ok(gr.nucleusBricks >= 3 && gr.bricks.every((br) => Math.abs(br.x - 1) < 1.6 && Math.abs(br.y - 1) < 1.6 && br.z >= gr.sub.z0 - 0.1 && br.z < gr.sub.z0 + 1.1), `ico ic.voxels: ${gr.nucleusBricks} rhombohedra inside four unit cubes on the floor`);
     ok(seqI(new Growth(Object.assign(genome(3), { substrate: spec(8), budget: 200 })).run()) !== seqI(new Growth(Object.assign(genome(4), { substrate: spec(8), budget: 200 })).run()), "ico: adjacent seeds differ");
   }
+  // the site's namespace: /i/<seed> is a spec of its own stream, and its budget fits the cylinder
+  ok(JSON.stringify(icoSubstrate(7)) === JSON.stringify(icoSubstrate("7")) && icoSubstrate(7).shape === "ico" && icoSubstrate(7).R === ICO_SITE_R && icoSubstrate(7).ic.disk >= 2.4 && icoSubstrate(7).ic.disk <= 4, "icoSubstrate is pure, at the site's radius, with a disk nucleus");
+  ok(icoSubstrate(7).ic.disk !== icoSubstrate(8).ic.disk, "and differs by seed");
+  ok(icoBudget(11000) === Math.round((0.9 * ICO_SITE_R ** 3) / 100) * 100 && icoBudget(3200) === 3200 && icoBudget(5000, 10) === 900, `icoBudget caps at what the cylinder holds (${icoBudget(11000)} at radius ${ICO_SITE_R})`);
   // worms tunnel the rhombohedra along their faces
   {
     const { Worms } = await import("./worms.js");

@@ -43,7 +43,7 @@ build, no D1, no AI, no secrets. Pure ES modules, no dependencies.
 | `js/render.js` | WebGL1 renderer — chunked voxel mesher with baked AO, the thin-film shader, orbit camera (or first person via `renderer.fp`), mason motes, props and beacons for hopper |
 | `js/app.js` | the page: URL ↔ seed, pacing, HUD, keys |
 | `packages/bismuth/crystal.selftest.mjs` | ~34k checks, ~40 s. **Run before touching the engine or the genome** |
-| `worker.js` | `/c/<seed>` → index.html; `/api/crystal`, `/api/genome`, `/api/health` |
+| `worker.js` | `/c/<seed>`, `/q/<seed>`, `/i/<seed>` → index.html; `/api/crystal`, `/api/genome`, `/api/health` |
 | `index.html` | the page; loads `/js/app.js` as a module (root-absolute, so `/c/<seed>` works) |
 | `study.html` | **generated** — `/study`, the two-agent phase-space study rendered from `packages/bismuth/phase/*.json` by `node packages/bismuth/phase-report.mjs … --full --out bismuth/study.html`. Regenerate after re-running `phase.mjs`; never edit by hand |
 
@@ -201,6 +201,17 @@ the terrace verdict. So the lattice is fundamental and the shape is emergent.
   R = 12, cached per R; ~16 µs a tick. Habit: a hollow tower-hopper, a
   goblet, terraced in rhombic two-fold facets; `lipDepth` 0 flattens it.
   Golden hash `GOLD_I` pins seed 7 at R 10. A stall against the domain is reported: `stats.stalled` (any colony done without cooling, short of its budget) and `stats.reach` (the fraction of the wall or ceiling the crystal has used), which the lab turns into a message; the lab also caps the budget at about 0.9·R³ when the chip is picked, since the crystal grows as tall as it is wide.
+
+**`/i/<seed>`** is the icosahedral namespace: `icoSubstrate(seed)` (its own
+stream, `stream(seed, "ico")`) puts the genome on the `Ico` substrate at
+`ICO_SITE_R` = 20 — 95k rhombohedra, about six seconds to build, ~20 MB —
+and `icoBudget()` caps the budget at what that cylinder holds (0.9·R³ =
+7,200), since the crystal grows as tall as it is wide. The page says
+"building the icosahedral tiling" and builds on the next frame; `App.build`
+is where `start` used to end. The cousin button cycles `/c` → `/q` → `/i`.
+The API refuses `i=1` (a tiling that size is not a request's to build); the
+worker routes `/[cqi]/<seed>`. Growth is slower than a prism's (~4–5 ms a
+brick), so a full crystal is a minute or two on the page.
 
 **`/q/<seed>`** is the quasicrystal namespace: `quasiSubstrate(seed)` draws a
 shape from `stream(seed, "substrate")` (its own stream — no cubic specimen

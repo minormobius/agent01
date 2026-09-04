@@ -22,8 +22,10 @@ export const SLAB_Z = 6;                  // its lowest layer
 export const MAX_LEVEL = 9999;
 export const TILING_R = 44;               // a prism world's tiling radius, in edge lengths
 export const PRISM_LAYERS = 96;           // Prism.Z: the layers a prism world has
+export const ICO_R = 16;                  // the icosahedral world's cylinder radius: 49k rhombohedra, a few seconds to build
+export const ICO = "ico";
 
-export function normalizeShape(t) { return SHAPES.includes(t) ? t : "grid"; }
+export function normalizeShape(t) { return SHAPES.includes(t) || t === ICO ? t : "grid"; }
 
 export function normalizeLevel(n) {
   const v = parseInt(String(n), 10);
@@ -58,7 +60,9 @@ export function pack(seed, r) {
 // The same number on a different tiling is the same slab, pocket and offset
 // — only the substrate changes, and with it what the packs grow and where
 // the survey says the bucket goes. A prism pack always lands two rings wide:
-// one ring of rhombs or triangles can nucleate nothing.
+// one ring of rhombs or triangles can nucleate nothing. The icosahedral
+// world is the quasicrystal itself: rhombohedra, sloped faces, a cylinder
+// standing 2.5·ICO_R high.
 export function level(n, shape = "grid") {
   n = normalizeLevel(n);
   shape = normalizeShape(shape);
@@ -73,22 +77,31 @@ export function level(n, shape = "grid") {
   const off = { dx: rint(r, -spread, spread), dy: rint(r, -spread, spread) };
   // ...and at this fraction of the height a naive stack of the packs reaches
   const climb = Math.min(0.9, 0.66 + 0.02 * n);
-  const prism = shape !== "grid";
-  if (prism) for (const p of packs) p.size = 5;
-  return { n, seed: n, version: LEVEL_VERSION, shape, prism, slab, packs, off, climb, zMax: prism ? PRISM_LAYERS - 8 : GRID - 10 };
+  const ico = shape === ICO, prism = shape !== "grid" && !ico;
+  if (prism || ico) for (const p of packs) p.size = 5;
+  return { n, seed: n, version: LEVEL_VERSION, shape, prism, ico, slab, packs, off, climb, zMax: prism ? PRISM_LAYERS - 8 : ico ? Math.floor(2.5 * ICO_R) - 3 : GRID - 10 };
 }
 
 // where the slab is centred, in world coordinates: the lattice centre, or
 // a tiling's origin
-export function origin(lv) { return lv.prism ? [0, 0] : [lv.slab.x, lv.slab.y]; }
+export function origin(lv) { return lv.prism || lv.ico ? [0, 0] : [lv.slab.x, lv.slab.y]; }
 
-export function slabTop(lv) { return lv.slab.z + lv.slab.thick - 1; }
+// the slab's top layer; on the icosahedral world, the height its bumpy top surface reaches
+export function slabTop(lv) { return lv.ico ? lv.slab.z + 2 : lv.slab.z + lv.slab.thick - 1; }
 
 // The world: a Growth whose colony 0 is the slab, frozen — it grew nothing
 // and never will. Its genome is the level's own specimen (oxide, laws), so
 // the slab wears the level's palette.
 export function world(lv) {
   const gen = genome(lv.seed);
+  if (lv.ico) {
+    // a disk of rhombohedra the width of the cubic slab, as deep as it is thick
+    gen.substrate = { shape: ICO, R: ICO_R, ic: { disk: lv.slab.size / 2, thickness: lv.slab.thick - 0.3 }, z0: lv.slab.z };
+    gen.budget = 0;
+    const g = new Growth(gen);
+    g.freeze();
+    return g;
+  }
   if (lv.prism) {
     // a disk of tiles the width of the cubic slab, the same two layers deep
     gen.substrate = { shape: lv.shape, R: TILING_R, ic: { disk: lv.slab.size / 2, thickness: lv.slab.thick }, z0: lv.slab.z };
@@ -135,9 +148,9 @@ export function bucketOf(lv, reach) {
   const z = Math.min(lv.zMax, top + Math.max(8, Math.round(rise * lv.climb)));
   const o = origin(lv);
   let x, y;
-  if (lv.prism) {
+  if (lv.prism || lv.ico) {
     // inside the tiling, with room for the walls
-    const lim = TILING_R - 12;
+    const lim = lv.ico ? ICO_R - 5 : TILING_R - 12;
     x = Math.max(-lim, Math.min(lim, o[0] + lv.off.dx));
     y = Math.max(-lim, Math.min(lim, o[1] + lv.off.dy));
   } else {
@@ -161,7 +174,7 @@ export function inBucket(b, x, y, z) {
   return b && Math.abs(Math.floor(x) - b.x) <= 1 && Math.abs(Math.floor(y) - b.y) <= 1 && z >= b.z + 1 - 1e-3 && z < b.z + 4;
 }
 
-export function plateLabel(lv, p) { return lv.prism ? `${Math.max(1, p.size >> 1)} rings` : `${p.size}×${p.size}`; }
+export function plateLabel(lv, p) { return lv.ico ? `${p.size}-wide disk` : lv.prism ? `${Math.max(1, p.size >> 1)} rings` : `${p.size}×${p.size}`; }
 export function packLabel(lv, p) {
   return `${p.habit} · ${p.masons} masons · ${p.budget.toLocaleString("en-US")} bricks · ${plateLabel(lv, p)} plate`;
 }

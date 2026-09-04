@@ -120,6 +120,18 @@ export function quasiSubstrate(seed, shape) {
   return { shape: shape && QUASI_SHAPES.includes(shape) ? shape : pick_, R: 44, ic: { disk: 2.2 + r() * 1.6, thickness: 2 }, z0: 6 };
 }
 
+// The icosahedral namespace (/i/<seed>): the same genome on the icosahedral
+// quasicrystal at the roomiest radius a page will build — 95k rhombohedra,
+// a few seconds — with the budget capped to what that cylinder holds (the
+// crystal grows as tall as it is wide). Its own stream: no other specimen moved.
+export const ICO_SITE_R = 20;
+export function icoSubstrate(seed) {
+  seed = normalizeSeed(seed);
+  const r = stream(seed, "ico");
+  return { shape: "ico", R: ICO_SITE_R, ic: { disk: 2.4 + r() * 1.6, thickness: 1.6 } };
+}
+export function icoBudget(budget, R = ICO_SITE_R) { return Math.min(budget, Math.round((0.9 * R * R * R) / 100) * 100); }
+
 export function normalizeSeed(s) {
   const n = parseInt(String(s), 10);
   if (!Number.isFinite(n) || n < 1) return 1;

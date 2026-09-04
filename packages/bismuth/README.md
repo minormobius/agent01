@@ -11,7 +11,7 @@ source; every site serves a byte-identical copy** from its own asset root
 | File | What |
 |---|---|
 | `prng.js` | xmur3 + mulberry32; `stream(seed, label)` named sub-streams, `rint`, `rf`, `pick` |
-| `genome.js` | seed → habit, kinetics, rim, nucleus, oxide palette; `DEFAULT_BRAIN`, `DEFAULT_POPULATION`; `quasiSubstrate` |
+| `genome.js` | seed → habit, kinetics, rim, nucleus, oxide palette; `DEFAULT_BRAIN`, `DEFAULT_POPULATION`; `quasiSubstrate`, `icoSubstrate` + `icoBudget` (the /i namespace: radius 20, budget capped to the cylinder) |
 | `crystal.js` | `Lattice` (cubic substrate with extent maps), `Mason`, `Colony`, `Growth` — Kossel kinetics, the terrace rule, deploy/freeze/remove |
 | `prism.js` | `Prism` — any plane tiling from `packages/tilings` stacked into layers (Penrose → a decagonal quasicrystal) |
 | `stack.js` | `Stack` — the same tilings with each layer staggered (AB, ABC: the close packings — hexagons AB is hexagonal close packing, ABC the rhombohedral family, the square grid AB face-centred cubic) and/or twisted a fixed angle a layer (moiré bonds, quasiperiodic along z). Vertical bonds are exact tile overlaps; the column top is a height field; the terrace rays run in world space. `isStacked(spec)`, `normalizeStack(spec)` |
