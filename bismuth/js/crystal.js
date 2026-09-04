@@ -31,7 +31,8 @@
 // `Prism` (prism.js), any plane tiling from packages/tilings stacked into
 // layers — a Penrose substrate grows a decagonal quasicrystal — and `Stack`
 // (stack.js), the same tilings with each layer staggered or twisted against
-// the last: the close-packed lattices, and moiré stacks.
+// the last: the close-packed lattices, and moiré stacks — and `Ico`
+// (ico.js), the icosahedral quasicrystal: space tiled by golden rhombohedra.
 //
 // Everything is integer arithmetic or IEEE basic ops on doubles, no
 // transcendental functions in any decision, one PRNG stream drawn in a fixed
@@ -41,6 +42,7 @@ import { stream } from "./prng.js";
 import { genome as makeGenome, GRID, DEFAULT_BRAIN, DEFAULT_POPULATION } from "./genome.js";
 import { Prism } from "./prism.js";
 import { Stack, isStacked } from "./stack.js";
+import { Ico } from "./ico.js";
 
 const G = GRID;
 const IDX = (x, y, z) => (z * G + y) * G + x;
@@ -470,7 +472,7 @@ export class Growth {
     const g = this.genome;
     const sp = g.substrate;
     // a tiling stacked straight is a prism; staggered or twisted, a stack; the square grid unstacked is the cubic fast path
-    this.sub = sp && sp.shape && isStacked(sp) ? new Stack(sp) : sp && sp.shape && sp.shape !== "grid" ? new Prism(sp) : new Lattice();
+    this.sub = sp && sp.shape === "ico" ? new Ico(sp) : sp && sp.shape && isStacked(sp) ? new Stack(sp) : sp && sp.shape && sp.shape !== "grid" ? new Prism(sp) : new Lattice();
     this.lat = this.sub;                            // the cubic name, kept for callers
     this.nextId = 0;
     this.colonies = [];
@@ -531,7 +533,8 @@ export class Growth {
     const col = new Colony(this, gen, idx, stream(gen.seed, "growth:" + idx + ":" + this.tick));
     // the plane is this colony's floor: everything beneath it is terrain, not crystal
     const where = this.sub.describe(site);
-    col.floor = pack.floor !== undefined ? pack.floor : where.z;
+    // the plane is the plate's own level: a substrate without layers says where its plate's bottom is
+    col.floor = pack.floor !== undefined ? pack.floor : this.sub.floorOf ? this.sub.floorOf(plate) : where.z;
     col.region = this.sub.regionNew();
     for (const b of plate) this.sub.regionAdd(col.region, this.sub.siteAt(b));
     this.colonies.push(col);

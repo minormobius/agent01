@@ -20,6 +20,10 @@ import { Renderer } from "./render.js";
 import { Worms, DEFAULT_WORMS } from "./worms.js";
 import { SHAPES, SHAPE_INFO, tiling, FIX } from "./tilings.js";
 import { isStacked, normalizeStack } from "./stack.js";
+import { ICO_R_MIN, ICO_R_MAX, ICO_R_DEFAULT } from "./ico.js";
+
+const ICO = "ico";
+const ICO_INFO = { label: "icosahedral", note: "golden rhombohedra: the Ammann–Kramer tiling, no lattice in any direction", family: "aperiodic", symmetry: 5 };
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -41,7 +45,7 @@ function defaultState() {
     brain: Object.assign({}, DEFAULT_BRAIN),
     pop: Object.assign({}, DEFAULT_POPULATION),
     worms: Object.assign({}, DEFAULT_WORMS),
-    sub: { shape: "grid", R: 30, stack: "", stagger: 1, twist: 0 },
+    sub: { shape: "grid", R: 30, stack: "", stagger: 1, twist: 0, icoR: ICO_R_DEFAULT },
     ic: { n: 24, z: 0, h: null },     // cubic: h Uint8Array n*n, heights 0..15
     tic: { z: 0, cells: new Map() },  // tilings: tile index → height
   };
@@ -90,7 +94,7 @@ function decodeState(str) {
     Object.assign(st.brain, o.brain || {});
     Object.assign(st.pop, o.pop || {});
     Object.assign(st.worms, o.worms || {});
-    if (o.sub && SHAPES.includes(o.sub.shape)) st.sub = Object.assign({ shape: o.sub.shape, R: Math.max(12, Math.min(44, +o.sub.R || 30)) }, normalizeStack(Object.assign({ stagger: 1 }, o.sub)));
+    if (o.sub && (SHAPES.includes(o.sub.shape) || o.sub.shape === ICO)) st.sub = Object.assign({ shape: o.sub.shape, R: Math.max(12, Math.min(44, +o.sub.R || 30)), icoR: Math.max(ICO_R_MIN, Math.min(ICO_R_MAX, Math.round(+o.sub.icoR || ICO_R_DEFAULT))) }, normalizeStack(Object.assign({ stagger: 1 }, o.sub)));
     const n = Math.max(4, Math.min(48, o.ic && o.ic.n || 24));
     st.ic = { n, z: (o.ic && o.ic.z) || 0, h: unpackHeights((o.ic && o.ic.h) || "", n) };
     st.tic = { z: (o.tic && o.tic.z) || 0, cells: unpackCells((o.tic && o.tic.c) || "") };
@@ -119,7 +123,9 @@ function toGenome(st) {
       const h = st.ic.h[j * n + i];
       for (let k = 0; k < h; k++) voxels.push([i - half, j - half, st.ic.z + k]);
     }
-    g.voxels = voxels;
+    // the icosahedral quasicrystal takes the same painted columns, as unit cubes on its melt floor
+    if (st.sub.shape === ICO) g.substrate = { shape: ICO, R: st.sub.icoR, ic: { voxels } };
+    else g.voxels = voxels;
   } else {
     const cells = [];
     for (const [t, h] of st.tic.cells) if (h) cells.push([t, h]);
@@ -128,7 +134,7 @@ function toGenome(st) {
   return g;
 }
 // the cubic lattice is the square grid stacked straight; staggered or twisted it is a tiling like any other
-function isTilingState(st) { return st.sub.shape !== "grid" || isStacked(st.sub); }
+function isTilingState(st) { return st.sub.shape !== "grid" && st.sub.shape !== ICO || (st.sub.shape === "grid" && isStacked(st.sub)); }
 
 // What a stacking is, for the note under the chips.
 function stackName(sub) {
@@ -269,7 +275,7 @@ class Lab {
     $("#stats").textContent =
       `${fmt(st.bricks)} bricks · ${st.terraces} terraces on the midline · pit ${fmt(st.pit)} cells · hollowness ${st.hollowness.toFixed(2)} · ` +
       `${st.box.map((v) => Math.round(v)).join("×")} · ${fmt(st.ticks)} ticks · ${st.masons} masons alive, ${st.retired} retired` +
-      (st.tiling ? ` · ${fmt(st.tiles)} ${SHAPE_INFO[st.tiling].label} tiles` : "") + (st.coordination ? ` · ${st.coordination} bonds a brick` : "");
+      (st.tiling === ICO ? ` · ${fmt(st.tiles)} golden rhombohedra (${fmt(st.prolate)} prolate, ${fmt(st.tiles - st.prolate)} oblate)` : st.tiling ? ` · ${fmt(st.tiles)} ${SHAPE_INFO[st.tiling].label} tiles` : "") + (st.coordination ? ` · ${st.coordination} bonds a brick` : "");
     window.__done = true;
     this.updateHUD();
   }
@@ -385,9 +391,9 @@ class Lab {
     $("#seedload").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("#seedload-btn").click(); } });
     // substrate chips
     const chips = $("#shapes");
-    for (const sh of SHAPES) {
+    for (const sh of SHAPES.concat([ICO])) {
       const b = document.createElement("button");
-      b.textContent = SHAPE_INFO[sh].label;
+      b.textContent = sh === ICO ? ICO_INFO.label : SHAPE_INFO[sh].label;
       b.dataset.shape = sh;
       b.addEventListener("click", () => this.setShape(sh));
       chips.appendChild(b);
@@ -404,6 +410,7 @@ class Lab {
     $("#twist").addEventListener("input", (e) => { $("#twist-out").textContent = (+e.target.value).toFixed(2).replace(/\.?0+$/, "") + "°"; });
     $("#twist").addEventListener("change", (e) => this.setStack({ twist: +e.target.value }));
     $("#tileR").addEventListener("input", (e) => {
+      if (st.sub.shape === ICO) { st.sub.icoR = +e.target.value; $("#tileR-out").textContent = st.sub.icoR; this.reset(); return; }
       st.sub.R = +e.target.value; $("#tileR-out").textContent = st.sub.R;
       // keep painted tiles that still exist; heights are by tile index, which
       // changes with the radius, so re-paint the same footprint by position
@@ -481,19 +488,24 @@ class Lab {
     for (const el of $$("[data-worm]")) put(el, st.worms[el.dataset.worm]);
     for (const el of $$("[data-ox]")) put(el, st.oxide[el.dataset.ox]);
     $("#gridn").value = st.ic.n; $("#gridn-out").textContent = st.ic.n;
-    $("#tileR").value = st.sub.R; $("#tileR-out").textContent = st.sub.R;
+    const ico = st.sub.shape === ICO, tr = $("#tileR");
+    if (ico) { tr.min = ICO_R_MIN; tr.max = ICO_R_MAX; tr.step = 1; tr.value = st.sub.icoR; $("#tileR-out").textContent = st.sub.icoR; }
+    else { tr.min = 12; tr.max = 44; tr.step = 2; tr.value = st.sub.R; $("#tileR-out").textContent = st.sub.R; }
     for (const b of $$("#shapes button")) b.classList.toggle("on", b.dataset.shape === st.sub.shape);
     for (const b of $$("#stacks button")) b.classList.toggle("on", b.dataset.stack === (st.sub.stack || ""));
     $("#stagger").value = st.sub.stagger; $("#stagger-out").textContent = st.sub.stagger;
     $("#twist").value = st.sub.twist; $("#twist-out").textContent = String(st.sub.twist).replace(/\.?0+$/, "") + "°";
-    $("#staggerrow").style.display = st.sub.stack ? "" : "none";
-    const info = SHAPE_INFO[st.sub.shape], stacked = isStacked(st.sub);
-    $("#shapenote").textContent = st.sub.shape === "grid" && !stacked
+    $("#staggerrow").style.display = st.sub.stack && !ico ? "" : "none";
+    $("#stackrow").style.display = ico ? "none" : ""; $("#twistrow").style.display = ico ? "none" : "";
+    const info = ico ? ICO_INFO : SHAPE_INFO[st.sub.shape], stacked = !ico && isStacked(st.sub);
+    $("#shapenote").textContent = ico
+      ? "the icosahedral quasicrystal — space tiled by prolate and oblate golden rhombohedra, the three-dimensional Penrose tiling; no lattice, no period in any direction, five-fold axes. Six faces a brick; the melt is above along a two-fold axis, so the terraces are the faces of a rhombic triacontahedron. Slower to build (a second or two) and to grow"
+      : st.sub.shape === "grid" && !stacked
       ? "the cubic lattice — what the specimens grow on; right angles come from here, not from the brain"
       : stacked ? `${info.note} · ${info.family}, ${info.symmetry}-fold · stacked: ${stackName(st.sub)}`
       : `${info.note} · ${info.family}, ${info.symmetry}-fold · stacked into prisms: a ${info.family === "aperiodic" ? "quasicrystal" : "columnar crystal"}, periodic along z`;
     $("#gridrow").style.display = this.isTiling() ? "none" : "";
-    $("#rrow").style.display = this.isTiling() ? "" : "none";
+    $("#rrow").style.display = this.isTiling() || ico ? "" : "none";
     this.drawPaint();
   }
 

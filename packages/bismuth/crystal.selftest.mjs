@@ -397,6 +397,118 @@ section("stack substrate (close packings, twists): overlaps, coordination, deter
   }
 }
 
+/* ── 6c. the icosahedral quasicrystal: golden rhombohedra ─────────────── */
+section("icosahedral substrate: the tiling closes, adjacency is exact, φ, point location, columns, growth, extent maps, removal, deploy, worms");
+{
+  const { Ico, IcoTiling, icoTiling, STAR } = await import("./ico.js");
+  // the star: unit vectors, every pair at arccos(±1/√5), z a two-fold axis
+  let starBad = 0;
+  for (let i = 0; i < 6; i++) { const a = STAR[i]; if (Math.abs(Math.hypot(a[0], a[1], a[2]) - 1) > 1e-12) starBad++; for (let j = i + 1; j < 6; j++) { const dd = a[0] * STAR[j][0] + a[1] * STAR[j][1] + a[2] * STAR[j][2]; if (Math.abs(Math.abs(dd) - 1 / Math.sqrt(5)) > 1e-12) starBad++; } }
+  ok(starBad === 0, "the icosahedral star: six unit vectors, every pair at arccos(1/√5)");
+  const T = icoTiling(8);
+  ok(T === icoTiling(8) && T.n > 4000, `icoTiling(8) is cached and has ${T.n} tiles`);
+  ok(T.dirs.length === 30 && T.dirs.some((d) => Math.abs(d[2] - 1) < 1e-9), "thirty face directions, one of them straight up: the melt direction is a two-fold axis");
+  // closure: the tiles fill the cylinder (volume), adjacency is symmetric, faces are shared by at most two
+  let vol = 0, pro = 0, ob = 0, asym = 0, open = 0;
+  for (let t = 0; t < T.n; t++) {
+    const v = T.volume(t); vol += v; if (v > 0.7) pro++; else ob++;
+    for (let f = 0; f < 6; f++) { const u = T.across[t * 6 + f]; if (u < 0) { open++; continue; } let back = false; for (let g = 0; g < 6; g++) if (T.across[u * 6 + g] === t) back = true; if (!back) asym++; }
+  }
+  const cyl = Math.PI * T.R * T.R * 2 * 1.25 * T.R;
+  ok(Math.abs(vol - cyl) / cyl < 0.02, `the rhombohedra fill the cylinder: volume ${vol.toFixed(0)} against ${cyl.toFixed(0)} (no gaps, no overlaps)`);
+  ok(asym === 0, "every shared face is shared both ways");
+  ok(Math.abs(pro / ob - (1 + Math.sqrt(5)) / 2) < 0.06, `prolate to oblate ${(pro / ob).toFixed(3)}: the golden ratio`);
+  ok(Math.abs(T.volume(0) - 0.7608) < 0.01 || Math.abs(T.volume(0) - 0.4702) < 0.01, "a golden rhombohedron's volume is 0.7608 or 0.4702 for unit edges");
+  // every vertex is an exact integer 6-tuple: tiles sharing a face share four identical ids
+  {
+    let shared = 0, bad = 0;
+    for (let t = 0; t < T.n && shared < 500; t++) for (let f = 0; f < 6; f++) {
+      const u = T.across[t * 6 + f]; if (u < 0) continue; shared++;
+      const mine = new Set(); for (let q = 0; q < 4; q++) mine.add(T.fv[t * 24 + f * 4 + q]);
+      let common = 0; for (let q = 0; q < 8; q++) if (mine.has(T.tv[u * 8 + q])) common++;
+      if (common !== 4) bad++;
+    }
+    ok(bad === 0, "a shared face is the same four vertex ids on both tiles (welded by 6-tuple, not by distance)");
+  }
+  // point location and the columns
+  {
+    const r = stream(11, "ico-probe"); let miss = 0, tries = 0;
+    while (tries < 500) { const x = (r() * 2 - 1) * (T.R - 2), y = (r() * 2 - 1) * (T.R - 2), z = 2 + r() * (2.5 * T.R - 4); if (x * x + y * y > (T.R - 2) * (T.R - 2)) continue; tries++; const t = T.locate(x, y, z); if (t < 0 || !T.contains(t, x, y, z)) miss++; }
+    ok(miss === 0, `point location finds every interior point (${miss} misses in 500)`);
+    let unsorted = 0; for (let t = 0; t < T.n; t++) { let last = -Infinity; for (let k = T.aboveStart[t]; k < T.aboveStart[t + 1]; k++) { const u = T.aboveList[k]; if (T.cz[u] < last - 1e-9) unsorted++; last = T.cz[u]; } }
+    ok(unsorted === 0 && T.aboveList.length > T.n, `the column above each tile is sorted nearest first (${T.aboveList.length} entries)`);
+    ok(T.signature() === new IcoTiling(8).signature(), "the tiling is the same twice: " + T.signature());
+  }
+  // growth: determinism, a golden hash of its own, connectivity, the melt-is-above rule
+  const spec = (R, extra) => Object.assign({ shape: "ico", R, ic: { disk: 3, thickness: 1.6 } }, extra || {});
+  const seqI = (g) => g.bricks.map((b) => `${b.tile},${b.t},${b.m}`).join(";");
+  const ico7 = () => Object.assign(genome(7), { substrate: spec(10), budget: 500 });
+  const a = new Growth(ico7()).run(), b = new Growth(ico7()).run();
+  ok(a.sub instanceof Ico && a.sub.kind === "ico", "Growth picks the Ico substrate for shape ico");
+  ok(seqI(a) === seqI(b) && a.tick === b.tick, `ico seed 7: the same ${a.bricks.length} bricks twice`);
+  const hi = createHash("sha256").update(seqI(a)).digest("hex").slice(0, 16);
+  const GOLD_I = "b94a74facc4ca193";
+  ok(hi === GOLD_I || process.env.ICO_GOLD === "print", `ico seed 7: golden hash ${GOLD_I} (got ${hi}) — quasicrystal permalinks re-rolled!`);
+  if (process.env.ICO_GOLD === "print") console.log("  ico golden:", hi);
+  ok(a.bricks.length - a.nucleusBricks >= 450, `ico: lays its budget (${a.bricks.length - a.nucleusBricks} of 500, ${a.tick} ticks)`);
+  {
+    const sub = a.sub, TT = sub.T, bond = new Int32Array(64);
+    const seen = new Uint8Array(sub.n); let floating = 0, shadowed = 0;
+    // replay: every mason brick face-bonded to an earlier one, and open to the sky when laid
+    const g2 = new Growth(ico7()); const sub2 = g2.sub;
+    while (!g2.done) { const before = g2.bricks.length; g2.step(); for (let i = before; i < g2.bricks.length; i++) { const br = g2.bricks[i]; if (br.m < 0) continue; /* the brick is placed already: its shadow counts what is above it */ if (sub2.shadow[br.tile] > 0) shadowed++; } }
+    for (const br of a.bricks) { if (br.m >= 0) { const m = sub.bonds(br.tile, bond); let touch = false; for (let k = 0; k < m; k++) if (seen[bond[k]]) touch = true; if (!touch) floating++; } seen[br.tile] = 1; }
+    ok(floating === 0, `ico: every mason brick shares a face with an earlier brick (${floating} floating)`);
+    ok(shadowed === 0, `ico: no brick laid under an existing brick (${shadowed})`);
+    // nb, shadow and the extent maps agree with a rebuild from the occupied set
+    const fresh = new Ico(spec(10));
+    for (let t = 0; t < sub.n; t++) if (sub.occ[t]) fresh.place(t);
+    let nbBad = 0, shBad = 0, eBad = 0;
+    for (let t = 0; t < sub.n; t++) { if (sub.nb[t] !== fresh.nb[t]) nbBad++; if (sub.shadow[t] !== fresh.shadow[t]) shBad++; }
+    for (let d = 0; d < sub.D; d++) for (let c = 0; c < sub.E[d].length; c++) if (sub.E[d][c] !== fresh.E[d][c] || sub.Ec[d][c] !== fresh.Ec[d][c]) eBad++;
+    ok(nbBad === 0 && shBad === 0 && eBad === 0, `ico: bonds, shadows and the thirty extent maps match a rebuild (${nbBad}/${shBad}/${eBad} wrong)`);
+    // and after removals they still do
+    const removed = [];
+    for (let i = a.bricks.length - 1; i >= a.bricks.length - 12; i--) { const t = a.bricks[i].tile; if (a.remove(t)) removed.push(t); }
+    const fresh2 = new Ico(spec(10));
+    for (let t = 0; t < sub.n; t++) if (sub.occ[t]) fresh2.place(t);
+    nbBad = 0; shBad = 0; eBad = 0;
+    for (let t = 0; t < sub.n; t++) { if (sub.nb[t] !== fresh2.nb[t]) nbBad++; if (sub.shadow[t] !== fresh2.shadow[t]) shBad++; }
+    for (let d = 0; d < sub.D; d++) for (let c = 0; c < sub.E[d].length; c++) if (Math.abs(sub.E[d][c] - fresh2.E[d][c]) > 1e-6 || Math.abs(sub.Ec[d][c] - fresh2.Ec[d][c]) > 1e-6) eBad++;
+    ok(removed.length === 12 && nbBad === 0 && shBad === 0 && eBad === 0, `ico: after ${removed.length} removals bonds, shadows and extent maps are still exact (${nbBad}/${shBad}/${eBad} wrong)`);
+    const st = a.stats();
+    ok(st.tiling === "ico" && st.tiles === sub.n && st.prolate > 0 && st.coordination === 6, "ico: stats name the tiling, count its rhombohedra and its six bonds");
+    ok(st.hollowness > 0.2 && st.pit > 50, `ico: hollow (${st.hollowness.toFixed(2)}, pit ${st.pit})`);
+    ok(st.terraces >= 3, `ico: terraced (${st.terraces} step heights along +x)`);
+    // the summit is an empty tile straight above the highest brick
+    const sm = sub.summit();
+    ok(sm >= 0 && !sub.occ[sm] && sub.shadow[sm] === 0, "ico: the summit is an empty, open site");
+    const idx = a.deploy({ masons: 4, budget: 80 }, null);
+    ok(idx === 1 && a.colonies[1].masons.length === 4, "ico: a pack deploys on the summit");
+    for (let i = 0; i < 6000 && a.colonies[1].laid === 0; i++) a.step();
+    ok(a.colonies[1].laid > 0, `ico: the pack lays bricks (${a.colonies[1].laid})`);
+  }
+  // the playground's painted columns seed it, and a different seed differs
+  {
+    const g = Object.assign(genome(3), { substrate: spec(8, { ic: { voxels: [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0]] } }), budget: 60 });
+    const gr = new Growth(g);
+    ok(gr.nucleusBricks >= 3 && gr.bricks.every((br) => Math.abs(br.x - 1) < 1.6 && Math.abs(br.y - 1) < 1.6 && br.z >= gr.sub.z0 - 0.1 && br.z < gr.sub.z0 + 1.1), `ico ic.voxels: ${gr.nucleusBricks} rhombohedra inside four unit cubes on the floor`);
+    ok(seqI(new Growth(Object.assign(genome(3), { substrate: spec(8), budget: 200 })).run()) !== seqI(new Growth(Object.assign(genome(4), { substrate: spec(8), budget: 200 })).run()), "ico: adjacent seeds differ");
+  }
+  // worms tunnel the rhombohedra along their faces
+  {
+    const { Worms } = await import("./worms.js");
+    const g = new Growth(Object.assign(genome(7), { substrate: spec(10), budget: 400 })).run();
+    const W = new Worms(g, { count: 3, speed: 0.1, bite: 0.2 });
+    ok(W.release() === 3, "ico: three worms released");
+    const before = g.sub.count;
+    W.step(500);
+    ok(W.worms.every((w) => w.moves > 10) && W.eaten > 0 && g.sub.count === before - W.eaten, `ico: the worms tunnel and bite (${W.eaten} eaten)`);
+    ok(W.worms.every((w) => g.sub.occ[w.site] || g.sub.nb[w.site] > 0), "ico: and stay on the crystal");
+    ok(W.positions().every((p) => Number.isFinite(p[0]) && Number.isFinite(p[2])), "ico: positions are centroids");
+  }
+}
+
 /* ── 7. the platformer primitives: deploy (reseed from this plane) + remove ── */
 section("deploy + remove: reseed a pack on the summit, take bricks away, replay from the event log");
 {

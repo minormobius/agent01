@@ -31,13 +31,14 @@ build, no D1, no AI, no secrets. Pure ES modules, no dependencies.
 
 | File | Is |
 |---|---|
-| `js/{prng,genome,crystal,prism,stack,worms,render,tilings}.js` | **synced copies of [`packages/bismuth/`](../packages/bismuth/)** — the engine is a package now (hopper.mino.mobi runs the same one). Edit the package, `node scripts/sync-dataviz.mjs --write`; `--check` fails preflight and the deploy if a copy drifts |
+| `js/{prng,genome,crystal,prism,stack,ico,worms,render,tilings}.js` | **synced copies of [`packages/bismuth/`](../packages/bismuth/)** — the engine is a package now (hopper.mino.mobi runs the same one). Edit the package, `node scripts/sync-dataviz.mjs --write`; `--check` fails preflight and the deploy if a copy drifts |
 | `js/prng.js` | xmur3 + mulberry32, and `stream(seed, label)` — named sub-streams so the genome and the growth never share state |
 | `js/genome.js` | seed → every parameter (habit, masons, budget, rim, Kossel rates, anisotropy, nucleus, oxide palette). Pure. `GRID` (128) and `CHUNK` (16) live here |
 | `js/crystal.js` | **the engine** — `Growth` (the colony: arrival, walk, deposit, population, cool-down) over a SUBSTRATE; `Lattice` (the cubic substrate: occupancy, bond counts, the six extent maps, the lattice-line terrace scan); `Mason` (the agent) |
 | `js/worms.js` | **the worms** — a second wave of agents released *into* the crystal: they tunnel along the bond graph, bite the brick they leave with probability `bite`, and with `recycle` feed it back to the live colony. Deterministic on `stream(seed, "worms")`; substrate-agnostic. Only the playground uses them so far |
 | `js/prism.js` | **the Prism substrate** — any plane tiling stacked into layers; bonds, open sky, the walk, arrival rays and the terrace verdict as geometric rays over cached per-tile ray tables |
 | `js/stack.js` | **the Stack substrate** — a tiling with each layer staggered (AB / ABC) and/or twisted against the last: the close packings and moiré stacks. Extends `Prism`; vertical bonds are exact tile overlaps, the column top is a height field over the plane |
+| `js/ico.js` | **the Ico substrate** — the icosahedral quasicrystal: golden rhombohedra from a 6-grid dual, six face-bonds a brick, thirty extent maps, exact shadow columns; its own mesher in `render.js` (`meshIcoChunk`) |
 | `js/tilings.js` | byte-identical copy of `packages/tilings/tilings.js` (kept honest by `scripts/sync-dataviz.mjs --check`) — **edit the package, never this** |
 | `js/render.js` | WebGL1 renderer — chunked voxel mesher with baked AO, the thin-film shader, orbit camera (or first person via `renderer.fp`), mason motes, props and beacons for hopper |
 | `js/app.js` | the page: URL ↔ seed, pacing, HUD, keys |
@@ -164,6 +165,42 @@ the terrace verdict. So the lattice is fundamental and the shape is emergent.
   (below, above, then the lateral edges — the prism lists its column, the
   stack its overlaps); the renderer asks `sub.vertical(t, z, dz, out)` for
   the tiles above and below and `sub.frame(z)` for the layer's transform.
+- **`Ico`** (`ico.js`) is the icosahedral quasicrystal — space tiled by the
+  prolate and oblate golden rhombohedra (Ammann–Kramer, the 3D Penrose
+  tiling), `substrate: {shape: "ico", R, ic, z0}`. Generation: the dual of a
+  6-grid with the icosahedral star as normals (six of the icosahedron's
+  vertices, one per antipodal pair, in the frame where x, y, z are two-fold
+  axes; radicals only). Every vertex is an integer 6-tuple, so faces weld and
+  adjacency are exact; the selftest checks the tiles fill their cylinder to
+  within rounding, every face is shared both ways, and the prolate:oblate
+  census converges on φ. A tile is a site; its six faces are its bonds
+  (coordination 6, the cubic Kossel classes 1–6), read as below / above /
+  beside by the face normal's z (`UNDER`, 0.4) with the layer beneath
+  collapsed to one bond (a rhombohedron can rest on three faces at once).
+  **The melt is above along a two-fold axis**, deliberately: no face of the
+  tiling is perpendicular to a five-fold axis, so a five-fold "terrace" is a
+  ramp to every attachment direction and the terrace rule starves; the flat
+  planes are the two-fold planes (the faces of the rhombic triacontahedron,
+  the habit real icosahedral grains show), along which every tile's top and
+  bottom sit on the rungs of a Fibonacci ladder (0.526 / 0.851 apart). So
+  the terrace rule keeps THIRTY extent maps (`E[d]`, `Ec[d]`: highest top
+  and highest centroid along each oriented face normal, over that normal's
+  plane at half-edge cells, centred on the cylinder) and reads the one for
+  the direction the site would extend the crystal in — a wall is a centroid
+  past the site's bottom plane (`LEVEL`), a drop a top below it (`RUNG`) —
+  the cubic `fed` verbatim otherwise, with the patch rule for steep-up
+  directions and the lip rule for the rest (`STEEP`). Open sky is exact:
+  each tile's column of tiles above and below (`above[]`, `below[]`, the
+  vertical line through its centroid) is precomputed and `shadow[]` counts
+  the occupied ones. Removal rescans a cell's column along d exactly
+  (`column(d, c)`, lazily built by an exact line–polyhedron walk plus the
+  tiles registered on the cell by centroid). A pack's floor is its plate's
+  underside (`floorOf`), and `Growth.deploy` asks for it. Arrival marches a
+  3D bucket grid. Size: R 8–20, a cylinder of radius R standing 2.5R (the
+  crystal grows as tall as it is wide), 16.6k tiles and ~1.2 s to build at
+  R = 12, cached per R; ~16 µs a tick. Habit: a hollow tower-hopper, a
+  goblet, terraced in rhombic two-fold facets; `lipDepth` 0 flattens it.
+  Golden hash `GOLD_I` pins seed 7 at R 10.
 
 **`/q/<seed>`** is the quasicrystal namespace: `quasiSubstrate(seed)` draws a
 shape from `stream(seed, "substrate")` (its own stream — no cubic specimen
@@ -311,7 +348,11 @@ The same engine and renderer with every knob on the outside. Three panels:
   rhombohedral family, face-centred cubic). The square grid stacked is no
   longer the cubic fast path but the `grid` tiling in a `Stack`, so its
   painter switches to the tile painter (the footprint carries over by
-  position). The stats line reports the coordination.
+  position). The stats line reports the coordination. **Icosahedral** is a
+  chip of its own (`sub.shape: "ico"`, radius `sub.icoR` 8–20): it keeps the
+  cubic painter, whose columns become unit cubes on the melt floor
+  (`ic.voxels`) filled with the rhombohedra whose centroids they contain;
+  the stacking rows hide; the stats line counts prolate and oblate.
 - **initial condition** — on the grid, a painted height map (`ic: {n, z, h}`;
   heights 0–15, packed two per byte in the URL). It becomes `genome.voxels`,
   offsets from the lattice centre at the melt floor, and replaces the seeded

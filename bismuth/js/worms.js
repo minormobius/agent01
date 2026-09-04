@@ -130,8 +130,8 @@ export class Worms {
     const sub = this.sub, all = this._all;
     let no = 0, nv = 0, na = 0;
     const take = (q) => { all[na++] = q; if (sub.occ[q]) out[no++] = q; else if (sub.nb[q]) voids[nv++] = q; };
-    if (sub.kind === "prism") {
-      // the substrate lists its own bonds: a prism's column, a stack's overlaps, then the lateral edges
+    if (sub.kind !== "cubic") {
+      // the substrate lists its own bonds: a prism's column, a stack's overlaps, a rhombohedron's faces, then the lateral ones
       const m = sub.bonds(s, this._bond);
       for (let i = 0; i < m; i++) take(this._bond[i]);
     } else {
@@ -151,7 +151,7 @@ export class Worms {
   homeward(w) {
     const sub = this.sub, n = sub.count || 1;
     const cx = sub.sx / n, cy = sub.sy / n, cz = sub.sz / n;     // prism accumulators are fixed-point x, y; describe() is in edge lengths
-    const k = sub.kind === "prism" ? 1 / 1024 : 1;
+    const k = sub.kind === "prism" ? 1 / 1024 : 1;      // the ico substrate keeps world units
     let best = -1, bd = Infinity;
     for (let i = 0; i < this._nall; i++) {
       const q = this._all[i], d = sub.describe(q);

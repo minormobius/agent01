@@ -328,6 +328,12 @@ export class Renderer {
       this.pbid = new Int32Array(this.pr.sites).fill(-1);
       this.NBK = Math.ceil(this.pr.n / 128);
       this._vert = new Int32Array(64);
+    } else if (this.kind === "ico") {
+      // the icosahedral substrate: sites are rhombohedra, chunks are blocks of 128 in the tiling's spatial order
+      this.pr = null;
+      this.ico = growth.sub;
+      this.pbid = new Int32Array(this.ico.sites).fill(-1);
+      this.NBK = Math.ceil(this.ico.n / 128);
     } else {
       this.pr = null;
       this.occ.fill(0);
@@ -369,12 +375,22 @@ export class Renderer {
     for (let i = 0; i < m; i++) this.dirty.add(chunkOf(v[i], z + 1));
   }
 
+  // a rhombohedron and everything whose faces or corner occlusion it changes
+  dirtyIco(s) {
+    const T = this.ico.T;
+    this.dirty.add(s >> 7);
+    for (let k = T.vnbrStart[s]; k < T.vnbrStart[s + 1]; k++) this.dirty.add(T.vnbrList[k] >> 7);
+  }
+
   // bricks taken away since the last sync (destructible terrain)
   drainRemoved() {
     const rm = this.growth.removed;
     for (let i = this.syncedRemoved; i < rm.length; i++) {
       const s = rm[i];
-      if (this.kind === "prism") {
+      if (this.kind === "ico") {
+        this.pbid[s] = -1;
+        this.dirtyIco(s);
+      } else if (this.kind === "prism") {
         this.pbid[s] = -1;
         const t = s % this.pr.n;
         this.dirtyPrism(t, (s - t) / this.pr.n);
@@ -418,6 +434,16 @@ export class Renderer {
     const br = this.growth.bricks;
     const now = this.time;
     if (this.growth.removed && this.growth.removed.length > this.syncedRemoved) this.drainRemoved();
+    if (this.kind === "ico") {
+      for (let i = this.synced; i < br.length; i++) {
+        const s = br[i].tile;
+        this.pbid[s] = i;
+        this.born[i] = instant ? now - 60 : now;
+        this.dirtyIco(s);
+      }
+      this.synced = br.length;
+      return;
+    }
     if (this.kind === "prism") {
       const pr = this.pr, n = pr.n, T = pr.T, NBK = this.NBK;
       const chunkOf = (t, z) => (z >> 4) * NBK + (t >> 7);
@@ -557,7 +583,45 @@ export class Renderer {
     ch.count = out.length / FLOATS;
   }
 
+  // The rhombohedron mesher: each brick's six rhombic faces, drawn where the
+  // neighbour across is empty, two triangles each; occlusion per corner from
+  // the tiles around that corner holding a brick.
+  meshIcoChunk(ci) {
+    const gl = this.gl, sub = this.ico, T = sub.T, pbid = this.pbid, n = sub.n;
+    const out = [];
+    const aoAt = (v, skip) => {
+      const list = T.atVertex[v];
+      let cnt = 0, m = 0;
+      for (const o of list) { if (o === skip) continue; m++; if (pbid[o] >= 0) cnt++; }
+      if (m === 0) return 3;
+      return 3 - Math.min(3, Math.round((cnt * 3) / m));
+    };
+    for (let t = ci * 128; t < ci * 128 + 128 && t < n; t++) {
+      const i = pbid[t];
+      if (i < 0) continue;
+      const thick = this.thickness(i), born = this.born[i], grain = this.grain(i);
+      for (let f = 0; f < 6; f++) {
+        const o = T.across[t * 6 + f];
+        if (o >= 0 && pbid[o] >= 0) continue;
+        const nx = T.fn[t * 18 + f * 3], ny = T.fn[t * 18 + f * 3 + 1], nz = T.fn[t * 18 + f * 3 + 2];
+        const a = T.fv[t * 24 + f * 4], b = T.fv[t * 24 + f * 4 + 1], c = T.fv[t * 24 + f * 4 + 2], d = T.fv[t * 24 + f * 4 + 3];
+        const aoA = aoAt(a, t), aoB = aoAt(b, t), aoC = aoAt(c, t), aoD = aoAt(d, t);
+        for (const [v, ao] of [[a, aoA], [b, aoB], [c, aoC], [a, aoA], [c, aoC], [d, aoD]]) out.push(T.vx[v], T.vy[v], T.vz[v], nx, ny, nz, ao, thick, born, grain);
+      }
+    }
+    let ch = this.chunks.get(ci);
+    if (!out.length) {
+      if (ch) { gl.deleteBuffer(ch.buf); this.chunks.delete(ci); }
+      return;
+    }
+    if (!ch) { ch = { buf: gl.createBuffer(), count: 0 }; this.chunks.set(ci, ch); }
+    gl.bindBuffer(gl.ARRAY_BUFFER, ch.buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(out), gl.DYNAMIC_DRAW);
+    ch.count = out.length / FLOATS;
+  }
+
   meshChunk(ci) {
+    if (this.kind === "ico") return this.meshIcoChunk(ci);
     if (this.kind === "prism") return this.meshPrismChunk(ci);
     const gl = this.gl;
     const cz = Math.floor(ci / (NC * NC)), cy = Math.floor(ci / NC) % NC, cx = ci % NC;
