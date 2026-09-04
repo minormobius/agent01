@@ -77,10 +77,14 @@ export function fieldDir(az, el) {
   return [Math.cos(a) * c, Math.sin(a) * c, Math.sin(e)];
 }
 
-// the substrate's easy axes: the directions a ferromagnet on it may magnetize along
-export function axesOf(sub) {
+// the substrate's easy axes: the directions a ferromagnet on it may magnetize along — on a
+// polycrystal, `grain` picks the grain, whose axes are turned with its lattice
+export function axesOf(sub, grain = 0) {
   if (sub.kind === "ico") return sub.T.dirs.filter((d) => d[2] > 1e-9 || (Math.abs(d[2]) <= 1e-9 && (d[0] > 1e-9 || (Math.abs(d[0]) <= 1e-9 && d[1] > 0))));   // one of each oriented pair of two-fold axes
-  if (sub.kind === "prism") { const out = DIRS.map((d) => [d[0], d[1], 0]); out.push([0, 0, 1]); return out; }
+  if (sub.kind === "prism") {
+    const g = sub.grains && sub.grains[grain], c = g ? g.c / 1048576 : 1, s = g ? g.s / 1048576 : 0;
+    const out = DIRS.map((d) => [c * d[0] - s * d[1], s * d[0] + c * d[1], 0]); out.push([0, 0, 1]); return out;
+  }
   return [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
 }
 // a colony's taste for a direction, from its growth anisotropy (+x −x +y −y +z −z)
@@ -105,10 +109,13 @@ export class Flux {
     const applied = o.applied !== false, H = applied ? D : [0, 0, 0];
     const br = g.bricks, n = br.length;
     const px = new Float64Array(n), py = new Float64Array(n), pz = new Float64Array(n), mx = new Float64Array(n), my = new Float64Array(n), mz = new Float64Array(n);
-    // easy axes per colony, for a ferromagnet
-    const axes = axesOf(sub), easy = [];
+    // easy axes per DOMAIN, for a ferromagnet: a colony is a domain; on a polycrystal every grain of a
+    // colony is one, with the grain's own turned axes
+    const grains = sub.grains ? sub.grains.length : 1, easy = [];
+    const domainOf = (b) => (b.c || 0) * grains + (sub.grains ? sub.grainOf(b.tile) : 0);
     if (o.material === "ferro") {
-      for (const col of g.colonies) {
+      for (const col of g.colonies) for (let gi = 0; gi < grains; gi++) {
+        const axes = axesOf(sub, gi);
         let best = null, bw = -Infinity;
         for (const d of axes) { const w = taste(col.genome.axis, d) * Math.abs(d[0] * D[0] + d[1] * D[1] + d[2] * D[2]); if (w > bw) { bw = w; best = d; } }
         const s = best[0] * D[0] + best[1] * D[1] + best[2] * D[2] >= 0 ? 1 : -1;
@@ -122,14 +129,15 @@ export class Flux {
       const b = br[i];
       const s = sub.siteAt(b.tile !== undefined ? { tile: b.tile, z: b.z } : b);
       if (s < 0 || !sub.occ[s]) continue;            // eaten or demolished since
-      colOf.set(s, b.c || 0);
+      colOf.set(s, domainOf(b));
       px[live] = b.x + mo[0]; py[live] = b.y + mo[1]; pz[live] = b.z + mo[2];
       const V = sub.kind === "ico" ? sub.T.volume(b.tile) : sub.kind === "prism" ? sub.T.area[b.tile] : 1;
-      if (o.material === "ferro") { const e = easy[b.c || 0]; mx[live] = k * V * e[0]; my[live] = k * V * e[1]; mz[live] = k * V * e[2]; }
+      if (o.material === "ferro") { const e = easy[domainOf(b)]; mx[live] = k * V * e[0]; my[live] = k * V * e[1]; mz[live] = k * V * e[2]; }
       else { mx[live] = sgn * k * V * H[0]; my[live] = sgn * k * V * H[1]; mz[live] = sgn * k * V * H[2]; }
       live++;
     }
     this.n = live; this.px = px; this.py = py; this.pz = pz; this.mx = mx; this.my = my; this.mz = mz; this.H = H; this.D = D; this.easy = easy; this.colOf = colOf;
+    this.domains = new Set(colOf.values()).size;
     this.applied = applied;
     // the reference the field is drawn against: the applied field, or for a remanent magnet a quarter of
     // the equatorial field of a uniformly magnetized sphere of this strength — a dipole's field falls as
@@ -598,7 +606,7 @@ export class FluxDriver {
     if (!this.on) return "";
     if (this.busy && this.flux) return `tracing the field… ${Math.round(this.flux.progress * 100)}%`;
     if (!this.flux) return "";
-    const F = this.flux, o = this.opts, dom = o.material === "ferro" ? ` · ${this.growth.colonies.length} domain${this.growth.colonies.length === 1 ? "" : "s"}` : "";
+    const F = this.flux, o = this.opts, dom = o.material === "ferro" ? ` · ${F.domains} domain${F.domains === 1 ? "" : "s"}` : "";
     if (!F.applied && !F.remanent) return "the applied field is off, and an induced magnet has no field of its own";
     const lines = `${F.lines} flux lines · ${F.n.toLocaleString("en-US")} dipoles`;
     const reach = F.remanent ? `the remanent field reaches ${F.maxI.toFixed(1)}× its scale` : `the field reaches ${F.maxI.toFixed(1)}× the applied field`;

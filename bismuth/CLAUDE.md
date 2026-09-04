@@ -38,6 +38,7 @@ build, no D1, no AI, no secrets. Pure ES modules, no dependencies.
 | `js/worms.js` | **the worms** — a second wave of agents released *into* the crystal: they tunnel along the bond graph, bite the brick they leave with probability `bite`, and with `recycle` feed it back to the live colony. Deterministic on `stream(seed, "worms")`; substrate-agnostic. Only the playground uses them so far |
 | `js/prism.js` | **the Prism substrate** — any plane tiling stacked into layers; bonds, open sky, the walk, arrival rays and the terrace verdict as geometric rays over cached per-tile ray tables |
 | `js/stack.js` | **the Stack substrate** — a tiling with each layer staggered (AB / ABC) and/or twisted against the last: the close packings and moiré stacks. Extends `Prism`; vertical bonds are exact tile overlaps, the column top is a height field over the plane |
+| `js/poly.js` | **the polycrystal** — several tilings, each a grain turned and set down apart, sharing the layers; exclusion where they overlap, grain boundaries where they meet |
 | `js/flux.js` | **magnetism** — the crystal as a magnet: dipoles per brick, a coarse field grid with multipole cells, flux lines traced and drawn; `FluxDriver` for a page |
 | `js/ico.js` | **the Ico substrate** — the icosahedral quasicrystal: golden rhombohedra from a 6-grid dual, six face-bonds a brick, thirty extent maps, exact shadow columns; its own mesher in `render.js` (`meshIcoChunk`) |
 | `js/tilings.js` | byte-identical copy of `packages/tilings/tilings.js` (kept honest by `scripts/sync-dataviz.mjs --check`) — **edit the package, never this** |
@@ -345,6 +346,62 @@ Not in the specimens (`/c/`, `/q/`): a permalink is still the bricks the
 masons laid. In hopper they are the weather (`hopper/js/run.js`, `WEATHER`):
 a wave of grazers with every pack, recycling on, hearts for the player —
 the settings the study picked.
+
+## The polycrystal (`js/poly.js`)
+
+`Poly` is several plane tilings — each a **grain**, turned by its own whole-
+degree angle and set down at its own place — sharing one stack of layers. A
+brick is the prism over its tile, so where two grains' tiles overlap only one
+can hold a brick: the **exclusion** — and a column a grain has built in is
+that grain's ground, which no other lattice continues over. The grains grow
+toward each other from their own nuclei and partition the plane as they
+meet; where they meet is a **grain boundary**: neither lattice crosses it,
+the tiles that would straddle it stay empty, and the misfit is the gap you
+see. A grain that falls behind keeps the ground it holds: a pocket in the
+polycrystal, not a burial.
+
+Built on `Prism`: the composite of the grains' tilings is itself a tiling
+object (every grain's tiles, vertices and adjacency concatenated with offset
+ids, coordinates in world fixed-point), so bonds, walking, the Kossel
+classes, plates, regions, worms and the mesher all work unchanged and stay
+within a grain — adjacency never crosses grains. `Prism` takes the composite
+through `spec._T`. What `Poly` adds: the overlap relation between grains'
+tiles, once, as CSR (`overStart`/`overList`: the world polygons clipped
+against each other, a clash from `OVERLAP_MIN` = 8% of the smaller tile,
+symmetric by construction); `ft[t]`, the tallest foreign column over a
+tile, kept exact on place and remove; `blocked(s)` — the tile is foreign
+ground (`ft ≥ 0`), at any layer: `place` refuses it, `walk` skips it,
+`kossel` returns 0 on it so a mason standing there desorbs; `open` and the
+terrace rule read the foreign column as a wall (`topAt`); rays per grain
+(`ray` walks a grain's own tiles in the grain's frame, direction turned by
+the grain's angle); `fedTop` reading foreign walls, while `fedSide` keeps
+Prism's rule against its own lower steps (foreign ground is blocked
+outright, so there is nothing of it to roof over); and arrival from **one
+melt**: a world ray aimed at a point drawn uniformly over the region's box,
+stopped at the first brick of any grain, landing beside it on that grain,
+so every grain is struck in proportion to the surface it shows.
+
+Frames are integer: a literal cos/sin table at whole degrees × 2²⁰, so the
+same seed is the same polycrystal in every engine. `grainsFor(seed, spec)`
+draws the grains from the seed's `grains` stream: `spec.grains` of them,
+`spec.shape` each (or one of `MIX` each when `spec.mix`), the first
+unturned at the origin, the rest within `spec.spread` degrees (capped at
+the tiling's own period) at points of the domain kept apart. A genome's
+`substrate` with `grains > 1` (a count, or an explicit list of
+`{shape, angle, ox, oy}` in fixed units) makes a `Poly`; every grain's
+nucleus is a disk of `ic.disk` about its own origin, `ic.thickness` layers
+from `z0`. All nuclei are colony 0; a pack deployed on a grain is a
+population with its own laws on that grain alone. `stats` adds `grains`
+(shape, angle, bricks each) and `boundary` (bricks with another grain's ground under an edge-neighbour's tile). In the flux, every grain
+of a colony is its own domain with the grain's turned easy axes, so a
+ferromagnetic polycrystal shows real grains, and the section colours the
+cut by domain. In the lab the substrate section's **grains** slider (1–6),
+**misorientation** and **mixed tilings** make one; the painted footprint is
+not used and stacking is off while grains > 1. The engine selftest pins a
+golden for two square grains face to face (`GOLD_P`), exclusion,
+within-grain bonding, exact foreign tops through removal, a pack staying on
+its grain, and a mixed polycrystal growing. Costs about 2× a prism per
+tick per grain (a world ray locates in every grain).
 
 ## Magnetism (`js/flux.js`)
 

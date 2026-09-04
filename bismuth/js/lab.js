@@ -22,6 +22,7 @@ import { SHAPES, SHAPE_INFO, tiling, FIX } from "./tilings.js";
 import { isStacked, normalizeStack } from "./stack.js";
 import { ICO_R_MIN, ICO_R_MAX, ICO_R_DEFAULT } from "./ico.js";
 import { FluxDriver, MATERIALS, MATERIAL_INFO, DEFAULT_FLUX, VIEWS, PLANES } from "./flux.js";
+import { GRAINS_MAX } from "./poly.js";
 
 const ICO = "ico";
 const ICO_INFO = { label: "icosahedral", note: "golden rhombohedra: the Ammann–Kramer tiling, no lattice in any direction", family: "aperiodic", symmetry: 5 };
@@ -47,7 +48,7 @@ function defaultState() {
     pop: Object.assign({}, DEFAULT_POPULATION),
     worms: Object.assign({}, DEFAULT_WORMS),
     flux: Object.assign({}, DEFAULT_FLUX),
-    sub: { shape: "grid", R: 30, stack: "", stagger: 1, twist: 0, icoR: ICO_R_DEFAULT },
+    sub: { shape: "grid", R: 30, stack: "", stagger: 1, twist: 0, icoR: ICO_R_DEFAULT, grains: 1, spread: 30, mix: false },
     ic: { n: 24, z: 0, h: null },     // cubic: h Uint8Array n*n, heights 0..15
     tic: { z: 0, cells: new Map() },  // tilings: tile index → height
   };
@@ -105,7 +106,7 @@ function decodeState(str) {
       st.flux.offset = Math.max(-1, Math.min(1, +st.flux.offset || 0));
       if (!(Array.isArray(st.flux.pn) && st.flux.pn.length === 3 && st.flux.pn.every(Number.isFinite))) st.flux.pn = null;
     }
-    if (o.sub && (SHAPES.includes(o.sub.shape) || o.sub.shape === ICO)) st.sub = Object.assign({ shape: o.sub.shape, R: Math.max(12, Math.min(44, +o.sub.R || 30)), icoR: Math.max(ICO_R_MIN, Math.min(ICO_R_MAX, Math.round(+o.sub.icoR || ICO_R_DEFAULT))) }, normalizeStack(Object.assign({ stagger: 1 }, o.sub)));
+    if (o.sub && (SHAPES.includes(o.sub.shape) || o.sub.shape === ICO)) st.sub = Object.assign({ shape: o.sub.shape, R: Math.max(12, Math.min(44, +o.sub.R || 30)), icoR: Math.max(ICO_R_MIN, Math.min(ICO_R_MAX, Math.round(+o.sub.icoR || ICO_R_DEFAULT))), grains: Math.max(1, Math.min(GRAINS_MAX, Math.round(+o.sub.grains || 1))), spread: Math.max(0, Math.min(90, Math.round(+o.sub.spread || 0))), mix: !!o.sub.mix }, normalizeStack(Object.assign({ stagger: 1 }, o.sub)));
     const n = Math.max(4, Math.min(48, o.ic && o.ic.n || 24));
     st.ic = { n, z: (o.ic && o.ic.z) || 0, h: unpackHeights((o.ic && o.ic.h) || "", n) };
     st.tic = { z: (o.tic && o.tic.z) || 0, cells: unpackCells((o.tic && o.tic.c) || "") };
@@ -140,12 +141,16 @@ function toGenome(st) {
   } else {
     const cells = [];
     for (const [t, h] of st.tic.cells) if (h) cells.push([t, h]);
-    g.substrate = Object.assign({ shape: st.sub.shape, R: st.sub.R, ic: { cells }, z0: 6 + st.tic.z }, normalizeStack(st.sub));
+    // a polycrystal: each grain grows from its own nucleus disk, straight-stacked; the painted footprint is not used
+    if (isPoly(st.sub)) g.substrate = { shape: st.sub.shape, R: st.sub.R, grains: st.sub.grains, spread: st.sub.spread, mix: st.sub.mix, ic: { disk: 2.5, thickness: 2 }, z0: 6 + st.tic.z };
+    else g.substrate = Object.assign({ shape: st.sub.shape, R: st.sub.R, ic: { cells }, z0: 6 + st.tic.z }, normalizeStack(st.sub));
   }
   return g;
 }
-// the cubic lattice is the square grid stacked straight; staggered or twisted it is a tiling like any other
-function isTilingState(st) { return st.sub.shape !== "grid" && st.sub.shape !== ICO || (st.sub.shape === "grid" && isStacked(st.sub)); }
+// several grains are a polycrystal, whatever the tiling
+function isPoly(sub) { return sub.shape !== ICO && (sub.grains || 1) > 1; }
+// the cubic lattice is the square grid stacked straight; staggered, twisted or in grains it is a tiling like any other
+function isTilingState(st) { return st.sub.shape !== "grid" && st.sub.shape !== ICO || (st.sub.shape === "grid" && (isStacked(st.sub) || isPoly(st.sub))); }
 
 // What a stacking is, for the note under the chips.
 function stackName(sub) {
@@ -290,7 +295,8 @@ class Lab {
     $("#stats").textContent =
       `${fmt(st.bricks)} bricks · ${st.terraces} terraces on the midline · pit ${fmt(st.pit)} cells · hollowness ${st.hollowness.toFixed(2)} · ` +
       `${st.box.map((v) => Math.round(v)).join("×")} · ${fmt(st.ticks)} ticks · ${st.masons} masons alive, ${st.retired} retired` +
-      (st.tiling === ICO ? ` · ${fmt(st.tiles)} golden rhombohedra (${fmt(st.prolate)} prolate, ${fmt(st.tiles - st.prolate)} oblate)` : st.tiling ? ` · ${fmt(st.tiles)} ${SHAPE_INFO[st.tiling].label} tiles` : "") + (st.coordination ? ` · ${st.coordination} bonds a brick` : "") +
+      (st.tiling === ICO ? ` · ${fmt(st.tiles)} golden rhombohedra (${fmt(st.prolate)} prolate, ${fmt(st.tiles - st.prolate)} oblate)` : st.tiling === "poly" ? ` · ${fmt(st.tiles)} tiles over the grains` : st.tiling ? ` · ${fmt(st.tiles)} ${SHAPE_INFO[st.tiling].label} tiles` : "") + (st.coordination ? ` · ${st.coordination} bonds a brick` : "") +
+      (st.grains ? ` · ${st.grains.length} grains (${st.grains.map((gr) => `${SHAPE_INFO[gr.shape].label} ${gr.angle}°: ${fmt(gr.bricks)}`).join(", ")}) · ${fmt(st.boundary)} bricks on a grain boundary` : "") +
       (st.stalled ? (st.reach >= 0.9 ? ` · STALLED short of its budget: the crystal reached the edge of its domain (radius ${st.radius}) — raise the radius or lower the budget` : " · stalled short of its budget: nowhere left to grow") : "");
     window.__done = true;
     this.updateHUD();
@@ -443,6 +449,9 @@ class Lab {
     $("#stagger").addEventListener("change", (e) => this.setStack({ stagger: +e.target.value }));
     $("#twist").addEventListener("input", (e) => { $("#twist-out").textContent = (+e.target.value).toFixed(2).replace(/\.?0+$/, "") + "°"; });
     $("#twist").addEventListener("change", (e) => this.setStack({ twist: +e.target.value }));
+    $("#grains").addEventListener("input", (e) => { st.sub.grains = +e.target.value; $("#grains-out").textContent = st.sub.grains; this.syncPanel(); this.reset(); });
+    $("#spread").addEventListener("input", (e) => { st.sub.spread = +e.target.value; $("#spread-out").textContent = st.sub.spread + "°"; if (isPoly(st.sub)) this.reset(); });
+    $("#mix").addEventListener("change", (e) => { st.sub.mix = e.target.checked; if (isPoly(st.sub)) this.reset(); });
     $("#tileR").addEventListener("input", (e) => {
       if (st.sub.shape === ICO) { st.sub.icoR = +e.target.value; $("#tileR-out").textContent = st.sub.icoR; this.fitBudget(); this.syncPanel(); this.reset(); return; }
       st.sub.R = +e.target.value; $("#tileR-out").textContent = st.sub.R;
@@ -543,10 +552,17 @@ class Lab {
     for (const b of $$("#stacks button")) b.classList.toggle("on", b.dataset.stack === (st.sub.stack || ""));
     $("#stagger").value = st.sub.stagger; $("#stagger-out").textContent = st.sub.stagger;
     $("#twist").value = st.sub.twist; $("#twist-out").textContent = String(st.sub.twist).replace(/\.?0+$/, "") + "°";
-    $("#staggerrow").style.display = st.sub.stack && !ico ? "" : "none";
-    $("#stackrow").style.display = ico ? "none" : ""; $("#twistrow").style.display = ico ? "none" : "";
-    const info = ico ? ICO_INFO : SHAPE_INFO[st.sub.shape], stacked = !ico && isStacked(st.sub);
-    $("#shapenote").textContent = ico
+    const poly = isPoly(st.sub);
+    $("#grains").value = st.sub.grains; $("#grains-out").textContent = st.sub.grains;
+    $("#spread").value = st.sub.spread; $("#spread-out").textContent = st.sub.spread + "°";
+    $("#mix").checked = !!st.sub.mix;
+    $("#grainrow").style.display = ico ? "none" : ""; $("#spreadrow").style.display = poly ? "" : "none"; $("#mixrow").style.display = poly ? "" : "none";
+    $("#staggerrow").style.display = st.sub.stack && !ico && !poly ? "" : "none";
+    $("#stackrow").style.display = ico || poly ? "none" : ""; $("#twistrow").style.display = ico || poly ? "none" : "";
+    const info = ico ? ICO_INFO : SHAPE_INFO[st.sub.shape], stacked = !ico && !poly && isStacked(st.sub);
+    $("#shapenote").textContent = poly
+      ? `a polycrystal of ${st.sub.grains} grains — ${st.sub.mix ? "each its own tiling" : info.label + ", each turned its own way"} (up to ${Math.min(st.sub.spread, ico ? 0 : (SHAPE_INFO[st.sub.shape].symmetry ? 360 / SHAPE_INFO[st.sub.shape].symmetry : 90))}°), set down apart and grown from one melt; where two meet, a grain boundary. The painted footprint is not used: every grain starts from its own disk`
+      : ico
       ? "the icosahedral quasicrystal — space tiled by prolate and oblate golden rhombohedra, the three-dimensional Penrose tiling; no lattice, no period in any direction, five-fold axes. Six faces a brick; the melt is above along a two-fold axis, so the terraces are the faces of a rhombic triacontahedron. Slower to build (a few seconds) and to grow; it grows as tall as it is wide, so a big budget wants a big radius — at 14 about 3,000 bricks fit before it meets the wall"
       : st.sub.shape === "grid" && !stacked
       ? "the cubic lattice — what the specimens grow on; right angles come from here, not from the brain"

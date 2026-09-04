@@ -24,7 +24,7 @@ export class Prism {
   constructor(spec) {
     this.kind = "prism";
     this.spec = spec;
-    const T = this.T = tiling(spec.shape, spec.R || 30);
+    const T = this.T = spec._T || tiling(spec.shape, spec.R || 30);   // a polycrystal hands in its composite
     const n = this.n = T.n, Z = this.Z = LAYERS;
     this.sites = n * Z;
     this.occ = new Uint8Array(n * Z);

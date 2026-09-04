@@ -514,6 +514,94 @@ section("icosahedral substrate: the tiling closes, adjacency is exact, φ, point
 }
 
 /* ── 7. the platformer primitives: deploy (reseed from this plane) + remove ── */
+section("polycrystal: grains, exclusion, foreign walls, one melt, boundaries, determinism, removal, deploy, mixed tilings");
+{
+  const { Poly, grainsFor, GRAINS_MAX, OVERLAP_MIN } = await import("./poly.js");
+  const FIX = 1024;
+  // the grains a seed draws
+  const drawn = grainsFor(11, { shape: "hex", R: 24, grains: 4, spread: 30 });
+  ok(drawn.length === 4 && drawn[0].angle === 0 && drawn[0].ox === 0 && drawn.every((g) => g.shape === "hex" && g.angle >= 0 && g.angle <= 30 && Number.isInteger(g.angle) && Number.isInteger(g.ox)), "grainsFor: four hex grains, the first unturned at the origin, whole degrees within the spread");
+  ok(JSON.stringify(grainsFor(11, { shape: "hex", R: 24, grains: 4, spread: 30 })) === JSON.stringify(drawn), "grainsFor: the same grains twice");
+  ok(grainsFor(11, { shape: "grid", R: 24, grains: 9 }).length === GRAINS_MAX, `at most ${GRAINS_MAX} grains`);
+  const mixed = grainsFor(5, { shape: "grid", R: 24, grains: 5, spread: 45, mix: true });
+  ok(new Set(mixed.map((g) => g.shape)).size >= 2, `mixed: several tilings (${mixed.map((g) => g.shape).join(", ")})`);
+  // two grains face to face
+  const two = { shape: "grid", R: 22, grains: [{ shape: "grid", angle: 0, ox: -7 * FIX, oy: 0 }, { shape: "grid", angle: 30, ox: 7 * FIX, oy: 0 }], ic: { disk: 2.5, thickness: 2 }, z0: 6 };
+  const P = new Poly(two, 3);
+  ok(P.kind === "prism" && P.poly && P.grains.length === 2 && P.n === P.grains[0].T.n + P.grains[1].T.n, `a Poly is a Prism over the composite of its grains (${P.n} tiles)`);
+  // adjacency never crosses grains; the overlap relation is symmetric and only ever foreign
+  {
+    let cross = 0, asym = 0, own = 0, withOver = 0;
+    const has = (t, u) => { const o = P.overlaps(t); for (let i = 0; i < o.length; i++) if (o[i] === u) return true; return false; };
+    for (let t = 0; t < P.n; t++) {
+      const gt = P.grainOf(t);
+      for (let k = P.T.nbrStart[t]; k < P.T.nbrStart[t + 1]; k++) if (P.grainOf(P.T.nbrList[k]) !== gt) cross++;
+      for (let k = P.T.vnbrStart[t]; k < P.T.vnbrStart[t + 1]; k++) if (P.grainOf(P.T.vnbrList[k]) !== gt) cross++;
+      const o = P.overlaps(t);
+      if (o.length) withOver++;
+      for (let i = 0; i < o.length; i++) { if (P.grainOf(o[i]) === gt) own++; if (!has(o[i], t)) asym++; }
+    }
+    ok(cross === 0, "no bond crosses a grain boundary");
+    ok(own === 0 && asym === 0 && withOver > P.n / 2, `the overlap relation is foreign and symmetric (${withOver} tiles clash with another grain's)`);
+  }
+  // the seed lays every grain's nucleus, each on its own lattice
+  const gen2 = () => Object.assign(genome(3), { substrate: two, budget: 2500, masons: 12 });
+  const g = new Growth(gen2());
+  ok(g.sub instanceof Poly && g.nucleusBricks > 40 && [0, 1].every((k) => g.bricks.filter((b) => g.sub.grainOf(b.tile) === k).length >= 16), `two nuclei, one per grain (${g.nucleusBricks} bricks)`);
+  g.run();
+  const seqP = (gr) => gr.bricks.map((b) => `${b.tile},${b.z},${b.t},${b.m}`).join(";");
+  const g2 = new Growth(gen2()).run();
+  ok(seqP(g) === seqP(g2) && g.tick === g2.tick, `two grains, seed 3: the same ${g.bricks.length} bricks twice`);
+  const hp = createHash("sha256").update(seqP(g)).digest("hex").slice(0, 16);
+  const GOLD_P = "b31b8826ef2528f8";
+  ok(hp === GOLD_P || process.env.POLY_GOLD === "print", `two grains, seed 3: golden hash ${GOLD_P} (got ${hp}) — polycrystal permalinks re-rolled!`);
+  if (process.env.POLY_GOLD === "print") console.log("  poly golden:", hp);
+  ok(g.done && g.bricks.length - g.nucleusBricks >= 2500, `two grains: completes the budget (${g.bricks.length} bricks, ${g.tick} ticks)`);
+  {
+    const sub = g.sub, n = sub.n;
+    // exclusion: no brick sits where a foreign brick's prism is
+    let clash = 0, floating = 0, ftBad = 0;
+    for (let s = 0; s < sub.sites; s++) if (sub.occ[s] && sub.blocked(s)) clash++;
+    ok(clash === 0, "no two grains hold the same space");
+    // every mason brick bonded to an earlier brick of its own grain
+    const seen = new Uint8Array(sub.sites), bond = new Int32Array(64);
+    for (let i = 0; i < g.bricks.length; i++) {
+      const br = g.bricks[i], s = br.z * n + br.tile;
+      if (br.m >= 0) { const m = sub.bonds(s, bond); let touch = false; for (let k = 0; k < m; k++) if (seen[bond[k]]) touch = true; if (!touch) floating++; }
+      seen[s] = 1;
+    }
+    ok(floating === 0, `every mason brick is bonded within its grain (${floating} floating)`);
+    // the foreign tops are exact against a rebuild
+    for (let t = 0; t < n; t++) { const o = sub.overlaps(t); let h = -1; for (let i = 0; i < o.length; i++) if (sub.top[o[i]] > h) h = sub.top[o[i]]; if (h !== sub.ft[t]) ftBad++; }
+    ok(ftBad === 0, "the foreign tops are exact");
+    const st = g.stats();
+    ok(st.grains.length === 2 && st.grains[0].bricks + st.grains[1].bricks === st.bricks && st.grains.every((gr) => gr.bricks > 200), `both grains grew (${st.grains.map((gr) => gr.bricks).join(" and ")} bricks)`);
+    ok(st.boundary > 0, `the grains met: ${st.boundary} bricks on the boundary`);
+    ok(st.tiling === "poly" && st.tiles === n, "stats name the polycrystal");
+    // an occupied site wins point location; an empty point goes to the nearest nucleus
+    const b0 = g.bricks.find((b) => sub.grainOf(b.tile) === 1);
+    ok(sub.grainOf(sub.siteAtWorld(b0.x, b0.y, b0.z + 0.5) % n) === 1 && sub.occ[sub.siteAtWorld(b0.x, b0.y, b0.z + 0.5)] === 1, "a brick's own grain answers for its position");
+    ok(sub.grainOf(sub.siteAt({ x: -12, y: 12, z: 40 }) % n) === 0 && sub.grainOf(sub.siteAt({ x: 12, y: 12, z: 40 }) % n) === 1, "an empty point belongs to the nearest nucleus");
+    // removal keeps blocking and foreign tops exact
+    const victim = g.bricks[g.bricks.length - 5], vs = victim.z * n + victim.tile;
+    ok(g.remove(vs) && !sub.occ[vs], "a brick can be taken away");
+    let bad = 0;
+    for (let t = 0; t < n; t++) { const o = sub.overlaps(t); let h = -1; for (let i = 0; i < o.length; i++) if (sub.top[o[i]] > h) h = sub.top[o[i]]; if (h !== sub.ft[t]) bad++; }
+    ok(bad === 0, "and the foreign tops stay exact");
+    // a pack deployed on a grain stays on it
+    const idx = g.deploy({ masons: 4, budget: 120 }, { x: b0.x, y: b0.y, z: sub.top[b0.tile] + 1 });
+    ok(idx === 1, "a pack deploys on the second grain");
+    for (let i = 0; i < 20000 && !g.colonies[1].done; i++) g.step();
+    const packBricks = g.bricks.filter((b) => b.c === 1);
+    ok(packBricks.length > 30 && packBricks.every((b) => sub.grainOf(b.tile) === 1), `its ${packBricks.length} bricks all lie on that grain`);
+  }
+  // a mixed polycrystal of several tilings grows and its grains all lay bricks
+  const gm = new Growth(Object.assign(genome(5), { substrate: { shape: "hex", R: 24, grains: 4, spread: 30, mix: true, ic: { disk: 2.5, thickness: 2 }, z0: 6 }, budget: 1500, masons: 12 })).run();
+  const sm = gm.stats();
+  ok(gm.done && sm.grains.length === 4 && sm.grains.every((gr) => gr.bricks > 20), `mixed: four grains of ${sm.grains.map((gr) => gr.shape + " " + gr.angle + "°").join(", ")} all grew`);
+  ok(OVERLAP_MIN > 0 && OVERLAP_MIN < 0.5, "slivers are not clashes");
+}
+
 section("deploy + remove: reseed a pack on the summit, take bricks away, replay from the event log");
 {
   const build = () => {

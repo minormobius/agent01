@@ -43,6 +43,7 @@ import { genome as makeGenome, GRID, DEFAULT_BRAIN, DEFAULT_POPULATION } from ".
 import { Prism } from "./prism.js";
 import { Stack, isStacked } from "./stack.js";
 import { Ico } from "./ico.js";
+import { Poly } from "./poly.js";
 
 const G = GRID;
 const IDX = (x, y, z) => (z * G + y) * G + x;
@@ -472,7 +473,8 @@ export class Growth {
     const g = this.genome;
     const sp = g.substrate;
     // a tiling stacked straight is a prism; staggered or twisted, a stack; the square grid unstacked is the cubic fast path
-    this.sub = sp && sp.shape === "ico" ? new Ico(sp) : sp && sp.shape && isStacked(sp) ? new Stack(sp) : sp && sp.shape && sp.shape !== "grid" ? new Prism(sp) : new Lattice();
+    // several grains make a polycrystal; a tiling stacked straight is a prism; staggered or twisted, a stack; the square grid unstacked is the cubic fast path
+    this.sub = sp && sp.grains && (Array.isArray(sp.grains) ? sp.grains.length : sp.grains) > 1 ? new Poly(sp, g.seed) : sp && sp.shape === "ico" ? new Ico(sp) : sp && sp.shape && isStacked(sp) ? new Stack(sp) : sp && sp.shape && sp.shape !== "grid" ? new Prism(sp) : new Lattice();
     this.lat = this.sub;                            // the cubic name, kept for callers
     this.nextId = 0;
     this.colonies = [];
