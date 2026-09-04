@@ -1,0 +1,14 @@
+# Workers Static Assets serves a matching asset WITHOUT invoking the worker, so
+# a cache-control header set in worker.js never reaches these files. `_headers`
+# is the mechanism that does apply to them, and it costs no worker invocation.
+#
+# /geo and /data are rebuilt by atlas/etl and redeployed, never edited in place,
+# so they are safe to cache hard. The county topology and the county series are
+# the two big fetches on the page; an hour of freshness plus a day of
+# stale-while-revalidate is the difference between a warm reload and a cold one.
+/geo/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
+/data/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
+/lib/*
+  Cache-Control: public, max-age=600

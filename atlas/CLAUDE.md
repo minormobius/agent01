@@ -21,7 +21,8 @@ whole directory. **No build, no D1, no KV, no AI, no secrets.** Owning branch:
 | `geo/` | built topologies, the contiguity graph, the source manifest |
 | `data/` | the county series, the migration graph, places, the source ledger |
 | `etl/` | the build: fetchers, format readers, and the selftest |
-| `worker.js` | routes `/sources` and `/method`; long-caches `/geo` and `/data` |
+| `worker.js` | routes `/sources` and `/method` — that is all it does |
+| `_headers` | cache-control for `/geo`, `/data`, `/lib` |
 
 `lib/measures.js` and `names.js` are **canonical here** — they are atlas-specific.
 Everything else in `lib/` is a byte-identical copy of a file under `packages/`,
@@ -78,6 +79,11 @@ perfectly and is wrong.
 - **`etl/` is `.assetsignore`d.** It is the build, not the site. If you add a
   directory that should not be served, add it there too — the worker serves
   `directory: "."`.
+- **`worker.js` does not run for asset requests.** Workers Static Assets serves
+  a matching asset directly, so a response header set in `worker.js` never
+  reaches `/geo` or `/data`. Caching lives in `_headers`. The first deploy
+  shipped the header in the worker and it silently did nothing; it was caught by
+  `curl -I` against the live origin, not by reading the config.
 - **Data gaps are deliberate and documented**, not bugs to paper over: Puerto
   Rico and the U.S.V.I. have no BEA or Census PEP series; Canada publishes rates
   rather than totals, so Canadian measures stop at the census division; Mexico's
