@@ -200,6 +200,17 @@
     <div class="note" id="wormnote"></div>
   </details>
 
+  <details open id="sec-flux">
+    <summary>magnetism <span class="hint">the crystal as a magnet: the flux lines of the whole</span></summary>
+    <div class="chips" id="materials"></div>
+    <div class="note" id="fluxnote"></div>
+    <div class="row"><label title="how strongly each brick answers the field; bismuth's real answer is 10⁴ times weaker than the lowest setting">strength</label><input type="range" data-flux="strength" min="0.2" max="4" step="0.1"><output></output></div>
+    <div class="row"><label title="where the applied field comes from, around the axis">field azimuth</label><input type="range" data-flux="az" min="0" max="360" step="5"><output></output></div>
+    <div class="row"><label title="how steeply the applied field points up (90 = straight up the growth axis)">field elevation</label><input type="range" data-flux="el" min="-90" max="90" step="5"><output></output></div>
+    <div class="row"><label title="flux lines traced, seeded upstream and downstream of the crystal">lines</label><input type="range" data-flux="lines" min="40" max="400" step="20"><output></output></div>
+    <div class="note">Every brick is a dipole and the crystal's field is the applied field plus all of them; the lines are streamlines through that field, stopped where they meet a brick. <b>Diamagnet</b> is what bismuth actually is — the strongest diamagnet among the metals, a slab of it floats a magnet — exaggerated here by four orders of magnitude, so the crystal expels the flux and the lines crowd into its hollow. <b>Paramagnet</b> draws it in. <b>Ferromagnet</b> gives every colony its own domain, magnetized along an easy axis of the substrate that its growth anisotropy favours, so a crystal with deployed packs is a magnet of several domains and the lines read them out. First order: the dipoles do not feel each other. The field is retraced a few seconds apart while the crystal grows.</div>
+  </details>
+
   <details open id="sec-pop">
     <summary>colony <span class="hint">population control</span></summary>
     <div class="row"><label title="masons at the start">masons</label><input type="range" data-k="masons" min="1" max="64" step="1"><output></output></div>

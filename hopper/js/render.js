@@ -140,6 +140,33 @@ void main() {
   gl_FragColor = vec4(col, 1.0);
 }`;
 
+// flux lines: a position and the field's strength there, relative to the
+// applied field — dim and cold where the crystal has expelled the flux,
+// warm and bright where it has gathered it
+const LVS = `
+attribute vec3 aPos;
+attribute float aI;
+uniform mat4 uProj;
+uniform mat4 uView;
+uniform vec3 uCenter;
+varying float vI;
+void main() {
+  vec3 w = vec3(aPos.x - uCenter.x, aPos.z - uCenter.z, -(aPos.y - uCenter.y));
+  gl_Position = uProj * (uView * vec4(w, 1.0));
+  vI = aI;
+}`;
+const LFS = `
+precision mediump float;
+varying float vI;
+void main() {
+  float i = vI;
+  vec3 cold = vec3(0.16, 0.22, 0.55);
+  vec3 even = vec3(0.55, 0.62, 0.9);
+  vec3 warm = vec3(1.0, 0.78, 0.35);
+  vec3 c = i < 1.0 ? mix(cold, even, clamp(i, 0.0, 1.0)) : mix(even, warm, clamp((i - 1.0) * 0.8, 0.0, 1.0));
+  float a = 0.5 + 0.5 * clamp(i * 0.6, 0.0, 1.0);
+  gl_FragColor = vec4(c * a, a);
+}`;
 const PVS = `
 attribute vec3 aPos;
 attribute float aFade;
@@ -276,6 +303,12 @@ export class Renderer {
     if (!gl) throw new Error("WebGL unavailable");
     this.prog = program(gl, VS, FS);
     this.pprog = program(gl, PVS, PFS);
+    this.lprog = program(gl, LVS, LFS);
+    this.lloc = {};
+    for (const n of ["aPos", "aI"]) this.lloc[n] = gl.getAttribLocation(this.lprog, n);
+    for (const n of ["uProj", "uView", "uCenter"]) this.lloc[n] = gl.getUniformLocation(this.lprog, n);
+    this.lbuf = gl.createBuffer();
+    this.flux = null;                      // GL_LINES segments [x, y, z, i, x, y, z, i, …] from flux.js, or null
     this.loc = {};
     for (const n of ["aPos", "aNrm", "aAO", "aThick", "aBorn", "aGrain"]) this.loc[n] = gl.getAttribLocation(this.prog, n);
     for (const n of ["uProj", "uView", "uCenter", "uTime", "uKey", "uCool"]) this.loc[n] = gl.getUniformLocation(this.prog, n);
@@ -875,6 +908,24 @@ export class Renderer {
       gl.drawArrays(gl.TRIANGLES, 0, pr.count);
     }
     gl.disable(gl.CULL_FACE);
+
+    // the flux lines: additive, behind the crystal where the crystal is
+    if (this.flux && this.flux.length) {
+      gl.useProgram(this.lprog);
+      gl.uniformMatrix4fv(this.lloc.uProj, false, proj);
+      gl.uniformMatrix4fv(this.lloc.uView, false, view);
+      gl.uniform3f(this.lloc.uCenter, this.target[0], this.target[1], this.target[2]);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.lbuf);
+      if (this._fluxUploaded !== this.flux) { gl.bufferData(gl.ARRAY_BUFFER, this.flux, gl.STATIC_DRAW); this._fluxUploaded = this.flux; }
+      gl.enableVertexAttribArray(this.lloc.aPos); gl.vertexAttribPointer(this.lloc.aPos, 3, gl.FLOAT, false, 16, 0);
+      gl.enableVertexAttribArray(this.lloc.aI); gl.vertexAttribPointer(this.lloc.aI, 1, gl.FLOAT, false, 16, 12);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.ONE, gl.ONE);
+      gl.depthMask(false);
+      gl.drawArrays(gl.LINES, 0, this.flux.length / 4);
+      gl.depthMask(true);
+      gl.disable(gl.BLEND);
+    }
 
     // masons: a glowing mote per agent on the surface, with a short trail
     // (plus any beacons the page asks for, drawn the same way)

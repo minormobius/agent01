@@ -21,6 +21,7 @@ import { Worms, DEFAULT_WORMS } from "./worms.js";
 import { SHAPES, SHAPE_INFO, tiling, FIX } from "./tilings.js";
 import { isStacked, normalizeStack } from "./stack.js";
 import { ICO_R_MIN, ICO_R_MAX, ICO_R_DEFAULT } from "./ico.js";
+import { FluxDriver, MATERIALS, MATERIAL_INFO, DEFAULT_FLUX } from "./flux.js";
 
 const ICO = "ico";
 const ICO_INFO = { label: "icosahedral", note: "golden rhombohedra: the Ammann–Kramer tiling, no lattice in any direction", family: "aperiodic", symmetry: 5 };
@@ -45,6 +46,7 @@ function defaultState() {
     brain: Object.assign({}, DEFAULT_BRAIN),
     pop: Object.assign({}, DEFAULT_POPULATION),
     worms: Object.assign({}, DEFAULT_WORMS),
+    flux: Object.assign({}, DEFAULT_FLUX),
     sub: { shape: "grid", R: 30, stack: "", stagger: 1, twist: 0, icoR: ICO_R_DEFAULT },
     ic: { n: 24, z: 0, h: null },     // cubic: h Uint8Array n*n, heights 0..15
     tic: { z: 0, cells: new Map() },  // tilings: tile index → height
@@ -94,6 +96,7 @@ function decodeState(str) {
     Object.assign(st.brain, o.brain || {});
     Object.assign(st.pop, o.pop || {});
     Object.assign(st.worms, o.worms || {});
+    if (o.flux) { Object.assign(st.flux, o.flux); if (!MATERIALS.includes(st.flux.material)) st.flux.material = "off"; }
     if (o.sub && (SHAPES.includes(o.sub.shape) || o.sub.shape === ICO)) st.sub = Object.assign({ shape: o.sub.shape, R: Math.max(12, Math.min(44, +o.sub.R || 30)), icoR: Math.max(ICO_R_MIN, Math.min(ICO_R_MAX, Math.round(+o.sub.icoR || ICO_R_DEFAULT))) }, normalizeStack(Object.assign({ stagger: 1 }, o.sub)));
     const n = Math.max(4, Math.min(48, o.ic && o.ic.n || 24));
     st.ic = { n, z: (o.ic && o.ic.z) || 0, h: unpackHeights((o.ic && o.ic.h) || "", n) };
@@ -187,6 +190,7 @@ class Lab {
     this.canvas = $("#gl");
     this.renderer = new Renderer(this.canvas);
     this.renderer.autoSpin = 0.08;
+    this.fluxDriver = null;                        // made with the first growth
     this.paused = false;
     this.turbo = false;
     this.pace = 240;
@@ -220,6 +224,8 @@ class Lab {
     this.worms = new Worms(this.growth, this.state.worms);
     this.renderer.worms = null;
     this.renderer.setGrowth(this.growth);
+    if (!this.fluxDriver) this.fluxDriver = new FluxDriver(this.growth, this.renderer); else this.fluxDriver.setGrowth(this.growth);
+    this.fluxDriver.set(this.state.flux);
     this.renderer.sync(true);
     this.renderer.snapCamera();
     this.renderer.cool = 1.6;
@@ -242,6 +248,7 @@ class Lab {
     g.axis = gen.axis.slice();
     g.rim = gen.rim;
     Object.assign(this.worms.opts, st.worms);
+    this.fluxDriver.set(st.flux);
     if (!g.cooling) g.K = [0, gen.k1, gen.k2, gen.k3, 1, 1, 1, 1, 1, 1, 1];
     else g.K = [0, 0, gen.k2, gen.k3, 1, 1, 1, 1, 1, 1, 1];
     const c0 = g.colonies[0];
@@ -299,6 +306,8 @@ class Lab {
     $("#wormnote").textContent = ws.released
       ? `${ws.worms} worm${ws.worms === 1 ? "" : "s"} loose · ${fmt(ws.eaten)} bricks eaten${this.state.worms.recycle ? ` · ${fmt(ws.recycled)} recycled into the melt` : ""}${ws.births || ws.deaths ? ` · ${ws.births} born, ${ws.deaths} faded` : ""}${g.done ? " · the crystal is done; the worms are not" : ""}`
       : "no worms yet — release a wave into the crystal";
+    const fx = this.state.flux;
+    $("#fluxnote").textContent = MATERIAL_INFO[fx.material] + (this.fluxDriver && this.fluxDriver.status ? " · " + this.fluxDriver.status : "");
     const P = this.state.pop;
     $("#popnote").textContent = P.birthEvery || P.retireAfter
       ? `${P.birthEvery ? "a birth every " + P.birthEvery + " bricks" : "no births"}, ${P.retireAfter ? "retire after " + P.retireAfter : "nobody retires"}; ${P.min}–${P.max} alive`
@@ -332,6 +341,7 @@ class Lab {
       if ((this.wormHud = (this.wormHud || 0) + dt) > 0.25) { this.wormHud = 0; this.updateHUD(); }
     }
     this.renderer.worms = W.worms.length ? W.positions() : null;
+    if (this.fluxDriver) { const was = this.fluxDriver.busy; this.fluxDriver.tick(dt); if (was || this.fluxDriver.busy) $("#fluxnote").textContent = MATERIAL_INFO[this.state.flux.material] + (this.fluxDriver.status ? " · " + this.fluxDriver.status : ""); }
     this.renderer.frame(dt, g.done ? null : g.masons);
     requestAnimationFrame((tt) => this.loop(tt));
   }
@@ -354,6 +364,15 @@ class Lab {
     for (const el of $$("[data-brain]")) { const k = el.dataset.brain; wire(el, () => st.brain[k], (v) => { st.brain[k] = v; }); }
     for (const el of $$("[data-pop]")) { const k = el.dataset.pop; wire(el, () => st.pop[k], (v) => { st.pop[k] = v; }); }
     for (const el of $$("[data-worm]")) { const k = el.dataset.worm; wire(el, () => st.worms[k], (v) => { st.worms[k] = v; }); }
+    for (const el of $$("[data-flux]")) { const k = el.dataset.flux; wire(el, () => st.flux[k], (v) => { st.flux[k] = v; }); }
+    const mats = $("#materials");
+    for (const m of MATERIALS) {
+      const b = document.createElement("button");
+      b.textContent = m === "off" ? "off" : m === "dia" ? "diamagnet" : m === "para" ? "paramagnet" : "ferromagnet";
+      b.dataset.material = m;
+      b.addEventListener("click", () => { st.flux.material = m; this.applyLive(); this.syncPanel(); });
+      mats.appendChild(b);
+    }
     for (const el of $$("[data-ox]")) { const k = el.dataset.ox; wire(el, () => st.oxide[k], (v) => { st.oxide[k] = v; }); }
     $("#pace").addEventListener("input", (e) => { this.pace = +e.target.value; $("#pace-out").textContent = this.pace; });
     $("#packsize").addEventListener("input", (e) => { $("#packsize-out").textContent = e.target.value; });
@@ -496,6 +515,8 @@ class Lab {
     for (const el of $$("[data-brain]")) put(el, st.brain[el.dataset.brain]);
     for (const el of $$("[data-pop]")) put(el, st.pop[el.dataset.pop]);
     for (const el of $$("[data-worm]")) put(el, st.worms[el.dataset.worm]);
+    for (const el of $$("[data-flux]")) put(el, st.flux[el.dataset.flux]);
+    for (const b of $$("#materials button")) b.classList.toggle("on", b.dataset.material === st.flux.material);
     for (const el of $$("[data-ox]")) put(el, st.oxide[el.dataset.ox]);
     $("#gridn").value = st.ic.n; $("#gridn-out").textContent = st.ic.n;
     const ico = st.sub.shape === ICO, tr = $("#tileR");

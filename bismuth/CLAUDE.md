@@ -38,6 +38,7 @@ build, no D1, no AI, no secrets. Pure ES modules, no dependencies.
 | `js/worms.js` | **the worms** — a second wave of agents released *into* the crystal: they tunnel along the bond graph, bite the brick they leave with probability `bite`, and with `recycle` feed it back to the live colony. Deterministic on `stream(seed, "worms")`; substrate-agnostic. Only the playground uses them so far |
 | `js/prism.js` | **the Prism substrate** — any plane tiling stacked into layers; bonds, open sky, the walk, arrival rays and the terrace verdict as geometric rays over cached per-tile ray tables |
 | `js/stack.js` | **the Stack substrate** — a tiling with each layer staggered (AB / ABC) and/or twisted against the last: the close packings and moiré stacks. Extends `Prism`; vertical bonds are exact tile overlaps, the column top is a height field over the plane |
+| `js/flux.js` | **magnetism** — the crystal as a magnet: dipoles per brick, a coarse field grid with multipole cells, flux lines traced and drawn; `FluxDriver` for a page |
 | `js/ico.js` | **the Ico substrate** — the icosahedral quasicrystal: golden rhombohedra from a 6-grid dual, six face-bonds a brick, thirty extent maps, exact shadow columns; its own mesher in `render.js` (`meshIcoChunk`) |
 | `js/tilings.js` | byte-identical copy of `packages/tilings/tilings.js` (kept honest by `scripts/sync-dataviz.mjs --check`) — **edit the package, never this** |
 | `js/render.js` | WebGL1 renderer — chunked voxel mesher with baked AO, the thin-film shader, orbit camera (or first person via `renderer.fp`), mason motes, props and beacons for hopper |
@@ -344,6 +345,32 @@ Not in the specimens (`/c/`, `/q/`): a permalink is still the bricks the
 masons laid. In hopper they are the weather (`hopper/js/run.js`, `WEATHER`):
 a wave of grazers with every pack, recycling on, hearts for the player —
 the settings the study picked.
+
+## Magnetism (`js/flux.js`)
+
+The crystal as a magnet, drawn. Every brick is a dipole; the field is the
+applied field plus all of them (first order — the dipoles do not feel each
+other), evaluated on a 30³ grid over the crystal's box with bricks near a
+sample summed one by one and far cells as one dipole each, a few slices a
+frame (`FluxDriver.tick`) so the page never stalls; flux lines are
+streamlines through the grid by midpoint steps, seeded on a lattice across
+the planes upstream and downstream of the crystal, and stopped where they
+enter a brick. Materials: `dia` (what bismuth is — the strongest diamagnet
+among the metals, χ = −1.7 × 10⁻⁴, so the strength here is exaggerated by
+four orders: the crystal expels flux and the lines crowd into the hollow),
+`para` (drawn in), `ferro` (every colony magnetizes to saturation along an
+easy axis of the substrate — the cubic axes, a prism's six in-plane
+directions and its axis, the quasicrystal's fifteen two-fold axes — chosen
+by the colony's own growth anisotropy where the applied field points, so
+deployed packs are domains and the lines read them out). The renderer draws
+the segments additively with a line program (`lprog`), depth-tested against
+the crystal. On the specimen page `m` (or the flux button) cycles off →
+diamagnet → ferromagnet; in the lab the **magnetism** section has the
+material chips, strength, the applied field's azimuth and elevation, and
+the line count, all in the permalink. Rendering, not physics: nothing here
+touches the engine or a brick hash. `flux.selftest.mjs` pins the signs, the
+far-field agreement of the cells, the lines' finiteness and stopping, the
+domains, and determinism.
 
 ## The playground (`lab.html` + `js/lab.js`) — `/lab`
 

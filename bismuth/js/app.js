@@ -6,6 +6,7 @@
 import { Growth } from "./crystal.js";
 import { genome, normalizeSeed, quasiSubstrate, icoSubstrate, icoBudget, ICO_SITE_R } from "./genome.js";
 import { Renderer } from "./render.js";
+import { FluxDriver, MATERIAL_INFO } from "./flux.js";
 import { SHAPE_INFO } from "./tilings.js";
 
 const $ = (s) => document.querySelector(s);
@@ -48,6 +49,7 @@ class App {
   constructor() {
     this.canvas = $("#gl");
     this.renderer = new Renderer(this.canvas);
+    this.fluxDriver = null;
     this.growth = null;
     this.paused = false;
     this.last = performance.now();
@@ -85,6 +87,7 @@ class App {
   build(gen, seed) {
     this.growth = new Growth(gen);
     this.renderer.setGrowth(this.growth);
+    if (!this.fluxDriver) this.fluxDriver = new FluxDriver(this.growth, this.renderer); else this.fluxDriver.setGrowth(this.growth);
     this.renderer.sync(true);                 // the nucleus is already cold
     this.renderer.snapCamera();
     this.renderer.cool = 1.6;
@@ -172,11 +175,21 @@ class App {
       if (g.done) this.finish();
       this.updateHUD();
     }
+    if (this.fluxDriver) this.fluxDriver.tick(dt);
     this.renderer.frame(dt, g.done ? null : g.masons);
     requestAnimationFrame((tt) => this.loop(tt));
   }
 
+  // the crystal as a magnet: off → diamagnet (what bismuth is) → ferromagnet → off
+  cycleFlux() {
+    if (!this.fluxDriver) return;
+    const cur = this.fluxDriver.opts.material, next = cur === "off" ? "dia" : cur === "dia" ? "ferro" : "off";
+    this.fluxDriver.set({ material: next });
+    this.toast(next === "off" ? "flux off" : MATERIAL_INFO[next]);
+  }
+
   bind() {
+    $("#flux").addEventListener("click", () => this.cycleFlux());
     $("#new").addEventListener("click", () => this.go(randomSeed()));
     $("#again").addEventListener("click", () => this.go(this.seed, false));
     $("#skip").addEventListener("click", () => this.skip());
@@ -204,6 +217,7 @@ class App {
       else if (e.key === "n") this.go(randomSeed());
       else if (e.key === "r") this.go(this.seed, false);
       else if (e.key === "s") this.skip();
+      else if (e.key === "m") this.cycleFlux();
       else if (e.key === "ArrowRight") this.go(this.seed + 1);
       else if (e.key === "ArrowLeft") this.go(Math.max(1, this.seed - 1));
       else if (e.key === "a") $("#about").classList.toggle("open");
