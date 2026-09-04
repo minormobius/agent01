@@ -189,12 +189,27 @@
       state.</li>
   </ul>
   <p>
-    What is left is the browser rasterising polygons, where JavaScript's share of a frame is about
-    1.3&nbsp;ms. Two plausible-sounding fixes were tried and thrown away because the measurement
-    said no: merging counties into one path per colour class was <i>slower</i>, and the cost is not
-    proportional to pixels either — a sixteenth of the canvas area only saved a third of the time.
-    The next real lever would be WebGL over a mesh triangulated at build time, not faster client
-    code.
+    Two plausible-sounding fixes were tried and thrown away because the measurement said no: merging
+    counties into one path per colour class was <i>slower</i>, and the cost is not proportional to
+    pixels either — a sixteenth of the canvas area only saved a third of the time.
+  </p>
+  <p>
+    A second pass added a <b>triangulator and a WebGL renderer</b>: every county is cut into
+    triangles once, in a worker, and the whole map becomes a single GPU draw call with the colours
+    in a texture. Borders and labels stay on a 2D canvas over the top, where real line joins live.
+    Profiling that pass mostly produced a correction, though — after the first round, JavaScript was
+    already down to about 1.3&nbsp;ms a frame, and a CPU profile of three level switches put 60&nbsp;ms
+    in all of the JavaScript and 750&nbsp;ms in the browser's own rasterisation. The biggest win
+    available was duller than the GPU: the map was re-projecting and re-building three thousand
+    paths on <i>every</i> click of County / State / Superstate, none of which depends on which of
+    those you picked. Cached against a signature of the projection, that work happens once.
+  </p>
+  <p>
+    The honest part: the GPU path's <i>correctness</i> is verified — rendered against the Canvas2D
+    path pixel for pixel, the two agree everywhere except antialiasing along the county borders — but
+    its <i>speed</i> is not, because the machine this was built on has no GPU. It refuses to run on a
+    software renderer, where it would be slower, and the Canvas2D path remains complete underneath.
+    Add <code>?gl=0</code> or <code>?gl=1</code> to the URL to force one or the other and compare.
   </p>
 
   <h2>Rebuilding it</h2>

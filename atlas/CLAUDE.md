@@ -100,13 +100,65 @@ Three things did it, in order of size:
    Plus viewport culling, which does nothing at zoom 1 and rejects 90% of the
    country when zoomed into a state.
 
-**What is left is rasterisation, and Rust would not touch it.** The remaining
-cost is the browser filling 3,225 polygons; JavaScript's share of a frame is
-about 1.3 ms. Two things were tried and rejected on measurement: merging the
-counties into one path per colour class was SLOWER (36 ms against 27), and the
-cost is not pixel-bound either — cutting the canvas to a sixteenth of the area
-only saved a third. If this ever needs to be faster, the answer is WebGL with a
-mesh triangulated at build time in the ETL, not a faster language on the client.
+Two things were tried and rejected on measurement: merging the counties into one
+path per colour class was SLOWER (36 ms against 27), and the cost is not
+pixel-bound either — cutting the canvas to a sixteenth of the area only saved a
+third.
+
+### Round two: the GPU path, and what the profiler actually said
+
+A second pass added a triangulator and a WebGL renderer. Profiling it first
+changed the story:
+
+| | before round two | after |
+|---|---|---|
+| main-thread `_draw`, U.S. county | 1.3 ms | ~0 ms |
+| main-thread `_draw`, all of North America | 2.6 ms | ~0 ms |
+| clicking County / State / Superstate | 213 ms "blocked" | see below |
+
+A CPU profile of three level switches attributed **60 ms to all JavaScript and
+750 ms to `(program)`** — the browser's own rasterisation. So after round one
+there was hardly any JavaScript left to remove: what still costs is turning
+polygons into pixels.
+
+Two things came out of it anyway:
+
+1. **`_prepare`, `_project`, `_buildPaths` and `_buildGrid` are cached on the
+   TOPOLOGY, keyed by a projection signature** (`_projKey` pushes three fixed
+   points through the projection — the app builds a fresh projection object
+   every rebuild, so there is no identity to compare). The app throws its layers
+   away on every County/State/Superstate click, and none of that work depends on
+   which level is selected. It was being redone every click.
+2. **The WebGL fill path** (`packages/geoviz/gl-fill.js`): one `drawElements`
+   for the whole map, colours in a texture, borders and labels still on the 2D
+   canvas over the top. Triangles come from `packages/geoviz/triangulate.js` via
+   a worker, never a build artefact — the index buffer would be about a megabyte
+   a tier, which is worse than 270 ms of a worker nobody waits on.
+
+**What is verified and what is not.** The GPU output is correct: rendered
+against the Canvas2D path pixel for pixel, 0.023% of pixels differ by more than
+64/255, all of it antialiasing along 11,000 county borders. The triangulation is
+checked against every county in the country. **The speed-up is NOT verified**,
+because this sandbox has no GPU — its WebGL is SwiftShader, where the GL path
+measures 240 ms a frame against Canvas2D's 91 ms, which is exactly what software
+rasterisation of 300,000 triangles should look like. So:
+
+- `GLFill.create` **refuses a software renderer** (SwiftShader, llvmpipe, Basic
+  Render) and falls back to Canvas2D, so nobody on one gets the slower path.
+- `?gl=0` forces Canvas2D, `?gl=1` forces WebGL. That is the A/B, and it needs a
+  real GPU to mean anything.
+
+If someone with a GPU measures `?gl=0` against `?gl=1` and WebGL does not win,
+delete the GL path — the Canvas2D one is complete and is still the fallback.
+
+### Known limit: self-intersecting rings
+
+18 of 3,225 counties in the coarse tier have rings that cross themselves after
+simplification (verified individually — Broomfield CO, James City VA and the
+rest). A ring that crosses itself has no single area that a triangulator and a
+shoelace sum must agree on, so the mesh disagrees with the polygons by 0.002% of
+map area. The selftest asserts that bound to catch it moving, not to reach zero.
+Fixing it properly means making the simplifier self-intersection-aware.
 
 ## Quirks worth knowing before you change something
 

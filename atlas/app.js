@@ -224,6 +224,7 @@
     state._valueFor = valueFor;
     state._cur = cur;
     drawLegend(m, cur);
+    if (map) map.invalidateColors();
   }
 
   function draw() { if (map) map.draw(); }
@@ -496,6 +497,7 @@
     const canvas = $('#map');
     map = new ATLAS_MAP.AtlasMap(canvas, {
       theme: state.theme,
+      meshWorker: '/lib/mesh-worker.js',
       background: ATLAS_SCALE.PALETTE[state.theme].surface,
       onhover: showTip,
       onclick: (hit) => {
@@ -769,6 +771,7 @@
     setMeasure(state.measure);
     rebuildLayers();
     $('#loading').classList.add('done');
+    window.__map = map;      // handle for the perf harness and the console
     window.__ready = true;
   }
 

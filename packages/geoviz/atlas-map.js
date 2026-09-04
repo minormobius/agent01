@@ -40,7 +40,11 @@
      */
     constructor(canvas, opts = {}) {
       this.canvas = canvas;
-      this.ctx = canvas.getContext('2d', { alpha: false });
+      // A GL canvas underneath paints the fills and the background, so the 2D
+      // canvas has to be see-through. Without WebGL2 it goes back to opaque and
+      // paints everything itself.
+      this.gl = this._initGL(canvas, opts);
+      this.ctx = canvas.getContext('2d', { alpha: !!this.gl });
       this.layers = [];                    // [{ topo, id, kind }]
       this.projection = opts.projection || null;
       this.background = opts.background || '#fcfcfb';
@@ -52,9 +56,15 @@
       this.interacting = false;      // true while dragging or wheeling
       this.lodZoom = opts.lodZoom == null ? 2.2 : opts.lodZoom;
       this._idle = 0;
+      this.meshWorkerUrl = opts.meshWorker || null;
+      this._worker = null;
+      this._meshSeq = 0;
+      this._meshPending = new Map();
+      this.onmesh = opts.onmesh || null;
       this.onhover = opts.onhover || null;
       this.onclick = opts.onclick || null;
       this._raf = 0;
+      this._colorSerial = 1;
       this._bindEvents();
     }
 
@@ -84,6 +94,12 @@
 
     _prepare(L) {
       const t = L.topo;
+      // Every one of these caches hangs off the TOPOLOGY, not the layer,
+      // because the app throws its layers away and rebuilds them whenever you
+      // click County / State / Superstate — and none of this depends on which
+      // of those is selected. Recomputing it was 200 ms of frozen interface on
+      // every click, which is what the map actually felt like.
+      if (t.__prep) { L.arcOwners = t.__prep.owners; L.unitOfArc = t.__prep.unitOfArc; return; }
       // arc → owning unit indices. Only needed once per layer, and it is what
       // every border class below is derived from.
       const owners = new Map();
@@ -100,6 +116,27 @@
       L.arcOwners = owners;
       L.unitOfArc = new Int32Array(t.arcs.length).fill(-1);
       for (const [a, us] of owners) L.unitOfArc[a] = us[0];
+      t.__prep = { owners, unitOfArc: L.unitOfArc };
+    }
+
+    /**
+     * A signature for "which projection, fitted how, at what size".
+     *
+     * The app builds a fresh projection object on every rebuild, so there is no
+     * identity to compare. Push three fixed points through it instead: any
+     * change of type, rotation, parallels, scale or translate moves at least one
+     * of them, and an unchanged projection gives byte-identical output.
+     */
+    _projKey() {
+      const p = this.projection;
+      if (!p) return 'none';
+      let k = '';
+      for (const ll of [[-100, 40], [-80, 30], [-120, 50]]) {
+        let q;
+        try { q = p(ll[0], ll[1], null); } catch (e) { q = null; }
+        k += q ? Math.round(q[0] * 64) + ',' + Math.round(q[1] * 64) + ';' : 'x;';
+      }
+      return k + Math.round(this.width) + 'x' + Math.round(this.height);
     }
 
     // ------------------------------------------------------- projection ----
@@ -108,6 +145,8 @@
 
     _project(L) {
       const t = L.topo, proj = this.projection;
+      const ck = this._projKey();
+      if (t.__px && t.__px.key === ck) { L.px = t.__px.px; L.arcOff = t.__px.arcOff; return; }
       const [sx, sy] = t.transform.scale, [dx, dy] = t.transform.translate;
       let total = 0;
       for (const a of t.arcs) total += a.length / 2;
@@ -129,11 +168,18 @@
       }
       off[t.arcs.length] = p;
       L.px = px; L.arcOff = off;
+      t.__px = { key: ck, px, arcOff: off };
     }
 
     _buildPaths(L) {
       if (!L.px) this._project(L);
       const t = L.topo, px = L.px, off = L.arcOff;
+      const ck = this._projKey();
+      if (t.__paths && t.__paths.key === ck) {
+        L.paths = t.__paths.paths; L.bboxes = t.__paths.bboxes; L.grid = t.__paths.grid;
+        L.borderPaths = null;      // these DO depend on the grouping, so rebuild
+        return;
+      }
       const paths = new Array(t.ids.length);
       const bboxes = new Float32Array(t.ids.length * 4);
       for (let u = 0; u < t.ids.length; u++) {
@@ -163,6 +209,7 @@
       L.paths = paths; L.bboxes = bboxes;
       L.borderPaths = null;
       this._buildGrid(L);
+      t.__paths = { key: ck, paths, bboxes, grid: L.grid };
     }
 
     /** Uniform bucket grid over screen space, so hit-testing looks at ~2 units. */
@@ -282,12 +329,132 @@
       this.width = r.width; this.height = r.height;
       this.canvas.width = Math.round(r.width * d);
       this.canvas.height = Math.round(r.height * d);
+      if (this.gl) this.gl.resize(r.width, r.height, d);
       for (const L of this.layers) this._invalidate(L);
       this.draw();
     }
 
+    /**
+     * Put a WebGL2 canvas directly under the 2D one, matching it exactly.
+     *
+     * Returns null when WebGL2 is missing, and everything downstream checks for
+     * that: the Canvas2D fill path is kept intact as the fallback rather than
+     * being replaced, so an old browser gets the map it got before.
+     */
+    _initGL(canvas, opts) {
+      if (opts.gl === false || typeof document === 'undefined') return null;
+      // ?gl=0 forces the Canvas2D path, ?gl=1 forces GL even on a software
+      // renderer. Both exist so the two can be compared on one machine.
+      let force = null;
+      try {
+        const q = new URLSearchParams(location.search).get('gl');
+        if (q === '0') return null;
+        if (q === '1') force = true;
+      } catch (e) { /* no location, e.g. a test harness */ }
+      this._forceGL = force;
+      if (!canvas.parentNode) return null;
+      try {
+        const c = document.createElement('canvas');
+        c.className = 'atlas-gl';
+        const cs = canvas.style;
+        c.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;' +
+          'pointer-events:none;' + (cs.zIndex ? '' : '');
+        canvas.parentNode.insertBefore(c, canvas);   // earlier sibling = underneath
+        const gl = root.ATLAS_GL && root.ATLAS_GL.GLFill.create(c, force);
+        if (!gl) { c.remove(); return null; }
+        this.glCanvas = c;
+        return gl;
+      } catch (e) { return null; }
+    }
+
+    /**
+     * Ask the worker for this layer's triangles. Fire and forget: the map keeps
+     * drawing on the CPU path until the mesh lands, so there is never a frame
+     * waiting on the triangulator.
+     */
+    _meshKey(L) {
+      // Keyed to the TOPOLOGY, not the layer. The app rebuilds its layers on
+      // every level and theme change, always from the same handful of decoded
+      // topologies; keying by layer id would re-triangulate and re-upload a
+      // megabyte of buffers each time somebody clicked "State".
+      if (L.topo.__mid == null) L.topo.__mid = ++AtlasMap._mid;
+      return 'm' + L.topo.__mid;
+    }
+
+    _requestMesh(L) {
+      if (!this.gl || !this.meshWorkerUrl || L.meshState) return;
+      const cached = L.topo.__mesh;
+      if (cached) {
+        L.mesh = cached;
+        L.meshState = 'ready';
+        L.glPosStale = true;
+        return;
+      }
+      if (!L.px) this._project(L);
+      L.meshState = 'pending';
+      try {
+        if (!this._worker) {
+          this._worker = new Worker(this.meshWorkerUrl);
+          this._worker.onmessage = (e) => this._onMesh(e.data);
+          this._worker.onerror = () => { this._worker = null; };
+        }
+      } catch (e) { L.meshState = 'failed'; return; }
+
+      const id = ++this._meshSeq;
+      this._meshPending.set(id, L);
+      const t = L.topo;
+      const px = L.px.slice();          // transferred away; the layer keeps its own
+      const arcOff = L.arcOff.slice();
+      this._worker.postMessage({
+        id, count: t.ids.length,
+        refs: t.refs, ringStart: t.ringStart, polyStart: t.polyStart,
+        px, arcOff,
+      }, [px.buffer, arcOff.buffer]);
+    }
+
+    _onMesh(msg) {
+      const L = this._meshPending.get(msg.id);
+      this._meshPending.delete(msg.id);
+      if (!L) return;
+      if (!msg.ok || !this.gl) { L.meshState = 'failed'; return; }
+      L.mesh = msg.mesh;
+      L.topo.__mesh = msg.mesh;
+      L.meshState = 'ready';
+      L.meshMs = msg.ms;
+      L.glPosStale = true;
+      if (this.onmesh) this.onmesh(L);
+      this.draw();
+    }
+
+    /** Push this layer's current fill colours into its GPU colour texture. */
+    _syncGLColors(L, key) {
+      if (L.glColorSerial === this._colorSerial) return;
+      L.glColorSerial = this._colorSerial;
+      const t = L.topo;
+      this.gl.setColors(key, (u) => (L.fillOf ? (L.fillOf(t.ids[u], u) || 'transparent') : '#dfe3e6'));
+    }
+
+    /**
+     * Say that the fill callbacks now return different colours.
+     *
+     * The renderer cannot see this for itself — `fillOf` closes over the app's
+     * palette — so recolouring without this call leaves the GPU showing the old
+     * measure. Cheap: it bumps a counter, and the ~24 KB texture upload happens
+     * on the next frame.
+     */
+    invalidateColors() { this._colorSerial++; this.draw(); }
+
     /** Everything downstream of the projected coordinates. */
-    _invalidate(L) { L.px = null; L.paths = null; L.borderPaths = null; L.grid = null; }
+    _invalidate(L) {
+      // Only the layer's references go. The caches on the topology stay and are
+      // re-checked against the projection signature, so a resize back to a size
+      // already seen costs nothing.
+      L.px = null; L.paths = null; L.borderPaths = null; L.grid = null;
+      // The mesh survives: a resize or refit changes the projection only by an
+      // affine factor, and an affine map cannot invalidate a triangulation. Only
+      // the positions need re-gathering, which _draw does when it sees this.
+      L.glPosStale = true;
+    }
 
     /** Reset pan/zoom and refit the projection to the viewport. */
     fit(bbox) {
@@ -325,30 +492,67 @@
       const ctx = this.ctx, d = DPR();
       if (!this.width) this.resize();
       this._pickLod();
+
+      const visible = this.layers.filter((L) => L.visible !== false);
+
+      // ---------------------------------------------------------- GPU pass --
+      // One drawElements for every fill on the map. Everything the CPU still
+      // does below is lines and text, which is cheap and which WebGL draws
+      // badly.
+      let glKeys = null;
+      if (this.gl) {
+        glKeys = [];
+        for (const L of visible) {
+          if (L.kind !== 'fill') continue;
+          if (!L.meshState) this._requestMesh(L);
+          if (L.meshState !== 'ready') continue;
+          const key = this._meshKey(L);
+          if (L.glPosStale || !this.gl.has(key)) {
+            if (!L.px) this._project(L);
+            const pos = root.ATLAS_MESH.meshPositions(L.mesh, L.px);
+            if (this.gl.has(key)) this.gl.setPositions(key, pos);
+            else this.gl.setMesh(key, L.mesh, pos);
+            L.glPosStale = false;
+            L.glColorSerial = 0;        // a fresh batch has an empty colour texture
+          }
+          this._syncGLColors(L, key);
+          glKeys.push(key);
+        }
+        this.gl.resize(this.width, this.height, d);
+        this.gl.draw(glKeys, {
+          zoom: this.zoom, ox: this.ox, oy: this.oy, dpr: d, background: this.background,
+        });
+      }
+
+      // ------------------------------------------------------- 2D overlay --
+      this.canvas.width = Math.round(this.width * d);
+      this.canvas.height = Math.round(this.height * d);
       ctx.setTransform(d, 0, 0, d, 0, 0);
-      ctx.fillStyle = this.background;
-      ctx.fillRect(0, 0, this.width, this.height);
+      if (this.gl) ctx.clearRect(0, 0, this.width, this.height);
+      else { ctx.fillStyle = this.background; ctx.fillRect(0, 0, this.width, this.height); }
       ctx.setTransform(d * this.zoom, 0, 0, d * this.zoom, d * this.ox, d * this.oy);
       const inv = 1 / this.zoom;
 
-      for (const L of this.layers) {
-        if (!L.visible) continue;
+      for (const L of visible) {
         if (!L.paths) this._buildPaths(L);
         const t = L.topo;
+        const onGPU = glKeys ? glKeys.indexOf(this._meshKey(L)) >= 0 : false;
 
         if (L.kind === 'fill') {
           ctx.lineJoin = 'round';
-          // Cull by screen bounding box. At zoom 1 this rejects nothing, which
-          // is correct — the whole country is on screen. Zoomed into a state it
-          // rejects most of the country, and that is where a full-detail fill
-          // would otherwise be at its most expensive.
-          const [vx0, vy0, vx1, vy1] = this._viewRect();
-          const bb = L.bboxes;
-          for (let u = 0; u < t.ids.length; u++) {
-            const o = u * 4;
-            if (bb[o + 2] < vx0 || bb[o] > vx1 || bb[o + 3] < vy0 || bb[o + 1] > vy1) continue;
-            ctx.fillStyle = L.fillOf ? (L.fillOf(t.ids[u], u) || 'transparent') : '#dfe3e6';
-            ctx.fill(L.paths[u]);
+          if (!onGPU) {
+            // Cull by screen bounding box. At zoom 1 this rejects nothing, which
+            // is correct — the whole country is on screen. Zoomed into a state it
+            // rejects most of the country, and that is where a full-detail fill
+            // would otherwise be at its most expensive.
+            const [vx0, vy0, vx1, vy1] = this._viewRect();
+            const bb = L.bboxes;
+            for (let u = 0; u < t.ids.length; u++) {
+              const o = u * 4;
+              if (bb[o + 2] < vx0 || bb[o] > vx1 || bb[o + 3] < vy0 || bb[o + 1] > vy1) continue;
+              ctx.fillStyle = L.fillOf ? (L.fillOf(t.ids[u], u) || 'transparent') : '#dfe3e6';
+              ctx.fill(L.paths[u]);
+            }
           }
           this._strokeBorders(L, inv);
         } else {
@@ -476,6 +680,7 @@
       }, { passive: false });
     }
   }
+  AtlasMap._mid = 0;
 
   const API = { AtlasMap };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;

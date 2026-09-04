@@ -25,11 +25,14 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 require(join(ROOT, 'lib', 'codec.js'));
 require(join(ROOT, 'lib', 'projection.js'));
 require(join(ROOT, 'lib', 'scale.js'));
+require(join(ROOT, 'lib', 'triangulate.js'));
+require(join(ROOT, 'lib', 'mesh.js'));
 require(join(ROOT, 'lib', 'hier.js'));
 require(join(ROOT, 'lib', 'regionalize.js'));
 require(join(ROOT, 'lib', 'measures.js'));
 require(join(ROOT, 'names.js'));
-const { ATLAS_CODEC, ATLAS_PROJ, ATLAS_SCALE, ATLAS_HIER, ATLAS_REGION, ATLAS_MEASURES, ATLAS_NAMES } = globalThis;
+const { ATLAS_CODEC, ATLAS_PROJ, ATLAS_SCALE, ATLAS_HIER, ATLAS_REGION, ATLAS_MEASURES, ATLAS_NAMES,
+        ATLAS_TRI, ATLAS_MESH } = globalThis;
 
 let pass = 0, fail = 0;
 const ok = (name, cond, detail = '') => {
@@ -211,6 +214,65 @@ console.log('\nscales');
     s.colorOf(11) !== s.colorOf(201) && s.colorOf(201) !== s.colorOf(901));
   ok('a missing value gets the no-data colour, not class 0',
     s.colorOf(null) === s.palette.nodata && s.colorOf(NaN) === s.palette.nodata);
+
+  // ------------------------------------------------------- triangulation ---
+  // The GPU fill path draws triangles, so every claim the map makes about area
+  // now rests on the triangulator. These are known answers.
+
+  const { earcut } = ATLAS_TRI;
+  const triArea = (d, t) => {
+    let a = 0;
+    for (let i = 0; i < t.length; i += 3) {
+      const p = t[i] * 2, q = t[i + 1] * 2, r = t[i + 2] * 2;
+      a += Math.abs((d[p] - d[r]) * (d[q + 1] - d[p + 1]) - (d[p] - d[q]) * (d[r + 1] - d[p + 1])) / 2;
+    }
+    return a;
+  };
+
+  ok('a square is two triangles of the right area',
+    (() => { const d = [0, 0, 10, 0, 10, 10, 0, 10], t = earcut(d);
+      return t.length === 6 && Math.abs(triArea(d, t) - 100) < 1e-9; })());
+
+  ok('a square with a square hole keeps the hole empty',
+    (() => { const d = [0, 0, 10, 0, 10, 10, 0, 10, 3, 3, 3, 7, 7, 7, 7, 3];
+      const t = earcut(d, [4]);
+      return Math.abs(triArea(d, t) - 84) < 1e-9; })());
+
+  ok('a concave L keeps its notch',
+    (() => { const d = [0, 0, 6, 0, 6, 2, 2, 2, 2, 6, 0, 6], t = earcut(d);
+      return Math.abs(triArea(d, t) - 20) < 1e-9; })());
+
+  ok('every triangle of a polygon is wound the same way',
+    (() => { const d = [0, 0, 6, 0, 6, 2, 2, 2, 2, 6, 0, 6], t = earcut(d);
+      let pos = 0, neg = 0;
+      for (let i = 0; i < t.length; i += 3) {
+        const a = t[i] * 2, b = t[i + 1] * 2, c = t[i + 2] * 2;
+        const s = (d[b] - d[a]) * (d[c + 1] - d[a + 1]) - (d[c] - d[a]) * (d[b + 1] - d[a + 1]);
+        if (s > 0) pos++; else if (s < 0) neg++;
+      }
+      return pos === 0 || neg === 0; })());
+
+  {
+    // n-gons: a simple polygon of n vertices must give exactly n-2 triangles
+    // and conserve area. Deterministic pseudo-random radii, so a failure is
+    // reproducible rather than a story about a build that went red once.
+    let seed = 987654321;
+    const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+    let worst = 0, wrongCount = 0;
+    for (let k = 0; k < 300; k++) {
+      const n = 6 + Math.floor(rnd() * 40), pts = [];
+      for (let i = 0; i < n; i++) { const a = i / n * 2 * Math.PI, r = 3 + rnd() * 7;
+        pts.push(Math.cos(a) * r, Math.sin(a) * r); }
+      const t = earcut(pts);
+      if (t.length / 3 !== n - 2) wrongCount++;
+      let sh = 0;
+      for (let i = 0, j = n - 1; i < n; j = i++) sh += (pts[j * 2] - pts[i * 2]) * (pts[i * 2 + 1] + pts[j * 2 + 1]);
+      const dev = Math.abs(triArea(pts, t) - Math.abs(sh) / 2) / (Math.abs(sh) / 2);
+      if (dev > worst) worst = dev;
+    }
+    ok('300 random polygons: n-2 triangles each, area conserved',
+      wrongCount === 0 && worst < 1e-9, `${wrongCount} wrong counts, worst area error ${worst.toExponential(2)}`);
+  }
 
   // The fast Jenks uses the divide-and-conquer optimisation, which is only
   // valid because the segment cost obeys the quadrangle inequality. That is a
@@ -412,6 +474,95 @@ console.log('\ncommitted artefacts');
     const places = load(join(dataDir, 'places.json'));
     const topo = ATLAS_CODEC.unpack(load(join(geoDir, 'us-counties.json')));
     const data = load(join(dataDir, 'us-counties.json'));
+
+    // ---- the mesh the GPU actually draws, over every county in the country --
+    //
+    // The triangles are what the map is now made of, so this checks them
+    // against the polygons they came from: for each unit, the sum of its
+    // triangle areas against its rings' area, on the real projected geometry.
+    //
+    // The bound is not zero and cannot be. Simplifying the coarse tier makes a
+    // handful of rings cross themselves — 18 of 3,225 counties, every one of
+    // them verified to contain a genuine self-intersection — and a ring that
+    // crosses itself has no single defined area for a triangulator and a
+    // shoelace sum to agree on. The total disagreement is 0.002% of the map.
+    // The test exists to catch that number MOVING.
+    for (const [file, projName, label, bound] of [
+      ['us-counties-lo.json', 'albersUsa', 'coarse', 5e-5],
+      ['us-counties.json', 'albersUsa', 'full', 5e-5],
+    ]) {
+      if (!existsSync(join(geoDir, file))) continue;
+      const T = ATLAS_CODEC.unpack(load(join(geoDir, file)));
+      const proj = ATLAS_PROJ[projName]();
+      if (proj.fit) proj.fit(T.bbox, 1500, 900);
+      const [sx, sy] = T.transform.scale, [dx, dy] = T.transform.translate;
+      let n = 0;
+      for (const a of T.arcs) n += a.length / 2;
+      const px = new Float32Array(n * 2), off = new Int32Array(T.arcs.length + 1);
+      const owner = new Int32Array(T.arcs.length).fill(-1);
+      for (let u = 0; u < T.ids.length; u++) {
+        for (let r = T.polyStart[u]; r < T.polyStart[u + 1]; r++) {
+          for (let k = T.ringStart[r]; k < T.ringStart[r + 1]; k++) {
+            const a = T.refs[k] < 0 ? ~T.refs[k] : T.refs[k];
+            if (owner[a] < 0) owner[a] = u;
+          }
+        }
+      }
+      let p = 0;
+      for (let i = 0; i < T.arcs.length; i++) {
+        off[i] = p;
+        const arc = T.arcs[i];
+        const region = proj.composite ? proj.regionOf(T.ids[owner[i]] || '') : null;
+        for (let j = 0; j < arc.length; j += 2) {
+          const q = proj(dx + arc[j] * sx, dy + arc[j + 1] * sy, region);
+          px[p * 2] = q[0]; px[p * 2 + 1] = q[1]; p++;
+        }
+      }
+      off[T.arcs.length] = p;
+
+      const mesh = ATLAS_MESH.buildMesh(T, px, off);
+      let mapArea = 0, mapErr = 0, worst = 0, mixed = 0;
+      for (let u = 0; u < T.ids.length; u++) {
+        const rings = [];
+        for (let r = T.polyStart[u]; r < T.polyStart[u + 1]; r++) {
+          const ring = []; let first = true;
+          for (let k = T.ringStart[r]; k < T.ringStart[r + 1]; k++) {
+            const ref = T.refs[k], rev = ref < 0, a = rev ? ~ref : ref, st = off[a], e = off[a + 1];
+            for (let q = first ? 0 : 1; q < e - st; q++) ring.push(rev ? e - 1 - q : st + q);
+            first = false;
+          }
+          while (ring.length > 1 && px[ring[0] * 2] === px[ring[ring.length - 1] * 2] &&
+                 px[ring[0] * 2 + 1] === px[ring[ring.length - 1] * 2 + 1]) ring.pop();
+          if (ring.length >= 3) rings.push(ring);
+        }
+        if (!rings.length) continue;
+        let poly = 0;
+        for (const g of ATLAS_MESH.groupRings(px, rings)) {
+          poly += Math.abs(ATLAS_MESH.ringArea(px, rings[g.outer]));
+          for (const h of g.holes) poly -= Math.abs(ATLAS_MESH.ringArea(px, rings[h]));
+        }
+        let tri = 0, pos = 0, neg = 0;
+        for (let i = mesh.triStart[u]; i < mesh.triStart[u + 1]; i += 3) {
+          const A = mesh.srcIdx[mesh.tris[i]] * 2, B = mesh.srcIdx[mesh.tris[i + 1]] * 2,
+                C = mesh.srcIdx[mesh.tris[i + 2]] * 2;
+          const sg = (px[B] - px[A]) * (px[C + 1] - px[A + 1]) - (px[C] - px[A]) * (px[B + 1] - px[A + 1]);
+          if (sg > 0) pos++; else if (sg < 0) neg++;
+          tri += Math.abs(sg) / 2;
+        }
+        if (pos && neg) mixed++;
+        if (poly <= 1e-9) continue;
+        mapArea += poly;
+        mapErr += Math.abs(tri - poly);
+        const d = Math.abs(tri - poly) / poly;
+        if (d > worst) worst = d;
+      }
+      ok(`mesh area matches the polygons across every U.S. county (${label})`,
+        mapErr / mapArea < bound,
+        `${(mapErr / mapArea * 100).toExponential(2)}% of map area, worst unit ${(worst * 100).toFixed(2)}%`);
+      ok(`no county is triangulated with mixed winding (${label})`, mixed === 0, `${mixed} units`);
+      ok(`every county with area got triangles (${label})`,
+        mesh.triangles > T.ids.length, `${mesh.triangles} triangles for ${T.ids.length} units`);
+    }
 
     ok('the geometry decodes to the unit count it declares', topo.ids.length === 3225, String(topo.ids.length));
     ok('every drawn county has a place record', topo.ids.every((id) => places[id]));

@@ -50,6 +50,12 @@ const EXTRA = [
   ["packages/geoviz/codec.js", "atlas/lib/codec.js"],
   ["packages/geoviz/projection.js", "atlas/lib/projection.js"],
   ["packages/geoviz/scale.js", "atlas/lib/scale.js"],
+  ["packages/geoviz/triangulate.js", "atlas/lib/triangulate.js"],
+  ["packages/geoviz/mesh.js", "atlas/lib/mesh.js"],
+  ["packages/geoviz/gl-fill.js", "atlas/lib/gl-fill.js"],
+  // The worker importScripts()es triangulate.js and mesh.js RELATIVE TO ITSELF,
+  // so it has to land beside them in atlas/lib/ or it resolves to nothing.
+  ["packages/geoviz/mesh-worker.js", "atlas/lib/mesh-worker.js"],
   ["packages/geoviz/atlas-map.js", "atlas/lib/atlas-map.js"],
   ["packages/geohier/hier.js", "atlas/lib/hier.js"],
   ["packages/geohier/regionalize.js", "atlas/lib/regionalize.js"],
