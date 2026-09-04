@@ -362,15 +362,55 @@ four orders: the crystal expels flux and the lines crowd into the hollow),
 easy axis of the substrate — the cubic axes, a prism's six in-plane
 directions and its axis, the quasicrystal's fifteen two-fold axes — chosen
 by the colony's own growth anisotropy where the applied field points, so
-deployed packs are domains and the lines read them out). The renderer draws
-the segments additively with a line program (`lprog`), depth-tested against
-the crystal. On the specimen page `m` (or the flux button) cycles off →
-diamagnet → ferromagnet; in the lab the **magnetism** section has the
-material chips, strength, the applied field's azimuth and elevation, and
-the line count, all in the permalink. Rendering, not physics: nothing here
-touches the engine or a brick hash. `flux.selftest.mjs` pins the signs, the
-far-field agreement of the cells, the lines' finiteness and stopping, the
-domains, and determinism.
+deployed packs are domains and the lines read them out).
+
+**Remanence.** The applied field is a switch (`applied`). Off, a diamagnet
+or paramagnet has nothing left; a ferromagnet keeps the magnetization the
+field gave it — the domains hold their easy axes, the applied term is zero,
+and what is drawn is the crystal's own field, a dipole's at a distance. Its
+lines are seeded on the crystal itself (`traceSurface`): every surface brick
+gets an outward normal from fourteen probes, the seeds are the bricks with
+the strongest outward flux, spread so no two crowd, and each line is traced
+with the field until it re-enters the crystal — the first steps off the
+surface read the dipoles directly, the rest the grid. Intensities are drawn
+against a reference (`ref`): the applied field, or for a remanent magnet a
+quarter of the equatorial field of a uniformly magnetized sphere of that
+strength, so the poles glow and the field a few bricks out still reads.
+
+**The section** (`Section`; `view` = `flux` | `field` | `both`). A plane
+through the crystal's centre — facing the camera, or on an axis, or locked
+where it was (`plane`; `offset` slides it along its normal) — with the near
+half of the crystal cut away: the renderer's crystal program takes a
+view-space clip plane (`uClip`) and discards fragments on the eye's side,
+always the nearer half whichever way you orbit. On the plane the field's
+strength is colour on a log scale about the reference (cold below, warm
+above; a factor of 2.8 spans the range, so a diamagnet's shadow and a
+paramagnet's core both read), its direction is line integral convolution of
+white noise along the in-plane field (faded where the field runs through
+the plane), and where the plane cuts a brick the cut takes the domain's
+colour (a hue per colony for a ferromagnet, the metal's grey otherwise).
+The plane is opaque where the field matters and lets the far half show
+through elsewhere. A coarse plane (64²) is read off the grid whenever the
+camera moves; once it rests the full plane (128²) is read off the grid and
+then sharpened from the dipoles directly, a few rows a frame. The driver
+stops the idle spin while a section is up, since the section would chase
+it. The renderer draws the section as a textured quad (`sprog`) under the
+lines; the lines are drawn additively with a line program (`lprog`),
+depth-tested against the crystal.
+
+On the specimen page `m` (or the flux button) cycles off → diamagnet →
+ferromagnet → remanent (the field switched off, the magnetization kept) →
+off, and `v` (or the section button) cycles the lines → the section → both;
+in the lab the **magnetism** section has the material chips, the applied
+field switch, the view and section chips, the section offset, strength,
+the applied field's azimuth and elevation, and the line count, all in the
+permalink (a locked section carries its normal, `pn`). Rendering, not
+physics: nothing here touches the engine or a brick hash.
+`flux.selftest.mjs` pins the signs, the far-field agreement of the cells,
+the lines' finiteness and stopping, the domains, remanence (the moments
+kept, the r⁻³ far field, seeds on the surface where the field leaves it),
+the section (its basis, its cut, the sharp plane against the dipoles), and
+determinism of all of it.
 
 ## The playground (`lab.html` + `js/lab.js`) — `/lab`
 

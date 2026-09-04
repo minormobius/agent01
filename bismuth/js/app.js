@@ -6,7 +6,7 @@
 import { Growth } from "./crystal.js";
 import { genome, normalizeSeed, quasiSubstrate, icoSubstrate, icoBudget, ICO_SITE_R } from "./genome.js";
 import { Renderer } from "./render.js";
-import { FluxDriver, MATERIAL_INFO } from "./flux.js";
+import { FluxDriver, MATERIAL_INFO, VIEW_INFO } from "./flux.js";
 import { SHAPE_INFO } from "./tilings.js";
 
 const $ = (s) => document.querySelector(s);
@@ -180,16 +180,27 @@ class App {
     requestAnimationFrame((tt) => this.loop(tt));
   }
 
-  // the crystal as a magnet: off → diamagnet (what bismuth is) → ferromagnet → off
+  // the crystal as a magnet: off → diamagnet (what bismuth is) → ferromagnet → the field switched off, the magnetization kept → off
   cycleFlux() {
     if (!this.fluxDriver) return;
-    const cur = this.fluxDriver.opts.material, next = cur === "off" ? "dia" : cur === "dia" ? "ferro" : "off";
-    this.fluxDriver.set({ material: next });
-    this.toast(next === "off" ? "flux off" : MATERIAL_INFO[next]);
+    const o = this.fluxDriver.opts, cur = o.material;
+    if (cur === "off") { this.fluxDriver.set({ material: "dia", applied: true }); this.toast(MATERIAL_INFO.dia); }
+    else if (cur === "dia") { this.fluxDriver.set({ material: "ferro", applied: true }); this.toast(MATERIAL_INFO.ferro); }
+    else if (o.applied !== false) { this.fluxDriver.set({ applied: false }); this.toast("remanence — the applied field is off; the crystal keeps its magnetization, and the lines are its own"); }
+    else { this.fluxDriver.set({ material: "off", applied: true }); this.toast("flux off"); }
+  }
+  // the view: the lines → a section facing you, the near half cut away → both → the lines
+  cycleView() {
+    if (!this.fluxDriver) return;
+    const o = this.fluxDriver.opts, next = o.view === "flux" ? "field" : o.view === "field" ? "both" : "flux";
+    if (o.material === "off") this.fluxDriver.set({ material: "dia", applied: true, view: "field" });
+    else this.fluxDriver.set({ view: next });
+    this.toast(VIEW_INFO[this.fluxDriver.opts.view]);
   }
 
   bind() {
     $("#flux").addEventListener("click", () => this.cycleFlux());
+    $("#section").addEventListener("click", () => this.cycleView());
     $("#new").addEventListener("click", () => this.go(randomSeed()));
     $("#again").addEventListener("click", () => this.go(this.seed, false));
     $("#skip").addEventListener("click", () => this.skip());
@@ -218,6 +229,7 @@ class App {
       else if (e.key === "r") this.go(this.seed, false);
       else if (e.key === "s") this.skip();
       else if (e.key === "m") this.cycleFlux();
+      else if (e.key === "v") this.cycleView();
       else if (e.key === "ArrowRight") this.go(this.seed + 1);
       else if (e.key === "ArrowLeft") this.go(Math.max(1, this.seed - 1));
       else if (e.key === "a") $("#about").classList.toggle("open");

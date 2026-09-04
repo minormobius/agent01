@@ -21,7 +21,7 @@ import { Worms, DEFAULT_WORMS } from "./worms.js";
 import { SHAPES, SHAPE_INFO, tiling, FIX } from "./tilings.js";
 import { isStacked, normalizeStack } from "./stack.js";
 import { ICO_R_MIN, ICO_R_MAX, ICO_R_DEFAULT } from "./ico.js";
-import { FluxDriver, MATERIALS, MATERIAL_INFO, DEFAULT_FLUX } from "./flux.js";
+import { FluxDriver, MATERIALS, MATERIAL_INFO, DEFAULT_FLUX, VIEWS, PLANES } from "./flux.js";
 
 const ICO = "ico";
 const ICO_INFO = { label: "icosahedral", note: "golden rhombohedra: the Ammann–Kramer tiling, no lattice in any direction", family: "aperiodic", symmetry: 5 };
@@ -96,7 +96,15 @@ function decodeState(str) {
     Object.assign(st.brain, o.brain || {});
     Object.assign(st.pop, o.pop || {});
     Object.assign(st.worms, o.worms || {});
-    if (o.flux) { Object.assign(st.flux, o.flux); if (!MATERIALS.includes(st.flux.material)) st.flux.material = "off"; }
+    if (o.flux) {
+      Object.assign(st.flux, o.flux);
+      if (!MATERIALS.includes(st.flux.material)) st.flux.material = "off";
+      if (!VIEWS.includes(st.flux.view)) st.flux.view = "flux";
+      if (!PLANES.includes(st.flux.plane)) st.flux.plane = "facing";
+      st.flux.applied = st.flux.applied !== false;
+      st.flux.offset = Math.max(-1, Math.min(1, +st.flux.offset || 0));
+      if (!(Array.isArray(st.flux.pn) && st.flux.pn.length === 3 && st.flux.pn.every(Number.isFinite))) st.flux.pn = null;
+    }
     if (o.sub && (SHAPES.includes(o.sub.shape) || o.sub.shape === ICO)) st.sub = Object.assign({ shape: o.sub.shape, R: Math.max(12, Math.min(44, +o.sub.R || 30)), icoR: Math.max(ICO_R_MIN, Math.min(ICO_R_MAX, Math.round(+o.sub.icoR || ICO_R_DEFAULT))) }, normalizeStack(Object.assign({ stagger: 1 }, o.sub)));
     const n = Math.max(4, Math.min(48, o.ic && o.ic.n || 24));
     st.ic = { n, z: (o.ic && o.ic.z) || 0, h: unpackHeights((o.ic && o.ic.h) || "", n) };
@@ -365,14 +373,20 @@ class Lab {
     for (const el of $$("[data-pop]")) { const k = el.dataset.pop; wire(el, () => st.pop[k], (v) => { st.pop[k] = v; }); }
     for (const el of $$("[data-worm]")) { const k = el.dataset.worm; wire(el, () => st.worms[k], (v) => { st.worms[k] = v; }); }
     for (const el of $$("[data-flux]")) { const k = el.dataset.flux; wire(el, () => st.flux[k], (v) => { st.flux[k] = v; }); }
-    const mats = $("#materials");
-    for (const m of MATERIALS) {
-      const b = document.createElement("button");
-      b.textContent = m === "off" ? "off" : m === "dia" ? "diamagnet" : m === "para" ? "paramagnet" : "ferromagnet";
-      b.dataset.material = m;
-      b.addEventListener("click", () => { st.flux.material = m; this.applyLive(); this.syncPanel(); });
-      mats.appendChild(b);
-    }
+    const chipRow = (sel, values, key, label, set) => {
+      const box = $(sel);
+      for (const v of values) {
+        const b = document.createElement("button");
+        b.textContent = label(v);
+        b.dataset[key] = String(v);
+        b.addEventListener("click", () => { set(v); this.applyLive(); this.syncPanel(); });
+        box.appendChild(b);
+      }
+    };
+    chipRow("#materials", MATERIALS, "material", (m) => m === "off" ? "off" : m === "dia" ? "diamagnet" : m === "para" ? "paramagnet" : "ferromagnet", (m) => { st.flux.material = m; });
+    chipRow("#applied", [true, false], "applied", (v) => v ? "on" : "off", (v) => { st.flux.applied = v; });
+    chipRow("#views", VIEWS, "view", (v) => v, (v) => { st.flux.view = v; });
+    chipRow("#planes", PLANES, "plane", (v) => v === "lock" ? "locked" : v, (v) => { st.flux.plane = v; st.flux.pn = v === "lock" && this.fluxDriver ? this.fluxDriver.facing() : null; });
     for (const el of $$("[data-ox]")) { const k = el.dataset.ox; wire(el, () => st.oxide[k], (v) => { st.oxide[k] = v; }); }
     $("#pace").addEventListener("input", (e) => { this.pace = +e.target.value; $("#pace-out").textContent = this.pace; });
     $("#packsize").addEventListener("input", (e) => { $("#packsize-out").textContent = e.target.value; });
@@ -517,6 +531,9 @@ class Lab {
     for (const el of $$("[data-worm]")) put(el, st.worms[el.dataset.worm]);
     for (const el of $$("[data-flux]")) put(el, st.flux[el.dataset.flux]);
     for (const b of $$("#materials button")) b.classList.toggle("on", b.dataset.material === st.flux.material);
+    for (const b of $$("#applied button")) b.classList.toggle("on", b.dataset.applied === String(st.flux.applied !== false));
+    for (const b of $$("#views button")) b.classList.toggle("on", b.dataset.view === st.flux.view);
+    for (const b of $$("#planes button")) b.classList.toggle("on", b.dataset.plane === st.flux.plane);
     for (const el of $$("[data-ox]")) put(el, st.oxide[el.dataset.ox]);
     $("#gridn").value = st.ic.n; $("#gridn-out").textContent = st.ic.n;
     const ico = st.sub.shape === ICO, tr = $("#tileR");

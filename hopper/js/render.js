@@ -58,6 +58,7 @@ varying float vGrain;
 uniform float uTime;
 uniform vec3 uKey;
 uniform float uCool;
+uniform vec4 uClip;      // view-space plane: fragments with dot(vP, xyz) + w > 0 are cut away (the section's near half)
 
 // approximate CIE-ish colour matching, three lobes per channel is plenty
 vec3 cmf(float l) {
@@ -95,6 +96,7 @@ vec3 film(float d, float cosV) {
 }
 
 void main() {
+  if (dot(vP, uClip.xyz) + uClip.w > 0.0) discard;
   vec3 N = normalize(vN);
   vec3 V = normalize(-vP);
   float cosV = clamp(dot(N, V), 0.0, 1.0);
@@ -166,6 +168,33 @@ void main() {
   vec3 c = i < 1.0 ? mix(cold, even, clamp(i, 0.0, 1.0)) : mix(even, warm, clamp((i - 1.0) * 0.8, 0.0, 1.0));
   float a = 0.5 + 0.5 * clamp(i * 0.6, 0.0, 1.0);
   gl_FragColor = vec4(c * a, a);
+}`;
+// the section: a textured quad through the crystal, the field painted on it by flux.js
+const SVS = `
+attribute vec3 aPos;
+attribute vec2 aUV;
+uniform mat4 uProj;
+uniform mat4 uView;
+uniform vec3 uCenter;
+varying vec2 vUV;
+void main() {
+  vec3 w = vec3(aPos.x - uCenter.x, aPos.z - uCenter.z, -(aPos.y - uCenter.y));
+  gl_Position = uProj * (uView * vec4(w, 1.0));
+  vUV = aUV;
+}`;
+const SFS = `
+precision mediump float;
+varying vec2 vUV;
+uniform sampler2D uTex;
+uniform float uAlpha;
+void main() {
+  vec4 t = texture2D(uTex, vUV);
+  // a soft edge so the square does not read as a slab
+  vec2 e = min(vUV, 1.0 - vUV);
+  float edge = smoothstep(0.0, 0.06, min(e.x, e.y));
+  // the texture is premultiplied already
+  float k = uAlpha * edge;
+  gl_FragColor = vec4(t.rgb * k, t.a * k);
 }`;
 const PVS = `
 attribute vec3 aPos;
@@ -309,9 +338,17 @@ export class Renderer {
     for (const n of ["uProj", "uView", "uCenter"]) this.lloc[n] = gl.getUniformLocation(this.lprog, n);
     this.lbuf = gl.createBuffer();
     this.flux = null;                      // GL_LINES segments [x, y, z, i, x, y, z, i, …] from flux.js, or null
+    this.sprog = program(gl, SVS, SFS);
+    this.sloc = {};
+    for (const n of ["aPos", "aUV"]) this.sloc[n] = gl.getAttribLocation(this.sprog, n);
+    for (const n of ["uProj", "uView", "uCenter", "uTex", "uAlpha"]) this.sloc[n] = gl.getUniformLocation(this.sprog, n);
+    this.sbuf = gl.createBuffer();
+    this.stex = null;
+    this.section = null;                   // a flux.js Section: {corners(), rgba, res, stamp}, or null
+    this.clip = null;                      // {p: [x, y, z], n: [x, y, z]} in substrate coordinates: cut the crystal away on the eye's side of this plane
     this.loc = {};
     for (const n of ["aPos", "aNrm", "aAO", "aThick", "aBorn", "aGrain"]) this.loc[n] = gl.getAttribLocation(this.prog, n);
-    for (const n of ["uProj", "uView", "uCenter", "uTime", "uKey", "uCool"]) this.loc[n] = gl.getUniformLocation(this.prog, n);
+    for (const n of ["uProj", "uView", "uCenter", "uTime", "uKey", "uCool", "uClip"]) this.loc[n] = gl.getUniformLocation(this.prog, n);
     this.ploc = {};
     for (const n of ["aPos", "aFade"]) this.ploc[n] = gl.getAttribLocation(this.pprog, n);
     for (const n of ["uProj", "uView", "uCenter", "uPx", "uH", "uSize", "uTint", "uCore"]) this.ploc[n] = gl.getUniformLocation(this.pprog, n);
@@ -878,6 +915,15 @@ export class Renderer {
     gl.uniform1f(this.loc.uCool, this.cool);
     // key light rides with the camera, up and to the left, in view space
     gl.uniform3f(this.loc.uKey, -0.45, 0.75, 0.6);
+    // the section's clip: its plane in view space, normal towards the eye, so whichever half is nearer is cut away
+    if (this.clip) {
+      const T = this.target, p = this.clip.p, n = this.clip.n;
+      const w = [p[0] - T[0], p[2] - T[2], -(p[1] - T[1])], nw = [n[0], n[2], -n[1]];
+      const pv = [view[0] * w[0] + view[4] * w[1] + view[8] * w[2] + view[12], view[1] * w[0] + view[5] * w[1] + view[9] * w[2] + view[13], view[2] * w[0] + view[6] * w[1] + view[10] * w[2] + view[14]];
+      let nv = [view[0] * nw[0] + view[4] * nw[1] + view[8] * nw[2], view[1] * nw[0] + view[5] * nw[1] + view[9] * nw[2], view[2] * nw[0] + view[6] * nw[1] + view[10] * nw[2]];
+      if (nv[0] * pv[0] + nv[1] * pv[1] + nv[2] * pv[2] > 0) nv = [-nv[0], -nv[1], -nv[2]];   // the eye is at the origin: point the normal at it
+      gl.uniform4f(this.loc.uClip, nv[0], nv[1], nv[2], -(nv[0] * pv[0] + nv[1] * pv[1] + nv[2] * pv[2]));
+    } else gl.uniform4f(this.loc.uClip, 0, 0, 0, -1);
     gl.disable(gl.BLEND);
     gl.enable(gl.CULL_FACE);
     gl.cullFace(gl.BACK);
@@ -908,6 +954,33 @@ export class Renderer {
       gl.drawArrays(gl.TRIANGLES, 0, pr.count);
     }
     gl.disable(gl.CULL_FACE);
+
+    // the section: the field on its plane, over the cut crystal, under the lines
+    if (this.section) {
+      const S = this.section;
+      gl.useProgram(this.sprog);
+      gl.uniformMatrix4fv(this.sloc.uProj, false, proj);
+      gl.uniformMatrix4fv(this.sloc.uView, false, view);
+      gl.uniform3f(this.sloc.uCenter, this.target[0], this.target[1], this.target[2]);
+      gl.uniform1f(this.sloc.uAlpha, S.alpha === undefined ? 0.92 : S.alpha);
+      if (!this.stex) { this.stex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, this.stex); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); this._secStamp = -1; }
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, this.stex);
+      if (this._secStamp !== S.stamp || this._secOf !== S) { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, S.res, S.res, 0, gl.RGBA, gl.UNSIGNED_BYTE, S.rgba); this._secStamp = S.stamp; this._secOf = S; }
+      gl.uniform1i(this.sloc.uTex, 0);
+      const c = S.corners();
+      const quad = new Float32Array([c[0], c[1], c[2], 0, 0, c[3], c[4], c[5], 1, 0, c[6], c[7], c[8], 1, 1, c[9], c[10], c[11], 0, 1]);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.sbuf);
+      gl.bufferData(gl.ARRAY_BUFFER, quad, gl.STREAM_DRAW);
+      gl.enableVertexAttribArray(this.sloc.aPos); gl.vertexAttribPointer(this.sloc.aPos, 3, gl.FLOAT, false, 20, 0);
+      gl.enableVertexAttribArray(this.sloc.aUV); gl.vertexAttribPointer(this.sloc.aUV, 2, gl.FLOAT, false, 20, 12);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      gl.depthMask(false);
+      gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
+      gl.depthMask(true);
+      gl.disable(gl.BLEND);
+    }
 
     // the flux lines: additive, behind the crystal where the crystal is
     if (this.flux && this.flux.length) {
