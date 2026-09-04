@@ -1404,6 +1404,22 @@
         "plant/**",
         ".github/workflows/deploy-plant.yml"
       ]
+    },
+    {
+      "surface": "atlas",
+      "dir": "atlas",
+      "endpoint": "atlas.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/county-level-data-maps-s9u3qx",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "atlas/**",
+        "packages/geoviz/**",
+        "packages/geohier/**",
+        ".github/workflows/deploy-atlas.yml"
+      ],
+      "note": "County-level North America (worker `atlas`, custom_domain atlas.mino.mobi). Thin routing worker over static assets — no build, no D1, no secrets. Geometry is a real topology (shared arcs) built from Census, StatCan, CONABIO/INEGI and Natural Earth by atlas/etl; data comes from BEA, Census PEP, USDA ERS, IRS SOI, StatCan and INEGI, all keyless. Only stocks are stored; every rate is recomputed at the level on screen. Imports packages/geoviz + packages/geohier, vendored into atlas/lib by scripts/sync-dataviz.mjs."
     }
   ],
   "unmanaged": {

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>atlas — where every number came from</title>
+<meta name="description" content="The source ledger for the atlas: every boundary file and every data series, with its publisher, its licence, its cadence, its vintage and the citation to use.">
+<meta name="theme-color" content="#2a78d6">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='84'%3E%F0%9F%97%BA%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">atlas<span class="dot">.</span><small>county-level North America</small></a>
+    <nav class="nav">
+      <a href="/">Map</a>
+      <a href="/sources" class="active">Sources</a>
+      <a href="/method">Method</a>
+      <a href="https://mino.mobi">↖ mino.mobi</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>Where every number came from</h1>
+  <p class="lede">
+    Every figure on this map is fetched from the agency that produced it, by a script in
+    <code>atlas/etl/</code> that is committed alongside the result. Nothing is typed in by hand and
+    nothing comes from somebody else's republication of a government file — with one stated
+    exception, below, and the reason for it.
+  </p>
+
+  <p>
+    None of these need an API key. That is not a coincidence: a pipeline that needs a secret is a
+    pipeline that stops working the moment the secret expires, and this one is meant to be
+    re-runnable by anybody, from a clean checkout, with <code>node atlas/etl/build-geo.mjs</code>
+    and <code>node atlas/etl/build-data.mjs</code>.
+  </p>
+
+  <div id="ledger">
+    <p style="color:var(--faint)">loading the ledger…</p>
+  </div>
+
+  <h2>What is not here</h2>
+  <p>Stated plainly, because a map that quietly omits things is worse than one that says what it lacks:</p>
+  <ul>
+    <li><b>Puerto Rico and the U.S. Virgin Islands</b> are drawn at municipio and district level, but
+      carry no economic series: neither the Bureau of Economic Analysis nor the Census Bureau's
+      population estimates publish county-equivalent accounts for them in the tables used here.</li>
+    <li><b>Canada</b> is published by Statistics Canada as rates and medians, not as the totals they
+      were computed from, so Canadian measures stop at the census division. A province's median
+      household income has to come from Statistics Canada; it cannot be assembled from this map.</li>
+    <li><b>Mexico's 2020 census collected no income variable</b>, so the Mexican axes are about
+      work, housing and language rather than money.</li>
+    <li><b>Cross-border comparison is not offered.</b> Canadian dollars, Mexican pesos and U.S.
+      dollars are never converted, because a meaningful comparison needs a purchasing-power
+      adjustment this project does not yet have. The continental view paints each country on its
+      own scale from its own agency's data, and greys out the countries a given measure does not
+      apply to.</li>
+    <li><b>The Bureau of Economic Analysis merges some areas.</b> About thirty Virginia independent
+      cities are reported together with the county around them, and Kalawao with Maui. The pair's
+      figure is stored on the lead county and shown on both halves, with a note in the detail
+      panel. It is not split, because splitting it would mean inventing the parts.</li>
+    <li><b>Six Mexican municipios created after 2018</b> have census data but no boundary in
+      CONABIO's 2018 file, so they are absent from the map and from the national total shown here
+      (125.8 million against the census's 126.0 million).</li>
+  </ul>
+
+  <h2>Citing this</h2>
+  <p>
+    Cite the agencies, not this page. Each card above carries the citation its publisher asks for.
+    Where a figure is derived — a share, a rate, a per-capita — the derivation is in
+    <code>atlas/lib/measures.js</code> and the arithmetic is in
+    <code>packages/geohier/hier.js</code>; both are readable in a few minutes and neither does
+    anything clever.
+  </p>
+</main>
+
+<footer class="foot">
+  atlas · part of <a href="https://mino.mobi">mino.mobi</a> ·
+  <a href="/method">how the map is built</a>
+</footer>
+
+<script>
+(async () => {
+  const el = document.getElementById('ledger');
+  try {
+    const doc = await (await fetch('/data/sources.json')).json();
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const groups = [['data', 'Data series'], ['boundaries', 'Boundary files']];
+    el.innerHTML = groups.map(([kind, label]) => {
+      const rows = doc.sources.filter((s) => s.kind === kind);
+      return `<h2>${label}</h2>` + rows.map((s) => `
+        <div class="src">
+          <h3>${esc(s.title)}</h3>
+          <div class="pub">${esc(s.publisher)}</div>
+          <dl>
+            ${s.vintage ? `<dt>Vintage</dt><dd>${esc(s.vintage)}</dd>` : ''}
+            ${s.cadence ? `<dt>Published</dt><dd>${esc(s.cadence)}</dd>` : ''}
+            ${s.geography ? `<dt>Geography</dt><dd>${esc(s.geography)}</dd>` : ''}
+            ${s.crs ? `<dt>Coordinates</dt><dd>${esc(s.crs)}</dd>` : ''}
+            <dt>Licence</dt><dd>${esc(s.licence)}</dd>
+            <dt>File</dt><dd><a href="${esc(s.url)}">${esc(s.url)}</a></dd>
+            ${s.landing ? `<dt>Landing page</dt><dd><a href="${esc(s.landing)}">${esc(s.landing)}</a></dd>` : ''}
+            ${s.cite ? `<dt>Cite as</dt><dd>${esc(s.cite)}</dd>` : ''}
+          </dl>
+          ${s.note ? `<p style="margin:9px 0 0;font-size:12.5px;color:var(--muted)">${esc(s.note)}</p>` : ''}
+        </div>`).join('');
+    }).join('');
+    el.insertAdjacentHTML('afterbegin', `<p style="color:var(--faint);font-size:12.5px">Ledger built ${esc(doc.built)} · ${doc.sources.length} sources.</p>`);
+  } catch (e) {
+    el.innerHTML = '<p style="color:var(--warn)">The source ledger could not be loaded: ' + e.message + '</p>';
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>atlas — county-level North America, and thirteen superstates</title>
+<meta name="description" content="A well-sourced county-level data stream for the United States and Canada, drawn from the primary agencies — BEA, Census, IRS, USDA and Statistics Canada — on a watertight equal-area county map. Rates are recomputed at every level of the hierarchy, and thirteen contiguous superstates emerge from whichever econometric axes you choose.">
+<meta property="og:title" content="atlas — county-level North America">
+<meta property="og:description" content="Every county, every census division, from the primary sources. Redraw the United States into thirteen superstates from the econometrics of your choice.">
+<meta name="theme-color" content="#2a78d6">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='84'%3E%F0%9F%97%BA%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">atlas<span class="dot">.</span><small>county-level North America</small></a>
+    <nav class="nav">
+      <a href="/" class="active">Map</a>
+      <a href="/sources">Sources</a>
+      <a href="/method">Method</a>
+      <button id="theme" title="Switch theme" aria-label="Switch theme">◐</button>
+      <a href="https://mino.mobi">↖ mino.mobi</a>
+    </nav>
+  </div>
+</header>
+
+<div class="app">
+  <aside class="rail">
+
+    <section>
+      <h2>Geography</h2>
+      <div class="seg" id="scope" role="group" aria-label="Geography">
+        <button data-scope="us" aria-pressed="true">U.S.</button>
+        <button data-scope="ca" aria-pressed="false">Canada</button>
+        <button data-scope="mx" aria-pressed="false">Mexico</button>
+        <button data-scope="na" aria-pressed="false">All</button>
+      </div>
+      <label class="field" for="level">Level</label>
+      <div class="seg" id="level" role="group" aria-label="Level">
+        <button data-level="leaf" aria-pressed="true">County</button>
+        <button data-level="state" aria-pressed="false">State</button>
+        <button data-level="region" aria-pressed="false">Superstate</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Measure</h2>
+      <select id="measure" aria-label="Measure"></select>
+      <div class="hint" id="measure-note"></div>
+    </section>
+
+    <section>
+      <h2>Classification</h2>
+      <div class="row">
+        <select id="method" aria-label="Classification method">
+          <option value="jenks">Natural breaks (Jenks)</option>
+          <option value="quantile">Quantile</option>
+          <option value="equal">Equal interval</option>
+          <option value="stddev">Standard deviation</option>
+        </select>
+        <select id="classes" aria-label="Number of classes" style="width:74px">
+          <option>5</option><option selected>7</option><option>9</option><option>11</option>
+        </select>
+      </div>
+      <div class="hint">Natural breaks minimise variance inside each class. Quantile puts an equal number of counties in each, which always looks like a story. The map says which one it used.</div>
+    </section>
+
+    <section id="region-controls">
+      <h2>The thirteen superstates</h2>
+      <div class="hint" style="margin:0 0 9px">Regions are grown from the county map by contiguity-constrained clustering. Pick the axes; the borders follow.</div>
+      <div class="checks" id="axes"></div>
+      <label class="field" for="k">Regions: <b id="k-val">13</b></label>
+      <input type="range" id="k" min="4" max="24" value="13">
+      <label class="field" for="pull">Weight on migration ties: <b id="pull-val">0.5</b></label>
+      <input type="range" id="pull" min="0" max="100" value="50">
+      <label class="field" for="floor">Minimum region size: <b id="floor-val">0.70</b> of an equal share</label>
+      <input type="range" id="floor" min="10" max="95" value="70">
+      <div class="row" style="margin-top:11px">
+        <button class="btn" id="redraw">Redraw the map</button>
+      </div>
+      <div class="hint" id="region-status"></div>
+    </section>
+
+  </aside>
+
+  <main class="stage">
+    <canvas id="map"></canvas>
+    <div class="loading" id="loading">reading the boundary files…</div>
+
+    <div class="maptools">
+      <button id="zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
+      <button id="zoom-out" title="Zoom out" aria-label="Zoom out">−</button>
+      <button id="reset" title="Reset the view" aria-label="Reset the view">⤢</button>
+    </div>
+
+    <div class="legend" id="legend" hidden>
+      <h3 id="lg-title">—</h3>
+      <div class="sub" id="lg-sub"></div>
+      <div class="ramp" id="lg-ramp"></div>
+      <div class="ticks" id="lg-ticks"></div>
+      <div class="nd" id="lg-nd" hidden><i></i><span></span></div>
+    </div>
+
+    <aside class="panel" id="panel">
+      <button class="close" id="panel-close" aria-label="Close">×</button>
+      <div id="panel-body"></div>
+    </aside>
+  </main>
+</div>
+
+<div id="tip" role="status" aria-live="polite"></div>
+
+<script src="/lib/codec.js"></script>
+<script src="/lib/projection.js"></script>
+<script src="/lib/scale.js"></script>
+<script src="/lib/atlas-map.js"></script>
+<script src="/lib/hier.js"></script>
+<script src="/lib/regionalize.js"></script>
+<script src="/lib/measures.js"></script>
+<script src="/names.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

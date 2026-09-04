@@ -1,0 +1,163 @@
+{
+ "format": "atlas-sources/1",
+ "built": "2026-09-04",
+ "sources": [
+  {
+   "id": "bea-regional",
+   "publisher": "U.S. Bureau of Economic Analysis",
+   "title": "Regional Economic Accounts — CAINC4, CAINC30, CAEMP25N, CAGDP2",
+   "landing": "https://www.bea.gov/data/economic-accounts/regional",
+   "url": "https://apps.bea.gov/regional/zip/CAINC4.zip",
+   "licence": "U.S. Government work — public domain (17 U.S.C. §105). BEA asks that the source be cited.",
+   "cadence": "annual, released each November with a February revision",
+   "geography": "U.S. counties and county equivalents (BEA combines a few independent cities with their surrounding county — see `combined` below)",
+   "cite": "U.S. Bureau of Economic Analysis, \"CAINC4: Personal Income by Major Component and Earnings by NAICS Industry\" and \"CAGDP2: Gross Domestic Product by County\".",
+   "kind": "data"
+  },
+  {
+   "id": "census-pep",
+   "publisher": "U.S. Census Bureau, Population Division",
+   "title": "County Population Totals and Components of Change: 2020–2024",
+   "landing": "https://www.census.gov/programs-surveys/popest.html",
+   "url": "https://www2.census.gov/programs-surveys/popest/datasets/2020-2024/counties/totals/co-est2024-alldata.csv",
+   "licence": "U.S. Government work — public domain (17 U.S.C. §105).",
+   "cadence": "annual, vintage released each March",
+   "geography": "U.S. counties and county equivalents",
+   "cite": "U.S. Census Bureau, Population Division, \"County Population Totals and Components of Change: 2020-2024\" (Vintage 2024).",
+   "kind": "data"
+  },
+  {
+   "id": "usda-ers-rucc",
+   "publisher": "USDA Economic Research Service",
+   "title": "Rural-Urban Continuum Codes, 2023",
+   "landing": "https://www.ers.usda.gov/data-products/rural-urban-continuum-codes/",
+   "url": "https://ers.usda.gov/sites/default/files/_laserfiche/DataFiles/53251/Ruralurbancontinuumcodes2023.csv",
+   "licence": "U.S. Government work — public domain (17 U.S.C. §105).",
+   "cadence": "decennial, revised after each census",
+   "geography": "U.S. counties and county equivalents",
+   "cite": "U.S. Department of Agriculture, Economic Research Service, \"Rural-Urban Continuum Codes\" (2023 revision).",
+   "kind": "data"
+  },
+  {
+   "id": "irs-soi-migration",
+   "publisher": "Internal Revenue Service, Statistics of Income Division",
+   "title": "U.S. Population Migration Data, county-to-county flows, 21–22",
+   "landing": "https://www.irs.gov/statistics/soi-tax-stats-migration-data",
+   "url": "https://www.irs.gov/pub/irs-soi/countyinflow2122.csv",
+   "licence": "U.S. Government work — public domain (17 U.S.C. §105).",
+   "cadence": "annual",
+   "geography": "U.S. county-to-county pairs; flows below the disclosure threshold are suppressed",
+   "cite": "Internal Revenue Service, Statistics of Income Division, \"U.S. Population Migration Data\" (county-to-county, filing years 2021–2022).",
+   "note": "n1 = returns (≈ households), n2 = exemptions (≈ people), agi = adjusted gross income in thousands of dollars.",
+   "kind": "data"
+  },
+  {
+   "id": "statcan-census-profile",
+   "publisher": "Statistics Canada",
+   "title": "Census Profile, 2021 Census of Population — census divisions (98-401-X2021004)",
+   "landing": "https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/index.cfm",
+   "url": "https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/details/download-telecharger/comp/GetFile.cfm?Lang=E&FILETYPE=CSV&GEONO=004",
+   "licence": "Statistics Canada Open Licence — reproduction permitted with attribution; Statistics Canada does not endorse this product.",
+   "cadence": "quinquennial (census years)",
+   "geography": "Canadian census divisions",
+   "cite": "Statistics Canada, Census Profile, 2021 Census of Population, Catalogue no. 98-316-X2021001.",
+   "note": "Canadian dollars are NOT converted to U.S. dollars anywhere in this atlas — a cross-border income comparison needs a purchasing-power adjustment this project does not yet have.",
+   "kind": "data"
+  },
+  {
+   "id": "inegi-censo-2020",
+   "publisher": "INEGI (Instituto Nacional de Estadística y Geografía)",
+   "title": "Censo de Población y Vivienda 2020 — ITER, principales resultados por localidad",
+   "landing": "https://www.inegi.org.mx/programas/ccpv/2020/",
+   "url": "https://en.www.inegi.org.mx/contenidos/programas/ccpv/2020/datosabiertos/iter/iter_00_cpv2020_csv.zip",
+   "licence": "INEGI Términos de Libre Uso de la Información — free use with attribution to INEGI.",
+   "cadence": "decennial",
+   "geography": "Mexican municipios and alcaldías (the ITER file’s municipio-total rows)",
+   "cite": "INEGI, Censo de Población y Vivienda 2020, ITER (Principales resultados por localidad).",
+   "note": "Mexican pesos are not converted anywhere in this atlas, and no income variable is carried: the 2020 census did not collect one.",
+   "kind": "data"
+  },
+  {
+   "id": "us-county",
+   "publisher": "U.S. Census Bureau",
+   "title": "Cartographic Boundary Files — Counties and County Equivalents, 1:500,000",
+   "url": "https://www2.census.gov/geo/tiger/GENZ2023/shp/cb_2023_us_county_500k.zip",
+   "landing": "https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html",
+   "vintage": 2023,
+   "crs": "NAD83 geographic",
+   "licence": "U.S. Government work — public domain (17 U.S.C. §105).",
+   "note": "Includes the nine Connecticut planning regions that replaced its counties for statistical purposes in 2022, and Alaska’s 2023 Wrangell/Petersburg changes.",
+   "kind": "boundaries"
+  },
+  {
+   "id": "us-state",
+   "publisher": "U.S. Census Bureau",
+   "title": "Cartographic Boundary Files — States, 1:500,000",
+   "url": "https://www2.census.gov/geo/tiger/GENZ2023/shp/cb_2023_us_state_500k.zip",
+   "landing": "https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html",
+   "vintage": 2023,
+   "crs": "NAD83 geographic",
+   "licence": "U.S. Government work — public domain (17 U.S.C. §105).",
+   "kind": "boundaries"
+  },
+  {
+   "id": "ca-cd",
+   "publisher": "Statistics Canada",
+   "title": "2021 Census — Census Divisions Cartographic Boundary File (lcd_000a21a_e)",
+   "url": "https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lcd_000a21a_e.zip",
+   "landing": "https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm",
+   "vintage": 2021,
+   "crs": "NAD83 Statistics Canada Lambert (EPSG:3347)",
+   "licence": "Statistics Canada Open Licence — free reuse with attribution; Statistics Canada does not endorse this product.",
+   "note": "Census divisions are Canada’s county-equivalent: counties, regional county municipalities, regional districts, census divisions.",
+   "kind": "boundaries"
+  },
+  {
+   "id": "ca-pr",
+   "publisher": "Statistics Canada",
+   "title": "2021 Census — Provinces and Territories Cartographic Boundary File (lpr_000a21a_e)",
+   "url": "https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lpr_000a21a_e.zip",
+   "landing": "https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm",
+   "vintage": 2021,
+   "crs": "NAD83 Statistics Canada Lambert (EPSG:3347)",
+   "licence": "Statistics Canada Open Licence — free reuse with attribution.",
+   "kind": "boundaries"
+  },
+  {
+   "id": "mx-mun",
+   "publisher": "CONABIO, from INEGI’s Marco Geoestadístico",
+   "title": "División política municipal — municipios de México",
+   "url": "http://www.conabio.gob.mx/informacion/gis/maps/geo/muni_2018gw.zip",
+   "landing": "http://www.conabio.gob.mx/informacion/gis/",
+   "vintage": 2018,
+   "crs": "declared in the bundled .prj",
+   "licence": "CONABIO open geographic information — free use with attribution to CONABIO and to INEGI as the originator.",
+   "note": "Municipios are Mexico’s county equivalent: about 2,470 of them, plus the 16 alcaldías of Mexico City. THIS IS THE ONE DERIVED SOURCE IN THE ATLAS, and it is here for a practical reason worth stating: INEGI’s own Marco Geoestadístico is published only as a 3.3 GB national archive containing localities and city blocks, which is not a reasonable thing to fetch to draw 2,470 outlines. CONABIO — a Mexican federal commission — redistributes the same INEGI municipal geometry at 40 MB. If INEGI ever publishes a municipal-only extract, this entry should point at it instead.",
+   "kind": "boundaries"
+  },
+  {
+   "id": "ne-admin1",
+   "publisher": "Natural Earth (North American Cartographic Information Society)",
+   "title": "Natural Earth 10m Admin 1 — States, Provinces",
+   "url": "https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_1_states_provinces.zip",
+   "landing": "https://www.naturalearthdata.com/downloads/10m-cultural-vectors/",
+   "vintage": 2024,
+   "crs": "WGS84 geographic",
+   "licence": "Public domain.",
+   "note": "Used ONLY for the Caribbean, where no single agency publishes a second-level boundary set: parishes of Jamaica, provincias of Cuba and the Dominican Republic, départements of Haiti, and the small-island territories.",
+   "kind": "boundaries"
+  },
+  {
+   "id": "ne-admin0",
+   "publisher": "Natural Earth (North American Cartographic Information Society)",
+   "title": "Natural Earth 50m Admin 0 — Countries",
+   "url": "https://naciscdn.org/naturalearth/50m/cultural/ne_50m_admin_0_countries.zip",
+   "landing": "https://www.naturalearthdata.com/downloads/50m-cultural-vectors/",
+   "vintage": 2024,
+   "crs": "WGS84 geographic",
+   "licence": "Public domain.",
+   "note": "Context outlines only — Central America and the surrounding coastline, so the continental frame is not a hole.",
+   "kind": "boundaries"
+  }
+ ]
+}

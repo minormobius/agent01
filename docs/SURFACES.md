@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **86 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **87 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -33,6 +33,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `airchat` | fullstack | `airchat` | [airchat.mino.mobi, yapchat.mino.mobi](https://airchat.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`airchat/CLAUDE.md`](../airchat/CLAUDE.md) | Voice-first social on ATProto. Browser records, Whisper transcribes, PDS holds the audio. Identity via Bluesky OAuth. |
 | `answers` | frontend | `answers` | [ask.mino.mobi](https://ask.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`answers/CLAUDE.md`](../answers/CLAUDE.md) | Ask anything. Answered by the ATmosphere—questions, answers, votes, and best-answer picks stored on PDS. |
 | `ar` | fullstack | `ar` | [ar.mino.mobi](https://ar.mino.mobi) | `claude/3d-crystal-diffraction-B5YhB` | [`ar/CLAUDE.md`](../ar/CLAUDE.md) | Worker + Room Durable Object (WebSocket relay) + static assets (public/). Two-phone AR Laue diffraction at /crystal/. |
+| `atlas` | frontend | `atlas` | [atlas.mino.mobi](https://atlas.mino.mobi) | `claude/county-level-data-maps-s9u3qx` | [`atlas/CLAUDE.md`](../atlas/CLAUDE.md) | Every county in the United States, every Canadian census division and every Mexican municipio, drawn from the statistical agencies’ own boundary files onto a watertight equal-area map—then redrawn int… |
 | `aub` | frontend | `aub` | [aub.mino.mobi](https://aub.mino.mobi) | `claude/game-website-deploy-2ffuu2` | [`aub/CLAUDE.md`](../aub/CLAUDE.md) | Ecdysium (aubrika/ecdysium) — a Rust + macroquad sci-fi horror roguelike vendored under aub/game and compiled to wasm32-unknown-unknown… (full description: aub/CLAUDE.md) |
 | `audio` | fullstack | `audio` | [audio.mino.mobi (pending attach)](https://audio.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`audio/CLAUDE.md`](../audio/CLAUDE.md) | Audio Rooms — a voice-room app (Vite monorepo web + worker with a RoomCoordinator Durable Object for signaling). Deployed to workers.dev; audio.mino.mobi not yet attached. |
 | `auth` | backend | `workers/auth` | [auth.mino.mobi](https://auth.mino.mobi) | `claude/farmville-atproto-game-745mcr` | [`workers/auth/CLAUDE.md`](../workers/auth/CLAUDE.md) | The shared ATProto OAuth worker (BFF confidential client: PKCE + DPoP + PAR + private_key_jwt). One login = SSO across every *.mino.mobi site via a domain cookie… |

@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>atlas — how the map is built</title>
+<meta name="description" content="How the atlas is built: topology and shared arcs, equal-area projection, why only stocks are stored, how rates are recomputed at every level, and how thirteen contiguous superstates are grown from the county graph.">
+<meta name="theme-color" content="#2a78d6">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='84'%3E%F0%9F%97%BA%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">atlas<span class="dot">.</span><small>county-level North America</small></a>
+    <nav class="nav">
+      <a href="/">Map</a>
+      <a href="/sources">Sources</a>
+      <a href="/method" class="active">Method</a>
+      <a href="https://mino.mobi">↖ mino.mobi</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>How the map is built</h1>
+  <p class="lede">
+    Four decisions do most of the work here, and each of them is the difference between a map that
+    is merely pretty and one you can quote from. None of them are subtle; they are just easy to skip.
+  </p>
+
+  <h2>1. The geometry is a topology, not a pile of polygons</h2>
+  <p>
+    Three thousand counties share every interior border twice. Stored as independent polygons, that
+    border is stored twice, drawn twice — so it renders heavier and blurrier than a coastline — and,
+    fatally, <b>simplified twice</b>, to two different lines. The map fills with white slivers and
+    overlaps. Almost every amateur county map has them.
+  </p>
+  <p>
+    So the build cuts every ring into <b>arcs</b> at the points where three or more counties meet,
+    stores each arc once, and lets counties reference arcs. Simplification then happens on the arc,
+    and both neighbours move together: the map stays watertight at any level of detail. Interior
+    borders can also be drawn exactly once, as hairlines, which is most of what makes a county map
+    look like cartography rather than a screenshot.
+  </p>
+  <p>
+    It also produces something for free that is hard to get any other way: because the topology knows
+    which counties share an arc, it knows <b>which counties touch which</b> — exactly, not by a
+    distance heuristic. That contiguity graph is what makes the superstates possible. The mean
+    U.S. county has 5.55 neighbours, which is about what a planar graph should give.
+  </p>
+  <p>
+    One consequence worth knowing: coarse detail levels are made by simplifying the full-resolution
+    topology and then moving its arcs onto a coarser grid, in that order. Quantising first merges
+    distinct vertices, which invents junctions, which shatters long shared borders into hundreds of
+    tiny arcs — and the coarse layer then costs <i>more</i> than the fine one.
+  </p>
+
+  <h2>2. The projection is equal-area, everywhere</h2>
+  <p>
+    A choropleth asks the eye to add up coloured area. A projection that inflates area with
+    latitude — Mercator, and every default web map — therefore makes northern counties shout and
+    southern ones whisper before the data has said anything. Every projection in this atlas is an
+    Albers equal-area conic with parallels chosen for the region on screen. Mercator is available
+    and labelled as not equal-area, for tile alignment and nothing else.
+  </p>
+  <p>
+    The United States view is the composite Albers: the lower 48 at full size, with Alaska at
+    0.35× and Hawai‘i, Puerto Rico and the U.S. Virgin Islands moved into empty sea. The insets are
+    a distortion, and the honest version of an inset is a labelled one with its scale stated. Alaska
+    at true relative size would take a third of the frame; Puerto Rico dropped entirely would silently
+    remove 3.2 million people from a national map.
+  </p>
+
+  <h2>3. Only stocks are stored. Every rate is recomputed.</h2>
+  <p>
+    This is the one that matters most, and the one most often got wrong.
+  </p>
+  <p>
+    A stock — personal income, population, jobs, births — adds up. A rate does not. The per-capita
+    income of a state is <b>not</b> the mean of its counties' per-capita incomes; it is the state's
+    income divided by the state's population. Averaging counties gives every county one vote, so
+    Loving County, Texas (population 48) counts as much as Los Angeles (9.8 million).
+  </p>
+  <p>
+    So the data files hold only stocks, and every rate on this map is derived at the level currently
+    on screen, from that level's summed numerator and summed denominator. County, state, superstate
+    and nation all compute the same way from the same definition, which is why switching levels is
+    instant and why the numbers agree with the agencies'. The whole rule is about forty lines in
+    <code>packages/geohier/hier.js</code>.
+  </p>
+  <p>
+    The honest exception: a measure a publisher gives you <i>as</i> a rate, with no numerator and
+    denominator to rebuild it from — Statistics Canada's medians, for instance. Those are marked and
+    the map refuses to roll them up rather than showing a number somebody might quote. A median of
+    medians is not a median.
+  </p>
+
+  <h2>4. The superstates are grown, not drawn</h2>
+  <p>
+    Ordinary clustering will put a county in Maine and a county in Oregon in the same group because
+    their transfer shares match. That is a classification, not a map. A region has to be one
+    connected piece of ground, and the constraint changes the answer everywhere.
+  </p>
+  <p>
+    The method is SKATER (Assunção, Neves, Câmara &amp; Freitas, 2006), and it is short:
+  </p>
+  <ol>
+    <li>Take the contiguity graph — counties as nodes, shared borders as edges.</li>
+    <li>Weight each edge by how unlike its two counties are on the chosen axes, after robust
+      standardisation so an axis measured in dollars does not outvote one measured as a share.</li>
+    <li>Take the minimum spanning tree. It is the cheapest set of connections that keeps the country
+      in one piece, so it already knows where the country is glued weakly.</li>
+    <li>Cut the tree k−1 times, each time removing the edge whose removal buys the largest drop in
+      population-weighted within-region variance.</li>
+  </ol>
+  <p>
+    Cutting a <i>tree</i> is what makes the last step tractable: every candidate cut splits it into
+    exactly two connected pieces, so contiguity is guaranteed and the score is a subtree sum. The
+    whole thing runs in about 300 ms in the browser, which is why the axes are a set of checkboxes
+    rather than a batch job.
+  </p>
+
+  <h3>Two places it needs help, and gets it openly</h3>
+  <p>
+    <b>The size floor.</b> Greedy variance reduction badly wants to shave off a single extreme unit:
+    cutting Harris County, Texas loose removes more within-region variance than any balanced cut, so
+    an unconstrained run returns one region of 2,600 counties and twelve regions of one county each.
+    That is the true optimum of the stated objective and useless as a map. So a cut only counts if
+    both sides keep a minimum share of the population — the slider says which share — and if k
+    regions cannot be reached at that floor, the floor relaxes and the run repeats, and the map says
+    what floor it ended up using.
+  </p>
+  <p>
+    <b>The islands.</b> Contiguity has no opinion about Hawai‘i. The county graph is not connected:
+    Alaska, Hawai‘i, Puerto Rico, Nantucket, the San Juans and about twenty other places are their
+    own components, and a spanning tree needs a connected graph. So each stranded piece is joined to
+    the nearest county on the mainland by great-circle distance. Those bridges are counted and
+    listed in the superstate panel, because they are the cartographer putting a bridge where there
+    is water.
+  </p>
+
+  <h2>The names are a separate layer, and they are not computed</h2>
+  <p>
+    No clustering of transfer shares and migration rates produces the word "Appalachia". The names
+    come from a fixed list, each pinned to a point on the ground, assigned to whichever region
+    contains that point — so change the axes and the borders move while the names follow the
+    geography. Every one of them is editable in the panel. The vocabulary borrows from the long
+    tradition of dividing North America by culture rather than statute — Joel Garreau's
+    <i>The Nine Nations of North America</i> (1981) and Colin Woodard's <i>American Nations</i>
+    (2011) are the obvious ancestors — plus the regional names people already use. None of the
+    boundaries here are theirs; only some of the words are.
+  </p>
+
+  <h2>Colour</h2>
+  <p>
+    Sequential scales are one hue, light to dark. Diverging scales are two hues around a neutral
+    grey midpoint, never a rainbow, and the two arms carry the same lightness ladder so neither side
+    shouts. Interpolation happens in OKLab rather than sRGB, so equal steps in the ramp look equal —
+    in sRGB a blue ramp goes muddy in the middle and the map grows a band that is not in the data.
+  </p>
+  <p>
+    The classification method is a control rather than a default, and the legend always names the one
+    in use. Quantile makes every class equally populous and therefore always looks like a story;
+    equal-interval is honest about outliers and therefore often looks empty; natural breaks minimise
+    variance inside each class and are usually the right answer for a county map. A choropleth that
+    hides its breaks is a rhetorical device.
+  </p>
+
+  <h2>Rebuilding it</h2>
+  <p>
+    From a clean checkout, with no keys and no accounts:
+  </p>
+  <pre style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;overflow-x:auto"><code>node atlas/etl/build-geo.mjs     # boundaries -> topologies, adjacency, places
+node atlas/etl/build-data.mjs    # agencies   -> the county series</code></pre>
+  <p>
+    The raw archives are cached outside the repository; only the derived artefacts are committed.
+    The readers for ZIP, shapefiles, dBASE tables, CSV and the two map projections that Statistics
+    Canada and INEGI publish in are all in <code>atlas/etl/lib/</code>, dependency-free, because the
+    claim that the geometry comes from the primary source is worth about two hundred lines.
+  </p>
+</main>
+
+<footer class="foot">
+  atlas · part of <a href="https://mino.mobi">mino.mobi</a> ·
+  <a href="/sources">the source ledger</a>
+</footer>
+</body>
+</html>

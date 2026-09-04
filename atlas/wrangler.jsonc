@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "atlas",
+  "main": "worker.js",
+  "compatibility_date": "2026-03-14",
+  // Assets-with-worker. `directory: "."` serves the whole surface: the page,
+  // /lib (vendored copies of packages/geoviz + packages/geohier, kept identical
+  // by scripts/sync-dataviz.mjs), /geo (built topologies) and /data (the county
+  // series). etl/ is excluded by .assetsignore — it is the build, not the site.
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  "routes": [
+    { "pattern": "atlas.mino.mobi", "custom_domain": true }
+  ]
+}

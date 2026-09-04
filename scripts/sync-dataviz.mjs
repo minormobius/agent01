@@ -40,6 +40,19 @@ const EXTRA = [
   // picture straight to Bluesky; a stale copy would post through last month's
   // token handling.
   ["packages/oauth-client/auth.js", "photo/public/shop/js/vendor/auth.js"],
+  // atlas/ serves packages/geoviz + packages/geohier as plain <script> assets:
+  // the county map, the projections, the colour scales, the hierarchy rollups
+  // and the regionaliser all run in the browser, and a static origin cannot
+  // import across directories. Drift here is the dangerous kind — the ETL and
+  // the page share the geometry codec, so a stale copy would decode last
+  // month's arcs against this month's index and draw a map that is subtly,
+  // silently wrong rather than broken.
+  ["packages/geoviz/codec.js", "atlas/lib/codec.js"],
+  ["packages/geoviz/projection.js", "atlas/lib/projection.js"],
+  ["packages/geoviz/scale.js", "atlas/lib/scale.js"],
+  ["packages/geoviz/atlas-map.js", "atlas/lib/atlas-map.js"],
+  ["packages/geohier/hier.js", "atlas/lib/hier.js"],
+  ["packages/geohier/regionalize.js", "atlas/lib/regionalize.js"],
 ];
 
 const args = process.argv.slice(2);

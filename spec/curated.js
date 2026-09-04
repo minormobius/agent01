@@ -57,6 +57,7 @@ window.SPEC_CURATED = {
     aub: 'games', fluoddity: 'games', cards: 'games', human: 'games',
     foam: 'games', farm: 'games', 'farm-next': 'games', words: 'games',
     moji: 'reference', uni: 'reference', unit: 'reference', fix: 'reference',
+    atlas: 'science',
     read: 'reading', rite: 'reading', chat: 'reading',
     math: 'math', 'ai-edu': 'math',
   },
