@@ -1,0 +1,1 @@
+Went with pipes that grow in real time, spelling out text one letter per segment. Typing text is optional; naming a Bluesky handle pulls their own recent posts instead (never a stray firehose). Speed slider plus a real reduced-motion override, not just the OS default.

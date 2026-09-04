@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pipedream — a screensaver made of scrolling text</title>
+<meta property="og:title" content="pipedream — a screensaver made of scrolling text">
+<meta property="og:description" content="If screensavers were invented after microblogging: pipes that grow across the screen with your own text — or one Bluesky account's recent posts — imprinted letter by letter along the tube. Adjustable speed, honours reduced motion.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  html, body { height: 100%; overflow: hidden; }
+  body { padding: 0; }
+  main { max-width: none; margin: 0; }
+  #pipes {
+    position: fixed; inset: 0; display: block;
+    background: var(--bg);
+    touch-action: none;
+  }
+  .crumb-wrap { position: fixed; top: 0; left: 0; z-index: 5; padding: .6rem .8rem; }
+  .crumb-wrap .crumb { margin: 0; background: rgba(14,14,17,.6); border-radius: var(--radius); padding: .3rem .6rem; }
+
+  .hud { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+         background: rgba(14,14,17,.88); border-top: 1px solid var(--border);
+         backdrop-filter: blur(6px); max-height: 78vh; overflow-y: auto; }
+  .hud-toggle { display: block; width: 100%; min-height: 44px; text-align: left;
+                border: none; border-bottom: 1px solid var(--border); border-radius: 0;
+                background: transparent; color: var(--accent); font: inherit; font-size: .85rem;
+                padding: 0 1rem; }
+  .hud-toggle:hover { background: var(--accent-dim); color: var(--accent); }
+  .hud-panel { padding: .75rem 1rem 1rem; }
+  .hud-panel.hidden { display: none; }
+  .hud-row { display: flex; align-items: center; gap: .6rem; font-size: .8rem;
+             color: var(--muted); margin-bottom: .7rem; flex-wrap: wrap; }
+  .hud-row.block { flex-direction: column; align-items: stretch; }
+  .hud-row input[type=range] { flex: 1 1 8rem; min-height: 28px; }
+  .hud-row select { min-height: 44px; }
+  .hud-row input[type=text], .hud-row textarea { font-size: 16px; min-height: 44px; }
+  .hud-row textarea { min-height: 3.4rem; resize: vertical; }
+  .hint { color: var(--muted); font-size: .72rem; }
+  #speedVal { color: var(--accent); min-width: 3.2em; }
+  .hud-status { font-size: .78rem; color: var(--ok); min-height: 1.2em; }
+  .hud-status.err { color: var(--error); }
+</style>
+</head>
+<body>
+<div class="crumb-wrap"></div>
+<canvas id="pipes" aria-hidden="true"></canvas>
+
+<div class="hud">
+  <button id="hudToggle" class="hud-toggle" aria-expanded="true" aria-controls="hudPanel">pipedream — controls ▾</button>
+  <div id="hudPanel" class="hud-panel">
+    <label class="hud-row">
+      speed
+      <input type="range" id="speed" min="0.25" max="4" step="0.25" value="1">
+      <span id="speedVal">1.0×</span>
+    </label>
+    <label class="hud-row">
+      motion
+      <select id="motion">
+        <option value="auto">auto (follow system)</option>
+        <option value="on">always on</option>
+        <option value="off">always off (freeze)</option>
+      </select>
+    </label>
+    <label class="hud-row block">
+      your text <span class="hint">— imprinted on the pipes, letter by letter. Leave blank for random text.</span>
+      <textarea id="customText" rows="2" placeholder="type anything…"></textarea>
+    </label>
+    <label class="hud-row block">
+      or a Bluesky handle <span class="hint">— pulls their recent visible posts instead. This clears the box above.</span>
+      <input type="text" id="handleBox" placeholder="someone.bsky.social">
+    </label>
+    <div id="sourceStatus" class="hud-status">letters: random text</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  document.querySelector('.crumb-wrap').innerHTML = kit.crumb('pipedream');
+
+  var canvas = document.getElementById('pipes');
+  var ctx = canvas.getContext('2d');
+  var DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+  var CELL = 30;
+  var cols, rows, drawnCount, fillLimit;
+
+  // ---- text pool: the letters the pipes carry ------------------------------
+  var WORDS = ['pipe','screen','saver','glass','signal','drift','static','loop',
+    'amber','circuit','hollow','echo','pane','current','tangent','quiet','orbit',
+    'flicker','warm','copper','vapor','runoff','lattice','murmur','glow','undertow',
+    'ledger','margin','spindle','cistern','plume','ballast','ration','tinder',
+    'vellum','cobalt','filament','arcade','beacon','undated','embers','transit',
+    'sluice','coolant','idle','dream','feed','scroll','thread','render','render',
+    'wander','bandwidth','afterimage','standby','dormant','pixel'];
+
+  function randomPool() {
+    var out = [];
+    for (var i = 0; i < 500; i++) out.push(WORDS[Math.floor(Math.random() * WORDS.length)]);
+    return out.join(' ');
+  }
+
+  var pool = randomPool(), poolPos = 0;
+  function setPool(str) {
+    var clean = (str || '').replace(/\s+/g, ' ').trim();
+    pool = clean || randomPool();
+    poolPos = 0;
+  }
+  function nextChar() {
+    if (!pool) return '';
+    var c = pool[poolPos % pool.length];
+    poolPos++;
+    return c.toUpperCase();
+  }
+
+  // ---- grid + pipes ----------------------------------------------------------
+  var DIRS = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
+  var pipes = [];
+
+  function resize() {
+    var w = window.innerWidth, h = window.innerHeight;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    canvas.width = Math.round(w * DPR);
+    canvas.height = Math.round(h * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    cols = Math.ceil(w / CELL);
+    rows = Math.ceil(h / CELL);
+    drawnCount = 0;
+    fillLimit = cols * rows * 0.5;
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg') || '#0e0e11';
+    ctx.fillRect(0, 0, w, h);
+    var count = Math.max(4, Math.min(10, Math.round((cols * rows) / 140)));
+    pipes = [];
+    for (var i = 0; i < count; i++) pipes.push(spawn());
+  }
+
+  function spawn() {
+    return {
+      gx: Math.floor(Math.random() * cols),
+      gy: Math.floor(Math.random() * rows),
+      dir: null,
+      cells: 0,
+      maxLen: Math.round(20 + Math.random() * (cols + rows) / 1.5),
+      have: false,
+      hue: Math.floor(Math.random() * 360)
+    };
+  }
+
+  function validDir(p, d) {
+    var nx = p.gx + d.x, ny = p.gy + d.y;
+    return nx >= 0 && nx < cols && ny >= 0 && ny < rows;
+  }
+
+  function pickDir(p) {
+    var opts = DIRS.filter(function (d) {
+      if (!validDir(p, d)) return false;
+      if (p.dir && d.x === -p.dir.x && d.y === -p.dir.y) return false;
+      return true;
+    });
+    if (!opts.length) return null;
+    if (p.dir && Math.random() < 0.72) {
+      for (var i = 0; i < opts.length; i++) {
+        if (opts[i].x === p.dir.x && opts[i].y === p.dir.y) return opts[i];
+      }
+    }
+    return opts[Math.floor(Math.random() * opts.length)];
+  }
+
+  function drawSegment(p, cx, cy, ang) {
+    var body = 'hsl(' + p.hue + ',65%,46%)';
+    var shadow = 'hsl(' + p.hue + ',60%,22%)';
+    var hi = 'hsl(' + p.hue + ',75%,72%)';
+    if (p.have) {
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.strokeStyle = shadow; ctx.lineWidth = CELL * 0.62;
+      ctx.beginPath(); ctx.moveTo(p.lastX, p.lastY); ctx.lineTo(cx, cy); ctx.stroke();
+      ctx.strokeStyle = body; ctx.lineWidth = CELL * 0.48;
+      ctx.beginPath(); ctx.moveTo(p.lastX, p.lastY); ctx.lineTo(cx, cy); ctx.stroke();
+      ctx.strokeStyle = hi; ctx.lineWidth = CELL * 0.12; ctx.globalAlpha = .55;
+      var ox = -Math.sin(ang) * CELL * 0.12, oy = Math.cos(ang) * CELL * 0.12;
+      ctx.beginPath(); ctx.moveTo(p.lastX + ox, p.lastY + oy); ctx.lineTo(cx + ox, cy + oy); ctx.stroke();
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.fillStyle = body;
+      ctx.beginPath(); ctx.arc(cx, cy, CELL * 0.24, 0, Math.PI * 2); ctx.fill();
+    }
+    var ch = nextChar();
+    if (ch && ch !== ' ') {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(ang);
+      ctx.font = Math.round(CELL * 0.5) + 'px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(0,0,0,.5)';
+      ctx.fillText(ch, 1, 1);
+      ctx.fillStyle = 'rgba(255,255,255,.6)';
+      ctx.fillText(ch, 0, 0);
+      ctx.restore();
+    }
+    p.lastX = cx; p.lastY = cy; p.have = true;
+    drawnCount++;
+  }
+
+  function growPipe(p, idx) {
+    var d = pickDir(p);
+    if (!d || p.cells >= p.maxLen) { pipes[idx] = spawn(); return; }
+    p.gx += d.x; p.gy += d.y;
+    p.dir = d;
+    p.cells++;
+    var cx = p.gx * CELL + CELL / 2, cy = p.gy * CELL + CELL / 2;
+    var ang = Math.atan2(d.y, d.x);
+    drawSegment(p, cx, cy, ang);
+  }
+
+  function fullReset() {
+    var w = window.innerWidth, h = window.innerHeight;
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg') || '#0e0e11';
+    ctx.fillRect(0, 0, w, h);
+    drawnCount = 0;
+    for (var i = 0; i < pipes.length; i++) pipes[i] = spawn();
+  }
+
+  // ---- motion / speed --------------------------------------------------------
+  var speedMul = 1, motionMode = 'auto';
+  function motionAllowed() {
+    if (motionMode === 'on') return true;
+    if (motionMode === 'off') return false;
+    return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  var TICK_MS = 90, acc = 0, lastT = null;
+  function frame(t) {
+    if (lastT === null) lastT = t;
+    var dt = Math.min(100, t - lastT);
+    lastT = t;
+    if (motionAllowed()) {
+      acc += dt * speedMul;
+      while (acc >= TICK_MS) {
+        acc -= TICK_MS;
+        for (var i = 0; i < pipes.length; i++) growPipe(pipes[i], i);
+        if (drawnCount > fillLimit) fullReset();
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // ---- HUD wiring --------------------------------------------------------
+  var hudToggle = document.getElementById('hudToggle');
+  var hudPanel = document.getElementById('hudPanel');
+  hudToggle.addEventListener('click', function () {
+    var open = hudPanel.classList.toggle('hidden');
+    hudToggle.setAttribute('aria-expanded', open ? 'false' : 'true');
+    hudToggle.textContent = 'pipedream — controls ' + (open ? '▸' : '▾');
+  });
+
+  var speedInput = document.getElementById('speed');
+  var speedVal = document.getElementById('speedVal');
+  speedInput.addEventListener('input', function () {
+    speedMul = parseFloat(speedInput.value) || 1;
+    speedVal.textContent = speedMul.toFixed(2).replace(/0$/, '') + '×';
+  });
+
+  document.getElementById('motion').addEventListener('change', function (e) {
+    motionMode = e.target.value;
+  });
+
+  var status = document.getElementById('sourceStatus');
+  function setStatus(msg, isErr) {
+    status.textContent = msg;
+    status.className = 'hud-status' + (isErr ? ' err' : '');
+  }
+
+  var customText = document.getElementById('customText');
+  customText.addEventListener('input', function () {
+    var v = customText.value;
+    if (v.trim()) {
+      setPool(v);
+      setStatus('letters: your text');
+    } else {
+      setPool('');
+      setStatus('letters: random text');
+    }
+  });
+
+  var handleBox = document.getElementById('handleBox');
+  kit.handleInput(handleBox, {
+    onPick: function (handle) {
+      customText.value = '';
+      setStatus('loading @' + handle + '’s posts…');
+      kit.bskyGet('app.bsky.feed.getAuthorFeed', { actor: handle, limit: 30 })
+        .then(function (data) {
+          var items = kit.visible(data.feed || []);
+          var texts = items
+            .map(function (it) { return it.post && it.post.record && it.post.record.text; })
+            .filter(Boolean);
+          if (!texts.length) {
+            setPool('');
+            setStatus('@' + handle + ' has no visible recent posts — using random text', true);
+            return;
+          }
+          setPool(texts.join('  ·  '));
+          setStatus('letters: @' + handle + '’s recent posts');
+        })
+        .catch(function (e) {
+          setPool('');
+          setStatus('could not load @' + handle + ': ' + e.message + ' — using random text', true);
+        });
+    }
+  });
+
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
