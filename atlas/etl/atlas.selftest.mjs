@@ -212,6 +212,54 @@ console.log('\nscales');
   ok('a missing value gets the no-data colour, not class 0',
     s.colorOf(null) === s.palette.nodata && s.colorOf(NaN) === s.palette.nodata);
 
+  // The fast Jenks uses the divide-and-conquer optimisation, which is only
+  // valid because the segment cost obeys the quadrangle inequality. That is a
+  // claim about the maths, so it is checked against a brute-force solver of the
+  // same recurrence rather than trusted.
+  const bruteJenks = (values, k) => {
+    const v = values.filter((x) => x != null && Number.isFinite(x)).sort((a, b) => a - b);
+    const n = v.length, mean = v.reduce((t, x) => t + x, 0) / n;
+    const S1 = new Float64Array(n + 1), S2 = new Float64Array(n + 1);
+    for (let i = 0; i < n; i++) { const x = v[i] - mean; S1[i + 1] = S1[i] + x; S2[i + 1] = S2[i] + x * x; }
+    const ssd = (i, j) => { const m = j - i + 1; if (m <= 1) return 0; const q = S1[j + 1] - S1[i]; return Math.max(0, (S2[j + 1] - S2[i]) - q * q / m); };
+    let prev = new Float64Array(n);
+    for (let j = 0; j < n; j++) prev[j] = ssd(0, j);
+    const arg = [];
+    for (let c = 1; c < k; c++) {
+      const cur = new Float64Array(n), a = new Int32Array(n);
+      for (let j = 0; j < n; j++) {
+        if (j < c) { cur[j] = 0; a[j] = j; continue; }
+        let best = Infinity, bi = c;
+        for (let i = c; i <= j; i++) { const cost = prev[i - 1] + ssd(i, j); if (cost < best) { best = cost; bi = i; } }
+        cur[j] = best; a[j] = bi;
+      }
+      arg.push(a); prev = cur;
+    }
+    const br = new Array(k);
+    let end = n - 1;
+    for (let c = k - 1; c >= 1; c--) { const i = arg[c - 1][end]; br[c] = v[i]; end = Math.max(0, i - 1); }
+    br[0] = v[0];
+    return br;
+  };
+  let jenksMismatch = 0, jenksTrials = 0;
+  let seed = 12345;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  for (let t = 0; t < 9; t++) {
+    const N = 300 + Math.floor(rnd() * 300);
+    const shape = t % 3;
+    const vals = Array.from({ length: N }, () => (shape === 0 ? Math.exp(rnd() * 3) * 1000
+      : shape === 1 ? rnd() * 100
+      : (rnd() < 0.5 ? rnd() * 10 : 500 + rnd() * 30)));
+    for (const kk of [3, 5, 7]) {
+      jenksTrials++;
+      const fast = ATLAS_SCALE.makeScale(vals, { method: 'jenks', classes: kk }).breaks;
+      const slow = bruteJenks(vals, kk);
+      if (fast.length !== slow.length || fast.some((v, i) => v !== slow[i])) jenksMismatch++;
+    }
+  }
+  ok('fast Jenks equals the brute-force optimum on every shape',
+    jenksMismatch === 0, `${jenksMismatch} of ${jenksTrials} differed`);
+
   const L = (hex) => ATLAS_SCALE.hexToOklab(hex)[0];
   const ramp = ATLAS_SCALE.ramp(ATLAS_SCALE.PALETTE.light.sequential, 9);
   ok('the sequential ramp is monotone in lightness',

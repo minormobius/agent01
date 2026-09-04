@@ -168,6 +168,35 @@
     hides its breaks is a rhetorical device.
   </p>
 
+  <h2>Why it is fast</h2>
+  <p>
+    Three thousand polygons is enough that the naive loop drops to five frames a second, and this
+    map did, until it was measured. The fixes were not clever:
+  </p>
+  <ul>
+    <li><b>Stop rebuilding what has not changed.</b> The border geometry is 200,000 points in fixed
+      screen space; panning is a canvas transform and moves none of them. Re-issuing those path
+      commands every frame cost 183&nbsp;ms. Cached, the same borders stroke in 1.6&nbsp;ms.</li>
+    <li><b>Use the right algorithm.</b> Natural breaks ran the textbook O(<i>k·n</i>²) dynamic
+      program on every recolour, at 121&nbsp;ms. The same recurrence under the divide-and-conquer
+      optimisation is O(<i>k·n</i>&thinsp;log&thinsp;<i>n</i>) and gives the identical answer in
+      about 6&nbsp;ms — checked against a brute-force solver, because that is a claim about the
+      mathematics rather than about the code.</li>
+    <li><b>Draw less.</b> Two resolutions of every layer: the coarse one while the view is moving or
+      zoomed out, the fine one when it settles. At continent scale the coarse tier is twenty-one
+      points per county, which is more than a county gets on screen. Plus viewport culling, which
+      does nothing when the whole country is visible and rejects most of it when you are inside a
+      state.</li>
+  </ul>
+  <p>
+    What is left is the browser rasterising polygons, where JavaScript's share of a frame is about
+    1.3&nbsp;ms. Two plausible-sounding fixes were tried and thrown away because the measurement
+    said no: merging counties into one path per colour class was <i>slower</i>, and the cost is not
+    proportional to pixels either — a sixteenth of the canvas area only saved a third of the time.
+    The next real lever would be WebGL over a mesh triangulated at build time, not faster client
+    code.
+  </p>
+
   <h2>Rebuilding it</h2>
   <p>
     From a clean checkout, with no keys and no accounts:

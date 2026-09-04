@@ -66,11 +66,15 @@
     const places = store._places || (store._places = await jget('/data/places.json'));
 
     if (scope === 'us') {
-      const [geo, data, adjacency, flows] = await Promise.all([
-        jget('/geo/us-counties.json'), jget('/data/us-counties.json'),
+      // The coarse tier first: it is half the bytes and three times cheaper to
+      // rasterise, so it is what the first paint uses. The full-detail tier
+      // arrives behind it and takes over once the view settles above the LOD
+      // zoom — see AtlasMap._pickLod.
+      const [geoLo, data, adjacency, flows] = await Promise.all([
+        jget('/geo/us-counties-lo.json'), jget('/data/us-counties.json'),
         jget('/geo/adjacency.json'), jget('/data/migration.json'),
       ]);
-      const topo = ATLAS_CODEC.unpack(geo);
+      const topo = ATLAS_CODEC.unpack(geoLo);
       const hier = new ATLAS_HIER.Hierarchy(data, {
         noRollup: M.NO_ROLLUP,
         levels: [
@@ -81,9 +85,10 @@
         ],
       });
       store[scope] = { topo, data, hier, places, adjacency, flows: flows.edges, label: 'counties', iso: 'US' };
+      upgradeDetail(scope, '/geo/us-counties.json');
     } else if (scope === 'mx') {
-      const [geo, data] = await Promise.all([jget('/geo/mx-municipios.json'), jget('/data/mx-municipios.json')]);
-      const topo = ATLAS_CODEC.unpack(geo);
+      const [geoLo, data] = await Promise.all([jget('/geo/mx-municipios-lo.json'), jget('/data/mx-municipios.json')]);
+      const topo = ATLAS_CODEC.unpack(geoLo);
       const adjacency = store._adj || (store._adj = await jget('/geo/adjacency.json'));
       const hier = new ATLAS_HIER.Hierarchy(data, {
         noRollup: M.NO_ROLLUP,
@@ -95,9 +100,10 @@
         ],
       });
       store[scope] = { topo, data, hier, places, adjacency, flows: [], label: 'municipios', iso: 'MX' };
+      upgradeDetail(scope, '/geo/mx-municipios.json');
     } else if (scope === 'ca') {
-      const [geo, data] = await Promise.all([jget('/geo/ca-divisions.json'), jget('/data/ca-divisions.json')]);
-      const topo = ATLAS_CODEC.unpack(geo);
+      const [geoLo, data] = await Promise.all([jget('/geo/ca-divisions-lo.json'), jget('/data/ca-divisions.json')]);
+      const topo = ATLAS_CODEC.unpack(geoLo);
       const hier = new ATLAS_HIER.Hierarchy(data, {
         noRollup: M.NO_ROLLUP,
         levels: [
@@ -107,6 +113,7 @@
         ],
       });
       store[scope] = { topo, data, hier, places, adjacency: {}, flows: [], label: 'census divisions', iso: 'CA' };
+      upgradeDetail(scope, '/geo/ca-divisions.json');
     } else {
       const [us, ca] = await Promise.all([loadScope('us'), loadScope('ca')]);
       const mx = await loadScope('mx');
@@ -121,7 +128,34 @@
     return store[scope];
   }
 
+  /**
+   * Fetch the full-detail geometry in the background and hand it to the map as
+   * the fine half of a LOD pair. Deliberately not awaited: the page is usable
+   * on the coarse tier, and this only has to arrive before somebody zooms in.
+   *
+   * Both tiers come out of the same feature list in build-geo.mjs, so unit
+   * index u means the same county in both and the fill array is shared.
+   */
+  function upgradeDetail(scope, url) {
+    jget(url).then((doc) => {
+      const S = store[scope];
+      if (!S || S.topoHi) return;
+      S.topoHi = ATLAS_CODEC.unpack(doc);
+      if (S.topoHi.ids.length !== S.topo.ids.length) { S.topoHi = null; return; }
+      if (state.scope === scope || (state.scope === 'na' && store.na)) rebuildLayers();
+    }).catch(() => { /* the coarse tier is a complete map on its own */ });
+  }
+
   // ------------------------------------------------------- the measure ----
+
+  /** id -> row index for a scope's data file, built once and reused. */
+  function dataIndex(S) {
+    if (!S._at) {
+      S._at = Object.create(null);
+      S.data.ids.forEach((id, i) => { S._at[id] = i; });
+    }
+    return S._at;
+  }
 
   /** Values for the current measure at the current level, plus the ids. */
   function currentValues(scope) {
@@ -267,12 +301,15 @@
     state.regionCentroids = ATLAS_NAMES.regionCentroids(res.region, S.data.ids, centroids, weights);
     // One member id per region, so a composite projection knows which block to
     // place the label in — a label for Alaska must be drawn in the Alaska inset.
+    // Heaviest member per region, so a composite projection knows which block
+    // to draw the label in. Tracking the weight directly rather than looking
+    // the id back up: the previous version ran indexOf inside this loop, which
+    // is 3,225 scans of a 3,225-element array of strings every redraw.
     state.regionAnchorId = [];
+    const anchorW = [];
     for (let i = 0; i < S.data.ids.length; i++) {
-      const g = res.region[i];
-      if (state.regionAnchorId[g] === undefined || (weights[i] || 0) > (weights[S.data.ids.indexOf(state.regionAnchorId[g])] || 0)) {
-        state.regionAnchorId[g] = S.data.ids[i];
-      }
+      const g = res.region[i], w = weights[i] || 0;
+      if (anchorW[g] === undefined || w > anchorW[g]) { anchorW[g] = w; state.regionAnchorId[g] = S.data.ids[i]; }
     }
 
     const ms = Math.round(performance.now() - t0);
@@ -283,6 +320,9 @@
   }
 
   // ------------------------------------------------------------- panel ----
+
+  /** Small helper for the non-leaf id lists, which are short (13 to 53). */
+  const idxOf = (ids, key) => ids.indexOf(key);
 
   function openPanel(leafId) {
     const S = store[state.scope === 'na' ? 'us' : state.scope];
@@ -298,16 +338,16 @@
       const parent = lv.of(leafId);
       if (parent == null) return;
       const r = S.hier.measure(m, levelId, S.data.current);
-      const i = r.ids.indexOf(parent);
+      const i = idxOf(r.ids, parent);
       rows.push({ label, name: lv.name(parent), value: i >= 0 ? r.values[i] : null, refused: r.refused });
     };
 
     const leaf = S.hier.measure(m, 'leaf', S.data.current);
-    const li = leaf.ids.indexOf(leafId);
+    const li = dataIndex(S)[leafId] ?? -1;
     let leafVal = li >= 0 ? leaf.values[li] : null;
     let combinedWith = null;
     if (leafVal == null && S.data.combined && S.data.combined[leafId] && S.data.combined[leafId] !== leafId) {
-      const ci = leaf.ids.indexOf(S.data.combined[leafId]);
+      const ci = dataIndex(S)[S.data.combined[leafId]] ?? -1;
       if (ci >= 0) { leafVal = leaf.values[ci]; combinedWith = S.places[S.data.combined[leafId]]; }
     }
     rows.push({ label: state.scope === 'ca' ? 'Division' : 'County', name: place.long || place.name, value: leafVal, self: true });
@@ -324,10 +364,9 @@
     const rank = clean.findIndex((x) => x[1] === li);
 
     const stat = (key) => {
-      const mm = M.BY_KEY[key];
-      const r = S.hier.measure(mm, 'leaf', S.data.current);
-      const i = r.ids.indexOf(leafId);
-      return i >= 0 ? r.values[i] : null;
+      const r = S.hier.measure(M.BY_KEY[key], 'leaf', S.data.current);
+      const i = dataIndex(S)[leafId];
+      return i === undefined ? null : r.values[i];
     };
 
     const others = M.MEASURES.filter((x) => x.key !== m.key).map((x) => {
@@ -376,10 +415,20 @@
       pop: pop.get(id), inc: inc.get(id) }))
       .sort((a, b) => (b.pop || 0) - (a.pop || 0));
 
-    const colOf = (id) => {
-      const idx = S.topo.index[S.data.ids.find((x) => S.hier.levels.get('region').of(x) === id)];
-      return fills && idx != null ? fills[idx] : 'transparent';
-    };
+    // One pass to find a representative county per region, rather than a
+    // linear scan of every id for each of the thirteen rows.
+    const swatch = new Map();
+    {
+      const of = S.hier.levels.get('region').of;
+      for (const cid of S.data.ids) {
+        const rk = of(cid);
+        if (rk != null && !swatch.has(rk)) {
+          const idx = S.topo.index[cid];
+          if (idx != null) swatch.set(rk, fills ? fills[idx] : 'transparent');
+        }
+      }
+    }
+    const colOf = (id) => swatch.get(id) || 'transparent';
 
     $('#panel-body').innerHTML = `
       <h2>Thirteen superstates</h2>
@@ -486,8 +535,8 @@
     const groupOf = (id) => {
       if (state.level === 'region' && state.region && state.regionScope === (state.scope === 'na' ? 'us' : state.scope)) {
         const S = store[state.regionScope];
-        const i = S.data.ids.indexOf(id);
-        return i >= 0 ? 'R' + state.region[i] : 'x';
+        const i = dataIndex(S)[id];
+        return i === undefined ? 'x' : 'R' + state.region[i];
       }
       if (state.level === 'state') return id.slice(0, 5);
       return id.slice(0, 5);            // county view still shows state lines
@@ -518,20 +567,28 @@
         fillOf: () => P.nodata, borderStyle: border, interactive: false });
     } else {
       const S = store[state.scope];
-      addFillLayer(S.topo, state.scope, state.scope === 'us' ? groupOf : (id) => (S.places[id] ? S.places[id].parent : 'x'), border, 1);
+      addFillLayer(S.topo, state.scope, state.scope === 'us' ? groupOf : (id) => (S.places[id] ? S.places[id].parent : 'x'), border, 1, S.topoHi);
     }
 
     map.resize();
     map.fit(currentBBox());
   }
 
-  function addFillLayer(topo, id, groupOf, border, order) {
-    const L = map.addLayer(topo, {
-      id, order, groupOf, borderStyle: border,
-      fillOf: (unitId, u) => (fills ? fills[u] : '#ccc'),
-    });
-    L.groupKey = state.level + ':' + (state.regionInfo ? state.regionInfo.cuts.length : 0);
-    return L;
+  function addFillLayer(topo, id, groupOf, border, order, topoHi) {
+    const key = state.level + ':' + (state.regionInfo ? state.regionInfo.cuts.length : 0);
+    const mk = (t, suffix, tier) => {
+      const L = map.addLayer(t, {
+        id: id + suffix, order, groupOf, borderStyle: border,
+        fillOf: (unitId, u) => (fills ? fills[u] : '#ccc'),
+      });
+      L.groupKey = key;
+      L.lodGroup = id;
+      L.tier = tier;
+      return L;
+    };
+    const lo = mk(topo, '', 'lo');
+    if (topoHi) mk(topoHi, ':hi', 'hi');
+    return lo;
   }
 
   /**
@@ -578,8 +635,8 @@
 
     let body;
     if (state.level === 'region' && state.region) {
-      const i = S.data.ids.indexOf(hit.id);
-      const key = i >= 0 ? 'R' + state.region[i] : null;
+      const i = dataIndex(S)[hit.id];
+      const key = i === undefined ? null : 'R' + state.region[i];
       const name = key ? (state.regionNames[+key.slice(1)] || key) : '—';
       const r = S.hier.measure(m, 'region', S.data.current);
       const ri = r.ids.indexOf(key);

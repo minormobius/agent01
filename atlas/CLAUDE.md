@@ -62,7 +62,7 @@ node atlas/etl/build-geo.mjs                 # all boundary layers
 node atlas/etl/build-geo.mjs us-counties     # one layer
 node atlas/etl/build-data.mjs                # all data blocks
 node atlas/etl/build-data.mjs --us           # one nation
-node atlas/etl/atlas.selftest.mjs            # 54 known-answer checks
+node atlas/etl/atlas.selftest.mjs            # 55 known-answer checks
 ```
 
 `build-data.mjs` reads its universe of places from `data/places.json`, so
@@ -73,6 +73,40 @@ committed artefacts against figures the agencies publish — U.S. population nea
 340 million, personal income near $24.9 trillion, GDP near $29.1 trillion — so a
 rebuild that parsed the wrong column fails before it ships a map that renders
 perfectly and is wrong.
+
+## Performance: where the frame budget goes
+
+Measured, not guessed (headless Chromium, software rasteriser, 1500x900):
+
+| | before | after |
+|---|---|---|
+| pan, per frame | 196 ms | 66 ms |
+| measure switch | 300-520 ms | 84-91 ms |
+| boot to first map | 1,261 ms | 637 ms |
+
+Three things did it, in order of size:
+
+1. **The border geometry was rebuilt every frame.** 200,000 points, three
+   times over, at 183 ms. Panning is a canvas transform and moves none of them.
+   They are cached Path2D objects now (`_buildBorderPaths`), stroked in 1.6 ms.
+   This was the whole of the "chugging".
+2. **Jenks was O(k.n^2)** and ran on every recolour, at 121 ms. It is now the
+   same recurrence under the divide-and-conquer optimisation, O(k.n.log n),
+   at ~6 ms — and on all 3,225 values rather than a 3,000-value sample, so the
+   breaks are exact. The selftest checks it against a brute-force solver.
+3. **Level of detail.** The coarse tier was built and never used. It is now the
+   first paint and the tier drawn while the view is moving; full detail arrives
+   in the background and takes over once the view settles above `lodZoom`.
+   Plus viewport culling, which does nothing at zoom 1 and rejects 90% of the
+   country when zoomed into a state.
+
+**What is left is rasterisation, and Rust would not touch it.** The remaining
+cost is the browser filling 3,225 polygons; JavaScript's share of a frame is
+about 1.3 ms. Two things were tried and rejected on measurement: merging the
+counties into one path per colour class was SLOWER (36 ms against 27), and the
+cost is not pixel-bound either — cutting the canvas to a sixteenth of the area
+only saved a third. If this ever needs to be faster, the answer is WebGL with a
+mesh triangulated at build time in the ETL, not a faster language on the client.
 
 ## Quirks worth knowing before you change something
 
