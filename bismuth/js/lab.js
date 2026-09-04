@@ -275,7 +275,8 @@ class Lab {
     $("#stats").textContent =
       `${fmt(st.bricks)} bricks · ${st.terraces} terraces on the midline · pit ${fmt(st.pit)} cells · hollowness ${st.hollowness.toFixed(2)} · ` +
       `${st.box.map((v) => Math.round(v)).join("×")} · ${fmt(st.ticks)} ticks · ${st.masons} masons alive, ${st.retired} retired` +
-      (st.tiling === ICO ? ` · ${fmt(st.tiles)} golden rhombohedra (${fmt(st.prolate)} prolate, ${fmt(st.tiles - st.prolate)} oblate)` : st.tiling ? ` · ${fmt(st.tiles)} ${SHAPE_INFO[st.tiling].label} tiles` : "") + (st.coordination ? ` · ${st.coordination} bonds a brick` : "");
+      (st.tiling === ICO ? ` · ${fmt(st.tiles)} golden rhombohedra (${fmt(st.prolate)} prolate, ${fmt(st.tiles - st.prolate)} oblate)` : st.tiling ? ` · ${fmt(st.tiles)} ${SHAPE_INFO[st.tiling].label} tiles` : "") + (st.coordination ? ` · ${st.coordination} bonds a brick` : "") +
+      (st.stalled ? (st.reach >= 0.9 ? ` · STALLED short of its budget: the crystal reached the edge of its domain (radius ${st.radius}) — raise the radius or lower the budget` : " · stalled short of its budget: nowhere left to grow") : "");
     window.__done = true;
     this.updateHUD();
   }
@@ -286,7 +287,7 @@ class Lab {
     $("#bar").style.transform = `scaleX(${Math.min(1, laid / Math.max(1, gen.budget))})`;
     const alive = g.masons.length, onSurf = g.masons.filter((m) => m.state === "surface").length;
     $("#count").textContent = g.done
-      ? `${fmt(g.bricks.length)} bricks · grown${this.edited ? " · edited live — reset to replay from the link" : ""}`
+      ? `${fmt(g.bricks.length)} bricks · ${g.colonies.some((c) => !c.cooling && !c.frozen && c.laid < c.genome.budget) ? "stalled — out of room" : "grown"}${this.edited ? " · edited live — reset to replay from the link" : ""}`
       : `${fmt(g.bricks.length)} bricks · ${onSurf}/${alive} masons on the surface${g.retired ? ` · ${g.retired} retired` : ""}${g.cooling ? " · cooling" : ""}${this.paused ? " · paused" : ""}${this.edited ? " · edited live" : ""}`;
     if (!g.done && this.finished === false) $("#stats").textContent = "";
     $("#pause").textContent = this.paused ? "resume" : "pause";
@@ -410,7 +411,7 @@ class Lab {
     $("#twist").addEventListener("input", (e) => { $("#twist-out").textContent = (+e.target.value).toFixed(2).replace(/\.?0+$/, "") + "°"; });
     $("#twist").addEventListener("change", (e) => this.setStack({ twist: +e.target.value }));
     $("#tileR").addEventListener("input", (e) => {
-      if (st.sub.shape === ICO) { st.sub.icoR = +e.target.value; $("#tileR-out").textContent = st.sub.icoR; this.reset(); return; }
+      if (st.sub.shape === ICO) { st.sub.icoR = +e.target.value; $("#tileR-out").textContent = st.sub.icoR; this.fitBudget(); this.syncPanel(); this.reset(); return; }
       st.sub.R = +e.target.value; $("#tileR-out").textContent = st.sub.R;
       // keep painted tiles that still exist; heights are by tile index, which
       // changes with the radius, so re-paint the same footprint by position
@@ -430,8 +431,17 @@ class Lab {
     st.sub.shape = sh;
     this.prevShape = sh; this.prevR = st.sub.R;
     if (this.isTiling() && (wasCubic || st.tic.cells.size === 0)) this.carryFootprint();
+    this.fitBudget();
     this.syncPanel();
     this.reset();
+  }
+  // the icosahedral cylinder holds only so many bricks before the crystal
+  // meets its wall (it grows as tall as it is wide): about 0.9·R³
+  fitBudget() {
+    const st = this.state;
+    if (st.sub.shape !== ICO) return;
+    const cap = Math.round((0.9 * st.sub.icoR ** 3) / 100) * 100;
+    if (st.budget > cap) { st.budget = cap; this.toast(`radius ${st.sub.icoR} holds about ${fmt(cap)} bricks — budget lowered to fit`); }
   }
   // the stacking: which pattern, how far each layer slides, how far it turns
   setStack(patch) {
@@ -499,7 +509,7 @@ class Lab {
     $("#stackrow").style.display = ico ? "none" : ""; $("#twistrow").style.display = ico ? "none" : "";
     const info = ico ? ICO_INFO : SHAPE_INFO[st.sub.shape], stacked = !ico && isStacked(st.sub);
     $("#shapenote").textContent = ico
-      ? "the icosahedral quasicrystal — space tiled by prolate and oblate golden rhombohedra, the three-dimensional Penrose tiling; no lattice, no period in any direction, five-fold axes. Six faces a brick; the melt is above along a two-fold axis, so the terraces are the faces of a rhombic triacontahedron. Slower to build (a second or two) and to grow"
+      ? "the icosahedral quasicrystal — space tiled by prolate and oblate golden rhombohedra, the three-dimensional Penrose tiling; no lattice, no period in any direction, five-fold axes. Six faces a brick; the melt is above along a two-fold axis, so the terraces are the faces of a rhombic triacontahedron. Slower to build (a few seconds) and to grow; it grows as tall as it is wide, so a big budget wants a big radius — at 14 about 3,000 bricks fit before it meets the wall"
       : st.sub.shape === "grid" && !stacked
       ? "the cubic lattice — what the specimens grow on; right angles come from here, not from the brain"
       : stacked ? `${info.note} · ${info.family}, ${info.symmetry}-fold · stacked: ${stackName(st.sub)}`

@@ -651,6 +651,8 @@ export class Stack extends Prism {
       bricks: this.count, box, pit, hollowness: pit / Math.max(1, this.count), exposedFaces: exposed, terraces: heights.size,
       ticks: growth.tick, masons: growth.masons.length, retired: growth.retired, laidPerMason: growth.masons.map((m) => m.laid),
       tiling: this.spec.shape, tiles: n, stack: this.stack, stagger: this.stagger, twist: this.twist, coordination: this.coordination(),
+      reach: Math.max(Math.max(-this.fminX, this.fmaxX, -this.fminY, this.fmaxY) / Math.sqrt(this.limit2), (this.maxZ - this.z0) / (this.Z - 3 - this.z0)),
+      radius: T.R,
     };
   }
 }

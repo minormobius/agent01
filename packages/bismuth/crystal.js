@@ -708,6 +708,8 @@ export class Growth {
     const st = this.sub.stats(this);
     st.colonies = this.colonies.length;
     st.frozen = this.colonies.filter((c) => c.frozen).length;
+    // a colony that ended without cooling laid less than its budget: nowhere left to grow
+    st.stalled = this.colonies.some((c) => c.done && !c.cooling && !c.frozen && c.laid < c.genome.budget);
     st.events = this.events.length;
     return st;
   }

@@ -200,7 +200,7 @@ the terrace verdict. So the lattice is fundamental and the shape is emergent.
   crystal grows as tall as it is wide), 16.6k tiles and ~1.2 s to build at
   R = 12, cached per R; ~16 µs a tick. Habit: a hollow tower-hopper, a
   goblet, terraced in rhombic two-fold facets; `lipDepth` 0 flattens it.
-  Golden hash `GOLD_I` pins seed 7 at R 10.
+  Golden hash `GOLD_I` pins seed 7 at R 10. A stall against the domain is reported: `stats.stalled` (any colony done without cooling, short of its budget) and `stats.reach` (the fraction of the wall or ceiling the crystal has used), which the lab turns into a message; the lab also caps the budget at about 0.9·R³ when the chip is picked, since the crystal grows as tall as it is wide.
 
 **`/q/<seed>`** is the quasicrystal namespace: `quasiSubstrate(seed)` draws a
 shape from `stream(seed, "substrate")` (its own stream — no cubic specimen

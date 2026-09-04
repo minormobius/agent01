@@ -480,6 +480,8 @@ export class Prism {
       laidPerMason: growth.masons.map((m) => m.laid),
       tiling: this.spec.shape,
       tiles: n,
+      reach: Math.max(Math.max(-this.fminX, this.fmaxX, -this.fminY, this.fmaxY) / Math.sqrt(this.limit2), (this.maxZ - this.z0) / (this.Z - 3 - this.z0)),
+      radius: T.R,
     };
   }
 }

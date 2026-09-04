@@ -447,7 +447,7 @@ section("icosahedral substrate: the tiling closes, adjacency is exact, φ, point
   ok(a.sub instanceof Ico && a.sub.kind === "ico", "Growth picks the Ico substrate for shape ico");
   ok(seqI(a) === seqI(b) && a.tick === b.tick, `ico seed 7: the same ${a.bricks.length} bricks twice`);
   const hi = createHash("sha256").update(seqI(a)).digest("hex").slice(0, 16);
-  const GOLD_I = "b94a74facc4ca193";
+  const GOLD_I = "8383ce8a55f9b1d9";
   ok(hi === GOLD_I || process.env.ICO_GOLD === "print", `ico seed 7: golden hash ${GOLD_I} (got ${hi}) — quasicrystal permalinks re-rolled!`);
   if (process.env.ICO_GOLD === "print") console.log("  ico golden:", hi);
   ok(a.bricks.length - a.nucleusBricks >= 450, `ico: lays its budget (${a.bricks.length - a.nucleusBricks} of 500, ${a.tick} ticks)`);

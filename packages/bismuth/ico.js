@@ -27,7 +27,7 @@
 // per-cell column list) read along twelve world-space rays, as the stack
 // does it. Arrival rays land by 3D point location in a bucket grid.
 
-export const ICO_R_MIN = 8, ICO_R_MAX = 20, ICO_R_DEFAULT = 12;
+export const ICO_R_MIN = 8, ICO_R_MAX = 24, ICO_R_DEFAULT = 14;
 export const TALL = 1.25;                          // the cylinder stands 2·TALL·R high: a hopper here is as tall as it is wide
 const HALF = 0.5;                                  // height-field cell and ray step, in edge lengths
 const LOOK = 32;
@@ -430,7 +430,7 @@ export class Ico {
     this.fminX = Infinity; this.fminY = Infinity; this.fmaxX = -Infinity; this.fmaxY = -Infinity;
     this.minZ = Infinity; this.maxZ = -Infinity;
     this.z0 = spec.z0 !== undefined ? spec.z0 : 0.25 * this.R;   // the melt floor, in edge lengths above the cylinder's base: room above for the crystal
-    this.limit2 = (this.R - 2.5) * (this.R - 2.5);
+    this.limit2 = (this.R - 1) * (this.R - 1);   // the boundary shell is already not deep
     this.moteOffset = [0, 0, 0];
     this.min = [-this.R, -this.R, 0]; this.max = [this.R, this.R, 2 * TALL * this.R];
     this._bond = new Int32Array(64);
@@ -785,10 +785,12 @@ export class Ico {
     }
     const heights = new Set();
     for (let k = 1; k <= 2 * this.R; k++) { const c = T.cellOf(k * HALF, 0); if (c < 0) break; if (H[c] > NONE) heights.add(Math.round(H[c] / 0.7)); }
+    // how much of the domain the crystal has used: its reach against the wall and the ceiling
+    const reach = Math.max(Math.max(-this.fminX, this.fmaxX, -this.fminY, this.fmaxY) / Math.sqrt(this.limit2), (this.maxZ - this.z0) / (2 * TALL * this.R - 1.5 - this.z0));
     return {
       bricks: this.count, box, pit, hollowness: pit / Math.max(1, this.count), exposedFaces: exposed, terraces: heights.size,
       ticks: growth.tick, masons: growth.masons.length, retired: growth.retired, laidPerMason: growth.masons.map((m) => m.laid),
-      tiling: "ico", tiles: this.n, prolate: T.prolate, coordination: 6,
+      tiling: "ico", tiles: this.n, prolate: T.prolate, coordination: 6, reach, radius: this.R,
     };
   }
 }
