@@ -1,102 +1,125 @@
-# BRIEF — pipedream-screensaver
+# BRIEF — pipedream
 
 ## What this is
 
-The ask: a pipedream screensaver — classic 3D-Pipes-style growth on a grid —
-except the pipes carry text, letter by letter, imprinted along the tube. The
-requester's own framing: "if screensavers were invented after microblogging."
-Since a lab site can only show Bluesky content for a subject the visitor
-named (never a firehose/searchPosts feed), the source of the letters is:
-a textarea the visitor types into, OR a Bluesky handle they type (via
-kit.handleInput), whose recent visible posts (getAuthorFeed + kit.visible)
-become the letter stream, OR — if both are empty — an infinite shuffle of a
-built-in neutral word list.
+A pipedream screensaver — classic 3D-Pipes-style growth — except the pipes
+carry text, letter by letter, imprinted along the tube. Original framing from
+the requester: "if screensavers were invented after microblogging." The
+source of the letters is a textarea the visitor types into, OR a Bluesky
+handle they type (via `kit.handleInput`), whose recent visible posts
+(`getAuthorFeed` + `kit.visible`) become the letter stream, OR — if both are
+empty — an infinite shuffle of a built-in neutral word list. That part is
+unchanged since turn 1.
 
-Shipped this turn: the whole thing, working end to end. `index.html` is
-complete — grid-based pipe growth (4-directional random walk, ~72% chance to
-continue straight), each new cell renders as a shaded/highlighted tube
-segment plus one embossed letter rotated to the direction of travel, drawn
-once and left in place (canvas is not cleared every frame — cheap, and reads
-like a real screensaver building up a picture). A speed slider (0.25×–4×)
-and a three-way motion control (auto / on / off) are both live. The canvas
-never fully clears until ~50% of grid cells are covered, then fades back to
-background and respawns all pipes — this is what stands in for the classic
-pipe screensaver's "fill and reset" cycle.
+**Turn 2 (this turn)** answered two follow-ups from the requester: *"The real
+pipedream was 3-dimensional. Can you do that?"* and *"The letters seem to
+only appear at the 'head' of the pipe, I was thinking more it should stay on
+the sides as the pipe goes along."* Both are now shipped — the renderer is a
+full rewrite from 2D canvas to three.js (r169, vendored, `../_kit/three.module.min.js`):
+
+- A real 3D grid (10×8×8 cells), six-directional random walk (±x, ±y, ±z),
+  same "72% chance to continue straight" bias as before.
+- Each new grid step is a `CylinderGeometry` segment (shared geometry, one
+  material per pipe for its hue) plus a small sphere at every joint to keep
+  corners (and straight runs) looking continuous rather than faceted.
+- **Letters are now decals mounted on the tube's own surface** — a small
+  transparent plane, textured with the next character, positioned flush
+  against the side of the cylinder (offset outward by its radius) and
+  oriented so the letter's "up" runs along the pipe's direction of travel.
+  This directly answers the second ask: the letter is not a flat glyph
+  stamped once at the growing tip's centerline, it's part of the tube's skin
+  and stays there as the pipe extends past it.
+- A slowly auto-orbiting camera (no `OrbitControls` — that addon isn't
+  vendored) circles the whole grid so the 3D shape actually reads; its rate
+  is tied to the same speed slider as pipe growth, and frozen along with
+  everything else when motion is off.
+- Persistent draw is kept (meshes accumulate in the scene, nothing is
+  redrawn every frame) — same reasoning as before, now expressed as "don't
+  rebuild geometry you don't have to." `fullReset()` at ~50% grid fill
+  disposes materials (not the shared geometries, not the cached letter
+  textures) and respawns all pipes, replacing the old canvas clear/refill.
+- HUD, speed slider, motion auto/on/off, text box, handle box: all untouched
+  — same DOM, same event wiring, same `kit.handleInput`/`bskyGet` calls.
 
 ## Decisions
 
-- **Persistent draw over full-frame redraw.** Only the newly grown segment
-  is painted each tick; the rest of the canvas is untouched between frames.
-  This is much cheaper than redrawing every pipe's whole path every frame
-  and is *why* speed can run to 4× without dropping frames on a phone.
-  The tradeoff: pipes can't be un-drawn individually, so a "dead" pipe (hit
-  its max length or ran out of room) just stops growing in place and a new
-  one spawns elsewhere — matches how the original screensaver actually
-  behaves, so I didn't fight it.
-- **4-directional grid, not 6-direction/3D.** three.js is available and a
-  true 3D pipe render was tempting, but doing it properly (extruded tube
-  geometry, camera, lighting) would have eaten the whole turn on the "3D"
-  part rather than the part that was actually asked for — letters imprinted
-  on the pipes. 2D with shading reads as a tube well enough. If a future
-  turn wants real 3D, treat it as a separate, larger turn.
-- **One shared, cycling letter pool** rather than per-pipe independent
-  text. All pipes draw from the same `pool`/`poolPos` cursor, so the same
-  stream of text is legible continuing across whatever pipe happens to be
-  growing at that moment, rather than every pipe reciting the same text
-  from its own start (which reads as repetitive rather than as "a feed").
-- **Bluesky handle input reuses `kit.handleInput` + `getAuthorFeed`**,
-  filtered through `kit.visible()`. This is the allowed way to get real
-  Bluesky text onto the page without touching a firehose or search: the
-  visitor names the exact account. Rejected: any attempt to make this
-  "actual Bluesky posts" in general — the brief anticipated this
-  ("if you can't do actual bluesky posts because of restrictions") and the
-  house rule is unambiguous on it.
-- **Reduced motion gets a visible three-way override** (auto/on/off), not
-  just a silent `prefers-reduced-motion` check — matches what this
-  requester asked for explicitly on a previous build (see their profile).
-  CSS-only reduced-motion (from tokens.css) does not touch canvas/rAF, so
-  this had to be handled by hand in JS regardless.
+- **Six-direction grid walk, not a smooth/curved 3D path.** Matches the
+  original 2D pipe-growth logic (which the requester hadn't objected to) and
+  keeps geometry cheap: every segment is exactly one grid cell long, so a
+  single shared `CylinderGeometry` and `SphereGeometry` cover every pipe —
+  no per-segment geometry allocation, only a per-pipe material for hue.
+- **Letters as surface decals, not a texture wrapped around the cylinder
+  itself.** A wrapped-texture approach (bake the letter into the cylinder's
+  own material map, repeated around the circumference) was considered and
+  rejected for time: it needs per-letter-per-hue texture variants (or a
+  second UV pass) to keep the coloured body and a legible glyph distinct.
+  A separate decal plane, mounted on the surface, gets "letters on the
+  side" with one cached texture per character regardless of pipe colour.
+- **Fixed-size 3D grid (10×8×8), not tied to window pixel dimensions.**
+  The old 2D grid was `cols = ceil(w/CELL)` etc., which made sense for a
+  flat canvas; a 3D scene is framed by the camera, not the pixel grid, so
+  window size now only drives `renderer.setSize`/`camera.aspect` on resize,
+  never a full grid rebuild. Resizing (e.g. a phone's URL bar collapsing)
+  no longer wipes the pipes mid-animation — an improvement over turn 1,
+  which did a full reset on every `resize` event.
+- **No `OrbitControls`** — it's not vendored in `/_kit/` (README says so
+  explicitly: "Addons are not included"). A hand-rolled auto-orbit stands in.
+  If a future turn wants visitor-driven camera control, that addon would
+  need to be vendored by a human first (same rule as three.js itself), or
+  it'd need to be written by hand against core `THREE` (raycasting +
+  pointer events for drag-to-orbit is doable but is its own chunk of work).
 
 ## The plan (not built yet, in order)
 
-1. **Pipe-count / density control.** Speed is adjustable; how many pipes
-   grow at once is not (fixed at 4–10 based on screen area). Cheap slider,
-   same pattern as speed — would go in the same HUD row.
-2. **Smoother corners.** Each segment is a separate `stroke()` call, so
-   elbows rely on round line caps overlapping rather than a true rounded
-   joint. Looks fine at CELL=30 but would show at a larger cell size. Fix:
-   accumulate each pipe's unstroked cells into one `Path2D` with
-   `lineJoin=round` and stroke it once per growth tick instead of per
-   segment — needs the fill-tracking (`drawnCount`) to still count per-cell
-   for the reset threshold to keep working.
-3. **Per-pipe independent text slices** as an option, so a name change
-   ("their post become one pipe's text, not blended into the shared
-   stream") — currently rejected above but flagged in case the requester
-   wants pipes that visibly correspond 1:1 with individual posts rather
-   than a shared scroll.
-4. **True 3D**, only if asked for explicitly and given its own turn —
-   three.js tube geometry + an orbiting or fixed camera. This is a rewrite
-   of the renderer, not an addition to it.
+1. **Untested in a real WebGL context by me.** Per the harness note, a
+   screenshot pass happens after this turn ends. If the canvas renders as a
+   black/blank frame: check that `../_kit/three.module.min.js` resolves
+   correctly from `/pipedream/` (it should, mirrors the existing
+   `../_kit/tokens.css` pattern) before anything else — a failed module
+   import is the single most likely total-failure mode, and it will throw
+   in the console rather than degrade gracefully (no try/catch around the
+   `import`, since a lab page can't do anything useful without three.js
+   here regardless).
+2. **Density control**, still not built (flagged since turn 1) — a slider
+   for `pipeCount`/grid size, same pattern as the speed slider.
+3. **Camera drag-to-orbit**, if the requester wants visitor control rather
+   than the current fixed auto-orbit. Needs pointer event handling (rotate
+   the orbit angle/height on drag) rather than the `OrbitControls` addon,
+   which isn't vendored. Should stay separate from the existing `touch-action:
+   none` on the canvas so it doesn't fight page scroll on mobile.
+4. **Perf tuning if it turns out to matter on a real phone**: at up to 9
+   pipes growing every 90ms/speedMul until ~50% grid fill (320 of 640
+   cells), the scene can hold on the order of 800–1000 small meshes between
+   resets. Geometries are shared so this is mostly draw-call count, not
+   vertex count — if it stutters on real hardware, the first lever is
+   lowering `fillLimit`'s multiplier (reset sooner) before touching anything
+   else.
+5. **Letter orientation is "good enough," not verified precise.** The decal
+   basis (`xAxis`/`yAxis`/`zAxis` from cross products) should put each
+   letter roughly upright and reading along the pipe's direction of travel,
+   but the exact handedness wasn't checked against a render — some letters
+   may appear mirrored or rotated 180° depending on travel direction. Worth
+   a look once there's a screenshot; if it's wrong it's a sign-flip in
+   `sideVectorFor` or the `xAxis`/`yAxis` cross-product order, not a deeper
+   problem.
 
 ## Gotchas
 
-- `getAuthorFeed`'s `actor` param accepts a handle directly (no need to
-  resolve to a DID first) — confirmed against `kit.handleInput`'s `onPick`
-  signature and the fixture, saved a round trip.
-- Post text lives at `item.post.record.text` in the getAuthorFeed fixture,
-  not `item.post.text` — easy to get wrong from memory, checked the fixture.
-- Untested in a real browser by me, but per the harness note, a screenshot
-  pass happens after this turn ends — if the pipes render as flat lines
-  with no visible letters, check `ctx.setTransform` against `DPR` first;
-  that's the most likely thing to be subtly wrong on a real HiDPI screen.
-
-## Screenshot pass (1200×800, production CSP)
-
-Confirmed correct, no changes made. Pipes render with visible embossed
-letters and correct shading; the HUD panel shows all four controls (speed,
-motion, text box, handle box) with clear labels and readable text; the
-speed slider and status line ("letters: random text") are live and legible.
-Sparse pipe coverage and the faint blurred color bleed-through in the
-translucent HUD panel are expected — a fresh page load mid-animation, seen
-through the panel's deliberate `rgba(...,.88)` + `backdrop-filter: blur(6px)`
-translucency — not a rendering fault.
+- `CylinderGeometry`'s `openEnded` is the **6th** constructor argument —
+  easy to miscount (`radiusTop, radiusBottom, height, radialSegments,
+  heightSegments, openEnded, ...`).
+- `Material.dispose()` does **not** dispose textures attached via `.map`.
+  This turn relies on that: the letter-texture cache is shared and reused
+  forever, and `fullReset()` disposes every mesh's material every reset
+  without needing to special-case decal materials to avoid killing the
+  cache.
+- Grid step length is always exactly `CELL` (one cell, one axis, per move)
+  — that's what makes sharing a single `CylinderGeometry` across every
+  segment possible. Don't introduce diagonal or multi-cell moves without
+  also handling per-segment geometry again.
+- `getAuthorFeed` post text is `item.post.record.text`, not
+  `item.post.text` — checked against the fixture in turn 1, still true,
+  still easy to get wrong from memory.
+- three.js addons (`OrbitControls`, loaders, post-processing) are **not**
+  in `/_kit/` — only the core ES module. Confirmed by re-reading
+  `lab/_kit/README.md` this turn before reaching for one.

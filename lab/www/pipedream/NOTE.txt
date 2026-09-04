@@ -1,1 +1,1 @@
-Went with pipes that grow in real time, spelling out text one letter per segment. Typing text is optional; naming a Bluesky handle pulls their own recent posts instead (never a stray firehose). Speed slider plus a real reduced-motion override, not just the OS default.
+Rebuilt in real 3D (three.js): six-direction grid, orbiting camera. Letters now mount as decals on the tube's surface along its length, riding the sides as it grows instead of flashing once at the tip. Drag-to-orbit is next.

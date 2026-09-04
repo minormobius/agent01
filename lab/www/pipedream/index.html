@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>pipedream — a screensaver made of scrolling text</title>
 <meta property="og:title" content="pipedream — a screensaver made of scrolling text">
-<meta property="og:description" content="If screensavers were invented after microblogging: pipes that grow across the screen with your own text — or one Bluesky account's recent posts — imprinted letter by letter along the tube. Adjustable speed, honours reduced motion.">
+<meta property="og:description" content="If screensavers were invented after microblogging: real 3D pipes grow through the screen with your own text — or one Bluesky account's recent posts — as letters running along the sides of the tube. Adjustable speed, honours reduced motion.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
@@ -75,16 +75,14 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+import * as THREE from '../_kit/three.module.min.js';
+
 (function () {
   document.querySelector('.crumb-wrap').innerHTML = kit.crumb('pipedream');
 
   var canvas = document.getElementById('pipes');
-  var ctx = canvas.getContext('2d');
   var DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-
-  var CELL = 30;
-  var cols, rows, drawnCount, fillLimit;
 
   // ---- text pool: the letters the pipes carry ------------------------------
   var WORDS = ['pipe','screen','saver','glass','signal','drift','static','loop',
@@ -114,112 +112,164 @@
     return c.toUpperCase();
   }
 
-  // ---- grid + pipes ----------------------------------------------------------
-  var DIRS = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
-  var pipes = [];
+  // ---- three.js scene ----------------------------------------------------
+  var scene = new THREE.Scene();
+  var bgHex = (getComputedStyle(document.documentElement).getPropertyValue('--bg') || '#0e0e11').trim();
+  scene.background = new THREE.Color(bgHex);
 
-  function resize() {
-    var w = window.innerWidth, h = window.innerHeight;
-    canvas.style.width = w + 'px';
-    canvas.style.height = h + 'px';
-    canvas.width = Math.round(w * DPR);
-    canvas.height = Math.round(h * DPR);
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    cols = Math.ceil(w / CELL);
-    rows = Math.ceil(h / CELL);
-    drawnCount = 0;
-    fillLimit = cols * rows * 0.5;
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg') || '#0e0e11';
-    ctx.fillRect(0, 0, w, h);
-    var count = Math.max(4, Math.min(10, Math.round((cols * rows) / 140)));
-    pipes = [];
-    for (var i = 0; i < count; i++) pipes.push(spawn());
+  var camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 200);
+  var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+  renderer.setPixelRatio(DPR);
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x1a1a20, 1.0));
+  var sun = new THREE.DirectionalLight(0xffffff, 0.95);
+  sun.position.set(5, 8, 6);
+  scene.add(sun);
+  var fill = new THREE.DirectionalLight(0x6688ff, 0.35);
+  fill.position.set(-6, -3, -4);
+  scene.add(fill);
+
+  var pipesGroup = new THREE.Group();
+  scene.add(pipesGroup);
+
+  // ---- grid + pipes: a real 3D pipedream, six directions ------------------
+  var CELL = 1.1;
+  var cols = 10, rows = 8, depth = 8;
+  var center = new THREE.Vector3((cols - 1) / 2 * CELL, (rows - 1) / 2 * CELL, (depth - 1) / 2 * CELL);
+  var totalCells = cols * rows * depth;
+  var fillLimit = totalCells * 0.5;
+  var drawnCount = 0;
+  var RADIUS = CELL * 0.24;
+  var UP = new THREE.Vector3(0, 1, 0);
+
+  var segGeo = new THREE.CylinderGeometry(RADIUS, RADIUS, CELL, 10, 1, true);
+  var jointGeo = new THREE.SphereGeometry(RADIUS * 1.05, 10, 8);
+  var decalGeo = new THREE.PlaneGeometry(CELL * 0.6, CELL * 0.6);
+
+  var letterTexCache = {};
+  function letterTexture(ch) {
+    if (letterTexCache[ch]) return letterTexCache[ch];
+    var c = document.createElement('canvas');
+    c.width = c.height = 96;
+    var g = c.getContext('2d');
+    g.font = 'bold 64px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = 'rgba(0,0,0,.55)';
+    g.fillText(ch, 49, 51);
+    g.fillStyle = '#fff';
+    g.fillText(ch, 48, 48);
+    var tex = new THREE.CanvasTexture(c);
+    if ('colorSpace' in tex) tex.colorSpace = THREE.SRGBColorSpace;
+    letterTexCache[ch] = tex;
+    return tex;
   }
+
+  function gridToWorld(gx, gy, gz) {
+    return new THREE.Vector3(gx * CELL, gy * CELL, gz * CELL).sub(center);
+  }
+
+  function sideVectorFor(dir) {
+    var ref = Math.abs(dir.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : UP;
+    return new THREE.Vector3().crossVectors(dir, ref).normalize();
+  }
+
+  var DIRS = [{x:1,y:0,z:0},{x:-1,y:0,z:0},{x:0,y:1,z:0},{x:0,y:-1,z:0},{x:0,y:0,z:1},{x:0,y:0,z:-1}];
+  var pipes = [];
 
   function spawn() {
     return {
       gx: Math.floor(Math.random() * cols),
       gy: Math.floor(Math.random() * rows),
+      gz: Math.floor(Math.random() * depth),
       dir: null,
       cells: 0,
-      maxLen: Math.round(20 + Math.random() * (cols + rows) / 1.5),
-      have: false,
-      hue: Math.floor(Math.random() * 360)
+      maxLen: Math.round(14 + Math.random() * (cols + rows + depth) / 1.4),
+      color: new THREE.Color().setHSL(Math.random(), 0.55, 0.5)
     };
   }
 
   function validDir(p, d) {
-    var nx = p.gx + d.x, ny = p.gy + d.y;
-    return nx >= 0 && nx < cols && ny >= 0 && ny < rows;
+    var nx = p.gx + d.x, ny = p.gy + d.y, nz = p.gz + d.z;
+    return nx >= 0 && nx < cols && ny >= 0 && ny < rows && nz >= 0 && nz < depth;
   }
 
   function pickDir(p) {
     var opts = DIRS.filter(function (d) {
       if (!validDir(p, d)) return false;
-      if (p.dir && d.x === -p.dir.x && d.y === -p.dir.y) return false;
+      if (p.dir && d.x === -p.dir.x && d.y === -p.dir.y && d.z === -p.dir.z) return false;
       return true;
     });
     if (!opts.length) return null;
     if (p.dir && Math.random() < 0.72) {
       for (var i = 0; i < opts.length; i++) {
-        if (opts[i].x === p.dir.x && opts[i].y === p.dir.y) return opts[i];
+        if (opts[i].x === p.dir.x && opts[i].y === p.dir.y && opts[i].z === p.dir.z) return opts[i];
       }
     }
     return opts[Math.floor(Math.random() * opts.length)];
   }
 
-  function drawSegment(p, cx, cy, ang) {
-    var body = 'hsl(' + p.hue + ',65%,46%)';
-    var shadow = 'hsl(' + p.hue + ',60%,22%)';
-    var hi = 'hsl(' + p.hue + ',75%,72%)';
-    if (p.have) {
-      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      ctx.strokeStyle = shadow; ctx.lineWidth = CELL * 0.62;
-      ctx.beginPath(); ctx.moveTo(p.lastX, p.lastY); ctx.lineTo(cx, cy); ctx.stroke();
-      ctx.strokeStyle = body; ctx.lineWidth = CELL * 0.48;
-      ctx.beginPath(); ctx.moveTo(p.lastX, p.lastY); ctx.lineTo(cx, cy); ctx.stroke();
-      ctx.strokeStyle = hi; ctx.lineWidth = CELL * 0.12; ctx.globalAlpha = .55;
-      var ox = -Math.sin(ang) * CELL * 0.12, oy = Math.cos(ang) * CELL * 0.12;
-      ctx.beginPath(); ctx.moveTo(p.lastX + ox, p.lastY + oy); ctx.lineTo(cx + ox, cy + oy); ctx.stroke();
-      ctx.globalAlpha = 1;
-    } else {
-      ctx.fillStyle = body;
-      ctx.beginPath(); ctx.arc(cx, cy, CELL * 0.24, 0, Math.PI * 2); ctx.fill();
-    }
-    var ch = nextChar();
-    if (ch && ch !== ' ') {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(ang);
-      ctx.font = Math.round(CELL * 0.5) + 'px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillStyle = 'rgba(0,0,0,.5)';
-      ctx.fillText(ch, 1, 1);
-      ctx.fillStyle = 'rgba(255,255,255,.6)';
-      ctx.fillText(ch, 0, 0);
-      ctx.restore();
-    }
-    p.lastX = cx; p.lastY = cy; p.have = true;
-    drawnCount++;
+  function makeSegmentMesh(p1, p2, color) {
+    var mat = new THREE.MeshStandardMaterial({ color: color, roughness: .55, metalness: .15 });
+    var mesh = new THREE.Mesh(segGeo, mat);
+    mesh.position.copy(p1).add(p2).multiplyScalar(.5);
+    var dir = new THREE.Vector3().subVectors(p2, p1).normalize();
+    mesh.quaternion.setFromUnitVectors(UP, dir);
+    return mesh;
+  }
+
+  // letters mounted on the tube's own surface, running along its length —
+  // not stamped once at the growing tip and left behind.
+  function makeLetterDecal(point, dir, ch) {
+    if (!ch || ch === ' ') return null;
+    var mat = new THREE.MeshBasicMaterial({ map: letterTexture(ch), transparent: true, side: THREE.DoubleSide, depthWrite: false });
+    var mesh = new THREE.Mesh(decalGeo, mat);
+    var side = sideVectorFor(dir);
+    mesh.position.copy(point).addScaledVector(side, RADIUS * 1.15);
+    var zAxis = side;
+    var xAxis = new THREE.Vector3().crossVectors(dir, zAxis).normalize();
+    var yAxis = new THREE.Vector3().crossVectors(zAxis, xAxis).normalize();
+    mesh.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis));
+    return mesh;
   }
 
   function growPipe(p, idx) {
     var d = pickDir(p);
     if (!d || p.cells >= p.maxLen) { pipes[idx] = spawn(); return; }
-    p.gx += d.x; p.gy += d.y;
+    var prev = gridToWorld(p.gx, p.gy, p.gz);
+    p.gx += d.x; p.gy += d.y; p.gz += d.z;
     p.dir = d;
     p.cells++;
-    var cx = p.gx * CELL + CELL / 2, cy = p.gy * CELL + CELL / 2;
-    var ang = Math.atan2(d.y, d.x);
-    drawSegment(p, cx, cy, ang);
+    var cur = gridToWorld(p.gx, p.gy, p.gz);
+    var dirVec = new THREE.Vector3(d.x, d.y, d.z);
+
+    pipesGroup.add(makeSegmentMesh(prev, cur, p.color));
+    var joint = new THREE.Mesh(jointGeo, new THREE.MeshStandardMaterial({ color: p.color, roughness: .5, metalness: .15 }));
+    joint.position.copy(cur);
+    pipesGroup.add(joint);
+
+    var decal = makeLetterDecal(cur, dirVec, nextChar());
+    if (decal) pipesGroup.add(decal);
+
+    drawnCount++;
   }
 
   function fullReset() {
-    var w = window.innerWidth, h = window.innerHeight;
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg') || '#0e0e11';
-    ctx.fillRect(0, 0, w, h);
+    for (var i = pipesGroup.children.length - 1; i >= 0; i--) {
+      var obj = pipesGroup.children[i];
+      pipesGroup.remove(obj);
+      if (obj.material) obj.material.dispose();
+    }
     drawnCount = 0;
-    for (var i = 0; i < pipes.length; i++) pipes[i] = spawn();
+    for (var j = 0; j < pipes.length; j++) pipes[j] = spawn();
+  }
+
+  var pipeCount = Math.max(4, Math.min(9, Math.round(totalCells / 70)));
+  for (var i0 = 0; i0 < pipeCount; i0++) pipes.push(spawn());
+
+  function resize() {
+    renderer.setSize(window.innerWidth, window.innerHeight, false);
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
   }
 
   // ---- motion / speed --------------------------------------------------------
@@ -230,12 +280,18 @@
     return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }
 
+  var orbitRadius = Math.max(cols, rows, depth) * CELL * 1.55;
+  var orbitHeight = rows * CELL * 0.55;
+  var orbitAngle = 0.6;
+  var ORBIT_RATE = 0.00018;
+
   var TICK_MS = 90, acc = 0, lastT = null;
   function frame(t) {
     if (lastT === null) lastT = t;
     var dt = Math.min(100, t - lastT);
     lastT = t;
     if (motionAllowed()) {
+      orbitAngle += dt * ORBIT_RATE * speedMul;
       acc += dt * speedMul;
       while (acc >= TICK_MS) {
         acc -= TICK_MS;
@@ -243,6 +299,9 @@
         if (drawnCount > fillLimit) fullReset();
       }
     }
+    camera.position.set(orbitRadius * Math.sin(orbitAngle), orbitHeight, orbitRadius * Math.cos(orbitAngle));
+    camera.lookAt(0, 0, 0);
+    renderer.render(scene, camera);
     requestAnimationFrame(frame);
   }
 
