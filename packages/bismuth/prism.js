@@ -42,6 +42,17 @@ export class Prism {
   }
 
   site(t, z) { return z * this.n + t; }
+  // the tiles at layer z + dz bonded to (t, z): on a prism, the tile itself
+  vertical(t, z, dz, out) { const zz = z + dz; if (zz < 0 || zz >= this.Z) return 0; out[0] = t; return 1; }
+  // the bond graph, in the order the worms walk it: below, above, then the lateral edges
+  bonds(s, out) {
+    const n = this.n, T = this.T, t = s % n, z = (s - t) / n;
+    let k = 0;
+    if (z > 1) out[k++] = s - n;
+    if (z + 1 < this.Z - 1) out[k++] = s + n;
+    for (let i = T.nbrStart[t]; i < T.nbrStart[t + 1]; i++) out[k++] = z * n + T.nbrList[i];
+    return k;
+  }
   tileOf(s) { return s % this.n; }
   zOf(s) { return (s - s % this.n) / this.n; }
 

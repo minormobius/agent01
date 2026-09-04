@@ -31,12 +31,13 @@ build, no D1, no AI, no secrets. Pure ES modules, no dependencies.
 
 | File | Is |
 |---|---|
-| `js/{prng,genome,crystal,prism,render,tilings}.js` | **synced copies of [`packages/bismuth/`](../packages/bismuth/)** — the engine is a package now (hopper.mino.mobi runs the same one). Edit the package, `node scripts/sync-dataviz.mjs --write`; `--check` fails preflight and the deploy if a copy drifts |
+| `js/{prng,genome,crystal,prism,stack,worms,render,tilings}.js` | **synced copies of [`packages/bismuth/`](../packages/bismuth/)** — the engine is a package now (hopper.mino.mobi runs the same one). Edit the package, `node scripts/sync-dataviz.mjs --write`; `--check` fails preflight and the deploy if a copy drifts |
 | `js/prng.js` | xmur3 + mulberry32, and `stream(seed, label)` — named sub-streams so the genome and the growth never share state |
 | `js/genome.js` | seed → every parameter (habit, masons, budget, rim, Kossel rates, anisotropy, nucleus, oxide palette). Pure. `GRID` (128) and `CHUNK` (16) live here |
 | `js/crystal.js` | **the engine** — `Growth` (the colony: arrival, walk, deposit, population, cool-down) over a SUBSTRATE; `Lattice` (the cubic substrate: occupancy, bond counts, the six extent maps, the lattice-line terrace scan); `Mason` (the agent) |
 | `js/worms.js` | **the worms** — a second wave of agents released *into* the crystal: they tunnel along the bond graph, bite the brick they leave with probability `bite`, and with `recycle` feed it back to the live colony. Deterministic on `stream(seed, "worms")`; substrate-agnostic. Only the playground uses them so far |
 | `js/prism.js` | **the Prism substrate** — any plane tiling stacked into layers; bonds, open sky, the walk, arrival rays and the terrace verdict as geometric rays over cached per-tile ray tables |
+| `js/stack.js` | **the Stack substrate** — a tiling with each layer staggered (AB / ABC) and/or twisted against the last: the close packings and moiré stacks. Extends `Prism`; vertical bonds are exact tile overlaps, the column top is a height field over the plane |
 | `js/tilings.js` | byte-identical copy of `packages/tilings/tilings.js` (kept honest by `scripts/sync-dataviz.mjs --check`) — **edit the package, never this** |
 | `js/render.js` | WebGL1 renderer — chunked voxel mesher with baked AO, the thin-film shader, orbit camera (or first person via `renderer.fp`), mason motes, props and beacons for hopper |
 | `js/app.js` | the page: URL ↔ seed, pacing, HUD, keys |
@@ -128,6 +129,41 @@ the terrace verdict. So the lattice is fundamental and the shape is emergent.
 - Everything in the prism is integer arithmetic on the tiling's fixed-point
   coordinates (`FIX` = 1024 per edge). One `Math.sqrt` normalises an outward
   direction to pick one of the 12 rays; it is correctly rounded everywhere.
+- **`Stack`** (`stack.js`, extends `Prism`) is the same tiling with each
+  layer DISPLACED and/or ROTATED against the last, chosen by
+  `substrate.stack` (`"ab"` / `"abc"`), `stagger` (0–1 of the natural
+  hollow vector, `HOLLOW` per shape) and `twist` (degrees a layer, quarter
+  steps, ±6). `Growth` picks it whenever `isStacked(spec)`. Hexagons AB is
+  hexagonal close packing; hexagons ABC the rhombohedral family (face-centred
+  cubic at the ideal spacing — bismuth's own A7 lattice is a distorted
+  member); the square grid AB is face-centred cubic along [001]; twelve bonds
+  a brick in each. Any other tiling staggered is a running bond that faults
+  every second or third layer (the stagger closes only on a lattice); a twist
+  makes the vertical bonds a moiré, quasiperiodic along z on any tiling.
+  Mechanics: per-layer frames `world = R(θ·dz)·(p + off(dz))` with the
+  rotations from a literal cos/sin table composed by multiply-adds (no trig at
+  run time); **pair maps** (`pair(z)`) — the exact polygon-overlap area between
+  every tile of layer z and the tiles of z + 1, computed once per distinct
+  pair of frames (`period` maps for a stagger, one per layer for a twist),
+  overlaps under `OVERLAP_MIN` (a tenth) are not bonds; **support** = the
+  overlap-weighted occupancy of the layer beneath, and a site *stands* on it
+  at `SUPPORT` (0.6) — less is a lip and the lip rules apply; the **height
+  field** `H` (half-tile cells, raised on place, rescanned on remove)
+  replaces `top[]` for open sky, the summit and the terrace rays, which run
+  in world space. `kossel` reads below/above as standing/covered plus the
+  prism's lateral rules; `fedBias` takes the +z route only when standing (a
+  brick over one corner of another would start a chain of corners climbing
+  away from the crystal). Cost: ~1.6× the prism per brick. Morphology: the
+  hexagonal close packings grow the cleanest terraced hoppers; the square
+  running bond and twisted stacks grow looser, more skeletal funnels — their
+  rims flare by half-tile lips that attach with one counted bond. The
+  selftest pins hex AB seed 7 to its own golden hash (`GOLD_S`), checks the
+  overlaps (a quarter each on the grid, a third on hexagons), the coordination
+  (12), the frames, connectivity, the height field, removal, deploy, and the
+  worms on a stack. The worms walk any substrate through `sub.bonds(s, out)`
+  (below, above, then the lateral edges — the prism lists its column, the
+  stack its overlaps); the renderer asks `sub.vertical(t, z, dz, out)` for
+  the tiles above and below and `sub.frame(z)` for the layer's transform.
 
 **`/q/<seed>`** is the quasicrystal namespace: `quasiSubstrate(seed)` draws a
 shape from `stream(seed, "substrate")` (its own stream — no cubic specimen
@@ -266,9 +302,16 @@ the settings the study picked.
 The same engine and renderer with every knob on the outside. Three panels:
 
 - **substrate** — the cubic grid or any of the ten tilings (`sub: {shape,
-  R}`); on a tiling the painter draws the real polygons and paints per tile
-  (`tic: {z, cells}`, three bytes per painted tile in the URL) and the genome
-  gets `substrate: {shape, R, ic: {cells}, z0}`.
+  R, stack, stagger, twist}`); on a tiling the painter draws the real
+  polygons and paints per tile (`tic: {z, cells}`, three bytes per painted
+  tile in the URL) and the genome gets `substrate: {shape, R, ic: {cells},
+  z0, stack, stagger, twist}`. **Stacking**: straight (a prism), AB or ABC
+  with a `stagger` slider (1 = the close-packed position), and a `twist` in
+  quarter degrees; the note names the lattice (hexagonal close packing, the
+  rhombohedral family, face-centred cubic). The square grid stacked is no
+  longer the cubic fast path but the `grid` tiling in a `Stack`, so its
+  painter switches to the tile painter (the footprint carries over by
+  position). The stats line reports the coordination.
 - **initial condition** — on the grid, a painted height map (`ic: {n, z, h}`;
   heights 0–15, packed two per byte in the URL). It becomes `genome.voxels`,
   offsets from the lattice centre at the melt floor, and replaces the seeded

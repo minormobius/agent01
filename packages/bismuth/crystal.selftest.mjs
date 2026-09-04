@@ -246,6 +246,157 @@ section("prism substrate (quasicrystals): determinism, connectivity, hoppering, 
   }
 }
 
+/* ── 6b. the stack substrate: staggered and twisted layers ─────────────── */
+section("stack substrate (close packings, twists): overlaps, coordination, determinism, growth, height field, worms");
+{
+  const { Stack, isStacked, normalizeStack, SUPPORT } = await import("./stack.js");
+  const spec = (o) => Object.assign({ R: 16, ic: { disk: 3, thickness: 2 }, z0: 6 }, o);
+  ok(!isStacked({ shape: "hex" }) && !isStacked({ shape: "hex", stack: "ab", stagger: 0 }) && isStacked({ shape: "hex", stack: "ab", stagger: 1 }) && isStacked({ shape: "penrose", twist: 1 }), "isStacked: a stagger of zero and no twist is the prism");
+  ok(JSON.stringify(normalizeStack({ stack: "abc", stagger: 0.53, twist: 1.13 })) === JSON.stringify({ stack: "abc", stagger: 0.55, twist: 1.25 }) && normalizeStack({ stack: "xyz", twist: 99 }).stack === "" && normalizeStack({ stack: "xyz", twist: 99 }).twist === 6, "normalizeStack quantises the stagger to 1/20 and the twist to a quarter degree, and clamps");
+  ok(new Growth(Object.assign(genome(3), { substrate: spec({ shape: "hex" }) })).sub.constructor.name === "Prism" && new Growth(Object.assign(genome(3), { substrate: spec({ shape: "hex", stack: "ab", stagger: 1 }) })).sub instanceof Stack && new Growth(Object.assign(genome(3), { substrate: spec({ shape: "grid", stack: "ab", stagger: 1 }) })).sub instanceof Stack, "Growth picks the stack for a stagger or a twist, on the square grid too");
+  // the close packings: overlaps and coordination
+  const out = new Int32Array(64);
+  {
+    const S = new Stack(spec({ shape: "grid", stack: "ab", stagger: 1 }));
+    const t = S.T.locate(0, 0), P = S.pair(S.z0);
+    const ups = P.upStart[t + 1] - P.upStart[t];
+    let wsum = 0, quarter = true;
+    for (let i = P.upStart[t]; i < P.upStart[t + 1]; i++) { wsum += P.upW[i]; if (Math.abs(P.upW[i] - 0.25) > 1e-9) quarter = false; }
+    ok(ups === 4 && quarter && Math.abs(wsum - 1) < 1e-9, `grid AB: a square sits over the corner of four, a quarter each (${ups} overlaps, Σ ${wsum.toFixed(3)})`);
+    ok(S.coordination() === 12, `grid AB: twelve bonds a brick — face-centred cubic (${S.coordination()})`);
+    ok(S.vertical(t, S.z0, 1, out) === 4 && S.vertical(t, S.z0, -1, out) === 4, "vertical() lists four above and four below");
+    const f = S.frame(S.z0 + 1), f0 = S.frame(S.z0), f2 = S.frame(S.z0 + 2);
+    ok(f0.ox === 0 && f0.oy === 0 && f.ox === 512 && f.oy === 512 && f2.ox === 0 && f.c === 1 && f.s === 0, "grid AB: the frames alternate 0, (½,½), 0 with no rotation");
+  }
+  {
+    const S = new Stack(spec({ shape: "hex", stack: "ab", stagger: 1 }));
+    const t = S.T.locate(0, 0), P = S.pair(S.z0);
+    const ups = P.upStart[t + 1] - P.upStart[t];
+    let third = true; for (let i = P.upStart[t]; i < P.upStart[t + 1]; i++) if (Math.abs(P.upW[i] - 1 / 3) > 1e-3) third = false;
+    ok(ups === 3 && third, `hex AB: a hexagon sits in the hollow of three, a third each (${ups})`);
+    ok(S.coordination() === 12, `hex AB: twelve bonds a brick — hexagonal close packing (${S.coordination()})`);
+    // the third layer is over the first: the same overlaps, the same world position
+    const d0 = S.describe(S.site(t, S.z0)), d2 = S.describe(S.site(t, S.z0 + 2)), d1 = S.describe(S.site(t, S.z0 + 1));
+    ok(d0.x === d2.x && d0.y === d2.y && (d1.x !== d0.x || d1.y !== d0.y), "hex AB: layer A over layer A, B displaced");
+  }
+  {
+    const S = new Stack(spec({ shape: "hex", stack: "abc", stagger: 1 }));
+    ok(S.coordination() === 12 && S.period === 3, `hex ABC: twelve bonds, period three — the rhombohedral family (${S.coordination()})`);
+    // the fourth layer is over the first: C's offset (0, 2) is a hollow, and 3·(0, 1) is a lattice vector
+    const t = S.T.locate(0, 0);
+    const d3 = S.describe(S.site(t, S.z0 + 3)), u = S.T.locate(Math.round(d3.x * 1024), Math.round(d3.y * 1024));
+    ok(u >= 0 && S.T.cx[u] === Math.round(d3.x * 1024) && S.T.cy[u] === Math.round(d3.y * 1024), "hex ABC: the fourth layer's tiles sit exactly on tiles of the first");
+    const dA = S.describe(S.site(t, S.z0)), dB = S.describe(S.site(t, S.z0 + 1)), dC = S.describe(S.site(t, S.z0 + 2));
+    ok(dB.y - dA.y === 1 && dC.y - dA.y === 2, "hex ABC: A, B, C a hollow apart");
+  }
+  {
+    // a twist: every layer turned, a moiré of overlaps, no two pair maps alike
+    const S = new Stack(spec({ shape: "penrose", twist: 1.5 }));
+    const t = S.T.locate(0, 0);
+    ok(S.turning && S.frame(S.z0).c === 1 && Math.abs(S.frame(S.z0 + 20).c - Math.cos(30 * Math.PI / 180)) < 1e-9 && Math.abs(S.frame(S.z0 - 4).s + Math.sin(6 * Math.PI / 180)) < 1e-9, "twist 1.5°: layer 20 is turned 30°, layer −4 turned −6°, from the literal table");
+    const far = (() => { let best = -1, bd = 0; for (let u = 0; u < S.n; u++) { const d = S.T.cx[u] * S.T.cx[u] + S.T.cy[u] * S.T.cy[u]; if (S.T.deep[u] && d > bd) { bd = d; best = u; } } return best; })();
+    const a = S.describe(S.site(far, S.z0)), b = S.describe(S.site(far, S.z0 + 20));
+    let ang = Math.atan2(b.y, b.x) - Math.atan2(a.y, a.x);
+    while (ang > Math.PI) ang -= 2 * Math.PI; while (ang < -Math.PI) ang += 2 * Math.PI;
+    ok(Math.abs(ang - 30 * Math.PI / 180) < 1e-6 && Math.abs(Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y)) < 1e-6, `twist: a far tile rides round the axis at the same radius (${(ang * 180 / Math.PI).toFixed(3)}°)`);
+    const P0 = S.pair(S.z0), P1 = S.pair(S.z0 + 1);
+    ok(P0 !== P1 && S.pairs.size === 2, "twist: each pair of layers has its own overlap map");
+    const c = S.coordination();
+    ok(c >= 6 && c <= 10, `twist on Penrose: a brick makes ${c} bonds (edges, plus the tiles it happens to overlap)`);
+  }
+  // growth: determinism, a golden hash of its own, connectivity, the sky rule
+  const seqS = (g) => g.bricks.map((b) => `${b.tile},${b.z},${b.t},${b.m}`).join(";");
+  const hcp = () => Object.assign(genome(7), { substrate: spec({ shape: "hex", R: 20, stack: "ab", stagger: 1 }), budget: 900 });
+  const a = new Growth(hcp()).run(), b = new Growth(hcp()).run();
+  ok(seqS(a) === seqS(b) && a.tick === b.tick, `hex AB seed 7: the same ${a.bricks.length} bricks twice`);
+  const hs = createHash("sha256").update(seqS(a)).digest("hex").slice(0, 16);
+  const GOLD_S = "10fff67824a01b27";
+  ok(hs === GOLD_S || process.env.STACK_GOLD === "print", `hex AB seed 7: golden hash ${GOLD_S} (got ${hs}) — stack permalinks re-rolled!`);
+  if (process.env.STACK_GOLD === "print") console.log("  stack golden:", hs);
+  ok(a.done && a.bricks.length - a.nucleusBricks >= 900, `hex AB: completes its budget (${a.bricks.length} bricks, ${a.tick} ticks)`);
+  {
+    const sub = a.sub, n = sub.n, bond = new Int32Array(64);
+    // rebuild occupancy in laying order: every mason brick touches an earlier one through the bond graph
+    const seen = new Uint8Array(sub.sites);
+    let floating = 0, maxNb = 0;
+    for (let i = 0; i < a.bricks.length; i++) {
+      const br = a.bricks[i], s = br.z * n + br.tile;
+      if (br.m >= 0) { const m = sub.bonds(s, bond); let touch = false; for (let k = 0; k < m; k++) if (seen[bond[k]]) touch = true; if (!touch) floating++; }
+      seen[s] = 1;
+    }
+    for (let s = 0; s < sub.sites; s++) if (sub.occ[s] && sub.nb[s] > maxNb) maxNb = sub.nb[s];
+    ok(floating === 0, `hex AB: every mason brick is bonded to an earlier one (${floating} floating)`);
+    ok(maxNb >= 9 && maxNb <= 12, `hex AB: buried bricks carry up to ${maxNb} bonds`);
+    // the bond counts are exact against a rebuild
+    let wrong = 0;
+    for (let s = 0; s < sub.sites; s++) { if (!sub.occ[s] && !sub.nb[s]) continue; const m = sub.bonds(s, bond); let c = 0; for (let k = 0; k < m; k++) if (sub.occ[bond[k]]) c++; if (c !== sub.nb[s]) wrong++; }
+    ok(wrong === 0, `hex AB: nb[] agrees with the bond graph everywhere (${wrong} wrong)`);
+    // the height field agrees with the bricks: every brick's centroid cell is at least its layer
+    let low = 0;
+    for (const br of a.bricks) { const d = sub.describe(br.z * n + br.tile); if (sub.heightAt(d.x * 1024, d.y * 1024) < br.z) low++; }
+    ok(low === 0, `hex AB: the height field covers every brick (${low} below)`);
+    // the melt is above: no mason brick laid under a brick covering it at the time
+    const st = a.stats();
+    ok(st.coordination === 12 && st.stack === "ab" && st.tiling === "hex", "hex AB: stats name the stacking and the coordination");
+    ok(st.terraces >= 3, `hex AB: terraced (${st.terraces} step heights along +x)`);
+    ok(st.box[2] < st.box[0], `hex AB: broader than tall (${st.box.map((v) => Math.round(v)).join("×")})`);
+    // staggered courses: no brick sits at the world position of one it stands on
+    let same = 0, pairs = 0;
+    for (const br of a.bricks) {
+      const s = br.z * n + br.tile; if (!sub.occ[s]) continue;
+      const m = sub.vertical(br.tile, br.z, 1, bond), d = sub.describe(s);
+      for (let k = 0; k < m; k++) { pairs++; const e = sub.describe((br.z + 1) * n + bond[k]); if (Math.abs(e.x - d.x) < 1e-9 && Math.abs(e.y - d.y) < 1e-9) same++; }
+    }
+    ok(pairs > 0 && same === 0, "hex AB: no brick is straight over one of the layer below — the courses run");
+  }
+  // remove: the height field and the bonds stay exact
+  {
+    const g = new Growth(hcp()).run(600), sub = g.sub, n = sub.n;
+    const br = g.bricks[g.bricks.length - 1], s = br.z * n + br.tile;
+    const d = sub.describe(s), h0 = sub.heightAt(d.x * 1024, d.y * 1024);
+    ok(h0 === br.z || h0 > br.z, "before removal the height field sees the brick");
+    ok(g.remove(s) && !sub.occ[s], "stack: a brick can be removed");
+    const h1 = sub.heightAt(d.x * 1024, d.y * 1024);
+    const cc = sub.cellCentre(sub.cellOf(d.x * 1024, d.y * 1024));
+    let expect = -1;
+    for (let zz = br.z; zz >= 0; zz--) { const u = sub.locateIn(zz, cc[0], cc[1]); if (u >= 0 && sub.occ[zz * n + u]) { expect = zz; break; } }
+    ok(h1 === expect, `stack: the height field is rescanned after removal (${h1}, expected ${expect})`);
+    const bond = new Int32Array(64); let wrong = 0;
+    for (let q = 0; q < sub.sites; q++) { if (!sub.occ[q] && !sub.nb[q]) continue; const m = sub.bonds(q, bond); let c = 0; for (let k = 0; k < m; k++) if (sub.occ[bond[k]]) c++; if (c !== sub.nb[q]) wrong++; }
+    ok(wrong === 0, "stack: bonds exact after removal");
+    ok(sub.summit() >= 0 && !sub.occ[sub.summit()] && sub.supportOf(sub.summit() % n, Math.floor(sub.summit() / n)) > 0, "stack: the summit is an empty site standing on the highest brick");
+    const idx = g.deploy({ masons: 4, budget: 120 }, null);
+    ok(idx === 1 && g.colonies[1].masons.length === 4, "stack: a pack deploys on the summit");
+    for (let i = 0; i < 4000 && g.colonies[1].laid === 0; i++) g.step();
+    ok(g.colonies[1].laid > 0, `stack: the pack lays bricks (${g.colonies[1].laid})`);
+  }
+  // every stacking grows on a few shapes, twisted and staggered, without stalling
+  for (const o of [{ shape: "grid", stack: "ab", stagger: 1 }, { shape: "hex", stack: "abc", stagger: 1 }, { shape: "penrose", stack: "ab", stagger: 0.5 }, { shape: "kagome", twist: 2 }, { shape: "hex", stack: "ab", stagger: 1, twist: -0.75 }]) {
+    const g = Object.assign(genome(3), { substrate: spec(o), budget: 400 });
+    const gr = new Growth(g).run();
+    ok(gr.done && gr.bricks.length - gr.nucleusBricks >= 400, `${JSON.stringify(o)}: grows 400 bricks without stalling (${gr.bricks.length - gr.nucleusBricks}, ${gr.tick} ticks)`);
+  }
+  // worms tunnel a stack along its overlaps
+  {
+    const { Worms } = await import("./worms.js");
+    const g = new Growth(hcp()).run(700);
+    const W = new Worms(g, { count: 3, speed: 0.1, bite: 0.2 });
+    ok(W.release() === 3, "stack: three worms released");
+    const before = g.sub.count;
+    W.step(500);
+    ok(W.worms.every((w) => w.moves > 10) && W.eaten > 0 && g.sub.count === before - W.eaten, `stack: the worms tunnel and bite (${W.eaten} eaten)`);
+    ok(W.worms.every((w) => g.sub.occ[w.site] || g.sub.nb[w.site] > 0), "stack: and stay on the crystal");
+  }
+  // the prism's own bond list is what the worms used to walk: below, above, edges
+  {
+    const g = new Growth(Object.assign(genome(3), { substrate: spec({ shape: "penrose" }) }));
+    const sub = g.sub, n = sub.n, t = sub.T.locate(0, 0), s = sub.site(t, 10), bond = new Int32Array(64);
+    const m = sub.bonds(s, bond);
+    const want = [s - n, s + n]; for (let k = sub.T.nbrStart[t]; k < sub.T.nbrStart[t + 1]; k++) want.push(10 * n + sub.T.nbrList[k]);
+    ok(m === want.length && want.every((q, i) => bond[i] === q), "prism.bonds(): below, above, then the lateral edges, in that order");
+  }
+}
+
 /* ── 7. the platformer primitives: deploy (reseed from this plane) + remove ── */
 section("deploy + remove: reseed a pack on the summit, take bricks away, replay from the event log");
 {

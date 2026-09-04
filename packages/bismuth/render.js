@@ -327,6 +327,7 @@ export class Renderer {
       this.pr = growth.sub;
       this.pbid = new Int32Array(this.pr.sites).fill(-1);
       this.NBK = Math.ceil(this.pr.n / 128);
+      this._vert = new Int32Array(64);
     } else {
       this.pr = null;
       this.occ.fill(0);
@@ -360,8 +361,12 @@ export class Renderer {
     const chunkOf = (tt, zz) => (zz >> 4) * NBK + (tt >> 7);
     this.dirty.add(chunkOf(t, z));
     for (let k = T.nbrStart[t]; k < T.nbrStart[t + 1]; k++) this.dirty.add(chunkOf(T.nbrList[k], z));
-    if (z > 0) this.dirty.add(chunkOf(t, z - 1));
-    if (z + 1 < pr.Z) this.dirty.add(chunkOf(t, z + 1));
+    // the layers above and below: the same tile on a prism, the overlapped tiles on a stack
+    const v = this._vert;
+    let m = pr.vertical(t, z, -1, v);
+    for (let i = 0; i < m; i++) this.dirty.add(chunkOf(v[i], z - 1));
+    m = pr.vertical(t, z, 1, v);
+    for (let i = 0; i < m; i++) this.dirty.add(chunkOf(v[i], z + 1));
   }
 
   // bricks taken away since the last sync (destructible terrain)
@@ -420,10 +425,7 @@ export class Renderer {
         const b = br[i], t = b.tile, z = b.z;
         this.pbid[z * n + t] = i;
         this.born[i] = instant ? now - 60 : now;
-        this.dirty.add(chunkOf(t, z));
-        for (let k = T.nbrStart[t]; k < T.nbrStart[t + 1]; k++) this.dirty.add(chunkOf(T.nbrList[k], z));
-        if (z > 0) this.dirty.add(chunkOf(t, z - 1));
-        if (z + 1 < pr.Z) this.dirty.add(chunkOf(t, z + 1));
+        this.dirtyPrism(t, z);
       }
       this.synced = br.length;
       return;
@@ -470,7 +472,7 @@ export class Renderer {
   // vertex from how many of the tiles around that corner hold a brick at the
   // relevant layer.
   meshPrismChunk(ci) {
-    const gl = this.gl, pr = this.pr, T = pr.T, n = pr.n, pbid = this.pbid;
+    const gl = this.gl, pr = this.pr, T = pr.T, n = pr.n, pbid = this.pbid, stacked = !!pr.stacked;
     const zb = Math.floor(ci / this.NBK), bk = ci % this.NBK;
     const out = [];
     const F = 1 / 1024;
@@ -483,17 +485,32 @@ export class Renderer {
       if (m === 0) return 3;
       return 3 - Math.min(3, Math.round((cnt * 3) / m));
     };
-    const push = (v, zh, nx, ny, nz, ao, thick, born, grain) => out.push(T.vx[v] * F, T.vy[v] * F, zh, nx, ny, nz, ao, thick, born, grain);
+    // on a stack the layer above or below is displaced: occlusion there is read
+    // off the tile under the corner's world position and its edge-neighbours
+    const aoWorld = (v, zc, zz) => {
+      const u = pr.under(v, zc, zz - zc);
+      if (u < 0) return 3;
+      let cnt = has(u, zz) ? 1 : 0, m = 1;
+      for (let k = T.nbrStart[u]; k < T.nbrStart[u + 1]; k++) { m++; if (has(T.nbrList[k], zz)) cnt++; }
+      return 3 - Math.min(3, Math.round((cnt * 3) / m));
+    };
+    let f = null;   // the layer's frame on a stack
+    const push = (v, zh, nx, ny, nz, ao, thick, born, grain) => {
+      if (f === null) { out.push(T.vx[v] * F, T.vy[v] * F, zh, nx, ny, nz, ao, thick, born, grain); return; }
+      const x = T.vx[v] + f.ox, y = T.vy[v] + f.oy;
+      out.push((f.c * x - f.s * y) * F, (f.s * x + f.c * y) * F, zh, f.c * nx - f.s * ny, f.s * nx + f.c * ny, nz, ao, thick, born, grain);
+    };
     for (let z = zb * 16; z < zb * 16 + 16 && z < pr.Z; z++) {
+      f = stacked ? pr.frame(z) : null;
       for (let t = bk * 128; t < bk * 128 + 128 && t < n; t++) {
         const i = pbid[z * n + t];
         if (i < 0) continue;
         const thick = this.thickness(i), born = this.born[i], grain = this.grain(i);
         const s = T.polyStart[t], L = T.polyLen[t];
         // top cap
-        if (!has(t, z + 1)) {
+        if (stacked ? !pr.covered(t, z) : !has(t, z + 1)) {
           const ao = [];
-          for (let k = 0; k < L; k++) ao.push(aoAt(T.polyVerts[s + k], z + 1, -1, -1));
+          for (let k = 0; k < L; k++) ao.push(stacked ? aoWorld(T.polyVerts[s + k], z, z + 1) : aoAt(T.polyVerts[s + k], z + 1, -1, -1));
           for (let k = 1; k + 1 < L; k++) {
             push(T.polyVerts[s], z + 1, 0, 0, 1, ao[0], thick, born, grain);
             push(T.polyVerts[s + k], z + 1, 0, 0, 1, ao[k], thick, born, grain);
@@ -501,9 +518,9 @@ export class Renderer {
           }
         }
         // bottom cap
-        if (!has(t, z - 1)) {
+        if (stacked ? !pr.standing(t, z) : !has(t, z - 1)) {
           const ao = [];
-          for (let k = 0; k < L; k++) ao.push(aoAt(T.polyVerts[s + k], z - 1, -1, -1));
+          for (let k = 0; k < L; k++) ao.push(stacked ? aoWorld(T.polyVerts[s + k], z, z - 1) : aoAt(T.polyVerts[s + k], z - 1, -1, -1));
           for (let k = 1; k + 1 < L; k++) {
             push(T.polyVerts[s], z, 0, 0, -1, ao[0], thick, born, grain);
             push(T.polyVerts[s + k + 1], z, 0, 0, -1, ao[k + 1], thick, born, grain);
@@ -517,7 +534,8 @@ export class Renderer {
           const a = T.polyVerts[s + k], b = T.polyVerts[s + (k + 1) % L];
           let nx = (T.vy[b] - T.vy[a]), ny = -(T.vx[b] - T.vx[a]);
           const len = Math.hypot(nx, ny) || 1; nx /= len; ny /= len;
-          const a0 = aoAt(a, z, t, o), b0 = aoAt(b, z, t, o), a1 = aoAt(a, z + 1, -1, -1), b1 = aoAt(b, z + 1, -1, -1);
+          const a0 = aoAt(a, z, t, o), b0 = aoAt(b, z, t, o);
+          const a1 = stacked ? aoWorld(a, z, z + 1) : aoAt(a, z + 1, -1, -1), b1 = stacked ? aoWorld(b, z, z + 1) : aoAt(b, z + 1, -1, -1);
           // two triangles: (a,z) (b,z) (b,z+1) and (a,z) (b,z+1) (a,z+1)
           push(a, z, nx, ny, 0, a0, thick, born, grain);
           push(b, z, nx, ny, 0, b0, thick, born, grain);

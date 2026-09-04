@@ -14,10 +14,11 @@ source; every site serves a byte-identical copy** from its own asset root
 | `genome.js` | seed → habit, kinetics, rim, nucleus, oxide palette; `DEFAULT_BRAIN`, `DEFAULT_POPULATION`; `quasiSubstrate` |
 | `crystal.js` | `Lattice` (cubic substrate with extent maps), `Mason`, `Colony`, `Growth` — Kossel kinetics, the terrace rule, deploy/freeze/remove |
 | `prism.js` | `Prism` — any plane tiling from `packages/tilings` stacked into layers (Penrose → a decagonal quasicrystal) |
+| `stack.js` | `Stack` — the same tilings with each layer staggered (AB, ABC: the close packings — hexagons AB is hexagonal close packing, ABC the rhombohedral family, the square grid AB face-centred cubic) and/or twisted a fixed angle a layer (moiré bonds, quasiperiodic along z). Vertical bonds are exact tile overlaps; the column top is a height field; the terrace rays run in world space. `isStacked(spec)`, `normalizeStack(spec)` |
 | `worms.js` | `Worms` — the second wave: ghosts of the masonry that tunnel brick to brick along the bond graph and now and then take a brick with them; `recycle` feeds bitten bricks back to the live colony. Substrate-agnostic, deterministic (`stream(seed, "worms")`) |
 | `render.js` | WebGL1: chunked voxel + prism meshers with baked AO, per-pixel thin-film interference, mason motes; an orbit camera or a first-person one (`renderer.fp`); props (`setProps`) and beacons for a page that puts things in the world that are not crystal |
 | `tilings.js` | a synced copy of `packages/tilings/tilings.js`, so `prism.js` can import `./tilings.js` wherever the copy lands |
-| `crystal.selftest.mjs` | determinism + golden brick hashes, connectivity, the melt-is-above rule, morphology, the playground contracts, the prism, deploy + remove, the API contract |
+| `crystal.selftest.mjs` | determinism + golden brick hashes, connectivity, the melt-is-above rule, morphology, the playground contracts, the prism, the stack (overlaps, coordination, its own golden), deploy + remove, the API contract |
 | `phase.mjs` / `phase-report.mjs` | the two-agent phase space: experiment grids over mason flux × worm pressure (the sink, the Allee threshold, breeding worms, the chemostat, one mason vs sixteen), JSON out; the report renders it as a page. Findings: `PHASE.md` |
 | `worms.selftest.mjs` | worms release, tunnel, bite exactly, are deterministic, stay a small effect against the masons, recycle only into a live colony, work on a tiling |
 

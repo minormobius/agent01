@@ -29,7 +29,9 @@
 // substrates: `Lattice`, the cubic lattice the seeded specimens grow on (the
 // fast path, kept bit-identical — the selftest pins golden brick hashes), and
 // `Prism` (prism.js), any plane tiling from packages/tilings stacked into
-// layers — a Penrose substrate grows a decagonal quasicrystal.
+// layers — a Penrose substrate grows a decagonal quasicrystal — and `Stack`
+// (stack.js), the same tilings with each layer staggered or twisted against
+// the last: the close-packed lattices, and moiré stacks.
 //
 // Everything is integer arithmetic or IEEE basic ops on doubles, no
 // transcendental functions in any decision, one PRNG stream drawn in a fixed
@@ -38,6 +40,7 @@
 import { stream } from "./prng.js";
 import { genome as makeGenome, GRID, DEFAULT_BRAIN, DEFAULT_POPULATION } from "./genome.js";
 import { Prism } from "./prism.js";
+import { Stack, isStacked } from "./stack.js";
 
 const G = GRID;
 const IDX = (x, y, z) => (z * G + y) * G + x;
@@ -466,7 +469,8 @@ export class Growth {
     this.genome = typeof seedOrGenome === "object" ? seedOrGenome : makeGenome(seedOrGenome);
     const g = this.genome;
     const sp = g.substrate;
-    this.sub = sp && sp.shape && sp.shape !== "grid" ? new Prism(sp) : new Lattice();
+    // a tiling stacked straight is a prism; staggered or twisted, a stack; the square grid unstacked is the cubic fast path
+    this.sub = sp && sp.shape && isStacked(sp) ? new Stack(sp) : sp && sp.shape && sp.shape !== "grid" ? new Prism(sp) : new Lattice();
     this.lat = this.sub;                            // the cubic name, kept for callers
     this.nextId = 0;
     this.colonies = [];

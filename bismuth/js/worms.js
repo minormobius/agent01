@@ -19,7 +19,7 @@
 //
 // A worm's world is the substrate's bond graph: on the cubic lattice the
 // six face-neighbours, on a prism tiling the edge-neighbours and the layer
-// above and below. It prefers to stay inside the crystal (any occupied
+// above and below, on a stack every brick it overlaps above and below. It prefers to stay inside the crystal (any occupied
 // neighbour), never reverses if it can help it, and when it finds itself
 // in the void — its own bite took the floor, or another worm's did — it
 // drifts along cells that touch a brick; from open void it heads for the
@@ -77,6 +77,7 @@ export class Worms {
     this._cand = new Int32Array(64);
     this._void = new Int32Array(64);
     this._all = new Int32Array(64);
+    this._bond = new Int32Array(64);
     this._wts = new Float64Array(64);
     this._nall = 0;
   }
@@ -130,10 +131,9 @@ export class Worms {
     let no = 0, nv = 0, na = 0;
     const take = (q) => { all[na++] = q; if (sub.occ[q]) out[no++] = q; else if (sub.nb[q]) voids[nv++] = q; };
     if (sub.kind === "prism") {
-      const n = sub.n, T = sub.T, t = s % n, z = (s - t) / n;
-      if (z > 1) take(s - n);
-      if (z + 1 < sub.Z - 1) take(s + n);
-      for (let k = T.nbrStart[t]; k < T.nbrStart[t + 1]; k++) take(z * n + T.nbrList[k]);
+      // the substrate lists its own bonds: a prism's column, a stack's overlaps, then the lateral edges
+      const m = sub.bonds(s, this._bond);
+      for (let i = 0; i < m; i++) take(this._bond[i]);
     } else {
       const x = s % G, y = ((s - x) / G) % G, z = (s / (G * G)) | 0;
       if (x > 1) take(s - 1);

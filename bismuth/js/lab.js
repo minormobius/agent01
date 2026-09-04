@@ -1,7 +1,9 @@
 // bismuth — the playground (/lab). The same engine and renderer as the
 // specimen page, with every knob on the outside:
 //   · the SUBSTRATE is the geometry: the cubic lattice, or any plane tiling
-//     from packages/tilings stacked into prisms — Penrose included;
+//     from packages/tilings stacked into prisms — Penrose included — or
+//     STACKED with each layer staggered (AB, ABC: the close packings) or
+//     twisted against the last (moiré bonds);
 //   · the INITIAL CONDITION is a painted height map over that substrate —
 //     what the masons build on (a plate, a ring, walls, whatever you draw);
 //   · the BRAIN is every law the masons obey: Kossel rates, the rim, the
@@ -17,6 +19,7 @@ import { genome, normalizeSeed, GRID, DEFAULT_BRAIN, DEFAULT_POPULATION } from "
 import { Renderer } from "./render.js";
 import { Worms, DEFAULT_WORMS } from "./worms.js";
 import { SHAPES, SHAPE_INFO, tiling, FIX } from "./tilings.js";
+import { isStacked, normalizeStack } from "./stack.js";
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -38,7 +41,7 @@ function defaultState() {
     brain: Object.assign({}, DEFAULT_BRAIN),
     pop: Object.assign({}, DEFAULT_POPULATION),
     worms: Object.assign({}, DEFAULT_WORMS),
-    sub: { shape: "grid", R: 30 },
+    sub: { shape: "grid", R: 30, stack: "", stagger: 1, twist: 0 },
     ic: { n: 24, z: 0, h: null },     // cubic: h Uint8Array n*n, heights 0..15
     tic: { z: 0, cells: new Map() },  // tilings: tile index → height
   };
@@ -87,7 +90,7 @@ function decodeState(str) {
     Object.assign(st.brain, o.brain || {});
     Object.assign(st.pop, o.pop || {});
     Object.assign(st.worms, o.worms || {});
-    if (o.sub && SHAPES.includes(o.sub.shape)) st.sub = { shape: o.sub.shape, R: Math.max(12, Math.min(44, +o.sub.R || 30)) };
+    if (o.sub && SHAPES.includes(o.sub.shape)) st.sub = Object.assign({ shape: o.sub.shape, R: Math.max(12, Math.min(44, +o.sub.R || 30)) }, normalizeStack(Object.assign({ stagger: 1 }, o.sub)));
     const n = Math.max(4, Math.min(48, o.ic && o.ic.n || 24));
     st.ic = { n, z: (o.ic && o.ic.z) || 0, h: unpackHeights((o.ic && o.ic.h) || "", n) };
     st.tic = { z: (o.tic && o.tic.z) || 0, cells: unpackCells((o.tic && o.tic.c) || "") };
@@ -109,7 +112,7 @@ function toGenome(st) {
     brain: Object.assign({}, st.brain),
     population: Object.assign({}, st.pop),
   };
-  if (st.sub.shape === "grid") {
+  if (!isTilingState(st)) {
     const voxels = [];
     const n = st.ic.n, half = n >> 1;
     for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
@@ -120,9 +123,26 @@ function toGenome(st) {
   } else {
     const cells = [];
     for (const [t, h] of st.tic.cells) if (h) cells.push([t, h]);
-    g.substrate = { shape: st.sub.shape, R: st.sub.R, ic: { cells }, z0: 6 + st.tic.z };
+    g.substrate = Object.assign({ shape: st.sub.shape, R: st.sub.R, ic: { cells }, z0: 6 + st.tic.z }, normalizeStack(st.sub));
   }
   return g;
+}
+// the cubic lattice is the square grid stacked straight; staggered or twisted it is a tiling like any other
+function isTilingState(st) { return st.sub.shape !== "grid" || isStacked(st.sub); }
+
+// What a stacking is, for the note under the chips.
+function stackName(sub) {
+  const ns = normalizeStack(sub), sh = sub.shape;
+  const parts = [];
+  if (ns.stack && ns.stagger > 0) {
+    const full = ns.stagger === 1;
+    if (sh === "hex" && ns.stack === "ab") parts.push(full ? "hexagonal close packing — every layer in the hollows of the last, the third over the first" : "hexagons sliding toward the hollows, part way — AB");
+    else if (sh === "hex") parts.push(full ? "ABC: the rhombohedral family — face-centred cubic at the ideal spacing, seen along [111]; bismuth's own lattice is a distorted member" : "hexagons sliding toward the hollows, part way — ABC");
+    else if (sh === "grid") parts.push(full ? `face-centred cubic along [001]: each square over the corner of four${ns.stack === "abc" ? " (ABC closes at two layers here)" : ""}` : `squares sliding toward the corners, part way — ${ns.stack.toUpperCase()}`);
+    else parts.push(`${ns.stack.toUpperCase()} running bond over ${SHAPE_INFO[sh].label}: the stagger closes only on a lattice, so it faults every ${ns.stack === "abc" ? "third" : "second"} layer`);
+  }
+  if (Math.abs(ns.twist) > 0) parts.push(`a twist of ${ns.twist}° a layer: the vertical bonds are a moiré that turns with height — quasiperiodic along z`);
+  return parts.join(" · ");
 }
 
 // ------------------------------------------------------------ presets ----
@@ -186,7 +206,7 @@ class Lab {
     if (!T) { T = tiling(shape, R); this.tilingCache.set(key, T); if (this.tilingCache.size > 6) this.tilingCache.delete(this.tilingCache.keys().next().value); }
     return T;
   }
-  isTiling() { return this.state.sub.shape !== "grid"; }
+  isTiling() { return isTilingState(this.state); }
 
   // --------------------------------------------------------- growth ----
   reset() {
@@ -249,7 +269,7 @@ class Lab {
     $("#stats").textContent =
       `${fmt(st.bricks)} bricks · ${st.terraces} terraces on the midline · pit ${fmt(st.pit)} cells · hollowness ${st.hollowness.toFixed(2)} · ` +
       `${st.box.map((v) => Math.round(v)).join("×")} · ${fmt(st.ticks)} ticks · ${st.masons} masons alive, ${st.retired} retired` +
-      (st.tiling ? ` · ${fmt(st.tiles)} ${SHAPE_INFO[st.tiling].label} tiles` : "");
+      (st.tiling ? ` · ${fmt(st.tiles)} ${SHAPE_INFO[st.tiling].label} tiles` : "") + (st.coordination ? ` · ${st.coordination} bonds a brick` : "");
     window.__done = true;
     this.updateHUD();
   }
@@ -372,6 +392,17 @@ class Lab {
       b.addEventListener("click", () => this.setShape(sh));
       chips.appendChild(b);
     }
+    const stacks = $("#stacks");
+    for (const [k, label] of [["", "straight"], ["ab", "AB"], ["abc", "ABC"]]) {
+      const b = document.createElement("button");
+      b.textContent = label; b.dataset.stack = k;
+      b.addEventListener("click", () => this.setStack({ stack: k }));
+      stacks.appendChild(b);
+    }
+    $("#stagger").addEventListener("input", (e) => { $("#stagger-out").textContent = e.target.value; });
+    $("#stagger").addEventListener("change", (e) => this.setStack({ stagger: +e.target.value }));
+    $("#twist").addEventListener("input", (e) => { $("#twist-out").textContent = (+e.target.value).toFixed(2).replace(/\.?0+$/, "") + "°"; });
+    $("#twist").addEventListener("change", (e) => this.setStack({ twist: +e.target.value }));
     $("#tileR").addEventListener("input", (e) => {
       st.sub.R = +e.target.value; $("#tileR-out").textContent = st.sub.R;
       // keep painted tiles that still exist; heights are by tile index, which
@@ -388,22 +419,34 @@ class Lab {
   setShape(sh) {
     const st = this.state;
     if (sh === st.sub.shape) return;
-    const wasGrid = st.sub.shape === "grid";
+    const wasCubic = !this.isTiling();
     st.sub.shape = sh;
     this.prevShape = sh; this.prevR = st.sub.R;
-    if (sh !== "grid" && (wasGrid || st.tic.cells.size === 0)) {
-      // carry the painted footprint over from the grid, by position
-      const T = this.tilingFor(sh, st.sub.R), cells = new Map();
-      const n = st.ic.n, half = n >> 1;
-      for (let t = 0; t < T.n; t++) {
-        const i = Math.floor(T.cx[t] / FIX + half + 0.5), j = Math.floor(T.cy[t] / FIX + half + 0.5);
-        if (i >= 0 && j >= 0 && i < n && j < n && st.ic.h[j * n + i]) cells.set(t, st.ic.h[j * n + i]);
-      }
-      if (cells.size === 0) paintBoxesTiling(cells, T, PRESETS.plate());
-      st.tic.cells = cells;
-    }
+    if (this.isTiling() && (wasCubic || st.tic.cells.size === 0)) this.carryFootprint();
     this.syncPanel();
     this.reset();
+  }
+  // the stacking: which pattern, how far each layer slides, how far it turns
+  setStack(patch) {
+    const st = this.state, wasCubic = !this.isTiling();
+    Object.assign(st.sub, patch);
+    Object.assign(st.sub, normalizeStack(st.sub));
+    if (patch.stack && st.sub.stagger === 0) st.sub.stagger = 1;
+    if (this.isTiling() && (wasCubic || st.tic.cells.size === 0)) this.carryFootprint();
+    this.syncPanel();
+    this.reset();
+  }
+  // carry the painted footprint over from the cubic grid, by position
+  carryFootprint() {
+    const st = this.state;
+    const T = this.tilingFor(st.sub.shape, st.sub.R), cells = new Map();
+    const n = st.ic.n, half = n >> 1;
+    for (let t = 0; t < T.n; t++) {
+      const i = Math.floor(T.cx[t] / FIX + half + 0.5), j = Math.floor(T.cy[t] / FIX + half + 0.5);
+      if (i >= 0 && j >= 0 && i < n && j < n && st.ic.h[j * n + i]) cells.set(t, st.ic.h[j * n + i]);
+    }
+    if (cells.size === 0) paintBoxesTiling(cells, T, PRESETS.plate());
+    st.tic.cells = cells;
   }
 
   // Which edits restart the growth (the substrate, initial condition and the
@@ -440,12 +483,17 @@ class Lab {
     $("#gridn").value = st.ic.n; $("#gridn-out").textContent = st.ic.n;
     $("#tileR").value = st.sub.R; $("#tileR-out").textContent = st.sub.R;
     for (const b of $$("#shapes button")) b.classList.toggle("on", b.dataset.shape === st.sub.shape);
-    const info = SHAPE_INFO[st.sub.shape];
-    $("#shapenote").textContent = st.sub.shape === "grid"
+    for (const b of $$("#stacks button")) b.classList.toggle("on", b.dataset.stack === (st.sub.stack || ""));
+    $("#stagger").value = st.sub.stagger; $("#stagger-out").textContent = st.sub.stagger;
+    $("#twist").value = st.sub.twist; $("#twist-out").textContent = String(st.sub.twist).replace(/\.?0+$/, "") + "°";
+    $("#staggerrow").style.display = st.sub.stack ? "" : "none";
+    const info = SHAPE_INFO[st.sub.shape], stacked = isStacked(st.sub);
+    $("#shapenote").textContent = st.sub.shape === "grid" && !stacked
       ? "the cubic lattice — what the specimens grow on; right angles come from here, not from the brain"
+      : stacked ? `${info.note} · ${info.family}, ${info.symmetry}-fold · stacked: ${stackName(st.sub)}`
       : `${info.note} · ${info.family}, ${info.symmetry}-fold · stacked into prisms: a ${info.family === "aperiodic" ? "quasicrystal" : "columnar crystal"}, periodic along z`;
-    $("#gridrow").style.display = st.sub.shape === "grid" ? "" : "none";
-    $("#rrow").style.display = st.sub.shape === "grid" ? "none" : "";
+    $("#gridrow").style.display = this.isTiling() ? "none" : "";
+    $("#rrow").style.display = this.isTiling() ? "" : "none";
     this.drawPaint();
   }
 

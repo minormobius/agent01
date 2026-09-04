@@ -23,7 +23,7 @@ build, no D1, no AI, no secrets. Deploys from
 | `js/run.js` | **a run**: the world on its clock (`Run.tick`), the event log (`deploy`, `remove` with their clocks), the weather (`WEATHER`: a wave of grazers with every pack, recycling on), replay (`advanceTo`), continuation (`Run.continueFrom`), the record and its codec (`encodeRecord` / `decodeRecord`: JSON → deflate-raw → base64url), the ghost (`ghostAt`), the published-run read (`fetchRun` from the public appview) |
 | `js/oracle.js` | a module Worker that runs the survey off the main thread |
 | `js/auth.js` | a **synced copy** of `packages/oauth-client/auth.js` — publishing a run to the player's own PDS |
-| `js/{prng,genome,crystal,prism,render,tilings}.js` | **synced copies** of `packages/bismuth/` — never edit here; `scripts/sync-dataviz.mjs --check` fails the deploy if they drift |
+| `js/{prng,genome,crystal,prism,stack,worms,render,tilings}.js` | **synced copies** of `packages/bismuth/` — never edit here; `scripts/sync-dataviz.mjs --check` fails the deploy if they drift |
 | `worker.js` | `/l/<n>` and `/l/<n>/<tiling>` → index.html; `/api/level?n=…[&t=penrose][&bucket=1]`; `/api/health` |
 | `hopper.selftest.mjs` | levels are permalinks, the world is a frozen slab, the survey reaches, the bucket lands, the body jumps one layer and not two; golden reaches for levels 1–3 |
 

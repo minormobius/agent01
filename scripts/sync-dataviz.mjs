@@ -53,7 +53,7 @@ const EXTRA = [
   // hopper publishes runs to the player's own PDS through the shared OAuth
   // worker, so it links the client like every other static site does.
   ["packages/oauth-client/auth.js", "hopper/js/auth.js"],
-  ...["prng.js", "genome.js", "crystal.js", "prism.js", "worms.js", "render.js", "tilings.js"].flatMap((f) => [
+  ...["prng.js", "genome.js", "crystal.js", "prism.js", "stack.js", "worms.js", "render.js", "tilings.js"].flatMap((f) => [
     [`packages/bismuth/${f}`, `bismuth/js/${f}`],
     [`packages/bismuth/${f}`, `hopper/js/${f}`],
   ]),
