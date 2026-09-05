@@ -39,11 +39,13 @@ jobs:
         with:
           node-version: '22'
 
+      # Installed at the repo root, not in RUNNER_TEMP: ESM ignores NODE_PATH,
+      # so a bare specifier resolves only by walking up from the importing file
+      # to a node_modules. --no-save leaves package.json alone. Unlike
+      # deploy-bsky.yml this is safe here — nothing in this workflow publishes
+      # the tree, so an installed node_modules cannot reach the live site.
       - name: Install the SDK and a dictionary-capable zstd
-        run: |
-          mkdir -p "$RUNNER_TEMP/replay" && cd "$RUNNER_TEMP/replay"
-          npm init -y >/dev/null
-          npm install --no-save @bsky/jetstream @bokuweb/zstd-wasm
+        run: npm install --no-save --no-package-lock @bsky/jetstream @bokuweb/zstd-wasm
 
       - name: Plan a window, buy a slug of it, run the rule
         env:
@@ -52,5 +54,4 @@ jobs:
           # so the mechanics get proven cheaply before a full slug is bought.
           BUDGET_MB: ${{ inputs.budget_mb || '12' }}
           SEQ_BACK: ${{ inputs.seq_back }}
-          NODE_PATH: ${{ runner.temp }}/replay/node_modules
         run: node .github/scripts/replay-slug.mjs
