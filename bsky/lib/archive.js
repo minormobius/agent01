@@ -1,0 +1,216 @@
+/**
+ * Deep history — the user's own key, their own quota, no server of ours.
+ *
+ * Everything else on this surface needs no account. This is the exception, and
+ * it is the exception for a reason worth stating: Jetstream's live tail replays
+ * ~36h unauthenticated, but the ARCHIVE behind it is byte-metered and needs a
+ * key. That key is the visitor's, minted free at bsky.network/account with
+ * their Bluesky login, kept in their localStorage, and sent from their browser
+ * straight to Jetstream. It never reaches us — there is no server here for it
+ * to reach.
+ *
+ * "A key in a static page is a published key" is about a key the SITE ships.
+ * A key the USER pastes is theirs; b/sleuth already ships this pattern.
+ *
+ * Four things had to be true for this to work in a browser, all verified
+ * 2026-09-05:
+ *
+ *   1. CORS — the archive answers `access-control-allow-origin: *` with
+ *      `Authorization`, `Range` and `If-Range` in allow-headers.
+ *   2. A SYNCHRONOUS zstd with DICTIONARY support. Segments are compressed
+ *      against a shared dictionary; `fzstd` throws `invalid zstd data` on such
+ *      a frame. `@bokuweb/zstd-wasm` does it: `init()` is async once, then
+ *      `decompressUsingDict()` returns a Uint8Array synchronously.
+ *   3. That dictionary, which `getZstdDictionary` serves as 64 KiB with NO
+ *      auth at all.
+ *   4. A synchronous sha256 — WebCrypto is async-only and the SDK's `cid`
+ *      getter is sync. See ./sha256.js.
+ *
+ * The SDK ships a browser branch on purpose and names both hooks
+ * (`decompressor`, `sha256`); it just declines to choose them for you.
+ */
+
+import { Jetstream } from '/lib/vendor/jetstream.browser.js';
+import * as zstdWasm from '/lib/vendor/zstd/index.js';
+import { sha256 } from '/lib/sha256.js';
+
+const SERVICE = 'https://jetstream.us-east.bsky.network';
+const DICT_URL = `${SERVICE}/xrpc/network.bsky.jetstream.getZstdDictionary`;
+const KEY_STORAGE = 'bsky:jetstream-key';
+
+/** Where a visitor mints their own key. Free; sign in with Bluesky. */
+export const KEY_URL = 'https://bsky.network/account';
+
+// ─── the key ─────────────────────────────────────────────────────
+
+/** @returns {string} '' when unset */
+export function getKey() {
+  try { return localStorage.getItem(KEY_STORAGE) || ''; } catch { return ''; }
+}
+
+/** @param {string} key */
+export function setKey(key) {
+  try {
+    const k = key.trim();
+    if (k) localStorage.setItem(KEY_STORAGE, k);
+    else localStorage.removeItem(KEY_STORAGE);
+    return true;
+  } catch { return false; }
+}
+
+export function hasKey() { return Boolean(getKey()); }
+
+// ─── quota ───────────────────────────────────────────────────────
+
+/**
+ * Live quota, read off the response headers the archive deliberately exposes
+ * via `access-control-expose-headers`. Updated on every archive response.
+ * @type {{refillBytes:number, refillSeconds:number, burstBytes:number, spent:number, retryAfter:number|null}}
+ */
+export const quota = {
+  refillBytes: 0, refillSeconds: 0, burstBytes: 0, spent: 0, retryAfter: null,
+};
+
+function readQuota(res) {
+  const n = (h) => Number(res.headers.get(h)) || 0;
+  const refill = n('headwind-quota-refill-bytes');
+  if (refill) quota.refillBytes = refill;
+  const period = n('headwind-quota-refill-period-seconds');
+  if (period) quota.refillSeconds = period;
+  const burst = n('headwind-quota-burst-bytes');
+  if (burst) quota.burstBytes = burst;
+  quota.spent += n('content-length');
+  quota.retryAfter = res.status === 429 ? (Number(res.headers.get('retry-after')) || 60) : null;
+}
+
+/** A short human summary of the budget, or null when nothing is known yet. */
+export function quotaSummary() {
+  if (!quota.refillBytes && !quota.spent) return null;
+  const mb = (b) => `${(b / 1048576).toFixed(1)} MB`;
+  const parts = [`${mb(quota.spent)} downloaded this session`];
+  if (quota.refillBytes && quota.refillSeconds) {
+    parts.push(`refills ${mb(quota.refillBytes)} / ${Math.round(quota.refillSeconds / 60)} min`);
+  }
+  if (quota.retryAfter) parts.push(`rate limited — retry in ${quota.retryAfter}s`);
+  return parts.join(' · ');
+}
+
+// ─── one-time setup ──────────────────────────────────────────────
+
+let ready = null;
+
+/**
+ * Initialise the WASM decoder and fetch the dictionary. Async ONCE; after this
+ * every decompress call is synchronous, which is what the SDK requires.
+ *
+ * @returns {Promise<{decompressor: {decompress: Function}, sha256: Function}>}
+ */
+export function init() {
+  if (ready) return ready;
+  ready = (async () => {
+    await zstdWasm.init('/lib/vendor/zstd/zstd.wasm');
+
+    const res = await fetch(DICT_URL);          // unauthenticated, 64 KiB
+    if (!res.ok) throw new Error(`dictionary fetch failed: ${res.status}`);
+    const dict = new Uint8Array(await res.arrayBuffer());
+
+    // One context reused across frames — creating one per block is the easy
+    // way to make this slow.
+    const dctx = zstdWasm.createDCtx();
+
+    return {
+      decompressor: {
+        decompress(frame, maxDecodedBytes) {
+          const out = zstdWasm.decompressUsingDict(dctx, frame, dict);
+          if (maxDecodedBytes && out.length > maxDecodedBytes) {
+            throw new Error(`decoded ${out.length} > cap ${maxDecodedBytes}`);
+          }
+          return out;
+        },
+      },
+      sha256,
+    };
+  })();
+  return ready;
+}
+
+// ─── the fetch ───────────────────────────────────────────────────
+
+/**
+ * Pull history OLDER than what the live window can reach.
+ *
+ * Bounded on purpose. The archive is metered in bytes and the meter is the
+ * user's, so this stops at `maxEvents` and honours an AbortSignal rather than
+ * running until the quota is gone. A 429 ends the run cleanly with
+ * `quota.retryAfter` set; the bytes already downloaded are kept.
+ *
+ * @param {object} opts
+ * @param {string[]} opts.dids            accounts to fetch (the filter is applied server-side in the plan)
+ * @param {number} [opts.beforeSeq]       exclusive upper bound — usually the oldest seq you already hold
+ * @param {number} [opts.afterSeq=0]      lower bound; 0 means the start of the archive
+ * @param {number} [opts.maxEvents=5000]  hard stop, so a wide graph cannot drain the quota
+ * @param {(post: object) => void} opts.onEvent
+ * @param {(n: number) => void} [opts.onProgress]
+ * @param {AbortSignal} [opts.signal]
+ * @returns {Promise<{events:number, stopped:string}>}
+ */
+export async function fetchOlder({
+  dids, beforeSeq, afterSeq = 0, maxEvents = 5000, onEvent, onProgress, signal,
+}) {
+  const apiKey = getKey();
+  if (!apiKey) throw new Error('no API key — add one to reach past the live window');
+  if (!dids?.length) throw new Error('no accounts to fetch');
+
+  const { decompressor, sha256: hash } = await init();
+
+  const jetstream = new Jetstream({
+    service: SERVICE,
+    apiKey,
+    decompressor,
+    sha256: hash,
+    // Wrap fetch purely to read the quota headers off every archive response.
+    fetch: async (input, opts) => {
+      const res = await fetch(input, opts);
+      try { readQuota(res); } catch { /* headers are advisory */ }
+      return res;
+    },
+  });
+
+  let events = 0;
+  let stopped = 'complete';
+
+  try {
+    for await (const evt of jetstream.snapshot({
+      collections: ['app.bsky.feed.post'],
+      kinds: ['commit'],
+      dids,
+      afterSeq,
+      ...(beforeSeq ? { beforeSeq } : {}),
+      signal,
+    })) {
+      if (evt.collection !== 'app.bsky.feed.post') continue;
+      if (evt.operation === 'delete') continue;
+      const record = evt.record;
+      if (!record || typeof record.text !== 'string') continue;
+
+      onEvent({
+        uri: `at://${evt.did}/${evt.collection}/${evt.rkey}`,
+        did: evt.did,
+        rkey: evt.rkey,
+        seq: evt.seq,
+        createdAt: record.createdAt || new Date().toISOString(),
+        record,
+      });
+
+      if (++events % 250 === 0) onProgress?.(events);
+      if (events >= maxEvents) { stopped = `stopped at the ${maxEvents}-event cap`; break; }
+    }
+  } catch (err) {
+    if (signal?.aborted) stopped = 'cancelled';
+    else if (quota.retryAfter) stopped = `rate limited — retry in ${quota.retryAfter}s`;
+    else throw err;
+  }
+
+  onProgress?.(events);
+  return { events, stopped };
+}

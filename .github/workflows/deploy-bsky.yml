@@ -36,6 +36,41 @@ jobs:
           cp ../packages/oauth-client/auth.js     packages/oauth-client/
           ls -la packages/atproto packages/oauth-client
 
+      # The archive path (deep history, the visitor's own key) needs two things
+      # a plain static page cannot have: the Jetstream SDK, which ships bare
+      # specifiers and deps, and a dictionary-capable zstd. Both are BUILT here
+      # rather than committed, so no WASM binary or vendored bundle lives in git.
+      #
+      # Built in RUNNER_TEMP, never in bsky/: assets.directory is "." for this
+      # surface, so an npm install inside it would publish node_modules to the
+      # live site. Only the three built files are copied back in.
+      - name: Build browser bundles (deep-history path)
+        run: |
+          BUILD="$RUNNER_TEMP/bsky-bundles"
+          mkdir -p "$BUILD" && cd "$BUILD"
+          npm init -y >/dev/null
+          npm install --no-save @bsky/jetstream @bokuweb/zstd-wasm esbuild
+          printf 'export { Jetstream } from "@bsky/jetstream";\n' > entry.js
+          # --conditions=browser resolves the SDK's #runtime import to its
+          # browser branch, which has no node:zlib / node:crypto defaults and
+          # takes our injected decompressor + sha256 instead.
+          npx esbuild entry.js --bundle --format=esm --platform=browser \
+            --conditions=browser --target=es2022 --outfile=jetstream.browser.js
+          npx esbuild node_modules/@bokuweb/zstd-wasm/dist/web/index.web.js \
+            --bundle --format=esm --platform=browser --target=es2022 --outfile=zstd.index.js
+          cd "$GITHUB_WORKSPACE/bsky"
+          mkdir -p lib/vendor/zstd
+          cp "$BUILD/jetstream.browser.js" lib/vendor/
+          cp "$BUILD/zstd.index.js"        lib/vendor/zstd/index.js
+          cp "$BUILD/node_modules/@bokuweb/zstd-wasm/dist/web/zstd.wasm" lib/vendor/zstd/
+          # Fail loudly rather than deploying a page whose imports 404.
+          test -s lib/vendor/jetstream.browser.js
+          test -s lib/vendor/zstd/index.js
+          test -s lib/vendor/zstd/zstd.wasm
+          grep -q "no default zstd support" lib/vendor/jetstream.browser.js \
+            || { echo "::error::bundled the NODE runtime branch, not the browser one"; exit 1; }
+          ls -la lib/vendor lib/vendor/zstd
+
       - name: Deploy worker + assets
         run: npx wrangler deploy
         env:

@@ -2,3 +2,7 @@
 # surface. assets.directory is this dir, so without this line the file is
 # served at the surface's public URL.
 CLAUDE.md
+node_modules
+package.json
+package-lock.json
+lib/*.selftest.mjs

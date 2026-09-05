@@ -442,6 +442,73 @@ async function send() {
   }
 }
 
+// ─── deep history (the visitor's own key) ────────────────────────
+
+// Loaded lazily: the SDK bundle and the zstd WASM are ~570 KB together, and a
+// visitor who never reaches past the live window should never pay for them.
+let archiveMod = null;
+async function archive() {
+  if (!archiveMod) archiveMod = await import('/lib/archive.js');
+  return archiveMod;
+}
+
+async function renderKeyState() {
+  const a = await archive().catch(() => null);
+  if (!a) return;
+  const on = a.hasKey();
+  $('key-state').textContent = on ? '· key saved' : '· no key';
+  $('key-state').className = on ? 'on' : 'muted';
+  $('quota').textContent = a.quotaSummary() || '';
+  $('deeper').disabled = !on;
+  $('deeper').title = on
+    ? 'Fetch history older than the live window, using your key and your quota.'
+    : 'Add your own Jetstream key below to reach past ~36h.';
+}
+
+async function fetchDeeper() {
+  if (!state.dids.length) return status('subscribe to something first', true);
+  const a = await archive();
+
+  // Start from the oldest thing we hold, so this fills backwards from the
+  // store rather than re-downloading what the live window already gave us.
+  let beforeSeq;
+  if (state.cacheOk) {
+    const held = await cache.recentPosts({ limit: 5000 }).catch(() => []);
+    const seqs = held.map((p) => p.seq).filter(Boolean);
+    if (seqs.length) beforeSeq = Math.min(...seqs);
+  }
+
+  const btn = $('deeper');
+  btn.disabled = true;
+  const controller = new AbortController();
+  const batch = [];
+  status(`archive: fetching older history for ${state.dids.length} accounts…`);
+
+  try {
+    const { events, stopped } = await a.fetchOlder({
+      dids: state.dids,
+      beforeSeq,
+      maxEvents: 5000,
+      signal: controller.signal,
+      onEvent: (post) => {
+        batch.push(post);
+        if (batch.length >= 200 && state.cacheOk) cache.putPosts(batch.splice(0)).catch(() => {});
+      },
+      onProgress: (n) => {
+        status(`archive: ${n.toLocaleString()} posts… ${a.quotaSummary() || ''}`);
+      },
+    });
+    if (batch.length && state.cacheOk) await cache.putPosts(batch).catch(() => {});
+    status(`archive: ${events.toLocaleString()} older posts stored — ${stopped}. ${a.quotaSummary() || ''}`);
+    await refreshStorage();
+  } catch (err) {
+    status(`archive: ${err.message}`, true);
+  } finally {
+    btn.disabled = false;
+    renderKeyState();
+  }
+}
+
 // ─── storage panel ───────────────────────────────────────────────
 
 async function refreshStorage() {
@@ -496,6 +563,20 @@ $('clear-store').addEventListener('click', async () => {
   refreshStorage();
   status('local store cleared — the next subscribe starts from the window again');
 });
+$('deeper').addEventListener('click', fetchDeeper);
+$('savekey').addEventListener('click', async () => {
+  const a = await archive();
+  a.setKey($('apikey').value);
+  $('apikey').value = '';
+  await renderKeyState();
+  status(a.hasKey() ? 'key saved in this browser only' : 'key cleared');
+});
+$('dropkey').addEventListener('click', async () => {
+  const a = await archive();
+  a.setKey('');
+  await renderKeyState();
+  status('key removed from this browser');
+});
 window.addEventListener('hashchange', route);
 // Flushing on hide rather than unload is what actually survives a mobile tab
 // switch; unload does not fire reliably on iOS.
@@ -513,6 +594,7 @@ setInterval(() => { flushWrites(); refreshStorage(); }, 15_000);
   state.cacheOk = await cache.available();
   $('lookback').textContent = String(LOOKBACK_HOURS);
   await refreshStorage();
+  await renderKeyState();
   initAuth();
   route();
   const q = new URLSearchParams(location.search);

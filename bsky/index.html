@@ -89,6 +89,16 @@ main{max-width:680px;margin:0 auto;padding:18px 20px 60px}
 
 footer{border-top:1px solid var(--line);padding:14px 20px;color:var(--muted);font-size:11px;text-align:center}
 #store-stat{color:var(--muted)}
+#keybox{margin-top:10px;border:1px solid var(--line);border-radius:5px;background:#0a0c11}
+#keybox summary{cursor:pointer;padding:7px 11px;font-size:12px;color:var(--muted)}
+#keybox summary::marker{color:var(--muted)}
+#key-state{margin-left:6px}
+#key-state.on{color:var(--live)}
+.keybody{padding:0 11px 11px;font-size:12px}
+.keybody p{margin-bottom:9px;max-width:74ch;line-height:1.5}
+.keybody .controls{margin-top:0}
+#quota{font-size:11px;margin-top:8px}
+#deeper{white-space:nowrap}
 </style>
 </head>
 <body>
@@ -125,7 +135,28 @@ footer{border-top:1px solid var(--line);padding:14px 20px;color:var(--muted);fon
 
   <div class="controls">
     <input type="text" id="lookup" placeholder="look up any profile…">
+    <button id="deeper" class="ghost" title="Reach past the ~36h live window using the archive. Needs your own free Jetstream key.">reach further back…</button>
   </div>
+
+  <details id="keybox">
+    <summary>deep history &mdash; your own key <span id="key-state" class="muted"></span></summary>
+    <div class="keybody">
+      <p class="muted">
+        The live window replays about 36 hours and needs nothing. Older than that is the
+        <em>archive</em>, which is metered by the byte and needs a key &mdash; so it uses
+        <strong>yours</strong>, not ours. Get one free at
+        <a href="https://bsky.network/account" target="_blank" rel="noopener">bsky.network/account</a>
+        (sign in with Bluesky). It is stored in this browser only and goes straight from here to
+        Jetstream: there is no server in this design for it to pass through.
+      </p>
+      <div class="controls">
+        <input type="text" id="apikey" placeholder="paste your Jetstream API key" autocomplete="off">
+        <button id="savekey">save</button>
+        <button id="dropkey" class="ghost">forget</button>
+      </div>
+      <div id="quota" class="muted"></div>
+    </div>
+  </details>
 
   <div class="stats">
     <span id="conn" class="dead">not connected</span>

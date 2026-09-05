@@ -56,3 +56,7 @@ packages/homunculus/log/
 # Recovery-pass transcripts: force-added onto feature branches by the snippet,
 # collected at merge time, and asserted absent before the repo goes public.
 homunculus/inbox/
+
+# bsky/ — browser bundles built by deploy-bsky.yml (SDK + zstd wasm).
+# Built, never committed: no WASM binary in git.
+bsky/lib/vendor/
