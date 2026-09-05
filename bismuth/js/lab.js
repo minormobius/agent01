@@ -556,7 +556,9 @@ class Lab {
     $("#grains").value = st.sub.grains; $("#grains-out").textContent = st.sub.grains;
     $("#spread").value = st.sub.spread; $("#spread-out").textContent = st.sub.spread + "°";
     $("#mix").checked = !!st.sub.mix;
-    $("#grainrow").style.display = ico ? "none" : ""; $("#spreadrow").style.display = poly ? "" : "none"; $("#mixrow").style.display = poly ? "" : "none";
+    // the grains row is always there; on the icosahedral tiling it is disabled, since that one has no grains yet
+    $("#grains").disabled = ico; $("#grainrow").style.opacity = ico ? 0.45 : 1; $("#grainrow").title = ico ? "the icosahedral quasicrystal grows as one grain" : "";
+    $("#spreadrow").style.display = poly ? "" : "none"; $("#mixrow").style.display = poly ? "" : "none";
     $("#staggerrow").style.display = st.sub.stack && !ico && !poly ? "" : "none";
     $("#stackrow").style.display = ico || poly ? "none" : ""; $("#twistrow").style.display = ico || poly ? "none" : "";
     const info = ico ? ICO_INFO : SHAPE_INFO[st.sub.shape], stacked = !ico && !poly && isStacked(st.sub);
