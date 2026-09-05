@@ -32,7 +32,7 @@ different kind of question:
 
 | Question | Answered by | Auth |
 |---|---|---|
-| what did the people I follow just post? | **Jetstream v2** live tail, `dids` filtered to the follow graph | none |
+| what did the people I follow post — including the last ~36h? | **Jetstream v2** live tail, `dids` filtered to the follow graph, timestamp cursor for history | none |
 | how many likes / reposts / replies / quotes? | **Constellation**, the global backlink index | none |
 | who is this account (name, avatar)? | the public AppView, hydration only | none |
 
@@ -51,12 +51,29 @@ The public AppView is used **only** for profile hydration and the seed fallback.
 Sourcing the feed from it would make this a client, not an AppView, which is the
 whole distinction the surface is here to demonstrate.
 
+## History comes free, up to a point
+
+The cursor accepts a unix-microsecond timestamp, not just a seq, so `since`
+replays the recent past over the same unauthenticated socket and cuts over to
+live with no seam. Measured against a 90-account list: **494 posts for a 6h
+window, caught up in under 10s; 1,635 posts for 24h.** No key, no fan-out.
+
+**The window is ~36h, and past it the server clamps silently** — no error, no
+flag. That is why the depth selector stops at 36h instead of offering a week:
+`clampSince()` caps the request and the UI reports the depth actually asked for,
+so the page never implies history it cannot deliver.
+
 ## Why there is a worker at all
 
-One asymmetry in Jetstream v2:
+Only for history *older* than that window, and for two independent reasons:
 
 - **live tail** — WebSocket, no auth, not metered → the browser does it itself.
-- **replay / snapshot** — HTTP, **API key**, metered in bytes → needs a secret holder.
+- **archive** — HTTP, **API key**, metered in bytes → needs a secret holder.
+- **and the archive is zstd.** `@bsky/jetstream` abstracts a runtime precisely
+  here: its Node branch uses `zlib.zstdDecompressSync`, its **browser branch
+  ships no default** (nor a sync sha256, since WebCrypto is async-only). So the
+  page could not decode a segment even with a free key. workerd's
+  `nodejs_compat` provides both — verified locally with `wrangler dev`.
 
 A key in a static page is a published key, so `worker.js` proxies the archive
 endpoints at `/api/replay/*` behind `JETSTREAM_API_KEY`, with an allowlist
@@ -74,9 +91,8 @@ replay visible instead of hidden.
 
 ## Quirks
 
-- **It starts empty, and that is the product.** A live tail has no past. A quiet
-  follow graph stays quiet for a while; the empty state explains this rather
-  than spinning.
+- **A depth of `live only` genuinely starts empty**, and the empty state says so
+  rather than spinning. Any other depth backfills first.
 - **Delivery is at-least-once.** Jetstream replays the cursor inclusively and may
   redeliver across a reconnect, so every write is keyed on the record's `at://`
   URI (`eventUri()`). Handlers must stay idempotent.
@@ -111,7 +127,10 @@ proof: **confirm the run log binds `bsky.mino.mobi (custom domain)`**, and
   without a record (2 of 25 sampled events) — the delete path is exercised, not
   assumed. The `dids` filter was driven end to end via `getListMembers` on the
   feed worker's seed list: 90 accounts, one socket, no events from outside the
-  filter. Constellation's counts were checked against a real post.
+  filter. The timestamp cursor, its ~36h boundary and its silent clamp were
+  measured directly. Constellation's counts were checked against a real post.
+- **The archive path is entirely unverified** — there is no API key, so
+  `/api/replay/*` has only ever been exercised as a 503 and a 404.
 - **Not verified: any of it in an actual browser.** The node run used the same
   module, but `WebSocket` subprotocol negotiation, the CSS, and the DOM paths
   (hydration sweep, ring-buffer trim, `CSS.escape` selectors) have not been

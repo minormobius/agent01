@@ -48,7 +48,7 @@ This is the answer people don't expect. A browser can assemble a genuinely indep
 - **Full-text search across the network.** Needs an inverted index over everything. No way around a backend.
 - **Cheap cold start on a wide graph.** A timeline over 300 follows is 300 `listRecords` calls. Tens of seconds, and rate limits bite. Mitigate with IndexedDB caching, a seeded cursor (`b/spark` synthesises a TID to seek into a repo — steal that), and bounded concurrency.
 - **Notifications while the tab is closed.** Fan-in needs a server that is awake.
-- **History — but read the next section, this one moved.** Backfilling one busy repo in-browser is fine; backfilling a thousand is not.
+- **History older than ~36 hours.** Inside that window it is free (next section); outside it, the archive needs a key and a synchronous zstd, so it is the worker's job. Backfilling one busy repo in-browser is fine; backfilling a thousand is not.
 
 ### Jetstream v2 changes where the line falls
 
@@ -68,10 +68,32 @@ The catch is exactly one thing, and it decides the architecture:
 | **replay** | WebSocket + HTTP (plan, download, tail) | **API key** | **yes, in bytes** |
 | **snapshot** | HTTP only | **API key** | **yes, in bytes** |
 
-An API key in a static page is a published key. So **live is frontend-only;
-history is not** — replay belongs behind a worker route that holds the secret.
-That is a Tier 1.5, and it is a much better deal than it sounds: the metered part
-is the part you do rarely, and the unmetered part is the part you do constantly.
+An API key in a static page is a published key, so the archive belongs behind a
+worker route that holds the secret.
+
+**But most people never need the archive.** The live tail's `cursor` also accepts
+a unix-microsecond timestamp, which the server translates to the nearest seq — so
+the recent past replays over the same unauthenticated socket, and cuts over to
+live with no seam. Measured 2026-09-05:
+
+| Ask | Result |
+|---|---|
+| 6h back, no DID filter | 929,657 events in 40s (~23k/s); caught up to live in ~30s |
+| 6h back, 90 accounts | 494 posts; caught up to live in **under 10s** |
+| 24h back, 90 accounts | 1,635 posts, backfill done in seconds |
+
+**The window is ~36 hours** — 12h, 24h, 30h and 36h were all honoured to the
+minute; 48h, 72h and 168h all came back at ~36.8h. And here is the trap: past the
+window the server **clamps silently**. No error, no warning, no flag on the
+stream. A client that offers "last week" and renders what arrives will show a day
+and a half and look perfectly correct.
+
+So the line is not live-vs-history. It is **inside the window vs outside it**:
+
+- **≤36h of history: Tier 1.** No key, no account, no backend, no fan-out.
+- **>36h: Tier 1.5.** The byte-metered archive, behind a worker holding the key.
+
+For a timeline app, 36 hours is usually the whole product.
 
 Two practical notes for this repo:
 
@@ -84,6 +106,15 @@ Two practical notes for this repo:
   [`SOCIAL-STACK-AUDIT.md`](SOCIAL-STACK-AUDIT.md) from "hardcoded host" to
   "hardcoded *legacy* host": `packages/atproto/jetstream.js` is the v2 client to
   migrate onto.
+- **The archive needs a synchronous zstd, which browsers do not have.** Segments
+  are zstd-compressed, and the official `@bsky/jetstream` SDK abstracts a runtime
+  for exactly this reason: its Node branch uses `zlib.zstdDecompressSync`, and its
+  browser branch ships **no default at all** ("may throw where the platform has no
+  zstd"; sha256 likewise, because WebCrypto is async-only and the archive's `cid`
+  getter is sync). So deep history could not run in the page even if the key were
+  free. It can run in a Worker: `nodejs_compat` on workerd provides both —
+  verified locally with `wrangler dev`, a zstd round-trip and a sync sha256. Two
+  independent reasons the archive lives in the worker, not the browser.
 - **Delivery is at-least-once and the cursor is inclusive**, in replay and live
   alike, so every consumer must be idempotent — key on the record's `at://` URI.
   Account-level events (`identity`, `account`, `sync`) carry no collection and
@@ -154,7 +185,7 @@ Tier 3 is the first thing this repo would own that needs a pet server, a process
 
 ### Verified vs. not
 
-Verified from the repo: the existing Jetstream, Constellation, DuckDB-WASM and repo-scan usage; D1 sharing; surface counts. Verified from public sources on the date above: the zeppelin/backfill tooling, the self-host numbers, Jetstream volumes, Constellation's API and footprint. **Since verified (2026-09-05):** Constellation's `/links`, `/links/all` and `/links/count/distinct-dids` were queried live and the helper's numbers check out; Jetstream v2's `planSnapshot` and `listSegments` return `401 invalid bearer credential` without a key, confirming the auth boundary above. The Jetstream v2 live tail was then driven end to end from node: the subprotocol handshake, the `{$type, payload}` envelope, `seq` cursors, deletes arriving without a record, and the `dids` filter holding across 90 accounts on one socket. `bsky.mino.mobi` is deployed and its run log binds the custom domain. **Still not verified:** the page in a real browser, and no cost was modelled against the actual Cloudflare bill. The Tier-3 figures are one operator's report from mid-2025 and the network has grown since; treat them as a floor.
+Verified from the repo: the existing Jetstream, Constellation, DuckDB-WASM and repo-scan usage; D1 sharing; surface counts. Verified from public sources on the date above: the zeppelin/backfill tooling, the self-host numbers, Jetstream volumes, Constellation's API and footprint. **Since verified (2026-09-05):** Constellation's `/links`, `/links/all` and `/links/count/distinct-dids` were queried live and the helper's numbers check out; Jetstream v2's `planSnapshot` and `listSegments` return `401 invalid bearer credential` without a key, confirming the auth boundary above. The Jetstream v2 live tail was then driven end to end from node: the subprotocol handshake, the `{$type, payload}` envelope, `seq` cursors, deletes arriving without a record, and the `dids` filter holding across 90 accounts on one socket. `bsky.mino.mobi` is deployed and its run log binds the custom domain. The timestamp-cursor backfill, its ~36h boundary and its silent clamp were then measured directly, as were the rates in the table above; workerd's zstd and sync sha256 were verified with a local `wrangler dev`. **Still not verified:** the page in a real browser, the archive path itself (no API key), and no cost was modelled against the actual Cloudflare bill. The Tier-3 figures are one operator's report from mid-2025 and the network has grown since; treat them as a floor.
 
 ### Sources
 

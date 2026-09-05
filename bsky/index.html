@@ -69,9 +69,10 @@ footer{border-top:1px solid var(--line);margin-top:30px;padding:16px 20px;color:
   <h1>bsky <span class="dim">— an AppView with no database</span></h1>
   <p class="blurb">
     Your timeline, assembled in this tab. Jetstream v2 filters the firehose to your follow
-    graph <em>server-side</em>, so there is no fan-out to pay for and no backend to run.
-    Engagement counts come from Constellation, the network-wide backlink index. Nothing is
-    stored — reload and it is gone.
+    graph <em>server-side</em>, so there is no fan-out to pay for and no backend to run &mdash;
+    and the same socket replays up to 36 hours of history before cutting over to live, with
+    no key and no account. Engagement counts come from Constellation, the network-wide
+    backlink index. Nothing is stored &mdash; reload and it is gone.
   </p>
 
   <div class="controls">
@@ -81,7 +82,13 @@ footer{border-top:1px solid var(--line);margin-top:30px;padding:16px 20px;color:
     </select>
     <input type="text" id="actor" placeholder="handle, e.g. bsky.app" autocomplete="off" spellcheck="false">
     <button id="go">go</button>
-    <button id="seed" class="ghost" title="Fan out over the public AppView for recent history. The expensive path — see the note below.">seed history</button>
+    <select id="depth" aria-label="how much history to replay" title="History replays over the same unauthenticated socket. Past ~36h the server clamps silently, so the list stops there.">
+      <option value="0">live only</option>
+      <option value="1">1h back</option>
+      <option value="6" selected>6h back</option>
+      <option value="24">24h back</option>
+      <option value="36">36h back (the window)</option>
+    </select>
     <label class="check" id="self-wrap"><input type="checkbox" id="include-self"> include them</label>
     <label class="check"><input type="checkbox" id="show-replies"> replies</label>
   </div>
@@ -100,18 +107,19 @@ footer{border-top:1px solid var(--line);margin-top:30px;padding:16px 20px;color:
 
 <main>
   <div id="empty">
-    <h2>This starts empty, and that is the design.</h2>
+    <h2>One socket, no backend, no account.</h2>
     <ol>
       <li>Type a handle and press <code>go</code>. We resolve it, read the follow graph, and open one WebSocket.</li>
-      <li>Jetstream streams every post from those accounts <em>as they are written</em> — the server does the filtering.</li>
-      <li>Posts appear below. <code>counts ↻</code> asks Constellation for likes, reposts, replies and quotes.</li>
+      <li>Jetstream replays your chosen window of history, then cuts over to live &mdash; same socket, no seam.</li>
+      <li>Posts appear below. <code>counts &#8635;</code> asks Constellation for likes, reposts, replies and quotes.</li>
     </ol>
     <p>
-      A live tail has no past, so a quiet graph stays quiet for a while. <code>seed history</code>
-      backfills a sample by fanning out over the public AppView — one request per account, which is
-      exactly the cost this design otherwise avoids. Jetstream v2 <em>can</em> replay the archive
-      properly, but those calls are API-keyed and metered, so they run through this surface's worker
-      rather than from your browser.
+      The history trick is that the cursor accepts a timestamp, not just a sequence number, so the
+      past arrives over the same unauthenticated connection. The window is about <strong>36
+      hours</strong> &mdash; and past it the server clamps <em>silently</em> rather than erroring, which
+      is why the list above stops there instead of offering a week it could not deliver. Anything
+      deeper needs the byte-metered archive, which is API-keyed and runs through this surface's
+      worker rather than your browser.
     </p>
   </div>
   <div id="feed"></div>

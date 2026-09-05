@@ -12,14 +12,14 @@
  *               avatars). Deliberately NOT for the feed itself — that would
  *               make this a client, not an AppView.
  *
- * What it cannot do from here, and why: history. Jetstream v2 replays the
- * archive, but over API-keyed, byte-metered HTTP — a key in a static page is a
- * published key — so history either proxies through worker.js (/api/replay/*,
- * inert until the secret is set) or falls back to the per-account fan-out in
- * `seedFromAppView`, which is the expensive path and is labelled as such.
+ * History comes from the same socket: the live tail's cursor accepts a
+ * unix-microsecond timestamp, so `since` replays up to LOOKBACK_HOURS (~36h,
+ * measured) of the past before cutting over to live — unauthenticated, no key,
+ * no fan-out. Only history OLDER than that window needs the archive, which is
+ * API-keyed and metered and lives behind worker.js at /api/replay/*.
  */
 
-import { JetstreamClient, KIND, eventUri } from '/packages/atproto/jetstream.js';
+import { JetstreamClient, KIND, eventUri, LOOKBACK_HOURS, clampSince } from '/packages/atproto/jetstream.js';
 import { postCounts } from '/packages/atproto/constellation.js';
 import { getProfiles, getFollows, getListMembers } from '/packages/atproto/bsky.js';
 
@@ -87,20 +87,27 @@ async function start() {
   state.started = Date.now();
 
   const overflow = dids.length > 10_000;
+  const requested = Number($('depth').value);
   status(
     `subscribing to ${dids.length.toLocaleString()} accounts` +
-    (overflow ? ' — capped at Jetstream\'s 10,000 limit' : '')
+    (overflow ? ' — capped at Jetstream\'s 10,000 limit' : '') +
+    ` · ${describeDepth(requested)}`
   );
 
   state.client = new JetstreamClient({
     dids,
+    since: requested,
     collections: ['app.bsky.feed.post'],
     kinds: [KIND.commit],
     onEvent: onEvent,
     onConnect: (host) => {
       $('conn').textContent = host.replace('wss://', '');
       $('conn').className = 'live';
-      status(`live · the server is fanning out ${dids.length.toLocaleString()} accounts for you`);
+      const d = clampSince(requested);
+      status(
+        (d ? `replaying ${d}h, then live` : 'live') +
+        ` · the server is fanning out ${dids.length.toLocaleString()} accounts for you`
+      );
     },
     onDisconnect: () => { $('conn').className = 'dead'; },
     onError: (e) => console.warn('jetstream', e),
@@ -267,46 +274,23 @@ async function showCounts(button) {
   }
 }
 
-// ─── the fallback history path (the expensive one) ───────────────
+// ─── history ─────────────────────────────────────────────────────
 
 /**
- * Seed the timeline with recent history.
+ * Nothing to do: history arrives through the same socket. `start()` passes
+ * `since` to the client, which converts it to a microsecond cursor, and the
+ * server replays from there and cuts over to live without a seam.
  *
- * This is the honest fallback, not the good path. Jetstream v2 CAN replay the
- * archive — filtered exactly like the live tail — but those calls are API-keyed
- * and metered, so they go through worker.js. When that key is unset we fan out
- * over the public AppView one account at a time, which is O(follows) requests
- * and is why it is capped hard.
+ * The one thing worth surfacing is the clamp. Past ~36h the server silently
+ * gives you the oldest it has instead of erroring, so the UI reports the depth
+ * the client actually asked for rather than the one the user picked.
  */
-async function seedFromAppView(limit = 25) {
-  const sample = state.dids.slice(0, limit);
-  status(`seeding from ${sample.length} accounts (fan-out — the expensive path)…`);
-
-  let added = 0;
-  for (const did of sample) {
-    try {
-      const res = await fetch(
-        `${BSKY_PUBLIC}/xrpc/app.bsky.feed.getAuthorFeed?actor=${encodeURIComponent(did)}&limit=5&filter=posts_no_replies`
-      );
-      if (!res.ok) continue;
-      const { feed = [] } = await res.json();
-      for (const item of feed) {
-        const post = item.post;
-        if (!post?.uri || state.posts.has(post.uri)) continue;
-        const fake = {
-          did: post.author.did,
-          collection: 'app.bsky.feed.post',
-          rkey: post.uri.split('/').pop(),
-        };
-        state.profiles.set(post.author.did, post.author);
-        state.posts.set(post.uri, { uri: post.uri, payload: fake, record: post.record });
-        render({ uri: post.uri, payload: fake, record: post.record });
-        added++;
-      }
-    } catch { /* one account failing is not a seed failing */ }
-  }
-  if (added) $('empty').hidden = true;
-  status(`seeded ${added} posts from ${sample.length} accounts — live tail continues`);
+function describeDepth(requestedHours) {
+  const actual = clampSince(requestedHours);
+  if (!actual) return 'live only, from now';
+  const clamped = actual < requestedHours;
+  return `replaying ${actual}h of history`
+       + (clamped ? ` — ${requestedHours}h was asked for, but the window is ${LOOKBACK_HOURS}h` : '');
 }
 
 async function checkReplay() {
@@ -314,11 +298,11 @@ async function checkReplay() {
     const res = await fetch('/api/health');
     const { replay, note } = await res.json();
     $('replay-note').textContent = replay
-      ? 'archive replay: available'
-      : 'archive replay: off (no API key) — history uses the fan-out fallback';
+      ? `deep archive: on (older than ${LOOKBACK_HOURS}h)`
+      : `deep archive: off — history beyond ${LOOKBACK_HOURS}h needs an API key`;
     $('replay-note').title = note ?? '';
   } catch {
-    $('replay-note').textContent = 'archive replay: unknown (worker unreachable)';
+    $('replay-note').textContent = 'deep archive: unknown (worker unreachable)';
   }
 }
 
@@ -347,10 +331,6 @@ $('go').addEventListener('click', () => {
   if ($('go').dataset.running) stop(); else start();
 });
 $('actor').addEventListener('keydown', (e) => { if (e.key === 'Enter') start(); });
-$('seed').addEventListener('click', () => {
-  if (!state.dids.length) return status('subscribe first — seeding needs the account set', true);
-  seedFromAppView();
-});
 $('feed').addEventListener('click', (e) => {
   const b = e.target.closest('button.counts');
   if (b) showCounts(b);
