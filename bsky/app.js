@@ -30,7 +30,7 @@ import { FEEDS, loadFeed, authorFeed, authorMedia, notifications, searchActors, 
 import { renderEmbed, imageUrl, videoUrls } from '/lib/blobs.js';
 import { attachTypeahead } from '/lib/typeahead.js';
 import * as cache from '/lib/cache.js';
-import { auth, publish, graphemeLength, MAX_GRAPHEMES, SCOPE } from '/lib/compose.js';
+import { auth, publish, graphemeLength, MAX_GRAPHEMES, MAX_IMAGES, SCOPE } from '/lib/compose.js';
 import * as theme from '/lib/theme.js';
 import * as lightbox from '/lib/lightbox.js';
 import * as share from '/lib/share.js';
@@ -109,7 +109,6 @@ function showTab(tab) {
   if (tab !== 'profile') { profileObserver?.disconnect(); profileObserver = null; }
   $('chips').hidden = tab !== 'home';
   $('fab').hidden = tab === 'profile' ? false : tab !== 'home';
-  window.scrollTo(0, 0);
   if (tab === 'search') renderSearch();
   if (tab === 'notifs') { renderNotifs(); startNotifPolling(); } else stopNotifPolling();
   if (tab === 'me') renderMe();
@@ -184,14 +183,67 @@ function goTab(tab) {
   location.hash = want;
 }
 
+/**
+ * Where each screen was scrolled to, keyed by its route.
+ *
+ * Losing your place is the single most expensive bug in a feed reader: you tap
+ * a post, read the thread, come back — and you are at the top, with no way to
+ * find the post you were on or anything below it. Everything you had already
+ * scrolled past is effectively gone.
+ *
+ * `showTab` used to `window.scrollTo(0, 0)` unconditionally. It no longer
+ * scrolls at all; this decides, because only the router knows whether you are
+ * ARRIVING somewhere new (top) or GOING BACK (where you were).
+ *
+ * The home feed survives because showTab only hides `#v-home`, it does not
+ * rebuild it — so the posts are still there and the offset still means what it
+ * meant. Thread and profile screens rebuild, so their offsets are dropped when
+ * you leave rather than restored onto different content.
+ */
+const scrollMemory = new Map();
+let currentRoute = null;
+
+function rememberScroll() {
+  if (currentRoute) scrollMemory.set(currentRoute, window.scrollY);
+}
+
+function restoreScroll(key, { top = false } = {}) {
+  const y = top ? 0 : (scrollMemory.get(key) ?? 0);
+  // Two frames: one for the view to be un-hidden, one for layout to settle.
+  // A single frame lands before the feed has height and silently scrolls to 0.
+  requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y)));
+}
+
 function route() {
-  const t = location.hash.match(/^#\/thread\/(.+)$/);
-  if (t) return renderThread(decodeURIComponent(t[1]));
-  const m = location.hash.match(/^#\/profile\/(.+)$/);
-  if (m) return renderProfile(decodeURIComponent(m[1]));
-  const tab = location.hash.replace(/^#\/?/, '');
-  if (TABS.includes(tab)) return showTab(tab);
-  return showTab('home');
+  const next = location.hash || '#/';
+  if (next === currentRoute) return;
+  rememberScroll();
+  const previous = currentRoute;
+  currentRoute = next;
+
+  const t = next.match(/^#\/thread\/(.+)$/);
+  if (t) {
+    // A thread rebuilds its content every time, so an old offset would land on
+    // different posts. Always start at the top of a thread.
+    scrollMemory.delete(next);
+    renderThread(decodeURIComponent(t[1]));
+    restoreScroll(next, { top: true });
+    return;
+  }
+  const m = next.match(/^#\/profile\/(.+)$/);
+  if (m) {
+    scrollMemory.delete(next);
+    renderProfile(decodeURIComponent(m[1]));
+    restoreScroll(next, { top: true });
+    return;
+  }
+
+  // Leaving a rebuilt screen: its offset is meaningless next time.
+  if (previous && /^#\/(thread|profile)\//.test(previous)) scrollMemory.delete(previous);
+
+  const tab = next.replace(/^#\/?/, '');
+  showTab(TABS.includes(tab) ? tab : 'home');
+  restoreScroll(next);
 }
 
 function renderChips() {
@@ -1680,25 +1732,95 @@ async function refreshAuth() {
 /** True for the first refreshAuth that finds a session, so the feed switches once. */
 let justSignedIn = true;
 
-function openSheet() {
+/**
+ * What the compose sheet is currently carrying besides text: up to four
+ * prepared images, and at most one quoted post.
+ */
+let draft = { images: [], quote: null };
+
+function openSheet(opts = {}) {
   if (!auth().isLoggedIn()) return signIn();
+  draft = { images: [], quote: opts.quote || null };
+  $('ct').value = opts.text || '';
+  renderThumbs();
+  renderQuotePreview();
+  countChars();
   $('sheet').hidden = false;
   $('ct').focus();
 }
-function closeSheet() { $('sheet').hidden = true; $('cs').textContent = ''; }
+
+function closeSheet() {
+  $('sheet').hidden = true;
+  $('cs').textContent = '';
+  // Object URLs are not garbage collected; leaking one per picked image adds up
+  // over a session of posting.
+  for (const img of draft.images) URL.revokeObjectURL(img.url);
+  draft = { images: [], quote: null };
+  renderThumbs();
+  renderQuotePreview();
+}
+
+function renderQuotePreview() {
+  const box = $('cquote');
+  if (!box) return;
+  box.hidden = !draft.quote;
+  if (draft.quote) {
+    box.textContent = `quoting @${draft.quote.handle || 'a post'}: `
+      + (draft.quote.text || '').slice(0, 120);
+  }
+}
+
+/** Thumbnails, each with its own ALT box — alt text is not optional here. */
+function renderThumbs() {
+  const box = $('cthumbs');
+  if (!box) return;
+  box.innerHTML = '';
+  draft.images.forEach((img, i) => {
+    const t = el(`<div class="cthumb">
+      <img alt="" src="${esc(img.url)}">
+      <button type="button" data-rm="${i}" aria-label="Remove image">×</button>
+      <input type="text" data-alt="${i}" placeholder="alt text" value="${esc(img.alt || '')}">
+    </div>`);
+    box.append(t);
+  });
+  countChars();
+}
+
+async function addImages(files) {
+  const room = MAX_IMAGES - draft.images.length;
+  if (room <= 0) return say(`${MAX_IMAGES} images is the limit`);
+  for (const file of [...files].slice(0, room)) {
+    if (!file.type.startsWith('image/')) {
+      // Video needs Bluesky's transcoding service, not a PDS blob — see the
+      // note in this surface's CLAUDE.md. Saying so beats a silent skip.
+      say(file.type.startsWith('video/')
+        ? 'video needs Bluesky\'s transcoder — images only for now'
+        : `not an image: ${file.type || 'unknown type'}`);
+      continue;
+    }
+    draft.images.push({ file, url: URL.createObjectURL(file), alt: '' });
+  }
+  renderThumbs();
+}
 
 function countChars() {
   const n = graphemeLength($('ct').value);
   $('cc').textContent = `${n}/${MAX_GRAPHEMES}`;
   $('cc').className = n > MAX_GRAPHEMES ? 'over' : '';
-  $('sheet-post').disabled = n === 0 || n > MAX_GRAPHEMES;
+  // An image-only or quote-only post is legitimate; requiring text is not.
+  const hasBody = n > 0 || draft.images.length > 0 || Boolean(draft.quote);
+  $('sheet-post').disabled = !hasBody || n > MAX_GRAPHEMES;
 }
 
 async function sendPost() {
   $('sheet-post').disabled = true;
   $('cs').textContent = 'posting…';
   try {
-    await publish($('ct').value, { resolveHandle: (h) => resolveActor(h).catch(() => null) });
+    await publish($('ct').value, {
+      resolveHandle: (h) => resolveActor(h).catch(() => null),
+      images: draft.images,
+      quote: draft.quote,
+    });
     $('ct').value = ''; countChars(); closeSheet();
     say('posted');
   } catch (err) {
@@ -1843,16 +1965,139 @@ function applyUpdate() {
   swWaiting = null;
 }
 
+/**
+ * Swipe right to go back.
+ *
+ * Scoped deliberately to an EDGE swipe — the gesture must start within
+ * `EDGE_PX` of the left edge — for one reason: this app already uses horizontal
+ * drags for other things. The lightbox pages through a post's images with them,
+ * and the PDF viewer pans a zoomed page with them. A general "swipe right
+ * anywhere goes back" would fight both, and a gesture that sometimes navigates
+ * away mid-read is worse than no gesture.
+ *
+ * The other guards, each for a specific way this goes wrong:
+ *   - any overlay open (lightbox, paper, a sheet) → the gesture is theirs.
+ *   - a multi-touch gesture → that is a pinch, not a swipe.
+ *   - more vertical than horizontal movement → that is a scroll.
+ *   - nothing to go back to → do nothing rather than leave the site.
+ */
+const EDGE_PX = 32;
+const SWIPE_MIN = 64;          // shorter than this is a tap that wandered
+const SWIPE_SLOPE = 1.4;       // horizontal must beat vertical by this much
+
+function installBackSwipe() {
+  let x0 = 0, y0 = 0, tracking = false;
+
+  const overlayOpen = () =>
+    document.querySelector('.paper, .lightbox, #rulesheet')
+    || [...document.querySelectorAll('.sheet')].some((el) => !el.hidden);
+
+  document.addEventListener('touchstart', (e) => {
+    tracking = false;
+    if (e.touches.length !== 1 || overlayOpen()) return;
+    const t = e.touches[0];
+    if (t.clientX > EDGE_PX) return;
+    x0 = t.clientX; y0 = t.clientY; tracking = true;
+  }, { passive: true });
+
+  document.addEventListener('touchend', (e) => {
+    if (!tracking) return;
+    tracking = false;
+    const t = e.changedTouches[0];
+    if (!t) return;
+    const dx = t.clientX - x0;
+    const dy = Math.abs(t.clientY - y0);
+    if (dx < SWIPE_MIN || dx < dy * SWIPE_SLOPE) return;
+    goBack();
+  }, { passive: true });
+}
+
+/**
+ * Back, with a floor. `history.back()` on the first page of a session leaves
+ * the site entirely, which is not what a back gesture means — so a thread or
+ * profile with nothing behind it falls back to the feed.
+ */
+function goBack() {
+  const deep = /^#\/(thread|profile)\//.test(location.hash || '');
+  if (history.length > 1) { history.back(); return; }
+  location.hash = deep ? '#/' : '#/';
+}
+
+/**
+ * Repost, or quote?
+ *
+ * Anchored to the button rather than shown as a centred modal: the reader's
+ * thumb is already there, and a modal in the middle of the screen for a
+ * two-word choice is a bigger interruption than the choice deserves.
+ *
+ * Un-reposting skips this entirely — there is only one way to undo.
+ */
+function askRepostKind(btn, post) {
+  document.querySelector('.repostmenu')?.remove();
+  const menu = el(`<div class="repostmenu">
+    <button type="button" data-kind="repost">↻ Repost</button>
+    <button type="button" data-kind="quote">❝ Quote post</button>
+  </div>`);
+  const r = btn.getBoundingClientRect();
+  menu.style.left = `${Math.max(8, Math.min(window.innerWidth - 188, r.left))}px`;
+  menu.style.top = `${r.bottom + window.scrollY + 6}px`;
+  document.body.append(menu);
+
+  const close = () => { menu.remove(); document.removeEventListener('click', away, true); };
+  const away = (e) => { if (!menu.contains(e.target)) close(); };
+  // The click that opened this is still propagating; listen from the next tick
+  // or the menu closes itself immediately.
+  setTimeout(() => document.addEventListener('click', away, true), 0);
+
+  menu.addEventListener('click', (e) => {
+    const kind = e.target.closest('[data-kind]')?.dataset.kind;
+    if (!kind) return;
+    close();
+    if (kind === 'repost') { toggleAction(btn, post, 'repost'); return; }
+    openQuote(post);
+  });
+}
+
+/** Open the composer with this post attached as a quote. */
+function openQuote(post) {
+  // A quote without the quoted post's CID is rejected by the PDS — the same
+  // trap as a like. Saying so beats failing after the reader has written.
+  if (!post?.uri || !post?.cid) {
+    return say('cannot quote this post — its cid is not known here');
+  }
+  openSheet({
+    quote: {
+      uri: post.uri,
+      cid: post.cid,
+      handle: post.author?.handle || state.profiles.get(post.did)?.handle,
+      text: post.record?.text || '',
+    },
+  });
+}
+
 // ─── wiring ──────────────────────────────────────────────────────
 
 for (const b of document.querySelectorAll('.tab')) {
   b.addEventListener('click', () => goTab(b.dataset.tab));
 }
+installBackSwipe();
 $('fab').addEventListener('click', openSheet);
 $('sheet-cancel').addEventListener('click', closeSheet);
 $('signin-cancel').addEventListener('click', () => { signinTypeahead?.close(); $('signin').hidden = true; });
 $('signin-go').addEventListener('click', doSignIn);
 $('sheet-post').addEventListener('click', sendPost);
+on('cfile', 'change', (e) => { addImages(e.target.files); e.target.value = ''; });
+$('cthumbs')?.addEventListener('click', (e) => {
+  const rm = e.target.closest('[data-rm]');
+  if (!rm) return;
+  const [img] = draft.images.splice(Number(rm.dataset.rm), 1);
+  if (img) URL.revokeObjectURL(img.url);
+  renderThumbs();
+});
+$('cthumbs')?.addEventListener('input', (e) => {
+  const alt = e.target.closest('[data-alt]');
+  if (alt) draft.images[Number(alt.dataset.alt)].alt = alt.value;
+});
 $('ct').addEventListener('input', countChars);
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
@@ -1894,11 +2139,25 @@ document.addEventListener('click', async (e) => {
 
   if (!actions.signedIn()) return say(`sign in to ${act}`);
   if (!state.canWrite[act]) {
-    return say(`${act}s need repo:app.bsky.feed.${act} on auth.mino.mobi — the collection is `
-      + `added in this branch but that worker deploys from its own`);
+    return say(`${act}s need repo:app.bsky.feed.${act} — reauthorise from the Me tab`);
   }
 
-  // Optimistic: flip immediately, reconcile with what the PDS actually says.
+  // A repost is two different intentions sharing one glyph: pass it on, or pass
+  // it on WITH something to say. Every client asks, because doing the wrong one
+  // is public and cannot be quietly undone.
+  if (act === 'repost' && !btn.classList.contains('on')) {
+    return askRepostKind(btn, post);
+  }
+
+  return toggleAction(btn, post, act);
+});
+
+/**
+ * The optimistic like/repost flip. Extracted so the repost/quote menu can reach
+ * it: the menu's "Repost" must do exactly what a direct tap does, and a second
+ * copy of this would drift.
+ */
+async function toggleAction(btn, post, act) {
   const span = btn.querySelector('span');
   const wasOn = btn.classList.contains('on');
   const n = Number(span?.textContent) || 0;
@@ -1916,7 +2175,7 @@ document.addEventListener('click', async (e) => {
   } finally {
     btn.classList.remove('busy');
   }
-});
+}
 
 // Any element carrying data-profile opens that profile — avatars, names,
 // handles, search rows. One listener rather than a binding per post.

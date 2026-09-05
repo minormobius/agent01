@@ -43,6 +43,11 @@ export const SCOPE = [
   // so a third-party feed generator can personalise their feed — see
   // lib/feedgen.js. Already in the auth worker's RPC_SCOPES.
   'rpc:com.atproto.server.getServiceAuth',
+  // Blobs, for posting pictures. The auth worker's ceiling already declares
+  // `blob:image/*` and `blob:video/*`, so this needs no worker change — but a
+  // scope is only granted if it is ASKED for, and a session minted before this
+  // line will not have it. See the reauthorise banner in app.js.
+  'blob:image/*',
 ].join(' ');
 
 /** Bluesky counts GRAPHEMES, not UTF-16 code units. An emoji is one. */
@@ -132,6 +137,62 @@ export async function detectFacets(text, resolveHandle) {
  * @param {{uri:string, cid:string}} [opts.replyTo] - parent, for a reply
  * @returns {Promise<{uri:string, cid:string}>}
  */
+/** Bluesky shows at most four, and so does every other client. */
+export const MAX_IMAGES = 4;
+
+/**
+ * The PDS blob ceiling. A modern phone photo is 3–8 MB, so uploading one
+ * untouched fails — and it fails at the very end, after the reader has written
+ * their post. Everything below exists to make that not happen.
+ */
+const MAX_BLOB_BYTES = 900 * 1024;
+const MAX_EDGE = 2000;
+
+/**
+ * Shrink an image until it fits, and report its true aspect ratio.
+ *
+ * Two things must both be right or the post looks broken elsewhere:
+ *
+ *   SIZE — re-encode at falling quality until under the ceiling. Resizing alone
+ *   is not enough for a noisy photo, and quality alone is not enough for a
+ *   40-megapixel one, so it does both.
+ *
+ *   ASPECT RATIO — measured from the ENCODED bitmap, not from the original
+ *   file. Every client lays an image out from `aspectRatio` before the bytes
+ *   arrive; if it disagrees with the image, the feed jumps as pictures load.
+ *
+ * @param {File|Blob} file
+ * @returns {Promise<{blob: Blob, mime: string, width: number, height: number}>}
+ */
+export async function prepareImage(file) {
+  const bitmap = await createImageBitmap(file);
+  let { width, height } = bitmap;
+  const scale = Math.min(1, MAX_EDGE / Math.max(width, height));
+  width = Math.round(width * scale);
+  height = Math.round(height * scale);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close?.();
+
+  // PNG screenshots of text stay PNG until they are too big; photographs go
+  // straight to JPEG. Re-encoding a screenshot as JPEG makes the text fringe.
+  const preferPng = file.type === 'image/png' && file.size <= MAX_BLOB_BYTES;
+  if (preferPng) {
+    const blob = await new Promise((r) => canvas.toBlob(r, 'image/png'));
+    if (blob && blob.size <= MAX_BLOB_BYTES) return { blob, mime: 'image/png', width, height };
+  }
+
+  for (const quality of [0.9, 0.8, 0.7, 0.6, 0.5, 0.4]) {
+    const blob = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', quality));
+    if (blob && blob.size <= MAX_BLOB_BYTES) return { blob, mime: 'image/jpeg', width, height };
+  }
+  throw new Error('that image will not compress small enough — try a smaller one');
+}
+
 export async function publish(text, opts = {}) {
   const a = auth();
   if (!a.isLoggedIn()) throw new Error('not signed in');
@@ -159,6 +220,42 @@ export async function publish(text, opts = {}) {
   if (opts.resolveHandle) {
     const facets = await detectFacets(text, opts.resolveHandle);
     if (facets.length) record.facets = facets;
+  }
+
+  /**
+   * Images. Uploaded FIRST and only then referenced, because a createRecord
+   * naming a blob that does not exist is rejected — and the reader would lose
+   * their text to an error that mentions neither.
+   */
+  if (opts.images?.length) {
+    if (!a.hasScope('blob:image/*')) {
+      await a.ensureScope('blob:image/*');
+      return Promise.reject(new Error('re-authorizing…'));
+    }
+    const images = [];
+    for (const img of opts.images.slice(0, MAX_IMAGES)) {
+      const { blob, mime, width, height } = await prepareImage(img.file);
+      const ref = await a.pds.uploadBlob(await blob.arrayBuffer(), mime);
+      images.push({
+        // The PDS answers { blob: {...} }; the record wants the blob itself.
+        image: ref.blob || ref,
+        alt: String(img.alt || ''),
+        aspectRatio: { width, height },
+      });
+    }
+    record.embed = { $type: 'app.bsky.embed.images', images };
+  }
+
+  /**
+   * A quote post. `app.bsky.embed.record` needs the quoted post's URI AND its
+   * CID — a quote without the cid is rejected, the same trap as a like.
+   */
+  if (opts.quote?.uri && opts.quote?.cid) {
+    const quoted = { $type: 'app.bsky.embed.record', record: { uri: opts.quote.uri, cid: opts.quote.cid } };
+    record.embed = record.embed
+      // Both at once is a different lexicon, not two embeds.
+      ? { $type: 'app.bsky.embed.recordWithMedia', record: quoted, media: record.embed }
+      : quoted;
   }
 
   if (opts.replyTo) {

@@ -47,7 +47,7 @@ const GLOBALS = [
   'Image', 'Blob', 'File', 'FileReader', 'FormData', 'TextEncoder', 'TextDecoder', 'crypto', 'caches',
   'indexedDB', 'IDBKeyRange', 'ClipboardItem', 'Intl', 'CSS', 'DOMParser', 'XMLHttpRequest', 'performance',
   'IntersectionObserver', 'MutationObserver', 'ResizeObserver', 'structuredClone', 'BigInt', 'WebAssembly',
-  'self', 'globalThis', 'atob', 'btoa', 'Uint8Array', 'DataView', 'ArrayBuffer', 'requestIdleCallback',
+  'self', 'globalThis', 'atob', 'btoa', 'createImageBitmap', 'HTMLCanvasElement', 'Uint8Array', 'DataView', 'ArrayBuffer', 'requestIdleCallback',
 ];
 
 const config = join(bsky, '.eslint.undef.mjs');

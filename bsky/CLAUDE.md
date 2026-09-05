@@ -610,6 +610,101 @@ plausible fixes did not remove it; two of them were real bugs and stayed. It has
 no observed effect on rendering, links, zoom or teardown, and it does not fire
 unless a paper is opened.
 
+### Navigation: keeping your place, and swiping back
+
+**Losing your place is the most expensive bug a feed reader can have.** You tap
+a post, read the thread, come back — and you are at the top, with no way to find
+the post you were on or anything below it. Everything already scrolled past is
+effectively gone.
+
+`showTab()` used to `window.scrollTo(0, 0)` unconditionally. It no longer
+scrolls at all; `route()` decides, because only the router knows whether you are
+ARRIVING somewhere (top) or GOING BACK (where you were). Offsets live in
+`scrollMemory`, keyed by route.
+
+Two details that are easy to get wrong:
+
+- **Restore across two animation frames.** One frame lands before the feed has
+  height, and the scroll silently clamps to 0.
+- **Thread and profile offsets are dropped on leaving.** Those screens rebuild
+  their content, so a remembered offset would land on different posts. The home
+  feed survives because `showTab` only HIDES `#v-home` — the posts are still
+  there and the offset still means what it meant.
+
+**Swipe back is an EDGE swipe**, starting within 32px of the left edge, and that
+scoping is the whole design. This app already uses horizontal drags for other
+things: the lightbox pages through a post's images, the PDF viewer pans a zoomed
+page. A general "swipe right anywhere goes back" would fight both, and a gesture
+that sometimes navigates away mid-read is worse than no gesture. It also bails
+on multi-touch (that is a pinch), on more vertical than horizontal travel (that
+is a scroll), and when an overlay is open (the gesture is the overlay's).
+
+### Repost, or quote?
+
+Tapping ↻ on a post you have NOT reposted opens a two-item menu; un-reposting
+skips it, because there is only one way to undo. A repost is two different
+intentions sharing one glyph, and doing the wrong one is public.
+
+`toggleAction()` is extracted rather than duplicated: the menu's "Repost" must
+do exactly what a direct tap does, and a second copy would drift.
+
+**A quote needs the quoted post's CID**, exactly like a like — `app.bsky.embed.record`
+with only a URI is rejected. The composer checks before opening rather than
+failing after the reader has written something.
+
+### Posting pictures
+
+`prepareImage()` in `lib/compose.js`, and the picker in the compose sheet.
+
+The auth ceiling already declared `blob:image/*` and `blob:video/*`, so this
+needed no worker change — but **a scope is only granted if it is asked for**, and
+`SCOPE` did not ask. A session minted before this line will not have it; the
+reauthorise banner covers that.
+
+Two things must both be right or the post looks broken in other clients:
+
+- **Size.** The PDS blob ceiling is ~1 MB and a modern phone photo is 3–8 MB, so
+  an untouched upload fails — at the very END, after the reader has written
+  their post. `prepareImage` resizes to a 2000px long edge and then re-encodes at
+  falling quality until it fits. Resizing alone is not enough for a noisy image;
+  quality alone is not enough for a 40-megapixel one. Measured: a 22.8 MB
+  full-noise PNG became a 774 KB JPEG.
+- **Aspect ratio**, measured from the ENCODED bitmap rather than the source
+  file. Every client lays an image out from `aspectRatio` before the bytes
+  arrive; if it disagrees, the feed jumps as pictures load.
+
+A PNG screenshot under the ceiling stays PNG — re-encoding text as JPEG fringes
+it.
+
+Blobs are uploaded FIRST and only then referenced: a `createRecord` naming a
+blob that does not exist is rejected, and the reader would lose their text to an
+error mentioning neither.
+
+**Video is not supported, and not by oversight.** `app.bsky.embed.video` expects
+a blob that Bluesky's own video service has transcoded — the official client
+uploads through `app.bsky.video.uploadVideo` at `did:web:video.bsky.app`, using
+a service-auth JWT, not a plain PDS blob. A raw upload would produce a post that
+does not play anywhere. The picker says so rather than skipping the file
+silently. The token minting for it already exists (`lib/feedgen.js`), so this is
+a known piece of work, not a wall.
+
+### Link cards render; they are just rare
+
+We DO handle `app.bsky.embed.external` — thumbnail, host, title, description.
+Measured across 40 real posts from `bsky.app`: 17 quote embeds, 13 no embed, 7
+images, 2 video, **1 external card**, and 3 posts carrying a link with no card
+at all.
+
+That is the thing to understand before "fixing" it: **Bluesky does not generate
+cards, the POSTING CLIENT does.** It fetches the page's metadata at compose time
+and attaches it to the record. A bare URL in text is just a link facet, and
+there is nothing in the record to render.
+
+So generating a preview for a bare link means fetching that page ourselves —
+which is the CORS wall again, and this time nearly every site is on the far side
+of it. That is the real shape of the "live preview pane" ambition: not a
+rendering problem, a fetching one.
+
 ### Palettes
 
 `lib/theme.js`. Seven palettes plus `auto`, which follows the OS and is the
