@@ -4,12 +4,25 @@
 
 The ask: iterate `f(z) = (|z| + cos(arg z))·exp(i·arg z) − c` (c real, 0.5–1),
 viewed through the inverse of a Joukowski-style conformal map centered at
-`−c/2`, with sliders for `c` and for horizontal scaling. This turn's request
-was a correction plus three UI asks: "I meant applying a scaling before the
-inverse transform, not after"; finer slider resolution than the old 0.005
-step; a numeric text box for exact values; and "navigation for the renderer".
+`−c/2`, with sliders for `c` and for horizontal scaling. Earlier turns handled
+a correction plus three UI asks (scaling order, slider resolution, numeric
+inputs, pan/zoom navigation). **This turn's request**: colour non-escaping
+(bounded) points by a domain colouring of the landing point, instead of flat
+black.
 
 Shipped this turn:
+
+- **Domain colouring for bounded points.** When the orbit from `z₀` never
+  escapes within `MAX_ITER` steps, the pixel is now coloured from the actual
+  final `(zr, zi)` the loop left off at: hue = `atan2(zi, zr)` (the point's
+  angle), lightness banded by the fractional part of `log2(|z|)` so nested
+  rings show how far out the landing point is, cycling every doubling of
+  distance. Escaped points are untouched — still the existing blue→red HSL
+  ramp by escape speed. One `else` branch changed
+  (`index.html`'s main render loop); no new controls, since nothing was asked
+  for beyond the colouring itself.
+
+Shipped in earlier turns:
 
 - **Fixed the scaling order**, replacing the previous default rather than
   adding it as a toggle. Forward map is now: `mu = z − c0`, scaled *first* to
@@ -34,6 +47,20 @@ Shipped this turn:
 
 ## Decisions
 
+- **Landing-point colour uses the loop's final `(zr, zi)`, not the iteration
+  count or a separately-tracked quantity.** That value was already sitting
+  right there when the loop exits without escaping (either it hit
+  `MAX_ITER`, or it broke early on the `z=0` singularity guard, in which case
+  it colours the point at/near the origin — expected, not a bug). No extra
+  state, no second pass over the pixel.
+- **Banding is `log2(|z|)`, not a linear or unbounded lightness ramp.** Bounded
+  orbits can land anywhere from near-zero to just under the bailout radius, a
+  huge dynamic range; log-banding turns that into repeating rings so structure
+  near the origin is as visible as structure near the boundary, which a linear
+  map would crush into "everything near 0 looks the same dark colour".
+  Lightness is clamped to `[0.16, 0.38]` (dark) precisely so bounded regions
+  still read as visually distinct from the brighter escaped-region ramp — the
+  two color modes shouldn't be confusable at a glance.
 - **The old default formula is gone, not kept as a toggle.** The requester's
   "I meant X, not Y" reads as a correction, not an offer of a second mode —
   keeping the wrong-order version around as a "compare" option would be
@@ -62,9 +89,14 @@ Shipped this turn:
    show its actual iterated path as an overlaid polyline. Still not built.
 3. **Smooth/continuous colouring** instead of raw iteration count, if the
    escaped-region banding looks too coarse on a real screen, especially once
-   zoomed in.
+   zoomed in. Now that bounded points get a richer treatment too, this is the
+   remaining "flat colour banding" complaint.
 4. The previous "scale-the-preimage" alternate-reading item is now done (see
    above) — removed from this list.
+5. **Not built, considered and skipped for scope**: a legend/key explaining
+   the domain-colouring scheme (a small hue wheel or colour strip). The
+   status-note text says what the colours mean in words; a visual legend
+   would be nicer but wasn't asked for and this turn was small.
 
 ## Gotchas
 

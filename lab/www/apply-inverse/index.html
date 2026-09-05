@@ -93,7 +93,9 @@
     it is pulled back through the inverse transform to find the point
     <code>z&#8320;</code> in the map's own plane that would have landed there &mdash;
     then <code>f</code> is iterated from <code>z&#8320;</code>, and the pixel is
-    coloured by how fast it runs away.
+    coloured by how fast it runs away &mdash; or, for points that stay bounded,
+    by <em>where the orbit lands</em>: hue from that point's angle, banded
+    rings from its distance out.
   </p>
 
   <div class="stage">
@@ -276,7 +278,14 @@
           const t = n / MAX_ITER;
           [rr, gg, bb] = hsl2rgb(210 + t * 190, 0.72, 0.24 + 0.32 * (1 - t));
         } else {
-          rr = 8; gg = 8; bb = 12;
+          // Domain colouring of the landing point: hue from its argument,
+          // lightness banded by log2(modulus) so contour rings show how the
+          // bounded orbit is nested, instead of flattening it all to black.
+          const hue = (Math.atan2(zi, zr) * 180 / Math.PI + 360) % 360;
+          const mag = Math.hypot(zr, zi);
+          const logm = Math.log2(mag + 1e-9);
+          const frac = logm - Math.floor(logm);
+          [rr, gg, bb] = hsl2rgb(hue, 0.55, 0.16 + 0.22 * frac);
         }
         data[idx] = rr; data[idx + 1] = gg; data[idx + 2] = bb; data[idx + 3] = 255;
       }
@@ -287,7 +296,10 @@
     statusNote.textContent = (showRaw
       ? 'raw iteration of f, no transform — '
       : 'pulled back through the inverse transform — ') +
-      MAX_ITER + ' iterations, bailout |z| > ' + BAILOUT + '. ' + viewNote;
+      MAX_ITER + ' iterations, bailout |z| > ' + BAILOUT +
+      '. Escaped points: blue-to-red by escape speed. Bounded points: domain-' +
+      'coloured by their landing point (hue = angle, rings = log2 of distance). ' +
+      viewNote;
   }
 
   // Slider <-> number-input sync. The slider's step is coarse enough to drag

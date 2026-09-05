@@ -314,6 +314,24 @@ alone isn't enough precision/control for a math-viz tool once they're using it
 for real, worth defaulting to (numeric box + slider pairing, canvas pan/zoom)
 on future renderer-style builds rather than waiting to be asked again.
 
+Twenty-fifth request (2026-09-05), a further same-session follow-up on
+"apply-inverse": asked to replace the flat black used for non-escaping
+(bounded) points with a domain colouring of the iteration's actual landing
+point. Consistent with the standing "flat colour banding" complaint pattern
+(cf. the fifth request killing the Newman-polynomial degree ramp) but the
+opposite direction — here they explicitly want *more* colour structure, not
+less, specifically because black was throwing away real information (where
+the bounded orbit ends up). Read "domain coloring" in the standard complex-
+analysis sense (hue = argument of the landing point, not an arbitrary
+palette) rather than asking for clarification — this requester's math
+literacy across two dozen requests makes the technical-term reading safe by
+default. Used log2(modulus) banding for the lightness channel rather than a
+single flat hue-only fill, so the interior isn't just a smooth gradient but
+shows nested contour rings — worth reusing "hue from argument + log-banded
+modulus rings" as the default domain-colouring recipe for any future escape-
+time/fractal-style build from this requester, rather than picking an
+unrelated colour scheme for the interior each time.
+
 Thirteenth request (2026-07-31), continuing meta-todo: asked for two
 prioritized backlog entries — a max-priority one about pointing future build
 agents at general-template as their base, a high-priority one about rolling

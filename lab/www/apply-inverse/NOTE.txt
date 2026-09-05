@@ -1,1 +1,1 @@
-Scaling now applies before the inversion (mu' = s·Re(mu)+i·Im(mu)), not to eta after — that was the bug. Sliders are 10x finer + numeric boxes. Canvas pans/zooms now; deep zooms may look under-detailed, iteration count is still fixed.
+Bounded points are now domain-coloured from where the orbit actually lands: hue = angle, rings = log2(distance) — so the black interior now shows structure instead of hiding it.
