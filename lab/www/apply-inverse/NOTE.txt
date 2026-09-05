@@ -1,1 +1,1 @@
-"Horizontal scaling" was ambiguous, so I picked: it scales only Re(eta) in eta=(z-c0)+1/(z-c0), not the pre-image circle. Pixels are pulled back through the closed-form inverse (exterior root), then f iterates from there — exact transform, no gaps.
+Scaling now applies before the inversion (mu' = s·Re(mu)+i·Im(mu)), not to eta after — that was the bug. Sliders are 10x finer + numeric boxes. Canvas pans/zooms now; deep zooms may look under-detailed, iteration count is still fixed.

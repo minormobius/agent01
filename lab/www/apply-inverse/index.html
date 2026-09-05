@@ -26,7 +26,14 @@
     background: #000;
     border-radius: var(--radius);
     touch-action: none;
+    cursor: grab;
   }
+  canvas.dragging { cursor: grabbing; }
+  .navrow {
+    display: flex; flex-wrap: wrap; gap: .6rem; align-items: center;
+    margin-top: .6rem; font-size: .78rem; color: var(--muted);
+  }
+  .navrow button { padding: .5rem .9rem; min-height: 44px; font-size: .85rem; }
   .controls { margin-top: .9rem; display: grid; gap: .9rem; }
   .ctrl label {
     display: flex; flex-wrap: wrap; column-gap: .5rem; align-items: baseline;
@@ -35,10 +42,18 @@
   .ctrl label span.val {
     margin-left: auto; color: var(--accent); font-variant-numeric: tabular-nums;
   }
+  .ctrl .row { display: flex; align-items: center; gap: .6rem; }
   input[type=range] {
-    width: 100%; height: 44px; margin: 0; padding: 0;
+    flex: 1 1 auto; min-width: 0; height: 44px; margin: 0; padding: 0;
     background: transparent; -webkit-appearance: none; appearance: none;
   }
+  input[type=number] {
+    flex: 0 0 auto; width: 6.5rem; min-height: 44px;
+    background: var(--bg-raised); color: var(--fg);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    font: inherit; font-size: 1rem; padding: .3rem .5rem;
+  }
+  input[type=number]:focus { outline: none; border-color: var(--accent); }
   input[type=range]::-webkit-slider-runnable-track {
     height: 6px; border-radius: 3px; background: var(--border);
   }
@@ -82,17 +97,27 @@
   </p>
 
   <div class="stage">
-    <canvas id="c" width="480" height="360" aria-label="Rendering of the pulled-back iteration"></canvas>
+    <canvas id="c" width="480" height="360" aria-label="Rendering of the pulled-back iteration. Drag to pan, scroll or pinch to zoom."></canvas>
+    <div class="navrow">
+      <span>drag to pan &middot; scroll or pinch to zoom</span>
+      <button type="button" id="resetView">reset view</button>
+    </div>
   </div>
 
   <div class="controls">
     <div class="ctrl">
-      <label for="cSlider">c &nbsp;(map parameter, also fixes the transform's center at &minus;c/2)<span class="val" id="cVal">0.75</span></label>
-      <input type="range" id="cSlider" min="0.5" max="1" step="0.005" value="0.75">
+      <label for="cSlider">c &nbsp;(map parameter, also fixes the transform's center at &minus;c/2)<span class="val" id="cVal">0.7500</span></label>
+      <div class="row">
+        <input type="range" id="cSlider" min="0.5" max="1" step="0.0005" value="0.75">
+        <input type="number" id="cNum" min="0.5" max="1" step="0.0001" value="0.75" inputmode="decimal" aria-label="c, exact value">
+      </div>
     </div>
     <div class="ctrl">
-      <label for="sSlider">horizontal scale of the transform<span class="val" id="sVal">1.00</span></label>
-      <input type="range" id="sSlider" min="0.3" max="3" step="0.01" value="1">
+      <label for="sSlider">horizontal scale, applied to the pre-image before it is inverted<span class="val" id="sVal">1.000</span></label>
+      <div class="row">
+        <input type="range" id="sSlider" min="0.3" max="3" step="0.001" value="1">
+        <input type="number" id="sNum" min="0.3" max="3" step="0.001" value="1" inputmode="decimal" aria-label="horizontal scale, exact value">
+      </div>
     </div>
     <label class="toggle">
       <input type="checkbox" id="rawToggle">
@@ -105,17 +130,24 @@
   <p class="note" id="statusNote">rendering…</p>
 
   <p class="note">
-    The transform used: with <code>c&#8320; = &minus;c/2</code> and
-    <code>&eta; = (&zeta;&minus;c&#8320;) + 1/(&zeta;&minus;c&#8320;)</code>, the forward
-    map is <code>w = c&#8320; + s&middot;Re(&eta;) + i&middot;Im(&eta;)</code> &mdash;
-    only the real part gets the horizontal-scale factor <code>s</code>, which is
-    what "horizontal scaling of the transform" is taken to mean here. Inverting is
-    a quadratic in <code>&zeta;&minus;c&#8320;</code>, so it comes back in closed
-    form; the exterior root (the one with larger modulus) is the branch drawn,
-    which is the standard choice for a Joukowski-airfoil map. No root-finding, no
-    approximation in the transform itself &mdash; the only approximation is where
-    every escape-time picture has one: <code>f</code> is iterated for a fixed
-    number of steps and called "unbounded" past a fixed radius.
+    The transform used: with <code>c&#8320; = &minus;c/2</code>, let
+    <code>&mu; = &zeta;&minus;c&#8320;</code> and scale it <em>first</em>,
+    <code>&mu;&prime; = s&middot;Re(&mu;) + i&middot;Im(&mu;)</code>, then invert:
+    <code>&eta; = &mu;&prime; + 1/&mu;&prime;</code>, <code>w = c&#8320; + &eta;</code>.
+    The scale factor <code>s</code> stretches the pre-image horizontally
+    <strong>before</strong> the <code>+1/&mu;&prime;</code> inversion is applied,
+    not the result afterward &mdash; that is what "horizontal scaling of the
+    transform" means here now (an earlier version of this page scaled
+    <code>&eta;</code> after inverting instead). To render, each screen pixel
+    <code>w</code> is pulled back: subtract <code>c&#8320;</code> to get
+    <code>&eta;</code>, solve the quadratic <code>&mu;&prime;&sup2; &minus;
+    &eta;&mu;&prime; + 1 = 0</code> for its exterior root (larger modulus, the
+    standard branch for a Joukowski-airfoil map), then divide that root's real
+    part by <code>s</code> to undo the pre-scaling and recover <code>&zeta;</code>.
+    No root-finding, no approximation in the transform itself &mdash; the only
+    approximation is where every escape-time picture has one: <code>f</code> is
+    iterated for a fixed number of steps and called "unbounded" past a fixed
+    radius.
   </p>
 </main>
 
@@ -129,15 +161,21 @@
 
   const cSlider = document.getElementById('cSlider');
   const sSlider = document.getElementById('sSlider');
+  const cNum = document.getElementById('cNum');
+  const sNum = document.getElementById('sNum');
   const cVal = document.getElementById('cVal');
   const sVal = document.getElementById('sVal');
   const rawToggle = document.getElementById('rawToggle');
+  const resetViewBtn = document.getElementById('resetView');
   const statusNote = document.getElementById('statusNote');
   const formulaBox = document.getElementById('formulaBox');
 
   // view window, chosen to comfortably hold the branch points (c0 +/- 1) at
-  // any c in [0.5, 1] and any horizontal scale in [0.3, 3].
-  const RE_MIN = -6, RE_MAX = 6, IM_MIN = -4.5, IM_MAX = 4.5;
+  // any c in [0.5, 1] and any horizontal scale in [0.3, 3]. Mutable — pan/zoom
+  // rewrites these; resetView() restores exactly these numbers.
+  const DEFAULT_VIEW = { reMin: -6, reMax: 6, imMin: -4.5, imMax: 4.5 };
+  let RE_MIN = DEFAULT_VIEW.reMin, RE_MAX = DEFAULT_VIEW.reMax;
+  let IM_MIN = DEFAULT_VIEW.imMin, IM_MAX = DEFAULT_VIEW.imMax;
 
   const MAX_ITER = 90;
   const BAILOUT = 6;
@@ -190,11 +228,11 @@
     const c = parseFloat(cSlider.value);
     const s = parseFloat(sSlider.value);
     const showRaw = rawToggle.checked;
-    cVal.textContent = c.toFixed(3);
-    sVal.textContent = s.toFixed(2);
+    cVal.textContent = c.toFixed(4);
+    sVal.textContent = s.toFixed(3);
     formulaBox.textContent = showRaw
-      ? 'showing: f(z) iterated directly at each pixel z (no transform), c = ' + c.toFixed(3)
-      : 'c0 = -c/2 = ' + (-c / 2).toFixed(3) + ',  s = ' + s.toFixed(2) + ',  branch = exterior root';
+      ? 'showing: f(z) iterated directly at each pixel z (no transform), c = ' + c.toFixed(4)
+      : 'c0 = -c/2 = ' + (-c / 2).toFixed(4) + ',  s = ' + s.toFixed(3) + ' (scales the pre-image before inversion),  branch = exterior root';
 
     const c0 = -c / 2;
     const data = img.data;
@@ -208,11 +246,16 @@
         if (showRaw) {
           zr = wRe; zi = wIm;
         } else {
-          const etaRe = (wRe - c0) / s;
+          // Forward map (for reference): mu = z - c0, scaled FIRST to
+          // mu' = s*Re(mu) + i*Im(mu), then inverted: eta = mu' + 1/mu',
+          // w = c0 + eta. So to pull a screen pixel back to z: undo the
+          // "+c0" shift, solve the quadratic for mu' (exterior root), then
+          // undo the pre-scaling on its real part to recover mu.
+          const etaRe = wRe - c0;
           const etaIm = wIm;
-          const [muRe, muIm] = inverseMu(etaRe, etaIm);
-          zr = muRe + c0;
-          zi = muIm;
+          const [smuRe, smuIm] = inverseMu(etaRe, etaIm);
+          zr = smuRe / s + c0;
+          zi = smuIm;
         }
 
         let n = 0, escaped = false;
@@ -239,14 +282,117 @@
       }
     }
     ctx.putImageData(img, 0, 0);
-    statusNote.textContent = showRaw
-      ? 'raw iteration of f, no transform — ' + MAX_ITER + ' iterations, bailout |z| > ' + BAILOUT
-      : 'pulled back through the inverse transform — ' + MAX_ITER + ' iterations, bailout |z| > ' + BAILOUT;
+    const viewNote = 'view: Re ' + RE_MIN.toFixed(2) + '..' + RE_MAX.toFixed(2) +
+      ', Im ' + IM_MIN.toFixed(2) + '..' + IM_MAX.toFixed(2);
+    statusNote.textContent = (showRaw
+      ? 'raw iteration of f, no transform — '
+      : 'pulled back through the inverse transform — ') +
+      MAX_ITER + ' iterations, bailout |z| > ' + BAILOUT + '. ' + viewNote;
   }
 
-  cSlider.addEventListener('input', schedule);
-  sSlider.addEventListener('input', schedule);
+  // Slider <-> number-input sync. The slider's step is coarse enough to drag
+  // smoothly; the number box lets you type an exact value the slider's step
+  // can't land on.
+  function wireControl(slider, num, min, max, decimals) {
+    slider.addEventListener('input', () => {
+      num.value = Number(slider.value).toFixed(decimals);
+      schedule();
+    });
+    num.addEventListener('input', () => {
+      const v = parseFloat(num.value);
+      if (Number.isNaN(v)) return;
+      slider.value = Math.min(max, Math.max(min, v));
+      schedule();
+    });
+    num.addEventListener('change', () => {
+      const v = parseFloat(num.value);
+      const clamped = Number.isNaN(v) ? parseFloat(slider.value) : Math.min(max, Math.max(min, v));
+      num.value = clamped.toFixed(decimals);
+      slider.value = clamped;
+      schedule();
+    });
+  }
+  wireControl(cSlider, cNum, 0.5, 1, 4);
+  wireControl(sSlider, sNum, 0.3, 3, 3);
   rawToggle.addEventListener('change', schedule);
+
+  // Pan (drag) and zoom (wheel / pinch) on the canvas. Pointer Events unify
+  // mouse and touch; a second simultaneous pointer is treated as a pinch.
+  const pointers = new Map();
+  let pinchStartDist = null;
+  let pinchStartView = null;
+
+  function zoomAt(cssX, cssY, factor) {
+    const rect = canvas.getBoundingClientRect();
+    const fracX = (cssX - rect.left) / rect.width;
+    const fracY = (cssY - rect.top) / rect.height;
+    const reAt = RE_MIN + fracX * (RE_MAX - RE_MIN);
+    const imAt = IM_MAX - fracY * (IM_MAX - IM_MIN);
+    const newW = Math.min(Math.max((RE_MAX - RE_MIN) * factor, 1e-4), 200);
+    const newH = Math.min(Math.max((IM_MAX - IM_MIN) * factor, 1e-4), 150);
+    RE_MIN = reAt - fracX * newW;
+    RE_MAX = RE_MIN + newW;
+    IM_MAX = imAt + fracY * newH;
+    IM_MIN = IM_MAX - newH;
+    schedule();
+  }
+
+  function panBy(dxCss, dyCss) {
+    const rect = canvas.getBoundingClientRect();
+    const unitsX = (RE_MAX - RE_MIN) / rect.width;
+    const unitsY = (IM_MAX - IM_MIN) / rect.height;
+    RE_MIN -= dxCss * unitsX; RE_MAX -= dxCss * unitsX;
+    IM_MIN += dyCss * unitsY; IM_MAX += dyCss * unitsY;
+    schedule();
+  }
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    zoomAt(e.clientX, e.clientY, e.deltaY > 0 ? 1.15 : 1 / 1.15);
+  }, { passive: false });
+
+  canvas.addEventListener('pointerdown', (e) => {
+    canvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    canvas.classList.add('dragging');
+    if (pointers.size === 2) {
+      const pts = [...pointers.values()];
+      pinchStartDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      pinchStartView = { reMin: RE_MIN, reMax: RE_MAX, imMin: IM_MIN, imMax: IM_MAX };
+    }
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!pointers.has(e.pointerId)) return;
+    const prev = pointers.get(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 1) {
+      panBy(e.clientX - prev.x, e.clientY - prev.y);
+    } else if (pointers.size === 2 && pinchStartDist) {
+      const pts = [...pointers.values()];
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      const midX = (pts[0].x + pts[1].x) / 2, midY = (pts[0].y + pts[1].y) / 2;
+      RE_MIN = pinchStartView.reMin; RE_MAX = pinchStartView.reMax;
+      IM_MIN = pinchStartView.imMin; IM_MAX = pinchStartView.imMax;
+      zoomAt(midX, midY, pinchStartDist / Math.max(dist, 1e-6));
+    }
+  });
+
+  function endPointer(e) {
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) { pinchStartDist = null; pinchStartView = null; }
+    if (pointers.size === 0) canvas.classList.remove('dragging');
+  }
+  canvas.addEventListener('pointerup', endPointer);
+  canvas.addEventListener('pointercancel', endPointer);
+  canvas.addEventListener('pointerleave', endPointer);
+
+  resetViewBtn.addEventListener('click', () => {
+    RE_MIN = DEFAULT_VIEW.reMin; RE_MAX = DEFAULT_VIEW.reMax;
+    IM_MIN = DEFAULT_VIEW.imMin; IM_MAX = DEFAULT_VIEW.imMax;
+    schedule();
+  });
+
   render();
 })();
 </script>

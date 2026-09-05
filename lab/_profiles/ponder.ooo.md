@@ -300,6 +300,20 @@ atan2/cos/sin entirely and just use one sqrt plus divisions — this is a real
 optimization, not a mathematical shortcut/simplification of the kind this
 requester has pushed back on before.
 
+Twenty-fourth request (2026-09-05), a same-session follow-up on "apply-inverse":
+corrected the horizontal-scaling reading — "i meant applying a scaling before
+the inverse transform lol not after" — which is exactly the alternate reading
+the previous turn had already named in BRIEF.md and deferred rather than
+guessing at. Confirms the standing habit (cyclotomic-Littlewood, complex-
+polynomial quartic) of flagging an underspecified pick explicitly pays off:
+when the correction came, it was a one-line pointer to "which formula" rather
+than a re-derivation from scratch. Also asked, in the same message, for finer
+slider resolution, an exact-value numeric input next to a slider, and pan/zoom
+navigation on a canvas renderer — read as a general expectation that a slider
+alone isn't enough precision/control for a math-viz tool once they're using it
+for real, worth defaulting to (numeric box + slider pairing, canvas pan/zoom)
+on future renderer-style builds rather than waiting to be asked again.
+
 Thirteenth request (2026-07-31), continuing meta-todo: asked for two
 prioritized backlog entries — a max-priority one about pointing future build
 agents at general-template as their base, a high-priority one about rolling
