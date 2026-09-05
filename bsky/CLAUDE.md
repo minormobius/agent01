@@ -315,61 +315,63 @@ not a classifier, and the docs should not imply it is.
 
 Verified in Chromium against a seeded archive (2026-09-05): the chip appears,
 the archive scan matched exactly the 4 science posts out of 7 seeded with **zero
-off-topic leaks**, the editor opens on the 63-line preset and round-trips, and
-rewriting the rule to `sandwich` re-filtered to exactly the sandwich post and
-persisted to `localStorage`. **Not verified: the live firehose leg** — the
-WebSocket upgrade is blocked here, so posts/s and KB/s have never been observed
-and the meter's numbers are unmeasured in this sandbox by construction.
+off-topic leaks**, the editor round-trips the preset, and rewriting the rule to
+`sandwich` re-filtered to exactly the sandwich post and persisted.
 
-### How deep the archive really goes — measured, 2026-09-05
+### What three live runs of the rule actually taught
 
-The obvious idea, once the worker holds a `JETSTREAM_API_KEY`, is that deep
-backfill is solved: replay the archive and run the rule over it. The numbers
-say otherwise, and they are worth writing down because the API does not
-advertise them.
+`.github/workflows/measure-firehose.yml` runs the shipped preset against the
+real firehose on a runner (this sandbox's proxy refuses the WebSocket upgrade,
+so it is the only place the tail can be observed). Three 90s samples,
+2026-09-05:
 
-Walked all 74 pages of `listSegments` through `/api/replay/*`:
+| | run 1 | run 2 | run 3 |
+|---|---|---|---|
+| posts/s | 40 | 188 | — |
+| KB/s | 37 | 159 | — |
+| extrapolated | 3.0 GB/day | 13.1 GB/day | — |
+| matched | 0.25% | 0.04% | — |
+| **precision** | **3 of 9** | **3 of 6** | **2 of 4** |
 
-| | |
-|---|---|
-| segments | 7,378 |
-| events | 25,277,883,832 |
-| size | **1.77 TB** |
-| **span** | **2026-08-04 → 2026-09-05 — 32.2 days** |
-| rate | 56.4 GB/day, ~786M events/day |
-| quota (`Headwind-Quota-*`) | 1 GB burst, **2 MB/s** refill = 172.8 GB/day |
+**Bandwidth was never the problem.** 37–159 KB/s is less than a single image;
+the meter exists to prove that to the reader, not because the number is scary.
+Precision was the problem, and each run named a different cause:
 
-Three consequences:
+1. **Bare phrases are worthless alone.** Venue-name, link and DOI signals were
+   right 3 of 3; bare conversational phrases 0 of 6. `"the paper"` matched
+   "#Caturday is for lazy mornings and reading the paper"; `archaeolog*` matched
+   "a faux-archaeological dig"; `"just published"` matched an adult account's
+   video promo. → the **weak** tier, gated on a link.
+2. **Any link is too weak a gate.** The survivors were all journalism *about*
+   research: "T-Mobile Park has the cheapest hot dogs in the MLB, a new study
+   says", "the new PyPi download count methodology update". Journalism links to
+   journalism; scholarship links to a publisher, a preprint server or a DOI. →
+   weak terms need a **scholarly** link, one of the rule's own domains or a DOI.
+   Also dropped `archive.org` (it hosts everything — it caught a 1983 music
+   magazine) and `"new study"` (that is journalism's phrase, not a researcher's).
+3. **Hashtags defeat a word-boundary veto.** "#JDVance et al think this will pay
+   them handsome political dividends" matched as scholarship: the veto list has
+   `vance`, but `\bvance\b` cannot see inside `#JDVance`. Substring matching is
+   the obvious fix and is much worse — `vance` inside `advanced` would gut an
+   academic feed. → hashtags are **split on camelCase and digit boundaries** for
+   the veto pass only (`#JDVance` → `JD Vance`, `#Election2026` →
+   `Election 2026`). Run 3 also demoted `"et al"` and `conjecture` from strong
+   to weak; both are ordinary English.
 
-1. **The archive is a ~32-day rolling window, not history.** It does not reach
-   back years, or even months. "Replay it and filter" cannot recover a feed's
-   back catalogue because the back catalogue is not there.
-2. **Even one day costs 56 GB** — about 8 hours at the quota's refill rate.
-   The whole 1.77 TB is ~10.5 days of continuous downloading, against a window
-   that moves faster at the far end than you can read it.
-3. **A collection filter barely helps.** `planSnapshot` with
-   `collections: ['app.bsky.feed.post']` moves only **231 of 7,378** segments
-   into `blocks` mode (byte-range serving); the other 7,147 are whole-segment
-   downloads. Block indexes are sparse, so a post-filtered deep replay still
-   pulls ~97% of the bytes.
+Every one of those thirteen live cases is now a regression test with the post
+text verbatim, alongside the true positives they must not take with them. **The
+selftest caught an ordering bug during fix 2** — the weak pass sat before the
+domain and DOI checks, so the scholarly signal it tests for was never in `hits`
+yet and no weak term could fire at all.
 
-Note the parameter name: **`collections`**, not `wantedCollections` — the
-latter is silently ignored and you get an unfiltered plan back with no error.
-`planSnapshot` is **POST**, `listSegments` is **GET**; each rejects the other
-verb with `MethodNotAllowed`, which is the fastest way to rediscover this.
+**What this cannot become.** It is a keyword rule, not a classifier. The suite
+prints its own known false positives rather than hiding them. Precision is
+climbing but is not solved, and the honest next lever is not more terms — it is
+the reader pruning the list in the editor, which is why the editor exists.
 
-**So the archive is not the backfill mechanism**, and the local store in
-`lib/cache.js` remains the only history this surface accumulates — which is
-exactly the design it already had. The 36h live window plus a cache that keeps
-what it sees beats a 32-day archive nobody can afford to download.
-
-The cheap alternative is an *index* rather than a replay:
-`app.bsky.feed.searchPosts` pays for hits instead of the haystack and reaches
-back years. It is **401 on `bsky.social`** (auth required) and **403 at
-BunnyCDN on `public.api.bsky.app`** — so it needs a signed-in reader, via the
-same PDS `atproto-proxy` route as personalised feeds. Worth it only if backfill
-is actually wanted: a knowledge-chase feed is about what is *new*, and the live
-tail plus the growing cache serves that from the first visit.
+**Not verified:** the firehose leg *in a browser*. The rule and its cost are now
+measured on a runner; `RuleRunner`'s socket handling, its meter and its
+visibilitychange pause have only been exercised against a seeded archive.
 
 ### Palettes
 

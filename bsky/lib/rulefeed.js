@@ -79,8 +79,12 @@ export const PRESETS = [
       'meta-analysis', 'literature review', 'systematic review',
       'monograph', 'dissertation', 'habilitation', 'festschrift',
       'historiograph*', 'philolog*', 'palaeograph*', 'epigraph*',
-      'conjecture', '"scientific paper"', '"working paper"',
-      '"research paper"', '"open access"', '"et al"',
+      '"scientific paper"', '"working paper"', '"research paper"',
+      '"open access"',
+      // NOT '"et al"' or 'conjecture' as strong terms — a live run matched
+      // "#JDVance et al think this will pay them handsome political dividends"
+      // and a post musing that people only "know" things about cats by
+      // conjecture. Both are ordinary English; they moved to weak.
     ],
 
     /**
@@ -98,6 +102,7 @@ export const PRESETS = [
       'methodolog*', 'reproducib*', 'replicat*', 'dataset', 'ablation',
       'archaeolog*', 'ethnograph*', 'palaeo*', 'paleo*', 'fieldwork',
       'theorem', 'bibliograph*', 'corpus', 'manuscript', 'thesis',
+      '"et al"', 'conjecture',
     ],
     domains: [
       // preprint servers and indexes
@@ -150,7 +155,7 @@ export const PRESETS = [
       'republican*', 'democrat*', 'gop', 'senat*', 'congress*', 'election*',
       'ballot', 'voter*', 'filibuster', 'scotus', '"supreme court"',
       'impeach*', 'tariff*', 'fascis*', 'authoritarian*', 'autocra*',
-      'oligarch*', 'nazi*', 'genocide', 'apartheid', 'zionis*', 'palestin*',
+      'jdvance', 'oligarch*', 'nazi*', 'genocide', 'apartheid', 'zionis*', 'palestin*',
       'israel*', 'gaza', 'hamas', 'hezbollah', 'idf', 'ukrain*', 'putin',
       'kremlin', 'immigration', 'deportation', '"executive order"',
       'parliament*', 'brexit', '"far right"', '"far-right"', '"culture war"',
@@ -260,12 +265,31 @@ export function compile(rule) {
   const langs = rule.langs?.length ? rule.langs.map((l) => l.toLowerCase()) : null;
   const minChars = rule.minChars || 0;
 
+  /**
+   * Hashtags defeat a word-boundary veto, and this is not theoretical: a live
+   * run matched "#JDVance et al think this will pay them handsome political
+   * dividends" as scholarship. The veto list has `vance`, but `\bvance\b`
+   * cannot see inside `#JDVance` — there is no boundary between `JD` and
+   * `Vance`. Substring matching would be the obvious fix and is much worse:
+   * `vance` inside `advance`/`advanced` would gut an academic feed.
+   *
+   * So hashtags are split on their own camelCase and digit boundaries and
+   * appended for the veto pass only. `#JDVance` -> `JD Vance`,
+   * `#Election2026` -> `Election 2026`.
+   */
+  const splitTags = (record) => (String(record?.text || '').match(/#[\w]+/g) || [])
+    .map((t) => t.slice(1)
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/([A-Za-z])(\d)/g, '$1 $2'))
+    .join(' ');
+
   function why(record) {
     const text = String(record?.text || '');
     const hits = [];
 
     // Vetoes first — cheapest way to reject, and a veto beats every match.
-    for (const re of none) if (re.test(text)) return [];
+    const vetoText = `${text} ${splitTags(record)}`;
+    for (const re of none) if (re.test(vetoText)) return [];
 
     // A veto also has to see LINKS. On a subtractive feed the giveaway is
     // usually the outlet, not the wording: a post whose text is "important new
