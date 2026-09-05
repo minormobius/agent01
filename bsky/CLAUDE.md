@@ -210,6 +210,21 @@ Every image sets `aspect-ratio` from the record's own `aspectRatio` before it
 loads, so the feed does not jump under the reader's thumb, and carries the
 post's `alt` text.
 
+### Signing out
+
+`signOut()` in `app.js`. Three things it must keep doing:
+
+- **`actions.forgetInteractions()` first.** The like/repost rkeys in
+  `localStorage` belong to one account; leaving them would paint hearts on the
+  next reader's feed for likes that are not theirs, and an unlike would try to
+  delete a record in a repo they do not own.
+- **The post cache is KEPT.** Those are public posts this browser collected, not
+  account data, and discarding them would throw away the archive the whole
+  design rests on. Clearing it is a separate, explicit button.
+- **Say that it signs you out everywhere.** The session is a `*.mino.mobi`
+  domain cookie, so this is not a per-site sign-out and should not surprise
+  anyone.
+
 ### Custom feeds, and the one place "frontend-only" bends
 
 `lib/feedgen.js` + the `/api/feedgen` route in `worker.js`. This is what makes
@@ -235,6 +250,37 @@ CORS headers. Measured 2026-09-05:
 | `foryou.club` (For You) | **none** |
 | `api.graze.social` | **none** |
 | `feed.mino.mobi` (ours) | `*` — which is why simcluster loads directly |
+
+**But not every feed needs it.** A survey of 10 live feed services on
+2026-09-05 found 3 that already answer browsers:
+
+| Service | `access-control-allow-origin` |
+|---|---|
+| `discover.bsky.app` (Bluesky's own Discover) | `*` |
+| `algo.pop2.bsky.app` | `*` |
+| `feeds.bluesky.day` | `*` |
+| `foryou.club`, `api.graze.social`, `feedsky.jazco.io`, `skyfeed.me`, `skyfeed.xyz`, `attie.ai`, `beta.graze.social` | none |
+
+So `loadCustomFeed()` **tries direct first and falls back to the relay**, caching
+the verdict per service DID so a refusal costs one request once. For a third of
+the feeds tried — including Bluesky's own — no worker touches the request at
+all, and the status line says which path was used. The less traffic through the
+relay, the smaller the thing anyone has to trust.
+
+Exactly which steps a browser can do, measured:
+
+| Step | Browser? |
+|---|---|
+| 1. the generator record (public AppView) | ✅ CORS `*` |
+| 2. the DID document — `did:plc:` via plc.directory | ✅ CORS `*` |
+| 2. the DID document — `did:web:` on the operator's host | ⚠️ only if they allow it |
+| 3. **`getFeedSkeleton` on the generator** | ⚠️ only if they allow it |
+| 4. hydrate with `getPosts` (public AppView) | ✅ CORS `*` |
+
+There is no client-side way around a missing CORS header — the browser enforces
+it on the response, `no-cors` gives an unreadable opaque body, and a service
+worker is bound by the same rule. The only real fixes are a relay like this one,
+or the operator adding one header. Ours (`feed.mino.mobi`) sends it.
 
 So `/api/feedgen` is a CORS shim and nothing else. Two properties keep it
 honest, and both must survive any edit:

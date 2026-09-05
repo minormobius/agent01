@@ -53,6 +53,19 @@ function persist() {
 /** @returns {boolean} whether writes are possible at all right now */
 export function signedIn() { return auth().isLoggedIn(); }
 
+/**
+ * Forget which posts THIS browser has liked or reposted.
+ *
+ * Must run on sign-out. The rkeys stored here belong to one account; leaving
+ * them behind would paint hearts on the next reader's feed for likes that are
+ * not theirs, and an unlike would then try to delete a record in a repo they do
+ * not own.
+ */
+export function forgetInteractions() {
+  local.clear();
+  try { localStorage.removeItem(STORAGE); } catch { /* nothing to clear */ }
+}
+
 /** What we believe about a post without asking anyone. */
 export function localState(uri) { return local.get(uri) || {}; }
 

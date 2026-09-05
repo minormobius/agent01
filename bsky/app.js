@@ -143,7 +143,7 @@ async function loadGenerator(uri, fresh) {
   say(fresh ? `loading ${meta?.displayName || 'feed'}…` : 'loading more…');
 
   try {
-    const { posts, cursor, personalised } =
+    const { posts, cursor, personalised, route } =
       await feedgen.loadCustomFeed(uri, { limit: 30, cursor: state.cursor });
     state.cursor = cursor;
     document.getElementById('more-btn')?.remove();
@@ -162,9 +162,12 @@ async function loadGenerator(uri, fresh) {
     }
 
     // Say plainly whose feed this is: yours, or the generic one.
+    // Say plainly whose feed this is AND how it was fetched — `direct` means no
+    // worker touched it at all.
+    const how = route === 'direct' ? 'direct from the generator' : 'via our CORS relay';
     say(personalised
-      ? `${meta?.displayName || 'feed'} · personalised for @${state.me?.handle || 'you'}`
-      : `${meta?.displayName || 'feed'} · generic — ${state.me ? 'this session cannot mint a service token' : 'sign in to personalise'}`);
+      ? `${meta?.displayName || 'feed'} · personalised for @${state.me?.handle || 'you'} · ${how}`
+      : `${meta?.displayName || 'feed'} · generic — ${state.me ? 'this session cannot mint a service token' : 'sign in to personalise'} · ${how}`);
   } catch (err) {
     say(`could not load that feed: ${err.message}`);
   } finally {
@@ -1006,7 +1009,9 @@ async function renderMe() {
         <span><b>${(state.me.followersCount ?? 0).toLocaleString()}</b> followers</span>
         <span><b>${(state.me.followsCount ?? 0).toLocaleString()}</b> following</span>
         <span><b>${(state.me.postsCount ?? 0).toLocaleString()}</b> posts</span>
-      </div></div>`));
+      </div>
+      <div class="pactions"><button class="btn ghost" id="me-signout">sign out</button></div>
+      </div>`));
   } else {
     v.append(el(`<div class="section"><h3>account</h3>
       <p>Reading needs no account. Signing in is only for posting — it goes through the shared
@@ -1066,6 +1071,7 @@ async function renderMe() {
      · <a href="https://b.mino.mobi">the rest of the Bluesky corner ↗</a></p></div>`));
 
   $('me-signin')?.addEventListener('click', signIn);
+  $('me-signout')?.addEventListener('click', signOut);
   $('me-clear')?.addEventListener('click', async () => {
     if (!confirm('Delete every post this browser has stored?')) return;
     await cache.clearAll(); renderMe();

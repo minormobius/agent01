@@ -94,31 +94,95 @@ export async function serviceToken(serviceDid) {
 }
 
 /**
+ * Resolve a feed's service endpoint IN THE BROWSER, when the network lets us.
+ *
+ * Three of the four steps are browser-reachable: the generator record and the
+ * hydration both come from the public AppView (CORS `*`), and a `did:plc`
+ * service resolves through plc.directory (CORS `*`). Only a `did:web`
+ * document served from the operator's own host may refuse — measured:
+ * foryou.club does.
+ *
+ * @returns {Promise<string|null>} the endpoint, or null if we cannot see it
+ */
+async function resolveEndpointInBrowser(serviceDid) {
+  try {
+    let doc;
+    if (serviceDid.startsWith('did:plc:')) {
+      doc = await (await fetch(`https://plc.directory/${serviceDid}`)).json();
+    } else if (serviceDid.startsWith('did:web:')) {
+      const host = serviceDid.slice('did:web:'.length).replace(/:/g, '/');
+      doc = await (await fetch(`https://${host}/.well-known/did.json`)).json();
+    } else return null;
+    const svc = (doc.service || []).find((x) => x.id === '#bsky_fg' || x.type === 'BskyFeedGenerator');
+    const ep = svc?.serviceEndpoint;
+    return typeof ep === 'string' && ep.startsWith('https://') ? ep : null;
+  } catch {
+    return null;              // almost always CORS on the operator's host
+  }
+}
+
+/** service DID → 'direct' | 'relay', remembered for the session. */
+const routeFor = new Map();
+
+/**
  * Load a page of any feed generator, hydrated into renderable posts.
+ *
+ * **Direct first, relay only if refused.** Not every generator needs the shim:
+ * a survey of 10 live services found 3 answering with `access-control-allow-origin: *`,
+ * including Bluesky's own `discover.bsky.app`. Those the browser calls itself,
+ * with no worker in the path at all — which is worth doing, because the less
+ * traffic through our relay the smaller the thing anyone has to trust.
+ *
+ * The verdict is cached per service, so the failed attempt costs one request
+ * once rather than on every page.
  *
  * @param {string} feedUri
  * @param {{limit?: number, cursor?: string}} [opts]
- * @returns {Promise<{posts: object[], cursor?: string, personalised: boolean}>}
+ * @returns {Promise<{posts, cursor?, personalised: boolean, route: 'direct'|'relay'}>}
  */
 export async function loadCustomFeed(feedUri, { limit = 30, cursor } = {}) {
   const meta = await generatorMeta(feedUri);
   const token = await serviceToken(meta.serviceDid);
+  const headers = token ? { authorization: `Bearer ${token}` } : {};
 
   const params = new URLSearchParams({ feed: feedUri, limit: String(limit) });
   if (cursor) params.set('cursor', cursor);
 
-  const res = await fetch(`${RELAY}?${params}`, {
-    headers: token ? { authorization: `Bearer ${token}` } : {},
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.message || `feed ${res.status}`);
+  let skeleton = null;
+  let route = routeFor.get(meta.serviceDid) || null;
+
+  if (route !== 'relay') {
+    const endpoint = await resolveEndpointInBrowser(meta.serviceDid);
+    if (endpoint) {
+      try {
+        const direct = await fetch(
+          `${endpoint}/xrpc/app.bsky.feed.getFeedSkeleton?${params}`, { headers }
+        );
+        if (direct.ok) {
+          skeleton = await direct.json();
+          route = 'direct';
+        }
+      } catch {
+        // A CORS refusal surfaces here as a TypeError with no status. Nothing
+        // to distinguish it from a network fault, and the fallback handles both.
+      }
+    }
+    routeFor.set(meta.serviceDid, skeleton ? 'direct' : 'relay');
   }
-  const skeleton = await res.json();
+
+  if (!skeleton) {
+    route = 'relay';
+    const res = await fetch(`${RELAY}?${params}`, { headers });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.message || `feed ${res.status}`);
+    }
+    skeleton = await res.json();
+  }
 
   const uris = (skeleton.feed || []).map((f) => f.post).filter(Boolean);
   const posts = await hydrate(uris);
-  return { posts, cursor: skeleton.cursor, personalised: Boolean(token) };
+  return { posts, cursor: skeleton.cursor, personalised: Boolean(token), route };
 }
 
 /** getPosts takes 25 at a time, and does not preserve order — the order IS the feed. */
