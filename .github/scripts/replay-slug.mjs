@@ -72,7 +72,7 @@ if (!indexed.length) { console.error('  no block-indexed segment anywhere — ca
  * carried across them. This is also the right shape for the browser: a slug is
  * a sequence of small, individually abortable downloads.
  */
-const targets = indexed.slice(-12).reverse();
+const targets = indexed.slice(-40).reverse();
 console.log(`  candidates    ${targets.length} newest indexed segments`);
 
 // ── 2. the browser shims, against the real dictionary ────────────
@@ -174,6 +174,14 @@ for (const seg of targets) {
 }
 
 const secs = (Date.now() - t0) / 1000;
+
+console.log(`\n═══ 5. the rule, over replayed archive data ═══`);
+console.log(`  matched       ${n(matched)}  (${scanned ? (matched / scanned * 100).toFixed(3) : 0}% of posts)`);
+console.log(`  bytes/match   ${matched ? mb(bytes / matched) : '—'}`);
+for (const k of kept) console.log(`  · ${k.text}\n      ${k.hits.join(', ')}`);
+
+
+console.log(`\n═══ 6. what it cost, printed last so the log tail keeps it ═══`);
 console.log(`  segments read ${segmentsRead} of ${targets.length}`);
 console.log(`  events seen   ${n(yielded)}   shapes ${[...shapes.entries()].map(([k, v]) => `${k}:${v}`).join(' ')}`);
 console.log(`  requests      ${n(requests)}`);
@@ -185,10 +193,8 @@ console.log(`  seq range     ${oldest == null ? '—' : `${n(oldest)} .. ${n(new
 console.log(`  stopped       ${stopped}`);
 console.log(`  quota headers ${JSON.stringify(quota)}`);
 
-console.log(`\n═══ 5. the rule, over replayed archive data ═══`);
-console.log(`  matched       ${n(matched)}  (${scanned ? (matched / scanned * 100).toFixed(3) : 0}% of posts)`);
+console.log(`  matched       ${n(matched)} unique  (${scanned ? (matched / scanned * 100).toFixed(3) : 0}% of posts scanned)`);
 console.log(`  bytes/match   ${matched ? mb(bytes / matched) : '—'}`);
-for (const k of kept) console.log(`  · ${k.text}\n      ${k.hits.join(', ')}`);
 
 if (!scanned) {
   console.error('\nZero posts decoded. That is a failure, not a rate of zero.');
