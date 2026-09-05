@@ -122,6 +122,54 @@
     rather than a batch job.
   </p>
 
+  <h3 id="regions">What else it honours, and what it could not</h3>
+  <p>
+    Variance is not the whole of what makes a superstate plausible, so three more things are priced
+    into the same score — and a fourth could not be, which is worth saying as plainly as the three
+    that worked.
+  </p>
+  <p>
+    <b>Existing state lines are an energy barrier.</b> Redrawing a state is expensive in a way no
+    econometric axis can see. It is priced twice: a surcharge on tree edges that cross a state line,
+    so the spanning tree runs inside states and enters a neighbour only where it must, and a flat
+    barrier subtracted from any cut that falls inside a state. Either alone does nothing —
+    the surcharge without the barrier still lets the cut fall anywhere, and the barrier without the
+    surcharge has no whole states in the tree to cut around. Together they take the number of split
+    states from 32 of 53 to 13, and the share of people who stay with their state from 80% to 92%.
+  </p>
+  <p>
+    <b>Populations are pushed toward equal.</b> Not by halving each cut — a greedy cut cannot know
+    how many regions each side will hold — but by asking that the two sides look like some whole
+    split of the shares the component is worth. Largest to smallest falls from 1.9:1 to 1.7:1.
+  </p>
+  <p>
+    <b>Water is a floor rather than a preference</b>, and that is the result of trying it the other
+    way: as a soft penalty, asking for even per-capita water made it <i>worse</i>, 24.8:1 to 26.9:1.
+    A greedy cut penalises the two parts in front of it, and a part that is proportional today
+    splits into disproportionate regions three cuts later. It is off by default because it trades
+    steeply against population balance, and because USGS publishes <i>withdrawal</i>, not supply —
+    a county fed by a canal reads wet.
+  </p>
+  <p>
+    <b>Sea access could not be delivered at all.</b> A floor of a fair share of coastline: infeasible.
+    An absolute 50&nbsp;km a region: also infeasible. A penalty for stranding a coastless part: the
+    count of landlocked regions did not move off two at any weight. Discounting tree edges that run
+    toward the water, so coast-reaching chains exist to be cut: two became one, and cost the
+    population ratio 3.0 to 4.0. The reason is structural — a region can only be what some
+    <i>subtree</i> is, the tree is built from econometric similarity, and interior counties resemble
+    each other, so no subtree runs from Nebraska to the Gulf. Eleven of the thirteen regions reach
+    the ocean without being asked; the other two are the interior plains and the mountain west,
+    which is where the country's landlocked people live. The panel therefore reports coastline and
+    marks the inland regions, and offers no dial for it.
+  </p>
+  <p>
+    One more ordering decision, because getting it wrong was visible: when these collide, the
+    resource floors give way first, then the state preference, and the population floor last. Asking
+    hard for whole states makes the population floor unreachable, and when the floor relaxed first
+    the map came back with regions three times the size of each other — a worse map than one with a
+    split state.
+  </p>
+
   <h3>Two places it needs help, and gets it openly</h3>
   <p>
     <b>The size floor.</b> Greedy variance reduction badly wants to shave off a single extreme unit:

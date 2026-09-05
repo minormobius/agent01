@@ -77,6 +77,16 @@
       <input type="range" id="pull" min="0" max="100" value="50">
       <label class="field" for="floor">Minimum region size: <b id="floor-val">0.70</b> of an equal share</label>
       <input type="range" id="floor" min="10" max="95" value="70">
+
+      <div class="sub-head">WHAT ELSE TO HONOUR</div>
+      <label class="field" for="cohesion">Keep states whole: <b id="cohesion-val">0.40</b></label>
+      <input type="range" id="cohesion" min="0" max="100" value="40">
+      <div class="hint">Redrawing a state is an energy barrier: a cut that falls inside one has to be worth more than leaving it alone. At 0 the map splits 38 of 53 states; at 0.40 it splits 13. Past about 0.40 the request collides with the population floor, and the floor wins — the status line says when it was dialled back.</div>
+      <label class="field" for="balance">Equal populations: <b id="balance-val">0.85</b></label>
+      <input type="range" id="balance" min="0" max="100" value="85">
+      <label class="field" for="wbal">Floor under each region's water: <b id="wbal-val">0.00</b> of a fair share</label>
+      <input type="range" id="wbal" min="0" max="50" value="0">
+      <div class="hint" id="pref-note">Water competes with equal populations, steeply: at 0.15 the worst-to-best water ratio falls from 21:1 to 15:1 and the population ratio rises from 1.5:1 to 3.1:1. It is USGS <i>withdrawal</i>, not rainfall — a county fed by a canal reads wet. Sea access is <b>reported, not steered</b>; nothing that was tried could move it. <a href="/method#regions">Why</a>.</div>
       <div class="row" style="margin-top:11px">
         <button class="btn" id="redraw">Redraw the map</button>
       </div>

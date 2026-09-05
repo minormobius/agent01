@@ -215,6 +215,97 @@ console.log('\nscales');
   ok('a missing value gets the no-data colour, not class 0',
     s.colorOf(null) === s.palette.nodata && s.colorOf(NaN) === s.palette.nodata);
 
+  // ------------------------------------------------------- regionalisation ---
+  // A planted grid with a known answer: two 4x4 blocks of counties, one high
+  // and one low on a single axis, laid out as an 8x4 rectangle. The obvious
+  // two-region answer is the vertical seam. Group labels are then set ACROSS
+  // that seam, so honouring them and honouring the data pull in different
+  // directions and the dial has something to actually do.
+  {
+    const W = 8, H = 4;
+    const ids = [], adjacency = {}, centroids = {}, col = [], groups = [];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const id = `c${x},${y}`;
+      ids.push(id);
+      centroids[id] = [x, y];
+      col.push(x < W / 2 ? 0 : 10);
+      groups.push(y < H / 2 ? 'north' : 'south');   // crosswise to the seam
+    }
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const a = [];
+      if (x > 0) a.push(`c${x - 1},${y}`);
+      if (x < W - 1) a.push(`c${x + 1},${y}`);
+      if (y > 0) a.push(`c${x},${y - 1}`);
+      if (y < H - 1) a.push(`c${x},${y + 1}`);
+      adjacency[`c${x},${y}`] = a;
+    }
+    // Standardised, because that is the only regime the dials are calibrated
+    // for: the penalties are scaled against a sum of squared Z-SCORES, so
+    // handing skater raw units would make the data term arbitrarily large and
+    // every dial cosmetic. The app standardises for the same reason.
+    const base = { ids, adjacency, centroids, columns: ATLAS_REGION.standardize([col]),
+      weights: ids.map(() => 1), k: 2, minCount: 1 };
+    const seamFound = (r) => {
+      // every unit left of the seam in one region, every unit right in the other
+      const left = new Set(), right = new Set();
+      ids.forEach((id, i) => ((i % W) < W / 2 ? left : right).add(r.region[i]));
+      return left.size === 1 && right.size === 1 && [...left][0] !== [...right][0];
+    };
+    const plain = ATLAS_REGION.skater({ ...base });
+    ok('SKATER finds a planted seam when nothing else is asked of it', seamFound(plain));
+
+    // With the group dial hard over, the cheaper cut is along the group line
+    // even though the data says otherwise.
+    const cohered = ATLAS_REGION.skater({ ...base, groups, cohesion: 1 });
+    ok('the group dial can overrule the data and cut on the group line',
+      !seamFound(cohered) && cohered.groupIntegrity.groupsSplit === 0,
+      `split ${cohered.groupIntegrity.groupsSplit} groups, seam ${seamFound(cohered)}`);
+    ok('group integrity is reported, and is total when nothing is split',
+      cohered.groupIntegrity.intact === 1 && cohered.groupIntegrity.groups === 2);
+  }
+
+  {
+    // Population balance: 12 units in a line, one of them enormous. Unbalanced,
+    // the greedy cut shaves the giant off on its own; balanced, it must not.
+    const n = 12, ids = [], adjacency = {}, centroids = {}, col = [], w = [];
+    for (let i = 0; i < n; i++) {
+      ids.push(`u${i}`); centroids[`u${i}`] = [i, 0];
+      col.push(i * 1.0);
+      w.push(i === 0 ? 400 : 10);              // u0 is the giant
+      adjacency[`u${i}`] = [i > 0 ? `u${i - 1}` : null, i < n - 1 ? `u${i + 1}` : null].filter(Boolean);
+    }
+    const base = { ids, adjacency, centroids, columns: ATLAS_REGION.standardize([col]),
+      weights: w, k: 2, minCount: 1, minWeightFrac: 0 };
+    const loose = ATLAS_REGION.skater({ ...base });
+    const tight = ATLAS_REGION.skater({ ...base, balance: 1 });
+    const ratio = (r) => Math.max(...r.weights) / Math.min(...r.weights);
+    ok('the population dial makes a lopsided cut cost something',
+      ratio(tight) < ratio(loose), `loose ${ratio(loose).toFixed(1)}:1, tight ${ratio(tight).toFixed(1)}:1`);
+    ok('balance is reported as a ratio and a coefficient of variation',
+      tight.balance && tight.balance.ratio > 0 && tight.balance.cv >= 0);
+  }
+
+  {
+    // A resource floor is a CONSTRAINT, so it either holds or the run says it
+    // relaxed. Ten units in a line, all the resource in the first three.
+    const n = 10, ids = [], adjacency = {}, centroids = {}, col = [], res = [];
+    for (let i = 0; i < n; i++) {
+      ids.push(`r${i}`); centroids[`r${i}`] = [i, 0]; col.push(i);
+      res.push(i === 0 ? 300 : 0);      // all of it in one unit: no cut can share it
+      adjacency[`r${i}`] = [i > 0 ? `r${i - 1}` : null, i < n - 1 ? `r${i + 1}` : null].filter(Boolean);
+    }
+    const base = { ids, adjacency, centroids, columns: ATLAS_REGION.standardize([col]),
+      weights: ids.map(() => 1), k: 2, minCount: 1, minWeightFrac: 0 };
+    const withFloor = ATLAS_REGION.skater({ ...base,
+      resources: [{ name: 'stuff', values: res, minFrac: 0.5 }] });
+    ok('an unreachable resource floor relaxes and says so, rather than failing',
+      withFloor.k === 2 && withFloor.resourceEase < 1,
+      `k=${withFloor.k}, ease=${withFloor.resourceEase}`);
+    ok('the resource is reported per region either way',
+      withFloor.resources.length === 1 &&
+      withFloor.resources[0].byRegion.reduce((a, b) => a + b, 0) === 300);
+  }
+
   // ------------------------------------------------------- triangulation ---
   // The GPU fill path draws triangles, so every claim the map makes about area
   // now rests on the triangulator. These are known answers.

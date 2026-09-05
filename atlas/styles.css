@@ -205,3 +205,10 @@ table.tbl tbody tr:hover { background: var(--line-soft); }
 
 footer.foot { border-top: 1px solid var(--line); padding: 18px 22px 50px; color: var(--faint); font-size: 12px; }
 footer.foot a { color: var(--muted); }
+
+/* a quiet divider inside the superstate controls, so the four preference
+   sliders read as their own group rather than more of the same list */
+.sub-head { margin: 15px 0 6px; font-size: 11px; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--muted); font-weight: 600; }
+
+.landlocked { color: var(--muted); font-style: italic; }

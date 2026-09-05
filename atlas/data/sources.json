@@ -158,6 +158,31 @@
    "licence": "Public domain.",
    "note": "Context outlines only — Central America and the surrounding coastline, so the continental frame is not a hole.",
    "kind": "boundaries"
+  },
+  {
+   "id": "usgs-wateruse-2015",
+   "publisher": "U.S. Geological Survey",
+   "title": "Estimated Use of Water in the United States County-Level Data for 2015 (v2.0)",
+   "landing": "https://www.sciencebase.gov/catalog/item/5af3311be4b0da30c1b245d8",
+   "url": "https://www.sciencebase.gov/catalog/file/get/5af3311be4b0da30c1b245d8?f=__disk__eb%2F74%2Feb%2Feb74ebb41169c76aaf374990bd5a71cac82604c1",
+   "licence": "U.S. Government work — public domain (17 U.S.C. §105).",
+   "cadence": "every five years; 2015 is the most recent county-level release",
+   "geography": "U.S. counties and county equivalents",
+   "cite": "Dieter, C.A., Linsey, K.S., Caldwell, R.R., Harris, M.A., Ivahnenko, T.I., Lovelace, J.K., Maupin, M.A., and Barber, N.L., 2018, Estimated use of water in the United States county-level data for 2015 (ver. 2.0): U.S. Geological Survey data release, https://doi.org/10.5066/F7TB15V5.",
+   "kind": "data",
+   "caveat": "Withdrawals, not supply. A county served by an inter-basin transfer reads high."
+  },
+  {
+   "id": "ne-ocean",
+   "publisher": "Natural Earth",
+   "title": "Ocean, 1:10m physical",
+   "landing": "https://www.naturalearthdata.com/downloads/10m-physical-vectors/",
+   "url": "https://naciscdn.org/naturalearth/10m/physical/ne_10m_ocean.zip",
+   "licence": "Public domain.",
+   "cadence": "irregular",
+   "geography": "global",
+   "cite": "Natural Earth, \"Ocean\" (1:10m physical vectors).",
+   "kind": "boundary"
   }
  ]
 }

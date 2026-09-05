@@ -52,6 +52,80 @@ Read `method.html` for the long version. In brief:
    of 2,600 counties and twelve of one county each) and explicit sea links for
    islands.
 
+## What the superstate tool honours besides the data
+
+Measured with the page's own settings — ten axes, floor 0.70, migration flows on:
+
+| | no preferences | shipped defaults |
+|---|---|---|
+| largest : smallest population | 1.86 : 1 | **1.66 : 1** |
+| states split across regions | 32 of 53 | **13 of 53** |
+| people kept with their state | 80% | **92%** |
+| regions reaching the ocean | 9 of 13 | **11 of 13** |
+
+Defaults: keep states whole **0.40**, equal populations **0.85**, water floor **0**.
+
+**Keeping states whole** is priced twice, because pricing it once does not work.
+A surcharge on tree edges that cross a state line makes the MST run inside
+states and enter a neighbour only where it must, so states appear as subtrees
+joined by a few bottleneck edges — which are the edges a cut wants. Then a flat
+barrier is subtracted from the score of any cut falling *inside* a state. The
+surcharge alone cannot help, because the cut step would still cut anywhere; the
+barrier alone cannot help, because the tree would not offer whole states to cut
+around.
+
+**Population balance** is a penalty on how far a cut is from splitting its
+component into whole fair shares. Scoring the two sides independently — the
+first attempt — is degenerate: for a two-way split the deviations sum to exactly
+1 whatever the cut, so the dial had no effect on the case it exists for. Tying
+both sides to a shared share-count is what makes it discriminate.
+
+### What gives way first, and why
+
+Resource floors, then the state preference, then the population floor. That
+order is load-bearing. Asking hard for whole states makes the population floor
+unreachable; when the floor relaxed first, asking for whole states silently
+returned regions three times the size of each other. Keeping a state whole is a
+preference. Not having one superstate three times another is closer to a
+requirement. The status line says when the state dial was dialled back.
+
+Past about 0.40 the state request collides with the 0.70 population floor and is
+walked back, so the top half of that slider mostly reports the collision.
+
+### Water: a floor, not a penalty
+
+`data/resources.json` carries USGS 2015 county freshwater withdrawals and
+ocean frontage. Water is a **floor** — no region below a fraction of its fair
+share. As a soft penalty it went *backwards*: asking for even per-capita water
+took the worst-to-best ratio across regions from 24.8:1 to 26.9:1. A greedy cut
+penalises the two parts in front of it, and a part that is proportional today
+splits into disproportionate regions three cuts later.
+
+It is off by default because it competes with population balance steeply: at a
+0.15 floor the water ratio falls 21:1 → 15:1 and the population ratio rises
+1.5:1 → 3.1:1. And it is **withdrawal, not supply** — Imperial County reads
+water-rich on Colorado River water delivered from out of basin.
+
+### Sea access: reported, not steered — and that is a finding
+
+Four mechanisms were tried and all four failed:
+
+| attempt | result |
+|---|---|
+| floor of a fair share of coastline | infeasible; relaxes to nothing |
+| floor of an absolute 50 km per region | also infeasible |
+| penalty for stranding a coastless part | landlocked stuck at 2 at every weight |
+| discounting tree edges that run toward water | 2 landlocked → 1, at pop 3.0 → 4.0 and three more states split |
+
+The reason is structural: **a region can only be what some subtree of the
+spanning tree is**, the tree is built from econometric similarity, and interior
+counties resemble each other. There is no subtree from Nebraska to the Gulf, so
+no cut can select one. Eleven of thirteen regions reach the ocean anyway; the
+other two are the interior plains and the mountain west, which is where the
+country's landlocked people actually live. So the panel reports coastline per
+region and flags the inland ones, and there is no dial — a dial that cannot move
+its own number is worse than no dial.
+
 ## Rebuilding the data
 
 No API keys, no accounts. Raw archives cache outside the repo (`$ATLAS_CACHE`,
@@ -62,7 +136,8 @@ node atlas/etl/build-geo.mjs                 # all boundary layers
 node atlas/etl/build-geo.mjs us-counties     # one layer
 node atlas/etl/build-data.mjs                # all data blocks
 node atlas/etl/build-data.mjs --us           # one nation
-node atlas/etl/atlas.selftest.mjs            # 55 known-answer checks
+node atlas/etl/build-resources.mjs           # USGS water + ocean frontage
+node atlas/etl/atlas.selftest.mjs            # 73 known-answer checks
 ```
 
 `build-data.mjs` reads its universe of places from `data/places.json`, so

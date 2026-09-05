@@ -24,7 +24,7 @@
     classes: 7,
     k: 13,
     pull: 0.5,
-    floor: 0.70,
+    floor: 0.70, cohesion: 0.40, balance: 0.85, wbal: 0,
     theme: 'light',
     region: null,          // Int32Array over the US county ids
     regionNames: [],
@@ -70,9 +70,10 @@
       // rasterise, so it is what the first paint uses. The full-detail tier
       // arrives behind it and takes over once the view settles above the LOD
       // zoom — see AtlasMap._pickLod.
-      const [geoLo, data, adjacency, flows] = await Promise.all([
+      const [geoLo, data, adjacency, flows, resources] = await Promise.all([
         jget('/geo/us-counties-lo.json'), jget('/data/us-counties.json'),
         jget('/geo/adjacency.json'), jget('/data/migration.json'),
+        jget('/data/resources.json').catch(() => null),
       ]);
       const topo = ATLAS_CODEC.unpack(geoLo);
       const hier = new ATLAS_HIER.Hierarchy(data, {
@@ -84,7 +85,8 @@
           ATLAS_HIER.level({ id: 'nation', label: 'United States', of: () => 'US', name: () => 'United States' }),
         ],
       });
-      store[scope] = { topo, data, hier, places, adjacency, flows: flows.edges, label: 'counties', iso: 'US' };
+      store[scope] = { topo, data, hier, places, adjacency, flows: flows.edges, label: 'counties', iso: 'US',
+        resources: resources ? resources.values : null, resourceDoc: resources || null };
       upgradeDetail(scope, '/geo/us-counties.json');
     } else if (scope === 'mx') {
       const [geoLo, data] = await Promise.all([jget('/geo/mx-municipios-lo.json'), jget('/data/mx-municipios.json')]);
@@ -283,10 +285,28 @@
     for (const id of S.data.ids) { const p = S.places[id]; if (p && p.lon != null) centroids[id] = [p.lon, p.lat]; }
     const weights = S.data.series['pop:' + S.data.current.pop] || S.data.ids.map(() => 1);
 
+    // The state each county belongs to. This is what "keep states whole" acts
+    // on: cohesion prices a cut that falls INSIDE one of these.
+    const groups = S.data.ids.map((id) => (S.places[id] ? S.places[id].parent : null));
+
+    // Physical endowments to share out. Absent (Canada, Mexico) the terms
+    // simply do not apply — skater drops resources with no values.
+    // Water is a FLOOR — no region below `wbal` of its fair share — because as
+    // a soft penalty it went backwards. Coast is carried along at minFrac 0 so
+    // that it is measured and reported per region without steering anything;
+    // every attempt to steer it failed. See packages/geohier/regionalize.js.
+    const R = S.resources || {};
+    const resources = [
+      { name: 'water', minFrac: state.wbal, values: S.data.ids.map((id) => (R[id] && R[id].water_mgd) || 0) },
+      { name: 'coast', minFrac: 0, values: S.data.ids.map((id) => (R[id] && R[id].coast_km) || 0) },
+    ];
+    const haveRes = resources.filter((r) => r.values.some((v) => v > 0));
+
     const t0 = performance.now();
     const res = ATLAS_REGION.skater({
       ids: S.data.ids, adjacency: S.adjacency, centroids, columns: cols,
       weights, flows: S.flows || [], flowPull: state.pull, k: state.k, minWeightFrac: state.floor,
+      groups, cohesion: state.cohesion, balance: state.balance, resources: haveRes,
     });
     state.region = res.region;
     state.regionInfo = res;
@@ -314,10 +334,21 @@
     }
 
     const ms = Math.round(performance.now() - t0);
-    const pops = res.weights.map((w) => (w / 1e6).toFixed(1));
-    status.innerHTML = `${res.k} regions in ${ms} ms · ${Math.min(...pops)}M to ${Math.max(...pops)}M people`
-      + (res.minWeightFrac < state.floor - 1e-6 ? ` · floor relaxed to ${res.minWeightFrac.toFixed(2)} to reach ${state.k}` : '')
-      + ` · ${res.seaLinks.length} sea links across water`;
+    const pops = res.weights.map((w) => w / 1e6);
+    const gi = res.groupIntegrity;
+    const coastRes = (res.resources || []).find((r) => r.name === 'coast');
+    const landlocked = coastRes ? coastRes.byRegion.filter((v) => !v).length : null;
+    // Say what was achieved, not what was asked for. These are soft terms in a
+    // greedy score and the honest report is the outcome.
+    status.innerHTML = `${res.k} regions in ${ms} ms · `
+      + `${Math.min(...pops).toFixed(1)}M–${Math.max(...pops).toFixed(1)}M people `
+      + `(${(Math.max(...pops) / Math.min(...pops)).toFixed(1)}:1)`
+      + (gi ? ` · ${gi.groupsSplit}/${gi.groups} states split, ${(gi.intact * 100).toFixed(0)}% of people kept with their state` : '')
+      + (coastRes ? ` · ${coastRes.byRegion.length - landlocked}/${coastRes.byRegion.length} reach the sea` : '')
+      + (res.cohesionEase != null && res.cohesionEase < 1 && state.cohesion > 0
+          ? ` · states dialled back to ${(state.cohesion * res.cohesionEase).toFixed(2)} to hold the population floor` : '')
+      + (res.minWeightFrac < state.floor - 1e-6 ? ` · floor relaxed to ${res.minWeightFrac.toFixed(2)}` : '')
+      + ` · ${res.seaLinks.length} sea links`;
   }
 
   // ------------------------------------------------------------- panel ----
@@ -431,23 +462,49 @@
     }
     const colOf = (id) => swatch.get(id) || 'transparent';
 
+    // Water and coastline per region. Reported, never steered: the coast column
+    // exists BECAUSE nothing could steer it, so at least the map can say which
+    // superstates are landlocked instead of pretending the question was settled.
+    const RI = state.regionInfo;
+    const byName = (n) => (RI && RI.resources ? RI.resources.find((r) => r.name === n) : null);
+    const wRes = byName('water'), cRes = byName('coast');
+    const resHead = (wRes ? '<th class="n">Water</th>' : '') + (cRes ? '<th class="n">Coast</th>' : '');
+    const resCell = (rid) => {
+      const g = +rid.slice(1);
+      let out = '';
+      if (wRes) {
+        const p = pop.get(rid);
+        const perCap = p ? (wRes.byRegion[g] / p) * 1e6 : null;   // gal/day/person
+        out += `<td class="n" title="${Math.round(wRes.byRegion[g]).toLocaleString()} Mgal/d withdrawn">`
+          + (perCap ? Math.round(perCap).toLocaleString() : '—') + '</td>';
+      }
+      if (cRes) {
+        const km = cRes.byRegion[g];
+        out += `<td class="n">${km >= 1 ? Math.round(km).toLocaleString() + ' km' : '<span class="landlocked">inland</span>'}</td>`;
+      }
+      return out;
+    };
+
     $('#panel-body').innerHTML = `
       <h2>Thirteen superstates</h2>
       <div class="where">Grown from ${state.axes.length} econometric axes over the county contiguity graph.
         Names are a separate, editable layer — click one to rename it.</div>
       <table class="tbl">
-        <thead><tr><th>Region</th><th class="n">People</th><th class="n">${m.label}</th></tr></thead>
+        <thead><tr><th>Region</th><th class="n">People</th><th class="n">${m.label}</th>${resHead}</tr></thead>
         <tbody>${rows.map((x) => `
           <tr data-region="${x.id}">
             <td><span class="sw" style="background:${colOf(x.id)}"></span><span class="rn" contenteditable="true" data-i="${x.id.slice(1)}">${x.name}</span></td>
             <td class="n">${x.pop ? (x.pop / 1e6).toFixed(1) + 'M' : '—'}</td>
-            <td class="n">${fmt(x.v)}</td>
+            <td class="n">${fmt(x.v)}</td>${resCell(x.id)}
           </tr>`).join('')}</tbody>
       </table>
       <div class="hint" style="margin-top:12px">
         Axes in play: ${state.axes.map((k) => M.BY_KEY[k].label).join('; ')}.
-        ${state.regionInfo ? `Minimum region size ${state.regionInfo.minWeightFrac.toFixed(2)} of an equal share.` : ''}
+        ${RI ? `Minimum region size ${RI.minWeightFrac.toFixed(2)} of an equal share.` : ''}
+        ${RI && RI.groupIntegrity ? `Keeping states whole is set to ${state.cohesion.toFixed(2)}: ${RI.groupIntegrity.groupsSplit} of ${RI.groupIntegrity.groups} states are split, and ${(RI.groupIntegrity.intact * 100).toFixed(0)}% of people stay in the region most of their state went to.` : ''}
       </div>
+      ${wRes ? `<div class="hint">Water is gallons a day withdrawn per person (USGS 2015) — <b>use, not supply</b>. A region fed by an inter-basin canal reads wet.</div>` : ''}
+      ${cRes ? `<div class="hint">Coast is ocean frontage; the Great Lakes are not counted. This column is reported and not optimised — a floor on it, an absolute minimum, a penalty for stranding a region and a pull toward the water were all tried, and none moved the number of inland regions without wrecking the population balance. <a href="/method#regions">The working.</a></div>` : ''}
       ${state.regionInfo && state.regionInfo.seaLinks.length ? `<div class="hint">
         ${state.regionInfo.seaLinks.length} bridges were drawn across water so islands and Alaska could join a region at all:
         ${state.regionInfo.seaLinks.slice(0, 4).map((l) => `${(S.places[l.from] || {}).name || l.from} → ${(S.places[l.to] || {}).name || l.to} (${l.km.toLocaleString()} km)`).join('; ')}${state.regionInfo.seaLinks.length > 4 ? ', …' : ''}.
@@ -753,6 +810,11 @@
     $('#k').oninput = (e) => { state.k = +e.target.value; $('#k-val').textContent = state.k; };
     $('#pull').oninput = (e) => { state.pull = +e.target.value / 100; $('#pull-val').textContent = state.pull.toFixed(2); };
     $('#floor').oninput = (e) => { state.floor = +e.target.value / 100; $('#floor-val').textContent = state.floor.toFixed(2); };
+    for (const [id, key] of [['cohesion', 'cohesion'], ['balance', 'balance'], ['wbal', 'wbal']]) {
+      const el = $('#' + id);
+      if (!el) continue;
+      el.oninput = (e) => { state[key] = +e.target.value / 100; $('#' + id + '-val').textContent = state[key].toFixed(2); };
+    }
     $('#redraw').onclick = () => {
       computeRegions();
       if (state.level !== 'region') {

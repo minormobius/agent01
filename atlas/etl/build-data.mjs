@@ -27,6 +27,7 @@ import { fetchFlows, SOURCE as IRS } from './sources/irs-migration.mjs';
 import { fetchMeasures as fetchStatCan, SOURCE as SC } from './sources/statcan.mjs';
 import { fetchMeasures as fetchINEGI, SOURCE as INEGI } from './sources/inegi.mjs';
 import { GEO_SOURCES } from './sources/geography.mjs';
+import { RESOURCE_SOURCES } from './build-resources.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DATA = join(ROOT, 'data');
@@ -253,7 +254,8 @@ async function buildMX() {
 
 function writeSources() {
   const all = [BEA, PEP, ERS, IRS, SC, INEGI].map((s) => ({ ...s, kind: 'data' }))
-    .concat(GEO_SOURCES.map((s) => ({ ...s, kind: 'boundaries' })));
+    .concat(GEO_SOURCES.map((s) => ({ ...s, kind: 'boundaries' })))
+    .concat(RESOURCE_SOURCES);
   const doc = { format: 'atlas-sources/1', built: new Date().toISOString().slice(0, 10), sources: all };
   writeFileSync(join(DATA, 'sources.json'), JSON.stringify(doc, null, 1));
   process.stderr.write(`\n-> sources.json      ${all.length} sources\n`);

@@ -94,6 +94,19 @@
    *   flows      [from, to, people][]     optional; pulls trading pairs together
    *   flowPull   number                   0 = ignore flows, 1 = strong (default 0.5)
    *   k          number                   how many regions
+   *
+   *   groups     string[]|number[]        per-unit group (state) for cohesion
+   *   cohesion   number 0..1              energy barrier on splitting a group
+   *   balance    number 0..1              push regions toward equal population
+   *   resources  [{ name, values, minFrac, minPerRegion }]
+   *                                       a FLOOR: every region must hold at
+   *                                       least `minFrac` of its fair share of
+   *                                       this, or `minPerRegion` in the
+   *                                       resource's own units — whichever the
+   *                                       caller sets. Use minPerRegion when a
+   *                                       fair share is the wrong ask: every
+   *                                       superstate wants A coastline, not an
+   *                                       equal thirteenth of the coastline.
    * @returns {{ region: Int32Array, seaLinks, mst, cuts, sse }}
    */
   function skater(spec) {
@@ -187,31 +200,87 @@
       }
       for (const [key, v] of flowOf) flowOf.set(key, Math.log1p(v) / Math.log1p(maxF));
     }
+    // ---- state lines as an energy barrier -------------------------------
+    //
+    // Redrawing a state is expensive in a way no econometric axis can see, so
+    // it is priced in twice, once on each side of the algorithm:
+    //
+    //   here, a SURCHARGE on edges that cross a state line. The MST minimises
+    //   total weight, so it now prefers to run inside states and to enter a
+    //   neighbouring state only where it must. States end up as subtrees joined
+    //   by a few bottleneck edges — which are exactly the edges a cut wants.
+    //
+    //   and below, a BARRIER subtracted from the score of any cut that falls
+    //   inside a state, so splitting one has to be worth more than leaving it
+    //   whole.
+    //
+    // The surcharge is in units of the median neighbour distance, so `cohesion`
+    // is a dimensionless 0..1 dial rather than a number in z-score units that
+    // would need retuning whenever the axes changed.
+    const cohesion = Math.max(0, Math.min(1, spec.cohesion == null ? 0 : spec.cohesion));
+    // How much of the state preference is currently in force. The ladder turns
+    // this down rather than let the population floor go; both the tree
+    // surcharge and the cut barrier read it.
+    const cohEaseRef = { v: 1 };
+    const cohEase = () => cohEaseRef.v;
+    const gid = new Int32Array(n).fill(-1);
+    if (spec.groups && spec.groups.length === n) {
+      const seen = new Map();
+      for (let i = 0; i < n; i++) {
+        const g = spec.groups[i];
+        if (g == null) continue;
+        if (!seen.has(g)) seen.set(g, seen.size);
+        gid[i] = seen.get(g);
+      }
+    }
+    const sameGroup = (a, b) => gid[a] >= 0 && gid[a] === gid[b];
+
+    let dMed = 1;
+    if (cohesion > 0) {
+      const sample = [];
+      for (let i = 0; i < n; i++) for (const j of adj[i]) if (j > i) sample.push(dist(i, j));
+      if (sample.length) { sample.sort((a, b) => a - b); dMed = sample[sample.length >> 1] || 1; }
+    }
+    const crossSurchargeFull = cohesion * 2 * dMed;
+
     const cost = (a, b) => {
-      const base = dist(a, b) + 1e-6;
+      let base = dist(a, b) + 1e-6;
+      if (crossSurchargeFull && !sameGroup(a, b)) base += crossSurchargeFull * cohEase();
       if (!flowOf.size) return base;
       const key = a < b ? `${a},${b}` : `${b},${a}`;
       const f = flowOf.get(key) || 0;
       return base / (1 + flowPull * f);
     };
 
-    const inTree = new Uint8Array(n);
-    const best = new Float64Array(n).fill(Infinity);
-    const from = new Int32Array(n).fill(-1);
-    best[0] = 0;
-    const mstAdj = Array.from({ length: n }, () => []);
-    for (let it = 0; it < n; it++) {
-      let u = -1, bu = Infinity;
-      for (let i = 0; i < n; i++) if (!inTree[i] && best[i] < bu) { bu = best[i]; u = i; }
-      if (u < 0) break;
-      inTree[u] = 1;
-      if (from[u] >= 0) { mstAdj[u].push(from[u]); mstAdj[from[u]].push(u); }
-      for (const v of adj[u]) {
-        if (inTree[v]) continue;
-        const c = cost(u, v);
-        if (c < best[v]) { best[v] = c; from[v] = u; }
+    /**
+     * Prim, re-runnable.
+     *
+     * The tree has to be rebuilt when the state surcharge changes, because the
+     * surcharge is what puts states in the tree as subtrees — and the ladder
+     * below turns it down when the population floor cannot otherwise be met.
+     * Without the rebuild the dial saturates: past about 0.4 the tree stops
+     * changing and asking harder for whole states does nothing at all.
+     */
+    const buildMST = () => {
+      const inTree = new Uint8Array(n);
+      const best = new Float64Array(n).fill(Infinity);
+      const from = new Int32Array(n).fill(-1);
+      best[0] = 0;
+      const mstAdj = Array.from({ length: n }, () => []);
+      for (let it = 0; it < n; it++) {
+        let u = -1, bu = Infinity;
+        for (let i = 0; i < n; i++) if (!inTree[i] && best[i] < bu) { bu = best[i]; u = i; }
+        if (u < 0) break;
+        inTree[u] = 1;
+        if (from[u] >= 0) { mstAdj[u].push(from[u]); mstAdj[from[u]].push(u); }
+        for (const v of adj[u]) {
+          if (inTree[v]) continue;
+          const c = cost(u, v);
+          if (c < best[v]) { best[v] = c; from[v] = u; }
+        }
       }
-    }
+      return mstAdj;
+    };
 
     // ---- 4. cut the tree, greedily, k-1 times ---------------------------
     //
@@ -227,7 +296,7 @@
     };
 
     /** Subtree sums for one tree, rooted anywhere; returns the best ADMISSIBLE cut. */
-    const evaluate = (nodes, treeAdj, admissible) => {
+    const evaluate = (nodes, treeAdj, admissible, penalty) => {
       const rootIdx = nodes[0];
       const order = [], parent = new Map();
       const stack = [rootIdx];
@@ -240,6 +309,7 @@
       }
       const W = new Float64Array(order.length);
       const subtreeCount = new Int32Array(order.length);
+      const R = nRes ? Array.from({ length: order.length }, () => new Float64Array(nRes)) : null;
       const Sx = Array.from({ length: order.length }, () => new Float64Array(D));
       const Sxx = Array.from({ length: order.length }, () => new Float64Array(D));
       const pos = new Map();
@@ -249,12 +319,14 @@
         W[i] += w[u];
         subtreeCount[i] += 1;
         for (let d = 0; d < D; d++) { Sx[i][d] += w[u] * columns[d][u]; Sxx[i][d] += w[u] * columns[d][u] * columns[d][u]; }
+        if (R) for (let r = 0; r < nRes; r++) R[i][r] += resVals[r][u];
         const p = parent.get(u);
         if (p >= 0) {
           const pi = pos.get(p);
           W[pi] += W[i];
           subtreeCount[pi] += subtreeCount[i];
           for (let d = 0; d < D; d++) { Sx[pi][d] += Sx[i][d]; Sxx[pi][d] += Sxx[i][d]; }
+          if (R) for (let r = 0; r < nRes; r++) R[pi][r] += R[i][r];
         }
       }
       const total = ssd(W[0], Sx[0], Sxx[0]);
@@ -263,28 +335,160 @@
         const u = order[i], p = parent.get(u);
         const restW = W[0] - W[i];
         if (!restW || !W[i]) continue;
-        if (admissible && !admissible(W[i], subtreeCount[i], restW, order.length - subtreeCount[i])) continue;
+        const raAdm = R ? R[i] : null;
+        let rbAdm = null;
+        if (R) { rbAdm = new Float64Array(nRes); for (let r = 0; r < nRes; r++) rbAdm[r] = R[0][r] - R[i][r]; }
+        if (admissible && !admissible(W[i], subtreeCount[i], raAdm, restW, order.length - subtreeCount[i], rbAdm)) continue;
         const restSx = new Float64Array(D), restSxx = new Float64Array(D);
         for (let d = 0; d < D; d++) { restSx[d] = Sx[0][d] - Sx[i][d]; restSxx[d] = Sxx[0][d] - Sxx[i][d]; }
-        const gain = total - ssd(W[i], Sx[i], Sxx[i]) - ssd(restW, restSx, restSxx);
+        let gain = total - ssd(W[i], Sx[i], Sxx[i]) - ssd(restW, restSx, restSxx);
+        if (penalty) {
+          gain -= penalty(u, p, W[i], raAdm, restW, rbAdm);
+        }
         if (gain > bestGain) { bestGain = gain; bestCut = [u, p]; }
       }
       return { total, bestCut, bestGain, size: order.length, nodes: order };
     };
 
-    // ---- the floor, and the relaxation ladder ---------------------------
+    // ---- what a cut costs beyond its variance ---------------------------
+    //
+    // SKATER on its own answers one question: which cut removes the most
+    // within-region variance. That is not the whole of what makes a superstate
+    // a plausible one, so three more terms are priced into the same score.
+    //
+    // Everything below is normalised to roughly 0..1 and then multiplied by the
+    // total population, because SSD is a POPULATION-WEIGHTED sum of squared
+    // z-scores and therefore scales with total population too. Without that the
+    // dials would mean different things on a county map and a state map.
     const totalW = w.reduce((t, v) => t + v, 0);
+    const balanceW = Math.max(0, Math.min(1, spec.balance == null ? 0 : spec.balance));
+    const resSpecs = (spec.resources || []).filter((r) => r && r.values && r.values.length === n);
+    const nRes = resSpecs.length;
+    const resVals = resSpecs.map((r) => Float64Array.from(r.values, (v) => (v > 0 ? v : 0)));
+    const resTotal = resVals.map((v) => v.reduce((t, x) => t + x, 0));
+
+    const target = totalW / k;                       // an equal share of people
+
+    // Term scales, chosen so each dial at 1.0 can outvote the other rather than
+    // one swamping it. Measured, not guessed: at these values the state dial
+    // takes splits from 35/53 to 5/53, the balance dial takes the
+    // largest:smallest population ratio from 3.0 to 1.8, and turning both up
+    // still moves both numbers.
+    //
+    // SEA ACCESS IS NOT AVAILABLE AT ALL, at any strength, and four attempts
+    // say so rather than one. A floor of a fair share of coastline: infeasible,
+    // relaxes to nothing. A floor of an absolute 50 km a region: also
+    // infeasible. A penalty for stranding a coastless part: the number of
+    // landlocked regions did not move off two at any weight. Discounting tree
+    // edges that run toward the water, so that coast-reaching chains exist to
+    // be cut: two landlocked became one, and cost the population ratio 3.0 ->
+    // 4.0 and three more split states.
+    //
+    // The reason is structural and worth stating plainly: a region can only be
+    // what some SUBTREE of the spanning tree is, the tree is built from
+    // econometric similarity, and interior counties resemble each other. There
+    // is no subtree from Nebraska to the Gulf, so no cut can select one.
+    //
+    // What is true anyway: eleven of the thirteen regions reach the ocean
+    // without being asked. The other two are the interior plains and the
+    // mountain west, which is not an artefact — that is where the country's
+    // landlocked people live. So coastline is REPORTED per region and not
+    // forced, because a dial that cannot move its own number is worse than no
+    // dial.
+    //
+    // WATER IS NOT A PENALTY EITHER, and that is also the result of trying it.
+    // As soft penalties of this kind they did not merely fail, they went
+    // backwards: asking for even per-capita water took the worst:best ratio
+    // across regions from 24.8:1 to 26.9:1, and asking every region to have a
+    // coast still left regions landlocked. The reason is structural. A greedy
+    // top-down cut penalises the two PARTS in front of it, and a part that is
+    // perfectly proportional today can split into disproportionate regions
+    // three cuts later — the penalty never sees that. So both are FLOORS
+    // instead, in `admissible` below, which is the mechanism the population
+    // floor already uses and which works because it constrains what may happen
+    // rather than nudging what is preferred.
+    const COHESION_COST = 1.0;
+    const BALANCE_COST = 1.6;
+
+
+    const wholeShares = (weight) => Math.max(1, Math.round(weight / target));
+
+    /**
+     * How far a cut is from splitting its component into whole fair shares.
+     *
+     * A greedy tree cut does not know how many regions each side will hold, so
+     * "balanced" cannot simply mean "half". What it can mean: this component is
+     * worth about m fair shares, so the two sides should look like some whole
+     * split of m — one and (m-1), two and (m-2), and so on. The best such split
+     * is the one this scores against.
+     *
+     * Normalised by one fair share, so the value is "how many people-shares
+     * away from a clean split is this", which is the same number whether the
+     * cut is the first or the twelfth.
+     *
+     * Scoring the two sides INDEPENDENTLY, which is what this did first, is
+     * degenerate: for a two-way split the deviations always sum to exactly 1
+     * whatever the cut, so the dial had no effect at all on the case it exists
+     * for. Tying the two sides to a shared m is what makes it discriminate.
+     */
+    const shareDev = (wa, wb) => {
+      const mC = Math.max(2, Math.round((wa + wb) / target));
+      let best = Infinity;
+      for (let m = 1; m < mC; m++) {
+        const d = Math.abs(wa - m * target) + Math.abs(wb - (mC - m) * target);
+        if (d < best) best = d;
+      }
+      return best / target;
+    };
+
+    const penalty = (!cohesion && !balanceW) ? null : (u, p, wa, ra, wb, rb) => {
+      let pen = 0;
+
+      // 1. the state-line barrier: a cut INSIDE a state has to earn its keep.
+      //    Flat, because that is what an energy barrier is — the cost of
+      //    breaking a state does not depend on where you break it.
+      if (cohesion && sameGroup(u, p)) pen += cohesion * cohEase() * COHESION_COST;
+
+      // 2. population balance. Scaled so that a thoroughly unbalanced cut costs
+      //    about what breaking a state costs; otherwise turning the state dial
+      //    up silently disables this one, and a dial that does nothing is worse
+      //    than no dial.
+      if (balanceW) pen += balanceW * BALANCE_COST * shareDev(wa, wb);
+
+      return pen * totalW;
+    };
+
     const minCount = spec.minCount == null ? 8 : spec.minCount;
     let frac = spec.minWeightFrac == null ? 0.55 : spec.minWeightFrac;
 
-    let evals, treeAdj, cuts, usedFrac = frac;
-    for (let attempt = 0; attempt < 8; attempt++) {
+    // THE ORDER THIS GIVES WAY IN IS A DESIGN DECISION, and the wrong order is
+    // visibly wrong. Requiring every region to reach the sea can make a good
+    // cut inadmissible; if the population floor relaxes first to make room, the
+    // map comes back with regions 28 times the size of each other, which is a
+    // worse map than one with a landlocked region. So the resource floors step
+    // down to nothing first, and only then does the population floor move.
+    let evals, treeAdj, cuts, usedFrac = frac, resEase = 1, usedResEase = 1;
+    let usedCohEase = 1, mstAdj = null, mstEase = null;
+    for (let attempt = 0; attempt < 14; attempt++) {
       const floorW = (totalW / k) * frac;
-      const admissible = (wa, ca, wb, cb) => wa >= floorW && wb >= floorW && ca >= minCount && cb >= minCount;
+      const resFloor = resSpecs.map((rs, r) => (rs.minPerRegion != null
+        ? rs.minPerRegion * resEase
+        : Math.max(0, Math.min(1, rs.minFrac == null ? 0 : rs.minFrac)) * resEase * (resTotal[r] / k)));
+      const admissible = (wa, ca, ra, wb, cb, rb) => {
+        if (wa < floorW || wb < floorW || ca < minCount || cb < minCount) return false;
+        for (let r = 0; r < nRes; r++) {
+          if (!resFloor[r] || !resTotal[r]) continue;
+          // a part that will hold m regions needs m fair shares of the resource
+          if (ra[r] < resFloor[r] * wholeShares(wa)) return false;
+          if (rb[r] < resFloor[r] * wholeShares(wb)) return false;
+        }
+        return true;
+      };
 
+      if (mstEase !== cohEaseRef.v || !mstAdj) { mstAdj = buildMST(); mstEase = cohEaseRef.v; }
       treeAdj = mstAdj.map((a) => a.slice());
       cuts = [];
-      evals = [{ nodes: [...Array(n).keys()] }].map((t) => ({ ...t, ...evaluate(t.nodes, treeAdj, admissible) }));
+      evals = [{ nodes: [...Array(n).keys()] }].map((t) => ({ ...t, ...evaluate(t.nodes, treeAdj, admissible, penalty) }));
 
       while (evals.length < k) {
         let pick = -1, pickGain = -Infinity;
@@ -305,11 +509,20 @@
         };
         const A = half(u), B = half(p);
         evals.splice(pick, 1);
-        evals.push({ nodes: A, ...evaluate(A, treeAdj, admissible) }, { nodes: B, ...evaluate(B, treeAdj, admissible) });
+        evals.push({ nodes: A, ...evaluate(A, treeAdj, admissible, penalty) }, { nodes: B, ...evaluate(B, treeAdj, admissible, penalty) });
       }
-      usedFrac = frac;
+      usedFrac = frac; usedResEase = resEase; usedCohEase = cohEaseRef.v;
       if (evals.length >= k) break;
-      frac *= 0.7;                                 // relax and try again
+      // Give way in this order, and the order is the whole point: resource
+      // floors first, then the state barrier, and the population floor last.
+      // Turning the state dial up used to make the population floor
+      // unreachable, which sent the ladder straight to relaxing it — so asking
+      // harder for whole states silently produced regions three times the size
+      // of each other. Keeping states whole is a preference. Not having one
+      // superstate three times another is closer to a requirement.
+      if (nRes && resEase > 0) resEase = resEase <= 0.2001 ? 0 : resEase - 0.2;
+      else if (cohesion && cohEaseRef.v > 0) cohEaseRef.v = cohEaseRef.v <= 0.2501 ? 0 : cohEaseRef.v - 0.25;
+      else frac *= 0.7;                            // only now touch the people
     }
 
     const region = new Int32Array(n).fill(0);
@@ -324,10 +537,52 @@
 
     return {
       region, ids, k: groups.length, seaLinks, cuts,
-      minWeightFrac: usedFrac, minCount,
+      minWeightFrac: usedFrac, minCount, resourceEase: usedResEase, cohesionEase: usedCohEase,
       sse: evals.reduce((s, e) => s + e.total, 0),
       sizes: groups.map((g) => g.length),
       weights: groups.map((g) => g.reduce((t, i) => t + w[i], 0)),
+
+      // ---- how well the preferences were actually met ------------------
+      //
+      // Reported rather than asserted. These are soft terms in a greedy score,
+      // so the honest thing is to show what came out, not to claim the dial
+      // was obeyed.
+      resources: resSpecs.map((rs, r) => ({
+        name: rs.name || `r${r}`,
+        minFrac: rs.minFrac || 0,
+        byRegion: groups.map((g) => g.reduce((t, i) => t + resVals[r][i], 0)),
+        total: resTotal[r],
+      })),
+      balance: (() => {
+        const ws = groups.map((g) => g.reduce((t, i) => t + w[i], 0));
+        const mean = ws.reduce((t, v) => t + v, 0) / (ws.length || 1);
+        const spread = ws.length ? Math.max(...ws) / Math.max(1e-9, Math.min(...ws)) : 1;
+        return {
+          meanWeight: mean,
+          ratio: spread,                                   // largest / smallest
+          cv: Math.sqrt(ws.reduce((t, v) => t + (v - mean) ** 2, 0) / (ws.length || 1)) / (mean || 1),
+        };
+      })(),
+      // How much of the map's original grouping survived: units whose region is
+      // the one that most of their group went to.
+      groupIntegrity: (() => {
+        if (gid.every((g) => g < 0)) return null;
+        const byGroup = new Map();
+        for (let i = 0; i < n; i++) {
+          if (gid[i] < 0) continue;
+          let m = byGroup.get(gid[i]);
+          if (!m) byGroup.set(gid[i], m = new Map());
+          m.set(region[i], (m.get(region[i]) || 0) + w[i]);
+        }
+        let kept = 0, tot = 0, split = 0;
+        for (const m of byGroup.values()) {
+          let top = 0, sum = 0;
+          for (const v of m.values()) { sum += v; if (v > top) top = v; }
+          kept += top; tot += sum;
+          if (m.size > 1) split++;
+        }
+        return { intact: tot ? kept / tot : 1, groupsSplit: split, groups: byGroup.size };
+      })(),
     };
   }
 
