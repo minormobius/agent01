@@ -217,13 +217,33 @@ pads for `safe-area-inset-top`), and a hardcoded black bar is wrong for Paper
 and Sepia. `default` lets iOS tint from `theme-color`, which `theme.js` already
 keeps in step with the palette.
 
-Verified in Chromium against a local server (2026-09-05): manifest parses with
-4 icons and 2 shortcuts, the worker registers at scope `/`, **zero** spurious
-reloads on first install, 25 shell entries cached, `/api/*` absent from Cache
-Storage with the second request reaching the server, an offline reload painting
-the full shell with all four tabs, and back stepping Me → Notifs. Not verified:
-`beforeinstallprompt` and the actual install — headless Chromium does not fire
-it, and iOS has no API at all.
+Verified in Chromium against a local server serving the same content types
+production does (2026-09-05). Behaviour: the worker registers at scope `/`,
+**zero** spurious reloads on first install, 25 shell entries cached, `/api/*`
+absent from Cache Storage with the second request reaching the server, an
+offline reload painting the full shell with all four tabs, back stepping
+Me → Notifs, no page errors.
+
+Installability was checked through Chromium's **own** manifest pipeline
+(`Page.getAppManifest` over CDP) rather than by `fetch`ing the file, because
+fetching only proves it is reachable — the parser is what decides. Zero parse
+errors, and every criterion met: name, `start_url`, `display: standalone`,
+192 and 512 icons that load at exactly their declared sizes, a maskable icon,
+a registered worker, and both shortcuts resolving to `#/search` and `#/notifs`.
+
+That also settles a content-type worry: the spec asks for
+`application/manifest+json` and Cloudflare Static Assets serves `.json` as
+`application/json`. Chromium parses it without complaint, so this is not worth
+a worker route to fix.
+
+Two field-name traps if you ever re-run that check: CDP's `parsed` is a legacy
+field and comes back **empty** — the real result is under `manifest` — and the
+icon objects there expose `url`/`sizes`/`type` but **not** `purpose`, so
+maskable has to be read from the raw document. Both cost a run each and both
+looked exactly like product bugs.
+
+Not verified: `beforeinstallprompt` and the actual install — headless Chromium
+does not fire it, and iOS has no API at all.
 
 ### Palettes
 
