@@ -1,0 +1,56 @@
+name: replay-slug
+
+# Actually spends the Jetstream key. This is the one path bsky.mino.mobi has
+# that has never run anywhere: plan a window of the ARCHIVE, download a bounded
+# slug of it, decode dictionary-compressed zstd frames, and run the surface's
+# real rule over the events.
+#
+# It deliberately uses the BROWSER shims — @bokuweb/zstd-wasm's
+# decompressUsingDict and bsky/lib/sha256.js — rather than the SDK's node
+# defaults (node:zlib, node:crypto), because those defaults are exactly what a
+# browser does not have. Testing them would verify nothing about the page.
+#
+# Metered: the archive bills by the byte against the key's quota, so the budget
+# is small and explicit, and the run prints what it spent.
+
+on:
+  push:
+    branches:
+      - claude/bsky-app-view-feasibility-8sdflz
+    paths:
+      - '.github/scripts/replay-slug.mjs'
+      - '.github/workflows/replay-slug.yml'
+  workflow_dispatch:
+    inputs:
+      budget_mb:
+        description: 'Hard byte budget for the download'
+        default: '50'
+      seq_back:
+        description: 'How far back from the tip to start (in seq)'
+        default: '3400000'
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install the SDK and a dictionary-capable zstd
+        run: |
+          mkdir -p "$RUNNER_TEMP/replay" && cd "$RUNNER_TEMP/replay"
+          npm init -y >/dev/null
+          npm install --no-save @bsky/jetstream @bokuweb/zstd-wasm
+
+      - name: Plan a window, buy a slug of it, run the rule
+        env:
+          JETSTREAM_KEY: ${{ secrets.JETSTREAM_KEY }}
+          # A push run uses the smaller figure: this spends a metered credential,
+          # so the mechanics get proven cheaply before a full slug is bought.
+          BUDGET_MB: ${{ inputs.budget_mb || '12' }}
+          SEQ_BACK: ${{ inputs.seq_back }}
+          NODE_PATH: ${{ runner.temp }}/replay/node_modules
+        run: node .github/scripts/replay-slug.mjs
