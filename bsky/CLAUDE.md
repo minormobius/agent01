@@ -89,6 +89,43 @@ fan-out over the public AppView, which is the expensive path and is labelled as
 such in the UI. That is deliberate: the fallback makes the cost of *not* having
 replay visible instead of hidden.
 
+## The UI
+
+Mobile-first, one column, three tabs, and posts. `index.html` is the shell,
+`app.js` drives it, `lib/sources.js` supplies the posts.
+
+| Tab | What it is |
+|---|---|
+| **Home** | `simcluster` by default — this repo's own feed generator at `feed.mino.mobi`, which returns a SKELETON of `at://` URIs that `getPosts` hydrates into real posts with counts. Chips switch to the liked feed, a **live** follow-graph timeline over one Jetstream socket, or **stored** (whatever this browser holds). |
+| **Notifs** | Built from Constellation, not from Bluesky. A notification *is* a backlink, so this works signed out, for any handle. |
+| **Me** | Profile, local store, and the deep-history key. |
+
+Deliberate choices worth keeping:
+
+- **Boot never waits on auth.** `selectFeed()` runs before `auth().init()`
+  settles, and sign-in only affects the top-right button and the Me tab. An
+  earlier version awaited the profile fetch first, so a slow or unreachable auth
+  worker left the page permanently blank. Reading needs no account; the code
+  should say that structurally, not just in the copy.
+- **`[hidden]{display:none!important}`** is load-bearing. `.chips` is
+  `display:flex`, which beats the UA stylesheet's `[hidden]` rule, so the feed
+  chips stayed visible on every tab until this was added.
+- **16px inputs.** Anything smaller makes iOS Safari zoom on focus.
+- **`viewport-fit=cover` + `env(safe-area-inset-bottom)`** on the tab bar and
+  the FAB, or both sit under the home indicator.
+- Default feed is algorithmic on purpose: a new visitor has no follow graph, and
+  an empty timeline is a bad first screen.
+
+### No DMs
+
+`chat.bsky.*` is a **centralised service**, not repo records. DMs never enter
+the firehose, so they are not in Jetstream, not in the archive, and not
+reachable by anything in this design — no amount of frontend work gets to them.
+Proxying them would need `rpc:chat.bsky.*` scopes plus `atproto-proxy` support
+in `workers/auth`, whose `/pds/*` proxy is a fixed eight-route allowlist with no
+chat routes. That is a different surface's branch and a different kind of
+product. The Me tab says so rather than leaving a dead tab.
+
 ## Caching — read this before touching lib/cache.js
 
 The cache is not an optimisation. **It is the archive**, and it is why the ~36h

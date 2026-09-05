@@ -2,217 +2,180 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12">
 <title>bsky — an AppView with no database</title>
-<meta name="description" content="A Bluesky AppView that runs entirely in your browser. Jetstream v2 fans out your follow graph server-side, ~36h of history replays with no key, and what you keep becomes an archive the network won't serve twice.">
+<meta name="description" content="A Bluesky client that runs entirely in your browser. Algorithmic feeds, a live timeline with no backend, notifications from a public backlink index, and an archive that grows every visit.">
 <style>
 :root{
-  --bg:#0b0d12; --panel:#11141c; --line:#1e2330; --text:#dfe3ea; --muted:#6b7488;
-  --accent:#4c8dff; --live:#3ddc84; --dead:#e0576a; --warn:#e8b04b;
-  --mono:'SF Mono','Cascadia Code',ui-monospace,Menlo,monospace;
+  --bg:#0b0d12; --panel:#11141c; --line:#1e2330; --line-soft:#171b25;
+  --text:#e6eaf1; --muted:#79839a; --accent:#4c8dff; --live:#3ddc84; --dead:#e0576a;
+  --tabbar:64px;
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,monospace;
 }
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:14px;line-height:1.5}
-a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* An explicit display: rule beats the UA stylesheet's [hidden]{display:none},
+   so .chips (display:flex) stayed visible on other tabs. Make hidden win. */
+[hidden]{display:none!important}
+html,body{overscroll-behavior-y:none}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.45;
+  -webkit-font-smoothing:antialiased;padding-bottom:calc(var(--tabbar) + var(--safe-b))}
+a{color:var(--accent);text-decoration:none}
+img{display:block}
 .muted{color:var(--muted)}
-button{background:var(--accent);border:0;border-radius:4px;color:#fff;cursor:pointer;font-family:var(--mono);font-size:13px;padding:7px 16px}
-button:hover{opacity:.88}button:disabled{opacity:.4;cursor:default}
-button.ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
-select,input[type=text],textarea{background:#0a0c11;border:1px solid var(--line);border-radius:4px;color:var(--text);font-family:var(--mono);font-size:13px;padding:7px 10px}
-textarea{width:100%;resize:vertical;min-height:74px;line-height:1.45}
+button{font-family:inherit;font-size:15px;border:0;background:none;color:inherit;cursor:pointer}
+input,textarea,select{font-family:inherit;font-size:16px;/* 16px stops iOS zooming on focus */
+  background:#0a0c11;border:1px solid var(--line);border-radius:9px;color:var(--text);padding:11px 12px;width:100%}
+textarea{resize:none;line-height:1.4}
 
-header{border-bottom:1px solid var(--line);padding:14px 20px;background:var(--panel);position:sticky;top:0;z-index:20}
-.top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
-h1{font-size:15px;font-weight:600}h1 .dim{color:var(--muted);font-weight:400}
-h1 a{color:inherit}
-#auth-state{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px}
-.blurb{color:var(--muted);font-size:12px;margin-top:6px;max-width:76ch}
-.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:11px}
-.controls input[type=text]{flex:1;min-width:200px}
-label.check{color:var(--muted);font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer}
-label.check input{accent-color:var(--accent)}
-.stats{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:var(--muted)}
-.stats b{color:var(--text);font-weight:500}
-#conn{color:var(--muted)}
-#conn.live::before{content:'● ';color:var(--live)}
-#conn.dead::before{content:'○ ';color:var(--dead)}
-#status{margin-top:7px;font-size:12px;color:var(--muted);min-height:1.2em}
-#status.err{color:var(--dead)}
+/* ── top bar ───────────────────────────────────────── */
+.topbar{position:sticky;top:0;z-index:30;background:rgba(11,13,18,.92);
+  backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.tbrow{display:flex;align-items:center;gap:10px;padding:11px 14px;min-height:52px}
+.brand{font-weight:700;font-size:16px;letter-spacing:-.01em}
+.brand small{font-weight:400;color:var(--muted);font-size:11px;margin-left:6px}
+.tbrow .spacer{margin-left:auto}
+.pill{border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-size:13px;
+  color:var(--muted);min-height:36px;display:inline-flex;align-items:center;gap:6px}
+.pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.avatar-btn{width:32px;height:32px;border-radius:50%;overflow:hidden;background:var(--line);flex:none}
+.avatar-btn img{width:100%;height:100%;object-fit:cover}
 
-/* typeahead */
-.ta-wrap{position:relative;flex:1;min-width:200px;display:flex}
-.ta-wrap input{width:100%}
-.ta-menu{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:50;list-style:none;
-  background:var(--panel);border:1px solid var(--line);border-radius:5px;overflow:hidden;
-  box-shadow:0 8px 26px rgba(0,0,0,.5);max-height:290px;overflow-y:auto}
-.ta-menu li{display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;font-size:12.5px}
-.ta-menu li.on,.ta-menu li:hover{background:rgba(76,141,255,.14)}
-.ta-menu img{width:19px;height:19px;border-radius:50%;background:var(--line);flex:none;object-fit:cover}
-.ta-menu .h{color:var(--text)}
-.ta-menu .d{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* horizontally scrolling feed chips — never wraps, never scrolls the page */
+.chips{display:flex;gap:8px;padding:0 14px 11px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.chips::-webkit-scrollbar{display:none}
+.chips .pill{flex:none;white-space:nowrap}
 
-main{max-width:680px;margin:0 auto;padding:18px 20px 60px}
+/* ── posts ─────────────────────────────────────────── */
+.post{display:flex;gap:11px;padding:13px 14px;border-bottom:1px solid var(--line-soft)}
+.post:active{background:#0e1118}
+.pav{width:42px;height:42px;border-radius:50%;background:var(--line);flex:none;object-fit:cover}
+.pbody{flex:1;min-width:0}
+.phead{display:flex;align-items:baseline;gap:6px;font-size:14px;margin-bottom:2px}
+.pname{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:46%}
+.phandle{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ptime{color:var(--muted);font-size:13px;margin-left:auto;flex:none}
+.ptext{white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px}
+.pembed{margin-top:7px;font-size:12px;color:var(--muted);border:1px solid var(--line);
+  border-radius:8px;padding:7px 10px;display:inline-block}
+.pacts{display:flex;gap:26px;margin-top:9px;color:var(--muted);font-size:13px}
+.pacts button{color:var(--muted);font-size:13px;display:inline-flex;align-items:center;gap:5px;
+  min-height:32px;min-width:44px}
+.pacts button:active{color:var(--accent)}
 
-#composer{border:1px solid var(--line);border-radius:6px;background:var(--panel);padding:11px;margin-bottom:16px}
-.crow{display:flex;align-items:center;gap:10px;margin-top:8px}
-#compose-count{font-size:11px;color:var(--muted);margin-left:auto}
-#compose-count.over{color:var(--dead)}
-#compose-status{font-size:11px;color:var(--muted)}
+/* ── notifications ─────────────────────────────────── */
+.notif{display:flex;gap:11px;padding:12px 14px;border-bottom:1px solid var(--line-soft);align-items:flex-start}
+.nicon{width:24px;flex:none;text-align:center;font-size:15px;padding-top:2px}
+.nbody{flex:1;min-width:0;font-size:14px}
+.nsub{color:var(--muted);font-size:13px;margin-top:3px;overflow:hidden;text-overflow:ellipsis;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 
-.post{border:1px solid var(--line);border-radius:6px;padding:11px 13px;margin-bottom:9px;background:var(--panel)}
-.who{display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:6px}
-.avatar{width:20px;height:20px;border-radius:50%;background:var(--line);object-fit:cover;flex:none}
-.handle{color:var(--text);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.who time{color:var(--muted);margin-left:auto;flex:none}
-.text{white-space:pre-wrap;word-break:break-word;font-size:13.5px}
-.embed{margin-top:6px;font-size:11px;color:var(--muted)}
-.foot{display:flex;gap:14px;align-items:center;margin-top:8px;font-size:11px}
-.foot button.counts{background:transparent;border:1px solid var(--line);color:var(--muted);padding:3px 9px;font-size:11px}
-.counts-out{color:var(--muted);font-size:11px;letter-spacing:.04em}
-
-#empty{border:1px dashed var(--line);border-radius:6px;padding:20px;color:var(--muted);font-size:12.5px}
-#empty h2{font-size:13px;color:var(--text);margin-bottom:9px;font-weight:600}
-#empty ol{margin:0 0 10px 18px}#empty li{margin-bottom:4px}
-#empty code{color:var(--accent)}
-#empty .keep{margin-top:11px;padding-top:10px;border-top:1px solid var(--line)}
-
-#profile-head{display:flex;gap:14px;margin-bottom:14px}
-.pavatar{width:62px;height:62px;border-radius:50%;background:var(--line);object-fit:cover;flex:none}
-.pname{font-size:15px;font-weight:600}
-.phandle{color:var(--muted);font-size:12px}
-.pdesc{margin-top:7px;font-size:12.5px;white-space:pre-wrap}
-.pstats{display:flex;gap:14px;margin-top:8px;font-size:11px;color:var(--muted)}
+/* ── profile / me ──────────────────────────────────── */
+.phead-big{padding:16px 14px;border-bottom:1px solid var(--line)}
+.pbig{width:66px;height:66px;border-radius:50%;background:var(--line);object-fit:cover;margin-bottom:10px}
+.pdisp{font-size:19px;font-weight:700}
+.phand{color:var(--muted);font-size:14px}
+.pdesc{margin-top:9px;font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}
+.pstats{display:flex;gap:16px;margin-top:11px;font-size:13px;color:var(--muted)}
 .pstats b{color:var(--text)}
-.pactions{display:flex;gap:10px;align-items:center;margin-top:9px;font-size:12px}
-#profile-note{font-size:11.5px;color:var(--muted);margin:10px 0 12px}
-.back{font-size:12px;display:inline-block;margin-bottom:12px}
+.section{padding:14px;border-bottom:1px solid var(--line)}
+.section h3{font-size:13px;font-weight:600;margin-bottom:9px;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.06em}
+.section .row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.section p{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:9px}
+.btn{background:var(--accent);color:#fff;border-radius:9px;padding:11px 16px;min-height:44px;
+  font-weight:600;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--muted);font-weight:400}
+.btn:disabled{opacity:.42}
 
-footer{border-top:1px solid var(--line);padding:14px 20px;color:var(--muted);font-size:11px;text-align:center}
-#store-stat{color:var(--muted)}
-#keybox{margin-top:10px;border:1px solid var(--line);border-radius:5px;background:#0a0c11}
-#keybox summary{cursor:pointer;padding:7px 11px;font-size:12px;color:var(--muted)}
-#keybox summary::marker{color:var(--muted)}
-#key-state{margin-left:6px}
-#key-state.on{color:var(--live)}
-.keybody{padding:0 11px 11px;font-size:12px}
-.keybody p{margin-bottom:9px;max-width:74ch;line-height:1.5}
-.keybody .controls{margin-top:0}
-#quota{font-size:11px;margin-top:8px}
-#deeper{white-space:nowrap}
+/* ── compose sheet ─────────────────────────────────── */
+.fab{position:fixed;right:16px;bottom:calc(var(--tabbar) + var(--safe-b) + 16px);z-index:40;
+  width:56px;height:56px;border-radius:50%;background:var(--accent);color:#fff;font-size:23px;
+  display:flex;align-items:center;justify-content:center;box-shadow:0 6px 22px rgba(0,0,0,.5)}
+.sheet{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column;
+  padding-bottom:var(--safe-b)}
+.sheet[hidden]{display:none}
+.sheethead{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.sheetbody{flex:1;padding:14px;overflow-y:auto}
+.sheetbody textarea{min-height:180px;border:0;background:transparent;padding:0;font-size:17px}
+.sheetfoot{display:flex;align-items:center;gap:12px;padding:11px 14px;border-top:1px solid var(--line)}
+#cc{font-size:13px;color:var(--muted);margin-left:auto}
+#cc.over{color:var(--dead)}
+
+/* ── tab bar ───────────────────────────────────────── */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;
+  background:rgba(11,13,18,.96);backdrop-filter:blur(12px);border-top:1px solid var(--line);
+  padding-bottom:var(--safe-b)}
+.tab{flex:1;height:var(--tabbar);display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:3px;color:var(--muted);font-size:10.5px;letter-spacing:.02em}
+.tab .ic{font-size:19px;line-height:1}
+.tab.on{color:var(--accent)}
+
+/* ── misc ──────────────────────────────────────────── */
+.bar{padding:9px 14px;font-size:12.5px;color:var(--muted);border-bottom:1px solid var(--line-soft);
+  display:flex;align-items:center;gap:8px;min-height:38px}
+.bar .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex:none}
+.bar .dot.live{background:var(--live)}
+.empty{padding:36px 22px;text-align:center;color:var(--muted);font-size:14px;line-height:1.6}
+.empty strong{color:var(--text);display:block;margin-bottom:7px;font-size:15px}
+.more{display:block;width:100%;padding:16px;color:var(--accent);font-size:14px;text-align:center}
+.ta-wrap{position:relative;width:100%}
+.ta-menu{position:absolute;top:calc(100% + 5px);left:0;right:0;z-index:70;list-style:none;
+  background:var(--panel);border:1px solid var(--line);border-radius:11px;overflow:hidden;
+  box-shadow:0 10px 30px rgba(0,0,0,.55);max-height:52vh;overflow-y:auto}
+.ta-menu li{display:flex;align-items:center;gap:9px;padding:11px 13px;font-size:14px;min-height:46px}
+.ta-menu li.on{background:rgba(76,141,255,.15)}
+.ta-menu img{width:26px;height:26px;border-radius:50%;background:var(--line);flex:none;object-fit:cover}
+.ta-menu .d{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (min-width:640px){ body{max-width:600px;margin:0 auto;border-inline:1px solid var(--line)}
+  .tabbar{max-width:600px;left:50%;transform:translateX(-50%)}
+  .fab{right:calc(50% - 300px + 16px)} }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="top">
-    <h1><a href="#/">bsky</a> <span class="dim">— an AppView with no database</span></h1>
-    <div id="auth-state"></div>
+<header class="topbar">
+  <div class="tbrow">
+    <span class="brand">bsky<small id="brand-note">no database</small></span>
+    <span class="spacer"></span>
+    <button id="authbtn" class="pill">sign in</button>
   </div>
-  <p class="blurb">
-    Runs entirely in this tab. Jetstream v2 filters the firehose to a follow graph
-    <em>server-side</em>, so there is no fan-out and no backend &mdash; and the same socket
-    replays about <span id="lookback">36</span> hours of history with no key and no account.
-    Everything it sees is kept locally, so the window stops being a limit after a few visits.
-  </p>
-
-  <div class="controls">
-    <select id="source" aria-label="account source">
-      <option value="follows">follows of</option>
-      <option value="list">members of list</option>
-    </select>
-    <input type="text" id="actor" placeholder="handle, e.g. bsky.app">
-    <button id="go">go</button>
-    <select id="depth" aria-label="history depth" title="Only used on a first visit or after a long absence. Otherwise the stored cursor resumes exactly where you left off.">
-      <option value="0">live only</option>
-      <option value="1">1h back</option>
-      <option value="6" selected>6h back</option>
-      <option value="24">24h back</option>
-      <option value="36">36h (the window)</option>
-    </select>
-    <label class="check" id="self-wrap"><input type="checkbox" id="include-self"> include them</label>
-    <label class="check"><input type="checkbox" id="show-replies"> replies</label>
-  </div>
-
-  <div class="controls">
-    <input type="text" id="lookup" placeholder="look up any profile…">
-    <button id="deeper" class="ghost" title="Reach past the ~36h live window using the archive. Needs your own free Jetstream key.">reach further back…</button>
-  </div>
-
-  <details id="keybox">
-    <summary>deep history &mdash; your own key <span id="key-state" class="muted"></span></summary>
-    <div class="keybody">
-      <p class="muted">
-        The live window replays about 36 hours and needs nothing. Older than that is the
-        <em>archive</em>, which is metered by the byte and needs a key &mdash; so it uses
-        <strong>yours</strong>, not ours. Get one free at
-        <a href="https://bsky.network/account" target="_blank" rel="noopener">bsky.network/account</a>
-        (sign in with Bluesky). It is stored in this browser only and goes straight from here to
-        Jetstream: there is no server in this design for it to pass through.
-      </p>
-      <div class="controls">
-        <input type="text" id="apikey" placeholder="paste your Jetstream API key" autocomplete="off">
-        <button id="savekey">save</button>
-        <button id="dropkey" class="ghost">forget</button>
-      </div>
-      <div id="quota" class="muted"></div>
-    </div>
-  </details>
-
-  <div class="stats">
-    <span id="conn" class="dead">not connected</span>
-    <span><b id="stat-dids">0</b> accounts</span>
-    <span><b id="stat-rate">0.0/s</b></span>
-    <span><b id="stat-seen">0</b> seen</span>
-    <span>seq <b id="stat-cursor">—</b></span>
-    <span id="store-stat">…</span>
-    <button id="clear-store" class="ghost" style="padding:2px 8px;font-size:11px">clear store</button>
-  </div>
-  <div id="status"></div>
+  <div class="chips" id="chips"></div>
 </header>
 
+<div class="bar" id="statusbar"><span class="dot" id="dot"></span><span id="statustext">ready</span></div>
+
 <main>
-  <section id="feed-view">
-    <div id="composer" hidden>
-      <textarea id="compose-text" placeholder="Post to Bluesky…" maxlength="3000"></textarea>
-      <div class="crow">
-        <button id="compose-send" disabled>post</button>
-        <span id="compose-status"></span>
-        <span id="compose-count">0/300</span>
-      </div>
-    </div>
-
-    <div id="empty">
-      <h2>One socket, no backend, no account.</h2>
-      <ol>
-        <li>Type a handle and press <code>go</code>. We resolve it, read the follow graph, and open one WebSocket.</li>
-        <li>Jetstream replays your window of history, then cuts over to live &mdash; same socket, no seam.</li>
-        <li>Posts appear below. <code>counts &#8635;</code> asks Constellation for likes, reposts, replies and quotes.</li>
-      </ol>
-      <div class="keep">
-        <strong>Why it gets better every visit.</strong> The server only ever replays about 36
-        hours &mdash; but it is a <em>rolling</em> 36 hours, and everything this page sees is
-        written to your browser. Come back tomorrow and it resumes from the exact event it
-        stopped at, so the day between is filled with no gap. Come back for a month and you
-        hold a month, from a service that never offers more than a day and a half at a time.
-        Nothing is uploaded; there is no server here to upload it to.
-      </div>
-    </div>
-    <div id="feed"></div>
-  </section>
-
-  <section id="profile-view" hidden>
-    <a class="back" href="#/">&larr; back to the feed</a>
-    <div id="profile-head"></div>
-    <div id="profile-note"></div>
-    <div id="profile-posts"></div>
-  </section>
+  <section id="v-home"></section>
+  <section id="v-notifs" hidden></section>
+  <section id="v-me" hidden></section>
 </main>
 
-<footer>
-  no tracking, no cookies of ours, nothing uploaded &middot;
-  <a href="https://github.com/minormobius/agent01/blob/main/docs/APPVIEW-FEASIBILITY.md">how this works</a> &middot;
-  <a href="https://b.mino.mobi">the rest of the Bluesky corner &#8599;</a>
-</footer>
+<button class="fab" id="fab" aria-label="write a post">✎</button>
+
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-label="Write a post">
+  <div class="sheethead">
+    <button id="sheet-cancel" class="pill">cancel</button>
+    <span class="spacer"></span>
+    <button id="sheet-post" class="btn" disabled>post</button>
+  </div>
+  <div class="sheetbody">
+    <textarea id="ct" placeholder="What's up?" maxlength="3000"></textarea>
+    <div id="cs" class="muted" style="font-size:13px;margin-top:10px"></div>
+  </div>
+  <div class="sheetfoot">
+    <span class="muted" style="font-size:12.5px">posts to your own repo</span>
+    <span id="cc">0/300</span>
+  </div>
+</div>
+
+<nav class="tabbar">
+  <button class="tab on" data-tab="home"><span class="ic">⌂</span>Home</button>
+  <button class="tab" data-tab="notifs"><span class="ic">♡</span>Notifs</button>
+  <button class="tab" data-tab="me"><span class="ic">☰</span>Me</button>
+</nav>
 
 <script type="module" src="/app.js"></script>
 </body>

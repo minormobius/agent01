@@ -1,276 +1,260 @@
 /**
- * bsky.mino.mobi — a frontend-only AppView.
+ * bsky.mino.mobi — a Bluesky client with no database.
  *
- * No database, no backend, no account required to read.
+ * Three tabs, a compose sheet, and posts. Everything below the UI is the same
+ * frontend-only AppView it always was:
  *
- *   timeline  ← Jetstream v2 live tail, `dids`-filtered to a follow graph.
- *               The server does the fan-out; the ~36h window replays history
- *               over the same unauthenticated socket.
- *   history   ← that window, PLUS everything this browser has already stored.
- *               See lib/cache.js — the cache is what makes the 36h limit stop
- *               mattering after the first few visits.
- *   counts    ← Constellation, the global backlink index. Any at:// URI, any
- *               lexicon, no auth.
- *   who       ← the public AppView, for profile hydration and typeahead only.
- *   posting   ← the shared OAuth worker, narrow scope. See lib/compose.js.
+ *   Home    an algorithmic feed by default (simcluster, this repo's own feed
+ *           generator at feed.mino.mobi — a skeleton of at:// URIs hydrated by
+ *           getPosts), or a LIVE follow-graph timeline over one Jetstream
+ *           socket, or whatever this browser has stored.
+ *   Notifs  built from Constellation, the global backlink index. A notification
+ *           IS a backlink, so this works with no account at all.
+ *   Me      your profile, the local store, and the deep-history key.
  *
- * The only thing needing a key is archive history older than the window, and
- * that is the user's own key, spent from their own quota — see lib/archive.js.
+ * No DMs. They are not protocol records — chat.bsky.* is a centralised service
+ * that never touches the firehose — so nothing in this design can reach them.
+ * See bsky/CLAUDE.md.
  */
 
 import { JetstreamClient, KIND, eventUri, LOOKBACK_HOURS, clampSince }
   from '/packages/atproto/jetstream.js';
 import { postCounts } from '/packages/atproto/constellation.js';
-import { getProfiles, getFollows, getListMembers, resolveActor, getProfile }
-  from '/packages/atproto/bsky.js';
+import { getProfiles, getFollows, resolveActor, getProfile } from '/packages/atproto/bsky.js';
+import { FEEDS, loadFeed, authorFeed, notifications } from '/lib/sources.js';
 import { attachTypeahead } from '/lib/typeahead.js';
 import * as cache from '/lib/cache.js';
 import { auth, publish, graphemeLength, MAX_GRAPHEMES } from '/lib/compose.js';
 
-const MAX_RENDERED = 400;
-const HYDRATE_EVERY = 900;
-
 const $ = (id) => document.getElementById(id);
+const el = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const BLANK = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg"/>');
 
 const state = {
-  client: null,
+  tab: 'home',
+  feed: 'simcluster',       // a FEEDS id, 'live', or 'stored'
+  cursor: null,
+  live: null,               // JetstreamClient
   dids: [],
   subKey: null,
-  rendered: new Map(),      // uri -> post (idempotency; at-least-once delivery)
+  seen: new Set(),          // rendered at:// URIs — delivery is at-least-once
   profiles: new Map(),
   pending: new Set(),
-  writeQueue: [],           // batched IndexedDB writes
-  seen: 0,
-  rate: [],
-  view: 'feed',
+  writeQueue: [],
   cacheOk: false,
+  me: null,                 // signed-in profile
+  loading: false,
 };
 
-// ─── routing ─────────────────────────────────────────────────────
+// ─── chrome ──────────────────────────────────────────────────────
 
-function route() {
-  const hash = location.hash.slice(1) || '/';
-  const [, section, arg] = hash.split('/');
-  if (section === 'profile' && arg) return showProfile(decodeURIComponent(arg));
-  showFeed();
+function say(text, live = false) {
+  $('statustext').textContent = text;
+  $('dot').className = 'dot' + (live ? ' live' : '');
 }
 
-function showFeed() {
-  state.view = 'feed';
-  $('profile-view').hidden = true;
-  $('feed-view').hidden = false;
+function showTab(tab) {
+  state.tab = tab;
+  for (const b of document.querySelectorAll('.tab')) b.classList.toggle('on', b.dataset.tab === tab);
+  $('v-home').hidden = tab !== 'home';
+  $('v-notifs').hidden = tab !== 'notifs';
+  $('v-me').hidden = tab !== 'me';
+  $('chips').hidden = tab !== 'home';
+  $('fab').hidden = tab !== 'home';
+  window.scrollTo(0, 0);
+  if (tab === 'notifs') renderNotifs();
+  if (tab === 'me') renderMe();
 }
 
-// ─── the subscription ────────────────────────────────────────────
+function renderChips() {
+  const opts = [
+    ...FEEDS.map((f) => ({ id: f.id, label: f.label })),
+    { id: 'live', label: '⚡ live' },
+    { id: 'stored', label: '⛁ stored' },
+  ];
+  $('chips').innerHTML = '';
+  for (const o of opts) {
+    const b = el(`<button class="pill${o.id === state.feed ? ' on' : ''}">${esc(o.label)}</button>`);
+    b.addEventListener('click', () => selectFeed(o.id));
+    $('chips').append(b);
+  }
+}
 
-async function start() {
-  const source = $('source').value;
-  const input = $('actor').value.trim();
-  if (!input) return status('enter a handle or a list URI', true);
+// ─── home ────────────────────────────────────────────────────────
 
-  stop();
-  resetFeed();
-  status('resolving…');
+async function selectFeed(id) {
+  if (state.live) { state.live.close(); state.live = null; }
+  state.feed = id;
+  state.cursor = null;
+  state.seen.clear();
+  $('v-home').innerHTML = '';
+  renderChips();
 
+  if (id === 'live') return startLive();
+  if (id === 'stored') return showStored();
+  return loadAlgorithmic(true);
+}
+
+async function loadAlgorithmic(fresh) {
+  const feed = FEEDS.find((f) => f.id === state.feed);
+  if (!feed || state.loading) return;
+  state.loading = true;
+  say(fresh ? `loading ${feed.label}…` : 'loading more…');
+  try {
+    const { posts, cursor } = await loadFeed(feed.uri, { limit: 30, cursor: state.cursor });
+    state.cursor = cursor;
+    document.getElementById('more-btn')?.remove();
+
+    if (!posts.length && fresh) {
+      $('v-home').append(el(`<div class="empty"><strong>Nothing in this feed right now.</strong>
+        ${esc(feed.blurb)}</div>`));
+    }
+    for (const p of posts) appendPost(p);
+    // Store what the feed gave us: it is history the live window cannot reach.
+    if (state.cacheOk && posts.length) cache.putPosts(posts).catch(() => {});
+    if (cursor && posts.length) {
+      const more = el('<button class="more" id="more-btn">load more</button>');
+      more.addEventListener('click', () => loadAlgorithmic(false));
+      $('v-home').append(more);
+    }
+    say(`${feed.label} · ${feed.blurb}`);
+  } catch (err) {
+    say(`could not load ${feed.label}: ${err.message}`);
+  } finally {
+    state.loading = false;
+  }
+}
+
+async function showStored() {
+  if (!state.cacheOk) {
+    $('v-home').append(el(`<div class="empty"><strong>No local store.</strong>
+      A private window or blocked site data means nothing can be kept here.</div>`));
+    return say('no local store');
+  }
+  const posts = await cache.recentPosts({ limit: 100 }).catch(() => []);
+  if (!posts.length) {
+    $('v-home').append(el(`<div class="empty"><strong>Nothing stored yet.</strong>
+      Everything this app sees is written to your browser. Read a feed or run the live
+      timeline, and it accumulates here — history the network only offers for about
+      ${LOOKBACK_HOURS} hours at a time.</div>`));
+    return say('local store is empty');
+  }
+  for (const p of posts) appendPost(p);
+  say(`${posts.length} posts from this browser's store`);
+}
+
+async function startLive() {
+  const handle = state.me?.handle || prompt('Whose follow graph? (a handle)');
+  if (!handle) { selectFeed('simcluster'); return; }
+  say('reading the follow graph…');
   let dids;
   try {
-    if (source === 'list') {
-      dids = await getListMembers(input);
-    } else {
-      const did = await resolveActor(input);
-      status('reading the follow graph…');
-      dids = await getFollows(did, 100);
-      if ($('include-self').checked) dids.unshift(did);
-    }
-  } catch (err) {
-    return status(err.message, true);
-  }
-  if (!dids.length) return status('no accounts found for that source', true);
+    const did = await resolveActor(handle);
+    dids = await getFollows(did, 100);
+    dids.unshift(did);
+  } catch (err) { return say(err.message); }
+  if (!dids.length) return say('no follows found');
 
   state.dids = dids;
   state.subKey = cache.subscriptionKey(dids);
 
-  // 1. Paint from the local store first. This is instant and works offline;
-  //    the socket then fills forward from wherever we left off.
-  let restored = 0;
+  // Paint from the store first, then fill forward from where we stopped.
   if (state.cacheOk) {
-    try {
-      const held = await cache.recentPosts({ limit: 200 });
-      for (const p of held) renderPost(p, 'append');
-      restored = held.length;
-    } catch { /* a cache miss is never fatal */ }
+    const held = await cache.recentPosts({ limit: 80 }).catch(() => []);
+    for (const p of held) appendPost(p);
   }
-
-  // 2. Decide how to reconnect — resume by seq if we can, else replay a window.
-  //    lib/cache.js explains why this distinction is the whole design.
-  const requested = Number($('depth').value);
   const plan = state.cacheOk
-    ? await cache.resumePlan(state.subKey, requested)
-    : { mode: 'since', hours: requested, reason: 'no local store' };
-
-  if (plan.mode === 'since' && plan.reason !== 'first visit' && restored) {
-    // We have posts but cannot bridge to them: say so rather than letting the
-    // feed imply continuity it does not have.
-    await cache.recordGap(state.subKey, {
-      from: Date.now() - plan.hours * 3_600_000, to: Date.now(), reason: plan.reason,
-    }).catch(() => {});
-  }
+    ? await cache.resumePlan(state.subKey, 6)
+    : { mode: 'since', hours: 6, reason: 'no local store' };
 
   const opts = {
-    dids,
-    collections: ['app.bsky.feed.post'],
-    kinds: [KIND.commit],
-    onEvent,
-    onConnect: () => {
-      $('conn').className = 'live';
-      status(
-        (plan.mode === 'resume'
-          ? `resumed at seq ${plan.cursor}`
-          : clampSince(plan.hours) ? `replaying ${clampSince(plan.hours)}h` : 'live')
-        + ` · ${dids.length.toLocaleString()} accounts, one socket`
-        + (restored ? ` · ${restored} from cache` : '')
-      );
-    },
-    onDisconnect: () => { $('conn').className = 'dead'; },
-    onError: (e) => console.warn('jetstream', e),
+    dids, collections: ['app.bsky.feed.post'], kinds: [KIND.commit],
+    onEvent: onLiveEvent,
+    onConnect: () => say(`live · ${dids.length} accounts, one socket`, true),
+    onDisconnect: () => say('reconnecting…'),
   };
   if (plan.mode === 'resume') opts.cursor = plan.cursor; else opts.since = plan.hours;
-
-  state.client = new JetstreamClient(opts);
-  state.client.connect();
-
-  $('go').textContent = 'stop';
-  $('go').dataset.running = '1';
-  if (plan.mode === 'since' && plan.reason !== 'first visit') {
-    status(`${plan.reason} — gap recorded`, false);
-  }
+  state.live = new JetstreamClient(opts);
+  state.live.connect();
 }
 
-function stop() {
-  state.client?.close();
-  state.client = null;
-  $('conn').className = 'dead';
-  $('go').textContent = 'go';
-  delete $('go').dataset.running;
-  flushWrites();
-}
-
-function resetFeed() {
-  state.rendered.clear();
-  state.seen = 0;
-  state.rate = [];
-  $('feed').innerHTML = '';
-  $('empty').hidden = false;
-}
-
-// ─── events ──────────────────────────────────────────────────────
-
-function onEvent(payload) {
+function onLiveEvent(payload) {
   if (payload.collection !== 'app.bsky.feed.post') return;
   const uri = eventUri(payload);
   if (!uri) return;
-
   if (payload.operation === 'delete') {
-    state.rendered.delete(uri);
     document.querySelector(`[data-uri="${CSS.escape(uri)}"]`)?.remove();
     if (state.cacheOk) cache.deletePost(uri).catch(() => {});
     return;
   }
-
   const record = payload.record;
   if (!record || typeof record.text !== 'string') return;
 
-  state.seen++;
-  state.rate.push(Date.now());
-
-  const post = {
-    uri,
-    did: payload.did,
-    rkey: payload.rkey,
-    seq: payload.seq,
-    createdAt: record.createdAt || new Date().toISOString(),
-    record,
-  };
-
-  // Always store, even replies we do not render — the cache is the archive, and
-  // what is filtered from THIS view may be wanted by a profile view later.
+  const post = { uri, did: payload.did, rkey: payload.rkey, seq: payload.seq,
+                 createdAt: record.createdAt || new Date().toISOString(), record };
   if (state.cacheOk) {
     state.writeQueue.push(post);
     if (state.writeQueue.length >= 100) flushWrites();
   }
-
-  if (record.reply && !$('show-replies').checked) return;
-  if (state.rendered.has(uri)) return;      // at-least-once delivery
-
-  state.rendered.set(uri, post);
-  if (!state.profiles.has(post.did)) state.pending.add(post.did);
-  renderPost(post, 'prepend');
-  trim();
-  $('empty').hidden = true;
+  if (record.reply) return;                 // a timeline, not a thread view
+  if (state.seen.has(uri)) return;
+  prependPost(post);
 }
 
 function flushWrites() {
   if (!state.writeQueue.length || !state.cacheOk) return;
-  const batch = state.writeQueue;
-  state.writeQueue = [];
+  const batch = state.writeQueue.splice(0);
   cache.putPosts(batch).catch(() => {});
   const newest = batch.reduce((m, p) => (p.seq > (m?.seq ?? -1) ? p : m), null);
   if (newest?.seq && state.subKey) cache.saveCursor(state.subKey, newest.seq).catch(() => {});
 }
 
-function trim() {
-  while (state.rendered.size > MAX_RENDERED) {
-    const oldest = state.rendered.keys().next().value;
-    state.rendered.delete(oldest);
-    document.querySelector(`[data-uri="${CSS.escape(oldest)}"]`)?.remove();
-  }
+// ─── post rendering ──────────────────────────────────────────────
+
+function postNode(p) {
+  const prof = p.author || state.profiles.get(p.did);
+  const c = p.counts;
+  const node = el(`
+    <article class="post" data-uri="${esc(p.uri)}" data-did="${esc(p.did)}">
+      <img class="pav" alt="" src="${prof?.avatar ? esc(prof.avatar) : BLANK}">
+      <div class="pbody">
+        <div class="phead">
+          <span class="pname">${esc(prof?.displayName || prof?.handle || 'unknown')}</span>
+          <span class="phandle">@${esc(prof?.handle || p.did.slice(8, 20) + '…')}</span>
+          <span class="ptime">${when(p.createdAt)}</span>
+        </div>
+        <div class="ptext">${esc(p.record?.text || '')}</div>
+        ${embed(p.record)}
+        <div class="pacts">
+          <button data-act="reply">↳ <span>${c ? c.replyCount : ''}</span></button>
+          <button data-act="repost">↻ <span>${c ? c.repostCount : ''}</span></button>
+          <button data-act="like">♡ <span>${c ? c.likeCount : ''}</span></button>
+          <button data-act="open">↗</button>
+        </div>
+      </div>
+    </article>`);
+  if (!prof && !state.profiles.has(p.did)) state.pending.add(p.did);
+  node._post = p;
+  return node;
 }
 
-// ─── rendering ───────────────────────────────────────────────────
-
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
-  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const BLANK = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg"/>');
-
-function renderPost(post, where = 'prepend', into = 'feed') {
-  const el = document.createElement('article');
-  el.className = 'post';
-  el.dataset.uri = post.uri;
-  el.dataset.did = post.did;
-
-  const p = state.profiles.get(post.did);
-  el.innerHTML = `
-    <div class="who">
-      <img class="avatar" alt="" src="${p?.avatar ? esc(p.avatar) : BLANK}">
-      <a class="handle" href="#/profile/${encodeURIComponent(p?.handle || post.did)}">
-        ${esc(p?.handle ?? post.did.slice(0, 22) + '…')}
-      </a>
-      <time datetime="${esc(post.createdAt)}">${when(post.createdAt)}</time>
-    </div>
-    <div class="text">${esc(post.record.text) || '<span class="muted">(no text)</span>'}</div>
-    ${embedLine(post.record)}
-    <div class="foot">
-      <button class="counts" data-uri="${esc(post.uri)}">counts &#8635;</button>
-      <a href="https://bsky.app/profile/${esc(post.did)}/post/${esc(post.rkey)}"
-         target="_blank" rel="noopener">open &#8599;</a>
-    </div>`;
-
-  const parent = $(into);
-  if (where === 'prepend') parent.prepend(el); else parent.append(el);
-  if (!state.profiles.has(post.did)) state.pending.add(post.did);
+function appendPost(p) { if (state.seen.has(p.uri)) return; state.seen.add(p.uri); $('v-home').append(postNode(p)); }
+function prependPost(p) {
+  if (state.seen.has(p.uri)) return;
+  state.seen.add(p.uri);
+  const first = $('v-home').firstElementChild;
+  $('v-home').insertBefore(postNode(p), first);
 }
 
-function embedLine(record) {
-  const t = record.embed?.$type;
+function embed(record) {
+  const t = record?.embed?.$type;
   if (!t) return '';
-  const label = {
-    'app.bsky.embed.images': 'images',
-    'app.bsky.embed.video': 'video',
-    'app.bsky.embed.external': 'link',
-    'app.bsky.embed.record': 'quote',
-    'app.bsky.embed.recordWithMedia': 'quote + media',
-  }[t] ?? t;
-  return `<div class="embed">&#8687; ${esc(label)}</div>`;
+  const label = { 'app.bsky.embed.images': '🖼 images', 'app.bsky.embed.video': '▶ video',
+    'app.bsky.embed.external': '🔗 link', 'app.bsky.embed.record': '❝ quote',
+    'app.bsky.embed.recordWithMedia': '❝ quote + media' }[t] || t;
+  return `<div class="pembed">${esc(label)}</div>`;
 }
 
 function when(iso) {
@@ -280,323 +264,276 @@ function when(iso) {
   if (s < 60) return `${s | 0}s`;
   if (s < 3600) return `${(s / 60) | 0}m`;
   if (s < 86400) return `${(s / 3600) | 0}h`;
-  return `${(s / 86400) | 0}d`;
+  if (s < 2592000) return `${(s / 86400) | 0}d`;
+  return d.toISOString().slice(0, 10);
 }
-
-// ─── hydration ───────────────────────────────────────────────────
 
 async function hydrate() {
   if (!state.pending.size) return;
   const batch = [...state.pending].slice(0, 25);
   batch.forEach((d) => state.pending.delete(d));
-
-  // Try the cache first — a stored profile costs no request at all.
   const need = [];
   for (const did of batch) {
     const hit = state.cacheOk ? await cache.getCachedProfile(did).catch(() => null) : null;
-    if (hit) applyProfile(hit); else need.push(did);
+    if (hit) paintProfile(hit); else need.push(did);
   }
   if (!need.length) return;
-
   const got = await getProfiles(need);
-  for (const [, profile] of got) {
-    applyProfile(profile);
-    if (state.cacheOk) cache.putProfile(profile).catch(() => {});
+  for (const [, prof] of got) {
+    paintProfile(prof);
+    if (state.cacheOk) cache.putProfile(prof).catch(() => {});
   }
 }
 
-function applyProfile(profile) {
-  state.profiles.set(profile.did, profile);
-  for (const el of document.querySelectorAll(`[data-did="${CSS.escape(profile.did)}"]`)) {
-    const h = el.querySelector('.handle');
-    const a = el.querySelector('.avatar');
-    if (h && profile.handle) {
-      h.textContent = profile.handle;
-      h.setAttribute('href', `#/profile/${encodeURIComponent(profile.handle)}`);
-    }
-    if (a && profile.avatar) a.src = profile.avatar;
+function paintProfile(prof) {
+  state.profiles.set(prof.did, prof);
+  for (const node of document.querySelectorAll(`[data-did="${CSS.escape(prof.did)}"]`)) {
+    const n = node.querySelector('.pname'); const h = node.querySelector('.phandle');
+    const a = node.querySelector('.pav');
+    if (n) n.textContent = prof.displayName || prof.handle;
+    if (h) h.textContent = '@' + prof.handle;
+    if (a && prof.avatar) a.src = prof.avatar;
   }
 }
 
-// ─── counts ──────────────────────────────────────────────────────
+// ─── notifications ───────────────────────────────────────────────
 
-async function showCounts(button) {
-  button.disabled = true;
-  button.textContent = '…';
-  try {
-    const c = await postCounts(button.dataset.uri);
-    button.replaceWith(Object.assign(document.createElement('span'), {
-      className: 'counts-out',
-      textContent: `♡ ${c.likeCount}  ↻ ${c.repostCount}  ↳ ${c.replyCount}  ❝ ${c.quoteCount}`,
-    }));
-  } catch {
-    button.textContent = 'unavailable';
-    button.disabled = false;
-  }
-}
+let notifsFor = null;
 
-// ─── profile view ────────────────────────────────────────────────
-
-async function showProfile(actor) {
-  state.view = 'profile';
-  $('feed-view').hidden = true;
-  $('profile-view').hidden = false;
-  $('profile-posts').innerHTML = '';
-  $('profile-head').innerHTML = '<div class="muted">loading…</div>';
-
-  let did;
-  try { did = await resolveActor(actor); }
-  catch { $('profile-head').innerHTML = `<div class="muted">could not resolve ${esc(actor)}</div>`; return; }
-
-  const p = await getProfile(did);
-  if (p) {
-    state.profiles.set(p.did, p);
-    if (state.cacheOk) cache.putProfile(p).catch(() => {});
-  }
-
-  $('profile-head').innerHTML = `
-    <img class="pavatar" alt="" src="${p?.avatar ? esc(p.avatar) : BLANK}">
-    <div class="pmeta">
-      <div class="pname">${esc(p?.displayName || p?.handle || did)}</div>
-      <div class="phandle">@${esc(p?.handle || did)}</div>
-      ${p?.description ? `<div class="pdesc">${esc(p.description)}</div>` : ''}
-      <div class="pstats">
-        <span><b>${(p?.followersCount ?? 0).toLocaleString()}</b> followers</span>
-        <span><b>${(p?.followsCount ?? 0).toLocaleString()}</b> following</span>
-        <span><b>${(p?.postsCount ?? 0).toLocaleString()}</b> posts</span>
-      </div>
-      <div class="pactions">
-        <a href="https://bsky.app/profile/${esc(did)}" target="_blank" rel="noopener">on bsky.app &#8599;</a>
-        <button id="watch-profile" class="ghost">watch live</button>
-      </div>
-    </div>`;
-
-  // Posts we already hold for this account — free, instant, and often the only
-  // thing available for a quiet account whose posts predate the window.
-  let held = [];
-  if (state.cacheOk) held = await cache.recentPosts({ did, limit: 100 }).catch(() => []);
-  if (held.length) {
-    for (const post of held) renderPost(post, 'append', 'profile-posts');
-    $('profile-note').textContent = `${held.length} posts from this browser's store`;
-  } else {
-    $('profile-note').textContent =
-      'Nothing stored for this account yet. "watch live" subscribes to them; '
-      + 'anything they post from now on is kept here.';
-  }
-
-  $('watch-profile')?.addEventListener('click', () => {
-    $('source').value = 'follows';
-    $('actor').value = p?.handle || did;
-    $('include-self').checked = true;
-    location.hash = '#/';
-    start();
-  });
-}
-
-// ─── composer ────────────────────────────────────────────────────
-
-async function initAuth() {
-  const a = auth();
-  try { await a.init(); } catch { /* offline: the read-only app still works */ }
-  a.onAuthChange(renderAuth);
-  renderAuth();
-}
-
-function renderAuth() {
-  const a = auth();
-  const user = a.getUser();
-  $('auth-state').innerHTML = user
-    ? `<span class="muted">@${esc(user.handle)}</span> <button id="signout" class="ghost">sign out</button>`
-    : `<button id="signin" class="ghost">sign in to post</button>`;
-  $('composer').hidden = !user;
-  $('signout')?.addEventListener('click', () => a.logout());
-  $('signin')?.addEventListener('click', () => {
-    const handle = prompt('Your Bluesky handle:');
-    if (handle) a.login(handle.trim().replace(/^@/, ''), { scope: 'atproto repo:app.bsky.feed.post' });
-  });
-}
-
-function updateCount() {
-  const n = graphemeLength($('compose-text').value);
-  const el = $('compose-count');
-  el.textContent = `${n}/${MAX_GRAPHEMES}`;
-  el.className = n > MAX_GRAPHEMES ? 'over' : '';
-  $('compose-send').disabled = n === 0 || n > MAX_GRAPHEMES;
-}
-
-async function send() {
-  const text = $('compose-text').value;
-  $('compose-send').disabled = true;
-  $('compose-status').textContent = 'posting…';
-  try {
-    const res = await publish(text, { resolveHandle: (h) => resolveActor(h).catch(() => null) });
-    $('compose-text').value = '';
-    updateCount();
-    $('compose-status').innerHTML =
-      `posted &middot; <a href="https://bsky.app/profile/${esc(auth().getUser()?.handle || '')}"
-        target="_blank" rel="noopener">view</a>`;
-    void res;
-  } catch (err) {
-    $('compose-status').textContent = err.message;
-    $('compose-send').disabled = false;
-  }
-}
-
-// ─── deep history (the visitor's own key) ────────────────────────
-
-// Loaded lazily: the SDK bundle and the zstd WASM are ~570 KB together, and a
-// visitor who never reaches past the live window should never pay for them.
-let archiveMod = null;
-async function archive() {
-  if (!archiveMod) archiveMod = await import('/lib/archive.js');
-  return archiveMod;
-}
-
-async function renderKeyState() {
-  const a = await archive().catch(() => null);
-  if (!a) return;
-  const on = a.hasKey();
-  $('key-state').textContent = on ? '· key saved' : '· no key';
-  $('key-state').className = on ? 'on' : 'muted';
-  $('quota').textContent = a.quotaSummary() || '';
-  $('deeper').disabled = !on;
-  $('deeper').title = on
-    ? 'Fetch history older than the live window, using your key and your quota.'
-    : 'Add your own Jetstream key below to reach past ~36h.';
-}
-
-async function fetchDeeper() {
-  if (!state.dids.length) return status('subscribe to something first', true);
-  const a = await archive();
-
-  // Start from the oldest thing we hold, so this fills backwards from the
-  // store rather than re-downloading what the live window already gave us.
-  let beforeSeq;
-  if (state.cacheOk) {
-    const held = await cache.recentPosts({ limit: 5000 }).catch(() => []);
-    const seqs = held.map((p) => p.seq).filter(Boolean);
-    if (seqs.length) beforeSeq = Math.min(...seqs);
-  }
-
-  const btn = $('deeper');
-  btn.disabled = true;
-  const controller = new AbortController();
-  const batch = [];
-  status(`archive: fetching older history for ${state.dids.length} accounts…`);
-
-  try {
-    const { events, stopped } = await a.fetchOlder({
-      dids: state.dids,
-      beforeSeq,
-      maxEvents: 5000,
-      signal: controller.signal,
-      onEvent: (post) => {
-        batch.push(post);
-        if (batch.length >= 200 && state.cacheOk) cache.putPosts(batch.splice(0)).catch(() => {});
-      },
-      onProgress: (n) => {
-        status(`archive: ${n.toLocaleString()} posts… ${a.quotaSummary() || ''}`);
-      },
+async function renderNotifs() {
+  const v = $('v-notifs');
+  const who = state.me?.handle || notifsFor;
+  if (!who) {
+    v.innerHTML = '';
+    const box = el(`<div class="section">
+      <h3>notifications for any account</h3>
+      <p>Bluesky's own notifications need a session. These do not: a notification <em>is</em> a
+      backlink — someone's like, reply or follow record pointing at you — and Constellation
+      indexes those for the whole network. So this works signed out, for anyone.</p>
+      <div class="row"><input type="text" id="nwho" placeholder="a handle"></div>
+      <button class="btn" id="ngo">show</button>
+    </div>`);
+    v.append(box);
+    attachTypeahead($('nwho'), { onPick: (a) => { notifsFor = a.handle; renderNotifs(); } });
+    $('ngo').addEventListener('click', () => {
+      const val = $('nwho').value.trim();
+      if (val) { notifsFor = val; renderNotifs(); }
     });
-    if (batch.length && state.cacheOk) await cache.putPosts(batch).catch(() => {});
-    status(`archive: ${events.toLocaleString()} older posts stored — ${stopped}. ${a.quotaSummary() || ''}`);
-    await refreshStorage();
-  } catch (err) {
-    status(`archive: ${err.message}`, true);
-  } finally {
-    btn.disabled = false;
-    renderKeyState();
+    return;
+  }
+
+  v.innerHTML = '<div class="empty">reading the backlink index…</div>';
+  let did;
+  try { did = await resolveActor(who); }
+  catch { v.innerHTML = `<div class="empty">could not resolve ${esc(who)}</div>`; return; }
+
+  const items = await notifications(did, { postDepth: 8 }).catch(() => []);
+  v.innerHTML = '';
+  v.append(el(`<div class="bar">for @${esc(who)} · from Constellation, no account needed
+    <span class="spacer"></span></div>`));
+  if (!items.length) {
+    v.append(el('<div class="empty"><strong>Nothing yet.</strong>No likes, replies or follows found for this account\'s recent posts.</div>'));
+    return;
+  }
+  const icon = { follow: '＋', like: '♡', reply: '↳' };
+  const verb = { follow: 'followed', like: 'liked your post', reply: 'replied to you' };
+  for (const n of items) {
+    v.append(el(`<div class="notif">
+      <div class="nicon">${icon[n.kind] || '·'}</div>
+      <div class="nbody">
+        <b>${esc(n.actor?.displayName || n.actor?.handle || n.actorDid.slice(8, 22))}</b>
+        <span class="muted">${verb[n.kind] || n.kind}</span>
+        ${n.subjectText ? `<div class="nsub">${esc(n.subjectText)}</div>` : ''}
+      </div>
+    </div>`));
+  }
+  v.append(el(`<div class="empty" style="padding:18px 22px;font-size:12.5px">
+    A snapshot of who interacted, not a read/unread inbox — the index stores links, not event
+    times, so this cannot tell you what is new since last time.</div>`));
+}
+
+// ─── me ──────────────────────────────────────────────────────────
+
+let archiveMod = null;
+const archive = async () => (archiveMod ??= await import('/lib/archive.js'));
+
+async function renderMe() {
+  const v = $('v-me');
+  v.innerHTML = '';
+
+  if (state.me) {
+    v.append(el(`<div class="phead-big">
+      <img class="pbig" alt="" src="${state.me.avatar ? esc(state.me.avatar) : BLANK}">
+      <div class="pdisp">${esc(state.me.displayName || state.me.handle)}</div>
+      <div class="phand">@${esc(state.me.handle)}</div>
+      ${state.me.description ? `<div class="pdesc">${esc(state.me.description)}</div>` : ''}
+      <div class="pstats">
+        <span><b>${(state.me.followersCount ?? 0).toLocaleString()}</b> followers</span>
+        <span><b>${(state.me.followsCount ?? 0).toLocaleString()}</b> following</span>
+        <span><b>${(state.me.postsCount ?? 0).toLocaleString()}</b> posts</span>
+      </div></div>`));
+  } else {
+    v.append(el(`<div class="section"><h3>account</h3>
+      <p>Reading needs no account. Signing in is only for posting — it goes through the shared
+      OAuth worker, which holds the token so this page never does, and asks for exactly one
+      permission: create posts.</p>
+      <button class="btn" id="me-signin">sign in with Bluesky</button></div>`));
+  }
+
+  const n = state.cacheOk ? await cache.countPosts().catch(() => 0) : 0;
+  const est = state.cacheOk ? await cache.estimate() : null;
+  v.append(el(`<div class="section"><h3>local store</h3>
+    <p>Everything this app sees is written to your browser and never uploaded. The network only
+    replays about ${LOOKBACK_HOURS} hours at a time — but it is a <em>rolling</em> window, so what
+    you keep becomes an archive it will not serve you twice.</p>
+    <p><b>${n.toLocaleString()}</b> posts held${est ? ` · ${(est.usage / 1048576).toFixed(1)} MB` : ''}${state.cacheOk ? '' : ' · unavailable in this browser'}</p>
+    <button class="btn ghost" id="me-clear">clear the store</button></div>`));
+
+  const a = await archive().catch(() => null);
+  v.append(el(`<div class="section"><h3>deep history</h3>
+    <p>Older than the ${LOOKBACK_HOURS}h window is the <em>archive</em>, which is metered by the
+    byte and needs a key — so it uses <strong>yours</strong>, not ours. Free at
+    <a href="https://bsky.network/account" target="_blank" rel="noopener">bsky.network/account</a>;
+    it stays in this browser and goes straight from here to Jetstream.</p>
+    <div class="row"><input type="text" id="akey" placeholder="${a?.hasKey() ? 'key saved — paste to replace' : 'paste your Jetstream key'}" autocomplete="off"></div>
+    <div class="row"><button class="btn" id="akey-save">save key</button>
+      <button class="btn ghost" id="akey-drop">forget</button></div>
+    <p id="aquota">${a ? esc(a.quotaSummary() || '') : ''}</p></div>`));
+
+  v.append(el(`<div class="section"><h3>about</h3>
+    <p>No DMs: <code>chat.bsky.*</code> is a centralised service, not protocol records, so it never
+    reaches the firehose this client reads. Nothing here can see them.</p>
+    <p><a href="https://github.com/minormobius/agent01/blob/main/docs/APPVIEW-FEASIBILITY.md">how this works</a>
+     · <a href="https://b.mino.mobi">the rest of the Bluesky corner ↗</a></p></div>`));
+
+  $('me-signin')?.addEventListener('click', signIn);
+  $('me-clear')?.addEventListener('click', async () => {
+    if (!confirm('Delete every post this browser has stored?')) return;
+    await cache.clearAll(); renderMe();
+  });
+  $('akey-save')?.addEventListener('click', async () => {
+    const mod = await archive();
+    mod.setKey($('akey').value); $('akey').value = ''; renderMe();
+  });
+  $('akey-drop')?.addEventListener('click', async () => {
+    const mod = await archive(); mod.setKey(''); renderMe();
+  });
+}
+
+// ─── auth + compose ──────────────────────────────────────────────
+
+async function signIn() {
+  const handle = prompt('Your Bluesky handle:');
+  if (handle) auth().login(handle.trim().replace(/^@/, ''), { scope: 'atproto repo:app.bsky.feed.post' });
+}
+
+/**
+ * Reflect the signed-in user in the chrome. Deliberately NOT awaited by boot:
+ * the feed must never wait on the account. An earlier version awaited the
+ * profile fetch before rendering anything, so a slow or unreachable AppView
+ * left the page permanently empty — reading needs no account, and the code
+ * should say so structurally, not just in the copy.
+ */
+async function refreshAuth() {
+  const user = auth().getUser();
+  const btn = $('authbtn');
+  if (!user?.did) {
+    state.me = null;
+    btn.className = 'pill'; btn.textContent = 'sign in';
+    btn.onclick = signIn;
+    if (state.tab === 'me') renderMe();
+    return;
+  }
+  // Paint what we already know immediately; the full profile can arrive late.
+  state.me = { handle: user.handle, did: user.did };
+  btn.className = 'avatar-btn';
+  btn.innerHTML = `<img alt="@${esc(user.handle || '')}" src="${BLANK}">`;
+  btn.onclick = () => showTab('me');
+  if (state.tab === 'me') renderMe();
+
+  const full = await getProfile(user.did).catch(() => null);
+  if (full) {
+    state.me = full;
+    btn.innerHTML = `<img alt="@${esc(full.handle)}" src="${full.avatar ? esc(full.avatar) : BLANK}">`;
+    if (state.tab === 'me') renderMe();
   }
 }
 
-// ─── storage panel ───────────────────────────────────────────────
+function openSheet() {
+  if (!auth().isLoggedIn()) return signIn();
+  $('sheet').hidden = false;
+  $('ct').focus();
+}
+function closeSheet() { $('sheet').hidden = true; $('cs').textContent = ''; }
 
-async function refreshStorage() {
-  if (!state.cacheOk) { $('store-stat').textContent = 'no local store (private window?)'; return; }
-  const [n, est, gaps] = await Promise.all([
-    cache.countPosts().catch(() => 0),
-    cache.estimate(),
-    state.subKey ? cache.getGaps(state.subKey) : [],
-  ]);
-  const mb = est ? ` · ${(est.usage / 1048576).toFixed(1)} MB of ${(est.quota / 1048576 / 1024).toFixed(1)} GB` : '';
-  $('store-stat').textContent = `${n.toLocaleString()} posts stored${mb}`
-    + (gaps.length ? ` · ${gaps.length} gap${gaps.length > 1 ? 's' : ''}` : '');
+function countChars() {
+  const n = graphemeLength($('ct').value);
+  $('cc').textContent = `${n}/${MAX_GRAPHEMES}`;
+  $('cc').className = n > MAX_GRAPHEMES ? 'over' : '';
+  $('sheet-post').disabled = n === 0 || n > MAX_GRAPHEMES;
 }
 
-// ─── chrome ──────────────────────────────────────────────────────
-
-function status(msg, isError = false) {
-  const el = $('status');
-  el.textContent = msg;
-  el.classList.toggle('err', isError);
-}
-
-function tickStats() {
-  const now = Date.now();
-  state.rate = state.rate.filter((t) => now - t < 10_000);
-  $('stat-rate').textContent = `${(state.rate.length / 10).toFixed(1)}/s`;
-  $('stat-seen').textContent = state.seen.toLocaleString();
-  $('stat-dids').textContent = state.dids.length.toLocaleString();
-  $('stat-cursor').textContent = state.client?.cursor ?? '—';
+async function sendPost() {
+  $('sheet-post').disabled = true;
+  $('cs').textContent = 'posting…';
+  try {
+    await publish($('ct').value, { resolveHandle: (h) => resolveActor(h).catch(() => null) });
+    $('ct').value = ''; countChars(); closeSheet();
+    say('posted');
+  } catch (err) {
+    $('cs').textContent = err.message;
+    $('sheet-post').disabled = false;
+  }
 }
 
 // ─── wiring ──────────────────────────────────────────────────────
 
-$('go').addEventListener('click', () => { if ($('go').dataset.running) stop(); else start(); });
-$('actor').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !document.querySelector('.ta-menu:not([hidden]) li.on')) start();
+for (const b of document.querySelectorAll('.tab')) {
+  b.addEventListener('click', () => showTab(b.dataset.tab));
+}
+$('fab').addEventListener('click', openSheet);
+$('sheet-cancel').addEventListener('click', closeSheet);
+$('sheet-post').addEventListener('click', sendPost);
+$('ct').addEventListener('input', countChars);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('sheet').hidden) closeSheet(); });
+
+// Post actions. Like/repost need write scopes this site does not request, so
+// they say so rather than failing silently.
+$('v-home').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button[data-act]');
+  if (!btn) return;
+  const post = btn.closest('.post')._post;
+  const act = btn.dataset.act;
+  if (act === 'open') {
+    window.open(`https://bsky.app/profile/${post.did}/post/${post.rkey}`, '_blank', 'noopener');
+  } else if (act === 'like' || act === 'repost') {
+    say(`${act}s need a write scope this site does not ask for — opening on bsky.app instead`);
+    window.open(`https://bsky.app/profile/${post.did}/post/${post.rkey}`, '_blank', 'noopener');
+  } else if (act === 'reply') {
+    // Live posts carry no counts; fetch them on demand from Constellation.
+    const span = btn.querySelector('span');
+    span.textContent = '…';
+    try { const c = await postCounts(post.uri); span.textContent = c.replyCount; }
+    catch { span.textContent = ''; }
+  }
 });
-document.addEventListener('click', (e) => {
-  const b = e.target.closest('button.counts');
-  if (b) showCounts(b);
-});
-$('source').addEventListener('change', () => {
-  const list = $('source').value === 'list';
-  $('actor').placeholder = list ? 'at:// list URI or a bsky list URL' : 'handle, e.g. bsky.app';
-  $('self-wrap').hidden = list;
-});
-$('compose-text').addEventListener('input', updateCount);
-$('compose-send').addEventListener('click', send);
-$('clear-store').addEventListener('click', async () => {
-  if (!confirm('Delete every post and profile this browser has stored?')) return;
-  await cache.clearAll();
-  refreshStorage();
-  status('local store cleared — the next subscribe starts from the window again');
-});
-$('deeper').addEventListener('click', fetchDeeper);
-$('savekey').addEventListener('click', async () => {
-  const a = await archive();
-  a.setKey($('apikey').value);
-  $('apikey').value = '';
-  await renderKeyState();
-  status(a.hasKey() ? 'key saved in this browser only' : 'key cleared');
-});
-$('dropkey').addEventListener('click', async () => {
-  const a = await archive();
-  a.setKey('');
-  await renderKeyState();
-  status('key removed from this browser');
-});
-window.addEventListener('hashchange', route);
-// Flushing on hide rather than unload is what actually survives a mobile tab
-// switch; unload does not fire reliably on iOS.
+
 document.addEventListener('visibilitychange', () => { if (document.hidden) flushWrites(); });
-
-// Typeahead on every handle input.
-attachTypeahead($('actor'), { onPick: () => start() });
-attachTypeahead($('lookup'), { onPick: (a) => { location.hash = `#/profile/${encodeURIComponent(a.handle)}`; } });
-
-setInterval(hydrate, HYDRATE_EVERY);
-setInterval(tickStats, 1000);
-setInterval(() => { flushWrites(); refreshStorage(); }, 15_000);
+setInterval(hydrate, 900);
+setInterval(flushWrites, 15_000);
 
 (async () => {
   state.cacheOk = await cache.available();
-  $('lookback').textContent = String(LOOKBACK_HOURS);
-  await refreshStorage();
-  await renderKeyState();
-  initAuth();
-  route();
-  const q = new URLSearchParams(location.search);
-  if (q.get('actor')) { $('actor').value = q.get('actor'); start(); }
+  renderChips();
+  showTab('home');
+
+  // The feed starts loading FIRST and is never gated on auth. Sign-in only
+  // affects the top-right button and the Me tab, so it settles in the
+  // background — an auth worker that is slow, blocked or down must not be able
+  // to stop a logged-out reader seeing posts.
+  selectFeed('simcluster');
+
+  auth().init()
+    .catch(() => { /* offline or blocked: reading still works */ })
+    .finally(() => { auth().onAuthChange(refreshAuth); refreshAuth(); });
 })();
