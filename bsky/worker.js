@@ -19,13 +19,30 @@
 
 const JETSTREAM = 'https://jetstream.us-east.bsky.network';
 
-// The archive endpoints this proxy is willing to forward. An allowlist, not a
-// pass-through: this worker holds a metered credential.
+// The archive endpoints this proxy will forward. An allowlist, not a
+// pass-through: this worker holds a METERED credential, and every byte a
+// stranger pulls through here is spent from our quota.
+//
+// getSegment is deliberately NOT here. Segments seal at ~256 MB each, so one
+// unauthenticated request could drain the quota; until the decoded endpoint
+// (which caps its own spend) exists, this proxy is restricted to the two
+// metadata calls, whose responses are small JSON plans.
 const REPLAY_ROUTES = new Set([
   'network.bsky.jetstream.planSnapshot',
   'network.bsky.jetstream.listSegments',
-  'network.bsky.jetstream.getSegment',
 ]);
+
+/**
+ * Requests from another site's JavaScript are refused. This is a speed bump,
+ * not a wall — `curl` sets any Origin it likes — so it is paired with the
+ * getSegment exclusion above rather than relied on alone. Same-origin fetches
+ * from our own page send no Origin at all, which is the common case.
+ */
+function originAllowed(request, url) {
+  const origin = request.headers.get('origin');
+  if (!origin) return true;
+  try { return new URL(origin).host === url.host; } catch { return false; }
+}
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -45,8 +62,10 @@ export default {
         // ~36h window needs nothing from here, so this must not read as "no
         // history" — it says which history.
         lookbackHours: 36,
+        archiveRoutes: [...REPLAY_ROUTES],
         note: env.JETSTREAM_API_KEY
-          ? 'archive available — history deeper than the ~36h live window'
+          ? 'archive metadata available (plan/list only; segment download not '
+            + 'yet exposed). History deeper than the ~36h live window.'
           : 'archive off (JETSTREAM_API_KEY unset). The ~36h live window still '
             + 'replays without it; only deeper history is unavailable.',
       });
@@ -68,6 +87,10 @@ async function replay(request, env, url) {
   const nsid = url.pathname.slice('/api/replay/'.length);
   if (!REPLAY_ROUTES.has(nsid)) {
     return json({ error: 'unknown_route', message: `not proxied: ${nsid}` }, 404);
+  }
+
+  if (!originAllowed(request, url)) {
+    return json({ error: 'cross_origin', message: 'this endpoint spends a metered quota' }, 403);
   }
 
   if (!env.JETSTREAM_API_KEY) {

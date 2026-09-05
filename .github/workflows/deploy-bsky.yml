@@ -45,13 +45,14 @@ jobs:
       # reason and the page stays in live-only mode; it does not break.
       - name: Set Jetstream replay key (optional — history stays off without it)
         env:
-          JETSTREAM_API_KEY: ${{ secrets.JETSTREAM_API_KEY }}
+          # Repo secret is JETSTREAM_KEY; the worker binding is JETSTREAM_API_KEY.
+          JETSTREAM_API_KEY: ${{ secrets.JETSTREAM_KEY }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -n "$JETSTREAM_API_KEY" ]; then
             printf '%s' "$JETSTREAM_API_KEY" | npx wrangler secret put JETSTREAM_API_KEY
-            echo "✓ JETSTREAM_API_KEY set — archive replay on"
+            echo "✓ JETSTREAM_KEY set — archive metadata routes on"
           else
-            echo "· JETSTREAM_API_KEY empty — live tail only, replay route returns 503"
+            echo "· JETSTREAM_KEY empty — the ~36h live window still works; archive returns 503"
           fi
