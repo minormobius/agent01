@@ -241,7 +241,7 @@ async function loadGenerator(uri, fresh) {
   say(fresh ? `loading ${meta?.displayName || 'feed'}…` : 'loading more…');
 
   try {
-    const { posts, cursor, personalised, route } =
+    const { posts, cursor, personalised, route, why, fix } =
       await feedgen.loadCustomFeed(uri, { limit: 30, cursor: state.cursor });
     state.cursor = cursor;
     document.getElementById('more-btn')?.remove();
@@ -571,12 +571,24 @@ async function startRuleFeed(id) {
     <div class="rulebtns">
       <button class="btn ghost small" id="ruleedit">edit the rule</button>
       <button class="btn ghost small" id="ruleback">reach further back</button>
+      <label class="rulebudget">slug
+        <select id="rulebudget">
+          <option value="50">50 MB</option>
+          <option value="150">150 MB</option>
+          <option value="250">250 MB</option>
+          <option value="500">500 MB</option>
+        </select></label>
     </div>
     <div class="rulemeter" id="ruleplan" hidden></div>
   </div>`);
   $('v-home').append(head);
-  $('ruleedit').addEventListener('click', () => openRuleEditor(rule.id));
-  $('ruleback').addEventListener('click', () => reachBack(rule));
+  on('ruleedit', 'click', () => openRuleEditor(rule.id));
+  on('ruleback', 'click', () => reachBack(rule));
+  const budget = $('rulebudget');
+  budget.value = String(slugBudgetMb());
+  budget.addEventListener('change', () => {
+    try { localStorage.setItem('bsky:slug-mb', budget.value); } catch { /* fine */ }
+  });
 
   // 1. the archive
   let held = 0;
@@ -683,6 +695,26 @@ function startRuleFirehose(rule) {
  * Pressing it again walks further back: `beforeSeq` starts at the oldest seq
  * this browser holds and moves down with each slug.
  */
+/**
+ * How big a slug to buy, in MB.
+ *
+ * Raising it is cheap because nothing is accumulated: `fetchSlug` streams and
+ * DISCARDS every non-match, so peak memory is one block plus the keepers, not
+ * the window. At the measured hit rate (~0.144%) a 250 MB slug is roughly 300k
+ * posts and ~425 papers.
+ *
+ * The costs that DO scale are wall-clock (~7.6 MB/s measured, so 250 MB is
+ * about half a minute) and the reader's metered quota, which is theirs. Hence a
+ * control rather than a bigger constant.
+ */
+function slugBudgetMb() {
+  try {
+    const v = Number(localStorage.getItem('bsky:slug-mb'));
+    if (v >= 10 && v <= 1000) return v;
+  } catch { /* fall through */ }
+  return 50;
+}
+
 let reachingBack = false;
 
 async function reachBack(rule) {
@@ -718,7 +750,9 @@ async function reachBack(rule) {
 
     const matcher = rulefeed.compile(rule);
     const found = [];
+    const budgetBytes = slugBudgetMb() * 1024 * 1024;
     const res = await archiveMod.fetchSlug({
+      budgetBytes,
       match: (record) => matcher.why(record),
       onMatch: (post) => {
         found.push(post);
@@ -729,7 +763,7 @@ async function reachBack(rule) {
       ...(beforeSeq ? { beforeSeq } : {}),
       onProgress: ({ scanned, matched, bytes }) => {
         plan.textContent = `${matched.toLocaleString()} matched of ${scanned.toLocaleString()} `
-          + `scanned · ${(bytes / 1048576).toFixed(1)} MB of 50 MB`;
+          + `scanned · ${(bytes / 1048576).toFixed(1)} of ${slugBudgetMb()} MB`;
       },
     });
 

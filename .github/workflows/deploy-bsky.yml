@@ -36,6 +36,16 @@ jobs:
           cp ../packages/oauth-client/auth.js     packages/oauth-client/
           ls -la packages/atproto packages/oauth-client
 
+      # no-undef, as a hard gate. Two shipped bugs in a row were an identifier
+      # that did not exist (`signOut`, then `why`); neither is a syntax error,
+      # so node --check passes both and they only fail when the line runs.
+      # eslint is not a repo dependency, so it is installed here rather than
+      # letting the selftest skip.
+      - name: Scope-check the browser modules (no-undef)
+        run: |
+          npm install --no-save --no-package-lock eslint >/dev/null 2>&1
+          node lib/undef.selftest.mjs
+
       # The archive path (deep history, the visitor's own key) needs two things
       # a plain static page cannot have: the Jetstream SDK, which ships bare
       # specifiers and deps, and a dictionary-capable zstd. Both are BUILT here
