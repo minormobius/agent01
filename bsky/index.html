@@ -65,12 +65,51 @@ textarea{resize:none;line-height:1.4}
   min-height:32px;min-width:44px}
 .pacts button:active{color:var(--accent)}
 
+/* ── media ─────────────────────────────────────────── */
+.media{margin-top:9px;border-radius:11px;overflow:hidden;display:grid;gap:2px;background:var(--line)}
+.media.grid-1{grid-template-columns:1fr}
+.media.grid-2{grid-template-columns:1fr 1fr}
+.media.grid-3,.media.grid-4{grid-template-columns:1fr 1fr}
+.imgcell{display:block;background:var(--line);overflow:hidden;max-height:420px}
+.imgcell img{width:100%;height:100%;object-fit:cover;display:block}
+.media.video{position:relative;background:#000;max-height:460px}
+.media.video video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
+.vfallback{position:absolute;left:10px;bottom:10px;font-size:12px;background:rgba(0,0,0,.66);
+  padding:5px 10px;border-radius:999px;color:#fff}
+.card{display:flex;flex-direction:column;margin-top:9px;border:1px solid var(--line);
+  border-radius:11px;overflow:hidden;color:inherit}
+.cardimg{width:100%;max-height:190px;object-fit:cover}
+.cardtext{padding:10px 12px}
+.cardhost{font-size:11.5px;color:var(--muted);margin-bottom:3px}
+.cardtitle{font-size:14px;font-weight:600;line-height:1.3}
+.carddesc{font-size:13px;color:var(--muted);margin-top:4px;display:-webkit-box;
+  -webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.quote{margin-top:9px;border:1px solid var(--line);border-radius:11px;padding:10px 12px}
+.qhead{display:flex;align-items:center;gap:7px;font-size:13px;margin-bottom:5px}
+.qav{width:20px;height:20px;border-radius:50%;background:var(--line);object-fit:cover}
+.qtext{font-size:13.5px;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--muted)}
+
+/* ── search results ────────────────────────────────── */
+.actor{display:flex;gap:11px;padding:12px 14px;border-bottom:1px solid var(--line-soft);align-items:flex-start}
+.actor:active{background:#0e1118}
+.aav{width:44px;height:44px;border-radius:50%;background:var(--line);flex:none;object-fit:cover}
+.abody{flex:1;min-width:0}
+.aname{font-weight:600;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ahandle{color:var(--muted);font-size:13px}
+.adesc{color:var(--muted);font-size:13px;margin-top:3px;display:-webkit-box;
+  -webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.searchbar{padding:11px 14px;border-bottom:1px solid var(--line)}
+
 /* ── notifications ─────────────────────────────────── */
 .notif{display:flex;gap:11px;padding:12px 14px;border-bottom:1px solid var(--line-soft);align-items:flex-start}
 .nicon{width:24px;flex:none;text-align:center;font-size:15px;padding-top:2px}
 .nbody{flex:1;min-width:0;font-size:14px}
 .nsub{color:var(--muted);font-size:13px;margin-top:3px;overflow:hidden;text-overflow:ellipsis;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+
+/* ── profile ───────────────────────────────────────── */
+.pbanner{width:100%;height:118px;object-fit:cover;background:var(--line);display:block}
+.backbar{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--line)}
 
 /* ── profile / me ──────────────────────────────────── */
 .phead-big{padding:16px 14px;border-bottom:1px solid var(--line)}
@@ -149,7 +188,9 @@ textarea{resize:none;line-height:1.4}
 
 <main>
   <section id="v-home"></section>
+  <section id="v-search" hidden></section>
   <section id="v-notifs" hidden></section>
+  <section id="v-profile" hidden></section>
   <section id="v-me" hidden></section>
 </main>
 
@@ -173,6 +214,7 @@ textarea{resize:none;line-height:1.4}
 
 <nav class="tabbar">
   <button class="tab on" data-tab="home"><span class="ic">⌂</span>Home</button>
+  <button class="tab" data-tab="search"><span class="ic">⌕</span>Search</button>
   <button class="tab" data-tab="notifs"><span class="ic">♡</span>Notifs</button>
   <button class="tab" data-tab="me"><span class="ic">☰</span>Me</button>
 </nav>

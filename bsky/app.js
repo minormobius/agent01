@@ -21,7 +21,8 @@ import { JetstreamClient, KIND, eventUri, LOOKBACK_HOURS, clampSince }
   from '/packages/atproto/jetstream.js';
 import { postCounts } from '/packages/atproto/constellation.js';
 import { getProfiles, getFollows, resolveActor, getProfile } from '/packages/atproto/bsky.js';
-import { FEEDS, loadFeed, authorFeed, notifications } from '/lib/sources.js';
+import { FEEDS, loadFeed, authorFeed, notifications, searchActors } from '/lib/sources.js';
+import { renderEmbed } from '/lib/blobs.js';
 import { attachTypeahead } from '/lib/typeahead.js';
 import * as cache from '/lib/cache.js';
 import { auth, publish, graphemeLength, MAX_GRAPHEMES } from '/lib/compose.js';
@@ -55,17 +56,30 @@ function say(text, live = false) {
   $('dot').className = 'dot' + (live ? ' live' : '');
 }
 
+const VIEWS = ['home', 'search', 'notifs', 'me', 'profile'];
+
 function showTab(tab) {
   state.tab = tab;
+  // `profile` is a screen, not a tab — no tab lights up for it.
   for (const b of document.querySelectorAll('.tab')) b.classList.toggle('on', b.dataset.tab === tab);
-  $('v-home').hidden = tab !== 'home';
-  $('v-notifs').hidden = tab !== 'notifs';
-  $('v-me').hidden = tab !== 'me';
+  for (const v of VIEWS) $(`v-${v}`).hidden = v !== tab;
   $('chips').hidden = tab !== 'home';
-  $('fab').hidden = tab !== 'home';
+  $('fab').hidden = tab === 'profile' ? false : tab !== 'home';
   window.scrollTo(0, 0);
+  if (tab === 'search') renderSearch();
   if (tab === 'notifs') renderNotifs();
   if (tab === 'me') renderMe();
+}
+
+/** Open a profile screen for a handle or DID. */
+function openProfile(actor) {
+  location.hash = `#/profile/${encodeURIComponent(actor)}`;
+}
+
+function route() {
+  const m = location.hash.match(/^#\/profile\/(.+)$/);
+  if (m) return renderProfile(decodeURIComponent(m[1]));
+  if (state.tab === 'profile') showTab('home');
 }
 
 function renderChips() {
@@ -218,15 +232,16 @@ function postNode(p) {
   const c = p.counts;
   const node = el(`
     <article class="post" data-uri="${esc(p.uri)}" data-did="${esc(p.did)}">
-      <img class="pav" alt="" src="${prof?.avatar ? esc(prof.avatar) : BLANK}">
+      <img class="pav" alt="" data-profile="${esc(prof?.handle || p.did)}"
+           src="${prof?.avatar ? esc(prof.avatar) : BLANK}">
       <div class="pbody">
         <div class="phead">
-          <span class="pname">${esc(prof?.displayName || prof?.handle || 'unknown')}</span>
-          <span class="phandle">@${esc(prof?.handle || p.did.slice(8, 20) + '…')}</span>
+          <span class="pname" data-profile="${esc(prof?.handle || p.did)}">${esc(prof?.displayName || prof?.handle || 'unknown')}</span>
+          <span class="phandle" data-profile="${esc(prof?.handle || p.did)}">@${esc(prof?.handle || p.did.slice(8, 20) + '…')}</span>
           <span class="ptime">${when(p.createdAt)}</span>
         </div>
         <div class="ptext">${esc(p.record?.text || '')}</div>
-        ${embed(p.record)}
+        ${renderEmbed(p.record, p.did, p.viewEmbed)}
         <div class="pacts">
           <button data-act="reply">↳ <span>${c ? c.replyCount : ''}</span></button>
           <button data-act="repost">↻ <span>${c ? c.repostCount : ''}</span></button>
@@ -246,15 +261,6 @@ function prependPost(p) {
   state.seen.add(p.uri);
   const first = $('v-home').firstElementChild;
   $('v-home').insertBefore(postNode(p), first);
-}
-
-function embed(record) {
-  const t = record?.embed?.$type;
-  if (!t) return '';
-  const label = { 'app.bsky.embed.images': '🖼 images', 'app.bsky.embed.video': '▶ video',
-    'app.bsky.embed.external': '🔗 link', 'app.bsky.embed.record': '❝ quote',
-    'app.bsky.embed.recordWithMedia': '❝ quote + media' }[t] || t;
-  return `<div class="pembed">${esc(label)}</div>`;
 }
 
 function when(iso) {
@@ -290,9 +296,9 @@ function paintProfile(prof) {
   for (const node of document.querySelectorAll(`[data-did="${CSS.escape(prof.did)}"]`)) {
     const n = node.querySelector('.pname'); const h = node.querySelector('.phandle');
     const a = node.querySelector('.pav');
-    if (n) n.textContent = prof.displayName || prof.handle;
-    if (h) h.textContent = '@' + prof.handle;
-    if (a && prof.avatar) a.src = prof.avatar;
+    if (n) { n.textContent = prof.displayName || prof.handle; n.dataset.profile = prof.handle; }
+    if (h) { h.textContent = '@' + prof.handle; h.dataset.profile = prof.handle; }
+    if (a) { a.dataset.profile = prof.handle; if (prof.avatar) a.src = prof.avatar; }
   }
 }
 
@@ -350,6 +356,122 @@ async function renderNotifs() {
   v.append(el(`<div class="empty" style="padding:18px 22px;font-size:12.5px">
     A snapshot of who interacted, not a read/unread inbox — the index stores links, not event
     times, so this cannot tell you what is new since last time.</div>`));
+}
+
+// ─── search ──────────────────────────────────────────────────────
+
+let searchState = { q: '', cursor: null, loading: false };
+let searchTypeahead = null;
+
+function renderSearch() {
+  const v = $('v-search');
+  if (v.dataset.built) return;
+  v.dataset.built = '1';
+  v.innerHTML = `<div class="searchbar"><input type="text" id="sq" placeholder="search people…"></div>
+                 <div id="sresults"></div>`;
+
+  const input = $('sq');
+  // Typeahead here too — picking a suggestion goes straight to the profile,
+  // while Enter runs the deeper searchActors query.
+  searchTypeahead = attachTypeahead(input, { onPick: (a) => openProfile(a.handle) });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !document.querySelector('.ta-menu:not([hidden]) li.on')) {
+      input.blur();          // dismiss the mobile keyboard so results are visible
+      runSearch(input.value);
+    }
+  });
+}
+
+async function runSearch(q, more = false) {
+  const term = String(q || '').trim();
+  if (!term || searchState.loading) return;
+  // Close the suggestion menu FIRST. A debounced typeahead request fired just
+  // before Enter lands after this one and would drop its menu over the results.
+  searchTypeahead?.close();
+  searchState.loading = true;
+  if (!more) { searchState.q = term; searchState.cursor = null; $('sresults').innerHTML = ''; }
+  say(`searching for “${term}”…`);
+  try {
+    const { actors, cursor } = await searchActors(term, { limit: 25, cursor: more ? searchState.cursor : null });
+    searchState.cursor = cursor;
+    document.getElementById('smore')?.remove();
+    if (!actors.length && !more) {
+      $('sresults').append(el('<div class="empty"><strong>Nobody found.</strong>Try a handle, a display name, or a word from a bio.</div>'));
+    }
+    for (const a of actors) $('sresults').append(actorNode(a));
+    if (cursor && actors.length) {
+      const b = el('<button class="more" id="smore">more results</button>');
+      b.addEventListener('click', () => runSearch(searchState.q, true));
+      $('sresults').append(b);
+    }
+    say(`${actors.length} result${actors.length === 1 ? '' : 's'} for “${term}”`);
+  } catch (err) {
+    say(`search failed: ${err.message}`);
+  } finally {
+    searchState.loading = false;
+  }
+}
+
+function actorNode(a) {
+  const node = el(`<div class="actor" data-profile="${esc(a.handle)}">
+    <img class="aav" alt="" src="${a.avatar ? esc(a.avatar) : BLANK}">
+    <div class="abody">
+      <div class="aname">${esc(a.displayName || a.handle)}</div>
+      <div class="ahandle">@${esc(a.handle)}</div>
+      ${a.description ? `<div class="adesc">${esc(a.description)}</div>` : ''}
+    </div></div>`);
+  return node;
+}
+
+// ─── profile screen ──────────────────────────────────────────────
+
+async function renderProfile(actor) {
+  showTab('profile');
+  const v = $('v-profile');
+  v.innerHTML = '<div class="empty">loading…</div>';
+
+  let did;
+  try { did = await resolveActor(actor); }
+  catch { v.innerHTML = `<div class="empty"><strong>Not found.</strong>Could not resolve ${esc(actor)}.</div>`; return; }
+
+  const prof = await getProfile(did).catch(() => null);
+  if (prof) {
+    state.profiles.set(prof.did, prof);
+    if (state.cacheOk) cache.putProfile(prof).catch(() => {});
+  }
+
+  v.innerHTML = '';
+  const back = el('<div class="backbar"><button class="pill" id="pback">← back</button></div>');
+  v.append(back);
+  $('pback').addEventListener('click', () => history.back());
+
+  if (prof?.banner) v.append(el(`<img class="pbanner" alt="" src="${esc(prof.banner)}">`));
+  v.append(el(`<div class="phead-big">
+    <img class="pbig" alt="" src="${prof?.avatar ? esc(prof.avatar) : BLANK}">
+    <div class="pdisp">${esc(prof?.displayName || prof?.handle || did)}</div>
+    <div class="phand">@${esc(prof?.handle || did)}</div>
+    ${prof?.description ? `<div class="pdesc">${esc(prof.description)}</div>` : ''}
+    <div class="pstats">
+      <span><b>${(prof?.followersCount ?? 0).toLocaleString()}</b> followers</span>
+      <span><b>${(prof?.followsCount ?? 0).toLocaleString()}</b> following</span>
+      <span><b>${(prof?.postsCount ?? 0).toLocaleString()}</b> posts</span>
+    </div>
+    <div class="pstats"><a href="https://bsky.app/profile/${esc(did)}" target="_blank" rel="noopener">open on bsky.app ↗</a></div>
+  </div>`));
+
+  const list = el('<div id="pposts"></div>');
+  v.append(list);
+
+  // Their real posts, hydrated — so the pictures come through here too.
+  try {
+    const { posts } = await authorFeed(did, { limit: 30 });
+    if (!posts.length) list.append(el('<div class="empty">No posts.</div>'));
+    for (const p of posts) list.append(postNode(p));
+    if (state.cacheOk && posts.length) cache.putPosts(posts).catch(() => {});
+    say(`@${prof?.handle || did}`);
+  } catch (err) {
+    list.append(el(`<div class="empty">Could not load posts: ${esc(err.message)}</div>`));
+  }
 }
 
 // ─── me ──────────────────────────────────────────────────────────
@@ -499,7 +621,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('shee
 
 // Post actions. Like/repost need write scopes this site does not request, so
 // they say so rather than failing silently.
-$('v-home').addEventListener('click', async (e) => {
+document.addEventListener('click', async (e) => {
   const btn = e.target.closest('button[data-act]');
   if (!btn) return;
   const post = btn.closest('.post')._post;
@@ -518,6 +640,16 @@ $('v-home').addEventListener('click', async (e) => {
   }
 });
 
+// Any element carrying data-profile opens that profile — avatars, names,
+// handles, search rows. One listener rather than a binding per post.
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-profile]');
+  if (!t) return;
+  e.preventDefault();
+  openProfile(t.dataset.profile);
+});
+
+window.addEventListener('hashchange', route);
 document.addEventListener('visibilitychange', () => { if (document.hidden) flushWrites(); });
 setInterval(hydrate, 900);
 setInterval(flushWrites, 15_000);
@@ -525,7 +657,7 @@ setInterval(flushWrites, 15_000);
 (async () => {
   state.cacheOk = await cache.available();
   renderChips();
-  showTab('home');
+  if (location.hash.startsWith('#/profile/')) route(); else showTab('home');
 
   // The feed starts loading FIRST and is never gated on auth. Sign-in only
   // affects the top-right button and the Me tab, so it settles in the

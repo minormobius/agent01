@@ -87,6 +87,10 @@ function fromHydrated(post) {
     createdAt: post.record?.createdAt || post.indexedAt,
     record: post.record,
     author: post.author,
+    // The hydrated `#view` embed, where the CDN URLs already exist. Raw
+    // Jetstream posts have no such thing and get reconstructed from blob refs
+    // — see lib/blobs.js.
+    viewEmbed: post.embed || null,
     counts: {
       likeCount: post.likeCount ?? 0,
       repostCount: post.repostCount ?? 0,
@@ -184,6 +188,30 @@ export async function notifications(did, { postDepth = 8 } = {}) {
   for (const n of out) n.actor = profiles.get(n.actorDid) || null;
 
   return out;
+}
+
+/**
+ * Full people search — the deeper cousin of typeahead. searchActorsTypeahead is
+ * prefix-matched and capped at 10; this searches display names and descriptions
+ * too and pages.
+ *
+ * @param {string} q
+ * @param {{limit?: number, cursor?: string}} [opts]
+ * @returns {Promise<{actors: object[], cursor?: string}>}
+ */
+export async function searchActors(q, { limit = 25, cursor } = {}) {
+  const term = String(q || '').trim().replace(/^@/, '');
+  if (!term) return { actors: [] };
+  const params = new URLSearchParams({ q: term, limit: String(limit) });
+  if (cursor) params.set('cursor', cursor);
+  try {
+    const res = await fetch(`${BSKY_PUBLIC}/xrpc/app.bsky.actor.searchActors?${params}`);
+    if (!res.ok) return { actors: [] };
+    const data = await res.json();
+    return { actors: data.actors || [], cursor: data.cursor };
+  } catch {
+    return { actors: [] };
+  }
 }
 
 export const postCounts = _postCounts;

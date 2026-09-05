@@ -116,6 +116,55 @@ Deliberate choices worth keeping:
 - Default feed is algorithmic on purpose: a new visitor has no follow graph, and
   an empty timeline is a bad first screen.
 
+### Blobs — two shapes, and only one has URLs
+
+`lib/blobs.js`. The same post arrives differently depending on its source, and
+this is the thing to understand before touching media:
+
+| Source | `embed` shape | Media |
+|---|---|---|
+| `getPosts` / `getAuthorFeed` (feeds, profiles) | `app.bsky.embed.images#view` | `thumb` / `fullsize` are **complete CDN URLs** |
+| Jetstream, and anything stored from it | `app.bsky.embed.images` | **blob refs** — `{$type:'blob', ref:{$link:'bafkrei…'}}` |
+
+A blob ref is meaningless on its own: it needs the DID of the repo holding it.
+That is why every function in `blobs.js` takes `did`, and why `renderEmbed`
+takes the raw record *and* the optional hydrated view — it prefers the view and
+reconstructs from the ref when there is none.
+
+```
+avatar        cdn.bsky.app/img/avatar/plain/<did>/<cid>@jpeg
+feed thumb    cdn.bsky.app/img/feed_thumbnail/plain/<did>/<cid>@jpeg
+feed fullsize cdn.bsky.app/img/feed_fullsize/plain/<did>/<cid>@jpeg
+video         video.bsky.app/watch/<URL-ENCODED did>/<cid>/playlist.m3u8
+              …/thumbnail.jpg   (302s to video.cdn.bsky.app; poster follows it)
+```
+
+The image host takes a bare DID; the **video host percent-encodes it**. All
+verified live: the reconstructed-from-ref URL returns `200 image/jpeg`, view
+thumbs return `200 image/webp`, and the playlist returns
+`application/vnd.apple.mpegurl`.
+
+Video is HLS. Safari and iOS — the mobile target — play it natively from a
+`<video src>`; other browsers show the poster and fall through to the link. No
+`hls.js`: 300 KB for a fallback path is not worth it here.
+
+Every image sets `aspect-ratio` from the record's own `aspectRatio` before it
+loads, so the feed does not jump under the reader's thumb, and carries the
+post's `alt` text.
+
+### Search and profiles
+
+Two depths of people search, deliberately: `searchActorsTypeahead` (prefix,
+max 10, per keystroke) drives the menu; `searchActors` (display names and
+bios, paged) runs on Enter. **`runSearch()` must call `typeahead.close()`
+first** — a debounced suggestion request fired just before Enter otherwise
+lands afterwards and drops its menu over the results, where it silently
+intercepts taps. That bug was live until a click test caught it.
+
+Profiles are a screen, not a tab: `#/profile/<handle>`, reachable from any
+avatar, name, handle or search row via one delegated `[data-profile]` listener
+rather than a binding per post.
+
 ### No DMs
 
 `chat.bsky.*` is a **centralised service**, not repo records. DMs never enter

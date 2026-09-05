@@ -155,6 +155,19 @@ export function attachTypeahead(input, opts = {}) {
   menu.addEventListener('mousedown', onMouseDown);
 
   return {
+    /**
+     * Dismiss the menu and cancel anything in flight. A caller that acts on the
+     * typed text — running a full search, submitting a form — must call this,
+     * because a debounced request fired just before Enter will otherwise land
+     * afterwards and reopen the menu ON TOP of the results, where it silently
+     * intercepts taps.
+     */
+    close() {
+      clearTimeout(timer);
+      inflight?.abort();
+      inflight = null;
+      close();
+    },
     destroy() {
       clearTimeout(timer);
       inflight?.abort();
