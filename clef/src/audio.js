@@ -337,6 +337,42 @@ export function makeReverb(ctx, seconds = 1.5, decay = 3.2) {
 }
 
 /**
+ * Tell the OS this page is playing music, not decorating itself with sound.
+ *
+ * iOS gives a bare AudioContext the `ambient` audio session category. Ambient
+ * output is governed by the Ring/Silent switch and rides the RINGER volume, so
+ * on a silenced phone the speaker plays nothing at all — while headphones and
+ * AirPods, which that switch does not mute, play normally. The bug therefore
+ * looks like a broken speaker and reproduces on no desktop browser.
+ *
+ * `playback` is the category Apple Music and every other media app declares: it
+ * ignores the switch and rides the media volume. Set it before constructing the
+ * context — that ordering is correct whether or not the category is latched at
+ * construction, and the reverse ordering is only correct if it is not.
+ *
+ * Only reached from ensure(), i.e. from a user gesture that is about to make
+ * sound. Claiming a playback session pauses whatever else the phone is
+ * playing, which is right when the user pressed play and rude on page load.
+ */
+function claimPlaybackSession() {
+  try {
+    if (navigator.audioSession) navigator.audioSession.type = 'playback';
+  } catch { /* leave it ambient rather than throw on the way to playing */ }
+}
+
+/**
+ * True when we are on the platform that has the silent-switch problem and have
+ * no way to fix it (WebKit before the audioSession API). The caller says so
+ * once, because otherwise the page looks broken in a way the user cannot
+ * diagnose: no error, no sound, and sound the moment they put headphones in.
+ */
+export function silentSwitchMayMute() {
+  if (navigator.audioSession) return false;
+  const touch = navigator.maxTouchPoints > 1;
+  return touch && /Safari/.test(navigator.userAgent) && !/Chrom/.test(navigator.userAgent);
+}
+
+/**
  * Live playback.
  *
  * The scheduler pushes notes into the audio graph a fixed distance ahead of the
@@ -362,6 +398,7 @@ export class Player {
 
   ensure() {
     if (!this.ctx) {
+      claimPlaybackSession();
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
       this.master = this.ctx.createGain();
       this.master.gain.value = this.volume;

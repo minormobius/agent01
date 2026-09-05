@@ -10,7 +10,7 @@
 
 import { parseLily, pitchToLilyRelative, pitchToLily, durationToLily } from './lily.js';
 import { engrave } from './engrave.js';
-import { PATCHES, Player, scoreToNotes, performance as buildPerformance, renderWav } from './audio.js';
+import { PATCHES, Player, scoreToNotes, performance as buildPerformance, renderWav, silentSwitchMayMute } from './audio.js';
 import { writeMidi } from './midi.js';
 import { LIBRARY, byId, DEFAULT_PIECE } from './library.js';
 import { WHOLE, ticksOf, keyAlterations, clefDef, pitchFromDiatonic, spell } from './model.js';
@@ -466,10 +466,25 @@ function togglePlay() {
     return;
   }
   if (!state.perf?.events.length) { toast('nothing to play yet'); return; }
+  warnAboutSilentSwitchOnce();
   const from = state.selected != null ? startSecondsOfSelection() : 0;
   player.patch = PATCHES[el.patch.value] ?? PATCHES.piano;
   player.play(from);
   setPlayingUI(true);
+}
+
+let silentSwitchWarned = false;
+
+/**
+ * On WebKit too old for the audioSession API we cannot escape the ambient
+ * category, so the silent switch mutes the speaker while headphones still play.
+ * Say it once — a user who thinks the site is broken will not think to check a
+ * hardware switch that Apple Music visibly ignores.
+ */
+function warnAboutSilentSwitchOnce() {
+  if (silentSwitchWarned || !silentSwitchMayMute()) return;
+  silentSwitchWarned = true;
+  toast('no sound? check the silent switch — headphones play either way', 4200);
 }
 
 /** Play from the selected note, which is how anyone proofreads one phrase. */
