@@ -39,7 +39,9 @@ try {
   writeFileSync(join(tmp, 'vendor', 'zstd', 'index.js'),
     'export async function init(){} export function createDCtx(){return{}}\n'
     + 'export function decompressUsingDict(){ throw new Error("stub"); }\n');
-  writeFileSync(join(tmp, 'sha256.js'), readFileSync(join(here, 'sha256.js')));
+  for (const dep of ['sha256.js', 'apikey.js']) {
+    writeFileSync(join(tmp, dep), readFileSync(join(here, dep)));
+  }
   writeFileSync(join(tmp, 'archive.js'),
     readFileSync(join(here, 'archive.js'), 'utf8').replaceAll("from '/lib/", "from './"));
 

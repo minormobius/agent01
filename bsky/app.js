@@ -20,6 +20,7 @@
 import { JetstreamClient, KIND, eventUri, LOOKBACK_HOURS, clampSince }
   from '/packages/atproto/jetstream.js';
 import * as rulefeed from '/lib/rulefeed.js';
+import * as apikey from '/lib/apikey.js';
 import { postCounts } from '/packages/atproto/constellation.js';
 import { getProfiles, getFollows, resolveActor, getProfile } from '/packages/atproto/bsky.js';
 import { FEEDS, loadFeed, authorFeed, authorMedia, notifications, searchActors, getThread }
@@ -35,6 +36,34 @@ import * as feedgen from '/lib/feedgen.js';
 import * as actions from '/lib/actions.js';
 
 const $ = (id) => document.getElementById(id);
+
+/**
+ * Attach a handler without letting one bad wire take out the rest.
+ *
+ * `renderMe()` wires eight buttons in a row. When `signOut` turned out to be
+ * undefined, the ReferenceError on ITS line aborted the function, so the three
+ * buttons wired after it never got handlers either — one missing function, four
+ * dead controls, no error anywhere the reader could see. Sequential wiring
+ * makes every later control depend on every earlier one, which is a dependency
+ * nobody intends.
+ *
+ * `lib/wiring.selftest.mjs` fails the build on an undefined handler, so this is
+ * the second line of defence rather than the first: it also covers a handler
+ * that exists but throws while being attached, and it makes the failure VISIBLE
+ * instead of silent.
+ */
+function on(id, event, fn) {
+  const el = $(id);
+  if (!el) return false;
+  try {
+    el.addEventListener(event, fn);
+    return true;
+  } catch (err) {
+    console.error(`wiring ${id}.${event} failed:`, err);
+    say(`a control failed to wire: ${id}`);
+    return false;
+  }
+}
 const el = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -46,6 +75,7 @@ const state = {
   cursor: null,
   live: null,               // JetstreamClient
   runner: null,             // RuleRunner — a feed generator running in this tab
+  conn: null,               // connectionStatus() for whichever socket is open
   dids: [],
   subKey: null,
   seen: new Set(),          // rendered at:// URIs — delivery is at-least-once
@@ -81,6 +111,52 @@ function showTab(tab) {
   if (tab === 'search') renderSearch();
   if (tab === 'notifs') { renderNotifs(); startNotifPolling(); } else stopNotifPolling();
   if (tab === 'me') renderMe();
+}
+
+/**
+ * The connection status line, which used to lie.
+ *
+ * The old wiring was `onConnect: () => say('live · …')` and
+ * `onDisconnect: () => say('reconnecting…')`, straight through. That reads as a
+ * permanently reconnecting app even while posts are visibly arriving, and the
+ * reason is that a Jetstream socket ending is NORMAL: it closes when a replay
+ * finishes, on idle, on a host rotation. Each close painted "reconnecting…",
+ * and the reconnect that followed a moment later painted over it — but the
+ * backoff grows to 30s, so "reconnecting…" is what is on screen almost all of
+ * the time. The status was reporting socket transitions when what a reader
+ * wants to know is whether posts are still coming.
+ *
+ * So: a drop is only reported if it has not repaired itself within GRACE, and
+ * the line otherwise counts what has actually arrived.
+ */
+const RECONNECT_GRACE_MS = 2500;
+
+function connectionStatus(label) {
+  let pending = null;
+  let connected = false;
+  let events = 0;
+
+  const paint = () => say(events ? `${label} · ${events.toLocaleString()} posts` : label, connected);
+
+  return {
+    onConnect() {
+      connected = true;
+      clearTimeout(pending);
+      pending = null;
+      paint();
+    },
+    onDisconnect() {
+      connected = false;
+      clearTimeout(pending);
+      pending = setTimeout(() => { if (!connected) say('reconnecting…', false); }, RECONNECT_GRACE_MS);
+    },
+    /** Called per delivered event, so the line proves flow rather than asserting it. */
+    bump() {
+      events++;
+      if (connected && events % 10 === 0) paint();
+    },
+    stop() { clearTimeout(pending); pending = null; },
+  };
 }
 
 /** Open a profile screen for a handle or DID. */
@@ -265,6 +341,7 @@ async function listFeedsBy(handle) {
 async function selectFeed(id) {
   if (state.live) { state.live.close(); state.live = null; }
   if (state.runner) { state.runner.close(); state.runner = null; }
+  if (state.conn) { state.conn.stop(); state.conn = null; }
   state.oldestRuleSeq = null;
   state.feed = id;
   state.cursor = null;
@@ -370,11 +447,12 @@ async function startFollowing() {
     ? await cache.resumePlan(state.subKey, 24)
     : { mode: 'since', hours: 24, reason: 'no local store' };
 
+  state.conn = connectionStatus(`following · ${dids.length - 1} accounts, reverse chronological`);
   const opts = {
     dids, collections: ['app.bsky.feed.post'], kinds: [KIND.commit],
     onEvent: onLiveEvent,
-    onConnect: () => say(`following · ${dids.length - 1} accounts, reverse chronological`, true),
-    onDisconnect: () => say('reconnecting…'),
+    onConnect: () => state.conn?.onConnect(),
+    onDisconnect: () => state.conn?.onDisconnect(),
   };
   if (plan.mode === 'resume') opts.cursor = plan.cursor; else opts.since = plan.hours;
   state.live = new JetstreamClient(opts);
@@ -405,11 +483,12 @@ async function startLive() {
     ? await cache.resumePlan(state.subKey, 6)
     : { mode: 'since', hours: 6, reason: 'no local store' };
 
+  state.conn = connectionStatus(`live · ${dids.length} accounts, one socket`);
   const opts = {
     dids, collections: ['app.bsky.feed.post'], kinds: [KIND.commit],
     onEvent: onLiveEvent,
-    onConnect: () => say(`live · ${dids.length} accounts, one socket`, true),
-    onDisconnect: () => say('reconnecting…'),
+    onConnect: () => state.conn?.onConnect(),
+    onDisconnect: () => state.conn?.onDisconnect(),
   };
   if (plan.mode === 'resume') opts.cursor = plan.cursor; else opts.since = plan.hours;
   state.live = new JetstreamClient(opts);
@@ -643,6 +722,7 @@ function onLiveEvent(payload) {
   }
   const record = payload.record;
   if (!record || typeof record.text !== 'string') return;
+  state.conn?.bump();
 
   // The cid is REQUIRED to like or repost — a like whose subject lacks one is
   // rejected by the PDS — so it is carried from the event and stored with it.
@@ -1305,7 +1385,7 @@ async function renderMe() {
     byte and needs a key — so it uses <strong>yours</strong>, not ours. Free at
     <a href="https://bsky.network/account" target="_blank" rel="noopener">bsky.network/account</a>;
     it stays in this browser and goes straight from here to Jetstream.</p>
-    <div class="row"><input type="text" id="akey" placeholder="${a?.hasKey() ? 'key saved — paste to replace' : 'paste your Jetstream key'}" autocomplete="off"></div>
+    <div class="row"><input type="text" id="akey" placeholder="${apikey.hasKey() ? 'key saved — paste to replace' : 'paste your Jetstream key'}" autocomplete="off"></div>
     <div class="row"><button class="btn" id="akey-save">save key</button>
       <button class="btn ghost" id="akey-drop">forget</button></div>
     <p id="aquota">${a ? esc(a.quotaSummary() || '') : ''}</p></div>`));
@@ -1339,20 +1419,29 @@ async function renderMe() {
     <p><a href="https://github.com/minormobius/agent01/blob/main/docs/APPVIEW-FEASIBILITY.md">how this works</a>
      · <a href="https://b.mino.mobi">the rest of the Bluesky corner ↗</a></p></div>`));
 
-  $('me-install')?.addEventListener('click', promptInstall);
-  $('me-update')?.addEventListener('click', applyUpdate);
-  $('me-signin')?.addEventListener('click', signIn);
-  $('me-signout')?.addEventListener('click', signOut);
-  $('me-clear')?.addEventListener('click', async () => {
+  on('me-install', 'click', promptInstall);
+  on('me-update', 'click', applyUpdate);
+  on('me-signin', 'click', signIn);
+  on('me-signout', 'click', signOut);
+  on('me-clear', 'click', async () => {
     if (!confirm('Delete every post this browser has stored?')) return;
     await cache.clearAll(); renderMe();
   });
-  $('akey-save')?.addEventListener('click', async () => {
-    const mod = await archive();
-    mod.setKey($('akey').value); $('akey').value = ''; renderMe();
+  // apikey.js, NOT archive() — saving a key is localStorage.setItem and must
+  // not depend on the WASM bundle, which is exactly what is missing when
+  // somebody is trying to set a key up in the first place.
+  on('akey-save', 'click', () => {
+    const val = $('akey').value.trim();
+    if (!val) return say('paste a key first');
+    if (!apikey.setKey(val)) return say('could not save — this browser is blocking site data');
+    $('akey').value = '';
+    renderMe();
+    say('key saved — "reach further back" can now read the archive');
   });
-  $('akey-drop')?.addEventListener('click', async () => {
-    const mod = await archive(); mod.setKey(''); renderMe();
+  on('akey-drop', 'click', () => {
+    apikey.setKey('');
+    renderMe();
+    say('key forgotten');
   });
 }
 
@@ -1469,6 +1558,54 @@ async function sendPost() {
     $('cs').textContent = err.message;
     $('sheet-post').disabled = false;
   }
+}
+
+/**
+ * Sign out.
+ *
+ * This function did not exist. The button, the docs and the commit message all
+ * shipped without it, and because `$('me-signout').addEventListener('click',
+ * signOut)` throws a ReferenceError, it also took out every handler wired after
+ * it — "clear the store", "save key" and "forget key" were all dead, but only
+ * for signed-in readers, because signed out the `?.` short-circuits and the
+ * line never runs. `lib/wiring.selftest.mjs` now fails the build on a handler
+ * that names an undefined function.
+ *
+ * Three things it must keep doing:
+ *
+ *   - `forgetInteractions()` FIRST. The like/repost rkeys in localStorage
+ *     belong to one account; leaving them paints hearts on the next reader's
+ *     feed for likes that are not theirs, and an unlike would try to delete a
+ *     record in a repo they do not own.
+ *   - KEEP the post cache. Those are public posts this browser collected, not
+ *     account data, and discarding them would throw away the archive the whole
+ *     design rests on. Clearing it is a separate, explicit button.
+ *   - Say that it signs you out everywhere. The session is a `*.mino.mobi`
+ *     domain cookie, so this is not a per-site sign-out.
+ */
+async function signOut() {
+  if (!confirm('Sign out? This signs you out of every mino.mobi site.\n\n'
+    + 'Posts this browser has stored are kept — clearing those is a separate button.')) return;
+
+  // Before the session goes: these rkeys are only meaningful for this account.
+  try { actions.forgetInteractions(); } catch { /* nothing stored */ }
+
+  try {
+    await auth().logout();               // the client's method is logout(), not signOut()
+  } catch (err) {
+    say(`sign-out failed: ${err.message}`);
+    return;
+  }
+
+  state.me = null;
+  state.canWrite = { like: false, repost: false };
+  refreshAuth();
+  renderMe();
+  renderChips();
+  // The following feed is not readable signed out; fall back rather than
+  // leaving an empty chip selected.
+  if (state.feed === 'following') selectFeed('simcluster');
+  say('signed out');
 }
 
 // ─── installing, and updating once installed ─────────────────────

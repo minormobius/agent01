@@ -33,32 +33,18 @@
 import { Jetstream } from '/lib/vendor/jetstream.browser.js';
 import * as zstdWasm from '/lib/vendor/zstd/index.js';
 import { sha256 } from '/lib/sha256.js';
+import { getKey } from '/lib/apikey.js';
 
 const SERVICE = 'https://jetstream.us-east.bsky.network';
 const DICT_URL = `${SERVICE}/xrpc/network.bsky.jetstream.getZstdDictionary`;
-const KEY_STORAGE = 'bsky:jetstream-key';
-
-/** Where a visitor mints their own key. Free; sign in with Bluesky. */
-export const KEY_URL = 'https://bsky.network/account';
 
 // ─── the key ─────────────────────────────────────────────────────
 
-/** @returns {string} '' when unset */
-export function getKey() {
-  try { return localStorage.getItem(KEY_STORAGE) || ''; } catch { return ''; }
-}
-
-/** @param {string} key */
-export function setKey(key) {
-  try {
-    const k = key.trim();
-    if (k) localStorage.setItem(KEY_STORAGE, k);
-    else localStorage.removeItem(KEY_STORAGE);
-    return true;
-  } catch { return false; }
-}
-
-export function hasKey() { return Boolean(getKey()); }
+// Storage lives in its own module with no dependencies, because the Me tab must
+// be able to save and clear a key even when lib/vendor/ fails to load — which
+// is precisely the situation you are in while setting one up. Re-exported here
+// so existing callers do not care.
+export { getKey, setKey, hasKey, KEY_URL } from '/lib/apikey.js';
 
 // ─── quota ───────────────────────────────────────────────────────
 

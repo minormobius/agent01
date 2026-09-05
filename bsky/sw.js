@@ -51,6 +51,7 @@ const SHELL = [
   '/icons/favicon-32.png',
   '/lib/actions.js',
   '/lib/archive.js',
+  '/lib/apikey.js',
   '/lib/blobs.js',
   '/lib/cache.js',
   '/lib/compose.js',

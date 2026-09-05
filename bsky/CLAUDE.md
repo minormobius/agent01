@@ -548,20 +548,76 @@ Every image sets `aspect-ratio` from the record's own `aspectRatio` before it
 loads, so the feed does not jump under the reader's thumb, and carries the
 post's `alt` text.
 
-### Signing out
+### Signing out — and the one missing function that killed four buttons
 
-`signOut()` in `app.js`. Three things it must keep doing:
+`signOut()` in `app.js`. It is worth reading the failure before the feature,
+because the shape of it recurs.
 
-- **`actions.forgetInteractions()` first.** The like/repost rkeys in
-  `localStorage` belong to one account; leaving them would paint hearts on the
-  next reader's feed for likes that are not theirs, and an unlike would try to
-  delete a record in a repo they do not own.
-- **The post cache is KEPT.** Those are public posts this browser collected, not
-  account data, and discarding them would throw away the archive the whole
-  design rests on. Clearing it is a separate, explicit button.
-- **Say that it signs you out everywhere.** The session is a `*.mino.mobi`
-  domain cookie, so this is not a per-site sign-out and should not surprise
-  anyone.
+**`signOut` was referenced but never defined.** The button, this documentation
+and the commit message announcing it all shipped; the function did not. Nothing
+caught it:
+
+- it is not a syntax error, so `node --check` passed;
+- the identifier is only evaluated when that LINE runs, so the module loaded and
+  the whole app booted normally;
+- the line is `$('me-signout')?.addEventListener(…)`, so **signed out** the
+  element is null, the `?.` short-circuits and the line never executes — every
+  test that was not signed in passed;
+- and when it did run it threw a `ReferenceError` that aborted the rest of
+  `renderMe()`, so **"clear the store", "save key" and "forget key" — all wired
+  after it — were dead too.** One missing function, four dead controls, only for
+  signed-in readers, with no visible error.
+
+It was "verified" originally by grepping the deployed asset for the string
+`me-signout`, which finds the button's id and proves nothing about the handler.
+
+Three things came out of it, and all three should stay:
+
+1. **`lib/wiring.selftest.mjs`** fails the build when any handler names a
+   function that is not defined — it knows `addEventListener`, `.onclick =`, and
+   `app.js`'s own `on()` wrapper. Moving the Me tab onto `on()` silently took
+   those buttons out of the test's view, so the guard has to know every way a
+   handler is attached or it stops guarding the moment the wiring is refactored.
+2. **`on(id, event, fn)`** replaces sequential `addEventListener` calls in
+   `renderMe`. Wiring eight buttons in a row makes every later control depend on
+   every earlier one; `on()` catches, logs, and says so in the status line.
+3. **`lib/apikey.js`.** "Save key" called `await archive()`, and `archive.js`
+   statically imports `lib/vendor/` — WASM zstd and the bundled SDK, both built
+   at deploy time. If either fails to load that import rejects and the button
+   dies silently. Saving a key is `localStorage.setItem`; it has no business
+   depending on a decompressor, least of all when the reader is trying to set up
+   the key that the decompressor needs. Key storage is now dependency-free and
+   `archive.js` re-exports it.
+
+What `signOut()` itself must keep doing:
+
+- **`actions.forgetInteractions()` first.** The like/repost rkeys belong to one
+  account; leaving them paints hearts on the next reader's feed for likes that
+  are not theirs, and an unlike would try to delete a record in a repo they do
+  not own.
+- **Keep the post cache.** Those are public posts this browser collected, not
+  account data, and discarding them throws away the archive the design rests on.
+  Clearing it is a separate, explicit button.
+- **Say it signs you out everywhere** — the session is a `*.mino.mobi` domain
+  cookie. And the client's method is `logout()`, not `signOut()`.
+
+### The status line used to lie
+
+`connectionStatus()` in `app.js`, and the same rule inside `RuleRunner`.
+
+The old wiring was `onConnect: () => say('live · …')` and
+`onDisconnect: () => say('reconnecting…')`, straight through — and the header
+then reads **"reconnecting" essentially always, while posts are visibly
+arriving**. The reason is that a Jetstream socket ending is NORMAL: it closes
+when a replay finishes, on idle, on a host rotation. Every close painted
+"reconnecting…", the reconnect painted over it, and the backoff grows to 30s —
+so the lie is what is on screen most of the time.
+
+The status was reporting socket transitions when what a reader wants to know is
+whether posts are still coming. So now: a drop is only reported if it has not
+repaired itself within `RECONNECT_GRACE_MS` (2.5s), and the line counts what has
+actually arrived (`state.conn.bump()` per delivered event). `selectFeed` calls
+`stop()` so a stale timer from an abandoned feed cannot fire over the new one.
 
 ### Custom feeds, and the one place "frontend-only" bends
 

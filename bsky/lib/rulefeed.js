@@ -470,6 +470,8 @@ export class RuleRunner {
     this.Client = Client;
     this.KIND = KIND;
     this.client = null;
+    this.connected = false;
+    this._graceTimer = null;
     this.scanned = 0;
     this.matched = 0;
     this.bytes = 0;
@@ -505,8 +507,22 @@ export class RuleRunner {
       collections: ['app.bsky.feed.post'],
       kinds: [this.KIND.commit ?? this.KIND.COMMIT],
       onEvent: (payload) => this._event(payload),
-      onConnect: () => this.onStatus(`${this.rule.label} · reading the firehose`, true),
-      onDisconnect: () => this.onStatus('reconnecting…', false),
+      // Same rule as the app's connectionStatus(): a Jetstream socket ending
+      // is normal (replay finished, idle, host rotation), so a drop is only
+      // worth reporting if it has not repaired itself. Reporting each one
+      // leaves the header on "reconnecting" while posts are plainly arriving.
+      onConnect: () => {
+        this.connected = true;
+        clearTimeout(this._graceTimer);
+        this.onStatus(`${this.rule.label} · reading the firehose`, true);
+      },
+      onDisconnect: () => {
+        this.connected = false;
+        clearTimeout(this._graceTimer);
+        this._graceTimer = setTimeout(() => {
+          if (!this.connected) this.onStatus('reconnecting…', false);
+        }, 2500);
+      },
     });
     this.client.connect();
   }
@@ -530,6 +546,9 @@ export class RuleRunner {
   }
 
   close() {
+    clearTimeout(this._graceTimer);
+    this._graceTimer = null;
+    this.connected = false;
     this._disconnect();
     if (this._timer) clearInterval(this._timer);
     if (this._onVis) document.removeEventListener('visibilitychange', this._onVis);
