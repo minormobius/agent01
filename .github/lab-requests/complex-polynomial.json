@@ -1,0 +1,13 @@
+{
+  "slug": "complex-polynomial",
+  "task": "complex polynomial explorer, lets you drag around a number of coefficient points, & permute them, change the degree of the polynomial, &c, & it shows u where the solutions of the polynomial are (exact for low degree, numerical methods for higher degrees)",
+  "thread_root": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3muqkt2kbpk22",
+  "requester": "ponder.ooo",
+  "named": "no",
+  "root_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3muqkt2kbpk22",
+  "root_cid": "bafyreig2x4kx32so5cbp2zng3eqf6pqencv7ombigrobpx3flvdw5qunoa",
+  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3muqkt2kbpk22",
+  "parent_cid": "bafyreig2x4kx32so5cbp2zng3eqf6pqencv7ombigrobpx3flvdw5qunoa",
+  "refs_from": "complex polynomial explorer, lets you drag around a number of coefficient points, & permute them, change the degree of the polynomial, &c, & it shows u where the solutions of the polynomial are (exact for low degree, numerical methods for higher degrees)",
+  "requestedAt": "2026-09-05T03:44:09.401Z"
+}
