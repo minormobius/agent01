@@ -1,13 +1,13 @@
 {
   "slug": "apply-inverse",
-  "task": "hmm i meant applying a scaling before the inverse transform lol not after...\n\nalso can u make it so the slider has higher resolution? step size of 0.005 is a bit crunchy. an additional textual numeric input box that lets you pick arbitrary values would also be nice\n\n+ navigation for the renderer\n\n--- earlier in this thread, from the person who asked (oldest first) ---\n\napply an inverse joukowski transform centered at -c/2 to the iterated map f(z) = (|z| + cos(arg(z)))exp(i*arg(z)) - c where c is a real parameter in the range 0.5 to 1. include a slider for c and a slider for adjusting the horizontal scaling of the transform",
+  "task": "can you also pls color by a domain coloring of the landing point of the iteration, for non escaping points, instead of just uniform black\n\n--- earlier in this thread, from the person who asked (oldest first) ---\n\napply an inverse joukowski transform centered at -c/2 to the iterated map f(z) = (|z| + cos(arg(z)))exp(i*arg(z)) - c where c is a real parameter in the range 0.5 to 1. include a slider for c and a slider for adjusting the horizontal scaling of the transform\n\nhmm i meant applying a scaling before the inverse transform lol not after...\n\nalso can u make it so the slider has higher resolution? step size of 0.005 is a bit crunchy. an additional textual numeric input box that lets you pick arbitrary values would also be nice\n\n+ navigation for the renderer",
   "thread_root": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3muskltaofs2r",
   "requester": "ponder.ooo",
   "named": "no",
   "root_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3muskltaofs2r",
   "root_cid": "bafyreifzj6lme7vc2ix4q7b2bafsx2stejcckgalotriy4i3p2rwqqnclm",
-  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3musl75atd222",
-  "parent_cid": "bafyreiekhq7id2l6ym3e5u2kq2np7273pnzxvkiukpeojcfwaxz3alaywy",
-  "refs_from": "hmm i meant applying a scaling before the inverse transform lol not after...\n\nalso can u make it so the slider has higher resolution? step size of 0.005 is a bit crunchy. an additional textual numeric input box that lets you pick arbitrary values would also be nice\n\n+ navigation for the renderer\napply an inverse joukowski transform centered at -c/2 to the iterated map f(z) = (|z| + cos(arg(z)))exp(i*arg(z)) - c where c is a real parameter in the range 0.5 to 1. include a slider for c and a slider for adjusting the horizontal scaling of the transform",
-  "requestedAt": "2026-09-05T22:56:16.237Z"
+  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3muslpcpzu22r",
+  "parent_cid": "bafyreihxciywktvu7i2qkyqihboyzsvcjlvj2uml4bix5ukrhytwx7v5zq",
+  "refs_from": "can you also pls color by a domain coloring of the landing point of the iteration, for non escaping points, instead of just uniform black\napply an inverse joukowski transform centered at -c/2 to the iterated map f(z) = (|z| + cos(arg(z)))exp(i*arg(z)) - c where c is a real parameter in the range 0.5 to 1. include a slider for c and a slider for adjusting the horizontal scaling of the transform\nhmm i meant applying a scaling before the inverse transform lol not after...\n\nalso can u make it so the slider has higher resolution? step size of 0.005 is a bit crunchy. an additional textual numeric input box that lets you pick arbitrary values would also be nice\n\n+ navigation for the renderer",
+  "requestedAt": "2026-09-05T23:05:16.512Z"
 }
