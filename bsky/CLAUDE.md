@@ -116,6 +116,64 @@ Deliberate choices worth keeping:
 - Default feed is algorithmic on purpose: a new visitor has no follow graph, and
   an empty timeline is a bad first screen.
 
+### Likes and reposts, and the scope that gates them
+
+`lib/actions.js`. A like is a record — `app.bsky.feed.like` with a subject
+carrying the post's URI **and CID** — so undoing one means deleting a record,
+which means knowing its rkey. The read path here is unauthenticated and
+therefore has no `viewer` block, so the rkey comes from two places in order:
+
+1. **Local** — what `createRecord` returned, mirrored to `localStorage`.
+2. **Constellation** — `listLinks(uri, LINK.likes, { did: me })` asks the global
+   index "did this account like this post?" and hands back the rkey. No auth.
+   This is how a like made in the official app becomes undoable here.
+
+The index lags a write by seconds, which is why local wins.
+
+**Carry the `cid`.** A like whose subject has no CID is rejected by the PDS.
+Both `fromHydrated` (from `post.cid`) and the Jetstream path (from
+`payload.cid`) keep it; anything that drops it silently breaks liking.
+
+**These are gated on the auth ceiling.** `app.bsky.feed.like` and
+`app.bsky.feed.repost` were added to `WRITE_COLLECTIONS` in
+`workers/auth/src/oauth/scope.ts` on this branch, and
+`node scripts/check-auth-scope.mjs` confirms it only adds (75 → 77 collections,
+nothing dropped). **But `workers/auth` deploys from
+`claude/farmville-atproto-game-745mcr`, not from here**, so until that surface
+ships, `auth.mino.mobi/client-metadata.json` does not list the scopes and the
+authorization server refuses them. `actions.available()` reads that file at boot
+and the buttons say so, rather than failing at the consent screen with
+`invalid_scope`.
+
+Do **not** deploy the auth worker from this branch to shortcut that. That is
+precisely the failure `scripts/check-auth-scope.mjs` was written for: on
+2026-07-29 a branch with a stale `workers/` shipped a green build that dropped
+the ceiling from 66 collections to 61 and broke four sites.
+
+### Palettes
+
+`lib/theme.js`. Seven palettes plus `auto`, which follows the OS and is the
+default. Every colour in the stylesheet comes from nine tokens, so a palette is
+a data object and adding one means adding an entry — nothing else.
+
+Two things that must stay:
+
+- **The inline boot script in `index.html`** duplicates a few lines of
+  `theme.js` on purpose. A module import resolves *after* first paint, which is
+  long enough to flash a white screen at someone who chose Midnight.
+- **`lib/theme.selftest.mjs`** recomputes WCAG contrast for every palette and
+  fails if one drops below 4.5:1 for text or 3:1 for muted/accent. A palette
+  that cannot be read is not a palette. All seven currently pass.
+
+### The following feed
+
+Signed in, `following` is the default chip and the feed is strictly
+reverse-chronological — no ranking. It uses the same single Jetstream socket as
+`live`, but ordering matters here: a replay arrives oldest-first, live events
+arrive newest-first, and the local store contributes posts from any time.
+Prepending would interleave those three wrongly, so `insertSorted()` places each
+post by `createdAt`. Signed out, the default stays `simcluster`.
+
 ### Blobs — two shapes, and only one has URLs
 
 `lib/blobs.js`. The same post arrives differently depending on its source, and

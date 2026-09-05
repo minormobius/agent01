@@ -5,6 +5,34 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>bsky — an AppView with no database</title>
+<script>
+/* Palette before first paint. Duplicating a few lines of lib/theme.js here is
+   deliberate: a module import resolves after the first paint, which is exactly
+   long enough to flash a white screen at someone who chose Midnight. */
+(function () {
+  var P = {
+    midnight:['#0b0d12','#11141c','#1e2330','#171b25','#e6eaf1','#8590a8','#5c95ff','dark'],
+    paper:['#fbfaf8','#ffffff','#e2e0da','#eeece7','#1b1e24','#5f6672','#1d5fd6','light'],
+    sepia:['#f5edda','#fdf8ec','#ddd0b4','#eae0c8','#33291b','#6b5c46','#9a4c1a','light'],
+    forest:['#0a1310','#0f1a16','#1d2f27','#16241e','#dfeae1','#7e9689','#4ade80','dark'],
+    plum:['#120f1a','#191426','#2a2140','#201933','#e9e3f4','#948aae','#c084fc','dark'],
+    ember:['#140f0c','#1c1512','#33251d','#261c17','#f0e6de','#a08d7e','#ff9448','dark'],
+    mono:['#000000','#0c0c0c','#3a3a3a','#242424','#ffffff','#c2c2c2','#ffd400','dark']
+  };
+  var want; try { want = localStorage.getItem('bsky:palette'); } catch (e) {}
+  if (!want || want === 'auto' || !P[want]) {
+    want = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'midnight' : 'paper';
+  }
+  var p = P[want], r = document.documentElement, k = ['--bg','--panel','--line','--line-soft','--text','--muted','--accent'];
+  for (var i = 0; i < k.length; i++) r.style.setProperty(k[i], p[i]);
+  r.style.colorScheme = p[7];
+  r.dataset.palette = want;
+  document.addEventListener('DOMContentLoaded', function () {
+    var m = document.querySelector('meta[name="theme-color"]');
+    if (m) m.setAttribute('content', p[0]);
+  });
+})();
+</script>
 <meta name="description" content="A Bluesky client that runs entirely in your browser. Algorithmic feeds, a live timeline with no backend, notifications from a public backlink index, and an archive that grows every visit.">
 <style>
 :root{
@@ -151,6 +179,20 @@ textarea{resize:none;line-height:1.4}
   justify-content:center;gap:3px;color:var(--muted);font-size:10.5px;letter-spacing:.02em}
 .tab .ic{font-size:19px;line-height:1}
 .tab.on{color:var(--accent)}
+
+/* ── palette picker ────────────────────────────────── */
+.palettes{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:9px}
+.pal{border:1px solid var(--line);border-radius:10px;padding:9px;text-align:left;min-height:62px}
+.pal.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.pal .sw{display:flex;gap:4px;margin-bottom:7px}
+.pal .sw i{width:15px;height:15px;border-radius:4px;display:block;border:1px solid rgba(128,128,128,.28)}
+.pal .nm{font-size:12px;color:var(--muted)}
+.pal.on .nm{color:var(--text)}
+
+/* liked / reposted states */
+.pacts button.on[data-act="like"]{color:var(--dead)}
+.pacts button.on[data-act="repost"]{color:var(--live)}
+.pacts button.busy{opacity:.5}
 
 /* ── misc ──────────────────────────────────────────── */
 .bar{padding:9px 14px;font-size:12.5px;color:var(--muted);border-bottom:1px solid var(--line-soft);

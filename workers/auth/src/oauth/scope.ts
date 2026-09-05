@@ -155,6 +155,13 @@ const WRITE_COLLECTIONS = [
   'exchange.recipe.recipe',
   // poll + wave post to Bluesky proper
   'app.bsky.feed.post',
+  // bsky (bsky.mino.mobi) — the frontend-only AppView. A client that can read a
+  // timeline but not like a post is a reader, not a client; these are the two
+  // writes that make it one. Both are ordinary app.bsky records in the user's
+  // own repo, and bsky.mino.mobi requests them as a NARROW scope alongside
+  // feed.post rather than taking the union.
+  'app.bsky.feed.like',
+  'app.bsky.feed.repost',
   // feedgen (b.mino.mobi/feedgen) — the feed definition record + the published feed generator
   'com.minomobi.feedgen.def',
   'app.bsky.feed.generator',

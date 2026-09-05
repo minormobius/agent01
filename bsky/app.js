@@ -26,6 +26,8 @@ import { renderEmbed } from '/lib/blobs.js';
 import { attachTypeahead } from '/lib/typeahead.js';
 import * as cache from '/lib/cache.js';
 import { auth, publish, graphemeLength, MAX_GRAPHEMES } from '/lib/compose.js';
+import * as theme from '/lib/theme.js';
+import * as actions from '/lib/actions.js';
 
 const $ = (id) => document.getElementById(id);
 const el = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
@@ -47,6 +49,7 @@ const state = {
   cacheOk: false,
   me: null,                 // signed-in profile
   loading: false,
+  canWrite: { like: false, repost: false },  // what the auth ceiling allows
 };
 
 // ─── chrome ──────────────────────────────────────────────────────
@@ -84,6 +87,8 @@ function route() {
 
 function renderChips() {
   const opts = [
+    // Signed in, your own follows come first — it is the feed you actually want.
+    ...(state.me ? [{ id: 'following', label: 'following' }] : []),
     ...FEEDS.map((f) => ({ id: f.id, label: f.label })),
     { id: 'live', label: '⚡ live' },
     { id: 'stored', label: '⛁ stored' },
@@ -102,10 +107,12 @@ async function selectFeed(id) {
   if (state.live) { state.live.close(); state.live = null; }
   state.feed = id;
   state.cursor = null;
+  state.sorted = false;
   state.seen.clear();
   $('v-home').innerHTML = '';
   renderChips();
 
+  if (id === 'following') return startFollowing();
   if (id === 'live') return startLive();
   if (id === 'stored') return showStored();
   return loadAlgorithmic(true);
@@ -159,6 +166,57 @@ async function showStored() {
   say(`${posts.length} posts from this browser's store`);
 }
 
+/**
+ * Your following feed: strictly reverse-chronological, no ranking.
+ *
+ * Same machinery as `live` — one Jetstream socket filtered to the follow graph —
+ * but presented as a timeline rather than a ticker. The difference that matters
+ * is ORDERING: a replay arrives oldest-first while live events arrive newest,
+ * and the local store contributes posts from any time at all. Prepending would
+ * interleave those three sources wrongly, so every post is inserted at its
+ * position by `createdAt`.
+ */
+async function startFollowing() {
+  const me = state.me;
+  if (!me?.did) { selectFeed('simcluster'); return say('sign in to see your following feed'); }
+
+  say('reading your follow graph…');
+  let dids;
+  try {
+    dids = await getFollows(me.did, 100);
+    dids.unshift(me.did);              // your own posts belong in your timeline
+  } catch (err) { return say(err.message); }
+  if (dids.length < 2) {
+    $('v-home').append(el(`<div class="empty"><strong>You follow nobody yet.</strong>
+      Follow some accounts and this fills up. Meanwhile the simcluster chip is a good place to look.</div>`));
+    return say('no follows');
+  }
+
+  state.dids = dids;
+  state.subKey = cache.subscriptionKey(dids);
+  state.sorted = true;
+
+  if (state.cacheOk) {
+    const held = await cache.recentPosts({ limit: 120 }).catch(() => []);
+    const mine = new Set(dids);
+    for (const p of held) if (mine.has(p.did) && !p.record?.reply) insertSorted(p);
+  }
+
+  const plan = state.cacheOk
+    ? await cache.resumePlan(state.subKey, 24)
+    : { mode: 'since', hours: 24, reason: 'no local store' };
+
+  const opts = {
+    dids, collections: ['app.bsky.feed.post'], kinds: [KIND.commit],
+    onEvent: onLiveEvent,
+    onConnect: () => say(`following · ${dids.length - 1} accounts, reverse chronological`, true),
+    onDisconnect: () => say('reconnecting…'),
+  };
+  if (plan.mode === 'resume') opts.cursor = plan.cursor; else opts.since = plan.hours;
+  state.live = new JetstreamClient(opts);
+  state.live.connect();
+}
+
 async function startLive() {
   const handle = state.me?.handle || prompt('Whose follow graph? (a handle)');
   if (!handle) { selectFeed('simcluster'); return; }
@@ -206,7 +264,9 @@ function onLiveEvent(payload) {
   const record = payload.record;
   if (!record || typeof record.text !== 'string') return;
 
-  const post = { uri, did: payload.did, rkey: payload.rkey, seq: payload.seq,
+  // The cid is REQUIRED to like or repost — a like whose subject lacks one is
+  // rejected by the PDS — so it is carried from the event and stored with it.
+  const post = { uri, did: payload.did, rkey: payload.rkey, seq: payload.seq, cid: payload.cid,
                  createdAt: record.createdAt || new Date().toISOString(), record };
   if (state.cacheOk) {
     state.writeQueue.push(post);
@@ -214,7 +274,7 @@ function onLiveEvent(payload) {
   }
   if (record.reply) return;                 // a timeline, not a thread view
   if (state.seen.has(uri)) return;
-  prependPost(post);
+  if (state.sorted) insertSorted(post); else prependPost(post);
 }
 
 function flushWrites() {
@@ -252,10 +312,34 @@ function postNode(p) {
     </article>`);
   if (!prof && !state.profiles.has(p.did)) state.pending.add(p.did);
   node._post = p;
+  // Paint what we already know we've liked/reposted. The read path is
+  // unauthenticated so there is no `viewer` block to consult — lib/actions.js
+  // keeps that locally instead.
+  const mine = actions.localState(p.uri);
+  if (mine.like) node.querySelector('[data-act="like"]')?.classList.add('on');
+  if (mine.repost) node.querySelector('[data-act="repost"]')?.classList.add('on');
   return node;
 }
 
 function appendPost(p) { if (state.seen.has(p.uri)) return; state.seen.add(p.uri); $('v-home').append(postNode(p)); }
+
+/**
+ * Insert at the right place by `createdAt`, newest first. Linear from the top,
+ * which is the cheap direction: live posts are newer than almost everything and
+ * land within the first comparison or two.
+ */
+function insertSorted(p) {
+  if (state.seen.has(p.uri)) return;
+  state.seen.add(p.uri);
+  const node = postNode(p);
+  const t = Date.parse(p.createdAt) || 0;
+  for (const sib of $('v-home').children) {
+    if (!sib.classList.contains('post')) continue;
+    const st = Date.parse(sib._post?.createdAt) || 0;
+    if (t > st) { $('v-home').insertBefore(node, sib); return; }
+  }
+  $('v-home').append(node);
+}
 function prependPost(p) {
   if (state.seen.has(p.uri)) return;
   state.seen.add(p.uri);
@@ -522,9 +606,33 @@ async function renderMe() {
       <button class="btn ghost" id="akey-drop">forget</button></div>
     <p id="aquota">${a ? esc(a.quotaSummary() || '') : ''}</p></div>`));
 
+  const cur = theme.stored();
+  const picker = el(`<div class="section"><h3>palette</h3>
+    <div class="palettes">
+      <button class="pal${cur === 'auto' ? ' on' : ''}" data-pal="auto">
+        <span class="sw"><i style="background:#0b0d12"></i><i style="background:#fbfaf8"></i></span>
+        <span class="nm">Auto</span></button>
+      ${Object.entries(theme.PALETTES).map(([k, p]) => `
+        <button class="pal${cur === k ? ' on' : ''}" data-pal="${k}">
+          <span class="sw"><i style="background:${p.bg}"></i><i style="background:${p.accent}"></i><i style="background:${p.text}"></i></span>
+          <span class="nm">${esc(p.label)}</span></button>`).join('')}
+    </div></div>`);
+  v.append(picker);
+  picker.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-pal]');
+    if (!b) return;
+    theme.set(b.dataset.pal);
+    for (const x of picker.querySelectorAll('.pal')) x.classList.toggle('on', x === b);
+  });
+
   v.append(el(`<div class="section"><h3>about</h3>
     <p>No DMs: <code>chat.bsky.*</code> is a centralised service, not protocol records, so it never
     reaches the firehose this client reads. Nothing here can see them.</p>
+    <p>Likes and reposts: ${state.canWrite.like && state.canWrite.repost
+      ? 'enabled.'
+      : 'waiting on <code>auth.mino.mobi</code> to publish the two scopes. The collections are '
+        + 'added in this branch, but that worker deploys from its own branch, so until it ships '
+        + 'the buttons explain themselves instead of failing at the consent screen.'}</p>
     <p><a href="https://github.com/minormobius/agent01/blob/main/docs/APPVIEW-FEASIBILITY.md">how this works</a>
      · <a href="https://b.mino.mobi">the rest of the Bluesky corner ↗</a></p></div>`));
 
@@ -579,7 +687,16 @@ async function refreshAuth() {
     btn.innerHTML = `<img alt="@${esc(full.handle)}" src="${full.avatar ? esc(full.avatar) : BLANK}">`;
     if (state.tab === 'me') renderMe();
   }
+
+  // Signing in adds the `following` chip, and that feed is the one you came
+  // for — switch to it unless the reader has already chosen something else.
+  renderChips();
+  if (justSignedIn && state.feed === 'simcluster') selectFeed('following');
+  justSignedIn = false;
 }
+
+/** True for the first refreshAuth that finds a session, so the feed switches once. */
+let justSignedIn = true;
 
 function openSheet() {
   if (!auth().isLoggedIn()) return signIn();
@@ -626,17 +743,45 @@ document.addEventListener('click', async (e) => {
   if (!btn) return;
   const post = btn.closest('.post')._post;
   const act = btn.dataset.act;
+
   if (act === 'open') {
-    window.open(`https://bsky.app/profile/${post.did}/post/${post.rkey}`, '_blank', 'noopener');
-  } else if (act === 'like' || act === 'repost') {
-    say(`${act}s need a write scope this site does not ask for — opening on bsky.app instead`);
-    window.open(`https://bsky.app/profile/${post.did}/post/${post.rkey}`, '_blank', 'noopener');
-  } else if (act === 'reply') {
+    return window.open(`https://bsky.app/profile/${post.did}/post/${post.rkey}`, '_blank', 'noopener');
+  }
+
+  if (act === 'reply') {
     // Live posts carry no counts; fetch them on demand from Constellation.
     const span = btn.querySelector('span');
     span.textContent = '…';
     try { const c = await postCounts(post.uri); span.textContent = c.replyCount; }
     catch { span.textContent = ''; }
+    return;
+  }
+
+  if (act !== 'like' && act !== 'repost') return;
+
+  if (!actions.signedIn()) return say(`sign in to ${act}`);
+  if (!state.canWrite[act]) {
+    return say(`${act}s need repo:app.bsky.feed.${act} on auth.mino.mobi — the collection is `
+      + `added in this branch but that worker deploys from its own`);
+  }
+
+  // Optimistic: flip immediately, reconcile with what the PDS actually says.
+  const span = btn.querySelector('span');
+  const wasOn = btn.classList.contains('on');
+  const n = Number(span?.textContent) || 0;
+  btn.classList.toggle('on', !wasOn);
+  btn.classList.add('busy');
+  if (span && span.textContent !== '') span.textContent = String(Math.max(0, n + (wasOn ? -1 : 1)));
+
+  try {
+    const { on } = await actions.toggle(post, act);
+    btn.classList.toggle('on', on);
+  } catch (err) {
+    btn.classList.toggle('on', wasOn);           // put it back
+    if (span && span.textContent !== '') span.textContent = String(n);
+    say(err.message);
+  } finally {
+    btn.classList.remove('busy');
   }
 });
 
@@ -655,6 +800,8 @@ setInterval(hydrate, 900);
 setInterval(flushWrites, 15_000);
 
 (async () => {
+  theme.apply();
+  theme.watchSystem();
   state.cacheOk = await cache.available();
   renderChips();
   if (location.hash.startsWith('#/profile/')) route(); else showTab('home');
@@ -664,6 +811,8 @@ setInterval(flushWrites, 15_000);
   // background — an auth worker that is slow, blocked or down must not be able
   // to stop a logged-out reader seeing posts.
   selectFeed('simcluster');
+
+  actions.available().then((can) => { state.canWrite = can; }).catch(() => {});
 
   auth().init()
     .catch(() => { /* offline or blocked: reading still works */ })

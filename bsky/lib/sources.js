@@ -82,6 +82,7 @@ export async function loadFeed(feedUri, { limit = 30, cursor } = {}) {
 function fromHydrated(post) {
   return {
     uri: post.uri,
+    cid: post.cid,        // required to like or repost — see lib/actions.js
     did: post.author.did,
     rkey: post.uri.split('/').pop(),
     createdAt: post.record?.createdAt || post.indexedAt,
