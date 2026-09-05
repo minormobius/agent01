@@ -430,7 +430,7 @@ const midiList = (score, staff = 0, voice = 0) =>
 // bar checks — a transcription whose bars do not add up is a bug in the
 // transcription, and `|` is what finds it.
 {
-  eq(LIBRARY.length, 8, 'the library has eight pieces');
+  eq(LIBRARY.length, 9, 'the library has nine pieces');
   for (const piece of LIBRARY) {
     const score = parseLily(piece.source);
     eq(score.diagnostics.length, 0,

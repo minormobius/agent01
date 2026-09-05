@@ -679,16 +679,64 @@ async function refreshPublished() {
   } catch { /* not signed in, or no records yet — the group just stays empty */ }
 }
 
+/**
+ * Resolve a handle or DID to the PDS that holds its records.
+ *
+ * Both hops are public and CORS-open: the appview resolves a handle to a DID,
+ * and plc.directory (or the domain itself, for did:web) names the PDS.
+ */
+async function resolveRepo(idOrHandle) {
+  let did = idOrHandle;
+  if (!did.startsWith('did:')) {
+    const r = await fetch('https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle'
+      + `?handle=${encodeURIComponent(did)}`);
+    if (!r.ok) throw new Error(`no such handle: ${idOrHandle}`);
+    did = (await r.json()).did;
+  }
+  const docUrl = did.startsWith('did:web:')
+    ? `https://${did.slice(8).replace(/:/g, '/')}/.well-known/did.json`
+    : `https://plc.directory/${did}`;
+  const doc = await (await fetch(docUrl)).json();
+  const svc = (doc.service || []).find((x) => /PersonalDataServer/i.test(x.type || ''))
+    || (doc.service || [])[0];
+  if (!svc?.serviceEndpoint) throw new Error('that identity names no data server');
+  return { did, pds: svc.serviceEndpoint.replace(/\/$/, '') };
+}
+
+/**
+ * Open a score from an `at://` URI.
+ *
+ * Read PUBLICLY, through the author's own PDS, rather than through this site's
+ * authenticated proxy. The proxy can only reach the signed-in user's own repo —
+ * so routing shared links through it meant a published score opened for its
+ * author and for nobody else, which is not publishing at all. Anyone can read
+ * a public record on ATProto without an account, and now this does.
+ */
 async function openAtUri(uri) {
   try {
-    const clean = uri.replace(/^at:/, '');
-    const parts = clean.replace('at://', '').split('/');
-    const rkey = parts[2];
-    const res = await auth.pds.getRecord(COLLECTION, rkey);
-    const v = res?.value;
-    if (!v?.source) throw new Error('that record has no score in it');
-    loadPiece({ title: v.title || 'Untitled', source: v.source, rkey }, { push: false });
-    toast(`opened “${v.title || 'Untitled'}”`);
+    // Strip the scheme ONCE. Doing it in two steps — `/^at:/` and then
+    // `'at://'` — leaves the two slashes behind, so `split('/')` yields two
+    // empty leading fields and every part lands one place late: the DID is read
+    // as the record key and nothing resolves. This is why an at:// link had
+    // never actually opened one.
+    const parts = String(uri).trim().replace(/^at:\/\//, '').split('/').filter(Boolean);
+    const [who, collection, rkey] = [parts[0], parts[1] || COLLECTION, parts[2]];
+    if (!rkey) throw new Error('that at:// URI names no record');
+    const { did, pds } = await resolveRepo(who);
+    const url = `${pds}/xrpc/com.atproto.repo.getRecord`
+      + `?repo=${encodeURIComponent(did)}&collection=${encodeURIComponent(collection)}`
+      + `&rkey=${encodeURIComponent(rkey)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`the author's server answered ${res.status}`);
+    const v = (await res.json())?.value;
+    if (!v?.source) throw new Error('that record holds no score');
+    // Only claim it as YOURS — and so let a later publish overwrite it — when
+    // it actually is. Otherwise this is a read of someone else's work.
+    const mine = auth.getUser()?.did === did;
+    loadPiece({ title: v.title || 'Untitled', source: v.source, rkey: mine ? rkey : null },
+      { push: false });
+    const by = v.composer ? ` · ${v.composer}` : '';
+    toast(`opened “${v.title || 'Untitled'}”${by}${mine ? '' : ' (read-only copy — publishing saves it to your own repository)'}`, 6000);
   } catch (err) {
     toast(`could not open: ${err.message}`);
   }
