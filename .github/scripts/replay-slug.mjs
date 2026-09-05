@@ -16,6 +16,7 @@ import { sha256 } from '../../bsky/lib/sha256.js';
 const SERVICE = 'https://jetstream.us-east.bsky.network';
 const KEY = process.env.JETSTREAM_KEY;
 const BUDGET = Math.max(1, Number(process.env.BUDGET_MB) || 50) * 1024 * 1024;
+const BUF = Math.max(1 << 20, Math.floor(BUDGET / 8));
 
 if (!KEY) { console.error('no JETSTREAM_KEY in the environment'); process.exit(1); }
 
@@ -61,27 +62,18 @@ console.log(`  archive       ${n(full.segments.length)} segments, ${n(indexed.le
 
 if (!indexed.length) { console.error('  no block-indexed segment anywhere — cannot buy a bounded slug'); process.exit(1); }
 
-// The newest indexed segment: most likely to still be hot, and the freshest
-// data is what a feed wants anyway.
-const pick = indexed[indexed.length - 1];
-const pickBlocks = (pick.blocks || []).reduce((a, r) => a + r.last - r.first + 1, 0);
-console.log(`  chosen        ${pick.name} (index ${pick.index}) — ${n(pickBlocks)} blocks, `
-  + `seq ${n(pick.minSeq)}..${n(pick.maxSeq)}`);
-
-// Bound the plan to exactly that segment so no whole-segment neighbour sneaks in.
-const afterSeq = pick.minSeq - 1;
-const beforeSeq = pick.maxSeq;
-
-const p = await plan({ collections: ['app.bsky.feed.post'], kinds: ['commit'], afterSeq, beforeSeq });
-let blocks = 0, whole = 0;
-for (const s of p.segments || []) {
-  if (s.mode === 'blocks') for (const r of s.blocks || []) blocks += r.last - r.first + 1;
-  else whole++;
-}
-console.log(`  bounded plan  ${p.segments.length} segments, ${n(blocks)} blocks, ${whole} whole`);
-console.log(`  stats         ${JSON.stringify(p.stats || {})}`);
-if (whole) console.log(`  NOTE: ${whole} whole-segment entr${whole === 1 ? 'y' : 'ies'} remain — `
-  + `each is ~262 MB and cannot be subdivided by a byte budget.`);
+/**
+ * Walk the newest indexed segments, newest first, until the budget is spent.
+ *
+ * One segment's post blocks turned out to be ~12 MB, so a single segment cannot
+ * fill a 50 MB slug. Spanning them with one wide afterSeq/beforeSeq would drag
+ * in the un-indexed segments BETWEEN them — each a ~262 MB atomic download — so
+ * instead each indexed segment is its own bounded snapshot and the budget is
+ * carried across them. This is also the right shape for the browser: a slug is
+ * a sequence of small, individually abortable downloads.
+ */
+const targets = indexed.slice(-12).reverse();
+console.log(`  candidates    ${targets.length} newest indexed segments`);
 
 // ── 2. the browser shims, against the real dictionary ────────────
 console.log('\n═══ 3. the BROWSER shims (not node:zlib / node:crypto) ═══');
@@ -110,86 +102,85 @@ const KNOWN = 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
 console.log(`  sha256("abc") ${hex === KNOWN ? 'matches the NIST vector' : 'WRONG: ' + hex}`);
 
 // ── 3. buy the slug ──────────────────────────────────────────────
-console.log(`\n═══ 4. download, budget ${mb(BUDGET)}, prefetch buffer ${mb(Math.max(1 << 20, Math.floor(BUDGET / 8)))} ═══`);
+console.log(`\n═══ 4. download, budget ${mb(BUDGET)}, prefetch buffer ${mb(BUF)} ═══`);
 const rule = PRESETS[0];
 const m = compile(rule);
-const budgetCtl = new AbortController();
 
-let bytes = 0, overBudget = false, requests = 0;
+let bytes = 0, requests = 0, scanned = 0, matched = 0, segmentsRead = 0;
+let oldest = null, newest = null, yielded = 0;
 const quota = {};
-const js = new Jetstream({
-  service: SERVICE,
-  apiKey: KEY,
-  decompressor,
-  sha256,
-  // Must sit well under BUDGET: the SDK prefetches this much before yielding
-  // its first event, so a buffer larger than the budget means the abort lands
-  // mid-prefetch and nothing is ever emitted.
-  snapshotBufferBytes: Math.max(1 << 20, Math.floor(BUDGET / 8)),
-  blockConcurrency: 2,
-  fetchImpl: async (input, opts) => {
-    const res = await fetch(input, opts);
-    requests++;
-    for (const [k, v] of res.headers) if (k.startsWith('headwind-quota')) quota[k] = v;
-    const len = Number(res.headers.get('content-length') || 0);
-    if (len) {
-      bytes += len;
-      if (bytes >= BUDGET && !overBudget) { overBudget = true; budgetCtl.abort(); }
-    }
-    return res;
-  },
-});
-
-let scanned = 0, matched = 0, oldest = null, newest = null, stopped = 'reached the end of the window';
-let yielded = 0;
 const shapes = new Map();
 const kept = [];
+const seen = new Set();
 const t0 = Date.now();
+let stopped = 'ran out of indexed segments';
 
-try {
-  for await (const evt of js.snapshot({
-    collections: ['app.bsky.feed.post'], kinds: ['commit'], afterSeq, beforeSeq,
-    signal: budgetCtl.signal,
-  })) {
-    // Diagnostics, because a silent zero is indistinguishable from a wrong
-    // assumption about the event's shape — and the last run produced exactly
-    // that: 961 frames decoded, 0 events seen.
-    yielded++;
-    if (yielded <= 3) {
-      console.log(`  [shape ${yielded}] keys: ${Object.keys(evt).join(', ')}`);
-      console.log(`  [shape ${yielded}] ${JSON.stringify(evt, (k, v) => (k === 'record' ? '<record>' : v)).slice(0, 300)}`);
-    }
-    // NESTED under `commit` — not the flat shape our own live client emits.
-    const c = evt.kind && evt.kind !== 'commit' ? null : evt.commit;
-    const key = `${evt.kind ?? '?'}/${c?.operation ?? '?'}/${c?.collection ?? '?'}`;
-    shapes.set(key, (shapes.get(key) || 0) + 1);
+for (const seg of targets) {
+  if (bytes >= BUDGET) { stopped = `stopped at the ${mb(BUDGET)} budget`; break; }
+  const ctl = new AbortController();
+  let over = false;
 
-    if (!c || c.collection !== 'app.bsky.feed.post') continue;
-    if (c.operation === 'delete') continue;
-    const rec = c.record;
-    if (!rec || typeof rec.text !== 'string') continue;
-    scanned++;
-    if (oldest == null || evt.seq < oldest) oldest = evt.seq;
-    if (newest == null || evt.seq > newest) newest = evt.seq;
-    const hits = m.why(rec);
-    if (hits.length) {
+  const js = new Jetstream({
+    service: SERVICE,
+    apiKey: KEY,
+    decompressor,
+    sha256,
+    snapshotBufferBytes: BUF,
+    blockConcurrency: 2,
+    fetchImpl: async (input, opts) => {
+      const res = await fetch(input, opts);
+      requests++;
+      for (const [k, v] of res.headers) if (k.startsWith('headwind-quota')) quota[k] = v;
+      const len = Number(res.headers.get('content-length') || 0);
+      if (len) {
+        bytes += len;
+        if (bytes >= BUDGET && !over) { over = true; ctl.abort(); }
+      }
+      return res;
+    },
+  });
+
+  segmentsRead++;
+  try {
+    for await (const evt of js.snapshot({
+      collections: ['app.bsky.feed.post'], kinds: ['commit'],
+      afterSeq: seg.minSeq - 1, beforeSeq: seg.maxSeq, signal: ctl.signal,
+    })) {
+      yielded++;
+      const c = evt.kind && evt.kind !== 'commit' ? null : evt.commit;
+      const key = `${evt.kind ?? '?'}/${c?.operation ?? '?'}`;
+      shapes.set(key, (shapes.get(key) || 0) + 1);
+      if (!c || c.collection !== 'app.bsky.feed.post') continue;
+      if (c.operation === 'delete') continue;
+      const rec = c.record;
+      if (!rec || typeof rec.text !== 'string') continue;
+      scanned++;
+      if (oldest == null || evt.seq < oldest) oldest = evt.seq;
+      if (newest == null || evt.seq > newest) newest = evt.seq;
+      const hits = m.why(rec);
+      if (!hits.length) continue;
+      // Dedup by at:// URI. The first successful run showed the same paper
+      // twice; delivery is at-least-once and mirror accounts repost verbatim.
+      const uri = `at://${evt.did}/${c.collection}/${c.rkey}`;
+      if (seen.has(uri)) continue;
+      seen.add(uri);
       matched++;
-      if (kept.length < 20) kept.push({ text: rec.text.replace(/\s+/g, ' ').slice(0, 120), hits, did: evt.did });
+      if (kept.length < 25) kept.push({ text: rec.text.replace(/\s+/g, ' ').slice(0, 110), hits });
     }
+  } catch (err) {
+    if (over) { stopped = `stopped at the ${mb(BUDGET)} budget`; break; }
+    console.error(`  segment ${seg.name} failed: ${err?.message || err}`);
   }
-} catch (err) {
-  if (overBudget) stopped = `stopped at the ${mb(BUDGET)} budget`;
-  else { console.error('\nSNAPSHOT FAILED:', err?.message || err); console.error(err?.stack); process.exit(1); }
 }
 
 const secs = (Date.now() - t0) / 1000;
-console.log(`  events seen   ${n(yielded)}`);
-console.log(`  event shapes  ${[...shapes.entries()].map(([k, v]) => `${k}:${v}`).join('  ') || '(none)'}`);
+console.log(`  segments read ${segmentsRead} of ${targets.length}`);
+console.log(`  events seen   ${n(yielded)}   shapes ${[...shapes.entries()].map(([k, v]) => `${k}:${v}`).join(' ')}`);
 console.log(`  requests      ${n(requests)}`);
 console.log(`  wire bytes    ${mb(bytes)}   ${(bytes / secs / 1048576).toFixed(1)} MB/s`);
 console.log(`  zstd frames   ${n(frames)}   ${mb(framesIn)} in -> ${mb(framesOut)} out `
   + `(${framesIn ? (framesOut / framesIn).toFixed(1) : 0}x)`);
-console.log(`  posts scanned ${n(scanned)}   in ${secs.toFixed(0)}s   (${n(Math.round(scanned / secs))}/s)`);
+console.log(`  posts scanned ${n(scanned)}   in ${secs.toFixed(1)}s   (${n(Math.round(scanned / Math.max(secs, 0.1)))}/s)`);
 console.log(`  seq range     ${oldest == null ? '—' : `${n(oldest)} .. ${n(newest)}`}`);
 console.log(`  stopped       ${stopped}`);
 console.log(`  quota headers ${JSON.stringify(quota)}`);

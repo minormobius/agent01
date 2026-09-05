@@ -77,7 +77,9 @@ export const PRESETS = [
       'psyarxiv', 'socarxiv', 'engrxiv', 'ssrn', 'zenodo', 'osf.io',
       'peer review', 'peer-reviewed', 'preregist*', 'replication study',
       'meta-analysis', 'literature review', 'systematic review',
-      'monograph', 'dissertation', 'habilitation', 'festschrift',
+      'monograph', 'dissertation', 'festschrift',
+      // NOT 'habilitation': ordinary French, and it matched a Disney-park post
+      // in a real archive replay.
       'historiograph*', 'philolog*', 'palaeograph*', 'epigraph*',
       '"scientific paper"', '"working paper"', '"research paper"',
       '"open access"',

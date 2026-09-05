@@ -52,6 +52,6 @@ jobs:
           JETSTREAM_KEY: ${{ secrets.JETSTREAM_KEY }}
           # A push run uses the smaller figure: this spends a metered credential,
           # so the mechanics get proven cheaply before a full slug is bought.
-          BUDGET_MB: ${{ inputs.budget_mb || '12' }}
+          BUDGET_MB: ${{ inputs.budget_mb || '50' }}
           SEQ_BACK: ${{ inputs.seq_back }}
         run: node .github/scripts/replay-slug.mjs
