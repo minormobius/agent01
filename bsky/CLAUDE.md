@@ -136,19 +136,20 @@ Both `fromHydrated` (from `post.cid`) and the Jetstream path (from
 
 **These are gated on the auth ceiling.** `app.bsky.feed.like` and
 `app.bsky.feed.repost` were added to `WRITE_COLLECTIONS` in
-`workers/auth/src/oauth/scope.ts` on this branch, and
-`node scripts/check-auth-scope.mjs` confirms it only adds (75 → 77 collections,
-nothing dropped). **But `workers/auth` deploys from
-`claude/farmville-atproto-game-745mcr`, not from here**, so until that surface
-ships, `auth.mino.mobi/client-metadata.json` does not list the scopes and the
-authorization server refuses them. `actions.available()` reads that file at boot
-and the buttons say so, rather than failing at the consent screen with
-`invalid_scope`.
+`workers/auth/src/oauth/scope.ts`, and **this branch now owns the `auth`
+surface** (handed over at the principal's instruction — see
+[`workers/auth/CLAUDE.md`](../workers/auth/CLAUDE.md)). It is deployed and live:
+`auth.mino.mobi/client-metadata.json` lists **77 collections**, both of these
+among them, plus `rpc:com.atproto.server.getServiceAuth` for custom feeds.
+`actions.available()` still reads that file at boot, so if the ceiling ever
+narrows the buttons explain themselves rather than failing at the consent screen
+with `invalid_scope`.
 
-Do **not** deploy the auth worker from this branch to shortcut that. That is
-precisely the failure `scripts/check-auth-scope.mjs` was written for: on
-2026-07-29 a branch with a stale `workers/` shipped a green build that dropped
-the ceiling from 66 collections to 61 and broke four sites.
+Owning that surface means owning its hazard. `node scripts/check-auth-scope.mjs`
+runs before every auth deploy and **must stay green**: on 2026-07-29 a branch
+with a stale `workers/` shipped a green build that dropped the ceiling from 66
+collections to 61 and broke four sites. Only ever add to `WRITE_COLLECTIONS`,
+never remove.
 
 ### Palettes
 
@@ -523,13 +524,21 @@ proof: **confirm the run log binds `bsky.mino.mobi (custom domain)`**, and
   (`@bokuweb/zstd-wasm` handles the dictionary; `fzstd` does not — it throws).
   See docs/APPVIEW-FEASIBILITY.md §3. That path pools no quota and makes us
   custodian of no credential.
-- **Not verified: any of it in an actual browser.** The node run used the same
-  module, but `WebSocket` subprotocol negotiation, the CSS, and the DOM paths
-  (hydration sweep, ring-buffer trim, `CSS.escape` selectors) have not been
-  exercised by a real page load. That is the first thing to do on the live
-  surface.
+- **The live tail is the one path never exercised in a browser.** The DOM,
+  routing, lightbox, masonry, feeds, threads, search and notifications have all
+  been driven by a real page load. `WebSocket` subprotocol negotiation has not:
+  this sandbox's proxy blocks WebSockets, so the `live` and `following` chips
+  are verified in node against the real host and untested in Chromium. Same for
+  **reach further back**, which needs the archive.
+- **No write has ever been made from here.** Post, reply, like and repost are
+  code-complete and consent works, but nothing in this sandbox can complete an
+  OAuth round trip, so the actual `createRecord` calls are unverified end to
+  end. The `repost` path in particular was reported broken once by the
+  principal and fixed by widening `SCOPE` — that fix is reasoned, not observed.
 - No moderation. Labels, blocks and mutes are not applied. An AppView that
   showed anyone else's timeline would need them before it were fair to call it
   one; see §6 of the feasibility doc.
-- Threads, notifications and search are absent by design — the first two need
-  state, the third needs an inverted index.
+- No DMs, and there cannot be — see above.
+- The relay's own `JETSTREAM_API_KEY` may not be worth keeping. It buys archive
+  *metadata* only, and the BYO-key path above makes us custodian of nothing.
+  Open question, not a decision.

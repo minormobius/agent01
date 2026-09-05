@@ -1014,9 +1014,10 @@ async function renderMe() {
       </div>`));
   } else {
     v.append(el(`<div class="section"><h3>account</h3>
-      <p>Reading needs no account. Signing in is only for posting — it goes through the shared
-      OAuth worker, which holds the token so this page never does, and asks for exactly one
-      permission: create posts.</p>
+      <p>Reading needs no account. Signing in is only for writing — it goes through the shared
+      OAuth worker, which holds the token so this page never does, and asks once for exactly what
+      this site writes: posts, likes and reposts, plus permission to ask your own PDS for the
+      short-lived token that identifies you to a third-party feed.</p>
       <button class="btn" id="me-signin">sign in with Bluesky</button></div>`));
   }
 
@@ -1063,10 +1064,9 @@ async function renderMe() {
     <p>No DMs: <code>chat.bsky.*</code> is a centralised service, not protocol records, so it never
     reaches the firehose this client reads. Nothing here can see them.</p>
     <p>Likes and reposts: ${state.canWrite.like && state.canWrite.repost
-      ? 'enabled.'
-      : 'waiting on <code>auth.mino.mobi</code> to publish the two scopes. The collections are '
-        + 'added in this branch, but that worker deploys from its own branch, so until it ships '
-        + 'the buttons explain themselves instead of failing at the consent screen.'}</p>
+      ? 'enabled — <code>auth.mino.mobi</code> publishes both scopes.'
+        : '<code>auth.mino.mobi</code> is not currently offering the two scopes, so the buttons '
+        + 'explain themselves rather than failing at the consent screen.'}</p>
     <p><a href="https://github.com/minormobius/agent01/blob/main/docs/APPVIEW-FEASIBILITY.md">how this works</a>
      · <a href="https://b.mino.mobi">the rest of the Bluesky corner ↗</a></p></div>`));
 
