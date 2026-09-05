@@ -35,7 +35,8 @@ const LS_KEY = 'bsky:rulefeeds';
  * @typedef {object} Rule
  * @property {string}   id
  * @property {string}   label
- * @property {string[]} [any]     terms; a "quoted string" is an exact phrase
+ * @property {string[]} [any]     strong terms; a "quoted string" is an exact phrase
+ * @property {string[]} [weak]    soft terms — only count if the post also has a link
  * @property {string[]} [all]     terms that must ALL appear
  * @property {string[]} [none]    terms that veto a post
  * @property {string[]} [noneDomains] link hosts that veto a post
@@ -69,21 +70,34 @@ export const PRESETS = [
     // BROAD on purpose. The feed is a knowledge chase across the whole
     // spectrum — sciences, humanities, social science, maths — so the additive
     // half casts wide and the SUBTRACTIVE half below does the real work.
+    // STRONG — these fire on their own, because in the measured sample the
+    // only terms that were right on their own were venue names.
     any: [
       'preprint', 'pre-print', 'arxiv', 'biorxiv', 'medrxiv', 'chemrxiv',
-      'psyarxiv', 'socarxiv', 'engrxiv', 'ssrn', 'osf', 'zenodo', 'jstor',
-      'peer review', 'peer-reviewed', 'replicat*', 'reproducib*',
-      'methodolog*', 'dataset', 'corpus', 'monograph', 'dissertation',
-      'thesis', 'habilitation', 'fieldwork', 'ethnograph*', 'archaeolog*',
-      'palaeo*', 'paleo*', 'philolog*', 'historiograph*', 'manuscript',
-      'lemma', 'theorem', 'conjecture', 'proof of', 'ablation',
-      '"new paper"', '"our paper"', '"our new paper"', '"the paper"',
-      '"just published"', '"now out in"', '"out now in"', '"paper is out"',
-      '"accepted at"', '"accepted in"', '"published in"', '"appears in"',
-      '"in press"', '"open access"', '"first author"', '"co-author"',
-      '"my talk"', '"our study"', '"this study"', '"we find that"',
-      '"we show that"', '"we present"', '"the authors"', '"et al"',
-      'citation', 'bibliograph*', 'literature review', 'meta-analysis',
+      'psyarxiv', 'socarxiv', 'engrxiv', 'ssrn', 'zenodo', 'osf.io',
+      'peer review', 'peer-reviewed', 'preregist*', 'replication study',
+      'meta-analysis', 'literature review', 'systematic review',
+      'monograph', 'dissertation', 'habilitation', 'festschrift',
+      'historiograph*', 'philolog*', 'palaeograph*', 'epigraph*',
+      'conjecture', '"scientific paper"', '"working paper"',
+      '"research paper"', '"open access"', '"et al"',
+    ],
+
+    /**
+     * WEAK — only count when the post also carries a link. These are the words
+     * people use when sharing scholarship AND when talking about anything at
+     * all, so on their own they are noise; paired with a link they are good.
+     * See the note in compile(): 0-for-6 without this gate.
+     */
+    weak: [
+      '"new paper"', '"our paper"', '"our new paper"', '"just published"',
+      '"now out in"', '"out now in"', '"paper is out"', '"accepted at"',
+      '"accepted in"', '"published in"', '"appears in"', '"in press"',
+      '"new study"', '"our study"', '"this study"', '"we find that"',
+      '"we show that"', '"first author"', '"co-author"', '"lead author"',
+      'methodolog*', 'reproducib*', 'replicat*', 'dataset', 'ablation',
+      'archaeolog*', 'ethnograph*', 'palaeo*', 'paleo*', 'fieldwork',
+      'theorem', 'bibliograph*', 'corpus', 'manuscript', 'thesis',
     ],
     domains: [
       // preprint servers and indexes
@@ -237,6 +251,7 @@ function hostOf(url) {
 export function compile(rule) {
   const any = (rule.any || []).map(termRegex).filter(Boolean);
   const all = (rule.all || []).map(termRegex).filter(Boolean);
+  const weak = (rule.weak || []).map(termRegex).filter(Boolean);
   const none = (rule.none || []).map(termRegex).filter(Boolean);
   const noneDomains = (rule.noneDomains || []).map((d) => String(d).toLowerCase().replace(/^www\./, ''));
   const domains = (rule.domains || []).map((d) => String(d).toLowerCase().replace(/^www\./, ''));
@@ -273,7 +288,25 @@ export function compile(rule) {
     for (const re of all) if (!re.test(text)) return [];
     if (all.length) hits.push('all terms');
 
-    for (const re of any) if (re.test(text)) { hits.push(`term ${re.source.replace(/\\b|\\s\+/g, ' ').trim()}`); break; }
+    const naked = (re) => `term ${re.source.replace(/\\b|\\s\+/g, ' ').trim()}`;
+    for (const re of any) if (re.test(text)) { hits.push(naked(re)); break; }
+
+    /**
+     * Weak terms need corroboration, and this is the single biggest precision
+     * win in the rule. Measured against 90s of the live firehose: link, DOI and
+     * venue-name signals were right 3 times out of 3, while bare conversational
+     * phrases were right 0 times out of 6 — "#Caturday is for … reading the
+     * paper", "a faux-archaeological dig", and an adult-content account's "I
+     * just published…" all matched on wording alone.
+     *
+     * Somebody sharing scholarship almost always links to it. Somebody using
+     * the same words in conversation does not. So a weak term only counts when
+     * the post carries a link — which costs almost no recall and removes most
+     * of the noise.
+     */
+    if (weak.length && linksOf(record).length) {
+      for (const re of weak) if (re.test(text)) { hits.push(`${naked(re)} +link`); break; }
+    }
 
     if (domains.length) {
       for (const url of linksOf(record)) {
@@ -343,6 +376,7 @@ export function resetRules() {
 export function toText(rule) {
   const lines = [];
   for (const t of rule.any || []) lines.push(t);
+  for (const t of rule.weak || []) lines.push(`?${t}`);
   for (const d of rule.domains || []) lines.push(`@${d}`);
   for (const t of rule.tags || []) lines.push(`#${t}`);
   for (const n of rule.none || []) lines.push(`-${n}`);
@@ -352,11 +386,12 @@ export function toText(rule) {
 }
 
 export function fromText(text, base = {}) {
-  const out = { ...base, any: [], domains: [], tags: [], none: [], noneDomains: [], doi: false };
+  const out = { ...base, any: [], weak: [], domains: [], tags: [], none: [], noneDomains: [], doi: false };
   for (const raw of String(text).split('\n')) {
     const line = raw.trim();
     if (!line || line.startsWith('//')) continue;
     if (line === 'doi') { out.doi = true; continue; }
+    if (line.startsWith('?')) { out.weak.push(line.slice(1)); continue; }
     if (line.startsWith('@')) { out.domains.push(line.slice(1).toLowerCase()); continue; }
     if (line.startsWith('#')) { out.tags.push(line.slice(1).toLowerCase()); continue; }
     if (line.startsWith('-@')) { out.noneDomains.push(line.slice(2).toLowerCase()); continue; }

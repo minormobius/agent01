@@ -150,6 +150,40 @@ console.log('\nthe editable text form round-trips');
     fromText('// note\n\npreprint\n').any, ['preprint']);
 }
 
+console.log('\nweak terms need a link — the biggest precision win, from live data');
+{
+  const m = compile({ any: ['arxiv'], weak: ['"new paper"'] });
+  check('weak term alone does NOT match', m.test(post('our new paper is lovely')), false);
+  check('weak term WITH a link matches',
+    m.test(post('our new paper is lovely', link('https://nature.com/x'))), true);
+  check('weak term with a bare url in text matches',
+    m.test(post('our new paper https://nature.com/x is lovely')), true);
+  check('strong term still matches with no link', m.test(post('up on arxiv now')), true);
+  check('why() marks the corroboration',
+    m.why(post('our new paper', link('https://x.com/1'))).some((h) => h.endsWith('+link')), true);
+}
+
+console.log('\nthe six real false positives the live run produced');
+{
+  const m = compile(PRESETS[0]);
+  // Verbatim from measure-firehose run #1, all matched by the old rule.
+  const wasWrong = [
+    '#Caturday is for lazy mornings and reading the paper with lots of help.',
+    'Note to self: Spin some yarn already. This will require excavating the spinning wheel, but the faux-archaeological dig is worth it',
+    'I just published a new video prerelease on my member site. Available for certain memberships.',
+    "I won't rest until I find proof of Murnane talking summer classes in Budapest",
+    'pgvector recall drops off a cliff for me past about 50k chunks on default ivfflat lists, so I moved to HNSW',
+    'i need to write a hook that triggers whenever "backwards compatibility" appears in its output',
+  ];
+  wasWrong.forEach((t, i) => check(`no longer matches #${i + 1}`, m.test(post(t)), false));
+
+  // …and the three it got right must still match.
+  check('still matches the arXiv post',
+    m.test(post('Common-Witness Certificates and Sharp Feature Bounds for Counterfactual Image Auditing #arXiv #cs.AI')), true);
+  check('still matches a nature.com link',
+    m.test(post('Yes, I would appreciate that date in the review article also.', link('https://www.nature.com/articles/s41467-026-77068-0.pdf'))), true);
+}
+
 console.log('\nthe shipped preset — broad net, subtractive edge');
 {
   const m = compile(PRESETS[0]);
@@ -157,14 +191,21 @@ console.log('\nthe shipped preset — broad net, subtractive edge');
   const keep = [
     ['nature paper',   post('Our new paper is out in Nature today, years of work', link('https://nature.com/articles/x'))],
     ['biorxiv',        post('preprint up on bioRxiv this morning, comments welcome')],
-    ['methods',        post('the dataset is finally reproducible and the methodology written up')],
+    // Weak terms, so they carry a link — which is how a real paper-share looks.
+    ['methods',        post('the dataset is finally reproducible and the methodology written up',
+                            link('https://osf.io/abc'))],
     ['doi link',       post('long enough text about a study here', link('https://doi.org/10.1101/2024.01.01.1'))],
     ['humanities',     post('New monograph on medieval philology, out with Cambridge now', link('https://cambridge.org/x'))],
-    ['archaeology',    post('Our fieldwork season produced a remarkable archaeological sequence')],
+    ['archaeology',    post('Our fieldwork season produced a remarkable archaeological sequence',
+                            link('https://cambridge.org/antiquity/x'))],
     ['maths',          post('A short proof of the conjecture, now up on arXiv for comment')],
     ['economics',      post('New NBER working paper on labour supply elasticities', link('https://nber.org/p/1'))],
   ];
   for (const [name, p] of keep) check(`keeps ${name}`, m.test(p), true);
+
+  // And the same two WITHOUT a link must not match — that is the gate working.
+  check('weak-only + no link is dropped',
+    m.test(post('the dataset is finally reproducible and the methodology written up')), false);
 
   const drop = [
     ['politics term',  post('New paper on how the election was decided in three states')],
@@ -187,7 +228,7 @@ console.log('\nthe shipped preset — broad net, subtractive edge');
   for (const p of fp) {
     console.log(`     known false positive: "${p.text.slice(0, 44)}…" -> ${m.test(p) ? 'MATCHES' : 'no match'}`);
   }
-  console.log(`     terms=${PRESETS[0].any.length} domains=${PRESETS[0].domains.length} `
+  console.log(`     strong=${PRESETS[0].any.length} weak=${PRESETS[0].weak.length} domains=${PRESETS[0].domains.length} `
     + `vetoes=${PRESETS[0].none.length} veto-domains=${PRESETS[0].noneDomains.length}`);
 }
 

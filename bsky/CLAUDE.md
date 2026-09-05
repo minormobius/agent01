@@ -321,6 +321,56 @@ persisted to `localStorage`. **Not verified: the live firehose leg** — the
 WebSocket upgrade is blocked here, so posts/s and KB/s have never been observed
 and the meter's numbers are unmeasured in this sandbox by construction.
 
+### How deep the archive really goes — measured, 2026-09-05
+
+The obvious idea, once the worker holds a `JETSTREAM_API_KEY`, is that deep
+backfill is solved: replay the archive and run the rule over it. The numbers
+say otherwise, and they are worth writing down because the API does not
+advertise them.
+
+Walked all 74 pages of `listSegments` through `/api/replay/*`:
+
+| | |
+|---|---|
+| segments | 7,378 |
+| events | 25,277,883,832 |
+| size | **1.77 TB** |
+| **span** | **2026-08-04 → 2026-09-05 — 32.2 days** |
+| rate | 56.4 GB/day, ~786M events/day |
+| quota (`Headwind-Quota-*`) | 1 GB burst, **2 MB/s** refill = 172.8 GB/day |
+
+Three consequences:
+
+1. **The archive is a ~32-day rolling window, not history.** It does not reach
+   back years, or even months. "Replay it and filter" cannot recover a feed's
+   back catalogue because the back catalogue is not there.
+2. **Even one day costs 56 GB** — about 8 hours at the quota's refill rate.
+   The whole 1.77 TB is ~10.5 days of continuous downloading, against a window
+   that moves faster at the far end than you can read it.
+3. **A collection filter barely helps.** `planSnapshot` with
+   `collections: ['app.bsky.feed.post']` moves only **231 of 7,378** segments
+   into `blocks` mode (byte-range serving); the other 7,147 are whole-segment
+   downloads. Block indexes are sparse, so a post-filtered deep replay still
+   pulls ~97% of the bytes.
+
+Note the parameter name: **`collections`**, not `wantedCollections` — the
+latter is silently ignored and you get an unfiltered plan back with no error.
+`planSnapshot` is **POST**, `listSegments` is **GET**; each rejects the other
+verb with `MethodNotAllowed`, which is the fastest way to rediscover this.
+
+**So the archive is not the backfill mechanism**, and the local store in
+`lib/cache.js` remains the only history this surface accumulates — which is
+exactly the design it already had. The 36h live window plus a cache that keeps
+what it sees beats a 32-day archive nobody can afford to download.
+
+The cheap alternative is an *index* rather than a replay:
+`app.bsky.feed.searchPosts` pays for hits instead of the haystack and reaches
+back years. It is **401 on `bsky.social`** (auth required) and **403 at
+BunnyCDN on `public.api.bsky.app`** — so it needs a signed-in reader, via the
+same PDS `atproto-proxy` route as personalised feeds. Worth it only if backfill
+is actually wanted: a knowledge-chase feed is about what is *new*, and the live
+tail plus the growing cache serves that from the first visit.
+
 ### Palettes
 
 `lib/theme.js`. Seven palettes plus `auto`, which follows the OS and is the
