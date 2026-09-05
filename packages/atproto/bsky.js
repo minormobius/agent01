@@ -242,3 +242,73 @@ export async function getPostThreadDepth(postUri, depth = 10) {
     return null;
   }
 }
+
+// ─── Search & typeahead ──────────────────────────────────────────
+
+/**
+ * Handle typeahead. This is the endpoint the Bluesky app itself uses for its
+ * "@" autocomplete: prefix-matched, ranked, and fast enough to call on every
+ * keystroke (debounce anyway — see bsky/lib/typeahead.js).
+ *
+ * @param {string} q - partial handle or display name
+ * @param {number} [limit=8] - max 10 server-side
+ * @param {AbortSignal} [signal] - to cancel a superseded keystroke
+ * @returns {Promise<Array<{did,handle,displayName?,avatar?}>>} [] on failure
+ */
+export async function searchActorsTypeahead(q, limit = 8, signal) {
+  const term = String(q || '').trim().replace(/^@/, '');
+  if (!term) return [];
+  const params = new URLSearchParams({ q: term, limit: String(Math.min(limit, 10)) });
+  try {
+    const res = await fetch(
+      `${BSKY_PUBLIC}/xrpc/app.bsky.actor.searchActorsTypeahead?${params}`,
+      { signal }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.actors || [];
+  } catch {
+    // AbortError included: a cancelled keystroke is not an error worth showing.
+    return [];
+  }
+}
+
+/**
+ * Resolve a handle, a DID, or a bsky.app profile URL to a DID.
+ *
+ * @param {string} input
+ * @returns {Promise<string>} the DID
+ * @throws if it cannot be resolved
+ */
+export async function resolveActor(input) {
+  const raw = String(input || '')
+    .trim()
+    .replace(/^@/, '')
+    .replace(/^https?:\/\/bsky\.app\/profile\//, '')
+    .split('/')[0];
+  if (raw.startsWith('did:')) return raw;
+  const res = await fetch(
+    `${BSKY_PUBLIC}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(raw)}`
+  );
+  if (!res.ok) throw new Error(`could not resolve "${raw}"`);
+  return (await res.json()).did;
+}
+
+/**
+ * One full profile — the counts and description a profile page needs, which
+ * getProfiles (the batch call) also returns but for up to 25 actors at once.
+ *
+ * @param {string} actor - handle or DID
+ * @returns {Promise<object|null>}
+ */
+export async function getProfile(actor) {
+  try {
+    const res = await fetch(
+      `${BSKY_PUBLIC}/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(actor)}`
+    );
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}

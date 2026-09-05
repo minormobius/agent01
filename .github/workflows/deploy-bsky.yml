@@ -8,6 +8,7 @@ on:
       - 'packages/atproto/jetstream.js'
       - 'packages/atproto/constellation.js'
       - 'packages/atproto/bsky.js'
+      - 'packages/oauth-client/auth.js'
       - '.github/workflows/deploy-bsky.yml'
   workflow_dispatch:
 
@@ -25,13 +26,15 @@ jobs:
       # cross-directory import would 404 in the browser. Stage the three
       # dep-free modules in rather than vendoring copies that can drift —
       # the b/ and mappa pattern. bsky/packages/ is gitignored.
-      - name: Stage shared atproto libs
+      - name: Stage shared libs
         run: |
-          mkdir -p packages/atproto
-          cp ../packages/atproto/jetstream.js    packages/atproto/
+          mkdir -p packages/atproto packages/oauth-client
+          cp ../packages/atproto/jetstream.js     packages/atproto/
           cp ../packages/atproto/constellation.js packages/atproto/
           cp ../packages/atproto/bsky.js          packages/atproto/
-          ls -la packages/atproto
+          # compose.js posts through the shared OAuth worker.
+          cp ../packages/oauth-client/auth.js     packages/oauth-client/
+          ls -la packages/atproto packages/oauth-client
 
       - name: Deploy worker + assets
         run: npx wrangler deploy

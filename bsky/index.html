@@ -3,76 +3,106 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>bsky — a frontend-only AppView</title>
-<meta name="description" content="A Bluesky AppView with no database. Jetstream v2 fans out your follow graph server-side; Constellation answers the backlink questions; nothing is stored anywhere.">
+<title>bsky — an AppView with no database</title>
+<meta name="description" content="A Bluesky AppView that runs entirely in your browser. Jetstream v2 fans out your follow graph server-side, ~36h of history replays with no key, and what you keep becomes an archive the network won't serve twice.">
 <style>
 :root{
   --bg:#0b0d12; --panel:#11141c; --line:#1e2330; --text:#dfe3ea; --muted:#6b7488;
-  --accent:#4c8dff; --live:#3ddc84; --dead:#e0576a;
+  --accent:#4c8dff; --live:#3ddc84; --dead:#e0576a; --warn:#e8b04b;
   --mono:'SF Mono','Cascadia Code',ui-monospace,Menlo,monospace;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:14px;line-height:1.5}
-a{color:var(--accent);text-decoration:none}
-a:hover{text-decoration:underline}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 .muted{color:var(--muted)}
-
-header{border-bottom:1px solid var(--line);padding:16px 20px;background:var(--panel);position:sticky;top:0;z-index:10}
-h1{font-size:15px;font-weight:600;letter-spacing:.02em}
-h1 .dim{color:var(--muted);font-weight:400}
-.blurb{color:var(--muted);font-size:12px;margin-top:6px;max-width:72ch}
-
-.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
-select,input[type=text]{background:#0a0c11;border:1px solid var(--line);border-radius:4px;
-  color:var(--text);font-family:var(--mono);font-size:13px;padding:7px 10px}
-input[type=text]{flex:1;min-width:220px}
-button{background:var(--accent);border:0;border-radius:4px;color:#fff;cursor:pointer;
-  font-family:var(--mono);font-size:13px;padding:7px 16px}
-button:hover{opacity:.88}
-button:disabled{opacity:.45;cursor:default}
+button{background:var(--accent);border:0;border-radius:4px;color:#fff;cursor:pointer;font-family:var(--mono);font-size:13px;padding:7px 16px}
+button:hover{opacity:.88}button:disabled{opacity:.4;cursor:default}
 button.ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+select,input[type=text],textarea{background:#0a0c11;border:1px solid var(--line);border-radius:4px;color:var(--text);font-family:var(--mono);font-size:13px;padding:7px 10px}
+textarea{width:100%;resize:vertical;min-height:74px;line-height:1.45}
+
+header{border-bottom:1px solid var(--line);padding:14px 20px;background:var(--panel);position:sticky;top:0;z-index:20}
+.top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+h1{font-size:15px;font-weight:600}h1 .dim{color:var(--muted);font-weight:400}
+h1 a{color:inherit}
+#auth-state{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px}
+.blurb{color:var(--muted);font-size:12px;margin-top:6px;max-width:76ch}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:11px}
+.controls input[type=text]{flex:1;min-width:200px}
 label.check{color:var(--muted);font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer}
 label.check input{accent-color:var(--accent)}
-
-.stats{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--muted)}
+.stats{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:var(--muted)}
 .stats b{color:var(--text);font-weight:500}
 #conn{color:var(--muted)}
 #conn.live::before{content:'● ';color:var(--live)}
 #conn.dead::before{content:'○ ';color:var(--dead)}
-#status{margin-top:8px;font-size:12px;color:var(--muted);min-height:1.2em}
+#status{margin-top:7px;font-size:12px;color:var(--muted);min-height:1.2em}
 #status.err{color:var(--dead)}
 
-main{max-width:680px;margin:0 auto;padding:20px}
-.post{border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin-bottom:10px;background:var(--panel)}
-.who{display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:7px}
+/* typeahead */
+.ta-wrap{position:relative;flex:1;min-width:200px;display:flex}
+.ta-wrap input{width:100%}
+.ta-menu{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:50;list-style:none;
+  background:var(--panel);border:1px solid var(--line);border-radius:5px;overflow:hidden;
+  box-shadow:0 8px 26px rgba(0,0,0,.5);max-height:290px;overflow-y:auto}
+.ta-menu li{display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;font-size:12.5px}
+.ta-menu li.on,.ta-menu li:hover{background:rgba(76,141,255,.14)}
+.ta-menu img{width:19px;height:19px;border-radius:50%;background:var(--line);flex:none;object-fit:cover}
+.ta-menu .h{color:var(--text)}
+.ta-menu .d{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+main{max-width:680px;margin:0 auto;padding:18px 20px 60px}
+
+#composer{border:1px solid var(--line);border-radius:6px;background:var(--panel);padding:11px;margin-bottom:16px}
+.crow{display:flex;align-items:center;gap:10px;margin-top:8px}
+#compose-count{font-size:11px;color:var(--muted);margin-left:auto}
+#compose-count.over{color:var(--dead)}
+#compose-status{font-size:11px;color:var(--muted)}
+
+.post{border:1px solid var(--line);border-radius:6px;padding:11px 13px;margin-bottom:9px;background:var(--panel)}
+.who{display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:6px}
 .avatar{width:20px;height:20px;border-radius:50%;background:var(--line);object-fit:cover;flex:none}
 .handle{color:var(--text);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .who time{color:var(--muted);margin-left:auto;flex:none}
 .text{white-space:pre-wrap;word-break:break-word;font-size:13.5px}
-.embed{margin-top:7px;font-size:11px;color:var(--muted)}
-.foot{display:flex;gap:14px;align-items:center;margin-top:9px;font-size:11px}
+.embed{margin-top:6px;font-size:11px;color:var(--muted)}
+.foot{display:flex;gap:14px;align-items:center;margin-top:8px;font-size:11px}
 .foot button.counts{background:transparent;border:1px solid var(--line);color:var(--muted);padding:3px 9px;font-size:11px}
 .counts-out{color:var(--muted);font-size:11px;letter-spacing:.04em}
 
-#empty{border:1px dashed var(--line);border-radius:6px;padding:22px;color:var(--muted);font-size:12.5px}
+#empty{border:1px dashed var(--line);border-radius:6px;padding:20px;color:var(--muted);font-size:12.5px}
 #empty h2{font-size:13px;color:var(--text);margin-bottom:9px;font-weight:600}
-#empty ol{margin:0 0 10px 18px}
-#empty li{margin-bottom:5px}
+#empty ol{margin:0 0 10px 18px}#empty li{margin-bottom:4px}
 #empty code{color:var(--accent)}
+#empty .keep{margin-top:11px;padding-top:10px;border-top:1px solid var(--line)}
 
-footer{border-top:1px solid var(--line);margin-top:30px;padding:16px 20px;color:var(--muted);font-size:11px;text-align:center}
+#profile-head{display:flex;gap:14px;margin-bottom:14px}
+.pavatar{width:62px;height:62px;border-radius:50%;background:var(--line);object-fit:cover;flex:none}
+.pname{font-size:15px;font-weight:600}
+.phandle{color:var(--muted);font-size:12px}
+.pdesc{margin-top:7px;font-size:12.5px;white-space:pre-wrap}
+.pstats{display:flex;gap:14px;margin-top:8px;font-size:11px;color:var(--muted)}
+.pstats b{color:var(--text)}
+.pactions{display:flex;gap:10px;align-items:center;margin-top:9px;font-size:12px}
+#profile-note{font-size:11.5px;color:var(--muted);margin:10px 0 12px}
+.back{font-size:12px;display:inline-block;margin-bottom:12px}
+
+footer{border-top:1px solid var(--line);padding:14px 20px;color:var(--muted);font-size:11px;text-align:center}
+#store-stat{color:var(--muted)}
 </style>
 </head>
 <body>
 
 <header>
-  <h1>bsky <span class="dim">— an AppView with no database</span></h1>
+  <div class="top">
+    <h1><a href="#/">bsky</a> <span class="dim">— an AppView with no database</span></h1>
+    <div id="auth-state"></div>
+  </div>
   <p class="blurb">
-    Your timeline, assembled in this tab. Jetstream v2 filters the firehose to your follow
-    graph <em>server-side</em>, so there is no fan-out to pay for and no backend to run &mdash;
-    and the same socket replays up to 36 hours of history before cutting over to live, with
-    no key and no account. Engagement counts come from Constellation, the network-wide
-    backlink index. Nothing is stored &mdash; reload and it is gone.
+    Runs entirely in this tab. Jetstream v2 filters the firehose to a follow graph
+    <em>server-side</em>, so there is no fan-out and no backend &mdash; and the same socket
+    replays about <span id="lookback">36</span> hours of history with no key and no account.
+    Everything it sees is kept locally, so the window stops being a limit after a few visits.
   </p>
 
   <div class="controls">
@@ -80,17 +110,21 @@ footer{border-top:1px solid var(--line);margin-top:30px;padding:16px 20px;color:
       <option value="follows">follows of</option>
       <option value="list">members of list</option>
     </select>
-    <input type="text" id="actor" placeholder="handle, e.g. bsky.app" autocomplete="off" spellcheck="false">
+    <input type="text" id="actor" placeholder="handle, e.g. bsky.app">
     <button id="go">go</button>
-    <select id="depth" aria-label="how much history to replay" title="History replays over the same unauthenticated socket. Past ~36h the server clamps silently, so the list stops there.">
+    <select id="depth" aria-label="history depth" title="Only used on a first visit or after a long absence. Otherwise the stored cursor resumes exactly where you left off.">
       <option value="0">live only</option>
       <option value="1">1h back</option>
       <option value="6" selected>6h back</option>
       <option value="24">24h back</option>
-      <option value="36">36h back (the window)</option>
+      <option value="36">36h (the window)</option>
     </select>
     <label class="check" id="self-wrap"><input type="checkbox" id="include-self"> include them</label>
     <label class="check"><input type="checkbox" id="show-replies"> replies</label>
+  </div>
+
+  <div class="controls">
+    <input type="text" id="lookup" placeholder="look up any profile…">
   </div>
 
   <div class="stats">
@@ -98,37 +132,55 @@ footer{border-top:1px solid var(--line);margin-top:30px;padding:16px 20px;color:
     <span><b id="stat-dids">0</b> accounts</span>
     <span><b id="stat-rate">0.0/s</b></span>
     <span><b id="stat-seen">0</b> seen</span>
-    <span><b id="stat-held">0</b> held</span>
     <span>seq <b id="stat-cursor">—</b></span>
-    <span id="replay-note">archive replay: checking…</span>
+    <span id="store-stat">…</span>
+    <button id="clear-store" class="ghost" style="padding:2px 8px;font-size:11px">clear store</button>
   </div>
   <div id="status"></div>
 </header>
 
 <main>
-  <div id="empty">
-    <h2>One socket, no backend, no account.</h2>
-    <ol>
-      <li>Type a handle and press <code>go</code>. We resolve it, read the follow graph, and open one WebSocket.</li>
-      <li>Jetstream replays your chosen window of history, then cuts over to live &mdash; same socket, no seam.</li>
-      <li>Posts appear below. <code>counts &#8635;</code> asks Constellation for likes, reposts, replies and quotes.</li>
-    </ol>
-    <p>
-      The history trick is that the cursor accepts a timestamp, not just a sequence number, so the
-      past arrives over the same unauthenticated connection. The window is about <strong>36
-      hours</strong> &mdash; and past it the server clamps <em>silently</em> rather than erroring, which
-      is why the list above stops there instead of offering a week it could not deliver. Anything
-      deeper needs the byte-metered archive, which is API-keyed and runs through this surface's
-      worker rather than your browser.
-    </p>
-  </div>
-  <div id="feed"></div>
+  <section id="feed-view">
+    <div id="composer" hidden>
+      <textarea id="compose-text" placeholder="Post to Bluesky…" maxlength="3000"></textarea>
+      <div class="crow">
+        <button id="compose-send" disabled>post</button>
+        <span id="compose-status"></span>
+        <span id="compose-count">0/300</span>
+      </div>
+    </div>
+
+    <div id="empty">
+      <h2>One socket, no backend, no account.</h2>
+      <ol>
+        <li>Type a handle and press <code>go</code>. We resolve it, read the follow graph, and open one WebSocket.</li>
+        <li>Jetstream replays your window of history, then cuts over to live &mdash; same socket, no seam.</li>
+        <li>Posts appear below. <code>counts &#8635;</code> asks Constellation for likes, reposts, replies and quotes.</li>
+      </ol>
+      <div class="keep">
+        <strong>Why it gets better every visit.</strong> The server only ever replays about 36
+        hours &mdash; but it is a <em>rolling</em> 36 hours, and everything this page sees is
+        written to your browser. Come back tomorrow and it resumes from the exact event it
+        stopped at, so the day between is filled with no gap. Come back for a month and you
+        hold a month, from a service that never offers more than a day and a half at a time.
+        Nothing is uploaded; there is no server here to upload it to.
+      </div>
+    </div>
+    <div id="feed"></div>
+  </section>
+
+  <section id="profile-view" hidden>
+    <a class="back" href="#/">&larr; back to the feed</a>
+    <div id="profile-head"></div>
+    <div id="profile-note"></div>
+    <div id="profile-posts"></div>
+  </section>
 </main>
 
 <footer>
-  no accounts, no cookies, no storage &middot;
+  no tracking, no cookies of ours, nothing uploaded &middot;
   <a href="https://github.com/minormobius/agent01/blob/main/docs/APPVIEW-FEASIBILITY.md">how this works</a> &middot;
-  <a href="https://b.mino.mobi">the rest of the Bluesky corner ↗</a>
+  <a href="https://b.mino.mobi">the rest of the Bluesky corner &#8599;</a>
 </footer>
 
 <script type="module" src="/app.js"></script>

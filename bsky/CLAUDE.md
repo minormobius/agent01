@@ -89,6 +89,58 @@ fan-out over the public AppView, which is the expensive path and is labelled as
 such in the UI. That is deliberate: the fallback makes the cost of *not* having
 replay visible instead of hidden.
 
+## Caching — read this before touching lib/cache.js
+
+The cache is not an optimisation. **It is the archive**, and it is why the ~36h
+window stops being a ceiling.
+
+Jetstream replays about 36 hours and no further. But that is a *rolling* window:
+today's 36 hours are not tomorrow's. A client that keeps what it saw accumulates
+history the network will never serve it again.
+
+```
+visit 1  →  36h replayed, all of it stored
+visit 2  →  resume at the stored seq; the ~24h gap is inside the window,
+            so it is filled with NO hole.  store now holds ~60h
+visit 30 →  the store holds a month, from a service that never offers
+            more than a day and a half at once
+```
+
+**The rule that makes this work: resume by `seq`, never by time.**
+
+| Situation | Reconnect with | Why |
+|---|---|---|
+| stored cursor, last seen < 30h ago | `cursor=<seq>` | continuous — no hole, and no re-downloading the window |
+| no cursor (first visit) | `since=<hours>` | nothing to bridge to |
+| cursor older than ~30h | `since=<hours>` **and `recordGap()`** | the bridge is impossible; the hole gets written down |
+
+`resumePlan()` is the only place that decision is made — don't re-derive it at a
+call site. Resuming by *time* instead would re-download the whole window every
+visit and still leave the same hole.
+
+**Every write is keyed on the record's `at://` URI.** Jetstream delivery is
+at-least-once and the cursor is inclusive, so the first event after a resume is
+always one you already hold. Do not "optimise" a put into an append.
+
+Other things that are load-bearing:
+
+- **Store posts you do not render.** Replies filtered out of the feed still go
+  to disk — a profile view later will want them. `onEvent` stores first and
+  filters second, deliberately.
+- **Writes are batched** (100 at a time, flushed on a timer and on
+  `visibilitychange`). A replay delivers thousands of events; one transaction
+  per event would jam the main thread. `visibilitychange` rather than `unload`
+  because `unload` does not fire reliably on iOS.
+- **Gaps are recorded, not hidden.** A feed that silently omits a day looks
+  exactly like a quiet day. That is the one thing a history view must never do.
+- **Everything degrades without it.** Private windows and blocked site data make
+  IndexedDB throw; `available()` is checked once at boot and every cache call is
+  guarded. No local store means a session-only feed, never an error.
+- Eviction is oldest-first past `MAX_POSTS` (50k). Call `evict()` after a replay
+  settles, not per event.
+
+Nothing here is ever uploaded. There is no server in this design to upload it to.
+
 ## Quirks
 
 - **A depth of `live only` genuinely starts empty**, and the empty state says so
