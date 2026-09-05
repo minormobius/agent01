@@ -210,6 +210,62 @@ Every image sets `aspect-ratio` from the record's own `aspectRatio` before it
 loads, so the feed does not jump under the reader's thumb, and carries the
 post's `alt` text.
 
+### One consent, and the loop that made repost impossible
+
+`lib/compose.js` exports one `SCOPE` covering **post, like and repost**, and
+sign-in requests all of it. The rule this repo states is a NARROW scope — only
+what this site writes — not a minimal one, and this site writes all three.
+
+The earlier design asked for `feed.post` alone and escalated with
+`ensureScope()` on the first like. That cost a second consent screen and a third
+for the first repost. Worse: while `app.bsky.feed.like`/`.repost` were still
+missing from the auth worker's ceiling, the authorization server would not grant
+them, so every escalation came back **without** the scope and the next tap
+escalated again — an unbreakable loop with no error to explain it. The ceiling
+now carries both (77 collections), and asking up front means it cannot recur.
+If you ever add a fourth write, add it to `SCOPE` *and* to `WRITE_COLLECTIONS`,
+in that order of thinking but the opposite order of deploying.
+
+### Tap targets, the lightbox, and the post menu
+
+- **The whole post card opens the thread.** `data-thread` is on the `<article>`,
+  not the text, so the dead margin beside the avatar works — that gutter was the
+  single most-missed tap on a phone. One delegated handler resolves most-specific
+  first: profile links, then media, then `button[data-act]`, then real links,
+  then the card.
+- **`lib/lightbox.js`** replaces opening the image file in a tab, which lost the
+  album, the alt text and your place in the feed. Horizontal drag pages the
+  post's images, vertical drag dismisses, two fingers pinch anchored on their
+  midpoint, double-tap toggles 1x/2.5x anchored on the tap. **The drag axis is
+  locked once**, on the first 8px — deciding per-frame makes a diagonal drag
+  jitter between paging and dismissing. `touch-action:none` on the stage is
+  required or the browser claims the gesture first.
+- **`lib/share.js`** is the ⋯ menu: copy link, copy text, copy image, view on
+  bsky.app. Copying an image must hand `ClipboardItem` an **unresolved promise**
+  — awaiting the blob first loses Safari's user-gesture context and the write is
+  refused. Clipboards only take `image/png`, so the CDN's jpeg/webp is redrawn
+  through a canvas.
+- **The menu ignores scroll events for 400ms after opening.** Bringing the
+  button into view and the momentum from the tap both fire scroll immediately,
+  and closing on those makes the menu impossible to open near the bottom.
+
+### Notifications are chronological, via TID
+
+`lib/tid.js`. Constellation returns `{did, collection, rkey}` and **no
+timestamp**, which is why notifications could once only be grouped by kind. But
+an rkey is a TID and a TID encodes the microsecond it was minted, so decoding it
+gives a real time for every like, reply and follow, and the list sorts into true
+reverse-chronological order across all three.
+
+Checked against 8 real posts: the decoded time matched the record's own
+`createdAt` to the millisecond in 6 of 8, within 15s in the other two. It is
+still a *claim* by whoever wrote the record — nothing verifies a client's clock
+— so it orders a list and proves nothing.
+
+Polling runs every 90s, and **only while the tab is visible and Notifs is the
+open tab**. A refresh is quiet: the current list stays on screen until the new
+one is ready, so a poll never blanks what someone is reading.
+
 ### Threads and replies
 
 Tapping a post's text opens `#/thread/<uri>`. `getPostThread` returns a

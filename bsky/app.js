@@ -26,8 +26,10 @@ import { FEEDS, loadFeed, authorFeed, authorMedia, notifications, searchActors, 
 import { renderEmbed, imageUrl, videoUrls } from '/lib/blobs.js';
 import { attachTypeahead } from '/lib/typeahead.js';
 import * as cache from '/lib/cache.js';
-import { auth, publish, graphemeLength, MAX_GRAPHEMES } from '/lib/compose.js';
+import { auth, publish, graphemeLength, MAX_GRAPHEMES, SCOPE } from '/lib/compose.js';
 import * as theme from '/lib/theme.js';
+import * as lightbox from '/lib/lightbox.js';
+import * as share from '/lib/share.js';
 import * as actions from '/lib/actions.js';
 
 const $ = (id) => document.getElementById(id);
@@ -74,7 +76,7 @@ function showTab(tab) {
   $('fab').hidden = tab === 'profile' ? false : tab !== 'home';
   window.scrollTo(0, 0);
   if (tab === 'search') renderSearch();
-  if (tab === 'notifs') renderNotifs();
+  if (tab === 'notifs') { renderNotifs(); startNotifPolling(); } else stopNotifPolling();
   if (tab === 'me') renderMe();
 }
 
@@ -299,7 +301,7 @@ function postNode(p) {
   const prof = p.author || state.profiles.get(p.did);
   const c = p.counts;
   const node = el(`
-    <article class="post" data-uri="${esc(p.uri)}" data-did="${esc(p.did)}">
+    <article class="post" data-uri="${esc(p.uri)}" data-did="${esc(p.did)}" data-thread="${esc(p.uri)}">
       <img class="pav" alt="" data-profile="${esc(prof?.handle || p.did)}"
            src="${prof?.avatar ? esc(prof.avatar) : BLANK}">
       <div class="pbody">
@@ -308,13 +310,13 @@ function postNode(p) {
           <span class="phandle" data-profile="${esc(prof?.handle || p.did)}">@${esc(prof?.handle || p.did.slice(8, 20) + '…')}</span>
           <span class="ptime">${when(p.createdAt)}</span>
         </div>
-        <div class="ptext" data-thread="${esc(p.uri)}">${esc(p.record?.text || '')}</div>
+        <div class="ptext">${esc(p.record?.text || '')}</div>
         ${renderEmbed(p.record, p.did, p.viewEmbed)}
         <div class="pacts">
           <button data-act="reply">↳ <span>${c ? c.replyCount : ''}</span></button>
           <button data-act="repost">↻ <span>${c ? c.repostCount : ''}</span></button>
           <button data-act="like">♡ <span>${c ? c.likeCount : ''}</span></button>
-          <button data-act="open">↗</button>
+          <button data-act="menu" aria-label="More">⋯</button>
         </div>
       </div>
     </article>`);
@@ -398,7 +400,7 @@ function paintProfile(prof) {
 
 let notifsFor = null;
 
-async function renderNotifs() {
+async function renderNotifs({ quiet = false } = {}) {
   const v = $('v-notifs');
   const who = state.me?.handle || notifsFor;
   if (!who) {
@@ -420,12 +422,14 @@ async function renderNotifs() {
     return;
   }
 
-  v.innerHTML = '<div class="empty">reading the backlink index…</div>';
+  // A quiet refresh keeps the current list on screen until the new one is ready,
+  // so a poll never blanks what someone is reading.
+  if (!quiet) v.innerHTML = '<div class="empty">reading the backlink index…</div>';
   let did;
   try { did = await resolveActor(who); }
   catch { v.innerHTML = `<div class="empty">could not resolve ${esc(who)}</div>`; return; }
 
-  const items = await notifications(did, { postDepth: 8 }).catch(() => []);
+  const items = await notifications(did, { postDepth: 10 }).catch(() => []);
   v.innerHTML = '';
   v.append(el(`<div class="bar">for @${esc(who)} · from Constellation, no account needed
     <span class="spacer"></span></div>`));
@@ -434,20 +438,43 @@ async function renderNotifs() {
     return;
   }
   const icon = { follow: '＋', like: '♡', reply: '↳' };
-  const verb = { follow: 'followed', like: 'liked your post', reply: 'replied to you' };
+  const verb = { follow: 'followed you', like: 'liked your post', reply: 'replied to you' };
   for (const n of items) {
-    v.append(el(`<div class="notif">
+    const node = el(`<div class="notif"${n.replyUri || n.subjectUri ? ` data-thread="${esc(n.replyUri || n.subjectUri)}"` : ''}>
       <div class="nicon">${icon[n.kind] || '·'}</div>
       <div class="nbody">
-        <b>${esc(n.actor?.displayName || n.actor?.handle || n.actorDid.slice(8, 22))}</b>
+        <b data-profile="${esc(n.actor?.handle || n.actorDid)}">${esc(n.actor?.displayName || n.actor?.handle || n.actorDid.slice(8, 22))}</b>
         <span class="muted">${verb[n.kind] || n.kind}</span>
+        <span class="ntime">${n.at ? when(new Date(n.at).toISOString()) : ''}</span>
         ${n.subjectText ? `<div class="nsub">${esc(n.subjectText)}</div>` : ''}
       </div>
-    </div>`));
+    </div>`);
+    v.append(node);
   }
   v.append(el(`<div class="empty" style="padding:18px 22px;font-size:12.5px">
-    A snapshot of who interacted, not a read/unread inbox — the index stores links, not event
-    times, so this cannot tell you what is new since last time.</div>`));
+    Times are decoded from each record's TID — the rkey encodes the microsecond it was
+    written — so this is genuinely reverse-chronological across likes, replies and follows.
+    It is still a snapshot rather than a read/unread inbox.</div>`));
+  say(`${items.length} notifications for @${who}`);
+}
+
+/**
+ * Poll for new notifications while the tab is visible and the Notifs tab is
+ * open. Constellation is a public index with no push, so polling is the only
+ * option — but it is bounded: only when the tab is actually being looked at,
+ * and never while the document is hidden.
+ */
+let notifTimer = null;
+function startNotifPolling() {
+  stopNotifPolling();
+  notifTimer = setInterval(() => {
+    if (document.hidden || state.tab !== 'notifs') return;
+    renderNotifs({ quiet: true });
+  }, 90_000);
+}
+function stopNotifPolling() {
+  if (notifTimer) clearInterval(notifTimer);
+  notifTimer = null;
 }
 
 // ─── search ──────────────────────────────────────────────────────
@@ -671,6 +698,69 @@ function mediaTiles(p) {
   return out;
 }
 
+// ─── post menu ───────────────────────────────────────────────────
+
+let menuOpenedAt = 0;
+
+function closeMenu() {
+  $('postmenu').hidden = true;
+  document.getElementById('menu-back')?.remove();
+  menuOpenedAt = 0;
+}
+
+function openPostMenu(anchor, post) {
+  closeMenu();
+  const menu = $('postmenu');
+  const imgs = [...(anchor.closest('.post')?.querySelectorAll('.imgcell img') || [])];
+
+  menuOpenedAt = Date.now();
+  menu.innerHTML = `
+    <button data-m="link"><span class="ic">🔗</span>Copy link to post</button>
+    <button data-m="text"><span class="ic">📋</span>Copy post text</button>
+    ${imgs.length ? `<button data-m="media"><span class="ic">🖼</span>Copy ${imgs.length > 1 ? 'first image' : 'image'}</button>` : ''}
+    <button data-m="bsky"><span class="ic">↗</span>View on bsky.app</button>`;
+  menu.hidden = false;
+
+  // Position above the button when there is no room below — a menu that opens
+  // off the bottom of a phone is a menu you cannot use.
+  const r = anchor.getBoundingClientRect();
+  const mh = menu.offsetHeight;
+  const below = window.innerHeight - r.bottom;
+  menu.style.top = (below > mh + 16 ? r.bottom + 6 : Math.max(8, r.top - mh - 6)) + 'px';
+  menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+
+  const back = el('<div class="menu-back" id="menu-back"></div>');
+  document.body.append(back);
+  back.addEventListener('click', closeMenu);
+
+  menu.onclick = async (e) => {
+    const b = e.target.closest('[data-m]');
+    if (!b) return;
+    const what = b.dataset.m;
+    closeMenu();
+
+    if (what === 'bsky') {
+      return window.open(share.postUrl(post), '_blank', 'noopener');
+    }
+    if (what === 'link') {
+      const r2 = await share.copyText(share.postUrl(post));
+      return say(r2 === 'manual' ? share.postUrl(post) : 'link copied');
+    }
+    if (what === 'text') {
+      const text = post.record?.text || '';
+      if (!text) return say('this post has no text');
+      const r2 = await share.copyText(text);
+      return say(r2 === 'manual' ? 'could not copy — long-press the post text' : 'post text copied');
+    }
+    if (what === 'media' && imgs[0]) {
+      say('copying image…');
+      const full = imgs[0].src.replace('/feed_thumbnail/', '/feed_fullsize/');
+      const r2 = await share.copyImage(full);
+      return say(r2 === 'copied' ? 'image copied' : 'could not copy the image — opening it instead');
+    }
+  };
+}
+
 // ─── thread ──────────────────────────────────────────────────────
 
 async function renderThread(uri) {
@@ -865,9 +955,49 @@ async function renderMe() {
 
 // ─── auth + compose ──────────────────────────────────────────────
 
-async function signIn() {
-  const handle = prompt('Your Bluesky handle:');
-  if (handle) auth().login(handle.trim().replace(/^@/, ''), { scope: 'atproto repo:app.bsky.feed.post' });
+let signinTypeahead = null;
+
+/**
+ * The sign-in sheet. Was a `prompt()`, which has no typeahead, no validation
+ * and no way to explain what is being asked for.
+ *
+ * The scope is the site's whole SCOPE — post, like and repost in one consent —
+ * so nothing here ever has to escalate mid-gesture again.
+ */
+function signIn() {
+  const sheet = $('signin');
+  sheet.hidden = false;
+  const input = $('signin-handle');
+  input.value = '';
+  $('signin-status').textContent = '';
+  $('signin-go').disabled = true;
+
+  if (!signinTypeahead) {
+    signinTypeahead = attachTypeahead(input, {
+      onPick: (a) => { input.value = a.handle; $('signin-go').disabled = false; },
+    });
+  }
+  input.addEventListener('input', () => {
+    $('signin-go').disabled = input.value.trim().length < 3;
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !document.querySelector('.ta-menu:not([hidden]) li.on')) doSignIn();
+  });
+  setTimeout(() => input.focus(), 60);
+}
+
+async function doSignIn() {
+  const handle = $('signin-handle').value.trim().replace(/^@/, '');
+  if (!handle) return;
+  signinTypeahead?.close();
+  $('signin-go').disabled = true;
+  $('signin-status').textContent = 'redirecting to Bluesky…';
+  try {
+    await auth().login(handle, { scope: SCOPE });
+  } catch (err) {
+    $('signin-status').textContent = err.message;
+    $('signin-go').disabled = false;
+  }
 }
 
 /**
@@ -945,9 +1075,26 @@ for (const b of document.querySelectorAll('.tab')) {
 }
 $('fab').addEventListener('click', openSheet);
 $('sheet-cancel').addEventListener('click', closeSheet);
+$('signin-cancel').addEventListener('click', () => { signinTypeahead?.close(); $('signin').hidden = true; });
+$('signin-go').addEventListener('click', doSignIn);
 $('sheet-post').addEventListener('click', sendPost);
 $('ct').addEventListener('input', countChars);
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('sheet').hidden) closeSheet(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (!$('postmenu').hidden) return closeMenu();
+  if (!$('sheet').hidden) return closeSheet();
+  if (!$('signin').hidden) { signinTypeahead?.close(); $('signin').hidden = true; }
+});
+// A scroll under an open menu leaves it floating over the wrong post, so it
+// closes — but not for the first moment. Bringing the button into view, and the
+// momentum still settling from the tap that opened it, both fire scroll events
+// immediately afterwards, and closing on those makes the menu impossible to
+// open near the bottom of the screen.
+window.addEventListener('scroll', () => {
+  if ($('postmenu').hidden) return;
+  if (Date.now() - menuOpenedAt < 400) return;
+  closeMenu();
+}, { passive: true });
 
 // Post actions. Like/repost need write scopes this site does not request, so
 // they say so rather than failing silently.
@@ -957,9 +1104,7 @@ document.addEventListener('click', async (e) => {
   const post = btn.closest('.post')._post;
   const act = btn.dataset.act;
 
-  if (act === 'open') {
-    return window.open(`https://bsky.app/profile/${post.did}/post/${post.rkey}`, '_blank', 'noopener');
-  }
+  if (act === 'menu') return openPostMenu(btn, post);
 
   if (act === 'reply') {
     // Live posts carry no counts; fetch them on demand from Constellation.
@@ -1000,14 +1145,55 @@ document.addEventListener('click', async (e) => {
 
 // Any element carrying data-profile opens that profile — avatars, names,
 // handles, search rows. One listener rather than a binding per post.
+/**
+ * One delegated click handler, most specific target first.
+ *
+ * The whole post card carries data-thread, so the empty margin beside the
+ * avatar opens the thread — that dead space was the biggest miss on a phone.
+ * Everything interactive inside it therefore has to claim the tap first, which
+ * is what this ordering does: profile links, then media, then action buttons,
+ * then real links, and only then the card itself.
+ */
 document.addEventListener('click', (e) => {
-  // Profile links win over the thread link when both wrap the tap — a name is a
-  // more specific target than the post body it sits above.
   const prof = e.target.closest('[data-profile]');
   if (prof) { e.preventDefault(); return openProfile(prof.dataset.profile); }
+
+  const cell = e.target.closest('.imgcell, .mtile');
+  if (cell) { e.preventDefault(); return openMedia(cell); }
+
+  // Buttons and genuine links keep their own behaviour.
+  if (e.target.closest('button[data-act]')) return;
+  if (e.target.closest('a[href]:not([data-thread])') || e.target.closest('video')) return;
+
   const th = e.target.closest('[data-thread]');
   if (th) { e.preventDefault(); return openThread(th.dataset.thread); }
 });
+
+/** Open the lightbox on the tapped image, with the post's whole album loaded. */
+function openMedia(cell) {
+  const holder = cell.closest('.post, .masonry');
+  const post = cell.closest('.post')?._post;
+
+  // In a post: the album is that post's images, opened at the tapped one.
+  if (post) {
+    const cells = [...holder.querySelectorAll('.imgcell')];
+    const images = cells.map((c) => ({
+      src: c.querySelector('img')?.src,
+      full: c.getAttribute('href') || c.querySelector('img')?.src,
+      alt: c.querySelector('img')?.alt || '',
+    })).filter((x) => x.src);
+    return lightbox.open(images, Math.max(0, cells.indexOf(cell)));
+  }
+
+  // In the profile media wall: every loaded tile is the album, so a swipe runs
+  // through the whole grid rather than stopping at one post's images.
+  const tiles = [...document.querySelectorAll('.masonry .mtile')];
+  const images = tiles.map((t) => {
+    const img = t.querySelector('img');
+    return img ? { src: img.src, full: img.src.replace('/feed_thumbnail/', '/feed_fullsize/'), alt: img.alt } : null;
+  }).filter(Boolean);
+  lightbox.open(images, Math.max(0, tiles.indexOf(cell)));
+}
 
 window.addEventListener('hashchange', route);
 document.addEventListener('visibilitychange', () => { if (document.hidden) flushWrites(); });

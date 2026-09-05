@@ -20,6 +20,7 @@
 
 import { postCounts as _postCounts, listLinks, LINK } from '/packages/atproto/constellation.js';
 import { getProfiles } from '/packages/atproto/bsky.js';
+import { tidToMillis } from '/lib/tid.js';
 
 const BSKY_PUBLIC = 'https://public.api.bsky.app';
 const FEED_HOST = 'https://feed.mino.mobi';
@@ -181,30 +182,36 @@ export async function authorMedia(did, { limit = 40, cursor } = {}) {
  *
  * Bluesky's own listNotifications needs a session. Constellation does not: a
  * notification IS a backlink — someone's like, reply or follow record pointing
- * at you. So this asks the index "what points at this account, and at its
- * recent posts?".
+ * at you — so this works signed out, for anyone.
+ *
+ * Ordering is the part that took work. Constellation returns
+ * `{did, collection, rkey}` and no timestamp, which is why an earlier version
+ * could only group by kind. But an rkey is a TID, and a TID encodes the
+ * microsecond it was minted — so `lib/tid.js` recovers a real time for every
+ * item and the list comes back in true reverse-chronological order, mixed
+ * across kinds, the way a notifications feed should read.
  *
  * Bounded deliberately: the newest `postDepth` posts, two link queries each,
- * four at a time. A deeper sweep is a much bigger request fan-out for
- * diminishing returns.
- *
- * What it CANNOT show, and why the UI says so: this is a snapshot of who
- * interacted, not a read/unread inbox. Constellation indexes links, not
- * timestamps of the linking record, so ordering within a post is by the
- * index's own recency rather than a true event time.
+ * four at a time.
  *
  * @param {string} did
  * @param {{postDepth?: number}} [opts]
- * @returns {Promise<Array<{kind, actorDid, subjectUri?, subjectText?}>>}
+ * @returns {Promise<Array<{kind, actorDid, at, subjectUri?, subjectText?}>>}
  */
-export async function notifications(did, { postDepth = 8 } = {}) {
+export async function notifications(did, { postDepth = 10 } = {}) {
   const out = [];
 
-  // 1. New followers — one call, and the cheapest signal there is.
+  const push = (item) => {
+    // A TID that will not decode (a hand-written rkey) sorts last rather than
+    // being dropped — a notification with an unknown time is still one.
+    out.push({ ...item, at: tidToMillis(item.rkey) ?? 0 });
+  };
+
+  // 1. New followers — one call, the cheapest signal there is.
   try {
-    const { records } = await listLinks(did, LINK.followers, { limit: 15 });
-    for (const r of records) out.push({ kind: 'follow', actorDid: r.did });
-  } catch { /* keep going; a partial page beats an error page */ }
+    const { records } = await listLinks(did, LINK.followers, { limit: 20 });
+    for (const r of records) push({ kind: 'follow', actorDid: r.did, rkey: r.rkey });
+  } catch { /* a partial page beats an error page */ }
 
   // 2. Likes and replies on recent posts.
   let mine = [];
@@ -222,20 +229,24 @@ export async function notifications(did, { postDepth = 8 } = {}) {
     while (i < jobs.length) {
       const job = jobs[i++];
       try {
-        const { records } = await listLinks(job.post.uri, job.link, { limit: 5 });
+        const { records } = await listLinks(job.post.uri, job.link, { limit: 8 });
         for (const r of records) {
           if (r.did === did) continue;            // your own like is not news
-          out.push({
+          push({
             kind: job.kind,
             actorDid: r.did,
+            rkey: r.rkey,
             subjectUri: job.post.uri,
             subjectText: (job.post.record?.text || '').slice(0, 90),
-            replyRkey: job.kind === 'reply' ? r.rkey : undefined,
+            replyUri: job.kind === 'reply' ? `at://${r.did}/app.bsky.feed.post/${r.rkey}` : undefined,
           });
         }
       } catch { /* one dead query, not a dead tab */ }
     }
   }));
+
+  // TRUE reverse chronological, across every kind.
+  out.sort((a, b) => b.at - a.at);
 
   // Hydrate the actors so the list reads as people, not DIDs.
   const dids = [...new Set(out.map((n) => n.actorDid))].slice(0, 100);

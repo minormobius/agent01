@@ -19,7 +19,27 @@
 
 import { AuthClient } from '/packages/oauth-client/auth.js';
 
-export const SCOPE = 'atproto repo:app.bsky.feed.post';
+/**
+ * ONE consent screen for everything this site writes.
+ *
+ * The repo's rule is a NARROW scope — only the collections this site writes —
+ * not a minimal one. This site writes posts, likes and reposts, so all three
+ * belong in the initial grant. Asking for `feed.post` alone and escalating with
+ * `ensureScope()` on the first like meant a second consent screen, then a third
+ * for the first repost: three round trips through Bluesky to use one app.
+ *
+ * Worse, while `app.bsky.feed.like`/`.repost` were missing from the auth
+ * worker's ceiling the authorization server simply would not grant them, so
+ * each escalation returned WITHOUT the scope and the next tap escalated again —
+ * an unbreakable loop with no error to explain it. The ceiling now carries them
+ * (77 collections), and requesting them up front means it cannot recur.
+ */
+export const SCOPE = [
+  'atproto',
+  'repo:app.bsky.feed.post',
+  'repo:app.bsky.feed.like',
+  'repo:app.bsky.feed.repost',
+].join(' ');
 
 /** Bluesky counts GRAPHEMES, not UTF-16 code units. An emoji is one. */
 export const MAX_GRAPHEMES = 300;
@@ -119,9 +139,11 @@ export async function publish(text, opts = {}) {
   // Scope is fixed at authorization, so a session that predates this site's
   // scope may lack the write. ensureScope redirects to consent from the user's
   // click, which is the only place a redirect is acceptable.
+  // A session minted before this site asked for all three scopes needs one
+  // escalation. ensureScope navigates away, so nothing after it runs.
   if (!a.hasScope('repo:app.bsky.feed.post')) {
     await a.ensureScope('repo:app.bsky.feed.post');
-    return Promise.reject(new Error('re-authorizing — press post again when you return'));
+    return Promise.reject(new Error('re-authorizing…'));
   }
 
   const record = {
