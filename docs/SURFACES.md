@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **86 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **87 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -50,6 +50,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `cards` | frontend | `cards` | [cards.mino.mobi](https://cards.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`cards/CLAUDE.md`](../cards/CLAUDE.md) | Wiki Cards. A deep Wikipedia card game—Lucky, Transmute, Nexus, and Library modes built on neural embeddings. |
 | `chat` | fullstack | `chat` | [chat.mino.mobi](https://chat.mino.mobi) | `claude/conversation-practice-website-he3t8x` | [`chat/CLAUDE.md`](../chat/CLAUDE.md) | Conversation-practice dojo. An AI partner (Workers AI Llama 3.3 70B) plays your counterpart and a theory-grounded rubric scores the exchange; multiplayer DO rooms are roadmap. |
 | `civ` | backend | `civ` | [civ.mino.mobi](https://civ.mino.mobi) | `claude/civ-deploy-unification-vt35ju` | [`civ/CLAUDE.md`](../civ/CLAUDE.md) | Coevolutionary agent-based civilization simulation on a mappa world (worker civ, custom_domain civ.mino.mobi)… (full description: civ/CLAUDE.md) |
+| `clef` | frontend | `clef` | [clef.mino.mobi](https://clef.mino.mobi) | `claude/sheet-music-viewer-composer-qb4ljl` | [`clef/CLAUDE.md`](../clef/CLAUDE.md) | Sheet music in plain text: reads LilyPond notation, engraves it as classical notation, plays it back, and publishes the score to your own repository. |
 | `crm` | frontend | `crm` | [crm.mino.mobi (pending attach)](https://crm.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`crm/CLAUDE.md`](../crm/CLAUDE.md) | Vault CRM. Encrypted contact records sealed to PDS with ECDH + AES-GCM; tiered sharing for team members. |
 | `cron` | backend | `workers/cron` | `minomobi-cron` | `claude/minomobi-landing-page-vg37b8` | [`workers/cron/CLAUDE.md`](../workers/cron/CLAUDE.md) | The cron trampoline, and as of 2026-07-30 a NO-OP: it has never dispatched anything, because GITHUB_PAT was never set and every fire is a silent 401… |
 | `duck` | frontend | `duck` | [duck.mino.mobi](https://duck.mino.mobi) | `claude/feature-merge-candidate-l4dkwq` | [`duck/CLAUDE.md`](../duck/CLAUDE.md) | Two WebGPU games on one worker (`duck`, custom_domain duck.mino.mobi). Pure-static, no build, no secrets… |
@@ -122,7 +123,7 @@ A change here ripples to every dependent surface listed.
 
 | Resource | Dependents | Surfaces |
 |---|---|---|
-| `auth.mino.mobi` | 11 | `bakery`, `board`, `canvas`, `farm`, `farm-next`, `games`, `io`, `photo`, `rant`, `scores`, `wave` |
+| `auth.mino.mobi` | 12 | `bakery`, `board`, `canvas`, `clef`, `farm`, `farm-next`, `games`, `io`, `photo`, `rant`, `scores`, `wave` |
 | `atpolls-db` | 9 | `airchat`, `canvas`, `feed`, `human`, `io`, `poll`, `reef`, `rite`, `words` |
 | `mino-auth-db` | 1 | `auth` |
 | `bounty-board` | 1 | `bounty` |

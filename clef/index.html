@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>clef — sheet music in plain text</title>
+<meta name="description" content="A sheet-music viewer and composer that reads LilyPond notation, engraves it as classical notation in your browser, plays it back, and publishes it to your own ATProto repository. No accounts required to read, no lock-in to leave.">
+<meta name="theme-color" content="#faf7f0">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<meta property="og:title" content="clef — sheet music in plain text">
+<meta property="og:description" content="Type LilyPond, read engraved notation, hear it, take it away as .ly, MIDI, SVG or WAV.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://clef.mino.mobi/">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="mark" aria-hidden="true">
+      <svg viewBox="0 0 19 40" width="13" height="27"><g id="brand-clef"></g></svg>
+    </span>
+    <span class="wordmark">clef</span>
+  </div>
+  <p class="tagline">sheet music in plain text</p>
+
+  <div class="topbar-actions">
+    <label class="field">
+      <span class="field-label">piece</span>
+      <select id="piece-select" aria-label="Choose a piece"></select>
+    </label>
+    <button id="btn-new" class="btn" type="button">New</button>
+    <button id="btn-export" class="btn" type="button" aria-haspopup="true" aria-expanded="false">Export</button>
+    <button id="btn-account" class="btn btn-quiet" type="button">Sign in</button>
+    <button id="btn-about" class="btn btn-quiet" type="button" aria-label="About this site">?</button>
+  </div>
+</header>
+
+<div class="tabbar" role="tablist" aria-label="View">
+  <button class="tab" data-view="score" role="tab" aria-selected="true">Score</button>
+  <button class="tab" data-view="source" role="tab" aria-selected="false">Source</button>
+</div>
+
+<main id="main" class="layout" data-view="both">
+
+  <section class="pane pane-source" aria-label="Notation source">
+    <div class="pane-head">
+      <h2>source</h2>
+      <span class="chip" title="A working subset of the LilyPond input language">LilyPond</span>
+      <span class="spacer"></span>
+      <span id="src-status" class="status" aria-live="polite"></span>
+    </div>
+    <div class="editor">
+      <pre id="gutter" class="gutter" aria-hidden="true"></pre>
+      <textarea id="source" spellcheck="false" autocapitalize="off" autocorrect="off"
+                aria-label="LilyPond source"></textarea>
+    </div>
+    <div id="diagnostics" class="diagnostics" aria-live="polite"></div>
+  </section>
+
+  <section class="pane pane-score" aria-label="Engraved score">
+    <div class="transport">
+      <button id="btn-play" class="btn btn-play" type="button" aria-label="Play">
+        <span class="glyph-play" aria-hidden="true"></span><span class="btn-text">Play</span>
+      </button>
+      <label class="field">
+        <span class="field-label">voice</span>
+        <select id="patch" aria-label="Playback instrument"></select>
+      </label>
+      <label class="field field-slider">
+        <span class="field-label">tempo <output id="tempo-out"></output></span>
+        <input id="tempo" type="range" min="30" max="220" step="1" aria-label="Tempo">
+      </label>
+      <label class="field field-slider">
+        <span class="field-label">size</span>
+        <input id="zoom" type="range" min="6" max="16" step="0.5" value="9" aria-label="Staff size">
+      </label>
+      <span class="spacer"></span>
+      <label class="field field-check">
+        <input id="follow" type="checkbox" checked> <span>follow</span>
+      </label>
+    </div>
+
+    <div class="palette" id="palette">
+      <span class="palette-label">write</span>
+      <div class="pgroup" role="group" aria-label="Note value">
+        <button class="pbtn" data-dur="1" type="button" title="whole note">𝅝</button>
+        <button class="pbtn" data-dur="2" type="button" title="half note">𝅗𝅥</button>
+        <button class="pbtn is-on" data-dur="4" type="button" title="quarter note">𝅘𝅥</button>
+        <button class="pbtn" data-dur="8" type="button" title="eighth note">𝅘𝅥𝅮</button>
+        <button class="pbtn" data-dur="16" type="button" title="sixteenth note">𝅘𝅥𝅯</button>
+      </div>
+      <div class="pgroup" role="group" aria-label="Modifiers">
+        <button class="pbtn" data-toggle="dot" type="button" title="dotted">·</button>
+        <button class="pbtn" data-acc="-1" type="button" title="flat">♭</button>
+        <button class="pbtn" data-acc="0" type="button" title="natural">♮</button>
+        <button class="pbtn" data-acc="1" type="button" title="sharp">♯</button>
+      </div>
+      <button class="pbtn pbtn-wide" data-insert="rest" type="button" title="insert a rest">rest</button>
+      <button class="pbtn pbtn-wide" data-insert="bar" type="button" title="insert a bar check">bar</button>
+      <span class="palette-hint">click the staff to write a note · alt+↑↓ moves it · ⌫ deletes</span>
+    </div>
+
+    <div id="score-scroll" class="score-scroll">
+      <div id="score" class="score"></div>
+    </div>
+  </section>
+</main>
+
+<div id="sheet" class="sheet" hidden>
+  <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <div class="sheet-head">
+      <h2 id="sheet-title"></h2>
+      <button id="sheet-close" class="btn btn-quiet" type="button" aria-label="Close">✕</button>
+    </div>
+    <div id="sheet-body" class="sheet-body"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script type="module" src="src/app.js"></script>
+</body>
+</html>

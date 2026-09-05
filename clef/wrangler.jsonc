@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "clef",
+  "main": "worker.js",
+  "compatibility_date": "2026-03-14",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  // GOLDEN RULE: this `name` must be the worker that owns the live custom
+  // domain, and the domain must be declared here as a custom_domain route —
+  // otherwise `wrangler deploy` quietly updates a stray clef.workers.dev and
+  // the run goes green while the subdomain never changes. clef.mino.mobi was
+  // verified UNCLAIMED on 2026-09-05 (502 from the edge, same as any name
+  // nothing serves), so the first deploy creates both the DNS record and the
+  // binding. Verify the deploy log binds "clef.mino.mobi (custom domain)".
+  "routes": [
+    { "pattern": "clef.mino.mobi", "custom_domain": true }
+  ]
+}

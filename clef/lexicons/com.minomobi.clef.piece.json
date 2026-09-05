@@ -1,0 +1,56 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.clef.piece",
+  "description": "A piece of sheet music, stored as its notation source rather than as a rendering. The score is the text: any reader that speaks the format can engrave it, and the record stays legible even if every program that produced it disappears.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["title", "format", "source", "createdAt"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 512,
+            "maxGraphemes": 128,
+            "description": "Title of the piece."
+          },
+          "composer": {
+            "type": "string",
+            "maxLength": 512,
+            "maxGraphemes": 128,
+            "description": "Who wrote it. Absent for a piece with no attribution."
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 4096,
+            "maxGraphemes": 1024,
+            "description": "Optional programme note or commentary."
+          },
+          "format": {
+            "type": "string",
+            "maxLength": 32,
+            "knownValues": ["lilypond", "abc", "musicxml"],
+            "description": "Which notation language `source` is written in. `lilypond` is what clef reads and writes; the others are named so a future reader can tell what it is looking at rather than guessing."
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 262144,
+            "description": "The notation source itself. This is the score — not a rendering of it."
+          },
+          "license": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "How the piece may be used, e.g. 'public domain', 'CC BY-SA 4.0'. Absent means the author has said nothing, which is not the same as public domain."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "When the record was first written."
+          }
+        }
+      }
+    }
+  }
+}

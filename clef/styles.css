@@ -1,0 +1,583 @@
+/* styles.css — the page around the page.
+ *
+ * The score is the only thing on this site that matters, so everything else is
+ * built to get out of its way: a warm paper ground, dark ink, one accent, and
+ * furniture that stays quiet at the edges. The score itself is drawn in SVG
+ * with `currentColor`, so the whole notation typeface inherits `--ink` and dark
+ * mode costs nothing.
+ */
+
+:root {
+  --paper: #faf7f0;
+  --paper-edge: #f2ede2;
+  --card: #fffdf8;
+  --ink: #1b1a17;
+  --ink-soft: #5d584e;
+  --ink-faint: #918a7c;
+  --rule: #ddd5c4;
+  --rule-soft: #e9e2d4;
+  --accent: #9a3412;
+  --accent-soft: #c2410c;
+  --play: #b45309;
+  --sel: #1d4ed8;
+  --bad: #b91c1c;
+  --warn: #a16207;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --topbar-h: 52px;
+  --radius: 7px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #16151a;
+    --paper-edge: #100f13;
+    --card: #1e1d23;
+    --ink: #ece7dc;
+    --ink-soft: #a49d90;
+    --ink-faint: #6f6a60;
+    --rule: #34323b;
+    --rule-soft: #26252c;
+    --accent: #fb923c;
+    --accent-soft: #fdba74;
+    --play: #fbbf24;
+    --sel: #7dabff;
+    --bad: #f87171;
+    --warn: #fbbf24;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--paper-edge);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.45;
+  display: flex;
+  flex-direction: column;
+  overscroll-behavior: none;
+}
+
+/* ------------------------------------------------------------- top bar --- */
+
+.topbar {
+  flex: none;
+  height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  background: var(--card);
+  border-bottom: 1px solid var(--rule);
+  padding-top: env(safe-area-inset-top);
+}
+
+.brand { display: flex; align-items: center; gap: 7px; }
+.brand .mark { color: var(--accent); display: block; line-height: 0; }
+.wordmark {
+  font-family: var(--serif);
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.tagline {
+  margin: 0;
+  color: var(--ink-faint);
+  font-size: 12.5px;
+  font-style: italic;
+  white-space: nowrap;
+}
+
+.topbar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* --------------------------------------------------------------- bits ---- */
+
+.btn {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 5px 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover { border-color: var(--ink-faint); }
+.btn:active { transform: translateY(0.5px); }
+.btn-quiet { border-color: transparent; color: var(--ink-soft); }
+.btn-quiet:hover { border-color: var(--rule); }
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+@media (prefers-color-scheme: dark) { .btn-primary { color: #17130e; } }
+.btn:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--sel);
+  outline-offset: 1px;
+}
+
+.btn-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 86px;
+  font-weight: 600;
+}
+.glyph-play {
+  width: 0; height: 0;
+  border-left: 9px solid currentColor;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+}
+.btn-play.is-playing .glyph-play {
+  width: 9px; height: 11px;
+  border: 0;
+  background: currentColor;
+  /* two bars, drawn with one element */
+  clip-path: polygon(0 0, 34% 0, 34% 100%, 0 100%, 0 0, 66% 0, 100% 0, 100% 100%, 66% 100%, 66% 0);
+}
+
+.field { display: flex; flex-direction: column; gap: 2px; }
+.field-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+.field select, .field input[type="text"] {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 4px 6px;
+  max-width: 200px;
+}
+.field-slider input { width: 108px; accent-color: var(--accent); }
+.field-check { flex-direction: row; align-items: center; gap: 5px; font-size: 12px; color: var(--ink-soft); }
+.field-check input { accent-color: var(--accent); }
+.spacer { flex: 1; }
+.chip {
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.status { font-size: 12px; color: var(--ink-faint); }
+.status.is-bad { color: var(--bad); }
+
+/* ------------------------------------------------------------- layout --- */
+
+.layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(300px, 30%) 1fr;
+}
+
+.pane {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.pane-source { border-right: 1px solid var(--rule); background: var(--card); }
+
+.pane-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.pane-head h2 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-faint);
+}
+
+/* ------------------------------------------------------------- editor --- */
+
+.editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+.gutter, #source {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.62;
+  padding: 10px 0;
+  margin: 0;
+  border: 0;
+  tab-size: 2;
+}
+.gutter {
+  flex: none;
+  width: 3.2em;
+  text-align: right;
+  padding-right: 8px;
+  color: var(--ink-faint);
+  background: transparent;
+  user-select: none;
+  overflow: hidden;
+  white-space: pre;
+}
+.gutter .g-bad { color: var(--bad); font-weight: 700; }
+.gutter .g-warn { color: var(--warn); font-weight: 700; }
+#source {
+  flex: 1;
+  min-width: 0;
+  padding-left: 10px;
+  padding-right: 12px;
+  resize: none;
+  background: transparent;
+  color: var(--ink);
+  white-space: pre;
+  overflow: auto;
+}
+#source:focus { outline: none; }
+
+.diagnostics {
+  flex: none;
+  max-height: 32%;
+  overflow: auto;
+  border-top: 1px solid var(--rule-soft);
+}
+.diagnostics:empty { display: none; }
+.diag {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  background: none;
+  border: 0;
+  border-left: 3px solid transparent;
+  padding: 6px 12px;
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+.diag:hover { background: var(--paper); }
+.diag b { font-family: var(--mono); font-weight: 600; margin-right: 6px; }
+.diag-error { border-left-color: var(--bad); color: var(--bad); }
+.diag-warning { border-left-color: var(--warn); color: var(--warn); }
+
+/* ---------------------------------------------------------- transport --- */
+
+.transport, .palette {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 12px;
+  background: var(--card);
+  border-bottom: 1px solid var(--rule-soft);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.transport::-webkit-scrollbar, .palette::-webkit-scrollbar { display: none; }
+.palette { gap: 8px; border-bottom: 1px solid var(--rule); }
+.palette-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+.pgroup { display: flex; }
+.pgroup .pbtn { border-radius: 0; margin-left: -1px; }
+.pgroup .pbtn:first-child { border-radius: var(--radius) 0 0 var(--radius); margin-left: 0; }
+.pgroup .pbtn:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+.pbtn {
+  font-family: var(--serif);
+  font-size: 15px;
+  line-height: 1;
+  min-width: 30px;
+  height: 28px;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  cursor: pointer;
+  padding: 0 6px;
+}
+.pbtn:hover { border-color: var(--ink-faint); }
+.pbtn.is-on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+@media (prefers-color-scheme: dark) { .pbtn.is-on { color: #17130e; } }
+.pbtn-wide { font-family: var(--sans); font-size: 12px; }
+.palette-hint {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  font-style: italic;
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------------------- score --- */
+
+.score-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--paper-edge);
+  padding: 18px 14px 40px;
+}
+.score {
+  margin: 0 auto;
+  background: var(--paper);
+  border: 1px solid var(--rule-soft);
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07), 0 8px 24px rgba(0, 0, 0, 0.05);
+  width: fit-content;
+  padding: 6px 0 10px;
+}
+@media (prefers-color-scheme: dark) {
+  .score { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+}
+
+/* The engraved SVG. `color` drives every glyph — they are all currentColor. */
+.score svg {
+  display: block;
+  color: var(--ink);
+  font-family: var(--serif);
+  cursor: crosshair;
+}
+.score text { fill: currentColor; }
+.cf-staffline, .cf-ledger, .cf-stem, .cf-barline,
+.cf-tie, .cf-slur, .cf-volta, .cf-brace, .cf-tupletbracket {
+  stroke: currentColor;
+}
+.cf-beam, .cf-repeatdot { fill: currentColor; }
+.cf-staffline { stroke: color-mix(in srgb, currentColor 78%, transparent); }
+.cf-title { font-weight: 600; letter-spacing: 0.01em; }
+.cf-subtitle, .cf-composer { fill: var(--ink-soft); font-style: italic; }
+.cf-timesig { font-weight: 600; }
+.cf-dyn { font-style: italic; font-weight: 700; }
+.cf-tupletnum, .cf-text, .cf-voltanum { font-style: italic; }
+
+/* Only noteheads and rests are targets. Everything else — staff lines, ledger
+ * lines, stems, beams, clefs — is scenery, and scenery that takes clicks is a
+ * trap: a ledger line is drawn ON TOP of the notehead it belongs to, so it
+ * intercepts every click aimed at a note above or below the staff. With the
+ * scenery transparent to the pointer, those clicks reach the note, and a click
+ * on genuinely empty staff falls through to the SVG, which is what writes a
+ * new note there. */
+.score svg * { pointer-events: none; }
+.score svg .cf-note path, .score svg .cf-rest path,
+.score svg .cf-note ellipse, .score svg .cf-rest ellipse { pointer-events: all; }
+.cf-note, .cf-rest { cursor: pointer; }
+.cf-note:hover, .cf-rest:hover { color: var(--accent); }
+.score svg .is-playing { color: var(--play); }
+.score svg .is-selected { color: var(--sel); }
+
+/* -------------------------------------------------------------- sheet --- */
+
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(20, 18, 14, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+/* `display:flex` above beats the browser's default `[hidden] { display:none }`,
+ * so without this the dialog is open on first paint over an empty body. */
+.sheet[hidden] { display: none; }
+.sheet-panel {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  width: min(560px, 100%);
+  max-height: min(80vh, 720px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+}
+.sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.sheet-head h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 600;
+  flex: 1;
+}
+.sheet-body { padding: 14px; overflow: auto; }
+.sheet-body p { margin: 0 0 11px; color: var(--ink-soft); }
+.sheet-body p:last-child { margin-bottom: 0; }
+.sheet-body h3 {
+  margin: 18px 0 7px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ink-faint);
+}
+.sheet-body h3:first-child { margin-top: 0; }
+.sheet-body a { color: var(--accent); }
+.sheet-body code, .sheet-body kbd {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--paper-edge);
+  border: 1px solid var(--rule-soft);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+.sheet-body dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 5px 12px; }
+.sheet-body dt { font-family: var(--mono); font-size: 12px; color: var(--ink); }
+.sheet-body dd { margin: 0; color: var(--ink-soft); font-size: 13px; }
+
+.menu { display: flex; flex-direction: column; gap: 2px; }
+.menu button {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  padding: 9px 10px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.menu button:hover { background: var(--paper-edge); }
+.menu button span { color: var(--ink-faint); font-size: 12px; }
+.menu button b { font-weight: 600; min-width: 5.5em; }
+
+.row { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 12px; }
+.row .field { flex: 1; }
+.row .field input { max-width: none; width: 100%; }
+
+.piece-list { display: flex; flex-direction: column; gap: 2px; }
+.piece-list button {
+  font: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.piece-list button:hover { background: var(--paper-edge); }
+.piece-list b { display: block; font-weight: 600; }
+.piece-list span { color: var(--ink-faint); font-size: 12px; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 60;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 13px;
+  padding: 8px 15px;
+  border-radius: 999px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  max-width: min(90vw, 460px);
+}
+
+/* ------------------------------------------------------------ narrow ---- */
+
+.tabbar { display: none; }
+
+@media (max-width: 820px) {
+  .tagline { display: none; }
+  .tabbar {
+    display: flex;
+    flex: none;
+    background: var(--card);
+    border-bottom: 1px solid var(--rule);
+  }
+  .tab {
+    flex: 1;
+    font: inherit;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-faint);
+    background: none;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    padding: 9px 0;
+    cursor: pointer;
+  }
+  .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+  .layout { grid-template-columns: 1fr; }
+  .pane-source { border-right: 0; }
+  /* One pane at a time. `both` is the initial state and the wide-screen
+   * layout; here it has to mean the same as `score`, or the first paint shows
+   * the editor stacked on top of the score while the SCORE tab claims to be
+   * selected. */
+  .layout[data-view="both"] .pane-source,
+  .layout[data-view="score"] .pane-source { display: none; }
+  .layout[data-view="source"] .pane-score { display: none; }
+  .palette-hint { display: none; }
+  .score-scroll { padding: 10px 6px 30px; }
+}
+
+@media (max-width: 560px) {
+  .topbar { gap: 8px; }
+  .btn-text { display: none; }
+  .btn-play { min-width: 42px; }
+  .field-slider input { width: 74px; }
+  /* The piece menu costs more width than it is worth here — New opens the same
+   * list as a sheet, and without this the account and help buttons are simply
+   * pushed off the right edge of the bar. */
+  .topbar-actions > .field { display: none; }
+}
+
+/* ------------------------------------------------------------- print ---- */
+/* Printing is not an afterthought here: a score you cannot put on a music
+ * stand is only half a score. Everything but the engraving is dropped, and the
+ * paper tint goes with it so a black-and-white printer gets black on white. */
+@media print {
+  .topbar, .tabbar, .pane-source, .transport, .palette, .toast, .sheet { display: none !important; }
+  body { background: #fff; display: block; height: auto; }
+  .layout { display: block; }
+  .score-scroll { overflow: visible; padding: 0; background: #fff; }
+  .score {
+    background: #fff;
+    border: 0;
+    box-shadow: none;
+    color: #000;
+    padding: 0;
+  }
+  .score svg { color: #000; }
+  .score svg .is-playing, .score svg .is-selected { color: #000; }
+}
