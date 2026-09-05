@@ -488,6 +488,64 @@ real dictionary-compressed frames and the logic is the same file, but
 page. The remaining risk is `zstd.init()`'s wasm path and IndexedDB write volume
 under a 59,000-post scan, not the protocol.
 
+### Quoted posts, and why they were unreachable
+
+`quoteCard()` in `lib/blobs.js`. Two bugs, both invisible:
+
+- **The card carried no `data-thread`.** A tap bubbled to the enclosing
+  `<article>`, whose own `data-thread` is the OUTER post — so a quoted post
+  could not be opened, and worse, tapping it *looked* like it worked and took
+  you somewhere else. The delegated handler uses `closest()`, which finds the
+  NEAREST ancestor, so an inner `data-thread` wins; that is the whole fix.
+- **The raw shape rendered nothing.** From Jetstream a quote is only
+  `{uri, cid}` — no author, no text — and the guard `if (!rec.author) return ''`
+  dropped it, so quotes silently vanished from the live and rule feeds. A quote
+  whose target cannot be described is still a quote worth offering: the bare
+  card says so and stays tappable.
+
+The quote's author is also `data-profile`, so the header opens the quoted
+account rather than the quoting one.
+
+### "Cannot mint a service token" told nobody anything
+
+`serviceToken()` returned a bare `null` for four unrelated failures — not signed
+in, session missing the rpc scope, the PDS refusing, an exception — and the
+status line rendered all four as *"this session cannot mint a service token"*.
+Unactionable, and it hid the commonest cause completely.
+
+That cause: **a session created before `rpc:com.atproto.server.getServiceAuth`
+was added to `SCOPE` carries the old grant forever.** `hasScope()` reads the
+GRANTED scope, not what the site would ask for today, so a reader who signed in
+earlier can never personalise a feed and nothing anywhere says why. Signing in
+again fixes it.
+
+So `serviceToken` now returns `{token, reason, fix}`, the status line prints the
+reason, and `fix: 'rescope'` puts a one-tap **reauthorise** banner above the
+feed. `ensureScope` REDIRECTS, so it needs a real gesture — it cannot be done
+silently on the reader's behalf.
+
+**And a real bug in `workers/auth` behind it.** The `/pds/*` proxy injected
+`repo=<did>` into every GET without one, and into every JSON POST. That is right
+for the `com.atproto.repo.*` methods and wrong for the other two:
+`sync.getBlob` takes `did`, and `server.getServiceAuth` takes `aud`/`lxm`/`exp`
+and no repo at all. Sending a parameter a lexicon does not declare is at best
+noise and at worst a validation failure on a strict PDS — exactly the fault that
+surfaces as an unexplained mint failure. Routes now carry an explicit
+`repoScoped` flag instead of the assumption.
+
+### The rule feed replays by default
+
+Reported as "knowledge chase is still reading firehose", and correctly: the tail
+was the default and replay was a button. That is backwards. A subscription only
+hands you what happens NEXT, so a rule feed opened today is empty today however
+good the rule is — which is the whole reason the archive exists.
+
+Now, **with a key, `startRuleFeed` replays a slug immediately** and the live
+tail is an explicit *also listen live*. Without one it falls back to the
+firehose and says plainly that the archive is where the feed actually fills up,
+and where to get a free key. `apikey.hasKey()` decides, synchronously, with no
+dependency on `lib/vendor/` — see the sign-out post-mortem for why that matters.
+
 ### Palettes
 
 `lib/theme.js`. Seven palettes plus `auto`, which follows the OS and is the

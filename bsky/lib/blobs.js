@@ -90,7 +90,7 @@ export function renderEmbed(record, did, view) {
   if (type.startsWith('app.bsky.embed.recordWithMedia')) {
     const media = hydrated ? e.media : e.media;
     return renderEmbed({ embed: media }, did, hydrated ? media : null)
-      + quoteCard(hydrated ? e.record?.record : null);
+      + quoteCard(hydrated ? e.record?.record : e.record?.record);
   }
 
   if (type.startsWith('app.bsky.embed.images')) {
@@ -139,21 +139,54 @@ export function renderEmbed(record, did, view) {
   }
 
   if (type.startsWith('app.bsky.embed.record')) {
-    return quoteCard(hydrated ? e.record : null);
+    // Both shapes reach quoteCard. The RAW one carries only `{uri, cid}` and
+    // used to render nothing at all, which meant a quote in the live or rule
+    // feed silently vanished.
+    return quoteCard(e.record);
   }
 
   return '';
 }
 
-/** A quoted post, when the hydrated view gives us one. */
+/**
+ * A quoted post.
+ *
+ * Two things here are load-bearing:
+ *
+ * **`data-thread` on the card itself.** Without it a tap on the quote bubbles
+ * to the enclosing `<article>`, whose own `data-thread` is the OUTER post — so
+ * the quoted post was unreachable, and worse, tapping it looked like it worked
+ * and took you somewhere else. The delegated handler uses `closest()`, which
+ * finds the NEAREST ancestor, so an inner `data-thread` wins.
+ *
+ * **The raw shape renders too.** From Jetstream a quote is only
+ * `{uri, cid}` — no author, no text — and the old guard `if (!rec.author)
+ * return ''` dropped it entirely, so quotes disappeared from the live and rule
+ * feeds. A quote whose target we cannot describe is still a quote worth
+ * offering; the card says so and stays tappable.
+ *
+ * @param {object} rec  a hydrated `#viewRecord`, or a raw `{uri, cid}` ref
+ */
 function quoteCard(rec) {
-  if (!rec || !rec.author) return '';
+  if (!rec) return '';
+  const uri = rec.uri || '';
+  if (!uri) return '';
+  const thread = ` data-thread="${esc(uri)}"`;
+
+  // Raw ref: no author to show, but the post is still reachable.
+  if (!rec.author) {
+    return `<div class="quote quote-bare"${thread}>
+      <span class="muted">a quoted post — tap to open it</span>
+    </div>`;
+  }
+
+  const handle = esc(rec.author.handle || '');
   const text = rec.value?.text || rec.record?.text || '';
-  return `<div class="quote">
+  return `<div class="quote"${thread}>
     <div class="qhead">
-      <img class="qav" alt="" src="${esc(rec.author.avatar || '')}">
-      <b>${esc(rec.author.displayName || rec.author.handle)}</b>
-      <span class="muted">@${esc(rec.author.handle)}</span>
+      <img class="qav" alt="" data-profile="${handle}" src="${esc(rec.author.avatar || '')}">
+      <b data-profile="${handle}">${esc(rec.author.displayName || rec.author.handle)}</b>
+      <span class="muted" data-profile="${handle}">@${handle}</span>
     </div>
     ${text ? `<div class="qtext">${esc(text.slice(0, 240))}</div>` : ''}
   </div>`;

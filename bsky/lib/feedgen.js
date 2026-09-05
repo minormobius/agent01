@@ -74,10 +74,32 @@ export async function generatorMeta(feedUri) {
  * @param {string} serviceDid
  * @returns {Promise<string|null>}
  */
+/**
+ * Mint the reader's service-auth JWT, and say WHY when it cannot.
+ *
+ * This used to return a bare `null` for four unrelated failures — not signed
+ * in, session missing the rpc scope, the PDS refusing, an exception — and the
+ * UI turned all four into "this session cannot mint a service token", which
+ * tells a reader nothing and is not actionable. The most common one by far is
+ * the second, and it is invisible: a session created BEFORE
+ * `rpc:com.atproto.server.getServiceAuth` was added to `SCOPE` carries the old
+ * grant forever. Signing in again fixes it, and nothing anywhere said so.
+ *
+ * @returns {Promise<{token: string|null, reason: string, fix?: 'signin'|'rescope'}>}
+ */
 export async function serviceToken(serviceDid) {
   const a = auth();
-  if (!a.isLoggedIn() || !serviceDid) return null;
-  if (!a.hasScope(SERVICE_AUTH_SCOPE)) return null;
+  if (!serviceDid) return { token: null, reason: 'this feed declares no service DID' };
+  if (!a.isLoggedIn()) return { token: null, reason: 'sign in to personalise', fix: 'signin' };
+
+  if (!a.hasScope(SERVICE_AUTH_SCOPE)) {
+    return {
+      token: null,
+      fix: 'rescope',
+      reason: 'your sign-in predates this permission — reauthorise to personalise',
+    };
+  }
+
   try {
     // `lxm` binds the token to getFeedSkeleton alone — without it the JWT would
     // be usable for any method at that audience.
@@ -86,11 +108,22 @@ export async function serviceToken(serviceDid) {
       lxm: 'app.bsky.feed.getFeedSkeleton',
     });
     const res = await a.request(`/pds/server/getServiceAuth?${params}`);
-    if (!res.ok) return null;
-    return (await res.json())?.token || null;
-  } catch {
-    return null;
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      return { token: null, reason: `your PDS refused to mint a token (${res.status})`, body: body.slice(0, 200) };
+    }
+    const token = (await res.json())?.token || null;
+    return token
+      ? { token, reason: 'personalised to you' }
+      : { token: null, reason: 'your PDS returned no token' };
+  } catch (err) {
+    return { token: null, reason: `could not reach your PDS: ${err.message}` };
   }
+}
+
+/** True when re-authorising would fix personalisation. Needs a user gesture. */
+export async function rescopeForFeeds() {
+  return auth().ensureScope(SERVICE_AUTH_SCOPE);
 }
 
 /**
@@ -142,7 +175,8 @@ const routeFor = new Map();
  */
 export async function loadCustomFeed(feedUri, { limit = 30, cursor } = {}) {
   const meta = await generatorMeta(feedUri);
-  const token = await serviceToken(meta.serviceDid);
+  const mint = await serviceToken(meta.serviceDid);
+  const token = mint.token;
   const headers = token ? { authorization: `Bearer ${token}` } : {};
 
   const params = new URLSearchParams({ feed: feedUri, limit: String(limit) });
@@ -182,7 +216,8 @@ export async function loadCustomFeed(feedUri, { limit = 30, cursor } = {}) {
 
   const uris = (skeleton.feed || []).map((f) => f.post).filter(Boolean);
   const posts = await hydrate(uris);
-  return { posts, cursor: skeleton.cursor, personalised: Boolean(token), route };
+  return { posts, cursor: skeleton.cursor, personalised: Boolean(token), route,
+           why: mint.reason, fix: mint.fix };
 }
 
 /** getPosts takes 25 at a time, and does not preserve order — the order IS the feed. */

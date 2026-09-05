@@ -259,18 +259,63 @@ async function loadGenerator(uri, fresh) {
       $('v-home').append(more);
     }
 
-    // Say plainly whose feed this is: yours, or the generic one.
     // Say plainly whose feed this is AND how it was fetched — `direct` means no
-    // worker touched it at all.
+    // worker touched it at all. When it is NOT personalised, say which of the
+    // four possible reasons applied: "cannot mint a service token" covered all
+    // of them and was actionable for none.
     const how = route === 'direct' ? 'direct from the generator' : 'via our CORS relay';
-    say(personalised
-      ? `${meta?.displayName || 'feed'} · personalised for @${state.me?.handle || 'you'} · ${how}`
-      : `${meta?.displayName || 'feed'} · generic — ${state.me ? 'this session cannot mint a service token' : 'sign in to personalise'} · ${how}`);
+    const name = meta?.displayName || 'feed';
+    if (personalised) {
+      say(`${name} · personalised for @${state.me?.handle || 'you'} · ${how}`);
+    } else {
+      say(`${name} · generic — ${why || 'not personalised'} · ${how}`);
+      // The commonest cause is a session that predates the rpc scope, and it is
+      // fixable in one tap — but `ensureScope` redirects, so it needs a real
+      // gesture and cannot be done for them.
+      if (fix === 'rescope') offerRescope(uri);
+      else if (fix === 'signin') offerSignIn();
+    }
   } catch (err) {
     say(`could not load that feed: ${err.message}`);
   } finally {
     state.loading = false;
   }
+}
+
+/**
+ * A one-tap repair for the commonest personalisation failure.
+ *
+ * `ensureScope` REDIRECTS to a consent screen, so it must run from a user
+ * gesture — it cannot be done silently on the reader's behalf, and a banner is
+ * the honest way to ask.
+ */
+function offerRescope(uri) {
+  const bar = el(`<div class="rulehead">
+    <div class="rulemeta"><strong>Personalise this feed</strong></div>
+    <div class="rulenote">Your sign-in was granted before this site could ask your PDS for the
+      short-lived token a feed generator uses to recognise you. Reauthorising adds that one
+      permission — it takes nothing away.</div>
+    <div class="rulebtns"><button class="btn small" id="rescope-go">reauthorise</button></div>
+  </div>`);
+  $('v-home').prepend(bar);
+  on('rescope-go', 'click', async () => {
+    try {
+      await feedgen.rescopeForFeeds();     // redirects; does not return
+    } catch (err) {
+      say(`could not reauthorise: ${err.message}`);
+    }
+  });
+}
+
+function offerSignIn() {
+  const bar = el(`<div class="rulehead">
+    <div class="rulemeta"><strong>This feed can be personalised</strong></div>
+    <div class="rulenote">Signed in, your own PDS mints a short-lived token that identifies you to
+      the feed's operator. We never hold it.</div>
+    <div class="rulebtns"><button class="btn small" id="rescope-signin">sign in</button></div>
+  </div>`);
+  $('v-home').prepend(bar);
+  on('rescope-signin', 'click', signIn);
 }
 
 let feedPickerTypeahead = null;
@@ -547,7 +592,39 @@ async function startRuleFeed(id) {
     }
   }
 
-  // 2. the firehose
+  // 2. deep history, or the live tail.
+  //
+  // Replay is the DEFAULT when the reader has a key, and that is the whole
+  // point of the exercise: a subscription only hands you what happens next, so
+  // a rule feed opened today is empty today however good the rule is. The
+  // archive is the same events addressed by sequence, so the same rule can be
+  // pointed backwards — 50 MB of it is ~59,000 posts and ~85 papers, measured.
+  //
+  // The firehose is the fallback for a reader with no key, not the design.
+  if (apikey.hasKey()) {
+    $('ruleback').textContent = 'reach further back';
+    await reachBack(rule);
+    // Offer the tail as an explicit extra, since it is the only way to see a
+    // post that has not been sealed into a segment yet.
+    const live = el('<button class="btn ghost small" id="rulelive">also listen live</button>');
+    document.querySelector('.rulebtns')?.append(live);
+    on('rulelive', 'click', () => startRuleFirehose(rule));
+    return;
+  }
+
+  const plan = $('ruleplan');
+  plan.hidden = false;
+  plan.innerHTML = 'Reading the <strong>live firehose</strong>, which only shows posts from now on. '
+    + 'The archive reaches backwards and is where this feed actually fills up — it is metered by '
+    + 'the byte so it uses <strong>your</strong> key, free at '
+    + '<a href="https://bsky.network/account" target="_blank" rel="noopener">bsky.network/account</a>, '
+    + 'pasted under <strong>Me → deep history</strong>.';
+  startRuleFirehose(rule);
+}
+
+/** The live tail: everything from now on, matched as it arrives. */
+function startRuleFirehose(rule) {
+  if (state.runner) return;
   const meter = $('rulemeter');
   state.runner = new rulefeed.RuleRunner({
     rule,
