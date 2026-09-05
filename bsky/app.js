@@ -30,6 +30,7 @@ import { auth, publish, graphemeLength, MAX_GRAPHEMES, SCOPE } from '/lib/compos
 import * as theme from '/lib/theme.js';
 import * as lightbox from '/lib/lightbox.js';
 import * as share from '/lib/share.js';
+import * as feedgen from '/lib/feedgen.js';
 import * as actions from '/lib/actions.js';
 
 const $ = (id) => document.getElementById(id);
@@ -96,12 +97,18 @@ function route() {
 }
 
 function renderChips() {
+  const saved = feedgen.savedFeeds();
+  const custom = [feedgen.FOR_YOU, ...saved.filter((u) => u !== feedgen.FOR_YOU)];
   const opts = [
     // Signed in, your own follows come first — it is the feed you actually want.
     ...(state.me ? [{ id: 'following', label: 'following' }] : []),
+    // Third-party generators, For You first. These personalise per reader when
+    // signed in — see lib/feedgen.js.
+    ...custom.map((uri) => ({ id: `gen:${uri}`, label: feedLabel(uri) })),
     ...FEEDS.map((f) => ({ id: f.id, label: f.label })),
     { id: 'live', label: '⚡ live' },
     { id: 'stored', label: '⛁ stored' },
+    { id: 'addfeed', label: '+ feed' },
   ];
   $('chips').innerHTML = '';
   for (const o of opts) {
@@ -109,6 +116,123 @@ function renderChips() {
     b.addEventListener('click', () => selectFeed(o.id));
     $('chips').append(b);
   }
+}
+
+// ─── custom feed generators ──────────────────────────────────────
+
+const feedLabels = new Map([[feedgen.FOR_YOU, 'for you']]);
+function feedLabel(uri) { return feedLabels.get(uri) || '…'; }
+
+/** Warm the chip labels from each generator's own record. */
+async function loadFeedLabels() {
+  for (const uri of [feedgen.FOR_YOU, ...feedgen.savedFeeds()]) {
+    if (feedLabels.has(uri)) continue;
+    try {
+      const meta = await feedgen.generatorMeta(uri);
+      feedLabels.set(uri, meta.displayName.toLowerCase());
+    } catch { feedLabels.set(uri, 'feed'); }
+  }
+  renderChips();
+}
+
+async function loadGenerator(uri, fresh) {
+  if (state.loading) return;
+  state.loading = true;
+  let meta = null;
+  try { meta = await feedgen.generatorMeta(uri); } catch { /* label only */ }
+  say(fresh ? `loading ${meta?.displayName || 'feed'}…` : 'loading more…');
+
+  try {
+    const { posts, cursor, personalised } =
+      await feedgen.loadCustomFeed(uri, { limit: 30, cursor: state.cursor });
+    state.cursor = cursor;
+    document.getElementById('more-btn')?.remove();
+
+    if (!posts.length && fresh) {
+      $('v-home').append(el(`<div class="empty"><strong>This feed came back empty.</strong>
+        ${esc(meta?.description || '')}</div>`));
+    }
+    for (const p of posts) appendPost(p);
+    if (state.cacheOk && posts.length) cache.putPosts(posts).catch(() => {});
+
+    if (cursor && posts.length) {
+      const more = el('<button class="more" id="more-btn">load more</button>');
+      more.addEventListener('click', () => loadGenerator(uri, false));
+      $('v-home').append(more);
+    }
+
+    // Say plainly whose feed this is: yours, or the generic one.
+    say(personalised
+      ? `${meta?.displayName || 'feed'} · personalised for @${state.me?.handle || 'you'}`
+      : `${meta?.displayName || 'feed'} · generic — ${state.me ? 'this session cannot mint a service token' : 'sign in to personalise'}`);
+  } catch (err) {
+    say(`could not load that feed: ${err.message}`);
+  } finally {
+    state.loading = false;
+  }
+}
+
+let feedPickerTypeahead = null;
+
+/** Find feeds by the handle that publishes them, and add them to the chips. */
+function openFeedPicker() {
+  const v = $('v-home');
+  v.innerHTML = '';
+  const box = el(`<div class="section">
+    <h3>add a feed</h3>
+    <p>Any <code>app.bsky.feed.generator</code> on the network works here. Enter the handle
+    that publishes it — try <b>spacecowboy17.bsky.social</b> — and pick one. Signed in, a
+    personalised feed is personalised to <em>you</em>: your PDS mints a short-lived token
+    that identifies you to that feed's service, and nothing of yours is stored here.</p>
+    <div class="row"><input type="text" id="feedwho" placeholder="a handle that publishes feeds"></div>
+    <div id="feedlist"></div>
+  </div>`);
+  v.append(box);
+
+  const input = $('feedwho');
+  feedPickerTypeahead = attachTypeahead(input, { onPick: (a) => listFeedsBy(a.handle) });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !document.querySelector('.ta-menu:not([hidden]) li.on')) {
+      feedPickerTypeahead?.close();
+      listFeedsBy(input.value.trim());
+    }
+  });
+  say('add any feed generator on the network');
+}
+
+async function listFeedsBy(handle) {
+  if (!handle) return;
+  const list = $('feedlist');
+  list.innerHTML = '<div class="empty">looking…</div>';
+  const feeds = await feedgen.feedsBy(handle);
+  list.innerHTML = '';
+  if (!feeds.length) {
+    list.append(el(`<div class="empty">@${esc(handle)} publishes no feeds.</div>`));
+    return;
+  }
+  const saved = new Set(feedgen.savedFeeds());
+  for (const f of feeds) {
+    const on = saved.has(f.uri) || f.uri === feedgen.FOR_YOU;
+    const row = el(`<div class="actor">
+      <img class="aav" alt="" src="${f.avatar ? esc(f.avatar) : BLANK}">
+      <div class="abody">
+        <div class="aname">${esc(f.displayName)}</div>
+        <div class="ahandle">${(f.likeCount ?? 0).toLocaleString()} likes</div>
+        ${f.description ? `<div class="adesc">${esc(f.description)}</div>` : ''}
+      </div>
+      <button class="pill" data-add="${esc(f.uri)}">${on ? 'added' : 'add'}</button>
+    </div>`);
+    list.append(row);
+  }
+  list.onclick = (e) => {
+    const b = e.target.closest('[data-add]');
+    if (!b) return;
+    const uri = b.dataset.add;
+    feedgen.saveFeed(uri);
+    b.textContent = 'added';
+    loadFeedLabels();
+    say('feed added — it is in the chips above');
+  };
 }
 
 // ─── home ────────────────────────────────────────────────────────
@@ -122,6 +246,8 @@ async function selectFeed(id) {
   $('v-home').innerHTML = '';
   renderChips();
 
+  if (id === 'addfeed') { renderChips(); return openFeedPicker(); }
+  if (id.startsWith('gen:')) return loadGenerator(id.slice(4), true);
   if (id === 'following') return startFollowing();
   if (id === 'live') return startLive();
   if (id === 'stored') return showStored();

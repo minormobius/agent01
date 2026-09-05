@@ -39,6 +39,10 @@ export const SCOPE = [
   'repo:app.bsky.feed.post',
   'repo:app.bsky.feed.like',
   'repo:app.bsky.feed.repost',
+  // Not a write. Lets the reader's own PDS mint a short-lived service-auth JWT
+  // so a third-party feed generator can personalise their feed — see
+  // lib/feedgen.js. Already in the auth worker's RPC_SCOPES.
+  'rpc:com.atproto.server.getServiceAuth',
 ].join(' ');
 
 /** Bluesky counts GRAPHEMES, not UTF-16 code units. An emoji is one. */

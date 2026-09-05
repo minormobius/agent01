@@ -210,6 +210,53 @@ Every image sets `aspect-ratio` from the record's own `aspectRatio` before it
 loads, so the feed does not jump under the reader's thumb, and carries the
 post's `alt` text.
 
+### Custom feeds, and the one place "frontend-only" bends
+
+`lib/feedgen.js` + the `/api/feedgen` route in `worker.js`. This is what makes
+the surface an AppView rather than a reader: **any** `app.bsky.feed.generator`
+on the network renders here, personalised to whoever is signed in —
+@spacecowboy17's *For You* included.
+
+How a third-party feed knows who you are: it is an independent service, and
+Bluesky's own AppView identifies the reader to it with a short-lived
+**service-auth JWT** — `iss` the reader's DID, `aud` the feed's service DID,
+`lxm` the single method it may be used for. The browser can mint the identical
+thing, because `com.atproto.server.getServiceAuth` runs on the reader's **own
+PDS**. Nobody trusts us with anything: the credential is theirs, scoped to one
+audience and one method, and lives about a minute. `SCOPE` in `compose.js`
+carries `rpc:com.atproto.server.getServiceAuth`, which the auth worker's
+`RPC_SCOPES` already allowed.
+
+**What the browser cannot do is send it.** Feed generators do not answer with
+CORS headers. Measured 2026-09-05:
+
+| Generator | `access-control-allow-origin` |
+|---|---|
+| `foryou.club` (For You) | **none** |
+| `api.graze.social` | **none** |
+| `feed.mino.mobi` (ours) | `*` — which is why simcluster loads directly |
+
+So `/api/feedgen` is a CORS shim and nothing else. Two properties keep it
+honest, and both must survive any edit:
+
+1. **It holds no credential.** The `Authorization` header is the reader's own
+   JWT, forwarded untouched, never read, logged or stored.
+2. **The caller does not choose the host.** It passes an `at://` feed URI; the
+   worker resolves the generator record and the DID document *itself* and calls
+   only the endpoint that document names. Letting a caller name the target would
+   make this an open proxy. Verified: a URL, a non-generator collection and
+   garbage all return `400 unresolvable_feed`.
+
+A feed with no valid token still answers — with a **generic** list, not an
+error. The status line says which you are looking at rather than letting a
+default masquerade as yours. (Two different malformed tokens return
+byte-identical lists, so the fallback reads no identity.)
+
+Residual risk worth knowing: the auth worker injects `repo=<did>` into every
+proxied GET, and `getServiceAuth` takes no such param. Two PDS hosts returned an
+identical 401 with and without it, so it is not rejected on validation — but
+auth fails before the handler, so that is evidence rather than proof.
+
 ### One consent, and the loop that made repost impossible
 
 `lib/compose.js` exports one `SCOPE` covering **post, like and repost**, and
