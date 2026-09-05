@@ -58,6 +58,11 @@ const WRITE_COLLECTIONS = [
   'com.minomobi.cal.event',
   // cards
   'com.minomobi.cards.catalog',
+  // clef (clef.mino.mobi) — one sheet-music score, stored as its NOTATION
+  // SOURCE rather than as a rendering. That is the point of the collection:
+  // a record any tool can engrave, and that stays legible after every program
+  // that produced it is gone.
+  'com.minomobi.clef.piece',
   // crm / org (cleartext contact/deal/expense types, written inside sealed)
   'com.minomobi.crm.contact',
   'com.minomobi.crm.deal',
