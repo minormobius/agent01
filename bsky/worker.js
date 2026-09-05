@@ -52,6 +52,15 @@ export default {
 };
 
 async function replay(request, env, url) {
+  // Allowlist first, key second: what this route WILL proxy is a property of
+  // the route, not of whether the secret happens to be set. Checking the key
+  // first would report an unknown NSID as "unconfigured" and change its answer
+  // the day the secret lands.
+  const nsid = url.pathname.slice('/api/replay/'.length);
+  if (!REPLAY_ROUTES.has(nsid)) {
+    return json({ error: 'unknown_route', message: `not proxied: ${nsid}` }, 404);
+  }
+
   if (!env.JETSTREAM_API_KEY) {
     return json({
       error: 'replay_unconfigured',
@@ -60,11 +69,6 @@ async function replay(request, env, url) {
         'Set JETSTREAM_API_KEY on this worker to enable history; the live ' +
         'tail needs no key and works without it.',
     }, 503);
-  }
-
-  const nsid = url.pathname.slice('/api/replay/'.length);
-  if (!REPLAY_ROUTES.has(nsid)) {
-    return json({ error: 'unknown_route', message: `not proxied: ${nsid}` }, 404);
   }
 
   const target = new URL(`${JETSTREAM}/xrpc/${nsid}`);

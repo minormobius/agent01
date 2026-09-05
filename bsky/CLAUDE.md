@@ -106,10 +106,17 @@ proof: **confirm the run log binds `bsky.mino.mobi (custom domain)`**, and
 
 ## Not done yet
 
-- Nothing has been run against a browser. The Constellation helper was tested
-  live from node; the Jetstream client's URL building and DID bounding were
-  unit-checked, but **no WebSocket has been opened from this sandbox** — the
-  live tail is unverified end to end.
+- **Verified live (2026-09-05, from node):** the v2 subprotocol handshake, the
+  `{$type, payload}` envelope, `seq` cursor tracking, and that deletes arrive
+  without a record (2 of 25 sampled events) — the delete path is exercised, not
+  assumed. The `dids` filter was driven end to end via `getListMembers` on the
+  feed worker's seed list: 90 accounts, one socket, no events from outside the
+  filter. Constellation's counts were checked against a real post.
+- **Not verified: any of it in an actual browser.** The node run used the same
+  module, but `WebSocket` subprotocol negotiation, the CSS, and the DOM paths
+  (hydration sweep, ring-buffer trim, `CSS.escape` selectors) have not been
+  exercised by a real page load. That is the first thing to do on the live
+  surface.
 - No moderation. Labels, blocks and mutes are not applied. An AppView that
   showed anyone else's timeline would need them before it were fair to call it
   one; see §6 of the feasibility doc.
