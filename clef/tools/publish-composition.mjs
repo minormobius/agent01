@@ -19,7 +19,7 @@
 // Usage:  node tools/publish-composition.mjs <file.ly> [--post] [--dry-run]
 
 import { readFileSync } from 'node:fs';
-import { PdsClient } from '../../packages/atproto/pds.js';
+import { PdsClient, resolveHandle, resolvePds } from '../../packages/atproto/pds.js';
 import { parseLily } from '../src/lily.js';
 import { engrave } from '../src/engrave.js';
 
@@ -73,16 +73,35 @@ const record = {
 
 const handle = process.env.BLUESKY_MODULO_HANDLE;
 const password = process.env.BLUESKY_MODULO_APP_PASSWORD;
+
+// Resolve the identity BEFORE the dry-run bails out.
+//
+// PdsClient takes the SERVICE URL, and an account's PDS is a property of its
+// identity rather than a constant — bsky.social is where handles are resolved,
+// not where every repository lives. The first run of this script failed right
+// here, on a real account, because it called `new PdsClient()` with nothing.
+// A dry run that skips the network cannot catch that, so the identity hops and
+// the client construction happen on BOTH paths; only the writes are skipped.
+let pds = null;
+let service = null;
+if (handle) {
+  const did = await resolveHandle(handle);
+  service = await resolvePds(did);
+  pds = new PdsClient(service);
+  console.log(`\nidentity: ${handle}`);
+  console.log(`  did ${did}`);
+  console.log(`  pds ${service}`);
+}
+
 if (dryRun || !handle || !password) {
-  console.log(dryRun ? '\n--dry-run: not contacting the network.' : '\nNo credentials in the environment; nothing published.');
+  console.log(dryRun ? '\n--dry-run: nothing written.' : '\nNo credentials in the environment; nothing published.');
   console.log(`  would write ${COLLECTION} (${source.length} bytes of source)`);
   console.log(`  would post: ${doPost ? 'yes' : 'no'}`);
   process.exit(0);
 }
 
-const pds = new PdsClient();
 await pds.login(handle, password);
-console.log(`\nsigned in as ${handle} (${pds.did})`);
+console.log(`signed in (${pds.session.did})`);
 
 // ---- create or update, by title ----
 let existing = null;
