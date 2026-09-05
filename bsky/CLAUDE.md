@@ -430,12 +430,63 @@ Four API facts, each of which cost an hour:
   `lib/archive.selftest.mjs` pins that, because understating the count
   understates a spending limit.
 
-**Verified:** `planCost` against the live archive (the table above), the plan
-arithmetic, and both BYO-key guards refusing before any network call.
-**Not verified: `fetchSlug` end to end.** It needs a real Jetstream key and the
-`lib/vendor/` bundle that `deploy-bsky.yml` builds, and this sandbox has
-neither — so the download, the dictionary zstd decode and the budget abort have
-never actually run. That is the largest untested path on this surface.
+### It ran. What a 50 MB slug actually buys
+
+`replay-slug.yml` spends the repo's `JETSTREAM_KEY` on the real archive and runs
+the surface's shipped rule over what comes back. It deliberately supplies the
+**browser** shims — `@bokuweb/zstd-wasm`'s `decompressUsingDict` and
+`lib/sha256.js` — not the SDK's node defaults of `node:zlib`/`node:crypto`,
+because those defaults are exactly what a browser does not have.
+
+Final run, 2026-09-05:
+
+```
+segments read  1 of 40 candidates
+events seen    61,951      58,977 create / 2,957 delete / 17 update
+requests       130
+wire bytes     50.3 MB     7.6 MB/s
+zstd frames    127         49.8 MB in -> 181.7 MB out  (3.6x)
+posts scanned  58,994      in 6.6s   (8,874/s)
+stopped        the 50.0 MB budget
+matched        85 unique   (0.144%)   0.6 MB per match
+```
+
+The matches are real: bioRxiv, sciencedirect, Cambridge, PLOS, MDPI, Wiley,
+Taylor & Francis, Project Gutenberg, bare DOIs. **50 MB of archive is about
+59,000 posts and ~85 papers, parsed in under seven seconds.**
+
+**Four bugs this found in code that had never run.** None of them threw; all
+four failed as silence, which is why nothing short of spending the key would
+have caught them:
+
+1. **`fetchImpl`, not `fetch`.** The SDK ignores an unknown option, so the
+   wrapper never ran — `requests 0` while a 262 MB segment plainly downloaded.
+   In `fetchOlder` that disabled quota reading; in `fetchSlug` it disabled the
+   byte budget the whole function is built around.
+2. **The prefetch buffer must sit under the budget.** `snapshotBufferBytes`
+   defaults to **64 MiB** and is filled *before* the generator yields anything,
+   so a 50 MiB budget aborted mid-prefetch and emitted nothing, every time. Now
+   `budget/8`.
+3. **Snapshot events are NESTED.** `{ did, seq, time, kind, commit: { operation,
+   collection, rkey, rev, cid, record } }` — not the flat payload our own live
+   client emits. Both archive paths read `evt.collection` and silently discarded
+   every event: 16,234 decoded, zero posts. Now via `commitOf()`.
+4. **A whole segment is a ~262 MB ATOMIC download.** A byte budget cannot
+   subdivide one, so a window without a block index just aborts on the first
+   Content-Length. `fetchSlug` now walks **block-indexed segments only**, newest
+   first, one bounded snapshot each, carrying the budget across them — spanning
+   them with one wide seq range would drag in the un-indexed ones between.
+
+It also found two rule bugs the live tail never surfaced: `habilitation`
+matched a French Disney-park post (ordinary French), and the same preprint came
+back twice from two different DIDs — mirror accounts post verbatim, so matches
+are deduped by `at://` URI.
+
+**Still not verified:** any of this *in a browser*. The shims are proven against
+real dictionary-compressed frames and the logic is the same file, but
+`lib/vendor/` is built at deploy time and the sandbox cannot load WASM from a
+page. The remaining risk is `zstd.init()`'s wasm path and IndexedDB write volume
+under a 59,000-post scan, not the protocol.
 
 ### Palettes
 

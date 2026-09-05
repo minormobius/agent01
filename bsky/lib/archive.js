@@ -359,86 +359,120 @@ export async function fetchSlug({
 
   const { decompressor, sha256: hash } = await init();
 
-  // Enforced here rather than by counting decoded events: this is the only
-  // place that sees actual wire bytes.
-  const budget = new AbortController();
-  const onAbort = () => budget.abort();
-  signal?.addEventListener('abort', onAbort, { once: true });
+  /**
+   * Walk BLOCK-INDEXED segments, newest first.
+   *
+   * Verified against the live archive (replay-slug.yml, 2026-09-05): 50.3 MB
+   * bought 130 block requests, 127 zstd frames (49.8 -> 181.7 MB), 58,994 posts
+   * scanned in 6.6s, 85 matches. What makes that possible is only touching
+   * segments the planner can serve as BLOCKS.
+   *
+   * A `segment`-mode entry is a ~262 MB ATOMIC download — a byte budget cannot
+   * subdivide it, so a 50 MB cap simply aborts once Content-Length arrives and
+   * nothing decodes at all (measured: 262 MB counted, 0 frames, 0 events). And
+   * one wide afterSeq/beforeSeq spanning several indexed segments drags in the
+   * un-indexed ones between them. So each indexed segment gets its own bounded
+   * snapshot and the budget is carried across them.
+   */
+  const { segments } = await planCost({ collections, signal });
+  const indexed = segments
+    .filter((seg) => seg.mode === 'blocks' && (seg.blocks || []).length)
+    .filter((seg) => (beforeSeq ? seg.maxSeq < beforeSeq : true) && seg.maxSeq > afterSeq)
+    .sort((a, b) => b.maxSeq - a.maxSeq);
+
+  if (!indexed.length) {
+    return { scanned: 0, matched: 0, bytes: 0, oldestSeq: null,
+             stopped: 'no block-indexed segment left in this range' };
+  }
 
   let bytes = 0;
-  let overBudget = false;
-
-  const jetstream = new Jetstream({
-    service: SERVICE,
-    apiKey,
-    decompressor,
-    sha256: hash,
-    // The SDK prefetches `snapshotBufferBytes` (default **64 MiB**) before it
-    // yields a single event. A budget smaller than that aborts DURING the
-    // prefetch and the generator emits nothing at all — measured: 32 block
-    // requests, 12.3 MB downloaded, 27 frames decoded, zero events. So the
-    // buffer must sit well under the budget, or the budget is a guarantee of
-    // getting nothing rather than a spending cap.
-    snapshotBufferBytes: Math.max(1 << 20, Math.floor(budgetBytes / 8)),
-    blockConcurrency: 2,
-    // `fetchImpl`, not `fetch` — see the note in fetchOlder. Getting this wrong
-    // does not throw; it silently disables the byte budget this whole function
-    // is built around, which is the worst possible failure for a spending cap.
-    fetchImpl: async (input, opts) => {
-      const res = await fetch(input, opts);
-      try { readQuota(res); } catch { /* advisory */ }
-      const len = Number(res.headers.get('content-length') || 0);
-      if (len) {
-        bytes += len;
-        if (bytes >= budgetBytes && !overBudget) { overBudget = true; budget.abort(); }
-      }
-      return res;
-    },
-  });
-
   let scanned = 0;
   let matched = 0;
   let oldestSeq = null;
-  let stopped = 'reached the end of the window';
+  let stopped = 'ran out of block-indexed segments';
+  const seen = new Set();
 
-  try {
-    for await (const evt of jetstream.snapshot({
-      collections, kinds: ['commit'], afterSeq,
-      ...(beforeSeq ? { beforeSeq } : {}),
-      signal: budget.signal,
-    })) {
-      const c = commitOf(evt);
-      if (!c || c.collection !== 'app.bsky.feed.post') continue;
-      if (c.operation === 'delete') continue;
-      const record = c.record;
-      if (!record || typeof record.text !== 'string') continue;
+  for (const seg of indexed) {
+    if (bytes >= budgetBytes) { stopped = `stopped at the ${(budgetBytes / 1048576).toFixed(0)} MB budget`; break; }
+    if (signal?.aborted) { stopped = 'cancelled'; break; }
 
-      scanned++;
-      if (oldestSeq == null || evt.seq < oldestSeq) oldestSeq = evt.seq;
+    const budget = new AbortController();
+    const onAbort = () => budget.abort();
+    signal?.addEventListener('abort', onAbort, { once: true });
+    let overBudget = false;
 
-      const hits = match(record);
-      if (hits.length) {
+    const jetstream = new Jetstream({
+      service: SERVICE,
+      apiKey,
+      decompressor,
+      sha256: hash,
+      // The SDK prefetches this much BEFORE yielding a single event. A buffer
+      // larger than the budget means the abort lands mid-prefetch and nothing
+      // is ever emitted — measured: 12.3 MB downloaded, 27 frames decoded,
+      // zero events. A spending cap that guarantees you get nothing for your
+      // money is worse than no cap.
+      snapshotBufferBytes: Math.max(1 << 20, Math.floor(budgetBytes / 8)),
+      blockConcurrency: 2,
+      // `fetchImpl`, NOT `fetch`. An unknown option is ignored silently, so the
+      // wrapper never runs and the byte budget below simply does not exist.
+      fetchImpl: async (input, opts) => {
+        const res = await fetch(input, opts);
+        try { readQuota(res); } catch { /* advisory */ }
+        const len = Number(res.headers.get('content-length') || 0);
+        if (len) {
+          bytes += len;
+          if (bytes >= budgetBytes && !overBudget) { overBudget = true; budget.abort(); }
+        }
+        return res;
+      },
+    });
+
+    try {
+      for await (const evt of jetstream.snapshot({
+        collections, kinds: ['commit'],
+        afterSeq: Math.max(afterSeq, seg.minSeq - 1),
+        beforeSeq: seg.maxSeq,
+        signal: budget.signal,
+      })) {
+        const c = commitOf(evt);
+        if (!c || c.collection !== 'app.bsky.feed.post') continue;
+        if (c.operation === 'delete') continue;
+        const record = c.record;
+        if (!record || typeof record.text !== 'string') continue;
+
+        scanned++;
+        if (oldestSeq == null || evt.seq < oldestSeq) oldestSeq = evt.seq;
+
+        const hits = match(record);
+        if (!hits.length) {
+          if (scanned % 2000 === 0) onProgress?.({ scanned, matched, bytes });
+          continue;
+        }
+        // Dedup by at:// URI: delivery is at-least-once, and mirror accounts
+        // post the same paper verbatim — a live run returned the same bioRxiv
+        // preprint twice from two different DIDs.
+        const uri = `at://${evt.did}/${c.collection}/${c.rkey}`;
+        if (seen.has(uri)) continue;
+        seen.add(uri);
         matched++;
         onMatch({
-          // The cid is carried because a like or repost of this post needs it —
-          // dropping it silently breaks those buttons. See lib/actions.js.
-          uri: `at://${evt.did}/${c.collection}/${c.rkey}`,
-          did: evt.did, rkey: c.rkey, cid: c.cid, seq: evt.seq,
+          // The cid is carried because liking or reposting a replayed post
+          // needs it — dropping it silently breaks those buttons.
+          uri, did: evt.did, rkey: c.rkey, cid: c.cid, seq: evt.seq,
           createdAt: record.createdAt || new Date().toISOString(),
           record, hits,
         }, hits);
+        if (scanned % 2000 === 0) onProgress?.({ scanned, matched, bytes });
       }
-      // Progress reports SCANNED, not matched: a selective rule can go a long
-      // way between keepers, and a still progress line reads as a hang.
-      if (scanned % 2000 === 0) onProgress?.({ scanned, matched, bytes });
+    } catch (err) {
+      if (overBudget) { stopped = `stopped at the ${(budgetBytes / 1048576).toFixed(0)} MB budget`; break; }
+      if (signal?.aborted) { stopped = 'cancelled'; break; }
+      if (quota.retryAfter) { stopped = `rate limited — retry in ${quota.retryAfter}s`; break; }
+      // One bad segment is not a failed slug.
+      stopped = `segment ${seg.name}: ${err?.message || err}`;
+    } finally {
+      signal?.removeEventListener('abort', onAbort);
     }
-  } catch (err) {
-    if (overBudget) stopped = `stopped at the ${(budgetBytes / 1048576).toFixed(0)} MB budget`;
-    else if (signal?.aborted) stopped = 'cancelled';
-    else if (quota.retryAfter) stopped = `rate limited — retry in ${quota.retryAfter}s`;
-    else throw err;
-  } finally {
-    signal?.removeEventListener('abort', onAbort);
   }
 
   onProgress?.({ scanned, matched, bytes });
