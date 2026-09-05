@@ -510,9 +510,12 @@ function openRuleEditor(id) {
     </div>
     <div class="sheetbody">
       <p class="rulehelp">One directive per line.<br>
-        <code>preprint</code> a term · <code>"new paper"</code> an exact phrase ·
+        <code>preprint</code> a term · <code>vaccin*</code> a prefix (also matches
+        vaccines, vaccination) · <code>"new paper"</code> an exact phrase ·
         <code>@arxiv.org</code> a link domain · <code>#openscience</code> a hashtag ·
-        <code>-crypto</code> excludes · <code>doi</code> matches any DOI.</p>
+        <code>-trump</code> excludes a term · <code>-@politico.com</code> excludes an
+        outlet · <code>doi</code> matches any DOI.<br>
+        Exclusions win over everything, and they read links as well as text.</p>
       <textarea id="ruletext" spellcheck="false" autocapitalize="off">${esc(rulefeed.toText(rule))}</textarea>
     </div>
     <div class="sheetfoot">

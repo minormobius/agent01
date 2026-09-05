@@ -1,0 +1,37 @@
+name: measure-firehose
+
+# What a rule feed actually costs, measured on a machine that can open a
+# WebSocket. The dev sandbox's proxy refuses the upgrade (non-101), so the
+# posts/s and KB/s a reader sees in bsky.mino.mobi's rule-feed meter have never
+# been observed anywhere else. This observes them.
+#
+# Unauthenticated by design: the Jetstream live tail needs no key, so this
+# workflow touches no secret and writes nothing. Dispatch only — it is a
+# measurement, not part of any deploy.
+
+on:
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: 'How long to sample the firehose'
+        default: '60'
+      collections:
+        description: 'Comma-separated collections to subscribe'
+        default: 'app.bsky.feed.post'
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Sample the firehose and run the shipped rule over it
+        env:
+          SECONDS_TO_SAMPLE: ${{ inputs.seconds }}
+          COLLECTIONS: ${{ inputs.collections }}
+        run: node .github/scripts/measure-firehose.mjs

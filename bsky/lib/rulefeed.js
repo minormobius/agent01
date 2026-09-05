@@ -38,6 +38,7 @@ const LS_KEY = 'bsky:rulefeeds';
  * @property {string[]} [any]     terms; a "quoted string" is an exact phrase
  * @property {string[]} [all]     terms that must ALL appear
  * @property {string[]} [none]    terms that veto a post
+ * @property {string[]} [noneDomains] link hosts that veto a post
  * @property {string[]} [domains] link hosts, matched on facets and embeds too
  * @property {string[]} [tags]    hashtags, without the #
  * @property {boolean}  [doi]     match a DOI (10.xxxx/…) anywhere
@@ -62,28 +63,101 @@ const LS_KEY = 'bsky:rulefeeds';
 export const PRESETS = [
   {
     id: 'preprint',
-    label: '🔬 preprints',
-    note: 'Rebuilt from the description of chase-the-preprint. Edit it.',
+    label: '🔬 knowledge chase',
+    note: 'Broad academic net, narrowed by what it excludes. Edit it.',
+
+    // BROAD on purpose. The feed is a knowledge chase across the whole
+    // spectrum — sciences, humanities, social science, maths — so the additive
+    // half casts wide and the SUBTRACTIVE half below does the real work.
     any: [
       'preprint', 'pre-print', 'arxiv', 'biorxiv', 'medrxiv', 'chemrxiv',
-      'psyarxiv', 'socarxiv', 'osf', 'ssrn', 'peer review', 'peer-reviewed',
-      '"new paper"', '"our paper"', '"our new paper"', '"just published"',
-      '"now out in"', '"out now in"', '"paper is out"', '"accepted at"',
-      '"accepted in"', '"published in"', 'replication', 'methodology',
-      'dataset', 'reproducible',
+      'psyarxiv', 'socarxiv', 'engrxiv', 'ssrn', 'osf', 'zenodo', 'jstor',
+      'peer review', 'peer-reviewed', 'replicat*', 'reproducib*',
+      'methodolog*', 'dataset', 'corpus', 'monograph', 'dissertation',
+      'thesis', 'habilitation', 'fieldwork', 'ethnograph*', 'archaeolog*',
+      'palaeo*', 'paleo*', 'philolog*', 'historiograph*', 'manuscript',
+      'lemma', 'theorem', 'conjecture', 'proof of', 'ablation',
+      '"new paper"', '"our paper"', '"our new paper"', '"the paper"',
+      '"just published"', '"now out in"', '"out now in"', '"paper is out"',
+      '"accepted at"', '"accepted in"', '"published in"', '"appears in"',
+      '"in press"', '"open access"', '"first author"', '"co-author"',
+      '"my talk"', '"our study"', '"this study"', '"we find that"',
+      '"we show that"', '"we present"', '"the authors"', '"et al"',
+      'citation', 'bibliograph*', 'literature review', 'meta-analysis',
     ],
     domains: [
+      // preprint servers and indexes
       'arxiv.org', 'biorxiv.org', 'medrxiv.org', 'chemrxiv.org',
-      'psyarxiv.com', 'osf.io', 'ssrn.com', 'doi.org', 'nature.com',
-      'science.org', 'pnas.org', 'cell.com', 'plos.org', 'elifesciences.org',
-      'pubmed.ncbi.nlm.nih.gov', 'ncbi.nlm.nih.gov', 'springer.com',
-      'wiley.com', 'tandfonline.com', 'sciencedirect.com', 'jstor.org',
-      'academic.oup.com', 'frontiersin.org', 'mdpi.com', 'researchgate.net',
-      'semanticscholar.org', 'openalex.org', 'zenodo.org',
+      'psyarxiv.com', 'osf.io', 'ssrn.com', 'zenodo.org', 'doi.org',
+      'semanticscholar.org', 'openalex.org', 'europepmc.org', 'hal.science',
+      'philpapers.org', 'researchsquare.com', 'authorea.com',
+      // publishers and journals, across disciplines
+      'nature.com', 'science.org', 'pnas.org', 'cell.com', 'plos.org',
+      'elifesciences.org', 'springer.com', 'link.springer.com', 'wiley.com',
+      'onlinelibrary.wiley.com', 'tandfonline.com', 'sciencedirect.com',
+      'academic.oup.com', 'cambridge.org', 'jstor.org', 'degruyter.com',
+      'sagepub.com', 'journals.uchicago.edu', 'mitpressjournals.org',
+      'frontiersin.org', 'mdpi.com', 'iopscience.iop.org', 'aps.org',
+      'ams.org', 'siam.org', 'acm.org', 'dl.acm.org', 'ieee.org',
+      'annualreviews.org', 'royalsocietypublishing.org', 'aeaweb.org',
+      'nber.org', 'brookings.edu',
+      // repositories and archives
+      'hathitrust.org', 'archive.org', 'gutenberg.org', 'perseus.tufts.edu',
+      'openlibrary.org', 'dspace.mit.edu', 'escholarship.org',
     ],
-    tags: ['preprint', 'openaccess', 'academicsky', 'sciencesky', 'openscience'],
+    tags: [
+      'preprint', 'openaccess', 'openscience', 'academicsky', 'sciencesky',
+      'histsky', 'philsky', 'mathsky', 'econsky', 'archaeology', 'linguistics',
+      'phdlife', 'academicchatter',
+    ],
     doi: true,
-    none: ['crypto', 'nft', 'onlyfans'],
+
+    /**
+     * The subtractive half, and the point of the whole rule.
+     *
+     * Two topics dominate academic posting on this network to the point of
+     * crowding out everything else, so they come out — not because they are
+     * unimportant, but because a discovery feed that is 80% one subject has
+     * stopped discovering. Vetoes beat every match, and they now also fire on
+     * a post's LINKS, so an outlet gives a post away even when its wording
+     * does not.
+     *
+     * Known collateral, listed rather than hidden: `israel` also removes
+     * Israeli institutions; `vaccin*` removes legitimate immunology;
+     * `epidemiolog*` removes methods work that happens to be epidemiological;
+     * `climate` is NOT excluded, on the judgement that it reads as science
+     * here more often than as politics. Trim to taste — this is one line in
+     * the editor.
+     */
+    none: [
+      // politics
+      'trump', 'biden', 'harris', 'obama', 'vance', 'musk', 'maga',
+      'republican*', 'democrat*', 'gop', 'senat*', 'congress*', 'election*',
+      'ballot', 'voter*', 'filibuster', 'scotus', '"supreme court"',
+      'impeach*', 'tariff*', 'fascis*', 'authoritarian*', 'autocra*',
+      'oligarch*', 'nazi*', 'genocide', 'apartheid', 'zionis*', 'palestin*',
+      'israel*', 'gaza', 'hamas', 'hezbollah', 'idf', 'ukrain*', 'putin',
+      'kremlin', 'immigration', 'deportation', '"executive order"',
+      'parliament*', 'brexit', '"far right"', '"far-right"', '"culture war"',
+      'partisan', 'lawmaker*', 'legislat*', 'campaign trail', 'primaries',
+      // global health
+      'covid*', 'sars-cov-2', 'coronavirus', 'pandemic*', 'epidemic*',
+      '"public health"', 'vaccin*', 'antivax', '"anti-vax"', 'measles',
+      'polio', 'mpox', 'monkeypox', '"bird flu"', 'h5n1', 'influenza',
+      '"long covid"', 'masking', '"herd immunity"', 'rfk', 'cdc',
+      '"world health organization"', 'outbreak*', 'quarantine', 'lockdown*',
+      'epidemiolog*', 'antimicrobial resistance', 'biosecurity',
+    ],
+    /** An outlet gives a post away when the wording does not. */
+    noneDomains: [
+      'politico.com', 'thehill.com', 'axios.com', 'nytimes.com',
+      'washingtonpost.com', 'cnn.com', 'foxnews.com', 'msnbc.com',
+      'theguardian.com', 'bbc.co.uk', 'bbc.com', 'reuters.com', 'apnews.com',
+      'nbcnews.com', 'abcnews.go.com', 'cbsnews.com', 'newsweek.com',
+      'thedailybeast.com', 'huffpost.com', 'breitbart.com', 'dailywire.com',
+      'motherjones.com', 'jacobin.com', 'nationalreview.com', 'vox.com',
+      'cdc.gov', 'who.int', 'nih.gov', 'fda.gov',
+    ],
     minChars: 24,
   },
 ];
@@ -101,12 +175,22 @@ const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 function termRegex(term) {
   const t = String(term).trim();
   const phrase = /^".*"$/.test(t);
-  const body = phrase ? t.slice(1, -1) : t;
+  let body = phrase ? t.slice(1, -1) : t;
   if (!body) return null;
+
+  // A trailing `*` is a PREFIX match, and it is not a convenience — without it
+  // a term list is quietly wrong. `vaccine` carries a word boundary, so it does
+  // NOT match `vaccines`; `epidemiolog` does not match `epidemiology`. An
+  // exclusion list written the obvious way therefore leaks most of what it was
+  // meant to remove. `vaccin*` and `epidemiolog*` say what was meant.
+  const prefix = !phrase && body.endsWith('*');
+  if (prefix) body = body.slice(0, -1);
+  if (!body) return null;
+
   // \b only works next to a word character; a term like "10." or "#tag" would
   // otherwise never match. Apply the boundary only where it can mean something.
   const lead = /^\w/.test(body) ? '\\b' : '';
-  const tail = /\w$/.test(body) ? '\\b' : '';
+  const tail = prefix ? '' : (/\w$/.test(body) ? '\\b' : '');
   return new RegExp(lead + esc(body).replace(/\s+/g, '\\s+') + tail, 'i');
 }
 
@@ -154,6 +238,7 @@ export function compile(rule) {
   const any = (rule.any || []).map(termRegex).filter(Boolean);
   const all = (rule.all || []).map(termRegex).filter(Boolean);
   const none = (rule.none || []).map(termRegex).filter(Boolean);
+  const noneDomains = (rule.noneDomains || []).map((d) => String(d).toLowerCase().replace(/^www\./, ''));
   const domains = (rule.domains || []).map((d) => String(d).toLowerCase().replace(/^www\./, ''));
   const tags = (rule.tags || []).map((t) => String(t).replace(/^#/, '').toLowerCase());
   const langs = rule.langs?.length ? rule.langs.map((l) => l.toLowerCase()) : null;
@@ -165,6 +250,17 @@ export function compile(rule) {
 
     // Vetoes first — cheapest way to reject, and a veto beats every match.
     for (const re of none) if (re.test(text)) return [];
+
+    // A veto also has to see LINKS. On a subtractive feed the giveaway is
+    // usually the outlet, not the wording: a post whose text is "important new
+    // findings" linking to a politics site is exactly what the exclusion is
+    // for, and no term list catches it.
+    if (noneDomains.length) {
+      for (const url of linksOf(record)) {
+        const h = hostOf(url);
+        if (h && noneDomains.some((d) => h === d || h.endsWith(`.${d}`))) return [];
+      }
+    }
 
     if (langs) {
       const has = (record?.langs || []).some((l) => langs.includes(String(l).toLowerCase().split('-')[0]));
@@ -250,18 +346,20 @@ export function toText(rule) {
   for (const d of rule.domains || []) lines.push(`@${d}`);
   for (const t of rule.tags || []) lines.push(`#${t}`);
   for (const n of rule.none || []) lines.push(`-${n}`);
+  for (const d of rule.noneDomains || []) lines.push(`-@${d}`);
   if (rule.doi) lines.push('doi');
   return lines.join('\n');
 }
 
 export function fromText(text, base = {}) {
-  const out = { ...base, any: [], domains: [], tags: [], none: [], doi: false };
+  const out = { ...base, any: [], domains: [], tags: [], none: [], noneDomains: [], doi: false };
   for (const raw of String(text).split('\n')) {
     const line = raw.trim();
     if (!line || line.startsWith('//')) continue;
     if (line === 'doi') { out.doi = true; continue; }
     if (line.startsWith('@')) { out.domains.push(line.slice(1).toLowerCase()); continue; }
     if (line.startsWith('#')) { out.tags.push(line.slice(1).toLowerCase()); continue; }
+    if (line.startsWith('-@')) { out.noneDomains.push(line.slice(2).toLowerCase()); continue; }
     if (line.startsWith('-')) { out.none.push(line.slice(1)); continue; }
     out.any.push(line);
   }

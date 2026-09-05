@@ -39,6 +39,37 @@ console.log('\nphrases');
   check('phrase is bounded: "renew paper"',    m.test(post('renew paper subscription')), false);
 }
 
+console.log('\nprefix terms — without these an exclusion list leaks');
+{
+  const m = compile({ any: ['vaccin*', 'epidemiolog*'] });
+  check('vaccin* -> vaccine',      m.test(post('a vaccine study')), true);
+  check('vaccin* -> vaccines',     m.test(post('about vaccines')), true);
+  check('vaccin* -> vaccination',  m.test(post('vaccination rates')), true);
+  check('epidemiolog* -> epidemiology',   m.test(post('epidemiology of it')), true);
+  check('epidemiolog* -> epidemiological', m.test(post('epidemiological data')), true);
+  check('prefix is still left-bounded', m.test(post('revaccination')), false);
+  check('vaccin* does NOT match vacuum', m.test(post('a vacuum chamber')), false);
+
+  const plain = compile({ any: ['vaccine'] });
+  check('THE GAP: plain "vaccine" misses "vaccines"', plain.test(post('about vaccines')), false);
+
+  check('a "quoted*" phrase keeps its star literal',
+    compile({ any: ['"star *"'] }).test(post('a star * here')), true);
+}
+
+console.log('\nnegative domains — an outlet gives a post away');
+{
+  const m = compile({ any: ['study'], noneDomains: ['politico.com', 'cdc.gov'] });
+  check('clean link passes', m.test(post('a study here', link('https://nature.com/x'))), true);
+  check('vetoed outlet blocks', m.test(post('a study here', link('https://politico.com/x'))), false);
+  check('subdomain of a vetoed outlet blocks',
+    m.test(post('a study here', link('https://www.cdc.gov/x'))), false);
+  check('lookalike outlet does NOT block',
+    m.test(post('a study here', link('https://notpolitico.com/x'))), true);
+  check('vetoed outlet in a raw url blocks',
+    m.test(post('read https://politico.com/abc for a study')), false);
+}
+
 console.log('\nlink domains — facets, embeds, and raw text');
 {
   const m = compile({ domains: ['arxiv.org', 'doi.org'] });
@@ -119,27 +150,45 @@ console.log('\nthe editable text form round-trips');
     fromText('// note\n\npreprint\n').any, ['preprint']);
 }
 
-console.log('\nthe shipped preset behaves');
+console.log('\nthe shipped preset — broad net, subtractive edge');
 {
   const m = compile(PRESETS[0]);
-  const yes = [
-    post('Our new paper is out in Nature today, very proud', link('https://nature.com/articles/x')),
-    post('preprint up on bioRxiv, comments welcome — it is about mitochondria'),
-    post('This dataset is finally reproducible, methodology written up properly'),
-    post('long enough text about a study here', link('https://doi.org/10.1101/2024.01.01.1')),
+
+  const keep = [
+    ['nature paper',   post('Our new paper is out in Nature today, years of work', link('https://nature.com/articles/x'))],
+    ['biorxiv',        post('preprint up on bioRxiv this morning, comments welcome')],
+    ['methods',        post('the dataset is finally reproducible and the methodology written up')],
+    ['doi link',       post('long enough text about a study here', link('https://doi.org/10.1101/2024.01.01.1'))],
+    ['humanities',     post('New monograph on medieval philology, out with Cambridge now', link('https://cambridge.org/x'))],
+    ['archaeology',    post('Our fieldwork season produced a remarkable archaeological sequence')],
+    ['maths',          post('A short proof of the conjecture, now up on arXiv for comment')],
+    ['economics',      post('New NBER working paper on labour supply elasticities', link('https://nber.org/p/1'))],
   ];
-  const no = [
-    post('new paper towels arrived'),                 // "new paper" IS a phrase hit
-    post('gm'),                                        // too short
-    post('preprint of my crypto whitepaper is up now, big things'),  // vetoed
-    post('just published my sourdough recipe blog'),   // "just published" IS a hit
+  for (const [name, p] of keep) check(`keeps ${name}`, m.test(p), true);
+
+  const drop = [
+    ['politics term',  post('New paper on how the election was decided in three states')],
+    ['scotus',         post('Our study of SCOTUS decisions is published in a law review now')],
+    ['gaza',           post('New preprint on casualty estimates in Gaza, methodology inside')],
+    ['covid',          post('Our new paper on long covid transmission is out in Nature today')],
+    ['vaccine plural', post('The vaccines paper we wrote is finally published, open access')],
+    ['epidemiology',   post('New epidemiological study just published, dataset attached')],
+    ['public health',  post('This public health preprint has a lovely reproducible pipeline')],
+    ['news outlet',    post('Our new paper got written up, worth a read', link('https://politico.com/x'))],
+    ['cdc link',       post('New dataset published this week, quite thorough', link('https://cdc.gov/data'))],
   ];
-  yes.forEach((p, i) => check(`matches sample ${i + 1}`, m.test(p), true));
-  check('too-short post rejected', m.test(no[1]), false);
-  check('crypto veto works', m.test(no[2]), false);
-  // Honest about the false positives a keyword rule WILL have:
-  console.log(`     note: "${no[0].text}" -> ${m.test(no[0]) ? 'MATCHES (a known false positive)' : 'no match'}`);
-  console.log(`     note: "${no[3].text}" -> ${m.test(no[3]) ? 'MATCHES (a known false positive)' : 'no match'}`);
+  for (const [name, p] of drop) check(`drops ${name}`, m.test(p), false);
+
+  // Honest about what a keyword rule cannot do:
+  const fp = [
+    post('new paper towels arrived and they are great, very absorbent stuff'),
+    post('just published my sourdough recipe blog after months of testing it'),
+  ];
+  for (const p of fp) {
+    console.log(`     known false positive: "${p.text.slice(0, 44)}…" -> ${m.test(p) ? 'MATCHES' : 'no match'}`);
+  }
+  console.log(`     terms=${PRESETS[0].any.length} domains=${PRESETS[0].domains.length} `
+    + `vetoes=${PRESETS[0].none.length} veto-domains=${PRESETS[0].noneDomains.length}`);
 }
 
 if (failed) { console.error(`\n${failed} failure(s)`); process.exit(1); }
