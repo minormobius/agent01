@@ -16,6 +16,7 @@ import { LIBRARY, byId, DEFAULT_PIECE } from './library.js';
 import { WHOLE, ticksOf, keyAlterations, clefDef, pitchFromDiatonic, spell } from './model.js';
 import { glyphSVG } from './glyphs.js';
 import { AuthClient } from './auth.js';
+import { listComposers, listPieces, fetchSource, missingIncludes } from './mutopia.js';
 
 const COLLECTION = 'com.minomobi.clef.piece';
 const DRAFT_KEY = 'clef.draft.v1';
@@ -26,7 +27,7 @@ const el = {
   source: $('source'), gutter: $('gutter'), score: $('score'), scroll: $('score-scroll'),
   diagnostics: $('diagnostics'), status: $('src-status'), pieceSelect: $('piece-select'),
   play: $('btn-play'), patch: $('patch'), tempo: $('tempo'), tempoOut: $('tempo-out'),
-  zoom: $('zoom'), follow: $('follow'), palette: $('palette'), main: $('main'),
+  zoom: $('zoom'), follow: $('follow'), grand: $('grand'), palette: $('palette'), main: $('main'),
   sheet: $('sheet'), sheetTitle: $('sheet-title'), sheetBody: $('sheet-body'),
   toast: $('toast'), account: $('btn-account'),
 };
@@ -110,7 +111,9 @@ function render() {
 
   state.score = parsed;
   const sp = Number(el.zoom.value) || 9;
-  const layout = engrave(parsed, { width: scoreWidth(), staffSpace: sp });
+  const layout = engrave(parsed, {
+    width: scoreWidth(), staffSpace: sp, grandStaff: el.grand.checked,
+  });
   state.layout = layout;
 
   el.score.innerHTML = layout.svg;
@@ -830,6 +833,163 @@ function openLibrary() {
   });
 }
 
+/**
+ * The Mutopia explorer.
+ *
+ * Two levels: composers, then that composer's catalogue. Everything is fetched
+ * through this site's own worker (mutopiaproject.org sends no CORS header) and
+ * cached there for an hour, so browsing costs the archive one request per
+ * composer per hour rather than one per visitor.
+ *
+ * Nothing fetched is ever inserted as HTML — every field goes in through
+ * textContent. See the note at the top of mutopia.js.
+ */
+let composerCache = null;
+const pieceCache = new Map();
+
+function openBrowse() {
+  openSheet('The Mutopia Project', (body) => {
+    const intro = document.createElement('p');
+    intro.textContent = 'Around 2,300 public-domain scores kept as LilyPond source — '
+      + 'so they open here as music you can edit, hear and export, not as a picture of music.';
+    body.appendChild(intro);
+
+    const search = document.createElement('input');
+    search.type = 'text';
+    search.className = 'browse-search';
+    search.placeholder = 'Filter composers…';
+    search.setAttribute('aria-label', 'Filter composers');
+    body.appendChild(search);
+
+    const list = document.createElement('div');
+    list.className = 'piece-list browse-list';
+    body.appendChild(list);
+
+    const note = document.createElement('p');
+    note.className = 'browse-note';
+    body.appendChild(note);
+
+    const render = (composers, filter) => {
+      const q = filter.trim().toLowerCase();
+      const shown = q
+        ? composers.filter((c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q))
+        : composers;
+      list.textContent = '';
+      for (const c of shown.slice(0, 400)) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        const n = document.createElement('b');
+        n.textContent = c.name;
+        const sub = document.createElement('span');
+        sub.textContent = c.code;
+        b.append(n, sub);
+        b.addEventListener('click', () => openComposer(c));
+        list.appendChild(b);
+      }
+      note.textContent = shown.length
+        ? `${shown.length} composer${shown.length === 1 ? '' : 's'}`
+        : 'no composer of that name in the archive';
+    };
+
+    const load = async () => {
+      note.textContent = 'reading the archive…';
+      try {
+        composerCache = composerCache || await listComposers();
+        render(composerCache, search.value);
+      } catch (err) {
+        note.textContent = `could not reach the archive: ${err.message}`;
+      }
+    };
+    search.addEventListener('input', () => composerCache && render(composerCache, search.value));
+    load();
+  });
+}
+
+function openComposer(composer) {
+  openSheet(composer.name, (body) => {
+    const back = document.createElement('button');
+    back.type = 'button';
+    back.className = 'btn btn-quiet browse-back';
+    back.textContent = '‹ all composers';
+    back.addEventListener('click', openBrowse);
+    body.appendChild(back);
+
+    const list = document.createElement('div');
+    list.className = 'piece-list browse-list';
+    body.appendChild(list);
+    const note = document.createElement('p');
+    note.className = 'browse-note';
+    note.textContent = 'reading the catalogue…';
+    body.appendChild(note);
+
+    (async () => {
+      let pieces;
+      try {
+        pieces = pieceCache.get(composer.code) || await listPieces(composer.code);
+        pieceCache.set(composer.code, pieces);
+      } catch (err) {
+        note.textContent = `could not read the catalogue: ${err.message}`;
+        return;
+      }
+      const openable = pieces.filter((p) => p.lyPath);
+      list.textContent = '';
+      for (const piece of pieces) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        const n = document.createElement('b');
+        n.textContent = piece.title;
+        const sub = document.createElement('span');
+        // Only the facts the archive gave us, joined — a missing field just
+        // drops out rather than showing as "undefined".
+        sub.textContent = [piece.instrument, piece.style, piece.opus, piece.licence]
+          .filter(Boolean).join(' · ');
+        b.append(n, sub);
+        if (piece.lyPath) {
+          b.addEventListener('click', () => openMutopiaPiece(piece));
+        } else {
+          b.disabled = true;
+          b.title = piece.multiFile
+            ? 'this score is published as a zip of separate part files, which clef cannot unpack'
+            : 'no LilyPond source published for this one';
+          const why = document.createElement('span');
+          why.className = 'browse-why';
+          why.textContent = piece.multiFile ? 'multi-file' : 'no source';
+          b.appendChild(why);
+        }
+        list.appendChild(b);
+      }
+      note.textContent = pieces.length
+        ? `${openable.length} of ${pieces.length} open here`
+        : 'nothing catalogued for this composer';
+    })();
+  });
+}
+
+async function openMutopiaPiece(piece) {
+  closeSheet();
+  toast(`fetching “${piece.title}”…`, 30000);
+  try {
+    const source = await fetchSource(piece.lyPath);
+    loadPiece({ id: null, title: piece.title, source }, { push: false });
+    const missing = missingIncludes(source);
+    // Say it out loud. A piece that pulls its parts from sibling files will
+    // render as whatever happened to be in the one file we fetched, and silence
+    // about that is indistinguishable from the piece simply being short.
+    if (missing.length) {
+      toast(`opened, but this score includes ${missing.join(', ')} — that music is not here`, 8000);
+    } else {
+      // Report the licence the ARCHIVE gave for this piece. Much of Mutopia is
+      // public domain and a good deal of it is Creative Commons; saying "public
+      // domain" over a CC BY-SA edition is a false statement about someone
+      // else's terms, and the archive already told us the right answer.
+      const terms = piece.licence ? `${piece.licence}` : 'see the Mutopia entry for terms';
+      toast(`opened “${piece.title}” — ${terms}, via the Mutopia Project`, 6000);
+    }
+  } catch (err) {
+    toast(`could not open that piece: ${err.message}`);
+  }
+}
+
 function openAbout() {
   openSheet('About clef', (body) => {
     body.innerHTML = `
@@ -842,9 +1002,24 @@ function openAbout() {
       neither its program nor its author. Plain text does not have that problem:
       you can diff it, email it, keep it in git, and read it in fifty years.</p>
 
+      <h3>Where the music comes from</h3>
+      <p><b>Browse</b> opens the <b>Mutopia Project</b> — around 2,300 scores kept
+      as LilyPond source rather than as page images, which is why they open here
+      as music you can edit, hear and export rather than as a picture. Each
+      piece carries its own licence; most are public domain, some are Creative
+      Commons, and clef shows you which when it opens one.</p>
+
+      <p style="color:var(--ink-faint);font-size:12px">To be clear about the
+      thing itself: LilyPond is a <b>program</b>, not a network. It has no API,
+      no accounts and no records to browse. What exists is the corpus written in
+      its language, and Mutopia is the largest free one.</p>
+
       <h3>What it reads</h3>
       <dl>
         <dt>pitches</dt><dd><code>c d e fis bes</code>, octaves with <code>'</code> and <code>,</code>, and <code>\\relative</code> / <code>\\fixed</code> / absolute modes</dd>
+        <dt>alphabets</dt><dd>Dutch (the default), plus <code>\\language "english"</code> and <code>"deutsch"</code>. An alphabet it cannot read is refused rather than guessed at</dd>
+        <dt>transposition</dt><dd><code>\\transpose c c''</code>, applied to notes and to the key signature</dd>
+        <dt>ornaments</dt><dd><code>\\grace</code>, <code>\\appoggiatura</code>, <code>\\acciaccatura</code> — drawn small, taking no time from the bar</dd>
         <dt>rhythm</dt><dd><code>1 2 4 8 16 32</code>, dots, <code>\\tuplet 3/2</code>, ties <code>~</code></dd>
         <dt>structure</dt><dd><code>\\clef \\key \\time \\partial \\tempo \\repeat volta \\bar</code>, bar checks with <code>|</code></dd>
         <dt>polyphony</dt><dd>chords <code>&lt;c e g&gt;</code>, voices <code>&lt;&lt; … \\\\ … &gt;&gt;</code>, several staves, <code>\\new PianoStaff</code></dd>
@@ -852,10 +1027,22 @@ function openAbout() {
       </dl>
 
       <h3>What it does not</h3>
-      <p>Grace notes, lyrics, layout overrides and <code>\\transpose</code> are read
-      and reported rather than engraved — they will show up as a note in the
-      panel under the source instead of silently vanishing. Repeat playback
-      ignores <code>\\alternative</code> endings and plays straight through.</p>
+      <p>Lyrics and layout overrides (<code>\\override</code>, <code>\\set</code>,
+      <code>\\tweak</code>) are read and discarded — that is the part of LilyPond
+      this is not. Cross-staff beaming, hairpins and voice-collision resolution
+      are not drawn. Repeat playback ignores <code>\\alternative</code> endings
+      and plays straight through.</p>
+      <p>On a complicated score from the archive you may see bar checks fail in
+      the panel under the source. That is the file's <code>|</code> marks
+      disagreeing with what this reader made of the bar, and it is reported
+      rather than hidden — an engraving that quietly disagrees with its source
+      is worse than one that says so.</p>
+
+      <h3>The empty staff</h3>
+      <p>A one-staff score is drawn on a grand staff, with an empty partner
+      below, because that is what piano paper looks like whether or not the left
+      hand is playing. For a single-line instrument — a song, a flute part —
+      turn <b>grand staff</b> off in the bar above the score.</p>
 
       <h3>Keys</h3>
       <dl>
@@ -913,6 +1100,12 @@ function wire() {
     else loadPiece(byId(v));
   });
 
+  el.grand.addEventListener('change', () => {
+    savePrefs({ grand: el.grand.checked });
+    scheduleRender(true);
+  });
+
+  $('btn-browse').addEventListener('click', openBrowse);
   $('btn-new').addEventListener('click', openLibrary);
   $('btn-export').addEventListener('click', openExport);
   $('btn-about').addEventListener('click', openAbout);
@@ -992,7 +1185,9 @@ function wire() {
   window.addEventListener('beforeprint', () => {
     // Print at page width rather than at whatever the pane happened to be.
     if (state.score) {
-      state.layout = engrave(state.score, { width: 1000, staffSpace: 8.5 });
+      state.layout = engrave(state.score, {
+        width: 1000, staffSpace: 8.5, grandStaff: el.grand.checked,
+      });
       el.score.innerHTML = state.layout.svg;
       el.score.style.width = `${state.layout.width}px`;
     }
@@ -1021,6 +1216,7 @@ function boot() {
   // A phone gets a smaller staff by default: at the desktop size a 400px page
   // fits two bars to a system, which is a scroll rather than a score. The
   // slider still wins once the reader has touched it.
+  if (prefs.grand === false) el.grand.checked = false;
   if (prefs.zoom) el.zoom.value = prefs.zoom;
   else if (window.matchMedia('(max-width: 560px)').matches) el.zoom.value = '7';
   player.patch = PATCHES[el.patch.value] ?? PATCHES.piano;

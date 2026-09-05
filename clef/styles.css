@@ -497,6 +497,41 @@ body {
 .piece-list b { display: block; font-weight: 600; }
 .piece-list span { color: var(--ink-faint); font-size: 12px; }
 
+.browse-search {
+  font: inherit;
+  font-size: 13px;
+  width: 100%;
+  color: var(--ink);
+  background: var(--paper-edge);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 7px 10px;
+  margin-bottom: 10px;
+}
+.browse-list { max-height: 46vh; overflow: auto; }
+.browse-list button { display: flex; align-items: baseline; gap: 8px; width: 100%; }
+.browse-list button b { flex: none; }
+.browse-list button span { flex: 1; }
+.browse-list button[disabled] { opacity: 0.45; cursor: default; }
+.browse-list button[disabled]:hover { background: none; }
+.browse-why {
+  flex: none !important;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 0 7px;
+}
+.browse-note {
+  margin: 10px 0 0 !important;
+  font-size: 12px;
+  color: var(--ink-faint) !important;
+}
+.browse-back { margin-bottom: 8px; padding-left: 4px; }
+.cf-grace { opacity: 0.92; }
+.cf-graceslash { stroke: currentColor; }
+
 .toast {
   position: fixed;
   left: 50%;

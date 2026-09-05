@@ -123,10 +123,134 @@ const midiList = (score, staff = 0, voice = 0) =>
   eq(hdr.composer, 'C', 'the composer is read');
   eq(parseLily(`\\tempo 4 = 132 { c4 }`).tempo.bpm, 132, 'the tempo is read');
 
-  // Unsupported input must be REPORTED, never silently dropped.
-  const g = parseLily(`\\relative c' { \\grace d8 c4 }`);
-  ok(g.diagnostics.some((d) => /grace/.test(d.message)), 'grace notes are reported, not swallowed');
   ok(parseLily(LIBRARY[0].source).diagnostics.length === 0, 'valid input produces no diagnostics');
+}
+
+// ------------------------------------------------------- 3b. note languages --
+// A large part of the real LilyPond corpus opens `\include "english.ly"`. Read
+// with the Dutch alphabet, `bf` scans as B followed by F — so a B flat becomes
+// TWO notes, the bar overflows, and everything after it is wrong. Silent,
+// plausible, wrong: the exact failure this suite exists to catch.
+{
+  const midiOfSrc = (src) => midiList(parseLily(src));
+  eq(parseLily(`{ c }`).language, 'nederlands', 'the default alphabet is Dutch');
+  eq(parseLily(`\\language "english"\n{ c }`).language, 'english', '\\language is read');
+  eq(parseLily(`\\include "english.ly"\n{ c }`).language, 'english', '\\include "english.ly" is read too');
+
+  eq(midiOfSrc(`{ c bes cis aes }`).join(','), '48,58,49,56', 'Dutch: bes cis aes');
+  eq(midiOfSrc(`\\language "english"\n{ c bf cs af }`).join(','), '48,58,49,56',
+    'English: bf cs af are the same three pitches');
+  eq(midiOfSrc(`\\language "english"\n{ css bff }`).join(','), '50,57',
+    'English doubles: css is C double sharp, bff is B double flat');
+  eq(midiOfSrc(`\\language "english"\n{ f ff fs }`).join(','), '53,52,54',
+    'English: f is F, ff is F flat, fs is F sharp — the ambiguity that needs longest-match');
+
+  // German B/H is the trap that puts one voice a semitone out for a whole piece.
+  eq(midiOfSrc(`\\language "deutsch"\n{ b h es fis }`).join(','), '58,59,51,54',
+    'German: b is B FLAT, h is B natural');
+
+  eq(parseLily(`\\language "english"\n{ \\key bf \\major c }`)
+    .staves[0].voices[0].find((e) => e.kind === 'key').fifths, -2,
+  'a key signature written in English resolves to the same two flats');
+
+  // An alphabet this cannot read must REFUSE, not guess. Reading on in Dutch
+  // would produce a plausible, entirely wrong piece and say nothing.
+  const it = parseLily(`\\language "italiano"\n{ do re mi }`);
+  ok(it.diagnostics.some((d) => d.severity === 'error' && /italiano/.test(d.message)),
+    'an unsupported alphabet is refused with an error');
+  eq(it.staves[0].voices[0].filter((e) => e.kind === 'note').length, 0,
+    '...and nothing is invented from it');
+  eq(it.diagnostics.length, 1, '...once, without a per-character cascade');
+}
+
+// ---------------------------------------------------- 3bb. transposition --
+// `\transpose c c''` is how a lot of the real corpus is written: the notes are
+// entered in a comfortable octave and moved. Ignoring it does not fail — it
+// draws the whole piece two octaves low, on a hedge of ledger lines.
+{
+  const m = (src) => midiList(parseLily(src));
+  eq(m(`\\transpose c c'' { c e g }`).join(','), '72,76,79', 'two octaves up');
+  eq(m(`\\transpose c g { c e g }`).join(','), '55,59,62', 'up a perfect fifth');
+  eq(m(`\\transpose d c { d fis a }`).join(','), '48,52,55', 'down a major second');
+  eq(m(`\\transpose c c' \\relative c' { g a b }`).join(','), '67,69,71',
+    'applied AFTER relative resolution, which is the order that decides octaves');
+
+  // Spelling, not just pitch: a transposed F sharp is a G sharp, never an A flat.
+  const sp = parseLily(`\\transpose c d { fis }`).staves[0].voices[0].find((e) => e.kind === 'note');
+  eq(sp.pitches[0].step, 4, 'F sharp up a second is spelled on G');
+  eq(sp.pitches[0].alter, 1, '...as G sharp');
+
+  // The key signature moves with the music.
+  const key = (src) => parseLily(src).staves[0].voices[0].find((e) => e.kind === 'key').fifths;
+  eq(key(`\\transpose c g { \\key c \\major c }`), 1, 'up a fifth adds a sharp');
+  eq(key(`\\transpose c f { \\key c \\major c }`), -1, 'up a fourth adds a flat');
+  eq(key(`\\transpose c c'' { \\key a \\minor c }`), 0, 'an octave changes no signature');
+}
+
+// ------------------------------------------------- 3bc. surviving real files --
+// Everything here is a shape taken from actual Mutopia sources. Each one used
+// to break the parse for the whole rest of the file, and each failed SILENTLY:
+// the damage surfaced hundreds of bars later as nonsense rather than as an
+// error where the problem was.
+{
+  const bars = (src) => engrave(parseLily(src), { width: 900, grandStaff: false });
+
+  // `\override` mid-bar must consume ONE STATEMENT, not the rest of the line —
+  // otherwise it eats the closing `}` and `>>` and every brace after it is
+  // mismatched.
+  const ov = parseLily(
+    `\\relative c'' { \\time 3/8 d,8 << { b8( } `
+    + `{ s16 \\once \\override Script #'padding = #2.5 s16 } >> f'8) | }`);
+  eq(ov.diagnostics.length, 0, '\\override inside a bar does not break the bar');
+  eq(bars(`\\relative c' { \\time 4/4 \\override NoteHead.color = #red c4 d e f | }`).warnings.length, 0,
+    '...and the bar still adds up after it');
+  eq(parseLily(`\\relative c' { \\override Beam #'(-0.6 . 0.0) c4 }`).diagnostics.length, 0,
+    "a quoted Scheme list #'(…) is consumed whole");
+
+  // `\f-.` is a forte and a staccato, not a command called `f-`.
+  const fd = parseLily(`\\relative c' { c4\\f-. d }`).staves[0].voices[0].filter((e) => e.kind === 'note');
+  eq(fd[0].dynamic, 'f', 'the dynamic is read');
+  eq(fd[0].artics.length, 1, '...and the articulation after it is not swallowed');
+
+  // A multi-movement file: `\book { \score {…} \score {…} }`.
+  const bk = parseLily(`\\book { \\score { \\new Staff { c'4 } } \\score { \\new Staff { e'4 } } }`);
+  eq(bk.diagnostics.length, 0, 'a \\book of several \\scores parses');
+
+  // Page hints are valid input with nothing to act on here, and must not be
+  // reported as unsupported — a hundred of those bury the real diagnostics.
+  eq(parseLily(`\\relative c' { c4 \\noPageBreak d e f }`).diagnostics.length, 0,
+    'page-break hints are silently ignored');
+
+  eq(parseLily(`piece = \\markup { \\bold "Adagio" }\n{ c4 }`).diagnostics.length, 0,
+    'a \\markup-valued definition parses');
+}
+
+// ------------------------------------------------------------ 3c. ornaments --
+// Grace notes take NO time from the bar and are drawn small. The previous
+// behaviour — dropping them with a warning — was the wrong trade: an ornamented
+// Baroque piece is mostly ornament.
+{
+  const one = parseLily(`\\relative c' { \\appoggiatura g16 c4 d e f }`);
+  const notes = notesOf(one);
+  eq(notes.length, 5, 'the ornament is kept alongside the four real notes');
+  eq(notes[0].ticks, 0, 'a grace note takes no time');
+  eq(notes[0].grace, 'appoggiatura', '...and is marked as what it is');
+  eq(notes.slice(1).map((n) => n.tick).join(','), '0,960,1920,2880',
+    'the bar is unchanged: \\appoggiatura takes ONE note, not the rest of the bar');
+
+  const braced = notesOf(parseLily(`\\relative c' { \\grace { g16 a } c4 d }`));
+  eq(braced.filter((n) => n.grace).length, 2, 'a braced grace group keeps all its notes');
+  eq(braced.filter((n) => !n.grace).length, 2, '...and does not swallow the notes after it');
+
+  // Drawn small, and never beamed into the beat it decorates.
+  const lay = engrave(parseLily(`\\relative c' { \\time 4/4 \\grace g16 c4 d e f }`), { width: 700, staffSpace: 8 });
+  eq(lay.warnings.length, 0, 'a bar with an ornament still adds up');
+  ok(/cf-grace/.test(lay.svg), 'the ornament is drawn');
+  const scales = [...lay.svg.matchAll(/class="cf-note cf-grace"[^>]*scale\(([\d.]+)/g)]
+    .concat([...lay.svg.matchAll(/scale\(([\d.]+),[\d.]+\)"[^>]*class="cf-note cf-grace"/g)]);
+  const graceG = lay.svg.match(/<g transform="translate\([^)]*\) scale\(([\d.]+),[\d.]+\)" class="cf-note cf-grace"/);
+  ok(graceG && Number(graceG[1]) < 8, `an ornament is drawn smaller than a full note (got ${graceG && graceG[1]})`);
+  void scales;
 }
 
 // ---------------------------------------------------------- 4. accidentals --

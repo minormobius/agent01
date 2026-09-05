@@ -334,8 +334,8 @@
         "auth.mino.mobi"
       ],
       "provides": "sheet-music",
-      "status": "NEW — first deploy creates the custom domain (clef.mino.mobi verified unclaimed 2026-09-05); confirm the run binds it",
-      "note": "Sheet-music viewer and composer. Reads a working subset of LilyPond notation, engraves it as classical notation in SVG (own glyph outlines, no music font), plays it back through a small WebAudio patch bank, and exports .ly/.mid/.svg/.wav. Publishing writes one com.minomobi.clef.piece record to the reader's own PDS; the site stores nothing. Static assets + a health-check worker. Full notes in clef/CLAUDE.md.",
+      "status": "MANAGED — verified prod (clef.mino.mobi bound as a custom domain on run #1, 2026-09-05)",
+      "note": "Sheet-music viewer and composer. Reads a working subset of LilyPond notation (Dutch/English/German note names, \\transpose, ornaments), engraves it as classical notation in SVG with its own glyph outlines and no music font, plays it back through a small WebAudio patch bank, and exports .ly/.mid/.svg/.wav. Browse opens the Mutopia Project's ~2,300 LilyPond-source scores through a narrow read proxy in this surface's own worker at /mutopia/* (one origin, GET only, two path shapes, edge-cached) — Mutopia sends no CORS header. Publishing writes one com.minomobi.clef.piece record to the reader's own PDS; the site stores nothing. Full notes in clef/CLAUDE.md.",
       "paths": [
         "clef/**",
         ".github/workflows/deploy-clef.yml"

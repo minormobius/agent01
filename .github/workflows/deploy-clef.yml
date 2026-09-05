@@ -22,10 +22,11 @@ jobs:
 
       # The gate. Almost every bug this engraver has had was a wrong NUMBER
       # that still drew something plausible — a key signature an octave low, a
-      # stem anchored at the middle line, a tie played as two notes. None of
-      # that shows up in a screenshot, so it is checked here, before shipping,
-      # against known answers. The sweep also parses and engraves all eight
-      # bundled pieces and holds them to their own bar checks.
+      # stem anchored at the middle line, a tie played as two notes, a B flat
+      # read as two notes because the file was written in English note names.
+      # None of that shows up in a screenshot, so it is checked here, before
+      # shipping, against known answers. The sweep also parses and engraves all
+      # eight bundled pieces and holds them to their own bar checks.
       - name: Notation selftest (parser, engraver, exports, library)
         run: node test/notation.selftest.mjs
 

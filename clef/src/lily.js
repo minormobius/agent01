@@ -53,6 +53,55 @@ const MUSIC_COMMANDS = new Set([
 const STAFF_CONTEXTS = new Set(['Staff', 'DrumStaff', 'RhythmicStaff', 'TabStaff', 'Lyrics']);
 const GROUP_CONTEXTS = new Set(['PianoStaff', 'StaffGroup', 'ChoirStaff', 'GrandStaff', 'Score']);
 
+/**
+ * NOTE-NAME LANGUAGES.
+ *
+ * LilyPond's default alphabet is Dutch (`cis`, `bes`), but a large part of the
+ * real corpus opens with `\include "english.ly"` and then writes `cs` and `bf`.
+ * Reading an English file with the Dutch alphabet does not fail — it QUIETLY
+ * PRODUCES DIFFERENT MUSIC: `bf` scans as a B followed by an F, so a B-flat
+ * becomes two notes and every bar after it is wrong. That failure mode (silent,
+ * plausible, wrong) is the one this whole codebase is built to avoid, so the
+ * alphabet is read from the file rather than assumed.
+ *
+ * Each entry maps a matched suffix run to a semitone alteration. Alternations
+ * are ordered longest-first because `ss` must win over `s`, and `flatflat` over
+ * `flat`.
+ */
+const LANGUAGES = {
+  nederlands: {
+    first: /[a-g]/,
+    token: /^([a-g])((?:isis|eses|is|es|ih|eh)*)/,
+    part: /isis|eses|is|es|ih|eh/g,
+    alter: { is: 1, es: -1, isis: 2, eses: -2, ih: 0, eh: 0 },
+  },
+  english: {
+    first: /[a-g]/,
+    // `f` is both the note F and the flat suffix, so the suffix run has to be
+    // matched greedily off the FRONT of what follows the letter, longest first.
+    token: /^([a-g])((?:sharpsharp|flatflat|sharp|flat|ss|ff|qs|qf|s|f|x)*)/,
+    part: /sharpsharp|flatflat|sharp|flat|ss|ff|qs|qf|s|f|x/g,
+    alter: { s: 1, sharp: 1, ss: 2, x: 2, sharpsharp: 2, f: -1, flat: -1, ff: -2, flatflat: -2, qs: 0, qf: 0 },
+  },
+  deutsch: {
+    first: /[a-h]/,
+    token: /^([a-h])((?:isis|eses|is|es|s)*)/,
+    part: /isis|eses|is|es|s/g,
+    alter: { is: 1, es: -1, isis: 2, eses: -2, s: -1 },
+    // In German, B IS B-flat and H is B natural — the trap that puts one voice
+    // of a chorale a semitone out for the whole piece.
+    letterStep: { h: 6, b: 6 },
+    letterAlter: { b: -1 },
+  },
+};
+
+/** `english.ly` / `\language "english"` -> the alphabet to read pitches with. */
+function languageNamed(name) {
+  const key = String(name || '').replace(/\.ly$/, '').toLowerCase();
+  if (key in LANGUAGES) return { key, def: LANGUAGES[key] };
+  return { key, def: undefined };
+}
+
 export class ParseError extends Error {}
 
 class Reader {
@@ -63,6 +112,23 @@ class Reader {
     this.defs = new Map();      // identifier -> parsed music node
     this.header = {};
     this.depth = 0;
+    this.languageName = 'nederlands';
+    this.lang = LANGUAGES.nederlands;
+  }
+
+  /**
+   * Adopt a note-name alphabet. An UNKNOWN one is refused rather than guessed
+   * at: carrying on in Dutch would read every pitch in the file wrongly and
+   * report nothing, which is the one outcome worth failing loudly for.
+   */
+  setLanguage(name, at) {
+    const { key, def } = languageNamed(name);
+    if (def) { this.languageName = key; this.lang = def; return; }
+    if (/^(?:italiano|espanol|catalan|portugues|francais|norsk|suomi|svenska|vlaams)$/.test(key)) {
+      this.warn(`note-name language "${key}" is not supported — pitches in this file `
+        + 'would be read wrongly, so it has been left unread', at, 'error');
+      this.lang = null;
+    }
   }
 
   warn(message, at = this.i, severity = 'warning') {
@@ -99,10 +165,16 @@ class Reader {
     return false;
   }
 
-  /** A bare word: an identifier, context name or keyword. */
+  /**
+   * A bare word: an identifier, context name or keyword.
+   *
+   * A hyphen may appear INSIDE a name but never at the end of one, because
+   * `\\f-.` is a forte followed by a staccato dot — read greedily it becomes a
+   * command called `f-` and the articulation disappears.
+   */
   word() {
     this.ws();
-    const m = /^[A-Za-z][A-Za-z0-9_-]*/.exec(this.src.slice(this.i));
+    const m = /^[A-Za-z](?:[A-Za-z0-9_-]*[A-Za-z0-9])?/.exec(this.src.slice(this.i));
     if (!m) return null;
     this.i += m[0].length;
     return m[0];
@@ -180,7 +252,15 @@ export function parseLily(source) {
     if (r.peek() === '\\') {
       const at = r.i;
       const cmd = r.command();
-      if (cmd === 'version' || cmd === 'language' || cmd === 'include') { r.string(); continue; }
+      if (cmd === 'version') { r.string(); continue; }
+      if (cmd === 'language' || cmd === 'include') {
+        // The note-name alphabet, which has to be known before ANY pitch is
+        // read. `\include "english.ly"` is the older spelling and is still the
+        // commonest one in the wild.
+        const named = r.string();
+        if (named !== null && (cmd === 'language' || /\.ly$/i.test(named))) r.setLanguage(named, at);
+        continue;
+      }
       if (cmd === 'header') { parseHeader(r); continue; }
       if (cmd === 'paper' || cmd === 'layout' || cmd === 'midi') { skipBlock(r); continue; }
       if (cmd === 'score' || cmd === 'book' || cmd === 'bookpart') {
@@ -220,6 +300,7 @@ export function parseLily(source) {
     composer: r.header.composer || r.header.poet || '',
     tempo,
     staves,
+    language: r.languageName,
     diagnostics: r.diagnostics,
   };
 }
@@ -227,6 +308,7 @@ export function parseLily(source) {
 function parseAssignable(r) {
   r.ws();
   if (r.peek() === '"') return { t: 'text', value: r.string() };
+  if (r.src.startsWith('\\markup', r.i)) { r.command(); return { t: 'text', value: flattenMarkup(r) }; }
   if (/[0-9]/.test(r.peek() ?? '')) return { t: 'text', value: String(r.number()) };
   if (r.peek() === '#') { skipScheme(r); return { t: 'seq', items: [] }; }
   return parseMusic(r) || { t: 'seq', items: [] };
@@ -291,10 +373,56 @@ function skipBlock(r) {
   }
 }
 
+/**
+ * Consume one `\\override`/`\\set`/`\\tweak` statement and nothing more.
+ *
+ * Shape: a property path (words, dots, `#'symbols`), then optionally `= value`.
+ * Anything that is not part of that — a note, a brace, a `>>` — ends it.
+ */
+function skipTweak(r, hasValue) {
+  let guard = 0;
+  while (!r.done && guard++ < 64) {
+    r.ws();
+    const c = r.peek();
+    if (c === '#') { skipScheme(r); continue; }
+    if (c === '.' || c === ',') { r.i++; continue; }
+    if (c === '=') {
+      r.i++;
+      if (hasValue) skipValue(r);
+      return;
+    }
+    if (c === '"') { r.string(); continue; }
+    if (/[A-Za-z]/.test(c)) {
+      const m = /^[A-Za-z][A-Za-z0-9_.-]*/.exec(r.src.slice(r.i));
+      // A bare word could be the next NOTE rather than more of the property
+      // path. Property names are capitalised contexts (`Script`, `Staff`) or
+      // dotted paths; a lone lower-case word that is a legal pitch is not ours.
+      if (!m) return;
+      if (!hasValue && guard > 1) return;
+      r.i += m[0].length;
+      continue;
+    }
+    return;
+  }
+}
+
+function skipValue(r) {
+  r.ws();
+  if (r.peek() === '#') { skipScheme(r); return; }
+  if (r.peek() === '"') { r.string(); return; }
+  const m = /^-?[\d.]+|^[A-Za-z][A-Za-z0-9_.-]*/.exec(r.src.slice(r.i));
+  if (m) r.i += m[0].length;
+}
+
 function skipScheme(r) {
   // `#'symbol`, `#(function ...)`, `#42` — consumed and ignored. Layout tweaks
   // are exactly the part of LilyPond this reader does not implement.
   r.i++; // '#'
+  r.ws();
+  // `#'(…)` and `` #`(…) `` are quoted lists: the quote comes BEFORE the paren,
+  // so it has to be stepped over or the list is read as a bare token and its
+  // contents spill out as garbage.
+  while (r.peek() === "'" || r.peek() === '`' || r.peek() === ',') r.i++;
   r.ws();
   if (r.peek() === '(') {
     let depth = 0;
@@ -326,6 +454,14 @@ function parseScoreBlock(r) {
         if (cmd === 'header') parseHeader(r); else skipBlock(r);
         continue;
       }
+      // `\\book { \\score {…} \\score {…} }` — a multi-movement file. Without
+      // this the second score is read as music inside the first.
+      if (cmd === 'score' || cmd === 'bookpart' || cmd === 'book') {
+        const nested = parseScoreBlock(r);
+        if (nested) items.push(nested);
+        continue;
+      }
+      if (cmd === 'markup') { flattenMarkup(r); continue; }
       r.i = at;
     }
     const m = parseMusic(r);
@@ -415,14 +551,22 @@ function parseMusic(r) {
       case 'acciaccatura':
       case 'appoggiatura':
       case 'afterGrace': {
-        const music = parseMusic(r);
-        r.warn(`\\${cmd} is parsed but not engraved yet — its notes are omitted`, at);
-        return { t: 'seq', items: [], dropped: music };
+        // Grace notes are ORNAMENTS: they are drawn small, before the beat, and
+        // they take no time from the bar. Dropping them (as this once did) is
+        // the wrong trade — an ornamented Baroque piece is mostly ornament, and
+        // silently deleting a third of the notes on the page is worse than
+        // drawing them at the wrong size.
+        return { t: 'grace', kind: cmd, music: parseOneMusic(r) };
       }
       case 'transpose': {
-        tryPitch(r); tryPitch(r);
-        r.warn('\\transpose is not applied yet — music is read at written pitch', at);
-        return parseMusic(r);
+        const from = tryPitch(r);
+        const to = tryPitch(r);
+        const music = parseMusic(r);
+        if (!from || !to) {
+          r.warn('\\transpose needs two pitches', at);
+          return music;
+        }
+        return { t: 'transpose', from, to, music };
       }
       case 'addlyrics':
       case 'lyricmode':
@@ -445,6 +589,22 @@ function parseMusic(r) {
   return parseSequential(r, true);
 }
 
+/**
+ * Exactly ONE music expression: a braced block, or a single note.
+ *
+ * `\\appoggiatura g16 c4 d e f` ornaments the `c4` with a single G — the grace
+ * group is one note. Falling through to the implicit-sequence parser here eats
+ * the rest of the bar and turns every note in it into an ornament, which is a
+ * spectacular way to lose a piece.
+ */
+function parseOneMusic(r) {
+  r.ws();
+  if (r.peek() === '{' || (r.peek() === '<' && r.peek(1) === '<')) return parseMusic(r);
+  const item = parseItem(r);
+  if (!item) return { t: 'seq', items: [] };
+  return { t: 'seq', items: Array.isArray(item) ? item : [item] };
+}
+
 function parseSequential(r, implicit = false) {
   r.depth++;
   const items = [];
@@ -462,8 +622,10 @@ function parseSequential(r, implicit = false) {
     const item = parseItem(r);
     if (item) items.push(...(Array.isArray(item) ? item : [item]));
     if (r.i === before) {
-      // Nothing consumed: unknown syntax. Report once and step past it.
-      r.warn(`skipped ${JSON.stringify(r.src.slice(r.i, r.i + 12))}`, r.i);
+      // Nothing consumed: unknown syntax. Report once and step past it — but
+      // stay quiet if the alphabet itself was refused, since every character
+      // after that is unreadable for one reason already stated.
+      if (r.lang) r.warn(`skipped ${JSON.stringify(r.src.slice(r.i, r.i + 12))}`, r.i);
       r.i++;
     }
     // An implicit sequence ends at the next structural command. The `r.ws()` is
@@ -538,7 +700,10 @@ function parseItem(r) {
 
   if (c === '\\') return parseBackslashItem(r, at);
   if (c === '<') return parseChord(r, at);
-  if (/[a-gsrRq]/.test(c)) return parseNoteLike(r, at);
+  // The set of letters that can START a pitch is the LANGUAGE's, not a fixed
+  // `a-g`: German writes B natural as `h`, and a hard-coded class silently
+  // drops every one of them without so much as a diagnostic.
+  if ((r.lang?.first ?? /[a-g]/).test(c) || /[srRq]/.test(c)) return parseNoteLike(r, at);
 
   return null;
 }
@@ -613,6 +778,13 @@ function parseBackslashItem(r, at) {
       return { t: 'bar', style, src: [at, r.i] };
     }
     case 'break': return { t: 'break', src: [at, r.i] };
+    // Page-breaking hints. This site lays out to the width of a browser pane,
+    // so they have nothing to act on — but they are perfectly valid input and
+    // reporting them as unsupported buries the diagnostics that matter.
+    case 'noPageBreak': case 'pageBreak': case 'noBreak':
+    case 'allowPageTurn': case 'pageTurn': case 'noPageTurn':
+    case 'bar-line': case 'small': case 'normalsize': case 'tiny': case 'large':
+      return null;
     case 'mark': { r.ws(); if (r.peek() === '#') skipScheme(r); else r.string(); return null; }
     case 'voiceOne': case 'voiceTwo': case 'voiceThree': case 'voiceFour':
       return { t: 'voicedir', which: cmd, src: [at, r.i] };
@@ -621,14 +793,24 @@ function parseBackslashItem(r, at) {
       return { t: 'stemdir', dir: cmd === 'stemUp' ? 1 : cmd === 'stemDown' ? -1 : 0, src: [at, r.i] };
     case 'cresc': return { t: 'hairpin', dir: 'cresc', src: [at, r.i] };
     case 'decresc': case 'dim': return { t: 'hairpin', dir: 'dim', src: [at, r.i] };
-    case 'set': case 'override': case 'unset': case 'revert': case 'once': case 'tweak': {
-      // A layout instruction. Consume to the end of the statement and move on.
-      const line = /^[^\n]*/.exec(r.src.slice(r.i))[0];
-      r.i += line.length;
+    case 'set': case 'override': case 'unset': case 'revert': case 'tweak': {
+      // A layout instruction, consumed and ignored — that is the part of
+      // LilyPond this reader is not. But it must be consumed EXACTLY, one
+      // statement, not "to the end of the line": these appear mid-bar, as in
+      //
+      //   << { b8( } { s16 \\once \\override Script #'padding = #2.5 s16 } >> f'8)
+      //
+      // and eating the rest of that line takes the closing `}` and `>>` with
+      // it. Every brace after that is then mismatched, the piece parses as one
+      // runaway block, and the damage shows up hundreds of bars later as
+      // nonsense rather than as an error here.
+      skipTweak(r, cmd === 'set' || cmd === 'override' || cmd === 'tweak');
       return null;
     }
+    case 'once': return null;  // a modifier on the statement that follows it
     default: {
       if (r.defs.has(cmd)) return { t: 'ref', name: cmd, music: r.defs.get(cmd), src: [at, r.i] };
+      if (cmd === 'markup') { flattenMarkup(r); return null; }
       if (DYNAMICS.has(cmd)) return { t: 'dynamic', value: cmd, src: [at, r.i] };
       if (NAMED_ARTIC.has(cmd)) return { t: 'artic', value: cmd, src: [at, r.i] };
       r.warn(`\\${cmd} is not supported`, at);
@@ -637,34 +819,63 @@ function parseBackslashItem(r, at) {
   }
 }
 
-/** A pitch NAME only (for `\key es \major`), without octave marks. */
+/**
+ * A pitch NAME only, for `\key es \major`.
+ *
+ * Returned in CANONICAL Dutch regardless of the file's alphabet, because that
+ * is what `fifthsOf` keys off — so `\key bf \major` in an English file and
+ * `\key bes \major` in a Dutch one land on the same two flats.
+ */
 function tryPitchName(r) {
-  r.ws();
-  const m = /^[a-g](?:(?:is|es|s|f)+)?/.exec(r.src.slice(r.i));
-  if (!m) return null;
-  r.i += m[0].length;
-  return m[0];
+  const p = tryPitch(r, /* octaveMarks */ false);
+  if (!p) return null;
+  return canonicalName(p.step, p.alter);
 }
 
-/** Parse a pitch token: letter, accidental suffixes, octave marks. */
-function tryPitch(r) {
+const ACC_CANON = { '-2': 'eses', '-1': 'es', 0: '', 1: 'is', 2: 'isis' };
+function canonicalName(step, alter) {
+  // `aes` and `ees` are spelled `as` and `es` in the key names model.js knows.
+  const letter = LETTERS[step];
+  if (alter === -1 && (letter === 'a' || letter === 'e')) return letter === 'a' ? 'as' : 'es';
+  return letter + (ACC_CANON[alter] ?? '');
+}
+
+/**
+ * Parse a pitch token: letter, accidental suffixes, octave marks.
+ *
+ * The alphabet comes from the file (see LANGUAGES). Everything downstream works
+ * in step/alter, so the rest of the program never learns which language the
+ * source was written in.
+ */
+function tryPitch(r, octaveMarks = true) {
   r.ws();
-  const m = /^([a-g])((?:isis|eses|is|es|ih|eh)*)((?:'|,)*)(!?)(\??)/.exec(r.src.slice(r.i));
+  const lang = r.lang;
+  if (!lang) return null;              // unreadable alphabet, already reported
+  const rest = r.src.slice(r.i);
+  const m = lang.token.exec(rest);
   if (!m) return null;
-  r.i += m[0].length;
-  const step = LETTERS.indexOf(m[1]);
-  let alter = 0;
-  for (const acc of m[2].match(/isis|eses|is|es|ih|eh/g) ?? []) {
-    if (acc === 'is') alter += 1;
-    else if (acc === 'es') alter -= 1;
-    else if (acc === 'isis') alter += 2;
-    else if (acc === 'eses') alter -= 2;
-    // Quarter-tones (`ih`/`eh`) are read so the file parses, then rounded to
-    // the nearest semitone — this notation has no quarter-tone glyphs.
-  }
+
+  const letter = m[1];
+  const step = lang.letterStep?.[letter] ?? LETTERS.indexOf(letter);
+  if (step < 0) return null;
+  let alter = lang.letterAlter?.[letter] ?? 0;
+  for (const acc of m[2].match(lang.part) ?? []) alter += lang.alter[acc] ?? 0;
+  // Quarter-tones are read so the file parses, then rounded to the nearest
+  // semitone — this notation has no quarter-tone glyphs to draw them with.
+
+  let consumed = m[0].length;
   let q = 0;
-  for (const ch of m[3]) q += ch === "'" ? 1 : -1;
-  return { step, alter, octave: 3 + q, marks: q, forced: m[4] === '!', cautionary: m[5] === '?' };
+  let forced = false;
+  let cautionary = false;
+  if (octaveMarks) {
+    const tail = /^((?:'|,)*)(!?)(\??)/.exec(rest.slice(consumed));
+    for (const ch of tail[1]) q += ch === "'" ? 1 : -1;
+    forced = tail[2] === '!';
+    cautionary = tail[3] === '?';
+    consumed += tail[0].length;
+  }
+  r.i += consumed;
+  return { step, alter, octave: 3 + q, marks: q, forced, cautionary };
 }
 
 /** Read a duration `4`, `8.`, `16..`, `\breve`, plus any `*n/m` scaling. */
@@ -752,7 +963,7 @@ function blankEvent(at) {
 function parseNoteLike(r, at) {
   // Rests and spacers first — `r`, `R`, `s` would otherwise look like pitches.
   const c = r.peek();
-  if ((c === 'r' || c === 'R' || c === 's') && !/^[a-g]/.test(c)) {
+  if ((c === 'r' || c === 'R' || c === 's') && !(r.lang?.first ?? /[a-g]/).test(c)) {
     const isWord = /^[a-zA-Z]{2,}/.test(r.src.slice(r.i));
     if (!isWord) {
       r.i++;
@@ -829,6 +1040,34 @@ function parseChord(r, at) {
 // `\relative` means "relative to the note before", which is a reading order
 // fact and not a tree fact.
 
+const STEP_SEMI = [0, 2, 4, 5, 7, 9, 11];
+// Where each letter sits on the circle of fifths. A sharp is seven steps
+// clockwise, which is why an accidental is worth 7 here.
+const FIFTH_POS = [0, 2, 4, -1, 1, 3, 5];
+
+const pitchSemitones = (p) => 12 * (p.octave + 1) + STEP_SEMI[p.step] + p.alter;
+const fifthPosition = (p) => FIFTH_POS[p.step] + 7 * p.alter;
+const composeTransposition = (a, b) => (a
+  ? { dia: a.dia + b.dia, semi: a.semi + b.semi, fifths: a.fifths + b.fifths }
+  : b);
+
+/**
+ * Move a pitch by an interval, KEEPING ITS SPELLING RIGHT.
+ *
+ * The diatonic distance decides the letter and the octave; the semitone
+ * distance then decides the accidental that makes the arithmetic come out. Do
+ * it in semitones alone and a transposed F sharp becomes a G flat, which reads
+ * as a different note in a different key.
+ */
+function transposePitch(p, t) {
+  if (!t) return p;
+  const dia = p.octave * 7 + p.step + t.dia;
+  const octave = Math.floor(dia / 7);
+  const step = dia - octave * 7;
+  const semi = pitchSemitones(p) + t.semi;
+  return { ...p, step, octave, alter: semi - (12 * (octave + 1) + STEP_SEMI[step]) };
+}
+
 class Flattener {
   constructor(reader) {
     this.r = reader;
@@ -839,6 +1078,7 @@ class Flattener {
     this.ref = null;
     this.tupletFactor = 1;
     this.tupletId = 0;
+    this.transposition = null;
     this.expanding = new Set();
   }
 
@@ -861,6 +1101,7 @@ class Flattener {
     }
     return { step: p.step, alter: p.alter, octave: p.octave, forced: p.forced, cautionary: p.cautionary, tie: p.tie };
   }
+
 
   push(ev) { this.out.push(ev); }
 
@@ -914,6 +1155,39 @@ class Flattener {
         this.mode = savedMode;
         return;
       }
+      case 'grace': {
+        // The clock does not advance. Every note inside is marked so the
+        // engraver can draw it small and the synth can play it as a flick.
+        const at = this.tick;
+        const from = this.out.length;
+        this.walk(node.music);
+        for (const e of this.out.slice(from)) {
+          if (e.kind !== 'note' && e.kind !== 'rest') continue;
+          e.grace = node.kind;
+          e.graceTicks = e.ticks;
+          e.ticks = 0;
+          e.tick = at;
+        }
+        this.tick = at;
+        return;
+      }
+      case 'transpose': {
+        // Applied AFTER relative resolution, which is the order LilyPond uses:
+        // `\\transpose c c'' \\relative { … }` means "read it relatively, then
+        // move it". Doing it the other way round changes which octave each
+        // relative note lands in.
+        const saved = this.transposition;
+        const step = ((node.to.step - node.from.step) % 7 + 7) % 7;
+        this.transposition = composeTransposition(saved, {
+          dia: (node.to.octave * 7 + node.to.step) - (node.from.octave * 7 + node.from.step),
+          semi: pitchSemitones(node.to) - pitchSemitones(node.from),
+          fifths: fifthPosition(node.to) - fifthPosition(node.from),
+        });
+        void step;
+        this.walk(node.music);
+        this.transposition = saved;
+        return;
+      }
       case 'tuplet': {
         const saved = this.tupletFactor;
         const id = ++this.tupletId;
@@ -961,11 +1235,15 @@ class Flattener {
         const pitches = [];
         let first = null;
         for (const p of node.pitches) {
-          const abs = this.resolvePitch(p);
-          if (!first) first = abs;
+          // Resolve FIRST, and let the resolved-but-UNTRANSPOSED pitch be the
+          // reference for what follows. Feeding the transposed pitch back makes
+          // the interval compound on every note, so a piece transposed up an
+          // octave climbs an extra octave per note.
+          const written = this.resolvePitch(p);
+          if (!first) first = written;
           // Inside a chord each note is relative to the previous chord member.
-          if (this.mode === 'relative') this.ref = { step: abs.step, octave: abs.octave };
-          pitches.push(abs);
+          if (this.mode === 'relative') this.ref = { step: written.step, octave: written.octave };
+          pitches.push(transposePitch(written, this.transposition));
         }
         // ...but what FOLLOWS the chord is relative to its first note.
         if (this.mode === 'relative' && first) this.ref = { step: first.step, octave: first.octave };
@@ -1004,7 +1282,16 @@ class Flattener {
         return;
       }
       case 'clef': this.push({ kind: 'clef', value: node.value, tick: this.tick, src }); return;
-      case 'key': this.push({ kind: 'key', fifths: node.fifths, tick: this.tick, src }); return;
+      case 'key':
+        // A key signature moves with the music. Transposing up a fifth adds a
+        // sharp; up two octaves changes nothing, which is the common case and
+        // exactly what `fifths: 0` gives.
+        this.push({
+          kind: 'key',
+          fifths: node.fifths + (this.transposition?.fifths ?? 0),
+          tick: this.tick, src,
+        });
+        return;
       case 'time': this.push({ kind: 'time', num: node.num, den: node.den, tick: this.tick, src }); return;
       case 'tempo': this.push({ kind: 'tempo', text: node.text, unit: node.unit, bpm: node.bpm, tick: this.tick, src }); return;
       case 'partial': this.push({ kind: 'partial', ticks: node.ticks, tick: this.tick, src }); return;

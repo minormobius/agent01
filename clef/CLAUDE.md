@@ -37,6 +37,7 @@ src/engrave.js      layout: accidentals, columns, spacing, systems, beams, ink
 src/audio.js        playback patches, the lookahead scheduler, WAV export
 src/midi.js         Standard MIDI File writer
 src/library.js      the eight bundled pieces
+src/mutopia.js      browsing the Mutopia archive (fetch + parse, no HTML injected)
 src/app.js          the page's behaviour
 src/auth.js         byte copy of packages/oauth-client/auth.js (see below)
 lexicons/           com.minomobi.clef.piece
@@ -104,7 +105,7 @@ mode here is "plausible but wrong", which no assertion catches.
 
 ## Things that were wrong, and are asserted now
 
-`test/notation.selftest.mjs` has 748 checks. Almost every bug this code has had
+`test/notation.selftest.mjs` has 785 checks. Almost every bug this code has had
 was a wrong number that still drew something plausible, so the tests are known
 answers rather than snapshots. The ones worth knowing about:
 
@@ -131,6 +132,23 @@ answers rather than snapshots. The ones worth knowing about:
   click aimed at a note outside the staff. All the scenery is
   `pointer-events: none`; only noteheads and rests are targets, and a click on
   blank staff falls through to the SVG, which is what writes a note there.
+- **An ornament shrinks; a pitch does not.** Grace notes are drawn at 0.62 size
+  via a separate `gs` factor. Shadowing `sp` with a smaller staff space instead
+  squashes every ornament toward the middle line, because vertical position is a
+  pitch.
+
+## The grand staff
+
+A one-staff score is drawn on a grand staff by default, with an empty partner
+below it, braced. This is a **presentation** choice and not a reading of the
+source: the phantom staff holds no music, reaches neither playback nor export,
+and inherits only the key and metre so its signature matches.
+
+Piano paper has two staves whether or not the left hand is playing, and a melody
+floating alone above white space reads as a fragment rather than as a piece.
+A single-line instrument genuinely wants one staff — which is why it is a switch
+(`grandStaff` in the engrave options, a checkbox above the score) and not a law.
+It is wrong for a flute part from the archive, and one click turns it off.
 
 ## Playback
 
@@ -168,6 +186,75 @@ in `workers/auth/src/oauth/scope.ts` — but that worker is owned by a **differe
 branch**, so publishing only works once the auth worker is redeployed from its
 owner. Everything else on the site works regardless.
 
+## The Mutopia explorer
+
+**Browse** opens the [Mutopia Project](https://www.mutopiaproject.org/): ~2,300
+scores kept as LilyPond **source**, so a piece opens here as editable, playable,
+exportable music rather than as a PDF of a picture of music. It is the one
+archive this site can do more than link to.
+
+Say the obvious thing plainly, because the question comes up: **LilyPond is a
+program, not a network.** No API, no accounts, no records. What exists is the
+corpus written in its language.
+
+Mutopia sends no CORS header, so the browser cannot read it directly. `worker.js`
+carries a read proxy at `/mutopia/*`, locked to that one origin, GET only, and
+to two path shapes — the FTP tree and the per-composer catalogue. Responses are
+capped at 4 MB and cached an hour at the edge, so browsing costs the archive one
+request per composer per hour rather than one per visitor. **It is not a general
+proxy and must not become one.**
+
+`mutopia.js` parses an Apache directory index and a generated HTML table.
+Neither is an API and both can change under us, so every field is optional and a
+parse failure degrades to "we could not read this". **Nothing fetched is ever
+inserted as HTML** — text is read out of a detached document and our own
+elements are built from it.
+
+Two honesty rules the code keeps, both easy to get wrong:
+
+- **The licence shown is the one the archive gave for that piece.** Much of
+  Mutopia is public domain and a good deal is Creative Commons; printing "public
+  domain" over a CC BY-SA edition is a false statement about someone else's
+  terms.
+- **A score that `\include`s sibling part files is flagged.** We fetch one file,
+  so the music in the others is simply absent, and absent music nobody mentions
+  is the worst outcome on this site. `missingIncludes()` finds them and the page
+  says so.
+
+## Reading files written by other people
+
+The bundled pieces were written to suit the reader. The archive was not, and
+everything below is a shape that came out of a real Mutopia file and broke the
+parse for the whole rest of it — each one **silently**, surfacing hundreds of
+bars later as nonsense rather than as an error where the problem was. All are
+pinned in the selftest.
+
+- **Note-name alphabets.** A large part of the corpus opens
+  `\include "english.ly"` and writes `bf` for B flat. Read as Dutch, `bf` scans
+  as a B followed by an F: one note becomes two and every bar after it is wrong.
+  Dutch, English and German are implemented; anything else is **refused with an
+  error** rather than guessed at.
+- **`\override` mid-bar.** It used to be consumed "to the end of the line",
+  which in `<< { b8( } { s16 \once \override Script #'padding = #2.5 s16 } >>`
+  eats the closing `}` and `>>`. Now exactly one statement is consumed.
+- **`#'(…)`.** The quote comes before the paren, so a quoted Scheme list has to
+  be stepped over as a list, not read as a bare token.
+- **`\f-.`** is a forte and a staccato. A command name may contain a hyphen but
+  never end in one, or the articulation vanishes into a command called `f-`.
+- **`\transpose c c''`.** Common, and ignoring it draws the piece two octaves
+  low on a hedge of ledger lines. Implemented for pitches (keeping spelling: F
+  sharp up a second is G sharp, never A flat) and for key signatures. It applies
+  **after** relative resolution — and the reference for the next note is the
+  resolved, **untransposed** pitch, or the interval compounds on every note.
+- **`\book { \score {…} \score {…} }`** is a multi-movement file.
+- **Page-break hints** (`\noPageBreak` and friends) are valid input with nothing
+  to act on here. Reporting them as unsupported buries the diagnostics that
+  matter.
+
+What still does not survive: a complex multi-movement score can parse cleanly
+and still fail its own bar checks in places (the CPE Bach flute sonata does, in
+about half its bars). That is reported in the panel rather than hidden.
+
 ## Deploying
 
 Owning branch `claude/sheet-music-viewer-composer-qb4ljl`; a push touching
@@ -183,9 +270,8 @@ deploy's own `npm install wrangler` drops here out of the uploaded assets.
 
 Honest list, in rough order of how much they would be missed:
 
-- **Grace notes** parse and are reported, not engraved.
 - **Lyrics** (`\addlyrics`) are skipped with a diagnostic.
-- **`\transpose`** is read at written pitch, with a diagnostic.
+- **Note-name alphabets** beyond Dutch, English and German are refused.
 - **Cross-staff beaming** and voice-collision resolution are not attempted;
   two-voice writing gets stem directions and rest offsets and nothing cleverer.
 - **Hairpins** (`\<` `\>`) are parsed but not drawn.

@@ -29,6 +29,7 @@
       <span class="field-label">piece</span>
       <select id="piece-select" aria-label="Choose a piece"></select>
     </label>
+    <button id="btn-browse" class="btn" type="button">Browse</button>
     <button id="btn-new" class="btn" type="button">New</button>
     <button id="btn-export" class="btn" type="button" aria-haspopup="true" aria-expanded="false">Export</button>
     <button id="btn-account" class="btn btn-quiet" type="button">Sign in</button>
@@ -76,6 +77,9 @@
         <input id="zoom" type="range" min="6" max="16" step="0.5" value="9" aria-label="Staff size">
       </label>
       <span class="spacer"></span>
+      <label class="field field-check" title="Draw a one-staff score on a grand staff, with an empty partner">
+        <input id="grand" type="checkbox" checked> <span>grand staff</span>
+      </label>
       <label class="field field-check">
         <input id="follow" type="checkbox" checked> <span>follow</span>
       </label>

@@ -43,6 +43,9 @@ const DEFAULTS = {
   systemGap: 8,       // between systems
   titleSize: 2.9,     // in staff spaces
   minSystemFill: 0.62, // don't justify a system emptier than this
+  // Draw a one-staff score on a grand staff, with an empty partner. See the
+  // note where the phantom staff is built.
+  grandStaff: true,
 };
 
 const STAFF_LINE = 0.11;
@@ -257,6 +260,43 @@ export function engrave(score, options = {}) {
       items: voices.map((v) => v.items),
     };
   });
+
+  // ---- the empty half of a grand staff ----
+  //
+  // A one-staff score is drawn on a grand staff by default: treble on top, an
+  // empty bass staff under it, braced. This is a PRESENTATION choice, not a
+  // reading of the source — the source still says one staff, the phantom holds
+  // no music, and nothing about it reaches playback or export.
+  //
+  // Why: piano paper has two staves whether or not the left hand is playing,
+  // and a melody floating alone above white space reads as a fragment rather
+  // than as a piece. A single-line instrument (a song, a flute part) genuinely
+  // wants one staff, which is why this is a switch rather than a law — see
+  // `grandStaff` in the options.
+  if (o.grandStaff && staffData.length === 1 && score.braced !== false) {
+    // It inherits the metre and key so its signature matches, and takes a bass
+    // clef unless the real staff is already a bass one — in which case the
+    // empty partner belongs above it, in treble.
+    const realClef = staffData[0].marks.find((m) => m.kind === 'clef')?.value ?? 'treble';
+    const lowReal = clefDef(realClef).middleDia <= clefDef('bass').middleDia;
+    const inherited = staffData[0].marks
+      .filter((m) => m.kind === 'key' || m.kind === 'time' || m.kind === 'partial')
+      .map((m) => ({ ...m }));
+    const empty = resolveVoice(
+      [{ kind: 'clef', value: lowReal ? 'treble' : 'bass', tick: 0, src: [0, 0] }, ...inherited],
+      { clef: 'treble', fifths: 0, num: 4, den: 4 },
+    );
+    const ghost = {
+      index: staffData.length,
+      name: '',
+      phantom: true,
+      voices: [empty],
+      marks: empty.marks,
+      items: [empty.items],
+    };
+    if (lowReal) staffData.unshift(ghost); else staffData.push(ghost);
+    staffData.forEach((st, i) => { st.index = i; });
+  }
   const totalTicks = Math.max(1, ...staffData.flatMap((s) =>
     s.items.flatMap((v) => v.map((e) => e.tick + (e.ticks || 0)))));
 
@@ -316,10 +356,16 @@ export function engrave(score, options = {}) {
       let minTicks = next - tick;
       let head = sp * 1.3;
       let accWidth = 0;
+      let grace = 0;
+      let graceCount = 0;
       for (const s of staffData) {
         for (const v of s.items) {
           for (const e of v) {
             if (e.tick !== tick) continue;
+            // A grace note takes no time, so it must not shrink the column's
+            // duration to nothing; it claims a slice of LEAD space instead, to
+            // the left of the beat where it is actually drawn.
+            if (e.grace) { grace = Math.max(grace, ++graceCount * sp * 1.05); continue; }
             minTicks = Math.min(minTicks, Math.max(e.ticks, 1));
             const val = noteValueOrNearest(e.written ? WHOLE / e.written.denom : e.ticks);
             if (e.kind === 'note') {
@@ -337,8 +383,11 @@ export function engrave(score, options = {}) {
           }
         }
       }
-      const minWidth = accWidth + head + sp * 0.7;
-      return { tick, minTicks, minWidth, natural: Math.max(minWidth, spring(minTicks, sp)), x: 0 };
+      const minWidth = accWidth + head + sp * 0.7 + grace;
+      return {
+        tick, minTicks, minWidth, grace,
+        natural: Math.max(minWidth, spring(minTicks, sp)), x: 0,
+      };
     });
 
     // Leading room for the clef/key/time when they are drawn inside this bar.
@@ -496,7 +545,7 @@ export function engrave(score, options = {}) {
       const top = staffY(st, systemTop);
       const state = staffState[st].timeline[mis[0]];
       regions.push({
-        system: si, staff: st, top, left, right,
+        system: si, staff: st, top, left, right, phantom: !!staffData[st].phantom,
         // The band a click counts as: the staff plus four ledger positions
         // either side, which is as far as anyone reads without an octave mark.
         hitTop: top - 4 * sp, hitBottom: top + 8 * sp,
@@ -610,6 +659,7 @@ function headGlyph(val) {
 function drawVoice(ctx) {
   const { out, events, inBar, ml, top, sp, nVoices, vi, st, measure } = ctx;
   const colX = new Map(ml.columns.map((c) => [c.tick, c.x]));
+  const colByTick = new Map(ml.columns.map((c) => [c.tick, c]));
 
   // Stem direction. With one voice it follows the music; with two it follows
   // the convention that keeps them apart — upper voice up, lower voice down —
@@ -617,11 +667,29 @@ function drawVoice(ctx) {
   const declared = inBar.find((e) => e.stemDir)?.stemDir ?? 0;
   const forced = declared || (nVoices > 1 ? (vi === 0 ? 1 : -1) : 0);
 
+  // Grace notes sit in the lead space to the LEFT of their column, in the order
+  // they were written — which is the order they are played in.
+  const graceSlot = new Map();
+  for (const e of inBar) {
+    if (!e.grace) continue;
+    const n = (graceSlot.get(e.tick) ?? 0);
+    graceSlot.set(e.tick, n + 1);
+  }
+  const graceSeen = new Map();
+
   const laid = inBar.map((e) => {
-    const x = colX.get(e.tick) ?? ml.musicStart;
-    const val = noteValueOrNearest(e.written ? Math.round(WHOLE / e.written.denom) : e.ticks);
+    const col = colByTick.get(e.tick);
+    let x = colX.get(e.tick) ?? ml.musicStart;
+    if (e.grace) {
+      const total = graceSlot.get(e.tick) ?? 1;
+      const k = graceSeen.get(e.tick) ?? 0;
+      graceSeen.set(e.tick, k + 1);
+      x -= (col?.grace ?? total * sp * 1.05) - k * sp * 1.05;
+    }
+    const val = noteValueOrNearest(
+      e.written ? Math.round(WHOLE / e.written.denom) : (e.graceTicks || e.ticks));
     const dots = e.written?.dots ?? 0;
-    if (e.kind === 'rest') return { e, x, val, dots, rest: true };
+    if (e.kind === 'rest') return { e, x, val, dots, rest: true, grace: !!e.grace };
     // Stem direction follows the note FARTHEST from the middle line, not the
     // average of the chord — that is the engraving rule, and it is the one that
     // keeps the stem inside the staff instead of running the long way out of
@@ -630,7 +698,10 @@ function drawVoice(ctx) {
     const hi = Math.max(...positions);
     const lo = Math.min(...positions);
     const dir = forced || (Math.abs(hi) >= Math.abs(lo) ? -1 : 1);
-    return { e, x, val, dots, rest: false, dir, top: Math.max(...positions), bottom: Math.min(...positions) };
+    return {
+      e, x, val, dots, rest: false, dir, grace: !!e.grace,
+      top: Math.max(...positions), bottom: Math.min(...positions),
+    };
   });
 
   // ---- beam groups ----
@@ -681,6 +752,9 @@ function beamGroups(laid, measure) {
   };
 
   for (const item of laid) {
+    // An ornament is not part of the beat it decorates: beaming a grace note
+    // to the note it ornaments draws a beam across the bar line of the beat.
+    if (item.grace) { flush(); explicit = false; continue; }
     if (item.rest || item.val.flags === 0) { flush(); explicit = false; continue; }
     const b = item.e.beam;
     if (b === 'start') { flush(); explicit = true; run.push(item); continue; }
@@ -696,13 +770,21 @@ function beamGroups(laid, measure) {
 
 const posYOf = (top, pos, sp) => top + (2 - pos / 2) * sp;
 
+const GRACE_SCALE = 0.62;
+
 function drawChord(ctx, item, group) {
   const { out, events, top, sp } = ctx;
+  // An ornament is drawn at about five-eighths size. `gs` scales the GLYPHS and
+  // the widths measured in glyph units; it must NEVER touch a vertical
+  // position, because a position is a pitch and a pitch does not shrink. That
+  // is why this is a separate factor rather than a smaller `sp` — shadowing the
+  // staff space would silently squash every ornament onto the middle line.
+  const gs = item.grace ? GRACE_SCALE : 1;
   const { e, x, val, dots } = item;
   const heads = e.heads;
   const dir = group ? (group.dir ?? item.dir) : item.dir;
   const glyph = headGlyph(val);
-  const headW = (GLYPHS[glyph]?.w ?? 1.24) * sp;
+  const headW = (GLYPHS[glyph]?.w ?? 1.24) * sp * gs;
 
   // Accidentals stack leftward, tallest interval first, so they don't collide.
   const withAcc = heads.filter((h) => h.accidental !== null);
@@ -710,11 +792,12 @@ function drawChord(ctx, item, group) {
   const accSlots = new Map();
   for (const h of [...withAcc].sort((a, b) => b.pos - a.pos)) {
     const g = accidentalGlyph(h.accidental);
-    accSlots.set(h, accX - (GLYPHS[g]?.w ?? 1) * sp);
-    accX -= (GLYPHS[g]?.w ?? 1) * sp + sp * 0.12;
+    accSlots.set(h, accX - (GLYPHS[g]?.w ?? 1) * sp * gs);
+    accX -= (GLYPHS[g]?.w ?? 1) * sp * gs + sp * 0.12;
   }
   for (const [h, hx] of accSlots) {
-    out.push(glyphSVG(accidentalGlyph(h.accidental), hx, posYOf(top, h.pos, sp), sp, { class: 'cf-accidental' }));
+    out.push(glyphSVG(accidentalGlyph(h.accidental), hx, posYOf(top, h.pos, sp),
+      sp * gs, { class: 'cf-accidental' }));
   }
 
   // Seconds must not overlap: the second note of an adjacent pair crosses to
@@ -738,25 +821,28 @@ function drawChord(ctx, item, group) {
 
   for (const h of heads) {
     const hx = x + (side.get(h) ? (dir > 0 ? headW - sp * STEM_WIDTH : -headW + sp * STEM_WIDTH) : 0);
+    // The GLYPH shrinks; the STAFF does not. Vertical position is a pitch, so
+    // it is always measured in full staff spaces.
     const hy = posYOf(top, h.pos, sp);
     const idx = events.length;
     events.push({
       src: e.src, tick: e.tick, ticks: e.ticks, midi: heads.map((q) => q.midi),
       x: hx, y: hy, pos: h.pos, spelled: h,
     });
-    out.push(glyphSVG(glyph, hx, hy, sp, { class: 'cf-note', attrs: `data-ev="${idx}"` }));
+    out.push(glyphSVG(glyph, hx, hy, sp * gs,
+      { class: item.grace ? 'cf-note cf-grace' : 'cf-note', attrs: `data-ev="${idx}"` }));
 
     // dots — pushed into the space above when the note sits on a line
     for (let d = 0; d < dots; d++) {
       const dp = h.pos % 2 === 0 ? h.pos + 1 : h.pos;
-      out.push(glyphSVG('dot', x + headW + sp * (0.42 + d * 0.42) + (anyFlipped && dir > 0 ? headW : 0),
-        posYOf(top, dp, sp), sp, { class: 'cf-dot' }));
+      out.push(glyphSVG('dot', x + headW + sp * gs * (0.42 + d * 0.42) + (anyFlipped && dir > 0 ? headW : 0),
+        posYOf(top, dp, sp), sp * gs, { class: 'cf-dot' }));
     }
   }
 
   // ledger lines
-  const lx = x - sp * LEDGER_EXTRA;
-  const lw = headW + sp * LEDGER_EXTRA * 2;
+  const lx = x - sp * gs * LEDGER_EXTRA;
+  const lw = headW + sp * gs * LEDGER_EXTRA * 2;
   for (let p = 6; p <= ledgerMax; p += 2) {
     out.push(`<line class="cf-ledger" x1="${r2(lx)}" y1="${r2(posYOf(top, p, sp))}" x2="${r2(lx + lw)}"`
       + ` y2="${r2(posYOf(top, p, sp))}" stroke-width="${r2(STAFF_LINE * sp * 1.25)}"/>`);
@@ -768,10 +854,10 @@ function drawChord(ctx, item, group) {
 
   // stem + flag (a beamed note's stem is drawn with its beam instead)
   if (val.stem) {
-    const stemX = dir > 0 ? x + headW - sp * STEM_WIDTH / 2 : x + sp * STEM_WIDTH / 2;
+    const stemX = dir > 0 ? x + headW - sp * gs * STEM_WIDTH / 2 : x + sp * gs * STEM_WIDTH / 2;
     const anchor = dir > 0 ? ledgerMin : ledgerMax;
     const farPos = dir > 0 ? ledgerMax : ledgerMin;
-    let endPos = farPos + dir * STEM_LENGTH * 2;
+    let endPos = farPos + dir * STEM_LENGTH * 2 * (item.grace ? 0.72 : 1);
     // A stem from far outside the staff is drawn back to the middle line.
     if (dir > 0 && farPos < -2) endPos = Math.max(endPos, 0);
     if (dir < 0 && farPos > 2) endPos = Math.min(endPos, 0);
@@ -780,11 +866,20 @@ function drawChord(ctx, item, group) {
     item.headAnchor = anchor;
     if (!group) {
       out.push(`<line class="cf-stem" x1="${r2(stemX)}" y1="${r2(posYOf(top, anchor, sp))}"`
-        + ` x2="${r2(stemX)}" y2="${r2(posYOf(top, endPos, sp))}" stroke-width="${r2(STEM_WIDTH * sp)}"/>`);
+        + ` x2="${r2(stemX)}" y2="${r2(posYOf(top, endPos, sp))}"`
+        + ` stroke-width="${r2(STEM_WIDTH * sp * gs)}"/>`);
       for (let f = 0; f < val.flags; f++) {
-        out.push(glyphSVG('flag', stemX - (dir > 0 ? sp * STEM_WIDTH / 2 : -sp * STEM_WIDTH / 2),
-          posYOf(top, endPos, sp) + dir * f * sp * 0.85 * -1, sp,
+        out.push(glyphSVG('flag', stemX - (dir > 0 ? sp * gs * STEM_WIDTH / 2 : -sp * gs * STEM_WIDTH / 2),
+          posYOf(top, endPos, sp) + dir * f * sp * gs * 0.85 * -1, sp * gs,
           { class: 'cf-flag', scaleY: dir > 0 ? 1 : -1 }));
+      }
+      // The slash through an acciaccatura's flag is what distinguishes it from
+      // an appoggiatura on the page.
+      if (item.grace && e.grace === 'acciaccatura' && val.flags) {
+        const ty = posYOf(top, endPos, sp);
+        out.push(`<line class="cf-graceslash" x1="${r2(stemX - sp * 0.42)}" y1="${r2(ty + dir * sp * 0.55)}"`
+          + ` x2="${r2(stemX + sp * 0.62)}" y2="${r2(ty - dir * sp * 0.25)}"`
+          + ` stroke-width="${r2(0.1 * sp)}"/>`);
       }
     }
   }
