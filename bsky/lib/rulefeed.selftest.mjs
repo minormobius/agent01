@@ -150,17 +150,20 @@ console.log('\nthe editable text form round-trips');
     fromText('// note\n\npreprint\n').any, ['preprint']);
 }
 
-console.log('\nweak terms need a link — the biggest precision win, from live data');
+console.log('\nweak terms need SCHOLARLY corroboration — two live runs to get right');
 {
-  const m = compile({ any: ['arxiv'], weak: ['"new paper"'] });
-  check('weak term alone does NOT match', m.test(post('our new paper is lovely')), false);
-  check('weak term WITH a link matches',
+  const m = compile({ any: ['arxiv'], weak: ['"new paper"'], domains: ['nature.com'], doi: true });
+  check('weak alone does NOT match', m.test(post('our new paper is lovely')), false);
+  check('weak + a NON-scholarly link does NOT match (run 2 taught this)',
+    m.test(post('our new paper is lovely', link('https://mlb.com/news/x'))), false);
+  check('weak + a scholarly domain matches',
     m.test(post('our new paper is lovely', link('https://nature.com/x'))), true);
-  check('weak term with a bare url in text matches',
-    m.test(post('our new paper https://nature.com/x is lovely')), true);
-  check('strong term still matches with no link', m.test(post('up on arxiv now')), true);
-  check('why() marks the corroboration',
-    m.why(post('our new paper', link('https://x.com/1'))).some((h) => h.endsWith('+link')), true);
+  check('weak + a DOI matches',
+    m.test(post('our new paper, 10.1038/s41586-024-07123-4, out today')), true);
+  check('strong term still matches with no link at all', m.test(post('up on arxiv now')), true);
+  check('why() names the corroboration',
+    m.why(post('our new paper', link('https://nature.com/x')))
+      .some((h) => h.endsWith('+scholarly link')), true);
 }
 
 console.log('\nthe six real false positives the live run produced');
@@ -182,6 +185,30 @@ console.log('\nthe six real false positives the live run produced');
     m.test(post('Common-Witness Certificates and Sharp Feature Bounds for Counterfactual Image Auditing #arXiv #cs.AI')), true);
   check('still matches a nature.com link',
     m.test(post('Yes, I would appreciate that date in the review article also.', link('https://www.nature.com/articles/s41467-026-77068-0.pdf'))), true);
+}
+
+console.log('\nrun 2: journalism ABOUT research is not research');
+{
+  const m = compile(PRESETS[0]);
+  const keep = [
+    ['arXiv cs.AI', post('A Computationally Feasible Framework for Causal Probabilistic Explanation #arXiv #cs.AI',
+      link('https://arxiv.org/abs/1'))],
+    ['sciencedirect', post('Spatiotemporal dynamics of frontoparietal networks in semantic decision-making',
+      link('https://www.sciencedirect.com/science/article/x'))],
+    ['bibliometric review', post('Emerging trends in nanomaterials: A bibliometric analysis and critical literature review',
+      link('https://www.sciencedirect.com/science/article/y'))],
+  ];
+  for (const [n, p] of keep) check(`keeps ${n}`, m.test(p), true);
+
+  const drop = [
+    ['a news story quoting a study', post('T-Mobile Park has some of the cheapest hot dogs and beer in the MLB, a new study says.',
+      link('https://mlb.com/news/x'))],
+    ['a 1983 music magazine on archive.org', post('1983: smash hits 6 19 january 1983, page 29 Full mag',
+      link('https://archive.org/stream/smash-hits'))],
+    ['a software blog saying "methodology"', post('The new PyPi download count methodology update absolutely crushed some packages.',
+      link('https://blog.pypi.org/posts/2026-0'))],
+  ];
+  for (const [n, p] of drop) check(`drops ${n}`, m.test(p), false);
 }
 
 console.log('\nthe shipped preset — broad net, subtractive edge');

@@ -93,7 +93,7 @@ export const PRESETS = [
       '"new paper"', '"our paper"', '"our new paper"', '"just published"',
       '"now out in"', '"out now in"', '"paper is out"', '"accepted at"',
       '"accepted in"', '"published in"', '"appears in"', '"in press"',
-      '"new study"', '"our study"', '"this study"', '"we find that"',
+      '"our study"', '"this study"', '"we find that"',
       '"we show that"', '"first author"', '"co-author"', '"lead author"',
       'methodolog*', 'reproducib*', 'replicat*', 'dataset', 'ablation',
       'archaeolog*', 'ethnograph*', 'palaeo*', 'paleo*', 'fieldwork',
@@ -116,7 +116,8 @@ export const PRESETS = [
       'annualreviews.org', 'royalsocietypublishing.org', 'aeaweb.org',
       'nber.org', 'brookings.edu',
       // repositories and archives
-      'hathitrust.org', 'archive.org', 'gutenberg.org', 'perseus.tufts.edu',
+      // NOT archive.org: it hosts everything, and caught a 1983 music magazine.
+      'hathitrust.org', 'gutenberg.org', 'perseus.tufts.edu',
       'openlibrary.org', 'dspace.mit.edu', 'escholarship.org',
     ],
     tags: [
@@ -291,22 +292,6 @@ export function compile(rule) {
     const naked = (re) => `term ${re.source.replace(/\\b|\\s\+/g, ' ').trim()}`;
     for (const re of any) if (re.test(text)) { hits.push(naked(re)); break; }
 
-    /**
-     * Weak terms need corroboration, and this is the single biggest precision
-     * win in the rule. Measured against 90s of the live firehose: link, DOI and
-     * venue-name signals were right 3 times out of 3, while bare conversational
-     * phrases were right 0 times out of 6 — "#Caturday is for … reading the
-     * paper", "a faux-archaeological dig", and an adult-content account's "I
-     * just published…" all matched on wording alone.
-     *
-     * Somebody sharing scholarship almost always links to it. Somebody using
-     * the same words in conversation does not. So a weak term only counts when
-     * the post carries a link — which costs almost no recall and removes most
-     * of the noise.
-     */
-    if (weak.length && linksOf(record).length) {
-      for (const re of weak) if (re.test(text)) { hits.push(`${naked(re)} +link`); break; }
-    }
 
     if (domains.length) {
       for (const url of linksOf(record)) {
@@ -324,7 +309,35 @@ export function compile(rule) {
       if (got) hits.push(`#${got}`);
     }
 
+    // Before the weak pass: a DOI is a scholarly signal and must be able to
+    // corroborate one.
     if (rule.doi && (DOI.test(text) || linksOf(record).some((u) => DOI.test(u)))) hits.push('doi');
+
+    /**
+     * Weak terms need SCHOLARLY corroboration — a link to one of the rule's own
+     * domains, or a DOI. Not merely any link. This is the single biggest
+     * precision lever in the rule and it took two live measurements to get
+     * right.
+     *
+     * Run 1 (no gate): bare phrases were right 0 times out of 6 — "#Caturday is
+     * for … reading the paper", "a faux-archaeological dig", an adult account's
+     * "I just published…".
+     *
+     * Run 2 (gated on ANY link): 3 of 6. The survivors were all the same
+     * mistake — a news story ABOUT research rather than research. "T-Mobile
+     * Park has the cheapest hot dogs in the MLB, a new study says" carried a
+     * link; so did "the new PyPi download count methodology update".
+     *
+     * Journalism and shop-talk link to journalism and shop-talk. Scholarship
+     * links to a publisher, a preprint server or a DOI. So the corroboration
+     * has to be that, and the cost is a real paper announced with only a lab
+     * website — a trade worth making for a discovery feed, where one bad post
+     * is expensive and one missed post is not.
+     */
+    const scholarly = hits.some((h) => h.startsWith('link ') || h === 'doi');
+    if (weak.length && scholarly) {
+      for (const re of weak) if (re.test(text)) { hits.push(`${naked(re)} +scholarly link`); break; }
+    }
 
     return hits;
   }
