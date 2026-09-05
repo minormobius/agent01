@@ -264,6 +264,21 @@ strictly necessary (degree ≥4 instead of ≥5) — said so explicitly in
 NOTE.txt and BRIEF.md rather than letting "exact for low degree" quietly
 mean "exact only through cubic" without comment.
 
+Twenty-second request (2026-09-05), "that-shows": another bare-formula math
+ask, no reference link — "two side-by-side complex planes, draw on one, see
+the Joukowski transformation of the drawing on the other." Consistent with
+the standing pattern of turning a single static map into one explorable
+parameter: exposed the transform's constant as a live `k` slider
+(`w = z + k/z`, k=0..2.5) rather than hardcoding the classic `w = z + 1/z`,
+since the request only names "the" Joukowski transform but the profile's
+recurring theme is that this requester rewards one real slider over a fixed
+picture. Also pre-seeded the page with the textbook offset-circle-into-airfoil
+example (rather than a blank canvas) so the first screenshot demonstrates
+the actual point of the map — consistent with "the screenshot IS the advert"
+for an interactive tool. No multi-view ask this time (unlike the knot/
+complex-map requests), so kept it to exactly the two planes asked for plus
+one small explanatory overlay (unit circle + its image), not a third panel.
+
 Thirteenth request (2026-07-31), continuing meta-todo: asked for two
 prioritized backlog entries — a max-priority one about pointing future build
 agents at general-template as their base, a high-priority one about rolling
