@@ -81,6 +81,29 @@ jobs:
             || { echo "::error::bundled the NODE runtime branch, not the browser one"; exit 1; }
           ls -la lib/vendor lib/vendor/zstd
 
+      # pdf.js, for reading a paper in the feed. ~448 KB + a 1.3 MB worker, so
+      # it is NOT in the app shell and is dynamically imported only when a
+      # reader opens a paper. Copied rather than bundled: the distribution is
+      # already a browser ESM build with its own worker file, and re-bundling it
+      # only risks breaking the worker's own module boundary.
+      - name: Stage pdf.js (lazy, not shell)
+        run: |
+          BUILD="$RUNNER_TEMP/pdfjs"
+          mkdir -p "$BUILD" && cd "$BUILD"
+          npm init -y >/dev/null
+          npm install --no-save pdfjs-dist
+          cd - >/dev/null
+          mkdir -p lib/vendor/pdfjs
+          # The LEGACY build, not the modern one. pdfjs 6's modern bundle calls
+          # Map.prototype.getOrInsertComputed — a proposal so new that Chromium
+          # 1194 does not have it, and rendering fails with
+          # "getOrInsertComputed is not a function": pages size correctly and
+          # draw nothing. Measured, not guessed. The legacy bundle ships the
+          # core-js polyfill for it and costs ~50 KB more.
+          cp "$BUILD/node_modules/pdfjs-dist/legacy/build/pdf.min.mjs"        lib/vendor/pdfjs/
+          cp "$BUILD/node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs" lib/vendor/pdfjs/
+          ls -la lib/vendor/pdfjs
+
       - name: Deploy worker + assets
         run: npx wrangler deploy
         env:

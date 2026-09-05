@@ -191,6 +191,26 @@ textarea{resize:none;line-height:1.4}
    is real bandwidth, so it says what it is spending. */
 .quote{cursor:pointer}
 .quote-bare{color:var(--muted);font-size:13.5px;padding:9px 11px}
+/* Read the paper. The overlay is its own scroll container so the feed behind
+   it does not move, and `touch-action:none` on the scroller is required or the
+   browser claims the pinch before the handler sees it — the same lesson as
+   lib/lightbox.js. */
+.paperbtn{display:inline-flex;align-items:center;gap:6px;margin:8px 0 2px;padding:7px 11px;
+  min-height:36px;border:1px solid var(--line);border-radius:9px;background:var(--panel);
+  color:var(--accent);font-size:13px;font-weight:500;cursor:pointer}
+.paper{position:fixed;inset:0;z-index:70;background:var(--bg);display:flex;flex-direction:column}
+.paper-bar{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 9px) 12px 9px;
+  border-bottom:1px solid var(--line);flex:none;flex-wrap:nowrap;overflow-x:auto}
+.paper-title{font-size:13px;color:var(--muted);white-space:nowrap}
+.paper-zoom{font-size:12.5px;color:var(--muted);min-width:44px;text-align:center;font-variant-numeric:tabular-nums}
+.paper-scroll{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y pinch-zoom;
+  padding:10px 0 calc(env(safe-area-inset-bottom,0px) + 20px);display:flex;flex-direction:column;
+  align-items:center;gap:12px;background:var(--line-soft)}
+.paper-page{position:relative;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.35);flex:none}
+.paper-page canvas{display:block;width:100%;height:100%}
+.paper-link{position:absolute;display:block;background:rgba(76,141,255,.10);border-radius:2px}
+.paper-link:hover{background:rgba(76,141,255,.22)}
+.paper-status{margin:40px auto;color:var(--muted);font-size:14px;text-align:center;line-height:1.7;padding:0 24px}
 .rulebudget{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px}
 .rulebudget select{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;min-height:34px}
 .rulehead{border:1px solid var(--line);border-radius:11px;padding:12px 13px;margin:10px 12px 4px;

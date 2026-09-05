@@ -546,6 +546,70 @@ firehose and says plainly that the archive is where the feed actually fills up,
 and where to get a free key. `apikey.hasKey()` decides, synchronously, with no
 dependency on `lib/vendor/` — see the sign-out post-mortem for why that matters.
 
+### Read the paper — a PDF, in the feed
+
+`lib/paper.js`, opened from a 📄 button under any post whose links include a
+readable paper. pdf.js renders it to canvas: scrollable, zoomable, with its
+hyperlinks live.
+
+**Only arXiv, and that is a measurement, not a preference.** The blocker is CORS
+again, and the answer happens to be good for the source that matters most here:
+
+| host | browser-fetchable |
+|---|---|
+| **arxiv.org** | **YES — `ACAO: *` AND Range** |
+| osf.io | no (Range, but no CORS) |
+| ncbi PMC, biorxiv, medrxiv, plos, mdpi, nature | no |
+
+arXiv allowing a cross-origin read *and* byte ranges is what makes this work:
+pdf.js fetches the structure and only the pages being looked at, instead of
+pulling a 20 MB download before drawing anything. Everywhere else the browser
+cannot read the bytes — `no-cors` yields an opaque body, which is not a PDF you
+can parse. Those links stay ordinary links and **no button is offered**, because
+a button that opens an error is worse than the link the reader already had.
+
+An `/abs/` link resolves to the PDF, which matters: an abstract page is what
+people actually post.
+
+pdf.js is ~508 KB plus a 1.3 MB worker, so it is **dynamically imported on the
+tap** and is never in the app shell. `deploy-bsky.yml` stages it.
+
+Four things cost a run each, and all four fail the same way — silently:
+
+- **Use the LEGACY build.** pdfjs 6's modern bundle calls
+  `Map.prototype.getOrInsertComputed`, which Chromium 1194 does not have.
+  Pages size correctly and draw *nothing*; the only clue is a console
+  TypeError. The legacy bundle ships the core-js polyfill.
+- **`viewport.convertToViewportRectangle` was REMOVED in v6**, and
+  `Util.applyTransform` still exists but no longer returns a destructurable
+  point. Both throw inside the annotation pass, so every link vanishes —
+  indistinguishable from a PDF that has no links. The viewport transform is an
+  ordinary affine matrix, so `rectToViewport()` does the arithmetic here and is
+  unit-tested. It cannot be renamed out from under us.
+- **The document has no `destroy()`** — teardown is `loadingTask.destroy()`.
+  The old call was `doc?.destroy?.()`, and the optional call made the missing
+  method silent, leaking the worker. Optional chaining on a method you believe
+  exists hides exactly this.
+- **Never two `render()` calls in flight on one page.** The observer starts one,
+  the reader zooms, `setZoom` starts another on the same page object. Renders
+  are now serialised per page, and zoom supersedes by bumping a generation
+  rather than cancelling — cancelling mid-flight is the other way to break it.
+
+**Verified in Chromium** against a hand-built 2-page PDF with a link annotation:
+both pages render (2,814 dark pixels on page 1 — text actually drawn), the
+annotation becomes a live `<a>` to the right URL, zoom re-renders at the new
+scale (canvas 748 → 935 px wide, not an upscaled bitmap), close restores the
+page, and the button appears for arXiv and not for biorxiv or nature.
+
+**Not fixed, and not root-caused:** pdf.js emits one uncaught
+`Cannot read properties of null (reading '_post')` per teardown, and one more
+per zoom. In isolation every operation this viewer performs is clean — import,
+`getDocument`, concurrent renders of different pages, `getAnnotations`,
+`loadingTask.destroy()` — so it is something about the combination. Four
+plausible fixes did not remove it; two of them were real bugs and stayed. It has
+no observed effect on rendering, links, zoom or teardown, and it does not fire
+unless a paper is opened.
+
 ### Palettes
 
 `lib/theme.js`. Seven palettes plus `auto`, which follows the OS and is the

@@ -21,6 +21,8 @@ import { JetstreamClient, KIND, eventUri, LOOKBACK_HOURS, clampSince }
   from '/packages/atproto/jetstream.js';
 import * as rulefeed from '/lib/rulefeed.js';
 import * as apikey from '/lib/apikey.js';
+import { paperOf } from '/lib/paper.js';
+import { linksOf } from '/lib/rulefeed.js';
 import { postCounts } from '/packages/atproto/constellation.js';
 import { getProfiles, getFollows, resolveActor, getProfile } from '/packages/atproto/bsky.js';
 import { FEEDS, loadFeed, authorFeed, authorMedia, notifications, searchActors, getThread }
@@ -540,6 +542,24 @@ async function startLive() {
   state.live.connect();
 }
 
+/**
+ * Open a paper. pdf.js is ~1.75 MB with its worker, so the module is imported
+ * on the tap and never before — this must stay a dynamic import.
+ */
+let paperView = null;
+
+async function openPaperFor(pdf, label) {
+  if (paperView) { paperView.close?.(); paperView = null; }
+  say(`opening ${label}…`);
+  try {
+    const mod = await import('/lib/paper.js');
+    paperView = await mod.openPaper({ pdf, label });
+    say(label);
+  } catch (err) {
+    say(`could not open the paper: ${err.message}`);
+  }
+}
+
 // ─── rule feeds: a feed generator running in this tab ─────────────
 
 /**
@@ -858,6 +878,21 @@ function flushWrites() {
 
 // ─── post rendering ──────────────────────────────────────────────
 
+/**
+ * "Read the paper" — only where the browser can actually fetch the PDF.
+ *
+ * Offered on measurement, not on hope: arXiv sends `access-control-allow-origin: *`
+ * AND accepts Range requests, so pdf.js can stream it. Every other publisher
+ * tested refuses cross-origin reads, and a button that opens an error is worse
+ * than the plain link the reader already had — see lib/paper.js for the table.
+ */
+function paperButton(p) {
+  const paper = paperOf(linksOf(p.record));
+  if (!paper) return '';
+  return `<button class="paperbtn" data-paper="${esc(paper.pdf)}" data-paperlabel="${esc(paper.label)}">`
+    + `📄 read ${esc(paper.label)}</button>`;
+}
+
 function postNode(p) {
   const prof = p.author || state.profiles.get(p.did);
   const c = p.counts;
@@ -873,6 +908,7 @@ function postNode(p) {
         </div>
         <div class="ptext">${esc(p.record?.text || '')}</div>
         ${renderEmbed(p.record, p.did, p.viewEmbed)}
+        ${paperButton(p)}
         <div class="pacts">
           <button data-act="reply">↳ <span>${c ? c.replyCount : ''}</span></button>
           <button data-act="repost">↻ <span>${c ? c.repostCount : ''}</span></button>
@@ -1902,6 +1938,15 @@ document.addEventListener('click', (e) => {
 
   // Buttons and genuine links keep their own behaviour.
   if (e.target.closest('button[data-act]')) return;
+  // Before the card's own data-thread: opening the paper is not opening the
+  // thread, and the button sits inside the article.
+  const pb = e.target.closest('[data-paper]');
+  if (pb) {
+    e.preventDefault();
+    openPaperFor(pb.dataset.paper, pb.dataset.paperlabel);
+    return;
+  }
+
   if (e.target.closest('a[href]:not([data-thread])') || e.target.closest('video')) return;
 
   const th = e.target.closest('[data-thread]');
