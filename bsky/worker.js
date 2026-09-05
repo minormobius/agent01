@@ -1,16 +1,20 @@
 /**
  * bsky.mino.mobi — worker.
  *
- * Almost everything here is static: the AppView runs in the browser. The only
- * server-side surface is the replay proxy, and it exists because of one
- * asymmetry in Jetstream v2:
+ * Almost everything here is static: the AppView runs in the browser, and that
+ * includes history — the live tail's timestamp cursor replays the last ~36h
+ * unauthenticated, so the page needs nothing from this worker to show a
+ * backfilled timeline.
+ *
+ * This worker is only for history OLDER than that window, and for two
+ * independent reasons:
  *
  *   live tail  → WebSocket, no auth, not metered  → the browser does it itself
- *   replay     → HTTP, API key, metered in bytes  → needs a secret holder
+ *   archive    → HTTP, API key, metered in bytes  → needs a secret holder
+ *              → and zstd-compressed, which browsers cannot decode synchronously
  *
- * A key in a static page is a published key, so the archive calls proxy through
- * here. Until JETSTREAM_API_KEY is set the route answers 503 with a reason
- * rather than pretending — the page degrades to its live-only mode.
+ * Until JETSTREAM_API_KEY is set the route answers 503 with a reason rather
+ * than pretending. That is not a degraded page: the ~36h window still works.
  */
 
 const JETSTREAM = 'https://jetstream.us-east.bsky.network';
@@ -37,9 +41,14 @@ export default {
       return json({
         ok: true,
         replay: Boolean(env.JETSTREAM_API_KEY),
+        // `replay` is about the ARCHIVE only. History within the live tail's
+        // ~36h window needs nothing from here, so this must not read as "no
+        // history" — it says which history.
+        lookbackHours: 36,
         note: env.JETSTREAM_API_KEY
-          ? 'archive replay available'
-          : 'live tail only — JETSTREAM_API_KEY unset, so history is unavailable',
+          ? 'archive available — history deeper than the ~36h live window'
+          : 'archive off (JETSTREAM_API_KEY unset). The ~36h live window still '
+            + 'replays without it; only deeper history is unavailable.',
       });
     }
 
@@ -65,9 +74,10 @@ async function replay(request, env, url) {
     return json({
       error: 'replay_unconfigured',
       message:
-        'Jetstream archive replay needs an API key (metered in bytes). ' +
-        'Set JETSTREAM_API_KEY on this worker to enable history; the live ' +
-        'tail needs no key and works without it.',
+        'The Jetstream archive needs an API key (metered in bytes) and is ' +
+        'only for history deeper than the live tail\'s ~36h window. Inside ' +
+        'that window the browser replays directly, no key required. Set ' +
+        'JETSTREAM_API_KEY on this worker for anything older.',
     }, 503);
   }
 
