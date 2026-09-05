@@ -10,6 +10,17 @@ name: measure-firehose
 # measurement, not part of any deploy.
 
 on:
+  # Dispatch is the intended way to run this. A push trigger exists too, scoped
+  # to this measurement's OWN two files and nothing else, because the sandbox's
+  # GitHub token cannot dispatch a workflow — and in this repo, a push to a
+  # trigger path is how you reach the network. Touching the script re-measures;
+  # nothing else in the repo can wake it.
+  push:
+    branches:
+      - claude/bsky-app-view-feasibility-8sdflz
+    paths:
+      - '.github/scripts/measure-firehose.mjs'
+      - '.github/workflows/measure-firehose.yml'
   workflow_dispatch:
     inputs:
       seconds:
