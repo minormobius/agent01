@@ -16,7 +16,6 @@ import { sha256 } from '../../bsky/lib/sha256.js';
 const SERVICE = 'https://jetstream.us-east.bsky.network';
 const KEY = process.env.JETSTREAM_KEY;
 const BUDGET = Math.max(1, Number(process.env.BUDGET_MB) || 50) * 1024 * 1024;
-const SEQ_BACK = Math.max(1, Number(process.env.SEQ_BACK) || 3_400_000);
 
 if (!KEY) { console.error('no JETSTREAM_KEY in the environment'); process.exit(1); }
 
@@ -40,18 +39,49 @@ console.log(`  authenticated planSnapshot: OK`);
 console.log(`  sealedTipSeq  ${n(tipPlan.sealedTipSeq)}`);
 
 const TIP = tipPlan.sealedTipSeq;
-const afterSeq = TIP - SEQ_BACK;
 
-console.log('\n═══ 2. plan the window before paying for it ═══');
-const p = await plan({ collections: ['app.bsky.feed.post'], kinds: ['commit'], afterSeq });
+/**
+ * Pick a window the planner will serve as BLOCKS.
+ *
+ * This is the lesson of the previous run and it is the whole usability story
+ * for replay. A plan entry in `segment` mode is a ~262 MB atomic download: a
+ * byte budget cannot subdivide it, so a 12 MB cap simply aborts after the
+ * Content-Length arrives and nothing is decoded at all. Only where a BLOCK
+ * INDEX exists can the archive be read a piece at a time — and for
+ * app.bsky.feed.post that is a small minority of segments.
+ *
+ * So rather than choosing a seq range and hoping, plan the whole archive once
+ * (metadata, cheap) and pick a segment that actually has an index.
+ */
+console.log('\n═══ 2. find a window the planner will serve as BLOCKS ═══');
+const full = await plan({ collections: ['app.bsky.feed.post'], kinds: ['commit'] });
+const indexed = (full.segments || []).filter((s) => s.mode === 'blocks' && (s.blocks || []).length);
+console.log(`  archive       ${n(full.segments.length)} segments, ${n(indexed.length)} with a block index `
+  + `(${(indexed.length / Math.max(full.segments.length, 1) * 100).toFixed(1)}%)`);
+
+if (!indexed.length) { console.error('  no block-indexed segment anywhere — cannot buy a bounded slug'); process.exit(1); }
+
+// The newest indexed segment: most likely to still be hot, and the freshest
+// data is what a feed wants anyway.
+const pick = indexed[indexed.length - 1];
+const pickBlocks = (pick.blocks || []).reduce((a, r) => a + r.last - r.first + 1, 0);
+console.log(`  chosen        ${pick.name} (index ${pick.index}) — ${n(pickBlocks)} blocks, `
+  + `seq ${n(pick.minSeq)}..${n(pick.maxSeq)}`);
+
+// Bound the plan to exactly that segment so no whole-segment neighbour sneaks in.
+const afterSeq = pick.minSeq - 1;
+const beforeSeq = pick.maxSeq;
+
+const p = await plan({ collections: ['app.bsky.feed.post'], kinds: ['commit'], afterSeq, beforeSeq });
 let blocks = 0, whole = 0;
 for (const s of p.segments || []) {
   if (s.mode === 'blocks') for (const r of s.blocks || []) blocks += r.last - r.first + 1;
   else whole++;
 }
-console.log(`  window        afterSeq ${n(afterSeq)} (${n(SEQ_BACK)} back from the tip)`);
-console.log(`  segments      ${p.segments.length}   indexed blocks ${n(blocks)}   whole segments ${whole}`);
+console.log(`  bounded plan  ${p.segments.length} segments, ${n(blocks)} blocks, ${whole} whole`);
 console.log(`  stats         ${JSON.stringify(p.stats || {})}`);
+if (whole) console.log(`  NOTE: ${whole} whole-segment entr${whole === 1 ? 'y' : 'ies'} remain — `
+  + `each is ~262 MB and cannot be subdivided by a byte budget.`);
 
 // ── 2. the browser shims, against the real dictionary ────────────
 console.log('\n═══ 3. the BROWSER shims (not node:zlib / node:crypto) ═══');
@@ -113,7 +143,8 @@ const t0 = Date.now();
 
 try {
   for await (const evt of js.snapshot({
-    collections: ['app.bsky.feed.post'], kinds: ['commit'], afterSeq, signal: budgetCtl.signal,
+    collections: ['app.bsky.feed.post'], kinds: ['commit'], afterSeq, beforeSeq,
+    signal: budgetCtl.signal,
   })) {
     // Diagnostics, because a silent zero is indistinguishable from a wrong
     // assumption about the event's shape — and the last run produced exactly
