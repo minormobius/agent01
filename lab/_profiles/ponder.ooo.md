@@ -248,6 +248,22 @@ to the falling-block-tetromino mechanic specifically as a base to remix,
 across two consecutive requests — treat a future "tetris but X" ask as
 wanting the X mechanic taken completely literally, same as the math asks.
 
+Twenty-first request (2026-09-05), "complex-polynomial": another bare-formula
+math ask, no reference link — drag coefficient points on the complex plane,
+permute them, change degree, see the roots, "exact for low degree, numerical
+methods for higher degrees" stated outright. Consistent with the fourth/
+fifth/fifteenth/sixteenth/seventeenth pattern of taking the literal math
+seriously: built real closed-form solvers (linear/quadratic/cubic via
+uniform complex-arithmetic Cardano, no real/complex branching) rather than
+numerics-only, and read "permute them" as literally shuffling the
+coefficient array (same complex values, reassigned across powers) rather
+than a vaguer "shuffle the points visually". New data point on the standing
+"flag the shortcut" habit: skipped the quartic's own exact formula (Ferrari)
+for time and fell through to Durand-Kerner numerics one degree earlier than
+strictly necessary (degree ≥4 instead of ≥5) — said so explicitly in
+NOTE.txt and BRIEF.md rather than letting "exact for low degree" quietly
+mean "exact only through cubic" without comment.
+
 Thirteenth request (2026-07-31), continuing meta-todo: asked for two
 prioritized backlog entries — a max-priority one about pointing future build
 agents at general-template as their base, a high-priority one about rolling
