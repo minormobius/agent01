@@ -151,6 +151,80 @@ with a stale `workers/` shipped a green build that dropped the ceiling from 66
 collections to 61 and broke four sites. Only ever add to `WRITE_COLLECTIONS`,
 never remove.
 
+### Installing it — the PWA, and the one rule that is a security rule
+
+`manifest.json` + `sw.js` + `icons/`. Installing matters more here than it does
+for most apps, because **the archive is already on the device**: the posts live
+in IndexedDB and the shell is precached, so an installed copy opened with no
+network shows the month of history this browser accumulated rather than a
+dinosaur. Offline is the feature, not a nicety.
+
+`sw.js` has three rules and the first one is not about caching:
+
+1. **Never touch `/api/*`.** `/api/feedgen` forwards the reader's own
+   service-auth JWT and returns **their** personalised feed. Cache Storage is
+   per-origin, not per-account — caching that would hand one reader's For You to
+   whoever opens the app next on a shared phone, and would outlive a token
+   deliberately valid for about a minute. There is no cache policy that makes
+   this safe; the worker stays out of the way. `lib/sw.selftest.mjs` asserts the
+   bypass still exists, so deleting it fails a test rather than shipping.
+2. **Never touch cross-origin.** CDN images, the public AppView, Constellation,
+   the PDS, `auth.mino.mobi` — already HTTP-cached, or authenticated, or the
+   live tail that must not be stale. Opaque cross-origin responses also cost far
+   more quota than they appear to, and this origin's quota belongs to the
+   archive.
+3. **Never serve a stale document.** Navigations are network-first so a deploy
+   reaches installed readers on next launch; the cache is the offline fallback.
+   A navigation carrying a query string (the OAuth callback's `?code=…`) is
+   never read from or written to the cache.
+
+Sub-resources are stale-while-revalidate under a version-named cache
+(`bsky-shell-v1`), purged on `activate`.
+
+**There is no unprompted `skipWaiting()`, deliberately.** This app is one module
+graph; activating a new worker under a page that already imported the old
+`app.js` can mix versions inside one session. So a new worker waits and the Me
+tab grows an *update now* button. Two traps that cost a test run each:
+
+- **`controllerchange` fires for two different reasons.** An updated worker
+  taking over (reload — or the page keeps running the old modules), and
+  `clients.claim()` adopting a page that had no controller, which is **every
+  first visit**. Reloading on the second gave every new reader a gratuitous
+  double-load. `hadController`, snapshotted at registration, is what separates
+  them.
+- **Gate registration on `isSecureContext`, not on the hostname.** The first
+  version checked `hostname === 'localhost'` and so silently refused to register
+  on `127.0.0.1`, which is equally a secure context. The API's own condition is
+  the right condition.
+
+**Tabs are hash-routed** (`#/`, `#/search`, `#/notifs`, `#/me`) — not for
+shareable links, but because a standalone PWA has no browser chrome, so
+Android's hardware back button walks `history` and closes the app when the stack
+is empty. A hash per tab makes back go Notifs → Home. It also gives the
+manifest's `shortcuts` somewhere to point.
+
+**Icons are generated**, by `scripts/gen-bsky-icons.mjs` — dependency-free
+(4x supersampled RGBA, PNG written with `node:zlib` deflate and a hand-rolled
+CRC32), because five small images are not worth the only native dependency in
+the tree. Re-run it only if the mark changes. **The mark is not Bluesky's
+butterfly**: this is a third-party client and borrowing their logo would
+misrepresent who made it. It is six accounts on a ring wired to one hub — the
+`dids` filter, which is the thing this surface is actually about.
+
+`apple-mobile-web-app-status-bar-style` is **`default`**, not
+`black-translucent`: translucent slides the topbar under the iOS clock (nothing
+pads for `safe-area-inset-top`), and a hardcoded black bar is wrong for Paper
+and Sepia. `default` lets iOS tint from `theme-color`, which `theme.js` already
+keeps in step with the palette.
+
+Verified in Chromium against a local server (2026-09-05): manifest parses with
+4 icons and 2 shortcuts, the worker registers at scope `/`, **zero** spurious
+reloads on first install, 25 shell entries cached, `/api/*` absent from Cache
+Storage with the second request reaching the server, an offline reload painting
+the full shell with all four tabs, and back stepping Me → Notifs. Not verified:
+`beforeinstallprompt` and the actual install — headless Chromium does not fire
+it, and iOS has no API at all.
+
 ### Palettes
 
 `lib/theme.js`. Seven palettes plus `auto`, which follows the OS and is the
@@ -277,6 +351,34 @@ Exactly which steps a browser can do, measured:
 | 2. the DID document — `did:web:` on the operator's host | ⚠️ only if they allow it |
 | 3. **`getFeedSkeleton` on the generator** | ⚠️ only if they allow it |
 | 4. hydrate with `getPosts` (public AppView) | ✅ CORS `*` |
+
+**None of this is encryption, and the relay holds no key.** Measured in
+Chromium against a local server that returns a known plaintext body: a plain
+cross-origin `fetch` throws `TypeError: Failed to fetch`; the identical request
+with `mode:'no-cors'` *resolves*, with `response.type === 'opaque'`,
+`status === 0`, zero readable headers and an empty body — while the server logs
+show it served the plaintext every time. The bytes reach the browser process
+intact; the browser then refuses to hand them to the page, because the
+Same-Origin Policy says a response may only be read by an origin the server
+opted in. `no-cors` is the spec's name for "you may fire, you may not look" —
+and it **strips `Authorization`** (not a CORS-safelisted request header), so it
+could not carry the service-auth JWT even if the body were readable. Our worker
+reads the body for exactly one reason: it is not a browser, so no policy applies
+to it.
+
+Two other routes exist and are worth knowing before anyone "fixes" this:
+
+| Route | CORS to a browser | Personalised? |
+|---|---|---|
+| `public.api.bsky.app/xrpc/app.bsky.feed.getFeed` | `*` — verified | **no** — unauthenticated, so For You returns its "requires authentication" placeholder |
+| the reader's own PDS + `atproto-proxy: did:web:api.bsky.app#bsky_appview` | `*` — verified on `bsky.social` and a `*.host.bsky.network` PDS | **yes** — the PDS forwards to Bluesky's AppView, which mints service auth for the reader |
+
+The second is how the official client does it and it would remove `/api/feedgen`
+from the personalised path entirely. It is not free: it needs
+`app.bsky.feed.getFeed` added to `workers/auth`'s `/pds/*` allowlist (a fixed
+eight-route list) plus `atproto-proxy` passthrough, and it routes every custom
+feed through Bluesky's AppView — which is the thing this surface exists not to
+be a client of. A real option, an honest trade, not an obvious win.
 
 There is no client-side way around a missing CORS header — the browser enforces
 it on the response, `no-cors` gives an unreadable opaque body, and a service
@@ -530,6 +632,10 @@ proof: **confirm the run log binds `bsky.mino.mobi (custom domain)`**, and
   this sandbox's proxy blocks WebSockets, so the `live` and `following` chips
   are verified in node against the real host and untested in Chromium. Same for
   **reach further back**, which needs the archive.
+- **The install prompt is unverified.** Registration, caching, offline, the
+  update path and the two safety rules are all exercised in Chromium, but
+  `beforeinstallprompt` does not fire headless and iOS has no API at all, so
+  the actual add-to-home-screen has only been reasoned about.
 - **No write has ever been made from here.** Post, reply, like and repost are
   code-complete and consent works, but nothing in this sandbox can complete an
   OAuth round trip, so the actual `createRecord` calls are unverified end to

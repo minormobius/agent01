@@ -4,6 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="bsky">
+<!-- `default`, not `black-translucent`: the translucent style slides the
+     topbar under the iOS clock (nothing here pads for safe-area-inset-TOP),
+     and a hardcoded black bar is wrong for the Paper and Sepia palettes.
+     `default` lets iOS tint the bar from theme-color, which theme.js keeps
+     in step with whichever palette is chosen. -->
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>bsky — an AppView with no database</title>
 <script>
 /* Palette before first paint. Duplicating a few lines of lib/theme.js here is

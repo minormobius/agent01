@@ -88,12 +88,30 @@ function openProfile(actor) {
 
 function openThread(uri) { location.hash = `#/thread/${encodeURIComponent(uri)}`; }
 
+/**
+ * Tabs are addressable. That is not for the sake of shareable links — nobody
+ * shares a link to a tab — it is for INSTALLED copies of this app: a standalone
+ * PWA has no browser chrome, so Android's hardware back button walks
+ * `history` and, with nothing on the stack, closes the app. Pushing a hash per
+ * tab means back goes Notifs -> Home rather than Notifs -> gone. It also gives
+ * the manifest's shortcuts somewhere to point.
+ */
+const TABS = ['home', 'search', 'notifs', 'me'];
+
+function goTab(tab) {
+  const want = tab === 'home' ? '#/' : `#/${tab}`;
+  if (location.hash === want) return showTab(tab);   // re-tap: no history entry
+  location.hash = want;
+}
+
 function route() {
   const t = location.hash.match(/^#\/thread\/(.+)$/);
   if (t) return renderThread(decodeURIComponent(t[1]));
   const m = location.hash.match(/^#\/profile\/(.+)$/);
   if (m) return renderProfile(decodeURIComponent(m[1]));
-  if (state.tab === 'profile' || state.tab === 'thread') showTab('home');
+  const tab = location.hash.replace(/^#\/?/, '');
+  if (TABS.includes(tab)) return showTab(tab);
+  return showTab('home');
 }
 
 function renderChips() {
@@ -1030,6 +1048,34 @@ async function renderMe() {
     <p><b>${n.toLocaleString()}</b> posts held${est ? ` · ${(est.usage / 1048576).toFixed(1)} MB` : ''}${state.cacheOk ? '' : ' · unavailable in this browser'}</p>
     <button class="btn ghost" id="me-clear">clear the store</button></div>`));
 
+  // Install / update. Offline this app is not a blank page: the shell is
+  // precached and the posts are already in IndexedDB, so it opens on the
+  // archive this browser has accumulated.
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  let installBody;
+  if (swWaiting) {
+    installBody = `<p>A new version has downloaded and is waiting.</p>
+      <button class="btn" id="me-update">update now</button>`;
+  } else if (isInstalled()) {
+    installBody = `<p>Running from your home screen. The app shell is stored on this device, so
+      it opens without a network — and everything in the local store below is readable offline.</p>`;
+  } else if (deferredInstall) {
+    installBody = `<p>Add it to your home screen and it opens like an app: no address bar, and it
+      still works with no network — the shell is stored on this device and the posts are already
+      in the local store below.</p>
+      <button class="btn" id="me-install">install</button>`;
+  } else if (ios) {
+    installBody = `<p>To add this to your home screen: tap <b>Share</b>, then <b>Add to Home
+      Screen</b>. iOS gives a page no way to ask on its own. Once added it opens without an
+      address bar and works with no network.</p>`;
+  } else {
+    installBody = `<p>Your browser installs this from its own menu — look for <b>Install</b> or
+      <b>Add to Home Screen</b>. Once installed it opens without an address bar and works with
+      no network.</p>`;
+  }
+  v.append(el(`<div class="section"><h3>install</h3>${installBody}</div>`));
+
   const a = await archive().catch(() => null);
   v.append(el(`<div class="section"><h3>deep history</h3>
     <p>Older than the ${LOOKBACK_HOURS}h window is the <em>archive</em>, which is metered by the
@@ -1070,6 +1116,8 @@ async function renderMe() {
     <p><a href="https://github.com/minormobius/agent01/blob/main/docs/APPVIEW-FEASIBILITY.md">how this works</a>
      · <a href="https://b.mino.mobi">the rest of the Bluesky corner ↗</a></p></div>`));
 
+  $('me-install')?.addEventListener('click', promptInstall);
+  $('me-update')?.addEventListener('click', applyUpdate);
   $('me-signin')?.addEventListener('click', signIn);
   $('me-signout')?.addEventListener('click', signOut);
   $('me-clear')?.addEventListener('click', async () => {
@@ -1153,7 +1201,7 @@ async function refreshAuth() {
   state.me = { handle: user.handle, did: user.did };
   btn.className = 'avatar-btn';
   btn.innerHTML = `<img alt="@${esc(user.handle || '')}" src="${BLANK}">`;
-  btn.onclick = () => showTab('me');
+  btn.onclick = () => goTab('me');
   if (state.tab === 'me') renderMe();
 
   const full = await getProfile(user.did).catch(() => null);
@@ -1200,10 +1248,98 @@ async function sendPost() {
   }
 }
 
+// ─── installing, and updating once installed ─────────────────────
+
+/**
+ * Chromium fires `beforeinstallprompt` when it decides a page is installable,
+ * and the prompt can only be shown from a user gesture afterwards — so the
+ * event is stashed and the Me tab grows an "install" button. Safari fires
+ * nothing at all and offers no API: on iOS the only route is Share -> Add to
+ * Home Screen, which is why the Me tab tells iOS readers that in words.
+ */
+let deferredInstall = null;
+let swWaiting = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();                 // or Chrome shows its own mini-infobar
+  deferredInstall = e;
+  if (state.tab === 'me') renderMe();
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstall = null;
+  if (state.tab === 'me') renderMe();
+});
+
+/** True when running from the home screen rather than a browser tab. */
+function isInstalled() {
+  return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+}
+
+async function promptInstall() {
+  if (!deferredInstall) return;
+  deferredInstall.prompt();
+  await deferredInstall.userChoice.catch(() => {});
+  deferredInstall = null;             // the event is single-use
+  renderMe();
+}
+
+/**
+ * sw.js deliberately does not skipWaiting, so a deploy sits in the `waiting`
+ * state rather than swapping modules under a page mid-session. This surfaces
+ * that as a button instead of leaving the reader silently a version behind.
+ */
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  // `isSecureContext` is the exact condition the API itself requires, and it
+  // already knows that https, localhost AND 127.0.0.1 all qualify. Hand-rolling
+  // the check (`hostname === 'localhost'`) silently refuses to register on a
+  // loopback IP, which is how this was first written and how it was caught.
+  if (!window.isSecureContext) return;
+
+  navigator.serviceWorker.register('/sw.js').then((reg) => {
+    if (reg.waiting && navigator.serviceWorker.controller) {
+      swWaiting = reg.waiting;
+      if (state.tab === 'me') renderMe();
+    }
+    reg.addEventListener('updatefound', () => {
+      const sw = reg.installing;
+      if (!sw) return;
+      sw.addEventListener('statechange', () => {
+        // `controller` distinguishes an UPDATE from the very first install —
+        // without it every first-time visitor is told an update is ready.
+        if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+          swWaiting = sw;
+          if (state.tab === 'me') renderMe();
+        }
+      });
+    });
+  }).catch(() => { /* private mode, or site data blocked: the app still works */ });
+
+  // `controllerchange` fires for TWO different reasons and only one of them
+  // wants a reload: an updated worker taking over (reload, or the page keeps
+  // running last version's modules), and sw.js's own clients.claim() adopting
+  // a page that had no controller yet — which is every FIRST visit. Reloading
+  // on that one gives every new reader a gratuitous double-load. Snapshot
+  // whether a controller already existed and let that decide.
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading) return;
+    reloading = true;
+    location.reload();
+  });
+}
+
+function applyUpdate() {
+  swWaiting?.postMessage({ type: 'SKIP_WAITING' });   // controllerchange reloads us
+  swWaiting = null;
+}
+
 // ─── wiring ──────────────────────────────────────────────────────
 
 for (const b of document.querySelectorAll('.tab')) {
-  b.addEventListener('click', () => showTab(b.dataset.tab));
+  b.addEventListener('click', () => goTab(b.dataset.tab));
 }
 $('fab').addEventListener('click', openSheet);
 $('sheet-cancel').addEventListener('click', closeSheet);
@@ -1337,7 +1473,8 @@ setInterval(flushWrites, 15_000);
   theme.watchSystem();
   state.cacheOk = await cache.available();
   renderChips();
-  if (location.hash.startsWith('#/profile/')) route(); else showTab('home');
+  route();   // handles a deep link, a manifest shortcut, or nothing at all
+  registerServiceWorker();
 
   // The feed starts loading FIRST and is never gated on auth. Sign-in only
   // affects the top-right button and the Me tab, so it settles in the
