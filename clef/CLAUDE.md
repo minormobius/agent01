@@ -180,11 +180,31 @@ own repository — this site keeps no copy and cannot delete it for them.
 `src/auth.js` is a byte copy of `packages/oauth-client/auth.js`. Static sites
 cannot import across directories; **edit the package, never this copy.**
 
-`clef.mino.mobi` is already allowlisted by the `*.mino.mobi` wildcard in
-`workers/auth/src/index.ts`. The collection is registered in `WRITE_COLLECTIONS`
-in `workers/auth/src/oauth/scope.ts` — but that worker is owned by a **different
-branch**, so publishing only works once the auth worker is redeployed from its
-owner. Everything else on the site works regardless.
+`clef.mino.mobi` is allowlisted by the `*.mino.mobi` wildcard in
+`workers/auth/src/index.ts` — no explicit entry needed. `com.minomobi.clef.piece`
+is in `WRITE_COLLECTIONS` in `workers/auth/src/oauth/scope.ts`, and **that is
+deployed**: the live `client-metadata.json` carries it (verified 2026-09-05,
+78 `repo:` scopes). Sign-in and publish work.
+
+Two things worth knowing, both learned the hard way when this was wired up:
+
+**`invalid_scope` right after a scope deploy is a CACHE, not a fault.**
+`bsky.social` caches our `client-metadata.json` independently of our edge, so a
+newly added collection is not agreed the instant it ships. The first PAR after a
+deploy can fail `invalid_scope` and the retry succeeds. Do not go looking for a
+bug in the scope string; wait and try again.
+
+**A collection alone can be a fix that fixes nothing.** Sign-in needs the ORIGIN
+accepted as well as the collection declared. `isAllowedOrigin` has the
+`*.mino.mobi` wildcard behind its explicit list, which is the only reason clef
+needed no `ALLOWED_ORIGINS` entry. On any other domain the collection would have
+deployed cleanly and sign-in would still have failed — check both halves.
+
+**The auth worker is owned by a different branch**, so a change to
+`workers/auth/` made here does not deploy. Ask its owner; the procedure is
+written down in `workers/auth/CLAUDE.md`. Find the owner from
+`deploy-registry.json`, and treat that field with suspicion — it was wrong on
+`main` when clef was built (see the note on that surface's registry entry).
 
 ## The Mutopia explorer
 

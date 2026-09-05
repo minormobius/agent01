@@ -183,7 +183,7 @@
       "dir": "workers/auth",
       "endpoint": "auth.mino.mobi",
       "type": "backend",
-      "branch": "claude/farmville-atproto-game-745mcr",
+      "branch": "claude/bsky-app-view-feasibility-8sdflz",
       "uses": [
         "mino-auth-db"
       ],
@@ -192,7 +192,7 @@
       "paths": [
         "workers/auth/**"
       ],
-      "note": "The one shared OAuth worker (confidential client — PKCE + DPoP + PAR + private_key_jwt). This merge candidate unioned the two competing trees: 75 collections, deduplicated (the doubled lab.doc/lab.score pair that tripped check-auth-scope is gone), plus the farm, farm-next and loop origins together. Superset verified against main (69), farmville (75) and atproto-infinite-whiteboard (70) — nothing dropped from any of them. Full ownership history and the deploy caveat: workers/auth/CLAUDE.md."
+      "note": "The one shared OAuth worker (confidential client — PKCE + DPoP + PAR + private_key_jwt). This merge candidate unioned the two competing trees: 75 collections, deduplicated (the doubled lab.doc/lab.score pair that tripped check-auth-scope is gone), plus the farm, farm-next and loop origins together. Superset verified against main (69), farmville (75) and atproto-infinite-whiteboard (70) — nothing dropped from any of them. Full ownership history and the deploy caveat: workers/auth/CLAUDE.md. OWNING BRANCH MOVED to claude/bsky-app-view-feasibility-8sdflz and that move has NOT reached main; main and every branch cut from it still said claude/farmville-atproto-game-745mcr. Corrected here against production on 2026-09-05: the live client-metadata.json carries com.minomobi.clef.piece, which exists only on the bsky-app-view branch. This field is what gen-deploy-triggers writes deploy-auth.yml from, so a stale value does not fail — it hands auth deploys to a branch nobody is pushing, green the whole way."
     },
     {
       "surface": "autopilot",
