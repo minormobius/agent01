@@ -10,7 +10,7 @@
 import { JetstreamClient, KIND } from '../../packages/atproto/jetstream.js';
 import { compile, PRESETS } from '../../bsky/lib/rulefeed.js';
 
-const SECS = Math.min(300, Math.max(10, Number(process.env.SECONDS_TO_SAMPLE) || 90));
+const SECS = Math.min(300, Math.max(10, Number(process.env.SECONDS_TO_SAMPLE) || 90));   // re-measure: precision pass
 const COLLECTIONS = (process.env.COLLECTIONS || 'app.bsky.feed.post').split(',').map((s) => s.trim());
 const rule = PRESETS[0];
 const m = compile(rule);
