@@ -35,7 +35,7 @@ This is the answer people don't expect. A browser can assemble a genuinely indep
 |---|---|---|
 | source records | any PDS, `com.atproto.repo.listRecords` / `com.atproto.sync.getRepo` | CORS-open, unauthenticated for public data. `packages/atproto/pds.js` wraps it |
 | **backlinks** — who liked this, who replied, who follows X | **Constellation** (`constellation.microcosm.blue`) | a global backlink index as plain JSON. Works for *every* lexicon, including your own. Runs on a Raspberry Pi at <2 GiB/day — that is how cheap this problem is when you index only links |
-| live events | **Jetstream** WebSocket | straight into the browser. `wave/src/jetstream.ts` is the client; `b/disk` already streams it |
+| live events | **Jetstream v2** WebSocket | straight into the browser, unauthenticated. The `dids` filter takes **up to 10,000 accounts and filters server-side**, so a personal timeline is one socket rather than one request per follow. This is the piece that removes the backend |
 | hydration (profiles, embeds) | `public.api.bsky.app` | use it as a CDN for display data while your own logic does the ranking |
 | local analytics over it all | DuckDB-WASM | `b/disk` already loads Arrow + DuckDB from CDN and queries in-tab |
 
@@ -48,7 +48,47 @@ This is the answer people don't expect. A browser can assemble a genuinely indep
 - **Full-text search across the network.** Needs an inverted index over everything. No way around a backend.
 - **Cheap cold start on a wide graph.** A timeline over 300 follows is 300 `listRecords` calls. Tens of seconds, and rate limits bite. Mitigate with IndexedDB caching, a seeded cursor (`b/spark` synthesises a TID to seek into a repo — steal that), and bounded concurrency.
 - **Notifications while the tab is closed.** Fan-in needs a server that is awake.
-- **Deep history at speed.** Backfilling one busy repo in-browser is fine; backfilling a thousand is not.
+- **History — but read the next section, this one moved.** Backfilling one busy repo in-browser is fine; backfilling a thousand is not.
+
+### Jetstream v2 changes where the line falls
+
+This is worth separating out, because it moves the boundary between tiers and it
+is easy to miss: **Jetstream v2 replays history, not just the live tail.** It
+keeps a compressed archive of the whole network and serves it through the same
+JSON shape as the live stream, so a consumer starts in the past and cuts over to
+real time in one loop, with the seam deduplicated for it. `afterSeq: 0` means
+"from the beginning of the archive". That is the backfill problem — the one that
+costs 16 TB and a month of crawling at Tier 3 — offered as an API.
+
+The catch is exactly one thing, and it decides the architecture:
+
+| | Transport | Auth | Metered |
+|---|---|---|---|
+| **live tail** | WebSocket `subscribeEvents` | **none** | no |
+| **replay** | WebSocket + HTTP (plan, download, tail) | **API key** | **yes, in bytes** |
+| **snapshot** | HTTP only | **API key** | **yes, in bytes** |
+
+An API key in a static page is a published key. So **live is frontend-only;
+history is not** — replay belongs behind a worker route that holds the secret.
+That is a Tier 1.5, and it is a much better deal than it sounds: the metered part
+is the part you do rarely, and the unmetered part is the part you do constantly.
+
+Two practical notes for this repo:
+
+- **Our Jetstream consumers are on v1.** `wave/src/jetstream.ts` and `b/disk`
+  both hardcode `jetstream2.us-east.bsky.network` — a legacy host, `/subscribe`,
+  `wantedDids`/`wantedCollections`, microsecond cursors, flat event shape. v2 is
+  `jetstream.<region>`, `/xrpc/network.bsky.jetstream.subscribeEvents`,
+  `dids`/`collections`/`kinds`, `seq` cursors, and every event wrapped in
+  `{$type, payload}`. This widens **F-11** in
+  [`SOCIAL-STACK-AUDIT.md`](SOCIAL-STACK-AUDIT.md) from "hardcoded host" to
+  "hardcoded *legacy* host": `packages/atproto/jetstream.js` is the v2 client to
+  migrate onto.
+- **Delivery is at-least-once and the cursor is inclusive**, in replay and live
+  alike, so every consumer must be idempotent — key on the record's `at://` URI.
+  Account-level events (`identity`, `account`, `sync`) carry no collection and
+  are delivered even to a collection-filtered consumer on purpose; drop them and
+  you will miss account deletions.
 
 ## 4. Tier 2 — a scoped AppView, which is where the value is
 
@@ -66,6 +106,11 @@ Cost: effectively zero above the current bill. Effort: days, not months. **This 
 ## 5. Tier 3 — the full-network AppView
 
 Don't write one. [`zeppelin-social/bluesky-appview`](https://github.com/zeppelin-social/bluesky-appview) packages Bluesky's own AppView for self-hosting, and [`backfill-bsky`](https://github.com/zeppelin-social/backfill-bsky) does the historical load. Blacksky maintains a performance-optimised fork.
+
+Note that the numbers below predate Jetstream v2's replay, which is the part of
+Tier 3 they mostly measure — a full-network backfill is now a metered download
+rather than a crawl you build. Storage, the indexer's throughput problem, and
+everything in §6 are unchanged.
 
 Real numbers, from the person who did it ([futur.blue, 2025-06](https://whtwnd.com/futur.blue/3ls7sbvpsqc2w)):
 
@@ -103,16 +148,17 @@ Tier 1 and Tier 2 — and they compose. A frontend-only AppView surface (`packag
 
 Tier 3 is the first thing this repo would own that needs a pet server, a process that must never fall behind, and a moderation posture with legal exposure. 86 surfaces currently share one Cloudflare account and no 24/7 anything. That is a deliberate property worth keeping.
 
-**Concrete next step if this proceeds:** add `constellation.js` to `packages/atproto/` (count/list backlinks for an arbitrary AT-URI + collection + JSON path, batched, degrading gracefully like `bsky.js` does), and give the Jetstream client a fallback host list. Both are small, both are useful to surfaces that exist today, and both are prerequisites for any tier above 0.
+**Built on this branch:** `bsky.mino.mobi` ([`bsky/`](../bsky/)) is the Tier-1 surface, with the Tier-1.5 replay route stubbed and inert; `packages/atproto/constellation.js` and `packages/atproto/jetstream.js` are the two shared helpers it needed. What remains: add `constellation.js` to `packages/atproto/` — done — and migrate `wave` and `b/disk` off the v1 host onto the shared v2 client.
 
 ---
 
 ### Verified vs. not
 
-Verified from the repo: the existing Jetstream, Constellation, DuckDB-WASM and repo-scan usage; D1 sharing; surface counts. Verified from public sources on the date above: the zeppelin/backfill tooling, the self-host numbers, Jetstream volumes, Constellation's API and footprint. **Not verified:** nothing here was benchmarked from this sandbox — no Constellation query was run, no Jetstream socket opened, no cost modelled against the actual Cloudflare bill. The Tier-3 figures are one operator's report from mid-2025 and the network has grown since; treat them as a floor.
+Verified from the repo: the existing Jetstream, Constellation, DuckDB-WASM and repo-scan usage; D1 sharing; surface counts. Verified from public sources on the date above: the zeppelin/backfill tooling, the self-host numbers, Jetstream volumes, Constellation's API and footprint. **Since verified (2026-09-05):** Constellation's `/links`, `/links/all` and `/links/count/distinct-dids` were queried live and the helper's numbers check out; Jetstream v2's `planSnapshot` and `listSegments` return `401 invalid bearer credential` without a key, confirming the auth boundary above. **Still not verified:** no Jetstream WebSocket has been opened from this sandbox, and no cost was modelled against the actual Cloudflare bill. The Tier-3 figures are one operator's report from mid-2025 and the network has grown since; treat them as a floor.
 
 ### Sources
 
+- [Jetstream v2 docs](https://bsky.network/docs/jetstream/) and [Network Replay](https://bsky.network/docs/jetstream-replay/) — the v2 filters, limits, event envelope, and the API-key/metering rules
 - [Introducing Jetstream](https://docs.bsky.app/blog/jetstream) · [Jetstream: shrinking the firehose by >99%](https://jazco.dev/2024/09/24/jetstream/) — 232 GB/day → 41 GB/day, event rates
 - [Constellation](https://constellation.microcosm.blue/) · [microcosm](https://www.microcosm.blue/) · [microcosm-rs](https://github.com/at-microcosm/microcosm-rs/tree/main/constellation) — the backlink index
 - [zeppelin-social/bluesky-appview](https://github.com/zeppelin-social/bluesky-appview) · [backfill-bsky](https://github.com/zeppelin-social/backfill-bsky) · [blacksky fork](https://github.com/blacksky-algorithms/atproto)

@@ -37,6 +37,10 @@ board/vendor/
 b/lib/atproto/
 b/packages/
 
+# bsky/ — deploy-time copy of packages/atproto/{jetstream,constellation,bsky}.js
+# staged by deploy-bsky.yml (see the staging step) — never commit
+bsky/packages/
+
 # lab tenant manifests are build artefacts (scripts/gen-lab-tenants.mjs)
 lab/*/tenants.json
 lab/*/_kit/

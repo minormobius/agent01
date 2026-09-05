@@ -179,6 +179,23 @@
       "status": "RECONCILED 2026-08-15 — two branches developed b/ in parallel. Owner is claude/ai-detection-browser-aw7kq5, whose tree this candidate's b/ matches byte for byte (75 files, palm at 2026-08-06). claude/image-manipulation-platform-g5puxy has the older b/ (66 files, 21 of them behind) and contributed the registry record for palm, not the code — deploying b from it would regress the surface."
     },
     {
+      "surface": "bsky",
+      "dir": "bsky",
+      "endpoint": "bsky.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/bsky-app-view-feasibility-8sdflz",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "bsky/**",
+        "packages/atproto/jetstream.js",
+        "packages/atproto/constellation.js",
+        "packages/atproto/bsky.js"
+      ],
+      "note": "An AppView with no database… (full description: bsky/CLAUDE.md)",
+      "status": "NEW 2026-09-05 — scaffold. Domain bsky.mino.mobi did not resolve before this branch; the custom-domain route is attached by the first wrangler deploy. VERIFY the run log binds `bsky.mino.mobi (custom domain)` before believing it (golden rule)."
+    },
+    {
       "surface": "auth",
       "dir": "workers/auth",
       "endpoint": "auth.mino.mobi",

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>bsky — a frontend-only AppView</title>
+<meta name="description" content="A Bluesky AppView with no database. Jetstream v2 fans out your follow graph server-side; Constellation answers the backlink questions; nothing is stored anywhere.">
+<style>
+:root{
+  --bg:#0b0d12; --panel:#11141c; --line:#1e2330; --text:#dfe3ea; --muted:#6b7488;
+  --accent:#4c8dff; --live:#3ddc84; --dead:#e0576a;
+  --mono:'SF Mono','Cascadia Code',ui-monospace,Menlo,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:14px;line-height:1.5}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.muted{color:var(--muted)}
+
+header{border-bottom:1px solid var(--line);padding:16px 20px;background:var(--panel);position:sticky;top:0;z-index:10}
+h1{font-size:15px;font-weight:600;letter-spacing:.02em}
+h1 .dim{color:var(--muted);font-weight:400}
+.blurb{color:var(--muted);font-size:12px;margin-top:6px;max-width:72ch}
+
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+select,input[type=text]{background:#0a0c11;border:1px solid var(--line);border-radius:4px;
+  color:var(--text);font-family:var(--mono);font-size:13px;padding:7px 10px}
+input[type=text]{flex:1;min-width:220px}
+button{background:var(--accent);border:0;border-radius:4px;color:#fff;cursor:pointer;
+  font-family:var(--mono);font-size:13px;padding:7px 16px}
+button:hover{opacity:.88}
+button:disabled{opacity:.45;cursor:default}
+button.ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+label.check{color:var(--muted);font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer}
+label.check input{accent-color:var(--accent)}
+
+.stats{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--muted)}
+.stats b{color:var(--text);font-weight:500}
+#conn{color:var(--muted)}
+#conn.live::before{content:'● ';color:var(--live)}
+#conn.dead::before{content:'○ ';color:var(--dead)}
+#status{margin-top:8px;font-size:12px;color:var(--muted);min-height:1.2em}
+#status.err{color:var(--dead)}
+
+main{max-width:680px;margin:0 auto;padding:20px}
+.post{border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin-bottom:10px;background:var(--panel)}
+.who{display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:7px}
+.avatar{width:20px;height:20px;border-radius:50%;background:var(--line);object-fit:cover;flex:none}
+.handle{color:var(--text);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.who time{color:var(--muted);margin-left:auto;flex:none}
+.text{white-space:pre-wrap;word-break:break-word;font-size:13.5px}
+.embed{margin-top:7px;font-size:11px;color:var(--muted)}
+.foot{display:flex;gap:14px;align-items:center;margin-top:9px;font-size:11px}
+.foot button.counts{background:transparent;border:1px solid var(--line);color:var(--muted);padding:3px 9px;font-size:11px}
+.counts-out{color:var(--muted);font-size:11px;letter-spacing:.04em}
+
+#empty{border:1px dashed var(--line);border-radius:6px;padding:22px;color:var(--muted);font-size:12.5px}
+#empty h2{font-size:13px;color:var(--text);margin-bottom:9px;font-weight:600}
+#empty ol{margin:0 0 10px 18px}
+#empty li{margin-bottom:5px}
+#empty code{color:var(--accent)}
+
+footer{border-top:1px solid var(--line);margin-top:30px;padding:16px 20px;color:var(--muted);font-size:11px;text-align:center}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>bsky <span class="dim">— an AppView with no database</span></h1>
+  <p class="blurb">
+    Your timeline, assembled in this tab. Jetstream v2 filters the firehose to your follow
+    graph <em>server-side</em>, so there is no fan-out to pay for and no backend to run.
+    Engagement counts come from Constellation, the network-wide backlink index. Nothing is
+    stored — reload and it is gone.
+  </p>
+
+  <div class="controls">
+    <select id="source" aria-label="account source">
+      <option value="follows">follows of</option>
+      <option value="list">members of list</option>
+    </select>
+    <input type="text" id="actor" placeholder="handle, e.g. bsky.app" autocomplete="off" spellcheck="false">
+    <button id="go">go</button>
+    <button id="seed" class="ghost" title="Fan out over the public AppView for recent history. The expensive path — see the note below.">seed history</button>
+    <label class="check" id="self-wrap"><input type="checkbox" id="include-self"> include them</label>
+    <label class="check"><input type="checkbox" id="show-replies"> replies</label>
+  </div>
+
+  <div class="stats">
+    <span id="conn" class="dead">not connected</span>
+    <span><b id="stat-dids">0</b> accounts</span>
+    <span><b id="stat-rate">0.0/s</b></span>
+    <span><b id="stat-seen">0</b> seen</span>
+    <span><b id="stat-held">0</b> held</span>
+    <span>seq <b id="stat-cursor">—</b></span>
+    <span id="replay-note">archive replay: checking…</span>
+  </div>
+  <div id="status"></div>
+</header>
+
+<main>
+  <div id="empty">
+    <h2>This starts empty, and that is the design.</h2>
+    <ol>
+      <li>Type a handle and press <code>go</code>. We resolve it, read the follow graph, and open one WebSocket.</li>
+      <li>Jetstream streams every post from those accounts <em>as they are written</em> — the server does the filtering.</li>
+      <li>Posts appear below. <code>counts ↻</code> asks Constellation for likes, reposts, replies and quotes.</li>
+    </ol>
+    <p>
+      A live tail has no past, so a quiet graph stays quiet for a while. <code>seed history</code>
+      backfills a sample by fanning out over the public AppView — one request per account, which is
+      exactly the cost this design otherwise avoids. Jetstream v2 <em>can</em> replay the archive
+      properly, but those calls are API-keyed and metered, so they run through this surface's worker
+      rather than from your browser.
+    </p>
+  </div>
+  <div id="feed"></div>
+</main>
+
+<footer>
+  no accounts, no cookies, no storage &middot;
+  <a href="https://github.com/minormobius/agent01/blob/main/docs/APPVIEW-FEASIBILITY.md">how this works</a> &middot;
+  <a href="https://b.mino.mobi">the rest of the Bluesky corner ↗</a>
+</footer>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>

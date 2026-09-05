@@ -38,7 +38,7 @@ window.SPEC_CURATED = {
     autopilot: 'platform', bounty: 'platform', 'duffel-proxy': 'platform', 'fred-proxy': 'platform',
     lab: 'platform', loop: 'platform', plant: 'platform',
     'bsky-bot': 'platform',
-    poll: 'social', feed: 'social', zoom: 'social', b: 'social', airchat: 'social',
+    poll: 'social', feed: 'social', zoom: 'social', b: 'social', bsky: 'social', airchat: 'social',
     bisk: 'social', empathy: 'social', io: 'social', photo: 'social',
     pod: 'social', answers: 'social', time: 'social', rant: 'social',
     fifty: 'social',

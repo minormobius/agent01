@@ -1,0 +1,57 @@
+name: Deploy bsky (frontend-only AppView)
+
+on:
+  push:
+    branches: ['claude/bsky-app-view-feasibility-8sdflz']
+    paths:
+      - 'bsky/**'
+      - 'packages/atproto/jetstream.js'
+      - 'packages/atproto/constellation.js'
+      - 'packages/atproto/bsky.js'
+      - '.github/workflows/deploy-bsky.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bsky
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The assets root is bsky/, so `../packages/` is outside it and a
+      # cross-directory import would 404 in the browser. Stage the three
+      # dep-free modules in rather than vendoring copies that can drift —
+      # the b/ and mappa pattern. bsky/packages/ is gitignored.
+      - name: Stage shared atproto libs
+        run: |
+          mkdir -p packages/atproto
+          cp ../packages/atproto/jetstream.js    packages/atproto/
+          cp ../packages/atproto/constellation.js packages/atproto/
+          cp ../packages/atproto/bsky.js          packages/atproto/
+          ls -la packages/atproto
+
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Jetstream's live tail needs no key. Its ARCHIVE REPLAY does, and is
+      # metered in bytes — which is the whole reason this surface has a worker
+      # at all. Absent the secret the /api/replay/* route answers 503 with a
+      # reason and the page stays in live-only mode; it does not break.
+      - name: Set Jetstream replay key (optional — history stays off without it)
+        env:
+          JETSTREAM_API_KEY: ${{ secrets.JETSTREAM_API_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$JETSTREAM_API_KEY" ]; then
+            printf '%s' "$JETSTREAM_API_KEY" | npx wrangler secret put JETSTREAM_API_KEY
+            echo "✓ JETSTREAM_API_KEY set — archive replay on"
+          else
+            echo "· JETSTREAM_API_KEY empty — live tail only, replay route returns 503"
+          fi

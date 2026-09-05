@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bsky",
+  "main": "worker.js",
+  "compatibility_date": "2026-02-20",
+  "routes": [
+    { "pattern": "bsky.mino.mobi", "custom_domain": true }
+  ],
+  // bsky.mino.mobi — a frontend-only AppView. The page assembles its own
+  // timeline from Jetstream v2 (live tail, unauthenticated, server-side `dids`
+  // filter over the follow graph) + Constellation (the global backlink index,
+  // for engagement counts) + the public AppView (profile hydration only).
+  //
+  // The worker exists for ONE reason: Jetstream's replay/archive endpoints are
+  // API-keyed and byte-metered, so history cannot be fetched from a static page
+  // without publishing the key. /api/replay/* holds JETSTREAM_API_KEY and is
+  // inert until deploy-bsky.yml injects it. Everything else falls through to
+  // ASSETS. See docs/APPVIEW-FEASIBILITY.md §3.
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  }
+}

@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **86 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **87 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -44,6 +44,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `board` | frontend | `board` | [board.mino.mobi](https://board.mino.mobi) | `claude/atproto-infinite-whiteboard-usdpzx` | [`board/CLAUDE.md`](../board/CLAUDE.md) | An infinite whiteboard that contains infinite whiteboards. Pictures, voice notes, links and text snips placed in space and wired together with arrows… |
 | `borges` | frontend | `borges` | [borges.mino.mobi](https://borges.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`borges/CLAUDE.md`](../borges/CLAUDE.md) | The Book of Sand. Seven robot crew aboard the Tabard tell an endless, deterministically-generated tale—each annotated with a full mythograph before the telling. |
 | `bounty` | backend | `bounty` | `bounty-minomobi` | `claude/landing-projects-takeover-pKkmW` | [`bounty/CLAUDE.md`](../bounty/CLAUDE.md) | Anonymous bounty marketplace. Reputation-based ecash tokens with blind-signed denominations. |
+| `bsky` | frontend | `bsky` | [bsky.mino.mobi](https://bsky.mino.mobi) | `claude/bsky-app-view-feasibility-8sdflz` | [`bsky/CLAUDE.md`](../bsky/CLAUDE.md) | An AppView with no database… |
 | `bsky-bot` | backend | `workers/bsky-bot` | `mino-bsky-bot` | `claude/minomobi-landing-page-vg37b8` | [`workers/bsky-bot/CLAUDE.md`](../workers/bsky-bot/CLAUDE.md) | The lab factory's outer loop… |
 | `cable` | frontend | `cable` | [cable.mino.mobi](https://cable.mino.mobi) | `claude/cable-definition-website-yrwv41` | [`cable/CLAUDE.md`](../cable/CLAUDE.md) | Progressive cable-drawing solver for custom instrument cabling… |
 | `canvas` | frontend | `draw` | [canvas.mino.mobi](https://canvas.mino.mobi) | `claude/pizza-cutting-game-7VvX2` | [`draw/CLAUDE.md`](../draw/CLAUDE.md) | Massively multiplayer paint. Shared canvases with append-only stroke log, tamper-evident chain, and ATProto identity gating. |
