@@ -1,0 +1,13 @@
+{
+  "slug": "apply-inverse",
+  "task": "apply an inverse joukowski transform centered at -c/2 to the iterated map f(z) = (|z| + cos(arg(z)))exp(i*arg(z)) - c where c is a real parameter in the range 0.5 to 1. include a slider for c and a slider for adjusting the horizontal scaling of the transform",
+  "thread_root": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3muskltaofs2r",
+  "requester": "ponder.ooo",
+  "named": "no",
+  "root_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3muskltaofs2r",
+  "root_cid": "bafyreifzj6lme7vc2ix4q7b2bafsx2stejcckgalotriy4i3p2rwqqnclm",
+  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3muskltaofs2r",
+  "parent_cid": "bafyreifzj6lme7vc2ix4q7b2bafsx2stejcckgalotriy4i3p2rwqqnclm",
+  "refs_from": "apply an inverse joukowski transform centered at -c/2 to the iterated map f(z) = (|z| + cos(arg(z)))exp(i*arg(z)) - c where c is a real parameter in the range 0.5 to 1. include a slider for c and a slider for adjusting the horizontal scaling of the transform",
+  "requestedAt": "2026-09-05T22:45:31.171Z"
+}
