@@ -33,9 +33,9 @@ _Regenerated 2026-09-05 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 82, bluesky 73, data 58, tools 58, work 8.
 
-**Neighborhood spark** (bisk 2026-09-05, 98 members / 390 posts):
+**Neighborhood spark** (bisk 2026-09-05, 98 members / 359 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: astra, bluesky, openai
+- Distinctive words: astra, openai, bluesky
 - Top post: "" — @sneptech.bsky.social
 <!-- BRIEF_END -->
 
