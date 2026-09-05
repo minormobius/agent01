@@ -37,6 +37,11 @@ const NAMED_ARTIC = new Set([
   'fermata', 'shortfermata', 'longfermata', 'trill', 'prall', 'mordent',
   'turn', 'upbow', 'downbow', 'thumb', 'open', 'stopped', 'flageolet',
   'segno', 'coda', 'espressivo',
+  // The mordent family. Distinct ornaments that this typeface has no separate
+  // glyphs for, so they are aliased to the trill mark in glyphs.js — visible
+  // and approximately right, rather than absent and exactly wrong.
+  'prallmordent', 'prallprall', 'downprall', 'upprall', 'lineprall',
+  'prallup', 'pralldown', 'downmordent', 'upmordent', 'reverseturn',
 ]);
 const DYNAMICS = new Set([
   'ppppp', 'pppp', 'ppp', 'pp', 'p', 'mp', 'mf', 'f', 'ff', 'fff', 'ffff', 'fffff',
@@ -48,6 +53,32 @@ const MUSIC_COMMANDS = new Set([
   'tuplet', 'times', 'grace', 'acciaccatura', 'appoggiatura', 'afterGrace',
   'transpose', 'addlyrics', 'lyricmode', 'lyricsto',
 ]);
+
+/**
+ * Commands that are valid input with nothing for this reader to act on.
+ *
+ * Two families: layout hints (page breaks, sizes) and DIRECTION switches
+ * (`\\slurDown`, `\\tupletUp`, `\\autoBeamOff`). The engraver decides slur and
+ * tuplet directions from the music, so these have no effect here — but they are
+ * everywhere in real files, and reporting each one as unsupported does two bad
+ * things: it buries the diagnostics that DO matter under a wall of noise, and
+ * the unconsumed command derails the parse of the bar it sits in.
+ *
+ * Matched by shape rather than by list, because the family is open: anything
+ * ending in Up/Down/Neutral/On/Off from a known group is a switch.
+ */
+const IGNORED = new RegExp('^(?:'
+  + 'noPageBreak|pageBreak|noBreak|allowPageTurn|pageTurn|noPageTurn|allowBreak'
+  + '|small|normalsize|tiny|large|huge|teeny'
+  + '|(?:tuplet|tupletBracket|slur|phrasingSlur|tie|dynamic|beam|text|textLength'
+  + '|arpeggio|dots|script|stem|autoBeam|cadenza|balloon|melisma|sustain|sostenuto'
+  + '|unaCorda|bassFigureStaffAlignment|pointAndClick)'
+  + '(?:Up|Down|Neutral|On|Off)'
+  // How a crescendo is SPELLED — a hairpin or the word "cresc." Both are
+  // drawn the same way here (which is to say, not yet), so the switch between
+  // them is nothing to report.
+  + '|(?:cresc|dim|decresc)(?:TextCresc|TextDim|TextDecresc|Hairpin|Text)'
+  + ')$');
 
 // Contexts that mean "a new staff starts here" vs. ones that only group.
 const STAFF_CONTEXTS = new Set(['Staff', 'DrumStaff', 'RhythmicStaff', 'TabStaff', 'Lyrics']);
@@ -778,13 +809,6 @@ function parseBackslashItem(r, at) {
       return { t: 'bar', style, src: [at, r.i] };
     }
     case 'break': return { t: 'break', src: [at, r.i] };
-    // Page-breaking hints. This site lays out to the width of a browser pane,
-    // so they have nothing to act on — but they are perfectly valid input and
-    // reporting them as unsupported buries the diagnostics that matter.
-    case 'noPageBreak': case 'pageBreak': case 'noBreak':
-    case 'allowPageTurn': case 'pageTurn': case 'noPageTurn':
-    case 'bar-line': case 'small': case 'normalsize': case 'tiny': case 'large':
-      return null;
     case 'mark': { r.ws(); if (r.peek() === '#') skipScheme(r); else r.string(); return null; }
     case 'voiceOne': case 'voiceTwo': case 'voiceThree': case 'voiceFour':
       return { t: 'voicedir', which: cmd, src: [at, r.i] };
@@ -811,6 +835,7 @@ function parseBackslashItem(r, at) {
     default: {
       if (r.defs.has(cmd)) return { t: 'ref', name: cmd, music: r.defs.get(cmd), src: [at, r.i] };
       if (cmd === 'markup') { flattenMarkup(r); return null; }
+      if (IGNORED.test(cmd)) return null;
       if (DYNAMICS.has(cmd)) return { t: 'dynamic', value: cmd, src: [at, r.i] };
       if (NAMED_ARTIC.has(cmd)) return { t: 'artic', value: cmd, src: [at, r.i] };
       r.warn(`\\${cmd} is not supported`, at);
@@ -919,6 +944,14 @@ function readPostfix(r, ev) {
     if (c === '-' || c === '^' || c === '_') {
       const dir = c === '^' ? 1 : c === '_' ? -1 : 0;
       const next = r.peek(1);
+      // A DIGIT here is a fingering: `c-1`, `f'_5`, `<c^1 e^3>`. Left unread it
+      // is not merely a lost marking — the digit falls out of the note and is
+      // then scanned as stray input, which derails the rest of the bar.
+      if (next && /[0-9]/.test(next)) {
+        r.i += 2;
+        ev.fingerings.push({ digit: next, dir });
+        continue;
+      }
       if (next && SHORT_ARTIC[next] !== undefined && next !== '-') {
         r.i += 2;
         ev.artics.push({ name: SHORT_ARTIC[next], dir });
@@ -957,7 +990,7 @@ function readPostfix(r, ev) {
 }
 
 function blankEvent(at) {
-  return { artics: [], texts: [], tie: false, slur: null, beam: null, dynamic: null, hairpin: null, src: [at, at] };
+  return { artics: [], texts: [], fingerings: [], tie: false, slur: null, beam: null, dynamic: null, hairpin: null, src: [at, at] };
 }
 
 function parseNoteLike(r, at) {
@@ -1250,8 +1283,8 @@ class Flattener {
         this.push({
           kind: 'note', tick: this.tick, ticks, written: { denom: written.denom, dots: written.dots },
           pitches, chord: !!node.chord, tie: node.tie, slur: node.slur, beam: node.beam,
-          artics: node.artics, texts: node.texts, dynamic: node.dynamic, hairpin: node.hairpin,
-          phrase: node.phrase, src,
+          artics: node.artics, texts: node.texts, fingerings: node.fingerings,
+          dynamic: node.dynamic, hairpin: node.hairpin, phrase: node.phrase, src,
         });
         this.tick += ticks;
         this.lastChord = pitches;

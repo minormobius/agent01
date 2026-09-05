@@ -310,6 +310,9 @@ const ARTIC_ALIAS = {
   staccatissimo: 'staccatissimo', marcato: 'marcato', portato: 'portato',
   fermata: 'fermata', shortfermata: 'fermata', longfermata: 'fermata',
   trill: 'trill', prall: 'trill', mordent: 'trill', turn: 'trill',
+  prallmordent: 'trill', prallprall: 'trill', downprall: 'trill', upprall: 'trill',
+  lineprall: 'trill', prallup: 'trill', pralldown: 'trill', downmordent: 'trill',
+  upmordent: 'trill', reverseturn: 'trill',
   espressivo: 'accent', stopped: 'marcato', open: 'staccato',
   upbow: 'marcato', downbow: 'tenuto', thumb: 'staccato', flageolet: 'staccato',
 };

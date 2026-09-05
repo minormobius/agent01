@@ -247,13 +247,23 @@ pinned in the selftest.
   **after** relative resolution — and the reference for the next note is the
   resolved, **untransposed** pitch, or the interval compounds on every note.
 - **`\book { \score {…} \score {…} }`** is a multi-movement file.
-- **Page-break hints** (`\noPageBreak` and friends) are valid input with nothing
-  to act on here. Reporting them as unsupported buries the diagnostics that
-  matter.
+- **Page-break hints and direction switches** (`\noPageBreak`, `\slurDown`,
+  `\tupletUp`, `\autoBeamOff`, `\crescHairpin`) are valid input with nothing to
+  act on here. They are matched by SHAPE rather than by list, because the family
+  is open. Reporting each one buries the diagnostics that matter — and the
+  unconsumed command derails the bar it sits in.
+- **Fingerings** (`c-1`, `f'_5`) are read and drawn. Unread, the digit falls out
+  of the note and is scanned as stray input, which wrecks the rest of the bar.
+
+Measured on the three files this was built against — a Bach Polonaise, a CPE
+Bach flute sonata, a Chopin étude — diagnostics went 19/60/60 to 0/0/4 and the
+sonata's bar count from 352 to its real 160.
 
 What still does not survive: a complex multi-movement score can parse cleanly
-and still fail its own bar checks in places (the CPE Bach flute sonata does, in
-about half its bars). That is reported in the panel rather than hidden.
+and still fail its own bar checks in places (the flute sonata does, in about
+half its bars — nested spacer voices and tuplet spanners). That is reported in
+the panel rather than hidden, which is the point: an engraving that quietly
+disagrees with its source is worse than one that says so.
 
 ## Deploying
 

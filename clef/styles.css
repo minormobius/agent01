@@ -381,6 +381,7 @@ body {
 .cf-timesig { font-weight: 600; }
 .cf-dyn { font-style: italic; font-weight: 700; }
 .cf-tupletnum, .cf-text, .cf-voltanum { font-style: italic; }
+.cf-finger { font-family: var(--sans); }
 
 /* Only noteheads and rests are targets. Everything else — staff lines, ledger
  * lines, stems, beams, clefs — is scenery, and scenery that takes clicks is a

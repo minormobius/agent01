@@ -901,6 +901,14 @@ function drawMarks(ctx, item, dir, lo, hi, headW) {
       { class: 'cf-artic', scaleY: g === 'fermata' && !above ? -1 : 1 }));
     n++;
   }
+  // Fingerings sit close to the notehead, opposite the stem — they belong to
+  // the note, not to the phrase, so they go inside the articulations.
+  for (const f of e.fingerings ?? []) {
+    const above = f.dir ? f.dir > 0 : dir < 0;
+    const py = posYOf(top, above ? Math.max(hi, 2) + 3 : Math.min(lo, -2) - 3, sp);
+    out.push(`<text class="cf-finger" x="${r2(x + headW / 2)}" y="${r2(py)}" text-anchor="middle"`
+      + ` font-size="${r2(sp * 1.25)}">${esc(f.digit)}</text>`);
+  }
   for (const t of e.texts ?? []) {
     const above = t.dir >= 0;
     const py = posYOf(top, above ? Math.max(hi, 4) + 4 : Math.min(lo, -4) - 4, sp);
