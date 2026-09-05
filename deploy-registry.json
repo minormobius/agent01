@@ -200,12 +200,12 @@
       "dir": "workers/auth",
       "endpoint": "auth.mino.mobi",
       "type": "backend",
-      "branch": "claude/farmville-atproto-game-745mcr",
+      "branch": "claude/bsky-app-view-feasibility-8sdflz",
       "uses": [
         "mino-auth-db"
       ],
       "provides": "auth.mino.mobi",
-      "status": "RECONCILED 2026-08-15 — one owner: claude/farmville-atproto-game-745mcr. It is the only claimant whose tree carries all 75 WRITE_COLLECTIONS; claude/atproto-infinite-whiteboard-usdpzx has 70 (no com.minomobi.farm.*), so giving it the surface would make the next auth deploy a silent narrowing of the ceiling. BEFORE THE NEXT AUTH DEPLOY THE OWNER MUST PULL main: only main now has both the full 75 and all three of the farm.mino.mobi, farm-next.mino.mobi and loop.mino.mobi origins — farmville's tree is still missing the loop origin. HANDOVER PENDING: the principal assigned this surface to claude/bsky-app-view-feasibility-8sdflz on 2026-09-06, whose tree is a strict superset (77 collections, adding app.bsky.feed.like and app.bsky.feed.repost, and carrying the loop origin this claimant lacks). The registry edit is blocked pending permission to run gen-deploy-triggers; until then bsky.mino.mobi's like/repost buttons detect the missing ceiling and explain themselves.",
+      "status": "HANDED OVER 2026-09-06 to claude/bsky-app-view-feasibility-8sdflz from claude/farmville-atproto-game-745mcr, at the principal's instruction. The handover satisfies the union rule the 2026-08-15 note demanded: this tree is a STRICT SUPERSET of both the previous claimant and the live ceiling — 77 collections against their 75, adding only app.bsky.feed.like and app.bsky.feed.repost for bsky.mino.mobi — and it carries the loop.mino.mobi origin farmville's tree had dropped, which that note warned would sign loop out. Verified with scripts/check-auth-scope.mjs (adds 2, drops 0) before the first deploy. RUN THAT CHECK BEFORE EVERY AUTH DEPLOY: a green build that narrows this ceiling breaks other people's sites silently, which is what happened on 2026-07-29.",
       "paths": [
         "workers/auth/**"
       ],
