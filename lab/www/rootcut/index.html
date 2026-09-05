@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>rootcut — pack disjoint paths, or find the cut that kills them all</title>
+<meta name="description" content="Mark a root set on a graph. Pack in vertex-disjoint paths between roots, or nominate a small vertex set that kills every one. A playable version of Menger's theorem and its Erdős–Pósa generalisation.">
+<meta property="og:title" content="rootcut">
+<meta property="og:description" content="Mark a root set on a graph. Pack in vertex-disjoint paths between roots, or nominate a small vertex set that kills every one — a playable Menger's theorem duel.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .toolbar { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; }
+  .toolbar.utility { margin-top: 0; }
+  button.mode-btn[aria-pressed="true"] { background: var(--accent); color: #000; }
+  #hint { font-size: .85rem; color: var(--fg); min-height: 1.4em; margin: .5rem 0 1rem; }
+  .graph-wrap { width: 100%; max-width: 420px; margin: 0 auto; }
+  svg#g { width: 100%; height: auto; display: block; background: var(--bg-raised);
+          border: 1px solid var(--border); border-radius: var(--radius); touch-action: manipulation; }
+  .panel { margin-top: 1.5rem; padding: 1rem; border: 1px solid var(--border); border-radius: var(--radius); }
+  .panel h2 { margin-top: 0; }
+  .pathline { font-size: .8rem; margin: .25rem 0; }
+  .legend { display: flex; flex-wrap: wrap; gap: 1rem; font-size: .75rem; color: var(--muted); margin-top: .75rem; }
+  .legend span { display: inline-flex; align-items: center; gap: .35rem; }
+  .swatch { width: 14px; height: 14px; border-radius: 50%; display: inline-block; flex: none; }
+  #verifyBtn { margin-top: .5rem; }
+  .stat { font-size: .85rem; margin: .25rem 0; }
+</style>
+</head>
+<body>
+<main>
+<div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">lab</a> / rootcut</div>
+<h1>rootcut</h1>
+<p class="sub">Mark a root set on a graph. Then either pack in vertex-disjoint paths
+between roots, or prove you can't with a small cut.</p>
+
+<p>This is Menger's theorem, playable. For two chosen vertices, the maximum number
+of vertex-disjoint paths between them always equals the minimum number of
+vertices whose removal disconnects them — packing and cutting are the same
+number, always. Gallai's theorem extends this from a single pair to a whole
+<strong>root set S</strong>: pack disjoint paths between <em>any</em> pairs of
+roots, or find a small set of vertices that kills every possible one. This toy
+plays the S-path case (the "T = K2" case of the paper this site is built
+from) — build a graph, mark roots, and try both roles yourself.</p>
+
+<p style="font-size:.8rem;">One simplification, said plainly: this toy requires packed
+paths to be <strong>completely</strong> vertex-disjoint, including their endpoints. The
+classical theorem is slightly more generous — it lets two S-paths share an
+endpoint in S — which is more paths to verify duality against and out of
+scope for a first pass. Weak duality still holds exactly as shown below: any
+valid cover needs at least as many vertices as your packing, since it has to
+hit each of your disjoint paths at least once.</p>
+
+<div class="toolbar" role="group" aria-label="build tools">
+  <button class="mode-btn" data-mode="node" aria-pressed="true">+ vertex</button>
+  <button class="mode-btn" data-mode="edge" aria-pressed="false">+/− edge</button>
+  <button class="mode-btn" data-mode="root" aria-pressed="false">mark root (S)</button>
+</div>
+<div class="toolbar" role="group" aria-label="play modes">
+  <button class="mode-btn" data-mode="pack" aria-pressed="false">pack paths</button>
+  <button class="mode-btn" data-mode="cover" aria-pressed="false">nominate cover</button>
+</div>
+<div class="toolbar utility">
+  <button id="randomBtn" type="button">random graph</button>
+  <button id="resetBtn" type="button">reset</button>
+</div>
+
+<p id="hint">Tap empty space to add a vertex.</p>
+
+<div class="graph-wrap">
+  <svg id="g" viewBox="0 0 320 320" role="img" aria-label="graph editor"></svg>
+</div>
+
+<div class="panel">
+  <h2>packing</h2>
+  <p class="stat">k = <strong id="packCount">0</strong> disjoint root-path(s)</p>
+  <div id="packList"></div>
+</div>
+
+<div class="panel">
+  <h2>cover</h2>
+  <p class="stat">candidate cover: <strong id="coverCount">0</strong> vertex(es) — tap vertices
+  in <em>nominate cover</em> mode to add or remove them.</p>
+  <button id="verifyBtn" type="button">verify cover</button>
+  <p id="coverResult"></p>
+</div>
+
+<div class="legend">
+  <span><span class="swatch" style="border:2px solid var(--accent); background:none;"></span> root (in S)</span>
+  <span><span class="swatch" style="background:var(--error); border-radius:3px;"></span> in candidate cover</span>
+  <span><span class="swatch" style="background:var(--accent-dim); border:1px solid var(--border);"></span> ordinary vertex</span>
+</div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var svg = document.getElementById('g');
+  var VB = 320;
+
+  var nodes = [];      // {id, x, y, s}
+  var edges = [];      // {a, b}  a < b
+  var nextId = 1;
+  var mode = 'node';
+  var edgeFirst = null;
+  var packFirst = null;
+  var usedByPack = new Set();
+  var packedPaths = [];      // arrays of ids
+  var edgeColor = new Map(); // "a-b" -> color index
+  var coverSet = new Set();
+  var adj = new Map();
+
+  var PATH_COLORS = ['#e8a33d', '#7ac387', '#5fb3d9', '#c98bdb', '#f2777a', '#9fd9a0'];
+
+  function ekey(a, b) { return a < b ? a + '-' + b : b + '-' + a; }
+
+  function rebuildAdj() {
+    adj = new Map();
+    nodes.forEach(function (n) { adj.set(n.id, []); });
+    edges.forEach(function (e) {
+      adj.get(e.a).push(e.b);
+      adj.get(e.b).push(e.a);
+    });
+  }
+
+  function nodeById(id) { return nodes.find(function (n) { return n.id === id; }); }
+
+  function bfsPath(startId, targetId, blocked) {
+    var visited = new Set([startId]);
+    var prev = new Map();
+    var queue = [startId];
+    while (queue.length) {
+      var cur = queue.shift();
+      if (cur === targetId) break;
+      var neighbors = adj.get(cur) || [];
+      for (var i = 0; i < neighbors.length; i++) {
+        var nb = neighbors[i];
+        if (visited.has(nb)) continue;
+        if (nb !== targetId && blocked.has(nb)) continue;
+        visited.add(nb);
+        prev.set(nb, cur);
+        queue.push(nb);
+      }
+    }
+    if (!visited.has(targetId)) return null;
+    var path = [targetId];
+    var cur2 = targetId;
+    while (cur2 !== startId) { cur2 = prev.get(cur2); path.push(cur2); }
+    path.reverse();
+    return path;
+  }
+
+  function clearPlayState() {
+    usedByPack = new Set();
+    packedPaths = [];
+    edgeColor = new Map();
+    coverSet = new Set();
+    packFirst = null;
+    document.getElementById('coverResult').textContent = '';
+    updateInfo();
+  }
+
+  function setMode(m) {
+    mode = m;
+    edgeFirst = null;
+    packFirst = null;
+    document.querySelectorAll('.mode-btn').forEach(function (b) {
+      b.setAttribute('aria-pressed', b.dataset.mode === m ? 'true' : 'false');
+    });
+    var hints = {
+      node: 'Tap empty space to add a vertex.',
+      edge: 'Tap two vertices in turn to toggle an edge between them.',
+      root: 'Tap a vertex to mark or unmark it as a root (in S).',
+      pack: 'Tap two unused root vertices to try to pack a disjoint path between them.',
+      cover: 'Tap vertices to add or remove them from your candidate cover.'
+    };
+    document.getElementById('hint').textContent = hints[m];
+    render();
+  }
+
+  function pointToLocal(evt) {
+    var rect = svg.getBoundingClientRect();
+    var scale = rect.width / VB;
+    return {
+      x: (evt.clientX - rect.left) / scale,
+      y: (evt.clientY - rect.top) / scale
+    };
+  }
+
+  function handleBackgroundClick(evt) {
+    if (mode !== 'node') return;
+    var p = pointToLocal(evt);
+    var x = Math.max(20, Math.min(300, p.x));
+    var y = Math.max(20, Math.min(300, p.y));
+    nodes.push({ id: nextId++, x: x, y: y, s: false });
+    rebuildAdj();
+    clearPlayState();
+    render();
+  }
+
+  function handleNodeClick(id) {
+    if (mode === 'edge') {
+      if (edgeFirst === null) { edgeFirst = id; render(); return; }
+      if (edgeFirst === id) { edgeFirst = null; render(); return; }
+      var a = Math.min(edgeFirst, id), b = Math.max(edgeFirst, id);
+      var idx = edges.findIndex(function (e) { return e.a === a && e.b === b; });
+      if (idx === -1) edges.push({ a: a, b: b }); else edges.splice(idx, 1);
+      edgeFirst = null;
+      rebuildAdj();
+      clearPlayState();
+      render();
+      return;
+    }
+    if (mode === 'root') {
+      var n = nodeById(id);
+      n.s = !n.s;
+      clearPlayState();
+      render();
+      return;
+    }
+    if (mode === 'pack') {
+      var node = nodeById(id);
+      if (!node.s || usedByPack.has(id)) return;
+      if (packFirst === null) { packFirst = id; render(); return; }
+      if (packFirst === id) { packFirst = null; render(); return; }
+      var startId = packFirst, targetId = id;
+      var blocked = new Set(usedByPack);
+      nodes.forEach(function (nn) {
+        if (nn.s && nn.id !== startId && nn.id !== targetId) blocked.add(nn.id);
+      });
+      var path = bfsPath(startId, targetId, blocked);
+      packFirst = null;
+      if (!path) {
+        document.getElementById('hint').textContent =
+          'No available disjoint path between those two roots right now.';
+        render();
+        return;
+      }
+      packedPaths.push(path);
+      path.forEach(function (pid) { usedByPack.add(pid); });
+      var colorIdx = (packedPaths.length - 1) % PATH_COLORS.length;
+      for (var i = 0; i < path.length - 1; i++) {
+        edgeColor.set(ekey(path[i], path[i + 1]), colorIdx);
+      }
+      document.getElementById('hint').textContent =
+        'Packed a path. Tap two more unused roots, or switch modes.';
+      updateInfo();
+      render();
+      return;
+    }
+    if (mode === 'cover') {
+      if (coverSet.has(id)) coverSet.delete(id); else coverSet.add(id);
+      document.getElementById('coverResult').textContent = '';
+      updateInfo();
+      render();
+      return;
+    }
+  }
+
+  function verifyCover() {
+    var roots = nodes.filter(function (n) { return n.s; });
+    var witness = null;
+    for (var i = 0; i < roots.length && !witness; i++) {
+      for (var j = i + 1; j < roots.length && !witness; j++) {
+        var s1 = roots[i].id, s2 = roots[j].id;
+        if (coverSet.has(s1) || coverSet.has(s2)) continue;
+        var blocked = new Set(coverSet);
+        roots.forEach(function (r) { if (r.id !== s1 && r.id !== s2) blocked.add(r.id); });
+        var path = bfsPath(s1, s2, blocked);
+        if (path) witness = path;
+      }
+    }
+    var out = document.getElementById('coverResult');
+    if (witness) {
+      out.className = 'err';
+      out.textContent = 'Not a cover yet — a root-path still survives: ' +
+        witness.join(' → ') + '.';
+    } else if (roots.length < 2) {
+      out.className = '';
+      out.textContent = 'Mark at least two roots first.';
+    } else {
+      var k = packedPaths.length, c = coverSet.size;
+      out.className = 'ok';
+      out.textContent = 'Valid cover — every root-path is killed. |cover| = ' + c +
+        (k ? ', packing k = ' + k + (c === k ? ' — tight, this is exactly Menger\'s theorem.' :
+          ' — cover is ' + (c - k) + ' larger than your packing; keep trying for equality.') :
+          '. Pack some paths first to see the duality.');
+    }
+  }
+
+  function updateInfo() {
+    document.getElementById('packCount').textContent = packedPaths.length;
+    var list = document.getElementById('packList');
+    list.innerHTML = '';
+    packedPaths.forEach(function (p, i) {
+      var div = document.createElement('div');
+      div.className = 'pathline';
+      div.style.color = PATH_COLORS[i % PATH_COLORS.length];
+      div.textContent = 'path ' + (i + 1) + ': ' + p.join(' → ');
+      list.appendChild(div);
+    });
+    document.getElementById('coverCount').textContent = coverSet.size;
+  }
+
+  function render() {
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var ns = 'http://www.w3.org/2000/svg';
+
+    var bg = document.createElementNS(ns, 'rect');
+    bg.setAttribute('x', 0); bg.setAttribute('y', 0);
+    bg.setAttribute('width', VB); bg.setAttribute('height', VB);
+    bg.setAttribute('fill', 'transparent');
+    bg.setAttribute('id', 'bg');
+    svg.appendChild(bg);
+
+    edges.forEach(function (e) {
+      var a = nodeById(e.a), b = nodeById(e.b);
+      if (!a || !b) return;
+      var line = document.createElementNS(ns, 'line');
+      line.setAttribute('x1', a.x); line.setAttribute('y1', a.y);
+      line.setAttribute('x2', b.x); line.setAttribute('y2', b.y);
+      var ci = edgeColor.get(ekey(e.a, e.b));
+      if (ci !== undefined) {
+        line.setAttribute('stroke', PATH_COLORS[ci]);
+        line.setAttribute('stroke-width', '4');
+      } else {
+        line.setAttribute('stroke', '#3a3844');
+        line.setAttribute('stroke-width', '2');
+      }
+      svg.appendChild(line);
+    });
+
+    nodes.forEach(function (n) {
+      var g = document.createElementNS(ns, 'g');
+      g.setAttribute('data-id', n.id);
+
+      var hit = document.createElementNS(ns, 'circle');
+      hit.setAttribute('cx', n.x); hit.setAttribute('cy', n.y);
+      hit.setAttribute('r', 24);
+      hit.setAttribute('fill', 'transparent');
+      g.appendChild(hit);
+
+      if (coverSet.has(n.id)) {
+        var sq = document.createElementNS(ns, 'rect');
+        sq.setAttribute('x', n.x - 13); sq.setAttribute('y', n.y - 13);
+        sq.setAttribute('width', 26); sq.setAttribute('height', 26);
+        sq.setAttribute('rx', 4);
+        sq.setAttribute('fill', 'none');
+        sq.setAttribute('stroke', '#f2777a');
+        sq.setAttribute('stroke-width', 2.5);
+        g.appendChild(sq);
+      }
+
+      var dot = document.createElementNS(ns, 'circle');
+      dot.setAttribute('cx', n.x); dot.setAttribute('cy', n.y);
+      dot.setAttribute('r', 9);
+      var pathColorIdx = null;
+      for (var i = 0; i < packedPaths.length; i++) {
+        if (packedPaths[i].indexOf(n.id) !== -1) { pathColorIdx = i % PATH_COLORS.length; break; }
+      }
+      dot.setAttribute('fill', pathColorIdx !== null ? PATH_COLORS[pathColorIdx] : '#16161b');
+      var stroke = '#3a3844', sw = 2;
+      if (n.s) { stroke = '#e8a33d'; sw = 3; }
+      if (n.id === edgeFirst || n.id === packFirst) { stroke = '#fff'; sw = 3; }
+      dot.setAttribute('stroke', stroke);
+      dot.setAttribute('stroke-width', sw);
+      g.appendChild(dot);
+
+      var label = document.createElementNS(ns, 'text');
+      label.setAttribute('x', n.x); label.setAttribute('y', n.y - 15);
+      label.setAttribute('text-anchor', 'middle');
+      label.setAttribute('font-size', '9');
+      label.setAttribute('fill', '#8b8792');
+      label.textContent = n.id;
+      g.appendChild(label);
+
+      svg.appendChild(g);
+    });
+  }
+
+  function randomGraph() {
+    nodes = []; edges = []; nextId = 1;
+    var n = 8 + Math.floor(Math.random() * 4);
+    var cx = 160, cy = 160, r = 120;
+    for (var i = 0; i < n; i++) {
+      var ang = (i / n) * Math.PI * 2;
+      var jitter = 20;
+      nodes.push({
+        id: nextId++,
+        x: cx + Math.cos(ang) * r + (Math.random() * jitter - jitter / 2),
+        y: cy + Math.sin(ang) * r + (Math.random() * jitter - jitter / 2),
+        s: false
+      });
+    }
+    for (var a = 1; a <= n; a++) {
+      for (var b = a + 1; b <= n; b++) {
+        if (Math.random() < 0.22) edges.push({ a: a, b: b });
+      }
+    }
+    // guarantee connectivity along the ring
+    for (var i2 = 1; i2 < n; i2++) {
+      var lo = Math.min(i2, i2 + 1), hi = Math.max(i2, i2 + 1);
+      if (!edges.some(function (e) { return e.a === lo && e.b === hi; })) edges.push({ a: lo, b: hi });
+    }
+    var rootCount = 3 + Math.floor(Math.random() * 2);
+    var pool = nodes.slice();
+    for (var k = 0; k < rootCount && pool.length; k++) {
+      var pick = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+      pick.s = true;
+    }
+    rebuildAdj();
+    clearPlayState();
+    render();
+  }
+
+  svg.addEventListener('click', function (e) {
+    var g = e.target.closest && e.target.closest('[data-id]');
+    if (g) { handleNodeClick(parseInt(g.getAttribute('data-id'), 10)); return; }
+    if (e.target.id === 'bg') handleBackgroundClick(e);
+  });
+
+  document.querySelectorAll('.mode-btn').forEach(function (b) {
+    b.addEventListener('click', function () { setMode(b.dataset.mode); });
+  });
+  document.getElementById('randomBtn').addEventListener('click', randomGraph);
+  document.getElementById('resetBtn').addEventListener('click', function () {
+    nodes = []; edges = []; nextId = 1;
+    rebuildAdj();
+    clearPlayState();
+    render();
+  });
+  document.getElementById('verifyBtn').addEventListener('click', verifyCover);
+
+  randomGraph();
+  setMode('pack');
+})();
+</script>
+</body>
+</html>
