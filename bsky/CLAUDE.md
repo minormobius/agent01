@@ -373,6 +373,70 @@ the reader pruning the list in the editor, which is why the editor exists.
 measured on a runner; `RuleRunner`'s socket handling, its meter and its
 visibilitychange pause have only been exercised against a seeded archive.
 
+### Replay — the slug, and why it is planned before it is paid for
+
+The live tail is a *subscription*: it only ever hands you what happens next, so
+a rule feed opened today is empty today however good the rule is. Replay is the
+same events addressed by **sequence** instead of by arrival, which is what lets
+the same rule be pointed backwards. `planCost()` and `fetchSlug()` in
+`lib/archive.js`, reached from the rule header's **reach further back**.
+
+**Plan before you pay.** `planSnapshot` is an index, not a download: given a
+collection filter and a seq range it names the segments holding matching events
+and, where a block index exists, the **block ranges** inside them. So the size
+of a job is knowable before a byte is bought. Measured against the live archive:
+
+| window (seq back from tip) | segments | indexed blocks | whole segments |
+|---|---|---|---|
+| ~3.4M | 4 | 153 | 3 |
+| ~34M | 17 | 1,017 | 14 |
+| ~340M | 152 | 14,452 | 113 |
+
+A block is an individually addressable download —
+`network.bsky.jetstream.getBlock` takes `{segment, blockIndex}` — where a whole
+segment is ~252 MB. That gap is the entire reason to plan first.
+
+**Budget in BYTES, not events**, and the distinction is the whole contract. The
+meter is the reader's own quota, so the only promise worth making is "this will
+not spend more than N MB". An event cap cannot promise that, because events per
+byte depends entirely on how selective the rule is. `fetchSlug` counts wire
+bytes off `Content-Length` as each download lands and aborts on the budget
+(50 MiB default).
+
+**Never hold the haystack.** The shape is `b/palm/car-stream.js`'s: `snapshot()`
+is an async generator over decoded events, so each is tested and dropped unless
+it matches. Peak memory is one block plus the keepers. A 50 MB slug of the post
+firehose is on the order of a hundred thousand posts and a few hundred matches;
+buffering it first would be the entire cost of the operation, for nothing.
+
+**`dids` is deliberately absent.** The follow-graph path is `fetchOlder`; this is
+for a CONTENT rule, where narrowing by account is exactly the wrong filter — the
+point is to find people you do not already follow.
+
+Four API facts, each of which cost an hour:
+
+- `planSnapshot` is **POST**; `listSegments` is **GET**. Each rejects the other
+  verb with `MethodNotAllowed`.
+- The filter parameter is **`collections`**. `wantedCollections` is the
+  *websocket's* name for it, is **silently ignored** here, and hands back a full
+  unfiltered plan with no error at all.
+- **Planning needs auth** — a direct call with no key is a flat 401. It only
+  appeared free earlier because it was going through our worker. So `planCost`
+  has two routes: the reader's own key straight to Jetstream, or our
+  origin-locked `/api/replay/` proxy when they have not minted one yet. The plan
+  is a few KB either way; only the DOWNLOAD spends real bytes, and that is always
+  the reader's own key.
+- A block range is **inclusive at both ends** (`last - first + 1`).
+  `lib/archive.selftest.mjs` pins that, because understating the count
+  understates a spending limit.
+
+**Verified:** `planCost` against the live archive (the table above), the plan
+arithmetic, and both BYO-key guards refusing before any network call.
+**Not verified: `fetchSlug` end to end.** It needs a real Jetstream key and the
+`lib/vendor/` bundle that `deploy-bsky.yml` builds, and this sandbox has
+neither — so the download, the dictionary zstd decode and the budget abort have
+never actually run. That is the largest untested path on this surface.
+
 ### Palettes
 
 `lib/theme.js`. Seven palettes plus `auto`, which follows the OS and is the

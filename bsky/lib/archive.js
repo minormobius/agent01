@@ -214,3 +214,191 @@ export async function fetchOlder({
   onProgress?.(events);
   return { events, stopped };
 }
+
+// ─── a bounded slug, planned before it is paid for ───────────────
+
+const PLAN_URL = `${SERVICE}/xrpc/network.bsky.jetstream.planSnapshot`;
+/** Same call through our worker, for readers who have not minted a key yet. */
+const WORKER_PLAN_URL = '/api/replay/network.bsky.jetstream.planSnapshot';
+
+/**
+ * Ask the archive what a window WOULD cost before downloading any of it.
+ *
+ * This is what makes replay usable rather than theoretical. The planner is an
+ * index: given a collection filter and a seq range it returns the segments that
+ * contain matching events and, where a block index exists, the *block ranges*
+ * inside them — so the size of a job is knowable before a byte of it is bought,
+ * instead of discovering it partway through a 252 MB segment.
+ *
+ * Three API details, each of which costs a confused hour:
+ *   - this is **POST**; `listSegments` is **GET**. Each rejects the other verb
+ *     with `MethodNotAllowed`.
+ *   - the filter parameter is **`collections`**. `wantedCollections` is the
+ *     websocket's name for it, is silently ignored here, and returns a full
+ *     unfiltered plan with no error at all.
+ *   - **planning needs auth** — a direct call with no key is a flat 401. It is
+ *     metadata, not data, so it is cheap, but it is not free of a credential.
+ *
+ * Which is why this has two routes. With the reader's own key it goes straight
+ * to Jetstream. WITHOUT one it falls back to our worker's `/api/replay/` proxy,
+ * which holds the site's key and is origin-locked — so somebody with no key can
+ * still see what a window would cost before deciding whether to go and get one.
+ * The plan is a few KB of segment metadata either way; only the DOWNLOAD spends
+ * real bytes, and that always uses the reader's own key.
+ *
+ * @param {{collections?: string[], kinds?: string[], afterSeq?: number, beforeSeq?: number, signal?: AbortSignal}} opts
+ */
+export async function planCost({
+  collections = ['app.bsky.feed.post'], kinds = ['commit'], afterSeq, beforeSeq, signal,
+} = {}) {
+  const body = { collections, kinds };
+  if (afterSeq != null) body.afterSeq = afterSeq;
+  if (beforeSeq != null) body.beforeSeq = beforeSeq;
+
+  const headers = { 'Content-Type': 'application/json' };
+  const key = getKey();
+  const url = key ? PLAN_URL : WORKER_PLAN_URL;
+  if (key) headers.Authorization = `Bearer ${key}`;
+
+  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal });
+  if (!res.ok) throw new Error(`planSnapshot ${res.status}`);
+  try { readQuota(res); } catch { /* headers are advisory */ }
+  return summarisePlan(await res.json());
+}
+
+/**
+ * The counting half of planCost, separated so it can be tested without a
+ * network: a plan's cost is entirely a property of its shape.
+ *
+ * `blocks` is the number of individually addressable downloads (each block
+ * range is inclusive at both ends, so `last - first + 1`), and `wholeSegments`
+ * is the entries with no block index — the expensive ones, ~252 MB each.
+ */
+export function summarisePlan(plan) {
+  const segments = plan?.segments || [];
+  let blocks = 0;
+  let wholeSegments = 0;
+  for (const s of segments) {
+    if (s.mode === 'blocks') for (const r of s.blocks || []) blocks += r.last - r.first + 1;
+    else wholeSegments++;
+  }
+  return {
+    segments, blocks, wholeSegments,
+    stats: plan?.stats || {},
+    tipSeq: plan?.sealedTipSeq,
+    plannedThroughSeq: plan?.plannedThroughSeq,
+  };
+}
+
+/**
+ * Replay a SLUG of the archive and keep only what a rule matches.
+ *
+ * The shape is `b/palm/car-stream.js`'s, for the same reason: never hold the
+ * haystack. `snapshot()` is an async generator over decoded events, so each is
+ * tested and dropped unless it matches — peak memory is one block plus the
+ * keepers, not the window. A 50 MB slug of the post firehose is on the order of
+ * a hundred thousand posts and a few hundred matches; buffering it first would
+ * be the entire cost of the operation, for nothing.
+ *
+ * Bounded by BYTES, not events, and the distinction is the point. The meter is
+ * the reader's own quota, so the only promise worth making is "this will not
+ * spend more than N megabytes". An event cap cannot promise that: events per
+ * byte depends entirely on how selective the rule is. Bytes are counted off
+ * `Content-Length` as each download lands, and the run aborts on the budget.
+ *
+ * `dids` is deliberately absent. The follow-graph path is `fetchOlder`; this is
+ * for a CONTENT rule, where narrowing by account is precisely the wrong filter
+ * — the point is to find people you do not already follow.
+ *
+ * @param {object} opts
+ * @param {(record: object) => string[]} opts.match  match reasons; empty means no
+ * @param {(post: object, hits: string[]) => void} opts.onMatch
+ * @param {string[]} [opts.collections]
+ * @param {number} [opts.beforeSeq]   exclusive upper bound — the oldest seq already held
+ * @param {number} [opts.afterSeq=0]
+ * @param {number} [opts.budgetBytes] hard stop, default 50 MiB
+ * @param {(p: {scanned:number, matched:number, bytes:number}) => void} [opts.onProgress]
+ * @param {AbortSignal} [opts.signal]
+ */
+export async function fetchSlug({
+  match, onMatch, collections = ['app.bsky.feed.post'],
+  beforeSeq, afterSeq = 0, budgetBytes = 50 * 1024 * 1024,
+  onProgress, signal,
+}) {
+  if (typeof match !== 'function') throw new Error('fetchSlug needs a match function');
+  const apiKey = getKey();
+  if (!apiKey) throw new Error('no API key — add one to reach past the live window');
+
+  const { decompressor, sha256: hash } = await init();
+
+  // Enforced here rather than by counting decoded events: this is the only
+  // place that sees actual wire bytes.
+  const budget = new AbortController();
+  const onAbort = () => budget.abort();
+  signal?.addEventListener('abort', onAbort, { once: true });
+
+  let bytes = 0;
+  let overBudget = false;
+
+  const jetstream = new Jetstream({
+    service: SERVICE,
+    apiKey,
+    decompressor,
+    sha256: hash,
+    fetch: async (input, opts) => {
+      const res = await fetch(input, opts);
+      try { readQuota(res); } catch { /* advisory */ }
+      const len = Number(res.headers.get('content-length') || 0);
+      if (len) {
+        bytes += len;
+        if (bytes >= budgetBytes && !overBudget) { overBudget = true; budget.abort(); }
+      }
+      return res;
+    },
+  });
+
+  let scanned = 0;
+  let matched = 0;
+  let oldestSeq = null;
+  let stopped = 'reached the end of the window';
+
+  try {
+    for await (const evt of jetstream.snapshot({
+      collections, kinds: ['commit'], afterSeq,
+      ...(beforeSeq ? { beforeSeq } : {}),
+      signal: budget.signal,
+    })) {
+      if (evt.collection !== 'app.bsky.feed.post') continue;
+      if (evt.operation === 'delete') continue;
+      const record = evt.record;
+      if (!record || typeof record.text !== 'string') continue;
+
+      scanned++;
+      if (oldestSeq == null || evt.seq < oldestSeq) oldestSeq = evt.seq;
+
+      const hits = match(record);
+      if (hits.length) {
+        matched++;
+        onMatch({
+          uri: `at://${evt.did}/${evt.collection}/${evt.rkey}`,
+          did: evt.did, rkey: evt.rkey, seq: evt.seq,
+          createdAt: record.createdAt || new Date().toISOString(),
+          record, hits,
+        }, hits);
+      }
+      // Progress reports SCANNED, not matched: a selective rule can go a long
+      // way between keepers, and a still progress line reads as a hang.
+      if (scanned % 2000 === 0) onProgress?.({ scanned, matched, bytes });
+    }
+  } catch (err) {
+    if (overBudget) stopped = `stopped at the ${(budgetBytes / 1048576).toFixed(0)} MB budget`;
+    else if (signal?.aborted) stopped = 'cancelled';
+    else if (quota.retryAfter) stopped = `rate limited — retry in ${quota.retryAfter}s`;
+    else throw err;
+  } finally {
+    signal?.removeEventListener('abort', onAbort);
+  }
+
+  onProgress?.({ scanned, matched, bytes });
+  return { scanned, matched, bytes, stopped, oldestSeq };
+}

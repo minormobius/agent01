@@ -265,6 +265,7 @@ async function listFeedsBy(handle) {
 async function selectFeed(id) {
   if (state.live) { state.live.close(); state.live = null; }
   if (state.runner) { state.runner.close(); state.runner = null; }
+  state.oldestRuleSeq = null;
   state.feed = id;
   state.cursor = null;
   state.sorted = false;
@@ -443,10 +444,15 @@ async function startRuleFeed(id) {
     <div class="rulemeta"><strong>${esc(rule.label)}</strong>
       <span class="rulenote">${esc(rule.note || 'A feed this browser generates for itself.')}</span></div>
     <div class="rulemeter" id="rulemeter">scanning what this browser already holds…</div>
-    <button class="btn ghost small" id="ruleedit">edit the rule</button>
+    <div class="rulebtns">
+      <button class="btn ghost small" id="ruleedit">edit the rule</button>
+      <button class="btn ghost small" id="ruleback">reach further back</button>
+    </div>
+    <div class="rulemeter" id="ruleplan" hidden></div>
   </div>`);
   $('v-home').append(head);
   $('ruleedit').addEventListener('click', () => openRuleEditor(rule.id));
+  $('ruleback').addEventListener('click', () => reachBack(rule));
 
   // 1. the archive
   let held = 0;
@@ -495,6 +501,94 @@ async function startRuleFeed(id) {
   });
   state.runner.start();
   say(`${rule.label} · connecting to the firehose`, false);
+}
+
+/**
+ * Replay a bounded slug of the ARCHIVE and run the rule over it.
+ *
+ * This is what the live tail cannot do. The tail is a subscription: it only
+ * ever hands you what happens next, so a rule feed opened today is empty today
+ * however good the rule is. The archive is the same events addressed by
+ * sequence rather than by arrival, so the same rule can be pointed backwards.
+ *
+ * Two properties make it usable rather than theoretical, and both are
+ * deliberate:
+ *
+ *   PLAN BEFORE YOU PAY. `planCost()` asks the archive's index what a window
+ *   contains — which segments hold matching events, and where a block index
+ *   exists, which blocks. It is unauthenticated and free, so the size of the
+ *   job is known before a byte of it is bought. The reader sees that number.
+ *
+ *   BUDGET IN BYTES. The meter is the reader's own quota, so the only promise
+ *   worth making is "this will not spend more than N MB". `fetchSlug` counts
+ *   wire bytes and aborts on the budget; the rule runs per event and everything
+ *   that does not match is dropped rather than buffered.
+ *
+ * Pressing it again walks further back: `beforeSeq` starts at the oldest seq
+ * this browser holds and moves down with each slug.
+ */
+let reachingBack = false;
+
+async function reachBack(rule) {
+  if (reachingBack) return;
+  const btn = $('ruleback');
+  const plan = $('ruleplan');
+  const archiveMod = await archive().catch(() => null);
+  if (!archiveMod) return say('the archive module failed to load');
+
+  if (!archiveMod.hasKey()) {
+    plan.hidden = false;
+    plan.innerHTML = 'The archive is metered by the byte, so it uses <strong>your</strong> key, '
+      + 'not ours — free at <a href="https://bsky.network/account" target="_blank" rel="noopener">'
+      + 'bsky.network/account</a>. Paste it under <strong>Me → deep history</strong>.';
+    return;
+  }
+
+  reachingBack = true;
+  btn.disabled = true;
+  plan.hidden = false;
+
+  // Where to start: older than anything this browser already holds.
+  const beforeSeq = state.oldestRuleSeq || undefined;
+
+  try {
+    plan.textContent = 'asking the archive what this window costs…';
+    const cost = await archiveMod.planCost({
+      collections: ['app.bsky.feed.post'],
+      ...(beforeSeq ? { beforeSeq } : {}),
+    });
+    plan.textContent = `plan: ${cost.segments.length} segments · ${cost.blocks.toLocaleString()} `
+      + `indexed blocks · ${cost.wholeSegments} whole. Downloading up to 50 MB of it…`;
+
+    const matcher = rulefeed.compile(rule);
+    const found = [];
+    const res = await archiveMod.fetchSlug({
+      match: (record) => matcher.why(record),
+      onMatch: (post) => {
+        found.push(post);
+        if (state.seen.has(post.uri)) return;
+        if (post.record.reply) return;
+        insertSorted(post);
+      },
+      ...(beforeSeq ? { beforeSeq } : {}),
+      onProgress: ({ scanned, matched, bytes }) => {
+        plan.textContent = `${matched.toLocaleString()} matched of ${scanned.toLocaleString()} `
+          + `scanned · ${(bytes / 1048576).toFixed(1)} MB of 50 MB`;
+      },
+    });
+
+    if (res.oldestSeq) state.oldestRuleSeq = res.oldestSeq;
+    if (state.cacheOk && found.length) cache.putPosts(found).catch(() => {});
+
+    plan.textContent = `${res.matched.toLocaleString()} kept from `
+      + `${res.scanned.toLocaleString()} posts · ${(res.bytes / 1048576).toFixed(1)} MB · ${res.stopped}`
+      + (res.matched ? '' : ' — nothing matched; try widening the rule');
+  } catch (err) {
+    plan.textContent = `archive: ${err.message}`;
+  } finally {
+    reachingBack = false;
+    btn.disabled = false;
+  }
 }
 
 /** Edit a rule as one directive per line — see rulefeed.toText for the grammar. */
