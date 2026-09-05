@@ -121,6 +121,41 @@ Two practical notes for this repo:
   are delivered even to a collection-filtered consumer on purpose; drop them and
   you will miss account deletions.
 
+### The key does not have to be ours
+
+"An API key in a static page is a published key" is true of *our* key. It says
+nothing about **the user's own key**, which is a different object entirely: they
+mint it, it lives in their browser, it spends their quota, and it is never
+published to anyone. `b/sleuth` already ships this pattern ("bring your own API
+key"), so it is house style, not a novelty.
+
+That reframes the whole archive question, and every link was checked on
+2026-09-05:
+
+| Link | Status |
+|---|---|
+| Getting a key | Free, Bluesky auth, manual at [bsky.network/account](https://bsky.network/account). **No minting API** — `createApiKey`-style NSIDs all 404, so it is one paste per user, forever |
+| Browser → archive, cross-origin | `access-control-allow-origin: *`, with `Authorization`, `Range` and `If-Range` in `allow-headers` — a deliberate decision to admit browsers |
+| Seeing your own budget | `Headwind-Quota-Refill-Bytes`, `-Period-Seconds`, `-Burst-Bytes` are in `access-control-expose-headers`, so a page can show the user their own spend |
+| zstd in the browser | Segments are dictionary-compressed. `fzstd` (pure JS) **throws `invalid zstd data`** on a dictionary frame — measured. `@bokuweb/zstd-wasm` documents dictionary support |
+| The dictionary | `getZstdDictionary` returns 64 KiB **unauthenticated**, ETag `zstd-dict-20260811`, magic `37a430ec` — a real zstd dictionary, free to fetch |
+| Decoding `.jss` | `@bsky/jetstream` ships a browser branch on purpose. Its `#runtime` condition resolves `node`→node, `default`→browser, and the browser defaults throw text that *is* the instruction: "supply your own Decompressor via Jetstream options (decompressor)". `live()` never touches them; only `snapshot()/replay()` do |
+
+So a fully client-side AppView — live, the 36h window, **and** deep archive — is
+buildable today with no server at all, provided the user brings their own key.
+Bluesky appears to have designed for exactly this: the CORS policy, the exposed
+quota headers, the unauthenticated dictionary and the injectable browser runtime
+are not accidents.
+
+**What our worker's key is actually for**, then: our own server-side jobs. It is
+not the path for users, and routing users through it would only pool everyone's
+spend onto one quota while making us the custodian of a credential nobody needed
+us to hold.
+
+One correction to §6 below, from measurement: a dictionary mismatch throws
+`Dictionary mismatch` rather than producing plausible garbage. Silent corruption
+remains the risk in a hand-written entropy decoder; it is not the risk here.
+
 ## 4. Tier 2 — a scoped AppView, which is where the value is
 
 Index a *slice*: a set of DIDs, one community, one lexicon namespace. Jetstream filters server-side via `wantedDids` / `wantedCollections`, so you only receive your slice.

@@ -119,10 +119,18 @@ async function replay(request, env, url) {
     body: request.method === 'POST' ? await request.text() : undefined,
   });
 
-  // 429 carries Retry-After and the quota refills continuously — pass both
-  // through so the client can wait exactly as long as it is told to.
+  // Pass through everything a caller needs to manage its own spend. The
+  // Headwind-Quota-* headers are how the archive reports the budget and its
+  // refill rate; dropping them (as this did) leaves a client unable to see the
+  // quota it is burning. Retry-After pairs with 429, Content-Range with a
+  // resumed Range request, WWW-Authenticate with a rejected key.
   const headers = new Headers();
-  for (const h of ['content-type', 'content-length', 'content-range', 'retry-after', 'etag']) {
+  for (const h of [
+    'content-type', 'content-length', 'content-range', 'retry-after', 'etag',
+    'accept-ranges', 'www-authenticate', 'x-zstd-dictionary-id',
+    'headwind-quota-refill-bytes', 'headwind-quota-refill-period-seconds',
+    'headwind-quota-burst-bytes',
+  ]) {
     const v = upstream.headers.get(h);
     if (v) headers.set(h, v);
   }

@@ -129,8 +129,17 @@ proof: **confirm the run log binds `bsky.mino.mobi (custom domain)`**, and
   feed worker's seed list: 90 accounts, one socket, no events from outside the
   filter. The timestamp cursor, its ~36h boundary and its silent clamp were
   measured directly. Constellation's counts were checked against a real post.
-- **The archive path is entirely unverified** — there is no API key, so
-  `/api/replay/*` has only ever been exercised as a 503 and a 404.
+- **The archive path is only half-verified.** The key is now set and
+  `planSnapshot` returns real plans through the proxy (block-mode ranges, not
+  whole segments). Nothing has been *downloaded or decoded* — `getSegment` is
+  deliberately off the allowlist.
+- **The next move is probably not this worker at all.** A user's own key can go
+  straight from their browser to the archive: CORS is `*` with `Authorization`
+  and `Range` allowed, the zstd dictionary is 64 KiB and unauthenticated, and
+  `@bsky/jetstream`'s browser branch takes an injected `decompressor`/`sha256`
+  (`@bokuweb/zstd-wasm` handles the dictionary; `fzstd` does not — it throws).
+  See docs/APPVIEW-FEASIBILITY.md §3. That path pools no quota and makes us
+  custodian of no credential.
 - **Not verified: any of it in an actual browser.** The node run used the same
   module, but `WebSocket` subprotocol negotiation, the CSS, and the DOM paths
   (hydration sweep, ring-buffer trim, `CSS.escape` selectors) have not been
