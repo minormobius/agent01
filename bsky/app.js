@@ -19,6 +19,7 @@
 
 import { JetstreamClient, KIND, eventUri, LOOKBACK_HOURS, clampSince }
   from '/packages/atproto/jetstream.js';
+import * as rulefeed from '/lib/rulefeed.js';
 import { postCounts } from '/packages/atproto/constellation.js';
 import { getProfiles, getFollows, resolveActor, getProfile } from '/packages/atproto/bsky.js';
 import { FEEDS, loadFeed, authorFeed, authorMedia, notifications, searchActors, getThread }
@@ -44,6 +45,7 @@ const state = {
   feed: 'simcluster',       // a FEEDS id, 'live', or 'stored'
   cursor: null,
   live: null,               // JetstreamClient
+  runner: null,             // RuleRunner — a feed generator running in this tab
   dids: [],
   subKey: null,
   seen: new Set(),          // rendered at:// URIs — delivery is at-least-once
@@ -124,6 +126,8 @@ function renderChips() {
     // signed in — see lib/feedgen.js.
     ...custom.map((uri) => ({ id: `gen:${uri}`, label: feedLabel(uri) })),
     ...FEEDS.map((f) => ({ id: f.id, label: f.label })),
+    // Feeds this browser generates for itself — see lib/rulefeed.js.
+    ...rulefeed.rules().map((r) => ({ id: `rule:${r.id}`, label: r.label })),
     { id: 'live', label: '⚡ live' },
     { id: 'stored', label: '⛁ stored' },
     { id: 'addfeed', label: '+ feed' },
@@ -260,6 +264,7 @@ async function listFeedsBy(handle) {
 
 async function selectFeed(id) {
   if (state.live) { state.live.close(); state.live = null; }
+  if (state.runner) { state.runner.close(); state.runner = null; }
   state.feed = id;
   state.cursor = null;
   state.sorted = false;
@@ -270,6 +275,7 @@ async function selectFeed(id) {
   if (id === 'addfeed') { renderChips(); return openFeedPicker(); }
   if (id.startsWith('gen:')) return loadGenerator(id.slice(4), true);
   if (id === 'following') return startFollowing();
+  if (id.startsWith('rule:')) return startRuleFeed(id.slice(5));
   if (id === 'live') return startLive();
   if (id === 'stored') return showStored();
   return loadAlgorithmic(true);
@@ -407,6 +413,126 @@ async function startLive() {
   if (plan.mode === 'resume') opts.cursor = plan.cursor; else opts.since = plan.hours;
   state.live = new JetstreamClient(opts);
   state.live.connect();
+}
+
+// ─── rule feeds: a feed generator running in this tab ─────────────
+
+/**
+ * Run one of the reader's own rules.
+ *
+ * This is the answer to a feed generator going away. A generator record holds
+ * only metadata — displayName, description, the service DID — so when the
+ * service stops answering there is nothing in the record to rebuild from. But a
+ * feed defined by CONTENT rather than by a follow graph needs no server at all:
+ * Jetstream hands every post to anyone who asks, and the rule runs here.
+ *
+ * Two passes, in this order on purpose:
+ *   1. the ARCHIVE — free, instant, works offline, and reaches back as far as
+ *      this browser's store goes, which for a regular reader is further than
+ *      Jetstream will ever replay.
+ *   2. the FIREHOSE — matched live, with a visible meter, because an
+ *      unfiltered post socket is real bandwidth and the reader should see what
+ *      it costs rather than discover it on a phone bill.
+ */
+async function startRuleFeed(id) {
+  const rule = rulefeed.getRule(id);
+  if (!rule) return say('no such rule');
+  state.sorted = true;                      // archive is old, live is new: place by time
+
+  const head = el(`<div class="rulehead">
+    <div class="rulemeta"><strong>${esc(rule.label)}</strong>
+      <span class="rulenote">${esc(rule.note || 'A feed this browser generates for itself.')}</span></div>
+    <div class="rulemeter" id="rulemeter">scanning what this browser already holds…</div>
+    <button class="btn ghost small" id="ruleedit">edit the rule</button>
+  </div>`);
+  $('v-home').append(head);
+  $('ruleedit').addEventListener('click', () => openRuleEditor(rule.id));
+
+  // 1. the archive
+  let held = 0;
+  if (state.cacheOk) {
+    const posts = await cache.recentPosts({ limit: 4000 }).catch(() => []);
+    const hits = rulefeed.scanArchive(posts, rule);
+    held = posts.length;
+    for (const p of hits) appendPost(p);
+    if (!hits.length) {
+      $('v-home').append(el(`<div class="empty"><strong>Nothing matching in the local store yet.</strong>
+        Scanned ${held.toLocaleString()} posts this browser already had. The firehose below fills it
+        in from here — matches appear as they are posted.</div>`));
+    }
+  }
+
+  // 2. the firehose
+  const meter = $('rulemeter');
+  state.runner = new rulefeed.RuleRunner({
+    rule,
+    Client: JetstreamClient,
+    KIND,
+    onStatus: (msg, live) => say(msg, live),
+    onStats: (st) => {
+      if (!meter.isConnected) return;
+      meter.textContent = `${st.matched.toLocaleString()} matched of `
+        + `${st.scanned.toLocaleString()} scanned · ${st.perSec.toFixed(0)} posts/s · `
+        + `~${st.kbPerSec.toFixed(0)} KB/s · ${st.mb.toFixed(1)} MB this session`;
+    },
+    onMatch: (payload, hits) => {
+      const uri = eventUri(payload);
+      if (!uri || state.seen.has(uri)) return;
+      const rec = payload.record;
+      const post = {
+        uri, did: payload.did, rkey: payload.rkey, seq: payload.seq, cid: payload.cid,
+        createdAt: rec.createdAt || new Date().toISOString(), record: rec, hits,
+      };
+      // Store it even though this socket is unfiltered: a matched post is
+      // exactly the history this reader wanted and will not be replayed twice.
+      if (state.cacheOk) {
+        state.writeQueue.push(post);
+        if (state.writeQueue.length >= 100) flushWrites();
+      }
+      if (rec.reply) return;
+      insertSorted(post);
+    },
+  });
+  state.runner.start();
+  say(`${rule.label} · connecting to the firehose`, false);
+}
+
+/** Edit a rule as one directive per line — see rulefeed.toText for the grammar. */
+function openRuleEditor(id) {
+  const rule = rulefeed.getRule(id);
+  if (!rule) return;
+  const sheet = el(`<div class="sheet" id="rulesheet" role="dialog" aria-modal="true"
+       aria-label="Edit ${esc(rule.label)}">
+    <div class="sheethead">
+      <button id="rulecancel" class="pill">cancel</button>
+      <span class="spacer"></span>
+      <button id="rulesave" class="btn">save</button>
+    </div>
+    <div class="sheetbody">
+      <p class="rulehelp">One directive per line.<br>
+        <code>preprint</code> a term · <code>"new paper"</code> an exact phrase ·
+        <code>@arxiv.org</code> a link domain · <code>#openscience</code> a hashtag ·
+        <code>-crypto</code> excludes · <code>doi</code> matches any DOI.</p>
+      <textarea id="ruletext" spellcheck="false" autocapitalize="off">${esc(rulefeed.toText(rule))}</textarea>
+    </div>
+    <div class="sheetfoot">
+      <span class="muted" style="font-size:12.5px">stays in this browser</span>
+      <span class="spacer"></span>
+      <button class="btn ghost" id="rulereset">reset</button>
+    </div></div>`);
+  document.body.append(sheet);
+  const close = () => sheet.remove();
+  $('rulecancel').addEventListener('click', close);
+  $('rulesave').addEventListener('click', () => {
+    rulefeed.saveRule(rulefeed.fromText($('ruletext').value, { id: rule.id, label: rule.label, note: rule.note, minChars: rule.minChars }));
+    close();
+    selectFeed(`rule:${rule.id}`);          // restart against the new rule
+  });
+  $('rulereset').addEventListener('click', () => {
+    rulefeed.resetRules();
+    close();
+    selectFeed(`rule:${rule.id}`);
+  });
 }
 
 function onLiveEvent(payload) {

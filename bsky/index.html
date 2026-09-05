@@ -186,6 +186,19 @@ textarea{resize:none;line-height:1.4}
 .sheethead{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line)}
 .sheetbody{flex:1;padding:14px;overflow-y:auto}
 .sheetbody textarea{min-height:180px;border:0;background:transparent;padding:0;font-size:17px}
+/* Rule feeds — the header above a feed this browser generates for itself.
+   The meter is load-bearing copy, not decoration: an unfiltered post firehose
+   is real bandwidth, so it says what it is spending. */
+.rulehead{border:1px solid var(--line);border-radius:11px;padding:12px 13px;margin:10px 12px 4px;
+  background:var(--panel);display:flex;flex-direction:column;gap:7px}
+.rulemeta{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
+.rulenote{color:var(--muted);font-size:12.5px}
+.rulemeter{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.btn.small{min-height:34px;padding:6px 12px;font-size:13px;align-self:flex-start}
+.rulehelp{color:var(--muted);font-size:13px;line-height:1.6;margin:0 0 10px}
+.rulehelp code{background:var(--line-soft);border-radius:4px;padding:1px 5px;font-size:12.5px}
+#ruletext{min-height:280px;width:100%;border:1px solid var(--line);border-radius:9px;
+  background:var(--bg);color:var(--text);padding:11px;font:15px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace}
 .sheetfoot{display:flex;align-items:center;gap:12px;padding:11px 14px;border-top:1px solid var(--line)}
 #cc{font-size:13px;color:var(--muted);margin-left:auto}
 #cc.over{color:var(--dead)}
