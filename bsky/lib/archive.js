@@ -191,15 +191,17 @@ export async function fetchOlder({
       ...(beforeSeq ? { beforeSeq } : {}),
       signal,
     })) {
-      if (evt.collection !== 'app.bsky.feed.post') continue;
-      if (evt.operation === 'delete') continue;
-      const record = evt.record;
+      const c = commitOf(evt);
+      if (!c || c.collection !== 'app.bsky.feed.post') continue;
+      if (c.operation === 'delete') continue;
+      const record = c.record;
       if (!record || typeof record.text !== 'string') continue;
 
       onEvent({
-        uri: `at://${evt.did}/${evt.collection}/${evt.rkey}`,
+        uri: `at://${evt.did}/${c.collection}/${c.rkey}`,
         did: evt.did,
-        rkey: evt.rkey,
+        rkey: c.rkey,
+        cid: c.cid,
         seq: evt.seq,
         createdAt: record.createdAt || new Date().toISOString(),
         record,
@@ -223,6 +225,29 @@ export async function fetchOlder({
 const PLAN_URL = `${SERVICE}/xrpc/network.bsky.jetstream.planSnapshot`;
 /** Same call through our worker, for readers who have not minted a key yet. */
 const WORKER_PLAN_URL = '/api/replay/network.bsky.jetstream.planSnapshot';
+
+/**
+ * The SDK's snapshot events are NESTED, and this is not the websocket's shape.
+ *
+ * Measured off a real archive replay (replay-slug.yml, 2026-09-05):
+ *
+ *   { did, seq, time, kind: 'commit',
+ *     commit: { operation, collection, rkey, rev, cid, record } }
+ *
+ * Our own live client (`packages/atproto/jetstream.js`) hands the page a FLAT
+ * payload — `payload.collection`, `payload.record` — so both `fetchOlder` and
+ * `fetchSlug` were written against that and read `evt.collection`, which is
+ * always undefined here. Every event was therefore filtered out, silently: the
+ * first successful replay downloaded 12.3 MB, decoded 30 frames and 16,234
+ * events, and reported zero posts.
+ *
+ * @returns {{collection: string, operation: string, rkey: string, cid: string, record: object} | null}
+ */
+function commitOf(evt) {
+  if (evt?.kind && evt.kind !== 'commit') return null;
+  const c = evt?.commit;
+  return c && typeof c === 'object' ? c : null;
+}
 
 /**
  * Ask the archive what a window WOULD cost before downloading any of it.
@@ -382,9 +407,10 @@ export async function fetchSlug({
       ...(beforeSeq ? { beforeSeq } : {}),
       signal: budget.signal,
     })) {
-      if (evt.collection !== 'app.bsky.feed.post') continue;
-      if (evt.operation === 'delete') continue;
-      const record = evt.record;
+      const c = commitOf(evt);
+      if (!c || c.collection !== 'app.bsky.feed.post') continue;
+      if (c.operation === 'delete') continue;
+      const record = c.record;
       if (!record || typeof record.text !== 'string') continue;
 
       scanned++;
@@ -394,8 +420,10 @@ export async function fetchSlug({
       if (hits.length) {
         matched++;
         onMatch({
-          uri: `at://${evt.did}/${evt.collection}/${evt.rkey}`,
-          did: evt.did, rkey: evt.rkey, seq: evt.seq,
+          // The cid is carried because a like or repost of this post needs it —
+          // dropping it silently breaks those buttons. See lib/actions.js.
+          uri: `at://${evt.did}/${c.collection}/${c.rkey}`,
+          did: evt.did, rkey: c.rkey, cid: c.cid, seq: evt.seq,
           createdAt: record.createdAt || new Date().toISOString(),
           record, hits,
         }, hits);

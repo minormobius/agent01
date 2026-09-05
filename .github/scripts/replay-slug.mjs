@@ -159,12 +159,14 @@ try {
       console.log(`  [shape ${yielded}] keys: ${Object.keys(evt).join(', ')}`);
       console.log(`  [shape ${yielded}] ${JSON.stringify(evt, (k, v) => (k === 'record' ? '<record>' : v)).slice(0, 300)}`);
     }
-    const key = `${evt.kind ?? '?'}/${evt.operation ?? '?'}/${evt.collection ?? '?'}`;
+    // NESTED under `commit` — not the flat shape our own live client emits.
+    const c = evt.kind && evt.kind !== 'commit' ? null : evt.commit;
+    const key = `${evt.kind ?? '?'}/${c?.operation ?? '?'}/${c?.collection ?? '?'}`;
     shapes.set(key, (shapes.get(key) || 0) + 1);
 
-    if (evt.collection !== 'app.bsky.feed.post') continue;
-    if (evt.operation === 'delete') continue;
-    const rec = evt.record;
+    if (!c || c.collection !== 'app.bsky.feed.post') continue;
+    if (c.operation === 'delete') continue;
+    const rec = c.record;
     if (!rec || typeof rec.text !== 'string') continue;
     scanned++;
     if (oldest == null || evt.seq < oldest) oldest = evt.seq;
