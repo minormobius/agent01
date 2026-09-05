@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apply Inverse — pulling back an iterated map through Joukowski</title>
+<meta property="og:title" content="Apply Inverse — pulling back an iterated map through Joukowski">
+<meta property="og:description" content="A cosine-perturbed polar iteration, viewed through the inverse of a Joukowski conformal map centered off-axis. Drag the sliders: c re-centers the map, the other stretches it horizontally.">
+<meta name="description" content="A cosine-perturbed polar iteration, viewed through the inverse of a Joukowski conformal map centered off-axis. Drag the sliders: c re-centers the map, the other stretches it horizontally.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  main { max-width: 44rem; }
+  .stage {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: .75rem;
+    margin: 1rem 0;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
+    background: #000;
+    border-radius: var(--radius);
+    touch-action: none;
+  }
+  .controls { margin-top: .9rem; display: grid; gap: .9rem; }
+  .ctrl label {
+    display: flex; flex-wrap: wrap; column-gap: .5rem; align-items: baseline;
+    font-size: .8rem; color: var(--fg); margin-bottom: .3rem;
+  }
+  .ctrl label span.val {
+    margin-left: auto; color: var(--accent); font-variant-numeric: tabular-nums;
+  }
+  input[type=range] {
+    width: 100%; height: 44px; margin: 0; padding: 0;
+    background: transparent; -webkit-appearance: none; appearance: none;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 6px; border-radius: 3px; background: var(--border);
+  }
+  input[type=range]::-moz-range-track {
+    height: 6px; border-radius: 3px; background: var(--border);
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 26px; height: 26px; margin-top: -10px;
+    border-radius: 50%; background: var(--accent); border: 2px solid #000;
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--accent); border: 2px solid #000;
+  }
+  .toggle {
+    display: flex; align-items: center; gap: .6rem; font-size: .8rem; color: var(--fg);
+    min-height: 44px;
+  }
+  .toggle input { width: 22px; height: 22px; accent-color: var(--accent); }
+  .formula {
+    font-size: .78rem; color: var(--muted); background: var(--bg-raised);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .7rem .9rem; white-space: pre-wrap; word-break: break-word;
+  }
+  .note { font-size: .78rem; color: var(--muted); margin-top: 1.5rem; }
+</style>
+</head>
+<body>
+<main>
+  <div class="crumb"><a href="/">minomobi.com</a> / apply-inverse</div>
+  <h1>apply-inverse</h1>
+  <p class="sub">
+    Iterate <code>f(z) = (|z| + cos(arg z))&middot;e<sup>i&thinsp;arg z</sup> &minus; c</code>
+    on the complex plane, but look at it through the <strong>inverse</strong> of a
+    Joukowski-style map centered at <code>&minus;c/2</code>. Each pixel on screen is
+    a point <code>w</code> in the <em>output</em> plane; before anything is iterated,
+    it is pulled back through the inverse transform to find the point
+    <code>z&#8320;</code> in the map's own plane that would have landed there &mdash;
+    then <code>f</code> is iterated from <code>z&#8320;</code>, and the pixel is
+    coloured by how fast it runs away.
+  </p>
+
+  <div class="stage">
+    <canvas id="c" width="480" height="360" aria-label="Rendering of the pulled-back iteration"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="ctrl">
+      <label for="cSlider">c &nbsp;(map parameter, also fixes the transform's center at &minus;c/2)<span class="val" id="cVal">0.75</span></label>
+      <input type="range" id="cSlider" min="0.5" max="1" step="0.005" value="0.75">
+    </div>
+    <div class="ctrl">
+      <label for="sSlider">horizontal scale of the transform<span class="val" id="sVal">1.00</span></label>
+      <input type="range" id="sSlider" min="0.3" max="3" step="0.01" value="1">
+    </div>
+    <label class="toggle">
+      <input type="checkbox" id="rawToggle">
+      compare: show the plain iteration of f (no transform)
+    </label>
+  </div>
+
+  <p class="formula" id="formulaBox"></p>
+
+  <p class="note" id="statusNote">rendering…</p>
+
+  <p class="note">
+    The transform used: with <code>c&#8320; = &minus;c/2</code> and
+    <code>&eta; = (&zeta;&minus;c&#8320;) + 1/(&zeta;&minus;c&#8320;)</code>, the forward
+    map is <code>w = c&#8320; + s&middot;Re(&eta;) + i&middot;Im(&eta;)</code> &mdash;
+    only the real part gets the horizontal-scale factor <code>s</code>, which is
+    what "horizontal scaling of the transform" is taken to mean here. Inverting is
+    a quadratic in <code>&zeta;&minus;c&#8320;</code>, so it comes back in closed
+    form; the exterior root (the one with larger modulus) is the branch drawn,
+    which is the standard choice for a Joukowski-airfoil map. No root-finding, no
+    approximation in the transform itself &mdash; the only approximation is where
+    every escape-time picture has one: <code>f</code> is iterated for a fixed
+    number of steps and called "unbounded" past a fixed radius.
+  </p>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const img = ctx.createImageData(W, H);
+
+  const cSlider = document.getElementById('cSlider');
+  const sSlider = document.getElementById('sSlider');
+  const cVal = document.getElementById('cVal');
+  const sVal = document.getElementById('sVal');
+  const rawToggle = document.getElementById('rawToggle');
+  const statusNote = document.getElementById('statusNote');
+  const formulaBox = document.getElementById('formulaBox');
+
+  // view window, chosen to comfortably hold the branch points (c0 +/- 1) at
+  // any c in [0.5, 1] and any horizontal scale in [0.3, 3].
+  const RE_MIN = -6, RE_MAX = 6, IM_MIN = -4.5, IM_MAX = 4.5;
+
+  const MAX_ITER = 90;
+  const BAILOUT = 6;
+  const BAILOUT2 = BAILOUT * BAILOUT;
+
+  function csqrt(re, im) {
+    const r = Math.hypot(re, im);
+    const a = Math.sqrt(Math.max(0, (r + re) / 2));
+    let b = Math.sqrt(Math.max(0, (r - re) / 2));
+    if (im < 0) b = -b;
+    return [a, b];
+  }
+
+  // Inverse of eta = mu + 1/mu, mu = zeta - c0. Returns the root with the
+  // larger modulus (mu*mu' = 1 for this quadratic, so exactly one root
+  // qualifies as "exterior" except exactly on the branch cut).
+  function inverseMu(etaRe, etaIm) {
+    const Dre = etaRe * etaRe - etaIm * etaIm - 4;
+    const Dim = 2 * etaRe * etaIm;
+    const [sre, sim] = csqrt(Dre, Dim);
+    const m1re = (etaRe + sre) / 2, m1im = (etaIm + sim) / 2;
+    const m2re = (etaRe - sre) / 2, m2im = (etaIm - sim) / 2;
+    const n1 = m1re * m1re + m1im * m1im;
+    const n2 = m2re * m2re + m2im * m2im;
+    return n1 >= n2 ? [m1re, m1im] : [m2re, m2im];
+  }
+
+  function hsl2rgb(h, s, l) {
+    h = ((h % 360) + 360) % 360;
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+    const m = l - c / 2;
+    let r = 0, g = 0, b = 0;
+    if (h < 60) { r = c; g = x; } else if (h < 120) { r = x; g = c; }
+    else if (h < 180) { g = c; b = x; } else if (h < 240) { g = x; b = c; }
+    else if (h < 300) { r = x; b = c; } else { r = c; b = x; }
+    return [(r + m) * 255, (g + m) * 255, (b + m) * 255];
+  }
+
+  let pending = false;
+
+  function schedule() {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(render);
+  }
+
+  function render() {
+    pending = false;
+    const c = parseFloat(cSlider.value);
+    const s = parseFloat(sSlider.value);
+    const showRaw = rawToggle.checked;
+    cVal.textContent = c.toFixed(3);
+    sVal.textContent = s.toFixed(2);
+    formulaBox.textContent = showRaw
+      ? 'showing: f(z) iterated directly at each pixel z (no transform), c = ' + c.toFixed(3)
+      : 'c0 = -c/2 = ' + (-c / 2).toFixed(3) + ',  s = ' + s.toFixed(2) + ',  branch = exterior root';
+
+    const c0 = -c / 2;
+    const data = img.data;
+
+    for (let py = 0; py < H; py++) {
+      const wIm = IM_MAX - (py + 0.5) / H * (IM_MAX - IM_MIN);
+      for (let px = 0; px < W; px++) {
+        const wRe = RE_MIN + (px + 0.5) / W * (RE_MAX - RE_MIN);
+
+        let zr, zi;
+        if (showRaw) {
+          zr = wRe; zi = wIm;
+        } else {
+          const etaRe = (wRe - c0) / s;
+          const etaIm = wIm;
+          const [muRe, muIm] = inverseMu(etaRe, etaIm);
+          zr = muRe + c0;
+          zi = muIm;
+        }
+
+        let n = 0, escaped = false;
+        for (; n < MAX_ITER; n++) {
+          const r2 = zr * zr + zi * zi;
+          if (r2 > BAILOUT2) { escaped = true; break; }
+          const r = Math.sqrt(r2);
+          if (r < 1e-12) break;
+          const ux = zr / r, uy = zi / r;      // exp(i arg z)
+          const newR = r + ux;                  // r + cos(arg z)
+          zr = newR * ux - c;
+          zi = newR * uy;
+        }
+
+        const idx = (py * W + px) * 4;
+        let rr, gg, bb;
+        if (escaped) {
+          const t = n / MAX_ITER;
+          [rr, gg, bb] = hsl2rgb(210 + t * 190, 0.72, 0.24 + 0.32 * (1 - t));
+        } else {
+          rr = 8; gg = 8; bb = 12;
+        }
+        data[idx] = rr; data[idx + 1] = gg; data[idx + 2] = bb; data[idx + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    statusNote.textContent = showRaw
+      ? 'raw iteration of f, no transform — ' + MAX_ITER + ' iterations, bailout |z| > ' + BAILOUT
+      : 'pulled back through the inverse transform — ' + MAX_ITER + ' iterations, bailout |z| > ' + BAILOUT;
+  }
+
+  cSlider.addEventListener('input', schedule);
+  sSlider.addEventListener('input', schedule);
+  rawToggle.addEventListener('change', schedule);
+  render();
+})();
+</script>
+</body>
+</html>

@@ -279,6 +279,27 @@ for an interactive tool. No multi-view ask this time (unlike the knot/
 complex-map requests), so kept it to exactly the two planes asked for plus
 one small explanatory overlay (unit circle + its image), not a third panel.
 
+Twenty-third request (2026-09-05), "apply-inverse": a direct continuation of the
+Joukowski theme (cf. twenty-second/"that-shows") but pushed a step harder — this
+time the *inverse* transform, applied to pull back an iterated map
+(`f(z)=(|z|+cos(arg z))e^{i arg z}-c`) rather than a hand-drawn shape, plus a
+horizontal-scaling parameter that the terse request left fully unspecified.
+Consistent with the standing pattern of taking the literal math seriously:
+rendered by pulling back every screen pixel through the closed-form inverse
+(quadratic solve, exterior-root branch) rather than forward-mapping the
+iteration and leaving gaps — chose the mathematically correct rendering
+direction rather than the more literal-sounding "iterate then transform"
+reading. New data point: when a term as underspecified as "horizontal scaling
+of the transform" has no obviously-unique meaning, picked one defensible
+reading, said so explicitly in both NOTE.txt and BRIEF.md, and named the
+alternate reading as a concrete next step rather than silently guessing or
+building both. Also found and used an algebraic shortcut worth remembering
+for future complex-iteration requests: `cos(arg z) = Re(z)/|z|` and
+`exp(i·arg z) = (Re(z),Im(z))/|z|`, so a polar-form iteration can skip
+atan2/cos/sin entirely and just use one sqrt plus divisions — this is a real
+optimization, not a mathematical shortcut/simplification of the kind this
+requester has pushed back on before.
+
 Thirteenth request (2026-07-31), continuing meta-todo: asked for two
 prioritized backlog entries — a max-priority one about pointing future build
 agents at general-template as their base, a high-priority one about rolling
