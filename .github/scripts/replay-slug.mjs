@@ -92,7 +92,7 @@ const js = new Jetstream({
   apiKey: KEY,
   decompressor,
   sha256,
-  fetch: async (input, opts) => {
+  fetchImpl: async (input, opts) => {
     const res = await fetch(input, opts);
     requests++;
     for (const [k, v] of res.headers) if (k.startsWith('headwind-quota')) quota[k] = v;
@@ -106,6 +106,8 @@ const js = new Jetstream({
 });
 
 let scanned = 0, matched = 0, oldest = null, newest = null, stopped = 'reached the end of the window';
+let yielded = 0;
+const shapes = new Map();
 const kept = [];
 const t0 = Date.now();
 
@@ -113,6 +115,17 @@ try {
   for await (const evt of js.snapshot({
     collections: ['app.bsky.feed.post'], kinds: ['commit'], afterSeq, signal: budgetCtl.signal,
   })) {
+    // Diagnostics, because a silent zero is indistinguishable from a wrong
+    // assumption about the event's shape — and the last run produced exactly
+    // that: 961 frames decoded, 0 events seen.
+    yielded++;
+    if (yielded <= 3) {
+      console.log(`  [shape ${yielded}] keys: ${Object.keys(evt).join(', ')}`);
+      console.log(`  [shape ${yielded}] ${JSON.stringify(evt, (k, v) => (k === 'record' ? '<record>' : v)).slice(0, 300)}`);
+    }
+    const key = `${evt.kind ?? '?'}/${evt.operation ?? '?'}/${evt.collection ?? '?'}`;
+    shapes.set(key, (shapes.get(key) || 0) + 1);
+
     if (evt.collection !== 'app.bsky.feed.post') continue;
     if (evt.operation === 'delete') continue;
     const rec = evt.record;
@@ -132,6 +145,8 @@ try {
 }
 
 const secs = (Date.now() - t0) / 1000;
+console.log(`  events seen   ${n(yielded)}`);
+console.log(`  event shapes  ${[...shapes.entries()].map(([k, v]) => `${k}:${v}`).join('  ') || '(none)'}`);
 console.log(`  requests      ${n(requests)}`);
 console.log(`  wire bytes    ${mb(bytes)}   ${(bytes / secs / 1048576).toFixed(1)} MB/s`);
 console.log(`  zstd frames   ${n(frames)}   ${mb(framesIn)} in -> ${mb(framesOut)} out `

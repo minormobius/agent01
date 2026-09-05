@@ -168,8 +168,11 @@ export async function fetchOlder({
     apiKey,
     decompressor,
     sha256: hash,
-    // Wrap fetch purely to read the quota headers off every archive response.
-    fetch: async (input, opts) => {
+    // `fetchImpl`, NOT `fetch`. The SDK ignores an unknown option silently, so
+    // spelling it `fetch` type-checks nowhere and fails invisibly: the wrapper
+    // simply never runs. Caught by replay-slug.yml reporting `requests 0`
+    // while the download plainly happened — 961 frames decoded.
+    fetchImpl: async (input, opts) => {
       const res = await fetch(input, opts);
       try { readQuota(res); } catch { /* headers are advisory */ }
       return res;
@@ -345,7 +348,10 @@ export async function fetchSlug({
     apiKey,
     decompressor,
     sha256: hash,
-    fetch: async (input, opts) => {
+    // `fetchImpl`, not `fetch` — see the note in fetchOlder. Getting this wrong
+    // does not throw; it silently disables the byte budget this whole function
+    // is built around, which is the worst possible failure for a spending cap.
+    fetchImpl: async (input, opts) => {
       const res = await fetch(input, opts);
       try { readQuota(res); } catch { /* advisory */ }
       const len = Number(res.headers.get('content-length') || 0);
