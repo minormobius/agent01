@@ -1,0 +1,120 @@
+# Building an AppView — feasibility
+
+**Date:** 2026-09-05
+**Question:** what does it take to build a Bluesky AppView? Can it be frontend-only, and if not, how demanding is the backend?
+**Answer in one line:** three of the four things people mean by "AppView" are frontend-only or nearly so and fit this repo's stack today; the fourth is a 16 TB pet server and a 24/7 on-call rotation, and it is off-strategy here.
+
+---
+
+## 1. What an AppView actually is
+
+In ATProto the write side and read side are split:
+
+- **PDS** — holds a user's repo. Authoritative. Federated. Anyone can read public records from one over CORS, no auth.
+- **Relay** — crawls every PDS and emits one firehose of every commit on the network.
+- **AppView** — subscribes to the firehose, indexes everything into its own database, and serves the `app.bsky.*` read endpoints (`getTimeline`, `getPostThread`, `getAuthorFeed`, `searchPosts`, notifications…). Bluesky runs the one at `public.api.bsky.app`.
+
+So an AppView is **a read-side aggregator**: it exists to answer questions no single repo can answer. "How many likes does this post have" is a network-wide reverse index. "What's in my timeline" is a fan-in across every account I follow. That aggregation is the entire cost. Everything else is a client.
+
+The load-bearing consequence: **you only need to build an AppView for the questions that need global knowledge.** Most of what a social app does is not that.
+
+## 2. The four tiers
+
+| Tier | What it is | Backend | Marginal cost | Where this repo already is |
+|---|---|---|---|---|
+| **0** | Client on Bluesky's public AppView | none | £0 | ~20 surfaces (empathy, judge, cluster, seek, ternary…) |
+| **1** | **Frontend-only AppView** — own index built in the browser from PDSes + public indexes | none | £0 | `b/disk`, `b/dyad`, `b/spark`, `wave` |
+| **2** | **Scoped AppView** — a real index, but of a slice of the network | Worker + DO + D1 | ~£0 on the existing bill | `workers/feed`, `b/squares` |
+| **3** | **Full-network AppView** — drop-in replacement for `public.api.bsky.app` | dedicated hardware | ~$200/mo + months | nothing, and deliberately |
+
+## 3. Tier 1 — yes, frontend-only is real
+
+This is the answer people don't expect. A browser can assemble a genuinely independent view of the network because three public services already do the aggregation, for free, for every lexicon:
+
+| Need | Service | Notes |
+|---|---|---|
+| source records | any PDS, `com.atproto.repo.listRecords` / `com.atproto.sync.getRepo` | CORS-open, unauthenticated for public data. `packages/atproto/pds.js` wraps it |
+| **backlinks** — who liked this, who replied, who follows X | **Constellation** (`constellation.microcosm.blue`) | a global backlink index as plain JSON. Works for *every* lexicon, including your own. Runs on a Raspberry Pi at <2 GiB/day — that is how cheap this problem is when you index only links |
+| live events | **Jetstream** WebSocket | straight into the browser. `wave/src/jetstream.ts` is the client; `b/disk` already streams it |
+| hydration (profiles, embeds) | `public.api.bsky.app` | use it as a CDN for display data while your own logic does the ranking |
+| local analytics over it all | DuckDB-WASM | `b/disk` already loads Arrow + DuckDB from CDN and queries in-tab |
+
+`workers/feed` already calls Constellation server-side for engagement signals. Nothing about that call needs a server.
+
+**What you get:** your own ranking, your own moderation stance, your own thread assembly, your own lexicons, your own definition of "timeline". That is what "our own AppView" usually means in practice.
+
+**What you do not get, and cannot:**
+
+- **Full-text search across the network.** Needs an inverted index over everything. No way around a backend.
+- **Cheap cold start on a wide graph.** A timeline over 300 follows is 300 `listRecords` calls. Tens of seconds, and rate limits bite. Mitigate with IndexedDB caching, a seeded cursor (`b/spark` synthesises a TID to seek into a repo — steal that), and bounded concurrency.
+- **Notifications while the tab is closed.** Fan-in needs a server that is awake.
+- **Deep history at speed.** Backfilling one busy repo in-browser is fine; backfilling a thousand is not.
+
+## 4. Tier 2 — a scoped AppView, which is where the value is
+
+Index a *slice*: a set of DIDs, one community, one lexicon namespace. Jetstream filters server-side via `wantedDids` / `wantedCollections`, so you only receive your slice.
+
+Shape on this stack: a Durable Object holds the Jetstream socket, filters, and writes to D1; a Worker serves the read endpoints. This is exactly `workers/feed` (cron + D1 + KV + Constellation) already, just generalised.
+
+Constraints to respect:
+- **D1 is ~10 GB per database** and `atpolls-db` is already shared by poll, feed, rite, airchat. A new index gets **its own D1**, with a retention policy written down before it ships, not after.
+- A DO holding a WebSocket bills for duration. Filter hard; one DO for the surface, not one per client.
+- Jetstream's host is hardcoded across the repo (`jetstream2.us-east.bsky.network`) — flagged as **F-11** in [`SOCIAL-STACK-AUDIT.md`](SOCIAL-STACK-AUDIT.md). Any new consumer should take a fallback list.
+
+Cost: effectively zero above the current bill. Effort: days, not months. **This is the recommendation.**
+
+## 5. Tier 3 — the full-network AppView
+
+Don't write one. [`zeppelin-social/bluesky-appview`](https://github.com/zeppelin-social/bluesky-appview) packages Bluesky's own AppView for self-hosting, and [`backfill-bsky`](https://github.com/zeppelin-social/backfill-bsky) does the historical load. Blacksky maintains a performance-optimised fork.
+
+Real numbers, from the person who did it ([futur.blue, 2025-06](https://whtwnd.com/futur.blue/3ls7sbvpsqc2w)):
+
+| | |
+|---|---|
+| Machine | Hetzner auction box — Ryzen 9 5950X, 8×3.84 TB SSD, 128 GB RAM ("really only the storage is needed") |
+| Storage in use | **16 TB** as of mid-2025, growing |
+| RAM in steady state | under 32 GB; backfill wants more |
+| Cost | **~$200/mo**, almost all storage |
+| Backfill | ~1 month hand-rolled; **~3 days** with `backfill-bsky` |
+| Total effort | **~6 months**, including ~7 rewrites of the indexer |
+| Firehose rate | ~400 events/s baseline, ~4,000 peak |
+| Data lost | a few hundred thousand to a few million records out of tens of billions |
+
+Dependencies are not small: Postgres (with a custom `pg_repack`), Redis, PgBouncer, OpenSearch, a PLC mirror, plus the indexer and label-muncher services.
+
+For scale context, Bluesky's own AppView runs two ScyllaDB clusters (one per coast), 8 nodes each, 384 threads / 1.5 TB RAM / 360 TB NVMe **per node**. You need one cluster's worth of capability, not two, but that is the shape of the thing you are approximating.
+
+**The hardest part is not storage or backfill — it is keeping up.** The reference indexer tops out around 200 events/s against a network doing 400 sustained and 4,000 at peak. Fall behind and you don't just lag: the relay's replay window is finite, you drop off the end of it, and you are back to backfill. Their fix was moving the indexer from Node to Deno for a ~4× throughput win. That is the flavour of problem you are signing up for.
+
+## 6. What everyone underestimates
+
+Ranked by how badly it bites, independent of tier:
+
+1. **Moderation is not a feature, it's the substrate.** Labels from labelers (`com.atproto.label.subscribeLabels`), takedowns, blocks, mutes, mutelists. Blocks are bidirectional and enforced *on read* — they prune threads, hide replies in both directions, and suppress notifications. Get this wrong and it is a safety incident, not a bug. At Tier 3 you are serving a full mirror of the network's content from your own IP, which makes takedown compliance and the worst of the network **your** legal problem. This alone is the argument against Tier 3 here.
+2. **Viewer state.** Every response is personalised — `viewer: {like, repost, following, blocking, muted}`. Hydration does N graph lookups per response. This is what turns a storage problem into a database problem.
+3. **Write amplification on counts.** Likes outnumber posts by roughly an order of magnitude, and every one mutates a counter somewhere.
+4. **Identity churn.** Handle changes, DID rotation, `plc.directory` rate limits. Zeppelin ships a PLC mirror because "decent odds you'll get rate limited" otherwise.
+5. **Lexicon drift.** `app.bsky.*` keeps moving. A drop-in replacement is a permanent maintenance commitment to chasing someone else's schema. A *scoped* AppView over your own lexicons has no such treadmill.
+6. **Thread assembly.** `getPostThread` walks up parents and down replies with block/mute pruning at every node. Deceptively expensive.
+
+## 7. Recommendation for this repo
+
+Tier 1 and Tier 2 — and they compose. A frontend-only AppView surface (`packages/atproto/pds.js` + a new `constellation.js` helper + the Jetstream client + DuckDB-WASM, OAuth through `auth.mino.mobi` for writes) is a normal week's work here and costs nothing to run. Where a specific question turns out to need global knowledge, promote *that question* to a scoped Tier-2 index in a Worker, the way `workers/feed` did for community detection.
+
+Tier 3 is the first thing this repo would own that needs a pet server, a process that must never fall behind, and a moderation posture with legal exposure. 86 surfaces currently share one Cloudflare account and no 24/7 anything. That is a deliberate property worth keeping.
+
+**Concrete next step if this proceeds:** add `constellation.js` to `packages/atproto/` (count/list backlinks for an arbitrary AT-URI + collection + JSON path, batched, degrading gracefully like `bsky.js` does), and give the Jetstream client a fallback host list. Both are small, both are useful to surfaces that exist today, and both are prerequisites for any tier above 0.
+
+---
+
+### Verified vs. not
+
+Verified from the repo: the existing Jetstream, Constellation, DuckDB-WASM and repo-scan usage; D1 sharing; surface counts. Verified from public sources on the date above: the zeppelin/backfill tooling, the self-host numbers, Jetstream volumes, Constellation's API and footprint. **Not verified:** nothing here was benchmarked from this sandbox — no Constellation query was run, no Jetstream socket opened, no cost modelled against the actual Cloudflare bill. The Tier-3 figures are one operator's report from mid-2025 and the network has grown since; treat them as a floor.
+
+### Sources
+
+- [Introducing Jetstream](https://docs.bsky.app/blog/jetstream) · [Jetstream: shrinking the firehose by >99%](https://jazco.dev/2024/09/24/jetstream/) — 232 GB/day → 41 GB/day, event rates
+- [Constellation](https://constellation.microcosm.blue/) · [microcosm](https://www.microcosm.blue/) · [microcosm-rs](https://github.com/at-microcosm/microcosm-rs/tree/main/constellation) — the backlink index
+- [zeppelin-social/bluesky-appview](https://github.com/zeppelin-social/bluesky-appview) · [backfill-bsky](https://github.com/zeppelin-social/backfill-bsky) · [blacksky fork](https://github.com/blacksky-algorithms/atproto)
+- [in and out, quick appview adventure — futur.blue](https://whtwnd.com/futur.blue/3ls7sbvpsqc2w) — the $200/mo, 16 TB, 6-month account
+- [How to self-host all of Bluesky (except the AppView) — alice.bsky.sh](https://alice.bsky.sh/post/3laega7icmi2q)
