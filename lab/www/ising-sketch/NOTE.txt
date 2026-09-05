@@ -1,0 +1,1 @@
+Max resolution is now 512x512. At that size the continuous Run loop auto-throttles its sweeps/frame so it doesn't try 2M site updates a frame — Step still does one true full sweep, just slower to click through.
