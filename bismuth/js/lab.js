@@ -573,6 +573,39 @@ class Lab {
     this.drawPaint();
   }
 
+  // ------------------------------------------------------------ sheet ----
+  // On a phone the laws are a sheet across the bottom of the screen: drag
+  // its handle for more or less of it, tap to put it away and bring it back.
+  // The canvas is the window above it, and the renderer reframes to that.
+  bindSheet() {
+    const h = $("#handle"), root = document.documentElement, panel = $("#panel");
+    const HANDLE = 30, third = () => Math.round(window.innerHeight * 0.36), tall = () => Math.round(window.innerHeight * 0.82);
+    let px = null;                                     // current sheet height in px, or null for the stylesheet's own
+    const set = (v) => { px = v; root.style.setProperty("--sheet", v + "px"); document.body.classList.toggle("sheet-tall", v > window.innerHeight * 0.6); };
+    const snap = (v) => { const stops = [HANDLE, third(), tall()]; let best = stops[0]; for (const s of stops) if (Math.abs(s - v) < Math.abs(best - v)) best = s; return best; };
+    let drag = null;
+    h.addEventListener("pointerdown", (e) => {
+      drag = { y: e.clientY, h: px === null ? h.getBoundingClientRect().bottom > 0 ? window.innerHeight - h.getBoundingClientRect().bottom + HANDLE : third() : px, moved: false };
+      panel.classList.add("dragging");
+      try { h.setPointerCapture(e.pointerId); } catch (err) { /* synthetic */ }
+    });
+    h.addEventListener("pointermove", (e) => {
+      if (!drag) return;
+      const dy = drag.y - e.clientY;
+      if (Math.abs(dy) > 4) drag.moved = true;
+      set(Math.max(HANDLE, Math.min(Math.round(window.innerHeight * 0.92), drag.h + dy)));
+    });
+    const up = () => {
+      if (!drag) return;
+      panel.classList.remove("dragging");
+      if (drag.moved) set(snap(px));
+      else set(px !== null && px <= HANDLE + 1 ? third() : HANDLE);   // a tap: away, or back to a third
+      drag = null;
+    };
+    h.addEventListener("pointerup", up); h.addEventListener("pointercancel", up);
+    window.addEventListener("resize", () => { if (px !== null && px > HANDLE + 1) set(snap(px)); });
+  }
+
   // ---------------------------------------------------------- paint ----
   bindPaint() {
     const cv = this.paintCanvas = $("#paint");
@@ -696,6 +729,7 @@ class Lab {
     $("#share").addEventListener("click", share);
     $("#share2").addEventListener("click", share);
     $("#paneltoggle").addEventListener("click", () => $("#panel").classList.toggle("hidden"));
+    this.bindSheet();
     window.addEventListener("keydown", (e) => {
       const tag = e.target && e.target.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;

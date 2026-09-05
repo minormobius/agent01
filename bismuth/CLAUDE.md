@@ -471,6 +471,14 @@ determinism of all of it.
 
 ## The playground (`lab.html` + `js/lab.js`) — `/lab`
 
+On a phone (≤ 760px wide) the laws are a **sheet** across the bottom of
+the screen (`--sheet`, 36vh by default) with the canvas sized to the window
+above it, so the renderer reframes the crystal into the clear part; the
+handle (`#handle`, `bindSheet`) drags the sheet between the handle alone, a
+third, and most of the screen, and a tap puts it away or brings it back.
+The HUD sits above the sheet; when the sheet is tall the stats line hides
+(`body.sheet-tall`). Desktop is unchanged: the panel down the left.
+
 The same engine and renderer with every knob on the outside. Three panels:
 
 - **substrate** — the cubic grid or any of the ten tilings (`sub: {shape,
