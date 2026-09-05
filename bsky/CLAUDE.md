@@ -210,6 +210,44 @@ Every image sets `aspect-ratio` from the record's own `aspectRatio` before it
 loads, so the feed does not jump under the reader's thumb, and carries the
 post's `alt` text.
 
+### Threads and replies
+
+Tapping a post's text opens `#/thread/<uri>`. `getPostThread` returns a
+recursive `threadViewPost`: `parent` walks up, `replies` walks down, and blocked
+or deleted nodes come back as a different `$type` with **no `post`** — so every
+walk checks rather than assumes. `getThread()` flattens replies depth-first,
+carrying a `level` for indentation, which the CSS caps at 4 so a thirty-deep
+argument does not slide off a phone.
+
+**A reply carries BOTH `root` and `parent`, and the root is the thread's root —
+not the post being replied to.** Take it from the parent's own
+`record.reply.root` and only fall back to the parent itself when replying to a
+top-level post. Getting this wrong detaches the reply in every client, which is
+the kind of bug that looks fine locally and is invisible until someone else
+loads the thread.
+
+### Profile tabs and the media wall
+
+Posts / Media, with Media an infinite masonry. Three things are deliberate:
+
+- **CSS `columns`**, not a measured grid. True masonry with no measuring pass
+  and no reflow jank; the trade is column order rather than row order, which for
+  a photo wall does not matter.
+- **`.mtile img { height: auto }` is load-bearing.** Tiles carry `width`/`height`
+  attributes from the post's `aspectRatio` so space is reserved before the image
+  loads — but without `height:auto` the attribute becomes the *used* height and a
+  3300x1968 photo renders 1968px tall inside a 212px column. Measured: 1968px
+  before the fix, 126px after.
+- **The sentinel is recreated per page**, never reused. An IntersectionObserver
+  watching an element that stays in view after an append fires again
+  immediately, which is how an infinite scroll becomes a runaway request loop.
+  Leaving the profile disconnects the observer, or it keeps paging a screen
+  nobody is looking at.
+
+One tester's note: `page.mouse.wheel` does **not** scroll an emulated touch
+device. A scroll test that uses it will report "infinite scroll broken" when it
+works fine — scroll the document instead.
+
 ### Search and profiles
 
 Two depths of people search, deliberately: `searchActorsTypeahead` (prefix,

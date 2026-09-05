@@ -180,6 +180,43 @@ textarea{resize:none;line-height:1.4}
 .tab .ic{font-size:19px;line-height:1}
 .tab.on{color:var(--accent)}
 
+/* ── thread ────────────────────────────────────────── */
+.post.focus{background:var(--panel);border-bottom:1px solid var(--line)}
+.post.focus .ptext{font-size:17px}
+.post.ancestor{opacity:.82}
+/* Reply depth. Capped at 4 so a 30-deep argument does not slide off a phone. */
+.post[data-level="1"]{padding-left:26px}
+.post[data-level="2"]{padding-left:38px}
+.post[data-level="3"]{padding-left:50px}
+.post[data-level="4"]{padding-left:60px}
+.post[data-level]:not([data-level="0"]){border-left:1px solid var(--line);margin-left:14px}
+.replybox{padding:12px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+.replybox textarea{min-height:74px;margin-bottom:9px}
+.replyrow{display:flex;align-items:center;gap:10px}
+.replyrow .cc{margin-left:auto;font-size:13px;color:var(--muted)}
+.replyrow .cc.over{color:var(--dead)}
+.threadnote{padding:10px 14px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line-soft)}
+
+/* ── profile tabs + media masonry ──────────────────── */
+.ptabs{display:flex;border-bottom:1px solid var(--line)}
+.ptab{flex:1;padding:12px;font-size:14px;color:var(--muted);border-bottom:2px solid transparent}
+.ptab.on{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
+/* CSS columns give a true masonry with no measuring and no reflow jank; the
+   trade is column-order rather than row-order, which for a photo wall is fine. */
+.masonry{columns:2;column-gap:3px;padding:3px}
+@media (min-width:520px){ .masonry{columns:3} }
+.mtile{break-inside:avoid;margin-bottom:3px;display:block;position:relative;background:var(--line);
+  border-radius:3px;overflow:hidden}
+/* height:auto is load-bearing. The tiles carry width/height ATTRIBUTES from
+   the post's aspectRatio so the browser can reserve space before the image
+   loads — but without height:auto the attribute becomes the used height, and a
+   3300x1968 photo renders 1968px tall in a 212px column. With it, the
+   attributes only set the aspect ratio and the width constraint drives it. */
+.mtile img{width:100%;height:auto;display:block}
+.mtile .vbadge{position:absolute;right:6px;top:6px;font-size:11px;background:rgba(0,0,0,.62);
+  color:#fff;border-radius:999px;padding:2px 7px}
+.sentinel{height:1px}
+
 /* ── palette picker ────────────────────────────────── */
 .palettes{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:9px}
 .pal{border:1px solid var(--line);border-radius:10px;padding:9px;text-align:left;min-height:62px}
@@ -233,6 +270,7 @@ textarea{resize:none;line-height:1.4}
   <section id="v-search" hidden></section>
   <section id="v-notifs" hidden></section>
   <section id="v-profile" hidden></section>
+  <section id="v-thread" hidden></section>
   <section id="v-me" hidden></section>
 </main>
 

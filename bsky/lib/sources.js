@@ -120,6 +120,60 @@ export async function authorFeed(did, { limit = 30, cursor } = {}) {
   };
 }
 
+/**
+ * A post with its ancestors and replies.
+ *
+ * `getPostThread` returns a recursive `threadViewPost`: `parent` walks up (each
+ * one a threadViewPost of its own) and `replies` walks down. Blocked and
+ * not-found nodes come back as different `$type`s with no `post`, so every
+ * consumer has to check rather than assume.
+ *
+ * @param {string} uri
+ * @param {{depth?: number, parentHeight?: number}} [opts]
+ * @returns {Promise<{ancestors: object[], post: object, replies: object[]}>}
+ */
+export async function getThread(uri, { depth = 6, parentHeight = 20 } = {}) {
+  const params = new URLSearchParams({ uri, depth: String(depth), parentHeight: String(parentHeight) });
+  const res = await fetch(`${BSKY_PUBLIC}/xrpc/app.bsky.feed.getPostThread?${params}`);
+  if (!res.ok) throw new Error(`thread ${res.status}`);
+  const { thread } = await res.json();
+  if (!thread?.post) throw new Error('post not found, or blocked');
+
+  // Walk up to the root, collecting ancestors oldest-first.
+  const ancestors = [];
+  for (let node = thread.parent; node?.post; node = node.parent) ancestors.unshift(fromHydrated(node.post));
+
+  // Flatten replies depth-first, carrying the nesting level for indentation.
+  const replies = [];
+  const walk = (nodes, level) => {
+    for (const n of nodes || []) {
+      if (!n?.post) continue;                 // blocked / deleted / not found
+      replies.push({ ...fromHydrated(n.post), level });
+      walk(n.replies, level + 1);
+    }
+  };
+  walk(thread.replies, 0);
+
+  return { ancestors, post: fromHydrated(thread.post), replies };
+}
+
+/**
+ * An author's media posts, for the profile's Media tab. The AppView has a
+ * dedicated filter for this, so it is one request rather than fetching
+ * everything and discarding the text posts.
+ *
+ * @param {string} did
+ * @param {{limit?: number, cursor?: string}} [opts]
+ */
+export async function authorMedia(did, { limit = 40, cursor } = {}) {
+  const params = new URLSearchParams({ actor: did, limit: String(limit), filter: 'posts_with_media' });
+  if (cursor) params.set('cursor', cursor);
+  const res = await fetch(`${BSKY_PUBLIC}/xrpc/app.bsky.feed.getAuthorFeed?${params}`);
+  if (!res.ok) throw new Error(`media ${res.status}`);
+  const data = await res.json();
+  return { posts: (data.feed || []).map((f) => fromHydrated(f.post)), cursor: data.cursor };
+}
+
 // ─── notifications, from the backlink index ──────────────────────
 
 /**

@@ -205,7 +205,7 @@
         "mino-auth-db"
       ],
       "provides": "auth.mino.mobi",
-      "status": "RECONCILED 2026-08-15 — one owner: claude/farmville-atproto-game-745mcr. It is the only claimant whose tree carries all 75 WRITE_COLLECTIONS; claude/atproto-infinite-whiteboard-usdpzx has 70 (no com.minomobi.farm.*), so giving it the surface would make the next auth deploy a silent narrowing of the ceiling. BEFORE THE NEXT AUTH DEPLOY THE OWNER MUST PULL main: only main now has both the full 75 and all three of the farm.mino.mobi, farm-next.mino.mobi and loop.mino.mobi origins — farmville's tree is still missing the loop origin.",
+      "status": "RECONCILED 2026-08-15 — one owner: claude/farmville-atproto-game-745mcr. It is the only claimant whose tree carries all 75 WRITE_COLLECTIONS; claude/atproto-infinite-whiteboard-usdpzx has 70 (no com.minomobi.farm.*), so giving it the surface would make the next auth deploy a silent narrowing of the ceiling. BEFORE THE NEXT AUTH DEPLOY THE OWNER MUST PULL main: only main now has both the full 75 and all three of the farm.mino.mobi, farm-next.mino.mobi and loop.mino.mobi origins — farmville's tree is still missing the loop origin. HANDOVER PENDING: the principal assigned this surface to claude/bsky-app-view-feasibility-8sdflz on 2026-09-06, whose tree is a strict superset (77 collections, adding app.bsky.feed.like and app.bsky.feed.repost, and carrying the loop origin this claimant lacks). The registry edit is blocked pending permission to run gen-deploy-triggers; until then bsky.mino.mobi's like/repost buttons detect the missing ceiling and explain themselves.",
       "paths": [
         "workers/auth/**"
       ],

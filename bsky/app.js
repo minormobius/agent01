@@ -21,8 +21,9 @@ import { JetstreamClient, KIND, eventUri, LOOKBACK_HOURS, clampSince }
   from '/packages/atproto/jetstream.js';
 import { postCounts } from '/packages/atproto/constellation.js';
 import { getProfiles, getFollows, resolveActor, getProfile } from '/packages/atproto/bsky.js';
-import { FEEDS, loadFeed, authorFeed, notifications, searchActors } from '/lib/sources.js';
-import { renderEmbed } from '/lib/blobs.js';
+import { FEEDS, loadFeed, authorFeed, authorMedia, notifications, searchActors, getThread }
+  from '/lib/sources.js';
+import { renderEmbed, imageUrl, videoUrls } from '/lib/blobs.js';
 import { attachTypeahead } from '/lib/typeahead.js';
 import * as cache from '/lib/cache.js';
 import { auth, publish, graphemeLength, MAX_GRAPHEMES } from '/lib/compose.js';
@@ -59,13 +60,16 @@ function say(text, live = false) {
   $('dot').className = 'dot' + (live ? ' live' : '');
 }
 
-const VIEWS = ['home', 'search', 'notifs', 'me', 'profile'];
+const VIEWS = ['home', 'search', 'notifs', 'me', 'profile', 'thread'];
 
 function showTab(tab) {
   state.tab = tab;
   // `profile` is a screen, not a tab — no tab lights up for it.
   for (const b of document.querySelectorAll('.tab')) b.classList.toggle('on', b.dataset.tab === tab);
   for (const v of VIEWS) $(`v-${v}`).hidden = v !== tab;
+  // A live IntersectionObserver on a hidden list would keep paging in the
+  // background against a profile the reader has left.
+  if (tab !== 'profile') { profileObserver?.disconnect(); profileObserver = null; }
   $('chips').hidden = tab !== 'home';
   $('fab').hidden = tab === 'profile' ? false : tab !== 'home';
   window.scrollTo(0, 0);
@@ -79,10 +83,14 @@ function openProfile(actor) {
   location.hash = `#/profile/${encodeURIComponent(actor)}`;
 }
 
+function openThread(uri) { location.hash = `#/thread/${encodeURIComponent(uri)}`; }
+
 function route() {
+  const t = location.hash.match(/^#\/thread\/(.+)$/);
+  if (t) return renderThread(decodeURIComponent(t[1]));
   const m = location.hash.match(/^#\/profile\/(.+)$/);
   if (m) return renderProfile(decodeURIComponent(m[1]));
-  if (state.tab === 'profile') showTab('home');
+  if (state.tab === 'profile' || state.tab === 'thread') showTab('home');
 }
 
 function renderChips() {
@@ -300,7 +308,7 @@ function postNode(p) {
           <span class="phandle" data-profile="${esc(prof?.handle || p.did)}">@${esc(prof?.handle || p.did.slice(8, 20) + '…')}</span>
           <span class="ptime">${when(p.createdAt)}</span>
         </div>
-        <div class="ptext">${esc(p.record?.text || '')}</div>
+        <div class="ptext" data-thread="${esc(p.uri)}">${esc(p.record?.text || '')}</div>
         ${renderEmbed(p.record, p.did, p.viewEmbed)}
         <div class="pacts">
           <button data-act="reply">↳ <span>${c ? c.replyCount : ''}</span></button>
@@ -543,19 +551,224 @@ async function renderProfile(actor) {
     <div class="pstats"><a href="https://bsky.app/profile/${esc(did)}" target="_blank" rel="noopener">open on bsky.app ↗</a></div>
   </div>`));
 
+  const tabs = el(`<div class="ptabs">
+    <button class="ptab on" data-ptab="posts">Posts</button>
+    <button class="ptab" data-ptab="media">Media</button>
+  </div>`);
+  v.append(tabs);
   const list = el('<div id="pposts"></div>');
   v.append(list);
 
-  // Their real posts, hydrated — so the pictures come through here too.
+  profileState = { did, handle: prof?.handle || did, tab: 'posts', cursor: null, done: false, loading: false };
+  tabs.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-ptab]');
+    if (!b || b.dataset.ptab === profileState.tab) return;
+    for (const x of tabs.querySelectorAll('.ptab')) x.classList.toggle('on', x === b);
+    profileState = { ...profileState, tab: b.dataset.ptab, cursor: null, done: false, loading: false };
+    list.innerHTML = '';
+    loadProfilePage();
+  });
+
+  await loadProfilePage();
+  say(`@${prof?.handle || did}`);
+}
+
+let profileState = null;
+let profileObserver = null;
+
+/**
+ * One page of the profile's current tab, then re-arm the infinite scroll.
+ *
+ * The sentinel is recreated per page rather than reused: an IntersectionObserver
+ * on an element that stays in view after the append fires repeatedly, which is
+ * how infinite scrolls turn into runaway request loops.
+ */
+async function loadProfilePage() {
+  const ps = profileState;
+  if (!ps || ps.loading || ps.done) return;
+  ps.loading = true;
+  const list = $('pposts');
+  document.getElementById('psentinel')?.remove();
+  profileObserver?.disconnect();
+
   try {
-    const { posts } = await authorFeed(did, { limit: 30 });
-    if (!posts.length) list.append(el('<div class="empty">No posts.</div>'));
-    for (const p of posts) list.append(postNode(p));
+    const media = ps.tab === 'media';
+    const { posts, cursor } = media
+      ? await authorMedia(ps.did, { limit: 40, cursor: ps.cursor })
+      : await authorFeed(ps.did, { limit: 30, cursor: ps.cursor });
+
+    if (!posts.length && !ps.cursor) {
+      list.append(el(`<div class="empty">${media ? 'No photos or video.' : 'No posts.'}</div>`));
+      ps.done = true;
+      return;
+    }
+
+    if (media) {
+      let grid = list.querySelector('.masonry');
+      if (!grid) { grid = el('<div class="masonry"></div>'); list.append(grid); }
+      for (const p of posts) for (const tile of mediaTiles(p)) grid.append(tile);
+    } else {
+      for (const p of posts) list.append(postNode(p));
+    }
+
     if (state.cacheOk && posts.length) cache.putPosts(posts).catch(() => {});
-    say(`@${prof?.handle || did}`);
+    ps.cursor = cursor;
+    ps.done = !cursor || !posts.length;
+
+    if (!ps.done) {
+      const sentinel = el('<div class="sentinel" id="psentinel"></div>');
+      list.append(sentinel);
+      profileObserver = new IntersectionObserver((entries) => {
+        if (entries.some((e) => e.isIntersecting)) loadProfilePage();
+      }, { rootMargin: '600px' });   // start fetching before the reader arrives
+      profileObserver.observe(sentinel);
+    }
   } catch (err) {
-    list.append(el(`<div class="empty">Could not load posts: ${esc(err.message)}</div>`));
+    list.append(el(`<div class="empty">Could not load: ${esc(err.message)}</div>`));
+    ps.done = true;
+  } finally {
+    ps.loading = false;
   }
+}
+
+/**
+ * A post's media as individual masonry tiles — one per image, so a four-image
+ * post becomes four tiles rather than a nested grid inside a column.
+ *
+ * Handles both embed shapes for the same reason lib/blobs.js does: a profile
+ * page is hydrated, but the same function serves posts restored from the cache,
+ * which are raw.
+ */
+function mediaTiles(p) {
+  const e = p.viewEmbed || p.record?.embed;
+  if (!e) return [];
+  const type = String(e.$type || '');
+  const hydrated = type.includes('#view');
+  const out = [];
+
+  const media = type.startsWith('app.bsky.embed.recordWithMedia') ? e.media : e;
+  const mtype = String(media?.$type || '');
+
+  if (mtype.startsWith('app.bsky.embed.images')) {
+    for (const im of media.images || []) {
+      const src = hydrated ? im.thumb : imageUrl(p.did, im.image, 'feed_thumbnail');
+      if (!src) continue;
+      const ar = im.aspectRatio;
+      const tile = el(`<a class="mtile" data-thread="${esc(p.uri)}" href="#/thread/${encodeURIComponent(p.uri)}">
+        <img loading="lazy" decoding="async" alt="${esc(im.alt || '')}"
+             ${ar?.width && ar?.height ? `width="${ar.width}" height="${ar.height}"` : ''}
+             src="${esc(src)}"></a>`);
+      out.push(tile);
+    }
+  } else if (mtype.startsWith('app.bsky.embed.video')) {
+    const urls = hydrated ? { thumbnail: media.thumbnail } : videoUrls(p.did, media.video);
+    if (urls?.thumbnail) {
+      out.push(el(`<a class="mtile" href="#/thread/${encodeURIComponent(p.uri)}">
+        <img loading="lazy" decoding="async" alt="" src="${esc(urls.thumbnail)}">
+        <span class="vbadge">▶</span></a>`));
+    }
+  }
+  return out;
+}
+
+// ─── thread ──────────────────────────────────────────────────────
+
+async function renderThread(uri) {
+  showTab('thread');
+  const v = $('v-thread');
+  v.innerHTML = '<div class="empty">loading thread…</div>';
+
+  let data;
+  try { data = await getThread(uri, { depth: 6, parentHeight: 20 }); }
+  catch (err) { v.innerHTML = `<div class="empty"><strong>Thread unavailable.</strong>${esc(err.message)}</div>`; return; }
+
+  v.innerHTML = '';
+  const back = el('<div class="backbar"><button class="pill" id="tback">← back</button></div>');
+  v.append(back);
+  $('tback').addEventListener('click', () => history.back());
+
+  for (const a of data.ancestors) {
+    const n = postNode(a);
+    n.classList.add('ancestor');
+    v.append(n);
+  }
+
+  const focus = postNode(data.post);
+  focus.classList.add('focus');
+  v.append(focus);
+
+  v.append(replyBox(data.post));
+
+  if (!data.replies.length) {
+    v.append(el('<div class="threadnote">No replies yet.</div>'));
+  } else {
+    v.append(el(`<div class="threadnote">${data.replies.length} repl${data.replies.length === 1 ? 'y' : 'ies'}</div>`));
+    for (const r of data.replies) {
+      const n = postNode(r);
+      // Cap the visual nesting: a 30-deep argument must not slide off a phone.
+      n.dataset.level = String(Math.min(r.level, 4));
+      v.append(n);
+    }
+  }
+  say(`thread · ${data.replies.length} replies`);
+}
+
+/**
+ * The in-context reply composer.
+ *
+ * A reply carries BOTH `root` and `parent`. The root is the thread's root, not
+ * the post being replied to — take it from the parent's own `record.reply.root`
+ * when there is one, and only fall back to the parent itself when replying to a
+ * top-level post. Getting this wrong detaches the reply in every client.
+ */
+function replyBox(parent) {
+  const box = el(`<div class="replybox">
+    <textarea id="rt" placeholder="Reply to @${esc(parent.author?.handle || '')}…" maxlength="3000"></textarea>
+    <div class="replyrow">
+      <button class="btn" id="rsend" disabled>reply</button>
+      <span id="rstatus" class="muted" style="font-size:13px"></span>
+      <span class="cc" id="rcc">0/300</span>
+    </div></div>`);
+
+  const ta = box.querySelector('#rt');
+  const send = box.querySelector('#rsend');
+  const cc = box.querySelector('#rcc');
+  const st = box.querySelector('#rstatus');
+
+  const count = () => {
+    const n = graphemeLength(ta.value);
+    cc.textContent = `${n}/${MAX_GRAPHEMES}`;
+    cc.className = 'cc' + (n > MAX_GRAPHEMES ? ' over' : '');
+    send.disabled = n === 0 || n > MAX_GRAPHEMES || !auth().isLoggedIn();
+  };
+  ta.addEventListener('input', count);
+
+  if (!auth().isLoggedIn()) {
+    st.textContent = 'sign in to reply';
+    send.disabled = true;
+  }
+
+  send.addEventListener('click', async () => {
+    send.disabled = true;
+    st.textContent = 'posting…';
+    try {
+      const rootRef = parent.record?.reply?.root || { uri: parent.uri, cid: parent.cid };
+      await publish(ta.value, {
+        resolveHandle: (h) => resolveActor(h).catch(() => null),
+        replyTo: { uri: parent.uri, cid: parent.cid, root: rootRef },
+      });
+      ta.value = '';
+      count();
+      st.textContent = 'replied';
+      // Re-read the thread so the new reply appears where it belongs.
+      setTimeout(() => renderThread(parent.uri), 900);
+    } catch (err) {
+      st.textContent = err.message;
+      send.disabled = false;
+    }
+  });
+
+  return box;
 }
 
 // ─── me ──────────────────────────────────────────────────────────
@@ -788,10 +1001,12 @@ document.addEventListener('click', async (e) => {
 // Any element carrying data-profile opens that profile — avatars, names,
 // handles, search rows. One listener rather than a binding per post.
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-profile]');
-  if (!t) return;
-  e.preventDefault();
-  openProfile(t.dataset.profile);
+  // Profile links win over the thread link when both wrap the tap — a name is a
+  // more specific target than the post body it sits above.
+  const prof = e.target.closest('[data-profile]');
+  if (prof) { e.preventDefault(); return openProfile(prof.dataset.profile); }
+  const th = e.target.closest('[data-thread]');
+  if (th) { e.preventDefault(); return openThread(th.dataset.thread); }
 });
 
 window.addEventListener('hashchange', route);
