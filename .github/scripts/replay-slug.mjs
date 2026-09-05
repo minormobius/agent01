@@ -110,7 +110,7 @@ const KNOWN = 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
 console.log(`  sha256("abc") ${hex === KNOWN ? 'matches the NIST vector' : 'WRONG: ' + hex}`);
 
 // ── 3. buy the slug ──────────────────────────────────────────────
-console.log(`\n═══ 4. download, budget ${mb(BUDGET)} ═══`);
+console.log(`\n═══ 4. download, budget ${mb(BUDGET)}, prefetch buffer ${mb(Math.max(1 << 20, Math.floor(BUDGET / 8)))} ═══`);
 const rule = PRESETS[0];
 const m = compile(rule);
 const budgetCtl = new AbortController();
@@ -122,6 +122,11 @@ const js = new Jetstream({
   apiKey: KEY,
   decompressor,
   sha256,
+  // Must sit well under BUDGET: the SDK prefetches this much before yielding
+  // its first event, so a buffer larger than the budget means the abort lands
+  // mid-prefetch and nothing is ever emitted.
+  snapshotBufferBytes: Math.max(1 << 20, Math.floor(BUDGET / 8)),
+  blockConcurrency: 2,
   fetchImpl: async (input, opts) => {
     const res = await fetch(input, opts);
     requests++;

@@ -348,6 +348,14 @@ export async function fetchSlug({
     apiKey,
     decompressor,
     sha256: hash,
+    // The SDK prefetches `snapshotBufferBytes` (default **64 MiB**) before it
+    // yields a single event. A budget smaller than that aborts DURING the
+    // prefetch and the generator emits nothing at all — measured: 32 block
+    // requests, 12.3 MB downloaded, 27 frames decoded, zero events. So the
+    // buffer must sit well under the budget, or the budget is a guarantee of
+    // getting nothing rather than a spending cap.
+    snapshotBufferBytes: Math.max(1 << 20, Math.floor(budgetBytes / 8)),
+    blockConcurrency: 2,
     // `fetchImpl`, not `fetch` — see the note in fetchOlder. Getting this wrong
     // does not throw; it silently disables the byte budget this whole function
     // is built around, which is the worst possible failure for a spending cap.
