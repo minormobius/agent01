@@ -189,7 +189,31 @@ function quoteCard(rec) {
       <span class="muted" data-profile="${handle}">@${handle}</span>
     </div>
     ${text ? `<div class="qtext">${esc(text.slice(0, 240))}</div>` : ''}
+    ${quoteMedia(rec)}
   </div>`;
+}
+
+/**
+ * The quoted post's own pictures.
+ *
+ * A hydrated `#viewRecord` carries its media in an `embeds` ARRAY — a different
+ * shape from a top-level post's single `embed`, which is why quotes rendered as
+ * text only: nothing was looking there. Each entry is already a `#view` with
+ * complete CDN URLs, so it goes straight through `renderEmbed`.
+ *
+ * A quote INSIDE a quote is deliberately not drawn. It nests without limit, and
+ * at this size a third-level card says nothing the second-level one did not.
+ */
+function quoteMedia(rec) {
+  const e = (rec.embeds || [])[0];
+  if (!e) return '';
+  const t = String(e.$type || '');
+  if (t.startsWith('app.bsky.embed.record#')) return '';
+  // recordWithMedia nests the real media one level down; take that and drop the
+  // nested quote for the same reason.
+  const view = t.startsWith('app.bsky.embed.recordWithMedia') ? e.media : e;
+  if (!view) return '';
+  return renderEmbed(null, rec.author?.did, view);
 }
 
 /** Avatar URL from a profile blob ref, for raw records. */

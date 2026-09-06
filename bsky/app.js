@@ -1402,7 +1402,10 @@ async function deletePost(post) {
 function openPostMenu(anchor, post) {
   closeMenu();
   const menu = $('postmenu');
-  const imgs = [...(anchor.closest('.post')?.querySelectorAll('.imgcell img') || [])];
+  // The quoted post's pictures are not this post's — "copy image" must not
+  // reach into a quote.
+  const imgs = [...(anchor.closest('.post')?.querySelectorAll('.imgcell img') || [])]
+    .filter((img) => !img.closest('.quote'));
 
   menuOpenedAt = Date.now();
   menu.innerHTML = `
@@ -2374,7 +2377,14 @@ function openMedia(cell) {
 
   // In a post: the album is that post's images, opened at the tapped one.
   if (post) {
-    const cells = [...holder.querySelectorAll('.imgcell')];
+    // A quoted post has its OWN pictures, and they are a different album. If
+    // the tap was inside the quote, page through the quote; otherwise page
+    // through the outer post and leave the quote's images out of it —
+    // `.post .imgcell` alone would silently merge the two.
+    const quote = cell.closest('.quote');
+    const cells = quote
+      ? [...quote.querySelectorAll('.imgcell')]
+      : [...holder.querySelectorAll('.imgcell')].filter((c) => !c.closest('.quote'));
     const images = cells.map((c) => ({
       src: c.querySelector('img')?.src,
       full: c.getAttribute('href') || c.querySelector('img')?.src,

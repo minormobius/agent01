@@ -506,6 +506,27 @@ under a 59,000-post scan, not the protocol.
 The quote's author is also `data-profile`, so the header opens the quoted
 account rather than the quoting one.
 
+**A quoted post shows its own pictures**, and the reason they were missing is a
+shape difference worth knowing: a hydrated `#viewRecord` carries media in an
+`embeds` **array**, not in the single `embed` a top-level post has. Nothing was
+looking there, so quotes rendered as text only. Each entry is already a `#view`
+with complete CDN URLs, so it goes straight through `renderEmbed`.
+
+Two things `quoteMedia()` deliberately does not do:
+
+- **A quote inside a quote is not drawn.** It nests without limit, and at this
+  size a third-level card says nothing the second said.
+- **`recordWithMedia` inside a quote keeps only the media**, dropping its nested
+  quote for the same reason.
+
+**The albums stay separate.** A quoted post's pictures are a different album
+from the quoting post's, and `.post .imgcell` alone silently merges them — tap
+an outer image and you would swipe into the quote's. `openMedia()` now pages
+through the quote when the tap was inside one, and otherwise filters quote cells
+out of the outer post's album; the ⋯ menu's "copy image" filters them too.
+Verified: an outer post with 2 pictures quoting a post with 1 gives 3 cells, a
+2-image outer album and a 1-image quote album.
+
 ### "Cannot mint a service token" told nobody anything
 
 `serviceToken()` returned a bare `null` for four unrelated failures — not signed

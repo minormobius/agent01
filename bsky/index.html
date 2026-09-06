@@ -217,6 +217,13 @@ textarea{resize:none;line-height:1.4}
   border-radius:8px;cursor:pointer;min-height:44px}
 .repostmenu button:active{background:var(--line-soft)}
 #postmenu button.danger{color:var(--dead)}
+/* A quoted post's media sits inside an already-inset card, so it is capped
+   shorter than a top-level embed — a full-height picture makes the quote read
+   as the post. */
+.quote .imgcell img{max-height:190px}
+.quote .media{margin-top:7px}
+.quote .card{margin-top:7px}
+.quote video{max-height:220px}
 .ccard{margin-top:10px;border:1px solid var(--line);border-radius:10px;overflow:hidden;position:relative}
 .ccard img{width:100%;max-height:150px;object-fit:cover;display:block}
 .ccard .cch{padding:9px 11px}
