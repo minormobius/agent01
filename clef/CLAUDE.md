@@ -244,16 +244,18 @@ patch bank's partials-and-an-envelope. It appears in the **voice picker**, as
 costs a wait. Choosing it makes both Play and `.wav` use it.
 
 **It cannot play in real time, so it does not try.** The rondo renders at about
-**2.1x real time** on a desktop and cost tracks ringing strings, not note count,
-so a phone is slower and a dense bar is slower again. Wired into the live
-scheduler — which must stay ahead of the audio clock on a 140 ms lookahead — it
-would stutter. Instead the whole piece is rendered first and then played as one
+**3.1x real time** on a desktop and cost tracks ringing strings, not note count,
+so a phone is slower and a dense bar is slower again. That cost is tails, not
+wasm — the same code natively gives the same number — and `RETIRE_LEVEL` in
+`pf_web.c` is the lever, with the measurements behind our value written there.
+Wired into the live scheduler — which must stay ahead of the audio clock on a
+140 ms lookahead — it would still stutter. Instead the whole piece is rendered first and then played as one
 buffer. Waiting once, with a bar that moves, beats a preview that breaks up.
 
 Three things follow from that, and each is load-bearing:
 
-- **The render runs in a Worker** (`pfsynth-worker.js`). On the main thread a
-  26-second render is 26 seconds of frozen tab — and a progress bar drawn from
+- **The render runs in a Worker** (`pfsynth-worker.js`). On the main thread an
+  18-second render is 18 seconds of frozen tab — and a progress bar drawn from
   that thread cannot advance, because the thread that would draw it is the one
   doing the work. The worker also yields every few blocks, since a worker cannot
   receive a message mid-loop and a cancel would otherwise arrive after the wait

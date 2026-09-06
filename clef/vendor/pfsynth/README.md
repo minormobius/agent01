@@ -70,11 +70,35 @@ because there is no audio in the sandbox this was built in.
 3. **End to end in a real browser**, served over HTTP with the real MIME types:
    the module loads, renders, and produces finite audio with no page errors.
 
-## Measured cost, and the gain
+## Measured cost, and the two numbers that set it
 
-The 487-note rondo (51 s of music) renders in **26 s** on desktop Chromium —
-**2.1x** real time. A three-note chord manages 31x. Cost tracks how many strings
-are ringing, which is why this is an export engine and not a preview engine.
+The 487-note rondo (51 s of music) renders in **17.7 s** on desktop Chromium —
+**3.1x** real time. A three-note chord manages 31x. Cost tracks how many strings
+are ringing, not how many notes there are.
+
+**wasm is not the cost.** Driving the identical `pf_web.c` natively gives 2.16x
+where the browser gave 2.16x — the same number. Whatever is slow here is slow in
+C too, so there is no point looking for it in the JavaScript.
+
+**The cost is ringing tails.** The rondo's median note is 0.14 s, but a struck
+string goes on sounding long after its damper falls, so the piece holds ~38
+voices at once and each is a per-sample Newton solve. `RETIRE_LEVEL` decides
+when a decayed voice stops being computed, and it is the single biggest lever:
+
+| RETIRE_LEVEL | real time | tail discarded, peak |
+|---|---|---|
+| 1e-7 (upstream's) | 1.31x | — |
+| 1e-5 | 2.16x | -144 dB |
+| **1e-4 (ours)** | **3.23x** | **-115 dB** |
+| 1e-3 | 6.90x | -81 dB |
+
+Inside the overlap every setting matches the 1e-7 reference to within float32
+rounding (-140 dB, zero peak error). The only thing the threshold changes is how
+much of the final decay gets rendered at all. We stop at 1e-4 because we write
+16-bit WAV: -96 dB is the floor of what our own output can represent, so a tail
+peaking at -115 dB *cannot be encoded*, let alone heard. 1e-3 is faster again and
+discards a tail at -81 dB, which is representable — likely inaudible, but that is
+a weaker claim and this one does not need hedging.
 
 Master gain is left at upstream's **110**. At that setting the rondo puts 0.55%
 of samples past 0.9 and 0.01% past 0.99 — the soft `tanh` knee doing the job its

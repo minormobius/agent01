@@ -1,1 +1,7 @@
 a0fe953f202af420d590f81604c71e856b4920ce
+# The commit core/ was taken from.
+#
+# Re-checked 2026-09-06 against upstream bb520d9 ("full keyboard, bass onset,
+# per-key body, ear-tuned onset, 10x faster envelopes"): all six vendored files
+# are byte-identical, so there is nothing to pull. That work lands in
+# pf_partial and pf_attack — the modal voice, which we do not vendor.
