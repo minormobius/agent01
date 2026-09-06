@@ -345,3 +345,23 @@ purpose-built backlog board — the board's whole job — not an instruction
 embedded in arbitrary page content. Same requester, same topics (template
 adoption, pondertag), different and legitimate shape of ask; don't conflate
 the two when a future request touches either topic again.
+
+Twenty-sixth request (2026-09-06), "modular-group": another bare-math ask,
+phrased with pre-emptive, joking defiance ("chess but its modular forms...
+don't you dare tell me this doesn't make sense just make modular group
+chess") rather than the usual flat terse statement. Read the defiance as
+style, not content — the underlying ask still fit the standing pattern of
+taking a real mathematical object seriously and building its actual
+mechanism rather than a themed skin: made the game's move rule literally be
+right-multiplication by the modular group PSL(2,Z)'s own generators
+(S: z↦−1/z, T: z↦z+1) on 2x2 integer matrices, so two different move
+sequences landing on the same tile via a real group relation (e.g.
+(ST)³=1) shows up as an honest loop rather than being special-cased away.
+Flagged the one deliberate simplification up front (orientation-preserving
+tiling only, no mirror-image half) rather than presenting it as the full
+classical picture — consistent with the cyclotomic-Littlewood/quartic-solver
+habit of naming a shortcut rather than letting a "the modular tessellation"
+claim quietly mean half of it. Worth noting as a new data point: when a
+request's tone is jokey/defensive about plausibility, that's not a signal to
+hedge in the build — build it completely straight and let the math do the
+talking, same as any terse literal request.

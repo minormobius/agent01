@@ -1,0 +1,1 @@
+Built it as a real capture game on PSL(2,Z)'s Cayley graph — actual matrices, not a themed skin on regular chess. One honest gap: only the orientation-preserving tiling, no mirror images (that needs a reflection generator this board lacks). Said so on-page.
