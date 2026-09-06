@@ -645,14 +645,78 @@ annotation becomes a live `<a>` to the right URL, zoom re-renders at the new
 scale (canvas 748 → 935 px wide, not an upscaled bitmap), close restores the
 page, and the button appears for arXiv and not for biorxiv or nature.
 
-**Not fixed, and not root-caused:** pdf.js emits one uncaught
-`Cannot read properties of null (reading '_post')` per teardown, and one more
-per zoom. In isolation every operation this viewer performs is clean — import,
-`getDocument`, concurrent renders of different pages, `getAnnotations`,
-`loadingTask.destroy()` — so it is something about the combination. Four
-plausible fixes did not remove it; two of them were real bugs and stayed. It has
-no observed effect on rendering, links, zoom or teardown, and it does not fire
-unless a paper is opened.
+**The `_post` error was never pdf.js.** For several sessions this file
+recorded an uncaught `Cannot read properties of null (reading '_post')`, one
+per zoom and one per teardown, as an unexplained fault inside pdf.js's worker
+plumbing — on the strength of `_post` looking like the library's own
+message-port field. Four "fixes" failed to remove it.
+
+It is **our** property, on **our** element, thrown from **our** handler. The
+feed's action listener is `document`-level and matches `button[data-act]`; the
+paper toolbar's close / − / + buttons carry `data-act` too, and they are not
+inside a `.post` — so `btn.closest('.post')._post` dereferenced `null` on every
+tap of a zoom control. It had no visible effect only because the toolbar has
+its own listener, which runs independently of the one that threw.
+
+One `if (!card) return;` and the count goes 8 → 0 across open, zoom, scroll and
+close. The lesson is the cheap one, and it cost days: **read the stack before
+attributing a fault to somebody else's code.** The very first line named
+`app.js`.
+
+### Reading a paper without fighting it
+
+Three things, reported as "chugging, and I can't pan to the left".
+
+**The left of a zoomed page did not exist.** `.paper-scroll` centred the pages
+with its own `align-items: center`, and a flex or grid container that centres a
+child WIDER than itself puts the overflow on both sides — where the leading
+side is not scrollable, because `scrollLeft` cannot go below zero. Measured at
+a 390px viewport with a 900px page: `scrollWidth` 647 instead of 904, and the
+page's left edge pinned at −257px however far you panned. The pages now sit in
+a `.paper-track` with `width: max-content; min-width: 100%`, so a page is never
+wider than its own container and there is no leading overflow to lose; the
+`min-width` keeps a narrow page centred. Verified: left edge at 0, right edge
+at the viewport edge, both reachable, at every zoom.
+
+**`layout()` did `numPages` round trips into the worker, per zoom.** It awaited
+`getPage` for every page to read a size, and it runs on open AND on every zoom
+step — so a 30-page paper made 30 sequential worker calls before it could show
+anything, and another 30 for each tap of `+`. The pages of a paper are one
+size: page 1 measures the document, each page corrects its own box when it
+renders, and `layout()` is now synchronous arithmetic.
+
+**And the canvases were enormous.** A letter page at 150% on a 3x phone is
+2754 × 3564 device pixels — 9.8 million, about 39 MB of bitmap, for one page —
+and with 600px of observer lookahead four or five were alive at once. That is
+the stutter. `pixelRatio()` now keeps every page inside a fixed budget (4.2M
+pixels, no edge over 4096), the lookahead is 250px, and a page that leaves the
+band has its canvas zeroed — a canvas holds its bitmap until its dimensions
+change, so dropping the element is not enough.
+
+`pixelRatio` is exported and unit-tested because it guards a failure that is
+**blank rather than loud**: past its own limit iOS Safari does not throw, it
+returns a canvas that draws nothing, which is indistinguishable from a broken
+render. The 1x floor deliberately yields to the hard cap — past about 4x zoom a
+page is over budget at 1:1, and a slightly soft page beats a blank one.
+
+Two smaller ones in the same pass:
+
+- **Renders are serialised per page through a promise chain**, not guarded by
+  an `if (p.task)` check. That check had a hole exactly the width of the bug it
+  was meant to prevent: between `render()` marking a page busy and
+  `page.render()` assigning `p.task` there are awaits, and `setZoom` clears the
+  busy flag on every page synchronously, so a second render could walk into
+  that window. A chain has no window. (This did not turn out to be the `_post`
+  cause — see above — but it was a real race.)
+- **The pinch preview did not exist.** `touchmove` wrote a `--paper-preview`
+  custom property that no CSS rule ever read, and committed on a 140ms timer
+  that fired mid-gesture if the fingers paused — re-rendering the whole visible
+  band at the moment it could least afford to. The preview is now a real
+  composited transform on the track, and it commits on release.
+
+**Zoom keeps your place**: the point under the middle of the viewport stays
+there. Without it, zooming in on a phone throws you somewhere else in the page
+and you have to hunt for the line you were reading.
 
 ### Navigation: keeping your place, and swiping back
 
@@ -724,7 +788,8 @@ Blobs are uploaded FIRST and only then referenced: a `createRecord` naming a
 blob that does not exist is rejected, and the reader would lose their text to an
 error mentioning neither.
 
-**Video is not supported, and not by oversight.** `app.bsky.embed.video` expects
+**Video POSTING is not supported, and not by oversight** — playing one now is,
+see "Video plays now" below. `app.bsky.embed.video` expects
 a blob that Bluesky's own video service has transcoded — the official client
 uploads through `app.bsky.video.uploadVideo` at `did:web:video.bsky.app`, using
 a service-auth JWT, not a plain PDS blob. A raw upload would produce a post that
@@ -846,9 +911,63 @@ verified live: the reconstructed-from-ref URL returns `200 image/jpeg`, view
 thumbs return `200 image/webp`, and the playlist returns
 `application/vnd.apple.mpegurl`.
 
-Video is HLS. Safari and iOS — the mobile target — play it natively from a
-`<video src>`; other browsers show the poster and fall through to the link. No
-`hls.js`: 300 KB for a fallback path is not worth it here.
+### Video plays now, and why it did not
+
+Video is HLS — an `.m3u8` playlist of segments, not a file — and exactly one
+family of browsers plays that from a plain `<video src>`:
+
+| browser | native HLS |
+|---|---|
+| Safari, iOS (every engine) | **yes** |
+| Chrome (desktop and Android), Firefox, Edge | no |
+
+This surface shipped the Safari path only, on the reasoning that the mobile
+target is iOS and 300 KB of library for a fallback was not worth it. **The
+reasoning had a hole in it.** The markup set `src` to the playlist
+unconditionally, so on every other browser the poster appeared, the controls
+appeared, and pressing play did **nothing** — no error, no console message, no
+fallback taken. A control that visibly exists and silently refuses is the worst
+shape a bug can have: from the outside it is indistinguishable from a dead
+video, which is exactly how it was reported.
+
+`lib/video.js` now loads `hls.js`, on the same terms as pdf.js:
+
+- **only where it is needed.** Safari is served natively and never downloads
+  it. Decided by the browser's own `canPlayType`, never a user-agent string.
+- **only when a video is actually played.** A dynamic `import()` behind the tap
+  on a ▶ overlay; never in the app shell. Scrolling past a video costs nothing.
+  The **light** build, which drops the alternate-audio and subtitle demuxers a
+  Bluesky clip does not carry.
+- **and it still degrades.** The ▶ open video link stays, and if the import
+  fails the button says so instead of spinning.
+
+Two things that are easy to get wrong:
+
+- **Where HLS is not native, no `src` is set at all** — the playlist goes on
+  `data-hls`. A `src` the browser cannot play is precisely what made the
+  built-in play button a dead control, so it must not be there.
+- **The tap resolves on the MANIFEST, not on playback.** `video.play()` does
+  not reject when a stream stalls; it simply never settles. Awaiting it left
+  the button reading "loading…" forever on a video that was never going to
+  start — a spinner with no end state, which is not an improvement on the
+  silent button. The manifest proves the library attached; everything after it
+  is the player's business. A fatal error resolves too, and a 12s timeout
+  backstops a manifest that neither parses nor errors.
+
+A video trimmed out of the feed's DOM ring buffer keeps its demuxer worker and
+keeps fetching segments for something nobody can see, so attached players are
+tracked in a `Set` — not a `WeakSet` — and reaped. They have to be
+*enumerable*: once the element is detached, `querySelectorAll('video')` cannot
+find it, which is exactly when it needs collecting.
+
+**Verified in Chromium** (2026-09-06), which is non-native and therefore takes
+the whole fallback path: the markup carries no `src`, `hls.js` is absent from
+the page until the tap, and after it the library is loaded and attached, the
+manifest is fetched and parsed, an MSE blob is on the element, native controls
+appear and the overlay is removed — with no page errors, no navigation, and no
+thread opened underneath. **Not verified:** actual decoded playback, which
+needs real media this sandbox has no encoder for, and the Safari native path,
+which no engine here provides.
 
 Every image sets `aspect-ratio` from the record's own `aspectRatio` before it
 loads, so the feed does not jump under the reader's thumb, and carries the

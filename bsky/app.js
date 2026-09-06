@@ -29,6 +29,7 @@ import { getProfiles, getFollows, resolveActor, getProfile } from '/packages/atp
 import { FEEDS, loadFeed, authorFeed, authorMedia, notifications, searchActors, getThread }
   from '/lib/sources.js';
 import { renderEmbed, imageUrl, videoUrls } from '/lib/blobs.js';
+import { installVideo } from '/lib/video.js';
 import { attachTypeahead } from '/lib/typeahead.js';
 import * as cache from '/lib/cache.js';
 import { auth, publish, graphemeLength, MAX_GRAPHEMES, MAX_IMAGES, SCOPE,
@@ -2351,6 +2352,7 @@ for (const b of document.querySelectorAll('.tab')) {
   b.addEventListener('click', () => goTab(b.dataset.tab));
 }
 installBackSwipe();
+installVideo();
 // Delegated once: the switches are rebuilt on every renderMe(), the container
 // is not.
 $('v-me').addEventListener('change', (e) => {
@@ -2399,7 +2401,21 @@ window.addEventListener('scroll', () => {
 document.addEventListener('click', async (e) => {
   const btn = e.target.closest('button[data-act]');
   if (!btn) return;
-  const post = btn.closest('.post')._post;
+  // `data-act` is not exclusive to the feed — the PDF viewer's toolbar uses
+  // it for close / − / +, and that toolbar is not inside a `.post`. This
+  // handler used to do `btn.closest('.post')._post` unconditionally, so every
+  // tap on a paper's zoom control threw
+  // `TypeError: Cannot read properties of null (reading '_post')`.
+  //
+  // That error was blamed on pdf.js for days, on the strength of the name
+  // `_post` looking like the library's own message-port field. It is OUR
+  // property, on OUR element, thrown from OUR handler — and it never had any
+  // visible effect only because the paper toolbar has its own listener that
+  // runs independently. The lesson is the cheap one: read the stack before
+  // attributing a fault to somebody else's code.
+  const card = btn.closest('.post');
+  if (!card) return;
+  const post = card._post;
   const act = btn.dataset.act;
 
   if (act === 'menu') return openPostMenu(btn, post);
@@ -2469,6 +2485,11 @@ async function toggleAction(btn, post, act) {
 document.addEventListener('click', (e) => {
   const prof = e.target.closest('[data-profile]');
   if (prof) { e.preventDefault(); return openProfile(prof.dataset.profile); }
+
+  // The video play overlay is handled by lib/video.js on the capture phase; it
+  // must not also count as media (which would open the lightbox) or fall
+  // through to the card (which would open the thread).
+  if (e.target.closest('[data-vplay]') || e.target.closest('.media.video')) return;
 
   const cell = e.target.closest('.imgcell, .mtile');
   if (cell) { e.preventDefault(); return openMedia(cell); }

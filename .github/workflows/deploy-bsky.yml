@@ -104,6 +104,26 @@ jobs:
           cp "$BUILD/node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs" lib/vendor/pdfjs/
           ls -la lib/vendor/pdfjs
 
+      # hls.js, for playing a video anywhere that is not Safari. Bluesky serves
+      # HLS, which only Safari/iOS play from a bare <video src> — everywhere
+      # else the play button did nothing at all. Same terms as pdf.js: never in
+      # the shell, dynamically imported on the tap, and Safari never fetches it.
+      #
+      # The LIGHT build: it drops the alternate-audio and subtitle demuxers,
+      # which a Bluesky clip does not carry, for roughly a third of the size.
+      - name: Stage hls.js (lazy, not shell)
+        run: |
+          BUILD="$RUNNER_TEMP/hlsjs"
+          mkdir -p "$BUILD" && cd "$BUILD"
+          npm init -y >/dev/null
+          npm install --no-save hls.js
+          cd - >/dev/null
+          mkdir -p lib/vendor/hls
+          cp "$BUILD/node_modules/hls.js/dist/hls.light.min.js" lib/vendor/hls/hls.min.js
+          # Fail loudly rather than deploying a play button whose import 404s.
+          test -s lib/vendor/hls/hls.min.js
+          ls -la lib/vendor/hls
+
       - name: Deploy worker + assets
         run: npx wrangler deploy
         env:

@@ -107,11 +107,16 @@ export async function openPaper(paper) {
       <button class="pill" data-act="in">+</button>
       <a class="pill" target="_blank" rel="noopener" data-act="open">open ↗</a>
     </div>
-    <div class="paper-scroll"><div class="paper-status">loading the paper…</div></div>`;
+    <div class="paper-scroll"><div class="paper-track"><div class="paper-status">loading the paper…</div></div></div>`;
   document.body.append(stage);
   document.body.style.overflow = 'hidden';
 
   const scroll = stage.querySelector('.paper-scroll');
+  // The pages live in a TRACK inside the scroller, not directly in it. See the
+  // note on .paper-track in index.html: centring the pages with the scroller's
+  // own `align-items` makes the left overflow unreachable the moment a page is
+  // wider than the viewport, which is exactly when you need to pan to it.
+  const track = stage.querySelector('.paper-track');
   const status = stage.querySelector('.paper-status');
   const zoomLabel = stage.querySelector('.paper-zoom');
   stage.querySelector('[data-act="open"]').href = paper.pdf;
@@ -131,7 +136,11 @@ export async function openPaper(paper) {
   // Bumped on every zoom. A render that finishes against a stale generation
   // throws its result away instead of being cancelled — see setZoom.
   let generation = 0;
-  const pages = new Map();          // pageNumber -> { wrap, canvas, rendered, task }
+  // pageNumber -> { wrap, canvas, rendered, task, visible, natural }
+  const pages = new Map();
+  // The page size at scale 1, which layout() needs and which must NOT cost a
+  // `getPage` per page per zoom — see layout().
+  let naturalSize = { width: 612, height: 792 };
 
   /**
    * Teardown order matters. Destroying the document while a page render is
@@ -190,8 +199,16 @@ export async function openPaper(paper) {
 
   // Fit the first page to the viewport, so a phone opens at a readable width
   // instead of at some arbitrary 100%.
+  //
+  // ONE `getPage`, not `numPages` of them. The old code awaited `getPage` for
+  // every page inside `layout()`, and `layout()` runs on open AND on every
+  // zoom step — so a 30-page paper did 30 sequential round trips into the
+  // worker before it could show anything, and another 30 per tap of `+`. The
+  // pages of a paper are all one size, so page 1 measures the document and
+  // each page corrects its own box when it renders.
   const first = await doc.getPage(1);
   const natural = first.getViewport({ scale: 1 });
+  naturalSize = { width: natural.width, height: natural.height };
   scale = Math.min(2.5, Math.max(0.4, (scroll.clientWidth - 16) / natural.width));
 
   for (let n = 1; n <= doc.numPages; n++) {
@@ -200,26 +217,63 @@ export async function openPaper(paper) {
     wrap.dataset.page = String(n);
     const canvas = document.createElement('canvas');
     wrap.append(canvas);
-    scroll.append(wrap);
-    pages.set(n, { wrap, canvas, rendered: false, task: null });
+    track.append(wrap);
+    pages.set(n, { wrap, canvas, rendered: false, task: null, visible: false, natural: null });
   }
-  await layout();
+  layout();
 
+  // 600px of lookahead meant four or five full-resolution canvases alive at
+  // once; on a phone that is the whole memory budget and it is what made
+  // scrolling stutter. 250px is still a page ahead at reading size, and
+  // `release` reclaims anything that falls outside the band.
   observer = new IntersectionObserver((entries) => {
-    for (const e of entries) if (e.isIntersecting) render(Number(e.target.dataset.page));
-  }, { root: scroll, rootMargin: '600px 0px' });
+    for (const e of entries) {
+      const n = Number(e.target.dataset.page);
+      const p = pages.get(n);
+      if (!p) continue;
+      p.visible = e.isIntersecting;
+      if (e.isIntersecting) render(n);
+      else release(n);
+    }
+  }, { root: scroll, rootMargin: '250px 0px' });
   for (const p of pages.values()) observer.observe(p.wrap);
 
-  /** Reserve each page's box at the current scale, so scrolling never jumps. */
-  async function layout() {
-    if (!doc) return;
+  /**
+   * Reserve each page's box at the current scale, so scrolling never jumps.
+   *
+   * Synchronous arithmetic — no `await` anywhere. A page that has measured
+   * itself uses its own size; the rest use page 1's.
+   */
+  function layout() {
     zoomLabel.textContent = `${Math.round(scale * 100)}%`;
-    for (const [n, p] of pages) {
-      const page = await doc.getPage(n);
-      const vp = page.getViewport({ scale });
-      p.wrap.style.width = `${Math.round(vp.width)}px`;
-      p.wrap.style.height = `${Math.round(vp.height)}px`;
+    for (const p of pages.values()) {
+      const nat = p.natural || naturalSize;
+      p.wrap.style.width = `${Math.round(nat.width * scale)}px`;
+      p.wrap.style.height = `${Math.round(nat.height * scale)}px`;
     }
+  }
+
+  /**
+   * Give a page's pixels back.
+   *
+   * A canvas holds its bitmap until its dimensions change — dropping the
+   * element is not enough, and at device-pixel-ratio a single page of a paper
+   * is tens of megabytes. Without this, scrolling a long PDF only ever adds.
+   * The box keeps its reserved size, so nothing moves.
+   */
+  function release(n) {
+    const p = pages.get(n);
+    if (!p || !p.rendered) return;
+    // Through the chain, like everything else. Zeroing a canvas out from under
+    // a render in flight is another way to make pdf.js reach into something
+    // that is no longer there.
+    p.chain = (p.chain || Promise.resolve()).then(() => {
+      if (p.visible || !p.rendered) return;
+      p.canvas.width = 0;
+      p.canvas.height = 0;
+      p.rendered = false;
+      p.wrap.querySelectorAll('.paper-link').forEach((a) => a.remove());
+    }).catch(() => {});
   }
 
   /**
@@ -233,25 +287,43 @@ export async function openPaper(paper) {
    * operation this viewer performs — concurrent renders of DIFFERENT pages,
    * annotations, teardown — is clean; this was the one.
    *
-   * So each page keeps its in-flight render and the next one waits for it.
+   * So each page owns a PROMISE CHAIN and every render, and every release, is
+   * queued onto it. The previous design guarded with an `if (p.task)` check —
+   * which left a hole exactly wide enough for the bug: between `render()`
+   * marking the page busy and `page.render()` actually assigning `p.task`
+   * there are awaits, and during those `p.task` is null. `setZoom` clears
+   * `rendered` on every page synchronously, so a second render could walk into
+   * that window and call `page.render()` on a page object that already had one
+   * running. A chain has no window.
    */
-  async function render(n) {
+  function render(n) {
     const p = pages.get(n);
-    if (!p || p.rendered || !doc) return;
+    if (!p || p.rendered || !doc) return Promise.resolve();
     p.rendered = true;
-    const gen = generation;
+    // EVERY operation on a page goes through that page's own chain, so two can
+    // never overlap — see the note above. `.catch` keeps one failure from
+    // poisoning the chain for the rest of the session.
+    p.chain = (p.chain || Promise.resolve())
+      .then(() => draw(n, generation))
+      .catch(() => { p.rendered = false; });
+    return p.chain;
+  }
 
-    if (p.task) {
-      // Let the previous render finish rather than cancelling it: cancelling
-      // mid-flight is the other way to hit the same internal fault.
-      try { await p.task.promise; } catch { /* superseded */ }
-      if (gen !== generation || !doc) { p.rendered = false; return; }
-    }
+  async function draw(n, gen) {
+    const p = pages.get(n);
+    if (!p || !doc || gen !== generation) { if (p) p.rendered = false; return; }
     const page = await doc.getPage(n);
     if (gen !== generation || !doc) { p.rendered = false; return; }
     const vp = page.getViewport({ scale });
-    // Render at device pixel ratio or text is soft on a phone.
-    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    // This page now knows its own size, so layout() stops guessing it from
+    // page 1. Correct the reserved box if they disagree.
+    const nat = page.getViewport({ scale: 1 });
+    if (!p.natural || p.natural.width !== nat.width) {
+      p.natural = { width: nat.width, height: nat.height };
+      p.wrap.style.width = `${Math.round(nat.width * scale)}px`;
+      p.wrap.style.height = `${Math.round(nat.height * scale)}px`;
+    }
+    const dpr = pixelRatio(vp, window.devicePixelRatio || 1);
     p.canvas.width = Math.round(vp.width * dpr);
     p.canvas.height = Math.round(vp.height * dpr);
     p.canvas.style.width = `${Math.round(vp.width)}px`;
@@ -260,7 +332,7 @@ export async function openPaper(paper) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     p.task = page.render({ canvasContext: ctx, viewport: vp });
     try { await p.task.promise; } catch { p.rendered = false; return; }
-    p.task = null;
+    finally { p.task = null; }
     if (gen !== generation) { p.rendered = false; return; }
     await addLinks(page, vp, p.wrap);
   }
@@ -290,21 +362,33 @@ export async function openPaper(paper) {
   }
 
   function setZoom(next) {
+    const before = scale;
     scale = Math.min(6, Math.max(0.25, next));
+    if (scale === before) return;
     // NOT cancel(). Cancelling a render mid-flight makes pdf.js throw
     // `Cannot read properties of null (reading '_post')` out of its own worker
     // plumbing, which is uncaught and unfixable from here. A page render is
     // fast; letting it finish and discarding the result against a bumped
     // generation costs a few milliseconds and removes the race completely.
     generation++;
+
+    // Keep the point under the middle of the viewport where it was. Without
+    // this, zooming in on a phone throws you to a different part of the page
+    // and you have to hunt for what you were reading.
+    const midX = (scroll.scrollLeft + scroll.clientWidth / 2) / before;
+    const midY = (scroll.scrollTop + scroll.clientHeight / 2) / before;
+
     for (const p of pages.values()) p.rendered = false;
-    layout().then(() => {
-      // Re-render whatever is on screen now; the observer handles the rest.
-      for (const [n, p] of pages) {
-        const r = p.wrap.getBoundingClientRect();
-        if (r.bottom > 0 && r.top < window.innerHeight) render(n);
-      }
-    });
+    layout();
+    scroll.scrollLeft = midX * scale - scroll.clientWidth / 2;
+    scroll.scrollTop = midY * scale - scroll.clientHeight / 2;
+
+    // Re-render everything the observer currently considers on screen — not
+    // just what is inside `innerHeight`. A page inside the observer's lookahead
+    // band has already fired its `isIntersecting` and will NOT fire again, so
+    // anything missed here stays at the old scale until it scrolls out and
+    // back: a page that is visibly the wrong sharpness with no way to fix it.
+    for (const [n, p] of pages) if (p.visible) render(n);
   }
 
   // Pinch. Same lesson as lib/lightbox.js: `touch-action: none` on the stage or
@@ -312,7 +396,20 @@ export async function openPaper(paper) {
   // re-rendering per frame on a 30-page document is unusable.
   let pinchStart = 0;
   let scaleStart = 1;
-  let settle = null;
+  let preview = 1;
+
+  // The preview is a CSS scale on the TRACK, and it has to actually be drawn.
+  // The old code wrote a `--paper-preview` custom property that no rule ever
+  // read, so a pinch did nothing at all for 140ms and then jumped to the new
+  // scale — which reads as the viewer being slow rather than as a missing
+  // rule. Transforming the track (one composited layer) is free; re-rendering
+  // per frame on a 30-page document is not.
+  const showPreview = (k) => {
+    preview = k;
+    track.style.transformOrigin = '50% 0';
+    track.style.transform = k === 1 ? '' : `scale(${k})`;
+  };
+
   scroll.addEventListener('touchstart', (e) => {
     if (e.touches.length !== 2) return;
     pinchStart = dist(e.touches);
@@ -322,15 +419,22 @@ export async function openPaper(paper) {
     if (e.touches.length !== 2 || !pinchStart) return;
     e.preventDefault();
     const next = scaleStart * (dist(e.touches) / pinchStart);
-    // Cheap CSS preview while the fingers move; a real render when they stop.
-    scroll.style.setProperty('--paper-preview', String(next / scale));
-    clearTimeout(settle);
-    settle = setTimeout(() => {
-      scroll.style.removeProperty('--paper-preview');
-      setZoom(next);
-    }, 140);
+    showPreview(Math.min(6, Math.max(0.25, next)) / scale);
   }, { passive: false });
-  scroll.addEventListener('touchend', () => { pinchStart = 0; }, { passive: true });
+
+  // Commit on RELEASE, not on a timer. A 140ms timer fired mid-gesture if the
+  // fingers paused, re-rendering the whole visible band while they were still
+  // down — the single most expensive thing this viewer can do, at the moment
+  // it can least afford it.
+  const endPinch = () => {
+    if (!pinchStart) return;
+    const next = scale * preview;
+    pinchStart = 0;
+    showPreview(1);
+    setZoom(next);
+  };
+  scroll.addEventListener('touchend', endPinch, { passive: true });
+  scroll.addEventListener('touchcancel', endPinch, { passive: true });
 
   return { close };
 }
@@ -361,6 +465,38 @@ export function rectToViewport(rect, m) {
   const [px2, py2] = pt(rect[2], rect[3]);
   // PDF's y axis points up and the viewport's points down, so the corners swap.
   return [Math.min(px1, px2), Math.min(py1, py2), Math.max(px1, px2), Math.max(py1, py2)];
+}
+
+/**
+ * How many device pixels per CSS pixel one page may use.
+ *
+ * NOT simply `devicePixelRatio`, and this is a correctness guard rather than a
+ * tuning knob. A letter page at 150% on a 3x phone is 2754 x 3564 device
+ * pixels — 9.8 million, about 39 MB of bitmap, for ONE page. Several of those
+ * alive at once is what made this viewer stutter. And past its own limit iOS
+ * Safari does not throw: it hands back a canvas that draws NOTHING, which
+ * looks exactly like a PDF that failed to render.
+ *
+ * So the ratio is whatever keeps a page inside a fixed budget — by area and by
+ * either edge — and never below 1, since below that the text goes soft, which
+ * is the thing zooming was for.
+ *
+ * @param {{width:number, height:number}} vp  the page viewport, in CSS pixels
+ * @param {number} devicePixelRatio
+ * @returns {number}
+ */
+export function pixelRatio(vp, devicePixelRatio = 1) {
+  const MAX_PIXELS = 4.2e6;      // ~2050 x 2050; inside every limit we know of
+  const MAX_EDGE = 4096;         // and no single dimension beyond this
+  const w = Math.max(1, vp.width);
+  const h = Math.max(1, vp.height);
+  // The HARD limit. Nothing may exceed this, including the 1x floor below:
+  // past about 4x zoom a page is over the budget at one device pixel per CSS
+  // pixel, and a floor that overrode the cap would produce exactly the blank
+  // canvas the cap exists to prevent. A slightly soft page beats a blank one.
+  const cap = Math.min(Math.sqrt(MAX_PIXELS / (w * h)), MAX_EDGE / Math.max(w, h));
+  const want = Math.min(3, devicePixelRatio || 1);
+  return Math.min(Math.max(want, 1), cap);
 }
 
 function dist(t) {

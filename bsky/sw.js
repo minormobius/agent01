@@ -53,6 +53,7 @@ const SHELL = [
   '/lib/archive.js',
   '/lib/apikey.js',
   '/lib/blobs.js',
+  '/lib/video.js',
   '/lib/cache.js',
   '/lib/compose.js',
   '/lib/feedgen.js',

@@ -118,6 +118,15 @@ textarea{resize:none;line-height:1.4}
 .imgcell img{width:100%;height:100%;object-fit:cover;display:block}
 .media.video{position:relative;background:#000;max-height:460px}
 .media.video video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
+/* The tap target that loads hls.js. Big, centred and obviously a play button —
+   this is the ONLY control on a non-Safari browser until the library lands. */
+.vplay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:64px;height:64px;border-radius:50%;border:0;cursor:pointer;
+  background:rgba(0,0,0,.62);color:#fff;font-size:24px;line-height:64px;padding:0 0 0 4px;
+  backdrop-filter:blur(2px);transition:background .15s}
+.vplay:hover{background:rgba(0,0,0,.78)}
+.vplay.loading{width:auto;height:auto;border-radius:14px;padding:8px 14px;
+  font-size:12.5px;line-height:1.3;cursor:default}
 .vfallback{position:absolute;left:10px;bottom:10px;font-size:12px;background:rgba(0,0,0,.66);
   padding:5px 10px;border-radius:999px;color:#fff}
 .card{display:flex;flex-direction:column;margin-top:9px;border:1px solid var(--line);
@@ -204,8 +213,19 @@ textarea{resize:none;line-height:1.4}
 .paper-title{font-size:13px;color:var(--muted);white-space:nowrap}
 .paper-zoom{font-size:12.5px;color:var(--muted);min-width:44px;text-align:center;font-variant-numeric:tabular-nums}
 .paper-scroll{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y pinch-zoom;
-  padding:10px 0 calc(env(safe-area-inset-bottom,0px) + 20px);display:flex;flex-direction:column;
-  align-items:center;gap:12px;background:var(--line-soft)}
+  background:var(--line-soft)}
+/* The pages are centred by this TRACK, never by the scroller itself. A flex or
+   grid container that centres a child WIDER than itself puts the overflow on
+   both sides, and the leading side is not scrollable — scrollLeft cannot go
+   below 0 — so zooming in made the left of every page permanently unreachable.
+   Measured at a 390px viewport with a 900px page: scrollWidth 647 instead of
+   904, and the page's left edge stuck at -257px however far you panned.
+   width:max-content makes the track as wide as the widest page, so the page is
+   never wider than its own container and there is no leading overflow to lose;
+   min-width:100% keeps it full-bleed so a narrow page still centres. */
+.paper-track{width:max-content;min-width:100%;display:flex;flex-direction:column;
+  align-items:center;gap:12px;padding:10px 0 calc(env(safe-area-inset-bottom,0px) + 20px);
+  will-change:transform}
 .paper-page{position:relative;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.35);flex:none}
 .paper-page canvas{display:block;width:100%;height:100%}
 .paper-link{position:absolute;display:block;background:rgba(76,141,255,.10);border-radius:2px}

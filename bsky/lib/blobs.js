@@ -57,6 +57,24 @@ export function videoUrls(did, blob) {
   };
 }
 
+/**
+ * Whether this browser plays HLS from a plain `<video src>`.
+ *
+ * Duplicated from lib/video.js on purpose: blobs.js renders markup and must
+ * not pull in the video module (and through it, eventually, hls.js) just to
+ * decide which two attributes to write. Both cache, both ask the browser the
+ * same question, and neither can drift into a user-agent sniff.
+ */
+let _nativeHls = null;
+function nativeHls() {
+  if (_nativeHls !== null) return _nativeHls;
+  if (typeof document === 'undefined') return (_nativeHls = false);
+  const v = document.createElement('video');
+  _nativeHls = Boolean(v.canPlayType('application/vnd.apple.mpegurl')
+    || v.canPlayType('application/x-mpegURL'));
+  return _nativeHls;
+}
+
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -112,14 +130,34 @@ export function renderEmbed(record, did, view) {
     const urls = hydrated
       ? { playlist: e.playlist, thumbnail: e.thumbnail }
       : videoUrls(did, e.video);
-    if (!urls?.playlist) return '';
-    // HLS plays natively in Safari/iOS — the mobile target. Elsewhere the
-    // poster shows and the tap falls through to the anchor. No hls.js: a
-    // 300 KB library for a fallback path is not worth it here.
-    return `<div class="media video" style="aspect-ratio:${ratio(e.aspectRatio, '16 / 9')}">
-      <video controls playsinline preload="none"
-             poster="${esc(urls.thumbnail || '')}" src="${esc(urls.playlist)}"></video>
-      <a class="vfallback" href="${esc(urls.playlist)}" target="_blank" rel="noopener">▶ open video</a>
+    // The playlist ends up in an href and in a data attribute the player will
+    // load. It is always built here or handed over by the AppView, so this is
+    // belt and braces — but a scheme check is one line and closes the whole
+    // class of question.
+    if (!urls?.playlist || !/^https:\/\//.test(urls.playlist)) return '';
+    // Bluesky serves video as HLS, which ONLY Safari and iOS can play from a
+    // bare `<video src>`. Two different elements, decided by the browser's own
+    // `canPlayType` rather than by a user-agent string:
+    //
+    //   native  — src set, the browser's controls, nothing downloaded.
+    //   else    — NO src (a src it cannot play makes the play button silently
+    //             do nothing, which is what "videos don't play" looked like),
+    //             the playlist parked on data-hls, and a ▶ overlay that loads
+    //             hls.js on the tap. See lib/video.js.
+    const box = `class="media video" style="aspect-ratio:${ratio(e.aspectRatio, '16 / 9')}"`;
+    const open = `<a class="vfallback" href="${esc(urls.playlist)}" target="_blank" rel="noopener">▶ open video</a>`;
+    if (nativeHls()) {
+      return `<div ${box}>
+        <video controls playsinline preload="none"
+               poster="${esc(urls.thumbnail || '')}" src="${esc(urls.playlist)}"></video>
+        ${open}
+      </div>`;
+    }
+    return `<div ${box}>
+      <video playsinline preload="none" poster="${esc(urls.thumbnail || '')}"
+             data-hls="${esc(urls.playlist)}"></video>
+      <button class="vplay" data-vplay aria-label="play video">▶</button>
+      ${open}
     </div>`;
   }
 
