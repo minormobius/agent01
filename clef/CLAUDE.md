@@ -150,6 +150,46 @@ A single-line instrument genuinely wants one staff — which is why it is a swit
 (`grandStaff` in the engrave options, a checkbox above the score) and not a law.
 It is wrong for a flute part from the archive, and one click turns it off.
 
+## Ensembles
+
+More than one player is not a taller keyboard score. Four staves stacked with
+no grouping, no names and one timbre is unreadable both by eye and by ear, so
+three things are read out of the source and drawn.
+
+**Who is bound to whom.** LilyPond's grouping contexts are three different
+statements to a reader, and collapsing them loses information a player needs:
+
+| Context | Drawn | Bar lines through the gaps | Means |
+|---|---|---|---|
+| `PianoStaff`, `GrandStaff` | brace | yes | one player, two hands |
+| `StaffGroup` | bracket | yes | a section playing together |
+| `ChoirStaff` | bracket | **no** | voices barred independently |
+
+Groups nest, and the **innermost sits closest to the staves** — a piano inside a
+quartet gets its brace inside the ensemble's bracket. Drawn the other way the
+page says the ensemble is inside the piano. A score-wide group is dropped: it
+tells a reader nothing, and drawing it puts a stray bracket on every two-stave
+piano piece.
+
+**Gaps come in three sizes**, because there are three relationships: `braceGap`
+between one player's two hands (wide — the ledger lines between the hands need
+it), `staffGap` between two players inside one bracket, and `groupGap` across a
+group boundary. With one distance for all of them a pianist's own two staves sit
+further apart than the pianist sits from the cellist, and the page says the
+opposite of what is true.
+
+**Names** come from `\with { instrumentName }` / `shortInstrumentName` or the
+`\set Staff.…` spelling, whichever the file uses — both are common, and the
+`\markup { \column { … } }` form is read too. Full name on the first system,
+short name after: that is the convention and it is not decoration, because after
+a page turn a player needs to re-find their own line. A name on a *group* is
+centred on its brace — "Piano" labels a pianist's two staves, not either one.
+The left column is sized to clear the brackets as well as the text.
+
+Nothing here touches a solo or keyboard score. No declared group still means a
+brace, the grand-staff phantom below is unchanged, and with nothing named the
+name column is zero wide.
+
 ## Playback
 
 `audio.js`. Preview playback is for **proofreading** — you play a bar back to
@@ -161,6 +201,21 @@ matter: struck instruments (piano, harpsichord, music box) decay to silence
 whether or not the note is held; blown and bowed ones (organ, strings, flute)
 hold until released. Getting that number wrong makes everything sound like a
 doorbell.
+
+**Timbre is per staff** when the score names its instruments, mapped from the
+General MIDI name onto the seven patches that exist. The map is lossy on
+purpose — every bowed string lands on `strings`, every wind on `flute` — and
+that is the right failure: a violin line that sounds approximately like a violin
+tells you it is the violin line, which is the whole job in an ensemble score. An
+instrument we cannot place is **refused, not guessed**, and falls back to the
+patch picker, which is still what a solo or keyboard score follows.
+
+**iOS mutes the speaker unless you ask for a playback session.** A bare
+`AudioContext` gets the `ambient` category, which the Ring/Silent switch
+governs and which rides the *ringer* volume — so a silenced phone plays nothing
+through its speaker while AirPods play fine. `claimPlaybackSession()` sets
+`navigator.audioSession.type = 'playback'` before the context is constructed.
+It reproduces on no desktop browser, so it will not be caught by testing here.
 
 The scheduler pushes notes into the graph a fixed distance ahead of
 `ctx.currentTime` and no further. Scheduling from a timer callback drifts;
@@ -308,3 +363,13 @@ Honest list, in rough order of how much they would be missed:
 - **Layout overrides** (`\override`, `\set`, `\tweak`) are consumed and ignored
   by design — that is the part of LilyPond this is not.
 - More than two voices on a staff share one pair of stem directions.
+- **Transposing instruments** are not modelled: a staff has one pitch, so a
+  clarinet in B flat would engrave and sound at the same written pitch. The
+  `\transpose` machinery exists; what does not is the split between *written*
+  and *sounding* pitch that `scoreToNotes` would need.
+- **Ensemble balance** is not attempted. Four patches at equal gain sound like
+  four of the same instrument; per-patch loudness normalisation and stereo
+  placement are what would fix it.
+- **Empty staves are never hidden.** Orchestral convention drops a silent staff
+  from a system — the opposite of the grand-staff rule below it, and correct for
+  the opposite reason. Doing it would have to be per group, not global.
