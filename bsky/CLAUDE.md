@@ -181,6 +181,16 @@ dinosaur. Offline is the feature, not a nicety.
 Sub-resources are stale-while-revalidate under a version-named cache
 (`bsky-shell-v1`), purged on `activate`.
 
+**`/index.html` 307-redirects to `/` in production** (Cloudflare Static Assets
+normalises it) while a plain local file server returns it directly — so the
+install path behaves differently in the two places, and the local test is the
+one that goes green. Checked against a server shaped like production rather
+than reasoned about: `cache.add` follows the redirect and succeeds, both `/`
+and `/index.html` land in the cache, and the offline reload paints the full
+shell. It costs one redirect at install and nothing else. `SHELL` adds entries
+individually with a `.catch`, so even a failure there would have cost the one
+entry rather than the whole shell.
+
 **There is no unprompted `skipWaiting()`, deliberately.** This app is one module
 graph; activating a new worker under a page that already imported the old
 `app.js` can mix versions inside one session. So a new worker waits and the Me
