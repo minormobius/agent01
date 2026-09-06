@@ -108,8 +108,44 @@ function render() {
   apply();
 }
 
-function apply() {
+/**
+ * The centre the transform actually pivots around.
+ *
+ * `transform: translate() scale()` uses `transform-origin`, which defaults to
+ * the element's CENTRE — not the viewport's top-left. The zoom anchor maths
+ * ignored that and treated `clientX/clientY` as if they were offsets from the
+ * origin, so a double-tap in the middle of the screen, which should move the
+ * image not at all, threw it 292px sideways and 630px up. The picture ended up
+ * mostly outside the viewport, which is why zoom "worked" and panning appeared
+ * to do nothing: the drag was moving an image that was no longer on screen.
+ */
+function stageCentre() {
+  const r = el.querySelector('.lb-stage').getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+
+/**
+ * Keep the picture reachable.
+ *
+ * Without this, pan is unbounded: a flick sends the image off into nowhere and
+ * there is no way back except closing. The image may be dragged until its edge
+ * meets the viewport edge and no further; when an axis is smaller than the
+ * viewport it stays centred on that axis.
+ */
+function clampPan() {
   const imgEl = el.querySelector('.lb-img');
+  const w = imgEl.offsetWidth * state.scale;
+  const h = imgEl.offsetHeight * state.scale;
+  const stage = el.querySelector('.lb-stage').getBoundingClientRect();
+  const maxX = Math.max(0, (w - stage.width) / 2);
+  const maxY = Math.max(0, (h - stage.height) / 2);
+  state.x = Math.max(-maxX, Math.min(maxX, state.x));
+  state.y = Math.max(-maxY, Math.min(maxY, state.y));
+}
+
+function apply({ clamp = true } = {}) {
+  const imgEl = el.querySelector('.lb-img');
+  if (clamp) clampPan();
   imgEl.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`;
   imgEl.classList.toggle('zoomed', state.scale > 1.01);
 }
@@ -153,13 +189,18 @@ function wireGestures(stage) {
     if (pointers.size >= 2 && start?.pinch) {
       const [a, b] = [...pointers.values()];
       const next = Math.max(MIN_SCALE, Math.min(MAX_SCALE, start.scale * (dist(a, b) / start.pinch)));
-      // Anchor on the pinch midpoint so the image grows out of the fingers.
+      // Anchor on the pinch midpoint so the image grows out of the fingers —
+      // measured from the transform's centre, for the same reason as
+      // toggleZoom. Anchoring on raw client coords walks the image off screen.
       const m = mid(a, b);
+      const c = stageCentre();
       const k = next / start.scale;
-      state.x = m.x - (m.x - start.ox) * k;
-      state.y = m.y - (m.y - start.oy) * k;
+      state.x = (m.x - c.x) - ((m.x - c.x) - start.ox) * k;
+      state.y = (m.y - c.y) - ((m.y - c.y) - start.oy) * k;
       state.scale = next;
-      apply();
+      // Not clamped mid-pinch: clamping every frame fights the gesture and the
+      // image judders against the edge. It settles on release.
+      apply({ clamp: false });
       return;
     }
 
@@ -229,8 +270,14 @@ function toggleZoom(cx, cy) {
   if (state.scale > 1.01) { state.scale = 1; state.x = 0; state.y = 0; }
   else {
     const k = 2.5;
-    state.x = cx - (cx - state.x) * k;
-    state.y = cy - (cy - state.y) * k;
+    // Anchored on the tap, measured from the transform's own centre. The point
+    // under the finger has image-offset u = (P - C - t)/s; keeping it there
+    // after scaling gives t' = (P - C) - u·s'.
+    const c = stageCentre();
+    const px = cx - c.x;
+    const py = cy - c.y;
+    state.x = px - (px - state.x) * k;
+    state.y = py - (py - state.y) * k;
     state.scale = k;
   }
   apply();

@@ -220,7 +220,22 @@ textarea{resize:none;line-height:1.4}
 /* A quoted post's media sits inside an already-inset card, so it is capped
    shorter than a top-level embed — a full-height picture makes the quote read
    as the post. */
-.quote .imgcell img{max-height:190px}
+/* A quoted post's pictures, capped so the quote does not read as the post.
+   Two things had to change together:
+
+   Cap the CELL, not the img. Each cell carries an inline `aspect-ratio`, so
+   capping the IMAGE's height left the cell at its full aspect height with its
+   grey background showing beneath — half a picture, half a slab.
+
+   Then override the aspect-ratio outright. `aspect-ratio` plus `max-height`
+   does not crop, it SHRINKS THE WIDTH to preserve the ratio: a portrait image
+   became a 143px strip in a 358px card. A fixed height with the ratio released
+   lets the cell fill its column and `object-fit:cover` do the cropping.
+
+   `!important` is load-bearing and not laziness: renderEmbed writes the ratio
+   as an INLINE style on each cell, and an inline style beats any selector. */
+.quote .media.grid-1 .imgcell{aspect-ratio:auto!important;height:190px;max-height:190px}
+.quote .media:not(.grid-1) .imgcell{aspect-ratio:auto!important;height:104px;max-height:104px}
 .quote .media{margin-top:7px}
 .quote .card{margin-top:7px}
 .quote video{max-height:220px}

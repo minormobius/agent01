@@ -519,6 +519,19 @@ Two things `quoteMedia()` deliberately does not do:
 - **`recordWithMedia` inside a quote keeps only the media**, dropping its nested
   quote for the same reason.
 
+**Capping a quote's pictures took two changes, not one.** Capping the IMAGE's
+height left the cell at its full aspect height with its grey background showing
+beneath — half a picture, half a slab, which is exactly what it looked like. So
+the CELL is capped instead. But `aspect-ratio` plus `max-height` does not crop,
+it SHRINKS THE WIDTH to preserve the ratio, turning a portrait image into a
+narrow strip; the ratio has to be released outright so a fixed height plus
+`object-fit: cover` can crop. And that override needs `!important`, which is
+load-bearing rather than lazy: `renderEmbed` writes the ratio as an INLINE style
+on each cell, and an inline style beats any selector.
+
+(A malformed CSS comment silently swallowed those rules on the first attempt —
+the measurement is what caught it, not reading the file.)
+
 **The albums stay separate.** A quoted post's pictures are a different album
 from the quoting post's, and `.post .imgcell` alone silently merges them — tap
 an outer image and you would swipe into the quote's. `openMedia()` now pages
@@ -1031,6 +1044,21 @@ in that order of thinking but the opposite order of deploying.
   single most-missed tap on a phone. One delegated handler resolves most-specific
   first: profile links, then media, then `button[data-act]`, then real links,
   then the card.
+- **The zoom anchor was measured from the wrong origin.** `transform: translate()
+  scale()` pivots on `transform-origin`, which defaults to the element's
+  CENTRE — but the anchor maths used raw `clientX/clientY` as if they were
+  offsets from the viewport's top-left. A double-tap in the middle of the
+  screen, which should move the image not at all, threw it 292px sideways and
+  630px up. That is why zoom "worked" while panning appeared dead: the drag was
+  moving a picture that was no longer on screen. `stageCentre()` fixes both the
+  double-tap and the pinch midpoint. Verified: a centre double-tap now yields
+  `translate(0px, 0px) scale(2.5)`.
+- **Pan is clamped.** Without it a flick sends the image into nowhere with no
+  way back except closing. `clampPan()` lets an edge reach the viewport edge and
+  no further, and keeps an axis centred when the image is smaller than the
+  viewport on it. Not applied mid-pinch — clamping every frame fights the
+  gesture — it settles on release. Verified: a 40-step drag stops at -292.5px
+  with the image still covering the full stage width.
 - **`lib/lightbox.js`** replaces opening the image file in a tab, which lost the
   album, the alt text and your place in the feed. Horizontal drag pages the
   post's images, vertical drag dismisses, two fingers pinch anchored on their
