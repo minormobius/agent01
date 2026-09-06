@@ -30,7 +30,8 @@ import { FEEDS, loadFeed, authorFeed, authorMedia, notifications, searchActors, 
 import { renderEmbed, imageUrl, videoUrls } from '/lib/blobs.js';
 import { attachTypeahead } from '/lib/typeahead.js';
 import * as cache from '/lib/cache.js';
-import { auth, publish, graphemeLength, MAX_GRAPHEMES, MAX_IMAGES, SCOPE } from '/lib/compose.js';
+import { auth, publish, graphemeLength, MAX_GRAPHEMES, MAX_IMAGES, SCOPE,
+         extractCard, firstLink } from '/lib/compose.js';
 import * as theme from '/lib/theme.js';
 import * as lightbox from '/lib/lightbox.js';
 import * as share from '/lib/share.js';
@@ -1357,6 +1358,47 @@ function closeMenu() {
   menuOpenedAt = 0;
 }
 
+/**
+ * Is this post ours? Compared on DID, never on handle — handles change hands,
+ * and offering "delete" on somebody else's post would be a confusing failure
+ * at best and, if the comparison were ever wrong in the other direction, an
+ * attempt to delete a record in a repo we do not own.
+ */
+function isMine(post) {
+  return Boolean(state.me?.did && post?.did && state.me.did === post.did);
+}
+
+/**
+ * Delete one of your own posts.
+ *
+ * `deleteRecord` is already on the auth worker's /pds/* allowlist. Two things
+ * this must keep doing:
+ *
+ *   - CONFIRM. There is no undo on the network; a deleted record is gone from
+ *     your repo and the deletion propagates.
+ *   - Drop it from the LOCAL store too. Otherwise the post reappears the next
+ *     time the feed is painted from cache, which reads as the delete having
+ *     silently failed.
+ */
+async function deletePost(post) {
+  if (!isMine(post)) return say('you can only delete your own posts');
+  if (!confirm('Delete this post?\n\nThis cannot be undone.')) return;
+
+  say('deleting…');
+  try {
+    await auth().pds.deleteRecord('app.bsky.feed.post', post.rkey);
+  } catch (err) {
+    return say(`could not delete: ${err.message}`);
+  }
+
+  // Gone from the network, so gone from here: the DOM node, the seen-set and
+  // the local archive.
+  document.querySelector(`[data-uri="${CSS.escape(post.uri)}"]`)?.remove();
+  state.seen.delete(post.uri);
+  if (state.cacheOk) cache.deletePost(post.uri).catch(() => {});
+  say('post deleted');
+}
+
 function openPostMenu(anchor, post) {
   closeMenu();
   const menu = $('postmenu');
@@ -1367,7 +1409,8 @@ function openPostMenu(anchor, post) {
     <button data-m="link"><span class="ic">🔗</span>Copy link to post</button>
     <button data-m="text"><span class="ic">📋</span>Copy post text</button>
     ${imgs.length ? `<button data-m="media"><span class="ic">🖼</span>Copy ${imgs.length > 1 ? 'first image' : 'image'}</button>` : ''}
-    <button data-m="bsky"><span class="ic">↗</span>View on bsky.app</button>`;
+    <button data-m="bsky"><span class="ic">↗</span>View on bsky.app</button>
+    ${isMine(post) ? '<button data-m="delete" class="danger"><span class="ic">🗑</span>Delete post</button>' : ''}`;
   menu.hidden = false;
 
   // Position above the button when there is no room below — a menu that opens
@@ -1401,6 +1444,7 @@ function openPostMenu(anchor, post) {
       const r2 = await share.copyText(text);
       return say(r2 === 'manual' ? 'could not copy — long-press the post text' : 'post text copied');
     }
+    if (what === 'delete') return deletePost(post);
     if (what === 'media' && imgs[0]) {
       say('copying image…');
       const full = imgs[0].src.replace('/feed_thumbnail/', '/feed_fullsize/');
@@ -1463,9 +1507,13 @@ async function renderThread(uri) {
 function replyBox(parent) {
   const box = el(`<div class="replybox">
     <textarea id="rt" placeholder="Reply to @${esc(parent.author?.handle || '')}…" maxlength="3000"></textarea>
+    <div id="rthumbs" class="cthumbs"></div>
     <div class="replyrow">
+      <label class="pill" for="rfile">🖼</label>
+      <input id="rfile" type="file" accept="image/*" multiple hidden>
       <button class="btn" id="rsend" disabled>reply</button>
       <span id="rstatus" class="muted" style="font-size:13px"></span>
+      <span class="spacer"></span>
       <span class="cc" id="rcc">0/300</span>
     </div></div>`);
 
@@ -1473,12 +1521,52 @@ function replyBox(parent) {
   const send = box.querySelector('#rsend');
   const cc = box.querySelector('#rcc');
   const st = box.querySelector('#rstatus');
+  const thumbs = box.querySelector('#rthumbs');
+
+  // A reply's images are its own — the composer's `draft` belongs to the sheet,
+  // and sharing it would let a half-written post leak into a reply.
+  const images = [];
+
+  const drawThumbs = () => {
+    thumbs.innerHTML = '';
+    images.forEach((img, i) => {
+      thumbs.append(el(`<div class="cthumb">
+        <img alt="" src="${esc(img.url)}">
+        <button type="button" data-rm="${i}" aria-label="Remove image">×</button>
+        <input type="text" data-alt="${i}" placeholder="alt text" value="${esc(img.alt || '')}">
+      </div>`));
+    });
+    count();
+  };
+
+  thumbs.addEventListener('click', (e) => {
+    const rm = e.target.closest('[data-rm]');
+    if (!rm) return;
+    const [img] = images.splice(Number(rm.dataset.rm), 1);
+    if (img) URL.revokeObjectURL(img.url);
+    drawThumbs();
+  });
+  thumbs.addEventListener('input', (e) => {
+    const alt = e.target.closest('[data-alt]');
+    if (alt) images[Number(alt.dataset.alt)].alt = alt.value;
+  });
+
+  box.querySelector('#rfile').addEventListener('change', (e) => {
+    for (const file of [...e.target.files].slice(0, MAX_IMAGES - images.length)) {
+      if (!file.type.startsWith('image/')) { say('images only for now'); continue; }
+      images.push({ file, url: URL.createObjectURL(file), alt: '' });
+    }
+    e.target.value = '';
+    drawThumbs();
+  });
 
   const count = () => {
     const n = graphemeLength(ta.value);
     cc.textContent = `${n}/${MAX_GRAPHEMES}`;
     cc.className = 'cc' + (n > MAX_GRAPHEMES ? ' over' : '');
-    send.disabled = n === 0 || n > MAX_GRAPHEMES || !auth().isLoggedIn();
+    // A reply that is only a picture is a legitimate reply.
+    const hasBody = n > 0 || images.length > 0;
+    send.disabled = !hasBody || n > MAX_GRAPHEMES || !auth().isLoggedIn();
   };
   ta.addEventListener('input', count);
 
@@ -1495,8 +1583,12 @@ function replyBox(parent) {
       await publish(ta.value, {
         resolveHandle: (h) => resolveActor(h).catch(() => null),
         replyTo: { uri: parent.uri, cid: parent.cid, root: rootRef },
+        images,
       });
       ta.value = '';
+      for (const img of images) URL.revokeObjectURL(img.url);
+      images.length = 0;
+      drawThumbs();
       count();
       st.textContent = 'replied';
       // Re-read the thread so the new reply appears where it belongs.
@@ -1736,11 +1828,11 @@ let justSignedIn = true;
  * What the compose sheet is currently carrying besides text: up to four
  * prepared images, and at most one quoted post.
  */
-let draft = { images: [], quote: null };
+let draft = { images: [], quote: null, card: null, cardFor: null, cardDismissed: null };
 
 function openSheet(opts = {}) {
   if (!auth().isLoggedIn()) return signIn();
-  draft = { images: [], quote: opts.quote || null };
+  draft = { images: [], quote: opts.quote || null, card: null, cardFor: null, cardDismissed: null };
   $('ct').value = opts.text || '';
   renderThumbs();
   renderQuotePreview();
@@ -1755,9 +1847,10 @@ function closeSheet() {
   // Object URLs are not garbage collected; leaking one per picked image adds up
   // over a session of posting.
   for (const img of draft.images) URL.revokeObjectURL(img.url);
-  draft = { images: [], quote: null };
+  draft = { images: [], quote: null, card: null, cardFor: null, cardDismissed: null };
   renderThumbs();
   renderQuotePreview();
+  renderCard();
 }
 
 function renderQuotePreview() {
@@ -1786,6 +1879,65 @@ function renderThumbs() {
   countChars();
 }
 
+/**
+ * Look for a link and build a card for it, as the reader types.
+ *
+ * Debounced, and it remembers BOTH the url it last looked up and the one the
+ * reader dismissed — so it does not re-fetch on every keystroke, and it does
+ * not resurrect a card somebody explicitly closed.
+ */
+let cardTimer = null;
+
+function scheduleCard() {
+  clearTimeout(cardTimer);
+  cardTimer = setTimeout(lookupCard, 600);
+}
+
+async function lookupCard() {
+  // Pictures win: both are `embed`, and someone who attached images chose them.
+  if (draft.images.length) { draft.card = null; return renderCard(); }
+
+  const url = firstLink($('ct').value);
+  if (!url) { draft.card = null; draft.cardFor = null; return renderCard(); }
+  if (url === draft.cardDismissed) return;
+  if (url === draft.cardFor) return;             // already have it, or tried
+
+  draft.cardFor = url;
+  draft.card = { loading: true, uri: url };
+  renderCard();
+  const card = await extractCard(url);
+  // The reader may have kept typing a different link while this was in flight.
+  if (draft.cardFor !== url) return;
+  draft.card = card;
+  renderCard();
+}
+
+function renderCard() {
+  const box = $('ccard');
+  if (!box) return;
+  box.hidden = !draft.card;
+  box.classList.toggle('loading', Boolean(draft.card?.loading));
+  if (!draft.card) return;
+  if (draft.card.loading) {
+    box.innerHTML = '<div class="cch"><div class="ccd">looking up that link…</div></div>';
+    return;
+  }
+  let host = '';
+  try { host = new URL(draft.card.uri).hostname.replace(/^www\./, ''); } catch { /* leave blank */ }
+  box.innerHTML = `${draft.card.thumbUrl ? `<img alt="" src="${esc(draft.card.thumbUrl)}">` : ''}
+    <button type="button" class="ccx" id="ccx" aria-label="Remove link card">×</button>
+    <div class="cch">
+      <div class="cchost">${esc(host)}</div>
+      <div class="cct">${esc(draft.card.title)}</div>
+      ${draft.card.description ? `<div class="ccd">${esc(draft.card.description.slice(0, 160))}</div>` : ''}
+    </div>`;
+  on('ccx', 'click', () => {
+    draft.cardDismissed = draft.card?.uri || draft.cardFor;
+    draft.card = null;
+    renderCard();
+  });
+}
+
 async function addImages(files) {
   const room = MAX_IMAGES - draft.images.length;
   if (room <= 0) return say(`${MAX_IMAGES} images is the limit`);
@@ -1801,6 +1953,8 @@ async function addImages(files) {
     draft.images.push({ file, url: URL.createObjectURL(file), alt: '' });
   }
   renderThumbs();
+  // Images and a card are both `embed`; the pictures win.
+  if (draft.images.length) { draft.card = null; renderCard(); }
 }
 
 function countChars() {
@@ -1820,6 +1974,7 @@ async function sendPost() {
       resolveHandle: (h) => resolveActor(h).catch(() => null),
       images: draft.images,
       quote: draft.quote,
+      card: draft.card && !draft.card.loading ? draft.card : null,
     });
     $('ct').value = ''; countChars(); closeSheet();
     say('posted');
@@ -2098,7 +2253,7 @@ $('cthumbs')?.addEventListener('input', (e) => {
   const alt = e.target.closest('[data-alt]');
   if (alt) draft.images[Number(alt.dataset.alt)].alt = alt.value;
 });
-$('ct').addEventListener('input', countChars);
+$('ct').addEventListener('input', () => { countChars(); scheduleCard(); });
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   if (!$('postmenu').hidden) return closeMenu();

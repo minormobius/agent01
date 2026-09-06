@@ -193,6 +193,61 @@ export async function prepareImage(file) {
   throw new Error('that image will not compress small enough — try a smaller one');
 }
 
+// ─── link cards ──────────────────────────────────────────────────
+
+/**
+ * Bluesky's own card extractor, which is what the official client uses.
+ *
+ * This is the piece that was missing, and the reason it was missing is worth
+ * writing down: **Bluesky does not generate link cards — the posting client
+ * does.** A bare URL in a post's text is only a link facet; if the client did
+ * not fetch the page's metadata and attach an `app.bsky.embed.external`, there
+ * is nothing in the record for any reader to render. We render cards other
+ * people attach and attached none of our own, so posting a link from here
+ * produced a bare blue link everywhere.
+ *
+ * Fetching the target page ourselves is the CORS wall — most sites refuse a
+ * cross-origin read. `cardyb.bsky.app` exists for exactly this and answers
+ * `access-control-allow-origin: *`, as does its image proxy. Verified against a
+ * real arXiv page and a news front page.
+ */
+const CARDYB = 'https://cardyb.bsky.app/v1/extract?url=';
+
+/**
+ * @param {string} url
+ * @returns {Promise<{uri, title, description, thumbUrl}|null>} null when the
+ *   page has nothing worth showing — a card with no title is just a URL with
+ *   extra chrome.
+ */
+export async function extractCard(url) {
+  try {
+    const res = await fetch(CARDYB + encodeURIComponent(url));
+    if (!res.ok) return null;
+    const d = await res.json();
+    if (d.error) return null;
+    const title = String(d.title || '').trim();
+    if (!title) return null;
+    return {
+      // cardyb resolves redirects; prefer where the link actually LANDS, since
+      // that is what the reader will open.
+      uri: d.url || url,
+      title,
+      description: String(d.description || '').trim(),
+      thumbUrl: d.image || '',
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** The first http(s) URL in some text — what a card would be built from. */
+export function firstLink(text) {
+  const m = String(text || '').match(/https?:\/\/[^\s<>"')\]]+/);
+  if (!m) return null;
+  // Trailing punctuation is almost always sentence punctuation, not URL.
+  return m[0].replace(/[.,;:!?)]+$/, '');
+}
+
 export async function publish(text, opts = {}) {
   const a = auth();
   if (!a.isLoggedIn()) throw new Error('not signed in');
@@ -244,6 +299,35 @@ export async function publish(text, opts = {}) {
       });
     }
     record.embed = { $type: 'app.bsky.embed.images', images };
+  }
+
+  /**
+   * A link card. Skipped when images are attached: both are `embed`, and a
+   * reader who chose pictures chose pictures.
+   */
+  if (opts.card?.uri && !record.embed) {
+    const external = {
+      uri: opts.card.uri,
+      title: String(opts.card.title || '').slice(0, 300),
+      description: String(opts.card.description || '').slice(0, 1000),
+    };
+    // The thumbnail must be OUR blob — a card pointing at someone else's URL
+    // would break the moment they move it, and the lexicon wants a blob.
+    if (opts.card.thumbUrl) {
+      try {
+        const res = await fetch(opts.card.thumbUrl);
+        if (res.ok) {
+          const raw = await res.blob();
+          const { blob, mime } = await prepareImage(raw);
+          const ref = await a.pds.uploadBlob(await blob.arrayBuffer(), mime);
+          external.thumb = ref.blob || ref;
+        }
+      } catch {
+        // A card without a picture is still a card. Losing the post over a
+        // thumbnail would be absurd.
+      }
+    }
+    record.embed = { $type: 'app.bsky.embed.external', external };
   }
 
   /**

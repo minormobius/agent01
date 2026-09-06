@@ -688,22 +688,67 @@ does not play anywhere. The picker says so rather than skipping the file
 silently. The token minting for it already exists (`lib/feedgen.js`), so this is
 a known piece of work, not a wall.
 
-### Link cards render; they are just rare
+### Link cards — we render them, and now we MAKE them
 
-We DO handle `app.bsky.embed.external` — thumbnail, host, title, description.
-Measured across 40 real posts from `bsky.app`: 17 quote embeds, 13 no embed, 7
-images, 2 video, **1 external card**, and 3 posts carrying a link with no card
-at all.
+Two halves, and only one of them existed.
 
-That is the thing to understand before "fixing" it: **Bluesky does not generate
-cards, the POSTING CLIENT does.** It fetches the page's metadata at compose time
-and attaches it to the record. A bare URL in text is just a link facet, and
-there is nothing in the record to render.
+**Rendering** always worked: `app.bsky.embed.external` gets a thumbnail, host,
+title and description. Measured across 40 real posts from `bsky.app`: 17 quote
+embeds, 13 no embed, 7 images, 2 video, **1 external card**, 3 links with no card.
 
-So generating a preview for a bare link means fetching that page ourselves —
-which is the CORS wall again, and this time nearly every site is on the far side
-of it. That is the real shape of the "live preview pane" ambition: not a
-rendering problem, a fetching one.
+**Making one did not**, and that was the actual complaint. Posting a link from
+here produced a bare blue link everywhere, because **Bluesky does not generate
+cards — the posting client does.** A bare URL in a record is only a link facet;
+if the client did not fetch the page's metadata and attach an
+`app.bsky.embed.external`, there is nothing for any reader to render. Explaining
+that mechanism is not the same as implementing it, and for one turn this surface
+did the former.
+
+Fetching the target page ourselves is the CORS wall — most sites refuse a
+cross-origin read. **`cardyb.bsky.app` exists for exactly this** and is what the
+official client uses; it answers `access-control-allow-origin: *`, and so does
+its image proxy. Verified against a real arXiv page (title, description and an
+image URL) and a news front page.
+
+`extractCard()` + `firstLink()` in `lib/compose.js`, previewed live in the
+composer as you type. Details that matter:
+
+- **Debounced, and it remembers two things**: the URL it last looked up, and the
+  URL the reader DISMISSED. Without the first it refetches per keystroke;
+  without the second, closing a card and typing one more word brings it back.
+- **The thumbnail becomes OUR blob.** A card pointing at someone else's image URL
+  breaks when they move it, and the lexicon wants a blob anyway. A failure there
+  is swallowed — a card without a picture is still a card, and losing the whole
+  post over a thumbnail would be absurd.
+- **Images win over cards.** Both are `embed`; someone who attached pictures
+  chose pictures.
+- A card with **no title** is not offered. That is just a URL with extra chrome.
+
+**Verified:** `extractCard` against the LIVE cardyb by `curl` (CORS `*`, real
+payload). The composer path — preview appears, ✕ dismisses, dismissal survives
+more typing, a *different* link gets a new card, and only 2 requests for all of
+it — verified in Chromium with the response intercepted, because **this sandbox's
+Chromium cannot reach any external host** (checked directly: cardyb,
+public.api.bsky.app and example.com all fail). **Not verified:** the thumbnail
+blob upload, which needs a real session.
+
+### Pictures in replies, and deleting a post
+
+Replies take images through the same `prepareImage` path as the composer, but
+with **their own array** — the composer's `draft` belongs to the sheet, and
+sharing it would let a half-written post leak into a reply. An image-only reply
+is legitimate, so the send button no longer requires text.
+
+**Delete** is in the ⋯ menu and appears only on your own posts. Three things:
+
+- **`isMine()` compares DIDs, never handles.** Handles change hands.
+- **It confirms.** There is no undo; the deletion propagates.
+- **It drops the post from the LOCAL store too.** Otherwise it reappears the next
+  time the feed paints from cache, which reads as the delete having silently
+  failed.
+
+`deleteRecord` was already on the auth worker's `/pds/*` allowlist, so this
+needed no worker change.
 
 ### Palettes
 

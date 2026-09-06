@@ -216,6 +216,16 @@ textarea{resize:none;line-height:1.4}
 .repostmenu button{background:0;border:0;color:var(--text);text-align:left;padding:11px 13px;font-size:14.5px;
   border-radius:8px;cursor:pointer;min-height:44px}
 .repostmenu button:active{background:var(--line-soft)}
+#postmenu button.danger{color:var(--dead)}
+.ccard{margin-top:10px;border:1px solid var(--line);border-radius:10px;overflow:hidden;position:relative}
+.ccard img{width:100%;max-height:150px;object-fit:cover;display:block}
+.ccard .cch{padding:9px 11px}
+.ccard .cct{font-size:13.5px;font-weight:600;line-height:1.35}
+.ccard .ccd{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.4}
+.ccard .cchost{font-size:11.5px;color:var(--muted);text-transform:lowercase}
+.ccard .ccx{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;border:0;
+  background:rgba(0,0,0,.66);color:#fff;font-size:15px;line-height:1;cursor:pointer;padding:0}
+.ccard.loading{opacity:.6}
 .cthumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .cthumb{position:relative;width:84px;height:84px;border-radius:9px;overflow:hidden;border:1px solid var(--line)}
 .cthumb img{width:100%;height:100%;object-fit:cover;display:block}
@@ -385,6 +395,7 @@ textarea{resize:none;line-height:1.4}
     <div id="cquote" hidden></div>
     <textarea id="ct" placeholder="What's up?" maxlength="3000"></textarea>
     <div id="cthumbs" class="cthumbs"></div>
+    <div id="ccard" class="ccard" hidden></div>
     <div id="cs" class="muted" style="font-size:13px;margin-top:10px"></div>
   </div>
   <div class="sheetfoot">
