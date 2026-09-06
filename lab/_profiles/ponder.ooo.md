@@ -110,6 +110,22 @@ the resolved definition on-page as documentation, not only in BRIEF — this
 requester reads at that level of geometric detail and the page is the part
 that's actually checkable against the rule they had in mind.
 
+Follow-up on the twenty-eighth request (2026-09-06, same thread), on
+domino-upright: came back with concrete UX bug reports rather than a new
+feature ask — "the behavior seems maybe buggy," can't tell falling/push
+direction visually, "push seems to also rotate sometimes." Traced to a real
+root cause rather than dismissing it as a rendering nitpick: push committed
+straight off the raw tap position, and a tap near a tile's centre is a
+coin-flip between two of 8 direction buckets, which is exactly what reads as
+"rotated instead of fell." Fixed the interaction itself (press-drag-release
+with a live preview arrow and a centre dead-zone) rather than just making the
+existing tap bigger/more forgiving — worth the general lesson: when this
+requester reports something as "buggy" in an interactive/gestural control,
+look for an input-noise/threshold problem before assuming the underlying
+math/rule is wrong, since their rule specs have consistently been the
+carefully-reasoned part and the raw interaction plumbing the less-scrutinized
+one.
+
 Ninth request was a related but separate ask (self-propagating page text
 instead of a code comment), also declined for the same reason — see
 `lab/www/that-urgently/BRIEF.md`. The follow-up after that decline was

@@ -50,6 +50,42 @@ No accounts, no PDS save. This sim has no visitor-identity angle (nobody's
 handle or avatar is involved) and works fully anonymously, so I left auth out
 entirely rather than bolting on a save button just because the kit offers one.
 
+## Turn two (2026-09-06): fixed the reported bugs
+
+The requester came back with three complaints: "the behavior seems maybe
+buggy," "can't tell visually which direction the falling dominoes are falling
+in, which direction one is pushing in," and "push seems to also rotate
+sometimes?" All three traced to the same root cause plus one rendering issue,
+not to the CA rule itself (re-verified the step() logic by hand again this
+turn — it still matches the rule as documented above and in "the rule" box;
+did not touch it):
+
+- **The push-rotates bug was real.** Push committed a direction straight from
+  the raw pointerdown position: `Math.atan2(fy, fx)` on a tap near a tile's
+  *centre* is one pixel from the boundary between two of the 8 direction
+  buckets, so a tap meant to push "forward" could snap to a neighbouring 45°
+  bucket by sub-pixel noise — which reads exactly as "it rotated instead of
+  falling where I pushed." Fixed by turning push into a **press-drag-release**:
+  direction previews live as a white ghost arrow while dragging (see `draw()`
+  and the `pushPending`/`previewDir` state), and a dead zone
+  (`PUSH_DEADZONE = 0.16` of the cell half-width) around the centre means
+  nothing commits until the drag is unambiguous. A plain tap far enough from
+  centre still works in one motion — this doesn't remove the old gesture, it
+  removes the noise floor that made it unreliable.
+- **Direction was hard to read.** The old falling-arrow was a bar with a
+  small triangle drawn *overlapping its own tip* — from a few feet away (or a
+  phone) it read as a faint notch, not an arrowhead. `drawBar()` now draws a
+  narrow tail-shaft feeding into a distinctly wider, pointed head, with a dark
+  stroke outline on every shape for contrast against the axis colours. The
+  legend swatch (`barSvg`) was updated to match so it doesn't now contradict
+  the canvas.
+
+Not changed: the automaton's transition rule, the axis/falling/fallen state
+encoding, the seed pattern, the colour palette. If a future report says the
+*rule* itself looks wrong (e.g. a specific hand-traceable sequence of ticks
+producing an unexpected result), that's a different bug from this turn's and
+wants a fresh hand-trace against the "the rule" box, not a rendering fix.
+
 ## The plan (not built yet, in order)
 
 1. **Toroidal wrap toggle.** Right now edges just have fewer neighbours (no

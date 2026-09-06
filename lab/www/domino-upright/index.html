@@ -93,9 +93,10 @@
   </div>
 
   <p class="hint">place mode stands or clears dominoes. push mode lets you shove an upright
-  yourself: tap near the edge of the tile in the direction you want it to fall — any of the
-  8 directions, since an external push isn't limited to the tile's own axis. The automaton's
-  own propagation rule is the constrained one described above.</p>
+  yourself: press the tile and drag away from its centre — a white arrow previews exactly
+  which of the 8 directions will be used, updating live as you move — then release to commit,
+  since an external push isn't limited to the tile's own axis. The automaton's own propagation
+  rule is the constrained one described above.</p>
 </main>
 
 <script>
@@ -150,16 +151,27 @@
     ctx.translate(cx, cy);
     ctx.rotate(angleDeg * Math.PI / 180);
     ctx.fillStyle = color;
-    var r = Math.min(3, thick / 3);
-    roundRect(-len / 2, -thick / 2, len, thick, r);
-    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.lineWidth = 1;
     if (arrow) {
+      // unmistakable arrow: a narrow tail-shaft feeding a wide, pointed head —
+      // not a bar with a triangle overlapping its own tip, which read as a
+      // faint notch rather than a direction.
+      var shaftLen = len * 0.52;
+      var headBack = -len / 2 + shaftLen;
+      var r = Math.min(3, thick / 4);
+      roundRect(-len / 2, -thick / 2, shaftLen, thick, r);
+      ctx.fill(); ctx.stroke();
       ctx.beginPath();
       ctx.moveTo(len / 2, 0);
-      ctx.lineTo(len / 2 - thick * 0.9, -thick * 0.6);
-      ctx.lineTo(len / 2 - thick * 0.9, thick * 0.6);
+      ctx.lineTo(headBack, -thick * 1.25);
+      ctx.lineTo(headBack, thick * 1.25);
       ctx.closePath();
-      ctx.fill();
+      ctx.fill(); ctx.stroke();
+    } else {
+      var r2 = Math.min(3, thick / 3);
+      roundRect(-len / 2, -thick / 2, len, thick, r2);
+      ctx.fill(); ctx.stroke();
     }
     ctx.restore();
   }
@@ -206,6 +218,27 @@
         }
       }
     }
+
+    // live push preview: shown while dragging in push mode, so the direction
+    // that will be committed is visible BEFORE release, not guessed from a
+    // single tap.
+    if (pushPending) {
+      var pcx = (pushPending.c + 0.5) * cs, pcy = (pushPending.r + 0.5) * cs;
+      if (previewDir !== null) {
+        ctx.save();
+        ctx.globalAlpha = 0.9;
+        drawBar(pcx, pcy, previewDir * 45, cs * 1.05, cs * 0.26, '#ffffff', true);
+        ctx.restore();
+      } else {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(pcx, pcy, cs * 0.16, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
   }
 
   // ---- CA step ------------------------------------------------------------
@@ -249,19 +282,39 @@
 
   // ---- interaction --------------------------------------------------------
   var mode = 'place';
+  // A push used to commit on the raw pointerdown position: a tap near a
+  // tile's centre is only a pixel or two from the boundary between two of
+  // the 8 direction buckets, so an intended "push forward" tap could snap to
+  // a neighbouring 45° bucket and look like the tile had rotated instead of
+  // fallen. Fix: a push is now a press-drag-release. The direction previews
+  // live (see draw()) and only commits past a dead-zone around the centre,
+  // so noise near the middle cannot register as a direction at all.
+  var pushPending = null; // {c, r, i} while a push drag is in progress
+  var previewDir = null;
+  var PUSH_DEADZONE = 0.16; // fraction of a cell's half-width
+
+  function directionFromOffset(fx, fy) {
+    if (Math.sqrt(fx * fx + fy * fy) < PUSH_DEADZONE) return null;
+    var ang = Math.atan2(fy, fx) * 180 / Math.PI;
+    if (ang < 0) ang += 360;
+    return Math.round(ang / 45) % 8;
+  }
+
   document.getElementById('modePlace').addEventListener('click', function () {
     mode = 'place';
+    pushPending = null; previewDir = null;
     this.classList.add('on');
     document.getElementById('modeIgnite').classList.remove('on');
     document.getElementById('modeHint').textContent =
       'place mode: tap a cell to cycle empty → four upright orientations. tap again on a falling or fallen cell to clear it.';
+    draw();
   });
   document.getElementById('modeIgnite').addEventListener('click', function () {
     mode = 'ignite';
     this.classList.add('on');
     document.getElementById('modePlace').classList.remove('on');
     document.getElementById('modeHint').textContent =
-      'push mode: tap near the edge of an upright tile, in the direction you want it to fall — any of the 8 directions.';
+      'push mode: press an upright tile and drag away from its centre — a white arrow previews the direction it will fall in. release to commit, or drag back to the centre dot to cancel.';
   });
 
   canvas.addEventListener('pointerdown', function (e) {
@@ -276,18 +329,36 @@
     if (mode === 'place') {
       if (s >= EMPTY && s <= UP0 + 3) grid[i] = (s + 1) % 5;
       else grid[i] = EMPTY;
-    } else {
-      if (s >= UP0 && s <= UP0 + 3) {
-        var fx = (x - c * cs) / cs - 0.5;
-        var fy = (y - r * cs) / cs - 0.5;
-        var ang = Math.atan2(fy, fx) * 180 / Math.PI;
-        if (ang < 0) ang += 360;
-        var dir = Math.round(ang / 45) % 8;
-        grid[i] = FALL0 + dir;
-      }
+      draw();
+    } else if (s >= UP0 && s <= UP0 + 3) {
+      pushPending = { c: c, r: r, i: i };
+      var fx = (x - c * cs) / cs - 0.5;
+      var fy = (y - r * cs) / cs - 0.5;
+      previewDir = directionFromOffset(fx, fy);
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+      draw();
     }
+  });
+
+  canvas.addEventListener('pointermove', function (e) {
+    if (!pushPending) return;
+    var rect = canvas.getBoundingClientRect();
+    var cs = rect.width / cols;
+    var x = e.clientX - rect.left, y = e.clientY - rect.top;
+    var fx = (x - pushPending.c * cs) / cs - 0.5;
+    var fy = (y - pushPending.r * cs) / cs - 0.5;
+    previewDir = directionFromOffset(fx, fy);
     draw();
   });
+
+  function commitPush() {
+    if (pushPending && previewDir !== null) grid[pushPending.i] = FALL0 + previewDir;
+    pushPending = null;
+    previewDir = null;
+    draw();
+  }
+  canvas.addEventListener('pointerup', commitPush);
+  canvas.addEventListener('pointercancel', commitPush);
 
   // ---- controls -------------------------------------------------------
   document.getElementById('step').addEventListener('click', step);
@@ -344,9 +415,11 @@
     return d;
   }
   function barSvg(angle, color, arrow) {
-    var arrowHead = arrow ? '<polygon points="22,14 15,9 15,19" fill="' + color + '"/>' : '';
-    return '<svg viewBox="0 0 28 28"><g transform="rotate(' + angle + ' 14 14)">' +
-      '<rect x="5" y="11" width="18" height="6" rx="2" fill="' + color + '"/>' + arrowHead + '</g></svg>';
+    var shaft = arrow
+      ? '<rect x="5" y="12" width="9" height="4" rx="1.5" fill="' + color + '"/>' +
+        '<polygon points="24,14 14,8 14,20" fill="' + color + '"/>'
+      : '<rect x="5" y="11" width="18" height="6" rx="2" fill="' + color + '"/>';
+    return '<svg viewBox="0 0 28 28"><g transform="rotate(' + angle + ' 14 14)">' + shaft + '</g></svg>';
   }
 
   window.addEventListener('resize', resizeCanvas);
