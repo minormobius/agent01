@@ -323,7 +323,7 @@ export function parseLily(source) {
     root = { t: 'par', items: [...r.defs.values()], split: false };
   }
 
-  const staves = extractStaves(root, r);
+  const { staves, groups } = extractStaves(root, r);
   const tempo = findTempo(staves);
   return {
     title: r.header.title || '',
@@ -331,6 +331,7 @@ export function parseLily(source) {
     composer: r.header.composer || r.header.poet || '',
     tempo,
     staves,
+    groups,
     language: r.languageName,
     diagnostics: r.diagnostics,
   };
@@ -389,6 +390,57 @@ function flattenMarkup(r) {
     r.i++;
   }
   return parts.join(' ');
+}
+
+/**
+ * Read a `\with { ... }` block for the properties that change what is DRAWN or
+ * HEARD, and skip the rest.
+ *
+ * `\with` is mostly engraver plumbing we have no use for (`\consists`,
+ * `\override`, spacing tweaks). Three keys are different: instrumentName and
+ * shortInstrumentName are the only place a part's name is written, and
+ * midiInstrument is the only place its timbre is. Discarding the block — which
+ * is what we did — is why a quartet came out as four anonymous staves all
+ * sounding like a piano.
+ *
+ * The block is captured as text and scanned, rather than parsed as music: a
+ * `\with` body is a different grammar, and a parser that half-understands it
+ * would consume the closing brace of something else. Text capture cannot
+ * desynchronise the reader, so an unrecognised body costs a name, not a score.
+ */
+function parseWith(r) {
+  const body = captureBlock(r);
+  const props = {};
+  for (const [key, prop] of [
+    ['instrumentName', 'name'],
+    ['shortInstrumentName', 'shortName'],
+    ['midiInstrument', 'midi'],
+  ]) {
+    // Match the VALUE, not the rest of the line: `\with` puts several
+    // properties on one line, so a greedy tail swallows the next key and its
+    // value into the name ("Violin Vn. violin").
+    const m = new RegExp(
+      key + '\\s*=\\s*(?:\\\\markup\\s*)?'
+      + '(?:\\{((?:[^{}]|\\{[^{}]*\\})*)\\}|"([^"]*)"|([A-Za-z0-9.#_-]+))',
+    ).exec(body);
+    if (!m) continue;
+    const raw = m[1] ?? m[2] ?? m[3] ?? '';
+    // In the \markup form the quoted runs are the name; joining them is also
+    // right for \column, which stacks them on separate lines.
+    const parts = [...raw.matchAll(/"([^"]*)"/g)].map((q) => q[1]);
+    const value = parts.length ? parts.join(' ') : raw.replace(/\\[A-Za-z]+/g, '').trim();
+    if (value) props[prop] = value;
+  }
+  return props;
+}
+
+/** The text inside a balanced `{ ... }`, with the reader left after the close. */
+function captureBlock(r) {
+  r.ws();
+  if (r.peek() !== '{') return '';
+  const start = r.i;
+  skipBlock(r);
+  return r.src.slice(start + 1, Math.max(start + 1, r.i - 1));
 }
 
 function skipBlock(r) {
@@ -539,10 +591,11 @@ function parseMusic(r) {
         let label = '';
         if (r.peek() === '=') { r.i++; r.ws(); label = r.string() || r.word() || ''; }
         r.ws();
-        if (r.src.startsWith('\\with', r.i)) { r.command(); skipBlock(r); }
+        let props = {};
+        if (r.src.startsWith('\\with', r.i)) { r.command(); props = parseWith(r); }
         const music = parseMusic(r);
-        if (STAFF_CONTEXTS.has(type)) return { t: 'staff', name: label, kind: type, music };
-        if (GROUP_CONTEXTS.has(type)) return { t: 'group', kind: type, music };
+        if (STAFF_CONTEXTS.has(type)) return { t: 'staff', name: label, kind: type, props, music };
+        if (GROUP_CONTEXTS.has(type)) return { t: 'group', kind: type, props, music };
         return { t: 'voice', name: label, music };
       }
       case 'repeat': {
@@ -828,7 +881,27 @@ function parseBackslashItem(r, at) {
       // it. Every brace after that is then mismatched, the piece parses as one
       // runaway block, and the damage shows up hundreds of bars later as
       // nonsense rather than as an error here.
+      // One exception to "consumed and ignored": `\set Staff.midiInstrument`
+      // and `\set Staff.instrumentName` are the OTHER place a part says what it
+      // is, and are commoner in real files than the `\with` form. Recognised
+      // before the skip so the statement is still consumed exactly.
+      const prop = /^\s*(?:[A-Za-z]+\.)?(midiInstrument|instrumentName|shortInstrumentName)\s*=/
+        .exec(r.src.slice(r.i));
+      let staffProp = null;
+      if (cmd === 'set' && prop) {
+        const rest = r.src.slice(r.i + prop[0].length, r.i + prop[0].length + 200);
+        const q = /^\s*(?:\\markup\s*)?(?:\{((?:[^{}]|\{[^{}]*\})*)\}|"([^"]*)")/.exec(rest);
+        if (q) {
+          const raw = q[1] ?? q[2] ?? '';
+          const parts = [...raw.matchAll(/"([^"]*)"/g)].map((m) => m[1]);
+          const value = parts.length ? parts.join(' ') : raw.replace(/\\[A-Za-z]+/g, '').trim();
+          const key = prop[1] === 'midiInstrument' ? 'midi'
+            : prop[1] === 'shortInstrumentName' ? 'shortName' : 'name';
+          if (value) staffProp = { key, value };
+        }
+      }
       skipTweak(r, cmd === 'set' || cmd === 'override' || cmd === 'tweak');
+      if (staffProp) return { t: 'staffprop', ...staffProp, src: [at, r.i] };
       return null;
     }
     case 'once': return null;  // a modifier on the statement that follows it
@@ -1334,6 +1407,9 @@ class Flattener {
       case 'dynamic': this.push({ kind: 'dynamic', value: node.value, tick: this.tick, src }); return;
       case 'hairpin': this.push({ kind: 'hairpin', dir: node.dir, tick: this.tick, src }); return;
       case 'stemdir': this.push({ kind: 'stemdir', dir: node.dir, tick: this.tick, src }); return;
+      case 'staffprop':
+        this.push({ kind: 'staffprop', key: node.key, value: node.value, tick: this.tick, src });
+        return;
       case 'voicedir': this.push({ kind: 'voicedir', which: node.which, tick: this.tick, src }); return;
       default: /* nothing to emit */
     }
@@ -1364,8 +1440,9 @@ function barStyle(style) {
  */
 function extractStaves(root, reader) {
   const staves = [];
+  const groups = [];
 
-  const asStaff = (node, name) => {
+  const asStaff = (node, name, props) => {
     const voices = [];
     // A `\\` split at the top of a staff's music means parallel voices.
     const branches = splitVoices(node);
@@ -1374,13 +1451,44 @@ function extractStaves(root, reader) {
       f.walk(b);
       voices.push(f.out);
     }
-    staves.push({ name: name || '', voices: voices.length ? voices : [[]] });
+    const st = {
+      name: (props && props.name) || '',
+      shortName: (props && props.shortName) || '',
+      midi: (props && props.midi) || '',
+      label: name || '',
+      voices: voices.length ? voices : [[]],
+    };
+    // `\set Staff.instrumentName` inside the music says the same thing as
+    // `\with` outside it. `\with` wins where both are given, because it is the
+    // one attached to this staff rather than to a moment in it.
+    for (const v of st.voices) {
+      for (const e of v) {
+        if (e.kind === 'staffprop' && !st[e.key]) st[e.key] = e.value;
+      }
+    }
+    staves.push(st);
   };
 
   const visit = (node, inGroup) => {
     if (!node) return false;
-    if (node.t === 'staff') { asStaff(node.music, node.name); return true; }
-    if (node.t === 'group') return visit(node.music, true);
+    if (node.t === 'staff') { asStaff(node.music, node.name, node.props); return true; }
+    if (node.t === 'group') {
+      // A group's extent is whatever staves its body turns out to contain, so
+      // it can only be recorded after the body is visited.
+      const from = staves.length;
+      const found = visit(node.music, true);
+      if (found && staves.length > from) {
+        groups.push({
+          kind: node.kind,
+          from,
+          to: staves.length - 1,
+          name: (node.props && node.props.name) || '',
+          shortName: (node.props && node.props.shortName) || '',
+          midi: (node.props && node.props.midi) || '',
+        });
+      }
+      return found;
+    }
     if (node.t === 'ref') return visit(node.music, inGroup);
     if (node.t === 'par' && !node.split) {
       let any = false;
@@ -1399,8 +1507,12 @@ function extractStaves(root, reader) {
     return false;
   };
 
-  if (!visit(root, false)) asStaff(root, '');
-  return staves.length ? staves : [{ name: '', voices: [[]] }];
+  if (!visit(root, false)) asStaff(root, '', null);
+  if (!staves.length) staves.push({ name: '', shortName: '', midi: '', label: '', voices: [[]] });
+  // A `\score`-level group spanning every staff says nothing a reader can see;
+  // dropping it keeps a plain two-staff piano score free of a stray bracket.
+  const real = groups.filter((g) => g.kind !== 'Score' && g.to > g.from);
+  return { staves, groups: real };
 }
 
 /**

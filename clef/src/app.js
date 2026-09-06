@@ -10,7 +10,7 @@
 
 import { parseLily, pitchToLilyRelative, pitchToLily, durationToLily } from './lily.js';
 import { engrave } from './engrave.js';
-import { PATCHES, Player, scoreToNotes, performance as buildPerformance, renderWav, silentSwitchMayMute } from './audio.js';
+import { PATCHES, Player, scoreToNotes, performance as buildPerformance, renderWav, silentSwitchMayMute, patchForInstrument } from './audio.js';
 import { writeMidi } from './midi.js';
 import { LIBRARY, byId, DEFAULT_PIECE } from './library.js';
 import { WHOLE, ticksOf, keyAlterations, clefDef, pitchFromDiatonic, spell } from './model.js';
@@ -118,6 +118,15 @@ function render() {
 
   el.score.innerHTML = layout.svg;
   el.score.style.width = `${layout.width}px`;
+
+  // An ensemble score names its own instruments; a solo or keyboard one does
+  // not, and keeps following the patch picker.
+  state.staffPatches = parsed.staves.map((st) => {
+    const name = patchForInstrument(st.midi) || patchForInstrument(st.name);
+    return name ? PATCHES[name] : null;
+  });
+  if (!state.staffPatches.some(Boolean)) state.staffPatches = null;
+  player.staffPatches = state.staffPatches;
 
   state.flat = scoreToNotes(parsed);
   const bpm = state.tempoOverride ?? parsed.tempo.bpm;
@@ -632,7 +641,7 @@ async function exportWav() {
   if (!state.perf?.events.length) { toast('nothing to render'); return; }
   toast('rendering audio…', 60000);
   try {
-    const blob = await renderWav(state.perf, el.patch.value);
+    const blob = await renderWav(state.perf, el.patch.value, null, state.staffPatches);
     download(blob, `${slug(state.title)}.wav`);
     toast('audio ready');
   } catch (err) {

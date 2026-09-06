@@ -374,7 +374,14 @@ body {
 .cf-tie, .cf-slur, .cf-volta, .cf-brace, .cf-tupletbracket {
   stroke: currentColor;
 }
-.cf-beam, .cf-repeatdot { fill: currentColor; }
+.cf-beam, .cf-repeatdot, .cf-bracket { fill: currentColor; }
+/* The name column down the left: an ensemble's staff and group labels. Set in
+   the sans face and slightly muted, so four instrument names read as apparatus
+   rather than competing with the music they label. */
+.cf-instrument {
+  font-family: var(--sans);
+  fill: color-mix(in srgb, currentColor 72%, transparent);
+}
 .cf-staffline { stroke: color-mix(in srgb, currentColor 78%, transparent); }
 .cf-title { font-weight: 600; letter-spacing: 0.01em; }
 .cf-subtitle, .cf-composer { fill: var(--ink-soft); font-style: italic; }

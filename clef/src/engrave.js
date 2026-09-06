@@ -29,7 +29,7 @@ import {
   WHOLE, PPQ, staffPos, clefDef, keyAlterations, keySignaturePositions,
   timeTicks, beatGroups, noteValueOrNearest, midiOf, diatonicOf,
 } from './model.js';
-import { glyphSVG, GLYPHS, articGlyph, bracePath } from './glyphs.js';
+import { glyphSVG, GLYPHS, articGlyph, bracePath, bracketPath } from './glyphs.js';
 
 // Everything is quoted in staff spaces. One constant sets the size of the page.
 const DEFAULTS = {
@@ -38,8 +38,9 @@ const DEFAULTS = {
   marginX: 18,
   marginTop: 16,
   marginBottom: 16,
-  staffGap: 9,        // between staves of one system, in staff spaces
-  braceGap: 11,       // between staves bound by a brace (piano)
+  staffGap: 12,       // between two players inside one bracket, in staff spaces
+  braceGap: 11,       // between staves bound by a brace (one player, two hands)
+  groupGap: 16,       // across a group boundary — one instrument ends, another begins
   systemGap: 8,       // between systems
   titleSize: 2.9,     // in staff spaces
   minSystemFill: 0.62, // don't justify a system emptier than this
@@ -244,6 +245,74 @@ function restGlyph(denom) {
  * Returns `{ svg, height, events, systems, warnings }`. `events` is the click
  * map: index -> { src: [start,end], tick, midi[], x, y }.
  */
+/**
+ * What binds each run of staves, and how thick a line to draw down its left.
+ *
+ * LilyPond's three grouping contexts are three different statements to a
+ * reader, and collapsing them loses information a player needs:
+ *
+ *   PianoStaff / GrandStaff — one player, two hands. Brace. Barlines run
+ *     through the gap, because the hands share a bar.
+ *   StaffGroup — a section of several players. Bracket. Barlines run through,
+ *     because the section plays in time with itself.
+ *   ChoirStaff — bracket, but barlines DO NOT run through: vocal staves are
+ *     kept separate so a barline never looks like it is cutting through a text
+ *     underlay, and singers of different parts read independently.
+ *
+ * A score-wide group is dropped upstream; what arrives here is only grouping a
+ * reader can see. When a score declares none — every hand-written two-stave
+ * piano piece — one is synthesised, so `\score { << \new Staff … >> }` keeps
+ * the brace it has always had.
+ */
+function resolveGroups(score, staffCount, o) {
+  const declared = Array.isArray(score.groups) ? score.groups : [];
+  const shape = (kind) => ({
+    brace: kind === 'PianoStaff' || kind === 'GrandStaff',
+    bracket: kind === 'StaffGroup' || kind === 'ChoirStaff',
+    spanBars: kind !== 'ChoirStaff',
+  });
+  const out = declared
+    .filter((g) => g.from >= 0 && g.to < staffCount && g.to > g.from)
+    .map((g) => ({
+      from: g.from, to: g.to, kind: g.kind,
+      name: g.name || '', shortName: g.shortName || '', midi: g.midi || '',
+      ...shape(g.kind),
+    }));
+
+  if (!out.length && staffCount > 1 && o.grandStaff && score.braced !== false) {
+    out.push({
+      from: 0, to: staffCount - 1, kind: 'PianoStaff',
+      name: '', shortName: '', midi: '', ...shape('PianoStaff'),
+    });
+  }
+  // Innermost first, so nesting depth is just "how many of the rest contain me".
+  out.sort((a, b) => (a.to - a.from) - (b.to - b.from));
+  for (const g of out) {
+    g.depth = out.filter((h) => h !== g && h.from <= g.from && h.to >= g.to).length;
+  }
+  return out;
+}
+
+/**
+ * Roughly how wide a string will be, without font metrics.
+ *
+ * Only used to reserve the left indent for instrument names, where being a
+ * little generous costs white space and being short overlaps the music. The
+ * per-character factors are the difference between "Vc." and "Contrabassoon"
+ * reserving sensibly; a single average makes one of them wrong.
+ */
+function textWidth(text, fontSize) {
+  if (!text) return 0;
+  let w = 0;
+  for (const ch of text) {
+    if (/[ .,'ijlI!|]/.test(ch)) w += 0.30;
+    else if (/[A-Z]/.test(ch)) w += 0.68;
+    else if (/[mw]/.test(ch)) w += 0.85;
+    else w += 0.52;
+  }
+  return w * fontSize;
+}
+
 export function engrave(score, options = {}) {
   const o = { ...DEFAULTS, ...options };
   const sp = o.staffSpace;
@@ -255,6 +324,8 @@ export function engrave(score, options = {}) {
     return {
       index: si,
       name: st.name,
+      shortName: st.shortName || '',
+      midi: st.midi || '',
       voices,
       marks: voices.flatMap((v) => v.marks),
       items: voices.map((v) => v.items),
@@ -289,6 +360,8 @@ export function engrave(score, options = {}) {
     const ghost = {
       index: staffData.length,
       name: '',
+      shortName: '',
+      midi: '',
       phantom: true,
       voices: [empty],
       marks: empty.marks,
@@ -297,6 +370,29 @@ export function engrave(score, options = {}) {
     if (lowReal) staffData.unshift(ghost); else staffData.push(ghost);
     staffData.forEach((st, i) => { st.index = i; });
   }
+  const groups = resolveGroups(score, staffData.length, o);
+  // How far left of the staves the outermost brace or bracket reaches. The name
+  // column has to clear it, and the indent has to pay for both — sized off the
+  // text alone, "Piano" lands on top of the brace that is labelling it.
+  const maxDepth = Math.max(0, ...groups.map((g) => g.depth));
+  const decorLeft = groups.length && staffData.length > 1 ? sp * (1.45 + maxDepth * 1.25) : 0;
+
+  // Room down the left for instrument names, reserved BEFORE the column solver
+  // runs: the solver divides the usable width, so a name column discovered
+  // afterwards would either overlap the first clef or push the last bar off the
+  // page. Applied to every system rather than only the first, as an engraver
+  // would — a per-system indent would have to feed back into a solve that is
+  // done once for the whole piece. With no names it is 0, so a score that never
+  // heard of an instrument name lays out exactly as before.
+  const nameFont = sp * 1.35;
+  const named = [
+    ...staffData.map((d) => d.name || d.shortName ? d.name : ''),
+    ...groups.map((g) => g.name || ''),
+  ];
+  const nameIndent = named.some(Boolean)
+    ? Math.max(0, ...named.map((n) => textWidth(n, nameFont))) + decorLeft + sp * 1.1
+    : 0;
+
   const totalTicks = Math.max(1, ...staffData.flatMap((s) =>
     s.items.flatMap((v) => v.map((e) => e.tick + (e.ticks || 0)))));
 
@@ -432,7 +528,7 @@ export function engrave(score, options = {}) {
   }
 
   // ---- 5. break into systems ----
-  const usable = o.width - o.marginX * 2;
+  const usable = o.width - o.marginX * 2 - nameIndent;
   const systems = [];
   {
     let cur = [];
@@ -470,7 +566,7 @@ export function engrave(score, options = {}) {
     const stretch = (last && natural < usable * o.minSystemFill)
       ? 1
       : Math.max(0.72, (usable - (natural - naturalSprings(mis))) / Math.max(1, naturalSprings(mis)));
-    let x = o.marginX;
+    let x = o.marginX + nameIndent;
     for (let k = 0; k < mis.length; k++) {
       const ml = measureLayout[mis[k]];
       ml.x = x;
@@ -495,9 +591,29 @@ export function engrave(score, options = {}) {
 
   // ---- vertical layout ----
   const staffCount = staffData.length;
-  const braced = staffCount > 1 && score.braced !== false;
-  const staffStep = (braced ? o.braceGap : o.staffGap) + 4; // 4 spaces of staff + gap
-  const systemHeight = (staffCount - 1) * staffStep * sp + 4 * sp;
+
+  // Gaps are PER PAIR, not uniform. Two staves a player reads as one instrument
+  // sit closer together than two players do; with one global step a piano trio
+  // spaces the pianist's own hands exactly as far apart as the violin is from
+  // the cello, and the reader can no longer see who plays what.
+  const covering = (i) => groups.filter((g) => i >= g.from && i <= g.to).map((g) => g.kind + g.from).join('|');
+  const gapAfter = [];
+  for (let i = 0; i < staffCount - 1; i++) {
+    // Three distances, because there are three relationships. Two staves one
+    // player reads get braceGap (wide enough for the ledger lines between the
+    // hands — this is the grand staff, unchanged). Two players inside one
+    // bracket get staffGap. Crossing OUT of a group into a different instrument
+    // gets the widest, so the eye can see where one player stops: without it a
+    // pianist's own two staves sit further apart than the pianist sits from the
+    // cellist, and the page says the opposite of what is true.
+    const bound = groups.some((g) => g.brace && i >= g.from && i < g.to);
+    const crosses = covering(i) !== covering(i + 1);
+    gapAfter.push((bound ? o.braceGap : crosses ? o.groupGap : o.staffGap) + 4);
+  }
+  const staffOffset = [0];
+  for (let i = 0; i < staffCount - 1; i++) staffOffset.push(staffOffset[i] + gapAfter[i]);
+  const systemHeight = (staffOffset[staffCount - 1] || 0) * sp + 4 * sp;
+
   const titleH = (score.title ? o.titleSize * sp + sp * 1.2 : 0)
     + (score.composer ? sp * 1.9 : 0) + (score.title || score.composer ? sp * 1.6 : 0);
 
@@ -531,7 +647,29 @@ export function engrave(score, options = {}) {
       + ` text-anchor="end" font-size="${r2(sp * 1.55)}">${esc(score.composer)}</text>`);
   }
 
-  const staffY = (si, systemTop) => systemTop + si * staffStep * sp;
+  const staffY = (si, systemTop) => systemTop + staffOffset[si] * sp;
+
+  /**
+   * The vertical runs a bar line is drawn over.
+   *
+   * Whether a bar line crosses the gap between two staves is a statement about
+   * whether they share a bar. A pianist's hands and a section of strings do, so
+   * the line runs through; choir staves and unrelated solo staves do not, and a
+   * line through their gap reads as a tie between parts that are independent
+   * (and, under vocal staves, cuts through the text).
+   */
+  const barSpans = (systemTop) => {
+    const joined = (i) => groups.some((g) => g.spanBars && i >= g.from && i < g.to);
+    const spans = [];
+    let from = 0;
+    for (let i = 0; i < staffCount; i++) {
+      if (i === staffCount - 1 || !joined(i)) {
+        spans.push({ top: staffY(from, systemTop), bottom: staffY(i, systemTop) + 4 * sp });
+        from = i + 1;
+      }
+    }
+    return spans;
+  };
   const posY = (top, pos) => top + (2 - pos / 2) * sp; // pos 0 = middle line
 
   for (let si = 0; si < systems.length; si++) {
@@ -557,15 +695,54 @@ export function engrave(score, options = {}) {
           + ` y2="${r2(top + l * sp)}" stroke-width="${r2(STAFF_LINE * sp)}"/>`);
       }
     }
-    // the system's left edge, and the brace that binds a grand staff
+    // the system's left edge, and whatever binds each group of staves
     if (staffCount > 1) {
       const top = staffY(0, systemTop);
       const bot = staffY(staffCount - 1, systemTop) + 4 * sp;
       out.push(`<line class="cf-barline" x1="${r2(left)}" y1="${r2(top)}" x2="${r2(left)}" y2="${r2(bot)}"`
         + ` stroke-width="${r2(0.16 * sp)}"/>`);
-      if (braced) {
-        out.push(`<path class="cf-brace" d="${bracePath(top, bot, left - sp * 0.55, sp)}" fill="none"`
-          + ` stroke-width="${r2(0.28 * sp)}" stroke-linecap="round"/>`);
+      // Outward from the staves, one step per level of nesting, so a piano
+      // inside an ensemble gets its brace close in and the ensemble's bracket
+      // outside it — the reading that says "one of these players uses two
+      // staves" rather than "there are four unrelated staves".
+      for (const g of groups) {
+        const gTop = staffY(g.from, systemTop);
+        const gBot = staffY(g.to, systemTop) + 4 * sp;
+        // The INNERMOST group sits closest to the staves. Reading depth
+        // straight off puts the piano's brace outside the ensemble's bracket,
+        // which says the bracket is inside the piano — the nesting backwards.
+        // 1.45 clears the system's own left bar line: a bracket is about
+        // 1.16 staff spaces wide including its horns, and drawn any closer the
+        // two merge into one thick rule and the bracket disappears.
+        const gx = left - sp * (1.45 + (maxDepth - g.depth) * 1.25);
+        if (g.brace) {
+          out.push(`<path class="cf-brace" d="${bracePath(gTop, gBot, gx, sp)}" fill="none"`
+            + ` stroke-width="${r2(0.28 * sp)}" stroke-linecap="round"/>`);
+        } else if (g.bracket) {
+          out.push(`<path class="cf-bracket" d="${bracketPath(gTop, gBot, gx, sp)}"/>`);
+        }
+      }
+    }
+
+    // Instrument names: the full name on the first system, the short name on
+    // every later one. That is the convention and it is not decoration — after
+    // a page turn the reader needs to re-find their own line, but a full name
+    // on every system eats the width the music needs.
+    if (nameIndent > 0) {
+      const label = (text, cy) => out.push(
+        `<text class="cf-instrument" x="${r2(left - decorLeft - sp * 0.5)}" y="${r2(cy + nameFont * 0.35)}"`
+        + ` text-anchor="end" font-size="${r2(nameFont)}">${esc(text)}</text>`);
+      for (let st = 0; st < staffCount; st++) {
+        const text = si === 0 ? staffData[st].name : (staffData[st].shortName || '');
+        if (text) label(text, staffY(st, systemTop) + 2 * sp);
+      }
+      // A name on the GROUP belongs to the whole group — "Piano" labels a
+      // pianist's two staves, not either one of them — so it is centred on the
+      // brace rather than repeated on both lines.
+      for (const g of groups) {
+        const text = si === 0 ? g.name : (g.shortName || '');
+        if (!text) continue;
+        label(text, (staffY(g.from, systemTop) + staffY(g.to, systemTop) + 4 * sp) / 2);
       }
     }
 
@@ -620,11 +797,11 @@ export function engrave(score, options = {}) {
 
       // ---- bar line ----
       const tops = staffData.map((_, s) => staffY(s, systemTop));
-      const bottom = staffY(staffCount - 1, systemTop) + 4 * sp;
+      const spans = barSpans(systemTop);
       const bl = ml.measure.barStyle ?? 'single';
-      if (bl !== 'invisible') drawBarline(out, ml.right - sp * 0.35, tops, bottom, bl, sp);
+      if (bl !== 'invisible') drawBarline(out, ml.right - sp * 0.35, spans, tops, bl, sp);
       if (ml.measure.openStyle === 'repeat-start') {
-        drawBarline(out, ml.x + sp * 0.1, tops, bottom, 'repeat-start', sp);
+        drawBarline(out, ml.x + sp * 0.1, spans, tops, 'repeat-start', sp);
       }
     }
   }
@@ -1121,17 +1298,21 @@ function timeSigSVG(num, den, cx, top, sp) {
 }
 
 /**
- * A bar line spans every staff of the system, but its repeat dots do NOT: they
+ * A bar line is drawn over the spans its caller works out (see barSpans), but
+ * its repeat dots are NOT: they
  * belong to the second and third spaces of EACH staff. Drawing them once at the
  * midpoint of a grand staff puts them in the gap between the hands, where they
  * read as a stray colon rather than as a repeat.
  */
-function drawBarline(out, x, tops, bottom, style, sp) {
-  const top = tops[0];
+function drawBarline(out, x, spans, tops, style, sp) {
   const thin = 0.12 * sp;
   const thick = 0.42 * sp;
-  const line = (lx, w) => out.push(`<line class="cf-barline" x1="${r2(lx)}" y1="${r2(top)}"`
-    + ` x2="${r2(lx)}" y2="${r2(bottom)}" stroke-width="${r2(w)}"/>`);
+  const line = (lx, w) => {
+    for (const sn of spans) {
+      out.push(`<line class="cf-barline" x1="${r2(lx)}" y1="${r2(sn.top)}"`
+        + ` x2="${r2(lx)}" y2="${r2(sn.bottom)}" stroke-width="${r2(w)}"/>`);
+    }
+  };
   const dots = (dx) => {
     for (const st of tops) {
       for (const dy of [1.5, 2.5]) {
@@ -1148,8 +1329,10 @@ function drawBarline(out, x, tops, bottom, style, sp) {
       dots(x - sp * 1.1); line(x - sp * 0.7, thin); line(x, thick); line(x + sp * 0.7, thin); dots(x + sp * 1.1);
       break;
     case 'dashed':
-      out.push(`<line class="cf-barline" x1="${r2(x)}" y1="${r2(top)}" x2="${r2(x)}" y2="${r2(bottom)}"`
-        + ` stroke-width="${r2(thin)}" stroke-dasharray="${r2(sp * 0.5)} ${r2(sp * 0.4)}"/>`);
+      for (const sn of spans) {
+        out.push(`<line class="cf-barline" x1="${r2(x)}" y1="${r2(sn.top)}" x2="${r2(x)}" y2="${r2(sn.bottom)}"`
+          + ` stroke-width="${r2(thin)}" stroke-dasharray="${r2(sp * 0.5)} ${r2(sp * 0.4)}"/>`);
+      }
       break;
     default: line(x, thin);
   }

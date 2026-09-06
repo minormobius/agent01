@@ -16,6 +16,44 @@ import { WHOLE, freqOf } from './model.js';
 
 const QUARTER = WHOLE / 4;
 
+/**
+ * `\\set Staff.midiInstrument = "..."` — a General MIDI name — onto the patch
+ * bank we actually have.
+ *
+ * The bank is seven synthesised timbres, not 128 samples, so this is a lossy
+ * map by design: every bowed string lands on `strings`, every wind on `flute`.
+ * That is the right failure. Playback here is for PROOFREADING, and a violin
+ * line that sounds approximately like a violin tells you it is the violin line
+ * — which is the entire job in an ensemble score, where four staves sounding
+ * identical is the thing that makes it unreadable by ear.
+ *
+ * Matching is by substring against the lowercased name, longest key first, so
+ * "string ensemble 1" and "pizzicato strings" both find `strings` without
+ * needing the full GM table spelled out.
+ */
+const MIDI_INSTRUMENT_PATCHES = [
+  ['harpsichord', 'harpsichord'], ['clavi', 'harpsichord'], ['celesta', 'musicbox'],
+  ['music box', 'musicbox'], ['glockenspiel', 'musicbox'], ['vibraphone', 'musicbox'],
+  ['marimba', 'musicbox'], ['xylophone', 'musicbox'], ['tubular', 'musicbox'],
+  ['organ', 'organ'], ['accordion', 'organ'], ['harmonica', 'organ'],
+  ['violin', 'strings'], ['viola', 'strings'], ['cello', 'strings'],
+  ['contrabass', 'strings'], ['double bass', 'strings'], ['string', 'strings'],
+  ['fiddle', 'strings'], ['harp', 'strings'], ['choir', 'strings'], ['voice', 'strings'],
+  ['flute', 'flute'], ['piccolo', 'flute'], ['recorder', 'flute'], ['whistle', 'flute'],
+  ['oboe', 'flute'], ['clarinet', 'flute'], ['bassoon', 'flute'], ['english horn', 'flute'],
+  ['sax', 'flute'], ['trumpet', 'flute'], ['trombone', 'flute'], ['horn', 'flute'],
+  ['tuba', 'flute'], ['brass', 'flute'],
+  ['piano', 'piano'], ['fortepiano', 'piano'],
+].sort((a, b) => b[0].length - a[0].length);
+
+/** The patch name for a GM instrument name, or null when we cannot tell. */
+export function patchForInstrument(name) {
+  if (!name) return null;
+  const n = String(name).toLowerCase();
+  for (const [needle, patch] of MIDI_INSTRUMENT_PATCHES) if (n.includes(needle)) return patch;
+  return null;
+}
+
 // --------------------------------------------------------------- the bank --
 //
 // A patch is a set of partials plus an envelope. `decayTo` distinguishes the
@@ -385,6 +423,9 @@ export class Player {
     this.ctx = null;
     this.perf = null;
     this.patch = PATCHES.piano;
+    // One patch per staff index; anything not listed falls back to `patch`, so
+    // a solo or keyboard score behaves exactly as it did.
+    this.staffPatches = null;
     this.playing = false;
     this.index = 0;
     this.startedAt = 0;
@@ -413,6 +454,12 @@ export class Player {
     }
     if (this.ctx.state === 'suspended') this.ctx.resume();
     return this.ctx;
+  }
+
+  /** The timbre for one staff — its own instrument, or the score-wide choice. */
+  patchFor(staff) {
+    const p = this.staffPatches && this.staffPatches[staff];
+    return p || this.patch;
   }
 
   setVolume(v) {
@@ -451,8 +498,9 @@ export class Player {
     while (this.index < this.perf.events.length && this.perf.events[this.index].at <= horizon) {
       const e = this.perf.events[this.index++];
       const at = this.startedAt + (e.at - this.startOffset);
-      renderNote(ctx, this.dry, this.patch, e.midi, Math.max(now, at), e.dur, e.velocity);
-      renderNote(ctx, this.wet, this.patch, e.midi, Math.max(now, at), e.dur, e.velocity * 0.55);
+      const patch = this.patchFor(e.staff);
+      renderNote(ctx, this.dry, patch, e.midi, Math.max(now, at), e.dur, e.velocity);
+      renderNote(ctx, this.wet, patch, e.midi, Math.max(now, at), e.dur, e.velocity * 0.55);
     }
     const elapsed = now - this.startedAt + this.startOffset;
     if (this.onTick) this.onTick(elapsed);
@@ -487,8 +535,9 @@ export class Player {
 // ----------------------------------------------------------------- export --
 
 /** Render the whole performance offline and return a 16-bit stereo WAV blob. */
-export async function renderWav(perf, patchName, onProgress) {
-  const patch = PATCHES[patchName] ?? PATCHES.piano;
+export async function renderWav(perf, patchName, onProgress, staffPatches = null) {
+  const fallback = PATCHES[patchName] ?? PATCHES.piano;
+  const patchFor = (staff) => (staffPatches && staffPatches[staff]) || fallback;
   const rate = 44100;
   const seconds = Math.max(1, perf.duration + 2.5);
   const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
@@ -504,6 +553,7 @@ export async function renderWav(perf, patchName, onProgress) {
   rev.connect(master);
   master.connect(ctx.destination);
   for (const e of perf.events) {
+    const patch = patchFor(e.staff);
     renderNote(ctx, dry, patch, e.midi, e.at + 0.05, e.dur, e.velocity);
     renderNote(ctx, wet, patch, e.midi, e.at + 0.05, e.dur, e.velocity * 0.55);
   }

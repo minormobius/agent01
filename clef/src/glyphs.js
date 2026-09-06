@@ -361,3 +361,34 @@ export function glyphWidth(name, sp) {
 }
 
 export const NOTEHEAD_WIDTH = HEAD_RX * 2;
+
+/**
+ * The square bracket that binds a family of instruments — a StaffGroup.
+ *
+ * Distinct from the brace on purpose: a brace means one player reading both
+ * staves (a keyboard, a harp), a bracket means several players in one section.
+ * A piano trio needs both, nested, and drawing either one for both loses the
+ * distinction a reader uses to know how many people are on stage.
+ *
+ * Returned as a filled outline rather than a stroke so the serifs — the short
+ * horizontal returns at top and bottom — keep their weight independent of the
+ * vertical, which is what stops it reading as a plain rule.
+ */
+export function bracketPath(top, bottom, x, sp) {
+  const w = sp * 0.36;        // the vertical bar
+  const arm = sp * 0.80;      // how far the horns reach toward the staves
+  const lip = sp * 0.55;      // how far they curl back along the bar
+  const over = sp * 0.16;     // overshoot past the outer staff lines
+  const f = (n) => n.toFixed(2);
+  const t = top - over;
+  const b = bottom + over;
+  return `M${f(x)},${f(t)}`
+    + `L${f(x + w)},${f(t)}`
+    + `C${f(x + w + arm * 0.75)},${f(t)} ${f(x + w + arm)},${f(t + lip * 0.10)} ${f(x + w + arm)},${f(t + lip * 0.55)}`
+    + `C${f(x + w + arm * 0.45)},${f(t + lip * 0.42)} ${f(x + w)},${f(t + lip * 0.80)} ${f(x + w)},${f(t + lip * 1.55)}`
+    + `L${f(x + w)},${f(b - lip * 1.55)}`
+    + `C${f(x + w)},${f(b - lip * 0.80)} ${f(x + w + arm * 0.45)},${f(b - lip * 0.42)} ${f(x + w + arm)},${f(b - lip * 0.55)}`
+    + `C${f(x + w + arm)},${f(b - lip * 0.10)} ${f(x + w + arm * 0.75)},${f(b)} ${f(x + w)},${f(b)}`
+    + `L${f(x)},${f(b)}Z`;
+}
+

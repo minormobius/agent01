@@ -20,7 +20,7 @@
 
 import { parseLily, pitchToLily, pitchToLilyRelative, durationToLily } from '../src/lily.js';
 import { engrave } from '../src/engrave.js';
-import { scoreToNotes, performance as buildPerformance } from '../src/audio.js';
+import { scoreToNotes, performance as buildPerformance, patchForInstrument } from '../src/audio.js';
 import { writeMidi } from '../src/midi.js';
 import { LIBRARY } from '../src/library.js';
 import {
@@ -454,6 +454,141 @@ const midiList = (score, staff = 0, voice = 0) =>
   // Every piece must be reachable from the picker and carry its own blurb.
   ok(new Set(LIBRARY.map((p) => p.id)).size === LIBRARY.length, 'piece ids are unique');
   ok(LIBRARY.every((p) => p.blurb && p.title && p.composer), 'every piece is described');
+}
+
+// ------------------------------------------------------- 9. ensembles --
+//
+// A score with more than one player is not a taller keyboard score. What it
+// adds is STRUCTURE — who plays which staves, what binds them, whose bars run
+// together — and every part of that is invisible in a screenshot of the notes.
+{
+  const quartet = parseLily(String.raw`
+\score { \new StaffGroup <<
+  \new Staff \with { instrumentName = "Violin I" shortInstrumentName = "Vn. I" midiInstrument = "violin" }
+    { \clef treble \key g \major c''4 d'' e'' f'' | g''2 g'' | }
+  \new Staff \with { instrumentName = "Viola" shortInstrumentName = "Va." midiInstrument = "viola" }
+    { \clef alto \key g \major g4 a b c' | d'2 d' | }
+  \new Staff \with { instrumentName = "Cello" shortInstrumentName = "Vc." midiInstrument = "cello" }
+    { \clef bass \key g \major c4 d e f | g2 g | }
+>> }`);
+
+  eq(quartet.staves.length, 3, 'ensemble: three \\new Staff make three staves');
+  eq(quartet.diagnostics.length, 0, 'ensemble: a \\with block parses without complaint');
+  // Several properties share one line; a greedy value match swallows the next
+  // key and its value into the name.
+  eq(quartet.staves[0].name, 'Violin I', 'ensemble: instrumentName stops at its own value');
+  eq(quartet.staves[0].shortName, 'Vn. I', 'ensemble: shortInstrumentName is separate');
+  eq(quartet.staves[1].midi, 'viola', 'ensemble: midiInstrument is separate');
+  eq(JSON.stringify(quartet.groups), JSON.stringify([
+    { kind: 'StaffGroup', from: 0, to: 2, name: '', shortName: '', midi: '' },
+  ]), 'ensemble: the StaffGroup spans every staff it contains');
+
+  // Notes must still be tagged with the staff they came from, or per-staff
+  // timbre has nothing to key on and every part plays as a piano.
+  const flat = scoreToNotes(quartet);
+  eq(new Set(flat.notes.map((n) => n.staff)).size, 3, 'ensemble: notes carry their own staff');
+
+  // The \markup form of a name, and the \set spelling, both occur in the wild.
+  const markup = parseLily(String.raw`\score { << \new Staff \with {
+    instrumentName = \markup { \column { "Violin" "I" } } } { c4 } >> }`);
+  eq(markup.staves[0].name, 'Violin I', 'ensemble: a \\markup name is read');
+  const viaSet = parseLily(String.raw`\score { << \new Staff {
+    \set Staff.instrumentName = "Oboe" \set Staff.midiInstrument = "oboe" c4 d e f } >> }`);
+  eq(viaSet.staves[0].name, 'Oboe', 'ensemble: \\set Staff.instrumentName is read');
+  eq(viaSet.staves[0].midi, 'oboe', 'ensemble: \\set Staff.midiInstrument is read');
+  eq(viaSet.staves[0].voices[0].filter((e) => e.kind === 'note').length, 4,
+    'ensemble: recognising a \\set does not eat the notes after it');
+}
+
+// Nesting: a piano trio is the case that distinguishes a bracket from a brace.
+{
+  const trio = parseLily(String.raw`
+\score { \new StaffGroup <<
+  \new Staff \with { instrumentName = "Violin" } { \clef treble c'4 d' e' f' | }
+  \new Staff \with { instrumentName = "Cello" } { \clef bass c4 d e f | }
+  \new PianoStaff \with { instrumentName = "Piano" } <<
+    \new Staff { \clef treble e'4 f' g' a' | }
+    \new Staff { \clef bass c,4 d, e, f, | }
+  >>
+>> }`);
+  eq(trio.staves.length, 4, 'trio: four staves');
+  eq(trio.groups.length, 2, 'trio: two groups');
+  const piano = trio.groups.find((g) => g.kind === 'PianoStaff');
+  const outer = trio.groups.find((g) => g.kind === 'StaffGroup');
+  eq(`${piano.from}-${piano.to}`, '2-3', 'trio: the PianoStaff covers only the pianist');
+  eq(`${outer.from}-${outer.to}`, '0-3', 'trio: the StaffGroup covers everyone');
+  eq(piano.name, 'Piano', 'trio: a group carries its own name');
+
+  const layout = engrave(trio, { width: 900 });
+  ok(layout.svg.includes('cf-bracket'), 'trio: a StaffGroup draws a bracket');
+  ok(layout.svg.includes('cf-brace'), 'trio: a PianoStaff draws a brace');
+  ok(layout.svg.includes('Piano'), 'trio: the group name is drawn');
+  ok(layout.svg.includes('Violin'), 'trio: staff names are drawn');
+
+  // Nesting must read the right way round: the innermost group sits CLOSEST to
+  // the staves. Drawn the other way, the page says the ensemble is inside the
+  // piano.
+  const xOf = (cls) => {
+    const m = new RegExp(`<path class="${cls}" d="M(-?[0-9.]+),`).exec(layout.svg);
+    return m ? Number(m[1]) : NaN;
+  };
+  ok(xOf('cf-brace') > xOf('cf-bracket'),
+    'trio: the brace is inside the bracket, not outside it');
+}
+
+// Bar lines: whether one crosses the gap between two staves is a statement
+// about whether they share a bar, and the three group kinds differ.
+{
+  const src = (ctx) => String.raw`\score { \new ${ctx} <<
+    \new Staff { \clef treble c'4 d' e' f' | g'1 | }
+    \new Staff { \clef bass c4 d e f | g1 | }
+  >> }`;
+  const spanCount = (ctx) => {
+    const layout = engrave(parseLily(src(ctx)), { width: 900 });
+    const all = [...layout.svg.matchAll(
+      /<line class="cf-barline" x1="([0-9.]+)" y1="([0-9.]+)" x2="[^"]*" y2="([0-9.]+)"/g)]
+      .map(([, x, a, b]) => ({ x: Number(x), h: Number(b) - Number(a) }));
+    // Ignore the line down the system's LEFT EDGE. That one joins every staff
+    // in the system whatever the group kind — it is what says "these staves
+    // sound together" — so measuring it answers no question. The bar lines
+    // that distinguish the group kinds are the ones inside the system.
+    const edge = Math.min(...all.map((l) => l.x));
+    return Math.max(...all.filter((l) => l.x > edge).map((l) => l.h));
+  };
+  const staffOnly = 4 * 8; // four staff spaces at the default staffSpace
+  ok(spanCount('StaffGroup') > staffOnly * 1.5,
+    'barlines: a StaffGroup runs its bar lines through the gap');
+  ok(spanCount('PianoStaff') > staffOnly * 1.5,
+    'barlines: a PianoStaff runs its bar lines through the gap');
+  eq(spanCount('ChoirStaff'), staffOnly,
+    'barlines: a ChoirStaff does NOT — vocal staves are barred independently');
+}
+
+// A keyboard score must be untouched by all of the above.
+{
+  const piano = parseLily(String.raw`\score { \new PianoStaff <<
+    \new Staff { \clef treble c'4 d' e' f' | }
+    \new Staff { \clef bass c4 d e f | }
+  >> }`);
+  const layout = engrave(piano, { width: 900 });
+  ok(layout.svg.includes('cf-brace'), 'keyboard: still braced');
+  ok(!layout.svg.includes('cf-bracket'), 'keyboard: not bracketed');
+  ok(!layout.svg.includes('cf-instrument'), 'keyboard: no name column when nothing is named');
+}
+
+// The GM name -> patch map. A lossy map is fine; a WRONG one is not, and the
+// substring matching makes it easy to have "double bass" find "bass drum".
+{
+  eq(patchForInstrument('violin'), 'strings', 'patch: violin -> strings');
+  eq(patchForInstrument('cello'), 'strings', 'patch: cello -> strings');
+  eq(patchForInstrument('string ensemble 1'), 'strings', 'patch: a full GM name still matches');
+  eq(patchForInstrument('acoustic grand piano'), 'piano', 'patch: grand piano -> piano');
+  eq(patchForInstrument('harpsichord'), 'harpsichord', 'patch: harpsichord -> itself');
+  eq(patchForInstrument('church organ'), 'organ', 'patch: organ -> organ');
+  eq(patchForInstrument('clarinet'), 'flute', 'patch: winds land on the one wind we have');
+  eq(patchForInstrument('trumpet'), 'flute', 'patch: brass too');
+  eq(patchForInstrument(''), null, 'patch: nothing named means nothing chosen');
+  eq(patchForInstrument('kazoo'), null, 'patch: an unknown instrument is refused, not guessed');
 }
 
 // ------------------------------------------------------------------ report --
