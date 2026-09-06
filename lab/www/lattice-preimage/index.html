@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lattice preimage — GL(2,Z) on Z²</title>
+<meta name="description" content="Pick an integer matrix in GL(2,Z) and a lattice point; see the von Neumann neighborhood of its image pulled back through the inverse.">
+<meta property="og:title" content="lattice preimage — GL(2,Z) on Z²">
+<meta property="og:description" content="Pick an integer matrix M with determinant ±1 and a point p on the integer lattice. See where M sends p, and pull the four orthogonal neighbors of that image back through M⁻¹ to see the (usually skewed) shape around p itself.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  main { max-width: 62rem; }
+  h1 { font-size: 1.7rem; }
+  .panel {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1rem; margin: 1rem 0;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: .9rem 1.4rem; align-items: flex-end; }
+  .field { display: flex; flex-direction: column; gap: .3rem; }
+  .field label { font-size: .75rem; color: var(--muted); }
+  .field input, .field select {
+    width: 4.5rem; padding: .55rem .5rem; font-size: 1rem;
+    background: var(--bg); color: var(--fg); border: 1px solid var(--border);
+    border-radius: var(--radius); font: inherit; min-height: 44px;
+  }
+  .field select { width: auto; min-width: 9rem; }
+  .matgrid {
+    display: grid; grid-template-columns: repeat(2, 3.4rem); gap: .35rem;
+  }
+  .matgrid input {
+    width: 3.4rem; padding: .5rem .3rem; text-align: center; min-height: 44px;
+  }
+  .matwrap { display: flex; align-items: center; gap: .5rem; }
+  .bracket { font-size: 2.2rem; color: var(--muted); line-height: 1; user-select: none; }
+  button { min-height: 44px; }
+  #err { margin: .75rem 0; }
+  #err.hidden { display: none; }
+  .canvaswrap {
+    position: relative; width: 100%; touch-action: none;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: #0a0a0d; overflow: hidden;
+  }
+  canvas { display: block; width: 100%; height: 62vh; min-height: 320px; max-height: 620px; touch-action: none; }
+  .zoomctl { position: absolute; right: .6rem; bottom: .6rem; display: flex; flex-direction: column; gap: .4rem; }
+  .zoomctl button {
+    width: 44px; height: 44px; padding: 0; font-size: 1.2rem; line-height: 1;
+    background: var(--bg-raised); opacity: .92;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: .9rem 1.4rem; font-size: .8rem; color: var(--muted); margin-top: .6rem; }
+  .swatch { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; margin-right: .35rem; vertical-align: -1px; }
+  .readout { font-size: .82rem; color: var(--muted); }
+  .readout b { color: var(--fg); }
+  .readout .mono { color: var(--fg); }
+  .toggle-row { display: flex; align-items: center; gap: .5rem; }
+  .toggle-row input { width: auto; min-height: auto; }
+  label.check { display: flex; align-items: center; gap: .5rem; font-size: .8rem; color: var(--muted); min-height: 44px; }
+  .checkbox { width: 1.2rem; height: 1.2rem; accent-color: var(--accent); }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>lattice preimage</h1>
+  <p class="sub">A transformation M ∈ GL(2,ℤ) acting on the integer lattice ℤ² — pull the neighborhood of an image point back through M⁻¹.</p>
+
+  <p>Every point of ℤ² is a Gaussian integer x + yi. Choose an integer matrix M with
+  determinant ±1 — that condition (not just "integer entries") is what makes M a
+  bijection of ℤ² onto itself, with an integer inverse M⁻¹. Pick a lattice point p.
+  Its image is q = Mp. The <b>von Neumann neighborhood</b> of q is q itself plus its
+  four orthogonal neighbors (q±(1,0), q±(0,1)) — always an axis-aligned plus, by
+  definition, wherever q lands. This page computes the <b>preimage</b> of that
+  neighborhood: the five points M⁻¹ sends to it. Since M⁻¹ need not preserve the
+  grid's axes, that preimage shape around p is usually a skewed diamond, not a plus.</p>
+
+  <p><b>Growing a tree</b> repeats this construction recursively: starting at the
+  origin, pick a fresh random M ∈ GL(2,ℤ) shared by every point in that
+  recursion level, connect each point in the frontier to the preimage points
+  that level's M induces, then recurse — a new random M for the next level,
+  skipping any point already visited — for up to the given number of levels.
+  Colour marks either distance (in levels) from the origin, or vertex degree —
+  how many edges meet at each point — since a later point's induced neighbor
+  can land back on an already-visited one, so this is a graph that can merge
+  branches together, not strictly a tree. A points-only view is available too.</p>
+
+  <div class="panel">
+    <div class="row">
+      <div class="field">
+        <label for="preset">preset</label>
+        <select id="preset">
+          <option value="identity">identity</option>
+          <option value="rot90">rotate 90°</option>
+          <option value="rot180">rotate 180°</option>
+          <option value="reflectx">reflect x</option>
+          <option value="reflecty">reflect y</option>
+          <option value="shear" selected>shear [[1,1],[0,1]]</option>
+          <option value="swap">swap axes</option>
+          <option value="custom">custom</option>
+        </select>
+      </div>
+      <div class="matwrap">
+        <span class="bracket">[</span>
+        <div class="matgrid">
+          <input id="ma" type="number" step="1" value="1" aria-label="matrix entry a (row 1, col 1)">
+          <input id="mb" type="number" step="1" value="1" aria-label="matrix entry b (row 1, col 2)">
+          <input id="mc" type="number" step="1" value="0" aria-label="matrix entry c (row 2, col 1)">
+          <input id="md" type="number" step="1" value="1" aria-label="matrix entry d (row 2, col 2)">
+        </div>
+        <span class="bracket">]</span>
+      </div>
+      <button id="randomize" type="button">random M</button>
+    </div>
+    <div class="row" style="margin-top:.8rem">
+      <div class="field">
+        <label for="px">p . x</label>
+        <input id="px" type="number" step="1" value="3">
+      </div>
+      <div class="field">
+        <label for="py">p . y</label>
+        <input id="py" type="number" step="1" value="2">
+      </div>
+      <label class="check"><input class="checkbox" id="showgrid" type="checkbox"> show M⁻¹ basis grid</label>
+      <button id="resetview" type="button">reset view</button>
+    </div>
+    <div class="row" style="margin-top:.8rem">
+      <div class="field">
+        <label for="levels">levels</label>
+        <input id="levels" type="number" step="1" min="1" max="1000" value="8">
+      </div>
+      <button id="grow" type="button">grow tree from origin</button>
+      <button id="exitTree" type="button" class="hidden">back to single point</button>
+    </div>
+    <div class="row hidden" id="treeOptions" style="margin-top:.8rem">
+      <label class="check"><input class="checkbox" id="pointsOnly" type="checkbox"> points only, no edges</label>
+      <div class="field">
+        <label for="colorBy">colour by</label>
+        <select id="colorBy">
+          <option value="level" selected>recursion level</option>
+          <option value="degree">vertex degree</option>
+        </select>
+      </div>
+    </div>
+    <div id="err" class="err hidden" role="alert"></div>
+  </div>
+
+  <div class="canvaswrap">
+    <canvas id="cv" aria-label="Interactive lattice: tap or click any point to set p"></canvas>
+    <div class="zoomctl">
+      <button id="zoomin" type="button" aria-label="zoom in">+</button>
+      <button id="zoomout" type="button" aria-label="zoom out">−</button>
+    </div>
+  </div>
+  <div class="legend" id="legendSingle">
+    <span><span class="swatch" style="background:#e8a33d"></span>p</span>
+    <span><span class="swatch" style="background:#5fc9e8"></span>q = Mp, and its von Neumann neighborhood</span>
+    <span><span class="swatch" style="background:#7ac387"></span>preimage of that neighborhood, around p</span>
+    <span>tap/click the canvas to move p · drag to pan · wheel or +/− to zoom</span>
+  </div>
+  <div class="legend hidden" id="legendTree">
+    <span id="legendTreeColor" style="display:contents"></span>
+    <span>drag to pan · wheel or +/− to zoom</span>
+  </div>
+
+  <div class="panel readout" id="readout"></div>
+
+  <p class="sub" style="margin-top:2rem">Not affiliated with anything; ℤ² is nobody's trademark.</p>
+</main>
+
+<script>
+kit.crumb && (document.getElementById('crumb').innerHTML = kit.crumb('draw-gaussian'));
+
+// ---------------------------------------------------------------- state ---
+var M = { a: 1, b: 1, c: 0, d: 1 };   // last VALID matrix (det = ±1)
+var P = { x: 3, y: 2 };
+var showGrid = false;
+
+var treeMode = false;
+var tree = null;              // { edges, visited, levelCounts, capped, degree }
+// safety cap, not a depth cap: branching is up to 4x per FRONTIER POINT, so
+// levels alone can't runaway — growTree stops the moment this many nodes
+// exist regardless of how many levels were requested. Raised from 3000 after
+// a report that "there's still a limit to the number of points that show up"
+// at high depth — this was it.
+var MAX_TREE_NODES = 20000;
+var pointsOnly = false;       // tree view: hide edges, show only nodes
+var colorBy = 'level';        // tree view: 'level' or 'degree'
+
+// zoom range: extreme on both ends since the tree's bounding box can span
+// thousands of units (needs a tiny scale to fit) or a visitor may want to
+// inspect a single skewed diamond up close (needs a large one).
+var MIN_SCALE = 0.02;
+var MAX_SCALE = 600;
+// a deep tree's shear matrices can compose to offsets in the hundreds per
+// level (worst case: composing 6 shear steps of the same sign already
+// reaches entries ~169), which accumulates across levels far past what
+// MIN_SCALE=0.02 can fit on screen — so fitViewToPoints is allowed to ask
+// for less than MIN_SCALE, and this tracks how far zoom-out must reach to
+// still show every point of the current tree, rather than silently
+// cropping the ones that landed outside a fixed floor.
+var minScaleFloor = MIN_SCALE;
+var view = { scale: 30, panX: 0, panY: 0 }; // panX/panY = screen position of world (0,0)
+var drag = null; // {startX,startY,startPanX,startPanY,moved}
+
+var canvas = document.getElementById('cv');
+var ctx = canvas.getContext('2d');
+var errEl = document.getElementById('err');
+
+// -------------------------------------------------------------- matrix ---
+function det(m) { return m.a * m.d - m.b * m.c; }
+
+// M is unimodular (det = ±1), so M^-1 has integer entries: det * [[d,-b],[-c,a]]
+function inverse(m) {
+  var dt = det(m);
+  return { a: dt * m.d, b: -dt * m.b, c: -dt * m.c, d: dt * m.a };
+}
+
+function apply(m, v) { return { x: m.a * v.x + m.b * v.y, y: m.c * v.x + m.d * v.y }; }
+
+function matMul(m1, m2) {
+  return {
+    a: m1.a * m2.a + m1.b * m2.c, b: m1.a * m2.b + m1.b * m2.d,
+    c: m1.c * m2.a + m1.d * m2.c, d: m1.c * m2.b + m1.d * m2.d,
+  };
+}
+
+// composes random shear steps (det-preserving) into a genuinely random
+// unimodular matrix — same construction the single-point "random M" uses.
+function randomUnimodular() {
+  var m = { a: 1, b: 0, c: 0, d: 1 };
+  var steps = 3 + Math.floor(Math.random() * 4);
+  for (var i = 0; i < steps; i++) {
+    var k = 0;
+    while (k === 0) k = Math.floor(Math.random() * 5) - 2; // -2..2, nonzero
+    var op = Math.random() < 0.5 ? { a: 1, b: k, c: 0, d: 1 } : { a: 1, b: 0, c: k, d: 1 };
+    m = matMul(op, m);
+  }
+  if (Math.random() < 0.3) m = matMul({ a: 0, b: 1, c: 1, d: 0 }, m); // occasional swap for variety
+  return m;
+}
+
+// -------------------------------------------------------- coord helpers ---
+function cssSize() { return { w: canvas.clientWidth, h: canvas.clientHeight }; }
+
+function worldToScreen(x, y) { return [view.panX + x * view.scale, view.panY - y * view.scale]; }
+function screenToWorld(sx, sy) { return { x: (sx - view.panX) / view.scale, y: -(sy - view.panY) / view.scale }; }
+
+// every point this page draws sits on Z^2, so no two distinct points are
+// closer than 1 world unit apart — i.e. `view.scale` screen px apart. Capping
+// a marker's on-screen radius to less than half that guarantees two markers
+// at the closest possible spacing never touch, however small the fixed
+// "base" radius below would otherwise want to draw at this zoom level.
+function pointRadius(base) { return Math.min(base, view.scale * 0.42); }
+
+function resizeCanvas() {
+  var s = cssSize();
+  var dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.max(1, Math.round(s.w * dpr));
+  canvas.height = Math.max(1, Math.round(s.h * dpr));
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function resetView() {
+  var s = cssSize();
+  minScaleFloor = MIN_SCALE; // single-point view never needs less than this
+  view.scale = 30;
+  view.panX = s.w / 2;
+  view.panY = s.h / 2;
+  render();
+}
+
+// -------------------------------------------------------------- render ---
+function render() {
+  var s = cssSize();
+  ctx.clearRect(0, 0, s.w, s.h);
+
+  if (treeMode && tree) { renderTree(s); return; }
+
+  var topLeft = screenToWorld(0, 0);
+  var bottomRight = screenToWorld(s.w, s.h);
+  var minX = Math.floor(Math.min(topLeft.x, bottomRight.x)) - 1;
+  var maxX = Math.ceil(Math.max(topLeft.x, bottomRight.x)) + 1;
+  var minY = Math.floor(Math.min(topLeft.y, bottomRight.y)) - 1;
+  var maxY = Math.ceil(Math.max(topLeft.y, bottomRight.y)) + 1;
+
+  // guard against runaway point counts if scale ever gets absurdly small
+  if ((maxX - minX) * (maxY - minY) > 60000) {
+    ctx.fillStyle = '#8b8792';
+    ctx.font = '14px ui-monospace, monospace';
+    ctx.fillText('zoomed too far out — zoom in to see the lattice', 12, 20);
+    return;
+  }
+
+  // axes
+  ctx.strokeStyle = '#2c2a33';
+  ctx.lineWidth = 1;
+  if (minX <= 0 && maxX >= 0) {
+    var ax = worldToScreen(0, minY);
+    var ax2 = worldToScreen(0, maxY);
+    ctx.beginPath(); ctx.moveTo(ax[0], ax[1]); ctx.lineTo(ax2[0], ax2[1]); ctx.stroke();
+  }
+  if (minY <= 0 && maxY >= 0) {
+    var ay = worldToScreen(minX, 0);
+    var ay2 = worldToScreen(maxX, 0);
+    ctx.beginPath(); ctx.moveTo(ay[0], ay[1]); ctx.lineTo(ay2[0], ay2[1]); ctx.stroke();
+  }
+
+  var q = apply(M, P);
+  var inv = inverse(M);
+  var u = { x: inv.a, y: inv.c };   // M^-1 * e1  (first column of M^-1)
+  var v = { x: inv.b, y: inv.d };   // M^-1 * e2
+
+  // optional: the M^-1 basis grid, drawn as edges from every lattice point
+  // to its u- and v-neighbors — the single-point preimage cross, everywhere.
+  if (showGrid) {
+    ctx.strokeStyle = 'rgba(122,195,135,0.35)';
+    ctx.lineWidth = 1;
+    for (var gx = minX; gx <= maxX; gx++) {
+      for (var gy = minY; gy <= maxY; gy++) {
+        var p0 = worldToScreen(gx, gy);
+        var p1 = worldToScreen(gx + u.x, gy + u.y);
+        var p2 = worldToScreen(gx + v.x, gy + v.y);
+        ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p2[0], p2[1]); ctx.stroke();
+      }
+    }
+  }
+
+  // lattice dots
+  ctx.fillStyle = '#4a4750';
+  var latticeR = pointRadius(1.6);
+  for (var x = minX; x <= maxX; x++) {
+    for (var y = minY; y <= maxY; y++) {
+      var pt = worldToScreen(x, y);
+      ctx.beginPath(); ctx.arc(pt[0], pt[1], latticeR, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  // image von Neumann neighborhood, at q — always an axis-aligned plus
+  var qNbrs = [{ x: q.x + 1, y: q.y }, { x: q.x - 1, y: q.y }, { x: q.x, y: q.y + 1 }, { x: q.x, y: q.y - 1 }];
+  drawCross(q, qNbrs, '#5fc9e8');
+
+  // preimage of that neighborhood, at p — M^-1 applied to each of the 5 points
+  var pNbrs = [
+    { x: P.x + u.x, y: P.y + u.y }, { x: P.x - u.x, y: P.y - u.y },
+    { x: P.x + v.x, y: P.y + v.y }, { x: P.x - v.x, y: P.y - v.y },
+  ];
+  drawCross(P, pNbrs, '#7ac387');
+
+  // p and q markers on top
+  markPoint(P, '#e8a33d', 'p');
+  markPoint(q, '#5fc9e8', 'q');
+
+  updateReadout(q, inv, u, v, pNbrs, qNbrs);
+}
+
+// ----------------------------------------------------------- tree growth ---
+function keyOf(p) { return p.x + ',' + p.y; }
+function parseKey(k) { var i = k.indexOf(','); return { x: parseInt(k.slice(0, i), 10), y: parseInt(k.slice(i + 1), 10) }; }
+
+// starting at the origin: pick one fresh random M for the whole frontier at
+// this level, connect every point in it to the preimage of the von Neumann
+// neighborhood that M induces (same u/v construction as the single-point
+// view), and recurse only on points not visited yet.
+function growTree(maxLevel) {
+  var origin = { x: 0, y: 0 };
+  var visited = {};
+  visited[keyOf(origin)] = 0;
+  var nodeCount = 1;
+  var edges = [];
+  var levelCounts = [1];
+  var frontier = [origin];
+  var capped = false;
+  var degree = {};
+  degree[keyOf(origin)] = 0;
+
+  for (var level = 0; level < maxLevel && frontier.length > 0 && !capped; level++) {
+    var next = [];
+    var m = randomUnimodular();
+    var inv = inverse(m);
+    var u = { x: inv.a, y: inv.c };
+    var v = { x: inv.b, y: inv.d };
+    for (var i = 0; i < frontier.length; i++) {
+      var p = frontier[i];
+      var nbrs = [
+        { x: p.x + u.x, y: p.y + u.y }, { x: p.x - u.x, y: p.y - u.y },
+        { x: p.x + v.x, y: p.y + v.y }, { x: p.x - v.x, y: p.y - v.y },
+      ];
+      for (var j = 0; j < nbrs.length; j++) {
+        var nb = nbrs[j];
+        var k = keyOf(nb);
+        // if the recursion has already stopped (cap hit), don't record a
+        // dangling edge to a point that was never added to `visited`
+        if (!(k in visited) && nodeCount >= MAX_TREE_NODES) { capped = true; continue; }
+        edges.push({ x1: p.x, y1: p.y, x2: nb.x, y2: nb.y, level: level });
+        degree[keyOf(p)] = (degree[keyOf(p)] || 0) + 1;
+        degree[k] = (degree[k] || 0) + 1;
+        if (k in visited) continue;
+        visited[k] = level + 1;
+        nodeCount++;
+        next.push(nb);
+      }
+    }
+    levelCounts.push(next.length);
+    frontier = next;
+  }
+  return { edges: edges, visited: visited, levelCounts: levelCounts, capped: capped, degree: degree };
+}
+
+function fitViewToPoints(points) {
+  var s = cssSize();
+  var minX = points[0].x, maxX = points[0].x, minY = points[0].y, maxY = points[0].y;
+  for (var i = 1; i < points.length; i++) {
+    if (points[i].x < minX) minX = points[i].x;
+    if (points[i].x > maxX) maxX = points[i].x;
+    if (points[i].y < minY) minY = points[i].y;
+    if (points[i].y > maxY) maxY = points[i].y;
+  }
+  var w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY);
+  var scale = Math.min((s.w - 40) / w, (s.h - 40) / h);
+  // no lower clamp here: fitting is supposed to guarantee every point is on
+  // screen, and clamping this scale UP to MIN_SCALE is exactly what cropped
+  // the farthest-out points of a deep tree. Only cap the upper end, for the
+  // degenerate near-single-point case. Widen the zoom-out floor to match, so
+  // a visitor can zoom back out to this same fit after zooming in.
+  scale = Math.min(MAX_SCALE, scale);
+  if (scale < minScaleFloor) minScaleFloor = scale;
+  view.scale = scale;
+  view.panX = s.w / 2 - (minX + maxX) / 2 * scale;
+  view.panY = s.h / 2 + (minY + maxY) / 2 * scale;
+}
+
+function levelColor(level, maxLevel) {
+  var t = maxLevel > 0 ? level / maxLevel : 0;
+  var hue = 205 - t * 175; // blue (young) -> red/orange (old)
+  return 'hsl(' + hue + ', 70%, 60%)';
+}
+
+// degree is >= 1 for every visited node except a single-node tree (degree 0)
+function degreeColor(deg, maxDeg) {
+  var t = maxDeg > 1 ? (deg - 1) / (maxDeg - 1) : 0;
+  var hue = 280 - t * 235; // violet (leaf, degree 1) -> yellow (hub, high degree)
+  return 'hsl(' + hue + ', 70%, 60%)';
+}
+
+function renderTree(s) {
+  var topLeft = screenToWorld(0, 0);
+  var bottomRight = screenToWorld(s.w, s.h);
+  var minX = Math.min(topLeft.x, bottomRight.x), maxX = Math.max(topLeft.x, bottomRight.x);
+  var minY = Math.min(topLeft.y, bottomRight.y), maxY = Math.max(topLeft.y, bottomRight.y);
+
+  ctx.strokeStyle = '#2c2a33';
+  ctx.lineWidth = 1;
+  if (minX <= 0 && maxX >= 0) {
+    var ax = worldToScreen(0, minY), ax2 = worldToScreen(0, maxY);
+    ctx.beginPath(); ctx.moveTo(ax[0], ax[1]); ctx.lineTo(ax2[0], ax2[1]); ctx.stroke();
+  }
+  if (minY <= 0 && maxY >= 0) {
+    var ay = worldToScreen(minX, 0), ay2 = worldToScreen(maxX, 0);
+    ctx.beginPath(); ctx.moveTo(ay[0], ay[1]); ctx.lineTo(ay2[0], ay2[1]); ctx.stroke();
+  }
+
+  var maxLevel = tree.levelCounts.length - 1;
+  var keys = Object.keys(tree.visited);
+  var maxDegree = 1;
+  for (var d = 0; d < keys.length; d++) {
+    var dg = tree.degree[keys[d]] || 0;
+    if (dg > maxDegree) maxDegree = dg;
+  }
+
+  if (!pointsOnly) {
+    for (var i = 0; i < tree.edges.length; i++) {
+      var e = tree.edges[i];
+      var p1 = worldToScreen(e.x1, e.y1), p2 = worldToScreen(e.x2, e.y2);
+      ctx.strokeStyle = colorBy === 'degree' ? 'rgba(120,116,128,0.5)' : levelColor(e.level, maxLevel);
+      ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.stroke();
+    }
+  }
+
+  for (var j = 0; j < keys.length; j++) {
+    var pt = parseKey(keys[j]);
+    var lvl = tree.visited[keys[j]];
+    var deg = tree.degree[keys[j]] || 0;
+    var sp = worldToScreen(pt.x, pt.y);
+    var color = colorBy === 'degree' ? degreeColor(deg, maxDegree) : (lvl === 0 ? '#e8a33d' : levelColor(lvl, maxLevel));
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(sp[0], sp[1], pointRadius(lvl === 0 ? 6 : 3), 0, Math.PI * 2); ctx.fill();
+  }
+
+  updateTreeReadout(keys.length, maxLevel, maxDegree);
+}
+
+function updateTreeReadout(nodeCount, maxLevel, maxDegree) {
+  var html = '';
+  html += '<div><b>recursive growth from the origin</b> — ' + maxLevel + ' level' + (maxLevel === 1 ? '' : 's') +
+    ', a fresh random M ∈ GL(2,ℤ) chosen for every recursion level</div>';
+  html += '<div style="margin-top:.5rem">nodes: <span class="mono">' + nodeCount +
+    '</span> &nbsp; edges: <span class="mono">' + tree.edges.length + '</span> &nbsp; max vertex degree: <span class="mono">' + maxDegree + '</span></div>';
+  html += '<div>points per level: ' + tree.levelCounts.join(', ') + '</div>';
+  var extra = tree.edges.length - (nodeCount - 1);
+  html += '<div>' + (extra > 0
+    ? extra + ' edge' + (extra === 1 ? '' : 's') + ' more than a tree on ' + nodeCount + ' nodes would have (' + (nodeCount - 1) + ') — this run merged branches back together, so it is a graph, not a tree.'
+    : 'exactly tree-shaped this run: ' + tree.edges.length + ' edges on ' + nodeCount + ' nodes, no branches merged back together.') + '</div>';
+  if (tree.capped) {
+    html += '<div style="margin-top:.5rem;color:#e8a33d">stopped early, after ' + maxLevel + ' level' + (maxLevel === 1 ? '' : 's') +
+      ' — hit the ' + MAX_TREE_NODES + '-node safety cap before reaching the requested depth. Branching is up to 4× per frontier point, so this can happen well short of it.</div>';
+  }
+  if (minScaleFloor < MIN_SCALE) {
+    html += '<div style="margin-top:.5rem;color:#8b8792">this run\'s points spread far enough that the view had to zoom out past the usual limit to fit all of them — zooming in and back out will still reach that point.</div>';
+  }
+  document.getElementById('readout').innerHTML = html;
+}
+
+function drawCross(center, nbrs, color) {
+  var c0 = worldToScreen(center.x, center.y);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  for (var i = 0; i < nbrs.length; i++) {
+    var p1 = worldToScreen(nbrs[i].x, nbrs[i].y);
+    ctx.beginPath(); ctx.moveTo(c0[0], c0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
+  }
+  ctx.fillStyle = color;
+  var nbrR = pointRadius(4);
+  for (var j = 0; j < nbrs.length; j++) {
+    var p2 = worldToScreen(nbrs[j].x, nbrs[j].y);
+    ctx.beginPath(); ctx.arc(p2[0], p2[1], nbrR, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+function markPoint(pt, color, label) {
+  var s = worldToScreen(pt.x, pt.y);
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.arc(s[0], s[1], pointRadius(6), 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#0a0a0d'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.font = 'bold 13px ui-monospace, monospace';
+  ctx.fillText(label, s[0] + 9, s[1] - 8);
+}
+
+function fmt(v) { return '(' + v.x + ', ' + v.y + ')'; }
+
+function updateReadout(q, inv, u, v, pNbrs, qNbrs) {
+  var d = det(M);
+  var html = '';
+  html += '<div><b>M</b> = [[' + M.a + ', ' + M.b + '], [' + M.c + ', ' + M.d + ']] &nbsp; det(M) = <span class="mono">' + d + '</span></div>';
+  html += '<div><b>M⁻¹</b> = [[' + inv.a + ', ' + inv.b + '], [' + inv.c + ', ' + inv.d + ']]</div>';
+  html += '<div style="margin-top:.5rem"><b>p</b> = <span class="mono">' + fmt(P) + '</span> &nbsp; <b>q = Mp</b> = <span class="mono">' + fmt(q) + '</span></div>';
+  html += '<div style="margin-top:.5rem">von Neumann neighborhood of q: ' + qNbrs.map(fmt).join(', ') + '</div>';
+  html += '<div>its preimage under M⁻¹, around p: ' + pNbrs.map(fmt).join(', ') + '</div>';
+  document.getElementById('readout').innerHTML = html;
+}
+
+// --------------------------------------------------------------- input ---
+function readMatrixInputs() {
+  var a = parseInt(document.getElementById('ma').value, 10);
+  var b = parseInt(document.getElementById('mb').value, 10);
+  var c = parseInt(document.getElementById('mc').value, 10);
+  var d = parseInt(document.getElementById('md').value, 10);
+  if ([a, b, c, d].some(function (n) { return isNaN(n); })) {
+    kit.showError(errEl, 'matrix entries must be integers.');
+    return;
+  }
+  var cand = { a: a, b: b, c: c, d: d };
+  var dt = det(cand);
+  if (dt !== 1 && dt !== -1) {
+    kit.showError(errEl, 'det(M) = ' + dt + ' — needs to be ±1 to be in GL(2,ℤ) (an integer M with an integer inverse). Last valid M is still shown below.');
+    return;
+  }
+  kit.clear(errEl);
+  M = cand;
+  render();
+}
+
+function setMatrixFields(m) {
+  document.getElementById('ma').value = m.a;
+  document.getElementById('mb').value = m.b;
+  document.getElementById('mc').value = m.c;
+  document.getElementById('md').value = m.d;
+}
+
+['ma', 'mb', 'mc', 'md'].forEach(function (id) {
+  document.getElementById(id).addEventListener('input', function () {
+    document.getElementById('preset').value = 'custom';
+    readMatrixInputs();
+  });
+});
+
+document.getElementById('preset').addEventListener('change', function (e) {
+  var presets = {
+    identity: { a: 1, b: 0, c: 0, d: 1 },
+    rot90: { a: 0, b: -1, c: 1, d: 0 },
+    rot180: { a: -1, b: 0, c: 0, d: -1 },
+    reflectx: { a: 1, b: 0, c: 0, d: -1 },
+    reflecty: { a: -1, b: 0, c: 0, d: 1 },
+    shear: { a: 1, b: 1, c: 0, d: 1 },
+    swap: { a: 0, b: 1, c: 1, d: 0 },
+  };
+  var v = presets[e.target.value];
+  if (v) { setMatrixFields(v); readMatrixInputs(); }
+});
+
+document.getElementById('randomize').addEventListener('click', function () {
+  var m = randomUnimodular();
+  document.getElementById('preset').value = 'custom';
+  setMatrixFields(m);
+  readMatrixInputs();
+});
+
+['px', 'py'].forEach(function (id) {
+  document.getElementById(id).addEventListener('input', function () {
+    var x = parseInt(document.getElementById('px').value, 10);
+    var y = parseInt(document.getElementById('py').value, 10);
+    if (isNaN(x) || isNaN(y)) return;
+    P = { x: x, y: y };
+    render();
+  });
+});
+
+document.getElementById('showgrid').addEventListener('change', function (e) {
+  showGrid = e.target.checked;
+  render();
+});
+
+document.getElementById('resetview').addEventListener('click', function () {
+  if (treeMode) return;
+  resetView();
+});
+
+function updateTreeLegend() {
+  var html;
+  if (colorBy === 'degree') {
+    html = '<span><span class="swatch" style="background:hsl(280,70%,60%)"></span>degree 1 (leaf)</span>' +
+      '<span><span class="swatch" style="background:hsl(45,70%,60%)"></span>highest degree (hub / merge point)</span>';
+  } else {
+    html = '<span><span class="swatch" style="background:#e8a33d"></span>origin</span>' +
+      '<span><span class="swatch" style="background:#4e8fe0"></span>younger (near origin)</span>' +
+      '<span><span class="swatch" style="background:#e0672f"></span>older (deeper recursion)</span>';
+  }
+  document.getElementById('legendTreeColor').innerHTML = html;
+}
+
+document.getElementById('pointsOnly').addEventListener('change', function (e) {
+  pointsOnly = e.target.checked;
+  if (treeMode) render();
+});
+
+document.getElementById('colorBy').addEventListener('change', function (e) {
+  colorBy = e.target.value;
+  updateTreeLegend();
+  if (treeMode) render();
+});
+
+document.getElementById('grow').addEventListener('click', function () {
+  var levels = parseInt(document.getElementById('levels').value, 10);
+  if (isNaN(levels) || levels < 1) levels = 8;
+  levels = Math.min(levels, 1000); // the real limit is MAX_TREE_NODES, not this
+  minScaleFloor = MIN_SCALE; // recomputed fresh for this run's own bounding box
+  tree = growTree(levels);
+  treeMode = true;
+  document.getElementById('exitTree').classList.remove('hidden');
+  document.getElementById('treeOptions').classList.remove('hidden');
+  document.getElementById('legendSingle').classList.add('hidden');
+  document.getElementById('legendTree').classList.remove('hidden');
+  updateTreeLegend();
+  var pts = Object.keys(tree.visited).map(parseKey);
+  fitViewToPoints(pts);
+  render();
+});
+
+document.getElementById('exitTree').addEventListener('click', function () {
+  treeMode = false;
+  document.getElementById('exitTree').classList.add('hidden');
+  document.getElementById('treeOptions').classList.add('hidden');
+  document.getElementById('legendTree').classList.add('hidden');
+  document.getElementById('legendSingle').classList.remove('hidden');
+  resetView();
+});
+
+function zoomBy(factor, cx, cy) {
+  var s = cssSize();
+  var atX = cx === undefined ? s.w / 2 : cx;
+  var atY = cy === undefined ? s.h / 2 : cy;
+  var before = screenToWorld(atX, atY);
+  view.scale = Math.max(minScaleFloor, Math.min(MAX_SCALE, view.scale * factor));
+  view.panX = atX - before.x * view.scale;
+  view.panY = atY + before.y * view.scale;
+  render();
+}
+document.getElementById('zoomin').addEventListener('click', function () { zoomBy(1.3); });
+document.getElementById('zoomout').addEventListener('click', function () { zoomBy(1 / 1.3); });
+
+canvas.addEventListener('wheel', function (e) {
+  e.preventDefault();
+  var rect = canvas.getBoundingClientRect();
+  var factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+  zoomBy(factor, e.clientX - rect.left, e.clientY - rect.top);
+}, { passive: false });
+
+canvas.addEventListener('pointerdown', function (e) {
+  canvas.setPointerCapture(e.pointerId);
+  drag = { startX: e.clientX, startY: e.clientY, panX: view.panX, panY: view.panY, moved: false };
+});
+canvas.addEventListener('pointermove', function (e) {
+  if (!drag) return;
+  var dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
+  if (Math.abs(dx) > 4 || Math.abs(dy) > 4) drag.moved = true;
+  view.panX = drag.panX + dx;
+  view.panY = drag.panY + dy;
+  render();
+});
+canvas.addEventListener('pointerup', function (e) {
+  if (drag && !drag.moved && !treeMode) {
+    var rect = canvas.getBoundingClientRect();
+    var w = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+    P = { x: Math.round(w.x), y: Math.round(w.y) };
+    document.getElementById('px').value = P.x;
+    document.getElementById('py').value = P.y;
+    render();
+  }
+  drag = null;
+});
+canvas.addEventListener('pointercancel', function () { drag = null; });
+
+window.addEventListener('resize', function () { resizeCanvas(); render(); });
+
+// ---------------------------------------------------------------- boot ---
+resizeCanvas();
+resetView();
+</script>
+</body>
+</html>

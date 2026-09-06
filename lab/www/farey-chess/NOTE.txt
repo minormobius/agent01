@@ -1,0 +1,1 @@
+Gave each side three pieces instead of one: Flipper (only S), Slider (only T/T⁻¹), Rider (all three) — same engine, just a restricted generator set per type. Move-word history is gone for now; it needs to become per-piece next.
