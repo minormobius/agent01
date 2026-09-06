@@ -89,5 +89,42 @@ for (const fn of ['signOut', 'signIn', 'promptInstall', 'applyUpdate', 'route'])
   else bad(`app.js no longer defines ${fn}`);
 }
 
+// ─── the other half: defined, and never called ───────────────────
+//
+// The `signOut` bug was a NAME with no function. `applyTopbar` was the mirror
+// image — a function with no caller, so four switches in the Me tab wrote their
+// prefs faithfully and nothing on screen ever moved. Neither is a syntax error
+// and neither throws, so only a reader noticing the feature does not work would
+// find it.
+//
+// A top-level function whose name appears exactly once in the file is defined
+// and referenced nowhere. That is either dead code or an unwired feature, and
+// both are worth failing a build over.
+{
+  // Counted on the RAW source, comments included. Two attempts at being cleverer
+  // both failed, and the second failed in the direction that matters:
+  //
+  //   - stripping template literals removes real call sites — this file builds
+  //     its DOM from them, and `${when(post)}` is a call;
+  //   - stripping block comments with a regex is worse. `accept="image/*"` in a
+  //     template literal opens a comment that never legally closes, and one
+  //     match swallowed 12,775 characters of live code — reporting three wired
+  //     functions as dead.
+  //
+  // Recognising which `/*` is a comment needs a real tokenizer, which is not
+  // worth it here. Counting raw occurrences instead means a function mentioned
+  // by name in a comment can hide from this check — a MISS, never a false
+  // alarm. A guard that occasionally misses is worth keeping; one that fails a
+  // build wrongly gets deleted the first time it is inconvenient.
+  const orphans = [];
+  for (const m of app.matchAll(/^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gm)) {
+    const name = m[1];
+    const uses = app.match(new RegExp(`\\b${name}\\b`, 'g'))?.length || 0;
+    if (uses <= 1) orphans.push(name);
+  }
+  if (orphans.length) bad(`defined but never called: ${orphans.join(', ')}`);
+  else console.log('  ✓ every top-level function in app.js is referenced');
+}
+
 if (failed) { console.error(`\n${failed} failure(s)`); process.exit(1); }
 console.log('\nwiring selftest passed');

@@ -59,6 +59,7 @@ const SHELL = [
   '/lib/lightbox.js',
   '/lib/sha256.js',
   '/lib/paper.js',
+  '/lib/prefs.js',
   '/lib/rulefeed.js',
   '/lib/share.js',
   '/lib/sources.js',

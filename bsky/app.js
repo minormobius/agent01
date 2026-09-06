@@ -21,6 +21,7 @@ import { JetstreamClient, KIND, eventUri, LOOKBACK_HOURS, clampSince }
   from '/packages/atproto/jetstream.js';
 import * as rulefeed from '/lib/rulefeed.js';
 import * as apikey from '/lib/apikey.js';
+import * as prefs from '/lib/prefs.js';
 import { paperOf } from '/lib/paper.js';
 import { linksOf } from '/lib/rulefeed.js';
 import { postCounts } from '/packages/atproto/constellation.js';
@@ -108,7 +109,9 @@ function showTab(tab) {
   // A live IntersectionObserver on a hidden list would keep paging in the
   // background against a profile the reader has left.
   if (tab !== 'profile') { profileObserver?.disconnect(); profileObserver = null; }
-  $('chips').hidden = tab !== 'home';
+  // Two conditions, not one: chips belong to Home, AND the reader may have
+  // turned them off entirely.
+  $('chips').hidden = tab !== 'home' || prefs.get('topbar.chips') === false;
   $('fab').hidden = tab === 'profile' ? false : tab !== 'home';
   if (tab === 'search') renderSearch();
   if (tab === 'notifs') { renderNotifs(); startNotifPolling(); } else stopNotifPolling();
@@ -1079,16 +1082,44 @@ async function renderNotifs({ quiet = false } = {}) {
   try { did = await resolveActor(who); }
   catch { v.innerHTML = `<div class="empty">could not resolve ${esc(who)}</div>`; return; }
 
-  const items = await notifications(did, { postDepth: 10 }).catch(() => []);
+  const all = await notifications(did, { postDepth: 10 }).catch(() => []);
+  const kinds = prefs.get('notifs.kinds');
+  const items = all.filter((n) => kinds[n.kind] !== false);
+
   v.innerHTML = '';
   v.append(el(`<div class="bar">for @${esc(who)} · from Constellation, no account needed
     <span class="spacer"></span></div>`));
+
+  // Filter chips. On a busy account likes bury the replies, which are the only
+  // ones you can actually answer — so hiding them is the point, and the counts
+  // are from the UNFILTERED list so turning a kind off does not hide its own
+  // switch.
+  const counts = all.reduce((m, n) => ({ ...m, [n.kind]: (m[n.kind] || 0) + 1 }), {});
+  const chipRow = el(`<div class="nfilter">
+    ${['reply', 'follow', 'like'].map((k) => `<button class="pill${kinds[k] === false ? '' : ' on'}"
+        data-nkind="${k}">${{ reply: '↳ replies', follow: '＋ follows', like: '♡ likes' }[k]}`
+      + `${counts[k] ? ` <b>${counts[k]}</b>` : ''}</button>`).join('')}
+  </div>`);
+  v.append(chipRow);
+  chipRow.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-nkind]');
+    if (!b) return;
+    const k = b.dataset.nkind;
+    prefs.set(`notifs.kinds.${k}`, prefs.get(`notifs.kinds.${k}`) === false);
+    renderNotifs({ quiet: true });
+  });
+
   if (!items.length) {
-    v.append(el('<div class="empty"><strong>Nothing yet.</strong>No likes, replies or follows found for this account\'s recent posts.</div>'));
+    const hidden = all.length - items.length;
+    v.append(el(`<div class="empty"><strong>Nothing here.</strong>${hidden
+      ? `${hidden} notification${hidden === 1 ? ' is' : 's are'} hidden by the filter above.`
+      : 'No likes, replies or follows found for this account\'s recent posts.'}</div>`));
     return;
   }
   const icon = { follow: '＋', like: '♡', reply: '↳' };
-  const verb = { follow: 'followed you', like: 'liked your post', reply: 'replied to you' };
+  // "replied to you" said nothing you could act on. With the text shown, the
+  // verb only needs to name the relationship.
+  const verb = { follow: 'followed you', like: 'liked your post', reply: 'replied' };
   for (const n of items) {
     const node = el(`<div class="notif"${n.replyUri || n.subjectUri ? ` data-thread="${esc(n.replyUri || n.subjectUri)}"` : ''}>
       <div class="nicon">${icon[n.kind] || '·'}</div>
@@ -1096,9 +1127,16 @@ async function renderNotifs({ quiet = false } = {}) {
         <b data-profile="${esc(n.actor?.handle || n.actorDid)}">${esc(n.actor?.displayName || n.actor?.handle || n.actorDid.slice(8, 22))}</b>
         <span class="muted">${verb[n.kind] || n.kind}</span>
         <span class="ntime">${n.at ? when(new Date(n.at).toISOString()) : ''}</span>
-        ${n.subjectText ? `<div class="nsub">${esc(n.subjectText)}</div>` : ''}
+        ${n.kind === 'reply' && n.replyText && prefs.get('notifs.showReplyText')
+          ? `<div class="nreply">${esc(n.replyText)}</div>`
+          : ''}
+        ${n.subjectText ? `<div class="nsub">${n.kind === 'reply' ? 'on: ' : ''}${esc(n.subjectText)}</div>` : ''}
+        ${n.kind === 'reply' && n.replyCid
+          ? `<div class="nacts"><button class="pill" data-nreply="${esc(n.replyUri)}">↳ reply</button></div>`
+          : ''}
       </div>
     </div>`);
+    if (n.replyPost) node._post = n.replyPost;
     v.append(node);
   }
   v.append(el(`<div class="empty" style="padding:18px 22px;font-size:12.5px">
@@ -1106,6 +1144,34 @@ async function renderNotifs({ quiet = false } = {}) {
     written — so this is genuinely reverse-chronological across likes, replies and follows.
     It is still a snapshot rather than a read/unread inbox.</div>`));
   say(`${items.length} notifications for @${who}`);
+}
+
+/**
+ * Reply to a reply, without leaving the Notifs tab.
+ *
+ * The notification already carries the reply's URI, CID and record — hydrated
+ * in `notifications()` — so this needs no round trip. Threading is the part
+ * that must be right: a reply carries BOTH `root` and `parent`, and the root is
+ * the THREAD's root, not the post being answered. It comes from the parent's
+ * own `record.reply.root`, falling back to the parent only when the parent is
+ * itself top-level. Getting this wrong detaches the reply in every client and
+ * is invisible until somebody else opens the thread.
+ */
+function replyFromNotif(uri) {
+  const node = document.querySelector(`[data-nreply="${CSS.escape(uri)}"]`)?.closest('.notif');
+  const post = node?._post;
+  if (!post?.uri || !post?.cid) return say('cannot reply — that post is not loaded');
+  if (!auth().isLoggedIn()) return signIn();
+
+  openSheet({
+    replyTo: {
+      uri: post.uri,
+      cid: post.cid,
+      root: post.record?.reply?.root || { uri: post.uri, cid: post.cid },
+      handle: post.author?.handle,
+      text: post.record?.text || '',
+    },
+  });
 }
 
 /**
@@ -1703,6 +1769,23 @@ async function renderMe() {
     for (const x of picker.querySelectorAll('.pal')) x.classList.toggle('on', x === b);
   });
 
+  const t = prefs.get('topbar');
+  const nk = prefs.get('notifs.kinds');
+  v.append(el(`<div class="section"><h3>display</h3>
+    <p>Kept in this browser. A copy in your own repo would follow you between devices —
+    see <code>toRecord()</code> in <code>lib/prefs.js</code> — but it would need a new
+    collection on the auth worker and would not work signed out, which most of this does.</p>
+    <label class="pref"><input type="checkbox" data-pref="topbar.tagline" ${t.tagline ? 'checked' : ''}> brand tagline</label>
+    <label class="pref"><input type="checkbox" data-pref="topbar.chips" ${t.chips ? 'checked' : ''}> feed chips</label>
+    <label class="pref"><input type="checkbox" data-pref="topbar.status" ${t.status ? 'checked' : ''}> status strip</label>
+    <label class="pref"><input type="checkbox" data-pref="topbar.compact" ${t.compact ? 'checked' : ''}> compact header</label>
+    <h3 style="margin-top:16px">notifications</h3>
+    <label class="pref"><input type="checkbox" data-pref="notifs.kinds.reply" ${nk.reply !== false ? 'checked' : ''}> replies</label>
+    <label class="pref"><input type="checkbox" data-pref="notifs.kinds.follow" ${nk.follow !== false ? 'checked' : ''}> follows</label>
+    <label class="pref"><input type="checkbox" data-pref="notifs.kinds.like" ${nk.like !== false ? 'checked' : ''}> likes</label>
+    <label class="pref"><input type="checkbox" data-pref="notifs.showReplyText" ${prefs.get('notifs.showReplyText') ? 'checked' : ''}> show what they actually said</label>
+    <button class="btn ghost small" id="pref-reset">reset display settings</button></div>`));
+
   v.append(el(`<div class="section"><h3>about</h3>
     <p>No DMs: <code>chat.bsky.*</code> is a centralised service, not protocol records, so it never
     reaches the firehose this client reads. Nothing here can see them.</p>
@@ -1713,6 +1796,10 @@ async function renderMe() {
     <p><a href="https://github.com/minormobius/agent01/blob/main/docs/APPVIEW-FEASIBILITY.md">how this works</a>
      · <a href="https://b.mino.mobi">the rest of the Bluesky corner ↗</a></p></div>`));
 
+  // NB: the [data-pref] change listener is NOT wired here. `renderMe()` runs on
+  // every visit to the tab and `#v-me` outlives it, so attaching per render
+  // stacks a listener per visit. It is delegated once, in the wiring block.
+  on('pref-reset', 'click', () => { prefs.reset(); renderMe(); });
   on('me-install', 'click', promptInstall);
   on('me-update', 'click', applyUpdate);
   on('me-signin', 'click', signIn);
@@ -1831,11 +1918,12 @@ let justSignedIn = true;
  * What the compose sheet is currently carrying besides text: up to four
  * prepared images, and at most one quoted post.
  */
-let draft = { images: [], quote: null, card: null, cardFor: null, cardDismissed: null };
+let draft = { images: [], quote: null, replyTo: null, card: null, cardFor: null, cardDismissed: null };
 
 function openSheet(opts = {}) {
   if (!auth().isLoggedIn()) return signIn();
-  draft = { images: [], quote: opts.quote || null, card: null, cardFor: null, cardDismissed: null };
+  draft = { images: [], quote: opts.quote || null, replyTo: opts.replyTo || null,
+            card: null, cardFor: null, cardDismissed: null };
   $('ct').value = opts.text || '';
   renderThumbs();
   renderQuotePreview();
@@ -1850,7 +1938,7 @@ function closeSheet() {
   // Object URLs are not garbage collected; leaking one per picked image adds up
   // over a session of posting.
   for (const img of draft.images) URL.revokeObjectURL(img.url);
-  draft = { images: [], quote: null, card: null, cardFor: null, cardDismissed: null };
+  draft = { images: [], quote: null, replyTo: null, card: null, cardFor: null, cardDismissed: null };
   renderThumbs();
   renderQuotePreview();
   renderCard();
@@ -1859,11 +1947,11 @@ function closeSheet() {
 function renderQuotePreview() {
   const box = $('cquote');
   if (!box) return;
-  box.hidden = !draft.quote;
-  if (draft.quote) {
-    box.textContent = `quoting @${draft.quote.handle || 'a post'}: `
-      + (draft.quote.text || '').slice(0, 120);
-  }
+  const ctx = draft.replyTo || draft.quote;
+  box.hidden = !ctx;
+  if (!ctx) return;
+  const what = draft.replyTo ? 'replying to' : 'quoting';
+  box.textContent = `${what} @${ctx.handle || 'a post'}: ${(ctx.text || '').slice(0, 120)}`;
 }
 
 /** Thumbnails, each with its own ALT box — alt text is not optional here. */
@@ -1977,6 +2065,7 @@ async function sendPost() {
       resolveHandle: (h) => resolveActor(h).catch(() => null),
       images: draft.images,
       quote: draft.quote,
+      replyTo: draft.replyTo,
       card: draft.card && !draft.card.loading ? draft.card : null,
     });
     $('ct').value = ''; countChars(); closeSheet();
@@ -2233,12 +2322,43 @@ function openQuote(post) {
   });
 }
 
+/**
+ * Apply the reader's top-bar choices.
+ *
+ * Driven from `lib/prefs.js` and re-applied whenever prefs change, so the Me
+ * tab's switches take effect immediately rather than on reload. The chips row
+ * has its own rule already — it is only shown on Home — so this hides it
+ * *further*, never reveals it on a tab where it does not belong.
+ */
+function applyTopbar() {
+  const t = prefs.get('topbar');
+  const note = $('brand-note');
+  if (note) note.hidden = !t.tagline;
+  const bar = $('statusbar');
+  if (bar) bar.hidden = !t.status;
+  document.body.classList.toggle('compact', Boolean(t.compact));
+  // Both conditions, the same pair showTab applies — so turning chips back on
+  // while sitting on Home REVEALS them, rather than waiting for a tab change.
+  // A one-way `if (!t.chips) hide` would have made the switch feel broken in
+  // the direction people actually test it.
+  const chips = $('chips');
+  if (chips) chips.hidden = state.tab !== 'home' || t.chips === false;
+}
+
 // ─── wiring ──────────────────────────────────────────────────────
 
 for (const b of document.querySelectorAll('.tab')) {
   b.addEventListener('click', () => goTab(b.dataset.tab));
 }
 installBackSwipe();
+// Delegated once: the switches are rebuilt on every renderMe(), the container
+// is not.
+$('v-me').addEventListener('change', (e) => {
+  const box = e.target.closest('[data-pref]');
+  if (!box) return;
+  prefs.set(box.dataset.pref, box.checked);
+  if (box.dataset.pref.startsWith('notifs.')) renderNotifs();
+});
 $('fab').addEventListener('click', openSheet);
 $('sheet-cancel').addEventListener('click', closeSheet);
 $('signin-cancel').addEventListener('click', () => { signinTypeahead?.close(); $('signin').hidden = true; });
@@ -2355,8 +2475,11 @@ document.addEventListener('click', (e) => {
 
   // Buttons and genuine links keep their own behaviour.
   if (e.target.closest('button[data-act]')) return;
-  // Before the card's own data-thread: opening the paper is not opening the
-  // thread, and the button sits inside the article.
+  // Both of these sit INSIDE something carrying data-thread, so they must be
+  // resolved before it — otherwise the tap opens the thread instead.
+  const nr = e.target.closest('[data-nreply]');
+  if (nr) { e.preventDefault(); replyFromNotif(nr.dataset.nreply); return; }
+
   const pb = e.target.closest('[data-paper]');
   if (pb) {
     e.preventDefault();
@@ -2411,6 +2534,8 @@ setInterval(flushWrites, 15_000);
 (async () => {
   theme.apply();
   theme.watchSystem();
+  applyTopbar();
+  prefs.subscribe(applyTopbar);
   state.cacheOk = await cache.available();
   renderChips();
   route();   // handles a deep link, a manifest shortcut, or nothing at all

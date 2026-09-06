@@ -1092,6 +1092,102 @@ Polling runs every 90s, and **only while the tab is visible and Notifs is the
 open tab**. A refresh is quiet: the current list stays on screen until the new
 one is ready, so a poll never blanks what someone is reading.
 
+### What a notification should have said
+
+Three complaints, one cause: the list reported that something happened and gave
+you no way to act on it.
+
+**Likes bury replies.** On any account with reach the ratio is not close, and a
+like is the one notification there is nothing to do about. Kinds are filtered
+from `prefs.notifs.kinds` and switched from a chip row above the list. The
+counts on those chips come from the **unfiltered** list deliberately — a chip
+that reads `♡ likes` with no number, because likes are hidden, gives you no way
+to know whether turning them back on is worth it, and worse, a filter that hides
+its own switch is a filter people cannot undo.
+
+**"replied to you" is the least useful thing a notification can say** — you have
+to open it to find out whether it deserved opening. Constellation only says that
+a record points at yours; it has no text. So `notifications()` now hydrates the
+reply URIs through `getPosts` (25 per call, 75 max), which yields the text AND
+the `cid`. The verb shrank to "replied" once the words themselves were on
+screen.
+
+**And that CID is what makes replying possible from here**, with no second round
+trip: the whole hydrated post is hung on the node as `_post`, so ↳ reply opens
+the composer already threaded. Threading is the part that fails invisibly — a
+reply carries BOTH `root` and `parent`, and the root is the THREAD's root, not
+the post being answered, so it comes from the parent's own `record.reply.root`
+and falls back to the parent only when the parent is top-level. Get it wrong and
+the reply detaches in every client, which nothing local will show you.
+
+The `[data-nreply]` button sits inside a `.notif` that carries `data-thread`, so
+the delegated handler must resolve it **before** the thread — otherwise the tap
+opens the thread instead of the composer.
+
+### The top bar is the reader's
+
+`lib/prefs.js`, and switches in the Me tab: brand tagline, feed chips, status
+strip, compact header, plus the notification kinds and the reply text.
+
+**localStorage, not a lexicon — for now.** A record in the reader's own repo is
+the philosophically right answer here; it is the whole thesis of this surface,
+and it would follow them between devices. It also costs a new collection on the
+auth worker's ceiling (the highest blast radius in the repo), a deploy of it, a
+write scope, and it would **not work signed out** — and most of this surface
+works signed out on purpose. So the door is left open rather than walked
+through: `toRecord()` / `fromRecord()` already speak
+`com.minomobi.bsky.prefs`, so moving the bytes later is a transport change, not
+a rewrite.
+
+Three bugs, and the first two are the same bug in mirror image:
+
+- **`applyTopbar()` was defined and never called.** Every switch wrote its pref
+  correctly, and nothing on screen ever moved. This is the exact inverse of the
+  `signOut` failure — there, a name with no function; here, a function with no
+  caller — and it fails the same way, in silence, past every syntax check.
+  `lib/wiring.selftest.mjs` now **also** fails on a top-level function in
+  `app.js` whose name appears nowhere else in the file, and that check was
+  proven by deleting the two boot lines and watching it go red.
+  (It counts occurrences in the RAW source. Stripping comments first is the
+  obvious refinement and is wrong: `accept="image/*"` inside a template literal
+  opens a `/*` that never legally closes, and one regex match swallowed 12,775
+  characters of live code, reporting three wired functions as dead. Counting
+  raw means a function named in a comment can hide from the check — a miss,
+  never a false alarm, which is the direction a guard has to fail in if it is
+  going to survive.)
+- **`applyTopbar` hid the chips and could not reveal them.** A one-way rule
+  makes a switch look broken in exactly the direction people test it — turn it
+  off, turn it back on, nothing. It applies the same pair of conditions
+  `showTab` does, so it works both ways from any tab.
+- **`merge()` mutated `DEFAULTS`.** A shallow spread left
+  `out.topbar === DEFAULTS.topbar`, and `set()` walks a dotted path and assigns
+  into whatever node it lands on — so `set('topbar.compact', true)` wrote
+  through into the defaults themselves. "Reset display settings" then restored
+  the value it was asked to discard, and every later default in the session was
+  whatever the reader last picked. Found by `lib/prefs.selftest.mjs`, which is
+  the only thing that would have found it: nothing throws, and the wrong answer
+  is a plausible one.
+
+The `[data-pref]` change listener is delegated **once**, in the wiring block —
+not in `renderMe()`, which runs on every visit to the tab while `#v-me` outlives
+it, so wiring there stacks a listener per visit.
+
+**Verified in Chromium** (2026-09-06) against stubbed Constellation, AppView and
+auth responses, because this sandbox cannot reach any external host: 3
+notifications render with the reply's actual text and a ↳ reply button; hiding
+likes leaves 2 with the like chip still showing its unfiltered count of 1; the
+choice survives a reload; ↳ reply opens the composer reading *"replying to
+@carol.test: THE ACTUAL REPLY TEXT"* with `parent` = the reply, `root` = the
+original post and the CID carried; and every top-bar switch applies live, in
+both directions, survives a reload and is undone by reset.
+
+(Two stub traps, both of which produced an entirely convincing empty feed rather
+than an error: Constellation's wire key is **`linking_records`**, which
+`listLinks()` renames to `records`; and an XRPC path's last segment is the full
+NSID, so matching on `resolveHandle` matches nothing. Also — Playwright matches
+the **last**-registered route first, so a catch-all must be registered before
+the stubs it is meant to fall through to, not after.)
+
 ### Threads and replies
 
 Tapping a post's text opens `#/thread/<uri>`. `getPostThread` returns a

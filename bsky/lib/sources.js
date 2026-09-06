@@ -253,6 +253,38 @@ export async function notifications(did, { postDepth = 10 } = {}) {
   const profiles = await getProfiles(dids).catch(() => new Map());
   for (const n of out) n.actor = profiles.get(n.actorDid) || null;
 
+  /**
+   * Hydrate the REPLIES themselves.
+   *
+   * Constellation says only that a record points at yours — it has no text. So
+   * a reply notification could say "replied to you" and nothing else, which is
+   * the least useful thing a notification can say: you have to open it to learn
+   * whether it deserved opening. `getPosts` turns those `at://` URIs into real
+   * posts, and it also yields the CID, which is what makes replying to a reply
+   * possible without a second round trip.
+   */
+  const replyUris = [...new Set(out.filter((n) => n.replyUri).map((n) => n.replyUri))].slice(0, 75);
+  if (replyUris.length) {
+    const byUri = new Map();
+    for (let i = 0; i < replyUris.length; i += 25) {          // getPosts takes 25
+      const params = new URLSearchParams();
+      for (const u of replyUris.slice(i, i + 25)) params.append('uris', u);
+      try {
+        const r = await fetch(`${BSKY_PUBLIC}/xrpc/app.bsky.feed.getPosts?${params}`);
+        if (!r.ok) continue;
+        const { posts = [] } = await r.json();
+        for (const post of posts) byUri.set(post.uri, post);
+      } catch { /* a missing text is a weaker notification, not a broken one */ }
+    }
+    for (const n of out) {
+      const post = n.replyUri && byUri.get(n.replyUri);
+      if (!post) continue;
+      n.replyText = post.record?.text || '';
+      n.replyCid = post.cid;                 // required to reply to it
+      n.replyPost = fromHydrated(post);
+    }
+  }
+
   return out;
 }
 
