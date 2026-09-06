@@ -1,1 +1,1 @@
-Built it as a real capture game on PSL(2,Z)'s Cayley graph — actual matrices, not a themed skin on regular chess. One honest gap: only the orientation-preserving tiling, no mirror images (that needs a reflection generator this board lacks). Said so on-page.
+Gave each side three pieces instead of one: Flipper (only S), Slider (only T/T⁻¹), Rider (all three) — same engine, just a restricted generator set per type. Move-word history is gone for now; it needs to become per-piece next.

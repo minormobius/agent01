@@ -346,6 +346,20 @@ embedded in arbitrary page content. Same requester, same topics (template
 adoption, pondertag), different and legitimate shape of ask; don't conflate
 the two when a future request touches either topic again.
 
+Twenty-seventh request (2026-09-06), a same-thread follow-up on "modular-group"/
+farey-chess: "this is basically just king vs king? chess needs more pieces."
+Read as direct, mild feedback rather than a new ask — the first pass had
+correctly built the hard mathematical part (right-multiplication by group
+generators as the move rule) but under-scoped the "chess" framing itself to
+one piece per side. Added three piece types (Flipper/Slider/Rider) as
+different *subsets* of the same generator set rather than a new movement
+system, keeping the one-right-multiplication-per-turn engine intact — a
+reusable move here: when a request literally names "chess" (or another
+piece-count game) as the frame, budget for more-than-one-unit-per-side in the
+first pass, not just the correct core mechanic in miniature. A rigorous
+one-piece demo of a group action reads to this requester as an unfinished
+game, not a minimal one.
+
 Twenty-sixth request (2026-09-06), "modular-group": another bare-math ask,
 phrased with pre-emptive, joking defiance ("chess but its modular forms...
 don't you dare tell me this doesn't make sense just make modular group

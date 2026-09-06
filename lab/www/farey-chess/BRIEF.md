@@ -57,21 +57,54 @@ special-casing was needed, the math does it for free.
   natural leaderboard subject the visitor would name). Sign-in would have
   been decoration, so it was left out per "optional unless meaningless
   without it."
+- **Three piece types by generator subset, not three different movement
+  models.** Considered a "double move" piece (apply two generators per
+  turn) for more differentiation, but that would have meant a second,
+  incompatible notion of "one move" in the same engine. Restricting *which*
+  generators a piece may use, with every move still exactly one
+  right-multiplication, kept `legalMoves`/`performMove` a single code path
+  for all three types.
+- **White's three pieces start at the identity, its S-neighbour and its
+  T-neighbour** (adjacent tiles) rather than spread out, so Rider/Flipper/
+  Slider all start visibly clustered and readable as "one army" on a small
+  board. Black's three get `pickStarts(3, excludeKeys)` — distinct nodes,
+  preferring depth 3–6, excluding anything White already occupies. Type
+  assignment to Black's three start nodes is fixed order (Rider, Flipper,
+  Slider) rather than randomized — simpler, and there was no reason found
+  to prefer shuffling it.
 
 ## The plan — not built yet, roughly in order
 
-1. **A third piece type / third move**, using a composite generator like
-   `U = S·T` (order 3 in PGL(2,Z) up to the usual relation) as a
-   "diagonal"-feeling move distinct from S and T's "flip" and "shift" —
-   would give the game a bishop/knight-style second unit rather than one
-   piece per side. The hard part: keeping the UI legible with more than 3
-   buttons/highlighted tiles at once.
-2. **Multiple pieces per side / actual chess-like army.** Right now it's a
-   1-v-1 tag game. A real next step is 2–3 pieces per side with different
-   generator subsets each (e.g. one piece limited to {S}, one to {T,T⁻¹}),
-   which would make the "modular forms" framing richer without changing
-   the underlying math engine at all — `matMul`/`mobius`/`keyOf` are
-   already generic.
+**Turn 2 (this turn) shipped multiple pieces per side**, directly in
+response to the requester's "this is basically just king vs king? chess
+needs more pieces". Each side now has three pieces — Flipper (`{S}` only),
+Slider (`{T,T⁻¹}` only), Rider (all three) — placed on distinct tiles.
+Select-then-move: tap your own piece (canvas ring, or a button in
+`#pieceButtons`) to select it, then tap a dashed tile or a move button.
+Capture removes the enemy piece from its array; winning is wiping out the
+other side's whole army rather than one king-catch. `legalMoves(side, idx)`
+also now blocks moving onto your *own* piece's tile — that case didn't
+exist with one piece per side and needed adding. If both sides still have
+pieces but the side to move has no legal move anywhere (a lone Flipper
+whose one neighbour is occupied by its own Slider, say), `ensureMovableSide`
+auto-passes the turn rather than freezing the game.
+
+Per-piece move-word history was **dropped**, not carried over — with three
+pieces per side, "White: T S T⁻¹" stops meaning anything without saying
+*which* piece, and there wasn't time this turn to design that display well.
+The positions panel instead lists each living piece's type, move count and
+matrix. If move history is wanted back, it needs to be per-piece
+(`piece.wordHistory`), not per-side.
+
+1. **A fourth piece / composite-generator move**, e.g. `U = S·T` as a
+   "diagonal" move for a new piece type, distinct from Flipper's flip and
+   Slider's shift. The engine is generic enough (`PIECE_TYPES[x].gens` is
+   just a list of keys into `GENS`) that this is mostly picking a good
+   generator and a name — the hard part is still UI legibility with a 4th
+   piece button row plus dashed tiles on a small phone screen.
+2. **Per-piece move history**, if wanted: replace `piece.moves` (currently
+   just a count) with an array of generator letters, and update
+   `renderPositions` to print it per piece instead of just the count.
 3. **The orientation-reversing half**, if wanted: add a fourth generator
    `R: z ↦ −z̄` (needs treating points/matrices as acting with an optional
    conjugation flag, since R isn't a Möbius map representable as a plain
@@ -79,11 +112,10 @@ special-casing was needed, the math does it for free.
    the actual "hard part" flagged in the on-page copy as skipped — don't
    fake it with a plain colour toggle, the geometry really does need the
    conjugate.
-4. **Persistence**: post a completed game's move-word pair to the visitor's
-   own repo via `/_kit/pds.js` (`store.postScore` with the move count as
-   the "score", or `store.save('board', ...)` mid-game) if a save/resume
-   feature is ever asked for. Not built now because there was no natural
-   single-player metric to attach it to.
+4. **Persistence**: post a completed game's result (winner, move counts) to
+   the visitor's own repo via `/_kit/pds.js` if a save/resume feature is
+   ever asked for. Still skipped — this is same-screen hotseat with no
+   natural single-player metric.
 
 ## Gotchas
 

@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Farey Chess — capture on the modular group's own tiling</title>
-<meta name="description" content="A two-player capture game played on the tessellation the modular group PSL(2,Z) makes of the upper half-plane. Each tile is a copy of the classic fundamental domain; you move your piece by applying the group's own generators, S: z↦−1/z and T: z↦z+1. Land on your opponent's tile to capture them.">
+<meta name="description" content="A two-player capture game played on the tessellation the modular group PSL(2,Z) makes of the upper half-plane. Each side fields three pieces — Flipper, Slider and Rider — each restricted to a different subset of the group's own generators, S: z↦−1/z and T: z↦z+1. Land on an enemy piece to capture it; wipe out the other side's army to win.">
 <meta property="og:title" content="Farey Chess">
-<meta property="og:description" content="A two-player capture game played on the tessellation the modular group PSL(2,Z) makes of the upper half-plane. Move your piece with the group's own generators — flip (z↦−1/z) or shift (z↦z+1) — and land on your opponent's tile to capture them.">
+<meta property="og:description" content="Three pieces a side, each obeying its own slice of the modular group's algebra — Flipper only flips, Slider only shifts, Rider does both. Land on the enemy tile, take the piece.">
 <meta property="og:type" content="website">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
@@ -37,6 +37,7 @@
   button.small { padding: .6rem .9rem; font-size: .85rem; min-height: 44px; }
   button[disabled] { opacity: .4; cursor: not-allowed; }
   button[disabled]:hover { background: var(--accent-dim); color: var(--accent); }
+  #pieceButtons button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
   .statusline {
     font-size: .95rem; padding: .7rem 1rem; margin: 1rem 0;
     border: 1px solid var(--border); border-radius: var(--radius);
@@ -45,7 +46,6 @@
   .who-w { color: var(--accent); font-weight: 600; }
   .who-b { color: var(--p2); font-weight: 600; }
   .mat { font-size: .8rem; color: var(--muted); }
-  .word { color: var(--fg); word-break: break-all; }
   .legend { display: flex; gap: 1.3rem; flex-wrap: wrap; font-size: .8rem; color: var(--muted); margin: .4rem 0 0; }
   .legend .dot { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; margin-right: .35rem; vertical-align: -1px; }
   footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
@@ -56,21 +56,26 @@
   <div id="crumb"></div>
   <h1>Farey Chess</h1>
   <p class="sub">The board is the modular group's own tiling of the upper half-plane.
-    Two pieces stand on two tiles. On your turn you move <em>your</em> piece by
-    applying one of the group's two generators — you cannot move your opponent's,
-    and you cannot skip. Land exactly on the other tile and you capture it.</p>
+    Each side fields three pieces, and each piece is restricted to its own subset
+    of the group's generators — a <strong>Flipper</strong> only knows S, a
+    <strong>Slider</strong> only knows T/T⁻¹, a <strong>Rider</strong> knows all
+    three. Tap one of your pieces to select it, then tap a dashed tile (or a move
+    button) to move it. Land exactly on an enemy tile and you capture that piece;
+    wipe out the other side's army to win.</p>
 
   <div id="err" class="err hidden" role="alert"></div>
   <div id="status" class="statusline" aria-live="polite">Loading the tessellation…</div>
 
   <div id="boardWrap"><canvas id="board" width="600" height="320"></canvas></div>
   <p class="legend">
-    <span><span class="dot" style="background:var(--accent)"></span>white — you move it on white's turn</span>
-    <span><span class="dot" style="background:var(--p2)"></span>black</span>
-    <span>dashed outline = tiles your generators can reach this turn</span>
+    <span><span class="dot" style="background:var(--accent)"></span>white pieces</span>
+    <span><span class="dot" style="background:var(--p2)"></span>black pieces</span>
+    <span>solid ring = selected</span>
+    <span>dashed outline = where it can move</span>
   </p>
 
   <div class="panel">
+    <div class="row" id="pieceButtons"></div>
     <div class="row" id="moveButtons">
       <button class="mv" data-gen="S" title="z ↦ −1/z">S — flip</button>
       <button class="mv" data-gen="T" title="z ↦ z+1">T — shift +1</button>
@@ -97,6 +102,14 @@
       words can land on the same tile — the group has relations, most famously
       <code>(ST)³ = 1</code> — and when that happens here it shows up honestly, as a
       loop back to a tile you've already visited.</p>
+    <p>The three piece types are literally three different generating sets of the
+      same group. <strong>S has order 2</strong> (<code>S² = 1</code>): a Flipper can
+      only toggle to its one S-neighbour and back, so it barely moves but is nearly
+      impossible to pin down for long. <strong>T has infinite order</strong>: a
+      Slider walks one fixed strip of the tiling, forward or back, forever. A Rider
+      carries the full group and can reach either kind of neighbour. None of this is
+      a separate rulebook bolted onto the math — <code>legalMoves()</code> just
+      restricts which generators a piece is allowed to right-multiply by.</p>
     <p>One simplification, said outright rather than left implicit: this only
       draws the orientation-preserving half of the classic picture. The familiar
       two-colour "modular tessellation" you may have seen also includes mirror
@@ -120,7 +133,6 @@ const S  = [0, -1, 1, 0];   // z -> -1/z
 const T  = [1, 1, 0, 1];    // z -> z+1
 const TI = [1, -1, 0, 1];   // z -> z-1
 const GENS = { S: S, T: T, Ti: TI };
-const GEN_LABEL = { S: 'S', T: 'T', Ti: 'T⁻¹' };
 
 function matMul(A, B) {
   return [
@@ -194,54 +206,135 @@ function ensureNode(M, depth) {
   }
 })();
 
-const IKEY = keyOf([1, 0, 0, 1]);
-function pickStart() {
-  for (const targetDepth of [3, 4, 5, 2]) {
-    const cands = [];
-    for (const [k, n] of nodes) if (n.depth === targetDepth) cands.push(n.M);
-    if (cands.length) return cands[Math.floor(Math.random() * cands.length)];
+// Pick n distinct, mutually-distinct-from-exclude starting nodes, preferring
+// mid-depth ones so black doesn't start adjacent to white.
+function pickStarts(n, excludeKeys) {
+  const used = new Set(excludeKeys);
+  const result = [];
+  const depthPools = {};
+  for (const [, nd] of nodes) {
+    const d = nd.depth == null ? 99 : nd.depth;
+    (depthPools[d] = depthPools[d] || []).push(nd.M);
   }
-  // fallback: anything that isn't the identity
-  for (const [k, n] of nodes) if (k !== IKEY) return n.M;
-  return matMul([1,0,0,1], T);
+  outer:
+  for (const d of [4, 5, 3, 6, 2, 7, 1]) {
+    const pool = (depthPools[d] || []).slice();
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+    }
+    for (const M of pool) {
+      const k = keyOf(M);
+      if (!used.has(k)) { used.add(k); result.push(M); if (result.length === n) break outer; }
+    }
+  }
+  let guard = 0;
+  const allKeys = [...nodes.keys()];
+  while (result.length < n && guard < 1000) {
+    guard++;
+    const k = allKeys[Math.floor(Math.random() * allKeys.length)];
+    if (!used.has(k)) { used.add(k); result.push(nodes.get(k).M); }
+  }
+  return result;
 }
+
+// ---------------------------------------------------------------------------
+// Piece types — each is just a restricted subset of the group's generators.
+// ---------------------------------------------------------------------------
+const PIECE_TYPES = {
+  flipper: { gens: ['S'], label: 'F', name: 'Flipper' },
+  slider:  { gens: ['T', 'Ti'], label: 'L', name: 'Slider' },
+  rider:   { gens: ['S', 'T', 'Ti'], label: 'R', name: 'Rider' }
+};
+const TYPE_ORDER = ['rider', 'flipper', 'slider'];
 
 // ---------------------------------------------------------------------------
 // Game state
 // ---------------------------------------------------------------------------
-let posW, posB, turn, over, winner, history;
+let pieces, turn, over, winner, selected;
 function newGame() {
-  posW = [1, 0, 0, 1];
-  posB = pickStart();
+  const wRider = [1, 0, 0, 1];
+  const wFlip = matMul(wRider, S);
+  const wSlide = matMul(wRider, T);
+  ensureNode(wFlip, 1);
+  ensureNode(wSlide, 1);
+  pieces = {
+    w: [
+      { type: 'rider', M: wRider, moves: 0 },
+      { type: 'flipper', M: wFlip, moves: 0 },
+      { type: 'slider', M: wSlide, moves: 0 }
+    ],
+    b: []
+  };
+  const excl = pieces.w.map(function (p) { return keyOf(p.M); });
+  const bStarts = pickStarts(3, excl);
+  pieces.b = bStarts.map(function (M, i) { return { type: TYPE_ORDER[i], M: M, moves: 0 }; });
   turn = 'w';
   over = false;
   winner = null;
-  history = { w: [], b: [] };
+  selected = null;
+  ensureMovableSide();
   render();
 }
 
-function legalMoves(pos) {
+function legalMoves(side, idx) {
+  const piece = pieces[side][idx];
+  const type = PIECE_TYPES[piece.type];
   const out = {};
-  for (const g in GENS) {
-    const M2 = matMul(pos, GENS[g]);
+  for (const g of type.gens) {
+    const M2 = matMul(piece.M, GENS[g]);
     ensureNode(M2, null);
-    out[g] = M2;
+    const k2 = keyOf(M2);
+    const blockedByOwn = pieces[side].some(function (p, i) { return i !== idx && keyOf(p.M) === k2; });
+    if (!blockedByOwn) out[g] = M2;
   }
   return out;
 }
 
-function performMove(g) {
-  if (over) return;
-  const pos = turn === 'w' ? posW : posB;
-  const M2 = matMul(pos, GENS[g]);
-  ensureNode(M2, null);
-  if (turn === 'w') posW = M2; else posB = M2;
-  history[turn].push(g);
-  if (keyOf(posW) === keyOf(posB)) {
-    over = true;
-    winner = turn;
-  } else {
+function hasAnyLegalMove(side) {
+  for (let i = 0; i < pieces[side].length; i++) {
+    if (Object.keys(legalMoves(side, i)).length) return true;
+  }
+  return false;
+}
+
+// If the side to move has no legal move anywhere, pass to the other side
+// rather than freeze — a Flipper alone with its neighbour occupied is a real
+// possibility, not a bug.
+function ensureMovableSide() {
+  let guard = 0;
+  while (!over && pieces.w.length && pieces.b.length && !hasAnyLegalMove(turn) && guard < 4) {
     turn = turn === 'w' ? 'b' : 'w';
+    guard++;
+  }
+}
+
+function selectPiece(idx) {
+  if (over) return;
+  selected = (selected === idx) ? null : idx;
+  render();
+}
+
+function performMove(g) {
+  if (over || selected == null) return;
+  const side = turn, other = side === 'w' ? 'b' : 'w';
+  const piece = pieces[side][selected];
+  const moves = legalMoves(side, selected);
+  if (!moves[g]) return;
+  const M2 = moves[g];
+  ensureNode(M2, null);
+  piece.M = M2;
+  piece.moves++;
+  const k2 = keyOf(M2);
+  const capIdx = pieces[other].findIndex(function (p) { return keyOf(p.M) === k2; });
+  if (capIdx >= 0) pieces[other].splice(capIdx, 1);
+  selected = null;
+  if (pieces[other].length === 0) {
+    over = true;
+    winner = side;
+  } else {
+    turn = other;
+    ensureMovableSide();
   }
   render();
 }
@@ -271,7 +364,7 @@ function drawBoard() {
   ctx.lineWidth = 1;
 
   // every explored tile
-  for (const [k, n] of nodes) {
+  for (const [, n] of nodes) {
     const poly = BOUND.map(function (p) { return toScreen(mobius(n.M, p)); });
     ctx.beginPath();
     poly.forEach(function (s, i) { i === 0 ? ctx.moveTo(s.x, s.y) : ctx.lineTo(s.x, s.y); });
@@ -283,10 +376,26 @@ function drawBoard() {
     ctx.stroke();
   }
 
-  // legal-move highlight for the side to move
   clickTargets = [];
+
+  // clickable selection ring on each of the side-to-move's own pieces
   if (!over) {
-    const moves = legalMoves(turn === 'w' ? posW : posB);
+    pieces[turn].forEach(function (p, idx) {
+      const c = toScreen(mobius(p.M, CENTER));
+      if (idx === selected) {
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, 15, 0, Math.PI * 2);
+        ctx.strokeStyle = turn === 'w' ? '#e8a33d' : '#6ea8fe';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+      }
+      clickTargets.push({ x: c.x, y: c.y, r: 20, fn: function () { selectPiece(idx); } });
+    });
+  }
+
+  // legal-move highlight for the selected piece
+  if (!over && selected != null) {
+    const moves = legalMoves(turn, selected);
     for (const g in moves) {
       const M2 = moves[g];
       const poly = BOUND.map(function (p) { return toScreen(mobius(M2, p)); });
@@ -299,13 +408,19 @@ function drawBoard() {
       ctx.stroke();
       ctx.setLineDash([]);
       const c = toScreen(mobius(M2, CENTER));
-      clickTargets.push({ x: c.x, y: c.y, r: 26, gen: g });
+      clickTargets.push({ x: c.x, y: c.y, r: 26, fn: function () { performMove(g); } });
     }
   }
 
-  // pieces
-  drawPiece(mobius(posW, CENTER), '#e8a33d', 'W');
-  drawPiece(mobius(posB, CENTER), '#6ea8fe', 'B');
+  // pieces, both sides
+  drawSidePieces('w', '#e8a33d');
+  drawSidePieces('b', '#6ea8fe');
+}
+
+function drawSidePieces(side, color) {
+  pieces[side].forEach(function (p) {
+    drawPiece(mobius(p.M, CENTER), color, PIECE_TYPES[p.type].label);
+  });
 }
 
 function getVar(name) {
@@ -330,30 +445,49 @@ function drawPiece(p, color, label) {
 
 function renderStatus() {
   const status = document.getElementById('status');
+  const whoSpan = function (side) {
+    return side === 'w' ? '<span class="who-w">White</span>' : '<span class="who-b">Black</span>';
+  };
   if (over) {
-    status.innerHTML = (winner === 'w'
-      ? '<span class="who-w">White</span>' : '<span class="who-b">Black</span>') +
-      ' captured — game over. Press "new game" to play again.';
-    document.querySelectorAll('.mv').forEach(function (b) { b.disabled = true; });
+    status.innerHTML = whoSpan(winner) + ' has captured the other side’s whole army — game over. Press "new game" to play again.';
+  } else if (selected == null) {
+    status.innerHTML = whoSpan(turn) + ' to move — tap one of your pieces (or a piece button below) to select it.';
   } else {
-    status.innerHTML = (turn === 'w' ? '<span class="who-w">White</span>' : '<span class="who-b">Black</span>') +
-      ' to move — pick a generator, or tap a dashed tile on the board.';
-    document.querySelectorAll('.mv').forEach(function (b) { b.disabled = false; });
+    status.innerHTML = whoSpan(turn) + ' to move — ' + PIECE_TYPES[pieces[turn][selected].type].name +
+      ' selected. Tap a dashed tile or a move button.';
   }
+  document.querySelectorAll('.mv').forEach(function (b) {
+    if (over || selected == null) { b.disabled = true; return; }
+    const moves = legalMoves(turn, selected);
+    b.disabled = !moves[b.dataset.gen];
+  });
+  renderPieceButtons();
+}
+
+function renderPieceButtons() {
+  const el = document.getElementById('pieceButtons');
+  if (over) { el.innerHTML = ''; return; }
+  el.innerHTML = pieces[turn].map(function (p, idx) {
+    const t = PIECE_TYPES[p.type];
+    return '<button class="small" data-idx="' + idx + '" aria-pressed="' + (idx === selected) + '">' +
+      t.name + ' (' + t.label + ')</button>';
+  }).join('');
 }
 
 function matStr(M) { return '[[' + M[0] + ', ' + M[1] + '], [' + M[2] + ', ' + M[3] + ']]'; }
-function wordStr(g) { return g.length ? g.map(function (x) { return GEN_LABEL[x]; }).join(' ') : '(identity)'; }
 
 function renderPositions() {
   const el = document.getElementById('posInfo');
-  el.innerHTML =
-    '<p><span class="who-w">White</span> — ' + history.w.length + ' move' + (history.w.length===1?'':'s') +
-      ' — <span class="mat">' + matStr(posW) + '</span><br>' +
-      '<span class="word">' + wordStr(history.w) + '</span></p>' +
-    '<p><span class="who-b">Black</span> — ' + history.b.length + ' move' + (history.b.length===1?'':'s') +
-      ' — <span class="mat">' + matStr(posB) + '</span><br>' +
-      '<span class="word">' + wordStr(history.b) + '</span></p>';
+  const listSide = function (side, label, cls) {
+    if (!pieces[side].length) return '<p><span class="' + cls + '">' + label + '</span> — no pieces left.</p>';
+    return pieces[side].map(function (p) {
+      const t = PIECE_TYPES[p.type];
+      return '<p><span class="' + cls + '">' + label + '</span> ' + t.name + ' — ' +
+        p.moves + ' move' + (p.moves === 1 ? '' : 's') +
+        ' — <span class="mat">' + matStr(p.M) + '</span></p>';
+    }).join('');
+  };
+  el.innerHTML = listSide('w', 'White', 'who-w') + listSide('b', 'Black', 'who-b');
 }
 
 // ---------------------------------------------------------------------------
@@ -361,7 +495,11 @@ function renderPositions() {
 // ---------------------------------------------------------------------------
 document.getElementById('moveButtons').addEventListener('click', function (e) {
   const btn = e.target.closest('button.mv');
-  if (btn) performMove(btn.dataset.gen);
+  if (btn && !btn.disabled) performMove(btn.dataset.gen);
+});
+document.getElementById('pieceButtons').addEventListener('click', function (e) {
+  const btn = e.target.closest('button[data-idx]');
+  if (btn) selectPiece(Number(btn.dataset.idx));
 });
 document.getElementById('resetBtn').addEventListener('click', newGame);
 
@@ -378,7 +516,7 @@ canvas.addEventListener('pointerdown', function (e) {
     const d = Math.hypot(p.x - t.x, p.y - t.y);
     if (d < t.r && d < bestD) { best = t; bestD = d; }
   }
-  if (best) performMove(best.gen);
+  if (best) best.fn();
 });
 
 function resize() {
