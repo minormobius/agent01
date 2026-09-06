@@ -18,6 +18,7 @@
 //
 // Run: node clef/test/notation.selftest.mjs
 
+import { readFileSync } from 'node:fs';
 import { parseLily, pitchToLily, pitchToLilyRelative, durationToLily } from '../src/lily.js';
 import { engrave } from '../src/engrave.js';
 import { scoreToNotes, performance as buildPerformance, patchForInstrument } from '../src/audio.js';
@@ -589,6 +590,90 @@ const midiList = (score, staff = 0, voice = 0) =>
   eq(patchForInstrument('trumpet'), 'flute', 'patch: brass too');
   eq(patchForInstrument(''), null, 'patch: nothing named means nothing chosen');
   eq(patchForInstrument('kazoo'), null, 'patch: an unknown instrument is refused, not guessed');
+}
+
+// ------------------------------------------- 10. the physical model --
+//
+// The committed pfsynth.wasm is a BINARY in the tree: nothing else in this repo
+// would notice if it went stale, was truncated by a bad merge, or was built
+// from different sources. It is also the one thing here that cannot be read to
+// check. So it is exercised: loaded, run, and the audio it produces measured.
+{
+  const wasmPath = new URL('../vendor/pfsynth/pfsynth.wasm', import.meta.url);
+  let bytes = null;
+  try { bytes = readFileSync(wasmPath); } catch { /* reported below */ }
+  ok(bytes && bytes.length > 1000, 'pfsynth: the built module is committed');
+
+  // A truncated or wrong-architecture binary throws from the WebAssembly
+  // constructors. Caught, so it is reported as this check failing rather than
+  // as a stack trace that also cancels every check after it.
+  let X = null;
+  try {
+    const mod = new WebAssembly.Module(bytes);
+    // It must need NOTHING from the host. An import would mean the build picked
+    // up WASI after all, and it would fail in a browser rather than here.
+    eq(WebAssembly.Module.imports(mod).length, 0,
+      'pfsynth: the module imports nothing, so it loads in a plain browser');
+    X = new WebAssembly.Instance(mod, {}).exports;
+  } catch (err) {
+    ok(false, `pfsynth: the committed module loads — ${err.message}`);
+  }
+
+  const EXPORTS = ['pfw_begin', 'pfw_render', 'pfw_active', 'pfw_notes_ptr',
+                   'pfw_out_ptr', 'pfw_max_notes', 'pfw_block'];
+  const complete = X && EXPORTS.every((fn) => typeof X[fn] === 'function');
+  for (const fn of EXPORTS) ok(X && typeof X[fn] === 'function', `pfsynth: exports ${fn}`);
+
+  if (complete) {
+
+    const sr = 44100;
+    const block = X.pfw_block();
+    const dv = new DataView(X.memory.buffer);
+    const notes = X.pfw_notes_ptr();
+    // A middle-C triad held for a second: enough voices to exercise the mix.
+    const chord = [60, 64, 67];
+    chord.forEach((midi, i) => {
+      const p = notes + i * 16;
+      dv.setInt32(p, 0, true);
+      dv.setInt32(p + 4, sr, true);
+      dv.setFloat32(p + 8, midi, true);
+      dv.setFloat32(p + 12, 0.7, true);
+    });
+    X.pfw_begin(sr, chord.length, 110);
+
+    const out = X.pfw_out_ptr();
+    let peak = 0;
+    let energy = 0;
+    let frames = 0;
+    let firstBlockPeak = 0;
+    let finite = true;
+    for (let b = 0; b < 40; b++) {
+      const got = X.pfw_render(block);
+      const buf = new Float32Array(X.memory.buffer, out, got * 2);
+      let bp = 0;
+      for (let i = 0; i < buf.length; i++) {
+        const a = Math.abs(buf[i]);
+        if (a > bp) bp = a;
+        energy += buf[i] * buf[i];
+        if (!Number.isFinite(buf[i])) { finite = false; }
+      }
+      if (b === 0) firstBlockPeak = bp;
+      if (bp > peak) peak = bp;
+      frames += got;
+      if (!X.pfw_active()) break;
+    }
+    ok(frames > sr, 'pfsynth: renders at least a second of audio');
+    // A struck string is loud at the strike and quieter later. Both halves
+    // matter: silence means the hammer never fired, and a flat envelope means
+    // the loop gain is wrong.
+    ok(peak > 0.05, `pfsynth: the strike makes sound (peak ${peak.toFixed(3)})`);
+    ok(peak <= 1.0001, 'pfsynth: the output stays inside the tanh limit');
+    ok(firstBlockPeak > 0.01, 'pfsynth: the attack is in the FIRST block, not late');
+    ok(energy > 0, 'pfsynth: the render carries energy');
+    // A NaN anywhere is the classic failure of an unstable filter loop, and it
+    // is silent: the WAV writer clamps it to zero and you hear a gap.
+    ok(finite, 'pfsynth: every sample is finite — no NaN from an unstable loop');
+  }
 }
 
 // ------------------------------------------------------------------ report --

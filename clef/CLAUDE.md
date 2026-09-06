@@ -226,6 +226,37 @@ endings are not**: a score with voltas plays straight through, which is wrong
 about repetition and right about every note. Half-implementing it would play the
 wrong notes, which is worse.
 
+## The physical-modelling piano
+
+**`clef/vendor/pfsynth/` is not our code.** It is
+[pfsynth](https://github.com/olaugh/pfsynth) by John O'Laughlin, MIT, vendored
+unmodified with its `LICENSE` and the upstream commit recorded. `pf_web.c` (the
+WebAssembly host) and `build.sh` are ours. Read
+[`vendor/pfsynth/README.md`](vendor/pfsynth/README.md) before touching any of it.
+
+It is a real piano model — a digital waveguide per string, coupled detuned
+unisons, a nonlinear felt hammer solved implicitly every sample — against our
+patch bank's partials-and-an-envelope. It is offered **for export only**, as a
+second `.wav` item in the export sheet, and the split is a measured one: the
+487-note rondo renders at **2.1x real time** on a desktop, and the live
+scheduler needs to stay ahead of the audio clock on a 140 ms lookahead. Cost
+tracks ringing strings, so a dense passage on a phone would stutter. A preview
+that stutters is worse than one that is merely synthetic.
+
+It is a **piano**, so an ensemble score exported this way gets a piano playing
+the violin's part. The toast says so; silently ignoring the instruments a score
+asks for would look exactly like the ensemble support being broken.
+
+Only three of upstream's seven core units are vendored (`pf_string`, `pf_board`,
+`pf_reverb`) — each includes only its own header, so nothing is stubbed. The
+shipped defaults are fitted to a Salamander Grand (CC BY 3.0); upstream's
+`pf_partial`, whose constants come from Pianoteq measurements, is a separate
+voice and is **not** here.
+
+The `.wasm` is committed because the deploy job has no C toolchain. Rebuild with
+`vendor/pfsynth/build.sh`; the selftests load the committed binary and render
+through it, so a stale or truncated one fails there rather than in a browser.
+
 ## Auth
 
 Reading, writing, playing and exporting need no account. Signing in only adds

@@ -10,7 +10,8 @@
 
 import { parseLily, pitchToLilyRelative, pitchToLily, durationToLily } from './lily.js';
 import { engrave } from './engrave.js';
-import { PATCHES, Player, scoreToNotes, performance as buildPerformance, renderWav, silentSwitchMayMute, patchForInstrument } from './audio.js';
+import { PATCHES, Player, scoreToNotes, performance as buildPerformance, renderWav, silentSwitchMayMute, patchForInstrument, wavBlobInterleaved } from './audio.js';
+import * as pfsynth from './pfsynth.js';
 import { writeMidi } from './midi.js';
 import { LIBRARY, byId, DEFAULT_PIECE } from './library.js';
 import { WHOLE, ticksOf, keyAlterations, clefDef, pitchFromDiatonic, spell } from './model.js';
@@ -649,6 +650,31 @@ async function exportWav() {
   }
 }
 
+/**
+ * The same performance through the physical model instead of the patch bank.
+ *
+ * Two things are said out loud rather than discovered. It is SLOW — a per-sample
+ * Newton solve on every ringing string, and a piece renders in something like
+ * its own duration rather than instantly. And it is a PIANO: a score that names
+ * a violin gets a piano playing the violin's part, because the model is a model
+ * of one instrument. Quietly ignoring the instruments an ensemble score asks
+ * for would look exactly like the ensemble support being broken.
+ */
+async function exportWavModelled() {
+  if (!state.perf?.events.length) { toast('nothing to render'); return; }
+  const ensemble = state.staffPatches?.some((p) => p && p !== PATCHES.piano);
+  toast(ensemble
+    ? 'rendering with the piano model — every part will sound like a piano…'
+    : 'rendering with the piano model — this is slower than the preview…', 600000);
+  try {
+    const { interleaved, sampleRate } = await pfsynth.render(state.perf);
+    download(wavBlobInterleaved(interleaved, sampleRate), `${slug(state.title)}-piano.wav`);
+    toast('audio ready');
+  } catch (err) {
+    toast(`could not render audio: ${err.message}`);
+  }
+}
+
 // ------------------------------------------------------------------ auth --
 //
 // Publishing writes ONE record to the reader's own ATProto repository. Nothing
@@ -792,6 +818,7 @@ function openExport() {
     item('.mid', 'MIDI, for a DAW or another notation editor', exportMidi);
     item('.svg', 'the engraving as vector art, for a document or a poster', exportSvg);
     item('.wav', 'the preview rendered to audio', exportWav);
+    item('.wav — piano model', 'slower, and a real piano: struck strings, not an envelope', exportWavModelled);
     item('print', 'the score alone, at page width', () => window.print());
     body.appendChild(menu);
 

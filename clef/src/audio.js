@@ -563,6 +563,25 @@ export async function renderWav(perf, patchName, onProgress, staffPatches = null
   return wavBlob(buffer);
 }
 
+/**
+ * A 16-bit WAV from interleaved float samples — the shape the physical model
+ * returns, and what an AudioBuffer is unwrapped into below. Kept separate from
+ * `wavBlob` so neither engine has to pretend to be the other.
+ */
+export function wavBlobInterleaved(interleaved, sampleRate, chans = 2) {
+  const frames = Math.floor(interleaved.length / chans);
+  return wavBlob({
+    numberOfChannels: chans,
+    length: frames,
+    sampleRate,
+    getChannelData: (c) => {
+      const out = new Float32Array(frames);
+      for (let i = 0; i < frames; i++) out[i] = interleaved[i * chans + c];
+      return out;
+    },
+  });
+}
+
 function wavBlob(buffer) {
   const chans = buffer.numberOfChannels;
   const frames = buffer.length;
