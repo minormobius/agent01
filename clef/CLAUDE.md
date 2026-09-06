@@ -360,6 +360,13 @@ pinned in the selftest.
   unconsumed command derails the bar it sits in.
 - **Fingerings** (`c-1`, `f'_5`) are read and drawn. Unread, the digit falls out
   of the note and is scanned as stray input, which wrecks the rest of the bar.
+- **`\compressMusic #'(3 . 2)`**, the pre-2.12 spelling of `\scaleDurations`,
+  multiplies durations without drawing a tuplet. Dvořák's *Als die alte Mutter*
+  writes its vocal line in 2/4 and stretches it onto a 6/8 staff with it.
+  Ignored, every vocal note came out two-thirds length and the melody drifted a
+  third of the piece out of step with the piano — 22 bars failing their own bar
+  checks. It sounds like notes stopping short, which points at playback; the
+  fault was in the parse.
 
 Measured on the three files this was built against — a Bach Polonaise, a CPE
 Bach flute sonata, a Chopin étude — diagnostics went 19/60/60 to 0/0/4 and the

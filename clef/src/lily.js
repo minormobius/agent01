@@ -51,6 +51,7 @@ const DYNAMICS = new Set([
 const MUSIC_COMMANDS = new Set([
   'relative', 'absolute', 'fixed', 'new', 'context', 'repeat', 'alternative',
   'tuplet', 'times', 'grace', 'acciaccatura', 'appoggiatura', 'afterGrace',
+  'scaleDurations', 'compressMusic',
   'transpose', 'addlyrics', 'lyricmode', 'lyricsto',
 ]);
 
@@ -630,6 +631,38 @@ function parseMusic(r) {
         const den = r.number() ?? 3;
         const music = parseMusic(r);
         return { t: 'tuplet', num: den, den: num, factor: num / den, music };
+      }
+      case 'scaleDurations':
+      case 'compressMusic': {
+        // Stretch or squeeze durations WITHOUT drawing a tuplet.
+        //
+        // `\compressMusic` is the pre-2.12 spelling of `\scaleDurations`, and
+        // ignoring it is not a cosmetic loss: Dvorak's "Als die alte Mutter"
+        // writes its vocal line in 2/4 and stretches it onto a 6/8 staff with
+        // `\compressMusic #'(3 . 2)`. Unscaled, every vocal note came out at
+        // two-thirds length and the melody drifted a third of the piece out of
+        // step with the piano — audible as notes stopping short, and looking
+        // like a playback fault rather than a parse one.
+        //
+        // The argument is a Scheme pair in old files and a plain fraction in
+        // new ones; both spellings appear in the corpus.
+        r.ws();
+        let num = 1;
+        let den = 1;
+        const pair = /^#\s*'?\s*\(\s*(\d+)\s*\.\s*(\d+)\s*\)/.exec(r.src.slice(r.i));
+        if (pair) {
+          num = Number(pair[1]);
+          den = Number(pair[2]);
+          r.i += pair[0].length;
+        } else if (r.peek() === '#') {
+          skipScheme(r);
+        } else {
+          num = r.number() ?? 1;
+          r.eat('/');
+          den = r.number() ?? 1;
+        }
+        const music = parseMusic(r);
+        return { t: 'scale', factor: den ? num / den : 1, music };
       }
       case 'grace':
       case 'acciaccatura':
@@ -1292,6 +1325,15 @@ class Flattener {
         void step;
         this.walk(node.music);
         this.transposition = saved;
+        return;
+      }
+      case 'scale': {
+        // The same duration arithmetic a tuplet does, and none of its ink:
+        // \scaleDurations leaves no bracket and no number on the page.
+        const saved = this.tupletFactor;
+        this.tupletFactor = saved * node.factor;
+        this.walk(node.music);
+        this.tupletFactor = saved;
         return;
       }
       case 'tuplet': {

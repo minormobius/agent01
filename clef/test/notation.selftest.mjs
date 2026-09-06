@@ -676,6 +676,62 @@ const midiList = (score, staff = 0, voice = 0) =>
   }
 }
 
+// -------------------------------------------- 11. scaled durations --
+//
+// `\scaleDurations` / `\compressMusic` stretch or squeeze durations WITHOUT
+// drawing a tuplet. Ignoring them is not cosmetic: it is how a vocal line
+// written in 2/4 and stretched onto a 6/8 staff came out at two-thirds length,
+// drifting a third of the piece out of step with the accompaniment. That is
+// audible as notes stopping short, and it looks like a playback fault rather
+// than the parse fault it is.
+{
+  const dur = (src) => {
+    const sc = parseLily(src);
+    const v = sc.staves[0].voices[0];
+    return v.filter((e) => e.kind === 'note' || e.kind === 'rest')
+      .reduce((a, e) => a + (e.ticks || 0), 0);
+  };
+  const Q = WHOLE / 4;
+
+  eq(dur(String.raw`{ c4 c4 }`), 2 * Q, 'scale: two quarters are two quarters');
+  // The exact shape from Dvorak's "Als die alte Mutter": 2/4 onto a 6/8 staff.
+  eq(dur(String.raw`\compressMusic #'(3 . 2) { c4 c4 }`), 3 * Q,
+    'scale: \\compressMusic #\'(3 . 2) stretches 2 quarters to 3');
+  eq(dur(String.raw`\scaleDurations #'(3 . 2) { c4 c4 }`), 3 * Q,
+    'scale: \\scaleDurations takes the same Scheme pair');
+  eq(dur(String.raw`\scaleDurations 3/2 { c4 c4 }`), 3 * Q,
+    'scale: and the modern plain-fraction spelling');
+  eq(dur(String.raw`\scaleDurations #'(1 . 2) { c4 c4 }`), Q,
+    'scale: it squeezes as well as stretches');
+
+  // Nested inside each other the factors multiply — a triplet inside scaled
+  // music is still a triplet of the scaled duration.
+  eq(dur(String.raw`\compressMusic #'(3 . 2) { \times 2/3 { c4 c4 c4 } }`), 3 * Q,
+    'scale: a tuplet inside scaled music multiplies both factors');
+
+  // The distinction from \tuplet is the INK: same arithmetic, no bracket.
+  const scaled = parseLily(String.raw`{ \scaleDurations #'(2 . 3) { c4 c4 c4 } }`);
+  const tupled = parseLily(String.raw`{ \tuplet 3/2 { c4 c4 c4 } }`);
+  const marks = (sc) => sc.staves[0].voices[0].filter((e) => e.tupletStart || e.tupletEnd).length;
+  eq(dur(String.raw`{ \scaleDurations #'(2 . 3) { c4 c4 c4 } }`), 2 * Q,
+    'scale: three quarters at 2/3 are two quarters');
+  eq(marks(scaled), 0, 'scale: \\scaleDurations draws no tuplet bracket');
+  ok(marks(tupled) > 0, 'scale: \\tuplet still does');
+
+  // A staff whose music is scaled must line up with one whose music is not —
+  // the failure this was found by.
+  const both = parseLily(String.raw`\score { << 
+    \new Staff { \time 6/8 \compressMusic #'(3 . 2) { c4 c4 | c4 c4 | } }
+    \new Staff { \time 6/8 c4. c4. | c4. c4. | }
+  >> }`);
+  const endOf = (si) => both.staves[si].voices[0]
+    .filter((e) => e.kind === 'note' || e.kind === 'rest')
+    .reduce((a, e) => Math.max(a, e.tick + (e.ticks || 0)), 0);
+  eq(endOf(0), endOf(1), 'scale: a scaled staff ends level with an unscaled one');
+  const layout = engrave(both, { width: 900 });
+  eq(layout.warnings.length, 0, 'scale: and every bar check passes');
+}
+
 // ------------------------------------------------------------------ report --
 console.log(`${checks - failures}/${checks} checks passed`);
 if (failures) {
