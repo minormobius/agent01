@@ -1,1 +1,1 @@
-Found it: push committed on the raw tap, and a tap near a tile's centre is a coin-flip between two direction buckets — that's the "rotates". Push is now press-drag-release with a live preview arrow, plus much bolder arrowheads everywhere.
+Fixed the 90° flip (dominoes now stand perpendicular to their fall line, like real ones) and added drag-to-place — axis follows your drag direction locally, so a curved path curves the chain too.

@@ -66,7 +66,7 @@
     <label class="range">speed <input id="speed" type="range" min="60" max="1000" step="20" value="260"><span id="speedVal">260ms</span></label>
     <span class="hint" id="genLabel">generation 0</span>
   </div>
-  <p class="hint" id="modeHint">place mode: tap a cell to cycle empty → four upright orientations. tap again on a falling or fallen cell to clear it.</p>
+  <p class="hint" id="modeHint">place mode: tap a cell to cycle empty → four upright orientations → clear. press and drag across cells to lay a chain of dominoes that follows your path, each standing perpendicular to the direction you dragged.</p>
 
   <div class="legend" id="legend"></div>
 
@@ -92,11 +92,13 @@
     </p>
   </div>
 
-  <p class="hint">place mode stands or clears dominoes. push mode lets you shove an upright
-  yourself: press the tile and drag away from its centre — a white arrow previews exactly
-  which of the 8 directions will be used, updating live as you move — then release to commit,
-  since an external push isn't limited to the tile's own axis. The automaton's own propagation
-  rule is the constrained one described above.</p>
+  <p class="hint">place mode stands or clears dominoes: tap one cell to cycle it, or press and
+  drag across several to lay a whole chain — each domino's axis is set from the direction you
+  dragged through it, so a curved path curves the chain with it. push mode lets you shove an
+  upright yourself: press the tile and drag away from its centre — a white arrow previews
+  exactly which of the 8 directions will be used, updating live as you move — then release to
+  commit, since an external push isn't limited to the tile's own axis. The automaton's own
+  propagation rule is the constrained one described above.</p>
 </main>
 
 <script>
@@ -207,7 +209,11 @@
         var cx = (c + 0.5) * cs, cy = (r + 0.5) * cs;
         if (s >= UP0 && s <= UP0 + 3) {
           var axis = s - UP0;
-          drawBar(cx, cy, axis * 45, cs * 0.82, cs * 0.30, AXIS_COLOR[axis], false);
+          // A real domino standing on end has its long footprint
+          // PERPENDICULAR to the line it will fall along — like a picket
+          // fence, wide face-on to the direction of travel, narrow along it.
+          // axis*45 is the fall line; the drawn bar sits 90deg from that.
+          drawBar(cx, cy, axis * 45 + 90, cs * 0.82, cs * 0.30, AXIS_COLOR[axis], false);
         } else if (s >= FALL0 && s <= FALL0 + 7) {
           var dir = s - FALL0;
           drawBar(cx, cy, dir * 45, cs * 0.92, cs * 0.22, FALL_COLOR, true);
@@ -300,17 +306,62 @@
     return Math.round(ang / 45) % 8;
   }
 
+  // ---- click-and-drag path placement (place mode) --------------------------
+  // A drag lays a chain of upright dominoes following the path, each one's
+  // axis set from the LOCAL direction of travel at that point in the path
+  // (mod 180 — an axis has no forward/back), so a curved drag produces a
+  // chain whose orientation actually follows the curve rather than one
+  // fixed angle for the whole gesture. A plain tap (no movement) falls back
+  // to the old cycle-through-orientations behaviour, so nothing already
+  // muscle-memorised breaks.
+  var placeDrag = null; // { last: {c, r}, moved: bool }
+
+  function axisFromDelta(dc, dr) {
+    var ang = Math.atan2(dr, dc) * 180 / Math.PI;
+    if (ang < 0) ang += 180; // an axis is a line, not an arrow: fold to 0..180
+    return Math.round(ang / 45) % 4;
+  }
+
+  function setUpright(c, r, axis) {
+    if (c < 0 || c >= cols || r < 0 || r >= rows) return;
+    grid[idx(c, r)] = UP0 + axis;
+  }
+
+  // Bresenham between the last placed cell and the new one, so a fast drag
+  // that jumps several cells in one pointermove still fills every cell in
+  // between rather than leaving gaps in the chain.
+  function placeAlong(prevCell, cell) {
+    var x0 = prevCell.c, y0 = prevCell.r, x1 = cell.c, y1 = cell.r;
+    var dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
+    var sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+    var err = dx - dy, cx = x0, cy = y0;
+    var pts = [{ c: cx, r: cy }];
+    while (cx !== x1 || cy !== y1) {
+      var e2 = 2 * err;
+      if (e2 > -dy) { err -= dy; cx += sx; }
+      if (e2 < dx) { err += dx; cy += sy; }
+      pts.push({ c: cx, r: cy });
+    }
+    for (var k = 1; k < pts.length; k++) {
+      var p = pts[k], pp = pts[k - 1];
+      var axis = axisFromDelta(p.c - pp.c, p.r - pp.r);
+      setUpright(pp.c, pp.r, axis);
+      setUpright(p.c, p.r, axis);
+    }
+  }
+
   document.getElementById('modePlace').addEventListener('click', function () {
     mode = 'place';
     pushPending = null; previewDir = null;
     this.classList.add('on');
     document.getElementById('modeIgnite').classList.remove('on');
     document.getElementById('modeHint').textContent =
-      'place mode: tap a cell to cycle empty → four upright orientations. tap again on a falling or fallen cell to clear it.';
+      'place mode: tap a cell to cycle empty → four upright orientations → clear. press and drag across cells to lay a chain of dominoes that follows your path.';
     draw();
   });
   document.getElementById('modeIgnite').addEventListener('click', function () {
     mode = 'ignite';
+    placeDrag = null;
     this.classList.add('on');
     document.getElementById('modePlace').classList.remove('on');
     document.getElementById('modeHint').textContent =
@@ -323,14 +374,16 @@
     var x = e.clientX - rect.left, y = e.clientY - rect.top;
     var c = Math.floor(x / cs), r = Math.floor(y / cs);
     if (c < 0 || c >= cols || r < 0 || r >= rows) return;
-    var i = idx(c, r);
-    var s = grid[i];
 
     if (mode === 'place') {
-      if (s >= EMPTY && s <= UP0 + 3) grid[i] = (s + 1) % 5;
-      else grid[i] = EMPTY;
-      draw();
-    } else if (s >= UP0 && s <= UP0 + 3) {
+      placeDrag = { last: { c: c, r: r }, moved: false };
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+      return;
+    }
+
+    var i = idx(c, r);
+    var s = grid[i];
+    if (s >= UP0 && s <= UP0 + 3) {
       pushPending = { c: c, r: r, i: i };
       var fx = (x - c * cs) / cs - 0.5;
       var fy = (y - r * cs) / cs - 0.5;
@@ -341,10 +394,24 @@
   });
 
   canvas.addEventListener('pointermove', function (e) {
-    if (!pushPending) return;
     var rect = canvas.getBoundingClientRect();
     var cs = rect.width / cols;
     var x = e.clientX - rect.left, y = e.clientY - rect.top;
+
+    if (mode === 'place' && placeDrag) {
+      var c = Math.floor(x / cs), r = Math.floor(y / cs);
+      c = Math.max(0, Math.min(cols - 1, c));
+      r = Math.max(0, Math.min(rows - 1, r));
+      if (c !== placeDrag.last.c || r !== placeDrag.last.r) {
+        placeDrag.moved = true;
+        placeAlong(placeDrag.last, { c: c, r: r });
+        placeDrag.last = { c: c, r: r };
+        draw();
+      }
+      return;
+    }
+
+    if (!pushPending) return;
     var fx = (x - pushPending.c * cs) / cs - 0.5;
     var fy = (y - pushPending.r * cs) / cs - 0.5;
     previewDir = directionFromOffset(fx, fy);
@@ -352,6 +419,18 @@
   });
 
   function commitPush() {
+    if (mode === 'place') {
+      if (placeDrag && !placeDrag.moved) {
+        // a plain tap, no drag: fall back to the old cycle-through behaviour
+        var i = idx(placeDrag.last.c, placeDrag.last.r);
+        var s = grid[i];
+        if (s >= EMPTY && s <= UP0 + 3) grid[i] = (s + 1) % 5;
+        else grid[i] = EMPTY;
+      }
+      placeDrag = null;
+      draw();
+      return;
+    }
     if (pushPending && previewDir !== null) grid[pushPending.i] = FALL0 + previewDir;
     pushPending = null;
     previewDir = null;
@@ -399,7 +478,7 @@
     var legend = document.getElementById('legend');
     var labels = ['upright — axis 0°/180°', 'upright — axis 45°/225°', 'upright — axis 90°/270°', 'upright — axis 135°/315°'];
     for (var a = 0; a < 4; a++) {
-      legend.appendChild(legendItem(barSvg(a * 45, AXIS_COLOR[a], false), labels[a]));
+      legend.appendChild(legendItem(barSvg(a * 45 + 90, AXIS_COLOR[a], false), labels[a]));
     }
     legend.appendChild(legendItem(barSvg(20, FALL_COLOR, true), 'falling (any of 8 directions)'));
     var sw = document.createElement('div'); sw.className = 'swatch';

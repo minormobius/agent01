@@ -40,11 +40,12 @@ than picking silently:
   ends in the same tick, they cancel and the upright stays upright, rather
   than picking one arbitrarily.
 
-Rendering choice: an upright's bar is drawn ALONG its fall axis (not
-perpendicular to it, which is how a real physical domino's footprint would
-look). This is a legibility choice — the bar visually points where the tile
-is "primed" to go — and is called out here so nobody "fixes" it against
-photographic domino physics later.
+~~Rendering choice: an upright's bar is drawn ALONG its fall axis~~ — **reversed
+turn three, see below.** The requester came back and said this reads as
+90° off from real-world domino physics, and they're right: a real domino
+stands with its long footprint PERPENDICULAR to the line it topples along
+(picket-fence style — wide face-on to the direction of travel, narrow along
+it), not with a bar pointing down the fall line. Do not revert this.
 
 No accounts, no PDS save. This sim has no visitor-identity angle (nobody's
 handle or avatar is involved) and works fully anonymously, so I left auth out
@@ -86,6 +87,38 @@ encoding, the seed pattern, the colour palette. If a future report says the
 producing an unexpected result), that's a different bug from this turn's and
 wants a fresh hand-trace against the "the rule" box, not a rendering fix.
 
+## Turn three (2026-09-06): fixed the 90° rendering, added drag-to-place
+
+Requester said the behaviour is now correct but "the dominos display as 90
+degrees off from how someone w/ a real-world understanding of dominos would
+expect them to behave," and asked for click-and-drag placement of a path of
+dominoes. Both done, nothing else touched:
+
+- **The 90° fix.** Uprights now draw at `axis*45 + 90` instead of `axis*45`
+  (see `draw()`), so the bar sits perpendicular to the axis it can fall
+  along — matching a real domino's footprint (wide across the direction of
+  travel, narrow along it — picket-fence style), not a bar pointing down the
+  fall line. Legend swatches (`barSvg` call for uprights) updated to match.
+  **This directly reverses last turn's explicit "legibility choice" — that
+  choice was wrong, per the person who owns the site. Do not revert it back.**
+  Falling-state arrows and the push-preview arrow are untouched: those
+  already point in the actual direction of travel, which was never the
+  complaint.
+- **Drag-to-place.** Place mode now supports press-and-drag: dragging across
+  cells lays a connected chain of upright dominoes, each one's axis set from
+  the *local* direction of travel through it (`axisFromDelta`, mod 180 since
+  an axis has no forward/back), so a curved drag produces a chain that curves
+  with it rather than one fixed angle for the whole gesture. A fast drag that
+  jumps several cells between pointermove events is filled in with a
+  Bresenham line (`placeAlong`) so the chain has no gaps. A plain tap with no
+  movement still falls back to the old cycle-through-orientations behaviour
+  (tracked via `placeDrag.moved`), so existing muscle memory isn't broken.
+
+Not changed: push mode's gesture or its dead-zone logic, the CA step
+function, the seed pattern (which now *reads* correctly under the fixed
+rendering — a horizontal run of axis-0 dominoes shows as a picket fence of
+vertical bars, which is the point).
+
 ## The plan (not built yet, in order)
 
 1. **Toroidal wrap toggle.** Right now edges just have fewer neighbours (no
@@ -121,3 +154,9 @@ wants a fresh hand-trace against the "the rule" box, not a rendering fix.
   classification for about half of all (d, axis) pairs. Caught this by hand-
   tracing the seed pattern before shipping, since this sandbox has no shell
   to run it in.
+- Angle convention throughout is canvas pixel space (y grows downward), so
+  `atan2(dy, dx)` at 0° means East and 90° means South, matching `DX`/`DY`
+  and `ctx.rotate`'s clockwise-positive direction. `axisFromDelta` and
+  `directionFromOffset` both rely on this being consistent; if you ever
+  introduce a math-convention angle (y-up) anywhere, everything drawn
+  perpendicular or "toward" a neighbour will be mirrored.

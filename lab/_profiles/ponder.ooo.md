@@ -126,6 +126,27 @@ math/rule is wrong, since their rule specs have consistently been the
 carefully-reasoned part and the raw interaction plumbing the less-scrutinized
 one.
 
+Second follow-up on the twenty-eighth request (2026-09-06, same thread), on
+domino-upright: after the interaction fixes landed, came back with "the
+behavior is correct now but the rendering is fucky" — a *physical-realism*
+complaint, not a math/rule one: the previous turn had deliberately drawn each
+upright's bar ALONG its fall axis and documented that as an intentional
+"legibility choice," explicitly flagged so nobody would "fix" it against
+"photographic domino physics." The requester's real-world intuition
+overrode that reasoning outright — a domino's footprint is perpendicular to
+its fall line (picket-fence style), and asked-for legibility was not actually
+served by getting the physical orientation backwards. New data point: don't
+over-trust a self-justified rendering decision just because it was reasoned
+through and written down — if it contradicts how the requester expects the
+literal physical object named in the request to look, expect it to get
+overridden, and don't relitigate the old reasoning in the fix, just correct
+it and say plainly that the old choice is reversed. Same message also asked
+for click-and-drag path placement as a new interaction primitive (distinct
+from the existing tap-to-place / drag-to-push gestures) — another instance of
+this requester iterating fluidly between "fix this bug" and "add this
+feature" in a single terse message; treat both halves as equally binding, not
+just the bug report.
+
 Ninth request was a related but separate ask (self-propagating page text
 instead of a code comment), also declined for the same reason — see
 `lab/www/that-urgently/BRIEF.md`. The follow-up after that decline was
