@@ -64,6 +64,13 @@
       <button id="btn-play" class="btn btn-play" type="button" aria-label="Play">
         <span class="glyph-play" aria-hidden="true"></span><span class="btn-text">Play</span>
       </button>
+      <!-- Only shown while the physical model is rendering, which is the one
+           thing on this page that makes you wait. -->
+      <div id="render-progress" class="render-progress" hidden
+           role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="Rendering piano">
+        <div class="render-bar"><i id="render-fill"></i></div>
+        <span id="render-label" class="render-label">rendering piano…</span>
+      </div>
       <label class="field">
         <span class="field-label">voice</span>
         <select id="patch" aria-label="Playback instrument"></select>

@@ -35,6 +35,9 @@ src/lily.js         the parser: LilyPond text -> staves of timed events
 src/glyphs.js       the notation typeface, as hand-authored SVG outlines
 src/engrave.js      layout: accidentals, columns, spacing, systems, beams, ink
 src/audio.js        playback patches, the lookahead scheduler, WAV export
+src/pfsynth.js      the physical-modelling piano: render, cache, play
+src/pfsynth-worker.js  that render, off the main thread
+vendor/pfsynth/     John O'Laughlin's pfsynth (MIT) + our wasm host
 src/midi.js         Standard MIDI File writer
 src/library.js      the eight bundled pieces
 src/mutopia.js      browsing the Mutopia archive (fetch + parse, no HTML injected)
@@ -236,16 +239,39 @@ WebAssembly host) and `build.sh` are ours. Read
 
 It is a real piano model — a digital waveguide per string, coupled detuned
 unisons, a nonlinear felt hammer solved implicitly every sample — against our
-patch bank's partials-and-an-envelope. It is offered **for export only**, as a
-second `.wav` item in the export sheet, and the split is a measured one: the
-487-note rondo renders at **2.1x real time** on a desktop, and the live
-scheduler needs to stay ahead of the audio clock on a 140 ms lookahead. Cost
-tracks ringing strings, so a dense passage on a phone would stutter. A preview
-that stutters is worse than one that is merely synthetic.
+patch bank's partials-and-an-envelope. It appears in the **voice picker**, as
+`Piano — physical model`, because from the reader's side it is a voice; it just
+costs a wait. Choosing it makes both Play and `.wav` use it.
 
-It is a **piano**, so an ensemble score exported this way gets a piano playing
-the violin's part. The toast says so; silently ignoring the instruments a score
-asks for would look exactly like the ensemble support being broken.
+**It cannot play in real time, so it does not try.** The rondo renders at about
+**2.1x real time** on a desktop and cost tracks ringing strings, not note count,
+so a phone is slower and a dense bar is slower again. Wired into the live
+scheduler — which must stay ahead of the audio clock on a 140 ms lookahead — it
+would stutter. Instead the whole piece is rendered first and then played as one
+buffer. Waiting once, with a bar that moves, beats a preview that breaks up.
+
+Three things follow from that, and each is load-bearing:
+
+- **The render runs in a Worker** (`pfsynth-worker.js`). On the main thread a
+  26-second render is 26 seconds of frozen tab — and a progress bar drawn from
+  that thread cannot advance, because the thread that would draw it is the one
+  doing the work. The worker also yields every few blocks, since a worker cannot
+  receive a message mid-loop and a cancel would otherwise arrive after the wait
+  it was meant to interrupt.
+- **Pressing Play again cancels the render.** Otherwise the only escape from a
+  wait you did not want is a page reload.
+- **Renders are cached on the notes**, not the source text: reformatting or
+  moving a slur changes the file without changing a struck string, and
+  re-rendering for that would be a bad trade. A second Play on an unchanged
+  score is instant.
+
+There is a `noWorker` option on `render()` so the worker and main-thread paths
+can be compared; they are bit-identical, checked in a browser (the node
+selftests have neither Worker nor fetch, so they only exercise the wasm).
+
+It is a **piano**, so an ensemble score played or exported this way gets a piano
+playing the violin's part. The toast says so; silently ignoring the instruments
+a score asks for would look exactly like the ensemble support being broken.
 
 Only three of upstream's seven core units are vendored (`pf_string`, `pf_board`,
 `pf_reverb`) — each includes only its own header, so nothing is stubbed. The

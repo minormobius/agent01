@@ -624,3 +624,22 @@ body {
   .score svg { color: #000; }
   .score svg .is-playing, .score svg .is-selected { color: #000; }
 }
+
+/* The physical model's render progress. It sits in the transport where the
+   play button is, because that is where the wait was asked for and where the
+   reader is already looking. */
+.render-progress { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.render-bar {
+  width: 108px; height: 5px; border-radius: 3px; overflow: hidden;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+.render-bar > i {
+  display: block; height: 100%; width: 0%;
+  background: currentColor; opacity: 0.75;
+  transition: width 120ms linear;
+}
+.render-label {
+  font-size: 12px; color: var(--ink-soft); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+@media (max-width: 560px) { .render-bar { width: 64px; } .render-label { display: none; } }

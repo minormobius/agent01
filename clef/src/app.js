@@ -12,6 +12,9 @@ import { parseLily, pitchToLilyRelative, pitchToLily, durationToLily } from './l
 import { engrave } from './engrave.js';
 import { PATCHES, Player, scoreToNotes, performance as buildPerformance, renderWav, silentSwitchMayMute, patchForInstrument, wavBlobInterleaved } from './audio.js';
 import * as pfsynth from './pfsynth.js';
+
+/** The voice-picker value that selects the physical model. */
+const MODEL_PATCH = 'pfsynth';
 import { writeMidi } from './midi.js';
 import { LIBRARY, byId, DEFAULT_PIECE } from './library.js';
 import { WHOLE, ticksOf, keyAlterations, clefDef, pitchFromDiatonic, spell } from './model.js';
@@ -28,6 +31,7 @@ const el = {
   source: $('source'), gutter: $('gutter'), score: $('score'), scroll: $('score-scroll'),
   diagnostics: $('diagnostics'), status: $('src-status'), pieceSelect: $('piece-select'),
   play: $('btn-play'), patch: $('patch'), tempo: $('tempo'), tempoOut: $('tempo-out'),
+  renderProgress: $('render-progress'), renderFill: $('render-fill'), renderLabel: $('render-label'),
   zoom: $('zoom'), follow: $('follow'), grand: $('grand'), palette: $('palette'), main: $('main'),
   sheet: $('sheet'), sheetTitle: $('sheet-title'), sheetBody: $('sheet-body'),
   toast: $('toast'), account: $('btn-account'),
@@ -469,18 +473,56 @@ function deleteSelected() {
 
 // -------------------------------------------------------------- playback --
 
+/**
+ * Whichever engine the voice picker is asking for.
+ *
+ * Both expose the same play/stop/position/onTick/onEnd shape, so nothing else
+ * in the page has to know which one is running.
+ */
+function activeEngine() {
+  return el.patch.value === MODEL_PATCH ? modelPlayer : player;
+}
+
 function togglePlay() {
-  if (player.playing) {
-    player.stop();
+  const engine = activeEngine();
+  // "Playing" includes "rendering the thing it is about to play": pressing the
+  // button again during a 26-second render has to cancel it, or the only way
+  // out of a wait you did not want is to reload the page.
+  if (engine.playing || engine.rendering) {
+    engine.stop();
     setPlayingUI(false);
+    showRenderProgress(false);
     return;
   }
   if (!state.perf?.events.length) { toast('nothing to play yet'); return; }
   warnAboutSilentSwitchOnce();
   const from = state.selected != null ? startSecondsOfSelection() : 0;
+
+  if (engine === modelPlayer) {
+    modelPlayer.load(state.perf);
+    setPlayingUI(true);
+    // The bar only appears if there is actually a render to wait for — a
+    // cached one starts instantly and a flash of progress would be a lie.
+    modelPlayer.play(from).catch((err) => {
+      showRenderProgress(false);
+      setPlayingUI(false);
+      if (!err?.cancelled) toast(`could not render the piano: ${err.message}`);
+    });
+    return;
+  }
+
   player.patch = PATCHES[el.patch.value] ?? PATCHES.piano;
   player.play(from);
   setPlayingUI(true);
+}
+
+function showRenderProgress(on, value = 0) {
+  el.renderProgress.hidden = !on;
+  if (!on) return;
+  const pct = Math.round(Math.max(0, Math.min(1, value)) * 100);
+  el.renderFill.style.width = `${pct}%`;
+  el.renderProgress.setAttribute('aria-valuenow', String(pct));
+  el.renderLabel.textContent = pct >= 99 ? 'almost there…' : `rendering piano… ${pct}%`;
 }
 
 let silentSwitchWarned = false;
@@ -551,6 +593,17 @@ function keepInView(node) {
 
 player.onEnd = () => setPlayingUI(false);
 
+// The physical model, driven exactly like the patch-bank player above. Sharing
+// onTick means the playhead and the score-following work identically whichever
+// engine is sounding.
+const modelPlayer = new pfsynth.ModelPlayer();
+modelPlayer.onTick = (elapsed) => player.onTick(elapsed);
+modelPlayer.onEnd = () => { setPlayingUI(false); showRenderProgress(false); };
+modelPlayer.onRenderProgress = (v) => {
+  if (v >= 1) { showRenderProgress(false); return; }
+  showRenderProgress(true, v);
+};
+
 // ---------------------------------------------------------------- pieces --
 
 function loadPiece(piece, { push = true } = {}) {
@@ -562,7 +615,9 @@ function loadPiece(piece, { push = true } = {}) {
   el.source.value = piece.source;
   el.source.setSelectionRange(0, 0);
   player.stop();
+  modelPlayer.stop();
   setPlayingUI(false);
+  showRenderProgress(false);
   scheduleRender(true);
   el.scroll.scrollTop = 0;
   if (push && piece.id) {
@@ -640,12 +695,28 @@ function exportMidi() {
 
 async function exportWav() {
   if (!state.perf?.events.length) { toast('nothing to render'); return; }
-  toast('rendering audio…', 60000);
+  const modelled = el.patch.value === MODEL_PATCH;
   try {
-    const blob = await renderWav(state.perf, el.patch.value, null, state.staffPatches);
-    download(blob, `${slug(state.title)}.wav`);
+    if (modelled) {
+      // The model is a PIANO, so an ensemble score exported this way gets a
+      // piano playing the violin's part. Said out loud: quietly ignoring the
+      // instruments a score asks for looks like the ensemble support breaking.
+      const ensemble = state.staffPatches?.some((p) => p && p !== PATCHES.piano);
+      toast(ensemble ? 'rendering — every part will sound like a piano…' : 'rendering the piano…', 600000);
+      showRenderProgress(true, 0);
+      const { interleaved, sampleRate } = await pfsynth.render(state.perf, {
+        onProgress: (v) => showRenderProgress(true, v),
+      });
+      showRenderProgress(false);
+      download(wavBlobInterleaved(interleaved, sampleRate), `${slug(state.title)}.wav`);
+    } else {
+      toast('rendering audio…', 60000);
+      download(await renderWav(state.perf, el.patch.value, null, state.staffPatches),
+        `${slug(state.title)}.wav`);
+    }
     toast('audio ready');
   } catch (err) {
+    showRenderProgress(false);
     toast(`could not render audio: ${err.message}`);
   }
 }
@@ -660,20 +731,7 @@ async function exportWav() {
  * of one instrument. Quietly ignoring the instruments an ensemble score asks
  * for would look exactly like the ensemble support being broken.
  */
-async function exportWavModelled() {
-  if (!state.perf?.events.length) { toast('nothing to render'); return; }
-  const ensemble = state.staffPatches?.some((p) => p && p !== PATCHES.piano);
-  toast(ensemble
-    ? 'rendering with the piano model — every part will sound like a piano…'
-    : 'rendering with the piano model — this is slower than the preview…', 600000);
-  try {
-    const { interleaved, sampleRate } = await pfsynth.render(state.perf);
-    download(wavBlobInterleaved(interleaved, sampleRate), `${slug(state.title)}-piano.wav`);
-    toast('audio ready');
-  } catch (err) {
-    toast(`could not render audio: ${err.message}`);
-  }
-}
+
 
 // ------------------------------------------------------------------ auth --
 //
@@ -817,8 +875,9 @@ function openExport() {
     item('.ly', 'the source, exactly as you see it — LilyPond will engrave it too', exportLy);
     item('.mid', 'MIDI, for a DAW or another notation editor', exportMidi);
     item('.svg', 'the engraving as vector art, for a document or a poster', exportSvg);
-    item('.wav', 'the preview rendered to audio', exportWav);
-    item('.wav — piano model', 'slower, and a real piano: struck strings, not an envelope', exportWavModelled);
+    item('.wav', el.patch.value === MODEL_PATCH
+      ? 'rendered through the physical piano model — slower, and worth it'
+      : 'the preview rendered to audio', exportWav);
     item('print', 'the score alone, at page width', () => window.print());
     body.appendChild(menu);
 
@@ -1180,6 +1239,13 @@ function wire() {
   el.play.addEventListener('click', togglePlay);
 
   el.patch.addEventListener('change', () => {
+    // Changing voice while something is sounding has to silence it: the two
+    // engines own separate audio graphs, so leaving the old one running plays
+    // both at once.
+    player.stop();
+    modelPlayer.stop();
+    setPlayingUI(false);
+    showRenderProgress(false);
     player.patch = PATCHES[el.patch.value] ?? PATCHES.piano;
     savePrefs({ patch: el.patch.value });
   });
@@ -1308,10 +1374,23 @@ function boot() {
     o.textContent = p.label;
     el.patch.appendChild(o);
   }
+  // The physical model belongs in this list because from the reader's side it
+  // IS a voice — it just costs a wait. Offered only once the module actually
+  // loads, so a browser that cannot run it never shows a choice that fails.
+  pfsynth.available().then((ok) => {
+    if (!ok) return;
+    const o = document.createElement('option');
+    o.value = MODEL_PATCH;
+    o.textContent = 'Piano — physical model';
+    el.patch.appendChild(o);
+    const prefs = loadPrefs();
+    if (prefs.patch === MODEL_PATCH) el.patch.value = MODEL_PATCH;
+  });
   fillPieceSelect();
 
   const prefs = loadPrefs();
   if (prefs.patch && PATCHES[prefs.patch]) el.patch.value = prefs.patch;
+  // The model option is appended asynchronously above; it restores itself there.
   // A phone gets a smaller staff by default: at the desktop size a 400px page
   // fits two bars to a system, which is a scroll rather than a score. The
   // slider still wins once the reader has touched it.
