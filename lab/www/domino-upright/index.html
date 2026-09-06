@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>domino upright — a projective-Moore toppling automaton</title>
+<meta name="description" content="A cellular automaton of upright dominoes toppling across a grid: 4 axis orientations, 8 falling directions, one fallen state, and a precise push rule.">
+<meta property="og:title" content="domino upright — a projective-Moore toppling automaton">
+<meta property="og:description" content="4 upright orientations (the Moore neighborhood identified with its antipodes), 8 falling directions, one terminal fallen state. Tap to stand dominoes, tap again to push one over, and watch the chain reaction obey a precise push rule.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --accent: #e8a33d; }
+  main { max-width: 52rem; }
+  h1 { font-size: 1.9rem; }
+  #stage {
+    position: relative;
+    width: 100%;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    touch-action: none;
+    margin: 1rem 0;
+  }
+  #board { display: block; width: 100%; height: auto; }
+  .row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: .6rem 0; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .seg button { border: none; border-radius: 0; padding: .7rem 1rem; min-height: 44px; }
+  .seg button.on { background: var(--accent); color: #000; }
+  .seg button:not(.on) { background: var(--bg-raised); color: var(--muted); }
+  button { min-height: 44px; }
+  label.range { display: flex; align-items: center; gap: .5rem; color: var(--muted); font-size: .8rem; }
+  input[type=range] { width: 9rem; }
+  .legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: .6rem 1rem; margin: 1rem 0; }
+  .legend .item { display: flex; align-items: center; gap: .5rem; font-size: .78rem; color: var(--muted); }
+  .swatch { width: 28px; height: 28px; flex: none; position: relative; }
+  .swatch svg { width: 100%; height: 100%; }
+  .hint { font-size: .8rem; color: var(--muted); }
+  code { font-size: .82em; }
+  .rulebox { border: 1px solid var(--border); border-radius: var(--radius); padding: .9rem 1rem; background: var(--bg-raised); }
+  .rulebox h2 { margin-top: 0; }
+</style>
+</head>
+<body>
+<main>
+  <script>document.write(kit.crumb('domino-upright'));</script>
+  <h1>domino upright</h1>
+  <p class="sub">upright dominoes topple along the axis they were stood on, pushed by a falling neighbour that isn't orthogonal to that axis.</p>
+
+  <div id="stage">
+    <canvas id="board"></canvas>
+  </div>
+
+  <div class="row">
+    <div class="seg" role="group" aria-label="interaction mode">
+      <button id="modePlace" class="on">place</button>
+      <button id="modeIgnite">push</button>
+    </div>
+    <button id="step">step</button>
+    <button id="play">▶ play</button>
+    <button id="randomize">randomize</button>
+    <button id="clear">clear</button>
+  </div>
+  <div class="row">
+    <label class="range">speed <input id="speed" type="range" min="60" max="1000" step="20" value="260"><span id="speedVal">260ms</span></label>
+    <span class="hint" id="genLabel">generation 0</span>
+  </div>
+  <p class="hint" id="modeHint">place mode: tap a cell to cycle empty → four upright orientations. tap again on a falling or fallen cell to clear it.</p>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="rulebox">
+    <h2>the rule</h2>
+    <p>
+      The Moore neighbourhood has 8 directions; <b>projectivizing</b> it identifies each
+      direction with its opposite, leaving 4 axes — those are the 4 upright orientations.
+      Falling keeps the full 8 directions, since a topple to the northeast is not the same
+      event as one to the southwest.
+    </p>
+    <p>
+      An upright on axis <code>θ</code> can only ever become one of <b>2</b> falling states:
+      falling(θ) or falling(θ+180°) — it can only topple along the axis it is standing on.
+      Each tick, it looks at its 8 neighbours for ones that are <i>falling toward it</i>
+      (a neighbour at relative direction <code>n</code> is falling in direction
+      <code>n+180°</code>). A push whose direction sits within 45° of θ tips it toward
+      falling(θ); within 45° of θ+180° tips it the other way; a push exactly orthogonal to θ
+      (±90°) has no lever arm and is ignored entirely. If it receives valid pushes toward
+      <em>both</em> ends at once — opposite directions cancelling — it stays upright.
+      Falling always becomes <b>fallen</b> (one shared terminal state) after exactly one tick,
+      whichever of the 8 directions it fell in.
+    </p>
+  </div>
+
+  <p class="hint">place mode stands or clears dominoes. push mode lets you shove an upright
+  yourself: tap near the edge of the tile in the direction you want it to fall — any of the
+  8 directions, since an external push isn't limited to the tile's own axis. The automaton's
+  own propagation rule is the constrained one described above.</p>
+</main>
+
+<script>
+(function(){
+  'use strict';
+
+  // ---- state encoding -------------------------------------------------
+  // 0            empty
+  // 1..4         upright, axis = state-1  (axis angle = axis*45deg)
+  // 5..12        falling, dir  = state-5  (dir angle  = dir*45deg)
+  // 13           fallen (terminal, single shared state)
+  var EMPTY = 0, UP0 = 1, FALL0 = 5, FALLEN = 13;
+
+  var DX = [1, 1, 0, -1, -1, -1, 0, 1];
+  var DY = [0, 1, 1, 1, 0, -1, -1, -1];
+
+  var AXIS_COLOR = ['#e8a33d', '#5fb3d9', '#7ac387', '#c792ea'];
+  var FALL_COLOR = '#f2777a';
+  var FALLEN_COLOR = '#5b5866';
+
+  var narrow = window.innerWidth < 480;
+  var cols = narrow ? 15 : 30;
+  var rows = narrow ? 20 : 18;
+
+  var grid = new Uint8Array(cols * rows);
+  var next = new Uint8Array(cols * rows);
+  var gen = 0;
+
+  var canvas = document.getElementById('board');
+  var ctx = canvas.getContext('2d');
+  var stage = document.getElementById('stage');
+
+  function idx(c, r) { return r * cols + c; }
+
+  function resizeCanvas() {
+    var w = stage.clientWidth;
+    var cell = w / cols;
+    var h = cell * rows;
+    var dpr = window.devicePixelRatio || 1;
+    canvas.style.height = h + 'px';
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw();
+  }
+
+  function cellSize() { return stage.clientWidth / cols; }
+
+  // ---- drawing ----------------------------------------------------------
+  function drawBar(cx, cy, angleDeg, len, thick, color, arrow) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angleDeg * Math.PI / 180);
+    ctx.fillStyle = color;
+    var r = Math.min(3, thick / 3);
+    roundRect(-len / 2, -thick / 2, len, thick, r);
+    ctx.fill();
+    if (arrow) {
+      ctx.beginPath();
+      ctx.moveTo(len / 2, 0);
+      ctx.lineTo(len / 2 - thick * 0.9, -thick * 0.6);
+      ctx.lineTo(len / 2 - thick * 0.9, thick * 0.6);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function draw() {
+    var cs = cellSize();
+    ctx.clearRect(0, 0, cols * cs, rows * cs);
+
+    // grid lines, faint
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 1;
+    for (var c = 0; c <= cols; c++) {
+      ctx.beginPath(); ctx.moveTo(c * cs, 0); ctx.lineTo(c * cs, rows * cs); ctx.stroke();
+    }
+    for (var r = 0; r <= rows; r++) {
+      ctx.beginPath(); ctx.moveTo(0, r * cs); ctx.lineTo(cols * cs, r * cs); ctx.stroke();
+    }
+
+    for (r = 0; r < rows; r++) {
+      for (c = 0; c < cols; c++) {
+        var s = grid[idx(c, r)];
+        if (s === EMPTY) continue;
+        var cx = (c + 0.5) * cs, cy = (r + 0.5) * cs;
+        if (s >= UP0 && s <= UP0 + 3) {
+          var axis = s - UP0;
+          drawBar(cx, cy, axis * 45, cs * 0.82, cs * 0.30, AXIS_COLOR[axis], false);
+        } else if (s >= FALL0 && s <= FALL0 + 7) {
+          var dir = s - FALL0;
+          drawBar(cx, cy, dir * 45, cs * 0.92, cs * 0.22, FALL_COLOR, true);
+        } else if (s === FALLEN) {
+          ctx.fillStyle = FALLEN_COLOR;
+          roundRect(cx - cs * 0.38, cy - cs * 0.38, cs * 0.76, cs * 0.76, cs * 0.12);
+          ctx.fill();
+        }
+      }
+    }
+  }
+
+  // ---- CA step ------------------------------------------------------------
+  function step() {
+    next.set(grid);
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) {
+        var i = idx(c, r);
+        var s = grid[i];
+        if (s >= UP0 && s <= UP0 + 3) {
+          var axis = s - UP0;
+          var g1 = false, g2 = false;
+          for (var n = 0; n < 8; n++) {
+            var nc = c + DX[n], nr = r + DY[n];
+            if (nc < 0 || nc >= cols || nr < 0 || nr >= rows) continue;
+            var ns = grid[idx(nc, nr)];
+            if (ns < FALL0 || ns > FALL0 + 7) continue;
+            var d = ns - FALL0;
+            if (d !== (n + 4) % 8) continue; // only counts if falling toward us
+            var diff = ((d - axis) % 8 + 8) % 8;
+            if (diff === 0 || diff === 1 || diff === 7) g1 = true;
+            else if (diff === 3 || diff === 4 || diff === 5) g2 = true;
+            // diff 2 or 6: orthogonal to the axis, no lever arm — ignored
+          }
+          if (g1 && g2) next[i] = s;               // opposite pushes cancel
+          else if (g1) next[i] = FALL0 + axis;
+          else if (g2) next[i] = FALL0 + ((axis + 4) % 8);
+          else next[i] = s;
+        } else if (s >= FALL0 && s <= FALL0 + 7) {
+          next[i] = FALLEN;
+        } else {
+          next[i] = s;
+        }
+      }
+    }
+    var tmp = grid; grid = next; next = tmp;
+    gen++;
+    document.getElementById('genLabel').textContent = 'generation ' + gen;
+    draw();
+  }
+
+  // ---- interaction --------------------------------------------------------
+  var mode = 'place';
+  document.getElementById('modePlace').addEventListener('click', function () {
+    mode = 'place';
+    this.classList.add('on');
+    document.getElementById('modeIgnite').classList.remove('on');
+    document.getElementById('modeHint').textContent =
+      'place mode: tap a cell to cycle empty → four upright orientations. tap again on a falling or fallen cell to clear it.';
+  });
+  document.getElementById('modeIgnite').addEventListener('click', function () {
+    mode = 'ignite';
+    this.classList.add('on');
+    document.getElementById('modePlace').classList.remove('on');
+    document.getElementById('modeHint').textContent =
+      'push mode: tap near the edge of an upright tile, in the direction you want it to fall — any of the 8 directions.';
+  });
+
+  canvas.addEventListener('pointerdown', function (e) {
+    var rect = canvas.getBoundingClientRect();
+    var cs = rect.width / cols;
+    var x = e.clientX - rect.left, y = e.clientY - rect.top;
+    var c = Math.floor(x / cs), r = Math.floor(y / cs);
+    if (c < 0 || c >= cols || r < 0 || r >= rows) return;
+    var i = idx(c, r);
+    var s = grid[i];
+
+    if (mode === 'place') {
+      if (s >= EMPTY && s <= UP0 + 3) grid[i] = (s + 1) % 5;
+      else grid[i] = EMPTY;
+    } else {
+      if (s >= UP0 && s <= UP0 + 3) {
+        var fx = (x - c * cs) / cs - 0.5;
+        var fy = (y - r * cs) / cs - 0.5;
+        var ang = Math.atan2(fy, fx) * 180 / Math.PI;
+        if (ang < 0) ang += 360;
+        var dir = Math.round(ang / 45) % 8;
+        grid[i] = FALL0 + dir;
+      }
+    }
+    draw();
+  });
+
+  // ---- controls -------------------------------------------------------
+  document.getElementById('step').addEventListener('click', step);
+
+  var playing = false, timer = null;
+  var speedInput = document.getElementById('speed');
+  var speedVal = document.getElementById('speedVal');
+  function tickInterval() { return parseInt(speedInput.value, 10); }
+  speedInput.addEventListener('input', function () {
+    speedVal.textContent = speedInput.value + 'ms';
+    if (playing) { clearInterval(timer); timer = setInterval(step, tickInterval()); }
+  });
+  document.getElementById('play').addEventListener('click', function () {
+    playing = !playing;
+    this.textContent = playing ? '⏸ pause' : '▶ play';
+    if (playing) timer = setInterval(step, tickInterval());
+    else clearInterval(timer);
+  });
+
+  document.getElementById('randomize').addEventListener('click', function () {
+    for (var i = 0; i < grid.length; i++) {
+      grid[i] = Math.random() < 0.22 ? (1 + Math.floor(Math.random() * 4)) : EMPTY;
+    }
+    gen = 0;
+    document.getElementById('genLabel').textContent = 'generation 0';
+    draw();
+  });
+  document.getElementById('clear').addEventListener('click', function () {
+    grid.fill(EMPTY);
+    gen = 0;
+    document.getElementById('genLabel').textContent = 'generation 0';
+    if (playing) document.getElementById('play').click();
+    draw();
+  });
+
+  // ---- legend -------------------------------------------------------------
+  (function buildLegend() {
+    var legend = document.getElementById('legend');
+    var labels = ['upright — axis 0°/180°', 'upright — axis 45°/225°', 'upright — axis 90°/270°', 'upright — axis 135°/315°'];
+    for (var a = 0; a < 4; a++) {
+      legend.appendChild(legendItem(barSvg(a * 45, AXIS_COLOR[a], false), labels[a]));
+    }
+    legend.appendChild(legendItem(barSvg(20, FALL_COLOR, true), 'falling (any of 8 directions)'));
+    var sw = document.createElement('div'); sw.className = 'swatch';
+    sw.innerHTML = '<svg viewBox="0 0 28 28"><rect x="4" y="4" width="20" height="20" rx="4" fill="' + FALLEN_COLOR + '"/></svg>';
+    legend.appendChild(legendItem(sw.innerHTML, 'fallen (single terminal state)'));
+  })();
+  function legendItem(svgInner, text) {
+    var d = document.createElement('div'); d.className = 'item';
+    var s = document.createElement('div'); s.className = 'swatch'; s.innerHTML = svgInner;
+    d.appendChild(s);
+    var t = document.createElement('span'); t.textContent = text;
+    d.appendChild(t);
+    return d;
+  }
+  function barSvg(angle, color, arrow) {
+    var arrowHead = arrow ? '<polygon points="22,14 15,9 15,19" fill="' + color + '"/>' : '';
+    return '<svg viewBox="0 0 28 28"><g transform="rotate(' + angle + ' 14 14)">' +
+      '<rect x="5" y="11" width="18" height="6" rx="2" fill="' + color + '"/>' + arrowHead + '</g></svg>';
+  }
+
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  // a small starting pattern so the page isn't blank on first load
+  (function seed() {
+    var midR = Math.floor(rows / 2);
+    var startC = Math.max(1, Math.floor(cols * 0.15));
+    var runLen = Math.min(cols - startC - 2, 8);
+    for (var k = 0; k < runLen; k++) grid[idx(startC + k, midR)] = UP0; // axis 0, horizontal chain
+    grid[idx(startC - 1, midR)] = FALL0 + 0; // pre-lit, falling east, to kick off the chain
+    draw();
+  })();
+})();
+</script>
+</body>
+</html>

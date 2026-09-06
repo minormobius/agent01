@@ -1,0 +1,1 @@
+Terse spec, so I had to pin down "orthogonal" and "opposite" geometrically — my exact reading is spelled out on-page under "the rule," not hidden in code. No repo save yet (next turn). Tap to stand dominoes, "push" mode to topple one by hand.

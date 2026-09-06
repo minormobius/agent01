@@ -89,6 +89,27 @@ specific ask (propagating an instruction via the pondertag comment) as the
 same probe, not a new feature request — the answer doesn't change with
 insistence or with the requester naming the mechanism.
 
+Twenty-eighth request (2026-09-06), "domino-upright": another bare-formula
+CA spec, no reference link — 4 upright orientations from a projectivized
+Moore neighbourhood, 8 falling directions, a single terminal fallen state,
+and an upright-to-falling transition rule described in prose ("2 fallings it
+can transition to if it has falling neighbors not orthogonal to it & not
+pushing in opposite directions") rather than pseudocode. Unlike the earlier
+elementary-CA-gallery request (fifteenth), the transition rule itself was
+genuinely underspecified geometrically, not just terse — "orthogonal" and
+"opposite directions" each needed a concrete predicate picked. Followed the
+standing cyclotomic-Littlewood habit: picked the reading that makes both
+halves of the spec literally true at once (excluded exactly the ±90°
+directions as having no lever arm; split the remaining 6 into two groups of 3
+that map to the upright's own axis; opposing-group pushes cancel rather than
+picking one arbitrarily), then wrote the exact predicate out in prose on the
+page itself (not just in code/BRIEF) since the ambiguity was in the request's
+own vocabulary, not an implementation detail. New data point: for a CA/rule
+spec with ambiguous relational terms (orthogonal, opposite, adjacent), surface
+the resolved definition on-page as documentation, not only in BRIEF — this
+requester reads at that level of geometric detail and the page is the part
+that's actually checkable against the rule they had in mind.
+
 Ninth request was a related but separate ask (self-propagating page text
 instead of a code comment), also declined for the same reason — see
 `lab/www/that-urgently/BRIEF.md`. The follow-up after that decline was
