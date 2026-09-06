@@ -1,13 +1,13 @@
 {
   "slug": "domino-upright",
-  "task": "domino CA. 4 upright orientations (projectivized moore neighborhood), 8 directional \"falling\" states. falling transitions to a single \"fallen\" state. each upright has 2 fallings it can transition to if it has falling neighbors not orthogonal to it & not pushing in opposite directions",
+  "task": "ok the textual writeup of your interpretation sounds faithful to my intention. however the behavior seems maybe buggy.\n\nalso, it is currently can't tell visually which direction the falling dominos are falling in, which direction one is pushing in. & push seems to also rotate sometimes?\n\n--- earlier in this thread, from the person who asked (oldest first) ---\n\ndomino CA. 4 upright orientations (projectivized moore neighborhood), 8 directional \"falling\" states. falling transitions to a single \"fallen\" state. each upright has 2 fallings it can transition to if it has falling neighbors not orthogonal to it & not pushing in opposite directions",
   "thread_root": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3muuyvfytdc2r",
   "requester": "ponder.ooo",
   "named": "no",
   "root_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3muuyvfytdc2r",
   "root_cid": "bafyreiehmf5giseapidvvqjyuk55acyainhpdfpdtf3hrketqd46fimdfy",
-  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3muuyvfytdc2r",
-  "parent_cid": "bafyreiehmf5giseapidvvqjyuk55acyainhpdfpdtf3hrketqd46fimdfy",
-  "refs_from": "domino CA. 4 upright orientations (projectivized moore neighborhood), 8 directional \"falling\" states. falling transitions to a single \"fallen\" state. each upright has 2 fallings it can transition to if it has falling neighbors not orthogonal to it & not pushing in opposite directions",
-  "requestedAt": "2026-09-06T22:06:37.138Z"
+  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3muuzod36hc22",
+  "parent_cid": "bafyreidoy4akihkhyruzmtefhkuiyw2gzz2acekzdyegr4vqeaor356w5u",
+  "refs_from": "ok the textual writeup of your interpretation sounds faithful to my intention. however the behavior seems maybe buggy.\n\nalso, it is currently can't tell visually which direction the falling dominos are falling in, which direction one is pushing in. & push seems to also rotate sometimes?\ndomino CA. 4 upright orientations (projectivized moore neighborhood), 8 directional \"falling\" states. falling transitions to a single \"fallen\" state. each upright has 2 fallings it can transition to if it has falling neighbors not orthogonal to it & not pushing in opposite directions",
+  "requestedAt": "2026-09-06T22:20:37.497Z"
 }
