@@ -82,6 +82,24 @@ const IGNORED = new RegExp('^(?:'
   + ')$');
 
 // Contexts that mean "a new staff starts here" vs. ones that only group.
+/* Two bounds on writing out `\repeat unfold` / `tremolo`, for two different
+ * ways it can run away.
+ *
+ * DEPTH is the one that matters. Expansion is multiplicative, so nesting is
+ * exponential: Dvorak's American Quartet has a first movement whose tremolos
+ * come out nested five deep, and four to a level is 4^5.
+ *
+ * Nobody writes a tremolo inside a tremolo, so ANY nesting on this path is an
+ * artifact and the cap is 1. (A tremolo inside a `\repeat volta` is ordinary
+ * and unaffected — volta does not come down here.) At a cap of 2 the same
+ * movement still came out 36x too long, which is what 6^2 looks like.
+ *
+ * SIZE is the backstop for whatever else a file might do. A long orchestral
+ * movement is a few thousand events in one voice; 50k is far above that and
+ * still small enough to fail fast rather than grind. */
+const EXPAND_DEPTH = 1;
+const EXPAND_BUDGET = 50000;
+
 const STAFF_CONTEXTS = new Set(['Staff', 'DrumStaff', 'RhythmicStaff', 'TabStaff', 'Lyrics']);
 const GROUP_CONTEXTS = new Set(['PianoStaff', 'StaffGroup', 'ChoirStaff', 'GrandStaff', 'Score']);
 
@@ -254,7 +272,7 @@ class Reader {
  * each staff is `{ name, voices: [ Event[] ] }`. Never throws on bad input:
  * whatever it could read comes back, with the rest reported in `diagnostics`.
  */
-export function parseLily(source) {
+export function parseLily(source, options = {}) {
   const r = new Reader(String(source ?? ''));
   const top = [];
 
@@ -312,6 +330,15 @@ export function parseLily(source) {
       continue;
     }
 
+    // A bare Scheme form at the TOP level: `#(ly:set-option ...)`,
+    // `#(set-global-staff-size 15)`. Configuration, with nothing here to act
+    // on — but it has to be CONSUMED. Left to the fallback below it is scanned
+    // one character at a time, and a single such line produces dozens of
+    // "unexpected" diagnostics that bury the ones that matter. Real archive
+    // scores open with two or three of these; Dvorak's American Quartet is
+    // one, and this is what stopped its four staves being found.
+    if (r.peek() === '#') { skipScheme(r); continue; }
+
     // Nothing recognised here — step past one character so we always advance.
     r.warn(`unexpected ${JSON.stringify(r.peek())}`, r.i);
     r.i++;
@@ -324,7 +351,7 @@ export function parseLily(source) {
     root = { t: 'par', items: [...r.defs.values()], split: false };
   }
 
-  const { staves, groups } = extractStaves(root, r);
+  const { staves, groups, movementCount } = extractStaves(root, r, options.movement ?? 0);
   const tempo = findTempo(staves);
   return {
     title: r.header.title || '',
@@ -333,6 +360,10 @@ export function parseLily(source) {
     tempo,
     staves,
     groups,
+    // A multi-movement file holds several pieces. One is read; the page says so
+    // and offers the others rather than stacking them on top of each other.
+    movementCount,
+    movement: Math.min(options.movement ?? 0, Math.max(0, movementCount - 1)),
     language: r.languageName,
     diagnostics: r.diagnostics,
   };
@@ -340,6 +371,18 @@ export function parseLily(source) {
 
 function parseAssignable(r) {
   r.ws();
+  // A definition may carry a DIRECTION with its value — `arco = ^\markup {…}`,
+  // `fine = _\markup {…}` — meaning "print this above/below the note I am
+  // attached to". The direction belongs to the eventual attachment, not to the
+  // text, so it is consumed here and dropped.
+  //
+  // Left in place it is a disaster out of all proportion: the assignment fails,
+  // the reader resynchronises somewhere inside the next line, and from there
+  // the file is misread to its end. Dvorak's American Quartet defines a dozen
+  // of these at the top (arco, atempo, dolce, fine…) and the cost was its
+  // \score block never being recognised at all — four staves of string quartet
+  // arriving as one staff of 13007 notes.
+  if ('^_-'.includes(r.peek() ?? '') && r.src.startsWith('\\markup', r.i + 1)) r.i++;
   if (r.peek() === '"') return { t: 'text', value: r.string() };
   if (r.src.startsWith('\\markup', r.i)) { r.command(); return { t: 'text', value: flattenMarkup(r) }; }
   if (/[0-9]/.test(r.peek() ?? '')) return { t: 'text', value: String(r.number()) };
@@ -527,6 +570,7 @@ function skipScheme(r) {
 function parseScoreBlock(r) {
   if (!r.eat('{')) return null;
   const items = [];
+  const scores = [];   // the `\score` blocks directly inside this one
   let guard = 0;
   while (!r.done && guard++ < 5000) {
     r.ws();
@@ -542,7 +586,7 @@ function parseScoreBlock(r) {
       // this the second score is read as music inside the first.
       if (cmd === 'score' || cmd === 'bookpart' || cmd === 'book') {
         const nested = parseScoreBlock(r);
-        if (nested) items.push(nested);
+        if (nested) { scores.push(nested); items.push(nested); }
         continue;
       }
       if (cmd === 'markup') { flattenMarkup(r); continue; }
@@ -551,6 +595,12 @@ function parseScoreBlock(r) {
     const m = parseMusic(r);
     if (m) items.push(m); else r.i++;
   }
+  // SEVERAL `\score` BLOCKS ARE MOVEMENTS, NOT PARTS. Returned as a parallel
+  // they are stacked: Dvorak's American Quartet came out as sixteen staves —
+  // four movements of four — every one of them starting at tick 0 and sounding
+  // at once. They are alternatives in time, so they are marked as such here and
+  // the reader picks one.
+  if (scores.length > 1) return { t: 'movements', items: scores };
   return items.length === 1 ? items[0] : { t: 'par', items, split: false };
 }
 
@@ -1352,6 +1402,56 @@ class Flattener {
         return;
       }
       case 'repeat': {
+        // ONLY `\repeat volta` IS A REPEAT SIGN. The other kinds share the
+        // keyword and mean something else entirely:
+        //
+        //   unfold N   play the body N times, written out, no bar lines
+        //   tremolo N  a tremolo — the body sounded N times, drawn as beams
+        //   percent N  repeat the previous bar, drawn as a percent sign
+        //
+        // Barring them is not a cosmetic slip. Dvorak's American Quartet writes
+        // its tremolos as `\repeat tremolo 32 {…}`, and read as repeat signs
+        // those became 182 repeat marks an eighth note apart with counts up to
+        // 32 — the first movement expanded to 453 playback segments and 28
+        // minutes of audio for a ten-minute piece.
+        //
+        // Unfolding is exactly right for the sounding result in all three: a
+        // tremolo IS those notes played that many times, and their written
+        // durations already account for it.
+        if (node.kind !== 'volta') {
+          // BOUNDED, because writing out is multiplicative and nesting makes it
+          // exponential. Dvorak's American Quartet has a first movement whose
+          // tremolos end up nested five deep — four to a level is 4^5, and an
+          // unbounded expansion took 8 GB and killed the process. Whatever the
+          // structure that produces it, a reader cannot let any input do that
+          // to a browser tab.
+          //
+          // Over budget the body is written ONCE and an error is raised. The
+          // notes are all still there; their repetition is not, which is wrong
+          // about duration and right about pitch — and it SAYS so, which is the
+          // rule for everything this reader cannot do.
+          const times = Math.max(1, Math.min(128, node.times | 0));
+          const depth = this.expandDepth || 0;
+          if (depth >= EXPAND_DEPTH || this.out.length > EXPAND_BUDGET) {
+            if (!this.expandWarned) {
+              this.expandWarned = true;
+              this.r?.warn?.(
+                depth >= EXPAND_DEPTH
+                  ? `\\repeat ${node.kind} is nested ${depth + 1} deep here; writing it out once `
+                    + 'instead, so these notes sound but do not repeat'
+                  : `this voice expands past ${EXPAND_BUDGET} events; \\repeat ${node.kind} is `
+                    + 'being written out once instead of in full',
+                node.src?.[0] ?? 0, 'error');
+            }
+            this.walk(node.music);
+            return;
+          }
+          this.expandDepth = depth + 1;
+          for (let i = 0; i < times; i++) this.walk(node.music);
+          if (node.alternatives?.length) for (const alt of node.alternatives) this.walk(alt);
+          this.expandDepth = depth;
+          return;
+        }
         const from = this.out.length;
         this.push({ kind: 'barline', style: 'repeat-start', tick: this.tick, src: [0, 0] });
         this.walk(node.music);
@@ -1480,9 +1580,10 @@ function barStyle(style) {
  * context at all is one staff with one voice, which is what a beginner writes
  * and what should therefore work.
  */
-function extractStaves(root, reader) {
+function extractStaves(root, reader, movementIndex = 0) {
   const staves = [];
   const groups = [];
+  let movementCount = 1;
 
   const asStaff = (node, name, props) => {
     const voices = [];
@@ -1531,6 +1632,10 @@ function extractStaves(root, reader) {
       }
       return found;
     }
+    if (node.t === 'movements') {
+      movementCount = node.items.length;
+      return visit(node.items[Math.min(movementIndex, node.items.length - 1)], inGroup);
+    }
     if (node.t === 'ref') return visit(node.music, inGroup);
     if (node.t === 'par' && !node.split) {
       let any = false;
@@ -1554,7 +1659,7 @@ function extractStaves(root, reader) {
   // A `\score`-level group spanning every staff says nothing a reader can see;
   // dropping it keeps a plain two-staff piano score free of a stray bracket.
   const real = groups.filter((g) => g.kind !== 'Score' && g.to > g.from);
-  return { staves, groups: real };
+  return { staves, groups: real, movementCount };
 }
 
 /**

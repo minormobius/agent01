@@ -732,6 +732,91 @@ const midiList = (score, staff = 0, voice = 0) =>
   eq(layout.warnings.length, 0, 'scale: and every bar check passes');
 }
 
+// ----------------------------------------- 12. real ensemble files --
+//
+// Four shapes taken from Dvorak's American Quartet (Mutopia, Op. 96) — a real
+// four-part score built the way real scores are built. Each one on its own
+// destroyed the whole file, and each was SILENT: no error, just a piece that
+// came out as something else.
+{
+  const quartet = String.raw`\score { \new StaffGroup <<
+    \new Staff { c'4 } \new Staff { e'4 } \new Staff { g4 } \new Staff { c4 } >> }`;
+
+  // (a) A top-level Scheme form. Not consumed, it is scanned one character at a
+  // time — one line produced 42 diagnostics that buried the real ones.
+  const scheme = parseLily("#(ly:set-option 'relative-includes #t)\n"
+    + '#(set-global-staff-size 15)\n' + quartet);
+  eq(scheme.staves.length, 4, 'archive: a top-level #(...) does not cost the staves');
+  eq(scheme.diagnostics.length, 0, 'archive: nor does it flood the diagnostics');
+
+  // (b) A definition carrying a direction — `arco = ^\markup {...}`. This is the
+  // one that mattered: the assignment failed, the reader resynchronised inside
+  // the next line, and the \score block was never recognised at all. The whole
+  // quartet arrived as ONE staff of 13007 notes.
+  for (const dir of ['^', '_', '-']) {
+    const s2 = parseLily(`arco = ${dir}\\markup { \\italic arco }\n` + quartet);
+    eq(s2.staves.length, 4, `archive: a definition with a leading ${dir} keeps its staves`);
+    eq(s2.diagnostics.length, 0, `archive: ...and reports nothing wrong`);
+  }
+  eq(parseLily('ffp = #(make-dynamic-script "ffp")\n' + quartet).staves.length, 4,
+    'archive: a Scheme-valued definition too');
+
+  // (c) Several \score blocks are MOVEMENTS, not more staves. Stacked, the four
+  // movements of the quartet became sixteen staves all starting at tick 0 and
+  // sounding at once.
+  const book = String.raw`\book {
+    \score { \new StaffGroup << \new Staff { c'4 } \new Staff { e'4 } >> }
+    \score { \new StaffGroup << \new Staff { g'4 } \new Staff { b'4 } >> }
+    \score { \new StaffGroup << \new Staff { d'4 } \new Staff { f'4 } >> } }`;
+  const m0 = parseLily(book);
+  eq(m0.movementCount, 3, 'movements: three \\score blocks are three movements');
+  eq(m0.staves.length, 2, 'movements: one of them is read, not all of them stacked');
+  eq(m0.movement, 0, 'movements: the first by default');
+  const m2 = parseLily(book, { movement: 2 });
+  eq(m2.movement, 2, 'movements: another can be asked for');
+  eq(m2.staves[0].voices[0].filter((e) => e.kind === 'note').length, 1,
+    'movements: and it has its own music');
+  const clamped = parseLily(book, { movement: 99 });
+  eq(clamped.movement, 2, 'movements: an out-of-range request clamps to the last');
+
+  // (d) Only \repeat VOLTA is a repeat sign. Read as one, the quartet's
+  // `\repeat tremolo 32` became 182 repeat marks an eighth note apart and the
+  // first movement expanded to 453 playback segments.
+  const trem = parseLily(String.raw`\score { \new Staff {
+    \repeat tremolo 4 { f16 a } \repeat unfold 3 { c8 } } }`);
+  const notes = trem.staves[0].voices[0].filter((e) => e.kind === 'note').length;
+  eq(notes, 4 * 2 + 3, 'repeat: tremolo and unfold are written out, not barred');
+  const bars = trem.staves[0].voices[0].filter((e) => e.kind === 'barline').length;
+  eq(bars, 0, 'repeat: and they leave no repeat bar lines');
+  const volta = parseLily(String.raw`\score { \new Staff { \repeat volta 2 { c4 d4 } } }`);
+  ok(volta.staves[0].voices[0].some((e) => e.kind === 'barline' && e.style === 'repeat-start'),
+    'repeat: volta still draws its repeat sign');
+
+  // Nesting is exponential and no real music does it on this path.
+  const nested = parseLily(String.raw`\score { \new Staff {
+    \repeat tremolo 4 { \repeat tremolo 4 { \repeat tremolo 4 { c32 d32 } } } } }`);
+  const nn = nested.staves[0].voices[0].filter((e) => e.kind === 'note').length;
+  ok(nn <= 4 * 2 * 2, `repeat: nested unfolds are bounded, not 4^3 (got ${nn})`);
+  ok(nested.diagnostics.some((d) => d.severity === 'error'),
+    'repeat: and the score says so rather than quietly shortening itself');
+}
+
+// A big score must not overflow the stack. `Math.max(1, ...everyEvent)` passes
+// the whole piece as ARGUMENTS, and V8 gives up somewhere past 100k of them, so
+// it fails on exactly the scores worth reading and never on the small ones a
+// test would use. Checked by SHAPE rather than by engraving a huge score: doing
+// that takes minutes, and a test nobody waits for is a test nobody runs. The
+// spreads left behind are over a chord's notes or a beam's members, both
+// bounded by what one hand can play.
+{
+  const engraveSrc = readFileSync(new URL('../src/engrave.js', import.meta.url), 'utf8');
+  ok(!/Math\.(?:max|min)\([^)]*\.\.\.[^)]*(?:staffData|score\.staves)\b/.test(engraveSrc),
+    'scale: nothing spreads a whole score into Math.max/Math.min');
+  const pfSrc = readFileSync(new URL('../src/pfsynth.js', import.meta.url), 'utf8');
+  ok(!/Math\.(?:max|min)\([^)]*\.\.\.\s*events/.test(pfSrc),
+    'scale: nor does the model renderer spread its note list');
+}
+
 // ------------------------------------------------------------------ report --
 console.log(`${checks - failures}/${checks} checks passed`);
 if (failures) {

@@ -393,8 +393,19 @@ export function engrave(score, options = {}) {
     ? Math.max(0, ...named.map((n) => textWidth(n, nameFont))) + decorLeft + sp * 1.1
     : 0;
 
-  const totalTicks = Math.max(1, ...staffData.flatMap((s) =>
-    s.items.flatMap((v) => v.map((e) => e.tick + (e.ticks || 0)))));
+  // Folded rather than spread. `Math.max(1, ...everyEvent)` passes the whole
+  // score as ARGUMENTS, and a big one — a quartet movement with its tremolos
+  // written out — overflows the call stack. It fails on exactly the scores
+  // worth reading and never on the small ones you test with.
+  let totalTicks = 1;
+  for (const st of staffData) {
+    for (const v of st.items) {
+      for (const e of v) {
+        const end = e.tick + (e.ticks || 0);
+        if (end > totalTicks) totalTicks = end;
+      }
+    }
+  }
 
   const { measures, voltas } = buildMeasures(staffData, totalTicks);
 
